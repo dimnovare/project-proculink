@@ -177,7 +177,13 @@ function deriveTimeline(p: PassportDto): DerivedTimeline {
 // ─── Visual atoms ───────────────────────────────────────────────────────────
 
 const STATE_STYLE: Record<StageState, { ring: string; fill: string; text: string; glyph: string }> = {
-  done:    { ring: "#2E8E3A", fill: "#2E8E3A", text: "#1E6D29", glyph: "✓" },
+  // `fill` carries the white ✓ glyph, so it is a TEXT background even though the
+  // glyph is aria-hidden: #FFFFFF on #2E8E3A is 4.1613:1. --brand-green-btn is
+  // the token this repo already uses for a solid green under white text (5.0244:1
+  // — same move as the webhooks and settings primary buttons). `ring` stays
+  // --brand-green: it is a 2px border, non-text, and clears the 3:1 floor.
+  // failed's #B43838 already carries white at 5.8932:1 and is left alone.
+  done:    { ring: "#2E8E3A", fill: "#297F34", text: "#1E6D29", glyph: "✓" },
   current: { ring: "#1E66C9", fill: "#FFFFFF", text: "#0F4FA8", glyph: "●" },
   pending: { ring: "#CBD0DA", fill: "#FFFFFF", text: "var(--ink-faint)", glyph: "" },
   failed:  { ring: "#B43838", fill: "#B43838", text: "#B43838", glyph: "✕" },
@@ -232,7 +238,10 @@ function MappingRow({ d }: { d: PassportMappingDecision }) {
       <span style={{ width: 22, flexShrink: 0, color: "var(--ink-faint)", fontFamily: "'JetBrains Mono',monospace" }}>{d.lineNumber}</span>
       <span style={{ fontFamily: "'JetBrains Mono',monospace", color: "#1E66C9", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{d.buyerCode || "—"}</span>
       <span style={{ color: "var(--ink-faint)", flexShrink: 0 }}>→</span>
-      <span style={{ fontFamily: "'JetBrains Mono',monospace", color: d.supplierCode ? "#2E8E3A" : "#B43838", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{d.supplierCode || "unresolved"}</span>
+      {/* Resolved code is #1E6D29, not #2E8E3A: 11.5px mono copy on the Section's
+          #FFFFFF, where #2E8E3A is 4.1613:1 — under AA. #1E6D29 is 6.4128:1, and
+          matches the #1E66C9 buyer code beside it (5.5275:1). */}
+      <span style={{ fontFamily: "'JetBrains Mono',monospace", color: d.supplierCode ? "#1E6D29" : "#B43838", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{d.supplierCode || "unresolved"}</span>
       <span style={{ flexShrink: 0, fontSize: 9.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", background: badge.bg, color: badge.color, borderRadius: 3, padding: "2px 6px" }}>{d.source}</span>
       {d.confidence != null && <Pct value={d.confidence <= 1 ? d.confidence * 100 : d.confidence} />}
     </div>

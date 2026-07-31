@@ -157,7 +157,11 @@ export function StatusJourney({ stage, compact = false, crossingRef }: StatusJou
                 <span
                   className="mt-1.5 text-[10px] text-center leading-tight"
                   style={{
-                    color: active ? "#0B1A2F" : done ? "#2E8E3A" : "var(--ink-faint)",
+                    // `done` is #1E6D29, not #2E8E3A: this is 10px/400 copy, so the
+                    // 4.5:1 AA floor applies, and #2E8E3A is 4.1613:1 on #FFFFFF /
+                    // 3.8846:1 on the #F6F7FA work area. #1E6D29 is 6.4128 / 5.9863.
+                    // The dot and rail above stay #2E8E3A — non-text, 3:1 floor.
+                    color: active ? "#0B1A2F" : done ? "#1E6D29" : "var(--ink-faint)",
                     fontWeight: active ? 700 : 400,
                   }}
                 >

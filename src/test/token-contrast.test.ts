@@ -25,6 +25,28 @@
  * failing pair in a second file (`settings/page.tsx`) after it had been fixed in
  * the first — the token was swept, the PAIR was not. A per-site assertion would
  * have repeated that mistake; a repo-wide rule cannot.
+ *
+ * WHAT THIS FILE DOES NOT DO — read this before quoting a green run.
+ *   1. IT IS A LIST, NOT A SWEEP. Every row below is a pair somebody MEASURED and
+ *      then pinned. A failing pair nobody has looked at is not in the list, so it
+ *      is green here, and green here is not a claim that the app passes AA.
+ *   2. IT RESOLVES TOKENS, NOT LAYOUTS. `contrast(fg, bg)` needs to be told the
+ *      background. Nothing here discovers what is actually painted behind a
+ *      given element — that is a rendering question, and every `bg` in the table
+ *      was determined by reading the tree by hand. A pair can be right here and
+ *      wrong on screen if the element moved.
+ *   3. ALPHA IS COMPOSITED BY HAND. `#2E8E3A18` over white is `#EBF4EC`, computed
+ *      once and written down. Change the row colour underneath and the pinned
+ *      composite is stale with nothing to notice.
+ *   4. THE SOURCE RULES COVER TWO VALUE FAMILIES, amber and the retired emerald,
+ *      plus one pairing rule for green-under-white. `src/app/**` has never been
+ *      contrast-audited at all: it carries a hex-literal ledger in
+ *      check-tokens.mjs, and THAT LEDGER IS ABOUT RAW HEX, not about contrast.
+ *      Round 2's AC treated the two as interchangeable — it deferred its
+ *      un-audited remainder to "the 798 ledgered violations" while 27 measured
+ *      sub-4.5:1 text pairs sat in src/components/**, a region the ledger has
+ *      never had a single row for. A debt ledger is only an alibi for the files
+ *      it lists, and only for the kind of debt it counts.
  */
 
 import { describe, it, expect } from "vitest";

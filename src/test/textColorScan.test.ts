@@ -141,28 +141,35 @@ describe("the scanner does not fire on the property names next door", () => {
   });
 });
 
-describe("the real tree", () => {
-  const REPO = resolve(__dirname, "../..");
-  const SKIP = new Set(["node_modules", ".next", "mocks"]);
+const REPO = resolve(__dirname, "../..");
+const SKIP = new Set(["node_modules", ".next", "mocks"]);
 
-  function walk(dir: string): string[] {
-    const out: string[] = [];
-    for (const entry of readdirSync(dir)) {
-      const full = join(dir, entry);
-      if (statSync(full).isDirectory()) {
-        if (!SKIP.has(entry)) out.push(...walk(full));
-      } else if (/\.(tsx?|mdx|css)$/.test(entry) && !/\.test\.tsx?$/.test(entry)) {
-        out.push(full);
-      }
+function walk(dir: string): string[] {
+  const out: string[] = [];
+  for (const entry of readdirSync(dir)) {
+    const full = join(dir, entry);
+    if (statSync(full).isDirectory()) {
+      if (!SKIP.has(entry)) out.push(...walk(full));
+    } else if (/\.(tsx?|mdx|css)$/.test(entry) && !/\.test\.tsx?$/.test(entry)) {
+      out.push(full);
     }
-    return out;
   }
+  return out;
+}
 
-  const SOURCES: ScanFile[] = walk(join(REPO, "src")).map((full) => ({
-    rel: relative(REPO, full).replace(/\\/g, "/"),
-    text: readFileSync(full, "utf8"),
-  }));
+const SOURCES: ScanFile[] = walk(join(REPO, "src")).map((full) => ({
+  rel: relative(REPO, full).replace(/\\/g, "/"),
+  text: readFileSync(full, "utf8"),
+}));
 
+/** An exemption, matched by LINE CONTENT so it goes stale instead of drifting. */
+interface Exemption {
+  rel: string;
+  contains: string;
+  reason: string;
+}
+
+describe("the real tree — the amber family", () => {
   /**
    * globals.css DEFINES `--amber`. `--amber: #B36D14;` is a custom-property
    * declaration, which `boundNames` correctly reads as an alias — the definition
@@ -186,7 +193,7 @@ describe("the real tree", () => {
    * `file:line` list has, and the reason the token gate's own baseline is a
    * counted ledger rather than a set of paths.
    */
-  const EXEMPT: Array<{ rel: string; contains: string; reason: string }> = [
+  const EXEMPT: Exemption[] = [
     {
       rel: "src/components/bridge/BridgeDashboard.tsx",
       contains: `{ key: "review",    label: "Needs review",  value: countBlocked,   color: AMBER },`,
@@ -251,5 +258,156 @@ describe("the real tree", () => {
     // ~400 source files; if this collapses, the assertion above proves nothing.
     expect(SOURCES.length).toBeGreaterThan(300);
     expect(SOURCES.filter((s) => s.rel.endsWith(".css")).length).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * The GREEN family — the second systemic cause, and the one nobody had named.
+ *
+ * `--brand-green` `#2E8E3A` is to green what `--amber` is to amber: the NON-TEXT
+ * member. 4.1613:1 on white, 3.8846:1 on `--bg`. globals.css had already learned
+ * this lesson once and shipped `--amber-text`; nothing had drawn the conclusion
+ * for green, so ~20 sites were painting copy in it. `--brand-green-deep`
+ * `#1E6D29` already existed and is the answer — no new token.
+ *
+ * THE SCOPE IS NARROWER THAN THE AMBER RULE, DELIBERATELY, and saying why is the
+ * point of this comment. `src/components/**` (plus `src/mdx-components.tsx`) is
+ * the region this packet AUDITED and swept. `src/app/**` was not: a probe run for
+ * this round found green text sites in `(home)/page.tsx`, `one-pager`,
+ * `global-error.tsx`, `not-found.tsx` and `AnimatedPipelinePanel.tsx` that nobody
+ * has measured. Turning the rule on there would either fail CI or force a sweep
+ * this change is not doing.
+ *
+ * So it is a RATCHET, in the same shape as check-tokens.mjs's baseline: the swept
+ * region cannot regress, the unswept region is named out loud rather than
+ * silently included. What it must never be read as is "green text is fine in
+ * src/app" — round 2 was refuted for exactly that move, treating a region the
+ * ledger did not cover as a region the ledger absolved.
+ */
+const GREEN: BannedValue = {
+  hex: ["#2E", "8E", "3A"].join(""),
+  cssVar: "--brand-green",
+  utility: "brand-green",
+};
+
+describe("the real tree — the green family", () => {
+  /** The region this packet audited. See the note above for why it is not all of src/. */
+  const SWEPT = (rel: string) =>
+    rel.startsWith("src/components/") || rel === "src/mdx-components.tsx";
+  const IN_SCOPE = SOURCES.filter((s) => SWEPT(s.rel));
+
+  /**
+   * CommandPalette is exempt at FILE level, and the thing that makes that safe is
+   * asserted separately below rather than asserted here.
+   *
+   * Every `color` in it is a `CmdItem` FILL: it is painted as `${item.color}18`,
+   * a 9.4%-alpha chip tint (non-text, 3:1), and the glyph on top of it goes
+   * through `glyphColor()`, which maps each fill to its AA-legible text sibling.
+   * Four separate `contains` entries would be four copies of one fact, and a list
+   * that repeats itself is a list nobody re-reads. The file-level exemption is
+   * paired with a test that the MAPPING IS STILL WIRED — if `glyphColor` is
+   * removed from the glyph, the exemption stops being true and the suite says so.
+   */
+  const allow = (rel: string) => rel === "src/components/bridge/CommandPalette.tsx";
+
+  /**
+   * Same blind spot as the amber list, and the same shape of entry: a `color:`
+   * that is really an icon stroke or a fill.
+   *
+   * A STRUCTURAL SHORTCUT WAS CONSIDERED AND REJECTED. Every icon case here is a
+   * SELF-CLOSING JSX element, which renders no text of its own, so "skip `color:`
+   * inside a self-closing tag" would delete most of this list. It was not taken:
+   * a self-closing CUSTOM component can render text internally and inherit that
+   * `color`, so the shortcut would create a silent blind spot — and a silent
+   * blind spot is precisely the class of defect this packet has now been refuted
+   * for twice. Ten reviewable lines that each state a checked fact are the
+   * cheaper mistake.
+   */
+  const EXEMPT: Exemption[] = [
+    {
+      rel: "src/components/bridge/BridgeDashboard.tsx",
+      contains: `{ key: "delivered", label: "Delivered",     value: countDelivered, color: GREEN },`,
+      reason: "stat-row RECORD field, consumed as `background: s.color` on an 8×8px dot.",
+    },
+    {
+      rel: "src/components/bridge/BridgeDashboard.tsx",
+      contains: `{ label: "Delivered",    value: countDelivered, color: GREEN },`,
+      reason: "proportion-bar SEGMENT field, consumed as `background` on the bar and legend square.",
+    },
+    {
+      rel: "src/components/bridge/BridgeDashboard.tsx",
+      contains: `<CheckCircle2 size={22} strokeWidth={2} style={{ color: GREEN }} aria-hidden />`,
+      reason: "lucide icon — currentColor STROKE, aria-hidden, non-text 3:1 floor.",
+    },
+    {
+      rel: "src/components/bridge/ConnectorRequirementsPanel.tsx",
+      contains: `<Info size={13} style={{ color: "#2E8E3A", flexShrink: 0 }} aria-hidden="true" />`,
+      reason: "lucide icon — currentColor STROKE, aria-hidden, non-text 3:1 floor.",
+    },
+    {
+      rel: "src/components/bridge/OrgSwitcher.tsx",
+      contains: `<Check size={15} strokeWidth={2.4} style={{ color: "#2E8E3A", flexShrink: 0 }}`,
+      reason: "lucide icon — currentColor STROKE, non-text 3:1 floor.",
+    },
+    {
+      rel: "src/components/bridge/OrderPassport.tsx",
+      contains: `fontSize: 9, fontWeight: 800, color: n.state === "current" ? s.ring : "#FFFFFF",`,
+      reason:
+        "the scanner's documented map-index blind spot showing up as a FALSE POSITIVE " +
+        "rather than a miss: it matched `s.ring` because STATE_STYLE binds a `ring` key " +
+        "to #2E8E3A, but this branch only reads `ring` when state is `current`, where " +
+        "ring is #1E66C9 on a #FFFFFF fill (5.5275:1). The genuinely tight pair here was " +
+        "the OTHER branch — white on `done.fill` at 4.1613:1 — and that fill is now " +
+        "--brand-green-btn #297F34, 5.0244:1. Left as an exemption rather than worked " +
+        "around, because the limitation is real and pretending otherwise is the bug.",
+    },
+  ];
+
+  /** The assertion that earns CommandPalette its file-level exemption. */
+  it("CommandPalette still routes the glyph through glyphColor", () => {
+    const src = SOURCES.find((s) => s.rel === "src/components/bridge/CommandPalette.tsx");
+    expect(src, "CommandPalette.tsx not found — the exemption above is now blind").toBeDefined();
+    // The chip fill stays on the raw value; the GLYPH must not.
+    expect(src!.text).toContain("background: `${item.color ?? \"#2E8E3A\"}18`");
+    expect(src!.text).toContain('color: glyphColor(item.color ?? "#2E8E3A"),');
+    // And the map must cover all three families the palette actually paints —
+    // green was the one the sweep was scoped to, amber was 3.6662:1 and blue
+    // 4.4231:1 on the active row.
+    for (const pair of ['"#2E8E3A": "#1E6D29"', '"#B36D14": "#8A5310"', '"#1E66C9": "#0F4FA8"']) {
+      expect(src!.text, `glyphColor no longer maps ${pair}`).toContain(pair);
+    }
+  });
+
+  const exempted = (h: { rel: string; text: string }) =>
+    EXEMPT.some((e) => e.rel === h.rel && h.text.includes(e.contains.trim()));
+
+  it("every exemption still matches a real line — a stale one is a failure", () => {
+    const stale = EXEMPT.filter(
+      (e) => !SOURCES.find((s) => s.rel === e.rel)?.text.includes(e.contains),
+    );
+    expect(
+      stale.map((e) => `${e.rel} no longer contains: ${e.contains}`),
+      "re-read the site and either delete the exemption or restate its reason",
+    ).toEqual([]);
+  });
+
+  it("has no text use of --brand-green in the swept region", () => {
+    const found = scanTextColorUses(IN_SCOPE, GREEN, allow).filter((h) => !exempted(h));
+    expect(
+      found.map((h) => `${h.rel}:${h.line}  [${h.spelling}]  ${h.text}`),
+      "use --brand-green-deep (#1E6D29, 6.4128:1 on white). --brand-green is\n" +
+        "4.1613:1 on white and 3.8846:1 on --bg — under the 4.5:1 text floor on\n" +
+        "both. It stays legal for dots, borders, strokes, fills and icons.",
+    ).toEqual([]);
+  });
+
+  it("the exemptions are load-bearing — each one really is being forgiven", () => {
+    const raw = scanTextColorUses(IN_SCOPE, GREEN, allow);
+    expect(raw.every((h) => exempted(h))).toBe(true);
+    expect(raw.length).toBe(EXEMPT.length);
+  });
+
+  it("the swept region is big enough for that pass to mean something", () => {
+    expect(IN_SCOPE.length).toBeGreaterThan(100);
   });
 });

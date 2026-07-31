@@ -30,9 +30,11 @@ import { ConfidenceChip } from "./ConfidenceChip";
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const NAVY       = "#0B1A2F";
-const BLUE       = "#2E8E3A";
-const BLUE_DEEP  = "#1E6D29";
-const BLUE_SOFT  = "#E9F1EA";
+// WP-30: BLUE / BLUE_DEEP / BLUE_SOFT were byte-identical duplicates of the GREEN
+// trio below (#2E8E3A / #1E6D29 / #E9F1EA) — constants that lied about their own
+// value, which is why `color: BLUE` (#2E8E3A, 4.1613:1 on #FFFFFF) read as "blue,
+// therefore fine" and survived every earlier contrast sweep. Merged into GREEN*;
+// no BLUE alias remains. The one real blue in this file is BUYER_BLUE.
 const GREEN      = "#2E8E3A";
 const GREEN_DEEP = "#1E6D29";
 const GREEN_SOFT = "#E9F1EA";
@@ -45,7 +47,10 @@ const FAINT      = "var(--ink-faint)";
 const BG         = "#F6F7FA";
 const SURFACE    = "#FFFFFF";
 const SURFACE2   = "#F1F3F7";
-const AMBER      = "#B36D14";
+const AMBER      = "#B36D14"; // pending-wire stroke only (non-text, 3:1 floor)
+// Amber as TEXT: #8A5310 is 5.6206:1 on #FAF1DD and 6.3150:1 on #FFFFFF.
+// AMBER is 3.6547:1 / 4.1061:1 on those — both below the 4.5:1 AA floor.
+const AMBER_TEXT = "#8A5310";
 const AMBER_SOFT = "#FAF1DD";
 const AI         = "#6F4FCE";
 const AI_SOFT    = "#F0EAFB";
@@ -550,7 +555,7 @@ export function PoMappingEditor({
                   {fmt && (
                     <span
                       className="mr-1.5 rounded px-1.5 py-0.5 text-[10.5px] font-semibold uppercase"
-                      style={{ background: BLUE_SOFT, color: BLUE_DEEP, fontFamily: "'JetBrains Mono', monospace" }}
+                      style={{ background: GREEN_SOFT, color: GREEN_DEEP, fontFamily: "'JetBrains Mono', monospace" }}
                     >
                       {fmt.toUpperCase()}
                     </span>
@@ -561,7 +566,7 @@ export function PoMappingEditor({
                 {autoNote && (
                   <span
                     className="mt-1 inline-block rounded px-2 py-0.5 text-[11px] font-medium"
-                    style={{ background: BLUE_SOFT, color: BLUE_DEEP }}
+                    style={{ background: GREEN_SOFT, color: GREEN_DEEP }}
                   >
                     {autoNote}
                   </span>
@@ -625,11 +630,11 @@ export function PoMappingEditor({
           type="button"
           onClick={() => setShowStd((v) => !v)}
           className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold"
-          style={{ background: "none", border: "none", color: BLUE_DEEP, cursor: "pointer" }}
+          style={{ background: "none", border: "none", color: GREEN_DEEP, cursor: "pointer" }}
         >
           <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden>
-            <rect x="1" y="3" width="12" height="8" rx="1.5" stroke={BLUE_DEEP} strokeWidth="1.4" />
-            <path d="M4 7h6M4 9.5h3.5" stroke={BLUE_DEEP} strokeWidth="1.4" strokeLinecap="round" />
+            <rect x="1" y="3" width="12" height="8" rx="1.5" stroke={GREEN_DEEP} strokeWidth="1.4" />
+            <path d="M4 7h6M4 9.5h3.5" stroke={GREEN_DEEP} strokeWidth="1.4" strokeLinecap="round" />
           </svg>
           {showStandards ? "Hide standards" : "Show standards"}
         </button>
@@ -649,7 +654,9 @@ export function PoMappingEditor({
             type="button"
             onClick={() => sourceQuery.refetch()}
             className="mt-3 inline-flex items-center gap-1.5 rounded-[6px] px-3 py-1.5 text-[12px] font-medium"
-            style={{ background: SURFACE, color: BLUE, border: `1px solid ${BORDER}`, cursor: "pointer" }}
+            // GREEN_DEEP, not GREEN: #2E8E3A on this #FFFFFF is 4.1613:1, under the
+            // 4.5:1 AA floor for button copy. #1E6D29 is 6.4128:1.
+            style={{ background: SURFACE, color: GREEN_DEEP, border: `1px solid ${BORDER}`, cursor: "pointer" }}
           >
             Re-detect columns
           </button>
@@ -936,7 +943,9 @@ export function PoMappingEditor({
                         style={{
                           fontFamily: "'JetBrains Mono', monospace",
                           fontSize: 10.5,
-                          color: AMBER,
+                          // #8A5310 on the pending row's #FAF1DD = 5.6206:1. NOT
+                          // #B36D14, which is 3.6547:1 here.
+                          color: AMBER_TEXT,
                           marginBottom: 5,
                         }}
                       >
@@ -1134,7 +1143,8 @@ export function PoMappingEditor({
               All required fields mapped
             </span>
           ) : (
-            <span style={{ fontSize: 12, fontWeight: 500, color: AMBER }}>
+            // #8A5310 on the footer's #FFFFFF = 6.3150:1. NOT #B36D14, which is 4.1061:1 here.
+            <span style={{ fontSize: 12, fontWeight: 500, color: AMBER_TEXT }}>
               Map required (*) fields to continue
             </span>
           )}
@@ -1190,7 +1200,7 @@ function SourceStatus({
               style={{
                 borderRadius: 4, padding: "1px 6px",
                 fontSize: 10.5, fontWeight: 700,
-                background: BLUE_SOFT, color: BLUE_DEEP,
+                background: GREEN_SOFT, color: GREEN_DEEP,
                 textTransform: "uppercase",
                 fontFamily: "'JetBrains Mono', monospace",
               }}
@@ -1206,7 +1216,8 @@ function SourceStatus({
           </span>
         </div>
       ) : (
-        <span style={{ fontSize: 12, color: AMBER }} title={hint ?? ""}>
+        // #8A5310 on the card header's #FFFFFF = 6.3150:1. NOT #B36D14, which is 4.1061:1 here.
+        <span style={{ fontSize: 12, color: AMBER_TEXT }} title={hint ?? ""}>
           No sample detected
         </span>
       )}
@@ -1215,7 +1226,9 @@ function SourceStatus({
         onClick={onRedetect}
         className="rounded-[5px] px-2 py-1 text-[11.5px] font-medium"
         style={{
-          background: SURFACE, color: BLUE,
+          // GREEN_DEEP, not GREEN: #2E8E3A on this #FFFFFF is 4.1613:1, under the
+          // 4.5:1 AA floor for button copy. #1E6D29 is 6.4128:1.
+          background: SURFACE, color: GREEN_DEEP,
           border: `1px solid ${BORDER}`, cursor: "pointer",
         }}
       >
@@ -1280,7 +1293,7 @@ function TemplatePicker({
         className="inline-flex items-center gap-1.5 rounded-[6px] px-3 py-1.5 text-[12px] font-semibold"
         style={{
           background: SURFACE,
-          color: BLUE_DEEP,
+          color: GREEN_DEEP,
           border: `1px solid ${BORDER}`,
           cursor: "pointer",
           whiteSpace: "nowrap",
@@ -1289,13 +1302,13 @@ function TemplatePicker({
         aria-expanded={open}
       >
         <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden>
-          <rect x="1" y="2" width="12" height="3" rx="1" fill={BLUE_DEEP} opacity="0.25" />
-          <rect x="1" y="6.5" width="8" height="3" rx="1" fill={BLUE_DEEP} opacity="0.5" />
-          <rect x="1" y="11" width="5" height="3" rx="1" fill={BLUE_DEEP} />
+          <rect x="1" y="2" width="12" height="3" rx="1" fill={GREEN_DEEP} opacity="0.25" />
+          <rect x="1" y="6.5" width="8" height="3" rx="1" fill={GREEN_DEEP} opacity="0.5" />
+          <rect x="1" y="11" width="5" height="3" rx="1" fill={GREEN_DEEP} />
         </svg>
         Apply starter template
         <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden>
-          <path d="M2 3.5L5 6.5L8 3.5" stroke={BLUE_DEEP} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M2 3.5L5 6.5L8 3.5" stroke={GREEN_DEEP} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </button>
       {open && (
@@ -1332,7 +1345,7 @@ function TemplatePicker({
                 padding: "8px 14px",
                 cursor: "pointer",
               }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLLIElement).style.background = BLUE_SOFT; }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLLIElement).style.background = GREEN_SOFT; }}
               onMouseLeave={(e) => { (e.currentTarget as HTMLLIElement).style.background = "transparent"; }}
             >
               <div style={{ fontSize: 12.5, fontWeight: 600, color: NAVY }}>{tpl.name}</div>
@@ -1448,7 +1461,7 @@ function ColumnCombobox({
                 padding: "5px 10px", cursor: "pointer",
                 fontSize: 12,
                 fontFamily: "'JetBrains Mono', monospace",
-                background: i === active ? BLUE_SOFT : opt === value ? "#F4F7FD" : "transparent",
+                background: i === active ? GREEN_SOFT : opt === value ? "#F4F7FD" : "transparent",
                 color: NAVY,
               }}
             >
