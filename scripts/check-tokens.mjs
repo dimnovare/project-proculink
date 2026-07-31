@@ -85,6 +85,7 @@
 import { readFileSync, readdirSync, statSync, existsSync } from "fs";
 import { join, relative } from "path";
 import { fileURLToPath } from "url";
+import { RETIRED_COLORS, retiredRegex } from "./retired-colors.mjs";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 
@@ -205,8 +206,15 @@ const HEX_RE =
  * rgb()/rgba()/hsl()/hsla() whose arguments contain no `var(`. With a token
  * inside — `rgba(var(--x), .2)` — it is a token being given an alpha and is
  * correct; with raw numbers it is a hardcoded colour wearing a different hat.
+ *
+ * CASE-INSENSITIVE. It was not, and `RGBA(30,102,201,.22)` walked straight past
+ * a rule whose entire purpose is that a colour restated in a different notation
+ * is still the same colour. CSS function names are case-insensitive, so the
+ * gate has to be too. Measured before adding the flag: zero uppercase colour
+ * functions exist under src/app today, so this changes no baseline count — it
+ * closes the spelling, it does not re-cut the ledger.
  */
-const COLOR_FN_RE = /\b(?:rgba?|hsla?)\(([^)]*)\)/g;
+const COLOR_FN_RE = /\b(?:rgba?|hsla?)\(([^)]*)\)/gi;
 
 /** `const SCREAMING_SNAKE = "#hex"` — the per-page palette constant (doc rule 5). */
 const PALETTE_CONST_RE = /\bconst\s+([A-Z][A-Z0-9_]*)\s*(?::[^=]*)?=\s*["'`](#[0-9A-Fa-f]{3,8})["'`]/;
@@ -214,11 +222,14 @@ const PALETTE_CONST_RE = /\bconst\s+([A-Z][A-Z0-9_]*)\s*(?::[^=]*)?=\s*["'`](#[0
 /**
  * Values the design system RETIRED and explicitly bans. Swept across all of
  * src/** — see the header. Never baselined, never allowlisted.
- * docs/design-system/11-unified-page-rules.md: "the retired emerald greens
- * #28C55E, #1DAF50, #1AAF50 are banned".
+ *
+ * HEX AND DECIMAL. This was `new RegExp(RETIRED_COLORS.join("|"), "gi")` — hex
+ * only — which is the exact defect the `color-fn` rule above exists to close,
+ * repeated one rule down: `rgb(40,197,94)` IS `#28C55E`, and it passed. The list
+ * and both spellings now live in scripts/retired-colors.mjs, shared with
+ * check-emitted-css.mjs so the two gates cannot drift apart.
  */
-const RETIRED_COLORS = ["#28C55E", "#1DAF50", "#1AAF50"];
-const RETIRED_RE = new RegExp(RETIRED_COLORS.join("|"), "gi");
+const RETIRED_RE = retiredRegex();
 
 const RULE_HINT = {
   "hex-literal":

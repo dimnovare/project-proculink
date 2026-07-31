@@ -18,11 +18,35 @@ import tailwindcssAnimate from "tailwindcss-animate";
 
 export default {
   darkMode: ["class"],
+  // TEST FILES ARE EXCLUDED, and the exclusion is load-bearing — not tidiness.
+  //
+  // Tailwind's content scanner is a REGEX OVER FILE TEXT. It does not parse, and
+  // it cannot tell a class name from a string a test writes to a temp file. The
+  // design-token guards (scripts/check-tokens.mjs, src/test/token-contrast.test.ts)
+  // both skip `*.test.ts(x)` on purpose — a test that PINS a ban has to be able to
+  // name the value it bans. Tailwind did not skip them, and the two scopes
+  // disagreeing is what shipped the bug:
+  //
+  //   src/test/check-tokens.test.ts wrote the fixture `focus-visible:ring-[#28C55E]`
+  //   → Tailwind read it as a class candidate
+  //   → production CSS shipped `.focus-visible\:ring-\[\#28C55E\]{--tw-ring-color:rgb(40 197 94/…)}`
+  //
+  // The retired emerald was put back into the build BY THE TEST WRITTEN TO PROVE IT
+  // WAS GONE. Measured: adding these two lines removes exactly ONE emitted rule
+  // (1088 → 1087) — the emerald ring, and nothing else.
+  //
+  // GENERAL FORM, worth more than the fix: when two tools scan the same file set
+  // with DIFFERENT exclusion rules, an exclusion in one is not an exclusion in the
+  // other. Verifying with the guard could never have caught this, because the guard
+  // is not the scanner that emits. `scripts/check-emitted-css.mjs` closes that by
+  // reading what Tailwind actually EMITS, and CI runs it.
   content: [
     "./pages/**/*.{ts,tsx}",
     "./components/**/*.{ts,tsx}",
     "./app/**/*.{ts,tsx}",
     "./src/**/*.{ts,tsx}",
+    "!./src/**/*.test.{ts,tsx}",
+    "!./src/test/**",
   ],
   prefix: "",
   theme: {

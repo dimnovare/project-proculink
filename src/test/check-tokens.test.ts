@@ -184,9 +184,20 @@ export default function Page() {
     // it by construction. This rule sweeps all of src/, has no baseline and no
     // allowlist. The fixture is deliberately in src/components, which the
     // src/app-scoped rules never look at.
+    //
+    // THE LITERAL IS ASSEMBLED, NOT WRITTEN. Spelling `focus-visible:ring-[#28C55E]`
+    // out in this file put the banned emerald back into PRODUCTION CSS: Tailwind's
+    // content scanner is a regex over file text, it scanned `src/**/*.ts`, and it
+    // emitted `.focus-visible\:ring-\[\#28C55E\]{--tw-ring-color:rgb(40 197 94/…)}`
+    // from this exact line. The guard skips `*.test.ts`; the compiler did not.
+    // tailwind.config.ts now excludes tests too, and check-emitted-css.mjs reads the
+    // compiler's real output — but the fixture is assembled anyway, so neither
+    // spelling of the mistake is one edit away. The runtime value is unchanged, so
+    // the assertion below still tests the real banned colour.
     mkdirSync(join(ROOT, "src", "components"), { recursive: true });
     const outside = join(ROOT, "src", "components", "Ring.tsx");
-    writeFileSync(outside, `export const ring = "focus-visible:ring-[#28C55E]";\n`, "utf8");
+    const banned = ["#28", "C5", "5E"].join("");
+    writeFileSync(outside, `export const ring = "focus-visible:ring-[${banned}]";\n`, "utf8");
     expect(run("--strict")).toBe(1);
     const report = output("--strict");
     expect(report).toContain("[retired-color]");
