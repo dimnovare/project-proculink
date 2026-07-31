@@ -30,6 +30,7 @@ import { buildChecklistSteps } from "./buildChecklistSteps";
 import { DashboardContextLine } from "./DashboardContextLine";
 import { PageHeader } from "./layout/PageHeader";
 import { PageShell } from "./layout/PageShell";
+import { countFor, statusesForLabel } from "./orderCountContract";
 import { apiClient, isApiMockMode } from "@/lib/api-client";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
@@ -184,6 +185,22 @@ const STAGE_COLOR: Record<string, string> = {
  * the mock-fallback rows, mirroring the design's per-row mini-stepper.
  * Exported for statusJourneyFailedStage.test.tsx only.
  */
+/**
+ * The mock-mode twin of `countFor`: the same contract label, counted over the loaded
+ * working set instead of the live summary histogram. Derived from ORDER_COUNT_CONTRACT
+ * so the two branches cannot drift — the previous code wrote each status set twice
+ * (once per branch) and one of the pairs disagreed.
+ */
+function countInWorkingSet(label: string, orders: OrderSummary[]): number {
+  const statuses = statusesForLabel(label);
+  if (statuses === undefined) {
+    throw new Error(`BridgeDashboard: "${label}" is not in ORDER_COUNT_CONTRACT.`);
+  }
+  if (statuses === null) return orders.length;
+  const set = new Set<string>(statuses);
+  return orders.filter((o) => set.has(o.status)).length;
+}
+
 export function journeyStageFor(stage: string): OrderStage {
   // Any raw failure status gets its node from the shared map — today only
   // delivery_failed is in ACTIVE_STATUSES, but an expansion of that set must
@@ -628,29 +645,31 @@ export function BridgeDashboard() {
   // mode the summary is derived from the same mockOrders, so the fallback
   // counts the loaded working set instead. We never fabricate numbers.
   const byStatus = ordersSummary?.byStatus ?? {};
-  const sumStatuses = (...keys: string[]) =>
-    keys.reduce((acc, k) => acc + ((byStatus as Record<string, number>)[k] ?? 0), 0);
 
   // The funnel reads from the same source as the exception count: the live
   // summary when authed, the loaded working set in mock mode. Keeping ONE base
   // means the funnel stages reconcile with the "Needs attention" KPI.
   const funnelLoading = !isApiMockMode ? summaryLoading : ordersLoading;
   const funnelError = !isApiMockMode ? summaryError : ordersError;
-  const countBlocked = !isApiMockMode
-    ? sumStatuses("pending_review")
-    : allOrders.filter((o) => o.status === "pending_review").length;
-  const countReady = !isApiMockMode
-    ? sumStatuses("ready", "ready_to_deliver")
-    : allOrders.filter((o) => o.status === "ready" || o.status === "ready_to_deliver").length;
-  const countDelivered = !isApiMockMode
-    ? sumStatuses("delivered")
-    : allOrders.filter((o) => o.status === "delivered").length;
-  const countFailed = !isApiMockMode
-    ? sumStatuses("failed", "transform_failed", "delivery_failed", "delivery_dead_letter", "rejected_by_supplier")
-    : allOrders.filter((o) => FAILED_STATUSES.has(o.status) || o.status === "rejected_by_supplier").length;
-  const countReceived = !isApiMockMode
-    ? (ordersSummary?.total ?? 0)
-    : allOrders.length;
+  // ── The counts, resolved BY LABEL through ORDER_COUNT_CONTRACT ─────────────
+  // Every number below is `countFor("<the words the user reads>")`, the same call the
+  // inbox chips make. It replaces four hand-written status sums, one of which — "Ready
+  // to send" over `ready + ready_to_deliver` — meant something different from the same
+  // three words in the inbox, so an operator read 12 here and could not find 12 there.
+  // orderCountParity.test.tsx renders both screens against one fixture to keep it fixed.
+  const contractCount = (label: string) =>
+    !isApiMockMode
+      ? countFor(label, byStatus as Partial<Record<OrderStatus, number>>, ordersSummary?.total)
+      : countInWorkingSet(label, allOrders);
+  const countBlocked = contractCount("Needs review");
+  // `ready` ONLY. It used to include ready_to_deliver, which is the next line's number.
+  const countReady = contractCount("Ready to send");
+  // The status that used to be summed into the line above, now printed under its own
+  // (already shipped) name — the same words the inbox chip and the row badge use.
+  const countQueued = contractCount("Queued to send");
+  const countDelivered = contractCount("Delivered");
+  const countFailed = contractCount("Failed");
+  const countReceived = contractCount("Received");
 
   // ── Windowed rail metrics — real counts, honestly labelled. Feed the health
   // rail (throughput + auto-processed) and the export/window controls. ──────
@@ -941,35 +960,46 @@ export function BridgeDashboard() {
     // over ONE honest proportion bar. Each stat opens the inbox; the bar shows the
     // relative share of Needs review / Ready / Delivered / Failed within the
     // post-intake population — the "of N received" caption keeps it truthful.
+    // Every `label` here is an ORDER_COUNT_CONTRACT label, and `href` points at the
+    // inbox chip that prints THE SAME NUMBER. Both matter: the tiles used to link to a
+    // bare /inbox, so clicking "Ready to send · 12" landed on an unfiltered queue where
+    // no 12 existed. Now the number you click is the number you land on.
     const statRow = [
-      { key: "received",  label: "Received",      value: countReceived,  color: BLUE },
-      { key: "review",    label: "Needs review",  value: countBlocked,   color: AMBER },
-      { key: "ready",     label: "Ready to send", value: countReady,     color: GREEN_DEEP },
-      { key: "delivered", label: "Delivered",     value: countDelivered, color: GREEN },
+      { key: "received",  label: "Received",       value: countReceived,  color: BLUE,       href: "/inbox" },
+      { key: "review",    label: "Needs review",   value: countBlocked,   color: AMBER,      href: "/inbox?status=pending_review" },
+      { key: "ready",     label: "Ready to send",  value: countReady,     color: GREEN_DEEP, href: "/inbox?status=ready" },
+      { key: "queued",    label: "Queued to send", value: countQueued,    color: BLUE_DEEP,  href: "/inbox?status=ready_to_deliver" },
+      { key: "delivered", label: "Delivered",      value: countDelivered, color: GREEN,      href: "/inbox?status=delivered" },
     ];
+    // "Ready" was a THIRD name for the ready+ready_to_deliver sum. Split under the two
+    // labels the rest of the product already uses, so the bar and the stat row above it
+    // cannot disagree either.
     const segs = [
-      { label: "Needs review", value: countBlocked,   color: AMBER },
-      { label: "Ready",        value: countReady,     color: BLUE },
-      { label: "Delivered",    value: countDelivered, color: GREEN },
-      { label: "Failed",       value: countFailed,    color: "#B43838" },
+      { label: "Needs review",   value: countBlocked,   color: AMBER },
+      { label: "Ready to send",  value: countReady,     color: GREEN_DEEP },
+      { label: "Queued to send", value: countQueued,    color: BLUE },
+      { label: "Delivered",      value: countDelivered, color: GREEN },
+      { label: "Failed",         value: countFailed,    color: "#B43838" },
     ];
     const segTotal = Math.max(1, segs.reduce((a, s) => a + s.value, 0));
     return (
       <div>
-        {/* Stat row */}
-        <div className="grid grid-cols-2 sm:grid-cols-4">
-          {statRow.map((s, i) => (
+        {/* Stat row — 5 cells since "Ready to send" and "Queued to send" are two
+            numbers, not one ambiguous sum. */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
+          {statRow.map((s) => (
             <Link
               key={s.key}
-              href="/inbox"
-              className="flex flex-col gap-1.5 px-[18px] py-3.5 no-underline transition-colors hover:bg-[#F6F7FA]"
-              style={i % 4 !== 0 ? { borderLeft: "1px solid #EEF0F4" } : undefined}
+              href={s.href}
+              className="flex flex-col gap-1.5 border-l border-l-[#EEF0F4] px-[18px] py-3.5 no-underline transition-colors first:border-l-0 hover:bg-[#F6F7FA]"
             >
               <span className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold" style={{ color: "#5E6779" }}>
                 <span aria-hidden style={{ width: 8, height: 8, borderRadius: "50%", background: s.color, display: "inline-block" }} />
                 {s.label}
               </span>
               <span
+                data-count-label={s.label}
+                data-count-value={s.value}
                 className="tabular-nums"
                 style={{ fontFamily: "var(--font-display, 'Bricolage Grotesque', Inter, sans-serif)", fontWeight: 800, fontSize: 30, lineHeight: 1, color: s.value === 0 ? "var(--ink-faint)" : "#0B1A2F" }}
               >
@@ -992,7 +1022,14 @@ export function BridgeDashboard() {
               <span key={s.label} className="inline-flex items-center gap-1.5 text-[11px]" style={{ color: s.value === 0 ? "var(--ink-faint)" : "#5E6779" }}>
                 <span aria-hidden style={{ width: 8, height: 8, borderRadius: 2, background: s.value === 0 ? "#CBD0DA" : s.color, display: "inline-block" }} />
                 {s.label}{" "}
-                <b className="tabular-nums" style={{ color: s.value === 0 ? "var(--ink-faint)" : "#0B1A2F" }}>{s.value}</b>
+                <b
+                  data-count-label={s.label}
+                  data-count-value={s.value}
+                  className="tabular-nums"
+                  style={{ color: s.value === 0 ? "var(--ink-faint)" : "#0B1A2F" }}
+                >
+                  {s.value}
+                </b>
               </span>
             ))}
             <span className="ml-auto text-[11px]" style={{ color: "var(--ink-faint)" }}>

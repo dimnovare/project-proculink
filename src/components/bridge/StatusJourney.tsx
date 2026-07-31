@@ -199,7 +199,14 @@ export function StatusJourney({ stage, compact = false, crossingRef }: StatusJou
 // cannot confirm, `sent` claims the supplier has the file, `sending` claims it is still
 // in flight (nothing is — the attempt is over, only its outcome is missing), and
 // `held`/`review` misstate the cause.
-export type CrossingStatus = "new" | "extracting" | "unrouted" | "review" | "ready" | "sent" | "delivering" | "sending" | "failed" | "held" | "unconfirmed";
+// `transforming` covers the backend `transforming` status — the output file is being
+// built right now. It needs its own member because it used to be folded into
+// `extracting`, three nodes early: the desktop badge (keyed on the raw status) said
+// "Preparing output" while the mobile card (keyed on this collapsed union) said
+// "Extracting", and BOTH lit the Normalize node for an order that is at Transform.
+// The dashboard's own map has always put it at 3 (journeyStageFor, pinned by
+// statusJourneyFailedStage.test.tsx) — the inbox was the side that disagreed.
+export type CrossingStatus = "new" | "extracting" | "unrouted" | "review" | "ready" | "transforming" | "sent" | "delivering" | "sending" | "failed" | "held" | "unconfirmed";
 
 const STATUS_PILL: Record<CrossingStatus, { bg: string; color: string; dot: string; pulse?: boolean; label: string }> = {
   // tokens.css .pill-new → surface-2 (#F1F3F7) / ink-muted (#5E6779) / ink-faint (#5B6980)
@@ -212,6 +219,10 @@ const STATUS_PILL: Record<CrossingStatus, { bg: string; color: string; dot: stri
   unrouted:   { bg: "#FAF1DD", color: "#8A5310", dot: "#B36D14",  label: "Needs supplier" },
   review:     { bg: "#FAF1DD", color: "#8A5310", dot: "#B36D14",  label: "Needs review" },
   ready:      { bg: "#E9F1EA", color: "#1E6D29", dot: "#2E8E3A",  label: "Ready" },
+  // Same blue as `extracting` and a pulse: the output really is being built right now.
+  // The word matches UnifiedStatusBadge STATUS_META.transforming, so the collapsed
+  // pill and the raw-status badge cannot say different things about one order.
+  transforming: { bg: "#EAF0F8", color: "#0F4FA8", dot: "#1E66C9", pulse: true, label: "Preparing output" },
   // tokens.css .pill-sent → brand-green-soft / brand-green-deep / brand-green
   sent:       { bg: "#E9F1EA", color: "#1E6D29", dot: "#2E8E3A",  label: "Delivered" },
   // tokens.css .pill-delivering → brand-blue-soft / brand-blue-deep / brand-blue + pulse-dot
@@ -234,12 +245,19 @@ const STATUS_PILL: Record<CrossingStatus, { bg: string; color: string; dot: stri
 // StatusCell demands `rawStatus` for failed rows instead of guessing a node.
 const STATUS_STAGE: Record<Exclude<CrossingStatus, "failed">, OrderStage> = {
   new:        0,
-  extracting: 1,
+  // Stage 0: an order being read IS at Parse. It sat at 1 (Normalize) and therefore
+  // drew Parse as already done — for the one status that means Parse is still running.
+  // `new` shares the node, which is the truth: a queued order and a parsing order are
+  // both at Parse, told apart by the badge word and its pulse, not by the track.
+  extracting: 0,
   // Stage 1: extraction finished, but normalisation cannot start without a supplier to
-  // resolve item codes against — so it is parked AT Normalize, not before Parse.
+  // resolve item codes against — so it is parked AT Normalize, not before Parse. This
+  // reading only became unambiguous once `extracting` moved off the same node.
   unrouted:   1,
   review:     2,
   ready:      3,
+  // Stage 3: the output file is being built — that IS the Transform node.
+  transforming: 3,
   sent:       4,
   delivering: 4,
   sending:    4,
