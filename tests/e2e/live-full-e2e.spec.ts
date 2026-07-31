@@ -236,7 +236,7 @@ test.describe("Live full E2E — every screen renders + heart-piece interactions
 
   // ── 1. Core flow screens ────────────────────────────────────────────────────
 
-  test("Dashboard (/bridge) renders cleanly", async ({ page }) => {
+  test("Overview (/bridge) renders cleanly", async ({ page }) => {
     await visitAndAssertHealthy(page, "/bridge");
   });
 
@@ -385,7 +385,7 @@ test.describe("Live full E2E — every screen renders + heart-piece interactions
     await visitAndAssertHealthy(page, "/library/suppliers");
   });
 
-  test("Supplier detail tabs — Overview, Mappings, Catalog, PO Mapping, Delivery, Validation", async ({ page, request }) => {
+  test("Supplier detail tabs — Overview, Item codes, Catalog, Order layout, Delivery, Rules", async ({ page, request }) => {
     const watch = watchConsole(page);
     try {
       const supplier = await ensureSupplier(request);
@@ -393,7 +393,7 @@ test.describe("Live full E2E — every screen renders + heart-piece interactions
       await page.waitForLoadState("networkidle", { timeout: 30_000 }).catch(() => {});
       await assertNoErrorBoundary(page);
 
-      const tabLabels = ["Overview", "Mappings", "Catalog", "PO Mapping", "Delivery", "Validation rules"];
+      const tabLabels = ["Overview", "Item codes", "Catalog", "Order layout", "Delivery", "Rules"];
       for (const label of tabLabels) {
         const tab = page.getByRole("button", { name: new RegExp(`^${label}$`, "i") }).first();
         if (await tab.count()) {
@@ -422,7 +422,7 @@ test.describe("Live full E2E — every screen renders + heart-piece interactions
         }
       }
 
-      // Validation rules tab: confirm the rule bindings panel area renders.
+      // Rules tab: confirm the rules-in-use panel area renders.
       const validationTab = page.getByRole("button", { name: /^validation rules$/i }).first();
       if (await validationTab.count()) {
         await validationTab.click();
@@ -477,7 +477,7 @@ test.describe("Live full E2E — every screen renders + heart-piece interactions
     await visitAndAssertHealthy(page, "/library/buyers");
   });
 
-  test("Mappings (/library/mappings) renders cleanly", async ({ page }) => {
+  test("Item codes (/library/mappings) renders cleanly", async ({ page }) => {
     await visitAndAssertHealthy(page, "/library/mappings");
   });
 
@@ -487,7 +487,7 @@ test.describe("Live full E2E — every screen renders + heart-piece interactions
 
   // ── 6. Operations ──────────────────────────────────────────────────────────
 
-  test("Exceptions (/operations/exceptions) renders + expands a row", async ({ page }) => {
+  test("Issues (/operations/exceptions) renders + expands a row", async ({ page }) => {
     const watch = watchConsole(page);
     try {
       await page.goto("/operations/exceptions");
@@ -508,11 +508,11 @@ test.describe("Live full E2E — every screen renders + heart-piece interactions
     }
   });
 
-  test("System health (/operations/health) renders cleanly", async ({ page }) => {
+  test("System status (/operations/health) renders cleanly", async ({ page }) => {
     await visitAndAssertHealthy(page, "/operations/health");
   });
 
-  test("Delivery log (/operations/log) renders cleanly", async ({ page }) => {
+  test("Deliveries (/operations/log) renders cleanly", async ({ page }) => {
     await visitAndAssertHealthy(page, "/operations/log");
   });
 
@@ -553,7 +553,7 @@ test.describe("Live full E2E — every screen renders + heart-piece interactions
 
   // ── 8. Settings tabs ─────────────────────────────────────────────────────────
 
-  test("Settings tabs — Organization, Billing, Email, SFTP, S3, API keys, Connectors", async ({ page }) => {
+  test("Settings tabs — Workspace, Plan, Email, SFTP, Cloud, API keys, Notifications", async ({ page }) => {
     const watch = watchConsole(page);
     try {
       await page.goto("/settings");
@@ -561,13 +561,13 @@ test.describe("Live full E2E — every screen renders + heart-piece interactions
       await assertNoErrorBoundary(page);
 
       const tabLabels = [
-        "Organization",
-        "Billing & plan",
+        "Workspace",
+        "Plan & billing",
         "Email intake",
-        "SFTP pull",
-        "S3 / R2 pull",
+        "SFTP folder",
+        "Cloud folder (S3 or R2)",
         "API keys",
-        "Connectors",
+        "Notifications",
       ];
       for (const label of tabLabels) {
         const tab = page.getByRole("button", { name: new RegExp(label.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&"), "i") }).first();

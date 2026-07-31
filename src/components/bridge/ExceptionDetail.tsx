@@ -148,13 +148,13 @@ export function ExceptionDetail({ exc }: { exc: OrderException }) {
                 className="inline-flex items-center gap-1.5 rounded-[7px] px-3 h-[32px] text-[12px] font-medium"
                 style={{ border: "1px solid var(--border)", background: "var(--surface)", color: "var(--ink)", textDecoration: "none" }}
               >
-                Check conformance
+                Check against standard
               </Link>
             )}
           </div>
         ) : (
           <p style={{ margin: 0, color: "var(--ink-muted)" }}>
-            This exception isn&apos;t tied to a single order. Use Ignore to dismiss it once it no longer applies.
+            This issue isn&apos;t tied to a single order. Use Ignore to dismiss it once it no longer applies.
           </p>
         )}
       </Section>

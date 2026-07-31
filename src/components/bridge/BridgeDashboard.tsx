@@ -1022,7 +1022,7 @@ export function BridgeDashboard() {
           actions stay as a compact row at the top of the content. */}
       <PageHeader
           titleHidden
-          title="Dashboard"
+          title="Overview"
           sub={
             <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
               <span
@@ -1242,7 +1242,7 @@ export function BridgeDashboard() {
                       href="/operations/exceptions"
                       className="ml-auto inline-flex items-center gap-1 rounded-[5px] px-2 py-0.5 text-[11.5px] font-semibold no-underline transition-opacity hover:opacity-80"
                       style={{ background: "#FAF1DD", color: "#B36D14" }}
-                      title="Review exceptions"
+                      title="Review issues"
                     >
                       ⚠ {openExceptionsAll} open exception{openExceptionsAll === 1 ? "" : "s"}
                     </Link>

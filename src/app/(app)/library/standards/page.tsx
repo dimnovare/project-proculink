@@ -95,7 +95,7 @@ export default function StandardsPage() {
           descriptive subtitle is dropped; the search input stays. */}
       <PageHeader
         titleHidden
-        title="Standards reference"
+        title="Format reference"
         actions={searchInput}
       />
 
@@ -179,7 +179,7 @@ export default function StandardsPage() {
                     whiteSpace: "nowrap",
                   }}
                 >
-                  Canonical field
+                  ProcuLink field
                 </th>
                 {REF_COLUMNS.map(({ key, label }) => (
                   <th
@@ -244,7 +244,7 @@ export default function StandardsPage() {
           FIELD_STANDARDS.length === 0 ? (
             <EmptyState
               title="No standards catalog"
-              sub="The canonical field reference isn't available. Reload the page, and if it stays empty, contact support."
+              sub="The field reference isn't available. Reload the page, and if it stays empty, contact support."
             />
           ) : (
             <EmptyState compact title="No fields match" sub={`Nothing for "${q}".`} />

@@ -184,7 +184,7 @@ describe("every workshop gate state renders the shared context header", () => {
     mockState.order = makeOrder({ status: "failed" });
     render(<OrderWorkshop orderId="ord-1" />);
     expectGateHeader("PO-1");
-    expect(screen.getByText("Failed")).toBeTruthy();
+    expect(screen.getByText("Couldn't read file")).toBeTruthy();
     const panel = screen.getByTestId("panel-failed");
     expect(panel.getAttribute("data-mode")).toBe("gate");
     // Nothing parsed, so there is deliberately no mapper underneath.
@@ -197,8 +197,8 @@ describe("every workshop gate state renders the shared context header", () => {
   // real statuses, so a rename in the union breaks here instead of silently
   // testing a status that no longer exists.
   test.each([
-    ["transform_failed", "Transform failed"],
-    ["delivery_failed", "Delivery failed"],
+    ["transform_failed", "Couldn't build output"],
+    ["delivery_failed", "Couldn't send"],
     ["delivery_held", "Delivery paused"],
     ["delivery_unconfirmed", "Delivery unknown"],
   ] satisfies Array<[OrderStatus, string]>)("%s renders the panel as a BANNER over the live workshop", (status, badge) => {

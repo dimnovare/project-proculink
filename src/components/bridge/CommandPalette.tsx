@@ -93,11 +93,11 @@ function buildIndex(
     // deliveries, so the old "View all deliveries" label over-claimed.
     { id: "a2",  group: "Actions", icon: "⊞", label: "View order inbox",     sub: "Go to inbox",            action: () => router.push("/inbox"),            color: "#0F4FA8" },
     { id: "a3",  group: "Actions", icon: "⇄", label: "Manage mappings",      sub: "Open mapping editor",    action: () => router.push("/library/mappings"), color: "#0F4FA8" },
-    // Checks are set per supplier (Partners → a supplier → Validation rules),
-    // which is the only place they actually run — so the palette opens the
-    // supplier list rather than an org-wide catalog that decided nothing.
+    // Checks are set per supplier (Suppliers → a supplier → Rules), which is the
+    // only place they actually run — so the palette opens the supplier list
+    // rather than an org-wide catalog that decided nothing.
     { id: "a4",  group: "Actions", icon: "✓", label: "Validation rules",     sub: "Choose a supplier to set its checks", action: () => router.push("/library/suppliers"), color: "#0F4FA8" },
-    { id: "a5",  group: "Actions", icon: "⚠", label: "Exceptions",           sub: "Open exception dashboard", action: () => router.push("/operations/exceptions"), color: "#B36D14" },
+    { id: "a5",  group: "Actions", icon: "⚠", label: "Issues",           sub: "Open the issues list", action: () => router.push("/operations/exceptions"), color: "#B36D14" },
     { id: "a6",  group: "Actions", icon: "❤", label: "System health",        sub: "Open operator health view", action: () => router.push("/operations/health"),     color: "#0F4FA8" },
     { id: "a9",  group: "Actions", icon: "▤", label: "Delivery log",         sub: "Open delivery log",      action: () => router.push("/operations/log"),   color: "#0F4FA8" },
     { id: "a7",  group: "Actions", icon: "⚙", label: "Settings",             sub: "Workspace settings",     action: () => router.push("/settings"),         color: "#0F4FA8" },

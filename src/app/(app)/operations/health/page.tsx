@@ -121,7 +121,7 @@ export default function OperationsHealthPage() {
   if (!queryEnabled || healthQ.isLoading) {
     return (
       <PageShell variant="wide">
-        <PageHeader titleHidden title="Operations health" />
+        <PageHeader titleHidden title="System status" />
         <div style={{ color: "var(--ink-muted)", fontSize: 14 }}>Loading pipeline health…</div>
       </PageShell>
     );
@@ -129,7 +129,7 @@ export default function OperationsHealthPage() {
   if (healthQ.isError || healthQ.data === undefined) {
     return (
       <PageShell variant="wide">
-        <PageHeader titleHidden title="Operations health" />
+        <PageHeader titleHidden title="System status" />
         <Card edge="none">
           <div style={{ color: "var(--danger)", fontSize: 14 }}>
             Could not load operations health. The API may be unavailable — retry shortly.
@@ -157,7 +157,7 @@ export default function OperationsHealthPage() {
       {/* titleHidden: the topbar already names this page (primary tab
           "Operations" + hub tab "System health"); "Operations health" was a
           mashup of the two. sr-only h1 kept; the descriptive sub is dropped. */}
-      <PageHeader titleHidden title="Operations health" />
+      <PageHeader titleHidden title="System status" />
 
       {/* Worker / pipeline-engine status — a dead Worker stalls the whole pipeline. */}
       <div

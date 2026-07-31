@@ -534,11 +534,11 @@ export function OrderPassport({ orderId }: { orderId: string }) {
           <Section title="Source & output">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="flex flex-col gap-3">
-                <Ref label="Source artifact" value={passport.sourceArtifact?.storageKey} />
+                <Ref label="Source file" value={passport.sourceArtifact?.storageKey} />
                 <Ref label="Detected format" value={passport.sourceArtifact?.detectedFormat?.toUpperCase()} />
               </div>
               <div className="flex flex-col gap-3">
-                <Ref label="Output artifact" value={passport.outputArtifact?.fileKey} />
+                <Ref label="Output file" value={passport.outputArtifact?.fileKey} />
                 <Ref label="Output format" value={passport.outputArtifact?.format?.toUpperCase()} />
                 {/* The fingerprint recorded when the file was generated — what a downloaded
                     copy is checked against. Shown here rather than only per attempt because

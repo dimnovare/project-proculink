@@ -16,7 +16,7 @@ import { buildCrumbTrail, formatCrumbLabel, isLonePageCrumb, truncateLabel, type
 import { CommandPalette } from "./CommandPalette";
 import { ProcuLinkMark } from "./DSPrimitives";
 import { HelpSlideover } from "./HelpSlideover";
-import { HUB_LABELS, HUB_TABS, HubTabs, hubForPath, hubShowsTabs, type HubKey } from "./layout/HubTabs";
+import { HubTabs, hubForPath, hubShowsTabs, visibleHubTabs, type HubKey } from "./layout/HubTabs";
 import { OrgSwitcher } from "./OrgSwitcher";
 import { SetupProgressChip } from "./SetupProgressChip";
 import { UserChipMenu } from "./UserChipMenu";
@@ -121,17 +121,23 @@ function useAutoCrumb(): ReactNode {
 }
 
 // ─── Hub navigation in the context row ──────────────────────────────────────
-// Founder direction: the hub section tabs (Suppliers | Buyers | Connections …)
+// Founder direction: the hub section tabs (Suppliers | Item codes | Rules …)
 // live in the TOPBAR, not under each page's header. On any route that belongs
 // to a hub (hubForPath), row 2 swaps the breadcrumb TAIL for the hub's tab bar:
-//   /library/suppliers      → Library / [Suppliers* | Buyers | Connections]
-//   /library/suppliers/[id] → Library / [tabs] / Acme GmbH
-//   /connections            → [Suppliers | Buyers | Connections*]
+//   /library/suppliers      → [Suppliers* | Item codes | Rules | Output layouts]
+//   /library/suppliers/[id] → [tabs] / Acme GmbH
+//   /operations/health      → [Overview | Deliveries | Issues] / System status
 // Non-hub routes keep the plain breadcrumb untouched.
+//
+// WP-26: the row no longer leads with the hub's own name. The hub word is now a
+// top-level nav item that is visibly active in the row directly above (Orders /
+// Suppliers / Activity), so printing it again — and then printing it a third
+// time as the active tab, which "Orders / [Orders*]" did — is the double-navbar
+// the founder reported, not navigation.
 
 interface HubRow {
   hub: HubKey;
-  /** Linked crumbs BEFORE the hub level (e.g. "Library", "Workbench / Inbound"). */
+  /** Linked crumbs ABOVE the active tab. Usually empty; kept for deeper trees. */
   prefix: Crumb[];
   /** Crumbs BELOW the active tab (detail pages) — rendered after the tabs. */
   tail: Crumb[];
@@ -142,37 +148,42 @@ function useHubRow(): HubRow | null {
   const segments = pathname.split("/").filter(Boolean);
   const ctx = useCrumbContext(segments);
   const hub = hubForPath(pathname);
-  // A hub with a single tab gets no strip (hubShowsTabs) — and therefore no hub
-  // row at all; the route falls back to the plain breadcrumb below.
+  // A hub with a single VISIBLE tab gets no strip (hubShowsTabs) — and therefore
+  // no hub row at all; the route falls back to the plain breadcrumb below.
   if (!hub || !hubShowsTabs(hub)) return null;
 
-  // The LONGEST tab route (href or match alias) that owns the current path —
-  // its depth marks where the breadcrumb prefix ends and the detail tail begins.
+  // The LONGEST VISIBLE tab route (href or match alias) that owns the current
+  // path — its depth marks where the prefix ends and the detail tail begins.
+  // HIDDEN entries are deliberately excluded: their page is not on the strip, so
+  // no tab can be current, and the page reads as a detail page OF the hub —
+  // "[Overview | Deliveries | Issues] / System status" rather than a strip with
+  // nothing active and the page unnamed.
   let owner = "";
-  for (const t of HUB_TABS[hub]) {
+  for (const t of visibleHubTabs(hub)) {
     for (const route of [t.href, ...(t.match ?? [])]) {
       if ((pathname === route || pathname.startsWith(route + "/")) && route.length > owner.length) {
         owner = route;
       }
     }
   }
-  const ownerDepth = owner.split("/").filter(Boolean).length;
   const trail = buildCrumbTrail(pathname, ctx);
   // buildCrumbTrail may prepend an unrouted group-head crumb ("Workbench") that
   // has no path segment — offset keeps crumb indexes aligned with segments.
   const offset = trail.length - segments.length;
+  if (!owner) {
+    // Off-strip route: the whole trail is the tail, minus any leading unlinked
+    // group-root crumb ("Library" / "Operations" / "Workbench"), which links to a
+    // 404 and is exactly the container word this restructure retired.
+    let tail = trail;
+    while (tail.length > 1 && tail[0].href === null) tail = tail.slice(1);
+    return { hub, prefix: [], tail };
+  }
+  const ownerDepth = owner.split("/").filter(Boolean).length;
   const rawPrefix = trail.slice(0, offset + ownerDepth - 1);
-  // The prefix leads with the HUB'S name ("Partners", "Rules & formats") — the
-  // exact word the sidebar teaches — not the group-root crumb ("Library") which
-  // links to a 404. Drop a leading unlinked group-root crumb and lead with the
-  // hub label (unlinked context) so the row reads "Partners / [tabs]".
-  const hubCrumb: Crumb = { label: HUB_LABELS[hub], href: null };
-  const deeperPrefix = rawPrefix.length > 0 && rawPrefix[0].href === null ? rawPrefix.slice(1) : rawPrefix;
-  return {
-    hub,
-    prefix: [hubCrumb, ...deeperPrefix],
-    tail: trail.slice(offset + ownerDepth),
-  };
+  // Drop a leading unlinked group-root crumb for the same reason: it names a
+  // route group, not a place, and it points at nothing.
+  const prefix = rawPrefix.length > 0 && rawPrefix[0].href === null ? rawPrefix.slice(1) : rawPrefix;
+  return { hub, prefix, tail: trail.slice(offset + ownerDepth) };
 }
 
 /** One breadcrumb piece in the hub row — same visual language as useAutoCrumb. */
@@ -454,8 +465,10 @@ function TopNavLink({
 }
 
 /**
- * The horizontal primary nav for md+. Reuses buildVisibleNav (launch-flag +
- * inbound + admin gating and the inbound "Partners → Customers" relabel) and
+ * The horizontal primary nav for md+. Reuses buildVisibleNav (admin gating and
+ * the inbound "Suppliers → Customers" relabel; WP-26 removed the launch-flag
+ * narrowing — with four items there is nothing to narrow, and INBOUND_ENABLED
+ * now gates two TABS inside the Orders hub) and
  * isItemActive (hub-lights-for-any-hub-route). Groups are flattened to a single
  * horizontal row (group headers belong to the vertical rail, not a top bar).
  * Overflows scroll horizontally at the md→lg band so links never wrap or clip.
@@ -833,11 +846,14 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
       </div>
 
       {/* ── Row 2 · Primary nav ──────────────────────────────────────
-          The top-level sections on their own row so they ALL stay visible at any
-          desktop width — they can't fit in the utility row above alongside the
-          org switcher, Upload, and account cluster (6 items + "Rules & formats"
-          need ~540px). md+ only; mobile uses the hamburger drawer. A right-edge
-          fade cues horizontal scroll on the rare narrow-desktop overflow. */}
+          DO NOT re-inline this into the utility row above. That arrangement was
+          tried and rejected: the top-level sections need their own row so they
+          ALL stay visible at any desktop width, and the row above is already
+          carrying the org switcher, Upload, and the account cluster. WP-26 cut
+          the nav to four words, which shortens the row but does not free the
+          ~540px the inline version wanted — the utility cluster is what fills
+          it. md+ only; mobile uses the hamburger drawer. A right-edge fade cues
+          horizontal scroll on the rare narrow-desktop overflow. */}
       <nav
         aria-label="Primary"
         className="hidden md:flex items-stretch px-3 sm:px-5"

@@ -133,7 +133,7 @@ export function ConformancePanel({ orderId, supplierName, defaultFormat }: {
           the chosen standard&apos;s named profile — before it is sent. Read-only: nothing is delivered or changed.
         </p>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex rounded-[8px] p-0.5" style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }} role="tablist" aria-label="Conformance format">
+          <div className="inline-flex rounded-[8px] p-0.5" style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }} role="tablist" aria-label="Check against standard">
             {FORMATS.map((f) => {
               const active = f.id === format;
               return (

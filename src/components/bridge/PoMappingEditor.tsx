@@ -443,7 +443,7 @@ export function PoMappingEditor({
               PO field mapping
             </h3>
             <p className="mt-0.5 text-[12.5px]" style={{ color: MUTED }}>
-              Connect this supplier&apos;s source columns to the canonical order.
+              Connect this supplier&apos;s source columns to the ProcuLink order fields.
             </p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3 flex-shrink-0">

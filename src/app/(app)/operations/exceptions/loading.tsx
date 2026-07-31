@@ -1,2 +1,2 @@
 import { BridgePageLoader } from "@/components/bridge/BridgeLoader";
-export default function Loading() { return <BridgePageLoader label="Loading exceptions…" />; }
+export default function Loading() { return <BridgePageLoader label="Loading issues…" />; }

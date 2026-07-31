@@ -440,7 +440,7 @@ function IncomingRow({
           }}/>
         </span>
       ) : wired ? (
-        <span aria-hidden style={{ fontSize: 9, fontWeight: 700, color: "#0F4FA8", flexShrink: 0 }}>wired →</span>
+        <span aria-hidden style={{ fontSize: 9, fontWeight: 700, color: "#0F4FA8", flexShrink: 0 }}>mapped →</span>
       ) : null}
     </div>
   );

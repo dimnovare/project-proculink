@@ -61,7 +61,7 @@ const STEPS: Array<{
   },
   {
     n: "02",
-    title: "Parse to a canonical order",
+    title: "Read it into one standard order",
     desc:
       "Every order is parsed into one neutral structure — the canonical order. PO number, parties, line items, terms and totals each become a field with a confidence score and visible provenance.",
     color: BLUE,
@@ -70,7 +70,7 @@ const STEPS: Array<{
   },
   {
     n: "03",
-    title: "Resolve exceptions with AI",
+    title: "Resolve issues with AI",
     desc:
       "When a buyer item code doesn't match the supplier catalog, an LLM proposes the right code with its reasoning and source. Your team confirms or rejects — nothing is auto-applied without confidence you can see.",
     color: VIOLET,

@@ -809,7 +809,7 @@ function StepTest({
       )}
 
       <p className="text-[12px]" style={{ color: MUTED }}>
-        This sends a tiny sample payload to the endpoint you configured. It proves ProcuLink can reach
+        This sends one tiny sample file to the address you configured. It proves ProcuLink can reach
         it — it does <span className="font-semibold">not</span> mean the supplier accepted a real order.
       </p>
 

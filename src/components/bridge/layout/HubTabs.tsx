@@ -1,11 +1,29 @@
 "use client";
 
-// HubTabs — the Claude Design v2 hub-page tab bar ("pages on the upper bar").
-// Consolidation per FABLE5_BRIEF §3: Suppliers/Buyers/Connections → "Partners";
-// Mappings/Rules/Output templates/Standards → "Rules & formats";
-// System health/Exceptions/Delivery log → "Operations"; Connectors/Webhooks →
-// "Integrations"; Invoices/Shipping notices → "Inbound". Deep routes stay valid —
-// each tab IS the existing route; this bar just links between siblings.
+// HubTabs — the hub-page tab bar ("pages on the upper bar").
+//
+// WP-26 / DESIGN-DB-1: the nav teaches FOUR destinations — Orders · Suppliers ·
+// Activity · Settings — and three of them are hubs whose siblings live here.
+// The old five hubs were named after containers ("Partners", "Rules & formats",
+// "Integrations") that meant nothing on their own; these three are named after
+// the job. NO URL CHANGED — each tab IS the existing route.
+//
+//   Orders    → /inbox              (orders · buyers · +inbound docs behind a flag)
+//   Suppliers → /library/suppliers  (suppliers · item codes · rules · output layouts)
+//   Activity  → /bridge             (overview · deliveries · issues)
+//
+// Some routes are reachable but deliberately NOT on a strip — an incident page
+// or an advanced reference a coordinator should never have to read past. Those
+// carry `hidden: true`: hubForPath still claims them (so the nav item lights and
+// the route resolves), but they are absent from the rendered strip, from
+// hubShowsTabs, and from the sidebar's hub tooltip. That flag is what lets the
+// nav shrink to four words without stranding a surface — see
+// BridgeSidebar.test.tsx's reachability guard and navRoutesResolve.test.ts.
+//
+// The HubKey values and every `href` are CODE and are deliberately unchanged by
+// the WP-25 vocabulary pass: only the `label` a user reads moved. Renaming a key
+// or a route would break bookmarks, ?tab= aliases, help links and e2e paths for
+// zero user value (DESIGN-DB-1 §12.3).
 //
 // Visual: reference core.jsx underline tabs — 13px/600, active ink + 2px blue
 // underline, optional mono count badge ("Invoices · 4" reads as label + count).
@@ -13,71 +31,117 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { CSSProperties } from "react";
+import { INBOUND_ENABLED } from "@/lib/launch-flags";
 
-export type HubKey = "partners" | "rules-formats" | "operations" | "integrations" | "inbound";
+export type HubKey = "orders" | "suppliers" | "activity";
 
 interface HubTab {
   label: string;
   href: string;
   /** Extra pathnames that should light this tab (sub-routes). */
   match?: string[];
+  /**
+   * Reachable, but never printed on the strip. Used for surfaces that must keep
+   * working (incidents, deep references, versioned setup) while staying out of a
+   * coordinator's daily reading. Each has exactly one in-context entry point.
+   */
+  hidden?: true;
+  /**
+   * Shown as a tab only when this launch flag is on. Unlike `hidden`, the intent
+   * is "not yet", not "advanced" — the route still resolves and still belongs to
+   * the hub either way.
+   */
+  flag?: "inbound";
 }
 
 /**
- * Human display name for each hub — the word the sidebar teaches ("Partners",
- * "Rules & formats"). Used as the topbar prefix crumb and the in-page hub eyebrow
- * so the destination visibly belongs to the hub the user clicked. Kept next to
- * HUB_TABS so labels and tabs can't drift.
+ * Human display name for each hub — the word the nav teaches. Used as the
+ * in-page hub eyebrow so a destination visibly belongs to the item the user
+ * clicked. Kept next to HUB_TABS so labels and tabs can't drift.
  */
 export const HUB_LABELS: Record<HubKey, string> = {
-  partners: "Partners",
-  "rules-formats": "Rules & formats",
-  operations: "Operations",
-  integrations: "Integrations",
-  inbound: "Inbound",
+  orders: "Orders",
+  suppliers: "Suppliers",
+  activity: "Activity",
 };
 
 export const HUB_TABS: Record<HubKey, HubTab[]> = {
-  partners: [
-    { label: "Suppliers", href: "/library/suppliers", match: ["/library/suppliers"] },
+  // Orders is the shift: the queue, plus who issued the orders in it.
+  orders: [
+    { label: "Orders", href: "/inbox" },
     { label: "Buyers", href: "/library/buyers" },
-    { label: "Connections", href: "/connections", match: ["/connections"] },
+    { label: "Invoices", href: "/inbound/invoices", flag: "inbound" },
+    { label: "Shipping notices", href: "/inbound/asns", flag: "inbound" },
+    // No "Drafts" entry: FE #47 retired /drafts behind a permanent redirect to
+    // /inbox, so there is no page left to keep reachable.
   ],
-  "rules-formats": [
-    { label: "Mappings", href: "/library/mappings" },
-    // No "Rules" or "Output templates" tab: neither page could change what a
-    // supplier receives or whether an order passed. Both jobs are per-supplier
-    // (the Validation rules and Delivery tabs under Partners), so the hub no
-    // longer offers an org-wide version of them.
-    { label: "Standards", href: "/library/standards" },
+  // Suppliers is the setup: everything that can be wrong with a supplier.
+  suppliers: [
+    { label: "Suppliers", href: "/library/suppliers" },
+    { label: "Item codes", href: "/library/mappings" },
+    // No "Rules" or "Output layouts" entry: FE #47 retired /library/rules,
+    // /library/rule-definitions and /library/templates behind permanent
+    // redirects to /library/suppliers. Neither page could change what a supplier
+    // receives or whether an order passed — both jobs are per-supplier (a
+    // supplier's Rules and Delivery tabs).
+    //
+    // A read-only field↔standard matrix nobody opens cold; reached from the
+    // format explainers.
+    { label: "Format reference", href: "/library/standards", hidden: true },
+    // Versioned supplier setup — the same data as a supplier's Changes tab.
+    // One data source, one visible surface: the supplier page owns it.
+    { label: "Changes", href: "/connections", hidden: true },
+    // A read-only grid of channel TYPES derived from supplier delivery configs;
+    // no configuration happens there. Reached from a supplier's Delivery tab.
+    { label: "Delivery channels", href: "/operations/connectors", hidden: true },
   ],
-  operations: [
-    { label: "System health", href: "/operations/health" },
-    { label: "Exceptions", href: "/operations/exceptions" },
-    { label: "Delivery log", href: "/operations/log" },
-  ],
-  integrations: [
-    { label: "Connectors", href: "/operations/connectors" },
-    { label: "Webhooks", href: "/operations/webhooks" },
-  ],
-  inbound: [
-    { label: "Invoices", href: "/inbound/invoices" },
-    { label: "Shipping notices", href: "/inbound/asns" },
+  // Activity is the receipt: did it go, what broke, is the system up.
+  activity: [
+    { label: "Overview", href: "/bridge" },
+    { label: "Deliveries", href: "/operations/log" },
+    { label: "Issues", href: "/operations/exceptions" },
+    // Ambient, not a destination — surfaced by the health chip and a degraded
+    // banner on Activity.
+    { label: "System status", href: "/operations/health", hidden: true },
+    // Event subscriptions are the same data as Settings ▸ Connectors. One data
+    // source, one visible surface: Settings owns it.
+    { label: "Notifications", href: "/operations/webhooks", hidden: true },
   ],
 };
 
 /**
- * A hub earns a tab strip only when it has somewhere to switch TO. With a
- * single tab the strip is one tab sitting under the top-nav item that already
- * names the same page — the founder-reported double navbar. Callers that build
- * the surrounding chrome (BridgeTopbar's hub row) check this before rendering
- * any of it; HubTabs itself also refuses, so no caller can reintroduce it.
+ * The tabs a hub actually prints. Hidden entries are reachable, not switchable;
+ * flagged entries are pre-launch. Everything that reads the strip — the strip
+ * itself, hubShowsTabs, the nav item's href and its tooltip — reads THIS, so a
+ * hidden route can never leak into the chrome by being added to HUB_TABS.
  */
-export function hubShowsTabs(hub: HubKey): boolean {
-  return HUB_TABS[hub].length >= 2;
+export function visibleHubTabs(
+  hub: HubKey,
+  opts: { inboundEnabled?: boolean } = {},
+): HubTab[] {
+  const inboundEnabled = opts.inboundEnabled ?? INBOUND_ENABLED;
+  return HUB_TABS[hub].filter(
+    (t) => !t.hidden && (t.flag !== "inbound" || inboundEnabled),
+  );
 }
 
-/** Which hub (if any) a pathname belongs to — used by the sidebar for active state. */
+/**
+ * A hub earns a tab strip only when it has somewhere to switch TO. With a
+ * single visible tab the strip is one tab sitting under the top-nav item that
+ * already names the same page — the founder-reported double navbar. Callers that
+ * build the surrounding chrome (BridgeTopbar's hub row) check this before
+ * rendering any of it; HubTabs itself also refuses, so no caller can
+ * reintroduce it.
+ */
+export function hubShowsTabs(hub: HubKey): boolean {
+  return visibleHubTabs(hub).length >= 2;
+}
+
+/**
+ * Which hub (if any) a pathname belongs to — used by the nav for active state
+ * and by the reachability guard. Iterates EVERY entry, hidden and flagged
+ * included: that is precisely what keeps an off-strip route reachable.
+ */
 export function hubForPath(pathname: string): HubKey | null {
   for (const key of Object.keys(HUB_TABS) as HubKey[]) {
     for (const t of HUB_TABS[key]) {
@@ -130,14 +194,15 @@ export function HubTabs({
    * Direction-aware counterparty word ("Suppliers" | "Customers"). When an
    * inbound org relabels it (≠ "Suppliers"), the /library/suppliers tab shows
    * that word instead of the static "Suppliers" — the same display-only relabel
-   * buildVisibleNav applies to the Partners nav item, and on mobile this tab is
+   * buildVisibleNav applies to the Suppliers nav item, and on mobile this tab is
    * the only surface naming the page (the page's own title is sr-only). Routes,
    * hrefs, and count keys are unchanged.
    */
   counterpartyPlural?: string;
 }) {
   const pathname = usePathname() ?? "";
-  const tabs = HUB_TABS[hub];
+  // Hidden and pre-launch entries are reachable, never printed.
+  const tabs = visibleHubTabs(hub);
   const topbar = variant === "topbar";
   // Nothing to switch to → no strip (see hubShowsTabs).
   if (!hubShowsTabs(hub)) return null;

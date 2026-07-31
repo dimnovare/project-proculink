@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 
 /**
- * Standards reference screen smoke tests.
+ * Format reference screen smoke tests.
  *
  * The /library/standards page renders the canonical-PO-field → standards
  * cross-reference TABLE (FIELD_STANDARDS × STANDARD_REF_COLUMNS from
@@ -20,13 +20,13 @@ import { test, expect } from "@playwright/test";
  * playwright.config.ts — not repeated here.
  */
 
-test.describe("Standards reference", () => {
+test.describe("Format reference", () => {
   test("renders the heading, every standard column, and all canonical fields", async ({ page }) => {
     await page.goto("/library/standards");
 
     // Page heading must be visible — allow cold-start time.
     await expect(
-      page.getByRole("heading", { level: 1, name: /standards reference/i }),
+      page.getByRole("heading", { level: 1, name: /format reference/i }),
     ).toBeVisible({ timeout: 10_000 });
 
     // All five standards are columns in the matrix (always-on visibility).

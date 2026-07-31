@@ -1401,7 +1401,7 @@ function MapperMobileSummary({
         </div>
       ))}
       <div style={{ padding: "10px 12px", fontSize: 11, color: "var(--ink-faint)", lineHeight: 1.45 }}>
-        Open this order on a larger screen to drag-wire fields. The mapping shown above is read-only here.
+        Open this order on a larger screen to drag fields into place. The mapping shown above is read-only here.
       </div>
     </div>
   );
