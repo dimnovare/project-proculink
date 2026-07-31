@@ -31,6 +31,14 @@ const MOBILE = { width: 390, height: 844 };
 
 test.use({ viewport: MOBILE });
 
+// This spec walks nine routes, several of them the app's heaviest. Under the
+// suite's fullyParallel workers `next dev` compiles them roughly serially, so the
+// 30s default is not enough for the last worker in the queue — measured, it timed
+// out on /upload, /settings and /operations/* in a full-suite run while passing
+// comfortably in isolation. 120s absorbs the cold-compile queue; a genuine
+// violation still fails fast on the assertion, not on the clock.
+test.describe.configure({ timeout: 120_000 });
+
 /** WCAG 2.5.5 / Apple HIG. */
 const TAP_MIN = 44;
 /** Below this, iOS Safari zooms the page on focus and never zooms back. */
@@ -169,8 +177,10 @@ test.describe("touch floors at a phone viewport", () => {
     test(`${route} — no control under ${TAP_MIN}px, no text field under ${INPUT_FONT_MIN}px`, async ({ page }) => {
       await page.goto(route);
       await page.waitForLoadState("domcontentloaded");
-      // Give client-rendered surfaces (mock queries, hydration) a beat to settle.
-      await page.waitForTimeout(900);
+      // Let client-rendered surfaces (mock queries, hydration) settle. networkidle
+      // is best-effort: some screens keep a poll open, so fall back to a beat.
+      await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
+      await page.waitForTimeout(600);
 
       const controls = await measureControls(page);
       expect(controls.length, `${route} rendered no interactive controls — did it load?`).toBeGreaterThan(0);
