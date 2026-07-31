@@ -975,10 +975,24 @@ details[open] > summary [data-disclosure-chevron] {
    `height: 32` without touching anything already ≥44, so no existing control
    shrinks and desktop density is untouched.
 
+   WHY `!important`. Without it this is not a floor, it is a suggestion: a
+   page-level class rule out-specifies an element selector, and the settings tab
+   list proved it — `.settings-nav-item { min-height: 40px }` in that page's own
+   <style> block silently kept twenty controls at 40px while this rule was already
+   shipping. Measured, not assumed (tests/e2e/tap-targets.spec.ts caught it). The
+   file already sets a precedent: the settings mobile font-size rule has used
+   `!important` for the same reason since the previous a11y pass.
+
+   `a` is in the list and is SAFE there, because `min-height` does not apply to
+   non-replaced INLINE elements (CSS 2.1 §10.7). So a link inside a paragraph is
+   untouched — which is also what WCAG 2.5.8's inline exception wants — while a
+   link rendered as a block/flex nav item or button gets the floor.
+
    DELIBERATELY EXCLUDED: checkbox and radio inputs. `min-width`/`min-height` on
    those scales the rendered control itself, not just its hit box — a 44px
-   checkbox looks broken. Their tap area comes from the adjacent <label>. Ranges
-   and hidden inputs are excluded for the same "not a text field" reason. */
+   checkbox looks broken. Their tap area comes from the adjacent <label>. Hidden
+   inputs are excluded for the obvious reason, and ranges are excluded from the
+   FONT rule only (a slider has no typed text) while keeping the tap floor. */
 @media (pointer: coarse), (max-width: 639px) {
   input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="range"]),
   select,
@@ -986,20 +1000,24 @@ details[open] > summary [data-disclosure-chevron] {
     font-size: 16px !important;
   }
 
+  a,
   button,
   select,
   textarea,
   summary,
   [role="button"],
-  input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="range"]) {
-    min-height: var(--tap-min);
+  [role="tab"],
+  [role="switch"],
+  input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]) {
+    min-height: var(--tap-min) !important;
   }
 
-  /* Icon-only controls. In this codebase an `aria-label` on a <button> means
-     "there is no visible text to name it" — i.e. it is an icon button, and a
-     32×32 ✕ is the single most common tap-target miss. A text button that also
-     carries an aria-label just gets a 44px floor it already clears. */
+  /* Icon-only controls. In this codebase an `aria-label` on a <button> or <a>
+     means "there is no visible text to name it" — i.e. it is an icon control,
+     and a 24×24 logo link or a 32×32 ✕ is the single most common tap-target
+     miss. A labelled control that already has text just gets a floor it clears. */
+  a[aria-label],
   button[aria-label] {
-    min-width: var(--tap-min);
+    min-width: var(--tap-min) !important;
   }
 }

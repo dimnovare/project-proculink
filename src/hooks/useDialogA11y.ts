@@ -46,25 +46,35 @@ export const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 /**
- * Focusable descendants of `root`, in DOM order, excluding ones that are not
- * rendered.
+ * Is this element actually rendered, i.e. a real tab stop?
  *
- * `offsetParent === null` is the cheap "not laid out" test that the six original
- * copies used; it is also `null` for `position: fixed` elements in a real
- * browser, so an element that currently HAS focus is always kept regardless.
- * jsdom reports `offsetParent` as undefined for everything, so the `!= null`
- * comparison (not `!== null`) keeps every element under test.
+ * All six original hand-rolled traps used `el.offsetParent !== null`. That test
+ * is WRONG IN TWO DIRECTIONS and both of them bite here:
+ *
+ *   • `offsetParent` is `null` for any `position: fixed` element even when it is
+ *     perfectly visible — and every dialog in this app is inside a fixed layer.
+ *   • jsdom implements `offsetParent` and always returns `null` (it has no
+ *     layout engine), so under test the filter removed EVERY element and the
+ *     trap silently degraded to "focus the panel". A trap that sees zero tab
+ *     stops cannot cycle, which is how a focus-trap test can pass vacuously.
+ *
+ * So `offsetParent` is used only as a POSITIVE signal ("definitely laid out"),
+ * and the negative case falls through to computed style, which jsdom does
+ * implement and which is the property that actually determines focusability.
  */
+function isRendered(el: HTMLElement): boolean {
+  if (el === document.activeElement) return true;
+  if (el.hasAttribute("hidden")) return false;
+  if (el.offsetParent != null) return true;
+  if (typeof window === "undefined" || !window.getComputedStyle) return true;
+  const style = window.getComputedStyle(el);
+  return style.display !== "none" && style.visibility !== "hidden";
+}
+
+/** Focusable descendants of `root`, in DOM order, excluding ones not rendered. */
 export function focusablesWithin(root: HTMLElement | null | undefined): HTMLElement[] {
   if (!root) return [];
-  return Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
-    (el) =>
-      el === document.activeElement ||
-      el.offsetParent != null ||
-      // jsdom has no layout: offsetParent is undefined for every element, so
-      // without this the trap would see zero focusables in every unit test.
-      typeof el.offsetParent === "undefined",
-  );
+  return Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(isRendered);
 }
 
 // ─── Layer stack ──────────────────────────────────────────────────────────────
@@ -215,11 +225,25 @@ export function useDialogA11y(options: DialogA11yOptions): void {
 
       const panel = panelRef.current;
 
-      // A foreign dialog layer (Radix portals to <body>, so it is never inside
+      // A FOREIGN dialog layer (Radix portals to <body>, so it is never related to
       // our panel) owns its own keys. Bail rather than close two things at once.
+      //
+      // "Foreign" has to be tested in BOTH directions. Several dialogs put
+      // `role="dialog"` on the full-screen scrim and hand `panelRef` the inner
+      // panel — OrderDetailsDrawer and HistoryDrawer both do. There the nearest
+      // dialog ancestor of the keydown target is an ANCESTOR of our panel, not a
+      // descendant, so a one-directional `panel.contains(targetLayer)` test called
+      // the dialog's own chrome foreign and switched the trap off entirely. That
+      // is what the table-driven render test caught.
       const target = e.target instanceof Element ? e.target : null;
       const targetLayer = target?.closest?.('[role="dialog"], [role="alertdialog"]') ?? null;
-      if (targetLayer && targetLayer !== panel && !panel?.contains(targetLayer)) return;
+      const related =
+        !targetLayer ||
+        !panel ||
+        targetLayer === panel ||
+        panel.contains(targetLayer) ||
+        targetLayer.contains(panel);
+      if (!related) return;
 
       if (e.key === "Escape") {
         if (!closeOnEscape) return;
