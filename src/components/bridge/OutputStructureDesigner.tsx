@@ -12,6 +12,7 @@ import { useQuery } from "@tanstack/react-query";
 import { previewMappingOverride, upsertMappingOverride, inferOutputStructure, getSourceTokens } from "@/lib/api-client";
 import { OutputSourcePicker } from "./OutputSourcePicker";
 import { withBinding, withFormatManipulator, type BindingKey } from "./outputRuleModel";
+import { moveAt, canMoveAt } from "./outputNamespaceModel";
 import {
   updateAt, removeAt, setNodeNamespace,
   namespacesToRows, rowsToNamespaces, templateHasRootNamespaces, treeHasPerNodeNamespaces,
@@ -87,6 +88,21 @@ function currentPreset(manis: { type: string; params: string[] }[] | undefined):
   const hit = FORMAT_PRESETS.find(
     (p) => p.mani && p.mani.type === fmt.type && JSON.stringify(p.mani.params) === JSON.stringify(fmt.params));
   return hit?.key ?? "";
+}
+
+/** The reorder buttons' shared look — a ghost chip that only asserts itself on hover/focus. */
+function moveBtnStyle(hover: boolean, enabled: boolean): React.CSSProperties {
+  return {
+    flex: "0 0 auto", height: 24, width: 20,
+    display: "flex", alignItems: "center", justifyContent: "center",
+    borderRadius: 6, border: "1px solid transparent", background: "transparent",
+    color: SLATE, fontSize: 12, lineHeight: 1,
+    cursor: enabled ? "pointer" : "default",
+    // Disabled ends stay visible but recede, so the control's range is legible at a
+    // glance rather than appearing and disappearing as rows move.
+    opacity: enabled ? (hover ? 1 : 0.35) : 0.15,
+    transition: "opacity 120ms ease",
+  };
 }
 
 function newField(name: string, canonicalField?: string): OutputNode {
@@ -170,6 +186,8 @@ export function OutputStructureDesigner({
   // could render with Advanced collapsed (data still reachable via its pill, but the affordance is
   // hidden). Bump this revision on infer and key the editor subtree by it so the editors remount and
   // re-initialize. Normal edits never bump it, so an in-progress edit is preserved.
+  // What the last reorder did, read by the tree's single live region.
+  const [announcement, setAnnouncement] = useState("");
   const [treeRevision, setTreeRevision] = useState(0);
 
   // F-1: the full source-field universe for this order, so a node can bind to ANY incoming field
@@ -384,8 +402,27 @@ export function OutputStructureDesigner({
             {!firstRun && (
               <NodeEditor key={treeRevision} node={tree.root} path={[]} lineScope={false} onUpdate={setRoot}
                 sourceTokens={sourceTokens ?? []} isRoot
-                xml={isXml} rootHasNamespaces={hasRootNs} />
+                xml={isXml} rootHasNamespaces={hasRootNs}
+                siblingCount={1} announce={setAnnouncement} />
             )}
+
+            {/* ONE polite live region for the whole tree (WP-15 · S5).
+                Per-row regions race each other and a screen reader reads the wrong
+                one, so the announcement is owned here and the rows call up into it.
+                Visually hidden rather than `display: none` — a hidden region is not
+                announced at all, which would make the boundary case silent again. */}
+            <div
+              data-testid="designer-announcer"
+              role="status"
+              aria-live="polite"
+              aria-atomic="true"
+              style={{
+                position: "absolute", width: 1, height: 1, margin: -1, padding: 0,
+                overflow: "hidden", clip: "rect(0 0 0 0)", whiteSpace: "nowrap", border: 0,
+              }}
+            >
+              {announcement}
+            </div>
           </div>
           <div style={{ overflow: isNarrow ? "visible" : "auto", padding: 16, background: "#0B1626" }}>
             <div style={{ fontSize: 11, color: "#8FA3BF", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.4 }}>
@@ -440,6 +477,7 @@ const PRESET_SHORT: Record<string, string> = {
 
 function NodeEditor({
   node, path, lineScope, onUpdate, sourceTokens, isRoot, xml, rootHasNamespaces,
+  siblingCount = 1, announce,
 }: {
   node: OutputNode;
   path: number[];
@@ -447,6 +485,14 @@ function NodeEditor({
   onUpdate: (fn: (n: OutputNode) => OutputNode) => void;
   sourceTokens: ReadonlyArray<SourceToken>;
   isRoot?: boolean;
+  /** How many nodes share this parent — the "of N" in the move announcement. */
+  siblingCount?: number;
+  /**
+   * Say what a move did. Passed down rather than owned per row because ONE polite
+   * live region for the whole tree is what a screen reader can follow; a region per
+   * row races itself and reads the wrong one.
+   */
+  announce?: (message: string) => void;
   /** True when the tree's format is XML — gates the per-node namespace/prefix authoring. */
   xml?: boolean;
   /** True when the template carries root-level namespaces — per-node authoring is hidden then
@@ -471,6 +517,33 @@ function NodeEditor({
 
   const updateName = (name: string) => onUpdate((n) => updateAt(n, path, (x) => ({ ...x, name })));
   const remove = () => onUpdate((n) => removeAt(n, path));
+
+  // ── Reorder (WP-15 · S5) ───────────────────────────────────────────────────
+  // Order is CSV column order and XML element order, both read positionally by the
+  // receiver, so this is a content change and not a view preference.
+  const index = path.length > 0 ? path[path.length - 1] : 0;
+  const canMoveUp = !isRoot && index > 0;
+  const canMoveDown = !isRoot && index < siblingCount - 1;
+
+  const move = (delta: -1 | 1) => {
+    // A boundary press must SAY something. Silence there is the single most likely
+    // reading of "this control is broken", and it is the press people try first.
+    if ((delta === -1 && !canMoveUp) || (delta === 1 && !canMoveDown)) {
+      announce?.(`${node.name} is already ${delta === -1 ? "first" : "last"}.`);
+      return;
+    }
+    onUpdate((n) => moveAt(n, path, delta));
+    announce?.(`${node.name} moved to position ${index + delta + 1} of ${siblingCount}.`);
+  };
+
+  // Alt is the modifier because the bare arrows belong to the browser: inside this
+  // tree they scroll, and on a focused control they move between radio/menu items.
+  // Alt+Arrow is the same gesture list reorder uses across the platform.
+  const onMoveKeyDown = (e: React.KeyboardEvent) => {
+    if (!e.altKey) return;
+    if (e.key === "ArrowUp") { e.preventDefault(); move(-1); }
+    else if (e.key === "ArrowDown") { e.preventDefault(); move(1); }
+  };
   const addChild = (child: OutputNode) =>
     onUpdate((n) => updateAt(n, path, (x) => ({ ...x, children: [...(x.children ?? []), child] })));
   // Bind a node to ONE source: a canonical field, a SOURCE token (bare id), or a fixed value — the
@@ -620,6 +693,34 @@ function NodeEditor({
           )
         )}
 
+        {/* Reorder — same hover/focus reveal as delete, so the row stays quiet at rest.
+            Disabled at each end AND announcing why: `disabled` alone tells a sighted
+            user, the announcement tells everyone else. */}
+        {!isRoot && (
+          <>
+            <button
+              onClick={() => move(-1)}
+              onKeyDown={onMoveKeyDown}
+              disabled={!canMoveUp}
+              aria-label={`Move ${node.name} up`}
+              title={canMoveUp ? `Move ${node.name} up (Alt+↑)` : `${node.name} is already first`}
+              onFocus={() => setHover(true)} onBlur={() => setHover(false)}
+              style={moveBtnStyle(hover, canMoveUp)}>
+              ↑
+            </button>
+            <button
+              onClick={() => move(1)}
+              onKeyDown={onMoveKeyDown}
+              disabled={!canMoveDown}
+              aria-label={`Move ${node.name} down`}
+              title={canMoveDown ? `Move ${node.name} down (Alt+↓)` : `${node.name} is already last`}
+              onFocus={() => setHover(true)} onBlur={() => setHover(false)}
+              style={moveBtnStyle(hover, canMoveDown)}>
+              ↓
+            </button>
+          </>
+        )}
+
         {/* Inline delete — a small ghost ×, hover/focus-revealed (not a permanent full-width line). */}
         {!isRoot && (
           <button onClick={remove} aria-label="Remove node" title="Remove"
@@ -677,7 +778,8 @@ function NodeEditor({
           <div style={{ marginTop: 4, borderLeft: isRoot ? "none" : "2px solid #ECEFF4", marginLeft: isRoot ? 0 : 4, paddingLeft: isRoot ? 0 : 2 }}>
             {(node.children ?? []).map((c, i) => (
               <NodeEditor key={i} node={c} path={[...path, i]} lineScope={childScope} onUpdate={onUpdate}
-                sourceTokens={sourceTokens} xml={xml} rootHasNamespaces={rootHasNamespaces} />
+                sourceTokens={sourceTokens} xml={xml} rootHasNamespaces={rootHasNamespaces}
+                siblingCount={(node.children ?? []).length} announce={announce} />
             ))}
           </div>
           <div style={{ display: "flex", gap: 6, marginTop: 5, marginLeft: isRoot ? 0 : 18, flexWrap: "wrap" }}>

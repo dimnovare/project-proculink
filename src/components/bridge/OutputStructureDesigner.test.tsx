@@ -272,3 +272,123 @@ describe("OutputStructureDesigner — an authored Expression survives an edit", 
     expect(total.rule!.fieldManipulators).toEqual([]);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WP-15 · S5 — reorder from the UI.
+//
+// `moveAt` is pinned in outputNamespaceModel.test.ts. This file pins that the
+// designer REACHES it — pointer and keyboard — and that every press says what
+// happened. A reorder control that moves a row silently is unusable without
+// sight of the tree, and the boundary press is the one most likely to be met
+// with silence and read as "broken".
+// ─────────────────────────────────────────────────────────────────────────────
+describe("OutputStructureDesigner — reordering nodes", () => {
+  function threeFieldTree(): OutputNodeTemplate {
+    return {
+      format: "csv",
+      root: { name: "Order", nodeType: "object", children: [
+        { name: "Sku", nodeType: "field", namespace: "urn:cbc", prefix: "cbc",
+          rule: { outputPath: "Sku", canonicalField: "SupplierItemCode", fixedValue: null, fieldManipulators: [] } },
+        { name: "Qty", nodeType: "field", rule: { outputPath: "Qty", canonicalField: "Quantity", fixedValue: null, fieldManipulators: [] } },
+        { name: "Price", nodeType: "field", rule: { outputPath: "Price", canonicalField: "UnitPrice", fixedValue: null, fieldManipulators: [] } },
+      ] },
+    };
+  }
+
+  const savedNames = () => savedTree().root.children!.map((c: OutputNode) => c.name);
+
+  it("the down control reorders the node and the SAVE carries the new order", () => {
+    renderDesigner(threeFieldTree());
+
+    fireEvent.click(screen.getByRole("button", { name: /Move Sku down/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Save structure/i }));
+
+    expect(savedNames()).toEqual(["Qty", "Sku", "Price"]);
+  });
+
+  it("the up control reorders the other way", () => {
+    renderDesigner(threeFieldTree());
+
+    fireEvent.click(screen.getByRole("button", { name: /Move Price up/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Save structure/i }));
+
+    expect(savedNames()).toEqual(["Sku", "Price", "Qty"]);
+  });
+
+  it("Alt+ArrowDown moves the row from the keyboard", () => {
+    renderDesigner(threeFieldTree());
+
+    fireEvent.keyDown(screen.getByRole("button", { name: /Move Sku down/i }), { key: "ArrowDown", altKey: true });
+    fireEvent.click(screen.getByRole("button", { name: /Save structure/i }));
+
+    expect(savedNames()).toEqual(["Qty", "Sku", "Price"]);
+  });
+
+  it("Alt+ArrowUp moves the row from the keyboard", () => {
+    renderDesigner(threeFieldTree());
+
+    fireEvent.keyDown(screen.getByRole("button", { name: /Move Price up/i }), { key: "ArrowUp", altKey: true });
+    fireEvent.click(screen.getByRole("button", { name: /Save structure/i }));
+
+    expect(savedNames()).toEqual(["Sku", "Price", "Qty"]);
+  });
+
+  it("a plain ArrowDown does NOT move the row — Alt is the modifier", () => {
+    renderDesigner(threeFieldTree());
+
+    fireEvent.keyDown(screen.getByRole("button", { name: /Move Sku down/i }), { key: "ArrowDown" });
+    fireEvent.click(screen.getByRole("button", { name: /Save structure/i }));
+
+    expect(savedNames()).toEqual(["Sku", "Qty", "Price"]);
+  });
+
+  it("announces the new position, so a move is never silent", () => {
+    renderDesigner(threeFieldTree());
+
+    fireEvent.click(screen.getByRole("button", { name: /Move Sku down/i }));
+
+    const live = screen.getByTestId("designer-announcer");
+    expect(live.getAttribute("aria-live")).toBe("polite");
+    expect(live.textContent).toContain("Sku moved to position 2 of 3");
+  });
+
+  it("a BOUNDARY press says why nothing moved rather than saying nothing", () => {
+    renderDesigner(threeFieldTree());
+
+    // The press most likely to be read as "the control is broken".
+    fireEvent.keyDown(screen.getByRole("button", { name: /Move Sku up/i }), { key: "ArrowUp", altKey: true });
+
+    expect(screen.getByTestId("designer-announcer").textContent).toContain("Sku is already first");
+
+    // …and nothing moved, which is the other half of "the control is not broken".
+    fireEvent.click(screen.getByRole("button", { name: /Save structure/i }));
+    expect(savedNames()).toEqual(["Sku", "Qty", "Price"]);
+  });
+
+  it("the boundary controls are disabled at each end", () => {
+    renderDesigner(threeFieldTree());
+
+    expect(screen.getByRole("button", { name: /Move Sku up/i })).toHaveProperty("disabled", true);
+    expect(screen.getByRole("button", { name: /Move Price down/i })).toHaveProperty("disabled", true);
+    expect(screen.getByRole("button", { name: /Move Sku down/i })).toHaveProperty("disabled", false);
+    expect(screen.getByRole("button", { name: /Move Price up/i })).toHaveProperty("disabled", false);
+  });
+
+  it("the root has no move controls — it has no siblings", () => {
+    renderDesigner(threeFieldTree());
+    expect(screen.queryByRole("button", { name: /Move Order up/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Move Order down/i })).toBeNull();
+  });
+
+  it("a reordered node keeps its namespace all the way into the saved tree", () => {
+    renderDesigner(threeFieldTree());
+
+    fireEvent.click(screen.getByRole("button", { name: /Move Sku down/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Save structure/i }));
+
+    const sku = savedTree().root.children!.find((c: OutputNode) => c.name === "Sku")!;
+    expect(sku.namespace).toBe("urn:cbc");
+    expect(sku.prefix).toBe("cbc");
+    expect(sku.rule!.canonicalField).toBe("SupplierItemCode");
+  });
+});
