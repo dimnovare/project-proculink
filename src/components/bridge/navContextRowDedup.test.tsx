@@ -153,25 +153,33 @@ describe("BridgeTopbar context row — no second navbar under the primary nav", 
   // The defect the founder actually reported, asserted directly: whatever Row 1
   // highlights must not be printed again in the row beneath it.
   it("never re-prints the active nav item's own word in the context row", () => {
-    for (const path of [
+    const PATHS = [
       "/bridge", "/inbox", "/library/suppliers", "/library/mappings",
       "/operations/log", "/operations/health", "/operations/exceptions",
-    ]) {
+    ];
+    let asserted = 0;
+    for (const path of PATHS) {
       cleanup();
       mockPath = path;
       render(<BridgeTopbar />);
       const active = activeNavLabel();
       expect(active, `${path} must light a primary nav item`).not.toBeNull();
       const row = contextRow();
-      if (!row) continue;
+      // Every path above is a hub route or a hidden hub entry, so all seven render a
+      // context row carrying a real tab strip. `if (!row) continue` used to stand here:
+      // a route that stopped rendering its row skipped the dead-crumb assertion entirely
+      // and reported green, which is the same silence as the defect passing.
+      expect(row, `${path} rendered no context row to check`).not.toBeNull();
       // The active tab may legitimately repeat the hub word (Orders ▸ Orders is
       // the queue itself) — but only as a LINK. An unlinked crumb repeating it is
       // the duplicate.
-      const deadCrumbs = [...row.querySelectorAll("span")]
+      const deadCrumbs = [...row!.querySelectorAll("span")]
         .filter((el) => el.children.length === 0)
         .map((el) => el.textContent?.trim());
       expect(deadCrumbs, `${path} re-prints "${active}" as a dead crumb`).not.toContain(active);
+      asserted++;
     }
+    expect(asserted, "the path loop ran zero assertions").toBe(PATHS.length);
   });
 
   it("keeps the row at md+ on a hub route — the tab strip is real navigation", () => {

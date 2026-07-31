@@ -41,7 +41,28 @@ export default defineConfig({
   // that residual cold-compile jitter (a genuine product failure fails both attempts).
   retries: 1,
   workers: process.env.CI ? 1 : undefined,
-  reporter: process.env.CI ? "github" : "list",
+  // WP-02 — a skip must be LEGIBLE, not silent.
+  //
+  // CI ran with `reporter: "github"` alone. The GitHub reporter emits file annotations for
+  // FAILURES and prints nothing else, and Playwright's runner counts `skipped` as a
+  // non-failure — so 31 of 111 tests skipping in the default (mock) run produced a green
+  // check and not one line of output saying so. The HTML report was uploaded only on
+  // failure, so there was no artifact to go and look at either.
+  //
+  // Skipping is still not a failure — the declared-condition skips (live-backend gates) are
+  // correct by design. It is now merely impossible to miss:
+  //   github → failure annotations, as before
+  //   list   → one line per test, with SKIPPED shown inline in the job log
+  //   json   → machine-readable, consumed by the "Skipped Playwright tests" CI step
+  //   html   → a real report to download; the artifact upload is now `if: always()`
+  reporter: process.env.CI
+    ? [
+        ["github"],
+        ["list"],
+        ["json", { outputFile: "test-results/results.json" }],
+        ["html", { open: "never" }],
+      ]
+    : "list",
 
   use: {
     baseURL: process.env.PLAYWRIGHT_BASE_URL ?? ORIGIN,

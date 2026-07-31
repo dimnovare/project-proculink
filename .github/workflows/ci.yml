@@ -193,8 +193,78 @@ jobs:
       - name: Run Playwright tests (mock mode)
         run: bun run test:e2e
 
-      - name: Upload Playwright report on failure
-        if: failure()
+      # WP-02 — a skipped test is not a failure, but it must not be invisible either.
+      #
+      # This job used to report green while 31 of its 111 tests skipped, because the
+      # `github` reporter prints only failure annotations and Playwright's runner counts
+      # `skipped` as a non-failure. Nothing in the log, the check name, or the (failure-only)
+      # artifact said which tests did not run or why.
+      #
+      # This step never fails the build — the declared-condition skips are correct by design.
+      # It prints them, with their reasons, into the job log AND the check summary, so the
+      # count is a number somebody can look at and challenge.
+      - name: Skipped Playwright tests
+        if: always()
+        run: |
+          node - <<'NODE'
+          const fs = require("node:fs");
+          const FILE = "test-results/results.json";
+          const out = [];
+
+          if (!fs.existsSync(FILE)) {
+            out.push(`No Playwright JSON report at ${FILE} — the run did not get far enough to write one.`);
+          } else {
+            const report = JSON.parse(fs.readFileSync(FILE, "utf8"));
+            const skipped = [];
+
+            const walk = (suite, titles) => {
+              for (const spec of suite.specs ?? []) {
+                for (const t of spec.tests ?? []) {
+                  const status = t.status ?? t.results?.[0]?.status;
+                  if (status !== "skipped") continue;
+                  const reason = (t.annotations ?? [])
+                    .filter((a) => a.type === "skip" || a.type === "fixme")
+                    .map((a) => a.description || `(${a.type}, no reason given)`)
+                    .join("; ");
+                  skipped.push({
+                    where: `${spec.file}:${spec.line}`,
+                    title: [...titles, spec.title].join(" › "),
+                    reason: reason || "(NO REASON RECORDED — the skip cannot be justified from the report)",
+                  });
+                }
+              }
+              for (const child of suite.suites ?? []) walk(child, [...titles, child.title]);
+            };
+            for (const s of report.suites ?? []) walk(s, []);
+
+            const st = report.stats ?? {};
+            out.push(
+              `Playwright: ${st.expected ?? "?"} passed · ${st.skipped ?? skipped.length} skipped · ` +
+                `${st.unexpected ?? "?"} failed · ${st.flaky ?? 0} flaky`,
+            );
+            out.push("");
+            if (skipped.length === 0) {
+              out.push("No skipped tests — every test in this run actually ran.");
+            } else {
+              out.push(`${skipped.length} test(s) did NOT run:`);
+              for (const s of skipped) out.push(`  - ${s.title}\n      ${s.where}\n      reason: ${s.reason}`);
+            }
+          }
+
+          const text = out.join("\n");
+          console.log(text);
+          if (process.env.GITHUB_STEP_SUMMARY) {
+            fs.appendFileSync(
+              process.env.GITHUB_STEP_SUMMARY,
+              `## Playwright skips\n\n\`\`\`\n${text}\n\`\`\`\n`,
+            );
+          }
+          NODE
+
+      # Uploaded on EVERY run, not just failures: a green run that skipped a third of the
+      # suite is exactly the run somebody needs the report for.
+      - name: Upload Playwright report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report

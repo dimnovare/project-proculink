@@ -94,7 +94,22 @@ afterEach(cleanup);
 describe("delivery_unconfirmed — nothing sends on one click", () => {
   it("renders NO send-shaped control before the operator states what the supplier said", () => {
     renderPanel();
-    for (const label of buttonTexts()) {
+
+    // The claim below is a NEGATIVE one, and a negative claim about an empty tree is
+    // free. Every assertion used to live inside `for (const label of buttonTexts())`,
+    // so a panel that rendered nothing at all — a crashed query, a dropped status
+    // branch, a `return null` — passed with exactly the same green as correct
+    // behaviour. Prove the panel is really on screen FIRST, then prove what it omits.
+    const labels = buttonTexts();
+    expect(labels.length, "the panel rendered no buttons at all").toBeGreaterThan(0);
+    expect(screen.getByRole("group")).toBeTruthy();
+    expect(screen.getAllByRole("radio")).toHaveLength(3);
+    expect(
+      labels.some((l) => /copy details/i.test(l)),
+      `no "Copy details" control among: ${labels.join(" | ")}`,
+    ).toBe(true);
+
+    for (const label of labels) {
       expect(label).not.toMatch(/send (it )?(to them )?again/i);
       expect(label).not.toMatch(/mark (it )?(as )?delivered/i);
     }
