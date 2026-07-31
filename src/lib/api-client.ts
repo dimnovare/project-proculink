@@ -723,6 +723,44 @@ async function mockResolvePurchaseOrder(
   return { order, validationMessages: unresolvedCount > 0 ? [`${unresolvedCount} line(s) still require supplier item codes`] : [] };
 }
 
+/**
+ * Both recompute endpoints (`/resolve` and `/accept-ai-suggestions`) answer their failures
+ * with a JSON body `{ "error": "<sentence>" }` — WP-23's status guard adds `status` to it.
+ * Parse once so callers can surface the sentence and keep the parsed body, instead of
+ * dumping a serialised body into the operator's toast.
+ */
+function parseApiErrorBody(text: string): { body: unknown; error: string | null } {
+  if (!text) return { body: null, error: null };
+  let body: unknown;
+  try { body = JSON.parse(text); } catch { return { body: null, error: null }; } // not JSON → use raw text
+  const raw = (body as { error?: unknown } | null)?.error;
+  return { body, error: typeof raw === "string" && raw.trim() ? raw : null };
+}
+
+/**
+ * WP-23 — the resolve status guard, client side.
+ *
+ * `/resolve` and `/accept-ai-suggestions` END with the same status recompute
+ * (`Status = Lines.Any(NeedsReview) ? pending_review : ready`), so the backend refuses
+ * BOTH with 409 from a status that recompute would destroy: `unrouted` (the recompute
+ * lifts the order out of the routing hold with SupplierId still null, and assign-supplier
+ * claims atomically on `Status == Unrouted` — the order becomes permanently unroutable)
+ * and `delivering` (it writes straight over a live dispatch claim).
+ *
+ * The sentence is written for the operator and says what to DO, so it is surfaced verbatim.
+ * The `status` token rides along on `.body` so a caller can offer the one hold with a real
+ * next action ("route it first") instead of a generic "try later".
+ *
+ * ApiHttpError, not a plain Error: this refusal is TEMPORARY, and the 400 a layer down
+ * ("there is nothing here to correct; upload a corrected file as a new order") is
+ * PERMANENT. Flattening both to Error makes a retryable hold indistinguishable from a
+ * dead end — the same reason assignSupplier keeps its 409.
+ */
+function resolveHoldError(bodyText: string, res: Response, fallbackPrefix: string): ApiHttpError {
+  const { body, error } = parseApiErrorBody(bodyText);
+  return new ApiHttpError(error ?? `${fallbackPrefix}: ${bodyText || res.statusText}`, 409, body);
+}
+
 async function realResolvePurchaseOrder(
   id: string, payload: ResolvePayload,
 ): Promise<{ order: Order; validationMessages: string[] }> {
@@ -733,12 +771,13 @@ async function realResolvePurchaseOrder(
   }, 30000);
   if (!res.ok) {
     const t = await res.text();
+    // 409 → the order is in a status this correction would destroy. See resolveHoldError.
+    if (res.status === 409) throw resolveHoldError(t, res, "Resolution failed");
     // The backend returns 400 with a JSON body `{ "error": "<sentence>" }` for validation
     // failures (e.g. "At least one line resolution or header correction is required."). Surface
     // the clean sentence rather than dumping the raw `{error: …}` JSON into the toast.
     if (res.status === 400 && t) {
-      let cleanError: string | null = null;
-      try { cleanError = (JSON.parse(t) as { error?: string })?.error ?? null; } catch { /* not JSON → use raw text */ }
+      const { error: cleanError } = parseApiErrorBody(t);
       if (cleanError) throw new Error(cleanError);
     }
     throw new Error(`Resolution failed: ${t || res.statusText}`);
@@ -1604,7 +1643,11 @@ async function realAcceptAiSuggestions(
   );
   if (!res.ok) {
     const t = await res.text().catch(() => "");
-    throw new ApiHttpError(`accept-ai-suggestions failed: ${t || res.statusText}`, res.status);
+    // The bulk accept runs the SAME status recompute /resolve does, so WP-23 holds it with
+    // the same 409 + sentence. See resolveHoldError.
+    if (res.status === 409) throw resolveHoldError(t, res, "accept-ai-suggestions failed");
+    const { body } = parseApiErrorBody(t);
+    throw new ApiHttpError(`accept-ai-suggestions failed: ${t || res.statusText}`, res.status, body);
   }
   return res.json() as Promise<{ accepted: number }>;
 }
