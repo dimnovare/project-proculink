@@ -3,8 +3,14 @@ import { ProcuLinkMark } from "@/components/bridge/DSPrimitives";
 import { SkipToContent } from "@/components/a11y/SkipToContent";
 import { COPYRIGHT_NOTICE } from "@/lib/legal-entity";
 
+// "One-page overview" is /one-pager — the print-friendly summary of the whole
+// offer (what it does, how an order moves through it, the full plan ladder,
+// security, contact). It was published in sitemap.ts and linked from nowhere,
+// so the only people who ever saw it were the ones handed the URL. It belongs
+// in Product rather than on /pricing or /customers because it is not about
+// either one on its own, and the footer puts it under both.
 const FOOTER_COLS: { h: string; links: [string, string][] }[] = [
-  { h: "Product", links: [["How it works", "/how-it-works"], ["Pricing", "/pricing"], ["Security", "/security"], ["Open the dashboard", "/bridge"]] },
+  { h: "Product", links: [["How it works", "/how-it-works"], ["Pricing", "/pricing"], ["Security", "/security"], ["One-page overview", "/one-pager"], ["Open the dashboard", "/bridge"]] },
   { h: "Company", links: [["Customers", "/customers"], ["Book a demo", "/book-demo"], ["Changelog", "/changelog"], ["Help center", "/help"], ["Support", "/support"]] },
   { h: "Legal",   links: [["Privacy", "/privacy"], ["Terms", "/terms"], ["AUP", "/aup"], ["DPA", "/dpa"], ["Subprocessors", "/subprocessors"]] },
 ];

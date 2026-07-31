@@ -10,7 +10,28 @@ export const metadata = pageMetadata({
     "Every improvement shipped to ProcuLink — new features, formats, integrations, and platform changes.",
 });
 
+// APPEND-ONLY, newest first. An entry records what was true on its date, so it
+// is never edited afterwards — when something is retired or turns out not to
+// have worked, that is a NEW entry saying so, not a rewrite of the old one.
+// Editing the entry that announced a feature claims it never shipped.
+//
+// `latest: …` on the entries below is legacy and unread. Position decides:
+// index 0 is the newest, and both the hero badge and the card colours derive
+// from that, so appending an entry cannot leave the previous one badged Latest.
+// The old values stay because src/test/changelog-append-only.test.ts freezes
+// those entries byte for byte.
 const ENTRIES = [
+  {
+    version: "v1.5",
+    date: "July 2026",
+    items: [
+      "Output templates screen retired — saving a template silently discarded the body (the screen posted a field the API never read), and no transform ever consulted a stored template. The format a supplier receives is set on that supplier's delivery configuration, which is where it always came from.",
+      "Validation rules screen and the read-only rule catalog retired — they offered create, edit and delete over records that nothing in parsing, transformation or delivery ever evaluated; the drawer's own “Triggered 0 times” counter was accurate. The checks that do run are the per-supplier Validation rules tab, which is unchanged and shows the same standards references inline.",
+      "Drafts and Upload preview screens retired — orders cannot be saved as drafts, so Drafts could never hold one, and uploads go straight to the order review screen, which does everything the preview did and more.",
+      "Inbound webhook ingress withdrawn from the product copy — it read as a way to send us orders, but it could never be switched on: verifying an inbound POST needs a per-organisation signing secret, and nothing in the product could set one. Orders arrive by upload, by email, or by a POST to the REST endpoint. Outbound webhook subscriptions — we call your URL when an order is created, delivered or fails — are untouched and still live.",
+      "Every retired screen answers with a permanent redirect to the screen that does the job, so existing bookmarks, help links and search results keep working.",
+    ],
+  },
   {
     version: "v1.4",
     date: "May 2026",
@@ -63,6 +84,9 @@ const ENTRIES = [
   },
 ];
 
+/** ENTRIES is newest-first, so index 0 is the current release. */
+const isNewest = (i: number) => i === 0;
+
 export default function ChangelogPage() {
   return (
     <div style={{ background: "#FFFFFF" }}>
@@ -92,7 +116,7 @@ export default function ChangelogPage() {
             }}
           >
             <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#2E8E3A", display: "inline-block" }} />
-            v1.4 — Latest
+            {ENTRIES[0].version} — Latest
           </div>
           <h1
             style={{
@@ -130,7 +154,7 @@ export default function ChangelogPage() {
                 <span
                   style={{
                     display: "inline-block",
-                    background: entry.latest ? "#297F34" : "#0B1A2F",
+                    background: isNewest(i) ? "#297F34" : "#0B1A2F",
                     color: "#FFFFFF",
                     fontSize: 11,
                     fontWeight: 800,
@@ -141,7 +165,7 @@ export default function ChangelogPage() {
                 >
                   {entry.version}
                 </span>
-                {entry.latest && (
+                {isNewest(i) && (
                   <span
                     style={{
                       display: "inline-block",
@@ -179,7 +203,7 @@ export default function ChangelogPage() {
                 style={{
                   background: "#FFFFFF",
                   border: "1px solid #E2E6EE",
-                  borderLeft: `3px solid ${entry.latest ? "#2E8E3A" : "#C6CDDA"}`,
+                  borderLeft: `3px solid ${isNewest(i) ? "#2E8E3A" : "#C6CDDA"}`,
                   borderRadius: 8,
                   padding: "20px 24px",
                   boxShadow: "0 1px 4px rgba(11,26,47,0.05)",
@@ -192,7 +216,7 @@ export default function ChangelogPage() {
                       style={{ display: "flex", alignItems: "flex-start", gap: 10, fontSize: 14, color: "#2D3A4A", lineHeight: 1.6 }}
                     >
                       <span
-                        style={{ width: 6, height: 6, borderRadius: "50%", background: entry.latest ? "#2E8E3A" : "var(--ink-faint)", flexShrink: 0, marginTop: 8, display: "inline-block" }}
+                        style={{ width: 6, height: 6, borderRadius: "50%", background: isNewest(i) ? "#2E8E3A" : "var(--ink-faint)", flexShrink: 0, marginTop: 8, display: "inline-block" }}
                       />
                       <span>{item}</span>
                     </li>

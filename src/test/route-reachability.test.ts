@@ -150,12 +150,12 @@ export const KNOWN_DEEP_LINK_ONLY: Record<string, string> = {
     "checkout, which is why the page reads `?upgraded=` and is noindex + absent from the sitemap. " +
     "It is live billing infrastructure — do NOT delete it because nothing in this repo links to it.",
 
-  // ── Deliberately deep-link-only, and honest about it.
-  "/one-pager":
-    "Print-friendly sales collateral, handed out as a URL rather than navigated to: no in-app entry " +
-    "point by design. It is published for discovery via src/app/sitemap.ts, which this guard does not " +
-    "count as navigation (counting the sitemap would mark most of the marketing site reachable and " +
-    "blunt the guard). Wants either a real link or a deletion decision — but that is not this guard's call.",
+  // ── /one-pager was the third entry, parked as "wants either a real link or a
+  //    deletion decision". Founder decision 2026-07-30: link it. The marketing
+  //    footer's Product column carries it (src/app/(marketing)/layout.tsx), so
+  //    the page is now reachable on its own merits and the entry is gone —
+  //    see "/one-pager is reached by a real link" below, which is what stops
+  //    this from quietly reverting to an allowlist entry.
 };
 
 // ─── Route enumeration ────────────────────────────────────────────────────────
@@ -537,6 +537,32 @@ describe("route reachability (plan rule R1 — no new surface without a consumer
             `Link one from the sidebar, a hub tab, a redirect or another page — or add it to\n` +
             `KNOWN_DEEP_LINK_ONLY in this file WITH a written reason.\n`,
     ).toEqual([]);
+  });
+
+  it("/one-pager is reached by a real link, and no longer by the allowlist", () => {
+    // Founder decision, 2026-07-30: the print one-pager is real sales
+    // collateral with real content — the only thing wrong with it was that
+    // nothing linked to it. So it is linked instead of deleted, and its
+    // allowlist entry (which said, in as many words, "wants either a real link
+    // or a deletion decision") is gone. The escape hatch closing is the point:
+    // an allowlisted route is a route this guard has stopped guarding.
+    const onePager = ROUTES.filter((r) => r.route === "/one-pager");
+    expect(onePager, "/one-pager must still exist as a page").toHaveLength(1);
+    expect(Object.keys(KNOWN_DEEP_LINK_ONLY)).not.toContain("/one-pager");
+
+    // Cleared with the allowlist passed as EMPTY, so this cannot pass on the
+    // strength of the hatch it just gave up.
+    expect(findUnreachableRoutes(onePager, TARGETS, {}).map((u) => u.route)).toEqual([]);
+
+    // Exactly ONE inbound link, and it is the marketing footer — which renders
+    // under every marketing page, so a prospect reading /pricing or /customers
+    // has it in front of them. src/app/sitemap.ts also names the path, and is
+    // deliberately NOT counted here (see "a sitemap array is NOT navigation");
+    // if that ever changes, this assertion sees two sources and fails.
+    const rel = (f: string) => path.relative(ROOT, f).split(path.sep).join("/");
+    expect(TARGETS.filter((t) => t.path === "/one-pager").map((t) => rel(t.source))).toEqual([
+      "src/app/(marketing)/layout.tsx",
+    ]);
   });
 
   it("catches a synthetic unreachable route (proves the guard is not vacuous)", () => {
