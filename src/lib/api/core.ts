@@ -126,16 +126,36 @@ export function retryAfterFrom(res: Response | null, body: unknown): number | nu
   const header = res?.headers?.get?.("Retry-After");
   if (header) {
     // RFC 9110 allows delay-seconds or an HTTP-date. Both appear in the wild.
-    const seconds = Number(header);
-    if (Number.isFinite(seconds) && seconds >= 0) return Math.ceil(seconds);
+    const fromHeader = positiveSeconds(Number(header));
+    if (fromHeader !== null) return fromHeader;
     const at = Date.parse(header);
-    if (Number.isFinite(at)) return Math.max(0, Math.ceil((at - Date.now()) / 1000));
+    // A date we cannot parse, or one already in the past, tells us NOTHING about
+    // how long to wait. Clamping it to 0 would turn "unknown" into "retry now",
+    // which is the tight loop the limiter exists to stop. RFC 9110 requires
+    // recipients to accept the obsolete RFC-850 form, which Date.parse rejects.
+    if (Number.isFinite(at)) return positiveSeconds(Math.ceil((at - Date.now()) / 1000));
   }
   if (body && typeof body === "object" && "retryAfterSeconds" in body) {
-    const raw = Number((body as { retryAfterSeconds?: unknown }).retryAfterSeconds);
-    if (Number.isFinite(raw) && raw >= 0) return Math.ceil(raw);
+    // `"key" in body` is true for a key present with value NULL, and Number(null)
+    // is 0 — so an `int?` that serialised as `"retryAfterSeconds": null` (the .NET
+    // default, and this API does not set WhenWritingNull globally) used to read as
+    // "wait zero seconds" and fire the retries back to back. Worse than the flat
+    // policy it replaced.
+    const raw = (body as { retryAfterSeconds?: unknown }).retryAfterSeconds;
+    if (typeof raw === "number") return positiveSeconds(raw);
+    if (typeof raw === "string" && raw.trim() !== "") return positiveSeconds(Number(raw));
   }
   return null;
+}
+
+/**
+ * A wait we can act on: finite and at least one second. Anything else — NaN, a
+ * boolean coerced to 1, a negative, or a zero — is "the server did not tell us",
+ * which is null. Never zero: see the note above.
+ */
+function positiveSeconds(value: number): number | null {
+  if (!Number.isFinite(value) || value < 1) return null;
+  return Math.ceil(value);
 }
 
 export async function fetchWithTimeout(input: RequestInfo | URL, init?: RequestInit, timeoutMs = 8000) {

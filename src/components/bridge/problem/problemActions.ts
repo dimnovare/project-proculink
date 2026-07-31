@@ -29,7 +29,12 @@ export type ProblemOp =
  *   retryDelivery    ← ClaimableForRetryFrom  {ready_to_deliver, delivery_failed}
  *   redeliverOrder   ← RedeliverableFrom      {delivery_failed, ready_to_deliver,
  *                                              delivery_unconfirmed}
- *   requeueDelivery  ← RequeueableFrom        {delivery_dead_letter, delivery_failed}
+ *   requeueDelivery  ← OpsController's requeue guard {delivery_dead_letter,
+ *                      delivery_failed}. On main today that is an inline status
+ *                      literal, not a named set — the sibling backend PR promotes
+ *                      it to OrderStatusMachine.RequeueableFrom. Named as the
+ *                      literal until that lands, because citing a symbol that does
+ *                      not exist yet is the same failure as citing the wrong one.
  *   markDelivered    ← ManuallyDeliverableFrom {delivery_unconfirmed}
  *
  * `delivery_held` appears in NONE of them: the release is automatic when billing

@@ -38,7 +38,7 @@
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 import { ROOT, matchesAny, normalizePath } from "./appRoutes";
-import { stripComments, syntaxFor } from "./sourceScan";
+import { maskLiterals, stripComments, syntaxFor } from "./sourceScan";
 
 /** One parameter a route consumes, and the file that consumes it. */
 export type ParamContract = {
@@ -178,12 +178,37 @@ export function unconsumedParams(href: string): string[] {
 export function paramIsReadBy(param: string, file: string): boolean {
   const abs = join(ROOT, file);
   if (!existsSync(abs)) return false;
-  const source = stripComments(readFileSync(abs, "utf8"), syntaxFor(file));
-  // `.get("param")` with either quote style and incidental whitespace. This is
-  // the only shape the app reads a search param in; a new shape must extend the
-  // pattern rather than be quietly missed, which `everyDeclaredParamIsRead`
-  // catches because the contract then reads as unhonoured.
-  return new RegExp(String.raw`\.\s*get\(\s*["']${param}["']\s*\)`).test(source);
+  const syntax = syntaxFor(file);
+  const raw = stripComments(readFileSync(abs, "utf8"), syntax);
+  // Stripping comments alone left the same hole one level down: a sentence like
+  //   const label = 'we used to call params.get("orderId") here';
+  // satisfied the contract with the real reader deleted — proven by renaming the
+  // reader and watching this guard stay green. So the match must also be proven
+  // to be CODE, not the inside of some larger string.
+  //
+  // It cannot simply run against masked text, because the thing being matched IS
+  // a string literal — masking blanks the very argument that identifies the
+  // parameter. `maskLiterals` preserves offsets by construction, so the reliable
+  // test is: find the candidate in the raw text, then confirm the code part of it
+  // is still there at the same offset after masking. Inside an outer literal it
+  // will have been blanked; as real code only the argument's contents are.
+  const masked = maskLiterals(raw);
+
+  const escaped = param.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  // The receiver has to be a search-params object. `formData.get("order")`,
+  // `headers.get(…)` and a plain `Map` all look identical to a bare `.get(`
+  // pattern, and none of them reads a URL query.
+  const receiver = String.raw`(?:searchParams|params|query|sp)`;
+  const re = new RegExp(
+    String.raw`\b${receiver}\s*\??\.\s*get\(\s*["'\`]${escaped}["'\`]\s*\)`,
+    "g",
+  );
+
+  for (const match of raw.matchAll(re)) {
+    const codeStart = (match.index ?? 0) + match[0].indexOf(".get(");
+    if (masked.startsWith(".get(", codeStart)) return true;
+  }
+  return false;
 }
 
 /** Every declared contract, flattened, for tests that walk the whole registry. */

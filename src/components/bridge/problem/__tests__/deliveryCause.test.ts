@@ -113,9 +113,21 @@ describe("the wait is only ever the supplier's own number", () => {
     expect(waitPhrase(90)).toBe("about 2 minutes");
     expect(waitPhrase(60)).toBe("about 60 seconds");
     expect(waitPhrase(600)).toBe("about 10 minutes");
-    // Never zero, never negative — an instant retry is exactly what the limiter
-    // is refusing.
-    expect(waitPhrase(0)).toBe("about 1 second");
+  });
+
+  test("a wait below a second is NO wait, not a rounded-up one", () => {
+    // Rounding 0 up to "about 1 second" would be the product inventing a figure
+    // and attributing it to the supplier — the exact defect this function exists
+    // to prevent, committed by the function itself.
+    expect(waitPhrase(0)).toBeNull();
+    expect(waitPhrase(0.4)).toBeNull();
+    expect(waitPhrase(-5)).toBeNull();
+    expect(waitPhrase(Number.NaN)).toBeNull();
+
+    const helper = PROBLEM_COPY.delivery_failed.helper!(
+      ctx({ failureCause: "supplier_rate_limited", retryAfterSeconds: 0 }),
+    );
+    expect(helper).not.toMatch(/\d/);
   });
 });
 
@@ -128,6 +140,26 @@ describe("an unknown or absent cause degrades to what shipped before", () => {
     expect(labels()).toEqual(["Try sending now", "See every attempt"]);
     expect(PROBLEM_COPY.delivery_failed.tier(ctx())).toBe("wait");
   });
+
+  // `failureCause` is an unvalidated string off the wire, and a plain object
+  // literal answers TRUTHY for every key on Object.prototype. A bare index
+  // returned a function for these five and the next line called `.attribution(c)`
+  // on it — throwing inside render, which the ErrorBoundary turns into a lost
+  // order screen. "Degrades to the generic copy" was true for every unknown cause
+  // except the five hardest to think of.
+  test.each(["constructor", "__proto__", "toString", "valueOf", "hasOwnProperty"])(
+    "a cause named %s is unknown, not a crash",
+    (cause) => {
+      const over = { failureCause: cause };
+      expect(deliveryCauseFor(ctx(over))).toBeNull();
+      expect(() => PROBLEM_COPY.delivery_failed.attribution(ctx(over))).not.toThrow();
+      expect(() => PROBLEM_COPY.delivery_failed.consequence(ctx(over))).not.toThrow();
+      expect(() => PROBLEM_COPY.delivery_failed.helper!(ctx(over))).not.toThrow();
+      expect(() => PROBLEM_COPY.delivery_failed.actions(ctx(over))).not.toThrow();
+      expect(() => PROBLEM_COPY.delivery_failed.tier(ctx(over))).not.toThrow();
+      expect(labels(over)).toEqual(["Try sending now", "See every attempt"]);
+    },
+  );
 
   test("a cause this build has never heard of is not a blank panel", () => {
     // Deploys are not atomic and the backend's cause list will grow. An unknown

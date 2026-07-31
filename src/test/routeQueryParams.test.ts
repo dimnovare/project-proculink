@@ -136,4 +136,59 @@ describe("a commented-out reader confers nothing", () => {
   test("a file that does not exist reads nothing", () => {
     expect(paramIsReadBy("tab", "src/components/bridge/NoSuchFile.tsx")).toBe(false);
   });
+
+  // Stripping comments was not enough. With the real reader renamed away, a
+  // SENTENCE mentioning the call satisfied the contract — the guard proved only
+  // "these characters appear outside a comment". `maskLiterals` (offset-preserving,
+  // exported beside the stripper) closes it: the match is found in the raw text so
+  // the parameter name is readable, then the CODE part is re-checked at the same
+  // offset in the masked copy, where anything inside an outer literal is blank.
+  test("a reader quoted inside a string literal confers nothing", () => {
+    const dir = mkdtempSync(join(tmpdir(), "plk-wp19-literal-"));
+    try {
+      const file = join(dir, "Fixture.tsx");
+      writeFileSync(
+        file,
+        [
+          "export function Fixture() {",
+          "  const label = 'we used to call params.get(\"orderId\") here';",
+          '  const doc = `see params.get("orderId") in the old build`;',
+          '  const live = searchParams.get("realOne");',
+          "  return [label, doc, live];",
+          "}",
+        ].join("\n"),
+        "utf8",
+      );
+      const rel = relative(ROOT, file);
+      expect(paramIsReadBy("orderId", rel)).toBe(false);
+      expect(paramIsReadBy("realOne", rel)).toBe(true);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("a .get on something that is not a search-params object confers nothing", () => {
+    const dir = mkdtempSync(join(tmpdir(), "plk-wp19-receiver-"));
+    try {
+      const file = join(dir, "Fixture.tsx");
+      writeFileSync(
+        file,
+        [
+          "export function Fixture(formData: FormData, headers: Headers) {",
+          // None of these reads a URL query, and all three look identical to a
+          // bare `.get(` pattern.
+          '  const a = formData.get("order");',
+          '  const b = headers.get("order");',
+          '  const c = new Map<string, string>().get("order");',
+          "  return [a, b, c];",
+          "}",
+        ].join("\n"),
+        "utf8",
+      );
+      const rel = relative(ROOT, file);
+      expect(paramIsReadBy("order", rel)).toBe(false);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });

@@ -163,9 +163,13 @@ type DeliveryCauseCopy = {
  * SERVER sent. There is no default: an unnamed wait is not rendered at all,
  * because inventing one is the same defect as "attempt 2 of 3".
  */
-export function waitPhrase(seconds: number): string {
+export function waitPhrase(seconds: number): string | null {
+  // Below a second there is nothing worth saying, and saying "about 1 second"
+  // for a server-sent 0 would be inventing the number this function exists to
+  // avoid inventing. Null means the caller renders no wait at all.
+  if (!Number.isFinite(seconds) || seconds < 1) return null;
   if (seconds < 90) {
-    const whole = Math.max(1, Math.round(seconds));
+    const whole = Math.round(seconds);
     return `about ${whole} second${whole === 1 ? "" : "s"}`;
   }
   const minutes = Math.round(seconds / 60);
@@ -195,17 +199,28 @@ const DELIVERY_CAUSE: Record<string, DeliveryCauseCopy> = {
     attribution: (c) => `The address we have for ${c.supplier} doesn't exist any more.`,
     consequence: (c) =>
       `Every order for ${c.supplier} will stop here until the address is corrected.`,
+    // "endpoint" is engineering vocabulary in front of a purchasing coordinator.
+    // The vocabulary gate cannot see this file (its .ts pass only reads
+    // label-shaped one-line object values, and every string here is an arrow-
+    // function return), so the word survived a green run.
     helper: () =>
-      "Usually a moved endpoint or a typo. Confirm the address with the supplier before trying again.",
+      "Usually the address changed at their end, or there's a typo in it. Confirm it with the supplier before trying again.",
     settingsFirst: true,
   },
   supplier_rate_limited: {
     attribution: (c) => `${c.supplier}'s system asked us to slow down. Nothing is wrong with the order.`,
     consequence: () => "This normally clears on its own. If it never does, the order stops and waits for you.",
-    helper: (c) =>
-      c.retryAfterSeconds !== null
-        ? `They asked us to wait ${waitPhrase(c.retryAfterSeconds)}. Sending now will most likely be refused again.`
-        : "Too many deliveries in a short window — not a problem with this order.",
+    helper: (c) => {
+      // A wait is rendered ONLY when the supplier named one we can act on.
+      // waitPhrase returns null for anything below a second, so a literal 0 on
+      // the wire falls through to the no-number sentence rather than becoming
+      // "about 1 second" — which would be us inventing the figure we are
+      // attributing to them.
+      const wait = c.retryAfterSeconds !== null ? waitPhrase(c.retryAfterSeconds) : null;
+      return wait
+        ? `They asked us to wait ${wait}. Sending now will most likely be refused again.`
+        : "Too many deliveries in a short window — not a problem with this order.";
+    },
     settingsFirst: false,
   },
   supplier_timeout: {
@@ -217,9 +232,21 @@ const DELIVERY_CAUSE: Record<string, DeliveryCauseCopy> = {
   },
 };
 
-/** The named cause for a delivery failure, or null when the API sent none we know. */
+/**
+ * The named cause for a delivery failure, or null when the API sent none we know.
+ *
+ * `Object.hasOwn`, not a bare index. `failureCause` is an unvalidated string off
+ * the wire, and every key on Object.prototype — `constructor`, `__proto__`,
+ * `toString`, `valueOf`, `hasOwnProperty` — indexes a plain object literal to
+ * something TRUTHY. So a bare lookup returned a function for those five values
+ * and the next line called `.attribution(c)` on it, throwing inside render and
+ * taking the whole order screen down through the ErrorBoundary. The
+ * degrade-to-generic promise was true for every unknown cause except the five
+ * that are hardest to notice.
+ */
 export function deliveryCauseFor(c: ProblemCtx): DeliveryCauseCopy | null {
-  return (c.failureCause && DELIVERY_CAUSE[c.failureCause]) || null;
+  if (!c.failureCause || !Object.hasOwn(DELIVERY_CAUSE, c.failureCause)) return null;
+  return DELIVERY_CAUSE[c.failureCause] ?? null;
 }
 
 const HELP = (c: ProblemCtx, status: ProblemStatus): ProblemAction => ({

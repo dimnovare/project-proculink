@@ -136,7 +136,16 @@ describe("no state offers a control the backend will reject", () => {
     );
     // Dead-letter's rescue is the ops requeue, NOT redeliver — this is D2.
     expect(OP_ALLOWED_FROM.redeliverOrder.has("delivery_dead_letter")).toBe(false);
-    expect(OP_ALLOWED_FROM.requeueDelivery.has("delivery_dead_letter")).toBe(true);
+    // EXACT sets for the remaining two as well. An earlier version of this test
+    // asserted only `requeueDelivery.has("delivery_dead_letter")` and nothing at
+    // all for markDelivered, which left both free to grow silently: adding
+    // `rejected_by_supplier` and `pending_review` to requeueDelivery kept the
+    // whole file green. `OP_ALLOWED_FROM` has exactly two consumers, so nothing
+    // else was ever going to catch it.
+    expect([...OP_ALLOWED_FROM.requeueDelivery].sort()).toEqual(
+      ["delivery_dead_letter", "delivery_failed"],
+    );
+    expect([...OP_ALLOWED_FROM.markDelivered].sort()).toEqual(["delivery_unconfirmed"]);
     // delivery_held: the release is automatic and every send endpoint 400s while held.
     for (const op of Object.keys(OP_ALLOWED_FROM) as ProblemOp[]) {
       expect(OP_ALLOWED_FROM[op].has("delivery_held")).toBe(false);

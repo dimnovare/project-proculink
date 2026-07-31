@@ -190,15 +190,21 @@ export function shouldRetryApiFailure(failureCount: number, err: unknown): boole
  */
 export function apiRetryDelayMs(attemptIndex: number, err: unknown): number {
   const { kind, retryAfterSeconds } = classifyApiFailure(err);
-  if (retryAfterSeconds !== null) {
-    return Math.min(retryAfterSeconds, MAX_HONOURED_WAIT_SECONDS) * 1000;
-  }
   // A 401 is waiting for a TOKEN, not for a server to recover, so exponential
   // backoff is the wrong curve: three attempts at 1s/2s/4s would make a genuinely
   // signed-out person stare at a spinner for seven seconds before being told to
   // sign in. Clerk resolves in well under a second once it has loaded — poll
   // quickly, give up quickly.
+  //
+  // Checked BEFORE the server-named wait, not after. `ApiHttpError` parses a
+  // retryAfterSeconds out of ANY body regardless of status, so a proxy or gateway
+  // that happens to include that key on a 401 could otherwise stall sign-in
+  // recovery for the full honoured cap — turning the fastest failure into the
+  // slowest one, from a field only a 429 is supposed to carry.
   if (kind === "auth_expired") return AUTH_RETRY_DELAY_MS;
+  if (retryAfterSeconds !== null) {
+    return Math.min(retryAfterSeconds, MAX_HONOURED_WAIT_SECONDS) * 1000;
+  }
   return Math.min(1000 * 2 ** attemptIndex, 30_000);
 }
 

@@ -118,6 +118,36 @@ describe("the wait is read from wherever the server put it", () => {
     expect(apiRetryDelayMs(0, httpError(429))).toBeGreaterThan(0);
   });
 
+  // The key being PRESENT-BUT-NULL is the shape .NET emits for an `int?`, and
+  // this API does not set WhenWritingNull globally. `"k" in body` is true for it
+  // and `Number(null)` is 0, so the first version read it as "wait zero seconds"
+  // and fired every retry back to back — strictly worse than the flat `retry: 1`
+  // it replaced. Every one of these must read as UNKNOWN.
+  test.each([
+    ["explicit null", { retryAfterSeconds: null }],
+    ["undefined", { retryAfterSeconds: undefined }],
+    ["a boolean", { retryAfterSeconds: true }],
+    ["an empty array", { retryAfterSeconds: [] }],
+    ["an object", { retryAfterSeconds: {} }],
+    ["an empty string", { retryAfterSeconds: "" }],
+    ["a negative", { retryAfterSeconds: -5 }],
+    ["zero", { retryAfterSeconds: 0 }],
+    ["a fraction below a second", { retryAfterSeconds: 0.4 }],
+  ])("a body carrying %s is not a wait", (_label, body) => {
+    expect(retryAfterFrom(null, body)).toBeNull();
+    expect(apiRetryDelayMs(0, httpError(429, body))).toBeGreaterThanOrEqual(1000);
+  });
+
+  test("a Retry-After date already in the past is unknown, not zero", () => {
+    const past = new Date(Date.now() - 60_000).toUTCString();
+    expect(retryAfterFrom({ headers: new Headers({ "Retry-After": past }) } as Response, null)).toBeNull();
+    // RFC 9110 requires recipients to accept the obsolete RFC-850 form, which
+    // Date.parse does not understand. Unparseable must not collapse to "now".
+    const rfc850 = "Wednesday, 21-Oct-15 07:28:00 GMT";
+    expect(retryAfterFrom({ headers: new Headers({ "Retry-After": rfc850 }) } as Response, null)).toBeNull();
+    expect(retryAfterFrom({ headers: new Headers({ "Retry-After": "-5" }) } as Response, null)).toBeNull();
+  });
+
   test("ApiHttpError picks the wait out of its own body when not given one", () => {
     const err = httpError(429, { retryAfterSeconds: 9 });
     expect(err.retryAfterSeconds).toBe(9);
@@ -141,6 +171,15 @@ describe("the delay honours the server, within reason", () => {
     expect(apiRetryDelayMs(1, httpError(500))).toBe(2000);
     expect(apiRetryDelayMs(2, httpError(500))).toBe(4000);
     expect(apiRetryDelayMs(20, httpError(500))).toBe(30_000);
+  });
+
+  test("a wait in a 401's body cannot slow sign-in recovery", () => {
+    // ApiHttpError parses retryAfterSeconds out of ANY body regardless of status,
+    // so a proxy or gateway that includes that key on a 401 could otherwise stall
+    // the fastest failure into the slowest — up to the full honoured cap — from a
+    // field only a 429 is meant to carry. The auth branch is checked FIRST.
+    expect(apiRetryDelayMs(0, httpError(401, { retryAfterSeconds: 100 }))).toBe(AUTH_RETRY_DELAY_MS);
+    expect(apiRetryDelayMs(0, httpError(401, null, 100))).toBe(AUTH_RETRY_DELAY_MS);
   });
 
   test("a 401 polls quickly instead of backing off — it is waiting for a token", () => {

@@ -242,6 +242,12 @@ describe("every workshop gate state renders the shared context header", () => {
     mockState.order = null;
     render(<OrderWorkshop orderId="ord-1" />);
     expectGateHeader("Order");
-    expect(screen.getByText("Order not found")).toBeTruthy();
+    // WP-19 reworded this gate ("Order not found" → "We can't find this order")
+    // and gave it a way out. This test's subject is the shared context header, so
+    // the copy is only its LOCATOR — matched loosely here so a future rewording
+    // does not read as a header regression. The wording itself, and the fact that
+    // the state is reachable at all, are asserted in orderLoadFailure.test.tsx.
+    expect(screen.getByText(/can't find this order/i)).toBeTruthy();
+    expect(screen.getByRole("link", { name: /Back to orders/i })).toBeTruthy();
   });
 });
