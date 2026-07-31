@@ -189,6 +189,31 @@ export function OutputStructureDesigner({
   // What the last reorder did, read by the tree's single live region.
   const [announcement, setAnnouncement] = useState("");
   const [treeRevision, setTreeRevision] = useState(0);
+  // The `data-move` id to re-focus once the post-reorder remount has painted.
+  const pendingFocus = useRef<string | null>(null);
+
+  /**
+   * A reorder remounts the tree, then puts focus back on the same control at the node's
+   * NEW position. Both halves are needed, and for different reasons:
+   *
+   *  - the REMOUNT destroys per-row state (open inline editor, Advanced, hover) that
+   *    index keys would otherwise leave pointing at the wrong node — which silently
+   *    renames it;
+   *  - the REFOCUS is what makes a second press move the SAME node again. Without it a
+   *    keyboard user pressing Alt+↓ twice moves the node down and then moves its new
+   *    neighbour back up, and the tree returns to where it started.
+   */
+  const onNodeMoved = useCallback((focusTarget: string) => {
+    pendingFocus.current = focusTarget;
+    setTreeRevision((r) => r + 1);
+  }, []);
+
+  useEffect(() => {
+    const target = pendingFocus.current;
+    if (!target) return;
+    pendingFocus.current = null;
+    (document.querySelector(`[data-move="${target}"]`) as HTMLElement | null)?.focus();
+  }, [treeRevision]);
 
   // F-1: the full source-field universe for this order, so a node can bind to ANY incoming field
   // (CSV cell / XML leaf+attr / EDI / JSON leaf / PDF-email raw_field), each with a sample value —
@@ -403,7 +428,7 @@ export function OutputStructureDesigner({
               <NodeEditor key={treeRevision} node={tree.root} path={[]} lineScope={false} onUpdate={setRoot}
                 sourceTokens={sourceTokens ?? []} isRoot
                 xml={isXml} rootHasNamespaces={hasRootNs}
-                siblingCount={1} announce={setAnnouncement} />
+                siblingCount={1} announce={setAnnouncement} onMoved={onNodeMoved} />
             )}
 
             {/* ONE polite live region for the whole tree (WP-15 · S5).
@@ -477,7 +502,7 @@ const PRESET_SHORT: Record<string, string> = {
 
 function NodeEditor({
   node, path, lineScope, onUpdate, sourceTokens, isRoot, xml, rootHasNamespaces,
-  siblingCount = 1, announce,
+  siblingCount = 1, announce, onMoved,
 }: {
   node: OutputNode;
   path: number[];
@@ -487,6 +512,11 @@ function NodeEditor({
   isRoot?: boolean;
   /** How many nodes share this parent — the "of N" in the move announcement. */
   siblingCount?: number;
+  /**
+   * Called after a successful reorder with the `data-move` id of the control that should
+   * hold focus afterwards. The host remounts the tree and re-focuses it; see `move()`.
+   */
+  onMoved?: (focusTarget: string) => void;
   /**
    * Say what a move did. Passed down rather than owned per row because ONE polite
    * live region for the whole tree is what a screen reader can follow; a region per
@@ -532,8 +562,21 @@ function NodeEditor({
       announce?.(`${node.name} is already ${delta === -1 ? "first" : "last"}.`);
       return;
     }
+    // The rows are keyed by INDEX, so React reconciles them by position: after a swap
+    // the component instance, its local state and the focused element all stay put and
+    // are re-pointed at a different node. Left alone that is not a polish issue — an
+    // inline name editor open on the moved row stays with the POSITION, so the next
+    // keystroke renames a node the author never opened and the wrong name is SAVED.
+    // The node name is the CSV column header / XML element name, so that reaches the
+    // supplier's bytes.
+    //
+    // `onMoved` remounts the tree (killing every stale row editor) and then restores
+    // focus to this same control at the node's NEW path — which also makes a second
+    // press move the same node again instead of moving its neighbour back.
+    const newPath = [...path.slice(0, -1), index + delta];
     onUpdate((n) => moveAt(n, path, delta));
     announce?.(`${node.name} moved to position ${index + delta + 1} of ${siblingCount}.`);
+    onMoved?.(`${newPath.join(".")}:${delta === -1 ? "up" : "down"}`);
   };
 
   // Alt is the modifier because the bare arrows belong to the browser: inside this
@@ -699,9 +742,17 @@ function NodeEditor({
         {!isRoot && (
           <>
             <button
+              type="button"
+              data-move={`${path.join(".")}:up`}
               onClick={() => move(-1)}
               onKeyDown={onMoveKeyDown}
-              disabled={!canMoveUp}
+              // `aria-disabled`, NOT `disabled`. A `disabled` button is out of the tab order and
+              // receives neither activation nor key events — so it is barred from firing exactly
+              // when the boundary announcement should. That shipped once: the announcing branch had
+              // no caller in a browser, and only a synthetic keydown aimed at the disabled element
+              // (which jsdom allows and a browser cannot produce) made the test pass. The control
+              // stays focusable and clickable; `move()`'s own guard is what stops the tree changing.
+              aria-disabled={!canMoveUp}
               aria-label={`Move ${node.name} up`}
               title={canMoveUp ? `Move ${node.name} up (Alt+↑)` : `${node.name} is already first`}
               onFocus={() => setHover(true)} onBlur={() => setHover(false)}
@@ -709,9 +760,11 @@ function NodeEditor({
               ↑
             </button>
             <button
+              type="button"
+              data-move={`${path.join(".")}:down`}
               onClick={() => move(1)}
               onKeyDown={onMoveKeyDown}
-              disabled={!canMoveDown}
+              aria-disabled={!canMoveDown}
               aria-label={`Move ${node.name} down`}
               title={canMoveDown ? `Move ${node.name} down (Alt+↓)` : `${node.name} is already last`}
               onFocus={() => setHover(true)} onBlur={() => setHover(false)}
@@ -779,7 +832,7 @@ function NodeEditor({
             {(node.children ?? []).map((c, i) => (
               <NodeEditor key={i} node={c} path={[...path, i]} lineScope={childScope} onUpdate={onUpdate}
                 sourceTokens={sourceTokens} xml={xml} rootHasNamespaces={rootHasNamespaces}
-                siblingCount={(node.children ?? []).length} announce={announce} />
+                siblingCount={(node.children ?? []).length} announce={announce} onMoved={onMoved} />
             ))}
           </div>
           <div style={{ display: "flex", gap: 6, marginTop: 5, marginLeft: isRoot ? 0 : 18, flexWrap: "wrap" }}>

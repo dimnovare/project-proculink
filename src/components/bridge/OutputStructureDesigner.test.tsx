@@ -355,8 +355,12 @@ describe("OutputStructureDesigner — reordering nodes", () => {
   it("a BOUNDARY press says why nothing moved rather than saying nothing", () => {
     renderDesigner(threeFieldTree());
 
-    // The press most likely to be read as "the control is broken".
-    fireEvent.keyDown(screen.getByRole("button", { name: /Move Sku up/i }), { key: "ArrowUp", altKey: true });
+    // A real CLICK, which is what a browser can actually deliver. The first version of
+    // this test used a synthetic keyDown aimed at the button — and the button was
+    // `disabled`, so React never fires activation on it and a browser cannot originate
+    // a key event there at all. jsdom allowed the dispatch, the test passed, and the
+    // announcement had no caller outside the test.
+    fireEvent.click(screen.getByRole("button", { name: /Move Sku up/i }));
 
     expect(screen.getByTestId("designer-announcer").textContent).toContain("Sku is already first");
 
@@ -365,13 +369,78 @@ describe("OutputStructureDesigner — reordering nodes", () => {
     expect(savedNames()).toEqual(["Sku", "Qty", "Price"]);
   });
 
-  it("the boundary controls are disabled at each end", () => {
+  it("the boundary control is FOCUSABLE, or the announcement can never be reached", () => {
+    renderDesigner(threeFieldTree());
+    const up = screen.getByRole("button", { name: /Move Sku up/i });
+
+    // `disabled` would bar it from the tab order — and from firing the very
+    // announcement it exists to make. aria-disabled conveys the state and keeps it
+    // reachable; move()'s own guard is what stops the tree changing.
+    up.focus();
+    expect(document.activeElement).toBe(up);
+    expect(up.getAttribute("aria-disabled")).toBe("true");
+    expect(up).toHaveProperty("disabled", false);
+  });
+
+  it("Alt+ArrowUp at the boundary announces too — the key route must work as well", () => {
     renderDesigner(threeFieldTree());
 
-    expect(screen.getByRole("button", { name: /Move Sku up/i })).toHaveProperty("disabled", true);
-    expect(screen.getByRole("button", { name: /Move Price down/i })).toHaveProperty("disabled", true);
-    expect(screen.getByRole("button", { name: /Move Sku down/i })).toHaveProperty("disabled", false);
-    expect(screen.getByRole("button", { name: /Move Price up/i })).toHaveProperty("disabled", false);
+    fireEvent.keyDown(screen.getByRole("button", { name: /Move Sku up/i }), { key: "ArrowUp", altKey: true });
+    expect(screen.getByTestId("designer-announcer").textContent).toContain("Sku is already first");
+  });
+
+  it("the boundary controls report themselves disabled at each end — without leaving the tab order", () => {
+    renderDesigner(threeFieldTree());
+
+    expect(screen.getByRole("button", { name: /Move Sku up/i }).getAttribute("aria-disabled")).toBe("true");
+    expect(screen.getByRole("button", { name: /Move Price down/i }).getAttribute("aria-disabled")).toBe("true");
+    expect(screen.getByRole("button", { name: /Move Sku down/i }).getAttribute("aria-disabled")).toBe("false");
+    expect(screen.getByRole("button", { name: /Move Price up/i }).getAttribute("aria-disabled")).toBe("false");
+
+    // None of them is the native `disabled` that would make the state unreachable.
+    for (const name of [/Move Sku up/i, /Move Price down/i, /Move Sku down/i, /Move Price up/i])
+      expect(screen.getByRole("button", { name })).toHaveProperty("disabled", false);
+  });
+
+  it("a boundary press does not move the tree even though the control is live", () => {
+    renderDesigner(threeFieldTree());
+
+    fireEvent.click(screen.getByRole("button", { name: /Move Price down/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Save structure/i }));
+
+    expect(savedNames()).toEqual(["Sku", "Qty", "Price"]);
+  });
+
+  // ── F2: index keys reconcile by POSITION, so state and focus must follow the node ──
+
+  it("pressing the SAME control twice moves the same node twice", () => {
+    renderDesigner(threeFieldTree());
+
+    // Without focus following the node, the second press lands on the neighbour that
+    // just swapped into that position and moves it back — the tree returns to its
+    // original order and a keyboard user can never move anything past one place.
+    fireEvent.click(screen.getByRole("button", { name: /Move Sku down/i }));
+    fireEvent.click(document.activeElement as HTMLElement);
+    fireEvent.click(screen.getByRole("button", { name: /Save structure/i }));
+
+    expect(savedNames()).toEqual(["Qty", "Price", "Sku"]);
+  });
+
+  it("an open inline name editor cannot rename the node that swaps into its place", () => {
+    renderDesigner(threeFieldTree());
+
+    // Open the name editor on Sku, then move Sku. The editor belongs to the ROW, and
+    // rows are keyed by index — so left alone it stays put while a different node
+    // slides underneath it, and the next keystroke renames THAT node instead. The
+    // node name is the CSV column header, so the wrong name reaches the supplier.
+    fireEvent.click(screen.getByRole("button", { name: /Edit name \(Sku\)/i }));
+    expect(screen.getByLabelText("Node name")).toHaveProperty("value", "Sku");
+
+    fireEvent.click(screen.getByRole("button", { name: /Move Sku down/i }));
+
+    expect(screen.queryByLabelText("Node name")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /Save structure/i }));
+    expect(savedNames()).toEqual(["Qty", "Sku", "Price"]);
   });
 
   it("the root has no move controls — it has no siblings", () => {
