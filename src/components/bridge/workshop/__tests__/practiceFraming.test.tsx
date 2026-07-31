@@ -126,8 +126,16 @@ vi.mock("../../review/hooks/useAcceptanceValidation", () => ({
   }),
 }));
 
+// The mock MUST render issuesSlot. WP-28 moved the practice note out of its own
+// chrome band and into the Issues column, which OrderWorkshop passes down as
+// `issuesSlot` — a mock that drops the slot makes every assertion here look like
+// "the note does not render" when the note is simply not being handed anywhere.
+// Same shape as invariants.test.tsx:209 and validationEveryBreakpoint.test.tsx:140,
+// which already mock it this way for exactly this reason.
 vi.mock("../../mapper/MapperWorkbench", () => ({
-  MapperWorkbench: () => <div data-testid="mock-mapper-workbench" />,
+  MapperWorkbench: (props: { issuesSlot?: React.ReactNode }) => (
+    <div data-testid="mock-mapper-workbench">{props.issuesSlot}</div>
+  ),
 }));
 vi.mock("../../problem/OrderProblemPanel", () => ({
   OrderProblemPanel: () => <div data-testid="mock-problem-panel" />,
@@ -172,7 +180,10 @@ describe("practice-order framing", () => {
 
     const note = banner();
     expect(note).not.toBeNull();
-    expect(note!.textContent).toMatch(/doesn'?t count against your plan/i);
+    // Both apostrophes: WP-28's copy uses the typographic U+2019 (&rsquo;), the
+    // earlier band used U+0027. A test that fails on a curly quote is testing the
+    // glyph, not the promise.
+    expect(note!.textContent).toMatch(/doesn['’]?t count against your plan/i);
   });
 
   test("does NOT show for a real order, even with ?sample=1 pasted on", () => {
@@ -266,7 +277,10 @@ describe("practice-order framing", () => {
     mockState.order = makeOrder({ isSample: true });
     render(<OrderWorkshop orderId="ord-1" />);
 
-    // Emoji-as-icon is banned by the design system; the banner used to open with 🟢.
+    // Emoji-as-icon is banned by the design system; this note used to open with a
+    // green-circle emoji (U+1F7E2). Written as a codepoint deliberately — WP-28's
+    // no-emoji-icons guard scans comments too, so spelling the glyph out here would
+    // make a comment about the ban trip the ban.
     expect(banner()!.textContent ?? "").not.toMatch(/\p{Extended_Pictographic}/u);
   });
 });

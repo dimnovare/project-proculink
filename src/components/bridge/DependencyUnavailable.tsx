@@ -46,6 +46,20 @@ export function DependencyUnavailable({
   retryLabel = "Try again",
   help,
 }: DependencyUnavailableProps) {
+  // The tab is part of the page. Leaving it on the route's own title ("Dashboard
+  // — ProcuLink") while the page says the workspace cannot open makes the tab
+  // strip disagree with the screen — and a user with several tabs open has no
+  // other way to see which one is stuck. Restored on unmount, because a
+  // late-arriving dependency unmounts this card by itself.
+  React.useEffect(() => {
+    if (typeof document === "undefined") return;
+    const previous = document.title;
+    document.title = `Can’t reach the ${name} — ProcuLink`;
+    return () => {
+      document.title = previous;
+    };
+  }, [name]);
+
   return (
     // role="alert": this appears seconds after navigation, with no user action,
     // and changes what the whole page is. It has to announce itself. No

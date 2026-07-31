@@ -63,13 +63,19 @@ test("clicking Try with sample order routes to a sample order page with banner",
   // flag, so it survives a bookmark, the back button, and an inbox row click.
   expect(page.url()).not.toContain("sample=1");
 
-  // The non-quota practice banner should be visible on the destination page.
-  // Use the aria role="note" container so we match the whole banner text, not just
-  // the <strong> inner element (which only contains "Practice order").
+  // The non-quota practice note should be visible on the destination page.
+  // WP-28 moved it out of its own chrome band above the three columns and into
+  // the Issues column, where the other per-order teaching already lives — the
+  // role, the accessible name and the copy are unchanged, so this contract is
+  // the same one; only its position moved. Match on the role="note" container
+  // rather than the <strong>, which holds only "Practice order".
+  // The apostrophe class is widened because the copy now uses the typographic
+  // U+2019 rather than U+0027. A test that fails on a curly quote is testing
+  // the glyph, not the promise.
   const banner = page.getByRole("note", { name: /practice order/i });
   await expect(banner).toBeVisible({ timeout: 15_000 });
   await expect(banner).toContainText(/free/i);
-  await expect(banner).toContainText(/doesn'?t count against your plan/i);
+  await expect(banner).toContainText(/doesn['’]?t count against your plan/i);
 });
 
 test("watch page renders the walkthrough video player", async ({ page }) => {

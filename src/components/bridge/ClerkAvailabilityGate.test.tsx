@@ -22,11 +22,14 @@
 //
 // The REAL useQueriesEnabled runs here — only its two build flags are stubbed —
 // so the arm/disarm coupling is exercised rather than asserted about.
+//
+// The layout WIRING is asserted behaviourally in
+// src/app/(app)/layout.wiring.test.tsx: it renders the real layout and checks
+// the shell is gone, because a source-text regex for `<ClerkAvailabilityGate>`
+// passed with the gate commented out and with the gate wrapping `{null}`.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act, render, screen, fireEvent, cleanup } from "@testing-library/react";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 
 let clerkLoaded = false;
 let clerkSignedIn = false;
@@ -50,15 +53,28 @@ vi.mock("@/lib/api-client", () => ({
 const reloadSpy = vi.fn();
 vi.mock("@/lib/reload", () => ({ reloadPage: () => reloadSpy() }));
 
-import { ClerkAvailabilityGate, CLERK_LOAD_DEADLINE_MS } from "./ClerkAvailabilityGate";
+// The wall clock the deadline is anchored to. Pinned per test rather than read
+// from the runner's faked `performance`, so the anchoring is asserted, not
+// inherited.
+let elapsedSinceNavigation = 0;
+vi.mock("@/lib/navigationClock", () => ({
+  msSinceNavigationStart: () => elapsedSinceNavigation,
+}));
+
+import {
+  ClerkAvailabilityGate,
+  CLERK_LOAD_DEADLINE_MS,
+  REARM_AFTER_RELOAD_MS,
+  signInHostFromPublishableKey,
+} from "./ClerkAvailabilityGate";
 
 const APP_CONTENT = "workspace content";
 // Typographic apostrophe — the copy ships &rsquo;, not a straight quote.
 const HEADING = "Can’t reach the sign-in service";
 
-function renderGate() {
+function renderGate(surface?: "workspace" | "auth") {
   return render(
-    <ClerkAvailabilityGate>
+    <ClerkAvailabilityGate surface={surface}>
       <div>{APP_CONTENT}</div>
     </ClerkAvailabilityGate>,
   );
@@ -77,6 +93,8 @@ beforeEach(() => {
   clerkSignedIn = false;
   mockMode = false;
   qaBypass = false;
+  elapsedSinceNavigation = 0;
+  document.title = "Dashboard — ProcuLink";
   reloadSpy.mockClear();
 });
 
@@ -108,6 +126,20 @@ describe("ClerkAvailabilityGate", () => {
     expect(CLERK_LOAD_DEADLINE_MS).toBeGreaterThanOrEqual(5_000);
   });
 
+  it("counts the deadline from navigation, not from the moment it mounted", () => {
+    // The whole budget is wall clock. By the time this component mounts, the
+    // document fetch, the JS download and the hydrate have already spent part
+    // of it — and the script it is waiting for was requested by the document,
+    // so that time counted against the dependency too.
+    elapsedSinceNavigation = 3_000;
+    renderGate();
+
+    advance(CLERK_LOAD_DEADLINE_MS - 3_000 - 1);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    advance(1);
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+  });
+
   it("keeps showing the app until the deadline actually passes", () => {
     renderGate();
     advance(CLERK_LOAD_DEADLINE_MS - 1);
@@ -126,18 +158,47 @@ describe("ClerkAvailabilityGate", () => {
     expect(reloadSpy).toHaveBeenCalledTimes(1);
   });
 
+  it("does not flash the broken shell back while the reload is still landing", () => {
+    // Re-arming immediately committed a React state update before the
+    // navigation landed, so the entire spinning shell — the exact thing this
+    // card exists to replace — reappeared for about half a second on every
+    // click. The re-arm has to wait out the navigation.
+    renderGate();
+    advance(CLERK_LOAD_DEADLINE_MS);
+    fireEvent.click(screen.getByRole("button", { name: /try again/i }));
+
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+    expect(screen.queryByText(APP_CONTENT)).not.toBeInTheDocument();
+  });
+
   it("re-arms the wait on retry so a suppressed reload does not freeze the card", () => {
     renderGate();
     advance(CLERK_LOAD_DEADLINE_MS);
     fireEvent.click(screen.getByRole("button", { name: /try again/i }));
 
-    // Reload is stubbed here, i.e. suppressed. The UI must go back to the normal
-    // app view and start waiting again rather than sitting on a dead card.
+    // Reload is stubbed here, i.e. suppressed — the document never goes away.
+    // Once the navigation has plainly not happened, the UI must go back to its
+    // normal waiting state rather than sitting on a dead card.
+    advance(REARM_AFTER_RELOAD_MS);
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(screen.getByText(APP_CONTENT)).toBeInTheDocument();
 
     advance(CLERK_LOAD_DEADLINE_MS);
     expect(screen.getByRole("alert")).toBeInTheDocument();
+  });
+
+  it("says that trying again cannot clear a blocker", () => {
+    // The card names three likely causes and offers one action that provably
+    // fixes only one of them. Without this clause an ad-blocker user presses
+    // "Try again", waits the same eight seconds, and gets the identical card,
+    // with nothing on screen ever admitting why.
+    renderGate();
+    advance(CLERK_LOAD_DEADLINE_MS);
+
+    const card = screen.getByRole("alert");
+    expect(card).toHaveTextContent("ad blocker");
+    expect(card).toHaveTextContent(/trying again only helps/i);
+    expect(card).toHaveTextContent(/has to be allowed/i);
   });
 
   it("offers a way to get help that does not depend on being signed in", () => {
@@ -150,6 +211,35 @@ describe("ClerkAvailabilityGate", () => {
     // script dead. /operations/health does NOT qualify: it gates on
     // useQueriesEnabled itself and would be a second permanent spinner.
     expect(help).toHaveAttribute("href", "/support");
+  });
+
+  it("keeps both recovery controls at the 44px mobile tap floor", () => {
+    renderGate();
+    advance(CLERK_LOAD_DEADLINE_MS);
+
+    // These two controls ARE the recovery path. A dense desktop height here
+    // costs a phone user the only way out of the card.
+    expect(screen.getByRole("button", { name: /try again/i }).className).toMatch(
+      /(^|\s)h-\[44px\]/,
+    );
+    expect(screen.getByRole("link", { name: /get help/i }).className).toMatch(
+      /(^|\s)min-h-\[44px\]/,
+    );
+  });
+
+  it("stops the tab title claiming the workspace is open", () => {
+    renderGate();
+    expect(document.title).toBe("Dashboard — ProcuLink");
+
+    advance(CLERK_LOAD_DEADLINE_MS);
+    expect(document.title).toContain("Can’t reach the sign-in service");
+
+    // A late arrival unmounts the card on its own, so the title has to come back.
+    clerkLoaded = true;
+    act(() => {
+      cleanup();
+    });
+    expect(document.title).toBe("Dashboard — ProcuLink");
   });
 
   it("never shows the card once the sign-in service loads", () => {
@@ -191,22 +281,44 @@ describe("ClerkAvailabilityGate", () => {
     expect(screen.getByText(APP_CONTENT)).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
+
+  it("tells an auth page what is blocked there, not that a workspace cannot open", () => {
+    renderGate("auth");
+    advance(CLERK_LOAD_DEADLINE_MS);
+
+    const card = screen.getByRole("alert");
+    expect(card).toHaveTextContent("you can’t sign in or create an account");
+    expect(card).not.toHaveTextContent("your workspace can’t open");
+  });
 });
 
-describe("ClerkAvailabilityGate wiring", () => {
-  // Source assertion, same technique as src/test/plain-language-copy.test.ts.
-  // Without it the gate could be perfect and mounted nowhere — the failure mode
-  // where a fix passes its own tests and ships dead.
-  const layout = readFileSync(
-    join(__dirname, "..", "..", "app", "(app)", "layout.tsx"),
-    "utf8",
-  );
-
-  it("is imported by the (app) layout", () => {
-    expect(layout).toMatch(/from\s+"@\/components\/bridge\/ClerkAvailabilityGate"/);
+describe("signInHostFromPublishableKey", () => {
+  // The one piece of hand-rolled parsing in this pattern. It is exported for
+  // testability and had no test: a mutation returning null always — which
+  // silently drops the host block, i.e. the single actionable string on the
+  // card — was invisible to the whole suite.
+  it("decodes a live key", () => {
+    expect(signInHostFromPublishableKey("pk_live_Y2xlcmsucHJvY3VsaW5rLmV1JA==")).toBe(
+      "clerk.proculink.eu",
+    );
   });
 
-  it("is rendered by the (app) layout", () => {
-    expect(layout).toMatch(/<ClerkAvailabilityGate>/);
+  it("decodes a test key", () => {
+    // base64("polite-lizard-42.clerk.accounts.dev$")
+    expect(
+      signInHostFromPublishableKey(
+        "pk_test_cG9saXRlLWxpemFyZC00Mi5jbGVyay5hY2NvdW50cy5kZXYk",
+      ),
+    ).toBe("polite-lizard-42.clerk.accounts.dev");
+  });
+
+  it("returns null rather than guessing when the key is unusable", () => {
+    expect(signInHostFromPublishableKey(undefined)).toBeNull();
+    expect(signInHostFromPublishableKey("")).toBeNull();
+    expect(signInHostFromPublishableKey("pk_live_")).toBeNull();
+    // Valid base64, but not a host — must not be printed as one.
+    expect(signInHostFromPublishableKey("pk_live_bm90IGEgaG9zdA==")).toBeNull();
+    // Not base64 at all.
+    expect(signInHostFromPublishableKey("pk_live_!!!!")).toBeNull();
   });
 });

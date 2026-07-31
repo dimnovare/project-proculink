@@ -1,83 +1,98 @@
-// acceptanceGateModel — WP-18. Pure helpers that turn the server's per-field
-// validation rows into the workshop's blocking issues. No React, no network.
+// acceptanceGateModel — WP-18. Pure helpers that turn WP-17's server-side
+// acceptance-gate decision into the workshop's blocking issues. No React, no network.
 //
-// WHY THIS EXISTS. The supplier ACCEPTANCE answer used to reach the UI only
-// through `useMapperModel`, which only `MapperWorkbench` builds — and the
-// workshop mounts that inside `hidden lg:flex`. The count it derived
-// (`blockingCount`) fed the mapper's own `canDeliver` and stopped there; it never
-// reached `OrderWorkshop.canSend`. So the send gate was computed with no
-// knowledge of the supplier's rules, and an operator below 1024px was offered a
-// Send that WP-17's server-side acceptance gate refuses.
+// WHY THIS EXISTS. The supplier acceptance answer used to reach the UI only through
+// `useMapperModel`, which only `MapperWorkbench` builds — and the workshop mounts
+// that inside `hidden lg:flex`. The count it derived (`blockingCount`) fed the
+// mapper's own `canDeliver` and stopped there; it never reached
+// `OrderWorkshop.canSend`. So the send gate was computed with no knowledge of the
+// supplier's rules, and an operator below 1024px was offered a Send that
+// `OrderTransformService` refuses.
 //
-// THE CLIENT MIRRORS NO RULE. WP-17 changed GET /api/orders/{id}/validation so
-// each row's `blocking` flag is derived from
-// ISupplierAcceptanceService.GetBlockingFailuresAsync — the SAME call
-// IAcceptanceGate consults before OrderTransformService refuses a transform. The
-// backend freezes that equality with a set comparison
-// (ValidationBlockingMatchesTheGateTests). We therefore only COUNT rows the
-// server already marked blocking; there is exactly one evaluator and the two
-// cannot drift.
+// THE CLIENT DECIDES NOTHING. It renders `decision.blocked` — the exact boolean the
+// server computes and acts on. It does not re-derive it from the blocker list,
+// because the two are NOT equivalent: the gate subtracts a recorded operator
+// override (`AcceptanceGate.cs:62-77`), so an overridden order is `blocked:false`
+// with a NON-EMPTY `blockers` array. Counting blockers instead of reading `blocked`
+// is precisely how a client starts refusing sends the server allows.
 //
-// Invariants and output-render rows are deliberately advisory (`blocking:false`)
-// server-side — the gate does not enforce them and the order sends fine. They
-// must not gate here either, or the product goes back to claiming a block the
-// server does not honour.
+// Invariants and output-render rows never appear here at all: the gate deliberately
+// enforces only supplier ACCEPTANCE rules, and orders failing an invariant transform
+// and deliver fine today.
 
-import type { FieldValidationState } from "@/lib/api/types";
+import type { AcceptanceGateDecision } from "@/lib/api/types";
 import type { WorkshopIssue } from "./IssuesPanel";
 
-/**
- * The rows the server says will actually refuse this order. Mirrors
- * `blockingReviewCount` in fieldBadgesModel (state === "review" && blocking) so
- * the mapper's badges and the send gate count the same rows.
- */
-export function blockingAcceptanceRows(
-  states: FieldValidationState[] | undefined | null,
-): FieldValidationState[] {
-  return (states ?? []).filter((s) => s.state === "review" && s.blocking === true);
-}
+/** The stable issue code for "we could not ask whether this order can be sent". */
+export const GATE_UNAVAILABLE_CODE = "acceptance:unavailable";
 
 /**
- * Every acceptance row that did NOT pass — blocking and advisory alike.
- *
- * This is what the send-confirmation dialog's acknowledgement counts. Note the
- * asymmetry that makes it useful: a BLOCKING row sets canSend=false, so the
- * dialog cannot open at all. By the time an operator sees the dialog, the rows
- * left in here are exactly the ones that failed WITHOUT refusing the order —
- * which is precisely the case the acknowledgement was built for ("the supplier
- * may still accept, but say so deliberately").
- */
-export function failingAcceptanceRows(
-  states: FieldValidationState[] | undefined | null,
-): FieldValidationState[] {
-  return (states ?? []).filter((s) => s.state === "review");
-}
-
-/**
- * Project the blocking rows onto the workshop's issue shape, so they flow through
- * the SAME `issues` array every surface already reads: the desktop IssuesPanel,
- * the status bar's blocker chips, the reduced sub-lg MobileTriage list, and
+ * Project the gate's decision onto the workshop's issue shape, so it flows through
+ * the SAME `issues` array every surface already reads: the desktop IssuesPanel, the
+ * status bar's blocker chips, the reduced sub-lg MobileTriage list, and
  * `blockingIssues` → `canSend`. One list, one gate, every breakpoint.
  *
- * `code` is namespaced so an acceptance row can never collide with a FixQueueCard
- * key. `ref` is the server's field key, which resolveRowRef already resolves for
- * the mapper's scroll+highlight jump.
+ * Returns [] when the order is not blocked — INCLUDING when an operator override
+ * covers every blocker. The blockers are still listed on the decision in that case;
+ * surfacing them as blocking issues would re-impose a refusal the operator has
+ * already lifted server-side.
+ *
+ * `unavailable` is NOT the same as "nothing blocks". The server refuses to transform
+ * when it cannot evaluate the gate (`acceptance_gate_unavailable`), so an unknown
+ * answer must gate the send too — otherwise the button is green and the send 4xxs.
  *
  * Copy routes the party noun through the caller's `partyLabels` set — never a
  * hardcoded "supplier", so inbound orgs read "Customer".
  */
 export function acceptanceIssues(
-  states: FieldValidationState[] | undefined | null,
+  decision: AcceptanceGateDecision | undefined | null,
   counterpartyNoun: string,
+  opts?: { unavailable?: boolean },
 ): WorkshopIssue[] {
-  return blockingAcceptanceRows(states).map((s) => ({
-    code: `acceptance:${s.key}`,
+  if (opts?.unavailable) {
+    return [{
+      code: GATE_UNAVAILABLE_CODE,
+      severity: "blocking",
+      // No field to jump to — this is about the check itself, not about a value.
+      ref: GATE_UNAVAILABLE_CODE,
+      title: `We couldn't check this order against ${counterpartyNoun.toLowerCase()} rules`,
+      why: "Sending is paused until the check succeeds. Reload in a moment to try again.",
+    }];
+  }
+
+  if (!decision?.blocked) return [];
+
+  return decision.blockers.map((b) => ({
+    // Namespaced so a rule code can never collide with a FixQueueCard key, and
+    // line-qualified so two lines failing the same rule stay distinct entries.
+    code: `acceptance:${b.code}${b.lineNumber != null ? `:${b.lineNumber}` : ""}`,
     severity: "blocking" as const,
-    ref: s.key,
-    // The server writes the plain-language reason; it is the most specific true
-    // thing we have, so it leads. Only when it is absent do we fall back to a
-    // generic headline rather than render an empty card.
-    title: s.reason?.trim() || `Blocked by a ${counterpartyNoun.toLowerCase()} acceptance rule`,
-    why: `${counterpartyNoun} will refuse this order until this is fixed.`,
+    // The rule code is `{fieldPath}.{operator}` (SupplierAcceptanceService.cs:417),
+    // which the mapper's resolveRowRef cannot resolve — it splits ids on
+    // non-alphanumerics, so a needle containing "." never matches a segment. Point
+    // at the FIELD PATH instead, which is a real canonical key.
+    ref: b.code.includes(".") ? b.code.slice(0, b.code.lastIndexOf(".")) : b.code,
+    // The server authors the plain-language message; it is the most specific true
+    // thing we have, so it leads.
+    title: b.message?.trim() || `Blocked by a ${counterpartyNoun.toLowerCase()} acceptance rule`,
+    why: b.lineNumber != null
+      ? `Line ${b.lineNumber}. ${counterpartyNoun} will refuse this order until it is fixed.`
+      : `${counterpartyNoun} will refuse this order until this is fixed.`,
   }));
+}
+
+/**
+ * How many acceptance rules did NOT pass — what the send-confirmation dialog's
+ * acknowledgement counts.
+ *
+ * Note the asymmetry that makes this useful: when `blocked` is true `canSend` is
+ * false and the dialog cannot open at all. So the only case in which this count is
+ * ever READ is an order the gate lets through — i.e. one whose blockers an operator
+ * has explicitly overridden. That is exactly the case the acknowledgement exists
+ * for ("the supplier may still refuse, but say so deliberately").
+ */
+export function failingAcceptanceCount(
+  decision: AcceptanceGateDecision | undefined | null,
+): number {
+  return decision?.blockers.length ?? 0;
 }

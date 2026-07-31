@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { SignInServiceGate } from "@/components/bridge/ClerkAvailabilityGate";
 import {
   useAuth,
   useUser,
@@ -58,12 +59,6 @@ function SelectOrganizationInner() {
   const { userMemberships, setActive, createOrganization } = useOrganizationList({
     userMemberships: { infinite: true },
   });
-
-  const [timedOut, setTimedOut] = useState(false);
-  useEffect(() => {
-    const t = setTimeout(() => setTimedOut(true), 12_000);
-    return () => clearTimeout(t);
-  }, []);
 
   // setActive is async; the effect below can re-run (re-render) before the org
   // becomes active, which would fire setActive again. Latch it so the activate
@@ -133,17 +128,32 @@ function SelectOrganizationInner() {
     }
   }, [bypass, authLoaded, isSignedIn, action, dest, router, setActive, createOrganization, createError, user]);
 
-  if (timedOut && (action.kind === "loading" || action.kind === "activate")) {
-    return (
-      <Shell>
-        <div className="text-center text-sm" style={{ color: "var(--ink-muted)" }}>
-          <p>Still setting things up…</p>
-          <button type="button" onClick={() => router.refresh()} className="mt-3 underline">Retry</button>
-        </div>
-      </Shell>
-    );
-  }
+  // WP-32 follow-up (F3). This used to be a hand-rolled
+  // `setTimeout(() => setTimedOut(true), 12_000)` rendering "Still setting
+  // things up… / Retry". Three things were wrong with it: 12s is OVER the 10s
+  // ceiling the rest of the app is held to; nothing is being set up when the
+  // real cause is a dead sign-in script, so the copy was false on the page
+  // every successful sign-in lands on; and "Retry" is the word the shared
+  // pattern deliberately avoided. `loading` and `activate` are exactly the two
+  // states that were treated as a stall, so "settled" is their negation.
+  const settled = action.kind !== "loading" && action.kind !== "activate";
 
+  return (
+    <SignInServiceGate ready={settled} armed={!bypass}>
+      <OrgGateContent action={action} createError={createError} dest={dest} />
+    </SignInServiceGate>
+  );
+}
+
+function OrgGateContent({
+  action,
+  createError,
+  dest,
+}: {
+  action: ReturnType<typeof decideOrgGate>;
+  createError: boolean;
+  dest: string;
+}) {
   if (action.kind === "create") {
     // Happy path: we auto-create the workspace in the effect above, so render
     // the spinner (NOT the form) while that runs. Only if creation FAILED do we

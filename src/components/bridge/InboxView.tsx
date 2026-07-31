@@ -1331,7 +1331,13 @@ export function InboxView() {
           className="flex items-center gap-1.5 rounded-[6px] px-3 w-full sm:w-auto sm:min-w-[160px] sm:max-w-[240px] sm:flex-shrink-0"
           style={{ background: "#FFFFFF", border: "1px solid #E5E8EE", height: 32 }}
         >
-          <span aria-hidden="true" style={{ fontSize: "14px", color: "var(--ink-faint)", flexShrink: 0 }}>🔍</span>
+          {/* An SVG magnifier, not an emoji: an emoji renders in the platform's
+              font at the platform's colour and cannot inherit --ink-faint or
+              participate in the system's icon construction language (WP-28). */}
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true" style={{ color: "var(--ink-faint)", flexShrink: 0 }}>
+            <circle cx="7" cy="7" r="4.5" stroke="currentColor" strokeWidth="1.5" />
+            <path d="M10.4 10.4 14 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
           <input
             type="text"
             aria-label="Search orders"
