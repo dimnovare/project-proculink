@@ -14,10 +14,11 @@ import type { OrderMappingOverride, OutputNode, OutputNodeTemplate } from "@/lib
 const upsertMappingOverride = vi.fn<(id: string, o: OrderMappingOverride) => Promise<OrderMappingOverride>>(
   (_id, o) => Promise.resolve(o),
 );
+const inferOutputStructure = vi.fn();
 vi.mock("@/lib/api-client", () => ({
   upsertMappingOverride: (id: string, o: OrderMappingOverride) => upsertMappingOverride(id, o),
   previewMappingOverride: vi.fn().mockResolvedValue({ format: "xml", content: "<Order/>" }),
-  inferOutputStructure: vi.fn(),
+  inferOutputStructure: (...a: unknown[]) => inferOutputStructure(...a),
   getSourceTokens: vi.fn().mockResolvedValue([]),
 }));
 
@@ -612,5 +613,56 @@ describe("OutputStructureDesigner — CSV dialect leaves no trace when nothing c
     fireEvent.click(screen.getByRole("button", { name: /Save structure/i }));
 
     expect(savedDialect()).toEqual({ delimiter: ";" });
+  });
+});
+
+// ── S8 · the founder ruling, at the only seam that implements it ─────────────
+// "New layouts default to CRLF; existing ones keep what they have." Both halves
+// are one `if`, and a mutation widening it to every tree SURVIVED — nothing drove
+// the infer path, because inferOutputStructure was a bare vi.fn(). Either half
+// getting this wrong changes bytes: defaulting on the edit path re-terminates
+// every existing supplier the first time their layout is opened, and not
+// defaulting on the infer path means new work keeps inheriting the server's
+// platform-dependent Environment.NewLine.
+describe("OutputStructureDesigner — CRLF is for NEW layouts only", () => {
+  const inferredCsv: OutputNodeTemplate = {
+    format: "csv",
+    root: { name: "root", nodeType: "object", children: [
+      { name: "Ref", nodeType: "field", rule: { outputPath: "Ref", canonicalField: "PoNumber", fixedValue: null, fieldManipulators: [] } },
+    ] },
+  };
+
+  async function inferFrom(tree: OutputNodeTemplate) {
+    inferOutputStructure.mockResolvedValueOnce(tree);
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={qc}>
+        <OutputStructureDesigner orderId="o-1" baseOverride={{ customFields: [] }} initialTree={null} onClose={() => {}} />
+      </QueryClientProvider>,
+    );
+    fireEvent.change(screen.getByLabelText("Supplier sample file"), { target: { value: "a,b\n1,2\n" } });
+    fireEvent.click(screen.getByRole("button", { name: /Build from a sample/i }));
+    await screen.findByRole("button", { name: /Save structure/i });
+  }
+
+  it("a freshly INFERRED CSV layout is pinned to CRLF", async () => {
+    await inferFrom(inferredCsv);
+    fireEvent.click(screen.getByRole("button", { name: /Save structure/i }));
+
+    expect(savedTree().csvDialect?.lineEnding).toBe("\r\n");
+  });
+
+  it("an inferred layout that already declares a dialect is NOT overwritten", async () => {
+    await inferFrom({ ...inferredCsv, csvDialect: { lineEnding: "\n", delimiter: ";" } });
+    fireEvent.click(screen.getByRole("button", { name: /Save structure/i }));
+
+    expect(savedTree().csvDialect).toEqual({ lineEnding: "\n", delimiter: ";" });
+  });
+
+  it("a freshly inferred JSON layout gets no CSV dialect at all", async () => {
+    await inferFrom({ ...inferredCsv, format: "json" });
+    fireEvent.click(screen.getByRole("button", { name: /Save structure/i }));
+
+    expect(savedTree().csvDialect ?? null).toBeNull();
   });
 });
