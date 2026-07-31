@@ -49,67 +49,31 @@
 // evidence here for either. `sourceScan.test.ts` pins the difference so it cannot be "tidied" away
 // by accident.
 
-export type SourceSyntax = "js" | "mdx";
+// WHERE THE READING PRIMITIVES LIVE. `readLiteral`, `maskLiterals` and `stripComments` are NOT
+// defined here — they are in scripts/lib/sourceScan.mjs, and re-exported below so this module stays
+// the single import for both link guards.
+//
+// They moved because a THIRD consumer needs them and cannot import TypeScript: the vocabulary gate
+// (scripts/check-vocabulary.mjs) runs as `node scripts/check-vocabulary.mjs`, and ci.yml has no
+// `setup-node` step, so it executes under an unpinned bare node where `.ts` imports are not
+// dependable. The alternative was a second copy of the stripper, and `9cea6e5` already converged
+// two copies of this reading machinery for exactly that reason. See that file's header.
+//
+// `SourceSyntax` is declared there too, as a JSDoc `@typedef` that tsc reads through `allowJs`, so
+// the union has ONE definition rather than a TS copy that can drift from the runtime one.
+import {
+  maskLiterals,
+  readLiteral,
+  stripComments,
+  type SourceSyntax,
+} from "../../scripts/lib/sourceScan.mjs";
+
+export { maskLiterals, readLiteral, stripComments };
+export type { SourceSyntax };
 
 /** The syntax mode for a file path. */
 export function syntaxFor(file: string): SourceSyntax {
   return file.endsWith(".mdx") ? "mdx" : "js";
-}
-
-// ─── Literal reading ──────────────────────────────────────────────────────────
-//
-// The link patterns used to require a quote IMMEDIATELY after `href=` / `push(`, which made every
-// non-trivial expression invisible. The shipped counter-example is src/app/(app)/admin/page.tsx: its
-// only internal link is
-//   href={accessError.status === 401 ? "/sign-in?redirect_url=%2Fadmin" : "/bridge"}
-// and its other two hrefs are external Stripe URLs, so the WHOLE FILE scored zero targets. Same
-// shape at LaneDrawer.tsx:583, connectors/page.tsx:921, pricing/page.tsx:225.
-//
-// So an anchor (`href=`, `href:`, `router.push(`, …) opens a VALUE REGION, and every string literal
-// inside that region is a candidate. The region is BOUNDED — it is not "every literal after the
-// anchor" — which is what keeps a sibling object key or the next JSX attribute out.
-
-/** Read the string/template literal starting at `i`, or null if none starts there. */
-export function readLiteral(text: string, i: number): { value: string; end: number } | null {
-  const q = text[i];
-  if (q !== '"' && q !== "'" && q !== "`") return null;
-  let value = "";
-  let j = i + 1;
-  while (j < text.length) {
-    const ch = text[j];
-    if (ch === "\\") {
-      value += text.slice(j, j + 2);
-      j += 2;
-      continue;
-    }
-    if (ch === q) return { value, end: j + 1 };
-    value += ch;
-    j++;
-  }
-  return null; // unterminated — not a literal
-}
-
-/**
- * Blank out the CONTENTS of every string literal, preserving length and the quote characters.
- * Anchors are then searched in this masked copy, so an anchor-shaped substring that is really DATA
- * cannot open a region: `querySelector('a[href="/x"]')` is a selector, and the query string in
- * `"/sign-in?redirect_url=%2Fadmin"` is a parameter, not a redirect prop. Offsets are identical in
- * both copies, so a match found in the masked text indexes straight back into the real one.
- */
-export function maskLiterals(code: string): string {
-  let out = "";
-  let i = 0;
-  while (i < code.length) {
-    const lit = readLiteral(code, i);
-    if (lit) {
-      out += code[i] + " ".repeat(Math.max(0, lit.end - i - 2)) + code[lit.end - 1];
-      i = lit.end;
-      continue;
-    }
-    out += code[i];
-    i++;
-  }
-  return out;
 }
 
 const OPENERS = "([{";
@@ -157,19 +121,6 @@ export function literalsInRegion(code: string, at: number, mode: "call" | "value
   }
   return values;
 }
-
-// ─── Comment stripping ────────────────────────────────────────────────────────
-//
-// The implementation moved to scripts/lib/stripComments.mjs and is re-exported here so every
-// existing importer is unchanged. It moved because a THIRD consumer appeared — the vocabulary
-// gate's `blockBody`, which was anchoring on a comment that mentioned `const FILTER_CHIPS` and
-// so stopped firing `registry-moved` — and that gate runs under bare `node`, which cannot
-// import a .ts module. One copy, three consumers; see the header of the .mjs for why a second
-// copy is the failure mode being avoided.
-
-import { stripComments } from "../../scripts/lib/stripComments.mjs";
-
-export { stripComments };
 
 // ─── Anchors ──────────────────────────────────────────────────────────────────
 //
