@@ -60,6 +60,85 @@ export function isBulkSelectable(rawStatus: string): boolean {
   return BULK_SELECTABLE_STATUSES.has(rawStatus);
 }
 
+/**
+ * Statuses whose ROW carries its own primary send button (WP-29).
+ *
+ * DIFFERENT ENDPOINT, DIFFERENT GUARD SET — and that is the whole point. The bulk bar
+ * posts to /redeliver, guarded by OrderStatusMachine.RedeliverableFrom, which does NOT
+ * contain `ready`; a bulk send of `ready` rows could only ever 400, which is exactly
+ * WP-24's D2 defect. The row button posts to /orders/{id}/transform instead, whose
+ * guard set — OrderStatusMachine.TransformableFrom = {ready, transform_failed,
+ * rejected_by_supplier} — does contain it. A control is only offered where the backend
+ * accepts it.
+ *
+ * `ready` is the ONLY member, though the endpoint would accept two more:
+ *   • `transform_failed` and `rejected_by_supplier` are failure states owned by WP-24's
+ *     OrderProblemPanel, which already offers a named recovery with the reason attached.
+ *     A bare "Send" next to "Couldn't build output" would race that panel and say less.
+ *
+ * The two sets are DISJOINT by construction, and inboxReadySend.test.tsx walks every
+ * known status to keep them that way. Merging them — or widening isRedeliverable to
+ * cover `ready` — is how one checkbox comes to fire two endpoints with two guard sets.
+ */
+export const ROW_SENDABLE_STATUSES: ReadonlySet<string> = new Set(["ready"]);
+
+/** True when the inbox row itself offers the primary send button. */
+export function isRowSendable(rawStatus: string): boolean {
+  return ROW_SENDABLE_STATUSES.has(rawStatus);
+}
+
+/**
+ * The row action's copy — deliberately NOT `partyLabels(direction).primaryCta`.
+ *
+ * "Send to supplier" already names the ORDER-DETAIL control, and that control earns the
+ * words: useSendFlow.confirmSend transforms, polls to `ready_to_deliver`, calls
+ * /redeliver, and polls again to delivered — it genuinely sends. This button calls
+ * apiClient.transformOrder and stops.
+ *
+ * Those are the same words for two different actions, and for the ORDINARY org they are
+ * two different OUTCOMES: Organisation.AutoDeliver defaults to FALSE, so the transform's
+ * post-hoc DeliverOrderJob.Enqueue ("respects AutoDeliver flag") does nothing and the
+ * order rests in `ready_to_deliver` / "Queued to send" waiting for a second, differently
+ * shaped action. Naming that button "Send to supplier" would be false on the default
+ * configuration — in the packet whose whole point is that one label means one thing.
+ *
+ * "Prepare output" is what the endpoint does on every configuration. It is also the
+ * imperative of the badge the row is about to show: `transforming` renders "Preparing
+ * output" (UnifiedStatusBadge STATUS_META), so button → in-flight badge → resting badge
+ * reads "Prepare output" → "Preparing output" → "Queued to send". The success notice
+ * ("building the output") already said this; now the affordance agrees with it.
+ *
+ * It carries NO party noun, so unlike primaryCta it needs no direction to be correct —
+ * which is why inboxReadySend.test.tsx asserts the rendered text is IDENTICAL in both
+ * directions and is not either direction's primaryCta. That is a stricter guard than the
+ * one it replaces, not a way around the founder decision of 2026-07-30: entity nouns
+ * everywhere else still route through partyLabels, and the order-detail CTA is untouched.
+ */
+export const ROW_SEND_CTA = "Prepare output";
+
+/** In-flight copy for ROW_SEND_CTA. Matches the `transforming` badge, "Preparing output". */
+export const ROW_SEND_CTA_PROGRESS = "Preparing…";
+
+/**
+ * The row send's success line.
+ *
+ * Deliberately does NOT claim the supplier has it. POST /transform answers 202 and
+ * enqueues TransformOrderJob, which enqueues DeliverOrderJob — but that enqueue
+ * "respects the AutoDeliver flag" (DeliverOrderJob.Enqueue's own xmldoc), so an order
+ * whose supplier does not auto-send lands in `ready_to_deliver` ("Queued to send") and
+ * waits for a person. "Sent" would be a lie for that org; this sentence is true for
+ * every org, and the row's own status badge tells the rest of the story as it moves.
+ */
+export function rowSendStartedCopy(po: string): string {
+  return `Started ${po} — building the output. This order's status updates as it goes.`;
+}
+
+/** The row send's failure line — names the order and keeps the backend's own reason. */
+export function rowSendFailedCopy(po: string, reason: string): string {
+  const r = reason.trim();
+  return `Couldn't start ${po} — ${r === "" ? "no reason given" : r}`;
+}
+
 /** The parked status — sent, but the outcome was lost, so a resend may duplicate. */
 const DELIVERY_UNCONFIRMED = "delivery_unconfirmed";
 
