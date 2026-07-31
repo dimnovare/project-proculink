@@ -135,7 +135,7 @@ const STATUS_META: Record<string, StatusMeta> = {
   delivery_failed: { label: "Couldn't send", tone: "danger" },
   // The three automatic retries are spent; a human has to resend. "Retry needed"
   // names the action, which "Dead-lettered" never did.
-  delivery_dead_letter: { label: "Retry needed", tone: "danger" },
+  delivery_dead_letter: { label: "Out of retries", tone: "danger" },
   rejected: { label: "Supplier rejected", tone: "danger" },
   rejected_by_supplier: { label: "Supplier rejected", tone: "danger" },
 

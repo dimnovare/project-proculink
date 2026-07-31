@@ -37,7 +37,7 @@ export const TILES: HealthTile[] = [
   { key: "failed",             label: "Couldn't read the file", href: "/inbox?status=failed" },
   { key: "transformFailed",    label: "Output failed",     href: "/inbox?status=transform_failed" },
   { key: "deliveryFailed",     label: "Delivery failed",   href: "/inbox?status=delivery_failed" },
-  { key: "deliveryDeadLetter", label: "Retry needed"   ,    href: "/inbox?status=delivery_dead_letter" },
+  { key: "deliveryDeadLetter", label: "Out of retries",    href: "/inbox?status=delivery_dead_letter" },
   { key: "rejectedBySupplier", label: "Supplier refused it", href: "/inbox?status=rejected_by_supplier" },
   // Plain tile, not a bespoke card: unlike deliveryHeld (one global Settings→Billing
   // fix), a parked order's fix is per-order on the order screen — so it belongs in
