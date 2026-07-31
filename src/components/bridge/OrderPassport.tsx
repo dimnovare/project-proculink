@@ -159,7 +159,7 @@ function deriveTimeline(p: PassportDto): DerivedTimeline {
   if (respOutcome === "acknowledged") {
     final = { label: "Accepted", state: "done", at: resp?.acknowledgedAt ?? at(5), detail: resp?.responseCode != null ? `Response ${resp.responseCode}` : "Acknowledged by supplier" };
   } else if (respOutcome === "rejected") {
-    final = { label: "Rejected", state: "failed", at: resp?.acknowledgedAt ?? at(5), detail: resp?.rejectionReason ?? "Rejected by supplier" };
+    final = { label: "Supplier rejected", state: "failed", at: resp?.acknowledgedAt ?? at(5), detail: resp?.rejectionReason ?? "The supplier read this order and refused it." };
   } else if (parseFailed || transformFailed || deliveryFailed) {
     const lastErr = attempts.map((a) => a.errorMessage || a.rejectionReason).filter(Boolean).pop();
     final = { label: "Failed", state: "failed", at: at(failedAt ?? 5), detail: lastErr ?? (p.finalStatus ?? p.order.status) };

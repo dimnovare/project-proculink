@@ -821,7 +821,11 @@ async function realTransformOrder(orderId: string, format?: TransformFormat): Pr
     body: JSON.stringify(format ? { format } : {}),
   }, 30000);
   if (res.status === 422) { const t = await res.text(); throw new Error(`Unresolved lines: ${t}`); }
-  if (!res.ok) { const t = await res.text(); throw new Error(`Transform failed: ${t || res.statusText}`); }
+  // This message is RENDERED — the review screen and the order workshop print
+  // `err.message` verbatim — so it is copy, and it said "Transform failed",
+  // the retired engine-stage name for the state whose badge reads
+  // "Couldn't build output".
+  if (!res.ok) { const t = await res.text(); throw new Error(`We couldn't build the output file: ${t || res.statusText}`); }
   // 202 Accepted — job enqueued; return a placeholder result
   const body = await res.json() as Record<string, unknown>;
   return { artifactId: "", format: format ?? "xml", createdAt: new Date().toISOString(), ...body } as TransformResult;

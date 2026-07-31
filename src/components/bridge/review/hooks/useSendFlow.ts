@@ -150,7 +150,7 @@ export function useSendFlow({ orderId, order, labels, refetchOrder }: {
       }
 
       if (current.status === "transform_failed") {
-        setFlow(current.errorMessage ?? "Transform failed. Check the output template and try again.", "error");
+        setFlow(current.errorMessage ?? "We couldn't build the output file. Check the output template and try again.", "error");
         return;
       }
 

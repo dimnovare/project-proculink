@@ -34,11 +34,11 @@ export const TILES: HealthTile[] = [
   // D6 — the one problem state whose fix is 100% self-serve was invisible here:
   // the API returns pendingRouting and this frontend's interface omitted the field.
   { key: "pendingRouting",     label: "Needs supplier",    href: "/inbox?status=unrouted" },
-  { key: "failed",             label: "Couldn't read the file", href: "/inbox?status=failed" },
-  { key: "transformFailed",    label: "Output failed",     href: "/inbox?status=transform_failed" },
-  { key: "deliveryFailed",     label: "Delivery failed",   href: "/inbox?status=delivery_failed" },
+  { key: "failed",             label: "Couldn't read file", href: "/inbox?status=failed" },
+  { key: "transformFailed",    label: "Couldn't build output", href: "/inbox?status=transform_failed" },
+  { key: "deliveryFailed",     label: "Couldn't send",      href: "/inbox?status=delivery_failed" },
   { key: "deliveryDeadLetter", label: "Out of retries",    href: "/inbox?status=delivery_dead_letter" },
-  { key: "rejectedBySupplier", label: "Supplier refused it", href: "/inbox?status=rejected_by_supplier" },
+  { key: "rejectedBySupplier", label: "Supplier rejected", href: "/inbox?status=rejected_by_supplier" },
   // Plain tile, not a bespoke card: unlike deliveryHeld (one global Settings→Billing
   // fix), a parked order's fix is per-order on the order screen — so it belongs in
   // the grid the operator already scans, routed like every other tile.
