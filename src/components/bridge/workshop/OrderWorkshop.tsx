@@ -22,7 +22,9 @@
 // one-click fixes + a sticky Send bar); field-by-field mapping stays on a wider screen.
 
 import { useCallback, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { CircleCheck } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient, getMappingOverride, previewMappingOverride } from "@/lib/api-client";
 import { getFieldValidation } from "@/lib/api/mapper-ai";
@@ -353,9 +355,12 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
   //    (e.g. ExceptionDetail's "Check conformance" → ?tab=conformance) opens the
   //    matching drawer tab on first paint.
   const searchParams = useSearchParams();
-  // ?sample=1 is appended by useSampleOrder when navigating to a practice order.
-  // Reading it once on mount is sufficient — the param never changes during the session.
-  const isSampleOrder = searchParams?.get("sample") === "1";
+  // WP-27: the practice framing is SERVER-DRIVEN. It used to key off a `?sample=1`
+  // parameter that only useSampleOrder appended, so a practice order opened from a
+  // bookmark, the back button, or an inbox row rendered as a real one — and a real
+  // order opened with `?sample=1` pasted on rendered as practice. `order.isSample`
+  // comes from PurchaseOrderEntity.IsSample and is true wherever the order is.
+  const isSampleOrder = order?.isSample === true;
   const [detailsTab, setDetailsTab] = useState<OrderDetailsTab | null>(() => {
     const t = searchParams?.get("tab");
     return t === "passport" || t === "conformance" || t === "response" ? t : null;
@@ -759,34 +764,45 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
         </div>
       )}
 
-      {/* ── Practice-order banner — shown when ?sample=1 is in the URL. Mirrors the
-          copy in OnboardingChecklist so the wording is consistent across all entry
-          points (upload page, checklist, inbox empty state, Cmd+K). Pre-warns that
-          delivery stops at "delivery not set up" — expected for the sample order,
-          and honest rather than surprising. Never shown on real orders. ──────── */}
+      {/* ── Practice-order banner — driven by the order's own IsSample flag (WP-27),
+          not by a query parameter, so it is right wherever the order is opened from.
+          Two states: before the send it explains what a practice order is; after a
+          successful send it names the thing that just happened and points at the real
+          work. Never shown on real orders. ─────────────────────────────────────── */}
       {isSampleOrder && (
         <div
           role="note"
           aria-label="Practice order"
-          className="flex-shrink-0"
+          className="flex-shrink-0 flex flex-wrap items-center gap-2"
           style={{
             padding: "9px 16px",
             background: "#E9F1EA",
             borderBottom: "1px solid #BFE0C2",
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
             fontSize: 12.5,
           }}
         >
-          <span aria-hidden style={{ fontSize: 14 }}>🟢</span>
-          <span>
-            <strong style={{ color: "#1E6D29" }}>Practice order</strong>
-            <span style={{ color: "#2E7D38" }}>
-              {" "}— free, doesn&apos;t count against your plan.
-              Sending stops at &ldquo;delivery not set up&rdquo; (expected for a practice run).
+          {/* System icon, not an emoji — emoji-as-icon is banned by the design system. */}
+          <CircleCheck size={14} color="#1E6D29" aria-hidden className="shrink-0" />
+          {order?.status === "delivered" ? (
+            <span>
+              <strong style={{ color: "#1E6D29" }}>Practice order delivered</strong>
+              <span style={{ color: "#2E7D38" }}>
+                {" "}— we emailed you the finished file. That is byte-for-byte what a real
+                order produces.
+              </span>{" "}
+              <Link href="/upload" style={{ color: "#1E6D29", fontWeight: 600, textDecoration: "underline", textUnderlineOffset: 2 }}>
+                Upload your own order →
+              </Link>
             </span>
-          </span>
+          ) : (
+            <span>
+              <strong style={{ color: "#1E6D29" }}>Practice order</strong>
+              <span style={{ color: "#2E7D38" }}>
+                {" "}— free, doesn&apos;t count against your plan. Match the one missing item
+                code, then send it: the finished file is emailed to you, never to a supplier.
+              </span>
+            </span>
+          )}
         </div>
       )}
 

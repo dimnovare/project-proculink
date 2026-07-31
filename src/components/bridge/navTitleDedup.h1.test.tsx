@@ -30,6 +30,7 @@ vi.mock("@clerk/nextjs", () => ({
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true }));
 vi.mock("@/hooks/useSampleOrder", () => ({
   useSampleOrder: () => ({ runSample: vi.fn(), isPending: false, error: null }),
+  usePracticeOrderEmail: () => "",
 }));
 vi.mock("@/hooks/useOrderDirection", () => ({
   useOrderDirection: () => ({

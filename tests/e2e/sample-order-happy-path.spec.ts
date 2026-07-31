@@ -35,22 +35,30 @@ test("clicking Try with sample order routes to a sample order page with banner",
 
   const sampleCta = page.getByRole("button", { name: /try with.*sample order/i });
   await expect(sampleCta).toBeVisible({ timeout: 10_000 });
+  await sampleCta.click();
 
-  // Click + wait for navigation to /inbox/<id>?sample=1.
-  // Generous timeout: in CI mock mode the webServer is `next dev`, which
-  // cold-compiles the /inbox/[orderId] route on first navigation. Under
-  // full-suite load (single worker) that compile plus the mock's ~800ms
-  // sample-create delay can exceed a tight 15s budget intermittently.
-  // The click can land before the next-dev page finishes hydrating (cold-compile,
-  // worse when the backend stack runs on the same machine), silently dropping the
-  // React handler. Retry click+wait until the navigation actually sticks.
+  // WP-27: the CTA now asks where to email the finished file before it starts the
+  // run, because a practice order with nowhere to deliver dead-ends at "no delivery
+  // is set up" — the thing the packet exists to remove.
+  const addressField = page.getByLabel(/send the finished file to/i);
+  await expect(addressField).toBeVisible({ timeout: 10_000 });
+  await addressField.fill("coordinator@northgate.example");
+
+  // Click + wait for navigation to /inbox/<id>. Generous timeout: in CI mock mode the
+  // webServer is `next dev`, which cold-compiles the /inbox/[orderId] route on first
+  // navigation. The click can also land before hydration finishes, silently dropping
+  // the React handler — so retry click+wait until the navigation actually sticks.
+  const run = page.getByRole("button", { name: /^run it$/i });
   await expect(async () => {
-    await sampleCta.click();
-    await page.waitForURL(/\/inbox\/[^/?]+\?.*sample=1/i, { timeout: 8_000 });
+    await run.click();
+    await page.waitForURL(/\/inbox\/[^/?]+/, { timeout: 8_000 });
   }).toPass({ timeout: 45_000, intervals: [500, 1000, 2000] });
 
-  // The non-quota sample banner should be visible on the destination page.
-  // The banner copy reads: "Practice order — free, doesn't count against your plan…"
+  // WP-27: no ?sample=1. The practice framing is driven by the order's own IsSample
+  // flag, so it survives a bookmark, the back button, and an inbox row click.
+  expect(page.url()).not.toContain("sample=1");
+
+  // The non-quota practice banner should be visible on the destination page.
   // Use the aria role="note" container so we match the whole banner text, not just
   // the <strong> inner element (which only contains "Practice order").
   const banner = page.getByRole("note", { name: /practice order/i });
