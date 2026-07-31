@@ -168,6 +168,24 @@ export function literalsInRegion(code: string, at: number, mode: "call" | "value
 const REGEX_MAY_START_AFTER = /^$|^[(,=:[!&|?{};+\-*%~^<>]$/;
 
 /**
+ * A slash pair continues a URL scheme rather than opening a comment ONLY when the colon is
+ * IMMEDIATELY adjacent to it and terminates a scheme-shaped identifier — `https://`, `sftp://`,
+ * `mailto:` in bare JSX prose.
+ *
+ * This test used to be `prev !== ":"`, and `prev` is the last NON-WHITESPACE character emitted.
+ * Every colon in the language therefore exempted the rest of its line from stripping: `key: // note`,
+ * `case "x": // note`, a ternary's `:` and a TS type annotation all left their comment standing, and
+ * both link guards then read that comment as live code. A `<Link href="/somewhere">` written in a
+ * comment after a colon conferred reachability on a page nothing navigates to — the exact defect
+ * stripping exists to prevent, and the shape is idiomatic enough that the repo already carries it
+ * (`catalogSourceHelpers.ts`, `sourcePickerModel.ts` — neither currently holding a link).
+ *
+ * Matched against the RAW text preceding the slash pair, so intervening whitespace defeats it:
+ * `https://x` is a scheme, `ready: // x` is a comment.
+ */
+const URL_SCHEME_COLON = /(?:^|[^A-Za-z0-9+.-])[A-Za-z][A-Za-z0-9+.-]*:$/;
+
+/**
  * Remove comments, so that a link existing ONLY IN A COMMENT can neither confer reachability nor be
  * blamed for a 404.
  *
@@ -219,8 +237,9 @@ export function stripComments(text: string, syntax: SourceSyntax = "js"): string
       continue;
     }
 
-    // Line comment. `://` is a URL scheme, never a comment.
-    if (c === "/" && next === "/" && prev !== ":") {
+    // Line comment. `://` is a URL scheme, never a comment — see URL_SCHEME_COLON for why the
+    // adjacency matters and why the old `prev !== ":"` form exempted far more than URLs.
+    if (c === "/" && next === "/" && !URL_SCHEME_COLON.test(text.slice(Math.max(0, i - 64), i))) {
       while (i < n && text[i] !== "\n") i++;
       continue;
     }

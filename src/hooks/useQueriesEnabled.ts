@@ -12,6 +12,23 @@
 //
 // Production behavior is unchanged: NEXT_PUBLIC_QA_BYPASS_AUTH is unset there, so
 // isQaBypass is false and the gate collapses back to `isApiMockMode || clerkReady`.
+//
+// ── WHAT THIS HOOK DOES NOT DO (WP-32) ────────────────────────────────────────
+// It has no timeout, and it must not grow one. If Clerk's hosted JS never loads
+// (ad blocker, corporate proxy, provider outage) `isLoaded` never flips and this
+// returns FALSE FOREVER — which is the correct answer, because a query fired
+// without a session token just 401s. The bug was never here; it was that nobody
+// bounded the wait, so all 28 consumers rendered their loading branch forever
+// and a blocked script was indistinguishable from a hang.
+//
+// The bound lives one level up, in <ClerkAvailabilityGate> at
+// src/app/(app)/layout.tsx: after CLERK_LOAD_DEADLINE_MS it replaces the whole
+// shell with an explanatory card. It arms that deadline on `!useQueriesEnabled()`
+// precisely because this hook already knows the two cases that must never see
+// the card — mock and QA-bypass, where Clerk is dormant BY DESIGN (empty
+// publishable key) and `isLoaded` is legitimately false for the whole session.
+// If you ever make this hook return true in a new no-Clerk mode, the gate
+// disarms itself for that mode automatically. Keep them coupled this way.
 
 import { useAuth } from "@clerk/nextjs";
 import { isApiMockMode, isQaBypass } from "@/lib/api-client";

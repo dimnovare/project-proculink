@@ -22,6 +22,19 @@ const REVALIDATE_DEBOUNCE_MS = 800;
 export function useAcceptanceValidation(orderId: string, opts?: {
   /** Bumps after every successful server commit — schedules the auto-revalidate. */
   commitVersion?: number;
+  /**
+   * WP-18 — the live count of acceptance rows that did NOT pass, from
+   * GET /api/orders/{id}/validation, which OrderWorkshop now owns at every
+   * breakpoint. `validate()` (the POST) has no caller anywhere in src/, so
+   * `validationResult` was permanently null and `failingRuleCount` permanently
+   * 0 — the send-confirmation dialog's acknowledgement never once appeared.
+   * This seeds the count from the server's own gate-aligned answer, so the
+   * dialog is truthful without firing a POST on page load. An explicit
+   * validate() still wins.
+   */
+  serverFailingCount?: number;
+  /** True while that server answer is being refetched — feeds the same isStale guard. */
+  serverRevalidating?: boolean;
 }) {
   const qc = useQueryClient();
   const [validationResult, setValidationResult] = useState<OrderValidationResult | null>(null);
@@ -60,9 +73,13 @@ export function useAcceptanceValidation(orderId: string, opts?: {
   // Count failing acceptance-profile rules from the last validation run. A
   // failed validation doesn't hard-block send (the supplier may still accept),
   // but the user must explicitly acknowledge it in the confirm dialog.
-  const failingRuleCount = validationResult && !validationResult.passed
-    ? validationResult.results.filter(r => !r.passed).length
-    : 0;
+  //
+  // An explicit validate() result wins (it is the freshest, most specific answer);
+  // otherwise fall back to the live server-side blocking count so the dialog
+  // reflects what the gate will actually do.
+  const failingRuleCount = validationResult
+    ? (validationResult.passed ? 0 : validationResult.results.filter(r => !r.passed).length)
+    : (opts?.serverFailingCount ?? 0);
 
   return {
     validationResult,
@@ -71,7 +88,10 @@ export function useAcceptanceValidation(orderId: string, opts?: {
     isValidating: validateMutation.isPending,
     isValidateError: validateMutation.isError,
     validateError: validateMutation.error,
-    isStale,
+    // Stale while EITHER the debounced revalidate is pending or the live server
+    // answer is being refetched — the UI must never show a confidently-green
+    // "passed" against data a commit has already invalidated (gate G6).
+    isStale: isStale || (opts?.serverRevalidating ?? false),
   };
 }
 
