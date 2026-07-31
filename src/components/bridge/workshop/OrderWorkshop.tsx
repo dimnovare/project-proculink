@@ -559,7 +559,20 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
   const blockingIssues = issues.filter((i) => i.severity === "blocking").length;
   const canSend = !problem && !crossed && sendState === "idle" && blockingIssues === 0 && exceptionCount === 0;
   const sendReady = blockingIssues === 0 && exceptionCount === 0;
-  const warningIssues = issues.filter((i) => i.severity === "warning").length;
+  // Non-blocking work the operator may deliberately send past. Two sources:
+  //   • warning-severity rows from buildFixQueue, and
+  //   • WP-18's ADVISORY acceptance rows — rules that did not pass but that the
+  //     server's gate will not refuse. Those never enter `issues` (acceptanceIssues
+  //     projects blocking rows only, deliberately: gating on them would claim a
+  //     block the server does not honour), yet they are exactly what the send
+  //     confirmation asks the operator to acknowledge. Counting them here is what
+  //     makes the "override available" state real instead of theoretical — the
+  //     button now says an acknowledgement is coming, before the dialog opens.
+  const advisoryAcceptanceCount = Math.max(
+    0,
+    failingAcceptanceRows(acceptanceQuery.data).length - acceptanceBlockers.length,
+  );
+  const warningIssues = issues.filter((i) => i.severity === "warning").length + advisoryAcceptanceCount;
 
   // The ONE send-copy ladder, shared with MobileTriage's sticky bar (WP-28).
   // `canSend` above stays the authority on whether the click is wired; this only
@@ -586,7 +599,9 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
   const blockerChips: BlockerChip[] = issues
     .filter((i) => i.severity === "blocking")
     .map((i) => ({ id: i.code, name: i.title }));
-  const noteCount = issues.filter((i) => i.severity === "warning").length;
+  // Same count the send bar reports, so the status bar's "N optional" chip and
+  // the button can never disagree about how much non-blocking work is left.
+  const noteCount = warningIssues;
 
   // ── Display helpers for the header + confirm dialog ──────────────────────────
   // "" when the total is genuinely unknown (nothing extracted AND no priced lines
