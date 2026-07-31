@@ -121,6 +121,16 @@ jobs:
         if: always()
         run: bun run lint:vocab
 
+      # Design-token gate (WP-30). Fails on raw hex literals, per-page palette
+      # constants, and inline-styled buttons under src/app — the two patterns
+      # docs/design-system/11-unified-page-rules.md §Enforcement names, plus the
+      # palette-constant ban from its rule 5. Pre-existing debt is held by a
+      # per-file ratchet inside the script, so a listed page may shrink but never
+      # grow and a new page must be at zero.
+      - name: Design-token gate
+        if: always()
+        run: bun run lint:tokens
+
       # Types are the one gate WP-01 left out, and the gap was not theoretical: by the time
       # this was added, main carried TWO type errors - one pre-existing in seo.test.ts and one
       # merged the same day via #52. tsconfig has strict:false and strictNullChecks:false, so

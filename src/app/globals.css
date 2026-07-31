@@ -25,6 +25,36 @@
   --navy-border:       #1F3252;
   --navy-text:         #C8D1E0;
   --navy-muted:        #7C8DA6;
+  /* Faint text on navy chrome. The --ink-faint comment below already NAMED this
+     value ("dark-chrome faint text uses its own hardcoded light greys
+     #9DB2CE / #7C8DA6") without ever defining it, so both marketing pages
+     carried their own copy. 8.06:1 on --navy — AA for normal text. */
+  --navy-faint:        #9DB2CE;
+  --navy-line:         #1B2D49;   /* hairline rule on navy */
+
+  /* Marketing dark-section chrome (landing hero + how-it-works). These are the
+     darker steps of --navy that the product mock and hero glow are built from.
+     They exist as tokens rather than page constants because BOTH marketing
+     pages draw the same mock — see docs/design-system/11-unified-page-rules.md
+     rule 5 (no per-page palette constants) and scripts/check-tokens.mjs. */
+  --navy-glow:         #0E2545;   /* hero radial-glow centre */
+  --navy-deep:         #0C1D34;   /* mock window frame */
+  --navy-deeper:       #0A1729;   /* mock window body */
+  --navy-well:         #0A1626;   /* inset control bar inside the mock */
+  --navy-inset:        #081424;   /* inset panel inside the mock */
+  --navy-code:         #071221;   /* code block on navy */
+  --navy-raised:       #0F233C;   /* raised row inside the mock */
+  --navy-pale:         #AFC6EA;   /* pale blue text on navy — 10.05:1 */
+  --navy-pale-line:    #CBDDF6;   /* pale blue hairline */
+  /* Accent tints legible on navy. --brand-blue is only 2.0:1 there, so the dark
+     sections need their own brighter step: 6.87:1 and 7.68:1 on --navy. */
+  --brand-blue-bright: #6BA5F0;
+  --brand-green-bright:#5FC06B;
+  --brand-green-pale:  #BFE7C5;   /* code-output text on --navy-code — 13.83:1 */
+  /* The mock window's traffic lights. Decorative, non-text, drawn by both pages. */
+  --dot-red:           #E05A52;
+  --dot-amber:         #E0B13A;
+  --dot-green:         #3FA84C;
 
   /* Light surfaces */
   --bg:                #F6F7FA;
@@ -61,6 +91,10 @@
      TEXT so it stays readable; --amber itself stays for dots/borders/strokes
      (non-text, ≥3:1). Mirrors the --ink-faint a11y darkening. Founder-approved. */
   --amber-text:        #8A5310;
+  /* Amber legible on NAVY chrome. --amber-text is a dark amber tuned for light
+     surfaces; on --navy-inset it collapses to 2.93:1, while this is 9.26:1.
+     Same family as --brand-blue-bright / --brand-green-bright. */
+  --amber-bright:      #E0B13A;
   --danger:            #B43838;
   --danger-soft:       #FAE6E6;
   --ai:                #6F4FCE;
@@ -543,22 +577,12 @@
 .pill-failed .dot { background: var(--danger); }
 @keyframes pulse-dot { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
 
-/* ── Source chips ──────────────────────────────────────────────────────── */
-.src-chip {
-  font-family: var(--font-mono); font-weight: 600; font-size: 10.5px;
-  letter-spacing: 0.02em; text-transform: uppercase;
-  padding: 2px 6px; border-radius: var(--radius-sm); display: inline-flex; align-items: center;
-}
-.src-PDF             { background:#FBEEEE; color:#B53F3F; }
-.src-XLSX            { background:var(--brand-green-soft); color:var(--brand-green-deep); }
-.src-CSV             { background:#EEF3F8; color:#345470; }
-.src-XML,
-.src-cXML            { background:var(--ai-soft); color:#5E3DB0; }
-.src-EDI             { background:var(--amber-soft); color:var(--amber-text); }
-.src-EMAIL           { background:#E9EDF3; color:#4A5568; }
-.src-API             { background:#E3F0E3; color:var(--brand-green-deep); }
-.src-JSON            { background:#FFF4D6; color:#846100; }
-.src-UBL             { background:#EEF3F8; color:#345470; }
+/* ── Source chips — REMOVED (WP-30) ────────────────────────────────────────
+   `.src-chip` + `.src-{FORMAT}` were a third copy of the format palette, drawn
+   only by a local SrcChip inside SupplierDockProfile.tsx. That component is now
+   a thin alias over <FileChip>, which carries the one palette. The visual spec
+   these rules defined (mono / 10.5px / 600 / uppercase / 0.02em / radius-sm)
+   moved onto FileChip so the call site renders unchanged.                     */
 
 /* ── Status journey ────────────────────────────────────────────────────── */
 .journey { display: flex; align-items: center; }

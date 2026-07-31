@@ -34,7 +34,7 @@ import { computeOutgoingStatus, type OutgoingStatusInput, type OutgoingFieldStat
 import { TransformPopover } from "./TransformPopover";
 import { SourcePickerChip } from "./SourcePickerChip";
 import { suggestedSourceFor } from "./sourcePickerModel";
-import { ConfidenceChip } from "./ConfidenceChip";
+import { ConfidenceChip } from "../ConfidenceChip";
 
 export interface OutgoingPaneProps {
   variant: "order" | "connection";

@@ -22,7 +22,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { MapperSourcePortProps } from "./MapperWireLayer";
 import type { SourceField, FieldFilter } from "./types";
-import { ConfidenceChip } from "./ConfidenceChip";
+import { ConfidenceChip } from "../ConfidenceChip";
 import { SourceTypeChip } from "./SourceTypeChip";
 import {
   buildIncomingGroups,

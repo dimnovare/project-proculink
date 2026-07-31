@@ -1,10 +1,12 @@
 "use client";
 import * as React from "react";
-import { confidenceTier } from "@/lib/ds-tokens";
 
 /* =====================================================================
-   Primitives — Button, ConfidenceChip, SrcChip,
-   AiSuggestion, ProcuLinkMark.
+   Primitives — Button, Pill, AiSuggestion, ProcuLinkMark.
+
+   ConfidenceChip and the format chip moved out (WP-30) — see the note
+   further down. Their single implementations are ConfidenceChip.tsx and
+   FileChip.tsx.
 
    Status badges live in UnifiedStatusBadge (orders/exceptions) and
    RevisionStatusBadge (connection revisions) — not here.
@@ -119,48 +121,16 @@ export function Pill({
   );
 }
 
-/* -------- ConfidenceChip -------- */
-export function ConfidenceChip({ value }: { value: number }) {
-  const tier = confidenceTier(value);
-  const cls =
-    tier === "ok"   ? "bg-brand-green-soft text-brand-green-deep" :
-    tier === "warn" ? "bg-amber-soft text-amber" :
-                      "bg-danger-soft text-danger";
-  return (
-    <span className={["font-mono text-[10px] font-bold px-1 py-px rounded-sm", cls].join(" ")}>
-      {value}%
-    </span>
-  );
-}
+/* -------- ConfidenceChip / SrcChip — REMOVED (WP-30) --------
+   Both were exported here and imported by nobody: `git grep` over every importer
+   of this module finds only Button and ProcuLinkMark. Meanwhile their live
+   counterparts had drifted away from them — the confidence thresholds (90/75
+   here vs 85/65 in the mapper chip) and the format palette (SrcChip drew XLSX,
+   API at 3.61:1 and EDI at 3.65:1, below the AA floor).
 
-/* -------- SrcChip — file-type chip -------- */
-// Keep in sync with FileChip.tsx CHIP_COLORS (same canonical palette from tokens.css .src-*)
-type SrcType = "PDF" | "XLSX" | "CSV" | "XML" | "cXML" | "EDI" | "EMAIL" | "API" | "JSON" | "UBL";
-
-const SRC_PALETTE: Record<SrcType, { bg: string; fg: string }> = {
-  PDF:   { bg: "#FBEEEE", fg: "#B53F3F" },
-  XLSX:  { bg: "#E9F1EA", fg: "#2E8E3A" },   // brand-green-soft / brand-green
-  CSV:   { bg: "#EEF3F8", fg: "#345470" },
-  XML:   { bg: "#F0EAFB", fg: "#5E3DB0" },   // ai-soft / #5E3DB0
-  cXML:  { bg: "#F0EAFB", fg: "#5E3DB0" },
-  EDI:   { bg: "#FAF1DD", fg: "#B36D14" },   // amber-soft / amber
-  EMAIL: { bg: "#E9EDF3", fg: "#4A5568" },
-  API:   { bg: "#E9F1EA", fg: "#2E8E3A" },   // brand-green-soft / brand-green
-  JSON:  { bg: "#FFF4D6", fg: "#846100" },
-  UBL:   { bg: "#EEF3F8", fg: "#345470" },   // same as CSV per tokens.css .src-UBL
-};
-
-export function SrcChip({ type }: { type: SrcType | string }) {
-  const p = SRC_PALETTE[type as SrcType] ?? { bg: "#EEF3F8", fg: "#345470" };
-  return (
-    <span
-      className="font-mono text-[10.5px] font-semibold px-1.5 py-px rounded-sm uppercase"
-      style={{ background: p.bg, color: p.fg, letterSpacing: "0.02em" }}
-    >
-      {type}
-    </span>
-  );
-}
+   The single implementations now live at:
+     • ConfidenceChip → src/components/bridge/ConfidenceChip.tsx
+     • format chip    → src/components/bridge/FileChip.tsx                     */
 
 /* -------- AiSuggestion -------- */
 type AiSuggestionProps = {

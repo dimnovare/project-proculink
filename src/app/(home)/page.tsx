@@ -20,34 +20,46 @@ import {
 } from "@/lib/marketing/format-catalog";
 
 // ─── Brand tokens (Bridge Layer design system) ───────────────────────────────
-// Primary accent is BUYER-BLUE (#1E66C9); supplier side is forest green
-// (#2E8E3A). These mirror the CSS custom properties in globals.css so inline
-// styles stay in lockstep with the ported design classes.
-const BLUE = "#1E66C9"; // brand-blue — primary / buyer / active
-const BLUE_DEEP = "#0F4FA8"; // brand-blue-deep
-const BLUE_SOFT = "#E3EDFB"; // brand-blue-soft
-const GREEN = "#2E8E3A"; // brand-green — supplier
-const GREEN_DEEP = "#1E6D29"; // brand-green-deep
-const GREEN_SOFT = "#E2F1E2"; // brand-green-soft
-const AMBER = "#C97A14";
-const AMBER_SOFT = "#FAEFD6";
-const AI = "#6F4FCE";
-const AI_SOFT = "#EEE7FB";
-const NAVY = "#0B1A2F";
-const NAVY_SURFACE = "#10243E";
-const NAVY_BORDER = "#1C2F49";
-const NAVY_TEXT = "#C5D2E4";
-const NAVY_MUTED = "#7C8DA6";
-const INK = "#0B1A2F";
-const INK_MUTED = "#56627A";
+// Primary accent is BUYER-BLUE; supplier side is forest green. These are ALIASES
+// for the CSS custom properties in globals.css — never copies of their values.
+//
+// They used to be hex copies, and they had silently drifted: BLUE_SOFT,
+// GREEN_SOFT, AMBER, AMBER_SOFT, AI_SOFT, NAVY_SURFACE, NAVY_BORDER, NAVY_TEXT,
+// INK_MUTED, BORDER and SURFACE_2 were all a generation behind globals.css, and
+// the stale amber pair shipped an accent tile at 2.93:1 — under the 3:1 floor
+// for non-text. Pointing every alias at var(--token) is what makes that class of
+// drift impossible. Enforced by scripts/check-tokens.mjs.
+const BLUE = "var(--brand-blue)"; // buyer / primary / active
+const BLUE_DEEP = "var(--brand-blue-deep)";
+const BLUE_SOFT = "var(--brand-blue-soft)";
+const GREEN = "var(--brand-green)"; // supplier
+const GREEN_DEEP = "var(--brand-green-deep)";
+const GREEN_SOFT = "var(--brand-green-soft)";
+// --amber is the DOT/BORDER/STROKE value; --amber-text is the AA-safe text and
+// icon value on a soft-amber fill (5.62:1 vs 3.65:1). AMBER_BRIGHT is the same
+// accent for the NAVY hero panes: --amber-text is tuned for light surfaces and
+// collapses to 2.93:1 on --navy-inset, where --amber-bright is 9.26:1.
+const AMBER = "var(--amber-text)";
+const AMBER_BRIGHT = "var(--amber-bright)";
+const AMBER_SOFT = "var(--amber-soft)";
+const AI = "var(--ai)";
+const AI_SOFT = "var(--ai-soft)";
+const NAVY = "var(--navy)";
+const NAVY_SURFACE = "var(--navy-surface)";
+const NAVY_BORDER = "var(--navy-border)";
+const NAVY_TEXT = "var(--navy-text)";
+const NAVY_MUTED = "var(--navy-muted)";
+const NAVY_FAINT = "var(--navy-faint)";
+const INK = "var(--ink)";
+const INK_MUTED = "var(--ink-muted)";
 const INK_FAINT = "var(--ink-faint)";
-const BORDER = "#E2E6EE";
-const SURFACE = "#FFFFFF";
-const SURFACE_2 = "#EFF2F7";
-const BG = "#F6F7FA";
+const BORDER = "var(--border)";
+const SURFACE = "var(--surface)";
+const SURFACE_2 = "var(--surface-2)";
+const BG = "var(--bg)";
 // Bright tints used on the navy chrome (hero/CTA) for accent words + dots.
-const BLUE_BRIGHT = "#6BA5F0";
-const GREEN_BRIGHT = "#5FC06B";
+const BLUE_BRIGHT = "var(--brand-blue-bright)";
+const GREEN_BRIGHT = "var(--brand-green-bright)";
 
 // ─── Line-icon set (stroke = currentColor) ────────────────────────────────────
 function Icon({ name, color }: { name: string; color: string }) {
@@ -56,7 +68,10 @@ function Icon({ name, color }: { name: string; color: string }) {
     height: 20,
     viewBox: "0 0 24 24",
     fill: "none",
-    stroke: color,
+    // stroke goes through `style`, not the presentation attribute: callers now
+    // pass `var(--token)`, and var() substitution inside an SVG presentation
+    // attribute is not reliable across browsers. As a CSS declaration it is.
+    style: { stroke: color },
     strokeWidth: 1.7,
     strokeLinecap: "round" as const,
     strokeLinejoin: "round" as const,
@@ -216,7 +231,7 @@ export default function RootPage() {
     <div
       style={{
         minHeight: "100dvh",
-        background: "#FFFFFF",
+        background: SURFACE,
         fontFamily: "Inter, system-ui, sans-serif",
       }}
     >
@@ -232,7 +247,7 @@ export default function RootPage() {
         className="px-4 sm:px-8"
         style={{
           background:
-            "radial-gradient(800px 420px at 50% -8%, rgba(30,102,201,0.22), transparent 60%), radial-gradient(620px 380px at 84% 18%, rgba(46,142,58,0.16), transparent 60%), #0B1A2F",
+            "radial-gradient(800px 420px at 50% -8%, rgba(30,102,201,0.22), transparent 60%), radial-gradient(620px 380px at 84% 18%, rgba(46,142,58,0.16), transparent 60%), var(--navy)",
           paddingTop: "64px",
           paddingBottom: "76px",
           position: "relative",
@@ -297,7 +312,7 @@ export default function RootPage() {
               fontWeight: 700,
               letterSpacing: "-0.035em",
               lineHeight: 1.04,
-              color: "#FFFFFF",
+              color: SURFACE,
               maxWidth: 760,
               margin: "0 0 22px",
               textWrap: "balance",
@@ -342,7 +357,7 @@ export default function RootPage() {
                 fontSize: 14,
                 fontWeight: 600,
                 background: BLUE,
-                color: "#FFFFFF",
+                color: SURFACE,
                 textDecoration: "none",
                 boxShadow: "0 8px 24px rgba(30,102,201,0.32)",
               }}
@@ -359,7 +374,7 @@ export default function RootPage() {
                 fontSize: 14,
                 fontWeight: 600,
                 background: NAVY_SURFACE,
-                color: "#FFFFFF",
+                color: SURFACE,
                 textDecoration: "none",
                 border: `1px solid ${NAVY_BORDER}`,
               }}
@@ -372,7 +387,7 @@ export default function RootPage() {
           <div
             style={{
               marginTop: 46,
-              background: "linear-gradient(180deg, #0C1D34, #0A1729)",
+              background: "linear-gradient(180deg, var(--navy-deep), var(--navy-deeper))",
               border: `1px solid ${NAVY_BORDER}`,
               borderRadius: 12,
               boxShadow: "0 40px 90px rgba(0,0,0,0.40)",
@@ -389,7 +404,7 @@ export default function RootPage() {
               }}
             >
               <div className="flex items-center gap-1.5">
-                {["#E05A52", "#E0B13A", "#3FA84C"].map((c) => (
+                {["var(--dot-red)", "var(--dot-amber)", "var(--dot-green)"].map((c) => (
                   <span
                     key={c}
                     style={{
@@ -420,37 +435,37 @@ export default function RootPage() {
                   gap: 3,
                   padding: 3,
                   borderRadius: 6,
-                  background: "#0A1626",
+                  background: "var(--navy-well)",
                   border: `1px solid ${NAVY_BORDER}`,
                 }}
               >
+                {/* Segmented control, not a page action — so it is styled with
+                    token CLASSES rather than an inline background. Active state
+                    is white on --brand-blue (5.53:1); inactive is --navy-muted
+                    on --navy-well (5.38:1). Both AA at 11px/600. */}
                 <button
                   type="button"
+                  aria-pressed={heroView === "topology"}
                   onClick={() => setHeroView("topology")}
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 600,
-                    color: heroView === "topology" ? "#FFFFFF" : NAVY_MUTED,
-                    background: heroView === "topology" ? BLUE : "transparent",
-                    borderRadius: 4,
-                    padding: "4px 11px",
-                    border: 0,
-                  }}
+                  className={[
+                    "rounded-sm border-0 px-[11px] py-1 text-[11px] font-semibold",
+                    heroView === "topology"
+                      ? "bg-brand-blue text-surface"
+                      : "bg-transparent text-navy-muted",
+                  ].join(" ")}
                 >
                   Topology
                 </button>
                 <button
                   type="button"
+                  aria-pressed={heroView === "canonical"}
                   onClick={() => setHeroView("canonical")}
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 600,
-                    color: heroView === "canonical" ? "#FFFFFF" : NAVY_MUTED,
-                    background: heroView === "canonical" ? BLUE : "transparent",
-                    borderRadius: 4,
-                    padding: "4px 11px",
-                    border: 0,
-                  }}
+                  className={[
+                    "rounded-sm border-0 px-[11px] py-1 text-[11px] font-semibold",
+                    heroView === "canonical"
+                      ? "bg-brand-blue text-surface"
+                      : "bg-transparent text-navy-muted",
+                  ].join(" ")}
                 >
                   Clean order
                 </button>
@@ -476,7 +491,7 @@ export default function RootPage() {
         }}
       >
         <div
-          className="grid w-full grid-cols-2 divide-x divide-y divide-[#E2E6EE] sm:grid-cols-4 sm:divide-y-0"
+          className="grid w-full grid-cols-2 divide-x divide-y divide-border sm:grid-cols-4 sm:divide-y-0"
           style={{ maxWidth: 1180, textAlign: "center" }}
         >
           {STATS.map((s, i) => {
@@ -607,7 +622,7 @@ export default function RootPage() {
                   right: 0,
                   height: 3,
                   background: f.topGradient
-                    ? "linear-gradient(90deg, #1E66C9 0%, #1E66C9 35%, #2E8E3A 65%, #2E8E3A 100%)"
+                    ? "var(--gradient-link-spine)"
                     : f.color,
                 }}
               />
@@ -772,7 +787,7 @@ export default function RootPage() {
       <section
         className="px-4 sm:px-8"
         style={{
-          background: "#0B1A2F",
+          background: NAVY,
           paddingTop: 72,
           paddingBottom: 72,
           textAlign: "center",
@@ -792,7 +807,7 @@ export default function RootPage() {
               fontWeight: 500,
               lineHeight: 1.32,
               letterSpacing: "-0.02em",
-              color: "#FFFFFF",
+              color: SURFACE,
               margin: 0,
               textWrap: "balance",
             }}
@@ -835,7 +850,7 @@ export default function RootPage() {
                     fontSize: 19,
                     fontWeight: 600,
                     letterSpacing: "-0.02em",
-                    color: m.green ? GREEN_BRIGHT : "#FFFFFF",
+                    color: m.green ? GREEN_BRIGHT : SURFACE,
                     lineHeight: 1.15,
                   }}
                 >
@@ -870,7 +885,7 @@ export default function RootPage() {
             fontWeight: 600,
             letterSpacing: "-0.03em",
             lineHeight: 1.1,
-            color: "#FFFFFF",
+            color: SURFACE,
             margin: 0,
           }}
         >
@@ -891,7 +906,7 @@ export default function RootPage() {
               fontSize: 14,
               fontWeight: 600,
               background: BLUE,
-              color: "#FFFFFF",
+              color: SURFACE,
               textDecoration: "none",
               boxShadow: "0 8px 24px rgba(30,102,201,0.32)",
             }}
@@ -908,7 +923,7 @@ export default function RootPage() {
               fontSize: 14,
               fontWeight: 600,
               background: "transparent",
-              color: "#FFFFFF",
+              color: SURFACE,
               textDecoration: "none",
               border: `1px solid ${NAVY_BORDER}`,
             }}
@@ -921,13 +936,13 @@ export default function RootPage() {
       </main>
 
       {/* Multi-column navy footer */}
-      <footer style={{ background: "#0B1A2F", color: "#9DB2CE" }}>
+      <footer style={{ background: NAVY, color: NAVY_FAINT }}>
         <div className="mx-auto max-w-[1100px] px-6 sm:px-8" style={{ padding: "48px 24px 0" }}>
           <div className="grid gap-10 grid-cols-2 sm:grid-cols-[1.6fr_repeat(3,1fr)]">
             <div>
               <Link href="/" className="inline-flex items-center gap-2.5" style={{ textDecoration: "none" }}>
                 <ProcuLinkMark size={24} mono />
-                <span style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", color: "#FFFFFF", fontWeight: 700, fontSize: 17 }}>ProcuLink</span>
+                <span style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", color: SURFACE, fontWeight: 700, fontSize: 17 }}>ProcuLink</span>
               </Link>
               <p style={{ fontSize: 13, lineHeight: 1.6, maxWidth: 300, marginTop: 14 }}>
                 The missing link between buyers and suppliers. Turn any purchase order into the exact
@@ -940,21 +955,21 @@ export default function RootPage() {
               { h: "Legal",   links: [["Privacy", "/privacy"], ["Terms", "/terms"], ["AUP", "/aup"], ["DPA", "/dpa"], ["Subprocessors", "/subprocessors"]] },
             ].map((col) => (
               <div key={col.h}>
-                <h4 style={{ color: "#FFFFFF", fontSize: 12.5, fontWeight: 600, marginBottom: 12 }}>{col.h}</h4>
+                <h4 style={{ color: SURFACE, fontSize: 12.5, fontWeight: 600, marginBottom: 12 }}>{col.h}</h4>
                 {/* ≥44px-tall flex rows so each footer link is a full touch target
                     (WCAG 2.5.8); row height replaces the container gap. */}
                 <div className="flex flex-col">
                   {col.links.map(([label, href]) => (
-                    <a key={label} href={href} className="flex items-center min-h-[44px]" style={{ color: "#9DB2CE", fontSize: 13, textDecoration: "none" }}>{label}</a>
+                    <a key={label} href={href} className="flex items-center min-h-[44px]" style={{ color: NAVY_FAINT, fontSize: 13, textDecoration: "none" }}>{label}</a>
                   ))}
                   {col.h === "Company" && process.env.NEXT_PUBLIC_STATUS_URL && (
-                    <a href={process.env.NEXT_PUBLIC_STATUS_URL} target="_blank" rel="noopener noreferrer" className="flex items-center min-h-[44px]" style={{ color: "#9DB2CE", fontSize: 13, textDecoration: "none" }}>Status</a>
+                    <a href={process.env.NEXT_PUBLIC_STATUS_URL} target="_blank" rel="noopener noreferrer" className="flex items-center min-h-[44px]" style={{ color: NAVY_FAINT, fontSize: 13, textDecoration: "none" }}>Status</a>
                   )}
                 </div>
               </div>
             ))}
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-3 mt-12" style={{ borderTop: "1px solid #1B2D49", padding: "18px 0 28px", fontSize: 12 }}>
+          <div className="flex flex-wrap items-center justify-between gap-3 mt-12" style={{ borderTop: "1px solid var(--navy-line)", padding: "18px 0 28px", fontSize: 12 }}>
             <span>{COPYRIGHT_NOTICE}</span>
             <span className="flex items-center gap-3"><Link href="/security" style={{ color: "inherit", textDecoration: "none" }}>EU-region order storage</Link><span>·</span><span>AES-GCM at rest</span></span>
           </div>
@@ -979,10 +994,10 @@ function CanonicalPreview() {
       style={{ minHeight: 300, color: NAVY_TEXT }}
     >
       <HeroPane title="Source · what arrived" accent={BLUE_BRIGHT}>
-        <div style={{ border: `1px solid ${NAVY_BORDER}`, borderRadius: 8, overflow: "hidden", background: "#081424" }}>
+        <div style={{ border: `1px solid ${NAVY_BORDER}`, borderRadius: 8, overflow: "hidden", background: "var(--navy-inset)" }}>
           {["HEADER ZONE", "PARTIES ZONE", "LINES ZONE", "TOTALS ZONE"].map((zone, idx) => (
             <div key={zone} style={{ padding: "12px 14px", borderTop: idx ? `1px solid ${NAVY_BORDER}` : "none" }}>
-              <div style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: idx === 2 ? AMBER : BLUE_BRIGHT, fontWeight: 700 }}>
+              <div style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: idx === 2 ? AMBER_BRIGHT : BLUE_BRIGHT, fontWeight: 700 }}>
                 {zone}
               </div>
               <div style={{ marginTop: 5, height: idx === 2 ? 58 : 22, borderRadius: 5, background: "rgba(255,255,255,0.06)" }} />
@@ -990,12 +1005,12 @@ function CanonicalPreview() {
           ))}
         </div>
       </HeroPane>
-      <HeroPane title="Clean order" accent="#FFFFFF">
+      <HeroPane title="Clean order" accent={SURFACE}>
         <div style={{ display: "grid", gap: 8 }}>
           {rows.map(([label, value]) => (
-            <div key={label} style={{ display: "flex", justifyContent: "space-between", gap: 14, padding: "10px 12px", borderRadius: 7, background: "#0F233C", border: `1px solid ${NAVY_BORDER}` }}>
+            <div key={label} style={{ display: "flex", justifyContent: "space-between", gap: 14, padding: "10px 12px", borderRadius: 7, background: "var(--navy-raised)", border: `1px solid ${NAVY_BORDER}` }}>
               <span style={{ fontSize: 11, color: NAVY_MUTED }}>{label}</span>
-              <span style={{ fontSize: 12.5, color: "#FFFFFF", fontWeight: 600, textAlign: "right" }}>{value}</span>
+              <span style={{ fontSize: 12.5, color: SURFACE, fontWeight: 600, textAlign: "right" }}>{value}</span>
             </div>
           ))}
         </div>
@@ -1008,8 +1023,8 @@ function CanonicalPreview() {
             whiteSpace: "pre-wrap",
             borderRadius: 8,
             border: `1px solid ${NAVY_BORDER}`,
-            background: "#071221",
-            color: "#BFE7C5",
+            background: "var(--navy-code)",
+            color: "var(--brand-green-pale)",
             padding: 14,
             fontFamily: "'JetBrains Mono', monospace",
             fontSize: 10.5,

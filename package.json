@@ -23,6 +23,8 @@
     "demo:tools:capture": "playwright test --config=playwright.tools.config.ts",
     "demo:tools:assemble": "node scripts/demo-video/tools/assemble-tool.mjs",
     "check:pageshell": "node scripts/check-pageshell.mjs",
+    "lint:tokens": "node scripts/check-tokens.mjs --strict",
+    "lint:tokens:report": "node scripts/check-tokens.mjs",
     "lint:vocab": "node scripts/check-vocabulary.mjs --all",
     "lint:vocab:warn": "node scripts/check-vocabulary.mjs --warn",
     "prepare": "node scripts/install-hooks.mjs",

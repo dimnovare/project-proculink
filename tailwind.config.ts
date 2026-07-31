@@ -1,4 +1,10 @@
 import type { Config } from "tailwindcss";
+// ESM import rather than `require()`: the repo's pre-commit hook runs eslint
+// directly over staged .ts files, where @typescript-eslint/no-require-imports
+// applies. `next lint` never sees this file, so the error only surfaced the
+// first time the config was staged. tailwindcss-animate ships index.d.ts, so
+// the default import is typed.
+import tailwindcssAnimate from "tailwindcss-animate";
 
 /**
  * ProcuLink Tailwind config — "The Bridge Layer" v1.0
@@ -42,15 +48,39 @@ export default {
           "green-deep": "#1E6D29",
           "green-soft": "#E9F1EA",
           "green-soft-2":"#D8EBDA",
+          // Accent steps legible on navy chrome (--brand-blue is 2.0:1 there).
+          "blue-bright": "#6BA5F0",   // 6.87:1 on navy
+          "green-bright":"#5FC06B",   // 7.68:1 on navy
+          "green-pale":  "#BFE7C5",   // 13.83:1 on --navy-code
         },
 
-        // Navy chrome (sidebar + topbar)
+        // Navy chrome (sidebar + topbar) + the marketing dark-section scale.
+        // Mirrors globals.css :root exactly — see docs/design-system/
+        // 11-unified-page-rules.md and scripts/check-tokens.mjs.
         navy: {
           DEFAULT: "#0B1A2F",
           surface: "#14253D",
           border:  "#1F3252",
           text:    "#C8D1E0",
           muted:   "#7C8DA6",
+          faint:   "#9DB2CE",   // faint text on navy — 8.06:1
+          line:    "#1B2D49",
+          glow:    "#0E2545",
+          deep:    "#0C1D34",
+          deeper:  "#0A1729",
+          well:    "#0A1626",
+          inset:   "#081424",
+          code:    "#071221",
+          raised:  "#0F233C",
+          pale:    "#AFC6EA",   // 10.05:1 on navy
+          "pale-line": "#CBDDF6",
+        },
+
+        // Product-mock traffic lights, shared by both marketing pages.
+        dot: {
+          red:   "#E05A52",
+          amber: "#E0B13A",
+          green: "#3FA84C",
         },
 
         // Work-area surfaces — nested so `bg-surface-2` works
@@ -82,6 +112,13 @@ export default {
         amber: {
           DEFAULT: "#B36D14",
           soft:    "#FAF1DD",
+          // Mirror --amber-text from globals.css. It has existed there since the
+          // last a11y pass, but was never added here — so `text-amber-text`
+          // silently produced nothing while `var(--amber-text)` worked. #B36D14
+          // on --amber-soft is 3.65:1 (fails AA text); #8A5310 is 5.62:1.
+          text:    "#8A5310",
+          // Amber for NAVY chrome — #8A5310 is only 2.93:1 on --navy-inset.
+          bright:  "#E0B13A",   // 9.26:1 on --navy-inset
         },
         danger: {
           DEFAULT: "#B43838",
@@ -286,5 +323,5 @@ export default {
       },
     },
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [tailwindcssAnimate],
 } satisfies Config;

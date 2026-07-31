@@ -1,5 +1,6 @@
 import { pageMetadata } from "@/lib/seo";
 import Link from "next/link";
+import { formatChipColors } from "@/components/bridge/FileChip";
 import AnimatedPipelinePanel from "./AnimatedPipelinePanel";
 
 export const metadata = pageMetadata({
@@ -11,28 +12,55 @@ export const metadata = pageMetadata({
     "From any order format to each supplier's required format and channel — the ProcuLink pipeline, step by step.",
 });
 
-// ─── Palette (sampled pixel-exact from the 2026-05-30 design render) ──────────
+// ─── Palette — ALIASES for the design tokens, never copies of their values ────
 // The page follows a buyer → supplier topology:
-//   • buyer / process / primary-CTA elements use buyer-blue  (#1E66C9)
-//   • supplier-output / success elements use brand-green      (#28C55E family)
-//   • AI = violet (#6F4FCE), validation = amber (#8A5310, AA-darkened)
-// Hexes below were sampled directly from the design render, not eyeballed.
+//   • buyer / process / primary-CTA elements use buyer-blue  (--brand-blue)
+//   • supplier-output / success elements use forest green    (--brand-green)
+//   • AI = violet (--ai), validation = amber (--amber-text, AA-darkened)
+//
+// These were hex copies "sampled pixel-exact from the design render". Sampling a
+// render is how a page ends up a generation behind the tokens: BLUE_SOFT still
+// held the previous generation's value, and the header comment above described
+// the green family by one of the three emerald greens that
+// 11-unified-page-rules.md explicitly BANS. Enforced by scripts/check-tokens.mjs.
 
-const NAVY = "#0B1A2F";
-const INK = "#0B1A2F";
-const MUTE = "#56627A";
-const HAIR = "#E6E9F0";
-const PANEL = "#F6F7FA";
+const NAVY = "var(--navy)";
+const INK = "var(--ink)";
+const MUTE = "var(--ink-muted)";
+const HAIR = "var(--border)";
+const PANEL = "var(--bg)";
 
-const BLUE = "#1E66C9"; // buyer-blue — CTA, early-stage chips, first pipeline node
-const BLUE_SOFT = "#E3EDFB"; // pale blue chip / eyebrow background
-const BLUE_NODE = "#2D7AE0"; // used in Eyebrow dot
-const VIOLET = "#6F4FCE";
-const AMBER = "#8A5310";
+const BLUE = "var(--brand-blue)"; // buyer-blue — CTA, early-stage chips, first pipeline node
+const BLUE_SOFT = "var(--brand-blue-soft)"; // pale blue chip / eyebrow background
+const BLUE_NODE = "var(--brand-blue)"; // Eyebrow dot — was a near-duplicate of blue
+const VIOLET = "var(--ai)";
+const AMBER = "var(--amber-text)";
+// Supplier/output green. --brand-green on --brand-green-soft is 3.55:1 and fails
+// AA for the 11px pill text this page draws; --brand-green-deep is 5.57:1.
+const GREEN = "var(--brand-green-deep)";
+const GREEN_SOFT = "var(--brand-green-soft)";
+const AMBER_SOFT = "var(--amber-soft)";
+const VIOLET_SOFT = "var(--ai-soft)";
+const NEUTRAL_SOFT = "var(--surface-2)";
 
 // ─── Steps ────────────────────────────────────────────────────────────────────
 
 type Pill = { label: string; fg: string; bg: string };
+
+/**
+ * A format pill, coloured from the ONE format palette (src/components/bridge/
+ * FileChip). These used to be a hand-written fourth copy of that palette, and it
+ * had already drifted into an AA failure: XLSX and CSV were drawn in brand-green
+ * on the old brand-green-soft = 3.55:1, under the 4.5:1 floor for the 11px text
+ * they render at. The shared palette is >= 4.95:1 for every format.
+ *
+ * `label` is what the reader sees ("CXML"); `key` is the palette key when the
+ * two differ in case.
+ */
+function formatPill(label: string, key: string = label): Pill {
+  const { bg, color } = formatChipColors(key);
+  return { label, fg: color, bg };
+}
 
 const STEPS: Array<{
   n: string;
@@ -52,11 +80,11 @@ const STEPS: Array<{
     bg: BLUE_SOFT,
     icon: <UploadIcon />,
     pills: [
-      { label: "PDF", fg: "#B4452B", bg: "#FBE7E1" },
-      { label: "XLSX", fg: "#2E8E3A", bg: "#E2F1E2" },
-      { label: "CXML", fg: "#6F4FCE", bg: "#EEE7FB" },
-      { label: "EDI", fg: "#8A5310", bg: "#FAEFD6" },
-      { label: "CSV", fg: "#56627A", bg: "#EEF1F6" },
+      formatPill("PDF"),
+      formatPill("XLSX"),
+      formatPill("CXML", "cXML"),
+      formatPill("EDI"),
+      formatPill("CSV"),
     ],
   },
   {
@@ -74,7 +102,7 @@ const STEPS: Array<{
     desc:
       "When a buyer item code doesn't match the supplier catalog, an LLM proposes the right code with its reasoning and source. Your team confirms or rejects — nothing is auto-applied without confidence you can see.",
     color: VIOLET,
-    bg: "#EEE7FB",
+    bg: VIOLET_SOFT,
     icon: <SparkIcon />,
   },
   {
@@ -83,7 +111,7 @@ const STEPS: Array<{
     desc:
       "Per-supplier rules catch missing fields, wrong currency, or unresolved codes before anything leaves your system. Bad orders never reach the supplier.",
     color: AMBER,
-    bg: "#FAEFD6",
+    bg: AMBER_SOFT,
     icon: <CheckSquareIcon />,
   },
   {
@@ -91,14 +119,14 @@ const STEPS: Array<{
     title: "Transform & deliver",
     desc:
       "The canonical order is transformed into the exact format the supplier requires and delivered over their channel — webhook, SFTP, email or ERP connector. Every attempt is logged in an append-only audit trail.",
-    color: "#2E8E3A",
-    bg: "#E2F1E2",
+    color: GREEN,
+    bg: GREEN_SOFT,
     icon: <SendIcon />,
     pills: [
-      { label: "CXML", fg: "#6F4FCE", bg: "#EEE7FB" },
-      { label: "UBL", fg: "#56627A", bg: "#EEF1F6" },
-      { label: "CSV", fg: "#2E8E3A", bg: "#E2F1E2" },
-      { label: "JSON", fg: "#8A5310", bg: "#FAEFD6" },
+      formatPill("CXML", "cXML"),
+      formatPill("UBL"),
+      formatPill("CSV"),
+      formatPill("JSON"),
     ],
   },
 ];
@@ -107,14 +135,14 @@ const STEPS: Array<{
 
 export default function HowItWorksPage() {
   return (
-    <div style={{ background: "#FFFFFF" }}>
+    <div style={{ background: "var(--surface)" }}>
       <style>{responsiveCss}</style>
 
       {/* ── Hero (dark) ─────────────────────────────────────────────────── */}
       <section
         className="hiw-hero"
         style={{
-          background: `radial-gradient(105% 120% at 50% -8%, #0E2545 0%, ${NAVY} 58%)`,
+          background: `radial-gradient(105% 120% at 50% -8%, var(--navy-glow) 0%, ${NAVY} 58%)`,
           textAlign: "center",
         }}
       >
@@ -126,7 +154,7 @@ export default function HowItWorksPage() {
             fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
             fontWeight: 700,
             letterSpacing: "-0.035em",
-            color: "#FFFFFF",
+            color: "var(--surface)",
             margin: "20px auto 0",
             maxWidth: 640,
             lineHeight: 1.08,
@@ -139,7 +167,7 @@ export default function HowItWorksPage() {
           className="hiw-hero-sub"
           style={{
             lineHeight: 1.6,
-            color: "#9FB0C7",
+            color: "var(--navy-faint)",
             maxWidth: 520,
             margin: "18px auto 0",
           }}
@@ -174,15 +202,15 @@ export default function HowItWorksPage() {
             }}
           >
             <span style={{ display: "inline-flex", gap: 7 }}>
-              <Dot c="#E05A52" />
-              <Dot c="#E0B13A" />
-              <Dot c="#3FA84C" />
+              <Dot c="var(--dot-red)" />
+              <Dot c="var(--dot-amber)" />
+              <Dot c="var(--dot-green)" />
             </span>
             <span
               style={{
                 fontFamily: "'JetBrains Mono', ui-monospace, monospace",
                 fontSize: 12.5,
-                color: "#7E8DA3",
+                color: "var(--navy-muted)",
                 marginLeft: 6,
               }}
             >
@@ -340,7 +368,7 @@ export default function HowItWorksPage() {
               fontSize: 14.5,
               fontWeight: 600,
               background: BLUE,
-              color: "#FFFFFF",
+              color: "var(--surface)",
               textDecoration: "none",
               boxShadow: "0 8px 22px -8px rgba(30,102,201,0.55)",
             }}
@@ -422,9 +450,9 @@ function Eyebrow({ children, dark = false }: { children: React.ReactNode; dark?:
         fontWeight: 700,
         letterSpacing: "0.14em",
         textTransform: "uppercase",
-        color: dark ? "#AFC6EA" : BLUE,
+        color: dark ? "var(--navy-pale)" : BLUE,
         background: dark ? "rgba(30,102,201,0.10)" : BLUE_SOFT,
-        border: dark ? "1px solid rgba(30,102,201,0.30)" : "1px solid #CBDDF6",
+        border: dark ? "1px solid rgba(30,102,201,0.30)" : "1px solid var(--navy-pale-line)",
         borderRadius: 999,
         padding: "5px 12px",
       }}

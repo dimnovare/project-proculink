@@ -26,6 +26,7 @@ import { getPoMappingTemplates, type StarterTemplate, ApiHttpError } from "@/lib
 import { useIsMobile } from "@/hooks/use-mobile";
 import { fieldRefList } from "@/lib/standards/catalog";
 import { StandardsFieldPopover } from "./StandardsFieldPopover";
+import { ConfidenceChip } from "./ConfidenceChip";
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const NAVY       = "#0B1A2F";
@@ -867,7 +868,7 @@ export function PoMappingEditor({
                       </div>
                     </div>
                     {(isAcc || isPend) ? (
-                      <ConfidenceChip conf={conf} />
+                      <ConfidenceChip value={conf} />
                     ) : (
                       <span style={{ fontSize: 10.5, color: FAINT, flexShrink: 0 }}>unmapped</span>
                     )}
@@ -1162,25 +1163,10 @@ export function PoMappingEditor({
   );
 }
 
-// ─── ConfidenceChip ───────────────────────────────────────────────────────────
-function ConfidenceChip({ conf }: { conf: number }) {
-  const [bg, color] =
-    conf >= 85 ? [GREEN_SOFT, GREEN_DEEP] :
-    conf >= 60 ? [AMBER_SOFT, AMBER] :
-    ["#FBE3E3", DANGER];
-  return (
-    <span
-      style={{
-        display: "inline-flex", alignItems: "center", gap: 3,
-        padding: "1px 6px", borderRadius: 10,
-        fontSize: 10.5, fontWeight: 600, flexShrink: 0,
-        background: bg, color,
-      }}
-    >
-      {conf}%
-    </span>
-  );
-}
+// ─── ConfidenceChip — REMOVED (WP-30) ─────────────────────────────────────────
+// A third set of confidence thresholds (>=85 / >=60) against the mapper chip's
+// >=85/>=65 and the documented >=90/>=75, so a 62% read AMBER here and RED two
+// panes over. The one chip now lives in ./ConfidenceChip.
 
 // ─── SourceStatus ─────────────────────────────────────────────────────────────
 function SourceStatus({
