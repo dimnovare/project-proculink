@@ -11,6 +11,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { previewMappingOverride, upsertMappingOverride, inferOutputStructure, getSourceTokens } from "@/lib/api-client";
 import { OutputSourcePicker } from "./OutputSourcePicker";
+import { withBinding, withFormatManipulator, type BindingKey } from "./outputRuleModel";
+import type { CsvDialect } from "@/lib/api/types";
+import { moveAt, canMoveAt } from "./outputNamespaceModel";
 import {
   updateAt, removeAt, setNodeNamespace,
   namespacesToRows, rowsToNamespaces, templateHasRootNamespaces, treeHasPerNodeNamespaces,
@@ -86,6 +89,21 @@ function currentPreset(manis: { type: string; params: string[] }[] | undefined):
   const hit = FORMAT_PRESETS.find(
     (p) => p.mani && p.mani.type === fmt.type && JSON.stringify(p.mani.params) === JSON.stringify(fmt.params));
   return hit?.key ?? "";
+}
+
+/** The reorder buttons' shared look — a ghost chip that only asserts itself on hover/focus. */
+function moveBtnStyle(hover: boolean, enabled: boolean): React.CSSProperties {
+  return {
+    flex: "0 0 auto", height: 24, width: 20,
+    display: "flex", alignItems: "center", justifyContent: "center",
+    borderRadius: 6, border: "1px solid transparent", background: "transparent",
+    color: SLATE, fontSize: 12, lineHeight: 1,
+    cursor: enabled ? "pointer" : "default",
+    // Disabled ends stay visible but recede, so the control's range is legible at a
+    // glance rather than appearing and disappearing as rows move.
+    opacity: enabled ? (hover ? 1 : 0.35) : 0.15,
+    transition: "opacity 120ms ease",
+  };
 }
 
 function newField(name: string, canonicalField?: string): OutputNode {
@@ -169,7 +187,34 @@ export function OutputStructureDesigner({
   // could render with Advanced collapsed (data still reachable via its pill, but the affordance is
   // hidden). Bump this revision on infer and key the editor subtree by it so the editors remount and
   // re-initialize. Normal edits never bump it, so an in-progress edit is preserved.
+  // What the last reorder did, read by the tree's single live region.
+  const [announcement, setAnnouncement] = useState("");
   const [treeRevision, setTreeRevision] = useState(0);
+  // The `data-move` id to re-focus once the post-reorder remount has painted.
+  const pendingFocus = useRef<string | null>(null);
+
+  /**
+   * A reorder remounts the tree, then puts focus back on the same control at the node's
+   * NEW position. Both halves are needed, and for different reasons:
+   *
+   *  - the REMOUNT destroys per-row state (open inline editor, Advanced, hover) that
+   *    index keys would otherwise leave pointing at the wrong node — which silently
+   *    renames it;
+   *  - the REFOCUS is what makes a second press move the SAME node again. Without it a
+   *    keyboard user pressing Alt+↓ twice moves the node down and then moves its new
+   *    neighbour back up, and the tree returns to where it started.
+   */
+  const onNodeMoved = useCallback((focusTarget: string) => {
+    pendingFocus.current = focusTarget;
+    setTreeRevision((r) => r + 1);
+  }, []);
+
+  useEffect(() => {
+    const target = pendingFocus.current;
+    if (!target) return;
+    pendingFocus.current = null;
+    (document.querySelector(`[data-move="${target}"]`) as HTMLElement | null)?.focus();
+  }, [treeRevision]);
 
   // F-1: the full source-field universe for this order, so a node can bind to ANY incoming field
   // (CSV cell / XML leaf+attr / EDI / JSON leaf / PDF-email raw_field), each with a sample value —
@@ -190,7 +235,15 @@ export function OutputStructureDesigner({
       const fmt = s.startsWith("<") ? "xml" : (s.startsWith("{") || s.startsWith("[")) ? "json" : "csv";
       const inferred = await inferOutputStructure(orderId, s, fmt);
       // Keep the Format control populated even if the inferred tree reports a non-offered format.
-      setTree({ ...inferred, format: designerFormat(inferred.format) });
+      // Founder ruling 2026-07-31: a layout created from here on defaults to CRLF.
+      // Applied ONLY to a freshly inferred tree — an existing supplier's tree opened
+      // for editing keeps its absent dialect, and absent still means "the bytes you
+      // already receive". Defaulting on the edit path instead would change every
+      // existing CSV supplier's output the first time anyone opened their layout.
+      const withCsvDefault = designerFormat(inferred.format) === "csv" && !inferred.csvDialect
+        ? { ...inferred, csvDialect: { lineEnding: "\r\n" } }
+        : inferred;
+      setTree({ ...withCsvDefault, format: designerFormat(inferred.format) });
       setSaved(false); setDirty(true);
       setShowInfer(false);
       setFirstRun(false); // sample inferred → reveal the editable tree
@@ -216,6 +269,7 @@ export function OutputStructureDesigner({
   }, []);
 
   const isXml = designerFormat(tree.format) === "xml";
+  const isCsv = designerFormat(tree.format) === "csv";
   const hasPerNodeNs = treeHasPerNodeNamespaces(tree.root);
   const hasRootNs = templateHasRootNamespaces(tree);
 
@@ -369,6 +423,13 @@ export function OutputStructureDesigner({
                 the root, nodes stay unprefixed. XML-only, hidden during first-run. Hidden when the
                 tree already uses PER-NODE namespaces (the two modes are mutually exclusive — the
                 emitter throws if both are set), with an inline hint so the user knows why. */}
+            {!firstRun && isCsv && (
+              <CsvDialectEditor
+                dialect={tree.csvDialect ?? null}
+                onChange={(next) => { setTree((t) => ({ ...t, csvDialect: next })); setSaved(false); setDirty(true); }}
+              />
+            )}
+
             {!firstRun && isXml && !hasPerNodeNs && (
               <RootNamespacesEditor rows={namespacesToRows(tree.namespaces)} onChange={setRootNamespaces} />
             )}
@@ -383,8 +444,27 @@ export function OutputStructureDesigner({
             {!firstRun && (
               <NodeEditor key={treeRevision} node={tree.root} path={[]} lineScope={false} onUpdate={setRoot}
                 sourceTokens={sourceTokens ?? []} isRoot
-                xml={isXml} rootHasNamespaces={hasRootNs} />
+                xml={isXml} rootHasNamespaces={hasRootNs}
+                siblingCount={1} announce={setAnnouncement} onMoved={onNodeMoved} />
             )}
+
+            {/* ONE polite live region for the whole tree (WP-15 · S5).
+                Per-row regions race each other and a screen reader reads the wrong
+                one, so the announcement is owned here and the rows call up into it.
+                Visually hidden rather than `display: none` — a hidden region is not
+                announced at all, which would make the boundary case silent again. */}
+            <div
+              data-testid="designer-announcer"
+              role="status"
+              aria-live="polite"
+              aria-atomic="true"
+              style={{
+                position: "absolute", width: 1, height: 1, margin: -1, padding: 0,
+                overflow: "hidden", clip: "rect(0 0 0 0)", whiteSpace: "nowrap", border: 0,
+              }}
+            >
+              {announcement}
+            </div>
           </div>
           <div style={{ overflow: isNarrow ? "visible" : "auto", padding: 16, background: "#0B1626" }}>
             <div style={{ fontSize: 11, color: "#8FA3BF", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.4 }}>
@@ -439,6 +519,7 @@ const PRESET_SHORT: Record<string, string> = {
 
 function NodeEditor({
   node, path, lineScope, onUpdate, sourceTokens, isRoot, xml, rootHasNamespaces,
+  siblingCount = 1, announce, onMoved,
 }: {
   node: OutputNode;
   path: number[];
@@ -446,6 +527,19 @@ function NodeEditor({
   onUpdate: (fn: (n: OutputNode) => OutputNode) => void;
   sourceTokens: ReadonlyArray<SourceToken>;
   isRoot?: boolean;
+  /** How many nodes share this parent — the "of N" in the move announcement. */
+  siblingCount?: number;
+  /**
+   * Called after a successful reorder with the `data-move` id of the control that should
+   * hold focus afterwards. The host remounts the tree and re-focuses it; see `move()`.
+   */
+  onMoved?: (focusTarget: string) => void;
+  /**
+   * Say what a move did. Passed down rather than owned per row because ONE polite
+   * live region for the whole tree is what a screen reader can follow; a region per
+   * row races itself and reads the wrong one.
+   */
+  announce?: (message: string) => void;
   /** True when the tree's format is XML — gates the per-node namespace/prefix authoring. */
   xml?: boolean;
   /** True when the template carries root-level namespaces — per-node authoring is hidden then
@@ -470,34 +564,63 @@ function NodeEditor({
 
   const updateName = (name: string) => onUpdate((n) => updateAt(n, path, (x) => ({ ...x, name })));
   const remove = () => onUpdate((n) => removeAt(n, path));
+
+  // ── Reorder (WP-15 · S5) ───────────────────────────────────────────────────
+  // Order is CSV column order and XML element order, both read positionally by the
+  // receiver, so this is a content change and not a view preference.
+  const index = path.length > 0 ? path[path.length - 1] : 0;
+  const canMoveUp = !isRoot && index > 0;
+  const canMoveDown = !isRoot && index < siblingCount - 1;
+
+  const move = (delta: -1 | 1) => {
+    // A boundary press must SAY something. Silence there is the single most likely
+    // reading of "this control is broken", and it is the press people try first.
+    if ((delta === -1 && !canMoveUp) || (delta === 1 && !canMoveDown)) {
+      announce?.(`${node.name} is already ${delta === -1 ? "first" : "last"}.`);
+      return;
+    }
+    // The rows are keyed by INDEX, so React reconciles them by position: after a swap
+    // the component instance, its local state and the focused element all stay put and
+    // are re-pointed at a different node. Left alone that is not a polish issue — an
+    // inline name editor open on the moved row stays with the POSITION, so the next
+    // keystroke renames a node the author never opened and the wrong name is SAVED.
+    // The node name is the CSV column header / XML element name, so that reaches the
+    // supplier's bytes.
+    //
+    // `onMoved` remounts the tree (killing every stale row editor) and then restores
+    // focus to this same control at the node's NEW path — which also makes a second
+    // press move the same node again instead of moving its neighbour back.
+    const newPath = [...path.slice(0, -1), index + delta];
+    onUpdate((n) => moveAt(n, path, delta));
+    announce?.(`${node.name} moved to position ${index + delta + 1} of ${siblingCount}.`);
+    onMoved?.(`${newPath.join(".")}:${delta === -1 ? "up" : "down"}`);
+  };
+
+  // Alt is the modifier because the bare arrows belong to the browser: inside this
+  // tree they scroll, and on a focused control they move between radio/menu items.
+  // Alt+Arrow is the same gesture list reorder uses across the platform.
+  const onMoveKeyDown = (e: React.KeyboardEvent) => {
+    if (!e.altKey) return;
+    if (e.key === "ArrowUp") { e.preventDefault(); move(-1); }
+    else if (e.key === "ArrowDown") { e.preventDefault(); move(1); }
+  };
   const addChild = (child: OutputNode) =>
     onUpdate((n) => updateAt(n, path, (x) => ({ ...x, children: [...(x.children ?? []), child] })));
   // Bind a node to ONE source: a canonical field, a SOURCE token (bare id), or a fixed value — the
   // three are mutually exclusive, so setting one nulls the other two. The format manipulators are
   // preserved across a rebind.
-  const setBinding = (key: "canonicalField" | "sourceToken" | "fixedValue", value: string | null) =>
-    onUpdate((n) => updateAt(n, path, (x) => ({
-      ...x,
-      rule: {
-        outputPath: x.name,
-        canonicalField: key === "canonicalField" ? value : null,
-        sourceToken: key === "sourceToken" ? value : null,
-        fixedValue: key === "fixedValue" ? value : null,
-        fieldManipulators: x.rule?.fieldManipulators ?? [],
-      },
-    })));
+  const setBinding = (key: BindingKey, value: string | null) =>
+    onUpdate((n) => updateAt(n, path, (x) => ({ ...x, rule: withBinding(x.rule, x.name, key, value) })));
 
   const updateIncludeWhen = (value: string) =>
     onUpdate((n) => updateAt(n, path, (x) => ({ ...x, includeWhen: value === "" ? null : value })));
 
   // Set/clear a value-format preset: keep any non-format manipulators, swap the single format one.
   const setFormatPreset = (key: string) =>
-    onUpdate((n) => updateAt(n, path, (x) => {
-      const others = (x.rule?.fieldManipulators ?? []).filter((m) => !FORMAT_TYPES.has(m.type));
-      const preset = FORMAT_PRESETS.find((p) => p.key === key);
-      const manis = preset?.mani ? [...others, preset.mani] : others;
-      return { ...x, rule: { outputPath: x.name, canonicalField: x.rule?.canonicalField ?? null, sourceToken: x.rule?.sourceToken ?? null, fixedValue: x.rule?.fixedValue ?? null, fieldManipulators: manis } };
-    }));
+    onUpdate((n) => updateAt(n, path, (x) => ({
+      ...x,
+      rule: withFormatManipulator(x.rule, x.name, FORMAT_TYPES, FORMAT_PRESETS.find((p) => p.key === key)?.mani ?? null),
+    })));
 
   // Set/clear this node's XML namespace + prefix (delegates the prefix-without-uri guard to the model).
   const setNamespace = (namespace: string, prefix: string) =>
@@ -630,6 +753,44 @@ function NodeEditor({
           )
         )}
 
+        {/* Reorder — same hover/focus reveal as delete, so the row stays quiet at rest.
+            Disabled at each end AND announcing why: `disabled` alone tells a sighted
+            user, the announcement tells everyone else. */}
+        {!isRoot && (
+          <>
+            <button
+              type="button"
+              data-move={`${path.join(".")}:up`}
+              onClick={() => move(-1)}
+              onKeyDown={onMoveKeyDown}
+              // `aria-disabled`, NOT `disabled`. A `disabled` button is out of the tab order and
+              // receives neither activation nor key events — so it is barred from firing exactly
+              // when the boundary announcement should. That shipped once: the announcing branch had
+              // no caller in a browser, and only a synthetic keydown aimed at the disabled element
+              // (which jsdom allows and a browser cannot produce) made the test pass. The control
+              // stays focusable and clickable; `move()`'s own guard is what stops the tree changing.
+              aria-disabled={!canMoveUp}
+              aria-label={`Move ${node.name} up`}
+              title={canMoveUp ? `Move ${node.name} up (Alt+↑)` : `${node.name} is already first`}
+              onFocus={() => setHover(true)} onBlur={() => setHover(false)}
+              style={moveBtnStyle(hover, canMoveUp)}>
+              ↑
+            </button>
+            <button
+              type="button"
+              data-move={`${path.join(".")}:down`}
+              onClick={() => move(1)}
+              onKeyDown={onMoveKeyDown}
+              aria-disabled={!canMoveDown}
+              aria-label={`Move ${node.name} down`}
+              title={canMoveDown ? `Move ${node.name} down (Alt+↓)` : `${node.name} is already last`}
+              onFocus={() => setHover(true)} onBlur={() => setHover(false)}
+              style={moveBtnStyle(hover, canMoveDown)}>
+              ↓
+            </button>
+          </>
+        )}
+
         {/* Inline delete — a small ghost ×, hover/focus-revealed (not a permanent full-width line). */}
         {!isRoot && (
           <button onClick={remove} aria-label="Remove node" title="Remove"
@@ -687,7 +848,8 @@ function NodeEditor({
           <div style={{ marginTop: 4, borderLeft: isRoot ? "none" : "2px solid #ECEFF4", marginLeft: isRoot ? 0 : 4, paddingLeft: isRoot ? 0 : 2 }}>
             {(node.children ?? []).map((c, i) => (
               <NodeEditor key={i} node={c} path={[...path, i]} lineScope={childScope} onUpdate={onUpdate}
-                sourceTokens={sourceTokens} xml={xml} rootHasNamespaces={rootHasNamespaces} />
+                sourceTokens={sourceTokens} xml={xml} rootHasNamespaces={rootHasNamespaces}
+                siblingCount={(node.children ?? []).length} announce={announce} onMoved={onMoved} />
             ))}
           </div>
           <div style={{ display: "flex", gap: 6, marginTop: 5, marginLeft: isRoot ? 0 : 18, flexWrap: "wrap" }}>
@@ -811,6 +973,141 @@ function NamespaceEditorRow({ prefix, uri, onChange, onDone }: {
         placeholder="urn:oasis:names:…:CommonBasicComponents-2" aria-label="XML namespace URI" spellCheck={false}
         style={{ flex: "1 1 220px", minWidth: 0, height: 28, border: `1px solid ${u ? BLUE : BORDER}`, borderRadius: 6, padding: "0 8px", fontSize: 12, fontFamily: MONO, color: u ? NAVY : SLATE }} />
       <button onClick={onDone} style={{ height: 28, padding: "0 8px", borderRadius: 6, border: `1px solid ${BORDER}`, background: "#FFF", color: SLATE, fontSize: 11, cursor: "pointer" }}>done</button>
+    </div>
+  );
+}
+
+/**
+ * The CSV wire details a receiving system cares about (WP-15 · S8).
+ *
+ * <b>Absent members are left absent.</b> Each control writes its key only when the operator moves
+ * it away from the emitter's default, and clearing a control removes the key again. That is not
+ * tidiness: the promotion path proves a designed tree by BYTE PARITY, so writing a full dialect the
+ * moment this panel is opened would change the output of every existing CSV supplier as soon as
+ * somebody looked at their layout.
+ */
+function CsvDialectEditor({
+  dialect, onChange,
+}: {
+  dialect: CsvDialect | null;
+  onChange: (next: CsvDialect | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  /** Set one key, dropping it when the value is the emitter's own default. */
+  const put = (key: keyof CsvDialect, value: string | boolean | null) => {
+    const next: CsvDialect = { ...(dialect ?? {}) };
+    if (value === null || value === "") delete next[key];
+    else (next as Record<string, unknown>)[key] = value;
+    // An object with no keys is not a dialect — hand back null so the tree stays
+    // byte-identical to one that never had a dialect at all.
+    onChange(Object.keys(next).length === 0 ? null : next);
+  };
+
+  const set = Object.keys(dialect ?? {}).length;
+
+  return (
+    <div style={{ marginBottom: 12, border: "1px solid #E5E8EE", borderRadius: 8, background: "#FFFFFF" }}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        style={{
+          width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "8px 12px", background: "transparent", border: 0, cursor: "pointer",
+          fontSize: 12, fontWeight: 700, color: "#0B1A2F",
+        }}
+      >
+        <span>CSV format{set > 0 ? ` · ${set} changed` : ""}</span>
+        <span aria-hidden style={{ color: SLATE }}>{open ? "▾" : "▸"}</span>
+      </button>
+
+      {open && (
+        <div style={{ padding: "0 12px 12px", display: "grid", gap: 10 }}>
+          <p style={{ margin: 0, fontSize: 11, color: SLATE, lineHeight: 1.5 }}>
+            Leave these alone unless the receiving system asked for something specific. Anything you
+            do not change keeps producing exactly the bytes this supplier already receives.
+          </p>
+
+          <Row label="Column separator">
+            <select
+              aria-label="Column separator"
+              value={dialect?.delimiter ?? ","}
+              onChange={(e) => put("delimiter", e.target.value === "," ? null : e.target.value)}
+              style={SELECT}
+            >
+              <option value=",">Comma  ,</option>
+              <option value=";">Semicolon  ;</option>
+              <option value={"\t"}>Tab</option>
+              <option value="|">Pipe  |</option>
+            </select>
+          </Row>
+
+          <Row label="Line ending">
+            <select
+              aria-label="Line ending"
+              value={dialect?.lineEnding ?? ""}
+              onChange={(e) => put("lineEnding", e.target.value)}
+              style={SELECT}
+            >
+              {/* "" is not "unknown" — it is the emitter's own default, which is the
+                  server's Environment.NewLine. Named honestly rather than shown blank. */}
+              <option value="">Whatever the server uses (unchanged)</option>
+              <option value={"\r\n"}>Windows  CRLF</option>
+              <option value={"\n"}>Unix  LF</option>
+            </select>
+          </Row>
+
+          <Row label="Quoting">
+            <select
+              aria-label="Quoting"
+              value={dialect?.quotePolicy ?? "minimal"}
+              onChange={(e) => put("quotePolicy", e.target.value === "minimal" ? null : e.target.value)}
+              style={SELECT}
+            >
+              <option value="minimal">Only when needed</option>
+              <option value="always">Every field</option>
+            </select>
+          </Row>
+
+          <Row label="Text encoding">
+            <select
+              aria-label="Text encoding"
+              value={dialect?.encoding ?? ""}
+              onChange={(e) => put("encoding", e.target.value)}
+              style={SELECT}
+            >
+              <option value="">UTF-8</option>
+              <option value="windows-1252">Windows-1252 (Western European)</option>
+              <option value="iso-8859-1">ISO-8859-1 (Latin-1)</option>
+            </select>
+          </Row>
+
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "#0B1A2F" }}>
+            <input
+              type="checkbox"
+              aria-label="Write a header row"
+              checked={dialect?.writeHeaderRow ?? true}
+              onChange={(e) => put("writeHeaderRow", e.target.checked ? null : false)}
+            />
+            Write a header row
+          </label>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const SELECT: React.CSSProperties = {
+  height: 28, borderRadius: 6, border: "1px solid #D8DEE9", background: "#FFFFFF",
+  fontSize: 12, padding: "0 8px", minWidth: 220,
+};
+
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+      <span style={{ fontSize: 12, color: SLATE, minWidth: 130 }}>{label}</span>
+      {children}
     </div>
   );
 }
