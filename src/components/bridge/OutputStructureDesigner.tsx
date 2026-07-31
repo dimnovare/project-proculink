@@ -12,6 +12,7 @@ import { useQuery } from "@tanstack/react-query";
 import { previewMappingOverride, upsertMappingOverride, inferOutputStructure, getSourceTokens } from "@/lib/api-client";
 import { OutputSourcePicker } from "./OutputSourcePicker";
 import { withBinding, withFormatManipulator, type BindingKey } from "./outputRuleModel";
+import type { CsvDialect } from "@/lib/api/types";
 import { moveAt, canMoveAt } from "./outputNamespaceModel";
 import {
   updateAt, removeAt, setNodeNamespace,
@@ -234,7 +235,15 @@ export function OutputStructureDesigner({
       const fmt = s.startsWith("<") ? "xml" : (s.startsWith("{") || s.startsWith("[")) ? "json" : "csv";
       const inferred = await inferOutputStructure(orderId, s, fmt);
       // Keep the Format control populated even if the inferred tree reports a non-offered format.
-      setTree({ ...inferred, format: designerFormat(inferred.format) });
+      // Founder ruling 2026-07-31: a layout created from here on defaults to CRLF.
+      // Applied ONLY to a freshly inferred tree — an existing supplier's tree opened
+      // for editing keeps its absent dialect, and absent still means "the bytes you
+      // already receive". Defaulting on the edit path instead would change every
+      // existing CSV supplier's output the first time anyone opened their layout.
+      const withCsvDefault = designerFormat(inferred.format) === "csv" && !inferred.csvDialect
+        ? { ...inferred, csvDialect: { lineEnding: "\r\n" } }
+        : inferred;
+      setTree({ ...withCsvDefault, format: designerFormat(inferred.format) });
       setSaved(false); setDirty(true);
       setShowInfer(false);
       setFirstRun(false); // sample inferred → reveal the editable tree
@@ -260,6 +269,7 @@ export function OutputStructureDesigner({
   }, []);
 
   const isXml = designerFormat(tree.format) === "xml";
+  const isCsv = designerFormat(tree.format) === "csv";
   const hasPerNodeNs = treeHasPerNodeNamespaces(tree.root);
   const hasRootNs = templateHasRootNamespaces(tree);
 
@@ -413,6 +423,13 @@ export function OutputStructureDesigner({
                 the root, nodes stay unprefixed. XML-only, hidden during first-run. Hidden when the
                 tree already uses PER-NODE namespaces (the two modes are mutually exclusive — the
                 emitter throws if both are set), with an inline hint so the user knows why. */}
+            {!firstRun && isCsv && (
+              <CsvDialectEditor
+                dialect={tree.csvDialect ?? null}
+                onChange={(next) => { setTree((t) => ({ ...t, csvDialect: next })); setSaved(false); setDirty(true); }}
+              />
+            )}
+
             {!firstRun && isXml && !hasPerNodeNs && (
               <RootNamespacesEditor rows={namespacesToRows(tree.namespaces)} onChange={setRootNamespaces} />
             )}
@@ -956,6 +973,141 @@ function NamespaceEditorRow({ prefix, uri, onChange, onDone }: {
         placeholder="urn:oasis:names:…:CommonBasicComponents-2" aria-label="XML namespace URI" spellCheck={false}
         style={{ flex: "1 1 220px", minWidth: 0, height: 28, border: `1px solid ${u ? BLUE : BORDER}`, borderRadius: 6, padding: "0 8px", fontSize: 12, fontFamily: MONO, color: u ? NAVY : SLATE }} />
       <button onClick={onDone} style={{ height: 28, padding: "0 8px", borderRadius: 6, border: `1px solid ${BORDER}`, background: "#FFF", color: SLATE, fontSize: 11, cursor: "pointer" }}>done</button>
+    </div>
+  );
+}
+
+/**
+ * The CSV wire details a receiving system cares about (WP-15 · S8).
+ *
+ * <b>Absent members are left absent.</b> Each control writes its key only when the operator moves
+ * it away from the emitter's default, and clearing a control removes the key again. That is not
+ * tidiness: the promotion path proves a designed tree by BYTE PARITY, so writing a full dialect the
+ * moment this panel is opened would change the output of every existing CSV supplier as soon as
+ * somebody looked at their layout.
+ */
+function CsvDialectEditor({
+  dialect, onChange,
+}: {
+  dialect: CsvDialect | null;
+  onChange: (next: CsvDialect | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  /** Set one key, dropping it when the value is the emitter's own default. */
+  const put = (key: keyof CsvDialect, value: string | boolean | null) => {
+    const next: CsvDialect = { ...(dialect ?? {}) };
+    if (value === null || value === "") delete next[key];
+    else (next as Record<string, unknown>)[key] = value;
+    // An object with no keys is not a dialect — hand back null so the tree stays
+    // byte-identical to one that never had a dialect at all.
+    onChange(Object.keys(next).length === 0 ? null : next);
+  };
+
+  const set = Object.keys(dialect ?? {}).length;
+
+  return (
+    <div style={{ marginBottom: 12, border: "1px solid #E5E8EE", borderRadius: 8, background: "#FFFFFF" }}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        style={{
+          width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "8px 12px", background: "transparent", border: 0, cursor: "pointer",
+          fontSize: 12, fontWeight: 700, color: "#0B1A2F",
+        }}
+      >
+        <span>CSV format{set > 0 ? ` · ${set} changed` : ""}</span>
+        <span aria-hidden style={{ color: SLATE }}>{open ? "▾" : "▸"}</span>
+      </button>
+
+      {open && (
+        <div style={{ padding: "0 12px 12px", display: "grid", gap: 10 }}>
+          <p style={{ margin: 0, fontSize: 11, color: SLATE, lineHeight: 1.5 }}>
+            Leave these alone unless the receiving system asked for something specific. Anything you
+            do not change keeps producing exactly the bytes this supplier already receives.
+          </p>
+
+          <Row label="Column separator">
+            <select
+              aria-label="Column separator"
+              value={dialect?.delimiter ?? ","}
+              onChange={(e) => put("delimiter", e.target.value === "," ? null : e.target.value)}
+              style={SELECT}
+            >
+              <option value=",">Comma  ,</option>
+              <option value=";">Semicolon  ;</option>
+              <option value={"\t"}>Tab</option>
+              <option value="|">Pipe  |</option>
+            </select>
+          </Row>
+
+          <Row label="Line ending">
+            <select
+              aria-label="Line ending"
+              value={dialect?.lineEnding ?? ""}
+              onChange={(e) => put("lineEnding", e.target.value)}
+              style={SELECT}
+            >
+              {/* "" is not "unknown" — it is the emitter's own default, which is the
+                  server's Environment.NewLine. Named honestly rather than shown blank. */}
+              <option value="">Whatever the server uses (unchanged)</option>
+              <option value={"\r\n"}>Windows  CRLF</option>
+              <option value={"\n"}>Unix  LF</option>
+            </select>
+          </Row>
+
+          <Row label="Quoting">
+            <select
+              aria-label="Quoting"
+              value={dialect?.quotePolicy ?? "minimal"}
+              onChange={(e) => put("quotePolicy", e.target.value === "minimal" ? null : e.target.value)}
+              style={SELECT}
+            >
+              <option value="minimal">Only when needed</option>
+              <option value="always">Every field</option>
+            </select>
+          </Row>
+
+          <Row label="Text encoding">
+            <select
+              aria-label="Text encoding"
+              value={dialect?.encoding ?? ""}
+              onChange={(e) => put("encoding", e.target.value)}
+              style={SELECT}
+            >
+              <option value="">UTF-8</option>
+              <option value="windows-1252">Windows-1252 (Western European)</option>
+              <option value="iso-8859-1">ISO-8859-1 (Latin-1)</option>
+            </select>
+          </Row>
+
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "#0B1A2F" }}>
+            <input
+              type="checkbox"
+              aria-label="Write a header row"
+              checked={dialect?.writeHeaderRow ?? true}
+              onChange={(e) => put("writeHeaderRow", e.target.checked ? null : false)}
+            />
+            Write a header row
+          </label>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const SELECT: React.CSSProperties = {
+  height: 28, borderRadius: 6, border: "1px solid #D8DEE9", background: "#FFFFFF",
+  fontSize: 12, padding: "0 8px", minWidth: 220,
+};
+
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+      <span style={{ fontSize: 12, color: SLATE, minWidth: 130 }}>{label}</span>
+      {children}
     </div>
   );
 }

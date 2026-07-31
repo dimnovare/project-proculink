@@ -144,6 +144,22 @@ export interface OutputNode {
    * omitted; on a list's item template, that line is dropped). Null/blank → always included.
    */
   includeWhen?: string | null;
+  /**
+   * JSON only — emit this leaf as a typed value instead of a string: "number" | "boolean" | "null".
+   * Absent, and any unrecognised value, means STRING, which is what every leaf has always been, so
+   * an absent declaration is byte-identical. CSV and XML ignore it: neither has types on the wire.
+   *
+   * A value that does not fit the declared type FAILS THE TRANSFORM rather than falling back to a
+   * string — a receiver validating `quantity` as a number rejects the whole document, and would do
+   * so after we had already reported the order delivered.
+   */
+  valueType?: string | null;
+  /**
+   * JSON only — "omit" drops the PROPERTY from its object when the leaf resolves to nothing
+   * (whitespace counts). That is the distinction a receiver makes between "absent" and "empty
+   * string", which nothing about a value can express. Null writes the empty value, as before.
+   */
+  emptyValue?: string | null;
 }
 
 export interface X12Envelope {
@@ -173,6 +189,37 @@ export interface OutputNodeTemplate {
   namespaces?: Record<string, string> | null;
   /** EDI/cXML identity as data (WS-12). */
   envelope?: EnvelopeConfig | null;
+  /**
+   * CSV wire details (WP-15). Ignored by JSON/XML.
+   *
+   * Every member is optional and every absent member means "exactly the bytes the emitter produced
+   * before dialects existed" — the promotion path proves a designed tree by BYTE PARITY, so a
+   * default anywhere in here would change the output of every existing CSV supplier.
+   *
+   * Founder ruling 2026-07-31: existing layouts keep what they have; layouts created after that
+   * default to CRLF, and the DESIGNER writes that in — the emitter never assumes it.
+   */
+  csvDialect?: CsvDialect | null;
+}
+
+/** See `OutputNodeTemplate.csvDialect`. Mirrors `ProcuLink.Core.Services.Mapping.CsvDialect`. */
+export interface CsvDialect {
+  /** Field separator. Absent → ",". A tab is the literal tab character. */
+  delimiter?: string | null;
+  /** "minimal" (absent/default, RFC 4180) or "always" — some importers need every field quoted. */
+  quotePolicy?: string | null;
+  /**
+   * Row terminator, "
+" or "
+". Absent means the server's `Environment.NewLine`, which is
+   * PLATFORM-DEPENDENT (LF on the container, CRLF on a Windows box) — preserved deliberately,
+   * because pinning it is what would change existing suppliers' bytes.
+   */
+  lineEnding?: string | null;
+  /** Output encoding by name, e.g. "windows-1252". Absent → UTF-8, no BOM. */
+  encoding?: string | null;
+  /** Absent/true writes the header row; false omits it for data-only feeds. */
+  writeHeaderRow?: boolean | null;
 }
 
 export interface OrderMappingOverride {

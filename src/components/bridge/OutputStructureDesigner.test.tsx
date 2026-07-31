@@ -461,3 +461,90 @@ describe("OutputStructureDesigner — reordering nodes", () => {
     expect(sku.rule!.canonicalField).toBe("SupplierItemCode");
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WP-15 · S8 — the CSV dialect panel.
+//
+// The emitter gained delimiter / quoting / line ending / encoding / header-row in
+// S6, all nullable, every null meaning "exactly the bytes as before". This is the
+// half an operator can reach — plus the one place the founder ruling of
+// 2026-07-31 is implemented: NEW layouts default to CRLF, existing ones keep what
+// they have, and the DESIGNER is what writes that in.
+// ─────────────────────────────────────────────────────────────────────────────
+describe("OutputStructureDesigner — CSV dialect", () => {
+  function csvTree(csvDialect?: OutputNodeTemplate["csvDialect"]): OutputNodeTemplate {
+    return {
+      format: "csv",
+      csvDialect,
+      root: { name: "root", nodeType: "object", children: [
+        { name: "OrderRef", nodeType: "field", rule: { outputPath: "OrderRef", canonicalField: "PoNumber", fixedValue: null, fieldManipulators: [] } },
+      ] },
+    };
+  }
+
+  const openPanel = () => fireEvent.click(screen.getByRole("button", { name: /CSV format/i }));
+
+  it("the panel is CSV-only — it does not render for JSON or XML", () => {
+    renderDesigner(plainXmlTree());
+    expect(screen.queryByRole("button", { name: /CSV format/i })).toBeNull();
+    cleanup();
+
+    renderDesigner({ ...csvTree(), format: "json" });
+    expect(screen.queryByRole("button", { name: /CSV format/i })).toBeNull();
+  });
+
+  it("changing the delimiter saves it on the tree", () => {
+    renderDesigner(csvTree());
+    openPanel();
+    fireEvent.change(screen.getByLabelText("Column separator"), { target: { value: ";" } });
+    fireEvent.click(screen.getByRole("button", { name: /Save structure/i }));
+
+    expect(savedTree().csvDialect?.delimiter).toBe(";");
+  });
+
+  it("changing the line ending, quote policy, encoding and header row all save", () => {
+    renderDesigner(csvTree());
+    openPanel();
+    fireEvent.change(screen.getByLabelText("Line ending"), { target: { value: "\r\n" } });
+    fireEvent.change(screen.getByLabelText("Quoting"), { target: { value: "always" } });
+    fireEvent.change(screen.getByLabelText("Text encoding"), { target: { value: "windows-1252" } });
+    fireEvent.click(screen.getByLabelText("Write a header row"));
+    fireEvent.click(screen.getByRole("button", { name: /Save structure/i }));
+
+    const d = savedTree().csvDialect!;
+    expect(d.lineEnding).toBe("\r\n");
+    expect(d.quotePolicy).toBe("always");
+    expect(d.encoding).toBe("windows-1252");
+    expect(d.writeHeaderRow).toBe(false);
+  });
+
+  it("an EXISTING layout with no dialect is left alone when nothing is touched", () => {
+    // The byte-parity guarantee, at the UI seam. Opening the designer on an old
+    // supplier's tree and saving must not invent a dialect — a defaulted CRLF here
+    // would change the bytes of every existing CSV supplier the first time anyone
+    // looked at their layout.
+    renderDesigner(csvTree());
+    fireEvent.click(screen.getByRole("button", { name: /Edit name \(OrderRef\)/i }));
+    fireEvent.change(screen.getByLabelText("Node name"), { target: { value: "Ref" } });
+    fireEvent.click(screen.getByRole("button", { name: /Save structure/i }));
+
+    expect(savedTree().csvDialect ?? null).toBeNull();
+  });
+
+  it("an existing dialect round-trips even when the panel is never opened", () => {
+    renderDesigner(csvTree({ delimiter: ";", lineEnding: "\n" }));
+    fireEvent.click(screen.getByRole("button", { name: /Save structure/i }));
+
+    expect(savedTree().csvDialect).toEqual({ delimiter: ";", lineEnding: "\n" });
+  });
+
+  it("the panel shows what the tree actually carries, not a guess", () => {
+    renderDesigner(csvTree({ delimiter: "\t", quotePolicy: "always" }));
+    openPanel();
+
+    expect(screen.getByLabelText("Column separator")).toHaveProperty("value", "\t");
+    expect(screen.getByLabelText("Quoting")).toHaveProperty("value", "always");
+    // Untouched members read as the emitter's default, not as blank-and-therefore-unknown.
+    expect(screen.getByLabelText("Write a header row")).toHaveProperty("checked", true);
+  });
+});
