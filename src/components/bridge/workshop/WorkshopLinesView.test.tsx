@@ -110,7 +110,9 @@ describe("row expand — the per-line mapping panel", () => {
     fireEvent.click(expandBtn);
 
     expect(expandBtn.getAttribute("aria-expanded")).toBe("true");
-    expect(screen.getByText("✨ AI suggestion: TY-90112 (92%)")).toBeTruthy();
+    // The leading mark is an SVG sparkle now, not an emoji (WP-28), so the text
+    // node is the label alone.
+    expect(screen.getByText("AI suggestion: TY-90112 (92%)")).toBeTruthy();
     // The blocked line's missing supplier code is stated, in red column copy.
     expect(screen.getAllByText("— missing").length).toBeGreaterThan(0);
   });

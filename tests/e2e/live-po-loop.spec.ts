@@ -82,8 +82,8 @@ test.describe("Live PO loop — upload to delivery failure", () => {
 
       // The send path (header CTA + confirm dialog) is shared chrome — the
       // SAME selectors must work in both compositions.
-      await expect(page.getByRole("button", { name: /^send to supplier$/i })).toBeVisible({ timeout: 30_000 });
-      await page.getByRole("button", { name: /^send to supplier$/i }).click();
+      await expect(page.getByRole("button", { name: /^send to supplier\b/i })).toBeVisible({ timeout: 30_000 });
+      await page.getByRole("button", { name: /^send to supplier\b/i }).click();
 
       await expect(page.getByText(/this will deliver the transformed/i)).toBeVisible({ timeout: 10_000 });
       await page.locator("#confirm-check").check();
@@ -121,7 +121,7 @@ test.describe("Order Workshop — mock parity subset", () => {
     // The workshop shell itself.
     await expect(page.getByTestId("order-workshop")).toBeVisible({ timeout: 20_000 });
     // Send is blocked while unresolved lines exist.
-    await expect(page.getByRole("button", { name: /^send to supplier$/i })).toBeDisabled();
+    await expect(page.getByRole("button", { name: /^send to supplier\b/i })).toBeDisabled();
   });
 
   test("issues panel shows unresolved AI-suggestion issues and blocks Send", async ({ page }) => {
@@ -140,7 +140,7 @@ test.describe("Order Workshop — mock parity subset", () => {
     await expect(panel).toContainText(/ES-RES-220R|AI suggestion/i);
 
     // Send stays gated while the issues panel reports open blockers.
-    await expect(page.getByRole("button", { name: /^send to supplier$/i })).toBeDisabled();
+    await expect(page.getByRole("button", { name: /^send to supplier\b/i })).toBeDisabled();
   });
 
   test("bulk-accept button is present on the issues panel for AI-suggestion lines", async ({ page }) => {

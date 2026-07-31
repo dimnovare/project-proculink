@@ -289,9 +289,14 @@ function renderWorkshop() {
 function sendControls() {
   const mobileBar = screen.getByTestId("mobile-send-bar");
   const mobile = within(mobileBar).getByRole("button");
+  // Prefix, not equality: WP-28 made the disabled control say WHY it is disabled,
+  // so the accessible name is "Send to supplier — 1 issue to fix first" while
+  // blocked and "Send to supplier — 1 optional issue you can send past" when the
+  // only failures are advisory. The control this helper must find is unchanged;
+  // an exact match would only be pinning the copy, which sendBarLabel.test.ts owns.
   const desktop = screen
     .getAllByRole("button")
-    .find((b) => !mobileBar.contains(b) && b.getAttribute("aria-label") === "Send to supplier");
+    .find((b) => !mobileBar.contains(b) && !!b.getAttribute("aria-label")?.startsWith("Send to supplier"));
   if (!desktop) throw new Error("desktop send button not found");
   return { desktop, mobile };
 }

@@ -92,6 +92,14 @@ export interface MapperToolbarState {
   catalogHintCount: number;
   /** Jump to the first catalog-hinted line; null when there are no hints (disabled). */
   fillFromCatalog: (() => void) | null;
+  /**
+   * Open AI field-mapping suggestions. WP-28 retired the violet banner these used
+   * to occupy above the three columns; a host that hides the toolbar re-hosts the
+   * count as a chip. Optional so pure-view callers and tests can omit them.
+   */
+  suggestionCount?: number;
+  /** Dismiss every AI suggestion at once (the retired banner's "Dismiss all"). */
+  dismissAllSuggestions?: () => void;
 }
 
 export interface MapperWorkbenchProps {
@@ -198,6 +206,16 @@ export interface MapperWorkbenchProps {
    * status bar via `onToolbarState`. Absent/false → today's rendering.
    */
   hideToolbar?: boolean;
+  /**
+   * Hide the one-line "Left = … Middle = … Right = …" orientation helper (WP-28).
+   * The Order Workshop passes true: all three columns already carry the same
+   * sentence in their own sub-headers ("These are the fields in the {supplier}'s
+   * order. You don't edit them here — you map them to the output on the right."),
+   * so the band restated it a fourth time and cost 66px of the vertical budget
+   * above the columns on every session until dismissed. The connection editor,
+   * which has a different first-run population, keeps it.
+   */
+  hideOrientation?: boolean;
   /** Publishes the toolbar's live state + handlers (see MapperToolbarState). */
   onToolbarState?: (state: MapperToolbarState) => void;
   /**
@@ -221,7 +239,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
     issuesSlot, issuesOpenCount = 0, issuesBlockingCount = 0, showIssuesSignal,
     layout, attentionFirstOutput, trustedThreshold, focusFieldId, focusFieldSignal,
     previewDefaultFormat, autoFilledFields, mappingMode = "wires", reviewSignal,
-    hideToolbar, onToolbarState,
+    hideToolbar, hideOrientation, onToolbarState,
     outgoingHeaderExtra, outgoingBodyOverride,
   } = props;
   const pickerMode = mappingMode === "picker";
@@ -648,9 +666,18 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
   const toggleConnections = useCallback(() => setShowConnections((v) => !v), []);
   const openLayoutDesigner = useCallback(() => { setShowOutputEditor(false); setShowDesigner(true); }, []);
   const openTemplateEditor = useCallback(() => { setShowDesigner(false); setShowOutputEditor(true); }, []);
+  // The retired violet banner's "Dismiss all" — the SAME per-suggestion reject
+  // loop it ran, relocated not reimplemented.
+  const suggestionCount = readOnly ? 0 : model.suggestions.length;
+  const dismissAllSuggestions = useCallback(() => {
+    model.suggestions.forEach((s) => model.onRejectSuggestion(s));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [model.suggestions, model.onRejectSuggestion]);
   useEffect(() => {
     if (!onToolbarState) return;
     onToolbarState({
+      suggestionCount,
+      dismissAllSuggestions,
       mapped: summary.mappedCount,
       total: summary.total,
       requiredUnmapped: summary.requiredUnmapped,
@@ -669,7 +696,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
     onToolbarState, summary.mappedCount, summary.total, summary.requiredUnmapped,
     model.saving, justSaved, model.error, model.aiUnavailable, showConnections,
     toggleConnections, openLayoutDesigner, openTemplateEditor, catalogHintCount,
-    scrollToFirstCatalogHint,
+    scrollToFirstCatalogHint, suggestionCount, dismissAllSuggestions,
   ]);
 
   if (model.loading) {
@@ -977,8 +1004,12 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
         <PlanGateNotice error={model.error} capability="This connection setup" className="mb-3" />
       )}
 
-      {/* ── AI suggestions banner ───────────────────────────────────────── */}
-      {!readOnly && model.suggestions.length > 0 && (
+      {/* ── AI suggestions banner ─────────────────────────────────────────
+          Suppressed for a host that re-hosts the toolbar (the Order Workshop):
+          WP-28 moved the count to a chip and "Dismiss all" to the ⋯ overflow of
+          the consolidated status bar, so this band no longer stacks above the
+          three columns there. Every other host renders it unchanged. */}
+      {!hideToolbar && !readOnly && model.suggestions.length > 0 && (
         <div
           role="status"
           className="hidden lg:flex"
@@ -1006,7 +1037,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
           Incoming | Output | Preview model + wires + collapse chevrons, dismissible
           and remembered. `hidden lg:flex` so it only shows where the columns render;
           it lives in the chrome ABOVE the grid, so the 3-column layout is unshifted. */}
-      {showOrientation && (
+      {showOrientation && !hideOrientation && (
         <div
           role="note"
           className="hidden lg:flex"
@@ -1126,7 +1157,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
           <div style={{ minWidth: 0, position: "relative" }}>
             {layout?.onCollapsePreview && <PaneCollapseCaret side="right" label="Live preview" onClick={layout.onCollapsePreview} />}
             {issuesSlot ? (
-              <PreviewColumnTabs
+              <PreviewColumnSplit
                 issuesSlot={issuesSlot}
                 openCount={issuesOpenCount}
                 blockingCount={issuesBlockingCount}
@@ -1143,13 +1174,28 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
   );
 }
 
-// ── Preview column tabs (Order Workshop) — the third column is "Issues | Preview".
-//    The issue list (the IssuesPanel cards) is the Issues tab; the live output is
-//    the Preview tab. BOTH stay mounted (visibility toggled) so switching tabs
-//    never drops the preview's fetched body or its selected format. Opens on
-//    Issues when there are open blockers, else on Preview. `showIssuesSignal`
-//    (bumped by the send-readiness chip jump) forces it back to Issues. ────────
-function PreviewColumnTabs({
+// ── Preview column split (Order Workshop) — the third column is Issues ABOVE the
+//    live output, not "Issues | Preview" tabs (WP-28 / DB-4).
+//
+//    The tabs were the defect: the issue list is the reason the operator opened
+//    the screen, and it disappeared the moment they looked at the preview. Worse,
+//    the count went with it — and `useWorkshopLayout` can rail this entire column
+//    (Focus = Mapping), which took the tab strip too.
+//
+//    A VERTICAL split is what the brief asks for: "always-present on desktop,
+//    without stealing width from the three columns". Height is the only thing it
+//    costs, and it costs it to the preview — a verification surface — not to the
+//    work. The issues region is capped at 46% so the preview always keeps a
+//    usable body; with zero issues the region collapses to the ~44px green
+//    "Ready to send" bar and the preview gets the column back.
+//
+//    Both regions are always mounted, which is strictly stronger than the tabs'
+//    display-toggling: the preview never loses its fetched body or its format.
+//
+//    `showIssuesSignal` (bumped by a send-readiness chip jump) no longer switches
+//    anything — the panel is on screen — so it only guarantees the region is
+//    scrolled to the top before the caller's scroll-to-card runs. ─────────────
+function PreviewColumnSplit({
   issuesSlot,
   openCount,
   blockingCount,
@@ -1162,53 +1208,70 @@ function PreviewColumnTabs({
   showIssuesSignal?: number;
   preview: ReactNode;
 }) {
-  const [tab, setTab] = useState<"issues" | "preview">(openCount > 0 ? "issues" : "preview");
-  // A send-readiness chip jump bumps the signal → surface the Issues tab so the
-  // card it scrolls to is actually visible.
+  const bodyRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
-    if (showIssuesSignal != null && showIssuesSignal > 0) setTab("issues");
+    if (showIssuesSignal == null || showIssuesSignal === 0) return;
+    bodyRef.current?.scrollTo?.({ top: 0, behavior: "auto" });
   }, [showIssuesSignal]);
 
-  const badge = blockingCount > 0 ? { bg: "#FAE6E6", fg: "#B43838" } : { bg: "#FAF1DD", fg: "#B36D14" };
-  const tabBtn = (k: "issues" | "preview", label: string) => {
-    const on = tab === k;
-    return (
-      <button
-        key={k}
-        type="button"
-        role="tab"
-        aria-selected={on}
-        onClick={() => setTab(k)}
-        style={{
-          position: "relative", padding: "11px 10px", fontSize: 12.5, fontWeight: on ? 700 : 500,
-          color: on ? "#0B1A2F" : "#5E6779", background: "transparent", cursor: "pointer",
-          borderBottom: `2px solid ${on ? "#1E66C9" : "transparent"}`, marginBottom: -1,
-          display: "inline-flex", alignItems: "center", gap: 7,
-        }}
-      >
-        {label}
-        {k === "issues" && openCount > 0 && (
-          <span style={{ fontSize: 10, fontWeight: 700, fontFamily: "'JetBrains Mono',monospace", padding: "1px 6px", borderRadius: 999, background: badge.bg, color: badge.fg }}>
-            {openCount}
-          </span>
-        )}
-        {k === "issues" && openCount === 0 && <span aria-hidden style={{ color: "#2E8E3A", fontWeight: 800, fontSize: 12, lineHeight: 1 }}>✓</span>}
-      </button>
-    );
-  };
+  // #B43838 on #FAE6E6 = 4.92:1; #8A5310 on #FAF1DD = 5.62:1. Both AA at 10px/700.
+  // NOT #B36D14 (the old tab badge), which is 3.65:1 on its own soft background.
+  const badge = blockingCount > 0 ? { bg: "#FAE6E6", fg: "#B43838" } : { bg: "#FAF1DD", fg: "#8A5310" };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0, background: "#FFFFFF" }}>
-      <div role="tablist" aria-label="Issues and preview" style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 2, padding: "0 12px", borderBottom: "1px solid #E5E8EE" }}>
-        {tabBtn("issues", "Issues")}
-        {tabBtn("preview", "Preview")}
+      {/* ColHead — the same 52px head as Received / Output / Live preview, so the
+          column heads still form ONE connected strip across the three columns. */}
+      <div
+        data-testid="issues-column-head"
+        style={{
+          flexShrink: 0, display: "flex", alignItems: "center", gap: 10, height: 52,
+          padding: "0 18px", borderBottom: "1px solid #E5E8EE",
+          background: openCount > 0 ? "#FDECEA44" : "#E9F1EA44",
+        }}
+      >
+        <span
+          aria-hidden
+          style={{
+            flexShrink: 0, width: 9, height: 9, borderRadius: "50%",
+            background: openCount === 0 ? "#2E8E3A" : blockingCount > 0 ? "#B43838" : "#8A5310",
+            boxShadow: `0 0 0 3px ${openCount === 0 ? "#E9F1EA" : blockingCount > 0 ? "#FAE6E6" : "#FAF1DD"}`,
+          }}
+        />
+        <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
+          <span style={{ fontFamily: "var(--font-display, 'Bricolage Grotesque', Inter, sans-serif)", fontSize: 13.5, fontWeight: 700, letterSpacing: "-0.01em", color: "#0B1A2F", whiteSpace: "nowrap" }}>
+            Issues
+          </span>
+          <span style={{ fontSize: 10.5, color: "#5E6779", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {openCount > 0 ? "Fix these before you send" : "Nothing to fix"}
+          </span>
+        </span>
+        <span style={{ marginLeft: "auto", flexShrink: 0 }}>
+          {openCount > 0 ? (
+            <span
+              data-testid="issues-column-count"
+              style={{ fontSize: 11, fontWeight: 700, fontFamily: "'JetBrains Mono',monospace", padding: "2px 8px", borderRadius: 999, background: badge.bg, color: badge.fg }}
+            >
+              {openCount}
+            </span>
+          ) : (
+            <span aria-hidden style={{ display: "inline-flex", width: 18, height: 18, borderRadius: "50%", background: "#2E8E3A", alignItems: "center", justifyContent: "center" }}>
+              <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden>
+                <path d="M2.5 6.2 5 8.6 9.5 3.6" stroke="#FFFFFF" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
+          )}
+        </span>
       </div>
-      {/* Issues body — its own scroll region on the workshop surface. */}
-      <div style={{ flex: 1, minHeight: 0, display: tab === "issues" ? "block" : "none", overflow: "auto", padding: 14, background: "#F6F7FA" }}>
+      {/* Issues body — its own scroll region, capped so the preview keeps a body. */}
+      <div
+        ref={bodyRef}
+        style={{ flex: "0 1 auto", minHeight: 0, maxHeight: "46%", overflow: "auto", padding: 14, background: "#F6F7FA", borderBottom: "1px solid #E5E8EE" }}
+      >
         {issuesSlot}
       </div>
-      {/* Preview body — stays mounted (keeps fetched output + selected format). */}
-      <div style={{ flex: 1, minHeight: 0, display: tab === "preview" ? "flex" : "none", flexDirection: "column" }}>
+      {/* Preview body — always mounted (keeps fetched output + selected format). */}
+      <div style={{ flex: "1 1 0", minHeight: 0, display: "flex", flexDirection: "column" }}>
         {preview}
       </div>
     </div>
