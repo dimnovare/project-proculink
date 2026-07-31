@@ -24,8 +24,9 @@ describe("HubTabs — direction-aware Suppliers tab relabel", () => {
     render(<HubTabs hub="suppliers" variant="topbar" />);
     expect(screen.getByRole("link", { name: "Suppliers" })).toBeTruthy();
     expect(screen.getByRole("link", { name: "Item codes" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Rules" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Output layouts" })).toBeTruthy();
+    // No "Rules"/"Output layouts" tab — FE #47 retired both routes.
+    expect(screen.queryByRole("link", { name: "Rules" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Output layouts" })).toBeNull();
   });
 
   test("outbound ('Suppliers') is a no-op relabel", () => {
