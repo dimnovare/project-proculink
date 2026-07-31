@@ -90,7 +90,10 @@ test("a brand-new account reaches a DELIVERED file without contacting a supplier
   expect(url).not.toContain("sample=1");
   const banner = page.getByRole("note", { name: /practice order/i });
   await expect(banner).toBeVisible({ timeout: 60_000 });
-  await expect(banner).toContainText(/doesn'?t count against your plan/i);
+  // Both apostrophes. WP-28's copy renders the typographic U+2019 (&rsquo;); the band
+  // this note replaced used U+0027. `'?` makes the straight quote OPTIONAL, it does not
+  // match a different codepoint — which is why this passed review twice and failed CI.
+  await expect(banner).toContainText(/doesn['’]?t count against your plan/i);
   // The outcome is named BEFORE the send, so nothing about it is a surprise — and the
   // promise is conditional on the run actually having a delivery setup, which this one
   // does (an address was supplied). A deployment with no email provider gets the other
@@ -125,6 +128,22 @@ test("a brand-new account reaches a DELIVERED file without contacting a supplier
   await expect(dialog).toBeVisible({ timeout: 30_000 });
   await dialog.getByRole("checkbox").check();
   await dialog.getByRole("button", { name: /send to/i }).click();
+
+  // ── A DISPATCH WAS ACTUALLY ATTEMPTED ────────────────────────────────────
+  // Without this, the journey cannot tell "transform stopped at ready_to_deliver and
+  // a dispatch delivered it" from "transform teleported straight to delivered and
+  // nothing was ever sent": useSendFlow short-circuits on an already-delivered order,
+  // so every assertion below is satisfied by a mock that never dispatches. Proven —
+  // mutating mockTransformOrder to write `delivered` left this whole spec green.
+  //
+  // useSendFlow sets this notice ONLY on the dispatch path, immediately before
+  // redeliverOrder, so it is exactly what the two worlds disagree about.
+  // By testid, not by role: two elements carry role="status" here (the flow notice
+  // and the issues panel), so a bare getByRole is a strict-mode violation.
+  await expect(page.getByTestId("status-bar-notice")).toContainText(
+    /sending the generated output|confirming the order/i,
+    { timeout: 60_000 },
+  );
 
   // ── THE acceptance criterion: the order really reaches `delivered` ────────
   // Not "an artifact exists" and not "the button changed" — the order's own status.

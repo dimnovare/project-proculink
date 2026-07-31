@@ -45,11 +45,14 @@ export interface PracticeOrderPromptProps {
    * no suppliers, so "nothing goes to a real supplier" is a sentence about a party
    * it does not have, and shipping it silently deletes the inbound mode.
    *
-   * Defaulted rather than required because every current caller is inside the
-   * signed-in app and can supply it; the default keeps a future caller that has no
-   * direction in scope from silently rendering "undefined".
+   * REQUIRED, deliberately. It was optional with a "supplier" default, and a refuter
+   * showed that deleting the prop from one call site silently reproduced the exact
+   * regression this fix exists to close — the full suite stayed green and tsc could
+   * not see it, because a default is indistinguishable from a correct value. The
+   * original justification ("every current caller can supply it") was the argument
+   * for making it required, not for defaulting it.
    */
-  nounLower?: string;
+  nounLower: string;
 }
 
 export function PracticeOrderPrompt({
