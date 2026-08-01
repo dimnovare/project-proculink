@@ -255,7 +255,7 @@ function timeAgo(iso: string): string {
 
 // Status dot colors use the canonical semantic tokens (danger/amber/brand-green)
 // rather than literal hex, so they stay in sync with UnifiedStatusBadge.
-type NotifKind = "review" | "failed" | "delivered" | "held" | "unconfirmed";
+type NotifKind = "review" | "failed" | "delivered" | "held" | "unconfirmed" | "unrouted";
 
 // The KIND decides the dot colour and the sort rank only. It deliberately no
 // longer carries a label: `failed` folds five different statuses, so one label
@@ -270,9 +270,47 @@ const NOTIF_META: Record<NotifKind, { dot: string }> = {
   // Parked: a crash lost the outcome after we sent. Amber like `held` — needs a
   // human, but we can't confirm a failure, so it is never a red row.
   unconfirmed: { dot: "var(--amber)" },
+  // The third parked state, finally joining the two above it: no supplier was
+  // resolved, so the order stops and nothing automatic will ever restart it.
+  // Amber like `held`/`unconfirmed` — a backlog waiting on a person, not a fault.
+  unrouted:    { dot: "var(--amber)" },
   review:      { dot: "var(--amber)" },
   delivered:   { dot: "var(--brand-green)" },
 };
+
+/**
+ * Which notification an order earns, or null for "does not notify".
+ *
+ * ORDER MATTERS, and every arm above `review` is there because of the same bug:
+ * a stopped order that also carries unresolved lines gets relabelled "Needs
+ * review", which describes the wrong problem and hides the real one. `held` and
+ * `unconfirmed` were moved above it for that reason; `unrouted` is the third and
+ * was left behind, with the reasoning for the other two written directly above
+ * it. Until then it matched nothing, got no kind, and was dropped by the caller's
+ * filter — so the one hold a user can clear entirely by themselves was the one
+ * hold the bell never mentioned. For `unrouted` the masking is certain rather
+ * than merely possible: an unrouted order always has lines.
+ *
+ * Module scope and exported so `src/test/failureRecoveryCoverage.test.ts` can walk
+ * every status the backend machine knows and assert that a stopped order always
+ * earns a notification. Inline in the render map it was untestable, which is why
+ * one status could sit unclassified through two packets that touched this file.
+ */
+export function notifKindFor(status: string, unresolvedCount?: number | null): NotifKind | null {
+  if (
+    status === "failed" ||
+    status === "delivery_failed" ||
+    status === "transform_failed" ||
+    status === "delivery_dead_letter" ||
+    status === "rejected_by_supplier"
+  ) return "failed";
+  if (status === "delivery_held") return "held";
+  if (status === "delivery_unconfirmed") return "unconfirmed";
+  if (status === "unrouted") return "unrouted";
+  if (status === "pending_review" || (unresolvedCount ?? 0) > 0) return "review";
+  if (status === "delivered") return "delivered";
+  return null;
+}
 
 function NotificationsBell() {
   const router = useRouter();
@@ -294,25 +332,16 @@ function NotificationsBell() {
 
   const items = (ordersPage?.items ?? [])
     .map((o) => {
-      let kind: NotifKind | null = null;
-      if (o.status === "failed" || o.status === "delivery_failed" || o.status === "transform_failed" || o.status === "delivery_dead_letter" || o.status === "rejected_by_supplier") kind = "failed";
-      // Billing hold: classified before `review` because a held order can also carry
-      // unresolved lines, and the billing pause is the reason it isn't moving.
-      // Without a kind it was dropped entirely and never notified.
-      else if (o.status === "delivery_held") kind = "held";
-      // Parked: same reasoning as held — classify before `review` so it can't be
-      // masked by a leftover unresolvedCount from before it reached delivery.
-      else if (o.status === "delivery_unconfirmed") kind = "unconfirmed";
-      else if (o.status === "pending_review" || (o.unresolvedCount ?? 0) > 0) kind = "review";
-      else if (o.status === "delivered") kind = "delivered";
+      const kind = notifKindFor(o.status, o.unresolvedCount);
       return kind ? { o, kind } : null;
     })
     .filter((x): x is { o: OrderSummary; kind: NotifKind } => x !== null);
 
-  // Held and unconfirmed rank under failed but over review: both need a human before
-  // review even matters (held blocks every order in the workspace; unconfirmed risks
-  // a duplicate send if mishandled).
-  const rank = (k: string) => (k === "failed" ? 0 : k === "held" || k === "unconfirmed" ? 1 : k === "review" ? 2 : 3);
+  // Held, unconfirmed and unrouted rank under failed but over review: all three need a
+  // human before review even matters (held blocks every order in the workspace;
+  // unconfirmed risks a duplicate send if mishandled; unrouted can't be reviewed at all
+  // until it has a supplier to review it against).
+  const rank = (k: string) => (k === "failed" ? 0 : k === "held" || k === "unconfirmed" || k === "unrouted" ? 1 : k === "review" ? 2 : 3);
   items.sort((a, b) => rank(a.kind) - rank(b.kind) || new Date(b.o.createdAt).getTime() - new Date(a.o.createdAt).getTime());
   const top = items.slice(0, 7);
   const unread = !isApiMockMode
@@ -323,8 +352,9 @@ function NotificationsBell() {
        (ordersSummary?.byStatus?.["delivery_dead_letter"] ?? 0) +
        (ordersSummary?.byStatus?.["rejected_by_supplier"] ?? 0) +
        (ordersSummary?.byStatus?.["delivery_held"] ?? 0) +
-       (ordersSummary?.byStatus?.["delivery_unconfirmed"] ?? 0))
-    : items.filter((i) => i.kind === "failed" || i.kind === "review" || i.kind === "held" || i.kind === "unconfirmed").length;
+       (ordersSummary?.byStatus?.["delivery_unconfirmed"] ?? 0) +
+       (ordersSummary?.byStatus?.["unrouted"] ?? 0))
+    : items.filter((i) => i.kind === "failed" || i.kind === "review" || i.kind === "held" || i.kind === "unconfirmed" || i.kind === "unrouted").length;
 
   useEffect(() => {
     if (!open) return;

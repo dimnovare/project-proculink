@@ -9,6 +9,7 @@ import { useDialogA11y } from "@/hooks/useDialogA11y";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient, getBuyers, isApiMockMode } from "@/lib/api-client";
+import { statusFact } from "@/lib/orderStatusManifest";
 import { buildMapperCommands, dispatchMapper } from "./mapper/mapperCommands";
 import type {
   OrderSummary,
@@ -31,11 +32,50 @@ type CmdItem = {
   color?: string;
 };
 
+// The order glyph's colour is a HEALTH signal, so it is derived from the status
+// manifest's bucket — never from a hand-maintained if-chain. The chain this replaced
+// ended:
+//
+//     if (status === "delivered") return "#2E8E3A";
+//     return "#2E8E3A";
+//
+// Two arms, one colour. The `delivered` arm was therefore dead code, and — the part
+// that actually hurt — green was the FALLTHROUGH. `failed`, `transform_failed`,
+// `delivery_dead_letter`, `rejected_by_supplier`, `delivery_held`,
+// `delivery_unconfirmed` and `unrouted` — every one of them painted the same success
+// green as a delivered order, in cmd-K, which is the first surface an operator
+// reaches for. A broken order read as a finished one.
+//
+// Deriving from statusFact() means a status added to ORDER_STATUS_FACTS is coloured
+// the moment it is added. The chain had to be *remembered* on every status the
+// backend grew, and six statuses prove it was not.
 function orderColor(status: OrderStatus): string {
-  if (status === "pending_review" || status === "delivery_failed") return "#B36D14";
-  if (status === "delivered") return "#2E8E3A";
+  const fact = statusFact(status);
+  // Unknown status → neutral ink-muted, NOT green. An unrecognised status is exactly
+  // the case where this build understands the row least, and "I have never heard of
+  // this" must not be rendered as "this succeeded" — that is the same optimistic
+  // default that made the old chain lie. Matches isProblemBucketStatus()'s contract
+  // for unknowns: claim nothing rather than claim health.
+  if (!fact) return "#56627A";
+  // Deliberate exception to the bucket rule. `pending_review` is `healthy` in the
+  // manifest and correctly so — nothing broke, the review IS the workflow — but it is
+  // a human-action state and this palette has always amber'd it. Green here would say
+  // "nobody is needed", which is the opposite of true. Preserved on purpose.
+  if (status === "pending_review") return "#B36D14";
+  if (fact.bucket === "failure") return "#B43838"; // --danger
+  if (fact.bucket === "parked")  return "#B36D14"; // --amber
   return "#2E8E3A";
 }
+
+/**
+ * Exported for `src/test/failureRecoveryCoverage.test.ts`, which walks every status
+ * the backend machine knows and asserts none of the stopped ones paints the success
+ * colour here. That is not hypothetical: the chain this replaced ended
+ * `if (status === "delivered") return "#2E8E3A"; return "#2E8E3A";` — two branches,
+ * one colour — so a dead-lettered or supplier-refused order rendered the same green
+ * as a delivered one in the palette an operator opens to find it.
+ */
+export { orderColor as orderGlyphColor };
 
 // Each row paints item.color TWICE, at two different floors: as the chip's
 // 9.4%-alpha FILL (non-text, 3:1) and as the GLYPH inside it. The glyph (✓ ▶ ⊞)
@@ -48,7 +88,9 @@ function orderColor(status: OrderStatus): string {
 // scoped to, but the other two rows fail the same way for the same reason, and a
 // map covering one of three would read as "checked" while two thirds of the
 // palette still failed. Both replacements are existing tokens; neither is new.
-//   #B36D14 (needs-review / delivery-failed) → 3.6662:1 resting, 3.3358:1 active
+//   #B36D14 (needs-review; and the parked bucket — see below. It carried
+//     delivery-failed when this was written; that status is danger now) →
+//     3.6662:1 resting, 3.3358:1 active
 //     → --amber-text #8A5310: 5.6384:1 / 5.1302:1
 //   #1E66C9 (buyers) → 4.8592:1 resting but 4.4231:1 over the active row — the
 //     kind of near-miss that only shows up if you measure the state the user is
@@ -57,6 +99,22 @@ function orderColor(status: OrderStatus): string {
 // These reached the glyph through `orderColor()`, a FUNCTION RETURN, which is
 // exactly the indirection src/test/textColorScan.ts documents that it cannot
 // follow. Found by measuring, not by the scanner.
+//
+// TWO MORE FILLS ARE REACHABLE SINCE orderColor() STARTED DERIVING FROM THE BUCKET,
+// so the "three families" above is no longer the whole set — five are. Both new ones
+// were measured the same way and both CLEAR 4.5:1 unmapped, which is why neither has
+// an entry here. Absence is a measurement, not an oversight:
+//   #B43838 (--danger, the failure bucket) → 5.1071:1 resting on its own tint
+//     (#F8ECEC), 4.6449:1 over the #F0F4FB active row (#EAE2E9). Passing, but by
+//     0.14 — if the active-row background is ever darkened, re-measure this first.
+//     Left unmapped deliberately: there is no darker danger token in globals.css
+//     (only --danger and --danger-soft), and inventing one would break the rule the
+//     three mappings above hold to — every replacement is an EXISTING token.
+//   #56627A (ink-muted, the unknown-status fallback) → 5.3791:1 resting (#EFF0F2),
+//     4.9067:1 active (#E2E6EF). Passing with room.
+// The amber row now carries the whole parked bucket — `unrouted`, `delivery_held`,
+// `delivery_unconfirmed` — alongside needs-review; same fill, same measurement,
+// wider reach.
 const GLYPH_TEXT_COLOR: Record<string, string> = {
   "#2E8E3A": "#1E6D29",
   "#B36D14": "#8A5310",
@@ -126,8 +184,17 @@ function buildIndex(
     // rather than an org-wide catalog that decided nothing.
     { id: "a4",  group: "Actions", icon: "✓", label: "Validation rules",     sub: "Choose a supplier to set its checks", action: () => router.push("/library/suppliers"), color: "#0F4FA8" },
     { id: "a5",  group: "Actions", icon: "⚠", label: "Issues",           sub: "Open the issues list", action: () => router.push("/operations/exceptions"), color: "#8A5310" },
-    { id: "a6",  group: "Actions", icon: "❤", label: "System health",        sub: "Open operator health view", action: () => router.push("/operations/health"),     color: "#0F4FA8" },
-    { id: "a9",  group: "Actions", icon: "▤", label: "Delivery log",         sub: "Open delivery log",      action: () => router.push("/operations/log"),   color: "#0F4FA8" },
+    // These two labels are the NAV names, not palette-local ones, and that is
+    // load-bearing rather than tidiness. `useSendFlow`'s in-flight notice is plain
+    // text with no link slot, so it names its destination in words — "Open System
+    // status" / "the Deliveries page" — and the palette is how an operator turns
+    // words into a page. It said "System health" and "Delivery log", so searching
+    // the exact words the product had just told them to look for found nothing.
+    // The search matches `label` AND `sub` (see the filter below), so the older
+    // words stay findable in the sub-line rather than being deleted.
+    // Canonical source: breadcrumb.ts SEGMENT_LABELS + HubTabs.
+    { id: "a6",  group: "Actions", icon: "❤", label: "System status",        sub: "Is order processing running? Check system health", action: () => router.push("/operations/health"),     color: "#0F4FA8" },
+    { id: "a9",  group: "Actions", icon: "▤", label: "Deliveries",           sub: "Every delivery attempt — the delivery log", action: () => router.push("/operations/log"),   color: "#0F4FA8" },
     { id: "a7",  group: "Actions", icon: "⚙", label: "Settings",             sub: "Workspace settings",     action: () => router.push("/settings"),         color: "#0F4FA8" },
     { id: "a8",  group: "Actions", icon: "≣", label: "View standards matrix", sub: "Open standards reference", action: () => router.push("/library/standards"), color: "#0F4FA8" },
     // ── Onboarding entry points (task 9) ────────────────────

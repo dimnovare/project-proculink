@@ -8,6 +8,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { RefreshCw } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getOpsHealth,
@@ -17,6 +18,7 @@ import {
   type DeadLetterOrder,
 } from "@/lib/api-client";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
+import { opAllowsStatus } from "@/lib/orderStatusManifest";
 import { isAllClear, isQueueClear } from "./opsHealthState";
 import { TILES } from "./healthTiles";
 import { DeliveryPausedCard } from "./DeliveryPausedCard";
@@ -71,15 +73,32 @@ function normalizeDeadLetterStatus(status: string): string {
   return status;
 }
 
-// Split "failed" into redeliverable vs non-redeliverable. Redeliverable = a
-// transport/transient failure a blind requeue can legitimately retry
-// (delivery_failed / delivery_dead_letter). A supplier BUSINESS rejection is
-// NOT redeliverable — resending the same artifact will be rejected again — so
-// those rows must route to the order to fix the cause, not promise a retry.
-// Unknown statuses default to redeliverable (conservative; preserves prior behavior).
+// Does POST /api/ops/orders/{id}/requeue-delivery admit this row?
+//
+// This was a DENY-LIST of two literals — everything that was not
+// `rejected_by_supplier` or `rejected` got the button — and its comment called
+// that "conservative". It is the least conservative option available: an
+// unrecognised status is precisely the row the frontend understands least, and
+// the deny-list handed it the escalation control. The endpoint's admission guard
+// is `OrderStatusMachine.RequeueableFrom` = { delivery_dead_letter,
+// delivery_failed } (OpsController.cs:155), so every other status — transform_failed,
+// delivery_unconfirmed, failed, delivered, anything a future backend adds — rendered
+// a "Start sending again" button the API answers 400 to. That is the same defect the
+// order screen's dead-letter panel was rebuilt to remove.
+//
+// Now an ALLOW-LIST derived from the mirror, so it cannot drift from the guard
+// independently: unknown status → false → the row gets the open-order fallback
+// below instead of a button that cannot work.
+//
+// No `.toLowerCase()`: both producers of DeadLetterOrder.status (real and mock,
+// src/lib/api/operations.ts) hand back DeadLetterOrderDto.Status verbatim, and the
+// backend writes OrderStatusConstants, which are lowercase snake_case. The same
+// `o.status` already reaches tv2DotColor and UnifiedStatusBadge un-normalised at
+// both call sites — a mixed-case value would already be rendering the wrong dot and
+// the wrong badge — so normalising here would only have hidden that from this one
+// control while the rest of the row lied.
 function canRedeliver(status: string): boolean {
-  const s = (status ?? "").toLowerCase();
-  return s !== "rejected_by_supplier" && s !== "rejected";
+  return opAllowsStatus("requeueDelivery", status);
 }
 
 export default function OperationsHealthPage() {
@@ -87,7 +106,13 @@ export default function OperationsHealthPage() {
   const qc = useQueryClient();
 
   const [includeFailed, setIncludeFailed] = useState(true);
-  const [notice, setNotice] = useState<string | null>(null);
+  // ONE notice state carrying its own severity. It used to be a bare
+  // `string | null` rendered in a hard-coded blue/informational banner, so a FAILED
+  // requeue — the case an operator most needs to notice — was painted in the same
+  // success-adjacent chrome as "we're sending it again". A second useState would
+  // have worked equally well; a tone field is the smaller change in this file
+  // because there is exactly one render site to thread it through.
+  const [notice, setNotice] = useState<{ tone: "info" | "error"; text: string } | null>(null);
 
   const healthQ = useQuery<OpsHealth>({
     queryKey: ["ops-health"],
@@ -113,11 +138,20 @@ export default function OperationsHealthPage() {
     // order id, which read as gibberish (e.g. "mock-dl-…") in the notice.
     mutationFn: (order: DeadLetterOrder) => requeueDelivery(order.orderId),
     onSuccess: (_res, order) => {
-      setNotice(`Trying to send ${order.poNumber} again. It will move back to "sending".`);
+      setNotice({ tone: "info", text: `Trying to send ${order.poNumber} again. It will move back to "sending".` });
       qc.invalidateQueries({ queryKey: ["ops-health"] });
       qc.invalidateQueries({ queryKey: ["ops-dead-letter"] });
     },
-    onError: (err: Error) => setNotice(err.message || "Requeue failed."),
+    // The server's own sentence is rendered VERBATIM — it is the only text that
+    // knows why this particular send was refused, and paraphrasing it here would
+    // replace a specific reason with a generic one. Only the client-authored
+    // fallback (for an error carrying no message at all) is ours to write, and it
+    // now names the order, says what did not happen, and says it can be tried again
+    // instead of the bare engineering fragment "Requeue failed."
+    onError: (err: Error, order) => setNotice({
+      tone: "error",
+      text: err.message || `We couldn't start sending ${order.poNumber} again. You can try again.`,
+    }),
   });
 
   // ── Loading / error gates ──────────────────────────────────────────────────
@@ -134,8 +168,26 @@ export default function OperationsHealthPage() {
       <PageShell variant="wide">
         <PageHeader titleHidden title="System status" />
         <Card edge="none">
-          <div style={{ color: "var(--danger)", fontSize: 14 }}>
-            Could not load operations health. The API may be unavailable — retry shortly.
+          {/* This replaces the WHOLE dashboard, so it was the only thing on screen —
+              and it shipped with no control while its own last four words ("retry
+              shortly") instructed a retry the page did not offer, leaving a full
+              browser reload as the only way out. `healthQ.refetch` was in scope the
+              entire time. Same shape as the sibling ops error state
+              (operations/exceptions/page.tsx:255): headline, plain-language cause,
+              secondary Retry. The sentence no longer asks the operator to do
+              something the button now does, and no longer says "API". */}
+          <div role="alert" style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 10 }}>
+            <div style={{ color: "var(--danger)", fontSize: 15, fontWeight: 600 }}>
+              We couldn&apos;t load system status
+            </div>
+            <div style={{ color: "var(--ink-muted)", fontSize: 13.5, maxWidth: 460 }}>
+              Your orders are safe and nothing has stopped because of this — we just can&apos;t show
+              you the current picture. This is usually brief.
+            </div>
+            <Button variant="secondary" size="sm" onClick={() => healthQ.refetch()}>
+              <RefreshCw size={13} aria-hidden />
+              Try again
+            </Button>
           </div>
         </Card>
       </PageShell>
@@ -153,6 +205,11 @@ export default function OperationsHealthPage() {
   // empty queue can render its own honest banner instead of a wall of zero tiles.
   const queueClear = isQueueClear(h);
   const deliveryHeld = h.deliveryHeld ?? 0;
+  // `?? []` is kept ONLY as a render convenience for the rows below. It is no longer
+  // load-bearing for the empty state: both cases it used to swallow — the fetch failed,
+  // the fetch has not answered yet — are now branched on explicitly at the render site,
+  // ahead of "none". A default that turns "unknown" into "zero" is safe only when
+  // something upstream has already ruled unknown out.
   const deadLetters = deadLetterQ.data ?? [];
 
   return (
@@ -167,7 +224,7 @@ export default function OperationsHealthPage() {
         style={{
           marginBottom: 14, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
           background: h.workerHealthy ? "var(--brand-green-soft)" : "var(--danger-soft)",
-          border: `1px solid ${h.workerHealthy ? "#BFE3BF" : "#F0B4B4"}`,
+          border: `1px solid ${h.workerHealthy ? "#BFE3BF" : "var(--danger-border)"}`,
           borderRadius: "var(--radius-md)", padding: "12px 16px",
           color: h.workerHealthy ? "var(--brand-green-deep)" : "var(--danger)", fontSize: 13.5,
         }}
@@ -277,16 +334,71 @@ export default function OperationsHealthPage() {
           </label>
         </div>
 
+        {/* Severity drives BOTH the colour and the ARIA role, the way
+            OrderProblemPanel does it: a failure is role="alert" (assertive — a
+            screen-reader user is interrupted, because the send did not happen and
+            nothing else on screen says so), an informational notice is
+            role="status" + aria-live="polite". Before this, every outcome shared one
+            blue banner and one silent div, so a refused requeue was indistinguishable
+            from a successful one by colour, and announced by neither. */}
         {notice && (
-          <div style={{ marginBottom: 12, background: "var(--brand-blue-soft)", border: "1px solid #D6E3F2", borderRadius: "var(--radius-md)", padding: "9px 12px", fontSize: 12.5, color: "var(--brand-blue-deep)" }}>
-            {notice}
+          <div
+            role={notice.tone === "error" ? "alert" : "status"}
+            aria-live={notice.tone === "error" ? undefined : "polite"}
+            style={{
+              marginBottom: 12,
+              background: notice.tone === "error" ? "var(--danger-soft)" : "var(--brand-blue-soft)",
+              border: `1px solid ${notice.tone === "error" ? "var(--danger-border)" : "#D6E3F2"}`,
+              borderRadius: "var(--radius-md)", padding: "9px 12px", fontSize: 12.5,
+              color: notice.tone === "error" ? "var(--danger)" : "var(--brand-blue-deep)",
+            }}
+          >
+            {notice.text}
           </div>
         )}
 
-        {deadLetters.length === 0 ? (
+        {deadLetterQ.isError ? (
+          /* THE PAGE MUST NOT SAY "NONE" WHEN IT MEANS "I DON'T KNOW".
+             `deadLetters` is `deadLetterQ.data ?? []`, and this branch used to test
+             only `deadLetters.length === 0` — so a FAILED fetch fell through the `??`
+             into an empty array and rendered "No orders awaiting operator review."
+             on the one page an operator opens specifically to find stuck orders. Not
+             merely a missing action: the screen asserted the opposite of the truth,
+             and the more orders were stuck the more confidently it said zero.
+             Checked BEFORE the empty state so "none" can only ever mean a successful
+             fetch that really returned nothing. */
+          <Card edge="none">
+            <div role="alert" style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 10 }}>
+              <div style={{ color: "var(--danger)", fontSize: 14, fontWeight: 600 }}>
+                We couldn&apos;t load this list
+              </div>
+              <div style={{ color: "var(--ink-muted)", fontSize: 13.5, maxWidth: 460 }}>
+                That is not the same as &ldquo;none&rdquo; — there may be orders waiting here.
+                Nothing has been lost and no order has changed.
+              </div>
+              <Button variant="secondary" size="sm" onClick={() => deadLetterQ.refetch()}>
+                <RefreshCw size={13} aria-hidden />
+                Try again
+              </Button>
+            </div>
+          </Card>
+        ) : deadLetterQ.isLoading ? (
+          /* Same rule, milder case: the first load also arrives as `undefined` and
+             also fell through the `??`, so the page flashed a confident "no orders
+             awaiting operator review" before it had asked. The health query is gated
+             above, so by here `queryEnabled` is true and isLoading means exactly
+             "first answer still outstanding". */
+          <Card edge="none">
+            <div style={{ color: "var(--ink-muted)", fontSize: 13.5 }}>Checking for undelivered orders…</div>
+          </Card>
+        ) : deadLetters.length === 0 ? (
           <Card edge="none">
             <div style={{ color: "var(--ink-muted)", fontSize: 13.5 }}>
-              No orders awaiting operator review. {includeFailed ? "" : "Tick 'Include delivery-failed' to widen the view."}
+              {/* The pointer named a control that does not exist: the checkbox above
+                  reads "Also show orders we're still retrying", not "Include
+                  delivery-failed" — the old engine-side label, left behind when the
+                  control was rewritten in plain language. Quoted to match it. */}
+              No orders awaiting operator review. {includeFailed ? "" : "Tick “Also show orders we’re still retrying” to widen the view."}
             </div>
           </Card>
         ) : (
@@ -343,14 +455,23 @@ export default function OperationsHealthPage() {
                             {requeue.isPending && requeue.variables?.orderId === o.orderId ? "Queued…" : "Start sending again"}
                           </Button>
                         ) : (
-                          /* Supplier BUSINESS-rejected the order — a blind requeue would
-                             re-send the same artifact and be rejected again. Route to the
-                             order to fix the cause instead of promising a retry. */
+                          /* The requeue endpoint would refuse this status, so no button is
+                             offered — but the row still owes the operator a next step, and
+                             this link is it: /inbox/{id} is the order workshop, which reads
+                             the status and offers whatever IS legal from there.
+
+                             The label used to read "Open to fix & resend". That was written
+                             when this branch caught supplier rejections ONLY; the allow-list
+                             above now routes transform_failed, delivery_unconfirmed, failed
+                             and any unrecognised status here too, and "resend" is a promise
+                             this screen cannot keep for them — `failed` in particular exits
+                             via a NEW order row, never a resend of this one. The link now
+                             says where it goes and nothing more. */
                           <Link
                             href={`/inbox/${o.orderId}`}
                             style={{ fontSize: 12.5, fontWeight: 600, color: "var(--brand-blue-deep)", textDecoration: "none" }}
                           >
-                            Open to fix & resend
+                            Open order
                           </Link>
                         )}
                       </td>
@@ -395,12 +516,17 @@ export default function OperationsHealthPage() {
                         {requeue.isPending && requeue.variables?.orderId === o.orderId ? "Queued…" : "Start sending again"}
                       </Button>
                     ) : (
-                      /* Supplier BUSINESS-rejected — see desktop table above. */
+                      /* Requeue is not legal from this status — see desktop table above
+                         for why the fallback is a route to the order and not dead text.
+                         minHeight 44 so the one control this row DOES offer is still a
+                         finger-sized tap target on a phone; the button branch gets that
+                         from size="md" + full width, the link had only 8px of padding. */
                       <Link
                         href={`/inbox/${o.orderId}`}
-                        style={{ display: "block", textAlign: "center", fontSize: 13, fontWeight: 600, color: "var(--brand-blue-deep)", textDecoration: "none", padding: "8px 0" }}
+                        className="flex items-center justify-center"
+                        style={{ fontSize: 13, fontWeight: 600, color: "var(--brand-blue-deep)", textDecoration: "none", padding: "8px 0", minHeight: 44 }}
                       >
-                        Open to fix & resend
+                        Open order
                       </Link>
                     )}
                   </div>

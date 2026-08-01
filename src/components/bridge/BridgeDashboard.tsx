@@ -31,6 +31,9 @@ import { DashboardContextLine } from "./DashboardContextLine";
 import { PageHeader } from "./layout/PageHeader";
 import { PageShell } from "./layout/PageShell";
 import { countFor, statusesForLabel } from "./orderCountContract";
+// The one registry of what to do about a stuck order. The dashboard reads the
+// same `rowAction` the inbox row renders, so the two can't disagree.
+import { problemFor } from "./problem/problemCopy";
 import { apiClient, isApiMockMode } from "@/lib/api-client";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
@@ -147,6 +150,59 @@ export function sumByStatuses(
 
 /** Orders that have reached a "processed" milestone, used for the auto-rate. */
 const ELIGIBLE_STATUSES = new Set(["ready", "ready_to_deliver", "delivered"]);
+
+/**
+ * The "Needs you" row's second line: what happened, then what to do about it.
+ *
+ * "<what happened> — <what to do>": the first half is ALWAYS the status registry's
+ * label, the second half is ALWAYS the problem registry's `rowAction`. Neither half
+ * is written here any more, and the history is why.
+ *
+ * ROUND 1 — the WORDS drifted. This was four hand-written labels ("Delivery failed
+ * — retry" for both delivery_failed AND delivery_dead_letter, "Transform failed —
+ * check mapping", "Failed — needs attention"), which put the retired engine-stage
+ * vocabulary on the dashboard while the badge one row over used the plain one. The
+ * fix was to take the first half from `statusLabel`.
+ *
+ * ROUND 2 — the FACTS drifted, because that fix left a second hand-written map of
+ * what-to-do sitting next to the one the rest of the product reads. It told the
+ * operator "Couldn't send — try sending again" while the order screen for the very
+ * same status said the opposite: `delivery_failed`'s `automatic` is "We're trying
+ * again automatically", its tier is `wait`, and it prints "You don't have to do
+ * anything." One state, two surfaces, opposite instructions — and the dashboard is
+ * where the operator decides whether to open the order at all.
+ *
+ * It also covered only FIVE statuses while `EXCEPTION_STATUSES` admits eight
+ * (`delivery_held`, `delivery_unconfirmed`) plus `unrouted` via the unresolvedCount
+ * branch, so three states rendered as a bare status name in a section titled "Needs
+ * you" — naming the state instead of the next step, which is the one job this line
+ * has.
+ *
+ * So the line derives from `problemFor`, the single record that already owns every
+ * one of those states. `rowAction` is documented as "the one line that says what to
+ * do" and the inbox row already renders it; reading the same field is what keeps the
+ * two screens saying the same thing about the same order tomorrow. Lowercasing the
+ * first character keeps the clause shape after the em-dash ("Couldn't send —
+ * retrying automatically") — `rowAction` is sentence-cased for the inbox, where it
+ * stands alone.
+ *
+ * Module scope and exported so `src/test/failureRecoveryCoverage.test.ts` can walk
+ * every status the backend machine knows and assert this line never degrades to a
+ * bare status name for one that needs a person. Nested inside the component it was
+ * pure but unreachable, which is exactly how ROUND 2 survived review.
+ */
+export function neededForOrder(o: Pick<OrderSummary, "status" | "unresolvedCount">): string {
+  const unresolved = o.unresolvedCount ?? 0;
+  if (o.status === "pending_review") {
+    return unresolved > 0
+      ? `${unresolved} item code${unresolved === 1 ? "" : "s"} to confirm`
+      : "Review before sending";
+  }
+  const problem = problemFor(o.status);
+  if (!problem) return statusLabel(o.status);
+  const next = problem.rowAction.charAt(0).toLowerCase() + problem.rowAction.slice(1);
+  return `${statusLabel(o.status)} — ${next}`;
+}
 
 /** Maps a raw API status to a short human label for the in-transit stage badge.
  *  Per-order labels match the inbox status badge (UnifiedStatusBadge is the source
@@ -517,7 +573,11 @@ export function BridgeDashboard() {
     staleTime: 60_000,
     enabled: queryEnabled,
   });
-  const { data: topology, isLoading: topologyLoading } = useQuery({
+  // `isError` + `refetch` are read below. They were previously dropped, which is
+  // how this query became the one hero input that could fail in total silence:
+  // its `data` is spread through `?? []` into an empty topology, and an empty
+  // topology is indistinguishable from a quiet, healthy morning.
+  const { data: topology, isLoading: topologyLoading, isError: topologyError, refetch: refetchTopology } = useQuery({
     queryKey: ["dashboard-topology"],
     queryFn: () => apiClient.getDashboardTopology(),
     staleTime: 60_000,
@@ -727,34 +787,7 @@ export function BridgeDashboard() {
   // existing, and a delivery_held order genuinely belongs in the list. We surface a plain
   // "what's needed" line derived from the actual status + unresolved count, never
   // a fabricated reason. Blocked (needs-review) rows sort first, then oldest-first.
-  function neededFor(o: OrderSummary): string {
-    const unresolved = o.unresolvedCount ?? 0;
-    if (o.status === "pending_review") {
-      return unresolved > 0
-        ? `${unresolved} item code${unresolved === 1 ? "" : "s"} to confirm`
-        : "Review before sending";
-    }
-    // "<what happened> — <what to do>": the first half is ALWAYS the registry
-    // label, never a second name for the state. It used to be four hand-written
-    // ones ("Delivery failed — retry" for both delivery_failed AND
-    // delivery_dead_letter, "Transform failed — check mapping", "Failed — needs
-    // attention"), which put the retired engine-stage vocabulary on the
-    // dashboard while the badge one row over used the plain one.
-    const todo: Record<string, string> = {
-      // Matches the order screen's own secondary action. NOT "retry": nothing in
-      // the product re-sends a refused order (no delivery claim set admits the
-      // status) — the cure is a corrected document.
-      rejected_by_supplier: "start a corrected order",
-      delivery_failed: "try sending again",
-      // Distinct from delivery_failed on purpose: the automatic attempts are
-      // spent here, so "retry" would describe something that is not happening.
-      delivery_dead_letter: "send it again yourself",
-      transform_failed: "check output settings",
-      failed: "upload a corrected file",
-    };
-    const next = todo[o.status];
-    return next ? `${statusLabel(o.status)} — ${next}` : statusLabel(o.status);
-  }
+  const neededFor = neededForOrder;
   const needsYouAll = allOrders
     .filter((o) => EXCEPTION_STATUSES.has(o.status) || (o.unresolvedCount ?? 0) > 0)
     .sort((a, b) => {
@@ -873,8 +906,12 @@ export function BridgeDashboard() {
     URL.revokeObjectURL(url);
   }
 
-  /** Topology hero area: skeleton while loading, true empty-state only when there
-   *  genuinely are no docks, otherwise the live WireTopology canvas. */
+  /** Topology hero area, in branch order: skeleton while loading, then one
+   *  explicit failure card per failed source (orders, then topology), then the
+   *  true empty-state — which is reachable ONLY on a success with zero rows —
+   *  otherwise the live WireTopology canvas. Every failure before the empty
+   *  state, always: the operator has to be able to tell "nothing is in flight"
+   *  from "we could not load this", and an empty diagram reads as the first. */
   function renderTopologyArea(height: number) {
     if (topologyLoadingState) {
       return (
@@ -909,6 +946,50 @@ export function BridgeDashboard() {
         </div>
       );
     }
+    // The SAME rule as the branch above, applied to the other query that feeds
+    // this canvas. `endpoint` is built from `topology?.buyers ?? []` (and the two
+    // beside it), so a failed GET /api/dashboard/topology arrives here as an
+    // empty collection — identical, byte for byte, to a successful fetch that
+    // found nothing. `endpointHasData` then reads false and the empty state below
+    // invites an established org to "upload your first PO". That is the dashboard
+    // saying "all quiet" when what happened is "we could not ask".
+    //
+    // The guard is deliberately NOT a bare `if (topologyError)`. When the orders
+    // query succeeded we still have `derived` — the client-side topology built
+    // from the working set — and that is the designed fallback for exactly this
+    // situation (see the `effective` ladder above). Replacing a canvas full of
+    // real, honestly-sourced wires with an error card because a preferred source
+    // was unavailable would lose the operator more information than it gains.
+    //
+    // So the failure is announced only where it would otherwise be swallowed:
+    // the endpoint failed AND there is nothing to draw in its place. Retry is
+    // bound to this query's own refetch, not refetchOrders — the branch above
+    // owns the orders query, and a Retry that re-runs a request that never failed
+    // is the button that does nothing.
+    if (topologyError && !derivedHasData) {
+      return (
+        <div
+          className="flex flex-col items-center justify-center rounded-card text-center"
+          style={{ height, background: "#FFFFFF", border: "1px solid #E5E8EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)", padding: 24 }}
+          role="alert"
+        >
+          <div className="text-[16px] font-semibold" style={{ color: "#0B1A2F" }}>Couldn&apos;t load your connections</div>
+          <div className="mt-1 max-w-[420px] text-[13px]" style={{ color: "#5E6779" }}>
+            We couldn&apos;t reach the service that draws your buyer-to-{nounLower} map. Your orders and {pluralLower} are safe — nothing here has changed.
+          </div>
+          <button
+            type="button"
+            onClick={() => refetchTopology()}
+            className="mt-4 inline-flex items-center gap-1 rounded-[6px] px-3 py-1.5 text-[12.5px] font-medium transition-colors hover:bg-[#F6F7FA]"
+            style={{ border: "1px solid #E5E8EE", background: "#FFFFFF", color: "#0B1A2F" }}
+          >
+            Retry
+          </button>
+        </div>
+      );
+    }
+    // Reached only on a SUCCESSFUL fetch that found nothing (both sources agree
+    // there is nothing to draw). Unchanged — this is the genuine first-run state.
     if (topologyIsEmpty) {
       return (
         <div
