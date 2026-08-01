@@ -472,9 +472,26 @@ gates them at Growth). Read `plans.ts`:
 - Distributor: `€1,499/month` — 2,500 orders/month, 30 suppliers, all channels, bulk mapping, priority onboarding, founder-led supplier setup. CTA: `Upgrade to Distributor`.
 - Enterprise: `Custom` — custom volume/suppliers, ERP connectors, SSO, dedicated onboarding, SLA, custom transformation rules. CTA: `Contact sales`.
 
-**Offer ⇔ works applies to the ladder itself:** a capability may only be listed on a tier if
-the backend really gates it there (`BillingFeature` + `PlanConstants.MinimumPlan`, guarded by
-`BillingFeatureGateCoverageTests`). Do not add a bullet for a capability nothing enforces.
+**Offer ⇔ works applies to the ladder itself:** a capability may only be listed on a tier if the
+backend really gates it there. `BillingFeature` + `PlanConstants.MinimumPlan` are the source of
+truth; the guard that keeps them honest is
+`ProcuLink.Api.Tests/Architecture/BillingGateEnforcementIsRealTests.cs`, which reads **compiled IL**
+(via `BillingGateIlScanner`) and asserts per feature that the named production method provably
+reaches the gate primitive — `IBillingService.HasFeatureAsync`, or `PlanConstants.PlanHasFeature`
+for the single presentation-only case (SSO, which Clerk delivers). It also walks the reverse
+direction, so a gate call in production that no tier declares fails the build, and it ships a
+negative control pinning `OrdersController.GetAudit` as deliberately ungated. Verify a gate by
+running that test — never by reading a method name off a list.
+
+`BillingFeatureGateCoverageTests` is **not** that guard and cannot be: its `EnforcedBy` map is
+hand-typed free text asserted only by `ContainKey`, a live-keys check, and a member count, so
+deleting the `HasFeatureAsync` call out of `AuditController.GetAuditLog` leaves every one of its
+tests green. It is not dead, though — it pins the ladder table itself (each feature has a minimum
+plan, is off on the tier directly below that minimum, stays on for every tier above, and is off on
+Pilot) and fails the build when an enum member is added with no map entry.
+`BillingFeatureEnforcementTests` is the behavioural half: the named sites really refuse.
+
+Do not add a bullet for a capability nothing enforces.
 
 ---
 
