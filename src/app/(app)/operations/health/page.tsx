@@ -41,7 +41,7 @@ function tone(count: number, key: keyof OpsHealth): { bg: string; fg: string } {
   // Hard-failure states read red; soft/awaiting-review states read amber.
   const red = key === "deliveryDeadLetter" || key === "transformFailed" ||
               key === "deliveryFailed" || key === "rejectedBySupplier" || key === "failed";
-  return red ? { bg: "var(--danger-soft)", fg: "var(--danger)" } : { bg: "var(--amber-soft)", fg: "var(--amber)" };
+  return red ? { bg: "var(--danger-soft)", fg: "var(--danger)" } : { bg: "var(--amber-soft)", fg: "var(--amber-text)" };
 }
 
 function relativeTime(iso: string | null): string {

@@ -1038,7 +1038,9 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
           <span className="flex items-center" style={{ minWidth: 0, fontSize: 12.5, columnGap: 7, overflow: "hidden" }}>
             <span title={buyerLabel(order)} style={{ fontWeight: 600, color: "#1E66C9", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 270 }}>{buyerLabel(order)}</span>
             <span aria-hidden style={{ flexShrink: 0, color: "#CBD0DA" }}>→</span>
-            <span title={order.supplierName} style={{ fontWeight: 600, color: "#2E8E3A", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 270 }}>{order.supplierName}</span>
+            {/* #2E8E3A on the header's #FFFFFF is 4.1613:1 — under the floor for
+                12.5px/600. #1E6D29 is 6.4128:1. The status dots keep #2E8E3A. */}
+            <span title={order.supplierName} style={{ fontWeight: 600, color: "#1E6D29", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 270 }}>{order.supplierName}</span>
             {/* Total slot renders ONLY when a real total is known — never a fake "€ 0.00". */}
             {grandTotalLabel && (
               <>

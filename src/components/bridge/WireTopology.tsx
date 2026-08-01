@@ -109,8 +109,11 @@ function WireTopologyLaneList({ buyers, suppliers, wires, onWireClick }: WireTop
         const sw = strokeFromWeight(wire.weight);
         const isWarn = wire.health === "risk" || wire.health === "down";
         // Shared health thresholds with BridgeDashboard.healthColor (>=90 green, >=80 amber).
+        // Mobile twin of the canvas <tspan> below, and text on the white lane card:
+        // #2E8E3A was 4.1613:1 and #B36D14 4.1061:1. #1E6D29 is 6.4128:1, #8A5310
+        // 6.3150:1. This value is never a stroke — the arc keeps its own colours.
         const supplierColor =
-          supplier.health >= 90 ? "#2E8E3A" : supplier.health >= 80 ? "#B36D14" : "#B43838";
+          supplier.health >= 90 ? "#1E6D29" : supplier.health >= 80 ? "#8A5310" : "#B43838";
         const gradId = `m-wire-${i}`;
 
         return (
@@ -173,7 +176,7 @@ function WireTopologyLaneList({ buyers, suppliers, wires, onWireClick }: WireTop
               {wire.alert && wire.alert > 0 && (
                 <div
                   className="absolute top-[3px] left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-white flex items-center justify-center text-[9px] font-bold"
-                  style={{ border: "1.5px solid #B36D14", color: "#B36D14" }}
+                  style={{ border: "1.5px solid #B36D14", color: "#8A5310" }}
                 >
                   {wire.alert}
                 </div>
@@ -184,7 +187,7 @@ function WireTopologyLaneList({ buyers, suppliers, wires, onWireClick }: WireTop
             <div className="flex-[1_1_38%] min-w-0 text-right">
               <div
                 className="text-[9px] font-bold tracking-[0.08em] font-mono"
-                style={{ color: isWarn ? "#B36D14" : "#1E6D29" }}
+                style={{ color: isWarn ? "#8A5310" : "#1E6D29" }}
               >
                 {supplier.code}
               </div>
@@ -358,7 +361,11 @@ function WireTopologyCanvas({
                   <text
                     textAnchor="middle"
                     y={3}
-                    fill="#B36D14"
+                    // An SVG <text> fill IS a text colour: #B36D14 on the white
+                    // badge is 4.1061:1, under the 4.5:1 floor for this 10px/700
+                    // numeral. #8A5310 is 6.3150:1. The circle's STROKE above is
+                    // non-text and stays --amber (4.1061:1 ≥ 3:1).
+                    fill="#8A5310"
                     fontSize={10}
                     fontWeight={700}
                     fontFamily="Inter, sans-serif"
@@ -422,8 +429,14 @@ function WireTopologyCanvas({
           const isHealthy = s.health >= 80;
           const borderColor = isHealthy ? "#2E8E3A" : "#B36D14";
           const bgColor     = isHealthy ? "#E9F1EA"  : "#FAF1DD";
+          // healthColor is a <tspan> fill (text, 4.5:1); borderColor/bgColor above
+          // are a stroke and a fill (non-text) and keep the 3:1 values. NOTE the
+          // two ladders disagree: isHealthy is >=80, so an 80–89 supplier paints
+          // amber copy on the GREEN pill — #B36D14 there was 3.5655:1, the worst
+          // pair on this screen. #8A5310 on #E9F1EA is 5.4835:1, and #B43838 on
+          // the amber pill #FAF1DD is 5.2452:1.
           const healthColor =
-            s.health >= 90 ? "#1E6D29" : s.health >= 80 ? "#B36D14" : "#B43838";
+            s.health >= 90 ? "#1E6D29" : s.health >= 80 ? "#8A5310" : "#B43838";
           return (
             <g key={s.id} transform={`translate(0, ${y})`}>
               <rect

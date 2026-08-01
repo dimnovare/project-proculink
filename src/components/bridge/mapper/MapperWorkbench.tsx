@@ -859,7 +859,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
             <span style={{ display: "inline-flex", alignItems: "baseline", gap: 6, fontFamily: "var(--font-display, 'Bricolage Grotesque', Inter, sans-serif)", fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.02em", color: "var(--ink)" }}>
               Map this order
               {issuesOpenCount > 0 && (
-                <span style={{ fontSize: 11.5, fontWeight: 700, textTransform: "none", letterSpacing: 0, color: issuesBlockingCount > 0 ? "#B43838" : "#B36D14" }}>
+                <span style={{ fontSize: 11.5, fontWeight: 700, textTransform: "none", letterSpacing: 0, color: issuesBlockingCount > 0 ? "#B43838" : "#8A5310" }}>
                   · {issuesOpenCount} to resolve
                 </span>
               )}
@@ -908,7 +908,8 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
           {summary.requiredUnmapped > 0 && (
             <span
               title="A required output field still has no source — map one or set a fixed value"
-              style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10.5, fontWeight: 700, color: "#9A6B00", background: "#FFF7E6", border: "1px solid #F1E2BE", borderRadius: 5, padding: "2px 8px" }}
+              // Same near-miss as ValidationBadge: #9A6B00 on #FFF7E6 is 4.3999:1, #8A5310 is 5.9237:1.
+              style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10.5, fontWeight: 700, color: "#8A5310", background: "#FFF7E6", border: "1px solid #F1E2BE", borderRadius: 5, padding: "2px 8px" }}
             >
               ⚠ {summary.requiredUnmapped} {summary.requiredUnmapped === 1 ? "field needs" : "fields need"} a source
             </span>
@@ -1088,7 +1089,8 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
       {extractionFailed && (
         <div
           role="status"
-          style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 12, padding: "9px 12px", borderRadius: 8, background: "#FFF7E6", border: "1px solid #F1E2BE", color: "#9A6B00", fontSize: 12, lineHeight: 1.45 }}
+          // A whole paragraph of it: #9A6B00 on #FFF7E6 is 4.3999:1, #8A5310 is 5.9237:1.
+          style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 12, padding: "9px 12px", borderRadius: 8, background: "#FFF7E6", border: "1px solid #F1E2BE", color: "#8A5310", fontSize: 12, lineHeight: 1.45 }}
         >
           <span aria-hidden style={{ fontSize: 13, lineHeight: 1.2 }}>⚠</span>
           <span>
@@ -1152,7 +1154,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
         </div>
         {/* Live preview — fills its column to full height (a connected third pane, not a short box). */}
         {previewCollapsed ? (
-          <CollapsedRail label="Preview" color="#2E8E3A" onExpand={layout?.onExpandPreview} chevron="‹" />
+          <CollapsedRail label="Preview" color="#2E8E3A" textColor="#1E6D29" onExpand={layout?.onExpandPreview} chevron="‹" />
         ) : (
           <div style={{ minWidth: 0, position: "relative" }}>
             {layout?.onCollapsePreview && <PaneCollapseCaret side="right" label="Live preview" onClick={layout.onCollapsePreview} />}
@@ -1280,7 +1282,12 @@ function PreviewColumnSplit({
 
 // ── A thin collapsed-zone rail with a chevron to expand it (Order Workshop, v3) ─
 //    44px strip with a buyer/supplier TONE-GRADIENT spine + rotated label.
-function CollapsedRail({ label, color, onExpand, chevron }: { label: string; color: string; onExpand?: () => void; chevron: string }) {
+// `color` paints the accent stripe, the two hairline borders and the gradient —
+// all non-text, 3:1. `textColor` paints the vertical label + chevron glyph, which
+// are copy at 4.5:1, so the two can't be one value: the supplier rail's #2E8E3A
+// is 4.0264:1 on this #FBFBFD and #1E6D29 is 6.2049:1. Defaults to `color`
+// because the buyer rail's #1E66C9 already clears the floor at 5.3483:1.
+function CollapsedRail({ label, color, textColor, onExpand, chevron }: { label: string; color: string; textColor?: string; onExpand?: () => void; chevron: string }) {
   const grad = `linear-gradient(180deg, ${color}33, ${color} 50%, ${color}33)`;
   return (
     <button
@@ -1293,7 +1300,7 @@ function CollapsedRail({ label, color, onExpand, chevron }: { label: string; col
         width: 46, minHeight: 240, alignSelf: "stretch", position: "relative",
         display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", gap: 12,
         borderRadius: 0, border: `1px solid ${color}33`, background: "#FBFBFD",
-        color, cursor: onExpand ? "pointer" : "default", padding: "12px 0", overflow: "hidden",
+        color: textColor ?? color, cursor: onExpand ? "pointer" : "default", padding: "12px 0", overflow: "hidden",
       }}
     >
       <span aria-hidden style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 3, background: grad }} />
@@ -1416,9 +1423,11 @@ function MappedSummaryChip({ mapped, total }: { mapped: number; total: number })
 // ── Per-row validation badge (catalog/validation only — NOT a transform editor) ──
 function ValidationBadge({ state, blocking, reason }: { state: "valid" | "review"; blocking?: boolean; reason?: string | null }) {
   if (state === "valid") return null; // a clean field needs no badge
+  // #9A6B00 on this badge's #FFF7E6 was 4.3999:1 — a near-miss under the 4.5:1
+  // floor for 9px/700. --amber-text (#8A5310) is 5.9237:1. The border is unchanged.
   const tone = blocking
     ? { bg: "#FBE3E3", color: "#B43838", border: "#F0C8C8", label: "needs review" }
-    : { bg: "#FFF7E6", color: "#9A6B00", border: "#F1E2BE", label: "review" };
+    : { bg: "#FFF7E6", color: "#8A5310", border: "#F1E2BE", label: "review" };
   return (
     <span title={reason ?? undefined} style={{ fontSize: 9, fontWeight: 700, color: tone.color, background: tone.bg, border: `1px solid ${tone.border}`, borderRadius: 4, padding: "1px 6px" }}>
       {tone.label}

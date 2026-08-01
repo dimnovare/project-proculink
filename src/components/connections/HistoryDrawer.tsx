@@ -633,7 +633,7 @@ function SummaryRow({ label, value, unconfigured }: { label: string; value: stri
         <dd className="text-right m-0">
           <span
             className="inline-flex items-center rounded-full text-[11px] font-semibold px-2 h-[20px] whitespace-nowrap"
-            style={{ background: "var(--amber-soft)", color: "var(--amber)" }}
+            style={{ background: "var(--amber-soft)", color: "var(--amber-text)" }}
           >
             {value}
           </span>

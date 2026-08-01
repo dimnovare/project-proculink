@@ -104,9 +104,11 @@ export function deliveryNote(status: string, errorMessage?: string | null): { de
   return { detail: "This order has not been sent yet.", tone: "neutral" };
 }
 
+// These are TEXT colors only (the status label below). #8A5310 on this panel's
+// #FAFBFC = 6.0952:1; --amber (#B36D14) was 3.9633:1. The other tones already pass.
 const TONE_COLOR: Record<string, string> = {
   ok: "var(--brand-green-deep)",
-  warn: "var(--amber)",
+  warn: "var(--amber-text)",
   bad: "var(--danger)",
   neutral: "var(--ink-muted)",
 };

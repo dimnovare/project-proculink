@@ -30,7 +30,7 @@ function StatusBadge({ status }: { status: string }) {
       className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10.5px] font-semibold flex-shrink-0"
       style={{
         background: isReceived ? "var(--brand-green-soft)" : "var(--amber-soft)",
-        color: isReceived ? "var(--brand-green-deep)" : "var(--amber)",
+        color: isReceived ? "var(--brand-green-deep)" : "var(--amber-text)",
       }}
     >
       <span

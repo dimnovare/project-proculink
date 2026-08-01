@@ -18,6 +18,8 @@ import { getOrgSettings } from "@/lib/api/settings";
 import { API_BASE_URL } from "@/lib/api/core";
 import { apiClient, isApiMockMode, getAcceptanceProfile, saveAcceptanceProfile, activateAcceptanceVersion, applyPoMappingTemplate, getSupplierCatalog, importSupplierCatalog, clearSupplierCatalog, getSupplierRuleBindings, listConnections, type SupplierRuleBinding } from "@/lib/api-client";
 import { StandardsRefList, hasStandardsRefs } from "./StandardsRefList";
+import { FileChip } from "./FileChip";
+import { confidenceTier } from "@/lib/ds-tokens";
 import { statusLabel } from "./UnifiedStatusBadge";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
@@ -137,11 +139,12 @@ const SOURCE_PILL: Record<string, { bg: string; fg: string }> = {
 };
 
 // Confidence-chip class selector — maps a percentage to the ported .conf-* classes
-// (.conf-hi green / .conf-mid amber / .conf-lo danger), matching design ConfidenceChip.
+// (.conf-hi green / .conf-mid amber / .conf-lo danger). The thresholds come from
+// confidenceTier() rather than being restated here (WP-30): four places used to
+// carry their own copy and three of them disagreed.
 function confClass(pct: number): string {
-  if (pct >= 90) return "conf-hi";
-  if (pct >= 75) return "conf-mid";
-  return "conf-lo";
+  const tier = confidenceTier(pct);
+  return tier === "ok" ? "conf-hi" : tier === "warn" ? "conf-mid" : "conf-lo";
 }
 
 // ── Operator and severity constants used in AcceptanceTab ─────────────────────
@@ -519,7 +522,7 @@ function AcceptanceTab({ supplierId }: { supplierId: string }) {
                 className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
                 style={{
                   background: profile.status === "active" ? "#E9F1EA" : "#FAF1DD",
-                  color: profile.status === "active" ? GREEN_DEEP : "#B36D14",
+                  color: profile.status === "active" ? GREEN_DEEP : "#8A5310",
                 }}
               >
                 v{profile.versionNo} · {profile.status === "active" ? "live" : profile.status === "draft" ? "draft — not live yet" : profile.status}
@@ -600,7 +603,7 @@ function AcceptanceTab({ supplierId }: { supplierId: string }) {
           <span className="font-semibold">How validation works.</span>{" "}
           Before an order is sent to this supplier, ProcuLink checks it against these rules.{" "}
           <strong style={{ color: DANGER }}>Error</strong> rules block delivery until they’re fixed;{" "}
-          <strong style={{ color: "#B36D14" }}>Warning</strong> rules only flag and never block.{" "}
+          <strong style={{ color: "#8A5310" }}>Warning</strong> rules only flag and never block.{" "}
           Validation never changes the order — it’s a gate.
           <span className="mt-1 block" style={{ color: MUTED }}>
             e.g. <em>Currency must be EUR</em> (error) · <em>Every line needs a supplier code</em> (error).
@@ -1760,14 +1763,13 @@ export function SupplierDockProfile({ id }: { id: string }) {
   );
 }
 
-/* -------- SrcChip — format/source badge (.src-chip + .src-{TYPE}, ported design class) -------- */
+/* -------- SrcChip — thin alias over the one format chip (WP-30) --------
+   This used to be a second local implementation driving the `.src-chip .src-*`
+   CSS classes, which were themselves a third copy of the format palette. Both
+   are gone; FileChip carries the AA-clean colours. EDIFACT still folds onto EDI,
+   which is the only mapping this wrapper ever added.                          */
 function SrcChip({ type }: { type: string }) {
-  // Normalise to the class suffixes defined in globals.css (.src-PDF/.src-XLSX/.src-CSV/
-  // .src-cXML/.src-XML/.src-EDI/.src-EMAIL/.src-API/.src-JSON/.src-UBL). Default = neutral CSV tone.
-  const known = ["PDF", "XLSX", "CSV", "cXML", "XML", "EDI", "EDIFACT", "EMAIL", "API", "JSON", "UBL"];
-  const match = known.find((k) => k.toLowerCase() === type.toLowerCase());
-  const suffix = match === "EDIFACT" ? "EDI" : (match ?? "CSV");
-  return <span className={`src-chip src-${suffix}`}>{type}</span>;
+  return <FileChip type={/^edifact$/i.test(type) ? "EDI" : type} />;
 }
 
 /* -------- MiniStatusPill — compact status badge for the recent-deliveries list -------- */

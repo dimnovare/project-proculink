@@ -65,7 +65,7 @@ function UsageBar({ used, limit, label }: { used: number; limit: number; label: 
 function TrialCountdown({ endsAt }: { endsAt: string }) {
   const days = Math.max(0, Math.ceil((new Date(endsAt).getTime() - Date.now()) / 86_400_000));
   return (
-    <span style={{ fontSize: 11.5, color: days <= 3 ? "var(--amber)" : "var(--ink-muted)" }}>
+    <span style={{ fontSize: 11.5, color: days <= 3 ? "var(--amber-text)" : "var(--ink-muted)" }}>
       Trial: {days} day{days === 1 ? "" : "s"} left
     </span>
   );
@@ -133,7 +133,7 @@ function OverageNotice({ status }: { status: BillingStatus }) {
   if (status.nearLimit) {
     return (
       <div style={warnNoticeStyle}>
-        <strong style={{ color: "var(--amber)" }}>You&apos;re approaching your monthly order limit.</strong>
+        <strong style={{ color: "var(--amber-text)" }}>You&apos;re approaching your monthly order limit.</strong>
         <span>
           You&apos;ve used {status.ordersThisMonth.toLocaleString()} of{" "}
           {status.orderLimit.toLocaleString()} orders. Orders keep processing past the limit and any
@@ -156,7 +156,7 @@ const bannerStyle: React.CSSProperties = {
   gap: 4,
   fontSize: 13,
   lineHeight: 1.5,
-  color: "var(--amber)",
+  color: "var(--amber-text)",
 };
 
 // Gentle amber heads-up (approaching cap) — softer than the blocking bannerStyle.
@@ -197,7 +197,10 @@ function PlanCard({ status, action }: { status: BillingStatus; action?: React.Re
   const displayLabel = isExpired ? "Pilot ended · Processing paused" : meta.label;
   // Expired pilot uses amber tint; an active plan uses the buyer-blue soft tint
   // (sampled var(--brand-blue-soft)) with a buyer-blue price — matches the design render.
-  const accent = isExpired ? "var(--amber)" : "var(--brand-blue)";
+  // --amber-text, not --amber: `accent` is the PRICE text below, and --amber on
+  // --amber-soft is 3.6547:1. It clears the 3:1 large-text floor at 24px/700 by
+  // a hair, but the token is documented as non-text only. 5.6206:1.
+  const accent = isExpired ? "var(--amber-text)" : "var(--brand-blue)";
   const softBg = isExpired ? "var(--amber-soft)" : "var(--brand-blue-soft)";
   const borderCol = isExpired ? "#F0D8A8" : "var(--brand-blue-soft-2)";
 
@@ -362,7 +365,7 @@ export function BillingSection() {
           <button
             onClick={() => checkoutMutation.mutate({ plan: "growth", interval: checkoutInterval })}
             disabled={checkoutMutation.isPending}
-            style={primaryButton("var(--brand-green)", checkoutMutation.isPending)}
+            style={primaryButton("var(--brand-green-btn)", checkoutMutation.isPending)}
           >
             {status.isTrialExpired || status.isOrderLimitReached ? "Upgrade to continue" : "Upgrade to Growth"}
           </button>

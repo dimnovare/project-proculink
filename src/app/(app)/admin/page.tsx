@@ -74,7 +74,7 @@ function shortDate(iso: string | null): string {
 const STATUS_STYLE: Record<string, { bg: string; fg: string; label: string }> = {
   trialing:      { bg: "var(--brand-blue-soft)", fg: "var(--brand-blue-deep)", label: "Trialing" },
   active:        { bg: "var(--brand-green-soft)", fg: "var(--brand-green-deep)", label: "Active" },
-  trial_expired: { bg: "var(--amber-soft)", fg: "var(--amber)", label: "Trial expired" },
+  trial_expired: { bg: "var(--amber-soft)", fg: "var(--amber-text)", label: "Trial expired" },
   past_due:      { bg: "var(--danger-soft)", fg: "var(--danger)", label: "Past due" },
   read_only:     { bg: "var(--surface-2)", fg: "var(--ink-muted)", label: "Read-only" },
   cancelled:     { bg: "var(--danger-soft)", fg: "var(--danger)", label: "Cancelled" },

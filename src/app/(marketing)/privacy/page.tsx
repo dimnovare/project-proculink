@@ -112,7 +112,7 @@ export default function PrivacyPage() {
         different questions. The outbound network path is chosen by our hosting provider and
         is not pinned to a region by us, so we cannot tell you today which country an
         outbound delivery leaves from. The{" "}
-        <Link href="/security" style={{ color: "#1E6D29", textDecoration: "underline" }}>Security</Link>{" "}
+        <Link href="/security" style={{ color: "var(--brand-green-deep)", textDecoration: "underline" }}>Security</Link>{" "}
         page explains this in full.
       </p>
 
@@ -136,7 +136,7 @@ export default function PrivacyPage() {
       </ul>
       <p style={S.p}>
         To exercise any of these rights, email{" "}
-        <a href="mailto:privacy@proculink.eu" style={{ color: "#1E6D29", textDecoration: "underline" }}>privacy@proculink.eu</a>.
+        <a href="mailto:privacy@proculink.eu" style={{ color: "var(--brand-green-deep)", textDecoration: "underline" }}>privacy@proculink.eu</a>.
         We aim to respond within 30 days.
       </p>
 
@@ -149,7 +149,7 @@ export default function PrivacyPage() {
       <h2 style={S.h2}>Subprocessors</h2>
       <p style={S.p}>
         The authoritative list of subprocessors is maintained at{" "}
-        <Link href="/subprocessors" style={{ color: "#1E6D29", textDecoration: "underline" }}>/subprocessors</Link>{" "}
+        <Link href="/subprocessors" style={{ color: "var(--brand-green-deep)", textDecoration: "underline" }}>/subprocessors</Link>{" "}
         with a 30-day change-notification commitment. The current snapshot:
       </p>
       <table style={S.table}>
@@ -174,17 +174,17 @@ export default function PrivacyPage() {
       <h2 style={S.h2}>Contact and DPO</h2>
       <p style={S.p}>
         For privacy questions or to exercise your rights:{" "}
-        <a href="mailto:privacy@proculink.eu" style={{ color: "#1E6D29", textDecoration: "underline" }}>privacy@proculink.eu</a>
+        <a href="mailto:privacy@proculink.eu" style={{ color: "var(--brand-green-deep)", textDecoration: "underline" }}>privacy@proculink.eu</a>
         <br />
-        General support: <a href="mailto:support@proculink.eu" style={{ color: "#1E6D29", textDecoration: "underline" }}>support@proculink.eu</a>
+        General support: <a href="mailto:support@proculink.eu" style={{ color: "var(--brand-green-deep)", textDecoration: "underline" }}>support@proculink.eu</a>
         <br />
         Registered address: {LEGAL_ENTITY.legalName}, {LEGAL_ENTITY.registeredAddress}
       </p>
 
       <p style={{ ...S.p, marginTop: 40, paddingTop: 24, borderTop: "1px solid #E2E6EE" }}>
-        <Link href="/terms" style={{ color: "#1E6D29", marginRight: 16 }}>Terms of Service</Link>
-        <Link href="/security" style={{ color: "#1E6D29", marginRight: 16 }}>Security</Link>
-        <Link href="/support" style={{ color: "#1E6D29" }}>Support</Link>
+        <Link href="/terms" style={{ color: "var(--brand-green-deep)", marginRight: 16 }}>Terms of Service</Link>
+        <Link href="/security" style={{ color: "var(--brand-green-deep)", marginRight: 16 }}>Security</Link>
+        <Link href="/support" style={{ color: "var(--brand-green-deep)" }}>Support</Link>
       </p>
     </div>
   );

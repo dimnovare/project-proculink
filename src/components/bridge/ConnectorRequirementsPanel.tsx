@@ -244,7 +244,10 @@ export function ConnectorRequirementsPanel({
                 target="_blank"
                 rel="noopener noreferrer"
                 className="underline"
-                style={{ color: "#2E8E3A" }}
+                // #1E6D29 not #2E8E3A: this is link TEXT at 11px, and green on
+                // --surface is only 4.1613:1. #1E6D29 on #FFFFFF is 6.4128:1.
+                // The Info icon above keeps #2E8E3A — non-text, 3:1 floor.
+                style={{ color: "#1E6D29" }}
                 aria-label={`${manifest.displayName} documentation (opens in new tab)`}
               >
                 {manifest.displayName} documentation
@@ -396,7 +399,9 @@ function FieldRow({ field }: { field: import("@/lib/api/types").ConnectorConfigF
         {field.type !== "string" && (
           <span
             className="rounded px-1 py-0.5 text-[10px] font-medium"
-            style={{ background: "#F0F7F1", color: "#2E8E3A", border: "1px solid #CBE8CE" }}
+            // #1E6D29 not #2E8E3A: chip TEXT on the #F0F7F1 tint is 3.8204:1 with
+            // green, 5.8875:1 with green-deep. The #CBE8CE border is non-text.
+            style={{ background: "#F0F7F1", color: "#1E6D29", border: "1px solid #CBE8CE" }}
           >
             {field.type}
           </span>

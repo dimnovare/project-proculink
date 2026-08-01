@@ -19,7 +19,9 @@ const C = {
   faint: "#8A93A6",
   border: "#E5E8EE",
   red: "#B3362A",
-  green: "#2E8E3A",
+  // Text-only in this file (the "+" add glyph, 12px/700, on #FFFFFF): --brand-green
+  // is 4.1613:1 there, --brand-green-deep 6.4128:1. Nothing here strokes or fills.
+  green: "#1E6D29",
   mono: "'JetBrains Mono', ui-monospace, monospace",
 };
 

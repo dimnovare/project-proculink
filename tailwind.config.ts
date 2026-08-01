@@ -1,4 +1,10 @@
 import type { Config } from "tailwindcss";
+// ESM import rather than `require()`: the repo's pre-commit hook runs eslint
+// directly over staged .ts files, where @typescript-eslint/no-require-imports
+// applies. `next lint` never sees this file, so the error only surfaced the
+// first time the config was staged. tailwindcss-animate ships index.d.ts, so
+// the default import is typed.
+import tailwindcssAnimate from "tailwindcss-animate";
 
 /**
  * ProcuLink Tailwind config — "The Bridge Layer" v1.0
@@ -12,11 +18,35 @@ import type { Config } from "tailwindcss";
 
 export default {
   darkMode: ["class"],
+  // TEST FILES ARE EXCLUDED, and the exclusion is load-bearing — not tidiness.
+  //
+  // Tailwind's content scanner is a REGEX OVER FILE TEXT. It does not parse, and
+  // it cannot tell a class name from a string a test writes to a temp file. The
+  // design-token guards (scripts/check-tokens.mjs, src/test/token-contrast.test.ts)
+  // both skip `*.test.ts(x)` on purpose — a test that PINS a ban has to be able to
+  // name the value it bans. Tailwind did not skip them, and the two scopes
+  // disagreeing is what shipped the bug:
+  //
+  //   src/test/check-tokens.test.ts wrote the fixture `focus-visible:ring-[#28C55E]`
+  //   → Tailwind read it as a class candidate
+  //   → production CSS shipped `.focus-visible\:ring-\[\#28C55E\]{--tw-ring-color:rgb(40 197 94/…)}`
+  //
+  // The retired emerald was put back into the build BY THE TEST WRITTEN TO PROVE IT
+  // WAS GONE. Measured: adding these two lines removes exactly ONE emitted rule
+  // (1088 → 1087) — the emerald ring, and nothing else.
+  //
+  // GENERAL FORM, worth more than the fix: when two tools scan the same file set
+  // with DIFFERENT exclusion rules, an exclusion in one is not an exclusion in the
+  // other. Verifying with the guard could never have caught this, because the guard
+  // is not the scanner that emits. `scripts/check-emitted-css.mjs` closes that by
+  // reading what Tailwind actually EMITS, and CI runs it.
   content: [
     "./pages/**/*.{ts,tsx}",
     "./components/**/*.{ts,tsx}",
     "./app/**/*.{ts,tsx}",
     "./src/**/*.{ts,tsx}",
+    "!./src/**/*.test.{ts,tsx}",
+    "!./src/test/**",
   ],
   prefix: "",
   theme: {
@@ -35,22 +65,50 @@ export default {
           "blue-soft":  "#EAF0F8",
           "blue-soft-2":"#DCE8F7",
           green:        "#2E8E3A",   // supplier / outgoing / completion
-          // Button-fill green: #2E8E3A is 4.16:1 with white (fails AA small
+          // Button-fill green: #2E8E3A is 4.1613:1 with white (fails AA small
           // text). Use green-btn for solid fills under white text; keep
           // `green` for text/icons/dots/borders on light surfaces.
-          "green-btn":  "#297F34",   // ≈4.6:1 with white — AA — founder-approved
+          // Recomputed 2026-07-31: this is 5.0244:1 with white, not the ≈4.6:1
+          // the call-site comments claim. The old figure understated it, so
+          // nothing shipped wrong — but it is now mirrored as
+          // --brand-green-btn in globals.css and the number is the measured one.
+          "green-btn":  "#297F34",   // 5.0244:1 with white — AA — founder-approved
           "green-deep": "#1E6D29",
           "green-soft": "#E9F1EA",
           "green-soft-2":"#D8EBDA",
+          // Accent steps legible on navy chrome (--brand-blue is 2.0:1 there).
+          "blue-bright": "#6BA5F0",   // 6.87:1 on navy
+          "green-bright":"#5FC06B",   // 7.68:1 on navy
+          "green-pale":  "#BFE7C5",   // 13.83:1 on --navy-code
         },
 
-        // Navy chrome (sidebar + topbar)
+        // Navy chrome (sidebar + topbar) + the marketing dark-section scale.
+        // Mirrors globals.css :root exactly — see docs/design-system/
+        // 11-unified-page-rules.md and scripts/check-tokens.mjs.
         navy: {
           DEFAULT: "#0B1A2F",
           surface: "#14253D",
           border:  "#1F3252",
           text:    "#C8D1E0",
           muted:   "#7C8DA6",
+          faint:   "#9DB2CE",   // faint text on navy — 8.06:1
+          line:    "#1B2D49",
+          glow:    "#0E2545",
+          deep:    "#0C1D34",
+          deeper:  "#0A1729",
+          well:    "#0A1626",
+          inset:   "#081424",
+          code:    "#071221",
+          raised:  "#0F233C",
+          pale:    "#AFC6EA",   // 10.05:1 on navy
+          "pale-line": "#CBDDF6",
+        },
+
+        // Product-mock traffic lights, shared by both marketing pages.
+        dot: {
+          red:   "#E05A52",
+          amber: "#E0B13A",
+          green: "#3FA84C",
         },
 
         // Work-area surfaces — nested so `bg-surface-2` works
@@ -82,6 +140,13 @@ export default {
         amber: {
           DEFAULT: "#B36D14",
           soft:    "#FAF1DD",
+          // Mirror --amber-text from globals.css. It has existed there since the
+          // last a11y pass, but was never added here — so `text-amber-text`
+          // silently produced nothing while `var(--amber-text)` worked. #B36D14
+          // on --amber-soft is 3.65:1 (fails AA text); #8A5310 is 5.62:1.
+          text:    "#8A5310",
+          // Amber for NAVY chrome — #8A5310 is only 2.93:1 on --navy-inset.
+          bright:  "#E0B13A",   // 9.26:1 on --navy-inset
         },
         danger: {
           DEFAULT: "#B43838",
@@ -286,5 +351,5 @@ export default {
       },
     },
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [tailwindcssAnimate],
 } satisfies Config;

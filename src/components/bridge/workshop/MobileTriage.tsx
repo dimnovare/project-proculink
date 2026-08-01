@@ -40,7 +40,9 @@ const GREEN_BTN = "#297F34"; // solid fill under white text — ≈4.6:1 AA (2E8
 const GREEN_DEEP = "#1E6D29";
 const GREEN_WASH = "#E9F1EA";
 const GREEN_BORDER = "#BFE0C2";
-const AMBER = "#B36D14";
+const AMBER = "#B36D14";     // card edge / severity glyph only (non-text, 3:1 floor)
+// Amber as TEXT: #8A5310 on #FAF1DD = 5.6206:1. NOT AMBER, which is 3.6547:1 here.
+const AMBER_TEXT = "#8A5310";
 const AMBER_WASH = "#FAF1DD";
 const AMBER_BORDER = "#F1E2BE";
 const DANGER = "#B43838";
@@ -321,7 +323,8 @@ export function MobileTriage(props: MobileTriageProps) {
               <h2 style={{ fontSize: 13, fontWeight: 700, color: NAVY, margin: 0, textTransform: "uppercase", letterSpacing: "0.05em" }}>
                 Fix these to send
               </h2>
-              <span role="status" aria-live="polite" style={{ fontSize: 12, color: INK_FAINT }}>
+              {/* #5E6779 on the #F6F7FA work area = 5.3095:1. NOT INK_FAINT, which is 2.8952:1 here. */}
+              <span role="status" aria-live="polite" style={{ fontSize: 12, color: INK }}>
                 {issues.length} {issues.length === 1 ? "issue" : "issues"}
                 {blockingIssues > 0 ? ` · ${blockingIssues} blocking` : ""}
               </span>
@@ -523,9 +526,12 @@ function IssueCard({
   line?: OrderLine;
 }) {
   const blocking = issue.severity === "blocking";
+  // `edge` = the card edge + severity glyph (non-text, 3:1 floor); `text` = the tag
+  // label. Named `edge`, not `color`, so the field says which floor it answers to.
+  // #B43838 on #FBE3E3 = 4.8264:1 already passes, so blocking keeps one value.
   const tone = blocking
-    ? { wash: DANGER_WASH, border: DANGER_BORDER, color: DANGER, label: "Blocking" }
-    : { wash: AMBER_WASH, border: AMBER_BORDER, color: AMBER, label: "Warning" };
+    ? { wash: DANGER_WASH, border: DANGER_BORDER, edge: DANGER, text: DANGER, label: "Blocking" }
+    : { wash: AMBER_WASH, border: AMBER_BORDER, edge: AMBER, text: AMBER_TEXT, label: "Warning" };
 
   const lineId = issue.lineId;
   const canResolveLine = resolve != null && lineId != null && line != null;
@@ -540,7 +546,7 @@ function IssueCard({
         borderRadius: 10,
         background: "#FFFFFF",
         border: `1px solid ${HAIRLINE}`,
-        borderLeft: `3px solid ${tone.color}`,
+        borderLeft: `3px solid ${tone.edge}`,
         overflow: "hidden",
       }}
     >
@@ -556,11 +562,12 @@ function IssueCard({
             padding: "3px 8px",
             borderRadius: 5,
             background: tone.wash,
-            color: tone.color,
+            // #8A5310 on #FAF1DD = 5.6206:1. NOT #B36D14, which is 3.6547:1 here.
+            color: tone.text,
             border: `1px solid ${tone.border}`,
           }}
         >
-          <SeverityIcon blocking={blocking} color={tone.color} />
+          <SeverityIcon blocking={blocking} color={tone.edge} />
           {tone.label}
         </span>
 
@@ -652,7 +659,8 @@ function MobileIssueControls({
           minHeight: 44,
           padding: "0 6px",
           fontSize: 12.5,
-          color: INK_FAINT,
+          // #5E6779 on the card's #FFFFFF = 5.6878:1. NOT INK_FAINT, which is 3.1015:1 here.
+          color: INK,
           background: "transparent",
           border: "none",
           cursor: "pointer",

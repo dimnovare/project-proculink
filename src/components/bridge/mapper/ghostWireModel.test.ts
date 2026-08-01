@@ -25,7 +25,8 @@ describe("ghostTierColor", () => {
   it("maps each tier to a locked token color", () => {
     expect(ghostTierColor("ok")).toBe("#2E8E3A");
     expect(ghostTierColor("warn")).toBe("#B36D14");
-    expect(ghostTierColor("danger")).toBe("#C0392B");
+    // --danger, not the orphan #C0392B that existed in no token file.
+    expect(ghostTierColor("danger")).toBe("#B43838");
   });
 });
 

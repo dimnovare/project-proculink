@@ -421,7 +421,7 @@ function ExpressionTester({ onTest }: {
         </button>
       </div>
       {result && (result.error != null ? (
-        <div role="alert" style={{ fontSize: 11.5, color: "#B36D14", background: "#FBF3E4", border: "1px solid #F0DCAE", borderRadius: 6, padding: "7px 9px", whiteSpace: "pre-wrap" }}>
+        <div role="alert" style={{ fontSize: 11.5, color: "#8A5310", background: "#FBF3E4", border: "1px solid #F0DCAE", borderRadius: 6, padding: "7px 9px", whiteSpace: "pre-wrap" }}>
           {result.error}
         </div>
       ) : result.value === "" ? (
@@ -896,8 +896,8 @@ export function OutputMappingEditor({
                 This connection delivers <strong>{preview.format.toUpperCase()}</strong> — the output format is set by the published revision, so the preview shows {preview.format.toUpperCase()} regardless of the toggle.
               </div>
             )}
-            {preview?.warning && <div style={{ fontSize: 11.5, color: "#B36D14", marginBottom: 6 }}>⚠ {preview.warning}</div>}
-            {preview?.error && <div role="alert" style={{ fontSize: 11.5, color: "#B36D14", background: "#FBF3E4", border: "1px solid #F0DCAE", borderRadius: 6, padding: "7px 9px", marginBottom: 6, whiteSpace: "pre-wrap" }}>{preview.error}</div>}
+            {preview?.warning && <div style={{ fontSize: 11.5, color: "#8A5310", marginBottom: 6 }}>⚠ {preview.warning}</div>}
+            {preview?.error && <div role="alert" style={{ fontSize: 11.5, color: "#8A5310", background: "#FBF3E4", border: "1px solid #F0DCAE", borderRadius: 6, padding: "7px 9px", marginBottom: 6, whiteSpace: "pre-wrap" }}>{preview.error}</div>}
             <pre style={{ margin: 0, background: "#0B1A2F", color: "#C8D1E0", borderRadius: 8, padding: 12, fontSize: 11.5, fontFamily: "'JetBrains Mono',monospace", overflowX: "auto", maxHeight: 240, whiteSpace: "pre-wrap" }}>
 {preview?.content ?? (blankTemplate ? "(write a template to preview)" : previewing ? "…" : "(no preview)")}
             </pre>

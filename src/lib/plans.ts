@@ -128,7 +128,9 @@ export const PLANS: Plan[] = [
       "Supplier-ready export",
     ],
     cta: { label: "Start Pilot", href: SIGN_UP },
-    color: "#C97A14",
+    // #8A5310, not the stale #C97A14 (which is not a token in globals.css and
+    // measured 3.1094:1 as label text on its own tint). 5.7164:1.
+    color: "#8A5310",
     highlight: false,
     isCheckout: false,
     isCustom: false,
@@ -163,7 +165,10 @@ export const PLANS: Plan[] = [
       "Audit log",
     ],
     cta: { label: "Upgrade to Growth", href: SIGN_UP },
-    color: "#28C55E",
+    // #1E6D29, not the retired emerald. `color` is rendered as BUTTON LABEL text
+    // over a 7%-alpha tint of itself (BillingSection.secondaryButton), where the
+    // emerald measured 2.1443:1 against a 4.5:1 floor at 12px/700.
+    color: "#1E6D29",
     highlight: true,
     isCheckout: true,
     isCustom: false,
@@ -193,7 +198,9 @@ export const PLANS: Plan[] = [
       "Advanced audit trail + priority support",
     ],
     cta: { label: "Upgrade to Operations", href: SIGN_UP },
-    color: "#2E8E3A",
+    // #1E6D29, not --brand-green: this renders as BUTTON LABEL text over a
+    // 7%-alpha tint of itself, where #2E8E3A measured 3.8204:1. 5.7988:1.
+    color: "#1E6D29",
     highlight: false,
     isCheckout: true,
     isCustom: false,

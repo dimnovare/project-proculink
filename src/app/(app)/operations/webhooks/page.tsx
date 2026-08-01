@@ -205,7 +205,8 @@ function CardHead({ title, sub, icon }: { title: string; sub?: string; icon: "we
 // Canonical design uses the ported .pill classes: .pill-ready (green-soft bg
 // #E2F1E2 / green-deep ink #1E6D29 / brand-green dot #2E8E3A) for "Healthy",
 // .pill-failed (danger-soft / danger) for "Failing". Verified by pixel-sampling
-// the design render — no bespoke literals, and definitely not the old #28C55E dot.
+// the design render — no bespoke literals, and definitely not the retired
+// emerald dot (now banned repo-wide; see src/test/token-contrast.test.ts).
 // "Paused" (operator-disabled) uses the neutral .pill-new (surface-2 / ink-muted /
 // ink-faint dot) — same neutral idiom the connectors screen uses for off states.
 
@@ -741,7 +742,7 @@ function WebhookPanel({
             onClick={() => onSave(url, eventType, secret.trim() || undefined)}
             disabled={saving || !url.trim()}
             onMouseEnter={(e) => { if (!saving && url.trim()) (e.currentTarget as HTMLElement).style.background = "var(--brand-green-deep)"; }}
-            onMouseLeave={(e) => { if (!saving && url.trim()) (e.currentTarget as HTMLElement).style.background = "var(--brand-green)"; }}
+            onMouseLeave={(e) => { if (!saving && url.trim()) (e.currentTarget as HTMLElement).style.background = "var(--brand-green-btn)"; }}
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -750,7 +751,7 @@ function WebhookPanel({
               padding: "0 14px",
               borderRadius: "var(--radius,6px)",
               border: "1px solid transparent",
-              background: saving || !url.trim() ? "var(--ink-faint,#5B6980)" : "var(--brand-green)",
+              background: saving || !url.trim() ? "var(--ink-faint,#5B6980)" : "var(--brand-green-btn)",
               color: "var(--surface,#FFFFFF)",
               fontSize: 12.5,
               fontWeight: 600,
@@ -840,7 +841,7 @@ function WebhooksLayout({
             <button
               onClick={onAdd}
               onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--brand-green-deep)"; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--brand-green)"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--brand-green-btn)"; }}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -849,7 +850,7 @@ function WebhooksLayout({
                 padding: "0 14px",
                 borderRadius: "var(--radius,6px)",
                 border: "1px solid transparent",
-                background: "var(--brand-green)",
+                background: "var(--brand-green-btn)",
                 color: "var(--surface,#FFFFFF)",
                 fontSize: 12.5,
                 fontWeight: 600,

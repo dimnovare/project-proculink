@@ -211,7 +211,7 @@ export function ReplayPanel({
                   border: "1px solid var(--amber)",
                   borderLeft: "3px solid var(--amber)",
                   background: "var(--amber-soft)",
-                  color: "var(--amber)",
+                  color: "var(--amber-text)",
                 }
           }
         >
@@ -324,7 +324,7 @@ function ReplaySummaryHeader({
         {summary.startFailing > 0 ? ` (${summary.startFailing} would start failing)` : ""}
       </p>
       {summary.errors > 0 && (
-        <p className="mt-1 text-[12px] m-0" style={{ color: "var(--amber)" }}>
+        <p className="mt-1 text-[12px] m-0" style={{ color: "var(--amber-text)" }}>
           {summary.errors} order{summary.errors === 1 ? "" : "s"} could not produce output under this revision — see the
           warnings below.
         </p>
@@ -397,7 +397,7 @@ function OrderDiffRow({ order }: { order: ReplayOrderDiff }) {
               <SectionLabel>Output</SectionLabel>
               <div
                 className="rounded-[6px] px-3 py-2.5 text-[12px] leading-[1.5]"
-                style={{ border: "1px solid var(--amber)", background: "var(--amber-soft)", color: "var(--amber)" }}
+                style={{ border: "1px solid var(--amber)", background: "var(--amber-soft)", color: "var(--amber-text)" }}
               >
                 This version could not produce output for this order: {order.outputError}
               </div>
@@ -621,7 +621,7 @@ type ChipTone = "danger" | "amber" | "info" | "neutral";
 function Chip({ tone, children }: { tone: ChipTone; children: React.ReactNode }) {
   const style: Record<ChipTone, { bg: string; fg: string }> = {
     danger: { bg: "var(--danger-soft)", fg: "var(--danger)" },
-    amber: { bg: "var(--amber-soft)", fg: "var(--amber)" },
+    amber: { bg: "var(--amber-soft)", fg: "var(--amber-text)" },
     info: { bg: "var(--brand-blue-soft)", fg: "var(--brand-blue-deep)" },
     neutral: { bg: "var(--surface-2)", fg: "var(--ink-muted)" },
   };

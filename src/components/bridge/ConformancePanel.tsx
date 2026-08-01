@@ -30,7 +30,7 @@ const FORMATS: Array<{ id: ConformanceFormat; label: string }> = [
 // Severity → swatch. Error reads alert-red; Warning amber; Info blue-grey.
 const SEV_STYLE: Record<string, { bg: string; fg: string }> = {
   Error: { bg: "var(--danger-soft)", fg: "var(--danger)" },
-  Warning: { bg: "var(--amber-soft)", fg: "var(--amber)" },
+  Warning: { bg: "var(--amber-soft)", fg: "var(--amber-text)" },
   Info: { bg: "var(--brand-blue-soft)", fg: "var(--brand-blue-deep)" },
 };
 

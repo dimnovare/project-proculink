@@ -42,8 +42,13 @@ function slugify(node: ReactNode): string {
     .replace(/(^-|-$)/g, "");
 }
 
+// The hover DEEPENS to --brand-blue-deep instead of stepping out to #2E8E3A, which
+// was 4.1613:1 on the article's #FFFFFF (3.7890:1 inside a #DCFCE7 blockquote) — a
+// link that passed AA until you pointed at it. #0F4FA8 is 7.7659:1 on #FFFFFF,
+// 7.0711:1 on #DCFCE7 and 7.2494:1 on the #F6F7FA table header, and it is already
+// the help centre's hover colour (HelpArticleShell breadcrumb + prev/next cards).
 const linkClass =
-  "font-medium underline underline-offset-2 transition-colors text-[#1E6D29] hover:text-[#2E8E3A] rounded-[2px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#28C55E] focus-visible:ring-offset-2";
+  "font-medium underline underline-offset-2 transition-colors text-[#1E6D29] hover:text-[#0F4FA8] rounded-[2px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-green-deep focus-visible:ring-offset-2";
 
 function MdxLink({
   href = "",
@@ -154,7 +159,7 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
 
     ul: ({ children }) => (
       <ul
-        className="marker:text-[#28C55E]"
+        className="marker:text-brand-green-deep"
         style={{
           margin: "14px 0",
           paddingLeft: 22,
@@ -170,7 +175,7 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
 
     ol: ({ children }) => (
       <ol
-        className="marker:text-[#28C55E] marker:font-semibold"
+        className="marker:text-brand-green-deep marker:font-semibold"
         style={{
           margin: "14px 0",
           paddingLeft: 22,
@@ -233,7 +238,9 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
           margin: "18px 0",
           padding: "12px 16px",
           background: "#DCFCE7",
-          borderLeft: "3px solid #28C55E",
+          // #1E6D29, not the retired emerald: that was 2.0698:1 on this fill,
+          // under WCAG 1.4.11's 3:1 non-text floor for a meaningful edge. 5.8391:1.
+          borderLeft: "3px solid #1E6D29",
           borderRadius: "0 8px 8px 0",
           color: "#2E3B52",
           fontSize: 14,

@@ -1213,7 +1213,7 @@ export function BridgeDashboard() {
               style={{ border: "1px solid #F0D39A", borderLeft: "3px solid #B36D14", background: "#FFF8EA" }}
             >
               <span className="flex min-w-0 items-center gap-2 text-[13px] font-semibold" style={{ color: "#7A4D0B" }}>
-                <AlertTriangle size={15} strokeWidth={2.25} style={{ color: "#B36D14", flexShrink: 0 }} aria-hidden />
+                <AlertTriangle size={15} strokeWidth={2.25} style={{ color: "#8A5310", flexShrink: 0 }} aria-hidden />
                 {openExceptionsAll} order{openExceptionsAll === 1 ? "" : "s"} need{openExceptionsAll === 1 ? "s" : ""} your attention
               </span>
               <span className="whitespace-nowrap text-[12.5px] font-semibold" style={{ color: "#9A5F0A" }}>
@@ -1301,7 +1301,7 @@ export function BridgeDashboard() {
                     <Link
                       href="/operations/exceptions"
                       className="ml-auto inline-flex items-center gap-1 rounded-[5px] px-2 py-0.5 text-[11.5px] font-semibold no-underline transition-opacity hover:opacity-80"
-                      style={{ background: "#FAF1DD", color: "#B36D14" }}
+                      style={{ background: "#FAF1DD", color: "#8A5310" }}
                       title="Review issues"
                     >
                       ⚠ {openExceptionsAll} open exception{openExceptionsAll === 1 ? "" : "s"}

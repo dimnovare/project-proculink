@@ -38,7 +38,7 @@ import { RefreshCw, AlertTriangle, CheckCircle2, ArrowLeft, ArrowRight } from "l
 // match (darker than --danger/#C53A3A / --danger-soft/#FBE3E3); kept as-is.
 const SEVERITY_STYLE: Record<string, { bg: string; fg: string; label: string }> = {
   info:     { bg: "var(--brand-blue-soft)", fg: "var(--brand-blue-deep)", label: "Info" },
-  warning:  { bg: "var(--amber-soft)",      fg: "var(--amber)",           label: "Warning" },
+  warning:  { bg: "var(--amber-soft)",      fg: "var(--amber-text)",           label: "Warning" },
   error:    { bg: "var(--danger-soft)",     fg: "var(--danger)",          label: "Error" },
   critical: { bg: "#F4D5D5",               fg: "#8E1F1F",                label: "Critical" },
 };

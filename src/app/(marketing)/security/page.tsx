@@ -16,7 +16,8 @@ export const metadata = pageMetadata({
 //   • supplier / trust accents use brand-green        (#2E8E3A family)
 //   • the primary CTA ("Request security docs") is buyer-blue (#1E66C9)
 // These match the --brand-* CSS variables already in globals.css — do NOT
-// reintroduce the old bright #28C55E.
+// reintroduce the retired bright emerald (banned repo-wide; see
+// src/test/token-contrast.test.ts).
 const NAVY = "#0B1A2F";
 const INK = "#0B1A2F";
 const MUTE = "#56627A";

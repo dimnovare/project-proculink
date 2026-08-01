@@ -372,7 +372,8 @@ export const CATEGORY_META: Record<
 > = {
   // Text colors are the DEEP member of each hue family so the 12px semibold
   // eyebrow text passes WCAG AA (4.5:1) on its pastel `soft` background — the
-  // bright/mid variants (#28C55E, #2E8E3A, #C97A14, #C53A3A) measured 1.9–3.9:1
+  // bright/mid variants (the retired emerald, #2E8E3A, #C97A14, #C53A3A)
+  // measured 1.9–3.9:1
   // there (Lighthouse color-contrast). Fills/illustrations keep the brand mids.
   "Getting started": { color: "#1E6D29", soft: "#DCFCE7", icon: "upload" },
   Connections:       { color: "#0F4FA8", soft: "#E3EDFB", icon: "connections" },

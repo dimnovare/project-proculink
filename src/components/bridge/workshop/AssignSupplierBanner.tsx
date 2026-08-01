@@ -8,7 +8,7 @@ import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 import type { Order, SupplierSuggestion } from "@/types/procurement";
 import { SupplierPicker } from "../SupplierPicker";
-import { confidenceTone } from "../mapper/ConfidenceChip";
+import { confidenceTone } from "../ConfidenceChip";
 
 /* =====================================================================
    AssignSupplierBanner — the resolver for an order parked `unrouted`.

@@ -355,7 +355,11 @@ function NotificationsBell() {
           {unread > 0 && (
             <span
               className="absolute flex items-center justify-center"
-              style={{ top: 4, right: 4, minWidth: 15, height: 15, padding: "0 3.5px", borderRadius: 8, background: "#B36D14", color: "#FFFFFF", fontSize: 9.5, fontWeight: 700, border: "1.5px solid #0B1A2F", lineHeight: 1 }}
+              // #8A5310 not --amber: this badge carries a NUMERAL, so it is text
+              // at 9.5px/700. White on --amber is 4.1061:1; on #8A5310 it is
+              // 6.3150:1. --amber stays correct for the dot forms below, which
+              // are non-text and only need 3:1.
+              style={{ top: 4, right: 4, minWidth: 15, height: 15, padding: "0 3.5px", borderRadius: 8, background: "#8A5310", color: "#FFFFFF", fontSize: 9.5, fontWeight: 700, border: "1.5px solid #0B1A2F", lineHeight: 1 }}
             >
               {unread > 9 ? "9+" : unread}
             </span>
@@ -370,7 +374,7 @@ function NotificationsBell() {
         >
           <div className="flex items-center justify-between" style={{ padding: "10px 12px", borderBottom: "1px solid #E5E8EE" }}>
             <span style={{ fontSize: 12.5, fontWeight: 700, color: "#0B1A2F" }}>Notifications</span>
-            {unread > 0 && <span style={{ fontSize: 10.5, fontWeight: 600, color: "#B36D14" }}>{unread} need action</span>}
+            {unread > 0 && <span style={{ fontSize: 10.5, fontWeight: 600, color: "#8A5310" }}>{unread} need action</span>}
           </div>
           <div className="max-h-[60vh] sm:max-h-[360px]" style={{ overflowY: "auto" }}>
             {top.length === 0 ? (

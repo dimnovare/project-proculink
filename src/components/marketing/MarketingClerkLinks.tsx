@@ -33,7 +33,10 @@ export function MarketingClerkLinks({
   if (!signedIn) return null;
   return (
     <div className="flex shrink-0 items-center gap-3">
-      <Link href="/bridge" className="text-[13px] font-semibold" style={{ color: "#2E8E3A" }}>
+      {/* #5FC06B (--brand-green-bright) not #2E8E3A: this 13px link sits on the
+          NAVY nav bar (#0B1A2F), where green is 4.1948:1. green-deep would go
+          the wrong way on a dark ground (2.7220:1); green-bright is 7.6795:1. */}
+      <Link href="/bridge" className="text-[13px] font-semibold" style={{ color: "#5FC06B" }}>
         <span className="hidden sm:inline">Open the dashboard →</span>
         <span className="sm:hidden">Dashboard</span>
       </Link>
