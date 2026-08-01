@@ -19,6 +19,7 @@ import { PROBLEM_COPY, problemFor, type ProblemCtx, type ProblemStatus } from "@
 import { orderGlyphColor } from "@/components/bridge/CommandPalette";
 import { neededForOrder } from "@/components/bridge/BridgeDashboard";
 import { notifKindFor } from "@/components/bridge/BridgeTopbar";
+import { rowNextStep } from "@/components/bridge/InboxView";
 import { STATUS_LABELS } from "@/components/bridge/UnifiedStatusBadge";
 import { ROOT, isInternalPageLink, listAppRoutes, matchesAny, normalizePath } from "./appRoutes";
 import { stripComments, syntaxFor } from "./sourceScan";
@@ -303,6 +304,31 @@ describe("the other screens do not paint a stopped order as a healthy one", () =
     // an operator to "try sending again" while the order screen said the retry was
     // already running and they need not act.
     expect(line.toLowerCase()).toContain(PROBLEM_COPY[status as ProblemStatus].rowAction.toLowerCase());
+  });
+
+  test.each(PROBLEM_BUCKET_STATUSES)("%s: the inbox row names the next step, not a count", (status) => {
+    // `rowAction` is documented as "the inbox row's second line", its 22-character
+    // budget is pinned by a test that names this screen, the order screen renders
+    // it and the dashboard reads it — and the inbox, the surface it is named
+    // after, printed "12 lines" for every state until now.
+    const next = rowNextStep(status);
+    expect(next, `${status} rows print a line count where the next step belongs`).not.toBeNull();
+    // Repeated from the registry, never re-phrased here — which is what stops the
+    // row, the panel and the dashboard describing one stopped order three ways.
+    expect(next!.text).toBe(PROBLEM_COPY[status as ProblemStatus].rowAction);
+    // `--amber`, not `--amber-text`, is 3.65:1 on this background and fails AA at
+    // 11px. The distinction is invisible in review and measurable here.
+    expect(next!.color).toBe(
+      statusFact(status)?.bucket === "failure" ? "var(--danger)" : "var(--amber-text)",
+    );
+  });
+
+  test("a healthy row keeps its count line", () => {
+    // Not inverted: on a moving order the line count IS the useful fact, and there
+    // is no action to name. A next-step line on every row is noise, not help.
+    for (const status of ["parsing", "pending_review", "ready", "delivered"]) {
+      expect(rowNextStep(status), `${status} rows lost their count line`).toBeNull();
+    }
   });
 
   test.each(PROBLEM_BUCKET_STATUSES)("%s: the notification bell classifies it", (status) => {

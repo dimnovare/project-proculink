@@ -62,6 +62,10 @@ import {
   inboxSortingFor,
   resolveInboxStatusParam,
 } from "./inboxUrlFilter";
+// The two registries the row's second line is derived from — words from the first,
+// colour from the second. Neither is re-stated in this file; see rowNextStep.
+import { problemFor } from "./problem/problemCopy";
+import { statusFact } from "@/lib/orderStatusManifest";
 import { useConfirm } from "@/components/ui/confirm";
 
 // Per-column metadata. `numeric` right-aligns value cells; `label` is the
@@ -165,6 +169,55 @@ export function journeyStage(status: CrossingStatus, rawStatus: string): OrderSt
 // CrossingStatus, so `transforming` printed "Extracting" there while the desktop badge
 // printed "Preparing output" for the same order. Both viewports now render
 // UnifiedStatusBadge on the raw status — one component, one vocabulary.)
+
+// ─── The row's next step ────────────────────────────────────────────────────────
+
+/**
+ * The one line a STOPPED row owes the operator, and the colour it is owed in.
+ *
+ * Both viewports used to print a count here — "12 lines", the same eleven pixels of
+ * type whether the order was mid-parse or had been dead-lettered three days ago.
+ * `ProblemCopy.rowAction` has existed for exactly this slot since the problem registry
+ * was written ("≤22 chars. The inbox row's second line — the one line that says what to
+ * do"), its character budget is pinned by a test that names THIS screen, the order
+ * screen renders it and the dashboard's "Needs you" line reads it — and the inbox, the
+ * surface the field is named after, never imported the module. So the queue an operator
+ * actually lives in was the one place that named a count instead of a next step.
+ *
+ * TWO REGISTRIES, NOTHING WRITTEN HERE:
+ *   words  ← problemFor(rawStatus).rowAction — never re-phrased locally. A state that
+ *            needs different words is an edit to problemCopy.ts, so that this line, the
+ *            order screen's panel and the dashboard cannot come to describe the same
+ *            stopped order in three vocabularies again.
+ *   colour ← statusFact(rawStatus).bucket — `failure` reads danger, `parked` reads
+ *            amber. Taken from the manifest rather than a status list typed here,
+ *            because a hand-list is what that file's own header calls prose: a sixth
+ *            backend failure status would join the bucket and this line would go on
+ *            painting it as a park with nothing failing.
+ *
+ * RAW status, never the collapsed CrossingStatus. The red "Failed" pill folds five
+ * backend statuses whose next steps are five DIFFERENT sentences — "Upload it again"
+ * against "See their reply" against "Retrying automatically", the last of which asks
+ * the operator to do nothing at all. Collapsing them is what the pill is for;
+ * un-collapsing them is the whole reason `rowAction` exists.
+ *
+ * --amber-text (#8A5310), NEVER --amber (#C97A14): at 11–12.5px this is body text, and
+ * --amber is 3.65:1 on the row's near-white background — under the 4.5:1 floor.
+ *
+ * Null for a healthy row, which keeps its shipped count line exactly as it was: on a
+ * moving order the line count IS the useful fact, and there is no action to name.
+ */
+export function rowNextStep(rawStatus: string): { text: string; color: string } | null {
+  const problem = problemFor(rawStatus);
+  if (!problem) return null;
+  // The manifest decides. Its bucket and the registry's own `tone` agree across all
+  // eight states today; the fallback covers the drift where one of the two learns a
+  // status before the other, so an unknown bucket still reads as the tone the copy
+  // was written in rather than silently defaulting to a colour.
+  const bucket = statusFact(rawStatus)?.bucket ?? null;
+  const danger = bucket === null ? problem.tone === "danger" : bucket === "failure";
+  return { text: problem.rowAction, color: danger ? "var(--danger)" : "var(--amber-text)" };
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -591,9 +644,25 @@ function buildColumns(labels: PartyLabels, rowSend: RowSendContext) {
           >
             {info.getValue()}
           </span>
-          <div className="text-[11px]" style={{ color: "#5E6779" }}>
-            {info.row.original.lines} lines{info.row.original.issues > 0 ? ` · ${info.row.original.issues} to review` : ""}
-          </div>
+          {/* The second line answers one question, and which question depends on
+              whether the order is moving. Stopped → what to do about it (rowNextStep,
+              off the RAW status, so the five rows behind the one red pill each get
+              their own sentence). Moving → the shipped count, untouched. */}
+          {(() => {
+            const next = rowNextStep(info.row.original.rawStatus);
+            if (next) {
+              return (
+                <div className="text-[11px]" style={{ color: next.color, fontWeight: 600 }}>
+                  {next.text}
+                </div>
+              );
+            }
+            return (
+              <div className="text-[11px]" style={{ color: "#5E6779" }}>
+                {info.row.original.lines} lines{info.row.original.issues > 0 ? ` · ${info.row.original.issues} to review` : ""}
+              </div>
+            );
+          })()}
         </div>
       </div>
     ),
@@ -1783,8 +1852,18 @@ export function InboxView() {
                       {row.original.po}
                     </p>
                   </div>
+                  {/* On a stopped row the LINE COUNT yields to the action line below —
+                      the same trade the desktop cell makes — but age and value stay.
+                      They are the two facts that triage a queue on a phone: how long
+                      this has been sitting, and what it is worth. Neither is something
+                      "12 lines" could stand in for, and dropping only the count keeps
+                      the card one line taller instead of two. A healthy row renders
+                      character-for-character what it always did. */}
                   <p className="mt-0.5 text-[12.5px]" style={{ color: "var(--ink-faint)" }}>
-                    {row.original.age} ago · {row.original.lines} lines · <span className="whitespace-nowrap">{row.original.valueLabel}</span>
+                    {row.original.age} ago
+                    {rowNextStep(row.original.rawStatus) === null && ` · ${row.original.lines} lines`}
+                    {" · "}
+                    <span className="whitespace-nowrap">{row.original.valueLabel}</span>
                   </p>
                 </div>
                 {/* The SAME badge the desktop Status column renders, keyed on the same
@@ -1795,6 +1874,24 @@ export function InboxView() {
                   <UnifiedStatusBadge status={row.original.rawStatus} icon />
                 </span>
               </div>
+              {/* WHAT TO DO — full card width, directly under the identity block, the
+                  same slot the desktop Order cell gives it. ABOVE the pipeline words,
+                  not below: "where it stopped" is context for "what to do", and an
+                  operator thumbing through a queue should not have to read the stepper
+                  first to find out that this one is waiting on them.
+                  It cannot squeeze the tap target: ROW_SENDABLE_STATUSES holds `ready`
+                  alone, a healthy status, so the 44px send footer and this line are
+                  mutually exclusive — the cards that grow are exactly the ones with no
+                  button under them, and the card's own hit area only gets taller. */}
+              {(() => {
+                const next = rowNextStep(row.original.rawStatus);
+                if (!next) return null;
+                return (
+                  <p className="mb-2 text-[12.5px]" style={{ color: next.color, fontWeight: 600 }}>
+                    {next.text}
+                  </p>
+                );
+              })()}
               {/* The pipeline, as words. The dot track is desktop-only; at 390px four
                   words say more than five 11px dots, are legible at any width, and are
                   announced without any ARIA at all. */}
