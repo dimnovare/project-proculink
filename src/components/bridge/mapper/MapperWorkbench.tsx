@@ -166,6 +166,19 @@ export interface MapperWorkbenchProps {
   issuesOpenCount?: number;
   /** Blocking subset of `issuesOpenCount` → the Issues-tab badge color (red vs amber). */
   issuesBlockingCount?: number;
+  /**
+   * Is the order genuinely fine? Only consulted when `issuesOpenCount` is 0.
+   *
+   * Zero open issues means zero FIELD problems, which is not the same thing as
+   * "nothing is wrong" — a delivery can fail with every field correctly filled. The
+   * head used to draw its green dot, green check and "Nothing to fix" from the count
+   * alone, so on the failed order in WP-39 §4.3 it declared an all-clear beside a
+   * "Couldn't send" badge on the same screen.
+   *
+   * The workbench stays out of the order-status machine; the caller passes the verdict.
+   * Omitted → the count decides, exactly as before.
+   */
+  issuesAllClear?: boolean;
   /** Bump to force the preview column onto its "Issues" tab (e.g. a send-readiness chip jump). */
   showIssuesSignal?: number;
   /**
@@ -236,7 +249,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
   const {
     variant, readOnly, onDeliver, deliverDisabled, deliverLabel, extractionFailed,
     supplierName, onSaveMappings, saveMappingsLabel, savingMappings, onValidate,
-    issuesSlot, issuesOpenCount = 0, issuesBlockingCount = 0, showIssuesSignal,
+    issuesSlot, issuesOpenCount = 0, issuesBlockingCount = 0, issuesAllClear, showIssuesSignal,
     layout, attentionFirstOutput, trustedThreshold, focusFieldId, focusFieldSignal,
     previewDefaultFormat, autoFilledFields, mappingMode = "wires", reviewSignal,
     hideToolbar, hideOrientation, onToolbarState,
@@ -1163,6 +1176,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
                 issuesSlot={issuesSlot}
                 openCount={issuesOpenCount}
                 blockingCount={issuesBlockingCount}
+                allClear={issuesAllClear ?? issuesOpenCount === 0}
                 showIssuesSignal={showIssuesSignal}
                 preview={previewNode}
               />
@@ -1201,12 +1215,15 @@ function PreviewColumnSplit({
   issuesSlot,
   openCount,
   blockingCount,
+  allClear,
   showIssuesSignal,
   preview,
 }: {
   issuesSlot: ReactNode;
   openCount: number;
   blockingCount: number;
+  /** Nothing wrong with the order AT ALL — not merely no open field issues. */
+  allClear: boolean;
   showIssuesSignal?: number;
   preview: ReactNode;
 }) {
@@ -1229,15 +1246,15 @@ function PreviewColumnSplit({
         style={{
           flexShrink: 0, display: "flex", alignItems: "center", gap: 10, height: 52,
           padding: "0 18px", borderBottom: "1px solid #E5E8EE",
-          background: openCount > 0 ? "#FDECEA44" : "#E9F1EA44",
+          background: openCount > 0 ? "#FDECEA44" : allClear ? "#E9F1EA44" : "#FAF1DD44",
         }}
       >
         <span
           aria-hidden
           style={{
             flexShrink: 0, width: 9, height: 9, borderRadius: "50%",
-            background: openCount === 0 ? "#2E8E3A" : blockingCount > 0 ? "#B43838" : "#8A5310",
-            boxShadow: `0 0 0 3px ${openCount === 0 ? "#E9F1EA" : blockingCount > 0 ? "#FAE6E6" : "#FAF1DD"}`,
+            background: openCount === 0 && allClear ? "#2E8E3A" : blockingCount > 0 ? "#B43838" : "#8A5310",
+            boxShadow: `0 0 0 3px ${openCount === 0 && allClear ? "#E9F1EA" : blockingCount > 0 ? "#FAE6E6" : "#FAF1DD"}`,
           }}
         />
         <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
@@ -1245,7 +1262,7 @@ function PreviewColumnSplit({
             Issues
           </span>
           <span style={{ fontSize: 10.5, color: "#5E6779", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {openCount > 0 ? "Fix these before you send" : "Nothing to fix"}
+            {openCount > 0 ? "Fix these before you send" : allClear ? "Nothing to fix" : "Something else stopped this order"}
           </span>
         </span>
         <span style={{ marginLeft: "auto", flexShrink: 0 }}>
@@ -1256,11 +1273,17 @@ function PreviewColumnSplit({
             >
               {openCount}
             </span>
-          ) : (
+          ) : allClear ? (
             <span aria-hidden style={{ display: "inline-flex", width: 18, height: 18, borderRadius: "50%", background: "#2E8E3A", alignItems: "center", justifyContent: "center" }}>
               <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden>
                 <path d="M2.5 6.2 5 8.6 9.5 3.6" stroke="#FFFFFF" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
+            </span>
+          ) : (
+            /* A tick here would say the order is fine. It is not — it just has no
+               FIELD problems left. #FFFFFF on #B36D14 is 3.7:1, non-text glyph. */
+            <span aria-hidden style={{ display: "inline-flex", width: 18, height: 18, borderRadius: "50%", background: "#B36D14", alignItems: "center", justifyContent: "center", color: "#FFFFFF", fontSize: 12, fontWeight: 800 }}>
+              !
             </span>
           )}
         </span>

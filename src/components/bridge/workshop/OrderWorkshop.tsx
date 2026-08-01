@@ -33,6 +33,7 @@ import { practiceDeliveryKnown } from "@/hooks/useSampleOrder";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 import { isPlanGateError, planGateMessage, planGateUpgradeUrl } from "@/lib/planGate";
 import { hasAssignedSupplier } from "@/lib/catalogCodes";
+import { isProblemBucketStatus } from "@/lib/orderStatusManifest";
 import type { OrderMappingOverride } from "@/lib/api/types";
 import type { CalibrationSummary } from "@/types/procurement";
 import { MapperWorkbench, type MapperWorkbenchLayout, type MapperToolbarState } from "../mapper/MapperWorkbench";
@@ -1332,6 +1333,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
                 {columnNotes}
                 <IssuesPanel
                   issues={issues}
+                  orderStatus={order.status}
                   onFocusField={onFocusField}
                   onFix={onFix}
                   resolve={issuesResolve}
@@ -1344,6 +1346,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
             }
             issuesOpenCount={issues.length}
             issuesBlockingCount={blockingIssues}
+            issuesAllClear={!isProblemBucketStatus(order.status)}
             showIssuesSignal={showIssuesSignal}
           />
         </div>
