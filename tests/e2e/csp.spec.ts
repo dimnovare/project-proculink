@@ -1,4 +1,4 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page, type Response } from "@playwright/test";
 
 /**
  * Content-Security-Policy smoke tests.
@@ -21,9 +21,68 @@ import { test, expect, type Page } from "@playwright/test";
 
 /** Navigate and let deferred/lazy chunks settle without the flaky networkidle. */
 async function visit(page: Page, route: string) {
-  await page.goto(route, { waitUntil: "domcontentloaded" });
+  const response = await page.goto(route, { waitUntil: "domcontentloaded" });
   await page.waitForLoadState("load");
   await page.waitForTimeout(750);
+  return response;
+}
+
+/**
+ * Prove the page actually rendered — WITHOUT this, the violation list proves
+ * nothing.
+ *
+ * A route that 500s, that 404s, or that bounces to /sign-in reports ZERO CSP
+ * violations: a page which never rendered cannot execute a script, load a font
+ * or open a connection, so it cannot break the policy. That makes
+ * `expect(violations).toEqual([])` satisfied by exactly the failures it is meant
+ * to catch, while the test name still claims the route "renders".
+ *
+ * Four cheap facts close the hole:
+ *   1. the navigation answered below 400 — a dev-mode 500 and the branded 404
+ *      (src/app/not-found.tsx) both fail here;
+ *   2. we are still on the route we asked for. The (app) routes render in place
+ *      because PROCULINK_QA_BYPASS_AUTH turns src/middleware.ts into a
+ *      pass-through (playwright.config.ts webServer env sets it) — landing on
+ *      /sign-in means the bypass is off and the policy was measured on the
+ *      sign-in page instead of the route in the test name;
+ *   3. the <main id="main-content"> landmark is there. Every family in these two
+ *      lists supplies one: (marketing)/layout.tsx, (app)/layout.tsx and, for "/",
+ *      (home)/page.tsx;
+ *   4. that landmark carries text, and not the text of an error boundary. An
+ *      empty shell has no text; (app)/error.tsx, global-error.tsx and the Bridge
+ *      <ErrorBoundary> all render at HTTP 200, so only their copy gives them
+ *      away. Same strings live-full-e2e.spec.ts's assertNoErrorBoundary uses.
+ */
+async function expectRendered(page: Page, response: Response | null, route: string) {
+  expect(response, `no response for ${route}`).not.toBeNull();
+
+  const status = response!.status();
+  expect(
+    status,
+    `${route} answered HTTP ${status} — a page that did not render cannot violate a policy`,
+  ).toBeLessThan(400);
+
+  // Trailing slash normalised; "/" is left alone.
+  const landed = new URL(page.url()).pathname.replace(/(.)\/$/, "$1");
+  expect(
+    landed,
+    `${route} did not stay on its own route (landed on ${landed}) — the CSP was measured on a different page. If this is /sign-in, PROCULINK_QA_BYPASS_AUTH is not set on the server under test.`,
+  ).toBe(route);
+
+  const main = page.locator("main#main-content").first();
+  await expect(main, `${route} rendered no <main id="main-content"> landmark`).toBeAttached();
+
+  const text = (await main.innerText()).trim();
+  expect(
+    text.length,
+    `${route} rendered an empty <main> — an empty page cannot violate a policy`,
+  ).toBeGreaterThan(0);
+  expect(
+    text,
+    `${route} rendered an error or not-found boundary instead of the page`,
+  ).not.toMatch(
+    /Something went wrong on this screen|An unexpected error interrupted ProcuLink|An unexpected error occurred while rendering this screen|This page took a wrong turn/i,
+  );
 }
 
 /** Collect every CSP violation the browser reports while `run` executes. */
@@ -87,7 +146,13 @@ test.describe("No CSP violations", () => {
 
   for (const route of publicRoutes) {
     test(`marketing route ${route} renders with no policy violation`, async ({ page }) => {
-      const violations = await collectViolations(page, () => visit(page, route));
+      let response: Response | null = null;
+      const violations = await collectViolations(page, async () => {
+        response = await visit(page, route);
+      });
+      // "renders" is half the promise in this test's name — prove it before
+      // reading anything into an empty violation list.
+      await expectRendered(page, response, route);
       expect(violations, `CSP violations on ${route}`).toEqual([]);
     });
   }
@@ -96,7 +161,13 @@ test.describe("No CSP violations", () => {
 
   for (const route of appRoutes) {
     test(`app route ${route} renders with no policy violation`, async ({ page }) => {
-      const violations = await collectViolations(page, () => visit(page, route));
+      let response: Response | null = null;
+      const violations = await collectViolations(page, async () => {
+        response = await visit(page, route);
+      });
+      // Same as above, and it doubles as the QA-bypass check: an app route that
+      // silently redirected to /sign-in would otherwise report a clean policy.
+      await expectRendered(page, response, route);
       expect(violations, `CSP violations on ${route}`).toEqual([]);
     });
   }

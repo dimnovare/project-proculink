@@ -315,11 +315,16 @@ test.describe("Live full E2E — every screen renders + heart-piece interactions
 
         const formatSelect = dialog.getByLabel(/^preview format$/i);
         await expect(formatSelect).toBeVisible({ timeout: 10_000 });
+
+        // The select renders PREVIEW_FORMATS verbatim (api/types.ts), so all six options are
+        // always present — the old `.catch(() => {})` "tolerated" a failure that cannot legitimately
+        // happen, and swallowed the one that can: a format silently dropped from the list. Pin the
+        // option set, then select without a net.
+        await expect(formatSelect.locator("option")).toHaveCount(6);
         for (const fmt of ["csv", "json", "xml", "cxml", "ubl", "x12"]) {
-          await formatSelect.selectOption(fmt).catch(() => {
-            // Some formats may not be selectable depending on the option list; tolerate.
-          });
-          // Live preview header reflects the selected format; just confirm it stays mounted.
+          await formatSelect.selectOption(fmt);
+          // The selection actually took — not merely that the pane is still mounted.
+          await expect(formatSelect).toHaveValue(fmt);
           await expect(dialog.getByText(/live preview/i)).toBeVisible({ timeout: 10_000 });
           await page.waitForTimeout(250); // let the debounced dry-run preview fetch settle
         }
@@ -496,10 +501,18 @@ test.describe("Live full E2E — every screen renders + heart-piece interactions
       await expect(page.getByRole("heading", { level: 1 }).first()).toBeVisible({ timeout: 20_000 });
 
       // Try to expand the first exception row if any exist (tolerate empty state).
-      const expandable = page.getByRole("button").filter({ hasText: /detail|expand|view|▾|›/i }).first();
-      if (await expandable.count() && (await expandable.isVisible())) {
-        await expandable.click().catch(() => {});
-        await page.waitForTimeout(300);
+      // "expands a row" is half the test's name, and neither half was checked: the old locator
+      // filtered on hasText, while the real row toggle's content is an SVG with no text at all —
+      // so it matched some other button, or none — and `.click().catch(() => {})` then made a click
+      // that never landed read exactly like one that did. Target the toggle by its accessible name
+      // (exceptions/page.tsx:345) and assert the state it actually flips.
+      const expandRow = page.getByRole("button", { name: /^expand details$/i }).first();
+      if (await expandRow.count() && (await expandRow.isVisible())) {
+        await expect(expandRow).toHaveAttribute("aria-expanded", "false");
+        await expandRow.click();
+        // The label flips with the state, so the expanded row is a different accessible name.
+        await expect(page.getByRole("button", { name: /^collapse details$/i }).first())
+          .toHaveAttribute("aria-expanded", "true", { timeout: 10_000 });
         await assertNoErrorBoundary(page);
       }
       expect(watch.errors, `Console/page errors on exceptions:\n${watch.errors.join("\n")}`).toEqual([]);

@@ -24,6 +24,10 @@ import { describe, it as vitestIt, expect, beforeAll, afterAll } from "vitest";
  * any of this is load-bearing.
  */
 const TAILWIND_SPAWN_MS = 60_000;
+// This line is the timeout wrapper's DEFINITION, not a test: `fn` is a parameter, so there is no
+// body here for expect-expect to inspect. Every call site below is a real test and is checked
+// normally. (WP-02 added the rule; this is a scoped exception, not a blanket one.)
+// eslint-disable-next-line vitest/expect-expect
 const it = (name: string, fn: () => void | Promise<void>) => vitestIt(name, fn, TAILWIND_SPAWN_MS);
 import { execFileSync } from "child_process";
 import { mkdtempSync, writeFileSync, rmSync } from "fs";

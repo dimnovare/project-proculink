@@ -69,17 +69,50 @@ function statusParamOf(href: string): string | null {
   return new URLSearchParams(q).get("status");
 }
 
+/**
+ * The two tiles that legitimately carry no `?status=`, declared by key.
+ *
+ * `slaBreached` has no server-side age filter — it sorts oldest-first and says so in its
+ * helper line. `openExceptions` does not go to the inbox at all.
+ *
+ * Declaring them is the point: the loop below used to say `if (status === null) continue`,
+ * so a tile that LOST its `?status=` — landing the operator on an unfiltered inbox, which
+ * is defect D3 exactly — exited the guard instead of failing it.
+ */
+const TILES_WITHOUT_STATUS_FILTER = ["slaBreached", "openExceptions"];
+
 describe("every tile links somewhere the inbox can actually filter (D3)", () => {
   test("each ?status= value is one the inbox accepts", () => {
+    let checked = 0;
     for (const tile of TILES) {
       const status = statusParamOf(tile.href);
-      if (status === null) continue;
+
+      if (TILES_WITHOUT_STATUS_FILTER.includes(tile.key)) {
+        expect(
+          status,
+          `tile "${tile.label}" is declared filter-less but now carries ?status=${status} — ` +
+            "drop it from TILES_WITHOUT_STATUS_FILTER",
+        ).toBeNull();
+        continue;
+      }
+
       expect(
-        INBOX_FILTERABLE_STATUSES.has(status),
+        status,
+        `tile "${tile.label}" links ${tile.href} — it lost its ?status=, so it lands on an ` +
+          "unfiltered inbox (D3)",
+      ).not.toBeNull();
+      expect(
+        INBOX_FILTERABLE_STATUSES.has(status!),
         `tile "${tile.label}" links ?status=${status}, which the inbox does not filter`,
       ).toBe(true);
-      expect(resolveInboxStatusParam(status).known).toBe(true);
+      expect(resolveInboxStatusParam(status!).known).toBe(true);
+      checked++;
     }
+    // A green run here must mean the assertions above actually ran.
+    expect(checked, "no tile was checked at all").toBe(
+      TILES.length - TILES_WITHOUT_STATUS_FILTER.length,
+    );
+    expect(checked).toBeGreaterThan(0);
   });
 
   test("a tile that cannot be filtered says so with a real target, not a bare /inbox", () => {

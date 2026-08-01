@@ -85,17 +85,41 @@ test("watch page renders the walkthrough video player", async ({ page }) => {
     timeout: 10_000,
   });
 
-  // /watch shows an HTML5 <video> when NEXT_PUBLIC_WALKTHROUGH_VIDEO_URL is set
-  // (the committed .env points it at the R2 walkthrough), falling back to a Loom
-  // iframe, then a quiet placeholder. Assert one of those states is present so the
-  // test stays green regardless of which env vars are configured.
+  // /watch shows an HTML5 <video> when NEXT_PUBLIC_WALKTHROUGH_VIDEO_URL is set,
+  // falling back to a Loom iframe, then to a "coming shortly" placeholder
+  // (src/app/(marketing)/watch/page.tsx).
+  //
+  // The placeholder is the ABSENCE of a player. Accepting it as a pass — which
+  // this test used to do — meant "renders the walkthrough video player" could go
+  // green on a page with no player on it, forever. It is asserted away instead.
+  // The committed .env sets NEXT_PUBLIC_WALKTHROUGH_VIDEO_URL to the R2
+  // walkthrough, so a player is the state this suite runs against; if the
+  // placeholder shows up, the env the page was built with is wrong and that is
+  // worth failing on.
   const video = page.locator("video");
   const iframe = page.locator("iframe[title='ProcuLink walkthrough']");
   const placeholder = page.getByText(/walkthrough is coming shortly/i);
 
-  expect(
-    (await video.count()) > 0 || (await iframe.count()) > 0 || (await placeholder.count()) > 0,
-  ).toBeTruthy();
+  await expect(
+    placeholder,
+    "/watch rendered the no-player placeholder — NEXT_PUBLIC_WALKTHROUGH_VIDEO_URL / _LOOM_URL are unset for this server",
+  ).toHaveCount(0);
+
+  // Whichever player it is, name it and assert it carries a real source — an
+  // empty <video> or a src-less iframe is a player in markup only.
+  if ((await video.count()) > 0) {
+    await expect(video.first()).toBeVisible();
+    await expect(video.first()).toHaveJSProperty("controls", true);
+    const src = await video.first().locator("source").first().getAttribute("src");
+    expect(src, "the <video> on /watch has no playable source").toMatch(/^https?:\/\/\S+/i);
+  } else {
+    await expect(
+      iframe.first(),
+      "/watch rendered neither a <video> nor the Loom embed",
+    ).toBeVisible();
+    const src = await iframe.first().getAttribute("src");
+    expect(src, "the walkthrough iframe on /watch has no src").toMatch(/^https?:\/\/\S+/i);
+  }
 });
 
 test("help index renders the browse-by-topic categories and popular articles", async ({ page }) => {
