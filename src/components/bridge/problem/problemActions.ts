@@ -13,6 +13,7 @@
 // A control the backend will reject can no longer reach a screen without a red test.
 
 import { apiClient, requeueDelivery as requeueDeliveryApi } from "@/lib/api-client";
+import { OP_GUARDS } from "@/lib/orderStatusManifest";
 
 export type ProblemOp =
   | "transformOrder"
@@ -22,31 +23,31 @@ export type ProblemOp =
   | "markDelivered";
 
 /**
- * Raw backend statuses each op is accepted FROM. Hand-maintained mirrors of
- * ProcuLink.Core:
- *   transformOrder   ← TransformableFrom      {ready, transform_failed,
- *                                              rejected_by_supplier}
- *   retryDelivery    ← ClaimableForRetryFrom  {ready_to_deliver, delivery_failed}
- *   redeliverOrder   ← RedeliverableFrom      {delivery_failed, ready_to_deliver,
- *                                              delivery_unconfirmed}
- *   requeueDelivery  ← OpsController's requeue guard {delivery_dead_letter,
- *                      delivery_failed}. On main today that is an inline status
- *                      literal, not a named set — the sibling backend PR promotes
- *                      it to OrderStatusMachine.RequeueableFrom. Named as the
- *                      literal until that lands, because citing a symbol that does
- *                      not exist yet is the same failure as citing the wrong one.
- *   markDelivered    ← ManuallyDeliverableFrom {delivery_unconfirmed}
+ * Raw backend statuses each op is accepted FROM — now DERIVED from
+ * `src/lib/orderStatusManifest.ts` rather than retyped here.
+ *
+ * It was retyped here, and it was wrong. `retryDelivery` read
+ * `{ready_to_deliver, delivery_failed}` and cited `ClaimableForRetryFrom` — which
+ * is the WORKER's claim set, not the endpoint's admission guard. The endpoint is
+ * guarded by `RetryableFrom`, which is `{delivery_failed}` alone, so the mirror
+ * over-admitted `ready_to_deliver`: a control offered on the strength of that row
+ * would have been the D2 defect again, a button the API answers 400 to. The one
+ * test that existed to catch mirror drift compared this Set against a hand-typed
+ * array in the test file, so it asserted the wrong membership as the contract and
+ * both halves were wrong together and green.
+ *
+ * The manifest carries the C# symbol and file:line for every guard, and
+ * `src/test/backendMirror.test.ts` diffs it against the real C# source whenever a
+ * backend checkout is reachable. One copy, checkable, instead of five annotated ones.
  *
  * `delivery_held` appears in NONE of them: the release is automatic when billing
  * settles, and every send endpoint 400s while held.
  *
  * THIS TABLE SAYS WHAT THE BACKEND ACCEPTS — NOT WHAT WE CHOOSE TO OFFER.
- * The two were conflated here and the mirror drifted in both directions at once:
- * it admitted `pending_review`, which `TransformableFrom` excludes (the claim
- * would miss and the endpoint answers 409), and it omitted `rejected_by_supplier`,
- * which `TransformableFrom` contains and `OrdersController` answers 202 for.
- * Neither error could be caught, because the only test asserting the mirror
- * asserted the drift as if it were the contract.
+ * The two were conflated here once already: it admitted `pending_review`, which
+ * `TransformableFrom` excludes (the claim would miss and the endpoint answers 409),
+ * and it omitted `rejected_by_supplier`, which `TransformableFrom` contains and
+ * `OrdersController` answers 202 for.
  *
  * That a refused order can be re-built is deliberate backend design, and it is
  * still not something this UI offers: rebuilding the same order cannot un-refuse
@@ -56,11 +57,11 @@ export type ProblemOp =
  * stops being able to enforce anything.
  */
 export const OP_ALLOWED_FROM: Record<ProblemOp, ReadonlySet<string>> = {
-  transformOrder: new Set(["ready", "transform_failed", "rejected_by_supplier"]),
-  retryDelivery: new Set(["ready_to_deliver", "delivery_failed"]),
-  requeueDelivery: new Set(["delivery_dead_letter", "delivery_failed"]),
-  redeliverOrder: new Set(["ready_to_deliver", "delivery_failed", "delivery_unconfirmed"]),
-  markDelivered: new Set(["delivery_unconfirmed"]),
+  transformOrder: new Set(OP_GUARDS.transformOrder.allowedFrom),
+  retryDelivery: new Set(OP_GUARDS.retryDelivery.allowedFrom),
+  requeueDelivery: new Set(OP_GUARDS.requeueDelivery.allowedFrom),
+  redeliverOrder: new Set(OP_GUARDS.redeliverOrder.allowedFrom),
+  markDelivered: new Set(OP_GUARDS.markDelivered.allowedFrom),
 };
 
 export function opIsAllowedFrom(op: ProblemOp, status: string): boolean {

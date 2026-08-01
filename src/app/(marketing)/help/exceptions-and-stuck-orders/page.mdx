@@ -37,7 +37,7 @@ The issues list mirrors reality; it doesn't replace it:
 
 A **Couldn't send** order is retried automatically — **3 attempts in total** — and then it moves to **Out of retries**, with each attempt's error and response code kept in the audit trail.
 
-Once retries are exhausted, nothing more happens on its own. Open the order: the panel there explains what happened and carries **Start sending again**, which puts the order back in the sending queue. Check the supplier's delivery settings first — if nothing has changed at their end, it will fail the same way. The same action is available in bulk from **Operations → System health**, in the table of orders we couldn't deliver.
+Once retries are exhausted, nothing more happens on its own. Open the order: the panel there explains what happened and carries **Start sending again**, which puts the order back in the sending queue. Check the supplier's delivery settings first — if nothing has changed at their end, it will fail the same way. The same action is available in bulk from **Operations → System status**, in the table of orders we couldn't deliver.
 
 One caveat to keep front of mind: a successful delivery means the supplier's endpoint answered — **HTTP 200 is not business acceptance**. A delivered order can still come back as **Supplier rejected**; that opens an issue of its own.
 

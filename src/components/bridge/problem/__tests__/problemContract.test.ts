@@ -130,10 +130,27 @@ describe("no state offers a control the backend will reject", () => {
     expect([...OP_ALLOWED_FROM.transformOrder].sort()).toEqual(
       ["ready", "rejected_by_supplier", "transform_failed"].sort(),
     );
-    // ClaimableForRetryFrom = {ready_to_deliver, delivery_failed}
-    expect([...OP_ALLOWED_FROM.retryDelivery].sort()).toEqual(
-      ["delivery_failed", "ready_to_deliver"],
-    );
+    // OrderStatusMachine.RetryableFrom = {delivery_failed}. ONE status.
+    //
+    // This row read `["delivery_failed", "ready_to_deliver"]` and cited
+    // `ClaimableForRetryFrom`, and both halves of that were the same mistake: the
+    // backend keeps TWO sets per operation, and they are not the same size.
+    // `ClaimableForRetryFrom` is what the WORKER's atomic claim will pick a row up
+    // from; `RetryableFrom` is what the ENDPOINT admits, and it is the one a button
+    // is offered on the strength of. `POST /api/orders/{id}/retry-delivery` answers
+    // 400 for `ready_to_deliver` with a message built from `RetryableFrom` itself.
+    //
+    // So the mirror over-admitted, and this assertion — the one test whose whole
+    // job is catching mirror drift — pinned the over-admission as the contract.
+    // Same failure as the `transformOrder` row above, one line down, found the same
+    // way: by reading the C# rather than the comment beside the copy of it.
+    //
+    // The membership now comes from `src/lib/orderStatusManifest.ts`, which cites
+    // the symbol and file:line, and `src/test/backendMirror.test.ts` diffs it
+    // against the real C# whenever a backend checkout is reachable. These literals
+    // stay literal on purpose: their job is to make a change to what the product
+    // offers a deliberate edit here, not to re-derive what the manifest already says.
+    expect([...OP_ALLOWED_FROM.retryDelivery].sort()).toEqual(["delivery_failed"]);
     // Dead-letter's rescue is the ops requeue, NOT redeliver — this is D2.
     expect(OP_ALLOWED_FROM.redeliverOrder.has("delivery_dead_letter")).toBe(false);
     // EXACT sets for the remaining two as well. An earlier version of this test

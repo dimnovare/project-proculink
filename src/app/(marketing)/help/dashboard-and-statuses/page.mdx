@@ -36,7 +36,7 @@ The distinction people trip on: **Ready to send** means "clean order, nothing ge
 | **Couldn't build output** | Generating the supplier's output failed. |
 | **Couldn't send** | A delivery attempt failed; the error and response code are kept on the order. |
 | **Delivery unknown** | We may have sent this order, but lost the connection before the supplier confirmed it — so we can't tell whether it arrived. Not a failure in the usual sense: it waits for an operator to check with the supplier, then either send it again or mark it delivered. See "Delivered ≠ accepted" below. |
-| **Out of retries** | Automatic delivery retries (3 attempts) are exhausted. Open the order and use **Start sending again**, or requeue it from System health. |
+| **Out of retries** | Automatic delivery retries (3 attempts) are exhausted. Open the order and use **Start sending again**, or requeue it from System status. |
 | **Supplier rejected** | The supplier's system returned the order *after* delivery. |
 
 Each failure state also opens an entry in [the exceptions queue](/help/exceptions-and-stuck-orders), so nothing fails silently.

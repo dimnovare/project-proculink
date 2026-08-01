@@ -396,7 +396,10 @@ function AcceptanceTab({ supplierId }: { supplierId: string }) {
   // the success green, so "Save failed: …" read as a confirmation.
   const [saveNotice, setSaveNotice] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
 
-  const { data: profile, isLoading, isError } = useQuery<AcceptanceProfile | null>({
+  // `refetch` is bound to the failure state below — the same retry the rule-
+  // bindings panel in this file already ships, so the two failure paths on this
+  // tab behave alike instead of one being a dead end.
+  const { data: profile, isLoading, isError, refetch } = useQuery<AcceptanceProfile | null>({
     queryKey: ["acceptance-profile", supplierId],
     queryFn: () => getAcceptanceProfile(supplierId),
     staleTime: 30_000,
@@ -478,10 +481,38 @@ function AcceptanceTab({ supplierId }: { supplierId: string }) {
     );
   }
 
+  // A failed READ is not a failed profile. The GET is the only thing that broke,
+  // so say what is actually known — this screen has nothing to show, and nothing
+  // was saved, edited or switched off — and hand back the retry.
+  //
+  // What we deliberately do NOT say: whether these rules are still being applied
+  // to orders in flight. Validation runs server-side at send time, on a path this
+  // component never observes; a browser fetch failing here is not evidence either
+  // way, so claiming "your rules are still active" (or that they are not) would be
+  // a guess printed as fact to the one person who would act on it.
   if (isError) {
     return (
-      <div className="flex items-center justify-center py-10" style={{ color: DANGER, fontSize: 13 }}>
-        Failed to load acceptance profile.
+      <div
+        className="flex flex-col items-start gap-3 rounded-[10px] px-5 py-5 sm:flex-row sm:items-center sm:justify-between"
+        style={{ background: SURFACE, border: `1px solid ${LINE}` }}
+      >
+        <div className="min-w-0">
+          <p className="text-[13px] font-semibold" style={{ color: DANGER }}>
+            Couldn’t load this supplier’s validation rules.
+          </p>
+          <p className="mt-1 text-[12.5px] leading-5" style={{ color: MUTED }}>
+            Only reading them failed — nothing was changed, and any saved rules are still stored as
+            they were. This screen can’t confirm whether they’re being applied to orders right now.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => refetch()}
+          className="flex-shrink-0 rounded-[7px] px-3 text-[12px] font-medium"
+          style={{ height: 30, border: `1px solid ${LINE}`, background: SURFACE, color: INK, cursor: "pointer" }}
+        >
+          ↻ Retry
+        </button>
       </div>
     );
   }
@@ -833,7 +864,7 @@ function LiveMappingsTab({ supplierId, supplierName }: { supplierId: string; sup
   // doesn't fire before Clerk is ready (which would 401).
   const queryEnabled = useQueriesEnabled();
 
-  const { data: mappings = [], isLoading, isError } = useQuery<SupplierMapping[]>({
+  const { data: mappings = [], isLoading, isError, refetch } = useQuery<SupplierMapping[]>({
     queryKey: ["supplier-mappings", supplierId],
     queryFn: () => apiClient.getSupplierMappings(supplierId),
     enabled: queryEnabled,
@@ -859,11 +890,25 @@ function LiveMappingsTab({ supplierId, supplierName }: { supplierId: string; sup
     );
   }
 
+  // Same failure shape as the rule-bindings panel above: one plain sentence plus
+  // the retry the query can genuinely perform. "Check your connection and try
+  // refreshing" sent the operator to a browser reload for one GET — and a reload
+  // of this page drops them back on Overview, losing the tab they were reading.
   if (isError) {
     return (
-      <p className="px-4 py-5 text-[13px] sm:px-5" style={{ color: DANGER }}>
-        Couldn’t load mappings for {supplierName}. Check your connection and try refreshing.
-      </p>
+      <div className="flex flex-col items-start gap-3 px-4 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+        <span className="text-[13px]" style={{ color: DANGER }}>
+          Couldn’t load mappings for {supplierName}.
+        </span>
+        <button
+          type="button"
+          onClick={() => refetch()}
+          className="flex-shrink-0 rounded-[7px] px-3 text-[12px] font-medium"
+          style={{ height: 30, border: `1px solid ${LINE}`, background: SURFACE, color: INK, cursor: "pointer" }}
+        >
+          ↻ Retry
+        </button>
+      </div>
     );
   }
 
