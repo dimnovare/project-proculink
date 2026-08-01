@@ -5,6 +5,7 @@ import {
   createConnectionDraft,
   updateConnectionDraft,
   publishConnectionRevision,
+  promoteMapping,
 } from "./api-client";
 import type { ConnectionRevisionBundle } from "./api/types";
 
@@ -99,5 +100,47 @@ describe("plan-gate 403s keep the backend's code and upgrade url", () => {
     const err = await updateConnectionDraft("conn-1", "rev-1", BUNDLE).catch((e: Error) => e);
 
     expect((err as Error).message).toMatch(/update draft/i);
+  });
+});
+
+// ── WP-13 — the promote call is now reachable, so its 403 must be too ────────
+//
+// `promoteMapping` summarised every failure as `b?.error || \`…: ${res.status}\``.
+// `b.error` alone loses the `upgradeUrl` the server chose for THIS gate, and the
+// upsell would have fallen back to a hardcoded guess. It now keeps the body
+// verbatim — and reads the body only ONCE, so a non-gate failure does not lose
+// its own message to the status fallback.
+describe("promoteMapping error bodies", () => {
+  it("keeps a plan-gate code AND the upgrade url the server chose", async () => {
+    respondWith(GATE_BODY, 403);
+
+    const err = await promoteMapping("ord-1").catch((e: Error) => e);
+
+    expect(isPlanGateError((err as Error).message)).toBe(true);
+    expect(planGateUpgradeUrl((err as Error).message)).toBe("/settings?tab=billing");
+  });
+
+  it("a NON-gate failure keeps its own message, not the status fallback", async () => {
+    respondWith(JSON.stringify({ error: "This order has no saved mapping to promote." }), 400);
+
+    const err = await promoteMapping("ord-1").catch((e: Error) => e);
+
+    expect((err as Error).message).toBe("This order has no saved mapping to promote.");
+  });
+
+  it("a 404 says what to do, before the body is read at all", async () => {
+    respondWith("", 404);
+
+    const err = await promoteMapping("ord-1").catch((e: Error) => e);
+
+    expect((err as Error).message).toMatch(/no saved mapping to promote/i);
+  });
+
+  it("falls back to a plain sentence when a failure has no body", async () => {
+    respondWith("", 500);
+
+    const err = await promoteMapping("ord-1").catch((e: Error) => e);
+
+    expect((err as Error).message).toMatch(/couldn't save the supplier mapping/i);
   });
 });

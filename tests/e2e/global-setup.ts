@@ -59,7 +59,7 @@ const ROUTES = [
 const WARM_CONCURRENCY = 4;
 
 async function globalSetup() {
-  const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:8082";
+  const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? `http://localhost:${process.env.PLAYWRIGHT_PORT ?? "8082"}`;
   const ctx = await request.newContext({ baseURL });
 
   const queue = [...ROUTES];

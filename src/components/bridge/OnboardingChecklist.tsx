@@ -27,7 +27,8 @@ import { usePathname } from "next/navigation";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { useSampleOrder } from "@/hooks/useSampleOrder";
-import { buildChecklistSteps, type ChecklistStep } from "./buildChecklistSteps";
+import { PracticeOrderPrompt } from "./PracticeOrderPrompt";
+import { buildChecklistSteps, checklistDensity, type ChecklistStep } from "./buildChecklistSteps";
 
 // Locked Bridge Layer tokens (see CLAUDE.md §3). Do not substitute slate values.
 const T = {
@@ -55,11 +56,24 @@ const T = {
 const WAS_INCOMPLETE_KEY = "plk-checklist-was-incomplete";
 const CELEBRATED_KEY = "plk-checklist-celebrated";
 
+/**
+ * Whether the user has expanded the compact checklist. Persisted (not session-scoped)
+ * so the choice survives navigation and a reload — the compact row is the default and
+ * re-collapsing on every page change would make the disclosure feel broken.
+ */
+const EXPANDED_KEY = "plk-checklist-expanded";
+
 function sessionGet(key: string): string | null {
   try { return window.sessionStorage.getItem(key); } catch { return null; }
 }
 function sessionSet(key: string, value: string) {
   try { window.sessionStorage.setItem(key, value); } catch { /* storage unavailable */ }
+}
+function localGet(key: string): string | null {
+  try { return window.localStorage.getItem(key); } catch { return null; }
+}
+function localSet(key: string, value: string) {
+  try { window.localStorage.setItem(key, value); } catch { /* storage unavailable */ }
 }
 
 interface OnboardingChecklistProps {
@@ -223,6 +237,12 @@ export function OnboardingChecklist({ onResumeSetup }: OnboardingChecklistProps)
 
   const { data: status, isError } = useOnboardingStatus();
   const { runSample, isPending: samplePending, error: sampleError } = useSampleOrder(pathname ?? "/bridge");
+  const [expanded, setExpanded] = React.useState(false);
+  // Read the persisted disclosure choice after mount — reading storage during render
+  // would diverge between the server pass and the client one.
+  React.useEffect(() => {
+    if (localGet(EXPANDED_KEY) === "1") setExpanded(true);
+  }, []);
 
   const model = React.useMemo(
     () => (status ? buildChecklistSteps(status, nounLower) : null),
@@ -263,13 +283,94 @@ export function OnboardingChecklist({ onResumeSetup }: OnboardingChecklistProps)
   const remaining = totalSteps - totalDone;
 
   // Sample CTA: helps before the first real upload; once a sample exists, link
-  // to it instead of minting another.
+  // to it instead of minting another. The destination carries no `?sample=1` — the
+  // practice framing is driven by the order's own IsSample flag (WP-27).
   const showSample = !steps.find((s) => s.id === "upload")?.done;
   const existingSampleHref =
     status.hasSampleOrder && status.sampleOrderId
-      ? `/inbox/${encodeURIComponent(status.sampleOrderId)}?sample=1`
+      ? `/inbox/${encodeURIComponent(status.sampleOrderId)}`
       : null;
   const showGuided = !steps[0].done && typeof onResumeSetup === "function";
+  const density = checklistDensity(model);
+
+  // ── Compact density: progress has bought back the screen space ────────────
+  // One row, with the full list one disclosure away. See checklistDensity().
+  if (density === "compact") {
+    return (
+      <CardFrame ariaLabel="Onboarding progress">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-3 px-4 py-3 sm:px-5">
+          <div className="flex min-w-[160px] flex-1 items-center gap-2.5">
+            <div
+              className="flex-1 overflow-hidden"
+              style={{ height: 6, background: T.surface2, borderRadius: 3 }}
+              role="progressbar"
+              aria-label="Setup progress"
+              aria-valuenow={totalDone}
+              aria-valuemin={0}
+              aria-valuemax={totalSteps}
+              aria-valuetext={`${totalDone} of ${totalSteps} steps done`}
+            >
+              <div
+                style={{
+                  height: "100%",
+                  width: `${progress}%`,
+                  background: "linear-gradient(90deg, #1E66C9, #2E8E3A)",
+                  borderRadius: 3,
+                  transition: "width 0.4s ease",
+                }}
+              />
+            </div>
+            <span
+              className="text-[11px] font-bold tabular-nums"
+              style={{ color: T.muted, fontFamily: "'JetBrains Mono', monospace" }}
+            >
+              {totalDone}/{totalSteps}
+            </span>
+          </div>
+
+          <p className="min-w-0 text-[12.5px]" style={{ color: T.muted }}>
+            <span className="font-semibold" style={{ color: T.ink }}>
+              {remaining} step{remaining === 1 ? "" : "s"} left
+            </span>
+            {activeStep ? <> · next: {activeStep.label}</> : null}
+          </p>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {activeStep && (
+              <Link
+                href={activeStep.href}
+                className="inline-flex min-h-[44px] items-center gap-1.5 rounded-[6px] px-3.5 text-[12.5px] font-semibold transition-colors"
+                style={{ background: T.greenBtn, color: "#fff", letterSpacing: "0.01em" }}
+              >
+                {activeStep.cta}
+                <span aria-hidden>→</span>
+              </Link>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                const next = !expanded;
+                setExpanded(next);
+                localSet(EXPANDED_KEY, next ? "1" : "0");
+              }}
+              aria-expanded={expanded}
+              aria-controls="onboarding-step-list"
+              className="inline-flex min-h-[44px] items-center rounded-[6px] px-3 text-[12.5px] font-semibold transition-colors"
+              style={{ border: `1px solid ${T.border}`, background: T.surface, color: T.blueDeep, cursor: "pointer" }}
+            >
+              {expanded ? "Hide steps" : "Show all steps"}
+            </button>
+          </div>
+        </div>
+
+        {expanded && (
+          <div className="px-4 pb-4 sm:px-5" style={{ borderTop: `1px solid ${T.border}` }}>
+            <StepList steps={steps} activeStepId={activeStep?.id ?? null} />
+          </div>
+        )}
+      </CardFrame>
+    );
+  }
 
   return (
     <CardFrame ariaLabel="Onboarding progress">
@@ -369,25 +470,8 @@ export function OnboardingChecklist({ onResumeSetup }: OnboardingChecklistProps)
                     Open your practice order →
                   </Link>
                 ) : (
-                  <button
-                    type="button"
-                    onClick={runSample}
-                    disabled={samplePending}
-                    className="inline-flex min-h-[44px] items-center text-[12px] font-semibold"
-                    style={{
-                      color: samplePending ? T.muted : T.blueDeep,
-                      background: "none", border: "none", padding: 0,
-                      cursor: samplePending ? "default" : "pointer",
-                    }}
-                  >
-                    {samplePending ? "Starting practice order…" : "Try a practice order →"}
-                  </button>
+                  <PracticeOrderPrompt pending={samplePending} onRun={runSample} nounLower={labels.counterpartyNoun.toLowerCase()} />
                 )}
-                {/* Honesty line — pre-frames the sample's intentional ending. */}
-                <p className="mt-0.5 max-w-[340px] text-[11px] leading-snug" style={{ color: T.faint }}>
-                  Free practice order — doesn&apos;t count against your plan. Sending stops at
-                  &quot;delivery not set up&quot;, which is expected for the practice {nounLower}.
-                </p>
                 {sampleError && (
                   <p className="mt-1 text-[11.5px]" style={{ color: "#B43838" }}>
                     {sampleError.message || "Could not start the practice order."}
@@ -398,9 +482,28 @@ export function OnboardingChecklist({ onResumeSetup }: OnboardingChecklistProps)
           </div>
         </div>
 
-        {/* ── Step list ───────────────────────────────────────────────── */}
+        <StepList steps={steps} activeStepId={activeStep?.id ?? null} bordered />
+      </div>
+    </CardFrame>
+  );
+}
+
+// ─── Step list — shared by the hero card and the compact disclosure ──────────
+
+function StepList({
+  steps,
+  activeStepId,
+  bordered = false,
+}: {
+  steps: ChecklistStep[];
+  activeStepId: string | null;
+  /** Hero layout only: the vertical rule separating the list from the intro column. */
+  bordered?: boolean;
+}) {
+  return (
         <ol
-          className="flex flex-col gap-2 lg:border-l lg:pl-8"
+          id="onboarding-step-list"
+          className={`flex flex-col gap-2${bordered ? " lg:border-l lg:pl-8" : " pt-3"}`}
           style={{ listStyle: "none", margin: 0, borderColor: T.border }}
           aria-label="First delivery setup steps"
         >
@@ -412,7 +515,7 @@ export function OnboardingChecklist({ onResumeSetup }: OnboardingChecklistProps)
           </li>
           {steps.map((step: ChecklistStep, i: number) => {
             const { done, locked, intermediate } = step;
-            const active = !done && !locked && activeStep?.id === step.id;
+            const active = !done && !locked && activeStepId === step.id;
             const showDescription = active || done || intermediate;
 
             return (
@@ -475,7 +578,5 @@ export function OnboardingChecklist({ onResumeSetup }: OnboardingChecklistProps)
             );
           })}
         </ol>
-      </div>
-    </CardFrame>
   );
 }

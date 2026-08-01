@@ -121,7 +121,9 @@ test.describe("Review failure gates — mock parity subset", () => {
   for (const view of VIEWS) {
     test(`unknown order id shows the not-found gate [${view} view]`, async ({ page }) => {
       await page.goto(`/inbox/does-not-exist?view=${view}`);
-      await expect(page.getByText(/order not found/i)).toBeVisible({ timeout: 20_000 });
+      // WP-19 branched this gate per failure kind; matched by meaning so the
+      // next wording change does not read as a behaviour regression.
+      await expect(page.getByText(/can't find this order/i)).toBeVisible({ timeout: 20_000 });
       await expect(page.getByRole("button", { name: /back to inbox/i })).toBeVisible();
     });
   }

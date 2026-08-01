@@ -89,13 +89,73 @@ export const delay = (ms: number) => new Promise<void>(resolve => setTimeout(res
 export class ApiHttpError extends Error {
   status: number;
   body: unknown;
+  /**
+   * Seconds the server asked us to wait before trying again, when it said so.
+   *
+   * Only a 429 carries one. `null` means "the server did not say", NOT "retry
+   * immediately" — the difference matters, because a caller that reads a missing
+   * wait as zero produces exactly the tight loop the limiter exists to stop.
+   */
+  retryAfterSeconds: number | null;
 
-  constructor(message: string, status: number, body: unknown = null) {
+  constructor(
+    message: string,
+    status: number,
+    body: unknown = null,
+    retryAfterSeconds: number | null = null,
+  ) {
     super(message);
     this.name = "ApiHttpError";
     this.status = status;
     this.body = body;
+    this.retryAfterSeconds = retryAfterSeconds ?? retryAfterFrom(null, body);
   }
+}
+
+/**
+ * The wait a 429 asked for, from the response header or the body, in seconds.
+ *
+ * Both are read because neither alone is reliable here. The header is the
+ * standard and is what proxies honour, but it is not CORS-safelisted — the app
+ * and the API are different origins in every deployed environment, so script can
+ * only read it while the API explicitly exposes it. The body field always
+ * survives. Returns null when neither is present or parseable, which callers
+ * must treat as "unknown", never as zero.
+ */
+export function retryAfterFrom(res: Response | null, body: unknown): number | null {
+  const header = res?.headers?.get?.("Retry-After");
+  if (header) {
+    // RFC 9110 allows delay-seconds or an HTTP-date. Both appear in the wild.
+    const fromHeader = positiveSeconds(Number(header));
+    if (fromHeader !== null) return fromHeader;
+    const at = Date.parse(header);
+    // A date we cannot parse, or one already in the past, tells us NOTHING about
+    // how long to wait. Clamping it to 0 would turn "unknown" into "retry now",
+    // which is the tight loop the limiter exists to stop. RFC 9110 requires
+    // recipients to accept the obsolete RFC-850 form, which Date.parse rejects.
+    if (Number.isFinite(at)) return positiveSeconds(Math.ceil((at - Date.now()) / 1000));
+  }
+  if (body && typeof body === "object" && "retryAfterSeconds" in body) {
+    // `"key" in body` is true for a key present with value NULL, and Number(null)
+    // is 0 — so an `int?` that serialised as `"retryAfterSeconds": null` (the .NET
+    // default, and this API does not set WhenWritingNull globally) used to read as
+    // "wait zero seconds" and fire the retries back to back. Worse than the flat
+    // policy it replaced.
+    const raw = (body as { retryAfterSeconds?: unknown }).retryAfterSeconds;
+    if (typeof raw === "number") return positiveSeconds(raw);
+    if (typeof raw === "string" && raw.trim() !== "") return positiveSeconds(Number(raw));
+  }
+  return null;
+}
+
+/**
+ * A wait we can act on: finite and at least one second. Anything else — NaN, a
+ * boolean coerced to 1, a negative, or a zero — is "the server did not tell us",
+ * which is null. Never zero: see the note above.
+ */
+function positiveSeconds(value: number): number | null {
+  if (!Number.isFinite(value) || value < 1) return null;
+  return Math.ceil(value);
 }
 
 export async function fetchWithTimeout(input: RequestInfo | URL, init?: RequestInit, timeoutMs = 8000) {

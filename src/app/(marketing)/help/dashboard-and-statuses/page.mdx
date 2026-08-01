@@ -3,7 +3,7 @@ import { helpArticleMetadata } from "@/lib/seo";
 export const metadata = helpArticleMetadata({
   slug: "dashboard-and-statuses",
   title: "Order statuses from upload to delivered — ProcuLink Help",
-  description: "What every order status means, the difference between Normalized and Ready to send, and why Delivered is not the same as accepted.",
+  description: "What every order status means, the difference between Ready to send and Queued to send, and why Delivered is not the same as accepted.",
 });
 
 # Order statuses from upload to delivered
@@ -16,38 +16,39 @@ Every order carries one status at a time, and the same vocabulary is used everyw
 
 | Status | Meaning |
 |---|---|
-| **Parsing** | The file is being read and structured in the background. |
+| **Extracting** | The file is being read and structured in the background. |
+| **Needs supplier** | Read, but no supplier could be matched — the order waits for you to assign one. |
 | **Needs review** | Parsed, but at least one line needs a human — usually a missing supplier item code. |
-| **Normalized** | Parsed and validated. Nothing has been generated or sent yet. |
-| **Transforming** | The supplier's output document is being generated. |
-| **Ready to send** | The output artifact exists and is waiting for delivery. |
+| **Ready to send** | Parsed and validated. Nothing has been generated or sent yet — it's your turn. |
+| **Preparing output** | The supplier's output document is being generated. |
+| **Queued to send** | The supplier's output file exists and is waiting for delivery. |
 | **Sending** | A delivery attempt is in progress. |
 | **Delivery paused** | Your plan can't process orders right now, so we paused sending instead of delivering. The supplier file is generated and intact; sending resumes automatically once billing is up to date. |
 | **Delivered** | The supplier's endpoint accepted the transmission. |
 
-The distinction people trip on: **Normalized** means "clean order, nothing queued to send", while **Ready to send** means "the output file for the supplier has been generated and delivery is next". An order can sit in Normalized indefinitely — that's normal, not stuck.
+The distinction people trip on: **Ready to send** means "clean order, nothing generated yet — it's waiting on you", while **Queued to send** means "the output file for the supplier has been generated and delivery is next — it's waiting on us". An order can sit in Ready to send indefinitely — that's normal, not stuck.
 
 ## The failure states
 
 | Status | Meaning |
 |---|---|
-| **Failed** | Parsing the source file failed — the order never got off the ground. |
-| **Transform failed** | Generating the supplier's output failed. |
-| **Delivery failed** | A delivery attempt failed; the error and response code are kept on the order. |
+| **Couldn't read file** | Parsing the source file failed — the order never got off the ground. |
+| **Couldn't build output** | Generating the supplier's output failed. |
+| **Couldn't send** | A delivery attempt failed; the error and response code are kept on the order. |
 | **Delivery unknown** | We may have sent this order, but lost the connection before the supplier confirmed it — so we can't tell whether it arrived. Not a failure in the usual sense: it waits for an operator to check with the supplier, then either send it again or mark it delivered. See "Delivered ≠ accepted" below. |
 | **Out of retries** | Automatic delivery retries (3 attempts) are exhausted. Open the order and use **Start sending again**, or requeue it from System health. |
-| **Rejected** | The supplier's system returned the order *after* delivery. |
+| **Supplier rejected** | The supplier's system returned the order *after* delivery. |
 
 Each failure state also opens an entry in [the exceptions queue](/help/exceptions-and-stuck-orders), so nothing fails silently.
 
 ## Delivered ≠ accepted
 
-**Delivered** means the supplier's endpoint answered successfully — an HTTP 200 proves the connection worked, not that the supplier's business system took the order. Their side can still reject unknown item codes, missing fields, or business rules after the fact, which is why **Rejected** exists as a separate, post-delivery status. Treat the supplier's confirmation (order confirmation, ERP booking) as the real finish line.
+**Delivered** means the supplier's endpoint answered successfully — an HTTP 200 proves the connection worked, not that the supplier's business system took the order. Their side can still reject unknown item codes, missing fields, or business rules after the fact, which is why **Supplier rejected** exists as a separate, post-delivery status. Treat the supplier's confirmation (order confirmation, ERP booking) as the real finish line.
 
 ## Where to watch statuses
 
 - **Dashboard** — workspace-level counts and recent movement.
-- **Inbox** — filter orders by status; the chips use exactly these labels.
+- **Inbox** — filter orders by status; the chips are drawn from this same vocabulary.
 - **Order page** — the full journey of one order, including delivery attempts and errors.
 - **Operations → Log** — a date-grouped audit trail of every status change and event.
 - **Operations → Health** — only the problem states, with counts and a worker liveness banner.

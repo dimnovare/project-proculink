@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildChecklistSteps } from "./buildChecklistSteps";
+import { buildChecklistSteps, checklistDensity } from "./buildChecklistSteps";
 import type { OnboardingStatus } from "@/types/procurement";
 
 const NOUN = "supplier";
@@ -205,5 +205,60 @@ describe("buildChecklistSteps", () => {
     expect(model.steps.find((s) => s.id === "catalog")?.label).toBe(
       "Add the customer's item codes",
     );
+  });
+});
+
+// ── WP-27: the checklist has to shrink as it is completed ───────────────────
+// It used to render the same full card at 0/6 and at 5/6 and sit on the dashboard
+// until every step was ticked. The value of a step list is highest when nothing is
+// done and lowest when one step is left, so progress must buy back screen space.
+
+describe("checklistDensity", () => {
+  it("is 'hero' when nothing has been done yet", () => {
+    const model = buildChecklistSteps(allFalseExtended(), NOUN);
+    expect(model.totalDone).toBe(0);
+    expect(checklistDensity(model)).toBe("hero");
+  });
+
+  it("shrinks to 'compact' as soon as one step is done", () => {
+    const model = buildChecklistSteps({ ...allFalseExtended(), hasSupplier: true }, NOUN);
+    expect(model.totalDone).toBe(1);
+    expect(model.complete).toBe(false);
+    expect(checklistDensity(model)).toBe("compact");
+  });
+
+  it("stays 'compact' all the way to one step remaining", () => {
+    const model = buildChecklistSteps(
+      {
+        ...allFalseExtended(),
+        hasSupplier: true,
+        hasCatalog: true,
+        hasUpload: true,
+        hasResolvedMapping: true,
+        hasDeliveryConfig: true,
+        hasTestFired: true,
+      },
+      NOUN,
+    );
+    expect(model.totalSteps - model.totalDone).toBe(1); // only "send" left
+    expect(checklistDensity(model)).toBe("compact");
+  });
+
+  it("is 'complete' only when every derivable step is done", () => {
+    const model = buildChecklistSteps(
+      {
+        ...allFalseExtended(),
+        hasSupplier: true,
+        hasCatalog: true,
+        hasUpload: true,
+        hasResolvedMapping: true,
+        hasDeliveryConfig: true,
+        hasTestFired: true,
+        hasDelivery: true,
+      },
+      NOUN,
+    );
+    expect(model.complete).toBe(true);
+    expect(checklistDensity(model)).toBe("complete");
   });
 });

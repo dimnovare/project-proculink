@@ -2,42 +2,44 @@ import { helpArticleMetadata } from "@/lib/seo";
 
 export const metadata = helpArticleMetadata({
   slug: "exceptions-and-stuck-orders",
-  title: "Working the exceptions queue — ProcuLink Help",
-  description: "What lands in Exceptions, what Resolve and Ignore really do, how delivery retries and out-of-retries orders work, and when to check system health.",
+  title: "Working the issues queue — ProcuLink Help",
+  description: "What lands in Issues, what Resolve and Ignore really do, how delivery retries and out-of-retries orders work, and when to check system health.",
 });
 
-# Working the exceptions queue
+# Working the issues queue
 
-**Operations → Exceptions** is the one list of every order blocked on a human decision. Nothing is hidden to look tidy: if an order can't move forward, an exception says so, with the stage and the reason.
+**Operations → Issues** is the one list of every order blocked on a human decision. Nothing is hidden to look tidy: if an order can't move forward, an issue says so, with the step it stopped at and the reason. (The API calls these rows `exceptions`; the screen calls them issues.)
 
 > This article covers what to do when an order stops. For the ordinary path through review, follow [review an order and send it](/help/guides/review-an-order).
 
 ## What lands here
 
-Exceptions are generated automatically from order state:
+Issues are generated automatically from order state. Each one is named here exactly as the order screen and the inbox name it, so the word you read in this list is the word you look for on the order:
 
-- **Needs a supplier code** (`unresolved_mapping`) — lines that couldn't be matched to the supplier's item codes. This includes **every line from a scanned PDF**: with no text layer to verify the numbers against, scanned-PDF orders are always routed to human review rather than delivered blind.
-- **Parse failed** — the source file couldn't be read into an order.
-- **Transform failed** — generating the supplier's output failed.
-- **Delivery failed** — sending to the supplier failed; the attempt's error is captured.
-- **Rejected by supplier** — the supplier's system returned the order after delivery.
-- **Out of retries** (critical) — automatic delivery retries are exhausted.
+- **Needs supplier** — the file was read, but we can't tell which supplier the order is for. Assign one and it carries on. Nothing else can be fixed until this is.
+- **Needs review** — one or more lines have no supplier item code yet. This includes **every line from a scanned PDF**: with no text layer to verify the numbers against, scanned-PDF orders always go to a human rather than being delivered blind.
+- **Couldn't read file** — the source file couldn't be turned into an order at all. There is nothing to correct in place; upload a corrected file as a new order.
+- **Couldn't build output** — the order is fine, but the supplier's output file couldn't be generated from it. Usually the output template or the field mapping.
+- **Couldn't send** — the order and its output file are both fine; the send itself didn't get through. The attempt's error and response code are kept on the order.
+- **Delivery unknown** — we sent it, then lost the connection before hearing back, so we can't say whether it arrived. Not a failure: it waits for you (see below).
+- **Supplier rejected** — the supplier's system read the order and refused it, after delivery.
+- **Out of retries** (critical) — the automatic delivery attempts are spent and nothing more happens on its own.
 
 ## Resolve vs Ignore — what they really do
 
-The exception list mirrors reality; it doesn't replace it:
+The issues list mirrors reality; it doesn't replace it:
 
-- **The real fix is fixing the order.** Open the blocked order, resolve the cause (enter the code, correct the mapping, set up delivery), and the exception clears itself on the next pipeline touch.
-- **Resolve** marks the row done — but if the underlying problem still exists, a fresh exception reopens so the problem stays visible. You can't make a broken order look healthy by clicking Resolve.
-- **Ignore** is a deliberate dismissal: an ignored exception is never reopened and never nags again for the same cause. Use it for things you've decided not to act on.
+- **The real fix is fixing the order.** Open the blocked order, resolve the cause (enter the code, correct the mapping, set up delivery), and the issue clears itself the next time the order moves.
+- **Resolve** marks the row done — but if the underlying problem still exists, a fresh issue reopens so the problem stays visible. You can't make a broken order look healthy by clicking Resolve.
+- **Ignore** is a deliberate dismissal: an ignored issue is never reopened and never nags again for the same cause. Use it for things you've decided not to act on.
 
 ## Delivery failures and retries
 
-A failed delivery is retried automatically — **3 attempts in total** — and then the order moves to **Out of retries**, with each attempt's error and response code kept in the audit trail.
+A **Couldn't send** order is retried automatically — **3 attempts in total** — and then it moves to **Out of retries**, with each attempt's error and response code kept in the audit trail.
 
 Once retries are exhausted, nothing more happens on its own. Open the order: the panel there explains what happened and carries **Start sending again**, which puts the order back in the sending queue. Check the supplier's delivery settings first — if nothing has changed at their end, it will fail the same way. The same action is available in bulk from **Operations → System health**, in the table of orders we couldn't deliver.
 
-One caveat to keep front of mind: a successful delivery means the supplier's endpoint answered — **HTTP 200 is not business acceptance**. A delivered order can still come back as Rejected by supplier; that creates its own exception.
+One caveat to keep front of mind: a successful delivery means the supplier's endpoint answered — **HTTP 200 is not business acceptance**. A delivered order can still come back as **Supplier rejected**; that opens an issue of its own.
 
 ## When we don't know whether it arrived
 
@@ -57,7 +59,7 @@ SFTP, FTPS, and HTTP deliveries don't have this problem the same way: an SFTP/FT
 
 ## "Is it slow, or is it dead?"
 
-When an order sits in Parsing or Sending longer than feels right, check **Operations → Health** before re-uploading:
+When an order sits in **Extracting** or **Sending** longer than feels right, check **Operations → Health** before re-uploading:
 
 - the **worker banner** shows whether the background worker is alive — an offline worker stalls every upload in the workspace, and no amount of re-uploading helps;
 - the count tiles show orders stuck past the threshold, failed transforms/deliveries, and orders we've stopped retrying, and each tile links to exactly those orders;
