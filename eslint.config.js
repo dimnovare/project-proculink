@@ -36,6 +36,10 @@ const VITEST_ASSERT_HELPERS = [
   // it. That is the intended friction — the alternative, an `expect*` glob, would not have matched
   // `bothScopes` anyway and would silently bless a future helper that asserts nothing.
   "bothScopes",
+  // src/test/textColorScan.test.ts — asserts no exemption anchor exceeds REPORT_LINE_CHARS, since
+  // an anchor longer than a report line can never match a hit. Added when WP-30 (#69) landed two
+  // tests (one per colour family) whose whole body is this helper; verified it really asserts.
+  "assertAnchorsFitTheReport",
 ];
 
 /**
