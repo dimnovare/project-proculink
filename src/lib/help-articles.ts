@@ -299,8 +299,8 @@ export const HELP_ARTICLES: HelpArticle[] = [
   },
   {
     slug: "ubl-and-peppol",
-    title: "UBL and Peppol BIS Order",
-    blurb: "Parse UBL 2.1 Order documents inbound and emit UBL / Peppol BIS Order 3 output for European e-procurement and Peppol networks.",
+    title: "UBL Order files, and what they mean for Peppol",
+    blurb: "Parse UBL 2.1 Order documents inbound and emit UBL 2.1 output — plus what ProcuLink does and does not do when a buyer asks for Peppol BIS Order 3.",
     category: "Integrations",
     keywords: ["UBL", "Peppol", "BIS Order 3", "OASIS", "e-procurement", "Order-2 namespace", "UBL invoice", "XML order", "Access Point"],
     readMin: 3,

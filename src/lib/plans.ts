@@ -300,12 +300,23 @@ export const PLANS: Plan[] = [
       "Custom volume",
       "Custom suppliers",
       "ERP connectors",
-      // Enterprise SSO was claimed on /security and in CLAUDE.md §11.5 but missing from this
-      // list — three surfaces, two answers. BillingFeature.Sso really is Enterprise-only, so the
-      // card is the one that was wrong. Worth knowing WHY it is the one gate with no 403: Clerk
-      // Enterprise Connections delivers the auth and ProcuLink never sits in front of it (a SAML
-      // session's JWT is identical), so the flag drives availability and onboarding, not a refusal.
-      "SSO (SAML/OIDC)",
+      // SSO is deliberately NOT sold here, and the earlier note on this line had it backwards:
+      // it reasoned that because `BillingFeature.Sso` is Enterprise-only, the card was the
+      // surface that was wrong. The tier was never the problem. The problem is that nothing is
+      // gated and nothing is built.
+      //
+      // `Sso` is the one BillingFeature that refuses nothing. Its only production reference is
+      // `PlanConstants.PlanHasFeature` (StripeBillingService.cs:191), surfaced as
+      // `BillingStatus.SsoAvailable`. Its exemption from the IL-scanning gate test is granted
+      // on the grounds that "the flag drives the Settings availability/upsell only"
+      // (BillingGateEnforcementIsRealTests.cs:100-103) — and that Settings surface does not
+      // exist. `ssoAvailable` has zero consumers in this codebase: no type field, no mock, no
+      // component. A customer who pays for this bullet has nowhere to configure it.
+      //
+      // Reversal is mechanical, not a matter of remembering this comment. `gatedCapabilityClaims`
+      // fails while a card sells SSO and no Settings SSO surface exists, and fails the other way
+      // once that surface ships and nothing sells it — so the guard asks for this bullet back on
+      // the day it becomes true.
       "Dedicated onboarding",
       "SLA",
       "Custom transformation rules",

@@ -744,7 +744,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                     <option value="csv">CSV</option>
                     <option value="xml">XML (generic)</option>
                     <option value="cxml">cXML</option>
-                    <option value="ubl">UBL 2.1 / Peppol</option>
+                    <option value="ubl">UBL 2.1 Order</option>
                     <option value="x12">ANSI X12 850</option>
                     <option value="json">JSON</option>
                   </select>

@@ -470,7 +470,10 @@ gates them at Growth). Read `plans.ts`:
 - Operations: `€399/month` — 500 orders/month, 10 suppliers, bulk mapping import, cXML support, advanced audit trail, priority support. CTA: `Upgrade to Operations`.
 - Integration: `€999/month` — 1,500 orders/month, 20 suppliers, all channels, advanced audit trail, assisted onboarding. CTA: `Upgrade to Integration`.
 - Distributor: `€1,499/month` — 2,500 orders/month, 30 suppliers, all channels, bulk mapping, priority onboarding, founder-led supplier setup. CTA: `Upgrade to Distributor`.
-- Enterprise: `Custom` — custom volume/suppliers, ERP connectors, SSO, dedicated onboarding, SLA, custom transformation rules. CTA: `Contact sales`.
+- Enterprise: `Custom` — custom volume/suppliers, ERP connectors, dedicated onboarding, SLA, custom transformation rules. CTA: `Contact sales`.
+  SSO is **not** on this card and must not be added back until a Settings SSO surface exists —
+  `BillingFeature.Sso` refuses nothing and `ssoAvailable` has zero frontend consumers. The rule is
+  enforced, both directions, by `src/test/gatedCapabilityClaims.test.ts`.
 
 **Offer ⇔ works applies to the ladder itself:** a capability may only be listed on a tier if the
 backend really gates it there. `BillingFeature` + `PlanConstants.MinimumPlan` are the source of
@@ -478,7 +481,8 @@ truth; the guard that keeps them honest is
 `ProcuLink.Api.Tests/Architecture/BillingGateEnforcementIsRealTests.cs`, which reads **compiled IL**
 (via `BillingGateIlScanner`) and asserts per feature that the named production method provably
 reaches the gate primitive — `IBillingService.HasFeatureAsync`, or `PlanConstants.PlanHasFeature`
-for the single presentation-only case (SSO, which Clerk delivers). It also walks the reverse
+for the single presentation-only case (SSO — Clerk *can* deliver it, but ProcuLink exposes no
+surface for it and no longer sells it; see the note on the Enterprise card above). It also walks the reverse
 direction, so a gate call in production that no tier declares fails the build, and it ships a
 negative control pinning `OrdersController.GetAudit` as deliberately ungated. Verify a gate by
 running that test — never by reading a method name off a list.

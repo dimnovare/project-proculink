@@ -136,7 +136,7 @@ const OUTPUT_FORMATS: Array<{ id: OutputFormatId; label: string; blurb: string }
   { id: "xml", label: "XML", blurb: "A generic structured XML document." },
   { id: "json", label: "JSON", blurb: "A structured JSON document, common for APIs." },
   { id: "cxml", label: "cXML", blurb: "The cXML procurement standard (Ariba / Coupa style)." },
-  { id: "ubl", label: "UBL / Peppol", blurb: "UBL 2.1 / Peppol BIS — common in EU e-procurement." },
+  { id: "ubl", label: "UBL 2.1", blurb: "The OASIS UBL 2.1 Order document, common in EU e-procurement. Not checked against Peppol BIS business rules." },
   { id: "x12", label: "X12 850", blurb: "The ANSI X12 850 EDI purchase-order format." },
 ];
 
