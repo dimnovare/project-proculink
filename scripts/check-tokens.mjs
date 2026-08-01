@@ -194,7 +194,7 @@ const BASELINE = {
   "src/app/(marketing)/one-pager/page.tsx": 17,
   "src/app/(marketing)/one-pager/print.css": 1,
   "src/app/(marketing)/pricing/page.tsx": 15,
-  "src/app/(marketing)/privacy/page.tsx": 17,
+  "src/app/(marketing)/privacy/page.tsx": 10,
   "src/app/(marketing)/security/page.tsx": 35,
   "src/app/(marketing)/subprocessors/page.tsx": 21,
   "src/app/(marketing)/support/page.tsx": 19,

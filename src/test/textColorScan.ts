@@ -51,13 +51,25 @@ export interface ScanFile {
   text: string;
 }
 
+/**
+ * How much of the offending line a hit carries.
+ *
+ * EXPORTED because callers match exemptions against `hit.text`, and an exemption
+ * anchor longer than this can never match — it silently stops forgiving the site
+ * it was written for, which looks like a real failure and wastes the reader's
+ * time on a phantom. Seen once: WP-27 lengthened two BridgeDashboard rows past
+ * 120 characters and both exemptions went dark. A test asserts every anchor
+ * stays under it.
+ */
+export const REPORT_LINE_CHARS = 120;
+
 export interface TextColorHit {
   rel: string;
   /** 1-based. */
   line: number;
   /** Which detector fired — named so a failure says WHY, not just where. */
   spelling: string;
-  /** The offending source line, trimmed. */
+  /** The offending source line, trimmed to REPORT_LINE_CHARS. */
   text: string;
 }
 
@@ -213,7 +225,7 @@ export function scanTextColorUses(
     for (const name of boundNames(text, value)) targets.push([name, "indirect"]);
 
     const push = (line: number, spelling: string) =>
-      out.push({ rel, line, spelling, text: (lines[line - 1] ?? "").trim().slice(0, 120) });
+      out.push({ rel, line, spelling, text: (lines[line - 1] ?? "").trim().slice(0, REPORT_LINE_CHARS) });
 
     for (const [target, kind] of targets) {
       const declSlot = new RegExp(`${TEXT_PROP}${UP_TO_VALUE}${target}`, "i");
