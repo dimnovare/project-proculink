@@ -595,8 +595,8 @@ async function mockGetOrderPassport(orderId: string): Promise<PassportDto> {
     validationResults: [],
     mappingDecisions: o.lines.map(l => ({
       lineNumber: l.lineNumber,
-      buyerCode: l.buyerItemCode,
-      supplierCode: l.supplierItemCode ?? l.aiSuggestion?.supplierItemCode ?? null,
+      buyerItemCode: l.buyerItemCode,
+      supplierItemCode: l.supplierItemCode ?? l.aiSuggestion?.supplierItemCode ?? null,
       source: l.supplierItemCode ? "deterministic" : l.aiSuggestion ? "ai" : "unresolved",
       confidence: l.supplierItemCode ? 1 : l.aiSuggestion?.confidence ?? null,
     })),
