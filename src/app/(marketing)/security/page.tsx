@@ -79,9 +79,44 @@ const POSTURE: Array<{ title: string; body: React.ReactNode; icon: React.ReactNo
     body: "Org-scoped data isolation on every query, scoped API keys you can revoke instantly, and short-lived sessions by default. Role-based access and SAML/OIDC SSO are available on Enterprise — we set them up with you during onboarding.",
     icon: <UserIcon />,
   },
+  // The no-AI mode is REAL and the old sentence oversold it in three separate ways.
+  //
+  // What the code actually does — Organisation.SelfHostedOcr, verified 2026-07-31:
+  // it suppresses OpenAI at six independent chokepoints (PDF extraction, XLSX
+  // extraction, SKU mapping, field auto-map, schema inference, inbound-email NLP),
+  // each pinned by a strict-mock `Times.Never` test. A failed READ of the flag is
+  // treated as no-egress (OpenAiMappingService.cs, OpenAiSchemaInferencer.cs both
+  // `return true` on exception), so the common failure mode is safe. One narrow
+  // path is not: both gates open `if (orgId == Guid.Empty) return false`, and the
+  // schema inferencer resolves its org id inside a try/catch that yields
+  // Guid.Empty — so an unidentifiable tenant fails OPEN on catalog schema
+  // inference. Narrow and exception-only, but it is not "fails safe everywhere",
+  // and the card's wording should not depend on it being so.
+  //
+  // What it does NOT do:
+  //   • "runs entirely in your environment" — FALSE. The local OCR engine
+  //     (RapidOcrNet) runs in-process inside OUR Railway API and Worker
+  //     containers. There is no customer-deployable artifact anywhere: no helm
+  //     chart, no installer, no tenant-supplied endpoint, zero hits for
+  //     Tesseract/OcrProvider/EndpointOverride in the backend repo. The flag
+  //     removes one subprocessor; it does not move processing one metre.
+  //   • "documents never leave your region" — FALSE, and it follows from the
+  //     above: the files still travel to Railway compute, Neon and R2 exactly as
+  //     for every other org.
+  //   • "Enterprise customers can opt into" — FALSE as stated. There are ZERO
+  //     write sites for the flag in production code, no endpoint, no settings
+  //     screen, and no BillingFeature/PlanConstants entry binding it to
+  //     Enterprise. It is a manual database toggle we set, which is a thing we
+  //     do for you, not a thing you can opt into.
+  //
+  // Also deliberately dropped: the scanned-PDF OCR promise. The engine is only
+  // registered when `NoEgressOcr:Enabled` is set, that key appears in NO committed
+  // config, and whether it is set on production Railway is not establishable from
+  // the repo. So the card claims the guarantee that holds either way — no egress —
+  // and not the capability whose production status we cannot check.
   {
     title: "Responsible AI",
-    body: "Mapping suggestions never auto-apply without a confidence score and source. Your data is never used to train third-party models. Enterprise customers can opt into a self-hosted mode where document extraction — including scanned-PDF OCR — runs entirely in your environment: documents never leave your region, and nothing is sent to OpenAI.",
+    body: "Mapping suggestions never auto-apply without a confidence score and source. Your data is never used to train third-party models. We can also turn AI extraction off for an organisation entirely, so nothing about its orders reaches OpenAI: the AI steps are switched off, our own parsers do the reading, and anything they cannot read is left for manual entry rather than sent out. We set that for you on request; it is not a self-serve setting, and it does not change where your files are stored.",
     icon: <ZapIcon />,
   },
 ];

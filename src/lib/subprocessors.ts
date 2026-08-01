@@ -20,6 +20,56 @@
 //     direction. Postmark was listed as inbound-only while the email delivery
 //     channel was sending complete purchase orders out through it.
 //   • Do not claim certifications or contract terms we do not have.
+//
+// WHICH LOCATIONS ARE SOURCED, AND WHICH ARE NOT (checked 2026-07-31).
+// The backend's docs/qa/2026-07-30-residency-ground-truth.md marked six of these
+// locations UNSOURCED. Two of the six can now be closed from a PUBLIC, repeatable
+// source — the production CSP response header, which src/lib/security/csp.ts
+// derives from the live NEXT_PUBLIC_SENTRY_DSN and NEXT_PUBLIC_POSTHOG_HOST:
+//
+//     curl -sI https://proculink.eu/ | grep -i content-security-policy
+//     → connect-src … https://eu.posthog.com https://eu-assets.i.posthog.com
+//                     https://o4511461459558400.ingest.de.sentry.io
+//
+//   ✔ Sentry  "EU region"          — `.ingest.de.` IS Sentry's EU region, and this
+//                                    is the PRODUCTION frontend DSN (csp.ts parses
+//                                    it with NO fallback: no DSN would mean no
+//                                    report-uri at all), not the csp.test.ts fixture
+//                                    the ground truth rightly refused as evidence.
+//   ✔ PostHog "EU (eu.posthog.com)" — the browser leg is EU on live production.
+//
+// BUT NEITHER U6 NOR U8 IS FULLY CLOSED, and the copy this licenses is mostly about
+// the BACKEND. A frontend response header cannot observe the API's or the Worker's
+// `Sentry:Dsn`, nor Railway's `Analytics__PostHog__Host`. Sentry regions are
+// per-organisation, so if the backend DSN belongs to the same org as the one above
+// then it is EU too — that is an INFERENCE, not a measurement, and the ground truth's
+// rule is that inferences are never presented as measurements. PostHog's origin also
+// has a hardcoded `?? "https://eu.posthog.com"` default in csp.ts, so the header is
+// equally consistent with the variable being unset — the conclusion survives (the
+// same default is in analytics.ts, so the browser goes to EU either way) but it is
+// weaker than "an override is ruled out". Read the two dashboards to finish these.
+//
+// STILL UNSOURCED — do not strengthen, and do not soften into a different guess:
+//   ✗ Railway "EU region"       (U1) — no region is pinned in ANY committed file in
+//                                      either repo; it is a dashboard-only setting.
+//                                      `x-railway-edge: ams1` on api.proculink.eu is
+//                                      NOT evidence: that header names the edge PoP
+//                                      nearest the CLIENT, not the deploy region.
+//   ✗ Neon    "EU region"       (U5) — no Neon hostname exists in either repo.
+//   ✗ Cloudflare "EU-region bucket" (U3) — R2Endpoint is "" in committed config, the
+//                                      app never creates a bucket, and zero hits for
+//                                      jurisdiction/locationHint. Note that even a
+//                                      confirmed LOCATION HINT would not license this
+//                                      wording: Cloudflare's own docs call hints
+//                                      "best effort and not a guarantee" and only a
+//                                      jurisdictional restriction is a residency
+//                                      control.
+// These three are left as they are ON PURPOSE. They are unsourced, not established
+// false — unlike the claims corrected in this pass, which code contradicts outright.
+// Retracting a probably-true residency claim across the whole site is a commercial
+// decision, and each is settled by ONE dashboard read: Cloudflare → R2 → bucket
+// `proculink` → Jurisdiction; Railway → service → Settings → Region (BOTH services);
+// Neon → Project → region label. Do those three, then write what they say.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface Subprocessor {
