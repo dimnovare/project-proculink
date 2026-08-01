@@ -470,7 +470,10 @@ gates them at Growth). Read `plans.ts`:
 - Operations: `€399/month` — 500 orders/month, 10 suppliers, bulk mapping import, cXML support, advanced audit trail, priority support. CTA: `Upgrade to Operations`.
 - Integration: `€999/month` — 1,500 orders/month, 20 suppliers, all channels, advanced audit trail, assisted onboarding. CTA: `Upgrade to Integration`.
 - Distributor: `€1,499/month` — 2,500 orders/month, 30 suppliers, all channels, bulk mapping, priority onboarding, founder-led supplier setup. CTA: `Upgrade to Distributor`.
-- Enterprise: `Custom` — custom volume/suppliers, ERP connectors, SSO, dedicated onboarding, SLA, custom transformation rules. CTA: `Contact sales`.
+- Enterprise: `Custom` — custom volume/suppliers, ERP connectors, dedicated onboarding, SLA, custom transformation rules. CTA: `Contact sales`.
+  SSO is **not** on this card and must not be added back until a Settings SSO surface exists —
+  `BillingFeature.Sso` refuses nothing and `ssoAvailable` has zero frontend consumers. The rule is
+  enforced, both directions, by `src/test/gatedCapabilityClaims.test.ts`.
 
 **Offer ⇔ works applies to the ladder itself:** a capability may only be listed on a tier if the
 backend really gates it there. `BillingFeature` + `PlanConstants.MinimumPlan` are the source of

@@ -51,6 +51,50 @@ const PLAN_NAMES = [
   "enterprise",
 ] as const;
 
+/** Ladder position, cheapest first — "sold below its gate" is a comparison, not a string match. */
+const rank = (plan: string): number => {
+  const i = PLAN_NAMES.indexOf(plan as (typeof PLAN_NAMES)[number]);
+  if (i < 0) throw new Error(`unknown plan '${plan}' — PLAN_NAMES is the ladder`);
+  return i;
+};
+
+/**
+ * Every `.ts`/`.tsx`/`.mdx` file under a directory. Module-scoped: more than one guard walks it.
+ * Test files are skipped — a suite whose must-flag controls quote the defect verbatim would
+ * otherwise be reported as committing it.
+ */
+const walk = (dir: string): string[] => {
+  const out: string[] = [];
+  for (const entry of readdirSync(dir)) {
+    const full = join(dir, entry);
+    if (statSync(full).isDirectory()) out.push(...walk(full));
+    else if (/\.(ts|tsx|mdx)$/.test(entry) && !/\.(test|spec)\.tsx?$/.test(entry)) out.push(full);
+  }
+  return out;
+};
+
+/**
+ * Every surface a buyer reads before they pay: the marketing tree, the format catalog, and the
+ * price list itself. A comment is not a claim, so lines that are only a comment are dropped —
+ * otherwise the notes explaining why a claim was REMOVED would read as the claim.
+ */
+const buyerFacingLines = (): Array<{ file: string; line: string; number: number }> => {
+  const files = [
+    ...walk(join(process.cwd(), "src/lib/marketing")),
+    ...walk(join(process.cwd(), "src/app/(marketing)")),
+    join(process.cwd(), "src/lib/plans.ts"),
+  ];
+  return files.flatMap((file) =>
+    readFileSync(file, "utf8")
+      .split("\n")
+      .map((line, i) => ({ file: file.replace(process.cwd(), ""), line, number: i + 1 }))
+      .filter(({ line }) => !/^\s*(\/\/|\/\*|\*)/.test(line)),
+  );
+};
+
+/** SAML, OIDC, and the bare acronym. `\b` matters: "subprocessors" contains "sso". */
+const SELLS_SSO = /\bsso\b|\bsaml\b|\boidc\b|single[- ]sign[- ]on/i;
+
 /** The four channels WP-11 moved down to Growth — the ones that were mis-advertised. */
 const CHANNEL_CLAIM_PATTERNS: ReadonlyArray<{
   label: string;
@@ -191,16 +235,6 @@ describe("the tier→capability claim list is not duplicated outside plans.ts", 
    * somewhere this suite does not yet look, so the scan is over the whole marketing tree rather than
    * a fixed list of files.
    */
-  const walk = (dir: string): string[] => {
-    const out: string[] = [];
-    for (const entry of readdirSync(dir)) {
-      const full = join(dir, entry);
-      if (statSync(full).isDirectory()) out.push(...walk(full));
-      else if (/\.(ts|tsx|mdx)$/.test(entry)) out.push(full);
-    }
-    return out;
-  };
-
   /**
    * "<channel> … <dearer plan> plan(s)" close together on one line.
    *
@@ -258,9 +292,15 @@ describe("the tier→capability claim list is not duplicated outside plans.ts", 
   const APPEND_ONLY = join(process.cwd(), "src/app/(marketing)/changelog/page.tsx");
 
   it("no marketing copy claims a gated ingestion channel needs a tier above Growth", () => {
+    // `src/lib/plans.ts` is in this corpus deliberately. The describe above is titled "not
+    // duplicated outside plans.ts" and walked `src/lib/marketing` — one directory level below the
+    // file it is named after, so the price list itself was never scanned by the widest scan in
+    // this suite. That is how `"SSO (SAML/OIDC)"` sat on the Enterprise card unexamined: not
+    // because a pattern was too narrow, but because the corpus stopped short of the file.
     const files = [
       ...walk(join(process.cwd(), "src/lib/marketing")),
       ...walk(join(process.cwd(), "src/app/(marketing)")),
+      join(process.cwd(), "src/lib/plans.ts"),
     ];
     expect(files.length).toBeGreaterThan(0);
 
@@ -345,5 +385,157 @@ describe("the tier→capability claim list is not duplicated outside plans.ts", 
       correctedAbove(lines, flagged[0].i),
       "the frozen line cannot be edited, so a later entry has to state the real tier above it",
     ).toBe(true);
+  });
+});
+
+/**
+ * How each of the mirrored gate rows is SOLD on a pricing card.
+ *
+ * Keyed by `BACKEND_MINIMUM_PLAN`, so the type checker — not a reviewer — is what forces a matcher
+ * to exist for every row. Adding a member to the mirror without adding one here fails
+ * `bun run typecheck`.
+ *
+ * This map exists because the mirror was not one. `BACKEND_MINIMUM_PLAN` reads like the backend
+ * gate table, and is described in its own comment as the thing drift "has to break a test rather
+ * than sit in prose" against. Three of its ten rows were consulted (by `CHANNEL_CLAIM_PATTERNS`);
+ * the other seven, `sso` among them, could be deleted outright without reddening anything. A table
+ * nobody reads is prose wearing a test's clothes, which is precisely what it was written against.
+ */
+const CAPABILITY_CLAIMS: Record<keyof typeof BACKEND_MINIMUM_PLAN, { label: string; sells: RegExp }> = {
+  webhookDelivery: { label: "webhook / API delivery", sells: /webhook/i },
+  emailIngestion: { label: "inbound email ingestion", sells: /\bemail\b/i },
+  sftpIngestion: { label: "SFTP ingestion", sells: /\bsftp\b/i },
+  s3Ingestion: { label: "S3 / R2 ingestion", sells: /\bs3\b/i },
+  bulkMapping: { label: "bulk mapping import/export", sells: /bulk mapping/i },
+  cxml: { label: "cXML support", sells: /\bcxml\b/i },
+  advancedAudit: { label: "advanced audit trail", sells: /advanced audit/i },
+  erpConnectors: { label: "ERP connectors", sells: /\berp\b/i },
+  customSupplierRules: { label: "custom transformation rules", sells: /custom (transformation|supplier) rule/i },
+  sso: { label: "SSO", sells: SELLS_SSO },
+};
+
+describe("the mirrored gate table is load-bearing, row by row", () => {
+  it("has a matcher for every mirrored row, and mirrors no row it cannot match", () => {
+    expect(Object.keys(CAPABILITY_CLAIMS).sort()).toEqual(Object.keys(BACKEND_MINIMUM_PLAN).sort());
+  });
+
+  it.each(Object.entries(CAPABILITY_CLAIMS))(
+    "%s: no card sells it below the tier the backend gates it at",
+    (key, { label, sells }) => {
+      const minimumPlan = BACKEND_MINIMUM_PLAN[key as keyof typeof BACKEND_MINIMUM_PLAN];
+      const selling = PLANS.filter((p) => p.features.some((f) => sells.test(f)));
+      if (selling.length === 0) return; // unsold is a separate question — pinned in the next test
+
+      const cheapest = selling.reduce((a, b) => (rank(a.id) <= rank(b.id) ? a : b));
+      expect(
+        rank(cheapest.id),
+        `the ${cheapest.id} card sells ${label}, but the backend gates it at ${minimumPlan}. A ` +
+          `customer who buys ${cheapest.id} for that bullet meets a 403, which is the same false ` +
+          `claim WP-11 fixed in the other direction.`,
+      ).toBeGreaterThanOrEqual(rank(minimumPlan));
+    },
+  );
+
+  it("pins exactly which gated capabilities no card currently sells", () => {
+    // The floor under the early return above. An unsold capability is legitimate — SSO is unsold
+    // on purpose — but it must be a decision on this list, not a bullet that quietly went missing.
+    const unsold = Object.entries(CAPABILITY_CLAIMS)
+      .filter(([, { sells }]) => !PLANS.some((p) => p.features.some((f) => sells.test(f))))
+      .map(([key]) => key);
+
+    expect(
+      unsold,
+      "SSO is deliberately unsold until a Settings surface exists (see below, and the note on the " +
+        "Enterprise card in plans.ts). Anything else appearing here is a bullet that went missing.",
+    ).toEqual(["sso"]);
+  });
+});
+
+describe("SSO is sold only where it can be configured", () => {
+  /**
+   * `BillingFeature.Sso` is the one BillingFeature that refuses nothing. Its only production
+   * reference is a `PlanConstants.PlanHasFeature` lookup surfaced as `BillingStatus.SsoAvailable`
+   * (StripeBillingService.cs:191), and the IL-scanning gate test exempts it on the grounds that
+   * "the flag drives the Settings availability/upsell only"
+   * (BillingGateEnforcementIsRealTests.cs:100-103).
+   *
+   * That exemption names a Settings surface. There is none — `ssoAvailable` has no type field, no
+   * mock, and no consumer anywhere in this codebase, and `SettingsTab` has no SSO member — while
+   * `plans.ts` and `/security` both sold it. Founder decision, 2026-08-01: stop selling it until
+   * the surface exists.
+   *
+   * The guard is BIDIRECTIONAL on purpose, so nobody has to remember that decision. While there is
+   * no Settings SSO tab, no card and no marketing page may sell SSO. The moment such a tab appears,
+   * this same test demands the price list say which plan includes it. Reversal becomes a change the
+   * suite asks for, rather than a note somebody has to find.
+   */
+  const SETTINGS_PAGE = join(process.cwd(), "src/app/(app)/settings/page.tsx");
+
+  /**
+   * Reads the `SettingsTab` union — the registry a tab must join to render at all. Throws rather
+   * than answering "no surface" when that union is gone: a probe that silently returns false after
+   * a refactor is a guard that goes quiet while still reading green, which is the failure mode this
+   * whole file keeps meeting.
+   */
+  const declaresSsoTab = (source: string): boolean => {
+    const union = source.match(/type SettingsTab\s*=([^;]+);/);
+    if (!union) {
+      throw new Error(
+        "settings/page.tsx no longer declares a `type SettingsTab = …` union. This guard reads that " +
+          "union to decide whether an SSO surface exists — rewire it before the refactor lands.",
+      );
+    }
+    return /\bsso\b|\bsaml\b/i.test(union[1]);
+  };
+
+  const sellers = (): string[] => [
+    ...PLANS.flatMap((p) =>
+      p.features.filter((f) => SELLS_SSO.test(f)).map((f) => `plans.ts — ${p.id} card: "${f}"`),
+    ),
+    ...buyerFacingLines()
+      .filter(({ line }) => SELLS_SSO.test(line))
+      .map(({ file, line, number }) => `${file}:${number}: ${line.trim()}`),
+  ];
+
+  it("the Settings-surface probe really discriminates, and refuses to guess", () => {
+    expect(declaresSsoTab(`type SettingsTab = "org" | "billing" | "email";`)).toBe(false);
+    expect(declaresSsoTab(`type SettingsTab = "org" | "sso" | "billing";`)).toBe(true);
+    expect(declaresSsoTab(`type SettingsTab =\n  | "org"\n  | "saml";`)).toBe(true);
+    expect(() => declaresSsoTab("export default function Settings() {}")).toThrow(/SettingsTab/);
+  });
+
+  it("finds the claims that shipped, so a green result means absence and not blindness", () => {
+    // The two sites that really sold it, verbatim at 5ac7a68. A pattern that misses its own origin
+    // defect is decoration — and a bare /sso/i would also match "subprocessors", which appears on
+    // six marketing pages, so the word boundary is load-bearing in both directions.
+    expect(SELLS_SSO.test('      "SSO (SAML/OIDC)",')).toBe(true);
+    expect(
+      SELLS_SSO.test(
+        '    body: "Org-scoped data isolation on every query, scoped API keys you can revoke instantly, and short-lived sessions by default. Role-based access and SAML/OIDC SSO are available on Enterprise — we set them up with you during onboarding.",',
+      ),
+    ).toBe(true);
+    expect(SELLS_SSO.test("Single sign-on for your whole org")).toBe(true);
+    expect(SELLS_SSO.test("A list of our subprocessors and what each one processes.")).toBe(false);
+  });
+
+  it("sells SSO if and only if Settings can configure it", () => {
+    const hasSurface = declaresSsoTab(readFileSync(SETTINGS_PAGE, "utf8"));
+    const sold = sellers();
+
+    if (hasSurface) {
+      expect(
+        sold.length,
+        "Settings now has an SSO surface, so the price list has to say which plan includes it — " +
+          "put the bullet back on the Enterprise card. Its minimum plan is " +
+          `${BACKEND_MINIMUM_PLAN.sso} (PlanConstants.MinimumPlan).`,
+      ).toBeGreaterThan(0);
+    } else {
+      expect(
+        sold,
+        "these surfaces sell SSO, but there is no Settings SSO tab and `ssoAvailable` has no " +
+          "consumer in this app, so a customer who pays for it has nowhere to set it up. Ship the " +
+          "surface first; this guard will then ask for the bullet back:\n" + sold.join("\n"),
+      ).toEqual([]);
+    }
   });
 });

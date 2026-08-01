@@ -20,7 +20,8 @@
 //
 //   cXML 1.2 ............ parse supported · transform supported  (CxmlOrderParser / CxmlTransformService, registered)
 //   UBL 2.1 Order ....... parse supported · transform supported  (UblOrderParser / UblOrderTransformService, registered)
-//   Peppol BIS Order 3.0  partial both — rides the UBL pipeline; full BIS 3.0 conformance still hardening
+//   Peppol BIS Order 3.0  parse partial · transform PLANNED — a BIS Order file IS a UBL 2.1 Order, so it parses;
+//                         BIS-conformant OUTPUT does not exist and must not be advertised (see the row's conformance note)
 //   SAP IDoc ORDERS05 ... parse supported · transform none       (IDocOrders05Parser registered; hand-rolled XML, no EdiFabric; INBOUND only — no IDoc output; live-verified on prod 2026-06-08)
 //   EDIFACT ORDERS ...... parse partial · transform planned     (EdifactOrderParser registered; EdiFabric library decision pending; NO output transformer)
 //   ANSI X12 850 ........ parse supported · transform supported  (X12OrderParser / X12TransformService, registered; 004010/005010 header + line-item fidelity, output selectable per supplier)
@@ -104,10 +105,14 @@ export const STANDARDS: StandardSupport[] = [
     version: "3.0",
     family: "xml",
     parse: "partial",
-    transform: "partial",
+    // `transform` was "partial", which read as "mostly there". It is not. Nothing in either repo
+    // can substantiate BIS 3.0 conformance, and two mandatory-field violations are visible in the
+    // emitter itself, so the honest level is `planned` — the work is understood, not delivered.
+    // Downgraded 2026-08-01 alongside dropping the claim from every user-facing surface.
+    transform: "planned",
     transport: "Peppol Access Point (AS4)",
     conformance:
-      "Rides the UBL 2.1 pipeline; full BIS 3.0 business-rule conformance (UBL-CR / EN 16931 alignment) is still hardening. Access Point delivery is partner-wrapped.",
+      "Inbound: a Peppol BIS Order file IS a UBL 2.1 Order, so it parses on the UBL pipeline (UblOrderParser has no BIS-specific branch). Outbound: BIS-CONFORMANT OUTPUT IS NOT OFFERED AND MUST NOT BE ADVERTISED. There is no Schematron anywhere in either repo; PeppolBisValidator is invoice-only; and the one order-side check, UblProfileChecker.cs:54-58, asserts only that cbc:CustomizationID and cbc:ProfileID are NON-EMPTY — never that they equal the Peppol values. The emitter writes the supplier GUID into SellerSupplierParty/PartyName/Name (UblOrderTransformService.cs:93, flagged a placeholder in its own comment) and emits no cbc:EndpointID for either party. No emitted order has been accepted by a real Access Point. Access Point delivery is partner-wrapped in any case.",
     referenceUrl:
       "https://docs.peppol.eu/poacc/upgrade-3/profiles/3-order/",
   },

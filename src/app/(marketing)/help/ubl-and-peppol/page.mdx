@@ -2,23 +2,25 @@ import { helpArticleMetadata } from "@/lib/seo";
 
 export const metadata = helpArticleMetadata({
   slug: "ubl-and-peppol",
-  title: "UBL and Peppol BIS Order — ProcuLink Help",
-  description: "Parse UBL 2.1 Order documents inbound and emit UBL / Peppol BIS Order 3 output for European e-procurement.",
+  title: "UBL Order files, and what they mean for Peppol — ProcuLink Help",
+  description: "Parse UBL 2.1 Order documents inbound and emit UBL 2.1 output. What ProcuLink does and does not do when a buyer asks for Peppol BIS Order 3.",
 });
 
-# UBL and Peppol BIS Order
+# UBL Order files, and what they mean for Peppol
 
-UBL (Universal Business Language, OASIS 2.1) is the XML document standard behind most European e-procurement, and Peppol BIS Order 3 is the profile that constrains it for the Peppol network. ProcuLink parses inbound UBL orders and emits UBL / Peppol BIS output, so a buyer running UBL and a supplier that needs something else can still trade.
+UBL (Universal Business Language, OASIS 2.1) is the XML document standard behind most European e-procurement. ProcuLink parses inbound UBL 2.1 `Order` documents and emits UBL 2.1 `Order` documents, so a buyer running UBL and a supplier that needs something else can still trade.
+
+Peppol BIS Order 3 is a *profile* on top of UBL 2.1 — the same document, with extra business rules the Peppol network enforces. Read [what this does not cover](#what-this-does-not-cover) before you commit to a Peppol counterparty: ProcuLink is not a Peppol conformance tool.
 
 ## When to use this
 
-Reach for UBL or Peppol when:
+Reach for UBL when:
 
 - Your buyers or public-sector customers send purchase orders as UBL 2.1 XML.
-- A supplier or trading network asks you to deliver in **Peppol BIS Order 3**.
-- You operate in a European market where Peppol is the expected e-procurement rail.
+- A supplier asks you to deliver an XML order document and names UBL.
+- You operate in a European market where UBL is the expected document format.
 
-If neither side has named UBL or Peppol, you probably don't need it — pick the format the supplier actually requires on the delivery tab.
+If neither side has named UBL, you probably don't need it — pick the format the supplier actually requires on the delivery tab.
 
 ## Inbound: parsing a UBL Order
 
@@ -43,20 +45,30 @@ ProcuLink ingests the UBL 2.1 `Order` document into the canonical order model �
 </Order>
 ```
 
-Every parsed field can surface its exact UBL and Peppol element path in the app — open the standards popover on any mapping field, or browse the full matrix at [/library/standards](/library/standards).
+Every parsed field can surface its exact UBL element path in the app — open the standards popover on any mapping field, or browse the full matrix at [/library/standards](/library/standards). Because Peppol BIS Order 3 constrains UBL rather than replacing it, those element paths are the Peppol paths too.
 
 **UBL Invoice also parses** on the inbound side, so you can bring UBL invoices in as well as orders. UBL invoice *output* is not offered.
 
-## Outbound: emitting UBL / Peppol BIS Order 3
+## Outbound: emitting a UBL 2.1 Order
 
-On a supplier's **Delivery** tab, choose **UBL / Peppol** as the output format and sending auto-transforms the reviewed order into a UBL 2.1 `Order` document.
+On a supplier's **Delivery** tab, choose **UBL 2.1** as the output format and sending auto-transforms the reviewed order into a UBL 2.1 `Order` document.
 
-A note on conformance, kept honest: Peppol BIS Order 3 rides the same UBL 2.1 pipeline, and full BIS 3.0 business-rule conformance (the EN 16931 / UBL-CR validation layer) is still being hardened. Delivery *onto* a Peppol Access Point is partner-wrapped — ProcuLink produces the document; the AS4 transport into the Peppol network is handled through an Access Point partner, not by ProcuLink directly. Validate the output against your recipient's or Access Point's rules before you rely on it in production.
+## What this does not cover
+
+ProcuLink emits UBL. It does not certify Peppol BIS Order 3 conformance — and we would rather tell you here than have you find out at an access point. Today, specifically:
+
+- **No BIS business-rule validation runs.** There is no Schematron and no EN 16931 / UBL-CR rule engine in the product. Nothing checks an emitted order against the BIS 3 rule set.
+- **The conformance identifiers are written, not verified.** The emitted document carries `cbc:CustomizationID` and `cbc:ProfileID`. The order-side check available in the app reports whether they are *present* — not whether their contents are right for your profile.
+- **Two known gaps in the document itself.** The supplier party name is emitted as an internal identifier rather than the supplier's registered name, and no `cbc:EndpointID` is emitted for either party. Both are mandatory under BIS 3, and neither is fixed today.
+- **No emitted order has been accepted by a live Peppol access point.** We have not run that test, so we do not claim the result.
+- **AS4 transport into the Peppol network is not ours.** ProcuLink produces a document; getting it onto the network runs through an access-point partner, arranged with you.
+
+If your counterparty requires certified Peppol BIS Order 3, treat ProcuLink's UBL output as the *input* to your access point's validator, not as a finished Peppol document — and talk to us at [support@proculink.eu](mailto:support@proculink.eu) first, so we can be straight about what will and will not work before you commit to it.
 
 ## Common problems
 
 - **Namespace not recognised** — the file must be a UBL 2.1 `Order` in the `Order-2` namespace shown above. A wrapped or profile-only variant may need a mapping review.
-- **Peppol validation warnings downstream** — because full BIS 3.0 rule conformance is still hardening, run the emitted file through your Access Point's validator first; treat any warnings as a to-fix list, not a ProcuLink failure.
+- **Peppol validation errors downstream** — expected rather than surprising; see [what this does not cover](#what-this-does-not-cover). Run the emitted file through your access point's validator and treat its output as the list of gaps to close with us.
 - **"Delivered" is not "accepted"** — a successful send means the endpoint answered, not that the supplier or network accepted the order's contents.
 
 ---

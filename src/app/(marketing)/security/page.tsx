@@ -77,7 +77,12 @@ const POSTURE: Array<{ title: string; body: React.ReactNode; icon: React.ReactNo
   },
   {
     title: "Access control",
-    body: "Org-scoped data isolation on every query, scoped API keys you can revoke instantly, and short-lived sessions by default. Role-based access and SAML/OIDC SSO are available on Enterprise — we set them up with you during onboarding.",
+    // The second sentence used to read "Role-based access and SAML/OIDC SSO are available on
+    // Enterprise — we set them up with you during onboarding." Both halves were unbacked. SSO has
+    // no Settings surface and no entitlement consumer anywhere in this app (see the note in
+    // plans.ts on the Enterprise card), and role-based access is on no plan's feature list either,
+    // so /security was the only surface asserting it. Neither comes back without a screen behind it.
+    body: "Org-scoped data isolation on every query, scoped API keys you can revoke instantly, and short-lived sessions by default.",
     icon: <UserIcon />,
   },
   // The no-AI mode is REAL and the old sentence oversold it in three separate ways.

@@ -100,9 +100,12 @@ export default function StandardsPage() {
       />
 
       {/* Progressive-disclosure "which format?" helper. Reference guidance about the
-          standards themselves — all five are real supported output formats, so this is
-          honest orientation, not a capability claim. Collapsed by default so it never
-          crowds the locked table layout. */}
+          standards themselves. The old version of this comment claimed "all five are real
+          supported output formats, so this is honest orientation, not a capability claim" —
+          which was how the Peppol BIS bullet below stayed put. EDIFACT has no outbound
+          transformer and Peppol BIS conformance is not offered, so the bullets orient the
+          reader toward a standard WITHOUT asserting we emit a conformant document in it.
+          Collapsed by default so it never crowds the locked table layout. */}
       <details className="mb-3 group">
         <summary
           className="inline-flex cursor-pointer list-none items-center gap-1.5 text-[12px] font-medium select-none"
@@ -119,7 +122,7 @@ export default function StandardsPage() {
         >
           <ul className="space-y-1.5">
             <li><strong style={{ color: "var(--ink)" }}>cXML 1.2</strong> — punchout &amp; marketplace orders (Ariba, Coupa and similar procurement platforms).</li>
-            <li><strong style={{ color: "var(--ink)" }}>UBL 2.1 / Peppol BIS</strong> — European e-procurement and public-sector networks (Peppol is common for EU government buyers).</li>
+            <li><strong style={{ color: "var(--ink)" }}>UBL 2.1</strong> — European e-procurement and public-sector networks. Peppol runs on UBL, so this is the document to pick; ProcuLink does not check its output against Peppol BIS business rules.</li>
             <li><strong style={{ color: "var(--ink)" }}>EDIFACT</strong> — long-established European and global EDI (retail, automotive, logistics).</li>
             <li><strong style={{ color: "var(--ink)" }}>X12</strong> — North American EDI (ANSI ASC X12 850 purchase order).</li>
           </ul>

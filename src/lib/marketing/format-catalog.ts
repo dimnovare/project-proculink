@@ -9,9 +9,16 @@
 //
 // Document-standard rows (cXML, UBL, IDoc, EDIFACT, X12) take their status from
 // src/lib/standards/catalog.ts (the conservative offer⇔works source reconciled
-// against the backend DI registrations) via `parseStatus()`, so the marketing
+// against the backend DI registrations) via `standardRow()`, so the marketing
 // surface can never over-claim relative to what the engine actually does. The
 // EDIFACT rows in particular resolve to `configurable`/`onRequest`, never `live`.
+//
+// That paragraph was true of IMPORT_FORMATS and false of everything else, which is
+// how "UBL 2.1 / Peppol BIS" shipped a green "Supported" badge on /formats while
+// the catalog said Peppol BIS was `partial`. Two independent holes, both closed
+// below: OUTPUT_FORMATS hand-typed its statuses (nothing read the catalog's
+// `transform` level at all), and a row's NAME was never checked against the id it
+// derived from. See `standardRow`.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { STANDARDS, type SupportLevel } from "@/lib/standards/catalog";
@@ -24,13 +31,24 @@ export interface FormatRow {
   name: string;
   status: StatusKey;
   note: string;
+  /**
+   * Set only by `standardRow()` — the standards-catalog entry this row's badge is
+   * derived from. Its absence on a row that names a document standard is itself the
+   * defect (a hand-typed status), which is what `format-catalog.test.ts` asserts.
+   */
+  catalogId?: string;
 }
 
 // ── Catalog-derived statuses (anti-drift) ──────────────────────────────────────
 // For document standards that exist in the standards catalog, the badge is
-// DERIVED from the catalog's `parse` level so this marketing surface can never
-// silently over-claim — the EDIFACT row used to say "Supported" while the
-// catalog said `parse: "partial"`.
+// DERIVED from the catalog so this marketing surface can never silently
+// over-claim — the EDIFACT row used to say "Supported" while the catalog said
+// `parse: "partial"`.
+//
+// Direction matters and used to be conflated. `parse` answers "can we read this
+// file", `transform` answers "can we produce it". A standard can be `supported`
+// inbound and `planned` outbound (EDIFACT), or the reverse, so an outbound row
+// derived from `parse` is not derived from anything meaningful.
 const PARSE_LEVEL_STATUS: Record<SupportLevel, StatusKey> = {
   supported: "live",
   partial: "configurable", // works today with caveats — we verify it with you in setup
@@ -38,12 +56,90 @@ const PARSE_LEVEL_STATUS: Record<SupportLevel, StatusKey> = {
   none: "planned",
 };
 
-/** Resolve a standards-catalog id to its marketing badge status via `parse`. */
-export function parseStatus(catalogId: string): StatusKey {
+const TRANSFORM_LEVEL_STATUS: Record<SupportLevel, StatusKey> = {
+  supported: "live",
+  partial: "configurable",
+  planned: "onRequest", // no transformer today; we build it with you on request
+  none: "planned", // input-only standard — it must not be sold as an output format
+};
+
+function directionStatus(catalogId: string, direction: "parse" | "transform"): StatusKey {
   const entry = STANDARDS.find((s) => s.id === catalogId);
   // Fail the static build loudly on a typo'd id rather than render a wrong badge.
   if (!entry) throw new Error(`format-catalog: unknown standards catalog id '${catalogId}'`);
-  return PARSE_LEVEL_STATUS[entry.parse];
+  return direction === "parse"
+    ? PARSE_LEVEL_STATUS[entry.parse]
+    : TRANSFORM_LEVEL_STATUS[entry.transform];
+}
+
+/** Resolve a standards-catalog id to its INBOUND marketing badge status via `parse`. */
+export function parseStatus(catalogId: string): StatusKey {
+  return directionStatus(catalogId, "parse");
+}
+
+/** Resolve a standards-catalog id to its OUTBOUND marketing badge status via `transform`. */
+export function transformStatus(catalogId: string): StatusKey {
+  return directionStatus(catalogId, "transform");
+}
+
+/**
+ * Words that NAME a document standard, and the catalog id each one belongs to.
+ *
+ * A row may only use one of these words if it derives its badge from that word's own
+ * catalog entry. This is the half of the anti-drift contract that was missing:
+ * `parseStatus()` has always failed the build on an id that does not EXIST, but
+ * nothing checked that the id a row cites is the id the row's name SELLS. Both
+ * Peppol rows lived in exactly that gap —
+ *
+ *     { name: "UBL 2.1 / Peppol BIS", status: parseStatus("ubl-2-1-order"), … }  // valid id, other standard
+ *     { name: "UBL 2.1 / Peppol BIS", status: "live", … }                        // no id at all
+ *
+ * — so /formats badged Peppol BIS "Supported" from UBL's `parse: supported`, while
+ * the Peppol entry three lines away in the catalog said `partial`, and the honest
+ * value was never rendered anywhere.
+ *
+ * "Peppol" ALONE is deliberately not on this list. The Peppol *network* is a real
+ * transport we reach through a certified access-point partner, and IMPORT_METHODS /
+ * DELIVERY_METHODS say so honestly as `onRequest`. "Peppol BIS" is the document
+ * *profile*, and that is the claim nothing in either repo can back.
+ */
+export const STANDARD_NAME_TOKENS: ReadonlyArray<{ token: RegExp; catalogId: string }> = [
+  { token: /\bpeppol[\s/]+bis\b/i, catalogId: "peppol-bis-order-3" },
+  { token: /\bubl\b/i, catalogId: "ubl-2-1-order" },
+  { token: /\bcxml\b/i, catalogId: "cxml-1-2" },
+  { token: /\bidoc\b/i, catalogId: "sap-idoc-orders05" },
+  { token: /\bedifact\b/i, catalogId: "edifact-orders" },
+  { token: /\bx12\b/i, catalogId: "x12-850" },
+];
+
+/**
+ * Build a marketing row whose badge comes from the standards catalog AND whose name is
+ * checked against the id it cites.
+ *
+ * Throws at module load. /formats and the landing hero both import this module and are
+ * statically rendered, so a row that sells a standard it does not measure fails
+ * `bun run build` rather than waiting for someone to notice on the live page.
+ */
+export function standardRow(
+  catalogId: string,
+  direction: "parse" | "transform",
+  name: string,
+  note: string,
+): FormatRow {
+  // Resolve first: a typo'd id must be reported as a typo, not as a name mismatch against
+  // whatever standard the row happens to be named after.
+  const status = directionStatus(catalogId, direction);
+
+  for (const { token, catalogId: owner } of STANDARD_NAME_TOKENS) {
+    if (token.test(name) && owner !== catalogId) {
+      throw new Error(
+        `format-catalog: the row "${name}" names the '${owner}' standard but takes its badge from ` +
+          `'${catalogId}'. Derive it from '${owner}', or take that standard out of the name — a row ` +
+          `must not sell what it does not measure.`,
+      );
+    }
+  }
+  return { name, status, note, catalogId };
 }
 
 // ── How orders reach ProcuLink (transport methods, not formats) ─────────────────
@@ -68,11 +164,14 @@ export const IMPORT_FORMATS: FormatRow[] = [
   { name: "Excel (XLSX)", status: "live", note: "First worksheet, header row." },
   { name: "PDF (text-based)", status: "live", note: "Text layer read, then AI structured extraction. Deterministic fallback when no AI key." },
   { name: "PDF (scanned / image)", status: "live", note: "No text layer — read by AI vision extraction. Assisted: every line is flagged for review." },
-  { name: "cXML 1.2", status: parseStatus("cxml-1-2"), note: "OrderRequest documents." },
-  { name: "UBL 2.1 / Peppol BIS", status: parseStatus("ubl-2-1-order"), note: "Order documents." },
-  { name: "SAP IDoc ORDERS05", status: parseStatus("sap-idoc-orders05"), note: "SAP's ORDERS05 purchase-order IDoc, sent as XML." },
-  { name: "EDIFACT ORDERS", status: parseStatus("edifact-orders"), note: "D96A — core segment coverage today; we verify your message files with you during setup." },
-  { name: "ANSI X12 850", status: parseStatus("x12-850"), note: "004010 / 005010." },
+  standardRow("cxml-1-2", "parse", "cXML 1.2", "OrderRequest documents."),
+  // Named for the document it actually is. Orders sent over the Peppol network use this
+  // same UBL 2.1 Order document, so they parse here too — inbound is the direction where
+  // that is true, and the row says so without selling a profile we do not validate.
+  standardRow("ubl-2-1-order", "parse", "UBL 2.1 Order", "Order documents. Orders sent over the Peppol network use this same UBL 2.1 document, so they parse here too."),
+  standardRow("sap-idoc-orders05", "parse", "SAP IDoc ORDERS05", "SAP's ORDERS05 purchase-order IDoc, sent as XML."),
+  standardRow("edifact-orders", "parse", "EDIFACT ORDERS", "D96A — core segment coverage today; we verify your message files with you during setup."),
+  standardRow("x12-850", "parse", "ANSI X12 850", "004010 / 005010."),
   { name: "JSON", status: "live", note: "Via the REST API order shape." },
 ];
 
@@ -89,16 +188,26 @@ export const DELIVERY_METHODS: FormatRow[] = [
 ];
 
 // ── Formats we PRODUCE per supplier (the "outbound formats" count) ──────────────
-// EDIFACT output is deliberately "onRequest" (no outbound transformer yet), so it
-// must NOT be counted among the live outbound formats.
+// Document standards derive from the catalog's `transform` level, so EDIFACT resolves
+// to "onRequest" (no outbound transformer) without anyone having to remember to type it.
+// CSV / XML / JSON have no standards-catalog entry to derive from and stay explicit.
 export const OUTPUT_FORMATS: FormatRow[] = [
   { name: "CSV", status: "live", note: "Configurable columns." },
   { name: "XML (generic)", status: "live", note: "" },
-  { name: "cXML 1.2", status: "live", note: "" },
-  { name: "UBL 2.1 / Peppol BIS", status: "live", note: "" },
-  { name: "ANSI X12 850", status: "live", note: "" },
+  standardRow("cxml-1-2", "transform", "cXML 1.2", ""),
+  // Was "UBL 2.1 / Peppol BIS", status hand-typed "live" — the single strongest Peppol
+  // claim on the site, and the row that made /formats contradict the standards catalog.
+  // We really do emit the OASIS UBL 2.1 Order document, so the row stays and the badge
+  // is honestly "Supported"; what goes is the profile name we cannot substantiate.
+  standardRow(
+    "ubl-2-1-order",
+    "transform",
+    "UBL 2.1 Order",
+    "The OASIS UBL 2.1 Order document. Not validated against Peppol BIS 3 business rules — check it with your access point before relying on it.",
+  ),
+  standardRow("x12-850", "transform", "ANSI X12 850", ""),
   { name: "JSON", status: "live", note: "" },
-  { name: "EDIFACT ORDERS", status: "onRequest", note: "Outbound EDIFACT transformer on request." },
+  standardRow("edifact-orders", "transform", "EDIFACT ORDERS", "Outbound EDIFACT transformer on request."),
 ];
 
 // ── Derived counts for the landing hero stats (anti-drift) ──────────────────────
