@@ -23,6 +23,7 @@
 import { useState, type KeyboardEvent, type ReactNode } from "react";
 import { UnifiedStatusBadge } from "../UnifiedStatusBadge";
 import { sendBarLabel } from "./sendBarLabel";
+import { isProblemBucketStatus } from "@/lib/orderStatusManifest";
 import type { WorkshopIssue, IssuesResolveApi } from "./IssuesPanel";
 import type { OrderLine } from "@/types/procurement";
 
@@ -301,7 +302,34 @@ export function MobileTriage(props: MobileTriageProps) {
         {hintSlot}
 
         {/* ── Issue list ─────────────────────────────────────────────────── */}
-        {issues.length === 0 ? (
+        {issues.length === 0 && isProblemBucketStatus(status) ? (
+          /* Zero FIELD problems, but the order itself stopped. Saying "ready to send"
+             here is the mobile half of WP-39 §4.3 — see IssuesPanel's `orderStatus`. */
+          <div
+            role="status"
+            data-testid="mobile-triage-stopped"
+            className="flex items-start gap-2.5"
+            style={{
+              borderRadius: 10,
+              background: "#FAF1DD",
+              border: "1px solid #B36D1433",
+              color: "#8A5310",
+              padding: "13px 14px",
+            }}
+          >
+            <span
+              aria-hidden
+              style={{ flexShrink: 0, width: 18, height: 18, borderRadius: "50%", background: "#B36D14", color: "#FFFFFF", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, marginTop: 1 }}
+            >
+              !
+            </span>
+            <span style={{ fontSize: 13.5, fontWeight: 600 }}>
+              <strong style={{ fontWeight: 700 }}>No field problems.</strong> Every required
+              field is filled and checked. This order stopped for another reason — see what
+              happened and what to do next.
+            </span>
+          </div>
+        ) : issues.length === 0 ? (
           <div
             role="status"
             data-testid="mobile-triage-ready"

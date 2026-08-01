@@ -22,6 +22,7 @@
 // The prop contract, test ids, roles, anchors and resolution wiring are unchanged.
 
 import type { CSSProperties, KeyboardEvent } from "react";
+import { isProblemBucketStatus } from "@/lib/orderStatusManifest";
 import type { FixCardKind } from "../review/buildFixQueue";
 import type { OrderLine } from "@/types/procurement";
 
@@ -121,6 +122,21 @@ export interface IssuesPanelProps {
    * pure-view tests) → the locator is plain text and nothing else changes.
    */
   onJumpToLine?: (lineId: string) => void;
+  /**
+   * The order's status, so an empty issue list is not read as "nothing is wrong".
+   *
+   * `issues` are FIELD problems. On a failed delivery the list is legitimately empty —
+   * every required field really is filled — and the panel used to conclude from that
+   * alone that the order was ready to send. WP-39 §4.3 caught it live: the green
+   * "Ready to send / No open issues" bar rendered on the same screen, at the same
+   * moment, as the failure panel and a `Couldn't send` badge, on an order the API
+   * reported as `delivery_failed`.
+   *
+   * Membership is decided by `isProblemBucketStatus` from the status manifest, never
+   * by a list typed into this file. Omitted → the caller is not order-scoped and the
+   * bar behaves as before.
+   */
+  orderStatus?: string | null;
 }
 
 // ── Bridge Layer palette (verbatim from the design handoff) ───────────────────
@@ -154,7 +170,46 @@ const SEVERITY: Record<IssueSeverity, { accent: string; soft: string; text: stri
   warning: { accent: C.amber, soft: C.amberSoft, text: C.amberText, label: "Warning" },
 };
 
-export function IssuesPanel({ issues, onFocusField, onFix, readyLabel, resolve, lines, suggestableCount = 0, highConfCount = 0, onJumpToLine }: IssuesPanelProps) {
+export function IssuesPanel({ issues, onFocusField, onFix, readyLabel, resolve, lines, suggestableCount = 0, highConfCount = 0, onJumpToLine, orderStatus }: IssuesPanelProps) {
+  // ── 0 field issues, but the order itself has stopped ──
+  //
+  // Not green, and not silent. The operator did clear every field problem and should be
+  // told so; what they must not be told is that the order is therefore ready to send.
+  // The failure panel on the same screen owns the cause and the next step — this bar's
+  // whole job is to stop contradicting it.
+  if (issues.length === 0 && isProblemBucketStatus(orderStatus)) {
+    return (
+      <div
+        data-testid="issues-panel"
+        data-issues="0"
+        data-order-stopped="true"
+        role="status"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          borderRadius: 11,
+          background: C.amberSoft,
+          border: `1px solid ${C.amber}33`,
+          color: C.amberText,
+          padding: "12px 14px",
+        }}
+      >
+        <span
+          aria-hidden
+          style={{ width: 18, height: 18, borderRadius: "50%", background: C.amber, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color: "#FFFFFF", fontSize: 12, fontWeight: 800 }}
+        >
+          !
+        </span>
+        <span style={{ fontSize: 13, fontWeight: 700 }}>No field problems</span>
+        <span style={{ fontSize: 11.5, color: C.amberText, fontWeight: 500 }}>
+          Every required field is filled and checked. This order stopped for another
+          reason — see what happened and what to do next.
+        </span>
+      </div>
+    );
+  }
+
   // ── 0 issues → the green "ready to send" bar (the list collapses) ──
   if (issues.length === 0) {
     return (

@@ -25,31 +25,40 @@ import { apiClient, isApiMockMode } from "@/lib/api-client";
 import { capture } from "@/lib/analytics";
 import { captureException } from "@/lib/sentry-context";
 import { invalidateOnboardingStatus } from "@/hooks/useOnboardingStatus";
+import { isPracticeDeliveryState, type PracticeDeliveryState } from "@/lib/practiceDelivery";
 
 /**
- * Whether THIS practice order's delivery was actually set up, remembered per order id.
+ * What THIS practice order's send will actually do, remembered per order id.
  *
- * The backend answers `deliveryConfigured: false` when it seeded nothing — no usable
- * address, or a deployment with no email provider. Without this the review screen would
- * promise "we'll email you the finished file" on a deployment that cannot send, and the
- * user would meet a delivery_failed after being told otherwise. Session-scoped: it is a
- * fact about one run, not durable state, and `null` (a bookmark opened later, or a fresh
- * session) is read as "we don't know" — which downgrades the copy to what is always true
- * rather than guessing.
+ * Without it the review screen would promise "we'll email you the finished file" on a
+ * deployment that cannot send. It used to store a bool, and that bool could not express
+ * the case WP-39 §4.5 found — a supplier that already carries a delivery target this run
+ * did not set up, where the screen said "this run will stop" and the send went out anyway.
+ * See src/lib/practiceDelivery.ts.
+ *
+ * Session-scoped: it is a fact about one run, not durable state, and `null` (a bookmark
+ * opened later, or a fresh session) is read as "we don't know" — which downgrades the copy
+ * to what is always true rather than guessing.
  */
 const PRACTICE_DELIVERY_PREFIX = "plk-practice-delivery:";
 
-function rememberPracticeDelivery(orderId: string, configured: boolean) {
+function rememberPracticeDelivery(orderId: string, state: PracticeDeliveryState | null) {
   try {
-    window.sessionStorage.setItem(PRACTICE_DELIVERY_PREFIX + orderId, configured ? "1" : "0");
+    if (state === null) window.sessionStorage.removeItem(PRACTICE_DELIVERY_PREFIX + orderId);
+    else window.sessionStorage.setItem(PRACTICE_DELIVERY_PREFIX + orderId, state);
   } catch { /* storage unavailable — falls back to the "we don't know" copy */ }
 }
 
-/** `true` / `false` when this session started the run; `null` when we never saw it. */
-export function practiceDeliveryKnown(orderId: string): boolean | null {
+/** The state when this session started the run; `null` when we never saw it. */
+export function practiceDeliveryKnown(orderId: string): PracticeDeliveryState | null {
   try {
     const raw = window.sessionStorage.getItem(PRACTICE_DELIVERY_PREFIX + orderId);
-    return raw === null ? null : raw === "1";
+    if (raw === null) return null;
+    // "1"/"0" are what a tab open across the deploy still holds. Reading them as the two
+    // states they meant is strictly better than dropping to "we don't know".
+    if (raw === "1") return "emailed_to_you";
+    if (raw === "0") return "not_set_up";
+    return isPracticeDeliveryState(raw) ? raw : null;
   } catch {
     return null;
   }
@@ -94,8 +103,8 @@ export function useSampleOrder(fromRoute: string): UseSampleOrderResult {
       capture("sample_order_started", { from_route: fromRoute, with_delivery: Boolean(deliverTo) });
       return apiClient.runSampleOrder(deliverTo);
     },
-    onSuccess: async ({ orderId, deliveryConfigured }) => {
-      rememberPracticeDelivery(orderId, deliveryConfigured);
+    onSuccess: async ({ orderId, practiceDelivery }) => {
+      rememberPracticeDelivery(orderId, practiceDelivery);
       await Promise.all([
         invalidateOnboardingStatus(queryClient),
         queryClient.invalidateQueries({ queryKey: ["orders"] }),
