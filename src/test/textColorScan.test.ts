@@ -20,7 +20,12 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync, statSync } from "fs";
 import { join, resolve, relative } from "path";
-import { scanTextColorUses, type BannedValue, type ScanFile } from "./textColorScan";
+import {
+  scanTextColorUses,
+  REPORT_LINE_CHARS,
+  type BannedValue,
+  type ScanFile,
+} from "./textColorScan";
 
 // Assembled, never spelled. See the header.
 const AMBER_HEX = ["#B3", "6D", "14"].join("");
@@ -169,6 +174,25 @@ interface Exemption {
   reason: string;
 }
 
+/**
+ * An anchor is matched against `hit.text`, which is the offending line TRIMMED TO
+ * `REPORT_LINE_CHARS`. An anchor longer than that can never match, so it stops
+ * forgiving the site it was written for while the stale check — which reads the
+ * whole file — still says it is fine. The result looks like a brand-new violation
+ * and sends the reader after a phantom.
+ *
+ * That is not hypothetical: WP-27 (#73) lengthened two BridgeDashboard stat rows
+ * past 120 characters and both exemptions went dark exactly this way. Asserted
+ * rather than remembered.
+ */
+function assertAnchorsFitTheReport(list: Exemption[]): void {
+  const tooLong = list.filter((e) => e.contains.trim().length > REPORT_LINE_CHARS);
+  expect(
+    tooLong.map((e) => `${e.rel}: anchor is ${e.contains.trim().length} chars`),
+    `an anchor longer than REPORT_LINE_CHARS (${REPORT_LINE_CHARS}) can never match a hit — shorten it to a distinctive fragment`,
+  ).toEqual([]);
+}
+
 describe("the real tree — the amber family", () => {
   /**
    * globals.css DEFINES `--amber`. `--amber: #B36D14;` is a custom-property
@@ -196,14 +220,16 @@ describe("the real tree — the amber family", () => {
   const EXEMPT: Exemption[] = [
     {
       rel: "src/components/bridge/BridgeDashboard.tsx",
-      contains: `{ key: "review",    label: "Needs review",  value: countBlocked,   color: AMBER },`,
+      contains: `label: "Needs review",   value: countBlocked,   color: AMBER,`,
       reason:
         "a stat-row RECORD field. Its only consumer renders `background: s.color` " +
-        "on an 8×8px dot — never a glyph. The label beside it is #5E6779.",
+        "on an 8×8px dot — never a glyph. The label beside it is #5E6779. " +
+        "RE-VERIFIED after WP-27 (#73) reworded this row: the stale-exemption check " +
+        "below is what caught the drift, and the field is still background-only.",
     },
     {
       rel: "src/components/bridge/BridgeDashboard.tsx",
-      contains: `{ label: "Needs review", value: countBlocked,   color: AMBER },`,
+      contains: `{ label: "Needs review",   value: countBlocked,   color: AMBER },`,
       reason:
         "a proportion-bar SEGMENT field, consumed as `background: s.color` on the " +
         "bar and on the 8×8px legend square. Its `<b>` count is #0B1A2F.",
@@ -219,6 +245,10 @@ describe("the real tree — the amber family", () => {
 
   const exempted = (h: { rel: string; text: string }) =>
     EXEMPT.some((e) => e.rel === h.rel && h.text.includes(e.contains.trim()));
+
+  it("every exemption anchor is short enough to match a hit", () => {
+    assertAnchorsFitTheReport(EXEMPT);
+  });
 
   it("every exemption still matches a real line — a stale one is a failure", () => {
     // Without this, an exemption outlives the code it was written for and starts
@@ -326,12 +356,14 @@ describe("the real tree — the green family", () => {
   const EXEMPT: Exemption[] = [
     {
       rel: "src/components/bridge/BridgeDashboard.tsx",
-      contains: `{ key: "delivered", label: "Delivered",     value: countDelivered, color: GREEN },`,
-      reason: "stat-row RECORD field, consumed as `background: s.color` on an 8×8px dot.",
+      contains: `label: "Delivered",      value: countDelivered, color: GREEN,`,
+      reason:
+        "stat-row RECORD field, consumed as `background: s.color` on an 8×8px dot. " +
+        "RE-VERIFIED after WP-27 (#73) reworded this row and added a `queued` entry.",
     },
     {
       rel: "src/components/bridge/BridgeDashboard.tsx",
-      contains: `{ label: "Delivered",    value: countDelivered, color: GREEN },`,
+      contains: `{ label: "Delivered",      value: countDelivered, color: GREEN },`,
       reason: "proportion-bar SEGMENT field, consumed as `background` on the bar and legend square.",
     },
     {
@@ -380,6 +412,10 @@ describe("the real tree — the green family", () => {
 
   const exempted = (h: { rel: string; text: string }) =>
     EXEMPT.some((e) => e.rel === h.rel && h.text.includes(e.contains.trim()));
+
+  it("every exemption anchor is short enough to match a hit", () => {
+    assertAnchorsFitTheReport(EXEMPT);
+  });
 
   it("every exemption still matches a real line — a stale one is a failure", () => {
     const stale = EXEMPT.filter(
