@@ -12,10 +12,72 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { apiClient } from "@/lib/api-client";
 import type { Order } from "@/types/procurement";
 import type { PartyLabels } from "@/hooks/useOrderDirection";
+import { useProcessingStatus } from "@/hooks/useProcessingStatus";
 import { finalDeliveryMessage } from "./useOrderReview";
 
 function sleep(ms: number): Promise<void> {
   return new Promise(resolve => window.setTimeout(resolve, ms));
+}
+
+/**
+ * How long a send waits for the server to reach a status worth reporting.
+ *
+ * A named constant, not two `45_000` literals, because WP-36 made the number
+ * user-visible: `stillRunningNotice` quotes it back to the operator, and a copy
+ * string that hard-codes "45 seconds" beside a call site somebody later tunes to
+ * 60 is a lie with a very long fuse.
+ */
+const SEND_POLL_WINDOW_MS = 45_000;
+
+/**
+ * The outcome of one poll window.
+ *
+ * `settled` is the ONLY way a caller can tell "the status this poll was waiting
+ * for arrived" from "the window elapsed and this is merely the last thing we
+ * managed to read". Before WP-36 there was no way at all: pollOrderUntil returned
+ * a bare Order for both outcomes, so a timeout handed back an order still sitting
+ * in `transforming`/`delivering` — a value that matches none of confirmSend's
+ * terminal branches and therefore fell through to the generic red failure notice.
+ * Identical return value, opposite meaning.
+ *
+ * Deliberately NOT modelled as a throw. The enqueue succeeded and the server-side
+ * job is real, so throwing would land in confirmSend's catch, which paints
+ * "Send failed" — the same false claim in a different colour.
+ */
+type PollOutcome = { order: Order; settled: boolean };
+
+/**
+ * What to say when a send's poll window elapses with the order still mid-flight.
+ *
+ * The old behaviour was a red banner reading "Delivery is still processing.
+ * Refresh the order or check the Delivery Log for the latest attempt." — wrong
+ * severity (nothing failed), wrong fact, and a next step that does nothing.
+ * ProcuLink runs ONE background processor: when it is down nothing parses,
+ * transforms or delivers, so the operator who waited 45s and got red was looking
+ * at an order that is intact and queued behind an outage. Refreshing does not
+ * start it, and the deliveries page has no attempt to show yet.
+ *
+ * `processingPaused` comes from useProcessingStatus, which is FALSE while the
+ * answer is unknown — so an unreachable API can never manufacture the outage
+ * claim, and the second sentence stays the safe default.
+ *
+ * Both branches are "info", not "error", for the same reason: the order is
+ * mid-flight, not failed. And both must actively suppress a second Send —
+ * clicking it again on a paused system enqueues a duplicate dispatch that fires
+ * twice the moment processing resumes.
+ *
+ * The notice is rendered as PLAIN TEXT (OrderWorkshop pipes flowNotice straight
+ * into a div and into the status bar's `notice` slot — there is no link slot), so
+ * the destination is named in words the operator can navigate to: "System status"
+ * is /operations/health and "Deliveries" is /operations/log, exactly as they read
+ * in the nav.
+ */
+function stillRunningNotice(processingPaused: boolean): string {
+  if (processingPaused) {
+    return "Order processing is paused, so this order hasn't been sent yet. It's saved and waiting — nothing has been lost, and it goes out on its own as soon as processing restarts. Don't send it again. Open System status to see when processing is back.";
+  }
+  const seconds = Math.round(SEND_POLL_WINDOW_MS / 1000);
+  return `This order was accepted for sending but hasn't finished within ${seconds} seconds. Nothing has been lost — this page updates on its own when it's done. Don't send it again; the Deliveries page shows the latest attempt once it's made.`;
 }
 
 export function useSendFlow({ orderId, order, labels, refetchOrder }: {
@@ -24,6 +86,12 @@ export function useSendFlow({ orderId, order, labels, refetchOrder }: {
   labels: PartyLabels;
   refetchOrder: () => Promise<unknown>;
 }) {
+  // Is the background processor running? Read at the TOP LEVEL (rules of hooks —
+  // never inside confirmSend, which is where it is consumed) and off the shared
+  // ["ops-health"] query key, so this is the same cache entry /operations/health
+  // and OrderProblemPanel already poll: no extra network for the review screen.
+  const { paused: processingPaused } = useProcessingStatus();
+
   const [flowNotice, setFlowNotice] = useState<string | null>(null);
   // Severity drives the flow-notice colour (info/success/error) so failure
   // messages don't render green just because order.status isn't "rejected".
@@ -90,7 +158,7 @@ export function useSendFlow({ orderId, order, labels, refetchOrder }: {
   const pollOrderUntil = useCallback(async (
     predicate: (next: Order) => boolean,
     timeoutMs: number,
-  ): Promise<Order> => {
+  ): Promise<PollOutcome> => {
     const started = Date.now();
     let latest: Order | null = null;
 
@@ -106,12 +174,19 @@ export function useSendFlow({ orderId, order, labels, refetchOrder }: {
         // not refreshed yet — fall through to the next 900ms tick.
       }
       if (latest && predicate(latest)) {
-        return latest;
+        return { order: latest, settled: true };
       }
       await sleep(900);
     }
 
-    if (latest) return latest;
+    // The window elapsed. `latest` is a real, current read — it is simply not in
+    // a status this poll was waiting for, which means the job is still running
+    // (or nothing is running it). settled:false is how the caller learns that,
+    // instead of inferring "failure" from a status that matches no branch.
+    if (latest) return { order: latest, settled: false };
+    // Zero successful reads in the whole window is a different failure: we never
+    // got server truth at all. That still throws — the catch re-reads once before
+    // painting red, so a healthy order cannot be misreported by this path.
     throw new Error("Order did not refresh. Check your connection and try again.");
   }, [orderId]);
 
@@ -139,14 +214,27 @@ export function useSendFlow({ orderId, order, labels, refetchOrder }: {
         setFlow("Generating the output...", "info");
         // No explicit format → backend transforms into the supplier's configured output format.
         await apiClient.transformOrder(orderId);
-        current = await pollOrderUntil(
+        const transformPoll = await pollOrderUntil(
           next =>
             next.status === "ready_to_deliver" ||
             next.status === "delivered" ||
             next.status === "delivery_failed" ||
             next.status === "transform_failed",
-          45_000,
+          SEND_POLL_WINDOW_MS,
         );
+        current = transformPoll.order;
+
+        // A timed-out transform poll leaves `current` in `transforming` (or
+        // wherever it was stuck), which matches none of the branches below —
+        // it used to slide down to the `artifacts.length === 0` guard and paint
+        // a red "Output generation has not finished yet. Refresh the order and
+        // try again." on an order that had not failed, telling the operator to
+        // retry a job that is already running. Stop here and say what is true.
+        if (!transformPoll.settled) {
+          setFlow(stillRunningNotice(processingPaused), "info");
+          await refetchOrder();
+          return;
+        }
       }
 
       if (current.status === "transform_failed") {
@@ -181,7 +269,7 @@ export function useSendFlow({ orderId, order, labels, refetchOrder }: {
         "info",
       );
       await apiClient.redeliverOrder(orderId);
-      current = await pollOrderUntil(
+      const deliveryPoll = await pollOrderUntil(
         next =>
           next.status === "delivered" ||
           next.status === "delivery_failed" ||
@@ -197,10 +285,22 @@ export function useSendFlow({ orderId, order, labels, refetchOrder }: {
           // burns the full 45s timeout and shows a false "Send failed" for an order that
           // is actually sitting in the (correct) parked state, waiting on the operator.
           next.status === "delivery_unconfirmed",
-        45_000,
+        SEND_POLL_WINDOW_MS,
       );
+      current = deliveryPoll.order;
 
-      if (current.status === "delivered") {
+      if (!deliveryPoll.settled) {
+        // THE WP-36 DEFECT. `current.status` is still `delivering` here, so it
+        // matched no branch and dropped into the final `else`, whose
+        // finalDeliveryMessage fallback was painted red: "Delivery is still
+        // processing. Refresh the order or check the Delivery Log…". Wrong
+        // severity for an order that is intact and in flight, and both next steps
+        // were dead ends — refreshing does not run the job, and no attempt has
+        // been recorded to go and read. This branch answers the question the
+        // operator actually has ("did my send work?") with the one fact that
+        // settles it: whether processing is running at all.
+        setFlow(stillRunningNotice(processingPaused), "info");
+      } else if (current.status === "delivered") {
         setCrossed(true);
         setFlow(finalDeliveryMessage(current.status, current.errorMessage, labels), "success");
       } else if (current.status === "delivery_held") {
@@ -245,7 +345,7 @@ export function useSendFlow({ orderId, order, labels, refetchOrder }: {
     } finally {
       setSendState("idle");
     }
-  }, [order, orderId, pollOrderUntil, refetchOrder, sendState, labels, setFlow]);
+  }, [order, orderId, pollOrderUntil, refetchOrder, sendState, labels, setFlow, processingPaused]);
 
   return {
     flowNotice,

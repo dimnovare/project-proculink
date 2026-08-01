@@ -18,6 +18,7 @@ import {
 import { PROBLEM_COPY, problemFor, type ProblemCtx, type ProblemStatus } from "@/components/bridge/problem/problemCopy";
 import { orderGlyphColor } from "@/components/bridge/CommandPalette";
 import { neededForOrder } from "@/components/bridge/BridgeDashboard";
+import { notifKindFor } from "@/components/bridge/BridgeTopbar";
 import { STATUS_LABELS } from "@/components/bridge/UnifiedStatusBadge";
 import { ROOT, isInternalPageLink, listAppRoutes, matchesAny, normalizePath } from "./appRoutes";
 import { stripComments, syntaxFor } from "./sourceScan";
@@ -304,6 +305,30 @@ describe("the other screens do not paint a stopped order as a healthy one", () =
     expect(line.toLowerCase()).toContain(PROBLEM_COPY[status as ProblemStatus].rowAction.toLowerCase());
   });
 
+  test.each(PROBLEM_BUCKET_STATUSES)("%s: the notification bell classifies it", (status) => {
+    // A stopped order that earns no `NotifKind` is dropped by the bell's filter
+    // entirely — not shown quietly, not shown greyed, absent. `unrouted` was, for
+    // as long as the bell existed, while two sibling parked states had already been
+    // rescued from exactly that with the reasoning written directly above it.
+    expect(
+      notifKindFor(status, 0),
+      `${status} earns no notification kind, so the bell drops the row and the operator is never told`,
+    ).not.toBeNull();
+    // And unresolved lines must not relabel a stopped order as "Needs review" —
+    // that names the wrong problem and hides the one that stopped it.
+    if (status !== "pending_review") {
+      expect(notifKindFor(status, 4), `${status} is masked by unresolvedCount`).not.toBe("review");
+    }
+  });
+
+  test("the bell still ignores an order that is simply moving", () => {
+    // Not inverted: a healthy in-flight order must NOT notify, or the bell becomes
+    // a feed of every order in the workspace and stops meaning anything.
+    for (const status of ["parsing", "transforming", "ready_to_deliver", "delivering"]) {
+      expect(notifKindFor(status, 0), `${status} notifies, but nothing is wrong with it`).toBeNull();
+    }
+  });
+
   test("a healthy status keeps its own line rather than being forced into the shape", () => {
     expect(neededForOrder({ status: "pending_review" as never, unresolvedCount: 3 })).toBe("3 item codes to confirm");
     expect(neededForOrder({ status: "pending_review" as never, unresolvedCount: 0 })).toBe("Review before sending");
@@ -330,6 +355,20 @@ describe("the guard tables are one copy, not nine", () => {
   test.each(MUST_DERIVE)("%s reads the status manifest instead of retyping it", (rel) => {
     const code = stripComments(readFileSync(join(ROOT, rel), "utf8"), syntaxFor(rel));
     expect(/from\s+["']@\/lib\/orderStatusManifest["']/.test(code)).toBe(true);
+  });
+
+  test("the ops requeue control is gated on the requeue guard, by name", () => {
+    // The one control in this packet whose behaviour no render test reaches: it
+    // lives in a Next.js `page.tsx`, which may not carry arbitrary named exports,
+    // so the function cannot be imported and called. A structural check is
+    // therefore the floor available — but "imports the manifest" is too weak on
+    // its own (a file can import it and still hand-roll the guard two lines down),
+    // so this asserts the CALL, with its op argument. The behaviour behind that
+    // call is covered by the OP_GUARDS assertions above and by the C# diff in
+    // src/test/backendMirror.test.ts.
+    const rel = "src/app/(app)/operations/health/page.tsx";
+    const code = stripComments(readFileSync(join(ROOT, rel), "utf8"), syntaxFor(rel));
+    expect(/opAllowsStatus\(\s*["']requeueDelivery["']/.test(code)).toBe(true);
   });
 
   test("the dashboard's action line reads the problem registry", () => {

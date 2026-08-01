@@ -261,12 +261,24 @@ describe("the manifest matches the C# it claims to mirror", () => {
   test.skipIf(!BACKEND)("the file:line each guard cites still points at that guard's symbol", () => {
     // The line number is documentation and will rot; the FILE must at least still
     // reference the symbol, or the citation is sending the next reader nowhere.
+    //
+    // The symbol is taken from the LAST dotted identifier in `backendSymbol`, which
+    // is why the pattern is anchored rather than split-and-pop: `assignSupplier`'s
+    // entry is a sentence, not a symbol — "OrdersController.AssignSupplier inline
+    // literal (OrderStatusConstants.Unrouted)" — and popping on "." yields
+    // `Unrouted)` with the bracket attached. That happened to pass, because the C#
+    // really does contain `…Unrouted)` inside a call. A check that is right by
+    // accident on the one row it was written for is not a check.
     for (const [op, guard] of Object.entries(OP_GUARDS)) {
       const [file] = guard.backendSite.split(":");
       const path = join(BACKEND!, file);
       expect(existsSync(path), `${op} cites ${file}, which does not exist`).toBe(true);
-      const symbol = guard.backendSymbol.includes(".") ? guard.backendSymbol.split(".").pop()! : "Unrouted";
-      expect(readFileSync(path, "utf8")).toContain(symbol);
+      const identifiers = [...guard.backendSymbol.matchAll(/\b[A-Z]\w*\.([A-Z]\w*)\b/g)].map((m) => m[1]);
+      expect(identifiers.length, `${op}'s backendSymbol names no C# identifier: "${guard.backendSymbol}"`).toBeGreaterThan(0);
+      const cs = readFileSync(path, "utf8");
+      for (const symbol of identifiers) {
+        expect(cs, `${op} cites ${symbol}, which ${file} no longer mentions`).toContain(symbol);
+      }
     }
   });
 });

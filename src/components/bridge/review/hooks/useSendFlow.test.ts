@@ -37,6 +37,23 @@ vi.mock("@/lib/api-client", () => ({
   },
 }));
 
+/**
+ * Is the background processor running?
+ *
+ * Mocked rather than provided, to keep this file's stated contract — "the hook is
+ * tested in isolation by mocking ONLY the api-client (network)". The real
+ * `useProcessingStatus` is a `useQuery` behind `useQueriesEnabled` → Clerk's
+ * `useAuth`, so the alternative was a QueryClientProvider plus a Clerk mock in
+ * every `renderHook` call, which buys nothing this file is about.
+ *
+ * It is a knob, not a stub: WP-36 made the send's timeout copy DEPEND on this
+ * answer, so both settings are exercised below.
+ */
+const processing = { paused: false };
+vi.mock("@/hooks/useProcessingStatus", () => ({
+  useProcessingStatus: () => ({ paused: processing.paused, lastSeen: null }),
+}));
+
 // Import AFTER the mock is registered.
 import { useSendFlow } from "./useSendFlow";
 
@@ -98,6 +115,103 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers();
+  processing.paused = false;
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WP-36 — the poll window elapsing is not a failure.
+//
+// The delivery poll's terminal predicate covers six statuses. When the window
+// elapses the order is still `delivering`, which matches none of them, so control
+// fell through to the final `else` and painted finalDeliveryMessage's fallback
+// RED: "Delivery is still processing. Refresh the order or check the Delivery Log
+// for the latest attempt."
+//
+// ProcuLink runs one background processor. When it is down nothing is delivered,
+// so the operator who clicked Send and waited 45 seconds got a red failure for an
+// order that is intact and queued — told to refresh, which does not start the job,
+// and to read a log with no attempt in it. Wrong severity, wrong fact, two dead
+// ends for next steps.
+// ─────────────────────────────────────────────────────────────────────────────
+describe("WP-36 — a send that outlives its poll window is reported as in-flight, not failed", () => {
+  /** Reads succeed all the way through, but the order never leaves `delivering`. */
+  function stuckDelivering() {
+    const order = makeOrder({
+      status: "ready_to_deliver",
+      artifacts: [{ id: "a1", format: "csv", fileKey: "k", createdAt: "" }],
+    });
+    api.getOrderById.mockResolvedValue(makeOrder({ status: "delivering", artifacts: order.artifacts }));
+    return order;
+  }
+
+  async function runUntilTimeout(order: Order) {
+    const refetchOrder = vi.fn().mockResolvedValue(undefined);
+    const { result } = renderHook(() =>
+      useSendFlow({ orderId: "ord-1", order, labels: LABELS, refetchOrder }),
+    );
+    let sendPromise!: Promise<void>;
+    act(() => {
+      sendPromise = result.current.confirmSend();
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(47_000);
+      await sendPromise;
+    });
+    return result;
+  }
+
+  test("processing paused: says so, promises nothing is lost, and forbids a second send", async () => {
+    processing.paused = true;
+    const result = await runUntilTimeout(stuckDelivering());
+
+    expect(result.current.flowSeverity).toBe("info");
+    expect(result.current.flowNotice).toMatch(/paused/i);
+    expect(result.current.flowNotice).toMatch(/nothing has been lost/i);
+    // The load-bearing sentence. A second Send on a paused system enqueues a
+    // duplicate dispatch that fires twice the moment processing resumes — this is
+    // the one thing standing between a paused mid-flight order and a duplicate PO.
+    expect(result.current.flowNotice).toMatch(/don't send it again/i);
+    // And it names somewhere to go. `setFlow` is string-only, so the destination
+    // is words: "System status" is what /operations/health is called in the nav.
+    expect(result.current.flowNotice).toMatch(/system status/i);
+    expect(result.current.crossed).toBe(false);
+  });
+
+  test("processing healthy: still in-flight, still not a failure", async () => {
+    processing.paused = false;
+    const result = await runUntilTimeout(stuckDelivering());
+
+    expect(result.current.flowSeverity).toBe("info");
+    expect(result.current.flowNotice).not.toMatch(/paused/i);
+    expect(result.current.flowNotice).toMatch(/don't send it again/i);
+    expect(result.current.crossed).toBe(false);
+  });
+
+  test("neither branch tells the operator to refresh, and neither claims a failure", async () => {
+    // The two clauses of the sentence this replaced. "Refresh the order" named an
+    // action that changes nothing — a queued job is not a rendering problem.
+    for (const paused of [true, false]) {
+      processing.paused = paused;
+      const result = await runUntilTimeout(stuckDelivering());
+      expect(result.current.flowNotice, `paused=${paused}`).not.toMatch(/refresh the order/i);
+      expect(result.current.flowSeverity, `paused=${paused}`).not.toBe("error");
+    }
+  });
+
+  test("a poll that DOES settle is unaffected — the timeout branch is not swallowing real outcomes", async () => {
+    // The anti-vacuity control. If `settled` were always false the three tests
+    // above would pass while every real delivery outcome vanished into the
+    // in-flight notice.
+    const order = makeOrder({
+      status: "ready_to_deliver",
+      artifacts: [{ id: "a1", format: "csv", fileKey: "k", createdAt: "" }],
+    });
+    api.getOrderById.mockResolvedValue(makeOrder({ status: "delivered", artifacts: order.artifacts }));
+    const result = await runUntilTimeout(order);
+
+    expect(result.current.flowSeverity).toBe("success");
+    expect(result.current.crossed).toBe(true);
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

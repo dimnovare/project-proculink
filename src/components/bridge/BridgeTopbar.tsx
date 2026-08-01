@@ -278,6 +278,40 @@ const NOTIF_META: Record<NotifKind, { dot: string }> = {
   delivered:   { dot: "var(--brand-green)" },
 };
 
+/**
+ * Which notification an order earns, or null for "does not notify".
+ *
+ * ORDER MATTERS, and every arm above `review` is there because of the same bug:
+ * a stopped order that also carries unresolved lines gets relabelled "Needs
+ * review", which describes the wrong problem and hides the real one. `held` and
+ * `unconfirmed` were moved above it for that reason; `unrouted` is the third and
+ * was left behind, with the reasoning for the other two written directly above
+ * it. Until then it matched nothing, got no kind, and was dropped by the caller's
+ * filter — so the one hold a user can clear entirely by themselves was the one
+ * hold the bell never mentioned. For `unrouted` the masking is certain rather
+ * than merely possible: an unrouted order always has lines.
+ *
+ * Module scope and exported so `src/test/failureRecoveryCoverage.test.ts` can walk
+ * every status the backend machine knows and assert that a stopped order always
+ * earns a notification. Inline in the render map it was untestable, which is why
+ * one status could sit unclassified through two packets that touched this file.
+ */
+export function notifKindFor(status: string, unresolvedCount?: number | null): NotifKind | null {
+  if (
+    status === "failed" ||
+    status === "delivery_failed" ||
+    status === "transform_failed" ||
+    status === "delivery_dead_letter" ||
+    status === "rejected_by_supplier"
+  ) return "failed";
+  if (status === "delivery_held") return "held";
+  if (status === "delivery_unconfirmed") return "unconfirmed";
+  if (status === "unrouted") return "unrouted";
+  if (status === "pending_review" || (unresolvedCount ?? 0) > 0) return "review";
+  if (status === "delivered") return "delivered";
+  return null;
+}
+
 function NotificationsBell() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -298,25 +332,7 @@ function NotificationsBell() {
 
   const items = (ordersPage?.items ?? [])
     .map((o) => {
-      let kind: NotifKind | null = null;
-      if (o.status === "failed" || o.status === "delivery_failed" || o.status === "transform_failed" || o.status === "delivery_dead_letter" || o.status === "rejected_by_supplier") kind = "failed";
-      // Billing hold: classified before `review` because a held order can also carry
-      // unresolved lines, and the billing pause is the reason it isn't moving.
-      // Without a kind it was dropped entirely and never notified.
-      else if (o.status === "delivery_held") kind = "held";
-      // Parked: same reasoning as held — classify before `review` so it can't be
-      // masked by a leftover unresolvedCount from before it reached delivery.
-      else if (o.status === "delivery_unconfirmed") kind = "unconfirmed";
-      // Unrouted: the third parked state, same reasoning as held and unconfirmed —
-      // classify before `review` because the missing supplier is why it isn't
-      // moving. Here the masking is certain, not just possible: an unrouted order
-      // always has lines, so unresolvedCount would relabel it "Needs review" every
-      // time. Until this arm existed it matched nothing, got no kind, and was
-      // dropped by the filter below — the one hold a user can clear themselves
-      // was the one hold the bell never mentioned.
-      else if (o.status === "unrouted") kind = "unrouted";
-      else if (o.status === "pending_review" || (o.unresolvedCount ?? 0) > 0) kind = "review";
-      else if (o.status === "delivered") kind = "delivered";
+      const kind = notifKindFor(o.status, o.unresolvedCount);
       return kind ? { o, kind } : null;
     })
     .filter((x): x is { o: OrderSummary; kind: NotifKind } => x !== null);

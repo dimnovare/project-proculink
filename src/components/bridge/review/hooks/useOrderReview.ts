@@ -91,7 +91,22 @@ export function finalDeliveryMessage(status: Order["status"], errorMessage: stri
       ? errorMessage
       : DELIVERY_UNCONFIRMED_MESSAGE;
   }
-  return "Delivery is still processing. Refresh the order or check the Delivery Log for the latest attempt.";
+  // ── The last-resort branch: a status this function genuinely does not know ───
+  // It used to read "Delivery is still processing. Refresh the order or check the
+  // Delivery Log for the latest attempt." Every clause was a guess dressed as a
+  // fact. This branch is reached by `transform_failed`, `failed`, `unrouted`,
+  // `pending_review` and anything the backend adds tomorrow — states where no
+  // delivery has been attempted at all — so "still processing" asserted a
+  // dispatch that does not exist, and "the latest attempt" pointed at a page
+  // with nothing on it. "Refresh the order" was worse: it named an action that
+  // changes nothing, because a status this function cannot read is not a
+  // rendering problem.
+  //
+  // What IS true for an unknown status is that we cannot answer the question
+  // from this screen, and that one page does hold the record if there is one.
+  // "Deliveries" is that page's real user-facing name (/operations/log), so the
+  // sentence names something the operator can actually find in the nav.
+  return "We can't confirm this order's delivery state from here. Open the Deliveries page to see the last recorded attempt for this order.";
 }
 
 export function useOrderReview(orderId: string) {
