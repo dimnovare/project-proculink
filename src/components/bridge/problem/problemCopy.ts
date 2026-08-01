@@ -511,9 +511,24 @@ export const PROBLEM_COPY: Record<ProblemStatus, ProblemCopy> = {
     rowAction: "Needs you to send it",
   }),
 
-  // 3.6 — D4's fix. rejected_by_supplier has NO outgoing transitions: it is
-  // terminal. So there is no post action here at all, and the "send again" the
-  // mapper used to offer is replaced by starting a corrected order.
+  // 3.6 — D4's fix. No post action here at all: the "send again" the mapper used
+  // to offer is replaced by starting a corrected order.
+  //
+  // That is a PRODUCT rule, not a backend limit, and this comment used to claim
+  // the opposite — "rejected_by_supplier has NO outgoing transitions: it is
+  // terminal". It has three: `OrderStatusMachine[RejectedBySupplier] =
+  // Set(PendingReview, Ready, Transforming)`, since BE #89 (WP-19) ended the dead
+  // end that let an expired API key park a good PO where nothing could move it.
+  // The sentence outlived the fact by a day and by two merged packets, which is
+  // why the guard sets are now derived from `orderStatusManifest` instead of
+  // described in prose that nothing checks.
+  //
+  // What IS still true is the reason there is no button: re-sending the refused
+  // bytes cannot un-refuse them. The supplier read the order and said no. So the
+  // exits the backend offers are the two that produce a CORRECTED document —
+  // correct the lines (the resolve recompute) or re-transform with a fixed
+  // mapping — and neither is a control this panel should present as "try again".
+  // No delivery claim set admits this status, so → delivering stays impossible.
   rejected_by_supplier: withAutomaticFor({
     tone: "danger",
     presentation: "banner",

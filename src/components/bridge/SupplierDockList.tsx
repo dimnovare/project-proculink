@@ -147,8 +147,12 @@ export function SupplierDockList() {
   const [newProtocol, setNewProtocol] = useState<DeliveryProtocol | null>(null);
   const [newFormat, setNewFormat] = useState<string | null>(null);
   const [addError, setAddError] = useState<string | null>(null);
-  // Page-level notice for the partial-success path (supplier created, channel not saved).
-  const [pageNotice, setPageNotice] = useState<string | null>(null);
+  // Page-level notice for the partial-success path (supplier created, channel not
+  // saved). It carries the new supplier's id, not just a sentence: the message
+  // names the Delivery tab as the fix, so the notice has to be able to OPEN that
+  // tab. Without the id the only control was the dismiss ✕ — which throws away
+  // the very instruction the operator still needs to act on.
+  const [pageNotice, setPageNotice] = useState<{ text: string; supplierId: string } | null>(null);
   const [hoverRow, setHoverRow] = useState<string | null>(null);
 
   // New-supplier modal a11y: Escape + focus-in + focus-trap + focus-restore +
@@ -174,6 +178,10 @@ export function SupplierDockList() {
     data: suppliers = [],
     isLoading,
     isError: suppliersError,
+    // Bound to the failure state below. The list query is the only thing that
+    // failed, so re-running IT is the fix — not a browser reload, which also
+    // throws away the New-supplier panel and any notice on screen.
+    refetch: refetchSuppliers,
   } = useQuery({
     queryKey: ["suppliers"],
     queryFn: () => apiClient.getSuppliers(),
@@ -232,7 +240,10 @@ export function SupplierDockList() {
       setAddError(null);
       setPageNotice(
         wantedChannel && !channelSaved
-          ? `${noun} created — but the delivery channel could not be saved. Open the ${nounLower} and set it on the Delivery tab.`
+          ? {
+              text: `${noun} created — but the delivery channel could not be saved. Set it on the ${nounLower}'s Delivery tab.`,
+              supplierId: supplier.id,
+            }
           : null,
       );
     },
@@ -300,23 +311,37 @@ export function SupplierDockList() {
           }
         />
 
-        {/* Partial-success notice (supplier created, channel not saved) */}
+        {/* Partial-success notice (supplier created, channel not saved). The
+            sentence names the Delivery tab, so the notice ships the link to it —
+            same amber action treatment as the billing banner below, so this
+            introduces no new visual language. The dismiss ✕ stays, but it is no
+            longer the ONLY control: dismissing used to be the single thing a
+            user could do to a message whose whole point was "go here next". */}
         {pageNotice && (
           <div
-            className="mb-4 flex items-start justify-between gap-3 rounded-[10px] px-4 py-3 text-[12.5px]"
+            className="mb-4 flex flex-wrap items-start justify-between gap-3 rounded-[10px] px-4 py-3 text-[12.5px]"
             style={{ border: "1px solid #F0D39A", background: "#FFF8EA", color: "#7A4D0B" }}
           >
-            <span>{pageNotice}</span>
-            <button
-              onClick={() => setPageNotice(null)}
-              aria-label="Dismiss notice"
-              className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-[5px]"
-              style={{ border: "1px solid #F0D39A", background: "#FFFFFF", color: "#7A4D0B" }}
-            >
-              <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
-                <path d="M2 10L10 2M2 2l8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              </svg>
-            </button>
+            <span className="min-w-0 flex-1">{pageNotice.text}</span>
+            <div className="flex flex-shrink-0 items-center gap-2">
+              <Link
+                href={`/library/suppliers/${pageNotice.supplierId}?tab=delivery`}
+                className="inline-flex items-center rounded-[6px] px-3 py-1.5 text-[12px] font-semibold"
+                style={{ border: "1px solid #B36D14", background: "#FFFFFF", color: "#9A5F0A", textDecoration: "none", whiteSpace: "nowrap" }}
+              >
+                Open Delivery tab
+              </Link>
+              <button
+                onClick={() => setPageNotice(null)}
+                aria-label="Dismiss notice"
+                className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-[5px]"
+                style={{ border: "1px solid #F0D39A", background: "#FFFFFF", color: "#7A4D0B" }}
+              >
+                <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
+                  <path d="M2 10L10 2M2 2l8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+              </button>
+            </div>
           </div>
         )}
 
@@ -567,13 +592,25 @@ export function SupplierDockList() {
           </div>
         )}
 
-        {/* Fetch error */}
+        {/* Fetch error. The old copy ended at "try refreshing" — an instruction
+            to reload the browser for something this page can redo in place, and
+            the user's only option was to follow it. refetchSuppliers() re-runs
+            just this query and leaves the rest of the page standing. Direction-
+            aware noun, like every other sentence on this screen. */}
         {suppliersError && !isLoading && (
           <div
-            className="rounded-[10px] px-4 py-3 text-[13px]"
+            className="flex flex-wrap items-center justify-between gap-3 rounded-[10px] px-4 py-3 text-[13px]"
             style={{ border: "1px solid #F1C9C9", background: "#FEF2F2", color: "#B43838" }}
           >
-            Could not load suppliers. Check your connection and try refreshing.
+            <span className="min-w-0 flex-1">Could not load {pluralLower}.</span>
+            <button
+              type="button"
+              onClick={() => refetchSuppliers()}
+              className="flex-shrink-0 rounded-[7px] px-3 text-[12px] font-medium"
+              style={{ height: 30, border: `1px solid ${BORDER}`, background: "#FFFFFF", color: INK, cursor: "pointer" }}
+            >
+              ↻ Retry
+            </button>
           </div>
         )}
 

@@ -255,7 +255,7 @@ function timeAgo(iso: string): string {
 
 // Status dot colors use the canonical semantic tokens (danger/amber/brand-green)
 // rather than literal hex, so they stay in sync with UnifiedStatusBadge.
-type NotifKind = "review" | "failed" | "delivered" | "held" | "unconfirmed";
+type NotifKind = "review" | "failed" | "delivered" | "held" | "unconfirmed" | "unrouted";
 
 // The KIND decides the dot colour and the sort rank only. It deliberately no
 // longer carries a label: `failed` folds five different statuses, so one label
@@ -270,6 +270,10 @@ const NOTIF_META: Record<NotifKind, { dot: string }> = {
   // Parked: a crash lost the outcome after we sent. Amber like `held` — needs a
   // human, but we can't confirm a failure, so it is never a red row.
   unconfirmed: { dot: "var(--amber)" },
+  // The third parked state, finally joining the two above it: no supplier was
+  // resolved, so the order stops and nothing automatic will ever restart it.
+  // Amber like `held`/`unconfirmed` — a backlog waiting on a person, not a fault.
+  unrouted:    { dot: "var(--amber)" },
   review:      { dot: "var(--amber)" },
   delivered:   { dot: "var(--brand-green)" },
 };
@@ -303,16 +307,25 @@ function NotificationsBell() {
       // Parked: same reasoning as held — classify before `review` so it can't be
       // masked by a leftover unresolvedCount from before it reached delivery.
       else if (o.status === "delivery_unconfirmed") kind = "unconfirmed";
+      // Unrouted: the third parked state, same reasoning as held and unconfirmed —
+      // classify before `review` because the missing supplier is why it isn't
+      // moving. Here the masking is certain, not just possible: an unrouted order
+      // always has lines, so unresolvedCount would relabel it "Needs review" every
+      // time. Until this arm existed it matched nothing, got no kind, and was
+      // dropped by the filter below — the one hold a user can clear themselves
+      // was the one hold the bell never mentioned.
+      else if (o.status === "unrouted") kind = "unrouted";
       else if (o.status === "pending_review" || (o.unresolvedCount ?? 0) > 0) kind = "review";
       else if (o.status === "delivered") kind = "delivered";
       return kind ? { o, kind } : null;
     })
     .filter((x): x is { o: OrderSummary; kind: NotifKind } => x !== null);
 
-  // Held and unconfirmed rank under failed but over review: both need a human before
-  // review even matters (held blocks every order in the workspace; unconfirmed risks
-  // a duplicate send if mishandled).
-  const rank = (k: string) => (k === "failed" ? 0 : k === "held" || k === "unconfirmed" ? 1 : k === "review" ? 2 : 3);
+  // Held, unconfirmed and unrouted rank under failed but over review: all three need a
+  // human before review even matters (held blocks every order in the workspace;
+  // unconfirmed risks a duplicate send if mishandled; unrouted can't be reviewed at all
+  // until it has a supplier to review it against).
+  const rank = (k: string) => (k === "failed" ? 0 : k === "held" || k === "unconfirmed" || k === "unrouted" ? 1 : k === "review" ? 2 : 3);
   items.sort((a, b) => rank(a.kind) - rank(b.kind) || new Date(b.o.createdAt).getTime() - new Date(a.o.createdAt).getTime());
   const top = items.slice(0, 7);
   const unread = !isApiMockMode
@@ -323,8 +336,9 @@ function NotificationsBell() {
        (ordersSummary?.byStatus?.["delivery_dead_letter"] ?? 0) +
        (ordersSummary?.byStatus?.["rejected_by_supplier"] ?? 0) +
        (ordersSummary?.byStatus?.["delivery_held"] ?? 0) +
-       (ordersSummary?.byStatus?.["delivery_unconfirmed"] ?? 0))
-    : items.filter((i) => i.kind === "failed" || i.kind === "review" || i.kind === "held" || i.kind === "unconfirmed").length;
+       (ordersSummary?.byStatus?.["delivery_unconfirmed"] ?? 0) +
+       (ordersSummary?.byStatus?.["unrouted"] ?? 0))
+    : items.filter((i) => i.kind === "failed" || i.kind === "review" || i.kind === "held" || i.kind === "unconfirmed" || i.kind === "unrouted").length;
 
   useEffect(() => {
     if (!open) return;

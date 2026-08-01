@@ -13,6 +13,12 @@ import { PageShell } from "./layout/PageShell";
 import { SupplierPicker } from "./SupplierPicker";
 import { statusLabel } from "./UnifiedStatusBadge";
 import { ApiHttpError, apiClient, getBillingStatus, isApiMockMode, type DetectFormatResult } from "@/lib/api-client";
+// WP-36 — the failure classification this screen branches on is NOT re-invented
+// here: classifyApiFailure already answers "what kind of failure is this", and
+// planGate already turns a gate code into a sentence + the upgrade route the
+// SERVER named. This screen only chooses words and destinations.
+import { classifyApiFailure, isRequestTimeout } from "@/lib/apiFailure";
+import { planGateMessage, planGateUpgradeUrl } from "@/lib/planGate";
 import type { Supplier } from "@/types/procurement";
 import { capture } from "@/lib/analytics";
 import { BOOK_DEMO_URL, BOOK_DEMO_LINK_ATTRS } from "@/lib/book-demo";
@@ -34,7 +40,94 @@ const STAGE_MS = 600;
 // accept attr, inline validation, and human copy all read from it. The old
 // local constant here had drifted (it was missing .x12).
 
+// ─── Per-file size cap (WP-36 · defect B) ─────────────────────────────────────
+//
+// The dropzone has always PROMISED "up to 10 MB each" and nothing ever checked
+// it: upload-formats.ts validates the extension only. So an oversized export
+// travelled in full, was refused by the server, and came back through
+// realUploadPurchaseOrder as `Upload failed: <status line>` — a dead end the
+// operator cannot act on, because nothing in it says "your file is too big".
+//
+// The advertised cap and the enforced cap are now ONE number: the hero copy and
+// the pre-flight refusal both read MAX_UPLOAD_BYTES, so the promise and the
+// check cannot drift apart.
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+/** The cap as it is written to people — derived, never typed a second time. */
+const MAX_UPLOAD_LABEL = `${Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))} MB`;
+
+/** True when a file exceeds the advertised per-file cap. */
+function isOverSizeCap(file: File): boolean {
+  return file.size > MAX_UPLOAD_BYTES;
+}
+
+/** Human file size — "812 KB", "14.3 MB". Used when naming a refused file. */
+function fileSizeLabel(bytes: number): string {
+  if (bytes < 1024) return `${bytes} bytes`;
+  const kb = bytes / 1024;
+  if (kb < 1024) return `${Math.round(kb)} KB`;
+  return `${(kb / 1024).toFixed(1)} MB`;
+}
+
+/** The one unsupported-format sentence — names the file, then what we do read. */
+function unsupportedFileMessage(file: File): string {
+  return `${file.name} isn't supported. We read spreadsheets (Excel, CSV), PDFs, and order files (XML, EDI). Try a different file.`;
+}
+
+/** The one over-size sentence: the file, its size, the cap, and what fixes it. */
+function overSizeMessage(file: File): string {
+  return `${file.name} is ${fileSizeLabel(file.size)} — over the ${MAX_UPLOAD_LABEL} limit for a single file. Split it into smaller files, or send fewer order lines at a time.`;
+}
+
+/** "a.csv" · "a.csv and b.csv" · "a.csv, b.csv, c.csv and 2 more". */
+function nameList(names: string[], max = 3): string {
+  if (names.length <= 1) return names[0] ?? "";
+  if (names.length <= max) return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+  return `${names.slice(0, max).join(", ")} and ${names.length - max} more`;
+}
+
+/**
+ * WP-36 · defect C — the multi-file refusal used to read "Skipped 4 unsupported
+ * files." and name none of them. On a 12-file drop the operator was handed a
+ * count and left to work out which four never became orders. Name them (capped
+ * at three plus "and N more", so a 40-file drop is not a wall of text) and keep
+ * the accepted-format guidance the single-file path already gives.
+ *
+ * `lead` lets the same clauses serve both call sites: "Skipped …" when part of
+ * the drop was usable, "We can't use …" when none of it was.
+ */
+function refusedFilesMessage(lead: string, unsupported: File[], oversized: File[]): string | null {
+  const clauses: string[] = [];
+  if (unsupported.length > 0) {
+    clauses.push(
+      `${lead} ${nameList(unsupported.map((f) => f.name))} — we read ${ACCEPTED_UPLOAD_FORMATS.humanList}.`,
+    );
+  }
+  if (oversized.length > 0) {
+    clauses.push(
+      `${lead} ${nameList(oversized.map((f) => `${f.name} (${fileSizeLabel(f.size)})`))} — over the ${MAX_UPLOAD_LABEL} limit for a single file. Split them, or send fewer order lines at a time.`,
+    );
+  }
+  return clauses.length > 0 ? clauses.join(" ") : null;
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
+
+/**
+ * The footer error banner. `canRetry` and `href` are the WP-36 additions: the
+ * banner used to hold one link ("Review settings →" to /settings) for every
+ * cause, which is the right destination for exactly one of them.
+ */
+interface UploadErrorBanner {
+  code: string;
+  title: string;
+  message: string;
+  /** Label of the SECONDARY route — the one that matches the cause. */
+  cta: string;
+  /** Where that secondary route goes. Falls back to the code table at render. */
+  href?: string;
+  /** True when re-sending the same selection could plausibly work. */
+  canRetry?: boolean;
+}
 
 type FormatKey = "PDF" | "XLSX" | "CSV" | "cXML" | "EDI" | "JSON" | "EMAIL";
 
@@ -383,7 +476,7 @@ export function UploadWorkbench() {
   const [fileError, setFileError] = useState<string | null>(null);
   const [uploading, setUploading]   = useState(false);
   const [pipelineStage, setPipelineStage] = useState(-1);
-  const [uploadError, setUploadError] = useState<{ code: string; title: string; message: string; cta: string } | null>(null);
+  const [uploadError, setUploadError] = useState<UploadErrorBanner | null>(null);
   const timerRefs = useRef<ReturnType<typeof setTimeout>[]>([]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const router = useRouter();
@@ -407,6 +500,11 @@ export function UploadWorkbench() {
     data: suppliers = [],
     isLoading: suppliersLoading,
     isError: suppliersError,
+    // WP-36 · defect A — the failed supplier load printed a sentence and offered
+    // no control at all, so the only escape from a disabled upload button was a
+    // browser reload. refetch() is bound to a real Retry below.
+    isFetching: suppliersFetching,
+    refetch: refetchSuppliers,
   } = useQuery({
     queryKey: ["suppliers"],
     queryFn: apiClient.getSuppliers,
@@ -533,12 +631,13 @@ export function UploadWorkbench() {
       if (error instanceof ApiHttpError && error.status === 429) {
         setUploadError(getLimitMessage(getLimitCode(error.body)));
       } else {
-        setUploadError({
-          code: "upload_failed",
-          title: "Upload could not start.",
-          message: error instanceof Error ? error.message : "Check the API connection and try again.",
-          cta: "Review settings",
-        });
+        // WP-36 · defect B.2 + B.3 — this branch used to print `error.message`
+        // verbatim under a fixed "Upload could not start." title with a fixed
+        // "Review settings →" link. Two things were wrong: the message could be
+        // a string the CLIENT wrote for developers ("Request timed out after
+        // 60000ms"), and /settings is the honest destination for exactly one
+        // cause (a plan refusal) out of the several that land here.
+        setUploadError(describeUploadFailure(error, selectedFile.name));
       }
       setUploading(false);
       setPipelineStage(-1);
@@ -575,9 +674,16 @@ export function UploadWorkbench() {
     if (!hasAcceptedUploadExtension(file.name)) {
       setSelectedFile(null);
       setUploadError(null);
-      setFileError(
-        `${file.name} isn't supported. We read spreadsheets (Excel, CSV), PDFs, and order files (XML, EDI). Try a different file.`,
-      );
+      setFileError(unsupportedFileMessage(file));
+      return;
+    }
+    // WP-36 · defect B.1 — refuse an over-size file HERE, where we still know
+    // its name and its size, instead of letting it travel for a minute and come
+    // back as a bare status line. Same cap the hero copy advertises.
+    if (isOverSizeCap(file)) {
+      setSelectedFile(null);
+      setUploadError(null);
+      setFileError(overSizeMessage(file));
       return;
     }
     setFileError(null);
@@ -595,21 +701,34 @@ export function UploadWorkbench() {
    * not silently dropped. A single file falls straight through to the rich single-file flow.
    */
   function acceptFiles(files: File[]) {
-    const accepted = files.filter((f) => hasAcceptedUploadExtension(f.name));
-    const rejected = files.filter((f) => !hasAcceptedUploadExtension(f.name));
+    // Two refusal reasons now, kept apart so each file is refused for the reason
+    // that is actually true of it (WP-36 · defects B.1 + C). An over-size XLSX is
+    // not an unsupported format, and telling its owner to "try a different file
+    // type" would send them looking for the wrong fix.
+    const unsupported = files.filter((f) => !hasAcceptedUploadExtension(f.name));
+    const oversized = files.filter((f) => hasAcceptedUploadExtension(f.name) && isOverSizeCap(f));
+    const accepted = files.filter((f) => hasAcceptedUploadExtension(f.name) && !isOverSizeCap(f));
     if (accepted.length === 0) {
       setSelectedFile(null);
       setExtraFiles([]);
+      setBatchResults([]);
       setUploadError(null);
+      // One file in, one precise sentence out; several files in, every refused
+      // one named. Neither case is allowed to be a bare count.
       setFileError(
-        `${rejected[0]?.name ?? "That file"} isn't supported. We read spreadsheets (Excel, CSV), PDFs, and order files (XML, EDI). Try a different file.`,
+        files.length === 1
+          ? oversized.length === 1
+            ? overSizeMessage(oversized[0])
+            : unsupportedFileMessage(files[0])
+          : refusedFilesMessage("We can't use", unsupported, oversized),
       );
       return;
     }
     if (accepted.length === 1) {
       // Single accepted file → the unchanged rich single-file path (detection pill etc.).
       acceptFile(accepted[0]);
-      if (rejected.length > 0) setFileError(`Skipped ${rejected.length} unsupported file${rejected.length === 1 ? "" : "s"}.`);
+      const skipped = refusedFilesMessage("Skipped", unsupported, oversized);
+      if (skipped) setFileError(skipped);
       return;
     }
     setSelectedFile(accepted[0]);
@@ -618,7 +737,7 @@ export function UploadWorkbench() {
     setUploadError(null);
     setDetection(null);
     setDetectionLoading(false);
-    setFileError(rejected.length > 0 ? `Skipped ${rejected.length} unsupported file${rejected.length === 1 ? "" : "s"}.` : null);
+    setFileError(refusedFilesMessage("Skipped", unsupported, oversized));
   }
 
   /** Upload a batch (selectedFile + extraFiles) sequentially: one order per file. */
@@ -676,7 +795,11 @@ export function UploadWorkbench() {
           setUploadError(capMsg);
           break;
         }
-        const message = error instanceof Error ? error.message : "Upload failed";
+        // WP-36 · defect B.2 — the batch row had the same leak as the banner:
+        // `error.message` verbatim, so one slow file printed "Request timed out
+        // after 60000ms" in a list a purchasing coordinator reads. Same
+        // classification, short form.
+        const message = describeUploadFailure(error, file.name).title;
         setBatchResults((prev) => prev.map((r, idx) => (idx === i ? { ...r, status: "failed", error: message } : r)));
         // A per-file failure does NOT abort the rest — keep going so one bad file doesn't sink the batch.
       }
@@ -874,9 +997,33 @@ export function UploadWorkbench() {
                 </span>
               )}
 
+              {/* WP-36 · defect A — this used to be the whole failure state: a
+                  sentence saying "try again" with nothing to press. The picker
+                  and the "Add a supplier" link are both gated off in this
+                  branch, so hasSupplier stayed false, the send button stayed
+                  grey, and the page then told the operator to choose a supplier
+                  in a step that was no longer offering one. Retry re-runs the
+                  same query and, on success, restores the picker in place. */}
               {suppliersError && !suppliersLoading && (
-                <span className="text-[12px]" style={{ color: "#7A4D0B" }}>
-                  Could not load {labels.counterpartyPlural.toLowerCase()}. Check the API connection and try again.
+                <span className="flex flex-wrap items-center gap-2 text-[12px]" style={{ color: "#7A4D0B" }}>
+                  We couldn&apos;t load your {labels.counterpartyPlural.toLowerCase()}.
+                  <button
+                    type="button"
+                    onClick={() => refetchSuppliers()}
+                    disabled={suppliersFetching}
+                    style={{
+                      color: suppliersFetching ? "var(--ink-faint)" : "var(--brand-blue)",
+                      background: "none",
+                      border: "none",
+                      cursor: suppliersFetching ? "default" : "pointer",
+                      fontWeight: 600,
+                      fontSize: 12,
+                      padding: 0,
+                      minHeight: 24,
+                    }}
+                  >
+                    {suppliersFetching ? "Retrying…" : "Retry"}
+                  </button>
                 </span>
               )}
 
@@ -1112,7 +1259,10 @@ export function UploadWorkbench() {
                       ))}
                     </div>
                     <p className="text-[11px]" style={{ color: "var(--ink-faint)" }}>
-                      cXML · UBL · Peppol · EDIFACT · X12 — up to 10 MB each
+                      {/* The cap is read from MAX_UPLOAD_BYTES, the same constant
+                          the pre-flight check enforces — this promise cannot
+                          drift away from what the page actually accepts. */}
+                      cXML · UBL · Peppol · EDIFACT · X12 — up to {MAX_UPLOAD_LABEL} each
                     </p>
                     {/* Quiet help link — stopPropagation so it doesn't trigger the dropzone picker. */}
                     <Link
@@ -1422,17 +1572,46 @@ export function UploadWorkbench() {
                       </button>
                     );
                   }
+                  // WP-36 · defect B.3 — the cause decides the destination.
+                  // `href` comes from describeUploadFailure (the classified
+                  // causes); the table below still serves the two banners raised
+                  // before any request left the browser.
                   const ctaHref =
-                    uploadError.code === "supplier_required" ? "/library/suppliers"
-                    : uploadError.code === "upload_failed"   ? "/settings"
-                    : "/settings?tab=billing";
+                    uploadError.href ??
+                    (uploadError.code === "supplier_required" ? "/library/suppliers" : "/settings?tab=billing");
                   return (
-                    <a
-                      href={ctaHref}
-                      style={{ fontWeight: 600, color: "#8A5310", textDecoration: "none", whiteSpace: "nowrap" }}
-                    >
-                      {uploadError.cta} →
-                    </a>
+                    <span className="flex flex-shrink-0 flex-wrap items-center gap-3">
+                      {/* When the same request could plausibly work, re-sending
+                          it IS the primary action — no navigation can do it, and
+                          the selection is still in hand. */}
+                      {uploadError.canRetry && (
+                        <button
+                          type="button"
+                          disabled={uploading}
+                          onClick={() => { if (isMulti) handleBatchUpload(allSelectedFiles); else handleUpload(); }}
+                          style={{
+                            fontWeight: 600,
+                            fontSize: 12.5,
+                            color: "#FFFFFF",
+                            background: uploading ? "#C9A96B" : "#8A5310",
+                            border: "none",
+                            borderRadius: 6,
+                            padding: "7px 12px",
+                            minHeight: 34,
+                            cursor: uploading ? "default" : "pointer",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {uploading ? "Sending…" : "Try again"}
+                        </button>
+                      )}
+                      <a
+                        href={ctaHref}
+                        style={{ fontWeight: 600, color: "#8A5310", textDecoration: "none", whiteSpace: "nowrap" }}
+                      >
+                        {uploadError.cta} →
+                      </a>
+                    </span>
                   );
                 })()}
               </div>
@@ -1443,10 +1622,46 @@ export function UploadWorkbench() {
               <div className="min-w-0 flex-1">{primaryCta}</div>
             </div>
 
-            {/* Honest gating hint — the CTA is disabled until a supplier is chosen. */}
+            {/* Honest gating hint — the CTA is disabled until a supplier is chosen.
+                WP-36 · defect A — this line used to print unconditionally, so a
+                failed supplier load produced two messages that contradicted each
+                other: step 1 said the list could not be loaded, and step 3 told
+                the operator to choose from it. Each reason now says the true one
+                and points at the action that actually exists. */}
             {selectedCount > 0 && !hasSupplier && !suppliersLoading && (
-              <p className="text-[11.5px]" style={{ color: "#9A5F0A", margin: 0 }}>
-                Choose a {counterpartyNoun} in step 1 to enable the upload.
+              <p className="flex flex-wrap items-center gap-2 text-[11.5px]" style={{ color: "#9A5F0A", margin: 0 }}>
+                {suppliersError ? (
+                  <>
+                    We couldn&apos;t load your {labels.counterpartyPlural.toLowerCase()}, so we don&apos;t know
+                    where to send this file yet.
+                    <button
+                      type="button"
+                      onClick={() => refetchSuppliers()}
+                      disabled={suppliersFetching}
+                      style={{
+                        color: suppliersFetching ? "var(--ink-faint)" : "var(--brand-blue)",
+                        background: "none",
+                        border: "none",
+                        cursor: suppliersFetching ? "default" : "pointer",
+                        fontWeight: 600,
+                        fontSize: 11.5,
+                        padding: 0,
+                        minHeight: 24,
+                      }}
+                    >
+                      {suppliersFetching ? "Retrying…" : "Retry"}
+                    </button>
+                  </>
+                ) : suppliers.length === 0 ? (
+                  <>
+                    Add a {counterpartyNoun} first — we need to know who this order goes to.
+                    <Link href="/library/suppliers" className="font-semibold underline" style={{ color: "#1E6D29" }}>
+                      Add a {counterpartyNoun}
+                    </Link>
+                  </>
+                ) : (
+                  <>Choose a {counterpartyNoun} in step 1 to enable the upload.</>
+                )}
               </p>
             )}
 
@@ -1913,7 +2128,141 @@ function getLimitCode(body: unknown): string {
   return "order_limit_reached";
 }
 
-function getLimitMessage(code: string): { code: string; title: string; message: string; cta: string } {
+/**
+ * The API's OWN sentence, or "" when it never wrote one.
+ *
+ * Read from the response BODY only, deliberately. realUploadPurchaseOrder falls
+ * back to `res.statusText` when the body is empty and prefixes everything with
+ * "Upload failed: " — both are client-side constructions around an HTTP status
+ * line, not copy anyone wrote for an operator, so neither may reach the banner.
+ * What the backend did write for humans (the unsupported-format 400, the plan
+ * gate codes) is passed through untouched: WP-36 forbids paraphrasing it.
+ */
+function serverAuthoredMessage(error: unknown): string {
+  if (!(error instanceof ApiHttpError)) return "";
+  const body = error.body;
+  if (typeof body === "string" && body.trim()) return body.trim();
+  if (body && typeof body === "object" && "error" in body) {
+    const text = String((body as { error?: unknown }).error).trim();
+    if (text) return text;
+  }
+  return "";
+}
+
+/**
+ * WP-36 · defect B — what a failed upload MEANS, and the next step that works.
+ *
+ * Before: every non-429 failure produced the same banner — title "Upload could
+ * not start.", body `error.message` verbatim, one link "Review settings →" to
+ * /settings. That is right for a plan refusal and wrong for everything else:
+ * a dropped connection, a slow answer, an expired session, a file the parser
+ * refused. None of those are fixed in settings, and for the first three the
+ * action that fixes them (send the same file again) was not offered at all.
+ *
+ * The classification is reused, not rewritten: classifyApiFailure already knows
+ * which failures clear on their own, and planGate already turns a gate code into
+ * a sentence plus the upgrade route the SERVER named. Only the words and the
+ * secondary destination are chosen here.
+ */
+function describeUploadFailure(error: unknown, fileName: string): UploadErrorBanner {
+  // The one string the CLIENT authored that used to reach this banner:
+  // fetchWithTimeout re-throws a plain Error reading "Request timed out after
+  // 60000ms", and a purchasing coordinator was shown it verbatim. isRequestTimeout
+  // is the same test lib/apiFailure uses, so the two cannot disagree.
+  if (isRequestTimeout(error)) {
+    return {
+      code: "upload_timeout",
+      title: "Sending took too long.",
+      message: `We didn't hear back while sending ${fileName}, so nothing was uploaded. Try again — a large file on a slow connection often needs a second run.`,
+      canRetry: true,
+      cta: "Read the fixes",
+      href: "/help/troubleshooting",
+    };
+  }
+
+  const failure = classifyApiFailure(error);
+  const serverText = serverAuthoredMessage(error);
+
+  // The server's own size ceiling. The pre-flight check catches the advertised
+  // cap, so this only fires when the server's limit is the lower of the two —
+  // and the operator still gets a size answer instead of a status line.
+  if (failure.status === 413) {
+    return {
+      code: "upload_too_large",
+      title: "That file is too big to send.",
+      message: `${fileName} was refused for its size. Split it into smaller files, or send fewer order lines at a time.`,
+      cta: "How to split a file",
+      href: "/help/guides/upload-orders-manually",
+    };
+  }
+
+  switch (failure.kind) {
+    case "unreachable":
+      return {
+        code: "upload_unreachable",
+        title: "We couldn't reach ProcuLink.",
+        message: `${fileName} was not uploaded. Check you're still online, then send it again.`,
+        canRetry: true,
+        cta: "Read the fixes",
+        href: "/help/troubleshooting",
+      };
+    case "auth_expired":
+      return {
+        code: "upload_signed_out",
+        title: "You've been signed out.",
+        message: `${fileName} was not uploaded. Sign in again and send it once more.`,
+        cta: "Sign in",
+        href: "/sign-in",
+      };
+    case "plan_gate":
+      // The only cause for which "Review settings" was ever the right answer —
+      // and the plan named is the server's, never a hardcoded guess.
+      return {
+        code: "upload_plan_gate",
+        title: "Your plan doesn't include this yet.",
+        message: planGateMessage(serverText || (error instanceof Error ? error.message : "")),
+        cta: "Upgrade plan",
+        href: planGateUpgradeUrl(
+          error instanceof ApiHttpError && error.body ? error.body : serverText,
+        ),
+      };
+    case "forbidden":
+      return {
+        code: "upload_forbidden",
+        title: "You can't upload to this workspace.",
+        message:
+          serverText ||
+          "Ask an owner of this workspace to give you upload access, then send the file again.",
+        cta: "Open settings",
+        href: "/settings",
+      };
+    case "server":
+      return {
+        code: "upload_server",
+        title: "We couldn't take the file just now.",
+        message: `${fileName} was not uploaded. The problem is on our side — try again in a moment.`,
+        canRetry: true,
+        cta: "Read the fixes",
+        href: "/help/troubleshooting",
+      };
+    default:
+      // A refusal the API answered with a sentence of its own — the
+      // unsupported-format 400 is the common one. Show THAT sentence, never a
+      // paraphrase of it, and point at the guide that answers it. No retry:
+      // sending the identical file again gets the identical refusal.
+      return {
+        code: "upload_rejected",
+        title: "We couldn't accept that file.",
+        message:
+          serverText ||
+          `${fileName} wasn't accepted. Check it opens on your computer, then try a fresh copy of the file.`,
+        cta: "See the file guide",
+        href: "/help/csv-xlsx-field-guide",
+      };
+  }
+}
+
+function getLimitMessage(code: string): UploadErrorBanner {
   if (code === "rate_limited") {
     return {
       code,

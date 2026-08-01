@@ -177,7 +177,10 @@ const BASELINE = {
   "src/app/(app)/library/buyers/page.tsx": 13,
   "src/app/(app)/operations/connectors/page.tsx": 125,
   "src/app/(app)/operations/exceptions/page.tsx": 18,
-  "src/app/(app)/operations/health/page.tsx": 6,
+  // Ratcheted 6 → 5 (WP-36): the danger edge became --danger-border, a token that
+  // did not exist, which is why three files wrote `#F0B4B4` and two more wrote
+  // `rgba(180,56,56,.25)` for the same 1px line.
+  "src/app/(app)/operations/health/page.tsx": 5,
   "src/app/(app)/operations/webhooks/page.tsx": 83,
   "src/app/(app)/settings/page.tsx": 33,
   "src/app/(home)/page.tsx": 9,

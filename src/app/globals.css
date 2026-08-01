@@ -106,6 +106,13 @@
   --amber-bright:      #E0B13A;
   --danger:            #B43838;
   --danger-soft:       #FAE6E6;
+  /* The 1px edge of a danger-soft panel — the missing sibling of --ai-border.
+     Its absence is why every red notice in the app hand-rolled its own edge:
+     three files wrote `#F0B4B4` and two more wrote `rgba(180,56,56,.25)` for the
+     same job, so "the red border" had two values depending on which screen you
+     were on. Same hue family as --danger-soft, 1.19:1 against it — a separator,
+     not a signal, so it carries no contrast duty of its own. */
+  --danger-border:     #F0B4B4;
   --ai:                #6F4FCE;
   --ai-soft:           #F0EAFB;
   --ai-border:         #D9CCF4;
