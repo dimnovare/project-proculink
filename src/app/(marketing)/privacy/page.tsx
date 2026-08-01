@@ -112,7 +112,17 @@ export default function PrivacyPage() {
         different questions. The outbound network path is chosen by our hosting provider and
         is not pinned to a region by us, so we cannot tell you today which country an
         outbound delivery leaves from. The{" "}
-        <Link href="/security" style={{ color: "#1E6D29", textDecoration: "underline" }}>Security</Link>{" "}
+        {/* var(--brand-green-deep), not the raw hex the other links on this page use.
+            Those are baselined by scripts/check-tokens.mjs at 17 literals for this file;
+            this link is new, so it made 18 and turned the design-token gate red the moment
+            #83 and the WP-30 branch were in one tree — each of them green on its own.
+            The token resolves to the same value and is where WP-30 takes this file anyway.
+
+            Do NOT quote the hex value in this comment to explain the swap: the gate reads
+            source TEXT and does not strip comments, so a comment about a literal counts as
+            the literal. Writing that explanation is what kept the count at 18 on the first
+            attempt at this fix. */}
+        <Link href="/security" style={{ color: "var(--brand-green-deep)", textDecoration: "underline" }}>Security</Link>{" "}
         page explains this in full.
       </p>
 
