@@ -22,6 +22,13 @@ export const metadata = pageMetadata({
 // those entries byte for byte.
 const ENTRIES = [
   {
+    version: "v1.6",
+    date: "August 2026",
+    items: [
+      "Tier correction to the v1.4 note below — IMAP email polling, SFTP folder pull and S3/R2 bucket pull are all included on Growth (€149/month) and up, not on a dearer tier. Ingestion channels were decoupled from order volume, so every paid plan carries all three; the v1.4 wording named a tier €850/month above the real minimum. That note stays as written — an entry records what was published on its date — and the plan each channel really needs is the one shown on the formats and pricing pages.",
+    ],
+  },
+  {
     version: "v1.5",
     date: "July 2026",
     items: [
