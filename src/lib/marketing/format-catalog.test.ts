@@ -191,15 +191,37 @@ describe("no user-facing copy claims Peppol BIS conformance", () => {
   /**
    * The profile name, not the network name. "Peppol" on its own is a legitimate word here: it is a
    * real network, reached through a certified access-point partner, and the catalog says so.
+   *
+   * The separator class carries a hyphen and `&nbsp;`: the first form was `peppol[\s/]*bis`, and
+   * "Peppol-BIS conformant output on every plan" was invisible to it — the profile was not even
+   * recognised, so all three claiming verbs in that sentence went unread.
    */
-  const PEPPOL_PROFILE = /peppol[\s/]*bis|\bbis (order )?3(\.0)?\b/i;
+  const PEPPOL_PROFILE = /peppol(?:[\s/-]|&nbsp;|\{" "\})*bis|\bbis[\s-]?(order[\s-]?)?3(\.0)?\b/i;
 
-  /** Verbs that turn a mention into a claim we produce or satisfy the profile. */
+  /**
+   * Verbs that turn a mention into a claim we produce or satisfy the profile.
+   *
+   * `support` was originally `\bsupported?\b`, which matches "support" and "supported" and NOT
+   * "supports" — so `ProcuLink supports Peppol BIS Order 3.0`, the single likeliest sentence a
+   * marketer writes, was invisible. Every verb here is now matched on its stem.
+   */
   const CONFORMANCE_VERB =
-    /\bemit|\bproduc|\boutput|\bconform|\bcomplian|\bcomplies|\bcertif|\bsupported?\b|\blive\b|\bvalidat/i;
+    /\bemit|\bproduc|\boutput|\bconform|\bcomplian|\bcomplies|\bcertif|\bsupport|\blive\b|\bvalidat|\bdeliver|\bgenerat|\bexport|\bavailable\b|\bready\b|\bhandles?\b/i;
 
-  /** …unless the same line disclaims it. Every honest line about Peppol carries one of these. */
-  const DISCLAIMED = /\bnot?\b|\bnever\b|\bcannot\b|\bwithout\b|\bneither\b|\buntil\b|\bpending\b/i;
+  /**
+   * …unless the same line disclaims it.
+   *
+   * This was a loose word list built around `\bnot?\b`, which matches the word "no". "No X needed"
+   * is ordinary marketing register, so `Peppol BIS Order 3 output with no extra setup.` and
+   * `Full Peppol BIS 3 conformance, live in production, no access point needed.` both exonerated
+   * themselves on a word that had nothing to do with the claim. `without` did the same for
+   * `Validated against Peppol BIS Order 3.0 without leaving ProcuLink.`
+   *
+   * Now a disclaimer has to be an actual negation — a negated verb, or "no" attached to the thing
+   * being denied rather than to a stray noun.
+   */
+  const DISCLAIMED =
+    /\b(not|never|neither|nor|cannot|can't|isn't|aren't|doesn't|don't|unproven|uncertified)\b|\bno[\s-]+(schematron|bis|peppol|conformance|conformant|validation|certif)/i;
 
   const claims = (line: string): boolean =>
     PEPPOL_PROFILE.test(line) && CONFORMANCE_VERB.test(line) && !DISCLAIMED.test(line);
@@ -218,18 +240,52 @@ describe("no user-facing copy claims Peppol BIS conformance", () => {
   };
 
   /**
-   * Every file that puts a standards claim in front of a reader. `help-articles.ts` and
-   * `section-guides.ts` are on this list because they are not marketing pages and were therefore
-   * outside every existing scan — yet the help index card and the in-app section guide render
-   * their strings verbatim. A previous sweep for this claim grepped for obvious words and missed
-   * five sites; a corpus that stops at a directory boundary is how that happens.
+   * Blank out comments, preserving line numbering, so the notes recording why a claim was REMOVED
+   * never read as the claim.
+   *
+   * The first version tested `/^\s*(\/\/|\/\*|\*)/` on every line of every file, which was wrong in
+   * both directions. MDX has no comment syntax, and there `*` is a bullet or a bold marker — so
+   * `* Peppol BIS 3 output supported.` was dropped as a "comment" while rendering as a list item on
+   * a public help page. Meanwhile a JSX brace-comment block has continuation lines that start with
+   * ordinary prose, so real comments were being scanned as copy. Blanking the block forms outright
+   * is the only version that is right for both.
+   */
+  const scannableLines = (file: string): Array<{ line: string; number: number }> => {
+    const source = readFileSync(file, "utf8");
+    const text = /\.mdx$/.test(file)
+      ? source // no comment syntax; every line is copy
+      : source
+          .replace(/\/\*[\s\S]*?\*\//g, (block) => block.replace(/[^\n]/g, " "))
+          .split("\n")
+          .map((line) => (/^\s*\/\//.test(line) ? "" : line))
+          .join("\n");
+    return text.split("\n").map((line, i) => ({ line, number: i + 1 }));
+  };
+
+  /**
+   * Every file that puts a standards claim in front of a reader.
+   *
+   * `(home)` is here because it is a route group that adds no path segment — `src/app/(home)/` IS
+   * `/`, the highest-traffic page on the site, and it is a sibling of `(marketing)` rather than a
+   * child, so a walk of `(marketing)` never reaches it. That is the same shape as the defect this
+   * branch fixes in `gatedCapabilityClaims` (a corpus stopping one directory short of the file it
+   * was named after), and it was still present here until an adversarial pass went looking.
+   *
+   * `help-articles.ts` and `section-guides.ts` are not marketing pages and were outside every
+   * existing scan, yet the help index card and the in-app section guide render their strings
+   * verbatim. A previous sweep for this claim grepped for obvious words and missed five sites; a
+   * corpus that stops at a directory boundary is how that happens.
    */
   const CORPUS = [
     ...walk(join(process.cwd(), "src/lib/marketing")),
     ...walk(join(process.cwd(), "src/app/(marketing)")),
+    ...walk(join(process.cwd(), "src/app/(home)")),
+    ...walk(join(process.cwd(), "src/components/marketing")),
     join(process.cwd(), "src/lib/standards/catalog.ts"),
     join(process.cwd(), "src/lib/help-articles.ts"),
     join(process.cwd(), "src/lib/section-guides.ts"),
+    join(process.cwd(), "src/lib/upload-formats.ts"),
+    join(process.cwd(), "src/lib/plans.ts"),
     join(process.cwd(), "src/app/(app)/library/standards/page.tsx"),
     join(process.cwd(), "src/components/bridge/DeliveryGuidedSetup.tsx"),
     join(process.cwd(), "src/components/bridge/DeliveryConfigEditor.tsx"),
@@ -251,6 +307,33 @@ describe("no user-facing copy claims Peppol BIS conformance", () => {
     ).toBe(true);
     expect(claims("| Peppol BIS Order 3.0 | Supported |")).toBe(true);
     expect(claims("ProcuLink is Peppol BIS 3 compliant.")).toBe(true);
+  });
+
+  it("recognises the claims an adversary wrote to get past it", () => {
+    // Every line below sailed through the first version of this predicate. They are kept as
+    // controls because each names a distinct hole, and narrowing any part of the pattern back out
+    // reddens exactly the one it was widened for.
+
+    // Verb stem, not verb form: `\bsupported?\b` never matched the third person singular.
+    expect(claims("ProcuLink supports Peppol BIS Order 3.0.")).toBe(true);
+    expect(claims("| Peppol BIS Order 3.0 | Supports |")).toBe(true);
+    expect(claims("ProcuLink delivers Peppol BIS Order 3.0 documents to your access point.")).toBe(true);
+    expect(claims("Generate Peppol BIS Order 3.0 files for every supplier.")).toBe(true);
+    expect(claims("Export orders as Peppol BIS Order 3.0.")).toBe(true);
+    expect(claims("Peppol BIS Order 3.0 — available today on every plan.")).toBe(true);
+    expect(claims("Peppol BIS Order 3.0 ready out of the box.")).toBe(true);
+
+    // Separator: a hyphen or a JSX-split space used to hide the profile name entirely.
+    expect(claims("Peppol-BIS conformant output on every plan.")).toBe(true);
+    expect(claims("Peppol-BIS compliant, certified, and live today.")).toBe(true);
+    expect(claims('<strong>Peppol&nbsp;BIS Order 3.0</strong> is supported.')).toBe(true);
+
+    // An incidental "no"/"without" is not a disclaimer of anything.
+    expect(claims("Peppol BIS Order 3 output with no extra setup.")).toBe(true);
+    expect(claims("We produce Peppol BIS Order 3.0 documents with no manual steps.")).toBe(true);
+    expect(claims("Peppol BIS Order 3.0 output is supported today; there is no separate fee.")).toBe(true);
+    expect(claims("Full Peppol BIS 3 conformance, live in production, no access point needed.")).toBe(true);
+    expect(claims("Validated against Peppol BIS Order 3.0 without leaving ProcuLink.")).toBe(true);
 
     // The INBOUND row is deliberately absent from this list. Its line carries no claiming verb —
     // the claim is in the derivation, not the prose — so the structural `catalogId` guard above is
@@ -268,23 +351,36 @@ describe("no user-facing copy claims Peppol BIS conformance", () => {
       claims('  { name: "AS2 / PEPPOL network receive", status: "onRequest", note: "Through a certified access-point partner." },'),
     ).toBe(false);
     // A field-path reference is not a conformance claim: BIS constrains UBL, so the paths are real.
+    // This is the landing page's line, now that `(home)` is in the corpus.
     expect(claims("how each standard PO field maps to cXML, UBL, EDIFACT, X12, and Peppol BIS.")).toBe(false);
+    expect(
+      claims(
+        'desc: "Every order field maps to UBL, EDIFACT, X12, cXML and Peppol BIS paths — always visible, never hidden behind a mode.",',
+      ),
+    ).toBe(false);
+  });
+
+  it("reads MDX bullets and JSX comments the right way round", () => {
+    // `*` is a bullet and a bold marker in MDX, never a comment — a `^\s*\*` filter dropped real
+    // rendered copy. Both of these ship on a public help page.
+    const bulletClaim = "* Peppol BIS 3 output supported.";
+    const boldClaim = "**Peppol BIS Order 3.0** is supported end to end.";
+    expect(claims(bulletClaim)).toBe(true);
+    expect(claims(boldClaim)).toBe(true);
+    expect(/^\s*\*/.test(bulletClaim), "the old filter would have skipped this line").toBe(true);
   });
 
   it("finds none in the shipped corpus", () => {
     expect(CORPUS.length).toBeGreaterThan(10);
+    // The corpus really reaches the landing page — the file that sat outside it until an
+    // adversarial pass went looking.
+    expect(CORPUS.some((f) => f.includes(join("src", "app", "(home)")))).toBe(true);
 
     const offenders: string[] = [];
     for (const file of CORPUS) {
-      readFileSync(file, "utf8")
-        .split("\n")
-        // Number BEFORE filtering — dropping comment lines first would renumber every offender.
-        .map((line, i) => ({ line, number: i + 1 }))
-        // A comment is not a claim — the notes recording WHY this was removed name the profile.
-        .filter(({ line }) => !/^\s*(\/\/|\/\*|\*)/.test(line))
-        .forEach(({ line, number }) => {
-          if (claims(line)) offenders.push(`${file.replace(process.cwd(), "")}:${number}: ${line.trim()}`);
-        });
+      for (const { line, number } of scannableLines(file)) {
+        if (claims(line)) offenders.push(`${file.replace(process.cwd(), "")}:${number}: ${line.trim()}`);
+      }
     }
 
     expect(

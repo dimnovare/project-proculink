@@ -74,26 +74,66 @@ const walk = (dir: string): string[] => {
 };
 
 /**
- * Every surface a buyer reads before they pay: the marketing tree, the format catalog, and the
- * price list itself. A comment is not a claim, so lines that are only a comment are dropped —
- * otherwise the notes explaining why a claim was REMOVED would read as the claim.
+ * Blank out comments, preserving line numbering, so the notes recording why a claim was REMOVED
+ * never read as the claim.
+ *
+ * The first version tested `/^\s*(\/\/|\/\*|\*)/` per line, which was wrong in both directions.
+ * MDX has no comment syntax and `*` there is a bullet or a bold marker — 19 shipping help pages
+ * already open paragraphs with `**bold**`, so real rendered copy was being skipped. Meanwhile a
+ * JSX brace-comment block has continuation lines of ordinary prose, so real comments were scanned
+ * as copy. Blanking the block forms outright is the only version right for both.
+ */
+const scannableLines = (file: string): Array<{ line: string; number: number }> => {
+  const source = readFileSync(file, "utf8");
+  const text = /\.mdx$/.test(file)
+    ? source // no comment syntax; every line is copy
+    : source
+        .replace(/\/\*[\s\S]*?\*\//g, (block) => block.replace(/[^\n]/g, " "))
+        .split("\n")
+        .map((line) => (/^\s*\/\//.test(line) ? "" : line))
+        .join("\n");
+  return text.split("\n").map((line, i) => ({ line, number: i + 1 }));
+};
+
+/**
+ * Every surface a buyer reads before they pay.
+ *
+ * `(home)` is a route group that adds no path segment, so `src/app/(home)/` IS `/` — the landing
+ * page, a SIBLING of `(marketing)` rather than a child, which a walk of `(marketing)` never
+ * reaches. It sells gated channels in its own hand-written copy. Leaving it out would have been
+ * the identical defect to the one this file's own corpus note describes: a scan stopping one
+ * directory short of the file it is named after.
  */
 const buyerFacingLines = (): Array<{ file: string; line: string; number: number }> => {
   const files = [
     ...walk(join(process.cwd(), "src/lib/marketing")),
     ...walk(join(process.cwd(), "src/app/(marketing)")),
+    ...walk(join(process.cwd(), "src/app/(home)")),
+    ...walk(join(process.cwd(), "src/components/marketing")),
     join(process.cwd(), "src/lib/plans.ts"),
+    join(process.cwd(), "src/lib/help-articles.ts"),
   ];
   return files.flatMap((file) =>
-    readFileSync(file, "utf8")
-      .split("\n")
-      .map((line, i) => ({ file: file.replace(process.cwd(), ""), line, number: i + 1 }))
-      .filter(({ line }) => !/^\s*(\/\/|\/\*|\*)/.test(line)),
+    scannableLines(file).map(({ line, number }) => ({
+      file: file.replace(process.cwd(), ""),
+      line,
+      number,
+    })),
   );
 };
 
-/** SAML, OIDC, and the bare acronym. `\b` matters: "subprocessors" contains "sso". */
-const SELLS_SSO = /\bsso\b|\bsaml\b|\boidc\b|single[- ]sign[- ]on/i;
+/**
+ * SSO by any name a marketer would actually use.
+ *
+ * `\b` matters at the front: "subprocessors" contains "sso" and appears on six marketing pages.
+ * Everything after `single-sign-on` was added when an adversarial pass pointed out that the
+ * pattern recognised four spellings of a concept that has a dozen — "OpenID Connect" is the
+ * literal expansion of OIDC and did not match, and "Enterprise Connections" is the name of the
+ * Clerk product that would actually be switched on. None of these strings exist in the repo today,
+ * which is the point: a green result should mean absence, not a narrow vocabulary.
+ */
+const SELLS_SSO =
+  /\bsso\b|\bsaml\b|\boidc\b|openid connect|single[- ]sign[- ]on|\bscim\b|directory sync|identity provider|\bidp\b|federated login|\bokta\b|\bentra\b|azure ad|onelogin|enterprise connections/i;
 
 /** The four channels WP-11 moved down to Growth — the ones that were mis-advertised. */
 const CHANNEL_CLAIM_PATTERNS: ReadonlyArray<{
@@ -403,7 +443,13 @@ describe("the tier→capability claim list is not duplicated outside plans.ts", 
  */
 const CAPABILITY_CLAIMS: Record<keyof typeof BACKEND_MINIMUM_PLAN, { label: string; sells: RegExp }> = {
   webhookDelivery: { label: "webhook / API delivery", sells: /webhook/i },
-  emailIngestion: { label: "inbound email ingestion", sells: /\bemail\b/i },
+  // Scoped to ingestion. A bare /\bemail\b/ would read an ordinary "Email support" bullet on the
+  // Pilot card as Pilot selling Growth-gated inbound email — a false positive whose only obvious
+  // fix is to narrow the pattern, which is how these guards lose their teeth.
+  emailIngestion: {
+    label: "inbound email ingestion",
+    sells: /email[^\n]{0,40}(ingest|inbox|polling|channel)|(ingest|inbox|polling|channel)[^\n]{0,40}email/i,
+  },
   sftpIngestion: { label: "SFTP ingestion", sells: /\bsftp\b/i },
   s3Ingestion: { label: "S3 / R2 ingestion", sells: /\bs3\b/i },
   bulkMapping: { label: "bulk mapping import/export", sells: /bulk mapping/i },
@@ -469,23 +515,36 @@ describe("SSO is sold only where it can be configured", () => {
    * this same test demands the price list say which plan includes it. Reversal becomes a change the
    * suite asks for, rather than a note somebody has to find.
    */
-  const SETTINGS_PAGE = join(process.cwd(), "src/app/(app)/settings/page.tsx");
+  const SETTINGS_DIR = join(process.cwd(), "src/app/(app)/settings");
 
   /**
-   * Reads the `SettingsTab` union — the registry a tab must join to render at all. Throws rather
-   * than answering "no surface" when that union is gone: a probe that silently returns false after
-   * a refactor is a guard that goes quiet while still reading green, which is the failure mode this
-   * whole file keeps meeting.
+   * Does a Settings surface for SSO exist?
+   *
+   * The first version of this probe read the `type SettingsTab = …;` union alone, and an
+   * adversarial pass broke it three ways: a nested `settings/sso/page.tsx` route, an SSO card
+   * inside the existing org tab, and — worst — the idiomatic dedupe
+   * `type SettingsTab = (typeof TABS)[number]["id"]`, after which the union names no tabs at all.
+   * That last one makes the probe answer "no surface" *without throwing* while a real tab renders:
+   * a guard gone quiet while reading green, which is the exact failure mode this file keeps
+   * meeting. So it scans the whole settings tree, where a route, a TABS entry, or the import of an
+   * `SsoSection` all have to appear.
+   *
+   * What it still cannot see, stated rather than hidden: Clerk Enterprise Connections configured
+   * out-of-band, with no ProcuLink screen at all. That is the delivery model the deleted /security
+   * sentence described ("we set them up with you during onboarding"), so if SSO ships that way the
+   * bullet has to be restored by hand and this probe will not prompt for it.
    */
-  const declaresSsoTab = (source: string): boolean => {
-    const union = source.match(/type SettingsTab\s*=([^;]+);/);
-    if (!union) {
+  const settingsHasSsoSurface = (): boolean => {
+    const files = walk(SETTINGS_DIR);
+    if (files.length === 0) {
       throw new Error(
-        "settings/page.tsx no longer declares a `type SettingsTab = …` union. This guard reads that " +
-          "union to decide whether an SSO surface exists — rewire it before the refactor lands.",
+        `${SETTINGS_DIR} has no source files. This guard reads that tree to decide whether an SSO ` +
+          "surface exists — rewire it before the move lands, rather than letting it answer 'no'.",
       );
     }
-    return /\bsso\b|\bsaml\b/i.test(union[1]);
+    return files.some((file) =>
+      scannableLines(file).some(({ line }) => /\bsso\b|\bsaml\b/i.test(line)),
+    );
   };
 
   const sellers = (): string[] => [
@@ -497,11 +556,10 @@ describe("SSO is sold only where it can be configured", () => {
       .map(({ file, line, number }) => `${file}:${number}: ${line.trim()}`),
   ];
 
-  it("the Settings-surface probe really discriminates, and refuses to guess", () => {
-    expect(declaresSsoTab(`type SettingsTab = "org" | "billing" | "email";`)).toBe(false);
-    expect(declaresSsoTab(`type SettingsTab = "org" | "sso" | "billing";`)).toBe(true);
-    expect(declaresSsoTab(`type SettingsTab =\n  | "org"\n  | "saml";`)).toBe(true);
-    expect(() => declaresSsoTab("export default function Settings() {}")).toThrow(/SettingsTab/);
+  it("the Settings-surface probe answers no today, and refuses to guess when the tree moves", () => {
+    expect(settingsHasSsoSurface()).toBe(false);
+    expect(walk(SETTINGS_DIR).length, "the probe must really be reading files").toBeGreaterThan(0);
+    expect(() => walk(join(process.cwd(), "src/app/(app)/settings-that-moved"))).toThrow();
   });
 
   it("finds the claims that shipped, so a green result means absence and not blindness", () => {
@@ -516,19 +574,29 @@ describe("SSO is sold only where it can be configured", () => {
     ).toBe(true);
     expect(SELLS_SSO.test("Single sign-on for your whole org")).toBe(true);
     expect(SELLS_SSO.test("A list of our subprocessors and what each one processes.")).toBe(false);
+
+    // The spellings a marketer reaches for when they are not writing an acronym. None of these
+    // exist in the repo today; each was invisible to the first version of this pattern.
+    expect(SELLS_SSO.test("Log in with OpenID Connect")).toBe(true);
+    expect(SELLS_SSO.test("Bring your own identity provider — Okta, Entra ID, or Google Workspace")).toBe(true);
+    expect(SELLS_SSO.test("Federated login and SCIM directory sync on Enterprise")).toBe(true);
+    expect(SELLS_SSO.test("We switch on Clerk Enterprise Connections for you")).toBe(true);
   });
 
   it("sells SSO if and only if Settings can configure it", () => {
-    const hasSurface = declaresSsoTab(readFileSync(SETTINGS_PAGE, "utf8"));
+    const hasSurface = settingsHasSsoSurface();
     const sold = sellers();
 
     if (hasSurface) {
+      // Specifically the PRICE LIST, not merely "some page mentions it". `sellers()` unions the
+      // cards with every buyer-facing line, so asserting on its length alone would let one passing
+      // mention in a help article satisfy the guard while the Enterprise card stayed silent.
       expect(
-        sold.length,
+        PLANS.some((p) => p.features.some((f) => SELLS_SSO.test(f))),
         "Settings now has an SSO surface, so the price list has to say which plan includes it — " +
           "put the bullet back on the Enterprise card. Its minimum plan is " +
           `${BACKEND_MINIMUM_PLAN.sso} (PlanConstants.MinimumPlan).`,
-      ).toBeGreaterThan(0);
+      ).toBe(true);
     } else {
       expect(
         sold,
