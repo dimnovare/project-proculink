@@ -36,6 +36,7 @@ import {
   retryAfterFrom,
 } from "./api/core";
 import { isPlanGateError, planGateMessage } from "./planGate";
+import { practiceDeliveryFrom, type PracticeDeliveryState } from "./practiceDelivery";
 
 /**
  * Normalised public API base (no trailing slash). Exported so UI that needs to
@@ -1562,9 +1563,19 @@ async function realDetectFormat(file: File): Promise<DetectFormatResult> {
  */
 const mockOrdersWithoutDelivery = new Set<string>();
 
+/** What `POST /api/onboarding/sample-order` answers, after the client has read it. */
+export interface SampleOrderStarted {
+  orderId: string;
+  isSample: true;
+  /** True only when the practice mailbox was set up. Derived server-side from the state. */
+  deliveryConfigured: boolean;
+  /** What pressing send will actually do; null when this build cannot tell. */
+  practiceDelivery: PracticeDeliveryState | null;
+}
+
 async function mockRunSampleOrder(
   deliverTo?: string,
-): Promise<{ orderId: string; isSample: true; deliveryConfigured: boolean }> {
+): Promise<SampleOrderStarted> {
   await delay(800);
   const orderId = `ord-sample-${Date.now()}`;
   const now = new Date().toISOString();
@@ -1596,7 +1607,14 @@ async function mockRunSampleOrder(
 
   const deliveryConfigured = isLikelyEmailAddress(deliverTo);
   if (!deliveryConfigured) mockOrdersWithoutDelivery.add(orderId);
-  return { orderId, isSample: true, deliveryConfigured };
+  // The mock has no foreign-config case to model: it owns its own supplier and nothing
+  // else can have configured it. `existing_target` is reachable only against a real API.
+  return {
+    orderId,
+    isSample: true,
+    deliveryConfigured,
+    practiceDelivery: deliveryConfigured ? "emailed_to_you" : "not_set_up",
+  };
 }
 
 /** Same shape-check the backend's NormaliseEmail applies: one address, parseable. */
@@ -1608,7 +1626,7 @@ function isLikelyEmailAddress(raw: string | undefined): boolean {
 
 async function realRunSampleOrder(
   deliverTo?: string,
-): Promise<{ orderId: string; isSample: true; deliveryConfigured: boolean }> {
+): Promise<SampleOrderStarted> {
   const res = await fetchWithTimeout(`${API_BASE_URL}/api/onboarding/sample-order`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...await authHeader() },
@@ -1635,10 +1653,19 @@ async function realRunSampleOrder(
       retryAfterFrom(res, body),
     );
   }
-  const data = await res.json() as { orderId: string; isSample?: boolean; deliveryConfigured?: boolean };
-  // A pre-WP-27 backend omits the field. `?? false` is the honest read: we do not know
-  // that a delivery is set up, so we must not promise one.
-  return { orderId: data.orderId, isSample: true, deliveryConfigured: data.deliveryConfigured ?? false };
+  const data = await res.json() as {
+    orderId: string; isSample?: boolean; deliveryConfigured?: boolean; practiceDelivery?: unknown;
+  };
+  // A pre-WP-27 backend omits both fields. `?? false` is the honest read: we do not know
+  // that a delivery is set up, so we must not promise one. `practiceDeliveryFrom` handles
+  // the WP-39 field and the older bool in that order — see src/lib/practiceDelivery.ts for
+  // why the bool alone could not answer the question the screen was asking.
+  return {
+    orderId: data.orderId,
+    isSample: true,
+    deliveryConfigured: data.deliveryConfigured ?? false,
+    practiceDelivery: practiceDeliveryFrom(data),
+  };
 }
 
 // ── Magic Mapping Preview ─────────────────────────────────────────────────

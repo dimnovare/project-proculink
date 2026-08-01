@@ -34,6 +34,7 @@ import { useOrderDirection } from "@/hooks/useOrderDirection";
 import { isPlanGateError, planGateMessage, planGateUpgradeUrl } from "@/lib/planGate";
 import { hasAssignedSupplier } from "@/lib/catalogCodes";
 import { isProblemBucketStatus } from "@/lib/orderStatusManifest";
+import { practiceDeliveryNote, type PracticeDeliveryState } from "@/lib/practiceDelivery";
 import type { OrderMappingOverride } from "@/lib/api/types";
 import type { CalibrationSummary } from "@/types/procurement";
 import { MapperWorkbench, type MapperWorkbenchLayout, type MapperToolbarState } from "../mapper/MapperWorkbench";
@@ -292,8 +293,8 @@ function PracticeNote({
   nounLower,
   delivered,
 }: {
-  /** Did this run actually get a delivery setup seeded? `null` = we do not know yet. */
-  delivers: boolean | null;
+  /** What pressing send will actually do. `null` = we do not know (see practiceDeliveryKnown). */
+  delivers: PracticeDeliveryState | null;
   /** From partyLabels(direction) — "supplier" outbound, "customer" inbound. */
   nounLower: string;
   delivered: boolean;
@@ -326,12 +327,13 @@ function PracticeNote({
           {/* WP-27 seeds an email delivery setup, so the old "sending stops at
               'delivery not set up'" line is no longer true — it described the dead
               end this packet removes. What IS true depends on the run, so say only
-              that: `null` promises nothing and holds either way. */}
-          {delivers === true
-            ? `The finished file is emailed to you, never to a ${nounLower}.`
-            : delivers === false
-            ? "Email sending isn't configured on this ProcuLink deployment yet, so this run will stop at “no delivery is set up”."
-            : `Nothing reaches a real ${nounLower}.`}
+              that: `null` promises nothing and holds either way.
+
+              WP-39 §4.5 added the third case this used to render as the second: a
+              supplier that already has a delivery target, where "this run will stop"
+              was a promise the send did not keep. The table lives in
+              src/lib/practiceDelivery.ts so a state cannot be added without copy. */}
+          {practiceDeliveryNote(delivers, nounLower)}
         </span>
       )}
     </div>
@@ -694,7 +696,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
   // Whether THIS practice run's delivery was actually set up (see practiceDeliveryKnown).
   // null = we did not start it in this session, so the banner promises nothing. Read after
   // mount: touching sessionStorage during render would diverge server pass from client.
-  const [practiceDelivers, setPracticeDelivers] = useState<boolean | null>(null);
+  const [practiceDelivers, setPracticeDelivers] = useState<PracticeDeliveryState | null>(null);
   useEffect(() => {
     if (isSampleOrder) setPracticeDelivers(practiceDeliveryKnown(orderId));
   }, [isSampleOrder, orderId]);
