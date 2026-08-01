@@ -399,6 +399,54 @@ describe("the guard tables are one copy, not nine", () => {
     }
   });
 
+  /**
+   * A recovery that names its destination in WORDS must name it in the words the
+   * product uses, or the next step is unreachable in practice.
+   *
+   * `useSendFlow`'s in-flight notice is plain text — `setFlow` takes a string and
+   * the workshop renders it into a div, so there is no link to click. It therefore
+   * says "Open System status" and "the Deliveries page", and the command palette
+   * is how an operator turns those words into a page. The palette called the same
+   * two pages "System health" and "Delivery log", so searching the exact words the
+   * product had just told them to look for returned nothing.
+   *
+   * `breadcrumb.ts`'s segment labels are the source of truth — they are what the
+   * operator reads at the top of the page they land on, so a palette entry that
+   * disagrees is wrong by definition.
+   */
+  test("a page a recovery notice names in words is findable by those words", () => {
+    const crumbs = readFileSync(join(ROOT, "src/components/bridge/breadcrumb.ts"), "utf8");
+    const palette = readFileSync(join(ROOT, "src/components/bridge/CommandPalette.tsx"), "utf8");
+
+    for (const segment of ["health", "log"]) {
+      const canonical = new RegExp(`^\\s*${segment}:\\s*"([^"]+)"`, "m").exec(crumbs)?.[1];
+      expect(canonical, `breadcrumb.ts has no label for the "${segment}" segment`).toBeTruthy();
+      // The palette entry that routes to this page must carry that exact label.
+      const entry = new RegExp(`label:\\s*"([^"]+)",[^\\n]*?/operations/${segment}"`).exec(palette)?.[1];
+      expect(entry, `no command-palette entry routes to /operations/${segment}`).toBeTruthy();
+      expect(
+        entry,
+        `the palette calls /operations/${segment} "${entry}" while the page itself calls it "${canonical}" — an operator searching the name they were told will not find it`,
+      ).toBe(canonical);
+    }
+  });
+
+  test("the send-flow notice names pages that exist and that the palette can reach", () => {
+    // The other half: the words in the notice must BE those canonical names. A
+    // guard on the palette alone would pass while the notice invented a third name.
+    const notice = readFileSync(join(ROOT, "src/components/bridge/review/hooks/useSendFlow.ts"), "utf8");
+    const crumbs = readFileSync(join(ROOT, "src/components/bridge/breadcrumb.ts"), "utf8");
+    const body = notice.slice(notice.indexOf("function stillRunningNotice"));
+    expect(body.length, "stillRunningNotice is gone — this guard is checking nothing").toBeGreaterThan(200);
+    for (const segment of ["health", "log"]) {
+      const canonical = new RegExp(`^\\s*${segment}:\\s*"([^"]+)"`, "m").exec(crumbs)?.[1] ?? "";
+      expect(
+        body.includes(canonical),
+        `the in-flight notice never names "${canonical}", so its next step is a page the operator has to guess at`,
+      ).toBe(true);
+    }
+  });
+
   test("the resolve deny-list and the terminal declaration do not overlap", () => {
     // The backend pins the same thing (ResolveHeldFrom_AndDeclaredTerminal_AreDisjoint):
     // a 409 hold is TEMPORARY and the 400 on a finished order is PERMANENT, so a

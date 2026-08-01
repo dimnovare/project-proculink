@@ -58,9 +58,23 @@ describe("the exceptions article describes the recovery we actually ship", () =>
     expect(article).toContain(label);
   });
 
-  test("it still points at System health as the bulk path, not the only path", () => {
-    expect(article).toMatch(/System health/i);
-    // "Instead, go to…" was the false instruction. The article may mention Health,
+  test("it still points at the ops page as the bulk path, not the only path", () => {
+    // The page's NAME is derived, not retyped. This assertion used to read
+    // `/System health/i` — and "System health" is not what that page is called.
+    // It is "System status": the page title says so three times, the breadcrumb
+    // says so, and the hub tab says so. Only the command palette and three help
+    // articles disagreed, so an operator told to "open System status" by the order
+    // screen searched those words and found nothing. Hard-coding the name here is
+    // what let this article teach the wrong one with a green suite.
+    const canonical = /^\s*health:\s*"([^"]+)"/m.exec(
+      readFileSync(join(ROOT, "src/components/bridge/breadcrumb.ts"), "utf8"),
+    )?.[1];
+    expect(canonical, "breadcrumb.ts no longer labels the health segment").toBeTruthy();
+    expect(
+      article.includes(canonical!),
+      `the article never names "${canonical}", the words the product uses for that page`,
+    ).toBe(true);
+    // "Instead, go to…" was the false instruction. The article may name the page,
     // but never as the sole route out.
     expect(article).not.toMatch(/Instead, go to \*\*Operations/i);
   });

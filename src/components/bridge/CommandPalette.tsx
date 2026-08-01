@@ -184,8 +184,17 @@ function buildIndex(
     // rather than an org-wide catalog that decided nothing.
     { id: "a4",  group: "Actions", icon: "✓", label: "Validation rules",     sub: "Choose a supplier to set its checks", action: () => router.push("/library/suppliers"), color: "#0F4FA8" },
     { id: "a5",  group: "Actions", icon: "⚠", label: "Issues",           sub: "Open the issues list", action: () => router.push("/operations/exceptions"), color: "#8A5310" },
-    { id: "a6",  group: "Actions", icon: "❤", label: "System health",        sub: "Open operator health view", action: () => router.push("/operations/health"),     color: "#0F4FA8" },
-    { id: "a9",  group: "Actions", icon: "▤", label: "Delivery log",         sub: "Open delivery log",      action: () => router.push("/operations/log"),   color: "#0F4FA8" },
+    // These two labels are the NAV names, not palette-local ones, and that is
+    // load-bearing rather than tidiness. `useSendFlow`'s in-flight notice is plain
+    // text with no link slot, so it names its destination in words — "Open System
+    // status" / "the Deliveries page" — and the palette is how an operator turns
+    // words into a page. It said "System health" and "Delivery log", so searching
+    // the exact words the product had just told them to look for found nothing.
+    // The search matches `label` AND `sub` (see the filter below), so the older
+    // words stay findable in the sub-line rather than being deleted.
+    // Canonical source: breadcrumb.ts SEGMENT_LABELS + HubTabs.
+    { id: "a6",  group: "Actions", icon: "❤", label: "System status",        sub: "Is order processing running? Check system health", action: () => router.push("/operations/health"),     color: "#0F4FA8" },
+    { id: "a9",  group: "Actions", icon: "▤", label: "Deliveries",           sub: "Every delivery attempt — the delivery log", action: () => router.push("/operations/log"),   color: "#0F4FA8" },
     { id: "a7",  group: "Actions", icon: "⚙", label: "Settings",             sub: "Workspace settings",     action: () => router.push("/settings"),         color: "#0F4FA8" },
     { id: "a8",  group: "Actions", icon: "≣", label: "View standards matrix", sub: "Open standards reference", action: () => router.push("/library/standards"), color: "#0F4FA8" },
     // ── Onboarding entry points (task 9) ────────────────────

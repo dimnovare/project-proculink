@@ -46,7 +46,7 @@ The keys stay out of your way while you're typing in the search box or any other
 
 Tick the checkboxes to select rows; a dark action bar appears with **Send selected**.
 
-Only rows the backend can actually send are selectable: orders that are **Queued to send**, or whose last **delivery attempt failed**. Everything else is greyed out — that's the server's rule, not a display quirk, so a bulk send can never fire a request that's guaranteed to be rejected. The header checkbox respects the same rule: it selects only the sendable rows in the current view. Note that a "Failed" pill alone doesn't make a row sendable — parse and transform failures need fixing on the order itself, and exhausted (dead-lettered) deliveries are requeued from [System health](/help/exceptions-and-stuck-orders), not from here.
+Only rows the backend can actually send are selectable: orders that are **Queued to send**, or whose last **delivery attempt failed**. Everything else is greyed out — that's the server's rule, not a display quirk, so a bulk send can never fire a request that's guaranteed to be rejected. The header checkbox respects the same rule: it selects only the sendable rows in the current view. Note that a "Failed" pill alone doesn't make a row sendable — parse and transform failures need fixing on the order itself, and exhausted (dead-lettered) deliveries are requeued from [System status](/help/exceptions-and-stuck-orders), not from here.
 
 After a send, the bar tells you exactly what happened:
 
