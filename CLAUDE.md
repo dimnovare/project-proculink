@@ -561,3 +561,51 @@ These JSX files use inline styles (they're vanilla React prototype). Translate t
 ### shadcn/ui
 
 Keep shadcn primitives in `src/components/ui/` — they are dependency infrastructure. The Bridge Layer wraps or reskins them; it does not delete them. Custom Bridge components in `src/components/bridge/`.
+
+---
+
+## 15. How every session runs — token discipline (applies to all sessions and chips)
+
+**Every session in this repo starts in caveman mode and stays in it.** Invoke the `caveman` skill
+first, before anything else. Drop articles, filler, pleasantries and hedging in prose. Fragments are
+fine.
+
+**Caveman applies to prose only. Never to these:**
+
+- code, commit messages, PR bodies, and user-facing copy — those stay written normally
+- security warnings, and confirmations before an irreversible action
+- multi-step sequences where fragment order could be misread
+
+Technical substance is never abbreviated: file:line evidence, exact error strings, and command output
+stay verbatim.
+
+### Why
+
+Sessions here run long and in parallel. Context exhaustion is the most common cause of work being
+abandoned half-finished — a session that runs out mid-packet leaves a branch nobody else can safely
+pick up, and twice in one day that meant real work existing only on an unpushed local ref.
+
+### The habits that actually save context
+
+- **Batch independent tool calls into one message.** Two greps that do not depend on each other are
+  one round trip, not two.
+- **Delegate fan-out reads to subagents**, as many in parallel as the work genuinely splits into. A
+  search across many files should return a conclusion, not a file dump.
+- **Read the part of the file you need.** Whole-file reads of a 2,000-line component are how a
+  session dies at 40% of the task.
+- **Never re-derive what is already established.** Read `05-PROGRESS.md` in the master-plan directory
+  before re-investigating anything — it carries the correction log and the numbered traps, and most
+  dead ends have already been paid for once.
+- **Prefer `git grep` from the repo root.** Plain `grep -r` walks `.claude/worktrees/`, which is a
+  copy of the repo — hits there mean you searched the wrong tree, not that another branch owns the
+  code.
+- **Push anything worth keeping, the moment it is committed.** A session's worktree is not storage.
+
+### Before dispatching a chip
+
+Check the **open PR set**, not just `main`. A packet's prerequisite may be written, reviewed and
+green, and still invisible from `main` — dispatching against `main` alone is how two sessions get sent
+to build the same thing (TRAP 27).
+
+Give each chip a scope that is **file-disjoint** from every other chip in flight, and name in its
+brief which files belong to someone else.
