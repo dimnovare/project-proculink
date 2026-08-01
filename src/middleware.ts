@@ -63,12 +63,17 @@ function parsesAsClerkJwt(value: string | null) {
   if (segments.some((segment) => !/^[A-Za-z0-9_-]+$/.test(segment))) return false;
 
   let header: unknown;
+  let payload: unknown;
   try {
+    // decodeJwt() JSON-parses both segments; a value that fails here could never
+    // survive verifyHandshakeToken() either.
     header = JSON.parse(decodeBase64UrlToText(segments[0]));
+    payload = JSON.parse(decodeBase64UrlToText(segments[1]));
   } catch {
     return false;
   }
   if (typeof header !== "object" || header === null) return false;
+  if (typeof payload !== "object" || payload === null) return false;
 
   const { alg, kid, typ } = header as Record<string, unknown>;
   if (typeof alg !== "string" || !CLERK_JWT_ALGORITHMS.has(alg)) return false;

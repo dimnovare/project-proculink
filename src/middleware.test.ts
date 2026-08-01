@@ -159,6 +159,20 @@ describe("a value that is not a handshake token bypasses nothing", () => {
     // "[]" — valid JSON, not a header object.
     ["a JSON array as the header", "W10.e30.AAAA"],
     ["characters outside base64url", "!!!.e30.AAAA"],
+    // A header Clerk would accept, wrapped around segments it could not decode.
+    [
+      "a valid header over a non-base64url payload",
+      "eyJhbGciOiJSUzI1NiIsImtpZCI6IngifQ.@@@.AAAA",
+    ],
+    [
+      "a valid header over a non-base64url signature",
+      "eyJhbGciOiJSUzI1NiIsImtpZCI6IngifQ.e30.@@@",
+    ],
+    // Payload decodes to the string "notjson", which decodeJwt cannot JSON.parse.
+    [
+      "a valid header over a non-JSON payload",
+      "eyJhbGciOiJSUzI1NiIsImtpZCI6IngifQ.bm90anNvbg.AAAA",
+    ],
     ["two segments", "eyJhbGciOiJSUzI1NiIsImtpZCI6IngifQ.e30"],
     ["four segments", "eyJhbGciOiJSUzI1NiIsImtpZCI6IngifQ.e30.AAAA.BBBB"],
     ["an empty value", ""],
