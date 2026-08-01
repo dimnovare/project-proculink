@@ -10,7 +10,8 @@
 // unchanged.
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { getAuditLog, isApiMockMode, type AuditLogEntry } from "@/lib/api-client";
 import { EmptyState } from "./EmptyState";
@@ -385,9 +386,27 @@ export function CrossingsLog() {
   const [filter, setFilter]     = useState<CanonicalEvent | "all">("all");
   const [search, setSearch]     = useState("");
 
+  // The URL IS the order filter. `?orderId=` is READ from the query string on every
+  // render and never copied into useState on mount: that is the same rule InboxView
+  // spells out for `?status=`, and for the same reason — a mirrored copy is a second
+  // source of truth that goes stale the first time the URL changes under a mounted
+  // view. A failed order's "See every attempt" links here with that param; until now
+  // nothing on this page read it, so the operator asking about ONE order landed on
+  // the whole workspace's log with no hint that their question had been dropped.
+  const params = useSearchParams();
+  const orderFilter = (params.get("orderId") ?? "").trim();
+
+  // GET /api/audit takes `page` and `pageSize` and NOTHING else — there is no
+  // per-order parameter to ask for (AuditController.GetAuditLog), so one order's
+  // entries must be picked out of a page we already hold. When an order filter is
+  // active we therefore ask for the widest page the API will serve (it clamps
+  // pageSize to 1..200) and then state below exactly how far that window reached.
+  // With no filter the page keeps its original 50-entry request, unchanged.
+  const pageSize = orderFilter ? 200 : 50;
+
   const { data, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ["audit"],
-    queryFn:  () => getAuditLog(),
+    queryKey: ["audit", pageSize],
+    queryFn:  () => getAuditLog(1, pageSize),
     enabled:  !isApiMockMode,
   });
 
@@ -396,9 +415,27 @@ export function CrossingsLog() {
   // as one — and Retry could only 403 again.
   const planGated = isError && isPlanGate(error);
 
-  const LOG: LogEntry[] = isApiMockMode
+  const ALL_ENTRIES: LogEntry[] = isApiMockMode
     ? MOCK_LOG
     : (data?.events ?? []).map(mapApiEntry);
+
+  // GUIDs come back lowercase from the API but the param is whatever was in the
+  // address bar, so compare case-insensitively rather than dropping a valid link.
+  const LOG: LogEntry[] = orderFilter
+    ? ALL_ENTRIES.filter((e) => e.crossingId.toLowerCase() === orderFilter.toLowerCase())
+    : ALL_ENTRIES;
+
+  // How much of the workspace's history this page actually holds. `total` is every
+  // entry the org has; `loadedCount` is the one page we fetched. When they differ we
+  // have NOT seen every entry for this order and must not imply otherwise — a short
+  // list that silently means "within the last 200" is the same lie as an unfiltered
+  // log pretending to be filtered.
+  const loadedCount   = isApiMockMode ? ALL_ENTRIES.length : (data?.events?.length ?? 0);
+  const totalEntries  = isApiMockMode ? ALL_ENTRIES.length : (data?.total ?? loadedCount);
+  const windowPartial = totalEntries > loadedCount;
+  // The PO number is only knowable once a matching entry is in hand; with no match
+  // the strip names no order rather than echoing a raw id at the operator.
+  const filteredPo    = LOG[0]?.po ?? null;
 
   // Export filtered log as CSV
   function handleExport() {
@@ -465,6 +502,44 @@ export function CrossingsLog() {
           </button>
         }
       />
+
+      {/* Order filter strip — the page SAYS it is showing one order, and offers the
+          way back to everything. Without this a short list is indistinguishable from
+          a quiet workspace. Rendered whenever the param is present (including the
+          no-match case) so the way out is never missing. */}
+      {orderFilter && !isLoading && !isError && (
+        <div
+          role="status"
+          className="card"
+          style={{
+            display: "flex",
+            flexDirection: isMobile ? "column" : "row",
+            alignItems: isMobile ? "stretch" : "center",
+            gap: 12,
+            padding: "11px 14px",
+            marginBottom: 14,
+            borderLeft: "3px solid var(--brand-blue)",
+            background: "var(--brand-blue-soft)",
+          }}
+        >
+          <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.55, color: "var(--ink)", flex: 1, minWidth: 0 }}>
+            <strong style={{ fontWeight: 600 }}>
+              Showing one order{filteredPo ? ` — ${filteredPo}` : ""}.
+            </strong>{" "}
+            Every other order is hidden.
+            {windowPartial
+              ? ` We searched the ${loadedCount} most recent entries in this workspace, so anything older than those is not listed here.`
+              : ""}
+          </p>
+          <Link
+            href="/operations/log"
+            className="btn btn-secondary sm"
+            style={{ flexShrink: 0, justifyContent: "center", ...(isMobile ? { height: 36 } : {}) }}
+          >
+            Show all deliveries
+          </Link>
+        </div>
+      )}
 
       {/* Filter / search bar */}
       <div
@@ -549,11 +624,29 @@ export function CrossingsLog() {
         <>
           {filtered.length === 0 ? (
             <div className="card">
-              <EmptyState
-                compact
-                title="No matching events"
-                sub="Nothing recorded for this filter yet."
-              />
+              {/* Two different nothings. `LOG` empty under an order filter means this
+                  ORDER has no entries in the window we searched — saying "nothing
+                  recorded for this filter yet" there reads as "your workspace is
+                  quiet", which is the opposite of what the operator asked. When the
+                  order does have entries and the chips or the search box zeroed them,
+                  the original copy is still the right one. */}
+              {orderFilter && LOG.length === 0 ? (
+                <EmptyState
+                  compact
+                  title="Nothing recorded for this order"
+                  sub={
+                    windowPartial
+                      ? `This order has no entries among the ${loadedCount} most recent in this workspace. Older entries for it may still exist.`
+                      : "Other orders still have entries — this one has none yet."
+                  }
+                />
+              ) : (
+                <EmptyState
+                  compact
+                  title="No matching events"
+                  sub="Nothing recorded for this filter yet."
+                />
+              )}
             </div>
           ) : (
             <>

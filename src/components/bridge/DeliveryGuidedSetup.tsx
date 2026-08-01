@@ -51,34 +51,52 @@ interface SimpleChannelSpec {
   protocol: DeliveryProtocol;
   label: string;
   blurb: string;
+  /** Marks the one option that needs nothing from the other company. */
+  recommended?: boolean;
 }
 
+/**
+ * Order matters (WP-27). Email leads and is preselected because it is the ONLY option
+ * here that a user can finish on their own: mail leaves from ProcuLink's verified
+ * sender, so the far end supplies an address and nothing else — and on day one that
+ * address can be the user's own. Every other option needs an endpoint, a host, or
+ * credentials from another company, which is exactly why first run used to dead-end
+ * on this step.
+ *
+ * The blurbs say "they/them" rather than a hardcoded party noun so the copy reads
+ * correctly in inbound mode too (see partyLabels / useOrderDirection).
+ */
 const SIMPLE_CHANNELS: SimpleChannelSpec[] = [
+  {
+    id: "email",
+    protocol: "email",
+    label: "Email",
+    blurb:
+      "We email the finished file from ProcuLink's own mail servers. They give you an address — nothing to install, nothing to set up on their side.",
+    recommended: true,
+  },
   {
     id: "http",
     protocol: "http",
     label: "HTTP webhook / API",
-    blurb: "Your supplier gave you a URL that receives the order (a webhook or REST endpoint).",
+    blurb: "They gave you a URL that receives the order (a webhook or REST endpoint).",
   },
   {
     id: "sftp",
     protocol: "sftp",
     label: "SFTP",
-    blurb: "Your supplier gave you a server address plus a login — the order is dropped as a file.",
+    blurb: "They gave you a server address plus a login — the order is dropped as a file.",
   },
   {
     id: "ftps",
     protocol: "ftps",
     label: "FTPS",
-    blurb: "Like SFTP, but FTP-over-TLS. A server address, login, and a folder to drop the file in.",
-  },
-  {
-    id: "email",
-    protocol: "email",
-    label: "Email",
-    blurb: "Your supplier just wants the order emailed to one or more addresses.",
+    blurb: "Like SFTP, but FTP-over-TLS. A server address, a login, and a folder to drop the file in.",
   },
 ];
+
+/** The option offered first, and the one a bare "Continue" would take. */
+export const DEFAULT_SIMPLE_CHANNEL: SimpleChannel = "email";
 
 // Advanced channels: the wizard does NOT rebuild these. It shows a short note and a
 // link to the matching /help article, then closes back to the full editor.
@@ -534,23 +552,46 @@ function StepChannel({
   return (
     <div className="grid gap-2">
       <p className="text-[12px]" style={{ color: MUTED }}>
-        Pick how your supplier takes in orders. Not sure? Ask them — or start with Email, the simplest.
+        Every option below except Email needs something from them first — a URL, a server, a
+        login. Email needs nothing: put any address in and it works today.
       </p>
-      {SIMPLE_CHANNELS.map((c) => (
-        <button
-          key={c.id}
-          type="button"
-          onClick={() => onSelect(c.id)}
-          className="grid w-full gap-0.5 rounded-[7px] px-3 py-2.5 text-left transition-colors"
-          style={{ border: `1px solid ${BORDER}`, background: "#FFFFFF", cursor: "pointer" }}
-        >
-          <span className="flex items-center justify-between text-[13px] font-semibold" style={{ color: NAVY }}>
-            {c.label}
-            <ArrowRight size={14} color={FAINT} />
-          </span>
-          <span className="text-[12px]" style={{ color: MUTED }}>{c.blurb}</span>
-        </button>
-      ))}
+      {SIMPLE_CHANNELS.map((c) => {
+        const isDefault = c.id === DEFAULT_SIMPLE_CHANNEL;
+        return (
+          <button
+            key={c.id}
+            type="button"
+            onClick={() => onSelect(c.id)}
+            aria-describedby={isDefault ? "guided-default-channel-note" : undefined}
+            className="grid w-full gap-0.5 rounded-[7px] px-3 py-2.5 text-left transition-colors"
+            style={{
+              border: isDefault ? `1.5px solid ${GREEN}` : `1px solid ${BORDER}`,
+              background: isDefault ? "#F3FAF4" : "#FFFFFF",
+              cursor: "pointer",
+            }}
+          >
+            <span className="flex items-center justify-between gap-2 text-[13px] font-semibold" style={{ color: NAVY }}>
+              <span className="flex flex-wrap items-center gap-2">
+                {c.label}
+                {c.recommended && (
+                  <span
+                    className="rounded-[4px] px-1.5 py-0.5 text-[10px] font-bold uppercase"
+                    style={{ background: "#DCEEDE", color: GREEN_DEEP, letterSpacing: "0.05em" }}
+                  >
+                    Recommended
+                  </span>
+                )}
+              </span>
+              <ArrowRight size={14} color={FAINT} />
+            </span>
+            <span className="text-[12px]" style={{ color: MUTED }}>{c.blurb}</span>
+          </button>
+        );
+      })}
+      <p id="guided-default-channel-note" className="text-[11px]" style={{ color: MUTED }}>
+        Not ready to ask them yet? Choose Email and put your own address in — you will see
+        exactly what they would receive.
+      </p>
 
       <div className="mt-1.5 rounded-[7px] p-3" style={{ background: "#FBFCFE", border: "1px solid #E5E8EE" }}>
         <p className="text-[11px] font-semibold uppercase" style={{ color: FAINT }}>

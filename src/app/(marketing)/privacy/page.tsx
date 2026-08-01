@@ -55,16 +55,66 @@ export default function PrivacyPage() {
       </ul>
       <p style={S.p}>We do not sell your data to third parties. We do not use your order content to train AI models.</p>
 
+      {/*
+        This section had one list under the heading "Data storage and residency", led by
+        "Your data is stored in EU-region or EU-compliant infrastructure", and it named six
+        providers. The three US providers that actually receive ORDER CONTENT — OpenAI,
+        Stripe and Postmark — were all absent, on the one page whose job is to say where
+        data goes. The omission mattered more than the wording did: a reader checking
+        residency read a complete-looking list and could not have learned that the purchase
+        order we email to their supplier is carried by a US provider.
+
+        Split into STORED and PROCESSED, because they are different questions and one list
+        cannot answer both. Every vendor below also appears in the full subprocessor table
+        further down this page, which is generated from src/lib/subprocessors.ts — this list
+        is organised by function rather than by vendor, so it is kept by hand and must be
+        checked against that table whenever the list changes.
+      */}
+      {/*
+        The lead-in is a plain enumeration, NOT an aggregate residency claim. Two reasons,
+        both found by refuting an earlier draft:
+
+          • It used to read "Your data is stored in EU-region or EU-compliant infrastructure",
+            and the first correction shortened that to "…are stored in EU-region
+            infrastructure". Dropping the disjunct made an UNSOURCED claim stronger with no
+            new evidence, which is the exact failure that got FE #42 refuted. The per-vendor
+            location strings below are inherited unchanged and are still unsourced for
+            Railway, Neon and R2 — inheriting them is arguable, sharpening them is not.
+          • The lead-in did not describe its own list anyway: Railway is compute, Sentry is
+            error telemetry, and the Vercel bullet explicitly says order files do NOT pass
+            through it. A sentence claiming the whole list is order storage was wrong about
+            three of its five entries.
+      */}
       <h2 style={S.h2}>Data storage and residency</h2>
-      <p style={S.p}>Your data is stored in EU-region or EU-compliant infrastructure:</p>
+      <p style={S.p}>These providers hold your order files, the database, and the API that serves them:</p>
       <ul style={{ paddingLeft: 20, marginBottom: 14 }}>
-        <li style={S.li}><strong>Authentication</strong>: Clerk (US-based, EU data residency available on request)</li>
         <li style={S.li}><strong>File storage</strong>: Cloudflare R2 (EU-region bucket)</li>
-        <li style={S.li}><strong>API hosting</strong>: Railway (EU region)</li>
         <li style={S.li}><strong>Database</strong>: PostgreSQL hosted on Neon (EU region)</li>
+        <li style={S.li}><strong>API hosting</strong>: Railway (EU region)</li>
         <li style={S.li}><strong>Error monitoring</strong>: Sentry (EU region instance)</li>
         <li style={S.li}><strong>Frontend</strong>: Vercel (global CDN — order files do not pass through it)</li>
       </ul>
+      <p style={S.p}>
+        Some processing happens outside the EEA, under Standard Contractual Clauses. These
+        providers are not a rare exception — they sit on the normal path an order takes:
+      </p>
+      <ul style={{ paddingLeft: 20, marginBottom: 14 }}>
+        <li style={S.li}><strong>Authentication</strong>: Clerk (US-based, EU data residency available on request)</li>
+        {/* NOT "self-hosted mode" — that phrasing was removed from /security in this same
+            pass because nothing runs on customer infrastructure. Two pages describing the
+            same flag two different ways is how the Postmark inbound/outbound defect got in. */}
+        <li style={S.li}><strong>AI document extraction and mapping suggestions</strong>: OpenAI (US) — receives purchase-order content, unless we have turned AI extraction off for your organisation</li>
+        <li style={S.li}><strong>Payments</strong>: Stripe (US, EU establishment) — billing data only, no order content</li>
+        <li style={S.li}><strong>Email in and out</strong>: Postmark (US) — carries orders emailed to your ProcuLink address, and the purchase orders we email to your suppliers, as attachments</li>
+      </ul>
+      <p style={S.p}>
+        Where your data is stored and the route it travels to reach your supplier are two
+        different questions. The outbound network path is chosen by our hosting provider and
+        is not pinned to a region by us, so we cannot tell you today which country an
+        outbound delivery leaves from. The{" "}
+        <Link href="/security" style={{ color: "#1E6D29", textDecoration: "underline" }}>Security</Link>{" "}
+        page explains this in full.
+      </p>
 
       <h2 style={S.h2}>Data retention</h2>
       <ul style={{ paddingLeft: 20, marginBottom: 14 }}>

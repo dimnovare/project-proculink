@@ -88,10 +88,22 @@ export default function OnePagerPage() {
         €{OVERAGE_PER_ORDER_EUR.toFixed(2)}/order.
       </p>
 
+      {/*
+        This section was the bare fragment "EU-region infrastructure." — the exact
+        unqualified claim retracted from /security on 2026-07-30, surviving here
+        because the retraction was applied page by page. It is the worst place for
+        it to survive: this page is print/PDF sales collateral, so it travels
+        DETACHED from the site and a reader cannot click through to the
+        qualification. Whatever this page says has to stand on its own.
+      */}
       <h2 style={S.h2}>Trust + security</h2>
       <p style={S.p}>
-        EU-region infrastructure. AES-256-GCM for delivery credentials and IMAP passwords. Org-scoped query isolation.
-        GDPR-aligned DPA available at <strong>proculink.eu/dpa</strong>. Subprocessors at <strong>proculink.eu/subprocessors</strong>.
+        Order files and the database behind them are EU-region. Sign-in, AI extraction, payments and
+        email — in both directions, including the purchase orders we email to your suppliers — run on
+        named US subprocessors under standard contractual clauses. AES-256-GCM for delivery
+        credentials and IMAP passwords. Org-scoped query isolation.
+        GDPR-aligned DPA available at <strong>proculink.eu/dpa</strong>. Every subprocessor, with its
+        location, at <strong>proculink.eu/subprocessors</strong>.
       </p>
 
       <div style={S.contact}>

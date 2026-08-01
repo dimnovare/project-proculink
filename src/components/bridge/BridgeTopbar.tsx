@@ -19,6 +19,7 @@ import { HelpSlideover } from "./HelpSlideover";
 import { HubTabs, hubForPath, hubShowsTabs, visibleHubTabs, type HubKey } from "./layout/HubTabs";
 import { OrgSwitcher } from "./OrgSwitcher";
 import { SetupProgressChip } from "./SetupProgressChip";
+import { statusLabel } from "./UnifiedStatusBadge";
 import { UserChipMenu } from "./UserChipMenu";
 import {
   buildVisibleNav,
@@ -256,15 +257,21 @@ function timeAgo(iso: string): string {
 // rather than literal hex, so they stay in sync with UnifiedStatusBadge.
 type NotifKind = "review" | "failed" | "delivered" | "held" | "unconfirmed";
 
-const NOTIF_META: Record<NotifKind, { dot: string; label: string }> = {
-  failed:      { dot: "var(--danger)", label: "Delivery failed" },
+// The KIND decides the dot colour and the sort rank only. It deliberately no
+// longer carries a label: `failed` folds five different statuses, so one label
+// for the bucket meant a `transform_failed` order and a `rejected_by_supplier`
+// order both announced themselves as "Delivery failed" — two notifications
+// naming a delivery that never happened. Each row now reads statusLabel(status)
+// from STATUS_META, so it says which of the five it actually is.
+const NOTIF_META: Record<NotifKind, { dot: string }> = {
+  failed:      { dot: "var(--danger)" },
   // Billing hold: amber (needs a human) rather than red — nothing failed.
-  held:        { dot: "var(--amber)", label: "Delivery paused" },
+  held:        { dot: "var(--amber)" },
   // Parked: a crash lost the outcome after we sent. Amber like `held` — needs a
-  // human, but we can't confirm a failure — never "Delivery failed".
-  unconfirmed: { dot: "var(--amber)", label: "Delivery unknown" },
-  review:      { dot: "var(--amber)", label: "Needs review" },
-  delivered:   { dot: "var(--brand-green)", label: "Delivered" },
+  // human, but we can't confirm a failure, so it is never a red row.
+  unconfirmed: { dot: "var(--amber)" },
+  review:      { dot: "var(--amber)" },
+  delivered:   { dot: "var(--brand-green)" },
 };
 
 function NotificationsBell() {
@@ -387,7 +394,7 @@ function NotificationsBell() {
                   >
                     <span style={{ width: 7, height: 7, borderRadius: "50%", background: meta.dot, marginTop: 5, flexShrink: 0 }} />
                     <span className="min-w-0 flex-1">
-                      <span style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#0B1A2F" }}>{meta.label}</span>
+                      <span style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#0B1A2F" }}>{statusLabel(o.status)}</span>
                       <span style={{ display: "block", fontSize: 11, color: "#5E6779", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         <span style={{ fontFamily: "'JetBrains Mono',monospace" }}>{o.poNumber}</span> · {o.supplierName}
                       </span>

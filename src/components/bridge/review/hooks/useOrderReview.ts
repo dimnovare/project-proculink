@@ -11,6 +11,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
+import { shouldRetryApiFailure, apiRetryDelayMs } from "@/lib/apiFailure";
 import type { Order } from "@/types/procurement";
 import type { PartyLabels } from "@/hooks/useOrderDirection";
 import { isParseStalled } from "@/components/bridge/parseStall";
@@ -58,8 +59,8 @@ export function finalDeliveryMessage(status: Order["status"], errorMessage: stri
   }
   if (status === "delivery_failed") {
     return errorMessage && errorMessage.trim().length > 0
-      ? `Delivery failed: ${errorMessage}`
-      : "Output generated, but delivery failed. Check the supplier Delivery tab and retry when the endpoint is ready.";
+      ? `We couldn't send this order: ${errorMessage}`
+      : "The output file is built, but we couldn't send it. Check the supplier's Delivery tab and try again when the endpoint is ready.";
   }
   if (status === "rejected_by_supplier") {
     const noun = labels.counterpartyNoun;
@@ -68,7 +69,11 @@ export function finalDeliveryMessage(status: Order["status"], errorMessage: stri
       : `The ${noun.toLowerCase()} rejected the order. Open the ${noun} response tab for the rejection details.`;
   }
   if (status === "delivery_dead_letter") {
-    return "Delivery retries are exhausted. The order is in the dead-letter queue for operator review.";
+    // DESIGN-DB-1 §6.5 row 85: "dead-letter" is an engine word with no
+    // user-facing reading, and this sentence shipped it straight to the review
+    // screen. It also said "for operator review", which describes a queue
+    // somebody else works rather than the thing this person has to do.
+    return "The automatic attempts are spent, so nothing more happens on its own. Send this order again when the supplier's endpoint is ready.";
   }
   if (status === "delivery_held") {
     // Deliberately NOT `errorMessage ?? …` like the branches above: the backend
@@ -95,12 +100,18 @@ export function useOrderReview(orderId: string) {
   // (and the e2e suite) starve on a disabled query.
   const queryEnabled = useQueriesEnabled();
 
-  const { data: order, isLoading, isError, refetch: refetchOrder } = useQuery({
+  const { data: order, isLoading, isError, error, refetch: refetchOrder } = useQuery({
     queryKey: ["order", orderId],
     queryFn: () => apiClient.getOrderById(orderId),
     enabled: queryEnabled,
-    retry: 2,
-    retryDelay: 600,
+    // WP-19. This used to be `retry: 2, retryDelay: 600` — a flat policy chosen
+    // for the cold-auth race, which then also applied to a DELETED order: two
+    // more round trips before showing the same 404. The shared policy keeps the
+    // auth behaviour (three quick polls, 400ms apart) and stops retrying the
+    // answers that cannot change. A local override here is also how the global
+    // default in (app)/layout.tsx silently failed to reach this screen at all.
+    retry: shouldRetryApiFailure,
+    retryDelay: apiRetryDelayMs,
     staleTime: 30_000,
     // Auto-refresh ONLY while the pipeline is auto-progressing (parse → transform →
     // deliver) so the screen updates on its own instead of looking stuck until the
@@ -143,5 +154,9 @@ export function useOrderReview(orderId: string) {
     [order],
   );
 
-  return { order, isLoading, isError, refetchOrder, isStuck, exceptionCount, queryEnabled };
+  // `error` is returned so the screen can say WHICH failure this is. Without it
+  // every cause collapsed into "Something went wrong loading this order" — and a
+  // 404 throws (getOrderById raises ApiHttpError rather than returning null), so
+  // an order that simply no longer exists read as a malfunction.
+  return { order, isLoading, isError, error, refetchOrder, isStuck, exceptionCount, queryEnabled };
 }

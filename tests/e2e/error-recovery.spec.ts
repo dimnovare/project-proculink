@@ -4,28 +4,39 @@ import { test, expect } from "@playwright/test";
  * Error-recovery smoke tests for the order-detail route.
  *
  * NOTE: /orders/:id now permanently redirects to /inbox/:id (next.config.ts),
- * so these tests land on SpineReview (the canonical detail view), not the legacy
- * OrderDetailPage. SpineReview's error/load gate (SpineReview.tsx) shows:
- *   - order === null  → "Order not found"
- *   - network error   → "Failed to load order"
- * and a single "← Back to inbox" button in both cases (no Retry button).
+ * so these tests land on the order workshop, not the legacy OrderDetailPage.
+ *
+ * WP-19 replaced one flat pair of strings ("Order not found" / "Failed to load
+ * order") with a branch per failure kind, so these assertions are written
+ * against MEANING, not sentences:
+ *
+ *   • a 404 says the order cannot be found and offers NO retry — the second
+ *     answer is the first answer;
+ *   • a network failure says the order itself is fine and DOES offer a retry.
+ *
+ * The way back is `WorkshopGateShell`'s "Back to inbox" chip in both cases, and
+ * it is asserted here because it is the only exit from these states. Matching
+ * exact prose is what made the previous version of this file break on a
+ * deliberate copy change while proving nothing about the behaviour.
  *
  * Mock mode: drives the in-memory api-client mock, so these run without a
  * backend.
  */
 
 test.describe("SpineReview error handling", () => {
-  test("real 404 shows 'Order not found' with Back to inbox only (no Retry)", async ({ page }) => {
+  test("a 404 says the order is gone, offers the way back, and offers no retry", async ({ page }) => {
     // The mock returns null for unknown ids, surfacing the 404 path.
     await page.goto("/inbox/does-not-exist-1234");
 
-    await expect(page.getByText(/order not found/i)).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/can't find this order/i)).toBeVisible({ timeout: 10_000 });
     await expect(page.getByRole("button", { name: /back to inbox/i })).toBeVisible();
-    // No Retry button on a true 404.
+    // The load-bearing half: retrying a 404 buys a second identical answer, so
+    // neither wording of that control may appear.
     await expect(page.getByRole("button", { name: /^retry$/i })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /^try again$/i })).toHaveCount(0);
   });
 
-  test("network failure shows 'Failed to load order' with Back to inbox", async ({ page }) => {
+  test("a network failure does not blame the order, and does offer a retry", async ({ page }) => {
     // Declared conditional skip, not an if-wrapped self-skip with a dead `return` after it:
     // the condition is the annotation, so the reason is reported the same way every run.
     test.skip(
@@ -40,8 +51,11 @@ test.describe("SpineReview error handling", () => {
 
     await page.goto("/inbox/some-id-that-would-otherwise-resolve");
 
-    await expect(page.getByText(/failed to load order/i)).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText(/check your connection and try again/i)).toBeVisible();
+    await expect(page.getByText(/couldn't load this order/i)).toBeVisible({ timeout: 15_000 });
+    // The distinction WP-19 exists to draw: this is NOT the order's fault, and
+    // unlike a 404 it is worth trying again.
+    await expect(page.getByText(/nothing is wrong with the order itself/i)).toBeVisible();
+    await expect(page.getByRole("button", { name: /^try again$/i })).toBeVisible();
 
     const back = page.getByRole("button", { name: /back to inbox/i });
     await expect(back).toBeVisible();

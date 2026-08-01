@@ -499,6 +499,22 @@ export function BillingSection() {
               </p>
             </div>
           )}
+          {/*
+            Cancelling happens THROUGH this button — the Stripe portal is where a paid customer
+            ends their subscription, and Stripe cannot tell them what it does to their ProcuLink
+            workspace. /pricing carries this disclosure, but a customer cancelling is in Settings,
+            not on the marketing site, so the warning has to be at the point of action too. The
+            wording deliberately matches the /pricing copy and, like it, names the channels and
+            avoids the internal status name.
+          */}
+          <div style={{ padding: "0 18px 14px" }}>
+            <p style={{ margin: 0, fontSize: 11.5, color: "var(--ink-faint)", lineHeight: 1.55 }}>
+              If you cancel in Stripe, new orders stop arriving once the subscription ends — uploads,
+              emailed orders, SFTP and S3 pickups, and the REST API all stop, and nothing is held to
+              deliver later, so redirect your suppliers first. Everything already processed stays
+              readable and exportable.
+            </p>
+          </div>
         </div>
       )}
 

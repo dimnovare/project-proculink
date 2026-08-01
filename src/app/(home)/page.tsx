@@ -213,8 +213,12 @@ const FEATURES: Array<{
 //   Channels = delivery methods available today (live + configurable)
 // "Data residency" is a claim, not a count, so it carries a link to the page
 // that qualifies it: order storage is EU-region, but named US subprocessors
-// handle sign-in, AI extraction, inbound email and payments under SCCs. The
-// stat may only stay on the page while that explanation is one click away.
+// handle sign-in, AI extraction, payments, and email IN BOTH DIRECTIONS under
+// SCCs — including the purchase orders we email out to suppliers, which is the
+// half this comment used to omit by saying "inbound email". That is the exact
+// defect src/lib/subprocessors.ts warns about, and a stale comment is where the
+// next author gets their framing. The stat may only stay on the page while that
+// explanation is one click away.
 const STATS: Array<{ value: string; label: string; href?: string }> = [
   { value: String(INBOUND_FORMAT_COUNT),   label: "Inbound formats"    },
   { value: String(OUTBOUND_FORMAT_COUNT),  label: "Outbound formats"   },

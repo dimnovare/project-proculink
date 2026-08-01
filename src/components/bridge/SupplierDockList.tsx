@@ -48,13 +48,17 @@ const PROTOCOL_LABEL: Record<DeliveryProtocol, string> = {
   erp_directo: "Directo ERP",
 };
 
-// Channels offered in the New-supplier modal — the REAL protocols the delivery
+// Connections offered in the New-supplier modal — the REAL protocols the delivery
 // pipeline supports today (smtp is retired; Postmark HTTPS "email" is canonical).
+//
+// Email leads, matching the guided setup (WP-27): it is the only one that needs
+// nothing from the other company, so it is the only one a user can complete on the
+// day they sign up.
 const NEW_SUPPLIER_CHANNELS: ReadonlyArray<{ id: DeliveryProtocol; label: string }> = [
+  { id: "email", label: "Email" },
   { id: "http", label: "HTTP" },
   { id: "sftp", label: "SFTP" },
   { id: "ftps", label: "FTPS" },
-  { id: "email", label: "Email" },
   { id: "erp_erply", label: "Erply ERP" },
   { id: "erp_directo", label: "Directo ERP" },
 ];

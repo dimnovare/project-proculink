@@ -33,8 +33,9 @@ import {
   fetchWithTimeout,
   delay,
   ApiHttpError,
+  retryAfterFrom,
 } from "./api/core";
-import { isPlanGateError } from "./planGate";
+import { isPlanGateError, planGateMessage } from "./planGate";
 
 /**
  * Normalised public API base (no trailing slash). Exported so UI that needs to
@@ -797,7 +798,13 @@ async function mockTransformOrder(orderId: string, format: TransformFormat = "xm
   if (idx === -1) throw new Error("Order not found");
   if (mockOrders[idx].lines.some(l => l.needsReview)) throw new Error("Resolve all lines before transforming.");
 
-  // Set status to "transforming" immediately; simulate job completing after 3 s
+  // Set status to "transforming" immediately; simulate the job completing after 3s.
+  //
+  // WP-27: this used to write "delivered" here — teleporting past ready_to_deliver AND
+  // delivering, so in mock mode an order reached the terminal success state without any
+  // delivery ever being attempted. That made every mock-mode assertion on "delivered"
+  // vacuous. Transform now ends where the real backend ends it, at ready_to_deliver;
+  // reaching `delivered` requires an actual dispatch (mockRedeliverOrder).
   const now = new Date().toISOString();
   mockOrders[idx] = { ...mockOrders[idx], status: "transforming", updatedAt: now };
 
@@ -807,7 +814,7 @@ async function mockTransformOrder(orderId: string, format: TransformFormat = "xm
     const artifactId = crypto.randomUUID();
     const at = new Date().toISOString();
     const artifact = { id: artifactId, format, fileKey: `mock/${orderId}/artifacts/${artifactId}.${format}`, createdAt: at };
-    mockOrders[i] = { ...mockOrders[i], status: "delivered", updatedAt: at, artifacts: [artifact, ...mockOrders[i].artifacts] };
+    mockOrders[i] = { ...mockOrders[i], status: "ready_to_deliver", updatedAt: at, artifacts: [artifact, ...mockOrders[i].artifacts] };
   }, 3_000);
 
   return { artifactId: "", format, createdAt: now };
@@ -820,8 +827,34 @@ async function realTransformOrder(orderId: string, format?: TransformFormat): Pr
     headers: { "Content-Type": "application/json", ...await authHeader() },
     body: JSON.stringify(format ? { format } : {}),
   }, 30000);
-  if (res.status === 422) { const t = await res.text(); throw new Error(`Unresolved lines: ${t}`); }
-  if (!res.ok) { const t = await res.text(); throw new Error(`Transform failed: ${t || res.statusText}`); }
+  // WP-23's discipline, applied to the surface WP-29 put a button on.
+  //
+  // Every refusal here answers with `{ "error": "<sentence>" }`: OrdersController.Transform
+  // conflicts a non-transformable status with 409 + that shape, the unresolved-lines guard
+  // 422s with it, and the plan gate 403s with `{ error: "<capability>_requires_<plan>",
+  // upgradeUrl }`. Throwing `res.text()` verbatim put the serialised body in front of the
+  // operator — the inbox row's failure line read `Couldn't start PO-… — Transform failed:
+  // {"error":"Order is not ready to transform (status 'delivering')…"}`. The sentence is
+  // written FOR them; the braces are ours.
+  //
+  // ApiHttpError, not Error, and the parsed body rides along: a 409 is a temporary hold
+  // ("wait for the send to finish"), a 400 is terminal, and a 403's body carries the
+  // upgradeUrl a banner needs. Flattening them all to Error throws that away.
+  if (!res.ok) {
+    const t = await res.text();
+    const { body, error } = parseApiErrorBody(t);
+    // A plan-gate code is a machine token, never a sentence — CLAUDE.md §11.5 forbids
+    // matching it by literal, so isPlanGateError/planGateMessage do the shape match and
+    // name the plan the SERVER asked for.
+    if (res.status === 403 && isPlanGateError(error ?? t)) {
+      throw new ApiHttpError(planGateMessage(error ?? t), 403, body);
+    }
+    // Rendered verbatim by the review screen and the order workshop, so it is copy:
+    // "Transform failed" is the retired engine-stage name for the state whose badge
+    // now reads "Couldn't build output" (G4). Structure from WP-29, wording from G4.
+    const fallback = res.status === 422 ? "Unresolved lines" : "We couldn't build the output file";
+    throw new ApiHttpError(error ?? `${fallback}: ${t || res.statusText}`, res.status, body);
+  }
   // 202 Accepted — job enqueued; return a placeholder result
   const body = await res.json() as Record<string, unknown>;
   return { artifactId: "", format: format ?? "xml", createdAt: new Date().toISOString(), ...body } as TransformResult;
@@ -1269,9 +1302,39 @@ async function realGetSupplierProfile(n: string) { const r = await fetchWithTime
 
 // ── Audit trail ───────────────────────────────────────────────────────────
 
-async function mockRedeliverOrder(_orderId: string): Promise<void> {
+async function mockRedeliverOrder(orderId: string): Promise<void> {
   await delay(800);
-  // Mock always succeeds — live wiring verified by manual QA
+
+  const idx = mockOrders.findIndex(o => o.id === orderId);
+  if (idx === -1) return; // unknown order — nothing to advance (mock parity with a 404)
+
+  // An order whose supplier has no delivery setup fails here, with the backend's own
+  // wording (DeliveryService.FailMissingConfigAsync). Everything else succeeds, which
+  // is the mock's long-standing default for the seeded fixture suppliers.
+  if (mockOrdersWithoutDelivery.has(orderId)) {
+    mockOrders[idx] = {
+      ...mockOrders[idx],
+      status: "delivery_failed",
+      updatedAt: new Date().toISOString(),
+      // VERBATIM from DeliveryService.FailMissingConfigAsync — not a paraphrase.
+      // finalDeliveryMessage renders errorMessage straight into the panel, so any
+      // drift here means every mock-mode QA pass reads a failure sentence the
+      // product never emits. Pinned by api-client.practiceDelivery.test.ts.
+      errorMessage: "Supplier delivery config is missing. Add a delivery endpoint before sending this order.",
+    };
+    return;
+  }
+
+  // Walk the real ladder: the claim flips the row to `delivering` before the dispatch
+  // lands. useSendFlow's poll adopts that state, so skipping it would leave the mock
+  // unable to exercise the in-flight CTA at all.
+  mockOrders[idx] = { ...mockOrders[idx], status: "delivering", updatedAt: new Date().toISOString() };
+  const claimedId = orderId;
+  setTimeout(() => {
+    const i = mockOrders.findIndex(o => o.id === claimedId);
+    if (i === -1) return;
+    mockOrders[i] = { ...mockOrders[i], status: "delivered", updatedAt: new Date().toISOString() };
+  }, 600);
 }
 
 async function mockMarkDelivered(_orderId: string): Promise<void> {
@@ -1487,44 +1550,95 @@ async function realDetectFormat(file: File): Promise<DetectFormatResult> {
 
 // ── Onboarding sample order ──────────────────────────────────────────────
 
-async function mockRunSampleOrder(): Promise<{ orderId: string; isSample: true }> {
+/**
+ * Orders whose supplier has NO delivery setup, in mock mode.
+ *
+ * The mock's default is "delivery works" (matching every seeded supplier in the
+ * fixture set), so this records the exception: a practice order started WITHOUT an
+ * address to deliver to. `mockRedeliverOrder` reads it and fails that order the way
+ * the real backend does — which is what keeps the first-run e2e journey honest. If
+ * the wizard ever stopped passing an address, the journey would go red here rather
+ * than sailing through a mock that hands out `delivered` for free.
+ */
+const mockOrdersWithoutDelivery = new Set<string>();
+
+async function mockRunSampleOrder(
+  deliverTo?: string,
+): Promise<{ orderId: string; isSample: true; deliveryConfigured: boolean }> {
   await delay(800);
   const orderId = `ord-sample-${Date.now()}`;
   const now = new Date().toISOString();
+  // Mirrors the backend fixture's deliberate 2-of-3 gap: two lines arrive already
+  // resolved ("ProcuLink remembered these") and the third is the user's one manual
+  // rep on the review screen. A mock that resolves all three would let the journey
+  // skip the single interaction the practice order exists to teach.
   const order: Order = {
     id: orderId,
     poNumber: `SAMPLE-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 100000)).padStart(6, "0")}`,
     supplierId: "00000000-0000-0000-0000-000000000000",
-    supplierName: "__sample__",
+    supplierName: "ProcuLink Sample Supplier",
     buyerName: "Sample Buyer",
     orderDate: now.substring(0, 10),
     currency: "EUR",
-    status: "ready",
+    status: "pending_review",
     sourceFileKey: "orgs/demo/orders/sample.csv",
     createdAt: now,
     updatedAt: now,
     lines: [
-      { id: crypto.randomUUID(), lineNumber: 1, buyerItemCode: "SAMPLE-A1", supplierItemCode: "SUP-SAMPLE-A1", description: "Sample item A", quantity: 10, unit: "PCS", unitPrice: 9.99, confidence: 1.0, needsReview: false },
-      { id: crypto.randomUUID(), lineNumber: 2, buyerItemCode: "SAMPLE-B2", supplierItemCode: "SUP-SAMPLE-B2", description: "Sample item B", quantity: 4,  unit: "PCS", unitPrice: 24.50, confidence: 1.0, needsReview: false },
+      { id: crypto.randomUUID(), lineNumber: 1, buyerItemCode: "ACME-WIDGET-A", supplierItemCode: "SMP-WIDGET-A-10", description: "Widget A 10mm", quantity: 12, unit: "PCS", unitPrice: 4.50, confidence: 1.0, needsReview: false },
+      { id: crypto.randomUUID(), lineNumber: 2, buyerItemCode: "ACME-WIDGET-B", supplierItemCode: "SMP-WIDGET-B-20", description: "Widget B 20mm", quantity: 6,  unit: "PCS", unitPrice: 8.25, confidence: 1.0, needsReview: false },
+      { id: crypto.randomUUID(), lineNumber: 3, buyerItemCode: "ACME-BRACKET-S", supplierItemCode: null, description: "Bracket short", quantity: 24, unit: "PCS", unitPrice: 1.95, confidence: 0, needsReview: true },
     ],
     artifacts: [],
     isSample: true,
   };
   mockOrders.unshift(order);
-  return { orderId, isSample: true };
+
+  const deliveryConfigured = isLikelyEmailAddress(deliverTo);
+  if (!deliveryConfigured) mockOrdersWithoutDelivery.add(orderId);
+  return { orderId, isSample: true, deliveryConfigured };
 }
 
-async function realRunSampleOrder(): Promise<{ orderId: string; isSample: true }> {
+/** Same shape-check the backend's NormaliseEmail applies: one address, parseable. */
+function isLikelyEmailAddress(raw: string | undefined): boolean {
+  const trimmed = (raw ?? "").trim();
+  if (!trimmed || trimmed.includes(",") || trimmed.includes(";")) return false;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
+}
+
+async function realRunSampleOrder(
+  deliverTo?: string,
+): Promise<{ orderId: string; isSample: true; deliveryConfigured: boolean }> {
   const res = await fetchWithTimeout(`${API_BASE_URL}/api/onboarding/sample-order`, {
     method: "POST",
-    headers: await authHeader(),
+    headers: { "Content-Type": "application/json", ...await authHeader() },
+    // Always a body, even when empty: the endpoint's [FromBody] parameter is nullable
+    // so an older deployment that ignores it still answers 200.
+    body: JSON.stringify(deliverTo ? { deliverTo } : {}),
   }, 30000);
   if (!res.ok) {
+    // G6. This threw the RAW RESPONSE BODY as the user-facing message: a stack
+    // trace, an HTML error page or a JSON blob, whatever the server happened to
+    // send, straight onto the screen. Every other call in this file goes through
+    // parseApiErrorBody, which lifts the `{ error }` sentence when there is one
+    // and otherwise says nothing rather than saying gibberish.
+    //
+    // ApiHttpError, not Error, so the status survives: this endpoint 429s at the
+    // plan's order limit and 403s on a plan gate, and both need different copy
+    // from "something went wrong".
     const t = await res.text().catch(() => "");
-    throw new Error(t || `sample-order: ${res.status}`);
+    const { body, error } = parseApiErrorBody(t);
+    throw new ApiHttpError(
+      error ?? `We couldn't create the practice order (${res.status}).`,
+      res.status,
+      body,
+      retryAfterFrom(res, body),
+    );
   }
-  const data = await res.json() as { orderId: string; isSample?: boolean };
-  return { orderId: data.orderId, isSample: true };
+  const data = await res.json() as { orderId: string; isSample?: boolean; deliveryConfigured?: boolean };
+  // A pre-WP-27 backend omits the field. `?? false` is the honest read: we do not know
+  // that a delivery is set up, so we must not promise one.
+  return { orderId: data.orderId, isSample: true, deliveryConfigured: data.deliveryConfigured ?? false };
 }
 
 // ── Magic Mapping Preview ─────────────────────────────────────────────────
@@ -1988,8 +2102,15 @@ export async function promoteMapping(
   );
   if (res.status === 404) throw new Error("No saved mapping to promote yet for this order.");
   if (!res.ok) {
-    const b = await res.json().catch(() => null) as { error?: string } | null;
-    throw new Error(b?.error || `Couldn't save the supplier mapping: ${res.status}`);
+    // A plan-gate 403 carries its whole meaning in the BODY. Keep it VERBATIM so both
+    // the code and the upgradeUrl survive on the Error message — the caller turns it
+    // into a sentence. Read the body ONCE: `planGateBodyText` would consume it, and a
+    // non-gate 403 would then lose its own `error` string to the status fallback.
+    const raw = (await res.text().catch(() => "")).trim();
+    if (isPlanGateError(raw)) throw new Error(raw);
+    let body: { error?: string } | null = null;
+    try { body = JSON.parse(raw) as { error?: string }; } catch { /* not JSON — fall through */ }
+    throw new Error(body?.error || `Couldn't save the supplier mapping: ${res.status}`);
   }
   return res.json();
 }

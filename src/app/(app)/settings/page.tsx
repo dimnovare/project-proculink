@@ -331,9 +331,18 @@ function OrgSection() {
               <dt style={{ color: "var(--ink-muted)" }}>Default currency</dt>
               <dd style={{ margin: 0, fontWeight: 600, color: "var(--ink)" }}>EUR — Euro</dd>
             </div>
+            {/* This row said "Workspace region — EU", inside a block badged Fixed and
+                sitting next to a genuinely fixed fact (currency), which lent it the same
+                standing. There IS no per-workspace region: nothing configures one, nothing
+                stores one, and the claim it was really making — where order data lives —
+                is a whole-product claim with named US subprocessors on the other side of
+                it. Renamed to what it actually describes and linked to the page that
+                qualifies it, which is the same rule the marketing footers follow. */}
             <div style={{ display: "flex", justifyContent: "space-between", gap: 12, fontSize: 12.5 }}>
-              <dt style={{ color: "var(--ink-muted)" }}>Workspace region</dt>
-              <dd style={{ margin: 0, fontWeight: 600, color: "var(--ink)" }}>EU</dd>
+              <dt style={{ color: "var(--ink-muted)" }}>Order storage</dt>
+              <dd style={{ margin: 0, fontWeight: 600, color: "var(--ink)" }}>
+                <Link href="/security" style={{ color: "inherit" }}>EU-region</Link>
+              </dd>
             </div>
           </dl>
         </div>

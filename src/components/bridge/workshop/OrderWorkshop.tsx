@@ -21,19 +21,24 @@
 // — an honest reduced REVIEW-AND-SEND surface (order summaries + the full issue list +
 // one-click fixes + a sticky Send bar); field-by-field mapping stays on a wider screen.
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { CircleCheck } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { apiClient, getMappingOverride, previewMappingOverride } from "@/lib/api-client";
+import { apiClient, getMappingOverride, previewMappingOverride, promoteMapping } from "@/lib/api-client";
 import { getAcceptanceGate } from "@/lib/api/acceptance-gate";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
+import { practiceDeliveryKnown } from "@/hooks/useSampleOrder";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
+import { isPlanGateError, planGateMessage, planGateUpgradeUrl } from "@/lib/planGate";
+import { hasAssignedSupplier } from "@/lib/catalogCodes";
 import type { OrderMappingOverride } from "@/lib/api/types";
 import type { CalibrationSummary } from "@/types/procurement";
 import { MapperWorkbench, type MapperWorkbenchLayout, type MapperToolbarState } from "../mapper/MapperWorkbench";
 import { UnifiedStatusBadge } from "../UnifiedStatusBadge";
 import { OrderProblemPanel } from "../problem/OrderProblemPanel";
-import { problemFor } from "../problem/problemCopy";
+import { problemFor, waitPhrase } from "../problem/problemCopy";
 import { ConfirmDialog } from "../review/ConfirmDialog";
 import { buildFixQueue, type FixQueueCard } from "../review/buildFixQueue";
 import { orderGrandTotalLabel, outputArtifactType, buyerLabel, orderDeliveryFormat } from "../review/orderDisplay";
@@ -56,9 +61,138 @@ import { WorkshopStepper } from "./WorkshopStepper";
 import { WorkshopStatusBar, type BlockerChip } from "./WorkshopStatusBar";
 import { BridgePageLoader } from "../BridgeLoader";
 import { OrderDetailsDrawer, type OrderDetailsTab } from "./OrderDetailsDrawer";
+import { useTabParamSync } from "@/lib/tab-param-sync";
+import { classifyApiFailure } from "@/lib/apiFailure";
 
 /** The default trust threshold when no calibration history exists (mirrors mappingListModel). */
 const DEFAULT_TRUSTED_THRESHOLD = 0.85;
+
+// Module-scope so useTabParamSync's effect deps stay referentially stable — the
+// same reason /settings and the supplier profile hoist theirs.
+const isOrderDetailsTab = (v: string | null | undefined): v is OrderDetailsTab =>
+  v === "passport" || v === "conformance" || v === "response";
+
+/**
+ * WP-19 — what the screen says when the order will not load.
+ *
+ * Every cause used to render one of two sentences, chosen by whether the value
+ * happened to be `null`: otherwise "Something went wrong loading this order. Try
+ * again in a moment." A 404 THROWS here (`getOrderById` raises `ApiHttpError`
+ * rather than returning null), so an order that simply no longer exists read as a
+ * malfunction — and an expired session read as one too, with no way back to
+ * sign-in and no control at all on the screen.
+ *
+ * Three questions, in the order the operator asks them: is it gone, is it me, or
+ * is it worth trying again.
+ */
+function orderLoadFailure(
+  error: unknown,
+  orderIsNull: boolean,
+): { headline: string; body: string; action: "none" | "sign-in" | "retry" } {
+  const { kind, retryAfterSeconds } = classifyApiFailure(error);
+
+  if (orderIsNull || kind === "not_found") {
+    return {
+      headline: "We can't find this order",
+      body: "It may have been archived, or the link may be out of date. Your other orders are unaffected.",
+      // No control of our own. WorkshopGateShell already renders the "Back to
+      // inbox" chip, and adding a second back button here put two controls that
+      // do the same thing on one screen — in two different vocabularies, "orders"
+      // and "inbox". The exit exists; it just is not this component's to add.
+      action: "none",
+    };
+  }
+  if (kind === "auth_expired") {
+    return {
+      headline: "You've been signed out",
+      body: "Your session ended while this page was open. Sign in again and we'll bring you straight back to this order.",
+      action: "sign-in",
+    };
+  }
+  if (kind === "forbidden" || kind === "plan_gate") {
+    return {
+      headline: "This order isn't yours to open",
+      body: "It belongs to a different workspace. Switch workspace, or ask whoever owns it to share what you need.",
+      action: "none",
+    };
+  }
+  if (kind === "rate_limited") {
+    const wait = retryAfterSeconds !== null ? waitPhrase(retryAfterSeconds) : null;
+    return {
+      headline: "Too many requests just now",
+      body: wait
+        ? `We've been asked to wait ${wait} before loading this again.`
+        : "We're loading this a little too often. It clears on its own in a moment.",
+      action: "retry",
+    };
+  }
+  return {
+    headline: "We couldn't load this order",
+    body: "Nothing is wrong with the order itself — we just couldn't reach it. Try again in a moment.",
+    action: "retry",
+  };
+}
+
+/**
+ * The order screen's "this did not load" state. Extracted so the gate can be
+ * evaluated BEFORE the loading gate without duplicating the markup.
+ */
+function OrderLoadFailureGate({
+  failure,
+  orderId,
+  onRetry,
+}: {
+  failure: { headline: string; body: string; action: "none" | "sign-in" | "retry" };
+  orderId: string;
+  onRetry: () => unknown;
+}) {
+  const loadFailure = failure;
+  const refetchOrder = onRetry;
+  return (
+      <WorkshopGateShell>
+      <div className="flex flex-col items-center justify-center h-full gap-3.5 px-6 text-center" style={{ background: "#F6F7FA" }}>
+        <span style={{ width: 56, height: 56, borderRadius: "50%", background: "#FFFFFF", border: "1px solid #E5E8EE", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden>
+            <circle cx="12" cy="12" r="9" stroke="#CBD0DA" strokeWidth="1.6" />
+            <path d="M6 6 18 18" stroke="#CBD0DA" strokeWidth="1.6" strokeLinecap="round" />
+          </svg>
+        </span>
+        <p className="text-[15px] font-semibold" style={{ color: "#0B1A2F" }}>
+          {loadFailure.headline}
+        </p>
+        <p className="text-[12.5px]" style={{ color: "#5E6779", maxWidth: 340, lineHeight: 1.5 }}>
+          {loadFailure.body}
+        </p>
+        {loadFailure.action === "sign-in" && (
+          <Link
+            href={`/sign-in?redirect_url=${encodeURIComponent(`/inbox/${orderId}`)}`}
+            className="plk-focus"
+            style={{
+              display: "inline-flex", alignItems: "center", minHeight: 40, padding: "0 16px",
+              borderRadius: 6, background: "var(--navy)", color: "#FFFFFF",
+              fontSize: 13, fontWeight: 600, textDecoration: "none",
+            }}
+          >
+            Sign in again
+          </Link>
+        )}
+        {loadFailure.action === "retry" && (
+          <button
+            type="button"
+            onClick={() => { void refetchOrder(); }}
+            className="plk-focus"
+            style={{
+              minHeight: 40, padding: "0 16px", borderRadius: 6,
+              background: "var(--navy)", color: "#FFFFFF", fontSize: 13, fontWeight: 600,
+            }}
+          >
+            Try again
+          </button>
+        )}
+      </div>
+      </WorkshopGateShell>
+  );
+}
 
 /**
  * The trust threshold for the attention-first split = the LOWEST trusted bucket's
@@ -112,6 +246,18 @@ export function fixQueueToIssues(queue: FixQueueCard[]): WorkshopIssue[] {
 }
 
 /**
+ * True for a failure that never reached the endpoint, or reached it and came back
+ * unreadable. Both produce diagnostics rather than operator copy: `fetchWithTimeout`
+ * throws `Request timed out after 30000ms`, a dropped connection throws the browser's
+ * own `Failed to fetch`/`NetworkError`, and a truncated 200 makes `res.json()` throw a
+ * raw `SyntaxError`. Everything else — including every message the API writes itself —
+ * is left alone.
+ */
+export function isTransportFailure(message: string): boolean {
+  return /timed out|failed to fetch|network(?:error)?\b|load failed|json/i.test(message);
+}
+
+/**
  * WP-28 — the practice-order signal, split in two so it costs no vertical budget
  * above the three columns.
  *
@@ -140,7 +286,17 @@ function PracticeChip() {
 }
 
 /** The practice order's full explanation, rendered inside the Issues column. */
-function PracticeNote() {
+function PracticeNote({
+  delivers,
+  nounLower,
+  delivered,
+}: {
+  /** Did this run actually get a delivery setup seeded? `null` = we do not know yet. */
+  delivers: boolean | null;
+  /** From partyLabels(direction) — "supplier" outbound, "customer" inbound. */
+  nounLower: string;
+  delivered: boolean;
+}) {
   return (
     <div
       role="note"
@@ -152,11 +308,31 @@ function PracticeNote() {
       }}
     >
       <span aria-hidden style={{ width: 6, height: 6, borderRadius: "50%", background: "#2E8E3A", flexShrink: 0, marginTop: 5 }} />
-      <span>
-        <strong style={{ color: "#1E6D29", fontWeight: 700 }}>Practice order</strong>
-        {" "}— free, and it doesn&rsquo;t count against your plan.
-        Sending stops at &ldquo;delivery not set up&rdquo; — that&rsquo;s expected for a practice run.
-      </span>
+      {delivered ? (
+        <span>
+          <strong style={{ color: "#1E6D29", fontWeight: 700 }}>Practice order delivered</strong>
+          {" "}— we emailed you the finished file. That is byte-for-byte what a real order
+          produces.{" "}
+          <Link href="/upload" style={{ color: "#1E6D29", fontWeight: 600, textDecoration: "underline", textUnderlineOffset: 2 }}>
+            Upload your own order →
+          </Link>
+        </span>
+      ) : (
+        <span>
+          <strong style={{ color: "#1E6D29", fontWeight: 700 }}>Practice order</strong>
+          {" "}— free, and it doesn&rsquo;t count against your plan. Match the one missing item
+          code, then send it.{" "}
+          {/* WP-27 seeds an email delivery setup, so the old "sending stops at
+              'delivery not set up'" line is no longer true — it described the dead
+              end this packet removes. What IS true depends on the run, so say only
+              that: `null` promises nothing and holds either way. */}
+          {delivers === true
+            ? `The finished file is emailed to you, never to a ${nounLower}.`
+            : delivers === false
+            ? "Email sending isn't configured on this ProcuLink deployment yet, so this run will stop at “no delivery is set up”."
+            : `Nothing reaches a real ${nounLower}.`}
+        </span>
+      )}
     </div>
   );
 }
@@ -187,7 +363,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
   const { labels } = useOrderDirection();
 
   // ── Live order + the same hooks the classic screen uses (ONE send path) ─────
-  const { order, isLoading, isError, refetchOrder, exceptionCount, isStuck } = useOrderReview(orderId);
+  const { order, isLoading, isError, error: orderError, refetchOrder, exceptionCount, isStuck } = useOrderReview(orderId);
 
   // ── Audit events — only fetched for a failed order, to seed the problem panel's
   //    server-detail block when the order row itself carries no errorMessage (the
@@ -412,6 +588,95 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
     };
   }, [mapperToolbar]);
 
+  // ── Save mappings → promote this order's mapping onto the counterparty ──────
+  //    WP-13. The engine has carried a designed output tree from an order to its
+  //    counterparty since WP-12, but `promoteMapping()` had ZERO call sites and no
+  //    mount passed `onSaveMappings`, so nothing could reach it — and
+  //    /help/output-mapping-editor documented a control that did not render.
+  //
+  //    Plain useState rather than useMutation, matching the shipped save in
+  //    MappingEditor: this is a one-shot command with no cache entry of its own,
+  //    and the workshop's other server reads stay on TanStack Query.
+  const [promoting, setPromoting] = useState(false);
+  const [promoteNotice, setPromoteNotice] = useState<
+    { tone: "success" | "info" | "error"; text: string; upgradeUrl?: string } | null
+  >(null);
+
+  // The direction noun, lowercased for mid-sentence use ("supplier" / "customer").
+  const partyNoun = labels.counterpartyNoun.toLowerCase();
+
+  // Read-only for promotion: with no counterparty on the order there is nowhere to
+  // save the mapping TO, so the request could only 404. Named as a sentence because
+  // it is shown to the operator verbatim.
+  //
+  // `hasAssignedSupplier`, NOT `!supplierId`. An unassigned counterparty comes off
+  // the wire as Guid.Empty — a NON-EMPTY string — so a truthiness check reports
+  // "assigned" for exactly the order this control must refuse. `Order.supplierId` is
+  // typed non-optional for the same reason: `undefined` is a shape the API never
+  // sends. Two siblings in this screen already use the helper (WorkshopLinesView,
+  // CatalogHintCard).
+  const promoteDisabledReason = !hasAssignedSupplier(order?.supplierId)
+    ? `Assign a ${partyNoun} first — there is nowhere to save this mapping yet.`
+    : null;
+
+  // No second guard inside the handler. `saveMappingsDisabledReason` disabling the
+  // control IS the enforcement, and it is mutation-proven: forcing that reason to
+  // null turns two tests red. An in-handler early return looked like belt-and-braces
+  // but no test could reach it — a disabled button never fires — so it was an
+  // uncovered branch pretending to be a safeguard.
+  const onSaveMappings = useCallback(async () => {
+    setPromoting(true);
+    setPromoteNotice(null);
+    try {
+      const res = await promoteMapping(orderId);
+      // A blank name is a real shape (an unrouted order carries `supplierName: ""`),
+      // and a bare noun in a slot that expects a proper name reads as "for supplier".
+      const party = res.message ? null : (order?.supplierName || `this ${partyNoun}`);
+      const total =
+        res.totalFieldsPromoted ??
+        (res.headerFieldsPromoted ?? 0) +
+          (res.lineFieldsPromoted ?? 0) +
+          (res.outputHeaderFieldsPromoted ?? 0) +
+          (res.outputLineFieldsPromoted ?? 0);
+      const nothing = res.nothingToPromote === true || total === 0;
+      setPromoteNotice({
+        tone: nothing ? "info" : "success",
+        // The server's own sentence when it sent one — it knows exactly what it
+        // wrote. The fallback counts the SAME four fields the `nothing` test does:
+        // WP-12 promotes the OUTPUT tree, so `outputHeaderFieldsPromoted` and
+        // `outputLineFieldsPromoted` are routinely the only non-zero pair. A sentence
+        // built from the inbound two alone reports "Saved 0 header and 0 line
+        // mappings" as a SUCCESS, and prints `undefined` outright on the
+        // aggregate-only shape the `?? 0` guards exist for.
+        text:
+          res.message ??
+          (nothing
+            ? `Nothing new to save for ${party} — their mapping already covers this order.`
+            : `Saved ${total} field ${total === 1 ? "mapping" : "mappings"} for ${party}. ` +
+              `Their next order starts with these already applied.`),
+      });
+    } catch (e) {
+      const raw = e instanceof Error ? e.message : String(e);
+      setPromoteNotice({
+        tone: "error",
+        // Three shapes reach here and only one is operator copy. A plan gate becomes
+        // a sentence (plus the server's own upgrade link, rendered below); a
+        // transport/parse failure becomes a sentence too — "Request timed out after
+        // 30000ms" and "Unexpected end of JSON input" are diagnostics, not something
+        // to paint into a red banner. Anything else is the API's own message, which
+        // is already written for a human.
+        text: isPlanGateError(raw)
+          ? planGateMessage(raw)
+          : isTransportFailure(raw)
+            ? "We couldn't reach the server to save this. Check your connection and try again."
+            : raw,
+        upgradeUrl: isPlanGateError(raw) ? planGateUpgradeUrl(raw) : undefined,
+      });
+    } finally {
+      setPromoting(false);
+    }
+  }, [orderId, order?.supplierName, partyNoun]);
+
   // ── Order details drawer (audit / standards / supplier response) ────────────
   //    Secondary, lower-frequency trust surfaces relocated from the old screen's
   //    Passport/Conformance/Response tabs. Opened from a quiet header trigger.
@@ -419,13 +684,29 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
   //    (e.g. ExceptionDetail's "Check conformance" → ?tab=conformance) opens the
   //    matching drawer tab on first paint.
   const searchParams = useSearchParams();
-  // ?sample=1 is appended by useSampleOrder when navigating to a practice order.
-  // Reading it once on mount is sufficient — the param never changes during the session.
-  const isSampleOrder = searchParams?.get("sample") === "1";
-  const [detailsTab, setDetailsTab] = useState<OrderDetailsTab | null>(() => {
-    const t = searchParams?.get("tab");
-    return t === "passport" || t === "conformance" || t === "response" ? t : null;
-  });
+  // WP-27: the practice framing is SERVER-DRIVEN. It used to key off a `?sample=1`
+  // parameter that only useSampleOrder appended, so a practice order opened from a
+  // bookmark, the back button, or an inbox row rendered as a real one — and a real
+  // order opened with `?sample=1` pasted on rendered as practice. `order.isSample`
+  // comes from PurchaseOrderEntity.IsSample and is true wherever the order is.
+  const isSampleOrder = order?.isSample === true;
+  // Whether THIS practice run's delivery was actually set up (see practiceDeliveryKnown).
+  // null = we did not start it in this session, so the banner promises nothing. Read after
+  // mount: touching sessionStorage during render would diverge server pass from client.
+  const [practiceDelivers, setPracticeDelivers] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (isSampleOrder) setPracticeDelivers(practiceDeliveryKnown(orderId));
+  }, [isSampleOrder, orderId]);
+  const requestedTab = searchParams?.get("tab");
+  const [detailsTab, setDetailsTab] = useState<OrderDetailsTab | null>(() =>
+    isOrderDetailsTab(requestedTab) ? requestedTab : null,
+  );
+  // From WP-24, kept: seeding is not enough when the LINK ORIGINATES ON THIS ROUTE.
+  // The refused-order panel renders at /inbox/{id} and its "See their reply" points at
+  // /inbox/{id}?tab=response — a same-route navigation, which does not remount this
+  // component, so the initialiser above never re-runs and the drawer never opened. The
+  // button did nothing at all. React to the param's VALUE changing instead.
+  useTabParamSync<OrderDetailsTab>(requestedTab, isOrderDetailsTab, setDetailsTab);
   // Read the live query string at call time (not the searchParams snapshot) so these
   // stay referentially stable — otherwise every ?tab= write would re-identify them and
   // needlessly re-attach the drawer's Esc/focus-trap listeners while it is open.
@@ -507,7 +788,13 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
   // taking a band of its own above the three columns (WP-28).
   const columnNotes = (
     <>
-      {isSampleOrder && <PracticeNote />}
+      {isSampleOrder && (
+        <PracticeNote
+          delivers={practiceDelivers}
+          nounLower={labels.counterpartyNoun.toLowerCase()}
+          delivered={order?.status === "delivered"}
+        />
+      )}
       {catalogHint}
     </>
   );
@@ -647,6 +934,17 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
   //    suppresses its breadcrumb on this route, so the shell's compact header
   //    (← Inbox · PO number · status badge where known) is the ONLY navigation
   //    context these states have.
+  // The error gate is tested BEFORE the loading gate, and that ordering is the
+  // whole fix. A failed fetch leaves `data` undefined — TanStack only fills it on
+  // success — so `order === undefined` matched first and this screen showed
+  // "Preparing your order…" forever. The failure copy below was reachable only
+  // when the query RESOLVED to null, which the 404 path does not do (getOrderById
+  // throws an ApiHttpError). A missing order therefore did not read as a crash;
+  // it read as a hang, which is worse, because nothing on screen ever changed.
+  if (isError || order === null) {
+    const loadFailure = orderLoadFailure(orderError, order === null);
+    return <OrderLoadFailureGate failure={loadFailure} orderId={orderId} onRetry={refetchOrder} />;
+  }
   if (!queryEnabled || isLoading || order === undefined)
     return (
       <WorkshopGateShell>
@@ -656,28 +954,6 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
         />
       </WorkshopGateShell>
     );
-  if (isError || order === null) {
-    return (
-      <WorkshopGateShell>
-      <div className="flex flex-col items-center justify-center h-full gap-3.5 px-6 text-center" style={{ background: "#F6F7FA" }}>
-        <span style={{ width: 56, height: 56, borderRadius: "50%", background: "#FFFFFF", border: "1px solid #E5E8EE", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <circle cx="12" cy="12" r="9" stroke="#CBD0DA" strokeWidth="1.6" />
-            <path d="M6 6 18 18" stroke="#CBD0DA" strokeWidth="1.6" strokeLinecap="round" />
-          </svg>
-        </span>
-        <p className="text-[15px] font-semibold" style={{ color: "#0B1A2F" }}>
-          {order === null ? "Order not found" : "Failed to load order"}
-        </p>
-        <p className="text-[12.5px]" style={{ color: "#5E6779", maxWidth: 340, lineHeight: 1.5 }}>
-          {order === null
-            ? "This order may have been delivered and archived, or the link is out of date."
-            : "Something went wrong loading this order. Try again in a moment."}
-        </p>
-      </div>
-      </WorkshopGateShell>
-    );
-  }
 
   // ── The ONE problem gate. Every problem state renders <OrderProblemPanel>; the
   //    panel's own PROBLEM_COPY decides whether that is a full-page gate or a
@@ -897,6 +1173,66 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
         </div>
       )}
 
+      {/* ── Save-mappings result (WP-13) ──────────────────────────────────────
+          Still its OWN row after WP-28 folded the SEND notice into the status
+          bar, and for the reason that folding does not remove: the bar's single
+          `notice` slot holds one message, and a promote result landing in it
+          would either read as a send result or silently replace a send error the
+          operator has not dealt with yet. Two different acts, one slot, no way to
+          show both.
+
+          This row is transient and conditional — it exists only after an explicit
+          promote and can be dismissed — so it is not the permanent band WP-28
+          argued against.
+
+          `hidden lg:block` to match its trigger. The control lives on the status
+          bar, which is desktop-only — below lg the workshop renders MobileTriage,
+          a review-and-send surface with no field mapper, so there is nothing to
+          promote FROM there. Without this the notice row would exist at widths
+          where nothing can ever produce it. */}
+      {promoteNotice && (
+        // The breakpoint class lives on the WRAPPER, not on the notice: the notice
+        // sets `display: flex` inline, and an inline display always beats `hidden`.
+        <div className="hidden lg:block flex-shrink-0">
+          <div
+            data-testid="promote-notice"
+            data-tone={promoteNotice.tone}
+            role="status"
+            aria-live="polite"
+            className="px-4 lg:px-6"
+            style={{
+              padding: "8px 16px",
+              background: promoteNotice.tone === "error" ? "#FBE3E3" : promoteNotice.tone === "success" ? "#E9F1EA" : "#EFF4FB",
+              color: promoteNotice.tone === "error" ? "#B43838" : promoteNotice.tone === "success" ? "#1E6D29" : "#0F4FAB",
+              fontSize: 12.5, fontWeight: 600,
+              borderBottom: "1px solid #EEF0F4",
+              display: "flex", alignItems: "center", gap: 10,
+            }}
+          >
+            <span style={{ flex: 1, minWidth: 0 }}>{promoteNotice.text}</span>
+            {/* The upgrade path the SERVER chose for this particular gate, already
+                sanitized to an in-app path. Telling someone to upgrade and giving
+                them nowhere to click is the half-fix WP-11 exists to stop. */}
+            {promoteNotice.upgradeUrl && (
+              <Link
+                href={promoteNotice.upgradeUrl}
+                style={{ color: "inherit", textDecoration: "underline", flexShrink: 0, whiteSpace: "nowrap" }}
+              >
+                See plans
+              </Link>
+            )}
+            <button
+              type="button"
+              onClick={() => setPromoteNotice(null)}
+              aria-label="Dismiss"
+              style={{ border: 0, background: "transparent", color: "inherit", cursor: "pointer", fontSize: 14, lineHeight: 1, flexShrink: 0 }}
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ── Row 2 · ONE consolidated status bar (~42px). Replaces the old red
           SendReadinessStrip AND the mapper's "MAP THIS ORDER" toolbar row — the
           mapper is passed hideToolbar and publishes its handlers via
@@ -920,6 +1256,11 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
           resolving={issuesResolve.bulkAccepting}
           mapper={statusBarMapper}
           pipeline={<WorkshopStepper stage={stepperStage} failed={stepperFailed} />}
+          onSaveMappings={onSaveMappings}
+          savingMappings={promoting}
+          saveMappingsDisabledReason={promoteDisabledReason}
+          saveMappingsLabel={`Save mappings for this ${partyNoun}`}
+          saveMappingsTitle={`Save these field mappings onto this order's ${partyNoun} — their next order starts already mapped`}
           notice={flowNotice}
           noticeSeverity={flowSeverity === "error" ? "error" : flowSeverity === "success" ? "success" : "info"}
         />

@@ -257,6 +257,28 @@ export interface Order {
   isSample?: boolean;
   /** Human-readable error from the newest *Failed audit event; null for non-failed orders. */
   errorMessage?: string | null;
+  /**
+   * WP-19. The machine-readable CAUSE of a delivery failure, from the newest
+   * attempt — `supplier_auth_rejected`, `supplier_endpoint_not_found`,
+   * `supplier_rate_limited`, and so on. `SupplierResponseClassification` on the
+   * backend is the only authority; this is carried, never re-derived.
+   *
+   * The backend has always known the difference between expired credentials, a
+   * moved endpoint and a rate limit — it writes a distinct sentence for each —
+   * but only the sentence crossed the wire, so the UI could only offer one
+   * generic "Try sending now" for all of them. Reading a cause out of English
+   * prose would be a mirror that drifts the first time the copy is edited.
+   *
+   * Optional and nullable on purpose: an older API, or a failure that predates
+   * the field, simply falls back to the generic copy.
+   */
+  failureCause?: string | null;
+  /**
+   * WP-19. Seconds the supplier's endpoint asked us to wait, from its
+   * `Retry-After`, when it sent one. Only a rate-limited failure carries one.
+   * Null means the supplier named no wait — never that there is none.
+   */
+  retryAfterSeconds?: number | null;
   // ── Phase 4 enrichment (header) ───────────────────────────────────────────
   /** Extracted document subtotal (before tax); null when not captured. */
   subTotal?: number | null;

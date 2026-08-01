@@ -20,6 +20,12 @@ import { defineConfig, devices } from "@playwright/test";
 
 const isLive = process.env.PLAYWRIGHT_LIVE === "1";
 
+// Dev-server port. Defaults to the project's 8082 (what CI uses); overridable so two
+// git worktrees can run their own suites at once instead of one silently reusing the
+// other's server and testing the wrong tree.
+const PORT = process.env.PLAYWRIGHT_PORT ?? "8082";
+const ORIGIN = `http://localhost:${PORT}`;
+
 export default defineConfig({
   testDir: "./tests/e2e",
   // Warm /upload and the other heavy routes before the suite so the first test
@@ -38,7 +44,7 @@ export default defineConfig({
   reporter: process.env.CI ? "github" : "list",
 
   use: {
-    baseURL: process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:8082",
+    baseURL: process.env.PLAYWRIGHT_BASE_URL ?? ORIGIN,
     trace: "on-first-retry",
     screenshot: "only-on-failure",
     video: process.env.CI ? "off" : "retain-on-failure",
@@ -52,8 +58,8 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: isLive ? "bun run dev" : "bun run dev",
-    url: "http://localhost:8082",
+    command: `next dev -p ${PORT}`,
+    url: ORIGIN,
     timeout: 120_000,
     reuseExistingServer: !process.env.CI,
     env: {

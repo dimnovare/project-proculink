@@ -156,7 +156,12 @@ export const PLANS: Plan[] = [
       "5 suppliers",
       "Webhook/API delivery",
       "Email · SFTP · S3 ingestion",
-      "Mapping library + validation",
+      // "Mapping library" named a surface that does not exist — WP-11 deleted the
+      // BillingFeature of that name for exactly that reason ("no such surface exists anywhere
+      // in the product"). What Growth actually gets is the field mapper and validation, so the
+      // bullet now says that. The bulk import/export lever is the Operations differentiator and
+      // stays there.
+      "Field mapping + validation",
       "Audit log",
     ],
     cta: { label: "Upgrade to Growth", href: SIGN_UP },
@@ -215,12 +220,17 @@ export const PLANS: Plan[] = [
     orderLimitIsMonthly: true,
     blurb: "For higher-volume teams scaling order processing across more suppliers.",
     recommendationBlurb:
-      "Higher volume — up to 1,500 orders/month across 20 suppliers at about €0.67 per order, with every channel and custom output templates.",
+      "Higher volume — up to 1,500 orders/month across 20 suppliers at about €0.67 per order, with every channel included.",
+    // "Custom output templates" was removed: the saved-template subsystem it named was retired
+    // (BE #75) and its plan flag deleted with it (BE #80), so nothing gated it at Integration —
+    // the output designer and the per-order template override are available on every plan. Selling
+    // an ungated capability as a €999 differentiator is the offer⇔works rule broken on the price
+    // list itself. Integration's real differentiators are volume, suppliers and onboarding; the
+    // card now says only that.
     features: [
       "1,500 orders/month",
       "20 suppliers",
       "All channels (webhook/API, email, SFTP, S3)",
-      "Custom output templates",
       "Advanced audit trail",
       "Assisted onboarding",
     ],
@@ -290,6 +300,12 @@ export const PLANS: Plan[] = [
       "Custom volume",
       "Custom suppliers",
       "ERP connectors",
+      // Enterprise SSO was claimed on /security and in CLAUDE.md §11.5 but missing from this
+      // list — three surfaces, two answers. BillingFeature.Sso really is Enterprise-only, so the
+      // card is the one that was wrong. Worth knowing WHY it is the one gate with no 403: Clerk
+      // Enterprise Connections delivers the auth and ProcuLink never sits in front of it (a SAML
+      // session's JWT is identical), so the flag drives availability and onboarding, not a refusal.
+      "SSO (SAML/OIDC)",
       "Dedicated onboarding",
       "SLA",
       "Custom transformation rules",

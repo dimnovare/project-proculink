@@ -188,3 +188,24 @@ export function buildChecklistSteps(
     activeStep,
   };
 }
+
+/**
+ * How much room the checklist is entitled to (WP-27).
+ *
+ * The card used to render at the same ~320px whether the user had done nothing or
+ * five of six steps, and it sat on the dashboard until every step was ticked. The
+ * value of a step list is highest when you have done nothing and lowest when one
+ * step is left, so progress should buy back screen space rather than keep charging
+ * rent for it.
+ *
+ *   hero     — nothing done yet. The full card: headline, meter, CTA, every step.
+ *   compact  — under way. One row: meter, counter, active step, CTA, and a
+ *              disclosure for anyone who wants the full list back.
+ *   complete — every derivable step done. The one-time completion card, then gone.
+ */
+export type ChecklistDensity = "hero" | "compact" | "complete";
+
+export function checklistDensity(model: ChecklistModel): ChecklistDensity {
+  if (model.complete) return "complete";
+  return model.totalDone === 0 ? "hero" : "compact";
+}
