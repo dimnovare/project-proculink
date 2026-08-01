@@ -472,9 +472,26 @@ gates them at Growth). Read `plans.ts`:
 - Distributor: `€1,499/month` — 2,500 orders/month, 30 suppliers, all channels, bulk mapping, priority onboarding, founder-led supplier setup. CTA: `Upgrade to Distributor`.
 - Enterprise: `Custom` — custom volume/suppliers, ERP connectors, SSO, dedicated onboarding, SLA, custom transformation rules. CTA: `Contact sales`.
 
-**Offer ⇔ works applies to the ladder itself:** a capability may only be listed on a tier if
-the backend really gates it there (`BillingFeature` + `PlanConstants.MinimumPlan`, guarded by
-`BillingFeatureGateCoverageTests`). Do not add a bullet for a capability nothing enforces.
+**Offer ⇔ works applies to the ladder itself:** a capability may only be listed on a tier if the
+backend really gates it there. `BillingFeature` + `PlanConstants.MinimumPlan` are the source of
+truth; the guard that keeps them honest is
+`ProcuLink.Api.Tests/Architecture/BillingGateEnforcementIsRealTests.cs`, which reads **compiled IL**
+(via `BillingGateIlScanner`) and asserts per feature that the named production method provably
+reaches the gate primitive — `IBillingService.HasFeatureAsync`, or `PlanConstants.PlanHasFeature`
+for the single presentation-only case (SSO, which Clerk delivers). It also walks the reverse
+direction, so a gate call in production that no tier declares fails the build, and it ships a
+negative control pinning `OrdersController.GetAudit` as deliberately ungated. Verify a gate by
+running that test — never by reading a method name off a list.
+
+`BillingFeatureGateCoverageTests` is **not** that guard and cannot be: its `EnforcedBy` map is
+hand-typed free text asserted only by `ContainKey`, a live-keys check, and a member count, so
+deleting the `HasFeatureAsync` call out of `AuditController.GetAuditLog` leaves every one of its
+tests green. It is not dead, though — it pins the ladder table itself (each feature has a minimum
+plan, is off on the tier directly below that minimum, stays on for every tier above, and is off on
+Pilot) and fails the build when an enum member is added with no map entry.
+`BillingFeatureEnforcementTests` is the behavioural half: the named sites really refuse.
+
+Do not add a bullet for a capability nothing enforces.
 
 ---
 
@@ -561,3 +578,51 @@ These JSX files use inline styles (they're vanilla React prototype). Translate t
 ### shadcn/ui
 
 Keep shadcn primitives in `src/components/ui/` — they are dependency infrastructure. The Bridge Layer wraps or reskins them; it does not delete them. Custom Bridge components in `src/components/bridge/`.
+
+---
+
+## 15. How every session runs — token discipline (applies to all sessions and chips)
+
+**Every session in this repo starts in caveman mode and stays in it.** Invoke the `caveman` skill
+first, before anything else. Drop articles, filler, pleasantries and hedging in prose. Fragments are
+fine.
+
+**Caveman applies to prose only. Never to these:**
+
+- code, commit messages, PR bodies, and user-facing copy — those stay written normally
+- security warnings, and confirmations before an irreversible action
+- multi-step sequences where fragment order could be misread
+
+Technical substance is never abbreviated: file:line evidence, exact error strings, and command output
+stay verbatim.
+
+### Why
+
+Sessions here run long and in parallel. Context exhaustion is the most common cause of work being
+abandoned half-finished — a session that runs out mid-packet leaves a branch nobody else can safely
+pick up, and twice in one day that meant real work existing only on an unpushed local ref.
+
+### The habits that actually save context
+
+- **Batch independent tool calls into one message.** Two greps that do not depend on each other are
+  one round trip, not two.
+- **Delegate fan-out reads to subagents**, as many in parallel as the work genuinely splits into. A
+  search across many files should return a conclusion, not a file dump.
+- **Read the part of the file you need.** Whole-file reads of a 2,000-line component are how a
+  session dies at 40% of the task.
+- **Never re-derive what is already established.** Read `05-PROGRESS.md` in the master-plan directory
+  before re-investigating anything — it carries the correction log and the numbered traps, and most
+  dead ends have already been paid for once.
+- **Prefer `git grep` from the repo root.** Plain `grep -r` walks `.claude/worktrees/`, which is a
+  copy of the repo — hits there mean you searched the wrong tree, not that another branch owns the
+  code.
+- **Push anything worth keeping, the moment it is committed.** A session's worktree is not storage.
+
+### Before dispatching a chip
+
+Check the **open PR set**, not just `main`. A packet's prerequisite may be written, reviewed and
+green, and still invisible from `main` — dispatching against `main` alone is how two sessions get sent
+to build the same thing (TRAP 27).
+
+Give each chip a scope that is **file-disjoint** from every other chip in flight, and name in its
+brief which files belong to someone else.
