@@ -42,6 +42,25 @@ const T = {
 // The recommended plan + its price/limits come from the shared plan ladder
 // (src/lib/plans.ts) via recommendPlanByOrders — no plan numbers live here.
 
+// ─── Automation share ────────────────────────────────────────────────────────
+// The share of the manual flow ProcuLink is assumed to remove. This used to be a
+// buried `totalPain * 0.7`, disclosed as "an illustrative default based on our
+// analysis of typical manual reformatting effort". No such analysis exists —
+// the only occurrences of 70% in either repository were this constant and the
+// labels describing it, and as of the 2026-07-30 production census exactly one
+// org has ever held an order (see the note in src/lib/plans.ts). "Typical" was
+// also a population claim about an industry we have no data on.
+//
+// Making the false claim more precise would have been worse than the claim it
+// replaced, so the fix is structural: the share is now the seventh slider. It is
+// the reader's assumption to set, and every figure downstream derives from it.
+export const DEFAULT_AUTOMATION_PCT = 70;
+
+// €/order, at full precision — `eur()` below rounds to whole euros, which would
+// print the €0.50 overage rate as "€1".
+const perOrderEur = (n: number) =>
+  n.toLocaleString("en-GB", { style: "currency", currency: "EUR" });
+
 // ─── Field primitive (slider + value, as a row in the inputs card) ────────────
 function Field({
   label,
@@ -185,6 +204,7 @@ export function ROICalculator() {
   const [hourly, setHourly] = useState(25);
   const [errorPct, setErrorPct] = useState(2);
   const [reworkCost, setReworkCost] = useState(30);
+  const [automationPct, setAutomationPct] = useState(DEFAULT_AUTOMATION_PCT);
 
   const calc = useMemo(() => {
     const manualCost = orders * (manualPct / 100) * (minutes / 60) * hourly;
@@ -202,8 +222,9 @@ export function ROICalculator() {
     // treats setup as €0 — see the fine print below.
     const setup = 0;
 
-    // Conservative assumption: ProcuLink automates 70% of the painful flow.
-    const monthlySavings = totalPain * 0.7;
+    // The reader's own assumption about how much of the painful flow ProcuLink
+    // removes — see DEFAULT_AUTOMATION_PCT above. Not a measured outcome.
+    const monthlySavings = totalPain * (automationPct / 100);
     // NET of the plan's effective monthly cost (can be negative — that drives
     // the honest "start smaller" state below instead of a green upsell CTA).
     const netMonthly = plan.isCustom ? monthlySavings : monthlySavings - planPrice;
@@ -239,7 +260,7 @@ export function ROICalculator() {
       paybackMonths,
       roi3yr,
     };
-  }, [orders, manualPct, minutes, hourly, errorPct, reworkCost]);
+  }, [orders, manualPct, minutes, hourly, errorPct, reworkCost, automationPct]);
 
   const eur = (n: number) =>
     n.toLocaleString("en-GB", {
@@ -392,6 +413,16 @@ export function ROICalculator() {
               onChange={setReworkCost}
               divider
             />
+            <Field
+              label="% of that work you expect ProcuLink to remove"
+              value={automationPct}
+              display={`${automationPct}%`}
+              min={0}
+              max={100}
+              step={5}
+              onChange={setAutomationPct}
+              divider
+            />
           </div>
 
           {/* Outputs — the result rows sit a touch further apart on mobile (gap-5
@@ -407,7 +438,7 @@ export function ROICalculator() {
               value={calc.netPositive ? eur(Math.max(calc.netMonthly, 0)) : "€0"}
               sub={
                 calc.plan.isCustom
-                  ? `${eur(calc.monthlySavings)} gross savings at 70% automation · plus tailored volume pricing`
+                  ? `${eur(calc.monthlySavings)} gross savings at the ${automationPct}% you set · plus tailored volume pricing`
                   : `${eur(calc.monthlySavings)} gross savings (${eur(calc.manualCost)} labour + ${eur(calc.errorCost)} rework) − ${eur(calc.planPrice)} plan cost`
               }
               valueColor={calc.netPositive ? T.green : T.inkSoft}
@@ -527,8 +558,8 @@ export function ROICalculator() {
                   <p style={{ fontSize: 12.5, color: "#9DB2CE", lineHeight: 1.5, margin: "0 0 10px" }}>
                     {eur(calc.plan.priceMonthly ?? 0)} plan + {calc.overageOrders.toLocaleString()}{" "}
                     orders over the {calc.plan.orderLimit?.toLocaleString()}/mo allowance ×{" "}
-                    {OVERAGE_PER_ORDER_EUR.toLocaleString("en-GB", { style: "currency", currency: "EUR" })}{" "}
-                    = {eur(calc.overageEur)} overage. Processing is never blocked.
+                    {perOrderEur(OVERAGE_PER_ORDER_EUR)} = {eur(calc.overageEur)} overage.
+                    Processing is never blocked.
                   </p>
                 )}
                 <p
@@ -585,18 +616,18 @@ export function ROICalculator() {
             lineHeight: 1.6,
           }}
         >
-          Savings model assumes ProcuLink automates 70% of the manual reformatting and validation
-          flow — an illustrative default based on our analysis of typical manual reformatting
-          effort, not a measured customer outcome. Adjust the sliders for your own numbers; your
-          result will be higher if your current process involves multiple retypes or
-          supplier-specific formats.
+          Savings model assumes ProcuLink removes {automationPct}% of the manual reformatting and
+          validation flow — you set that share yourself on the last slider, and its starting value
+          is an illustrative default, not a measured customer outcome. Adjust the sliders for your
+          own numbers; your result will be higher if your current process involves multiple retypes
+          or supplier-specific formats.
           Plans are billed monthly and include light, self-serve setup at no extra cost; hands-on
           per-supplier onboarding applies only to Enterprise and other complex setups, is arranged
           manually (never auto-charged), and we will waive it for the first design partners we take
-          on. Paid plans include
-          a monthly order allowance; orders above it bill at €0.50/order and are never blocked — the
-          plan cost and payback maths above already include that overage. The Pilot tier is
-          free for 14 days (20 orders) and does not require a card.
+          on. Paid plans include a monthly order allowance; orders above it bill at{" "}
+          {`${perOrderEur(OVERAGE_PER_ORDER_EUR)}/order`} and are never blocked — the plan cost and
+          payback maths above already include that overage. The Pilot tier is free for 14 days
+          (20 orders) and does not require a card.
         </p>
       </div>
     </section>
