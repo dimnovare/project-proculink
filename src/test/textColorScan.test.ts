@@ -196,14 +196,14 @@ describe("the real tree — the amber family", () => {
   const EXEMPT: Exemption[] = [
     {
       rel: "src/components/bridge/BridgeDashboard.tsx",
-      contains: `{ key: "review",    label: "Needs review",  value: countBlocked,   color: AMBER },`,
+      contains: `{ key: "review",    label: "Needs review",   value: countBlocked,   color: AMBER,`,
       reason:
         "a stat-row RECORD field. Its only consumer renders `background: s.color` " +
         "on an 8×8px dot — never a glyph. The label beside it is #5E6779.",
     },
     {
       rel: "src/components/bridge/BridgeDashboard.tsx",
-      contains: `{ label: "Needs review", value: countBlocked,   color: AMBER },`,
+      contains: `{ label: "Needs review",   value: countBlocked,   color: AMBER },`,
       reason:
         "a proportion-bar SEGMENT field, consumed as `background: s.color` on the " +
         "bar and on the 8×8px legend square. Its `<b>` count is #0B1A2F.",
@@ -326,12 +326,12 @@ describe("the real tree — the green family", () => {
   const EXEMPT: Exemption[] = [
     {
       rel: "src/components/bridge/BridgeDashboard.tsx",
-      contains: `{ key: "delivered", label: "Delivered",     value: countDelivered, color: GREEN },`,
+      contains: `{ key: "delivered", label: "Delivered",      value: countDelivered, color: GREEN,`,
       reason: "stat-row RECORD field, consumed as `background: s.color` on an 8×8px dot.",
     },
     {
       rel: "src/components/bridge/BridgeDashboard.tsx",
-      contains: `{ label: "Delivered",    value: countDelivered, color: GREEN },`,
+      contains: `{ label: "Delivered",      value: countDelivered, color: GREEN },`,
       reason: "proportion-bar SEGMENT field, consumed as `background` on the bar and legend square.",
     },
     {
