@@ -299,14 +299,46 @@ describe("hubTooltip — lists a hub's VISIBLE tabs (derived from HUB_TABS, can'
     expect(hubTooltip(byLabel["Suppliers"])).toBe("Suppliers · Item codes");
     expect(hubTooltip(byLabel["Activity"])).toBe("Overview · Deliveries · Issues");
   });
+  // The regression this guards is "a hidden tab leaked into the hub tooltip". The old
+  // shape asserted that inside `HUB_TABS[hub].filter((t) => t.hidden)` and nothing else —
+  // so dropping `hidden: true` from every tab, the exact way the leak happens, emptied the
+  // loop and the test still passed. It was ALREADY vacuous for the `orders` hub, which has
+  // no hidden entry at all: one third of the iterations asserted nothing.
+  //
+  // So the expected hidden set is now declared, compared, and counted. Losing a `hidden`
+  // flag fails on the table comparison; leaking one into a tooltip fails on the tooltip
+  // assertion; a loop that runs zero times fails on the count.
+  const EXPECTED_HIDDEN: Record<HubKey, string[]> = {
+    orders: [],
+    suppliers: ["Format reference", "Changes", "Delivery channels"],
+    activity: ["System status", "Notifications"],
+  };
+
+  it("still has hidden entries to hide — the flag is what makes the nav four words wide", () => {
+    for (const hub of HUBS) {
+      expect(
+        HUB_TABS[hub].filter((t) => t.hidden).map((t) => t.label),
+        `${hub}'s hidden entries drifted — update EXPECTED_HIDDEN deliberately, or restore the flag`,
+      ).toEqual(EXPECTED_HIDDEN[hub]);
+    }
+    // Every hub key is accounted for, so a NEW hub cannot slip in unexamined.
+    expect(Object.keys(EXPECTED_HIDDEN).sort()).toEqual([...HUBS].sort());
+  });
+
   it("never names a hidden entry (it is reachable, not switchable)", () => {
+    let asserted = 0;
     for (const hub of HUBS) {
       const item = Object.values(byLabel).find((i) => i.hub === hub)!;
       const tip = hubTooltip(item)!;
-      for (const tab of HUB_TABS[hub].filter((t) => t.hidden)) {
-        expect(tip, `${hub} tooltip must not name hidden "${tab.label}"`).not.toContain(tab.label);
+      expect(tip, `${hub} has no tooltip to check`).toBeTruthy();
+      for (const label of EXPECTED_HIDDEN[hub]) {
+        expect(tip, `${hub} tooltip must not name hidden "${label}"`).not.toContain(label);
+        asserted++;
       }
     }
+    // Five hidden entries across three hubs. If this drops to 0 the loop above proved
+    // nothing, whatever colour the run reported.
+    expect(asserted, "the hidden-entry loop ran zero assertions").toBe(5);
   });
   it("returns undefined for non-hub items", () => {
     expect(hubTooltip(byLabel["Settings"])).toBeUndefined();

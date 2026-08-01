@@ -34,10 +34,30 @@ test.describe("Support contact form", () => {
     const form = page.getByRole("form", { name: /contact support/i });
     await expect(form).toBeVisible({ timeout: 10_000 });
 
-    // In mock mode (NEXT_PUBLIC_USE_MOCK=true) the api-client resolves
-    // submitSupportRequest in-memory so page.route() intercepts nothing.
-    // In live mode the route intercept verifies the request payload shape.
+    // The payload has to be checked in BOTH modes, so it is captured from two
+    // channels and asserted from whichever one fired:
+    //
+    //  • live (PLAYWRIGHT_LIVE=1) — api-client POSTs to /api/support/contact and
+    //    the route intercept below reads the body.
+    //  • mock (the CI default, NEXT_PUBLIC_USE_MOCK=true) — api-client resolves
+    //    submitSupportRequest in-memory, so page.route() intercepts nothing. But
+    //    mockSubmitSupportRequest logs the payload it was handed
+    //    (`console.info("[mock] submitSupportRequest", payload)`, src/lib/api-client.ts),
+    //    and that console argument is the same object the live path would send.
+    //
+    // Both channels carry every field, so nothing here is gated on the mode. The
+    // gate this replaced meant the default CI run verified none of it: category,
+    // subject, message and route went unchecked on every green run.
+    //
+    // If the mock's console.info is ever removed, this test fails loudly in mock
+    // mode rather than quietly stopping checking — that is the intended trade.
     let lastBody: unknown = null;
+    const loggedBodies: Promise<unknown>[] = [];
+    page.on("console", (msg) => {
+      if (!msg.text().includes("submitSupportRequest")) return;
+      const payloadArg = msg.args()[1];
+      if (payloadArg) loggedBodies.push(payloadArg.jsonValue().catch(() => null));
+    });
     await page.route(/\/api\/support\/contact$/i, async (route) => {
       lastBody = await route.request().postDataJSON().catch(() => null);
       await route.fulfill({ status: 200, body: JSON.stringify({ ok: true }), contentType: "application/json" });
@@ -52,18 +72,38 @@ test.describe("Support contact form", () => {
     // Primary assertion: success notice appears regardless of mock/live mode.
     await expect(form.getByText(/thanks.*we'll reply within one business day/i)).toBeVisible({ timeout: 10_000 });
 
-    // Secondary assertion: verify the request payload shape — only meaningful
-    // in live mode where page.route() intercepts the real network request.
-    if (process.env.PLAYWRIGHT_LIVE) {
-      expect(lastBody).toEqual(
-        expect.objectContaining({
-          category: "bug",
-          subject: "Playwright smoke",
-          message: expect.stringContaining("Playwright smoke test"),
-          route: "/support",
-        }),
-      );
-    }
+    // …and the other half of this test's name: the form clears what was typed.
+    await expect(
+      form.getByLabel(/message/i),
+      "success notice shown but the message survived — this test's name promises it is cleared",
+    ).toHaveValue("");
+    await expect(form.getByLabel(/subject/i)).toHaveValue("");
+
+    // The submitted payload — asserted on every run, in either mode. Console
+    // messages arrive over CDP, so poll for the payload instead of reading the
+    // buffers once and racing the transport.
+    let submitted: unknown = null;
+    await expect
+      .poll(
+        async () => {
+          submitted = lastBody ?? (await Promise.all(loggedBodies)).find((b) => b != null) ?? null;
+          return submitted;
+        },
+        {
+          message:
+            "the form claimed success but submitted nothing observable — no POST body and no mock payload log, so the success notice proved only that a button was clicked",
+          timeout: 5_000,
+        },
+      )
+      .not.toBeNull();
+    expect(submitted).toEqual(
+      expect.objectContaining({
+        category: "bug",
+        subject: "Playwright smoke",
+        message: expect.stringContaining("Playwright smoke test"),
+        route: "/support",
+      }),
+    );
   });
 
   test("network failure surfaces the error notice", async ({ page }) => {
