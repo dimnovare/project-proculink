@@ -13,6 +13,7 @@ import type {
   PassportDto,
   PassportEvent,
   PassportMappingDecision,
+  PassportValidationResult,
   PassportDeliveryAttempt,
   PassportOutputArtifact,
 } from "@/types/procurement";
@@ -20,6 +21,21 @@ import type {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const lc = (s: string | null | undefined) => (s ?? "").toLowerCase();
+
+/**
+ * Did this check FAIL? `status` is the only field that answers that — severity says how
+ * loud the rule is when it fails, and the producer stamps passing rows with it too.
+ *
+ * The severity fallback is for responses from an API older than WP-39, which sent no
+ * `status` at all. It is the pre-fix behaviour and it over-reports; that is the correct
+ * direction to be wrong in while the two deploys are out of step, because the opposite —
+ * reading a missing field as "everything passed" — hides a real failure.
+ */
+function validationRowFailed(v: PassportValidationResult): boolean {
+  const status = lc(v.status).trim();
+  if (status) return status === "fail";
+  return lc(v.severity).trim() === "error";
+}
 
 function fmtDateTime(at: string | null | undefined): string {
   if (!at) return "—";
@@ -129,8 +145,13 @@ function deriveTimeline(p: PassportDto): DerivedTimeline {
       case 0: return p.sourceArtifact?.detectedFormat ? `${p.sourceArtifact.detectedFormat.toUpperCase()} source` : undefined;
       case 1: return lineCount > 0 ? `${lineCount} line${lineCount !== 1 ? "s" : ""} extracted` : undefined;
       case 2: {
-        const errs = p.validationResults.filter((v) => v.passed === false || lc(v.severity ?? "") === "error").length;
-        return errs > 0 ? `${errs} validation issue${errs !== 1 ? "s" : ""}` : undefined;
+        const rows = p.validationResults;
+        const errs = rows.filter(validationRowFailed).length;
+        if (errs > 0) return `${errs} validation issue${errs !== 1 ? "s" : ""}`;
+        // Say how many checks ran rather than nothing at all. The producer emits a row
+        // per check PERFORMED — that is the whole point of the invariants — so "4 checks
+        // passed" is the evidence the node is claiming, and a bare "Validated" is not.
+        return rows.length > 0 ? `${rows.length} checks passed` : undefined;
       }
       case 3: {
         const unresolved = p.mappingDecisions.filter((d) => lc(d.source) === "unresolved").length;
@@ -236,12 +257,12 @@ function MappingRow({ d }: { d: PassportMappingDecision }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderTop: "1px solid #F0F2F6", fontSize: 11.5 }}>
       <span style={{ width: 22, flexShrink: 0, color: "var(--ink-faint)", fontFamily: "'JetBrains Mono',monospace" }}>{d.lineNumber}</span>
-      <span style={{ fontFamily: "'JetBrains Mono',monospace", color: "#1E66C9", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{d.buyerCode || "—"}</span>
+      <span data-testid="mapping-buyer-code" style={{ fontFamily: "'JetBrains Mono',monospace", color: "#1E66C9", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{d.buyerItemCode || "—"}</span>
       <span style={{ color: "var(--ink-faint)", flexShrink: 0 }}>→</span>
       {/* Resolved code is #1E6D29, not #2E8E3A: 11.5px mono copy on the Section's
           #FFFFFF, where #2E8E3A is 4.1613:1 — under AA. #1E6D29 is 6.4128:1, and
           matches the #1E66C9 buyer code beside it (5.5275:1). */}
-      <span style={{ fontFamily: "'JetBrains Mono',monospace", color: d.supplierCode ? "#1E6D29" : "#B43838", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{d.supplierCode || "unresolved"}</span>
+      <span data-testid="mapping-supplier-code" style={{ fontFamily: "'JetBrains Mono',monospace", color: d.supplierItemCode ? "#1E6D29" : "#B43838", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{d.supplierItemCode || "unresolved"}</span>
       <span style={{ flexShrink: 0, fontSize: 9.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", background: badge.bg, color: badge.color, borderRadius: 3, padding: "2px 6px" }}>{d.source}</span>
       {d.confidence != null && <Pct value={d.confidence <= 1 ? d.confidence * 100 : d.confidence} />}
     </div>

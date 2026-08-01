@@ -13,6 +13,7 @@
 import { describe, test, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, cleanup, waitFor } from "@testing-library/react";
 import type { Order, OrderValidationResult } from "@/types/procurement";
+import { PRACTICE_DELIVERY_STATES, type PracticeDeliveryState } from "@/lib/practiceDelivery";
 
 const mockState: {
   order: Order | null | undefined;
@@ -41,7 +42,7 @@ vi.mock("@/hooks/useSampleOrder", () => ({
   practiceDeliveryKnown: () => practiceDelivery,
 }));
 
-let practiceDelivery: boolean | null = null;
+let practiceDelivery: PracticeDeliveryState | null = null;
 
 // Party labels are per-ORG (outbound → "Supplier", inbound → "Customer"), so the mock
 // has to be switchable: a string that reads correctly in one direction and nonsense in
@@ -217,9 +218,9 @@ describe("practice-order framing", () => {
 
   test("promises an email ONLY when this run really has a delivery set up", async () => {
     // A deployment with no email provider seeds nothing, and the backend says so via
-    // deliveryConfigured=false. Promising "we'll email you the finished file" there
+    // practiceDelivery="not_set_up". Promising "we'll email you the finished file" there
     // would be a promise we cannot keep — the run stops at "no delivery is set up".
-    practiceDelivery = true;
+    practiceDelivery = "emailed_to_you";
     mockState.order = makeOrder({ isSample: true });
     const { unmount } = render(<OrderWorkshop orderId="ord-1" />);
     await waitFor(() =>
@@ -227,7 +228,7 @@ describe("practice-order framing", () => {
     );
     unmount();
 
-    practiceDelivery = false;
+    practiceDelivery = "not_set_up";
     mockState.order = makeOrder({ isSample: true });
     render(<OrderWorkshop orderId="ord-1" />);
     await waitFor(() =>
@@ -236,6 +237,22 @@ describe("practice-order framing", () => {
       // the old copy sent the user hunting in Settings.
       expect(banner()!.textContent).toMatch(/email sending isn'?t configured on this proculink deployment/i),
     );
+    expect(banner()!.textContent).not.toMatch(/finished file is emailed to you/i);
+  });
+
+  test("does not promise a stop when the supplier already has a delivery target", async () => {
+    // WP-39 §4.5. This is the case the old bool could not express: the seeder found a
+    // delivery config it did not write and could not replace, so it left it alone — and
+    // pressing send dispatches through it. The screen used to render this identically to
+    // "not_set_up" and tell the operator the run would stop.
+    practiceDelivery = "existing_target";
+    mockState.order = makeOrder({ isSample: true });
+    render(<OrderWorkshop orderId="ord-1" />);
+
+    await waitFor(() =>
+      expect(banner()!.textContent).toMatch(/already has a delivery target/i),
+    );
+    expect(banner()!.textContent).not.toMatch(/will stop at/i);
     expect(banner()!.textContent).not.toMatch(/finished file is emailed to you/i);
   });
 
@@ -257,9 +274,12 @@ describe("practice-order framing", () => {
     // it checks nav labels against the nine-noun budget, not body copy.
     counterpartyNoun = "Customer";
 
-    // All three pre-send branches, plus the delivered branch: every sentence the banner
-    // can render has to survive the relabel, not just the one that happens to be default.
-    for (const known of [null, true, false] as (boolean | null)[]) {
+    // EVERY pre-send branch, plus the delivered branch: every sentence the banner can
+    // render has to survive the relabel, not just the one that happens to be default.
+    // Driven off PRACTICE_DELIVERY_STATES rather than a list typed here — this walk used
+    // to enumerate [null, true, false], and a state added to the table would have slipped
+    // past it unrelabelled, which is how "supplier" survives into an inbound org.
+    for (const known of [null, ...PRACTICE_DELIVERY_STATES]) {
       practiceDelivery = known;
       mockState.order = makeOrder({ isSample: true });
       const { unmount } = render(<OrderWorkshop orderId="ord-1" />);

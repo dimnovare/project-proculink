@@ -650,18 +650,38 @@ export interface PassportSupplierProfile {
   lastUpdatedAt: string | null;
 }
 
+/**
+ * One row of `GET /api/orders/{id}/passport` → `validationResults`.
+ *
+ * Field names are the API's, verbatim. They did not used to be: this interface
+ * declared `ruleName`, `field` and `passed`, none of which the backend has ever
+ * sent, and omitted `code`, `lineNumber` and `status`, all of which it does. Every
+ * field being optional meant the compiler had nothing to object to, so
+ * `v.passed === false` read `undefined === false` on every row forever, and the
+ * audit trail fell back to severity — which is how a delivered order with four
+ * PASSING checks came to be labelled "3 validation issues" (WP-39 §4.1).
+ */
 export interface PassportValidationResult {
-  ruleName?: string | null;
+  lineNumber?: number | null;
+  /**
+   * info | warning | error — how loud this rule is WHEN it fails. Not whether it
+   * failed. The producer stamps passing rows with the severity the rule would carry
+   * if it failed, deliberately, so an order with no rules cannot show a vacuous
+   * green "Passed". Read `status`, never this, to tell a pass from a failure.
+   */
   severity?: string | null;
+  /** pass | fail — the outcome. Absent on responses from an API older than WP-39. */
+  status?: string | null;
+  code?: string | null;
   message?: string | null;
-  field?: string | null;
-  passed?: boolean | null;
 }
 
+/** One row of `GET /api/orders/{id}/passport` → `mappingDecisions`. */
 export interface PassportMappingDecision {
   lineNumber: number;
-  buyerCode: string | null;
-  supplierCode: string | null;
+  /** Named for the API's `buyerItemCode`, not the `buyerCode` this used to guess at. */
+  buyerItemCode: string | null;
+  supplierItemCode: string | null;
   source: "deterministic" | "ai" | "unresolved" | string;
   confidence: number | null;
 }
