@@ -43,7 +43,12 @@ const SUPPLIER_CODE = "SMP-BRACKET-S";
 /** The consent banner is fixed to the bottom and can intercept clicks on the review screen. */
 async function dismissCookieBanner(page: Page) {
   const reject = page.getByRole("dialog", { name: /cookie consent/i }).getByRole("button", { name: /reject/i });
-  if (await reject.count()) await reject.click().catch(() => {});
+  // The `count()` guard already covers "no banner on this run". Beyond that, a click that
+  // does not land is not a tolerable outcome: the banner stays fixed to the bottom and
+  // intercepts the review-screen clicks below, so swallowing the failure here only moves it
+  // somewhere less legible. Let it throw where it happened. (WP-02 — the empty `.catch` this
+  // replaces was the one offender the vacuous-pass guard found in newly-merged code.)
+  if (await reject.count()) await reject.click();
 }
 
 /** Opens the practice-order prompt on /upload. Retries the click through hydration. */
