@@ -906,9 +906,13 @@ const fieldLabelStyle: CSSProperties = {
   display: "block",
 };
 
+// WP-31: `minHeight` rather than `height` so the touch floors in globals.css
+// (44px hit area, 16px font) can clamp this up without fighting a fixed height.
+// The `.settings-shell` mobile font-size rule above predates the global floor and
+// is now redundant for widths ≤639px; it is kept because it also covers 640–767px.
 const inputStyle: CSSProperties = {
   width: "100%",
-  height: 40,
+  minHeight: 40,
   border: "1px solid var(--border)",
   borderRadius: 8,
   padding: "0 12px",

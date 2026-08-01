@@ -10,8 +10,9 @@
 // we Math.round(eur * 100) so 49.90 → 4990 cents. amountCents is PER-UNIT;
 // the backend multiplies by quantity. amountCents must be > 0.
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { X, Check, Plus, ExternalLink } from "lucide-react";
+import { useDialogA11y } from "@/hooks/useDialogA11y";
 import {
   createAdminInvoice,
   type AdminOrganisation,
@@ -73,28 +74,10 @@ export function CreateInvoiceModal({
     [organisations, organisationId],
   );
 
-  // Escape-to-close + body-scroll lock + focus-in. Mirrors the app's drawer a11y.
-  useEffect(() => {
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const t = setTimeout(() => {
-      dialogRef.current
-        ?.querySelector<HTMLElement>("select, input, button")
-        ?.focus();
-    }, 0);
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        onClose();
-      }
-    }
-    document.addEventListener("keydown", onKey);
-    return () => {
-      clearTimeout(t);
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prevOverflow;
-    };
-  }, [onClose]);
+  // Escape-to-close + body-scroll lock + focus-in + focus-trap + focus-restore.
+  // Was a local copy that did the first three and neither of the last two.
+  // Mounted only while open, so `open` is constant true.
+  useDialogA11y({ open: true, onClose, panelRef: dialogRef });
 
   // Live preview total, in cents, so the user sees what Stripe will charge.
   const totalCents = lines.reduce((sum, l) => {

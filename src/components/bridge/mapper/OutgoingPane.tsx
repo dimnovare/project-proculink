@@ -25,7 +25,8 @@
 //
 // Presentational + prop-driven. No data fetch here.
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useDialogA11y } from "@/hooks/useDialogA11y";
 import type { ManipulatorEntry, OutputFormatId } from "@/lib/api/types";
 import type { CanonicalNode, SourceField, TargetField } from "./types";
 import { isTargetWired, isRenameAffordanceShown } from "./targetLaneModel";
@@ -1006,6 +1007,7 @@ function AddOutputFieldMenu({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [customScope, setCustomScope] = useState<TargetField["scope"]>("header");
+  const popoverRef = useRef<HTMLDivElement>(null);
 
   // Canonical fields not yet in the output, filtered by the query, grouped header → line.
   const available = useMemo(
@@ -1030,10 +1032,18 @@ function AddOutputFieldMenu({
     (existingPaths.has(trimmed.toLowerCase()) || canonicalOptions.some((n) => n.id.toLowerCase() === trimmed.toLowerCase()));
   const canCreateCustom = !!trimmed && !exactExists;
 
-  function close() {
+  const close = useCallback(() => {
     setOpen(false);
     setQuery("");
-  }
+  }, []);
+
+  // NON-MODAL layer, anchored to the "Add output field" trigger. Escape closes it
+  // from anywhere in the panel (it used to close only while the search input had
+  // focus) and focus returns to the trigger. No Tab trap: the page behind stays
+  // operable, so trapping Tab here would be a keyboard trap, not a fix.
+  // `autoFocus: false` — the search input carries its own autoFocus.
+  useDialogA11y({ open, onClose: close, panelRef: popoverRef, modal: false, autoFocus: false });
+
   function addCanonical(node: CanonicalNode) {
     onAddField(node.id, node.scope);
     close();
@@ -1067,8 +1077,10 @@ function AddOutputFieldMenu({
           {/* Click-away scrim (transparent) so the panel closes on outside click. */}
           <div style={{ position: "fixed", inset: 0, zIndex: 30 }} onClick={close} aria-hidden />
           <div
+            ref={popoverRef}
             role="dialog"
             aria-label="Add an output field"
+            data-plk-nonmodal="popover"
             style={{
               position: "absolute", right: 0, zIndex: 31, width: 340,
               // The bottom (full-width) button sits at the end of the scrollable list, so its panel

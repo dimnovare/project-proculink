@@ -446,13 +446,30 @@ export default function RootPage() {
                 {/* Segmented control, not a page action — so it is styled with
                     token CLASSES rather than an inline background. Active state
                     is white on --brand-blue (5.53:1); inactive is --navy-muted
-                    on --navy-well (5.38:1). Both AA at 11px/600. */}
+                    on --navy-well (5.38:1). Both AA at 11px/600.
+
+                    TAP TARGET (WP-31). WP-30 left these as "a layout decision,
+                    not a token one" and recorded them at 22px. That number does
+                    NOT reproduce: measured in Chromium they were 24.5px, because
+                    `text-[11px]` sets font-size only and the inherited
+                    line-height resolves to 16.5px, not the ~13.3px a hand
+                    calculation from `line-height: normal` gives. So they already
+                    cleared WCAG 2.2 SC 2.5.8's 24px floor — by half a pixel, which
+                    any line-height change would erase. py-1 → py-[7px] takes them
+                    to a measured 30.5px, real headroom over the floor, and costs
+                    the hero chrome bar 6px. On touch the globals.css floor
+                    (`@media (pointer: coarse)`) takes it the rest of the way to
+                    44px — which is why there is deliberately NO `min-h-*` utility
+                    here: a Tailwind class (specificity 0,1,0) would OUT-SPECIFY the
+                    element-selector floor (0,0,1) and silently cap the mobile hit
+                    area at the desktop size. Nothing in the hero chain declares a
+                    height, so both sizes reflow rather than clip. */}
                 <button
                   type="button"
                   aria-pressed={heroView === "topology"}
                   onClick={() => setHeroView("topology")}
                   className={[
-                    "rounded-sm border-0 px-[11px] py-1 text-[11px] font-semibold",
+                    "rounded-sm border-0 px-[11px] py-[7px] text-[11px] font-semibold",
                     heroView === "topology"
                       ? "bg-brand-blue text-surface"
                       : "bg-transparent text-navy-muted",
@@ -465,7 +482,7 @@ export default function RootPage() {
                   aria-pressed={heroView === "canonical"}
                   onClick={() => setHeroView("canonical")}
                   className={[
-                    "rounded-sm border-0 px-[11px] py-1 text-[11px] font-semibold",
+                    "rounded-sm border-0 px-[11px] py-[7px] text-[11px] font-semibold",
                     heroView === "canonical"
                       ? "bg-brand-blue text-surface"
                       : "bg-transparent text-navy-muted",

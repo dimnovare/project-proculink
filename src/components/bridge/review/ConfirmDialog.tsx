@@ -9,6 +9,7 @@
 // give the operator something real to acknowledge).
 
 import { useState, useRef, useEffect } from "react";
+import { useDialogA11y } from "@/hooks/useDialogA11y";
 import type { PartyLabels } from "@/hooks/useOrderDirection";
 import { shouldRequireConfirmCheckbox, confirmAlwaysFlag } from "./confirmPolicy";
 
@@ -44,47 +45,33 @@ export function ConfirmDialog({ exceptionCount, onConfirm, onCancel, supplierNam
   const titleId = "spine-confirm-title";
 
   // Move focus into the dialog on open (the checkbox when it renders, else the
-  // primary confirm button) and restore it to the previously-focused element
-  // (the Send button) when the dialog closes.
-  useEffect(() => {
-    const previouslyFocused = document.activeElement as HTMLElement | null;
-    if (checkRef.current) checkRef.current.focus();
-    else confirmBtnRef.current?.focus();
-    return () => previouslyFocused?.focus?.();
-  }, []);
+  // primary confirm button), trap Tab inside it, close on Escape, and restore
+  // focus to the previously-focused element (the Send button) on close.
+  // All five behaviours come from the shared hook now; this file used to carry
+  // its own copy. Enter-to-confirm stays local — it is this dialog's own
+  // shortcut, not part of the shared contract.
+  useDialogA11y({
+    open: true,
+    onClose: onCancel,
+    panelRef: dialogRef,
+    // `requireCheckbox` is the render-time predicate for whether checkRef's input
+    // exists at all — reading `checkRef.current` here would be null on first
+    // render and would silently always pick the button.
+    initialFocusRef: requireCheckbox ? checkRef : confirmBtnRef,
+  });
 
   // Keep the latest values for the keydown handler without re-registering the
-  // listener on every render. canConfirm/onConfirm/onCancel can change between
-  // renders (checkbox toggles), so read them through a ref inside a stable
-  // listener registered once.
-  const keyHandlerState = useRef({ canConfirm, onConfirm, onCancel });
-  keyHandlerState.current = { canConfirm, onConfirm, onCancel };
+  // listener on every render.
+  const keyHandlerState = useRef({ canConfirm, onConfirm });
+  keyHandlerState.current = { canConfirm, onConfirm };
 
-  // Focus trap scoped to the DIALOG element (not document): Tab/Shift-Tab cycle
-  // within the dialog's focusable elements, Escape closes, Enter confirms.
-  // Registered once on mount; cleanup removes the listener (WCAG-compliant modal).
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
-
     function handleKeyDown(e: KeyboardEvent) {
-      const { canConfirm, onConfirm, onCancel } = keyHandlerState.current;
-      if (e.key === "Escape") { onCancel(); return; }
-      if (e.key === "Enter" && canConfirm) { onConfirm(); return; }
-      // Focus trap — keep Tab within the dialog's focusable elements.
-      if (e.key === "Tab") {
-        const focusables = dialog.querySelectorAll<HTMLElement>(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-        );
-        if (focusables.length === 0) return;
-        const first = focusables[0];
-        const last = focusables[focusables.length - 1];
-        const active = document.activeElement;
-        if (e.shiftKey && active === first) { e.preventDefault(); last.focus(); }
-        else if (!e.shiftKey && active === last) { e.preventDefault(); first.focus(); }
-      }
+      const { canConfirm, onConfirm } = keyHandlerState.current;
+      if (e.key === "Enter" && canConfirm) onConfirm();
     }
-
     dialog.addEventListener("keydown", handleKeyDown);
     return () => dialog.removeEventListener("keydown", handleKeyDown);
   }, []);

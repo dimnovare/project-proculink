@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useDialogA11y } from "@/hooks/useDialogA11y";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { capture } from "@/lib/analytics";
@@ -250,14 +251,20 @@ export function HelpSlideover({ open, onClose }: Props) {
     if (open) capture("help_slideover_opened", { route: pathname });
   }, [open, pathname]);
 
-  // Focus the search input on open (BridgeTopbar restores focus to "?" on close).
+  // Reset the query when the slideover closes. (Focusing the search input on open
+  // is now the shared hook's `initialFocusRef` job — see below.)
   useEffect(() => {
-    if (open) searchRef.current?.focus();
-    else {
-      setQuery("");
-      setDebounced("");
-    }
+    if (open) return;
+    setQuery("");
+    setDebounced("");
   }, [open]);
+
+  // Modal a11y: Escape + focus-in (the search field) + focus-trap + focus-restore
+  // + scroll lock. Was Escape + focus-in only, with the focus restore living in
+  // BridgeTopbar; the hook now owns the restore, which also covers the other
+  // mount sites.
+  const panelRef = useRef<HTMLDivElement>(null);
+  useDialogA11y({ open, onClose, panelRef, initialFocusRef: searchRef });
 
   // Debounce the query 150 ms before searching.
   useEffect(() => {
@@ -275,15 +282,6 @@ export function HelpSlideover({ open, onClose }: Props) {
       surface: "slideover",
     });
   }, [debounced, fuse]);
-
-  useEffect(() => {
-    if (!open) return;
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
 
   if (!open) return null;
 
@@ -306,6 +304,7 @@ export function HelpSlideover({ open, onClose }: Props) {
 
   return (
     <div
+      ref={panelRef}
       role="dialog"
       aria-label="Help"
       aria-modal="true"

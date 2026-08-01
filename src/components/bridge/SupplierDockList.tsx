@@ -21,7 +21,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useDialogA11y } from "@/hooks/useDialogA11y";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getBillingStatus, apiClient, listConnections } from "@/lib/api-client";
 import { getDeliveryConfig, upsertDeliveryConfig } from "@/lib/api/delivery";
@@ -150,13 +151,11 @@ export function SupplierDockList() {
   const [pageNotice, setPageNotice] = useState<string | null>(null);
   const [hoverRow, setHoverRow] = useState<string | null>(null);
 
-  // Close the New-supplier modal on Escape while it is open.
-  useEffect(() => {
-    if (!showAddPanel) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setShowAddPanel(false); };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [showAddPanel]);
+  // New-supplier modal a11y: Escape + focus-in + focus-trap + focus-restore +
+  // scroll lock. Was an Escape-only listener with no trap.
+  const addPanelRef = useRef<HTMLDivElement>(null);
+  const closeAddPanel = useCallback(() => setShowAddPanel(false), []);
+  useDialogA11y({ open: showAddPanel, onClose: closeAddPanel, panelRef: addPanelRef });
 
   // ── Billing check ──────────────────────────────────────────────────────────
   const { data: billing, isError: billingError } = useQuery({
@@ -367,6 +366,7 @@ export function SupplierDockList() {
             onClick={() => setShowAddPanel(false)}
           >
             <div
+              ref={addPanelRef}
               role="dialog"
               aria-modal="true"
               aria-labelledby="new-supplier-title"

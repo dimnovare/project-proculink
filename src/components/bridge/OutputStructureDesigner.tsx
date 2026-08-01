@@ -25,6 +25,7 @@ import {
   type OutputNodeType, type OutputFormat, type SourceToken,
 } from "@/lib/api/types";
 import { useConfirm } from "@/components/ui/confirm";
+import { useDialogA11y } from "@/hooks/useDialogA11y";
 
 // Only the formats the backend OutputTemplateEmitter produces VALIDLY from a generic node tree
 // (offer⇔works). JSON / XML / CSV are first-class. cXML, UBL, and X12 are intentionally NOT offered:
@@ -317,8 +318,16 @@ export function OutputStructureDesigner({
     onClose();
   }, [dirty, onClose, confirm]);
 
+  // Modal a11y. Escape routes through requestClose, so a dirty tree still asks
+  // before discarding. The hook's foreign-layer bail-out is what keeps that
+  // working: `confirm()` mounts a Radix <AlertDialog> portaled to <body>, and
+  // without the bail-out this handler would eat the Escape meant for it.
+  // Mounted only while open, so `open` is constant true.
+  const panelRef = useRef<HTMLDivElement>(null);
+  useDialogA11y({ open: true, onClose: requestClose, panelRef });
+
   return (
-    <div role="dialog" aria-label="Design output structure"
+    <div ref={panelRef} role="dialog" aria-modal="true" aria-label="Design output structure"
       style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(8,16,28,0.55)", display: "flex", justifyContent: "center", alignItems: "stretch",
         // Full-screen on narrow viewports (no breathing-room padding) so the single-column stack
         // has the whole screen; comfortable inset on desktop.

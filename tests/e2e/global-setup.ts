@@ -52,6 +52,11 @@ const ROUTES = [
   "/operations/connectors",
   "/settings",
   "/admin",
+  // ── tap-targets.spec.ts measures a phone viewport across these ──
+  "/operations/webhooks",
+  "/library/buyers",
+  "/library/suppliers",
+  "/inbox",
 ];
 
 // `next dev` compiles roughly one route at a time; a batch this size keeps a few

@@ -8,9 +8,10 @@
 // there. The old steps 2–4 and their resume logic (which could hand the upload
 // step a placeholder supplier with an empty id) were deleted with the shrink.
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
+import { useDialogA11y } from "@/hooks/useDialogA11y";
 import { useQueryClient } from "@tanstack/react-query";
 import { apiClient, updateOrgSettings, isApiMockMode } from "@/lib/api-client";
 import { capture } from "@/lib/analytics";
@@ -518,10 +519,18 @@ export function OnboardingWizard({ onDismiss }: OnboardingWizardProps) {
     capture("wizard_opened", { step: 0 });
   }, []);
 
-  function handleDismiss() {
+  const handleDismiss = useCallback(() => {
     capture("wizard_dismissed", { at_step: step });
     onDismiss();
-  }
+  }, [step, onDismiss]);
+
+  // WP-31: the wizard is a modal dialog (aria-modal, full-screen scrim) and had
+  // NO Escape handler and NO focus trap — a keyboard user could Tab straight out
+  // of it into the page it covers, and could not dismiss it without finding the
+  // ✕. Escape goes through handleDismiss so the wizard_dismissed analytics event
+  // still fires with the step the user was on.
+  const panelRef = useRef<HTMLDivElement>(null);
+  useDialogA11y({ open: true, onClose: handleDismiss, panelRef });
 
   function handleStep0Success(direction: OrderDirection) {
     // Relabel the whole app immediately once the direction is chosen.
@@ -569,6 +578,7 @@ export function OnboardingWizard({ onDismiss }: OnboardingWizardProps) {
       }}
     >
       <div
+        ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-label="Onboarding wizard"

@@ -5,6 +5,7 @@
 // Built on cmdk (already installed). Wired into BridgeTopbar.
 
 import { useEffect, useState, useRef, useCallback } from "react";
+import { useDialogA11y } from "@/hooks/useDialogA11y";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient, getBuyers, isApiMockMode } from "@/lib/api-client";
@@ -246,55 +247,11 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [flatItems, activeIndex, onClose]);
 
-  // Focus trap — keep Tab / Shift+Tab within the modal so focus can't escape to
-  // the page behind. The input is the only real tab stop (result rows use
-  // aria-activedescendant, not roving tabindex), so this reliably parks focus
-  // on the search field; if focus ever escapes, it is pulled back in.
-  const handleTrapKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key !== "Tab") return;
-    const container = paletteRef.current;
-    if (!container) return;
-    const focusable = Array.from(
-      container.querySelectorAll<HTMLElement>(
-        'a[href], button, input, select, textarea, [tabindex]',
-      ),
-    ).filter(
-      (el) => !el.hasAttribute("disabled") && el.getAttribute("tabindex") !== "-1",
-    );
-    if (focusable.length === 0) return;
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
-    const active = document.activeElement as HTMLElement | null;
-    if (e.shiftKey) {
-      if (active === first || !container.contains(active)) {
-        e.preventDefault();
-        last.focus();
-      }
-    } else if (active === last || !container.contains(active)) {
-      e.preventDefault();
-      first.focus();
-    }
-  }, []);
-
-  // Global Escape still closes even if focus isn't on input
-  useEffect(() => {
-    function down(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    document.addEventListener("keydown", down);
-    return () => document.removeEventListener("keydown", down);
-  }, [onClose]);
-
-  // Lock background scroll while the palette is open (it is mounted only when
-  // open). Mirrors the mobile nav drawer in (app)/layout.tsx: capture the prior
-  // overflow value, force "hidden", and restore it on close/unmount.
-  useEffect(() => {
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prevOverflow;
-    };
-  }, []);
+  // Focus trap + Escape + focus restore + scroll lock — one shared contract
+  // (src/hooks/useDialogA11y.ts) instead of the local copy this file used to
+  // carry. The palette mounts only while open, so `open` is constant true.
+  // `autoFocus: false` — the search input already autoFocuses itself.
+  useDialogA11y({ open: true, onClose, panelRef: paletteRef, autoFocus: false });
 
   // Track flat index across groups for active highlighting
   let flatIdx = 0;
@@ -319,7 +276,6 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
         role="dialog"
         aria-modal="true"
         aria-label="Command palette"
-        onKeyDown={handleTrapKeyDown}
         style={{
           position: "fixed",
           top: "20vh",

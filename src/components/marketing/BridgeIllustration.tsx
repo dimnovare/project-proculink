@@ -5,6 +5,16 @@
 // Center: a clean, symmetric set of curved wires that cross through the hub —
 // each buyer routes to its mirror supplier, so the bundle necks down to a tidy
 // hourglass at the centre node (blue on the left half → green on the right half).
+//
+// REDUCED MOTION. The four travelling pulses are SVG SMIL (`<animateMotion>` +
+// `<animate>`, `repeatCount="indefinite"`). `globals.css` neutralises CSS
+// animation-duration under `prefers-reduced-motion: reduce`, but SMIL is not CSS
+// and no media query stops it — so this hero animated forever for reduced-motion
+// visitors. The fix is the SAME mechanism WireTopology already uses for the same
+// problem inside the app: read the media query in JS and do not render the SMIL
+// elements at all.
+
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 
 // Generic industry/category labels — illustrative, not invented company names.
 const BUYERS = [
@@ -42,6 +52,7 @@ const WIRES: Array<{ buyerIdx: number; suppIdx: number; dur: number; begin: numb
 ];
 
 export function BridgeIllustration({ className }: { className?: string }) {
+  const reducedMotion = useReducedMotion();
   const W = 800;
   const H = 340;
   const padV = 44;
@@ -126,20 +137,24 @@ export function BridgeIllustration({ className }: { className?: string }) {
             strokeOpacity={0.9}
             strokeLinecap="round"
           />
-          {/* Travelling pulse — gentle, uniform (white, per design) */}
-          <circle r={3} fill="#FFFFFF" fillOpacity={0.95} opacity={0}>
-            <animateMotion dur={`${w.dur}s`} begin={`${w.begin}s`} repeatCount="indefinite">
-              <mpath href={`#wpath-${i}`} />
-            </animateMotion>
-            <animate
-              attributeName="opacity"
-              values="0;0;1;1;0;0"
-              keyTimes="0;0.08;0.2;0.8;0.92;1"
-              dur={`${w.dur}s`}
-              begin={`${w.begin}s`}
-              repeatCount="indefinite"
-            />
-          </circle>
+          {/* Travelling pulse — gentle, uniform (white, per design). Omitted
+              entirely under prefers-reduced-motion: SMIL can't be CSS-stopped.
+              Matches WireTopology.tsx's guard for the identical problem. */}
+          {!reducedMotion && (
+            <circle r={3} fill="#FFFFFF" fillOpacity={0.95} opacity={0}>
+              <animateMotion dur={`${w.dur}s`} begin={`${w.begin}s`} repeatCount="indefinite">
+                <mpath href={`#wpath-${i}`} />
+              </animateMotion>
+              <animate
+                attributeName="opacity"
+                values="0;0;1;1;0;0"
+                keyTimes="0;0.08;0.2;0.8;0.92;1"
+                dur={`${w.dur}s`}
+                begin={`${w.begin}s`}
+                repeatCount="indefinite"
+              />
+            </circle>
+          )}
         </g>
       ))}
 

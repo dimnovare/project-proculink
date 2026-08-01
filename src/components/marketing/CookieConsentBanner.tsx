@@ -54,8 +54,16 @@ export function CookieConsentBanner() {
   return (
     <div
       ref={bannerRef}
+      // NON-MODAL by design, and deliberately NOT focus-trapped. It carries no
+      // `aria-modal`, no scrim, and does not block the page — the visitor must be
+      // able to read the Privacy Policy and the page itself before choosing. A
+      // focus trap here would be a WCAG 2.1.2 keyboard trap, and Escape is not
+      // wired either: dismissing the banner without a choice is not a state this
+      // component has (consent stays "unknown" and it reappears on next paint).
+      // See src/test/dialogRegistry.ts — this is registered as kind "non-modal".
       role="dialog"
       aria-label="Cookie consent"
+      data-plk-nonmodal="banner"
       // Compact on mobile (tighter padding, smaller gap) so the banner stays
       // ~110px tall and doesn't cover sticky action bars; roomier on sm+.
       className="plk-cookie-banner flex flex-wrap items-center justify-between gap-2.5 p-3.5 sm:gap-4 sm:p-[18px_20px]"
