@@ -33,6 +33,7 @@ import { poTitleFrom } from "../workshop/WorkshopGateChrome";
 import { AssignSupplierBanner } from "../workshop/AssignSupplierBanner";
 import { shouldRetryApiFailure, apiRetryDelayMs } from "@/lib/apiFailure";
 import { PROBLEM_COPY, problemFor, type ProblemAction, type ProblemCtx, type ProblemStatus } from "./problemCopy";
+import { supplierReasonText } from "./supplierReasonText";
 import { useProblemAction } from "./useProblemAction";
 import { UnconfirmedResolver } from "./UnconfirmedResolver";
 
@@ -128,7 +129,11 @@ export function OrderProblemPanel({
   const helper = action.promoted
     ? "That didn't work. This one probably needs us — send it over and we'll look at the detail above."
     : copy.helper?.(ctx) ?? null;
-  const detail = rejectionReason ?? ctx.serverMessage ?? detailFallback;
+  // The supplier's body is evidence, not prose. supplierReasonText returns a readable sentence
+  // or null — a 404 whose body is an HTML page yields null, and the panel's own copy explains
+  // the failure instead of showing the operator markup (WP-39 §4.4). The untouched body is
+  // still in the order passport for anyone who needs exactly what came back.
+  const detail = supplierReasonText(rejectionReason) ?? ctx.serverMessage ?? detailFallback;
   const actions = copy.actions(ctx);
 
   const toneText = tone === "danger" ? "var(--danger)" : "var(--amber-text)";
