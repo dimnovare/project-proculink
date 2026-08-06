@@ -1352,6 +1352,24 @@ describe("no surface claims conformance to a standard ProcuLink does not emit", 
    * A denial is not a claim, and this repo's honest copy is written almost entirely as denials —
    * "is not offered", "does not check", "we have not run that test". A guard without this arm would
    * flag the very sentences that fixed the problem, and the obvious repair would be to delete them.
+   *
+   * KNOWN LIMIT, measured rather than guessed. This is line-wide on purpose. A tighter version was
+   * written and tested — the negator had to sit within 60 characters BEFORE the conformance word —
+   * and it flagged two lines that ship today and are among the most honest in the repo:
+   *
+   *   help/ubl-and-peppol/page.mdx:66  "If your counterparty requires certified Peppol BIS Order 3,
+   *                                     treat ProcuLink's UBL output as the *input* to your access
+   *                                     point's validator, not as a finished Peppol document…"
+   *   standards/catalog.ts:121         the Peppol BIS row's own conformance note, whose negations
+   *                                    ("declares no Peppol profile at all") sit further from
+   *                                    "validates" than any fixed window can span.
+   *
+   * In both, the denial is real but arrives after the conformance word or far from it. A guard that
+   * reddens the disclosure invites deleting the disclosure, which is how the product got here. So
+   * the excuse stays line-wide, and the cost is stated instead of hidden: a line that denies in one
+   * clause and claims in another — "Peppol BIS certified output, no setup required" — is NOT
+   * caught by this arm. What is not soft is everything above it: the URN arm and the profile-name
+   * arm are unconditional and derived, and those are the two shapes this defect actually took.
    */
   const NEGATED = /\b(?:not|no|never|cannot|can't|without|isn't|aren't|doesn't|don't|rather than|instead of)\b/i;
 
@@ -1451,6 +1469,13 @@ describe("no surface claims conformance to a standard ProcuLink does not emit", 
     expect(offends("Output is validated against Peppol BIS business rules."), "validated against").toBe(true);
     expect(offends("Peppol BIS 3 certified output for your access point."), "certified").toBe(true);
     expect(offends("EDIFACT ORDERS compliance out of the box."), "another planned standard, same rule").toBe(true);
+
+    // 4. The two arms that carry the real weight are unconditional, so no phrasing excuses them.
+    //    The prose arm's line-wide negation has a documented soft edge (see NEGATED); these do not.
+    expect(
+      offends('  const PROFILE_URN = "urn:fdc:peppol.eu:poacc:bis:order_only:3"; // not emitted, kept for reference'),
+      "the URN arm ignores negation entirely — there is no honest reason to carry the value",
+    ).toBe(true);
   });
 
   it("leaves the honest copy alone — including the sentences that fixed this", () => {
