@@ -853,9 +853,35 @@ function normalizeSource(source?: string): { label: string; pillKey: string } {
 }
 
 // Backend confidence is a 0–1 float; render as a whole-number percentage.
-function confPct(confidence?: number): number {
-  if (confidence == null) return 100;
+// `null` means the row carries no score at all — see MappingConfidence.
+function confPct(confidence?: number): number | null {
+  if (confidence == null) return null;
   return Math.round(confidence * 100);
+}
+
+// One mapping row's confidence.
+//
+// `SupplierMapping.confidence` is optional, and this used to default a missing
+// score to 100 — which rendered a green chip reading "100%" for a row nobody
+// had ever scored. That is the inverse of the truth in the one table an
+// operator opens specifically to judge item-code quality: absence of evidence
+// was displayed as maximum evidence.
+//
+// A scored row keeps the usual .conf-* chip. An unscored row gets a neutral
+// "Not scored" marker — no percentage, no tier colour — matching OrderPassport,
+// which only renders a confidence chip when the field actually carries one. The
+// column header says "Confidence", so an empty cell would read as a rendering
+// failure rather than a deliberate absence; the words are worth the width.
+function MappingConfidence({ confidence }: { confidence?: number }) {
+  const pct = confPct(confidence);
+  if (pct === null) {
+    return (
+      <span className="text-[10.5px] font-medium" style={{ color: MUTED }}>
+        Not scored
+      </span>
+    );
+  }
+  return <span className={`conf ${confClass(pct)} tabular-nums`}>{pct}%</span>;
 }
 
 function LiveMappingsTab({ supplierId, supplierName }: { supplierId: string; supplierName: string }) {
@@ -947,7 +973,6 @@ function LiveMappingsTab({ supplierId, supplierName }: { supplierId: string; sup
             {mappings.map((m, i) => {
               const src = normalizeSource(m.source);
               const pill = SOURCE_PILL[src.pillKey] ?? SOURCE_PILL.Manual;
-              const pct = confPct(m.confidence);
               return (
                 <tr key={m.id} style={{ borderBottom: i < mappings.length - 1 ? `1px solid ${LINE}` : undefined }}>
                   <td className="px-5 py-3 text-[12px] font-semibold" style={{ color: INK, fontFamily: MONO }}>{m.buyerItemCode}</td>
@@ -956,7 +981,7 @@ function LiveMappingsTab({ supplierId, supplierName }: { supplierId: string; sup
                     <span className="chip" style={{ background: pill.bg, color: pill.fg }}>{src.label}</span>
                   </td>
                   <td className="px-5 py-3" style={{ textAlign: "right" }}>
-                    <span className={`conf ${confClass(pct)} tabular-nums`}>{pct}%</span>
+                    <MappingConfidence confidence={m.confidence} />
                   </td>
                 </tr>
               );
@@ -970,7 +995,6 @@ function LiveMappingsTab({ supplierId, supplierName }: { supplierId: string; sup
         {mappings.map((m, i) => {
           const src = normalizeSource(m.source);
           const pill = SOURCE_PILL[src.pillKey] ?? SOURCE_PILL.Manual;
-          const pct = confPct(m.confidence);
           return (
             <div
               key={m.id}
@@ -984,7 +1008,7 @@ function LiveMappingsTab({ supplierId, supplierName }: { supplierId: string; sup
               </div>
               <div className="flex items-center gap-2">
                 <span className="chip" style={{ background: pill.bg, color: pill.fg }}>{src.label}</span>
-                <span className={`conf ${confClass(pct)} tabular-nums`}>{pct}%</span>
+                <MappingConfidence confidence={m.confidence} />
               </div>
             </div>
           );
