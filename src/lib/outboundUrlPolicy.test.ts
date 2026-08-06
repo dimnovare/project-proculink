@@ -97,7 +97,16 @@ describe("inspectOutboundUrl", () => {
       },
     );
 
-    test.each(["/orders", "supplier.example.com/orders", "not a url at all"])(
+    // Path-shaped inputs are the cross-platform trap: "/orders" is an absolute file: URI to
+    // .NET on Linux, and "C:\orders" parses with protocol "c:" in both runtimes. Both must
+    // read as "not a URL" here and in the C#, not as an exotic scheme.
+    test.each([
+      "/orders",
+      String.raw`C:\orders\out.xml`,
+      String.raw`\\fileserver\orders`,
+      "supplier.example.com/orders",
+      "not a url at all",
+    ])(
       "relative or malformed: %s",
       (url) => {
         expect(refused(url).errorCode).toBe(OUTBOUND_URL_ERRORS.notAbsolute);

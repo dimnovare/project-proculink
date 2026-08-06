@@ -86,9 +86,23 @@ export function inspectOutboundUrl(
     return block(OUTBOUND_URL_ERRORS.required, `${subject} is required.`);
   }
 
+  const trimmed = url.trim();
+
+  // Require an explicit RFC 3986 scheme of at least TWO characters before parsing. A one-letter
+  // "scheme" is a Windows drive letter (C:\orders\out.xml), which both `new URL()` here and
+  // .NET's Uri.TryCreate over in the C# accept as an absolute URL. No real scheme is one
+  // character, so requiring two keeps a local path from being mistaken for a URL — and keeps this
+  // mirror answering the same way the backend does for the same input.
   let parsed: URL;
+  if (!/^[A-Za-z][A-Za-z0-9+.-]+:/.test(trimmed)) {
+    return block(
+      OUTBOUND_URL_ERRORS.notAbsolute,
+      `${subject} must be a complete address including the scheme, for example ` +
+        `https://orders.supplier.example/inbound.`,
+    );
+  }
   try {
-    parsed = new URL(url.trim());
+    parsed = new URL(trimmed);
   } catch {
     return block(
       OUTBOUND_URL_ERRORS.notAbsolute,

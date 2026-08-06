@@ -49,9 +49,14 @@ Choose the protocol first, because it changes the fields below it:
 | Protocol | What you then fill in |
 |---|---|
 | HTTPS API (encrypted) | **Catalog URL (full request URL)** — the complete request, query string included |
-| HTTP API (not encrypted) | The same, unencrypted. Only when the supplier offers nothing better |
 | SFTP · FTPS · FTP | **Host**, **Port**, and **Remote file path** — for example `/exports/catalog.csv` |
 | Logicom QuickConnect | The vendor's own fields: customer id, consumer key and secret, access-token key, currency |
+
+A plain `http://` catalog URL is refused when you save it. The pull sends whatever API key, bearer
+token or Basic password you configure below on every request, so an unencrypted address would put
+that credential — and the whole price list — on the wire in clear text. Ask the supplier for their
+`https://` address. (`http://localhost` is still accepted, for testing against something on your
+own machine.)
 
 Then set **File format**. Leave it on **Auto-detect** unless a previous attempt got it wrong — the explicit
 choices are CSV, XLSX, JSON, XML (cXML Index or vendor XML), and CIF (Ariba 3.0).
