@@ -26,13 +26,63 @@ const isLive = process.env.PLAYWRIGHT_LIVE === "1";
 const PORT = process.env.PLAYWRIGHT_PORT ?? "8082";
 const ORIGIN = `http://localhost:${PORT}`;
 
+/**
+ * Rendering flags shared by the three visual-baseline projects (WP-41).
+ *
+ *  --force-color-profile=srgb   pins colour management, so the same #1E66C9 does
+ *                               not resolve to two different RGB triples on two
+ *                               machines with different display profiles.
+ *  --hide-scrollbars            a scrollbar is 15px of layout on one machine and
+ *                               0 on another; it also shifts every centred element.
+ *  --font-render-hinting=none   removes the largest remaining host-dependent
+ *                               difference in glyph rasterisation.
+ *  --disable-lcd-text           subpixel antialiasing puts colour fringes on text
+ *                               that differ per GPU. Greyscale AA is reproducible.
+ *
+ * deviceScaleFactor is pinned to 1 so a HiDPI host does not produce 2× baselines.
+ */
+const VISUAL_RENDERING = {
+  deviceScaleFactor: 1,
+  launchOptions: {
+    args: [
+      "--force-color-profile=srgb",
+      "--hide-scrollbars",
+      "--font-render-hinting=none",
+      "--disable-lcd-text",
+    ] as string[],
+  },
+};
+
 export default defineConfig({
   testDir: "./tests/e2e",
   // Warm /upload and the other heavy routes before the suite so the first test
   // that hits them doesn't eat the Next dev cold-compile and flake.
   globalSetup: "./tests/e2e/global-setup.ts",
   // Generous default assertion timeout — single-worker CI under load is slow.
-  expect: { timeout: 10_000 },
+  expect: {
+    timeout: 10_000,
+    toHaveScreenshot: {
+      // A visual gate is only worth having if a real change fails it and noise
+      // does not. These two numbers are the whole difference.
+      //
+      // maxDiffPixelRatio 0.002 = 0.2% of the frame. On the 1440×900 baselines
+      // that is ~2,600 pixels: enough to absorb antialiasing on a re-rasterised
+      // glyph run, nowhere near enough to hide a moved button (the smallest
+      // control in the app is ~44×44 = 1,936px, and a colour change to a single
+      // 120px-wide label is ~2,000px of *changed* pixels at full threshold).
+      // threshold 0.2 is Playwright's default per-pixel YIQ tolerance; it is what
+      // makes subpixel text rendering survive while a token change does not.
+      maxDiffPixelRatio: 0.002,
+      threshold: 0.2,
+      // CSS animations/transitions frozen at their end state. This is NOT
+      // sufficient on its own — see tests/e2e/a11yHarness.ts for why SVG SMIL
+      // needs `prefers-reduced-motion` instead.
+      animations: "disabled",
+      // Do not let a lazily-mounted element scroll into view mid-capture.
+      caret: "hide",
+      scale: "css",
+    },
+  },
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   // One retry everywhere. CI runs single-worker; local runs many workers against a
@@ -71,10 +121,55 @@ export default defineConfig({
     video: process.env.CI ? "off" : "retain-on-failure",
   },
 
+  // Visual baselines are shared across every viewport project, so the platform
+  // segment is dropped from the path. That is only safe because visual.spec.ts
+  // refuses to run anywhere but Linux (see its header) — without that guard a
+  // Windows run would overwrite Linux baselines with subtly different font
+  // rasterisation and turn CI red for everyone.
+  snapshotPathTemplate: "{testDir}/__screenshots__/{arg}{ext}",
+
   projects: [
     {
       name: "chromium",
+      // Desktop Chrome, 1280×720. Everything except the visual baselines runs here.
+      // The visual spec is excluded so it does not run a fourth time at a viewport
+      // it has no baselines for.
       use: { ...devices["Desktop Chrome"] },
+      testIgnore: /visual\.spec\.ts/,
+    },
+
+    // ── Viewport presets ──────────────────────────────────────────────────────
+    //
+    // WP-41 asked for "mobile viewport presets in playwright.config.ts". They are
+    // projects rather than `test.use({ viewport })` inside a spec so the same spec
+    // body produces one baseline per breakpoint, and so a future spec can opt into
+    // a breakpoint by name.
+    //
+    // They are scoped with `testMatch` to the visual spec ONLY. Adding three
+    // unscoped projects would have run the entire 100+ test suite four times and
+    // taken the e2e job from ~4 minutes to ~16 for no extra signal — the existing
+    // specs assert behaviour, which does not change with viewport width.
+    //
+    // 390 = iPhone 12/13/14 logical width, and the same number
+    // tests/e2e/tap-targets.spec.ts measures at, so a mobile visual diff and a
+    // mobile tap-target failure describe the same rendering.
+    // 768 = the `md` Tailwind breakpoint exactly — the width where the sidebar and
+    // the table/card switches flip, i.e. the one most likely to break.
+    // 1440 = the common desktop width the design system is drawn at.
+    {
+      name: "visual-mobile",
+      use: { ...devices["Desktop Chrome"], ...VISUAL_RENDERING, viewport: { width: 390, height: 844 } },
+      testMatch: /visual\.spec\.ts/,
+    },
+    {
+      name: "visual-tablet",
+      use: { ...devices["Desktop Chrome"], ...VISUAL_RENDERING, viewport: { width: 768, height: 1024 } },
+      testMatch: /visual\.spec\.ts/,
+    },
+    {
+      name: "visual-desktop",
+      use: { ...devices["Desktop Chrome"], ...VISUAL_RENDERING, viewport: { width: 1440, height: 900 } },
+      testMatch: /visual\.spec\.ts/,
     },
   ],
 

@@ -62,6 +62,8 @@ function DefaultErrorPanel({
 }) {
   return (
     <div
+      // See src/app/(app)/error.tsx for why this marker exists.
+      data-plk-error-boundary="component"
       style={{
         display: "flex",
         flexDirection: "column",

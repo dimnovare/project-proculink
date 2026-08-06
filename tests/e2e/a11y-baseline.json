@@ -1,0 +1,17 @@
+{
+  "landing": {},
+  "pricing": {},
+  "bridge": {},
+  "inbox": {},
+  "order-review": {
+    "color-contrast": 6,
+    "scrollable-region-focusable": 1
+  },
+  "upload": {},
+  "suppliers": {},
+  "mappings": {
+    "scrollable-region-focusable": 1
+  },
+  "delivery-log": {},
+  "settings": {}
+}
