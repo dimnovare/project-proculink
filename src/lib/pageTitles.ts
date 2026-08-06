@@ -63,8 +63,9 @@ export const HUB_TAB_TITLES: Record<string, string> = {
  * All three predate this pass and are left as they are on purpose. A tab label
  * is read INSIDE the product, where the hub around it supplies the context; a
  * browser tab has no context at all and sometimes needs the longer word —
- * "Overview" among a dozen foreign tabs says nothing, "Dashboard" does. Two of
- * them are also load-bearing for e2e specs that select on the title.
+ * "Overview" among a dozen foreign tabs says nothing, "Dashboard" does. (No
+ * spec depends on them either way: nothing under tests/ or src/ asserts on an
+ * app route's title. The reason is copy quality, not a test.)
  *
  * Recorded here rather than silently reconciled so the divergence is a decision
  * with a reason, and so the drift guard has something to pin: every key must
