@@ -1114,3 +1114,149 @@ describe("the workspace-wide delivery log is not offered below the tier that unl
     ).toBe(false);
   });
 });
+
+/**
+ * "Append-only", and every other promise about how records BEHAVE.
+ *
+ * ── The defect ──────────────────────────────────────────────────────────────────
+ *
+ * `/security` carried the phrase in four places at once — the card title, the card body, the page
+ * description and the OG description — and `/how-it-works` in a fifth:
+ *
+ *     title: "Append-only audit trail",
+ *     "Every parse, edit, validation and delivery attempt is recorded in an append-only audit log."
+ *
+ * Four greps falsify it, and a security page is exactly where someone runs them:
+ *
+ *   • `DeliveryService.cs:975-983` UPDATES the in-flight `dispatching` row IN PLACE to its terminal
+ *     outcome — `existingAttempt.Status = status; …ResponseCode…ResponseBody…AcknowledgedAt…
+ *     ArtifactSha256 =`.
+ *   • `OpsController.cs:251` — `attempt.CapSupersededAt = now;` stamps existing rows on requeue.
+ *   • `DataErasureService.cs:136,139,140` — HARD DELETE. `RemoveRange` over `DeliveryAttempts`,
+ *     `PoPassportEvents` and `AuditEvents`.
+ *   • `IDataRetentionService.cs:4-16` prunes those same three tables past a retention window.
+ *
+ * No database-level immutability backs any of them. The repo's only immutability trigger is on
+ * `supplier_connection_revisions`, a different table.
+ *
+ * There is real mitigation, and it is why the intent was honest: erasure is `[AdminOnly]` behind an
+ * env allowlist and fails closed, so a customer cannot delete their own records; retention is off by
+ * default; and a destructive cap-reset was deliberately replaced by the non-destructive
+ * `CapSupersededAt` stamp after a P1. The system is append-only-ISH by design. But a marketing page
+ * does not get to claim the intent — it claims the property, and the property is not enforced.
+ *
+ * ── Why this is its own guard ───────────────────────────────────────────────────
+ *
+ * The block above catches a capability sold at the wrong TIER. This is the adjacent class and the
+ * tier machinery cannot see it: a durability claim is wrong on every tier at once, so there is no
+ * tier to compare against. What makes it wrong is the storage layer, not the price list.
+ *
+ * ── Why it is an outright ban rather than a conditional ─────────────────────────
+ *
+ * The SSO guard below asks "does the Settings surface exist?" and demands the bullet back when it
+ * does. The same shape is tempting here and is not available: the enforcement that would make
+ * "append-only" true lives in the BACKEND repo, which this suite cannot read — it is a separate
+ * checkout that is not present on CI. A probe that silently answers "no enforcement" because the
+ * path does not exist is not a probe. So the ban is unconditional and the exit is documented
+ * instead: if a DB trigger or an equivalent ever makes audit/delivery/passport rows genuinely
+ * immutable, delete this block and put the word back — do not weaken the pattern to sneak it past.
+ */
+describe("no buyer-facing copy claims records are immutable, because nothing enforces it", () => {
+  /** The three tables the claim was made about. */
+  const RECORD_NOUN = String.raw`(?:audit|delivery|passport|order)\s+(?:log|logs|trail|trails|record|records|history|event|events|attempt|attempts)`;
+
+  /**
+   * Words that promise the row cannot change. "Append-only" is the one that shipped; the rest are
+   * what a writer reaches for next once it is gone, which is the point — a guard that bans exactly
+   * one phrase teaches the phrase, not the rule.
+   */
+  const IMMUTABILITY_WORD = String.raw`(?:append[- ]only|immutable|immutability|unalterable|unchangeable|tamper[- ](?:proof|evident)|write[- ]once)`;
+
+  const CLAIMS_IMMUTABLE = new RegExp(
+    `\\b${IMMUTABILITY_WORD}\\b[^.\\n]{0,60}?\\b${RECORD_NOUN}\\b` +
+      `|\\b${RECORD_NOUN}\\b[^.\\n]{0,60}?\\b${IMMUTABILITY_WORD}\\b`,
+    "i",
+  );
+
+  /**
+   * The same promise spelled as a sentence rather than an adjective. This one is here because it
+   * was the near-miss: it was proposed as the REPLACEMENT for "append-only" during review
+   * ("Records are never overwritten by a retry and never deleted by the product") and it is
+   * falsified by the very same `RemoveRange` lines. Swapping one falsifiable claim for another is
+   * the failure this whole file exists to stop, so the replacement is guarded too.
+   */
+  const CLAIMS_NEVER_DESTROYED =
+    /\brecords?\b[^.\n]{0,50}?\bnever\b[^.\n]{0,30}?\b(?:deleted|erased|removed|destroyed|purged|overwritten)\b/i;
+
+  const offends = (line: string): boolean => CLAIMS_IMMUTABLE.test(line) || CLAIMS_NEVER_DESTROYED.test(line);
+
+  it("no buyer-facing line promises records cannot be changed or deleted", () => {
+    const lines = buyerFacingLines();
+
+    // Anti-vacuity, same reasoning as the block above: an emptied corpus must fail, not pass.
+    expect(lines.length, "the corpus must really be reading copy").toBeGreaterThan(1000);
+    expect(
+      lines.filter(({ file }) => /security[\\/]page\.tsx$/.test(file)).length,
+      "the security page carried four of the five instances; it has to be in the corpus",
+    ).toBeGreaterThan(0);
+
+    const offenders = lines
+      .filter(({ line }) => offends(line))
+      .map(({ file, number, line }) => `${file}:${number}: ${line.trim()}`);
+
+    expect(
+      offenders,
+      "these lines promise records are immutable or undeletable. Nothing enforces that: " +
+        "DeliveryService.cs:975-983 updates attempt rows in place, OpsController.cs:251 stamps " +
+        "them at requeue, and DataErasureService.cs:136-140 hard-deletes DeliveryAttempts, " +
+        "PoPassportEvents and AuditEvents via RemoveRange. Say what is recorded instead:\n" +
+        offenders.join("\n"),
+    ).toEqual([]);
+  });
+
+  it("flags every instance that shipped, verbatim", () => {
+    // All five, exactly as they stood before this change. Quoting them is the only way a green
+    // result means the copy is clean rather than the pattern being blind.
+    for (const shipped of [
+      '    title: "Append-only audit trail",',
+      '    body: "Every parse, edit, validation and delivery attempt is recorded in an append-only audit log. Export the full delivery log for any order at any time.",',
+      '    "ProcuLink sits between your buyers and suppliers. How we protect that position — encryption, EU-region storage, an append-only audit trail, and responsible AI.",',
+      '    "Encryption, EU-region storage, an append-only audit trail, access control, and responsible AI — how ProcuLink protects the orders passing through it.",',
+      '      "The canonical order is transformed into the exact format the supplier requires and delivered over their channel — webhook, SFTP, email or ERP connector. Every attempt is logged in an append-only audit trail.",',
+    ]) {
+      expect(offends(shipped), `the shipped instance must match: ${shipped.trim().slice(0, 70)}…`).toBe(true);
+    }
+
+    // The words a writer reaches for once "append-only" is banned.
+    expect(offends("An immutable audit trail of every change."), "immutable").toBe(true);
+    expect(offends("Tamper-proof delivery records."), "tamper-proof").toBe(true);
+    expect(offends("Write-once audit log."), "write-once").toBe(true);
+    // And the sentence form, which was proposed as the replacement during review.
+    expect(
+      offends("Records are never overwritten by a retry and never deleted by the product; requeues supersede rather than erase."),
+      "the near-miss replacement — falsified by the same RemoveRange lines",
+    ).toBe(true);
+  });
+
+  it("leaves the honest replacement alone", () => {
+    // What actually shipped. Every clause is checkable: the fields are on DeliveryAttempt.cs
+    // (Channel 11, Destination 12, AttemptedAt 25, ResponseCode 26, AttemptNumber 69,
+    // ArtifactSha256 94), OrdersController makes no HasFeatureAsync call, and the response-body
+    // clause is scoped to the channels whose CapturesSupplierResponseBody is true.
+    expect(
+      offends(
+        "Every parse, edit, validation and delivery attempt is recorded. Each delivery attempt carries its timestamp, channel, endpoint, attempt number, response code, and the SHA-256 fingerprint of the bytes dispatched; on channels that return one — webhook, email API, ERP — a failed or rejected attempt also stores the supplier's response. A retry adds a new numbered attempt rather than replacing the previous one, and requeueing supersedes earlier attempts rather than erasing them. You can open any single order and read its complete history on every plan; the workspace-wide delivery log across all orders, with filtering and CSV export, is included from the Operations plan up.",
+      ),
+      "describing what is stored is not a durability promise",
+    ).toBe(false);
+    expect(
+      offends("Every attempt is recorded with its response code and a SHA-256 fingerprint of the bytes sent."),
+      "/how-it-works, as replaced",
+    ).toBe(false);
+    // "Supersedes rather than erases" is the accurate description of OpsController.cs:251 and must
+    // stay sayable — it is a statement about what requeue does, not a promise about forever.
+    expect(offends("Requeueing supersedes earlier attempts rather than erasing them.")).toBe(false);
+    // A tier claim is the other block's business, not this one's.
+    expect(offends("The workspace-wide delivery log is included from the Operations plan up.")).toBe(false);
+  });
+});

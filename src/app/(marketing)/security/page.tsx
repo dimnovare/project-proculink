@@ -6,9 +6,9 @@ export const metadata = pageMetadata({
   path: "/security",
   title: "Security & trust — ProcuLink",
   description:
-    "ProcuLink sits between your buyers and suppliers. How we protect that position — encryption, EU-region storage, an append-only audit trail, and responsible AI.",
+    "ProcuLink sits between your buyers and suppliers. How we protect that position — encryption, EU-region storage, a per-attempt delivery record, and responsible AI.",
   ogDescription:
-    "Encryption, EU-region storage, an append-only audit trail, access control, and responsible AI — how ProcuLink protects the orders passing through it.",
+    "Encryption, EU-region storage, a per-attempt delivery record, access control, and responsible AI — how ProcuLink protects the orders passing through it.",
 });
 
 // ─── Palette (exact design tokens, sampled from tokens.css / globals.css) ──────
@@ -66,7 +66,7 @@ const POSTURE: Array<{ title: string; body: React.ReactNode; icon: React.ReactNo
     icon: <BuildingIcon />,
   },
   {
-    title: "Append-only audit trail",
+    title: "What we record for every delivery",
     // The second sentence used to read "Export the full delivery log for any order at any time."
     // Both halves of it were wrong, and the second more seriously than the first.
     //
@@ -86,7 +86,34 @@ const POSTURE: Array<{ title: string; body: React.ReactNode; icon: React.ReactNo
     // BillingGateEnforcementIsRealTests.cs:143-155 — and is rendered at OrderWorkshop.tsx:377.
     // That is worth stating plainly rather than dropping; it is the half of the claim that was
     // always true.
-    body: "Every parse, edit, validation and delivery attempt is recorded in an append-only audit log. On every plan you can open a single order and read its complete history — each attempt, the supplier's response code, and any error. The workspace-wide delivery log across all orders, with filtering and CSV export, is included from the Operations plan up.",
+    // "Append-only" was here before this change and had to go. It is not a shade of meaning — it
+    // is falsified by four greps, and this is the page a reviewer greps:
+    //
+    //   • DeliveryService.cs:975-983 UPDATES the in-flight `dispatching` row in place to its
+    //     terminal outcome (Status, ResponseCode, ResponseBody, AcknowledgedAt, ArtifactSha256).
+    //   • OpsController.cs:251 stamps `attempt.CapSupersededAt = now` on existing rows at requeue.
+    //   • DataErasureService.cs:136,139,140 HARD DELETES: RemoveRange over DeliveryAttempts,
+    //     PoPassportEvents and AuditEvents.
+    //   • IDataRetentionService.cs:4-16 prunes those same three tables past a retention window.
+    //
+    // No database-level immutability backs any of them; the repo's only immutability trigger is on
+    // supplier_connection_revisions, a different table. There IS real mitigation — erasure is
+    // [AdminOnly] behind an env allowlist, retention is off by default, and a destructive cap-reset
+    // was deliberately replaced by the non-destructive CapSupersededAt stamp after a P1 — so the
+    // design intent is append-only-ish. Intent is not what the word claims.
+    //
+    // What replaces it is stronger, not weaker, because every clause survives being checked:
+    // DeliveryAttempt.cs carries Channel(11), Destination(12), AttemptedAt(25), ResponseCode(26),
+    // RejectionReason(32), ResponseBody(39), AttemptNumber(69) and ArtifactSha256(94), and
+    // OrdersController makes ZERO HasFeatureAsync calls, so none of it is plan-gated.
+    //
+    // Two clauses are deliberately narrower than they could be:
+    //   • The response body is scoped to the channels that return one. HttpDeliveryDispatcher.cs:153
+    //     discards it on success and keeps it only on failure, and CapturesSupplierResponseBody is
+    //     `false` for SFTP (:74), FTPS (:63) and SMTP (:48) — there is no body to keep.
+    //   • Nothing here says records are never deleted. Erasure and retention delete them, and that
+    //     sentence would have been the same falsifiable-by-grep mistake as "append-only".
+    body: "Every parse, edit, validation and delivery attempt is recorded. Each delivery attempt carries its timestamp, channel, endpoint, attempt number, response code, and the SHA-256 fingerprint of the bytes dispatched; on channels that return one — webhook, email API, ERP — a failed or rejected attempt also stores the supplier's response. A retry adds a new numbered attempt rather than replacing the previous one, and requeueing supersedes earlier attempts rather than erasing them. You can open any single order and read its complete history on every plan; the workspace-wide delivery log across all orders, with filtering and CSV export, is included from the Operations plan up.",
     icon: <ClockIcon />,
   },
   {
