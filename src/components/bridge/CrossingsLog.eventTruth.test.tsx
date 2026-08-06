@@ -74,6 +74,17 @@ function apiPage(events: AuditLogEntry[], total = events.length, page = 1, pageS
   return { events, total, page, pageSize };
 }
 
+/**
+ * Every event badge currently rendered, with its kind readable off the DOM.
+ *
+ * `data-event-kind` is what makes "renders as a failure" assertable at all: the
+ * only other difference between a `delivered` row and an `unknown` one is a CSS
+ * custom property, which jsdom does not resolve.
+ */
+function badges(): HTMLElement[] {
+  return Array.from(document.querySelectorAll<HTMLElement>("[data-event-kind]"));
+}
+
 function renderLog() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
@@ -123,7 +134,12 @@ describe("CrossingsLog — a backend failure action renders as a failure", () =>
     // also match the "Delivered" filter chip, which is always on screen.
     expect(screen.queryByTitle("Delivered")).toBeNull();
 
-    // …and it IS classified as a failure.
+    // …and the badge the operator actually looks at is classified `failed`. Asserted
+    // on the DOM, not just on the manifest: a correct table that the component
+    // ignores is precisely the shape of the original bug.
+    for (const badge of badges()) expect(badge.dataset.eventKind).toBe("failed");
+    expect(badges().length).toBeGreaterThan(0);
+
     expect(auditEventKind(action)).toBe("failed");
     expect(isSuccessKind(auditEventKind(action))).toBe(false);
   });
@@ -230,6 +246,12 @@ describe("CrossingsLog — an action this build does not know", () => {
     expect(await screen.findByText("PO-4711")).toBeInTheDocument();
     expect(screen.queryByTitle("Delivered")).toBeNull();
 
+    // The row is painted `unknown`. Checking the LABEL alone is not enough — an
+    // unrecognised action has no manifest label, so it shows its raw name either
+    // way, and the `?? "delivered"` fallback would still paint it green underneath.
+    for (const badge of badges()) expect(badge.dataset.eventKind).toBe("unknown");
+    expect(badges().length).toBeGreaterThan(0);
+
     expect(auditEventKind("SomeBrandNewBackendAction")).toBe("unknown");
     expect(isSuccessKind("unknown")).toBe(false);
     expect(auditActionFact("SomeBrandNewBackendAction")).toBeNull();
@@ -271,6 +293,8 @@ describe("CrossingsLog — a parked delivery is not a delivered one", () => {
 
     expect(await screen.findByText("PO-4711")).toBeInTheDocument();
     expect(screen.queryByTitle("Delivered")).toBeNull();
+    for (const badge of badges()) expect(badge.dataset.eventKind).toBe("held");
+    expect(badges().length).toBeGreaterThan(0);
     expect(auditEventKind(action)).toBe("held");
     expect(isSuccessKind(auditEventKind(action))).toBe(false);
   });

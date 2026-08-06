@@ -353,6 +353,11 @@ function EventBadge({ entry }: { entry: LogEntry }) {
         textOverflow: "ellipsis",
       }}
       title={label}
+      // The kind, on the element that renders it. Without this the only observable
+      // difference between a row classified `delivered` and one classified `unknown`
+      // is a background colour, so a guard can assert the LABEL is right while the
+      // row is still painted as a success — which is the defect wearing a new coat.
+      data-event-kind={entry.canonicalEvent}
     >
       {label}
     </span>
