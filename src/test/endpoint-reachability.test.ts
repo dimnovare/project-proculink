@@ -47,10 +47,12 @@
 //     called, so it is refused — and the affected endpoints then appear
 //     uncalled, which forces an allowlist entry naming the call site. Wrong in
 //     the SAFE direction: it costs a reasoned entry, it never hides an endpoint.
-//   • A PATH ASSEMBLED FROM A CONSTANT declared in another module. Nothing does
-//     this today (`basePath()` in catalogSources.ts still writes the full
-//     template inline, so it is read normally), and if something starts, the
-//     endpoint reads as uncalled — again the safe direction.
+//   • A PATH ASSEMBLED FROM A CONSTANT DECLARED IN ANOTHER MODULE, or through
+//     more than one level of helper. ONE level is followed — `basePath()` in
+//     src/lib/api/catalogSources.ts put three genuinely-called endpoints on the
+//     uncalled list until it was — but a second hop, or a path imported from
+//     elsewhere, is invisible. Nothing does either today, and if something
+//     starts, the endpoint reads as uncalled: the safe direction.
 //   • A ROUTE THAT IS NOT AN MVC ACTION. There are no minimal-API
 //     Map{Post,Put,Patch,Delete} registrations in ProcuLink.Api today, and
 //     `endpointCorpusIsWhole` fails if the controller sweep collapses — but a
