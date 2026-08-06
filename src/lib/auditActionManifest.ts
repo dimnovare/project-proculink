@@ -271,7 +271,7 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
   {
     action: "Reprocessed",
     kind: "edited",
-    label: "Reprocessed under a revision",
+    label: "Reprocessed under a new version",
     reachable: true,
     backendSite: "ProcuLink.Api/Services/ReplayService.cs:354",
     note: "An operator re-ran one order against a newer mapping/template revision.",
