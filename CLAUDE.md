@@ -633,6 +633,13 @@ pick up, and twice in one day that meant real work existing only on an unpushed 
   copy of the repo — hits there mean you searched the wrong tree, not that another branch owns the
   code.
 - **Push anything worth keeping, the moment it is committed.** A session's worktree is not storage.
+- **Give every scratchpad file a unique name.** The scratchpad path is documented as session-specific
+  but does not always resolve that way: on 2026-08-06 two parallel sessions both wrote `pr-body.md`
+  under the same temp path and one overwrote the other within a minute. Anything another tool will
+  read back — a PR body, a notes file, a JSON dump — carries the branch name or a short suffix
+  (`pr-body-fix-parser-locale.md`), never a bare `pr-body.md` / `notes.md` / `out.json`. Piping the
+  body straight to `gh pr create --body-file -` avoids the file entirely, but quoting inside the body
+  can break the heredoc, so a uniquely named file is the safer default.
 
 ### Before dispatching a chip
 
