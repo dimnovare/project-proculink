@@ -175,6 +175,103 @@ jobs:
         if: always()
         run: bun run typecheck
 
+  # ══ BEGIN backend-mirror job — one contiguous block, safe to move as a unit ══
+  #
+  # WHY THIS JOB EXISTS.
+  #
+  # src/lib/orderStatusManifest.ts is the frontend's single hand-kept copy of the
+  # backend's order-status constants. It replaced nine separate hand-typed copies, and
+  # src/test/backendMirror.test.ts diffs it against the real C# so that the copy is
+  # CHECKABLE rather than merely annotated.
+  #
+  # That diff had never run in CI. It is `test.skipIf(!BACKEND)`, and this workflow
+  # neither checked the backend out nor set PROCULINK_BACKEND_PATH, so every run
+  # reported `backendMirror.test.ts (22 tests | 12 skipped)` and went green — see run
+  # 31095963507 on main. The manifest was accurate the whole time, but by diligence,
+  # not by enforcement, and the backend constants move. This job is the enforcement.
+  #
+  # HOW THE BACKEND IS OBTAINED, AND WHAT IT COSTS.
+  #
+  # dimnovare/ProcuLink is a PUBLIC repository, so actions/checkout reads it with the
+  # default, automatically-provisioned GITHUB_TOKEN. No secret, no PAT, no deploy key,
+  # and nothing to rotate — which also means this job works unchanged on a fork PR,
+  # where repository secrets are not available.
+  #
+  # If the backend is ever made private, this checkout starts failing with a 404 and
+  # the job goes RED. That is the correct direction to fail: the alternative — a job
+  # that shrugs and passes when it cannot read the backend — is exactly the silent
+  # no-op this job was created to remove. Making it private would need a read-only
+  # credential added here (a fine-grained PAT with Contents:read on the backend repo,
+  # or a deploy key), passed as `token:` below.
+  #
+  # NO `ref:` IS PINNED, DELIBERATELY.
+  #
+  # The checkout follows the backend's DEFAULT BRANCH. Pinning a SHA would defeat the
+  # entire purpose: the guard exists to catch the backend MOVING, and a pinned mirror
+  # only ever re-confirms the moment it was pinned.
+  #
+  # WHEN THE BACKEND LEGITIMATELY CHANGES A CONSTANT.
+  #
+  # This job then goes red on frontend PRs that did not touch anything related. That is
+  # working as intended — the frontend's copy is now WRONG, and every screen reading it
+  # is describing a state machine the API no longer has. The path forward is short:
+  #
+  #   1. Read the failure. It names the C# symbol, both sides of the diff, and what the
+  #      drift would do to the UI (a control offered on a status the endpoint refuses
+  #      can only answer 400).
+  #   2. Update the affected rows in src/lib/orderStatusManifest.ts, and update the
+  #      PROVENANCE header in that file with the backend SHA this job printed in its
+  #      step summary.
+  #   3. Reproduce locally before pushing:
+  #        PROCULINK_BACKEND_PATH=/path/to/ProcuLink \
+  #          bun run test src/test/backendMirror.test.ts
+  #
+  # If the frontend genuinely cannot follow yet — the backend shipped a status with no
+  # UI treatment, say — that is a product gap the red is correctly reporting. Fix it or
+  # decide it deliberately; do not re-skip the diff to get to green.
+  backend-mirror:
+    name: Backend constant mirror (orderStatusManifest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      # vitest asserts the REAL api-client's HTTP behaviour; mock mode answers those
+      # calls itself. Same reason test-unit overrides it.
+      NEXT_PUBLIC_USE_MOCK: 'false'
+      # Turns "no backend checkout" from a legitimate skip into a build failure. Without
+      # this the job could check nothing out and still report green, which is the state
+      # this job was written to end.
+      PROCULINK_REQUIRE_BACKEND_MIRROR: '1'
+      PROCULINK_BACKEND_PATH: ${{ github.workspace }}/.backend-checkout
+
+    steps:
+      - name: Checkout frontend
+        uses: actions/checkout@v4
+
+      - name: Checkout backend (dimnovare/ProcuLink, default branch)
+        uses: actions/checkout@v4
+        with:
+          repository: dimnovare/ProcuLink
+          path: .backend-checkout
+          fetch-depth: 1
+
+      - name: Record which backend commit this ran against
+        run: |
+          SHA="$(git -C .backend-checkout rev-parse HEAD)"
+          echo "Mirror diffed against dimnovare/ProcuLink @ ${SHA}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Mirror diffed against dimnovare/ProcuLink @ ${SHA}"
+
+      - name: Setup bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Diff orderStatusManifest against the backend C#
+        run: bun run test src/test/backendMirror.test.ts
+  # ══ END backend-mirror job ══════════════════════════════════════════════════
+
   test-e2e:
     name: Playwright e2e (mock mode)
     runs-on: ubuntu-latest
