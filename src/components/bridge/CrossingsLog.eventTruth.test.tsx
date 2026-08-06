@@ -396,8 +396,8 @@ describe("CrossingsLog — the org's history past the first page", () => {
     expect(within(pager).getByText(/page 1 of 13/i)).toBeInTheDocument();
     // Nothing older was reachable at all before: page 1 was hard-coded and there was
     // no page control anywhere in the file.
-    expect(within(pager).getByRole("button", { name: "Older" })).toBeEnabled();
-    expect(within(pager).getByRole("button", { name: "Newer" })).toBeDisabled();
+    expect(within(pager).getByRole("button", { name: /Older entries/i })).toBeEnabled();
+    expect(within(pager).getByRole("button", { name: /Newer entries/i })).toBeDisabled();
   });
 
   it("asks the API for the next page when Older is pressed", async () => {
@@ -408,7 +408,7 @@ describe("CrossingsLog — the org's history past the first page", () => {
     await screen.findByText("PO-4711");
     expect(getAuditLog).toHaveBeenCalledWith(1, 50);
 
-    screen.getByRole("button", { name: "Older" }).click();
+    screen.getByRole("button", { name: /Older entries/i }).click();
 
     await vi.waitFor(() => expect(getAuditLog).toHaveBeenCalledWith(2, 50));
   });

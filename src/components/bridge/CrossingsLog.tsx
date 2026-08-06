@@ -536,6 +536,14 @@ export function CrossingsLog() {
   const firstIndex = loadedCount === 0 ? 0 : (page - 1) * pageSize + 1;
   const lastIndex  = (page - 1) * pageSize + loadedCount;
   const showPager  = !isApiMockMode && (pageCount > 1 || page > 1);
+
+  // The log is append-only but not immutable — retention erases old events — so the
+  // history can shrink under a reader who is paged deep into it, leaving `page`
+  // past the end and the readout saying "page 5 of 2". Converges in one step
+  // because pageCount does not depend on page.
+  useEffect(() => {
+    if (page > pageCount) setPage(pageCount);
+  }, [page, pageCount]);
   // The PO number is only knowable once a matching entry is in hand; with no match
   // the strip names no order rather than echoing a raw id at the operator.
   const filteredPo    = LOG[0]?.po ?? null;
@@ -1207,6 +1215,7 @@ export function CrossingsLog() {
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page <= 1 || isFetching}
                   style={isMobile ? { height: 36, flex: 1 } : undefined}
+                  aria-label="Newer entries"
                 >
                   Newer
                 </button>
@@ -1215,6 +1224,7 @@ export function CrossingsLog() {
                   onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
                   disabled={page >= pageCount || isFetching}
                   style={isMobile ? { height: 36, flex: 1 } : undefined}
+                  aria-label="Older entries"
                 >
                   Older
                 </button>
