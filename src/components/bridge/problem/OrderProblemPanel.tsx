@@ -229,6 +229,9 @@ export function OrderProblemPanel({
       .map(supplierReasonText)
       .find((s): s is string => Boolean(s)) ?? detailFallback;
   const actions = copy.actions(ctx);
+  const actionError = action.error
+    ? supplierReasonText(action.error) ?? "That didn't go through. Try again, or send this order to us."
+    : null;
 
   const toneText = tone === "danger" ? "var(--danger)" : "var(--amber-text)";
   const toneSoft = tone === "danger" ? "var(--danger-soft)" : "var(--amber-soft)";
@@ -331,7 +334,14 @@ export function OrderProblemPanel({
           </p>
         )}
 
-        {action.error && (
+        {/* The recovery POST's own failure — the THIRD door, and the one that survives a
+            careful reading of the two above. `api-client.ts` builds
+            `error ?? \`${fallback}: ${responseText}\`` when the body is not JSON with an
+            { error } field, so a gateway 502 (an HTML page) lands in ApiHttpError.message and
+            useProblemAction puts it straight in this block. Same rule as the detail above:
+            nothing off the wire reaches operator prose without being made fit to read. The
+            fallback keeps the alert from ever going silent if nothing legible survives. */}
+        {actionError && (
           <p
             role="alert"
             style={{
@@ -344,7 +354,7 @@ export function OrderProblemPanel({
               color: "var(--danger)",
             }}
           >
-            {action.error}
+            {actionError}
           </p>
         )}
 

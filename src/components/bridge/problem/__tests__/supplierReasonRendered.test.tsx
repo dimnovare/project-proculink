@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Order } from "@/types/procurement";
 import { ConfirmProvider } from "@/components/ui/confirm";
@@ -219,6 +219,44 @@ describe("the sentence written for a person outranks the raw one", () => {
     expect(shown).toContain("delivery address in this supplier's delivery settings");
     expect(shown).not.toContain("<html");
     expect(shown).not.toContain("<h1>");
+  });
+
+  it("cleans the third door too — the error a failed recovery POST puts in the alert", async () => {
+    // Found by asking, after the fix above, "is there another way a body off the wire reaches
+    // prose here?" There is, and it is in this component.
+    //
+    // api-client.ts:857 builds `error ?? \`${fallback}: ${responseText}\`` — when the body is
+    // not JSON with an { error } field, the RAW text is pasted into ApiHttpError.message. A
+    // gateway 502 answers with an HTML page, useProblemAction does
+    // `setError(err.message)`, and the panel renders it in its role="alert" block. Same defect,
+    // different door, one click away from the one production found.
+    renderDeadLetter({ deliveryAttempts: [] });
+    await screen.findByTestId("order-problem-panel");
+
+    api.requeueDelivery.mockRejectedValue(
+      new Error(
+        "We couldn't start sending this order: <!DOCTYPE html><html><head>" +
+          "<title>502 Bad Gateway</title></head><body><center><h1>502 Bad Gateway</h1>" +
+          "</center></body></html>",
+      ),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /start sending again/i }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).not.toContain("<");
+    expect(alert.textContent).not.toContain("DOCTYPE");
+    // Cleaned, not silenced: the operator still learns what came back.
+    expect(alert.textContent).toContain("502");
+  });
+
+  it("leaves an ordinary failure message alone", async () => {
+    renderDeadLetter({ deliveryAttempts: [] });
+    await screen.findByTestId("order-problem-panel");
+
+    api.requeueDelivery.mockRejectedValue(new Error("That order is already being sent."));
+    fireEvent.click(screen.getByRole("button", { name: /start sending again/i }));
+
+    expect((await screen.findByRole("alert")).textContent).toBe("That order is already being sent.");
   });
 
   it("still leads with the supplier's own reason when they gave one", async () => {
