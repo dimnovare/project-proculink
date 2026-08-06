@@ -304,6 +304,26 @@ const WINDOWS = [
 type WindowKey = (typeof WINDOWS)[number]["key"];
 const DAY_MS = 86_400_000;
 
+/**
+ * The window a stat card's numbers actually cover — the card's own claim, not the page's.
+ *
+ * The health rail prints three delivery figures side by side and they do NOT share a window:
+ * throughput follows the selector above, the success rate comes from `/api/orders/summary`
+ * which takes no date filter at all, and supplier health is a 30-day rate on the server path
+ * and an all-time one on the client fallback.
+ *
+ * On 2026-08-06 that produced "3 orders received · last 30 days", "0 delivered · last 30 days",
+ * and an unlabelled "60% success rate" between them. Each number was right. The unlabelled one
+ * simply inherited its neighbours' window and contradicted both.
+ *
+ * So a card declares its window as data AND prints it from the same table — one source, so the
+ * label cannot drift from the claim. `dashboardStatWindows.test.tsx` walks every tagged card.
+ */
+export type StatWindow = WindowKey;
+export const STAT_WINDOW_TEXT = Object.fromEntries(
+  WINDOWS.map((w) => [w.key, w.sub.toLowerCase()]),
+) as Record<StatWindow, string>;
+
 /** Epoch-ms lower bound for a window; orders with createdAt >= this are in-window. */
 function windowStart(key: WindowKey): number {
   const now = Date.now();
@@ -663,6 +683,10 @@ export function BridgeDashboard() {
   const endpointHasData = endpoint.buyers.length > 0 || endpoint.suppliers.length > 0;
   // Prefer server-side topology (all orders) over client-derived (capped at working set).
   const effective: DerivedTopology = endpointHasData ? endpoint : derivedHasData ? derived : { buyers: [], suppliers: [], wires: [] };
+  // Which window the "{noun} health" percentages really cover. The server aggregation applies a
+  // 30-day cutoff to its supplier rows; the client fallback has none. One value, read by both
+  // the card's data attribute and the sentence under its title.
+  const supplierHealthWindow: StatWindow = endpointHasData ? "30d" : "all";
 
   const topologyLoadingState = ordersLoading || topologyLoading;
   const topologyIsEmpty =
@@ -1185,8 +1209,11 @@ export function BridgeDashboard() {
                   <span style={{ color: "#CBD0DA" }}>·</span>
                   {/* "active {plural}" — this counts only docks currently carrying orders
                       (derived topology), NOT the full roster on the Suppliers page, so it
-                      must not be labelled a bare "{N} suppliers" count. */}
-                  {effective.suppliers.length} active {pluralLower}
+                      must not be labelled a bare "{N} suppliers" count.
+                      The noun agrees with the count, as "connections" already did: a
+                      one-supplier org read "1 active suppliers" in production. */}
+                  {effective.suppliers.length} active{" "}
+                  {effective.suppliers.length === 1 ? nounLower : pluralLower}
                 </>
               )}
             </span>
@@ -1653,7 +1680,12 @@ export function BridgeDashboard() {
             {/* RIGHT — health rail (throughput · delivery · {plural} health) */}
             <div className="flex flex-col gap-4">
               {/* Throughput — windowed received count + last-7-days bars */}
-              <div className="rounded-card px-4 py-4" style={{ background: "#FFFFFF", border: "1px solid #E5E8EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}>
+              <div
+                data-stat-card="throughput"
+                data-stat-window={windowKey}
+                className="rounded-card px-4 py-4"
+                style={{ background: "#FFFFFF", border: "1px solid #E5E8EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}
+              >
                 <div className="mb-3.5 flex items-center gap-2">
                   <BarChart3 size={15} strokeWidth={2} style={{ color: "#5E6779", flexShrink: 0 }} aria-hidden />
                   <span className="text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>Throughput</span>
@@ -1709,9 +1741,20 @@ export function BridgeDashboard() {
                 </div>
               </div>
 
-              {/* Delivery — delivered vs failed (all-time summary), success rate */}
-              <div className="rounded-card px-4 py-4" style={{ background: "#FFFFFF", border: "1px solid #E5E8EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}>
-                <div className="mb-3 text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>Delivery</div>
+              {/* Delivery — delivered vs failed, success rate.
+                  ALL-TIME, and it says so. `getOrdersSummary()` sends no date parameter, so these
+                  two numbers ignore the window selector above them — which is exactly why the
+                  card has to name its own window rather than borrow its neighbours'. */}
+              <div
+                data-stat-card="delivery"
+                data-stat-window="all"
+                className="rounded-card px-4 py-4"
+                style={{ background: "#FFFFFF", border: "1px solid #E5E8EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}
+              >
+                <div className="text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>Delivery</div>
+                <div className="mb-3 text-[11.5px]" style={{ color: "var(--ink-faint)" }}>
+                  Delivered vs failed, {STAT_WINDOW_TEXT.all}
+                </div>
                 {(() => {
                   const attempted = countDelivered + countFailed;
                   const ratePct = attempted > 0 ? Math.round((100 * countDelivered) / attempted) : null;
@@ -1752,19 +1795,28 @@ export function BridgeDashboard() {
               </div>
 
               {/* {plural} health */}
-              <div className="overflow-hidden rounded-card" style={{ background: "#FFFFFF", border: "1px solid #E5E8EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}>
+              <div
+                data-stat-card="supplier-health"
+                data-stat-window={supplierHealthWindow}
+                className="overflow-hidden rounded-card"
+                style={{ background: "#FFFFFF", border: "1px solid #E5E8EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}
+              >
               <div className="flex items-center justify-between gap-2 px-4 py-3" style={{ borderBottom: "1px solid #E5E8EE" }}>
                 <div className="flex min-w-0 items-center gap-2.5">
                   <Activity size={15} strokeWidth={2} style={{ color: "#5E6779", flexShrink: 0 }} aria-hidden />
                   <div className="min-w-0">
                     <div className="text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>{noun} health</div>
-                    {/* "Delivery success rate" (not "Acceptance rate"): this figure
-                        measures successful pipeline delivery, not supplier acceptance.
-                        The "last 30 days" qualifier is only honest on the server
-                        topology path (endpointHasData — backend 30-day window). On the
-                        client-derived fallback (and transiently before the topology
-                        query resolves) the figure is all-time, so drop the window. */}
-                    <div className="text-[11.5px]" style={{ color: "var(--ink-faint)" }}>Delivery success rate{endpointHasData ? ", last 30 days" : ""}</div>
+                    {/* "Delivery success rate" (not "Acceptance rate"): this figure measures
+                        successful pipeline delivery, not supplier acceptance. The window is
+                        genuinely two different windows — DashboardController.GetTopology filters
+                        supplier rows on `CreatedAt >= UtcNow.AddDays(-30)`, while the client
+                        fallback derives from the working set with no cutoff — so it is printed
+                        from `supplierHealthWindow`, the same value the card declares as data.
+                        It used to print nothing at all on the fallback path, which left an
+                        unlabelled percentage next to two labelled ones. */}
+                    <div className="text-[11.5px]" style={{ color: "var(--ink-faint)" }}>
+                      Delivery success rate, {STAT_WINDOW_TEXT[supplierHealthWindow]}
+                    </div>
                   </div>
                 </div>
                 <Link
