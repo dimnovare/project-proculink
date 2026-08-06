@@ -895,3 +895,368 @@ describe("every pricing-card bullet is accounted for by something real", () => {
     expect(accountFor(growth, "Per-order audit trail").ok).toBe(true);
   });
 });
+
+/**
+ * The workspace-wide delivery log, and the export of it.
+ *
+ * ── The defect ──────────────────────────────────────────────────────────────────
+ *
+ * `/security` shipped this, unqualified, to every reader:
+ *
+ *     "Export the full delivery log for any order at any time."
+ *
+ * Two failures, and the second is the worse one:
+ *
+ *   1. It named no tier. The workspace-wide log is `GET /api/audit`, gated on
+ *      `BillingFeature.AdvancedAudit` -> Operations (`PlanConstants.cs:276`). A Growth or Pilot
+ *      reader takes an unqualified sentence as included, and `/operations/log` then refuses them
+ *      with `advanced_audit_requires_operations` (`CrossingsLog.tsx:413-416`).
+ *   2. "for any order at any time" described a per-order export that does not exist as such. The
+ *      only CSV export of audit data in the product is on that same Operations-gated page
+ *      (`CrossingsLog.tsx:441`). It does honour the `?orderId=` filter, so an Operations customer
+ *      can export one order's rows -- but only from the page it loaded, which the page itself
+ *      discloses as partial (`windowPartial`). The claim was untrue on EVERY tier, not merely
+ *      mis-tiered, which is why naming a tier alone would not have repaired it.
+ *
+ * This sat on the security page, which is what a buyer's compliance reviewer reads before signing.
+ *
+ * ── Why the guards already here could not see it ────────────────────────────────
+ *
+ * They compare a capability against a NAMED tier, so a claim naming no tier at all is invisible to
+ * them; and the newest of them reaches `PLANS.features` only, while this claim lived in free
+ * marketing prose. Hence a guard whose offence is the claim itself rather than a tier mismatch.
+ *
+ * ── What this guard can and cannot do ───────────────────────────────────────────
+ *
+ * Stated plainly, because a guard trusted past its reach is worse than none. It is LINE-SCOPED and
+ * VOCABULARY-BOUND. It catches an offer to export or open the workspace-wide log that names no
+ * tier, or names one below Operations. It does NOT catch a claim split across two lines, nor one
+ * avoiding both the nouns and the verbs below -- "download your complete order history as a
+ * spreadsheet" names neither. Its corpus is `buyerFacingLines()`, which does not reach the
+ * `/sign-in` and `/sign-up` trust strips; those say "Full audit trail", which is true per order,
+ * but a delivery-log claim added there would not be seen. Each arm below is pinned by a control
+ * quoting copy that really shipped.
+ *
+ * The line between an offence and an honest sentence is deliberate, and it is NOT "mentions the
+ * log". Recording is universal and append-only on every plan, and so is reading ONE order's
+ * history: `GET /api/orders/{id}/audit` is ungated on purpose, pinned as the IL scanner's negative
+ * control (`BillingGateEnforcementIsRealTests.cs:143-155`) and rendered at `OrderWorkshop.tsx:377`.
+ * A sentence saying the log RECORDS something is true and stays. The offence is directing a reader
+ * to OPEN or EXPORT the workspace-wide log without saying what it costs. Over-correcting the true
+ * half into something timid gives away real sales value, so the controls pin that too.
+ */
+describe("the workspace-wide delivery log is not offered below the tier that unlocks it", () => {
+  /** Nouns for a recorded trail, in the spellings marketing copy actually uses. */
+  const AUDIT_RECORD = String.raw`(?:delivery|audit|activity|event)\s+(?:log|trail|history)`;
+
+  /** The workspace-wide surface specifically -- the one that is gated. */
+  const LOG_SURFACE = /\b(?:delivery|audit|activity|event)\s+log\b/i;
+
+  /**
+   * Getting audit data OUT. No export of it exists on any tier below Operations, so this arm needs
+   * no tier comparison of its own -- any undisclosed export claim is wrong.
+   *
+   * `[^.\n]` is what bounds it, not a character count. The landing page carries
+   *
+   *     "... or download the artifact. Encrypted credentials, AES-GCM at rest, full audit trail
+   *      per attempt."
+   *
+   * where "download" and "audit trail" sit 70 characters apart in TWO sentences about two
+   * different things -- the transformed output file, and the recording. A width-bounded window
+   * flags that; a sentence-bounded one does not, and an export claim is written as one sentence.
+   */
+  const EXPORT_VERB = String.raw`(?:export|exports|exported|exporting|download|downloads|downloadable)`;
+  const EXPORTS_AUDIT_DATA = new RegExp(
+    `\\b${EXPORT_VERB}\\b[^.\\n]{0,60}?\\b${AUDIT_RECORD}\\b` +
+      `|\\b${AUDIT_RECORD}\\b[^.\\n]{0,60}?\\b${EXPORT_VERB}\\b`,
+    "i",
+  );
+
+  /**
+   * Writing the navigation path IS directing the reader there, so this arm needs no verb -- which
+   * matters, because the help bullet that shipped had none. Its imperative ("Where to watch
+   * statuses") was a heading away, where a line-scoped guard cannot reach.
+   */
+  const NAV_PATH_TO_THE_LOG = /\boperations\s*(?:→|->|›|»|>|\/)\s*log\b/i;
+
+  /**
+   * Verbs of ACCESS, not of RECORD. "records", "keeps", "captures", "retained" and "shows" are
+   * deliberately absent: they describe what the system does, which is true for everyone, and
+   * flagging them would push a later reader to narrow this pattern until it caught nothing.
+   */
+  const READS = /\b(?:open|opens|check|checks|go to|view|views|see|watch|browse|filter|search|read|reads)\b/i;
+
+  /**
+   * A tier disclosure, DERIVED from the mirrored gate row rather than typed -- if `AdvancedAudit`
+   * moves in `PlanConstants.cs`, the mirror above is the one edit and this follows it.
+   *
+   * It requires a plan WORD beside the tier name, which is the whole point: the offending bullet
+   * read "**Operations -> Log**", so any check for the bare string "operations" would have excused
+   * the exact line this guard exists to catch.
+   */
+  const MIN_PLAN = BACKEND_MINIMUM_PLAN.advancedAudit;
+  const DEAR_ENOUGH = PLAN_NAMES.slice(rank(MIN_PLAN)).join("|");
+  const DISCLOSES_TIER = new RegExp(
+    `\\b(?:${DEAR_ENOUGH})\\b[^\\n]{0,40}?\\b(?:plan|plans|tier|and up|or above|and above)\\b` +
+      `|\\b(?:plan|plans|tier)\\b[^\\n]{0,40}?\\b(?:${DEAR_ENOUGH})\\b`,
+    "i",
+  );
+
+  /** Does this line offer the gated log without saying what it costs? */
+  const offends = (line: string): boolean => {
+    const claims =
+      EXPORTS_AUDIT_DATA.test(line) ||
+      NAV_PATH_TO_THE_LOG.test(line) ||
+      (READS.test(line) && LOG_SURFACE.test(line));
+    return claims && !DISCLOSES_TIER.test(line);
+  };
+
+  it("no buyer-facing line offers the delivery log or its export without naming the tier", () => {
+    const lines = buyerFacingLines();
+
+    // Anti-vacuity. A corpus that silently emptied -- a renamed route group, a walk stopping one
+    // directory short -- would make every assertion below pass while reading nothing at all.
+    expect(lines.length, "the corpus must really be reading copy").toBeGreaterThan(1000);
+    expect(
+      lines.filter(({ file }) => /security[\\/]page\.tsx$/.test(file)).length,
+      "the security page is where the defect shipped; it has to be inside the corpus",
+    ).toBeGreaterThan(0);
+    expect(
+      lines.filter(({ file }) => file.endsWith(".mdx")).length,
+      "the help articles are MDX; a corpus that skips them misses half the surface",
+    ).toBeGreaterThan(0);
+
+    const offenders = lines
+      .filter(({ line }) => offends(line))
+      .map(({ file, number, line }) => `${file}:${number}: ${line.trim()}`);
+
+    expect(
+      offenders,
+      "these lines offer the workspace-wide delivery log, or an export of audit data, without " +
+        `saying it starts at ${MIN_PLAN}. GET /api/audit is gated on BillingFeature.AdvancedAudit ` +
+        "and /operations/log refuses anything cheaper. Name the tier, or describe the per-order " +
+        "history instead -- that one really is on every plan:\n" + offenders.join("\n"),
+    ).toEqual([]);
+  });
+
+  it("flags the claims that shipped, verbatim, so a green result means absence and not blindness", () => {
+    // `/security` as it stood at the commit before this one -- the exact source line, not a
+    // tidier paraphrase. A control rewritten to suit the pattern proves only that the pattern
+    // matches itself.
+    expect(
+      offends(
+        '    body: "Every parse, edit, validation and delivery attempt is recorded in an append-only audit log. Export the full delivery log for any order at any time.",',
+      ),
+      "the /security claim this guard exists for",
+    ).toBe(true);
+
+    // `/help/dashboard-and-statuses` at the same commit. It carries no verb at all, and the word
+    // "Operations" appears as a NAV LABEL -- both of which a looser guard reads as innocent.
+    expect(
+      offends("- **Operations → Log** — a date-grouped audit trail of every status change and event."),
+      "the help article's undisclosed destination",
+    ).toBe(true);
+
+    // Shapes that have not shipped here but are one edit away.
+    expect(offends("Download the full delivery log whenever you need it."), "download, not export").toBe(true);
+    expect(offends("Export your audit trail to CSV at any time."), "audit trail, not the word log").toBe(true);
+    expect(offends("Open the delivery log to see every event across your workspace."), "open, not export").toBe(true);
+    expect(offends("Head to Operations / Log for the whole history."), "the slash form of the nav path").toBe(true);
+  });
+
+  it("treats a tier below the gate as an offence too, and takes the gate from the mirror", () => {
+    // Naming SOME tier is not the bar; naming one that really unlocks it is.
+    expect(
+      offends("Export the full delivery log for any order — Growth plan and up."),
+      "growth is below the gate",
+    ).toBe(true);
+    expect(offends("Export the full delivery log for any order — Pilot plan.")).toBe(true);
+
+    // And the acceptance is pinned to the mirrored row, not to a literal. The tier directly below
+    // the minimum must not excuse a claim; the minimum and everything above it must.
+    const below = PLAN_NAMES[rank(MIN_PLAN) - 1];
+    expect(DISCLOSES_TIER.test(`${below} plan and up`), `${below} is one rung below ${MIN_PLAN}`).toBe(false);
+    for (const plan of PLAN_NAMES.slice(rank(MIN_PLAN))) {
+      expect(DISCLOSES_TIER.test(`included from the ${plan} plan up`), `${plan} is at or above the gate`).toBe(true);
+    }
+  });
+
+  it("leaves alone the sentences that are true on every plan", () => {
+    // Recording happens for everyone. Saying so is not selling the gated surface.
+    expect(offends("Audit log entries are retained for the life of the account."), "/privacy:124").toBe(false);
+    expect(
+      offends("The order shows **delivered**, and the delivery log records the attempt with the supplier's response."),
+      "review-an-order:143 -- a statement of record, not an instruction to open a gated page",
+    ).toBe(false);
+    expect(
+      offends("later be marked as rejected by the supplier, and the delivery log keeps both facts."),
+      "review-an-order:161 -- likewise",
+    ).toBe(false);
+    expect(
+      offends("Every attempt is logged in an append-only audit trail."),
+      "how-it-works:120",
+    ).toBe(false);
+    // Two sentences, two subjects: the artifact is downloadable per order, the audit trail is a
+    // separate statement of record. This is the line that made a width-bounded window wrong.
+    expect(
+      offends(
+        "HTTP webhook, SFTP, email or ERP connector — or download the artifact. Encrypted credentials, AES-GCM at rest, full audit trail per attempt.",
+      ),
+      "(home)/page.tsx:195 -- neither half is a delivery-log export claim",
+    ).toBe(false);
+    // The changelog is frozen byte-for-byte by changelog-append-only.test.ts, so a guard flagging
+    // it could not be satisfied at all. It is also true: the per-order history is ungated.
+    expect(offends('      "Audit log — full event history for every order",'), "the frozen v1.1 entry").toBe(false);
+    // The per-order trail, which every plan really does get, must stay sellable in plain words.
+    expect(
+      offends("Open the order to read its full audit trail — every attempt, on every plan."),
+      "per-order, ungated, and worth selling",
+    ).toBe(false);
+  });
+});
+
+/**
+ * "Append-only", and every other promise about how records BEHAVE.
+ *
+ * ── The defect ──────────────────────────────────────────────────────────────────
+ *
+ * `/security` carried the phrase in four places at once — the card title, the card body, the page
+ * description and the OG description — and `/how-it-works` in a fifth:
+ *
+ *     title: "Append-only audit trail",
+ *     "Every parse, edit, validation and delivery attempt is recorded in an append-only audit log."
+ *
+ * Four greps falsify it, and a security page is exactly where someone runs them:
+ *
+ *   • `DeliveryService.cs:975-983` UPDATES the in-flight `dispatching` row IN PLACE to its terminal
+ *     outcome — `existingAttempt.Status = status; …ResponseCode…ResponseBody…AcknowledgedAt…
+ *     ArtifactSha256 =`.
+ *   • `OpsController.cs:251` — `attempt.CapSupersededAt = now;` stamps existing rows on requeue.
+ *   • `DataErasureService.cs:136,139,140` — HARD DELETE. `RemoveRange` over `DeliveryAttempts`,
+ *     `PoPassportEvents` and `AuditEvents`.
+ *   • `IDataRetentionService.cs:4-16` prunes those same three tables past a retention window.
+ *
+ * No database-level immutability backs any of them. The repo's only immutability trigger is on
+ * `supplier_connection_revisions`, a different table.
+ *
+ * There is real mitigation, and it is why the intent was honest: erasure is `[AdminOnly]` behind an
+ * env allowlist and fails closed, so a customer cannot delete their own records; retention is off by
+ * default; and a destructive cap-reset was deliberately replaced by the non-destructive
+ * `CapSupersededAt` stamp after a P1. The system is append-only-ISH by design. But a marketing page
+ * does not get to claim the intent — it claims the property, and the property is not enforced.
+ *
+ * ── Why this is its own guard ───────────────────────────────────────────────────
+ *
+ * The block above catches a capability sold at the wrong TIER. This is the adjacent class and the
+ * tier machinery cannot see it: a durability claim is wrong on every tier at once, so there is no
+ * tier to compare against. What makes it wrong is the storage layer, not the price list.
+ *
+ * ── Why it is an outright ban rather than a conditional ─────────────────────────
+ *
+ * The SSO guard below asks "does the Settings surface exist?" and demands the bullet back when it
+ * does. The same shape is tempting here and is not available: the enforcement that would make
+ * "append-only" true lives in the BACKEND repo, which this suite cannot read — it is a separate
+ * checkout that is not present on CI. A probe that silently answers "no enforcement" because the
+ * path does not exist is not a probe. So the ban is unconditional and the exit is documented
+ * instead: if a DB trigger or an equivalent ever makes audit/delivery/passport rows genuinely
+ * immutable, delete this block and put the word back — do not weaken the pattern to sneak it past.
+ */
+describe("no buyer-facing copy claims records are immutable, because nothing enforces it", () => {
+  /** The three tables the claim was made about. */
+  const RECORD_NOUN = String.raw`(?:audit|delivery|passport|order)\s+(?:log|logs|trail|trails|record|records|history|event|events|attempt|attempts)`;
+
+  /**
+   * Words that promise the row cannot change. "Append-only" is the one that shipped; the rest are
+   * what a writer reaches for next once it is gone, which is the point — a guard that bans exactly
+   * one phrase teaches the phrase, not the rule.
+   */
+  const IMMUTABILITY_WORD = String.raw`(?:append[- ]only|immutable|immutability|unalterable|unchangeable|tamper[- ](?:proof|evident)|write[- ]once)`;
+
+  const CLAIMS_IMMUTABLE = new RegExp(
+    `\\b${IMMUTABILITY_WORD}\\b[^.\\n]{0,60}?\\b${RECORD_NOUN}\\b` +
+      `|\\b${RECORD_NOUN}\\b[^.\\n]{0,60}?\\b${IMMUTABILITY_WORD}\\b`,
+    "i",
+  );
+
+  /**
+   * The same promise spelled as a sentence rather than an adjective. This one is here because it
+   * was the near-miss: it was proposed as the REPLACEMENT for "append-only" during review
+   * ("Records are never overwritten by a retry and never deleted by the product") and it is
+   * falsified by the very same `RemoveRange` lines. Swapping one falsifiable claim for another is
+   * the failure this whole file exists to stop, so the replacement is guarded too.
+   */
+  const CLAIMS_NEVER_DESTROYED =
+    /\brecords?\b[^.\n]{0,50}?\bnever\b[^.\n]{0,30}?\b(?:deleted|erased|removed|destroyed|purged|overwritten)\b/i;
+
+  const offends = (line: string): boolean => CLAIMS_IMMUTABLE.test(line) || CLAIMS_NEVER_DESTROYED.test(line);
+
+  it("no buyer-facing line promises records cannot be changed or deleted", () => {
+    const lines = buyerFacingLines();
+
+    // Anti-vacuity, same reasoning as the block above: an emptied corpus must fail, not pass.
+    expect(lines.length, "the corpus must really be reading copy").toBeGreaterThan(1000);
+    expect(
+      lines.filter(({ file }) => /security[\\/]page\.tsx$/.test(file)).length,
+      "the security page carried four of the five instances; it has to be in the corpus",
+    ).toBeGreaterThan(0);
+
+    const offenders = lines
+      .filter(({ line }) => offends(line))
+      .map(({ file, number, line }) => `${file}:${number}: ${line.trim()}`);
+
+    expect(
+      offenders,
+      "these lines promise records are immutable or undeletable. Nothing enforces that: " +
+        "DeliveryService.cs:975-983 updates attempt rows in place, OpsController.cs:251 stamps " +
+        "them at requeue, and DataErasureService.cs:136-140 hard-deletes DeliveryAttempts, " +
+        "PoPassportEvents and AuditEvents via RemoveRange. Say what is recorded instead:\n" +
+        offenders.join("\n"),
+    ).toEqual([]);
+  });
+
+  it("flags every instance that shipped, verbatim", () => {
+    // All five, exactly as they stood before this change. Quoting them is the only way a green
+    // result means the copy is clean rather than the pattern being blind.
+    for (const shipped of [
+      '    title: "Append-only audit trail",',
+      '    body: "Every parse, edit, validation and delivery attempt is recorded in an append-only audit log. Export the full delivery log for any order at any time.",',
+      '    "ProcuLink sits between your buyers and suppliers. How we protect that position — encryption, EU-region storage, an append-only audit trail, and responsible AI.",',
+      '    "Encryption, EU-region storage, an append-only audit trail, access control, and responsible AI — how ProcuLink protects the orders passing through it.",',
+      '      "The canonical order is transformed into the exact format the supplier requires and delivered over their channel — webhook, SFTP, email or ERP connector. Every attempt is logged in an append-only audit trail.",',
+    ]) {
+      expect(offends(shipped), `the shipped instance must match: ${shipped.trim().slice(0, 70)}…`).toBe(true);
+    }
+
+    // The words a writer reaches for once "append-only" is banned.
+    expect(offends("An immutable audit trail of every change."), "immutable").toBe(true);
+    expect(offends("Tamper-proof delivery records."), "tamper-proof").toBe(true);
+    expect(offends("Write-once audit log."), "write-once").toBe(true);
+    // And the sentence form, which was proposed as the replacement during review.
+    expect(
+      offends("Records are never overwritten by a retry and never deleted by the product; requeues supersede rather than erase."),
+      "the near-miss replacement — falsified by the same RemoveRange lines",
+    ).toBe(true);
+  });
+
+  it("leaves the honest replacement alone", () => {
+    // What actually shipped. Every clause is checkable: the fields are on DeliveryAttempt.cs
+    // (Channel 11, Destination 12, AttemptedAt 25, ResponseCode 26, AttemptNumber 69,
+    // ArtifactSha256 94), OrdersController makes no HasFeatureAsync call, and the response-body
+    // clause is scoped to the channels whose CapturesSupplierResponseBody is true.
+    expect(
+      offends(
+        "Every parse, edit, validation and delivery attempt is recorded. Each delivery attempt carries its timestamp, channel, endpoint, attempt number, response code, and the SHA-256 fingerprint of the bytes dispatched; on channels that return one — webhook, email API, ERP — a failed or rejected attempt also stores the supplier's response. A retry adds a new numbered attempt rather than replacing the previous one, and requeueing supersedes earlier attempts rather than erasing them. You can open any single order and read its complete history on every plan; the workspace-wide delivery log across all orders, with filtering and CSV export, is included from the Operations plan up.",
+      ),
+      "describing what is stored is not a durability promise",
+    ).toBe(false);
+    expect(
+      offends("Every attempt is recorded with its response code and a SHA-256 fingerprint of the bytes sent."),
+      "/how-it-works, as replaced",
+    ).toBe(false);
+    // "Supersedes rather than erases" is the accurate description of OpsController.cs:251 and must
+    // stay sayable — it is a statement about what requeue does, not a promise about forever.
+    expect(offends("Requeueing supersedes earlier attempts rather than erasing them.")).toBe(false);
+    // A tier claim is the other block's business, not this one's.
+    expect(offends("The workspace-wide delivery log is included from the Operations plan up.")).toBe(false);
+  });
+});

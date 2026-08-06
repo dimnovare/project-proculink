@@ -117,7 +117,7 @@ const STEPS: Array<{
     n: "05",
     title: "Transform & deliver",
     desc:
-      "The canonical order is transformed into the exact format the supplier requires and delivered over their channel — webhook, SFTP, email or ERP connector. Every attempt is logged in an append-only audit trail.",
+      "The canonical order is transformed into the exact format the supplier requires and delivered over their channel — webhook, SFTP, email or ERP connector. Every attempt is recorded with its response code and a SHA-256 fingerprint of the bytes sent.",
     color: GREEN,
     bg: GREEN_SOFT,
     icon: <SendIcon />,
