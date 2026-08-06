@@ -372,7 +372,16 @@ export function MappingEditor() {
       )}
 
       {/* Table card — white rounded card floating on the grey canvas (design v2: 12px radius, layered shadow) */}
-      <div className="flex-1 min-h-0 overflow-auto">
+      {/* tabIndex/role/aria-label: this card scrolls, and in its empty and
+          supplier-prompt states it holds no focusable control at all, so a keyboard
+          user could not reach it to scroll it (axe `scrollable-region-focusable`,
+          WCAG 2.1.1). Same shape as SupplierDockProfile.tsx's tab body. */}
+      <div
+        className="flex-1 min-h-0 overflow-auto"
+        tabIndex={0}
+        role="region"
+        aria-label="Item code mappings"
+      >
         <div
           className="overflow-hidden rounded-[12px]"
           style={{ background: "#FFFFFF", border: "1px solid #E5E8EE", boxShadow: "0 1px 3px rgba(11,26,47,0.05), 0 1px 2px rgba(11,26,47,0.04)" }}

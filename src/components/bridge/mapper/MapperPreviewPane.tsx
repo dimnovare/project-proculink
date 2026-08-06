@@ -314,7 +314,12 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
                   padding: "4px 9px", borderRadius: 6, cursor: "pointer",
                   fontSize: 11, fontWeight: 600, border: "1px solid transparent",
                   background: active ? "#1E6D29" : "transparent",
-                  color: active ? "#FFFFFF" : "var(--ink-faint)",
+                  // --ink-muted, not --ink-faint: the inactive buttons are transparent over
+                  // the segmented track's #F1F3F7 (= --surface-2), and #667085 on #F1F3F7 is
+                  // 4.4781:1 — a marginal AA fail at this 11px size. #5E6779 is 5.1199:1.
+                  // --ink-faint is fine on --bg (4.6439:1); it is the PAIRING with the raised
+                  // track that fails, not the token. Same resolution as settings/page.tsx.
+                  color: active ? "#FFFFFF" : "var(--ink-muted)",
                 }}
               >
                 {f.label}
@@ -358,7 +363,13 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
       )}
 
       {err && (
-        <div style={{ padding: "8px 12px", fontSize: 11, color: "#9A6B00", background: "#FFF7E6", borderBottom: "1px solid #F1E2BE" }}>
+        <div
+          // --amber-text (#8A5310), not the one-off #9A6B00 this used to carry:
+          // #9A6B00 on #FFF7E6 is 4.3999:1, under the 4.5:1 floor. #8A5310 is
+          // 5.9237:1 on the same fill. Fill and border are unchanged. Same
+          // migration MapperWorkbench.tsx already made for its amber surfaces.
+          style={{ padding: "8px 12px", fontSize: 11, color: "var(--amber-text)", background: "#FFF7E6", borderBottom: "1px solid #F1E2BE" }}
+        >
           {err}
         </div>
       )}
@@ -371,6 +382,16 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
         <pre
           ref={codeRef}
           aria-live="polite"
+          // A scrolling region with no focusable content inside it is unreachable by
+          // keyboard: a mouse user scrolls the preview, a keyboard user cannot even
+          // get to it (axe `scrollable-region-focusable`, WCAG 2.1.1). tabIndex={0}
+          // puts it in the tab order so arrow keys / Page Up / Page Down scroll it,
+          // and role+aria-label give it the name a screen reader announces on
+          // arrival — a focus stop with no name is only half a fix. Same shape as
+          // SupplierDockProfile.tsx's tab body.
+          tabIndex={0}
+          role="region"
+          aria-label="Supplier-ready output preview"
           className={flash ? "mapper-preview-flash" : undefined}
           style={{
             // The docked live preview is the document operators read most, but the T7 sizing

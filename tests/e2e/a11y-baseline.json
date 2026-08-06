@@ -3,15 +3,10 @@
   "pricing": {},
   "bridge": {},
   "inbox": {},
-  "order-review": {
-    "color-contrast": 6,
-    "scrollable-region-focusable": 1
-  },
+  "order-review": {},
   "upload": {},
   "suppliers": {},
-  "mappings": {
-    "scrollable-region-focusable": 1
-  },
+  "mappings": {},
   "delivery-log": {},
   "settings": {}
 }
