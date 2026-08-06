@@ -9,6 +9,12 @@
 import { useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ApiHttpError, apiClient } from "@/lib/api-client";
+import {
+  attemptOutcomeIsUnknown,
+  attemptSendWasObserved,
+  deliveryAttemptOutcome,
+} from "@/lib/deliveryAttemptManifest";
+import type { DeliveryAttemptOutcome } from "@/lib/deliveryAttemptManifest";
 import type {
   PassportDto,
   PassportEvent,
@@ -84,7 +90,14 @@ interface DerivedTimeline {
   final: { label: string; state: StageState; detail?: string; at: string | null };
 }
 
-function deriveTimeline(p: PassportDto): DerivedTimeline {
+/**
+ * Exported for `src/test/OrderPassport.deliveryStatus.test.tsx`, which asserts on the
+ * stage states directly. "Did an attempt status advance the pipeline to Delivered?" is
+ * the half of the delivery-status defect that has no rendered colour of its own — it
+ * shows up as six green checkmarks and a "Download what we sent" button — so it is
+ * checked against the derivation rather than inferred from the DOM.
+ */
+export function deriveTimeline(p: PassportDto): DerivedTimeline {
   const fs = lc(p.finalStatus ?? p.order.status);
   const lineCount = p.canonical?.lineCount ?? 0;
   const hasOutput = !!p.outputArtifact;
@@ -92,21 +105,20 @@ function deriveTimeline(p: PassportDto): DerivedTimeline {
   const resp = p.supplierResponse;
   const respOutcome = lc(resp?.outcome);
 
+  // Attempt statuses go through the manifest allow-list, never a substring test — see
+  // src/lib/deliveryAttemptManifest.ts. `deliveredOk` forces `reached = 5`, which draws
+  // all six pipeline nodes green with a checkmark and offers "Download what we sent", so
+  // the ONE status the channel confirmed is the only thing allowed to set it.
   const deliveredOk =
     fs.includes("delivered") ||
     respOutcome === "acknowledged" ||
-    attempts.some((a) => {
-      const s = lc(a.status);
-      return s.includes("deliver") || s.includes("success") || s.includes("acknowled") || s === "ok" || s === "sent";
-    });
+    attempts.some((a) => attemptSendWasObserved(a.status));
   const deliveryFailed =
     fs.includes("delivery_failed") ||
     fs.includes("dead_letter") ||
     respOutcome === "rejected" ||
-    (attempts.length > 0 && !deliveredOk && attempts.every((a) => {
-      const s = lc(a.status);
-      return s.includes("fail") || s.includes("error") || s.includes("reject");
-    }));
+    (attempts.length > 0 && !deliveredOk &&
+      attempts.every((a) => deliveryAttemptOutcome(a.status) === "failed"));
   const transformFailed = fs.includes("transform_failed");
   const parseFailed = fs === "failed" || (fs.includes("parse") && fs.includes("fail"));
   const needsReview = fs.includes("review") || fs.includes("pending");
@@ -269,25 +281,16 @@ function MappingRow({ d }: { d: PassportMappingDecision }) {
   );
 }
 
-/**
- * The ONE attempt state in which the channel observed the supplier take the bytes. Everything
- * else only proves we tried — including the two states the backend documents as unknowable:
- * `dispatching` (the row is committed BEFORE the network write, purely as a crash backstop —
- * DeliveryService's own note says the reachable outcomes are "sent and accepted", "sent and
- * rejected" and "never sent", and it cannot tell them apart) and `unconfirmed` (the park,
- * whose reason reads "The artifact may have been sent, but the outcome was never observed").
- * Both reach the passport with a real artifact id and no dispatched-bytes fingerprint.
- */
-function sendWasObserved(status: string): boolean {
-  const s = lc(status);
-  return s.includes("deliver") || s.includes("success") || s.includes("acknowled") || s === "ok";
-}
-
-/** The two states above, where "did anything go out?" has no answer yet — or ever. */
-function outcomeIsUnknown(status: string): boolean {
-  const s = lc(status);
-  return s === "dispatching" || s === "unconfirmed";
-}
+/** What colour the attempt's own status word is printed in. */
+const OUTCOME_COLOR: Record<DeliveryAttemptOutcome, string> = {
+  sent: "#1E6D29",
+  failed: "#B43838",
+  // A state nobody can call, and a status we do not recognise, read the same way to an
+  // operator: we cannot tell you. Amber, never green — an unrecognised status used to
+  // satisfy `includes("deliver")` and print in the success colour.
+  unknown: "#B36D14",
+  unrecognised: "#B36D14",
+};
 
 /**
  * One honest sentence per failure. This used to be a single line telling the retention story
@@ -332,9 +335,9 @@ function DeliveryRow({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const ok = sendWasObserved(a.status);
-  const unknownOutcome = outcomeIsUnknown(a.status);
-  const color = ok ? "#1E6D29" : lc(a.status).includes("fail") || lc(a.status).includes("reject") ? "#B43838" : "#B36D14";
+  const ok = attemptSendWasObserved(a.status);
+  const unknownOutcome = attemptOutcomeIsUnknown(a.status);
+  const color = OUTCOME_COLOR[deliveryAttemptOutcome(a.status)];
 
   // Only comparable when this attempt sent the very artifact whose hash we hold.
   const comparable =
