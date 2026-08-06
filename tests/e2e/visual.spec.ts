@@ -1,0 +1,144 @@
+import { test, expect } from "@playwright/test";
+import { platform } from "node:os";
+
+import { CORE_SCREENS, EXPECTED_CORE_SCREEN_COUNT, checkCoreScreenRegistry } from "./coreScreens";
+import { preparePage, settle, DEV_OVERLAY_SELECTORS } from "./a11yHarness";
+
+/**
+ * Visual baselines — ten screens × three viewports (390 / 768 / 1440).
+ *
+ * ── THE PLATFORM PROBLEM, SOLVED RATHER THAN NOTED ────────────────────────────
+ *
+ * CI is ubuntu-latest. The founder's machine is Windows 11. The same Chromium
+ * build renders text differently on the two: different font stacks behind the
+ * webfont fallback, different rasterisers, different hinting. A baseline written
+ * on Windows fails on Linux on the first pixel of the first glyph — reliably,
+ * on every PR, for reasons nobody caused. That is precisely how a visual gate
+ * becomes a disabled visual gate, and a disabled gate is worse than none because
+ * the check name still says "visual".
+ *
+ * Playwright's own answer is to put `{platform}` in the snapshot filename, which
+ * only converts the failure into a silent gap: a Windows run finds no baseline,
+ * WRITES one, and reports the test as failed-then-passing-on-retry. Two baseline
+ * sets then drift apart and nobody is comparing anything.
+ *
+ * So: ONE baseline set, generated on Linux, and this spec REFUSES TO RUN
+ * anywhere else. On Windows and macOS it skips with a reason naming the command
+ * that does work — `bun run visual:linux:update`, which runs this same suite
+ * inside the official Playwright Linux container against the same repo (see
+ * `scripts/visual-baselines-docker.mjs`). The skip is not a gap; the CI job is
+ * on Linux, so the gate is armed exactly where PRs are judged.
+ *
+ * ── WHAT MAKES THE PIXELS REPRODUCIBLE ────────────────────────────────────────
+ *
+ * Four independent sources of nondeterminism, each closed by name:
+ *
+ *  1. THE CLOCK. A dozen components render "{n}m ago" against `Date.now()`
+ *     (InboxView, BridgeTopbar, BridgeDashboard, DashboardContextLine,
+ *     CrossingsLog, BillingSection). Against fixtures dated Jan 2024 those
+ *     strings change daily. `preparePage({ freezeClock: true })` pins them.
+ *  2. MOTION. Playwright's `animations: "disabled"` freezes CSS animations and
+ *     nothing else; the wire-topology dots and the marketing hero pulses are SVG
+ *     SMIL, which CSS cannot reach. `prefers-reduced-motion: reduce` removes them
+ *     from the DOM via `useReducedMotion`. Both are applied.
+ *  3. RANDOMNESS. `ui/sidebar.tsx` sizes skeleton bars with `Math.random()`.
+ *     Seeded PRNG installed before any page script runs.
+ *  4. HOST RENDERING. Colour profile, scrollbar width, LCD subpixel text and font
+ *     hinting are pinned by launch flags in `playwright.config.ts`; timezone and
+ *     locale are pinned below, because a UTC-relative date and a time-of-day
+ *     greeting both move with the host's zone.
+ *
+ * The dev-server overlay is hidden rather than excluded: `next dev` paints a badge
+ * and a build indicator that do not exist in production.
+ */
+
+const IS_LINUX = platform() === "linux";
+
+test.describe("visual baselines", () => {
+  test.skip(
+    !IS_LINUX,
+    `Visual baselines are Linux-only by design (running on ${platform()}). The committed ` +
+      "PNGs are generated on Linux so they match the ubuntu-latest CI runner; comparing them " +
+      "against Windows/macOS text rasterisation fails on every glyph. To run or refresh them " +
+      "locally use the Linux container: `bun run visual:linux` (compare) or " +
+      "`bun run visual:linux:update` (regenerate). Requires Docker.",
+  );
+
+  // Three viewport projects × ten screens against one `next dev`. Same
+  // cold-compile reasoning as tap-targets.spec.ts.
+  test.describe.configure({ timeout: 180_000 });
+
+  // Pin the host locale and zone. `DashboardContextLine.tsx:45` formats with an
+  // `undefined` locale (so it follows the host) and picks its greeting from the
+  // local hour; `format-date.ts` pins en-GB but still resolves the zone.
+  test.use({ locale: "en-GB", timezoneId: "UTC" });
+
+  test("the core-screen registry still describes real routes", () => {
+    const problems = checkCoreScreenRegistry();
+    expect(problems.map((p) => `${p.kind}: ${p.detail}`)).toEqual([]);
+    expect(CORE_SCREENS.length).toBe(EXPECTED_CORE_SCREEN_COUNT);
+  });
+
+  for (const screen of CORE_SCREENS) {
+    test(`${screen.path} (${screen.label})`, async ({ page }, testInfo) => {
+      await preparePage(page, {
+        dismissCookieBanner: true,
+        freezeClock: true,
+        seedRandom: true,
+      });
+
+      const response = await page.goto(screen.path);
+      expect(
+        response?.status(),
+        `${screen.path} did not serve a page — a baseline of an error page is not a baseline of ${screen.id}`,
+      ).toBeLessThan(400);
+      await settle(page);
+
+      // Hide `next dev`'s own chrome. These elements do not exist in a production
+      // build, so baselining them would mean a Next.js upgrade fails a visual diff.
+      await page.addStyleTag({
+        content:
+          `${DEV_OVERLAY_SELECTORS.join(",")} { display: none !important; }\n` +
+          // The mock-data badge in the topbar is a QA affordance, not product UI.
+          `span[title^="You are viewing mock data"] { visibility: hidden !important; }\n` +
+          // A blinking caret in an autofocused field is a 1×16px coin flip.
+          `*, *::before, *::after { caret-color: transparent !important; }\n`,
+      });
+
+      // A full-page capture scrolls the document. Do that scroll FIRST and let it
+      // settle, so anything that mounts on scroll is already mounted when the
+      // capture starts, and the capture is not racing its own scrolling.
+      await page.evaluate(async () => {
+        const step = window.innerHeight;
+        for (let y = 0; y < document.body.scrollHeight; y += step) {
+          window.scrollTo(0, y);
+          await new Promise((r) => setTimeout(r, 60));
+        }
+        window.scrollTo(0, 0);
+      });
+      await page.waitForTimeout(400);
+
+      // Anti-vacuity. `toHaveScreenshot` on a blank page is perfectly stable and
+      // perfectly worthless; without this, a screen that silently stopped
+      // rendering would be baselined AS blank and then pass forever.
+      const rendered = await page.evaluate(() => ({
+        text: document.body.innerText.trim().length,
+        height: document.body.scrollHeight,
+      }));
+      expect(
+        rendered.text,
+        `${screen.path} rendered ${rendered.text} chars of text — too little to be a meaningful baseline`,
+      ).toBeGreaterThan(200);
+      expect(rendered.height, `${screen.path} has no height`).toBeGreaterThan(300);
+
+      testInfo.annotations.push({
+        type: "viewport",
+        description: `${testInfo.project.name} — ${JSON.stringify(page.viewportSize())}`,
+      });
+
+      await expect(page).toHaveScreenshot(`${screen.id}-${testInfo.project.name}.png`, {
+        fullPage: true,
+      });
+    });
+  }
+});

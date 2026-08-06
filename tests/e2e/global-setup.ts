@@ -57,6 +57,12 @@ const ROUTES = [
   "/library/buyers",
   "/library/suppliers",
   "/inbox",
+  // ── WP-41 core screens (a11y-axe / a11y-focus / visual) not already listed ──
+  // Each is visited by up to five specs across four viewport projects, so an
+  // unwarmed cold compile here costs the same stall several times over.
+  "/sign-in",
+  "/library/mappings",
+  "/operations/log",
 ];
 
 // `next dev` compiles roughly one route at a time; a batch this size keeps a few
