@@ -67,7 +67,26 @@ const POSTURE: Array<{ title: string; body: React.ReactNode; icon: React.ReactNo
   },
   {
     title: "Append-only audit trail",
-    body: "Every parse, edit, validation and delivery attempt is recorded in an append-only audit log. Export the full delivery log for any order at any time.",
+    // The second sentence used to read "Export the full delivery log for any order at any time."
+    // Both halves of it were wrong, and the second more seriously than the first.
+    //
+    // 1. It named no tier. The workspace-wide log is GET /api/audit, gated on
+    //    BillingFeature.AdvancedAudit -> Operations (PlanConstants.cs:276), so a Growth or Pilot
+    //    reader took an Operations capability as included. /operations/log refuses them outright
+    //    with `advanced_audit_requires_operations` (CrossingsLog.tsx:413-416).
+    // 2. "for any order at any time" described a per-order export that does not exist as such.
+    //    The only CSV export in the product is on that same gated page (CrossingsLog.tsx:441).
+    //    It does honour the ?orderId= filter, so an Operations customer can export one order's
+    //    entries — but only within the page it loaded (newest 200 events org-wide), which the
+    //    page itself discloses via `windowPartial`. "Full ... at any time" was not true even
+    //    there, so naming a tier alone would not have fixed it.
+    //
+    // What every plan really gets is the per-order trail: GET /api/orders/{id}/audit is
+    // deliberately ungated — pinned as the IL scanner's negative control in
+    // BillingGateEnforcementIsRealTests.cs:143-155 — and is rendered at OrderWorkshop.tsx:377.
+    // That is worth stating plainly rather than dropping; it is the half of the claim that was
+    // always true.
+    body: "Every parse, edit, validation and delivery attempt is recorded in an append-only audit log. On every plan you can open a single order and read its complete history — each attempt, the supplier's response code, and any error. The workspace-wide delivery log across all orders, with filtering and CSV export, is included from the Operations plan up.",
     icon: <ClockIcon />,
   },
   {

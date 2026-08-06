@@ -895,3 +895,222 @@ describe("every pricing-card bullet is accounted for by something real", () => {
     expect(accountFor(growth, "Per-order audit trail").ok).toBe(true);
   });
 });
+
+/**
+ * The workspace-wide delivery log, and the export of it.
+ *
+ * ── The defect ──────────────────────────────────────────────────────────────────
+ *
+ * `/security` shipped this, unqualified, to every reader:
+ *
+ *     "Export the full delivery log for any order at any time."
+ *
+ * Two failures, and the second is the worse one:
+ *
+ *   1. It named no tier. The workspace-wide log is `GET /api/audit`, gated on
+ *      `BillingFeature.AdvancedAudit` -> Operations (`PlanConstants.cs:276`). A Growth or Pilot
+ *      reader takes an unqualified sentence as included, and `/operations/log` then refuses them
+ *      with `advanced_audit_requires_operations` (`CrossingsLog.tsx:413-416`).
+ *   2. "for any order at any time" described a per-order export that does not exist as such. The
+ *      only CSV export of audit data in the product is on that same Operations-gated page
+ *      (`CrossingsLog.tsx:441`). It does honour the `?orderId=` filter, so an Operations customer
+ *      can export one order's rows -- but only from the page it loaded, which the page itself
+ *      discloses as partial (`windowPartial`). The claim was untrue on EVERY tier, not merely
+ *      mis-tiered, which is why naming a tier alone would not have repaired it.
+ *
+ * This sat on the security page, which is what a buyer's compliance reviewer reads before signing.
+ *
+ * ── Why the guards already here could not see it ────────────────────────────────
+ *
+ * They compare a capability against a NAMED tier, so a claim naming no tier at all is invisible to
+ * them; and the newest of them reaches `PLANS.features` only, while this claim lived in free
+ * marketing prose. Hence a guard whose offence is the claim itself rather than a tier mismatch.
+ *
+ * ── What this guard can and cannot do ───────────────────────────────────────────
+ *
+ * Stated plainly, because a guard trusted past its reach is worse than none. It is LINE-SCOPED and
+ * VOCABULARY-BOUND. It catches an offer to export or open the workspace-wide log that names no
+ * tier, or names one below Operations. It does NOT catch a claim split across two lines, nor one
+ * avoiding both the nouns and the verbs below -- "download your complete order history as a
+ * spreadsheet" names neither. Its corpus is `buyerFacingLines()`, which does not reach the
+ * `/sign-in` and `/sign-up` trust strips; those say "Full audit trail", which is true per order,
+ * but a delivery-log claim added there would not be seen. Each arm below is pinned by a control
+ * quoting copy that really shipped.
+ *
+ * The line between an offence and an honest sentence is deliberate, and it is NOT "mentions the
+ * log". Recording is universal and append-only on every plan, and so is reading ONE order's
+ * history: `GET /api/orders/{id}/audit` is ungated on purpose, pinned as the IL scanner's negative
+ * control (`BillingGateEnforcementIsRealTests.cs:143-155`) and rendered at `OrderWorkshop.tsx:377`.
+ * A sentence saying the log RECORDS something is true and stays. The offence is directing a reader
+ * to OPEN or EXPORT the workspace-wide log without saying what it costs. Over-correcting the true
+ * half into something timid gives away real sales value, so the controls pin that too.
+ */
+describe("the workspace-wide delivery log is not offered below the tier that unlocks it", () => {
+  /** Nouns for a recorded trail, in the spellings marketing copy actually uses. */
+  const AUDIT_RECORD = String.raw`(?:delivery|audit|activity|event)\s+(?:log|trail|history)`;
+
+  /** The workspace-wide surface specifically -- the one that is gated. */
+  const LOG_SURFACE = /\b(?:delivery|audit|activity|event)\s+log\b/i;
+
+  /**
+   * Getting audit data OUT. No export of it exists on any tier below Operations, so this arm needs
+   * no tier comparison of its own -- any undisclosed export claim is wrong.
+   *
+   * `[^.\n]` is what bounds it, not a character count. The landing page carries
+   *
+   *     "... or download the artifact. Encrypted credentials, AES-GCM at rest, full audit trail
+   *      per attempt."
+   *
+   * where "download" and "audit trail" sit 70 characters apart in TWO sentences about two
+   * different things -- the transformed output file, and the recording. A width-bounded window
+   * flags that; a sentence-bounded one does not, and an export claim is written as one sentence.
+   */
+  const EXPORT_VERB = String.raw`(?:export|exports|exported|exporting|download|downloads|downloadable)`;
+  const EXPORTS_AUDIT_DATA = new RegExp(
+    `\\b${EXPORT_VERB}\\b[^.\\n]{0,60}?\\b${AUDIT_RECORD}\\b` +
+      `|\\b${AUDIT_RECORD}\\b[^.\\n]{0,60}?\\b${EXPORT_VERB}\\b`,
+    "i",
+  );
+
+  /**
+   * Writing the navigation path IS directing the reader there, so this arm needs no verb -- which
+   * matters, because the help bullet that shipped had none. Its imperative ("Where to watch
+   * statuses") was a heading away, where a line-scoped guard cannot reach.
+   */
+  const NAV_PATH_TO_THE_LOG = /\boperations\s*(?:→|->|›|»|>|\/)\s*log\b/i;
+
+  /**
+   * Verbs of ACCESS, not of RECORD. "records", "keeps", "captures", "retained" and "shows" are
+   * deliberately absent: they describe what the system does, which is true for everyone, and
+   * flagging them would push a later reader to narrow this pattern until it caught nothing.
+   */
+  const READS = /\b(?:open|opens|check|checks|go to|view|views|see|watch|browse|filter|search|read|reads)\b/i;
+
+  /**
+   * A tier disclosure, DERIVED from the mirrored gate row rather than typed -- if `AdvancedAudit`
+   * moves in `PlanConstants.cs`, the mirror above is the one edit and this follows it.
+   *
+   * It requires a plan WORD beside the tier name, which is the whole point: the offending bullet
+   * read "**Operations -> Log**", so any check for the bare string "operations" would have excused
+   * the exact line this guard exists to catch.
+   */
+  const MIN_PLAN = BACKEND_MINIMUM_PLAN.advancedAudit;
+  const DEAR_ENOUGH = PLAN_NAMES.slice(rank(MIN_PLAN)).join("|");
+  const DISCLOSES_TIER = new RegExp(
+    `\\b(?:${DEAR_ENOUGH})\\b[^\\n]{0,40}?\\b(?:plan|plans|tier|and up|or above|and above)\\b` +
+      `|\\b(?:plan|plans|tier)\\b[^\\n]{0,40}?\\b(?:${DEAR_ENOUGH})\\b`,
+    "i",
+  );
+
+  /** Does this line offer the gated log without saying what it costs? */
+  const offends = (line: string): boolean => {
+    const claims =
+      EXPORTS_AUDIT_DATA.test(line) ||
+      NAV_PATH_TO_THE_LOG.test(line) ||
+      (READS.test(line) && LOG_SURFACE.test(line));
+    return claims && !DISCLOSES_TIER.test(line);
+  };
+
+  it("no buyer-facing line offers the delivery log or its export without naming the tier", () => {
+    const lines = buyerFacingLines();
+
+    // Anti-vacuity. A corpus that silently emptied -- a renamed route group, a walk stopping one
+    // directory short -- would make every assertion below pass while reading nothing at all.
+    expect(lines.length, "the corpus must really be reading copy").toBeGreaterThan(1000);
+    expect(
+      lines.filter(({ file }) => /security[\\/]page\.tsx$/.test(file)).length,
+      "the security page is where the defect shipped; it has to be inside the corpus",
+    ).toBeGreaterThan(0);
+    expect(
+      lines.filter(({ file }) => file.endsWith(".mdx")).length,
+      "the help articles are MDX; a corpus that skips them misses half the surface",
+    ).toBeGreaterThan(0);
+
+    const offenders = lines
+      .filter(({ line }) => offends(line))
+      .map(({ file, number, line }) => `${file}:${number}: ${line.trim()}`);
+
+    expect(
+      offenders,
+      "these lines offer the workspace-wide delivery log, or an export of audit data, without " +
+        `saying it starts at ${MIN_PLAN}. GET /api/audit is gated on BillingFeature.AdvancedAudit ` +
+        "and /operations/log refuses anything cheaper. Name the tier, or describe the per-order " +
+        "history instead -- that one really is on every plan:\n" + offenders.join("\n"),
+    ).toEqual([]);
+  });
+
+  it("flags the claims that shipped, verbatim, so a green result means absence and not blindness", () => {
+    // `/security` as it stood at the commit before this one -- the exact source line, not a
+    // tidier paraphrase. A control rewritten to suit the pattern proves only that the pattern
+    // matches itself.
+    expect(
+      offends(
+        '    body: "Every parse, edit, validation and delivery attempt is recorded in an append-only audit log. Export the full delivery log for any order at any time.",',
+      ),
+      "the /security claim this guard exists for",
+    ).toBe(true);
+
+    // `/help/dashboard-and-statuses` at the same commit. It carries no verb at all, and the word
+    // "Operations" appears as a NAV LABEL -- both of which a looser guard reads as innocent.
+    expect(
+      offends("- **Operations → Log** — a date-grouped audit trail of every status change and event."),
+      "the help article's undisclosed destination",
+    ).toBe(true);
+
+    // Shapes that have not shipped here but are one edit away.
+    expect(offends("Download the full delivery log whenever you need it."), "download, not export").toBe(true);
+    expect(offends("Export your audit trail to CSV at any time."), "audit trail, not the word log").toBe(true);
+    expect(offends("Open the delivery log to see every event across your workspace."), "open, not export").toBe(true);
+    expect(offends("Head to Operations / Log for the whole history."), "the slash form of the nav path").toBe(true);
+  });
+
+  it("treats a tier below the gate as an offence too, and takes the gate from the mirror", () => {
+    // Naming SOME tier is not the bar; naming one that really unlocks it is.
+    expect(
+      offends("Export the full delivery log for any order — Growth plan and up."),
+      "growth is below the gate",
+    ).toBe(true);
+    expect(offends("Export the full delivery log for any order — Pilot plan.")).toBe(true);
+
+    // And the acceptance is pinned to the mirrored row, not to a literal. The tier directly below
+    // the minimum must not excuse a claim; the minimum and everything above it must.
+    const below = PLAN_NAMES[rank(MIN_PLAN) - 1];
+    expect(DISCLOSES_TIER.test(`${below} plan and up`), `${below} is one rung below ${MIN_PLAN}`).toBe(false);
+    for (const plan of PLAN_NAMES.slice(rank(MIN_PLAN))) {
+      expect(DISCLOSES_TIER.test(`included from the ${plan} plan up`), `${plan} is at or above the gate`).toBe(true);
+    }
+  });
+
+  it("leaves alone the sentences that are true on every plan", () => {
+    // Recording happens for everyone. Saying so is not selling the gated surface.
+    expect(offends("Audit log entries are retained for the life of the account."), "/privacy:124").toBe(false);
+    expect(
+      offends("The order shows **delivered**, and the delivery log records the attempt with the supplier's response."),
+      "review-an-order:143 -- a statement of record, not an instruction to open a gated page",
+    ).toBe(false);
+    expect(
+      offends("later be marked as rejected by the supplier, and the delivery log keeps both facts."),
+      "review-an-order:161 -- likewise",
+    ).toBe(false);
+    expect(
+      offends("Every attempt is logged in an append-only audit trail."),
+      "how-it-works:120",
+    ).toBe(false);
+    // Two sentences, two subjects: the artifact is downloadable per order, the audit trail is a
+    // separate statement of record. This is the line that made a width-bounded window wrong.
+    expect(
+      offends(
+        "HTTP webhook, SFTP, email or ERP connector — or download the artifact. Encrypted credentials, AES-GCM at rest, full audit trail per attempt.",
+      ),
+      "(home)/page.tsx:195 -- neither half is a delivery-log export claim",
+    ).toBe(false);
+    // The changelog is frozen byte-for-byte by changelog-append-only.test.ts, so a guard flagging
+    // it could not be satisfied at all. It is also true: the per-order history is ungated.
+    expect(offends('      "Audit log — full event history for every order",'), "the frozen v1.1 entry").toBe(false);
+    // The per-order trail, which every plan really does get, must stay sellable in plain words.
+    expect(
+      offends("Open the order to read its full audit trail — every attempt, on every plan."),
+      "per-order, ungated, and worth selling",
+    ).toBe(false);
+  });
+});
