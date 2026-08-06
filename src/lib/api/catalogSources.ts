@@ -22,6 +22,16 @@
 import { API_BASE_URL, USE_MOCK, authHeader, fetchWithTimeout, delay } from "./core";
 
 export type CatalogSourceProtocol = "sftp" | "ftp" | "ftps" | "http" | "https" | "logicom";
+
+/**
+ * The four values the backend writes today — and a COMPILE-TIME CLAIM about a raw JSON
+ * string, not a runtime guarantee. The backend names no C# set for them (they are bare
+ * literals at four assignment sites), so a fifth arrives without a rename anywhere.
+ *
+ * Never branch on this union as if it were exhaustive at runtime. Resolve a status
+ * through `catalogSyncStatusFact` in src/lib/catalogSyncStatusManifest.ts, which carries
+ * the backend provenance and answers null for anything it has not been told about.
+ */
 export type CatalogSyncStatus = "running" | "ok" | "unchanged" | "failed";
 
 /** Canonical catalog fields a per-source column mapping may target (matches the backend). */

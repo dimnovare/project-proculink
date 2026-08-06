@@ -1,5 +1,5 @@
 import { describe, test, expect } from "vitest";
-import { existsSync, readFileSync } from "fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "fs";
 import { dirname, join, resolve } from "path";
 import {
   DECLARED_TERMINAL,
@@ -14,6 +14,7 @@ import {
   OUTBOUND_URL_ERRORS,
   SECURE_SCHEMES,
 } from "@/lib/outboundUrlPolicy";
+import { CATALOG_SYNC_STATUS_FACTS, CATALOG_SYNC_STATUSES } from "@/lib/catalogSyncStatusManifest";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // The cross-repo mirror check.
@@ -387,6 +388,178 @@ public static class OutboundUrlPolicy
         backendCodes,
         `OUTBOUND_URL_ERRORS.${key} is "${code}", which the backend no longer emits. The UI would stop recognising that refusal and fall back to a raw 400 body.`,
       ).toContain(code);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The catalog sync-status mirror.
+//
+// `src/lib/catalogSyncStatusManifest.ts` is a hand-kept copy of the values the backend
+// writes into `SupplierCatalogSource.LastSyncStatus`. It exists because the frontend's
+// `CatalogSyncStatus` union is a compile-time claim about a raw JSON string, and
+// `formatLastSync` had folded its unknown arm into its success arm — so a value the
+// backend added or renamed rendered as a green dot over "Last synced 3m ago".
+//
+// THIS DIFF IS SHAPED DIFFERENTLY FROM THE TWO ABOVE, and the reason is the second
+// finding of that review: the backend names NO SET for these values. No constants class,
+// no enum, no `IReadOnlySet` — four bare string literals at four assignment sites plus a
+// doc-comment on the entity. There is no symbol to read, so there is nothing a
+// `parseNamedSet` call could point at. A fifth literal can be introduced by one line in
+// one new file and no rename in either repo would mention it.
+//
+// So this walks the backend's production source and collects every `LastSyncStatus = "…"`
+// it finds, rather than reading one declaration. Consequences, stated rather than hidden:
+//
+//   • It scans DOC COMMENTS too, deliberately. A comment that names a status is the
+//     backend declaring that status, and prose there going stale is itself worth a
+//     failure — this diff only ever runs against a local checkout, never in the
+//     frontend's CI, so the cost of that strictness is a developer reading one line.
+//   • It cannot see a status produced by concatenation or returned into the property from
+//     a helper. Nothing does that today; if something starts, this check would report the
+//     manifest as complete while it is not. That limit is why the RENDER side fails safe
+//     independently: an unrecognised status resolves to a non-success tone in
+//     `formatLastSync` whether or not this test ever noticed it.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const CATALOG_ENTITY_REL = "ProcuLink.Core/Entities/SupplierCatalogSource.cs";
+
+/** Production C# projects. Test projects are excluded — they set statuses no user ever sees. */
+const BACKEND_PRODUCTION_PROJECTS = [
+  "ProcuLink.Core",
+  "ProcuLink.Infrastructure",
+  "ProcuLink.Api",
+  "ProcuLink.Worker",
+  "ProcuLink.Transform",
+];
+
+/** Every production `.cs` under `roots`, skipping build output and generated migrations. */
+export function collectCsFiles(base: string, roots: readonly string[]): string[] {
+  const out: string[] = [];
+  const walk = (dir: string) => {
+    let entries: string[];
+    try {
+      entries = readdirSync(dir);
+    } catch {
+      return; // a project that does not exist in this checkout is not a failure here
+    }
+    for (const name of entries) {
+      const full = join(dir, name);
+      if (statSync(full).isDirectory()) {
+        // `Migrations` holds EF-generated snapshots: the property name appears in
+        // hundreds of them as a column declaration, and none of them write a status.
+        if (name === "obj" || name === "bin" || name === "Migrations" || name.includes("Tests")) continue;
+        walk(full);
+      } else if (name.endsWith(".cs")) {
+        out.push(full);
+      }
+    }
+  };
+  for (const root of roots) walk(join(base, root));
+  return out;
+}
+
+/**
+ * Every `…LastSyncStatus = "value"` in the given source, values only.
+ *
+ * Matches an ASSIGNMENT, so a comparison (`LastSyncStatus == "running"`) and a pattern
+ * (`LastSyncStatus is "ok" or …`) are not collected: reading a value proves nothing about
+ * whether a writer can produce it, and this table is about what can reach a screen.
+ */
+export function parseAssignedStatusLiterals(cs: string, property: string): string[] {
+  return [...cs.matchAll(new RegExp(`${property}\\s*=\\s*"([^"]*)"`, "g"))].map((m) => m[1]);
+}
+
+describe("catalog sync statuses mirror the backend", () => {
+  test("the assignment parser actually parses (so a green diff means something)", () => {
+    const fixture = [
+      "public class Job",
+      "{",
+      '    /// <summary><c>LastSyncStatus = "running"</c> and saves.</summary>',
+      "    public void Run()",
+      "    {",
+      '        source.LastSyncStatus = "running";',
+      '        if (source.LastSyncStatus == "ok") return;',
+      '        if (source.LastSyncStatus is "ok" or "unchanged") return;',
+      '        source.LastSyncStatus  =  "failed";',
+      '        source.LastFileHash = "not a status";',
+      "    }",
+      "}",
+    ].join("\n");
+
+    // The doc-comment assignment and the two real ones — and neither the `==` comparison
+    // nor the `is` pattern, which is what stops a READER from widening the vocabulary
+    // this table claims a WRITER can produce.
+    expect(parseAssignedStatusLiterals(fixture, "LastSyncStatus")).toEqual([
+      "running",
+      "running",
+      "failed",
+    ]);
+    expect(parseAssignedStatusLiterals(fixture, "NoSuchProperty")).toEqual([]);
+  });
+
+  test("the frontend copy is itself non-vacuous", () => {
+    // Guards the diff below: two empty sets compare equal, so an accidentally emptied
+    // manifest would otherwise "mirror" a backend that writes four statuses.
+    expect(CATALOG_SYNC_STATUSES.length).toBe(4);
+    expect(sorted(CATALOG_SYNC_STATUSES)).toEqual(["failed", "ok", "running", "unchanged"]);
+    for (const fact of CATALOG_SYNC_STATUS_FACTS) {
+      expect(fact.backendSite, `${fact.status} cites no backend site`).toMatch(
+        /^ProcuLink\.[\w.]+\/[\w./]+\.cs:\d+$/,
+      );
+      expect(fact.note.length, `${fact.status} has no note`).toBeGreaterThan(20);
+    }
+  });
+
+  test.skipIf(!BACKEND)("the walk finds the production tree it claims to scan", () => {
+    const files = collectCsFiles(BACKEND!, BACKEND_PRODUCTION_PROJECTS);
+    expect(files.length, "walked the backend and found almost no C# — the project layout moved").toBeGreaterThan(100);
+    expect(files.some((f) => f.endsWith("CatalogPullService.cs"))).toBe(true);
+    expect(files.some((f) => f.endsWith("CatalogSyncSourceJob.cs"))).toBe(true);
+    expect(files.some((f) => f.includes("Migrations")), "migrations leaked into the walk").toBe(false);
+  });
+
+  test.skipIf(!BACKEND)("every status the backend writes is in the manifest, and vice versa", () => {
+    const written = new Set<string>();
+    for (const file of collectCsFiles(BACKEND!, BACKEND_PRODUCTION_PROJECTS)) {
+      for (const value of parseAssignedStatusLiterals(readFileSync(file, "utf8"), "LastSyncStatus")) {
+        written.add(value);
+      }
+    }
+
+    expect(
+      written.size,
+      "found no LastSyncStatus assignment at all — the parser or the backend moved",
+    ).toBeGreaterThanOrEqual(4);
+    expect(
+      sorted([...written]),
+      "the catalog sync vocabulary drifted. A status the backend writes and this manifest does not " +
+        "know renders as the unrecognised line instead of its own; the reverse means this table " +
+        "documents a state nothing can produce.",
+    ).toEqual(sorted(CATALOG_SYNC_STATUSES));
+  });
+
+  test.skipIf(!BACKEND)("the entity still declares the statuses this manifest mirrors", () => {
+    // The line number in each `backendSite` is documentation and will rot; that the
+    // entity still exists and still names these four in its own doc-comment must not.
+    const path = join(BACKEND!, CATALOG_ENTITY_REL);
+    expect(existsSync(path), `${CATALOG_ENTITY_REL} does not exist — the entity moved`).toBe(true);
+    const cs = readFileSync(path, "utf8");
+    expect(cs).toContain("LastSyncStatus");
+    for (const status of CATALOG_SYNC_STATUSES) {
+      expect(cs, `the entity's own doc-comment no longer names '${status}'`).toContain(`'${status}'`);
+    }
+  });
+
+  test.skipIf(!BACKEND)("each fact's cited file exists and still writes that status", () => {
+    for (const fact of CATALOG_SYNC_STATUS_FACTS) {
+      const [file] = fact.backendSite.split(":");
+      const path = join(BACKEND!, file);
+      expect(existsSync(path), `${fact.status} cites ${file}, which does not exist`).toBe(true);
+      expect(
+        parseAssignedStatusLiterals(readFileSync(path, "utf8"), "LastSyncStatus"),
+        `${fact.status} cites ${file}, which no longer writes it`,
+      ).toContain(fact.status);
     }
   });
 });

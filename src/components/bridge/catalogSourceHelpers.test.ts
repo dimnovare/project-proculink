@@ -7,9 +7,17 @@ import {
   httpAuthFormSatisfied,
   protocolUsesUrl,
   relativeTime,
+  LAST_SYNC_DOT,
   type CatalogAuthFormState,
 } from "./catalogSourceHelpers";
 import type { CatalogSource } from "@/lib/api/catalogSources";
+import {
+  CATALOG_SYNC_STATUS_FACTS,
+  CATALOG_SYNC_STATUSES,
+  CURRENT_SYNC_STATUSES,
+  catalogSyncClaimsCurrent,
+  catalogSyncStatusFact,
+} from "@/lib/catalogSyncStatusManifest";
 
 describe("defaultPortForProtocol", () => {
   it("returns 22 for sftp", () => {
@@ -297,5 +305,131 @@ describe("formatLastSync", () => {
     expect(formatLastSync(src({ lastSyncStatus: "ok", lastSyncAt: "2026-06-12T11:00:00Z" }), now).text).toBe(
       "Last synced 1h ago",
     );
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// An UNRECOGNISED sync status must never read as a success.
+//
+// `lastSyncStatus` is typed `CatalogSyncStatus` — four members — but it is a raw JSON
+// string off the wire, so the union is a compile-time claim only. `formatLastSync` used
+// to switch on it with the unknown arm merged into the success arm:
+//
+//     case "ok":
+//     default:
+//       return { tone: "ok", text: rel ? `Last synced ${rel}` : "Synced" };
+//
+// so `partial`, `timeout`, `rate_limited`, `auth_failed` — anything the backend added or
+// renamed — rendered a GREEN dot over "Last synced 3m ago", printing `lastSyncAt` as
+// though the run behind it had succeeded.
+//
+// The casts below are the point, not a shortcut: they are the only way to express a
+// value the type system forbids and the network permits.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Statuses a backend could plausibly grow into. None are in the manifest. */
+const UNRECOGNISED = ["partial", "timeout", "rate_limited", "auth_failed", "cancelled", "skipped"];
+
+function withStatus(status: string, at: string | null = "2026-06-12T11:57:00Z"): CatalogSource {
+  return src({ lastSyncStatus: status as CatalogSource["lastSyncStatus"], lastSyncAt: at });
+}
+
+describe("formatLastSync — a status the manifest does not know", () => {
+  const now = new Date("2026-06-12T12:00:00Z").getTime();
+
+  it.each(UNRECOGNISED)("%s is not read as a success", (status) => {
+    const line = formatLastSync(withStatus(status), now);
+
+    expect(line.tone).not.toBe("ok");
+    expect(line.tone).toBe("unknown");
+    // The dot is the affirmative signal an operator reads first. Never the brand green.
+    expect(LAST_SYNC_DOT[line.tone]).not.toBe(LAST_SYNC_DOT.ok);
+    // No success sentence, and no timestamp presented as a sync that happened.
+    expect(line.text).not.toContain("Last synced");
+    expect(line.text).not.toContain("Synced");
+    expect(line.text).not.toContain("ago");
+    // It says what the server actually reported.
+    expect(line.text).toBe(`Sync reported "${status}" — ProcuLink cannot tell whether it worked`);
+  });
+
+  // ANTI-VACUITY. Every assertion above is a negative, and a negative passes against a
+  // helper that returned "" — or against a test whose `withStatus` had quietly stopped
+  // producing the status at all. These pin the positive half on the SAME builder, so the
+  // block above cannot go green by matching nothing.
+  it("the same builder still produces the green success line for a recognised status", () => {
+    const line = formatLastSync(withStatus("ok", "2026-06-12T11:00:00Z"), now);
+
+    expect(line.tone).toBe("ok");
+    expect(LAST_SYNC_DOT[line.tone]).toBe("#2E8E3A");
+    expect(line.text).toBe("Last synced 1h ago");
+    expect(line.text).toContain("ago");
+  });
+
+  it("the unrecognised set is non-empty and disjoint from the manifest", () => {
+    expect(UNRECOGNISED.length).toBeGreaterThan(0);
+    for (const status of UNRECOGNISED) {
+      expect(CATALOG_SYNC_STATUSES, `${status} is in the manifest — it cannot test the unknown arm`)
+        .not.toContain(status);
+      expect(catalogSyncStatusFact(status)).toBeNull();
+    }
+  });
+
+  it("a status that is not a token is named generically rather than interpolated", () => {
+    // Same carrier family as `lastSyncError`: a server-authored string landing inside a
+    // sentence. A status is a TOKEN, so anything longer or with markup in it is refused
+    // outright rather than cleaned — see STATUS_TOKEN in catalogSourceHelpers.ts.
+    const html = formatLastSync(withStatus("<!DOCTYPE html><html><body>502</body></html>"), now);
+    expect(html.tone).toBe("unknown");
+    expect(html.text).toBe("Sync reported an unrecognised state — ProcuLink cannot tell whether it worked");
+    expect(html.text).not.toContain("<");
+
+    const long = formatLastSync(withStatus("x".repeat(400)), now);
+    expect(long.text).toBe("Sync reported an unrecognised state — ProcuLink cannot tell whether it worked");
+  });
+
+  it("a blank or whitespace status reads as never synced, not as a sync", () => {
+    for (const blank of ["", "   ", "\n"]) {
+      const line = formatLastSync(withStatus(blank), now);
+      expect(line.tone).toBe("never");
+      expect(line.text).toBe("Never synced");
+    }
+  });
+
+  it("surrounding whitespace on a real status still resolves it", () => {
+    expect(formatLastSync(withStatus(" ok ", "2026-06-12T11:00:00Z"), now).tone).toBe("ok");
+  });
+});
+
+describe("the last-sync tone vocabulary", () => {
+  it("every manifest status has its own copy arm — the unknown arm stays unreached", () => {
+    // Walks the manifest rather than a hand-typed list, so a row added there without a
+    // `case` in formatLastSync fails here instead of silently taking the fallback.
+    expect(CATALOG_SYNC_STATUS_FACTS.length).toBeGreaterThanOrEqual(4);
+    for (const fact of CATALOG_SYNC_STATUS_FACTS) {
+      const line = formatLastSync(withStatus(fact.status), new Date("2026-06-12T12:00:00Z").getTime());
+      expect(line.tone, `${fact.status} fell through to the unrecognised arm`).not.toBe("unknown");
+      expect(line.text.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("only the ok tone is the brand green", () => {
+    // The direction the next instance of this defect comes from: a tone added to the
+    // record by copying the line above it.
+    const tones = Object.keys(LAST_SYNC_DOT) as (keyof typeof LAST_SYNC_DOT)[];
+    expect(tones.length).toBeGreaterThanOrEqual(6);
+    for (const tone of tones) {
+      if (tone === "ok") continue;
+      expect(LAST_SYNC_DOT[tone], `tone "${tone}" renders the success green`).not.toBe(LAST_SYNC_DOT.ok);
+    }
+  });
+
+  it("only a status the manifest calls current may claim the catalog is current", () => {
+    expect(CURRENT_SYNC_STATUSES).toEqual(["ok", "unchanged"]);
+    expect(catalogSyncClaimsCurrent("ok")).toBe(true);
+    expect(catalogSyncClaimsCurrent("unchanged")).toBe(true);
+    expect(catalogSyncClaimsCurrent("running")).toBe(false);
+    expect(catalogSyncClaimsCurrent("failed")).toBe(false);
+    for (const status of UNRECOGNISED) expect(catalogSyncClaimsCurrent(status)).toBe(false);
+    expect(catalogSyncClaimsCurrent(null)).toBe(false);
   });
 });
