@@ -19,6 +19,7 @@ import { buildCxmlCredentials } from "@/lib/cxml-credentials";
 import { decideSftpCredentialAction, type SftpAuthMode } from "@/components/bridge/deliveryCredentialAction";
 import type { DeliveryConfig, DeliveryProtocol, DeliveryTestResult } from "@/lib/api/types";
 import { useConfirm } from "@/components/ui/confirm";
+import { serverReasonOrNull } from "@/lib/serverText";
 
 type AuthType = "none" | "apikey" | "bearer" | "basic" | "oauth2";
 
@@ -1489,8 +1490,10 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                     {testResult.success ? "Test-fire succeeded" : "Test-fire failed"}
                     {testResult.responseCode != null ? ` · response code ${testResult.responseCode}` : ""}
                   </p>
-                  {testResult.errorMessage && (
-                    <p className="m-0 mt-1 font-medium">{testResult.errorMessage}</p>
+                  {/* A 200-OK test-fire result carrying the endpoint's captured response body.
+                      Not an ApiHttpError, so the constructor never saw it. */}
+                  {serverReasonOrNull(testResult.errorMessage) && (
+                    <p className="m-0 mt-1 font-medium">{serverReasonOrNull(testResult.errorMessage)}</p>
                   )}
                   {testResult.success && (
                     <p className="m-0 mt-1 text-[11px]" style={{ color: "#2E5F35" }}>

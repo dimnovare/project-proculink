@@ -15,6 +15,7 @@ import {
 import { upsertDeliveryConfig, testFireDelivery } from "@/lib/api/delivery";
 import { invalidateOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import type { DeliveryProtocol, DeliveryTestResult, OutputFormatId } from "@/lib/api/types";
+import { serverReasonOrNull } from "@/lib/serverText";
 
 /**
  * Guided delivery setup — an OPT-IN, additive stepper that walks a non-technical
@@ -878,7 +879,8 @@ function StepTest({
             {testResult.success ? "The endpoint answered" : "Test failed"}
             {testResult.responseCode != null ? ` · response code ${testResult.responseCode}` : ""}
           </p>
-          {testResult.errorMessage && <p className="m-0 mt-1 font-medium">{testResult.errorMessage}</p>}
+          {/* Captured endpoint response body on a 200 test-fire — see DeliveryConfigEditor. */}
+          {serverReasonOrNull(testResult.errorMessage) && <p className="m-0 mt-1 font-medium">{serverReasonOrNull(testResult.errorMessage)}</p>}
           {testResult.success && (
             <p className="m-0 mt-1 text-[11px]" style={{ color: "#2E5F35" }}>
               The endpoint answered — that doesn&apos;t prove the supplier accepted the order, but the

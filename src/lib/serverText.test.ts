@@ -232,4 +232,36 @@ describe("a real 502 from the API produces a clean message", () => {
     expectNoMarkup(msg);
     expect(msg).toContain("502");
   });
+
+  // The api layer does not throw ApiHttpError everywhere. Three `apiFetch` helpers throw a plain
+  // Error built the same way — `API error ${status}: ${await res.text()}` — which skips the
+  // constructor entirely. Their messages are rendered: delivery.ts feeds DeliveryConfigEditor's
+  // error block, mapping.ts feeds PoMappingEditor's "Couldn't save — …" line. Found by asking
+  // "what still reaches prose without passing the constructor?", not by reading the diff.
+
+  it("delivery.ts apiFetch: DeliveryConfigEditor's error block gets no markup", async () => {
+    const { getDeliveryConfig } = await import("@/lib/api/delivery");
+    let thrown: unknown;
+    try {
+      await getDeliveryConfig("sup-1");
+    } catch (e) {
+      thrown = e;
+    }
+    const msg = (thrown as Error).message;
+    expectNoMarkup(msg);
+    expect(msg).toContain("502");
+  });
+
+  it("mapping.ts apiFetch: PoMappingEditor's save error gets no markup", async () => {
+    const { deletePoMapping } = await import("@/lib/api/mapping");
+    let thrown: unknown;
+    try {
+      await deletePoMapping("sup-1");
+    } catch (e) {
+      thrown = e;
+    }
+    const msg = (thrown as Error).message;
+    expectNoMarkup(msg);
+    expect(msg).toContain("502");
+  });
 });
