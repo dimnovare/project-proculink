@@ -154,6 +154,18 @@ describe("parsePredicate — refuses everything the builder could not have produ
     expect(parsePredicate('order.Currency == "EUR"', "line", LINE)).toBeNull();
   });
 
+  // The pair above passes even with the scope check DELETED, because no canonical name appears in
+  // both scopes — the field check masks it. These pass a field list that allows the name in either
+  // scope, so the only thing left that can reject them is the scope check itself.
+  it("…and the scope check is what rejects it, not the field list", () => {
+    expect(parsePredicate("line.Quantity > 0", "order", ["Quantity"])).toBeNull();
+    expect(parsePredicate('order.Quantity == "x"', "line", ["Quantity"])).toBeNull();
+    // Anti-vacuity: the same input with the MATCHING scope does parse, so the rejections above are
+    // about the prefix and not about the fixture being unparseable for some other reason.
+    expect(parsePredicate("line.Quantity > 0", "line", ["Quantity"]))
+      .toEqual({ scope: "line", field: "Quantity", operator: "isMoreThan", value: "0" });
+  });
+
   // Same class as the blank <select> the format control used to render: a value with no matching
   // option is worse than no builder at all.
   it("a field this position cannot offer stays raw", () => {

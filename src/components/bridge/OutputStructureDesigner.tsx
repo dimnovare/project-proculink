@@ -25,7 +25,7 @@ import {
 } from "./outputConditionModel";
 import {
   NAMESPACE_PRESETS, applyNamespacePreset, detectNamespacePreset,
-  hoistPerNodeNamespaces, clearRootNamespaces, type NamespacePresetId,
+  hoistPerNodeNamespaces, clearRootNamespaces, hasDefaultNamespace, type NamespacePresetId,
 } from "./outputNamespacePresets";
 import {
   collectLayoutProblems, collectOrderProblems, blocksSave, problemCounts,
@@ -302,6 +302,9 @@ export function OutputStructureDesigner({
   const isXml = designerFormat(tree.format) === "xml";
   const isCsv = designerFormat(tree.format) === "csv";
   const hasPerNodeNs = treeHasPerNodeNamespaces(tree.root);
+  // A prefixless (default) namespace cannot be hoisted to the root map — there is no key for it —
+  // so the "move them to the top" offer is withheld rather than offered and left unfinished.
+  const hasDefaultNs = hasDefaultNamespace(tree.root);
   const hasRootNs = templateHasRootNamespaces(tree);
   const renderable = isRenderableTreeFormat(tree.format);
 
@@ -363,16 +366,16 @@ export function OutputStructureDesigner({
    * what they lose — the standard's envelope, which the receiving system validates before it looks
    * at the order — and the format only changes if they say yes.
    */
-  const convertToXml = useCallback(async () => {
+  const convertTo = useCallback(async (next: OutputFormat) => {
     const label = formatLabel(tree.format);
     const ok = await confirm({
-      title: `Turn this into a plain XML layout?`,
-      description: `This will keep your tags and nesting but produce plain XML, without the ${label} envelope. Your supplier may reject it.`,
-      confirmLabel: "Convert to XML",
+      title: `Turn this into a plain ${formatLabel(next)} layout?`,
+      description: `This will keep your tags and nesting but produce plain ${formatLabel(next)}, without the ${label} envelope. Your supplier may reject it.`,
+      confirmLabel: `Convert to ${formatLabel(next)}`,
       cancelLabel: `Keep it as ${label}`,
     });
     if (!ok) return;
-    setTree((t) => ({ ...t, format: "xml" }));
+    setTree((t) => ({ ...t, format: next }));
     setSaved(false); setDirty(true);
   }, [tree.format, confirm]);
 
@@ -451,7 +454,13 @@ export function OutputStructureDesigner({
                 const selected = (tree.format ?? "").toString().trim().toLowerCase() === f.id;
                 return (
                   <button key={f.id} role="radio" aria-checked={selected} aria-label={`${f.label} format`}
-                    onClick={() => { setTree((t) => ({ ...t, format: f.id })); setSaved(false); setDirty(true); }}
+                    onClick={() => {
+                      // Leaving a standard format is the SAME consequential change the fork bar
+                      // guards — the envelope is dropped either way — so it asks the same question.
+                      // Without this the confirm is bypassable by clicking a pill.
+                      if (!renderable) { void convertTo(f.id); return; }
+                      setTree((t) => ({ ...t, format: f.id })); setSaved(false); setDirty(true);
+                    }}
                     style={{
                       height: 24, padding: "0 11px", borderRadius: 6, cursor: "pointer",
                       fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", fontSize: 10, fontWeight: 700,
@@ -486,7 +495,7 @@ export function OutputStructureDesigner({
               <FormatForkBar
                 format={tree.format}
                 supplierId={order?.supplierId ?? null}
-                onConvert={() => void convertToXml()}
+                onConvert={() => void convertTo("xml")}
                 onRemove={() => void removeLayout()}
               />
             )}
@@ -564,15 +573,27 @@ export function OutputStructureDesigner({
               <div style={{ marginBottom: 12, fontSize: 11.5, color: "#8A5310", background: "#FAF1DD", border: "1px solid #E4C98F", borderRadius: 6, padding: "9px 10px", lineHeight: 1.5 }}>
                 This layout sets namespaces both at the top and on individual elements. Pick one place.
                 <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
-                  <button onClick={() => { setTree(hoistPerNodeNamespaces); setSaved(false); setDirty(true); }}
-                    style={{ height: 26, padding: "0 10px", borderRadius: 6, border: "1px solid #C69A4C", background: "#FFF", color: "#8A5310", fontSize: 11.5, fontWeight: 600, cursor: "pointer" }}>
-                    Move them to the top
-                  </button>
+                  {/* "Move them to the top" is offered ONLY when it can actually finish the job. A
+                      namespace with no prefix has no key to move it to, so with one present the
+                      button would run, leave that element behind, and the same warning would still be
+                      here — a control that visibly does nothing is read as broken. */}
+                  {!hasDefaultNs && (
+                    <button onClick={() => { setTree(hoistPerNodeNamespaces); setSaved(false); setDirty(true); }}
+                      style={{ height: 26, padding: "0 10px", borderRadius: 6, border: "1px solid #C69A4C", background: "#FFF", color: "#8A5310", fontSize: 11.5, fontWeight: 600, cursor: "pointer" }}>
+                      Move them to the top
+                    </button>
+                  )}
                   <button onClick={() => { setTree(clearRootNamespaces); setSaved(false); setDirty(true); }}
                     style={{ height: 26, padding: "0 10px", borderRadius: 6, border: "1px solid #C69A4C", background: "#FFF", color: "#8A5310", fontSize: 11.5, fontWeight: 600, cursor: "pointer" }}>
                     Keep them on each element
                   </button>
                 </div>
+                {hasDefaultNs && (
+                  <div style={{ marginTop: 6 }}>
+                    One element uses a namespace with no prefix, which can&rsquo;t be moved to the top.
+                    Keep them on each element instead.
+                  </div>
+                )}
               </div>
             )}
 

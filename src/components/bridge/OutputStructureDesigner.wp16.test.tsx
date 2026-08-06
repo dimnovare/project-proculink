@@ -150,6 +150,18 @@ describe("the format is never rewritten without consent", () => {
     fireEvent.click(saveButton());
     await waitFor(() => expect(savedTree().format).toBe("csv"));
   });
+
+  // Found by trying to break this feature after building it: the fork bar's conversion asks first,
+  // but the format pills sat right above it and changed the same field with no question at all. The
+  // consequence is identical — the envelope is dropped — so the pills ask the same question.
+  it("the format pills cannot be used to skip the conversion warning", async () => {
+    renderDesigner(xmlTree({ format: "cXml" }));
+    fireEvent.click(screen.getByRole("radio", { name: /XML format/i }));
+
+    expect(await screen.findByText(/without the cXML envelope/i)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /^Keep it as cXML$/i }));
+    await waitFor(() => expect(screen.getByText(/cXML can't be built from a layout/i)).toBeTruthy());
+  });
 });
 
 // ── Scope item 1: the structured conditional builder ─────────────────────────
@@ -295,6 +307,20 @@ describe("namespaces are picked, not transcribed", () => {
     expect(options.join(" ")).not.toContain("cxml");
   });
 
+  // Found by trying to break this feature after building it: a namespace with NO prefix has no map
+  // key to be hoisted to, so "Move them to the top" would run, leave that element behind, and the
+  // same warning would still be on screen. A control that visibly does nothing reads as broken, so
+  // it is withheld and the reason is stated — the other exit still works.
+  it("does not offer a hoist it cannot finish", () => {
+    const t = xmlTree({ namespaces: { cbc: UBL_CBC_URI } });
+    t.root.children![0] = { ...t.root.children![0], prefix: null, namespace: "urn:default" };
+    renderDesigner(t);
+
+    expect(screen.queryByRole("button", { name: /Move them to the top/i })).toBeNull();
+    expect(screen.getByText(/namespace with no prefix, which can.t be moved to the top/i)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Keep them on each element/i })).toBeTruthy();
+  });
+
   it("the mode collision offers a control that fixes it, not just a complaint", async () => {
     const t = xmlTree({ namespaces: { cbc: UBL_CBC_URI } });
     t.root.children![0] = { ...t.root.children![0], prefix: "cac", namespace: UBL_CAC_URI };
@@ -319,6 +345,9 @@ describe("a layout that cannot produce a valid file fails here, not at delivery"
 
     expect(screen.getByText(/The repeating list "Lines" is empty, so no order lines would be sent\./i)).toBeTruthy();
     expect(saveButton().textContent).toMatch(/Fix 1 problem to save/i);
+    // Both halves of the block are pinned: the control is really disabled (the half a sighted user
+    // and a screen reader both read), AND pressing it saves nothing (the half that is correctness).
+    expect((saveButton() as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(saveButton());
     expect(upsertMappingOverride).not.toHaveBeenCalled();
   });
@@ -328,6 +357,7 @@ describe("a layout that cannot produce a valid file fails here, not at delivery"
     t.root.children![0] = { ...t.root.children![0], prefix: "cbc", namespace: null };
     renderDesigner(t);
     expect(screen.getByText(/"cbc" has a prefix but no web address/i)).toBeTruthy();
+    expect((saveButton() as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(saveButton());
     expect(upsertMappingOverride).not.toHaveBeenCalled();
   });
@@ -362,6 +392,7 @@ describe("a layout that cannot produce a valid file fails here, not at delivery"
     await screen.findByText(/Line 4's quantity is 0/i);
 
     expect(saveButton().textContent).not.toMatch(/Fix/i);
+    expect((saveButton() as HTMLButtonElement).disabled).toBe(false);
     fireEvent.click(saveButton());
     await waitFor(() => expect(upsertMappingOverride).toHaveBeenCalled());
   });
