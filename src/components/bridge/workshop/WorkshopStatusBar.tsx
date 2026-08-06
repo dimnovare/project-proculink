@@ -283,7 +283,8 @@ export function WorkshopStatusBar({
         {mapper != null && mapper.requiredUnmapped > 0 && (
           <span
             title="A required output field still has no source — map one or set a fixed value"
-            style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10.5, fontWeight: 700, color: "#9A6B00", background: "#FFF7E6", border: "1px solid #F1E2BE", borderRadius: 5, padding: "2px 8px", whiteSpace: "nowrap" }}
+            // Last copy of the mapper's near-miss: #9A6B00 on #FFF7E6 is 4.3999:1, --amber-text (#8A5310) is 5.9237:1.
+            style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10.5, fontWeight: 700, color: "var(--amber-text)", background: "#FFF7E6", border: "1px solid #F1E2BE", borderRadius: 5, padding: "2px 8px", whiteSpace: "nowrap" }}
           >
             ⚠ {mapper.requiredUnmapped} {mapper.requiredUnmapped === 1 ? "field needs" : "fields need"} a source
           </span>
