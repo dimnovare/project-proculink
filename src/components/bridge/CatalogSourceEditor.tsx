@@ -32,6 +32,7 @@ import {
 } from "./catalogSourceHelpers";
 import { useConfirm } from "@/components/ui/confirm";
 import { isPlanGateError, planGateMessage } from "@/lib/planGate";
+import { inspectOutboundUrl, isRefusal, OUTBOUND_URL_ERRORS } from "@/lib/outboundUrlPolicy";
 
 const INPUT_STYLE = { border: "1px solid #D5DAEA", color: "#0B1A2F" } as const;
 
@@ -237,9 +238,14 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
   // Logicom QuickConnect is never OFFERED for a new setup — but a source already
   // saved with it must not become invisible/uneditable, so the tile renders while
   // the saved source (or the current, not-yet-saved selection) still uses it.
-  const visibleProtocols = PROTOCOLS.filter(
-    (p) => p.id !== "logicom" || protocol === "logicom" || savedSource?.protocol === "logicom",
-  );
+  // "logicom" is hidden as a vendor connector; "http" is hidden because the API now refuses a
+  // cleartext feed URL, so offering it would be an option that can only fail. Both stay visible
+  // when that is what is already saved, so an existing source remains renderable and editable.
+  const visibleProtocols = PROTOCOLS.filter((p) => {
+    if (p.id === "logicom") return protocol === "logicom" || savedSource?.protocol === "logicom";
+    if (p.id === "http") return protocol === "http" || savedSource?.protocol === "http";
+    return true;
+  });
 
   // Shared by the click handler and the arrow-key radiogroup navigation.
   function selectProtocol(id: CatalogSourceProtocol) {
@@ -309,10 +315,15 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
     return logicomHasSavedCreds;
   })();
 
+  // The API refuses a cleartext feed URL outright. This mirror exists so the operator is told
+  // at the point of typing rather than after a round trip; loopback stays allowed for local dev.
+  const urlVerdict = isUrlProtocol && url.trim() ? inspectOutboundUrl(url, "Catalog URL") : null;
+  const urlProblem = urlVerdict && isRefusal(urlVerdict) ? urlVerdict.message : null;
+
   const canSave = isVendorProtocol
-    ? Boolean(url.trim()) && logicomFormSatisfied
+    ? Boolean(url.trim()) && !urlProblem && logicomFormSatisfied
     : isHttpProtocol
-      ? Boolean(url.trim()) && httpAuthFormSatisfied(authForm, savedAuthSecretForMethod)
+      ? Boolean(url.trim()) && !urlProblem && httpAuthFormSatisfied(authForm, savedAuthSecretForMethod)
       : Boolean(host.trim()) &&
         Boolean(remotePath.trim()) &&
         (!usernameRequired || Boolean(username.trim())) &&
@@ -388,6 +399,13 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
         setError("That host is not allowed — private, loopback, and link-local addresses are blocked.");
       } else if (msg.includes("credentials_in_url_not_allowed")) {
         setError("Remove the username/password from the URL — store credentials in the auth fields instead.");
+      } else if (msg.includes(OUTBOUND_URL_ERRORS.insecureTransport)) {
+        setError(
+          "That URL uses plain http, which sends the feed and any API key or token unencrypted. " +
+            "Use the supplier's https:// address instead.",
+        );
+      } else if (msg.includes(OUTBOUND_URL_ERRORS.schemeNotAllowed)) {
+        setError("That URL scheme is not supported. Use an https:// address.");
       } else {
         setError(msg);
       }
@@ -471,7 +489,6 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
   // Cleartext warning: plain ftp leaks creds; plain http:// leaks the URL + any header/token.
   // Keyed on the URL's actual scheme (not the picker) — the scheme in the URL is what the
   // fetch uses, regardless of which API button is selected.
-  const cleartextHttp = isUrlProtocol && url.trim().toLowerCase().startsWith("http://");
 
   return (
     <div className="overflow-hidden rounded-[8px]" style={{ border: "1px solid #E5E8EE", background: "#FFFFFF" }}>
@@ -556,17 +573,14 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
                 </div>
               )}
 
-              {cleartextHttp && (
+              {urlProblem && (
                 <div
                   className="flex items-start gap-2 rounded-[6px] px-3 py-2 text-[12px]"
-                  style={{ background: "#FFF8EA", border: "1px solid #F0D39A", color: "#7A4D0B" }}
+                  style={{ background: "#FCEBEB", border: "1px solid #F5C5C5", color: "#A52E2E" }}
+                  role="alert"
                 >
                   <AlertTriangle size={15} className="mt-px flex-shrink-0" />
-                  <span>
-                    Plain <code>http://</code> sends the request — including any API key, token, or
-                    Basic password — unencrypted. Prefer an <code>https://</code> URL when the supplier
-                    supports it.
-                  </span>
+                  <span>{urlProblem}</span>
                 </div>
               )}
 

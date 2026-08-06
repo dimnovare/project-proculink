@@ -9,6 +9,11 @@ import {
   RESOLVE_HELD_FROM,
 } from "@/lib/orderStatusManifest";
 import { ROOT } from "./appRoutes";
+import {
+  LOOPBACK_ONLY_SCHEMES,
+  OUTBOUND_URL_ERRORS,
+  SECURE_SCHEMES,
+} from "@/lib/outboundUrlPolicy";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // The cross-repo mirror check.
@@ -104,6 +109,24 @@ export function parseNamedSet(cs: string, name: string): string[] | null {
     .split(",")
     .map((s) => s.trim())
     .filter((s) => s.length > 0 && /^\w+$/.test(s));
+}
+
+/**
+ * A `new[] { "a", "b" }` initialiser for a named readonly string list:
+ *
+ *   public static readonly IReadOnlyList<string> SecureSchemes = new[] { "https" };
+ *
+ * Returns the literals. Null when the symbol is absent, so "found nothing" fails loudly at the
+ * call site rather than diffing an empty list against an empty list.
+ */
+export function parseStringLiteralList(cs: string, name: string): string[] | null {
+  const re = new RegExp(
+    `IReadOnlyList<string>\\s+${name}\\s*=\\s*new\\[\\]\\s*\\{([^}]*)\\}\\s*;`,
+    "s",
+  );
+  const m = re.exec(cs);
+  if (!m) return null;
+  return [...m[1].matchAll(/"([^"]+)"/g)].map((x) => x[1]);
 }
 
 /** The keys of the `Transitions` dictionary: `[PendingParse] = Set(...)`. */
@@ -279,6 +302,91 @@ describe("the manifest matches the C# it claims to mirror", () => {
       for (const symbol of identifiers) {
         expect(cs, `${op} cites ${symbol}, which ${file} no longer mentions`).toContain(symbol);
       }
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The outbound-URL transport policy mirror.
+//
+// `src/lib/outboundUrlPolicy.ts` is a hand-kept copy of
+// `ProcuLink.Core/Security/OutboundUrlPolicy.cs`. The frontend copy only decides what an
+// operator is told before they submit; the backend refuses independently. But if the two
+// disagree about which schemes are allowed, the UI either blocks a save the API would have
+// accepted or — the direction that matters — waves through a cleartext endpoint and lets the
+// operator believe it was fine until the 400 arrives.
+//
+// Same honesty rules as the status mirror above: the parser is exercised against an inline
+// fixture on every run, and the diff is skipped by a DECLARED condition when no backend
+// checkout is reachable, never silently passed.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const URL_POLICY_REL = "ProcuLink.Core/Security/OutboundUrlPolicy.cs";
+const URL_POLICY_PATH = BACKEND ? join(BACKEND, URL_POLICY_REL) : null;
+const URL_POLICY_READABLE = URL_POLICY_PATH !== null && existsSync(URL_POLICY_PATH);
+
+describe("outbound URL policy mirrors the backend", () => {
+  test("the string-list parser actually parses (so a green diff means something)", () => {
+    const fixture = `
+namespace ProcuLink.Core.Security;
+public static class OutboundUrlPolicy
+{
+    public const string ErrorUrlRequired = "url_required";
+    public const string ErrorInsecureTransport = "url_requires_tls";
+    public static readonly IReadOnlyList<string> SecureSchemes = new[] { "https" };
+    public static readonly IReadOnlyList<string> LoopbackOnlySchemes = new[] { "http" };
+}`;
+
+    expect(parseStringLiteralList(fixture, "SecureSchemes")).toEqual(["https"]);
+    expect(parseStringLiteralList(fixture, "LoopbackOnlySchemes")).toEqual(["http"]);
+    expect(parseStringLiteralList(fixture, "NoSuchSymbol")).toBeNull();
+
+    const constants = parseStatusConstants(fixture);
+    expect(constants.ErrorUrlRequired).toBe("url_required");
+    expect(constants.ErrorInsecureTransport).toBe("url_requires_tls");
+  });
+
+  test("the frontend copy is itself non-vacuous", () => {
+    // Guards the diff below: two empty lists compare equal, so an accidentally emptied
+    // frontend constant would otherwise "mirror" a backend that lists https.
+    expect(SECURE_SCHEMES.length).toBeGreaterThan(0);
+    expect(LOOPBACK_ONLY_SCHEMES.length).toBeGreaterThan(0);
+    expect(Object.keys(OUTBOUND_URL_ERRORS).length).toBeGreaterThan(0);
+  });
+
+  test.skipIf(!URL_POLICY_READABLE)("the scheme sets are identical", () => {
+    const cs = readFileSync(URL_POLICY_PATH!, "utf8");
+
+    const secure = parseStringLiteralList(cs, "SecureSchemes");
+    const loopbackOnly = parseStringLiteralList(cs, "LoopbackOnlySchemes");
+
+    expect(secure, "OutboundUrlPolicy.cs declares no SecureSchemes — the parser or the backend moved")
+      .not.toBeNull();
+    expect(
+      loopbackOnly,
+      "OutboundUrlPolicy.cs declares no LoopbackOnlySchemes — the parser or the backend moved",
+    ).not.toBeNull();
+
+    expect(
+      sorted(secure!),
+      "SECURE_SCHEMES drifted. A scheme the UI thinks is safe but the API refuses blocks a save; the reverse lets a cleartext endpoint through the form.",
+    ).toEqual(sorted(SECURE_SCHEMES));
+    expect(sorted(loopbackOnly!)).toEqual(sorted(LOOPBACK_ONLY_SCHEMES));
+  });
+
+  test.skipIf(!URL_POLICY_READABLE)("every error code the UI branches on still exists in the C#", () => {
+    const constants = parseStatusConstants(readFileSync(URL_POLICY_PATH!, "utf8"));
+    const backendCodes = Object.entries(constants)
+      .filter(([name]) => name.startsWith("Error"))
+      .map(([, value]) => value);
+
+    expect(backendCodes.length, "OutboundUrlPolicy.cs declares no Error* constants").toBeGreaterThan(0);
+
+    for (const [key, code] of Object.entries(OUTBOUND_URL_ERRORS)) {
+      expect(
+        backendCodes,
+        `OUTBOUND_URL_ERRORS.${key} is "${code}", which the backend no longer emits. The UI would stop recognising that refusal and fall back to a raw 400 body.`,
+      ).toContain(code);
     }
   });
 });

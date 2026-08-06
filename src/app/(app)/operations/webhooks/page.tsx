@@ -688,6 +688,7 @@ function WebhookPanel({
               Signing secret
             </label>
             <input
+              type="password"
               value={secret}
               onChange={(e) => setSecret(e.target.value)}
               placeholder="whsec_••••••••"
