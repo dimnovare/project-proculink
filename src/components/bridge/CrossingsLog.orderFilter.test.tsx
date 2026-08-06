@@ -105,8 +105,11 @@ describe("CrossingsLog — ?orderId= filters the log to that order", () => {
     renderLog();
 
     const notice = await screen.findByRole("status");
-    expect(notice).toHaveTextContent(/3 most recent entries/i);
-    expect(notice).toHaveTextContent(/older than those is not listed/i);
+    expect(notice).toHaveTextContent(/3 entries on this page/i);
+    expect(notice).toHaveTextContent(/640/);
+    // Since the log became pageable, "older than those is not listed here" stopped
+    // being true — the rest of this order's history IS reachable, one page over.
+    expect(notice).toHaveTextContent(/may be on another page/i);
   });
 
   it("does not claim a partial window when the whole log is loaded", async () => {
@@ -154,7 +157,8 @@ describe("CrossingsLog — an orderId that matches nothing", () => {
 
     renderLog();
 
-    expect(await screen.findByText(/Older entries for it may still exist/i)).toBeInTheDocument();
+    expect(await screen.findByText(/no entries among the 3 on this page/i)).toBeInTheDocument();
+    expect(screen.getByText(/Its entries may be on another page/i)).toBeInTheDocument();
   });
 });
 
