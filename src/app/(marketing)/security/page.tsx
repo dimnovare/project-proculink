@@ -33,8 +33,16 @@ const BLUE = "#1E66C9"; // buyer-blue — primary CTA
 
 const POSTURE: Array<{ title: string; body: React.ReactNode; icon: React.ReactNode }> = [
   {
-    title: "Encryption everywhere",
-    body: "AES-GCM at rest and TLS 1.2+ in transit (TLS 1.3 where supported). Supplier delivery credentials are encrypted with AES-256-GCM authenticated encryption and never written to application logs.",
+    // Narrowed 2026-08-06 to exactly what is enforced. This card used to say "Encryption
+    // everywhere — AES-GCM at rest and TLS 1.2+ in transit", and the in-transit half was
+    // false: no delivery channel required TLS, so a Directo endpoint saved as http:// shipped
+    // the purchase order together with the user/password/key that authenticate it, in clear
+    // text. Requiring https:// on every URL-configured channel is what made most of this
+    // sentence true; the last two clauses are the part that is still not, and they stay named
+    // rather than rounded away. The at-rest half was always true
+    // (DeliveryEncryptionService.cs:43/69, no plaintext fallback).
+    title: "Encryption in transit and at rest",
+    body: "Supplier delivery credentials are encrypted at rest with AES-256-GCM authenticated encryption and are never written to application logs. Every outbound channel configured by URL — webhook and HTTP delivery, ERP connectors, catalog feeds and S3 ingestion — must use https://, and a plain http:// address is refused when you save it. SFTP is encrypted by construction, and FTPS negotiates explicit TLS. Two connection settings can still weaken that if you switch them on: skipping FTPS certificate validation, and turning SSL off for IMAP or SMTP.",
     icon: <KeyIcon />,
   },
   {

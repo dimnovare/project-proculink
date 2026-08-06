@@ -709,6 +709,13 @@ export interface DeliveryConfig {
   createdAt: string;
   updatedAt: string;
   cxmlCredentials?: CxmlCredentials | null;
+  /**
+   * Set by the API when the SAVED endpoint is one the transport policy now refuses — a config
+   * written before TLS enforcement existed. Delivery continues (refusing mid-flight would turn a
+   * security weakness into an outage), so this is how the operator finds out. Never contains the
+   * URL: a stored userinfo URL is exactly the case where echoing it would show the password.
+   */
+  insecureTransportWarning?: string | null;
 }
 
 export interface UpsertDeliveryConfigRequest {

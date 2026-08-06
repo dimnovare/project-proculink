@@ -16,6 +16,7 @@ import {
 import { invalidateOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { isArrowKey, rovingRadioNext } from "@/lib/roving-radio";
 import { buildCxmlCredentials } from "@/lib/cxml-credentials";
+import { inspectOutboundUrl, isRefusal } from "@/lib/outboundUrlPolicy";
 import { decideSftpCredentialAction, type SftpAuthMode } from "@/components/bridge/deliveryCredentialAction";
 import type { DeliveryConfig, DeliveryProtocol, DeliveryTestResult } from "@/lib/api/types";
 import { useConfirm } from "@/components/ui/confirm";
@@ -279,6 +280,11 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
   // new secret. Gates the Save button + drives an inline message in the auth section.
   const credentialBlock = sftpCredentialBlockMessage();
 
+  // Live transport verdict for the endpoint field. Only surfaced once something has been typed,
+  // so an empty form does not open with a red error.
+  const urlVerdict = isUrlProtocol && url.trim() ? inspectOutboundUrl(url, "Endpoint URL") : null;
+  const urlProblem = urlVerdict && isRefusal(urlVerdict) ? urlVerdict.message : null;
+
   const canSave =
     protocol === "sftp" || protocol === "ftps"
       ? Boolean(host)
@@ -286,7 +292,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
         ? Boolean(toAddresses.trim())
         : protocol === "smtp"
           ? Boolean(host) && Boolean(fromAddress) && Boolean(toAddresses.trim())
-          : Boolean(url) && (protocol !== "erp_directo" || Boolean(directoDatabase));
+          : Boolean(url) && !urlProblem && (protocol !== "erp_directo" || Boolean(directoDatabase));
 
   function hydrateConfig(nextProtocol: DeliveryProtocol, configJson: string) {
     try {
@@ -507,6 +513,18 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
       setJustSaved(false);
       return;
     }
+    // Transport security. The API refuses these independently — this mirror exists so the
+    // operator is told at the point of typing rather than after a round trip. A delivery request
+    // carries the purchase order AND the credentials that authenticate it.
+    if (isUrlProtocol) {
+      const verdict = inspectOutboundUrl(url, "Endpoint URL");
+      if (isRefusal(verdict)) {
+        setError(verdict.message);
+        setJustSaved(false);
+        return;
+      }
+    }
+
     setSaving(true);
     setError(null);
     try {
@@ -808,6 +826,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                     </div>
                     <Field label="Sender shared secret">
                       <input
+                        type="password"
                         value={cxmlSenderSharedSecret}
                         onChange={(e) => { setCxmlSenderSharedSecret(e.target.value); markEdited(); }}
                         placeholder={hasCxmlSharedSecret ? "******** (leave blank to keep saved secret)" : "Optional — supplier-issued shared secret"}
@@ -867,6 +886,15 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                       className="h-9 w-full rounded-[5px] px-2.5 text-[12px]"
                       style={INPUT_STYLE}
                     />
+                    {urlProblem && (
+                      <p
+                        className="mt-1.5 text-[11px] leading-[1.45]"
+                        style={{ color: "#C53A3A" }}
+                        role="alert"
+                      >
+                        {urlProblem}
+                      </p>
+                    )}
                   </Field>
                   {protocol === "http" && (
                     <Field label="Method">
@@ -1293,14 +1321,14 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                           <input value={apiKeyHeader} onChange={(e) => setApiKeyHeader(e.target.value)} placeholder="X-Api-Key" className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
                         </Field>
                         <Field label="Value">
-                          <input value={apiKeyValue} onChange={(e) => setApiKeyValue(e.target.value)} placeholder={hasSavedCredentials ? "********" : "sk_live_… (paste the key your supplier gave you)"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                          <input type="password" value={apiKeyValue} onChange={(e) => setApiKeyValue(e.target.value)} placeholder={hasSavedCredentials ? "********" : "sk_live_… (paste the key your supplier gave you)"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
                         </Field>
                       </div>
                     )}
 
                     {authType === "bearer" && (
                       <Field label="Token">
-                        <input value={bearerToken} onChange={(e) => setBearerToken(e.target.value)} placeholder={hasSavedCredentials ? "********" : "paste the bearer token"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                        <input type="password" value={bearerToken} onChange={(e) => setBearerToken(e.target.value)} placeholder={hasSavedCredentials ? "********" : "paste the bearer token"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
                       </Field>
                     )}
 
@@ -1324,7 +1352,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                             <input value={oauthClientId} onChange={(e) => { setOauthClientId(e.target.value); markEdited(); }} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
                           </Field>
                           <Field label="Client secret">
-                            <input value={oauthClientSecret} onChange={(e) => { setOauthClientSecret(e.target.value); markEdited(); }} placeholder={hasSavedCredentials ? "********" : "client secret"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                            <input type="password" value={oauthClientSecret} onChange={(e) => { setOauthClientSecret(e.target.value); markEdited(); }} placeholder={hasSavedCredentials ? "********" : "client secret"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
                           </Field>
                         </div>
                         <details>
@@ -1362,11 +1390,11 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                           <input value={basicUsername} onChange={(e) => setBasicUsername(e.target.value)} placeholder="supplier-username" className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
                         </Field>
                         <Field label="Password">
-                          <input value={basicPassword} onChange={(e) => setBasicPassword(e.target.value)} placeholder={hasSavedCredentials ? "********" : "supplier password"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                          <input type="password" value={basicPassword} onChange={(e) => setBasicPassword(e.target.value)} placeholder={hasSavedCredentials ? "********" : "supplier password"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
                         </Field>
                         {protocol === "erp_directo" && (
                           <Field label="API key">
-                            <input value={directoKey} onChange={(e) => setDirectoKey(e.target.value)} placeholder={hasSavedCredentials ? "********" : "Optional key"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                            <input type="password" value={directoKey} onChange={(e) => setDirectoKey(e.target.value)} placeholder={hasSavedCredentials ? "********" : "Optional key"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
                           </Field>
                         )}
                       </div>
@@ -1399,12 +1427,12 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                           <textarea value={privateKey} onChange={(e) => { setPrivateKey(e.target.value); markEdited(); }} placeholder={hasSavedCredentials ? "******** (leave blank to keep saved key)" : "-----BEGIN OPENSSH PRIVATE KEY-----"} rows={4} className="w-full rounded-[5px] px-2.5 py-2 font-mono text-[11px]" style={INPUT_STYLE} />
                         </Field>
                         <Field label="Key passphrase (optional)">
-                          <input value={privateKeyPassphrase} onChange={(e) => { setPrivateKeyPassphrase(e.target.value); markEdited(); }} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                          <input type="password" value={privateKeyPassphrase} onChange={(e) => { setPrivateKeyPassphrase(e.target.value); markEdited(); }} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
                         </Field>
                       </>
                     ) : (
                       <Field label="Password">
-                        <input value={basicPassword} onChange={(e) => { setBasicPassword(e.target.value); markEdited(); }} placeholder={hasSavedCredentials ? "********" : "Password"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                        <input type="password" value={basicPassword} onChange={(e) => { setBasicPassword(e.target.value); markEdited(); }} placeholder={hasSavedCredentials ? "********" : "Password"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
                       </Field>
                     )}
                     {/* B8: switched auth method away from the saved shape without a new secret —
@@ -1440,6 +1468,22 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
               {/* A refusal on plan grounds (HTTP / ERP protocols, cXML output) is an upsell,
                   not a fault — it gets the plain sentence + upgrade link instead of the raw
                   `webhook_delivery_requires_growth` token the banner used to print. */}
+              {/* A config saved before TLS enforcement existed still delivers — refusing it
+                  mid-flight would turn a security weakness into an outage — so the API flags it
+                  and the operator is told here instead of being silently exposed. */}
+              {savedConfig?.insecureTransportWarning && (
+                <div
+                  className="rounded-[6px] px-3 py-2 text-[12px] leading-[1.5]"
+                  style={{ background: "#FAEFD6", color: "#8A5510", border: "1px solid #E6CFA0" }}
+                  role="alert"
+                >
+                  <span className="font-semibold">This supplier&rsquo;s saved endpoint is not secure.</span>{" "}
+                  {savedConfig.insecureTransportWarning} Orders are still being delivered to it, so
+                  nothing has stopped — but until the address is corrected here, every order and
+                  its credentials cross the network in the clear.
+                </div>
+              )}
+
               {error && isPlanGate(error) && (
                 <PlanGateNotice error={error} capability="This delivery setup" />
               )}

@@ -674,13 +674,13 @@ function StepDestination(p: StepDestinationProps) {
               <input value={p.apiKeyHeader} onChange={(e) => p.setApiKeyHeader(e.target.value)} placeholder="X-Api-Key" className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
             </WizardField>
             <WizardField label="Key value">
-              <input value={p.apiKeyValue} onChange={(e) => p.setApiKeyValue(e.target.value)} placeholder="paste the key your supplier gave you" className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+              <input type="password" value={p.apiKeyValue} onChange={(e) => p.setApiKeyValue(e.target.value)} placeholder="paste the key your supplier gave you" className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
             </WizardField>
           </div>
         )}
         {p.authType === "bearer" && (
           <WizardField label="Bearer token">
-            <input value={p.bearerToken} onChange={(e) => p.setBearerToken(e.target.value)} placeholder="paste the token" className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+            <input type="password" value={p.bearerToken} onChange={(e) => p.setBearerToken(e.target.value)} placeholder="paste the token" className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
           </WizardField>
         )}
         {p.authType === "basic" && (
@@ -689,7 +689,7 @@ function StepDestination(p: StepDestinationProps) {
               <input value={p.basicUsername} onChange={(e) => p.setBasicUsername(e.target.value)} placeholder="supplier-username" className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
             </WizardField>
             <WizardField label="Password">
-              <input value={p.basicPassword} onChange={(e) => p.setBasicPassword(e.target.value)} placeholder="supplier password" className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+              <input type="password" value={p.basicPassword} onChange={(e) => p.setBasicPassword(e.target.value)} placeholder="supplier password" className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
             </WizardField>
           </div>
         )}
@@ -735,12 +735,12 @@ function StepDestination(p: StepDestinationProps) {
               <textarea value={p.privateKey} onChange={(e) => p.setPrivateKey(e.target.value)} placeholder="-----BEGIN OPENSSH PRIVATE KEY-----" rows={4} className="w-full rounded-[5px] px-2.5 py-2 font-mono text-[11px]" style={INPUT_STYLE} />
             </WizardField>
             <WizardField label="Key passphrase (optional)">
-              <input value={p.privateKeyPassphrase} onChange={(e) => p.setPrivateKeyPassphrase(e.target.value)} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+              <input type="password" value={p.privateKeyPassphrase} onChange={(e) => p.setPrivateKeyPassphrase(e.target.value)} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
             </WizardField>
           </>
         ) : (
           <WizardField label="Password">
-            <input value={p.basicPassword} onChange={(e) => p.setBasicPassword(e.target.value)} placeholder="password" className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+            <input type="password" value={p.basicPassword} onChange={(e) => p.setBasicPassword(e.target.value)} placeholder="password" className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
           </WizardField>
         )}
 

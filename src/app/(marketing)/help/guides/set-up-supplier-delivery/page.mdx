@@ -68,8 +68,12 @@ custom document.
 
 <Step n={3} title="Configure the channel">
 
-**HTTP.** Fill in the **Endpoint URL**, the **Method** (POST or PUT), and a **Timeout**. Then the
-authentication the supplier specified:
+**HTTP.** Fill in the **Endpoint URL**, the **Method** (POST or PUT), and a **Timeout**. The endpoint
+must be an `https://` address — a plain `http://` one is refused when you save it, because the
+request carries the purchase order together with the credentials below, and both would be readable
+by anyone on the network path. (`http://localhost` is still accepted, for testing against something
+on your own machine.) Do not put a username or password into the URL itself; that is refused too,
+and the fields below are where they belong. Then the authentication the supplier specified:
 
 | Auth type | Fields |
 |---|---|
