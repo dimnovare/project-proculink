@@ -112,11 +112,18 @@ test.describe("visual baselines", () => {
   // form both accept.
   // eslint-disable-next-line no-empty-pattern
   test("every core screen has a committed baseline for this viewport", ({}, testInfo) => {
-    // `--update-snapshots` is the run that CREATES the files, so demanding they
-    // already exist would make `bun run visual:linux:update` fail every first time.
+    // Skip ONLY on a run that is deliberately (re)writing baselines.
+    //
+    // NOT `!== "none"`. Playwright's default for `updateSnapshots` is `"missing"`,
+    // not `"none"` — so that condition was true on every ordinary run and this
+    // guard silently skipped in all three viewport projects. Caught in CI run
+    // 31084379119: "33 passed, 3 skipped", exactly one skip per project, on a run
+    // that was supposed to be checking every baseline. A guard that never executes
+    // is worse than no guard, because the job still reports green.
+    const mode = testInfo.config.updateSnapshots;
     test.skip(
-      testInfo.config.updateSnapshots !== "none",
-      "running with --update-snapshots: this is the run that writes the baselines",
+      mode === "all" || mode === "changed",
+      `running with --update-snapshots=${mode}: this is the run that writes the baselines`,
     );
     const dir = join(testInfo.project.testDir, "__screenshots__");
     const missing = CORE_SCREENS.map((s) => `${s.id}-${testInfo.project.name}.png`).filter(
