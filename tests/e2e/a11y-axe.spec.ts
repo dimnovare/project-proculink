@@ -9,17 +9,28 @@ import { preparePage, settle, errorBoundaryMarker, DEV_OVERLAY_SELECTORS } from 
 /**
  * axe-core over the ten core screens, held by a ratchet.
  *
- * WHY A RATCHET AND NOT "ZERO VIOLATIONS". The first run against `main` found 9
- * violating nodes across the ten screens — 7 of them on one screen, and 7 of the
- * 9 are `color-contrast`. Seven of the ten screens are already clean. Zero is
- * therefore *nearly* available, and it is deliberately not asserted, for one
- * reason: the contrast failures resolve to values in the LOCKED design token set
- * (CLAUDE.md §3), which this packet is explicitly forbidden to change. Asserting
- * zero would mean either editing a locked token or suppressing the rule, and
- * both of those hide the finding instead of recording it. So the debt is written
- * down, in a file with names and numbers a founder can read, and it cannot grow.
- * Same shape as `scripts/check-tokens.mjs`, which already holds token debt on a
- * per-file ratchet in this repo. See the PR body for the traced token values.
+ * WHY A RATCHET AND NOT A HARD "ZERO VIOLATIONS" ASSERTION. The first run against
+ * `main` recorded 8 violating nodes across the ten screens — 7 on `/inbox/ord-002`
+ * and 1 on `/library/mappings`. That debt is now PAID: every screen is `{}`, and
+ * because the ratchet is two-sided (below), `{}` is asserted exactly as strictly as
+ * a hard zero would be. A new violation on any screen fails.
+ *
+ * The original note here said zero was unreachable because the contrast failures
+ * "resolve to values in the LOCKED design token set (CLAUDE.md §3)". That reasoning
+ * was wrong, and it is worth recording why, because it is the kind of wrong that
+ * makes debt permanent: the failing values were not the tokens, they were the
+ * PAIRINGS. `--ink-faint` (#667085) is 4.6439:1 on `--bg` and passes; it was placed
+ * on the raised `--surface-2` (#F1F3F7), where it is 4.4781:1 and fails. The fix was
+ * at the usage site — `--ink-muted` (5.1199:1 on the same fill) — with no token
+ * touched. The other was a raw `#9A6B00` that was never a token at all. See the
+ * WP-41 follow-up PR for the traced values.
+ *
+ * The file is kept rather than replaced with `expect(nodes).toEqual([])` because it
+ * is also the ledger: `git log tests/e2e/a11y-baseline.json` reads as the
+ * accessibility history of this product, and a future finding that genuinely cannot
+ * be fixed without a founder decision has somewhere honest to be written down
+ * instead of being suppressed. Same shape as `scripts/check-tokens.mjs`, which
+ * already holds token debt on a per-file ratchet in this repo.
  *
  * THE RATCHET IS TWO-SIDED, which is the part that keeps it honest:
  *   • a count ABOVE baseline fails      → you introduced a violation
