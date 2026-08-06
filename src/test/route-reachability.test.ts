@@ -118,7 +118,7 @@ import {
   type SourceSyntax,
 } from "./sourceScan";
 import { buildVisibleNav, PINNED_ACTION_HREF } from "@/components/bridge/BridgeSidebar";
-import { HUB_TABS } from "@/components/bridge/layout/HubTabs";
+import { HUB_TABS, visibleHubTabs, type HubKey } from "@/components/bridge/layout/HubTabs";
 import { HELP_ARTICLES } from "@/lib/help-articles";
 import { GUIDES, linkedGuides } from "@/lib/guides";
 
@@ -156,6 +156,44 @@ export const KNOWN_DEEP_LINK_ONLY: Record<string, string> = {
   //    the page is now reachable on its own merits and the entry is gone —
   //    see "/one-pager is reached by a real link" below, which is what stops
   //    this from quietly reverting to an allowlist entry.
+};
+
+/**
+ * NOT AN ALLOWLIST. Nothing here is silenced — these four routes fail the guard
+ * below, on purpose, and the suite is RED until someone decides what they are.
+ *
+ * They were invisible until this packet fixed two blind spots in the guard
+ * itself, and the fix is worth more than the quiet: every one of them is a live,
+ * rendering page that no user can arrive at by using the product. Writing them
+ * into KNOWN_DEEP_LINK_ONLY would restore the silence in one line, which is why
+ * they are recorded here instead — as a decision waiting to be made, with the
+ * evidence attached.
+ *
+ * The resolution for each is either "build the entry point" or "delete the
+ * page", and both are product calls, not a guard's. What this list DOES enforce
+ * is that the red set stays exactly this — a fifth strand fails a second test
+ * rather than hiding inside a failure everyone has learned to expect.
+ */
+export const STRANDED_PENDING_DECISION: Record<string, string> = {
+  "/connections":
+    "Closed cycle with /connections/[connectionId]: ConnectionDetail.tsx:115 links back to the " +
+    "list and ConnectionsList.tsx:156 pushes to the detail, and both files are rendered by nothing " +
+    "else. Reached the strip only as a `hidden: true` HUB_TABS entry (HubTabs.tsx:93), which " +
+    "visibleHubTabs strips. Its detail page mounts the versioned draft-mapping editor " +
+    "(ConnectionDetail.tsx:272, MapperWorkbench variant=\"connection\"), so this is a capability " +
+    "with no door, not a dead page.",
+  "/connections/[connectionId]":
+    "The other half of the same cycle — see /connections. The supplier page's apparent substitute, " +
+    "SupplierHistoryTab.tsx, imports no mapper at all, so nothing else in the product reaches the " +
+    "Edit → Make live lifecycle this page owns.",
+  "/operations/connectors":
+    "Zero inbound links anywhere in src/. The HUB_TABS comment at HubTabs.tsx:95 claims it is " +
+    "'Reached from a supplier's Delivery tab'; no such link exists — the connectors page links OUT " +
+    "to /library/suppliers/{id}?tab=delivery and nothing links back.",
+  "/operations/webhooks":
+    "Zero inbound links anywhere in src/. HubTabs.tsx:106 says Settings owns this data, and " +
+    "src/app/(app)/settings/page.tsx does render the same surface — but it does not link here, so " +
+    "the page is a duplicate nobody can open. Delete or link, 2026-08-06.",
 };
 
 // ─── Route enumeration ────────────────────────────────────────────────────────
@@ -434,8 +472,22 @@ export function collectLinkTargets(): LinkTarget[] {
   for (const item of nav.tail) targets.push({ path: item.href, kind: "nav", source: "<BridgeSidebar nav>" });
   targets.push({ path: PINNED_ACTION_HREF, kind: "nav", source: "<BridgeSidebar pinned action>" });
 
-  for (const tabs of Object.values(HUB_TABS)) {
-    for (const tab of tabs) targets.push({ path: tab.href, kind: "hub-tab", source: "<HubTabs>" });
+  // HUB_TABS goes through visibleHubTabs() — THE REGISTRY RULE, which this guard
+  // was violating on its own registry. A `hidden: true` entry is "reachable, not
+  // switchable": it is stripped from the strip, from hubShowsTabs, from the
+  // sidebar item's href (hubHome) and from its tooltip, so its `href` renders
+  // nowhere and is a plan, not navigation — exactly the phantom-target shape the
+  // rule exists for. Five entries carry it, and crediting them hid every route
+  // behind them.
+  //
+  // `inboundEnabled: true` is passed for the SAME reason `isAdmin: true` is passed
+  // to buildVisibleNav: a launch flag is config, and this guard is stated to be
+  // flat across flags ("flipping one flag is a config change; deleting the only
+  // link is a code change"). `hidden` is not a flag — it is permanent.
+  for (const hub of Object.keys(HUB_TABS) as HubKey[]) {
+    for (const tab of visibleHubTabs(hub, { inboundEnabled: true })) {
+      targets.push({ path: tab.href, kind: "hub-tab", source: "<HubTabs via visibleHubTabs>" });
+    }
   }
 
   // The help-centre index renders EVERY registry entry as a link, with a
@@ -489,25 +541,177 @@ function targetIsUnder(route: string, target: string): boolean {
   return r.every((seg, i) => (isDynamicRouteSegment(seg) ? t[i] !== undefined : seg === t[i]));
 }
 
+// ─── Whose link is it? ────────────────────────────────────────────────────────
+//
+// THE CLOSED-CYCLE HOLE. The self-link exclusion below used to compare against
+// the page FILE — so a page's own components were "somewhere else", and TWO
+// pages that link only to each other cleared one another. /connections and
+// /connections/[connectionId] are exactly that: ConnectionsList.tsx pushes to
+// the detail route, ConnectionDetail.tsx links back to the list, both files are
+// imported by nothing but those two pages, and no third thing anywhere in the
+// product points at either. Two live pages, zero ways in, guard green.
+//
+// A page is not one file, it is the tree of modules it renders. So a route's OWN
+// files are its page file plus everything that file transitively imports, and a
+// link only confers reachability when it comes from a source that is LIVE:
+// either it belongs to no route at all (chrome — layouts, middleware, the nav
+// registries, which render regardless), or it belongs to a route already proven
+// reachable. Then the fixpoint runs until nothing new is reached, and an island
+// with no entry point stays unreached however densely it links to itself.
+//
+// This is a narrow loosening of "FLAT, not transitive" and the header's argument
+// for flatness survives intact: a hub tab still counts even when its hub is
+// hidden behind a launch flag, because a registry is not a route and is never
+// claimed by one. What is no longer flat is a link between two PAGES, which is
+// the only place a cycle can form.
+
+const IMPORT_SPECIFIER_RE = /\bfrom\s*["']([^"']+)["']|\bimport\(\s*["']([^"']+)["']|\brequire\(\s*["']([^"']+)["']/g;
+
+/** `@/x` and `./x` to a real file under src/, or null for a package import. */
+function resolveSpecifier(fromFile: string, spec: string): string | null {
+  let base: string;
+  if (spec.startsWith("@/")) base = path.join(SRC_DIR, spec.slice(2));
+  else if (spec.startsWith(".")) base = path.resolve(path.dirname(fromFile), spec);
+  else return null;
+  for (const candidate of [
+    base,
+    `${base}.ts`,
+    `${base}.tsx`,
+    `${base}.mdx`,
+    path.join(base, "index.ts"),
+    path.join(base, "index.tsx"),
+  ]) {
+    if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) return path.normalize(candidate);
+  }
+  return null;
+}
+
+/**
+ * Every module a page renders, transitively.
+ *
+ * Deliberately read off RAW text rather than comment-stripped: over-connecting
+ * only ever makes MORE sources live, which loses a strand rather than inventing
+ * one. This graph decides who is silenced, so it errs toward silencing nobody.
+ */
+export function moduleSubtree(pageFile: string): Set<string> {
+  const seen = new Set<string>();
+  const stack = [path.normalize(pageFile)];
+  while (stack.length > 0) {
+    const file = stack.pop()!;
+    if (seen.has(file)) continue;
+    seen.add(file);
+    for (const imported of importsOf(file)) {
+      if (!seen.has(imported)) stack.push(imported);
+    }
+  }
+  return seen;
+}
+
+/**
+ * Resolved imports of one file, memoised. Ninety-four pages share most of
+ * src/components between them, so without this every shared module is re-read
+ * and re-parsed once per page and the guard takes seven seconds.
+ */
+const IMPORTS_CACHE = new Map<string, string[]>();
+function importsOf(file: string): string[] {
+  const cached = IMPORTS_CACHE.get(file);
+  if (cached) return cached;
+  let text: string;
+  try {
+    text = fs.readFileSync(file, "utf8");
+  } catch {
+    IMPORTS_CACHE.set(file, []); // a fixture path, not a real file
+    return [];
+  }
+  const out: string[] = [];
+  for (const m of text.matchAll(IMPORT_SPECIFIER_RE)) {
+    const spec = m[1] ?? m[2] ?? m[3];
+    const resolved = spec ? resolveSpecifier(file, spec) : null;
+    if (resolved) out.push(resolved);
+  }
+  IMPORTS_CACHE.set(file, out);
+  return out;
+}
+
 /**
  * The whole guard in one pure function, so the synthetic-fixture test can push
  * a route that provably nothing links to through the SAME code path the real
  * assertion uses. A guard that is only ever exercised on data that passes is
  * not a guard.
+ *
+ * `ownFiles` defaults to "the page file alone", which is the pre-cycle-fix
+ * behaviour — the fixture tests below pass routes whose `file` is not a real
+ * path, and they exercise the matching rules, not the import graph.
  */
 export function findUnreachableRoutes(
   routes: EnumeratedRoute[],
   targets: LinkTarget[],
   allowlist: Record<string, string> = {},
+  ownFiles: (route: EnumeratedRoute) => Set<string> = (r) => new Set([r.file]),
 ): UnreachableRoute[] {
-  return routes.filter(({ route, file, acceptsDescendants }) => {
-    if (Object.prototype.hasOwnProperty.call(allowlist, route)) return false;
-    // A page linking to itself does not make itself reachable.
-    const external = targets.filter((t) => t.source !== file);
-    return !external.some(
-      (t) =>
-        targetSatisfiesRoute(route, t.path) || (acceptsDescendants === true && targetIsUnder(route, t.path)),
-    );
+  const own = new Map(routes.map((r) => [r.route, ownFiles(r)] as const));
+
+  // source file → the routes that render it. A file in nobody's map is chrome.
+  const owners = new Map<string, string[]>();
+  for (const [route, files] of own) {
+    for (const file of files) {
+      const list = owners.get(file);
+      if (list) list.push(route);
+      else owners.set(file, [route]);
+    }
+  }
+
+  const reachable = new Set<string>();
+  const isLive = (source: string): boolean => {
+    const claimedBy = owners.get(source);
+    if (claimedBy === undefined) return true; // chrome / registry / fixture referrer
+    return claimedBy.some((route) => reachable.has(route));
+  };
+
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const { route, acceptsDescendants } of routes) {
+      if (reachable.has(route)) continue;
+      if (Object.prototype.hasOwnProperty.call(allowlist, route)) {
+        reachable.add(route);
+        changed = true;
+        continue;
+      }
+      const mine = own.get(route)!;
+      const hit = targets.some(
+        (t) =>
+          // A page linking to itself — or to a sibling out of its own render
+          // tree — does not make itself reachable.
+          !mine.has(t.source) &&
+          isLive(t.source) &&
+          (targetSatisfiesRoute(route, t.path) ||
+            (acceptsDescendants === true && targetIsUnder(route, t.path))),
+      );
+      if (hit) {
+        reachable.add(route);
+        changed = true;
+      }
+    }
+  }
+
+  return routes.filter((r) => !reachable.has(r.route));
+}
+
+/** `findUnreachableRoutes` over the real app, with real import subtrees. */
+export function findUnreachableAppRoutes(
+  routes: EnumeratedRoute[],
+  targets: LinkTarget[],
+  allowlist: Record<string, string> = {},
+): UnreachableRoute[] {
+  const cache = new Map<string, Set<string>>();
+  return findUnreachableRoutes(routes, targets, allowlist, (r) => {
+    let files = cache.get(r.file);
+    if (!files) {
+      files = moduleSubtree(r.file);
+      cache.set(r.file, files);
+    }
+    return files;
   });
 }
 
@@ -515,6 +719,8 @@ export function findUnreachableRoutes(
 
 const ROUTES = enumerateRoutes();
 const TARGETS = collectLinkTargets();
+/** Computed ONCE — two assertions read it, and the import walk is not free. */
+const UNREACHABLE = findUnreachableAppRoutes(ROUTES, TARGETS, KNOWN_DEEP_LINK_ONLY);
 
 describe("route reachability (plan rule R1 — no new surface without a consumer)", () => {
   it("finds the app's page routes at all", () => {
@@ -524,8 +730,21 @@ describe("route reachability (plan rule R1 — no new surface without a consumer
     expect(TARGETS.length).toBeGreaterThan(50);
   });
 
+  it("the import graph resolves — a page really does claim its own components", () => {
+    // Anti-vacuity for the cycle fix. If resolveSpecifier stopped resolving, every
+    // subtree would collapse to one file, every component would read as chrome,
+    // and the guard would silently return to crediting closed cycles.
+    const inbox = ROUTES.find((r) => r.route === "/inbox")!;
+    const subtree = moduleSubtree(inbox.file);
+    expect(subtree.size, "a page's module subtree collapsed to its own file").toBeGreaterThan(10);
+    expect(
+      [...subtree].some((f) => f.includes(`${path.sep}components${path.sep}`)),
+      "no component resolved from a page — the @/ alias stopped resolving",
+    ).toBe(true);
+  });
+
   it("every page.tsx route is reachable from nav, a hub tab, a redirect, or a link", () => {
-    const unreachable = findUnreachableRoutes(ROUTES, TARGETS, KNOWN_DEEP_LINK_ONLY);
+    const unreachable = UNREACHABLE;
     const report = unreachable
       .map((u) => `  ${u.route}\n      ${path.relative(ROOT, u.file).split(path.sep).join("/")}`)
       .join("\n");
@@ -535,8 +754,28 @@ describe("route reachability (plan rule R1 — no new surface without a consumer
         ? ""
         : `\n${unreachable.length} route(s) exist but nothing navigates to them:\n${report}\n\n` +
             `Link one from the sidebar, a hub tab, a redirect or another page — or add it to\n` +
-            `KNOWN_DEEP_LINK_ONLY in this file WITH a written reason.\n`,
+            `KNOWN_DEEP_LINK_ONLY in this file WITH a written reason.\n\n` +
+            `${Object.keys(STRANDED_PENDING_DECISION).length} of these are KNOWN and awaiting a\n` +
+            `product decision (build the entry point, or delete the page) — see\n` +
+            `STRANDED_PENDING_DECISION in this file for the evidence on each.\n`,
     ).toEqual([]);
+  });
+
+  it("the stranded set is exactly the four already on the record", () => {
+    // The companion to the deliberate RED above. A permanently-failing assertion
+    // is one everybody learns to skip past, so the thing that must NOT drift is
+    // pinned separately: a fifth strand fails HERE, where nobody is expecting a
+    // failure, and a route that gets its entry point built must be deleted from
+    // STRANDED_PENDING_DECISION rather than left as a stale excuse.
+    const unreachable = UNREACHABLE.map((u) => u.route);
+    expect(unreachable.sort()).toEqual(Object.keys(STRANDED_PENDING_DECISION).sort());
+    // Each is a real page, and each reason cites something openable — the same
+    // bar the allowlist reasons must clear, because these are the harder claim.
+    const real = new Set(ROUTES.map((r) => r.route));
+    for (const [route, reason] of Object.entries(STRANDED_PENDING_DECISION)) {
+      expect(real.has(route), `${route}: named as stranded but is not a route`).toBe(true);
+      expect(rejectReason(reason), `${route}: ${rejectReason(reason)}`).toBeNull();
+    }
   });
 
   it("/one-pager is reached by a real link, and no longer by the allowlist", () => {
@@ -586,6 +825,40 @@ describe("route reachability (plan rule R1 — no new surface without a consumer
     // Positive control: the linked fixture is NOT reported — the guard
     // discriminates, rather than flagging everything it is handed.
     expect(flagged).not.toContain("/__fixture__/linked");
+  });
+
+  it("two pages that link only to each other are BOTH stranded", () => {
+    // The closed-cycle hole, as a fixture. Each page's link lives in a component
+    // the OTHER page does not render, so under the old file-level self-link rule
+    // each one cleared the other and the island passed. Reachability now walks
+    // out from chrome, so a cycle with no entry point stays unreached.
+    const listPage = "<pages/list>";
+    const detailPage = "<pages/detail>";
+    const listComponent = "<components/List>";
+    const detailComponent = "<components/Detail>";
+    const routes: EnumeratedRoute[] = [
+      { route: "/island", file: listPage },
+      { route: "/island/[id]", file: detailPage },
+    ];
+    const subtree = (r: EnumeratedRoute) =>
+      r.file === listPage
+        ? new Set([listPage, listComponent])
+        : new Set([detailPage, detailComponent]);
+    const mutual: LinkTarget[] = [
+      { path: `/island/${DYN}`, kind: "link", source: listComponent },
+      { path: "/island", kind: "link", source: detailComponent },
+    ];
+
+    expect(findUnreachableRoutes(routes, mutual, {}, subtree).map((u) => u.route)).toEqual([
+      "/island",
+      "/island/[id]",
+    ]);
+
+    // ONE real entry point rescues the whole island — the guard reports a
+    // missing door, not a missing link, so it must go quiet the moment a door
+    // exists. Without this half it would flag every cycle forever.
+    const withNav: LinkTarget[] = [...mutual, { path: "/island", kind: "nav", source: "<BridgeSidebar nav>" }];
+    expect(findUnreachableRoutes(routes, withNav, {}, subtree)).toEqual([]);
   });
 
   it("a page linking to itself does not make itself reachable", () => {
