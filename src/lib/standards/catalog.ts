@@ -109,10 +109,16 @@ export const STANDARDS: StandardSupport[] = [
     // can substantiate BIS 3.0 conformance, and two mandatory-field violations are visible in the
     // emitter itself, so the honest level is `planned` — the work is understood, not delivered.
     // Downgraded 2026-08-01 alongside dropping the claim from every user-facing surface.
+    //
+    // 2026-08-06: the emitted DOCUMENT was brought into line with this row. Until then every UBL
+    // order ProcuLink sent self-declared as BIS Order-only 3.0 via cbc:CustomizationID and
+    // cbc:ProfileID, and the one order-side check asserted only that those two elements were
+    // non-empty — on a document the emitter had just written them into, so it could never fail.
+    // Both elements are now absent (they are minOccurs="0" in UBL 2.1) and both checks are gone.
     transform: "planned",
     transport: "Peppol Access Point (AS4)",
     conformance:
-      "Inbound: a Peppol BIS Order file IS a UBL 2.1 Order, so it parses on the UBL pipeline (UblOrderParser has no BIS-specific branch). Outbound: BIS-CONFORMANT OUTPUT IS NOT OFFERED AND MUST NOT BE ADVERTISED. There is no Schematron anywhere in either repo; PeppolBisValidator is invoice-only; and the one order-side check, UblProfileChecker.cs:54-58, asserts only that cbc:CustomizationID and cbc:ProfileID are NON-EMPTY — never that they equal the Peppol values. The emitter writes the supplier GUID into SellerSupplierParty/PartyName/Name (UblOrderTransformService.cs:93, flagged a placeholder in its own comment) and emits no cbc:EndpointID for either party. No emitted order has been accepted by a real Access Point. Access Point delivery is partner-wrapped in any case.",
+      "Inbound: a Peppol BIS Order file IS a UBL 2.1 Order, so it parses on the UBL pipeline (UblOrderParser has no BIS-specific branch). Outbound: BIS-CONFORMANT OUTPUT IS NOT OFFERED AND MUST NOT BE ADVERTISED. The emitted UBL order declares no Peppol profile at all — no cbc:CustomizationID and no cbc:ProfileID — because a receiving access point routes and validates on those, and nothing here can back the claim: there is no Schematron anywhere in either repo, and PeppolBisValidator is invoice-only. UblProfileChecker now checks OASIS UBL 2.1 mandatory elements and cardinalities only, and says so in its profile name. The emitter also writes the supplier GUID into SellerSupplierParty/PartyName/Name when no name is stored (UblOrderTransformService, flagged a placeholder in its own comment). No emitted order has been accepted by a real Access Point. Access Point delivery is partner-wrapped in any case.",
     referenceUrl:
       "https://docs.peppol.eu/poacc/upgrade-3/profiles/3-order/",
   },

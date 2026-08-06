@@ -2980,7 +2980,7 @@ export interface ConformanceReport {
   format: string;
   /** The named profile enum value, e.g. "Ubl21Order". */
   profile: string;
-  /** Human-readable profile name, e.g. "UBL 2.1 Order (Peppol BIS Order-only 3.0)". */
+  /** Human-readable profile name, e.g. "OASIS UBL 2.1 Order — mandatory elements". */
   profileName: string;
   /** Profile version, e.g. "2.1" / "004010" / "D.96A". */
   profileVersion: string;
@@ -2993,14 +2993,31 @@ export interface ConformanceReport {
 
 export type ConformanceFormat = "cxml" | "ubl" | "x12";
 
+/**
+ * The named profile each conformance format reports against — this app's mirror of the backend's
+ * `ConformanceCheckBuilder(profile, profileName, profileVersion)` calls in
+ * `ProcuLink.Transform/Conformance/*ProfileChecker.cs`.
+ *
+ * Exported so it can be asserted. A profile NAME is a standards claim: `ConformancePanel` renders
+ * it directly under "Matches the standard" with a pass badge, and the downloadable Markdown puts it
+ * on a `- **Profile:**` line a customer can forward. It is pinned against the standards catalog by
+ * `src/test/gatedCapabilityClaims.test.ts` — a name may only cite a standard the catalog says
+ * ProcuLink really emits.
+ */
+export const CONFORMANCE_PROFILES: Record<
+  ConformanceFormat,
+  { profile: string; name: string; version: string }
+> = {
+  cxml: { profile: "Cxml12OrderRequest", name: "cXML 1.2 OrderRequest", version: "1.2.060" },
+  // NOT "UBL 2.1 Order (Peppol BIS Order-only 3.0)". ProcuLink emits a plain OASIS UBL 2.1 Order
+  // and declares no Peppol profile; the catalog records Peppol BIS Order 3.0 as transform: "planned".
+  ubl:  { profile: "Ubl21Order",         name: "OASIS UBL 2.1 Order — mandatory elements", version: "2.1" },
+  x12:  { profile: "X12_850",            name: "X12 850 Purchase Order", version: "004010" },
+};
+
 async function mockGetConformanceReport(orderId: string, format: ConformanceFormat = "cxml"): Promise<ConformanceReport> {
   await delay(250);
-  const profiles: Record<ConformanceFormat, { profile: string; name: string; version: string }> = {
-    cxml: { profile: "Cxml12OrderRequest", name: "cXML 1.2 OrderRequest", version: "1.2.060" },
-    ubl:  { profile: "Ubl21Order",         name: "UBL 2.1 Order (Peppol BIS Order-only 3.0)", version: "2.1" },
-    x12:  { profile: "X12_850",            name: "X12 850 Purchase Order", version: "004010" },
-  };
-  const p = profiles[format];
+  const p = CONFORMANCE_PROFILES[format];
   const checks: ConformanceCheck[] = [
     { code: `${format}.id`,       severity: "Error",   passed: true,  message: "Order identifier present.",        profileRef: format === "ubl" ? "cbc:ID" : format === "x12" ? "BEG03" : "OrderRequestHeader/@orderID" },
     { code: `${format}.currency`, severity: "Error",   passed: true,  message: "Document currency present.",        profileRef: format === "ubl" ? "cbc:DocumentCurrencyCode" : format === "x12" ? "CUR02" : "Total/Money/@currency" },
