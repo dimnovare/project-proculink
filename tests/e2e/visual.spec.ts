@@ -103,7 +103,13 @@ test.describe("visual baselines", () => {
    * Checking the files on disk, before any of them are written, is the only
    * moment at which "was this baseline committed?" is still answerable.
    */
-  test("every core screen has a committed baseline for this viewport", (_fixtures, testInfo) => {
+  // Playwright requires the first parameter to BE an object-destructuring pattern
+  // ("First argument must use the object destructuring pattern"), and this test
+  // needs no fixtures. Naming it `_fixtures` satisfies eslint and breaks
+  // Playwright — verified, it failed the CI run at 07:49:23. `{}` is the only
+  // form both accept.
+  // eslint-disable-next-line no-empty-pattern
+  test("every core screen has a committed baseline for this viewport", ({}, testInfo) => {
     // `--update-snapshots` is the run that CREATES the files, so demanding they
     // already exist would make `bun run visual:linux:update` fail every first time.
     test.skip(
