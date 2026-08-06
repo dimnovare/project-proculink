@@ -257,14 +257,22 @@ describe("practice-order framing", () => {
   });
 
   test("promises nothing about email when this session did not start the run", () => {
-    // A bookmark or a fresh session: we do not know whether delivery was set up, so the
-    // copy falls back to what is true either way.
+    // A bookmark, the back button, an inbox row — none of them carry the state, so
+    // practiceDeliveryKnown answers null and this screen cannot account for the run.
+    //
+    // It used to print "Nothing reaches a real supplier." here, which is the WP-39 §4.5
+    // promise a second time: an existing_target run opened from a bookmark lands on this
+    // exact branch, and pressing send DOES dispatch through the target already set up.
+    // No backend change is needed to reach it.
     practiceDelivery = null;
     mockState.order = makeOrder({ isSample: true });
     render(<OrderWorkshop orderId="ord-1" />);
 
-    expect(banner()!.textContent).toMatch(/nothing reaches a real supplier/i);
+    expect(banner()!.textContent).not.toMatch(/nothing reaches a real/i);
     expect(banner()!.textContent).not.toMatch(/emailed to you/i);
+    expect(banner()!.textContent).not.toMatch(/will stop at/i);
+    // …and it does say which of those it is, rather than going quiet.
+    expect(banner()!.textContent).toMatch(/can.t tell/i);
   });
 
   test("never hardcodes a party noun — an inbound org reads 'customer', not 'supplier'", async () => {

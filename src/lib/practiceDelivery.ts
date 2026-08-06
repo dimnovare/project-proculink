@@ -64,23 +64,45 @@ export function practiceDeliveryFrom(
 /**
  * The sentence the practice-order note ends with.
  *
- * `null` — this session did not start the run (a bookmark, a fresh session), so nothing
- * about THIS run is known. It promises nothing and holds either way.
+ * `null` means this build cannot account for the run — `practiceDeliveryFrom` answered
+ * "we don't know" for a value it does not recognise, or `practiceDeliveryKnown` has no
+ * record because the order was opened from a bookmark, a new tab, or an inbox row.
+ *
+ * That case must not borrow any of the three answers, and least of all the reassurance.
+ * It used to: `null` fell through a `default:` onto "Nothing reaches a real supplier",
+ * which is the WP-39 §4.5 promise in the header rebuilt one function further down. An
+ * `existing_target` run opened from a bookmark reaches it with no backend change at all,
+ * and pressing send on that run dispatches through a target we did not set up.
  */
 export function practiceDeliveryNote(
   state: PracticeDeliveryState | null,
   counterpartyNounLower: string,
 ): string {
+  // Says nothing about where the file goes, because we do not know. Going silent instead
+  // would also promise nothing, but the operator is a click away from sending; point them
+  // at the same place the `existing_target` copy points at.
+  const cannotTell = `We can’t tell from here what pressing send will do — check this ${counterpartyNounLower}’s delivery settings before you send.`;
+
+  if (state === null) return cannotTell;
+
   switch (state) {
     case "emailed_to_you":
       return `The finished file is emailed to you, never to a ${counterpartyNounLower}.`;
     case "not_set_up":
+      // The one state that earns the reassurance: no delivery target at all, so the run
+      // genuinely stops after transform.
       return `Email sending isn't configured on this ProcuLink deployment yet, so this run will stop at “no delivery is set up”. Nothing reaches a real ${counterpartyNounLower}.`;
     case "existing_target":
       // Deliberately not a promise in either direction. Something IS set up, it is not the
       // practice mailbox, and the operator is the only one who knows where it points.
       return `This ${counterpartyNounLower} already has a delivery target set up, and it is not the practice mailbox — if you send, the file goes through it. Check its delivery settings first.`;
-    default:
-      return `Nothing reaches a real ${counterpartyNounLower}.`;
   }
+
+  // No `default:` above, deliberately. A fourth entry in PRACTICE_DELIVERY_STATES fails to
+  // assign to `never` here, so it is a build error — the decision this function exists to
+  // force — rather than a silent extra member of whichever branch the default happened to
+  // be. At runtime an off-union value degrades to "we don't know", never to a promise.
+  const unhandled: never = state;
+  void unhandled;
+  return cannotTell;
 }
