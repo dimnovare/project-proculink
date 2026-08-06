@@ -58,8 +58,9 @@ On a supplier's **Delivery** tab, choose **UBL 2.1** as the output format and se
 ProcuLink emits UBL. It does not certify Peppol BIS Order 3 conformance — and we would rather tell you here than have you find out at an access point. Today, specifically:
 
 - **No BIS business-rule validation runs.** There is no Schematron and no EN 16931 / UBL-CR rule engine in the product. Nothing checks an emitted order against the BIS 3 rule set.
-- **The conformance identifiers are written, not verified.** The emitted document carries `cbc:CustomizationID` and `cbc:ProfileID`. The order-side check available in the app reports whether they are *present* — not whether their contents are right for your profile.
-- **Two known gaps in the document itself.** The supplier party name is emitted as an internal identifier rather than the supplier's registered name, and no `cbc:EndpointID` is emitted for either party. Both are mandatory under BIS 3, and neither is fixed today.
+- **The emitted document declares no Peppol profile at all.** It carries neither `cbc:CustomizationID` nor `cbc:ProfileID`. Both are optional in the OASIS UBL 2.1 Order schema, so leaving them out keeps the document valid UBL — and a receiving access point routes and validates on exactly those two elements, so writing the Peppol values would have been a conformance claim we cannot back. Until August 2026 we did write them; we no longer do.
+- **The in-app conformance check is a pre-flight, not a certification.** It reports whether the profile's mandatory elements are present and correctly repeated. It is not a schema validation and not a BIS rule check.
+- **Two known gaps against BIS 3, when it applies to you.** No `cbc:EndpointID` is emitted for the buyer party, and none for a supplier whose stored EDI code is not provably a GS1 GLN. The supplier party name falls back to an internal identifier when no supplier name is stored.
 - **No emitted order has been accepted by a live Peppol access point.** We have not run that test, so we do not claim the result.
 - **AS4 transport into the Peppol network is not ours.** ProcuLink produces a document; getting it onto the network runs through an access-point partner, arranged with you.
 
