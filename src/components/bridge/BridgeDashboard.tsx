@@ -893,8 +893,27 @@ export function BridgeDashboard() {
       : null;
 
   // ── "Ready to send" rows — validated orders with nothing blocking ─────────
-  const readyRows = allOrders.filter((o) => o.status === "ready" || o.status === "ready_to_deliver");
-  const readyChips = readyRows.slice(0, 3);
+  //
+  // The NUMBER is countReady — `countFor("Ready to send")`, the same call the stat
+  // tile and the inbox chip make. It used to be `allOrders.filter(...).length` over
+  // `ready || ready_to_deliver`, which put the removed sum back under the removed
+  // label two inches below the tile that had been fixed: one screen, one label, two
+  // numbers. ORDER_COUNT_CONTRACT:85 settles which one is right — "Ready to send" is
+  // `ready` alone, because `ready` is the HUMAN's turn (validated, nothing built
+  // yet) and this section's whole job is to ask a human to send. `ready_to_deliver`
+  // is ours, and it is already printed beside this one as "Queued to send".
+  //
+  // The rows below are a SAMPLE for the preview chips, not the count: they come from
+  // the loaded working set (capped at one page) while countReady comes from the
+  // account-wide summary. Deriving the count from the sample was a second, quieter
+  // divergence of the same label — an account with more ready orders than fit on a
+  // page printed a smaller number here than in the tile above.
+  const readySampleRows = allOrders.filter((o) => o.status === "ready");
+  const readyChips = readySampleRows.slice(0, 3);
+  // Loading state follows countReady's SOURCE (summary when authed, working set in
+  // mock mode), not the orders query, or the section flashes a number from one base
+  // while the tiles are still resolving another.
+  const readyCountLoading = funnelLoading;
 
   // Money formatting for the ready-to-send preview chips (locale-aware, honest —
   // omitted when the order carries no total).
@@ -1581,13 +1600,17 @@ export function BridgeDashboard() {
               </section>
 
               {/* ── Ready to send — compact, one CTA ──────────────────────── */}
-              {(readyRows.length > 0 || ordersLoading) && (
+              {(countReady > 0 || readyCountLoading) && (
                 <section aria-label="Orders ready to send">
                   <SectionHead
                     title="Ready to send"
-                    count={ordersLoading ? undefined : readyRows.length}
+                    count={readyCountLoading ? undefined : countReady}
                     note="validated — nothing blocking"
-                    actionHref="/inbox"
+                    // The FILTERED queue, not a bare /inbox. WP-29 pointed the stat
+                    // tiles here so the number you click is the number you land on;
+                    // this section still sent you to the unfiltered queue, where the
+                    // figure above the link appears nowhere.
+                    actionHref="/inbox?status=ready"
                     actionLabel="See all"
                   />
                   <div
@@ -1603,7 +1626,7 @@ export function BridgeDashboard() {
                     </span>
                     <div className="min-w-0 flex-1">
                       <div className="text-[13.5px] font-semibold" style={{ color: "#0B1A2F" }}>
-                        <span className="tabular-nums">{readyRows.length}</span> order{readyRows.length === 1 ? "" : "s"} validated and ready
+                        <span className="tabular-nums">{countReady}</span> order{countReady === 1 ? "" : "s"} validated and ready
                       </div>
                       <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                         {readyChips.map((o) => (
@@ -1617,21 +1640,21 @@ export function BridgeDashboard() {
                             {fmtMoney(o) && <span className="tabular-nums" style={{ color: "var(--ink-faint)" }}>· {fmtMoney(o)}</span>}
                           </span>
                         ))}
-                        {readyRows.length > readyChips.length && (
-                          <span className="text-[11px]" style={{ color: "var(--ink-faint)" }}>+{readyRows.length - readyChips.length} more</span>
+                        {countReady > readyChips.length && (
+                          <span className="text-[11px]" style={{ color: "var(--ink-faint)" }}>+{countReady - readyChips.length} more</span>
                         )}
                       </div>
                     </div>
                     <div className="flex flex-shrink-0 gap-2">
                       <Link
-                        href="/inbox"
+                        href="/inbox?status=ready"
                         className="inline-flex h-[36px] items-center justify-center rounded-[8px] px-3.5 text-[12.5px] font-semibold no-underline transition-colors hover:bg-[#F6F7FA]"
                         style={{ border: "1px solid #E5E8EE", background: "#FFFFFF", color: "#0B1A2F" }}
                       >
                         Review
                       </Link>
                       <Link
-                        href="/inbox"
+                        href="/inbox?status=ready"
                         className="inline-flex h-[36px] items-center justify-center gap-1.5 rounded-[8px] px-3.5 text-[12.5px] font-semibold text-white no-underline transition-colors"
                         style={{ background: GREEN_BTN, boxShadow: "0 1px 2px rgba(11,26,47,0.12)" }}
                       >
