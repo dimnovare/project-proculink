@@ -505,7 +505,14 @@ Do not add a bullet for a capability nothing enforces.
 - Decorative gradient backgrounds, sparkle icons, illustrated mascots, glassmorphism
 - Modals when a drawer or inline editor will do
 - Modal wizards that hide the source file during review
-- "Good morning, Maria" greetings on the dashboard — operators want the queue
+- ~~"Good morning, Maria" greetings on the dashboard~~ — **OVERRIDDEN by the founder, 2026-07.**
+  The dashboard does greet by first name, and it stays. `DashboardContextLine.tsx` is the
+  founder-approved mock: the topbar tab already says "Dashboard", so the row that used to hold the
+  H1 became a 36px context line carrying greeting + date + the one thing needing action, with a
+  jump link to it. The original rule's point survives in how it is built — the line is compact, the
+  queue is not pushed down by a hero, and the blockers count is `null` while loading so it never
+  fabricates a number. **Do not "fix" this by deleting it**; it ships with tests
+  (`DashboardContextLine.test.tsx`). Verified live 2026-08-06.
 - Auto-applying AI corrections without a visible accept step
 - Notched corners everywhere — use `<XCard>`'s cross-section edge instead
 - The directional-field background gradient on every screen — only marketing hero areas
