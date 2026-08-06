@@ -159,39 +159,52 @@ export const KNOWN_DEEP_LINK_ONLY: Record<string, string> = {
 };
 
 /**
- * NOT AN ALLOWLIST. Nothing here is silenced — these four routes fail the guard
- * below, on purpose, and the suite is RED until someone decides what they are.
+ * THE SECOND LIST, AND IT IS NOT KNOWN_DEEP_LINK_ONLY.
  *
- * They were invisible until this packet fixed two blind spots in the guard
- * itself, and the fix is worth more than the quiet: every one of them is a live,
- * rendering page that no user can arrive at by using the product. Writing them
- * into KNOWN_DEEP_LINK_ONLY would restore the silence in one line, which is why
- * they are recorded here instead — as a decision waiting to be made, with the
- * evidence attached.
+ * That list means "reachable, just not from this repo — here is the referrer".
+ * This means "**no user can arrive here, and nobody has decided what to do about
+ * it yet**". Both suppress the failure; only one of them is an answer. Keeping
+ * them apart is the whole point, because an entry here is an open question with
+ * a date on it, not a justification.
  *
- * The resolution for each is either "build the entry point" or "delete the
- * page", and both are product calls, not a guard's. What this list DOES enforce
- * is that the red set stays exactly this — a fifth strand fails a second test
- * rather than hiding inside a failure everyone has learned to expect.
+ * All four were invisible until this packet fixed two blind spots in the guard
+ * itself. Every one is a live, rendering page that no user can reach by using
+ * the product. The resolution for each is "build the entry point" or "delete the
+ * page", and both are product calls, not a guard's.
+ *
+ * These entries PASS, on purpose. They were left failing at first, and the
+ * consequence was a pipeline that could not go green until a product decision
+ * arrived — which trains everyone to stop reading CI and then masks the next
+ * real failure. A red nobody can clear today is noise with a good reason
+ * attached. Three mechanisms stop "tracked" becoming "forgotten":
+ *
+ *   1. every entry carries its own reason, held to the same citation bar as
+ *      KNOWN_DEEP_LINK_ONLY's;
+ *   2. `printsTheStrandedSet` logs the count and the names on EVERY run, so the
+ *      list appears in CI output rather than only in a file nobody opens;
+ *   3. `theStrandedSetIsExactlyThis` fails when a FIFTH route is stranded — a
+ *      new gap cannot quietly join the list — and equally when one of these
+ *      gains an entry point, so the list cannot rot into permanent cover.
  */
 export const STRANDED_PENDING_DECISION: Record<string, string> = {
   "/connections":
-    "Closed cycle with /connections/[connectionId]: ConnectionDetail.tsx:115 links back to the " +
+    "PENDING A DECISION, 2026-08-06 — closed cycle with /connections/[connectionId]: " +
+    "ConnectionDetail.tsx:115 links back to the " +
     "list and ConnectionsList.tsx:156 pushes to the detail, and both files are rendered by nothing " +
     "else. Reached the strip only as a `hidden: true` HUB_TABS entry (HubTabs.tsx:93), which " +
     "visibleHubTabs strips. Its detail page mounts the versioned draft-mapping editor " +
     "(ConnectionDetail.tsx:272, MapperWorkbench variant=\"connection\"), so this is a capability " +
     "with no door, not a dead page.",
   "/connections/[connectionId]":
-    "The other half of the same cycle — see /connections. The supplier page's apparent substitute, " +
+    "PENDING A DECISION, 2026-08-06 — the other half of the same cycle — see /connections. The supplier page's apparent substitute, " +
     "SupplierHistoryTab.tsx, imports no mapper at all, so nothing else in the product reaches the " +
     "Edit → Make live lifecycle this page owns.",
   "/operations/connectors":
-    "Zero inbound links anywhere in src/. The HUB_TABS comment at HubTabs.tsx:95 claims it is " +
+    "PENDING A DECISION, 2026-08-06 — zero inbound links anywhere in src/. The HUB_TABS comment at HubTabs.tsx:95 claims it is " +
     "'Reached from a supplier's Delivery tab'; no such link exists — the connectors page links OUT " +
     "to /library/suppliers/{id}?tab=delivery and nothing links back.",
   "/operations/webhooks":
-    "Zero inbound links anywhere in src/. HubTabs.tsx:106 says Settings owns this data, and " +
+    "PENDING A DECISION, 2026-08-06 — zero inbound links anywhere in src/. HubTabs.tsx:106 says Settings owns this data, and " +
     "src/app/(app)/settings/page.tsx does render the same surface — but it does not link here, so " +
     "the page is a duplicate nobody can open. Delete or link, 2026-08-06.",
 };
@@ -719,8 +732,38 @@ export function findUnreachableAppRoutes(
 
 const ROUTES = enumerateRoutes();
 const TARGETS = collectLinkTargets();
-/** Computed ONCE — two assertions read it, and the import walk is not free. */
+/**
+ * Every route the guard will not fail on. A derived union rather than one
+ * hand-maintained map, so the two categories cannot be merged by accident:
+ * "reachable, the referrer is elsewhere" and "nobody can reach this and nobody
+ * has decided" are different claims, and a reader must be able to tell them apart.
+ */
+export const ACCOUNTED_FOR: Record<string, string> = {
+  ...KNOWN_DEEP_LINK_ONLY,
+  ...STRANDED_PENDING_DECISION,
+};
+
+/**
+ * Computed ONCE — several assertions read it, and the import walk is not free.
+ * Resolved against KNOWN_DEEP_LINK_ONLY ALONE, so the pending set is still
+ * computed rather than assumed: `theStrandedSetIsExactlyThis` compares this to
+ * STRANDED_PENDING_DECISION, and a route that gains an entry point drops out of
+ * here and fails there.
+ */
 const UNREACHABLE = findUnreachableAppRoutes(ROUTES, TARGETS, KNOWN_DEEP_LINK_ONLY);
+
+/**
+ * The same walk with NO allowlist at all — every route nothing navigates to,
+ * including the ones both lists excuse.
+ *
+ * Needed because an allowlisted route never appears in `UNREACHABLE`: the
+ * allowlist is applied inside the walk, so "is this entry still needed?" cannot
+ * be asked of a result the entry itself shaped. The second run is cheap — the
+ * import subtrees are already in IMPORTS_CACHE.
+ */
+const UNREACHABLE_UNEXCUSED = new Set(
+  findUnreachableAppRoutes(ROUTES, TARGETS, {}).map((u) => u.route),
+);
 
 describe("route reachability (plan rule R1 — no new surface without a consumer)", () => {
   it("finds the app's page routes at all", () => {
@@ -743,8 +786,8 @@ describe("route reachability (plan rule R1 — no new surface without a consumer
     ).toBe(true);
   });
 
-  it("every page.tsx route is reachable from nav, a hub tab, a redirect, or a link", () => {
-    const unreachable = UNREACHABLE;
+  it("every page route is accounted for — reachable, explained, or tracked", () => {
+    const unreachable = findUnreachableAppRoutes(ROUTES, TARGETS, ACCOUNTED_FOR);
     const report = unreachable
       .map((u) => `  ${u.route}\n      ${path.relative(ROOT, u.file).split(path.sep).join("/")}`)
       .join("\n");
@@ -753,29 +796,68 @@ describe("route reachability (plan rule R1 — no new surface without a consumer
       unreachable.length === 0
         ? ""
         : `\n${unreachable.length} route(s) exist but nothing navigates to them:\n${report}\n\n` +
-            `Link one from the sidebar, a hub tab, a redirect or another page — or add it to\n` +
-            `KNOWN_DEEP_LINK_ONLY in this file WITH a written reason.\n\n` +
-            `${Object.keys(STRANDED_PENDING_DECISION).length} of these are KNOWN and awaiting a\n` +
-            `product decision (build the entry point, or delete the page) — see\n` +
-            `STRANDED_PENDING_DECISION in this file for the evidence on each.\n`,
+            `Link one from the sidebar, a hub tab, a redirect or another page — or account for it\n` +
+            `in this file WITH a written reason: KNOWN_DEEP_LINK_ONLY if the referrer is real but\n` +
+            `outside this repo, STRANDED_PENDING_DECISION if it is an unresolved gap.\n`,
     ).toEqual([]);
   });
 
-  it("the stranded set is exactly the four already on the record", () => {
-    // The companion to the deliberate RED above. A permanently-failing assertion
-    // is one everybody learns to skip past, so the thing that must NOT drift is
-    // pinned separately: a fifth strand fails HERE, where nobody is expecting a
-    // failure, and a route that gets its entry point built must be deleted from
+  it("the stranded set is exactly the four on the record", () => {
+    // The mechanism that stops "tracked" turning into "forgotten". A FIFTH strand
+    // fails here rather than quietly joining the list, and a route that gets its
+    // entry point built drops out of UNREACHABLE and must be deleted from
     // STRANDED_PENDING_DECISION rather than left as a stale excuse.
     const unreachable = UNREACHABLE.map((u) => u.route);
-    expect(unreachable.sort()).toEqual(Object.keys(STRANDED_PENDING_DECISION).sort());
+    expect(
+      unreachable.sort(),
+      "a route is stranded and not on the record — link it, or add it to " +
+        "STRANDED_PENDING_DECISION with a reason",
+    ).toEqual(Object.keys(STRANDED_PENDING_DECISION).sort());
     // Each is a real page, and each reason cites something openable — the same
     // bar the allowlist reasons must clear, because these are the harder claim.
     const real = new Set(ROUTES.map((r) => r.route));
     for (const [route, reason] of Object.entries(STRANDED_PENDING_DECISION)) {
       expect(real.has(route), `${route}: named as stranded but is not a route`).toBe(true);
       expect(rejectReason(reason), `${route}: ${rejectReason(reason)}`).toBeNull();
+      // A pending reason must SAY it is pending, so it can never be mistaken for
+      // KNOWN_DEEP_LINK_ONLY's "reachable, the referrer is just elsewhere".
+      expect(reason, `${route}: a pending reason must declare itself pending`).toMatch(
+        /PENDING A DECISION/,
+      );
     }
+    // …and the two lists must not blur into each other.
+    const explained = new Set(Object.keys(KNOWN_DEEP_LINK_ONLY));
+    expect(Object.keys(STRANDED_PENDING_DECISION).filter((r) => explained.has(r))).toEqual([]);
+    for (const [route, reason] of Object.entries(KNOWN_DEEP_LINK_ONLY)) {
+      expect(reason, `${route}: an explained route must not carry a pending reason`).not.toMatch(
+        /PENDING A DECISION/,
+      );
+    }
+  });
+
+  it("prints the stranded set, so it lands in CI output and not only in a file", () => {
+    // A tracked gap nobody reads is an untracked gap. This is the only assertion
+    // here whose job is to TALK: it puts the count and the names in front of
+    // anyone watching a green run.
+    const rel = (f: string) => path.relative(ROOT, f).split(path.sep).join("/");
+    const fileFor = (route: string) => ROUTES.find((r) => r.route === route)?.file;
+    const routes = Object.keys(STRANDED_PENDING_DECISION).sort();
+    console.log(
+      `\n${"─".repeat(78)}\n` +
+        `${routes.length} page route(s) render but NO user can navigate to them, and they are\n` +
+        `awaiting a product decision (build the entry point, or delete the page):\n\n` +
+        routes
+          .map((r) => {
+            const file = fileFor(r);
+            return `  ${r}${file ? `\n  — ${rel(file)}` : ""}`;
+          })
+          .join("\n") +
+        `\n\nSee STRANDED_PENDING_DECISION in src/test/route-reachability.test.ts for the\n` +
+        `evidence on each. These are NOT the same as KNOWN_DEEP_LINK_ONLY, which is\n` +
+        `${Object.keys(KNOWN_DEEP_LINK_ONLY).length} route(s) something outside this repo genuinely links to.\n` +
+        `${"─".repeat(78)}\n`,
+    );
+    expect(routes.length).toBeGreaterThan(0);
   });
 
   it("/one-pager is reached by a real link, and no longer by the allowlist", () => {
@@ -1203,16 +1285,36 @@ describe("KNOWN_DEEP_LINK_ONLY allowlist hygiene", () => {
     }
   });
 
-  it("every entry still corresponds to a real route (the allowlist cannot rot)", () => {
+  it("every entry in BOTH lists still corresponds to a real route (neither can rot)", () => {
     const real = new Set(ROUTES.map((r) => r.route));
-    const stale = Object.keys(KNOWN_DEEP_LINK_ONLY).filter((route) => !real.has(route));
+    const stale = Object.keys(ACCOUNTED_FOR).filter((route) => !real.has(route));
     expect(
       stale,
       stale.length === 0
         ? ""
-        : `\nKNOWN_DEEP_LINK_ONLY names route(s) that no longer exist:\n${stale
+        : `\nAn allowlist names route(s) that no longer exist:\n${stale
             .map((s) => `  ${s}`)
-            .join("\n")}\nThe page was deleted — delete the allowlist entry too.\n`,
+            .join("\n")}\nThe page was deleted — delete the entry too.\n`,
+    ).toEqual([]);
+  });
+
+  it("every entry in BOTH lists is still unreachable (an excuse cannot outlive its reason)", () => {
+    // The counterpart to the same test in endpoint-reachability.test.ts, which
+    // earned its keep by rejecting a wrong entry during development. An entry
+    // whose route has since gained a real in-app link is cover for nothing, and
+    // it hides the fact that the page is now guarded on its own merits — which
+    // is exactly how /one-pager stopped being an allowlist entry.
+    //
+    // Asked of UNREACHABLE_UNEXCUSED, not UNREACHABLE: an allowlisted route is
+    // removed by its own entry before the walk finishes, so asking the excused
+    // result whether the excuse is needed always answers "no".
+    const obsolete = Object.keys(ACCOUNTED_FOR).filter((route) => !UNREACHABLE_UNEXCUSED.has(route));
+    expect(
+      obsolete,
+      obsolete.length === 0
+        ? ""
+        : `\nAn allowlist names route(s) that are now reachable on their own merits:\n` +
+            `${obsolete.map((s) => `  ${s}`).join("\n")}\nDelete the entry — the guard covers them now.\n`,
     ).toEqual([]);
   });
 });

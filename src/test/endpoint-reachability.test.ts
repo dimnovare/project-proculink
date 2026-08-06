@@ -31,12 +31,26 @@
 // ── WHAT COUNTS AS A FAILURE ──────────────────────────────────────────────────
 //
 // A state-changing endpoint (POST/PUT/PATCH/DELETE) that no frontend call site
-// reaches, and that is not in KNOWN_MACHINE_FACING with a written reason.
+// reaches and that appears in NEITHER list below, each entry of which carries a
+// written reason. Silence fails: an endpoint that nothing calls and nobody has
+// explained is either a recovery door with no handle or dead code, and the two
+// are indistinguishable from outside.
 //
-// Machine-to-machine endpoints are legitimately caller-free — ingress, webhooks,
-// health, admin scripting. They need an ENTRY, not silence. Silence fails: an
-// endpoint that nothing calls and nobody has explained is either a recovery door
-// with no handle or dead code, and the two are indistinguishable from outside.
+// The two lists are deliberately separate and must stay that way:
+//
+//   KNOWN_MACHINE_FACING       "this is fine, and here is who calls it" —
+//                              ingress, provider webhooks, a documented runbook
+//                              curl. Legitimately caller-free.
+//   UNCALLED_PENDING_DECISION  "nobody calls this, and nobody has decided what
+//                              to do about it" — an open question with a date on
+//                              it, NOT a justification.
+//
+// The pending entries pass rather than fail, and that was a correction. Left
+// failing, the pipeline could not go green until a product decision arrived,
+// which trains people to stop reading CI and then masks the next real failure.
+// A red nobody can clear today is noise with a good reason attached. So the gaps
+// are tracked loudly instead: every entry reasoned, the whole set printed on
+// every run, a fourteenth gap failing, and an entry that gains a caller failing.
 //
 // ── WHAT IT CANNOT SEE (established by trying to defeat it) ───────────────────
 //
@@ -47,12 +61,29 @@
 //     called, so it is refused — and the affected endpoints then appear
 //     uncalled, which forces an allowlist entry naming the call site. Wrong in
 //     the SAFE direction: it costs a reasoned entry, it never hides an endpoint.
-//   • A PATH ASSEMBLED FROM A CONSTANT DECLARED IN ANOTHER MODULE, or through
-//     more than one level of helper. ONE level is followed — `basePath()` in
-//     src/lib/api/catalogSources.ts put three genuinely-called endpoints on the
-//     uncalled list until it was — but a second hop, or a path imported from
-//     elsewhere, is invisible. Nothing does either today, and if something
-//     starts, the endpoint reads as uncalled: the safe direction.
+//   • A PATH ASSEMBLED FROM A CONSTANT DECLARED IN ANOTHER MODULE. Nothing in
+//     the importing file carries `${API_BASE_URL}`, so there is nothing to
+//     resolve. Nothing does this today.
+//   • A VERB SUPPLIED INDIRECTLY. The method is read as a literal in the call's
+//     own options object, so a verb held in a variable — or defaulted inside a
+//     wrapper — is not there to read and the call scores as GET. One level of
+//     PATH indirection IS followed: `basePath()` in src/lib/api/catalogSources.ts
+//     put three genuinely-called endpoints on the uncalled list until it was.
+//
+//     BOTH ARE PINNED AS FIXTURES in "WHAT THIS GUARD CANNOT SEE", because this
+//     suite is green and a green suite gets read as coverage. Writing them down
+//     as prose here is not enough; the header is also where this file twice
+//     asserted a limitation that turned out to be false. It claimed a second hop
+//     of indirection was invisible — the fixture showed it usually resolves,
+//     because helper definitions are matched textually wherever they appear,
+//     including inside another helper's body. Then it claimed a distant verb was
+//     missed — the fixture showed each helper USE opens its own window, so the
+//     distance never mattered. Both corrections came from writing the assertion.
+//     That is the reason the fixtures exist and the reason to distrust this
+//     paragraph without them.
+//
+//     Every one of these fails in the SAFE direction — the endpoint reads as
+//     uncalled, which is noisy rather than silent.
 //   • A ROUTE THAT IS NOT AN MVC ACTION. There are no minimal-API
 //     Map{Post,Put,Patch,Delete} registrations in ProcuLink.Api today, and
 //     `endpointCorpusIsWhole` fails if the controller sweep collapses — but a
@@ -121,40 +152,102 @@ export const KNOWN_MACHINE_FACING: Record<string, string> = {
 };
 
 /**
- * NOT AN ALLOWLIST. Nothing here is silenced — these thirteen endpoints fail the
- * guard below, deliberately, and the suite is RED until someone decides what
- * each one is.
+ * THE SECOND LIST, AND IT IS NOT THE FIRST ONE.
  *
- * Every one is a state-changing endpoint that the whole frontend never calls.
- * Two were named by the audit that commissioned this guard, both documented in
- * their own source as recovery doors:
+ * KNOWN_MACHINE_FACING above means "this is fine, and here is who calls it".
+ * This means "**nobody calls this, and nobody has decided what to do about it
+ * yet**". The two must never be blurred together: an entry here is an open
+ * question with a date on it, not a justification.
  *
- *   POST /api/orders/{id}/acceptance-gate/override
- *   DELETE /api/suppliers/{id}/po-mapping/output-tree
- *     — whose docstring calls it "the recovery door for a layout that cannot
- *       deliver this supplier's format". A door with no handle.
+ * Every one is a state-changing endpoint the whole frontend never calls. Two
+ * were named by the audit that commissioned this guard, both documented in
+ * their own source as recovery doors — including
+ * `DELETE /api/suppliers/{id}/po-mapping/output-tree`, whose docstring calls it
+ * "the recovery door for a layout that cannot deliver this supplier's format".
+ * A door with no handle. The other eleven the guard found on its own.
  *
- * The other eleven the guard found on its own. The resolution for each is
- * "build the caller", "delete the endpoint" or "write down who really calls it",
- * and all three are product calls rather than a guard's. Putting them in
- * KNOWN_MACHINE_FACING would restore the silence in one line, which is exactly
- * what this packet exists to stop.
+ * These entries PASS, on purpose. They were left failing at first, and the
+ * consequence was a pipeline that could not go green until a product decision
+ * arrived — which trains everyone to stop reading CI and then masks the next
+ * real failure. A red nobody can clear today is noise with a good reason
+ * attached. So the gaps are tracked instead of shouted, and four mechanisms stop
+ * that becoming forgetting:
+ *
+ *   1. every entry carries its own reason, held to the same citation bar;
+ *   2. `printsThePendingSet` logs the count and the names on EVERY run, so the
+ *      list appears in CI output rather than only in a file nobody opens;
+ *   3. `theUncalledSetIsExactlyThis` fails when a FOURTEENTH endpoint goes
+ *      uncalled — a new gap cannot quietly join the list;
+ *   4. `anExcuseCannotOutliveItsReason` fails when an entry here gains a
+ *      caller, so the list cannot rot into permanent cover.
  */
-export const UNCALLED_PENDING_DECISION: readonly string[] = [
-  "DELETE /api/admin/organisations/{}/orders/{}",
-  "POST /api/admin/organisations/{}/orders/bulk-erase",
-  "POST /api/admin/organisations/{}/retention",
-  "POST /api/billing/pilot/request-extension",
-  "POST /api/orders/{}/acceptance-gate/override",
-  "POST /api/orders/{}/confirmation",
-  "POST /api/orders/{}/confirmation/upload",
-  "POST /api/orders/{}/mark-rejected",
-  "POST /api/schema/infer",
-  "POST /api/schema/propose-mapping",
-  "DELETE /api/suppliers/{}/po-mapping/output-tree",
-  "POST /api/suppliers/{}/po-mapping/test",
-  "POST /api/suppliers/{}/profiles",
-];
+export const UNCALLED_PENDING_DECISION: Record<string, string> = {
+  "POST /api/orders/{}/acceptance-gate/override":
+    "PENDING A DECISION, 2026-08-06 — named by the v2 audit. " +
+    "ProcuLink.Api/Controllers/OrderAcceptanceGateController.cs:74 documents it as the manual " +
+    "override for a blocked acceptance gate, and no screen offers it. Build the control or delete " +
+    "the endpoint; this entry is the open question, not an answer.",
+  "DELETE /api/suppliers/{}/po-mapping/output-tree":
+    "PENDING A DECISION, 2026-08-06 — named by the v2 audit. Its own docstring at " +
+    "ProcuLink.Api/Controllers/SuppliersController.cs:584 calls it \"the recovery door for a " +
+    "layout that cannot deliver this supplier's format\", and nothing in the mapper offers it. A " +
+    "door with no handle.",
+  "DELETE /api/admin/organisations/{}/orders/{}":
+    "PENDING A DECISION, 2026-08-06 — single-order erasure, an data-protection obligation with no " +
+    "operator surface. Unlike account-status it has no runbook entry either; " +
+    "src/app/(app)/admin/guides/onboard-a-new-client/content.mdx documents no curl for it.",
+  "POST /api/admin/organisations/{}/orders/bulk-erase":
+    "PENDING A DECISION, 2026-08-06 — bulk erasure, same gap as the single-order erase above and " +
+    "the same absence from src/app/(app)/admin/guides/onboard-a-new-client/content.mdx. The admin " +
+    "screens call only /limits and /invoices.",
+  "POST /api/admin/organisations/{}/retention":
+    "PENDING A DECISION, 2026-08-06 — sets an organisation's retention window with no control " +
+    "anywhere in src/app/(app)/admin/, and no documented curl. Wire it into the admin org view or " +
+    "retire it.",
+  "POST /api/billing/pilot/request-extension":
+    "PENDING A DECISION, 2026-08-06 — a Pilot whose trial has ended can ask for an extension, and " +
+    "no surface asks. The expiry copy in src/lib/plans.ts offers only Upgrade, so either the " +
+    "billing screen grows the ask or this endpoint goes.",
+  "POST /api/orders/{}/confirmation":
+    "PENDING A DECISION, 2026-08-06 — records a supplier order confirmation. " +
+    "ProcuLink.Api/Controllers/OrderConfirmationController.cs:45 is reachable only by an operator " +
+    "with a REST client. Decide whether the inbound-confirmation flow is a product surface.",
+  "POST /api/orders/{}/confirmation/upload":
+    "PENDING A DECISION, 2026-08-06 — the file half of the confirmation flow above, at " +
+    "ProcuLink.Api/Controllers/OrderConfirmationController.cs:88. It stands or falls with the same " +
+    "decision and is listed separately so neither is lost.",
+  "POST /api/orders/{}/mark-rejected":
+    "PENDING A DECISION, 2026-08-06 — marks an order rejected by the supplier. The review screen " +
+    "renders the resulting `rejected_by_supplier` status (src/lib/orderStatusManifest.ts) but " +
+    "offers no way to set it, so today the status can only arrive from a delivery response.",
+  "POST /api/schema/infer":
+    "PENDING A DECISION, 2026-08-06 — schema inference over an uploaded sample. No caller in " +
+    "src/lib/api-client.ts; the mapper's suggestion path uses the mapper-ai endpoints instead. " +
+    "Either the mapper adopts it or it is dead engine surface.",
+  "POST /api/schema/propose-mapping":
+    "PENDING A DECISION, 2026-08-06 — the second half of the inference pair above, and uncalled " +
+    "for the same reason. See ProcuLink.Api/Controllers/SchemaInferenceController.cs:96.",
+  "POST /api/suppliers/{}/po-mapping/test":
+    "PENDING A DECISION, 2026-08-06 — dry-runs a mapping against a sample without saving. " +
+    "src/lib/api/mapping.ts calls PUT and DELETE on /po-mapping and never /test, so the mapper's " +
+    "preview does not use it. Wire it into the preview or delete it.",
+  "POST /api/suppliers/{}/profiles":
+    "PENDING A DECISION, 2026-08-06 — upserts a supplier profile. src/lib/api-client.ts:1300 " +
+    "documents the route in a comment beside two GET callers and never posts to it, which is how " +
+    "a comment can look like a caller. Decide whether profiles are editable in-product.",
+};
+
+/**
+ * The two lists together — every endpoint the guard will not fail on. Kept as a
+ * derived union rather than one hand-maintained map, so the two categories
+ * cannot be merged by accident: "something outside this app calls it" and
+ * "nobody calls it and nobody has decided" are different claims, and a reader
+ * has to be able to tell them apart.
+ */
+export const ACCOUNTED_FOR: Record<string, string> = {
+  ...KNOWN_MACHINE_FACING,
+  ...UNCALLED_PENDING_DECISION,
+};
 
 // ─── Half 1: what the frontend calls ──────────────────────────────────────────
 
@@ -523,6 +616,49 @@ describe("the parsers run everywhere, on fixtures", () => {
     expect(keys).toContain("POST /api/suppliers/{}/catalog/source/test-fetch");
   });
 
+  it("WHAT THIS GUARD CANNOT SEE — pinned, because a green run reads as 'covered'", () => {
+    // Written as assertions rather than prose in the header, because the suite is
+    // GREEN and a green suite is read as coverage. These are the two shapes that
+    // would make a genuinely-called endpoint read as UNCALLED — and therefore
+    // land in UNCALLED_PENDING_DECISION as a gap that is not really a gap. If one
+    // ever shows up there, the fix is to teach extractApiCalls the shape, not to
+    // write the endpoint off as unreachable.
+
+    // 1 — A PATH IMPORTED FROM ANOTHER MODULE. Nothing in this file's text
+    //     carries `${API_BASE_URL}`, so there is nothing to resolve.
+    expect(
+      extractApiCalls(
+        'import { ORDERS_PATH } from "@/lib/api/paths";\n' +
+          'export const go = () => fetchWithTimeout(ORDERS_PATH, { method: "DELETE" });',
+        "<fixture>",
+      ),
+    ).toEqual([]);
+
+    // 2 — A VERB SUPPLIED INDIRECTLY. The method is read as a literal in the
+    //     call's own options object. A verb held in a variable, or defaulted
+    //     inside a wrapper, is not there to read, so the call reads as GET and a
+    //     state-changing endpoint looks uncalled.
+    const indirectVerb =
+      'const opts = { method: "DELETE", headers: {} };\n' +
+      'export const go = (id: string) => fetchWithTimeout(`${API_BASE_URL}/api/suppliers/${id}/x`, opts);';
+    const indirectKeys = extractApiCalls(indirectVerb, "<fixture>").map((c) => `${c.method} ${c.path}`);
+    expect(indirectKeys).toContain("GET /api/suppliers/{}/x");
+    expect(indirectKeys).not.toContain("DELETE /api/suppliers/{}/x");
+
+    // NOT a limitation, contrary to what this file's header claimed until the
+    // fixture was written: a SECOND hop often does resolve, because helper
+    // definitions are matched textually wherever they appear — including inside
+    // another helper's body. It is incidental rather than designed, so it is
+    // recorded as observed behaviour and not relied upon.
+    const twoHop =
+      'function root(id: string) { return `${API_BASE_URL}/api/suppliers/${id}`; }\n' +
+      'function nested(id: string) { return `${root(id)}/deep-thing`; }\n' +
+      'export const go = (id: string) => fetchWithTimeout(nested(id), { method: "POST" });';
+    expect(extractApiCalls(twoHop, "<fixture>").map((c) => `${c.method} ${c.path}`)).toContain(
+      "POST /api/suppliers/{}/deep-thing",
+    );
+  });
+
   it("ignores an API path that exists only in a comment", () => {
     expect(
       extractApiCalls('// await fetch(`${API_BASE_URL}/api/ghost`, { method: "POST" });', "<f>"),
@@ -658,8 +794,10 @@ describe("every state-changing endpoint has a caller, or a written reason", () =
     expect(ENDPOINTS.filter((e) => !e.path.startsWith("/api/") && e.path !== "/health")).toEqual([]);
   });
 
-  it.skipIf(!BACKEND)("no state-changing endpoint is silently uncalled", () => {
-    const uncalled = findUncalledEndpoints(ENDPOINTS, CALLS, KNOWN_MACHINE_FACING);
+  it.skipIf(!BACKEND)("no state-changing endpoint is unaccounted for", () => {
+    // Accounted for = called, explained (KNOWN_MACHINE_FACING), or tracked as an
+    // open question (UNCALLED_PENDING_DECISION). Anything else fails.
+    const uncalled = findUncalledEndpoints(ENDPOINTS, CALLS, ACCOUNTED_FOR);
     const rel = (f: string) => path.relative(BACKEND!, f).split(path.sep).join("/");
     const report = uncalled
       .map((e) => `  ${endpointKey(e)}\n      ${e.controller}.${e.action} — ${rel(e.file)}:${e.line}`)
@@ -670,20 +808,46 @@ describe("every state-changing endpoint has a caller, or a written reason", () =
         ? ""
         : `\n${uncalled.length} state-changing endpoint(s) exist and nothing in this app calls them:\n` +
             `${report}\n\n` +
-            `Wire one from src/lib/api*, or add it to KNOWN_MACHINE_FACING in this file WITH a\n` +
-            `written reason that cites something a reviewer can open. Silence is the failure.\n`,
+            `Wire one from src/lib/api*, or account for it in this file WITH a written reason that\n` +
+            `cites something a reviewer can open — KNOWN_MACHINE_FACING if something outside this\n` +
+            `app really calls it, UNCALLED_PENDING_DECISION if it is an unresolved gap.\n` +
+            `Silence is the failure.\n`,
     ).toEqual([]);
   });
 
-  it.skipIf(!BACKEND)("the uncalled set is exactly the thirteen already on the record", () => {
-    // The companion to the deliberate RED above, and the same argument as
-    // STRANDED_PENDING_DECISION in route-reachability.test.ts: a permanently
-    // failing assertion is one people learn to skip past, so what must not drift
-    // is pinned where nobody expects a failure. A fourteenth uncalled endpoint
-    // fails HERE. An endpoint that gets wired must be deleted from this list.
-    expect(findUncalledEndpoints(ENDPOINTS, CALLS, KNOWN_MACHINE_FACING).map(endpointKey).sort()).toEqual(
-      [...UNCALLED_PENDING_DECISION].sort(),
+  it.skipIf(!BACKEND)("the pending set is exactly the thirteen on the record", () => {
+    // The mechanism that stops "tracked" turning into "forgotten". A FOURTEENTH
+    // uncalled endpoint fails here rather than quietly joining the list, and an
+    // endpoint that gets wired must be deleted from the list rather than left as
+    // a stale excuse.
+    expect(
+      findUncalledEndpoints(ENDPOINTS, CALLS, KNOWN_MACHINE_FACING).map(endpointKey).sort(),
+      "a new state-changing endpoint has no caller — wire it, or add it to " +
+        "UNCALLED_PENDING_DECISION with a reason",
+    ).toEqual(Object.keys(UNCALLED_PENDING_DECISION).sort());
+  });
+
+  it.skipIf(!BACKEND)("prints the pending set, so it lands in CI output and not only in a file", () => {
+    // A tracked gap that nobody reads is an untracked gap. This is the only test
+    // here whose job is to TALK: it puts the count and the names in front of
+    // anyone watching a green run.
+    const keys = Object.keys(UNCALLED_PENDING_DECISION).sort();
+    const rel = (f: string) => (BACKEND ? path.relative(BACKEND, f).split(path.sep).join("/") : f);
+    const where = (key: string) => {
+      const e = ENDPOINTS.find((x) => endpointKey(x) === key);
+      return e ? `  — ${e.controller}.${e.action}, ${rel(e.file)}:${e.line}` : "";
+    };
+    console.log(
+      `\n${"─".repeat(78)}\n` +
+        `${keys.length} state-changing API endpoint(s) are UNREACHABLE from this app and are\n` +
+        `awaiting a product decision (build the caller, or delete the endpoint):\n\n` +
+        keys.map((k) => `  ${k}${where(k)}`).join("\n") +
+        `\n\nSee UNCALLED_PENDING_DECISION in src/test/endpoint-reachability.test.ts for the\n` +
+        `reason on each. These are NOT the same as KNOWN_MACHINE_FACING, which is\n` +
+        `${Object.keys(KNOWN_MACHINE_FACING).length} endpoint(s) something outside this app genuinely calls.\n` +
+        `${"─".repeat(78)}\n`,
     );
+    expect(keys.length).toBeGreaterThan(0);
   });
 
   it.skipIf(!BACKEND)("the positive control: a known-called endpoint is NOT flagged", () => {
@@ -695,12 +859,33 @@ describe("every state-changing endpoint has a caller, or a written reason", () =
   });
 });
 
-describe("KNOWN_MACHINE_FACING hygiene", () => {
-  it("every entry carries a checkable reason", () => {
-    for (const [key, why] of Object.entries(KNOWN_MACHINE_FACING)) {
+describe("allowlist hygiene — both lists, and they stay separate", () => {
+  it("every entry in BOTH lists carries a checkable reason", () => {
+    for (const [key, why] of Object.entries(ACCOUNTED_FOR)) {
       expect(rejectReason(why), `${key}: ${rejectReason(why)}`).toBeNull();
     }
     expect(Object.keys(KNOWN_MACHINE_FACING).length).toBeGreaterThan(0);
+    expect(Object.keys(UNCALLED_PENDING_DECISION).length).toBeGreaterThan(0);
+  });
+
+  it("the two lists never overlap, and a pending reason says it is pending", () => {
+    // "This is fine, and here is who calls it" and "nobody calls this and nobody
+    // has decided what to do" must stay distinguishable at a glance. An endpoint
+    // in both would be a justification quietly attached to an open question.
+    const machine = new Set(Object.keys(KNOWN_MACHINE_FACING));
+    expect(Object.keys(UNCALLED_PENDING_DECISION).filter((k) => machine.has(k))).toEqual([]);
+    expect(Object.keys(ACCOUNTED_FOR)).toHaveLength(
+      Object.keys(KNOWN_MACHINE_FACING).length + Object.keys(UNCALLED_PENDING_DECISION).length,
+    );
+    // Every pending reason must SAY it is pending rather than read as an excuse.
+    for (const [key, why] of Object.entries(UNCALLED_PENDING_DECISION)) {
+      expect(why, `${key}: a pending reason must declare itself pending`).toMatch(/PENDING A DECISION/);
+    }
+    for (const [key, why] of Object.entries(KNOWN_MACHINE_FACING)) {
+      expect(why, `${key}: a machine-facing reason must not be a pending one`).not.toMatch(
+        /PENDING A DECISION/,
+      );
+    }
   });
 
   it("a reason must be an explanation, not merely long", () => {
@@ -715,22 +900,29 @@ describe("KNOWN_MACHINE_FACING hygiene", () => {
     ).toBeNull();
   });
 
-  it.skipIf(!BACKEND)("every entry still names a real endpoint (the allowlist cannot rot)", () => {
+  it.skipIf(!BACKEND)("every entry still names a real endpoint (neither list can rot)", () => {
     const real = new Set(ENDPOINTS.map(endpointKey));
-    const stale = Object.keys(KNOWN_MACHINE_FACING).filter((k) => !real.has(k));
+    const stale = Object.keys(ACCOUNTED_FOR).filter((k) => !real.has(k));
     expect(
       stale,
-      stale.length === 0 ? "" : `\nKNOWN_MACHINE_FACING names endpoint(s) that no longer exist:\n${stale.join("\n")}\n`,
+      stale.length === 0
+        ? ""
+        : `\nAn allowlist names endpoint(s) that no longer exist — delete the entries:\n${stale.join("\n")}\n`,
     ).toEqual([]);
   });
 
   it.skipIf(!BACKEND)("every entry is still uncalled (an excuse cannot outlive its reason)", () => {
-    const stillNeeded = Object.keys(KNOWN_MACHINE_FACING).filter((key) => {
+    // Covers BOTH lists. This is the test that earned its keep during development
+    // by rejecting POST /api/support/contact, which had been written into
+    // KNOWN_MACHINE_FACING while api-client.ts:317 was calling it all along. It
+    // matters more now that the pending set passes: without it, a gap somebody
+    // quietly closed would leave an entry behind claiming it is still open.
+    const stillNeeded = Object.keys(ACCOUNTED_FOR).filter((key) => {
       const endpoint = ENDPOINTS.find((e) => endpointKey(e) === key);
       return endpoint === undefined || !CALLS.some((c) => callReachesEndpoint(endpoint, c));
     });
     expect(
-      Object.keys(KNOWN_MACHINE_FACING).sort(),
+      Object.keys(ACCOUNTED_FOR).sort(),
       "an allowlisted endpoint gained a frontend caller — delete its entry",
     ).toEqual(stillNeeded.sort());
   });
