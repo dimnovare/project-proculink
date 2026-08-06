@@ -162,7 +162,19 @@ export const PLANS: Plan[] = [
       // bullet now says that. The bulk import/export lever is the Operations differentiator and
       // stays there.
       "Field mapping + validation",
-      "Audit log",
+      // "Audit log" was imprecise in the one direction that costs a customer money. ProcuLink has
+      // TWO audit surfaces and only one of them is on this tier:
+      //
+      //   • per-order trail — GET /api/orders/{id}/audit (OrdersController.cs:2029). No gate at
+      //     all; pinned deliberately as the IL scanner's negative control
+      //     (BillingGateEnforcementIsRealTests.cs:143-155). Every plan has it, Pilot included.
+      //   • org-wide delivery log — GET /api/audit (AuditController.cs:49), gated on
+      //     BillingFeature.AdvancedAudit, whose minimum is Operations (PlanConstants.cs:276).
+      //
+      // A live Growth org read this bullet, opened /operations/log on 2026-08-06 and was told
+      // "The full delivery log is not included in your plan" (CrossingsLog.tsx:606). The bullet
+      // now names the surface Growth actually gets; Operations keeps "Advanced audit trail".
+      "Per-order audit trail",
     ],
     cta: { label: "Upgrade to Growth", href: SIGN_UP },
     // #1E6D29, not the retired emerald. `color` is rendered as BUTTON LABEL text

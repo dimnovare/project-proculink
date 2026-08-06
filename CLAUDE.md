@@ -466,7 +466,12 @@ Pricing cards — **do not hand-maintain this list.** The card feature bullets a
 gates them at Growth). Read `plans.ts`:
 
 - Pilot: `Free for 14 days` — 20 orders, 1 supplier, CSV/XLSX/PDF/XML upload, manual review, supplier-ready export. CTA: `Start Pilot`.
-- Growth: `€149/month` — 150 orders/month, 5 suppliers, **webhook/API delivery and email · SFTP · S3 ingestion** (channels are decoupled from volume — every paid tier gets all of them), mapping + validation, audit log. CTA: `Upgrade to Growth`.
+- Growth: `€149/month` — 150 orders/month, 5 suppliers, **webhook/API delivery and email · SFTP · S3 ingestion** (channels are decoupled from volume — every paid tier gets all of them), mapping + validation, **per-order audit trail**. CTA: `Upgrade to Growth`.
+  It is the **per-order** trail, not the org-wide delivery log. `GET /api/orders/{id}/audit` is
+  ungated on every plan (pinned as the IL scanner's negative control); the cross-order log at
+  `/operations/log` is `GET /api/audit`, gated on `BillingFeature.AdvancedAudit` = Operations. This
+  line said "audit log" until 2026-08-06, when a live Growth org followed it to `/operations/log`
+  and was refused. Enforced by `src/test/gatedCapabilityClaims.test.ts`.
 - Operations: `€399/month` — 500 orders/month, 10 suppliers, bulk mapping import, cXML support, advanced audit trail, priority support. CTA: `Upgrade to Operations`.
 - Integration: `€999/month` — 1,500 orders/month, 20 suppliers, all channels, advanced audit trail, assisted onboarding. CTA: `Upgrade to Integration`.
 - Distributor: `€1,499/month` — 2,500 orders/month, 30 suppliers, all channels, bulk mapping, priority onboarding, founder-led supplier setup. CTA: `Upgrade to Distributor`.

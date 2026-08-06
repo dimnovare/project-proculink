@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { IMPORT_METHODS } from "@/lib/marketing/format-catalog";
-import { PLANS } from "@/lib/plans";
+import { PLANS, type Plan } from "@/lib/plans";
 
 /**
  * WP-11 follow-through — **the tier a capability is ADVERTISED on must be the tier the backend
@@ -441,7 +441,39 @@ describe("the tier→capability claim list is not duplicated outside plans.ts", 
  * the other seven, `sso` among them, could be deleted outright without reddening anything. A table
  * nobody reads is prose wearing a test's clothes, which is precisely what it was written against.
  */
-const CAPABILITY_CLAIMS: Record<keyof typeof BACKEND_MINIMUM_PLAN, { label: string; sells: RegExp }> = {
+
+/**
+ * A matcher may be a pattern or a predicate. `advancedAudit` needs the predicate form because
+ * what separates the gated capability from the ungated one is SCOPE, not a keyword — see its
+ * note below.
+ */
+type ClaimMatcher = RegExp | ((text: string) => boolean);
+
+const claims = (sells: ClaimMatcher, text: string): boolean =>
+  typeof sells === "function" ? sells(text) : sells.test(text);
+
+/**
+ * The org-wide, cross-order delivery log — `GET /api/audit`, refused below Operations by
+ * `AuditController.GetAuditLog` (AuditController.cs:49) with `advanced_audit_requires_operations`
+ * and rendered as "The full delivery log is not included in your plan" (CrossingsLog.tsx:606).
+ *
+ * This matcher used to be `/advanced audit/i`, and that is exactly why a live Growth org was
+ * shown that refusal on 2026-08-06 while the Growth card sold them "Audit log". The bullet
+ * carried no tier word for the scans above to catch, and no "advanced" for this one — so both
+ * halves of the suite read straight past it.
+ *
+ * The real product boundary is scope, not the adjective. A PER-ORDER trail is open on every
+ * plan including Pilot: `GET /api/orders/{id}/audit` (OrdersController.cs:2029) has no gate,
+ * and is pinned deliberately as the IL scanner's negative control
+ * (`Scanner_Control_DoesNotInventAGateWhereThereIsNone`,
+ * BillingGateEnforcementIsRealTests.cs:143-155). So a bullet that scopes itself to one order
+ * is honest on any tier, and a bullet that does not is a claim on the gated log.
+ */
+const SELLS_ORG_WIDE_AUDIT = (text: string): boolean =>
+  (/\baudit\b/i.test(text) || /\bdelivery log\b/i.test(text)) &&
+  !/\bper[- ]order\b|\bsingle[- ]order\b|\border[- ]level\b|\bfor (?:each|any|a single) order\b/i.test(text);
+
+const CAPABILITY_CLAIMS: Record<keyof typeof BACKEND_MINIMUM_PLAN, { label: string; sells: ClaimMatcher }> = {
   webhookDelivery: { label: "webhook / API delivery", sells: /webhook/i },
   // Scoped to ingestion. A bare /\bemail\b/ would read an ordinary "Email support" bullet on the
   // Pilot card as Pilot selling Growth-gated inbound email — a false positive whose only obvious
@@ -454,11 +486,22 @@ const CAPABILITY_CLAIMS: Record<keyof typeof BACKEND_MINIMUM_PLAN, { label: stri
   s3Ingestion: { label: "S3 / R2 ingestion", sells: /\bs3\b/i },
   bulkMapping: { label: "bulk mapping import/export", sells: /bulk mapping/i },
   cxml: { label: "cXML support", sells: /\bcxml\b/i },
-  advancedAudit: { label: "advanced audit trail", sells: /advanced audit/i },
+  advancedAudit: { label: "the org-wide delivery log", sells: SELLS_ORG_WIDE_AUDIT },
   erpConnectors: { label: "ERP connectors", sells: /\berp\b/i },
   customSupplierRules: { label: "custom transformation rules", sells: /custom (transformation|supplier) rule/i },
   sso: { label: "SSO", sells: SELLS_SSO },
 };
+
+/** The cheapest tier whose card sells this capability, or null when no card sells it. */
+const cheapestSeller = (plans: Plan[], sells: ClaimMatcher): Plan | null => {
+  const selling = plans.filter((p) => p.features.some((f) => claims(sells, f)));
+  if (selling.length === 0) return null;
+  return selling.reduce((a, b) => (rank(a.id) <= rank(b.id) ? a : b));
+};
+
+/** `PLANS` with one extra bullet on one card — used to replay defects that really shipped. */
+const withBullet = (planId: string, bullet: string): Plan[] =>
+  PLANS.map((p) => (p.id === planId ? { ...p, features: [...p.features, bullet] } : p));
 
 describe("the mirrored gate table is load-bearing, row by row", () => {
   it("has a matcher for every mirrored row, and mirrors no row it cannot match", () => {
@@ -469,10 +512,9 @@ describe("the mirrored gate table is load-bearing, row by row", () => {
     "%s: no card sells it below the tier the backend gates it at",
     (key, { label, sells }) => {
       const minimumPlan = BACKEND_MINIMUM_PLAN[key as keyof typeof BACKEND_MINIMUM_PLAN];
-      const selling = PLANS.filter((p) => p.features.some((f) => sells.test(f)));
-      if (selling.length === 0) return; // unsold is a separate question — pinned in the next test
+      const cheapest = cheapestSeller(PLANS, sells);
+      if (cheapest === null) return; // unsold is a separate question — pinned in the next test
 
-      const cheapest = selling.reduce((a, b) => (rank(a.id) <= rank(b.id) ? a : b));
       expect(
         rank(cheapest.id),
         `the ${cheapest.id} card sells ${label}, but the backend gates it at ${minimumPlan}. A ` +
@@ -482,11 +524,45 @@ describe("the mirrored gate table is load-bearing, row by row", () => {
     },
   );
 
+  /**
+   * MUST-FLAG CONTROL for the defect of 2026-08-06, quoted exactly as it shipped.
+   *
+   * `plans.ts:165` read `"Audit log"` on the Growth card while `/operations/log` refused a live
+   * Growth org outright. Every guard in this repo that has ever mattered was the one replaying
+   * its own origin defect, so the bullet is put back here — on a copy of `PLANS`, so the control
+   * cannot be satisfied by the shipped file happening to be correct — and the same
+   * `cheapestSeller` the real assertion uses has to place it below Operations.
+   */
+  it("catches the Growth 'Audit log' bullet that shipped, and lets the honest wording through", () => {
+    const cheapest = cheapestSeller(withBullet("growth", "Audit log"), CAPABILITY_CLAIMS.advancedAudit.sells);
+    expect(cheapest?.id, "the reintroduced defect must be seen at all").toBe("growth");
+    expect(
+      rank(cheapest!.id),
+      "and must be seen as BELOW Operations — a matcher that finds it but ranks it fine is decoration",
+    ).toBeLessThan(rank(BACKEND_MINIMUM_PLAN.advancedAudit));
+
+    // Wordings that are unambiguously the gated cross-order log, on a tier that cannot serve it.
+    for (const bullet of ["Audit log", "Full delivery log", "Delivery log export", "Audit trail"]) {
+      expect(claims(CAPABILITY_CLAIMS.advancedAudit.sells, bullet), `must flag: ${bullet}`).toBe(true);
+    }
+
+    // And the honest Growth capability, which really is open on every plan including Pilot.
+    // If these ever start flagging, the guard has stopped distinguishing the two products and
+    // the only obvious repair is to narrow it back to `/advanced audit/i` — the blind version.
+    for (const bullet of ["Per-order audit trail", "Per order audit trail", "Audit trail for each order"]) {
+      expect(claims(CAPABILITY_CLAIMS.advancedAudit.sells, bullet), `must allow: ${bullet}`).toBe(false);
+    }
+
+    // The Operations/Integration wording that already shipped still has to register as a sale,
+    // or `pins exactly which gated capabilities no card currently sells` goes quiet.
+    expect(claims(CAPABILITY_CLAIMS.advancedAudit.sells, "Advanced audit trail + priority support")).toBe(true);
+  });
+
   it("pins exactly which gated capabilities no card currently sells", () => {
     // The floor under the early return above. An unsold capability is legitimate — SSO is unsold
     // on purpose — but it must be a decision on this list, not a bullet that quietly went missing.
     const unsold = Object.entries(CAPABILITY_CLAIMS)
-      .filter(([, { sells }]) => !PLANS.some((p) => p.features.some((f) => sells.test(f))))
+      .filter(([, { sells }]) => !PLANS.some((p) => p.features.some((f) => claims(sells, f))))
       .map(([key]) => key);
 
     expect(
@@ -605,5 +681,217 @@ describe("SSO is sold only where it can be configured", () => {
           "surface first; this guard will then ask for the bullet back:\n" + sold.join("\n"),
       ).toEqual([]);
     }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+// Every bullet is accounted for.
+//
+// The scans above are organised by CAPABILITY: "here is a thing the backend gates, which cards
+// name it, is the cheapest of them at or above its gate". That leaves a whole class invisible —
+// a bullet naming a capability NO `BillingFeature` grants at that tier. `"Audit log"` on the
+// Growth card was exactly that shape and survived both dedicated guards for it:
+//
+//   • `gatedCapabilityClaims`' tier scans look for a TIER WORD next to a capability.
+//     "Audit log" contains no tier word, so there was nothing for them to compare.
+//   • the backend's `BillingFeatureGateCoverageTests` pins the ladder per enum member. A
+//     marketing bullet naming no enum member at all is outside anything it can see.
+//
+// So this sweep runs the other direction — bullet first — and demands every single one be
+// explained by something: a gated capability (whose tier the scans above then police), a quota
+// the plan really carries, or an explicit allowlist entry saying why nothing gates it. Silence
+// is the failure. A bullet nobody can account for is how the last one shipped.
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Bullets that name a capability NOTHING gates, because it is genuinely on every plan — or that
+ * are commercial/service prose with no code behind them at all.
+ *
+ * This list is the escape hatch, so it is deliberately uncomfortable to use: every entry needs a
+ * reason, and `no allowlist entry is dead` below fails the build for any entry that stops
+ * matching a live bullet. It cannot be used to pre-authorise a claim that has not shipped yet,
+ * and it cannot quietly outlive the bullet it was written for.
+ */
+const UNGATED_BULLETS: ReadonlyArray<{ matches: RegExp; why: string }> = [
+  {
+    matches: /^CSV\/XLSX\/PDF\/XML upload$/i,
+    why: "no BillingFeature gates a parser format — every plan, Pilot included, uploads all four",
+  },
+  {
+    matches: /^Manual review$/i,
+    why: "the review screen has no gate; it is the product's core loop, not a tier differentiator",
+  },
+  {
+    matches: /^Supplier-ready export$/i,
+    why: "downloading the transform artifact is ungated — the DELIVERY CHANNELS are what gate (WebhookDelivery, Growth+), and they are sold as their own bullets",
+  },
+  {
+    matches: /^Field mapping \+ validation$/i,
+    why: "the field mapper and validation rules are ungated. Only BULK mapping import/export is gated (BulkMapping, Operations+), and Operations/Distributor sell that separately",
+  },
+  {
+    matches: /^Per-order audit trail$/i,
+    why:
+      "GET /api/orders/{id}/audit (OrdersController.cs:2029) has no gate and is pinned as the IL " +
+      "scanner's negative control (BillingGateEnforcementIsRealTests.cs:143-155). Every plan " +
+      "including Pilot really has this. The ORG-WIDE log is the gated one and is sold from " +
+      "Operations up",
+  },
+  {
+    matches: /^(Assisted|Priority|Dedicated) onboarding$/i,
+    why: "human onboarding effort, delivered by people. No code path gates it and none should",
+  },
+  {
+    matches: /^Founder-led supplier setup$/i,
+    why: "human service on the Distributor tier, arranged manually (see SETUP_FEE_NOTE)",
+  },
+  {
+    matches: /^SLA$/i,
+    why: "a contractual commitment in the Enterprise agreement, not a feature flag",
+  },
+];
+
+/** Parsed shape of a quota bullet — "150 orders/month", "5 suppliers", "Custom volume". */
+const parseQuotaBullet = (
+  bullet: string,
+): { kind: "orders" | "suppliers"; value: number | null; saysMonthly: boolean } | null => {
+  const numeric = /^([\d,]+)\s+(orders?|suppliers?)\b/i.exec(bullet);
+  if (numeric) {
+    return {
+      kind: /^orders?$/i.test(numeric[2]) ? "orders" : "suppliers",
+      value: Number(numeric[1].replace(/,/g, "")),
+      saysMonthly: /\/\s*month|per month/i.test(bullet),
+    };
+  }
+  // Enterprise states its allowances as custom rather than as a number.
+  if (/^custom volume$/i.test(bullet)) return { kind: "orders", value: null, saysMonthly: false };
+  if (/^custom suppliers?$/i.test(bullet)) return { kind: "suppliers", value: null, saysMonthly: false };
+  return null;
+};
+
+type Verdict = { ok: true; because: string } | { ok: false; problem: string };
+
+/**
+ * What backs this bullet on this card? Shared by the real sweep and by its must-flag controls, so
+ * a control cannot pass against logic the sweep does not actually run.
+ */
+const accountFor = (plan: Plan, bullet: string): Verdict => {
+  const quota = parseQuotaBullet(bullet);
+  if (quota) {
+    const declared = quota.kind === "orders" ? plan.orderLimit : plan.supplierLimit;
+    if (quota.value !== declared) {
+      return {
+        ok: false,
+        problem:
+          `the ${plan.id} card advertises "${bullet}", but the plan's ${quota.kind} allowance is ` +
+          `${declared ?? "custom"}. The bullet and the number the app enforces have to be the same number.`,
+      };
+    }
+    if (quota.kind === "orders" && quota.value !== null && quota.saysMonthly !== plan.orderLimitIsMonthly) {
+      return {
+        ok: false,
+        problem:
+          `the ${plan.id} card advertises "${bullet}", but orderLimitIsMonthly is ` +
+          `${plan.orderLimitIsMonthly}. Pilot's 20 is a one-off trial total and the paid tiers reset ` +
+          `monthly — saying the wrong one misstates what the customer is buying.`,
+      };
+    }
+    return { ok: true, because: `quota bullet, matches plan.${quota.kind === "orders" ? "orderLimit" : "supplierLimit"}` };
+  }
+
+  const gated = Object.entries(CAPABILITY_CLAIMS).find(([, { sells }]) => claims(sells, bullet));
+  if (gated) return { ok: true, because: `BillingFeature.${gated[0]} (its tier is policed above)` };
+
+  const ungated = UNGATED_BULLETS.find(({ matches }) => matches.test(bullet));
+  if (ungated) return { ok: true, because: `ungated: ${ungated.why}` };
+
+  return {
+    ok: false,
+    problem:
+      `the ${plan.id} card sells "${bullet}", and nothing accounts for it: no BillingFeature ` +
+      `matcher recognises it, it is not one of the plan's own quotas, and it is not on ` +
+      `UNGATED_BULLETS. Either it names something a gate really grants — in which case teach ` +
+      `CAPABILITY_CLAIMS that wording, so the tier scans can police it — or nothing enforces it, ` +
+      `in which case add it to UNGATED_BULLETS with the reason, or delete the bullet. This is the ` +
+      `exact shape "Audit log" had on the Growth card.`,
+  };
+};
+
+describe("every pricing-card bullet is accounted for by something real", () => {
+  const everyBullet = PLANS.flatMap((plan) => plan.features.map((bullet) => ({ plan, bullet })));
+
+  it("scans a real corpus — every plan, and bullets on all of them", () => {
+    // The anti-vacuity floor. An empty or half-empty sweep passes every assertion below while
+    // proving nothing, which is the failure mode this whole file keeps meeting.
+    expect(PLANS.length, "the ladder itself").toBeGreaterThanOrEqual(6);
+    expect(everyBullet.length, "bullets across all cards").toBeGreaterThanOrEqual(30);
+    for (const plan of PLANS) {
+      expect(plan.features.length, `the ${plan.id} card has no bullets to check`).toBeGreaterThan(0);
+    }
+  });
+
+  it("no bullet on any card claims something nothing backs", () => {
+    const unaccounted = everyBullet
+      .map(({ plan, bullet }) => accountFor(plan, bullet))
+      .filter((v): v is Extract<Verdict, { ok: false }> => !v.ok)
+      .map((v) => v.problem);
+
+    expect(unaccounted, unaccounted.join("\n\n")).toEqual([]);
+  });
+
+  it("every card states both of its own allowances, and states them correctly", () => {
+    // The floor under the quota branch: it only checks bullets that LOOK like quotas, so a card
+    // that simply stopped naming its order or supplier limit would sail through untouched.
+    for (const plan of PLANS) {
+      const kinds = plan.features.map(parseQuotaBullet).filter(Boolean).map((q) => q!.kind);
+      expect(kinds, `the ${plan.id} card must state its order allowance`).toContain("orders");
+      expect(kinds, `the ${plan.id} card must state its supplier allowance`).toContain("suppliers");
+    }
+  });
+
+  it("no allowlist entry is dead", () => {
+    // An entry that matches nothing is a standing permission for a claim nobody is making. It
+    // either belongs to a bullet that was deleted, or it was added in advance of one — and the
+    // second is how an allowlist turns into a bypass.
+    const orphans = UNGATED_BULLETS.filter(
+      ({ matches }) => !everyBullet.some(({ bullet }) => matches.test(bullet)),
+    ).map(({ matches }) => matches.source);
+
+    expect(
+      orphans,
+      "these UNGATED_BULLETS entries match no bullet on any card. Delete them — an allowlist may " +
+        "only excuse claims that are actually being made:\n" + orphans.join("\n"),
+    ).toEqual([]);
+  });
+
+  it("flags the shapes it exists to catch", () => {
+    const growth = PLANS.find((p) => p.id === "growth")!;
+    const pilot = PLANS.find((p) => p.id === "pilot")!;
+
+    // 1. The origin defect. "Audit log" IS recognised here (it names the gated org-wide log), so
+    //    this sweep hands it to the tier scans — which is where it is refused. Accounting for it
+    //    and policing its tier are two different jobs; this asserts the handoff really happens.
+    const audit = accountFor(growth, "Audit log");
+    expect(audit.ok).toBe(true);
+    expect(audit.ok && audit.because).toMatch(/advancedAudit/);
+    expect(rank(cheapestSeller(withBullet("growth", "Audit log"), CAPABILITY_CLAIMS.advancedAudit.sells)!.id))
+      .toBeLessThan(rank(BACKEND_MINIMUM_PLAN.advancedAudit));
+
+    // 2. A capability bullet nothing grants and nothing excuses — the class this sweep adds.
+    for (const invented of ["Dedicated account manager", "99.99% uptime guarantee", "Unlimited seats"]) {
+      const v = accountFor(growth, invented);
+      expect(v.ok, `must flag an unbacked bullet: ${invented}`).toBe(false);
+    }
+
+    // 3. A quota bullet that disagrees with the number the app enforces.
+    expect(accountFor(growth, "500 orders/month").ok, "Growth's real allowance is 150").toBe(false);
+    expect(accountFor(growth, "50 suppliers").ok, "Growth's real allowance is 5").toBe(false);
+
+    // 4. Pilot's 20 is a one-off trial total, not a monthly reset.
+    expect(accountFor(pilot, "20 orders/month").ok, "Pilot does not reset monthly").toBe(false);
+    expect(accountFor(pilot, "20 orders total").ok).toBe(true);
+
+    // 5. And the honest wording this defect was fixed with really does pass.
+    expect(accountFor(growth, "Per-order audit trail").ok).toBe(true);
   });
 });
