@@ -49,6 +49,9 @@ const APP_DIR = join(ROOT, "src", "app", "(app)");
 /** The root layout's title. Inheriting it IS the defect. */
 const GENERIC_TITLE = "ProcuLink — Connecting Procurement";
 
+/** What Next.js treats as a page here — `pageExtensions` covers .mdx too. */
+const PAGE_FILES = ["page.tsx", "page.mdx"] as const;
+
 interface AppRoute {
   /** URL pattern, e.g. "/library/suppliers/[id]". */
   route: string;
@@ -63,7 +66,7 @@ interface AppRoute {
  */
 function listAppGroupRoutes(dir: string = APP_DIR, route = ""): AppRoute[] {
   const found: AppRoute[] = [];
-  if (existsSync(join(dir, "page.tsx")) || existsSync(join(dir, "page.mdx"))) {
+  if (PAGE_FILES.some((f) => existsSync(join(dir, f)))) {
     found.push({ route: route === "" ? "/" : route, dir });
   }
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -87,9 +90,16 @@ const METADATA_EXPORT =
  * falling through to the root layout is the bug, not a resolution.
  */
 function titleOwner(r: AppRoute): { file: string; source: string } | null {
-  const page = join(r.dir, "page.tsx");
-  if (existsSync(page) && METADATA_EXPORT.test(readFileSync(page, "utf8"))) {
-    return { file: page, source: readFileSync(page, "utf8") };
+  // BOTH page extensions, because the walk above enumerates both. Resolving a
+  // narrower set than you enumerate is how a guard reads the wrong file and
+  // still goes green — a `page.mdx` exporting its own metadata would have been
+  // credited to an ancestor layout instead. No .mdx page lives under (app)
+  // today; the two lists still have to agree.
+  for (const name of PAGE_FILES) {
+    const page = join(r.dir, name);
+    if (!existsSync(page)) continue;
+    const source = readFileSync(page, "utf8");
+    if (METADATA_EXPORT.test(source)) return { file: page, source };
   }
   let dir = r.dir;
   for (;;) {
@@ -105,16 +115,31 @@ function titleOwner(r: AppRoute): { file: string; source: string } | null {
   }
 }
 
-/** The `title:` expression inside the metadata export, verbatim. */
-function titleExpression(source: string): string | null {
+const TITLE_KEY = /(?:^|[\s,{(])title\s*:\s*/;
+const HELPER_CALL = /^appPageTitle\(\s*(["'`])(.+?)\1\s*\)/;
+const STRING_LITERAL = /^(["'`])(.+?)\1/;
+
+type TitleValue = { kind: "helper"; route: string } | { kind: "literal"; value: string };
+
+/**
+ * The title the metadata export sets, parsed as a VALUE rather than as "the
+ * rest of the line" — `export const metadata = { title: "X — ProcuLink" };`
+ * written on one line is legal and has to resolve, not fail.
+ */
+function titleValue(source: string): TitleValue | null {
   const start = source.search(METADATA_EXPORT);
   if (start === -1) return null;
-  const m = /(?:^|[\s,{(])title\s*:\s*([^\n]+?),?\s*$/m.exec(source.slice(start));
-  return m ? m[1].trim() : null;
-}
+  const body = source.slice(start);
+  const at = body.search(TITLE_KEY);
+  if (at === -1) return null;
+  const after = body.slice(at).replace(TITLE_KEY, "");
 
-const HELPER_CALL = /^appPageTitle\(\s*(["'`])(.+?)\1\s*\)$/;
-const STRING_LITERAL = /^(["'`])(.+)\1$/;
+  const helper = HELPER_CALL.exec(after);
+  if (helper) return { kind: "helper", route: helper[2] };
+  const literal = STRING_LITERAL.exec(after);
+  if (literal) return { kind: "literal", value: literal[2] };
+  return null;
+}
 
 /** The rendered `<title>` for a route, or an explanation of why it has none. */
 function resolveTitle(r: AppRoute): { title: string } | { problem: string } {
@@ -126,24 +151,19 @@ function resolveTitle(r: AppRoute): { title: string } | { problem: string } {
         "— this route inherits the root layout's generic title",
     };
   }
-  const expr = titleExpression(owner.source);
-  if (!expr) return { problem: `${owner.file} exports metadata but sets no title` };
-
-  const helper = HELPER_CALL.exec(expr);
-  if (helper) {
-    const arg = helper[2];
-    if (arg !== r.route) {
-      return {
-        problem: `${owner.file} calls appPageTitle("${arg}") but owns ${r.route} — wrong route, so the tab would name a different page`,
-      };
-    }
-    return { title: appPageTitle(arg) };
+  const value = titleValue(owner.source);
+  if (!value) {
+    return {
+      problem: `${owner.file} exports metadata but sets no title this guard can read (expected a string literal or appPageTitle("<route>"))`,
+    };
   }
-
-  const literal = STRING_LITERAL.exec(expr);
-  if (literal) return { title: literal[2] };
-
-  return { problem: `${owner.file} title is neither a string literal nor appPageTitle(): ${expr}` };
+  if (value.kind === "literal") return { title: value.value };
+  if (value.route !== r.route) {
+    return {
+      problem: `${owner.file} calls appPageTitle("${value.route}") but owns ${r.route} — wrong route, so the tab would name a different page`,
+    };
+  }
+  return { title: appPageTitle(value.route) };
 }
 
 describe("every authenticated route names itself in the browser tab", () => {
