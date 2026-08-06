@@ -21,29 +21,39 @@
 // anywhere else is what the test exists to catch.
 
 import type { OrderStatus } from "@/types/procurement";
+import { FAILURE_STATUSES } from "@/lib/orderStatusManifest";
 
 /**
  * Every backend status the single red "Failed" row badge collapses.
  *
- * MIRRORS the backend's OrderStatusConstants.FailureBucket BY HAND. `?status=failed`
- * is expanded SERVER-side against that set (OrderQueryService), so a sixth failure
- * status added there without a matching entry here would be returned under the Failed
- * chip and render as "New" — and failureBucketPills.test.ts, which iterates THIS array,
- * would stay green. That test is a class guard within the FE only; it is not a
- * cross-repo contract guard. Keep in sync by hand when the backend bucket changes.
+ * DERIVED from `FAILURE_STATUSES` in `src/lib/orderStatusManifest.ts` — the manifest's
+ * computed view of OrderStatusConstants.FailureBucket, and the one copy of the backend's
+ * status machine that `src/test/backendMirror.test.ts` diffs against the real C# whenever
+ * a backend checkout is reachable.
+ *
+ * IT USED TO BE HAND-TYPED, under a comment that said "keep in sync by hand". The manifest
+ * exists precisely because that instruction is not a mechanism: `?status=failed` is
+ * expanded SERVER-side against the backend bucket, so a sixth failure status added there
+ * came back under the Failed chip and rendered as "New", while failureBucketPills.test.ts —
+ * which iterates THIS array — stayed green, because it was walking the same stale list the
+ * product was. Deriving it is what turns that walk into a guard: a status added to the
+ * manifest enters this array, the dashboard's and inbox's "Failed" numbers, and every
+ * assertion that iterates it, in the same commit.
+ *
+ * THE CAST is the one place the manifest's `readonly string[]` is narrowed to the
+ * `OrderStatus` union, and it is worth being exact about what it does not prove. The union
+ * is a type and the manifest is a value; nothing type-checks them against each other, so a
+ * manifest failure status absent from the union would narrow here silently and then count
+ * zero everywhere. What DOES catch that is behavioural and already exists —
+ * `failureBucketPills.test.ts` asserts every member of this array reaches the failed pill
+ * rather than the "New" fall-through, and it now reads the manifest through this file.
  *
  * Lives here rather than in InboxView because the dashboard's "Failed" number is the
  * same number — that is the whole thesis of this file. InboxView re-exports it so its
  * existing importers (failureBucketPills.test.ts, statusJourneyFailedStage.test.tsx)
  * are unchanged.
  */
-export const FAILED_BUCKET: OrderStatus[] = [
-  "failed",
-  "transform_failed",
-  "delivery_failed",
-  "delivery_dead_letter",
-  "rejected_by_supplier",
-];
+export const FAILED_BUCKET: OrderStatus[] = [...FAILURE_STATUSES] as OrderStatus[];
 
 export interface OrderCountRow {
   /** The exact words a user reads. Two surfaces printing these words print one number. */

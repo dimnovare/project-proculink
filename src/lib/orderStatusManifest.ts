@@ -12,12 +12,21 @@
 //   src/test/statusVocabulary.test.ts        BACKEND_STATUSES (16)
 //   src/types/procurement.ts                 OrderStatus union (15 — pending_parse missing)
 //   src/components/bridge/problem/problemActions.ts   OP_ALLOWED_FROM (5 sets)
-//   src/components/bridge/orderCountContract.ts       FAILED_BUCKET (5)
+//   src/components/bridge/orderCountContract.ts       FAILED_BUCKET (5)          ← derived
 //   src/components/bridge/inboxSend.ts       REDELIVERABLE_/BULK_SELECTABLE_/ROW_SENDABLE
 //   src/components/bridge/inboxUrlFilter.ts  INBOX_FILTERABLE_STATUSES (15)
-//   src/components/bridge/BridgeDashboard.tsx         FAILED_/EXCEPTION_/EXCEPTION_ROW_
+//   src/components/bridge/BridgeDashboard.tsx         FAILED_/EXCEPTION_         ← derived
+//   src/components/bridge/BridgeDashboard.tsx         EXCEPTION_ROW_ (mirrors a
+//                                            DIFFERENT backend set — OrderExceptionService
+//                                            .ProblemFor — so it is not derived from here)
 //   src/components/bridge/StatusJourney.tsx  FAILURE_JOURNEY_STAGE (5)
 //   src/app/(app)/operations/health/healthTiles.ts    TILES
+//
+// `← derived` marks a copy that has since been collapsed into this file. Those were not
+// collapsed as tidying: BridgeDashboard's FAILED_ set omitted `rejected_by_supplier`, so a
+// supplier that had refused every order scored 100% and the topology painted its port
+// green, while the wire to it went amber off the EXCEPTION_ set in the same file, which
+// did contain the status. Two hand-typed lists, one screen, opposite verdicts.
 //
 // A hand-copy with a citation is prose. It goes stale silently, and one already had:
 // `OP_ALLOWED_FROM.retryDelivery` named `ClaimableForRetryFrom` — the Worker's

@@ -34,6 +34,10 @@ import { countFor, statusesForLabel } from "./orderCountContract";
 // The one registry of what to do about a stuck order. The dashboard reads the
 // same `rowAction` the inbox row renders, so the two can't disagree.
 import { problemFor } from "./problem/problemCopy";
+// The one mirror of the backend's status machine. The dashboard's health and
+// exception groupings are DERIVED from its buckets rather than hand-listed — see
+// FAILED_STATUSES below for the defect that costs.
+import { FAILURE_STATUSES, PARKED_STATUSES } from "@/lib/orderStatusManifest";
 import { apiClient, isApiMockMode } from "@/lib/api-client";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
@@ -71,13 +75,27 @@ const ACTIVE_STATUSES = new Set([
   "delivery_failed",
 ]);
 
-/** Hard failures — drag down lane/dock health. */
-const FAILED_STATUSES = new Set([
-  "failed",
-  "transform_failed",
-  "delivery_failed",
-  "delivery_dead_letter",
-]);
+/**
+ * Hard failures — drag down supplier and flow health.
+ *
+ * DERIVED from the manifest's `FAILURE_STATUSES`, which is computed from that file's
+ * bucket column and mirrors OrderStatusConstants.FailureBucket.
+ *
+ * IT USED TO BE A HAND-TYPED DENY-LIST, and it omitted `rejected_by_supplier`. The
+ * consequence was live on the product's signature screen: a supplier that had REFUSED
+ * every order it was ever sent scored `(total - 0) / total` = 100, and WireTopology
+ * paints `health >= 90` forest green — a green "100% del" pill for a flow where nothing
+ * had ever been accepted. The same file's EXCEPTION_STATUSES *did* contain
+ * `rejected_by_supplier`, so the wire between the two ports degraded to amber at the
+ * same time, and the canvas contradicted itself end to end.
+ *
+ * The omission is the symptom; the deny-list is the defect. A list written out by hand
+ * fails OPEN — a failure status the backend adds tomorrow is in neither this set nor
+ * EXCEPTION_STATUSES, the wire's ternary chain falls through to `: "ok"`, and the
+ * screen reports perfect health for a state it has never heard of. Reading the manifest
+ * means a status added there is covered the moment it is added.
+ */
+export const FAILED_STATUSES: ReadonlySet<string> = new Set<string>(FAILURE_STATUSES);
 
 /** Anything that needs a human now — the dashboard's in-app grouping, used by the
  *  supplier-health exception counts and the "Needs you" rows. Both render from the
@@ -85,23 +103,28 @@ const FAILED_STATUSES = new Set([
  *  free to be broader than what the backend files an exception row for.
  *  NOT for the amber strip's count — that links out to /operations/exceptions and must
  *  use EXCEPTION_ROW_STATUSES (see there; delivery_held is the difference).
- *  `delivery_held` (billing hold) belongs here and NOT in FAILED_STATUSES: it needs a
- *  human — someone has to settle billing — but nothing failed, so counting it as a hard
- *  failure would drag down lane/dock health for an order whose output is intact.
- *  It is likewise absent from ACTIVE_STATUSES: a paused order is not moving.
- *  `delivery_unconfirmed` (a crash lost the delivery outcome) belongs here for the
- *  same reason, NOT in FAILED_STATUSES — we don't know that it failed, only that we
- *  can't confirm what happened. It is also absent from ACTIVE_STATUSES: it is parked,
- *  waiting on an operator decision, not progressing on its own. */
-export const EXCEPTION_STATUSES = new Set<OrderStatus>([
+ *
+ *  DERIVED, for the same reason FAILED_STATUSES is: every status the manifest does not
+ *  bucket as `healthy`, plus `pending_review` — which IS healthy (a review is the
+ *  product working as designed, not a fault) but still wants a person today.
+ *
+ *  That derivation is what keeps the distinction this comment used to have to argue for.
+ *  The manifest buckets `delivery_held` (billing paused the send) and
+ *  `delivery_unconfirmed` (a crash lost the outcome) as `parked`, not `failure`: they
+ *  need a human, but nothing broke, so counting them as hard failures would drag supplier
+ *  health down for an order whose output is intact — and in the unconfirmed case we do
+ *  not know that it failed, only that we cannot confirm what happened. Both are likewise
+ *  absent from ACTIVE_STATUSES: a parked order is not moving.
+ *
+ *  Deriving also picks up `unrouted`, which the hand-typed set missed. An order that
+ *  parsed but resolved no supplier is parked on an operator decision exactly like the
+ *  other two, `problemFor` has carried a case for it for as long as the registry has
+ *  existed, and it was absent here only because this list was written before the app
+ *  modelled the status. */
+export const EXCEPTION_STATUSES = new Set<string>([
   "pending_review",
-  "failed",
-  "transform_failed",
-  "delivery_failed",
-  "delivery_dead_letter",
-  "rejected_by_supplier",
-  "delivery_held",
-  "delivery_unconfirmed",
+  ...FAILURE_STATUSES,
+  ...PARKED_STATUSES,
 ]);
 
 /** Statuses the BACKEND writes an OrderException row for — the count behind the amber
@@ -120,10 +143,20 @@ export const EXCEPTION_STATUSES = new Set<OrderStatus>([
  *  row is ever written for it). `delivery_unconfirmed` IS here: ProblemFor gives it a
  *  real case (severity `warning`), so the row exists and the page will show it.
  *
- *  Known and deliberate: ProblemFor also opens rows this status histogram cannot see
- *  (unresolved lines in a non-pending_review status; `unrouted`, which this app's
- *  OrderStatus doesn't model). So the count can UNDER-report. That direction is safe —
- *  a missed nudge, not a promise with a dead end behind it. */
+ *  Known and deliberate: ProblemFor also opens rows this status histogram does not count,
+ *  so the strip can UNDER-report. That direction is safe — a missed nudge, not a promise
+ *  with a dead end behind it. Two cases, and the first sentence here used to be wrong
+ *  about the second:
+ *    • unresolved lines in a status other than pending_review — a per-line condition no
+ *      status histogram can see.
+ *    • `unrouted`. This read "which this app's OrderStatus doesn't model", and that is no
+ *      longer true — `unrouted` has been in the union since the content-routing ingest
+ *      paths shipped, and ProblemFor's FIRST case writes an `unrouted_order` row for it
+ *      (ProcuLink.Infrastructure/Services/OrderExceptionService.cs:36-37). So this set
+ *      could include it and the exceptions page would have the rows to show. It is left
+ *      out here only because that is a change to what this set MIRRORS, pinned by its own
+ *      assertion in openExceptionsAll.test.ts, and not part of the health-derivation fix
+ *      this file's FAILED_STATUSES comment describes. Tracked, not forgotten. */
 export const EXCEPTION_ROW_STATUSES = new Set<OrderStatus>([
   "pending_review",
   "failed",
@@ -428,7 +461,8 @@ function SectionHead({
  * Design thresholds (screen-bridge.jsx): healthy ≥90 = forest green #2E8E3A,
  * at-risk ≥80 = amber #B36D14, poor = red #B43838.
  */
-function healthColor(pct: number): string {
+function healthColor(pct: number | null): string {
+  if (pct === null) return "#5E6779"; // no orders yet — grey, because there is no verdict
   if (pct >= 90) return GREEN_BAR;   // #2E8E3A
   if (pct >= 80) return "#B36D14";   // amber
   return "#B43838";                  // red
@@ -444,10 +478,24 @@ function weightFor(count: number): 1 | 2 | 3 | 4 | 5 | 6 {
   return 6;
 }
 
-interface DerivedTopology {
+export interface DerivedTopology {
   buyers: WireBuyer[];
   suppliers: WireSupplier[];
   wires: Wire[];
+}
+
+/**
+ * Delivery health as a percentage, or `null` when there is no order to judge it by.
+ *
+ * This used to be `total === 0 ? 100 : …` inline. Zero orders is not perfect health, it
+ * is no evidence, and 100 is the one answer that cannot be true — it renders the same
+ * confident forest green as a supplier that has accepted a thousand orders. Returning
+ * null makes the callers say "no orders yet" instead of inventing a number, which is the
+ * same rule the rest of this screen already follows for counts it does not have.
+ */
+export function supplierHealthPct(total: number, failed: number): number | null {
+  if (total <= 0) return null;
+  return Math.round((100 * (total - failed)) / total);
 }
 
 /**
@@ -455,8 +503,12 @@ interface DerivedTopology {
  * configured supplier list (docks exist even before their first order) plus any
  * supplier seen on an order; buyers and wires come from orders that carry both a
  * buyer and supplier name. Health/alerts reflect actual order statuses.
+ *
+ * Exported for topologyHealth.test.ts. Like `sumByStatuses` above, it is pure and the
+ * component around it is not renderable in a unit test — and unlike the component, it is
+ * where the screen decides what colour a supplier is.
  */
-function deriveTopology(orders: OrderSummary[], suppliers: Supplier[]): DerivedTopology {
+export function deriveTopology(orders: OrderSummary[], suppliers: Supplier[]): DerivedTopology {
   interface SAcc { id: string; name: string; total: number; failed: number; exceptions: number; }
   interface BAcc { id: string; name: string; total: number; }
   interface WAcc { buyerKey: string; supplierKey: string; total: number; failed: number; exceptions: number; }
@@ -512,7 +564,7 @@ function deriveTopology(orders: OrderSummary[], suppliers: Supplier[]): DerivedT
       name: s.name,
       code: codeFor(s.name),
       volume: `${s.total} ord`,
-      health: s.total === 0 ? 100 : Math.round((100 * (s.total - s.failed)) / s.total),
+      health: supplierHealthPct(s.total, s.failed),
     }));
 
   const buyerIdByKey = new Map([...buyMap.values()].map((b) => [normName(b.name), b.id] as const));
@@ -523,6 +575,12 @@ function deriveTopology(orders: OrderSummary[], suppliers: Supplier[]): DerivedT
     const buyerId = buyerIdByKey.get(w.buyerKey);
     const supplierId = supplierIdByKey.get(w.supplierKey);
     if (!buyerId || !supplierId) continue;
+    // The `: "ok"` at the end of this chain is a DEFAULT, and a default is only as safe
+    // as the sets above it are complete. While FAILED_STATUSES and EXCEPTION_STATUSES
+    // were hand-typed, any status neither list happened to name landed here and painted
+    // the wire blue→green. Both derive from the manifest now, so falling through means
+    // "the manifest buckets every one of these orders as healthy" rather than "nobody
+    // remembered to add it".
     const health: Wire["health"] = w.failed > 0 ? "down" : w.exceptions > 0 ? "risk" : "ok";
     const wire: Wire = { buyerId, supplierId, weight: weightFor(w.total), health };
     if (w.exceptions > 0) wire.alert = w.exceptions;
@@ -1860,13 +1918,15 @@ export function BridgeDashboard() {
                           className="hidden overflow-hidden rounded-full sm:block"
                           style={{ width: 160, height: 6, background: "#F1F3F7" }}
                         >
-                          <div className="h-full rounded-full transition-all" style={{ width: `${s.health}%`, background: color }} />
+                          {/* No orders → no bar. An empty track reads as "nothing measured";
+                              a full green one would read as a perfect record. */}
+                          <div className="h-full rounded-full transition-all" style={{ width: `${s.health ?? 0}%`, background: color }} />
                         </div>
                         <span
                           className="w-[40px] flex-shrink-0 text-right text-[12px] font-bold tabular-nums"
                           style={{ color, fontFamily: "'JetBrains Mono', monospace" }}
                         >
-                          {s.health}%
+                          {s.health === null ? "—" : `${s.health}%`}
                         </span>
                       </Link>
                     );
