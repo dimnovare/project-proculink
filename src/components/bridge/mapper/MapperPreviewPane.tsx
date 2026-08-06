@@ -314,7 +314,14 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
                   padding: "4px 9px", borderRadius: 6, cursor: "pointer",
                   fontSize: 11, fontWeight: 600, border: "1px solid transparent",
                   background: active ? "#1E6D29" : "transparent",
-                  color: active ? "#FFFFFF" : "var(--ink-faint)",
+                  // --ink-muted, not --ink-faint, on the inactive half of the segmented
+                  // control: the track above is --surface-2 (#F1F3F7) and these buttons
+                  // are transparent over it, so #667085 resolves to 4.4781:1 at 11px —
+                  // a marginal AA fail on all five format buttons. #5E6779 is 5.1199:1.
+                  // The TOKEN is fine (--ink-faint is 4.6439:1 on --bg); it is the
+                  // PAIRING with --surface-2 that fails. Same call, same reasoning as
+                  // the "Coming soon" chip in src/app/(app)/settings/page.tsx.
+                  color: active ? "#FFFFFF" : "var(--ink-muted)",
                 }}
               >
                 {f.label}
@@ -358,7 +365,10 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
       )}
 
       {err && (
-        <div style={{ padding: "8px 12px", fontSize: 11, color: "#9A6B00", background: "#FFF7E6", borderBottom: "1px solid #F1E2BE" }}>
+        // --amber-text (#8A5310), not #9A6B00: the old literal is 4.3999:1 on #FFF7E6
+        // at 11px, just under the 4.5:1 AA floor. #8A5310 is 5.9237:1 on the same
+        // background. Identical swap to MapperWorkbench's three amber chips.
+        <div style={{ padding: "8px 12px", fontSize: 11, color: "var(--amber-text)", background: "#FFF7E6", borderBottom: "1px solid #F1E2BE" }}>
           {err}
         </div>
       )}
@@ -371,6 +381,16 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
         <pre
           ref={codeRef}
           aria-live="polite"
+          // The delivered document is a scrolling region whose only content is TEXT —
+          // it holds no control a keyboard user could tab to, so before this there was
+          // no way to reach it, and no way to scroll it, without a mouse. tabIndex makes
+          // the region itself the focus target (the browser then handles arrow/page
+          // keys); role="region" + aria-label give that stop a name, so it is announced
+          // as the output preview and not as an unlabelled blob of monospace. Same
+          // three attributes as the supplier tab body in SupplierDockProfile.
+          tabIndex={0}
+          role="region"
+          aria-label={`Delivered ${deliveredFormat.toUpperCase()} output preview`}
           className={flash ? "mapper-preview-flash" : undefined}
           style={{
             // The docked live preview is the document operators read most, but the T7 sizing

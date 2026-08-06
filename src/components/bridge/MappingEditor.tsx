@@ -372,7 +372,19 @@ export function MappingEditor() {
       )}
 
       {/* Table card — white rounded card floating on the grey canvas (design v2: 12px radius, layered shadow) */}
-      <div className="flex-1 min-h-0 overflow-auto">
+      {/* This scroller had no keyboard route into it. At >=md the mobile <button> card
+          list is display:none and the desktop table's rows are click-only <tr>s, so the
+          region contains nothing tabbable — a keyboard user could not scroll the list at
+          all. tabIndex makes the region itself focusable; role="region" + aria-label name
+          that stop. Same three attributes as the tab body in SupplierDockProfile. (Row
+          ACTIVATION by keyboard is a separate gap — the <tr onClick> is not reachable
+          either — and is not what this rule covers.) */}
+      <div
+        className="flex-1 min-h-0 overflow-auto"
+        tabIndex={0}
+        role="region"
+        aria-label="Item-code mappings"
+      >
         <div
           className="overflow-hidden rounded-[12px]"
           style={{ background: "#FFFFFF", border: "1px solid #E5E8EE", boxShadow: "0 1px 3px rgba(11,26,47,0.05), 0 1px 2px rgba(11,26,47,0.04)" }}
