@@ -1,6 +1,7 @@
 import { pageMetadata } from "@/lib/seo";
 import "./print.css";
 import { LEGAL_ENTITY, LEGAL_ENTITY_REFERENCE } from "@/lib/legal-entity";
+import { requiresPlan } from "@/lib/gatedCapabilities";
 import { OVERAGE_PER_ORDER_EUR, PLANS } from "@/lib/plans";
 
 export const metadata = pageMetadata({
@@ -37,15 +38,20 @@ export default function OnePagerPage() {
         ProcuLink is B2B outbound procurement automation for buyer teams. We import the
         POs you send, validate them, map fields and item codes per supplier, transform
         to the format each supplier requires, and deliver them automatically over HTTP,
-        ERP, or email.
+        SFTP, or email.
       </p>
 
       <h2 style={S.h2}>How it works</h2>
       <div style={S.threeCol}>
         {[
           { n: "1", t: "Import", d: "Upload CSV / XLSX / PDF, or let ProcuLink poll an IMAP mailbox." },
-          { n: "2", t: "Map + transform", d: "Per-supplier field + item-code mapping with AI suggestions. Output to CSV, XML, cXML, JSON." },
-          { n: "3", t: "Deliver", d: "HTTP webhook, SFTP/FTPS, email, Erply, Directo, or download. Full audit trail and delivery status." },
+          // This sheet is print collateral: it travels detached from the site, so a reader
+          // cannot click through to /formats or /pricing to discover that two of the things
+          // listed here are gated. cXML output gates at Operations and the Erply/Directo ERP
+          // adapters at Enterprise, so both say so on the page itself. The tier names are
+          // derived from the mirrored gate table, never typed.
+          { n: "2", t: "Map + transform", d: `Per-supplier field + item-code mapping with AI suggestions. Output to CSV, XML, JSON — cXML on ${requiresPlan("cxml")}.` },
+          { n: "3", t: "Deliver", d: `HTTP webhook, SFTP/FTPS, email, or download. Erply and Directo ERP adapters on ${requiresPlan("erpConnectors")}. Full audit trail and delivery status.` },
         ].map((s) => (
           <div key={s.n} style={S.step}>
             <div style={S.stepN}>0{s.n}</div>

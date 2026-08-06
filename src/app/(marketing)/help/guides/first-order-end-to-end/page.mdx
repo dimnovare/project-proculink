@@ -1,5 +1,6 @@
 import { guideMetadata } from "@/lib/seo";
 import { Step, Prereqs, IfThisFails, Outcome, GuideShot } from "@/components/help/guide";
+import { requiresPlan } from "@/lib/gatedCapabilities";
 
 export const metadata = guideMetadata({
   slug: "first-order-end-to-end",
@@ -9,7 +10,11 @@ export const metadata = guideMetadata({
 });
 
 <Prereqs>
-- A ProcuLink workspace you can sign in to. Pilot is enough for everything here.
+- A ProcuLink workspace you can sign in to. Pilot reaches **delivered** by SFTP, FTPS or email, in any
+  format except cXML. The other two choices in step 5 are behind a plan: posting to an HTTP endpoint is
+  {requiresPlan("webhookDelivery")}, cXML output is {requiresPlan("cxml")}, and the Erply/Directo ERP
+  adapters are {requiresPlan("erpConnectors")}. Everything before step 5 — upload, review, item codes — is
+  the same on Pilot.
 - **One real purchase order** you have actually sent, or would send. Not a sample — a sample proves the plumbing and teaches you nothing about your own documents.
 - One supplier you send to often, and their contact details.
 - Around an hour, though most of it is waiting on the supplier to tell you how they want orders delivered.
@@ -105,6 +110,12 @@ Ask them three questions and write the answers down:
 1. **How should we send orders?** An endpoint we post to, an SFTP folder, or an email address?
 2. **In what format?** CSV, JSON, XML, cXML, UBL/Peppol, or X12 850?
 3. **What credentials do we need,** and who do we tell when a test arrives?
+
+Ask all three regardless of your plan — you want the real answer on file. But check what your plan can save
+before you promise it: an HTTP endpoint needs {requiresPlan("webhookDelivery")}, cXML output needs
+{requiresPlan("cxml")}, and Erply/Directo need {requiresPlan("erpConnectors")}. SFTP, FTPS and email, in any
+format but cXML, are on every plan including Pilot — so a Pilot workspace can finish this guide by agreeing
+one of those with the supplier.
 
 Then fill that into the supplier's **Delivery** tab, press **Save delivery**, and press **Test-fire**. A
 green result proves the credentials and the path against their real endpoint before any order depends on

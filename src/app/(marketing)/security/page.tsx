@@ -1,6 +1,7 @@
 import { pageMetadata } from "@/lib/seo";
 import Link from "next/link";
 import { SUBPROCESSORS } from "@/lib/subprocessors";
+import { requiresPlan } from "@/lib/gatedCapabilities";
 
 export const metadata = pageMetadata({
   path: "/security",
@@ -42,7 +43,10 @@ const POSTURE: Array<{ title: string; body: React.ReactNode; icon: React.ReactNo
     // rather than rounded away. The at-rest half was always true
     // (DeliveryEncryptionService.cs:43/69, no plaintext fallback).
     title: "Encryption in transit and at rest",
-    body: "Supplier delivery credentials are encrypted at rest with AES-256-GCM authenticated encryption and are never written to application logs. Every outbound channel configured by URL — webhook and HTTP delivery, ERP connectors, catalog feeds and S3 ingestion — must use https://, and a plain http:// address is refused when you save it. SFTP is encrypted by construction, and FTPS negotiates explicit TLS. Two connection settings can still weaken that if you switch them on: skipping FTPS certificate validation, and turning SSL off for IMAP or SMTP.",
+    // The channel list has to be complete for the TLS claim to be true, and a compliance reviewer
+    // reads this page before signing — so the one channel in it that is not on every plan says so.
+    // The ERP connectors gate at Enterprise (BillingFeature.ErpConnectors); tier derived, not typed.
+    body: `Supplier delivery credentials are encrypted at rest with AES-256-GCM authenticated encryption and are never written to application logs. Every outbound channel configured by URL — webhook and HTTP delivery, the ERP connectors on ${requiresPlan("erpConnectors")}, catalog feeds and S3 ingestion — must use https://, and a plain http:// address is refused when you save it. SFTP is encrypted by construction, and FTPS negotiates explicit TLS. Two connection settings can still weaken that if you switch them on: skipping FTPS certificate validation, and turning SSL off for IMAP or SMTP.`,
     icon: <KeyIcon />,
   },
   {

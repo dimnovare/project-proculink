@@ -1,14 +1,17 @@
 import { helpArticleMetadata } from "@/lib/seo";
+import { requiresPlan } from "@/lib/gatedCapabilities";
 
 export const metadata = helpArticleMetadata({
   slug: "erp-erply-and-directo",
   title: "Erply and Directo ERP delivery adapters — ProcuLink Help",
-  description: "Configure the Erply and Directo delivery adapters, and understand exactly what they do and don't guarantee.",
+  description: "Configure the Erply and Directo delivery adapters, understand exactly what they do and don't guarantee, and which plan they need.",
 });
 
 # Erply and Directo ERP delivery adapters
 
 For suppliers on **Erply** or **Directo**, ProcuLink has purpose-built delivery adapters that authenticate to the ERP and hand off the order. Configure them per supplier under **Partners → Suppliers → Delivery** by picking the Erply or Directo channel.
+
+> **Which plan you need.** The ERP connectors are {requiresPlan("erpConnectors")} — the only delivery channels that far up the ladder. Saving a supplier's delivery config on the Erply or Directo channel is refused below that plan, at the point of saving. HTTP, SFTP/FTPS and email are the channels available lower down; see [plans and quotas](/help/billing-faq).
 
 > This article is the reference for the two ERP adapters and their honest scope. For the delivery set-up in order, follow [set up delivery to a supplier and test-fire it](/help/guides/set-up-supplier-delivery).
 

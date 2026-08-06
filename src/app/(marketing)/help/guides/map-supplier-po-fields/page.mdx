@@ -1,5 +1,6 @@
 import { guideMetadata } from "@/lib/seo";
 import { Step, Prereqs, IfThisFails, Outcome, GuideShot } from "@/components/help/guide";
+import { requiresPlan } from "@/lib/gatedCapabilities";
 
 export const metadata = guideMetadata({
   slug: "map-supplier-po-fields",
@@ -17,7 +18,8 @@ export const metadata = guideMetadata({
 <Step n={1} title="Establish that you actually need this">
 
 Most suppliers never need a custom mapping. Choosing their output format on the Delivery tab — CSV, XML,
-cXML, UBL/Peppol, X12, or JSON — produces a standards-shaped document that their system reads.
+cXML, UBL/Peppol, X12, or JSON — produces a standards-shaped document that their system reads. All of those
+are on every plan except cXML output, which is {requiresPlan("cxml")}.
 
 You need this guide when that is not enough:
 

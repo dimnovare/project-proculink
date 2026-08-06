@@ -1,4 +1,5 @@
 import { helpArticleMetadata } from "@/lib/seo";
+import { requiresPlan } from "@/lib/gatedCapabilities";
 
 export const metadata = helpArticleMetadata({
   slug: "output-templates",
@@ -20,7 +21,7 @@ The format a supplier receives is chosen on that supplier's **delivery config**.
 |---|---|
 | CSV | Supported |
 | JSON | Supported |
-| cXML 1.2 | Supported |
+| cXML 1.2 | Supported — {requiresPlan("cxml")} |
 | UBL 2.1 Order | Supported |
 | ANSI X12 850 | Supported |
 | Peppol BIS Order 3.0 | Not offered — a BIS Order file parses inbound (it is UBL 2.1), but ProcuLink does not produce BIS-conformant output and does not check output against BIS business rules |

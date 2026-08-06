@@ -21,6 +21,7 @@
 // derived from. See `standardRow`.
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { requiresPlan } from "@/lib/gatedCapabilities";
 import { STANDARDS, type SupportLevel } from "@/lib/standards/catalog";
 
 // Honest by design: nothing is "live" (badge "Supported") unless it works in
@@ -150,10 +151,11 @@ export const IMPORT_METHODS: FormatRow[] = [
   // "Integration plan" (€999) while EmailIngestion / SftpIngestion / S3Ingestion have gated at
   // Growth (€149) ever since the channels were decoupled from volume — the same defect WP-11 fixed
   // in the 403 codes, surviving on the public page a buyer reads before they ever see a 403.
-  // Source of truth: PlanConstants.MinimumPlan (backend) mirrored by PLANS in src/lib/plans.ts.
-  { name: "Email inbox polling (IMAP)", status: "live", note: "We poll your mailbox for order attachments. Growth plan and up." },
-  { name: "SFTP folder pull", status: "live", note: "Point us at an SFTP folder; we import new files. Growth plan and up." },
-  { name: "S3 / R2 bucket pull", status: "live", note: "Watch a bucket prefix for order files. Growth plan and up." },
+  // The tier is no longer typed here at all: it is derived from the mirrored gate table in
+  // src/lib/gatedCapabilities.ts, so re-tiering a channel is one edit and every surface follows.
+  { name: "Email inbox polling (IMAP)", status: "live", note: `We poll your mailbox for order attachments. ${requiresPlan("emailIngestion")}.` },
+  { name: "SFTP folder pull", status: "live", note: `Point us at an SFTP folder; we import new files. ${requiresPlan("sftpIngestion")}.` },
+  { name: "S3 / R2 bucket pull", status: "live", note: `Watch a bucket prefix for order files. ${requiresPlan("s3Ingestion")}.` },
   { name: "Hosted inbound email address", status: "configurable", note: "Forward orders to your orders@… address; we set up the receiving domain." },
   { name: "AS2 / PEPPOL network receive", status: "onRequest", note: "Through a certified access-point partner." },
 ];
@@ -176,14 +178,29 @@ export const IMPORT_FORMATS: FormatRow[] = [
 ];
 
 // ── How the finished order reaches each supplier (the "delivery channels" count) ─
+//
+// The three IMPORT_METHODS rows above named their tier; these did not, and the omission is the
+// same false claim in a quieter form — an unqualified row reads as included on every plan. Two
+// delivery channels are gated and now say so:
+//
+//   • HTTPS webhook  → BillingFeature.WebhookDelivery (Growth). BillingGateErrors.cs:72-73
+//     maps protocol `http` to it, so a Pilot org saving a webhook delivery config is refused
+//     with `webhook_delivery_requires_growth`.
+//   • Erply/Directo  → BillingFeature.ErpConnectors (Enterprise, from €2,500/mo).
+//     BillingGateErrors.cs:70-71. This was the worse one: the ERP rows sat between SFTP and
+//     email as though they were an ordinary file-drop channel.
+//
+// SFTP, FTPS, email and the access-point row are deliberately bare: `RequiredFeatures` adds no
+// requirement for those protocols, so they really are on every plan and naming a tier would be
+// the opposite error. SFTP *ingestion* is gated at Growth; SFTP *delivery* is not.
 export const DELIVERY_METHODS: FormatRow[] = [
-  { name: "HTTPS webhook (POST / PUT)", status: "live", note: "Auth: API key, bearer, basic, or OAuth2 fetch-token." },
+  { name: "HTTPS webhook (POST / PUT)", status: "live", note: `Auth: API key, bearer, basic, or OAuth2 fetch-token. ${requiresPlan("webhookDelivery")}.` },
   { name: "SFTP", status: "configurable", note: "Password or private-key. Configure it yourself; we verify it with you on a real folder before go-live." },
   { name: "FTPS", status: "configurable", note: "Explicit TLS. Configure it yourself; we verify it with you on a real folder before go-live." },
   { name: "Email (attachment)", status: "live", note: "The order is emailed as an attachment to the recipient addresses you enter — sent from ProcuLink over HTTPS. No mail server or credentials to set up." },
-  { name: "Erply (ERP connector)", status: "configurable", note: "We switch it on with you against your Erply account before go-live." },
-  { name: "Directo (ERP connector)", status: "configurable", note: "We switch it on with you against your Directo account before go-live." },
-  { name: "More ERP connectors", status: "onRequest", note: "Fortnox, Visma, e-conomic, Dynamics 365 BC, NetSuite, SAP…" },
+  { name: "Erply (ERP connector)", status: "configurable", note: `We switch it on with you against your Erply account before go-live. ${requiresPlan("erpConnectors")}.` },
+  { name: "Directo (ERP connector)", status: "configurable", note: `We switch it on with you against your Directo account before go-live. ${requiresPlan("erpConnectors")}.` },
+  { name: "More ERP connectors", status: "onRequest", note: `Fortnox, Visma, e-conomic, Dynamics 365 BC, NetSuite, SAP… ${requiresPlan("erpConnectors")}.` },
   { name: "AS2 / AS4 / PEPPOL access point", status: "onRequest", note: "Through a certified partner." },
 ];
 
@@ -194,7 +211,11 @@ export const DELIVERY_METHODS: FormatRow[] = [
 export const OUTPUT_FORMATS: FormatRow[] = [
   { name: "CSV", status: "live", note: "Configurable columns." },
   { name: "XML (generic)", status: "live", note: "" },
-  standardRow("cxml-1-2", "transform", "cXML 1.2", ""),
+  // cXML is the one OUTPUT format behind a gate: BillingGateErrors.cs:74-75 maps
+  // `outputFormat: "cxml"` to BillingFeature.Cxml (Operations), so a Growth org saving a cXML
+  // delivery config is refused with `cxml_output_requires_operations`. The badge is about
+  // whether the transformer exists; the note is about who may switch it on.
+  standardRow("cxml-1-2", "transform", "cXML 1.2", `${requiresPlan("cxml")}.`),
   // Was "UBL 2.1 / Peppol BIS", status hand-typed "live" — the single strongest Peppol
   // claim on the site, and the row that made /formats contradict the standards catalog.
   // We really do emit the OASIS UBL 2.1 Order document, so the row stays and the badge
@@ -210,11 +231,64 @@ export const OUTPUT_FORMATS: FormatRow[] = [
   standardRow("edifact-orders", "transform", "EDIFACT ORDERS", "Outbound EDIFACT transformer on request."),
 ];
 
+// ── Direction of a short marketing name (anti-drift for the landing strip) ──────
+//
+// The landing page carries a row of mono format labels under the heading "Speaks the formats
+// your suppliers already use" — the OUTBOUND direction — and the row was hand-typed three
+// constants away from this file. It included "EDIFACT", which resolves to `onRequest` above,
+// while /help/guides/set-up-supplier-delivery says flatly: "EDIFACT is inbound only. … There
+// is no outbound EDIFACT transformer today." Two surfaces, opposite claims, and the one a
+// prospect meets first was the wrong one.
+//
+// So the strip no longer decides direction for itself. It hands its labels here and gets back
+// which are really emitted and which are read-only, and a label that matches NO catalog row in
+// either direction throws at module load — the landing page is statically rendered, so a
+// mistyped or retired label fails `bun run build` rather than shipping a silent claim.
+
+/** Available to a customer today — shipped, or shipped with caveats we settle during setup. */
+const isAvailableNow = (r: FormatRow) => r.status === "live" || r.status === "configurable";
+
+/** `\bLABEL` against a row name, with regex metacharacters in the label neutralised. */
+const namesFormat = (rows: FormatRow[], label: string, live: (r: FormatRow) => boolean): boolean => {
+  const token = new RegExp(`\\b${label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "i");
+  return rows.some((r) => live(r) && token.test(r.name));
+};
+
+/**
+ * Split short marketing format names into the ones ProcuLink really EMITS today and the ones
+ * it only READS. "Emits" means a `live` OUTPUT_FORMATS row — `onRequest` is a transformer we
+ * would build with you, which is not the same as one you can use, and selling it as outbound
+ * is the defect this exists to stop.
+ */
+export function partitionByDirection(labels: readonly string[]): {
+  emitted: string[];
+  inboundOnly: string[];
+} {
+  const emitted: string[] = [];
+  const inboundOnly: string[] = [];
+
+  for (const label of labels) {
+    if (namesFormat(OUTPUT_FORMATS, label, (r) => r.status === "live")) {
+      emitted.push(label);
+      continue;
+    }
+    if (namesFormat(IMPORT_FORMATS, label, isAvailableNow)) {
+      inboundOnly.push(label);
+      continue;
+    }
+    throw new Error(
+      `format-catalog: the marketing label "${label}" matches no format row in either direction. ` +
+        "A strip label must name something the catalog measures, or it is a claim nothing backs.",
+    );
+  }
+
+  return { emitted, inboundOnly };
+}
+
 // ── Derived counts for the landing hero stats (anti-drift) ──────────────────────
 // Inbound  = every import FORMAT we can actually take today (live + configurable).
 // Outbound = output formats that are LIVE (EDIFACT onRequest is excluded).
 // Channels = delivery methods that work today (live + configurable).
-const isAvailableNow = (r: FormatRow) => r.status === "live" || r.status === "configurable";
 
 /** Count of inbound formats we accept today (live + configurable). */
 export const INBOUND_FORMAT_COUNT = IMPORT_FORMATS.filter(isAvailableNow).length;

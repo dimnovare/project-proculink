@@ -1,11 +1,12 @@
 import { guideMetadata } from "@/lib/seo";
 import { Step, Prereqs, IfThisFails, Outcome } from "@/components/help/guide";
+import { requiresPlan } from "@/lib/gatedCapabilities";
 
 export const metadata = guideMetadata({
   slug: "set-up-supplier-delivery",
   title: "Set up delivery to a supplier and test-fire it — ProcuLink guide",
   description:
-    "Configure how a supplier receives orders from ProcuLink — HTTP, cXML, SFTP/FTPS, email, or an Erply/Directo adapter — choose the output format, and prove the path with a test-fire before the first real order.",
+    "Configure how a supplier receives orders from ProcuLink — HTTP, cXML, SFTP/FTPS, email, or an Erply/Directo adapter — choose the output format, and prove the path with a test-fire before the first real order. Which channels and formats your plan includes.",
 });
 
 <Prereqs>
@@ -20,12 +21,17 @@ export const metadata = guideMetadata({
 Open **Partners → Suppliers → the supplier → Delivery**. Six channels are on offer, and the right one is
 whichever the supplier already runs — this is not a preference:
 
-| Channel | Use it when |
-|---|---|
-| **HTTP** | They publish an endpoint and want orders posted to it. Also the channel cXML rides on. |
-| **SFTP** / **FTPS** | They take files. The order is written into a folder on their server. |
-| **Email** | They want an attachment in a mailbox. The least automated, and often the fastest to agree. |
-| **Erply ERP** / **Directo ERP** | You share an Erply or Directo tenant with them — read step 6 before choosing this. |
+| Channel | Use it when | Plan |
+|---|---|---|
+| **HTTP** | They publish an endpoint and want orders posted to it. Also the channel cXML rides on. | {requiresPlan("webhookDelivery")} |
+| **SFTP** / **FTPS** | They take files. The order is written into a folder on their server. | Every plan |
+| **Email** | They want an attachment in a mailbox. The least automated, and often the fastest to agree. | Every plan |
+| **Erply ERP** / **Directo ERP** | You share an Erply or Directo tenant with them — read step 6 before choosing this. | {requiresPlan("erpConnectors")} |
+
+The plan column is not a footnote: saving a delivery config on a channel your plan does not include is
+refused at the point of saving, not at the point of sending. SFTP, FTPS and email really are on every plan
+— it is the **inbound** SFTP and email pulls that start at Growth, which is a different setting in a
+different place.
 
 Until something is configured here, sending an order stops honestly at *delivery not set up* rather than
 pretending it went somewhere.
@@ -42,7 +48,7 @@ it automatically.
 | CSV | Supported |
 | JSON | Supported |
 | XML (generic) | Supported |
-| cXML | Supported |
+| cXML | Supported — {requiresPlan("cxml")}. It is the one output format behind a plan gate; saving a cXML delivery config on a cheaper plan is refused. |
 | UBL 2.1 Order | Supported. **Peppol BIS Order 3.0 output is not offered** — ProcuLink emits the OASIS UBL 2.1 Order document and does not check it against Peppol BIS business rules. Validate with your access point before relying on it. |
 | ANSI X12 850 | Supported |
 
@@ -104,6 +110,9 @@ Credentials on every channel are encrypted at rest and write-only: re-opening th
 
 <Step n={4} title="If it is cXML, fill in the network credentials">
 
+cXML output is {requiresPlan("cxml")} — if your plan is cheaper, saving this configuration is refused and
+the rest of this step does not apply yet.
+
 cXML is not just a format — it carries an identity block the supplier's network checks before it looks at
 the order. Open **cXML network credentials** and fill in what they gave you:
 
@@ -157,7 +166,8 @@ order's content — unknown item codes, missing fields, and their own business r
 rejection after delivery. ProcuLink tracks the supplier's response as a separate stage for exactly this
 reason.
 
-For **Erply** and **Directo** this matters more, and the honest scope is worth reading twice:
+For **Erply** and **Directo** this matters more, and the honest scope is worth reading twice. They are also
+the only delivery channels on the {requiresPlan("erpConnectors")} tier:
 
 - The adapters deliver the **generated order artifact** into the ERP — the same supplier-ready output the
   other channels send. They are **not** a native re-modelling of the order inside Erply or Directo, and not
