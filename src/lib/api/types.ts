@@ -1051,6 +1051,50 @@ export interface ReplayResponse {
   orders: ReplayOrderDiff[];
 }
 
+// ── WP-35 — re-process one order under a revision ─────────────────────────────
+// POST /api/connections/{id}/revisions/{revisionId}/reprocess — the persisting
+// counterpart to replay. Replay computes a diff and writes nothing; reprocess
+// writes (or reuses) a real output artifact for one order under that revision.
+// It still DELIVERS NOTHING: the order's deliverable artifact is returned
+// untouched so an operator can see the re-process armed nothing for sending.
+// Backend: ProcuLink.Api/Controllers/ConnectionsController.cs Reprocess.
+
+/** Body for POST /api/connections/{id}/revisions/{revisionId}/reprocess. */
+export interface ReprocessRequest {
+  /** The order to re-process. Required — the backend 400s on an empty id. */
+  orderId: string;
+}
+
+/**
+ * The artifact a re-process produced, plus the provenance that distinguishes it
+ * from the order's original output. Mirrors ReprocessResponse in
+ * ProcuLink.Api/Contracts/ReplayDto.cs.
+ */
+export interface ReprocessResponse {
+  orderId: string;
+  poNumber: string;
+  /** The revision whose configuration produced these bytes. */
+  revisionId: string;
+  revisionVersionNo: number;
+  artifactId: string;
+  format: string;
+  fileKey: string;
+  /** SHA-256 hex of the exact stored bytes. Null when the backend did not record one. */
+  artifactSha256: string | null;
+  createdAt: string;
+  /**
+   * True when this exact output already existed for this order under this
+   * revision, so the call returned the existing artifact instead of appending a
+   * second identical one. Nothing new was written.
+   */
+  reused: boolean;
+  /**
+   * The artifact the order would still DELIVER — unchanged by this re-process,
+   * and null only when the order never had one.
+   */
+  deliverableArtifactId: string | null;
+}
+
 // ── Supplier acceptance gate (WP-17 server gate, WP-18 client) ────────────────
 // GET /api/orders/{id}/acceptance-gate — OrderAcceptanceGateController.
 //

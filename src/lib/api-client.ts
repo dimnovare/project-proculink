@@ -3173,6 +3173,8 @@ import type {
   ConnectionRevisionBundle,
   ReplayRequest,
   ReplayResponse,
+  ReprocessRequest,
+  ReprocessResponse,
 } from "@/lib/api/types";
 
 // In mock mode the Connections UI runs against an in-memory store so the screens
@@ -3664,6 +3666,89 @@ export const replayConnectionRevision: (
 ) => Promise<ReplayResponse> =
   USE_MOCK ? mockReplayConnectionRevision : realReplayConnectionRevision;
 
+// ── WP-35 — re-process one order under a revision ────────────────────────────
+// POST /api/connections/{connectionId}/revisions/{revisionId}/reprocess.
+// The PERSISTING counterpart to replay: it writes (or reuses) a real output
+// artifact for one order under that revision. It still delivers nothing — the
+// order's deliverable artifact comes back unchanged so an operator can see that
+// re-processing armed nothing for sending.
+// Backend: ProcuLink.Api/Controllers/ConnectionsController.cs Reprocess.
+
+async function mockReprocessOrderUnderRevision(
+  connectionId: string,
+  revisionId: string,
+  orderId: string,
+): Promise<ReprocessResponse> {
+  await delay(400);
+  const conn = _mockConnections.find((c) => c.id === connectionId);
+  const rev = conn?.revisions.find((r) => r.id === revisionId);
+  const diff = _mockReplayOrders().find((o) => o.orderId === orderId) ?? null;
+  // The mock mirrors the backend's 422: a revision that cannot render an order
+  // writes nothing, so the UI's failure path is explorable without a backend.
+  if (diff?.outputError) throw new ApiHttpError(diff.outputError, 422);
+  return {
+    orderId,
+    poNumber: diff?.poNumber ?? orderId,
+    revisionId,
+    revisionVersionNo: rev?.versionNo ?? 1,
+    artifactId: `art-${orderId}-${revisionId}`,
+    format: diff?.outputFormat ?? "Csv",
+    fileKey: `mock/orders/${orderId}/reprocess/${revisionId}.txt`,
+    artifactSha256: null,
+    createdAt: new Date().toISOString(),
+    reused: false,
+    deliverableArtifactId: `art-live-${orderId}`,
+  };
+}
+
+async function realReprocessOrderUnderRevision(
+  connectionId: string,
+  revisionId: string,
+  orderId: string,
+): Promise<ReprocessResponse> {
+  const res = await fetchWithTimeout(
+    `${API_BASE_URL}/api/connections/${connectionId}/revisions/${revisionId}/reprocess`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...await authHeader() },
+      body: JSON.stringify({ orderId } satisfies ReprocessRequest),
+    },
+    60000,
+  );
+  if (res.ok) return res.json() as Promise<ReprocessResponse>;
+
+  // Each documented status means something different to an operator, so none of
+  // them may collapse into a generic failure.
+  if (res.status === 400) {
+    throw new ApiHttpError((await readErrorBodyText(res)) || "An order is required to re-process.", 400);
+  }
+  if (res.status === 404) {
+    throw new ApiHttpError("That version or order no longer exists in this workspace.", 404);
+  }
+  if (res.status === 422) {
+    // The request was fine and the order real — this version simply cannot
+    // produce a document for it. The backend's reason is the useful part.
+    throw new ApiHttpError(
+      (await readErrorBodyText(res)) || "This version could not produce output for this order.",
+      422,
+    );
+  }
+  if (res.status === 503) {
+    throw new ApiHttpError(
+      (await readErrorBodyText(res)) || "File storage is unavailable, so nothing could be saved.",
+      503,
+    );
+  }
+  throw new ApiHttpError(`Re-process failed: ${res.statusText}`, res.status);
+}
+
+export const reprocessOrderUnderRevision: (
+  connectionId: string,
+  revisionId: string,
+  orderId: string,
+) => Promise<ReprocessResponse> =
+  USE_MOCK ? mockReprocessOrderUnderRevision : realReprocessOrderUnderRevision;
+
 export const listConnections: () => Promise<ConnectionSummary[]> =
   USE_MOCK ? mockListConnections : realListConnections;
 export const getConnection: (connectionId: string) => Promise<ConnectionDetail | null> =
@@ -3695,4 +3780,6 @@ export type {
   CreateConnectionRevisionRequest,
   ReplayRequest,
   ReplayResponse,
+  ReprocessRequest,
+  ReprocessResponse,
 };
