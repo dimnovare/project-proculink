@@ -224,18 +224,26 @@ public class Sample
 
 // ── The diff ─────────────────────────────────────────────────────────────────
 
-const describeMirror = BACKEND ? describe : describe.skip;
+const SKIP_REASON =
+  "no backend checkout found — set PROCULINK_BACKEND_PATH to the ProcuLink repo to run the mirror diff";
 
-if (!BACKEND) {
-  // Declared condition, printed reason — never a silent pass.
-  console.warn(
-    "[auditActionMirror] SKIPPED: no ProcuLink backend checkout found. " +
-      "Set PROCULINK_BACKEND_PATH to run the cross-repo diff.",
-  );
-}
+/**
+ * The scan, done ONCE and only from inside a test body.
+ *
+ * Every read lives behind this function on purpose. `describe.skip` still RUNS its
+ * callback — it only marks the tests inside as skipped — so setup written at the
+ * top of a skipped describe executes anyway. An earlier version of this file did
+ * exactly that, and `join(null, rel)` threw `ERR_INVALID_ARG_TYPE` at collection
+ * time on CI, where no backend is checked out: the whole file failed rather than
+ * skipping. `src/test/backendMirror.test.ts` gets this right by putting its reads
+ * inside `test.skipIf(!BACKEND)` bodies; this now matches it.
+ */
+type Scan = { root: string; consts: Map<string, string>; byFile: Map<string, string[]>; backendActions: string[] };
+let cached: Scan | null = null;
 
-describeMirror("auditActionManifest mirrors the backend's audit vocabulary", () => {
-  const root = BACKEND as string;
+function scan(): Scan {
+  if (cached) return cached;
+  const root = BACKEND!;
 
   const consts = new Map<string, string>();
   for (const rel of WRITER_FILES) {
@@ -250,22 +258,38 @@ describeMirror("auditActionManifest mirrors the backend's audit vocabulary", () 
     if (!existsSync(path)) continue;
     byFile.set(rel, parseAuditActions(readFileSync(path, "utf8"), consts));
   }
-  const backendActions = [...new Set([...byFile.values()].flat())];
 
-  test("every writer file named in the manifest's provenance still exists", () => {
+  cached = { root, consts, byFile, backendActions: [...new Set([...byFile.values()].flat())] };
+  return cached;
+}
+
+describe("auditActionManifest mirrors the backend's audit vocabulary", () => {
+  test("the diff either runs, or is skipped for a declared reason", () => {
+    // Runs everywhere, including CI. A skip must be attributable, never silent.
+    if (!BACKEND) {
+      expect(SKIP_REASON).toContain("PROCULINK_BACKEND_PATH");
+      return;
+    }
+    expect(existsSync(join(BACKEND, PROBE_REL))).toBe(true);
+  });
+
+  test.skipIf(!BACKEND)("every writer file named in the manifest's provenance still exists", () => {
+    const { root } = scan();
     for (const rel of WRITER_FILES) {
       expect(existsSync(join(root, rel)), `${rel} is gone — the manifest's provenance is stale`).toBe(true);
     }
   });
 
-  test("the scan found a realistic number of actions (anti-vacuity)", () => {
+  test.skipIf(!BACKEND)("the scan found a realistic number of actions (anti-vacuity)", () => {
+    const { backendActions } = scan();
     // 30 order/delivery actions + 6 admin + 6 inbound_email were enumerated by hand
     // at 5db0b05. A parser that silently stopped matching would make every diff below
     // pass by finding nothing.
     expect(backendActions.length).toBeGreaterThanOrEqual(40);
   });
 
-  test("NO backend audit action is unknown to the frontend", () => {
+  test.skipIf(!BACKEND)("NO backend audit action is unknown to the frontend", () => {
+    const { backendActions } = scan();
     // The drift this whole file exists for: the backend adds an action, this build
     // has never heard of it, and the delivery log renders it as… something. It is at
     // least honest now (`unknown`), but an unclassified failure is still a failure an
@@ -274,7 +298,8 @@ describeMirror("auditActionManifest mirrors the backend's audit vocabulary", () 
     expect(unknown, `audit actions with no row in src/lib/auditActionManifest.ts: ${unknown.join(", ")}`).toEqual([]);
   });
 
-  test("every action the manifest calls reachable is really written in the backend", () => {
+  test.skipIf(!BACKEND)("every action the manifest calls reachable is really written in the backend", () => {
+    const { backendActions } = scan();
     // The reverse direction. Catches a row that survived a backend rename, and it is
     // what makes `reachable` a claim rather than a decoration.
     const missing = REACHABLE_AUDIT_ACTIONS.filter(
@@ -283,7 +308,8 @@ describeMirror("auditActionManifest mirrors the backend's audit vocabulary", () 
     expect(missing, `manifest claims these are written, but no writer emits them: ${missing.join(", ")}`).toEqual([]);
   });
 
-  test("every action the manifest calls UNREACHABLE really has no writer", () => {
+  test.skipIf(!BACKEND)("every action the manifest calls UNREACHABLE really has no writer", () => {
+    const { backendActions } = scan();
     // The five declared-but-unwritten rows (`DeliveryFailed`, `delivery_failed`,
     // `delivered`, `status_changed`, `transform_queued`). If one of them acquires a
     // writer, this fails and the row's `reachable` flag — and its note — must change.
@@ -297,7 +323,8 @@ describeMirror("auditActionManifest mirrors the backend's audit vocabulary", () 
     ).toEqual([]);
   });
 
-  test("each row's backendSite names a file that really contains that action", () => {
+  test.skipIf(!BACKEND)("each row's backendSite names a file that really contains that action", () => {
+    const { root } = scan();
     // The provenance is load-bearing — it is how the next person re-derives this
     // table — so it is checked rather than trusted.
     //
