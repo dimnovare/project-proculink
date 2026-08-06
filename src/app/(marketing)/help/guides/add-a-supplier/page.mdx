@@ -1,5 +1,6 @@
 import { guideMetadata } from "@/lib/seo";
 import { Step, Prereqs, IfThisFails, Outcome, GuideShot } from "@/components/help/guide";
+import { requiresPlan } from "@/lib/gatedCapabilities";
 
 export const metadata = guideMetadata({
   slug: "add-a-supplier",
@@ -24,10 +25,12 @@ panel is optional and can be changed later.
 
 Two optional pickers are offered while you are there, and there is no penalty for skipping both:
 
-- **Delivery channel** — HTTP, SFTP, FTPS, Email, Erply ERP, or Directo ERP. Configuring it properly is its
-  own job: [set up delivery to a supplier and test-fire
-  it](/help/guides/set-up-supplier-delivery).
-- **Output format** — cXML, UBL, X12, XML, CSV, or JSON. Also settable later, on the supplier's Delivery tab.
+- **Delivery channel** — HTTP, SFTP, FTPS, Email, Erply ERP, or Directo ERP. SFTP, FTPS and email are on
+  every plan; HTTP is {requiresPlan("webhookDelivery")}, and the Erply and Directo ERP adapters are
+  {requiresPlan("erpConnectors")}. Configuring it properly is its own job: [set up delivery to a supplier
+  and test-fire it](/help/guides/set-up-supplier-delivery).
+- **Output format** — cXML, UBL, X12, XML, CSV, or JSON. All on every plan except cXML, which is
+  {requiresPlan("cxml")}. Also settable later, on the supplier's Delivery tab.
 
 <IfThisFails>
 If the button reads **Supplier limit reached** instead of **New supplier**, you are at your plan's ceiling.

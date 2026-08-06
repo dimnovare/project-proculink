@@ -11,6 +11,7 @@ import {
   type HelpArticle,
   type HelpCategory,
 } from "@/lib/help-articles";
+import { requiresPlan } from "@/lib/gatedCapabilities";
 import { buildHelpFuse } from "@/lib/help-search";
 import { walkthroughConfigured } from "@/lib/walkthrough";
 import { capture } from "@/lib/analytics";
@@ -23,7 +24,9 @@ const CATEGORY_BLURB: Record<HelpCategory, string> = {
   "Getting started": "Get your first order parsed and on its way.",
   Connections: "Versioned supplier connections — draft, test, publish, roll back.",
   Mapping: "Connect buyer fields to supplier formats.",
-  Delivery: "HTTP webhook, SFTP/FTPS, email, and ERP connectors (Erply, Directo).",
+  // The ERP connectors gate at Enterprise; listing them next to the ungated channels with no
+  // qualifier reads as "included". Tier derived from the mirrored gate table, never typed.
+  Delivery: `HTTP webhook, SFTP/FTPS, email, and ERP connectors (Erply, Directo) on ${requiresPlan("erpConnectors")}.`,
   Integrations: "Email intake, API keys, outbound webhooks, and connectors.",
   AI: "How mapping suggestions work and what confidence means.",
   Billing: "Plans, quotas, and what happens at the limit.",

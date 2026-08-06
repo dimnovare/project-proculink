@@ -8,6 +8,7 @@ import {
   PLANS,
   PLAN_BY_ID,
   SETUP_FEE_NOTE,
+  inheritanceLine,
   planEffectiveMonthlyCost,
   recommendPlanByOrders,
   yearlyMonthlyEquivalent,
@@ -78,6 +79,8 @@ const ALL_TIERS = PLANS.filter((p) => !p.hidden).map((p) => ({
   setupNote: SETUP_NOTE[p.id] ?? "",
   desc: p.blurb,
   features: p.features,
+  /** "Everything in Operations, plus" — derived from plan.inheritsFrom, never typed per card. */
+  inherits: inheritanceLine(p),
   cta: p.cta.label,
   href: p.cta.href,
   /** Plans whose price is a real recurring monthly amount get a "/mo" tag. */
@@ -459,6 +462,11 @@ function PriceCard({ tier, yearly, recommended }: { tier: Tier; yearly: boolean;
         {tier.cta} <span aria-hidden>→</span>
       </Link>
 
+      {/* Gates are minimum-plan, so every tier includes everything the tier below it does.
+          Saying so once is what lets a card list only its own differentiators without
+          reading as though it had LOST the ones it no longer repeats. */}
+      {tier.inherits && <p className="plk-inherits">{tier.inherits}</p>}
+
       <ul className="plk-feats">
         {tier.features.map((feature) => (
           <li key={feature}>
@@ -697,6 +705,8 @@ const PRICING_CSS = `
 .plk-btn-outline:hover { background: var(--navy-surface); }
 
 /* Feature list (design .price-feats) */
+.plk-inherits { font-size: 12px; font-weight: 600; color: var(--ink-muted); margin: 20px 0 0; line-height: 1.4; }
+.plk-inherits + .plk-feats { margin-top: 11px; }
 .plk-feats { list-style: none; padding: 0; margin: 20px 0 0; display: flex; flex-direction: column; gap: 11px; flex: 1; }
 .plk-feats li { display: flex; gap: 9px; align-items: flex-start; font-size: 13px; color: var(--ink); line-height: 1.4; }
 .plk-check { margin-top: 1px; flex-shrink: 0; }

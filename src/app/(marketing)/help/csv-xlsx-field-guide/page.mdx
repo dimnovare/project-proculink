@@ -1,4 +1,5 @@
 import { helpArticleMetadata } from "@/lib/seo";
+import { requiresPlan } from "@/lib/gatedCapabilities";
 
 export const metadata = helpArticleMetadata({
   slug: "csv-xlsx-field-guide",
@@ -74,7 +75,7 @@ Row 2 (data):    PO-5567  | 2026-07-01| Northwind | EUR      | 1          | AB-1
 Row 3 (data):    PO-5567  |           |           |          | 2          | AB-2048       | Hex bolt      | 500    | EA   | 0.12
 ```
 
-Numeric cells are read from the cell's stored value, so a quantity or price formatted as a number is exact regardless of the server's locale. XLSX is an **input format only** — ProcuLink reads it in, but delivers to your supplier in CSV, XML, cXML, UBL, X12, or JSON, whichever they require.
+Numeric cells are read from the cell's stored value, so a quantity or price formatted as a number is exact regardless of the server's locale. XLSX is an **input format only** — ProcuLink reads it in, but delivers to your supplier in CSV, XML, cXML, UBL, X12, or JSON, whichever they require. Those are on every plan except cXML output, which is {requiresPlan("cxml")}.
 
 ## Common problems
 

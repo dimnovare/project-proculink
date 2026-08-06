@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { capture } from "@/lib/analytics";
+import { requiresPlan } from "@/lib/gatedCapabilities";
 
 const S = {
   page:   { maxWidth: 680, margin: "0 auto", padding: "72px 32px 80px", textAlign: "center" as const },
@@ -53,7 +54,11 @@ function WelcomeBody() {
           { n: 1, t: "Add your first supplier", d: "Tell us the name of one supplier you currently send orders to." },
           { n: 2, t: "Upload a purchase order", d: "CSV, XLSX, or PDF. We parse the lines for you." },
           { n: 3, t: "Confirm field and item mapping", d: "Resolve anything we couldn't match automatically." },
-          { n: 4, t: "Send to your supplier", d: "Configure HTTP webhook delivery, or download the formatted output." },
+          // This page is what a brand-new — therefore Pilot — org sees, and it used to point at
+          // the one channel Pilot cannot save: HTTP delivery gates at Growth
+          // (BillingFeature.WebhookDelivery). SFTP, FTPS and email are on every plan, so those
+          // are the honest first suggestions and the gated one names its tier.
+          { n: 4, t: "Send to your supplier", d: `Configure SFTP, FTPS or email delivery, or download the formatted output. HTTP webhook delivery is ${requiresPlan("webhookDelivery")}.` },
         ].map((s) => (
           <div key={s.n} style={S.step}>
             <div style={S.stepNum}>{s.n}</div>

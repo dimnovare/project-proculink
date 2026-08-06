@@ -17,7 +17,9 @@ import {
   INBOUND_FORMAT_COUNT,
   OUTBOUND_FORMAT_COUNT,
   DELIVERY_CHANNEL_COUNT,
+  partitionByDirection,
 } from "@/lib/marketing/format-catalog";
+import { requiresPlan } from "@/lib/gatedCapabilities";
 
 // ─── Brand tokens (Bridge Layer design system) ───────────────────────────────
 // Primary accent is BUYER-BLUE; supplier side is forest green. These are ALIASES
@@ -192,7 +194,10 @@ const FEATURES: Array<{
   {
     icon: "send",
     title: "One-click delivery",
-    desc: "HTTP webhook, SFTP, email or ERP connector — or download the artifact. Encrypted credentials, AES-GCM at rest, full audit trail per attempt.",
+    // The ERP connectors are not an ordinary channel alongside SFTP and email: they gate at
+    // Enterprise (BillingFeature.ErpConnectors, from €2,500/mo), while HTTP webhook gates at
+    // Growth and SFTP/email are ungated. Listing all four in one breath read as "pick any".
+    desc: `HTTP webhook, SFTP or email — or download the artifact. ERP connectors (Erply, Directo) on ${requiresPlan("erpConnectors")}. Encrypted credentials, AES-GCM at rest, full audit trail per attempt.`,
     color: BLUE_DEEP,
     bg: BLUE_SOFT,
     topGradient: true,
@@ -205,6 +210,17 @@ const FEATURES: Array<{
     bg: BLUE_SOFT,
   },
 ];
+
+// The format strip below the features. The LABELS are still written here — they are short
+// marketing names, not catalog rows — but which of them ProcuLink actually EMITS is decided by
+// the catalog, not by this file.
+//
+// It used to be decided here, and it was wrong: the strip was headed "Speaks the formats your
+// suppliers already use" (outbound) and listed "EDIFACT", whose `transform` level resolves to
+// `onRequest` — no outbound transformer today. /help/guides/set-up-supplier-delivery says so in
+// as many words. `partitionByDirection` also throws at build time on a label matching no
+// catalog row at all, so this list cannot outlive the formats it names.
+const FORMAT_STRIP = partitionByDirection(["PDF", "CSV", "Excel", "cXML", "UBL", "EDIFACT", "X12"]);
 
 // Counts are DERIVED from @/lib/marketing/format-catalog (the same rows the
 // /formats page renders), so the hero numbers can never drift from the table:
@@ -555,18 +571,24 @@ export default function RootPage() {
       {/* ── Logo strip ─────────────────────────────────────────────── */}
       <section className="px-4 sm:px-8" style={{ background: SURFACE, paddingTop: 48, paddingBottom: 48 }}>
         <p style={{ textAlign: "center", fontSize: 12, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: INK_MUTED, marginBottom: 26 }}>
-          Speaks the formats your suppliers already use
+          Reads and sends the formats your buyers and suppliers already use
         </p>
         {/* No opacity:0.8 — it blended the --ink-faint mono labels down to ~3.3:1
             (WCAG fail). At full opacity the darkened --ink-faint token passes AA;
             the labels are still visually "faint" via the token itself. */}
         <div className="flex flex-wrap items-center justify-center gap-x-[38px] gap-y-4" style={{ maxWidth: 1180, margin: "0 auto" }}>
-          {["PDF", "CSV", "Excel", "cXML", "UBL", "EDIFACT", "X12"].map((name) => (
+          {[...FORMAT_STRIP.emitted, ...FORMAT_STRIP.inboundOnly].map((name) => (
             <span key={name} style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 15, fontWeight: 600, color: INK_FAINT, letterSpacing: "0.02em" }}>
               {name}
             </span>
           ))}
         </div>
+        {FORMAT_STRIP.inboundOnly.length > 0 && (
+          <p style={{ textAlign: "center", fontSize: 12.5, color: INK_MUTED, marginTop: 16, maxWidth: 640, marginLeft: "auto", marginRight: "auto", lineHeight: 1.5 }}>
+            {FORMAT_STRIP.inboundOnly.join(", ")} are read, not emitted — ProcuLink parses them
+            inbound and delivers to your supplier in one of the formats it produces.
+          </p>
+        )}
         <div style={{ textAlign: "center", marginTop: 22 }}>
           <Link
             href="/formats"
@@ -855,7 +877,8 @@ export default function RootPage() {
           >
             {[
               { value: "Any format", label: "PDF · CSV · Excel · XML · cXML · EDI, in", green: false },
-              { value: "Supplier-ready", label: "CSV · XML · cXML · UBL · X12 · JSON, out", green: true },
+              // "out" makes this an OUTPUT claim, and cXML output is the one gated format.
+              { value: "Supplier-ready", label: `CSV · XML · UBL · X12 · JSON, out — cXML on ${requiresPlan("cxml")}`, green: true },
               { value: "Fully audited", label: "every step logged, proof of delivery", green: false },
             ].map((m) => (
               <div

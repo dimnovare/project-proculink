@@ -1,4 +1,5 @@
 import { helpArticleMetadata } from "@/lib/seo";
+import { requiresPlan } from "@/lib/gatedCapabilities";
 
 export const metadata = helpArticleMetadata({
   slug: "delivery-setup",
@@ -14,14 +15,14 @@ A reviewed order still needs somewhere to go. Delivery is configured **per suppl
 
 ## Pick the channel the supplier actually uses
 
-- **HTTP webhook** — the supplier exposes an endpoint; ProcuLink posts the order there. Auth options: none, API key, bearer token, basic, or OAuth2 fetch-token.
-- **SFTP / FTPS** — the order file is dropped on the supplier's server (password or private-key authentication).
-- **Email** — the order goes out as an email attachment, sent over HTTPS from ProcuLink's mail servers (you don't run or configure an SMTP server).
-- **Erply / Directo** — purpose-built ERP adapters for those tenants. They authenticate and deliver the **generated order artifact** into the ERP — the same output the other channels send, not a native re-modelling of the order inside the ERP.
+- **HTTP webhook** — the supplier exposes an endpoint; ProcuLink posts the order there. Auth options: none, API key, bearer token, basic, or OAuth2 fetch-token. {requiresPlan("webhookDelivery")}.
+- **SFTP / FTPS** — the order file is dropped on the supplier's server (password or private-key authentication). Every plan.
+- **Email** — the order goes out as an email attachment, sent over HTTPS from ProcuLink's mail servers (you don't run or configure an SMTP server). Every plan.
+- **Erply / Directo** — purpose-built ERP adapters for those tenants. They authenticate and deliver the **generated order artifact** into the ERP — the same output the other channels send, not a native re-modelling of the order inside the ERP. {requiresPlan("erpConnectors")}.
 
-Pick HTTP when the supplier publishes an API, SFTP/FTPS or email for file-based suppliers, or the ERP adapter when you share an Erply or Directo tenant.
+Pick HTTP when the supplier publishes an API, SFTP/FTPS or email for file-based suppliers, or the ERP adapter when you share an Erply or Directo tenant — and check the plan note above before you promise a supplier a channel. Saving a delivery config on a channel your plan does not include is refused at the point of saving.
 
-On the same tab you set the **output format** the supplier requires (CSV, XML, cXML, UBL 2.1, X12, JSON) — sending auto-transforms into it.
+On the same tab you set the **output format** the supplier requires (CSV, XML, cXML, UBL 2.1, X12, JSON) — sending auto-transforms into it. All of these are on every plan except **cXML**, which is {requiresPlan("cxml")}.
 
 ## Configuring HTTP delivery
 

@@ -1,3 +1,4 @@
+import { requiresPlan } from "@/lib/gatedCapabilities";
 import { pageMetadata } from "@/lib/seo";
 import Link from "next/link";
 import { formatChipColors } from "@/components/bridge/FileChip";
@@ -117,7 +118,10 @@ const STEPS: Array<{
     n: "05",
     title: "Transform & deliver",
     desc:
-      "The canonical order is transformed into the exact format the supplier requires and delivered over their channel — webhook, SFTP, email or ERP connector. Every attempt is recorded with its response code and a SHA-256 fingerprint of the bytes sent.",
+      // "ERP connector" sat in this list as a peer of SFTP and email. It is not: the Erply and
+      // Directo adapters gate at Enterprise (BillingFeature.ErpConnectors), so an unqualified
+      // mention reads as included on every plan.
+      `The canonical order is transformed into the exact format the supplier requires and delivered over their channel — webhook, SFTP or email, or an ERP connector on ${requiresPlan("erpConnectors")}. cXML output is ${requiresPlan("cxml")}; the other formats are on every plan. Every attempt is recorded with its response code and a SHA-256 fingerprint of the bytes sent.`,
     color: GREEN,
     bg: GREEN_SOFT,
     icon: <SendIcon />,

@@ -56,8 +56,34 @@ export interface Plan {
   blurb: string;
   /** Longer recommendation blurb used by the ROI calculator. */
   recommendationBlurb: string;
-  /** Feature bullets for the pricing card. */
+  /**
+   * The DIFFERENTIATING feature bullets for the pricing card — what this tier adds on top of
+   * `inheritsFrom`, not a restatement of the whole ladder. Read `effectiveFeatures(plan)` when
+   * you need everything a tier includes.
+   */
   features: string[];
+  /**
+   * The tier immediately below this one, whose capabilities this tier also includes — rendered
+   * as "Everything in {name}, plus". null only for Pilot, the bottom of the ladder.
+   *
+   * ── Why this exists ──────────────────────────────────────────────────────────
+   *
+   * Gates are MINIMUM-plan, so Integration and Distributor both include `Cxml`, `BulkMapping`
+   * and `AdvancedAudit`. Their cards listed none of them: Integration named neither cXML nor
+   * bulk mapping, Distributor named neither cXML nor advanced audit. A buyer reading the page
+   * left to right saw the €1,499 tier apparently LOSE capabilities the €399 tier has. The
+   * bullets were not false — they were incomplete, which on a comparison table is the same
+   * thing.
+   *
+   * Restating every inherited bullet on every card was the obvious repair and is the one the
+   * founder's design position rules out (`docs/design-system/pricing-security-rebalance.md`
+   * §1: "Stop selling by bullet count… 'Everything in {previous}, plus' + max 3 differentiating
+   * bullets", on a fixed comparison axis of orders/month and suppliers). So the ladder is
+   * declared once, here, and monotonicity is a property of the structure rather than of six
+   * hand-maintained lists that have to agree. `gatedCapabilityClaims.test.ts` asserts the chain
+   * is unbroken and that no tier's effective capability set is smaller than the tier below it.
+   */
+  inheritsFrom: PlanId | null;
   cta: { label: string; href: string };
   /** Brand accent color (token hex). */
   color: string;
@@ -127,6 +153,7 @@ export const PLANS: Plan[] = [
       "Manual review",
       "Supplier-ready export",
     ],
+    inheritsFrom: null,
     cta: { label: "Start Pilot", href: SIGN_UP },
     // #8A5310, not the stale #C97A14 (which is not a token in globals.css and
     // measured 3.1094:1 as label text on its own tint). 5.7164:1.
@@ -176,6 +203,7 @@ export const PLANS: Plan[] = [
       // now names the surface Growth actually gets; Operations keeps "Advanced audit trail".
       "Per-order audit trail",
     ],
+    inheritsFrom: "pilot",
     cta: { label: "Upgrade to Growth", href: SIGN_UP },
     // #1E6D29, not the retired emerald. `color` is rendered as BUTTON LABEL text
     // over a 7%-alpha tint of itself (BillingSection.secondaryButton), where the
@@ -201,14 +229,24 @@ export const PLANS: Plan[] = [
     blurb: "For order teams that need reliable daily processing.",
     recommendationBlurb:
       "Reliable daily processing for 150–500 monthly orders across up to 10 suppliers, with every channel included.",
+    // "Webhook/API + email/SFTP/S3 channels" is gone because `inheritsFrom: "growth"` already
+    // says it — the channels gate at Growth and restating them here is what forced every card
+    // above to restate them too, and then to be judged on how many bullets it had.
+    //
+    // "+ priority support" is gone because nothing delivers it. It is not a BillingFeature, and
+    // BillingFeature.cs:20-21 records that `SlaOnboarding` was deleted for precisely this reason
+    // — an SLA and named support are commitments fulfilled by people, and no code path can check
+    // them. The published commitment is undifferentiated in any case: /support offers every plan,
+    // Pilot included, the same "within one business day". Selling a €399 tier on a promise the
+    // free tier already has is the offer⇔works rule broken on the price list itself.
     features: [
       "500 orders/month",
       "10 suppliers",
-      "Webhook/API + email/SFTP/S3 channels",
       "Bulk mapping import/export",
       "cXML support",
-      "Advanced audit trail + priority support",
+      "Advanced audit trail",
     ],
+    inheritsFrom: "growth",
     cta: { label: "Upgrade to Operations", href: SIGN_UP },
     // #1E6D29, not --brand-green: this renders as BUTTON LABEL text over a
     // 7%-alpha tint of itself, where #2E8E3A measured 3.8204:1. 5.7988:1.
@@ -239,13 +277,19 @@ export const PLANS: Plan[] = [
     // an ungated capability as a €999 differentiator is the offer⇔works rule broken on the price
     // list itself. Integration's real differentiators are volume, suppliers and onboarding; the
     // card now says only that.
+    //
+    // The channels bullet and "Advanced audit trail" are now carried by
+    // `inheritsFrom: "operations"`. Listing them again was not what made this card honest — what
+    // made it DIShonest was listing those two and silently dropping cXML and bulk mapping, which
+    // Integration also includes (gates are minimum-plan). A buyer comparing €399 to €999 saw the
+    // dearer tier lose two capabilities. Integration's real differentiators are volume,
+    // suppliers, and onboarding; the two numbers sit on the fixed axis every card shares.
     features: [
       "1,500 orders/month",
       "20 suppliers",
-      "All channels (webhook/API, email, SFTP, S3)",
-      "Advanced audit trail",
       "Assisted onboarding",
     ],
+    inheritsFrom: "operations",
     cta: { label: "Upgrade to Integration", href: SIGN_UP },
     color: "#6F4FCE",
     highlight: false,
@@ -270,14 +314,16 @@ export const PLANS: Plan[] = [
     blurb: "For distributors and resellers routing high order volume across many suppliers.",
     recommendationBlurb:
       "For distributors and resellers: up to 2,500 orders/month across 30 suppliers.",
+    // Channels and bulk mapping come from `inheritsFrom: "integration"`. This card used to list
+    // those two and omit cXML and advanced audit — both of which Distributor includes — so the
+    // €1,499 tier read as thinner than the €399 one.
     features: [
       "2,500 orders/month",
       "30 suppliers",
-      "All channels (webhook/API, email, SFTP, S3)",
-      "Bulk mapping import/export",
       "Priority onboarding",
       "Founder-led supplier setup",
     ],
+    inheritsFrom: "integration",
     // Distributor is the ICP tier (Baltic IT distributors / resellers): shown on
     // /pricing AND self-serve. The Stripe Distributor product + monthly/yearly
     // prices exist (Stripe:DistributorPriceId is set in Railway and verified
@@ -333,6 +379,7 @@ export const PLANS: Plan[] = [
       "SLA",
       "Custom transformation rules",
     ],
+    inheritsFrom: "distributor",
     cta: { label: "Contact sales", href: SALES },
     color: "#0B1A2F",
     highlight: false,
@@ -350,6 +397,42 @@ export const PLAN_BY_ID: Record<PlanId, Plan> = PLANS.reduce(
   },
   {} as Record<PlanId, Plan>,
 );
+
+/**
+ * The line a card shows above its own bullets — `"Everything in Operations, plus"` — or null
+ * for Pilot, which inherits nothing.
+ *
+ * Derived from `inheritsFrom` rather than typed per card, so a card can never advertise an
+ * inheritance the data does not declare (or, worse, quietly stop advertising one it does).
+ */
+export function inheritanceLine(plan: Plan): string | null {
+  if (plan.inheritsFrom == null) return null;
+  return `Everything in ${PLAN_BY_ID[plan.inheritsFrom].name}, plus`;
+}
+
+/**
+ * Everything a tier includes: its own bullets plus, transitively, every bullet of the tiers
+ * below it. This is what the CARD COMMUNICATES, and therefore the set any honesty check about
+ * a tier's capabilities has to reason over — `plan.features` alone is only the delta.
+ *
+ * Ordered cheapest-tier-first so the result reads like the ladder. Throws on a cycle rather
+ * than looping: `inheritsFrom` is hand-written and a typo that pointed a tier at itself would
+ * otherwise hang the pricing page's static render.
+ */
+export function effectiveFeatures(plan: Plan): string[] {
+  const seen = new Set<PlanId>();
+  const chain: Plan[] = [];
+  let current: Plan | undefined = plan;
+  while (current) {
+    if (seen.has(current.id)) {
+      throw new Error(`plans: inheritsFrom cycle at '${current.id}' — the ladder must terminate at Pilot`);
+    }
+    seen.add(current.id);
+    chain.unshift(current);
+    current = current.inheritsFrom == null ? undefined : PLAN_BY_ID[current.inheritsFrom];
+  }
+  return chain.flatMap((p) => p.features);
+}
 
 /** Plan ids that go through self-serve Stripe Checkout (excludes Pilot, Enterprise, and hidden plans). */
 export const CHECKOUT_PLAN_IDS: PlanId[] = PLANS.filter((p) => p.isCheckout && !p.hidden).map((p) => p.id);

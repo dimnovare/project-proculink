@@ -13,6 +13,7 @@ import {
   OUTPUT_FORMATS,
   STANDARD_NAME_TOKENS,
   parseStatus,
+  partitionByDirection,
   standardRow,
   transformStatus,
   type FormatRow,
@@ -390,5 +391,56 @@ describe("no user-facing copy claims Peppol BIS conformance", () => {
         "check that asserts the conformance ids are non-empty rather than correct. Say \"UBL 2.1 " +
         "Order\", or disclaim it on the same line:\n" + offenders.join("\n"),
     ).toEqual([]);
+  });
+});
+
+/**
+ * The landing-page format strip, and the direction it claims.
+ *
+ * ── The defect ──────────────────────────────────────────────────────────────────
+ *
+ * `src/app/(home)/page.tsx` headed a row of mono format labels with "Speaks the formats your
+ * suppliers already use" — the OUTBOUND direction — over a hand-typed
+ * `["PDF", "CSV", "Excel", "cXML", "UBL", "EDIFACT", "X12"]`. EDIFACT's `transform` level
+ * resolves to `onRequest` (there is no outbound transformer), and the product's own help page
+ * says so in as many words: "EDIFACT is inbound only. … There is no outbound EDIFACT transformer
+ * today." Two surfaces, opposite claims, and the one a prospect meets first was the wrong one.
+ *
+ * The strip sat three constants away from the counts directly above it, which have been derived
+ * from this catalog since the day they were written. `partitionByDirection` closes that gap: the
+ * page still writes the short marketing labels, but the catalog decides which are emitted.
+ */
+describe("the landing format strip takes its direction from the catalog", () => {
+  it("puts EDIFACT on the read-only side, because no outbound transformer exists", () => {
+    const { emitted, inboundOnly } = partitionByDirection(["PDF", "CSV", "Excel", "cXML", "UBL", "EDIFACT", "X12"]);
+
+    expect(inboundOnly, "the claim the landing page used to make").toContain("EDIFACT");
+    expect(inboundOnly, "input-only formats").toEqual(expect.arrayContaining(["PDF", "Excel"]));
+    expect(emitted, "these really are produced today").toEqual(expect.arrayContaining(["CSV", "cXML", "UBL", "X12"]));
+    expect(emitted, "EDIFACT is onRequest, which is not the same as available").not.toContain("EDIFACT");
+
+    // Every label is accounted for exactly once — a label silently dropped would shrink the strip.
+    expect([...emitted, ...inboundOnly].sort()).toEqual(
+      ["PDF", "CSV", "Excel", "cXML", "UBL", "EDIFACT", "X12"].sort(),
+    );
+  });
+
+  it("refuses a label the catalog does not measure, rather than guessing a direction", () => {
+    // The failure mode a hand-typed strip has no defence against: a format that was renamed,
+    // retired, or never existed keeps rendering. Both pages that call this are statically
+    // generated, so this throws during `bun run build`.
+    expect(() => partitionByDirection(["Peppol BIS 3"])).toThrow(/matches no format row/i);
+    expect(() => partitionByDirection(["JSON"]), "a real one must not throw").not.toThrow();
+  });
+
+  it("the landing page derives the strip instead of typing its own", () => {
+    // The mechanism is only worth anything if the page uses it. Reverting to a literal array is
+    // the exact regression, and it is invisible to every other assertion in this file.
+    const landing = readFileSync(join(process.cwd(), "src/app/(home)/page.tsx"), "utf8");
+    expect(
+      landing,
+      "the format strip must come from partitionByDirection — a hand-typed list is how EDIFACT " +
+        "was advertised as an output format",
+    ).toMatch(/partitionByDirection\(/);
   });
 });

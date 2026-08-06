@@ -1,14 +1,17 @@
 import { helpArticleMetadata } from "@/lib/seo";
+import { requiresPlan } from "@/lib/gatedCapabilities";
 
 export const metadata = helpArticleMetadata({
   slug: "cxml-setup",
   title: "Setting up cXML delivery — ProcuLink Help",
-  description: "Parse inbound cXML orders and deliver cXML output, with a walkthrough of the From / To / Sender credential fields.",
+  description: "Parse inbound cXML orders and deliver cXML output, with a walkthrough of the From / To / Sender credential fields, and which plan cXML output needs.",
 });
 
 # Setting up cXML delivery
 
 cXML 1.2 is the XML dialect used by supplier-network platforms — Coupa, SAP Ariba, Jaggaer and similar. If a supplier says "send us a punchout order" or "post to our cXML endpoint," this is the format they mean. ProcuLink parses inbound cXML orders and emits cXML output.
+
+> **Which plan you need.** Parsing an inbound cXML order is on every plan. Delivering cXML **out** to a supplier is {requiresPlan("cxml")} — choosing cXML as a supplier's output format on a cheaper plan is refused when you save the delivery config, not later when you send. The rest of this article is the reference for the credentials; [plans and quotas](/help/billing-faq) covers the ladder.
 
 > This article is the cXML reference. For where these credentials go and what to test before the first real order, follow [set up delivery to a supplier and test-fire it](/help/guides/set-up-supplier-delivery).
 

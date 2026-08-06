@@ -1,3 +1,5 @@
+import { requiresPlan } from "@/lib/gatedCapabilities";
+
 export type HelpCategory =
   | "Getting started"
   | "Connections"
@@ -184,7 +186,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
   {
     slug: "cxml-setup",
     title: "Setting up cXML delivery",
-    blurb: "Parse inbound cXML 1.2 orders and deliver cXML output, with a walkthrough of the From / To / Sender credential fields and the write-only shared secret.",
+    blurb: `Parse inbound cXML 1.2 orders on any plan and deliver cXML output on ${requiresPlan("cxml")}, with a walkthrough of the From / To / Sender credential fields and the write-only shared secret.`,
     category: "Delivery",
     keywords: ["cxml", "coupa", "ariba", "OrderRequest", "network id", "shared secret", "punchout", "supplier network", "credential domain", "sap"],
     readMin: 4,
@@ -214,7 +216,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
   {
     slug: "erp-erply-and-directo",
     title: "Erply and Directo ERP delivery adapters",
-    blurb: "Configure the Erply (base URL + client code) and Directo (base URL + company + basic auth) delivery adapters, and understand they ship the generated order artifact into the ERP — validated by tests, not a live sandbox.",
+    blurb: `Configure the Erply (base URL + client code) and Directo (base URL + company + basic auth) delivery adapters on ${requiresPlan("erpConnectors")}, and understand they ship the generated order artifact into the ERP — validated by tests, not a live sandbox.`,
     category: "Delivery",
     keywords: ["erply", "directo", "erp adapter", "delivery channel", "client code", "company database", "basic auth", "order artifact", "field mapping", "test-fire"],
     readMin: 5,
