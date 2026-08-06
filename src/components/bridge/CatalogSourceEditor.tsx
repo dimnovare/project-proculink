@@ -28,6 +28,7 @@ import {
   httpAuthFormSatisfied,
   protocolIsVendor,
   protocolUsesUrl,
+  LAST_SYNC_DOT,
   type CatalogAuthFormState,
 } from "./catalogSourceHelpers";
 import { useConfirm } from "@/components/ui/confirm";
@@ -940,18 +941,15 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
                     color: lastSync.tone === "failed" ? "#A52E2E" : "#5E6779",
                   }}
                 >
+                  {/* Colour comes from the exhaustive LAST_SYNC_DOT record, not a ternary
+                      chain: the chain's trailing branch is what a new tone would inherit,
+                      and the sibling defect (an unrecognised STATUS inheriting the "ok"
+                      arm of formatLastSync's switch) is the whole reason this line moved. */}
                   <span
+                    data-testid="catalog-last-sync-dot"
+                    data-tone={lastSync.tone}
                     className="h-2 w-2 flex-shrink-0 rounded-full"
-                    style={{
-                      background:
-                        lastSync.tone === "ok"
-                          ? "#2E8E3A"
-                          : lastSync.tone === "failed"
-                            ? "#B43838"
-                            : lastSync.tone === "running"
-                              ? "#1E66C9"
-                              : "var(--ink-faint)",
-                    }}
+                    style={{ background: LAST_SYNC_DOT[lastSync.tone] }}
                   />
                   <span className="min-w-0 flex-1 break-words">{lastSync.text}</span>
                 </div>
