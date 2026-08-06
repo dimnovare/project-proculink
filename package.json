@@ -19,8 +19,6 @@
     "test:e2e:a11y:update": "cross-env A11Y_UPDATE_BASELINE=1 playwright test --project=chromium --workers=1 a11y-axe.spec.ts",
     "test:e2e:visual": "playwright test visual.spec.ts",
     "test:e2e:visual:update": "playwright test visual.spec.ts --update-snapshots",
-    "visual:linux": "node scripts/visual-baselines-docker.mjs",
-    "visual:linux:update": "node scripts/visual-baselines-docker.mjs --update",
     "demo:capture": "playwright test --config=playwright.demo.config.ts",
     "guides:capture": "playwright test --config=playwright.guides.config.ts",
     "demo:vo": "node scripts/demo-video/generate-vo.mjs",

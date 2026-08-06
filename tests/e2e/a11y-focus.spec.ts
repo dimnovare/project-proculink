@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 
 import { CORE_SCREENS } from "./coreScreens";
-import { preparePage, settle, DEV_OVERLAY_SELECTORS } from "./a11yHarness";
+import { preparePage, settle, errorBoundaryMarker, DEV_OVERLAY_SELECTORS } from "./a11yHarness";
 
 /**
  * Keyboard focus visibility, MEASURED — WCAG 2.4.7 (Focus Visible, AA).
@@ -142,6 +142,15 @@ test.describe("keyboard focus is visible on every core screen", { tag: "@a11y" }
       const response = await page.goto(screen.path);
       expect(response?.status(), `${screen.path} did not serve a page`).toBeLessThan(400);
       await settle(page);
+
+      // See a11yHarness.errorBoundaryMarker: a 200 response and a populated shell
+      // do not mean this screen rendered.
+      const boundary = await errorBoundaryMarker(page);
+      expect(
+        boundary,
+        `${screen.path} rendered an error boundary ("${boundary}"), not the screen. ` +
+          "Tabbing through a recovery panel proves nothing about this screen's focus order.",
+      ).toBeNull();
 
       // Record every focusable control's resting appearance BEFORE anything is
       // focused. Indexed by a data attribute so the tab walk can find its way

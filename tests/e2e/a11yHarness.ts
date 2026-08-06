@@ -115,6 +115,31 @@ export async function preparePage(page: Page, options: PreparePageOptions = {}):
 }
 
 /**
+ * Is this screen showing an error boundary instead of its content?
+ *
+ * FOUND BY AN ADVERSARIAL PASS, not by design. `throw new Error(...)` was added to
+ * `src/app/(app)/upload/page.tsx` to check that a genuinely broken screen could
+ * not pass the gates. It passed. The reason is in `(app)/error.tsx`'s own header
+ * comment: that boundary renders INSIDE `(app)/layout.tsx`, so the sidebar,
+ * topbar and breadcrumb are all still on screen, the response is still HTTP 200,
+ * and the shell alone supplies well over 200 characters of text and a dozen
+ * controls. Every floor was satisfied by chrome belonging to a page that had not
+ * rendered.
+ *
+ * So the floors are not enough, and no amount of raising the numbers fixes it —
+ * the chrome scales with them. The three error surfaces now carry
+ * `data-plk-error-boundary`, and this asks for it directly.
+ *
+ * Returns the marker's value, or null when the screen really rendered.
+ */
+export async function errorBoundaryMarker(page: Page): Promise<string | null> {
+  return page.evaluate(() => {
+    const el = document.querySelector("[data-plk-error-boundary]");
+    return el ? el.getAttribute("data-plk-error-boundary") : null;
+  });
+}
+
+/**
  * Wait for a navigated page to stop changing.
  *
  * `networkidle` is best-effort on purpose: several app screens hold a poll open

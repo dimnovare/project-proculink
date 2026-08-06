@@ -28,7 +28,8 @@ export default function GlobalError({
 
   return (
     <html lang="en">
-      <body style={{ margin: 0 }}>
+      {/* See (app)/error.tsx for why this marker exists. */}
+      <body style={{ margin: 0 }} data-plk-error-boundary="global">
         <main
           style={{
             minHeight: "100dvh",

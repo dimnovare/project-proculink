@@ -176,13 +176,7 @@ export default defineConfig({
   webServer: {
     command: `next dev -p ${PORT}`,
     url: ORIGIN,
-    // 120s is right for a native filesystem and is what CI uses. It is NOT enough
-    // inside the visual-baseline container, where /work is a bind mount of a
-    // Windows checkout and `next dev`'s first compile reads several thousand
-    // source files across the VM boundary — measured, it blew straight through
-    // 120s. Overridable rather than raised, so the CI default stays honest about
-    // how long a cold start should take.
-    timeout: Number(process.env.PLAYWRIGHT_WEBSERVER_TIMEOUT_MS ?? 120_000),
+    timeout: 120_000,
     reuseExistingServer: !process.env.CI,
     env: {
       PROCULINK_QA_BYPASS_AUTH: "true",

@@ -4,7 +4,7 @@ import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 
 import { CORE_SCREENS, EXPECTED_CORE_SCREEN_COUNT, checkCoreScreenRegistry } from "./coreScreens";
-import { preparePage, settle, DEV_OVERLAY_SELECTORS } from "./a11yHarness";
+import { preparePage, settle, errorBoundaryMarker, DEV_OVERLAY_SELECTORS } from "./a11yHarness";
 
 /**
  * axe-core over the ten core screens, held by a ratchet.
@@ -129,6 +129,18 @@ test.describe("axe-core — WCAG 2.1 A/AA over the core screens", { tag: "@a11y"
       ).toBeLessThan(400);
 
       await settle(page);
+
+      // The screen must have RENDERED, not error-boundaried. The status check
+      // above cannot see this: (app)/error.tsx replaces only the content region
+      // and the response is still 200. Measured — /upload passed this whole test
+      // with `throw new Error(...)` in its page component, on the strength of the
+      // sidebar and topbar alone.
+      const boundary = await errorBoundaryMarker(page);
+      expect(
+        boundary,
+        `${screen.path} rendered an error boundary ("${boundary}"), not the screen. ` +
+          "Scanning a recovery panel is not scanning this screen.",
+      ).toBeNull();
 
       // Anti-vacuity: axe on a blank body reports zero violations and looks green.
       const contentSize = await page.evaluate(() => ({
