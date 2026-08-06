@@ -155,7 +155,12 @@ export function collectLayoutProblems(t: OutputNodeTemplate): DesignProblem[] {
     if (prefix !== "" || uri !== "") perNodeUsed = true;
 
     // The emitter throws on a prefix with no namespace: there is nothing for it to bind to.
-    if (prefix !== "" && uri === "") {
+    //
+    // XML only, and that is not a detail. JSON and CSV ignore namespaces entirely, and a tree
+    // REACHES that state by ordinary use: infer a namespaced XML sample, then switch the format to
+    // JSON. The namespace data is dead but harmless, so blocking the save on it would lock an author
+    // out of a layout that emits perfectly.
+    if (isXml && prefix !== "" && uri === "") {
       out.push({
         id: `prefix-without-namespace:${path.join(".")}`,
         kind: "prefix-without-namespace",
@@ -224,8 +229,10 @@ export function collectLayoutProblems(t: OutputNodeTemplate): DesignProblem[] {
     }
   });
 
-  // The emitter refuses a tree that declares namespaces in both places. Reported once, not per node.
-  if (rootMapUsed && perNodeUsed) {
+  // The emitter refuses a tree that declares namespaces in both places. Reported once, not per node,
+  // and XML-only for the same reason as the check above: a JSON or CSV layout that happens to carry
+  // both is emitting neither, so there is nothing to refuse.
+  if (isXml && rootMapUsed && perNodeUsed) {
     out.push({
       id: "namespace-mode-collision",
       kind: "namespace-mode-collision",

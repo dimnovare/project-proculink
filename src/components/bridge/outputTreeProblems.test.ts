@@ -98,6 +98,25 @@ describe("tier 1 — the emitter's own throw sites, caught here instead", () => 
     }
   });
 
+  // Found by trying to break this after building it. Both namespace rules are XML-only because a
+  // tree REACHES the flagged state by ordinary use: infer a namespaced XML sample, then switch the
+  // format to JSON. JSON and CSV ignore namespaces entirely, so the data is dead but harmless —
+  // blocking the save on it would lock an author out of a layout that emits perfectly.
+  it.each(["json", "csv"] as const)("neither namespace rule fires for %s, where namespaces mean nothing", (format) => {
+    const t: OutputNodeTemplate = { ...healthyTree(format), namespaces: { cbc: UBL_CBC_URI } };
+    t.root = { ...t.root, prefix: "cac", namespace: UBL_CAC_URI };
+    t.root.children![0] = { ...t.root.children![0], prefix: "cbc", namespace: null };
+    const ps = collectLayoutProblems(t);
+    expect(ps.filter((p) => p.kind === "prefix-without-namespace")).toEqual([]);
+    expect(ps.filter((p) => p.kind === "namespace-mode-collision")).toEqual([]);
+    expect(blocksSave(ps)).toBe(false);
+    // Anti-vacuity: the identical tree in XML reports both, so the exemption is about the format and
+    // not about the fixture failing to reproduce the state.
+    const asXml = collectLayoutProblems({ ...t, format: "xml" });
+    expect(asXml.filter((p) => p.kind === "prefix-without-namespace")).toHaveLength(1);
+    expect(asXml.filter((p) => p.kind === "namespace-mode-collision")).toHaveLength(1);
+  });
+
   it("two CSV columns with the same name", () => {
     const t = healthyTree("csv");
     t.root.children!.push(field("orderNumber"));
