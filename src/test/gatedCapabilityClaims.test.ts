@@ -3,8 +3,10 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { IMPORT_METHODS } from "@/lib/marketing/format-catalog";
+import { CONFORMANCE_PROFILES } from "@/lib/api-client";
+import { IMPORT_METHODS, STANDARD_NAME_TOKENS } from "@/lib/marketing/format-catalog";
 import { PLANS, type Plan } from "@/lib/plans";
+import { STANDARDS } from "@/lib/standards/catalog";
 
 /**
  * WP-11 follow-through — **the tier a capability is ADVERTISED on must be the tier the backend
@@ -1258,5 +1260,222 @@ describe("no buyer-facing copy claims records are immutable, because nothing enf
     expect(offends("Requeueing supersedes earlier attempts rather than erasing them.")).toBe(false);
     // A tier claim is the other block's business, not this one's.
     expect(offends("The workspace-wide delivery log is included from the Operations plan up.")).toBe(false);
+  });
+});
+
+/**
+ * Conformance to a named document standard — a claim that moved out of marketing and into the
+ * product, where every guard above was blind to it.
+ *
+ * ── The defect ──────────────────────────────────────────────────────────────────
+ *
+ * FE #91 withdrew "Peppol BIS 3" from the website. Three surfaces kept making it, and the worst of
+ * them was not a page at all — it was the DOCUMENT:
+ *
+ *   1. `UblOrderTransformService.cs:73-74,114-115` wrote `cbc:CustomizationID` =
+ *      `urn:fdc:peppol.eu:poacc:trns:order:3` and `cbc:ProfileID` =
+ *      `urn:fdc:peppol.eu:poacc:bis:order_only:3` into every emitted UBL order. Those are not
+ *      decoration: a receiving access point ROUTES AND VALIDATES on them, so the file itself
+ *      declared BIS conformance to the counterparty's software.
+ *   2. `UblProfileChecker.cs:18` named the profile "UBL 2.1 Order (Peppol BIS Order-only 3.0)" and
+ *      its only two profile checks asserted the same two elements were NON-EMPTY — which the
+ *      emitter had just guaranteed. The check could not fail. `api-client.ts` mirrored that name,
+ *      and `ConformancePanel.tsx` rendered it under "Matches the standard" with a green badge.
+ *   3. `ConformanceModels.cs:93` put `- **Profile:** {ProfileName}` into the downloadable Markdown,
+ *      so a customer could forward a file asserting BIS conformance on ProcuLink's behalf.
+ *
+ * The product already knew: `src/lib/standards/catalog.ts` carries the Peppol BIS row as
+ * `transform: "planned"` and says, in capitals, that BIS-conformant output "IS NOT OFFERED AND MUST
+ * NOT BE ADVERTISED".
+ *
+ * ── Why the existing guards could not see it ────────────────────────────────────
+ *
+ * Both blind spots are the same shape as the ones this file already records:
+ *
+ *   • `buyerFacingLines()` walks `src/lib/marketing`, `src/app/(marketing)`, `src/app/(home)`,
+ *     `src/components/marketing`, `plans.ts` and `help-articles.ts`. `src/components/bridge/` —
+ *     the entire product — is not in it, and neither is `src/lib/`. A claim that stops being
+ *     marketing copy and becomes a rendered profile name walks straight out of the corpus.
+ *   • `STANDARD_NAME_TOKENS` (format-catalog.ts) does catch "Peppol BIS", but `standardRow()` only
+ *     ever applies it to rows in that one file.
+ *
+ * So the corpus here is the whole of `src/`, and the offence is the claim rather than a tier.
+ *
+ * ── What this guard cannot do, stated rather than assumed ───────────────────────
+ *
+ * It is LINE-SCOPED, like the two blocks above: a claim split across two lines is invisible to it,
+ * and `catalog.ts` writes `conformance:` on one line with its string on the next. It cannot read
+ * the BACKEND at all — the emitted document and the real `ProfileName` live in a separate
+ * checkout that is not present on CI — so the emitted-constant half is guarded there, by
+ * `ProcuLink.Transform.Tests/Output/UblOrderDeclaresNoPeppolProfileTests.cs`. What it does cover
+ * on this side is every string this app itself renders, and the mirror of the backend's profile
+ * names in `api-client.ts`.
+ */
+describe("no surface claims conformance to a standard ProcuLink does not emit", () => {
+  /**
+   * Every `.ts`/`.tsx`/`.mdx` under `src/` — the IN-APP product as well as the marketing site.
+   * `buyerFacingLines()` is deliberately left as it is: its two consumers ask about pricing and
+   * about the delivery log, and widening their corpus would change what those guards mean.
+   *
+   * Memoised. This walks and reads the whole source tree, and two tests below need it; doing that
+   * twice pushed the pair past vitest's 5s default on a loaded machine.
+   */
+  let corpus: Array<{ file: string; line: string; number: number }> | null = null;
+  const productLines = (): Array<{ file: string; line: string; number: number }> =>
+    (corpus ??= walk(join(process.cwd(), "src")).flatMap((file) =>
+      scannableLines(file).map(({ line, number }) => ({
+        file: file.replace(process.cwd(), ""),
+        line,
+        number,
+      })),
+    ));
+
+  /**
+   * The two Peppol BIS Order identifiers, verbatim as the backend emitted them.
+   *
+   * Unconditional: there is no honest reason for this app to carry the URN a receiving access point
+   * validates on. Naming the standard in prose is a different question, handled below.
+   */
+  const PEPPOL_ORDER_URN = /urn:fdc:peppol\.eu:poacc:(?:bis:order_only|trns:order):3/i;
+
+  /** Standards the catalog says ProcuLink really EMITS. Anything else may not be claimed as output. */
+  const emittedStandards = new Set(STANDARDS.filter((s) => s.transform === "supported").map((s) => s.id));
+
+  /**
+   * Words that turn naming a standard into asserting we meet it. "Conformance" is included as a
+   * noun because "Peppol BIS conformance" is the claim written without a verb.
+   */
+  const CONFORMANCE_WORD =
+    /\b(?:conformant|conforming|conforms|conformance|compliant|complies|compliance|certified|certification|validated|validates|verified against|checked against)\b/i;
+
+  /**
+   * A denial is not a claim, and this repo's honest copy is written almost entirely as denials —
+   * "is not offered", "does not check", "we have not run that test". A guard without this arm would
+   * flag the very sentences that fixed the problem, and the obvious repair would be to delete them.
+   */
+  const NEGATED = /\b(?:not|no|never|cannot|can't|without|isn't|aren't|doesn't|don't|rather than|instead of)\b/i;
+
+  /** Which catalog standard, if any, this line names. Reuses the registry, so it cannot drift from it. */
+  const standardsNamed = (line: string): string[] =>
+    STANDARD_NAME_TOKENS.filter(({ token }) => token.test(line)).map(({ catalogId }) => catalogId);
+
+  /**
+   * Does this line assert that ProcuLink's output conforms to a standard it does not emit?
+   *
+   * Derived, not typed: the verdict comes from `STANDARDS[].transform`, so the day a transformer
+   * ships and the catalog says `supported`, the claim becomes sayable without editing this file.
+   */
+  const offends = (line: string): boolean => {
+    if (PEPPOL_ORDER_URN.test(line)) return true;
+    if (!CONFORMANCE_WORD.test(line) || NEGATED.test(line)) return false;
+    return standardsNamed(line).some((id) => !emittedStandards.has(id));
+  };
+
+  it("scans the whole app, in-app components included", () => {
+    // The anti-vacuity floor, and it names the exact directory whose absence was the defect. A
+    // corpus that reverted to the marketing tree would pass every assertion below while blind.
+    const lines = productLines();
+    expect(lines.length, "the corpus must really be reading source").toBeGreaterThan(5000);
+    for (const dir of ["/src/components/bridge/", "/src/lib/standards/", "/src/app/(marketing)/"]) {
+      expect(
+        lines.filter(({ file }) => file.replace(/\\/g, "/").includes(dir)).length,
+        `${dir} must be inside the corpus — the claim this guard exists for lived in the product, ` +
+          "not on the marketing site",
+      ).toBeGreaterThan(0);
+    }
+    // And the registries it derives from must be populated, or every verdict is vacuously "fine".
+    expect(STANDARD_NAME_TOKENS.length).toBeGreaterThan(0);
+    expect(emittedStandards.size).toBeGreaterThan(0);
+    expect(emittedStandards.has("peppol-bis-order-3"), "the Peppol BIS row is transform: 'planned'").toBe(false);
+    expect(emittedStandards.has("ubl-2-1-order"), "UBL 2.1 really is emitted, and must stay sayable").toBe(true);
+    // Reading the whole source tree takes seconds on a machine running other suites in parallel.
+    // The 5s default turns that into a red build that says nothing about the claim being guarded.
+  }, 30_000);
+
+  it("no line anywhere in the app claims conformance to a standard the catalog says we do not emit", () => {
+    const offenders = productLines()
+      .filter(({ line }) => offends(line))
+      .map(({ file, number, line }) => `${file}:${number}: ${line.trim()}`);
+
+    expect(
+      offenders,
+      "these lines assert conformance to a standard whose `transform` level in " +
+        "src/lib/standards/catalog.ts is not `supported`, or carry a Peppol BIS Order identifier " +
+        "outright. Say what ProcuLink actually emits, or say plainly that the profile is not " +
+        "offered:\n" + offenders.join("\n"),
+    ).toEqual([]);
+  }, 30_000);
+
+  it("every conformance profile name cites only a standard ProcuLink emits", () => {
+    // `CONFORMANCE_PROFILES` is this app's mirror of the backend's ConformanceCheckBuilder names,
+    // and a profile NAME is the most load-bearing standards claim in the product: it renders under
+    // "Matches the standard" with a pass badge and goes into the downloadable report verbatim.
+    const entries = Object.entries(CONFORMANCE_PROFILES);
+    expect(entries.length, "anti-vacuity: there must be profiles to check").toBeGreaterThan(0);
+
+    for (const [format, { name }] of entries) {
+      expect(name, `the ${format} profile has no name`).not.toBe("");
+      for (const id of standardsNamed(name)) {
+        expect(
+          emittedStandards.has(id),
+          `the ${format} conformance profile is named "${name}", which cites the '${id}' standard — ` +
+            `but src/lib/standards/catalog.ts records its \`transform\` level as ` +
+            `'${STANDARDS.find((s) => s.id === id)?.transform}'. A profile name is what the panel ` +
+            `prints beside a green "Matches the standard" badge and what the downloadable report ` +
+            `puts on its Profile line, so it may only name a standard we really emit.`,
+        ).toBe(true);
+      }
+    }
+  });
+
+  it("flags the claims that shipped, verbatim, so a green result means absence and not blindness", () => {
+    // 1. The emitted-document constants — the backend line that put the URN into every order.
+    expect(
+      offends('            new XElement(Cbc + "ProfileID",           PeppolBisProfileId),'),
+      "a bare reference is not the identifier itself",
+    ).toBe(false);
+    expect(
+      offends('    private const string PeppolBisProfileId       = "urn:fdc:peppol.eu:poacc:bis:order_only:3";'),
+      "the identifier a receiving access point validates on",
+    ).toBe(true);
+    expect(offends("urn:fdc:peppol.eu:poacc:trns:order:3")).toBe(true);
+
+    // 2. The profile name, exactly as `api-client.ts:3000` carried it.
+    expect(
+      standardsNamed('ubl:  { profile: "Ubl21Order", name: "UBL 2.1 Order (Peppol BIS Order-only 3.0)", version: "2.1" },'),
+      "the name cites BOTH standards; the Peppol one is the offence",
+    ).toContain("peppol-bis-order-3");
+
+    // 3. Affirmative prose, in the shapes a writer reaches for.
+    expect(offends("ProcuLink emits Peppol BIS Order 3.0 conformant documents."), "conformant").toBe(true);
+    expect(offends("Output is validated against Peppol BIS business rules."), "validated against").toBe(true);
+    expect(offends("Peppol BIS 3 certified output for your access point."), "certified").toBe(true);
+    expect(offends("EDIFACT ORDERS compliance out of the box."), "another planned standard, same rule").toBe(true);
+  });
+
+  it("leaves the honest copy alone — including the sentences that fixed this", () => {
+    // Every one of these ships today. If the guard ever starts flagging them, the obvious repair is
+    // to delete the disclosure, which would put the product back where it started.
+    for (const honest of [
+      "| Peppol BIS Order 3.0 | Not offered — a BIS Order file parses inbound (it is UBL 2.1), but ProcuLink does not produce BIS-conformant output and does not check output against BIS business rules |",
+      "| UBL 2.1 Order | Supported. **Peppol BIS Order 3.0 output is not offered** — ProcuLink emits the OASIS UBL 2.1 Order document and does not check it against Peppol BIS business rules. |",
+      "ProcuLink is not a Peppol conformance tool.",
+      "It does not certify Peppol BIS Order 3 conformance — and we would rather tell you here than have you find out at an access point.",
+      '  { id: "ubl", label: "UBL 2.1", blurb: "The OASIS UBL 2.1 Order document, common in EU e-procurement. Not checked against Peppol BIS business rules." },',
+    ]) {
+      expect(offends(honest), `must allow: ${honest.slice(0, 60)}…`).toBe(false);
+    }
+
+    // A standard we really do emit may be claimed in full — under-claiming gives away real value.
+    expect(offends("Every order is validated against the cXML 1.2 OrderRequest profile."), "cXML is supported").toBe(
+      false,
+    );
+    expect(offends("X12 850 conformance checks run on every transform."), "X12 850 is supported").toBe(false);
+    // Naming Peppol without a conformance word is not a claim: the Peppol NETWORK is a real
+    // transport reached through an access-point partner, and the element paths really are shared.
+    expect(offends("Because Peppol BIS Order 3 constrains UBL rather than replacing it, those element paths are the Peppol paths too.")).toBe(
+      false,
+    );
+    expect(offends("Delivery into the Peppol network runs through a certified access-point partner.")).toBe(false);
   });
 });

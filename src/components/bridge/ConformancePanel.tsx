@@ -229,6 +229,17 @@ export function ConformancePanel({ orderId, supplierName, defaultFormat }: {
               <p className="mt-0.5 text-[12px]" style={{ color: "var(--ink-faint)" }}>
                 {report.errorCount} error{report.errorCount === 1 ? "" : "s"} · {report.warningCount} warning{report.warningCount === 1 ? "" : "s"} · {report.checks.length} checks
               </p>
+              {/*
+                What a pass means, said where the pass is shown. "Matches the standard" above sits
+                beside a green badge, and the checks behind it are presence and cardinality only —
+                not a schema validation and not a certification. Saying so here is the difference
+                between a useful pre-flight and a conformance claim the product cannot back.
+              */}
+              <p className="mt-1.5 text-[11.5px]" style={{ color: "var(--ink-faint)" }}>
+                Checks the mandatory elements and cardinalities of this profile. Not a full schema
+                validation, and not a certification — validate with your supplier or access point
+                before you rely on it.
+              </p>
             </div>
             <div className="flex flex-col items-start gap-1 sm:items-end">
               <button
