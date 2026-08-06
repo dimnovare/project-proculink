@@ -97,7 +97,7 @@ function formatNodes(nodes: ViolationNode[]): string {
  * registry reports as "the registry is broken" and not as ten unrelated
  * navigation failures.
  */
-test("the core-screen registry still describes real routes", () => {
+test("the core-screen registry still describes real routes", { tag: "@a11y" }, () => {
   const problems = checkCoreScreenRegistry();
   expect(
     problems.map((p) => `${p.kind}: ${p.detail}`),
@@ -106,7 +106,11 @@ test("the core-screen registry still describes real routes", () => {
   expect(CORE_SCREENS.length).toBe(EXPECTED_CORE_SCREEN_COUNT);
 });
 
-test.describe("axe-core — WCAG 2.1 A/AA over the core screens", () => {
+// Tagged so the two runs stay disjoint: `bun run test:e2e` filters @a11y OUT and
+// `bun run test:e2e:a11y` filters it IN. Without that, adding these specs to the
+// shared testDir would have made the existing e2e job run them a second time and
+// added ~4 minutes of CI for no extra signal.
+test.describe("axe-core — WCAG 2.1 A/AA over the core screens", { tag: "@a11y" }, () => {
   // Ten routes, several of them the heaviest in the app, each compiled on first
   // hit by `next dev`. Same reasoning as tap-targets.spec.ts: the clock is the
   // flake source, not the assertion.

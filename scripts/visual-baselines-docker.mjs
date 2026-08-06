@@ -130,6 +130,11 @@ const status = run("docker", [
   "NEXT_PUBLIC_API_BASE_URL=http://localhost:5223",
   "-e",
   "SENTRY_SUPPRESS_GLOBAL_ERROR_HANDLER_FILE_WARNING=1",
+  // /work is a bind mount across the VM boundary, so `next dev`'s first compile
+  // is several times slower than it is on the CI runner's native disk. CI keeps
+  // the 120s default; only this path needs the longer rope.
+  "-e",
+  "PLAYWRIGHT_WEBSERVER_TIMEOUT_MS=600000",
   IMAGE,
   "bash",
   "-lc",

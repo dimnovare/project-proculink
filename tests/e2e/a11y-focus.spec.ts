@@ -96,7 +96,7 @@ function changedUnderFocus(s: Stop): boolean {
   return keys.some((k) => s.now[k] !== s.before[k]);
 }
 
-test.describe("keyboard focus is visible on every core screen", () => {
+test.describe("keyboard focus is visible on every core screen", { tag: "@a11y" }, () => {
   test.describe.configure({ timeout: 120_000 });
 
   test("the global :focus-visible contract is in effect (canary)", async ({ page }) => {

@@ -1,5 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { platform } from "node:os";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 
 import { CORE_SCREENS, EXPECTED_CORE_SCREEN_COUNT, checkCoreScreenRegistry } from "./coreScreens";
 import { preparePage, settle, DEV_OVERLAY_SELECTORS } from "./a11yHarness";
@@ -55,6 +57,16 @@ import { preparePage, settle, DEV_OVERLAY_SELECTORS } from "./a11yHarness";
 const IS_LINUX = platform() === "linux";
 
 test.describe("visual baselines", () => {
+  // Baselines are captured against the in-memory mock API, whose fixtures are
+  // fixed. Against a live backend the same screens render live data, and every
+  // comparison is a diff of two different orders. `bun run test:e2e:live` already
+  // scopes itself to the chromium project so it cannot reach here; this is the
+  // backstop for a hand-run `playwright test`.
+  test.skip(
+    process.env.PLAYWRIGHT_LIVE === "1",
+    "Visual baselines are mock-mode only — live data would diff against fixtures on every run.",
+  );
+
   test.skip(
     !IS_LINUX,
     `Visual baselines are Linux-only by design (running on ${platform()}). The committed ` +
@@ -77,6 +89,31 @@ test.describe("visual baselines", () => {
     const problems = checkCoreScreenRegistry();
     expect(problems.map((p) => `${p.kind}: ${p.detail}`)).toEqual([]);
     expect(CORE_SCREENS.length).toBe(EXPECTED_CORE_SCREEN_COUNT);
+  });
+
+  /**
+   * Every screen has a COMMITTED baseline for this viewport.
+   *
+   * This exists to close a specific hole. When a baseline PNG is missing,
+   * `toHaveScreenshot` writes the actual image and fails — and the suite runs
+   * with `retries: 1`, so the retry finds the file it just wrote and passes. The
+   * run is then reported as FLAKY, which is a colour most people read as green,
+   * and a screen with no baseline at all has just been recorded as covered.
+   *
+   * Checking the files on disk, before any of them are written, is the only
+   * moment at which "was this baseline committed?" is still answerable.
+   */
+  test("every core screen has a committed baseline for this viewport", (_fixtures, testInfo) => {
+    const dir = join(testInfo.project.testDir, "__screenshots__");
+    const missing = CORE_SCREENS.map((s) => `${s.id}-${testInfo.project.name}.png`).filter(
+      (file) => !existsSync(join(dir, file)),
+    );
+    expect(
+      missing,
+      `No committed baseline for these screens at ${testInfo.project.name}. Playwright would ` +
+        "write them on the first attempt, fail, then pass on retry — reporting a screen with no " +
+        "baseline as covered. Generate them with `bun run visual:linux:update` and commit the PNGs.",
+    ).toEqual([]);
   });
 
   for (const screen of CORE_SCREENS) {
