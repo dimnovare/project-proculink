@@ -395,8 +395,9 @@ jobs:
       # The committed baselines are generated ON LINUX, for exactly this runner —
       # tests/e2e/visual.spec.ts refuses to run anywhere else, so a Windows or
       # macOS machine can never overwrite them with mismatched text rasterisation.
-      # `bun run visual:linux:update` regenerates them from a non-Linux box via the
-      # same official Playwright container (scripts/visual-baselines.Dockerfile).
+      # To refresh them, dispatch this workflow with regenerate_visual_baselines
+      # (see the `on:` block at the top of this file) — the runner rewrites them and
+      # uploads them as an artifact.
       - name: Screenshot comparison
         if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.regenerate_visual_baselines) }}
         run: bun run test:e2e:visual

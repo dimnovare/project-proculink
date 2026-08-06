@@ -25,11 +25,11 @@ import { preparePage, settle, errorBoundaryMarker, DEV_OVERLAY_SELECTORS } from 
  * sets then drift apart and nobody is comparing anything.
  *
  * So: ONE baseline set, generated on Linux, and this spec REFUSES TO RUN
- * anywhere else. On Windows and macOS it skips with a reason naming the command
- * that does work — `bun run visual:linux:update`, which runs this same suite
- * inside the official Playwright Linux container against the same repo (see
- * `scripts/visual-baselines-docker.mjs`). The skip is not a gap; the CI job is
- * on Linux, so the gate is armed exactly where PRs are judged.
+ * anywhere else. On Windows and macOS it skips with a reason naming the thing
+ * that does work — a manual CI dispatch
+ * (`gh workflow run ci.yml -f regenerate_visual_baselines=true`), which runs this
+ * same suite on the very runner that will compare the result. The skip is not a
+ * gap; the CI job is on Linux, so the gate is armed exactly where PRs are judged.
  *
  * ── WHAT MAKES THE PIXELS REPRODUCIBLE ────────────────────────────────────────
  *
@@ -133,7 +133,9 @@ test.describe("visual baselines", () => {
       missing,
       `No committed baseline for these screens at ${testInfo.project.name}. Playwright would ` +
         "write them on the first attempt, fail, then pass on retry — reporting a screen with no " +
-        "baseline as covered. Generate them with `bun run visual:linux:update` and commit the PNGs.",
+        "baseline as covered. Generate them with " +
+        "`gh workflow run ci.yml --ref <branch> -f regenerate_visual_baselines=true`, download the " +
+        "`visual-baselines` artifact into tests/e2e/__screenshots__, and commit the PNGs.",
     ).toEqual([]);
   });
 
