@@ -4,6 +4,7 @@ import type {
   UpsertDeliveryConfigRequest,
 } from "./types";
 import { API_BASE_URL, authHeader } from "./core";
+import { serverReason } from "@/lib/serverText";
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const auth = await authHeader();
@@ -12,7 +13,13 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
     headers: { "Content-Type": "application/json", ...auth, ...init?.headers },
   });
   if (res.status === 204) return null as T;
-  if (!res.ok) throw new Error(`API error ${res.status}: ${await res.text()}`);
+  if (!res.ok) {
+    // The body can be an HTML error page from a gateway, and this message is rendered by
+    // DeliveryConfigEditor. `serverReason` returns the readable text inside it, or the status
+    // line when there is none. See src/lib/serverText.ts.
+    const text = await res.text().catch(() => "");
+    throw new Error(`API error ${res.status}: ` + serverReason(text, res.statusText || `HTTP ${res.status}`));
+  }
   return res.json() as Promise<T>;
 }
 

@@ -28,6 +28,7 @@ import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { useSampleOrder } from "@/hooks/useSampleOrder";
 import { PracticeOrderPrompt } from "./PracticeOrderPrompt";
 import { ACCEPTED_UPLOAD_FORMATS, hasAcceptedUploadExtension, isClearlyUnsupportedDragType } from "@/lib/upload-formats";
+import { serverReasonOrNull } from "@/lib/serverText";
 
 // Pipeline stages for the pre-redirect upload animation. "Transform" is NOT
 // shown here: nothing is transformed before the review step, so claiming it
@@ -2141,9 +2142,13 @@ function getLimitCode(body: unknown): string {
 function serverAuthoredMessage(error: unknown): string {
   if (!(error instanceof ApiHttpError)) return "";
   const body = error.body;
-  if (typeof body === "string" && body.trim()) return body.trim();
+  // `body` is the RAW response, and only `message` is cleaned by the ApiHttpError constructor —
+  // this function deliberately reads the body instead, so it needs its own door. A 4xx answered
+  // `text/html` by an edge proxy or WAF arrives here as a whole page and lands in the banner.
+  // See src/lib/serverText.ts.
+  if (typeof body === "string" && body.trim()) return serverReasonOrNull(body) ?? "";
   if (body && typeof body === "object" && "error" in body) {
-    const text = String((body as { error?: unknown }).error).trim();
+    const text = serverReasonOrNull(String((body as { error?: unknown }).error));
     if (text) return text;
   }
   return "";
@@ -2164,7 +2169,9 @@ function serverAuthoredMessage(error: unknown): string {
  * a sentence plus the upgrade route the SERVER named. Only the words and the
  * secondary destination are chosen here.
  */
-function describeUploadFailure(error: unknown, fileName: string): UploadErrorBanner {
+/** Exported for src/components/bridge/uploadFailureCopy.test.ts — the banner is pure, so it is
+ *  tested without mounting the workbench, the same way catalogSourceHelpers is. */
+export function describeUploadFailure(error: unknown, fileName: string): UploadErrorBanner {
   // The one string the CLIENT authored that used to reach this banner:
   // fetchWithTimeout re-throws a plain Error reading "Request timed out after
   // 60000ms", and a purchasing coordinator was shown it verbatim. isRequestTimeout

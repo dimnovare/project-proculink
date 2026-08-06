@@ -21,6 +21,7 @@ import type { DeliveryProtocol } from "./types";
 // cold-mount fix) + base URL + USE_MOCK from core, replacing local copies whose
 // authHeader read the token BEFORE Clerk loaded → 401 on a cold/hard page load.
 import { authHeader, API_BASE_URL, USE_MOCK } from "./core";
+import { serverReason } from "@/lib/serverText";
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
@@ -37,7 +38,7 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   if (res.status === 404) throw new Error(`Not found: ${path}`);
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    throw new Error(`API error ${res.status}: ${text || res.statusText}`);
+    throw new Error(`API error ${res.status}: ` + serverReason(text, res.statusText || `HTTP ${res.status}`));
   }
   return res.json() as Promise<T>;
 }

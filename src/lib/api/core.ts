@@ -17,6 +17,8 @@
  * Behavior-preserving: implementations are copied verbatim from api-client.ts.
  */
 
+import { operatorSafeApiMessage } from "@/lib/serverText";
+
 /** Normalise the configured API base URL: trim, drop trailing slashes, ensure a scheme. */
 export function normalizeApiBaseUrl(raw: string | undefined): string {
   const value = (raw || "http://localhost:5223").trim().replace(/\/+$/, "");
@@ -98,13 +100,36 @@ export class ApiHttpError extends Error {
    */
   retryAfterSeconds: number | null;
 
+  /**
+   * The message is cleaned HERE, not at the throw sites and not at the render sites.
+   *
+   * Every throw site in the api layer composes its message from the response body — the shape is
+   * `error ?? \`${fallback}: ${await res.text()}\`` — and `parseApiErrorBody` only lifts a sentence
+   * when that body is JSON carrying a conventional field. A Railway or Vercel 502 answers with an
+   * HTML error page, so the raw markup lands in `message`, and roughly eighty call sites render
+   * `message` to operators, several by interpolating it mid-sentence.
+   *
+   * That defect has now survived two fixes, both of which sanitised one place and left the others
+   * open (FE #94 wrapped one operand of one panel; FE #98 wrapped the rest of that panel and found
+   * this door still ajar). A third per-site fix would have the same shape as the two that failed.
+   * So the possibility is removed instead: an ApiHttpError cannot hold markup, whichever throw site
+   * builds it, including one written after this comment.
+   *
+   * `operatorSafeApiMessage` returns a non-markup message byte-for-byte, which is what keeps the
+   * code that PATTERN-MATCHES these strings working — `isPlanGateError` on
+   * `<capability>_requires_<plan>`, `isRequestTimeout` anchored on the timeout sentence,
+   * `AssignSupplierBanner` stripping its own prefix. See src/lib/serverText.ts.
+   *
+   * The raw body is not lost: it is still on `body` for anything that needs the literal response,
+   * and the untouched supplier body stays on the order passport.
+   */
   constructor(
     message: string,
     status: number,
     body: unknown = null,
     retryAfterSeconds: number | null = null,
   ) {
-    super(message);
+    super(operatorSafeApiMessage(message, status));
     this.name = "ApiHttpError";
     this.status = status;
     this.body = body;

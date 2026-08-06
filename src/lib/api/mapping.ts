@@ -5,6 +5,7 @@ import { isApiMockMode } from "@/lib/api-client";
 // read the token BEFORE Clerk finished loading → unauthenticated request → 401 on a
 // cold/hard page load (the magic auto-map then silently degraded to empty).
 import { authHeader, API_BASE_URL } from "./core";
+import { serverReason } from "@/lib/serverText";
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const auth = await authHeader();
@@ -13,7 +14,11 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
     headers: { "Content-Type": "application/json", ...auth, ...init?.headers },
   });
   if (res.status === 204) return null as T;
-  if (!res.ok) throw new Error(`API error ${res.status}: ${await res.text()}`);
+  if (!res.ok) {
+    // Rendered by PoMappingEditor's "Couldn't save — …" line; a gateway answers with a page.
+    const text = await res.text().catch(() => "");
+    throw new Error(`API error ${res.status}: ` + serverReason(text, res.statusText || `HTTP ${res.status}`));
+  }
   return res.json() as Promise<T>;
 }
 

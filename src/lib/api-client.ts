@@ -36,6 +36,7 @@ import {
   retryAfterFrom,
 } from "./api/core";
 import { isPlanGateError, planGateMessage } from "./planGate";
+import { serverReason } from "./serverText";
 import { practiceDeliveryFrom, type PracticeDeliveryState } from "./practiceDelivery";
 
 /**
@@ -323,7 +324,7 @@ async function realSubmitSupportRequest(payload: SupportContactPayload): Promise
   }, 30000);
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    throw new Error(text || `submitSupportRequest failed: ${res.status}`);
+    throw new Error(serverReason(text, `submitSupportRequest failed: ${res.status}`));
   }
   return res.json() as Promise<{ ok: true; delivered: boolean; contactEmail: string }>;
 }
@@ -782,7 +783,9 @@ async function realResolvePurchaseOrder(
       const { error: cleanError } = parseApiErrorBody(t);
       if (cleanError) throw new Error(cleanError);
     }
-    throw new Error(`Resolution failed: ${t || res.statusText}`);
+    // `t` is the raw body — a gateway answers with an HTML page, and this message is rendered
+    // by the review screen. See src/lib/serverText.ts.
+    throw new Error(`Resolution failed: ${serverReason(t, res.statusText || `HTTP ${res.status}`)}`);
   }
   // Backend returns OrderDto directly (not wrapped)
   const order = await res.json() as Order;
@@ -1055,7 +1058,7 @@ async function realDeleteSupplierMapping(supplierId: string, mappingId: string):
   const res = await fetchWithTimeout(`${API_BASE_URL}/api/suppliers/${supplierId}/mappings/${mappingId}`, {
     method: "DELETE", headers: await authHeader(),
   }, 30000);
-  if (!res.ok) { const t = await res.text(); throw new Error(`Delete failed: ${t || res.statusText}`); }
+  if (!res.ok) { const t = await res.text(); throw new Error(`Delete failed: ${serverReason(t, res.statusText || `HTTP ${res.status}`)}`); }
 }
 
 async function mockCreateSupplierMapping(
@@ -1100,7 +1103,7 @@ async function realCreateSupplierMapping(
     headers: { "Content-Type": "application/json", ...await authHeader() },
     body: JSON.stringify(payload),
   }, 30000);
-  if (!res.ok) { const t = await res.text(); throw new Error(t || res.statusText); }
+  if (!res.ok) { const t = await res.text(); throw new Error(serverReason(t, res.statusText || `HTTP ${res.status}`)); }
   return res.json() as Promise<SupplierMapping>;
 }
 
@@ -1114,7 +1117,7 @@ async function realUpdateSupplierMapping(
     headers: { "Content-Type": "application/json", ...await authHeader() },
     body: JSON.stringify(payload),
   }, 30000);
-  if (!res.ok) { const t = await res.text(); throw new Error(t || res.statusText); }
+  if (!res.ok) { const t = await res.text(); throw new Error(serverReason(t, res.statusText || `HTTP ${res.status}`)); }
   return res.json() as Promise<SupplierMapping>;
 }
 
@@ -1129,7 +1132,7 @@ async function realImportSupplierMappings(
     headers: await authHeader(),
     body: fd,
   }, 60000);
-  if (!res.ok) { const t = await res.text(); throw new Error(t || res.statusText); }
+  if (!res.ok) { const t = await res.text(); throw new Error(serverReason(t, res.statusText || `HTTP ${res.status}`)); }
   return res.json();
 }
 
@@ -1179,14 +1182,14 @@ export async function importSupplierCatalog(
   const res = await fetchWithTimeout(`${API_BASE_URL}/api/suppliers/${supplierId}/catalog/import`, {
     method: "POST", headers: await authHeader(), body: fd,
   }, 60000);
-  if (!res.ok) { const t = await res.text(); throw new Error(t || res.statusText); }
+  if (!res.ok) { const t = await res.text(); throw new Error(serverReason(t, res.statusText || `HTTP ${res.status}`)); }
   return res.json();
 }
 
 export async function clearSupplierCatalog(supplierId: string): Promise<{ deleted: number }> {
   if (USE_MOCK) { await delay(150); const n = (_mockCatalog[supplierId] ?? []).length; _mockCatalog[supplierId] = []; return { deleted: n }; }
   const res = await fetchWithTimeout(`${API_BASE_URL}/api/suppliers/${supplierId}/catalog`, { method: "DELETE", headers: await authHeader() }, 30000);
-  if (!res.ok) { const t = await res.text(); throw new Error(t || res.statusText); }
+  if (!res.ok) { const t = await res.text(); throw new Error(serverReason(t, res.statusText || `HTTP ${res.status}`)); }
   return res.json();
 }
 
@@ -1236,7 +1239,7 @@ async function realCreateSupplier(payload: CreateSupplierPayload): Promise<Suppl
     headers: { "Content-Type": "application/json", ...await authHeader() },
     body: JSON.stringify(payload),
   }, 30000);
-  if (!res.ok) { const t = await res.text(); throw new Error(t || res.statusText); }
+  if (!res.ok) { const t = await res.text(); throw new Error(serverReason(t, res.statusText || `HTTP ${res.status}`)); }
   return res.json() as Promise<Supplier>;
 }
 
@@ -1264,7 +1267,7 @@ async function realRenameSupplier(id: string, payload: RenameSupplierPayload): P
     headers: { "Content-Type": "application/json", ...await authHeader() },
     body: JSON.stringify(payload),
   }, 30000);
-  if (!res.ok) { const t = await res.text(); throw new Error(t || res.statusText); }
+  if (!res.ok) { const t = await res.text(); throw new Error(serverReason(t, res.statusText || `HTTP ${res.status}`)); }
   return res.json() as Promise<Supplier>;
 }
 
@@ -1278,7 +1281,7 @@ async function realDeleteSupplier(id: string): Promise<void> {
     method: "DELETE",
     headers: await authHeader(),
   }, 30000);
-  if (!res.ok) { const t = await res.text(); throw new Error(t || res.statusText); }
+  if (!res.ok) { const t = await res.text(); throw new Error(serverReason(t, res.statusText || `HTTP ${res.status}`)); }
 }
 
 // ── Supplier profiles ─────────────────────────────────────────────────────
@@ -1544,7 +1547,7 @@ async function realDetectFormat(file: File): Promise<DetectFormatResult> {
   );
   if (!res.ok) {
     const t = await res.text().catch(() => "");
-    throw new Error(`detect-format failed: ${t || res.statusText}`);
+    throw new Error(`detect-format failed: ${serverReason(t, res.statusText || `HTTP ${res.status}`)}`);
   }
   return res.json() as Promise<DetectFormatResult>;
 }
@@ -2845,7 +2848,7 @@ async function realSaveAcceptanceProfile(
     },
     30000,
   );
-  if (!res.ok) { const t = await res.text(); throw new Error(t || `acceptance-profile POST: ${res.status}`); }
+  if (!res.ok) { const t = await res.text(); throw new Error(serverReason(t, `acceptance-profile POST: ${res.status}`)); }
   return res.json() as Promise<AcceptanceProfile>;
 }
 
@@ -2859,7 +2862,7 @@ async function realActivateAcceptanceVersion(supplierId: string, versionNo: numb
     { method: "POST", headers: await authHeader() },
     30000,
   );
-  if (!res.ok) { const t = await res.text(); throw new Error(t || `acceptance-profile activate: ${res.status}`); }
+  if (!res.ok) { const t = await res.text(); throw new Error(serverReason(t, `acceptance-profile activate: ${res.status}`)); }
 }
 
 async function mockValidateOrder(_orderId: string): Promise<OrderValidationResult> {
@@ -2873,7 +2876,7 @@ async function realValidateOrder(orderId: string): Promise<OrderValidationResult
     { method: "POST", headers: await authHeader() },
     30000,
   );
-  if (!res.ok) { const t = await res.text(); throw new Error(t || `validate: ${res.status}`); }
+  if (!res.ok) { const t = await res.text(); throw new Error(serverReason(t, `validate: ${res.status}`)); }
   // The backend returns a bare array of flat result rows
   // ({ lineNumber, severity, status, code, message }); some builds wrap them in an
   // { orderId, passed, results } envelope. Normalise BOTH into the envelope shape

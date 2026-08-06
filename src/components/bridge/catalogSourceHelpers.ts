@@ -19,6 +19,7 @@ import type {
   CatalogSource,
   CatalogSourceProtocol,
 } from "@/lib/api/catalogSources";
+import { serverReasonOrNull } from "@/lib/serverText";
 
 /** Conventional default port per protocol (SFTP 22, FTP/FTPS 21; URL protocols 0). */
 export function defaultPortForProtocol(protocol: CatalogSourceProtocol): number {
@@ -206,7 +207,11 @@ export function formatLastSync(
   const rel = relativeTime(source.lastSyncAt, now);
   switch (source.lastSyncStatus) {
     case "failed": {
-      const msg = source.lastSyncError?.trim();
+      // `lastSyncError` is whatever the catalog endpoint returned, so it can be an HTML error page
+      // — and it is INTERPOLATED into the sentence below, which is how a whole document ends up
+      // mid-prose. `serverReasonOrNull` returns the readable text inside it, or null when there is
+      // none, in which case the line says only that the sync failed. See src/lib/serverText.ts.
+      const msg = serverReasonOrNull(source.lastSyncError);
       return { tone: "failed", text: msg ? `Last sync failed: ${msg}` : "Last sync failed" };
     }
     case "running":
