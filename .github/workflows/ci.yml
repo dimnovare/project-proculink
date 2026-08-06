@@ -5,6 +5,27 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # WP-41 — how the visual baselines get regenerated.
+  #
+  # tests/e2e/__screenshots__ holds Linux PNGs that only match this runner. They
+  # cannot be regenerated on a Windows or macOS machine: text rasterises
+  # differently and every glyph diffs. So the runner regenerates them itself, on
+  # the same image that compares them — which makes this the highest-fidelity
+  # option available, not a workaround.
+  #
+  #   gh workflow run ci.yml --ref <branch> -f regenerate_visual_baselines=true
+  #   gh run download <run-id> -n visual-baselines -D tests/e2e/__screenshots__
+  #   git add tests/e2e/__screenshots__ && git commit
+  #
+  # Review the changed PNGs before committing — each one is a visual change
+  # somebody should have to look at. To see a diff WITHOUT regenerating, read the
+  # `visual-report` artifact from the failing PR run; it carries expected/actual/diff.
+  workflow_dispatch:
+    inputs:
+      regenerate_visual_baselines:
+        description: 'Regenerate the visual baselines and upload them as an artifact instead of comparing'
+        type: boolean
+        default: false
 
 # Cancel redundant PR runs. NEVER cancel a post-merge run on main.
 #
@@ -377,7 +398,23 @@ jobs:
       # `bun run visual:linux:update` regenerates them from a non-Linux box via the
       # same official Playwright container (scripts/visual-baselines.Dockerfile).
       - name: Screenshot comparison
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.regenerate_visual_baselines) }}
         run: bun run test:e2e:visual
+
+      # Regeneration. Reachable ONLY from a manual dispatch that explicitly asks
+      # for it, so a pull request can never quietly rewrite its own baselines and
+      # go green on the strength of the change it was supposed to be caught by.
+      - name: Regenerate baselines
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.regenerate_visual_baselines }}
+        run: bun run test:e2e:visual:update
+
+      - name: Upload regenerated baselines
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.regenerate_visual_baselines }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-baselines
+          path: tests/e2e/__screenshots__/
+          retention-days: 7
 
       # The diff images ARE the review. A visual failure that a reviewer cannot
       # look at is a failure they will override.
