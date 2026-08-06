@@ -20,12 +20,29 @@
  * caller falls through to copy written for a human.
  */
 
-/** Longest supplier-supplied string we will inline into operator copy. */
-export const SUPPLIER_REASON_MAX = 180;
+/**
+ * Longest string off the wire we will show in the panel's detail block.
+ *
+ * Sized from the copy it has to carry, not picked round. The longest sentence the backend can
+ * put on a delivery attempt is the 403 row of `SupplierResponseClassification.NamedCauses` at
+ * 289 characters — likely cause, then the fix, then where the fix is made. A ceiling below that
+ * truncates ProcuLink's own instructions and drops the half that says what to do, which is worse
+ * than anything it protects against. It was 180 while the only input was a supplier's own body.
+ *
+ * Still a ceiling, not a licence: an appended supplier quote is cut here rather than pasted, and
+ * the untouched body stays on the passport for whoever needs exactly what came back.
+ */
+export const SUPPLIER_REASON_MAX = 320;
 
 const BLOCKISH = /<\/(p|div|br|li|tr|h[1-6])\s*>|<br\s*\/?>/gi;
 const TAG = /<[^>]*>/g;
 const SCRIPT_OR_STYLE = /<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi;
+/**
+ * Comments go before TAG, and must: `<[^>]*>` stops at the FIRST `>`, and a comment is allowed to
+ * contain one (`<!-- if qty > 10 … -->`), so TAG alone leaves the comment's tail on screen. The
+ * production body opened with a comment, so this is the same defect one character away.
+ */
+const COMMENT = /<!--[\s\S]*?-->/g;
 
 /**
  * True when the value looks like markup or a serialised payload rather than a sentence a person
@@ -58,8 +75,10 @@ export function supplierReasonText(raw: string | null | undefined): string | nul
   const fromJson = messageFromJson(trimmed);
   if (fromJson !== undefined) return fromJson === null ? null : clamp(fromJson);
 
-  const text = trimmed
+  const text = dropDanglingLeadIn(
+    trimmed
     .replace(SCRIPT_OR_STYLE, " ")  // drop bodies wholesale — their content is never a reason
+    .replace(COMMENT, " ")          // whole comments, including any '>' they contain
     .replace(BLOCKISH, " ")         // block boundaries become spaces, so words do not fuse
     .replace(TAG, "")
     .replace(/&nbsp;/gi, " ")
@@ -69,7 +88,8 @@ export function supplierReasonText(raw: string | null | undefined): string | nul
     .replace(/&quot;/gi, '"')
     .replace(/&#39;/gi, "'")
     .replace(/\s+/g, " ")
-    .trim();
+    .trim(),
+  );
 
   // Nothing legible survived — an HTML page whose visible text was only chrome, or a JSON blob of
   // ids. Say nothing and let the caller's own copy explain the failure.
@@ -77,6 +97,28 @@ export function supplierReasonText(raw: string | null | undefined): string | nul
   if (!/[a-z]/i.test(text)) return null;
 
   return clamp(text);
+}
+
+/**
+ * Drop a clause that introduces content this function just removed.
+ *
+ * The production string was `…returned an error. Response summary: <!DOCTYPE html>…`. Strip the
+ * markup and what is left promises a summary and then stops. That reads as a broken screen, so
+ * the promise goes with the thing it promised — back to the last full sentence, or, when there
+ * isn't one, just the trailing colon.
+ *
+ * Only the markup path reaches here. A supplier who genuinely writes a sentence ending in a colon
+ * returned earlier, untouched.
+ */
+function dropDanglingLeadIn(text: string): string {
+  if (!text.endsWith(":")) return text;
+  const withoutColon = text.slice(0, -1).trimEnd();
+  const lastStop = Math.max(
+    withoutColon.lastIndexOf("."),
+    withoutColon.lastIndexOf("!"),
+    withoutColon.lastIndexOf("?"),
+  );
+  return lastStop >= 0 ? withoutColon.slice(0, lastStop + 1) : withoutColon;
 }
 
 /**

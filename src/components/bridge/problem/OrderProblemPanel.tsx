@@ -40,6 +40,79 @@ import { UnconfirmedResolver } from "./UnconfirmedResolver";
 const FOCUS =
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-blue)]";
 
+/**
+ * The statuses whose explanation can be sitting on the order passport.
+ *
+ * `rejected_by_supplier` was the original member — the supplier's own reason lives there and
+ * nowhere else. The two delivery failures joined it because of what production showed on
+ * 2026-08-06: a dead-lettered order rendered the raw dispatcher message (backend prose with the
+ * supplier's HTML error page concatenated onto it) while its passport carried, on every attempt,
+ * a sentence the backend had already written for a person. The panel had the worse string
+ * because it never asked for the better one.
+ *
+ * Deliberately not "every problem status": `failed`, `transform_failed`, `delivery_held` and
+ * `unrouted` have no delivery attempt to read, so fetching for them buys a request and nothing
+ * else. `delivery_unconfirmed` is left out for the same reason in reverse — its order message IS
+ * the park sentence, written by the same backend path, so the attempt adds no information.
+ */
+const READS_PASSPORT: ReadonlySet<ProblemStatus> = new Set([
+  "rejected_by_supplier",
+  "delivery_failed",
+  "delivery_dead_letter",
+]);
+
+/** Only the passport fields this panel reads. The full shape is `PassportDto`. */
+type PassportView = {
+  supplierResponse?: { rejectionReason?: string | null } | null;
+  deliveryAttempts?: readonly DeliveryAttemptView[] | null;
+};
+type DeliveryAttemptView = {
+  attemptNumber?: number | null;
+  attemptedAt?: string | null;
+  errorMessage?: string | null;
+};
+
+/**
+ * The message from the most recent delivery attempt that carried one.
+ *
+ * "Most recent" is DERIVED, never assumed. Nothing in this repo or the API contract states
+ * whether `deliveryAttempts` arrives newest- or oldest-first — the passport screen simply reads
+ * the last element and hopes. An unstated assumption here shows the operator the reason for an
+ * attempt that is not the one that stopped their order, which is worse than showing none.
+ *
+ * So: rank by `attemptNumber` when every candidate has one, else by `attemptedAt` when every
+ * candidate has a parseable one, else fall back to array order. Never mix the scales — a run
+ * where half the rows have numbers and half have timestamps must pick one rule, not compare
+ * a count against a millisecond.
+ */
+export function latestAttemptMessage(
+  attempts: readonly DeliveryAttemptView[] | null | undefined,
+): string | null {
+  const withMessage = (attempts ?? []).filter(
+    (a): a is DeliveryAttemptView & { errorMessage: string } =>
+      Boolean(a) && typeof a?.errorMessage === "string" && a.errorMessage.trim().length > 0,
+  );
+  if (withMessage.length === 0) return null;
+
+  const highestBy = (keys: readonly number[]): string => {
+    let best = 0;
+    keys.forEach((k, i) => {
+      if (k >= keys[best]) best = i; // >= so a tie keeps the later row
+    });
+    return withMessage[best].errorMessage;
+  };
+
+  const numbers = withMessage.map((a) =>
+    typeof a.attemptNumber === "number" && Number.isFinite(a.attemptNumber) ? a.attemptNumber : null,
+  );
+  if (numbers.every((n): n is number => n !== null)) return highestBy(numbers);
+
+  const times = withMessage.map((a) => (a.attemptedAt ? Date.parse(a.attemptedAt) : Number.NaN));
+  if (times.every((t) => Number.isFinite(t))) return highestBy(times);
+
+  return withMessage[withMessage.length - 1].errorMessage;
+}
+
 const ICON: Record<ProblemStatus, typeof AlertTriangle> = {
   failed: AlertTriangle,
   unrouted: AlertCircle,
@@ -74,13 +147,13 @@ export function OrderProblemPanel({
   const { paused } = useProcessingStatus();
   const action = useProblemAction(order.id, status);
 
-  // The rejection reason lives on the passport, three clicks away behind
-  // Details → Supplier response. Fetch it for this ONE rare status so the reason
-  // is in the panel that is asking the operator to act on it.
+  // The reason lives on the passport, three clicks away behind Details → Supplier response.
+  // Fetch it for the few statuses that have one so it is in the panel that is asking the
+  // operator to act on it, rather than behind a drawer they have no reason to open.
   const { data: passport } = useQuery({
     queryKey: ["passport", order.id],
     queryFn: () => apiClient.getOrderPassport(order.id),
-    enabled: queryEnabled && status === "rejected_by_supplier",
+    enabled: queryEnabled && READS_PASSPORT.has(status),
     staleTime: 60_000,
     // The supplier's reply is the whole point of this panel, so its fetch uses
     // the shared failure policy rather than a flat `retry: 1`: a 404 (no passport
@@ -101,11 +174,12 @@ export function OrderProblemPanel({
   if (status === "unrouted") return <AssignSupplierBanner order={order} />;
 
   const supplier = order.supplierName?.trim() ? order.supplierName : "this supplier";
+  const passportView = passport as PassportView | null | undefined;
   const rejectionReason =
     status === "rejected_by_supplier"
-      ? (passport as { supplierResponse?: { rejectionReason?: string | null } } | null | undefined)
-          ?.supplierResponse?.rejectionReason ?? null
+      ? passportView?.supplierResponse?.rejectionReason ?? null
       : null;
+  const attemptMessage = latestAttemptMessage(passportView?.deliveryAttempts);
 
   const ctx: ProblemCtx = {
     supplier,
@@ -129,11 +203,31 @@ export function OrderProblemPanel({
   const helper = action.promoted
     ? "That didn't work. This one probably needs us — send it over and we'll look at the detail above."
     : copy.helper?.(ctx) ?? null;
-  // The supplier's body is evidence, not prose. supplierReasonText returns a readable sentence
-  // or null — a 404 whose body is an HTML page yields null, and the panel's own copy explains
-  // the failure instead of showing the operator markup (WP-39 §4.4). The untouched body is
-  // still in the order passport for anyone who needs exactly what came back.
-  const detail = supplierReasonText(rejectionReason) ?? ctx.serverMessage ?? detailFallback;
+  // ── The one sentence the operator reads as "why". ─────────────────────────────────────────
+  //
+  // Best explanation first, and EVERY candidate off the wire goes through supplierReasonText.
+  // The previous version wrapped only the first operand and let the second through verbatim —
+  // which is how a supplier's HTML error page reached a production screen on 2026-08-06, two
+  // days after the fix that was supposed to make that impossible. One guarded door is not a
+  // guarded room, so the sanitiser is applied once to a list rather than once to an operand.
+  //
+  //   1. the supplier's own stated reason. Only `rejected_by_supplier` has one, and that panel's
+  //      copy promises it ("Their reason is below") — their words outrank ours about their words.
+  //   2. the latest delivery attempt's message. Backend-authored operator copy: likely cause,
+  //      the fix, and where the fix is made. It existed the whole time production was showing
+  //      the raw blob below.
+  //   3. the order row's own message. Still here, still ahead of the generic fallback, but no
+  //      longer verbatim — it is the dispatcher's sentence with the supplier's body concatenated
+  //      onto it, so it is exactly as untrusted as the body.
+  //   4. the caller's fallback (a parse failure writes its reason into the audit payload, not
+  //      onto the order row). Ours, already prose, so nothing to clean.
+  //
+  // Nothing is destroyed by any of this: the full response body stays on the passport, which is
+  // where an integrator goes to read precisely what came back.
+  const detail =
+    [rejectionReason, attemptMessage, ctx.serverMessage]
+      .map(supplierReasonText)
+      .find((s): s is string => Boolean(s)) ?? detailFallback;
   const actions = copy.actions(ctx);
 
   const toneText = tone === "danger" ? "var(--danger)" : "var(--amber-text)";
@@ -186,8 +280,9 @@ export function OrderProblemPanel({
           {copy.attribution(ctx)}
         </p>
 
-        {/* The server's own words, verbatim — never paraphrased, because it is the
-            only thing an engineer can act on. Rendered only when it exists. */}
+        {/* The server's own words — never paraphrased, because they are the only thing an
+            engineer can act on. Cleaned, though, not verbatim: see the `detail` derivation
+            above for why "verbatim" was the bug rather than the promise. */}
         {detail && (
           <p
             style={{
