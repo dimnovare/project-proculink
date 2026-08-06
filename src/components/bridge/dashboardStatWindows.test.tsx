@@ -129,7 +129,7 @@ function topology(supplierCount: number) {
   };
 }
 
-function mockApi(supplierCount = 1) {
+function mockApi(supplierCount = 1, serverTopology = true) {
   // The windowed count queries pass `dateFrom`; the unwindowed working-set query does not.
   api.getOrders.mockImplementation((params: { status?: string; dateFrom?: string } = {}) => {
     if (params.dateFrom && params.status === "delivered") {
@@ -147,11 +147,13 @@ function mockApi(supplierCount = 1) {
   });
   api.getOrdersSummary.mockResolvedValue({ byStatus: BY_STATUS, total: TOTAL });
   api.getSuppliers.mockResolvedValue([]);
-  api.getDashboardTopology.mockResolvedValue(topology(supplierCount));
+  api.getDashboardTopology.mockResolvedValue(
+    serverTopology ? topology(supplierCount) : { buyers: [], suppliers: [], wires: [] },
+  );
 }
 
-async function renderDashboard(supplierCount = 1) {
-  mockApi(supplierCount);
+async function renderDashboard(supplierCount = 1, serverTopology = true) {
+  mockApi(supplierCount, serverTopology);
   const { container } = render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
       <ConfirmProvider>
@@ -210,6 +212,20 @@ describe("every stat card names the window its numbers actually cover", () => {
     // The specific misreading this fixes: an unlabelled rate between two 30-day cards.
     expect(flat(delivery)).not.toContain("last 30 days");
     expect(flat(delivery)).toContain("all time");
+  });
+
+  it("says 'all time' on supplier health when the figure is client-derived", async () => {
+    // The two paths cover different windows. GetTopology filters supplier rows on
+    // `CreatedAt >= UtcNow.AddDays(-30)`; deriveTopology has no cutoff at all. The fallback
+    // used to print NO window rather than saying which one it was on, which is the same
+    // unlabelled-rate defect one branch away — and every other test here renders the server
+    // path, so without this the branch is unguarded.
+    const container = await renderDashboard(1, false);
+    const card = container.querySelector<HTMLElement>('[data-stat-card="supplier-health"]')!;
+
+    expect(card.dataset.statWindow).toBe("all");
+    expect(flat(card)).toContain("all time");
+    expect(flat(card)).not.toContain("last 30 days");
   });
 
   it("keeps the throughput card on the selected window", async () => {
