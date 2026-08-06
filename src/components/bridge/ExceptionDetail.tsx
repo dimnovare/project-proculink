@@ -25,6 +25,7 @@ import { apiClient } from "@/lib/api-client";
 import type { OrderException } from "@/types/procurement";
 import { UnifiedStatusBadge } from "@/components/bridge/UnifiedStatusBadge";
 import { DELIVERY_UNCONFIRMED_MESSAGE } from "@/components/bridge/review/hooks/useOrderReview";
+import { serverReason, serverReasonOrNull } from "@/lib/serverText";
 
 // Stage → plain-English "why". The exception code is machine-readable; this gives
 // the operator a human reason without pretending we have a field-level rule ref.
@@ -100,7 +101,10 @@ export function deliveryNote(status: string, errorMessage?: string | null): { de
   // delivery_held (needs a human, not a red failure) — never "bad": we can't
   // confirm a failure, only that the outcome is unknown.
   if (s === "delivery_unconfirmed")
-    return { detail: errorMessage && errorMessage.trim().length > 0 ? errorMessage : DELIVERY_UNCONFIRMED_MESSAGE, tone: "warn" };
+    // `errorMessage` is the backend's pinned park sentence, but it can carry the supplier's raw
+    // response body appended to it — see src/lib/serverText.ts. Cleaned here, at the render
+    // boundary; the field stays raw for the code that pattern-matches on it.
+    return { detail: serverReason(errorMessage, DELIVERY_UNCONFIRMED_MESSAGE), tone: "warn" };
   return { detail: "This order has not been sent yet.", tone: "neutral" };
 }
 
@@ -216,8 +220,11 @@ export function ExceptionDetail({ exc }: { exc: OrderException }) {
             {delivery && (
               <p className="mt-1 text-[12px] leading-relaxed" style={{ color: TONE_COLOR[delivery.tone] }}>{delivery.detail}</p>
             )}
-            {order.errorMessage && (
-              <p className="mt-1 text-[12px]" style={{ color: "var(--danger)" }}>{order.errorMessage}</p>
+            {/* The badge and the sentence above already say what state this is, so an
+                unreadable body is dropped entirely rather than replaced with a fallback
+                that would only repeat them. */}
+            {serverReasonOrNull(order.errorMessage) && (
+              <p className="mt-1 text-[12px]" style={{ color: "var(--danger)" }}>{serverReasonOrNull(order.errorMessage)}</p>
             )}
           </div>
         )}

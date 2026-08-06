@@ -15,6 +15,7 @@
 
 import { useRef } from "react";
 import { useDialogA11y } from "@/hooks/useDialogA11y";
+import { serverReason } from "@/lib/serverText";
 import { OrderPassport } from "../OrderPassport";
 import { ConformancePanel } from "../ConformancePanel";
 import { SupplierResponsePanel } from "../SupplierResponsePanel";
@@ -186,9 +187,13 @@ export function OrderDetailsDrawer(props: OrderDetailsDrawerProps) {
                     {counterpartyNoun.charAt(0).toUpperCase() + counterpartyNoun.slice(1)} rejected this order
                   </div>
                   <p style={{ margin: 0, fontSize: 12.5, color: "#5E6779", lineHeight: 1.5 }}>
-                    {errorMessage && errorMessage.trim().length > 0
-                      ? errorMessage
-                      : "The last delivery attempt came back as a rejection. Fix the order or delivery format, then resend."}
+                    {/* `errorMessage` is the backend's failure sentence with the supplier's raw
+                        response body concatenated after it, so it can be an HTML error page —
+                        cleaned at this render boundary. See src/lib/serverText.ts. */}
+                    {serverReason(
+                      errorMessage,
+                      "The last delivery attempt came back as a rejection. Fix the order or delivery format, then resend.",
+                    )}
                   </p>
                 </div>
               )}

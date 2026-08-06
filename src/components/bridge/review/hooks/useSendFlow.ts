@@ -14,6 +14,7 @@ import type { Order } from "@/types/procurement";
 import type { PartyLabels } from "@/hooks/useOrderDirection";
 import { useProcessingStatus } from "@/hooks/useProcessingStatus";
 import { finalDeliveryMessage } from "./useOrderReview";
+import { serverReason } from "@/lib/serverText";
 
 function sleep(ms: number): Promise<void> {
   return new Promise(resolve => window.setTimeout(resolve, ms));
@@ -238,7 +239,9 @@ export function useSendFlow({ orderId, order, labels, refetchOrder }: {
       }
 
       if (current.status === "transform_failed") {
-        setFlow(current.errorMessage ?? "We couldn't build the output file. Check the output template and try again.", "error");
+        // Same treatment as finalDeliveryMessage's branches: this order row's errorMessage can
+        // carry the raw response body, and it is rendered as the whole notice.
+        setFlow(serverReason(current.errorMessage, "We couldn't build the output file. Check the output template and try again."), "error");
         return;
       }
 

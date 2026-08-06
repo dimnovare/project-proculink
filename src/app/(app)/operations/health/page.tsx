@@ -37,6 +37,20 @@ import {
   tv2Num,
   tv2DotColor,
 } from "@/components/bridge/layout/listTableV2";
+import { serverReasonOrNull } from "@/lib/serverText";
+
+/**
+ * The dead-letter row's `lastError` as a person can read it, or nothing.
+ *
+ * This field is whatever the supplier's endpoint returned, captured deliberately as evidence — and
+ * on 2026-08-06 that was a 404 HTML error page, shown to an operator as the reason their order
+ * failed. The row already names the order, the supplier, the status and the response code, so a
+ * body that cleans to nothing legible is dropped rather than replaced with filler.
+ * The untouched value stays on the order passport for whoever needs exactly what came back.
+ */
+function readableLastError(lastError: string | null | undefined): string | null {
+  return serverReasonOrNull(lastError);
+}
 
 function tone(count: number, key: keyof OpsHealth): { bg: string; fg: string } {
   if (count === 0) return { bg: "var(--surface-2)", fg: "var(--ink-muted)" };
@@ -437,8 +451,10 @@ export default function OperationsHealthPage() {
                       <td style={tv2BodyCell()}><UnifiedStatusBadge status={normalizeDeadLetterStatus(o.status)} /></td>
                       <td style={{ ...tv2BodyCell("right"), ...tv2Num, color: TV2.ink }}>{o.deliveryAttempts}</td>
                       <td style={{ ...tv2BodyCell(), maxWidth: 280, color: "var(--danger)" }}>
-                        <span title={o.lastError ?? ""} style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {o.lastError ?? "—"}{o.lastResponseCode ? ` (${o.lastResponseCode})` : ""}
+                        {/* The tooltip carries the same cleaned text as the cell: it is prose the
+                            operator reads, so it is not a way for markup to get back on screen. */}
+                        <span title={readableLastError(o.lastError) ?? ""} style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {readableLastError(o.lastError) ?? "—"}{o.lastResponseCode ? ` (${o.lastResponseCode})` : ""}
                         </span>
                       </td>
                       <td style={{ ...tv2BodyCell(), color: TV2.inkMuted }}>{relativeTime(o.lastAttemptAt)}</td>
@@ -498,9 +514,9 @@ export default function OperationsHealthPage() {
                   <div style={{ marginTop: 6, fontSize: 12.5, color: "var(--ink-muted)" }}>
                     {o.supplierName ?? "—"} · {o.deliveryAttempts} attempt{o.deliveryAttempts === 1 ? "" : "s"} · {relativeTime(o.lastAttemptAt)}
                   </div>
-                  {(o.lastError || o.lastResponseCode) && (
+                  {(readableLastError(o.lastError) || o.lastResponseCode) && (
                     <div style={{ marginTop: 6, fontSize: 12.5, color: "var(--danger)", wordBreak: "break-word" }}>
-                      {o.lastError ?? "—"}{o.lastResponseCode ? ` (${o.lastResponseCode})` : ""}
+                      {readableLastError(o.lastError) ?? "—"}{o.lastResponseCode ? ` (${o.lastResponseCode})` : ""}
                     </div>
                   )}
                   <div style={{ marginTop: 10 }}>

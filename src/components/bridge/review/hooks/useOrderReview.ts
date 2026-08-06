@@ -15,6 +15,7 @@ import { shouldRetryApiFailure, apiRetryDelayMs } from "@/lib/apiFailure";
 import type { Order } from "@/types/procurement";
 import type { PartyLabels } from "@/hooks/useOrderDirection";
 import { isParseStalled } from "@/components/bridge/parseStall";
+import { serverReason } from "@/lib/serverText";
 
 // ── Stuck-order threshold. Mirrors the StuckOrderDetectionJob (30 min in production) but fires
 // much earlier so a person is told something before the backend job would notice. The value and the
@@ -52,20 +53,34 @@ export const BILLING_HELD_MESSAGE_PLURAL =
 export const DELIVERY_UNCONFIRMED_MESSAGE =
   "We may have sent this order, but lost the connection before the supplier confirmed it — so we can't tell whether it arrived. Check with the supplier, then either send it again or mark it delivered.";
 
+/**
+ * `errorMessage` is INTERPOLATED into the sentences below, so an unfit value is worse here than
+ * anywhere else: a whole HTML document lands mid-prose. The backend composes its own failure
+ * sentence and concatenates the supplier's raw response body after "Response summary: ", and on
+ * 2026-08-06 that body was a 404 error page — the exact string in
+ * `problem/__tests__/productionDefectStrings.ts`.
+ *
+ * `serverReason` returns the readable text inside a body, or the caller's own copy when there is
+ * none — so each branch keeps the fallback it already had, and a colon with markup behind it can no
+ * longer be produced. The field itself stays raw: `problemCopy.isDeliveryConfigMissing` matches on
+ * it to decide which recovery arm the panel offers, so it is cleaned here, at the render boundary,
+ * and never at the source. See `src/lib/serverText.ts`.
+ */
 export function finalDeliveryMessage(status: Order["status"], errorMessage: string | null | undefined, labels: PartyLabels): string {
   if (status === "delivered") {
     // Inbound: "Order confirmed." Outbound: "Delivered to supplier." (mechanism identical).
     return `${labels.deliveredLabel}. The audit trail has been updated.`;
   }
+  const noReasonFallback = "The output file is built, but we couldn't send it. Check the supplier's Delivery tab and try again when the endpoint is ready.";
   if (status === "delivery_failed") {
-    return errorMessage && errorMessage.trim().length > 0
-      ? `We couldn't send this order: ${errorMessage}`
-      : "The output file is built, but we couldn't send it. Check the supplier's Delivery tab and try again when the endpoint is ready.";
+    const reason = errorMessage && errorMessage.trim().length > 0 ? serverReason(errorMessage, "") : "";
+    return reason ? `We couldn't send this order: ${reason}` : noReasonFallback;
   }
   if (status === "rejected_by_supplier") {
     const noun = labels.counterpartyNoun;
-    return errorMessage && errorMessage.trim().length > 0
-      ? `${noun} rejected the order: ${errorMessage}`
+    const reason = errorMessage && errorMessage.trim().length > 0 ? serverReason(errorMessage, "") : "";
+    return reason
+      ? `${noun} rejected the order: ${reason}`
       : `The ${noun.toLowerCase()} rejected the order. Open the ${noun} response tab for the rejection details.`;
   }
   if (status === "delivery_dead_letter") {
@@ -87,8 +102,10 @@ export function finalDeliveryMessage(status: Order["status"], errorMessage: stri
     // Prefer the backend's pinned park sentence (errorMessage) — it carries the
     // same claim as DELIVERY_UNCONFIRMED_MESSAGE but may include order-specific
     // detail. Fall back to the shared constant so the three surfaces never drift.
+    // Cleaned like the branches above: this sentence is rendered whole, so an
+    // unreadable body would replace the explanation rather than sit inside it.
     return errorMessage && errorMessage.trim().length > 0
-      ? errorMessage
+      ? serverReason(errorMessage, DELIVERY_UNCONFIRMED_MESSAGE)
       : DELIVERY_UNCONFIRMED_MESSAGE;
   }
   // ── The last-resort branch: a status this function genuinely does not know ───
