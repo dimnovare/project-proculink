@@ -1842,3 +1842,80 @@ describe("a gated capability is never presented with no tier at all", () => {
     for (const file of EXEMPT) expect(() => readFileSync(file, "utf8")).not.toThrow();
   });
 });
+
+/**
+ * "Pilot is enough for everything here."
+ *
+ * ── The defect ──────────────────────────────────────────────────────────────────
+ *
+ * That sentence opened the Prereqs of `/help/guides/first-order-end-to-end` — the flagship
+ * guide, the one a new signup is pointed at. Step 5 of the same guide then asks the supplier
+ * "An endpoint we post to, an SFTP folder, or an email address?" and "CSV, JSON, XML, cXML,
+ * UBL/Peppol, or X12 850?", leading with the two answers Pilot cannot save: an HTTP endpoint is
+ * `BillingFeature.WebhookDelivery` (Growth) and cXML output is `BillingFeature.Cxml`
+ * (Operations). A Pilot workspace reaches **delivered** only over SFTP, FTPS or email, in any
+ * format but cXML — which the guide never said.
+ *
+ * ── Why it is its own guard ─────────────────────────────────────────────────────
+ *
+ * Every other block here reasons about a capability and the tier beside it. This claim names no
+ * capability at all: it makes a blanket statement about what the free tier covers, and it is
+ * wrong because of capabilities mentioned ninety lines later. There is nothing for a
+ * capability-first scan to compare.
+ *
+ * It is VOCABULARY-BOUND and says so. It bans the sufficiency claim in the phrasings a writer
+ * reaches for; it cannot catch "you will not need to upgrade" or a reassurance spread over two
+ * sentences. What it does guarantee is that the sentence which actually shipped, and its nearest
+ * neighbours, cannot come back silently.
+ */
+describe("the free tier is never described as sufficient for a flow it cannot finish", () => {
+  const FREE_TIER = PLANS[0].name; // "Pilot" — derived, so renaming the tier moves this with it.
+
+  const SUFFICIENCY = String.raw`(?:is enough|is all you need|covers everything|enough for all|does everything)`;
+  const CLAIMS_PILOT_SUFFICES = new RegExp(
+    String.raw`\b${FREE_TIER}\b[^.\n]{0,60}?\b${SUFFICIENCY}\b` +
+      String.raw`|\b(?:everything|the whole|all of) (?:here|this|of it)[^.\n]{0,40}?\bon ${FREE_TIER}\b`,
+    "i",
+  );
+
+  it("no buyer-facing line says the free tier suffices", () => {
+    const lines = buyerFacingLines();
+    expect(lines.length, "the corpus must really be reading copy").toBeGreaterThan(1000);
+
+    const offenders = lines
+      .filter(({ line }) => CLAIMS_PILOT_SUFFICES.test(line))
+      .map(({ file, number, line }) => `${file}:${number}: ${line.trim()}`);
+
+    expect(
+      offenders,
+      `these lines tell the reader ${FREE_TIER} covers a flow it cannot finish. It can reach ` +
+        "delivered over SFTP, FTPS or email in any format but cXML; an HTTP endpoint needs " +
+        `${BACKEND_MINIMUM_PLAN.webhookDelivery} and cXML output needs ${BACKEND_MINIMUM_PLAN.cxml}. ` +
+        "Say which paths work instead:\n" + offenders.join("\n"),
+    ).toEqual([]);
+  });
+
+  it("flags the sentence that shipped, verbatim", () => {
+    expect(
+      CLAIMS_PILOT_SUFFICES.test("- A ProcuLink workspace you can sign in to. Pilot is enough for everything here."),
+      "first-order-end-to-end:12, exactly as it stood at 68ed5f2",
+    ).toBe(true);
+
+    // The phrasings a writer reaches for once that one is gone.
+    expect(CLAIMS_PILOT_SUFFICES.test("Pilot is all you need to follow this guide.")).toBe(true);
+    expect(CLAIMS_PILOT_SUFFICES.test("The free Pilot covers everything in this article.")).toBe(true);
+    expect(CLAIMS_PILOT_SUFFICES.test("You can do all of this on Pilot.")).toBe(true);
+  });
+
+  it("leaves the honest replacement — and every ordinary mention of Pilot — alone", () => {
+    // What shipped in its place: specific about which paths finish on the free tier.
+    expect(
+      CLAIMS_PILOT_SUFFICES.test(
+        "- A ProcuLink workspace you can sign in to. Pilot reaches **delivered** by SFTP, FTPS or email, in any",
+      ),
+    ).toBe(false);
+    expect(CLAIMS_PILOT_SUFFICES.test("Pilot — free for 14 days; 20 orders total during trial; 1 supplier.")).toBe(false);
+    expect(CLAIMS_PILOT_SUFFICES.test("Everything before step 5 — upload, review, item codes — is the same on Pilot.")).toBe(false);
+    expect(CLAIMS_PILOT_SUFFICES.test("Start Pilot")).toBe(false);
+  });
+});
