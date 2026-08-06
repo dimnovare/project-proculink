@@ -12,26 +12,29 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { getAuditLog, isApiMockMode, type AuditLogEntry } from "@/lib/api-client";
+import {
+  auditActionFact,
+  auditActionLabel,
+  auditEventKind,
+  type AuditActionFact,
+  type AuditEventKind,
+} from "@/lib/auditActionManifest";
 import { EmptyState } from "./EmptyState";
 import { isPlanGate, PlanGateNotice } from "./PlanGateNotice";
-import { UnifiedStatusBadge } from "./UnifiedStatusBadge";
 import { PageHeader } from "./layout/PageHeader";
 import { PageShell } from "./layout/PageShell";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-// Canonical filter vocabulary (from CrossingsLogScreen):
-//   All events / Delivered / Failed / Edited / Validated / Parsed / Created
-// Real backend actions (from EVENT_MAP below) mapped to canonical labels.
-type CanonicalEvent =
-  | "created"
-  | "parsed"
-  | "validated"
-  | "edited"
-  | "delivered"
-  | "failed";
+// The row vocabulary IS the manifest's, not a second list kept beside it. It used
+// to be a local six-member union fed by two chained hand-typed maps
+// (ACTION_TO_EVENT → EVENT_TO_CANONICAL), and the first of those maps was written
+// in snake_case against a backend vocabulary that is almost entirely PascalCase —
+// so nearly every real action missed it, took a `?? "crossed"` fallback, and
+// rendered green as "Delivered". See src/lib/auditActionManifest.ts.
+type CanonicalEvent = AuditEventKind;
 
 // Internal event type kept for backward compat with mock data
 type EventType =
@@ -56,8 +59,16 @@ type LogEntry = {
   buyer: string;
   supplier: string;
   fmt: string;
-  event: EventType;
+  /**
+   * Mock-only. The demo rows below are authored in the old internal vocabulary and
+   * keep it; nothing on the live path sets this, and nothing reads it for
+   * behaviour — the "Open to resend" control is gated on `canonicalEvent`, which
+   * is derived from the backend action rather than from this.
+   */
+  event?: EventType;
   canonicalEvent: CanonicalEvent;
+  /** The raw backend action, when this row came from the API. Drives the label. */
+  action?: string;
   actor: Actor;
   message: string;
   // Structured key/value detail grid (mirrors `c.detail` in screen-crossings.jsx).
@@ -178,40 +189,33 @@ const MOCK_LOG: LogEntry[] = [
 
 // ─── Map AuditLogEntry → LogEntry ─────────────────────────────────────────────
 
-// Backend action → internal EventType
-const ACTION_TO_EVENT: Record<string, EventType> = {
-  created:          "uploaded",
-  parsed:           "extracted",
-  status_changed:   "reviewed",
-  resolved:         "reviewed",
-  transform_queued: "mapped",
-  delivered:        "crossed",
-  delivery_failed:  "failed",
-  flagged:          "flagged",
-  validated:        "validated",
-  uploaded:         "uploaded",
-  extracted:        "extracted",
-  mapped:           "mapped",
-  retried:          "retried",
-};
-
-// Internal EventType → canonical filter event
-const EVENT_TO_CANONICAL: Record<EventType, CanonicalEvent> = {
-  uploaded:  "created",
-  extracted: "parsed",
-  mapped:    "edited",
-  validated: "validated",
-  flagged:   "validated",
-  reviewed:  "edited",
-  crossed:   "delivered",
-  failed:    "failed",
-  retried:   "failed",
-};
+/**
+ * Turn the backend's own message into something an operator can read.
+ *
+ * `AuditController.BuildMessage` only has sentences for seven snake_case names and
+ * ends with `_ => $"{action}{po}"`, so every PascalCase action describes itself to
+ * the user as its own engine identifier — "DeliveryDeadLettered · PO-4711". When the
+ * manifest knows the action, swap that leading identifier for the human label and
+ * keep whatever the backend appended (the " · PO-…" suffix).
+ *
+ * Only the exact fallback shape is rewritten. A message the backend wrote a real
+ * sentence for is passed through untouched.
+ */
+function humaniseMessage(action: string, message: string, fact: AuditActionFact | null): string {
+  if (!fact || !message) return message;
+  if (message === action || message.startsWith(`${action} ·`)) {
+    return fact.label + message.slice(action.length);
+  }
+  return message;
+}
 
 function mapApiEntry(e: AuditLogEntry): LogEntry {
-  const eventKey = e.action.toLowerCase();
-  const event: EventType = ACTION_TO_EVENT[eventKey] ?? "crossed";
-  const canonicalEvent: CanonicalEvent = EVENT_TO_CANONICAL[event] ?? "created";
+  // One lookup against the manifest, case-insensitively, and an action the manifest
+  // does not know resolves to `unknown` — NOT to a delivery. The previous code
+  // chained two hand-typed maps and fell back to "crossed" → "delivered", so an
+  // unrecognised action and a completed send were the same green row.
+  const fact = auditActionFact(e.action);
+  const canonicalEvent: CanonicalEvent = auditEventKind(e.action);
 
   const d = new Date(e.ts);
   const ts = Number.isNaN(d.getTime())
@@ -227,15 +231,20 @@ function mapApiEntry(e: AuditLogEntry): LogEntry {
     buyer:          e.buyerName ?? "—",
     supplier:       e.supplierName ?? "—",
     fmt:            e.format ?? "—",
-    event,
     canonicalEvent,
+    action:         e.action,
     actor: {
       initials: e.actorInitials,
       name:     e.actorName,
       type:     e.actorType,
     },
-    message: e.message,
+    message: humaniseMessage(e.action, e.message, fact),
   };
+}
+
+/** The row's event name: the manifest's per-action label, or the kind's own. */
+function entryLabel(e: LogEntry): string {
+  return e.action ? auditActionLabel(e.action) : EV_CANON[e.canonicalEvent].label;
 }
 
 // ─── Date group label ─────────────────────────────────────────────────────────
@@ -280,18 +289,80 @@ const EV_CANON: Record<
   delivered: { bg: "var(--brand-green-soft)", color: "var(--brand-green-deep)",  label: "Delivered", iconPath: "M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z M21.854 2.147l-10.94 10.939" },
   // failed → "alert" · danger on danger-soft
   failed:    { bg: "var(--danger-soft)",      color: "var(--danger)",            label: "Failed",    iconPath: "m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3z M12 9v4 M12 17h.01" },
+  // held → "pause" · amber. Nothing broke, but the order stopped and only a person
+  // (or a billing settlement) restarts it. Amber, never green: a paused send that
+  // reads as a delivery is the same lie as a failure that reads as one.
+  held:      { bg: "var(--amber-soft)",       color: "var(--amber-text)",        label: "Held",      iconPath: "M10 4H6v16h4z M18 4h-4v16h4z" },
+  // recovered → "rotate" · brand-blue. A sweeper or an operator un-stuck something:
+  // not a failure, and not an arrival either.
+  recovered: { bg: "var(--brand-blue-soft)",  color: "var(--brand-blue-deep)",   label: "Recovered", iconPath: "M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8M21 3v5h-5M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16M8 16H3v5" },
+  // unknown → "help" · ink-muted on surface-2. THE BACKEND SENT AN ACTION THIS
+  // BUILD DOES NOT KNOW. Deliberately drab and deliberately not green — the whole
+  // defect this file was fixed for is that unrecognised actions used to render as
+  // completed deliveries.
+  unknown:   { bg: "var(--surface-2)",        color: "var(--ink-muted)",         label: "Unrecognised", iconPath: "M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2z M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3 M12 17h.01" },
 };
 
-// Canonical filter labels (from CrossingsLogScreen)
+// Canonical filter labels (from CrossingsLogScreen), plus the two kinds the
+// manifest added. `unknown` gets NO chip on purpose: it is a signal that this build
+// is behind the backend, not a workflow an operator filters by — it stays visible
+// under "All events", where it cannot be missed.
 const FILTERS: Array<{ key: CanonicalEvent | "all"; label: string }> = [
   { key: "all",       label: "All events" },
   { key: "delivered", label: "Delivered" },
   { key: "failed",    label: "Failed" },
+  { key: "held",      label: "Held" },
+  { key: "recovered", label: "Recovered" },
   { key: "edited",    label: "Edited" },
   { key: "validated", label: "Validated" },
   { key: "parsed",    label: "Parsed" },
   { key: "created",   label: "Created" },
 ];
+
+/**
+ * The row's event badge.
+ *
+ * Local rather than `<UnifiedStatusBadge status={canonicalEvent} />`, which was
+ * here before: that component's vocabulary is ORDER STATUSES, and its `failed`
+ * entry is labelled "Couldn't read file" — the parse-failure status. Every failure
+ * row on this page therefore announced itself as a parse failure, and this change
+ * is what makes failure rows appear at all, so the mislabel would have spread from
+ * (effectively) none of them to all of them. Tones come from the same EV_CANON
+ * tokens the row icon uses, and the text is the manifest's per-action label.
+ */
+function EventBadge({ entry }: { entry: LogEntry }) {
+  const ev = EV_CANON[entry.canonicalEvent];
+  const label = entryLabel(entry);
+  return (
+    <span
+      className="rounded-full font-semibold whitespace-nowrap"
+      // inline-block + ellipsis rather than inline-flex: the desktop column is a
+      // fixed width, and the manifest's labels are real sentences ("Could not build
+      // the supplier file"), so the long ones must clip visibly with the full text
+      // still reachable rather than push the row's other columns out of line.
+      style={{
+        background: ev.bg,
+        color: ev.color,
+        display: "inline-block",
+        maxWidth: "100%",
+        height: 20,
+        lineHeight: "20px",
+        padding: "0 8px",
+        fontSize: 11,
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+      }}
+      title={label}
+      // The kind, on the element that renders it. Without this the only observable
+      // difference between a row classified `delivered` and one classified `unknown`
+      // is a background colour, so a guard can assert the LABEL is right while the
+      // row is still painted as a success — which is the defect wearing a new coat.
+      data-event-kind={entry.canonicalEvent}
+    >
+      {label}
+    </span>
+  );
+}
 
 // ─── Responsive hook ──────────────────────────────────────────────────────────
 // Self-contained (no shared hook to import). SSR-safe: starts false, syncs after
@@ -324,7 +395,7 @@ function SkeletonRow() {
 
 // ─── Desktop column header ────────────────────────────────────────────────────
 // Gives the flat desktop row-list a real, sticky table head. Column widths match
-// the desktop CrossingRow exactly (Time 64 · icon 26 · Status 92 · PO 150 · Route
+// the desktop CrossingRow exactly (Time 64 · icon 26 · Event 150 · PO 150 · Route
 // grow · Actor 110 · chevron 15) with the same gap-3 / 11px-16px padding. The log
 // is an append-only, time-descending feed, so Time carries a static
 // aria-sort="descending". Sticks to the PageShell scroll viewport; opaque
@@ -364,7 +435,7 @@ function DesktopColHeader() {
         </span>
         {/* icon circle column (26px) — no header text */}
         <span aria-hidden style={{ width: 26, flexShrink: 0 }} />
-        <span role="columnheader" style={{ ...cell, width: 92, flexShrink: 0 }}>Status</span>
+        <span role="columnheader" style={{ ...cell, width: 150, flexShrink: 0 }}>Event</span>
         <span role="columnheader" style={{ ...cell, width: 150, flexShrink: 0 }}>PO</span>
         <span role="columnheader" className="grow" style={{ ...cell, minWidth: 0 }}>Route</span>
         <span role="columnheader" style={{ ...cell, width: 110, flexShrink: 0, textAlign: "right" }}>
@@ -404,10 +475,34 @@ export function CrossingsLog() {
   // With no filter the page keeps its original 50-entry request, unchanged.
   const pageSize = orderFilter ? 200 : 50;
 
-  const { data, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ["audit", pageSize],
-    queryFn:  () => getAuditLog(1, pageSize),
+  // WHICH page of that history is on screen.
+  //
+  // The API has taken `page` since it was written and returns `total`, but this
+  // component only ever asked for page 1 and rendered no page control, so an org's
+  // audit history beyond its newest 50 entries could not be reached from the
+  // product at all — not by scrolling, not by searching, not by any control on the
+  // screen. Search and the filter chips run over the loaded page (see `filtered`
+  // below), so paging is also the only way they can reach an older PO.
+  //
+  // Kept in component state rather than the URL: `?orderId=` is an identity worth
+  // sharing, a scroll position in a live-tailing operations log is not, and the
+  // route's query-param registry stays untouched.
+  const [page, setPage] = useState(1);
+
+  // Any change to what we are looking FOR resets where we are looking. Without
+  // this, narrowing the filter while on page 7 shows an empty page 7 and reads as
+  // "no such events".
+  useEffect(() => {
+    setPage(1);
+  }, [orderFilter, filter, search]);
+
+  const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
+    queryKey: ["audit", pageSize, page],
+    queryFn:  () => getAuditLog(page, pageSize),
     enabled:  !isApiMockMode,
+    // Hold the previous page on screen while the next one loads, so paging does not
+    // flash the skeleton and re-collapse every expanded row.
+    placeholderData: keepPreviousData,
   });
 
   // Below Operations the API refuses this page outright (403
@@ -433,6 +528,22 @@ export function CrossingsLog() {
   const loadedCount   = isApiMockMode ? ALL_ENTRIES.length : (data?.events?.length ?? 0);
   const totalEntries  = isApiMockMode ? ALL_ENTRIES.length : (data?.total ?? loadedCount);
   const windowPartial = totalEntries > loadedCount;
+
+  // Where this page sits in the whole history, for the range readout and the
+  // Prev/Next bounds. `pageCount` is derived from the API's `total`, never guessed
+  // from whether the last page came back short.
+  const pageCount  = Math.max(1, Math.ceil(totalEntries / pageSize));
+  const firstIndex = loadedCount === 0 ? 0 : (page - 1) * pageSize + 1;
+  const lastIndex  = (page - 1) * pageSize + loadedCount;
+  const showPager  = !isApiMockMode && (pageCount > 1 || page > 1);
+
+  // The log is append-only but not immutable — retention erases old events — so the
+  // history can shrink under a reader who is paged deep into it, leaving `page`
+  // past the end and the readout saying "page 5 of 2". Converges in one step
+  // because pageCount does not depend on page.
+  useEffect(() => {
+    if (page > pageCount) setPage(pageCount);
+  }, [page, pageCount]);
   // The PO number is only knowable once a matching entry is in hand; with no match
   // the strip names no order rather than echoing a raw id at the operator.
   const filteredPo    = LOG[0]?.po ?? null;
@@ -442,7 +553,7 @@ export function CrossingsLog() {
     const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
     const header = ["Timestamp", "Event", "PO", "Buyer", "Supplier", "Format", "Actor", "Message"];
     const body = filtered.map((e) =>
-      [e.ts, EV_CANON[e.canonicalEvent].label, e.po, e.buyer, e.supplier, e.fmt, e.actor.name, e.message]
+      [e.ts, entryLabel(e), e.po, e.buyer, e.supplier, e.fmt, e.actor.name, e.message]
         .map(esc).join(","),
     );
     const csv = [header.map(esc).join(","), ...body].join("\r\n");
@@ -528,7 +639,7 @@ export function CrossingsLog() {
             </strong>{" "}
             Every other order is hidden.
             {windowPartial
-              ? ` We searched the ${loadedCount} most recent entries in this workspace, so anything older than those is not listed here.`
+              ? ` We searched the ${loadedCount} entries on this page, out of ${totalEntries} in this workspace — more of this order's history may be on another page.`
               : ""}
           </p>
           <Link
@@ -636,15 +747,25 @@ export function CrossingsLog() {
                   title="Nothing recorded for this order"
                   sub={
                     windowPartial
-                      ? `This order has no entries among the ${loadedCount} most recent in this workspace. Older entries for it may still exist.`
+                      ? `This order has no entries among the ${loadedCount} on this page (${totalEntries} in the workspace). Its entries may be on another page.`
                       : "Other orders still have entries — this one has none yet."
                   }
                 />
               ) : (
+                /* The unfiltered nothing. This used to read "No matching events /
+                   Nothing recorded for this filter yet" with no hint of scope — but
+                   the chips and the search box only ever see the page that is
+                   loaded, so an operator searching for an older PO number got a
+                   confident, wrong "nothing recorded". Say what was actually
+                   searched. */
                 <EmptyState
                   compact
-                  title="No matching events"
-                  sub="Nothing recorded for this filter yet."
+                  title="No matching events on this page"
+                  sub={
+                    windowPartial
+                      ? `Search and the filter chips only cover the ${loadedCount} entries on this page, out of ${totalEntries} in the workspace. Try another page.`
+                      : "Nothing in this workspace's log matches."
+                  }
                 />
               )}
             </div>
@@ -713,7 +834,7 @@ export function CrossingsLog() {
                                   <path d={ev.iconPath} />
                                 </svg>
                               </span>
-                              <UnifiedStatusBadge status={c.canonicalEvent} />
+                              <EventBadge entry={c} />
                               <span className="mono faint" style={{ marginLeft: "auto", fontSize: 11.5, flexShrink: 0 }}>
                                 {c.ts}
                               </span>
@@ -794,9 +915,11 @@ export function CrossingsLog() {
                             </svg>
                           </span>
 
-                          {/* Status pill — canonical UnifiedStatusBadge (one shape per row) */}
-                          <span style={{ width: 92, flexShrink: 0, display: "inline-flex" }}>
-                            <UnifiedStatusBadge status={c.canonicalEvent} />
+                          {/* Event pill — one shape per row. Wider than the old 92px
+                              because the label now names the actual event rather
+                              than a six-word bucket. */}
+                          <span style={{ width: 150, flexShrink: 0, display: "inline-flex", minWidth: 0 }}>
+                            <EventBadge entry={c} />
                           </span>
 
                           {/* PO mono */}
@@ -1002,7 +1125,13 @@ export function CrossingsLog() {
                                     retry-from-here API; this navigates to the order, where the resend
                                     action lives. Labelled honestly so it doesn't promise a retry it
                                     can't perform (audit: dead "Retry delivery" control). */}
-                                {c.event === "failed" && (
+                                {/* Gated on the manifest-derived kind, not the mock-only
+                                    `event` field it used to read. `event` is never set on
+                                    the live path, so this control could not render for a
+                                    real failure at all — the screen's one recovery
+                                    affordance was missing from exactly the rows that
+                                    needed it. */}
+                                {c.canonicalEvent === "failed" && (
                                   <button
                                     className="btn btn-secondary sm"
                                     onClick={() => router.push(`/inbox/${c.crossingId}`)}
@@ -1021,7 +1150,7 @@ export function CrossingsLog() {
                                   className="btn btn-ghost sm"
                                   onClick={() => {
                                     const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-                                    const row = [c.ts, EV_CANON[c.canonicalEvent].label, c.po, c.buyer, c.supplier, c.fmt, c.actor.name, c.message].map(esc).join(",");
+                                    const row = [c.ts, entryLabel(c), c.po, c.buyer, c.supplier, c.fmt, c.actor.name, c.message].map(esc).join(",");
                                     const csv = [`"Timestamp","Event","PO","Buyer","Supplier","Format","Actor","Message"`, row].join("\r\n");
                                     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
                                     const url = URL.createObjectURL(blob);
@@ -1050,6 +1179,57 @@ export function CrossingsLog() {
               </div>
             ))}
             </>
+          )}
+
+          {/* Pager.
+              Rendered OUTSIDE the empty/non-empty branch on purpose: when the chips
+              or the search box zero out the current page, paging is the only way to
+              reach the entries that do match, so the control an operator needs most
+              must not disappear with the rows. */}
+          {showPager && (
+            <nav
+              aria-label="Delivery log pages"
+              className="row between items-center wrap"
+              style={{
+                gap: 10,
+                marginTop: 4,
+                paddingTop: 12,
+                borderTop: "1px solid var(--border)",
+                flexDirection: isMobile ? "column" : "row",
+                alignItems: isMobile ? "stretch" : "center",
+              }}
+            >
+              {/* Deliberately NOT role="status": the order-filter strip above already
+                  owns that role on this page, and a second one makes
+                  getByRole("status") ambiguous for anything reading the page. */}
+              <p
+                style={{ margin: 0, fontSize: 12, color: "var(--ink-muted)", textAlign: isMobile ? "center" : "left" }}
+              >
+                {loadedCount === 0
+                  ? `Page ${page} of ${pageCount} · no entries here`
+                  : `Showing ${firstIndex}–${lastIndex} of ${totalEntries} · page ${page} of ${pageCount}`}
+              </p>
+              <div className="row gap-2 items-center" style={{ flexShrink: 0 }}>
+                <button
+                  className="btn btn-secondary sm"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page <= 1 || isFetching}
+                  style={isMobile ? { height: 36, flex: 1 } : undefined}
+                  aria-label="Newer entries"
+                >
+                  Newer
+                </button>
+                <button
+                  className="btn btn-secondary sm"
+                  onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
+                  disabled={page >= pageCount || isFetching}
+                  style={isMobile ? { height: 36, flex: 1 } : undefined}
+                  aria-label="Older entries"
+                >
+                  Older
+                </button>
+              </div>
+            </nav>
           )}
         </>
       )}
