@@ -357,6 +357,60 @@ describe("the send flow's notice — finalDeliveryMessage", () => {
     expect(notice).toContain("HTTP 502");
     vi.doUnmock("@/lib/api-client");
   });
+
+  it("cleans the transform_failed notice, which is its own branch in useSendFlow", async () => {
+    // Found by mutation, not by reading: reverting this branch to `current.errorMessage ??` left
+    // every other test in this file green. A branch with no test is a branch that will be
+    // reverted by the next refactor, which is how this defect class keeps coming back.
+    vi.doMock("@/lib/api-client", () => ({
+      apiClient: {
+        getOrderById: (...a: unknown[]) => flowApi.getOrderById(...a),
+        transformOrder: (...a: unknown[]) => flowApi.transformOrder(...a),
+        redeliverOrder: (...a: unknown[]) => flowApi.redeliverOrder(...a),
+        markDelivered: (...a: unknown[]) => flowApi.markDelivered(...a),
+        getOrderAudit: (...a: unknown[]) => flowApi.getOrderAudit(...a),
+      },
+    }));
+    vi.resetModules();
+    const { useSendFlow } = await import("@/components/bridge/review/hooks/useSendFlow");
+
+    // No artifacts and not ready_to_deliver — the only way into the transform arm.
+    const pending = {
+      id: "ord-2", poNumber: "PO-2", supplierId: "sup-1", supplierName: "Acme",
+      orderDate: "2026-08-01", currency: "EUR", status: "pending_review",
+      createdAt: "2026-08-01T00:00:00Z", updatedAt: "2026-08-01T00:00:00Z",
+      lines: [], artifacts: [], errorMessage: null,
+    } as unknown as Order;
+
+    flowApi.transformOrder.mockResolvedValue({ artifactId: "", format: "cxml", createdAt: "x" });
+    flowApi.getOrderById.mockResolvedValue({
+      ...pending,
+      status: "transform_failed",
+      errorMessage: APPENDED_HTML,
+    });
+
+    const { result } = renderHook(() =>
+      useSendFlow({
+        orderId: "ord-2",
+        order: pending,
+        exceptionCount: 0,
+        refetchOrder: vi.fn().mockResolvedValue(undefined),
+        labels: LABELS,
+      } as never),
+    );
+
+    await act(async () => {
+      await result.current.confirmSend();
+    });
+
+    const notice = result.current.flowNotice ?? "";
+    expect(notice).not.toContain("<!DOCTYPE");
+    expect(notice).not.toContain("<html");
+    expect(notice).not.toContain("<!--");
+    // Anti-vacuity: the branch really ran and really carried the field.
+    expect(notice).toContain("HTTP 502");
+    vi.doUnmock("@/lib/api-client");
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
