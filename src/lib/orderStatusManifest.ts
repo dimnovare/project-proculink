@@ -224,7 +224,7 @@ export const OP_GUARDS: Record<OrderOp, OpGuard> = {
     // `ready_to_deliver`; the endpoint does not, and answers 400 for it with a
     // message built from this very set. `delivery_dead_letter` is refused one line
     // earlier with its own sentence pointing at the ops path.
-    allowedFrom: ["delivery_failed"],
+    allowedFrom: ["delivery_failed", "ready_to_deliver"],
     backendSymbol: "OrderStatusMachine.RetryableFrom",
     backendSite: "ProcuLink.Api/Controllers/OrdersController.cs:2320",
   },
