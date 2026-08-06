@@ -64,16 +64,54 @@ export function buyerLabel(order: Pick<Order, "buyerName" | "status">): string {
   return order.status === "parsing" ? "(parsing…)" : "Buyer not detected";
 }
 
+/**
+ * The storage-key segment that marks an outbound artifact as a RE-PROCESSED PREVIEW rather than
+ * the order's deliverable output.
+ *
+ * MIRRORS `OutboundArtifactSelection.ReprocessKeyMarker` BY HAND
+ * (ProcuLink.Core/Services/OutboundArtifactSelection.cs:44). The backend deliberately discriminates
+ * on the storage namespace rather than a column — "a fact about the object, readable by anyone
+ * listing the bucket" — and `ArtifactDto` (ProcuLink.Api/Contracts/OrderDto.cs:186) carries
+ * `fileKey`, so the frontend can ask the same question. It carries no flag, no revision id and no
+ * `isReprocessed`, so this string is the only thing to ask it with. The C# side pins its own
+ * constant in ProcuLink.Api.Tests/Architecture/DeliverableArtifactSelectionIsRoutedTests.cs; if
+ * that value ever changes, this one has to change with it.
+ */
+export const REPROCESSED_ARTIFACT_KEY_MARKER = "/reprocessed/";
+
+/**
+ * The artifact this order would actually DELIVER: its newest non-re-processed output, or null.
+ *
+ * `artifacts[0]` is not that. The API returns the list newest-first and unfiltered — on purpose,
+ * because it answers "what does this order hold?" — so after a WP-35 re-process under a draft
+ * revision with a different output format, the newest artifact is the PREVIEW. The backend sends
+ * the right bytes either way (`OutboundArtifactSelection.Deliverable()`); it was the frontend's
+ * display that answered a different question from the one it was asked, including in the send
+ * confirmation, where the operator is consenting to something irreversible.
+ *
+ * Sorted by `createdAt` rather than trusting the server's order: the sort is stable, so a tie
+ * keeps the server's sequence, and the assumption stops being unwritten.
+ */
+export function deliverableArtifact(artifacts: Order["artifacts"] | undefined): Order["artifacts"][number] | null {
+  const deliverable = (artifacts ?? []).filter(
+    (a) => !(a.fileKey ?? "").includes(REPROCESSED_ARTIFACT_KEY_MARKER),
+  );
+  if (deliverable.length === 0) return null;
+  return [...deliverable].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  )[0];
+}
+
 /** Generate a display label for the supplier output file. */
 export function outputArtifactLabel(artifacts: Order["artifacts"], supplierName: string): string {
-  const fmt = artifacts[0]?.format;
+  const fmt = deliverableArtifact(artifacts)?.format;
   const slug = supplierName.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
   return fmt ? `${slug}.${fmt}` : `${slug}.xml`;
 }
 
-/** Derive FileChip format from the latest outbound artifact. */
+/** Derive FileChip format from the newest DELIVERABLE outbound artifact. */
 export function outputArtifactType(artifacts: Order["artifacts"]): string {
-  const fmt = artifacts[0]?.format?.toLowerCase();
+  const fmt = deliverableArtifact(artifacts)?.format?.toLowerCase();
   if (!fmt)           return "XML";
   if (fmt === "cxml") return "cXML";
   if (fmt === "csv")  return "CSV";
@@ -82,13 +120,15 @@ export function outputArtifactType(artifacts: Order["artifacts"]): string {
 
 /**
  * The output format the supplier actually RECEIVES for this order, as an OutputFormatId — derived
- * from the latest generated artifact's format. Drives the mapper preview's DEFAULT format so it
- * opens on what's delivered, not a hard-coded CSV (founder bug 4). Null when no artifact exists yet
- * (the preview then falls back to its own default). Normalizes the loose artifact string
+ * from the newest DELIVERABLE artifact's format (see deliverableArtifact: the newest artifact may
+ * be a re-processed preview). Drives the mapper preview's DEFAULT format so it opens on what's
+ * delivered, not a hard-coded CSV (founder bug 4), and the send confirmation's format. Null when
+ * the order holds no deliverable artifact yet (the preview then falls back to its own default, and
+ * the confirmation says nothing rather than guessing). Normalizes the loose artifact string
  * ("Json"/"cXML"/…) and maps any non-previewable value to null so the caller falls back cleanly.
  */
 export function orderDeliveryFormat(order: Pick<Order, "artifacts">): OutputFormatId | null {
-  const raw = (order.artifacts?.[0]?.format ?? "").trim().toLowerCase();
+  const raw = (deliverableArtifact(order.artifacts)?.format ?? "").trim().toLowerCase();
   switch (raw) {
     case "csv": case "json": case "xml": case "cxml": case "ubl": case "x12":
       return raw as OutputFormatId;

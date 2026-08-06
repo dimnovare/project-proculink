@@ -930,7 +930,15 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
   // modal so it always reflects what will be delivered, not whichever format the
   // user last previewed (exploratory previews set outputFormatLabel to that tab's
   // format, which caused the modal to say "XML" when the supplier receives CSV).
-  const sendModalFormat = (order ? orderDeliveryFormat(order) : "") || outputFormatLabel;
+  //
+  // NOT `|| outputFormatLabel`. That fallback ran whenever orderDeliveryFormat
+  // returned null, and outputArtifactType answers "XML" for an order with no
+  // artifact — so the modal named a format confidently on the strength of a
+  // hard-coded default. Null now travels to the dialog, which omits the format
+  // rather than inventing one. This became reachable rather than theoretical
+  // when the format started coming from the DELIVERABLE artifact: an order whose
+  // only artifact is a re-processed preview has no deliverable format to name.
+  const sendModalFormat = order ? orderDeliveryFormat(order) : null;
 
   // ── Loading / error gates (after all hooks) ─────────────────────────────────
   //    Every gate return below wraps itself in WorkshopGateShell: BridgeTopbar

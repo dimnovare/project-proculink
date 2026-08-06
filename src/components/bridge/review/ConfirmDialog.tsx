@@ -18,7 +18,12 @@ export function ConfirmDialog({ exceptionCount, onConfirm, onCancel, supplierNam
   onConfirm: () => void;
   onCancel: () => void;
   supplierName: string;
-  outputFormat: string;
+  /**
+   * The format of the artifact that will actually be DELIVERED, or null when the order holds no
+   * deliverable artifact. Nullable on purpose: this dialog is the consent step for an irreversible
+   * action, and it used to receive a hard-coded "XML" whenever the real answer was unknown.
+   */
+  outputFormat: string | null;
   grandTotal: string;
   lineCount: number;
   labels: PartyLabels;
@@ -39,6 +44,9 @@ export function ConfirmDialog({ exceptionCount, onConfirm, onCancel, supplierNam
     confirmAlways,
   );
   const canConfirm = (!requireCheckbox || checked) && (failingRuleCount === 0 || ackValidation);
+  // Empty string is treated as unknown too — the caller's fallback chain used to
+  // produce one, and "the transformed  order" reads as a rendering bug.
+  const formatLabel = outputFormat?.trim() ? outputFormat.trim().toUpperCase() : null;
   const checkRef = useRef<HTMLInputElement>(null);
   const confirmBtnRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -90,7 +98,7 @@ export function ConfirmDialog({ exceptionCount, onConfirm, onCancel, supplierNam
         <div style={{ padding: "20px 24px 0" }}>
           <div id={titleId} style={{ fontFamily: "'Bricolage Grotesque',Inter,sans-serif", fontSize: 18, fontWeight: 700, color: "#0B1A2F", marginBottom: 6 }}>{inbound ? "Confirm this order?" : "Send order to supplier?"}</div>
           <p style={{ fontSize: 13, color: "#5E6779", lineHeight: 1.55, margin: 0 }}>
-            This will {inbound ? "confirm" : "deliver"} the transformed {outputFormat.toUpperCase()} order {inbound ? "for" : "to"} <strong style={{ color: "#0B1A2F" }}>{supplierName}</strong>
+            This will {inbound ? "confirm" : "deliver"} the transformed{formatLabel ? ` ${formatLabel}` : ""} order {inbound ? "for" : "to"} <strong style={{ color: "#0B1A2F" }}>{supplierName}</strong>
           </p>
         </div>
 
@@ -101,7 +109,7 @@ export function ConfirmDialog({ exceptionCount, onConfirm, onCancel, supplierNam
               { label: "Grand total",    value: grandTotal },
               { label: "Lines",          value: `${lineCount} item${lineCount !== 1 ? "s" : ""}` },
               { label: "Issues to review", value: `${exceptionCount}`, color: exceptionCount > 0 ? "#8A5310" : "#1E6D29" },
-              { label: "Format",         value: outputFormat.toUpperCase() },
+              { label: "Format",         value: formatLabel ?? "Not known yet" },
             ].map(({ label, value, color }) => (
               <div key={label} style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--ink-faint)", marginBottom: 2 }}>{label}</div>
