@@ -284,6 +284,21 @@ describe("the failing pairs cannot come back", () => {
     expect(found, `use var(--amber-text) / #8A5310 instead:\n${found.join("\n")}`).toEqual([]);
   });
 
+  it("never assigns the one-off #9A6B00 to a text colour", () => {
+    // The near-miss amber, and never a token: #9A6B00 on the #FFF7E6 chip fill is
+    // 4.3999:1, under the 4.5:1 NORMAL-text floor — WCAG large text starts at
+    // 18.66px bold, so the 9px/700 and 10.5px/700 chips it painted were all normal
+    // text. --amber-text (#8A5310) is 5.9237:1 on the same fill.
+    //
+    // This is a source rule rather than a comment because the count is the lesson:
+    // five copies existed, four were fixed, and the fifth (WorkshopStatusBar's
+    // "fields need a source" chip) survived every gate — axe only scans the ten
+    // screens in tests/e2e/coreScreens.ts, and check-tokens.mjs reads source text,
+    // not contrast. Neither could see it.
+    const found = hits(/\b(?:color|fg)\s*:\s*(?:[^,;}\n]*\?\s*)?["'`]#9A6B00["'`]/i);
+    expect(found, `use var(--amber-text) / #8A5310 instead:\n${found.join("\n")}`).toEqual([]);
+  });
+
   it("has deleted the banned emerald #28C55E", () => {
     // docs/design-system/11-unified-page-rules.md bans the retired emerald
     // greens. It shipped as the focus-visible ring on all 46 help articles at
