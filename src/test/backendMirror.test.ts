@@ -751,6 +751,8 @@ describe("catalog sync statuses mirror the backend", () => {
       ).toContain(fact.status);
     }
   });
+});
+
 // ── The vacuity floor ────────────────────────────────────────────────────────
 //
 // Runs after every test in the file, so it is independent of test ORDER — which a
