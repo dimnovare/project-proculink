@@ -7,9 +7,9 @@
 // preview == the delivered bytes). Functional first version — form-based tree editing; drag/reorder
 // polish is a follow-up.
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { previewMappingOverride, upsertMappingOverride, inferOutputStructure, getSourceTokens } from "@/lib/api-client";
+import { previewMappingOverride, upsertMappingOverride, inferOutputStructure, getSourceTokens, apiClient } from "@/lib/api-client";
 import { OutputSourcePicker } from "./OutputSourcePicker";
 import { withBinding, withFormatManipulator, type BindingKey } from "./outputRuleModel";
 import type { CsvDialect } from "@/lib/api/types";
@@ -19,6 +19,18 @@ import {
   namespacesToRows, rowsToNamespaces, templateHasRootNamespaces, treeHasPerNodeNamespaces,
   type NamespaceRow,
 } from "./outputNamespaceModel";
+import {
+  buildPredicate, parsePredicate, operatorsForField, operatorTakesValue,
+  OPERATOR_LABELS, type ConditionOperator, type ConditionScope, type StructuredCondition,
+} from "./outputConditionModel";
+import {
+  NAMESPACE_PRESETS, applyNamespacePreset, detectNamespacePreset,
+  hoistPerNodeNamespaces, clearRootNamespaces, hasDefaultNamespace, type NamespacePresetId,
+} from "./outputNamespacePresets";
+import {
+  collectLayoutProblems, collectOrderProblems, blocksSave, problemCounts,
+  isRenderableTreeFormat, formatLabel, type DesignProblem,
+} from "./outputTreeProblems";
 import {
   BINDABLE_HEADER_FIELDS, BINDABLE_LINE_FIELDS,
   type OrderMappingOverride, type OutputNode, type OutputNodeTemplate,
@@ -39,11 +51,19 @@ const FORMATS: { id: OutputFormat; label: string }[] = [
 ];
 
 /**
- * Coerce a tree's format to one the designer can OFFER + emit (json/xml/csv). A saved override or
- * an inferred tree may carry a format outside that set (cXml / ubl / x12, or a casing variant like
- * "JSON"/"cXml"); without this the `<select value={tree.format}>` matches no `<option>` and the
- * Format control renders BLANK (founder bug 6). cXML/UBL/X12 are namespaced/positional documents
- * the generic node tree serializes as XML, so they collapse to "xml" here; anything unknown → json.
+ * Which of the three authorable shapes a format EDITS AS — the XML namespace controls, the CSV
+ * dialect panel, and the per-column condition rules all key off this.
+ *
+ * **This is a display function and nothing else.** It used to be applied while SEEDING state from
+ * `initialTree`, and `save()` writes the seeded tree verbatim, so merely opening a cXML layout and
+ * pressing Save rewrote it to `xml` — data loss with no consent (WP-16). Worse than it looks: the
+ * backend then requires a layout's format to EQUAL the connection's delivery format, so the
+ * rewritten `xml` layout was silently dropped at transform time and the fixed cXML transform
+ * delivered instead. A loud, findable failure became a silent no-op.
+ *
+ * The seed and save paths now carry `format` through untouched. A format the node tree cannot render
+ * surfaces as a blocking bar with three explicit choices (see `FormatForkBar`) instead of being
+ * quietly rewritten underneath the author.
  */
 function designerFormat(raw: OutputFormat | string | null | undefined): OutputFormat {
   const v = (raw ?? "").toString().trim().toLowerCase();
@@ -160,11 +180,11 @@ export function OutputStructureDesigner({
   onClose: () => void;
   onSaved?: () => void;
 }) {
-  // Seed from the saved/passed tree, but force its format into the offered set so the Format
-  // control always has a matching <option> (a tree saved as cXml/ubl/x12 → "xml" here).
-  const [tree, setTree] = useState<OutputNodeTemplate>(
-    initialTree ? { ...initialTree, format: designerFormat(initialTree.format) } : defaultTree("json"),
-  );
+  // Seed from the saved/passed tree VERBATIM. The format is deliberately not coerced here: coercing
+  // on open is how a cXML layout used to be rewritten to `xml` by nothing more than opening it and
+  // pressing Save. A format the tree cannot render is surfaced by `FormatForkBar` and blocks the
+  // save until a human chooses; it is never changed on their behalf.
+  const [tree, setTree] = useState<OutputNodeTemplate>(initialTree ?? defaultTree("json"));
   const confirm = useConfirm();
   const [preview, setPreview] = useState<{ content: string | null; error?: string; loading: boolean }>({ content: null, loading: false });
   const [saving, setSaving] = useState(false);
@@ -244,7 +264,11 @@ export function OutputStructureDesigner({
       const withCsvDefault = designerFormat(inferred.format) === "csv" && !inferred.csvDialect
         ? { ...inferred, csvDialect: { lineEnding: "\r\n" } }
         : inferred;
-      setTree({ ...withCsvDefault, format: designerFormat(inferred.format) });
+      // The inferrer accepts a cXML/UBL sample and stamps that format onto the tree, which nothing
+      // downstream can render. Coercing it to `xml` here would hide that behind a layout that then
+      // gets silently dropped at delivery, so the inferred format is carried through and the fork
+      // bar asks.
+      setTree(withCsvDefault);
       setSaved(false); setDirty(true);
       setShowInfer(false);
       setFirstRun(false); // sample inferred → reveal the editable tree
@@ -269,10 +293,40 @@ export function OutputStructureDesigner({
     setSaved(false); setDirty(true);
   }, []);
 
+  /** Pick a namespace set instead of transcribing URIs. `custom` only reveals the rows. */
+  const setNamespacePreset = useCallback((id: NamespacePresetId) => {
+    setTree((t) => applyNamespacePreset(t, id));
+    setSaved(false); setDirty(true);
+  }, []);
+
   const isXml = designerFormat(tree.format) === "xml";
   const isCsv = designerFormat(tree.format) === "csv";
   const hasPerNodeNs = treeHasPerNodeNamespaces(tree.root);
+  // A prefixless (default) namespace cannot be hoisted to the root map — there is no key for it —
+  // so the "move them to the top" offer is withheld rather than offered and left unfinished.
+  const hasDefaultNs = hasDefaultNamespace(tree.root);
   const hasRootNs = templateHasRootNamespaces(tree);
+  const renderable = isRenderableTreeFormat(tree.format);
+
+  // ── Design-time validation ─────────────────────────────────────────────────
+  // The ORDER is fetched for one reason: `OutputTemplateEmitter` runs `GuardResolved` on the tree
+  // path while all six fixed transforms run `OutputFieldValidator`, which also refuses a negative
+  // unit price and a non-positive quantity. Those two checks are what a designed layout has always
+  // skipped, so the same order a fixed transform refuses delivered silently through a layout.
+  const { data: order } = useQuery({
+    queryKey: ["order", orderId],
+    queryFn: () => apiClient.getOrderById(orderId),
+    staleTime: 30_000,
+    retry: 1,
+  });
+
+  const layoutProblems = useMemo(() => collectLayoutProblems(tree), [tree]);
+  const orderProblems = useMemo(() => collectOrderProblems(order?.lines ?? []), [order]);
+  const problems = useMemo(() => [...layoutProblems, ...orderProblems], [layoutProblems, orderProblems]);
+  // Only a LAYOUT problem stops a save. An order that is not ready is not a broken layout, and
+  // blocking on it would stop work that delivers today (founder ruling 2026-07-31).
+  const blocked = blocksSave(layoutProblems);
+  const counts = problemCounts(problems);
 
   // ── Live preview (debounced) — exactly what will be delivered ───────────────
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -292,6 +346,10 @@ export function OutputStructureDesigner({
   }, [tree, orderId, baseOverride]);
 
   const save = useCallback(async () => {
+    // The guard lives here as well as on the button's `disabled`, because a blocked save is a
+    // correctness rule, not a styling one — and a disabled button is the kind of thing a later edit
+    // quietly turns into a tooltip.
+    if (blocked) return;
     setSaving(true);
     try {
       const override: OrderMappingOverride = { ...(baseOverride ?? { customFields: [] }), outputTree: tree };
@@ -301,7 +359,47 @@ export function OutputStructureDesigner({
     } finally {
       setSaving(false);
     }
-  }, [tree, orderId, baseOverride, onSaved]);
+  }, [tree, orderId, baseOverride, onSaved, blocked]);
+
+  /**
+   * The consented half of what `designerFormat()` used to do silently. The author is told exactly
+   * what they lose — the standard's envelope, which the receiving system validates before it looks
+   * at the order — and the format only changes if they say yes.
+   */
+  const convertTo = useCallback(async (next: OutputFormat) => {
+    const label = formatLabel(tree.format);
+    const ok = await confirm({
+      title: `Turn this into a plain ${formatLabel(next)} layout?`,
+      description: `This will keep your tags and nesting but produce plain ${formatLabel(next)}, without the ${label} envelope. Your supplier may reject it.`,
+      confirmLabel: `Convert to ${formatLabel(next)}`,
+      cancelLabel: `Keep it as ${label}`,
+    });
+    if (!ok) return;
+    setTree((t) => ({ ...t, format: next }));
+    setSaved(false); setDirty(true);
+  }, [tree.format, confirm]);
+
+  /** Drop the layout entirely, so the supplier's own dedicated transform is unambiguously in charge. */
+  const removeLayout = useCallback(async () => {
+    const label = formatLabel(tree.format);
+    const ok = await confirm({
+      title: "Remove this layout?",
+      description: `This order will be built by ProcuLink's own ${label} builder instead. The layout is deleted.`,
+      confirmLabel: "Remove layout",
+      cancelLabel: "Keep it",
+      danger: true,
+    });
+    if (!ok) return;
+    setSaving(true);
+    try {
+      await upsertMappingOverride(orderId, { ...(baseOverride ?? { customFields: [] }), outputTree: null });
+      setDirty(false);
+      onSaved?.();
+      onClose();
+    } finally {
+      setSaving(false);
+    }
+  }, [tree.format, confirm, orderId, baseOverride, onSaved, onClose]);
 
   // Guarded close — the X and Cancel both discard in-modal edits, so confirm first when the tree
   // has unsaved changes. `onClose` itself stays unchanged so the save-then-close path is untouched.
@@ -350,10 +448,19 @@ export function OutputStructureDesigner({
             <div role="radiogroup" aria-labelledby="osd-format-label"
               style={{ display: "inline-flex", gap: 2, padding: 2, borderRadius: 8, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.14)" }}>
               {FORMATS.map((f) => {
-                const selected = designerFormat(tree.format) === f.id;
+                // Compared against the RAW format, not the display coercion: when the layout is
+                // saved as cXML none of the three is the truth, so none lights up and the bar below
+                // explains. A pill lit for a format the layout is not in is the lie this replaces.
+                const selected = (tree.format ?? "").toString().trim().toLowerCase() === f.id;
                 return (
                   <button key={f.id} role="radio" aria-checked={selected} aria-label={`${f.label} format`}
-                    onClick={() => { setTree((t) => ({ ...t, format: f.id })); setSaved(false); setDirty(true); }}
+                    onClick={() => {
+                      // Leaving a standard format is the SAME consequential change the fork bar
+                      // guards — the envelope is dropped either way — so it asks the same question.
+                      // Without this the confirm is bypassable by clicking a pill.
+                      if (!renderable) { void convertTo(f.id); return; }
+                      setTree((t) => ({ ...t, format: f.id })); setSaved(false); setDirty(true);
+                    }}
                     style={{
                       height: 24, padding: "0 11px", borderRadius: 6, cursor: "pointer",
                       fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", fontSize: 10, fontWeight: 700,
@@ -381,6 +488,17 @@ export function OutputStructureDesigner({
           overflowY: isNarrow ? "auto" : undefined }}>
           <div style={{ overflow: isNarrow ? "visible" : "auto", padding: 16, borderRight: isNarrow ? "none" : `1px solid ${BORDER}`, borderBottom: isNarrow ? `1px solid ${BORDER}` : "none" }}>
             <div style={{ fontSize: 11, color: "#5A6B82", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.4 }}>Structure</div>
+
+            {/* The format fork. Shown only when the saved format is one the node tree cannot render,
+                which is exactly the case that used to be rewritten to "xml" on open. */}
+            {!renderable && (
+              <FormatForkBar
+                format={tree.format}
+                supplierId={order?.supplierId ?? null}
+                onConvert={() => void convertTo("xml")}
+                onRemove={() => void removeLayout()}
+              />
+            )}
 
             {/* Phase D — paste the supplier's required sample and infer the shape.
                 On first run this IS the empty state (firstRun), so the toggle/collapse chrome and the
@@ -440,12 +558,42 @@ export function OutputStructureDesigner({
             )}
 
             {!firstRun && isXml && !hasPerNodeNs && (
-              <RootNamespacesEditor rows={namespacesToRows(tree.namespaces)} onChange={setRootNamespaces} />
+              <RootNamespacesEditor
+                preset={detectNamespacePreset(tree)}
+                rows={namespacesToRows(tree.namespaces)}
+                onPreset={setNamespacePreset}
+                onChange={setRootNamespaces}
+              />
             )}
+            {/* Both namespace modes at once is a state the emitter THROWS on. The old copy named the
+                problem, told the user to "clear the per-element namespaces", and gave them no control
+                that did it — at 4.39:1, below AA. Now it is two buttons, either of which leaves the
+                exclusivity invariant satisfied without the user having to understand it. */}
             {!firstRun && isXml && hasPerNodeNs && hasRootNs && (
-              <div style={{ marginBottom: 12, fontSize: 11, color: "#9A6B1E", background: "#FFF7E8", border: "1px solid #F2DBA8", borderRadius: 6, padding: "7px 10px" }}>
-                This structure declares namespaces on individual elements, so root-level namespaces
-                are not used. Clear the per-element namespaces to declare them on the root instead.
+              <div style={{ marginBottom: 12, fontSize: 11.5, color: "#8A5310", background: "#FAF1DD", border: "1px solid #E4C98F", borderRadius: 6, padding: "9px 10px", lineHeight: 1.5 }}>
+                This layout sets namespaces both at the top and on individual elements. Pick one place.
+                <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+                  {/* "Move them to the top" is offered ONLY when it can actually finish the job. A
+                      namespace with no prefix has no key to move it to, so with one present the
+                      button would run, leave that element behind, and the same warning would still be
+                      here — a control that visibly does nothing is read as broken. */}
+                  {!hasDefaultNs && (
+                    <button onClick={() => { setTree(hoistPerNodeNamespaces); setSaved(false); setDirty(true); }}
+                      style={{ height: 26, padding: "0 10px", borderRadius: 6, border: "1px solid #C69A4C", background: "#FFF", color: "#8A5310", fontSize: 11.5, fontWeight: 600, cursor: "pointer" }}>
+                      Move them to the top
+                    </button>
+                  )}
+                  <button onClick={() => { setTree(clearRootNamespaces); setSaved(false); setDirty(true); }}
+                    style={{ height: 26, padding: "0 10px", borderRadius: 6, border: "1px solid #C69A4C", background: "#FFF", color: "#8A5310", fontSize: 11.5, fontWeight: 600, cursor: "pointer" }}>
+                    Keep them on each element
+                  </button>
+                </div>
+                {hasDefaultNs && (
+                  <div style={{ marginTop: 6 }}>
+                    One element uses a namespace with no prefix, which can&rsquo;t be moved to the top.
+                    Keep them on each element instead.
+                  </div>
+                )}
               </div>
             )}
 
@@ -453,7 +601,7 @@ export function OutputStructureDesigner({
             {!firstRun && (
               <NodeEditor key={treeRevision} node={tree.root} path={[]} lineScope={false} onUpdate={setRoot}
                 sourceTokens={sourceTokens ?? []} isRoot
-                xml={isXml} rootHasNamespaces={hasRootNs}
+                xml={isXml} csv={isCsv} rootHasNamespaces={hasRootNs}
                 siblingCount={1} announce={setAnnouncement} onMoved={onNodeMoved} />
             )}
 
@@ -485,6 +633,9 @@ export function OutputStructureDesigner({
           </div>
         </div>
 
+        {/* Problems strip — persistent, never a toast, never a modal. One line when clean. */}
+        <ProblemsStrip problems={problems} counts={counts} />
+
         {/* Footer */}
         <div style={{ display: "flex", gap: 10, alignItems: "center", padding: "12px 18px", borderTop: `1px solid ${BORDER}`, flexWrap: "wrap" }}>
           {/* The helper line is desktop-only — on narrow it would push the action buttons off-screen. */}
@@ -493,15 +644,278 @@ export function OutputStructureDesigner({
             {/* DS Button md sizing: 44px tap target on narrow, dense 32px on desktop. */}
             <button onClick={requestClose}
               style={{ height: isNarrow ? 44 : 32, padding: "0 14px", borderRadius: 6, border: `1px solid ${BORDER}`, background: "#FFF", color: NAVY, fontSize: 13, fontWeight: 500, cursor: "pointer" }}>Cancel</button>
-            <button onClick={() => void save()} disabled={saving}
-              onMouseEnter={(e) => { if (!saving) e.currentTarget.style.background = GREEN_DEEP; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = GREEN_BTN; }}
-              style={{ height: isNarrow ? 44 : 32, padding: "0 18px", borderRadius: 6, border: "none", background: GREEN_BTN, color: "#FFF", fontSize: 13, fontWeight: 600, cursor: saving ? "default" : "pointer", opacity: saving ? 0.7 : 1, transition: "background 150ms ease" }}>
-              {saving ? "Saving…" : saved ? "✓ Saved" : "Save structure"}
+            {/* A blocked save says WHY on its own label — a bare grey button is a dead end, and the
+                reason is already written one row above in the problems strip. */}
+            <button onClick={() => void save()} disabled={saving || blocked}
+              aria-describedby={blocked ? "osd-problems" : undefined}
+              onMouseEnter={(e) => { if (!saving && !blocked) e.currentTarget.style.background = GREEN_DEEP; }}
+              onMouseLeave={(e) => { if (!blocked) e.currentTarget.style.background = GREEN_BTN; }}
+              style={{ height: isNarrow ? 44 : 32, padding: "0 18px", borderRadius: 6, border: "none", background: blocked ? "#8A93A5" : GREEN_BTN, color: "#FFF", fontSize: 13, fontWeight: 600, cursor: saving || blocked ? "default" : "pointer", opacity: saving ? 0.7 : 1, transition: "background 150ms ease" }}>
+              {blocked
+                ? `Fix ${counts.problems} ${counts.problems === 1 ? "problem" : "problems"} to save`
+                : saving ? "Saving…" : saved ? "✓ Saved" : "Save structure"}
             </button>
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── The format fork ─────────────────────────────────────────────────────────────
+/**
+ * Shown when the saved layout is in a format the node tree cannot render — cXML, UBL, X12, EDIFACT.
+ *
+ * This bar is the whole of WP-16's fourth item. The old behaviour was to coerce the format to `xml`
+ * while seeding state and then save that, so opening a cXML layout and pressing Save rewrote it with
+ * no consent and no notice. Three things make that unacceptable rather than merely untidy:
+ *
+ *  - **The rewrite is not a downgrade, it is a disappearance.** The backend requires a layout's
+ *    format to EQUAL the connection's delivery format. A cXML supplier with an `xml` layout has the
+ *    layout silently dropped at transform time and the fixed cXML transform delivers instead — so
+ *    the author's work stops applying and nothing says so.
+ *  - **A cXML or X12 layout may exist to carry envelope identity**, which the dedicated transform
+ *    reads. Rewriting the format throws that away.
+ *  - **Leaving it alone is also wrong**: the emitter throws on delivery, which is the failure the
+ *    author should have seen here.
+ *
+ * So: keep the format, block the save, and offer the three real answers. `Turn this into a plain XML
+ * layout` is the consented version of the old silent behaviour, and it warns first.
+ */
+function FormatForkBar({ format, supplierId, onConvert, onRemove }: {
+  format: OutputFormat | string;
+  supplierId: string | null;
+  onConvert: () => void;
+  onRemove: () => void;
+}) {
+  const label = formatLabel(format);
+  const btn: React.CSSProperties = {
+    height: 28, padding: "0 11px", borderRadius: 6, border: "1px solid #C58C8C",
+    background: "#FFF", color: "#95302F", fontSize: 12, fontWeight: 600, cursor: "pointer",
+    textDecoration: "none", display: "inline-flex", alignItems: "center",
+  };
+  return (
+    <div style={{ marginBottom: 12, border: "1px solid #E8B7B7", background: "#FAE6E6", borderRadius: 8, padding: "10px 12px" }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: "#95302F" }}>
+        This layout is saved as {label}, which can&rsquo;t be built from a layout.
+      </div>
+      <div style={{ fontSize: 12, color: "#7A3A3A", marginTop: 4, lineHeight: 1.55 }}>
+        {label} carries an envelope — sender and receiver identifiers, a version, a document type —
+        that the receiving system checks <em>before</em> it looks at your order. ProcuLink builds
+        {" "}{label} itself, so this layout isn&rsquo;t being used. Choose what should happen:
+      </div>
+      <div style={{ display: "flex", gap: 8, marginTop: 9, flexWrap: "wrap" }}>
+        {supplierId && (
+          <a href={`/library/suppliers/${supplierId}?tab=delivery`} style={btn}>Set up {label} properly</a>
+        )}
+        <button onClick={onConvert} style={btn}>Turn this into a plain XML layout</button>
+        <button onClick={onRemove} style={btn}>Remove this layout</button>
+      </div>
+    </div>
+  );
+}
+
+// ── Problems strip ──────────────────────────────────────────────────────────────
+const TIER_STYLE: Record<number, { fg: string; bg: string; border: string; mark: string }> = {
+  1: { fg: "#95302F", bg: "#FAE6E6", border: "#E8B7B7", mark: "✕" },
+  2: { fg: "#8A5310", bg: "#FAF1DD", border: "#E4C98F", mark: "!" },
+  3: { fg: "#8A5310", bg: "#FAF1DD", border: "#E4C98F", mark: "!" },
+};
+
+/**
+ * The persistent design-time verdict — never a toast, never a modal, collapsed to one line when
+ * clean. Every row is a plain sentence, because the reader is a procurement coordinator and the
+ * alternative (the emitter's own exception text) names classes they have never heard of.
+ *
+ * The tiers are the honest part. Today every failure renders as red text in the preview pane, so an
+ * order with unresolved lines — not a layout problem at all — reads as "your layout is broken" and
+ * sends the operator looking in the wrong place.
+ */
+function ProblemsStrip({ problems, counts }: {
+  problems: readonly DesignProblem[];
+  counts: { problems: number; notReady: number; warnings: number };
+}) {
+  const [open, setOpen] = useState(true);
+  const clean = problems.length === 0;
+
+  const parts: string[] = [];
+  if (counts.problems) parts.push(`${counts.problems} ${counts.problems === 1 ? "problem" : "problems"}`);
+  if (counts.notReady) parts.push(`${counts.notReady} not ready`);
+  if (counts.warnings) parts.push(`${counts.warnings} ${counts.warnings === 1 ? "warning" : "warnings"}`);
+
+  return (
+    <div id="osd-problems"
+      // Reserved for a layout blocker appearing — an order that is not ready is not an emergency.
+      role={counts.problems > 0 ? "alert" : "status"}
+      style={{ borderTop: `1px solid ${BORDER}`, background: clean ? "#F7F9FC" : "#FFFFFF", padding: "8px 18px", maxHeight: 168, overflowY: "auto" }}>
+      {clean ? (
+        <div style={{ fontSize: 12, color: GREEN_DEEP, fontWeight: 600 }}>✓ This layout will produce a valid file.</div>
+      ) : (
+        <>
+          <button onClick={() => setOpen((v) => !v)} aria-expanded={open}
+            style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", border: "none", background: "transparent", padding: 0, cursor: "pointer", textAlign: "left" }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: counts.problems ? "#95302F" : "#8A5310" }}>
+              {parts.join(" · ")}
+            </span>
+            <span style={{ marginLeft: "auto", fontSize: 11, color: SLATE, fontWeight: 600 }}>{open ? "Hide" : "Show"}</span>
+          </button>
+          {open && (
+            <ul style={{ listStyle: "none", margin: "7px 0 0", padding: 0, display: "flex", flexDirection: "column", gap: 5 }}>
+              {problems.map((p) => {
+                const s = TIER_STYLE[p.tier];
+                return (
+                  <li key={p.id} style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 12, lineHeight: 1.5, color: s.fg, background: s.bg, border: `1px solid ${s.border}`, borderRadius: 6, padding: "6px 9px" }}>
+                    <span aria-hidden style={{ fontWeight: 700, flex: "0 0 auto" }}>{s.mark}</span>
+                    <span style={{ minWidth: 0 }}>{p.message}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── Structured condition builder ────────────────────────────────────────────────
+/**
+ * "Only include when …" as a pick, not a Scriban expression typed into a text box.
+ *
+ * Two properties make this safe to put in front of a non-developer:
+ *
+ *  - **The generated predicate is always visible**, in mono, under the controls. The builder is
+ *    therefore also the documentation, and a power user graduates to the escape hatch without
+ *    needing any.
+ *  - **Anything the builder cannot represent stays raw and is never rewritten.** A parser that
+ *    half-understands an expression is worse than none: it opens the structured editor on a
+ *    predicate it cannot express, and the next save launders the author's expression into an
+ *    approximation of it. `parsePredicate` returns null for every such case and this component
+ *    shows the text exactly as written.
+ *
+ * The `>` / `<` operators are offered on numeric fields ONLY. Scriban compares two strings lexically,
+ * so `"10" > "9"` is false — a layout built on that drops exactly the lines the author meant to keep
+ * and produces a perfectly plausible file, which is why nobody would ever find it.
+ */
+function ConditionEditor({ value, scope, repeating, csv, onChange, onDone }: {
+  value: string | null;
+  scope: ConditionScope;
+  /** True for the repeating list itself, whose condition drops LINES rather than a single value. */
+  repeating: boolean;
+  /** True for a per-value condition in a CSV layout, where it cannot do anything. */
+  csv: boolean;
+  onChange: (next: string) => void;
+  onDone: () => void;
+}) {
+  const fields = scope === "line" ? BINDABLE_LINE_FIELDS : BINDABLE_HEADER_FIELDS;
+  const parsed = parsePredicate(value, scope, fields);
+  const hasValue = (value ?? "").trim() !== "";
+  // Raw mode is entered two ways: the author asked for it, or the saved expression has no structured
+  // shape. The second is not a failure — it is a predicate somebody wrote deliberately.
+  const unparseable = hasValue && parsed === null;
+  const [raw, setRaw] = useState(unparseable);
+  // The builder's working state. Seeded from the parse; the row remounts when the editor reopens.
+  const [draft, setDraft] = useState<StructuredCondition>(
+    parsed ?? { scope, field: fields[0], operator: "is", value: "" },
+  );
+
+  const commitDraft = (next: StructuredCondition) => {
+    setDraft(next);
+    onChange(buildPredicate(next));
+  };
+
+  // A CSV column is present on every row or on none: the header is written once. The control is
+  // shown and disabled WITH THE REASON, never silently greyed — a greyed control with no
+  // explanation is read as a bug.
+  if (csv) {
+    return (
+      <div style={{ marginTop: 4, marginLeft: 18, fontSize: 11.5, color: SLATE, lineHeight: 1.55, maxWidth: 460 }}>
+        A CSV file has the same columns on every row, so a column can&rsquo;t be switched on and off.
+        You can leave whole lines out instead — set that on the repeating list.
+        <div>
+          <button onClick={onDone} style={{ marginTop: 6, height: 26, padding: "0 9px", borderRadius: 6, border: `1px solid ${BORDER}`, background: "#FFF", color: SLATE, fontSize: 11, cursor: "pointer" }}>done</button>
+        </div>
+      </div>
+    );
+  }
+
+  const label = repeating ? "Only include lines when" : "Only include when";
+  const operators = operatorsForField(draft.field);
+
+  return (
+    <div style={{ marginTop: 4, marginLeft: 18, border: `1px solid ${BORDER}`, borderRadius: 8, padding: 10, background: "#F7F9FC", maxWidth: 520 }}>
+      <div role="radiogroup" aria-label="When to include this" style={{ display: "flex", gap: 14, flexWrap: "wrap", marginBottom: hasValue ? 8 : 0 }}>
+        <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: NAVY, cursor: "pointer" }}>
+          <input type="radio" name={`cond-${scope}-${label}`} checked={!hasValue} aria-label="Always include"
+            onChange={() => { onChange(""); setRaw(false); }} />
+          Always include
+        </label>
+        <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: NAVY, cursor: "pointer" }}>
+          <input type="radio" name={`cond-${scope}-${label}`} checked={hasValue} aria-label={label}
+            onChange={() => onChange(buildPredicate(draft))} />
+          {label}
+        </label>
+      </div>
+
+      {hasValue && (raw ? (
+        <>
+          <input autoFocus value={value ?? ""} onChange={(e) => onChange(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === "Escape") onDone(); }}
+            aria-label="Condition expression" spellCheck={false} placeholder={`${scope}.Quantity > 0`}
+            style={{ width: "100%", boxSizing: "border-box", height: 28, border: `1px solid ${BLUE}`, borderRadius: 6, padding: "0 8px", fontSize: 12, fontFamily: MONO, color: NAVY }} />
+          {unparseable && (
+            <div style={{ fontSize: 11, color: SLATE, marginTop: 5, lineHeight: 1.5 }}>
+              This condition was written as an expression, so it&rsquo;s shown as written.
+            </div>
+          )}
+          {!unparseable && (
+            <button onClick={() => setRaw(false)}
+              style={{ marginTop: 6, height: 24, padding: "0 8px", borderRadius: 6, border: `1px solid ${BORDER}`, background: "#FFF", color: SLATE, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+              Use the builder
+            </button>
+          )}
+        </>
+      ) : (
+        <>
+          <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+            <select aria-label="Condition field" value={draft.field}
+              onChange={(e) => {
+                const field = e.target.value;
+                // An operator the new field cannot offer would leave the control showing a value with
+                // no matching option — the blank-select bug, one control over.
+                const ops = operatorsForField(field);
+                const operator = ops.includes(draft.operator) ? draft.operator : "is";
+                commitDraft({ ...draft, field, operator });
+              }}
+              style={{ height: 28, border: `1px solid ${BORDER}`, borderRadius: 6, padding: "0 6px", fontSize: 12, maxWidth: 190 }}>
+              <optgroup label={scope === "line" ? "Fields from this line" : "Fields from the order"}>
+                {fields.map((f) => <option key={f} value={f}>{f}</option>)}
+              </optgroup>
+            </select>
+            <select aria-label="Condition operator" value={draft.operator}
+              onChange={(e) => commitDraft({ ...draft, operator: e.target.value as ConditionOperator })}
+              style={{ height: 28, border: `1px solid ${BORDER}`, borderRadius: 6, padding: "0 6px", fontSize: 12 }}>
+              {operators.map((o) => <option key={o} value={o}>{OPERATOR_LABELS[o]}</option>)}
+            </select>
+            {operatorTakesValue(draft.operator) && (
+              <input aria-label="Condition value" value={draft.value} spellCheck={false}
+                onChange={(e) => commitDraft({ ...draft, value: e.target.value })}
+                style={{ flex: "1 1 90px", minWidth: 0, height: 28, border: `1px solid ${BORDER}`, borderRadius: 6, padding: "0 8px", fontSize: 12, fontFamily: MONO }} />
+            )}
+          </div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 7, flexWrap: "wrap" }}>
+            <span data-testid="condition-preview" style={{ fontSize: 11, color: SLATE, fontFamily: MONO }}>
+              Rule: {value}
+            </span>
+            <button onClick={() => setRaw(true)}
+              style={{ marginLeft: "auto", height: 24, padding: "0 8px", borderRadius: 6, border: `1px dashed ${BORDER}`, background: "#FFF", color: SLATE, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+              Write it as an expression
+            </button>
+            <button onClick={onDone}
+              style={{ height: 24, padding: "0 9px", borderRadius: 6, border: `1px solid ${BORDER}`, background: "#FFF", color: SLATE, fontSize: 11, cursor: "pointer" }}>done</button>
+          </div>
+        </>
+      ))}
     </div>
   );
 }
@@ -527,7 +941,7 @@ const PRESET_SHORT: Record<string, string> = {
 // ── Recursive node editor ──────────────────────────────────────────────────────
 
 function NodeEditor({
-  node, path, lineScope, onUpdate, sourceTokens, isRoot, xml, rootHasNamespaces,
+  node, path, lineScope, onUpdate, sourceTokens, isRoot, xml, csv, rootHasNamespaces,
   siblingCount = 1, announce, onMoved,
 }: {
   node: OutputNode;
@@ -551,6 +965,8 @@ function NodeEditor({
   announce?: (message: string) => void;
   /** True when the tree's format is XML — gates the per-node namespace/prefix authoring. */
   xml?: boolean;
+  /** True when the tree's format is CSV — a column cannot be switched on and off per row. */
+  csv?: boolean;
   /** True when the template carries root-level namespaces — per-node authoring is hidden then
    *  (the two modes are mutually exclusive; the emitter throws if both are set). */
   rootHasNamespaces?: boolean;
@@ -823,24 +1239,18 @@ function NodeEditor({
         </div>
       )}
 
-      {/* Inline condition editor — OutputNode.includeWhen (a bare predicate; node/line skipped when false).
-          The raw predicate is the power-user escape hatch; a one-line plain example sits under it so a
-          non-technical user knows what to type (not a full query builder — out of scope here). */}
+      {/* Structured condition builder — writes `OutputNode.includeWhen`, the same bare predicate a
+          hand-author would have typed, with the raw expression always visible underneath and an
+          escape hatch for anything the builder has no shape for. */}
       {!isRoot && editing === "condition" && (
-        <div style={{ marginTop: 4, marginLeft: 18 }}>
-          <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-            <span style={{ fontSize: 11, color: SLATE, whiteSpace: "nowrap" }}>only include when</span>
-            <input autoFocus value={node.includeWhen ?? ""} onChange={(e) => updateIncludeWhen(e.target.value)}
-              onBlur={() => setEditing(null)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === "Escape") setEditing(null); }}
-              placeholder={`e.g. ${scopeHint}.Quantity > 0`} aria-label="Only include when (condition)"
-              spellCheck={false}
-              style={{ flex: "1 1 200px", minWidth: 0, height: 28, border: `1px solid ${node.includeWhen ? BLUE : BORDER}`, borderRadius: 6, padding: "0 8px", fontSize: 12, fontFamily: MONO, color: node.includeWhen ? NAVY : SLATE }} />
-          </div>
-          <div style={{ fontSize: 11, color: SLATE, marginTop: 4, lineHeight: 1.5 }}>
-            Only include this when a condition is true — e.g. include the {scopeHint} only when quantity is above zero:{" "}
-            <code style={{ fontFamily: MONO, color: NAVY }}>{scopeHint}.Quantity &gt; 0</code>
-          </div>
-        </div>
+        <ConditionEditor
+          value={node.includeWhen ?? null}
+          scope={scopeHint}
+          repeating={node.nodeType === "array"}
+          csv={!!csv && node.nodeType !== "array"}
+          onChange={updateIncludeWhen}
+          onDone={() => setEditing(null)}
+        />
       )}
 
       {/* Inline XML namespace editor — author prefix + namespace URI so this element emits e.g. <cbc:ID>
@@ -857,7 +1267,7 @@ function NodeEditor({
           <div style={{ marginTop: 4, borderLeft: isRoot ? "none" : "2px solid #ECEFF4", marginLeft: isRoot ? 0 : 4, paddingLeft: isRoot ? 0 : 2 }}>
             {(node.children ?? []).map((c, i) => (
               <NodeEditor key={i} node={c} path={[...path, i]} lineScope={childScope} onUpdate={onUpdate}
-                sourceTokens={sourceTokens} xml={xml} rootHasNamespaces={rootHasNamespaces}
+                sourceTokens={sourceTokens} xml={xml} csv={csv} rootHasNamespaces={rootHasNamespaces}
                 siblingCount={(node.children ?? []).length} announce={announce} onMoved={onMoved} />
             ))}
           </div>
@@ -1127,8 +1537,10 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 // typing smooth; every change commits up via onChange (which drops incomplete rows + nulls an empty
 // map, so a cleared editor saves byte-identical). Collapsed by default so it doesn't clutter the
 // common non-namespaced case.
-function RootNamespacesEditor({ rows, onChange }: {
+function RootNamespacesEditor({ preset, rows, onPreset, onChange }: {
+  preset: NamespacePresetId;
   rows: NamespaceRow[];
+  onPreset: (id: NamespacePresetId) => void;
   onChange: (rows: NamespaceRow[]) => void;
 }) {
   // `draft` is the editing source of truth so in-progress (still-blank) rows survive — the parent
@@ -1136,7 +1548,6 @@ function RootNamespacesEditor({ rows, onChange }: {
   // blank row would round-trip back as `[]` and vanish if we mirrored the parent blindly. We re-sync
   // from upstream ONLY when its COMPLETED projection differs from ours (a genuine external change,
   // e.g. a sample was inferred), comparing on the same blank-dropping rule the parent uses.
-  const [open, setOpen] = useState(rows.length > 0);
   const [draft, setDraft] = useState<NamespaceRow[]>(rows);
   const committedSig = (rs: NamespaceRow[]) => JSON.stringify(rowsToNamespaces(rs));
   const ours = useRef<string>(committedSig(rows));
@@ -1144,30 +1555,57 @@ function RootNamespacesEditor({ rows, onChange }: {
     if (committedSig(rows) !== ours.current) {
       ours.current = committedSig(rows);
       setDraft(rows);
-      if (rows.length > 0) setOpen(true);
     }
   }, [rows]);
 
   const commit = (next: NamespaceRow[]) => { setDraft(next); ours.current = committedSig(next); onChange(next); };
   const setRow = (i: number, patch: Partial<NamespaceRow>) =>
     commit(draft.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
-  const addRow = () => { setOpen(true); commit([...draft, { prefix: "", uri: "" }]); };
+  const addRow = () => commit([...draft, { prefix: "", uri: "" }]);
   const removeRow = (i: number) => commit(draft.filter((_, idx) => idx !== i));
 
+  // `custom` is a MODE, not a value: an empty custom map is indistinguishable from "none" in the
+  // saved template, so choosing Custom and then reading the choice back off the template would snap
+  // the control to None before the first row could be typed. The chosen mode is therefore local, and
+  // re-syncs only when the template's own detected preset becomes something concrete — which is what
+  // happens when a sample is inferred underneath the editor.
+  const [mode, setMode] = useState<NamespacePresetId>(preset);
+  useEffect(() => { if (preset !== "none") setMode(preset); }, [preset]);
+
+  const presetMeta = NAMESPACE_PRESETS.find((p) => p.id === mode);
+
   return (
-    <div style={{ marginBottom: 12 }}>
-      <button onClick={() => setOpen((v) => !v)}
-        style={{ width: "100%", textAlign: "left", height: 30, padding: "0 10px", borderRadius: 6, border: `1px dashed ${BORDER}`, background: "#F7F9FC", color: NAVY, fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
-        <span>XML namespaces{draft.length > 0 ? ` · ${draft.length}` : ""}</span>
-        <span style={{ marginLeft: "auto", fontSize: 11, color: SLATE, fontWeight: 500 }}>{open ? "▾" : "▸"}</span>
-      </button>
-      {open && (
-        <div style={{ marginTop: 8, border: `1px solid ${BORDER}`, borderRadius: 8, padding: 10, background: "#F7F9FC" }}>
-          <div style={{ fontSize: 11, color: SLATE, marginBottom: 8, lineHeight: 1.5 }}>
-            Declare <code style={{ fontFamily: MONO }}>xmlns:</code> prefixes on the root element (e.g.{" "}
-            <code style={{ fontFamily: MONO }}>cbc</code> →{" "}
-            <code style={{ fontFamily: MONO }}>urn:oasis:names:…:CommonBasicComponents-2</code>).
-          </div>
+    <div style={{ marginBottom: 12, border: `1px solid ${BORDER}`, borderRadius: 8, padding: 10, background: "#F7F9FC" }}>
+      {/* Not behind a disclosure. The old collapsed panel meant the only way to discover that a
+          layout could carry namespaces at all was to open a section labelled with the thing you did
+          not yet know you needed. One always-visible control that reads "None" costs a single row. */}
+      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+        <span style={{ fontSize: 12, fontWeight: 700, color: NAVY }}>XML namespaces</span>
+        <select aria-label="XML namespaces" value={mode}
+          onChange={(e) => { const id = e.target.value as NamespacePresetId; setMode(id); onPreset(id); }}
+          style={{ height: 28, border: `1px solid ${BORDER}`, borderRadius: 6, padding: "0 6px", fontSize: 12, minWidth: 190 }}>
+          {NAMESPACE_PRESETS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+        </select>
+        {presetMeta && <span style={{ fontSize: 11, color: SLATE, flex: "1 1 180px", lineHeight: 1.45 }}>{presetMeta.description}</span>}
+      </div>
+      {/* One sentence, no jargon beyond "tag". A namespace URI is a string a coordinator has no way
+          to know and every way to mistype, and a typo does not fail — it emits a document in a
+          namespace nobody recognises, which the receiver rejects after we have reported the order
+          delivered. The preset makes the common case a pick.
+
+          Deliberately NOT offered: a cXML preset (cXML is DTD-based and has no namespaces at all)
+          and a Peppol BIS 3 preset (its namespaces are UBL's, plus three MANDATORY element values —
+          a preset seeding only the namespaces would produce a document that looks like Peppol and is
+          rejected by the network, and ProcuLink has just retracted Peppol as a claim). Both formats
+          are produced by their own transforms, set up on the supplier's Delivery tab. */}
+      <div style={{ fontSize: 11, color: SLATE, marginTop: 7, lineHeight: 1.5 }}>
+        A namespace is a label — usually a web address — that tells your supplier&rsquo;s software
+        which standard each tag comes from, so their <code style={{ fontFamily: MONO }}>ID</code> and
+        yours are never confused. Your supplier&rsquo;s spec lists the ones they expect; if it
+        doesn&rsquo;t mention namespaces, leave this off.
+      </div>
+      {mode === "custom" && (
+        <div style={{ marginTop: 9 }}>
           {draft.map((r, i) => (
             <div key={i} style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6, flexWrap: "wrap" }}>
               <input value={r.prefix} onChange={(e) => setRow(i, { prefix: e.target.value })}
