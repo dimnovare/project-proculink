@@ -27,7 +27,8 @@ export interface WireSupplier {
   name: string;
   code: string;
   volume: string;
-  health: number; // 0–100 delivery success %
+  /** 0–100 delivery success %, or null when no order has been sent yet to judge it by. */
+  health: number | null;
 }
 
 export interface Wire {
@@ -63,6 +64,47 @@ const PULSE_COLOR: Record<Wire["health"], string> = {
   down: "#B43838",
 };
 
+// ─── Supplier health presentation ──────────────────────────────────────────
+// Three sites paint a supplier port — the mobile lane card, the canvas pill, and
+// the dashboard's health list — and each of them wrote its own copy of these
+// thresholds. They are here once so a `null` (no orders yet) cannot be handled in
+// two of the three and fall through to a number in the last.
+
+/**
+ * Supplier health → the colour of the text next to it.
+ *
+ * Text, so these are the 4.5:1 values, not the 3:1 stroke/fill ones in
+ * {@link supplierPillTone}: on the white lane card #2E8E3A was 4.1613:1 and #B36D14
+ * 4.1061:1, where #1E6D29 is 6.4128:1 and #8A5310 6.3150:1. The tone ladder starts at
+ * ≥80 and this one at ≥90, so an 80–89 supplier deliberately paints amber copy on the
+ * green pill — #B36D14 there was 3.5655:1, the worst pair on the screen; #8A5310 on
+ * #E9F1EA is 5.4835:1 and #B43838 on the amber #FAF1DD is 5.2452:1.
+ *
+ * `null` is grey because it is not a verdict. It is neither 0 nor 100.
+ */
+export function supplierHealthTextColor(health: number | null): string {
+  if (health === null) return "#5E6779";
+  return health >= 90 ? "#1E6D29" : health >= 80 ? "#8A5310" : "#B43838";
+}
+
+/**
+ * The words in the health slot.
+ *
+ * A supplier with no orders reads "no orders" rather than a percentage, because every
+ * percentage this component can print is a claim about deliveries that happened.
+ */
+export function supplierHealthText(health: number | null): string {
+  return health === null ? "no orders" : `${health}% del`;
+}
+
+/** Pill stroke + fill (non-text, so the 3:1 values). Grey when there is nothing to judge. */
+export function supplierPillTone(health: number | null): { border: string; bg: string } {
+  if (health === null) return { border: "#C6CDDA", bg: "#F1F3F7" };
+  return health >= 80
+    ? { border: "#2E8E3A", bg: "#E9F1EA" }
+    : { border: "#B36D14", bg: "#FAF1DD" };
+}
+
 function cubicPoint(
   t: number,
   p0: { x: number; y: number },
@@ -94,12 +136,9 @@ function WireTopologyLaneList({ buyers, suppliers, wires, onWireClick }: WireTop
 
         const sw = strokeFromWeight(wire.weight);
         const isWarn = wire.health === "risk" || wire.health === "down";
-        // Shared health thresholds with BridgeDashboard.healthColor (>=90 green, >=80 amber).
-        // Mobile twin of the canvas <tspan> below, and text on the white lane card:
-        // #2E8E3A was 4.1613:1 and #B36D14 4.1061:1. #1E6D29 is 6.4128:1, #8A5310
-        // 6.3150:1. This value is never a stroke — the arc keeps its own colours.
-        const supplierColor =
-          supplier.health >= 90 ? "#1E6D29" : supplier.health >= 80 ? "#8A5310" : "#B43838";
+        // Mobile twin of the canvas <tspan> below. This value is never a stroke — the
+        // arc keeps its own colours.
+        const supplierColor = supplierHealthTextColor(supplier.health);
         const gradId = `m-wire-${i}`;
 
         return (
@@ -181,7 +220,7 @@ function WireTopologyLaneList({ buyers, suppliers, wires, onWireClick }: WireTop
                 {supplier.name}
               </div>
               <div className="text-[9.5px]" style={{ color: supplierColor }}>
-                {supplier.health}% del
+                {supplierHealthText(supplier.health)}
               </div>
             </div>
           </div>
@@ -411,18 +450,8 @@ function WireTopologyCanvas({
         {/* ── Supplier ports (right) ───────────────────────────── */}
         {suppliers.map((s, i) => {
           const y = supplierY(i);
-          // Shared health thresholds with BridgeDashboard.healthColor (>=90 green, >=80 amber).
-          const isHealthy = s.health >= 80;
-          const borderColor = isHealthy ? "#2E8E3A" : "#B36D14";
-          const bgColor     = isHealthy ? "#E9F1EA"  : "#FAF1DD";
-          // healthColor is a <tspan> fill (text, 4.5:1); borderColor/bgColor above
-          // are a stroke and a fill (non-text) and keep the 3:1 values. NOTE the
-          // two ladders disagree: isHealthy is >=80, so an 80–89 supplier paints
-          // amber copy on the GREEN pill — #B36D14 there was 3.5655:1, the worst
-          // pair on this screen. #8A5310 on #E9F1EA is 5.4835:1, and #B43838 on
-          // the amber pill #FAF1DD is 5.2452:1.
-          const healthColor =
-            s.health >= 90 ? "#1E6D29" : s.health >= 80 ? "#8A5310" : "#B43838";
+          const { border: borderColor, bg: bgColor } = supplierPillTone(s.health);
+          const healthColor = supplierHealthTextColor(s.health);
           return (
             <g key={s.id} transform={`translate(0, ${y})`}>
               <rect
@@ -456,7 +485,7 @@ function WireTopologyCanvas({
                 fontFamily="JetBrains Mono, monospace"
               >
                 {s.code} ·{" "}
-                <tspan fill={healthColor}>{s.health}% del</tspan>
+                <tspan fill={healthColor}>{supplierHealthText(s.health)}</tspan>
               </text>
               {/* Connector dot — hollow with colored stroke */}
               <circle cx={RIGHT_X} cy={0} r={4} fill="#FFFFFF" stroke={borderColor} strokeWidth={2} />

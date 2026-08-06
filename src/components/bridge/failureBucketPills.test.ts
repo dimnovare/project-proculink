@@ -36,7 +36,14 @@ describe("every status the Failed chip counts renders as the Failed pill", () =>
     // would vacuously pass. These two are the statuses that were actually broken.
     expect(FAILED_BUCKET).toContain("rejected_by_supplier");
     expect(FAILED_BUCKET).toContain("delivery_dead_letter");
-    expect(FAILED_BUCKET).toHaveLength(5);
+    // A FLOOR, not a pin. This was `toHaveLength(5)`, which was a fair description of a
+    // hand-typed array; FAILED_BUCKET is now DERIVED from FAILURE_STATUSES in
+    // src/lib/orderStatusManifest.ts, so an exact length turns the legitimate act of
+    // recording a new backend failure status into a build break here — in the one test
+    // whose job is to prove that status reaches the failed pill. The vacuity this line
+    // exists to prevent is an EMPTY or shrunken bucket, and >= 5 with the two named
+    // members above says exactly that.
+    expect(FAILED_BUCKET.length).toBeGreaterThanOrEqual(5);
   });
 
   it("renders them at a failed stage, never plain stage 0", () => {
