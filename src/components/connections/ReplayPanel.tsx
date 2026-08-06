@@ -7,24 +7,32 @@
 // CURRENT result: output text diff, effective canonical-value changes, and
 // validation pass/fail flips. The dangerous case — an order that currently
 // PASSES validation but would START FAILING under the replayed revision — is
-// prioritised and flagged in red. Everything here is NON-DESTRUCTIVE: nothing
-// is delivered, transformed, or saved.
+// prioritised and flagged in red. The replay itself is NON-DESTRUCTIVE: nothing
+// is transformed, saved, or delivered by running it.
+//
+// WP-35 adds one PERSISTING action per row: re-processing that single order
+// under the replayed revision writes (or reuses) a real output artifact. Even
+// that delivers nothing — the order's deliverable artifact comes back unchanged
+// and is shown, so an operator can see nothing was armed for sending.
 //
 // Backend: POST /api/connections/{connectionId}/revisions/{revisionId}/replay
 //   → ProcuLink.Api/Services/ReplayService.cs (MaxOrders=50, recentLimit 1..50).
+//          POST .../revisions/{revisionId}/reprocess
+//   → ProcuLink.Api/Controllers/ConnectionsController.cs Reprocess.
 
 import { useMemo, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Card } from "@/components/bridge/layout/Card";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { RevisionStatusBadge } from "@/components/connections/RevisionStatusBadge";
-import { replayConnectionRevision, ApiHttpError } from "@/lib/api-client";
+import { replayConnectionRevision, reprocessOrderUnderRevision, ApiHttpError } from "@/lib/api-client";
 import type {
   ConnectionRevisionSummary,
   ReplayResponse,
   ReplayOrderDiff,
   ReplayFieldChange,
   ReplayValidationFlip,
+  ReprocessResponse,
 } from "@/lib/api/types";
 
 const RECENT_LIMIT_DEFAULT = 20;
@@ -121,7 +129,7 @@ export function ReplayPanel({
   const canRun = !!effectiveRevisionId && !replay.isPending;
 
   return (
-    <Card edge="blue" title="Test with recent orders" sub="Test a version against recent orders before you make it live — nothing is delivered or saved">
+    <Card edge="blue" title="Test with recent orders" sub="Test a version against recent orders before you make it live — running a test never contacts your supplier">
       {/* ── Controls ─────────────────────────────────────────────────── */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:flex-wrap">
         <div className="flex flex-col gap-1.5">
@@ -187,8 +195,9 @@ export function ReplayPanel({
       {selectedRevision && (
         <p className="mt-2 text-[11.5px] leading-[1.5]" style={{ color: "var(--ink-faint)" }}>
           Replays the most recent {clampLimit(recentLimit)} order{clampLimit(recentLimit) === 1 ? "" : "s"} for this
-          supplier through v{selectedRevision.versionNo}. This is a preview only — no order is transformed, delivered, or
-          modified.
+          supplier through v{selectedRevision.versionNo}. Running the test only compares results — it changes no order.
+          Re-processing a single order afterwards writes an output file you can inspect, and still sends nothing to your
+          supplier.
         </p>
       )}
 
@@ -256,7 +265,16 @@ export function ReplayPanel({
               </p>
               <ul className="mt-2 flex flex-col gap-2 list-none p-0 m-0">
                 {orderedOrders.map((o) => (
-                  <OrderDiffRow key={o.orderId} order={o} />
+                  <OrderDiffRow
+                    key={o.orderId}
+                    order={o}
+                    // Target the revision the server actually replayed, not the
+                    // selector's current value — those drift once the operator
+                    // changes the dropdown after a run.
+                    connectionId={result.connectionId || connectionId}
+                    revisionId={result.revisionId}
+                    versionNo={result.revisionVersionNo}
+                  />
                 ))}
               </ul>
             </>
@@ -335,7 +353,17 @@ function ReplaySummaryHeader({
 
 // ── One order's diff (expandable) ────────────────────────────────────────────
 
-function OrderDiffRow({ order }: { order: ReplayOrderDiff }) {
+function OrderDiffRow({
+  order,
+  connectionId,
+  revisionId,
+  versionNo,
+}: {
+  order: ReplayOrderDiff;
+  connectionId: string;
+  revisionId: string;
+  versionNo: number;
+}) {
   const [open, setOpen] = useState(false);
   const danger = wouldStartFailing(order);
   const hasDetail =
@@ -431,7 +459,151 @@ function OrderDiffRow({ order }: { order: ReplayOrderDiff }) {
           )}
         </div>
       )}
+
+      <ReprocessAction
+        connectionId={connectionId}
+        revisionId={revisionId}
+        versionNo={versionNo}
+        orderId={order.orderId}
+      />
     </li>
+  );
+}
+
+// ── Re-process this one order under the replayed revision (WP-35) ────────────
+//
+// This is the only thing in the panel that WRITES. It produces an output file
+// for inspection; delivery stays a separate, explicit action elsewhere, so no
+// copy here may suggest the order went anywhere. `reused: true` means the exact
+// output already existed and nothing new was written — reported as such rather
+// than as a fresh success.
+
+/** How a failed re-process should read to an operator. */
+function reprocessFailure(error: unknown): { tone: "amber" | "danger"; text: string } | null {
+  if (!error) return null;
+  if (error instanceof ApiHttpError) {
+    // The request was fine and the order real — this version simply cannot
+    // render it. The backend's reason is the actionable part.
+    if (error.status === 422) {
+      return { tone: "amber", text: `This version could not produce output for this order: ${error.message}` };
+    }
+    // Storage down: distinct from a bad request, and nothing was written.
+    if (error.status === 503) {
+      return { tone: "amber", text: `Storage is unavailable, so nothing was saved. ${error.message}` };
+    }
+    if (error.status >= 400 && error.status < 500) return { tone: "danger", text: error.message };
+  }
+  return {
+    tone: "amber",
+    text: "Couldn't reach the server to re-process this order. Nothing was saved — check your connection and try again.",
+  };
+}
+
+/**
+ * Guids are unusable at a glance; the leading segment is enough to match a file.
+ * The ellipsis matters — without it a cut id reads as a whole one, and the full
+ * value is kept on `title` so it stays copyable.
+ */
+function shortId(id: string): string {
+  return id.length > 8 ? `${id.slice(0, 8)}…` : id;
+}
+
+function ReprocessAction({
+  connectionId,
+  revisionId,
+  versionNo,
+  orderId,
+}: {
+  connectionId: string;
+  revisionId: string;
+  versionNo: number;
+  orderId: string;
+}) {
+  const run = useMutation<ReprocessResponse, unknown, void>({
+    mutationFn: () => reprocessOrderUnderRevision(connectionId, revisionId, orderId),
+  });
+
+  const result = run.data ?? null;
+  const failure = reprocessFailure(run.error);
+
+  return (
+    <div
+      className="px-3.5 py-3 flex flex-col gap-2"
+      style={{ borderTop: "1px solid var(--border)", background: "var(--bg)" }}
+    >
+      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
+        <Button variant="secondary" size="sm" onClick={() => run.mutate()} disabled={run.isPending} loading={run.isPending}>
+          Re-process under this version
+        </Button>
+        <span className="text-[11.5px] leading-[1.5]" style={{ color: "var(--ink-muted)" }}>
+          Creates an output file you can inspect. It is not sent to the supplier.
+        </span>
+      </div>
+
+      {result && (
+        <div
+          className="rounded-[6px] px-3 py-2.5 flex flex-col gap-1"
+          style={{
+            border: `1px solid ${result.reused ? "var(--border-strong)" : "var(--brand-green)"}`,
+            background: result.reused ? "var(--surface-2)" : "var(--brand-green-soft)",
+          }}
+        >
+          <p className="text-[12px] leading-[1.5] m-0" style={{ color: "var(--ink)" }}>
+            {result.reused ? (
+              <>
+                This exact output already existed for this order under v{versionNo} — no new file was created:{" "}
+                <span className="font-mono" style={{ color: "var(--ink)" }} title={result.artifactId}>
+                  {result.format} · {shortId(result.artifactId)}
+                </span>
+                .
+              </>
+            ) : (
+              <>
+                Output file created under v{versionNo}:{" "}
+                <span className="font-mono" style={{ color: "var(--ink)" }} title={result.artifactId}>
+                  {result.format} · {shortId(result.artifactId)}
+                </span>
+                . It was not sent to the supplier.
+              </>
+            )}
+          </p>
+          {/* The reassurance the whole design rests on: the order still delivers
+              exactly what it delivered before. */}
+          <p className="text-[11.5px] leading-[1.5] m-0" style={{ color: "var(--ink-muted)" }}>
+            {result.deliverableArtifactId ? (
+              <>
+                This order&rsquo;s deliverable output is unchanged:{" "}
+                <span className="font-mono" title={result.deliverableArtifactId}>
+                  {shortId(result.deliverableArtifactId)}
+                </span>
+                .
+              </>
+            ) : (
+              <>This order has no deliverable output, and re-processing did not give it one.</>
+            )}
+          </p>
+          {result.artifactSha256 && (
+            <p className="text-[11px] leading-[1.5] m-0" style={{ color: "var(--ink-faint)" }}>
+              Checksum <span className="font-mono">{result.artifactSha256.slice(0, 12)}</span>
+            </p>
+          )}
+        </div>
+      )}
+
+      {failure && (
+        <div
+          role="alert"
+          className="rounded-[6px] px-3 py-2.5 text-[12px] leading-[1.5]"
+          style={
+            failure.tone === "danger"
+              ? { border: "1px solid var(--danger)", background: "var(--danger-soft)", color: "var(--danger)" }
+              : { border: "1px solid var(--amber)", background: "var(--amber-soft)", color: "var(--amber-text)" }
+          }
+        >
+          {failure.text}
+        </div>
+      )}
+    </div>
   );
 }
 
