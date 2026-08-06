@@ -20,6 +20,10 @@ vi.mock("@/lib/api-client", () => ({
   previewMappingOverride: vi.fn().mockResolvedValue({ format: "xml", content: "<Order/>" }),
   inferOutputStructure: (...a: unknown[]) => inferOutputStructure(...a),
   getSourceTokens: vi.fn().mockResolvedValue([]),
+  // WP-16: the designer fetches the order so it can run the two `OutputFieldValidator` checks the
+  // tree path skips (non-positive quantity, negative unit price). Null keeps those tests focused on
+  // namespaces and reordering — an order-less designer still validates the LAYOUT.
+  apiClient: { getOrderById: vi.fn().mockResolvedValue(null) },
 }));
 
 import { OutputStructureDesigner } from "./OutputStructureDesigner";
@@ -83,8 +87,9 @@ describe("OutputStructureDesigner — root namespaces editor (XML)", () => {
   it("adding a prefix→uri row saves it in template.namespaces", () => {
     renderDesigner(plainXmlTree());
 
-    // Expand the XML-namespaces section and add a row.
-    fireEvent.click(screen.getByRole("button", { name: /XML namespaces/i }));
+    // WP-16: the namespace section is no longer a disclosure — it is an always-visible preset
+    // dropdown, and the hand-typed prefix/address rows are what "Custom…" reveals.
+    fireEvent.change(screen.getByLabelText("XML namespaces"), { target: { value: "custom" } });
     fireEvent.click(screen.getByRole("button", { name: /^\+ namespace$/i }));
 
     fireEvent.change(screen.getByLabelText("Namespace prefix 1"), { target: { value: "cbc" } });
