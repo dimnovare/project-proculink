@@ -135,6 +135,22 @@ const status = run("docker", [
   // the 120s default; only this path needs the longer rope.
   "-e",
   "PLAYWRIGHT_WEBSERVER_TIMEOUT_MS=600000",
+  // Watch by polling, not inotify.
+  //
+  // Measured: `next dev`'s initial Watchpack scan of the bind-mounted /work died
+  // with `ENOMEM: not enough memory, scandir '/work/src'`. That is not RAM
+  // exhaustion — Linux reports ENOMEM when the kernel cannot allocate more
+  // inotify watches, and a Windows bind mount presents thousands of directories
+  // to watch across the VM boundary. Polling never allocates a watch.
+  //
+  // Nothing here edits files while the suite runs, so the extra latency is
+  // irrelevant and the CPU cost is bounded by the interval.
+  "-e",
+  "WATCHPACK_POLLING=1000",
+  "-e",
+  "CHOKIDAR_USEPOLLING=1",
+  "-e",
+  "NEXT_TELEMETRY_DISABLED=1",
   IMAGE,
   "bash",
   "-lc",

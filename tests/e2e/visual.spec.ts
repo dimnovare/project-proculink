@@ -104,6 +104,12 @@ test.describe("visual baselines", () => {
    * moment at which "was this baseline committed?" is still answerable.
    */
   test("every core screen has a committed baseline for this viewport", (_fixtures, testInfo) => {
+    // `--update-snapshots` is the run that CREATES the files, so demanding they
+    // already exist would make `bun run visual:linux:update` fail every first time.
+    test.skip(
+      testInfo.config.updateSnapshots !== "none",
+      "running with --update-snapshots: this is the run that writes the baselines",
+    );
     const dir = join(testInfo.project.testDir, "__screenshots__");
     const missing = CORE_SCREENS.map((s) => `${s.id}-${testInfo.project.name}.png`).filter(
       (file) => !existsSync(join(dir, file)),
