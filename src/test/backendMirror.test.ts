@@ -15,6 +15,12 @@ import {
   SECURE_SCHEMES,
 } from "@/lib/outboundUrlPolicy";
 import { CATALOG_SYNC_STATUS_FACTS, CATALOG_SYNC_STATUSES } from "@/lib/catalogSyncStatusManifest";
+import {
+  APPROVABLE_INVOICE_STATUSES,
+  DOWNLOADABLE_INVOICE_STATUSES,
+  INVOICE_STATUSES,
+  INVOICE_STATUS_FACTS,
+} from "@/lib/invoiceStatusManifest";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // The cross-repo mirror check.
@@ -56,6 +62,8 @@ import { CATALOG_SYNC_STATUS_FACTS, CATALOG_SYNC_STATUSES } from "@/lib/catalogS
 const CONSTANTS_REL = "ProcuLink.Core/Constants/OrderStatusConstants.cs";
 const MACHINE_REL = "ProcuLink.Core/Constants/OrderStatusMachine.cs";
 const URL_POLICY_REL = "ProcuLink.Core/Security/OutboundUrlPolicy.cs";
+const INVOICE_SERVICE_REL = "ProcuLink.Infrastructure/Services/InvoiceService.cs";
+const INVOICE_ENTITY_REL = "ProcuLink.Core/Entities/InvoiceEntity.cs";
 
 /**
  * Every C# file this suite parses.
@@ -67,7 +75,13 @@ const URL_POLICY_REL = "ProcuLink.Core/Security/OutboundUrlPolicy.cs";
  * was computed from `existsSync`, so renaming OutboundUrlPolicy.cs would have
  * retired both of its diffs silently while the rest of the suite stayed green.
  */
-const PARSED_FILES = [CONSTANTS_REL, MACHINE_REL, URL_POLICY_REL] as const;
+const PARSED_FILES = [
+  CONSTANTS_REL,
+  MACHINE_REL,
+  URL_POLICY_REL,
+  INVOICE_SERVICE_REL,
+  INVOICE_ENTITY_REL,
+] as const;
 
 /**
  * The backend checkout, or null.
@@ -364,7 +378,12 @@ describe("the mirror gate decides correctly", () => {
 
   test("missingParsedFiles reports every file the checkout lacks", () => {
     const present = new Set([join("/tmp/backend", CONSTANTS_REL)]);
-    expect(missingParsedFiles("/tmp/backend", (p) => present.has(p))).toEqual([MACHINE_REL, URL_POLICY_REL]);
+    expect(missingParsedFiles("/tmp/backend", (p) => present.has(p))).toEqual([
+      MACHINE_REL,
+      URL_POLICY_REL,
+      INVOICE_SERVICE_REL,
+      INVOICE_ENTITY_REL,
+    ]);
     expect(missingParsedFiles("/tmp/backend", () => true)).toEqual([]);
     // A checkout with nothing in it must report all three, not zero.
     expect(missingParsedFiles("/tmp/backend", () => false)).toHaveLength(PARSED_FILES.length);
@@ -753,6 +772,115 @@ describe("catalog sync statuses mirror the backend", () => {
   });
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// The invoice status mirror.
+//
+// `src/lib/invoiceStatusManifest.ts` is a hand-kept copy of the values the backend writes
+// into `InvoiceEntity.Status`. It exists because /inbound/invoices had no manifest at all
+// and gated on the literal `"pending"` in three places — the row dot, the Approve button
+// and the "Pending review" tile — while every parsed invoice is `"pending_review"`. The
+// counter read 0 beside N rows and the screen's only real action never rendered once.
+//
+// SHAPED LIKE THE CATALOG DIFF ABOVE, and for the same reason: the backend names NO SET
+// for these values. No constants class, no enum, no `IReadOnlySet` — five bare literals
+// at five assignment sites in one service, plus a doc-comment on the entity listing them
+// in prose. There is no symbol for `parseNamedSet` to point at.
+//
+// It is NARROWER than the catalog walk in one deliberate way: it scans a single named
+// file rather than the whole tree. `LastSyncStatus` is a unique property name, so a
+// tree-wide sweep for it collects only catalog statuses; `Status` is not — orders, ASNs
+// and invoices all have one, and a tree-wide sweep would fold three vocabularies into
+// one. Every invoice-status writer in the backend lives in InvoiceService.cs (verified at
+// the commit in the manifest header), so the file IS the boundary. The cost is stated
+// rather than hidden: a writer added in some other file would not be seen here. The
+// RENDER side fails safe independently — an unrecognised status offers no action and
+// lands in its own summary tile (see invoiceStatusGate.test.tsx), so a missed writer
+// shows up as a visible "Unrecognised" count rather than as a wrong green reading.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("invoice statuses mirror the backend", () => {
+  test("the assignment parser is not fooled by the comparison in this very file", () => {
+    // InvoiceService.ForwardAsync guards with `inv.Status != "approved"`. A parser that
+    // collected that would report `approved` as a WRITER of a status it only reads —
+    // harmless here by luck (approved is written elsewhere too), and exactly the way a
+    // reader-widened vocabulary stops being a claim about what can reach a screen.
+    const fixture = [
+      'var inv = new InvoiceEntity { Status = "parsing" };',
+      '        inv.Status        = "pending_review";',
+      '        if (inv.Status != "approved") throw new InvalidOperationException("nope");',
+      '        if (inv.Status == "forwarded") return;',
+      '        inv.SourceFileName = "not a status";',
+    ].join("\n");
+
+    expect(parseAssignedStatusLiterals(fixture, "Status")).toEqual(["parsing", "pending_review"]);
+  });
+
+  test("the frontend copy is itself non-vacuous", () => {
+    // Guards the diff below: two empty lists compare equal, so an emptied manifest would
+    // otherwise "mirror" a backend that writes five statuses.
+    expect(INVOICE_STATUSES.length).toBe(5);
+    expect(APPROVABLE_INVOICE_STATUSES.length).toBeGreaterThan(0);
+    expect(DOWNLOADABLE_INVOICE_STATUSES.length).toBeGreaterThan(0);
+    for (const fact of INVOICE_STATUS_FACTS) {
+      expect(fact.backendSite, `${fact.status} cites no backend site`).toMatch(
+        /^ProcuLink\.[\w.]+\/[\w./]+\.cs:\d+$/,
+      );
+      expect(fact.note.length, `${fact.status} has no note`).toBeGreaterThan(20);
+    }
+  });
+
+  test.skipIf(!BACKEND)("every status the invoice service writes is in the manifest, and vice versa", () => {
+    const cs = readFileSync(join(BACKEND!, INVOICE_SERVICE_REL), "utf8");
+    const written = [...new Set(parseAssignedStatusLiterals(cs, "Status"))];
+    expect(
+      written.length,
+      "found no Status assignment in InvoiceService.cs — the parser or the backend moved",
+    ).toBeGreaterThanOrEqual(5);
+    recordComparison(
+      "InvoiceEntity.Status writers",
+      written,
+      INVOICE_STATUSES,
+      "The invoice status vocabulary drifted. A status the backend writes and this manifest does not " +
+        "know renders as 'Unrecognised' and offers no action; the reverse means the summary row carries " +
+        "a tile that can only ever read 0 — which is the bug this manifest was written to end.",
+    );
+  });
+
+  test.skipIf(!BACKEND)("the entity still declares the vocabulary this manifest mirrors", () => {
+    const cs = readFileSync(join(BACKEND!, INVOICE_ENTITY_REL), "utf8");
+    for (const status of INVOICE_STATUSES) {
+      expect(cs, `InvoiceEntity's own doc-comment no longer names '${status}'`).toContain(status);
+    }
+  });
+
+  test.skipIf(!BACKEND)("each fact's cited file exists and still writes that status", () => {
+    for (const fact of INVOICE_STATUS_FACTS) {
+      const [file] = fact.backendSite.split(":");
+      const path = join(BACKEND!, file);
+      expect(existsSync(path), `${fact.status} cites ${file}, which does not exist`).toBe(true);
+      expect(
+        parseAssignedStatusLiterals(readFileSync(path, "utf8"), "Status"),
+        `${fact.status} cites ${file}, which no longer writes it`,
+      ).toContain(fact.status);
+    }
+    comparisonsRun += 1;
+  });
+
+  test.skipIf(!BACKEND)("the export guard the manifest calls `downloadable` is still that guard", () => {
+    // `downloadable` is not a product choice — it is ForwardAsync's refusal, verbatim.
+    // If the backend widens or renames it, the CSV button starts being offered where the
+    // API answers 400 (or withheld where it would have worked), and the manifest's claim
+    // that this column mirrors a guard becomes prose again.
+    const cs = readFileSync(join(BACKEND!, INVOICE_SERVICE_REL), "utf8");
+    expect(DOWNLOADABLE_INVOICE_STATUSES).toEqual(["approved"]);
+    expect(
+      cs.replace(/\s+/g, " "),
+      "InvoiceService no longer guards the export with `Status != \"approved\"` — DOWNLOADABLE_INVOICE_STATUSES " +
+        "is now a claim about a guard that moved.",
+    ).toContain('Status != "approved"');
+  });
+});
+
 // ── The vacuity floor ────────────────────────────────────────────────────────
 //
 // Runs after every test in the file, so it is independent of test ORDER — which a
@@ -765,7 +893,8 @@ const EXPECTED_COMPARISONS =
   4 + // Transitions keys, FailureBucket, DeclaredTerminal, ResolveHeldFrom
   NAMED_GUARDS.length + // one per op guard that names a C# symbol
   1 + // the backendSite citation walk over every OP_GUARDS row
-  3; // outbound URL policy: SecureSchemes, LoopbackOnlySchemes, the error-code walk
+  3 + // outbound URL policy: SecureSchemes, LoopbackOnlySchemes, the error-code walk
+  2; // invoices: the InvoiceService writer diff, and the citation walk over every fact
 
 afterAll(() => {
   if (!BACKEND) return; // the mirror gate already ruled on whether that was allowed
