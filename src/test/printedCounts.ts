@@ -181,3 +181,152 @@ export function collectPrintedCounts(
 
   return found;
 }
+
+// ─── COUNTS THAT NAME NO CONTRACT LABEL AT ALL ───────────────────────────────
+//
+// Everything above finds a number by first finding one of a KNOWN SET OF WORDS. That is
+// the corpus's remaining edge, and the v2 audit's P0-5 walked straight through it: the two
+// numbers that contradicted each other were "0" under the word "Received" — inside the
+// corpus — and "1 orders received" / "1 order", which name no contract label and were
+// therefore invisible here. `orderCountParity.test.tsx` was green with both on screen.
+//
+// So this sweep reads the OTHER grammar a screen uses for a count: a number followed by
+// the noun. "1 order", "0 orders received", "3 practice orders". No label, no attribute,
+// no opt-in — the shape a person reads.
+//
+// TEXT NODES ARE JOINED WITH A SPACE, which is the whole reason this needs a helper.
+// `<span>1</span><span>orders received</span>` has a `textContent` of exactly
+// "1orders received" — JSX strips the whitespace-only lines between elements — so a regex
+// over `textContent` matches nothing, and the sweep would be dead code that passes.
+
+/**
+ * Rendered text as a person reads it.
+ *
+ * Text nodes under the SAME element are concatenated, and a space is inserted only at an
+ * element boundary. Both halves are load-bearing, and each was learned from a real line:
+ *
+ *   `{n} order{n === 1 ? "" : "s"}`     three text nodes, ONE element — joining them with
+ *                                       spaces yields "0 order s", whose plural is gone and
+ *                                       whose trailing "s" reads as a word after the noun.
+ *   `<span>1</span><span>orders …</span>`  two elements — `textContent` yields "1orders …",
+ *                                       because JSX strips the whitespace-only line between
+ *                                       the tags, and no regex matches that.
+ *
+ * `skip` omits whole subtrees, which is how an ancestor's OWN text is read without
+ * re-reading what a descendant already reported.
+ */
+export function readableText(node: Node, skip?: ReadonlySet<Element>): string {
+  const doc = node.ownerDocument ?? (node as Document);
+  const walker = doc.createTreeWalker(node, 4 /* NodeFilter.SHOW_TEXT */);
+  let out = "";
+  let lastParent: Element | null = null;
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+    const parent = n.parentElement;
+    if (skip && parent && Array.from(skip).some((s) => s === parent || s.contains(parent))) continue;
+    const raw = n.textContent ?? "";
+    const t = norm(raw);
+    if (t === "") continue;
+    if (out === "") {
+      out = t;
+    } else if (parent === lastParent) {
+      // Same element: React split one string into several nodes. Rejoin it exactly,
+      // preserving whether the source had a space there.
+      out += /^\s/.test(raw) || /\s$/.test(out) ? ` ${t}` : t;
+    } else {
+      out += ` ${t}`;
+    }
+    lastParent = parent;
+  }
+  return norm(out);
+}
+
+export interface CountedNoun {
+  /** The figure printed. */
+  value: number;
+  /** True for "3 practice orders" — the population a metered count deliberately excludes. */
+  practice: boolean;
+  /**
+   * True when nothing in the phrase NARROWS it — a claim about the whole account or
+   * window, which is what has to equal the metered total.
+   *
+   * This distinction is load-bearing and was learned the hard way: the first version of
+   * this sweep treated every "<n> order(s)" as a total, and immediately failed on the
+   * dashboard's honest "1 order needs your attention" — a count of the rows in the
+   * "Needs you" list, which is a subset and reconciles with the rows printed directly
+   * beneath it. A guard that fires on correct copy is a guard that gets deleted.
+   *
+   * "3 orders" and "3 orders received" are total claims. "3 orders needs your attention",
+   * "the most recent 100 of 250 orders in this window" are not — the words after the noun
+   * name a smaller set, and a subset is only ever checked for not exceeding the whole.
+   */
+  total: boolean;
+  /** The phrase as rendered, for a failure message that names words rather than a number. */
+  phrase: string;
+  /** The line it was read from. */
+  where: string;
+}
+
+/**
+ * What may follow the noun and still leave the phrase a claim about EVERYTHING.
+ *
+ * "received" is here because it is the funnel head's own word, and "1 orders received" is
+ * one of the two numbers in the audit sentence. Deliberately tiny: every word added here
+ * takes a phrase OUT of the subset bucket and into the strict one, so the list grows only
+ * when a real surface prints a real total under new wording.
+ */
+const TOTAL_CONTINUATIONS = ["received"];
+
+/**
+ * Every "<n> order(s)" a surface prints, split into the metered and practice claims.
+ *
+ * MINIMAL ELEMENTS ONLY: an element whose descendant prints the same phrase is a wrapper,
+ * not the line. Without that rule every ancestor up to the container reports the same
+ * phrase, and — worse — joining text across unrelated blocks at the page level would
+ * manufacture phrases nobody rendered. Bounding to the tightest element that prints both
+ * the number and the noun is the same minimality rule `anchorsFor` uses, for the same
+ * reason.
+ *
+ * "3+ completed orders" does NOT match: `\s+` after the digits refuses the "+", so the
+ * dashboard's "Auto-processed rate needs 3+ completed orders" is not read as a count of 3.
+ */
+const COUNTED_NOUN_RE = /(\d{1,3}(?:,\d{3})+|\d+)\s+(practice\s+)?orders?\b/gi;
+
+export function collectCountedNouns(container: ParentNode): CountedNoun[] {
+  const matching = Array.from(container.querySelectorAll("*")).filter((el) => {
+    COUNTED_NOUN_RE.lastIndex = 0;
+    return COUNTED_NOUN_RE.test(readableText(el));
+  });
+
+  // Each element is read over its OWN text — everything except the subtrees of the
+  // matching descendants that already reported for themselves. Plain minimality is not
+  // enough: the inbox footer wraps a tagged "0 orders" span next to a bare
+  // "· 1 practice order…" text node, so treating the wrapper as a mere container drops
+  // the practice count entirely — the one number the fix adds.
+  const out: CountedNoun[] = [];
+  for (const el of matching) {
+    const inner = matching.filter((other) => other !== el && el.contains(other));
+    const outermostInner = new Set(inner.filter((i) => !inner.some((o) => o !== i && o.contains(i))));
+    const text = readableText(el, outermostInner);
+    COUNTED_NOUN_RE.lastIndex = 0;
+    for (let m = COUNTED_NOUN_RE.exec(text); m; m = COUNTED_NOUN_RE.exec(text)) {
+      const rest = text.slice(m.index + m[0].length).replace(/^\s+/, "");
+      out.push({
+        value: Number(m[1].replace(/,/g, "")),
+        practice: m[2] !== undefined,
+        total:
+          rest === "" ||
+          !/^[A-Za-z]/.test(rest) ||
+          TOTAL_CONTINUATIONS.some((w) => rest.toLowerCase().startsWith(w)),
+        phrase: m[0],
+        where: text.length > 160 ? `${text.slice(0, 157)}…` : text,
+      });
+    }
+  }
+  return out;
+}
+
+/** Which of `keys` the surface actually rendered — the anti-hiding check. */
+export function renderedKeys(container: ParentNode, keys: readonly string[]): string[] {
+  const text = readableText(container as unknown as Node);
+  return keys.filter((k) => text.includes(k));
+}

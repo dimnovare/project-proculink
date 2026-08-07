@@ -30,7 +30,8 @@ import { buildChecklistSteps } from "./buildChecklistSteps";
 import { DashboardContextLine } from "./DashboardContextLine";
 import { PageHeader } from "./layout/PageHeader";
 import { PageShell } from "./layout/PageShell";
-import { countFor, statusesForLabel } from "./orderCountContract";
+import { countFor, pagePopulation, practiceOrderNote, statusesForLabel, summaryPopulation } from "./orderCountContract";
+import { PracticeChip } from "./PracticeChip";
 // The one registry of what to do about a stuck order. The dashboard reads the
 // same `rowAction` the inbox row renders, so the two can't disagree.
 import { problemFor } from "./problem/problemCopy";
@@ -813,6 +814,19 @@ export function BridgeDashboard() {
   const countFailed = contractCount("Failed");
   const countReceived = contractCount("Received");
 
+  // ── The two populations, resolved ONCE ────────────────────────────────────
+  //
+  // `countReceived` comes from GET /api/orders/summary, which excludes practice orders,
+  // while the windowed cards below read GET /api/orders, which includes them. Printing
+  // both raw is the v2 audit's P0-5: "Received 0" beside a card reading "1 orders
+  // received", with the order listed under both. The cards now print `.metered` — the
+  // same population as the tile — and `practiceOrderNote` states what that leaves out.
+  // `.rows` stays for anything that is genuinely about ROWS (the export's contents, the
+  // 100-order working-set cap), which is a different question with a different answer.
+  const receivedPopulation = pagePopulation(windowedReceivedPage);
+  const deliveredPopulation = pagePopulation(windowedDeliveredPage);
+  const allTimePopulation = summaryPopulation(ordersSummary);
+
   // ── Windowed rail metrics — real counts, honestly labelled. Feed the health
   // rail (throughput + auto-processed) and the export/window controls. ──────
   const windowSub = WINDOWS.find((w) => w.key === windowKey)!.sub;
@@ -822,11 +836,14 @@ export function BridgeDashboard() {
   const autoPct = eligibleInWindow.length > 0 ? Math.round((100 * autoCount) / eligibleInWindow.length) : 0;
 
   // Auto-processed % is sampled over the loaded working set (capped at the
-  // 100-order page), whereas "orders received" shows the true windowed total
-  // (windowedReceivedPage.totalCount). When the true total exceeds the loaded
-  // sample, the two numbers compute on different bases — say so (autoSampled).
-  const autoSampled =
-    !isApiMockMode && (windowedReceivedPage?.totalCount ?? 0) > allOrders.length;
+  // 100-order page), whereas "orders received" shows the true windowed total.
+  // When the true total exceeds the loaded sample, the two numbers compute on
+  // different bases — say so (autoSampled).
+  //
+  // `.rows` and not `.metered`: this asks whether the page HELD BACK rows, and a
+  // practice order takes a slot like any other. Comparing a metered count against a
+  // row count would under-report truncation by exactly the practice population.
+  const autoSampled = !isApiMockMode && receivedPopulation.rows > allOrders.length;
 
   // The exception count is only trustworthy once its source query has settled —
   // never flash an amber strip off a loading/error state (honest zero-state =
@@ -853,9 +870,10 @@ export function BridgeDashboard() {
         // (XLSX/cXML/EDI…) and the design's uppercase tags.
         fmt: (o.sourceFormat ?? "csv").toUpperCase(),
         stage: stageLabel(o.status),
+        isSample: o.isSample === true,
       }));
     if (isApiMockMode && liveRows.length === 0) {
-      return IN_TRANSIT_MOCK_FALLBACK.map((r) => ({ ...r, id: undefined as string | undefined }));
+      return IN_TRANSIT_MOCK_FALLBACK.map((r) => ({ ...r, id: undefined as string | undefined, isSample: false }));
     }
     return liveRows;
   })();
@@ -989,7 +1007,9 @@ export function BridgeDashboard() {
     );
     // Make the 100-row working-set cap visible inside the file itself, not just
     // on the button's hover title: a truncated export must say so.
-    const windowTotal = windowedReceivedPage?.totalCount ?? 0;
+    // ROWS, not metered: the note describes how much of the FILE is missing, and the
+    // export writes practice orders out like any other row.
+    const windowTotal = receivedPopulation.rows;
     const truncated = windowTotal > allOrders.length;
     const rows = [header.map(esc).join(","), ...body];
     if (truncated) {
@@ -1237,8 +1257,12 @@ export function BridgeDashboard() {
                 </b>
               </span>
             ))}
+            {/* The caption that qualifies the whole funnel, and therefore the right place
+                to say what the funnel's "Received" excludes. Without it the tile's 0 sits
+                directly above a "Needs you" list holding the practice order. */}
             <span className="ml-auto text-[11px]" style={{ color: "var(--ink-faint)" }}>
               of {countReceived.toLocaleString()} received · all time
+              {practiceOrderNote(allTimePopulation.practice) && ` · ${practiceOrderNote(allTimePopulation.practice)}`}
             </span>
           </div>
         </div>
@@ -1332,8 +1356,8 @@ export function BridgeDashboard() {
                   onClick={handleExport}
                   disabled={windowedOrders.length === 0}
                   title={
-                    !isApiMockMode && (windowedReceivedPage?.totalCount ?? 0) > 100
-                      ? `Export contains the most recent 100 of ${(windowedReceivedPage!.totalCount).toLocaleString()} orders in this window`
+                    !isApiMockMode && receivedPopulation.rows > 100
+                      ? `Export contains the most recent 100 of ${receivedPopulation.rows.toLocaleString()} orders in this window`
                       : windowedOrders.length === 0
                         ? "No orders in this window to export"
                         : "Download this window's orders as CSV"
@@ -1575,6 +1599,11 @@ export function BridgeDashboard() {
                             <span aria-hidden style={{ width: 7, height: 7, borderRadius: "50%", background: AMBER, flexShrink: 0 }} />
                             <Avatar name={o.buyerName ?? o.poNumber} tone="buyer" size={26} />
                             <span className="truncate font-mono text-[12.5px] font-semibold" style={{ color: "#0B1A2F" }}>{o.poNumber}</span>
+                            {/* This list counts its own rows, so it is internally honest —
+                                but it sits beside a "Received" tile that counts a smaller
+                                population, and the badge is what stops the two reading as
+                                a contradiction. */}
+                            {o.isSample && <PracticeChip size="sm" />}
                           </div>
                           {/* Route — buyer → supplier */}
                           <div className="flex min-w-0 items-center gap-1.5 text-[12.5px]">
@@ -1717,6 +1746,7 @@ export function BridgeDashboard() {
                             <span className="whitespace-nowrap font-mono text-[12px] font-semibold" style={{ color: BLUE_DEEP }}>
                               {row.po}
                             </span>
+                            {row.isSample && <PracticeChip size="sm" />}
                             <span className="max-w-full truncate text-[12px]" style={{ color: "#5E6779" }}>{row.buyer}</span>
                             <FileChip type={row.fmt} />
                           </div>
@@ -1793,15 +1823,31 @@ export function BridgeDashboard() {
                     className="tabular-nums"
                     style={{ fontFamily: "var(--font-display, 'Bricolage Grotesque', Inter, sans-serif)", fontWeight: 800, fontSize: 22, color: "#0B1A2F" }}
                   >
-                    {ordersLoading ? "…" : ordersError ? "—" : (windowedReceivedPage?.totalCount ?? windowedOrders.length).toLocaleString()}
+                    {/* THE NUMBER FROM THE AUDIT. It read `windowedReceivedPage.totalCount`
+                        — every row, practice included — while the "Received" tile two cards
+                        up read the metered total, so a first-run org saw 1 here and 0 there
+                        with one order on the screen. Both are the metered population now,
+                        and the practice line below says what that leaves out. */}
+                    {ordersLoading ? "…" : ordersError ? "—" : (windowedReceivedPage ? receivedPopulation.metered : windowedOrders.length).toLocaleString()}
                   </span>
                   <span className="text-[12px]" style={{ color: "#5E6779" }}>orders received · {windowSub.toLowerCase()}</span>
                 </div>
+                {/* Shown only when there is something to explain, so a workspace with no
+                    practice orders renders exactly what it always did. */}
+                {!ordersLoading && !ordersError && practiceOrderNote(receivedPopulation.practice) && (
+                  <div className="mt-1 flex items-center gap-1.5 text-[11.5px]" style={{ color: "var(--ink-faint)" }}>
+                    <span aria-hidden style={{ width: 6, height: 6, borderRadius: "50%", background: "#2E8E3A", flexShrink: 0 }} />
+                    <span>{practiceOrderNote(receivedPopulation.practice)}</span>
+                  </div>
+                )}
                 {/* Delivered in the same window (from the dedicated windowed count query). */}
                 <div className="mt-1 flex items-center gap-1.5 text-[11.5px]" style={{ color: "#5E6779" }}>
                   <CheckCircle2 size={12} strokeWidth={2.25} style={{ color: GREEN_DEEP, flexShrink: 0 }} aria-hidden />
                   <span className="tabular-nums font-semibold" style={{ color: GREEN_DEEP }}>
-                    {ordersLoading ? "…" : ordersError ? "—" : (windowedDeliveredPage?.totalCount ?? windowedOrders.filter((o) => o.status === "delivered").length).toLocaleString()}
+                    {/* Metered for the same reason as the line above: a delivered practice
+                        order is a rehearsal, not throughput, and the "Delivered" tile does
+                        not count it either. */}
+                    {ordersLoading ? "…" : ordersError ? "—" : (windowedDeliveredPage ? deliveredPopulation.metered : windowedOrders.filter((o) => o.status === "delivered").length).toLocaleString()}
                   </span>
                   <span>delivered · {windowSub.toLowerCase()}</span>
                 </div>
