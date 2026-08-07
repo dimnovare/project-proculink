@@ -270,6 +270,18 @@ jobs:
 
       - name: Diff orderStatusManifest against the backend C#
         run: bun run test src/test/backendMirror.test.ts
+
+      # The SAME backend checkout, asked a different question: not "do the constants still
+      # match" but "does a sentence the backend composes use a word ProcuLink does not ship
+      # to users". OrderProblemPanel renders `order.errorMessage` verbatim, so half the
+      # user-facing copy in this product is written in C# and was outside the reach of
+      # `lint:vocab`, which walks frontend source only.
+      #
+      # A SEPARATE STEP, not appended to the line above, so a failure names which question
+      # went wrong in the job log without anyone opening the run.
+      - name: Check backend user-facing copy against the vocabulary
+        if: always()
+        run: bun run test src/test/backendCopyVocabulary.test.ts
   # ══ END backend-mirror job ══════════════════════════════════════════════════
 
   test-e2e:

@@ -27,6 +27,10 @@ import {
   INVOICE_STATUSES,
   INVOICE_STATUS_FACTS,
 } from "@/lib/invoiceStatusManifest";
+// The C# string-literal reader this file introduced now has a second consumer
+// (src/test/backendCopyVocabulary.test.ts), so it lives in one place rather than two.
+// Its own header explains why a `grep` cannot replace it.
+import { parseCsStringExpressions } from "./csLiterals";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // The cross-repo mirror check.
@@ -914,148 +918,6 @@ describe("invoice statuses mirror the backend", () => {
 // is "this pattern still matches something the service really writes", with the
 // sentence itself never retyped on this side.
 // ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * One string literal in C# source: its text, and where it sat.
- *
- * `text` is normalised: every interpolation hole becomes `{}` (so `{ex.Message}`
- * and `{effectiveFormat}` read the same), `""` in a verbatim string and `\"` in a
- * regular one become `"`, and `{{` / `}}` become single braces.
- */
-interface CsLiteral {
-  text: string;
-  start: number;
-  end: number;
-}
-
-/** Reads ONE literal starting at `start` (which may point at a `$`/`@` prefix). */
-function readCsLiteral(cs: string, start: number): CsLiteral | null {
-  let p = start;
-  let interpolated = false;
-  let verbatim = false;
-  while (p < cs.length && (cs[p] === "$" || cs[p] === "@")) {
-    if (cs[p] === "$") interpolated = true;
-    else verbatim = true;
-    p += 1;
-  }
-  if (cs[p] !== '"') return null;
-  p += 1;
-
-  let text = "";
-  // Interpolation holes nest, and they can contain string literals of their own —
-  // `{string.Join(", ", unresolved)}` is the reason a naive scanner ends the
-  // sentence at `", "` and reports two fragments instead of one message.
-  let depth = 0;
-
-  while (p < cs.length) {
-    const c = cs[p];
-
-    if (depth > 0) {
-      if (c === '"') {
-        const nested = readCsLiteral(cs, p);
-        if (!nested) return null;
-        p = nested.end;
-        continue;
-      }
-      if (c === "'") {
-        p += 1;
-        while (p < cs.length && cs[p] !== "'") p += cs[p] === "\\" ? 2 : 1;
-        p += 1;
-        continue;
-      }
-      if (c === "{") depth += 1;
-      else if (c === "}") depth -= 1;
-      p += 1;
-      continue;
-    }
-
-    if (c === '"') {
-      if (verbatim && cs[p + 1] === '"') {
-        text += '"';
-        p += 2;
-        continue;
-      }
-      return { text, start, end: p + 1 };
-    }
-    if (!verbatim && c === "\\") {
-      const esc = cs[p + 1];
-      text += esc === "n" ? "\n" : esc === "t" ? "\t" : esc === "r" ? "\r" : esc;
-      p += 2;
-      continue;
-    }
-    if (interpolated && (c === "{" || c === "}")) {
-      if (cs[p + 1] === c) {
-        text += c;
-        p += 2;
-        continue;
-      }
-      if (c === "{") {
-        text += "{}";
-        depth = 1;
-        p += 1;
-        continue;
-      }
-    }
-    text += c;
-    p += 1;
-  }
-  return null; // unterminated
-}
-
-/**
- * Every string EXPRESSION in C# source, with `+`-concatenated runs joined.
- *
- * Comments are skipped rather than collected, which is load-bearing: this file's
- * own C# quotes old messages in its comments, so a reader that collected them would
- * report a reworded sentence as still present and go green on the exact drift it
- * was added to catch. Char literals are skipped for the same reason an apostrophe
- * must not open a string.
- */
-export function parseCsStringExpressions(cs: string): string[] {
-  const literals: CsLiteral[] = [];
-  let i = 0;
-  while (i < cs.length) {
-    const c = cs[i];
-    if (c === "/" && cs[i + 1] === "/") {
-      while (i < cs.length && cs[i] !== "\n") i += 1;
-      continue;
-    }
-    if (c === "/" && cs[i + 1] === "*") {
-      i += 2;
-      while (i < cs.length && !(cs[i] === "*" && cs[i + 1] === "/")) i += 1;
-      i += 2;
-      continue;
-    }
-    if (c === "'") {
-      i += 1;
-      while (i < cs.length && cs[i] !== "'") i += cs[i] === "\\" ? 2 : 1;
-      i += 1;
-      continue;
-    }
-    if (c === '"' || ((c === "$" || c === "@") && /^[$@]*"/.test(cs.slice(i, i + 3)))) {
-      const lit = readCsLiteral(cs, i);
-      if (lit) {
-        literals.push(lit);
-        i = lit.end;
-        continue;
-      }
-    }
-    i += 1;
-  }
-
-  const joined: string[] = [];
-  for (let a = 0; a < literals.length; ) {
-    let text = literals[a].text;
-    let b = a;
-    while (b + 1 < literals.length && /^\s*\+\s*$/.test(cs.slice(literals[b].end, literals[b + 1].start))) {
-      b += 1;
-      text += literals[b].text;
-    }
-    joined.push(text);
-    a = b + 1;
-  }
-  return joined;
-}
 
 /**
  * How many sentences in OrderTransformService.cs each cause is allowed to claim.
