@@ -251,8 +251,17 @@ describe("transform_failed — the recovery the backend already supports is reac
     expect(hrefs()).not.toContain("/inbox/ord-1");
   });
 
-  test("points at the supplier's output settings — the thing that actually broke", () => {
-    mockState.order = makeOrder({ status: "transform_failed" });
+  test("points at the supplier's output settings when that IS the thing that broke", () => {
+    mockState.order = makeOrder({
+      status: "transform_failed",
+      // The backend's own sentence for this cause, verbatim
+      // (OrderTransformService.cs:698-699). It used to be the copy every
+      // unrecognised message inherited; it is now reached by the message that
+      // means it, so the fixture has to carry that message.
+      errorMessage:
+        "The published output mapping for this connection could not be applied, so the order was not "
+        + "delivered: Object reference not set to an instance of an object.",
+    });
     renderWorkshop();
     // NOT /library/templates: FE #47 deleted that page precisely because it could
     // not change what a supplier receives. `outputFormat` (and the cXML credentials
@@ -260,6 +269,21 @@ describe("transform_failed — the recovery the backend already supports is reac
     // only screen that edits them.
     expect(hrefs()).toContain("/library/suppliers/sup-1?tab=delivery");
     expect(hrefs()).not.toContain("/library/templates?supplierId=sup-1");
+  });
+
+  test("does NOT point at the output settings when we could not read the message", () => {
+    // The other half, on the rendered screen rather than in the copy table. An
+    // order held over its line data carries "Cannot transform: lines 2, 5 still
+    // need review." — nothing on the Delivery tab fixes that, and sending an
+    // operator there to edit settings that are fine costs them the trip and the
+    // trust. The rebuild stays on screen either way.
+    mockState.order = makeOrder({
+      status: "transform_failed",
+      errorMessage: "Cannot transform: lines 2, 5 still need review.",
+    });
+    renderWorkshop();
+    expect(hrefs()).not.toContain("/library/suppliers/sup-1?tab=delivery");
+    expect(screen.getByRole("button", { name: /Try building it again/i })).toBeTruthy();
   });
 
   test("'Try building it again' calls transformOrder — a real, guard-satisfying endpoint", async () => {

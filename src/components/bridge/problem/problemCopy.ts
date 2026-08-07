@@ -253,13 +253,15 @@ export function deliveryCauseFor(c: ProblemCtx): DeliveryCauseCopy | null {
  * The reasons an order can land in `transform_failed`, and what each one changes.
  *
  * `transform_failed` used to mean one thing — a broken output template or a
- * mapping that would not apply — and the copy below was written for exactly that.
+ * mapping that would not apply — and the state's copy was written for exactly that.
  * BE #172 wrapped `OrderTransformService.TransformAsync` in a catch, so failures
  * that used to strand an order silently in `transforming` now land in this same
  * status, and the single-cause copy became false for most of them: it sent an
  * order with unconfirmed item codes to the supplier's delivery settings, and it
  * told every one of them "we won't try to build it again on our own" while the
- * Worker was already retrying.
+ * Worker was already retrying. That original copy is now `output_mapping_failed`,
+ * the first entry below — a cause like any other, reached only by the messages the
+ * backend really writes for it.
  *
  * THE RETRY GROUND TRUTH, because it is what the old copy got wrong.
  * `TransformOrderJob.ExecuteAsync` carries
@@ -280,6 +282,12 @@ export function deliveryCauseFor(c: ProblemCtx): DeliveryCauseCopy | null {
  * `isDeliveryConfigMissing` above does. Each entry names the backend site its
  * message is written at, so a reword is greppable from both ends.
  *
+ * A HAND-WRITTEN PATTERN AGAINST ANOTHER REPO'S PROSE IS A MIRROR, and the mirror
+ * used to be uncheckable: a reword on the backend simply stopped matching, and the
+ * only thing that changed on screen was that the panel got vaguer. Every matcher
+ * here is now diffed against the real C# by `src/test/backendMirror.test.ts`, which
+ * parses OrderTransformService.cs and fails when a matcher claims no literal in it.
+ *
  * The verbatim server message is rendered in its own block ABOVE these lines, so
  * nothing here paraphrases it — they say what to DO, not what happened.
  */
@@ -289,12 +297,21 @@ type TransformCauseCopy = {
   automatic: string;
   consequence: (c: ProblemCtx) => string;
   helper: (c: ProblemCtx) => string | null;
-  /** Omitted when the state's own controls are already the right ones. */
-  actions?: (c: ProblemCtx) => ProblemAction[];
+  /**
+   * REQUIRED, and it was optional until the base entry stopped being one of the
+   * causes. "Omit it and inherit the state's own controls" was safe while those
+   * controls were the output settings — `no_builder_for_format` did exactly that.
+   * The base is now written for a message we could not read, so an omission would
+   * inherit "Try building it again / Get help with this order": right for an
+   * unknown cause, wrong for every known one. Required means the next cause added
+   * has to answer the question instead of inheriting an answer to a different one.
+   */
+  actions: (c: ProblemCtx) => ProblemAction[];
   tier: Tier;
 };
 
 export type TransformCauseName =
+  | "output_mapping_failed"
   | "unresolved_lines"
   | "preparation_failed"
   | "no_builder_for_format"
@@ -319,7 +336,7 @@ function buildAgain(c: ProblemCtx, variant: ProblemActionVariant): ProblemAction
 }
 
 /**
- * Ordered, and first match wins. The five patterns are mutually exclusive today —
+ * Ordered, and first match wins. The six patterns are mutually exclusive today —
  * two of them share the closing sentence "Try sending it again in a moment." and
  * are told apart by their openings — and `__tests__/transformCause.test.ts` walks
  * every message against every matcher, both ways, to keep them so.
@@ -329,6 +346,64 @@ const TRANSFORM_CAUSES: ReadonlyArray<{
   match: RegExp;
   copy: TransformCauseCopy;
 }> = [
+  {
+    // The template / output-mapping failure this whole state was originally written
+    // for. It used to be the UNNAMED fallback — the copy sat on the base entry and
+    // every unrecognised message inherited it. It is named here so the base entry is
+    // free to say the one honest thing about a message we do not recognise.
+    //
+    // Three backend sites, one sentence shape. Each wraps the inner exception, so
+    // only the wrapper is matchable — the tail after ": " is the engine's own text:
+    //   "The output structure for this connection could not be rendered, so the
+    //    order was not delivered: {ex.Message}"
+    //     ProcuLink.Api/Services/Orders/OrderTransformService.cs:662-663
+    //   "The published output mapping for this connection could not be applied, so
+    //    the order was not delivered: {ex.Message}"
+    //     ProcuLink.Api/Services/Orders/OrderTransformService.cs:698-699
+    //   "The supplier's saved output mapping could not be applied, so the order was
+    //    not delivered: {ex.Message}"
+    //     ProcuLink.Api/Services/Orders/OrderTransformService.cs:719-720
+    //
+    // A template that failed to render deeper down (Scriban, the field validators)
+    // reaches `errorMessage` as its OWN raw sentence with no wrapper — those are
+    // unrecognised on purpose and get the base copy, because from here they are
+    // indistinguishable from a sentence a newer API wrote.
+    cause: "output_mapping_failed",
+    match: /could not be (?:rendered|applied), so the order was not delivered/i,
+    copy: {
+      attribution: (c) => `Your order is fine — the output we build for ${c.supplier} isn't.`,
+      // "We won't try to build it again on our own." stood here and was false:
+      // TransformOrderJob throws on any unsuccessful result and retries three times
+      // (TransformOrderJob.cs:47, :66-72), and transform_failed is re-claimable, so
+      // the tries really happen. What is true is that they cannot help — the same
+      // template and the same mapping produce the same failure — so the line says
+      // both halves instead of denying the first.
+      automatic: "We try again on our own a few times, but the same settings produce the same result each time.",
+      consequence: (c) =>
+        `${c.supplier} has not received this order — and every future order for them will stop in the same `
+        + `place until this is fixed.`,
+      // The primary points at the supplier's Delivery tab, NOT /library/templates. The
+      // spec named the templates page, but FE #47 retired it — and its stated reason is
+      // exactly why this CTA must not go there: "the output format lives on each
+      // supplier's delivery config, and the page's save posted a body the API never
+      // read. It described a control that did not exist." The templates URL still
+      // answers (a 308 to /library/suppliers, supplier id dropped), so a link crawl
+      // cannot see the problem: it resolves, it just resolves to a list instead of the
+      // one screen where `outputFormat` and the cXML credentials are actually editable.
+      actions: (c) => [
+        {
+          kind: "link",
+          variant: "primary",
+          label: "Open the output settings",
+          href: supplierTab(c, "delivery"),
+        },
+        buildAgain(c, "secondary"),
+      ],
+      helper: () =>
+        "If nothing has changed in those settings, building it again won't help — send us the message above instead.",
+      tier: "self",
+    },
+  },
   {
     // "Resolve all lines before transforming. Unresolved: 1, 3."
     // ProcuLink.Api/Services/Orders/OrderTransformService.cs:196-201
@@ -391,8 +466,19 @@ const TRANSFORM_CAUSES: ReadonlyArray<{
       consequence: (c) =>
         `${c.supplier} has not received this order — and every future order for them will stop in the same `
         + `place until the format is changed.`,
-      // The state's own controls are already right for this one: the format lives
-      // on the supplier's delivery settings, which is where the primary points.
+      // Named, not inherited. These were omitted while the state's own controls WERE
+      // the output settings; the base entry is now written for a message we could
+      // not read, and inheriting from it sent this cause — which is fixed in exactly
+      // one place — to "Get help with this order" instead.
+      actions: (c) => [
+        {
+          kind: "link",
+          variant: "primary",
+          label: "Open the output settings",
+          href: supplierTab(c, "delivery"),
+        },
+        buildAgain(c, "secondary"),
+      ],
       helper: () =>
         "Choose a format we can build in those settings — the message above names the one we were asked for.",
       tier: "self",
@@ -450,6 +536,20 @@ const TRANSFORM_CAUSES: ReadonlyArray<{
   },
 ];
 
+/**
+ * Every cause the table names, in match order.
+ *
+ * Exported so a test can size itself from the registry instead of from its own
+ * fixtures. `__tests__/transformCause.test.ts` drives fourteen loops off the keys
+ * of its message record, and a record that lost a key would have made every one of
+ * them iterate zero times and pass — so the fixtures are diffed against this.
+ */
+export const TRANSFORM_CAUSE_NAMES: readonly TransformCauseName[] = TRANSFORM_CAUSES.map((e) => e.cause);
+
+/** The RegExp each cause matches on, keyed by cause. Read by the backend mirror. */
+export const TRANSFORM_CAUSE_MATCHERS: ReadonlyArray<{ cause: TransformCauseName; match: RegExp }> =
+  TRANSFORM_CAUSES.map((e) => ({ cause: e.cause, match: e.match }));
+
 /** The named cause of a transform failure, or null when nothing recognises it. */
 export function transformCauseNameFor(serverMessage: string | null | undefined): TransformCauseName | null {
   if (!serverMessage) return null;
@@ -457,8 +557,7 @@ export function transformCauseNameFor(serverMessage: string | null | undefined):
 }
 
 /**
- * The copy for a named transform cause, or null for the template/mapping failure
- * this state was originally written for and for any message we do not recognise.
+ * The copy for a named transform cause, or null for any message we do not recognise.
  *
  * A `find` over an array rather than an index into an object literal: the delivery
  * table's `Object.hasOwn` guard exists because `failureCause` is an unvalidated
@@ -473,8 +572,19 @@ export function transformCauseFor(c: ProblemCtx): TransformCauseCopy | null {
 
 /**
  * Layers the named causes over the state's own copy. Every field a cause does not
- * name falls through to the entry below, so an unrecognised message reads exactly
- * as it did before this table existed.
+ * name falls through to the entry below — which is now written FOR the unrecognised
+ * case rather than borrowed from one of the causes.
+ *
+ * It used to fall through to the template/mapping copy, on the reasoning that "an
+ * unrecognised message reads exactly as it did before this table existed". That
+ * reasoning holds only while `transform_failed` has one meaning, and BE #172 ended
+ * that: the base copy names a cause ("the output we build for X isn't"), predicts a
+ * recurrence ("every future order for them will stop in the same place"), and sends
+ * the operator to the supplier's Delivery tab. Applied to a message we could not
+ * read, all three are guesses stated as facts — and one of them is already wrong on
+ * a message the backend writes today, `"Cannot transform: lines 2, 5 still need
+ * review."` (TransformValidationException.cs), which is a line problem and not a
+ * settings problem at all.
  */
 function withTransformCause(base: ProblemCopy): ProblemCopy {
   return {
@@ -485,7 +595,7 @@ function withTransformCause(base: ProblemCopy): ProblemCopy {
       const cause = transformCauseFor(c);
       return cause ? cause.helper(c) : base.helper?.(c) ?? null;
     },
-    actions: (c) => transformCauseFor(c)?.actions?.(c) ?? base.actions(c),
+    actions: (c) => transformCauseFor(c)?.actions(c) ?? base.actions(c),
     tier: (c) => transformCauseFor(c)?.tier ?? base.tier(c),
     automaticFor: (c) => {
       const line = transformCauseFor(c)?.automatic ?? base.automatic ?? base.nothingAutomatic ?? "";
@@ -578,57 +688,55 @@ export const PROBLEM_COPY: Record<ProblemStatus, ProblemCopy> = {
 
   // 3.3 — D1's fix. The backend treats transform_failed as recoverable (it is an
   // accepted entry status for `transforming`) and it holds NO output, so nothing
-  // stale can ship. The output setup is the primary because the failure is terminal
-  // for the same inputs; building again is the honest secondary.
+  // stale can ship.
   //
-  // What follows is the FALLBACK: the template / output-mapping failure this state
-  // was written for (OrderTransformService.cs:663, :699, :720, plus raw template
-  // errors) and any message we do not recognise. Every other cause is named in
-  // TRANSFORM_CAUSES above and overrides only the fields that differ.
+  // What follows is the copy for a message NOTHING IN TRANSFORM_CAUSES RECOGNISED.
+  // Every recognised cause — including the template / output-mapping failure this
+  // state was originally written for — is named in the table above and overrides
+  // the fields that differ.
   //
-  // The primary points at the supplier's Delivery tab, NOT /library/templates. The
-  // spec named the templates page, but FE #47 retired it — and its stated reason is
-  // exactly why this CTA must not go there: "the output format lives on each
-  // supplier's delivery config, and the page's save posted a body the API never
-  // read. It described a control that did not exist." The templates URL still
-  // answers (a 308 to /library/suppliers, supplier id dropped), so a link crawl
-  // cannot see the problem: it resolves, it just resolves to a list instead of the
-  // one screen where `outputFormat` and the cXML credentials are actually editable.
+  // It says only the two things that are true of every failure that reaches this
+  // status: the file was not built, and the order was not sent. It names no cause,
+  // blames no screen, and its primary is the one control that presumes nothing —
+  // building again. That is deliberately LESS than the old fallback said, because
+  // the old fallback said the template copy: it told an operator whose order was
+  // held over its line data that their output settings were broken, and sent them
+  // to a Delivery tab where nothing they could change would have helped.
+  //
+  // "Send us the message" is the honest second route, which is also why the tier is
+  // `us` and not `self`: on the health page `self` means "you can fix this", and we
+  // do not know that here.
   transform_failed: withTransformCause(withAutomaticFor({
     tone: "danger",
     presentation: "banner",
     badge: "Couldn't build output",
     headline: "We couldn't build the file this supplier needs",
-    attribution: (c) => `Your order is fine — the output we build for ${c.supplier} isn't.`,
-    // "We won't try to build it again on our own." stood here and was false for
-    // every cause, this one included: TransformOrderJob throws on any unsuccessful
-    // result and retries three times (TransformOrderJob.cs:47, :66-72), and
-    // transform_failed is re-claimable, so the tries really happen. What is true is
-    // that they cannot help — the same template and the same mapping produce the
-    // same failure — so the line now says both halves instead of denying the first.
+    attribution: () =>
+      "We can't tell you what stopped this one. The message above is exactly what came back, and it isn't "
+      + "something we recognise.",
+    // The tries are real for every cause — TransformOrderJob throws on any
+    // unsuccessful result and retries three times (TransformOrderJob.cs:47, :66-72)
+    // and transform_failed is re-claimable — so this must not deny them. It must
+    // also not promise they will work, which is what "We're trying again
+    // automatically" means on the two causes that use it. No attempt number and no
+    // schedule: Order carries neither, and an invented one is the difference
+    // between an operator waiting and escalating on the wrong schedule.
     automatic:
-      "We try again on our own a few times, but the same settings produce the same result each time.",
+      "We try again on our own a few times. Whether that clears it depends on what went wrong, and we can't tell from here.",
     nothingAutomatic: null,
     pausedNote: "Order processing is paused right now, so the next try starts once it restarts.",
-    consequence: (c) =>
-      `${c.supplier} has not received this order — and every future order for them will stop in the same place until this is fixed.`,
-    actions: (c) => [
-      {
-        kind: "link",
-        variant: "primary",
-        label: "Open the output settings",
-        href: supplierTab(c, "delivery"),
-      },
-      buildAgain(c, "secondary"),
-    ],
+    consequence: (c) => `${c.supplier} has not received this order, and it stays here until someone looks at it.`,
+    actions: (c) => [buildAgain(c, "primary"), HELP(c, "transform_failed")],
     helper: () =>
-      "If nothing has changed in those settings, building it again won't help — send us the message above instead.",
-    tier: () => "self",
+      "If the message above points at something you can change, change it and build the file again. If it "
+      + "doesn't, send it to us — we can see what happened on our side.",
+    tier: () => "us",
     // Not "Check output settings" any more. The inbox row, the dashboard's "Needs
-    // you" line and the workshop status bar all render this one string for all six
-    // causes, and four of them are not fixed in the output settings — an order
-    // waiting on item codes was told to go and check a screen that cannot fix it.
-    // The row's job is to get the operator to the order; the panel names the fix.
+    // you" line and the workshop status bar all render this one string for every
+    // cause AND for the unrecognised case, and only one of them is fixed in the
+    // output settings — an order waiting on item codes was told to go and check a
+    // screen that cannot fix it. The row's job is to get the operator to the order;
+    // the panel names the fix, or says that it cannot.
     rowAction: "See what stopped it",
   })),
 

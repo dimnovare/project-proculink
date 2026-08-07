@@ -16,6 +16,12 @@ import {
 } from "@/lib/outboundUrlPolicy";
 import { CATALOG_SYNC_STATUS_FACTS, CATALOG_SYNC_STATUSES } from "@/lib/catalogSyncStatusManifest";
 import {
+  TRANSFORM_CAUSE_MATCHERS,
+  TRANSFORM_CAUSE_NAMES,
+  transformCauseNameFor,
+  type TransformCauseName,
+} from "@/components/bridge/problem/problemCopy";
+import {
   APPROVABLE_INVOICE_STATUSES,
   DOWNLOADABLE_INVOICE_STATUSES,
   INVOICE_STATUSES,
@@ -64,6 +70,7 @@ const MACHINE_REL = "ProcuLink.Core/Constants/OrderStatusMachine.cs";
 const URL_POLICY_REL = "ProcuLink.Core/Security/OutboundUrlPolicy.cs";
 const INVOICE_SERVICE_REL = "ProcuLink.Infrastructure/Services/InvoiceService.cs";
 const INVOICE_ENTITY_REL = "ProcuLink.Core/Entities/InvoiceEntity.cs";
+const TRANSFORM_SERVICE_REL = "ProcuLink.Api/Services/Orders/OrderTransformService.cs";
 
 /**
  * Every C# file this suite parses.
@@ -81,6 +88,7 @@ const PARSED_FILES = [
   URL_POLICY_REL,
   INVOICE_SERVICE_REL,
   INVOICE_ENTITY_REL,
+  TRANSFORM_SERVICE_REL,
 ] as const;
 
 /**
@@ -383,6 +391,7 @@ describe("the mirror gate decides correctly", () => {
       URL_POLICY_REL,
       INVOICE_SERVICE_REL,
       INVOICE_ENTITY_REL,
+      TRANSFORM_SERVICE_REL,
     ]);
     expect(missingParsedFiles("/tmp/backend", () => true)).toEqual([]);
     // A checkout with nothing in it must report all three, not zero.
@@ -881,6 +890,295 @@ describe("invoice statuses mirror the backend", () => {
   });
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// The transform-failure MESSAGE mirror.
+//
+// `TRANSFORM_CAUSES` in src/components/bridge/problem/problemCopy.ts decides what
+// the order screen tells an operator to do, and it decides it by running six
+// hand-written regexes against an English sentence composed in another repo. There
+// is no machine-readable cause for a transform failure — `failureCause` is
+// populated for delivery only — so the prose IS the contract.
+//
+// Nothing pinned it. A backend reword did not break a build, did not fail a test
+// and did not show up on screen as an error: the matcher simply stopped matching,
+// the panel fell through to its unrecognised copy, and the operator lost the one
+// sentence that named the fix. That is the same shape as every other mirror in this
+// file — a comment citing a symbol in another language, checked by nobody.
+//
+// WHY A LITERAL READER AND NOT A `grep`. The five original sentences are written
+// four different ways in the C#: a `const string` split across two concatenated
+// literals, two `$"…{hole}…"` interpolations, a bare literal in a ternary branch,
+// and three wrapper messages that end in `: {ex.Message}`. A substring search would
+// need the same sentence typed here a second time — which is the defect this file
+// exists to catch, not a way to catch it. Reading the literals means the assertion
+// is "this pattern still matches something the service really writes", with the
+// sentence itself never retyped on this side.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * One string literal in C# source: its text, and where it sat.
+ *
+ * `text` is normalised: every interpolation hole becomes `{}` (so `{ex.Message}`
+ * and `{effectiveFormat}` read the same), `""` in a verbatim string and `\"` in a
+ * regular one become `"`, and `{{` / `}}` become single braces.
+ */
+interface CsLiteral {
+  text: string;
+  start: number;
+  end: number;
+}
+
+/** Reads ONE literal starting at `start` (which may point at a `$`/`@` prefix). */
+function readCsLiteral(cs: string, start: number): CsLiteral | null {
+  let p = start;
+  let interpolated = false;
+  let verbatim = false;
+  while (p < cs.length && (cs[p] === "$" || cs[p] === "@")) {
+    if (cs[p] === "$") interpolated = true;
+    else verbatim = true;
+    p += 1;
+  }
+  if (cs[p] !== '"') return null;
+  p += 1;
+
+  let text = "";
+  // Interpolation holes nest, and they can contain string literals of their own —
+  // `{string.Join(", ", unresolved)}` is the reason a naive scanner ends the
+  // sentence at `", "` and reports two fragments instead of one message.
+  let depth = 0;
+
+  while (p < cs.length) {
+    const c = cs[p];
+
+    if (depth > 0) {
+      if (c === '"') {
+        const nested = readCsLiteral(cs, p);
+        if (!nested) return null;
+        p = nested.end;
+        continue;
+      }
+      if (c === "'") {
+        p += 1;
+        while (p < cs.length && cs[p] !== "'") p += cs[p] === "\\" ? 2 : 1;
+        p += 1;
+        continue;
+      }
+      if (c === "{") depth += 1;
+      else if (c === "}") depth -= 1;
+      p += 1;
+      continue;
+    }
+
+    if (c === '"') {
+      if (verbatim && cs[p + 1] === '"') {
+        text += '"';
+        p += 2;
+        continue;
+      }
+      return { text, start, end: p + 1 };
+    }
+    if (!verbatim && c === "\\") {
+      const esc = cs[p + 1];
+      text += esc === "n" ? "\n" : esc === "t" ? "\t" : esc === "r" ? "\r" : esc;
+      p += 2;
+      continue;
+    }
+    if (interpolated && (c === "{" || c === "}")) {
+      if (cs[p + 1] === c) {
+        text += c;
+        p += 2;
+        continue;
+      }
+      if (c === "{") {
+        text += "{}";
+        depth = 1;
+        p += 1;
+        continue;
+      }
+    }
+    text += c;
+    p += 1;
+  }
+  return null; // unterminated
+}
+
+/**
+ * Every string EXPRESSION in C# source, with `+`-concatenated runs joined.
+ *
+ * Comments are skipped rather than collected, which is load-bearing: this file's
+ * own C# quotes old messages in its comments, so a reader that collected them would
+ * report a reworded sentence as still present and go green on the exact drift it
+ * was added to catch. Char literals are skipped for the same reason an apostrophe
+ * must not open a string.
+ */
+export function parseCsStringExpressions(cs: string): string[] {
+  const literals: CsLiteral[] = [];
+  let i = 0;
+  while (i < cs.length) {
+    const c = cs[i];
+    if (c === "/" && cs[i + 1] === "/") {
+      while (i < cs.length && cs[i] !== "\n") i += 1;
+      continue;
+    }
+    if (c === "/" && cs[i + 1] === "*") {
+      i += 2;
+      while (i < cs.length && !(cs[i] === "*" && cs[i + 1] === "/")) i += 1;
+      i += 2;
+      continue;
+    }
+    if (c === "'") {
+      i += 1;
+      while (i < cs.length && cs[i] !== "'") i += cs[i] === "\\" ? 2 : 1;
+      i += 1;
+      continue;
+    }
+    if (c === '"' || ((c === "$" || c === "@") && /^[$@]*"/.test(cs.slice(i, i + 3)))) {
+      const lit = readCsLiteral(cs, i);
+      if (lit) {
+        literals.push(lit);
+        i = lit.end;
+        continue;
+      }
+    }
+    i += 1;
+  }
+
+  const joined: string[] = [];
+  for (let a = 0; a < literals.length; ) {
+    let text = literals[a].text;
+    let b = a;
+    while (b + 1 < literals.length && /^\s*\+\s*$/.test(cs.slice(literals[b].end, literals[b + 1].start))) {
+      b += 1;
+      text += literals[b].text;
+    }
+    joined.push(text);
+    a = b + 1;
+  }
+  return joined;
+}
+
+/**
+ * How many sentences in OrderTransformService.cs each cause is allowed to claim.
+ *
+ * EXACT, not a floor. Zero means the backend reworded and the panel has silently
+ * lost that cause's copy — the defect this section exists for. More than the
+ * declared number means the pattern has widened onto a sentence it was not written
+ * for, which is how an ordered first-match table starts eating its neighbours. A
+ * genuinely new site is a number to change deliberately, with the copy re-read.
+ */
+const TRANSFORM_CAUSE_SITES: Record<TransformCauseName, number> = {
+  // Three wrappers: the output tree, the pinned revision's mapping, the supplier's.
+  output_mapping_failed: 3,
+  unresolved_lines: 1,
+  preparation_failed: 1,
+  no_builder_for_format: 1,
+  rules_check_failed: 1,
+  rules_refused: 1,
+};
+
+describe("the transform-failure copy still matches the sentences the backend writes", () => {
+  test("the literal reader actually reads (so a green diff means something)", () => {
+    const fixture = [
+      "public class Svc",
+      "{",
+      "    // const string reason = \"a sentence that was reworded away\";",
+      "    /* \"and one in a block comment\" */",
+      "    public void Go()",
+      "    {",
+      "        const string reason =",
+      '            "Something went wrong, so it wasn\'t sent. "',
+      '          + "Try again in a moment.";',
+      '        var listed = $"Unresolved: {string.Join(", ", lines)}.";',
+      "        var ch = '\"';",
+      '        var picked = flag ? "the fallback sentence." : other;',
+      '        var esc = "a \\"quoted\\" word";',
+      "    }",
+      "}",
+    ].join("\n");
+
+    const found = parseCsStringExpressions(fixture);
+
+    // The two-part const reads as ONE sentence, which is the whole point: matched
+    // against either half alone, a pattern spanning the join would find nothing.
+    expect(found).toContain("Something went wrong, so it wasn't sent. Try again in a moment.");
+    // The interpolation hole is normalised, and the `", "` INSIDE it did not end
+    // the string early or leak in as a fragment.
+    expect(found).toContain("Unresolved: {}.");
+    expect(found).not.toContain(", ");
+    expect(found).toContain("the fallback sentence.");
+    expect(found).toContain('a "quoted" word');
+    // Comments are not sentences the service writes. A reader that collected them
+    // would confirm a message that no longer exists.
+    expect(found.join("\n")).not.toContain("reworded away");
+    expect(found.join("\n")).not.toContain("block comment");
+  });
+
+  test("the frontend table is itself non-vacuous", () => {
+    // Guards the walk below: an emptied matcher list claims nothing, and "nothing
+    // failed to match" is indistinguishable from "everything matched".
+    expect(TRANSFORM_CAUSE_MATCHERS).toHaveLength(6);
+    expect(sorted(TRANSFORM_CAUSE_MATCHERS.map((m) => m.cause))).toEqual(sorted(Object.keys(TRANSFORM_CAUSE_SITES)));
+    expect(sorted([...TRANSFORM_CAUSE_NAMES])).toEqual(sorted(Object.keys(TRANSFORM_CAUSE_SITES)));
+  });
+
+  test.skipIf(!BACKEND)("the service still writes sentences at all", () => {
+    const sentences = parseCsStringExpressions(readFileSync(join(BACKEND!, TRANSFORM_SERVICE_REL), "utf8"));
+    expect(
+      sentences.length,
+      "parsed OrderTransformService.cs and found almost no string literals — the reader or the file moved",
+    ).toBeGreaterThan(30);
+  });
+
+  test.skipIf(!BACKEND)("every cause matches the C# it was written against, and only that", () => {
+    const sentences = parseCsStringExpressions(readFileSync(join(BACKEND!, TRANSFORM_SERVICE_REL), "utf8"));
+    const claimed = new Map<string, string[]>();
+
+    for (const { cause, match } of TRANSFORM_CAUSE_MATCHERS) {
+      const hits = sentences.filter((s) => match.test(s));
+      claimed.set(cause, hits);
+      expect(
+        hits.length,
+        `${cause}: ${match} matches ${hits.length} sentence(s) in ${TRANSFORM_SERVICE_REL}, expected `
+          + `${TRANSFORM_CAUSE_SITES[cause as TransformCauseName]}. Zero means the backend reworded the message and `
+          + `the order screen quietly stopped naming this cause — an operator now gets the unrecognised copy `
+          + `instead of the fix. More than expected means the pattern widened onto a sentence it was not `
+          + `written for.\nMatched:\n  ${hits.join("\n  ")}`,
+      ).toBe(TRANSFORM_CAUSE_SITES[cause as TransformCauseName]);
+    }
+
+    // Disjoint against the REAL sentences, not against the fixtures. The table is
+    // ordered and first-match-wins, so a widened pattern does not fail on its own
+    // message — it silently eats whichever cause is declared after it.
+    for (const [cause, hits] of claimed) {
+      for (const [other, otherHits] of claimed) {
+        if (cause === other) continue;
+        const shared = hits.filter((h) => otherHits.includes(h));
+        expect(shared, `"${cause}" and "${other}" both claim:\n  ${shared.join("\n  ")}`).toEqual([]);
+      }
+    }
+    comparisonsRun += 1;
+  });
+
+  test.skipIf(!BACKEND)("the panel routes every matched sentence to that cause end to end", () => {
+    // The walk above proves each PATTERN still matches. This proves the LOOKUP the
+    // panel actually calls returns the right cause for the real sentence — the two
+    // differ the moment ordering changes, because `transformCauseNameFor` returns
+    // the first match and the walk above scores each pattern in isolation.
+    const sentences = parseCsStringExpressions(readFileSync(join(BACKEND!, TRANSFORM_SERVICE_REL), "utf8"));
+    let routed = 0;
+    for (const { cause, match } of TRANSFORM_CAUSE_MATCHERS) {
+      for (const sentence of sentences.filter((s) => match.test(s))) {
+        expect(transformCauseNameFor(sentence), `"${sentence}" routes to the wrong cause`).toBe(cause);
+        routed += 1;
+      }
+    }
+    expect(routed, "routed nothing — the sentences went missing between the two walks").toBe(
+      Object.values(TRANSFORM_CAUSE_SITES).reduce((a, b) => a + b, 0),
+    );
+    comparisonsRun += 1;
+  });
+});
+
 // ── The vacuity floor ────────────────────────────────────────────────────────
 //
 // Runs after every test in the file, so it is independent of test ORDER — which a
@@ -894,7 +1192,8 @@ const EXPECTED_COMPARISONS =
   NAMED_GUARDS.length + // one per op guard that names a C# symbol
   1 + // the backendSite citation walk over every OP_GUARDS row
   3 + // outbound URL policy: SecureSchemes, LoopbackOnlySchemes, the error-code walk
-  2; // invoices: the InvoiceService writer diff, and the citation walk over every fact
+  2 + // invoices: the InvoiceService writer diff, and the citation walk over every fact
+  2; // transform causes: the per-pattern site count, and the end-to-end routing walk
 
 afterAll(() => {
   if (!BACKEND) return; // the mirror gate already ruled on whether that was allowed
