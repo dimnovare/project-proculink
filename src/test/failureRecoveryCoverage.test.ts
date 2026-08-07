@@ -71,6 +71,15 @@ const CTX_VARIANTS: ReadonlyArray<readonly [string, Partial<ProblemCtx>]> = [
   ["delivery config missing", { serverMessage: "Supplier delivery config is missing." }],
   ["named cause: auth", { failureCause: "supplier_auth_rejected" }],
   ["named cause: rate limit", { failureCause: "supplier_rate_limited", retryAfterSeconds: 120 }],
+  // A transform failure has no machine-readable cause, so its arms are selected by
+  // the message (BE #172). These two each replace the panel's primary control, so
+  // without them this walk checks a route no operator with unconfirmed item codes
+  // or a rules refusal is ever offered.
+  ["lines waiting for an item code", { serverMessage: "Resolve all lines before transforming. Unresolved: 1, 3." }],
+  [
+    "the supplier's rules refused it",
+    { serverMessage: "This order wasn't sent because it doesn't meet what the supplier accepts." },
+  ],
 ];
 
 function ctx(over: Partial<ProblemCtx> = {}): ProblemCtx {
