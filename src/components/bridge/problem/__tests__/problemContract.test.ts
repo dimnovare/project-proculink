@@ -91,6 +91,38 @@ const CTX_VARIANTS: Array<readonly [string, ProblemCtx]> = [
   // An API that predates the field, and a cause this build has never heard of:
   // both must fall back to the generic copy rather than render a blank.
   ["a cause we do not recognise", ctx({ failureCause: "supplier_invented_by_the_future" })],
+  // The transform failures, which have no machine-readable cause and are told
+  // apart by their message (BE #172). Three of the five re-order or replace the
+  // action row, so without these variants the walks below never see the controls
+  // an operator gets for unconfirmed item codes or a supplier's own rules — the
+  // exact blind spot that let transform_failed ship a primary CTA to a retired
+  // page. Messages are verbatim; `transformCause.test.ts` owns the copy itself.
+  [
+    "lines still waiting for an item code",
+    ctx({ serverMessage: "Resolve all lines before transforming. Unresolved: 1, 3." }),
+  ],
+  [
+    "something unexpected went wrong building it",
+    ctx({
+      serverMessage:
+        "Something went wrong preparing this order to send, so it wasn't sent. Try sending it again in a moment.",
+    }),
+  ],
+  [
+    "no builder for the saved format",
+    ctx({ serverMessage: "No transform service registered for format 'xml'." }),
+  ],
+  [
+    "the supplier's rules could not be checked",
+    ctx({
+      serverMessage:
+        "This order couldn't be checked against the supplier's rules, so it wasn't sent. Try sending it again in a moment.",
+    }),
+  ],
+  [
+    "the supplier's rules refused it",
+    ctx({ serverMessage: "This order wasn't sent because it doesn't meet what the supplier accepts." }),
+  ],
 ];
 
 /** Every control the eight states can put on a screen, across every ctx variant. */
