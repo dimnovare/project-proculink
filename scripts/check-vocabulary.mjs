@@ -74,6 +74,10 @@ import { fileURLToPath } from "url";
 // scripts/ (this gate runs under bare `node`, so it cannot import a .ts module) and why
 // blockBody() below needs BOTH of them rather than just the stripper.
 import { maskLiterals, stripComments } from "./lib/sourceScan.mjs";
+// The three tiers themselves. See that module's header for why they no longer live
+// inline here: the backend composes user-facing sentences too, and the guard that
+// polices those must read the SAME list rather than a second copy of it.
+import { GLOSS, JARGON, METAPHOR, termPattern } from "./lib/vocabularyTerms.mjs";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 
@@ -115,62 +119,16 @@ const BLOCK_EXEMPT = [
   /\.stories\.(ts|tsx)$/,
 ];
 
-// ─── Tier 1: retired Bridge-Layer metaphor (BLOCK) ────────────────────────────
-const METAPHOR = [
-  "bridge", "crossing", "crossings", "dock", "docks", "lane", "lanes",
-  "spine", "wire", "wires", "wired", "wiring", "traveller", "travellers",
-];
-
-// ─── Tier 2: engine jargon that leaked into copy (BLOCK) ──────────────────────
-// DESIGN-DB-1 §6.5 + §7.2. Deliberately EXCLUDES: version(s) (the approved
-// replacement for "revision"), node, diff, sync, scope, profile, standard,
-// operator, record, bundle — all have ordinary-English readings (§7.3).
-const JARGON = [
-  "revision", "revisions",
-  "canonical", "canonically",
-  "passport", "passports",
-  "artifact", "artifacts",
-  "replay", "replays", "replayed", "replaying",
-  "dead-letter", "dead letter", "dead-lettered", "dead lettered",
-  "idempotency", "idempotent",
-  "unrouted",
-  "upsert", "upserted",
-  "ingress", "egress",
-  "tenant", "tenants",
-  "test pack",
-  "provenance",
-  "binding", "bindings",
-  "conformance",
-  // "Exception" is a programming word for the same thing a user calls an issue
-  // (§6.5 #99). Help reference articles keep it — they are BLOCK-exempt.
-  "exception", "exceptions",
-  // "field path" as PROSE only. The camelCase `fieldPath` is by definition a
-  // code identifier (and react-hook-form's `FieldPath<T>` generic tripped it).
-  "field path",
-  "normalized", "normalised", "normalizing", "normalising",
-  "org_id", "nonce", "payload", "payloads",
-  "serialize", "serialise", "deserialize", "deserialise",
-  "hydrate", "hydrated",
-];
-
-// ─── Tier 3: legitimate but must be glossed (WARN, never fails) ───────────────
-const GLOSS = [
-  "webhook", "webhooks", "endpoint", "endpoints",
-  "cxml", "ubl", "edifact", "peppol", "sftp", "ftps", "imap",
-  "namespace", "namespaces", "schema", "schemas",
-  "transform", "transforms", "transformed", "transforming",
-  "parse", "parses", "parsed", "parsing",
-  "poll", "polling", "retry", "retries",
-];
-
-const reFor = (list) =>
-  new RegExp(
-    `(?<![A-Za-z0-9])(${list.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})(?![A-Za-z0-9])`,
-    "i",
-  );
-const METAPHOR_RE = reFor(METAPHOR);
-const JARGON_RE = reFor(JARGON);
-const GLOSS_RE = reFor(GLOSS);
+// ─── The three tiers ──────────────────────────────────────────────────────────
+//
+// Declared in scripts/lib/vocabularyTerms.mjs, not here, because this gate is no longer
+// the only enforcer of them. `OrderProblemPanel` renders `order.errorMessage` — a
+// sentence composed in the BACKEND repo — into the operator's explanation block, so
+// src/test/backendCopyVocabulary.test.ts applies the same three tiers to the C#. Two
+// hand-kept copies of one rule is the exact drift that module's header describes.
+const METAPHOR_RE = termPattern(METAPHOR);
+const JARGON_RE = termPattern(JARGON);
+const GLOSS_RE = termPattern(GLOSS);
 
 /** Files allowed to keep a policed term in render copy. Justify every entry. */
 const FILE_ALLOWLIST = new Set([

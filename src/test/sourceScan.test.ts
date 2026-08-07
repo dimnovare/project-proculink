@@ -156,4 +156,53 @@ describe("sourceScan — what the .mjs boundary must not cost", () => {
       expect(definers[fn], fn).toEqual(["scripts/lib/sourceScan.mjs"]);
     }
   }, 20_000);
+
+  /**
+   * ONE VOCABULARY, TWO CONSUMERS, TWO LANGUAGES.
+   *
+   * The three copy tiers used to be inline arrays inside scripts/check-vocabulary.mjs, which
+   * was fine while that gate was the only enforcer. It is not: `OrderProblemPanel` renders
+   * `order.errorMessage` — a sentence composed in C# in the backend repo — verbatim, so
+   * src/test/backendCopyVocabulary.test.ts now applies the same tiers to the backend's own
+   * strings.
+   *
+   * A second copy here would be worse than the usual two-copies problem. The copies would be
+   * consulted by guards over two different languages, so "this word is banned" could quietly
+   * become true on one side of the wire and false on the other, and only reading both files
+   * would reveal it. Same reasoning as the primitives above, same enforcement.
+   *
+   * Matches DECLARATIONS, not uses: `const METAPHOR = [` rather than the bare identifier,
+   * so importing the list (which both consumers do) is not mistaken for redefining it.
+   */
+  it("declares each copy-vocabulary tier exactly once in the repo", () => {
+    const repoRoot = path.resolve(__dirname, "..", "..");
+    const SKIP = new Set(["node_modules", ".next", ".git", ".claude", "playwright-report", "test-results"]);
+    const TIERS = ["METAPHOR", "JARGON", "GLOSS"] as const;
+
+    const definers: Record<string, string[]> = { METAPHOR: [], JARGON: [], GLOSS: [] };
+    const walk = (dir: string) => {
+      for (const entry of readdirSync(dir)) {
+        if (SKIP.has(entry)) continue;
+        const full = path.join(dir, entry);
+        if (statSync(full).isDirectory()) {
+          walk(full);
+          continue;
+        }
+        if (!/\.(ts|tsx|mjs|js)$/.test(entry)) continue;
+        const text = readFileSync(full, "utf8");
+        if (!text.includes("const ")) continue;
+        for (const tier of TIERS) {
+          if (new RegExp(String.raw`(?:^|\n)\s*(?:export\s+)?const\s+${tier}\s*=`).test(text)) {
+            definers[tier].push(path.relative(repoRoot, full).replace(/\\/g, "/"));
+          }
+        }
+      }
+    };
+    walk(path.join(repoRoot, "src"));
+    walk(path.join(repoRoot, "scripts"));
+
+    for (const tier of TIERS) {
+      expect(definers[tier], tier).toEqual(["scripts/lib/vocabularyTerms.mjs"]);
+    }
+  }, 20_000);
 });
