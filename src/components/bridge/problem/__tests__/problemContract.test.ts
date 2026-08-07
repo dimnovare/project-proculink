@@ -495,10 +495,42 @@ describe("tiers", () => {
     expect(PROBLEM_COPY.failed.tier(ctx())).toBe("us");
   });
 
-  test("every other state starts self-serve or waiting", () => {
-    const tiers = PROBLEM_STATUSES.filter((s) => s !== "failed").map((s: ProblemStatus) =>
+  // `us` means "we cannot tell you what to do about this". It is EARNED, not
+  // default — a state that reaches for it when it does have an answer is telling
+  // an operator to wait for support instead of pointing at the fix.
+  const CANNOT_SAY: ProblemStatus[] = [
+    "failed",
+    // ctx() carries no serverMessage, so transform_failed renders its unrecognised
+    // copy. It was `self` here, which meant every message the cause table could not
+    // read was answered with "your output settings are broken" and a link to them.
+    "transform_failed",
+  ];
+
+  test("no other state claims it cannot say what to do", () => {
+    const tiers = PROBLEM_STATUSES.filter((s) => !CANNOT_SAY.includes(s)).map((s: ProblemStatus) =>
       PROBLEM_COPY[s].tier(ctx()),
     );
+    expect(tiers.length).toBeGreaterThanOrEqual(6);
     expect(tiers).not.toContain("us");
+  });
+
+  test("transform_failed leaves `us` the moment it recognises the message", () => {
+    // The other direction: `us` is what an unread message earns, not the state's
+    // resting tier. Flatten every transform failure to "contact support" and this
+    // fails.
+    expect(PROBLEM_COPY.transform_failed.tier(ctx())).toBe("us");
+    expect(
+      PROBLEM_COPY.transform_failed.tier(
+        ctx({ serverMessage: "Resolve all lines before transforming. Unresolved: 1, 3." }),
+      ),
+    ).toBe("self");
+    expect(
+      PROBLEM_COPY.transform_failed.tier(
+        ctx({
+          serverMessage:
+            "Something went wrong preparing this order to send, so it wasn't sent. Try sending it again in a moment.",
+        }),
+      ),
+    ).toBe("wait");
   });
 });
