@@ -35,6 +35,7 @@ import { isPlanGateError, planGateMessage, planGateUpgradeUrl } from "@/lib/plan
 import { hasAssignedSupplier } from "@/lib/catalogCodes";
 import { isProblemBucketStatus } from "@/lib/orderStatusManifest";
 import { practiceDeliveryNote, type PracticeDeliveryState } from "@/lib/practiceDelivery";
+import { PracticeChip } from "../PracticeChip";
 import type { OrderMappingOverride } from "@/lib/api/types";
 import type { CalibrationSummary } from "@/types/procurement";
 import { MapperWorkbench, type MapperWorkbenchLayout, type MapperToolbarState } from "../mapper/MapperWorkbench";
@@ -259,33 +260,13 @@ export function isTransportFailure(message: string): boolean {
   return /timed out|failed to fetch|network(?:error)?\b|load failed|json/i.test(message);
 }
 
-/**
- * WP-28 — the practice-order signal, split in two so it costs no vertical budget
- * above the three columns.
- *
- * It used to be a full-width band between the identity header and the status bar
- * (and it opened with an emoji). The at-a-glance half is now a chip on the
- * identity row, next to the status badge; the sentence — which is per-order
- * teaching — moves into the Issues column, where per-order teaching already
- * lives (CatalogHintCard is rendered from the same slot). No copy is lost, and
- * the mobile surface gets the same note through `hintSlot`.
+/*
+ * `PracticeChip` used to be declared here. It moved to
+ * `src/components/bridge/PracticeChip.tsx` when the inbox row and the dashboard's lists
+ * needed the SAME chip: a practice order is now badged wherever it is listed, not only on
+ * the screen you land on. The markup is unchanged — see that file for why it is not
+ * imported from here.
  */
-function PracticeChip() {
-  return (
-    <span
-      className="inline-flex items-center gap-1.5 rounded-full"
-      title="Practice order — free, and it doesn't count against your plan."
-      // #1E6D29 on #E9F1EA = 5.57:1 — AA at 12px/600.
-      style={{ fontSize: 12, fontWeight: 600, padding: "3px 11px", background: "#E9F1EA", color: "#1E6D29", whiteSpace: "nowrap" }}
-    >
-      {/* The same 6px CSS dot InvoiceBadge draws, not an emoji: an emoji renders
-          in the platform's font at the platform's colour and cannot participate
-          in the system's icon construction language. */}
-      <span aria-hidden style={{ width: 6, height: 6, borderRadius: "50%", background: "#2E8E3A", flexShrink: 0 }} />
-      Practice
-    </span>
-  );
-}
 
 /** The practice order's full explanation, rendered inside the Issues column. */
 function PracticeNote({

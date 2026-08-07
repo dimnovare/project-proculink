@@ -342,6 +342,22 @@ export interface OrderSummary {
   currency?: string;
   sourceFormat?: string | null;
   createdAt: string;
+  /**
+   * True when this row is a practice order (backend `PurchaseOrder.IsSample`).
+   *
+   * The list RETURNS practice orders — the product routes a first-run user to one to
+   * rehearse review, and `OnboardingStatus.sampleOrderId` exists to route them back — but
+   * every metered number excludes them: billing, the overage actually invoiced, and every
+   * plan gate. So a row that carries this flag is shown and not counted, and the screen has
+   * to say so rather than leaving a "0" beside a visible row. See `meteredTotal` in
+   * `src/components/bridge/orderCountContract.ts`.
+   *
+   * Optional for the same reason `Order.isSample` is: the frontend (Vercel) and the API
+   * (Railway) deploy independently, and an API older than dimnovare/ProcuLink#173 sends no
+   * such field. Absent means "not known to be practice", which degrades to exactly today's
+   * behaviour — never to a fabricated practice badge.
+   */
+  isSample?: boolean;
 }
 
 export interface UploadResult {
@@ -592,7 +608,23 @@ export interface UpdateEmailSettingsPayload {
 
 export interface OrdersPage {
   items: OrderSummary[];
+  /**
+   * Every order matching the query, practice orders INCLUDED — this is the population the
+   * `items` rows are drawn and paged from, so it is the right number for pagination and the
+   * wrong number for anything a plan meters.
+   */
   totalCount: number;
+  /**
+   * How many of `totalCount` are practice orders. `totalCount - sampleCount` is the metered
+   * population — the same number `OrdersSummary.total` reports. Never read this or
+   * `totalCount` directly to print a count: use `meteredTotal` / `practiceTotal` from
+   * `src/components/bridge/orderCountContract.ts`, which is what keeps the two screens from
+   * deriving the population twice.
+   *
+   * Optional, and absent means 0, so an API older than dimnovare/ProcuLink#173 makes
+   * `meteredTotal` collapse back to `totalCount` instead of under-reporting.
+   */
+  sampleCount?: number;
   page: number;
   pageSize: number;
 }
@@ -608,8 +640,17 @@ export interface GetOrdersParams {
 }
 
 export interface OrdersSummary {
+  /** Per-status counts over the METERED population — practice orders are excluded here too. */
   byStatus: Partial<Record<OrderStatus, number>>;
+  /** Real orders only. This is the number billing invoices and every plan gate enforces. */
   total: number;
+  /**
+   * The practice orders `total` left out. Printed beside `total` so a "0" can state what it
+   * excludes instead of silently contradicting a list that shows the row.
+   *
+   * Optional; absent means 0 (an API older than dimnovare/ProcuLink#173).
+   */
+  sampleTotal?: number;
 }
 
 // ── PO Passport (GET /api/orders/{id}/passport) ─────────────────────────────

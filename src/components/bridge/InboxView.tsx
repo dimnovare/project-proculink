@@ -9,6 +9,7 @@ import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { useSampleOrder } from "@/hooks/useSampleOrder";
 import { PracticeOrderPrompt } from "./PracticeOrderPrompt";
+import { PracticeChip } from "./PracticeChip";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient, isApiMockMode } from "@/lib/api-client";
 import type { OrderSummary, OrderStatus } from "@/types/procurement";
@@ -48,6 +49,8 @@ import {
 import {
   FAILED_BUCKET,
   countFor,
+  pagePopulation,
+  practiceOrderNote,
   statusesForLabel,
   sumStatuses,
 } from "./orderCountContract";
@@ -243,6 +246,12 @@ type OrderRow = {
   assigned: string;
   age: string;
   ageMin: number;     // minutes, for sorting
+  /**
+   * A practice order — listed like any other, counted by none of the chips above it.
+   * Carried onto the row so the row itself can SAY so; without it the queue shows a row
+   * that every number on the screen denies. See orderCountContract.ts.
+   */
+  isSample: boolean;
 };
 
 // ─── Data generation ──────────────────────────────────────────────────────────
@@ -297,7 +306,9 @@ const MOCK_RAW_STATUS: Record<CrossingStatus, string> = {
 function generateOrders(count: number): OrderRow[] {
   const rows: OrderRow[] = [];
   // Seed with the original 12 hand-crafted rows first
-  const SEED: Array<Omit<OrderRow, "ageMin" | "rawStatus">> = [
+  // `isSample` is omitted and filled as false below: the mock corpus is dev-only and has
+  // no practice orders — those only exist once a real org runs the onboarding sample.
+  const SEED: Array<Omit<OrderRow, "ageMin" | "rawStatus" | "isSample">> = [
     { id: "demo-001",  status: "review",     fmt: "PDF",   buyer: BUYERS[0], supplier: SUPPLIERS[0], po: "PO-DEMO-001",  lines: 14, value: 24180.50, valueLabel: "€ 24,180.50", issues: 3, assigned: "MK", age: "2m"  },
     { id: "nrd9981", status: "new",        fmt: "cXML",  buyer: BUYERS[1], supplier: SUPPLIERS[1], po: "PO-NRD-9981",     lines:  7, value:  8420.00, valueLabel: "€  8,420.00", issues: 0, assigned: "—",  age: "4m"  },
     { id: "sh44120", status: "extracting", fmt: "XLSX",  buyer: BUYERS[2], supplier: SUPPLIERS[2], po: "SH-PO-44120",     lines: 32, value: 71205.18, valueLabel: "€ 71,205.18", issues: 0, assigned: "—",  age: "6m"  },
@@ -311,7 +322,7 @@ function generateOrders(count: number): OrderRow[] {
     { id: "ar1104",  status: "failed",     fmt: "PDF",   buyer: BUYERS[5], supplier: SUPPLIERS[0], po: "AR-2026-1104",    lines: 28, value: 41205.50, valueLabel: "€ 41,205.50", issues: 5, assigned: "EL", age: "3h"  },
     { id: "850198",  status: "sent",       fmt: "EDI",   buyer: BUYERS[3], supplier: SUPPLIERS[4], po: "850-99198",       lines: 12, value:  9114.40, valueLabel: "€  9,114.40", issues: 0, assigned: "JT", age: "4h"  },
   ];
-  SEED.forEach((s) => rows.push({ ...s, rawStatus: MOCK_RAW_STATUS[s.status], ageMin: s.age.endsWith("d") ? parseInt(s.age)*1440 : s.age.endsWith("h") ? parseInt(s.age)*60 : parseInt(s.age) }));
+  SEED.forEach((s) => rows.push({ ...s, isSample: false, rawStatus: MOCK_RAW_STATUS[s.status], ageMin: s.age.endsWith("d") ? parseInt(s.age)*1440 : s.age.endsWith("h") ? parseInt(s.age)*60 : parseInt(s.age) }));
 
   // Generate remaining rows procedurally
   for (let i = rows.length; i < count; i++) {
@@ -343,6 +354,7 @@ function generateOrders(count: number): OrderRow[] {
       assigned,
       age: fmtAge(ageMin),
       ageMin,
+      isSample: false,
     });
   }
   return rows;
@@ -458,6 +470,9 @@ function summaryToRow(o: OrderSummary): OrderRow {
     assigned: "—",
     age: fmtAge(ageMin),
     ageMin,
+    // This function DROPS any field it does not name, which is why the practice flag has
+    // to be listed here before any row can render it.
+    isSample: o.isSample === true,
   };
 }
 
@@ -638,11 +653,17 @@ function buildColumns(labels: PartyLabels, rowSend: RowSendContext) {
           }}
         />
         <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
-          <span
-            className="font-mono text-[12px] font-semibold tabular-nums"
-            style={{ color: INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-          >
-            {info.getValue()}
+          <span className="flex items-center gap-1.5" style={{ minWidth: 0 }}>
+            <span
+              className="font-mono text-[12px] font-semibold tabular-nums"
+              style={{ color: INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+            >
+              {info.getValue()}
+            </span>
+            {/* Why this row is in a queue whose chips all count one lower. Without it the
+                only honest reading of "All orders 0" over a visible row is that the
+                screen is broken. */}
+            {info.row.original.isSample && <PracticeChip size="sm" />}
           </span>
           {/* The second line answers one question, and which question depends on
               whether the order is moving. Stopped → what to do about it (rowNextStep,
@@ -1235,8 +1256,17 @@ export function InboxView() {
 
   // Pagination: mock paginates the filtered set client-side; live already holds
   // exactly one server page in `filteredRows`.
-  const totalCount = isApiMockMode ? filteredRows.length : (ordersPage?.totalCount ?? 0);
-  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  //
+  // TWO NUMBERS, NOT ONE. `population.rows` is every row the server will hand back —
+  // practice orders included, because they occupy real slots on real pages, so paging
+  // must count them or the last page goes missing. `population.metered` is what the
+  // footer PRINTS, because that is the population the chips above the table count and the
+  // one a plan meters. Reading `ordersPage.totalCount` for both is exactly what put
+  // "1 order" under a row of chips that all said 0.
+  const population = isApiMockMode
+    ? { metered: filteredRows.length, practice: 0, rows: filteredRows.length }
+    : pagePopulation(ordersPage);
+  const totalPages = Math.max(1, Math.ceil(population.rows / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
   const pagedRows = isApiMockMode
     ? filteredRows.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
@@ -1851,6 +1881,9 @@ export function InboxView() {
                     <p className="truncate font-mono text-[13px] font-semibold" style={{ color: INK }}>
                       {row.original.po}
                     </p>
+                    {/* The same chip the desktop row and the review screen render — one
+                        practice affordance, all three surfaces. */}
+                    {row.original.isSample && <PracticeChip size="sm" />}
                   </div>
                   {/* On a stopped row the LINE COUNT yields to the action line below —
                       the same trade the desktop cell makes — but age and value stay.
@@ -2245,8 +2278,15 @@ export function InboxView() {
         className="flex-shrink-0 flex flex-wrap items-center gap-3 pt-0.5"
         style={{ background: "var(--bg)" }}
       >
+        {/* The reconciliation line. It prints the SAME number as the "All orders" chip —
+            tagged, so orderCountParity.test.tsx holds the two together forever — and then
+            names the rows that number leaves out, so a table longer than its own count is
+            explained on the screen instead of read as a bug. */}
         <span className="text-[11px]" style={{ color: "var(--ink-faint)" }}>
-          {totalCount.toLocaleString()} order{totalCount !== 1 ? "s" : ""}
+          <span data-count-label="All orders" data-count-value={population.metered}>
+            {population.metered.toLocaleString()} order{population.metered !== 1 ? "s" : ""}
+          </span>
+          {practiceOrderNote(population.practice) && <> · {practiceOrderNote(population.practice)}</>}
           {selectedCount > 0 && <span style={{ color: BLUE_DEEP }}> · {selectedCount} selected</span>}
         </span>
         <div className="ml-auto flex items-center gap-2">
