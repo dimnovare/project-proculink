@@ -10,6 +10,14 @@ import {
   isApiMockMode,
   type InvoiceDto,
 } from "@/lib/api-client";
+import {
+  canApproveInvoice,
+  canDownloadInvoice,
+  invoiceStatusFact,
+  invoiceStatusLabel,
+  summariseInvoiceStatuses,
+  type InvoiceStatusKind,
+} from "@/lib/invoiceStatusManifest";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import { Card } from "@/components/bridge/layout/Card";
@@ -31,28 +39,32 @@ function fmt(amount: number | null, currency: string | null) {
   return new Intl.NumberFormat("en-EU", { style: "currency", currency: currency ?? "EUR", minimumFractionDigits: 2 }).format(amount);
 }
 
-// Leading listTableV2 row-dot colour for an invoice status (pending/approved/
-// rejected). Kept local — invoice statuses are NOT order-lifecycle statuses, so
-// they don't route through the order status→tone map. Colour agrees with the
-// row's StatusBadge (amber pending / green approved / red rejected).
-function invoiceDotColor(status: string): string {
-  if (status === "approved") return TV2.dot.success;
-  if (status === "rejected") return TV2.dot.danger;
-  if (status === "pending") return TV2.dot.warning;
-  return TV2.dot.neutral;
+// Invoice statuses are NOT order-lifecycle statuses — they are their own machine
+// (src/lib/invoiceStatusManifest.ts), so they don't route through the order
+// status→tone map. What they DO route through is that manifest: this file used to
+// spell the review state "pending", which no backend writer produces, so the dot,
+// the badge and the summary tile were all silently wrong together.
+
+/** kind → the one place a colour is chosen for an invoice status. */
+const KIND_TONE: Record<InvoiceStatusKind, { dot: string; bg: string; color: string }> = {
+  in_progress:  { dot: TV2.dot.info,    bg: "var(--brand-blue-soft)",  color: "var(--brand-blue-deep)"  },
+  needs_action: { dot: TV2.dot.warning, bg: "var(--amber-soft)",       color: "var(--amber-text)"       },
+  done:         { dot: TV2.dot.success, bg: "var(--brand-green-soft)", color: "var(--brand-green-deep)" },
+  failed:       { dot: TV2.dot.danger,  bg: "var(--danger-soft)",      color: "var(--danger)"           },
+};
+
+/** A status this build cannot place. Never a success reading — see the manifest. */
+const UNKNOWN_TONE = { dot: TV2.dot.neutral, bg: "var(--surface-2)", color: "var(--ink-muted)" };
+
+function toneFor(status: string) {
+  const fact = invoiceStatusFact(status);
+  return fact ? KIND_TONE[fact.kind] : UNKNOWN_TONE;
 }
 
 // ── Status badge ──────────────────────────────────────────────────────────────
-// Invoice statuses (pending/approved/rejected) are NOT order lifecycle statuses —
-// keep local badge, tokenized to design-system CSS vars.
 
 function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { bg: string; color: string; label: string }> = {
-    pending:  { bg: "var(--amber-soft)",        color: "var(--amber-text)",       label: "Pending"  },
-    approved: { bg: "var(--brand-green-soft)",  color: "var(--brand-green-deep)", label: "Approved" },
-    rejected: { bg: "var(--danger-soft)",       color: "var(--danger)",      label: "Rejected" },
-  };
-  const s = map[status] ?? { bg: "var(--surface-2)", color: "var(--ink-muted)", label: status };
+  const s = { ...toneFor(status), label: invoiceStatusLabel(status) };
   return (
     <span
       className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10.5px] font-semibold flex-shrink-0"
@@ -105,9 +117,15 @@ function InvoiceActions({
   approving: string | null;
   downloading: string | null;
 }) {
+  // Both gates read the manifest, never a literal. An unrecognised status offers
+  // NOTHING: a control put in front of an operator precisely when the UI cannot
+  // place the row is the shape that shipped a button the API answers 400 to.
+  const canApprove = canApproveInvoice(inv.status);
+  const canDownload = canDownloadInvoice(inv.status);
+
   return (
     <div className="flex items-center gap-2 flex-shrink-0">
-      {inv.status === "pending" && (
+      {canApprove && (
         <Button
           variant="secondary"
           size="sm"
@@ -119,13 +137,16 @@ function InvoiceActions({
           {approving === inv.id ? "…" : "Approve"}
         </Button>
       )}
+      {/* Kept visible but disabled rather than hidden: the export endpoint admits
+          `approved` only, and a row that silently grows no controls at all reads as
+          a broken screen. A disabled button with the reason is the honest form. */}
       <Button
         variant="secondary"
         size="sm"
         onClick={() => onDownload(inv.id)}
-        disabled={downloading === inv.id}
-        title="Download as CSV"
-        style={{ borderColor: "var(--brand-blue-soft)", color: downloading === inv.id ? "var(--ink-faint)" : "var(--brand-blue-deep)" }}
+        disabled={downloading === inv.id || !canDownload}
+        title={canDownload ? "Download as CSV" : "Available once the invoice is approved"}
+        style={{ borderColor: "var(--brand-blue-soft)", color: downloading === inv.id || !canDownload ? "var(--ink-faint)" : "var(--brand-blue-deep)" }}
       >
         {downloading === inv.id ? "…" : "↓ CSV"}
       </Button>
@@ -331,15 +352,26 @@ export default function InvoicesPage() {
         <>
           {/* Status summary row — Claude Design v2 Inbound screen. The design's
               vocabulary is 3-way-match states (Matched / Needs review / Mismatch),
-              but ProcuLink has no PO-match engine yet — the REAL, loaded invoice
-              statuses are pending / approved / rejected, so the row shows those
-              honestly instead (real counts, same visual idiom). */}
-          <div className="mb-4 grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))" }}>
-            {([
-              { label: "Approved", count: invoices.filter((x) => x.status === "approved").length, color: "var(--brand-green-deep)" },
-              { label: "Pending review", count: invoices.filter((x) => x.status === "pending").length, color: "var(--amber-text)" },
-              { label: "Rejected", count: invoices.filter((x) => x.status === "rejected").length, color: "var(--danger)" },
-            ] as const).map((s) => (
+              but ProcuLink has no PO-match engine yet, so the row shows the REAL
+              invoice statuses instead (real counts, same visual idiom).
+
+              Derived from the manifest, not hand-listed. The hand-listed version
+              named three labels, two of which (`pending`, `rejected`) no backend
+              writer produces and one of which was the review state misspelled — so
+              "Pending review" read 0 beside a screenful of invoices awaiting review.
+              These counts sum to the number of rows rendered below; anything this
+              build cannot place shows up as its own tile rather than vanishing. */}
+          <div
+            role="group"
+            aria-label="Invoice status summary"
+            className="mb-4 grid gap-3"
+            style={{ gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))" }}
+          >
+            {summariseInvoiceStatuses(invoices.map((x) => x.status)).map((t) => ({
+              label: t.label,
+              count: t.count,
+              color: t.kind ? KIND_TONE[t.kind].color : UNKNOWN_TONE.color,
+            })).map((s) => (
               <div
                 key={s.label}
                 className="flex items-baseline gap-2.5 rounded-[10px] px-4 py-3"
@@ -428,7 +460,7 @@ export default function InvoicesPage() {
                       <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
                         <span
                           aria-hidden
-                          style={{ width: 7, height: 7, borderRadius: "50%", background: invoiceDotColor(inv.status), flexShrink: 0 }}
+                          style={{ width: 7, height: 7, borderRadius: "50%", background: toneFor(inv.status).dot, flexShrink: 0 }}
                         />
                         <span className="font-mono tabular-nums" style={{ color: TV2.ink, fontWeight: 600 }}>{inv.invoiceNumber ?? "—"}</span>
                       </div>

@@ -2706,8 +2706,13 @@ export interface InvoiceDto {
   createdAt: string;
 }
 
+// Statuses here MUST be ones a backend writer can produce — see
+// src/lib/invoiceStatusManifest.ts. This fixture said "pending", which nothing writes,
+// and that is precisely why the invoices screen looked correct in mock mode for as long
+// as it was broken for every real org: the mock was the only data that ever matched the
+// page's `status === "pending"` gate.
 const _mockInvoices: InvoiceDto[] = [
-  { id: "inv-001", supplierId: null, supplierName: "FastParts Inc",    invoiceNumber: "INV-2026-001", invoiceDate: "2026-05-01", totalAmount: 2450.00, currency: "EUR", status: "pending",  lineCount: 3, createdAt: new Date().toISOString() },
+  { id: "inv-001", supplierId: null, supplierName: "FastParts Inc",    invoiceNumber: "INV-2026-001", invoiceDate: "2026-05-01", totalAmount: 2450.00, currency: "EUR", status: "pending_review",  lineCount: 3, createdAt: new Date().toISOString() },
   { id: "inv-002", supplierId: null, supplierName: "ElectroSupply Co", invoiceNumber: "INV-2026-002", invoiceDate: "2026-05-10", totalAmount:  890.50, currency: "EUR", status: "approved", lineCount: 1, createdAt: new Date().toISOString() },
 ];
 
