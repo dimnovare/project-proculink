@@ -25,6 +25,7 @@
 // `OutputFieldValidator` ship as a WARNING, not a block. Blocking would stop orders that deliver
 // today.
 
+import { PREVIEW_FORMATS } from "@/lib/api/types";
 import type { OutputNode, OutputNodeTemplate, OutputFormat } from "@/lib/api/types";
 import type { OrderLine } from "@/types/procurement";
 
@@ -86,6 +87,38 @@ export function formatLabel(format: OutputFormat | string | null | undefined): s
 }
 
 /**
+ * Formats ProcuLink has a transform for — the ones it can actually WRITE.
+ *
+ * Not the same question as `isRenderableTreeFormat`, and conflating the two was a false claim in
+ * shipped copy. "Not renderable from a tree" was being read as "produced by its own dedicated
+ * transform instead", which is true of cXML, UBL and X12 and NOT true of EDIFACT: there is no
+ * EDIFACT `ITransformService` in `ProcuLink.Api/Program.cs`, no class implementing one, and no
+ * `CanTransform` arm that answers `OutputFormat.EdifactOrders`. An order pinned to an EDIFACT
+ * layout does not get "built by ProcuLink's own EDIFACT builder" — it dies in
+ * `OrderTransformService` with `No transform service registered for format 'EdifactOrders'.` and
+ * is parked in terminal `transform_failed`.
+ *
+ * Derived from `PREVIEW_FORMATS`, this app's mirror of the six registered transforms, rather than
+ * typed here — so a seventh transformer is one edit, in the place that already had to change.
+ * `src/test/backendMirror.test.ts` diffs that mirror against the real C# registrations.
+ *
+ * The two extra keys are backend ENUM SPELLINGS of formats already in that set (`OutputFormat.
+ * UblOrder` and `OutputFormat.X12_850` are the same transforms as `Ubl` and `X12`), so they are
+ * aliases rather than additional capabilities. `edifactorders` is deliberately not among them —
+ * it is an enum member with no transform behind it, which is the entire distinction this set draws.
+ */
+const EMITTED_FORMATS: ReadonlySet<string> = new Set<string>([
+  ...PREVIEW_FORMATS.map((f) => f.value as string),
+  "ublorder",
+  "x12_850",
+]);
+
+/** True when a transform exists that can produce this format. */
+export function isEmittedFormat(format: OutputFormat | string | null | undefined): boolean {
+  return EMITTED_FORMATS.has((format ?? "").toString().trim().toLowerCase());
+}
+
+/**
  * Characters `XmlWriter` refuses in an element name, plus a leading character that cannot start one.
  *
  * Deliberately NOT a full XML `Name` production. A stricter regex would flag names an existing
@@ -138,7 +171,13 @@ export function collectLayoutProblems(t: OutputNodeTemplate): DesignProblem[] {
       id: "format-not-renderable",
       kind: "format-not-renderable",
       tier: 1,
-      message: `${label} can't be built from a layout. It carries an envelope the receiving system checks before it looks at your order, so ProcuLink builds ${label} itself.`,
+      // Two different problems wore one sentence. "…so ProcuLink builds {label} itself" is a
+      // true and useful reassurance for cXML / UBL / X12 — the layout is redundant, the order
+      // still goes out. Said about EDIFACT it is a false capability claim, and the worst kind:
+      // it tells the author the order is being handled when nothing can produce that document.
+      message: isEmittedFormat(t.format)
+        ? `${label} can't be built from a layout. It carries an envelope the receiving system checks before it looks at your order, so ProcuLink builds ${label} itself.`
+        : `${label} can't be built from a layout, and ProcuLink has no transform that produces ${label} either. An order sent with this layout fails at transform instead of reaching your supplier. Choose a format ProcuLink produces.`,
       actionLabel: "Choose what to do",
     });
   }

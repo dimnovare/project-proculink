@@ -126,10 +126,15 @@ describe("a row cannot sell a standard it does not measure", () => {
     // If ALL_ROWS were ever wired to an empty or wrong source, the test above would pass by
     // examining nothing. This is the floor under it.
     expect(ALL_ROWS.length).toBeGreaterThan(20);
-    expect(ALL_ROWS.filter(({ row }) => row.catalogId).length).toBeGreaterThanOrEqual(9);
+    // 8, not 9. The outbound EDIFACT row was withdrawn — see "outbound EDIFACT is not sold"
+    // below — so the true count of catalog-derived rows dropped by one. Lowering a floor is
+    // exactly how a floor stops holding anything up, so it is done once, with the row that
+    // left it named, and the pin below asserts that specific row's ABSENCE rather than
+    // leaving the smaller number as the only record of it.
+    expect(ALL_ROWS.filter(({ row }) => row.catalogId).length).toBeGreaterThanOrEqual(8);
     expect(
       ALL_ROWS.filter(({ row }) => STANDARD_NAME_TOKENS.some(({ token }) => token.test(row.name))).length,
-    ).toBeGreaterThanOrEqual(9);
+    ).toBeGreaterThanOrEqual(8);
   });
 });
 
@@ -149,11 +154,17 @@ describe("outbound status is derived from what we can emit", () => {
       if (!row.catalogId) continue;
       const entry = STANDARDS.find((s) => s.id === row.catalogId);
       expect(entry, `OUTPUT_FORMATS row "${row.name}" cites a missing catalog id`).toBeDefined();
+      // `toBe("supported")`, not `not.toBe("none")`. The looser bar is why this test was green
+      // the whole time the outbound EDIFACT row shipped: EDIFACT's level is "planned", which is
+      // neither "none" nor "supported", and `planned` renders on /formats as the "On request"
+      // badge — legend: "Not built yet, but straightforward — we'll add it for your rollout."
+      // On a table headed "formats we produce", a maybe is read as a yes.
       expect(
         entry!.transform,
         `"${row.name}" is offered as an output format, but the catalog says we cannot transform ` +
-          `into it (transform: "${entry!.transform}"). An input-only standard is not an output.`,
-      ).not.toBe("none");
+          `into it (transform: "${entry!.transform}"). Only "supported" belongs under "formats we ` +
+          `produce" — a standard we merely plan to emit is not an output format yet.`,
+      ).toBe("supported");
     }
   });
 
@@ -169,6 +180,31 @@ describe("outbound status is derived from what we can emit", () => {
       OUTPUT_FORMATS.some((r) => r.catalogId === "peppol-bis-order-3"),
       "nothing may be sold as Peppol BIS output while no BIS validation exists",
     ).toBe(false);
+  });
+
+  it("outbound EDIFACT is not sold, and inbound EDIFACT is not collateral damage", () => {
+    // The same founder decision as the Peppol row above, taken for the same reason and one
+    // release later. Both halves are pinned because getting either one wrong is a real defect:
+    //
+    //   • Selling outbound EDIFACT is the claim that was withdrawn. `onRequest` did not make it
+    //     honest — /formats renders that badge as "we'll add it for your rollout", so the row
+    //     promised a transformer that has never been built.
+    //   • DELETING the inbound row would be the opposite error, and a worse one. The parser is
+    //     real (BE #163 fixed it this week) and reads D96A and D01B. Under-claiming a shipped
+    //     capability gives away real value, which is why the UBL assertion above exists too.
+    expect(
+      OUTPUT_FORMATS.some((r) => r.catalogId === "edifact-orders"),
+      "no EDIFACT ITransformService is registered in the backend, so EDIFACT may not appear " +
+        "among the formats we produce — at any badge, including 'On request'",
+    ).toBe(false);
+
+    const inbound = IMPORT_FORMATS.find((r) => r.catalogId === "edifact-orders");
+    expect(inbound, "the inbound EDIFACT row must survive — the parser is real").toBeDefined();
+    expect(
+      inbound!.note,
+      "with EDIFACT now named once on the page, the row has to state its own direction. " +
+        "Silence on a comparison table is how the ERP delivery rows were read as included.",
+    ).toMatch(/read, not emitted|inbound only/i);
   });
 });
 

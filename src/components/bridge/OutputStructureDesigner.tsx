@@ -29,7 +29,7 @@ import {
 } from "./outputNamespacePresets";
 import {
   collectLayoutProblems, collectOrderProblems, blocksSave, problemCounts,
-  isRenderableTreeFormat, formatLabel, type DesignProblem,
+  isRenderableTreeFormat, isEmittedFormat, formatLabel, type DesignProblem,
 } from "./outputTreeProblems";
 import {
   BINDABLE_HEADER_FIELDS, BINDABLE_LINE_FIELDS,
@@ -384,7 +384,12 @@ export function OutputStructureDesigner({
     const label = formatLabel(tree.format);
     const ok = await confirm({
       title: "Remove this layout?",
-      description: `This order will be built by ProcuLink's own ${label} builder instead. The layout is deleted.`,
+      // "ProcuLink's own {label} builder" only exists for the formats a transform can produce.
+      // Promising an EDIFACT builder here told the author removal was safe when removal leaves
+      // the order with no way to be built at all.
+      description: isEmittedFormat(tree.format)
+        ? `This order will be built by ProcuLink's own ${label} builder instead. The layout is deleted.`
+        : `The layout is deleted. ProcuLink has no ${label} transform to fall back on, so change this supplier's output format to one ProcuLink produces or the order will fail at transform.`,
       confirmLabel: "Remove layout",
       cancelLabel: "Keep it",
       danger: true,
@@ -689,6 +694,12 @@ function FormatForkBar({ format, supplierId, onConvert, onRemove }: {
   onRemove: () => void;
 }) {
   const label = formatLabel(format);
+  // Whether a transform exists that can produce this format at all. cXML / UBL / X12 are not
+  // renderable from a tree BECAUSE a dedicated transform owns them; EDIFACT is not renderable and
+  // has no transform either, so every sentence below that reassured the author ("ProcuLink builds
+  // {label} itself", "Set up {label} properly") was, for EDIFACT, describing a builder that does
+  // not exist — and the deep link led to a Delivery tab whose format picker has no EDIFACT option.
+  const emitted = isEmittedFormat(format);
   const btn: React.CSSProperties = {
     height: 28, padding: "0 11px", borderRadius: 6, border: "1px solid #C58C8C",
     background: "#FFF", color: "#95302F", fontSize: 12, fontWeight: 600, cursor: "pointer",
@@ -700,13 +711,26 @@ function FormatForkBar({ format, supplierId, onConvert, onRemove }: {
         This layout is saved as {label}, which can&rsquo;t be built from a layout.
       </div>
       <div style={{ fontSize: 12, color: "#7A3A3A", marginTop: 4, lineHeight: 1.55 }}>
-        {label} carries an envelope — sender and receiver identifiers, a version, a document type —
-        that the receiving system checks <em>before</em> it looks at your order. ProcuLink builds
-        {" "}{label} itself, so this layout isn&rsquo;t being used. Choose what should happen:
+        {emitted ? (
+          <>
+            {label} carries an envelope — sender and receiver identifiers, a version, a document
+            type — that the receiving system checks <em>before</em> it looks at your order.
+            ProcuLink builds {label} itself, so this layout isn&rsquo;t being used. Choose what
+            should happen:
+          </>
+        ) : (
+          <>
+            ProcuLink has no {label} transform, so nothing can produce this document — an order
+            sent in this format fails at transform instead of reaching your supplier. Change this
+            supplier&rsquo;s output format to one ProcuLink produces, or convert this layout:
+          </>
+        )}
       </div>
       <div style={{ display: "flex", gap: 8, marginTop: 9, flexWrap: "wrap" }}>
         {supplierId && (
-          <a href={`/library/suppliers/${supplierId}?tab=delivery`} style={btn}>Set up {label} properly</a>
+          <a href={`/library/suppliers/${supplierId}?tab=delivery`} style={btn}>
+            {emitted ? `Set up ${label} properly` : "Change the output format"}
+          </a>
         )}
         <button onClick={onConvert} style={btn}>Turn this into a plain XML layout</button>
         <button onClick={onRemove} style={btn}>Remove this layout</button>

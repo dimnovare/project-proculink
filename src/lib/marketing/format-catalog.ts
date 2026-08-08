@@ -172,7 +172,19 @@ export const IMPORT_FORMATS: FormatRow[] = [
   // that is true, and the row says so without selling a profile we do not validate.
   standardRow("ubl-2-1-order", "parse", "UBL 2.1 Order", "Order documents. Orders sent over the Peppol network use this same UBL 2.1 document, so they parse here too."),
   standardRow("sap-idoc-orders05", "parse", "SAP IDoc ORDERS05", "SAP's ORDERS05 purchase-order IDoc, sent as XML."),
-  standardRow("edifact-orders", "parse", "EDIFACT ORDERS", "D96A — core segment coverage today; we verify your message files with you during setup."),
+  // The direction is stated on the row itself, and that is deliberate. Once the outbound
+  // EDIFACT row came out of OUTPUT_FORMATS (see the note there), EDIFACT appeared on this page
+  // exactly once — and a comparison table's silence is not a denial. This page already taught a
+  // reader that an absent qualifier means "included": that is how the ERP delivery rows were
+  // read as free. So the read-only direction is written down rather than inferred from a gap.
+  standardRow(
+    "edifact-orders",
+    "parse",
+    "EDIFACT ORDERS",
+    "D96A — core segment coverage today; we verify your message files with you during setup. " +
+      "Read, not emitted: ProcuLink parses EDIFACT ORDERS but does not generate them, so it is " +
+      "not a format you can send a supplier.",
+  ),
   standardRow("x12-850", "parse", "ANSI X12 850", "004010 / 005010."),
   { name: "JSON", status: "live", note: "Via the REST API order shape." },
 ];
@@ -205,9 +217,27 @@ export const DELIVERY_METHODS: FormatRow[] = [
 ];
 
 // ── Formats we PRODUCE per supplier (the "outbound formats" count) ──────────────
-// Document standards derive from the catalog's `transform` level, so EDIFACT resolves
-// to "onRequest" (no outbound transformer) without anyone having to remember to type it.
-// CSV / XML / JSON have no standards-catalog entry to derive from and stay explicit.
+// Document standards derive from the catalog's `transform` level, so a row can never wear a
+// badge the catalog does not support. CSV / XML / JSON have no standards-catalog entry to
+// derive from and stay explicit.
+//
+// EDIFACT ORDERS IS NOT IN THIS LIST, and its absence is the decision rather than an oversight.
+//
+// It sat here until now as `standardRow("edifact-orders", "transform", …)`, which resolves
+// through TRANSFORM_LEVEL_STATUS to the `onRequest` badge. Deriving the badge was correct as far
+// as it went — nobody hand-typed "live" — but it answered the wrong question. `onRequest` is not
+// a weaker claim than `live`; on this page it is a stronger one, because the legend renders it as
+// "Not built yet, but straightforward — we'll add it for your rollout", the intro groups it with
+// Configurable under "Don't see yours? … just ask", and the row's own note read "Outbound EDIFACT
+// transformer on request." That is a commitment of future work, addressed to one buyer's rollout,
+// for a transformer nobody has scoped: no EDIFACT ITransformService is registered in
+// ProcuLink.Api/Program.cs, which src/test/backendMirror.test.ts now diffs against this catalog
+// rather than trusting a comment like this one.
+//
+// Withdrawn exactly the way the outbound Peppol BIS row was, and for the same reason: a standard
+// ProcuLink cannot emit is not an output format. INBOUND EDIFACT is real, was fixed in BE #163,
+// and keeps its IMPORT_FORMATS row — which now names its direction, because deleting the outbound
+// row must not leave the page implying the answer by omission.
 export const OUTPUT_FORMATS: FormatRow[] = [
   { name: "CSV", status: "live", note: "Configurable columns." },
   { name: "XML (generic)", status: "live", note: "" },
@@ -228,7 +258,6 @@ export const OUTPUT_FORMATS: FormatRow[] = [
   ),
   standardRow("x12-850", "transform", "ANSI X12 850", ""),
   { name: "JSON", status: "live", note: "" },
-  standardRow("edifact-orders", "transform", "EDIFACT ORDERS", "Outbound EDIFACT transformer on request."),
 ];
 
 // ── Direction of a short marketing name (anti-drift for the landing strip) ──────

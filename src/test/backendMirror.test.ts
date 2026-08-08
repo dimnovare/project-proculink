@@ -15,6 +15,8 @@ import {
   SECURE_SCHEMES,
 } from "@/lib/outboundUrlPolicy";
 import { CATALOG_SYNC_STATUS_FACTS, CATALOG_SYNC_STATUSES } from "@/lib/catalogSyncStatusManifest";
+import { PREVIEW_FORMATS } from "@/lib/api/types";
+import { STANDARDS } from "@/lib/standards/catalog";
 import {
   TRANSFORM_CAUSE_MATCHERS,
   TRANSFORM_CAUSE_NAMES,
@@ -75,6 +77,12 @@ const URL_POLICY_REL = "ProcuLink.Core/Security/OutboundUrlPolicy.cs";
 const INVOICE_SERVICE_REL = "ProcuLink.Infrastructure/Services/InvoiceService.cs";
 const INVOICE_ENTITY_REL = "ProcuLink.Core/Entities/InvoiceEntity.cs";
 const TRANSFORM_SERVICE_REL = "ProcuLink.Api/Services/Orders/OrderTransformService.cs";
+/**
+ * The DI composition root. Read for its `ITransformService` registrations — the ground truth for
+ * which output formats can be produced at all, and therefore for which formats any surface is
+ * allowed to advertise.
+ */
+const PROGRAM_REL = "ProcuLink.Api/Program.cs";
 
 /**
  * Every C# file this suite parses.
@@ -93,6 +101,7 @@ const PARSED_FILES = [
   INVOICE_SERVICE_REL,
   INVOICE_ENTITY_REL,
   TRANSFORM_SERVICE_REL,
+  PROGRAM_REL,
 ] as const;
 
 /**
@@ -396,6 +405,7 @@ describe("the mirror gate decides correctly", () => {
       INVOICE_SERVICE_REL,
       INVOICE_ENTITY_REL,
       TRANSFORM_SERVICE_REL,
+      PROGRAM_REL,
     ]);
     expect(missingParsedFiles("/tmp/backend", () => true)).toEqual([]);
     // A checkout with nothing in it must report all three, not zero.
@@ -1041,6 +1051,168 @@ describe("the transform-failure copy still matches the sentences the backend wri
   });
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Which formats ProcuLink can actually PRODUCE.
+//
+// WHY THIS IS A MIRROR AND NOT A LIST. `/formats` sold an outbound EDIFACT transformer
+// ("Outbound EDIFACT transformer on request"), `/library/standards` offered EDIFACT in a
+// format chooser, and the output designer told authors "ProcuLink builds EDIFACT itself".
+// None of it was true: there is no EDIFACT `ITransformService`, no class implementing one,
+// and no `CanTransform` arm answering `OutputFormat.EdifactOrders`. An order that reaches
+// transform in that format is parked in terminal `transform_failed`.
+//
+// `src/test/gatedCapabilityClaims.test.ts` now refuses that claim on every surface, and it
+// derives the verdict from two frontend registries: `STANDARDS[].transform` (the standards
+// catalog) and `PREVIEW_FORMATS` (the output-format mirror). Both are hand-kept copies of a
+// fact that lives in C#. Guarding the copy without checking it against the original is how
+// `OP_ALLOWED_FROM.retryDelivery` cited the wrong C# symbol for as long as it did — the
+// frontend was self-consistent and wrong together.
+//
+// So this diffs both registries against the DI registrations themselves. A seventh transform
+// service reddens here and names the registry that has to follow, rather than silently making
+// the copy-guard's verdict stale — which is exactly what a hand-typed list of six transformer
+// names would have done.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * `builder.Services.AddSingleton<ITransformService, XmlTransformService>();`
+ *   → ["XmlTransformService", …]
+ *
+ * Lifetime-agnostic on purpose: the fact being mirrored is "a transform for this format is
+ * wired up", and moving one registration from Singleton to Scoped must not read as the
+ * capability disappearing.
+ */
+export function parseTransformServiceRegistrations(cs: string): string[] {
+  return [...cs.matchAll(/Add(?:Singleton|Scoped|Transient)\s*<\s*ITransformService\s*,\s*(\w+)\s*>/g)].map(
+    (m) => m[1],
+  );
+}
+
+/**
+ * Every registered transform service, and what it means on this side.
+ *
+ * `catalogId` is the standards-catalog row the service produces, or null when the format has no
+ * standards row to have one — generic XML is a shape, not a published standard, and `/formats`
+ * carries it as a hand-typed row for that reason.
+ *
+ * This map is hand-written, and that is the point rather than a compromise: its KEYS are diffed
+ * against the real C# below, so a seventh registration cannot be absorbed silently. Someone has
+ * to come here and say which standard it emits, which is the moment the marketing catalog and
+ * the designer's emitted-format set need updating too.
+ */
+const TRANSFORM_SERVICES: Record<string, { catalogId: string | null; previewFormat: string }> = {
+  XmlTransformService: { catalogId: null, previewFormat: "xml" },
+  CsvTransformService: { catalogId: "csv", previewFormat: "csv" },
+  CxmlTransformService: { catalogId: "cxml-1-2", previewFormat: "cxml" },
+  JsonTransformService: { catalogId: "json-rest", previewFormat: "json" },
+  UblOrderTransformService: { catalogId: "ubl-2-1-order", previewFormat: "ubl" },
+  X12TransformService: { catalogId: "x12-850", previewFormat: "x12" },
+};
+
+describe("the formats we advertise as output are the formats a transform exists for", () => {
+  test("the registration parser actually parses (so a green diff means something)", () => {
+    // Runs everywhere, backend or not. A parser that quietly stopped matching would otherwise
+    // "confirm" an empty registered set, and an empty set makes every claim below vacuous.
+    const fixture = `
+      builder.Services.AddSingleton<ITransformService, XmlTransformService>();
+      builder.Services.AddScoped<ITransformService, CsvTransformService>();
+      builder.Services.AddSingleton<ITransformService , UblOrderTransformService >(); // spacing
+      builder.Services.AddSingleton<IPurchaseOrderParser, EdifactOrderParser>();
+    `;
+    expect(parseTransformServiceRegistrations(fixture)).toEqual([
+      "XmlTransformService",
+      "CsvTransformService",
+      "UblOrderTransformService",
+    ]);
+    // A parser registration is not a transform registration, and conflating them is exactly the
+    // mistake this whole block exists to prevent: EdifactOrderParser is REAL.
+    expect(parseTransformServiceRegistrations(fixture)).not.toContain("EdifactOrderParser");
+    expect(parseTransformServiceRegistrations("no registrations here")).toEqual([]);
+  });
+
+  test("the frontend registries are themselves non-vacuous", () => {
+    expect(Object.keys(TRANSFORM_SERVICES).length).toBeGreaterThan(0);
+    expect(PREVIEW_FORMATS.length).toBeGreaterThan(0);
+    expect(STANDARDS.length).toBeGreaterThan(0);
+    expect(
+      STANDARDS.filter((s) => s.transform === "supported").length,
+      "no standard is marked emitted — the claim guard would pass by forbidding everything",
+    ).toBeGreaterThan(0);
+  });
+
+  test.skipIf(!BACKEND)("every registered ITransformService is accounted for, and no other", () => {
+    const cs = readFileSync(join(BACKEND!, PROGRAM_REL), "utf8");
+    const registered = parseTransformServiceRegistrations(cs);
+    expect(
+      registered.length,
+      `${PROGRAM_REL} parsed to zero ITransformService registrations. That is the parser failing, ` +
+        "not the backend shipping no transforms — and an empty C# side would 'confirm' whatever " +
+        "this side declares.",
+    ).toBeGreaterThan(0);
+
+    recordComparison(
+      "ITransformService registrations",
+      registered,
+      Object.keys(TRANSFORM_SERVICES),
+      "ProcuLink.Api/Program.cs registers a different set of ITransformService implementations " +
+        "than TRANSFORM_SERVICES above declares. If a transform was ADDED, add its row here and " +
+        "then follow it through: src/lib/standards/catalog.ts must mark that standard " +
+        '`transform: "supported"`, and PREVIEW_FORMATS in src/lib/api/types.ts must offer it — ' +
+        "those two are what src/test/gatedCapabilityClaims.test.ts reads to decide whether a " +
+        "surface may advertise the format. If one was REMOVED, the same three places have to " +
+        "stop advertising it.",
+    );
+  });
+
+  test.skipIf(!BACKEND)("the standards catalog marks emitted exactly the standards a transform produces", () => {
+    const cs = readFileSync(join(BACKEND!, PROGRAM_REL), "utf8");
+    const registered = parseTransformServiceRegistrations(cs);
+    expect(registered.length, "no registrations parsed — this comparison would prove nothing").toBeGreaterThan(0);
+
+    // Derived from the C# side, not from the map's own declaration: only services Program.cs
+    // really registers contribute a standard.
+    const producible = registered
+      .map((service) => TRANSFORM_SERVICES[service]?.catalogId)
+      .filter((id): id is string => typeof id === "string");
+
+    const advertised = STANDARDS.filter((s) => s.transform === "supported").map((s) => s.id);
+
+    recordComparison(
+      "emitted standards",
+      producible,
+      advertised,
+      "src/lib/standards/catalog.ts and the registered transforms disagree about which standards " +
+        "ProcuLink can produce. A standard marked `transform: \"supported\"` with no transform " +
+        "behind it is the EDIFACT defect exactly — every surface that derives from this catalog " +
+        "starts advertising a format that dies at transform. The reverse is an under-claim: a " +
+        "shipped transform nothing is allowed to mention.",
+    );
+
+    // Named explicitly, because this is the row the packet was about and a set comparison
+    // reports it only as a diff line.
+    expect(
+      producible,
+      "no registered transform produces EDIFACT — it must not appear among the emitted standards",
+    ).not.toContain("edifact-orders");
+  });
+
+  test.skipIf(!BACKEND)("the output-format picker offers exactly the formats a transform produces", () => {
+    const cs = readFileSync(join(BACKEND!, PROGRAM_REL), "utf8");
+    const registered = parseTransformServiceRegistrations(cs);
+    expect(registered.length, "no registrations parsed — this comparison would prove nothing").toBeGreaterThan(0);
+
+    recordComparison(
+      "PREVIEW_FORMATS",
+      registered.map((service) => TRANSFORM_SERVICES[service]?.previewFormat ?? `<unmapped:${service}>`),
+      PREVIEW_FORMATS.map((f) => f.value),
+      "PREVIEW_FORMATS in src/lib/api/types.ts is this app's mirror of the registered transforms, " +
+        "and outputTreeProblems.ts derives `isEmittedFormat` from it — which is what decides " +
+        "whether the output designer tells an author \"ProcuLink builds {format} itself\". A " +
+        "format offered here with no transform behind it gets that promise made about it.",
+    );
+  });
+});
+
 // ── The vacuity floor ────────────────────────────────────────────────────────
 //
 // Runs after every test in the file, so it is independent of test ORDER — which a
@@ -1055,7 +1227,8 @@ const EXPECTED_COMPARISONS =
   1 + // the backendSite citation walk over every OP_GUARDS row
   3 + // outbound URL policy: SecureSchemes, LoopbackOnlySchemes, the error-code walk
   2 + // invoices: the InvoiceService writer diff, and the citation walk over every fact
-  2; // transform causes: the per-pattern site count, and the end-to-end routing walk
+  2 + // transform causes: the per-pattern site count, and the end-to-end routing walk
+  3; // output formats: the ITransformService registrations, the standards catalog, PREVIEW_FORMATS
 
 afterAll(() => {
   if (!BACKEND) return; // the mirror gate already ruled on whether that was allowed
