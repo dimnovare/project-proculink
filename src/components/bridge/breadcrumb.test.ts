@@ -69,7 +69,7 @@ describe("titleCaseSegment", () => {
 describe("formatCrumbLabel — static segments", () => {
   it("maps known segments to their vocabulary label", () => {
     expect(formatCrumbLabel("inbox", 0, ["inbox"])).toBe("Orders");
-    expect(formatCrumbLabel("connections", 0, ["connections"])).toBe("Connections");
+    expect(formatCrumbLabel("connections", 0, ["connections"])).toBe("Supplier changes");
     expect(formatCrumbLabel("standards", 1, ["library", "standards"])).toBe("Format reference");
   });
 });

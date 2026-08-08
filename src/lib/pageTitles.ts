@@ -46,8 +46,8 @@ export const HUB_TAB_TITLES: Record<string, string> = {
   // suppliers
   "/library/suppliers": "Suppliers",
   "/library/mappings": "Item codes",
+  "/connections": "Supplier changes",
   "/library/standards": "Format reference",
-  "/connections": "Changes",
   "/operations/connectors": "Delivery channels",
   // activity
   "/bridge": "Overview",
@@ -60,12 +60,18 @@ export const HUB_TAB_TITLES: Record<string, string> = {
 /**
  * Routes whose shipped title deliberately differs from their hub tab label.
  *
- * All three predate this pass and are left as they are on purpose. A tab label
+ * Both predate this pass and are left as they are on purpose. A tab label
  * is read INSIDE the product, where the hub around it supplies the context; a
  * browser tab has no context at all and sometimes needs the longer word —
  * "Overview" among a dozen foreign tabs says nothing, "Dashboard" does. (No
  * spec depends on them either way: nothing under tests/ or src/ asserts on an
  * app route's title. The reason is copy quality, not a test.)
+ *
+ * /connections was a third entry, pinned to "Connections" because its hub tab
+ * was the hidden, contentless "Changes". That tab is now a visible "Supplier
+ * changes", which needs no context to read, so the divergence lost its reason
+ * and the entry is gone — the browser tab and the nav word are the same word
+ * again.
  *
  * Recorded here rather than silently reconciled so the divergence is a decision
  * with a reason, and so the drift guard has something to pin: every key must
@@ -77,8 +83,6 @@ export const LABEL_PINNED_TO_A_DIFFERENT_TITLE: Record<string, string> = {
   // Hub tab: "Orders" — which is also the hub's own name; the queue is the one
   // screen users already call the inbox.
   "/inbox": "Inbox",
-  // Hub tab: "Changes" (a hidden entry, reached from a supplier).
-  "/connections": "Connections",
 };
 
 /**

@@ -35,7 +35,11 @@ export const CRUMB_LABELS: Record<string, string> = {
   operations: "Activity",
   log: "Deliveries",
   connectors: "Delivery channels",
-  connections: "Connections",
+  // The tab a user clicks to get here now reads "Supplier changes"
+  // (HubTabs.tsx, suppliers hub), so the crumb it lands under says the same
+  // word. The per-record child crumb below stays "Connection <id>": that names
+  // ONE record, exactly as "Order 008412" sits under "Orders".
+  connections: "Supplier changes",
   webhooks: "Webhooks",
   admin: "Admin",
   help: "Help",

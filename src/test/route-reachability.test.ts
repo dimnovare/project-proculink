@@ -167,10 +167,19 @@ export const KNOWN_DEEP_LINK_ONLY: Record<string, string> = {
  * them apart is the whole point, because an entry here is an open question with
  * a date on it, not a justification.
  *
- * All four were invisible until this packet fixed two blind spots in the guard
+ * All of them were invisible until FE #110 fixed two blind spots in the guard
  * itself. Every one is a live, rendering page that no user can reach by using
  * the product. The resolution for each is "build the entry point" or "delete the
  * page", and both are product calls, not a guard's.
+ *
+ * THE LIST SHRANK ONCE, WHICH IS THE POINT. It held four routes until
+ * 2026-08-08, when the founder decided /connections and /connections/[connectionId]
+ * were worth keeping and gave them a visible Suppliers hub tab ("Supplier
+ * changes", HubTabs.tsx). Both dropped out of the walk on their own merits, so
+ * their entries had to go — `anExcuseCannotOutliveItsReason` below is what
+ * forced the deletion rather than leaving two stale excuses behind. Their
+ * replacement is a POSITIVE assertion, `connectionsAreReachableThroughTheTab`,
+ * which fails if the tab is ever hidden again.
  *
  * These entries PASS, on purpose. They were left failing at first, and the
  * consequence was a pipeline that could not go green until a product decision
@@ -182,23 +191,11 @@ export const KNOWN_DEEP_LINK_ONLY: Record<string, string> = {
  *      KNOWN_DEEP_LINK_ONLY's;
  *   2. `printsTheStrandedSet` logs the count and the names on EVERY run, so the
  *      list appears in CI output rather than only in a file nobody opens;
- *   3. `theStrandedSetIsExactlyThis` fails when a FIFTH route is stranded — a
+ *   3. `theStrandedSetIsExactlyThis` fails when a THIRD route is stranded — a
  *      new gap cannot quietly join the list — and equally when one of these
  *      gains an entry point, so the list cannot rot into permanent cover.
  */
 export const STRANDED_PENDING_DECISION: Record<string, string> = {
-  "/connections":
-    "PENDING A DECISION, 2026-08-06 — closed cycle with /connections/[connectionId]: " +
-    "ConnectionDetail.tsx:115 links back to the " +
-    "list and ConnectionsList.tsx:156 pushes to the detail, and both files are rendered by nothing " +
-    "else. Reached the strip only as a `hidden: true` HUB_TABS entry (HubTabs.tsx:93), which " +
-    "visibleHubTabs strips. Its detail page mounts the versioned draft-mapping editor " +
-    "(ConnectionDetail.tsx:272, MapperWorkbench variant=\"connection\"), so this is a capability " +
-    "with no door, not a dead page.",
-  "/connections/[connectionId]":
-    "PENDING A DECISION, 2026-08-06 — the other half of the same cycle — see /connections. The supplier page's apparent substitute, " +
-    "SupplierHistoryTab.tsx, imports no mapper at all, so nothing else in the product reaches the " +
-    "Edit → Make live lifecycle this page owns.",
   "/operations/connectors":
     "PENDING A DECISION, 2026-08-06 — zero inbound links anywhere in src/. The HUB_TABS comment at HubTabs.tsx:95 claims it is " +
     "'Reached from a supplier's Delivery tab'; no such link exists — the connectors page links OUT " +
@@ -490,8 +487,8 @@ export function collectLinkTargets(): LinkTarget[] {
   // switchable": it is stripped from the strip, from hubShowsTabs, from the
   // sidebar item's href (hubHome) and from its tooltip, so its `href` renders
   // nowhere and is a plan, not navigation — exactly the phantom-target shape the
-  // rule exists for. Five entries carry it, and crediting them hid every route
-  // behind them.
+  // rule exists for. Four entries carry it (five until /connections earned a
+  // visible tab), and crediting them hid every route behind them.
   //
   // `inboundEnabled: true` is passed for the SAME reason `isAdmin: true` is passed
   // to buildVisibleNav: a launch flag is config, and this guard is stated to be
@@ -559,10 +556,15 @@ function targetIsUnder(route: string, target: string): boolean {
 // THE CLOSED-CYCLE HOLE. The self-link exclusion below used to compare against
 // the page FILE — so a page's own components were "somewhere else", and TWO
 // pages that link only to each other cleared one another. /connections and
-// /connections/[connectionId] are exactly that: ConnectionsList.tsx pushes to
+// /connections/[connectionId] were exactly that: ConnectionsList.tsx pushes to
 // the detail route, ConnectionDetail.tsx links back to the list, both files are
 // imported by nothing but those two pages, and no third thing anywhere in the
-// product points at either. Two live pages, zero ways in, guard green.
+// product pointed at either. Two live pages, zero ways in, guard green.
+//
+// That pair now has a door — a visible Suppliers hub tab — so the cycle is no
+// longer the live example, and the mechanism is pinned by the `/island` fixture
+// below instead. Do not re-derive the rule from whatever routes happen to be
+// cyclic today; the fixture is the durable form.
 //
 // A page is not one file, it is the tree of modules it renders. So a route's OWN
 // files are its page file plus everything that file transitively imports, and a
@@ -802,11 +804,12 @@ describe("route reachability (plan rule R1 — no new surface without a consumer
     ).toEqual([]);
   });
 
-  it("the stranded set is exactly the four on the record", () => {
-    // The mechanism that stops "tracked" turning into "forgotten". A FIFTH strand
+  it("the stranded set is exactly the two on the record", () => {
+    // The mechanism that stops "tracked" turning into "forgotten". A THIRD strand
     // fails here rather than quietly joining the list, and a route that gets its
     // entry point built drops out of UNREACHABLE and must be deleted from
-    // STRANDED_PENDING_DECISION rather than left as a stale excuse.
+    // STRANDED_PENDING_DECISION rather than left as a stale excuse — which is
+    // exactly what happened to the two /connections routes on 2026-08-08.
     const unreachable = UNREACHABLE.map((u) => u.route);
     expect(
       unreachable.sort(),
@@ -858,6 +861,64 @@ describe("route reachability (plan rule R1 — no new surface without a consumer
         `${"─".repeat(78)}\n`,
     );
     expect(routes.length).toBeGreaterThan(0);
+  });
+
+  it("/connections and its detail page are reached by the tab a user actually clicks", () => {
+    // THE DEFECT, VERBATIM. Both routes rendered, resolved and were bookmarkable
+    // while no user could arrive at either. /connections reached the registry
+    // ONLY as a `hidden: true` HUB_TABS entry, and a hidden entry is stripped by
+    // visibleHubTabs — so the tab strip never printed it, the sidebar's hub
+    // tooltip never named it, and the two pages linked to nothing but each
+    // other (the closed cycle above). This guard credited HUB_TABS raw and
+    // therefore reported the route as covered, which is precisely how it stayed
+    // invisible; FE #110 fixed the guard, and this pins the route that motivated
+    // the fix.
+    //
+    // Everything below resolves through visibleHubTabs() — what the strip
+    // RENDERS — and never through Object.values(HUB_TABS). Reading the registry
+    // raw is the old blindness, and it would call this fixed with `hidden: true`
+    // back in place.
+    const rendered = (Object.keys(HUB_TABS) as HubKey[]).flatMap((hub) =>
+      visibleHubTabs(hub, { inboundEnabled: true }).map((t) => t.href),
+    );
+
+    // ANTI-VACUITY FLOOR. A sweep that collapses to nothing passes every
+    // `toContain` below by never running, so the size is asserted, not just
+    // non-emptiness: 4 Orders tabs (inbound on) + 3 Suppliers + 3 Activity.
+    expect(rendered.length, "no hub tab resolved — the sweep is vacuous").toBe(10);
+    expect(new Set(rendered).size, "a tab href is duplicated across the strip").toBe(10);
+    // A control that was visible before and after, so a change that empties the
+    // Suppliers hub cannot pass by emptying everything.
+    expect(rendered).toContain("/library/suppliers");
+
+    // The route itself, on the strip.
+    expect(
+      rendered,
+      "/connections is off the rendered tab strip again — an operator cannot see " +
+        "the record that decides what their suppliers receive",
+    ).toContain("/connections");
+
+    // Both pages exist, and neither is stranded under the FULL app walk with
+    // BOTH lists passed empty — so this cannot pass on the strength of an
+    // allowlist entry or a pending-decision excuse.
+    expect(ROUTES.map((r) => r.route).filter((r) => r.startsWith("/connections"))).toEqual([
+      "/connections",
+      "/connections/[connectionId]",
+    ]);
+    for (const route of ["/connections", "/connections/[connectionId]"]) {
+      expect(UNREACHABLE_UNEXCUSED.has(route), `${route} is stranded again`).toBe(false);
+      expect(Object.keys(ACCOUNTED_FOR), `${route} must not need an excuse`).not.toContain(route);
+    }
+
+    // The detail page is reached THROUGH the list, which is the whole reason the
+    // hub tab has to stay visible: the list is the only live source that links
+    // to it, so hiding the tab strands both halves at once.
+    const rel = (f: string) => path.relative(ROOT, f).split(path.sep).join("/");
+    expect(
+      TARGETS.filter((t) => targetSatisfiesRoute("/connections/[connectionId]", t.path)).map((t) =>
+        rel(t.source),
+      ),
+    ).toContain("src/components/connections/ConnectionsList.tsx");
   });
 
   it("/one-pager is reached by a real link, and no longer by the allowlist", () => {
