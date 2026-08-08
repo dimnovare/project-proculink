@@ -3,11 +3,11 @@ import { buildCxmlCredentials, type CxmlCredentialsState } from "./cxml-credenti
 
 const state = (overrides: Partial<CxmlCredentialsState> = {}): CxmlCredentialsState => ({
   fromDomain: "NetworkId",
-  fromIdentity: "Nasdaq_SE",
+  fromIdentity: "ExampleBuyer_SE",
   toDomain: "NetworkId",
-  toIdentity: "Markit_SE",
+  toIdentity: "ExampleSupplier_SE",
   senderDomain: "NetworkId",
-  senderIdentity: "Nasdaq_SE",
+  senderIdentity: "ExampleBuyer_SE",
   senderSharedSecret: "",
   dtdSystemId: "",
   dtdPublicId: "",
@@ -25,11 +25,11 @@ describe("buildCxmlCredentials", () => {
     const result = buildCxmlCredentials("cxml", state());
     expect(result).toMatchObject({
       fromDomain: "NetworkId",
-      fromIdentity: "Nasdaq_SE",
+      fromIdentity: "ExampleBuyer_SE",
       toDomain: "NetworkId",
-      toIdentity: "Markit_SE",
+      toIdentity: "ExampleSupplier_SE",
       senderDomain: "NetworkId",
-      senderIdentity: "Nasdaq_SE",
+      senderIdentity: "ExampleBuyer_SE",
     });
   });
 
@@ -47,10 +47,10 @@ describe("buildCxmlCredentials", () => {
   it("nulls out blank identity fields and trims the rest", () => {
     const result = buildCxmlCredentials(
       "cxml",
-      state({ fromDomain: "  ", fromIdentity: "  Nasdaq_SE  ", toIdentity: "" }),
+      state({ fromDomain: "  ", fromIdentity: "  ExampleBuyer_SE  ", toIdentity: "" }),
     );
     expect(result!.fromDomain).toBeNull();
-    expect(result!.fromIdentity).toBe("Nasdaq_SE");
+    expect(result!.fromIdentity).toBe("ExampleBuyer_SE");
     expect(result!.toIdentity).toBeNull();
   });
 

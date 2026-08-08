@@ -43,7 +43,7 @@ function line(over: Partial<OrderLine> = {}): OrderLine {
 
 function order(lines: OrderLine[] = [line()]): Order {
   return {
-    id: "o-1", poNumber: "PO-1", supplierId: "sup-9", supplierName: "Wortmann",
+    id: "o-1", poNumber: "PO-1", supplierId: "sup-9", supplierName: "Example IT Distribution GmbH",
     orderDate: "2026-06-15", currency: "EUR", status: "pending_review",
     createdAt: "", updatedAt: "", lines, artifacts: [],
   };

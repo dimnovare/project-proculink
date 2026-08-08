@@ -798,14 +798,14 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                     <p className="text-[11px]" style={{ color: "#5E6779" }}>
                       Written into the cXML <code>&lt;Header&gt;</code>. Leave blank to fall back to
                       ProcuLink&apos;s internal IDs. Example (Coupa): From <code>NetworkId</code> /{" "}
-                      <code>Nasdaq_SE</code>, To <code>NetworkId</code> / <code>Markit_SE</code>.
+                      <code>ExampleBuyer_SE</code>, To <code>NetworkId</code> / <code>ExampleSupplier_SE</code>.
                     </p>
                     <div className="grid gap-3 lg:grid-cols-[160px_minmax(0,1fr)]">
                       <Field label="From domain">
                         <input value={cxmlFromDomain} onChange={(e) => { setCxmlFromDomain(e.target.value); markEdited(); }} placeholder="NetworkId" className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
                       </Field>
                       <Field label="From identity (your sender ID)">
-                        <input value={cxmlFromIdentity} onChange={(e) => { setCxmlFromIdentity(e.target.value); markEdited(); }} placeholder="Nasdaq_SE" className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                        <input value={cxmlFromIdentity} onChange={(e) => { setCxmlFromIdentity(e.target.value); markEdited(); }} placeholder="ExampleBuyer_SE" className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
                       </Field>
                     </div>
                     <div className="grid gap-3 lg:grid-cols-[160px_minmax(0,1fr)]">
@@ -813,7 +813,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                         <input value={cxmlToDomain} onChange={(e) => { setCxmlToDomain(e.target.value); markEdited(); }} placeholder="NetworkId" className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
                       </Field>
                       <Field label="To identity (supplier network ID)">
-                        <input value={cxmlToIdentity} onChange={(e) => { setCxmlToIdentity(e.target.value); markEdited(); }} placeholder="Markit_SE" className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                        <input value={cxmlToIdentity} onChange={(e) => { setCxmlToIdentity(e.target.value); markEdited(); }} placeholder="ExampleSupplier_SE" className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
                       </Field>
                     </div>
                     <div className="grid gap-3 lg:grid-cols-[160px_minmax(0,1fr)]">
@@ -821,7 +821,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                         <input value={cxmlSenderDomain} onChange={(e) => { setCxmlSenderDomain(e.target.value); markEdited(); }} placeholder="NetworkId" className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
                       </Field>
                       <Field label="Sender identity">
-                        <input value={cxmlSenderIdentity} onChange={(e) => { setCxmlSenderIdentity(e.target.value); markEdited(); }} placeholder="Nasdaq_SE" className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                        <input value={cxmlSenderIdentity} onChange={(e) => { setCxmlSenderIdentity(e.target.value); markEdited(); }} placeholder="ExampleBuyer_SE" className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
                       </Field>
                     </div>
                     <Field label="Sender shared secret">

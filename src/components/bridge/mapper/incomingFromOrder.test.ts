@@ -59,7 +59,7 @@ describe("buildIncomingFromOrder", () => {
     const pdfOrder: IncomingOrderShape = {
       poNumber: "4500-PDF-9",
       orderDate: "2026-02-02",
-      buyerName: "Voestalpine",
+      buyerName: "Example Steelworks AG",
       currency: "EUR",
       supplierName: "Some Supplier",
       lines: [{ lineNumber: 1, buyerItemCode: "X-1", quantity: 10, unitPrice: 5 }],

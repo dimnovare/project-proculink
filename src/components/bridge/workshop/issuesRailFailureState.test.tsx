@@ -129,7 +129,7 @@ const mobileProps = (over: Partial<MobileTriageProps> = {}): MobileTriageProps =
   poNumber: "WP39-QA-001",
   buyerName: "Acme",
   supplierName: "ProcuLink Sample Supplier",
-  grandTotalLabel: "€ 752.40",
+  grandTotalLabel: "€ 600.40",
   status: "pending_review",
   receivedFieldCount: 11,
   lineCount: 1,

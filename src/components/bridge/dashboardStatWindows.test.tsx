@@ -95,9 +95,9 @@ function order(over: Partial<OrderSummary> = {}): OrderSummary {
   seq += 1;
   return {
     id: `ord-${seq}`,
-    poNumber: `PO-409167864${seq}`,
+    poNumber: `PO-450000000${seq}`,
     supplierName: "ProcuLink Sample Supplier",
-    buyerName: "Michelin",
+    buyerName: "Example Tyre Co",
     orderDate: "2026-08-01T09:00:00Z",
     status: "pending_review",
     lineCount: 4,
@@ -112,7 +112,7 @@ function order(over: Partial<OrderSummary> = {}): OrderSummary {
 
 function topology(supplierCount: number) {
   return {
-    buyers: [{ id: "buy-1", name: "Michelin", code: "MIC", volume: "26 ord" }],
+    buyers: [{ id: "buy-1", name: "Example Tyre Co", code: "EXT", volume: "26 ord" }],
     suppliers: Array.from({ length: supplierCount }, (_, i) => ({
       id: `sup-${i + 1}`,
       name: i === 0 ? "ProcuLink Sample Supplier" : `Supplier ${i + 1}`,
