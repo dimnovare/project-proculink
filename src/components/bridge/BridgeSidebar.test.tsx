@@ -14,8 +14,8 @@ import { render, screen, cleanup } from "@testing-library/react";
 // and everything else is a tab inside one of the three hubs. No URL changed.
 // This suite guards:
 //   • exactly four primary items, one flat section, no group headers;
-//   • the nav still surfaces NO /connections link (original STRUCT-1) —
-//     versioned supplier setup is the supplier "Changes" tab;
+//   • /connections gets NO fifth sidebar item — it is a Suppliers hub tab, so
+//     the rail stays four words wide while the route is genuinely navigable;
 //   • hub items link to their hub's first VISIBLE tab route;
 //   • EVERY route that exists keeps a reachable entry (hub item — visible or
 //     hidden tab — direct item, or the pinned Upload action). This is the
@@ -95,11 +95,31 @@ function allItems(nav: ReturnType<typeof buildVisibleNav>): SidebarNavItem[] {
 }
 
 describe("BridgeSidebar — the four destinations", () => {
-  it("renders NO nav link to /connections (it is the supplier Changes tab instead)", () => {
+  // ASSERTION FLIPPED, 2026-08-08 (FE — /connections reachability).
+  //
+  // This used to read "renders NO nav link to /connections (it is the supplier
+  // Changes tab instead)", and the parenthesis was false: the supplier tab
+  // renders no mapper, so the draft-editing lifecycle under
+  // /connections/[connectionId] had no entry point at all. /connections is now
+  // a VISIBLE Suppliers hub tab, "Supplier changes".
+  //
+  // The structural half is kept, because it is still the rule: /connections
+  // gets no fifth item on the rail. What changed is the claim — the route is
+  // surfaced by the hub it belongs to, and the sidebar proves it by naming the
+  // tab in the Suppliers tooltip. Without that second half this test would
+  // pass just as happily with the tab hidden again, which is exactly how the
+  // route stayed invisible while looking covered.
+  it("gives /connections no fifth rail item — it is surfaced by the Suppliers hub", () => {
     const { container } = render(<BridgeSidebar />);
     expect(container.querySelector('a[href="/connections"]')).toBeNull();
-    // And there's no "Connections" nav label either.
+    // "Connections" was a nav label pending retirement (src/lib/vocabulary.ts
+    // PENDING_IA_LABELS) and is NOT resurrected — the word a user reads is the
+    // in-budget "Supplier changes".
     expect(screen.queryByText("Connections")).toBeNull();
+    // The positive half: the Suppliers item advertises the tab, so a user can
+    // find the route from the rail even though it has no item of its own.
+    const suppliers = screen.getByRole("link", { name: /^Suppliers/i });
+    expect(suppliers).toHaveAttribute("title", expect.stringContaining("Supplier changes"));
   });
 
   it("renders the four primary destinations with their hub first-tab hrefs", () => {
@@ -267,10 +287,17 @@ describe("buildVisibleNav — four items, one flat section", () => {
     }
   });
 
-  // AC: no duplicate nav surface for one data source. Two pairs used to be the
-  // same data under two nouns: /operations/webhooks vs Settings ▸ Connectors
-  // (event subscriptions), and /connections vs the supplier "Changes" tab
-  // (versioned supplier setup). Each now has exactly ONE visible surface.
+  // AC: no duplicate nav surface for one data source, and no route claimed by
+  // two hubs. /operations/webhooks is still the live example: it is the same
+  // event-subscription data as Settings ▸ Connectors, so it stays hidden.
+  //
+  // /connections was listed here as the second example — "versioned supplier
+  // setup belongs to the supplier Changes tab" — and it was NOT a duplicate.
+  // The supplier tab is one supplier's version history; this is the
+  // cross-supplier list, and its detail page is the only surface in the product
+  // that mounts the draft-mapping editor (ConnectionDetail.tsx:272,
+  // MapperWorkbench variant="connection"). Hiding it did not de-duplicate a
+  // surface, it removed the only door to a capability. It is visible now.
   it("offers one data source exactly one visible nav surface", () => {
     const claimed = new Map<string, HubKey>();
     for (const hub of HUBS) {
@@ -282,9 +309,13 @@ describe("buildVisibleNav — four items, one flat section", () => {
     // Event subscriptions belong to Settings; the ops page stays reachable, hidden.
     expect(visibleHubTabs("activity").some((t) => t.href === "/operations/webhooks")).toBe(false);
     expect(HUB_TABS.activity.some((t) => t.href === "/operations/webhooks")).toBe(true);
-    // Versioned supplier setup belongs to the supplier Changes tab.
-    expect(visibleHubTabs("suppliers").some((t) => t.href === "/connections")).toBe(false);
-    expect(HUB_TABS.suppliers.some((t) => t.href === "/connections")).toBe(true);
+    // Versioned supplier setup has its own visible tab — asserted through
+    // visibleHubTabs (what the strip renders), never off HUB_TABS raw, so
+    // re-adding `hidden: true` fails here.
+    expect(visibleHubTabs("suppliers").map((t) => t.href)).toContain("/connections");
+    expect(visibleHubTabs("suppliers").find((t) => t.href === "/connections")?.label).toBe(
+      "Supplier changes",
+    );
   });
 });
 
@@ -294,9 +325,10 @@ describe("hubTooltip — lists a hub's VISIBLE tabs (derived from HUB_TABS, can'
   );
   it("describes each hub with its visible tab labels", () => {
     expect(hubTooltip(byLabel["Orders"])).toBe("Orders · Buyers");
-    // Two visible tabs, not four: FE #47 retired /library/rules (and its rule
-    // catalog) and /library/templates behind permanent redirects.
-    expect(hubTooltip(byLabel["Suppliers"])).toBe("Suppliers · Item codes");
+    // Three visible tabs: FE #47 retired /library/rules (and its rule catalog)
+    // and /library/templates behind permanent redirects; "Supplier changes"
+    // (/connections) stopped being hidden in the reachability fix.
+    expect(hubTooltip(byLabel["Suppliers"])).toBe("Suppliers · Item codes · Supplier changes");
     expect(hubTooltip(byLabel["Activity"])).toBe("Overview · Deliveries · Issues");
   });
   // The regression this guards is "a hidden tab leaked into the hub tooltip". The old
@@ -310,7 +342,10 @@ describe("hubTooltip — lists a hub's VISIBLE tabs (derived from HUB_TABS, can'
   // assertion; a loop that runs zero times fails on the count.
   const EXPECTED_HIDDEN: Record<HubKey, string[]> = {
     orders: [],
-    suppliers: ["Format reference", "Changes", "Delivery channels"],
+    // "Changes" (/connections) is no longer here: it is a visible tab,
+    // "Supplier changes". Removing it from this table is the deliberate half of
+    // that change — leaving it would have failed on the comparison below.
+    suppliers: ["Format reference", "Delivery channels"],
     activity: ["System status", "Notifications"],
   };
 
@@ -336,9 +371,10 @@ describe("hubTooltip — lists a hub's VISIBLE tabs (derived from HUB_TABS, can'
         asserted++;
       }
     }
-    // Five hidden entries across three hubs. If this drops to 0 the loop above proved
+    // Four hidden entries across three hubs (was five until "Changes"/
+    // /connections became visible). If this drops to 0 the loop above proved
     // nothing, whatever colour the run reported.
-    expect(asserted, "the hidden-entry loop ran zero assertions").toBe(5);
+    expect(asserted, "the hidden-entry loop ran zero assertions").toBe(4);
   });
   it("returns undefined for non-hub items", () => {
     expect(hubTooltip(byLabel["Settings"])).toBeUndefined();

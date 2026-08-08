@@ -157,9 +157,9 @@ describe("nav dedup — each audited page keeps exactly one h1", () => {
     await waitFor(() => expectSingleH1("Suppliers"));
   });
 
-  it("Connections: sr-only h1", async () => {
+  it("Supplier changes: sr-only h1", async () => {
     renderPage(<ConnectionsList />);
-    await waitFor(() => expectSingleH1("Connections"));
+    await waitFor(() => expectSingleH1("Supplier changes"));
   });
 
   it("Deliveries: sr-only h1", async () => {
