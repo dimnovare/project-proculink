@@ -1,3 +1,8 @@
+// The exception-state vocabulary is owned by src/lib/exceptionStateManifest.ts, which is
+// diffed against the real C# by src/test/backendMirror.test.ts. Re-exported here rather
+// than re-declared so there is one copy to keep true.
+import type { ExceptionStateName } from "@/lib/exceptionStateManifest";
+
 export interface SupplierProfile {
   supplierName: string;
   requiresSupplierItemCode: boolean;
@@ -880,7 +885,7 @@ export interface OrderValidationResult {
 // optional here to keep both callers type-safe against the same interface.
 
 export type ExceptionSeverity = "info" | "warning" | "error" | "critical";
-export type ExceptionState = "open" | "resolved" | "ignored";
+export type ExceptionState = ExceptionStateName;
 
 export interface OrderException {
   id: string;
