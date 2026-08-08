@@ -112,9 +112,14 @@ describe("HubTabs — hidden entries are reachable, not switchable", () => {
   // hidden entry is the one thing the strip never prints. It is a visible tab
   // now ("Supplier changes") — see `theVisibleSuppliersStrip` below, which is
   // the positive half and fails if it is hidden again.
+  // /operations/webhooks is NOT here any more either, and for the opposite
+  // reason to /connections: it was DELETED (2026-08-08), not given a door. It
+  // was a duplicate of Settings ▸ Connectors — same four endpoints, same query
+  // key — and the lossier copy. The URL 308s to /settings?tab=connectors; see
+  // `theWebhooksPageIsGoneAndSettingsOwnsIt` in route-reachability.test.ts.
   const HIDDEN = {
     suppliers: ["/library/standards", "/operations/connectors"],
-    activity: ["/operations/health", "/operations/webhooks"],
+    activity: ["/operations/health"],
   } as const;
 
   test("every hidden entry is claimed by its hub and absent from the rendered strip", () => {

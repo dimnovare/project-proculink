@@ -181,7 +181,6 @@ const BASELINE = {
   // did not exist, which is why three files wrote `#F0B4B4` and two more wrote
   // `rgba(180,56,56,.25)` for the same 1px line.
   "src/app/(app)/operations/health/page.tsx": 5,
-  "src/app/(app)/operations/webhooks/page.tsx": 83,
   "src/app/(app)/settings/page.tsx": 33,
   "src/app/(home)/page.tsx": 9,
   "src/app/(marketing)/aup/page.tsx": 11,

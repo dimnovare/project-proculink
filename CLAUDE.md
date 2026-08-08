@@ -239,8 +239,11 @@ aiSoft         #EEE7FB
 | Library | Output templates | `/library/templates` |
 | Operations | Delivery log | `/operations/log` |
 | Operations | Connectors | `/operations/connectors` |
-| Operations | Webhooks | `/operations/webhooks` |
 | — | Settings | `/settings` |
+
+> `/operations/webhooks` was deleted (2026-08-08): a duplicate of Settings ▸
+> Connectors that nothing navigated to. The URL 308s to `/settings?tab=connectors`
+> via `src/lib/retired-routes.ts`.
 
 **Active nav item style:** 2px link-gradient strip on left, slightly raised navy surface (`navy.surface`), white text.
 
