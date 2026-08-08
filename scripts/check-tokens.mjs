@@ -6,9 +6,8 @@
  * scoped to `src/app/**`, failing the build on the two patterns that caused the
  * drift the audit found:
  *
- *   1. Raw 6-digit hex literals — regex `#[0-9A-Fa-f]{6}` anywhere under
- *      src/app/**. Pages must use a token class or `var(--token)`; the primitives
- *      in src/components/bridge/** are the only place raw colour values belong.
+ *   1. Raw 6-digit hex literals — regex `#[0-9A-Fa-f]{6}`. Pages must use a token
+ *      class or `var(--token)`.
  *   2. Inline-styled buttons — `<button` carrying an inline `background:` (or
  *      `style={{ background`). Use the Button primitive.
  *
@@ -17,7 +16,63 @@
  * A palette constant IS a hex literal, so rule 1 already catches it; it is
  * reported under its own rule id purely so the message can name the fix.
  *
- * FIVE DELIBERATE DEVIATIONS FROM THE DOC, each measured:
+ * ─────────────────────────────────────────────────────────────────────────────
+ * THE SCAN ROOT IS `src/**`, NOT `src/app/**`, AND THAT IS THE WHOLE POINT.
+ *
+ * The doc's `src/app/**` scope was written for a tree where a page is a page.
+ * This is not that tree. Measured 2026-08-08: every signature screen in the
+ * product is a ~10-line `src/app` wrapper over a body in `src/components`.
+ *
+ *     src/app/(app)/library/suppliers/page.tsx       9 lines
+ *     src/app/(app)/bridge/page.tsx                 10
+ *     src/app/(app)/operations/log/page.tsx         11
+ *     src/app/(app)/upload/page.tsx                 11
+ *     src/app/(app)/inbox/[orderId]/page.tsx        15
+ *     src/app/(app)/inbox/page.tsx                  18
+ *
+ *   …against the bodies those wrappers render:
+ *
+ *     src/components/bridge/InboxView.tsx         2318 lines
+ *     src/components/bridge/UploadWorkbench.tsx   2307
+ *     src/components/bridge/BridgeDashboard.tsx   2014
+ *     src/components/bridge/SupplierDockProfile.tsx 1860
+ *
+ * So an `src/app`-rooted scan read 147 of the 665 colour-bearing files under
+ * src/, and not one line of any screen a user actually looks at. A green run
+ * said nothing about any screen in the product.
+ *
+ * NOTHING WAS WRONG WITH THE PREDICATE. Every rule below was already correct and
+ * every one of them was already tested. The gate failed by WHAT IT WAS POINTED
+ * AT. That is the same failure this file has already been through once: the
+ * retired-colour rule was widened to all of src/** because the banned emerald
+ * shipped as a 2.27:1 focus ring from src/components/help/, invisible to an
+ * src/app scan "by construction". Widening one rule and leaving the other four
+ * behind is why it had to be done twice. It is now done for all of them.
+ *
+ * The ledger (scripts/token-debt-baseline.json) is therefore large: 4,491
+ * violations across 155 files, against the 707 across 39 the src/app root
+ * reported. NOTHING REGRESSED AND NO RULE GOT STRICTER, and the arithmetic says
+ * so: filter the new ledger to src/app rows and it is 39 rows totalling 707 —
+ * identical, row for row, to the ledger this replaces. Every one of the 3,784
+ * added violations comes from a file the gate had never opened.
+ *
+ * By region: src/components 3,712 across 105 files, src/app 707 across 39,
+ * everything else (src/lib, src/mocks, src/types, mdx-components) 72 across 11.
+ * 83% of this product's raw colour was outside the gate's field of view.
+ *
+ * That last figure is not historical. Between this branch being cut and being
+ * rebased, four PRs landed on main; they removed 5 literals from
+ * UploadWorkbench.tsx and ADDED 2 — one in SupplierDockProfile.tsx, one in a new
+ * src/lib/exceptionStateManifest.ts. Both additions are outside src/app, so both
+ * went in with no gate on them at all, in one day, while lint:tokens was green.
+ * The src/app total did not move by a single literal across all four.
+ *
+ * It is LEDGERED, not enforced, and that is deliberate. A gate that turns main
+ * red on the day it lands gets switched off, and then nobody reads CI at all —
+ * which has already happened in this repo once.
+ * ─────────────────────────────────────────────────────────────────────────────
+ *
+ * FOUR DELIBERATE DEVIATIONS FROM THE DOC, each measured:
  *   • The regex also accepts a 3-digit #RGB and an 8-digit #RRGGBBAA. The doc's
  *     6-digit regex matches the first six characters of an 8-digit literal
  *     anyway; being explicit means the reported span is the whole literal.
@@ -28,11 +83,13 @@
  *     while they still hardcoded the brand blue 14 times between them. A call
  *     with `var(--token)` inside it is NOT flagged — that is a token being given
  *     an alpha, which is the correct spelling, not drift.
- *   • RETIRED COLOURS are swept across ALL of src/**, not just src/app/**. The
- *     banned emerald shipped as the focus-visible ring on all 46 help articles
- *     (2.2731:1 against a 3:1 non-text floor) from src/components/help/, which
- *     an src/app-scoped gate is blind to by construction. This rule has no
- *     baseline and no allowlist: a banned value is never debt, it is a bug.
+ *   • RETIRED COLOURS have NO BASELINE AND NO ALLOWLIST. Every other rule
+ *     ledgers its existing debt; this one refuses to, because a banned value is
+ *     never debt, it is a bug. (Its scan root used to be the deviation too —
+ *     all of src/** while the rest read src/app/** — after the banned emerald
+ *     shipped as the focus-visible ring on all 46 help articles, 2.2731:1
+ *     against a 3:1 non-text floor, from src/components/help/. Every rule reads
+ *     src/** now, so only the no-baseline part is still a deviation.)
  *   • COMMENTS ARE SCANNED. The doc says "anywhere", and not scanning them would
  *     have hidden a real defect: how-it-works/page.tsx documented the palette as
  *     the retired-emerald "family" — a colour the same doc explicitly BANS.
@@ -48,28 +105,28 @@
  *      are ORTHOGONAL; neither implies the other. Contrast is checked from
  *      RESOLVED values in src/test/token-contrast.test.ts.
  *   2. THE BASELINE IS A PER-FILE COUNT, so it cannot tell "same debt" from
- *      "different debt". Neutralising one violation and adding a different one
- *      in the same file (28 -> 28) passes SILENTLY. Growth (28 -> 29) is caught
- *      and that is the load-bearing property, but a green `lint:tokens` does NOT
- *      mean a baselined file is unchanged. Keying the ledger by violation
- *      content would close this; it is a baseline-format change and is
- *      deliberately not bundled into an accessibility fix round.
+ *      "different debt". Growth (28 -> 29) fails and shrinkage (28 -> 27) fails,
+ *      so the count is pinned in BOTH directions — but neutralising one
+ *      violation and adding a different one in the same file (28 -> 28) still
+ *      passes SILENTLY. A green `lint:tokens` does NOT mean a baselined file is
+ *      unchanged, only that it carries the same NUMBER of literals. Keying the
+ *      ledger by violation content would close this; it is a baseline-format
+ *      change and is deliberately not bundled into a scope fix.
  *   3. STILL NOT CAUGHT, by design or by limitation: `color-mix()` (its
  *      arguments are usually tokens), CSS named colours (`red` is unresolvable
  *      from `red` the identifier or the prose), and any hex assembled at
  *      runtime — `"#" + "1E66C9"`, `` `#${x}` ``, `[..].join("")`. A source-text
  *      scanner cannot see the last group without evaluating the program.
- *   4. THE LEDGER IS `src/app/**` ONLY, and it cannot stand in for the rest of
- *      the tree. Every BASELINE row below is an src/app path, because that is
- *      this gate's scope — so "the remaining debt is ledgered" is a true
- *      statement about src/app and says NOTHING about src/components/**, where
- *      the primitives live and where the app keeps most of its colour. That
- *      distinction was got wrong once, in this packet's own acceptance
- *      criteria: it deferred its un-audited remainder to "the 798 ledgered
- *      violations" while 27 measured sub-4.5:1 TEXT pairs sat in
- *      src/components/**, reachable from /bridge, /inbox/[orderId] and
- *      /operations/*, in a region the ledger has never had a row for. A ledger
- *      is only an alibi for the files it lists.
+ *   4. A LEDGER IS ONLY AN ALIBI FOR THE FILES IT LISTS. This used to be a
+ *      scope warning — every BASELINE row was an src/app path, so "the debt is
+ *      ledgered" said nothing about src/components/**. That specific hole is
+ *      closed: the ledger now covers src/**. The general form still bites, and
+ *      it bit this repo once already — an acceptance criteria deferred its
+ *      un-audited remainder to "the 798 ledgered violations" while 27 measured
+ *      sub-4.5:1 TEXT pairs sat in src/components/**, reachable from /bridge,
+ *      /inbox/[orderId] and /operations/*, in a region the ledger had never had
+ *      a row for. Before quoting the ledger as coverage, check that the thing
+ *      you are covering is a thing this gate measures at all (see 1 and 5).
  *   5. IT IS NOT AN EMISSION CHECK. It reads the files; it does not read the
  *      stylesheet those files compile to, and the two scanners do not agree on
  *      scope. This gate skips `*.test.ts(x)` on purpose — a test that pins a ban
@@ -84,24 +141,44 @@
  * see under half the routes, so .mdx is in scope and is pinned by a test.
  *
  * TWO LISTS, AND THEY ARE NOT THE SAME THING:
- *   ALLOWLIST — permanent. A file that legitimately cannot use a token. Every
- *               entry states the evidence. Currently one: globals.css, which IS
- *               the token definitions.
- *   BASELINE  — a temporary debt ledger with per-file counts. NOT an exemption:
- *               a listed file may keep its recorded count and may never exceed
- *               it; an unlisted file must be at zero. Cleaning a file means
- *               deleting its row. This is check-pageshell.mjs's baseline shape
- *               with counts added, so a listed file cannot silently grow.
+ *   ALLOWLIST — permanent, and lives in this file. A file that legitimately
+ *               cannot use a token. Every entry states the evidence. Currently
+ *               one: globals.css, which IS the token definitions.
+ *   BASELINE  — a debt ledger with per-file counts, in
+ *               scripts/token-debt-baseline.json. NOT an exemption: a listed
+ *               file must carry EXACTLY its recorded count.
+ *
+ * THE LEDGER FAILS IN BOTH DIRECTIONS, and the second direction is the one that
+ * is usually left out. A new violation in an unlisted file reddens — that is the
+ * obvious half. A LISTED VIOLATION THAT NO LONGER EXISTS ALSO REDDENS, because a
+ * ledger that over-states the debt is how a fixed thing stays "known broken"
+ * forever: the row outlives the defect, the total printed in the PR body stops
+ * being true, and the next reader budgets for work that is already done.
+ *
+ * The old behaviour was to report a shrunk row as INFO and never fail, on the
+ * reasoning that "making a stale row red would punish the exact behaviour this
+ * gate exists to encourage — someone cleans a file, CI goes red, they learn to
+ * leave it alone". That concern is real and it is answered by ergonomics, not by
+ * silence: the failure names the file, prints the true count, and the fix is one
+ * command that rewrites the whole ledger —
+ *
+ *     node scripts/check-tokens.mjs --emit-baseline --write
+ *
+ * Nobody has to hand-count a row. Hand-counting is how a ratchet gets a wrong
+ * number in it, which is why --emit-baseline existed before this change.
  *
  * Usage:
- *   bun run lint:tokens                            # strict — what CI runs
- *   node scripts/check-tokens.mjs                  # report only, always exits 0
- *   node scripts/check-tokens.mjs --strict         # exits 1 on NEW violations
- *   node scripts/check-tokens.mjs --root <dir>     # scan a fixture tree
- *   node scripts/check-tokens.mjs --emit-baseline  # print the ledger for the tree as it is
+ *   bun run lint:tokens                             # strict — what CI runs
+ *   node scripts/check-tokens.mjs                   # report only, always exits 0
+ *   node scripts/check-tokens.mjs --strict          # exits 1 on NEW or STALE rows
+ *   node scripts/check-tokens.mjs --root <dir>      # scan a fixture tree
+ *   node scripts/check-tokens.mjs --baseline <file> # use a different ledger
+ *   node scripts/check-tokens.mjs --emit-baseline   # print the ledger for the tree as it is
+ *   node scripts/check-tokens.mjs --emit-baseline --write   # …and rewrite the file
+ *   node scripts/check-tokens.mjs --stats           # corpus + violation counts as JSON
  */
 
-import { readFileSync, readdirSync, statSync, existsSync } from "fs";
+import { readFileSync, writeFileSync, readdirSync, statSync, existsSync } from "fs";
 import { join, relative } from "path";
 import { fileURLToPath } from "url";
 import { RETIRED_COLORS, retiredRegex } from "./retired-colors.mjs";
@@ -110,21 +187,50 @@ const __dirname = fileURLToPath(new URL(".", import.meta.url));
 
 // ─── CLI ──────────────────────────────────────────────────────────────────────
 const argv = process.argv.slice(2);
+const flagValue = (name) => {
+  const i = argv.indexOf(name);
+  return i >= 0 ? argv[i + 1] : undefined;
+};
 const rootFlag = argv.indexOf("--root");
 const ROOT = rootFlag >= 0 ? argv[rootFlag + 1] : join(__dirname, "..");
 const STRICT = argv.includes("--strict");
-// Prints the ledger for the tree exactly as it stands. Used when a sweep lands
-// and the baseline needs re-cutting — hand-counting 35 rows is how a ratchet
-// gets a wrong number in it.
+// Prints the ledger for the tree exactly as it stands, and with --write rewrites
+// it. Hand-counting rows is how a ratchet gets a wrong number in it, and the
+// ledger is now several hundred rows long — there is no hand-editing it at all.
 const EMIT_BASELINE = argv.includes("--emit-baseline");
+const WRITE = argv.includes("--write");
+// Corpus + violation counts as JSON, for the anti-vacuity assertions in
+// src/test/check-tokens.test.ts. A file COUNT is not a detection floor, so this
+// reports what was actually read and line-scanned, not what was merely listed.
+const STATS = argv.includes("--stats");
+const baselineFlag = flagValue("--baseline");
+const BASELINE_PATH = baselineFlag ?? join(__dirname, "token-debt-baseline.json");
 // A fixture tree has no shared debt history, so the repo's baseline must not
 // silently absolve it. Without this, a test fixture placed at a baselined path
-// would pass for the wrong reason.
-const USING_FIXTURE = rootFlag >= 0;
+// would pass for the wrong reason. An EXPLICIT --baseline overrides that: the
+// caller has said which ledger applies, so it applies.
+const USING_FIXTURE = rootFlag >= 0 && baselineFlag === undefined;
 
 // ─── Scan scope ───────────────────────────────────────────────────────────────
-const SCAN_DIR = ["src", "app"];
+// `src`, not `src/app`. See the header: every screen in this product is a
+// ~10-line src/app wrapper over a 1,000–2,300-line body in src/components, so an
+// src/app root read 151 of 666 files and none of the product.
+const SCAN_DIR = ["src"];
 const SCAN_EXT = /\.(tsx|ts|mdx|css)$/;
+const SKIP_DIR = new Set(["node_modules", ".next"]);
+/**
+ * Test files are skipped by EVERY rule, and the reason is the same one the
+ * retired-colour rule already had: a test that PINS a ban has to be able to name
+ * the value it bans. src/test/token-contrast.test.ts and this gate's own
+ * check-tokens.test.ts both spell out hex on purpose.
+ *
+ * This is the single riskiest exclusion in the file, so: it is a FILENAME rule,
+ * not a directory rule. `src/test/textColorScan.ts` is not a test file by this
+ * regex and is not exempt — it carries 4 hex literals in its doc comments and is
+ * ledgered like anything else. Excluding whole directories is what created the
+ * blind spot this change exists to fix; it is not repeated here at smaller scale.
+ */
+const TEST_FILE = /\.test\.(tsx?|mdx)$/;
 
 /**
  * Permanent exclusions. Each entry states the evidence for why a token cannot be
@@ -140,76 +246,43 @@ const ALLOWLIST = [
       "Banning it would leave nowhere to define a token.",
   },
 ];
-// tailwind.config.ts and src/lib/ds-tokens.ts are the other two definition sites.
-// Both sit OUTSIDE src/app/**, so they are already out of scope; adding rows for
-// them would be noise that implies the scope is wider than it is.
+// tailwind.config.ts is the other definition site and sits at the repo root,
+// outside src/**, so it is out of scope. src/lib/ds-tokens.ts is named in its own
+// header as a token module but was MEASURED at 0 colour literals — it exports
+// typed helpers only (`confidenceTier`), so it needs no row. Do not add one
+// pre-emptively: an allowlist row for a file with nothing to allow is how a real
+// hex gets a free pass later.
 
 /**
- * Debt ledger — files that still carry pre-WP-30 hex, with the count they carry.
- * Exceeding the count fails; a new file with any hex fails. Delete a row when the
- * file reaches zero. Follow-up: sweep these onto tokens page by page (the doc's
- * own migration order is 11-unified-page-rules.md §Migration order).
+ * Debt ledger — every file that carries a raw colour literal, with the count it
+ * carries. The count is pinned in BOTH directions: exceeding it fails, dropping
+ * below it fails (the row is stale and the total has stopped being true), and a
+ * file with no row must be at zero. Re-cut with `--emit-baseline --write`.
+ *
+ * It lives in scripts/token-debt-baseline.json, not here. At this size an inline
+ * object would be most of the file, and a JSON file is something `--write` can
+ * regenerate wholesale instead of asking a human to edit a number by hand.
  *
  * HISTORY, because the numbers moved for an honest reason.
- * Cut at 478b809 with a 6-digit-hex-only regex: 840 across 40 files. WP-30 swept
- * `(home)/page.tsx` (64) and `(marketing)/how-it-works/page.tsx` (47) and called
- * them "cleaned to zero", leaving 729 across 38 files.
+ * Cut at 478b809 with a 6-digit-hex-only regex, rooted at src/app: 840 across 40
+ * files. WP-30 swept `(home)/page.tsx` (64) and `(marketing)/how-it-works/page.tsx`
+ * (47) and called them "cleaned to zero", leaving 729 across 38 files.
  *
- * Re-cut here after the regex was extended to rgb()/rgba()/hsl()/hsla() and
- * 3-digit hex: 806 across 40 files. Both "cleaned" pages reappear — 9 and 7 —
- * because "zero" had meant "zero BY THE OLD REGEX", and both still restate the
- * brand blue in decimal (`rgba(30,102,201,0.22)` IS `#1E66C9`). They are back in
- * the ledger, which is the point: the drift is now counted instead of invisible.
+ * Re-cut after the regex was extended to rgb()/rgba()/hsl()/hsla() and 3-digit
+ * hex: 806 across 40 files. Both "cleaned" pages reappeared — 9 and 7 — because
+ * "zero" had meant "zero BY THE OLD REGEX", and both still restate the brand blue
+ * in decimal (`rgba(30,102,201,0.22)` IS `#1E66C9`).
  *
- * These 16 are all TRANSLUCENT overlay/shadow values, and CLAUDE.md §3 itself
- * writes card shadows as `rgba(11,26,47,0.04)`, so they are not obviously wrong
- * — they simply have no alpha-bearing token yet. Giving them one is a follow-up;
- * counting them is this change.
+ * Re-cut again here when the scan root moved from src/app to src. The jump is
+ * large and it is not new drift: it is the first count that includes the files
+ * the screens are actually built out of. See the header for the measurement.
  */
-const BASELINE = {
-  "src/app/(app)/admin/AdjustLimitsModal.tsx": 33,
-  "src/app/(app)/admin/CreateInvoiceModal.tsx": 42,
-  "src/app/(app)/admin/page.tsx": 1,
-  "src/app/(app)/error.tsx": 10,
-  "src/app/(app)/inbound/asns/page.tsx": 5,
-  "src/app/(app)/inbound/invoices/page.tsx": 1,
-  "src/app/(app)/layout.tsx": 2,
-  "src/app/(app)/library/buyers/page.tsx": 13,
-  "src/app/(app)/operations/connectors/page.tsx": 125,
-  "src/app/(app)/operations/exceptions/page.tsx": 18,
-  // Ratcheted 6 → 5 (WP-36): the danger edge became --danger-border, a token that
-  // did not exist, which is why three files wrote `#F0B4B4` and two more wrote
-  // `rgba(180,56,56,.25)` for the same 1px line.
-  "src/app/(app)/operations/health/page.tsx": 5,
-  "src/app/(app)/settings/page.tsx": 33,
-  "src/app/(home)/page.tsx": 9,
-  "src/app/(marketing)/aup/page.tsx": 11,
-  "src/app/(marketing)/book-demo/page.tsx": 7,
-  "src/app/(marketing)/changelog/page.tsx": 25,
-  "src/app/(marketing)/customers/page.tsx": 17,
-  "src/app/(marketing)/dpa/page.tsx": 23,
-  "src/app/(marketing)/formats/page.tsx": 23,
-  "src/app/(marketing)/help/page.tsx": 8,
-  "src/app/(marketing)/how-it-works/AnimatedPipelinePanel.tsx": 35,
-  "src/app/(marketing)/how-it-works/page.tsx": 7,
-  "src/app/(marketing)/layout.tsx": 8,
-  "src/app/(marketing)/one-pager/page.tsx": 17,
-  "src/app/(marketing)/one-pager/print.css": 1,
-  "src/app/(marketing)/pricing/page.tsx": 15,
-  "src/app/(marketing)/privacy/page.tsx": 10,
-  "src/app/(marketing)/security/page.tsx": 35,
-  "src/app/(marketing)/subprocessors/page.tsx": 21,
-  "src/app/(marketing)/support/page.tsx": 19,
-  "src/app/(marketing)/terms/page.tsx": 12,
-  "src/app/(marketing)/watch/page.tsx": 13,
-  "src/app/(marketing)/welcome/page.tsx": 16,
-  "src/app/global-error.tsx": 10,
-  "src/app/layout.tsx": 2,
-  "src/app/not-found.tsx": 6,
-  "src/app/onboarding/select-organization/page.tsx": 1,
-  "src/app/sign-in/[[...sign-in]]/page.tsx": 34,
-  "src/app/sign-up/[[...sign-up]]/page.tsx": 34,
-};
+const BASELINE = readBaseline(BASELINE_PATH);
+
+function readBaseline(path) {
+  if (!existsSync(path)) return {};
+  return JSON.parse(readFileSync(path, "utf8"));
+}
 
 // ─── Rules ────────────────────────────────────────────────────────────────────
 
@@ -309,7 +382,12 @@ function buttonOpeningTags(src) {
   return out;
 }
 
-/** All violations in one file's source. */
+/**
+ * All violations in one file's source, plus the number of lines actually put
+ * through the rules. The line count is returned because a FILE COUNT IS NOT A
+ * DETECTION FLOOR — "666 files scanned" is equally true of a scanner that read
+ * every file and of one that listed them and tokenised nothing.
+ */
 function scanSource(src, ext) {
   const violations = [];
   const lines = src.split(/\r?\n/);
@@ -355,7 +433,7 @@ function scanSource(src, ext) {
     }
   }
 
-  return violations;
+  return { violations, lineCount: lines.length };
 }
 
 // ─── File discovery ───────────────────────────────────────────────────────────
@@ -364,8 +442,11 @@ function collect(dir) {
   if (!existsSync(dir)) return out;
   for (const entry of readdirSync(dir)) {
     const full = join(dir, entry);
-    if (statSync(full).isDirectory()) out.push(...collect(full));
-    else if (SCAN_EXT.test(entry)) out.push(full);
+    if (statSync(full).isDirectory()) {
+      if (!SKIP_DIR.has(entry)) out.push(...collect(full));
+    } else if (SCAN_EXT.test(entry) && !TEST_FILE.test(entry)) {
+      out.push(full);
+    }
   }
   return out;
 }
@@ -379,10 +460,10 @@ function allowedRules(rel) {
 }
 
 /**
- * Retired colours, swept across ALL of src/**. Separate pass on purpose: the
- * main scan's scope, allowlist and ledger are about src/app debt, and a banned
- * value is not debt. Test files are skipped — the tests that PIN the ban have to
- * be able to name the value they ban.
+ * Retired colours. Same corpus as the main scan now that both read src/**, but
+ * still a SEPARATE PASS, because the two differ in what forgives a hit: the main
+ * scan has an allowlist and a ledger, and this has neither. A banned value is not
+ * debt, so there is nothing for it to be baselined into.
  */
 function retiredColorViolations(srcRoot) {
   const out = [];
@@ -393,8 +474,8 @@ function retiredColorViolations(srcRoot) {
     for (const entry of readdirSync(dir)) {
       const full = join(dir, entry);
       if (statSync(full).isDirectory()) {
-        if (entry !== "node_modules" && entry !== ".next") stack.push(full);
-      } else if (SCAN_EXT.test(entry) && !/\.test\.tsx?$/.test(entry)) {
+        if (!SKIP_DIR.has(entry)) stack.push(full);
+      } else if (SCAN_EXT.test(entry) && !TEST_FILE.test(entry)) {
         const rel = relative(ROOT, full).replace(/\\/g, "/");
         readFileSync(full, "utf8")
           .split(/\r?\n/)
@@ -415,18 +496,22 @@ function retiredColorViolations(srcRoot) {
 const files = collect(join(ROOT, ...SCAN_DIR));
 const retired = retiredColorViolations(join(ROOT, "src"));
 
-/** rel → { newOnes: [], allowed: number, baselineCount: number, count: number } */
+/** rel → { violations: [], count: number, budget: number } */
 const perFile = new Map();
-let scannedCount = 0;
+// `files.length` is what was LISTED. These two are what was actually read and put
+// through the rules — the numbers the anti-vacuity test asserts against.
+let tokenisedCount = 0;
+let linesScanned = 0;
 let allowedTotal = 0;
 
 for (const file of files) {
   const rel = toRel(file);
   const ext = (/\.([a-z]+)$/.exec(file) ?? [, ""])[1];
   const allow = allowedRules(rel);
-  scannedCount += 1;
 
-  const found = scanSource(readFileSync(file, "utf8"), ext);
+  const { violations: found, lineCount } = scanSource(readFileSync(file, "utf8"), ext);
+  tokenisedCount += 1;
+  linesScanned += lineCount;
   if (found.length === 0) continue;
 
   const live = allow === "*" ? [] : found.filter((v) => !(allow && allow.has(v.rule)));
@@ -437,19 +522,61 @@ for (const file of files) {
   perFile.set(rel, { violations: live, count: live.length, budget });
 }
 
+const violationTotal = [...perFile.values()].reduce((n, v) => n + v.count, 0);
+
+if (STATS) {
+  console.log(
+    JSON.stringify(
+      {
+        root: toRel(join(ROOT, ...SCAN_DIR)) || SCAN_DIR.join("/"),
+        listed: files.length,
+        tokenised: tokenisedCount,
+        linesScanned,
+        filesWithViolations: perFile.size,
+        violations: violationTotal,
+        retired: retired.length,
+        baselineRows: Object.keys(BASELINE).length,
+        baselineTotal: Object.values(BASELINE).reduce((n, v) => n + v, 0),
+      },
+      null,
+      2,
+    ),
+  );
+  process.exit(0);
+}
+
 if (EMIT_BASELINE) {
   const rows = [...perFile.entries()].sort(([a], [b]) => a.localeCompare(b));
-  console.log("const BASELINE = {");
-  for (const [rel, v] of rows) console.log(`  ${JSON.stringify(rel)}: ${v.count},`);
-  console.log("};");
+  const ledger = {};
+  for (const [rel, v] of rows) ledger[rel] = v.count;
+  const json = `${JSON.stringify(ledger, null, 2)}\n`;
+  if (WRITE) {
+    writeFileSync(BASELINE_PATH, json, "utf8");
+    console.log(
+      `Wrote ${rows.length} row(s), ${violationTotal} violation(s) to ${toRel(BASELINE_PATH)}`,
+    );
+  } else {
+    process.stdout.write(json);
+  }
   process.exit(0);
 }
 
 const overBudget = [...perFile.entries()].filter(([, v]) => v.count > v.budget);
 const withinBudget = [...perFile.entries()].filter(([, v]) => v.count > 0 && v.count <= v.budget);
 
-// Baseline rows that are now cheaper than recorded, or gone entirely. Reported so
-// the ledger can be tightened — NEVER a failure: fixing a file must not turn CI red.
+/**
+ * Baseline rows that record MORE violations than the file now carries — cleaned,
+ * partially cleaned, or deleted outright (a missing file reads as 0).
+ *
+ * THIS FAILS. It did not used to, and the comment that said so argued that
+ * reddening CI when someone cleans a file teaches them to stop cleaning files.
+ * The counter-argument won: a row that outlives its defect is how a fixed thing
+ * stays "known broken" forever, and the ledger total is a number the founder
+ * reads as "how much design debt exists". An over-stated total is not a
+ * conservative estimate, it is a wrong one, and nothing else in the repo can
+ * catch it. The ergonomics answer is below in the failure message: one command,
+ * no hand-counting.
+ */
 const stale = USING_FIXTURE
   ? []
   : Object.entries(BASELINE)
@@ -457,7 +584,8 @@ const stale = USING_FIXTURE
       .filter(([, budget, actual]) => actual < budget);
 
 console.log(
-  `\nDesign-token gate — scanned ${scannedCount} file(s) under src/app (.tsx/.ts/.mdx/.css)\n`,
+  `\nDesign-token gate — tokenised ${tokenisedCount}/${files.length} file(s), ` +
+    `${linesScanned} line(s) under ${SCAN_DIR.join("/")}/** (.tsx/.ts/.mdx/.css, excluding *.test.*)\n`,
 );
 
 if (retired.length > 0) {
@@ -489,13 +617,14 @@ if (overBudget.length > 0) {
     `\nTokens live in src/app/globals.css (:root custom properties) and tailwind.config.ts.\n` +
       `See docs/design-system/11-unified-page-rules.md §Enforcement.\n`,
   );
-} else if (retired.length === 0) {
-  console.log("OK — no new raw hex, palette constants, or inline-styled buttons under src/app.");
+} else if (retired.length === 0 && stale.length === 0) {
+  console.log("OK — no new raw hex, palette constants, or inline-styled buttons under src/**.");
 }
 
 if (withinBudget.length > 0) {
   console.log(
-    `\nBaseline debt (pre-WP-30, ratcheted — these may shrink, never grow):`,
+    `\nBaseline debt (ledgered in ${toRel(BASELINE_PATH)} — pinned in BOTH directions:\n` +
+      `clean one and re-cut with \`--emit-baseline --write\`, do not leave the row behind):`,
   );
   for (const [rel, v] of withinBudget) console.log(`  [TODO] ${rel}  ${v.count}/${v.budget}`);
 }
@@ -506,23 +635,32 @@ if (allowedTotal > 0) {
 }
 
 if (stale.length > 0) {
-  // INFO, never a failure — deliberate: making a stale row red would punish the
-  // exact behaviour this gate exists to encourage (someone cleans a file, CI
-  // goes red, they learn to leave it alone). Re-cut with `--emit-baseline`.
-  console.log(`\nBaseline rows now cheaper than recorded — tighten with \`--emit-baseline\`:`);
-  for (const [rel, budget, actual] of stale) console.log(`  [STALE] ${rel}  ${actual} < ${budget}`);
+  const freed = stale.reduce((n, [, budget, actual]) => n + (budget - actual), 0);
+  console.error(
+    `FAIL — ${stale.length} STALE baseline row(s): the ledger records ${freed} violation(s) ` +
+      `that no longer exist.\n`,
+  );
+  for (const [rel, budget, actual] of stale) {
+    console.error(`  [STALE] ${rel}  ${actual} found, ${budget} recorded`);
+  }
+  console.error(
+    `\n  These files got BETTER. Nothing is broken — the ledger is just out of date, and a\n` +
+      `  ledger that over-states the debt is how a fixed thing stays "known broken" forever.\n` +
+      `  Re-cut it (no hand-counting, it rewrites every row):\n\n` +
+      `      node scripts/check-tokens.mjs --emit-baseline --write\n`,
+  );
 }
 
 // Stated on every run so a green result is never over-read. See the header.
 console.log(
-  `\nLimits: this gate reads source text. It does NOT check contrast — two tokens\n` +
-    `can fail WCAG against each other with no hex on the line (see\n` +
-    `src/test/token-contrast.test.ts). The baseline is a per-file COUNT, so\n` +
-    `swapping one violation for another in a baselined file passes silently;\n` +
-    `only GROWTH is caught.\n`,
+  `\nLimits: this gate reads source text under src/**. It does NOT check contrast\n` +
+    `— two tokens can fail WCAG against each other with no hex on the line (see\n` +
+    `src/test/token-contrast.test.ts). The baseline is a per-file COUNT pinned in\n` +
+    `both directions, so growth and shrinkage both fail, but swapping one\n` +
+    `violation for another in a baselined file passes silently.\n`,
 );
 
-if (STRICT && (overBudget.length > 0 || retired.length > 0)) {
+if (STRICT && (overBudget.length > 0 || retired.length > 0 || stale.length > 0)) {
   if (overBudget.length > 0) {
     console.error(
       `Strict mode: ${overBudget.length} file(s) exceed their token budget. Use var(--token) / a Tailwind token class.`,
@@ -530,6 +668,11 @@ if (STRICT && (overBudget.length > 0 || retired.length > 0)) {
   }
   if (retired.length > 0) {
     console.error(`Strict mode: ${retired.length} retired-colour use(s) under src/**.`);
+  }
+  if (stale.length > 0) {
+    console.error(
+      `Strict mode: ${stale.length} stale baseline row(s). Re-cut with \`--emit-baseline --write\`.`,
+    );
   }
   process.exit(1);
 }
