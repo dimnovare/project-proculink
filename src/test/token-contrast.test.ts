@@ -326,12 +326,10 @@ describe("the specific sites the refutation measured", () => {
     expect(src).toContain(`background: "var(--amber-soft)", color: "var(--amber-text)"`);
   });
 
-  it("the webhooks primary action rests on the AA button green, not --brand-green", () => {
-    const src = read("src/app/(app)/operations/webhooks/page.tsx");
-    expect(src).not.toMatch(/style\.background = "var\(--brand-green\)"/);
-    expect(src).toContain(`background: "var(--brand-green-btn)"`);
-  });
-
+  // A fourth site — the /operations/webhooks primary action — was measured here
+  // until FE #130 deleted that page (a duplicate of Settings ▸ Connectors nobody
+  // could navigate to). --brand-green-btn is still guarded by the Copy button
+  // below, so removing the dead site leaves no token unmeasured.
   it("the settings API-key Copy button rests on the AA button green", () => {
     const src = read("src/app/(app)/settings/page.tsx");
     expect(src).toContain(`background: "var(--brand-green-btn)", color: "#FFFFFF"`);

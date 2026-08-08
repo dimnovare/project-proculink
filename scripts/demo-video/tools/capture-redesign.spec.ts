@@ -54,7 +54,6 @@ const ROUTES: Array<[string, string, string]> = [
   ["19", "operations-health", "/operations/health"],
   ["20", "operations-log", "/operations/log"],
   ["21", "operations-connectors", "/operations/connectors"],
-  ["22", "operations-webhooks", "/operations/webhooks"],
   ["23", "settings", "/settings"],
   ["24", "admin", "/admin"],
 ];
