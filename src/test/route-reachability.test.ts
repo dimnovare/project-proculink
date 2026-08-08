@@ -197,9 +197,18 @@ export const KNOWN_DEEP_LINK_ONLY: Record<string, string> = {
  */
 export const STRANDED_PENDING_DECISION: Record<string, string> = {
   "/operations/connectors":
-    "PENDING A DECISION, 2026-08-06 — zero inbound links anywhere in src/. The HUB_TABS comment at HubTabs.tsx:95 claims it is " +
-    "'Reached from a supplier's Delivery tab'; no such link exists — the connectors page links OUT " +
-    "to /library/suppliers/{id}?tab=delivery and nothing links back.",
+    "PENDING A DECISION, 2026-08-08 — still zero inbound links anywhere in src/, and the 2026-08-06 entry's open question is now " +
+    "answered: this is a DUPLICATE, so the resolution is delete-or-rebuild, NOT 'give it a door'. Investigated against the " +
+    "/connections precedent (FE #124) and it fails that test on every count. Live rows are hardcoded " +
+    "type:\"API (REST)\", status:\"available\" (operations/connectors/page.tsx:298-309) because GET /api/suppliers carries no " +
+    "delivery-config signal — so it derives nothing from delivery configs, which is the one thing its old HUB_TABS comment " +
+    "claimed it did. The screen that DOES that job is /library/suppliers, already this hub's first visible tab " +
+    "(SupplierDockList.tsx:39 fans out the per-supplier fetches, :892/:999 print the real channel). Its two affordances both " +
+    "exist in context on the reachable supplier Delivery tab: the same test-fire endpoint (DeliveryConfigEditor.tsx:1561 via " +
+    "lib/api/delivery.ts:44, gated on a saved config, vs a blind fire here) and ConnectorRequirementsPanel keyed on the real " +
+    "protocol (DeliveryConfigEditor.tsx:1451, vs resolveManifestKey at page.tsx:492-502 resolving every live supplier to " +
+    "\"http\"). Unhiding it would land an operator on a less accurate copy of the tab beside it — see " +
+    "theDuplicateExcuseForConnectorsIsStillTrue below, which fails if that stops being so.",
   "/operations/webhooks":
     "PENDING A DECISION, 2026-08-06 — zero inbound links anywhere in src/. HubTabs.tsx:106 says Settings owns this data, and " +
     "src/app/(app)/settings/page.tsx does render the same surface — but it does not link here, so " +
@@ -919,6 +928,103 @@ describe("route reachability (plan rule R1 — no new surface without a consumer
         rel(t.source),
       ),
     ).toContain("src/components/connections/ConnectionsList.tsx");
+  });
+
+  it("the duplicate excuse for /operations/connectors is still true", () => {
+    // THE OTHER ANSWER, PINNED. /connections above got a door because the record
+    // it holds exists nowhere else. /operations/connectors was surveyed against
+    // that same precedent (2026-08-08) and got the opposite verdict: it is a
+    // duplicate, so it stays hidden and the decision stays delete-or-rebuild.
+    //
+    // A negative verdict rots more quietly than a positive one — nothing breaks
+    // when "it's a duplicate" stops being true, it just becomes a stranded real
+    // surface again with a stale excuse holding the guard off. So the excuse is
+    // asserted, not merely written down: this fails if the in-context originals
+    // move, and it fails if someone unhides the route while the record still
+    // says it is stranded.
+    const rendered = (Object.keys(HUB_TABS) as HubKey[]).flatMap((hub) =>
+      visibleHubTabs(hub, { inboundEnabled: true }).map((t) => t.href),
+    );
+
+    // ANTI-VACUITY FLOOR, deliberately UNMOVED at 10. FE #124 moved it 9 → 10 by
+    // making /connections visible; this pass adds no tab, so the same floor is
+    // the correct one and a drift in either direction is a real change. Resolved
+    // through visibleHubTabs() — what the strip RENDERS — never through
+    // Object.values(HUB_TABS), which is the blindness that stranded these routes.
+    expect(rendered.length, "no hub tab resolved — the sweep is vacuous").toBe(10);
+
+    // The in-context alternative is genuinely reachable. Without this the
+    // "it's a duplicate" claim is worthless: a duplicate of an unreachable
+    // screen is still a stranded surface.
+    expect(
+      rendered,
+      "/library/suppliers is off the strip — the screen this route duplicates is " +
+        "no longer reachable, so the duplicate excuse no longer holds",
+    ).toContain("/library/suppliers");
+
+    // And this one is still off it, on purpose.
+    expect(
+      rendered,
+      "/operations/connectors is on the rendered strip — the founder call to " +
+        "delete or rebuild it has been pre-empted. If that door is now wanted, " +
+        "delete its STRANDED_PENDING_DECISION entry in the same change.",
+    ).not.toContain("/operations/connectors");
+    expect(
+      UNREACHABLE_UNEXCUSED.has("/operations/connectors"),
+      "/operations/connectors is reachable now — remove it from " +
+        "STRANDED_PENDING_DECISION rather than leaving a stale excuse",
+    ).toBe(true);
+
+    // THE EXCUSE ITSELF. Both affordances the connectors page appears to offer
+    // must still exist, in context, on the supplier Delivery tab — which is
+    // reachable via /library/suppliers → a supplier → ?tab=delivery.
+    const readSrc = (rel: string) => {
+      const text = fs.readFileSync(path.join(SRC_DIR, rel), "utf8");
+      expect(text.length, `${rel} is empty — the probe below would pass vacuously`).toBeGreaterThan(0);
+      return text;
+    };
+    const deliveryEditor = readSrc("components/bridge/DeliveryConfigEditor.tsx");
+    const supplierList = readSrc("components/bridge/SupplierDockList.tsx");
+
+    expect(
+      deliveryEditor,
+      "the supplier Delivery tab no longer test-fires — /operations/connectors is " +
+        "then the ONLY place a saved delivery config can be tested, and it stops " +
+        "being a duplicate",
+    ).toContain("testFireDelivery");
+    expect(
+      deliveryEditor,
+      "the supplier Delivery tab no longer shows connector requirements — the " +
+        "connectors page's copy of that panel stops being redundant",
+    ).toContain("<ConnectorRequirementsPanel");
+    expect(
+      supplierList,
+      "the suppliers list no longer prints each supplier's real delivery channel — " +
+        "the cross-supplier channel view /operations/connectors only pretends to " +
+        "offer would then exist nowhere",
+    ).toContain("channelLabel(config.protocol)");
+
+    // DISCRIMINATION CONTROL. A `toContain` over a 1,500-line file proves little
+    // unless it can also fail, so pin a marker that is real, load-bearing, and
+    // genuinely absent here: resolveManifestKey is the connectors page's own
+    // helper, and it is exactly what makes that page WORSE than this one — it
+    // derives the manifest from the hardcoded row type, so every live supplier
+    // resolves to "http". The Delivery tab has no such helper because it knows
+    // the protocol the user actually chose.
+    expect(
+      deliveryEditor,
+      "DeliveryConfigEditor grew a resolveManifestKey — check it is not the " +
+        "connectors page's hardcoded-protocol guess leaking into the real editor",
+    ).not.toContain("resolveManifestKey");
+    const connectorsPage = fs.readFileSync(
+      path.join(APP_DIR, "(app)", "operations", "connectors", "page.tsx"),
+      "utf8",
+    );
+    expect(
+      connectorsPage,
+      "resolveManifestKey is gone from the connectors page — the misleading-manifest " +
+        "half of the verdict needs re-deriving before this excuse is trusted again",
+    ).toContain("resolveManifestKey");
   });
 
   it("/one-pager is reached by a real link, and no longer by the allowlist", () => {
