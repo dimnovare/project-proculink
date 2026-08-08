@@ -230,9 +230,10 @@ export const DELIVERY_METHODS: FormatRow[] = [
 // "Not built yet, but straightforward — we'll add it for your rollout", the intro groups it with
 // Configurable under "Don't see yours? … just ask", and the row's own note read "Outbound EDIFACT
 // transformer on request." That is a commitment of future work, addressed to one buyer's rollout,
-// for a transformer nobody has scoped: no EDIFACT ITransformService is registered in
-// ProcuLink.Api/Program.cs, which src/test/backendMirror.test.ts now diffs against this catalog
-// rather than trusting a comment like this one.
+// for a transformer nobody has scoped: no EDIFACT ITransformService ships in
+// ProcuLink.Transform/Output/OutputTransformRegistry.cs, and no registered transform's
+// `CanTransform` answers `OutputFormat.EdifactOrders` — which src/test/backendMirror.test.ts now
+// diffs against this catalog rather than trusting a comment like this one.
 //
 // Withdrawn exactly the way the outbound Peppol BIS row was, and for the same reason: a standard
 // ProcuLink cannot emit is not an output format. INBOUND EDIFACT is real, was fixed in BE #163,
