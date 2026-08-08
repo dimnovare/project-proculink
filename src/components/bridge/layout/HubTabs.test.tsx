@@ -107,8 +107,13 @@ describe("HubTabs — a hub with nothing to switch to renders no strip", () => {
 describe("HubTabs — hidden entries are reachable, not switchable", () => {
   // The Orders hub has no hidden entry any more: its only one was /drafts, which
   // FE #47 retired behind a permanent redirect to /inbox.
+  // /connections is NOT here any more. It was, and that was the defect: the
+  // record that decides what a supplier receives had no door at all, because a
+  // hidden entry is the one thing the strip never prints. It is a visible tab
+  // now ("Supplier changes") — see `theVisibleSuppliersStrip` below, which is
+  // the positive half and fails if it is hidden again.
   const HIDDEN = {
-    suppliers: ["/library/standards", "/connections", "/operations/connectors"],
+    suppliers: ["/library/standards", "/operations/connectors"],
     activity: ["/operations/health", "/operations/webhooks"],
   } as const;
 
@@ -132,7 +137,30 @@ describe("HubTabs — hidden entries are reachable, not switchable", () => {
     }
   });
 
-  test("a hidden entry's sub-routes are claimed too (/connections/:id)", () => {
+  // The positive half, and the one that would have caught the original defect:
+  // asserted on the RENDERED anchors, which is the same path a user's click
+  // takes. `hidden: true` on the /connections entry turns this red.
+  test("the Suppliers strip really renders Supplier changes as a link", () => {
+    cleanup();
+    mockPath = "/library/suppliers";
+    const { container } = render(<HubTabs hub="suppliers" variant="topbar" />);
+    const links = [...container.querySelectorAll("a")];
+    // Anti-vacuity floor: the strip rendered at all, and rendered the size we
+    // expect (three visible Suppliers tabs). A strip that collapsed to nothing
+    // would satisfy every `not.toContain` in the test above by rendering
+    // nothing at all.
+    expect(links.map((a) => a.getAttribute("href"))).toEqual([
+      "/library/suppliers",
+      "/library/mappings",
+      "/connections",
+    ]);
+    expect(
+      screen.getByRole("link", { name: "Supplier changes" }),
+      "an operator cannot click through to the record that decides what suppliers receive",
+    ).toHaveAttribute("href", "/connections");
+  });
+
+  test("a tab's sub-routes are claimed too (/connections/:id)", () => {
     expect(hubForPath("/connections/9c0f")).toBe("suppliers");
   });
 

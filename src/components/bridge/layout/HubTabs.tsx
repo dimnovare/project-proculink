@@ -79,6 +79,38 @@ export const HUB_TABS: Record<HubKey, HubTab[]> = {
   suppliers: [
     { label: "Suppliers", href: "/library/suppliers" },
     { label: "Item codes", href: "/library/mappings" },
+    // The versioned setup that decides what each supplier actually receives.
+    //
+    // This was `hidden: true` and labelled "Changes", on the premise that it was
+    // "the same data as a supplier's Changes tab". Both halves were wrong, and
+    // the founder's call (2026-08-08) is to keep the route and give it a door:
+    //
+    //   • NOT the same data. A supplier's Changes tab (SupplierHistoryTab.tsx)
+    //     imports no mapper. The draft-mapping editor — MapperWorkbench
+    //     variant="connection", ConnectionDetail.tsx:272 — exists ONLY under
+    //     /connections/[connectionId], so the Edit → Make live lifecycle had no
+    //     entry point anywhere in the product.
+    //   • It is authoritative. Production sets Connections__RevisionAuthority =
+    //     true (ProcuLink.Api/Program.cs:555-557 records that the CODE default is
+    //     OFF and that this is NOT the deployed value), and with it on, an
+    //     order pinned to a published revision is transformed and delivered from
+    //     that revision's snapshot rather than the live supplier tables —
+    //     OrdersController.cs:1024-1029, :2497-2503,
+    //     Services/Orders/OrderIngestionService.cs:115-117, :898-901.
+    //
+    // So an operator could not see the record governing their own outbound
+    // documents. It is a tab now.
+    //
+    // Why "Supplier changes" and not "Connections": nav labels are a closed
+    // vocabulary (src/lib/vocabulary.ts, enforced by lint:vocab --nouns).
+    // "connection" is not one of the nine nouns — it only clears the gate via a
+    // PENDING_IA_LABELS amnesty whose own spec row says HIDE, so shipping it as
+    // a VISIBLE label would contradict the list that permits it. "Supplier
+    // changes" is in-budget (supplier + change), and the qualifier is doing
+    // work: a supplier's own tab is "Changes" (one supplier), this is the
+    // cross-supplier list plus the only place a draft can be edited and made
+    // live.
+    { label: "Supplier changes", href: "/connections" },
     // No "Rules" or "Output layouts" entry: FE #47 retired /library/rules,
     // /library/rule-definitions and /library/templates behind permanent
     // redirects to /library/suppliers. Neither page could change what a supplier
@@ -88,9 +120,6 @@ export const HUB_TABS: Record<HubKey, HubTab[]> = {
     // A read-only field↔standard matrix nobody opens cold; reached from the
     // format explainers.
     { label: "Format reference", href: "/library/standards", hidden: true },
-    // Versioned supplier setup — the same data as a supplier's Changes tab.
-    // One data source, one visible surface: the supplier page owns it.
-    { label: "Changes", href: "/connections", hidden: true },
     // A read-only grid of channel TYPES derived from supplier delivery configs;
     // no configuration happens there. Reached from a supplier's Delivery tab.
     { label: "Delivery channels", href: "/operations/connectors", hidden: true },

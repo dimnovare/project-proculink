@@ -59,12 +59,16 @@ export function ConnectionsList() {
 
   return (
     <PageShell variant="wide">
-      {/* titleHidden: the topbar hub tab "Connections" is the page name (sr-only
-          h1 kept); the descriptive subtitle was title-filler and is dropped —
-          the action button stays. */}
+      {/* titleHidden: the topbar hub tab is the page name (sr-only h1 kept); the
+          descriptive subtitle was title-filler and is dropped — the action
+          button stays. The h1 has to BE the tab word, because for a screen
+          reader it is the only name this page has: the tab said "Changes" and
+          was hidden, so the visible name and the announced name were two
+          different words and neither was reachable. Both are "Supplier changes"
+          now (HubTabs.tsx, suppliers hub). */}
       <PageHeader
         titleHidden
-        title="Connections"
+        title="Supplier changes"
         actions={
           <Button variant="secondary" size="md" onClick={() => router.push("/library/suppliers")}>
             Manage suppliers
