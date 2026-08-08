@@ -53,7 +53,6 @@ const ROUTES = [
   "/settings",
   "/admin",
   // ── tap-targets.spec.ts measures a phone viewport across these ──
-  "/operations/webhooks",
   "/library/buyers",
   "/library/suppliers",
   "/inbox",

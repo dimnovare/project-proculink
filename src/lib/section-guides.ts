@@ -271,20 +271,10 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
     firstStep: { text: "Open a card and jump to the {supplier}'s Delivery tab to set up the real endpoint, then come back and test fire." },
     articleSlugs: ["delivery-setup", "oauth2-delivery-setup", "api-and-integrations", "api-order-schema-reference"],
   },
-  {
-    route: "/operations/webhooks",
-    title: "Webhooks",
-    purpose: "Send order events (created, delivered, failed) to your own systems automatically.",
-    bullets: [
-      { text: "Add endpoints for order.created, order.delivered, and order.failed" },
-      { text: "Sign every message with an optional HMAC-SHA256 secret" },
-      { text: "Pause, resume, or delete endpoints anytime" },
-      { text: "Editing isn't supported yet — delete and re-add instead" },
-      { text: "Delivery history isn't recorded here yet" },
-    ],
-    firstStep: { text: "Add an endpoint for order.delivered with a signing secret, pointing at your ERP or automation tool's catch URL." },
-    articleSlugs: ["api-and-integrations"],
-  },
+  // NOTE: /operations/webhooks had a guide here until 2026-08-08. The page was a
+  // duplicate of Settings ▸ Connectors that no user could navigate to, so it was
+  // deleted and now 308s to /settings?tab=connectors. Outbound webhooks are
+  // covered by the Settings guide below.
   {
     route: "/settings",
     title: "Settings",

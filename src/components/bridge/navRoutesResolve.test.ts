@@ -127,7 +127,7 @@ describe("nav routes resolve — nothing 404s, nothing is stranded", () => {
     expect(routes.length).toBeGreaterThan(20);
     expect(routes).toContain("/inbox");
     expect(routes).toContain("/library/suppliers/sample-id");
-    expect(routes).toContain("/operations/webhooks");
+    expect(routes).toContain("/operations/health");
   });
 
   it("reaches every page that exists on disk from the four-item nav", () => {

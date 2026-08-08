@@ -175,9 +175,13 @@ export const HUB_TABS: Record<HubKey, HubTab[]> = {
     // Ambient, not a destination — surfaced by the health chip and a degraded
     // banner on Activity.
     { label: "System status", href: "/operations/health", hidden: true },
-    // Event subscriptions are the same data as Settings ▸ Connectors. One data
-    // source, one visible surface: Settings owns it.
-    { label: "Notifications", href: "/operations/webhooks", hidden: true },
+    // "Notifications" (/operations/webhooks) used to sit here, hidden. It is
+    // GONE, not unhidden: it was a duplicate of Settings ▸ Connectors that no
+    // user could open, and the founder deleted it on 2026-08-08. Both screens
+    // called the same four endpoints under the same query key, and the copy
+    // here was the lossier one — it hardcoded platform:"webhook", which
+    // Settings has no label for. The URL now 308s to /settings?tab=connectors
+    // (src/lib/retired-routes.ts). Do not re-add a tab for it.
   ],
 };
 
