@@ -174,6 +174,68 @@ export function parseCsStringExpressionsWithOffsets(cs: string): { text: string;
   return joined;
 }
 
+/**
+ * C# source with `//` and block comments blanked out, offsets preserved.
+ *
+ * Blanked rather than deleted: every character is replaced by a space (newlines kept), so a
+ * caller that later reports `lineOf` against the stripped text points at the same line as the
+ * original. Strings are walked with `readCsLiteral` rather than skipped naively, because a
+ * literal containing `//` — a URL, a doc path — must not open a comment.
+ *
+ * WHY A STRUCTURAL READER NEEDS THIS. The parsers below read C# *declarations*, not sentences:
+ * an array initialiser's elements, an enum's members. Both are comma-separated lists that the
+ * backend comments inline —
+ *
+ *     new UblOrderTransformService(), // Group M Phase 1 — plain OASIS UBL 2.1 Order
+ *     EdifactOrders,                  // inbound-only
+ *
+ * — and a comment is exactly where a stale name survives after the code moved on. A reader that
+ * did not strip them would happily parse a member out of prose describing the member that was
+ * REMOVED, which is the drift these guards exist to catch rather than a way to catch it.
+ */
+export function stripCsComments(cs: string): string {
+  let out = "";
+  let i = 0;
+  const blank = (n: number) => {
+    for (let k = 0; k < n; k += 1) out += cs[i + k] === "\n" ? "\n" : " ";
+    i += n;
+  };
+
+  while (i < cs.length) {
+    const c = cs[i];
+    if (c === "/" && cs[i + 1] === "/") {
+      let j = i;
+      while (j < cs.length && cs[j] !== "\n") j += 1;
+      blank(j - i);
+      continue;
+    }
+    if (c === "/" && cs[i + 1] === "*") {
+      let j = i + 2;
+      while (j < cs.length && !(cs[j] === "*" && cs[j + 1] === "/")) j += 1;
+      blank(Math.min(j + 2, cs.length) - i);
+      continue;
+    }
+    if (c === "'") {
+      let j = i + 1;
+      while (j < cs.length && cs[j] !== "'") j += cs[j] === "\\" ? 2 : 1;
+      out += cs.slice(i, Math.min(j + 1, cs.length));
+      i = Math.min(j + 1, cs.length);
+      continue;
+    }
+    if (c === '"' || ((c === "$" || c === "@") && /^[$@]*"/.test(cs.slice(i, i + 3)))) {
+      const lit = readCsLiteral(cs, i);
+      if (lit) {
+        out += cs.slice(i, lit.end);
+        i = lit.end;
+        continue;
+      }
+    }
+    out += c;
+    i += 1;
+  }
+  return out;
+}
+
 /** The 1-based line number of a character offset. */
 export function lineOf(cs: string, offset: number): number {
   let line = 1;
