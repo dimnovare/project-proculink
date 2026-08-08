@@ -13,6 +13,16 @@ import type {
   OrderDirection,
 } from "@/types/procurement";
 import { API_BASE_URL, USE_MOCK, authHeader, fetchWithTimeout } from "./core";
+import { readRefusal } from "./refusal";
+
+// The three ingestion writes below (email / SFTP / S3) are the only endpoints in the app that
+// can refuse for BOTH reasons: a plan gate (`<capability>_requires_<plan>`) and the
+// organisation-admin gate (`requires_org_admin`) — repointing ingestion at a mailbox or bucket
+// someone else controls is how an organisation gets fed fabricated purchase orders.
+// `readRefusal` names the administrator for the second and leaves the first byte-for-byte, so
+// `PullIngressSettings.humanizeError` keeps matching the plan-gate shape and naming the plan.
+// `PUT /api/settings/organisation` is NOT gated — it is an order-direction presentation flag —
+// so it deliberately keeps its own throw below.
 
 // ── Email polling settings ────────────────────────────────────────────────
 
@@ -47,10 +57,7 @@ export async function updateEmailSettings(payload: UpdateEmailSettingsPayload): 
     body: JSON.stringify(payload),
   }, 30000);
 
-  if (!res.ok) {
-    const body = await res.json().catch(() => null);
-    throw new Error(body?.error ?? `settings/email: ${res.status}`);
-  }
+  if (!res.ok) throw await readRefusal(res, `settings/email: ${res.status}`);
 
   return res.json();
 }
@@ -165,7 +172,7 @@ export async function updateSftpSettings(payload: UpdateSftpIngressPayload): Pro
   const res = await fetchWithTimeout(`${API_BASE_URL}/api/settings/sftp`, {
     method: "PUT", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify(payload),
   }, 30000);
-  if (!res.ok) { const b = await res.json().catch(() => null); throw new Error(b?.error ?? `settings/sftp: ${res.status}`); }
+  if (!res.ok) throw await readRefusal(res, `settings/sftp: ${res.status}`);
   return res.json();
 }
 
@@ -182,6 +189,6 @@ export async function updateS3Settings(payload: UpdateS3IngressPayload): Promise
   const res = await fetchWithTimeout(`${API_BASE_URL}/api/settings/s3`, {
     method: "PUT", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify(payload),
   }, 30000);
-  if (!res.ok) { const b = await res.json().catch(() => null); throw new Error(b?.error ?? `settings/s3: ${res.status}`); }
+  if (!res.ok) throw await readRefusal(res, `settings/s3: ${res.status}`);
   return res.json();
 }
