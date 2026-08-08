@@ -17,7 +17,7 @@
 // catalog's STANDARD_REF_COLUMNS (which the StandardsFieldPopover also consumes).
 
 import { useState } from "react";
-import { FIELD_STANDARDS, type CanonicalFieldStandards } from "@/lib/standards/catalog";
+import { FIELD_STANDARDS, STANDARDS, type CanonicalFieldStandards } from "@/lib/standards/catalog";
 import { EmptyState } from "@/components/bridge/EmptyState";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
@@ -31,13 +31,43 @@ type RefKey = keyof Pick<
   "cxml" | "ubl" | "edifact" | "x12" | "peppolBis"
 >;
 
-const REF_COLUMNS: ReadonlyArray<{ key: RefKey; label: string }> = [
-  { key: "cxml", label: "cXML 1.2" },
-  { key: "ubl", label: "UBL 2.1" },
-  { key: "edifact", label: "EDIFACT" },
-  { key: "x12", label: "X12" },
-  { key: "peppolBis", label: "Peppol BIS" },
+//
+// `catalogId` is what makes the direction line below derivable instead of typed. The column
+// LABELS cannot carry the marker themselves: tests/e2e/standards.spec.ts:33-34 asserts each
+// columnheader's accessible name with `exact: true`, and that is the locked design contract, so
+// appending "(read only)" to a `<th>` would break the render this screen was ported from. The
+// disclosure goes above the table instead, where it can be a sentence rather than a tag.
+const REF_COLUMNS: ReadonlyArray<{ key: RefKey; label: string; catalogId: string }> = [
+  { key: "cxml", label: "cXML 1.2", catalogId: "cxml-1-2" },
+  { key: "ubl", label: "UBL 2.1", catalogId: "ubl-2-1-order" },
+  { key: "edifact", label: "EDIFACT", catalogId: "edifact-orders" },
+  { key: "x12", label: "X12", catalogId: "x12-850" },
+  { key: "peppolBis", label: "Peppol BIS", catalogId: "peppol-bis-order-3" },
 ];
+
+/**
+ * Which of those columns ProcuLink can actually EMIT — read off the standards catalog, never
+ * typed here.
+ *
+ * A cross-format mapping table is honest reference material with or without a transformer: "this
+ * field is called BGM 1004 in EDIFACT" is true regardless. What it cannot do is leave the
+ * direction to inference. Two of these five columns are read-only — EDIFACT has no outbound
+ * transformer, and Peppol BIS conformance is not offered — while the other three are formats we
+ * really produce, and nothing on the screen distinguished them.
+ *
+ * Deriving it means the day an EDIFACT transformer ships and `catalog.ts` flips that row to
+ * `transform: "supported"`, the caveat disappears on its own instead of being a stale denial
+ * somebody has to remember to delete.
+ */
+const emits = (catalogId: string): boolean =>
+  STANDARDS.find((s) => s.id === catalogId)?.transform === "supported";
+
+const EMITTED_LABELS = REF_COLUMNS.filter((c) => emits(c.catalogId)).map((c) => c.label);
+const READ_ONLY_LABELS = REF_COLUMNS.filter((c) => !emits(c.catalogId)).map((c) => c.label);
+
+/** "a, b and c" — a sentence, not a join, because this renders as prose. */
+const asList = (items: readonly string[]): string =>
+  items.length < 2 ? (items[0] ?? "") : `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
 
 export default function StandardsPage() {
   const [q, setQ] = useState("");
@@ -123,7 +153,11 @@ export default function StandardsPage() {
           <ul className="space-y-1.5">
             <li><strong style={{ color: "var(--ink)" }}>cXML 1.2</strong> — punchout &amp; marketplace orders (Ariba, Coupa and similar procurement platforms).</li>
             <li><strong style={{ color: "var(--ink)" }}>UBL 2.1</strong> — European e-procurement and public-sector networks. Peppol runs on UBL, so this is the document to pick; ProcuLink does not check its output against Peppol BIS business rules.</li>
-            <li><strong style={{ color: "var(--ink)" }}>EDIFACT</strong> — long-established European and global EDI (retail, automotive, logistics).</li>
+            {/* This list answers "which format to use?" and ends "ask your supplier which they
+                accept" — so it is an OUTPUT chooser, and every bullet in it reads as a format you
+                can pick. UBL already carried its caveat; EDIFACT carried none, while three of the
+                four options around it are formats we really emit. */}
+            <li><strong style={{ color: "var(--ink)" }}>EDIFACT</strong> — long-established European and global EDI (retail, automotive, logistics). ProcuLink reads EDIFACT <span style={{ fontFamily: "var(--font-mono)" }}>ORDERS</span> messages, but does not generate them, so it is not a format you can send a supplier today.</li>
             <li><strong style={{ color: "var(--ink)" }}>X12</strong> — North American EDI (ANSI ASC X12 850 purchase order).</li>
           </ul>
           <p className="mt-2.5" style={{ color: "var(--ink-faint)" }}>
@@ -131,6 +165,20 @@ export default function StandardsPage() {
           </p>
         </div>
       </details>
+
+      {/* Direction line — always visible, unlike the collapsed disclosure above.
+          /help/output-templates points at this screen as "the always-current version" of the
+          output-support table, so a reader arrives here expecting it to say what ProcuLink can
+          send. A matrix of five formats with no direction marker answered that question wrongly
+          by implication. Both halves are derived from the catalog, so neither can go stale. */}
+      {READ_ONLY_LABELS.length > 0 && (
+        <p className="mb-2 max-w-[680px] text-[11.5px] leading-relaxed" style={{ color: "var(--ink-muted)" }}>
+          These are field names across each standard, not a list of what ProcuLink sends.
+          ProcuLink produces {asList(EMITTED_LABELS)}. {asList(READ_ONLY_LABELS)}{" "}
+          {READ_ONLY_LABELS.length === 1 ? "is" : "are"} read only — the column is here so you can
+          match a field name with your trading partner, not because ProcuLink can emit it.
+        </p>
+      )}
 
       {/* Mobile-only swipe hint — the matrix h-scrolls but truncated cells give no
           cue on a phone. Hidden on sm+ where all columns fit. */}

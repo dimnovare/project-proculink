@@ -3,7 +3,9 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { collectLayoutProblems, isEmittedFormat } from "@/components/bridge/outputTreeProblems";
 import { CONFORMANCE_PROFILES } from "@/lib/api-client";
+import { PREVIEW_FORMATS, type OutputNodeTemplate } from "@/lib/api/types";
 import { MINIMUM_PLAN } from "@/lib/gatedCapabilities";
 import {
   DELIVERY_METHODS,
@@ -126,6 +128,28 @@ const buyerFacingLines = (): Array<{ file: string; line: string; number: number 
     })),
   );
 };
+
+/**
+ * Every `.ts`/`.tsx`/`.mdx` under `src/` — the IN-APP product as well as the marketing site.
+ *
+ * `buyerFacingLines()` is deliberately left as it is: its consumers ask about pricing and about
+ * the delivery log, and widening their corpus would change what those guards mean. This is the
+ * wider one, for the guards whose offence is a CLAIM rather than a tier.
+ *
+ * Memoised at module scope because two describes now need it — the conformance scan and the
+ * outbound-format scan below. Walking and reading the whole source tree twice pushed the pair
+ * past vitest's 5s default on a loaded machine, and re-reading the tree per describe is the same
+ * two-strippers hazard `scripts/lib/sourceScan.mjs` exists to end.
+ */
+let productCorpus: Array<{ file: string; line: string; number: number }> | null = null;
+const productLines = (): Array<{ file: string; line: string; number: number }> =>
+  (productCorpus ??= walk(join(process.cwd(), "src")).flatMap((file) =>
+    scannableLines(file).map(({ line, number }) => ({
+      file: file.replace(process.cwd(), ""),
+      line,
+      number,
+    })),
+  ));
 
 /**
  * SSO by any name a marketer would actually use.
@@ -1977,23 +2001,8 @@ describe("the free tier is never described as sufficient for a flow it cannot fi
  * names in `api-client.ts`.
  */
 describe("no surface claims conformance to a standard ProcuLink does not emit", () => {
-  /**
-   * Every `.ts`/`.tsx`/`.mdx` under `src/` — the IN-APP product as well as the marketing site.
-   * `buyerFacingLines()` is deliberately left as it is: its two consumers ask about pricing and
-   * about the delivery log, and widening their corpus would change what those guards mean.
-   *
-   * Memoised. This walks and reads the whole source tree, and two tests below need it; doing that
-   * twice pushed the pair past vitest's 5s default on a loaded machine.
-   */
-  let corpus: Array<{ file: string; line: string; number: number }> | null = null;
-  const productLines = (): Array<{ file: string; line: string; number: number }> =>
-    (corpus ??= walk(join(process.cwd(), "src")).flatMap((file) =>
-      scannableLines(file).map(({ line, number }) => ({
-        file: file.replace(process.cwd(), ""),
-        line,
-        number,
-      })),
-    ));
+  // The corpus is the module-scoped `productLines()` above — the whole of `src/`, memoised, and
+  // now shared with the outbound-format scan at the end of this file.
 
   /**
    * The two Peppol BIS Order identifiers, verbatim as the backend emitted them.
@@ -2142,5 +2151,380 @@ describe("no surface claims conformance to a standard ProcuLink does not emit", 
       false,
     );
     expect(offends("Delivery into the Peppol network runs through a certified access-point partner.")).toBe(false);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+// A standard offered as an OUTPUT format while nothing can produce it.
+//
+// ── The defect ──────────────────────────────────────────────────────────────────
+//
+// The v2 audit's Wave E asked for "a real outbound EDIFACT transformer or the claim's removal".
+// The founder chose removal, the way the Peppol BIS conformance claim was withdrawn the week
+// before. What was being removed:
+//
+//   1. `/formats` renders `OUTPUT_FORMATS` under the heading "Get data out — formats we produce",
+//      subtitle "What we transform each order into. Set per supplier." The last row read:
+//
+//          standardRow("edifact-orders", "transform", "EDIFACT ORDERS", "Outbound EDIFACT transformer on request.")
+//
+//      Deriving the badge was not enough to make it honest. `transform: "planned"` maps through
+//      TRANSFORM_LEVEL_STATUS to `onRequest`, and the legend at the top of that page renders
+//      `onRequest` as "Not built yet, but straightforward — we'll add it for your rollout." On a
+//      page whose intro says "Don't see yours? It's very likely Configurable or On request — just
+//      ask", that is not a hedge. It is a quotation for work nobody has scoped.
+//   2. `/library/standards` — the in-app matrix `/help/output-templates` calls "the always-current
+//      version of this table" — listed EDIFACT in a "Not sure which format to use?" chooser that
+//      ends "Ask your supplier which they accept". UBL in the same list carried its Peppol caveat;
+//      EDIFACT carried none.
+//   3. The output designer told an author, in as many words, `ProcuLink builds EDIFACT itself` and
+//      `This order will be built by ProcuLink's own EDIFACT builder instead`, and offered
+//      `Set up EDIFACT properly` — deep-linking to a Delivery tab whose picker has no EDIFACT option.
+//
+// None of it is true. `ProcuLink.Api/Program.cs:726-731` registers six `ITransformService`
+// implementations — Xml, Csv, Cxml, Json, UblOrder, X12 — no class implements one for EDIFACT, and
+// no `CanTransform` arm answers `OutputFormat.EdifactOrders`. An order reaching transform in that
+// format dies with `No transform service registered for format 'EdifactOrders'.` and is parked in
+// terminal `transform_failed`.
+//
+// ── What is NOT the defect, and must not become one ─────────────────────────────
+//
+// INBOUND EDIFACT ORDERS is real, ungated, and was fixed in BE #163: `EdifactOrderParser` is
+// registered unconditionally at `Program.cs:719`, accepts `.edi` and `.txt`, and reads D96A with
+// D01B tolerance. Deleting inbound claims to "be safe" would be the same error pointed the other
+// way — under-claiming a shipped capability — which is why the controls below pin the honest
+// inbound sentences as things this guard must LEAVE ALONE.
+//
+// ── How this differs from the conformance guard above ───────────────────────────
+//
+// That one asks "does this line claim we MEET a standard". This one asks "does this line offer a
+// standard as something we PRODUCE". Different verb families, and the second shipped for months
+// under the first: "Outbound EDIFACT transformer on request" contains no conformance word at all,
+// so `offends()` read straight past it.
+//
+// ── What the line scan cannot do, stated rather than assumed ────────────────────
+//
+// It is line-scoped and it excuses a negated line, so a sentence that denies one thing while
+// claiming another slips through — `"{X} can't be built from a layout … so ProcuLink builds {X}
+// itself"` is exactly that shape, and it is written as a template literal whose `${label}` is not
+// the word EDIFACT. Neither half is catchable by scanning text. So the surfaces where that shape
+// lives are pinned BEHAVIOURALLY, by calling the function that composes the sentence, and the
+// standards matrix is pinned by its mechanism. The scan, the mechanism pin and the behavioural pin
+// are three different instruments; none of them is the whole guard.
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+describe("no surface offers a standard as an output format while nothing can produce it", () => {
+  /**
+   * Standards ProcuLink really emits, derived from the catalog rather than typed.
+   *
+   * `transform === "supported"` is the bar, and `!== "none"` is not. That distinction is the hole
+   * the EDIFACT row went through: `"planned"` is neither "we do this" nor "we do not", and on a
+   * table headed "formats we produce" it was read as the former.
+   *
+   * The catalog is in turn diffed against the real C# registrations by
+   * `src/test/backendMirror.test.ts`, so nothing in this chain is a hand-typed list of six
+   * transformer names — which is precisely how this drift would return when a seventh is added.
+   */
+  const emitted = new Set(STANDARDS.filter((s) => s.transform === "supported").map((s) => s.id));
+
+  /**
+   * Verbs and nouns that turn NAMING a standard into offering it as output.
+   *
+   * "transformer" is here as a noun because "Outbound EDIFACT transformer on request" is the claim
+   * written without a verb — the same reason "conformance" is in the guard above. "reads",
+   * "parses" and "ingests" are deliberately absent: that is the inbound half, which is true.
+   *
+   * A BARE "send" is deliberately absent too, and that is not an oversight — it is the one word
+   * here that does not carry a direction. `/help/edifact-orders` opens "Use this when a trading
+   * partner sends purchase orders as EDIFACT ORDERS files", which is the inbound case described
+   * perfectly, and the first version of this pattern flagged it. No amount of tuning tells "they
+   * send us EDIFACT" from "we send EDIFACT" by the verb alone, so only the form with an explicit
+   * supplier object counts — the shape someone would actually write when re-introducing the claim.
+   */
+  const OFFERS_AS_OUTPUT =
+    /\b(?:outbound|output|outputs|emit|emits|emitted|produce|produces|produced|generate|generates|generated|generation|transform|transforms|transformed|transformer|builds?|built|writes?)\b|\bsends?\b[^\n]{0,40}\bsupplier/i;
+
+  /**
+   * A denial is not an offer, and this repo's honest EDIFACT copy is written almost entirely as
+   * denials — "no outbound transformer", "is not offered", "read, not emitted". Without this arm
+   * the guard would flag the very sentences that fixed the problem, and the obvious repair would be
+   * to delete them. The cost is stated in the header: a line that denies and claims at once
+   * escapes, which is why this is not the only instrument here.
+   */
+  const NEGATED =
+    /\b(?:not|no|never|cannot|can't|without|isn't|aren't|doesn't|don't|rather than|instead of)\b/i;
+
+  /**
+   * A line that is an IDENTIFIER LIST, not a sentence.
+   *
+   * `help-articles.ts` carries `keywords: [… "output format", … "edifact" …]` for the help search,
+   * and `section-guides.ts` carries `articleSlugs: [… "edifact-orders" …]`. Both put a standard's
+   * name next to the word "output" on one line, and neither is a claim — nobody reads a slug.
+   *
+   * Narrow on purpose: it matches only where the identifier list STARTS the line, so ordinary
+   * prose in those same two files is still scanned (asserted below). Widening it to "any line
+   * containing a quoted slug" would exempt most of the corpus.
+   */
+  const IDENTIFIER_LIST = /^\s*(?:keywords|articleSlugs|slug|catalogId|id|href|referenceUrl|url):/;
+
+  /** Which catalog standard a line names. Reuses the registry, so it cannot drift from it. */
+  const standardsNamed = (line: string): string[] =>
+    STANDARD_NAME_TOKENS.filter(({ token }) => token.test(line)).map(({ catalogId }) => catalogId);
+
+  const offers = (line: string): boolean => {
+    if (IDENTIFIER_LIST.test(line)) return false;
+    if (!OFFERS_AS_OUTPUT.test(line) || NEGATED.test(line)) return false;
+    return standardsNamed(line).some((id) => !emitted.has(id));
+  };
+
+  it("scans a real corpus, and the registries it judges by are populated", () => {
+    // The anti-vacuity floor. Every silent-green shape this file has met was a scan that ran over
+    // nothing, or a derived verdict taken from an empty registry.
+    const lines = productLines();
+    expect(lines.length, "the corpus must really be reading source").toBeGreaterThan(5000);
+    for (const dir of [
+      "/src/app/(marketing)/", // /formats and the help tree
+      "/src/app/(home)/", // `(home)` IS `/` and is a SIBLING of `(marketing)`, not a child
+      "/src/app/(app)/", // the in-app standards matrix
+      "/src/components/bridge/", // the output designer
+      "/src/lib/", // the content registries, which render outside any route walk
+    ]) {
+      expect(
+        lines.filter(({ file }) => file.replace(/\\/g, "/").includes(dir)).length,
+        `${dir} must be inside the corpus — this claim lived in four of these five at once`,
+      ).toBeGreaterThan(0);
+    }
+
+    expect(STANDARD_NAME_TOKENS.length).toBeGreaterThan(0);
+    expect(emitted.size, "no emitted standards means every line is vacuously an offence").toBeGreaterThan(0);
+    expect(emitted.has("edifact-orders"), "the catalog records EDIFACT as transform: 'planned'").toBe(false);
+    expect(emitted.has("ubl-2-1-order"), "UBL really is emitted, and must stay sayable").toBe(true);
+  }, 30_000);
+
+  it("no line anywhere offers a standard the catalog says we cannot produce", () => {
+    const offenders = productLines()
+      .filter(({ line }) => offers(line))
+      .map(({ file, number, line }) => `${file}:${number}: ${line.trim()}`);
+
+    expect(
+      offenders,
+      "these lines offer a standard as an output/outbound format, but its `transform` level in " +
+        "src/lib/standards/catalog.ts is not `supported` — nothing can produce that document. Say " +
+        "what ProcuLink actually emits, or say plainly that the format is read and not emitted:\n" +
+        offenders.join("\n"),
+    ).toEqual([]);
+  }, 30_000);
+
+  it("flags the claims that shipped, verbatim, so a green result means absence and not blindness", () => {
+    // The /formats row, exactly as it stood before this change. A pattern that misses its own
+    // origin defect is decoration.
+    expect(
+      offers('  standardRow("edifact-orders", "transform", "EDIFACT ORDERS", "Outbound EDIFACT transformer on request."),'),
+      "the row this whole block exists to prevent",
+    ).toBe(true);
+    // And with the note emptied, so the guard does not depend on one turn of phrase: the
+    // `"transform"` direction argument beside the standard's name is itself the offer.
+    expect(offers('  standardRow("edifact-orders", "transform", "EDIFACT ORDERS", ""),')).toBe(true);
+
+    // The shapes a writer reaches for when re-introducing it in prose.
+    expect(offers("We generate EDIFACT ORDERS for suppliers who need it.")).toBe(true);
+    expect(offers("Outbound EDIFACT is available on request — talk to us about your rollout.")).toBe(true);
+    expect(offers("ProcuLink emits EDIFACT D96A purchase orders.")).toBe(true);
+    expect(offers("Output formats: cXML, UBL, X12, EDIFACT.")).toBe(true);
+    // The same rule applied to the other two standards the catalog says we cannot emit, so this
+    // block is about the RULE and not about one word. SAP IDoc parses beautifully and is emitted
+    // by nothing; Peppol BIS is the claim withdrawn the week before.
+    expect(offers("We generate SAP IDoc ORDERS05 back into your ERP."), "IDoc is transform: 'none'").toBe(true);
+    expect(offers("Peppol BIS output is produced per supplier."), "transform: 'planned'").toBe(true);
+    // "send" only counts with a supplier object, so the form that DOES carry a direction must
+    // still be caught — otherwise dropping the bare verb quietly removed a whole shape.
+    expect(offers("We send EDIFACT ORDERS straight to your supplier."), "send + supplier").toBe(true);
+  });
+
+  it("states, as an assertion, the one shape it knowingly cannot see", () => {
+    // Dropping the bare "send" bought a real false negative, and a limitation recorded only in a
+    // comment is a limitation nobody re-reads. This pins it: "we send X" with an object that is
+    // not a supplier escapes. It is asserted rather than fixed because every fix considered —
+    // first-person subject detection, a wider object list — cost more honest inbound sentences
+    // than it caught claims, `/help/edifact-orders:15` first among them.
+    //
+    // If someone later widens OFFERS_AS_OUTPUT and this test goes red, that is the guard getting
+    // BETTER. Delete this test then, and say so in the message.
+    expect(
+      offers("We can send SAP IDoc ORDERS05 back to your ERP."),
+      "known gap: 'send' with a non-supplier object reads the same as a partner sending to us",
+    ).toBe(false);
+    // The compensating cover: the same claim written any other way is still caught, so the gap is
+    // one phrasing rather than one capability.
+    expect(offers("We produce SAP IDoc ORDERS05 for your ERP.")).toBe(true);
+    expect(offers("Outbound SAP IDoc ORDERS05 is available.")).toBe(true);
+  });
+
+  it("exempts identifier lists without exempting the files they live in", () => {
+    // The exemption is the sort of thing that quietly grows until it covers the corpus, so both
+    // halves are pinned: the two real lines it was added for, and prose in those same two files.
+    expect(
+      offers('  keywords: ["templates", "output format", "csv", "xml", "cxml", "ubl", "x12", "json", "peppol", "edifact", "scriban"],'),
+      "a help-search keyword array is not a sentence",
+    ).toBe(false);
+    expect(
+      offers('  articleSlugs: ["output-templates", "ubl-and-peppol", "x12-850", "edifact-orders", "sap-idoc-orders05", "cxml-setup"],'),
+      "a list of route slugs is not a sentence",
+    ).toBe(false);
+
+    // …but a real claim written in those files, or a slug list with prose appended, is still seen.
+    expect(
+      offers('  blurb: "ProcuLink produces EDIFACT ORDERS for your suppliers.",'),
+      "prose in help-articles.ts is still scanned",
+    ).toBe(true);
+    expect(
+      offers('  title: "Outbound EDIFACT ORDERS",'),
+      "a title is copy, and `title:` is not on the exemption list",
+    ).toBe(true);
+  });
+
+  it("leaves the honest copy alone — the inbound claims, and the sentences that fixed this", () => {
+    // Every one of these ships today. If the guard starts flagging them the obvious repair is to
+    // delete the disclosure or the inbound capability, and either is a worse product than the one
+    // that had the bug.
+    for (const honest of [
+      // The denials.
+      "- **EDIFACT is inbound only.** ProcuLink reads EDIFACT `ORDERS` messages at directories D96A and D01B, but",
+      "  it does not generate them. There is no outbound EDIFACT transformer today.",
+      "| EDIFACT ORDERS | Not yet — parsing exists, no outbound transformer |",
+      "Outbound EDIFACT generation is not offered today; when a partner needs an EDIFACT order sent, that path is still in development.",
+      "Read, not emitted: ProcuLink parses EDIFACT ORDERS but does not generate them, so it is not a format you can send a supplier.",
+      // The inbound capability, stated plainly. None of this may become collateral damage.
+      "ProcuLink reads **inbound EDIFACT ORDERS** messages at directories `D96A` and `D01B` and maps them into the canonical order for review.",
+      "CSV, XLSX, PDF, XML (cXML/UBL/Peppol), EDI (EDIFACT/X12)",
+      "Upload a CSV, Excel, PDF, XML, EDIFACT, or X12 file",
+      // The field-path reference, which is true with or without a transformer.
+      "Every order field maps to UBL, EDIFACT, X12, cXML and Peppol BIS paths — always visible, never hidden behind a mode.",
+      "Each rule shows the standards references for its field (UBL, EDIFACT, X12, cXML), so you can point at the exact element when a supplier asks which one you mean.",
+    ]) {
+      expect(offers(honest), `must allow: ${honest.slice(0, 70)}…`).toBe(false);
+    }
+
+    // A standard we really DO emit may be offered in full — under-claiming gives away real value,
+    // and is the failure mode a guard like this invites.
+    expect(offers("ProcuLink produces the OASIS UBL 2.1 Order document."), "UBL is supported").toBe(false);
+    expect(offers("Output formats: CSV, XML, cXML, UBL 2.1 Order, ANSI X12 850, JSON."), "all supported").toBe(false);
+  });
+
+  /**
+   * The /formats output table, pinned structurally.
+   *
+   * `format-catalog.test.ts` already asked whether an OUTPUT_FORMATS row cites a standard whose
+   * `transform` is `"none"`. That test was green throughout, because EDIFACT's level is
+   * `"planned"` — the hole was the BAR, not the absence of a test. This asserts the tightened bar,
+   * and the duplication is on purpose: those are the marketing catalog's own tests and this is the
+   * cross-cutting claim guard, and this row is where the two met.
+   */
+  it("the /formats 'formats we produce' table lists only standards we produce", () => {
+    const cited = OUTPUT_FORMATS.filter((r) => r.catalogId);
+    expect(cited.length, "anti-vacuity: the table must really derive rows from the catalog").toBeGreaterThan(2);
+
+    const offenders = cited
+      .filter((r) => !emitted.has(r.catalogId!))
+      .map((r) => `${r.name} (${r.catalogId}) — badge "${r.status}"`);
+
+    expect(
+      offenders,
+      'these rows sit under "Get data out — formats we produce" for a standard the catalog says we ' +
+        'cannot emit. An "On request" badge does not soften that: /formats renders it as "we\'ll ' +
+        'add it for your rollout":\n' + offenders.join("\n"),
+    ).toEqual([]);
+  });
+
+  /**
+   * The in-app standards matrix, pinned by MECHANISM rather than by wording.
+   *
+   * A cross-format field table is honest reference material with no transformer behind it — "this
+   * field is called BGM 1004 in EDIFACT" is true either way — so the fix there was a direction
+   * marker, not a deletion. What has to hold is that the marker is DERIVED: the page splits its
+   * columns on `STANDARDS[].transform` and renders the read-only ones. A hand-typed caveat would
+   * rot the day a transformer ships, and this screen is the one `/help/output-templates` sends
+   * readers to as "the always-current version" of the output-support table.
+   *
+   * Wording checks are the wrong instrument here: the sentence is assembled from
+   * `asList(READ_ONLY_LABELS)` at render time and contains no standard's name in the source at
+   * all. So this reads the source for the mechanism, and checks the column ids it feeds on.
+   */
+  it("the standards matrix derives its direction marker from the catalog", () => {
+    const rel = "src/app/(app)/library/standards/page.tsx";
+    const source = readFileSync(join(process.cwd(), rel), "utf8");
+
+    expect(source, `${rel} must read the catalog to decide direction`).toMatch(
+      /import\s*\{[^}]*\bSTANDARDS\b[^}]*\}\s*from\s*"@\/lib\/standards\/catalog"/,
+    );
+    expect(source, "it must split its columns on the emitted/read-only line").toMatch(/READ_ONLY_LABELS/);
+    expect(source, "and render that split, not merely compute it").toMatch(/READ_ONLY_LABELS\.length\s*>\s*0/);
+
+    // Every column the matrix shows must cite a catalog id that exists, or the split silently
+    // classifies a column on a lookup that returned undefined.
+    const cited = [...source.matchAll(/catalogId:\s*"([^"]+)"/g)].map((m) => m[1]);
+    expect(cited.length, "the columns must really carry catalog ids").toBeGreaterThanOrEqual(5);
+    for (const id of cited) {
+      expect(
+        STANDARDS.some((s) => s.id === id),
+        `${rel} maps a column to '${id}', which is not a standard in src/lib/standards/catalog.ts. ` +
+          "An unresolved id makes the emitted/read-only split answer on a missing row.",
+      ).toBe(true);
+    }
+    expect(cited, "EDIFACT is the column this pin exists for").toContain("edifact-orders");
+  });
+
+  /**
+   * The output designer, pinned BEHAVIOURALLY.
+   *
+   * `collectLayoutProblems` composes its sentence from a template literal, so the source line
+   * carries no standard's name and the scan above cannot see it. Worse, the shipped sentence
+   * opened "EDIFACT can't be built from a layout" — a negation — so even the rendered string would
+   * have been excused. Calling the function is the only way to ask the real question.
+   *
+   * Both directions are asserted. Removing the reassurance from cXML would be its own defect:
+   * there the layout really is redundant and the order really does go out.
+   */
+  it("the designer promises a builder only for formats a transform can produce", () => {
+    const layout = (format: string): OutputNodeTemplate =>
+      ({ format, root: { name: "Order", nodeType: "object", children: [] } }) as unknown as OutputNodeTemplate;
+
+    const messageFor = (format: string): string => {
+      const problem = collectLayoutProblems(layout(format)).find((p) => p.kind === "format-not-renderable");
+      expect(problem, `${format} must still raise the not-renderable problem at all`).toBeDefined();
+      return problem!.message;
+    };
+
+    // The formats with a real transform keep the reassurance — it is true and it is useful.
+    for (const format of ["cXml", "ubl", "x12"]) {
+      expect(isEmittedFormat(format), `${format} has a registered transform`).toBe(true);
+      expect(messageFor(format), `${format} really is built by its own transform`).toMatch(/ProcuLink builds/i);
+    }
+
+    // EDIFACT does not, and the sentence must not say otherwise.
+    expect(isEmittedFormat("edifactorders"), "no EDIFACT ITransformService is registered").toBe(false);
+    const edifact = messageFor("edifactorders");
+    expect(
+      edifact,
+      "this told the author the order was in hand — 'ProcuLink builds EDIFACT itself' — while " +
+        "nothing can produce the document and the order dies at transform",
+    ).not.toMatch(/ProcuLink builds/i);
+    expect(edifact, "and it has to say what really happens instead").toMatch(/no transform that produces/i);
+    expect(edifact).toMatch(/fails at transform/i);
+  });
+
+  it("the emitted-format set is derived, so a seventh transform does not need this file edited", () => {
+    // `isEmittedFormat` reads PREVIEW_FORMATS — this app's mirror of the registered
+    // ITransformService implementations — plus the two backend enum SPELLINGS of formats already
+    // in it. If it ever answers false for something PREVIEW_FORMATS offers, the designer starts
+    // telling authors that a working format cannot be produced.
+    expect(PREVIEW_FORMATS.length, "anti-vacuity: the mirror must be populated").toBeGreaterThan(0);
+    for (const { value } of PREVIEW_FORMATS) {
+      expect(isEmittedFormat(value), `PREVIEW_FORMATS offers ${value}, so it must count as emitted`).toBe(true);
+    }
+    // The aliases, and the one enum member that is not an alias for anything.
+    expect(isEmittedFormat("ublorder"), "OutputFormat.UblOrder is the UBL transform").toBe(true);
+    expect(isEmittedFormat("x12_850"), "OutputFormat.X12_850 is the X12 transform").toBe(true);
+    expect(isEmittedFormat("edifactorders"), "OutputFormat.EdifactOrders has no transform behind it").toBe(false);
+    expect(isEmittedFormat(null)).toBe(false);
   });
 });
