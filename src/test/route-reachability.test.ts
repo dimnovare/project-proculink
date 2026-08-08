@@ -121,6 +121,7 @@ import { buildVisibleNav, PINNED_ACTION_HREF } from "@/components/bridge/BridgeS
 import { HUB_TABS, visibleHubTabs, type HubKey } from "@/components/bridge/layout/HubTabs";
 import { HELP_ARTICLES } from "@/lib/help-articles";
 import { GUIDES, linkedGuides } from "@/lib/guides";
+import { RETIRED_ROUTES } from "@/lib/retired-routes";
 
 // ─── Allowlist ────────────────────────────────────────────────────────────────
 //
@@ -172,14 +173,27 @@ export const KNOWN_DEEP_LINK_ONLY: Record<string, string> = {
  * the product. The resolution for each is "build the entry point" or "delete the
  * page", and both are product calls, not a guard's.
  *
- * THE LIST SHRANK ONCE, WHICH IS THE POINT. It held four routes until
- * 2026-08-08, when the founder decided /connections and /connections/[connectionId]
- * were worth keeping and gave them a visible Suppliers hub tab ("Supplier
- * changes", HubTabs.tsx). Both dropped out of the walk on their own merits, so
- * their entries had to go — `anExcuseCannotOutliveItsReason` below is what
- * forced the deletion rather than leaving two stale excuses behind. Their
- * replacement is a POSITIVE assertion, `connectionsAreReachableThroughTheTab`,
- * which fails if the tab is ever hidden again.
+ * THE LIST HAS SHRUNK TWICE, WHICH IS THE POINT — and each time by a DIFFERENT
+ * resolution, because "build the entry point" and "delete the page" are the two
+ * answers an entry here is waiting for, and both have now been given.
+ *
+ * It held four routes until 2026-08-08, when the founder decided /connections
+ * and /connections/[connectionId] were worth keeping and gave them a visible
+ * Suppliers hub tab ("Supplier changes", HubTabs.tsx). Both dropped out of the
+ * walk on their own merits, so their entries had to go — the door was built.
+ * Their replacement is a POSITIVE assertion,
+ * `connectionsAreReachableThroughTheTab`, which fails if the tab is ever hidden
+ * again.
+ *
+ * It went to one on the same day, when the founder took the OTHER answer for
+ * /operations/webhooks and deleted it. The page is gone from disk and the URL
+ * 308s to /settings?tab=connectors (src/lib/retired-routes.ts), so its entry
+ * had to go too. Its replacement is `theWebhooksPageIsGoneAndSettingsOwnsIt`
+ * below, which asserts the deletion in both directions.
+ *
+ * BOTH deletions were FORCED, not remembered: `anExcuseCannotOutliveItsReason`
+ * fails on a route that became reachable, and its sibling fails on a route that
+ * stopped existing. An entry here cannot be left behind either way.
  *
  * These entries PASS, on purpose. They were left failing at first, and the
  * consequence was a pipeline that could not go green until a product decision
@@ -209,10 +223,6 @@ export const STRANDED_PENDING_DECISION: Record<string, string> = {
     "protocol (DeliveryConfigEditor.tsx:1451, vs resolveManifestKey at page.tsx:492-502 resolving every live supplier to " +
     "\"http\"). Unhiding it would land an operator on a less accurate copy of the tab beside it — see " +
     "theDuplicateExcuseForConnectorsIsStillTrue below, which fails if that stops being so.",
-  "/operations/webhooks":
-    "PENDING A DECISION, 2026-08-06 — zero inbound links anywhere in src/. HubTabs.tsx:106 says Settings owns this data, and " +
-    "src/app/(app)/settings/page.tsx does render the same surface — but it does not link here, so " +
-    "the page is a duplicate nobody can open. Delete or link, 2026-08-06.",
 };
 
 // ─── Route enumeration ────────────────────────────────────────────────────────
@@ -813,12 +823,14 @@ describe("route reachability (plan rule R1 — no new surface without a consumer
     ).toEqual([]);
   });
 
-  it("the stranded set is exactly the two on the record", () => {
-    // The mechanism that stops "tracked" turning into "forgotten". A THIRD strand
+  it("the stranded set is exactly the one on the record", () => {
+    // The mechanism that stops "tracked" turning into "forgotten". A SECOND strand
     // fails here rather than quietly joining the list, and a route that gets its
     // entry point built drops out of UNREACHABLE and must be deleted from
     // STRANDED_PENDING_DECISION rather than left as a stale excuse — which is
     // exactly what happened to the two /connections routes on 2026-08-08.
+    // Deleting the page has the same consequence: /operations/webhooks left this
+    // list the same day by being removed from disk, not by gaining a door.
     const unreachable = UNREACHABLE.map((u) => u.route);
     expect(
       unreachable.sort(),
@@ -1025,6 +1037,127 @@ describe("route reachability (plan rule R1 — no new surface without a consumer
       "resolveManifestKey is gone from the connectors page — the misleading-manifest " +
         "half of the verdict needs re-deriving before this excuse is trusted again",
     ).toContain("resolveManifestKey");
+  });
+
+  it("the /operations/webhooks page is gone, and Settings ▸ Connectors still owns the data", () => {
+    // THE DEFECT, VERBATIM. /operations/webhooks rendered, resolved and was
+    // bookmarkable while no user could arrive at it. Its ONLY registry entry was
+    // a `hidden: true` HUB_TABS row, and a hidden entry is stripped by
+    // visibleHubTabs — so the strip never printed it, the sidebar tooltip never
+    // named it, and nothing anywhere linked to it. It was a duplicate of
+    // Settings ▸ Connectors (the same four endpoints — getIntegrations,
+    // createIntegration, toggleIntegration, deleteIntegration — under the same
+    // TanStack key) and the LOSSIER of the two copies: it hardcoded
+    // platform:"webhook", a value Settings has no label for. The founder deleted
+    // it on 2026-08-08 rather than building a door.
+    //
+    // A DELETION NEEDS BOTH DIRECTIONS, exactly as a door does. The negative half
+    // alone is satisfied by a repo where Settings ▸ Connectors was deleted too —
+    // "the duplicate is gone" and "the feature is gone" look identical to a
+    // `not.toContain`. So the positive half is asserted first and separately: the
+    // surface that TOOK OVER the job must still be reachable and still do it.
+    const DEAD = "/operations/webhooks";
+
+    // ── THE POSITIVE HALF ────────────────────────────────────────────────────
+    // Settings is a real route, reachable on its own merits — not via an
+    // allowlist entry, not via a pending-decision excuse.
+    const routes = ROUTES.map((r) => r.route);
+    expect(routes.length, "the route walk found nothing — every check below is vacuous").toBeGreaterThan(40);
+    expect(routes, "/settings does not exist — the webhooks data has no home at all").toContain("/settings");
+    expect(UNREACHABLE_UNEXCUSED.has("/settings"), "/settings is stranded — deleting the " +
+      "duplicate moved the problem instead of solving it").toBe(false);
+    expect(Object.keys(ACCOUNTED_FOR), "/settings must not need an excuse").not.toContain("/settings");
+
+    // …and it really still renders the connectors tab that took the job over.
+    const settingsPage = fs.readFileSync(
+      path.join(APP_DIR, "(app)", "settings", "page.tsx"),
+      "utf8",
+    );
+    expect(settingsPage.length, "settings/page.tsx is empty — the probes below would pass vacuously")
+      .toBeGreaterThan(1000);
+    for (const marker of [
+      'id: "connectors"',      // the tab exists
+      "<ConnectorsSection",    // …and is mounted
+      "getIntegrations",       // …and reads the subscriptions
+      "createIntegration",     // …and can still add one
+      "deleteIntegration",     // …and can still remove one
+    ]) {
+      expect(
+        settingsPage,
+        `Settings ▸ Connectors no longer has ${marker} — the surface /operations/webhooks ` +
+          `was deleted in favour of cannot do its job, so the deletion is now a capability loss`,
+      ).toContain(marker);
+    }
+
+    // The redirect is the other half of "deleted, not 404'd": a bookmark must
+    // land on the surface that took over, and on the TAB, not just the page.
+    const retired = RETIRED_ROUTES.find((r) => r.source === DEAD);
+    expect(retired, `${DEAD} was deleted with no redirect — an old bookmark 404s`).toBeDefined();
+    expect(retired!.destination).toBe("/settings?tab=connectors");
+
+    // ── ANTI-VACUITY FLOORS, BEFORE THE NEGATIVES ────────────────────────────
+    // #126's ordering trap, verbatim and deliberately repeated: a sweep that
+    // collapses to nothing makes every `not.toContain` below pass SPURIOUSLY,
+    // because there is nothing left to look through. Each corpus therefore
+    // asserts its own size BEFORE it is searched, so a broken corpus fails RED
+    // instead of reporting a clean bill of health.
+    const rendered = (Object.keys(HUB_TABS) as HubKey[]).flatMap((hub) =>
+      visibleHubTabs(hub, { inboundEnabled: true }).map((t) => t.href),
+    );
+    expect(rendered.length, "no hub tab resolved — the sweep is vacuous").toBe(10);
+
+    // Every non-test source file, read the way retired-routes.test.ts reads the
+    // nav registries: a QUOTED path is a link, a path in a comment is
+    // documentation. That distinction is what lets the deletion be explained in
+    // prose (HubTabs.tsx, breadcrumb.ts, section-guides.ts all say why it went)
+    // without those explanations reading as references.
+    const sources = walk(SRC_DIR).filter(
+      (f) => /\.(ts|tsx|mdx)$/.test(f) && !isTestFile(f),
+    );
+    expect(sources.length, "the source sweep found no files — the scan below is vacuous")
+      .toBeGreaterThan(200);
+    const quoted = new RegExp(`["'\`]${DEAD}(?:[/"'\`?]|["'\`])`);
+    const offenders = sources
+      .filter((f) => quoted.test(fs.readFileSync(f, "utf8")))
+      .map((f) => path.relative(ROOT, f).split(path.sep).join("/"));
+
+    // ── THE NEGATIVE HALF ────────────────────────────────────────────────────
+    // Gone from disk.
+    expect(
+      routes.filter((r) => r === DEAD || r.startsWith(DEAD + "/")),
+      `${DEAD} is back on disk — it is a duplicate of Settings ▸ Connectors, and the ` +
+        `founder deleted it. Delete the redirect in src/lib/retired-routes.ts in the same ` +
+        `change if it is genuinely being rebuilt.`,
+    ).toEqual([]);
+
+    // Gone from the chrome. Resolved through visibleHubTabs() — what the strip
+    // RENDERS — never Object.values(HUB_TABS), which is the blindness that let
+    // this route hide behind a `hidden: true` flag for weeks in the first place.
+    expect(rendered, `${DEAD} is on the rendered tab strip but has no page`).not.toContain(DEAD);
+    expect(
+      (Object.keys(HUB_TABS) as HubKey[]).flatMap((hub) => HUB_TABS[hub].map((t) => t.href)),
+      `${DEAD} is back in HUB_TABS — even hidden, it is a tab pointing at a deleted page`,
+    ).not.toContain(DEAD);
+
+    // The ONLY place in src/ allowed to name it in quotes is the record of its
+    // own retirement. Anything else is a link to a page that does not exist.
+    expect(
+      offenders,
+      `${DEAD} is quoted as a path outside its retirement record:\n  ${offenders.join("\n  ")}\n` +
+        `The page was deleted — link /settings?tab=connectors instead.`,
+    ).toEqual(["src/lib/retired-routes.ts"]);
+
+    // And no excuse survives it. A deleted route must not be recorded as
+    // awaiting a decision — the decision was made, and that is what deleted it.
+    expect(
+      Object.keys(STRANDED_PENDING_DECISION),
+      `${DEAD} is still recorded as PENDING A DECISION, but the decision was taken and ` +
+        `the page is gone. An excuse cannot outlive its reason.`,
+    ).not.toContain(DEAD);
+    expect(
+      Object.keys(KNOWN_DEEP_LINK_ONLY),
+      `${DEAD} is allowlisted as deep-link-only, but there is no page to deep link to`,
+    ).not.toContain(DEAD);
   });
 
   it("/one-pager is reached by a real link, and no longer by the allowlist", () => {

@@ -550,9 +550,9 @@ test.describe("Live full E2E — every screen renders + heart-piece interactions
     }
   });
 
-  test("Webhooks (/operations/webhooks) renders cleanly", async ({ page }) => {
-    await visitAndAssertHealthy(page, "/operations/webhooks");
-  });
+  // /operations/webhooks was checked here until FE #130 deleted it: a duplicate
+  // of Settings ▸ Connectors that no user could navigate to. The surface that
+  // owns event subscriptions is covered by the /settings check.
 
   // ── 7. Inbound (invoice / ASN) ───────────────────────────────────────────────
 
