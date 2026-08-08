@@ -97,14 +97,25 @@ test.describe("mobile order screen scrolls", () => {
       const workshop = page.getByTestId("order-workshop");
       await expect(workshop).toBeVisible({ timeout: 30_000 });
       const triage = page.getByTestId("mobile-triage");
-      await expect(triage).toBeVisible();
+      // ATTACHED, not visible — deliberately. Playwright reports a zero-height
+      // element as `hidden`, so `toBeVisible()` here fires on the collapse with
+      // "Expected: visible / Received: hidden", which names neither the element's
+      // height nor the defect. It was in fact the assertion that caught the
+      // mutation on the blocked order, and it explained nothing. Waiting only for
+      // attachment lets the two floors below do the reporting.
+      await expect(triage).toBeAttached();
 
       // ── Floor: the screen under test really rendered, at the mobile layout. ──
       // MobileTriage collapsing to zero height IS the defect, so a zero-height
-      // triage must never be mistaken for "nothing to check".
+      // triage must never be mistaken for "nothing to check". `boundingBox()`
+      // returns null for a `display: none` element, which is the other way this
+      // screen could go quiet.
       const triageBox = await triage.boundingBox();
-      expect(triageBox, "MobileTriage has no layout box").not.toBeNull();
-      expect(triageBox!.height, "MobileTriage collapsed to zero height").toBeGreaterThan(0);
+      expect(triageBox, "MobileTriage is not laid out at all (display:none?)").not.toBeNull();
+      expect(
+        triageBox!.height,
+        "MobileTriage collapsed to zero height — the body flexed to 0 and the order is unreachable",
+      ).toBeGreaterThan(0);
 
       const geometry = await page.evaluate(() => {
         const scrollable = (el: Element) =>
