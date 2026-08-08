@@ -19,9 +19,9 @@ export function orderTotal(order: Order): number {
  *
  * Prefer the backend-extracted `grandTotal` (Phase 4 enrichment) when it is a
  * real positive amount. An extracted 0 means "not captured", NOT a zero-value
- * order — founder bug: order 31f72daf (Rheinbahn) showed "€ 0.00" because
+ * order — founder bug: an order showed "€ 0.00" because
  * `order.grandTotal ?? fallback` kept the stored 0 while its one line was
- * qty 2 × 376.20 = 752.40 EUR — so 0/absent falls back to the client-computed
+ * priced — so 0/absent falls back to the client-computed
  * line sum (the same number the inbox Value column shows). When the lines carry
  * no value either (still parsing / nothing extracted), return null so callers
  * HIDE the value instead of rendering a fake zero.
@@ -35,7 +35,7 @@ export function resolvedGrandTotal(order: Order): number | null {
 
 /**
  * Format an amount the way the inbox Value column does: currency CODE + amount,
- * e.g. "EUR 752.40" or "PLN 1,469.00" — never a hardcoded symbol.
+ * e.g. "EUR 600.40" or "PLN 1,469.00" — never a hardcoded symbol.
  */
 export function formatMoney(currency: string, amount: number): string {
   const code = (currency ?? "").trim();

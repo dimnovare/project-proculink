@@ -39,9 +39,9 @@ function makeLine(over: Partial<OrderLine>): OrderLine {
   return {
     id: over.id ?? "line-1",
     lineNumber: over.lineNumber ?? 1,
-    buyerItemCode: "MICH-225-45R17",
+    buyerItemCode: "EXT-225-45R17",
     supplierItemCode: "TY-88231",
-    description: "Pilot Sport 5 225/45 R17",
+    description: "Summer Tyre 225/45 R17",
     quantity: 2,
     unitPrice: 89.9,
     confidence: 1,
@@ -56,9 +56,9 @@ const READY_LINE = makeLine({ id: "line-1", lineNumber: 1 });
 const BLOCKED_LINE = makeLine({
   id: "line-2",
   lineNumber: 2,
-  buyerItemCode: "MICH-CROSSCLIM",
+  buyerItemCode: "EXT-ALLSEASON",
   supplierItemCode: null,
-  description: "CrossClimate 2 195/65 R15",
+  description: "All-Season Tyre 195/65 R15",
   quantity: 1,
   unitPrice: 74.5,
   needsReview: true,
@@ -68,7 +68,7 @@ const BLOCKED_LINE = makeLine({
 function makeOrder(lines: OrderLine[], grandTotal: number | null): Order {
   return {
     id: "ord-1",
-    poNumber: "PO-4091678643",
+    poNumber: "PO-4500000000",
     supplierId: "sup-1",
     supplierName: "Demo",
     currency: "EUR",
@@ -130,10 +130,10 @@ describe("row expand — the per-line mapping panel", () => {
   });
 
   it("a line with no description renders its item code in the Description cell", () => {
-    const noDesc = makeLine({ id: "line-3", lineNumber: 3, description: null, buyerItemCode: "MICH-AGIL-215" });
+    const noDesc = makeLine({ id: "line-3", lineNumber: 3, description: null, buyerItemCode: "EXT-VAN-215" });
     renderView(makeOrder([noDesc], null));
     // The code appears in BOTH the item-code and description cells.
-    expect(screen.getAllByText("MICH-AGIL-215").length).toBe(2);
+    expect(screen.getAllByText("EXT-VAN-215").length).toBe(2);
   });
 
   it("an expanded row closes when its line resolves — no stuck-open, uncollapsible panel", () => {
@@ -155,7 +155,7 @@ describe("row expand — the per-line mapping panel", () => {
     // code with the review flag cleared. `expandable` flips false — the panel
     // must close with it, because the collapse affordances are gone too.
     const resolved = makeLine({
-      id: "line-2", lineNumber: 2, buyerItemCode: "MICH-CROSSCLIM",
+      id: "line-2", lineNumber: 2, buyerItemCode: "EXT-ALLSEASON",
       supplierItemCode: "TY-90112", needsReview: false, aiSuggestion: null,
     });
     rerender(
@@ -247,7 +247,7 @@ describe("catalog picker — the panel only claims what its probe proved", () =>
     // the first page, so the query text itself has to reach the API.
     catalogMock.mockImplementation(async (_id: string, q?: string) =>
       q === "TY-90112"
-        ? { total: 120_000, items: [{ id: "p9", code: "TY-90112", name: "CrossClimate 2" }] }
+        ? { total: 120_000, items: [{ id: "p9", code: "TY-90112", name: "All-Season Tyre" }] }
         : { total: 120_000, items: [{ id: "p1", code: "AA-0001", name: "First row" }] },
     );
     const { onCommitCode } = renderView(makeOrder([BLOCKED_LINE], null));
@@ -310,7 +310,7 @@ describe("catalog picker — the panel only claims what its probe proved", () =>
   it("a partial page of matches is the complete set — no 'refine' nag", async () => {
     catalogMock.mockResolvedValue({
       total: 120_000,
-      items: [{ id: "p1", code: "TY-90112", name: "CrossClimate 2" }],
+      items: [{ id: "p1", code: "TY-90112", name: "All-Season Tyre" }],
     });
     renderView(makeOrder([BLOCKED_LINE], null));
     openCatalog();

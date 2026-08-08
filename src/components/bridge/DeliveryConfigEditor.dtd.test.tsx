@@ -56,11 +56,11 @@ const SAVED_CXML: DeliveryConfig = {
   updatedAt: "2026-06-21T00:00:00Z",
   cxmlCredentials: {
     fromDomain: "NetworkId",
-    fromIdentity: "Nasdaq_SE",
+    fromIdentity: "ExampleBuyer_SE",
     toDomain: "NetworkId",
-    toIdentity: "Markit_SE",
+    toIdentity: "ExampleSupplier_SE",
     senderDomain: "NetworkId",
-    senderIdentity: "Nasdaq_SE",
+    senderIdentity: "ExampleBuyer_SE",
     hasSharedSecret: false,
   },
 };
