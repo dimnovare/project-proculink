@@ -58,7 +58,15 @@ function targetOf(urlOrPath: string): string {
 test.describe("retired routes redirect instead of 404ing", () => {
   for (const retired of RETIRED_ROUTES) {
     const from = probeUrl(retired.source);
-    const to = targetOf(probeUrl(retired.destination));
+    // The EXPECTED side is the destination exactly as authored in
+    // RETIRED_ROUTES, deliberately NOT put through targetOf. Normalizing both
+    // sides with the same function makes these tests blind to any degradation
+    // that is symmetric: a targetOf that drops the query silently drops it from
+    // the expectation too, and all of them keep passing. (Confirmed — mutating
+    // targetOf to return `pathname` alone left every fixture test green and was
+    // caught only by the literal-valued pin below.) Comparing the wire against
+    // the config makes the two sides independent.
+    const to = probeUrl(retired.destination);
 
     test(`${retired.source} → 308 → ${retired.destination}`, async ({ request }) => {
       const res = await request.get(from, { maxRedirects: 0 });
