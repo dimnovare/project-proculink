@@ -994,7 +994,31 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
   }
 
   return (
-    <div className="flex flex-col h-full min-h-0 overflow-hidden" style={{ background: "#F6F7FA" }} data-testid="order-workshop">
+    // ── Height model, and why it is two different models ────────────────────────
+    //
+    // At lg+ this is a fixed-height viewport pane: the three-column mapper needs a
+    // definite height to size its own internal scrollers against, so the root is
+    // `h-full` + `overflow-hidden` and nothing here scrolls the page.
+    //
+    // Below lg that same model is a scroll trap. Every row above the body — the
+    // identity header, the problem banner, the flow notices — is `flex-shrink-0`,
+    // so when their combined height passes the pane height the body flexes to
+    // `height: 0`, MobileTriage collapses with it, and the surplus is clipped by
+    // `overflow-hidden` with no scrollable ancestor anywhere: the page is stuck and
+    // the send bar sits below the fold, unreachable by any gesture. A blocked order
+    // hits this every time, because the problem banner is the tallest row on the
+    // screen (434–645px measured at 390px wide) and it is the one screen where the
+    // operator must reach the controls underneath.
+    //
+    // So below lg the root is content-height (`min-h-full`, no clip) and the page
+    // scroller is `<main>` in (app)/layout.tsx, which is already `overflow-auto`.
+    // MobileTriage's sticky send bar then sticks against the real viewport, which is
+    // what `position: sticky` was written for.
+    <div
+      className="flex flex-col min-h-full lg:h-full lg:min-h-0 lg:overflow-hidden"
+      style={{ background: "#F6F7FA" }}
+      data-testid="order-workshop"
+    >
       {/* ── Row 1 · identity + actions (~54px): ← Inbox chip · PO title · status ·
           buyer → supplier · total — then Details / focus / Send. The topbar's
           breadcrumb row is gone on this route (BridgeTopbar suppresses it — the
@@ -1259,7 +1283,13 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
       </div>
 
       {/* ── Body ─────────────────────────────────────────────────────────────── */}
-      <div style={{ flex: 1, position: "relative", overflow: "hidden", display: "flex", flexDirection: "column", minHeight: 0 }}>
+      {/* `flex-1` stays at every width so a short order still fills the pane. What is
+          now lg-only is the pair that caused the trap: `min-h-0` (which switches OFF
+          the flexbox automatic minimum size, letting this box be flexed to height 0)
+          and `overflow-hidden` (which then clips what no longer fits). Below lg the
+          default `min-height: auto` keeps this box at least as tall as its content, so
+          the column grows and `<main>` scrolls it. */}
+      <div className="relative flex flex-1 flex-col lg:min-h-0 lg:overflow-hidden">
         {/* Desktop mapper (lg+, ≥1024): the enhanced MapperWorkbench with the
             IssuesPanel on top. No min-width clamp — the canvas tracks (incoming
             minmax + 56px gutter + flex outgoing) fit within ~1000px so a 13"/14"
