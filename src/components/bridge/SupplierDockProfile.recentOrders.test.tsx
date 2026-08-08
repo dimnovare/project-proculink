@@ -236,20 +236,23 @@ describe("SupplierDockProfile — recent orders panel", () => {
     floorSentenceIsRenderable();
 
     renderState("loading");
-    expect(screen.getByText(LOADING_COPY)).toBeInTheDocument();
+    // The contract assertion comes FIRST on purpose. Asserting the loading copy
+    // first would make that the assertion a regression trips on, and "the
+    // loading copy vanished" is a weaker report than "the panel claimed
+    // emptiness it had not established".
     expect(screen.queryByText(EMPTY_SENTENCE)).toBeNull();
+    expect(screen.getByText(LOADING_COPY)).toBeInTheDocument();
   });
 
   it("does not render an error as emptiness", () => {
     floorSentenceIsRenderable();
 
     renderState("error");
+    expect(screen.queryByText(EMPTY_SENTENCE)).toBeNull();
     const alert = screen.getByRole("alert");
-    expect(alert).toBeInTheDocument();
     expect(screen.getByText(ERROR_HEADLINE)).toBeInTheDocument();
     // The error copy says out loud that this is not "none".
     expect(alert.textContent).toMatch(/not the same as/i);
-    expect(screen.queryByText(EMPTY_SENTENCE)).toBeNull();
   });
 
   it("offers a retry on the error path and wires it to refetch", () => {
@@ -263,6 +266,7 @@ describe("SupplierDockProfile — recent orders panel", () => {
     floorSentenceIsRenderable();
 
     renderState("populated");
+    expect(screen.queryByText(EMPTY_SENTENCE)).toBeNull();
     expect(screen.getByText("PO-2026-008412")).toBeInTheDocument();
     expect(screen.getByText("SH-PO-44120")).toBeInTheDocument();
     // Each row carries its own real status: the delivered order and the failed
@@ -273,7 +277,6 @@ describe("SupplierDockProfile — recent orders panel", () => {
     expect(deliveredLabel).not.toBe(failedLabel);
     expect(screen.getByText(deliveredLabel)).toBeInTheDocument();
     expect(screen.getByText(failedLabel)).toBeInTheDocument();
-    expect(screen.queryByText(EMPTY_SENTENCE)).toBeNull();
   });
 
   it("reports the real total returned by the query, not the page size", () => {
