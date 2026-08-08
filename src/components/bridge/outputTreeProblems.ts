@@ -98,9 +98,12 @@ export function formatLabel(format: OutputFormat | string | null | undefined): s
  * `OrderTransformService` with `No transform service registered for format 'EdifactOrders'.` and
  * is parked in terminal `transform_failed`.
  *
- * Derived from `PREVIEW_FORMATS`, this app's mirror of the six registered transforms, rather than
+ * Derived from `PREVIEW_FORMATS`, this app's mirror of the six BUILDABLE formats, rather than
  * typed here — so a seventh transformer is one edit, in the place that already had to change.
- * `src/test/backendMirror.test.ts` diffs that mirror against the real C# registrations.
+ * `src/test/backendMirror.test.ts` diffs that mirror against the real C#: `OutputTransformRegistry.
+ * All` and each registered transform's own `CanTransform` arm, which is how `OutputFormatCatalog`
+ * derives the same set. Buildable, not registered — `UblOrderTransformService` builds
+ * `OutputFormat.Ubl`, so a class name is not evidence of the format it produces.
  *
  * The two extra keys are backend ENUM SPELLINGS of formats already in that set (`OutputFormat.
  * UblOrder` and `OutputFormat.X12_850` are the same transforms as `Ubl` and `X12`), so they are
