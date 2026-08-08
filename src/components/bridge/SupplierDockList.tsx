@@ -26,6 +26,13 @@ import { useDialogA11y } from "@/hooks/useDialogA11y";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getBillingStatus, apiClient, listConnections } from "@/lib/api-client";
 import { getDeliveryConfig, upsertDeliveryConfig } from "@/lib/api/delivery";
+import {
+  isOrgAdminError,
+  isPlanGateError,
+  orgAdminMessage,
+  planGateMessage,
+  planGateUpgradeUrl,
+} from "@/lib/planGate";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import type { DeliveryConfig, DeliveryProtocol } from "@/lib/api/types";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
@@ -152,7 +159,11 @@ export function SupplierDockList() {
   // names the Delivery tab as the fix, so the notice has to be able to OPEN that
   // tab. Without the id the only control was the dismiss ✕ — which throws away
   // the very instruction the operator still needs to act on.
-  const [pageNotice, setPageNotice] = useState<{ text: string; supplierId: string } | null>(null);
+  //
+  // It also carries the REASON the write was refused, verbatim from the api layer,
+  // because "go to the Delivery tab" is only the fix for some of the reasons. See
+  // the cause split below.
+  const [pageNotice, setPageNotice] = useState<{ reason: string; supplierId: string } | null>(null);
   const [hoverRow, setHoverRow] = useState<string | null>(null);
 
   // New-supplier modal a11y: Escape + focus-in + focus-trap + focus-restore +
@@ -212,10 +223,16 @@ export function SupplierDockList() {
   // initial delivery protocol + output format on its delivery config. A failed
   // second step must NOT look like a failed create — the supplier exists — so it
   // degrades to a page notice pointing at the Delivery tab instead of an error.
+  //
+  // The second step is NOT rolled back when it fails. Deleting the supplier that was
+  // just created would throw away something the operator asked for and can no longer
+  // see, to hide a failure from them — and the delete can be refused by exactly the
+  // role check that refused the write, which would leave the undo half-done too.
+  // The supplier stays; the notice below says what is missing from it.
   const createMutation = useMutation({
     mutationFn: async (input: { name: string; protocol: DeliveryProtocol | null; outputFormat: string | null }) => {
       const supplier = await apiClient.createSupplier({ name: input.name });
-      let channelSaved = true;
+      let channelError: string | null = null;
       if (input.protocol) {
         try {
           await upsertDeliveryConfig(supplier.id, {
@@ -224,13 +241,16 @@ export function SupplierDockList() {
             configJson: "{}",
             outputFormat: input.outputFormat,
           });
-        } catch {
-          channelSaved = false;
+        } catch (err) {
+          // KEEP the cause. This used to be a bare `catch {}`, which collapsed every
+          // reason the write can fail into one sentence — and one of those reasons
+          // makes that sentence's instruction impossible to follow. See below.
+          channelError = err instanceof Error ? err.message : String(err);
         }
       }
-      return { supplier, channelSaved, wantedChannel: input.protocol != null };
+      return { supplier, channelError, wantedChannel: input.protocol != null };
     },
-    onSuccess: ({ supplier, channelSaved, wantedChannel }) => {
+    onSuccess: ({ supplier, channelError, wantedChannel }) => {
       void qc.invalidateQueries({ queryKey: ["suppliers"] });
       void qc.invalidateQueries({ queryKey: ["supplier-delivery-config", supplier.id] });
       setShowAddPanel(false);
@@ -239,11 +259,8 @@ export function SupplierDockList() {
       setNewFormat(null);
       setAddError(null);
       setPageNotice(
-        wantedChannel && !channelSaved
-          ? {
-              text: `${noun} created — but the delivery channel could not be saved. Set it on the ${nounLower}'s Delivery tab.`,
-              supplierId: supplier.id,
-            }
+        wantedChannel && channelError !== null
+          ? { reason: channelError, supplierId: supplier.id }
           : null,
       );
     },
@@ -263,6 +280,42 @@ export function SupplierDockList() {
     setAddError(null);
     createMutation.mutate({ name: trimmed, protocol: newProtocol, outputFormat: newProtocol ? newFormat : null });
   }
+
+  // ── What the partial-success notice is allowed to tell the operator to do ──
+  //
+  // The delivery-config write answers 403 for TWO unrelated reasons, and the fix
+  // differs for each. Until now the notice said "Set it on the supplier's Delivery
+  // tab" for all of them, with a button straight to that tab — which for the
+  // organisation-admin refusal sends the reader to a screen that will refuse them
+  // again, and for a plan gate sends them somewhere no amount of trying will help.
+  //
+  //   plan gate   the org's plan does not include this channel → upgrading is the fix
+  //   org admin   the reader is not an administrator            → asking one is the fix
+  //   anything else (a 500, a timeout, a validation error)      → the Delivery tab IS the fix
+  //
+  // The discriminator and both sentences come from `@/lib/planGate`, never from here:
+  // a capability that is re-tiered on the server must re-label itself with no change
+  // to this file, and the two 403s must not be told apart by two different rules in
+  // two different places.
+  //
+  // The org-admin refusal reaches this component by TWO carriers, and both must land
+  // on the same arm. `src/lib/api/delivery.ts` swaps the machine code for the finished
+  // sentence before throwing, so by the time the message gets here the code
+  // `requires_org_admin` is usually gone; a caller that has not been converted still
+  // carries it. Matching only the code would have silently routed the live path — the
+  // converted one — into the "other" arm and re-offered the Delivery tab. Neither
+  // branch retypes anything: the sentence is compared against `orgAdminMessage()`
+  // itself, so there is still exactly one copy of it in the codebase.
+  const isOrgAdminRefusal = (reason: string) =>
+    isOrgAdminError(reason) || reason.includes(orgAdminMessage());
+
+  const noticeCause: "plan" | "org_admin" | "other" | null = !pageNotice
+    ? null
+    : isPlanGateError(pageNotice.reason)
+      ? "plan"
+      : isOrgAdminRefusal(pageNotice.reason)
+        ? "org_admin"
+        : "other";
 
   const limitReached = !billingError && billing && !billing.canAddSupplier;
   const hasRows = !isLoading && !suppliersError && suppliers.length > 0;
@@ -311,26 +364,51 @@ export function SupplierDockList() {
           }
         />
 
-        {/* Partial-success notice (supplier created, channel not saved). The
-            sentence names the Delivery tab, so the notice ships the link to it —
-            same amber action treatment as the billing banner below, so this
-            introduces no new visual language. The dismiss ✕ stays, but it is no
-            longer the ONLY control: dismissing used to be the single thing a
-            user could do to a message whose whole point was "go here next". */}
+        {/* Partial-success notice (supplier created, channel not saved). Amber, the
+            same action treatment as the billing banner below, so this introduces no
+            new visual language. `role="status"` because the panel it replaces has
+            already closed by the time this appears — without it the only signal that
+            half the operation failed is a colour a screen reader cannot see.
+
+            The action is chosen from the CAUSE, not assumed. Only the "other" arm
+            offers the Delivery tab, because only that arm is a failure the reader
+            can actually clear there. The dismiss ✕ stays, and for the org-admin arm
+            it is deliberately the only control: there is nowhere in the product to
+            send someone whose fix is another person. */}
         {pageNotice && (
           <div
+            role="status"
             className="mb-4 flex flex-wrap items-start justify-between gap-3 rounded-[10px] px-4 py-3 text-[12.5px]"
             style={{ border: "1px solid #F0D39A", background: "#FFF8EA", color: "#7A4D0B" }}
           >
-            <span className="min-w-0 flex-1">{pageNotice.text}</span>
+            <span className="min-w-0 flex-1">
+              {noun} created — but its delivery channel was not saved, so orders cannot be
+              sent to this {nounLower} yet.{" "}
+              {noticeCause === "plan"
+                ? planGateMessage(pageNotice.reason)
+                : noticeCause === "org_admin"
+                  ? orgAdminMessage()
+                  : `Set it on the ${nounLower}'s Delivery tab.`}
+            </span>
             <div className="flex flex-shrink-0 items-center gap-2">
-              <Link
-                href={`/library/suppliers/${pageNotice.supplierId}?tab=delivery`}
-                className="inline-flex items-center rounded-[6px] px-3 py-1.5 text-[12px] font-semibold"
-                style={{ border: "1px solid #B36D14", background: "#FFFFFF", color: "#9A5F0A", textDecoration: "none", whiteSpace: "nowrap" }}
-              >
-                Open Delivery tab
-              </Link>
+              {noticeCause === "plan" && (
+                <Link
+                  href={planGateUpgradeUrl(pageNotice.reason)}
+                  className="inline-flex items-center rounded-[6px] px-3 py-1.5 text-[12px] font-semibold"
+                  style={{ border: "1px solid #B36D14", background: "#FFFFFF", color: "#9A5F0A", textDecoration: "none", whiteSpace: "nowrap" }}
+                >
+                  See plans
+                </Link>
+              )}
+              {noticeCause === "other" && (
+                <Link
+                  href={`/library/suppliers/${pageNotice.supplierId}?tab=delivery`}
+                  className="inline-flex items-center rounded-[6px] px-3 py-1.5 text-[12px] font-semibold"
+                  style={{ border: "1px solid #B36D14", background: "#FFFFFF", color: "#9A5F0A", textDecoration: "none", whiteSpace: "nowrap" }}
+                >
+                  Open Delivery tab
+                </Link>
+              )}
               <button
                 onClick={() => setPageNotice(null)}
                 aria-label="Dismiss notice"
