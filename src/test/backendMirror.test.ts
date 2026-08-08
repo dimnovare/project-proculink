@@ -32,7 +32,7 @@ import {
 // The C# string-literal reader this file introduced now has a second consumer
 // (src/test/backendCopyVocabulary.test.ts), so it lives in one place rather than two.
 // Its own header explains why a `grep` cannot replace it.
-import { parseCsStringExpressions } from "./csLiterals";
+import { parseCsStringExpressions, stripCsComments } from "./csLiterals";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // The cross-repo mirror check.
@@ -78,11 +78,23 @@ const INVOICE_SERVICE_REL = "ProcuLink.Infrastructure/Services/InvoiceService.cs
 const INVOICE_ENTITY_REL = "ProcuLink.Core/Entities/InvoiceEntity.cs";
 const TRANSFORM_SERVICE_REL = "ProcuLink.Api/Services/Orders/OrderTransformService.cs";
 /**
- * The DI composition root. Read for its `ITransformService` registrations — the ground truth for
- * which output formats can be produced at all, and therefore for which formats any surface is
- * allowed to advertise.
+ * THE list of outbound transforms the solution ships. `OutputTransformRegistry.All` is what both
+ * hosts register (via `AddOutputTransforms()`) AND what `OutputTransformRegistry.Catalog` derives
+ * the buildable-format allow-list from, so it is the one place a transform can be added or removed.
+ */
+const TRANSFORM_REGISTRY_REL = "ProcuLink.Transform/Output/OutputTransformRegistry.cs";
+/** Where each registered transform's own `CanTransform` arm lives, keyed by class name. */
+const TRANSFORM_OUTPUT_DIR = "ProcuLink.Transform/Output";
+/** Declares `enum OutputFormat` — the members, buildable and not, that `CanTransform` is asked about. */
+const OUTPUT_FORMAT_ENUM_REL = "ProcuLink.Core/Services/ITransformService.cs";
+/**
+ * The API DI composition root. No longer read for individual `ITransformService` registrations —
+ * BE #182 replaced those with a single `AddOutputTransforms()` — but still read to confirm the host
+ * really delegates to the registry rather than hand-listing transforms beside it.
  */
 const PROGRAM_REL = "ProcuLink.Api/Program.cs";
+/** The worker host. Registers the same transform layer; `TransformOrderJob` is where transform runs. */
+const WORKER_PROGRAM_REL = "ProcuLink.Worker/Program.cs";
 
 /**
  * Every C# file this suite parses.
@@ -101,7 +113,10 @@ const PARSED_FILES = [
   INVOICE_SERVICE_REL,
   INVOICE_ENTITY_REL,
   TRANSFORM_SERVICE_REL,
+  TRANSFORM_REGISTRY_REL,
+  OUTPUT_FORMAT_ENUM_REL,
   PROGRAM_REL,
+  WORKER_PROGRAM_REL,
 ] as const;
 
 /**
@@ -405,7 +420,10 @@ describe("the mirror gate decides correctly", () => {
       INVOICE_SERVICE_REL,
       INVOICE_ENTITY_REL,
       TRANSFORM_SERVICE_REL,
+      TRANSFORM_REGISTRY_REL,
+      OUTPUT_FORMAT_ENUM_REL,
       PROGRAM_REL,
+      WORKER_PROGRAM_REL,
     ]);
     expect(missingParsedFiles("/tmp/backend", () => true)).toEqual([]);
     // A checkout with nothing in it must report all three, not zero.
@@ -1068,70 +1086,234 @@ describe("the transform-failure copy still matches the sentences the backend wri
 // `OP_ALLOWED_FROM.retryDelivery` cited the wrong C# symbol for as long as it did — the
 // frontend was self-consistent and wrong together.
 //
-// So this diffs both registries against the DI registrations themselves. A seventh transform
-// service reddens here and names the registry that has to follow, rather than silently making
-// the copy-guard's verdict stale — which is exactly what a hand-typed list of six transformer
-// names would have done.
+// So this diffs both registries against the C# itself. A seventh transform reddens here and
+// names the registry that has to follow, rather than silently making the copy-guard's verdict
+// stale — which is exactly what a hand-typed list of six transformer names would have done.
+//
+// WHAT MOVED, AND WHY THE FACT MIRRORED HERE CHANGED. Until BE #182 this block read
+// `ProcuLink.Api/Program.cs` for `AddSingleton<ITransformService, …>` lines. #182 replaced those
+// with one `AddOutputTransforms()` call over `OutputTransformRegistry.All`, so the old parser
+// found ZERO registrations — and said so, loudly, instead of confirming an empty C# side. That
+// refusal is the only reason this was a one-hour fix rather than a shipped lie.
+//
+// Repointing it also corrects what was being mirrored. The old parser read REGISTRATIONS — C#
+// class names — and then leaned on a hand-typed map to say which FORMAT each class builds. Those
+// are not the same fact, and #182 is the proof: `UblOrderTransformService.CanTransform` answers
+// `OutputFormat.Ubl`, NOT `OutputFormat.UblOrder`, so of nine enum members only six are buildable
+// and three (`UblOrder`, `X12_850`, `EdifactOrders`) are format-shaped names nothing can produce.
+// The class-name → format leg was never checked against C#: had that map said `previewFormat:
+// "ublorder"`, every assertion here would have stayed green while the frontend advertised a format
+// that dies at transform. Buildable is the fact the surfaces actually claim, so buildable is what
+// is mirrored now — derived the same way `OutputFormatCatalog` derives it, by reading each
+// registered transform's own `CanTransform` arm rather than trusting its class name.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * `builder.Services.AddSingleton<ITransformService, XmlTransformService>();`
- *   → ["XmlTransformService", …]
+ * The class names in `OutputTransformRegistry.All`:
  *
- * Lifetime-agnostic on purpose: the fact being mirrored is "a transform for this format is
- * wired up", and moving one registration from Singleton to Scoped must not read as the
- * capability disappearing.
+ *   public static IReadOnlyList<ITransformService> All { get; } = new ITransformService[]
+ *   {
+ *       new XmlTransformService(),
+ *       new UblOrderTransformService(), // Group M Phase 1 — …
+ *   };
+ *
+ *   → ["XmlTransformService", "UblOrderTransformService"]
+ *
+ * Scoped to the `All` initialiser rather than run over the whole file, so an unrelated `new X()`
+ * elsewhere in the registry cannot inflate the set, and comment-stripped so an inline note naming
+ * a REMOVED transform cannot keep it alive.
  */
-export function parseTransformServiceRegistrations(cs: string): string[] {
-  return [...cs.matchAll(/Add(?:Singleton|Scoped|Transient)\s*<\s*ITransformService\s*,\s*(\w+)\s*>/g)].map(
-    (m) => m[1],
-  );
+export function parseRegisteredTransforms(cs: string): string[] {
+  const src = stripCsComments(cs);
+  const start = src.search(/IReadOnlyList\s*<\s*ITransformService\s*>\s+All\b/);
+  if (start < 0) return [];
+  const open = src.indexOf("{", src.indexOf("=", start));
+  if (open < 0) return [];
+  const close = src.indexOf("}", open);
+  if (close < 0) return [];
+  return [...src.slice(open, close).matchAll(/new\s+(\w+)\s*\(\s*\)/g)].map((m) => m[1]);
 }
 
 /**
- * Every registered transform service, and what it means on this side.
+ * The `OutputFormat` members one transform's `CanTransform` answers true for:
  *
- * `catalogId` is the standards-catalog row the service produces, or null when the format has no
- * standards row to have one — generic XML is a shape, not a published standard, and `/formats`
- * carries it as a hand-typed row for that reason.
+ *   public bool CanTransform(OutputFormat format) => format == OutputFormat.Ubl;  → ["Ubl"]
+ *
+ * Returns a list, not a single value, because nothing stops a transform from answering for more
+ * than one format — and a reader that assumed one would silently drop the others. The arm is read
+ * rather than inferred from the class name: `UblOrderTransformService` builds `Ubl`, and that gap
+ * between what a class is CALLED and what it can BUILD is the whole reason this is parsed.
+ */
+export function parseCanTransformFormats(cs: string): string[] {
+  const src = stripCsComments(cs);
+  const m = /\bCanTransform\s*\([^)]*\)\s*(?:=>([^;]*);|\{([\s\S]*?)\n\s*\})/.exec(src);
+  if (!m) return [];
+  return [...(m[1] ?? m[2] ?? "").matchAll(/OutputFormat\s*\.\s*(\w+)/g)].map((x) => x[1]);
+}
+
+/** `enum OutputFormat { Xml, Csv, … }` → ["Xml", "Csv", …]. Comment-stripped for the same reason. */
+export function parseOutputFormatMembers(cs: string): string[] {
+  const src = stripCsComments(cs);
+  const start = src.search(/\benum\s+OutputFormat\b/);
+  if (start < 0) return [];
+  const open = src.indexOf("{", start);
+  const close = src.indexOf("}", open);
+  if (open < 0 || close < 0) return [];
+  return src
+    .slice(open + 1, close)
+    .split(",")
+    .map((s) => s.trim())
+    .filter((s) => /^\w+$/.test(s));
+}
+
+/**
+ * The persisted token for an `OutputFormat` member — `OutputFormatCatalog.Token`, which is
+ * `format.ToString().ToLowerInvariant()`. The one spelling the delivery-config and
+ * connection-revision columns store, and the one `PREVIEW_FORMATS` uses.
+ */
+function formatToken(member: string): string {
+  return member.toLowerCase();
+}
+
+/**
+ * The enum members no transform can build, per BE #182.
+ *
+ * `UblOrder` and `X12_850` NAME a conformance profile, and `EdifactOrders` is inbound-only —
+ * `EdifactOrderParser` reads it and no `ITransformService` writes it. Pinned by name rather than
+ * left to the count alone, because "6 of 9" would still hold if the buildable and unbuildable
+ * halves swapped members.
+ */
+const UNBUILDABLE_OUTPUT_FORMATS = ["UblOrder", "X12_850", "EdifactOrders"] as const;
+
+/**
+ * What each BUILDABLE output format means on this side, keyed by its persisted token.
+ *
+ * `catalogId` is the standards-catalog row the format produces, or null when it has no standards
+ * row to have one — generic XML is a shape, not a published standard, and `/formats` carries it as
+ * a hand-typed row for that reason.
+ *
+ * Keyed by FORMAT rather than by transform class name, deliberately. The class name is an
+ * implementation detail: renaming `X12TransformService` changes no capability and must not redden
+ * a claim guard, exactly as the old parser was lifetime-agnostic so Singleton→Scoped would not read
+ * as the capability disappearing. What a surface may advertise is the format.
  *
  * This map is hand-written, and that is the point rather than a compromise: its KEYS are diffed
- * against the real C# below, so a seventh registration cannot be absorbed silently. Someone has
- * to come here and say which standard it emits, which is the moment the marketing catalog and
- * the designer's emitted-format set need updating too.
+ * against the real C# below, so a seventh buildable format cannot be absorbed silently. Someone has
+ * to come here and say which standard it emits, which is the moment the marketing catalog and the
+ * designer's emitted-format set need updating too.
  */
-const TRANSFORM_SERVICES: Record<string, { catalogId: string | null; previewFormat: string }> = {
-  XmlTransformService: { catalogId: null, previewFormat: "xml" },
-  CsvTransformService: { catalogId: "csv", previewFormat: "csv" },
-  CxmlTransformService: { catalogId: "cxml-1-2", previewFormat: "cxml" },
-  JsonTransformService: { catalogId: "json-rest", previewFormat: "json" },
-  UblOrderTransformService: { catalogId: "ubl-2-1-order", previewFormat: "ubl" },
-  X12TransformService: { catalogId: "x12-850", previewFormat: "x12" },
+const BUILDABLE_FORMATS: Record<string, { catalogId: string | null }> = {
+  xml: { catalogId: null },
+  csv: { catalogId: "csv" },
+  cxml: { catalogId: "cxml-1-2" },
+  json: { catalogId: "json-rest" },
+  ubl: { catalogId: "ubl-2-1-order" },
+  x12: { catalogId: "x12-850" },
 };
 
+/**
+ * The buildable format tokens, derived from the backend the way `OutputFormatCatalog` derives
+ * them: take the registered transforms, ask each one's `CanTransform` arm which `OutputFormat` it
+ * answers for, keep those.
+ *
+ * Every failure mode names WHICH read came back empty, because "the parser broke" and "the backend
+ * ships nothing" produce the same empty list and only one of them is a real finding.
+ */
+function readBuildableFormats(backend: string): { services: string[]; tokens: string[] } {
+  const registryCs = readFileSync(join(backend, TRANSFORM_REGISTRY_REL), "utf8");
+  const services = parseRegisteredTransforms(registryCs);
+  expect(
+    services.length,
+    `${TRANSFORM_REGISTRY_REL} parsed to zero entries in OutputTransformRegistry.All. That is the ` +
+      "parser failing, not the backend shipping no transforms — and an empty C# side would " +
+      "'confirm' whatever this side declares. The backend refuses this state too: " +
+      "OutputFormatCatalog throws at construction when the derived set is empty.",
+  ).toBeGreaterThan(0);
+
+  const tokens: string[] = [];
+  for (const service of services) {
+    const path = join(backend, TRANSFORM_OUTPUT_DIR, `${service}.cs`);
+    expect(
+      existsSync(path),
+      `OutputTransformRegistry.All registers ${service}, but ${TRANSFORM_OUTPUT_DIR}/${service}.cs ` +
+        "does not exist. Either the file moved and this reader has to follow it, or the registry " +
+        "names a transform that is not there.",
+    ).toBe(true);
+
+    const formats = parseCanTransformFormats(readFileSync(path, "utf8"));
+    expect(
+      formats.length,
+      `${service}.cs parsed to zero OutputFormat members in its CanTransform arm. A registered ` +
+        "transform that can build nothing is either a reader that stopped matching or a real " +
+        "break — and silently dropping it would understate what this build can produce.",
+    ).toBeGreaterThan(0);
+    tokens.push(...formats.map(formatToken));
+  }
+  return { services, tokens: [...new Set(tokens)] };
+}
+
 describe("the formats we advertise as output are the formats a transform exists for", () => {
-  test("the registration parser actually parses (so a green diff means something)", () => {
+  test("the parsers actually parse (so a green diff means something)", () => {
     // Runs everywhere, backend or not. A parser that quietly stopped matching would otherwise
     // "confirm" an empty registered set, and an empty set makes every claim below vacuous.
-    const fixture = `
-      builder.Services.AddSingleton<ITransformService, XmlTransformService>();
-      builder.Services.AddScoped<ITransformService, CsvTransformService>();
-      builder.Services.AddSingleton<ITransformService , UblOrderTransformService >(); // spacing
-      builder.Services.AddSingleton<IPurchaseOrderParser, EdifactOrderParser>();
+    const registry = `
+      public static class OutputTransformRegistry
+      {
+          public static IReadOnlyList<ITransformService> All { get; } = new ITransformService[]
+          {
+              new XmlTransformService(),
+              new CsvTransformService(),   // trailing note
+              new UblOrderTransformService(),
+              // new EdifactOrderTransformService(), — commented out, must NOT count
+          };
+          public static OutputFormatCatalog Catalog { get; } = new(All);
+      }
     `;
-    expect(parseTransformServiceRegistrations(fixture)).toEqual([
+    expect(parseRegisteredTransforms(registry)).toEqual([
       "XmlTransformService",
       "CsvTransformService",
       "UblOrderTransformService",
     ]);
-    // A parser registration is not a transform registration, and conflating them is exactly the
-    // mistake this whole block exists to prevent: EdifactOrderParser is REAL.
-    expect(parseTransformServiceRegistrations(fixture)).not.toContain("EdifactOrderParser");
-    expect(parseTransformServiceRegistrations("no registrations here")).toEqual([]);
+    // A transform named in a comment is not a transform that ships, and treating it as one is
+    // exactly the drift this block exists to prevent.
+    expect(parseRegisteredTransforms(registry)).not.toContain("EdifactOrderTransformService");
+    // `Catalog` is derived FROM `All` on the backend side; it must not be read as a second entry.
+    expect(parseRegisteredTransforms(registry)).not.toContain("OutputFormatCatalog");
+    expect(parseRegisteredTransforms("no registry here")).toEqual([]);
+
+    // The class name is not the format. This case is the defect BE #182 documented.
+    expect(
+      parseCanTransformFormats(
+        "public bool CanTransform(OutputFormat format) => format == OutputFormat.Ubl;",
+      ),
+    ).toEqual(["Ubl"]);
+    expect(
+      parseCanTransformFormats(`
+        // CanTransform(OutputFormat format) => format == OutputFormat.EdifactOrders;
+        public bool CanTransform(OutputFormat format)
+        {
+            return format == OutputFormat.X12 || format == OutputFormat.X12_850;
+        }
+      `),
+    ).toEqual(["X12", "X12_850"]);
+    expect(parseCanTransformFormats("no arm here")).toEqual([]);
+
+    expect(
+      parseOutputFormatMembers(`
+        public enum OutputFormat
+        {
+            // ── Entity-based outbound transforms ──
+            Xml,
+            Ubl,
+            UblOrder, // profile identifier, not a transform
+        }
+      `),
+    ).toEqual(["Xml", "Ubl", "UblOrder"]);
+    expect(parseOutputFormatMembers("enum SomethingElse { A }")).toEqual([]);
   });
 
   test("the frontend registries are themselves non-vacuous", () => {
-    expect(Object.keys(TRANSFORM_SERVICES).length).toBeGreaterThan(0);
+    expect(Object.keys(BUILDABLE_FORMATS).length).toBeGreaterThan(0);
     expect(PREVIEW_FORMATS.length).toBeGreaterThan(0);
     expect(STANDARDS.length).toBeGreaterThan(0);
     expect(
@@ -1140,39 +1322,81 @@ describe("the formats we advertise as output are the formats a transform exists 
     ).toBeGreaterThan(0);
   });
 
-  test.skipIf(!BACKEND)("every registered ITransformService is accounted for, and no other", () => {
-    const cs = readFileSync(join(BACKEND!, PROGRAM_REL), "utf8");
-    const registered = parseTransformServiceRegistrations(cs);
+  test.skipIf(!BACKEND)("the hosts register the transform layer from the registry, not beside it", () => {
+    // The registry is only THE list while the hosts actually delegate to it. A host that went back
+    // to hand-listing `AddSingleton<ITransformService, …>` would put a transform into DI that
+    // `OutputTransformRegistry.Catalog` — and therefore this whole block — cannot see.
+    for (const rel of [PROGRAM_REL, WORKER_PROGRAM_REL]) {
+      const cs = stripCsComments(readFileSync(join(BACKEND!, rel), "utf8"));
+      expect(
+        cs,
+        `${rel} no longer calls AddOutputTransforms(). If the transform layer is registered some ` +
+          "other way now, this file's reader has to follow it — the buildable set below is derived " +
+          `from ${TRANSFORM_REGISTRY_REL} and would otherwise describe a list nothing uses.`,
+      ).toContain("AddOutputTransforms()");
+      expect(
+        [...cs.matchAll(/Add(?:Singleton|Scoped|Transient)\s*<\s*ITransformService\s*[,>]/g)],
+        `${rel} hand-lists an ITransformService registration beside AddOutputTransforms(). A ` +
+          "transform registered there is invisible to OutputTransformRegistry.Catalog, so the " +
+          "backend's own write-path allow-list would refuse the format it can build.",
+      ).toHaveLength(0);
+    }
+  });
+
+  test.skipIf(!BACKEND)("exactly the OutputFormat members with a transform behind them are buildable", () => {
+    const { tokens } = readBuildableFormats(BACKEND!);
+    const members = parseOutputFormatMembers(readFileSync(join(BACKEND!, OUTPUT_FORMAT_ENUM_REL), "utf8"));
     expect(
-      registered.length,
-      `${PROGRAM_REL} parsed to zero ITransformService registrations. That is the parser failing, ` +
-        "not the backend shipping no transforms — and an empty C# side would 'confirm' whatever " +
-        "this side declares.",
+      members.length,
+      `${OUTPUT_FORMAT_ENUM_REL} parsed to zero OutputFormat members — the reader or the file moved.`,
     ).toBeGreaterThan(0);
 
+    // The floor BE #182 pinned: a format-shaped enum name is not evidence a document can be built
+    // for it. Asserted by NAME, so the two halves cannot swap members and still satisfy a count.
+    const unbuildable = members.filter((m) => !tokens.includes(formatToken(m)));
+    expect(
+      sorted(unbuildable),
+      "the set of OutputFormat members no transform can build has changed. These are the names " +
+        "`Enum.TryParse(ignoreCase: true)` re-hydrates and no transform answers for — a config " +
+        "pinned to one dies in OrderTransformService with \"No transform service registered for " +
+        "format '…'\". If a transform was added for one of them, it belongs in BUILDABLE_FORMATS " +
+        "and in the surfaces below; if a new profile-only name was added, add it here.",
+    ).toEqual(sorted([...UNBUILDABLE_OUTPUT_FORMATS]));
+
+    expect(
+      tokens,
+      "EDIFACT is inbound-only — EdifactOrderParser reads it and no ITransformService writes it. " +
+        "If that changed, it is a capability this app may finally advertise; until then it must " +
+        "not appear among the buildable formats.",
+    ).not.toContain("edifactorders");
+  });
+
+  test.skipIf(!BACKEND)("every buildable output format is accounted for, and no other", () => {
+    const { services, tokens } = readBuildableFormats(BACKEND!);
+    expect(services.length, "no transforms parsed — this comparison would prove nothing").toBeGreaterThan(0);
+    expect(tokens.length, "no buildable formats derived — this comparison would prove nothing").toBeGreaterThan(0);
+
     recordComparison(
-      "ITransformService registrations",
-      registered,
-      Object.keys(TRANSFORM_SERVICES),
-      "ProcuLink.Api/Program.cs registers a different set of ITransformService implementations " +
-        "than TRANSFORM_SERVICES above declares. If a transform was ADDED, add its row here and " +
-        "then follow it through: src/lib/standards/catalog.ts must mark that standard " +
-        '`transform: "supported"`, and PREVIEW_FORMATS in src/lib/api/types.ts must offer it — ' +
-        "those two are what src/test/gatedCapabilityClaims.test.ts reads to decide whether a " +
-        "surface may advertise the format. If one was REMOVED, the same three places have to " +
-        "stop advertising it.",
+      "buildable output formats",
+      tokens,
+      Object.keys(BUILDABLE_FORMATS),
+      "OutputTransformRegistry.All + each transform's CanTransform derive a different set of " +
+        "buildable formats than BUILDABLE_FORMATS above declares. If a transform was ADDED, add " +
+        "its row here and then follow it through: src/lib/standards/catalog.ts must mark that " +
+        'standard `transform: "supported"`, and PREVIEW_FORMATS in src/lib/api/types.ts must ' +
+        "offer it — those two are what src/test/gatedCapabilityClaims.test.ts reads to decide " +
+        "whether a surface may advertise the format. If one was REMOVED, the same three places " +
+        "have to stop advertising it.",
     );
   });
 
   test.skipIf(!BACKEND)("the standards catalog marks emitted exactly the standards a transform produces", () => {
-    const cs = readFileSync(join(BACKEND!, PROGRAM_REL), "utf8");
-    const registered = parseTransformServiceRegistrations(cs);
-    expect(registered.length, "no registrations parsed — this comparison would prove nothing").toBeGreaterThan(0);
+    const { tokens } = readBuildableFormats(BACKEND!);
 
-    // Derived from the C# side, not from the map's own declaration: only services Program.cs
-    // really registers contribute a standard.
-    const producible = registered
-      .map((service) => TRANSFORM_SERVICES[service]?.catalogId)
+    // Derived from the C# side, not from the map's own declaration: only formats a registered
+    // transform really answers `CanTransform` for contribute a standard.
+    const producible = tokens
+      .map((token) => BUILDABLE_FORMATS[token]?.catalogId)
       .filter((id): id is string => typeof id === "string");
 
     const advertised = STANDARDS.filter((s) => s.transform === "supported").map((s) => s.id);
@@ -1181,7 +1405,7 @@ describe("the formats we advertise as output are the formats a transform exists 
       "emitted standards",
       producible,
       advertised,
-      "src/lib/standards/catalog.ts and the registered transforms disagree about which standards " +
+      "src/lib/standards/catalog.ts and the buildable formats disagree about which standards " +
         "ProcuLink can produce. A standard marked `transform: \"supported\"` with no transform " +
         "behind it is the EDIFACT defect exactly — every surface that derives from this catalog " +
         "starts advertising a format that dies at transform. The reverse is an under-claim: a " +
@@ -1197,18 +1421,18 @@ describe("the formats we advertise as output are the formats a transform exists 
   });
 
   test.skipIf(!BACKEND)("the output-format picker offers exactly the formats a transform produces", () => {
-    const cs = readFileSync(join(BACKEND!, PROGRAM_REL), "utf8");
-    const registered = parseTransformServiceRegistrations(cs);
-    expect(registered.length, "no registrations parsed — this comparison would prove nothing").toBeGreaterThan(0);
+    const { tokens } = readBuildableFormats(BACKEND!);
+    expect(tokens.length, "no buildable formats derived — this comparison would prove nothing").toBeGreaterThan(0);
 
     recordComparison(
       "PREVIEW_FORMATS",
-      registered.map((service) => TRANSFORM_SERVICES[service]?.previewFormat ?? `<unmapped:${service}>`),
+      tokens,
       PREVIEW_FORMATS.map((f) => f.value),
-      "PREVIEW_FORMATS in src/lib/api/types.ts is this app's mirror of the registered transforms, " +
+      "PREVIEW_FORMATS in src/lib/api/types.ts is this app's mirror of the buildable formats, " +
         "and outputTreeProblems.ts derives `isEmittedFormat` from it — which is what decides " +
         "whether the output designer tells an author \"ProcuLink builds {format} itself\". A " +
-        "format offered here with no transform behind it gets that promise made about it.",
+        "format offered here with no transform behind it gets that promise made about it. The " +
+        "values are OutputFormatCatalog.Token spellings: OutputFormat.ToString().ToLowerInvariant().",
     );
   });
 });
@@ -1228,7 +1452,7 @@ const EXPECTED_COMPARISONS =
   3 + // outbound URL policy: SecureSchemes, LoopbackOnlySchemes, the error-code walk
   2 + // invoices: the InvoiceService writer diff, and the citation walk over every fact
   2 + // transform causes: the per-pattern site count, and the end-to-end routing walk
-  3; // output formats: the ITransformService registrations, the standards catalog, PREVIEW_FORMATS
+  3; // output formats: the buildable set, the standards catalog, PREVIEW_FORMATS
 
 afterAll(() => {
   if (!BACKEND) return; // the mirror gate already ruled on whether that was allowed
