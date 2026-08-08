@@ -29,6 +29,12 @@ import {
   INVOICE_STATUSES,
   INVOICE_STATUS_FACTS,
 } from "@/lib/invoiceStatusManifest";
+import {
+  ACTIONABLE_EXCEPTION_STATES,
+  EXCEPTION_STATES,
+  EXCEPTION_STATE_FACTS,
+  SETTLED_EXCEPTION_STATES,
+} from "@/lib/exceptionStateManifest";
 // The C# string-literal reader this file introduced now has a second consumer
 // (src/test/backendCopyVocabulary.test.ts), so it lives in one place rather than two.
 // Its own header explains why a `grep` cannot replace it.
@@ -76,6 +82,10 @@ const MACHINE_REL = "ProcuLink.Core/Constants/OrderStatusMachine.cs";
 const URL_POLICY_REL = "ProcuLink.Core/Security/OutboundUrlPolicy.cs";
 const INVOICE_SERVICE_REL = "ProcuLink.Infrastructure/Services/InvoiceService.cs";
 const INVOICE_ENTITY_REL = "ProcuLink.Core/Entities/InvoiceEntity.cs";
+/** Writes every value that can land in `OrderException.State` — assignments and transitions. */
+const EXCEPTION_SERVICE_REL = "ProcuLink.Infrastructure/Services/OrderExceptionService.cs";
+/** Declares `OrderException.State`, and names the vocabulary in its doc-comment. */
+const EXCEPTION_ENTITY_REL = "ProcuLink.Core/Entities/OrderException.cs";
 const TRANSFORM_SERVICE_REL = "ProcuLink.Api/Services/Orders/OrderTransformService.cs";
 /**
  * THE list of outbound transforms the solution ships. `OutputTransformRegistry.All` is what both
@@ -112,6 +122,8 @@ const PARSED_FILES = [
   URL_POLICY_REL,
   INVOICE_SERVICE_REL,
   INVOICE_ENTITY_REL,
+  EXCEPTION_SERVICE_REL,
+  EXCEPTION_ENTITY_REL,
   TRANSFORM_SERVICE_REL,
   TRANSFORM_REGISTRY_REL,
   OUTPUT_FORMAT_ENUM_REL,
@@ -419,6 +431,8 @@ describe("the mirror gate decides correctly", () => {
       URL_POLICY_REL,
       INVOICE_SERVICE_REL,
       INVOICE_ENTITY_REL,
+      EXCEPTION_SERVICE_REL,
+      EXCEPTION_ENTITY_REL,
       TRANSFORM_SERVICE_REL,
       TRANSFORM_REGISTRY_REL,
       OUTPUT_FORMAT_ENUM_REL,
@@ -919,6 +933,178 @@ describe("invoice statuses mirror the backend", () => {
       "InvoiceService no longer guards the export with `Status != \"approved\"` — DOWNLOADABLE_INVOICE_STATUSES " +
         "is now a claim about a guard that moved.",
     ).toContain('Status != "approved"');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The exception-STATE mirror.
+//
+// `src/lib/exceptionStateManifest.ts` decides whether a row on /operations/exceptions
+// reads as handled and whether it keeps its controls. Before it existed the page decided
+// that with `exc.state === "open" ? … : …`, so a state the frontend had never heard of
+// took the else — the SETTLED branch — and a live exception rendered as already dealt
+// with, with Resolve, Open order and Ignore all gone.
+//
+// WHY THIS NEEDS ITS OWN PARSER, and could not reuse the invoice one. The backend names
+// no set here either — `OrderException.State` is a bare `string` column with a
+// doc-comment listing the vocabulary in prose — but the three values do not all arrive
+// the same way:
+//
+//   OrderExceptionService.cs:117   ex.State = "resolved";                  assignment
+//   OrderExceptionService.cs:143   State    = "open",                      assignment
+//   OrderExceptionService.cs:167   SetStateAsync(orgId, id, "resolved", ct)  call argument
+//   OrderExceptionService.cs:170   SetStateAsync(orgId, id, "ignored",  ct)  call argument
+//
+// `ignored` is NEVER the right-hand side of an assignment anywhere in the backend. An
+// assignment-only reader parses this service to {open, resolved} and would report a
+// correct manifest as drift — a guard that fails on the truth is worse than none, because
+// the fix is to delete the guard. So the reader below unions both forms, and the fixture
+// test proves each half contributes before any diff is trusted.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Every string literal passed as an argument to a `SetStateAsync(...)` call.
+ *
+ * Comments are stripped first: the service's own header comment discusses `open` and
+ * `ignored` in prose, and a reader that collected commented-out code would report a
+ * transition that has been REMOVED as still present, which is the drift this exists to
+ * catch rather than a way to catch it.
+ */
+export function parseSetStateCallLiterals(cs: string): string[] {
+  const out: string[] = [];
+  for (const call of stripCsComments(cs).matchAll(/SetStateAsync\s*\(([^)]*)\)/g)) {
+    for (const literal of call[1].matchAll(/"([^"]*)"/g)) out.push(literal[1]);
+  }
+  return out;
+}
+
+/**
+ * Every value the backend can put in `OrderException.State`: assignments ∪ transition
+ * arguments, de-duplicated.
+ *
+ * READERS are deliberately excluded, which `parseAssignedStatusLiterals` gives for free by
+ * matching `=` and not `==`. `DataRetentionService.cs:103` and `OpsHealthService.cs:65`
+ * compare against these strings, and a reader can only ever narrow what a writer produces
+ * — widening the vocabulary from a comparison would let a state nothing writes claim a
+ * row in the manifest, and a manifest entry no writer can produce is a filter tab that
+ * can only ever be empty.
+ */
+export function parseExceptionStateWriters(cs: string): string[] {
+  const stripped = stripCsComments(cs);
+  return [
+    ...new Set([
+      ...parseAssignedStatusLiterals(stripped, "State"),
+      ...parseSetStateCallLiterals(stripped),
+    ]),
+  ];
+}
+
+describe("exception states mirror the backend", () => {
+  test("the writer reader actually reads (so a green diff means something)", () => {
+    const fixture = [
+      "public class Svc",
+      "{",
+      '    // SetStateAsync(orgId, id, "commented_out", ct);   ← retired, must not count',
+      "    public Task<bool> ResolveAsync(Guid orgId, Guid id, CancellationToken ct)",
+      '        => SetStateAsync(orgId, id, "resolved", ct);',
+      "    public Task<bool> IgnoreAsync(Guid orgId, Guid id, CancellationToken ct)",
+      '        => SetStateAsync(orgId, id, "ignored", ct);',
+      "    private async Task<bool> SetStateAsync(Guid orgId, Guid id, string state, CancellationToken ct)",
+      "    {",
+      '        ex.State = "resolved";',
+      '        var row = new OrderException { State = "open" };',
+      '        if (ex.State == "escalated") return false;',
+      "    }",
+      "}",
+    ].join("\n");
+
+    // The two real calls, and neither the commented-out one nor the parameter list of the
+    // declaration (which carries no literal).
+    expect(parseSetStateCallLiterals(fixture)).toEqual(["resolved", "ignored"]);
+
+    // Both halves contribute, and the `==` comparison does NOT: `escalated` is read by
+    // this fixture and written by nothing, so a union that contained it would be treating
+    // a reader as a writer.
+    expect(parseExceptionStateWriters(fixture).sort()).toEqual(["ignored", "open", "resolved"]);
+    expect(parseExceptionStateWriters(fixture)).not.toContain("escalated");
+    expect(parseExceptionStateWriters(fixture)).not.toContain("commented_out");
+
+    // And an assignment-only read really is insufficient — the reason this parser exists.
+    expect(parseAssignedStatusLiterals(stripCsComments(fixture), "State")).not.toContain("ignored");
+  });
+
+  test("the frontend copy is itself non-vacuous", () => {
+    // Guards the diff below: two empty lists compare equal, so an emptied manifest would
+    // otherwise "mirror" a backend that writes three states.
+    expect(EXCEPTION_STATES.length).toBe(3);
+    expect(ACTIONABLE_EXCEPTION_STATES.length).toBeGreaterThan(0);
+    expect(SETTLED_EXCEPTION_STATES.length).toBeGreaterThan(0);
+    expect(
+      [...ACTIONABLE_EXCEPTION_STATES, ...SETTLED_EXCEPTION_STATES].sort(),
+      "the kinds no longer partition the vocabulary",
+    ).toEqual([...EXCEPTION_STATES].sort());
+    for (const fact of EXCEPTION_STATE_FACTS) {
+      expect(fact.backendSite, `${fact.state} cites no backend site`).toMatch(
+        /^ProcuLink\.[\w.]+\/[\w./]+\.cs:\d+$/,
+      );
+      expect(fact.note.length, `${fact.state} has no note`).toBeGreaterThan(20);
+    }
+  });
+
+  test.skipIf(!BACKEND)("every state the exception service writes is in the manifest, and vice versa", () => {
+    const cs = readFileSync(join(BACKEND!, EXCEPTION_SERVICE_REL), "utf8");
+    const written = parseExceptionStateWriters(cs);
+    expect(
+      written.length,
+      "found no State writer in OrderExceptionService.cs — the parser or the backend moved",
+    ).toBeGreaterThanOrEqual(3);
+    recordComparison(
+      "OrderException.State writers",
+      written,
+      EXCEPTION_STATES,
+      "The exception state vocabulary drifted. A state the backend writes and this manifest does not " +
+        "know renders as 'Unrecognised state' — safe, but it means a real exception is being shown to " +
+        "an operator the UI cannot describe. The reverse is worse: a filter tab that can only ever be " +
+        "empty. Either way the manifest, not the page, is the thing to fix.",
+    );
+  });
+
+  test.skipIf(!BACKEND)("the entity still declares the vocabulary this manifest mirrors", () => {
+    const cs = readFileSync(join(BACKEND!, EXCEPTION_ENTITY_REL), "utf8");
+    for (const state of EXCEPTION_STATES) {
+      expect(cs, `OrderException's own doc-comment no longer names '${state}'`).toContain(state);
+    }
+  });
+
+  test.skipIf(!BACKEND)("each fact's cited file exists and still writes that state", () => {
+    for (const fact of EXCEPTION_STATE_FACTS) {
+      const [file] = fact.backendSite.split(":");
+      const path = join(BACKEND!, file);
+      expect(existsSync(path), `${fact.state} cites ${file}, which does not exist`).toBe(true);
+      expect(
+        parseExceptionStateWriters(readFileSync(path, "utf8")),
+        `${fact.state} cites ${file}, which no longer writes it`,
+      ).toContain(fact.state);
+    }
+    comparisonsRun += 1;
+  });
+
+  test.skipIf(!BACKEND)("the actions this screen offers still have no prior-state guard", () => {
+    // The manifest keeps Resolve / Ignore on a row it cannot place, and justifies that by
+    // the backend accepting them from ANY state: both funnel into SetStateAsync, which
+    // loads by id and org and writes unconditionally. If a status guard ever appears
+    // there, offering those controls on an unplaceable row starts handing the operator a
+    // button that 4xxs, and this manifest's reasoning has to be revisited.
+    const cs = readFileSync(join(BACKEND!, EXCEPTION_SERVICE_REL), "utf8");
+    const body = stripCsComments(cs).replace(/\s+/g, " ");
+    const setState = body.slice(body.indexOf("private async Task<bool> SetStateAsync"));
+    expect(setState.length, "SetStateAsync is gone — the transition moved").toBeGreaterThan(0);
+    expect(
+      setState.slice(0, 400),
+      "SetStateAsync grew a prior-state check — the exception manifest offers its actions " +
+        "unconditionally on the strength of it not having one.",
+    ).not.toMatch(/State\s*[!=]=\s*"/);
+    comparisonsRun += 1;
   });
 });
 
