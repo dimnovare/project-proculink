@@ -40,7 +40,10 @@ export const CRUMB_LABELS: Record<string, string> = {
   // word. The per-record child crumb below stays "Connection <id>": that names
   // ONE record, exactly as "Order 008412" sits under "Orders".
   connections: "Supplier changes",
-  webhooks: "Webhooks",
+  // NOTE: `webhooks` is absent on purpose. /operations/webhooks was deleted on
+  // 2026-08-08 (a duplicate of Settings ▸ Connectors nobody could navigate to)
+  // and now 308s to /settings?tab=connectors, so no crumb is ever rendered for
+  // it — see src/lib/retired-routes.ts.
   admin: "Admin",
   help: "Help",
   inbound: "Inbound",
