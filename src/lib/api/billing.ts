@@ -15,6 +15,7 @@ import {
   delay,
   ApiHttpError,
 } from "./core";
+import { readRefusal } from "./refusal";
 
 // ── Admin access error (re-exported via api-client) ──────────────────────────
 
@@ -84,7 +85,10 @@ export async function createCheckoutSession(
     headers: { ...headers, "Content-Type": "application/json" },
     body: JSON.stringify({ plan, billingInterval }),
   }, 30000);
-  if (!res.ok) throw new Error(`billing/checkout: ${res.status}`);
+  // Committing the organisation to a recurring charge is org-admin-gated, so a member who is
+  // not an administrator lands here. `billing/checkout: 403` was not copy — it was a status
+  // line — and the checkout buttons render this message verbatim.
+  if (!res.ok) throw await readRefusal(res, `billing/checkout: ${res.status}`);
   const data = await res.json();
   return data.url as string;
 }
@@ -95,7 +99,11 @@ export async function createPortalSession(): Promise<string> {
     method: "POST",
     headers,
   }, 30000);
-  if (!res.ok) throw new Error(`billing/portal: ${res.status}`);
+  // The Stripe Billing Portal is where a subscription is CANCELLED, which stops every ingest
+  // path at once — the single most destructive action in the product, and now org-admin-gated.
+  // This threw a bare `billing/portal: 403` with no copy at all, and the response body was
+  // never read, so nothing downstream could tell a role refusal from any other failure.
+  if (!res.ok) throw await readRefusal(res, `billing/portal: ${res.status}`);
   const data = await res.json();
   return data.url as string;
 }

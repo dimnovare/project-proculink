@@ -282,6 +282,19 @@ jobs:
       - name: Check backend user-facing copy against the vocabulary
         if: always()
         run: bun run test src/test/backendCopyVocabulary.test.ts
+
+      # The SAME backend checkout again, for a third question: is the 403 code the frontend
+      # branches on still the literal the C# gate emits? `requires_org_admin` decides whether a
+      # refused customer is told to ask a colleague or to spend money, so a silent rename would
+      # send every non-admin to the upgrade copy.
+      #
+      # It has to run HERE. The rest of this file's tests run in the unit-test job, which checks
+      # no backend out — the mirror assertion is `it.skipIf(!BACKEND)`, so there it would report
+      # green having compared nothing. A SEPARATE STEP, like the one above, so a failure names
+      # which question went wrong without anyone opening the run.
+      - name: Diff the org-admin refusal code against the backend C#
+        if: always()
+        run: bun run test src/test/orgAdminRefusal.test.ts
   # ══ END backend-mirror job ══════════════════════════════════════════════════
 
   test-e2e:

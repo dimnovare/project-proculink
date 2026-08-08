@@ -5,6 +5,7 @@ import type {
 } from "./types";
 import { API_BASE_URL, authHeader } from "./core";
 import { serverReason } from "@/lib/serverText";
+import { orgAdminRefusal } from "./refusal";
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const auth = await authHeader();
@@ -18,6 +19,14 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
     // DeliveryConfigEditor. `serverReason` returns the readable text inside it, or the status
     // line when there is none. See src/lib/serverText.ts.
     const text = await res.text().catch(() => "");
+    // Writing or deleting a delivery config changes where every future order for that supplier
+    // is sent, so it is organisation-admin-gated. That refusal is a finished sentence written
+    // for the reader, so it is thrown ALONE — no `API error 403:` prefix, and no `serverReason`,
+    // which lifts the body's `error` field ahead of its `message` and would have shown the
+    // machine code `requires_org_admin` instead. Every other failure keeps the shape below,
+    // including a plan gate, whose code `DeliveryConfigEditor` still detects in this string.
+    const admin = orgAdminRefusal(res.status, text);
+    if (admin) throw new Error(admin);
     throw new Error(`API error ${res.status}: ` + serverReason(text, res.statusText || `HTTP ${res.status}`));
   }
   return res.json() as Promise<T>;

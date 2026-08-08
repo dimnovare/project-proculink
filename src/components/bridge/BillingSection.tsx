@@ -10,9 +10,30 @@ import { useState } from "react";
 import type { BillingPlan, BillingStatus } from "@/types/procurement";
 import { PLAN_BY_ID, CHECKOUT_PLAN_IDS, yearlySavePercent } from "@/lib/plans";
 import { capture } from "@/lib/analytics";
+import { isOrgAdminRefusal, orgAdminMessage } from "@/lib/planGate";
 import { BOOK_DEMO_URL, BOOK_DEMO_LINK_ATTRS } from "@/lib/book-demo";
 
 type BillingInterval = "monthly" | "yearly";
+
+/**
+ * What to tell someone whose "Change plan" / "Manage in Stripe" click was refused.
+ *
+ * Both buttons open the Stripe Billing Portal, which is where a subscription is cancelled, so
+ * the backend restricts them to organisation administrators. Every failure here used to resolve
+ * to one of two hardcoded sentences and the server's reason was discarded, which meant an
+ * ordinary member was told "Please try again" about the one thing retrying can never fix.
+ *
+ * The role refusal is checked FIRST and never falls through to the retry copy. It is also not a
+ * plan problem, so nothing here offers an upgrade: this person's organisation may well be on the
+ * right plan already.
+ */
+function portalErrorCopy(error: unknown): string {
+  if (isOrgAdminRefusal(error)) return orgAdminMessage();
+  if (error instanceof Error && error.message.toLowerCase().includes("customer")) {
+    return "No billing customer on file. Contact support to link your account.";
+  }
+  return "Could not open billing portal. Please try again or contact support.";
+}
 
 // Derived annual save-% for the upgrade toggle (uniform across the paid ladder
 // today; sourced from plans.ts so it self-corrects with the Stripe-verified
@@ -338,6 +359,18 @@ export function BillingSection() {
             ) : undefined}
           />
 
+          {/*
+            "Change plan" opens the same portal as "Manage in Stripe" further down the page, but
+            that card's error line is in a different card and was never visible from here — so a
+            refusal on THIS button produced no feedback at all, just a button that stopped
+            spinning. Same copy, next to the control that was pressed.
+          */}
+          {portalMutation.isError && (
+            <p role="status" style={{ margin: 0, fontSize: 12, color: "var(--danger)", lineHeight: 1.5 }}>
+              {portalErrorCopy(portalMutation.error)}
+            </p>
+          )}
+
           {/* Usage bars */}
           <div style={{ display: "flex", flexDirection: "column", gap: 10, opacity: status.canProcessOrders || isEnterprise ? 1 : 0.58 }}>
             <UsageBar
@@ -492,10 +525,7 @@ export function BillingSection() {
           {portalMutation.isError && (
             <div style={{ padding: "0 16px 12px" }}>
               <p style={{ margin: 0, fontSize: 12, color: "var(--danger)", lineHeight: 1.5 }}>
-                {portalMutation.error instanceof Error &&
-                portalMutation.error.message.toLowerCase().includes("customer")
-                  ? "No billing customer on file. Contact support to link your account."
-                  : "Could not open billing portal. Please try again or contact support."}
+                {portalErrorCopy(portalMutation.error)}
               </p>
             </div>
           )}
