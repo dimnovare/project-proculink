@@ -18,6 +18,7 @@ import {
   auditActionFact,
   auditActionLabel,
   auditEventKind,
+  auditEventReason,
   type AuditActionFact,
   type AuditEventKind,
 } from "@/lib/auditActionManifest";
@@ -71,6 +72,15 @@ type LogEntry = {
   action?: string;
   actor: Actor;
   message: string;
+  /**
+   * Why this event happened, in the backend's own words — or absent.
+   *
+   * Lifted from the audit `payload` by `auditEventReason`, which knows per action
+   * which key carries prose. ABSENT IS THE NORMAL CASE and must stay renderable as
+   * nothing: most actions carry no reason, and the ones that do can carry a null.
+   * Never synthesised from the action, the status, or the message.
+   */
+  reason?: string;
   // Structured key/value detail grid (mirrors `c.detail` in screen-crossings.jsx).
   // Rendered as the eyebrow-labelled grid in the expanded panel.
   details?: Record<string, string>;
@@ -239,6 +249,13 @@ function mapApiEntry(e: AuditLogEntry): LogEntry {
       type:     e.actorType,
     },
     message: humaniseMessage(e.action, e.message, fact),
+    // The audit DTO has always carried `payload` and this screen has never read it,
+    // so the log could say an order failed and never why — the one question an
+    // operator opens it to answer. `auditEventReason` returns undefined-equivalent
+    // (null) for every action with no declared reason key, for an absent payload, and
+    // for a body that survives sanitising as nothing legible; all three render as no
+    // reason at all rather than as a guess.
+    reason: auditEventReason(e.action, e.payload) ?? undefined,
   };
 }
 
@@ -1048,6 +1065,62 @@ export function CrossingsLog() {
                                 </p>
                               )}
 
+                              {/* The reason the backend already sent.
+                                  Rendered ONLY when `auditEventReason` found one — an
+                                  action with no reason key, an absent payload, or a body
+                                  that sanitises to nothing all render nothing here rather
+                                  than a sentence this screen made up.
+                                  Red for a failure, amber for a held/other event, matching
+                                  the row's own badge tone. No "auto-retry scheduled" suffix:
+                                  that is the mock banner's claim below and nothing in the
+                                  payload substantiates it. */}
+                              {c.reason && (
+                                <div
+                                  data-testid="audit-reason"
+                                  data-event-kind={c.canonicalEvent}
+                                  // The tone, on the element that wears it. Both colours
+                                  // are CSS custom properties and jsdom does not resolve
+                                  // those, so without this a guard can only assert that a
+                                  // reason rendered, not that a paused order was spared
+                                  // being painted as a break. Same seam, same reason, as
+                                  // the badge's `data-event-kind`.
+                                  data-tone={c.canonicalEvent === "failed" ? "danger" : "amber"}
+                                  style={{
+                                    // First thing in the card on the live path, where the
+                                    // grid and free-text blocks above are never populated.
+                                    marginTop: hasDetails || hasText ? 10 : 0,
+                                    display: "flex",
+                                    // Top-aligned, not centred: the reason is up to
+                                    // SUPPLIER_REASON_MAX characters and wraps to several
+                                    // lines at 390px, and a centred icon would drift to the
+                                    // middle of the paragraph.
+                                    alignItems: "flex-start",
+                                    gap: 8,
+                                    padding: "8px 11px",
+                                    background:
+                                      c.canonicalEvent === "failed" ? "var(--danger-soft)" : "var(--amber-soft)",
+                                    borderRadius: "var(--radius)",
+                                    fontSize: 11.5,
+                                    lineHeight: 1.55,
+                                    color: c.canonicalEvent === "failed" ? "var(--danger)" : "var(--amber-text)",
+                                  }}
+                                >
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 3 }}>
+                                    <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3z" /><path d="M12 9v4" /><path d="M12 17h.01" />
+                                  </svg>
+                                  {/* `minWidth: 0` + `overflowWrap: anywhere` are what keep
+                                      the 390px card intact. A flex child defaults to
+                                      min-content width, so without the first a long reason
+                                      pushes the card wider than the viewport; without the
+                                      second an unbroken run — a URL, a stack frame, a
+                                      supplier's id blob — does the same. It wraps rather
+                                      than truncating: the string is already clamped to a
+                                      readable ceiling upstream, and cutting it again here
+                                      would remove the half that says what to do. */}
+                                  <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>{c.reason}</span>
+                                </div>
+                              )}
+
                               {/* Error banner — amber when recoverable, red otherwise (design parity) */}
                               {c.error && (
                                 <div
@@ -1070,7 +1143,7 @@ export function CrossingsLog() {
 
                               {/* Field-diff table (mapping / validation entries) */}
                               {hasDiff && (
-                                <div style={{ marginTop: hasDetails || hasText || c.error ? 12 : 0 }}>
+                                <div style={{ marginTop: hasDetails || hasText || c.reason || c.error ? 12 : 0 }}>
                                   <div className="eyebrow" style={{ fontSize: 9, marginBottom: 6 }}>Field changes</div>
                                   <div
                                     className="mono"
