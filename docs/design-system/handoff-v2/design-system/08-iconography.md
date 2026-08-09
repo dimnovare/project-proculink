@@ -61,7 +61,7 @@ For marketing-only surfaces (auth page, marketing footer, brand stand-alone trea
 
 ## Stage glyphs (the same shape language)
 
-Five icons representing the canonical crossing stages. Each is a constrained variant of the link-curve, **not** generic UI iconography:
+Five icons representing the canonical pipeline stages (Parse · Normalize · Validate · Transform · Deliver). Each is a constrained variant of the link-curve, **not** generic UI iconography:
 
 | Stage | Glyph concept (System Identity construction) |
 |---|---|

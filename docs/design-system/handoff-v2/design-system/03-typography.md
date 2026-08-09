@@ -97,14 +97,16 @@ Sub (Inter 17px 400, ink-muted, max-width 600px):
    Upload Excel, PDF, cXML or EDI orders, review only exceptions, deliver clean."
 ```
 
-### Bridge dashboard page header
+### Dashboard page header
 ```
 Title (Bricolage Grotesque 30px 600, tracking -0.025em):
-  "Order flow"
+  "Dashboard"
 
 Subtitle (Inter 13px 400, ink-muted):
-  "Today · Mon 12 Jan 2026 · 18 lanes · 6 suppliers"
+  "Today · Mon 12 Jan 2026 · 6 suppliers"
 ```
+(Shipped titles live in `src/lib/pageTitles.ts`. "18 lanes" was in this example until
+2026-08-09 — purged vocabulary, see `07-content.md`.)
 
 ### KPI tile
 ```

@@ -16,6 +16,21 @@ design-system/
 └── core.jsx              ← reference implementation of the primitives (what styleguide.html renders).
 ```
 
+This folder also holds an **earlier** numbered set (`01-foundations.md` … `10-claude-code-brief.md`)
+from the first handoff. It is kept for its layout, token and motion detail, which is still good.
+
+**For anything a user reads, the current authority is `DESIGN_SYSTEM.md` §12 and
+`FABLE5_BRIEF.md` §8 — not the numbered set.** The numbered docs originally taught a
+bridge-metaphor voice (*crossing*, *dock*, *lane*, *spine*, "Cross the bridge →"). The founder
+purged that from all user-facing copy (CLAUDE.md §9); the numbered docs were corrected on
+2026-08-09 to match, and each carries a note where it was wrong. In the product itself the
+approved word list is code — `src/lib/vocabulary.ts`, enforced by `bun run lint:vocab` — and
+shipped page titles live in `src/lib/pageTitles.ts`. Read those before writing a label.
+
+The metaphor is still locked as **spatial architecture**: edge rails, wire topology, the
+three-column review screen, the link-spine gradient. It governs layout and component names, and
+survives in code identifiers, CSS/design tokens and route names. It is never a word on screen.
+
 ---
 
 ## How to wire it in (the 4-step answer)
