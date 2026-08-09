@@ -446,7 +446,7 @@ export default function RootPage() {
                   marginLeft: 8,
                 }}
               >
-                live order topology
+                live order flow
               </span>
               {/* Segmented view toggle */}
               <div
@@ -491,7 +491,7 @@ export default function RootPage() {
                       : "bg-transparent text-navy-muted",
                   ].join(" ")}
                 >
-                  Topology
+                  Order flow
                 </button>
                 <button
                   type="button"

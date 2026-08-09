@@ -239,6 +239,67 @@ describe("check-vocabulary.mjs scan", () => {
     expect(runGate([], root).code).toBe(0);
   });
 
+  // ── The landing page ────────────────────────────────────────────────────────
+  //
+  // A ROUTE GROUP ADDS NO PATH SEGMENT. `src/app/(home)/` IS `/` — the page every
+  // prospect sees — and it is a SIBLING of `(marketing)`, not a child of it. Naming
+  // `(app)` and `(marketing)` therefore read as "all of src/app" and was not, which is
+  // how the hero shipped `live order topology` past a green gate. The fixture plants
+  // that exact string, so this test fails if the target is ever dropped again.
+  it("scans src/app/(home) — the landing page is a SIBLING of (marketing), not a child", () => {
+    mkdirSync(join(root, "src", "app", "(home)"), { recursive: true });
+    write("src/app/(home)/page.tsx", `export const H = () => <span>live order topology</span>;\n`);
+    const { code, out } = runGate([], root);
+    expect(code).toBe(1);
+    expect(out).toContain("src/app/(home)/page.tsx");
+    expect(out).toContain("[metaphor: topology]");
+    rmSync(join(root, "src", "app", "(home)", "page.tsx"));
+    // Baseline back to green, so the next test's failure is attributable to its own fixture.
+    expect(runGate([], root).code).toBe(0);
+  });
+
+  // ── One-word labels ─────────────────────────────────────────────────────────
+  //
+  // The multi-line-prose fallback required TWO words, to keep a bare identifier on its
+  // own line out of scope. That floor also excluded every one-word button in the
+  // product — 90 of them across the scanned trees (Cancel, Retry, Revoke, Export), and
+  // the landing hero's `Topology` view toggle among them. Written exactly as Prettier
+  // formats a multi-attribute element: the opening tag's `>` alone on its own line.
+  it("reads a ONE-WORD button label written across lines (the two-word floor's blind spot)", () => {
+    write(
+      "src/components/bridge/Toggle.tsx",
+      [
+        "export const T = () => (",
+        "  <button",
+        '    type="button"',
+        "  >",
+        "    Topology",
+        "  </button>",
+        ");",
+        "",
+      ].join("\n"),
+    );
+    const { code, out } = runGate([], root);
+    expect(code).toBe(1);
+    expect(out).toContain("Toggle.tsx");
+    expect(out).toContain("[metaphor: topology]");
+    rmSync(join(root, "src", "components", "bridge", "Toggle.tsx"));
+  });
+
+  // The relaxation above is keyed on the previous line being EXACTLY `>`, because only a
+  // broken-up JSX opening tag produces that — after it, a bare word is unambiguously an
+  // element's text. A line that merely ENDS in `>` may be a generic close, and relaxing
+  // on that would put real code back in scope. This pins the distinction: loosen the key
+  // to "ends with `>`" and this test turns red.
+  it("does not relax the floor after a line that merely ENDS in `>` — a generic close is not a tag", () => {
+    write(
+      "src/components/bridge/Generic.tsx",
+      ["type Props = Record<string, string>", "topology", ""].join("\n"),
+    );
+    expect(runGate([], root).code).toBe(0);
+    rmSync(join(root, "src", "components", "bridge", "Generic.tsx"));
+  });
+
   it("--nouns FAILS when a nav label teaches a tenth noun, and names it", () => {
     mkdirSync(join(root, "src", "components", "bridge", "layout"), { recursive: true });
     write(
