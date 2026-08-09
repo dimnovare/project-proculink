@@ -21,7 +21,7 @@
 
 import { API_BASE_URL, USE_MOCK, authHeader, fetchWithTimeout, delay } from "./core";
 
-export type CatalogSourceProtocol = "sftp" | "ftp" | "ftps" | "http" | "https" | "logicom";
+export type CatalogSourceProtocol = "sftp" | "ftp" | "ftps" | "http" | "https" | "aes2fa";
 
 /**
  * The four values the backend writes today — and a COMPILE-TIME CLAIM about a raw JSON
@@ -71,7 +71,7 @@ export interface CatalogSource {
   lastSyncAt: string | null;
   lastSyncStatus: CatalogSyncStatus | null;
   lastSyncError: string | null;
-  // http/https/logicom only — null for sftp/ftp. Secrets NEVER returned; only presence.
+  // http/https/aes2fa only — null for sftp/ftp. Secrets NEVER returned; only presence.
   url: string | null;
   authMethod: CatalogHttpAuthMethod | null;
   hasAuthConfig: boolean;
@@ -82,9 +82,10 @@ export interface CatalogSource {
 }
 
 /**
- * Write-only Logicom QuickConnect vendor credentials (protocol "logicom"). Logicom's 2FA AES
- * auth bypasses the generic http auth path via the backend vendor-fetcher seam. Same keep/set
- * semantics as authConfig: the whole object null = keep stored, present = re-encrypt.
+ * Write-only vendor-connector credentials for the AES 2FA signed API (protocol "aes2fa" — an
+ * auth mechanism, never a vendor's name). Its per-call AES 2FA request signing bypasses the
+ * generic http auth path via the backend vendor-fetcher seam. Same keep/set semantics as
+ * authConfig: the whole object null = keep stored, present = re-encrypt.
  */
 export interface CatalogVendorConfig {
   customerId?: string;
@@ -131,14 +132,14 @@ export interface UpsertCatalogSourcePayload {
   fileFormat: string;
   syncIntervalHours: number;
   isEnabled: boolean;
-  // http/https/logicom only (null/ignored for sftp/ftp):
+  // http/https/aes2fa only (null/ignored for sftp/ftp):
   url?: string | null;
   authMethod?: CatalogHttpAuthMethod | null;
   authConfig?: CatalogHttpAuthConfig | null;
   httpMethod?: string | null;
   // Per-source column mapping — null = keep stored, {} = clear, value = set. Not a secret.
   columnMapping?: Record<string, string> | null;
-  // Logicom vendor credentials — write-only, same keep/set semantics as authConfig.
+  // AES 2FA vendor credentials — write-only, same keep/set semantics as authConfig.
   vendorConfig?: CatalogVendorConfig | null;
 }
 
@@ -212,7 +213,7 @@ export async function upsertCatalogSource(
     await delay(250);
     const prev = _mockSources[supplierId] ?? null;
     const isHttp = payload.protocol === "http" || payload.protocol === "https";
-    const isVendor = payload.protocol === "logicom";
+    const isVendor = payload.protocol === "aes2fa";
     const isUrlBased = isHttp || isVendor;
     const hasPassword =
       payload.password === null ? (prev?.hasPassword ?? false) : payload.password !== "";
