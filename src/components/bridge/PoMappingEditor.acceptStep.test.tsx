@@ -65,8 +65,15 @@ const COLUMNS = ["po_number", "order_date", "item_code", "qty", "buyer_name"];
  * saved config", "no chip reads 100%") passes trivially against a component
  * that rendered nothing, so this runs FIRST and throws before any of them: the
  * corpus is the size expected, it really does contain scores above the retired
- * threshold, those scores are strictly between 0 and 1, and the suggestions are
- * live on screen as pending cards with a real Accept control.
+ * threshold, those scores are strictly between 0 and 1, and every suggestion
+ * reached the DOM — its field has a row, and that row names the column it was
+ * matched to.
+ *
+ * Deliberately state-agnostic. An earlier version asserted four Accept buttons
+ * here, which auto-apply also breaks, so restoring the defect made the FLOOR
+ * fire and the targeted assertion never ran. A floor must prove the fixture is
+ * live without presupposing the fix; whether a suggestion is pending or adopted
+ * is the thing under test, and belongs in the tests, not in the floor.
  */
 function floor() {
   expect(SUGGESTIONS).toHaveLength(4);
@@ -80,12 +87,9 @@ function floor() {
     expect(s.suggestedColumn).toBeTruthy();
     expect(s.confidence).toBeGreaterThan(0);
     expect(s.confidence).toBeLessThan(1);
-  }
-  // The suggestions reached the DOM: one pending card, with an Accept button,
-  // per suggestion. Without this the sweep below would be vacuous.
-  expect(screen.getAllByRole("button", { name: "Accept" })).toHaveLength(4);
-  for (const s of SUGGESTIONS) {
-    expect(within(row(s.canonicalField)).getByText("pending")).toBeTruthy();
+    // The suggestion reached the screen in some state. Without this the sweeps
+    // below would be vacuous against a component that rendered nothing.
+    expect(row(s.canonicalField).textContent).toContain(s.suggestedColumn!);
   }
 }
 
@@ -160,6 +164,12 @@ describe("PoMappingEditor — nothing enters the mapping without a human action"
   it("keeps an unaccepted suggestion visibly pending rather than silently absent", () => {
     renderEditor();
     floor();
+
+    // Every suggestion is awaiting a decision — none was adopted on mount.
+    expect(screen.getAllByRole("button", { name: "Accept" })).toHaveLength(4);
+    for (const s of SUGGESTIONS) {
+      expect(within(row(s.canonicalField)).getByText("pending")).toBeTruthy();
+    }
 
     // The highest-scoring suggestion of all — the one the old code was surest
     // about — is present, attributed, scored, and awaiting a decision.
