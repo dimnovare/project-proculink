@@ -1,7 +1,12 @@
 import { describe, test, expect } from "vitest";
 import { existsSync, readFileSync } from "fs";
 import { dirname, join, resolve } from "path";
-import { AUDIT_ACTION_FACTS, REACHABLE_AUDIT_ACTIONS, auditActionFact } from "@/lib/auditActionManifest";
+import {
+  AUDIT_ACTION_FACTS,
+  EXPLAINED_AUDIT_ACTIONS,
+  REACHABLE_AUDIT_ACTIONS,
+  auditActionFact,
+} from "@/lib/auditActionManifest";
 import { ROOT } from "./appRoutes";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -149,6 +154,187 @@ export function parseAuditActions(src: string, consts: Map<string, string>): str
   return [...found];
 }
 
+// ── Payload keys ─────────────────────────────────────────────────────────────
+// `AuditActionFact.reasonKeys` names the payload key that carries an action's reason.
+// Naming a key the backend does not write would be silent: the delivery log would go
+// on showing no reason, which is the exact defect that field exists to fix, and the
+// render tests would still pass because they supply the payload themselves. So the
+// key list is diffed against the real C# here, the same way the action list is.
+
+/**
+ * The body of the anonymous object starting at `openBrace`, by balanced braces.
+ *
+ * Brace-counting rather than a regex because these initialisers nest
+ * (`filter = new { … }`) and span up to a dozen lines. Strings are skipped so a brace
+ * inside `"{0}"` cannot unbalance the scan.
+ */
+function objectBody(src: string, openBrace: number): string | null {
+  let depth = 0;
+  for (let i = openBrace; i < src.length; i += 1) {
+    const ch = src[i];
+    if (ch === '"') {
+      i += 1;
+      while (i < src.length && src[i] !== '"') i += src[i] === "\\" ? 2 : 1;
+      continue;
+    }
+    if (ch === "{") depth += 1;
+    else if (ch === "}") {
+      depth -= 1;
+      if (depth === 0) return src.slice(openBrace + 1, i);
+    }
+  }
+  return null;
+}
+
+/** The offset of the `{` of the first `new … {` at or after `from`, or -1. */
+function newObjectBraceAt(src: string, from: number): number {
+  const m = /\bnew\b[^({;]*?\{/.exec(src.slice(from));
+  return m ? from + m.index + m[0].length - 1 : -1;
+}
+
+/**
+ * The TOP-LEVEL member names of one anonymous-object body.
+ *
+ * Both C# spellings, because the key this reader most needs is written the second way:
+ *
+ *   `stage = "transform"`   explicit  → `stage`
+ *   `error` / `lastError`   SHORTHAND → the local's name is the key
+ *
+ * `DeliveryDeadLettered` writes `new { attemptCount, lastError, deadLetteredAt = now }`,
+ * so a reader that only matched `name =` would miss `lastError` — the one key that
+ * carries why a delivery gave up. Nested bodies are skipped by depth, so
+ * `blockers[].message` does not surface as a top-level `message`.
+ */
+export function parsePayloadKeys(body: string): string[] {
+  const keys: string[] = [];
+  let depth = 0;
+  let start = 0;
+  const parts: string[] = [];
+  for (let i = 0; i < body.length; i += 1) {
+    const ch = body[i];
+    if (ch === '"') {
+      i += 1;
+      while (i < body.length && body[i] !== '"') i += body[i] === "\\" ? 2 : 1;
+      continue;
+    }
+    if (ch === "{" || ch === "(" || ch === "[") depth += 1;
+    else if (ch === "}" || ch === ")" || ch === "]") depth -= 1;
+    else if (ch === "," && depth === 0) {
+      parts.push(body.slice(start, i));
+      start = i + 1;
+    }
+  }
+  parts.push(body.slice(start));
+
+  for (const raw of parts) {
+    const part = raw.replace(/\/\/[^\n]*/g, "").trim();
+    if (!part) continue;
+    const assigned = /^([A-Za-z_]\w*)\s*=(?!=)/.exec(part);
+    if (assigned) {
+      keys.push(assigned[1]);
+      continue;
+    }
+    // Shorthand. `filter!.PoNumberPrefix` infers to the LAST segment, which is how C#
+    // names an inferred member from a property access.
+    const shorthand = /^([A-Za-z_][\w.!?]*)$/.exec(part);
+    if (shorthand) {
+      const segments = shorthand[1].replace(/[!?]/g, "").split(".");
+      keys.push(segments[segments.length - 1]);
+    }
+  }
+  return keys;
+}
+
+/**
+ * Every (action → payload keys) pair a source file writes.
+ *
+ * The backend builds an audit payload two ways, and both are read:
+ *
+ *   A. `BuildAuditEvent(org, id, "Action", new { … })` — the payload is the fourth
+ *      argument, lexically after the action.
+ *   B. `var <ident> = JsonSerializer.Serialize(new { … });` … then a separate
+ *      `new AuditEvent { … Action = "X", Payload = JsonDocument.Parse(<ident>) }`.
+ *
+ * Shape B BINDS ON THE IDENTIFIER rather than scanning backwards from the action.
+ * Proximity is not reliable here in either direction: `OpsController.cs`'s
+ * `DeliveryRequeuedByOperator` builds its payload AFTER the `Action =` line, and the
+ * largest backward gap elsewhere is 23 lines, so any fixed window is one refactor
+ * from silently reading the previous write site's payload — a mirror that confirms
+ * the wrong keys. The variable name is the actual link, and it varies (`payload`,
+ * `requeuePayload`, `failPayload`, `recoverPayload`), so it is read rather than assumed.
+ *
+ * Not every site is followable: `AcceptanceOverrideUsed` is built in `AcceptanceGate.cs`
+ * and added in `OrderTransformService.cs`, and the `admin.*` / `inbound_email.*` families
+ * go through helpers with the action as a parameter. That is fine as long as it is not
+ * silent — the callers assert that every action whose reason key the manifest declares
+ * was really found here, so a site this reader cannot follow fails the build rather
+ * than contributing nothing to a diff that then passes.
+ */
+export function parseAuditPayloads(src: string, consts: Map<string, string>): Map<string, Set<string>> {
+  const out = new Map<string, Set<string>>();
+  const add = (action: string, keys: string[]) => {
+    const set = out.get(action) ?? new Set<string>();
+    for (const k of keys) set.add(k);
+    out.set(action, set);
+  };
+
+  const bodyAt = (from: number): string | null => {
+    const brace = newObjectBraceAt(src, from);
+    return brace < 0 ? null : objectBody(src, brace);
+  };
+
+  // Shape A. One site can name two actions (`OrdersController.cs`'s ternary), and both
+  // arms share the one payload.
+  for (const m of src.matchAll(/BuildAuditEvent\(\s*[^,()]+,\s*[^,()]+,\s*([^,]+),/g)) {
+    const actions = resolveActionExpr(m[1], consts);
+    if (actions.length === 0) continue;
+    const body = bodyAt(m.index + m[0].length);
+    if (body === null) continue;
+    for (const a of actions) add(a, parsePayloadKeys(body));
+  }
+
+  // Shape B, in two passes: every `<ident> = …Serialize(new { … })` in the file, then
+  // each `Action = "X"` initialiser resolved through the identifier its `Payload =`
+  // line names.
+  //
+  // THE IDENTIFIER IS NOT UNIQUE. `DeliveryService.cs` builds four different audit
+  // payloads and calls the local `payload` every time, so a name→body map keyed on the
+  // identifier alone keeps whichever came last: the first run of this diff reported
+  // `DeliveryUnconfirmed` and `DeliveryHeldForBilling` as writing
+  // `attemptCount, deadLetteredAt, lastError`, which is `DeliveryDeadLettered`'s
+  // payload from further down the file. Every occurrence is kept with its offset, and
+  // a use resolves to the nearest binding of that name BEFORE it — ordinary lexical
+  // scoping. Falling forward to the first binding after the use covers
+  // `OpsController.cs`, which assigns its payload below the `Action =` line.
+  const bindings: Array<{ at: number; ident: string; body: string }> = [];
+  for (const m of src.matchAll(/\b(\w+)\s*=\s*[\w.]*JsonSerializer\.Serialize\(/g)) {
+    const body = bodyAt(m.index + m[0].length);
+    if (body !== null) bindings.push({ at: m.index, ident: m[1], body });
+  }
+
+  const bindingFor = (ident: string, useAt: number): string | undefined => {
+    const named = bindings.filter((b) => b.ident === ident);
+    const before = named.filter((b) => b.at < useAt);
+    if (before.length > 0) return before[before.length - 1].body;
+    const after = named.find((b) => b.at > useAt);
+    return after?.body;
+  };
+
+  for (const m of src.matchAll(/\bAction\s*=\s*"([^"]+)"/g)) {
+    // The initialiser this `Action =` belongs to, bounded so a `Payload =` from the
+    // NEXT audit write cannot be attributed to this one.
+    const windowEnd = src.indexOf('Action = "', m.index + m[0].length);
+    const region = src.slice(m.index, windowEnd < 0 ? src.length : windowEnd);
+    const ref = /Payload\s*=\s*[\w.]*JsonDocument\.Parse\(\s*(\w+)\s*\)/.exec(region);
+    if (!ref) continue;
+    const body = bindingFor(ref[1], m.index);
+    if (body === undefined) continue;
+    add(m[1], parsePayloadKeys(body));
+  }
+
+  return out;
+}
+
 // ── The parsers are checked on every run, backend or not ─────────────────────
 
 describe("audit-action parsers (fixture — runs everywhere)", () => {
@@ -222,6 +408,118 @@ public class Sample
   });
 });
 
+describe("audit-payload parsers (fixture — runs everywhere)", () => {
+  /**
+   * The four payload shapes the backend really writes, including the two that broke
+   * the first version of this reader.
+   */
+  const FIXTURE = `
+public static class AcceptanceGateAudit
+{
+    public const string BlockedAction = "AcceptanceBlocked";
+}
+
+public class Sample
+{
+    void A() {
+        _db.AuditEvents.Add(OrderServiceShared.BuildAuditEvent(organisationId, orderId, "TransformFailed", new
+        {
+            error,
+            stage = "transform",
+        }));
+        _db.AuditEvents.Add(OrderServiceShared.BuildAuditEvent(
+            orgId, id, AcceptanceGateAudit.BlockedAction, new
+            {
+                blockers = gate.Blockers.Select(b => new { code = b.Code, message = b.Message }).ToList(),
+                stage    = "transform",
+            }));
+
+        var payload = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            channel = config.Protocol,
+            detail = parkReason,
+        });
+        _db.AuditEvents.Add(new Core.Entities.AuditEvent
+        {
+            Action = "DeliveryUnconfirmed",
+            Payload = System.Text.Json.JsonDocument.Parse(payload),
+        });
+
+        var payload = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            attemptCount,
+            lastError,
+            deadLetteredAt = now,
+        });
+        _db.AuditEvents.Add(new Core.Entities.AuditEvent
+        {
+            Action = "DeliveryDeadLettered",
+            Payload = System.Text.Json.JsonDocument.Parse(payload),
+        });
+
+        _db.AuditEvents.Add(new Core.Entities.AuditEvent
+        {
+            Action = "DeliveryRequeuedByOperator",
+            Payload = System.Text.Json.JsonDocument.Parse(requeuePayload),
+        });
+        var requeuePayload = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            reason = "OpsRequeueDelivery",
+            detail = "An operator put this back on the queue.",
+        });
+    }
+}`;
+
+  const keys = () => parseAuditPayloads(FIXTURE, parseActionConstants(FIXTURE));
+
+  test("reads SHORTHAND members, not only `name = value` ones", () => {
+    // `lastError` is the single most load-bearing key this reader has to find — it is
+    // the only explanation a dead-lettered delivery carries — and it is written
+    // shorthand. A `\\w+\\s*=` regex misses it entirely and the diff goes quiet.
+    expect([...keys().get("DeliveryDeadLettered")!]).toEqual(
+      expect.arrayContaining(["attemptCount", "lastError", "deadLetteredAt"]),
+    );
+    expect([...keys().get("TransformFailed")!]).toEqual(expect.arrayContaining(["error", "stage"]));
+  });
+
+  test("keeps nested members out of the top-level key set", () => {
+    // `blockers[]`'s elements carry `message`. If that surfaced as a top-level key,
+    // the manifest could declare `AcceptanceBlocked.message` and the diff would agree
+    // with a key no payload has.
+    const acceptance = keys().get("AcceptanceBlocked")!;
+    expect([...acceptance]).toEqual(expect.arrayContaining(["blockers", "stage"]));
+    expect([...acceptance]).not.toContain("message");
+    expect([...acceptance]).not.toContain("code");
+  });
+
+  test("binds a reused payload identifier to the NEAREST preceding one", () => {
+    // THE DEFECT, VERBATIM. `DeliveryService.cs` builds four audit payloads and names
+    // the local `payload` every time. The first version of this reader kept a
+    // name→body map, so the last binding in the file won and the diff reported
+    // `DeliveryUnconfirmed` as writing `attemptCount, deadLetteredAt, lastError` —
+    // `DeliveryDeadLettered`'s payload. It would have accepted `lastError` as
+    // `DeliveryUnconfirmed`'s reason key, and the log would have shown nothing.
+    const unconfirmed = keys().get("DeliveryUnconfirmed")!;
+    expect([...unconfirmed]).toEqual(expect.arrayContaining(["channel", "detail"]));
+    expect([...unconfirmed]).not.toContain("lastError");
+    expect([...unconfirmed]).not.toContain("attemptCount");
+  });
+
+  test("follows a payload assigned AFTER the action line", () => {
+    // `OpsController.cs` writes `Action = …` first and builds the payload below it, so
+    // a backwards-only search reads the previous write site's object instead.
+    expect([...keys().get("DeliveryRequeuedByOperator")!]).toEqual(
+      expect.arrayContaining(["reason", "detail"]),
+    );
+  });
+
+  test("finds every action that has a parseable payload (anti-vacuity)", () => {
+    // A reader that matched nothing would leave every diff below passing by default.
+    expect(keys().size).toBe(5);
+    for (const [, set] of keys()) expect(set.size).toBeGreaterThan(0);
+  });
+});
+
 // ── The diff ─────────────────────────────────────────────────────────────────
 
 const SKIP_REASON =
@@ -238,7 +536,14 @@ const SKIP_REASON =
  * skipping. `src/test/backendMirror.test.ts` gets this right by putting its reads
  * inside `test.skipIf(!BACKEND)` bodies; this now matches it.
  */
-type Scan = { root: string; consts: Map<string, string>; byFile: Map<string, string[]>; backendActions: string[] };
+type Scan = {
+  root: string;
+  consts: Map<string, string>;
+  byFile: Map<string, string[]>;
+  backendActions: string[];
+  /** action (lower-cased) → every top-level payload key the backend writes for it. */
+  payloadKeys: Map<string, Set<string>>;
+};
 let cached: Scan | null = null;
 
 function scan(): Scan {
@@ -253,13 +558,20 @@ function scan(): Scan {
   }
 
   const byFile = new Map<string, string[]>();
+  const payloadKeys = new Map<string, Set<string>>();
   for (const rel of WRITER_FILES) {
     const path = join(root, rel);
     if (!existsSync(path)) continue;
-    byFile.set(rel, parseAuditActions(readFileSync(path, "utf8"), consts));
+    const src = readFileSync(path, "utf8");
+    byFile.set(rel, parseAuditActions(src, consts));
+    for (const [action, keys] of parseAuditPayloads(src, consts)) {
+      const set = payloadKeys.get(action.toLowerCase()) ?? new Set<string>();
+      for (const k of keys) set.add(k);
+      payloadKeys.set(action.toLowerCase(), set);
+    }
   }
 
-  cached = { root, consts, byFile, backendActions: [...new Set([...byFile.values()].flat())] };
+  cached = { root, consts, byFile, backendActions: [...new Set([...byFile.values()].flat())], payloadKeys };
   return cached;
 }
 
@@ -321,6 +633,49 @@ describe("auditActionManifest mirrors the backend's audit vocabulary", () => {
       unexpected,
       `these are marked unreachable but a writer now emits them: ${unexpected.join(", ")}`,
     ).toEqual([]);
+  });
+
+  test.skipIf(!BACKEND)("the payload reader found a realistic number of sites (anti-vacuity)", () => {
+    const { payloadKeys } = scan();
+    // Must come before the key diff below. A reader that stopped matching would make
+    // that diff vacuous in the most dangerous direction: every declared key would be
+    // "not contradicted" because nothing was parsed at all, and the delivery log would
+    // go back to showing no reason with a green test suite over it.
+    expect(payloadKeys.size).toBeGreaterThanOrEqual(20);
+    const withKeys = [...payloadKeys.values()].filter((s) => s.size > 0);
+    expect(withKeys.length).toBeGreaterThanOrEqual(20);
+  });
+
+  test.skipIf(!BACKEND)("every action whose reason key is declared was really parsed", () => {
+    const { payloadKeys } = scan();
+    // The reader cannot follow every write shape — a payload built in one file and
+    // added in another, or passed through a helper. That is tolerable for actions this
+    // manifest says nothing about, and NOT tolerable for one whose reason key it
+    // asserts: an unparsed action would silently exempt itself from the diff below.
+    const unparsed = EXPLAINED_AUDIT_ACTIONS.filter((a) => !payloadKeys.has(a.toLowerCase())).sort();
+    expect(
+      unparsed,
+      `these declare reasonKeys but no payload site was parsed for them: ${unparsed.join(", ")}`,
+    ).toEqual([]);
+  });
+
+  test.skipIf(!BACKEND)("every declared reason key is one the backend really writes", () => {
+    const { payloadKeys } = scan();
+    // The drift that matters. `reasonKeys` decides what the delivery log shows as the
+    // cause of a failure; naming a key the backend does not write fails SILENTLY —
+    // the reason simply never appears, which is indistinguishable from the defect this
+    // field was added to fix, and the render tests still pass because they supply the
+    // payload themselves. So the names are diffed against the C# rather than trusted.
+    const wrong: string[] = [];
+    for (const fact of AUDIT_ACTION_FACTS) {
+      if (fact.reasonKeys.length === 0) continue;
+      const written = payloadKeys.get(fact.action.toLowerCase());
+      if (!written) continue; // covered by the test above
+      for (const key of fact.reasonKeys) {
+        if (!written.has(key)) wrong.push(`${fact.action}.${key} (writes: ${[...written].sort().join(", ")})`);
+      }
+    }
+    expect(wrong, `reasonKeys naming a payload key the backend does not write: ${wrong.join(" · ")}`).toEqual([]);
   });
 
   test.skipIf(!BACKEND)("each row's backendSite names a file that really contains that action", () => {

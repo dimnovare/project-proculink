@@ -1,16 +1,46 @@
 # Live test harnesses
 
 This folder holds the founder-runnable LIVE harnesses + a browser-console matrix runner.
-All of them talk to a deployed ProcuLink (`https://api.proculink.eu` by default) and are
-**resumable / bounded** so they can be re-run repeatedly.
+They are **resumable / bounded** so they can be re-run repeatedly.
 
 | File | Channel | Auth | Run with |
 |---|---|---|---|
+| `target.mjs` | — (shared target resolution + production refusal) | — | imported |
 | `ingest-harness.mjs` | API ingress (structured orders) | API key `plk_…` | `node`/`bun` |
 | `format-upload-harness.mjs` | File-upload PARSERS (CSV/UBL/cXML/IDoc/EDIFACT/X12 + opt. XLSX/PDF) | Clerk JWT (~60 s) | `node`/`bun` |
 | `inbound-email-harness.mjs` | Hosted inbound email (Postmark webhook) | Postmark webhook token | `node`/`bun` |
 | `delivery-testfire-harness.mjs` | Outbound delivery (HTTP test-fire) | Clerk JWT (~60 s) | `node`/`bun` |
 | `runner.js` | Full inbound × outbound matrix | Browser Clerk session | DevTools console |
+
+## Which deployment these write to
+
+**Every harness here writes.** They create purchase orders, overwrite a supplier's
+delivery config, and fire real outbound requests. So the target is a safety boundary,
+and it is never chosen by a default:
+
+| `PLK_API` | Target | Needs anything else? |
+|---|---|---|
+| unset | `http://localhost:5223` | no — this is the default |
+| a non-production URL (staging, preview, a tunnel) | that URL | no — you already named it |
+| a `proculink.eu` URL | production | **yes — `--allow-production` on the command line** |
+
+Without the flag, a production target is **refused**: non-zero exit, nothing sent. Not a
+prompt, not a printed warning — these scripts get run from CI and from agent sessions,
+where nobody reads either.
+
+The opt-in is a command-line flag and deliberately **not** an environment variable. An
+env var can be true without anyone deciding it should be true for this run — `export`ed
+once it applies to every later command in the shell, and it can arrive from a `.env`, a
+CI secret, or a parent process. `--allow-production` has to be typed on the invocation
+that is about to write, and it shows up in shell history, workflow diffs, and review.
+
+> **Why this exists.** Each harness used to carry
+> `process.env.PLK_API || "https://api.proculink.eu"`, so a run with no environment went
+> to production. On 2026-06-10 that default was taken: `ingest-harness.mjs` wrote **2,000
+> purchase orders** into the live customer database in ~54 seconds, all HTTP 200, into org
+> `personal-workspace-d3be`. They carry PO numbers `E2E-API-00000` … `E2E-API-01999`, so
+> they are identifiable — but only if you know to look for them. To the product they are
+> ordinary orders, and they count in inbox totals, dashboard KPIs, and plan usage.
 
 For a full "click every screen + hammer the heart-piece" UI sweep, see the Playwright spec
 `tests/e2e/live-full-e2e.spec.ts` (`bun run test:e2e:full`) — its header documents both the
@@ -18,28 +48,37 @@ local QA-bypass run and the deployed-env saved-session run.
 
 ### Quick start — the headless harnesses
 
+All three default to `http://localhost:5223`. To run any of them against production, add
+`PLK_API=https://api.proculink.eu` **and** the `--allow-production` flag (see the table above).
+
 ```bash
 # 1) File-format parser coverage (text formats synthesized; binaries optional)
-PLK_API=https://api.proculink.eu \
 PLK_CLERK_TOKEN="$(: paste await window.Clerk.session.getToken())" \
 PLK_SUPPLIER_ID="<supplier uuid>" \
   bun scripts/live-matrix/format-upload-harness.mjs
 #   add binaries:  PLK_XLSX_B64="$(base64 -w0 order.xlsx)" PLK_PDF_B64="$(base64 -w0 order.pdf)"
 
 # 2) Hosted inbound email (Postmark webhook). Token = Railway Inbound__Postmark__WebhookToken
-PLK_API=https://api.proculink.eu \
 PLK_POSTMARK_TOKEN="<Inbound__Postmark__WebhookToken>" \
 PLK_INBOUND_TO="orders@<org-slug>.proculink.eu" \
 PLK_COUNT=3 \
   bun scripts/live-matrix/inbound-email-harness.mjs
 
 # 3) Outbound delivery test-fire against a catcher URL (e.g. https://webhook.site/<uuid>)
-PLK_API=https://api.proculink.eu \
 PLK_CLERK_TOKEN="<fresh Clerk JWT>" \
 PLK_SUPPLIER_ID="<supplier uuid>" \
 PLK_CATCHER_URL="https://webhook.site/<your-uuid>" \
   bun scripts/live-matrix/delivery-testfire-harness.mjs
 #   (sftp/ftps/smtp/erp_erply/erp_directo config templates are commented at the bottom of the file)
+
+# 4) API ingress at volume. PLK_SUPPLIER is required — it has no default.
+PLK_KEY="plk_..." PLK_SLUG="<org-slug>" PLK_SUPPLIER="<supplier uuid>" PLK_TARGET=50 \
+  bun scripts/live-matrix/ingest-harness.mjs
+
+# …and the same one against production, which is the only way to reach it:
+PLK_API=https://api.proculink.eu \
+PLK_KEY="plk_..." PLK_SLUG="<org-slug>" PLK_SUPPLIER="<supplier uuid>" PLK_TARGET=50 \
+  bun scripts/live-matrix/ingest-harness.mjs --allow-production
 ```
 
 > **Clerk JWTs expire in ~60 s.** Grab a fresh one right before running from a signed-in tab's
@@ -54,6 +93,18 @@ A **self-contained, browser-console** runner that exercises the full inbound × 
 format matrix LIVE against `https://api.proculink.eu`, using the authenticated tab's own
 Clerk session. No token is ever hardcoded — it calls `window.Clerk.session.getToken()`
 fresh on every request.
+
+> **`runner.js` is a production tool by construction, and it is the one file here that
+> does not get a target flag.** It has no `process.env`, no shebang and no node entry
+> point: it only runs when a human pastes it into the DevTools console of a tab that is
+> already signed in to production, and it derives its identity from that tab's Clerk
+> session. There is no accidental path to it from CI or from an agent session, so there
+> is nothing for an opt-in to protect. What it writes, so it is said plainly: it uploads
+> up to 20 purchase orders per full pass and runs real (state-changing) transforms on
+> them. Do not give it a node entry point — `src/test/liveHarnessTarget.test.ts` fails the
+> build if you do, because the moment it becomes shell-runnable its hardcoded
+> `API_BASE = 'https://api.proculink.eu'` becomes exactly the default this folder just
+> removed everywhere else.
 
 `runner.js` is the whole thing. Paste it into the DevTools console of a signed-in
 `proculink.eu` (or `app.proculink.eu`) tab and drive it with `window.__matrixRun()`.

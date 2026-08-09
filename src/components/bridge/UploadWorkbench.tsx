@@ -596,7 +596,22 @@ export function UploadWorkbench() {
   const selectedSupplier = suppliers.find((s) => s.id === supplierId) ?? null;
   const isReadOnly = billing ? !billing.canProcessOrders : false;
   const hasSupplier = Boolean(selectedSupplier?.id);
-  const isUploadDisabled = uploading || isReadOnly || !hasSupplier || suppliersLoading;
+  // `!selectedFile` belongs in this condition and was missing. Without it the
+  // footer CTA rendered ENABLED, in the full green primary treatment, while the
+  // only thing it did was reopen the file picker — the identical action to the
+  // blue "Browse files" button inside the drop zone. Two filled primary buttons,
+  // two different brand colours, one behaviour. The comment above `primaryCta`
+  // claimed there was "never a duplicate CTA in the DOM", which was true of the
+  // element and false of the action.
+  //
+  // The split is now the one the steps already describe: step 2 owns choosing the
+  // file, step 3 owns sending it and stays disabled until step 2 has produced one.
+  const isUploadDisabled =
+    uploading || isReadOnly || !hasSupplier || suppliersLoading || !selectedFile;
+  // The drop zone's own picker button. Disabled only by state that stops file
+  // selection outright; it demotes to a secondary treatment once a file exists so
+  // exactly one primary action is on screen at a time.
+  const browseDisabled = isReadOnly || uploading;
   // Multi-file mode: the full batch (first file + extras) and a count for the UI.
   const isMulti = extraFiles.length > 0;
   const allSelectedFiles = selectedFile ? [selectedFile, ...extraFiles] : [];
@@ -609,10 +624,10 @@ export function UploadWorkbench() {
       setUploadError(getLimitMessage(billing?.isTrialExpired ? "pilot_expired" : "order_limit_reached"));
       return;
     }
-    if (!selectedFile) {
-      fileInputRef.current?.click();
-      return;
-    }
+    // Defensive only — the CTA is disabled without a file. This used to call
+    // `fileInputRef.current?.click()`, which is what made the send button a second
+    // copy of the drop zone's "Browse files".
+    if (!selectedFile) return;
     if (!selectedSupplier?.id) {
       const noun = labels.counterpartyNoun.toLowerCase();
       setUploadError({
@@ -896,13 +911,16 @@ export function UploadWorkbench() {
 
   // The single primary submit action (Step 3). Branches multi vs single file:
   // the multi-file batch path fans the same supplier across N sequential uploads
-  // (handleBatchUpload); the single/no-file path runs handleUpload (which opens
-  // the picker when nothing is selected). Rendered ONCE in the footer so there is
-  // never a duplicate CTA in the DOM.
+  // (handleBatchUpload); the single-file path runs handleUpload. Rendered ONCE in
+  // the footer, and — since `isUploadDisabled` now includes `!selectedFile` — it
+  // is the only enabled primary on the screen once there is something to send.
   const primaryCta = (
     <button
       onClick={() => { if (isMulti) handleBatchUpload(allSelectedFiles); else handleUpload(); }}
       disabled={isUploadDisabled}
+      // Declares this control's weight so "exactly one primary action on screen"
+      // is a property a test can read, rather than a colour it has to infer.
+      data-cta-weight={isUploadDisabled ? "disabled" : "primary"}
       className="w-full rounded-[7px] py-3 text-[14px] font-semibold transition-all min-h-[48px]"
       style={{
         background: isUploadDisabled
@@ -925,7 +943,8 @@ export function UploadWorkbench() {
         ? `↑ Upload ${selectedCount} files`
         : selectedFile
         ? "↑ Upload & review"
-        : "Choose a file to upload"}
+        : // Names the precondition instead of offering the picker a second time.
+          "Add a file to send"}
     </button>
   );
 
@@ -1305,24 +1324,37 @@ export function UploadWorkbench() {
                   </>
                 )}
 
-                {/* Browse files — prominent accent CTA (also the file-picker trigger) */}
+                {/* Browse files — the file-picker trigger, and the screen's primary
+                    action only while there is no file yet. Once one is chosen the
+                    send button in step 3 becomes the primary and this demotes to a
+                    secondary treatment, so the two never compete for the same
+                    weight. Buyer-blue on the way in, supplier-green on the way out. */}
                 <button
                   type="button"
-                  disabled={isReadOnly || uploading}
+                  disabled={browseDisabled}
+                  data-cta-weight={browseDisabled ? "disabled" : selectedFile ? "secondary" : "primary"}
                   onClick={(event) => {
                     event.stopPropagation();
                     fileInputRef.current?.click();
                   }}
                   className="inline-flex min-h-[44px] items-center gap-2 rounded-[6px] px-4 py-2 text-[13px] font-semibold transition-colors"
                   style={{
-                    background: isReadOnly || uploading ? "#E5E8EE" : "#1E66C9",
-                    color: isReadOnly || uploading ? "var(--ink-faint)" : "#FFFFFF",
-                    border: "none",
-                    boxShadow: isReadOnly || uploading ? "none" : "0 2px 8px rgba(30,102,201,0.25)",
-                    cursor: isReadOnly || uploading ? "not-allowed" : "pointer",
+                    background: browseDisabled
+                      ? "var(--border)"
+                      : selectedFile
+                      ? "var(--surface)"
+                      : "var(--brand-blue)",
+                    color: browseDisabled
+                      ? "var(--ink-faint)"
+                      : selectedFile
+                      ? "var(--ink)"
+                      : "var(--surface)",
+                    border: !browseDisabled && selectedFile ? "1px solid var(--border-strong)" : "none",
+                    boxShadow: browseDisabled || selectedFile ? "none" : "var(--shadow-card)",
+                    cursor: browseDisabled ? "not-allowed" : "pointer",
                   }}
-                  onMouseEnter={(e) => { if (!(isReadOnly || uploading)) e.currentTarget.style.background = "#1A5DBF"; }}
-                  onMouseLeave={(e) => { if (!(isReadOnly || uploading)) e.currentTarget.style.background = "#1E66C9"; }}
+                  onMouseEnter={(e) => { if (!browseDisabled) e.currentTarget.style.background = selectedFile ? "var(--surface-2)" : "var(--brand-blue-deep)"; }}
+                  onMouseLeave={(e) => { if (!browseDisabled) e.currentTarget.style.background = selectedFile ? "var(--surface)" : "var(--brand-blue)"; }}
                 >
                   <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
                     <path
