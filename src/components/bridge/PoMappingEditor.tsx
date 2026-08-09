@@ -27,6 +27,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { fieldRefList } from "@/lib/standards/catalog";
 import { StandardsFieldPopover } from "./StandardsFieldPopover";
 import { ConfidenceChip } from "./ConfidenceChip";
+import { AiSuggestion } from "./DSPrimitives";
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const NAVY       = "#0B1A2F";
@@ -56,7 +57,12 @@ const AI         = "#6F4FCE";
 const AI_SOFT    = "#F0EAFB";
 const DANGER     = "#B43838";
 
-const AUTO_ACCEPT_THRESHOLD = 0.85; // auto-accept on load when no saved config
+// There is deliberately NO auto-accept threshold. A suggestion — at any score —
+// becomes a *pending* card the operator accepts, edits, or rejects; it never
+// enters the mapping on its own. CLAUDE.md §12 lists "auto-applying AI
+// corrections without a visible accept step" among the things this product
+// refuses to build, and an `AUTO_ACCEPT_THRESHOLD = 0.85` here did exactly that
+// on mount, then rendered the result as a green "100%" (see `scoreForColumn`).
 const ADOPT_THRESHOLD       = 0.50; // minimum confidence to surface as a pending suggestion
 
 // ─── Canonical field model ────────────────────────────────────────────────────
@@ -128,6 +134,44 @@ function initAccepted(config: PoMappingConfig | null): Map<string, string> {
   return acc;
 }
 
+/**
+ * The suggester's score for the column a field is CURRENTLY mapped to, as a
+ * whole percent — or `null` when nothing scored that exact pairing.
+ *
+ * `null` covers three real cases: the operator typed the column by hand, the
+ * column came from a starter template, or the suggester now proposes a
+ * *different* column than the one saved. In none of them does a score exist, so
+ * none of them may render one.
+ *
+ * This never returns 100 for "accepted". Accepting is a statement about the
+ * human ("I agree with this pairing"), not about the model, and the row used to
+ * conflate the two: `conf = isAcc ? 100 : …` printed a hard 100% the moment a
+ * field was mapped — including the fields the old auto-accept had mapped with
+ * no human involved at all, whose true scores were as low as 0.85. Same defect
+ * as the unscored item-code mapping fixed in c8610e4: absence of evidence, and
+ * mere agreement, both rendered as maximum evidence.
+ */
+export function scoreForColumn(
+  sug: FieldSuggestion | undefined,
+  column: string | null | undefined,
+): number | null {
+  if (!column || !sug || sug.suggestedColumn !== column) return null;
+  return Math.round(sug.confidence * 100);
+}
+
+/**
+ * Whether a suggestion came from the model, as opposed to `heuristicSuggestFields`
+ * — the local string-similarity fallback that `suggestMappingFields` returns on
+ * a network error, a 404, any non-OK status, a parse failure, or an empty
+ * payload, and that IS the whole mock path. Violet (`ai` / `aiSoft`) is reserved
+ * for AI-generated content, so a Levenshtein match must not wear it or claim an
+ * "AI ·" score. Same distinction `ConfidenceChip` already documents for supplier
+ * auto-detect: it reuses the confidence ramp, never the "AI confidence" label.
+ */
+export function isModelSuggestion(sug: FieldSuggestion | undefined): boolean {
+  return sug?.source === "ai";
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 export function PoMappingEditor({
   supplierId,
@@ -188,7 +232,10 @@ export function PoMappingEditor({
     message?: string;
   }>({ status: "idle" });
   const [autoNote,    setAutoNote]   = useState<string | null>(null);
-  const [autoSeeded,  setAutoSeeded] = useState(!!initialConfig);
+  // Snapshot of `accepted` from before the last "Accept all", so a bulk accept
+  // is reversible. Kept until the next action that changes the mapping rather
+  // than expiring with the 4s note, so the undo is not a race against a timer.
+  const [bulkUndo,    setBulkUndo]   = useState<Map<string, string> | null>(null);
   // Pending "apply starter template" confirmation + in-flight state.
   const [pendingTemplate, setPendingTemplate] = useState<StarterTemplate | null>(null);
   const [applyState, setApplyState] = useState<{
@@ -208,18 +255,12 @@ export function PoMappingEditor({
     if (autoNoteTimer.current) clearTimeout(autoNoteTimer.current);
   }, []);
 
-  // ── Auto-accept high-confidence suggestions on first load ──────────────────
-  useEffect(() => {
-    if (autoSeeded || !suggestQuery.data || suggestQuery.data.length === 0) return;
-    const next = new Map<string, string>();
-    for (const sug of suggestQuery.data) {
-      if (sug.confidence >= AUTO_ACCEPT_THRESHOLD && sug.suggestedColumn) {
-        next.set(sug.canonicalField, sug.suggestedColumn);
-      }
-    }
-    if (next.size > 0) setAccepted(next);
-    setAutoSeeded(true);
-  }, [suggestQuery.data, autoSeeded]);
+  // NOTE: suggestions are deliberately NOT seeded into `accepted` on load.
+  // Every column in the mapping got there through a human action — a per-field
+  // Accept, the explicit "Accept all", a confirmed starter template, or a typed
+  // edit. Suggestions the operator has not acted on stay visible as pending
+  // cards (see `isPend` below), so an unaccepted match is *pending*, never
+  // silently absent and never silently applied.
 
   // ── SVG connector measurement ──────────────────────────────────────────────
   const wrapRef   = useRef<HTMLDivElement>(null);
@@ -253,7 +294,10 @@ export function PoMappingEditor({
       const rr = re.getBoundingClientRect();
       lines.push({
         canonical: f.canonical,
-        conf: accColumn ? 100 : Math.round((sug?.confidence ?? 0) * 100),
+        // The score of what is actually connected, never a flat 100 for
+        // "accepted". An accepted wire is drawn with the brand gradient
+        // (a state), so this stays a genuine confidence (an assessment).
+        conf: scoreForColumn(sug, colName) ?? 0,
         accepted: !!accColumn,
         x1: lr.right  - wrap.left,
         y1: lr.top    + lr.height / 2 - wrap.top,
@@ -283,6 +327,7 @@ export function PoMappingEditor({
     setRejected((prev) => { const n = new Set(prev); n.delete(canonical); return n; });
     setEditing(null);
     setSaveState({ status: "idle" });
+    setBulkUndo(null);
     setJustDrawn(canonical);
     setTimeout(() => setJustDrawn(null), 900);
   }
@@ -291,9 +336,15 @@ export function PoMappingEditor({
     setRejected((prev) => new Set(prev).add(canonical));
     setAccepted((prev) => { const n = new Map(prev); n.delete(canonical); return n; });
     setSaveState({ status: "idle" });
+    setBulkUndo(null);
   }
 
+  // Bulk accept — the ergonomic path. Restoring a per-field accept step must not
+  // turn a ten-field mapping into ten clicks, so every pending suggestion can be
+  // taken in one explicit, undoable action. Explicit and reversible is the rule;
+  // tedious is not.
   function handleAcceptAll() {
+    const before = new Map(accepted);
     const next = new Map(accepted);
     let count = 0;
     for (const sug of suggestQuery.data ?? []) {
@@ -308,7 +359,16 @@ export function PoMappingEditor({
     }
     setAccepted(next);
     setSaveState({ status: "idle" });
+    setBulkUndo(count > 0 ? before : null);
     flashNote(count ? `Accepted ${count} suggestion${count !== 1 ? "s" : ""}.` : "Nothing new to accept.");
+  }
+
+  function handleUndoAcceptAll() {
+    if (!bulkUndo) return;
+    setAccepted(new Map(bulkUndo));
+    setBulkUndo(null);
+    setSaveState({ status: "idle" });
+    flashNote("Reverted — those suggestions are pending again.");
   }
 
   function handleEditStart(canonical: string) {
@@ -357,6 +417,7 @@ export function PoMappingEditor({
     }
     setAccepted(next);
     setRejected(new Set());
+    setBulkUndo(null);
     setSourceOpts({
       hasHeaderRecord: config.hasHeaderRecord,
       separator: config.separator,
@@ -406,9 +467,20 @@ export function PoMappingEditor({
   // Mobile progress: how many canonical fields currently have an accepted column.
   const matchedCount  = ALL_CANONICAL.reduce((n, f) => (accepted.has(f.canonical) ? n + 1 : n), 0);
   const totalFields   = ALL_CANONICAL.length;
-  const hasSuggestions = (suggestQuery.data ?? []).some(
-    (s) => s.suggestedColumn && s.confidence >= ADOPT_THRESHOLD && !rejected.has(s.canonicalField),
+  // Suggestions still awaiting a decision: surfaced, not rejected, not already
+  // accepted. This is what the banner counts — the old copy said N were "matched
+  // automatically", which was both the auto-apply and its advertisement.
+  const pendingSuggestions = (suggestQuery.data ?? []).filter(
+    (s) =>
+      s.suggestedColumn &&
+      s.confidence >= ADOPT_THRESHOLD &&
+      !rejected.has(s.canonicalField) &&
+      accepted.get(s.canonicalField) !== s.suggestedColumn,
   );
+  const hasSuggestions = pendingSuggestions.length > 0;
+  // Violet is for model output only; if every suggestion came from the local
+  // string-similarity fallback, the banner must not dress up as AI.
+  const anyModelSuggestion = (suggestQuery.data ?? []).some(isModelSuggestion);
 
   // Left panel: detected columns enriched with usage info
   const leftColumns = useMemo(() => {
@@ -525,11 +597,14 @@ export function PoMappingEditor({
         </div>
       )}
 
-      {/* ── AI banner ──────────────────────────────────────────────────────── */}
+      {/* ── Suggestions banner ─────────────────────────────────────────────── */}
       {suggestQuery.data && suggestQuery.data.length > 0 && (
         <div
           className="px-4 py-3 sm:px-5"
-          style={{ background: AI_SOFT, borderBottom: "1px solid #D9CEF6" }}
+          style={{
+            background: anyModelSuggestion ? AI_SOFT : SURFACE2,
+            borderBottom: `1px solid ${anyModelSuggestion ? "#D9CEF6" : BORDER}`,
+          }}
         >
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex min-w-0 items-start gap-3">
@@ -537,19 +612,21 @@ export function PoMappingEditor({
               <div
                 style={{
                   width: 32, height: 32, borderRadius: 7,
-                  background: SURFACE, border: "1px solid #E0D5F8",
+                  background: SURFACE,
+                  border: `1px solid ${anyModelSuggestion ? "#E0D5F8" : BORDER}`,
                   display: "flex", alignItems: "center", justifyContent: "center",
                   flexShrink: 0,
                 }}
               >
                 <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden>
-                  <path d="M9 2L4 9h5l-1.5 5L14 8H9l1-6z" fill={AI} />
+                  <path d="M9 2L4 9h5l-1.5 5L14 8H9l1-6z" fill={anyModelSuggestion ? AI : MUTED} />
                 </svg>
               </div>
               <div className="min-w-0">
                 <div style={{ fontSize: 13, fontWeight: 600, color: NAVY }}>
                   We detected <strong>{detectedColumns.length}</strong> column{detectedColumns.length !== 1 ? "s" : ""}
-                  {" "}and matched <strong>{accepted.size}</strong> automatically.
+                  {" "}and suggested <strong>{pendingSuggestions.length}</strong> field match
+                  {pendingSuggestions.length !== 1 ? "es" : ""} for you to review.
                 </div>
                 <div style={{ fontSize: 11.5, color: MUTED, marginTop: 2 }}>
                   {fmt && (
@@ -561,14 +638,31 @@ export function PoMappingEditor({
                     </span>
                   )}
                   {sourceOrderId ? `From order ${sourceOrderId} · ` : ""}
-                  Review and accept before saving.
+                  Nothing is mapped until you accept it.
                 </div>
-                {autoNote && (
-                  <span
-                    className="mt-1 inline-block rounded px-2 py-0.5 text-[11px] font-medium"
-                    style={{ background: GREEN_SOFT, color: GREEN_DEEP }}
-                  >
-                    {autoNote}
+                {(autoNote || bulkUndo) && (
+                  <span className="mt-1 flex flex-wrap items-center gap-2">
+                    {autoNote && (
+                      <span
+                        className="inline-block rounded px-2 py-0.5 text-[11px] font-medium"
+                        style={{ background: GREEN_SOFT, color: GREEN_DEEP }}
+                      >
+                        {autoNote}
+                      </span>
+                    )}
+                    {bulkUndo && (
+                      <button
+                        type="button"
+                        onClick={handleUndoAcceptAll}
+                        className="rounded px-2 py-0.5 text-[11px] font-semibold"
+                        style={{
+                          background: SURFACE, color: NAVY,
+                          border: `1px solid ${BORDER}`, cursor: "pointer",
+                        }}
+                      >
+                        Undo
+                      </button>
+                    )}
                   </span>
                 )}
               </div>
@@ -591,12 +685,15 @@ export function PoMappingEditor({
                   type="button"
                   onClick={handleAcceptAll}
                   className="inline-flex items-center gap-1.5 rounded-[6px] px-3 py-1.5 text-[12px] font-semibold"
-                  style={{ background: AI, color: "#FFF", border: "none", cursor: "pointer" }}
+                  style={{
+                    background: anyModelSuggestion ? AI : NAVY,
+                    color: "#FFF", border: "none", cursor: "pointer",
+                  }}
                 >
                   <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
                     <path d="M2 6.5L5 9.5L10 3" stroke="#FFF" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
-                  Accept all
+                  Accept all {pendingSuggestions.length}
                 </button>
               )}
             </div>
@@ -828,14 +925,24 @@ export function PoMappingEditor({
               const isAcc     = !!accColumn;
               const isPend    = !!pendColumn;
               const isEditing = editing === f.canonical;
-              const conf      = isAcc ? 100 : pendColumn ? Math.round((sug?.confidence ?? 0) * 100) : 0;
-              const bg        = isAcc ? GREEN_SOFT : isPend ? AMBER_SOFT : SURFACE;
-              const bdColor   = isAcc ? "#CBE5CB"  : isPend ? "#E8CFA0"  : BORDER;
+              // The score for whatever this field is currently connected to —
+              // accepted or pending, it is the suggester's number, not a 100
+              // minted by the act of accepting. `null` when nothing scored this
+              // pairing (typed by hand, from a starter template, or the
+              // suggester now prefers a different column).
+              const score     = scoreForColumn(sug, accColumn ?? pendColumn);
+              const fromModel = isModelSuggestion(sug);
+              // A pending row is a plain container: the <AiSuggestion> card
+              // inside carries the tone, so the row must not also tint itself
+              // (an amber row around a violet card reads as two states at once).
+              const bg        = isAcc ? GREEN_SOFT : SURFACE;
+              const bdColor   = isAcc ? "#CBE5CB"  : isPend ? "#E8CFA0" : BORDER;
 
               return (
                 <div
                   key={f.canonical}
                   ref={(el) => { rightRefs.current[f.canonical] = el; }}
+                  data-field={f.canonical}
                   style={{
                     minHeight: 52,
                     marginBottom: 8,
@@ -874,8 +981,20 @@ export function PoMappingEditor({
                         {f.canonical}
                       </div>
                     </div>
-                    {(isAcc || isPend) ? (
-                      <ConfidenceChip value={conf} />
+                    {isAcc ? (
+                      score != null ? (
+                        <ConfidenceChip value={score} />
+                      ) : (
+                        // Mapped, but nothing ever scored this pairing. Neutral
+                        // marker, no percentage and no tier colour — the same
+                        // answer c8610e4 gave the unscored item-code mapping.
+                        <span style={{ fontSize: 10.5, color: FAINT, flexShrink: 0 }}>Not scored</span>
+                      )
+                    ) : isPend ? (
+                      // Suggested, not yet accepted. The <AiSuggestion> card below
+                      // carries the score, so this says what the row IS: pending a
+                      // decision — never absent, never quietly applied.
+                      <span style={{ fontSize: 10.5, color: MUTED, flexShrink: 0 }}>pending</span>
                     ) : (
                       <span style={{ fontSize: 10.5, color: FAINT, flexShrink: 0 }}>unmapped</span>
                     )}
@@ -936,68 +1055,64 @@ export function PoMappingEditor({
                     </div>
                   )}
 
-                  {/* Pending suggestion: Accept / Edit / Reject */}
+                  {/* Pending suggestion — the visible accept step. Rendered with
+                      the shared <AiSuggestion> primitive (CLAUDE.md §6: violet
+                      left-bar, source tag, Accept / Edit / Reject, confidence
+                      always visible) rather than a bespoke control. */}
                   {isPend && !isEditing && (
                     <div style={{ marginTop: 6 }}>
-                      <div
-                        style={{
-                          fontFamily: "'JetBrains Mono', monospace",
-                          fontSize: 10.5,
-                          // #8A5310 on the pending row's #FAF1DD = 5.6206:1. NOT
-                          // #B36D14, which is 3.6547:1 here.
-                          color: AMBER_TEXT,
-                          marginBottom: 5,
-                        }}
-                      >
-                        {isMobile ? (
+                      <AiSuggestion
+                        kind={fromModel ? "ai" : "heuristic"}
+                        confidence={score ?? 0}
+                        title={
+                          isMobile
+                            ? `from: ${pendColumn}`
+                            : `← ${pendColumn}`
+                        }
+                        description={
+                          pendColumn && sample?.[pendColumn]
+                            ? `e.g. ${sample[pendColumn]}`
+                            : sug?.reason || undefined
+                        }
+                        provenance="Not mapped yet"
+                        actions={
                           <>
-                            <span style={{ color: FAINT, fontFamily: "inherit" }}>from:</span>{" "}
-                            {pendColumn}
-                            {pendColumn && sample?.[pendColumn] ? (
-                              <span style={{ color: FAINT }}>
-                                {" "}· e.g. {sample[pendColumn]}
-                              </span>
-                            ) : null}
+                            <button
+                              type="button"
+                              onClick={() => handleAccept(f.canonical, pendColumn)}
+                              style={{
+                                padding: "2px 9px", borderRadius: 4,
+                                border: `1px solid ${GREEN}`, background: GREEN_SOFT,
+                                color: GREEN_DEEP, fontSize: 11, fontWeight: 600, cursor: "pointer",
+                              }}
+                            >
+                              Accept
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleEditStart(f.canonical)}
+                              style={{
+                                padding: "2px 9px", borderRadius: 4,
+                                border: `1px solid ${BORDER}`, background: SURFACE,
+                                color: MUTED, fontSize: 11, fontWeight: 600, cursor: "pointer",
+                              }}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleReject(f.canonical)}
+                              style={{
+                                padding: "2px 9px", borderRadius: 4,
+                                border: "none", background: "none",
+                                color: MUTED, fontSize: 11, cursor: "pointer",
+                              }}
+                            >
+                              Reject
+                            </button>
                           </>
-                        ) : (
-                          <>← {pendColumn}</>
-                        )}
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 6 }}>
-                        <button
-                          type="button"
-                          onClick={() => handleAccept(f.canonical, pendColumn)}
-                          style={{
-                            padding: "2px 9px", borderRadius: 4,
-                            border: `1px solid ${GREEN}`, background: GREEN_SOFT,
-                            color: GREEN_DEEP, fontSize: 11, fontWeight: 600, cursor: "pointer",
-                          }}
-                        >
-                          Accept
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleEditStart(f.canonical)}
-                          style={{
-                            padding: "2px 9px", borderRadius: 4,
-                            border: `1px solid ${BORDER}`, background: SURFACE,
-                            color: MUTED, fontSize: 11, fontWeight: 600, cursor: "pointer",
-                          }}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleReject(f.canonical)}
-                          style={{
-                            padding: "2px 9px", borderRadius: 4,
-                            border: "none", background: "none",
-                            color: FAINT, fontSize: 11, cursor: "pointer",
-                          }}
-                        >
-                          Reject
-                        </button>
-                      </div>
+                        }
+                      />
                     </div>
                   )}
 
