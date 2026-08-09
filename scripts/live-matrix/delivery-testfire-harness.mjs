@@ -14,11 +14,20 @@
  *     await window.Clerk.session.getToken()
  *
  * ── RUN ──────────────────────────────────────────────────────────────────────
- *   PLK_API=https://api.proculink.eu \
+ * Default target is the LOCAL API (http://localhost:5223):
  *   PLK_CLERK_TOKEN="<fresh Clerk JWT>" \
  *   PLK_SUPPLIER_ID="<supplier uuid>" \
  *   PLK_CATCHER_URL="https://webhook.site/<your-uuid>" \
  *     bun scripts/live-matrix/delivery-testfire-harness.mjs
+ *
+ * Production must be named AND opted into on the command line (see ./target.mjs).
+ * Note what that means HERE: this harness overwrites a supplier's delivery config,
+ * so against production it overwrites a REAL supplier's endpoint.
+ *   PLK_API=https://api.proculink.eu \
+ *   PLK_CLERK_TOKEN="<fresh Clerk JWT>" \
+ *   PLK_SUPPLIER_ID="<supplier uuid>" \
+ *   PLK_CATCHER_URL="https://webhook.site/<your-uuid>" \
+ *     bun scripts/live-matrix/delivery-testfire-harness.mjs --allow-production
  *
  * If PLK_SUPPLIER_ID is omitted, the harness GETs /api/suppliers and uses the
  * first one. It reports the DeliveryTestResult ({ success, errorMessage,
@@ -36,7 +45,9 @@
  * supplier for test-fire drills.
  * ========================================================================== */
 
-const API = process.env.PLK_API || "https://api.proculink.eu";
+import { resolveTargetOrExit } from "./target.mjs";
+
+const { api: API } = resolveTargetOrExit("delivery-testfire-harness.mjs");
 const TOKEN = process.env.PLK_CLERK_TOKEN;
 let SUPPLIER_ID = process.env.PLK_SUPPLIER_ID;
 const CATCHER = process.env.PLK_CATCHER_URL;
