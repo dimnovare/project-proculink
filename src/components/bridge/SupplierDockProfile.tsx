@@ -13,7 +13,8 @@ import { DeliveryConfigEditor } from "./DeliveryConfigEditor";
 import { DeliveryGuidedSetup } from "./DeliveryGuidedSetup";
 import { CatalogSourceEditor } from "./CatalogSourceEditor";
 import { SupplierHistoryTab } from "@/components/connections/SupplierHistoryTab";
-import { upsertPoMapping, deletePoMapping } from "@/lib/api/mapping";
+import { getPoMapping, upsertPoMapping, deletePoMapping } from "@/lib/api/mapping";
+import { getDeliveryConfig } from "@/lib/api/delivery";
 import { getOrgSettings } from "@/lib/api/settings";
 import { API_BASE_URL } from "@/lib/api/core";
 import { apiClient, isApiMockMode, getAcceptanceProfile, saveAcceptanceProfile, activateAcceptanceVersion, applyPoMappingTemplate, getSupplierCatalog, importSupplierCatalog, clearSupplierCatalog, getSupplierRuleBindings, listConnections, type SupplierRuleBinding } from "@/lib/api-client";
@@ -30,7 +31,7 @@ import { PageShell } from "./layout/PageShell";
 import { SupplierIdentityCard } from "./SupplierIdentityCard";
 import { useTabParamSync } from "@/lib/tab-param-sync";
 import { useConfirm } from "@/components/ui/confirm";
-import type { PoMappingConfig } from "@/lib/api/types";
+import type { DeliveryConfig, PoMappingConfig } from "@/lib/api/types";
 import type { AcceptanceRule, AcceptanceProfile, SupplierMapping, OrdersPage } from "@/types/procurement";
 import { isPlanGate, PlanGateNotice } from "@/components/bridge/PlanGateNotice";
 
@@ -67,6 +68,11 @@ const DANGER      = "#B43838";  // --danger
 const AI          = "#6F4FCE";  // --ai      (AI provenance pill fg)
 const AI_SOFT     = "#F0EAFB";  // --ai-soft (AI provenance pill bg)
 
+// The KPI cards' hairline lift, declared once. It was inline in the single stat-card
+// map; splitting that map into a mock strip and a fetched card would have made it a
+// second copy of the same rgba literal.
+const CARD_SHADOW = "0 1px 2px rgba(11,26,47,0.04)";
+
 const DISPLAY = "'Bricolage Grotesque', Inter, sans-serif";
 const MONO    = "'JetBrains Mono', ui-monospace, monospace";
 
@@ -101,12 +107,6 @@ const DEMO_MOCK = {
   ],
 };
 
-function deriveCode(name: string): string {
-  const words = name.trim().split(/\s+/);
-  if (words.length === 1) return name.slice(0, 3).toUpperCase();
-  return words.map(w => w[0]).join("").toUpperCase().slice(0, 4);
-}
-
 // WP-25 (DESIGN-DB-1 §6.2): the tab IDs are code and are UNCHANGED, so every
 // existing `?tab=` deep link (checklist CTAs, help slideover, onboarding) still
 // resolves to the same panel. Only the words moved:
@@ -139,6 +139,15 @@ const SOURCE_PILL: Record<string, { bg: string; fg: string }> = {
   Inherited: { bg: BLUE_SOFT,  fg: BLUE_DEEP  },   // blue — inherited from another supplier
   Imported:  { bg: GREEN_SOFT, fg: GREEN_DEEP },   // green — imported from a file
 };
+
+/**
+ * The provenance a row gets when the backend did not give it one, or gave one
+ * this frontend has never heard of. Deliberately NOT a member of SOURCE_PILL:
+ * an unattributed row is rendered as plain text rather than as a chip, the same
+ * way `MappingConfidence` renders an unscored row, so it cannot be mistaken for
+ * one of the four provenances we can actually vouch for.
+ */
+const UNATTRIBUTED_SOURCE = "unattributed";
 
 // Confidence-chip class selector — maps a percentage to the ported .conf-* classes
 // (.conf-hi green / .conf-mid amber / .conf-lo danger). The thresholds come from
@@ -215,11 +224,20 @@ const QUICK_RULES: Array<{ label: string; rule: AcceptanceRule }> = [
 // rules) → a clean empty state, NOT an error.
 // Endpoint: GET /api/suppliers/{supplierId}/rule-bindings → SupplierRuleBinding[].
 
+// The dot AND the word beside it are painted with this colour, and the severity
+// string is a free-text column on the backend (`SupplierAcceptanceRule.Severity`),
+// so a value this frontend has not heard of DOES reach here. It used to fall
+// through to BLUE — the calm "info" tone — which reads as "we looked at this and
+// it is the mildest kind". The truth is that we could not classify it at all, so
+// an unrecognised severity now gets the neutral ink used for text we are not
+// making a claim about. "info" keeps its blue because it is a real tone, not the
+// bucket everything unknown lands in.
 function bindingSeverityColor(severity: string): string {
   const s = (severity ?? "").toLowerCase();
   if (s === "error") return DANGER;
   if (s === "warning") return "#B36D14";
-  return BLUE;
+  if (s === "info") return BLUE;
+  return MUTED;
 }
 
 function SupplierRuleBindingsPanel({ supplierId }: { supplierId: string }) {
@@ -850,8 +868,37 @@ function normalizeSource(source?: string): { label: string; pillKey: string } {
     case "suggested": return { label: "AI",        pillKey: "AI" };
     case "inherited": return { label: "Inherited", pillKey: "Inherited" };
     case "manual":    return { label: "Manual",    pillKey: "Manual" };
-    default:          return { label: source ? source : "Manual", pillKey: "Manual" };
+    // Neither absence nor non-recognition is "Manual".
+    //
+    // This arm used to label an unattributed row "Manual" — the HIGHEST-trust
+    // provenance in this product's vocabulary, the one an operator reads as "a
+    // human typed this and stands behind it", sitting in the same table as the
+    // violet AI pill they are trained to double-check. It is the identical
+    // defect `MappingConfidence` two functions below was already fixed for, one
+    // column to the right: absence of evidence displayed as maximum evidence.
+    //
+    // A source string we do not recognise is echoed verbatim, because the raw
+    // word is more informative than any bucket we would invent for it, and it
+    // is still not a provenance we can vouch for. A missing one says so.
+    default:          return { label: source || "Source not recorded", pillKey: UNATTRIBUTED_SOURCE };
   }
+}
+
+// One mapping row's provenance. Mirrors `MappingConfidence` below: a value we
+// can vouch for gets its coloured chip, and an unattributed one gets neutral
+// plain text — no chip, no colour, nothing that could be read as one of the
+// four known provenances.
+function MappingSource({ source }: { source?: string }) {
+  const src = normalizeSource(source);
+  if (src.pillKey === UNATTRIBUTED_SOURCE) {
+    return (
+      <span className="text-[10.5px] font-medium" style={{ color: MUTED }}>
+        {src.label}
+      </span>
+    );
+  }
+  const pill = SOURCE_PILL[src.pillKey] ?? SOURCE_PILL.Manual;
+  return <span className="chip" style={{ background: pill.bg, color: pill.fg }}>{src.label}</span>;
 }
 
 // Backend confidence is a 0–1 float; render as a whole-number percentage.
@@ -973,14 +1020,12 @@ function LiveMappingsTab({ supplierId, supplierName }: { supplierId: string; sup
           </thead>
           <tbody>
             {mappings.map((m, i) => {
-              const src = normalizeSource(m.source);
-              const pill = SOURCE_PILL[src.pillKey] ?? SOURCE_PILL.Manual;
               return (
                 <tr key={m.id} style={{ borderBottom: i < mappings.length - 1 ? `1px solid ${LINE}` : undefined }}>
                   <td className="px-5 py-3 text-[12px] font-semibold" style={{ color: INK, fontFamily: MONO }}>{m.buyerItemCode}</td>
                   <td className="px-5 py-3 text-[12px] font-semibold" style={{ color: GREEN_DEEP, fontFamily: MONO }}>{m.supplierItemCode}</td>
                   <td className="px-5 py-3" style={{ textAlign: "left" }}>
-                    <span className="chip" style={{ background: pill.bg, color: pill.fg }}>{src.label}</span>
+                    <MappingSource source={m.source} />
                   </td>
                   <td className="px-5 py-3" style={{ textAlign: "right" }}>
                     <MappingConfidence confidence={m.confidence} />
@@ -995,8 +1040,6 @@ function LiveMappingsTab({ supplierId, supplierName }: { supplierId: string; sup
       {/* Phones (<sm): stacked row-cards. */}
       <div className="sm:hidden">
         {mappings.map((m, i) => {
-          const src = normalizeSource(m.source);
-          const pill = SOURCE_PILL[src.pillKey] ?? SOURCE_PILL.Manual;
           return (
             <div
               key={m.id}
@@ -1009,7 +1052,7 @@ function LiveMappingsTab({ supplierId, supplierName }: { supplierId: string; sup
                 <span style={{ color: GREEN_DEEP }}>{m.supplierItemCode}</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="chip" style={{ background: pill.bg, color: pill.fg }}>{src.label}</span>
+                <MappingSource source={m.source} />
                 <MappingConfidence confidence={m.confidence} />
               </div>
             </div>
@@ -1033,12 +1076,20 @@ function CatalogTab({ supplierId }: { supplierId: string }) {
   const [notice, setNotice] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: ["supplier-catalog", supplierId, q],
     queryFn: () => getSupplierCatalog(supplierId, q || undefined, 200),
     enabled: queryEnabled,
     staleTime: 15_000,
+    retry: 1,
   });
+  // `isError` was never destructured here, and `getSupplierCatalog` throws on a
+  // non-ok response — so a failed fetch left `data === undefined`, fell through
+  // the `?? []` below, and told a supplier with 8,000 imported products that it
+  // had none and should go upload a file. The `!queryEnabled` half is the milder
+  // case the same branch had: a query that has not been allowed to run yet also
+  // reports no items, which is not the same as a catalog that is empty.
+  const showLoading = !queryEnabled || (isLoading && data === undefined);
   // Besides this tab's own list key, refresh the review screen's shared
   // ["supplier-catalog-codes"] probe (typeahead + CatalogHintCard self-resolve)
   // and — on import — the onboarding status (hasCatalog can flip step 2).
@@ -1088,8 +1139,34 @@ function CatalogTab({ supplierId }: { supplierId: string }) {
           style={{ width: "100%", maxWidth: 360, minHeight: 36, border: "1px solid #CBD0DA", borderRadius: 6, padding: "5px 10px", fontSize: 12.5, marginBottom: 10 }} />
       )}
 
-      {isLoading ? (
+      {/* Branch order is the load-bearing part, and it follows the dead-letter
+          list on /operations/health: loading and error each resolve AHEAD of
+          empty, because "we could not look" must never render as "there is
+          nothing". `items` is `data?.items ?? []`, and that default is a render
+          convenience only now that both cases it used to swallow are branched
+          on above it. */}
+      {showLoading ? (
         <div style={{ fontSize: 12, color: MUTED }}>Loading catalog…</div>
+      ) : isError ? (
+        <div role="alert" style={{ padding: "18px 14px", background: BG, border: `1px solid ${LINE}`, borderRadius: 8 }}>
+          <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: INK }}>
+            We couldn&apos;t load this catalog
+          </p>
+          <p style={{ margin: "4px 0 0", maxWidth: 440, fontSize: 12.5, lineHeight: 1.5, color: MUTED }}>
+            That is not the same as &ldquo;empty&rdquo; — any products already imported are still
+            here, and nothing has been deleted. Importing again is not necessary.
+          </p>
+          <button
+            type="button"
+            onClick={() => void refetch()}
+            disabled={isFetching}
+            className="bg-surface"
+            style={{ marginTop: 12, minHeight: "var(--tap-min)", height: 34, padding: "0 12px", border: `1px solid ${BORDER_STRONG}`, color: INK, borderRadius: 7, fontSize: 12.5, fontWeight: 600, cursor: isFetching ? "default" : "pointer", opacity: isFetching ? 0.6 : 1, display: "inline-flex", alignItems: "center", gap: 6 }}
+          >
+            <RefreshCw size={13} strokeWidth={2} color={MUTED} aria-hidden />
+            Try again
+          </button>
+        </div>
       ) : items.length === 0 ? (
         /* 2px dashed, not 1px: this box rendered with a missing TOP edge. Verified: no
            element overlaps it (12px clear gap above), but at Windows 125% scaling
@@ -1230,7 +1307,6 @@ export function SupplierDockProfile({ id }: { id: string }) {
   // don't write the URL back, so the sync fires only when the param VALUE
   // itself changes.
   useTabParamSync<Tab>(requestedTab, isTab, setTab);
-  const [poMappingConfig, setPoMappingConfig] = useState<PoMappingConfig | null>(null);
   const [savingMapping, setSavingMapping] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -1271,7 +1347,13 @@ export function SupplierDockProfile({ id }: { id: string }) {
   // No connection yet → links stay hidden (a connection is created the first
   // time the supplier is configured).
   const connectionsEnabled = useQueriesEnabled();
-  const { data: connectionList } = useQuery({
+  const {
+    data: connectionList,
+    isLoading: connectionsLoading,
+    isError: connectionsError,
+    isFetching: connectionsFetching,
+    refetch: refetchConnections,
+  } = useQuery({
     queryKey: ["connections"],
     queryFn: listConnections,
     enabled: connectionsEnabled,
@@ -1279,6 +1361,37 @@ export function SupplierDockProfile({ id }: { id: string }) {
     retry: 1,
   });
   const connectionId = connectionList?.find((c) => c.supplierId === id)?.id ?? null;
+  // A failed or not-yet-answered `["connections"]` fetch collapses to the same
+  // `null` as "this supplier has no connection", and that null was read as a
+  // fact in three places at once: the History tab printed "No versions yet", the
+  // header's History button disappeared, and LiveEditNotice dropped its
+  // version-history link. Nothing on screen said the lookup had failed. Keep the
+  // null for the two places that merely hide an affordance, and carry the reason
+  // separately so the tab — the one that makes a CLAIM — can tell them apart.
+  const connectionsUnresolved = !connectionsEnabled || (connectionsLoading && connectionList === undefined);
+
+  // This supplier's SAVED order layout.
+  //
+  // It used to live in `useState<PoMappingConfig | null>(null)`, written only by
+  // an in-session save, and `PoMappingEditor` does not fetch it either — so a
+  // supplier with a column layout saved months ago got a blank editor on every
+  // fresh load, and `onDelete` stayed `undefined`, hiding the delete control for
+  // exactly the suppliers that had something to delete. `GET /suppliers/{id}/po-mapping`
+  // has existed the whole time (204 when there is none, hence `| null`).
+  const poMappingQuery = useQuery<PoMappingConfig | null>({
+    queryKey: ["supplier-po-mapping", id],
+    queryFn: () => getPoMapping(id),
+    enabled: connectionsEnabled,
+    staleTime: 30_000,
+    retry: 1,
+  });
+  const savedPoMapping = poMappingQuery.data ?? null;
+  const poMappingLoading = !connectionsEnabled || (poMappingQuery.isLoading && poMappingQuery.data === undefined);
+  // The saved config IS the editor's seed, and the editor reads `initialConfig`
+  // only in its useState initialisers — so the seed has to be settled before it
+  // mounts. It is: the tab body branches on loading/error above the editor.
+  const setSavedPoMapping = (config: PoMappingConfig | null) =>
+    qc.setQueryData(["supplier-po-mapping", id], config);
 
   // In mock mode: all fields come from DEMO_MOCK.
   // In real mode: only name comes from the API; metrics show honest placeholders.
@@ -1287,7 +1400,12 @@ export function SupplierDockProfile({ id }: { id: string }) {
     : null;
 
   const name = isApiMockMode ? DEMO_MOCK.name : (realSupplier?.name ?? "");
-  const code = isApiMockMode ? DEMO_MOCK.code : (realSupplier ? deriveCode(realSupplier.name) : "—");
+  // Mock-mode only. `Supplier` has no `code` field, and this used to synthesise
+  // initials from the name (`deriveCode`) and render them unlabelled, in mono, in
+  // the exact slot mock mode fills with a real registered supplier code — so
+  // "Nordmark Handel GmbH" printed a confident `NHG` that exists in no system an
+  // operator could look it up in. There is nothing to show, so nothing is shown.
+  const code = isApiMockMode ? DEMO_MOCK.code : null;
 
   if (!isApiMockMode && isLoading) {
     return (
@@ -1412,7 +1530,7 @@ export function SupplierDockProfile({ id }: { id: string }) {
               </h1>
               {/* Inline meta row — code · required format chip · delivery channel chip · auto-process pill */}
               <div className="flex flex-wrap items-center gap-2 mt-1.5">
-                {code && code !== "—" && (
+                {code && (
                   <span className="text-[11.5px]" style={{ color: FAINT, fontFamily: MONO }}>
                     {code}
                   </span>
@@ -1504,38 +1622,42 @@ export function SupplierDockProfile({ id }: { id: string }) {
       >
         {tab === "overview" && (
           <div className="flex flex-col gap-4">
-            {/* KPI stat cards */}
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
-              {(isApiMockMode
-                ? [
-                    { label: "Total orders",    value: DEMO_MOCK.totalOrders.toLocaleString(), sub: "all time",        subAccent: false },
-                    { label: "Avg cycle time",  value: DEMO_MOCK.avgCycle,                     sub: "−14% vs prev",     subAccent: true  },
-                    { label: "Issue rate",  value: DEMO_MOCK.exceptionRate,                sub: "within target",    subAccent: true  },
-                    { label: "Acceptance",      value: `${DEMO_MOCK.health}%`,                 sub: "last 30 days",     subAccent: true  },
-                  ]
-                : [
-                    { label: "Total orders",    value: "—", sub: "no data yet", subAccent: false },
-                    { label: "Avg cycle time",  value: "—", sub: "no data yet", subAccent: false },
-                    { label: "Issue rate",  value: "—", sub: "no data yet", subAccent: false },
-                    { label: "Acceptance",      value: "—", sub: "no data yet", subAccent: false },
-                  ]
-              ).map(({ label, value, sub, subAccent }) => (
-                <div
-                  key={label}
-                  className="monument rounded-[10px] px-4 py-4"
-                  style={{ background: SURFACE, border: `1px solid ${LINE}`, boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}
-                >
-                  <div className="m-label">{label}</div>
+            {/* KPI stat cards.
+                Real orgs used to get four of these reading "—" captioned "no data
+                yet" — Total orders, Avg cycle time, Issue rate, Acceptance — and
+                NO supplier-metrics query existed anywhere in the file to fill
+                them. The caption was not a placeholder, it was an assertion about
+                this supplier's history that nothing had checked, and once the
+                recent-orders panel below it started printing a real "412 total"
+                the same screen was contradicting itself.
+                Three of the four have no endpoint behind them — there is no
+                per-supplier metrics route on the API, and none of avg cycle time,
+                issue rate or acceptance rate is derivable from what is exposed —
+                so those claims are gone rather than invented. Total orders IS
+                fetchable, from the same order page the panel below already reads,
+                so it is fetched. */}
+            {isApiMockMode ? (
+              <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
+                {[
+                  { label: "Total orders",   value: DEMO_MOCK.totalOrders.toLocaleString(), sub: "all time",     subAccent: false },
+                  { label: "Avg cycle time", value: DEMO_MOCK.avgCycle,                     sub: "−14% vs prev", subAccent: true  },
+                  { label: "Issue rate",     value: DEMO_MOCK.exceptionRate,                sub: "within target", subAccent: true  },
+                  { label: "Acceptance",     value: `${DEMO_MOCK.health}%`,                 sub: "last 30 days", subAccent: true  },
+                ].map(({ label, value, sub, subAccent }) => (
                   <div
-                    className="m-value"
-                    style={{ fontSize: 30, color: isApiMockMode ? INK : BORDER_STRONG }}
+                    key={label}
+                    className="monument rounded-[10px] px-4 py-4"
+                    style={{ background: SURFACE, border: `1px solid ${LINE}`, boxShadow: CARD_SHADOW }}
                   >
-                    {value}
+                    <div className="m-label">{label}</div>
+                    <div className="m-value" style={{ fontSize: 30, color: INK }}>{value}</div>
+                    <div className="m-sub" style={{ color: subAccent ? GREEN_DEEP : FAINT }}>{sub}</div>
                   </div>
-                  <div className="m-sub" style={{ color: subAccent ? GREEN_DEEP : FAINT }}>{sub}</div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <OrderVolumeCard supplierId={id} nounLower={partyNounLower} />
+            )}
 
             {/* Identifiers — what an unrouted document gets matched against. */}
             <SupplierIdentityCard supplierId={id} />
@@ -1574,16 +1696,11 @@ export function SupplierDockProfile({ id }: { id: string }) {
                     ))}
                   </div>
                 ) : (
-                  <p className="px-4 py-5 text-[13px] sm:px-5" style={{ color: MUTED }}>
-                    Configure this supplier in the{" "}
-                    <button
-                      onClick={() => setTab("delivery")}
-                      style={{ color: GREEN_DEEP, background: "none", border: "none", cursor: "pointer", padding: 0, fontSize: 13, fontWeight: 500 }}
-                    >
-                      Delivery
-                    </button>{" "}
-                    tab to populate this summary.
-                  </p>
+                  <DeliverySummaryBody
+                    supplierId={id}
+                    nounLower={partyNounLower}
+                    onOpenDeliveryTab={() => setTab("delivery")}
+                  />
                 )}
               </div>
 
@@ -1737,37 +1854,69 @@ export function SupplierDockProfile({ id }: { id: string }) {
             </div>
           </div>
           <LiveEditNotice connectionId={connectionId} nounLower={partyNounLower} onOpenHistory={() => setTab("history")} />
-          <PoMappingEditor
-            supplierId={id}
-            initialConfig={poMappingConfig}
-            saving={savingMapping}
-            supplierName={name}
-            onApplyTemplate={async (templateId) => {
-              // Persists the template server-side and refreshes the editor from
-              // the saved config. The PO mapping config is held in local state
-              // (not a TanStack query), so updating it here IS the refresh.
-              const saved = await applyPoMappingTemplate(id, templateId);
-              setPoMappingConfig(saved);
-              return saved;
-            }}
-            onSave={async (config) => {
-              setSavingMapping(true);
-              try {
-                const saved = await upsertPoMapping(id, config);
-                setPoMappingConfig(saved);
-              } finally {
-                setSavingMapping(false);
+          {/* Loading and error resolve ahead of the editor for the same reason
+              they resolve ahead of every empty state on this screen: an editor
+              rendered with no layout in it is a claim that this supplier has no
+              saved layout, and neither "still asking" nor "the ask failed" is
+              evidence of that. */}
+          {poMappingLoading ? (
+            <p className="text-[13px]" style={{ color: MUTED }}>
+              Loading this {partyNounLower}&apos;s saved order layout…
+            </p>
+          ) : poMappingQuery.isError ? (
+            <div role="alert" className="rounded-[8px] px-4 py-4" style={{ background: SURFACE, border: `1px solid ${LINE}` }}>
+              <p className="m-0 text-[13px] font-semibold" style={{ color: INK }}>
+                We couldn&apos;t load this {partyNounLower}&apos;s saved order layout
+              </p>
+              <p className="mt-1 max-w-[460px] text-[12.5px] leading-5" style={{ color: MUTED }}>
+                Opening the editor now would show an empty layout, which is not the same as
+                not having one — so it stays closed until we can read what is saved. Nothing
+                has changed.
+              </p>
+              <button
+                type="button"
+                onClick={() => void poMappingQuery.refetch()}
+                disabled={poMappingQuery.isFetching}
+                className="mt-3 inline-flex items-center gap-1.5 rounded-[7px] bg-surface px-3 text-[12.5px] font-medium"
+                style={{ minHeight: "var(--tap-min)", height: 34, border: `1px solid ${BORDER_STRONG}`, color: INK, cursor: poMappingQuery.isFetching ? "default" : "pointer", opacity: poMappingQuery.isFetching ? 0.6 : 1 }}
+              >
+                <RefreshCw size={13} strokeWidth={2} color={MUTED} aria-hidden />
+                Try again
+              </button>
+            </div>
+          ) : (
+            <PoMappingEditor
+              supplierId={id}
+              initialConfig={savedPoMapping}
+              saving={savingMapping}
+              supplierName={name}
+              onApplyTemplate={async (templateId) => {
+                // Persists the template server-side, then writes the saved config
+                // straight into the query cache so the editor and the delete
+                // control both see it without a second round trip.
+                const saved = await applyPoMappingTemplate(id, templateId);
+                setSavedPoMapping(saved);
+                return saved;
+              }}
+              onSave={async (config) => {
+                setSavingMapping(true);
+                try {
+                  const saved = await upsertPoMapping(id, config);
+                  setSavedPoMapping(saved);
+                } finally {
+                  setSavingMapping(false);
+                }
+              }}
+              onDelete={
+                savedPoMapping
+                  ? async () => {
+                      await deletePoMapping(id);
+                      setSavedPoMapping(null);
+                    }
+                  : undefined
               }
-            }}
-            onDelete={
-              poMappingConfig
-                ? async () => {
-                    await deletePoMapping(id);
-                    setPoMappingConfig(null);
-                  }
-                : undefined
-            }
-          />
+            />
+          )}
           </>
         )}
 
@@ -1809,6 +1958,42 @@ export function SupplierDockProfile({ id }: { id: string }) {
         {tab === "history" && (
           connectionId ? (
             <SupplierHistoryTab connectionId={connectionId} />
+          ) : connectionsUnresolved ? (
+            <div
+              className="rounded-[10px] px-6 py-12 text-center"
+              style={{ border: `1px dashed ${BORDER_STRONG}`, background: SURFACE }}
+            >
+              <p className="text-[13px]" style={{ color: MUTED }}>Checking for saved versions…</p>
+            </div>
+          ) : connectionsError ? (
+            /* "No versions yet" was the ONLY thing this tab could say, and it was
+               reached by `connectionId ?? null` — so a failed /api/connections
+               fetch rendered a confident "nothing has ever been published here",
+               beside an instruction to go and configure a connection that may
+               already exist. Error resolves ahead of empty. */
+            <div
+              role="alert"
+              className="rounded-[10px] px-6 py-10 text-center"
+              style={{ border: `1px solid ${LINE}`, background: SURFACE }}
+            >
+              <p className="text-[14px] font-semibold" style={{ color: INK }}>
+                We couldn&apos;t load this {partyNounLower}&rsquo;s versions
+              </p>
+              <p className="mx-auto mt-1 max-w-[440px] text-[12.5px] leading-5" style={{ color: MUTED }}>
+                That is not the same as &ldquo;none&rdquo; — there may well be saved versions here.
+                Nothing has been lost and no version has changed.
+              </p>
+              <button
+                type="button"
+                onClick={() => void refetchConnections()}
+                disabled={connectionsFetching}
+                className="mt-4 inline-flex items-center gap-1.5 rounded-[7px] bg-surface px-3 text-[12.5px] font-medium"
+                style={{ minHeight: "var(--tap-min)", height: 34, border: `1px solid ${BORDER_STRONG}`, color: INK, cursor: connectionsFetching ? "default" : "pointer", opacity: connectionsFetching ? 0.6 : 1 }}
+              >
+                <RefreshCw size={13} strokeWidth={2} color={MUTED} aria-hidden />
+                Try again
+              </button>
+            </div>
           ) : (
             <div
               className="rounded-[10px] px-6 py-12 text-center"
@@ -1872,20 +2057,208 @@ function SrcChip({ type }: { type: string }) {
  */
 const RECENT_ORDERS_LIMIT = 6;
 
-function RecentOrdersPanel({ supplierId, nounLower }: { supplierId: string; nounLower: string }) {
+/**
+ * The one order read this screen makes, shared by the panel below and by the
+ * order-volume KPI above it. Same key, same queryFn, so TanStack serves both
+ * from one cache entry and one request — the KPI is not a second fetch, and the
+ * two surfaces cannot disagree about how many orders this supplier has.
+ */
+function useSupplierOrdersPage(supplierId: string) {
   const queryEnabled = useQueriesEnabled();
-  const { data, isLoading, isError, isFetching, refetch } = useQuery<OrdersPage>({
+  const query = useQuery<OrdersPage>({
     queryKey: ["supplier-recent-orders", supplierId],
     queryFn: () => apiClient.getOrders({ supplierId, page: 1, pageSize: RECENT_ORDERS_LIMIT }),
     enabled: queryEnabled,
     staleTime: 30_000,
     retry: 1,
   });
-
   // A query that is not enabled yet reports `isLoading: true` with no data, so
   // "not ready to ask" resolves as loading — never as an error, and never as a
   // supplier with no orders.
+  return { ...query, showLoading: !queryEnabled || (query.isLoading && query.data === undefined) };
+}
+
+/**
+ * Total orders for this supplier — the one KPI on this screen with a real
+ * source behind it.
+ *
+ * The card it replaces read "—" under the caption "no data yet", and so did
+ * three siblings (Avg cycle time, Issue rate, Acceptance). None of the four was
+ * connected to anything: the file contained no supplier-metrics query, so the
+ * caption was a statement about this supplier's history that had never been
+ * checked. The other three are gone because the API exposes no per-supplier
+ * metrics route to connect them to; inventing an endpoint, or leaving the
+ * caption up, were the two options this deliberately does not take.
+ */
+function OrderVolumeCard({ supplierId, nounLower }: { supplierId: string; nounLower: string }) {
+  const { data, isError, isFetching, refetch, showLoading } = useSupplierOrdersPage(supplierId);
+  // Same contract as the panel below: the printed number is the METERED
+  // population and the practice split is stated, both owned by orderCountContract.
+  const population = pagePopulation(data);
+  const practiceNote = practiceOrderNote(population.practice);
+
+  return (
+    <div
+      className="monument rounded-[10px] px-4 py-4 sm:max-w-[300px]"
+      style={{ background: SURFACE, border: `1px solid ${LINE}`, boxShadow: CARD_SHADOW }}
+    >
+      <div className="m-label">Total orders</div>
+      {showLoading ? (
+        <>
+          <div className="m-value" style={{ fontSize: 30, color: BORDER_STRONG }} aria-hidden>—</div>
+          <div className="m-sub" style={{ color: FAINT }}>Counting this {nounLower}&apos;s orders…</div>
+        </>
+      ) : isError ? (
+        <div role="alert">
+          <div className="m-value" style={{ fontSize: 30, color: BORDER_STRONG }} aria-hidden>—</div>
+          {/* Not "no data yet". We asked and could not hear the answer, which is
+              a different sentence from "there is nothing to count". */}
+          <div className="m-sub" style={{ color: MUTED }}>We couldn&apos;t count them just now</div>
+          <button
+            type="button"
+            onClick={() => void refetch()}
+            disabled={isFetching}
+            className="mt-2 inline-flex items-center gap-1.5 rounded-[7px] bg-surface px-2.5 text-[12px] font-medium"
+            style={{ minHeight: "var(--tap-min)", height: 30, border: `1px solid ${BORDER_STRONG}`, color: INK, cursor: isFetching ? "default" : "pointer", opacity: isFetching ? 0.6 : 1 }}
+          >
+            <RefreshCw size={12} strokeWidth={2} color={MUTED} aria-hidden />
+            Try again
+          </button>
+        </div>
+      ) : (
+        <>
+          <div className="m-value" style={{ fontSize: 30, color: INK }}>
+            {population.metered.toLocaleString()}
+          </div>
+          <div className="m-sub" style={{ color: FAINT }}>{practiceNote ?? "all time"}</div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The Delivery summary card's body for real orgs.
+ *
+ * It used to be one sentence — "Configure this supplier in the Delivery tab to
+ * populate this summary." — rendered unconditionally, with no delivery-config
+ * fetch anywhere on the tab. A supplier with a live endpoint, an output format
+ * and credentials already saved was told to go and set them up. The instruction
+ * survives, but only as the last branch, and only once a completed read has
+ * established that there is genuinely nothing saved.
+ *
+ * The rows are the fields `DeliveryConfig` actually carries. The endpoint URL
+ * lives inside the protocol-specific `configJson` blob and is deliberately not
+ * guessed at here: a summary that mis-parses a blob is the same defect wearing
+ * a different hat, and the Delivery tab shows the real thing.
+ */
+function DeliverySummaryBody({
+  supplierId,
+  nounLower,
+  onOpenDeliveryTab,
+}: {
+  supplierId: string;
+  nounLower: string;
+  onOpenDeliveryTab: () => void;
+}) {
+  const queryEnabled = useQueriesEnabled();
+  const { data, isLoading, isError, isFetching, refetch } = useQuery<DeliveryConfig | null>({
+    queryKey: ["supplier-delivery-config", supplierId],
+    queryFn: () => getDeliveryConfig(supplierId),
+    enabled: queryEnabled,
+    staleTime: 30_000,
+    retry: 1,
+  });
+  // `null` is a real answer here (the API returns 204 when nothing is saved),
+  // so only `undefined` counts as "no answer yet".
   const showLoading = !queryEnabled || (isLoading && data === undefined);
+
+  if (showLoading) {
+    return (
+      <p className="px-4 py-5 text-[13px] sm:px-5" style={{ color: MUTED }}>
+        Checking this {nounLower}&apos;s delivery setup…
+      </p>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div role="alert" className="px-4 py-5 sm:px-5">
+        <p className="text-[13px] font-semibold" style={{ color: INK }}>
+          We couldn&apos;t load this {nounLower}&apos;s delivery setup
+        </p>
+        <p className="mt-1 max-w-[440px] text-[12.5px] leading-5" style={{ color: MUTED }}>
+          That is not the same as &ldquo;not configured&rdquo; — delivery may already be set up and
+          working. Nothing has changed, and orders already on their way are unaffected.
+        </p>
+        <button
+          type="button"
+          onClick={() => void refetch()}
+          disabled={isFetching}
+          className="mt-3 inline-flex items-center gap-1.5 rounded-[7px] bg-surface px-3 text-[12.5px] font-medium"
+          style={{ minHeight: "var(--tap-min)", height: 34, border: `1px solid ${BORDER_STRONG}`, color: INK, cursor: isFetching ? "default" : "pointer", opacity: isFetching ? 0.6 : 1 }}
+        >
+          <RefreshCw size={13} strokeWidth={2} color={MUTED} aria-hidden />
+          Try again
+        </button>
+      </div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <p className="px-4 py-5 text-[13px] sm:px-5" style={{ color: MUTED }}>
+        Nothing is configured yet. Set this {nounLower} up in the{" "}
+        <button
+          onClick={onOpenDeliveryTab}
+          style={{ color: GREEN_DEEP, background: "none", border: "none", cursor: "pointer", padding: 0, fontSize: 13, fontWeight: 500 }}
+        >
+          Delivery
+        </button>{" "}
+        tab and this summary fills in.
+      </p>
+    );
+  }
+
+  const rows: Array<[string, string, boolean]> = [
+    ["Delivery channel", data.protocol, true],
+    ["Output format", data.outputFormat || "Not set", Boolean(data.outputFormat)],
+    ["Send automatically", data.autoDeliver ? "On" : "Off", false],
+    [
+      "Credentials",
+      data.hasCredentials ? (data.credentialsDisplay || "Stored") : "None stored",
+      Boolean(data.hasCredentials && data.credentialsDisplay),
+    ],
+  ];
+
+  return (
+    <div className="px-4 py-1 sm:px-5">
+      {rows.map(([k, v, mono], i) => (
+        <div
+          key={k}
+          className="flex items-center justify-between gap-3 py-2.5 sm:gap-4"
+          style={{ borderBottom: i < rows.length - 1 ? `1px solid ${LINE}` : undefined }}
+        >
+          <span className="flex-shrink-0 text-[12px]" style={{ color: MUTED }}>{k}</span>
+          <span
+            className="min-w-0 truncate text-right text-[12px] font-medium"
+            style={{ color: INK, fontFamily: mono ? MONO : undefined }}
+          >
+            {v}
+          </span>
+        </div>
+      ))}
+      {data.insecureTransportWarning && (
+        <p className="pb-2.5 pt-1 text-[11.5px] leading-5" style={{ color: DANGER }}>
+          {data.insecureTransportWarning}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function RecentOrdersPanel({ supplierId, nounLower }: { supplierId: string; nounLower: string }) {
+  const { data, isError, isFetching, refetch, showLoading } = useSupplierOrdersPage(supplierId);
   const orders = data?.items ?? [];
   // The printed number is the METERED population, and the practice split is stated
   // rather than left for the reader to notice — `orderCountContract` owns both, so
@@ -1894,10 +2267,18 @@ function RecentOrdersPanel({ supplierId, nounLower }: { supplierId: string; noun
   const practiceNote = practiceOrderNote(population.practice);
 
   return (
-    <div style={{ background: SURFACE, border: `1px solid ${LINE}`, borderRadius: 10, overflow: "hidden" }}>
+    /* A named region, because the order-volume KPI above now reads the SAME query
+       and therefore carries its own copy of this panel's loading, error and retry
+       surfaces. Naming the panel is what lets a reader — assistive tech or a test
+       — say which of the two it is looking at. */
+    <div
+      role="region"
+      aria-labelledby="supplier-recent-orders-heading"
+      style={{ background: SURFACE, border: `1px solid ${LINE}`, borderRadius: 10, overflow: "hidden" }}
+    >
       <div className="flex items-center gap-2 px-5 py-3.5" style={{ borderBottom: `1px solid ${LINE}` }}>
         <Clock size={15} strokeWidth={2} color={MUTED} />
-        <h3 className="text-[13px] font-semibold" style={{ color: INK }}>Recent orders</h3>
+        <h3 id="supplier-recent-orders-heading" className="text-[13px] font-semibold" style={{ color: INK }}>Recent orders</h3>
         {/* The count is rendered only once a query has actually returned one. */}
         {!showLoading && !isError && population.metered > 0 && (
           <span className="ml-auto text-[11.5px]" style={{ color: FAINT }}>

@@ -22,6 +22,20 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+/**
+ * This supplier's SAVED order layout, or `null` when it has none.
+ *
+ * `GET /api/suppliers/{id}/po-mapping` has existed on the backend the whole
+ * time; the frontend simply never called it, so `SupplierDockProfile` seeded the
+ * editor from an in-session `useState` and a supplier with a layout saved months
+ * ago got a blank editor on every fresh load. The endpoint answers 204 when
+ * nothing is saved, which `apiFetch` above turns into `null` — a real answer,
+ * distinct from a failure, which throws.
+ */
+export async function getPoMapping(supplierId: string): Promise<PoMappingConfig | null> {
+  return apiFetch<PoMappingConfig | null>(`/suppliers/${supplierId}/po-mapping`);
+}
+
 export async function upsertPoMapping(
   supplierId: string,
   config: PoMappingConfig
