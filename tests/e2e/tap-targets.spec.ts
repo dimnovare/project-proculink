@@ -232,7 +232,7 @@ test.describe("touch floors at a phone viewport", () => {
 test.describe("the landing hero toggle", () => {
   test("is at least 44px tall on a phone", async ({ page }) => {
     await page.goto("/");
-    const toggle = page.getByRole("button", { name: "Topology" });
+    const toggle = page.getByRole("button", { name: "Order flow" });
     await expect(toggle).toBeVisible();
     const box = await toggle.boundingBox();
     expect(box, "hero toggle not laid out").not.toBeNull();
@@ -244,7 +244,7 @@ test.describe("the landing hero toggle", () => {
     // not have covered a desktop mouse. Measured: 24.5px before, 30.5px after.
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto("/");
-    const toggle = page.getByRole("button", { name: "Topology" });
+    const toggle = page.getByRole("button", { name: "Order flow" });
     await expect(toggle).toBeVisible();
     const box = await toggle.boundingBox();
     expect(box!.height).toBeGreaterThanOrEqual(28);

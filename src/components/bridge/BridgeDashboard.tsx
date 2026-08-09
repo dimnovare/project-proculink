@@ -1052,7 +1052,7 @@ export function BridgeDashboard() {
           style={{ height, background: "#FFFFFF", border: "1px solid #E5E8EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)", padding: 24 }}
           role="alert"
         >
-          <div className="text-[16px] font-semibold" style={{ color: "#0B1A2F" }}>Couldn&apos;t load your topology</div>
+          <div className="text-[16px] font-semibold" style={{ color: "#0B1A2F" }}>Couldn&apos;t load your orders</div>
           <div className="mt-1 max-w-[420px] text-[13px]" style={{ color: "#5E6779" }}>
             We hit a problem fetching your live order view. Your connections are safe — this is a temporary loading error.
           </div>

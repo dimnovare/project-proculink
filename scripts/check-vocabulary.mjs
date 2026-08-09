@@ -34,6 +34,13 @@
  *   • src/components/**  (.tsx + .ts)  — "Active rule bindings", "Remove node"
  *   • src/lib/*.ts       (top level)   — the label registries (section-guides,
  *                                        breadcrumb-style maps, help copy)
+ *   • src/app/(home)/**  (.tsx + .mdx) — THE LANDING PAGE. A ROUTE GROUP ADDS NO
+ *     PATH SEGMENT: `src/app/(home)/` IS `/`, and it is a SIBLING of
+ *     `(marketing)`, not a child of it. So naming `(marketing)` left the one page
+ *     every prospect sees outside the gate, silently — which is how the hero
+ *     shipped `live order topology` and a `Topology` view toggle. Adding it cost
+ *     two files and found three violations; check a sibling route group before
+ *     trusting any corpus in src/app.
  *
  * WHAT IS EXEMPT FROM THE BLOCK TIERS (and why — each is measured, §7.1):
  *   • src/app/(marketing)/help/**   reference docs for a technical reader; they
@@ -96,6 +103,7 @@ const WANT_TERMS = !argv.includes("--nouns") || argv.includes("--all");
 const SCAN_TARGETS = [
   { dir: ["src", "app", "(app)"], recursive: true, ext: /\.(tsx|mdx)$/ },
   { dir: ["src", "app", "(marketing)"], recursive: true, ext: /\.(tsx|mdx)$/ },
+  { dir: ["src", "app", "(home)"], recursive: true, ext: /\.(tsx|mdx)$/ },
   { dir: ["src", "components"], recursive: true, ext: /\.(tsx|ts)$/ },
   // Top level ONLY: the label registries live here. Sub-directories are fact
   // tables (src/lib/standards) and infrastructure (src/lib/security).
@@ -192,7 +200,7 @@ const isBlockExempt = (rel) => BLOCK_EXEMPT.some((re) => re.test(rel));
  * else (identifiers, classNames, imports, comments) is discarded, so the term
  * check can never fire on code.
  */
-function visibleSpansTsx(line) {
+function visibleSpansTsx(line, afterLoneTagClose = false) {
   const spans = [];
   const trimmed = line.trim();
   if (
@@ -255,17 +263,37 @@ function visibleSpansTsx(line) {
   //   • fewer than two words — a bare identifier on its own line
   // Note: tested against `s` (comments stripped), not the raw line — a trailing
   // `// exception count` on a type member is a comment, not copy.
+  //
+  // THE TWO-WORD FLOOR IS LIFTED AFTER A LONE `>`. That floor cost the gate every
+  // ONE-WORD BUTTON IN THE PRODUCT. Prettier breaks a multi-attribute element so the
+  // opening tag's `>` lands alone on its own line, and the label sits on the next:
+  //     <button
+  //       onClick={…}
+  //     >
+  //       Topology
+  //     </button>
+  // `Topology` carries no `<` or `>` of its own, so the JSX-text matcher cannot see it,
+  // and one word never cleared `looksLikeProse`. Measured across the four scanned trees:
+  // 90 such labels — Cancel, Retry, Revoke, Export, Done, Monthly — none of which the
+  // gate had ever read, and one of which was the landing hero's `Topology` view toggle.
+  //
+  // The relaxation is keyed on the PREVIOUS line being EXACTLY `>` rather than merely
+  // ending in one, because that is the shape only a broken-up JSX opening tag produces:
+  // after it the parser is unambiguously in an element's CHILDREN, so a bare word there
+  // is text, not an identifier. A line that merely ends in `>` may be a generic close
+  // (`Record<\n  string,\n  string\n> = {`), and relaxing on that would put real code
+  // back in scope — which is the false-positive class the floor was added to stop.
   const bare = s.trim();
-  if (spans.length === 0 && looksLikeProse(bare)) spans.push(bare);
+  if (spans.length === 0 && looksLikeProse(bare, afterLoneTagClose ? 1 : 2)) spans.push(bare);
 
   return spans;
 }
 
-function looksLikeProse(trimmed) {
+function looksLikeProse(trimmed, minWords = 2) {
   if (!/^[A-Za-z][A-Za-z0-9 ,.'’!?%&/:;—–-]*$/.test(trimmed)) return false;
   if (/[,;:]$/.test(trimmed)) return false;
   if (/\.\w/.test(trimmed)) return false;
-  return trimmed.split(/\s+/).length >= 2;
+  return trimmed.split(/\s+/).length >= minWords;
 }
 
 /**
@@ -275,6 +303,11 @@ function looksLikeProse(trimmed) {
  */
 function tsxScanner() {
   let inBlockComment = false;
+  // Whether the previous line with content was exactly `>` — the tail of a broken-up JSX
+  // opening tag, which is what puts the next line inside that element's children. See the
+  // note in visibleSpansTsx: this is what lets a ONE-WORD button label be read as copy
+  // without putting bare identifiers back in scope.
+  let afterLoneTagClose = false;
   return (line) => {
     let work = line;
     if (inBlockComment) {
@@ -289,7 +322,11 @@ function tsxScanner() {
       inBlockComment = true;
       work = work.slice(0, open);
     }
-    return work.trim() ? visibleSpansTsx(work) : [];
+    const trimmed = work.trim();
+    if (!trimmed) return [];
+    const spans = visibleSpansTsx(work, afterLoneTagClose);
+    afterLoneTagClose = trimmed === ">";
+    return spans;
   };
 }
 
@@ -683,7 +720,7 @@ let failed = false;
 if (WANT_TERMS) {
   const { fileCount, blocked, warned } = scanTerms();
   console.log(
-    `\nVocabulary gate — scanned ${fileCount} file(s) under (app) + (marketing) + components + lib\n`,
+    `\nVocabulary gate — scanned ${fileCount} file(s) under (app) + (marketing) + (home) + components + lib\n`,
   );
   if (blocked.length === 0) {
     console.log("OK — no retired metaphor or engine-jargon words in user-facing copy.");

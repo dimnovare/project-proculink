@@ -32,9 +32,18 @@
 // names, CSS classes, gradient vars, data-* attributes, comments) but must never appear
 // in USER-FACING copy. CLAUDE.md §9. This war is won on the frontend; the tier stays as
 // a regression guard, and now covers the backend's sentences too.
+// "topology" is the INTERNAL name of the wire diagram — CLAUDE.md §2 ("Wire Topology
+// dashboard"), §9 (the dashboard heading is "Orders", never "Order topology"), and
+// BridgeDashboard.tsx's own header. It was missing from this tier only because the war was
+// won on the words the founder listed by hand; the noun that names the picture was never
+// typed out. Three shipped strings were still using it when it was added: the landing
+// hero's `live order topology` chrome label and its `Topology` view toggle, and the
+// dashboard's `Couldn't load your topology` error card — whose sibling card, on the query
+// right next to it, already said "Couldn't load your connections".
 export const METAPHOR = [
   "bridge", "crossing", "crossings", "dock", "docks", "lane", "lanes",
   "spine", "wire", "wires", "wired", "wiring", "traveller", "travellers",
+  "topology", "topologies",
 ];
 
 // ─── Tier 2: engine jargon that leaked into copy (BLOCK) ──────────────────────
