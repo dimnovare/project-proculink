@@ -1350,10 +1350,18 @@ function ApiKeysSection() {
 
 // ── Connectors Section ────────────────────────────────────────────────────
 
+// The backend-accepted event types, and what each one means in plain language.
+// This is the only list of them on this screen: the event dropdown is built from
+// it, and the saved-endpoint rows read their description from it. The literal
+// code (`order.created`) stays on screen next to the description, because that is
+// what the payload carries and what the help article documents — a developer
+// wiring up an integration needs to be able to correlate the two.
 const EVENT_LABELS: Record<string, string> = {
-  "order.created":   "order.created — new PO uploaded or received",
-  "order.delivered": "order.delivered — PO delivered to supplier",
-  "order.failed":    "order.failed — delivery failed after retries",
+  "order.created":   "New PO uploaded or received",
+  "order.delivered": "PO delivered to supplier",
+  // "Couldn't send" is the shipped label for delivery_failed (orderStatusManifest);
+  // the retired "Delivery failed" must not come back in through this door.
+  "order.failed":    "Couldn't send to the supplier",
 };
 
 const PLATFORM_LABELS: Record<string, string> = {
@@ -1478,9 +1486,9 @@ function ConnectorsSection() {
               <label style={{ display: "grid", gap: 4 }}>
                 <span style={fieldLabelStyle}>Event</span>
                 <select value={eventType} onChange={e => setEventType(e.target.value)} style={{ ...inputStyle, height: 32 }}>
-                  <option value="order.created">order.created</option>
-                  <option value="order.delivered">order.delivered</option>
-                  <option value="order.failed">order.failed</option>
+                  {Object.entries(EVENT_LABELS).map(([value, label]) => (
+                    <option key={value} value={value}>{value} — {label}</option>
+                  ))}
                 </select>
               </label>
             </div>
@@ -1591,6 +1599,11 @@ function ConnectorsSection() {
                     </span>
                   )}
                 </div>
+                {EVENT_LABELS[sub.eventType] ? (
+                  <p style={{ fontSize: 12.5, color: "var(--ink)", margin: "0 0 3px" }}>
+                    {EVENT_LABELS[sub.eventType]}
+                  </p>
+                ) : null}
                 <p style={{ fontSize: 11.5, color: "var(--ink-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", margin: 0 }} title={sub.targetUrl}>
                   {sub.targetUrl}
                 </p>
