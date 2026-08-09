@@ -15,11 +15,19 @@
  * inbound alias the org configured). Pass it as PLK_INBOUND_TO.
  *
  * ── RUN ──────────────────────────────────────────────────────────────────────
- *   PLK_API=https://api.proculink.eu \
+ * Default target is the LOCAL API (http://localhost:5223):
  *   PLK_POSTMARK_TOKEN=<Inbound__Postmark__WebhookToken> \
  *   PLK_INBOUND_TO="orders@your-org-slug.proculink.eu" \
  *   PLK_COUNT=3 \
  *     bun scripts/live-matrix/inbound-email-harness.mjs
+ *
+ * Production must be named AND opted into on the command line (see ./target.mjs).
+ * PLK_INBOUND_TO is tenant ROUTING, not a target — it does not select a deployment.
+ *   PLK_API=https://api.proculink.eu \
+ *   PLK_POSTMARK_TOKEN=<Inbound__Postmark__WebhookToken> \
+ *   PLK_INBOUND_TO="orders@your-org-slug.proculink.eu" \
+ *   PLK_COUNT=3 \
+ *     bun scripts/live-matrix/inbound-email-harness.mjs --allow-production
  *
  * (node also works: `node scripts/live-matrix/inbound-email-harness.mjs`.)
  *
@@ -30,7 +38,9 @@
  * org, etc.) — both are reported verbatim so the failure is legible.
  * ========================================================================== */
 
-const API = process.env.PLK_API || "https://api.proculink.eu";
+import { resolveTargetOrExit } from "./target.mjs";
+
+const { api: API } = resolveTargetOrExit("inbound-email-harness.mjs");
 const TOKEN = process.env.PLK_POSTMARK_TOKEN;
 const TO = process.env.PLK_INBOUND_TO;
 const FROM = process.env.PLK_INBOUND_FROM || "buyer@example-buyer.test";
