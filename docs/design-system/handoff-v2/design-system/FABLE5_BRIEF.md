@@ -100,7 +100,7 @@ date/number/currency/unit formatting → **live preview** (CSV/JSON/XML/cXML) wi
 Valid/N-unset badge → save reusable template. Raw template behind an **Advanced** toggle.
 **Rules** — validation rules as readable rows (field · condition · action · severity), test
 against a sample, clear pass/fail.
-**Connections** — buyer→supplier routes as lanes; each shows template + channel + health.
+**Connections** — buyer→supplier routes; each shows template + channel + health.
 **Delivery log** — append-only; success/failed/rejected states; **Retry** on failure;
 **Proof** (timestamp, channel, response payload) on success.
 **Exceptions / Health** — failed/blocked orders led by *reason* + next step; system health

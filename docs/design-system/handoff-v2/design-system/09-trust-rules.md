@@ -20,13 +20,13 @@ Every AI suggestion, auto-mapping, or auto-corrected field shows three things:
 
 ## Rule 2 · No silent automation
 
-Auto-process — the mode where a crossing skips human review when validation passes — is:
+Auto-process — the mode where an order skips human review when validation passes — is:
 
-- **Off by default** for every new supplier dock.
+- **Off by default** for every new supplier.
 - **Per-supplier**, never global.
 - **Explicitly turned on** via a settings page with a confirmation step that lists what the supplier requires.
-- **Visible** in the supplier dock header as a status pill: *"Auto-process: ON"* or *"Auto-process: OFF — every crossing reviewed"*.
-- **Audited** — every auto-processed crossing has a Crossings Log entry tagged `auto-processed` with the rules that passed.
+- **Visible** in the supplier header as a status pill: *"Auto-process: ON"* or *"Auto-process: OFF — every order reviewed"*.
+- **Audited** — every auto-processed order has a delivery-log entry tagged `auto-processed` with the rules that passed.
 
 The Upload Workbench shows the current auto-process state for the chosen supplier in an amber pill if it's enabled, so the operator knows their file may go through without review.
 
@@ -37,12 +37,12 @@ The Upload Workbench shows the current auto-process state for the chosen supplie
 
 The **Failed** view is the most useful screen in the product. Not a tombstone.
 
-Every failed crossing shows:
+Every failed order shows:
 
 1. **What the supplier said** — the literal error message, or the rejection from the ERP, or the parse error. Raw, in mono.
 2. **What we sent** — the exact output file we delivered (cXML, CSV, etc.), with a "View output" button that opens the side-by-side diff against the canonical model.
-3. **What we'd retry** — if the failure is recoverable (e.g. a transient SFTP timeout), a primary "Retry" button. If recoverable with a fix (e.g. "quantity must be > 0"), a primary "Fix and resend" button that opens the spine review pre-scrolled to the failing field.
-4. **What this means for similar orders** — if 3+ orders failed with the same rule, surface a banner: "5 crossings have failed with this rule today. Adjust the validation?"
+3. **What we'd retry** — if the failure is recoverable (e.g. a transient SFTP timeout), a primary "Retry" button. If recoverable with a fix (e.g. "quantity must be > 0"), a primary "Fix and resend" button that opens the order review pre-scrolled to the failing field.
+4. **What this means for similar orders** — if 3+ orders failed with the same rule, surface a banner: "5 orders have failed with this rule today. Adjust the validation?"
 
 **Anti-pattern:**
 - "Something went wrong." with a help link.
@@ -59,7 +59,7 @@ This is implicit in the `<DocumentAnatomy>` component — it's a primary column,
 
 Every operator edit to a canonical field is:
 - Saved as a draft within 2 seconds.
-- Logged in the Crossings Log with the diff: `payment_terms: "Net 30" → "Net 45" by Maria K. at 14:32`.
+- Logged in the delivery log with the diff: `payment_terms: "Net 30" → "Net 45" by Maria K. at 14:32`.
 - Visible in the Order History tab (right-side drawer) as an inline diff.
 
 The operator never has to ask "did my edit save?" or "what did I change?".

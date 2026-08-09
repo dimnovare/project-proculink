@@ -26,6 +26,21 @@
   'use strict';
 
   // ---- configuration ------------------------------------------------------
+  // THIS FILE TARGETS PRODUCTION, DELIBERATELY AND ONLY.
+  //
+  // Unlike the .mjs harnesses in this folder — which now default to
+  // http://localhost:5223 and refuse a proculink.eu target without an explicit
+  // `--allow-production` flag (see ./target.mjs) — this runner has no target
+  // switch, because it has no way to be run by accident: it is pasted into the
+  // DevTools console of a tab that is ALREADY signed in to production, and it
+  // borrows that tab's Clerk session. There is no node entry point, no argv and
+  // no process.env, so CI and agent sessions cannot reach it at all.
+  //
+  // It WRITES: up to 20 real purchase orders per full pass, plus real
+  // state-changing transforms on each. Do not add a node entry point to this
+  // file — src/test/liveHarnessTarget.test.ts fails the build if you do, because
+  // a shell-runnable version of this file reintroduces the hardcoded production
+  // default that the .mjs harnesses just lost.
   var API_BASE = 'https://api.proculink.eu';
   var SUPPLIER_ID = '688a51ab-8125-4c00-be7d-a00807ce640b';
 

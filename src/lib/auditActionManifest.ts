@@ -66,6 +66,11 @@
 // `e.OrgId == orgId`), so the org-scoped admin and inbound-email events land in this
 // same log alongside order events. They are in the table for that reason.
 
+// The repo's single door between a server-authored string and operator-facing prose.
+// See `auditEventReason` at the foot of this file for why an audit payload has to go
+// through it — these strings can be a raw exception, or a supplier's HTML error page.
+import { serverReasonOrNull } from "@/lib/serverText";
+
 /**
  * How a row is rendered, and which filter chip claims it.
  *
@@ -124,6 +129,51 @@ export interface AuditActionFact {
   reachable: boolean;
   /** file:line of a writer (or, for unreachable rows, of whatever still names it). */
   backendSite: string;
+  /**
+   * The TOP-LEVEL payload keys that carry this action's reason, best first.
+   *
+   * The audit DTO has always carried `payload` (`AuditController.cs:191`, a real
+   * nested JSON object, camelCase keys — the backend applies no naming policy when
+   * it serialises, so the key is whatever the C# anonymous member is called). The
+   * delivery log discarded it wholesale, so the screen could say an order failed but
+   * never why, which is precisely what an operator needs at the moment a first
+   * supplier config does not work.
+   *
+   * WHY PER-ACTION AND NOT A GENERIC SNIFF. There is no single key. `ParseFailed` and
+   * `TransformFailed` use `error`; `DeliveryDeadLettered` uses `lastError`;
+   * `DeliveryUnconfirmed` and the sweepers use `detail`; `AcceptanceBlocked` puts the
+   * text inside `blockers[]`. And the obvious-looking keys are traps in both
+   * directions:
+   *
+   *   • `reason` is a MACHINE CODE in nine payloads (`DeliverySlaBreached` writes
+   *     `reason = "DeliverySlaBreached"`, its own action name) and human free text in
+   *     three. A reader that took `reason` on sight would print an engine identifier
+   *     to an operator as the explanation.
+   *   • `AcceptanceBlocked` writes `error = "acceptance_gate_unavailable"` on the one
+   *     arm where the gate could not answer — a slug, deliberately distinct from a
+   *     refusal. That arm has NO reason fit to show, so `error` is not listed for it.
+   *   • Several SUCCESSES carry error-shaped keys: `AcceptanceOverrideUsed` ships a
+   *     `blocked` list of blocking-rule sentences even though the transform went
+   *     through. "Has an error-ish property" is not "is a failure".
+   *
+   * So the key is a property of the action, and it lives in the table with the rest of
+   * the per-action truth. EMPTY MEANS SAY NOTHING: an action with no listed key
+   * renders no reason at all rather than a guess. `src/test/auditActionMirror.test.ts`
+   * parses the real C# payload literals and fails when a key named here is not one
+   * the backend writes for that action.
+   *
+   * ONLY `failed` AND `held` ROWS DECLARE A KEY. That is a scope decision, not an
+   * oversight: several successes and recoveries do carry prose — `DeliveryConfirmedManually`
+   * and `DeliveryHoldReleased` both write a `detail` sentence — and none of it is
+   * listed, because "why?" is the question a stopped order raises and a completed one
+   * does not. It also makes "a success never gains a reason" structural rather than
+   * incidental, which is what the guard asserts. A later packet that wants the
+   * recovery narrative adds the key and the test that reads it, together.
+   *
+   * A key's value may be a string, or an array of objects carrying `message`
+   * (`blockers[]`) — both shapes are real, and `auditEventReason` reads both.
+   */
+  reasonKeys: readonly string[];
   /** Why this row reads the way it does. */
   note: string;
 }
@@ -148,6 +198,7 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     label: "Order created",
     reachable: true,
     backendSite: "ProcuLink.Api/Services/Orders/OrderIngestionService.cs:242",
+    reasonKeys: [],
     note: "Also written at :374 and :644 for the split/derived order paths.",
   },
   {
@@ -156,6 +207,7 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     label: "Classified as an invoice",
     reachable: true,
     backendSite: "ProcuLink.Api/Services/Orders/OrderIngestionService.cs:656",
+    reasonKeys: [],
     note: "The document was read and turned out not to be a purchase order. A routing outcome, not a break.",
   },
   {
@@ -164,6 +216,7 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     label: "Supplier suggested",
     reachable: true,
     backendSite: "ProcuLink.Api/Services/Orders/OrderIngestionService.cs:768",
+    reasonKeys: [],
     note: "Detection proposed a supplier; nothing is committed until it is accepted.",
   },
   {
@@ -172,7 +225,12 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     label: "Couldn't read file",
     reachable: true,
     backendSite: "ProcuLink.Api/Services/Orders/OrderIngestionService.cs:913",
-    note: "Also :982 and :1002. Its payload carries `error`, which OrdersController.cs:498 surfaces on the order.",
+    reasonKeys: ["error"],
+    note:
+      "Also :982 and :1002. Its payload carries `error`, which OrdersController.cs:498 surfaces on the order. " +
+      "`error` is ParseFailureExplain's operator-facing sentence; the sibling `detail` is `ex.Message` verbatim " +
+      "and is deliberately NOT listed — `error` is written at all three sites, so `detail` would never be " +
+      "reached, and a parser stack trace is not an explanation.",
   },
   {
     action: "Parsed",
@@ -180,6 +238,7 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     label: "Parsed",
     reachable: true,
     backendSite: "ProcuLink.Api/Services/Orders/OrderIngestionService.cs:1274",
+    reasonKeys: [],
     note: "Also :1517.",
   },
 
@@ -190,6 +249,7 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     label: "Lines resolved",
     reachable: true,
     backendSite: "ProcuLink.Api/Services/Orders/OrderResolutionService.cs:245",
+    reasonKeys: [],
     note: "Supplier item codes were settled for the order's lines.",
   },
   {
@@ -198,7 +258,12 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     label: "Supplier rejected",
     reachable: true,
     backendSite: "ProcuLink.Api/Services/Orders/OrderResolutionService.cs:324",
-    note: "The supplier read it and refused it — a failure the operator must act on, not a delivery.",
+    reasonKeys: ["reason"],
+    note:
+      "The supplier read it and refused it — a failure the operator must act on, not a delivery. One of only " +
+      "three payloads where `reason` is human free text (an operator typed it) rather than a machine code; the " +
+      "nine sweeper/SLA payloads write their own action name into `reason`, which is why this is a per-action " +
+      "list and not a `reason`-first lookup.",
   },
   {
     action: "AiSuggestionsBulkAccepted",
@@ -206,6 +271,7 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     label: "AI suggestions accepted",
     reachable: true,
     backendSite: "ProcuLink.Api/Services/Orders/OrderResolutionService.cs:398",
+    reasonKeys: [],
     note: "A person accepted a batch of mapping suggestions.",
   },
 
@@ -216,6 +282,7 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     label: "Supplier file built",
     reachable: true,
     backendSite: "ProcuLink.Api/Services/Orders/OrderTransformService.cs:740",
+    reasonKeys: [],
     note: "The output exists. NOT a delivery — nothing has been sent to the supplier yet.",
   },
   {
@@ -224,7 +291,11 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     label: "Couldn't build output",
     reachable: true,
     backendSite: "ProcuLink.Api/Services/Orders/OrderTransformService.cs:790",
-    note: "Payload carries `error`.",
+    reasonKeys: ["error"],
+    note:
+      "Payload carries `error`. Usually curated prose, but the template/validation arm passes `ex.Message` " +
+      "straight through, so this one can be a raw Scriban exception of any length — which is why it goes " +
+      "through the sanitiser and why the row wraps rather than assuming a short sentence.",
   },
   {
     action: "AcceptanceBlocked",
@@ -232,7 +303,14 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     label: "Blocked by the supplier's rules",
     reachable: true,
     backendSite: "ProcuLink.Core/Services/IAcceptanceGate.cs:151 (AcceptanceGateAudit.BlockedAction)",
-    note: "Written at OrderTransformService.cs:475 and :495, OrdersController.cs:177, OpsController.cs:183. The gate refused a transform; the payload lists the blockers.",
+    reasonKeys: ["blockers"],
+    note:
+      "Written at OrderTransformService.cs:475 and :495, OrdersController.cs:177, OpsController.cs:183. The gate " +
+      "refused a transform; the payload lists the blockers. The reason is the ARRAY, not `error`: one of the four " +
+      "sites writes `error = \"acceptance_gate_unavailable\"` — a machine slug marking the arm where the gate " +
+      "could not answer at all — and it ships `blockers = []` alongside. Listing `error` would print that slug to " +
+      "an operator as the supplier's reason for refusing, which is the fabrication this field exists to avoid. " +
+      "On that arm nothing legible is found and the row correctly shows no reason.",
   },
   {
     action: "AcceptanceOverridden",
@@ -240,6 +318,7 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     label: "Acceptance overridden",
     reachable: true,
     backendSite: "ProcuLink.Core/Services/IAcceptanceGate.cs:148 (AcceptanceGateAudit.OverriddenAction)",
+    reasonKeys: [],
     note: "Written at AcceptanceGate.cs:103. An operator authorised sending an order the rules refuse.",
   },
   {
@@ -248,6 +327,7 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     label: "Sent under an override",
     reachable: true,
     backendSite: "ProcuLink.Core/Services/IAcceptanceGate.cs:154 (AcceptanceGateAudit.OverrideUsedAction)",
+    reasonKeys: [],
     note: "Written at AcceptanceGate.cs:128. The transform proceeded only because a recorded override covered every blocker.",
   },
 
@@ -258,6 +338,7 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     label: "Supplier suggestion accepted",
     reachable: true,
     backendSite: "ProcuLink.Api/Controllers/OrdersController.cs:2908",
+    reasonKeys: [],
     note: "The ternary at that site emits this or SupplierAssignedManually.",
   },
   {
@@ -266,6 +347,7 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     label: "Supplier assigned",
     reachable: true,
     backendSite: "ProcuLink.Api/Controllers/OrdersController.cs:2908",
+    reasonKeys: [],
     note: "The other arm of the same ternary — a person picked the supplier.",
   },
   {
@@ -274,6 +356,7 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     label: "Reprocessed under a new version",
     reachable: true,
     backendSite: "ProcuLink.Api/Services/ReplayService.cs:354",
+    reasonKeys: [],
     note: "An operator re-ran one order against a newer mapping/template revision.",
   },
 
@@ -284,6 +367,7 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     label: "Marked delivered by an operator",
     reachable: true,
     backendSite: "ProcuLink.Api/Controllers/OrdersController.cs:2241",
+    reasonKeys: [],
     note: "The ONLY reachable action in the `delivered` kind. Nothing in the backend writes an automatic delivery-success audit row — see the `delivered` entry below.",
   },
   {
@@ -292,6 +376,7 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     label: "Requeued by an operator",
     reachable: true,
     backendSite: "ProcuLink.Api/Controllers/OpsController.cs:264",
+    reasonKeys: [],
     note: "A person put a delivery that was out of retries, or had failed, back on the queue.",
   },
   {
@@ -300,7 +385,13 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     label: "Delivery unknown",
     reachable: true,
     backendSite: "ProcuLink.Infrastructure/Services/DeliveryService.cs:580",
-    note: "A send was attempted on a channel that cannot de-duplicate and the outcome was lost. Not a failure, not a success — only a person may resolve it.",
+    reasonKeys: ["detail"],
+    note:
+      "A send was attempted on a channel that cannot de-duplicate and the outcome was lost. Not a failure, not a " +
+      "success — only a person may resolve it. `detail` is the park reason. DELIBERATE DIFFERENCE FROM /inbox: " +
+      "the order screen shows BuildUnconfirmedMessage(protocol, parkReason), which wraps this same string in a " +
+      "fuller sentence. The log shows the bare park reason — less context, never contradicting substance — " +
+      "because the alternative is the log staying silent about the one event a person has to resolve by hand.",
   },
   {
     action: "DeliveryHeldForBilling",
@@ -308,7 +399,8 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     label: "Delivery paused",
     reachable: true,
     backendSite: "ProcuLink.Infrastructure/Services/DeliveryService.cs:1542",
-    note: "Nothing broke; the send is paused until the org is back in good standing.",
+    reasonKeys: ["detail"],
+    note: "Nothing broke; the send is paused until the org is back in good standing. `detail` says what standing.",
   },
   {
     action: "DeliveryHoldReleased",
@@ -316,6 +408,7 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     label: "Billing hold released",
     reachable: true,
     backendSite: "ProcuLink.Infrastructure/Services/DeliveryService.cs:1756",
+    reasonKeys: [],
     note: "The billing hold cleared automatically and the order can move again.",
   },
   {
@@ -324,7 +417,13 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     label: "Out of retries",
     reachable: true,
     backendSite: "ProcuLink.Infrastructure/Services/DeliveryService.cs:1789",
-    note: "The automatic attempts are spent. Payload carries `lastError` (not `error`).",
+    reasonKeys: ["lastError"],
+    note:
+      "The automatic attempts are spent. Payload carries `lastError` (not `error`) — the reason a delivery gave " +
+      "up, and the closest thing this log has to a delivery-failure explanation, since no writer emits a " +
+      "`DeliveryFailed` action at all. It is `string?`, so JSON null is reachable and renders as no reason. It " +
+      "is also the dispatcher's sentence with the supplier's own response body appended, which is how a " +
+      "production screen once showed an operator `<!DOCTYPE html>`; hence the sanitiser.",
   },
   {
     action: "DeliverySlaBreached",
@@ -332,7 +431,12 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     label: "Delivery SLA breached",
     reachable: true,
     backendSite: "ProcuLink.Infrastructure/Services/DeliverySlaService.cs:174",
-    note: "The order did not reach the supplier inside its promised window.",
+    reasonKeys: [],
+    note:
+      "The order did not reach the supplier inside its promised window. NO reason key on purpose: its payload's " +
+      "`reason` is the literal string \"DeliverySlaBreached\" — the action's own name — so listing it would " +
+      "answer \"why did this fail?\" with \"because it failed\". The numbers that do explain it (dueAt, " +
+      "overdueMinutes) are not prose and are not invented into a sentence here.",
   },
 
   // ── Detection / recovery services ───────────────────────────────────────────
@@ -342,6 +446,7 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     label: "Stranded failed delivery recovered",
     reachable: true,
     backendSite: "ProcuLink.Infrastructure/Services/StrandedFailedDeliveryDetectionService.cs:131",
+    reasonKeys: [],
     note: "A failed delivery with no live retry was put back on the queue by the sweeper.",
   },
   {
@@ -350,6 +455,7 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     label: "Stranded delivery recovered",
     reachable: true,
     backendSite: "ProcuLink.Infrastructure/Services/StrandedReadyOrderDetectionService.cs:187",
+    reasonKeys: [],
     note: "A ready-to-deliver order that nothing had claimed was re-enqueued.",
   },
   {
@@ -358,6 +464,7 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     label: "Stalled delivery requeued",
     reachable: true,
     backendSite: "ProcuLink.Infrastructure/Services/StuckDeliveryDetectionService.cs:121",
+    reasonKeys: [],
     note: "A delivery claim outlived its lease and was handed back.",
   },
   {
@@ -366,7 +473,10 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     label: "Out of retries after a stall",
     reachable: true,
     backendSite: "ProcuLink.Infrastructure/Services/StuckDeliveryDetectionService.cs:160",
-    note: "The sweeper exhausted a stuck delivery's attempts rather than requeueing it again.",
+    reasonKeys: ["detail"],
+    note:
+      "The sweeper exhausted a stuck delivery's attempts rather than requeueing it again. `detail` is the " +
+      "sweeper's own sentence; its sibling `reason` is the action name again, so `detail` is the only prose here.",
   },
   {
     action: "StuckRequeued",
@@ -374,6 +484,7 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     label: "Stuck order requeued",
     reachable: true,
     backendSite: "ProcuLink.Infrastructure/Services/StuckOrderDetectionService.cs:134",
+    reasonKeys: [],
     note: "A parse/transform claim outlived its lease and was handed back.",
   },
   {
@@ -382,6 +493,7 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     label: "Stuck transform recovered",
     reachable: true,
     backendSite: "ProcuLink.Infrastructure/Services/StuckOrderDetectionService.cs:181",
+    reasonKeys: [],
     note: "A transform that had already produced its artifact was released from the stuck state.",
   },
   {
@@ -390,17 +502,28 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     label: "Timed out",
     reachable: true,
     backendSite: "ProcuLink.Infrastructure/Services/StuckOrderDetectionService.cs:218",
-    note: "The order sat in an in-flight status past its ceiling and was failed rather than retried again.",
+    reasonKeys: ["detail"],
+    note:
+      "The order sat in an in-flight status past its ceiling and was failed rather than retried again. `detail` " +
+      "names how many times it was re-enqueued first; `reason` is the action name.",
   },
 
   // ── Inbound email (org-scoped; reaches this log because /api/audit has no
   //    EntityType filter) ──────────────────────────────────────────────────────
+  //
+  // Every row below is a refusal, and NOT ONE declares a reasonKey. Their payloads
+  // carry routing facts — the recipient address, attachment names, sizes — and no
+  // prose field. The label already states the refusal ("Email had no attachments"),
+  // so there is nothing further the backend sent that this screen is withholding.
+  // The plaintext `to` address is deliberately not surfaced either: it is a fact,
+  // not an explanation, and it is a counterparty identity.
   {
     action: "inbound_email.processed",
     kind: "created",
     label: "Email ingested",
     reachable: true,
     backendSite: "ProcuLink.Infrastructure/Services/Email/InboundEmailRouter.cs:418",
+    reasonKeys: [],
     note: "The only inbound_email.* action that is not a refusal.",
   },
   {
@@ -409,6 +532,7 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     label: "Email rejected — plan is read-only",
     reachable: true,
     backendSite: "ProcuLink.Infrastructure/Services/Email/InboundEmailRouter.cs:187",
+    reasonKeys: [],
     note: "Nothing was queued for later; the order simply never arrived. §11.5's cancellation rule, seen from the log.",
   },
   {
@@ -417,6 +541,7 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     label: "Email not routed — no matching supplier",
     reachable: true,
     backendSite: "ProcuLink.Infrastructure/Services/Email/InboundEmailRouter.cs:218",
+    reasonKeys: [],
     note: "No order was created, so this is an ingestion failure rather than the `unrouted` order status.",
   },
   {
@@ -425,6 +550,7 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     label: "Email had no attachments",
     reachable: true,
     backendSite: "ProcuLink.Infrastructure/Services/Email/InboundEmailRouter.cs:229",
+    reasonKeys: [],
     note: "Nothing to ingest.",
   },
   {
@@ -433,6 +559,7 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     label: "Attachment skipped — unsupported type",
     reachable: true,
     backendSite: "ProcuLink.Infrastructure/Services/Email/InboundEmailRouter.cs:242",
+    reasonKeys: [],
     note: "One attachment was dropped; the rest of the email may still have been processed.",
   },
   {
@@ -441,6 +568,7 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     label: "Attachment skipped — too large",
     reachable: true,
     backendSite: "ProcuLink.Infrastructure/Services/Email/InboundEmailRouter.cs:264",
+    reasonKeys: [],
     note: "Over IngressLimits.MaxFileBytes.",
   },
 
@@ -451,6 +579,7 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     label: "Invoice created (admin)",
     reachable: true,
     backendSite: "ProcuLink.Api/Controllers/AdminController.cs:328",
+    reasonKeys: [],
     note: "Written through WriteAdminAuditAsync (AdminController.cs:735).",
   },
   {
@@ -459,6 +588,7 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     label: "Plan limits changed (admin)",
     reachable: true,
     backendSite: "ProcuLink.Api/Controllers/AdminController.cs:429",
+    reasonKeys: [],
     note: "",
   },
   {
@@ -467,6 +597,7 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     label: "Account status changed (admin)",
     reachable: true,
     backendSite: "ProcuLink.Api/Controllers/AdminController.cs:574",
+    reasonKeys: [],
     note: "",
   },
   {
@@ -475,6 +606,7 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     label: "Retention policy changed (admin)",
     reachable: true,
     backendSite: "ProcuLink.Api/Controllers/AdminController.cs:638",
+    reasonKeys: [],
     note: "",
   },
   {
@@ -483,6 +615,7 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     label: "Order erased (admin)",
     reachable: true,
     backendSite: "ProcuLink.Api/Controllers/AdminController.cs:664",
+    reasonKeys: [],
     note: "GDPR erasure. Deliberate, so not a failure — but destructive, so never a success tint either.",
   },
   {
@@ -491,6 +624,7 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     label: "Orders bulk-erased (admin)",
     reachable: true,
     backendSite: "ProcuLink.Api/Controllers/AdminController.cs:709",
+    reasonKeys: [],
     note: "",
   },
 
@@ -505,6 +639,7 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     label: "Couldn't send",
     reachable: false,
     backendSite: "ProcuLink.Api/Controllers/OrdersController.cs:498 (read), AuditController.cs:245 (BuildMessage arm, as `delivery_failed`)",
+    reasonKeys: [],
     note:
       "NO WRITER EMITS THIS. OrdersController's error-message query asks for it alongside " +
       "ParseFailed/TransformFailed/DeliveryDeadLettered, and BuildMessage has a sentence for its " +
@@ -518,6 +653,7 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     label: "Couldn't send",
     reachable: false,
     backendSite: "ProcuLink.Api/Controllers/AuditController.cs:245 (BuildMessage arm)",
+    reasonKeys: [],
     note:
       "The snake_case spelling, and a SEPARATE ROW from `DeliveryFailed` on purpose: the lookup " +
       "folds case, not underscores, so `delivery_failed` and `deliveryfailed` are different keys. " +
@@ -530,6 +666,7 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     label: "Delivered",
     reachable: false,
     backendSite: "ProcuLink.Api/Controllers/AuditController.cs:244 (BuildMessage arm)",
+    reasonKeys: [],
     note:
       "NO WRITER EMITS THIS EITHER. The only reachable `delivered`-kind action is " +
       "DeliveryConfirmedManually. Worth knowing before reading this screen: an automatic " +
@@ -541,6 +678,7 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     label: "Status updated",
     reachable: false,
     backendSite: "ProcuLink.Api/Controllers/AuditController.cs:242 (BuildMessage arm)",
+    reasonKeys: [],
     note: "No writer. Kept because BuildMessage still has a sentence for it.",
   },
   {
@@ -549,6 +687,7 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     label: "Transform queued",
     reachable: false,
     backendSite: "ProcuLink.Api/Controllers/AuditController.cs:243 (BuildMessage arm)",
+    reasonKeys: [],
     note: "No writer. Kept because BuildMessage still has a sentence for it.",
   },
 ] as const;
@@ -621,4 +760,70 @@ export function auditActionLabel(action: string | null | undefined): string {
  */
 export function isSuccessKind(kind: AuditEventKind): boolean {
   return kind === "delivered" || kind === "validated";
+}
+
+/** The actions that declare a reason key — the ones a reader can explain at all. */
+export const EXPLAINED_AUDIT_ACTIONS: readonly string[] = AUDIT_ACTION_FACTS.filter(
+  (f) => f.reasonKeys.length > 0,
+).map((f) => f.action);
+
+/**
+ * The prose inside one payload value, or null.
+ *
+ * Two shapes, both real: a string (`error`, `lastError`, `detail`), and an array of
+ * objects carrying `message` (`AcceptanceBlocked`'s `blockers[]`, whose entries are
+ * `{ code, line, message }`). Anything else — a number, an object, an empty array —
+ * is not a sentence and answers null rather than being coerced into one.
+ */
+function proseFromValue(value: unknown): string | null {
+  if (typeof value === "string") return value.trim() || null;
+  if (Array.isArray(value)) {
+    const messages = value
+      .map((item) =>
+        item && typeof item === "object" && typeof (item as { message?: unknown }).message === "string"
+          ? ((item as { message: string }).message.trim() || null)
+          : null,
+      )
+      .filter((m): m is string => m !== null);
+    return messages.length > 0 ? messages.join("; ") : null;
+  }
+  return null;
+}
+
+/**
+ * Why this audit event happened, in words fit to show an operator — or null.
+ *
+ * NULL IS A REAL ANSWER, and the common one. An action with no declared reason key,
+ * a payload that is absent (legacy rows predate their writer, and the DTO emits
+ * `null` for them), a key the backend wrote as null (`DeliveryDeadLettered.lastError`
+ * is `string?`), a body that survives sanitising as nothing legible — every one of
+ * those renders no reason rather than a fabricated one. This repo has six recorded
+ * cases of an unknown value rendering as a confident answer; a made-up failure cause
+ * on the one screen an operator opens to find out what broke would be the seventh.
+ *
+ * EVERY CANDIDATE GOES THROUGH THE SANITISER, and through the SAME one the Order
+ * Problem panel uses (`supplierReasonText`, re-exported by `@/lib/serverText` as
+ * `serverReasonOrNull`). These strings are not ProcuLink's prose: `TransformFailed`
+ * can carry a raw Scriban/template exception message, `ParseFailed` interpolates
+ * `ex.Message` into two of its branches, and `DeliveryDeadLettered.lastError` is the
+ * dispatcher's sentence with the supplier's own response body concatenated onto it —
+ * which on 2026-08-06 meant a production screen showing an operator `<!DOCTYPE html>`
+ * as the reason their order failed. `serverReasonOrNull` strips markup, lifts the
+ * message out of a JSON body, clamps at SUPPLIER_REASON_MAX, and returns null when
+ * nothing legible survives. Two sanitisers that disagree is worse than one, so this
+ * reuses it rather than adding a second.
+ *
+ * The evidence is never destroyed: the untouched body stays on the order passport.
+ */
+export function auditEventReason(action: string | null | undefined, payload: unknown): string | null {
+  const fact = auditActionFact(action);
+  if (!fact || fact.reasonKeys.length === 0) return null;
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return null;
+
+  const bag = payload as Record<string, unknown>;
+  for (const key of fact.reasonKeys) {
+    const cleaned = serverReasonOrNull(proseFromValue(bag[key]));
+    if (cleaned) return cleaned;
+  }
+  return null;
 }

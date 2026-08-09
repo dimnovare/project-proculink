@@ -142,44 +142,63 @@ type AiSuggestionProps = {
   provenance?: string;
   /** Action buttons row (Accept / Edit / Reject) */
   actions?: React.ReactNode;
+  /**
+   * Where the suggestion came from. `"ai"` (default) wears violet and the "AI"
+   * tag; `"heuristic"` is a deterministic, non-model match (string similarity,
+   * an exact column-name hit) and deliberately wears neither.
+   *
+   * The `ai` / `aiSoft` tokens are reserved for AI-generated content, so a
+   * local fallback match must not borrow them — `ConfidenceChip` draws the same
+   * line for supplier auto-detect, which reuses the confidence ramp but never
+   * the "AI confidence" label. Confidence stays visible in both tones; only the
+   * attribution changes.
+   */
+  kind?: "ai" | "heuristic";
   children?: React.ReactNode;   // legacy action slot – kept for back-compat
 };
 
-export function AiSuggestion({ confidence, title, description, provenance, actions, children }: AiSuggestionProps) {
+export function AiSuggestion({
+  confidence, title, description, provenance, actions, kind = "ai", children,
+}: AiSuggestionProps) {
   // Normalise: `actions` preferred; fall back to `children` for backward compat
   const actionRow = actions ?? children;
+  const isAi = kind === "ai";
+  // Heuristic tone reuses the shared surface/border/ink tokens rather than
+  // minting a second grey. --ink-muted on --surface-2 is 5.12:1 (WCAG 2.1),
+  // AA for the 10.5px bold tag.
+  const accent = isAi ? "#6F4FCE" : "var(--ink-muted)";
   return (
     <div
       className="relative rounded-md overflow-hidden"
       style={{
-        background: "#F0EAFB",
-        border: "1px solid #ddd0f5",
+        background: isAi ? "#F0EAFB" : "var(--surface-2)",
+        border: `1px solid ${isAi ? "#ddd0f5" : "var(--border)"}`,
         padding: "13px 14px 13px 16px",
       }}
     >
-      {/* Left violet accent strip — tokens.css .ai-card::before */}
+      {/* Left accent strip — tokens.css .ai-card::before */}
       <div
         aria-hidden
         style={{
           position: "absolute",
           left: 0, top: 0, bottom: 0,
           width: 3,
-          background: "#6F4FCE",
+          background: accent,
         }}
       />
-      {/* Top row: AI tag + provenance */}
+      {/* Top row: source tag + provenance */}
       <div className="flex items-start justify-between gap-2" style={{ marginBottom: 7 }}>
-        {/* tokens.css .ai-tag — mono, violet */}
+        {/* tokens.css .ai-tag — mono, violet for model output */}
         <span
           className="inline-flex items-center gap-1"
           style={{
             fontFamily: "var(--font-mono, 'JetBrains Mono', monospace)",
             fontSize: 10.5,
             fontWeight: 700,
-            color: "#6F4FCE",
+            color: accent,
           }}
         >
-          AI · {confidence}%
+          {isAi ? "AI" : "MATCH"} · {confidence}%
         </span>
         {provenance && (
           <span style={{ fontSize: 10.5, color: "var(--ink-faint)" }}>{provenance}</span>
