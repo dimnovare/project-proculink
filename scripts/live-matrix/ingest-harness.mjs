@@ -4,9 +4,18 @@
  * Fills the inbox with N varied STRUCTURED purchase orders via the API-key
  * ingress channel:  POST /api/ingress/{slug}/orders  (header: X-ProcuLink-Key).
  *
- * Run (background):
- *   PLK_KEY=plk_... PLK_SLUG=personal-workspace-xxxx PLK_TARGET=2000 \
+ * Run (background) against the LOCAL API — the default target:
+ *   PLK_KEY=plk_... PLK_SLUG=personal-workspace-xxxx PLK_SUPPLIER=<uuid> PLK_TARGET=2000 \
  *     node scripts/live-matrix/ingest-harness.mjs
+ *
+ * Against production, the target must be named AND opted into on the command line:
+ *   PLK_API=https://api.proculink.eu PLK_KEY=... PLK_SLUG=... PLK_SUPPLIER=<uuid> \
+ *     node scripts/live-matrix/ingest-harness.mjs --allow-production
+ *
+ * That opt-in exists because this script used to default to production: on
+ * 2026-06-10 a run with no PLK_API wrote 2,000 orders (PO numbers E2E-API-00000
+ * .. E2E-API-01999) into the live customer database in ~54 seconds. See
+ * ./target.mjs for the rules.
  *
  * Honest scope: the ingress channel accepts ALREADY-STRUCTURED orders (it does
  * NOT exercise the file parsers — those need file uploads). This harness proves
@@ -21,15 +30,21 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { resolveTargetOrExit } from './target.mjs';
 
-const API   = process.env.PLK_API  || 'https://api.proculink.eu';
+const { api: API } = resolveTargetOrExit('ingest-harness.mjs');
 const KEY   = process.env.PLK_KEY;
 const SLUG  = process.env.PLK_SLUG;
-const SUP   = process.env.PLK_SUPPLIER || '688a51ab-8125-4c00-be7d-a00807ce640b';
+const SUP   = process.env.PLK_SUPPLIER;
 const TARGET= parseInt(process.env.PLK_TARGET || '2000', 10);
 const CONC  = parseInt(process.env.PLK_CONC || '8', 10);
 
-if (!KEY || !SLUG) { console.error('Set PLK_KEY and PLK_SLUG'); process.exit(1); }
+// PLK_SUPPLIER is required, and deliberately has no default: the default used to be a
+// real supplier's uuid, which made a production-shaped run the path of least resistance.
+if (!KEY || !SLUG || !SUP) {
+  console.error('Set PLK_KEY, PLK_SLUG and PLK_SUPPLIER (supplier uuid).');
+  process.exit(1);
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const RESULTS = path.join(__dirname, 'ingest-results.ndjson');

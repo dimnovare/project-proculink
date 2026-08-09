@@ -20,10 +20,16 @@
  * Uploading 6 text formats fits comfortably inside one token's lifetime.
  *
  * ── RUN ──────────────────────────────────────────────────────────────────────
- *   PLK_API=https://api.proculink.eu \
+ * Default target is the LOCAL API (http://localhost:5223):
  *   PLK_CLERK_TOKEN="<fresh Clerk JWT>" \
  *   PLK_SUPPLIER_ID="<supplier uuid>" \
  *     bun scripts/live-matrix/format-upload-harness.mjs
+ *
+ * Production must be named AND opted into on the command line (see ./target.mjs):
+ *   PLK_API=https://api.proculink.eu \
+ *   PLK_CLERK_TOKEN="<fresh Clerk JWT>" \
+ *   PLK_SUPPLIER_ID="<supplier uuid>" \
+ *     bun scripts/live-matrix/format-upload-harness.mjs --allow-production
  *
  *   # include binaries:
  *   PLK_XLSX_B64="$(base64 -w0 order.xlsx)" PLK_PDF_B64="$(base64 -w0 order.pdf)" \
@@ -33,7 +39,9 @@
  * Per-user upload limit is 20/60s; 6 text + 2 binary uploads stay well under it.
  * ========================================================================== */
 
-const API = process.env.PLK_API || "https://api.proculink.eu";
+import { resolveTargetOrExit } from "./target.mjs";
+
+const { api: API } = resolveTargetOrExit("format-upload-harness.mjs");
 const TOKEN = process.env.PLK_CLERK_TOKEN;
 let SUPPLIER_ID = process.env.PLK_SUPPLIER_ID;
 const XLSX_B64 = process.env.PLK_XLSX_B64;
