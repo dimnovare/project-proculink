@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
-import { render, screen, cleanup, fireEvent } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, within } from "@testing-library/react";
 
 /**
  * The defect, verbatim, as it shipped:
@@ -198,6 +198,20 @@ function renderState(fixture: FixtureKey) {
 }
 
 /**
+ * The recent-orders panel specifically.
+ *
+ * The order-volume KPI card on the same screen reads the SAME query (one key,
+ * one request, so the two can never disagree about the count), which means it
+ * carries its own loading line, its own alert and its own retry for this
+ * fixture. Screen-wide positive lookups would find both. Negative assertions
+ * below stay screen-wide on purpose — they are stronger that way, and the
+ * sentences they forbid are unique to this panel.
+ */
+function panel() {
+  return within(screen.getByRole("region", { name: "Recent orders" }));
+}
+
+/**
  * ANTI-VACUITY FLOOR (per test).
  *
  * Every "the sentence is absent" assertion below is worthless if the sentence
@@ -249,7 +263,7 @@ describe("SupplierDockProfile — recent orders panel", () => {
 
     renderState("error");
     expect(screen.queryByText(EMPTY_SENTENCE)).toBeNull();
-    const alert = screen.getByRole("alert");
+    const alert = panel().getByRole("alert");
     expect(screen.getByText(ERROR_HEADLINE)).toBeInTheDocument();
     // The error copy says out loud that this is not "none".
     expect(alert.textContent).toMatch(/not the same as/i);
@@ -257,7 +271,7 @@ describe("SupplierDockProfile — recent orders panel", () => {
 
   it("offers a retry on the error path and wires it to refetch", () => {
     renderState("error");
-    const retry = screen.getByRole("button", { name: /try again/i });
+    const retry = panel().getByRole("button", { name: /try again/i });
     fireEvent.click(retry);
     expect(refetch).toHaveBeenCalledTimes(1);
   });
@@ -291,7 +305,7 @@ describe("SupplierDockProfile — recent orders panel", () => {
     expect(screen.getByText("PO-2026-008412")).toBeInTheDocument();
     expect(screen.queryByText(/\btotal\b/)).toBeNull();
     expect(
-      screen.getByText(practiceOrderNote(2) as string),
+      panel().getByText(practiceOrderNote(2) as string),
     ).toBeInTheDocument();
   });
 
