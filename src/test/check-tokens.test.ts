@@ -9,15 +9,39 @@
  * The .mdx case is not decoration either. next.config.ts sets
  * pageExtensions ["ts","tsx","mdx"] and the tree carries 45 `page.mdx` against
  * 44 `page.tsx`, so a .tsx-only enumerator would silently skip half the routes.
+ *
+ * AND THE SAME QUESTION ONE LEVEL UP: a rule that can fail is still worthless if
+ * it is pointed at the wrong files. Every fixture case below writes into
+ * `<root>/src/app/**`, which is exactly where the gate used to be rooted — so
+ * every one of them passed, for years, while the gate read 151 of the 666
+ * colour-bearing files in src/ and not one line of any screen in the product.
+ * The `describe("the scanned corpus")` block is the floor that closes that: it
+ * asserts what the gate ACTUALLY TOKENISED against the real tree, and it fails
+ * if the root ever narrows again.
  */
 
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { execFileSync } from "child_process";
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from "fs";
 import { tmpdir } from "os";
 import { join, resolve } from "path";
 
 const SCRIPT = resolve(__dirname, "../../scripts/check-tokens.mjs");
+
+/**
+ * Every case here spawns the gate as a real subprocess, and the gate now reads
+ * 448 files / ~104k lines instead of the 147 it read when it was rooted at
+ * src/app. Alone that is ~370ms a run; inside the full suite, sharing the machine
+ * with 200-odd other files, it blows straight past vitest's 5s default — which is
+ * exactly what happened the first time this change was run end to end: EVERY
+ * real-tree case failed with "Test timed out in 5000ms" and NOT ONE of them
+ * failed an assertion.
+ *
+ * That matters more than it looks. A guard whose own tests go red under load gets
+ * marked flaky and then skipped, which is the same ending as a guard that fails
+ * the build on day one. The scan got 3x bigger, so the budget does too.
+ */
+vi.setConfig({ testTimeout: 120_000, hookTimeout: 120_000 });
 
 let ROOT: string;
 
@@ -265,23 +289,142 @@ export default function Page() {
   });
 });
 
-describe("the repo itself", () => {
-  const REPO = resolve(__dirname, "../..");
+const REPO = resolve(__dirname, "../..");
 
-  /** Run the gate against the REAL tree — real allowlist, real baseline. */
-  function runRepo(): number {
-    try {
-      execFileSync(process.execPath, [SCRIPT, "--strict"], {
-        cwd: REPO,
-        encoding: "utf8",
-        stdio: "pipe",
-      });
-      return 0;
-    } catch (err) {
-      return (err as { status?: number }).status ?? -1;
-    }
+/** Run the gate against the REAL tree — real allowlist, real baseline. */
+function runRepo(...args: string[]): number {
+  try {
+    execFileSync(process.execPath, [SCRIPT, "--strict", ...args], {
+      cwd: REPO,
+      encoding: "utf8",
+      stdio: "pipe",
+    });
+    return 0;
+  } catch (err) {
+    return (err as { status?: number }).status ?? -1;
   }
+}
 
+interface Stats {
+  root: string;
+  listed: number;
+  tokenised: number;
+  linesScanned: number;
+  filesWithViolations: number;
+  violations: number;
+  retired: number;
+  baselineRows: number;
+  baselineTotal: number;
+}
+
+/** The gate's own account of what it read, against the real tree. */
+function repoStats(): Stats {
+  return JSON.parse(
+    execFileSync(process.execPath, [SCRIPT, "--stats"], {
+      cwd: REPO,
+      encoding: "utf8",
+      stdio: "pipe",
+    }),
+  ) as Stats;
+}
+
+/**
+ * ANTI-VACUITY. Everything else in this file proves the RULES work. Nothing else
+ * proves they were pointed at anything, and that is the failure that actually
+ * happened: `SCAN_DIR = ["src", "app"]` joined to `src/app`, every rule was
+ * correct, every fixture test was green, and the gate had never read a line of
+ * InboxView.tsx / UploadWorkbench.tsx / BridgeDashboard.tsx — the files the
+ * screens are made of.
+ *
+ * A FILE COUNT IS NOT A DETECTION FLOOR. "448 files scanned" is equally true of a
+ * scanner that tokenised all of them and one that listed them and read none, so
+ * these assert `tokenised` and `linesScanned` — counters the gate only increments
+ * after a successful read + rule pass — and then the last test proves detection
+ * end-to-end by putting a real violation in a real component file.
+ */
+describe("the scanned corpus", () => {
+  it("reads src/**, not src/app/** — with a floor under what it actually tokenised", () => {
+    const s = repoStats();
+    expect(s.root).toBe("src");
+
+    // Measured 2026-08-09: 665 colour-bearing files under src/, of which 217 are
+    // *.test.* and deliberately skipped, leaving 448. The floors sit well under
+    // the real numbers so ordinary growth does not churn them, but far above what
+    // the old src/app root could ever have reached (147 files INCLUDING tests).
+    expect(s.tokenised).toBeGreaterThan(350);
+    expect(s.linesScanned).toBeGreaterThan(60_000);
+
+    // Nothing was listed and then silently dropped before the rules ran.
+    expect(s.tokenised).toBe(s.listed);
+  });
+
+  it("has a ledger that is non-trivial and matches the tree it was cut from", () => {
+    const s = repoStats();
+    // The debt is real and large; a ledger that collapsed to a handful of rows
+    // would mean the scan narrowed, not that the tree got clean overnight.
+    expect(s.baselineRows).toBeGreaterThan(100);
+    expect(s.baselineTotal).toBeGreaterThan(3_000);
+
+    // The gate is green, so found debt and ledgered debt must agree exactly.
+    // This is what ties the ledger below to a LIVE run rather than to a file
+    // somebody could have hand-written.
+    expect(s.violations).toBe(s.baselineTotal);
+    expect(s.filesWithViolations).toBe(s.baselineRows);
+
+    // Retired colours are never ledgered, so this is the one count that must be 0.
+    expect(s.retired).toBe(0);
+  });
+
+  it("ledgers the screen bodies the old src/app root could not see", () => {
+    // Named, not counted. A floor on totals still passes if the scan reads 451
+    // wrappers and helpers and no screens, so these are the specific files the
+    // src/app root missed by construction — each one the body behind a ~10-line
+    // page.tsx. Counts are asserted as ">0" rather than pinned: the ledger owns
+    // the exact numbers, this owns the fact that the files are IN it.
+    const ledger = JSON.parse(
+      readFileSync(join(REPO, "scripts", "token-debt-baseline.json"), "utf8"),
+    ) as Record<string, number>;
+
+    for (const body of [
+      "src/components/bridge/BridgeDashboard.tsx", // /bridge      (wrapper: 10 lines)
+      "src/components/bridge/InboxView.tsx", // /inbox       (wrapper: 18 lines)
+      "src/components/bridge/UploadWorkbench.tsx", // /upload      (wrapper: 11 lines)
+      "src/components/bridge/SupplierDockProfile.tsx", // suppliers/[id] (wrapper: 14 lines)
+    ]) {
+      expect(ledger[body], `${body} missing from the ledger`).toBeGreaterThan(0);
+    }
+
+    // Most of the debt is in the region the gate used to be blind to. If a future
+    // edit narrows the root back toward src/app, this is the assertion that goes
+    // red first — the totals above would still look plausible.
+    const rows = Object.keys(ledger);
+    const inComponents = rows.filter((r) => r.startsWith("src/components/"));
+    expect(inComponents.length).toBeGreaterThan(rows.length / 2);
+  });
+
+  it("DETECTS a violation in a src/components file — the old root's blind spot", () => {
+    // The end-to-end detection floor: a real violation, in a real file, outside
+    // src/app, must turn the gate red. Everything above reads the gate's own
+    // report; this one plants the defect.
+    //
+    // The target is deliberately a leaf component and NOT one of the big screen
+    // bodies named above. Vitest runs test files in parallel and several of them
+    // read component SOURCE (statusVocabulary, textColorScan, orderPopulation…);
+    // BridgeDashboard.tsx is named in eight test files, this one in none, so the
+    // window where the tree is mutated cannot be observed by another worker.
+    const target = join(REPO, "src", "components", "ui", "chart.tsx");
+    const original = readFileSync(target);
+    try {
+      writeFileSync(target, Buffer.concat([original, Buffer.from('\nconst _probe = "#123456";\n')]));
+      expect(runRepo()).toBe(1);
+    } finally {
+      writeFileSync(target, original);
+    }
+    expect(runRepo()).toBe(0);
+  });
+});
+
+describe("the repo itself", () => {
   it("passes the design-token gate", () => {
     expect(runRepo()).toBe(0);
   });
@@ -302,5 +445,45 @@ describe("the repo itself", () => {
     }
     // Restored byte-for-byte, so the tree is green again.
     expect(runRepo()).toBe(0);
+  });
+
+  it("FAILS when a baseline row records debt the file no longer carries", () => {
+    // THE OTHER DIRECTION, and the one ratchets usually leave out. The gate used
+    // to print a shrunk row as `[STALE]` and exit 0, so a row could outlive its
+    // defect indefinitely: the file is clean, the ledger still bills it, and the
+    // total the PR body quotes as "how much design debt exists" is wrong.
+    //
+    // Asserted through --baseline rather than by editing the tracked ledger, so a
+    // crash mid-test cannot leave the repo's real baseline corrupted.
+    const realBaseline = JSON.parse(
+      readFileSync(join(REPO, "scripts", "token-debt-baseline.json"), "utf8"),
+    ) as Record<string, number>;
+
+    const [firstRow, realCount] = Object.entries(realBaseline)[0];
+    expect(realCount).toBeGreaterThan(0);
+
+    const inflated = join(ROOT, "inflated-baseline.json");
+    writeFileSync(
+      inflated,
+      JSON.stringify({ ...realBaseline, [firstRow]: realCount + 7 }, null, 2),
+      "utf8",
+    );
+    expect(runRepo("--baseline", inflated)).toBe(1);
+
+    // A row for a file that does not exist at all is stale too — this is how a
+    // DELETED page keeps billing the ledger forever.
+    const ghost = join(ROOT, "ghost-baseline.json");
+    writeFileSync(
+      ghost,
+      JSON.stringify({ ...realBaseline, "src/components/deleted-long-ago.tsx": 3 }, null, 2),
+      "utf8",
+    );
+    expect(runRepo("--baseline", ghost)).toBe(1);
+
+    // The unmodified ledger is still green, so the failures above came from the
+    // inflation and not from the --baseline plumbing.
+    const copy = join(ROOT, "copy-baseline.json");
+    writeFileSync(copy, JSON.stringify(realBaseline, null, 2), "utf8");
+    expect(runRepo("--baseline", copy)).toBe(0);
   });
 });

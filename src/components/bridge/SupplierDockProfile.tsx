@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight, Trash2, Info, Clock, Link2, Truck, Plus, ShieldCheck, GitBranch } from "lucide-react";
+import { ChevronLeft, ChevronRight, Trash2, Info, Clock, Link2, Truck, Plus, ShieldCheck, GitBranch, RefreshCw } from "lucide-react";
 import { PoMappingEditor } from "./PoMappingEditor";
 import { DeliveryConfigEditor } from "./DeliveryConfigEditor";
 import { DeliveryGuidedSetup } from "./DeliveryGuidedSetup";
@@ -20,7 +20,9 @@ import { apiClient, isApiMockMode, getAcceptanceProfile, saveAcceptanceProfile, 
 import { StandardsRefList, hasStandardsRefs } from "./StandardsRefList";
 import { FileChip } from "./FileChip";
 import { confidenceTier } from "@/lib/ds-tokens";
-import { statusLabel } from "./UnifiedStatusBadge";
+import { statusLabel, UnifiedStatusBadge } from "./UnifiedStatusBadge";
+import { formatMoney } from "./review/orderDisplay";
+import { pagePopulation, practiceOrderNote } from "./orderCountContract";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { invalidateOnboardingStatus } from "@/hooks/useOnboardingStatus";
@@ -29,7 +31,7 @@ import { SupplierIdentityCard } from "./SupplierIdentityCard";
 import { useTabParamSync } from "@/lib/tab-param-sync";
 import { useConfirm } from "@/components/ui/confirm";
 import type { PoMappingConfig } from "@/lib/api/types";
-import type { AcceptanceRule, AcceptanceProfile, SupplierMapping } from "@/types/procurement";
+import type { AcceptanceRule, AcceptanceProfile, SupplierMapping, OrdersPage } from "@/types/procurement";
 import { isPlanGate, PlanGateNotice } from "@/components/bridge/PlanGateNotice";
 
 type Tab = "overview" | "mappings" | "catalog" | "po-mapping" | "delivery" | "acceptance" | "history";
@@ -1585,13 +1587,13 @@ export function SupplierDockProfile({ id }: { id: string }) {
                 )}
               </div>
 
-              {/* Recent deliveries */}
-              <div style={{ background: SURFACE, border: `1px solid ${LINE}`, borderRadius: 10, overflow: "hidden" }}>
-                <div className="flex items-center gap-2 px-5 py-3.5" style={{ borderBottom: `1px solid ${LINE}` }}>
-                  <Clock size={15} strokeWidth={2} color={MUTED} />
-                  <h3 className="text-[13px] font-semibold" style={{ color: INK }}>Recent deliveries</h3>
-                </div>
-                {isApiMockMode ? (
+              {/* Recent orders — demo list in mock mode, a real query otherwise. */}
+              {isApiMockMode ? (
+                <div style={{ background: SURFACE, border: `1px solid ${LINE}`, borderRadius: 10, overflow: "hidden" }}>
+                  <div className="flex items-center gap-2 px-5 py-3.5" style={{ borderBottom: `1px solid ${LINE}` }}>
+                    <Clock size={15} strokeWidth={2} color={MUTED} />
+                    <h3 className="text-[13px] font-semibold" style={{ color: INK }}>Recent orders</h3>
+                  </div>
                   <div className="px-4 py-1 sm:px-5">
                     {DEMO_MOCK.recent.map((r, i) => (
                       <div
@@ -1605,12 +1607,10 @@ export function SupplierDockProfile({ id }: { id: string }) {
                       </div>
                     ))}
                   </div>
-                ) : (
-                  <p className="px-4 py-5 text-[13px] sm:px-5" style={{ color: MUTED }}>
-                    No deliveries yet for this supplier.
-                  </p>
-                )}
-              </div>
+                </div>
+              ) : (
+                <RecentOrdersPanel supplierId={id} nounLower={partyNounLower} />
+              )}
             </div>
           </div>
         )}
@@ -1841,7 +1841,156 @@ function SrcChip({ type }: { type: string }) {
   return <FileChip type={/^edifact$/i.test(type) ? "EDI" : type} />;
 }
 
-/* -------- MiniStatusPill — compact status badge for the recent-deliveries list -------- */
+/* -------- RecentOrdersPanel — this supplier's real order history ------------
+ *
+ * WHY THIS IS A QUERY AND NOT A SENTENCE
+ *
+ * Until this component existed, the overview panel rendered exactly one thing
+ * to every non-mock user, unconditionally:
+ *
+ *     No deliveries yet for this supplier.
+ *
+ * The page never asked the API a question. A supplier with 400 orders behind it
+ * was told, flatly, that it had none — and this is the configuration screen
+ * every trial walks through. It is the strongest form of this codebase's
+ * signature defect: not an unknown value misread as a confident answer, but a
+ * confident answer with no value behind it at all.
+ *
+ * The empty sentence is now the LAST branch of a real query, and the branch
+ * ORDER is the load-bearing part: error and loading each resolve ahead of it,
+ * because "we could not look" must never be rendered as "there is nothing".
+ * That is the ordering `/operations/health` uses for its dead-letter list, and
+ * the `?? []` below is a render convenience only — the two cases it would
+ * otherwise swallow (failed fetch, first load) are both branched on above it.
+ *
+ * The panel deliberately does NOT filter to delivered orders. Filtering one
+ * page client-side would reintroduce the original defect one level down: a
+ * first page holding no delivered rows is not evidence that the supplier has
+ * none. Every order is listed with its real status instead, which answers the
+ * two questions an operator actually arrives with — has anything gone out, and
+ * has anything failed.
+ */
+const RECENT_ORDERS_LIMIT = 6;
+
+function RecentOrdersPanel({ supplierId, nounLower }: { supplierId: string; nounLower: string }) {
+  const queryEnabled = useQueriesEnabled();
+  const { data, isLoading, isError, isFetching, refetch } = useQuery<OrdersPage>({
+    queryKey: ["supplier-recent-orders", supplierId],
+    queryFn: () => apiClient.getOrders({ supplierId, page: 1, pageSize: RECENT_ORDERS_LIMIT }),
+    enabled: queryEnabled,
+    staleTime: 30_000,
+    retry: 1,
+  });
+
+  // A query that is not enabled yet reports `isLoading: true` with no data, so
+  // "not ready to ask" resolves as loading — never as an error, and never as a
+  // supplier with no orders.
+  const showLoading = !queryEnabled || (isLoading && data === undefined);
+  const orders = data?.items ?? [];
+  // The printed number is the METERED population, and the practice split is stated
+  // rather than left for the reader to notice — `orderCountContract` owns both, so
+  // this panel does not become a third screen deriving the split for itself.
+  const population = pagePopulation(data);
+  const practiceNote = practiceOrderNote(population.practice);
+
+  return (
+    <div style={{ background: SURFACE, border: `1px solid ${LINE}`, borderRadius: 10, overflow: "hidden" }}>
+      <div className="flex items-center gap-2 px-5 py-3.5" style={{ borderBottom: `1px solid ${LINE}` }}>
+        <Clock size={15} strokeWidth={2} color={MUTED} />
+        <h3 className="text-[13px] font-semibold" style={{ color: INK }}>Recent orders</h3>
+        {/* The count is rendered only once a query has actually returned one. */}
+        {!showLoading && !isError && population.metered > 0 && (
+          <span className="ml-auto text-[11.5px]" style={{ color: FAINT }}>
+            {population.metered.toLocaleString()} total
+          </span>
+        )}
+      </div>
+
+      {showLoading ? (
+        <p className="px-4 py-5 text-[13px] sm:px-5" style={{ color: MUTED }}>
+          Checking this {nounLower}&apos;s orders…
+        </p>
+      ) : isError ? (
+        <div role="alert" className="px-4 py-5 sm:px-5">
+          <p className="text-[13px] font-semibold" style={{ color: INK }}>
+            We couldn&apos;t load this {nounLower}&apos;s orders
+          </p>
+          <p className="mt-1 max-w-[440px] text-[12.5px] leading-5" style={{ color: MUTED }}>
+            That is not the same as &ldquo;none&rdquo; — this {nounLower} may well have orders.
+            Nothing has been lost and no order has changed.
+          </p>
+          <button
+            type="button"
+            onClick={() => void refetch()}
+            disabled={isFetching}
+            className="mt-3 inline-flex items-center gap-1.5 rounded-[7px] px-3 text-[12.5px] font-medium"
+            style={{
+              minHeight: "var(--tap-min)",
+              height: 34,
+              border: `1px solid ${BORDER_STRONG}`,
+              background: SURFACE,
+              color: INK,
+              cursor: isFetching ? "default" : "pointer",
+              opacity: isFetching ? 0.6 : 1,
+            }}
+          >
+            <RefreshCw size={13} strokeWidth={2} color={MUTED} aria-hidden />
+            Try again
+          </button>
+        </div>
+      ) : orders.length === 0 ? (
+        <p className="px-4 py-5 text-[13px] sm:px-5" style={{ color: MUTED }}>
+          No orders for this {nounLower} yet.
+        </p>
+      ) : (
+        <div className="px-4 py-1 sm:px-5">
+          {orders.map((o, i) => {
+            const amount =
+              o.totalValue != null && Number.isFinite(o.totalValue)
+                ? formatMoney(o.currency ?? "", o.totalValue)
+                : null;
+            return (
+              <Link
+                key={o.id}
+                href={`/inbox/${o.id}`}
+                className="flex items-center gap-2.5 py-2.5 sm:gap-3"
+                style={{
+                  borderBottom: i < orders.length - 1 ? `1px solid ${LINE}` : undefined,
+                  textDecoration: "none",
+                }}
+              >
+                <span
+                  className="flex-shrink-0 text-[12px] font-semibold"
+                  style={{ color: BLUE_DEEP, fontFamily: MONO }}
+                >
+                  {o.poNumber}
+                </span>
+                {amount && (
+                  <span
+                    className="ml-auto min-w-0 truncate text-right text-[11.5px]"
+                    style={{ color: FAINT, fontFamily: MONO }}
+                  >
+                    {amount}
+                  </span>
+                )}
+                <span className={amount ? "flex-shrink-0" : "ml-auto flex-shrink-0"}>
+                  <UnifiedStatusBadge status={o.status} />
+                </span>
+              </Link>
+            );
+          })}
+          {practiceNote && (
+            <p className="pb-2.5 pt-1 text-[11.5px]" style={{ color: FAINT }}>
+              {practiceNote}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* -------- MiniStatusPill — compact status badge for the demo recent-orders list -------- */
 /* Uses the ported .pill / .pill-* classes so colours match the design StatusPill exactly.
    Labels come from the canonical statusLabel() map (UnifiedStatusBadge) so this pill
    never drifts from the unified vocabulary (e.g. ready → "Ready to send", sent → "Delivered"). */

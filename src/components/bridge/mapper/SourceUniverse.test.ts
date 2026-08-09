@@ -10,8 +10,8 @@ import type { SourceField } from "./types";
 
 const fields: SourceField[] = [
   { id: "h1", label: "po_number", value: "4730", group: "header", mapped: true },
-  { id: "p1", label: "ship_to_city", value: "Linz", group: "parties", mapped: false, suggestedFor: "ShipToCity", suggestionConfidence: 0.8 },
-  { id: "r1", label: "EDI id", value: "995568217", group: "raw", mapped: false },
+  { id: "p1", label: "ship_to_city", value: "Anytown", group: "parties", mapped: false, suggestedFor: "ShipToCity", suggestionConfidence: 0.8 },
+  { id: "r1", label: "EDI id", value: "000000009", group: "raw", mapped: false },
   { id: "r2", label: "cost centre", value: "", group: "raw", mapped: false },
 ];
 
@@ -34,8 +34,8 @@ describe("groupSourceFields", () => {
 
 describe("filterSourceFields", () => {
   it("search matches label OR value (case-insensitive)", () => {
-    expect(filterSourceFields(fields, "995", "all").map((f) => f.id)).toEqual(["r1"]);
-    expect(filterSourceFields(fields, "LINZ", "all").map((f) => f.id)).toEqual(["p1"]);
+    expect(filterSourceFields(fields, "00000", "all").map((f) => f.id)).toEqual(["r1"]);
+    expect(filterSourceFields(fields, "ANYTOWN", "all").map((f) => f.id)).toEqual(["p1"]);
   });
 
   it("empty query returns everything for the 'all' filter", () => {
@@ -50,7 +50,7 @@ describe("filterSourceFields", () => {
   });
 
   it("combines query AND chip filter", () => {
-    // "9" matches r1 (value 995568217) and nothing else; intersect with unmapped → still r1.
+    // "9" matches r1 (value 000000009) and nothing else; intersect with unmapped → still r1.
     expect(filterSourceFields(fields, "9", "unmapped").map((f) => f.id)).toEqual(["r1"]);
     // "9" intersect mapped → empty (r1 is unmapped).
     expect(filterSourceFields(fields, "9", "mapped")).toEqual([]);

@@ -62,6 +62,106 @@ export function planGateMessage(message: string | null | undefined): string {
     : "Your current plan does not include this. Upgrade to turn it on.";
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// The OTHER 403 — the organisation-admin gate
+//
+// The API also refuses 403 when the caller IS entitled to the capability but is not an
+// administrator of their organisation: `{ error: "requires_org_admin", message }`, from
+// `ProcuLink.Api/Auth/RequireOrgAdminAttribute.cs` (`ErrorCode`). It guards the twelve
+// actions that are irreversible, financial, or able to silently change where an
+// organisation's documents go — billing portal and checkout, API-key minting, delivery-config
+// writes and deletes, connection publish/rollback, integration creation, the acceptance-gate
+// override, and the email/SFTP/S3 ingestion writes.
+//
+// THIS LIVES BESIDE THE PLAN GATE ON PURPOSE. The only way to get either wrong is to confuse
+// it with the other, so the two must be read side by side. Telling someone who merely lacks
+// the role to "upgrade your plan" invents a reason to spend money; telling an organisation
+// that genuinely needs a bigger plan to "ask an administrator" sends them to a colleague who
+// is equally blocked. Both are worse than printing the raw code.
+//
+// THEY CANNOT COLLIDE, and it is worth being precise about why:
+//
+//   • A plan gate is matched by SHAPE — `<capability>_requires_<plan>` — and `<plan>` must be
+//     one of KNOWN_PLANS. "org_admin" is not a plan and cannot become one without being added
+//     to that list, so PLAN_GATE_CODE can never match `requires_org_admin`. (It also needs a
+//     `_requires_` substring, and `requires_org_admin` has no underscore before "requires".)
+//
+//   • ORG_ADMIN_CODE demands the whole token with no word character on either side, so no
+//     `<capability>_requires_<plan>` code can contain it either.
+//
+// Both directions are asserted on the real codes in `planGate.test.ts` and end-to-end through
+// the api layer in `src/lib/api/refusal.test.ts`. A test that only covered the new case would
+// still pass with the two branches collapsed into one.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * The literal the backend emits. Mirrors `RequireOrgAdminAttribute.ErrorCode`, which is a C#
+ * `const` for the same reason this is exported here: the frontend branches on it, so neither
+ * side may retype it at a call site. Pinned to its C# origin by `src/test/backendMirror.test.ts`.
+ */
+export const ORG_ADMIN_ERROR_CODE = "requires_org_admin";
+
+/**
+ * The whole token, with no word character on either side.
+ *
+ * Deliberately NOT a bare substring test. `webhook_delivery_requires_org_admin` reads as a
+ * capability gate and is not a code the API emits; matching it would mean guessing. One
+ * constant, one match — anything else falls through to the generic refusal, which is the
+ * honest answer for a code we do not recognise.
+ *
+ * No lookbehind: it is unsupported in older Safari, and `(^|[^A-Za-z0-9_])` is exact here.
+ */
+const ORG_ADMIN_CODE = /(^|[^A-Za-z0-9_])requires_org_admin(?![A-Za-z0-9_])/i;
+
+/**
+ * True when a 403 was refused for lack of the organisation-admin role rather than for lack of
+ * a plan. Accepts the `error` code, the whole raw body, or a message that quotes either.
+ */
+export function isOrgAdminError(message: string | null | undefined): boolean {
+  return !!message && ORG_ADMIN_CODE.test(message);
+}
+
+/**
+ * What to tell the person who was refused.
+ *
+ * Takes no argument, and that is the point: unlike a plan gate there is nothing to derive from
+ * the code. It names one thing — who can do this — because that is the only useful next step.
+ *
+ * Not an error the reader made, and not one that retrying fixes, so it never says "try again".
+ * It does not name a role the product does not have, and it does not send anyone to a Settings
+ * screen for managing administrators: roles come from Clerk and ProcuLink deliberately ships no
+ * surface for them, so pointing at one would be a dead end.
+ */
+export function orgAdminMessage(): string {
+  return (
+    "Only an administrator of your organisation can do this. " +
+    "Ask an administrator to make the change for you."
+  );
+}
+
+/**
+ * True when a thrown value is the organisation-admin refusal.
+ *
+ * Components need this rather than `isOrgAdminError` because by the time one of them sees the
+ * failure the api layer has usually already swapped the code for the sentence — so the code is
+ * only on the parsed body. Reads `ApiHttpError.body.error` first (the machine token, which is the
+ * honest source), then the message, which also covers the throw sites that keep a plain `Error`.
+ */
+export function isOrgAdminRefusal(error: unknown): boolean {
+  if (!error) return false;
+  if (typeof error === "string") return isOrgAdminError(error) || error === orgAdminMessage();
+  if (typeof error !== "object") return false;
+
+  const body = (error as { body?: unknown }).body;
+  const code = body && typeof body === "object" ? (body as { error?: unknown }).error : undefined;
+  if (typeof code === "string" && isOrgAdminError(code)) return true;
+
+  const message = (error as { message?: unknown }).message;
+  return (
+    typeof message === "string" && (isOrgAdminError(message) || message === orgAdminMessage())
+  );
+}
+
 /** Where an upsell may send the customer: an in-app path, never an off-site URL. */
 const DEFAULT_UPGRADE_URL = "/settings";
 

@@ -30,11 +30,33 @@ import { PracticeOrderPrompt } from "./PracticeOrderPrompt";
 import { ACCEPTED_UPLOAD_FORMATS, hasAcceptedUploadExtension, isClearlyUnsupportedDragType } from "@/lib/upload-formats";
 import { serverReasonOrNull } from "@/lib/serverText";
 
-// Pipeline stages for the pre-redirect upload animation. "Transform" is NOT
-// shown here: nothing is transformed before the review step, so claiming it
-// would be dishonest (offer↔works). The real transform happens after review.
-const PIPELINE_STAGES = ["Reading file", "Checking format", "Preparing review"] as const;
-const STAGE_MS = 600;
+// THERE IS NO STAGE TRACK ON THIS SCREEN, and the comment that used to sit here
+// is the reason why. It argued about WHICH stages were honest to show ("Transform
+// is NOT shown here: nothing is transformed before the review step") while all
+// three of the stages it kept were fabricated:
+//
+//   const PIPELINE_STAGES = ["Reading file", "Checking format", "Preparing review"];
+//   const STAGE_MS = 600;
+//
+// Those drove a setTimeout ladder that started AFTER the upload response, so
+// "✓ Reading file" and "✓ Checking format" rendered as completed work at 600ms
+// and 1200ms while the Worker had not necessarily begun reading the file — and
+// the redirect fired at a fixed 2,000ms whether the parse had succeeded, failed,
+// or not started. Three green checkmarks for work no server had reported.
+//
+// The only progress THIS screen can truthfully report is its own request: the
+// upload is in flight, or it is not. Everything after it — reading the document,
+// resolving the buyer, extracting lines — belongs to the order, and the order
+// screen already reports it from the server rather than from a clock:
+//
+//   OrderWorkshop.tsx:988   status === "parsing"  → <ParsingGate stalled={isStuck}/>
+//   useOrderReview.ts:167   refetchInterval 3s while parsing/transforming/delivering
+//   parseStall.ts:22        escalates at 2 min without ever claiming failure
+//   OrderWorkshop.tsx:965   a parse that ends `failed` → <OrderProblemPanel mode="gate">
+//
+// So the redirect now follows the upload's actual outcome and the order screen
+// takes over. Building a second progress surface here would recreate exactly the
+// duplicate WP-08 deleted (see the history note in parseStall.ts:4).
 
 // Accepted upload formats live in @/lib/upload-formats (the ONE frontend
 // mirror of the backend whitelist in OrdersController.cs) — the dropzone
@@ -476,9 +498,7 @@ export function UploadWorkbench() {
   // a disallowed file is dropped or picked (before any upload round-trip).
   const [fileError, setFileError] = useState<string | null>(null);
   const [uploading, setUploading]   = useState(false);
-  const [pipelineStage, setPipelineStage] = useState(-1);
   const [uploadError, setUploadError] = useState<UploadErrorBanner | null>(null);
-  const timerRefs = useRef<ReturnType<typeof setTimeout>[]>([]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -605,7 +625,6 @@ export function UploadWorkbench() {
     }
     setUploadError(null);
     setUploading(true);
-    setPipelineStage(0);
 
     let uploadedOrderId: string;
     try {
@@ -641,25 +660,28 @@ export function UploadWorkbench() {
         setUploadError(describeUploadFailure(error, selectedFile.name));
       }
       setUploading(false);
-      setPipelineStage(-1);
       return;
     }
 
-    // Animate pipeline stages
-    PIPELINE_STAGES.forEach((_, i) => {
-      const t = setTimeout(() => setPipelineStage(i), i * STAGE_MS);
-      timerRefs.current.push(t);
-    });
     // STRUCT-2: route straight to the Order Workshop (/inbox/{id}). The workshop is
     // now a strict superset of the old /upload/preview "Confirm item codes" step —
     // it carries the same issues list AND the same bulk-accept parity (Accept all /
     // ≥85%). The old preview route was retired once nothing routed to it; it now
     // 308s to this same path, keeping the order id.
-    const reviewPath = `/inbox/${encodeURIComponent(uploadedOrderId)}`;
-    const total = setTimeout(() => {
-      router.push(reviewPath);
-    }, PIPELINE_STAGES.length * STAGE_MS + 200);
-    timerRefs.current.push(total);
+    //
+    // This push is the LAST statement of the successful branch and it is not
+    // scheduled: it runs because the upload resolved with an order id, which is
+    // the only outcome this screen has actually observed. It used to be a
+    // setTimeout at PIPELINE_STAGES.length * STAGE_MS + 200, which meant the
+    // operator was moved on at 2,000ms whatever the server was doing — and moved
+    // on to a screen that had already shown them two completed steps. Whatever
+    // the parse then does, the workshop reports it: still `parsing` → the polling
+    // parse gate; `failed` → the full-page problem gate that says so.
+    //
+    // `uploading` is deliberately NOT cleared here. It stays true through the
+    // navigation so the CTA cannot be pressed a second time against an order that
+    // already exists; the component unmounts on route change.
+    router.push(`/inbox/${encodeURIComponent(uploadedOrderId)}`);
   }
 
   // handleSample was replaced by the shared useSampleOrder hook (task 9):
@@ -835,8 +857,10 @@ export function UploadWorkbench() {
     });
   }
 
-  // Cleanup timers on unmount
-  useEffect(() => () => { timerRefs.current.forEach(clearTimeout); }, []);
+  // (There is no timer-cleanup effect here any more. It existed to clear the
+  // stage/redirect setTimeouts on unmount; with nothing on this screen scheduled
+  // against a clock there is nothing to cancel. The batch path's rate-limit
+  // backoff is an awaited promise inside handleBatchUpload, not a stored handle.)
 
   // Phase 6.3 — Try with sample order: the zero-friction first action. Rendered
   // above the dropzone for a first-run org, below it otherwise (see isEmptyOrg).
@@ -907,7 +931,9 @@ export function UploadWorkbench() {
 
   return (
     <PageShell>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } } @keyframes pipeline-shimmer { 0%{transform:translateX(-100%)} 100%{transform:translateX(200%)} } .upload-dropzone:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 3px; border-radius: 10px; }`}</style>
+      {/* `pipeline-shimmer` was declared here too and is gone with the stage bars it
+          animated — it had no other user in the repo. */}
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } } .upload-dropzone:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 3px; border-radius: 10px; }`}</style>
 
       {/* Page header — canonical PageHeader on the grey canvas (no white bar, no divider) */}
       <PageHeader
@@ -1666,54 +1692,49 @@ export function UploadWorkbench() {
               </p>
             )}
 
-            {/* Pipeline progress (single-file path, shown while uploading) */}
+            {/* Upload in flight (single-file path) — the ONE thing this screen has
+                observed and can therefore state.
+
+                Indeterminate on purpose. Nothing here measures a fraction or an
+                elapsed-to-go, so nothing here prints one: an invented number is the
+                difference between an operator waiting and escalating on the wrong
+                schedule (the standing rule, written down at
+                problem/problemCopy.ts:380-382). There is no step that turns green,
+                because no step on this screen has a server behind it — the steps
+                that do are on the order screen this is about to open.
+
+                The sentence names what happens NEXT rather than claiming it has
+                happened, so arriving at <ParsingGate> is the promise being kept
+                instead of a contradiction of two ticked boxes. */}
             {uploading && !isMulti && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                <div style={{ display: "flex", gap: 4, alignItems: "center", justifyContent: "space-between" }}>
-                  {PIPELINE_STAGES.map((stage, i) => {
-                    const done    = i < pipelineStage;
-                    const active  = i === pipelineStage;
-                    return (
-                      <div key={stage} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-                        <div style={{
-                          height: 3,
-                          borderRadius: 99,
-                          width: "100%",
-                          background: done    ? "#1E6D29"
-                                    : active  ? "#2E8E3A"
-                                    : "#E5E8EE",
-                          transition: "background 0.3s",
-                          position: "relative",
-                          overflow: "hidden",
-                        }}>
-                          {active && (
-                            <div style={{
-                              position: "absolute",
-                              inset: 0,
-                              background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent)",
-                              animation: "pipeline-shimmer 0.8s linear infinite",
-                            }} />
-                          )}
-                        </div>
-                        <span style={{
-                          fontSize: 9.5,
-                          fontWeight: 600,
-                          letterSpacing: "0.04em",
-                          // #1E6D29 not #2E8E3A for `active`: this is a 9.5px
-                          // stage LABEL on the white footer — 4.1613:1 with
-                          // green, 6.4128:1 with green-deep. done/active now
-                          // share the label color; the "✓" prefix and the 3px
-                          // bar above (still green vs green-deep, non-text)
-                          // carry the distinction.
-                          color: done || active ? "#1E6D29" : "#CBD0DA",
-                          transition: "color 0.2s",
-                        }}>
-                          {done ? "✓ " : ""}{stage}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
+              <div
+                data-testid="upload-in-flight"
+                data-upload-state="uploading"
+                role="status"
+                aria-live="polite"
+                style={{ display: "flex", alignItems: "flex-start", gap: 8 }}
+              >
+                <span
+                  aria-hidden
+                  style={{
+                    flexShrink: 0,
+                    marginTop: 2,
+                    display: "inline-block",
+                    width: 11,
+                    height: 11,
+                    border: "1.5px solid #CBD0DA",
+                    borderTopColor: "#1E6D29",
+                    borderRadius: "50%",
+                    animation: "spin 0.7s linear infinite",
+                  }}
+                />
+                <p className="text-[11.5px]" style={{ margin: 0, color: "var(--ink-muted)" }}>
+                  <span style={{ fontWeight: 600, color: "#0B1A2F" }}>
+                    Uploading {selectedFile?.name ?? "your file"}…
+                  </span>{" "}
+                  We&apos;ll open the order as soon as it arrives. Reading the document happens
+                  there, and that screen shows how far it has got.
+                </p>
               </div>
             )}
           </div>

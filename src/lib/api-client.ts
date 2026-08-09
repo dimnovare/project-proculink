@@ -36,6 +36,7 @@ import {
   retryAfterFrom,
 } from "./api/core";
 import { isPlanGateError, planGateMessage } from "./planGate";
+import { orgAdminRefusal, readRefusal } from "./api/refusal";
 import { serverReason } from "./serverText";
 import { practiceDeliveryFrom, type PracticeDeliveryState } from "./practiceDelivery";
 
@@ -65,11 +66,23 @@ export { ApiHttpError, isApiMockMode };
 async function planGateBodyText(res: Response): Promise<string | null> {
   if (res.status !== 403) return null;
   try {
-    const raw = (await res.text()).trim();
-    return isPlanGateError(raw) ? raw : null;
+    return planGateText(res.status, await res.text());
   } catch {
     return null;
   }
+}
+
+/**
+ * The same test, for a caller that has already read the body and cannot read it twice.
+ *
+ * A 403 now has TWO possible meanings — this one, and `requires_org_admin` (see
+ * `src/lib/api/refusal.ts`) — so any site that reads the body once must ask both questions of
+ * the same string rather than letting whichever it asks first swallow the other.
+ */
+function planGateText(status: number, raw: string): string | null {
+  if (status !== 403) return null;
+  const trimmed = raw.trim();
+  return isPlanGateError(trimmed) ? trimmed : null;
 }
 
 // ─── Support contact ───
@@ -2354,10 +2367,9 @@ export async function createApiKey(label: string): Promise<CreateApiKeyResponse>
     headers: { ...headers, "Content-Type": "application/json" },
     body: JSON.stringify({ label }),
   }, 30000);
-  if (!res.ok) {
-    const body = await res.json().catch(() => null);
-    throw new Error(body?.error ?? `api-keys POST: ${res.status}`);
-  }
+  // Minting a bearer credential with org-wide machine access is organisation-admin-gated.
+  // This threw the raw `requires_org_admin` token at whoever pressed the button.
+  if (!res.ok) throw await readRefusal(res, `api-keys POST: ${res.status}`);
   return res.json();
 }
 
@@ -2429,10 +2441,9 @@ export async function createIntegration(payload: {
     headers: { ...headers, "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   }, 30000);
-  if (!res.ok) {
-    const body = await res.json().catch(() => null);
-    throw new Error(body?.error ?? `integrations POST: ${res.status}`);
-  }
+  // Creating an outbound subscription ships the payload of every matching order to a URL of
+  // the creator's choosing, so it is organisation-admin-gated. Same raw-token defect as above.
+  if (!res.ok) throw await readRefusal(res, `integrations POST: ${res.status}`);
   return res.json();
 }
 
@@ -3448,8 +3459,15 @@ async function realConnectionLifecycle(
     throw new ApiHttpError(serverMsg || fallback, 409);
   }
   if (res.status === 404) throw new ApiHttpError("Connection or revision not found.", 404);
+  // Publishing moves the connection's ACTIVE pointer — from here the revision is what pinned
+  // orders deliver through — so it is organisation-admin-gated as well as plan-gated. One read
+  // of the body, then BOTH questions asked of it: `planGateBodyText` alone answered null for
+  // `requires_org_admin`, and the refusal disappeared into `Failed to publish revision:
+  // Forbidden`, which reads like a malfunction and invites a retry that cannot ever work.
+  const text = await res.text().catch(() => "");
+  const admin = orgAdminRefusal(res.status, text);
   throw new ApiHttpError(
-    (await planGateBodyText(res)) ?? `Failed to ${action} revision: ${res.statusText}`,
+    admin ?? planGateText(res.status, text) ?? `Failed to ${action} revision: ${res.statusText}`,
     res.status,
   );
 }
@@ -3567,7 +3585,14 @@ async function realRollbackConnectionRevision(
     );
   }
   if (res.status === 404) throw new ApiHttpError("Connection or revision not found.", 404);
-  if (!res.ok) throw new ApiHttpError(`Failed to roll back: ${res.statusText}`, res.status);
+  if (!res.ok) {
+    // Rollback publishes a bundle nobody re-approved and moves the active pointer to it —
+    // redirection expressed as an undo — so it carries the same gate as publish. The body was
+    // never read here at all, so a role refusal read as `Failed to roll back: Forbidden`.
+    const text = await res.text().catch(() => "");
+    const admin = orgAdminRefusal(res.status, text);
+    throw new ApiHttpError(admin ?? `Failed to roll back: ${res.statusText}`, res.status);
+  }
   return res.json() as Promise<ConnectionRevision>;
 }
 

@@ -6,12 +6,13 @@ import type { OrderLine } from "@/types/procurement";
 
 afterEach(cleanup);
 
-// ── Long, unbreakable REAL-data tokens (the founder-confirmed overflow case) ──
+// ── Long, unbreakable single-token values (the founder-confirmed overflow case) ──
 // A single long word has no spaces to wrap at, so without overflow-wrap it spills
-// past the 360px mobile viewport. These mirror genuine German/distributor names,
-// long composite SKUs, URLs, and a 200-char description.
+// past the 360px mobile viewport. These are invented values in the SHAPE that
+// causes it: a hyphenated German-style distributor legal name, a long composite
+// SKU, a URL, and a 200-char description.
 const LONG_SUPPLIER =
-  "Reichelt-Elektronik-und-Industrievertrieb-Handelsgesellschaft-Sudwestdeutschland-mbH";
+  "Beispiel-Elektronik-und-Industrievertrieb-Handelsgesellschaft-Sudwestdeutschland-mbH";
 const LONG_BUYER = "Beschaffungsabteilung-Zentraleinkauf-Konzernlogistik-Gesamtgesellschaft-Deutschland-AG";
 const LONG_SKU = "ABCDEFGH-1234567890-IJKLMNOP-QRSTUVWX-9999";
 const LONG_DESCRIPTION =
@@ -189,7 +190,7 @@ describe("MobileTriage — bulk-accept label parity with the desktop workshop", 
   });
 });
 
-// Founder bug 31f72daf: the header showed a fake "€ 0.00" when the order total was
+// Founder zero-total bug: the header showed a fake "€ 0.00" when the order total was
 // unknown. The workshop now passes grandTotalLabel="" in that case — the mobile
 // header must render NO total slot (not an empty mono span with a dangling "·"),
 // and the "What we received" summary shows an honest "—".
@@ -204,9 +205,9 @@ describe("MobileTriage — unknown order total is hidden, never a fake zero", ()
   });
 
   test("a known total still renders in the header (regression guard)", () => {
-    render(<MobileTriage {...makeProps({ grandTotalLabel: "EUR 752.40" })} />);
+    render(<MobileTriage {...makeProps({ grandTotalLabel: "EUR 600.40" })} />);
     const header = screen.getByTestId("mobile-triage-header");
-    expect(within(header).getByText("EUR 752.40")).toBeInTheDocument();
+    expect(within(header).getByText("EUR 600.40")).toBeInTheDocument();
   });
 
   test("the 'What we received' Total row shows '—' when the total is unknown", () => {

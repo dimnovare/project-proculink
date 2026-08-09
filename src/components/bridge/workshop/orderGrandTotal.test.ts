@@ -1,12 +1,12 @@
-// The workshop header's "buyer → supplier · total" value — founder bug: order
-// 31f72daf (Rheinbahn) showed "€ 0.00" although its one line was qty 2 × 376.20
-// = 752.40 EUR. Root cause: the backend-extracted grandTotal was stored as 0
+// The workshop header's "buyer → supplier · total" value — founder bug: an order
+// showed "€ 0.00" although its one line was priced (qty 2 × 300.20 = 600.40 EUR
+// below). Root cause: the backend-extracted grandTotal was stored as 0
 // ("not captured"), and `order.grandTotal ?? lineSum` keeps a 0, so the honest
 // line-sum fallback never ran; formatMoney also hardcoded the € symbol.
 // Contract under test (orderDisplay):
 //   1. a stored 0 / absent grandTotal falls back to the SAME sum the inbox
 //      Value column shows (Sum(quantity × unitPrice)),
-//   2. the label uses the order's currency CODE + amount ("EUR 752.40"), and
+//   2. the label uses the order's currency CODE + amount ("EUR 600.40"), and
 //   3. when no total is knowable (no priced lines yet) the label is "" so the
 //      header renders NOTHING — never a fake zero.
 import { describe, test, expect } from "vitest";
@@ -32,10 +32,10 @@ const makeLine = (over: Partial<OrderLine> = {}): OrderLine => ({
 });
 
 const makeOrder = (over: Partial<Order> = {}): Order => ({
-  id: "31f72daf",
+  id: "ord-1",
   poNumber: "PO-1",
   supplierId: "s1",
-  supplierName: "Rheinbahn AG",
+  supplierName: "Example Transit AG",
   orderDate: "2026-07-01",
   currency: "EUR",
   status: "pending_review",
@@ -47,23 +47,23 @@ const makeOrder = (over: Partial<Order> = {}): Order => ({
 });
 
 describe("orderGrandTotalLabel — the workshop header total", () => {
-  test("REGRESSION 31f72daf: extracted grandTotal of 0 falls back to the line sum, not '€ 0.00'", () => {
+  test("REGRESSION zero-total: extracted grandTotal of 0 falls back to the line sum, not '€ 0.00'", () => {
     const order = makeOrder({
       grandTotal: 0, // backend stored 0 = "not captured"
-      lines: [makeLine({ quantity: 2, unitPrice: 376.2 })],
+      lines: [makeLine({ quantity: 2, unitPrice: 300.2 })],
     });
-    expect(resolvedGrandTotal(order)).toBeCloseTo(752.4, 2);
-    expect(orderGrandTotalLabel(order)).toBe("EUR 752.40");
+    expect(resolvedGrandTotal(order)).toBeCloseTo(600.4, 2);
+    expect(orderGrandTotalLabel(order)).toBe("EUR 600.40");
   });
 
   test("absent grandTotal (null/undefined) computes from lines — same derivation as the inbox Value column", () => {
     const lines = [
-      makeLine({ id: "l1", quantity: 2, unitPrice: 376.2 }),
+      makeLine({ id: "l1", quantity: 2, unitPrice: 300.2 }),
       makeLine({ id: "l2", lineNumber: 2, quantity: 3, unitPrice: 25.2 }),
     ];
-    expect(orderTotal(makeOrder({ lines }))).toBeCloseTo(828.0, 2);
-    expect(orderGrandTotalLabel(makeOrder({ grandTotal: null, lines }))).toBe("EUR 828.00");
-    expect(orderGrandTotalLabel(makeOrder({ lines }))).toBe("EUR 828.00");
+    expect(orderTotal(makeOrder({ lines }))).toBeCloseTo(676.0, 2);
+    expect(orderGrandTotalLabel(makeOrder({ grandTotal: null, lines }))).toBe("EUR 676.00");
+    expect(orderGrandTotalLabel(makeOrder({ lines }))).toBe("EUR 676.00");
   });
 
   test("a real extracted grandTotal wins over the line sum and formats with the order's currency code", () => {
@@ -90,7 +90,7 @@ describe("orderGrandTotalLabel — the workshop header total", () => {
   });
 
   test("formatMoney uses code + amount (inbox format), not a hardcoded symbol", () => {
-    expect(formatMoney("EUR", 752.4)).toBe("EUR 752.40");
+    expect(formatMoney("EUR", 600.4)).toBe("EUR 600.40");
     expect(formatMoney("SEK", 828.2)).toBe("SEK 828.20");
     expect(formatMoney("USD", 120)).toBe("USD 120.00");
   });

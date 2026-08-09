@@ -40,7 +40,6 @@ const DESKTOP: Array<[string, string, string]> = [
   ["17", "operations-health", "/operations/health"],
   ["18", "operations-delivery-log", "/operations/log"],
   ["19", "operations-connectors", "/operations/connectors"],
-  ["20", "operations-webhooks", "/operations/webhooks"],
   ["21", "inbound-invoices", "/inbound/invoices"],
   ["22", "inbound-asns", "/inbound/asns"],
   ["24", "settings", "/settings"],

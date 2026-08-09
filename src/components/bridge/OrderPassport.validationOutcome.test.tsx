@@ -21,8 +21,9 @@ import type { PassportDto } from "@/types/procurement";
 // An audit trail that calls a pass a problem is worse than no audit trail: the
 // operator learns to ignore it, and then it cannot warn them about anything.
 //
-// The payloads below are the verbatim production responses recorded in
-// docs/qa/2026-08-01-wp-39-authenticated-production-pass.md §4.1 and §4.7.
+// The payloads below reproduce the production responses recorded in
+// docs/qa/2026-08-01-wp-39-authenticated-production-pass.md §4.1 and §4.7 —
+// field-for-field, with the commercial values replaced by placeholders.
 
 const api = {
   getOrderPassport: vi.fn(),
@@ -48,17 +49,21 @@ import { OrderPassport } from "./OrderPassport";
 
 const ORDER_ID = "b56ddb85-5b14-4367-bcc1-6f62a391a6a5";
 
-/** The four rows GET /api/orders/{id}/passport returned on the delivered QA order. */
+/**
+ * The four rows GET /api/orders/{id}/passport returns on a delivered, fully
+ * passing order. The SHAPE is copied from a real response; the amounts and the
+ * supplier code are de-identified placeholders.
+ */
 const PRODUCTION_ALL_PASS: PassportDto["validationResults"] = [
   { code: "invariant.quantity_positive", lineNumber: 1, message: "Line 1: quantity 2 is valid.", severity: "error", status: "pass" },
-  { code: "invariant.unit_price_valid", lineNumber: 1, message: "Line 1: unit price 376.2 is valid.", severity: "warning", status: "pass" },
+  { code: "invariant.unit_price_valid", lineNumber: 1, message: "Line 1: unit price 300.2 is valid.", severity: "warning", status: "pass" },
   { code: "invariant.po_number_present", lineNumber: null, message: "PO number is present.", severity: "error", status: "pass" },
   { code: "invariant.currency_present", lineNumber: null, message: "Currency is set (EUR).", severity: "error", status: "pass" },
 ];
 
 /** The mapping decision the same passport carried — fully resolved, deterministic. */
 const PRODUCTION_RESOLVED_MAPPING: PassportDto["mappingDecisions"] = [
-  { lineNumber: 1, buyerItemCode: "00010", supplierItemCode: "110C0Y3NL0", source: "deterministic", confidence: 1 },
+  { lineNumber: 1, buyerItemCode: "00010", supplierItemCode: "EXSUP12345", source: "deterministic", confidence: 1 },
 ];
 
 function passport(overrides: Partial<PassportDto> = {}): PassportDto {
@@ -77,7 +82,7 @@ function passport(overrides: Partial<PassportDto> = {}): PassportDto {
       isSample: false,
     },
     sourceArtifact: { storageKey: `org/${ORDER_ID}/source.csv`, detectedFormat: "csv" },
-    canonical: { lineCount: 1, currency: "EUR", totalValue: 752.4, totalQuantity: 2 },
+    canonical: { lineCount: 1, currency: "EUR", totalValue: 600.4, totalQuantity: 2 },
     supplierProfile: null,
     validationResults: PRODUCTION_ALL_PASS,
     mappingDecisions: PRODUCTION_RESOLVED_MAPPING,
@@ -197,7 +202,7 @@ describe("audit trail — mapping decisions (WP-39 §4.7)", () => {
 
     // Scoped to the code slot: the source badge beside it legitimately reads
     // "unresolved" on an unresolved line, so a bare text query cannot tell them apart.
-    expect((await screen.findByTestId("mapping-supplier-code")).textContent).toBe("110C0Y3NL0");
+    expect((await screen.findByTestId("mapping-supplier-code")).textContent).toBe("EXSUP12345");
   });
 
   it("renders the buyer code the API actually sent", async () => {

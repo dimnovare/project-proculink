@@ -15,13 +15,27 @@
 // cause there and the exception clears on the next pass. "Ignore" remains for
 // genuine dismissal. A real "Resolve" is only offered for a list-clearable
 // exception (one with no owning order), if such ever appears.
+//
+// WHICH STATES EXIST, and what each owes the row, is NOT decided here — it lives
+// in src/lib/exceptionStateManifest.ts, which src/test/backendMirror.test.ts
+// diffs against the real C#. This file used to decide it with
+// `exc.state === "open" ? … : …`, written twice (desktop cell and mobile card),
+// so a state the frontend had never heard of took the else — the SETTLED branch,
+// where `resolved` and `ignored` render — and a live, blocking exception read as
+// already handled with all three controls stripped. A state this build cannot
+// place now says so and keeps its controls; see ExceptionRowEnd below.
 
 import { useRouter } from "next/navigation";
 import { useState, useMemo, Fragment } from "react";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getExceptions, resolveException, ignoreException } from "@/lib/api-client";
-import type { OrderException, ExceptionState } from "@/types/procurement";
+import type { OrderException } from "@/types/procurement";
+import {
+  EXCEPTION_STATE_FACTS,
+  exceptionRowPresentation,
+  type ExceptionStateName,
+} from "@/lib/exceptionStateManifest";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import { MobileListRow } from "@/components/bridge/layout/MobileListRow";
@@ -65,11 +79,12 @@ function relativeTime(iso: string): string {
 }
 
 // ─── State filter tabs ───────────────────────────────────────────────────────
-const STATE_TABS: Array<{ label: string; state?: ExceptionState }> = [
+// Derived from the manifest, not hand-listed. `state` is the raw value because it goes
+// straight into `GET /api/exceptions?state=`; `label` is what the operator reads. This
+// used to be a fourth hand-typed copy of the same three strings.
+const STATE_TABS: Array<{ label: string; state?: ExceptionStateName }> = [
   { label: "All" },
-  { label: "Open",     state: "open" },
-  { label: "Resolved", state: "resolved" },
-  { label: "Ignored",  state: "ignored" },
+  ...EXCEPTION_STATE_FACTS.map((f) => ({ label: f.label, state: f.state })),
 ];
 
 // The order-detail route in this app (see src/app/(app)/inbox/[orderId]).
@@ -93,6 +108,110 @@ const NO_ORDER_TITLE =
 // with no owning order (none today, but kept defensive).
 function canResolveFromList(exc: OrderException): boolean {
   return !exc.orderId;
+}
+
+const RESOLVE_TITLE =
+  "Mark this issue resolved. Only available when it isn't tied to an order — order-linked " +
+  "issues clear automatically once you fix the cause.";
+
+const OPEN_ORDER_TITLE =
+  "Open the order to fix the cause. This exception clears itself on the next pipeline pass " +
+  "once the cause is gone.";
+
+/**
+ * The right-hand end of a row: the controls, or the state word, or the honest notice.
+ *
+ * ONE function decides this for the desktop table cell AND the mobile card, because the
+ * two used to carry the same `exc.state === "open" ? … : …` twice and would otherwise have
+ * to be fixed twice. What each shape is, and why, lives in
+ * src/lib/exceptionStateManifest.ts — the short version is that a state this build cannot
+ * place keeps its controls and says so, instead of taking the settled branch and
+ * disappearing from the operator's work list.
+ */
+function ExceptionRowEnd({
+  exc, busy, layout, onResolve, onIgnore, onOpen,
+}: {
+  exc: OrderException;
+  busy: boolean;
+  layout: "desktop" | "mobile";
+  onResolve: () => void;
+  onIgnore: () => void;
+  onOpen: () => void;
+}) {
+  const presentation = exceptionRowPresentation(exc.state);
+
+  // Settled — a faint state word and no controls. Unchanged from what shipped.
+  if (presentation.kind === "settled") {
+    return layout === "desktop" ? (
+      <span className="text-[11.5px] capitalize" style={{ color: "var(--ink-faint)" }}>
+        {presentation.stateWord}
+      </span>
+    ) : (
+      <p className="mt-2 text-[11.5px] capitalize" style={{ color: "var(--ink-faint)" }}>
+        {presentation.stateWord}
+      </p>
+    );
+  }
+
+  const actions = (
+    <div className="inline-flex items-center gap-1.5">
+      {canResolveFromList(exc) ? (
+        <Button variant="blue" size="sm" disabled={busy} onClick={onResolve} title={RESOLVE_TITLE}>
+          Resolve
+        </Button>
+      ) : (
+        // A disabled <button> swallows hover events, so a bare title= wouldn't surface.
+        // Wrap in a span that carries the why-tooltip when there's no order to open.
+        <span title={exc.orderId ? undefined : NO_ORDER_TITLE} style={{ display: "inline-flex" }}>
+          <Button
+            variant="blue"
+            size="sm"
+            disabled={busy || !exc.orderId}
+            onClick={onOpen}
+            title={exc.orderId ? OPEN_ORDER_TITLE : undefined}
+          >
+            Open order
+          </Button>
+        </span>
+      )}
+      <Button variant="secondary" size="sm" disabled={busy} onClick={onIgnore}>
+        Ignore
+      </Button>
+    </div>
+  );
+
+  // Needs action — the controls alone. Unchanged from what shipped for `open`.
+  if (presentation.kind === "needs_action") {
+    return layout === "desktop" ? actions : <div className="mt-2.5">{actions}</div>;
+  }
+
+  // Unrecognised — say what arrived, admit we can't confirm it's handled, keep the way
+  // forward. The notice sits ABOVE the controls and lets the row grow past its 44px:
+  // a row we cannot place should look different from one we can.
+  return (
+    <div
+      className={
+        layout === "desktop"
+          ? "inline-flex flex-col items-end gap-1 py-1.5"
+          : "mt-2.5 flex flex-col items-start gap-1"
+      }
+    >
+      <span
+        title={presentation.detail}
+        className="inline-flex items-center gap-1 rounded-[4px] px-1.5 py-0.5 text-[10.5px] font-semibold"
+        style={{
+          background: "var(--amber-soft)",
+          color: "var(--amber-text)",
+          whiteSpace: "normal",
+          textAlign: layout === "desktop" ? "right" : "left",
+        }}
+      >
+        <AlertTriangle size={11} aria-hidden style={{ flexShrink: 0 }} />
+        {presentation.label}
+      </span>
+      {actions}
+    </div>
+  );
 }
 
 export default function ExceptionsPage() {
@@ -379,50 +498,14 @@ export default function ExceptionsPage() {
                           {relativeTime(exc.createdAt)}
                         </td>
                         <td style={{ padding: "0 10px", paddingRight: 16, verticalAlign: "middle", textAlign: "right", whiteSpace: "nowrap" }}>
-                          {exc.state === "open" ? (
-                            <div className="inline-flex items-center gap-1.5">
-                              {canResolveFromList(exc) ? (
-                                <Button
-                                  variant="blue"
-                                  size="sm"
-                                  disabled={busy}
-                                  onClick={() => resolveMut.mutate(exc.id)}
-                                  title="Mark this issue resolved. Only available when it isn't tied to an order — order-linked issues clear automatically once you fix the cause."
-                                >
-                                  Resolve
-                                </Button>
-                              ) : (
-                                // A disabled <button> swallows hover events, so a
-                                // bare title= wouldn't surface. Wrap in a span that
-                                // carries the why-tooltip when there's no order to open.
-                                <span title={exc.orderId ? undefined : NO_ORDER_TITLE} style={{ display: "inline-flex" }}>
-                                  <Button
-                                    variant="blue"
-                                    size="sm"
-                                    disabled={busy || !exc.orderId}
-                                    onClick={() => { if (exc.orderId) router.push(orderHref(exc.orderId)); }}
-                                    title={exc.orderId
-                                      ? "Open the order to fix the cause. This exception clears itself on the next pipeline pass once the cause is gone."
-                                      : undefined}
-                                  >
-                                    Open order
-                                  </Button>
-                                </span>
-                              )}
-                              <Button
-                                variant="secondary"
-                                size="sm"
-                                disabled={busy}
-                                onClick={() => ignoreMut.mutate(exc.id)}
-                              >
-                                Ignore
-                              </Button>
-                            </div>
-                          ) : (
-                            <span className="text-[11.5px] capitalize" style={{ color: "var(--ink-faint)" }}>
-                              {exc.state ?? "—"}
-                            </span>
-                          )}
+                          <ExceptionRowEnd
+                            exc={exc}
+                            busy={busy}
+                            layout="desktop"
+                            onResolve={() => resolveMut.mutate(exc.id)}
+                            onIgnore={() => ignoreMut.mutate(exc.id)}
+                            onOpen={() => { if (exc.orderId) router.push(orderHref(exc.orderId)); }}
+                          />
                         </td>
                       </tr>
                       {expanded && (
@@ -528,47 +611,14 @@ function ExceptionCard({
           <ExceptionDetail exc={exc} />
         </div>
       )}
-      {exc.state === "open" ? (
-        <div className="mt-2.5 flex items-center gap-1.5">
-          {canResolveFromList(exc) ? (
-            <Button
-              variant="blue"
-              size="sm"
-              disabled={busy}
-              onClick={onResolve}
-              title="Mark this issue resolved. Only available when it isn't tied to an order — order-linked issues clear automatically once you fix the cause."
-            >
-              Resolve
-            </Button>
-          ) : (
-            // Disabled buttons don't fire hover, so wrap in a title-bearing span
-            // to surface the why-tooltip when no order is attached.
-            <span title={exc.orderId ? undefined : NO_ORDER_TITLE} style={{ display: "inline-flex" }}>
-              <Button
-                variant="blue"
-                size="sm"
-                disabled={busy || !exc.orderId}
-                onClick={onOpen}
-                title={exc.orderId
-                  ? "Open the order to fix the cause. This exception clears itself on the next pipeline pass once the cause is gone."
-                  : undefined}
-              >
-                Open order
-              </Button>
-            </span>
-          )}
-          <Button
-            variant="secondary"
-            size="sm"
-            disabled={busy}
-            onClick={onIgnore}
-          >
-            Ignore
-          </Button>
-        </div>
-      ) : (
-        <p className="mt-2 text-[11.5px] capitalize" style={{ color: "var(--ink-faint)" }}>{exc.state}</p>
-      )}
+      <ExceptionRowEnd
+        exc={exc}
+        busy={busy}
+        layout="mobile"
+        onResolve={onResolve}
+        onIgnore={onIgnore}
+        onOpen={onOpen}
+      />
     </MobileListRow>
   );
 }

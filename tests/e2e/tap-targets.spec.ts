@@ -26,10 +26,11 @@ import { test, expect, type Page } from "@playwright/test";
  * 390×844 — so "zero controls below either floor" is true AT COARSE-POINTER AND
  * <640px VIEWPORTS, and is NOT a claim about desktop. A refuter re-ran this file's
  * own `measureControls` at 1280×900 and found it false there: `/settings` 17
- * controls under 44px plus a 13px "Workspace name" input, `/operations/webhooks`
- * 21 controls including a 32px/12.5px "Add endpoint", `/inbox` a 12.5px "Search
- * orders" input, and `/pricing` a 20.3px "Sign in" link — under WCAG 2.2 SC
- * 2.5.8's 24px AA floor, which this file itself invokes further down.
+ * controls under 44px plus a 13px "Workspace name" input, `/inbox` a 12.5px
+ * "Search orders" input, and `/pricing` a 20.3px "Sign in" link — under WCAG 2.2
+ * SC 2.5.8's 24px AA floor, which this file itself invokes further down. (The
+ * refutation also measured 21 sub-44px controls on /operations/webhooks; that
+ * page was deleted by FE #130, so it is no longer in the route list below.)
  *
  * That is a real gap and it is deliberately NOT closed here: raising ~50 desktop
  * controls is a visual change across six surfaces, not an a11y wiring fix, and
@@ -160,7 +161,6 @@ const ROUTES = [
   "/pricing",
   "/upload",
   "/settings",
-  "/operations/webhooks",
   "/operations/connectors",
   "/library/buyers",
   "/library/suppliers",
