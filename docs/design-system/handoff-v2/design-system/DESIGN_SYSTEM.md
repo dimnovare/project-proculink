@@ -9,7 +9,9 @@ structure & screens), `styleguide.html` (see it rendered).
 ## 1. Design principles
 
 1. **Control room, not admin panel.** Calm dense surfaces, crisp hierarchy, confident
-   operational type. Lines / docks / ports / lanes are interface language, not decoration.
+   operational type. Lines / ports / rails / wires are the *spatial* language of the interface,
+   not decoration — and not its wording. Nothing in that list is a word the user reads; see
+   `07-content.md`.
 2. **The bridge is functional.** Blue (buyer) on the left, green (supplier) on the right,
    the transform in the middle. This spatial law holds from the marketing hero to the
    Order Workshop.

@@ -81,7 +81,7 @@ style={{
 
 ### M5 · Validate-to-deliver flush
 
-**When:** "Cross the bridge" is clicked.
+**When:** the primary send action ("Send to supplier") is clicked.
 **What:** Each stage in `<StatusJourney>` advances in 40ms stagger; the output panel briefly highlights.
 **Duration:** ~200ms cascade + 250ms highlight.
 

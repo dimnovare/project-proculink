@@ -1,71 +1,104 @@
 # 07 — Content & Copy
 
-## Vocabulary (use these consistently)
+> **Corrected 2026-08-09.** This page originally taught a bridge-metaphor voice —
+> *crossing*, *dock*, *lane*, *spine*, "Cross the bridge →". The founder purged all of it from
+> user-facing copy (CLAUDE.md §9). Those words survive only as **code identifiers**, **CSS/design
+> tokens** and **route names**. The tone rules, the confirm structure and the don'ts below are
+> unchanged and still correct — only the words were wrong.
+>
+> The approved word list is **code, not prose**: `src/lib/vocabulary.ts`, enforced by
+> `bun run lint:vocab` (`scripts/check-vocabulary.mjs`). Read the registry before inventing a
+> label; the tables here are illustrative, not the authority.
+
+## Vocabulary
+
+### What a user reads
+
+Plain procurement words. Nine approved nouns, defined in `src/lib/vocabulary.ts`.
 
 | Term | Meaning | Avoid |
 |---|---|---|
-| **Bridge** | The product / the dashboard | Platform, hub, app |
-| **Crossing** | A single order transit | Run, job, task |
-| **Dock** | Buyer or supplier endpoint | Account, organization |
-| **Lane** | Buyer↔supplier pairing | Relationship, route |
-| **Spine** | The canonical PO model | Schema, document model |
-| **Anatomy** | Source-document zone overlay | Annotation, OCR |
-| **Wire** | A buyer↔supplier connection on the dashboard | Link, edge, flow |
-| **Map / mapping** | Buyer-SKU ↔ supplier-SKU pairing | Translation, mapping rule |
+| **Order** | A single purchase order and its trip through the pipeline | Run, job, task, crossing |
+| **Supplier** / **Buyer** | The counterparty at each end | Account, organization, dock |
+| **Item code** | A buyer-SKU ↔ supplier-SKU pairing | Translation, mapping rule |
+| **Order layout** | The per-supplier field layout of the output | Spine, schema |
 | **Output** | The supplier-ready file we produce | Result, export |
+| **Delivery** | Sending the output on the supplier's channel | Crossing, transit |
+| **Rule** | A validation rule | Constraint, policy |
+| **Issue** | Something a human has to resolve on an order | Error, exception (in UI copy) |
+| **Workspace** | The customer's org | Tenant, account |
+
+### Internal only — never in a user-visible string
+
+These name the *architecture*, and appear in component names, tokens and routes.
+
+| Term | Where it is allowed |
+|---|---|
+| **Bridge** | Route `/bridge`, `BridgeSidebar`, `bg-bridge-deck` |
+| **Crossing** | `CrossingsLog.tsx` |
+| **Dock** | `SupplierDockProfile.tsx`, `SupplierDockList.tsx` |
+| **Lane** | `LaneDrawer.tsx` |
+| **Spine** | `CanonicalSpine`, `SpineReview`, `bg-link-spine` |
+| **Anatomy** | `DocumentAnatomy.tsx` (internal label for the zone overlay) |
+| **Wire** | `WireTopology.tsx` and its SVG gradients |
 
 ## Page title pairs
 
-| Screen | Title (Display) | Subtitle (Inter) |
+Shipped titles are owned by `src/lib/pageTitles.ts` (mirrors `HUB_TABS`). Edit that; do not
+"fix" a title from this table.
+
+| Screen | Title | Subtitle (Inter) |
 |---|---|---|
-| Bridge dashboard | "Order flow" | "Today · Mon 12 Jan 2026 · 18 lanes · 6 suppliers" |
-| Inbox | "Inbox" | "{n} crossings · last sync {t}" |
+| Dashboard (`/bridge`) | "Dashboard" (browser) / "Overview" (hub tab) | "Today · Mon 12 Jan 2026 · 6 suppliers" |
+| Inbox (`/inbox`) | "Inbox" (browser) / "Orders" (hub tab) | "{n} orders · {m} need review · {k} failed" |
 | Order review | The PO number (mono) | "{buyer} → {supplier} · {n} lines · {issues} open" |
-| Upload | "Cross a new order" | "Drop a buyer order. ProcuLink detects the format." |
-| Mappings | "Item mappings" | "{buyer} ↔ {supplier} · {n} mappings" |
-| Crossings log | "Crossings log" | "Last 30 days · {n} crossings · {pct}% delivered first-try" |
+| Upload (`/upload`) | "Upload an order" | "Drop a buyer order. ProcuLink detects the format." |
+| Item codes (`/library/mappings`) | "Item codes" | "{buyer} ↔ {supplier} · {n} item codes" |
+| Deliveries (`/operations/log`) | "Deliveries" | "Last 30 days · {n} orders · {pct}% delivered first-try" |
 
 ## Buttons
 
 | Action | Label | Variant |
 |---|---|---|
-| Submit order to supplier | **"Cross the bridge →"** | primary |
+| Submit order to supplier | **"Send to supplier"** | primary |
 | Save in-progress edits | "Save draft" | secondary |
 | Drop into upload zone | "or browse from disk" | ghost (link-style) |
 | Approve AI suggestion | "Accept" | ai |
 | Reject AI suggestion | "Reject" | ghost |
 | Try a failed delivery again | "Fix and resend" | primary |
 | Open detail | "Open →" or row click | ghost |
-| Destructive | "Delete mapping" | danger |
+| Destructive | "Delete item code" | danger |
 
 **Never:**
-- "Submit", "Send", "Process" → use "Cross the bridge →"
+- Metaphor as a verb — "Cross the bridge", "Send across", "Start a crossing". Name the real
+  action: **"Send to supplier"**.
+- Bare "Submit" / "Process" → say who receives it and what happens.
 - "Apply magic", "Run AI", "Smart fix" → AI is shown, not advertised
 - "Click here" → buttons say what they do
-- "OK / Cancel" pairs in confirms → name the action ("I've reviewed exceptions. Send to Acme." / "Back")
+- "OK / Cancel" pairs in confirms → name the action ("I've reviewed the issues. Send to Acme." / "Back")
 
 ## Empty states
 
 | Screen | Headline | Sub | Action |
 |---|---|---|---|
-| Empty Inbox | "No crossings yet." | "Drop a file or connect a buyer dock." | "↑ Upload" + "+ Connect dock" |
-| No mappings | "No mappings yet." | "Import a CSV, or let AI suggest from the next order." | "↑ Import CSV" |
-| No connectors | "No buyer docks connected." | "Set up an email inbox, SFTP, API or cXML PunchOut." | "+ Add dock" |
-| Empty audit log | "No crossings logged in this window." | "Adjust the date range or send a test order." | "Reset filter" |
+| Empty Inbox | "No orders yet." | "Drop a file, or connect a channel that receives them." | "↑ Upload" + "+ Add a channel" |
+| No item codes | "No item codes yet." | "Import a CSV, or let AI suggest from the next order." | "↑ Import CSV" |
+| No connectors | "No channels connected." | "Set up an email inbox, SFTP, API or cXML PunchOut." | "+ Add a channel" |
+| Empty delivery log | "No deliveries in this window." | "Adjust the date range or send a test order." | "Reset filter" |
 
 ## Confirms
 
 The confirm before sending must show: **what** (recipient), **how much** (total), **what was reviewed** (exceptions). Operator clicks the action; never "OK".
 
 ```
-Cross the bridge to Acme Components Ltd.
+Send this order to Acme Components Ltd.
 
   Recipient   ops@acmecomponents.com (SFTP)
   Total       € 4,436.73
-  Lines       14 (3 with AI-mapped SKUs)
-  Exceptions  3 reviewed and resolved
+  Lines       14 (3 with AI-mapped item codes)
+  Issues      3 reviewed and resolved
 
-  [ ] I've reviewed the exceptions.
+  [ ] I've reviewed the issues.
 
   [ Back ]  [ Send to Acme ]
 ```
@@ -74,11 +107,11 @@ Cross the bridge to Acme Components Ltd.
 
 | Event | Copy |
 |---|---|
-| Delivered | "Crossed to Acme · accepted · 1m 42s" |
+| Delivered | "Delivered to Acme · accepted · 1m 42s" |
 | Saved draft | "Draft saved" |
 | Mapping accepted | "Mapped HEI-PLT-09 → ACM-PLT-200×200×4" |
-| Auto-process turned on | "Auto-process enabled for Acme. Crossings will skip review when validation passes." |
-| Delivery failed | "Crossing to Acme failed — see what Acme said →" |
+| Auto-process turned on | "Auto-process enabled for Acme. Orders will skip review when validation passes." |
+| Delivery failed | "Delivery to Acme failed — see what Acme said →" |
 
 Toasts auto-dismiss in 5s. Failure toasts persist until dismissed.
 
@@ -106,17 +139,22 @@ H1   Buyers on one side.
 Sub  ProcuLink turns messy purchase orders into supplier-ready outputs.
      Upload Excel, PDF, cXML or EDI orders, review only exceptions, deliver clean.
 
-CTA  [ Cross the bridge free for 30 days ]   [ Watch a 90-second walkthrough → ]
+CTA  [ Start free ]   [ Watch the walkthrough → ]
 ```
+
+The H1 keeps the bridge image because a *metaphor in a sentence* is not a *coined term the user
+has to learn*. What is banned is turning it into product vocabulary — a noun ("a crossing"), a
+label ("Buyer docks") or a verb ("Cross the bridge"). Marketing stat blocks additionally may not
+invent numbers: see the landing-page rule in CLAUDE.md §14 (Group J2 (e)).
 
 ### Stat block (below hero)
 ```
-84% automation     1m 42s avg crossing     €4.20 per order     9 connectors
+Formats in     Suppliers reached     Channels     Avg time to delivery
 ```
 
 ### Section heads
 - *"What you'll stop doing manually"* → 4-up of manual order-processing pains
-- *"How a crossing works"* → animated diagram (parse → normalize → validate → transform → deliver)
+- *"How an order flows through"* → animated diagram (parse → normalize → validate → transform → deliver)
 - *"Built for the messy 80%"* → distributors / wholesalers / resellers
 - *"Trust through transparency"* → provenance · no silent automation · failure is loud
 

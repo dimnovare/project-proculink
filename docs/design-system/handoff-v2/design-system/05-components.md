@@ -237,7 +237,7 @@ type ButtonProps = {
 }
 ```
 
-- `primary` → navy bg, white text. *Use for the main page action* (e.g. "Cross the bridge →").
+- `primary` → navy bg, white text. *Use for the main page action* (e.g. "Send to supplier").
 - `secondary` → white bg, ink text, border. *Use for save-draft, secondary actions.*
 - `ghost` → transparent bg, ink-muted text. *Use for nav, less-important actions.*
 - `danger` → danger bg, white text. *Reserve for destructive actions.*

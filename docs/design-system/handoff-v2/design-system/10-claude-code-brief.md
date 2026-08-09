@@ -120,8 +120,8 @@ A persistent **navy left sidebar (220px)** + **navy top bar (52px)** + **main wo
   - **Bridge** (= dashboard / wire topology — the home)
   - **Inbox** (with sub-items: All / New / Needs review / Failed / Sent)
   - **Workbench** (Upload, Drafts)
-  - **Library** (Supplier docks, Buyer docks, Mappings, Rules, Output templates)
-  - **Operations** (Crossings log, Connectors, Webhooks)
+  - **Library** (Suppliers, Buyers, Item codes, Rules, Output templates)
+  - **Operations** (Deliveries, Connectors, Webhooks)
   - **Settings**
 - Active item: 2px link-gradient strip to the left, slightly raised navy surface, white text. Inactive: `navy.text` with low-opacity icon.
 - Footer: green dot + "Bridge healthy · 12/min".
@@ -160,7 +160,7 @@ The product's signature screen. **A live network diagram, not a grid of cards.**
   - First card has a `link-spine` top edge.
 - Below KPIs: two columns —
   - **In transit · last 10 minutes** — dense compact list of orders currently moving (PO, buyer, supplier, file chip, stage name colored by stage).
-  - **Supplier dock health** — five suppliers with acceptance % bars (green ≥95, amber 85–95, red <85).
+  - **Supplier health** — five suppliers with acceptance % bars (green ≥95, amber 85–95, red <85).
 
 ### 5.2 Inbox (queue view)
 
@@ -175,7 +175,7 @@ The product's signature screen. **A live network diagram, not a grid of cards.**
 This is the most important screen in the product.
 
 **Page header (above edge rails):**
-- Back arrow · buyer card (name, file chip, source filename) · **stage bridge graphic** with current stage highlighted (1m-tall horizontal SVG: parse → normalize → validate → transform → deliver, dots filled green for done, blue + pulsing for active) · supplier card (name, output file chip, channel) · "Save draft" / "Cross the bridge →" buttons.
+- Back arrow · buyer card (name, file chip, source filename) · **stage bridge graphic** with current stage highlighted (1m-tall horizontal SVG: parse → normalize → validate → transform → deliver, dots filled green for done, blue + pulsing for active) · supplier card (name, output file chip, channel) · "Save draft" / "Send to supplier" buttons.
 - Primary button uses navy bg, white text, with a 12px link-gradient swatch on the right.
 
 **Body (wrapped in EdgeRails):**
@@ -209,7 +209,7 @@ This is the most important screen in the product.
 - Errors, Warnings, AI suggestions grouped. Each card shows confidence chip and a "Jump to field" action that scrolls the spine + highlights the matching node and source zone.
 
 **Action bar (sticky bottom):**
-- Grand total · output template · "Save draft" · primary "Cross the bridge →" with a confirm dialog ("I've reviewed the 3 exceptions. Send to Acme.")
+- Grand total · output template · "Save draft" · primary "Send to supplier" with a confirm dialog ("I've reviewed the 3 issues. Send to Acme.")
 
 ### 5.4 Upload Workbench
 
@@ -230,13 +230,13 @@ This is the most important screen in the product.
 - Card-grid OR list (toggleable). Each rule: name, scope, severity (Error/Warning/Info), 30-day trigger count.
 - Detail page: visual rule builder — left "When" (field selector + operator + value), right "Then" (severity + message + auto-fix). No raw code for MVP.
 
-### 5.7 Crossings Log (audit timeline)
+### 5.7 Delivery log (audit timeline) — shipped title "Deliveries", `/operations/log`
 
 - Append-only timeline of events per order: `received`, `parsed`, `extracted`, `mapped`, `validated`, `human-edited`, `transformed`, `delivered`, `failed`, `retried`.
 - Each entry: actor (user / system / AI / supplier), timestamp, order link, expandable payload-diff drawer.
-- Right panel metrics: crossings today, avg cycle time, exception rate by supplier, top failing rules.
+- Right panel metrics: orders today, avg cycle time, exception rate by supplier, top failing rules.
 
-### 5.8 Supplier dock / Buyer dock profile pages
+### 5.8 Supplier / Buyer profile pages
 
 - Header: name, total orders, avg cycle, exception rate.
 - Tabs: Overview · Mappings · Rules · Output templates · Connectors · History.
@@ -304,7 +304,7 @@ Six patterns, each with **one job in the product**. All respect `prefers-reduced
 | Wire-topology travellers | Always (subtle) | Tiny white-dot pulses move along active wires using CSS `offset-path`, 6s loop, staggered. |
 | Status node pulse | Stage activates on the current order | The active node in `<StatusJourney>` pulses once with a brand-color ring. |
 | Connector draw | Mapping saved/accepted | The buyer-SKU ↔ supplier-SKU line draws blue→green via stroke-dashoffset, 0.8s ease-out. |
-| Validate-to-deliver flush | "Cross the bridge" clicked | Status journey advances stage by stage in 40ms stagger; output preview gets a single subtle highlight. |
+| Validate-to-deliver flush | "Send to supplier" clicked | Status journey advances stage by stage in 40ms stagger; output preview gets a single subtle highlight. |
 | Empty-state link-close | Hovering a placeholder card | The mark's link completes its loop. Invites the action calmly. |
 
 **Motion budget:** loops max 6s · no motion above the action bar during keyboard navigation · disable all wire-topology animation under `prefers-reduced-motion: reduce`.
@@ -316,27 +316,44 @@ Six patterns, each with **one job in the product**. All respect `prefers-reduced
 ### Marketing
 - H1: *"Buyers on one side. Suppliers on the other. We are the bridge."*
 - Sub: *"ProcuLink turns messy purchase orders into supplier-ready outputs. Upload Excel, PDF, cXML or EDI orders, review only exceptions, deliver clean."*
-- Primary CTA: *"Cross the bridge free for 30 days"* · Secondary: *"Watch a 90-second walkthrough →"*
-- Stat block: 84% automation · 1m 42s avg crossing · €4.20 per order · 9 connectors.
+- Primary CTA: *"Start free"* · Secondary: *"Watch the walkthrough →"*
+- Stat block: state real, checkable facts (formats in · suppliers reached · channels · avg time to
+  delivery). Do not invent percentages or per-order prices — see CLAUDE.md §14 (Group J2 (e)).
 
 ### App
-- Dashboard title: *"Order topology"* (not "Dashboard").
-- Order detail primary action: *"Cross the bridge →"* (not "Send").
+- Dashboard title: *"Dashboard"* (browser) / *"Overview"* (hub tab). "Order topology" is the
+  internal name of the wire diagram and must not ship as a heading.
+- Order detail primary action: *"Send to supplier"*.
 - Stage labels: *Parse · Normalize · Validate · Transform · Deliver*.
-- Empty inbox: *"No orders yet. Drop a file or connect a buyer dock."*
+- Empty inbox: *"No orders yet. Drop a file, or connect a channel that receives them."*
 - AI suggestion CTAs: *"Accept" · "Edit" · "Reject"* — never "Apply magic" or sparkles.
-- Confirm dialog: *"I've reviewed the 3 exceptions. Send to Acme."* (checkbox + recipient + total + retry behavior visible).
-- Success toast: *"Crossed to Acme · accepted · 1m 42s"*.
+- Confirm dialog: *"I've reviewed the 3 issues. Send to Acme."* (checkbox + recipient + total + retry behavior visible).
+- Success toast: *"Delivered to Acme · accepted · 1m 42s"*.
+
+Shipped titles are owned by `src/lib/pageTitles.ts`; the approved word list is
+`src/lib/vocabulary.ts`, enforced by `bun run lint:vocab`. Read those, not this list.
 
 ### Vocabulary
-- *Bridge* = the product · *crossing* = a single order transit · *dock* = a supplier or buyer endpoint · *lane* = a buyer↔supplier pairing · *spine* = the canonical model · *anatomy* = the source-document zone overlay.
+
+> **Corrected 2026-08-09.** This section previously prescribed the bridge metaphor as product
+> vocabulary and told implementers to write *"Cross the bridge →"* instead of *"Send"*. That is
+> backwards: the founder purged the metaphor from user-facing copy (CLAUDE.md §9), and
+> *"Send to supplier"* is what shipped
+> (`src/components/bridge/mapper/MapperWorkbench.tsx:1005`).
+
+- **A user reads:** order · supplier · buyer · item code · order layout · output · delivery ·
+  rule · issue · workspace.
+- **Internal only** — component names, CSS/design tokens and route names, never a visible string:
+  *bridge* (`/bridge`) · *crossing* (`CrossingsLog.tsx`) · *dock* (`SupplierDockProfile.tsx`) ·
+  *lane* (`LaneDrawer.tsx`) · *spine* (`CanonicalSpine`, `bg-link-spine`) ·
+  *anatomy* (`DocumentAnatomy.tsx`) · *wire* (`WireTopology.tsx`).
 
 ---
 
 ## 10. Trust rules (designed in, not aspirational)
 
 1. **Provenance everywhere.** Every AI suggestion shows confidence + source attribution + a one-click "show me where this came from in the source file" that highlights the matching anatomy zone.
-2. **No silent automation.** Auto-process is a deliberate per-supplier toggle with a visible audit trail in Crossings Log. Never default.
+2. **No silent automation.** Auto-process is a deliberate per-supplier toggle with a visible audit trail in the delivery log. Never default.
 3. **Failure is loud, recoverable, and explained.** The Failed view must be the most useful screen in the product — not a tombstone. Every failure shows: what the supplier said, what we sent, what we'd retry, and a one-click "fix and resend" path.
 
 ---
@@ -350,7 +367,7 @@ Six patterns, each with **one job in the product**. All respect `prefers-reduced
 - **Auth:** Clerk.
 - **Backend contract:** ASP.NET Core API. Postgres. Type all DTOs from the OpenAPI schema (use `openapi-typescript` or the project's existing codegen).
 - **File rendering:** `pdfjs-dist` (PDF), `react-data-grid` (spreadsheets), `shiki` (XML/cXML/EDI syntax).
-- **Mock data:** MSW handlers for every endpoint so the entire UI is browsable offline. Seed: 50 orders across 6 suppliers and 4 buyers, 8 file-format examples, 200 SKU mappings, 12 validation rules, 30 days of crossings log.
+- **Mock data:** MSW handlers for every endpoint so the entire UI is browsable offline. Seed: 50 orders across 6 suppliers and 4 buyers, 8 file-format examples, 200 SKU mappings, 12 validation rules, 30 days of delivery-log events.
 - **Hosting:** Vercel (frontend) + Railway (backend).
 
 ### Route structure (App Router)
@@ -401,8 +418,8 @@ app/
 5. **Bridge dashboard** at `/bridge`:
    - `<WireTopology>` with offset-path animated wires
    - Monumental KPI strip
-   - In-transit list + supplier dock health
-6. **Upload Workbench**, **Mapping Editor**, **Validation Rules**, **Crossings Log**.
+   - In-transit list + supplier health
+6. **Upload Workbench**, **Mapping Editor**, **Validation Rules**, **delivery log**.
 7. **Marketing pages** with the bridge hero illustration (separate route group).
 8. **Motion layer** — implement the six patterns from §8 last, so they layer cleanly over a working app.
 
@@ -413,7 +430,7 @@ app/
 The build is done when:
 
 1. A user can land on `/bridge`, see the live wire topology with travelling pulses, click a wire, get a lane detail drawer, and jump from there into a specific order's Canonical Spine review without losing context.
-2. From the Spine review, the user can drop a PDF on Upload, watch the four pipeline stages, land in a Spine with at least 3 flagged exceptions, accept 2 AI mapping suggestions, fix one quantity, and click "Cross the bridge" to see the resulting cXML on screen — all without leaving the keyboard.
+2. From the Spine review, the user can drop a PDF on Upload, watch the four pipeline stages, land in a Spine with at least 3 flagged exceptions, accept 2 AI mapping suggestions, fix one quantity, and click "Send to supplier" to see the resulting cXML on screen — all without leaving the keyboard.
 3. The Inbox renders 1,000 mocked orders at 60fps with full sort/filter/bulk-select.
 4. Every screen has a thoughtful empty state, loading skeleton (using the link-close motion, not a spinner), and error boundary.
 5. Cmd+K opens a working command palette indexed across orders, suppliers, SKUs, and named actions.

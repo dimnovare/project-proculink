@@ -33,7 +33,7 @@ Every screen serves this loop. Every screen makes the underlying order visible. 
 ## Design principles
 
 ### 1. The product is a bridge — and shows itself as one
-Every order-handling surface has visible architecture: edge rails frame the work area, the canonical spine sits at the center of the review screen, wires arc between docks on the dashboard. The metaphor is structural, not decorative.
+Every order-handling surface has visible architecture: edge rails frame the work area, the canonical spine sits at the center of the review screen, wires arc between buyer and supplier ports on the dashboard. The metaphor is structural, not decorative — and it is **structural only**. It shapes layout, tokens and component names; it never becomes a word the user reads. See *Vocabulary* below.
 
 ### 2. Operator workbench, not marketing site
 Density over whitespace. Information per pixel matters. We are not selling — we are working. Bodies are 13–14px; tables run 36px rows; the inbox shows 30+ orders above the fold.
@@ -66,30 +66,48 @@ Six motion patterns, each with a single job. All respect `prefers-reduced-motion
 
 | Trait | Example | Anti-example |
 |---|---|---|
-| **Operational, not aspirational** | "Cross the bridge → " | "Transform your procurement" |
-| **Specific, not generic** | "1m 42s avg crossing" | "Lightning-fast" |
+| **Operational, not aspirational** | "Send to supplier" | "Transform your procurement" |
+| **Specific, not generic** | "1m 42s average time to delivery" | "Lightning-fast" |
+| **Plain word, not coined term** | "order", "supplier", "delivery" | "crossing", "dock", "lane" |
 | **Plain English, not jargon-padded** | "Auto-process is OFF for this supplier" | "AI-powered intelligent routing" |
 | **Honest about limits** | "AI suggests ACM-PLT-200×200×4 (84%)" | "Smart matching" |
 | **Direct, not chatty** | "Acme rejects negative quantities." | "Hmm, looks like Acme might not love that quantity." |
 
-## Vocabulary (use these terms consistently)
+## Vocabulary
+
+> **Corrected 2026-08-09.** This table used to say "use these terms consistently" and listed the
+> bridge metaphor as product vocabulary. The founder purged it from user-facing copy
+> (CLAUDE.md §9). See `07-content.md` for the full content rules; the authority is
+> `src/lib/vocabulary.ts`, enforced by `bun run lint:vocab`.
+
+**What a user reads** — plain procurement words:
 
 | Term | Meaning |
 |---|---|
-| **Bridge** | The product itself. Also the dashboard route. |
-| **Crossing** | A single order transit (parse → deliver). |
-| **Dock** | A supplier or buyer endpoint. |
-| **Lane** | A buyer↔supplier pairing. |
-| **Spine** | The canonical PO model, rendered as the center column on the review screen. |
-| **Anatomy** | The source-document zone overlay. |
-| **Wire** | A buyer↔supplier connection drawn on the Bridge dashboard. |
+| **Order** | A single purchase order and its trip through the pipeline (parse → deliver). |
+| **Supplier** / **Buyer** | The counterparty at each end. |
+| **Delivery** | Sending the output on the supplier's channel. |
 | **Output** | The supplier-ready file (cXML, CSV, EDI, etc.) we produce. |
-| **Map** | A buyer-SKU ↔ supplier-SKU pairing. |
+| **Item code** | A buyer-SKU ↔ supplier-SKU pairing. |
+| **Order layout** | The per-supplier field layout of the output. |
+| **Issue** | Something a human has to resolve on an order. |
+
+**Internal only** — allowed in component names, tokens and routes, never in a user-visible string:
+
+| Term | Meaning |
+|---|---|
+| **Bridge** | The system itself. Also the dashboard route, `/bridge`. |
+| **Crossing** | One order's transit. Survives in `CrossingsLog.tsx`. |
+| **Dock** | A supplier or buyer endpoint. Survives in `SupplierDockProfile.tsx`. |
+| **Lane** | A buyer↔supplier pairing. Survives in `LaneDrawer.tsx`. |
+| **Spine** | The canonical PO model, rendered as the center column on the review screen. `CanonicalSpine`, `bg-link-spine`. |
+| **Anatomy** | The source-document zone overlay. `DocumentAnatomy.tsx`. |
+| **Wire** | A buyer↔supplier connection drawn on the dashboard. `WireTopology.tsx`. |
 
 ## Trust rules (designed in, not aspirational)
 
 1. **Provenance everywhere** — every AI suggestion has confidence + source attribution + a one-click jump to the matching source zone.
-2. **No silent automation** — Auto-process is per-supplier, opt-in, with a visible audit trail in the Crossings Log. Never a default.
+2. **No silent automation** — Auto-process is per-supplier, opt-in, with a visible audit trail in the delivery log (`/operations/log`, shipped title "Deliveries"). Never a default.
 3. **Failure is loud, recoverable, and explained** — the Failed view is the most useful screen in the product. Every failure shows what the supplier said, what we sent, what we'd retry, and a one-click fix-and-resend.
 
 These are not principles; they are non-negotiable product rules.
