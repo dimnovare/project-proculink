@@ -28,17 +28,17 @@ import { serverReasonOrNull } from "@/lib/serverText";
 export function defaultPortForProtocol(protocol: CatalogSourceProtocol): number {
   if (protocol === "sftp") return 22;
   if (protocol === "ftp" || protocol === "ftps") return 21;
-  return 0; // http/https/logicom are URL-based — port lives in the URL.
+  return 0; // http/https/aes2fa are URL-based — port lives in the URL.
 }
 
-/** True for the URL-based protocols (http/https/logicom); false for the host-based file servers. */
+/** True for the URL-based protocols (http/https/aes2fa); false for the host-based file servers. */
 export function protocolUsesUrl(protocol: CatalogSourceProtocol): boolean {
-  return protocol === "http" || protocol === "https" || protocol === "logicom";
+  return protocol === "http" || protocol === "https" || protocol === "aes2fa";
 }
 
 /** True for a vendor-connector protocol (custom auth via the backend fetcher seam). */
 export function protocolIsVendor(protocol: CatalogSourceProtocol): boolean {
-  return protocol === "logicom";
+  return protocol === "aes2fa";
 }
 
 /** Form-state inputs the auth-config builder reads (one field set per method). */

@@ -85,16 +85,17 @@ const CANONICAL_FIELD_LABELS: Record<CatalogCanonicalField, string> = {
 };
 
 // HTTPS + FTPS/SFTP first to default-discourage plaintext FTP / cleartext HTTP.
-// "logicom" is a vendor connector, not a transport protocol — it is filtered out of
-// the picker for new setups (see visibleProtocols) and kept here only so a source
-// already saved with it stays renderable/editable.
+// "aes2fa" names an AUTH MECHANISM, not a transport: a vendor connector whose per-call
+// AES 2FA signing bypasses the generic HTTP auth path via the backend fetcher seam. It is
+// filtered out of the picker for new setups (see visibleProtocols) and kept here only so a
+// source already saved with it stays renderable/editable.
 const PROTOCOLS: Array<{ id: CatalogSourceProtocol; label: string }> = [
   { id: "https", label: "HTTPS API (encrypted)" },
   { id: "http", label: "HTTP API (not encrypted)" },
   { id: "sftp", label: "SFTP" },
   { id: "ftps", label: "FTPS" },
   { id: "ftp", label: "FTP" },
-  { id: "logicom", label: "Logicom QuickConnect" },
+  { id: "aes2fa", label: "AES 2FA signed API" },
 ];
 
 // Only the five auth methods the backend implements. Labels mirror DeliveryConfigEditor.
@@ -142,12 +143,12 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
   const [clientSecret, setClientSecret] = useState("");
   const [scope, setScope] = useState("");
 
-  // Logicom QuickConnect vendor credentials (write-only).
-  const [logicomCustomerId, setLogicomCustomerId] = useState("");
-  const [logicomConsumerKey, setLogicomConsumerKey] = useState("");
-  const [logicomConsumerSecret, setLogicomConsumerSecret] = useState("");
-  const [logicomAccessTokenKey, setLogicomAccessTokenKey] = useState("");
-  const [logicomCurrency, setLogicomCurrency] = useState("EUR");
+  // AES 2FA signed-API vendor credentials (write-only).
+  const [aes2faCustomerId, setAes2faCustomerId] = useState("");
+  const [aes2faConsumerKey, setAes2faConsumerKey] = useState("");
+  const [aes2faConsumerSecret, setAes2faConsumerSecret] = useState("");
+  const [aes2faAccessTokenKey, setAes2faAccessTokenKey] = useState("");
+  const [aes2faCurrency, setAes2faCurrency] = useState("EUR");
 
   // Per-source column mapping (advanced, collapsed by default). Rows of source-column →
   // canonical field. Directive rows (__noheader__/__encoding__) are edited via dedicated toggles.
@@ -204,12 +205,12 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
     setClientId("");
     setClientSecret("");
     setScope("");
-    // Logicom vendor creds are write-only — never hydrated; only "saved · masked" is shown.
-    setLogicomCustomerId("");
-    setLogicomConsumerKey("");
-    setLogicomConsumerSecret("");
-    setLogicomAccessTokenKey("");
-    setLogicomCurrency("EUR");
+    // AES 2FA vendor creds are write-only — never hydrated; only "saved · masked" is shown.
+    setAes2faCustomerId("");
+    setAes2faConsumerKey("");
+    setAes2faConsumerSecret("");
+    setAes2faAccessTokenKey("");
+    setAes2faCurrency("EUR");
     // Column mapping IS echoed back (not a secret) — hydrate the editable rows + directives.
     const mapping = s.columnMapping ?? {};
     setNoHeader(String(mapping["__noheader__"] ?? "").toLowerCase() === "true");
@@ -232,18 +233,18 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
   const isVendorProtocol = protocolIsVendor(protocol);
   const isHttpProtocol = protocol === "http" || protocol === "https";
   const hasPassword = savedSource?.hasPassword ?? false;
-  // Logicom creds saved (write-only) only counts when the SAVED source is also logicom.
-  const logicomHasSavedCreds =
-    isVendorProtocol && (savedSource?.hasAuthConfig ?? false) && savedSource?.protocol === "logicom";
+  // Vendor creds saved (write-only) only counts when the SAVED source is also aes2fa.
+  const aes2faHasSavedCreds =
+    isVendorProtocol && (savedSource?.hasAuthConfig ?? false) && savedSource?.protocol === "aes2fa";
 
-  // Logicom QuickConnect is never OFFERED for a new setup — but a source already
+  // The AES 2FA connector is never OFFERED for a new setup — but a source already
   // saved with it must not become invisible/uneditable, so the tile renders while
   // the saved source (or the current, not-yet-saved selection) still uses it.
-  // "logicom" is hidden as a vendor connector; "http" is hidden because the API now refuses a
+  // "aes2fa" is hidden as a vendor connector; "http" is hidden because the API now refuses a
   // cleartext feed URL, so offering it would be an option that can only fail. Both stay visible
   // when that is what is already saved, so an existing source remains renderable and editable.
   const visibleProtocols = PROTOCOLS.filter((p) => {
-    if (p.id === "logicom") return protocol === "logicom" || savedSource?.protocol === "logicom";
+    if (p.id === "aes2fa") return protocol === "aes2fa" || savedSource?.protocol === "aes2fa";
     if (p.id === "http") return protocol === "http" || savedSource?.protocol === "http";
     return true;
   });
@@ -302,18 +303,18 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
     authMethod !== "none" &&
     savedSource?.authMethod !== authMethod;
 
-  // Logicom: all four creds provided together, OR saved creds kept (all fields blank).
-  const logicomFormSatisfied = (() => {
+  // aes2fa: all four creds provided together, OR saved creds kept (all fields blank).
+  const aes2faFormSatisfied = (() => {
     const anyTyped =
-      logicomCustomerId.trim() || logicomConsumerKey.trim() ||
-      logicomConsumerSecret || logicomAccessTokenKey;
+      aes2faCustomerId.trim() || aes2faConsumerKey.trim() ||
+      aes2faConsumerSecret || aes2faAccessTokenKey;
     if (anyTyped) {
       return Boolean(
-        logicomCustomerId.trim() && logicomConsumerKey.trim() &&
-        logicomConsumerSecret && logicomAccessTokenKey,
+        aes2faCustomerId.trim() && aes2faConsumerKey.trim() &&
+        aes2faConsumerSecret && aes2faAccessTokenKey,
       );
     }
-    return logicomHasSavedCreds;
+    return aes2faHasSavedCreds;
   })();
 
   // The API refuses a cleartext feed URL outright. This mirror exists so the operator is told
@@ -322,7 +323,7 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
   const urlProblem = urlVerdict && isRefusal(urlVerdict) ? urlVerdict.message : null;
 
   const canSave = isVendorProtocol
-    ? Boolean(url.trim()) && !urlProblem && logicomFormSatisfied
+    ? Boolean(url.trim()) && !urlProblem && aes2faFormSatisfied
     : isHttpProtocol
       ? Boolean(url.trim()) && !urlProblem && httpAuthFormSatisfied(authForm, savedAuthSecretForMethod)
       : Boolean(host.trim()) &&
@@ -334,15 +335,15 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
   function vendorConfigPayload() {
     if (!isVendorProtocol) return null;
     const anyTyped =
-      logicomCustomerId.trim() || logicomConsumerKey.trim() ||
-      logicomConsumerSecret || logicomAccessTokenKey;
-    if (!anyTyped && logicomHasSavedCreds) return null; // keep stored
+      aes2faCustomerId.trim() || aes2faConsumerKey.trim() ||
+      aes2faConsumerSecret || aes2faAccessTokenKey;
+    if (!anyTyped && aes2faHasSavedCreds) return null; // keep stored
     return {
-      customerId: logicomCustomerId.trim(),
-      consumerKey: logicomConsumerKey.trim(),
-      consumerSecret: logicomConsumerSecret,
-      accessTokenKey: logicomAccessTokenKey,
-      currency: logicomCurrency.trim() || "EUR",
+      customerId: aes2faCustomerId.trim(),
+      consumerKey: aes2faConsumerKey.trim(),
+      consumerSecret: aes2faConsumerSecret,
+      accessTokenKey: aes2faAccessTokenKey,
+      currency: aes2faCurrency.trim() || "EUR",
     };
   }
 
@@ -374,7 +375,7 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
         fileFormat,
         syncIntervalHours: Number(schedule) || 24,
         isEnabled,
-        // http/https/logicom (url) — auth method/config only for http; vendor config for logicom:
+        // http/https/aes2fa (url) — auth method/config only for http; vendor config for aes2fa:
         url: isUrlProtocol ? url.trim() : null,
         authMethod: isHttpProtocol ? authMethod : null,
         authConfig: isHttpProtocol ? buildAuthConfigPayload(authForm, savedAuthSecretForMethod) : null,
@@ -448,11 +449,11 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
       setClientId("");
       setClientSecret("");
       setScope("");
-      setLogicomCustomerId("");
-      setLogicomConsumerKey("");
-      setLogicomConsumerSecret("");
-      setLogicomAccessTokenKey("");
-      setLogicomCurrency("EUR");
+      setAes2faCustomerId("");
+      setAes2faConsumerKey("");
+      setAes2faConsumerSecret("");
+      setAes2faAccessTokenKey("");
+      setAes2faCurrency("EUR");
       setMappingRows([]);
       setNoHeader(false);
       setEncodingHint("");
@@ -594,7 +595,7 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
                       const next = e.target.value;
                       setUrl(next);
                       // Keep the picker honest: for the plain http/https API the URL scheme is what
-                      // the fetch uses. Vendor connectors (logicom) keep their protocol regardless.
+                      // the fetch uses. Vendor connectors (aes2fa) keep their protocol regardless.
                       if (!isVendorProtocol) {
                         const lower = next.trim().toLowerCase();
                         if (lower.startsWith("http://")) setProtocol("http");
@@ -603,7 +604,7 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
                       markEdited();
                     }}
                     placeholder={isVendorProtocol
-                      ? "https://quickconnect.logicompartners.com/api"
+                      ? "https://api.supplier.example/catalog"
                       : "https://api.supplier.example/v1/catalog.csv"}
                     className="h-9 w-full rounded-[5px] px-2.5 text-[12px]"
                     style={INPUT_STYLE}
@@ -686,13 +687,13 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
               </div>
               <HelpLink href="/help/catalog-csv-field-guide" label="catalog CSV guide" />
 
-              {/* ── Credentials: HTTP auth OR Logicom vendor creds OR file-server password ── */}
+              {/* ── Credentials: HTTP auth OR AES 2FA vendor creds OR file-server password ── */}
               {isVendorProtocol ? (
                 <div className="rounded-[7px]" style={{ border: "1px solid #E5E8EE" }}>
                   <div className="flex items-center gap-2 px-3 py-2" style={{ borderBottom: "1px solid #E5E8EE" }}>
                     <KeyRound size={14} color="#2E8E3A" />
-                    <span className="text-[12px] font-semibold" style={{ color: "#0B1A2F" }}>Logicom credentials</span>
-                    {logicomHasSavedCreds && (
+                    <span className="text-[12px] font-semibold" style={{ color: "#0B1A2F" }}>AES 2FA credentials</span>
+                    {aes2faHasSavedCreds && (
                       <span
                         className="ml-auto text-[11px]"
                         // #1E6D29 not #2E8E3A: 11px TEXT on the white card is
@@ -706,29 +707,29 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
                   </div>
                   <div className="grid gap-3 p-3">
                     <p className="text-[11px]" style={{ color: "#5E6779" }}>
-                      Logicom QuickConnect signs each request with your credentials (AES 2FA). Enter the
-                      four keys Logicom issued; they are stored encrypted and never shown again.
+                      This connector signs each request with your credentials (AES 2FA). Enter the
+                      four keys the vendor issued; they are stored encrypted and never shown again.
                     </p>
                     <div className="grid gap-3 lg:grid-cols-2">
                       <Field label="Customer ID">
-                        <input value={logicomCustomerId} onChange={(e) => { setLogicomCustomerId(e.target.value); markEdited(); }} placeholder={logicomHasSavedCreds ? "•••• (leave blank to keep)" : "e.g. 2127"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                        <input value={aes2faCustomerId} onChange={(e) => { setAes2faCustomerId(e.target.value); markEdited(); }} placeholder={aes2faHasSavedCreds ? "•••• (leave blank to keep)" : "Your customer number"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
                       </Field>
                       <Field label="Currency">
-                        <input value={logicomCurrency} onChange={(e) => { setLogicomCurrency(e.target.value); markEdited(); }} placeholder="EUR" className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                        <input value={aes2faCurrency} onChange={(e) => { setAes2faCurrency(e.target.value); markEdited(); }} placeholder="EUR" className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
                       </Field>
                     </div>
                     <Field label="Consumer key">
-                      <input value={logicomConsumerKey} onChange={(e) => { setLogicomConsumerKey(e.target.value); markEdited(); }} placeholder={logicomHasSavedCreds ? "•••• (leave blank to keep)" : "ConsumerKey"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                      <input value={aes2faConsumerKey} onChange={(e) => { setAes2faConsumerKey(e.target.value); markEdited(); }} placeholder={aes2faHasSavedCreds ? "•••• (leave blank to keep)" : "ConsumerKey"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
                     </Field>
                     <div className="grid gap-3 lg:grid-cols-2">
                       <Field label="Consumer secret">
-                        <input type="password" value={logicomConsumerSecret} onChange={(e) => { setLogicomConsumerSecret(e.target.value); markEdited(); }} placeholder={logicomHasSavedCreds ? "••••" : "ConsumerSecret"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                        <input type="password" value={aes2faConsumerSecret} onChange={(e) => { setAes2faConsumerSecret(e.target.value); markEdited(); }} placeholder={aes2faHasSavedCreds ? "••••" : "ConsumerSecret"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
                       </Field>
                       <Field label="Access-token key">
-                        <input type="password" value={logicomAccessTokenKey} onChange={(e) => { setLogicomAccessTokenKey(e.target.value); markEdited(); }} placeholder={logicomHasSavedCreds ? "••••" : "AccessTokenKey (32 chars)"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                        <input type="password" value={aes2faAccessTokenKey} onChange={(e) => { setAes2faAccessTokenKey(e.target.value); markEdited(); }} placeholder={aes2faHasSavedCreds ? "••••" : "AccessTokenKey (32 chars)"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
                       </Field>
                     </div>
-                    {logicomHasSavedCreds && (
+                    {aes2faHasSavedCreds && (
                       <p className="m-0 text-[11px]" style={{ color: "var(--ink-faint)" }}>
                         Leave all four blank to keep the saved credentials. To change any, re-enter all four —
                         they are stored together.
