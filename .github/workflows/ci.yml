@@ -295,6 +295,24 @@ jobs:
       - name: Diff the org-admin refusal code against the backend C#
         if: always()
         run: bun run test src/test/orgAdminRefusal.test.ts
+
+      # The SAME backend checkout, fourth question: does anything in this app actually CALL
+      # each endpoint the backend exposes? An endpoint nothing calls is a door with no handle —
+      # it can be documented, tested and deployed while no user can ever reach it.
+      #
+      # This step exists because the guard it runs had NEVER RUN. src/test/endpoint-reachability.test.ts
+      # enumerates the backend's routes from a sibling checkout and skips its diff when none is
+      # reachable; the unit-test job sets no PROCULINK_BACKEND_PATH, so in CI it reported green
+      # having compared nothing — the identical failure described in this job's own header for
+      # backendMirror.test.ts. That fix gave the MIRROR guard a checkout and left its SIBLING
+      # skipping, which is how the gap survived: a guard is only as real as the job that runs it.
+      #
+      # Proven live on 2026-08-13: merging the per-tenant inbound-email endpoints (backend #190)
+      # left three of them with no caller, and this assertion was red locally and green on GitHub
+      # for as long as nobody ran it by hand.
+      - name: Check every backend endpoint has a caller
+        if: always()
+        run: bun run test src/test/endpoint-reachability.test.ts
   # ══ END backend-mirror job ══════════════════════════════════════════════════
 
   test-e2e:
