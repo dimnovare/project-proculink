@@ -43,6 +43,7 @@ import {
   TEST_PACK_BACKEND_FILE,
   TEST_PACK_BACKEND_RECORDS,
 } from "@/components/connections/testPackSummary";
+import { MINIMUM_PLAN } from "@/lib/gatedCapabilities";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // The cross-repo mirror check.
@@ -1759,6 +1760,128 @@ describe("the connection test-pack summary mirrors the backend record", () => {
   });
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Plan-gate error codes quoted in the admin guides.
+//
+// THE DEFECT THIS EXISTS FOR. `admin/guides/onboard-a-new-client` told staff that enabling
+// catalog sync on Pilot returns `catalog_sync_requires_integration`, "which is misleading —
+// the real requirement is Growth, not Integration". That was true when it was written and
+// WP-11 made it false: the backend derives the tier from
+// `PlanConstants.GetMinimumPlan(BillingFeature.SftpIngestion)`, which is Growth, so the code
+// now reads `catalog_sync_requires_growth` and says exactly what it means. The guide was
+// still instructing an operator to distrust a correct 403 and go looking for a bug.
+//
+// A prose correction rots the same way the original did. The tier in a documented code is
+// derivable — the capability↔feature binding from the controller, the feature↔plan binding
+// from the mirrored gate table — so it is derived, and the guide is checked against it.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const CONTROLLERS_DIR = "ProcuLink.Api/Controllers";
+const ADMIN_GUIDES_DIR = "src/app/(app)/admin/guides";
+
+/** `RequiresPlan("catalog_sync", BillingFeature.SftpIngestion)` → capability ⇒ feature. */
+function parseRequiresPlanSites(cs: string): Record<string, string> {
+  const sites: Record<string, string> = {};
+  for (const m of stripCsComments(cs).matchAll(
+    /RequiresPlan\(\s*"([a-z0-9_]+)"\s*,\s*BillingFeature\.([A-Za-z0-9]+)\s*\)/g,
+  )) {
+    sites[m[1]] = m[2];
+  }
+  return sites;
+}
+
+/** `SftpIngestion` → `sftpIngestion`, the key MINIMUM_PLAN mirrors that feature under. */
+const featureKey = (name: string): string => name.charAt(0).toLowerCase() + name.slice(1);
+
+/** Every `<capability>_requires_<plan>` literal in the admin guides, with where it sits. */
+function guideGateCodes(): Array<{ file: string; capability: string; plan: string; code: string }> {
+  const found: Array<{ file: string; capability: string; plan: string; code: string }> = [];
+  const walkAll = (dir: string): string[] => {
+    const out: string[] = [];
+    for (const entry of readdirSync(dir)) {
+      const full = join(dir, entry);
+      if (statSync(full).isDirectory()) out.push(...walkAll(full));
+      else if (/\.(mdx|tsx?)$/.test(entry) && !/\.(test|spec)\.tsx?$/.test(entry)) out.push(full);
+    }
+    return out;
+  };
+  for (const file of walkAll(join(ROOT, ADMIN_GUIDES_DIR))) {
+    for (const m of readFileSync(file, "utf8").matchAll(/\b([a-z0-9_]+)_requires_([a-z]+)\b/g)) {
+      found.push({ file: file.replace(ROOT, ""), capability: m[1], plan: m[2], code: m[0] });
+    }
+  }
+  return found;
+}
+
+describe("the plan-gate codes the admin guides quote are the codes the backend emits", () => {
+  test("the call-site parser actually parses (so a green check means something)", () => {
+    const fixture = `
+    // A commented-out site must not count.
+    // return BillingGateErrors.RequiresPlan("ghost", BillingFeature.Ghost);
+    error = BillingGateErrors.RequiresPlan("catalog_sync", BillingFeature.SftpIngestion),
+    error = BillingGateErrors.RequiresPlan("advanced_audit", BillingFeature.AdvancedAudit),`;
+
+    expect(parseRequiresPlanSites(fixture)).toEqual({
+      catalog_sync: "SftpIngestion",
+      advanced_audit: "AdvancedAudit",
+    });
+    expect(parseRequiresPlanSites("nothing here")).toEqual({});
+    expect(featureKey("SftpIngestion")).toBe("sftpIngestion");
+  });
+
+  test("the guides really quote a gate code, and the stale one is gone", () => {
+    // Anti-vacuity: the check below sweeps whatever the guides happen to contain, and an
+    // empty sweep passes for free. The literal the guide shipped is named here because its
+    // presence is the defect — it is a code no backend path can produce.
+    const codes = guideGateCodes();
+    expect(codes.length, "no admin guide quotes a plan-gate code — the check below is vacuous")
+      .toBeGreaterThan(0);
+    expect(
+      codes.map((c) => c.code),
+      "an admin guide still quotes catalog_sync_requires_integration. The backend derives that " +
+        "tier from PlanConstants.GetMinimumPlan(BillingFeature.SftpIngestion), which is Growth, " +
+        "so no request can produce that code — the guide tells an operator to distrust a correct 403.",
+    ).not.toContain("catalog_sync_requires_integration");
+  });
+
+  test.skipIf(!BACKEND)("every quoted code names the tier the backend really derives", () => {
+    const controllers = readdirSync(join(BACKEND!, CONTROLLERS_DIR)).filter((f) => f.endsWith(".cs"));
+    expect(controllers.length, `${CONTROLLERS_DIR} has no controllers — the walk went wrong`)
+      .toBeGreaterThan(3);
+
+    const sites: Record<string, string> = {};
+    for (const file of controllers) {
+      Object.assign(sites, parseRequiresPlanSites(readFileSync(join(BACKEND!, CONTROLLERS_DIR, file), "utf8")));
+    }
+    expect(
+      Object.keys(sites).length,
+      "no BillingGateErrors.RequiresPlan call site was found in any controller",
+    ).toBeGreaterThan(3);
+
+    // Only codes whose capability really is a RequiresPlan producer are judged. Other gate
+    // codes are built elsewhere, and flagging a code this parser cannot account for would be
+    // the over-reach that gets a guard weakened until it catches nothing.
+    const judged = guideGateCodes().filter((c) => sites[c.capability] !== undefined);
+    expect(
+      judged.length,
+      "no quoted code maps to a RequiresPlan call site, so this comparison checked nothing",
+    ).toBeGreaterThan(0);
+
+    for (const { file, capability, plan, code } of judged) {
+      const key = featureKey(sites[capability]) as keyof typeof MINIMUM_PLAN;
+      const real = MINIMUM_PLAN[key];
+      expect(real, `${capability} gates on BillingFeature.${sites[capability]}, which src/lib/gatedCapabilities.ts does not mirror`).toBeDefined();
+      expect(
+        plan,
+        `${file} quotes \`${code}\`, but ${capability} gates on BillingFeature.${sites[capability]}, ` +
+          `whose minimum is ${real} — so the real code is \`${capability}_requires_${real}\`. A guide ` +
+          "that misquotes a 403 sends staff hunting a bug in code that is behaving correctly.",
+      ).toBe(real);
+    }
+    comparisonsRun += 1;
+  });
+});
+
 // ── The vacuity floor ────────────────────────────────────────────────────────
 //
 // Runs after every test in the file, so it is independent of test ORDER — which a
@@ -1775,7 +1898,8 @@ const EXPECTED_COMPARISONS =
   2 + // invoices: the InvoiceService writer diff, and the citation walk over every fact
   2 + // transform causes: the per-pattern site count, and the end-to-end routing walk
   3 + // output formats: the buildable set, the standards catalog, PREVIEW_FORMATS
-  Object.keys(TEST_PACK_BACKEND_RECORDS).length; // one per test-pack record mirrored
+  Object.keys(TEST_PACK_BACKEND_RECORDS).length + // one per test-pack record mirrored
+  1; // the plan-gate codes quoted in the admin guides
 
 afterAll(() => {
   if (!BACKEND) return; // the mirror gate already ruled on whether that was allowed

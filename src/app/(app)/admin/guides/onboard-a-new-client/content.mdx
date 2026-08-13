@@ -36,10 +36,12 @@ outside and are not:
   admin override does **not** open them.
 
 The one that catches people: **scheduled catalog sync needs Growth or higher.** On Pilot, saving
-the source config and running a test fetch both work, and enabling the schedule returns 403. The
-error code reads `catalog_sync_requires_integration`, which is misleading — the real requirement
-is Growth, not Integration. Lifting the order or supplier cap on a Pilot org does not help,
-because the feature check only ever looks at the plan name.
+the source config and running a test fetch both work, and enabling the schedule returns 403 with
+`catalog_sync_requires_growth`. The tier in that code is derived on the server from the gate table
+(`PlanConstants.GetMinimumPlan(BillingFeature.SftpIngestion)`), so it names the plan that really
+unlocks the feature and will follow it if catalog sync is ever re-tiered. Read the plan out of the
+code and trust it. Lifting the order or supplier cap on a Pilot org does not help, because the
+feature check only ever looks at the plan name.
 
 So: if the onboarding includes a scheduled catalog pull, the org has to be on Growth or above
 before you start. Confirm the plan first; do not discover it at the enable step.
