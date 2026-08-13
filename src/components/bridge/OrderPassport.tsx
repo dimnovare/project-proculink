@@ -9,6 +9,7 @@
 import { useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/bridge/layout/Card";
+import { confidenceTone } from "@/components/bridge/ConfidenceChip";
 import { ApiHttpError, apiClient } from "@/lib/api-client";
 import {
   attemptOutcomeIsUnknown,
@@ -223,14 +224,32 @@ const STATE_STYLE: Record<StageState, { ring: string; fill: string; text: string
   failed:  { ring: "#B43838", fill: "#B43838", text: "#B43838", glyph: "✕" },
 };
 
+/**
+ * A model score on a mapping row.
+ *
+ * Two things were wrong with this before, and the second one is why the first mattered.
+ *
+ * It restated the tier ladder inline (`>=90 / >=75` with its own hex triples) instead of importing
+ * the one in ds-tokens — a sixth copy of thresholds this codebase has already had to converge once.
+ * It now takes its colours from `confidenceTone`, so there is nothing here to drift.
+ *
+ * More seriously, what it was colouring was not a confidence. The API sent
+ * `PurchaseOrderLineEntity.Confidence`, and that column held a three-valued STATE FLAG —
+ * `resolved ? (parserFlagged ? 0.5 : 1.0) : 0.0` — so a line resolved from the supplier's saved
+ * mappings printed a green **100%**, a parser-flagged line a red **50%**, and an unresolved line a
+ * red **0%**. No model produced any of those numbers. The backend now sends null for every line
+ * nothing scored, and the row's `source` badge beside this carries the resolution state, which is
+ * what it always described. A number reaching here can now only be a real model confidence — which
+ * is why the accessible name is allowed to say so.
+ */
 function Pct({ value }: { value: number }) {
   const pct = Math.round(value);
-  const { bg, color } =
-    pct >= 90 ? { bg: "#E9F1EA", color: "#1E6D29" } :
-    pct >= 75 ? { bg: "#FAF1DD", color: "#8A5310" } :
-                { bg: "#FBE3E3", color: "#B43838" };
+  const tone = confidenceTone(pct);
   return (
-    <span style={{ fontSize: 9.5, fontWeight: 700, fontFamily: "'JetBrains Mono',monospace", background: bg, color, borderRadius: 3, padding: "2px 5px" }}>
+    <span
+      aria-label={`AI confidence ${pct}%`}
+      style={{ fontSize: 9.5, fontWeight: 700, fontFamily: "'JetBrains Mono',monospace", background: tone.bg, color: tone.fg, borderRadius: 3, padding: "2px 5px" }}
+    >
       {pct}%
     </span>
   );

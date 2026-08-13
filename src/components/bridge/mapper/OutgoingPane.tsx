@@ -36,6 +36,11 @@ import { TransformPopover } from "./TransformPopover";
 import { SourcePickerChip } from "./SourcePickerChip";
 import { suggestedSourceFor } from "./sourcePickerModel";
 import { ConfidenceChip } from "../ConfidenceChip";
+import {
+  suggestionConfidenceDisplay,
+  SAVED_MAPPING_LABEL,
+  SAVED_MAPPING_TITLE,
+} from "./suggestionBasisModel";
 
 export interface OutgoingPaneProps {
   variant: "order" | "connection";
@@ -552,6 +557,9 @@ function OutgoingRow({
       value: src?.value ?? "",
       rationale: `from ${sug.label}`,
       confidence: sug.confidence,
+      // Carried so the strip can tell a scored suggestion from one read back out of the
+      // supplier's saved mapping, which has no score to print.
+      display: suggestionConfidenceDisplay(sug.basis, sug.confidence),
     };
   }, [needsSource, field.outputPath, incomingFields, onPickSource, readOnly]);
   // The inline action affordances are quiet at rest, full on hover / keyboard focus / when active,
@@ -833,7 +841,20 @@ function OutgoingRow({
           <span title={aiFix.rationale} style={{ fontSize: 10.5, color: "#5E6779", flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
             {aiFix.rationale}
           </span>
-          {aiFix.confidence != null && <ConfidenceChip value={aiFix.confidence} sm />}
+          {/* A percentage only when a scorer actually produced one. A saved-mapping
+              suggestion is a configured fact, not a probability, and gets a neutral marker —
+              the endpoint used to send a hard-coded 0.95 here and it read "AI confidence 95%". */}
+          {aiFix.display === "score" && aiFix.confidence != null && (
+            <ConfidenceChip value={aiFix.confidence} sm label="AI confidence" />
+          )}
+          {aiFix.display === "saved_mapping" && (
+            <span
+              title={SAVED_MAPPING_TITLE}
+              style={{ flexShrink: 0, fontSize: 10.5, fontWeight: 500, color: "var(--ink-faint)", whiteSpace: "nowrap" }}
+            >
+              {SAVED_MAPPING_LABEL}
+            </span>
+          )}
           <button
             type="button"
             className="mapper-aifix-apply"

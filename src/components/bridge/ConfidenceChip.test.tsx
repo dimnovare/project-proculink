@@ -51,7 +51,23 @@ describe("<ConfidenceChip>", () => {
   it("renders a whole percent and labels it for screen readers", () => {
     render(<ConfidenceChip value={92} />);
     expect(screen.getByText("92%")).toBeInTheDocument();
-    expect(screen.getByLabelText("AI confidence 92%")).toBeInTheDocument();
+    expect(screen.getByLabelText("Confidence 92%")).toBeInTheDocument();
+  });
+
+  it("does NOT claim the number came from a model unless the caller says so", () => {
+    // The chip hard-coded "AI confidence" into its aria-label and title, so every call
+    // site made an AI claim on the user's behalf — including a supplier auto-detect
+    // heuristic and a saved supplier mapping that no model has ever been invoked for.
+    // The default now says only what is always true: this is a confidence.
+    render(<ConfidenceChip value={92} />);
+    expect(screen.queryByLabelText("AI confidence 92%")).toBeNull();
+    expect(screen.getByLabelText("Confidence 92%")).toBeInTheDocument();
+  });
+
+  it("says 'AI confidence' when the caller states it, for a real model score", () => {
+    render(<ConfidenceChip value={86} label="AI confidence" />);
+    expect(screen.getByLabelText("AI confidence 86%")).toBeInTheDocument();
+    expect(screen.getByTitle("AI confidence · 86%")).toBeInTheDocument();
   });
 
   it("normalises a 0..1 score before tiering", () => {

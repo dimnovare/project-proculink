@@ -54,15 +54,28 @@ export function confidenceTone(pct: number): { fg: string; bg: string; bd: strin
   return { fg: "#B43838", bg: "#FBE3E3", bd: "#F0C9C9" };
 }
 
-export function ConfidenceChip({ value, sm = false }: { value: number; sm?: boolean }) {
+/**
+ * `label` names WHAT scored this, and it defaults to the neutral "Confidence" on
+ * purpose. The chip used to hard-code "AI confidence", which made every call site
+ * an AI claim whether or not a model was involved — including a supplier
+ * auto-detect heuristic and, worse, a saved supplier mapping the suggester is
+ * never even invoked for. Call sites that really do render a model score pass
+ * `label="AI confidence"` and read exactly as before; anything else says less and
+ * says it truthfully.
+ */
+export function ConfidenceChip({
+  value,
+  sm = false,
+  label = "Confidence",
+}: { value: number; sm?: boolean; label?: string }) {
   // Call sites pass either a 0..1 score (API suggestions) or a whole percent
   // (mapping rows). Normalise before tiering, or a 0.92 would tier as "danger".
   const pct = Math.round(value <= 1 ? value * 100 : value);
   const tone = confidenceTone(pct);
   return (
     <span
-      aria-label={`AI confidence ${pct}%`}
-      title={`AI confidence · ${pct}%`}
+      aria-label={`${label} ${pct}%`}
+      title={`${label} · ${pct}%`}
       style={{
         display: "inline-flex", alignItems: "center", justifyContent: "center",
         fontFamily: "'JetBrains Mono',monospace", fontWeight: 700,

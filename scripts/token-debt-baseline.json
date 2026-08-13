@@ -80,7 +80,7 @@
   "src/components/bridge/OnboardingChecklist.tsx": 36,
   "src/components/bridge/OnboardingWizard.tsx": 24,
   "src/components/bridge/orderCountContract.ts": 3,
-  "src/components/bridge/OrderPassport.tsx": 91,
+  "src/components/bridge/OrderPassport.tsx": 85,
   "src/components/bridge/OrgSwitcher.tsx": 37,
   "src/components/bridge/OutputMappingEditor.tsx": 131,
   "src/components/bridge/OutputSourcePicker.tsx": 38,

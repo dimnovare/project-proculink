@@ -415,7 +415,16 @@ export interface SupplierMapping {
   id: string;
   buyerItemCode: string;
   supplierItemCode: string;
-  confidence?: number;
+  /**
+   * The model score behind this mapping, 0–1 — or absent/null when nothing scored it, which is
+   * the normal answer for a hand-typed or bulk-imported code.
+   *
+   * `| null` matters: the API sends JSON `null`, not an omitted key. The column was
+   * non-nullable server-side until the confidence work, filled by a two-valued literal
+   * (`manual ? 1.0 : 0.8`), so every live row arrived with a number and the "Not scored" branch
+   * in SupplierDockProfile was unreachable for real data.
+   */
+  confidence?: number | null;
   source?: string;
 }
 

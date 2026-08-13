@@ -983,7 +983,10 @@ export function PoMappingEditor({
                     </div>
                     {isAcc ? (
                       score != null ? (
-                        <ConfidenceChip value={score} />
+                        // Explicitly "AI confidence": `score` is scoreForColumn(), a real
+                        // suggester score for THIS column. The chip's own default is the
+                        // neutral "Confidence" now that not every caller has a model behind it.
+                        <ConfidenceChip value={score} label="AI confidence" />
                       ) : (
                         // Mapped, but nothing ever scored this pairing. Neutral
                         // marker, no percentage and no tier colour — the same

@@ -904,7 +904,7 @@ function MappingSource({ source }: { source?: string }) {
 
 // Backend confidence is a 0–1 float; render as a whole-number percentage.
 // `null` means the row carries no score at all — see MappingConfidence.
-function confPct(confidence?: number): number | null {
+function confPct(confidence?: number | null): number | null {
   if (confidence == null) return null;
   return Math.round(confidence * 100);
 }
@@ -922,7 +922,16 @@ function confPct(confidence?: number): number | null {
 // which only renders a confidence chip when the field actually carries one. The
 // column header says "Confidence", so an empty cell would read as a rendering
 // failure rather than a deliberate absence; the words are worth the width.
-function MappingConfidence({ confidence }: { confidence?: number }) {
+//
+// That branch was DEAD for live data until 2026-08-13. The backing column
+// (ItemMapping.Confidence) was a non-nullable float written as
+// `source == Manual ? 1.0f : 0.8f`, so every real row arrived carrying a number:
+// a code an operator had typed printed a green "100%" and a bulk CSV import
+// printed a flat amber "80%", and nothing could ever reach "Not scored". The
+// column is nullable now and those literals are gone, so this is the branch most
+// rows take — which is the honest answer, because nothing scored them. The
+// "Source" column beside it is what says a human entered the code.
+function MappingConfidence({ confidence }: { confidence?: number | null }) {
   const pct = confPct(confidence);
   if (pct === null) {
     return (

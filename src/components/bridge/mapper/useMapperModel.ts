@@ -51,6 +51,7 @@ import type { CanonicalNode, SourceField, TargetField } from "./types";
 import { indexValidation, indexCatalogHints, blockingReviewCount } from "./fieldBadgesModel";
 import { systemCanonicalNodes, mergeCanonicalNodes } from "./canonicalFieldsModel";
 import { deriveTargetFields } from "./targetLaneModel";
+import { resolveSuggestionBasis } from "./suggestionBasisModel";
 import {
   buildIncomingFromOrder,
   rawExtraFieldsFromTokens,
@@ -387,14 +388,23 @@ export function useMapperModel({
     const base = canonicalIncoming.length > 0
       ? [...canonicalIncoming, ...keptRawExtras]
       : tokens.map((t) => toSourceField(t, false, null, null));
-    // Overlay used-as-source + AI-suggestion state by row id (canonical key OR raw token id).
+    // Overlay used-as-source + suggestion state by row id (canonical key OR raw token id).
     return base.map((f) => {
       const sug = suggestionByToken.get(f.id);
       return {
         ...f,
         mapped: usedAsSourceIds.has(f.id),
         suggestedFor: sug?.targetKey ?? f.suggestedFor ?? null,
-        suggestionConfidence: sug?.confidence ?? f.suggestionConfidence ?? null,
+        // When a suggestion exists, ITS confidence is authoritative — including when that
+        // confidence is `null` (a saved-mapping entry, which nothing scored). This was
+        // `sug?.confidence ?? f.suggestionConfidence ?? null`, and `??` would have walked
+        // straight past the legitimate null onto whatever number the row happened to carry,
+        // re-fabricating the very score the null exists to deny. The model path is
+        // unchanged: a real 0..1 score is not null, so it wins either way.
+        suggestionConfidence: sug ? sug.confidence : f.suggestionConfidence ?? null,
+        suggestionBasis: sug
+          ? resolveSuggestionBasis(sug.basis, sug.confidence)
+          : f.suggestionBasis ?? null,
       };
     });
   }, [canonicalIncoming, keptRawExtras, tokens, suggestionByToken, usedAsSourceIds]);

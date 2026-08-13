@@ -23,6 +23,7 @@
 
 import type { CSSProperties, KeyboardEvent } from "react";
 import { isProblemBucketStatus } from "@/lib/orderStatusManifest";
+import { confidenceTone } from "../ConfidenceChip";
 import type { FixCardKind } from "../review/buildFixQueue";
 import type { OrderLine } from "@/types/procurement";
 
@@ -540,7 +541,19 @@ function IssueActions({
               {suggestedCode}
             </span>
             {confidencePct != null && (
-              <span style={{ fontSize: 10.5, fontWeight: 600, color: C.greenDeep }}>{confidencePct}% match</span>
+              // Tiered, not flat green. The NUMBER here was always honest — it comes off the
+              // line's real AI suggestion — but the COLOUR was `C.greenDeep` unconditionally, so
+              // a suggestion sitting on the 65% acceptance floor painted exactly like a 98% one.
+              // In a panel whose whole job is to tell an operator which line needs their eyes,
+              // "success green" was the one thing a barely-passing match must not look like.
+              // Same ramp as every other confidence in the product (ds-tokens.confidenceTier via
+              // confidenceTone): >=90 green, 75-89 amber, <75 red.
+              <span
+                aria-label={`AI confidence ${confidencePct}%`}
+                style={{ fontSize: 10.5, fontWeight: 600, color: confidenceTone(confidencePct).fg }}
+              >
+                {confidencePct}% match
+              </span>
             )}
           </div>
         )}

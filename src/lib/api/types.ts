@@ -289,12 +289,31 @@ export interface MappingSuggestion {
   targetKey: string;
   /** Suggested source: a SourceToken id (raw/structured) or a canonical field key. */
   sourceId: string;
-  /** 0..1. Rendered as a confidence ring; coloring reuses confidenceTier(). */
-  confidence: number;
+  /**
+   * 0..1 when a scorer actually ran. **`null` means NOTHING scored this pairing** — it is
+   * not a low score and it must never be substituted with a number.
+   *
+   * This was `number` until the endpoint was caught sending a hard-coded `0.95` for every
+   * entry of a supplier's saved PO mapping, which the mapper then rendered as
+   * "AI confidence 95%". No model produced that value; the suggester is deliberately never
+   * invoked on the saved-mapping path. Read `basis` to know which one you have.
+   */
+  confidence: number | null;
   /** Short human reason ("label 'Ihre Materialnr' ~ manufacturerPartNumber"). */
   reason: string;
   /** "canonical" | "raw" | "custom" — provenance of the source. */
   sourceKind: "canonical" | "raw" | "custom";
+  /**
+   * Where the suggestion came from:
+   *  • "saved_mapping" — read back from the supplier's saved PO mapping. A configured
+   *    fact, not a probability, so `confidence` is `null`.
+   *  • "model" — a real scorer ran and `confidence` carries its number.
+   *
+   * Optional because responses from a backend deployed before this field existed omit it.
+   * Do not branch on it by hand: `suggestionConfidenceDisplay` in
+   * `src/components/bridge/mapper/suggestionBasisModel.ts` owns the rollout rule.
+   */
+  basis?: "saved_mapping" | "model";
 }
 
 /** Per-field validation outcome surfaced as a green/amber badge. */
