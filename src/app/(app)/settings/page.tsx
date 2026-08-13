@@ -31,6 +31,7 @@ import {
 import type { EmailSettings, UpdateEmailSettingsPayload, OrderDirection } from "@/types/procurement";
 import type { ApiKey, IntegrationSubscription } from "@/lib/api-client";
 import { useTabParamSync } from "@/lib/tab-param-sync";
+import { planDisplayName } from "@/lib/plans";
 import { SftpPullSettings, S3PullSettings } from "@/components/settings/PullIngressSettings";
 import { InboundAddressSection } from "@/components/settings/InboundAddressSection";
 
@@ -53,10 +54,12 @@ const TABS: Array<{ id: SettingsTab; label: string; Icon: React.ElementType }> =
   { id: "connectors", label: "Notifications",              Icon: Plug       },
 ];
 
-const PLAN_LABELS: Record<string, string> = {
-  pilot: "Pilot plan", growth: "Growth plan", operations: "Operations plan",
-  integration: "Integration plan", enterprise: "Enterprise",
-};
+// The plan label is DERIVED from the ladder in src/lib/plans.ts. This file used to keep
+// its own `PLAN_LABELS` map, and it listed five of the six tiers — Distributor, a live
+// self-serve tier with live Stripe prices, was missing. The lookup fell through to
+// `?? billing.plan`, so a customer paying €1,499/month read `Acme · distributor` in their
+// own Settings header. A hand-kept copy of a list that lives somewhere else will miss the
+// next tier the same way; there is nothing to miss now.
 
 // Module-scope so useTabParamSync's effect deps stay referentially stable.
 const isSettingsTab = (v: string | null | undefined): v is SettingsTab =>
@@ -76,7 +79,7 @@ export default function SettingsPage() {
   const { organization } = useOrganization();
   const { data: billing } = useQuery({ queryKey: ["billing-status"], queryFn: getBillingStatus, staleTime: 60_000 });
   const orgName   = organization?.name ?? "…";
-  const planLabel = billing ? (PLAN_LABELS[billing.plan] ?? billing.plan) : "…";
+  const planLabel = billing ? planDisplayName(billing.plan) : "…";
 
   return (
     <PageShell className="settings-shell">

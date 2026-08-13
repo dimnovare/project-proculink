@@ -17,54 +17,43 @@
 // catalog's STANDARD_REF_COLUMNS (which the StandardsFieldPopover also consumes).
 
 import { useState } from "react";
-import { FIELD_STANDARDS, STANDARDS, type CanonicalFieldStandards } from "@/lib/standards/catalog";
+import { FIELD_STANDARDS } from "@/lib/standards/catalog";
+import { requiresPlan } from "@/lib/gatedCapabilities";
 import { EmptyState } from "@/components/bridge/EmptyState";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import { Card } from "@/components/bridge/layout/Card";
+// The column table and the two filters that split it live in ./refColumns, so a test can
+// read them: a Next.js page module may not carry arbitrary named exports, and duplicating
+// the table into a test is the shape that produced the defect below in the first place.
+import {
+  EMITTED_COLUMNS,
+  GATED_EMITTED_COLUMNS,
+  READ_ONLY_COLUMNS,
+  REF_COLUMNS,
+  gateFor,
+} from "./refColumns";
 
-// ── Local presentation order — cXML first, versioned labels (design spec) ──────
-// key is a field on CanonicalFieldStandards. The header labels here are the exact
-// columnheader strings the design render shows (and the e2e contract asserts):
-// "cXML 1.2", "UBL 2.1", "EDIFACT", "X12", "Peppol BIS".
-type RefKey = keyof Pick<
-  CanonicalFieldStandards,
-  "cxml" | "ubl" | "edifact" | "x12" | "peppolBis"
->;
-
-//
-// `catalogId` is what makes the direction line below derivable instead of typed. The column
-// LABELS cannot carry the marker themselves: tests/e2e/standards.spec.ts:33-34 asserts each
-// columnheader's accessible name with `exact: true`, and that is the locked design contract, so
-// appending "(read only)" to a `<th>` would break the render this screen was ported from. The
-// disclosure goes above the table instead, where it can be a sentence rather than a tag.
-const REF_COLUMNS: ReadonlyArray<{ key: RefKey; label: string; catalogId: string }> = [
-  { key: "cxml", label: "cXML 1.2", catalogId: "cxml-1-2" },
-  { key: "ubl", label: "UBL 2.1", catalogId: "ubl-2-1-order" },
-  { key: "edifact", label: "EDIFACT", catalogId: "edifact-orders" },
-  { key: "x12", label: "X12", catalogId: "x12-850" },
-  { key: "peppolBis", label: "Peppol BIS", catalogId: "peppol-bis-order-3" },
-];
+const EMITTED_LABELS = EMITTED_COLUMNS.map((c) => c.label);
+const READ_ONLY_LABELS = READ_ONLY_COLUMNS.map((c) => c.label);
 
 /**
- * Which of those columns ProcuLink can actually EMIT — read off the standards catalog, never
- * typed here.
+ * The formats ProcuLink can build but will not build on every plan — `"cXML 1.2 is
+ * Operations plan and up"`.
  *
- * A cross-format mapping table is honest reference material with or without a transformer: "this
- * field is called BGM 1004 in EDIFACT" is true regardless. What it cannot do is leave the
- * direction to inference. Two of these five columns are read-only — EDIFACT has no outbound
- * transformer, and Peppol BIS conformance is not offered — while the other three are formats we
- * really produce, and nothing on the screen distinguished them.
+ * The direction line used to be derived from `transform === "supported"` alone, so it read
+ * "ProcuLink produces cXML 1.2, UBL 2.1 and X12." flat — an honest TECHNICAL filter carrying
+ * no commercial one, on a page that names no tier anywhere else. cXML output is refused
+ * below Operations, so that sentence offered a Growth org a capability the API declines.
  *
- * Deriving it means the day an EDIFACT transformer ships and `catalog.ts` flips that row to
- * `transform: "supported"`, the caveat disappears on its own instead of being a stale denial
- * somebody has to remember to delete.
+ * Both halves derive: which formats are gated from `GATED_STANDARD_OUTPUT`, and the tier
+ * name from `requiresPlan()` reading the mirrored gate table. Re-tiering cXML changes this
+ * sentence without anybody editing this file — six help pages naming a tier by hand is the
+ * defect one level up, and the reason `requiresPlan()` exists.
  */
-const emits = (catalogId: string): boolean =>
-  STANDARDS.find((s) => s.id === catalogId)?.transform === "supported";
-
-const EMITTED_LABELS = REF_COLUMNS.filter((c) => emits(c.catalogId)).map((c) => c.label);
-const READ_ONLY_LABELS = REF_COLUMNS.filter((c) => !emits(c.catalogId)).map((c) => c.label);
+const GATED_EMITTED_CLAUSES = GATED_EMITTED_COLUMNS.map(
+  (c) => `${c.label} is ${requiresPlan(gateFor(c.catalogId)!)}`,
+);
 
 /** "a, b and c" — a sentence, not a join, because this renders as prose. */
 const asList = (items: readonly string[]): string =>
@@ -152,7 +141,10 @@ export default function StandardsPage() {
           style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--ink-muted)" }}
         >
           <ul className="space-y-1.5">
-            <li><strong style={{ color: "var(--ink)" }}>cXML 1.2</strong> — punchout &amp; marketplace orders (Ariba, Coupa and similar procurement platforms).</li>
+            {/* The tier is DERIVED, not typed. This bullet sits in a chooser whose other
+                options are on every plan, so listing cXML beside them with no tier reads as
+                "pick this one" to a Growth org whose delivery config the API then refuses. */}
+            <li><strong style={{ color: "var(--ink)" }}>cXML 1.2</strong> — punchout &amp; marketplace orders (Ariba, Coupa and similar procurement platforms). {requiresPlan("cxml")}.</li>
             <li><strong style={{ color: "var(--ink)" }}>UBL 2.1</strong> — European e-procurement and public-sector networks. Peppol runs on UBL, so this is the document to pick; ProcuLink does not check its output against Peppol BIS business rules.</li>
             {/* This list answers "which format to use?" and ends "ask your supplier which they
                 accept" — so it is an OUTPUT chooser, and every bullet in it reads as a format you
@@ -175,7 +167,12 @@ export default function StandardsPage() {
       {READ_ONLY_LABELS.length > 0 && (
         <p className="mb-2 max-w-[680px] text-[11.5px] leading-relaxed" style={{ color: "var(--ink-muted)" }}>
           These are field names across each standard, not a list of what ProcuLink sends.
-          ProcuLink produces {asList(EMITTED_LABELS)}. {asList(READ_ONLY_LABELS)}{" "}
+          ProcuLink produces {asList(EMITTED_LABELS)}.{" "}
+          {/* "Produces" answered can-we-build-it and stopped there. On a page that names no
+              tier anywhere else, a format listed with no qualifier reads as included on
+              every plan — and cXML output is refused below Operations. */}
+          {GATED_EMITTED_CLAUSES.length > 0 && <>{asList(GATED_EMITTED_CLAUSES)}. </>}
+          {asList(READ_ONLY_LABELS)}{" "}
           {READ_ONLY_LABELS.length === 1 ? "is" : "are"} read only — the column is here so you can
           match a field name with your trading partner, not because ProcuLink can emit it.
         </p>

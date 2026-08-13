@@ -43,6 +43,8 @@ import {
 } from "@/lib/api-client";
 import type { ConnectionRevisionSummary, ConnectionTestEvidence } from "@/lib/api/types";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
+import { parseTestSummary } from "./testPackSummary";
+import type { RevisionTestEvidence } from "./testPackSummary";
 
 export type Notice = { text: string; kind: "ok" | "err" } | null;
 
@@ -53,48 +55,18 @@ export type ConfirmState =
   | null;
 
 // ── Test-pack evidence (returned by POST .../test) ───────────────────────────
-// Mirrors the backend's stored TestPackSummary JSON (camelCase):
-//   { replay: {...} | null, conformance: {...} | null, error: string | null }
-
-interface TestPackReplayLeg {
-  passed: boolean;
-  orderCount: number;
-  outputErrors: number;
-  outputChanged: number;
-  validationChanged: number;
-  note: string | null;
-}
-
-interface TestPackConformanceLeg {
-  skipped: boolean;
-  passed: boolean | null;
-  profile: string | null;
-  errors: number;
-  warnings: number;
-  note: string | null;
-}
-
-interface TestPackSummary {
-  replay: TestPackReplayLeg | null;
-  conformance: TestPackConformanceLeg | null;
-  error: string | null;
-}
-
-export interface RevisionTestEvidence {
-  revisionId: string;
-  passed: boolean;
-  testedAt: string;
-  summary: TestPackSummary | null;
-}
-
-export function parseTestSummary(summaryJson: string): TestPackSummary | null {
-  try {
-    const parsed = JSON.parse(summaryJson) as TestPackSummary;
-    return parsed && typeof parsed === "object" ? parsed : null;
-  } catch {
-    return null;
-  }
-}
+//
+// The shape and its reader now live in `./testPackSummary`, which is where the
+// `parseLeg` this file's copy never had was added. The two structurally-identical
+// declarations that used to sit here and in HistoryDrawer.tsx are why a leg the
+// backend had been sending for months was invisible on both surfaces at once.
+// Re-exported so existing importers of `parseTestSummary` / `RevisionTestEvidence`
+// are unchanged.
+export {
+  parseTestSummary,
+  type RevisionTestEvidence,
+  type TestPackSummary,
+} from "./testPackSummary";
 
 export function useConnectionRevisions(connectionId: string) {
   const queryClient = useQueryClient();

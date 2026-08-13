@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { apiClient, getBillingStatus, checkAdminAccess } from "@/lib/api-client";
 import { SIDEBAR_AUTO_COLLAPSE_EVENT } from "@/lib/sidebar-auto-collapse";
+import { planDisplayName } from "@/lib/plans";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { ProcuLinkMark } from "./DSPrimitives";
@@ -202,7 +203,8 @@ export function BridgeSidebar({
     retryDelay: 800,
     staleTime: 60_000,
   });
-  const planLabel = billing ? `${billing.plan.charAt(0).toUpperCase()}${billing.plan.slice(1)} plan` : "Loading…";
+  // Derived from the ladder — see the note on planDisplayName in src/lib/plans.ts.
+  const planLabel = billing ? planDisplayName(billing.plan) : "Loading…";
   const orgName = organization?.name ?? "Your workspace";
 
   // Live "needs review" count → Inbox badge via summary endpoint (accurate regardless of volume).

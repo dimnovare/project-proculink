@@ -13,24 +13,14 @@
 // of a sentence. Match the SHAPE, read the plan out of it.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Plan ids the backend can name, longest-first so "operations" cannot shadow a prefix. */
-const KNOWN_PLANS = [
-  "distributor",
-  "integration",
-  "operations",
-  "enterprise",
-  "growth",
-  "pilot",
-] as const;
+import { PLAN_IDS, planName } from "@/lib/plans";
 
-const PLAN_LABEL: Record<string, string> = {
-  pilot: "Pilot",
-  growth: "Growth",
-  operations: "Operations",
-  integration: "Integration",
-  distributor: "Distributor",
-  enterprise: "Enterprise",
-};
+// The ids and their display names are DERIVED from the ladder in src/lib/plans.ts, which
+// owns it. Both used to be typed out here — a third and fourth copy of the tier list, after
+// the pricing cards and the Settings header, and the Settings one was already a tier short.
+// `PLAN_IDS` is sorted longest-first for exactly the reason the old comment gave: a shorter
+// id that prefixes a longer one would shadow it in the alternation below.
+const KNOWN_PLANS = PLAN_IDS;
 
 /**
  * `<capability>_requires_<plan>` anywhere in the string — API clients often wrap the code in
@@ -47,7 +37,14 @@ export function isPlanGateError(message: string | null | undefined): boolean {
 /** The plan the backend said would unlock the capability, or null if it named none we know. */
 export function planGateRequiredPlan(message: string | null | undefined): string | null {
   const match = message?.match(PLAN_GATE_CODE);
-  return match ? (PLAN_LABEL[match[1].toLowerCase()] ?? null) : null;
+  if (!match) return null;
+  const id = match[1].toLowerCase();
+  const name = planName(id);
+  // `planName` returns its argument unchanged for an id the ladder does not know. The regex
+  // only matches ids drawn from that same ladder, so this cannot fire today — but returning
+  // a snake_case token as though it were a tier name is the failure this function exists to
+  // prevent, so it is refused explicitly rather than left to the alternation to guarantee.
+  return name === id ? null : name;
 }
 
 /**

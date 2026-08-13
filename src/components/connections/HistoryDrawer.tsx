@@ -21,36 +21,16 @@ import { RevisionStatusBadge } from "@/components/connections/RevisionStatusBadg
 import { ReplayPanel } from "@/components/connections/ReplayPanel";
 import { formatDateTime } from "@/lib/format-date";
 import type { ConnectionRevisionSummary } from "@/lib/api/types";
+// Test-pack evidence shape. This file used to re-declare it — "mirrored from
+// ConnectionDetail (kept structurally compatible so the same object flows straight
+// through)" — and the second copy is exactly how `parseLeg` came to be invisible:
+// the type it was mirrored from did not have one either, so there was nothing for
+// the drop to disagree with. One declaration now, in ./testPackSummary, checked
+// against the C# record by src/test/backendMirror.test.ts.
+import { evidenceNotes, failedLegLabels } from "./testPackSummary";
+import type { RevisionTestEvidence } from "./testPackSummary";
 
-// Test-pack evidence shape, mirrored from ConnectionDetail (kept structurally
-// compatible so the same object flows straight through).
-interface TestPackReplayLeg {
-  passed: boolean;
-  orderCount: number;
-  outputErrors: number;
-  outputChanged: number;
-  validationChanged: number;
-  note: string | null;
-}
-interface TestPackConformanceLeg {
-  skipped: boolean;
-  passed: boolean | null;
-  profile: string | null;
-  errors: number;
-  warnings: number;
-  note: string | null;
-}
-interface TestPackSummary {
-  replay: TestPackReplayLeg | null;
-  conformance: TestPackConformanceLeg | null;
-  error: string | null;
-}
-export interface RevisionTestEvidence {
-  revisionId: string;
-  passed: boolean;
-  testedAt: string;
-  summary: TestPackSummary | null;
-}
+export type { RevisionTestEvidence } from "./testPackSummary";
 
 /** The live revision's config summary, rendered read-only in the drawer. */
 export interface BundleSummaryData {
@@ -309,13 +289,6 @@ export function HistoryContent(props: HistoryContentProps) {
   );
 }
 
-function evidenceNotes(summary: TestPackSummary | null): string[] {
-  if (!summary) return [];
-  return [summary.replay?.note, summary.conformance?.note, summary.error].filter(
-    (n): n is string => typeof n === "string" && n.length > 0,
-  );
-}
-
 export function HistoryDrawer(props: HistoryDrawerProps) {
   const {
     open,
@@ -477,6 +450,11 @@ function TestEvidenceSummary({ evidence }: { evidence: RevisionTestEvidence }) {
   const notes = evidenceNotes(summary);
   const replay = summary?.replay ?? null;
   const conformance = summary?.conformance ?? null;
+  const parseLeg = summary?.parseLeg ?? null;
+  // `passed` is an AND over all three legs, so the red state on its own names none of
+  // them. Read back which ones actually failed — a pack that fails only on the parse
+  // leg used to turn this panel red and then say nothing at all about why.
+  const failedLegs = passed ? [] : failedLegLabels(summary);
 
   return (
     <div
@@ -488,9 +466,15 @@ function TestEvidenceSummary({ evidence }: { evidence: RevisionTestEvidence }) {
       }
       role="status"
     >
-      <span className="font-semibold">Checks {passed ? "passed" : "failed"}</span>
+      <span className="font-semibold">
+        Checks {passed ? "passed" : "failed"}
+        {/* Which check. Without this a parse-leg-only failure read as an unexplained
+            red panel: replay and conformance both printed normal-looking lines, and
+            the top-level flag says only that something went wrong. */}
+        {failedLegs.length > 0 ? ` — ${failedLegs.join(" and ")}` : ""}
+      </span>
       <span> · {formatDateTime(testedAt)}</span>
-      {(replay || conformance) && (
+      {(replay || conformance || parseLeg) && (
         <div className="mt-1" style={{ opacity: 0.92 }}>
           {replay && (
             <span>
@@ -507,7 +491,24 @@ function TestEvidenceSummary({ evidence }: { evidence: RevisionTestEvidence }) {
                 : `${conformance.passed ? "passed" : "failed"}${conformance.profile ? ` (${conformance.profile})` : ""}`}
             </span>
           )}
+          {(replay || conformance) && parseLeg && <span> · </span>}
+          {/* `failures > 0` is NOT on its own a failed leg — the backend passes the leg
+              whenever at least one eligible order re-parsed — so the count is reported
+              as a count and the pass/fail verdict is left to `failedLegs` above. */}
+          {parseLeg && (
+            <span>
+              Re-parse: {parseLeg.ordersReParsed} order{parseLeg.ordersReParsed === 1 ? "" : "s"}
+              {parseLeg.parseChanges > 0 ? `, ${parseLeg.parseChanges} would parse differently` : ""}
+              {parseLeg.failures > 0 ? `, ${parseLeg.failures} failed` : ""}
+              {parseLeg.skipped > 0 ? `, ${parseLeg.skipped} skipped` : ""}
+            </span>
+          )}
         </div>
+      )}
+      {/* A failure the payload does not attribute to any leg. Saying so beats an
+          unexplained red box, and beats guessing at a leg. */}
+      {!passed && failedLegs.length === 0 && notes.length === 0 && (
+        <div className="mt-1">The server did not say which check failed.</div>
       )}
       {notes.length > 0 && (
         <ul className="mt-1 list-disc pl-4 m-0">

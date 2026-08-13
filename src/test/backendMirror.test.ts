@@ -39,6 +39,11 @@ import {
 // (src/test/backendCopyVocabulary.test.ts), so it lives in one place rather than two.
 // Its own header explains why a `grep` cannot replace it.
 import { parseCsStringExpressions, stripCsComments } from "./csLiterals";
+import {
+  TEST_PACK_BACKEND_FILE,
+  TEST_PACK_BACKEND_RECORDS,
+} from "@/components/connections/testPackSummary";
+import { MINIMUM_PLAN } from "@/lib/gatedCapabilities";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // The cross-repo mirror check.
@@ -105,6 +110,8 @@ const OUTPUT_FORMAT_ENUM_REL = "ProcuLink.Core/Services/ITransformService.cs";
 const PROGRAM_REL = "ProcuLink.Api/Program.cs";
 /** The worker host. Registers the same transform layer; `TransformOrderJob` is where transform runs. */
 const WORKER_PROGRAM_REL = "ProcuLink.Worker/Program.cs";
+/** Declares the `TestPackSummary` record and its legs, serialized into `test_result_json`. */
+const CONNECTION_SERVICE_REL = TEST_PACK_BACKEND_FILE;
 
 /**
  * Every C# file this suite parses.
@@ -129,6 +136,7 @@ const PARSED_FILES = [
   OUTPUT_FORMAT_ENUM_REL,
   PROGRAM_REL,
   WORKER_PROGRAM_REL,
+  CONNECTION_SERVICE_REL,
 ] as const;
 
 /**
@@ -438,6 +446,7 @@ describe("the mirror gate decides correctly", () => {
       OUTPUT_FORMAT_ENUM_REL,
       PROGRAM_REL,
       WORKER_PROGRAM_REL,
+      CONNECTION_SERVICE_REL,
     ]);
     expect(missingParsedFiles("/tmp/backend", () => true)).toEqual([]);
     // A checkout with nothing in it must report all three, not zero.
@@ -1623,6 +1632,256 @@ describe("the formats we advertise as output are the formats a transform exists 
   });
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// The connection test-pack summary — the shape stored in `test_result_json`.
+//
+// THE DEFECT THIS EXISTS FOR. `SupplierConnectionService` grew a fourth field,
+// `ParseLegSummary? ParseLeg`, and the frontend's two hand-written copies of the
+// shape never did. The reader was `JSON.parse(json) as TestPackSummary`, and that
+// cast is what hid it: the leg really did arrive on every response, but the value
+// had been asserted into a three-field type, so `summary.parseLeg` was a compile
+// error and every consumer downstream was type-checked into ignoring it. Because
+// `passed` is `replayPassed && conformance… && parsePassed`, a pack that failed only
+// on the parse leg turned the evidence panel red and explained nothing — the one
+// sentence naming the cause was `parseLeg.note`, and nothing was allowed to read it.
+//
+// No check running in a browser can catch that: an unknown key and an absent key are
+// indistinguishable there. What catches it is this diff — the C# record's parameter
+// list against the field list `testPackSummary.ts` exports. The NEXT leg the backend
+// adds fails the build here.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * The parameter NAMES of a C# positional record, camelCased the way
+ * `JsonNamingPolicy.CamelCase` writes them (SupplierConnectionService.cs:36).
+ *
+ * Returns null when the record is not declared — never an empty list, so "the parser
+ * went blind" cannot be mistaken for "the record has no parameters" by a comparison
+ * that would then find two empty lists equal.
+ *
+ * Deliberately narrow: it handles `Type Name`, `Type? Name` and `Type? Name = null`,
+ * which is every parameter these four records have. A generic parameter containing a
+ * comma would defeat the split, and the assertion in the fixture test below is what
+ * would notice.
+ */
+function parseRecordParameterNames(cs: string, recordName: string): string[] | null {
+  const declaration = new RegExp(String.raw`record\s+${recordName}\s*\(([^)]*)\)`).exec(
+    stripCsComments(cs),
+  );
+  if (declaration === null) return null;
+  return declaration[1]
+    .split(",")
+    .map((param) => param.split("=")[0].trim())
+    .filter((param) => param.length > 0)
+    .map((param) => {
+      const name = param.split(/\s+/).pop() ?? "";
+      // CamelCase policy lowercases the leading capital. Every parameter in these
+      // records is ordinary PascalCase, so this is the whole of the transformation.
+      return name.charAt(0).toLowerCase() + name.slice(1);
+    });
+}
+
+describe("the connection test-pack summary mirrors the backend record", () => {
+  test("the record parser actually parses (so a green diff means something)", () => {
+    // The real declarations at SupplierConnectionService.cs:587-591, verbatim — including
+    // the defaulted parameter that was the whole defect, and a `bool?` leg.
+    const fixture = `
+    /// <summary>Serializable summary stored in <c>test_result_json</c> (camelCase).</summary>
+    private sealed record TestPackSummary(ReplayLeg? Replay, ConformanceLeg? Conformance, string? Error, ParseLegSummary? ParseLeg = null);
+    private sealed record ConformanceLeg(bool Skipped, bool? Passed, string? Profile, int Errors, int Warnings, string? Note);
+    private sealed record ParseLegSummary(bool Passed, int OrdersReParsed, int ParseChanges, int Failures, int Skipped, string? Note);`;
+
+    expect(parseRecordParameterNames(fixture, "TestPackSummary")).toEqual([
+      "replay",
+      "conformance",
+      "error",
+      "parseLeg",
+    ]);
+    expect(parseRecordParameterNames(fixture, "ConformanceLeg")).toEqual([
+      "skipped",
+      "passed",
+      "profile",
+      "errors",
+      "warnings",
+      "note",
+    ]);
+    expect(parseRecordParameterNames(fixture, "ParseLegSummary")).toEqual([
+      "passed",
+      "ordersReParsed",
+      "parseChanges",
+      "failures",
+      "skipped",
+      "note",
+    ]);
+    expect(parseRecordParameterNames(fixture, "NoSuchRecord")).toBeNull();
+  });
+
+  test("the parser sees the field whose absence was the defect", () => {
+    // The frontend shape as it shipped: three fields, no parse leg. Pinned so a later
+    // reader can see that this diff would have failed on the code that was there, and
+    // so a matcher change that stopped distinguishing the two is caught.
+    const asShipped = ["replay", "conformance", "error"];
+    expect(TEST_PACK_BACKEND_RECORDS.TestPackSummary).not.toEqual(asShipped);
+    expect(TEST_PACK_BACKEND_RECORDS.TestPackSummary).toContain("parseLeg");
+  });
+
+  test("the frontend field lists are themselves non-vacuous", () => {
+    const records = Object.entries(TEST_PACK_BACKEND_RECORDS);
+    expect(records.length, "no record is mirrored, so the diff below checks nothing").toBe(4);
+    for (const [name, fields] of records) {
+      expect(fields.length, `${name} mirrors an empty field list`).toBeGreaterThan(0);
+      expect(new Set(fields).size, `${name} names a field twice`).toBe(fields.length);
+    }
+  });
+
+  test.skipIf(!BACKEND)("every record's fields match the C#, in both directions", () => {
+    const cs = readFileSync(join(BACKEND!, CONNECTION_SERVICE_REL), "utf8");
+
+    for (const [recordName, frontendFields] of Object.entries(TEST_PACK_BACKEND_RECORDS)) {
+      const backendFields = parseRecordParameterNames(cs, recordName);
+      expect(
+        backendFields,
+        `${CONNECTION_SERVICE_REL} declares no \`record ${recordName}\`. Either it was renamed — in ` +
+          "which case src/components/connections/testPackSummary.ts mirrors a shape that no longer " +
+          "exists — or the parser above stopped matching.",
+      ).not.toBeNull();
+
+      recordComparison(
+        `${recordName} (${CONNECTION_SERVICE_REL})`,
+        backendFields!,
+        frontendFields,
+        `${recordName} drifted from src/components/connections/testPackSummary.ts. A field the ` +
+          "backend sends and the frontend does not name is DROPPED silently at the JSON boundary — " +
+          "which is exactly how `parseLeg` was lost, and how a test pack that failed only on the " +
+          "parse leg came to render a red panel with no reason on it. Add the field to the " +
+          "interface, to its *_FIELDS list, and to the reader.",
+      );
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Plan-gate error codes quoted in the admin guides.
+//
+// THE DEFECT THIS EXISTS FOR. `admin/guides/onboard-a-new-client` told staff that enabling
+// catalog sync on Pilot returns `catalog_sync_requires_integration`, "which is misleading —
+// the real requirement is Growth, not Integration". That was true when it was written and
+// WP-11 made it false: the backend derives the tier from
+// `PlanConstants.GetMinimumPlan(BillingFeature.SftpIngestion)`, which is Growth, so the code
+// now reads `catalog_sync_requires_growth` and says exactly what it means. The guide was
+// still instructing an operator to distrust a correct 403 and go looking for a bug.
+//
+// A prose correction rots the same way the original did. The tier in a documented code is
+// derivable — the capability↔feature binding from the controller, the feature↔plan binding
+// from the mirrored gate table — so it is derived, and the guide is checked against it.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const CONTROLLERS_DIR = "ProcuLink.Api/Controllers";
+const ADMIN_GUIDES_DIR = "src/app/(app)/admin/guides";
+
+/** `RequiresPlan("catalog_sync", BillingFeature.SftpIngestion)` → capability ⇒ feature. */
+function parseRequiresPlanSites(cs: string): Record<string, string> {
+  const sites: Record<string, string> = {};
+  for (const m of stripCsComments(cs).matchAll(
+    /RequiresPlan\(\s*"([a-z0-9_]+)"\s*,\s*BillingFeature\.([A-Za-z0-9]+)\s*\)/g,
+  )) {
+    sites[m[1]] = m[2];
+  }
+  return sites;
+}
+
+/** `SftpIngestion` → `sftpIngestion`, the key MINIMUM_PLAN mirrors that feature under. */
+const featureKey = (name: string): string => name.charAt(0).toLowerCase() + name.slice(1);
+
+/** Every `<capability>_requires_<plan>` literal in the admin guides, with where it sits. */
+function guideGateCodes(): Array<{ file: string; capability: string; plan: string; code: string }> {
+  const found: Array<{ file: string; capability: string; plan: string; code: string }> = [];
+  const walkAll = (dir: string): string[] => {
+    const out: string[] = [];
+    for (const entry of readdirSync(dir)) {
+      const full = join(dir, entry);
+      if (statSync(full).isDirectory()) out.push(...walkAll(full));
+      else if (/\.(mdx|tsx?)$/.test(entry) && !/\.(test|spec)\.tsx?$/.test(entry)) out.push(full);
+    }
+    return out;
+  };
+  for (const file of walkAll(join(ROOT, ADMIN_GUIDES_DIR))) {
+    for (const m of readFileSync(file, "utf8").matchAll(/\b([a-z0-9_]+)_requires_([a-z]+)\b/g)) {
+      found.push({ file: file.replace(ROOT, ""), capability: m[1], plan: m[2], code: m[0] });
+    }
+  }
+  return found;
+}
+
+describe("the plan-gate codes the admin guides quote are the codes the backend emits", () => {
+  test("the call-site parser actually parses (so a green check means something)", () => {
+    const fixture = `
+    // A commented-out site must not count.
+    // return BillingGateErrors.RequiresPlan("ghost", BillingFeature.Ghost);
+    error = BillingGateErrors.RequiresPlan("catalog_sync", BillingFeature.SftpIngestion),
+    error = BillingGateErrors.RequiresPlan("advanced_audit", BillingFeature.AdvancedAudit),`;
+
+    expect(parseRequiresPlanSites(fixture)).toEqual({
+      catalog_sync: "SftpIngestion",
+      advanced_audit: "AdvancedAudit",
+    });
+    expect(parseRequiresPlanSites("nothing here")).toEqual({});
+    expect(featureKey("SftpIngestion")).toBe("sftpIngestion");
+  });
+
+  test("the guides really quote a gate code, and the stale one is gone", () => {
+    // Anti-vacuity: the check below sweeps whatever the guides happen to contain, and an
+    // empty sweep passes for free. The literal the guide shipped is named here because its
+    // presence is the defect — it is a code no backend path can produce.
+    const codes = guideGateCodes();
+    expect(codes.length, "no admin guide quotes a plan-gate code — the check below is vacuous")
+      .toBeGreaterThan(0);
+    expect(
+      codes.map((c) => c.code),
+      "an admin guide still quotes catalog_sync_requires_integration. The backend derives that " +
+        "tier from PlanConstants.GetMinimumPlan(BillingFeature.SftpIngestion), which is Growth, " +
+        "so no request can produce that code — the guide tells an operator to distrust a correct 403.",
+    ).not.toContain("catalog_sync_requires_integration");
+  });
+
+  test.skipIf(!BACKEND)("every quoted code names the tier the backend really derives", () => {
+    const controllers = readdirSync(join(BACKEND!, CONTROLLERS_DIR)).filter((f) => f.endsWith(".cs"));
+    expect(controllers.length, `${CONTROLLERS_DIR} has no controllers — the walk went wrong`)
+      .toBeGreaterThan(3);
+
+    const sites: Record<string, string> = {};
+    for (const file of controllers) {
+      Object.assign(sites, parseRequiresPlanSites(readFileSync(join(BACKEND!, CONTROLLERS_DIR, file), "utf8")));
+    }
+    expect(
+      Object.keys(sites).length,
+      "no BillingGateErrors.RequiresPlan call site was found in any controller",
+    ).toBeGreaterThan(3);
+
+    // Only codes whose capability really is a RequiresPlan producer are judged. Other gate
+    // codes are built elsewhere, and flagging a code this parser cannot account for would be
+    // the over-reach that gets a guard weakened until it catches nothing.
+    const judged = guideGateCodes().filter((c) => sites[c.capability] !== undefined);
+    expect(
+      judged.length,
+      "no quoted code maps to a RequiresPlan call site, so this comparison checked nothing",
+    ).toBeGreaterThan(0);
+
+    for (const { file, capability, plan, code } of judged) {
+      const key = featureKey(sites[capability]) as keyof typeof MINIMUM_PLAN;
+      const real = MINIMUM_PLAN[key];
+      expect(real, `${capability} gates on BillingFeature.${sites[capability]}, which src/lib/gatedCapabilities.ts does not mirror`).toBeDefined();
+      expect(
+        plan,
+        `${file} quotes \`${code}\`, but ${capability} gates on BillingFeature.${sites[capability]}, ` +
+          `whose minimum is ${real} — so the real code is \`${capability}_requires_${real}\`. A guide ` +
+          "that misquotes a 403 sends staff hunting a bug in code that is behaving correctly.",
+      ).toBe(real);
+    }
+    comparisonsRun += 1;
+  });
+});
+
 // ── The vacuity floor ────────────────────────────────────────────────────────
 //
 // Runs after every test in the file, so it is independent of test ORDER — which a
@@ -1638,7 +1897,9 @@ const EXPECTED_COMPARISONS =
   3 + // outbound URL policy: SecureSchemes, LoopbackOnlySchemes, the error-code walk
   2 + // invoices: the InvoiceService writer diff, and the citation walk over every fact
   2 + // transform causes: the per-pattern site count, and the end-to-end routing walk
-  3; // output formats: the buildable set, the standards catalog, PREVIEW_FORMATS
+  3 + // output formats: the buildable set, the standards catalog, PREVIEW_FORMATS
+  Object.keys(TEST_PACK_BACKEND_RECORDS).length + // one per test-pack record mirrored
+  1; // the plan-gate codes quoted in the admin guides
 
 afterAll(() => {
   if (!BACKEND) return; // the mirror gate already ruled on whether that was allowed
