@@ -31,6 +31,7 @@ import type { EmailSettings, UpdateEmailSettingsPayload, OrderDirection } from "
 import type { ApiKey, IntegrationSubscription } from "@/lib/api-client";
 import { useTabParamSync } from "@/lib/tab-param-sync";
 import { SftpPullSettings, S3PullSettings } from "@/components/settings/PullIngressSettings";
+import { InboundAddressSection } from "@/components/settings/InboundAddressSection";
 
 type SettingsTab = "org" | "billing" | "email" | "sftp" | "s3" | "api" | "connectors";
 
@@ -667,7 +668,7 @@ function EmailSettingsSection() {
         {/* The zero-setup intake path first: the hosted address needs none of the
             IMAP config below. Shown here as well as on the API-keys tab so the
             Email tab answers "where do I send orders?" on its own. */}
-        <InboundEmailRow slug={orgSettings?.slug} />
+        <InboundAddressSection />
         <p style={{ fontSize: 12, color: "var(--ink-muted)", margin: "-6px 0 18px", lineHeight: 1.55 }}>
           This address needs no setup — anything sent to it is imported automatically. Share it with
           the people who email you orders, or add a forwarding rule in your own mailbox. The IMAP
@@ -1006,62 +1007,6 @@ function IngressEndpointRow({ slug }: { slug: string | undefined }) {
   );
 }
 
-// ── Inbound email row ──────────────────────────────────────────────────────
-// Read-only "email your orders here" block, rendered on BOTH the API-keys tab
-// and the Email-intake tab. Builds the
-// inbound address from the org slug (same source as IngressEndpointRow). Handles
-// the slug being absent (older API / still generating) with a "generating…"
-// placeholder rather than a broken "@orders.proculink.eu" with no slug.
-
-function InboundEmailRow({ slug }: { slug: string | undefined }) {
-  const [copied, setCopied] = useState(false);
-  const address = slug ? `${slug}@orders.proculink.eu` : null;
-
-  const copy = async () => {
-    if (!address) return;
-    try {
-      await navigator.clipboard.writeText(address);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // clipboard may be blocked
-    }
-  };
-
-  return (
-    <div style={{ border: "1px solid var(--border)", borderRadius: 8, background: "var(--surface-2)", padding: "14px 16px", marginBottom: 16 }}>
-      <p style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink)", margin: 0 }}>Your inbound email address</p>
-      <p style={{ fontSize: 11.5, color: "var(--ink-muted)", margin: "3px 0 10px", lineHeight: 1.5 }}>
-        Forward or send purchase orders to this address — we read the attachment (or the email body) and turn it into an order automatically.
-      </p>
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-        <code
-          style={{ flex: 1, minWidth: 0, fontSize: 12, fontFamily: "'JetBrains Mono', monospace", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 6, padding: "9px 11px", color: address ? "var(--ink)" : "var(--ink-faint)", wordBreak: "break-all" }}
-        >
-          {address ?? (
-            <>
-              <span style={{ fontStyle: "italic" }}>generating…</span>
-              @orders.proculink.eu
-            </>
-          )}
-        </code>
-        <button
-          onClick={copy}
-          disabled={!address}
-          className="sm:flex-none"
-          style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 5, height: 36, padding: "0 14px", border: "1px solid var(--border)", borderRadius: 6, background: "var(--surface)", color: address ? "var(--ink)" : "var(--ink-faint)", fontSize: 12.5, fontWeight: 600, cursor: address ? "pointer" : "not-allowed", whiteSpace: "nowrap" }}
-        >
-          <Copy size={13} />
-          {copied ? "Copied!" : "Copy"}
-        </button>
-      </div>
-      <p style={{ fontSize: 11.5, color: "var(--ink-muted)", margin: "10px 0 0", lineHeight: 1.5 }}>
-        Attachments up to the usual size limits.
-      </p>
-    </div>
-  );
-}
-
 // ── API Keys Section ──────────────────────────────────────────────────────
 
 function ApiKeysSection() {
@@ -1138,8 +1083,8 @@ function ApiKeysSection() {
         {/* Where to send orders — slug + endpoint + auth header */}
         <IngressEndpointRow slug={orgSettings?.slug} />
 
-        {/* Where to email orders — slug + inbound address (CF MX → Postmark → parse) */}
-        <InboundEmailRow slug={orgSettings?.slug} />
+        {/* Where to email orders — the org's issued addresses (CF MX → Postmark → parse) */}
+        <InboundAddressSection />
 
         {/* One-time API key reveal — a focus-trapped modal (Esc / ✕ / backdrop close).
             The secret is shown ONCE and cannot be retrieved again after dismissal. */}
