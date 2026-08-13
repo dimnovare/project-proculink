@@ -197,6 +197,24 @@ describe("one row, one status encoding", () => {
     expect(document.querySelectorAll("[data-pipeline]").length).toBeGreaterThan(0);
   });
 
+  it("the table demands exactly the width its visible columns use", async () => {
+    await renderInbox();
+    const table = document.querySelector("table")!;
+    const declared = Number.parseInt(table.style.minWidth, 10);
+    // The old value was a hard-coded 1280 against columns summing to 1238 — 42px the
+    // table demanded and no cell used. On a 1280px laptop the work area is ~1210px, so
+    // the overflow clipped the LAST column: the send button. A derived minimum also
+    // means hiding Source or Value through the Columns menu buys back its own width,
+    // which a constant could not do.
+    const sum = [...document.querySelectorAll("colgroup col")].reduce(
+      (acc, col) => acc + Number.parseInt((col as HTMLElement).style.width, 10),
+      0,
+    );
+    expect(declared).toBe(sum);
+    // And the set has to actually fit the laptop case that prompted this.
+    expect(declared).toBeLessThanOrEqual(1210);
+  });
+
   it("the row carries a What's needed column at all", async () => {
     await renderInbox();
     const headers = [...document.querySelectorAll("thead th")].map((th) =>
