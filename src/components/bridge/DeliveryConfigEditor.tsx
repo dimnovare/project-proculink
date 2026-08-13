@@ -26,6 +26,7 @@ import type { DeliveryConfig, DeliveryProtocol, DeliveryTestResult } from "@/lib
 import { useConfirm } from "@/components/ui/confirm";
 import { serverReasonOrNull } from "@/lib/serverText";
 import { describeDeliveryTestOutcome } from "@/components/bridge/deliveryTestOutcome";
+import { deliveryTestDisclosure } from "@/components/bridge/deliveryTestDisclosure";
 
 type AuthType = "none" | "apikey" | "bearer" | "basic" | "oauth2";
 
@@ -269,6 +270,11 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
       cancelled = true;
     };
   }, [supplierId, reloadNonce]);
+
+  // What a test fire would do at the supplier. Keyed on the SAVED protocol, not the picker: the
+  // test runs against the saved config, so a half-edited switch to another channel must not change
+  // the sentence describing what is about to happen. Null until there is something to test.
+  const disclosure = savedConfig ? deliveryTestDisclosure(savedConfig.protocol) : null;
 
   const hasSavedCredentials = savedConfig?.hasCredentials ?? false;
   const hasCxmlSharedSecret = savedConfig?.cxmlCredentials?.hasSharedSecret ?? false;
@@ -1631,6 +1637,21 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                   >
                     <Send size={13} /> {testing ? "Testing..." : "Send a test now"}
                   </button>
+                </div>
+              )}
+
+              {/* What the test DOES, per channel, before it is clicked — an SFTP test leaves a
+                  file in the supplier's folder, an email test lands in their inbox, an HTTP/ERP
+                  test hits their live system. See deliveryTestDisclosure: one sentence cannot be
+                  true of all three, so this is keyed on the selected protocol. Hidden once a
+                  result lands — by then the result panel is the thing to read. */}
+              {!testResult && disclosure && (
+                <div
+                  className="rounded-[6px] px-3 py-2 text-[11px] leading-5"
+                  style={{ background: "var(--surface-2)", border: "1px solid var(--border)", color: "var(--ink-muted)" }}
+                >
+                  <p className="m-0">{disclosure.effect}</p>
+                  {disclosure.caveat && <p className="m-0 mt-1">{disclosure.caveat}</p>}
                 </div>
               )}
 
