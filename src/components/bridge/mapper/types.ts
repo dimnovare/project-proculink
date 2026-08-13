@@ -22,9 +22,18 @@ export interface SourceField {
   group: "header" | "parties" | "line" | "raw";
   /** True when this token is already wired to a canonical/target field. */
   mapped: boolean;
-  /** Present when AI proposed this token for some target/canonical key. */
+  /** Present when something proposed this token for some target/canonical key. */
   suggestedFor?: string | null;
+  /** The suggestion's 0..1 score, or `null` when nothing scored it. Never a stand-in number. */
   suggestionConfidence?: number | null;
+  /**
+   * What produced the suggestion — "model" (a scorer ran, `suggestionConfidence` is real) or
+   * "saved_mapping" (read back from the supplier's saved PO mapping, so there is no score).
+   * Surfaces must render the second as a neutral marker, never as a percentage: the endpoint
+   * used to send a hard-coded 0.95 for saved mappings and every pane printed it as
+   * "AI confidence 95%".
+   */
+  suggestionBasis?: "saved_mapping" | "model" | null;
 }
 
 /** The five filter chips above the source list. */

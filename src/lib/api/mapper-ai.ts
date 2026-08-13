@@ -74,7 +74,10 @@ export async function getCatalogHints(orderId: string): Promise<CatalogPriceHint
  */
 export async function recordSuggestionDecision(
   orderId: string,
-  decision: { targetKey: string; sourceId: string; accepted: boolean; confidence: number },
+  // `confidence` is nullable because a saved-mapping suggestion has none. Calibration is about
+  // how well SCORES predict acceptance, so send the null and let the backend exclude it —
+  // substituting a number here would poison the very loop this feeds.
+  decision: { targetKey: string; sourceId: string; accepted: boolean; confidence: number | null },
 ): Promise<void> {
   if (isApiMockMode) return;
   try {

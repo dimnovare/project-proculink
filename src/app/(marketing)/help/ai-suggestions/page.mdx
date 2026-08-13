@@ -20,7 +20,7 @@ Every incoming order is first put through your deterministic mappings and valida
 
 Each AI suggestion carries three pieces of metadata:
 
-- `confidence` — a percentage; the review screen reads 85%+ as high confidence, 70–84% as a good match, and anything lower as low confidence.
+- `confidence` — a percentage the model produced for that specific line. The review screen colours it green at 90% and above, amber from 75% to 89%, and red below 75%.
 - `reason` — a short, human-readable explanation, e.g. "matched on description plus unit size".
 - `provenance` — the source data the model was given, so you can audit what it actually saw.
 

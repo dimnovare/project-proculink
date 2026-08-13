@@ -15,6 +15,11 @@ import { createPortal } from "react-dom";
 import type { SourceField } from "./types";
 import type { OutgoingFieldStatus } from "./outgoingStatusModel";
 import { buildSourceOptions, currentSourceLabel, isUnsourced, suggestedSourceFor } from "./sourcePickerModel";
+import {
+  suggestionConfidenceDisplay,
+  SAVED_MAPPING_LABEL,
+  SAVED_MAPPING_TITLE,
+} from "./suggestionBasisModel";
 
 const PANEL_W = 280;
 const GROUP_LABEL: Record<SourceField["group"], string> = {
@@ -218,11 +223,20 @@ export function SourcePickerChip({
                             <span style={{ fontSize: 11, fontWeight: 600, color: "#0B1A2F", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                               {o.label}
                             </span>
-                            {o.suggested && (
+                            {/* Suggested-source badge. A saved-mapping option says so plainly
+                                and in a neutral tone: no percentage (nothing scored it) and no
+                                violet ✦ AI (no model produced it, and violet is reserved for
+                                AI-generated content). The endpoint used to send a hard-coded
+                                0.95 for these, which printed here as "✦ AI 95%". */}
+                            {o.suggested && (suggestionConfidenceDisplay(o.basis, o.confidence) === "saved_mapping" ? (
+                              <span title={SAVED_MAPPING_TITLE} style={{ fontSize: 8, fontWeight: 800, color: "var(--ink-faint)", flexShrink: 0, letterSpacing: "0.03em", whiteSpace: "nowrap" }}>
+                                {SAVED_MAPPING_LABEL}
+                              </span>
+                            ) : (
                               <span aria-label="AI suggested" title={o.confidence != null ? `AI suggests · ${Math.round(o.confidence * 100)}%` : "AI suggested"} style={{ fontSize: 8, fontWeight: 800, color: "#6F4FCE", flexShrink: 0, letterSpacing: "0.03em" }}>
                                 ✦ AI{o.confidence != null ? ` ${Math.round(o.confidence * 100)}%` : ""}
                               </span>
-                            )}
+                            ))}
                           </span>
                           <span style={{ fontFamily: "'JetBrains Mono',monospace", fontVariantNumeric: "tabular-nums", fontSize: 9.5, color: "var(--ink-faint)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                             {o.value || "(empty)"}

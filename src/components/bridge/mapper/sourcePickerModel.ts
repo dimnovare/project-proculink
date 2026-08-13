@@ -8,6 +8,7 @@
 
 import type { SourceField, TargetField } from "./types";
 import type { OutgoingFieldStatus } from "./outgoingStatusModel";
+import type { SuggestionBasis } from "./suggestionBasisModel";
 
 /** One selectable source in an output row's picker. */
 export interface SourcePickerOption {
@@ -19,10 +20,16 @@ export interface SourcePickerOption {
   value: string;
   /** "header" | "parties" | "line" | "raw" — drives grouping in the dropdown. */
   group: SourceField["group"];
-  /** True when this option is the AI-suggested source for the row (badge + pre-fill). */
+  /** True when this option is the suggested source for the row (badge + pre-fill). */
   suggested: boolean;
-  /** The AI confidence (0..1) when suggested. */
+  /** The suggestion's score (0..1), or `null` when nothing scored it. Never a stand-in number. */
   confidence: number | null;
+  /**
+   * What produced the suggestion — "model" (a scorer ran) or "saved_mapping" (read back from
+   * the supplier's saved PO mapping, which carries no score). Views must not print a
+   * percentage for the latter; `suggestionConfidenceDisplay` decides.
+   */
+  basis: SuggestionBasis | null;
 }
 
 /**
@@ -50,6 +57,7 @@ export function buildSourceOptions(
       group: f.group,
       suggested: f.id === suggestedSourceId,
       confidence: f.id === suggestedSourceId ? f.suggestionConfidence ?? null : null,
+      basis: f.id === suggestedSourceId ? f.suggestionBasis ?? null : null,
     }));
   return opts
     .map((o, i) => ({ o, i }))
@@ -62,15 +70,21 @@ export function buildSourceOptions(
     .map((x) => x.o);
 }
 
-/** The incoming id the AI suggests for an output path, or null. The suggestion lives on the
- *  incoming field (`suggestedFor === outputPath`); first match wins. */
+/** The incoming id suggested for an output path, or null. The suggestion lives on the
+ *  incoming field (`suggestedFor === outputPath`); first match wins. `basis` travels with
+ *  `confidence` so the caller can tell a real score from a saved-mapping read-back. */
 export function suggestedSourceFor(
   outputPath: string,
   incomingFields: ReadonlyArray<SourceField>,
-): { id: string; label: string; confidence: number | null } | null {
+): { id: string; label: string; confidence: number | null; basis: SuggestionBasis | null } | null {
   for (const f of incomingFields) {
     if (f.suggestedFor === outputPath) {
-      return { id: f.id, label: f.label, confidence: f.suggestionConfidence ?? null };
+      return {
+        id: f.id,
+        label: f.label,
+        confidence: f.suggestionConfidence ?? null,
+        basis: f.suggestionBasis ?? null,
+      };
     }
   }
   return null;

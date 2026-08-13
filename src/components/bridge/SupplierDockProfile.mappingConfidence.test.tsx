@@ -25,7 +25,7 @@ type TestMapping = {
   id: string;
   buyerItemCode: string;
   supplierItemCode: string;
-  confidence?: number;
+  confidence?: number | null;
   source?: string;
 };
 let mappingsData: TestMapping[] = [];
@@ -101,6 +101,34 @@ describe("SupplierDockProfile — SKU mapping confidence", () => {
     render(<SupplierDockProfile id="sup-1" />);
 
     expect(screen.getAllByText("Not scored").length).toBeGreaterThan(0);
+  });
+
+  // The branch above was reachable only for an OMITTED key. The API sends JSON `null`, and
+  // until 2026-08-13 it never even sent that: ItemMapping.Confidence was a non-nullable float
+  // filled by `source == Manual ? 1.0f : 0.8f`, so a hand-typed code arrived as a green "100%"
+  // and a bulk CSV import as a flat amber "80%", and "Not scored" was dead code for live data.
+  it("reaches 'Not scored' for the null the API actually sends, not just an absent key", () => {
+    mappingsData = [
+      { id: "map-1", buyerItemCode: "HX-4412", supplierItemCode: "ACM-FL-08", confidence: null, source: "manual" },
+    ];
+
+    const { container } = render(<SupplierDockProfile id="sup-1" />);
+
+    expect(screen.getAllByText("Not scored").length).toBeGreaterThan(0);
+    expect(screen.queryByText("100%")).toBeNull();
+    expect(screen.queryByText("80%")).toBeNull();
+    expect(confidenceChips(container)).toHaveLength(0);
+  });
+
+  it("a hand-typed mapping shows no score, and the source column says a human entered it", () => {
+    mappingsData = [
+      { id: "map-1", buyerItemCode: "HX-4412", supplierItemCode: "ACM-FL-08", confidence: null, source: "manual" },
+    ];
+
+    render(<SupplierDockProfile id="sup-1" />);
+
+    expect(screen.getAllByText("Not scored").length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/manual/i).length).toBeGreaterThan(0);
   });
 
   it("renders a real low confidence at its true value and danger tier", () => {

@@ -11,6 +11,14 @@
 // the engine from the suggestion's source/target anchors; this component only paints + wires
 // the two hit controls. Coloring follows the plan's ghost thresholds (.85/.60 on the raw
 // 0..1 confidence) via ghostWireModel so a low-confidence suggestion reads visibly riskier.
+//
+// NOT EVERY GHOST WIRE HAS A SCORE. A suggestion read back from the supplier's saved PO
+// mapping is a configured fact that no model produced, and the endpoint used to dress it in a
+// hard-coded `confidence: 0.95` — which this component painted as a confident green ring
+// reading "95", labelled "Accept AI suggestion: … (AI 95% confidence)". Such a suggestion now
+// arrives with `confidence: null`, and everything that would claim a score is withheld: no
+// numeral, no tier colour, no violet AI accent, and controls that say "saved mapping
+// suggestion". The scored path is unchanged. `suggestionBasisModel` owns the decision.
 
 import type { MappingSuggestion } from "@/lib/api/types";
 import {
@@ -19,8 +27,14 @@ import {
   ghostTierTextColor,
   ghostConfidencePercent,
 } from "./ghostWireModel";
+import { suggestionConfidenceDisplay } from "./suggestionBasisModel";
 
 const VIOLET = "#6F4FCE"; // the AI accent (matches the source→canonical wire + AiSuggestion card)
+// The neutral, non-tier stroke for a suggestion nothing scored: buyer/structural, and unlike
+// green/amber/red it makes no claim about how good the pairing is. Spelled as the token rather
+// than the hex the older constants above are frozen at — an SVG presentation attribute resolves
+// `var()` like any CSS value, which several icons in this codebase already rely on.
+const BLUE = "var(--brand-blue)";
 const GREEN = "#2E8E3A";
 // The ✓ glyph's own green. #2E8E3A on the white accept disc is 4.1613:1, under
 // the 4.5:1 floor for this 8.5px mark; #1E6D29 is 6.4128:1. GREEN above stays
@@ -48,17 +62,30 @@ function ghostPath(x1: number, y1: number, x2: number, y2: number): string {
 }
 
 export function GhostWire({ suggestion: s, hx, hy, zx, zy, onAccept, onReject }: GhostWireProps) {
-  const tier = ghostConfidenceTier(s.confidence);
-  const tierColor = ghostTierColor(tier);
+  // A tier colour and a numeral are both claims about a SCORE. Neither may be painted for a
+  // suggestion nothing scored — the endpoint used to send a hard-coded 0.95 for every entry of
+  // a supplier's saved mapping, and this ring drew it as a confident green "95".
+  const display = suggestionConfidenceDisplay(s.basis, s.confidence);
+  const scored = display === "score" && s.confidence != null;
+  const tier = scored ? ghostConfidenceTier(s.confidence as number) : null;
+  // Unscored wires fall back to buyer-blue: a neutral structural tone that carries no tier
+  // meaning, so nobody reads risk off a wire that was never assessed.
+  const tierColor = tier ? ghostTierColor(tier) : BLUE;
   // Same tier, two floors: the wire/ring STROKE is non-text (3:1) so it keeps
   // ghostTierColor; the numeral below is a glyph (4.5:1) and needs the sibling.
-  const tierTextColor = ghostTierTextColor(tier);
-  const pct = ghostConfidencePercent(s.confidence);
+  const tierTextColor = tier ? ghostTierTextColor(tier) : BLUE;
+  const pct = scored ? ghostConfidencePercent(s.confidence as number) : null;
   // The ring sits at the midpoint of the wire so it doesn't collide with the accept/reject
   // controls clustered at the target end.
   const mx = (hx + zx) / 2;
   const my = (hy + zy) / 2;
-  const reasonLabel = `${s.reason} (AI ${pct}% confidence)`;
+  // What the accept/dismiss controls call this suggestion. Only the scored path may say "AI".
+  const provenance =
+    scored ? `AI ${pct}% confidence`
+    : display === "saved_mapping" ? "saved supplier mapping"
+    : "no confidence score";
+  const reasonLabel = `${s.reason} (${provenance})`;
+  const kind = display === "saved_mapping" ? "saved mapping suggestion" : scored ? "AI suggestion" : "suggestion";
 
   return (
     <g style={{ opacity: 0.95 }} data-ghost-wire={`${s.targetKey}<-${s.sourceId}`}>
@@ -71,33 +98,40 @@ export function GhostWire({ suggestion: s, hx, hy, zx, zy, onAccept, onReject }:
         strokeDasharray="4 4"
         style={{ pointerEvents: "none", opacity: 0.5 }}
       />
-      <circle cx={hx} cy={hy} r={2.4} fill={VIOLET} style={{ pointerEvents: "none" }} opacity={0.7} />
+      {/* Source anchor. Violet is the AI accent and is reserved for AI-generated content
+          (CLAUDE.md §3), so a saved-mapping wire anchors in neutral buyer-blue instead. */}
+      <circle cx={hx} cy={hy} r={2.4} fill={scored ? VIOLET : tierColor} style={{ pointerEvents: "none" }} opacity={0.7} />
 
-      {/* Confidence ring at the wire midpoint — a thin tier-colored ring with the % inside. */}
+      {/* Confidence ring at the wire midpoint — a thin tier-colored ring with the % inside.
+          The ring itself is ALWAYS drawn, scored or not: it is the wire's visual midpoint and
+          removing it would move the geometry. Only the numeral is withheld when nothing scored
+          the suggestion — an empty ring reads as "no score", a fabricated number does not. */}
       <g style={{ pointerEvents: "none" }}>
         <circle cx={mx} cy={my} r={9} fill="#FFFFFF" stroke={tierColor} strokeWidth={1.4} opacity={0.95} />
-        <text
-          x={mx}
-          y={my + 2.6}
-          textAnchor="middle"
-          fontSize={7}
-          fontWeight={800}
-          // An SVG <text> fill IS a text colour, and 7px/800 is normal size (the
-          // 3:1 large-text floor needs ≥18.66px bold). On the ring's #FFFFFF the
-          // stroke values were 4.1613:1 (ok) / 4.1061:1 (warn); the text
-          // siblings are 6.4128:1 / 6.3150:1. Danger was already 5.8932:1.
-          fill={tierTextColor}
-          style={{ userSelect: "none", fontFamily: "'JetBrains Mono',monospace" }}
-        >
-          {pct}
-        </text>
+        {pct != null && (
+          <text
+            x={mx}
+            y={my + 2.6}
+            textAnchor="middle"
+            fontSize={7}
+            fontWeight={800}
+            // An SVG <text> fill IS a text colour, and 7px/800 is normal size (the
+            // 3:1 large-text floor needs ≥18.66px bold). On the ring's #FFFFFF the
+            // stroke values were 4.1613:1 (ok) / 4.1061:1 (warn); the text
+            // siblings are 6.4128:1 / 6.3150:1. Danger was already 5.8932:1.
+            fill={tierTextColor}
+            style={{ userSelect: "none", fontFamily: "'JetBrains Mono',monospace" }}
+          >
+            {pct}
+          </text>
+        )}
       </g>
 
       {/* Accept ✓ — promotes the ghost to a real wire. */}
       <g
         role="button"
         tabIndex={0}
-        aria-label={`Accept AI suggestion: ${reasonLabel}`}
+        aria-label={`Accept ${kind}: ${reasonLabel}`}
         style={{ pointerEvents: "auto", cursor: "pointer" }}
         onClick={() => onAccept(s)}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onAccept(s); } }}
@@ -111,7 +145,7 @@ export function GhostWire({ suggestion: s, hx, hy, zx, zy, onAccept, onReject }:
       <g
         role="button"
         tabIndex={0}
-        aria-label={`Dismiss AI suggestion: ${reasonLabel}`}
+        aria-label={`Dismiss ${kind}: ${reasonLabel}`}
         style={{ pointerEvents: "auto", cursor: "pointer" }}
         onClick={() => onReject(s)}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onReject(s); } }}

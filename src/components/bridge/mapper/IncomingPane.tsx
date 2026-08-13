@@ -24,6 +24,11 @@ import { resolveIncomingView, type IncomingView } from "@/lib/sourceDocument";
 import type { MapperSourcePortProps } from "./MapperWireLayer";
 import type { SourceField, FieldFilter } from "./types";
 import { ConfidenceChip } from "../ConfidenceChip";
+import {
+  suggestionConfidenceDisplay,
+  SAVED_MAPPING_LABEL,
+  SAVED_MAPPING_TITLE,
+} from "./suggestionBasisModel";
 import { SourceTypeChip } from "./SourceTypeChip";
 import {
   buildIncomingGroups,
@@ -487,11 +492,19 @@ function IncomingRow({
   const wired = port["data-wired"] || field.mapped;
   const connecting = port["data-connecting"];
   const suggested = field.suggestedFor != null;
-  // Per-field AI confidence — render a small chip only when the datum actually exists.
+  // Per-field confidence — render a small chip only when the datum actually exists.
   const confidence =
     field.suggestionConfidence != null && Number.isFinite(field.suggestionConfidence)
       ? field.suggestionConfidence
       : null;
+  // WHAT the confidence slot is allowed to say. A row with no suggestion at all has
+  // nothing to describe, so it stays blank — without this guard every unsuggested row
+  // would fall through to "Saved mapping" (absent basis + absent score resolves that way).
+  const hasSuggestion = suggested || confidence != null;
+  const confidenceDisplay = hasSuggestion
+    ? suggestionConfidenceDisplay(field.suggestionBasis, field.suggestionConfidence)
+    : "none";
+  const savedMapping = confidenceDisplay === "saved_mapping";
   const { ref: portRef, ...portHandlers } = port;
 
   return (
@@ -517,7 +530,10 @@ function IncomingRow({
           <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink, #0B1A2F)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {field.label}
           </span>
-          {suggested && !wired && (
+          {/* The violet ✦ AI badge is an AI claim, so it is withheld from a saved-mapping
+              suggestion — nothing AI produced that pairing, and pairing it with the neutral
+              "Saved mapping" marker on the same row would contradict itself. */}
+          {suggested && !wired && !savedMapping && (
             <span aria-label="AI suggested" title={`AI suggests → ${field.suggestedFor}`} style={{ fontSize: 8.5, fontWeight: 800, color: "#6F4FCE", flexShrink: 0, letterSpacing: "0.04em" }}>
               ✦ AI
             </span>
@@ -535,9 +551,21 @@ function IncomingRow({
         </span>
       </span>
 
-      {/* Per-field AI confidence chip (§6 "Right column") — only when an AI suggestion confidence
-          exists for this field. Never fabricated. */}
-      {confidence != null && <ConfidenceChip value={confidence} sm />}
+      {/* Per-field confidence (§6 "Right column"). A percentage renders ONLY when a scorer
+          actually produced one. A suggestion read back from the supplier's saved mapping is a
+          configured fact, not a probability, so it gets a neutral marker instead — the endpoint
+          used to send a hard-coded 0.95 for those and this slot printed "AI confidence 95%". */}
+      {confidenceDisplay === "score" && confidence != null && (
+        <ConfidenceChip value={confidence} sm label="AI confidence" />
+      )}
+      {savedMapping && (
+        <span
+          title={SAVED_MAPPING_TITLE}
+          style={{ flexShrink: 0, fontSize: 10.5, fontWeight: 500, color: "var(--ink-faint)", whiteSpace: "nowrap" }}
+        >
+          {SAVED_MAPPING_LABEL}
+        </span>
+      )}
 
       {/* RIGHT-edge drag PORT — the wire emerges from here. Grab it (or focus + Enter, then
           arrows) to wire this field to an output. The whole port is the drag handle. */}
