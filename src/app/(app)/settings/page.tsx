@@ -34,6 +34,9 @@ import { useTabParamSync } from "@/lib/tab-param-sync";
 import { planDisplayName } from "@/lib/plans";
 import { SftpPullSettings, S3PullSettings } from "@/components/settings/PullIngressSettings";
 import { InboundAddressSection } from "@/components/settings/InboundAddressSection";
+import { pollingHealthLine, type PollingHealthTone } from "@/components/settings/pollingHealth";
+import { webhookHealth, type WebhookHealthTone } from "@/components/settings/webhookHealth";
+import { formatDateTime } from "@/lib/format-date";
 
 type SettingsTab = "org" | "billing" | "email" | "sftp" | "s3" | "api" | "connectors";
 
@@ -531,6 +534,17 @@ function BillingSectionWrapper() {
 
 // ── Email settings (full shipped Group H IMAP form — KEEP) ─────────────────
 
+// Colour follows the READING, not the setting. `stale` and `unverified` are the two states the
+// old "Checking every 5 minutes" sentence used to swallow, so neither of them is allowed to look
+// like the resting grey of a healthy row.
+const POLL_TONE_COLOR: Record<PollingHealthTone, string> = {
+  unsaved: "var(--amber-text)",
+  off: "var(--ink-faint)",
+  unverified: "var(--amber-text)",
+  healthy: "var(--ink-faint)",
+  stale: "var(--danger)",
+};
+
 function EmailSettingsSection() {
   const queryClient = useQueryClient();
   const { data: settings, isLoading, isError, refetch, isFetching } = useQuery({
@@ -580,16 +594,35 @@ function EmailSettingsSection() {
   const [validationError, setValidationError] = useState<string | null>(null);
 
   const seededRef = useRef(false);
+  // `seeded` mirrors the ref as STATE because the status line below has to know whether `form`
+  // is the user's edit or still the pre-seed default. The ref alone cannot tell them apart, and
+  // reading the default as an edit would flash "Not saved yet" on every load.
+  const [seeded, setSeeded] = useState(false);
   useEffect(() => {
     if (!settings || seededRef.current) return;
     seededRef.current = true;
     setForm(settings);
+    setSeeded(true);
     setPassword("");
     setPasswordTouched(false);
   }, [settings]);
 
   // Pilot is the only tier without email ingestion (decoupled to all paid plans).
   const canEnable = !!billing && billing.plan !== "pilot";
+
+  // The status line under the switch. Driven by `lastPolledAt` — a stamp the Worker writes only
+  // after a poll fully succeeded — NOT by `enabled`, which is only what the operator asked for.
+  // See src/components/settings/pollingHealth.ts for why each state reads the way it does.
+  const savedEnabled = settings?.enabled ?? false;
+  const pollHealth = pollingHealthLine({
+    savedEnabled,
+    pendingEnabled: seeded ? form.enabled : savedEnabled,
+    lastPolledAt: settings?.lastPolledAt,
+  });
+  // The exact instant, for whoever is comparing against a mail server log. Omitted entirely when
+  // there is no readable stamp — "not run yet" used to be printed there, and that was a claim
+  // about a poll never happening that this screen has no way to make.
+  const lastPollExact = settings?.lastPolledAt ? formatDateTime(settings.lastPolledAt) : "—";
 
   const mutation = useMutation({
     mutationFn: (payload: UpdateEmailSettingsPayload) => updateEmailSettings(payload),
@@ -702,8 +735,8 @@ function EmailSettingsSection() {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "4px 0 16px", borderBottom: "1px solid var(--border)" }}>
           <div>
             <div style={{ fontSize: 13.5, fontWeight: 600, color: "var(--ink)" }}>Poll inbox for orders</div>
-            <div style={{ fontSize: 12.5, color: "var(--ink-faint)", marginTop: 2 }}>
-              {form.enabled ? "Checking every 5 minutes" : "Disabled"}
+            <div style={{ fontSize: 12.5, color: POLL_TONE_COLOR[pollHealth.tone], marginTop: 2, maxWidth: 460, lineHeight: 1.45 }}>
+              {pollHealth.text}
             </div>
           </div>
           <ToggleSwitch
@@ -817,8 +850,8 @@ function EmailSettingsSection() {
           <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
             <ShieldCheck size={15} color="var(--brand-green)" strokeWidth={1.75} />
             <span style={{ fontSize: 11.5, color: "var(--ink-muted)" }}>
-              Passwords are stored encrypted. Last poll:{" "}
-              {form.lastPolledAt ? new Date(form.lastPolledAt).toLocaleString() : "not run yet"}.
+              Passwords are stored encrypted.
+              {lastPollExact !== "—" ? ` Last successful check: ${lastPollExact}.` : ""}
             </span>
           </div>
           {validationError && (
@@ -1319,6 +1352,15 @@ const PLATFORM_LABELS: Record<string, string> = {
   zapier: "Zapier", make: "Make.com", custom: "Custom",
 };
 
+// No green, and no status dot. Green-with-a-dot is the visual grammar for "we checked and it is
+// fine", and nothing on this row was ever checked — see src/components/settings/webhookHealth.ts.
+// `unverified` gets buyer-blue: informational, plainly not a health signal.
+const WEBHOOK_TONE_STYLE: Record<WebhookHealthTone, { background: string; color: string }> = {
+  paused:     { background: "var(--surface-2)",       color: "var(--ink-muted)"        },
+  failing:    { background: "var(--danger-soft)",     color: "var(--danger)"           },
+  unverified: { background: "var(--brand-blue-soft)", color: "var(--brand-blue-deep)"  },
+};
+
 function ConnectorsSection() {
   const qc = useQueryClient();
   const [showForm, setShowForm] = useState(false);
@@ -1523,12 +1565,14 @@ function ConnectorsSection() {
         )}
 
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {subs.map(sub => (
+          {subs.map(sub => {
+          const health = webhookHealth(sub);
+          return (
             <Card
               key={sub.id}
               pad="13px 16px"
               radius={10}
-              style={{ display: "flex", alignItems: "flex-start", gap: 10, opacity: sub.isActive ? 1 : 0.6 }}
+              style={{ display: "flex", alignItems: "flex-start", gap: 10 }}
             >
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap", marginBottom: 4 }}>
@@ -1538,19 +1582,12 @@ function ConnectorsSection() {
                   <code style={{ fontSize: 11.5, fontFamily: "'JetBrains Mono', monospace", color: "var(--brand-green-deep)" }}>
                     {sub.eventType}
                   </code>
-                  {sub.isActive && sub.failureCount === 0 ? (
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 999, background: "var(--brand-green-soft)", color: "var(--brand-green-deep)" }}>
-                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--brand-green)" }} />
-                      Active
-                    </span>
-                  ) : !sub.isActive ? (
-                    <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 7px", borderRadius: 4, background: "var(--surface-2)", color: "var(--ink-muted)" }}>Paused</span>
-                  ) : null}
-                  {sub.failureCount > 0 && (
-                    <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 7px", borderRadius: 4, background: "var(--danger-soft)", color: "var(--danger)" }}>
-                      {sub.failureCount} failure{sub.failureCount !== 1 ? "s" : ""}
-                    </span>
-                  )}
+                  {/* ONE badge, always present. The old three-way ternary had a `null` arm for
+                      `isActive && failureCount > 0`, so a failing subscription — the state most
+                      worth naming — showed no badge at all. */}
+                  <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 7px", borderRadius: 4, ...WEBHOOK_TONE_STYLE[health.tone] }}>
+                    {health.badge}
+                  </span>
                 </div>
                 {EVENT_LABELS[sub.eventType] ? (
                   <p style={{ fontSize: 12.5, color: "var(--ink)", margin: "0 0 3px" }}>
@@ -1559,6 +1596,12 @@ function ConnectorsSection() {
                 ) : null}
                 <p style={{ fontSize: 11.5, color: "var(--ink-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", margin: 0 }} title={sub.targetUrl}>
                   {sub.targetUrl}
+                </p>
+                {/* What is actually known about this URL. `failureCount === 0` is a streak of
+                    zero, not a delivery — so on that arm this line says so out loud rather than
+                    letting the badge imply events are arriving. */}
+                <p style={{ fontSize: 11.5, lineHeight: 1.45, margin: "4px 0 0", color: WEBHOOK_TONE_STYLE[health.tone].color }}>
+                  {health.text}
                 </p>
               </div>
               <div style={{ display: "flex", gap: 4, flexShrink: 0, alignItems: "center" }}>
@@ -1585,7 +1628,8 @@ function ConnectorsSection() {
                 />
               </div>
             </Card>
-          ))}
+          );
+          })}
         </div>
       </SettingsGroup>
     </div>
