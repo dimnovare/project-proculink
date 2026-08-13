@@ -763,6 +763,56 @@ describe("the frontend's call corpus", () => {
     expect(keys).toContain("PUT /api/suppliers/{}/delivery-config");
     expect(keys).toContain("DELETE /api/suppliers/{}/po-mapping");
   });
+
+  // BARE_FRAGMENT_RE matches BACKTICKED path fragments only. In an apiFetch-wrapper
+  // module, the same path written "…" or '…' is invisible to the sweep, so its
+  // endpoint reads as having no caller while being called on every render.
+  //
+  // That is not hypothetical: `POST /api/settings/inbound-email/rotate` was reported
+  // uncalled for exactly this reason, and the near-miss was that the fix might have
+  // been an UNCALLED_PENDING_DECISION entry — permanently excusing a live endpoint.
+  //
+  // Widening BARE_FRAGMENT_RE to accept quotes is the WRONG repair: it would let a
+  // display-only URL string count as a caller, and a false positive here defeats the
+  // guard silently, which is worse than the noise of a false negative. So the strict
+  // detector stays and the CONVENTION is enforced instead. Until this test existed,
+  // the only thing holding it up was a comment saying "do not tidy these".
+  it("no apiFetch-wrapper module hides a path from the sweep behind ordinary quotes", () => {
+    const QUOTED_FRAGMENT_RE = /["'](\/[a-z][a-z0-9-]*(?:\/[^"']*)?)["']/g;
+    const offenders: string[] = [];
+    let wrapperModules = 0;
+    let backtickedFragments = 0;
+
+    for (const file of walk(SRC_DIR)) {
+      if (!/\.(ts|tsx)$/.test(file)) continue;
+      if (isTestFile(file)) continue;
+      if (file.startsWith(path.join(SRC_DIR, "test") + path.sep)) continue;
+
+      const code = stripComments(fs.readFileSync(file, "utf8"), "js");
+      if (!API_FETCH_WRAPPER_RE.test(code)) continue;
+      wrapperModules++;
+      backtickedFragments += [...code.matchAll(BARE_FRAGMENT_RE)].length;
+
+      const rel = path.relative(ROOT, file).split(path.sep).join("/");
+      for (const m of code.matchAll(QUOTED_FRAGMENT_RE)) {
+        const line = code.slice(0, m.index!).split(/\r?\n/).length;
+        offenders.push(`${rel}:${line} — ${m[1]}`);
+      }
+    }
+
+    // ANTI-VACUITY, both halves. A file-count floor alone would pass if the
+    // fragment reader had been repointed at nothing, so pin what was EXTRACTED too.
+    expect(wrapperModules, "no apiFetch-wrapper module found — the sweep moved").toBeGreaterThan(2);
+    expect(backtickedFragments, "wrapper modules found, but no path read out of them").toBeGreaterThan(10);
+
+    expect(
+      offenders,
+      "These paths sit in an apiFetch-wrapper module written with ordinary quotes, so " +
+        "BARE_FRAGMENT_RE cannot see them and their endpoints will be reported as having " +
+        "no caller. Backtick them — do not widen the detector, and do not answer this by " +
+        "adding the endpoint to UNCALLED_PENDING_DECISION:\n  " + offenders.join("\n  "),
+    ).toEqual([]);
+  });
 });
 
 describe("every state-changing endpoint has a caller, or a written reason", () => {
