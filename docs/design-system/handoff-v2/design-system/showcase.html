@@ -94,18 +94,13 @@
     th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border);}
     th { font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-muted); background: var(--surface);}
 
-    .spine-demo { position: relative; padding-left: 36px; }
-    .spine-demo::before { content: ""; position: absolute; left: 22px; top: 0; bottom: 0; width: 3px; background: var(--gradient-link-spine); border-radius: 2px;}
-    .spine-node {
-      position: relative; margin-bottom: 10px;
-      background: white; border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px;
-    }
-    .spine-node::after {
-      content: ""; position: absolute; left: -19px; top: 14px;
-      width: 13px; height: 13px; border-radius: 50%;
-      background: white; border: 2.5px solid var(--brand-blue);
-    }
-    .spine-node.green::after { border-color: var(--brand-green);}
+    /* Struck-signature notice. Replaces the live demos removed by the 2026-08-13
+       founder audit. `.spine-demo` / `.spine-node` were deleted from here along
+       with the canonical-spine demo they styled — their only use on this page. */
+    .struck { border: 1px solid var(--border); border-left: 3px solid var(--danger); background: var(--surface); border-radius: var(--radius-md); padding: 16px 18px; }
+    .struck-tag { display: inline-block; font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--danger); background: var(--danger-soft); padding: 2px 7px; border-radius: 3px;}
+    .struck p { font-size: 13px; margin: 10px 0 0; max-width: 660px;}
+    .struck code { font-family: var(--font-mono); font-size: 12px; color: var(--ink);}
 
     .key { font-family: var(--font-mono); font-size: 10px; color: var(--ink-muted); padding: 1px 5px; border: 1px solid var(--border); border-radius: 3px; background: var(--surface);}
 
@@ -161,6 +156,12 @@
     </div>
     <h1 class="doc-title">Buyers on one side.<br/>Suppliers on the other.<br/>We are the bridge.</h1>
     <p class="doc-sub">This page is a visual reference. The source of truth is the <code style="font-family: var(--font-mono); font-size: 13px;">design-system/</code> folder — tokens, components, motion, content rules, and the Claude Code handoff brief.</p>
+
+    <div class="struck" style="margin-top: 22px;">
+      <span class="struck-tag">Superseded · 2026-08-13</span>
+      <p><strong>This is a May 2026 handoff snapshot, not a current spec.</strong> A founder audit on 2026-08-13 struck two of the five spatial signatures this page was built to demonstrate — <strong>edge rails</strong> and the <strong>canonical spine review</strong> — after verifying neither was ever built. Their live demos below have been replaced with the ruling. Their reference implementations (<code>components/EdgeRails.tsx</code>, <code>components/CanonicalSpine.tsx</code>) were deleted.</p>
+      <p><strong>The authority is <code>CLAUDE.md</code> §2 in the frontend repo</strong>, which carries the built/not-built table for all five signatures. Where this page and that section disagree, that section wins. Everything not marked struck below — the cross-section card edge, the link-spine gradient, the System Identity mark, the status journey, navy chrome over a light work area, and the buyer-blue <code>#1E66C9</code> / supplier-green <code>#2E8E3A</code> semantics — is unchanged and still ships.</p>
+    </div>
   </div>
 
   <nav class="nav">
@@ -386,22 +387,18 @@
   <!-- ============ SIGNATURES ============ -->
   <section id="signatures">
     <h2>Signature components</h2>
-    <p>These five make a ProcuLink screen recognizable. See <code style="font-family: var(--font-mono); font-size: 13px;">05-components.md</code> for full specs and React reference implementations.</p>
+    <p>Three of the five signatures this section was written around make a ProcuLink screen recognizable. Two — edge rails and the canonical spine — were struck on 2026-08-13 and are marked below. See <code style="font-family: var(--font-mono); font-size: 13px;">CLAUDE.md</code> §2 for the current built/not-built table, and <code style="font-family: var(--font-mono); font-size: 13px;">05-components.md</code> for specs of what remains.</p>
 
     <h4>Edge rails (left = buyer · right = supplier)</h4>
-    <div style="position: relative; height: 180px; background: var(--bg); border-radius: 10px; border: 1px solid var(--border); overflow: hidden;">
-      <div style="position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--gradient-rail-buyer);"></div>
-      <div style="position: absolute; left: 0; top: 24px; width: 14px; height: 32px; background: var(--brand-blue); border-top-right-radius: 4px; border-bottom-right-radius: 4px;"></div>
-      <div style="position: absolute; left: 22px; top: 28px; font-size: 9px; font-weight: 700; color: var(--brand-blue); letter-spacing: 0.12em; writing-mode: vertical-rl; text-transform: uppercase;">BUYER · IN</div>
-      <div style="position: absolute; right: 0; top: 0; bottom: 0; width: 4px; background: var(--gradient-rail-supplier);"></div>
-      <div style="position: absolute; right: 0; top: 24px; width: 14px; height: 32px; background: var(--brand-green); border-top-left-radius: 4px; border-bottom-left-radius: 4px;"></div>
-      <div style="position: absolute; right: 22px; top: 28px; font-size: 9px; font-weight: 700; color: var(--brand-green); letter-spacing: 0.12em; writing-mode: vertical-rl; text-transform: uppercase; transform: rotate(180deg);">SUPPLIER · OUT</div>
-      <div style="padding: 32px 40px; height: 100%; display: flex; align-items: center; justify-content: center;">
-        <div style="text-align: center; color: var(--ink-muted); font-size: 13px;">Work area framed by edge rails<br/><span style="font-size: 11px; color: var(--ink-faint);">used on order-handling screens · never around individual cards</span></div>
-      </div>
+    <div class="struck">
+      <span class="struck-tag">Struck · 2026-08-13</span>
+      <p><strong>Never built. A live demo of edge rails used to render in this slot.</strong> The <code>&lt;EdgeRails&gt;</code> component was never written into the app, and every token and class created for it — <code>.railed</code>, <code>.rail</code>, <code>.rail-port</code>, <code>.rail-label</code>, the <code>rail: 4px</code> spacing token, the <code>z-rails</code> z-index, and the <code>bg-rail-buyer</code> / <code>bg-rail-supplier</code> background images — carried zero consumers for its entire life. All of it was deleted with the signature. The demo was removed because a rendered demo argues for a thing far more persuasively than prose does, and this one was arguing for something that did not exist.</p>
+      <p><strong>What carries buyer-left / supplier-right instead:</strong> panel order on the review screen — the source document pane ("What we received", blue) stays left of the outgoing panes ("What we'll send" and the live preview, green), and that ordering <em>is</em> the orientation — plus a labelled <code>Buyer → Supplier</code> direction column in the order queue. Colour semantics are unchanged: buyer / incoming <code>#1E66C9</code>, supplier / outgoing <code>#2E8E3A</code>.</p>
+      <p>One gradient survived the strike under a new name: <code>--gradient-rail-buyer</code> is now <code>--gradient-line-buyer</code>, because a real consumer draws with it — the vertical connector through a help guide's numbered step badges. It is a step connector, not a rail. <code>--gradient-rail-supplier</code> was deleted outright.</p>
+      <p><strong>Do not reinstate the rails as decoration.</strong> They were struck because a 4px strip at the window edge is not how anyone reads direction.</p>
     </div>
 
-    <h4>Wire topology (Bridge dashboard centerpiece)</h4>
+    <h4>Wire topology (the "System map" tab on the dashboard)</h4>
     <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 0; overflow: hidden;">
       <svg viewBox="0 0 800 280" width="100%" height="280">
         <defs>
@@ -458,51 +455,19 @@
         </g>
       </svg>
     </div>
+    <p style="font-size: 12.5px; margin-top: 8px;"><strong>Demoted 2026-08-13.</strong> Wire topology ships and is unchanged visually, but it is no longer the dashboard centerpiece this page called it — it now lives behind a <strong>"System map" tab</strong> on <code style="font-family: var(--font-mono); font-size: 12px;">/bridge</code>, not as the hero of the landing screen.</p>
 
-    <h4>Canonical spine (the order schema as architecture)</h4>
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start;">
-      <div class="panel">
-        <div class="label" style="color: var(--ink-faint); margin-bottom: 14px;">CANONICAL SPINE</div>
-        <div class="spine-demo">
-          <div class="spine-node">
-            <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
-              <div class="label" style="font-size: 10px;">PO NUMBER</div>
-              <span class="conf ok" style="margin-left: auto;">99%</span>
-            </div>
-            <div style="font-family: var(--font-mono); font-size: 12.5px; font-weight: 500;">PO-2026-008412</div>
-            <div style="display: flex; align-items: center; gap: 6px; margin-top: 8px; padding-top: 6px; border-top: 1px dashed var(--border); font-size: 9.5px; font-family: var(--font-mono); font-weight: 600;">
-              <span style="color: var(--brand-blue);">← header</span>
-              <span style="color: var(--ink-faint);">→</span>
-              <span style="color: var(--brand-green-deep); flex: 1; text-align: right;">Order/@orderID</span>
-            </div>
-          </div>
-          <div class="spine-node" style="background: var(--amber-soft); border-color: #F0E0BD;">
-            <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
-              <div class="label" style="font-size: 10px;">BILL TO</div>
-              <span class="conf warn" style="margin-left: auto;">72%</span>
-            </div>
-            <div style="font-size: 12.5px; font-weight: 500;">Postfach 1042 · 70001 Stuttgart, DE</div>
-            <div style="font-size: 10.5px; color: var(--amber); margin-top: 3px;">⚠ Format differs from prior orders</div>
-            <div style="display: flex; align-items: center; gap: 6px; margin-top: 8px; padding-top: 6px; border-top: 1px dashed var(--border); font-size: 9.5px; font-family: var(--font-mono); font-weight: 600;">
-              <span style="color: var(--brand-blue);">← parties.billTo</span>
-              <span style="color: var(--ink-faint);">→</span>
-              <span style="color: var(--brand-green-deep); flex: 1; text-align: right;">BillTo/Address</span>
-            </div>
-          </div>
-          <div class="spine-node green">
-            <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
-              <div class="label" style="font-size: 10px;">GRAND TOTAL</div>
-              <span class="conf ok" style="margin-left: auto;">100%</span>
-            </div>
-            <div style="font-family: var(--font-mono); font-size: 16px; font-weight: 600; letter-spacing: -0.01em;">€ 4,436.73</div>
-            <div style="display: flex; align-items: center; gap: 6px; margin-top: 8px; padding-top: 6px; border-top: 1px dashed var(--border); font-size: 9.5px; font-family: var(--font-mono); font-weight: 600;">
-              <span style="color: var(--brand-blue);">← totals</span>
-              <span style="color: var(--ink-faint);">→</span>
-              <span style="color: var(--brand-green-deep); flex: 1; text-align: right;">Total/@amount</span>
-            </div>
-          </div>
-        </div>
-      </div>
+    <h4>Canonical spine review (3-column source · spine · output)</h4>
+    <div class="struck">
+      <span class="struck-tag">Struck · 2026-08-13</span>
+      <p><strong>Deleted. A live demo of the canonical spine used to render in this slot.</strong> <code>CanonicalSpine.tsx</code> (<code>&lt;CanonicalSpine&gt;</code> + <code>&lt;SpineNode&gt;</code>) had zero importers and was deleted from the app, along with its <code>spine: 3px</code> spacing token, whose only consumer was that file. The reference implementation under <code>components/</code> went with it, and the CSS that styled this demo was removed from this page.</p>
+      <p><strong>What ships instead:</strong> a three-pane workbench on the order review screen — source document ("What we received") on the left, the outgoing payload ("What we'll send") in the middle, and a live preview of exactly what the supplier receives on the right. It is a different and better shape than source · spine · output: the middle column is the <em>editable field mapping</em>, not a read-only canonical spine, and the right column previews the real outgoing payload rather than a static sample.</p>
+      <p><strong>The one rule from this spec that survives, because it is true and load-bearing: the source document stays visible on the left during review.</strong> Never hide the source behind a modal or a wizard step.</p>
+      <p>Note the naming collision — the <strong>link-spine</strong> (the 2px blue→green gradient across the bottom of the topbar, <code>bg-link-spine</code> / <code>--gradient-link-spine</code>, demonstrated in the Motion section below) is a different thing and <strong>still ships</strong>. Only the canonical spine was struck.</p>
+    </div>
+
+    <h4>AI suggestion · file-type chip</h4>
+    <div>
       <div class="panel">
         <div class="label" style="color: var(--ink-faint); margin-bottom: 14px;">AI SUGGESTION</div>
         <div style="border: 1px solid var(--border); border-left: 3px solid var(--ai); border-radius: 6px; padding: 12px;">
@@ -557,7 +522,7 @@
   <!-- ============ IDENTITY ============ -->
   <section id="identity">
     <h2>Identity</h2>
-    <p>The mark is one expression of a family of link-glyphs. Rails, spine, stage glyphs, logo, and loading state all share the same construction.</p>
+    <p>The mark is one expression of a family of link-glyphs. Stage glyphs, logo, and loading state all share the same construction. This line also named <em>rails</em> and <em>spine</em> until 2026-08-13, when both signatures were struck — the mark never actually shared geometry with them, because neither was ever built.</p>
 
     <h4>Mark · sizes</h4>
     <div class="panel" style="display: flex; gap: 32px; align-items: center;">
@@ -643,9 +608,9 @@
 │   ├── tailwind.config.ts
 │   └── tokens.ts
 ├── components/
-│   ├── EdgeRails.tsx
+│                              (EdgeRails.tsx and CanonicalSpine.tsx were
+│                               DELETED 2026-08-13 — signatures struck)
 │   ├── WireTopology.tsx
-│   ├── CanonicalSpine.tsx
 │   ├── DocumentAnatomy.tsx
 │   ├── XCard.tsx
 │   ├── StatusJourney.tsx

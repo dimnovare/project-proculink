@@ -1,5 +1,30 @@
 # 01 — Foundations
 
+> ## ⚠ STRUCK SIGNATURES — read this before building anything from this file
+>
+> A founder audit on **2026-08-13** checked this handoff's "five spatial signatures"
+> against the shipped code. Two were never built and have been struck; two were
+> narrowed. This file predates that audit and, except where corrected inline below,
+> still describes the struck versions as required.
+>
+> **`CLAUDE.md` §2 in the repo root is the authority. This file is not.**
+>
+> - **Edge rails** (4px blue-left / green-right, `<EdgeRails>`) — **STRUCK.** Never
+>   built. No `EdgeRails.tsx` exists in `src/`; the `.rail*` CSS and the
+>   `rail` / `rail-buyer` / `rail-supplier` / `z-rails` tokens had zero consumers and
+>   were deleted. Buyer→supplier orientation is carried by **panel order** on the
+>   review screen and a labelled **`Buyer → Supplier`** column in the queue.
+> - **Canonical Spine review** (`<CanonicalSpine>` / `<SpineNode>`) — **DELETED.**
+>   Zero importers. The shipped review at `/inbox/[orderId]` is `OrderWorkshop` →
+>   `MapperWorkbench`: *What we received* | *What we'll send* | *Live preview*.
+> - **Wire Topology** — kept, but **demoted** from dashboard hero to a "System map" tab.
+> - **Document Anatomy** — kept, **narrowed**: the document pane ships; the per-zone
+>   confidence overlay does not.
+> - **Cross-section card edge** (`<XCard>`) and the buyer-blue / supplier-green
+>   colour semantics — **kept, unchanged.**
+> - The **220px navy sidebar** is not desktop chrome: desktop nav moved to the topbar
+>   and the sidebar renders only in the mobile drawer.
+
 ## What ProcuLink is
 
 ProcuLink is an **AI-assisted order-transformation bridge**. It sits between buyers, suppliers, ERPs, and procurement systems. It ingests messy purchase orders (PDF, Excel, CSV, XML, cXML, EDI, JSON, email), normalizes them into a canonical PO model, validates them against supplier-specific rules, lets a human review only the exceptions, and emits a clean supplier- or buyer-ready output.
@@ -33,7 +58,17 @@ Every screen serves this loop. Every screen makes the underlying order visible. 
 ## Design principles
 
 ### 1. The product is a bridge — and shows itself as one
-Every order-handling surface has visible architecture: edge rails frame the work area, the canonical spine sits at the center of the review screen, wires arc between buyer and supplier ports on the dashboard. The metaphor is structural, not decorative — and it is **structural only**. It shapes layout, tokens and component names; it never becomes a word the user reads. See *Vocabulary* below.
+Every order-handling surface has visible architecture. The metaphor is structural, not decorative — and it is **structural only**. It shapes layout, tokens and component names; it never becomes a word the user reads. See *Vocabulary* below.
+
+> **Struck 2026-08-13.** This principle used to name three expressions of that architecture: "edge
+> rails frame the work area, the canonical spine sits at the center of the review screen, wires arc
+> between buyer and supplier ports on the dashboard". Two were never built. Edge rails — **struck**,
+> no `EdgeRails.tsx` ever existed in `src/`. The canonical spine — **deleted**, `CanonicalSpine.tsx`
+> had zero importers. Wires — kept, but demoted to a "System map" tab on `/bridge`, not the
+> dashboard's centre. The principle itself survives in what actually ships: the review screen runs
+> **left → right, buyer to supplier** ("What we received" | "What we'll send" | "Live preview"), and
+> the queue carries a labelled `Buyer → Supplier` direction column. Layout and labels carry the
+> orientation; a 4px strip at the window edge never did.
 
 ### 2. Operator workbench, not marketing site
 Density over whitespace. Information per pixel matters. We are not selling — we are working. Bodies are 13–14px; tables run 36px rows; the inbox shows 30+ orders above the fold.
@@ -57,7 +92,10 @@ Failures are loud, recoverable, and explained. Auto-process is per-supplier, del
 Blue = buyer / incoming / structure. Green = supplier / outgoing / completion. Violet = AI-generated content. Amber = warning. Red = error. Nothing else. Ever.
 
 ### 9. The mark is one expression of a system
-The brand is not a logo glued to a SaaS app. The link-spine, the edge rails, the stage glyphs, the loading state, and the logo are all the same shape language.
+The brand is not a logo glued to a SaaS app. The link-spine, the stage glyphs, the loading state, and the logo are all the same shape language.
+
+> **Struck 2026-08-13.** "the edge rails" was in that list. Edge rails were never built, so the mark
+> has no rail markers to share geometry with. The rest of the list is real and unchanged.
 
 ### 10. Motion communicates state, not flair
 Six motion patterns, each with a single job. All respect `prefers-reduced-motion`.
@@ -100,7 +138,7 @@ Six motion patterns, each with a single job. All respect `prefers-reduced-motion
 | **Crossing** | One order's transit. Survives in `CrossingsLog.tsx`. |
 | **Dock** | A supplier or buyer endpoint. Survives in `SupplierDockProfile.tsx`. |
 | **Lane** | A buyer↔supplier pairing. Survives in `LaneDrawer.tsx`. |
-| **Spine** | The canonical PO model, rendered as the center column on the review screen. `CanonicalSpine`, `bg-link-spine`. |
+| **Spine** | ~~The canonical PO model, rendered as the center column on the review screen. `CanonicalSpine`.~~ **Struck 2026-08-13** — `CanonicalSpine.tsx` had zero importers and was deleted; `SpineReview` was deleted earlier (commit `3520ed4`). The word survives in exactly one live identifier: `bg-link-spine` / `--gradient-link-spine`, the 2px topbar gradient line — which is a different thing and still ships. |
 | **Anatomy** | The source-document zone overlay. `DocumentAnatomy.tsx`. |
 | **Wire** | A buyer↔supplier connection drawn on the dashboard. `WireTopology.tsx`. |
 

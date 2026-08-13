@@ -1,5 +1,30 @@
 # ProcuLink Design System — for Claude Code
 
+> ## ⚠ STRUCK SIGNATURES — read this before building anything from this file
+>
+> A founder audit on **2026-08-13** checked this handoff's "five spatial signatures"
+> against the shipped code. Two were never built and have been struck; two were
+> narrowed. This file predates that audit and, except where corrected inline below,
+> still describes the struck versions as required.
+>
+> **`CLAUDE.md` §2 in the repo root is the authority. This file is not.**
+>
+> - **Edge rails** (4px blue-left / green-right, `<EdgeRails>`) — **STRUCK.** Never
+>   built. No `EdgeRails.tsx` exists in `src/`; the `.rail*` CSS and the
+>   `rail` / `rail-buyer` / `rail-supplier` / `z-rails` tokens had zero consumers and
+>   were deleted. Buyer→supplier orientation is carried by **panel order** on the
+>   review screen and a labelled **`Buyer → Supplier`** column in the queue.
+> - **Canonical Spine review** (`<CanonicalSpine>` / `<SpineNode>`) — **DELETED.**
+>   Zero importers. The shipped review at `/inbox/[orderId]` is `OrderWorkshop` →
+>   `MapperWorkbench`: *What we received* | *What we'll send* | *Live preview*.
+> - **Wire Topology** — kept, but **demoted** from dashboard hero to a "System map" tab.
+> - **Document Anatomy** — kept, **narrowed**: the document pane ships; the per-zone
+>   confidence overlay does not.
+> - **Cross-section card edge** (`<XCard>`) and the buyer-blue / supplier-green
+>   colour semantics — **kept, unchanged.**
+> - The **220px navy sidebar** is not desktop chrome: desktop nav moved to the topbar
+>   and the sidebar renders only in the mobile drawer.
+
 This folder is the **hand-off contract** between the design (this prototype) and the
 real app (`proculink.eu` · Next.js 15 App Router · TypeScript · Tailwind ·
 shadcn/Radix · TanStack Query · Clerk). Point Claude Code at this folder and it has
@@ -17,7 +42,12 @@ design-system/
 ```
 
 This folder also holds an **earlier** numbered set (`01-foundations.md` … `10-claude-code-brief.md`)
-from the first handoff. It is kept for its layout, token and motion detail, which is still good.
+from the first handoff. It is kept for its **motion, type, token and colour detail, which is still
+good**. Its **spatial/layout signatures are not** — the 2026-08-13 audit checked all five against
+`src/` and struck two of them (edge rails, never built; the Canonical Spine review, deleted with zero
+importers) and narrowed two more. Every file in the numbered set now opens with a struck-signatures
+banner. Read that banner before copying a layout, a component contract or a build order out of any of
+them.
 
 **For anything a user reads, the current authority is `DESIGN_SYSTEM.md` §12 and
 `FABLE5_BRIEF.md` §8 — not the numbered set.** The numbered docs originally taught a
@@ -27,9 +57,24 @@ purged that from all user-facing copy (CLAUDE.md §9); the numbered docs were co
 approved word list is code — `src/lib/vocabulary.ts`, enforced by `bun run lint:vocab` — and
 shipped page titles live in `src/lib/pageTitles.ts`. Read those before writing a label.
 
-The metaphor is still locked as **spatial architecture**: edge rails, wire topology, the
-three-column review screen, the link-spine gradient. It governs layout and component names, and
-survives in code identifiers, CSS/design tokens and route names. It is never a word on screen.
+The metaphor still governs **layout and component names**, and survives in code identifiers,
+CSS/design tokens and route names. It is never a word on screen.
+
+> **Struck 2026-08-13.** This paragraph used to list the spatial architecture as "edge rails, wire
+> topology, the three-column review screen, the link-spine gradient". Two of those four were struck.
+> What the metaphor actually holds up in shipped code:
+>
+> - ~~**Edge rails**~~ — **STRUCK.** Never built. `.rail*` CSS and the `rail` / `rail-buyer` /
+>   `rail-supplier` / `z-rails` tokens had zero consumers and were deleted.
+> - ~~**The three-column review screen** as *source · canonical spine · output*~~ — **STRUCK.**
+>   `CanonicalSpine.tsx` had zero importers and was deleted. The review is still three columns, but
+>   they are *What we received* | *What we'll send* | *Live preview* (`OrderWorkshop` →
+>   `MapperWorkbench`) — one buyer column and two supplier columns, not a spine.
+> - **Wire topology** — kept, demoted to a "System map" tab on `/bridge`.
+> - **The link-spine gradient** — kept, real, unchanged (`bg-link-spine`, the 2px topbar line).
+>
+> Also still real: `<XCard>`'s cross-section edge, navy chrome over a light work area,
+> `<StatusJourney>`'s five stages, and buyer-blue / supplier-green as directional colour.
 
 ---
 

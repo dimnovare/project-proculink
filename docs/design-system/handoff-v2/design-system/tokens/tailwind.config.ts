@@ -101,24 +101,35 @@ const config: Pick<Config, "theme" | "plugins"> = {
       },
 
       backgroundImage: {
+        // `rail-buyer` / `rail-supplier` were STRUCK 2026-08-13 with the
+        // edge-rail signature. Both had zero consumers in the app.
+        // The buyer gradient itself survives, renamed: the CSS variable is now
+        // `--gradient-line-buyer` and draws the vertical connector through a
+        // help guide's numbered step badges (src/components/help/guide/Step.tsx).
+        // It is a step connector, not a rail. The supplier gradient was deleted
+        // outright — its only consumer was the `.rail.supplier` class.
         "link-spine":    "linear-gradient(90deg, #1E66C9 0%, #1E66C9 35%, #2E8E3A 65%, #2E8E3A 100%)",
         "bridge-deck":   "linear-gradient(90deg, #1E66C9, #2E8E3A)",
-        "rail-buyer":    "linear-gradient(180deg, rgba(30,102,201,0.2), #1E66C9 50%, rgba(30,102,201,0.2))",
-        "rail-supplier": "linear-gradient(180deg, rgba(46,142,58,0.2), #2E8E3A 50%, rgba(46,142,58,0.2))",
       },
 
       spacing: {
         // Tailwind already covers 1..96 via the default 0.25rem scale.
         // Add named tokens where useful:
-        "rail":      "4px",   // edge-rail thickness
-        "card-edge": "3px",   // XCard strip
-        "spine":     "3px",   // canonical-spine line
+        //
+        // `rail: 4px` (edge rails) and `spine: 3px` (canonical spine) were
+        // STRUCK 2026-08-13 with the two signatures they served. Neither
+        // signature was ever built into a rendered screen: `w-rail` had zero
+        // consumers, and `w-spine` had exactly one — CanonicalSpine.tsx, which
+        // itself had zero importers and was deleted in the same change.
+        "card-edge": "3px",   // XCard cross-section edge strip
         "topbar":    "52px",  // topbar height
-        "sidebar":   "220px", // sidebar width
+        "sidebar":   "220px", // sidebar width — MOBILE DRAWER ONLY. Desktop nav
+                              // moved to the topbar; the sidebar no longer
+                              // renders as desktop chrome.
       },
 
       zIndex: {
-        rails:   "1",
+        // `rails: 1` removed 2026-08-13 with the edge-rail signature (zero users).
         sticky:  "10",
         drawer:  "20",
         topbar:  "30",

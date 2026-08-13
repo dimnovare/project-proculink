@@ -143,8 +143,12 @@ export function AiSuggestion({ confidence, title, description, children }: AiSug
 /* -------- ProcuLinkMark — System Identity (Direction 3) -------- *
  *
  * Asymmetric link-node: two endpoint dots connected by a single gradient curve.
- * The mark is ONE expression of a shape system that also lives in edge rails,
- * the canonical spine, stage glyphs, and the loading state.
+ * The mark is ONE expression of a shape system that also lives in stage glyphs
+ * and the loading state.
+ *
+ * This comment used to also name "edge rails" and "the canonical spine". The
+ * 2026-08-13 founder audit struck both signatures — neither was ever built, so
+ * the mark never actually shared geometry with them. See CLAUDE.md §2.
  *
  * Same construction at every size. Use `mono` on dark/navy surfaces.
  */

@@ -1,5 +1,30 @@
 # 04 — Color
 
+> ## ⚠ STRUCK SIGNATURES — read this before building anything from this file
+>
+> A founder audit on **2026-08-13** checked this handoff's "five spatial signatures"
+> against the shipped code. Two were never built and have been struck; two were
+> narrowed. This file predates that audit and, except where corrected inline below,
+> still describes the struck versions as required.
+>
+> **`CLAUDE.md` §2 in the repo root is the authority. This file is not.**
+>
+> - **Edge rails** (4px blue-left / green-right, `<EdgeRails>`) — **STRUCK.** Never
+>   built. No `EdgeRails.tsx` exists in `src/`; the `.rail*` CSS and the
+>   `rail` / `rail-buyer` / `rail-supplier` / `z-rails` tokens had zero consumers and
+>   were deleted. Buyer→supplier orientation is carried by **panel order** on the
+>   review screen and a labelled **`Buyer → Supplier`** column in the queue.
+> - **Canonical Spine review** (`<CanonicalSpine>` / `<SpineNode>`) — **DELETED.**
+>   Zero importers. The shipped review at `/inbox/[orderId]` is `OrderWorkshop` →
+>   `MapperWorkbench`: *What we received* | *What we'll send* | *Live preview*.
+> - **Wire Topology** — kept, but **demoted** from dashboard hero to a "System map" tab.
+> - **Document Anatomy** — kept, **narrowed**: the document pane ships; the per-zone
+>   confidence overlay does not.
+> - **Cross-section card edge** (`<XCard>`) and the buyer-blue / supplier-green
+>   colour semantics — **kept, unchanged.**
+> - The **220px navy sidebar** is not desktop chrome: desktop nav moved to the topbar
+>   and the sidebar renders only in the mobile drawer.
+
 ## The four-bucket rule
 
 Every color in the product belongs to exactly one of four buckets. If you can't classify it, it doesn't belong.
@@ -42,7 +67,14 @@ NAVY    →  the bridge frame itself (sidebar + topbar only)
 | 75–89% | `amber` on `amber-soft` |
 | < 75% | `danger` on `danger-soft` |
 
-Used consistently in: `<ConfidenceChip>`, the Document Anatomy zone overlays, field-level state on the Canonical Spine.
+Used consistently in: `<ConfidenceChip>`, and field-level state on the order review screen.
+
+> **Struck 2026-08-13.** Two of the three consumers listed here do not exist. "field-level state on
+> the Canonical Spine" — **struck**, `CanonicalSpine.tsx` was deleted with zero importers; the
+> thresholds now apply to the mapped-field rows on the shipped review screen (`OrderWorkshop` →
+> `MapperWorkbench`). "the Document Anatomy zone overlays" — **narrowed**, the document pane ships
+> (`src/components/bridge/document/`) but the per-zone confidence overlay does not; it needs backend
+> provenance and is a separate packet. The thresholds and `<ConfidenceChip>` itself are unchanged.
 
 ## Accessibility
 
@@ -82,7 +114,7 @@ Color is paired with at least one of: icon, label, weight, position. So a "red r
 - ✕ Don't use `ai` violet anywhere except for AI suggestions, AI-mapped lines, and AI confidence chips.
 - ✕ Don't use semantic colors as decoration. An amber border means "warning." If nothing is wrong, don't use amber.
 - ✕ Don't introduce new colors. If you need to differentiate a third category (e.g. a third file-type chip), use a neutral grey, not a new hue.
-- ✕ Don't apply gradients to body surfaces. Gradients are reserved for the link-spine and rail tokens.
+- ✕ Don't apply gradients to body surfaces. Gradients are reserved for the link-spine (`bg-link-spine`), the bridge-deck token, and `<XCard>`'s cross-section edge strip. **Struck 2026-08-13:** "and rail tokens" — edge rails were never built and `bg-rail-buyer` / `bg-rail-supplier` were deleted for having zero consumers.
 
 ## File-type chip palette
 

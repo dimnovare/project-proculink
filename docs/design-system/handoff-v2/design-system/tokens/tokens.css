@@ -47,8 +47,14 @@
   /* ---------- Gradients ---------- */
   --gradient-link-spine:    linear-gradient(90deg, var(--brand-blue) 0%, var(--brand-blue) 35%, var(--brand-green) 65%, var(--brand-green) 100%);
   --gradient-bridge-deck:   linear-gradient(90deg, var(--brand-blue), var(--brand-green));
-  --gradient-rail-buyer:    linear-gradient(180deg, rgba(30,102,201,0.2), var(--brand-blue) 50%, rgba(30,102,201,0.2));
-  --gradient-rail-supplier: linear-gradient(180deg, rgba(46,142,58,0.2), var(--brand-green) 50%, rgba(46,142,58,0.2));
+  /* --gradient-rail-buyer was RENAMED --gradient-line-buyer on 2026-08-13 when
+     the edge-rail signature was struck. It survived the strike because one real
+     consumer draws with it: the vertical connector running through a help
+     guide's numbered step badges (src/components/help/guide/Step.tsx). It is a
+     step connector, not a rail — do not use it to frame a work area.
+     --gradient-rail-supplier was deleted outright: its only consumer was the
+     `.rail.supplier` class, which went with the signature. */
+  --gradient-line-buyer:    linear-gradient(180deg, rgba(30,102,201,0.15), var(--brand-blue) 50%, rgba(30,102,201,0.15));
 
   /* ---------- Typography ---------- */
   --font-sans:    "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -122,8 +128,9 @@
   --duration-wire-loop: 6000ms;
 
   /* ---------- Z-index ---------- */
+  /* --z-rails: 1 was STRUCK 2026-08-13 with the edge-rail signature. It had
+     zero consumers — no element ever stacked against it. */
   --z-base:    0;
-  --z-rails:   1;
   --z-sticky: 10;
   --z-drawer: 20;
   --z-topbar: 30;

@@ -120,8 +120,14 @@
   /* Gradients */
   --gradient-link-spine:    linear-gradient(90deg, #1E66C9 0%, #1E66C9 35%, #2E8E3A 65%, #2E8E3A 100%);
   --gradient-bridge-deck:   linear-gradient(90deg, #1E66C9, #2E8E3A);
-  --gradient-rail-buyer:    linear-gradient(180deg, rgba(30,102,201,0.15), #1E66C9 50%, rgba(30,102,201,0.15));
-  --gradient-rail-supplier: linear-gradient(180deg, rgba(46,142,58,0.15), #2E8E3A 50%, rgba(46,142,58,0.15));
+  /* A vertical buyer-blue hairline that fades at both ends. ONE consumer:
+     src/components/help/guide/Step.tsx draws the connector running through a
+     guide's numbered step badges. It was called --gradient-rail-buyer until the
+     edge-rail signature was struck (2026-08-13); the token survived the strike
+     because it renders something real, but the old name implied a rail ships and
+     it does not. --gradient-rail-supplier was deleted outright — its only
+     consumer was the `.rail.supplier` class, which went with the signature. */
+  --gradient-line-buyer:    linear-gradient(180deg, rgba(30,102,201,0.15), #1E66C9 50%, rgba(30,102,201,0.15));
 
   /* Type */
   --font-sans:    "Inter", system-ui, -apple-system, sans-serif;
@@ -627,22 +633,13 @@
 .journey-labels span:first-child { text-align: left; }
 .journey-labels span:last-child  { text-align: right; }
 
-/* ── Edge rails ────────────────────────────────────────────────────────── */
-.railed { position: relative; }
-.rail { position: absolute; top: 0; bottom: 0; width: 4px; z-index: 1; }
-.rail.buyer    { left: 0;  background: var(--gradient-rail-buyer); }
-.rail.supplier { right: 0; background: var(--gradient-rail-supplier); }
-.rail-port { position: absolute; width: 11px; height: 11px; border-radius: 50%; left: -3.5px; background: var(--surface); }
-.rail.buyer    .rail-port { border: 2.5px solid var(--brand-blue); }
-.rail.supplier .rail-port { border: 2.5px solid var(--brand-green); left: auto; right: -3.5px; }
-.rail-label {
-  position: absolute; top: 50%;
-  font-size: 9.5px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase;
-  writing-mode: vertical-rl; transform: translateY(-50%);
-  color: var(--brand-blue);
-}
-.rail.buyer    .rail-label { left: 9px;  transform: translateY(-50%) rotate(180deg); }
-.rail.supplier .rail-label { right: 9px; color: var(--brand-green); }
+/* ── Edge rails — STRUCK 2026-08-13, deliberately not reinstated ─────────
+   `.railed`, `.rail`, `.rail-port` and `.rail-label` lived here for months with
+   ZERO consumers: no element in src/ ever carried one of these classes, and the
+   `<EdgeRails>` component they were written for was never built. They were
+   removed with the signature. Buyer-left / supplier-right orientation is carried
+   by LAYOUT instead — see CLAUDE.md §2 signature 1. Do not add them back as
+   decoration; if a screen needs to state direction, label it. */
 
 /* ── Wire topology ─────────────────────────────────────────────────────── */
 .wire-traveller { offset-rotate: 0deg; }

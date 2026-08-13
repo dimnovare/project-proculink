@@ -1,5 +1,30 @@
 # 08 — Iconography
 
+> ## ⚠ STRUCK SIGNATURES — read this before building anything from this file
+>
+> A founder audit on **2026-08-13** checked this handoff's "five spatial signatures"
+> against the shipped code. Two were never built and have been struck; two were
+> narrowed. This file predates that audit and, except where corrected inline below,
+> still describes the struck versions as required.
+>
+> **`CLAUDE.md` §2 in the repo root is the authority. This file is not.**
+>
+> - **Edge rails** (4px blue-left / green-right, `<EdgeRails>`) — **STRUCK.** Never
+>   built. No `EdgeRails.tsx` exists in `src/`; the `.rail*` CSS and the
+>   `rail` / `rail-buyer` / `rail-supplier` / `z-rails` tokens had zero consumers and
+>   were deleted. Buyer→supplier orientation is carried by **panel order** on the
+>   review screen and a labelled **`Buyer → Supplier`** column in the queue.
+> - **Canonical Spine review** (`<CanonicalSpine>` / `<SpineNode>`) — **DELETED.**
+>   Zero importers. The shipped review at `/inbox/[orderId]` is `OrderWorkshop` →
+>   `MapperWorkbench`: *What we received* | *What we'll send* | *Live preview*.
+> - **Wire Topology** — kept, but **demoted** from dashboard hero to a "System map" tab.
+> - **Document Anatomy** — kept, **narrowed**: the document pane ships; the per-zone
+>   confidence overlay does not.
+> - **Cross-section card edge** (`<XCard>`) and the buyer-blue / supplier-green
+>   colour semantics — **kept, unchanged.**
+> - The **220px navy sidebar** is not desktop chrome: desktop nav moved to the topbar
+>   and the sidebar renders only in the mobile drawer.
+
 ## The shape language
 
 The ProcuLink mark is **one expression of a complete visual system**, not a separate logo glued onto a SaaS app. The construction rule is:
@@ -9,11 +34,17 @@ The ProcuLink mark is **one expression of a complete visual system**, not a sepa
 The same construction extends to:
 
 - **The mark** (logo / favicon / lockup)
-- **Edge rails** — the buyer/supplier endpoints are the rail markers; the work area is the path between
-- **The canonical spine** — vertical link, gradient stroke, two endpoints
+- ~~**Edge rails** — the buyer/supplier endpoints are the rail markers; the work area is the path between~~
+- ~~**The canonical spine** — vertical link, gradient stroke, two endpoints~~
 - **The link-spine** divider on topbars — the path, without endpoints
 - **Stage glyphs** — each is a constrained variant of the same curve
 - **Loading state** — the mark draws itself
+
+> **Struck 2026-08-13.** Two of these six expressions were never built. **Edge rails** — struck, no
+> `EdgeRails.tsx` in `src/`, and the rail markers that were to carry the endpoint geometry never
+> rendered. **The canonical spine** — deleted, `CanonicalSpine.tsx` had zero importers. The shape
+> language is unaffected: the mark, the link-spine topbar divider, the stage glyphs and the loading
+> state are all real and all still share the construction.
 
 The brand is the procurement flow itself.
 
@@ -87,8 +118,8 @@ Custom UI icons (chevrons, status dots) live in `assets/glyphs/` and follow the 
 |---|---|
 | Sidebar logo | Mark in mono, paired with wordmark |
 | Topbar | 2px `--gradient-link-spine` at the bottom edge — the path without endpoints |
-| Edge rails | Vertical version of the shape: blue endpoint marker → 4px rail → green endpoint marker |
-| Canonical spine | Vertical 3px `--gradient-link-spine` with circular nodes |
+| ~~Edge rails~~ | ~~Vertical version of the shape: blue endpoint marker → 4px rail → green endpoint marker~~ — **struck 2026-08-13**, never built |
+| ~~Canonical spine~~ | ~~Vertical 3px `--gradient-link-spine` with circular nodes~~ — **struck 2026-08-13**, deleted with zero importers |
 | Empty state | The mark, large, with the curve drawing in on hover (motion M6) |
 | Loading state | The mark, with the curve drawing in over 600ms — replaces all spinners |
 | LinkedIn banner | Large mark + tagline + buyer→supplier lockup |

@@ -41,7 +41,6 @@
   "src/components/bridge/BridgeLoader.tsx": 8,
   "src/components/bridge/BridgeSidebar.tsx": 45,
   "src/components/bridge/BridgeTopbar.tsx": 81,
-  "src/components/bridge/CanonicalSpine.tsx": 24,
   "src/components/bridge/catalog/CatalogCodeResults.tsx": 11,
   "src/components/bridge/CatalogSourceEditor.tsx": 133,
   "src/components/bridge/catalogSourceHelpers.ts": 7,

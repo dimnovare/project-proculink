@@ -9,9 +9,15 @@ import tailwindcssAnimate from "tailwindcss-animate";
 /**
  * ProcuLink Tailwind config — "The Bridge Layer" v1.0
  *
- * Token structure matches the design-system/tokens/tailwind.config.ts
- * so all signature components (EdgeRails, CanonicalSpine, XCard, etc.)
- * can use Tailwind classes directly.
+ * Token structure derives from the design-system/tokens/tailwind.config.ts
+ * handoff so signature components (XCard, StatusJourney, LinkSpine, etc.) can
+ * use Tailwind classes directly.
+ *
+ * It is NOT a mirror of that file and must not be re-synced with it. The handoff
+ * predates the 2026-08-13 signature audit (CLAUDE.md §2), which struck the edge
+ * rails and deleted CanonicalSpine; the tokens that served them — `rail`,
+ * `spine`, `z-rails`, `bg-rail-buyer`, `bg-rail-supplier` — were removed here and
+ * every one of them had zero consumers.
  *
  * shadcn/ui CSS-variable tokens are preserved for primitives compatibility.
  */
@@ -226,17 +232,20 @@ export default {
       },
 
       // ─── Spacing — named DS tokens for signature components ──────────
+      // `rail: 4px` (EdgeRails) and `spine: 3px` (CanonicalSpine) were removed
+      // 2026-08-13 with the two signatures they served. Neither component was
+      // ever built into a rendered screen: `w-rail` had zero consumers, and
+      // `w-spine` had exactly one — CanonicalSpine.tsx, which itself had zero
+      // importers and was deleted in the same change.
       spacing: {
-        "rail":      "4px",   // EdgeRails left/right rail thickness
         "card-edge": "3px",   // XCard cross-section edge strip
-        "spine":     "3px",   // CanonicalSpine vertical line
         "topbar":    "52px",  // BridgeTopbar height
-        "sidebar":   "220px", // BridgeSidebar width
+        "sidebar":   "220px", // BridgeSidebar width (mobile drawer)
       },
 
       // ─── Z-index scale ────────────────────────────────────────────────
+      // `rails: 1` removed 2026-08-13 with the edge-rail signature (zero users).
       zIndex: {
-        rails:   "1",
         sticky:  "10",
         drawer:  "20",
         topbar:  "30",
@@ -274,10 +283,10 @@ export default {
 
       // ─── Background gradients ─────────────────────────────────────────
       backgroundImage: {
+        // `bg-rail-buyer` / `bg-rail-supplier` removed 2026-08-13 with the
+        // edge-rail signature. Both had zero consumers in src/.
         "link-spine":    "linear-gradient(90deg, #1E66C9 0%, #1E66C9 35%, #2E8E3A 65%, #2E8E3A 100%)",
         "bridge-deck":   "linear-gradient(90deg, #1E66C9, #2E8E3A)",
-        "rail-buyer":    "linear-gradient(180deg, rgba(30,102,201,0.2), #1E66C9 50%, rgba(30,102,201,0.2))",
-        "rail-supplier": "linear-gradient(180deg, rgba(46,142,58,0.2), #2E8E3A 50%, rgba(46,142,58,0.2))",
         "mark-gradient": "linear-gradient(90deg, #1E66C9, #2E8E3A)",
       },
 
