@@ -22,7 +22,12 @@
 
 import { describe, it, expect } from "vitest";
 import type { AcceptanceGateDecision } from "@/lib/api/types";
-import { acceptanceIssues, failingAcceptanceCount, GATE_UNAVAILABLE_CODE } from "./acceptanceGateModel";
+import {
+  acceptanceIssues,
+  failingAcceptanceCount,
+  readyBarLabel,
+  GATE_UNAVAILABLE_CODE,
+} from "./acceptanceGateModel";
 
 const NOUN = "Supplier";
 
@@ -103,5 +108,57 @@ describe("the advisory subtraction OrderWorkshop performs", () => {
   it("is zero when nothing failed, and never negative", () => {
     expect(advisoryCount(decision())).toBe(0);
     expect(advisoryCount(undefined)).toBe(0);
+  });
+});
+
+// ── readyBarLabel (P0-B) ─────────────────────────────────────────────────────
+// The green bar used to render IssuesPanel's hardcoded default, "No open issues —
+// every required field is filled and checked.", because `readyLabel` had no
+// producer in src/. "and checked" named a check nothing ran: the only rule-level
+// check is POST /api/orders/{id}/validate, which has no caller.
+
+describe("readyBarLabel — the sub-line under the green Ready to send bar", () => {
+  it("never claims a field was CHECKED", () => {
+    for (const advisoryCountValue of [0, 1, 2, 7]) {
+      for (const noun of ["Supplier", "Customer"]) {
+        const label = readyBarLabel({ advisoryCount: advisoryCountValue, counterpartyNoun: noun });
+        expect(label, `advisoryCount=${advisoryCountValue} noun=${noun}`).not.toMatch(
+          /filled and checked/,
+        );
+        expect(label).not.toBe("No open issues — every required field is filled and checked.");
+        // Every branch keeps the true half, which two help guides and
+        // issuesRailFailureState.test.tsx both key off.
+        expect(label).toMatch(/^No open issues/);
+      }
+    }
+  });
+
+  it("bounds the claim when nothing is outstanding", () => {
+    const label = readyBarLabel({ advisoryCount: 0, counterpartyNoun: "Supplier" });
+    expect(label).toContain("everything ProcuLink can check before sending");
+    expect(label).toContain("not a guarantee that the supplier will accept the order");
+  });
+
+  it("names the overridden rules the send control is already counting", () => {
+    expect(readyBarLabel({ advisoryCount: 1, counterpartyNoun: "Supplier" })).toContain(
+      "1 supplier rule did not pass and was overridden",
+    );
+    expect(readyBarLabel({ advisoryCount: 3, counterpartyNoun: "Supplier" })).toContain(
+      "3 supplier rules did not pass and were overridden",
+    );
+  });
+
+  it("routes the party noun, so an inbound org never reads 'supplier'", () => {
+    for (const advisoryCountValue of [0, 2]) {
+      const label = readyBarLabel({ advisoryCount: advisoryCountValue, counterpartyNoun: "Customer" });
+      expect(label).toContain("customer");
+      expect(label).not.toMatch(/supplier/i);
+    }
+  });
+
+  it("says something different in each state — a constant would defeat the fix", () => {
+    const clean = readyBarLabel({ advisoryCount: 0, counterpartyNoun: "Supplier" });
+    const advisory = readyBarLabel({ advisoryCount: 2, counterpartyNoun: "Supplier" });
+    expect(clean).not.toBe(advisory);
   });
 });
