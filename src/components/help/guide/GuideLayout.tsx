@@ -17,6 +17,7 @@ import Link from "next/link";
 import { capture } from "@/lib/analytics";
 import { resolveArticles } from "@/lib/help-articles";
 import type { Guide } from "@/lib/guides";
+import { Card } from "@/components/bridge/layout/Card";
 import { GuideProvider } from "./GuideContext";
 
 interface StepMeta {
@@ -466,13 +467,10 @@ function GuideFeedback({ slug }: { slug: string }) {
   );
 
   return (
-    <div
+    <Card
+      flush
+      radius="var(--radius-lg)"
       className="flex flex-col items-start gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
-      style={{
-        border: "1px solid var(--border)",
-        borderRadius: "var(--radius-lg)",
-        background: "var(--surface)",
-      }}
     >
       <span className="text-[14px] font-medium" style={{ color: "var(--ink)" }}>
         Did this guide get you there?
@@ -498,7 +496,7 @@ function GuideFeedback({ slug }: { slug: string }) {
             : "Thanks — tell support which step lost you and we'll fix the guide."}
         </span>
       )}
-    </div>
+    </Card>
   );
 }
 

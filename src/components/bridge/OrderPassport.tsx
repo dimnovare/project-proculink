@@ -8,6 +8,7 @@
 
 import { useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Card } from "@/components/bridge/layout/Card";
 import { ApiHttpError, apiClient } from "@/lib/api-client";
 import {
   attemptOutcomeIsUnknown,
@@ -237,7 +238,7 @@ function Pct({ value }: { value: number }) {
 
 function Section({ title, count, children }: { title: string; count?: number; children: ReactNode }) {
   return (
-    <section style={{ border: "1px solid #E5E8EE", borderRadius: 8, background: "#FFFFFF", overflow: "hidden" }}>
+    <Card as="section" flush radius={8}>
       <div style={{ padding: "10px 14px", borderBottom: "1px solid #E5E8EE", display: "flex", alignItems: "center", gap: 8 }}>
         <h3 style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.07em", textTransform: "uppercase", color: "#5E6779", margin: 0 }}>{title}</h3>
         {count != null && (
@@ -245,7 +246,7 @@ function Section({ title, count, children }: { title: string; count?: number; ch
         )}
       </div>
       <div style={{ padding: 14 }}>{children}</div>
-    </section>
+    </Card>
   );
 }
 

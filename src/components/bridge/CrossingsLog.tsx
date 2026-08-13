@@ -25,6 +25,7 @@ import {
 import { REACH_SENTENCE, auditActionRemedy } from "@/lib/auditActionRemedy";
 import { EmptyState } from "./EmptyState";
 import { isPlanGate, PlanGateNotice } from "./PlanGateNotice";
+import { Card } from "./layout/Card";
 import { PageHeader } from "./layout/PageHeader";
 import { PageShell } from "./layout/PageShell";
 
@@ -759,11 +760,11 @@ export function CrossingsLog() {
 
       {/* Loading state */}
       {isLoading && !isApiMockMode && (
-        <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+        <Card flush>
           <SkeletonRow />
           <SkeletonRow />
           <SkeletonRow />
-        </div>
+        </Card>
       )}
 
       {/* Plan-gated state — an upgrade prompt, not a retry loop */}
@@ -786,7 +787,7 @@ export function CrossingsLog() {
           someone to reset a router over a 500. It now says what is and is not
           true, the way the health page's dead-letter error does. */}
       {isError && !planGated && !isApiMockMode && (
-        <div className="card" role="alert" style={{ padding: "48px 24px", textAlign: "center" }}>
+        <Card role="alert" pad="48px 24px" style={{ textAlign: "center" }}>
           <div style={{ fontSize: 28, color: "var(--danger)", marginBottom: 10 }} aria-hidden>⚠</div>
           <p style={{ fontSize: 13.5, fontWeight: 600, color: "var(--danger)", marginBottom: 6 }}>
             We couldn&apos;t load the delivery log
@@ -798,14 +799,14 @@ export function CrossingsLog() {
           <button className="btn btn-secondary" onClick={() => refetch()}>
             Try again
           </button>
-        </div>
+        </Card>
       )}
 
       {/* Date-grouped content */}
       {(!isLoading || isApiMockMode) && !isError && (
         <>
           {filtered.length === 0 ? (
-            <div className="card">
+            <Card>
               {/* Two different nothings. `LOG` empty under an order filter means this
                   ORDER has no entries in the window we searched — saying "nothing
                   recorded for this filter yet" there reads as "your workspace is
@@ -839,7 +840,7 @@ export function CrossingsLog() {
                   }
                 />
               )}
-            </div>
+            </Card>
           ) : (
             <>
             {/* Sticky desktop table head — one head for the whole log (hidden on mobile stacked cards) */}
@@ -850,7 +851,7 @@ export function CrossingsLog() {
                 <div className="eyebrow" style={{ marginBottom: 8 }}>{label}</div>
 
                 {/* Card with rows */}
-                <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+                <Card edge="bridge" flush>
                   {entries.map((c, idx) => {
                     // Visual treatment is canonical-event-driven to match the design
                     // (green Validated/Delivered, violet Edited, blue Parsed, slate Created, red Failed).
@@ -1100,7 +1101,7 @@ export function CrossingsLog() {
                               background: "var(--surface-2)",
                             }}
                           >
-                            <div className="card" style={{ padding: "12px 14px", background: "var(--surface)" }}>
+                            <Card pad="12px 14px">
                               {/* Structured detail grid — mirrors c.detail key/value grid in design */}
                               {hasDetails && (
                                 <div
@@ -1347,13 +1348,13 @@ export function CrossingsLog() {
                                   Export entry
                                 </button>
                               </div>
-                            </div>
+                            </Card>
                           </div>
                         )}
                       </div>
                     );
                   })}
-                </div>
+                </Card>
               </div>
             ))}
             </>

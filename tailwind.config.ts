@@ -238,7 +238,9 @@ export default {
       // `w-spine` had exactly one — CanonicalSpine.tsx, which itself had zero
       // importers and was deleted in the same change.
       spacing: {
-        "card-edge": "3px",   // XCard cross-section edge strip
+        // "card-edge" lived here and went to zero consumers when XCard was folded
+        // into <Card> (2026-08-13). The 3px is now `--card-edge` in globals.css,
+        // consumed by the one card component. Do not re-add it as a spacing token.
         "topbar":    "52px",  // BridgeTopbar height
         "sidebar":   "220px", // BridgeSidebar width (mobile drawer)
       },

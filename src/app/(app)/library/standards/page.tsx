@@ -21,6 +21,7 @@ import { FIELD_STANDARDS, STANDARDS, type CanonicalFieldStandards } from "@/lib/
 import { EmptyState } from "@/components/bridge/EmptyState";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
+import { Card } from "@/components/bridge/layout/Card";
 
 // ── Local presentation order — cXML first, versioned labels (design spec) ──────
 // key is a field on CanonicalFieldStandards. The header labels here are the exact
@@ -189,18 +190,10 @@ export default function StandardsPage() {
 
       {/* Single white card — table scrolls horizontally with a sticky first column so
           the canonical field stays anchored while the reference codes scroll.
-          <Card> is not used here because the table requires zero internal padding for
-          its edge-to-edge layout; the Card primitive always applies a fixed pad value.
-          The div is already fully token-clean (surface/border/radius-md). */}
-      <div
-        className="relative overflow-hidden"
-        style={{
-          background: "var(--surface)",
-          border: "1px solid var(--border)",
-          borderRadius: "var(--radius-md)",
-          boxShadow: "var(--shadow-card)",
-        }}
-      >
+          `flush` is required: the table is edge-to-edge and must have zero internal
+          padding. `radius` keeps this card's original --radius-md corner (Card's own
+          default is --radius-lg). */}
+      <Card flush radius="var(--radius-md)" className="relative overflow-hidden">
         {/* Right-edge fade — mobile-only visual cue that more columns lie off-screen.
             Sits above the scroll area but is click-through (pointer-events-none) so it
             never blocks scrolling/hover. Hidden on sm+ where the table fits. */}
@@ -301,7 +294,7 @@ export default function StandardsPage() {
             <EmptyState compact title="No fields match" sub={`Nothing for "${q}".`} />
           )
         )}
-      </div>
+      </Card>
 
       {/* Request-a-format footer — quiet faint prompt + ghost link (design) */}
       <div className="mt-[14px] flex flex-wrap items-center gap-x-3 gap-y-2">

@@ -333,9 +333,14 @@ export default function AdminPage() {
         ) : (
           <>
             {/* Desktop table */}
-            <div
+            {/* `overflow` is spelled out as well as `overflowX`: Card emits the
+                `overflow` shorthand last, so leaving it unset would resolve to
+                `hidden` and kill this table's horizontal scroll. */}
+            <Card
+              flush
+              radius={12}
               className="hidden md:block"
-              style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 12, overflowX: "auto" }}
+              style={{ overflowX: "auto", overflow: "auto" }}
             >
               <table style={{ width: "100%", minWidth: 920, borderCollapse: "collapse", fontSize: 13 }}>
                 <thead>
@@ -397,7 +402,7 @@ export default function AdminPage() {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </Card>
 
             {/* Mobile cards — MobileListRow */}
             <div className="md:hidden flex flex-col gap-3">

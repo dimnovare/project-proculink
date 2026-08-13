@@ -14,6 +14,7 @@ import { useEffect, useState } from "react";
 // needed exactly the same answer — so it moved to src/hooks/useReducedMotion.ts.
 // Same implementation, one copy.
 import { useReducedMotion } from "@/hooks/useReducedMotion";
+import { Card } from "@/components/bridge/layout/Card";
 
 export interface WireBuyer {
   id: string;
@@ -125,9 +126,13 @@ function WireTopologyLaneList({ buyers, suppliers, wires, onWireClick }: WireTop
   return (
     <div className="flex flex-col gap-2 p-2 bg-[#F6F7FA] rounded-card">
       {wires.length === 0 && (
-        <div className="bg-white border border-[#E5E8EE] rounded-[10px] px-3 py-6 text-center text-[12.5px] text-[color:var(--ink-faint)]">
+        <Card
+          flush
+          radius={10}
+          className="px-3 py-6 text-center text-[12.5px] text-[color:var(--ink-faint)]"
+        >
           No connections to show yet.
-        </div>
+        </Card>
       )}
       {wires.map((wire, i) => {
         const buyer = buyers.find((b) => b.id === wire.buyerId);

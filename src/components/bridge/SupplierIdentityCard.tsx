@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient, isApiMockMode } from "@/lib/api-client";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
+import { Card } from "@/components/bridge/layout/Card";
 import type { Supplier } from "@/types/procurement";
 
 /* =====================================================================
@@ -117,7 +118,7 @@ export function SupplierIdentityCard({ supplierId }: { supplierId: string }) {
   ].join("|");
 
   return (
-    <div style={{ background: SURFACE, border: `1px solid ${LINE}`, borderRadius: 10, overflow: "hidden" }}>
+    <Card edge="green" flush>
       <div className="px-5 py-3.5" style={{ borderBottom: `1px solid ${LINE}` }}>
         <h3 className="text-[13px] font-semibold" style={{ color: INK }}>Identifiers</h3>
         <p className="mt-1 text-[12px]" style={{ color: MUTED, lineHeight: 1.5 }}>
@@ -144,7 +145,7 @@ export function SupplierIdentityCard({ supplierId }: { supplierId: string }) {
           {notice.text}
         </div>
       )}
-    </div>
+    </Card>
   );
 }
 

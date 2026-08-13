@@ -152,6 +152,17 @@ jobs:
         if: always()
         run: bun run lint:tokens
 
+      # Card-surface gate. One card component (src/components/bridge/layout/Card.tsx)
+      # and a semantic 3px edge applied by rule. Five card paths were converged into
+      # it on 2026-08-13; the hand-rolled cards that remain are held by a per-file
+      # ledger pinned in BOTH directions, so a file may shrink (re-cut the ledger)
+      # but never grow, and a file with no row must be at zero. This gate sees a
+      # card by its SHAPE — the MEANING of an edge value is pinned separately by
+      # src/test/cardEdgeRule.test.tsx.
+      - name: Card-surface gate
+        if: always()
+        run: bun run lint:cards
+
       # Emitted-CSS gate. The token gate above reads SOURCE TEXT, which is a
       # DIFFERENT SCANNER from the one that builds the stylesheet — and the two
       # disagreeing is not hypothetical, it shipped. tailwind.config.ts scanned

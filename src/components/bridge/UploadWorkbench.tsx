@@ -8,6 +8,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { FileChip } from "./FileChip";
+import { Card } from "./layout/Card";
 import { PageHeader } from "./layout/PageHeader";
 import { PageShell } from "./layout/PageShell";
 import { SupplierPicker } from "./SupplierPicker";
@@ -263,42 +264,6 @@ function relativeAge(iso: string): string {
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
-
-function XCard({
-  edge = "none",
-  edgeColor = "#2E8E3A",
-  children,
-  style,
-}: {
-  edge?: "top" | "left" | "none";
-  edgeColor?: string;
-  children: React.ReactNode;
-  style?: React.CSSProperties;
-}) {
-  const borderStyle: React.CSSProperties =
-    edge === "top"
-      ? { borderTop: `2px solid ${edgeColor}` }
-      : edge === "left"
-      ? { borderLeft: `2px solid ${edgeColor}` }
-      : {};
-
-  return (
-    <div
-      style={{
-        background: "#FFFFFF",
-        border: "1px solid #E5E8EE",
-        borderRadius: 8,
-        boxShadow: "0 1px 3px rgba(11,26,47,0.05)",
-        overflow: "hidden",
-        minWidth: 0,
-        ...borderStyle,
-        ...style,
-      }}
-    >
-      {children}
-    </div>
-  );
-}
 
 /**
  * StepBadge — the numbered "1 · 2 · 3" circle that anchors each intake step.
@@ -880,7 +845,7 @@ export function UploadWorkbench() {
   // Phase 6.3 — Try with sample order: the zero-friction first action. Rendered
   // above the dropzone for a first-run org, below it otherwise (see isEmptyOrg).
   const sampleCard = (
-    <XCard edge="left" edgeColor="#2E8E3A">
+    <Card flush radius={8} style={{ minWidth: 0 }}>
       <div className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div style={{ minWidth: 0 }}>
           <p className="text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>
@@ -906,7 +871,7 @@ export function UploadWorkbench() {
           />
         </div>
       </div>
-    </XCard>
+    </Card>
   );
 
   // The single primary submit action (Step 3). Branches multi vs single file:
@@ -1009,16 +974,7 @@ export function UploadWorkbench() {
         {/* ===== Intake card — one large dropzone is the hero; the route
             (which supplier) rides quietly on top, plan usage is demoted to a
             chip cluster, and the send action spans the footer. ===== */}
-        <div
-          style={{
-            background: "#FFFFFF",
-            border: "1px solid #E5E8EE",
-            borderRadius: 14,
-            boxShadow: "0 1px 3px rgba(11,26,47,0.05)",
-            overflow: "hidden",
-            minWidth: 0,
-          }}
-        >
+        <Card flush radius={14} style={{ minWidth: 0 }}>
           {/* Bridge edge — buyer-blue → supplier-green, the locked Bridge Layer signature. */}
           <div style={{ height: 3, background: "linear-gradient(90deg, #1E66C9 0%, #2E8E3A 100%)" }} />
 
@@ -1770,7 +1726,7 @@ export function UploadWorkbench() {
               </div>
             )}
           </div>
-        </div>
+        </Card>
 
         {/* ===== More ways to bring orders in — the quiet secondary intake rail.
             Present, never in a first-timer's way. Honest per FABLE5 §6: email +
@@ -1783,7 +1739,7 @@ export function UploadWorkbench() {
 
         {/* Recent uploads — hidden entirely when there is nothing recent */}
         {recentRows.length > 0 && (
-          <XCard edge="left" edgeColor="#E5E8EE">
+          <Card edge="blue" flush radius={8} style={{ minWidth: 0 }}>
             <div
               className="flex items-center px-4 py-3"
               style={{ borderBottom: "1px solid #E5E8EE" }}
@@ -1957,11 +1913,11 @@ export function UploadWorkbench() {
                 </tbody>
               </table>
             </div>
-          </XCard>
+          </Card>
         )}
 
         {/* Tip card */}
-        <XCard>
+        <Card flush radius={8} style={{ minWidth: 0 }}>
           <div className="px-4 py-3">
             <p
               className="text-[11.5px] font-semibold mb-1"
@@ -1975,7 +1931,7 @@ export function UploadWorkbench() {
               anything that doesn't reconcile is flagged for review.
             </p>
           </div>
-        </XCard>
+        </Card>
       </div>
     </PageShell>
   );
@@ -2089,15 +2045,7 @@ function MoreWaysToIngest() {
   ];
 
   return (
-    <section
-      style={{
-        background: "#FFFFFF",
-        border: "1px solid #E5E8EE",
-        borderRadius: 14,
-        boxShadow: "0 1px 3px rgba(11,26,47,0.05)",
-        overflow: "hidden",
-      }}
-    >
+    <Card edge="blue" as="section" flush radius={14}>
       <div className="flex items-baseline justify-between gap-3 px-5 pt-4 pb-1">
         <h2
           className="text-[14px] font-semibold"
@@ -2153,7 +2101,7 @@ function MoreWaysToIngest() {
           </Link>
         ))}
       </div>
-    </section>
+    </Card>
   );
 }
 

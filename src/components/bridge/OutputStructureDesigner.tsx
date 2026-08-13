@@ -38,6 +38,7 @@ import {
 } from "@/lib/api/types";
 import { useConfirm } from "@/components/ui/confirm";
 import { useDialogA11y } from "@/hooks/useDialogA11y";
+import { Card } from "@/components/bridge/layout/Card";
 
 // Only the formats the backend OutputTemplateEmitter produces VALIDLY from a generic node tree
 // (offer⇔works). JSON / XML / CSV are first-class. cXML, UBL, and X12 are intentionally NOT offered:
@@ -1450,7 +1451,8 @@ function CsvDialectEditor({
   const set = Object.keys(dialect ?? {}).length;
 
   return (
-    <div style={{ marginBottom: 12, border: "1px solid #E5E8EE", borderRadius: 8, background: "#FFFFFF" }}>
+    /* overflow stays `visible` — this div never declared it. */
+    <Card edge="green" flush radius={8} style={{ marginBottom: 12, overflow: "visible" }}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
@@ -1537,7 +1539,7 @@ function CsvDialectEditor({
           </label>
         </div>
       )}
-    </div>
+    </Card>
   );
 }
 

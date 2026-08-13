@@ -126,7 +126,7 @@ and no guard could catch it because the fiction lived in a document, not in code
 | **2. Wire Topology** — buyer ports left, supplier ports right, animated wires | **YES, demoted** | `/bridge`, as the **"System map" tab** — not the dashboard hero |
 | **3. Canonical Spine review** — 3-column source · spine · output | **NO — DELETED 2026-08-13** | Nowhere. The shipped review is a different layout; see below. |
 | **4. Document Anatomy** — source document pane | **PARTLY** | `src/components/bridge/document/` renders the pane. The **per-zone confidence overlay does not exist** and needs backend provenance first. |
-| **5. Cross-section card edge** — 3px brand strip on a card edge | **YES, thinly** | `<XCard>`, `src/components/bridge/XCard.tsx`. ~6 importers against ~209 hand-rolled bordered card divs. Migrating the rest is its own packet — **do not start it here.** |
+| **5. Cross-section card edge** — 3px brand strip on a card edge | **YES, and now applied by rule** | `<Card>`, `src/components/bridge/layout/Card.tsx`. Five card paths converged into it 2026-08-13; the edge is semantic and its rule is in that file's header. |
 
 ### 1. Edge rails — STRUCK
 
@@ -381,7 +381,7 @@ All Bridge-specific components live in `src/components/bridge/`.
 | Component | File | Description |
 |---|---|---|
 | `<WireTopology>` | `bridge/WireTopology.tsx` | SVG canvas: buyer ports left, supplier ports right, animated Bezier wires. Props: `buyers`, `suppliers`, `wires`. Renders in the `/bridge` **"System map" tab**, not as the dashboard hero. |
-| `<XCard>` | `bridge/XCard.tsx` | Card with 3px cross-section edge strip. Props: `edge="left\|right\|top\|bottom"`, `color="buyer\|supplier\|bridge"`. ~6 importers; most cards in the app are still hand-rolled bordered divs. |
+| `<Card>` | `bridge/layout/Card.tsx` | **The one card.** 3px cross-section edge strip, applied by a semantic rule written in the file's header: `edge="blue"` buyer/incoming · `"green"` supplier/outgoing · `"bridge"` spans both · `"none"` neutral **or undeterminable** (the default, and the majority). Also `pad` / `radius` / `flush` / `as` for migrated geometry. Server-component safe. |
 | `<StatusJourney>` | `bridge/StatusJourney.tsx` | 5-node mini-track: Parse · Normalize · Validate · Transform · Deliver. Props: `stage` (0–4), `compact?`. |
 | `<MarkSystem>` | `bridge/MarkSystem.tsx` | System Identity mark SVG in 3 sizes. Props: `size`, `white?`. (Also exports a dead `RailPort` — see §2.) |
 | `<BridgeSidebar>` | `bridge/BridgeSidebar.tsx` | 220px navy sidebar — **mobile drawer only**. Desktop nav is in the topbar. |
@@ -403,6 +403,8 @@ real — only the component was fiction.
 | Component | Status |
 |---|---|
 | `<EdgeRails>` | **STRUCK 2026-08-13** (§2). Never existed in `src/`; its CSS and tokens had zero consumers and were deleted. |
+| `<XCard>` | **FOLDED into `<Card>` 2026-08-13.** It had TWO importers, not the ~6 this table claimed, and both passed `color="amber"` — a tone, not a side — which is how the edge came to mean nothing. Its `.xcard`/`.xc-*` CSS had zero consumers and the `card-edge` Tailwind spacing token went to zero with it (the 3px is now `--card-edge`, consumed by `Card`). A **third** `XCard` was defined privately inside `UploadWorkbench.tsx`; it is gone too. |
+| shadcn `ui/card.tsx` | **DELETED 2026-08-13.** Zero importers and not a dependency of any other `ui/*` primitive. §14's "keep shadcn primitives" rule does not cover a card that competes with the one card. |
 | `<CanonicalSpine>` / `<SpineNode>` | **DELETED 2026-08-13** (§2). `bridge/CanonicalSpine.tsx` had zero importers. |
 | `<SpineReview>` | Deleted earlier, commit `3520ed4`. The order review is `workshop/OrderWorkshop.tsx` → `mapper/MapperWorkbench.tsx`. |
 | `<DocumentAnatomy>` | Never built. The document pane is `bridge/document/` (e.g. `PdfDocumentView.tsx`); the per-zone confidence overlay does not exist and needs backend provenance first. |
@@ -631,7 +633,15 @@ Do not add a bullet for a capability nothing enforces.
   fabricates a number. **Do not "fix" this by deleting it**; it ships with tests
   (`DashboardContextLine.test.tsx`). Verified live 2026-08-06.
 - Auto-applying AI corrections without a visible accept step
-- Notched corners everywhere — use `<XCard>`'s cross-section edge instead
+- Notched corners everywhere — use `<Card>`'s cross-section edge instead
+- **A card edge used as a status colour.** The edge says which SIDE of the bridge a
+  card is on (buyer / supplier / both / neither). Tone — amber, danger, violet-AI —
+  belongs to `<StatusNotice>`, which signals it with its own 3px left border. Both
+  real `<XCard>` call sites in the tree before 2026-08-13 passed `color="amber"`,
+  which is precisely why the signature carried no information.
+- **Edging every card.** `edge="none"` is the default and the majority answer. A card
+  whose side you cannot determine gets no edge — do not guess, and do not reach for
+  `"bridge"` to avoid deciding. Pinned by `src/test/cardEdgeRule.test.tsx`.
 - The directional-field background gradient on every screen — only marketing hero areas
 - Per-screen color themes — one token system across the entire product
 - Hand-rolled icons that don't share the System Identity construction language

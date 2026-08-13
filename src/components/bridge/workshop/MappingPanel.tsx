@@ -19,6 +19,7 @@
 // chips (design system 09-trust-rules).
 
 import { useState } from "react";
+import { Card } from "../layout/Card";
 import { MapperWorkbench } from "../mapper/MapperWorkbench";
 import type { IncomingOrderShape } from "../mapper/incomingFromOrder";
 import { splitMappings, type MappingRow } from "./mappingListModel";
@@ -143,7 +144,7 @@ export function MappingPanel({
       )}
 
       {/* ── Attention rows — the only thing the operator must touch ──────────── */}
-      <div style={{ borderRadius: 10, background: "#FFFFFF", border: "1px solid #E5E8EE", overflow: "hidden" }}>
+      <Card edge="bridge" flush>
         <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderBottom: "1px solid #EEF0F4" }}>
           <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#0B1A2F" }}>
             Needs you
@@ -194,7 +195,7 @@ export function MappingPanel({
             ))}
           </ul>
         )}
-      </div>
+      </Card>
 
       {/* ── The drag surface — the real wire engine, composed (not reimplemented) ── */}
       <div data-testid="mapper-drag-surface" style={{ borderTop: "1px solid #EEF0F4", paddingTop: 12 }}>

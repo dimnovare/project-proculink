@@ -12,6 +12,7 @@ import { PLAN_BY_ID, CHECKOUT_PLAN_IDS, yearlySavePercent } from "@/lib/plans";
 import { capture } from "@/lib/analytics";
 import { isOrgAdminRefusal, orgAdminMessage } from "@/lib/planGate";
 import { BOOK_DEMO_URL, BOOK_DEMO_LINK_ATTRS } from "@/lib/book-demo";
+import { Card } from "@/components/bridge/layout/Card";
 
 type BillingInterval = "monthly" | "yearly";
 
@@ -295,13 +296,13 @@ export function BillingSection() {
 
   if (isLoading) {
     return (
-      <div style={{ border: "1px solid var(--border)", borderRadius: 12, background: "var(--surface)", padding: 22, boxShadow: "var(--shadow-card)" }}>
+      <Card pad={22} radius={12}>
         <div style={{ height: 18, width: 190, background: "var(--border)", borderRadius: 4, marginBottom: 18 }} />
         <div style={{ display: "grid", gap: 10 }}>
           <div style={{ height: 10, width: "100%", background: "var(--surface-2)", borderRadius: 99 }} />
           <div style={{ height: 10, width: "72%", background: "var(--surface-2)", borderRadius: 99 }} />
         </div>
-      </div>
+      </Card>
     );
   }
 
@@ -334,7 +335,7 @@ export function BillingSection() {
       <OverageNotice status={status} />
 
       {/* ── Current plan card (large highlighted block) ── */}
-      <div style={{ border: "1px solid var(--border)", borderRadius: "var(--radius-md)", background: "var(--surface)", padding: 0, overflow: "hidden", boxShadow: "var(--shadow-card)" }}>
+      <Card flush radius="var(--radius-md)">
         {/* Card header */}
         <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--border)" }}>
           <div style={{ fontWeight: 600, fontSize: 14.5, letterSpacing: "-0.01em", color: "var(--ink)" }}>Current plan</div>
@@ -385,7 +386,7 @@ export function BillingSection() {
             />
           </div>
         </div>
-      </div>
+      </Card>
 
       {/* ── Upgrade / change plan actions ── */}
       {isPilot && (
@@ -479,7 +480,7 @@ export function BillingSection() {
 
       {/* ── Payment method — managed in Stripe (canonical structure, real binding) ── */}
       {(isPaid || isEnterprise) && (
-        <div style={{ border: "1px solid var(--border)", borderRadius: "var(--radius-md)", background: "var(--surface)", padding: 0, overflow: "hidden", boxShadow: "var(--shadow-card)" }}>
+        <Card flush radius="var(--radius-md)">
           <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--border)" }}>
             <div style={{ fontWeight: 600, fontSize: 14.5, letterSpacing: "-0.01em", color: "var(--ink)" }}>Payment method</div>
           </div>
@@ -545,7 +546,7 @@ export function BillingSection() {
               readable and exportable.
             </p>
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Pilot: no payment method section (not yet a customer) */}

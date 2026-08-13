@@ -27,6 +27,7 @@ import { usePathname } from "next/navigation";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { useSampleOrder } from "@/hooks/useSampleOrder";
+import { Card } from "./layout/Card";
 import { PracticeOrderPrompt } from "./PracticeOrderPrompt";
 import { buildChecklistSteps, checklistDensity, type ChecklistStep } from "./buildChecklistSteps";
 
@@ -138,18 +139,7 @@ function LockMark() {
 
 function CardFrame({ children, ariaLabel }: { children: React.ReactNode; ariaLabel: string }) {
   return (
-    <section
-      aria-label={ariaLabel}
-      style={{
-        position: "relative",
-        background: T.surface,
-        border: `1px solid ${T.border}`,
-        borderRadius: 8,
-        overflow: "hidden",
-        boxShadow: "0 1px 2px rgba(11,26,47,0.04)",
-        width: "100%",
-      }}
-    >
+    <Card as="section" aria-label={ariaLabel} flush radius={8} style={{ width: "100%" }}>
       {/* Cross-section edge — the bridge seen end-on: blue (buyer) → green (supplier). */}
       <div
         aria-hidden
@@ -159,7 +149,7 @@ function CardFrame({ children, ariaLabel }: { children: React.ReactNode; ariaLab
         }}
       />
       {children}
-    </section>
+    </Card>
   );
 }
 

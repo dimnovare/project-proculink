@@ -145,6 +145,11 @@
   /* Shadows — named (card/pop/hero) kept as-is; the semantic elevation ramp
      (md/lg/xl) is added from the Claude Design v2 handoff so components can
      reach a level directly. Purely additive — nothing existing changes. */
+  /* The cross-section card edge. ONE definition, ONE consumer: the strip in
+     src/components/bridge/layout/Card.tsx. It replaced a Tailwind `card-edge`
+     spacing token that went to zero consumers the moment XCard was folded in —
+     a defined-but-unused token is the exact state the 2026-08-13 audit struck. */
+  --card-edge: 3px;
   --shadow-card: 0 1px 2px rgba(11,26,47,0.04);
   --shadow-pop:  0 8px 24px rgba(11,26,47,0.10);
   --shadow-hero: 0 50px 120px rgba(11,26,47,0.10), 0 8px 24px rgba(11,26,47,0.06);
@@ -883,18 +888,19 @@ details[open] > summary [data-disclosure-chevron] {
 .m-sub.danger  { color: var(--danger); }
 .m-sub.muted   { color: var(--ink-faint); }
 
-/* ── XCard (canonical cross-section card) ──────────────────────────────── */
-/* Note: .xcard / .xcard-left / .xcard-top extend .card (position:relative, overflow:hidden) */
-.xcard { position: relative; overflow: hidden; }
-.xcard::before { content: ""; position: absolute; z-index: 1; }
-.xcard-left::before  { left: 0; top: 0; bottom: 0; width: 3px; }
-.xcard-top::before   { top: 0; left: 0; right: 0; height: 3px; }
-.xc-buyer::before    { background: var(--brand-blue); }
-.xc-supplier::before { background: var(--brand-green); }
-.xc-bridge::before   { background: var(--gradient-link-spine); }
-.xc-danger::before   { background: var(--danger); }
-.xc-amber::before    { background: var(--amber); }
-.xc-ai::before       { background: var(--ai); }
+/* ── XCard CSS — DELETED 2026-08-13 with the card convergence ───────────────
+   `.xcard`, `.xcard-left`, `.xcard-top` and the six `.xc-*` colour modifiers
+   had ZERO consumers for their entire life: no element in the app ever applied
+   one of them. This is the same failure the 2026-08-13 signature audit found in
+   the edge rails — CSS written for a signature, shipped, and never wired to
+   anything, so no guard could see that it was fiction.
+
+   The cross-section edge is real and it ships, but it ships from ONE place:
+   <Card> in src/components/bridge/layout/Card.tsx, which paints the 3px strip
+   as an absolutely-positioned span. Three of the six colours here — danger,
+   amber, ai — are not edge values at all under the current rule: the edge is
+   semantic (buyer / supplier / bridge / none), and tone belongs to
+   <StatusNotice>. See the edge rule in Card.tsx. */
 
 /* ── Mapper redesign — wire + drag motion ──────────────────────────────────
    Owned by MapperWireLayer / IncomingPane. On first mount the persistent wires

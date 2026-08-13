@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useOrganization } from "@clerk/nextjs";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import { PageShell } from "@/components/bridge/layout/PageShell";
+import { Card } from "@/components/bridge/layout/Card";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Building, Copy, Database, Euro, HardDrive, Key, Mail, Plug, Plus, Save, ShieldCheck, Trash2, Zap } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -632,7 +633,7 @@ function EmailSettingsSection() {
 
   if (isLoading) {
     return (
-      <div style={{ borderRadius: 12, background: "var(--surface)", padding: 22, border: "1px solid var(--border)", boxShadow: "var(--shadow-card)" }} role="status" aria-busy="true">
+      <Card pad={22} radius={12} role="status" aria-busy="true">
         <span className="sr-only">Loading…</span>
         <div style={{ marginBottom: 16, height: 16, width: 160, borderRadius: 4, background: "var(--border)" }} />
         <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(3,1fr)" }}>
@@ -640,7 +641,7 @@ function EmailSettingsSection() {
           <div style={{ height: 36, borderRadius: 6, background: "var(--surface-2)" }} />
           <div style={{ height: 36, borderRadius: 6, background: "var(--surface-2)" }} />
         </div>
-      </div>
+      </Card>
     );
   }
 
@@ -1199,9 +1200,11 @@ function ApiKeysSection() {
         {keys.length > 0 && (
           <div className="flex flex-col gap-2 md:hidden">
             {keys.map(key => (
-              <div
+              <Card
                 key={key.id}
-                style={{ border: "1px solid var(--border)", borderRadius: 10, background: "var(--surface)", padding: "12px 14px", opacity: key.isActive ? 1 : 0.6 }}
+                pad="12px 14px"
+                radius={10}
+                style={{ opacity: key.isActive ? 1 : 0.6 }}
               >
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
                   <span style={{ fontSize: 13.5, fontWeight: 600, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{key.label}</span>
@@ -1233,14 +1236,14 @@ function ApiKeysSection() {
                     />
                   </div>
                 )}
-              </div>
+              </Card>
             ))}
           </div>
         )}
 
         {/* Create key — disclosure form (revealed by the Create key button) */}
         {showCreate && (
-          <div style={{ marginTop: 16, border: "1px solid var(--border)", borderRadius: 8, background: "var(--surface)", padding: 16 }}>
+          <Card pad={16} radius={8} style={{ marginTop: 16 }}>
             <p style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)", marginBottom: 8 }}>Create new key</p>
             <div className="flex flex-col gap-2 sm:flex-row sm:gap-2">
               <input
@@ -1276,7 +1279,7 @@ function ApiKeysSection() {
                 {(create.error as Error).message || "Failed to create API key."}
               </p>
             )}
-          </div>
+          </Card>
         )}
 
         {/* Create key button — table-first affordance (matches design) */}
@@ -1416,7 +1419,7 @@ function ConnectorsSection() {
         </div>
 
         {showForm && (
-          <div style={{ border: "1px solid var(--border)", borderRadius: 8, background: "var(--surface)", padding: 16, marginBottom: 14 }}>
+          <Card pad={16} radius={8} style={{ marginBottom: 14 }}>
             <p style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)", marginBottom: 14 }}>New webhook subscription</p>
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2" style={{ marginBottom: 12 }}>
@@ -1480,7 +1483,7 @@ function ConnectorsSection() {
                 {(create.error as Error).message || "Failed to save webhook."}
               </p>
             )}
-          </div>
+          </Card>
         )}
 
         {/* Error state — was missing before */}
@@ -1518,9 +1521,11 @@ function ConnectorsSection() {
 
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {subs.map(sub => (
-            <div
+            <Card
               key={sub.id}
-              style={{ border: "1px solid var(--border)", borderRadius: 10, background: "var(--surface)", padding: "13px 16px", display: "flex", alignItems: "flex-start", gap: 10, opacity: sub.isActive ? 1 : 0.6 }}
+              pad="13px 16px"
+              radius={10}
+              style={{ display: "flex", alignItems: "flex-start", gap: 10, opacity: sub.isActive ? 1 : 0.6 }}
             >
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap", marginBottom: 4 }}>
@@ -1576,7 +1581,7 @@ function ConnectorsSection() {
                   )}
                 />
               </div>
-            </div>
+            </Card>
           ))}
         </div>
       </SettingsGroup>

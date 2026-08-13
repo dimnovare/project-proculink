@@ -33,6 +33,7 @@ import { Copy, Plus } from "lucide-react";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { isOrgAdminRefusal, orgAdminMessage } from "@/lib/planGate";
 import { formatDate } from "@/lib/format-date";
+import { Card } from "@/components/bridge/layout/Card";
 import {
   INBOUND_KIND_PRIMARY,
   daysUntil,
@@ -163,14 +164,11 @@ function AddressRow({
   const live = state === "active";
 
   return (
-    <li
-      style={{
-        listStyle: "none",
-        border: "1px solid var(--border)",
-        borderRadius: 8,
-        background: "var(--surface)",
-        padding: "13px 14px",
-      }}
+    <Card edge="blue"
+      as="li"
+      pad="13px 14px"
+      radius={8}
+      style={{ listStyle: "none" }}
     >
       <div className="flex flex-wrap items-center gap-2">
         <span
@@ -292,7 +290,7 @@ function AddressRow({
           {errorMessage}
         </p>
       )}
-    </li>
+    </Card>
   );
 }
 
