@@ -16,6 +16,7 @@ import { buildHelpFuse } from "@/lib/help-search";
 import { walkthroughConfigured } from "@/lib/walkthrough";
 import { capture } from "@/lib/analytics";
 import { HelpIcon } from "@/components/help/HelpIcon";
+import { Card } from "@/components/bridge/layout/Card";
 
 type Filter = HelpCategory | "All";
 
@@ -205,13 +206,10 @@ export default function HelpIndex() {
           </div>
 
           {results.length === 0 ? (
-            <div
+            <Card
+              flush
+              radius="var(--radius-md)"
               className="flex flex-col items-center gap-3 px-6 py-14 text-center"
-              style={{
-                border: "1px solid var(--border)",
-                borderRadius: "var(--radius-md)",
-                background: "var(--surface)",
-              }}
             >
               <p className="text-[14px] font-medium" style={{ color: "var(--ink)" }}>
                 No matching articles
@@ -227,21 +225,13 @@ export default function HelpIndex() {
               >
                 Reset
               </button>
-            </div>
+            </Card>
           ) : (
-            <div
-              className="overflow-hidden"
-              style={{
-                border: "1px solid var(--border)",
-                borderRadius: "var(--radius-md)",
-                background: "var(--surface)",
-                boxShadow: "var(--shadow-card)",
-              }}
-            >
+            <Card flush radius="var(--radius-md)" className="overflow-hidden">
               {results.map((article, i) => (
                 <ArticleRow key={article.slug} article={article} first={i === 0} />
               ))}
-            </div>
+            </Card>
           )}
         </section>
       ) : (
@@ -269,19 +259,11 @@ export default function HelpIndex() {
             >
               Popular articles
             </span>
-            <div
-              className="mt-2.5 overflow-hidden"
-              style={{
-                border: "1px solid var(--border)",
-                borderRadius: "var(--radius-md)",
-                background: "var(--surface)",
-                boxShadow: "var(--shadow-card)",
-              }}
-            >
+            <Card flush radius="var(--radius-md)" className="mt-2.5 overflow-hidden">
               {resolveArticles(POPULAR_ARTICLE_SLUGS, POPULAR_ARTICLE_SLUGS.length).map((article, i) => (
                 <ArticleRow key={article.slug} article={article} first={i === 0} />
               ))}
-            </div>
+            </Card>
           </section>
         </>
       )}

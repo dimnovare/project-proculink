@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { OVERAGE_PER_ORDER_EUR, planEffectiveMonthlyCost, recommendPlanByOrders } from "@/lib/plans";
+import { Card } from "@/components/bridge/layout/Card";
 
 // ─── Design tokens (Bridge Layer design system) ──────────────────────────────
 // Primary accent is BUYER-BLUE (#1E66C9) — sliders, eyebrow, annual savings.
@@ -146,16 +147,7 @@ function StatCard({
   valueColor?: string;
 }) {
   return (
-    <div
-      style={{
-        background: T.card,
-        border: `1px solid ${T.border}`,
-        borderRadius: 12,
-        padding: "20px 22px",
-        boxShadow: "0 1px 4px rgba(11,26,47,0.04)",
-        minHeight: 132,
-      }}
-    >
+    <Card pad="20px 22px" radius={12} style={{ minHeight: 132 }}>
       <div
         style={{
           fontSize: 11,
@@ -192,7 +184,7 @@ function StatCard({
           {sub}
         </div>
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -344,15 +336,7 @@ export function ROICalculator() {
           style={{ gap: 28 }}
         >
           {/* Inputs — single card, slider rows */}
-          <div
-            style={{
-              background: T.card,
-              border: `1px solid ${T.border}`,
-              borderRadius: 12,
-              padding: "8px 24px",
-              boxShadow: "0 1px 4px rgba(11,26,47,0.04)",
-            }}
-          >
+          <Card pad="8px 24px" radius={12}>
             <Field
               label="Orders per month"
               value={orders}
@@ -423,7 +407,7 @@ export function ROICalculator() {
               onChange={setAutomationPct}
               divider
             />
-          </div>
+          </Card>
 
           {/* Outputs — the result rows sit a touch further apart on mobile (gap-5
               = 20px) so the € figures don't crowd each other or the recommendation

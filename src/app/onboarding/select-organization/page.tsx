@@ -11,7 +11,7 @@ import {
   CreateOrganization,
   OrganizationList,
 } from "@clerk/nextjs";
-import { XCard } from "@/components/bridge/XCard";
+import { Card } from "@/components/bridge/layout/Card";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { captureException } from "@/lib/sentry-context";
 import { isApiMockMode, isQaBypass } from "@/lib/api-client";
@@ -317,7 +317,9 @@ function WorkspaceCreatedNotOpened({
   return (
     <Shell>
       <div role="alert" className="w-full" style={{ maxWidth: 520 }}>
-        <XCard edge="left" color="amber">
+        {/* edge="none": a role="alert" panel. The amber strip it carried was tone,
+            not orientation — see the edge rule in layout/Card.tsx. */}
+        <Card pad={16} radius={8}>
           <h1 className="m-0 font-display text-[21px] font-semibold tracking-[-0.02em] text-ink">
             Your workspace is ready &mdash; we couldn&rsquo;t open it
           </h1>
@@ -350,7 +352,7 @@ function WorkspaceCreatedNotOpened({
               Get help
             </a>
           </div>
-        </XCard>
+        </Card>
       </div>
     </Shell>
   );

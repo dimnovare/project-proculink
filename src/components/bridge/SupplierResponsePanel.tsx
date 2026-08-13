@@ -8,6 +8,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
+import { Card } from "@/components/bridge/layout/Card";
 import type { SupplierConfirmation, SupplierConfirmationLine } from "@/types/procurement";
 
 // ─── Status badge ───────────────────────────────────────────────────────────
@@ -100,7 +101,7 @@ function ConfirmationCard({ confirmation, currency }: { confirmation: SupplierCo
   const confirmedCount = lines.filter((l) => l.state === "confirmed").length;
 
   return (
-    <div style={{ border: "1px solid #E5E8EE", borderRadius: 8, background: "#FFFFFF", overflow: "hidden" }}>
+    <Card flush radius={8}>
       {/* Header */}
       <div style={{ padding: "12px 14px", borderBottom: "1px solid #E5E8EE", display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10 }}>
         <StatusBadge status={confirmation.status} />
@@ -141,7 +142,7 @@ function ConfirmationCard({ confirmation, currency }: { confirmation: SupplierCo
           </div>
         )}
       </div>
-    </div>
+    </Card>
   );
 }
 

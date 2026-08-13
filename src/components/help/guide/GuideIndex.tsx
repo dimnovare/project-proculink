@@ -23,6 +23,7 @@ import {
   type GuideSection,
 } from "@/lib/guides";
 import { resolveArticles } from "@/lib/help-articles";
+import { Card } from "@/components/bridge/layout/Card";
 
 export function GuideIndex({ audience }: { audience: GuideAudience }) {
   const sections = GUIDE_SECTIONS.filter((section) =>
@@ -74,19 +75,11 @@ function GuideSectionBlock({
         {SECTION_BLURB[section]}
       </p>
 
-      <div
-        className="mt-3 overflow-hidden"
-        style={{
-          border: "1px solid var(--border)",
-          borderRadius: "var(--radius-md)",
-          background: "var(--surface)",
-          boxShadow: "var(--shadow-card)",
-        }}
-      >
+      <Card flush radius="var(--radius-md)" className="mt-3 overflow-hidden">
         {guides.map((guide, i) => (
           <GuideRow key={guide.slug} guide={guide} first={i === 0} />
         ))}
-      </div>
+      </Card>
     </section>
   );
 }

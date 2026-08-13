@@ -19,7 +19,7 @@
 // No new colour — every value is an existing token.
 
 import * as React from "react";
-import { XCard } from "./XCard";
+import { Card } from "./layout/Card";
 import { Button } from "./DSPrimitives";
 
 export interface DependencyUnavailableProps {
@@ -72,7 +72,10 @@ export function DependencyUnavailable({
       style={{ background: "var(--bg, #F6F7FA)" }}
     >
       <div className="w-full" style={{ maxWidth: 520 }}>
-        <XCard edge="left" color="amber">
+        {/* edge="none": this is a role="alert" panel, not a side of the bridge.
+            It carried an amber strip, which was tone, not orientation — see the
+            edge rule in layout/Card.tsx. pad/radius pin the old XCard geometry. */}
+        <Card pad={16} radius={8}>
           <h1
             style={{
               fontFamily: "var(--font-display, 'Bricolage Grotesque', Inter, sans-serif)",
@@ -156,7 +159,7 @@ export function DependencyUnavailable({
               </a>
             )}
           </div>
-        </XCard>
+        </Card>
       </div>
     </div>
   );

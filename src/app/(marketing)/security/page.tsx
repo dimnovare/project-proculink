@@ -2,6 +2,7 @@ import { pageMetadata } from "@/lib/seo";
 import Link from "next/link";
 import { SUBPROCESSORS } from "@/lib/subprocessors";
 import { requiresPlan } from "@/lib/gatedCapabilities";
+import { Card } from "@/components/bridge/layout/Card";
 
 export const metadata = pageMetadata({
   path: "/security",
@@ -390,15 +391,7 @@ export default function SecurityPage() {
 
 function ListCard({ rows }: { rows: Array<[string, string]> }) {
   return (
-    <div
-      style={{
-        background: "#FFFFFF",
-        border: "1px solid #E2E6EE",
-        borderRadius: 12,
-        boxShadow: "0 1px 2px rgba(11,26,47,0.04)",
-        overflow: "hidden",
-      }}
-    >
+    <Card flush radius={12} style={{ overflow: "hidden" }}>
       {rows.map(([label, note], i) => (
         <div
           key={label}
@@ -418,7 +411,7 @@ function ListCard({ rows }: { rows: Array<[string, string]> }) {
           <span style={{ fontSize: 12.5, color: MUTE, textAlign: "right", minWidth: 0 }}>{note}</span>
         </div>
       ))}
-    </div>
+    </Card>
   );
 }
 

@@ -27,6 +27,7 @@ import {
   getMappingOverride, upsertMappingOverride, previewMappingOverride, getSourceTokens,
 } from "@/lib/api-client";
 import { useDialogA11y } from "@/hooks/useDialogA11y";
+import { Card } from "@/components/bridge/layout/Card";
 import { OutputStructureDesigner } from "./OutputStructureDesigner";
 import { OutputSourcePicker } from "./OutputSourcePicker";
 import {
@@ -170,7 +171,9 @@ function RuleRow({ row, sources, sourceTokens, deliveredFormat, onChange, onRemo
     (rule.canonicalField == null || rule.canonicalField === "") &&
     (rule.sourceToken == null || rule.sourceToken === "");
   return (
-    <div style={{ border: "1px solid #E5E8EE", borderRadius: 8, padding: 10, background: "#FFFFFF" }}>
+    /* overflow stays `visible` (this div never declared it) so the source
+       picker's popover is not clipped by the row. */
+    <Card pad={10} radius={8} style={{ overflow: "visible" }}>
       <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
         <input
           value={rule.outputPath ?? ""}
@@ -225,7 +228,7 @@ function RuleRow({ row, sources, sourceTokens, deliveredFormat, onChange, onRemo
           {MANIPULATOR_TYPES.map((t) => <option key={t.type} value={t.type} title={t.hint}>{t.type}</option>)}
         </select>
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -309,8 +312,8 @@ const DEFAULT_TEMPLATE_CONTENT_TYPE = "application/json";
 
 function TemplateReferencePanel({ onInsert }: { onInsert: (token: string) => void }) {
   return (
-    <section aria-label="Available template fields"
-      style={{ border: "1px solid #E5E8EE", borderRadius: 8, background: "#FFFFFF", padding: 12 }}>
+    <Card as="section" aria-label="Available template fields"
+      pad={12} radius={8} style={{ overflow: "visible" }}>
       <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#5E6779", marginBottom: 4 }}>
         Proposed structure / available fields
       </div>
@@ -333,7 +336,7 @@ function TemplateReferencePanel({ onInsert }: { onInsert: (token: string) => voi
           </div>
         ))}
       </div>
-    </section>
+    </Card>
   );
 }
 
@@ -452,7 +455,7 @@ function FormulaHelp({ onTestExpression }: {
       <summary style={{ cursor: "pointer", fontSize: 11.5, fontWeight: 600, color: "#5E6779" }}>
         Formula help
       </summary>
-      <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 8, border: "1px solid #E5E8EE", borderRadius: 8, background: "#FFFFFF", padding: 12 }}>
+      <Card pad={12} radius={8} style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 8, overflow: "visible" }}>
         {FORMULA_EXAMPLES.map((ex) => (
           <FormulaHelpRow key={ex.code} code={ex.code} label={ex.label} />
         ))}
@@ -463,7 +466,7 @@ function FormulaHelp({ onTestExpression }: {
           </Link>
         </div>
         <ExpressionTester onTest={onTestExpression} />
-      </div>
+      </Card>
     </details>
   );
 }

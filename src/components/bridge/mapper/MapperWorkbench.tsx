@@ -28,6 +28,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "../DSPrimitives";
 import { isPlanGate, PlanGateNotice } from "../PlanGateNotice";
+import { Card } from "../layout/Card";
 import { IncomingPane } from "./IncomingPane";
 import { OutgoingPane, type AutoFilledFields } from "./OutgoingPane";
 import { MapperPreviewPane } from "./MapperPreviewPane";
@@ -1511,7 +1512,7 @@ function MapperMobileSummary({
     { label: "Required without a source", value: `${requiredUnmapped}` },
   ];
   return (
-    <div style={{ border: "1px solid #E5E8EE", borderRadius: 10, background: "#FFFFFF", overflow: "hidden" }}>
+    <Card flush>
       <div style={{ padding: "10px 12px", borderBottom: "1px solid #EEF0F4", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--ink-faint)" }}>
         Mapping summary
       </div>
@@ -1524,7 +1525,7 @@ function MapperMobileSummary({
       <div style={{ padding: "10px 12px", fontSize: 11, color: "var(--ink-faint)", lineHeight: 1.45 }}>
         Open this order on a larger screen to drag fields into place. The mapping shown above is read-only here.
       </div>
-    </div>
+    </Card>
   );
 }
 

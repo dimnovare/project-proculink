@@ -27,6 +27,8 @@
     "demo:tools:capture": "playwright test --config=playwright.tools.config.ts",
     "demo:tools:assemble": "node scripts/demo-video/tools/assemble-tool.mjs",
     "check:pageshell": "node scripts/check-pageshell.mjs",
+    "lint:cards": "node scripts/check-cards.mjs --strict",
+    "lint:cards:report": "node scripts/check-cards.mjs",
     "lint:tokens": "node scripts/check-tokens.mjs --strict",
     "lint:tokens:report": "node scripts/check-tokens.mjs",
     "lint:emitted-css": "node scripts/check-emitted-css.mjs",

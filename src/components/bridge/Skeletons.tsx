@@ -3,6 +3,8 @@
 // AC4 — Loading skeleton components for each major screen
 // Pulse animation via Tailwind animate-pulse; shape matches real content geometry
 
+import { Card } from "./layout/Card";
+
 // ─── Base pulse block ─────────────────────────────────────────────────────────
 
 function Bone({
@@ -104,22 +106,22 @@ export function DashboardSkeleton() {
         {/* KPI strip */}
         <div className="grid grid-cols-4 gap-3">
           {[0, 1, 2, 3].map((i) => (
-            <div key={i} style={{ background: "#FFFFFF", border: "1px solid #E5E8EE", borderRadius: 8, padding: 16 }}>
+            <Card key={i} radius={8} pad={16}>
               <Bone w={80} h={10} className="mb-3" />
               <Bone w={60} h={28} />
               <Bone w={100} h={10} className="mt-2" />
-            </div>
+            </Card>
           ))}
         </div>
         {/* Wire topology */}
-        <div style={{ background: "#FFFFFF", border: "1px solid #E5E8EE", borderRadius: 8, padding: 20 }}>
+        <Card radius={8} pad={20}>
           <Bone w={120} h={13} className="mb-4" />
           <Bone w="100%" h={200} radius={6} />
-        </div>
+        </Card>
         {/* Bottom row */}
         <div className="grid grid-cols-2 gap-3 flex-1">
           {[0, 1].map((i) => (
-            <div key={i} style={{ background: "#FFFFFF", border: "1px solid #E5E8EE", borderRadius: 8, padding: 16 }}>
+            <Card key={i} radius={8} pad={16}>
               <Bone w={100} h={13} className="mb-4" />
               {Array.from({ length: 4 }).map((_, j) => (
                 <div key={j} className="flex justify-between items-center mb-3">
@@ -127,7 +129,7 @@ export function DashboardSkeleton() {
                   <Bone w="30%" h={12} />
                 </div>
               ))}
-            </div>
+            </Card>
           ))}
         </div>
       </div>
@@ -149,10 +151,10 @@ export function SupplierProfileSkeleton() {
         </div>
         <div className="ml-auto flex gap-2">
           {[0, 1, 2, 3].map((i) => (
-            <div key={i} style={{ padding: "12px 20px", background: "#FFFFFF", border: "1px solid #E5E8EE", borderRadius: 8 }}>
+            <Card key={i} radius={8} pad="12px 20px">
               <Bone w={32} h={24} className="mb-1" />
               <Bone w={60} h={10} />
-            </div>
+            </Card>
           ))}
         </div>
       </div>
@@ -161,7 +163,7 @@ export function SupplierProfileSkeleton() {
         {[0, 1, 2, 3, 4, 5].map((i) => <Bone key={i} w={72} h={14} className="self-center" />)}
       </div>
       <div className="p-5 flex gap-4">
-        <div className="flex-1 flex flex-col gap-3" style={{ background: "#FFFFFF", border: "1px solid #E5E8EE", borderRadius: 8, padding: 16 }}>
+        <Card className="flex-1 flex flex-col gap-3" radius={8} pad={16}>
           <Bone w={130} h={13} />
           {Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="flex justify-between items-center py-1" style={{ borderBottom: "1px solid #F0F2F6" }}>
@@ -169,11 +171,11 @@ export function SupplierProfileSkeleton() {
               <Bone w="25%" h={18} radius={4} />
             </div>
           ))}
-        </div>
-        <div className="w-72 flex flex-col gap-3" style={{ background: "#FFFFFF", border: "1px solid #E5E8EE", borderRadius: 8, padding: 16 }}>
+        </Card>
+        <Card className="w-72 flex flex-col gap-3" radius={8} pad={16}>
           <Bone w={100} h={13} />
           <Bone w="100%" h={120} radius={4} />
-        </div>
+        </Card>
       </div>
     </div>
   );
@@ -183,7 +185,7 @@ export function SupplierProfileSkeleton() {
 
 export function TableSkeleton({ rows = 10, cols = 6 }: { rows?: number; cols?: number }) {
   return (
-    <div style={{ background: "#FFFFFF", border: "1px solid #E5E8EE", borderRadius: 8, overflow: "hidden" }} role="status" aria-busy="true">
+    <Card flush radius={8} role="status" aria-busy="true">
       <span className="sr-only">Loading…</span>
       {/* Header */}
       <div className="flex gap-4 px-4 py-3" style={{ borderBottom: "2px solid #E5E8EE" }}>
@@ -197,6 +199,6 @@ export function TableSkeleton({ rows = 10, cols = 6 }: { rows?: number; cols?: n
           ))}
         </div>
       ))}
-    </div>
+    </Card>
   );
 }

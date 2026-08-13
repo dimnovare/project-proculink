@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { ProcuLinkMark } from "@/components/bridge/DSPrimitives";
+import { Card } from "@/components/bridge/layout/Card";
 import { MarketingNav } from "@/components/marketing/MarketingNav";
 // Static imports on purpose (reverted from next/dynamic): with dynamic ssr:true
 // the real hero SVG + ROI calculator shipped inside hidden streaming segments
@@ -645,17 +646,7 @@ export default function RootPage() {
           style={{ gap: 18 }}
         >
           {FEATURES.map((f, i) => (
-            <div
-              key={i}
-              style={{
-                position: "relative",
-                background: SURFACE,
-                border: `1px solid ${BORDER}`,
-                borderRadius: 10,
-                padding: 24,
-                overflow: "hidden",
-              }}
-            >
+            <Card key={i} pad={24} radius={10}>
               {/* Top accent edge — gradient deck for the delivery card, solid otherwise */}
               <span
                 style={{
@@ -698,7 +689,7 @@ export default function RootPage() {
               <p style={{ fontSize: 13.5, lineHeight: 1.6, color: INK_MUTED, margin: 0 }}>
                 {f.desc}
               </p>
-            </div>
+            </Card>
           ))}
         </div>
         </div>
@@ -770,17 +761,7 @@ export default function RootPage() {
                 icon: "clock",
               },
             ].map((item, i) => (
-              <div
-                key={i}
-                style={{
-                  position: "relative",
-                  background: SURFACE,
-                  border: `1px solid ${BORDER}`,
-                  borderRadius: 10,
-                  padding: 24,
-                  overflow: "hidden",
-                }}
-              >
+              <Card key={i} pad={24} radius={10}>
                 {/* Colored left edge */}
                 <span
                   style={{
@@ -820,7 +801,7 @@ export default function RootPage() {
                 <p style={{ fontSize: 13.5, lineHeight: 1.6, color: INK_MUTED, margin: 0 }}>
                   {item.body}
                 </p>
-              </div>
+              </Card>
             ))}
           </div>
         </div>

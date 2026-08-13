@@ -27,6 +27,7 @@ import {
   type RowData,
 } from "@tanstack/react-table";
 import { FileChip } from "./FileChip";
+import { Card } from "./layout/Card";
 import { PageHeader } from "./layout/PageHeader";
 import { PageShell } from "./layout/PageShell";
 import { StatusJourney, failedStageFor, isFailureStatus, type CrossingStatus, type OrderStage } from "./StatusJourney";
@@ -1790,9 +1791,14 @@ export function InboxView() {
       {table.getColumn("status")?.getIsVisible() && <PipelineLegend />}
 
       {/* ── Queue table / mobile route cards — floating white card on grey canvas ── */}
-      <div
+      <Card
         className="flex-1 min-h-0 overflow-auto mb-3"
-        style={{ background: "#FFFFFF", border: "1px solid #E5E8EE", borderRadius: 12 }}
+        flush
+        radius={12}
+        /* The queue scrolls inside this card. Card's default `overflow: hidden`
+           is an inline style and would beat the `overflow-auto` class, so the
+           scroll axis is restated here. */
+        style={{ overflow: "auto" }}
       >
         <div className="flex flex-col gap-2.5 p-3 lg:hidden">
           {/* Mobile loading skeleton — card-shaped, matching the route cards below
@@ -2309,7 +2315,7 @@ export function InboxView() {
           </tbody>
         </table>
         </div>
-      </div>
+      </Card>
 
       {/* Footer: total + pagination controls — on the grey canvas, below the card */}
       <div

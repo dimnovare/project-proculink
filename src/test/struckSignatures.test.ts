@@ -131,10 +131,30 @@ describe("kept signatures are still real", () => {
     expect(read("src/components/bridge/SupplierDockProfile.tsx")).toContain("monument");
   });
 
-  it("still ships XCard and its card-edge token", () => {
-    expect(existsSync(join(ROOT, "src/components/bridge/XCard.tsx"))).toBe(true);
-    expect(read(TAILWIND_CONFIG)).toContain('"card-edge"');
-    expect(read("src/components/bridge/XCard.tsx")).toMatch(/w-card-edge|h-card-edge/);
+  it("still ships the cross-section card edge — from ONE card, not five", () => {
+    // This assertion used to name XCard.tsx and a Tailwind "card-edge" spacing
+    // token. Both are gone: the 2026-08-13 convergence folded FIVE card paths
+    // (this file's XCard, a second XCard defined inside UploadWorkbench, the
+    // .xcard/.xc-* CSS, and a zero-importer shadcn ui/card) into
+    // layout/Card.tsx. The SIGNATURE is unchanged and still pinned — only its
+    // carrier moved, which is exactly what this suite exists to track.
+    const CARD = "src/components/bridge/layout/Card.tsx";
+    expect(existsSync(join(ROOT, CARD))).toBe(true);
+    expect(existsSync(join(ROOT, "src/components/bridge/XCard.tsx"))).toBe(false);
+    expect(existsSync(join(ROOT, "src/components/ui/card.tsx"))).toBe(false);
+
+    // Defined AND consumed, both halves — the rail tokens died of having only
+    // the first half, so a token is never pinned here without its consumer.
+    expect(read(GLOBALS_CSS)).toContain("--card-edge:");
+    expect(read(CARD)).toContain("var(--card-edge)");
+    // The spacing token must not come back alongside the custom property.
+    expect(read(TAILWIND_CONFIG)).not.toMatch(/^\s*"card-edge":\s*"/m);
+
+    // The edge is SEMANTIC. These three are the whole vocabulary; tone values
+    // (amber / danger / ai) were removed and belong to <StatusNotice>.
+    const card = read(CARD);
+    for (const edge of ["blue", "green", "bridge"]) expect(card).toContain(`${edge}:`);
+    expect(card).not.toMatch(/^\s*(?:amber|danger|ai):\s*"var\(--/m);
   });
 
   it("keeps --gradient-line-buyer defined AND consumed", () => {
