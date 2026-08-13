@@ -228,9 +228,20 @@ export default function InvoicesPage() {
     }
   };
 
-  const subText = isLoading && !isApiMockMode
-    ? "Loading…"
-    : `${invoices.length} invoice${invoices.length !== 1 ? "s" : ""}`;
+  // THE HEADER MUST NOT COUNT WHAT IT NEVER FETCHED.
+  // `invoices` is `data ?? []`, so a FAILED fetch falls through the `??` into an
+  // empty array — and this line, which branched only on `isLoading`, rendered
+  // "0 invoices" directly above the body's "Failed to load invoices". One screen,
+  // two answers, and the confident one was the wrong one: zero is a claim about
+  // what the server holds, and it must never be the fallback for "I don't know".
+  // `isError` is tested BEFORE the count for the same reason the dead-letter list
+  // on src/app/(app)/operations/health/page.tsx:374 tests it before its empty
+  // state — so a number here can only ever mean a fetch that really succeeded.
+  const subText = isError && !isApiMockMode
+    ? "Couldn't load invoices"
+    : isLoading && !isApiMockMode
+      ? "Loading…"
+      : `${invoices.length} invoice${invoices.length !== 1 ? "s" : ""}`;
 
   const uploadAction = (
     <div className="flex items-center gap-3 flex-shrink-0">
