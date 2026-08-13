@@ -1,5 +1,30 @@
 # 05 — Components
 
+> ## ⚠ STRUCK SIGNATURES — read this before building anything from this file
+>
+> A founder audit on **2026-08-13** checked this handoff's "five spatial signatures"
+> against the shipped code. Two were never built and have been struck; two were
+> narrowed. This file predates that audit and, except where corrected inline below,
+> still describes the struck versions as required.
+>
+> **`CLAUDE.md` §2 in the repo root is the authority. This file is not.**
+>
+> - **Edge rails** (4px blue-left / green-right, `<EdgeRails>`) — **STRUCK.** Never
+>   built. No `EdgeRails.tsx` exists in `src/`; the `.rail*` CSS and the
+>   `rail` / `rail-buyer` / `rail-supplier` / `z-rails` tokens had zero consumers and
+>   were deleted. Buyer→supplier orientation is carried by **panel order** on the
+>   review screen and a labelled **`Buyer → Supplier`** column in the queue.
+> - **Canonical Spine review** (`<CanonicalSpine>` / `<SpineNode>`) — **DELETED.**
+>   Zero importers. The shipped review at `/inbox/[orderId]` is `OrderWorkshop` →
+>   `MapperWorkbench`: *What we received* | *What we'll send* | *Live preview*.
+> - **Wire Topology** — kept, but **demoted** from dashboard hero to a "System map" tab.
+> - **Document Anatomy** — kept, **narrowed**: the document pane ships; the per-zone
+>   confidence overlay does not.
+> - **Cross-section card edge** (`<XCard>`) and the buyer-blue / supplier-green
+>   colour semantics — **kept, unchanged.**
+> - The **220px navy sidebar** is not desktop chrome: desktop nav moved to the topbar
+>   and the sidebar renders only in the mobile drawer.
+
 This file specs the **signature components** that make a ProcuLink screen recognizable, plus the foundational primitives. Each section has:
 - What it is
 - Where it lives
@@ -12,15 +37,33 @@ Drop these into `components/` and import them anywhere.
 
 ## A. Signature components
 
-### A.1 `<EdgeRails>`
+### A.1 ~~`<EdgeRails>`~~ — STRUCK 2026-08-13
 
-The blue + green vertical rails that frame any order-handling work area.
+> **Struck 2026-08-13. Do not build this. Do not copy these props.**
+>
+> `<EdgeRails>` was never built into `src/` — no `EdgeRails.tsx` has ever existed there. The CSS
+> written for it (`.railed`, `.rail`, `.rail.buyer`, `.rail.supplier`, `.rail-port`, `.rail-label` in
+> `src/app/globals.css`) and the matching Tailwind tokens (`rail` spacing, `z-rails`,
+> `bg-rail-buyer`, `bg-rail-supplier`) carried **zero consumers** for their entire life and were
+> deleted. The `components/EdgeRails.tsx` reference implementation that used to sit in this handoff
+> folder has been deleted too, and the live rails demo that used to render in `showcase.html` was
+> removed from that page — both were artefacts of the unbuilt spec.
+>
+> **What carries buyer-left / supplier-right instead:** panel order on the review screen
+> (*What we received* | *What we'll send* | *Live preview*), and a labelled `Buyer → Supplier`
+> direction column in the queue. Layout and labels carry orientation; a 4px strip at the window edge
+> did not.
+>
+> The contract below is preserved only so a reader can see **what** was struck.
 
-**Use on:** Canonical Spine review · Upload Workbench · any screen that handles a specific order.
-**Don't use on:** Bridge dashboard (the topology IS the buyer/supplier expression) · marketing · auth · settings.
+~~The blue + green vertical rails that frame any order-handling work area.~~
 
-**Props**
+~~**Use on:** Canonical Spine review · Upload Workbench · any screen that handles a specific order.~~
+~~**Don't use on:** Bridge dashboard (the topology IS the buyer/supplier expression) · marketing · auth · settings.~~
+
+~~**Props**~~
 ```ts
+// STRUCK 2026-08-13 — never built, do not implement
 {
   children: ReactNode
   intensity?: number  // 0..1, default 1 — for subtle/strong variants
@@ -28,13 +71,15 @@ The blue + green vertical rails that frame any order-handling work area.
 }
 ```
 
-**Reference** — see `components/EdgeRails.tsx`.
-
 ---
 
 ### A.2 `<WireTopology>`
 
-The Bridge dashboard centerpiece. Buyers on the left, suppliers on the right, wires arcing between them.
+Buyers on the left, suppliers on the right, wires arcing between them.
+
+> **Demoted 2026-08-13.** This read "The Bridge dashboard centerpiece." It is not the centerpiece any
+> more: the wire diagram is a **"System map" tab** on `/bridge`, not the dashboard hero. The component
+> and its props below are real and unchanged — only its placement was demoted.
 
 **Props**
 ```ts
@@ -66,17 +111,39 @@ The Bridge dashboard centerpiece. Buyers on the left, suppliers on the right, wi
 
 ---
 
-### A.3 `<CanonicalSpine>` + `<SpineNode>`
+### A.3 ~~`<CanonicalSpine>` + `<SpineNode>`~~ — STRUCK 2026-08-13
 
-The vertical schema spine that anchors the order review.
+> **Struck 2026-08-13. Do not build this. Do not copy these props.**
+>
+> `src/components/bridge/CanonicalSpine.tsx` had **zero importers** and was deleted, along with its
+> `spine: 3px` spacing token, whose only consumer was that file. `SpineReview` was deleted earlier
+> (commit `3520ed4`).
+>
+> **The shipped order review** at `/inbox/[orderId]` is
+> `src/app/(app)/inbox/[orderId]/page.tsx` → `OrderWorkshop`
+> (`src/components/bridge/workshop/OrderWorkshop.tsx`) → `MapperWorkbench`
+> (`src/components/bridge/mapper/MapperWorkbench.tsx`, `variant="order"`). Three panes, left → right:
+> **"What we received"** (`IncomingPane`, blue `#1E66C9` dot) | **"What we'll send"** (`OutgoingPane`,
+> green `#2E8E3A` dot) | **"Live preview"** (`MapperPreviewPane`, green dot). It is **not** a
+> symmetric blue-left / green-right pair — one buyer column, then two supplier columns. The middle
+> column is an editable field mapping, not a read-only canonical spine.
+>
+> **The one rule from this section that survives:** the source document stays visible on the left
+> during review. See `09-trust-rules.md` Rule 4.
+>
+> The contract below is preserved only so a reader can see **what** was struck.
 
-**`<CanonicalSpine>` props**
+~~The vertical schema spine that anchors the order review.~~
+
+~~**`<CanonicalSpine>` props**~~
 ```ts
+// STRUCK 2026-08-13 — deleted, do not implement
 { children: ReactNode }  // expects <SpineNode> children
 ```
 
-**`<SpineNode>` props**
+~~**`<SpineNode>` props**~~
 ```ts
+// STRUCK 2026-08-13 — deleted, do not implement
 {
   id: string
   label: string                // "PO NUMBER"
@@ -93,17 +160,32 @@ The vertical schema spine that anchors the order review.
 }
 ```
 
-**Construction notes**
-- Container renders a 3px `--gradient-link-spine` vertical line down the column.
-- Each node has a 13px white circle on the spine + a card to the right with label, value, confidence chip.
-- Card footer has the source→output mapping refs (inside the card, **not** in margins).
-- Connector stubs (dashed) extend 14px to the left and right of the card.
+~~**Construction notes**~~ — struck with the component
+- ~~Container renders a 3px `--gradient-link-spine` vertical line down the column.~~
+- ~~Each node has a 13px white circle on the spine + a card to the right with label, value, confidence chip.~~
+- ~~Card footer has the source→output mapping refs (inside the card, **not** in margins).~~
+- ~~Connector stubs (dashed) extend 14px to the left and right of the card.~~
 
-**Reference** — see `components/CanonicalSpine.tsx`.
+~~**Reference** — see `components/CanonicalSpine.tsx`.~~ That reference implementation has been
+deleted from this handoff folder, and the canonical-spine demo was removed from `showcase.html`.
+`--gradient-link-spine` itself is **not** struck — it still paints the 2px topbar line.
 
 ---
 
-### A.4 `<DocumentAnatomy>`
+### A.4 `<DocumentAnatomy>` — NARROWED 2026-08-13
+
+> **Narrowed 2026-08-13.** Half of this contract ships and half does not.
+>
+> **Ships:** the document pane itself — `src/components/bridge/document/` renders the source file
+> (PDF via `pdfjs-dist`; CSV/XLSX read in-browser by `src/lib/sheetPreview.ts` and laid out as a
+> plain table). It is the left pane of the review screen, "What we received".
+>
+> **Does not ship:** everything below that concerns **zones** — the `zones` array, the per-zone
+> confidence overlay rectangles, the zone label pills, `activeZoneId`, and `onZoneHover`. Per-zone
+> confidence requires backend provenance that does not exist yet; building it is a separate packet.
+> Do not fake a zone overlay from client-side guesses.
+>
+> The `source` and `document` props are the surviving half of the idea.
 
 Wraps any rendered source document and overlays per-zone confidence annotations.
 
@@ -125,11 +207,11 @@ Wraps any rendered source document and overlays per-zone confidence annotations.
 }
 ```
 
-**Construction notes**
-- Zone overlay is a 1.5px solid border in green (≥90%) or amber (<90%).
-- Background is the same hue at 4% opacity.
-- Zone label is anchored at the top-right of its own zone, inside the document page. A small white pill with border, padding 2/6, displays `{label} · {fields} · {confidence}%`.
-- Hovering a zone calls `onZoneHover(id)` so the parent can highlight the matching spine node.
+~~**Construction notes**~~ — the whole of this block is the **unbuilt** zone-overlay half
+- ~~Zone overlay is a 1.5px solid border in green (≥90%) or amber (<90%).~~
+- ~~Background is the same hue at 4% opacity.~~
+- ~~Zone label is anchored at the top-right of its own zone, inside the document page. A small white pill with border, padding 2/6, displays `{label} · {fields} · {confidence}%`.~~
+- ~~Hovering a zone calls `onZoneHover(id)` so the parent can highlight the matching spine node.~~ (There is also no spine node to highlight — see A.3.)
 
 **Reference** — see `components/DocumentAnatomy.tsx`.
 
@@ -305,4 +387,8 @@ Illustration-free. Headline + sub + primary action. Optional: a small System Ide
 - A page has **one** `<Button variant="primary">`. Other actions are secondary or ghost.
 - Cards in a grid use the same `XCard` edge color. Don't mix blue / green / bridge edges in one row unless you're explicitly showing buyer→bridge→supplier flow.
 - `<StatusJourney>` and `<StatusPill>` together at row level: pill says the named state, journey shows where in the pipeline.
-- Edge rails wrap an entire screen body OR none of it. Don't put rails around individual cards.
+- ~~Edge rails wrap an entire screen body OR none of it. Don't put rails around individual cards.~~
+  **Struck 2026-08-13** — edge rails were never built and the component, CSS and tokens are deleted.
+  There is no rails composition rule because there are no rails. On the review screen, the rule that
+  replaces it is: **source pane stays left of output panes** — do not reorder `IncomingPane` /
+  `OutgoingPane` / `MapperPreviewPane`.

@@ -1,5 +1,30 @@
 # 09 — Trust Rules
 
+> ## ⚠ STRUCK SIGNATURES — read this before building anything from this file
+>
+> A founder audit on **2026-08-13** checked this handoff's "five spatial signatures"
+> against the shipped code. Two were never built and have been struck; two were
+> narrowed. This file predates that audit and, except where corrected inline below,
+> still describes the struck versions as required.
+>
+> **`CLAUDE.md` §2 in the repo root is the authority. This file is not.**
+>
+> - **Edge rails** (4px blue-left / green-right, `<EdgeRails>`) — **STRUCK.** Never
+>   built. No `EdgeRails.tsx` exists in `src/`; the `.rail*` CSS and the
+>   `rail` / `rail-buyer` / `rail-supplier` / `z-rails` tokens had zero consumers and
+>   were deleted. Buyer→supplier orientation is carried by **panel order** on the
+>   review screen and a labelled **`Buyer → Supplier`** column in the queue.
+> - **Canonical Spine review** (`<CanonicalSpine>` / `<SpineNode>`) — **DELETED.**
+>   Zero importers. The shipped review at `/inbox/[orderId]` is `OrderWorkshop` →
+>   `MapperWorkbench`: *What we received* | *What we'll send* | *Live preview*.
+> - **Wire Topology** — kept, but **demoted** from dashboard hero to a "System map" tab.
+> - **Document Anatomy** — kept, **narrowed**: the document pane ships; the per-zone
+>   confidence overlay does not.
+> - **Cross-section card edge** (`<XCard>`) and the buyer-blue / supplier-green
+>   colour semantics — **kept, unchanged.**
+> - The **220px navy sidebar** is not desktop chrome: desktop nav moved to the topbar
+>   and the sidebar renders only in the mobile drawer.
+
 These are not principles. They are **non-negotiable product rules**. Every screen is designed against them.
 
 ## Rule 1 · Provenance everywhere
@@ -11,9 +36,16 @@ Every AI suggestion, auto-mapping, or auto-corrected field shows three things:
 3. **One-click jump** — to the matching source-document anatomy zone, with the relevant text highlighted.
 
 **Implementation:**
-- Every spine node that came from extraction shows a confidence chip and the source field path (`← header`, `← parties.billTo`).
-- Every AI suggestion in the Issues rail has a "Jump to field" action that scrolls + highlights both the spine node and the source anatomy zone.
+- Every extracted field shows a confidence chip and the source field path (`← header`, `← parties.billTo`).
+- Every AI suggestion has a "Jump to field" action that scrolls to and highlights the matching field on the review screen.
 - Every mapping shows its source: `Manual / AI / Imported / Inherited from supplier rule`.
+
+> **Struck 2026-08-13 — targets only; the rule stands.** These three bullets used to say "spine node"
+> and "highlights both the spine node and the source anatomy zone". `CanonicalSpine.tsx` was deleted
+> (zero importers), so there is no spine node to highlight, and the per-zone anatomy overlay was never
+> built, so there is no zone to jump to. **Provenance itself is not struck** — confidence, source
+> attribution and jump-to-field are still required; they now target the mapped-field rows in
+> `MapperWorkbench` and the document view in `src/components/bridge/document/`.
 
 **Anti-pattern:**
 - A green checkmark with no number. (A "looks good" with no provenance is worse than no validation at all — operators stop trusting both.)
@@ -51,9 +83,19 @@ Every failed order shows:
 
 ## Rule 4 (implicit) · The source is sacred
 
-The user can never get into a state where they can't see what the supplier or buyer originally sent. The Canonical Spine Review always shows the source on the left, even if the operator has heavily edited the canonical center column. The original file is always one click away.
+The user can never get into a state where they can't see what the supplier or buyer originally sent. **The order review screen always shows the source document on the left**, even if the operator has heavily edited the fields to its right. The original file is always one click away.
 
-This is implicit in the `<DocumentAnatomy>` component — it's a primary column, not a side panel.
+The source is a **primary column, not a side panel**. Never a modal, never a wizard step that replaces it.
+
+In shipped code the left pane is **"What we received"** (`IncomingPane`, blue `#1E66C9` dot) inside `MapperWorkbench`, rendering the document view from `src/components/bridge/document/`.
+
+> **Struck 2026-08-13 — naming only; the rule itself stands.** This rule used to be phrased as "The
+> Canonical Spine Review always shows the source on the left … implicit in the `<DocumentAnatomy>`
+> component." Both of those names were struck: `CanonicalSpine.tsx` was deleted with zero importers,
+> and `<DocumentAnatomy>`'s per-zone confidence overlay was never built (the document pane itself
+> ships). **What was struck is the 3-column-spine form and the component names — not the
+> requirement.** Source-visible-on-the-left is real, load-bearing, and still enforced on the shipped
+> review screen. Do not read the strike as permission to hide the source.
 
 ## Rule 5 (implicit) · Edits are auditable
 

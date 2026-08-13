@@ -64,7 +64,9 @@
   --pl-dur-fast:130ms; --pl-dur:200ms; --pl-dur-slow:260ms;
 
   /* ---------- Z-index ---------- */
-  --pl-z-rails:1; --pl-z-sticky:10; --pl-z-drawer:20; --pl-z-topbar:30; --pl-z-popover:40; --pl-z-modal:50; --pl-z-toast:60;
+  /* --pl-z-rails:1 was STRUCK 2026-08-13 with the edge-rail signature. It had
+     zero consumers here and in the app — nothing ever stacked against it. */
+  --pl-z-sticky:10; --pl-z-drawer:20; --pl-z-topbar:30; --pl-z-popover:40; --pl-z-modal:50; --pl-z-toast:60;
 }
 
 /* ---------- Focus ring (premium: outline + halo) ---------- */

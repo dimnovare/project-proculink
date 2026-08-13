@@ -45,7 +45,7 @@ export function Step({
       <span
         aria-hidden="true"
         className="absolute bottom-[-26px] left-[15px] top-[26px] hidden w-0.5 sm:block"
-        style={{ background: "var(--gradient-rail-buyer)", opacity: 0.4 }}
+        style={{ background: "var(--gradient-line-buyer)", opacity: 0.4 }}
       />
 
       <h2

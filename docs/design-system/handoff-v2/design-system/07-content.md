@@ -1,5 +1,30 @@
 # 07 — Content & Copy
 
+> ## ⚠ STRUCK SIGNATURES — read this before building anything from this file
+>
+> A founder audit on **2026-08-13** checked this handoff's "five spatial signatures"
+> against the shipped code. Two were never built and have been struck; two were
+> narrowed. This file predates that audit and, except where corrected inline below,
+> still describes the struck versions as required.
+>
+> **`CLAUDE.md` §2 in the repo root is the authority. This file is not.**
+>
+> - **Edge rails** (4px blue-left / green-right, `<EdgeRails>`) — **STRUCK.** Never
+>   built. No `EdgeRails.tsx` exists in `src/`; the `.rail*` CSS and the
+>   `rail` / `rail-buyer` / `rail-supplier` / `z-rails` tokens had zero consumers and
+>   were deleted. Buyer→supplier orientation is carried by **panel order** on the
+>   review screen and a labelled **`Buyer → Supplier`** column in the queue.
+> - **Canonical Spine review** (`<CanonicalSpine>` / `<SpineNode>`) — **DELETED.**
+>   Zero importers. The shipped review at `/inbox/[orderId]` is `OrderWorkshop` →
+>   `MapperWorkbench`: *What we received* | *What we'll send* | *Live preview*.
+> - **Wire Topology** — kept, but **demoted** from dashboard hero to a "System map" tab.
+> - **Document Anatomy** — kept, **narrowed**: the document pane ships; the per-zone
+>   confidence overlay does not.
+> - **Cross-section card edge** (`<XCard>`) and the buyer-blue / supplier-green
+>   colour semantics — **kept, unchanged.**
+> - The **220px navy sidebar** is not desktop chrome: desktop nav moved to the topbar
+>   and the sidebar renders only in the mobile drawer.
+
 > **Corrected 2026-08-09.** This page originally taught a bridge-metaphor voice —
 > *crossing*, *dock*, *lane*, *spine*, "Cross the bridge →". The founder purged all of it from
 > user-facing copy (CLAUDE.md §9). Those words survive only as **code identifiers**, **CSS/design
@@ -38,7 +63,7 @@ These name the *architecture*, and appear in component names, tokens and routes.
 | **Crossing** | `CrossingsLog.tsx` |
 | **Dock** | `SupplierDockProfile.tsx`, `SupplierDockList.tsx` |
 | **Lane** | `LaneDrawer.tsx` |
-| **Spine** | `CanonicalSpine`, `SpineReview`, `bg-link-spine` |
+| **Spine** | `bg-link-spine` **only.** ~~`CanonicalSpine`~~, ~~`SpineReview`~~ — **struck 2026-08-13**: `CanonicalSpine.tsx` had zero importers and was deleted; `SpineReview` was deleted earlier (commit `3520ed4`). `bg-link-spine` / `--gradient-link-spine` is a different thing — the 2px topbar gradient line — and still ships. |
 | **Anatomy** | `DocumentAnatomy.tsx` (internal label for the zone overlay) |
 | **Wire** | `WireTopology.tsx` and its SVG gradients |
 

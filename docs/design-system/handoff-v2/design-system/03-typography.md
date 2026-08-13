@@ -1,5 +1,30 @@
 # 03 — Typography
 
+> ## ⚠ STRUCK SIGNATURES — read this before building anything from this file
+>
+> A founder audit on **2026-08-13** checked this handoff's "five spatial signatures"
+> against the shipped code. Two were never built and have been struck; two were
+> narrowed. This file predates that audit and, except where corrected inline below,
+> still describes the struck versions as required.
+>
+> **`CLAUDE.md` §2 in the repo root is the authority. This file is not.**
+>
+> - **Edge rails** (4px blue-left / green-right, `<EdgeRails>`) — **STRUCK.** Never
+>   built. No `EdgeRails.tsx` exists in `src/`; the `.rail*` CSS and the
+>   `rail` / `rail-buyer` / `rail-supplier` / `z-rails` tokens had zero consumers and
+>   were deleted. Buyer→supplier orientation is carried by **panel order** on the
+>   review screen and a labelled **`Buyer → Supplier`** column in the queue.
+> - **Canonical Spine review** (`<CanonicalSpine>` / `<SpineNode>`) — **DELETED.**
+>   Zero importers. The shipped review at `/inbox/[orderId]` is `OrderWorkshop` →
+>   `MapperWorkbench`: *What we received* | *What we'll send* | *Live preview*.
+> - **Wire Topology** — kept, but **demoted** from dashboard hero to a "System map" tab.
+> - **Document Anatomy** — kept, **narrowed**: the document pane ships; the per-zone
+>   confidence overlay does not.
+> - **Cross-section card edge** (`<XCard>`) and the buyer-blue / supplier-green
+>   colour semantics — **kept, unchanged.**
+> - The **220px navy sidebar** is not desktop chrome: desktop nav moved to the topbar
+>   and the sidebar renders only in the mobile drawer.
+
 ## Font stack
 
 | Role | Family | Weights used | Fallback |
@@ -26,15 +51,19 @@ Source from Google Fonts:
 - **KPI monumental numbers** on the Bridge dashboard
 - Page titles on the Bridge dashboard, Inbox, review header, marketing
 - Marketing H1 (the "Buyers on one side." hero)
-- Grand total in the canonical spine
+- Grand total on the order review screen
 - Section titles like "Order topology" / "Cross a new order"
+
+> **Struck 2026-08-13.** The bullet read "Grand total in the canonical spine". The canonical spine was
+> deleted (`CanonicalSpine.tsx`, zero importers). The type rule survives on the shipped review screen
+> (`OrderWorkshop` → `MapperWorkbench`): the grand total is still the one display-font number there.
 
 Display is *visually heavy*. Use it sparingly — once or twice per screen. If a heading doesn't carry weight as a primary visual anchor, use Inter.
 
 ### JetBrains Mono (Mono)
 - **All technical identifiers:** PO numbers, SKUs, file paths, field paths (`Order/@orderID`), IDs
 - File-type chips (`PDF`, `cXML`, `EDI`)
-- Output preview (cXML / JSON / CSV in the right column of the spine)
+- Output preview (cXML / JSON / CSV in the right column of the review screen — the "Live preview" pane, `MapperPreviewPane`; it was "the right column of the spine" until **2026-08-13**, when the spine was struck)
 - Confidence percentages
 - Time durations (`1m 42s`)
 - Volume metrics (`412/wk`)
@@ -128,7 +157,14 @@ Supplier (Inter 12.5px 500, green-deep): Acme Components Ltd.
 Status (Inter 11px 500, in pill):    Needs review
 ```
 
-### Canonical spine node
+### ~~Canonical spine node~~ — STRUCK
+
+> **Struck 2026-08-13.** `<CanonicalSpine>` / `<SpineNode>` had zero importers and were deleted.
+> There is no spine node to type. The **type ramp below is still correct** and is what the shipped
+> review screen's mapped-field rows use (`OrderWorkshop` → `MapperWorkbench`) — label in small
+> uppercase Inter, value in mono, technical refs in mono at chip size, buyer refs blue and supplier
+> refs green-deep. Copy the sizes; do not copy the component.
+
 ```
 Label (Inter 10px 600, uppercase, tracking 0.05em, ink-faint):
   "PO NUMBER"

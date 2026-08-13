@@ -1,6 +1,42 @@
 # ProcuLink — Frontend UI Prompt for Claude Code (v2 — locked: "The Bridge Layer")
 
-Hand this whole document to Claude Code as the implementation brief. It is self-contained: design system, screen-by-screen specs, signature components, motion language, and stack alignment for Next.js 15 + Tailwind + shadcn/ui + TanStack + Clerk + ASP.NET API.
+> ## ⚠ STRUCK SIGNATURES — read this before building anything from this file
+>
+> A founder audit on **2026-08-13** checked this handoff's "five spatial signatures"
+> against the shipped code. Two were never built and have been struck; two were
+> narrowed. This file predates that audit and, except where corrected inline below,
+> still describes the struck versions as required.
+>
+> **`CLAUDE.md` §2 in the repo root is the authority. This file is not.**
+>
+> - **Edge rails** (4px blue-left / green-right, `<EdgeRails>`) — **STRUCK.** Never
+>   built. No `EdgeRails.tsx` exists in `src/`; the `.rail*` CSS and the
+>   `rail` / `rail-buyer` / `rail-supplier` / `z-rails` tokens had zero consumers and
+>   were deleted. Buyer→supplier orientation is carried by **panel order** on the
+>   review screen and a labelled **`Buyer → Supplier`** column in the queue.
+> - **Canonical Spine review** (`<CanonicalSpine>` / `<SpineNode>`) — **DELETED.**
+>   Zero importers. The shipped review at `/inbox/[orderId]` is `OrderWorkshop` →
+>   `MapperWorkbench`: *What we received* | *What we'll send* | *Live preview*.
+> - **Wire Topology** — kept, but **demoted** from dashboard hero to a "System map" tab.
+> - **Document Anatomy** — kept, **narrowed**: the document pane ships; the per-zone
+>   confidence overlay does not.
+> - **Cross-section card edge** (`<XCard>`) and the buyer-blue / supplier-green
+>   colour semantics — **kept, unchanged.**
+> - The **220px navy sidebar** is not desktop chrome: desktop nav moved to the topbar
+>   and the sidebar renders only in the mobile drawer.
+
+> **Struck 2026-08-13. Do not hand this whole document to Claude Code as an implementation brief.**
+> It is **not** self-contained and it is **not** current: it specifies two screens/components that
+> were never built (edge rails, the Canonical Spine review), one that was demoted (wire topology as
+> the dashboard hero), and one that was narrowed (Document Anatomy's per-zone confidence overlay).
+> An agent handed this document verbatim will build the wrong product — that is exactly how the
+> struck signatures survived in this handoff for months.
+>
+> **Hand it `CLAUDE.md` §2 instead.** Use this file only for its **token, type, colour, copy and
+> motion detail**, which are still good, and read each inline strike note before acting on any
+> layout, component contract, screen spec, build order or acceptance criterion below.
+
+This document was written as a self-contained implementation brief — design system, screen-by-screen specs, signature components, motion language, and stack alignment for Next.js 15 + Tailwind + shadcn/ui + TanStack + Clerk + ASP.NET API. Treat the design-system halves as reference and the spatial/screen halves as superseded.
 
 ---
 
@@ -24,20 +60,50 @@ You are building the frontend for **ProcuLink** — an AI-assisted **order trans
 
 The product *is* a bridge between two parties — and the UI structurally shows itself as one. This is not styling; it is the architecture of every screen.
 
-### Five spatial signatures (non-negotiable)
+### ~~Five spatial signatures (non-negotiable)~~ — two struck, two narrowed, 2026-08-13
 
-1. **Edge rails.** A 4px blue rail on the left edge of the work area and a 4px green rail on the right. Blue = buyer / incoming. Green = supplier / outgoing. Render port markers at the top of each rail. The rails frame every screen that handles an order.
+> **Struck 2026-08-13.** These five were audited against `src/`. **Two of them had never been built.**
+> They were never non-negotiable; they were unimplemented. Corrections are inline on each.
 
-2. **Wire Topology dashboard.** The home screen is not a grid of KPI cards. It's a network diagram: buyer ports down the left edge, supplier ports down the right edge, **wires arcing between them**. Wire thickness = volume. Wire color = health (blue→green normal, blue→amber if at-risk). Travelling pulses animate along active wires.
+1. ~~**Edge rails.** A 4px blue rail on the left edge of the work area and a 4px green rail on the right. Blue = buyer / incoming. Green = supplier / outgoing. Render port markers at the top of each rail. The rails frame every screen that handles an order.~~
 
-3. **Canonical Spine review.** Order detail is a 3-column ETL view:
-   - **Left:** source document with anatomy overlay (header / parties / lines / totals zones, each with a confidence chip).
-   - **Center:** the canonical PO schema as a **vertical spine** of nodes connected by a blue→green gradient line. Source-field refs sit to the left of each node; output-field paths sit to the right.
-   - **Right:** supplier-ready output (cXML / CSV / JSON) with the same fields highlighted in place.
+   > **STRUCK.** Never built — no `EdgeRails.tsx` in `src/`. The `.rail*` CSS in
+   > `src/app/globals.css` and the `rail` / `rail-buyer` / `rail-supplier` / `z-rails` tokens had
+   > **zero consumers** and were deleted. Buyer→supplier orientation is carried by **panel order** on
+   > the review screen and a labelled **`Buyer → Supplier`** column in the queue.
 
-4. **Document Anatomy.** Source PDFs/spreadsheets are always presented with labeled zone overlays and per-zone confidence — the "x-ray" of the order. Operators see what ProcuLink saw and how sure it was.
+2. **Wire Topology.** A network diagram: buyer ports down the left edge, supplier ports down the right edge, **wires arcing between them**. Wire thickness = volume. Wire color = health (blue→green normal, blue→amber if at-risk). Travelling pulses animate along active wires.
+
+   > **Demoted 2026-08-13.** This said "**Wire Topology dashboard.** The home screen is not a grid of
+   > KPI cards." The wire diagram is now a **"System map" tab** on `/bridge`, not the dashboard hero.
+   > The diagram itself is real and its construction rules are unchanged.
+
+3. ~~**Canonical Spine review.** Order detail is a 3-column ETL view:~~
+   - ~~**Left:** source document with anatomy overlay (header / parties / lines / totals zones, each with a confidence chip).~~
+   - ~~**Center:** the canonical PO schema as a **vertical spine** of nodes connected by a blue→green gradient line. Source-field refs sit to the left of each node; output-field paths sit to the right.~~
+   - ~~**Right:** supplier-ready output (cXML / CSV / JSON) with the same fields highlighted in place.~~
+
+   > **STRUCK.** `src/components/bridge/CanonicalSpine.tsx` had **zero importers** and was deleted;
+   > `SpineReview` was deleted earlier (commit `3520ed4`). The shipped review at `/inbox/[orderId]` is
+   > `src/app/(app)/inbox/[orderId]/page.tsx` → `OrderWorkshop` → `MapperWorkbench`
+   > (`variant="order"`): **"What we received"** (`IncomingPane`, blue `#1E66C9` dot) |
+   > **"What we'll send"** (`OutgoingPane`, green `#2E8E3A` dot) | **"Live preview"**
+   > (`MapperPreviewPane`, green dot). One buyer column then two supplier columns — **not** a
+   > symmetric blue-left/green-right pair. The middle column is an editable field mapping, not a
+   > read-only canonical spine. **The one requirement that survives: the source document stays
+   > visible on the left.**
+
+4. **Document Anatomy.** Source PDFs/spreadsheets are always presented to the operator as the rendered document — they see what ProcuLink saw.
+
+   > **Narrowed 2026-08-13.** The original bullet demanded "labeled zone overlays and per-zone
+   > confidence — the 'x-ray' of the order". The **document pane ships**
+   > (`src/components/bridge/document/`). The **per-zone confidence overlay does not** — it needs
+   > backend provenance and is a separate packet. Do not fake zone confidence from client-side
+   > guesses.
 
 5. **Cross-section card edge.** Primary cards have a 3px brand-gradient strip on **one edge** (the "wire seen end-on"). Blue strip = buyer surface. Green strip = supplier surface. Full gradient = bridge surface. Replaces decorative borders and notched corners.
+
+   > **Kept, unchanged.** `<XCard>` is real (`src/components/bridge/XCard.tsx`).
 
 ### Supporting signatures
 
@@ -110,7 +176,14 @@ Type: body 13/14px, table rows 12/12.5px, KPI display 32–48px, marketing displ
 
 ## 4. App shell
 
-A persistent **navy left sidebar (220px)** + **navy top bar (52px)** + **main work area** that uses **edge rails** on order-handling screens.
+A persistent **navy top bar** + **main work area**.
+
+> **Struck 2026-08-13.** This read "A persistent **navy left sidebar (220px)** + **navy top bar
+> (52px)** + **main work area** that uses **edge rails** on order-handling screens." Two corrections:
+> **edge rails were never built** (component, CSS and tokens all deleted for zero consumers), and the
+> **220px sidebar is not desktop chrome** — desktop nav moved to the topbar, and the sidebar renders
+> only inside the mobile drawer. Navy-chrome-over-light-work-area is otherwise unchanged. Read the
+> sidebar spec below as the **mobile drawer** spec.
 
 ### Sidebar (navy)
 
@@ -133,8 +206,13 @@ A persistent **navy left sidebar (220px)** + **navy top bar (52px)** + **main wo
 
 ### Main work area
 
-- Wraps the order-handling pages in an **EdgeRails** component (left rail blue, right rail green, port markers at top).
-- Marketing/auth/settings pages do **not** use edge rails — they are calm and centered.
+- ~~Wraps the order-handling pages in an **EdgeRails** component (left rail blue, right rail green, port markers at top).~~
+- ~~Marketing/auth/settings pages do **not** use edge rails — they are calm and centered.~~
+
+> **Struck 2026-08-13.** There is no `EdgeRails` component and never was; nothing wraps the work area
+> in rails. The distinction these two bullets were drawing — order-handling screens read as
+> directional, marketing/auth/settings read as calm and centered — survives, but it is expressed by
+> **panel order and labels** on the order screens, not by rails.
 
 ---
 
@@ -142,11 +220,16 @@ A persistent **navy left sidebar (220px)** + **navy top bar (52px)** + **main wo
 
 ### 5.1 Bridge (Home / Dashboard)
 
-The product's signature screen. **A live network diagram, not a grid of cards.**
+> **Demoted 2026-08-13.** This section opened "The product's signature screen. **A live network
+> diagram, not a grid of cards.**" The wire diagram is **not** the dashboard hero — it is a
+> **"System map" tab** on `/bridge`. The dashboard leads with the queue and the KPI strip. Read the
+> canvas spec below as the spec **for that tab**; its construction rules are unchanged and still
+> correct. Also note the title: **"Order topology" must not ship as a user-facing heading** — the
+> shipped titles are "Dashboard" (browser) / "Overview" (hub tab), owned by `src/lib/pageTitles.ts`.
 
 **Layout:**
-- Top: page header — title "Order topology", date range pill, period segmented control (Today / 7d / 30d / Quarter), "Export report" button.
-- Hero panel (~580px tall): **Wire Topology canvas**.
+- Top: page header — date range pill, period segmented control (Today / 7d / 30d / Quarter), "Export report" button.
+- The **Wire Topology canvas**, on the "System map" tab (~580px tall).
   - Buyer ports rendered as labeled rounded rectangles down the left edge (~6 visible). Each shows buyer name + short code + volume (e.g. `412/wk`).
   - Supplier ports rendered the same down the right edge (~5 visible).
   - Wires drawn as cubic Bezier curves between them. **Stroke width = volume bucket**, **stroke = `link-spine` gradient** (or `link-spine → amber` for at-risk lanes).
@@ -168,35 +251,72 @@ The product's signature screen. **A live network diagram, not a grid of cards.**
 - **Time-strip ribbon** at the top: horizontal bar showing volume over 24h with a brushable selection (visual flourish — implement progressively).
 - Status filter chips (All / New / Needs review / Ready / Sent / Failed) using the brand-blue tint when active.
 - Dense table: Status (5-node mini-track preview, no big pill) · Received · Source (file-type chip) · Buyer · Supplier · PO # · Lines · Value · Exceptions · Assigned · Updated. 36px row height. ≥30 rows above the fold.
-- Click row → opens **Canonical Spine review** as a full-page route (not a drawer — operators want the keyboard).
+- Click row → opens the **order review** as a full-page route (not a drawer — operators want the keyboard). **Struck 2026-08-13:** this said "**Canonical Spine review**"; that screen was deleted. The full-page-not-drawer rule is unchanged.
 
-### 5.3 Canonical Spine Review (the showpiece)
+> **Added 2026-08-13.** The shipped Inbox has a real direction column that this spec never asked for
+> and that now carries the buyer→supplier orientation the struck edge rails were meant to:
+> `src/components/bridge/InboxView.tsx` (`id: "lane"`), header text from
+> `src/hooks/useOrderDirection.ts` — `"Buyer → Supplier"` outbound, `"Customer → You"` inbound — with
+> the buyer name in blue, a `→` glyph, and the supplier name in green.
 
-This is the most important screen in the product.
+### 5.3 ~~Canonical Spine Review (the showpiece)~~ — STRUCK 2026-08-13
 
-**Page header (above edge rails):**
+> **STRUCK 2026-08-13. Do not build this screen from this section.**
+>
+> `src/components/bridge/CanonicalSpine.tsx` had **zero importers** and was deleted, along with its
+> `spine: 3px` spacing token. `SpineReview` was deleted earlier (commit `3520ed4`). Edge rails, which
+> this section wraps the body in, were never built at all.
+>
+> **The shipped order review** is `src/app/(app)/inbox/[orderId]/page.tsx` →
+> `src/components/bridge/workshop/OrderWorkshop.tsx` →
+> `src/components/bridge/mapper/MapperWorkbench.tsx` (`variant="order"`). Three panes, left → right:
+>
+> | Position | Pane | Heading | Dot |
+> |---|---|---|---|
+> | Left | `IncomingPane` | **"What we received"** | blue `#1E66C9` |
+> | Middle | `OutgoingPane` | **"What we'll send"** | green `#2E8E3A` |
+> | Right | `MapperPreviewPane` | **"Live preview"** | green `#2E8E3A` |
+>
+> One buyer column, then two supplier columns — **not** a symmetric blue-left / green-right pair.
+> Below `lg`, `MobileTriage` stacks the same three in the same order.
+>
+> **What survives from this section and is still required:**
+> - The source document stays **visible on the left** during review. Never a modal, never a wizard
+>   step that replaces it. (See `09-trust-rules.md` Rule 4.)
+> - Full-page route, not a drawer.
+> - Buyer refs in blue mono, supplier/output refs in green mono.
+> - Confidence chips with the thresholds in `04-color.md`.
+> - A sticky action bar with the grand total and one primary "Send to supplier".
+>
+> Everything below is preserved so a reader can see **what** was struck.
+
+~~This is the most important screen in the product.~~
+
+~~**Page header (above edge rails):**~~ — there are no edge rails
 - Back arrow · buyer card (name, file chip, source filename) · **stage bridge graphic** with current stage highlighted (1m-tall horizontal SVG: parse → normalize → validate → transform → deliver, dots filled green for done, blue + pulsing for active) · supplier card (name, output file chip, channel) · "Save draft" / "Send to supplier" buttons.
 - Primary button uses navy bg, white text, with a 12px link-gradient swatch on the right.
 
-**Body (wrapped in EdgeRails):**
+~~**Body (wrapped in EdgeRails):**~~ — **struck**, no EdgeRails exists
 
-3-column grid: **35% · 30% · 35%**, all aligned to the spine.
+~~3-column grid: **35% · 30% · 35%**, all aligned to the spine.~~ — **struck**, there is no spine to
+align to; the shipped grid is `MapperWorkbench`'s.
 
-**Left column — Source · Document Anatomy**
-- The source PDF/spreadsheet rendered inside a light grey panel.
-- Overlay rectangles tag the anatomy zones — Header / Parties / Terms / Lines / Totals — with the zone outlined in green if confidence ≥ 90, amber if 70–90, red below.
-- Each zone has a small label OUTSIDE the document (in the margin to the left) showing zone name + field summary + confidence chip.
-- Hovering a zone highlights the corresponding spine node (and vice versa).
+~~**Left column — Source · Document Anatomy**~~ — **narrowed**: the document pane ships, the zone overlay does not
+- The source PDF/spreadsheet rendered inside a light grey panel. **(Ships —
+  `src/components/bridge/document/`.)**
+- ~~Overlay rectangles tag the anatomy zones — Header / Parties / Terms / Lines / Totals — with the zone outlined in green if confidence ≥ 90, amber if 70–90, red below.~~ **Struck** — needs backend provenance, separate packet.
+- ~~Each zone has a small label OUTSIDE the document (in the margin to the left) showing zone name + field summary + confidence chip.~~ **Struck.**
+- ~~Hovering a zone highlights the corresponding spine node (and vice versa).~~ **Struck** — no zones, no spine nodes.
 
-**Center column — Canonical Spine**
-- A vertical 3px `link-spine` line down the column.
-- Each canonical field is a "node": a 13px white circle on the spine + a card to the right of the spine with label, value, confidence chip, optional hint.
-- Each node has small dashed connector stubs — one to the left (source ref label) and one to the right (output path label).
-- Source ref labels are in **brand blue mono** (e.g. `header`, `parties.billTo`, `lines.4`).
-- Output ref labels are in **brand green mono** (e.g. `Order/@orderID`, `BillTo/Address`, `ItemOut[3]`).
-- Fields below confidence thresholds get amber or red field backgrounds. The hint text appears under the value in amber.
-- The Lines node expands inline to show the top 3 lines with mapped supplier SKUs (green) or unmapped/AI/error states.
-- Grand total node uses the display font at 16px.
+~~**Center column — Canonical Spine**~~ — **STRUCK**, deleted with zero importers
+- ~~A vertical 3px `link-spine` line down the column.~~ (The `link-spine` **token** is not struck — it still paints the 2px topbar line.)
+- ~~Each canonical field is a "node": a 13px white circle on the spine + a card to the right of the spine with label, value, confidence chip, optional hint.~~
+- ~~Each node has small dashed connector stubs — one to the left (source ref label) and one to the right (output path label).~~
+- Source ref labels are in **brand blue mono** (e.g. `header`, `parties.billTo`, `lines.4`). **(Kept — the colour/type rule still holds on the shipped mapped-field rows.)**
+- Output ref labels are in **brand green mono** (e.g. `Order/@orderID`, `BillTo/Address`, `ItemOut[3]`). **(Kept.)**
+- Fields below confidence thresholds get amber or red field backgrounds. The hint text appears under the value in amber. **(Kept.)**
+- ~~The Lines node expands inline to show the top 3 lines with mapped supplier SKUs (green) or unmapped/AI/error states.~~
+- ~~Grand total node uses the display font at 16px.~~ (The grand total is still the one display-font number on the screen — it is just not a spine node.)
 
 **Right column — Output preview**
 - A dark-navy panel showing the supplier-ready output (cXML by default, tabs for CSV / JSON if the supplier template enables them).
@@ -206,7 +326,11 @@ This is the most important screen in the product.
 - Sticky toolbar: file type tabs · "Show diff vs source" toggle · "Copy" / "Download" buttons.
 
 **Issues rail (collapsible, 280px to the right of the output column):**
-- Errors, Warnings, AI suggestions grouped. Each card shows confidence chip and a "Jump to field" action that scrolls the spine + highlights the matching node and source zone.
+- Errors, Warnings, AI suggestions grouped. Each card shows a confidence chip and a "Jump to field" action that scrolls to and highlights the matching field.
+
+> **Struck 2026-08-13 — target only.** The jump action used to "scroll the spine + highlight the
+> matching node and source zone". There is no spine node and no anatomy zone. Jump-to-field is still
+> required (`09-trust-rules.md` Rule 1); it targets the mapped-field rows in `MapperWorkbench`.
 
 **Action bar (sticky bottom):**
 - Grand total · output template · "Save draft" · primary "Send to supplier" with a confirm dialog ("I've reviewed the 3 issues. Send to Acme.")
@@ -257,10 +381,13 @@ This is the most important screen in the product.
 
 ### Signature components
 
-- `<EdgeRails>` — wraps the work area, draws blue + green vertical rails with port markers.
-- `<WireTopology>` — buyer ports / supplier ports / animated wires. Props: `buyers`, `suppliers`, `wires` (each with `b`, `s`, `weight`, `health`, `alert?`). SVG-driven with CSS `offset-path` animation.
-- `<CanonicalSpine>` — vertical spine layout with `<SpineNode>` children. Each node: `id`, `label`, `value`, `pct`, `tone`, `srcRef`, `outRef`, `hint?`, `subnodes?`.
-- `<DocumentAnatomy>` — wraps any rendered source (PDF via `pdfjs-dist`, spreadsheet via `react-data-grid`, XML/EDI as syntax-highlighted) and overlays zone rectangles + per-zone confidence chips.
+> **Struck 2026-08-13.** Two entries in this "build these first" list were never built. Building them
+> now would be building backwards.
+
+- ~~`<EdgeRails>` — wraps the work area, draws blue + green vertical rails with port markers.~~ **STRUCK — do not build.** Never existed in `src/`; CSS and tokens deleted for zero consumers.
+- `<WireTopology>` — buyer ports / supplier ports / animated wires. Props: `buyers`, `suppliers`, `wires` (each with `b`, `s`, `weight`, `health`, `alert?`). SVG-driven with CSS `offset-path` animation. **Real — but it lives on a "System map" tab, not as the dashboard hero.**
+- ~~`<CanonicalSpine>` — vertical spine layout with `<SpineNode>` children. Each node: `id`, `label`, `value`, `pct`, `tone`, `srcRef`, `outRef`, `hint?`, `subnodes?`.~~ **STRUCK — do not build.** Deleted with zero importers. The shipped review is `OrderWorkshop` → `MapperWorkbench`.
+- `<DocumentAnatomy>` — wraps any rendered source and presents it to the operator. **Narrowed:** the document pane ships (`src/components/bridge/document/`); ~~"overlays zone rectangles + per-zone confidence chips"~~ does **not** — it needs backend provenance. Note the renderers named here also drifted: PDF is `pdfjs-dist` as specified, but spreadsheets are read in-browser by `src/lib/sheetPreview.ts` (no `react-data-grid`) and there is no syntax highlighter.
 - `<XCard>` — primary card with cross-section edge strip. Props: `edge="left|right|top|bottom"`, `color="buyer|supplier|bridge"`.
 - `<StatusJourney>` — 5-node mini-track showing Parse → Normalize → Validate → Transform → Deliver. Props: `stage` (0–4), `compact?`.
 - `<LinkSpine>` — 2px blue→green gradient line. Props: `animated?` (left-to-right fill on state change), `soft?`.
@@ -285,8 +412,8 @@ This is the most important screen in the product.
 
 Use the **System Identity** mark (Direction 3 from the canvas exploration): the brand is not just a logo, it's a shape language. The mark is one expression. Other expressions live in the product:
 
-- **Rail markers** at the top of edge rails use the same geometry.
-- **Spine nodes** use the same circle-on-gradient construction.
+- ~~**Rail markers** at the top of edge rails use the same geometry.~~ **Struck 2026-08-13** — edge rails were never built, so there are no rail markers.
+- ~~**Spine nodes** use the same circle-on-gradient construction.~~ **Struck 2026-08-13** — `CanonicalSpine.tsx` was deleted with zero importers.
 - **Loading state** is the mark itself completing its link — never a generic spinner.
 - **Pipeline glyphs** (parse / normalize / validate / transform / deliver icons) are a family of stage icons in the same construction.
 
@@ -345,7 +472,9 @@ Shipped titles are owned by `src/lib/pageTitles.ts`; the approved word list is
   rule · issue · workspace.
 - **Internal only** — component names, CSS/design tokens and route names, never a visible string:
   *bridge* (`/bridge`) · *crossing* (`CrossingsLog.tsx`) · *dock* (`SupplierDockProfile.tsx`) ·
-  *lane* (`LaneDrawer.tsx`) · *spine* (`CanonicalSpine`, `bg-link-spine`) ·
+  *lane* (`LaneDrawer.tsx`) · *spine* (`bg-link-spine` **only** — ~~`CanonicalSpine`~~ was deleted
+  2026-08-13 with zero importers; `bg-link-spine` / `--gradient-link-spine` is the 2px topbar
+  gradient line and still ships) ·
   *anatomy* (`DocumentAnatomy.tsx`) · *wire* (`WireTopology.tsx`).
 
 ---
@@ -381,9 +510,10 @@ app/
     sign-in/[[...sign-in]]/page.tsx
   (app)/
     layout.tsx                  # navy sidebar + topbar
-    bridge/page.tsx             # wire topology dashboard
+    bridge/page.tsx             # dashboard; wire topology is a "System map" TAB, not the hero
     inbox/page.tsx
-    inbox/[orderId]/page.tsx    # canonical spine review (full page)
+    inbox/[orderId]/page.tsx    # order review, full page — OrderWorkshop -> MapperWorkbench
+                                # (was "canonical spine review" — STRUCK 2026-08-13)
     upload/page.tsx
     drafts/page.tsx
     library/
@@ -404,19 +534,22 @@ app/
 
 ## 12. Build order (do these in order, ship in slices)
 
-1. **Tokens + shell.** Tailwind config, `<EdgeRails>`, navy sidebar, navy topbar with link-spine.
+> **Struck 2026-08-13.** Steps 1 and 4 of this build order specify the two struck signatures. **This
+> ordering is not a plan to follow.** The product is already built; this section is history.
+
+1. **Tokens + shell.** Tailwind config, navy topbar with link-spine. ~~`<EdgeRails>`~~ — **struck, never built**. ~~navy sidebar~~ — the 220px sidebar is **not desktop chrome**; desktop nav is in the topbar and the sidebar renders only in the mobile drawer.
 2. **System Identity mark** in all sizes + mono.
 3. **Inbox** with mocked TanStack Table. Status journey preview in row.
-4. **Canonical Spine Review** at `/inbox/[orderId]`:
+4. ~~**Canonical Spine Review** at `/inbox/[orderId]`:~~ — **STRUCK.** The shipped review is `OrderWorkshop` → `MapperWorkbench`.
    - Page header bridge graphic
-   - 3-column body with EdgeRails wrap
-   - `<DocumentAnatomy>` with PDF rendering and zone overlays
-   - `<CanonicalSpine>` with 9 sample nodes
-   - Output preview with shiki-highlighted cXML
+   - ~~3-column body with EdgeRails wrap~~ — **struck**, no EdgeRails
+   - `<DocumentAnatomy>` with PDF rendering ~~and zone overlays~~ — **narrowed**, no zone overlays
+   - ~~`<CanonicalSpine>` with 9 sample nodes~~ — **struck**, deleted
+   - Output preview ~~with shiki-highlighted cXML~~ — the shipped preview has no syntax highlighter; it marks the just-changed line (`previewHighlightModel.ts`)
    - Issues rail
    - Sticky action bar
 5. **Bridge dashboard** at `/bridge`:
-   - `<WireTopology>` with offset-path animated wires
+   - `<WireTopology>` with offset-path animated wires — **on the "System map" tab, not as the hero**
    - Monumental KPI strip
    - In-transit list + supplier health
 6. **Upload Workbench**, **Mapping Editor**, **Validation Rules**, **delivery log**.
@@ -429,8 +562,8 @@ app/
 
 The build is done when:
 
-1. A user can land on `/bridge`, see the live wire topology with travelling pulses, click a wire, get a lane detail drawer, and jump from there into a specific order's Canonical Spine review without losing context.
-2. From the Spine review, the user can drop a PDF on Upload, watch the four pipeline stages, land in a Spine with at least 3 flagged exceptions, accept 2 AI mapping suggestions, fix one quantity, and click "Send to supplier" to see the resulting cXML on screen — all without leaving the keyboard.
+1. A user can land on `/bridge`, open the **"System map" tab**, see the wire topology with travelling pulses, click a wire, get a supplier-flow detail drawer, and jump from there into a specific order's review without losing context. **Struck 2026-08-13:** the wire topology is not on landing (it is a tab), and the destination is not a "Canonical Spine review" (that screen was deleted) — it is `OrderWorkshop` → `MapperWorkbench`.
+2. The user can drop a PDF on Upload, watch the pipeline stages, land in the **order review** with at least 3 flagged exceptions, accept 2 AI mapping suggestions, fix one quantity, and click "Send to supplier" to see the resulting output on screen — all without leaving the keyboard. **Struck 2026-08-13:** "From the Spine review … land in a Spine" — there is no Spine. The criterion itself is the right one and still worth testing.
 3. The Inbox renders 1,000 mocked orders at 60fps with full sort/filter/bulk-select.
 4. Every screen has a thoughtful empty state, loading skeleton (using the link-close motion, not a spinner), and error boundary.
 5. Cmd+K opens a working command palette indexed across orders, suppliers, SKUs, and named actions.
@@ -453,4 +586,21 @@ The build is done when:
 
 ---
 
-**End of brief.** Start with §12 step 1 (tokens + shell + EdgeRails) and step 4 (Canonical Spine Review). Those two prove the whole design system. Everything else is downstream.
+**End of brief.**
+
+> ## ⚠ Struck 2026-08-13 — this was the single most dangerous line in the handoff
+>
+> The original closing instruction read:
+>
+> > ~~Start with §12 step 1 (tokens + shell + EdgeRails) and step 4 (Canonical Spine Review). Those
+> > two prove the whole design system. Everything else is downstream.~~
+>
+> **Both named starting points were never built.** `<EdgeRails>` has never existed in `src/` and its
+> CSS and tokens were deleted for having zero consumers; `CanonicalSpine.tsx` was deleted with zero
+> importers. An agent that followed this line did not prove the design system — it built two things
+> the product does not have, and every screen designed against them inherited the fiction.
+>
+> **Do not start here. Start at `CLAUDE.md` §2 in the repo root**, which states what actually ships.
+> The order review is `src/app/(app)/inbox/[orderId]/page.tsx` → `OrderWorkshop` →
+> `MapperWorkbench`. What this file is still good for is its **token, type, colour, copy and motion
+> detail** — not its spatial architecture, screen specs, build order or acceptance criteria.

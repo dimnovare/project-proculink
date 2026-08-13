@@ -43,8 +43,16 @@ export const color = {
 export const gradient = {
   linkSpine:    "linear-gradient(90deg, #1E66C9 0%, #1E66C9 35%, #2E8E3A 65%, #2E8E3A 100%)",
   bridgeDeck:   "linear-gradient(90deg, #1E66C9, #2E8E3A)",
-  railBuyer:    "linear-gradient(180deg, rgba(30,102,201,0.2), #1E66C9 50%, rgba(30,102,201,0.2))",
-  railSupplier: "linear-gradient(180deg, rgba(46,142,58,0.2), #2E8E3A 50%, rgba(46,142,58,0.2))",
+  /**
+   * `railBuyer` was RENAMED `lineBuyer` on 2026-08-13 when the edge-rail
+   * signature was struck. It survived the strike because one real consumer
+   * draws with it: the vertical connector running through a help guide's
+   * numbered step badges (src/components/help/guide/Step.tsx). It is a step
+   * connector, not a rail — do not use it to frame a work area.
+   * `railSupplier` was deleted outright: its only consumer was the
+   * `.rail.supplier` class, which went with the signature.
+   */
+  lineBuyer:    "linear-gradient(180deg, rgba(30,102,201,0.15), #1E66C9 50%, rgba(30,102,201,0.15))",
 } as const;
 
 export const font = {
@@ -85,14 +93,19 @@ export const motion = {
   durationWireLoop: 6000,
 } as const;
 
+/** `rails: 1` was STRUCK 2026-08-13 with the edge-rail signature (zero consumers). */
 export const z = {
-  base: 0, rails: 1, sticky: 10, drawer: 20,
+  base: 0, sticky: 10, drawer: 20,
   topbar: 30, popover: 40, modal: 50, toast: 60,
 } as const;
 
 /**
- * Confidence threshold helper — used by ConfidenceChip, anatomy zones,
- * spine-node field backgrounds, etc.
+ * Confidence threshold helper — used by ConfidenceChip.
+ *
+ * It no longer feeds "spine-node field backgrounds" (the canonical spine was
+ * DELETED 2026-08-13) or per-zone anatomy overlays (the document pane ships,
+ * the per-zone confidence overlay does not — it needs backend provenance
+ * first). See CLAUDE.md §2.
  */
 export function confidenceTier(pct: number): "ok" | "warn" | "danger" {
   if (pct >= 90) return "ok";

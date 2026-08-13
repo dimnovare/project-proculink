@@ -727,11 +727,16 @@ export function OutputMappingEditor({
     },
   });
 
-  // Render through a portal to document.body: the editor is mounted inside the
-  // review triptych's `position: sticky` column, whose stacking context traps
-  // this fixed-position dialog UNDER the EdgeRails / StatusJourney layers (the
-  // green SUPPLIER·OUT rail painted over the slideover). No z-index can fix
-  // that from inside the trapped context — only moving the mount point can.
+  // Render through a portal to document.body: the editor is mounted inside a
+  // `position: sticky` review column, whose stacking context traps this
+  // fixed-position dialog under the surrounding layers. No z-index can fix that
+  // from inside the trapped context — only moving the mount point can.
+  //
+  // (This comment used to blame "the EdgeRails / StatusJourney layers … the green
+  // SUPPLIER·OUT rail painted over the slideover". That was written against
+  // SpineReview, deleted in 3520ed4, and EdgeRails, struck 2026-08-13 — CLAUDE.md
+  // §2. Nothing paints a SUPPLIER·OUT rail today. The sticky-column trap is real
+  // and still the reason for the portal; only the named layers were stale.)
   if (!open || !mounted) return null;
 
   const isEmpty = headerRows.length === 0 && lineRows.length === 0 && customRows.length === 0;

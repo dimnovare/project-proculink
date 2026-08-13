@@ -9,9 +9,15 @@ structure & screens), `styleguide.html` (see it rendered).
 ## 1. Design principles
 
 1. **Control room, not admin panel.** Calm dense surfaces, crisp hierarchy, confident
-   operational type. Lines / ports / rails / wires are the *spatial* language of the interface,
+   operational type. Lines / ports / wires are the *spatial* language of the interface,
    not decoration — and not its wording. Nothing in that list is a word the user reads; see
    `07-content.md`.
+
+   > **Corrected 2026-08-13.** This line said "Lines / ports / rails / wires". **Rails were
+   > struck** by the founder audit that day: the edge-rail signature was never built, and
+   > every token and CSS class written for it had zero consumers. Spatial language is now
+   > carried by panel order and labels, not by a strip at the window edge — see
+   > `CLAUDE.md` §2 in the frontend repo, which outranks this document.
 2. **The bridge is functional.** Blue (buyer) on the left, green (supplier) on the right,
    the transform in the middle. This spatial law holds from the marketing hero to the
    Order Workshop.

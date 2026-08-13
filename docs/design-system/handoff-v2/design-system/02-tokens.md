@@ -1,5 +1,30 @@
 # 02 — Tokens
 
+> ## ⚠ STRUCK SIGNATURES — read this before building anything from this file
+>
+> A founder audit on **2026-08-13** checked this handoff's "five spatial signatures"
+> against the shipped code. Two were never built and have been struck; two were
+> narrowed. This file predates that audit and, except where corrected inline below,
+> still describes the struck versions as required.
+>
+> **`CLAUDE.md` §2 in the repo root is the authority. This file is not.**
+>
+> - **Edge rails** (4px blue-left / green-right, `<EdgeRails>`) — **STRUCK.** Never
+>   built. No `EdgeRails.tsx` exists in `src/`; the `.rail*` CSS and the
+>   `rail` / `rail-buyer` / `rail-supplier` / `z-rails` tokens had zero consumers and
+>   were deleted. Buyer→supplier orientation is carried by **panel order** on the
+>   review screen and a labelled **`Buyer → Supplier`** column in the queue.
+> - **Canonical Spine review** (`<CanonicalSpine>` / `<SpineNode>`) — **DELETED.**
+>   Zero importers. The shipped review at `/inbox/[orderId]` is `OrderWorkshop` →
+>   `MapperWorkbench`: *What we received* | *What we'll send* | *Live preview*.
+> - **Wire Topology** — kept, but **demoted** from dashboard hero to a "System map" tab.
+> - **Document Anatomy** — kept, **narrowed**: the document pane ships; the per-zone
+>   confidence overlay does not.
+> - **Cross-section card edge** (`<XCard>`) and the buyer-blue / supplier-green
+>   colour semantics — **kept, unchanged.**
+> - The **220px navy sidebar** is not desktop chrome: desktop nav moved to the topbar
+>   and the sidebar renders only in the mobile drawer.
+
 All design tokens are sourced from `tokens/tokens.json` and emitted as:
 - `tokens/tokens.css` (CSS custom properties)
 - `tokens/tailwind.config.ts` (Tailwind theme extension)
@@ -61,8 +86,18 @@ Edit the JSON; regenerate the rest.
 |---|---|---|
 | `--gradient-link-spine` | `linear-gradient(90deg, #1E66C9 0%, #1E66C9 35%, #2E8E3A 65%, #2E8E3A 100%)` | The signature spine line |
 | `--gradient-bridge-deck` | `linear-gradient(90deg, #1E66C9, #2E8E3A)` | Bridge graphic on review header |
-| `--gradient-rail-buyer` | `linear-gradient(180deg, rgba(30,102,201,0.2), #1E66C9 50%, rgba(30,102,201,0.2))` | Left edge rail |
-| `--gradient-rail-supplier` | `linear-gradient(180deg, rgba(46,142,58,0.2), #2E8E3A 50%, rgba(46,142,58,0.2))` | Right edge rail |
+| `--gradient-line-buyer` | `linear-gradient(180deg, rgba(30,102,201,0.2), #1E66C9 50%, rgba(30,102,201,0.2))` | Vertical connector through a help guide's numbered step badges (`src/components/help/guide/Step.tsx`) |
+| ~~`--gradient-rail-supplier`~~ | ~~`linear-gradient(180deg, rgba(46,142,58,0.2), #2E8E3A 50%, rgba(46,142,58,0.2))`~~ | ~~Right edge rail~~ — **removed** |
+
+> **Struck 2026-08-13.** Edge rails were never built, so neither rail gradient had a rail to paint.
+> `--gradient-rail-supplier` was **deleted outright** — zero consumers.
+> `--gradient-rail-buyer` was **not** deleted: it was **renamed `--gradient-line-buyer`**, because one
+> real consumer survives — it draws the vertical connector running through a help guide's numbered
+> step badges (`src/components/help/guide/Step.tsx`). It is a step connector, not a rail. The Tailwind
+> `bg-rail-buyer` / `bg-rail-supplier` background-image utilities were deleted along with the
+> `.rail*` CSS in `src/app/globals.css`.
+>
+> `--gradient-link-spine` and `--gradient-bridge-deck` above are **unaffected and still ship.**
 
 ## Typography
 
@@ -146,8 +181,11 @@ All animation respects `prefers-reduced-motion: reduce` — disable wire travell
 | Token | Value | Use |
 |---|---|---|
 | `--z-base` | 0 | Content |
-| `--z-rails` | 1 | Edge rails |
+| ~~`--z-rails`~~ | ~~1~~ | ~~Edge rails~~ — **removed** |
 | `--z-sticky` | 10 | Sticky action bars |
+
+> **Struck 2026-08-13.** `--z-rails` / `z-rails` was deleted with the rest of the edge-rail tokens.
+> Nothing ever set it. Every other row in this table still ships.
 | `--z-drawer` | 20 | Right drawer |
 | `--z-topbar` | 30 | Topbar |
 | `--z-popover` | 40 | Popovers, dropdowns |

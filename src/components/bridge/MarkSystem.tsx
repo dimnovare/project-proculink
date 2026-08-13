@@ -1,6 +1,13 @@
 // System Identity mark — the brand's shape language in three sizes.
 // ProcuLinkMark is the canonical DS implementation (Direction 3 — link-node arc).
-// MarkSystem kept for legacy usage; RailPort used by EdgeRails.
+// MarkSystem kept for legacy usage.
+//
+// `RailPort` below is DEAD. It was the port marker at the top of an <EdgeRails>
+// rail; EdgeRails was never built into src/ and the edge-rail signature was
+// struck 2026-08-13 (CLAUDE.md §2). It has zero callers. It is left in place only
+// because deleting an exported symbol is a wider change than this doc-correction
+// packet covers — do not write new code against it, and do not read it as
+// evidence that rails ship.
 
 // Re-export canonical DS mark so consumers can use either name.
 export { ProcuLinkMark } from "@/components/bridge/DSPrimitives";
@@ -59,7 +66,8 @@ export function MarkSystem({ size = 24, white = false, className }: MarkSystemPr
   );
 }
 
-// Rail port marker — same construction, smaller, used at top of EdgeRails
+// DEAD — zero callers. See the file header. Was the port marker at the top of an
+// <EdgeRails> rail; that signature was struck 2026-08-13 (CLAUDE.md §2).
 export function RailPort({ color }: { color: "buyer" | "supplier" }) {
   const fill = color === "buyer" ? "#1E66C9" : "#2E8E3A";
   const soft = color === "buyer" ? "#EAF0F8" : "#E9F1EA";
