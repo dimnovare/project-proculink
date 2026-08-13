@@ -96,3 +96,52 @@ export function failingAcceptanceCount(
 ): number {
   return decision?.blockers.length ?? 0;
 }
+
+/**
+ * The sub-line under the IssuesPanel's green "Ready to send" bar.
+ *
+ * WHY THIS IS PRODUCED RATHER THAN LEFT TO THE DEFAULT (audit 2026-08-13 v3, P0-2).
+ * `IssuesPanel` has carried a `readyLabel` prop since it was written and NOTHING in
+ * `src/` ever passed one, so the hardcoded fallback was the only sentence that ever
+ * rendered:
+ *
+ *     No open issues — every required field is filled and checked.
+ *
+ * "and checked" names a check. The only rule-level check this screen can run is
+ * `POST /api/orders/{id}/validate`, which has no caller anywhere in `src/` — so
+ * `validationResult` is permanently null, `buildFixQueue`'s rule branch never
+ * contributes a card, and no rule was ever evaluated behind that green. Nor can we
+ * retreat to "checked against the acceptance rules": `AcceptanceGateDecision` carries
+ * no signal for whether the supplier HAS an acceptance profile, so a supplier with no
+ * rules at all is indistinguishable here from one that passed every rule.
+ *
+ * The second leg is the one an operator actually meets. An order whose blockers were
+ * OVERRIDDEN is `blocked:false` with a NON-EMPTY `blockers` list (AcceptanceGate.cs:62-77),
+ * so `acceptanceIssues` returns `[]` and this bar goes green — while the send control
+ * beside it reads `Send · N optional` about those very rules. That contradiction is
+ * what `advisoryCount` names out loud.
+ *
+ * `counterpartyNoun` comes from the caller's `partyLabels`, never a hardcoded
+ * "supplier", so an inbound org reads "customer".
+ */
+export function readyBarLabel(input: {
+  /** Acceptance rules that did not pass but that the server's gate will not refuse. */
+  advisoryCount: number;
+  counterpartyNoun: string;
+}): string {
+  const noun = input.counterpartyNoun.toLowerCase();
+  if (input.advisoryCount > 0) {
+    const n = input.advisoryCount;
+    return (
+      `No open issues, but ${n} ${noun} rule${n === 1 ? "" : "s"} did not pass and ` +
+      `${n === 1 ? "was" : "were"} overridden — you'll confirm that before sending.`
+    );
+  }
+  // States what was looked at and stops there. "No open issues" is kept verbatim:
+  // it is the true half of the old sentence, and two help guides and
+  // issuesRailFailureState.test.tsx both key off it.
+  return (
+    `No open issues. This is everything ProcuLink can check before sending — ` +
+    `it is not a guarantee that the ${noun} will accept the order.`
+  );
+}

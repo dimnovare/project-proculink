@@ -71,7 +71,7 @@ import { WorkshopLinesView, WorkshopLinesToggle } from "./WorkshopLinesView";
 import { showLinesToggle } from "./workshopLinesModel";
 import { bulkAcceptCount, type BulkSelectableLine } from "../magicBulkAcceptSelection";
 import { MobileTriage } from "./MobileTriage";
-import { acceptanceIssues, failingAcceptanceCount } from "./acceptanceGateModel";
+import { acceptanceIssues, failingAcceptanceCount, readyBarLabel } from "./acceptanceGateModel";
 import { WorkshopStepper } from "./WorkshopStepper";
 import { WorkshopStatusBar, type BlockerChip } from "./WorkshopStatusBar";
 import { BridgePageLoader } from "../BridgeLoader";
@@ -914,6 +914,22 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
   );
   const warningIssues = issues.filter((i) => i.severity === "warning").length + advisoryAcceptanceCount;
 
+  // The green ready-bar's sub-line. `readyLabel` has existed on IssuesPanel since it
+  // was written with NO producer in src/, so only its hardcoded default ever
+  // rendered — "No open issues — every required field is filled and checked." — over
+  // a rule check that never ran (see the useAcceptanceValidation comment above:
+  // POST /api/orders/{id}/validate has no caller, so `validationResult` is
+  // permanently null and buildFixQueue's rule branch is unreachable), and over an
+  // overridden order whose send control simultaneously reads "Send · N optional".
+  //
+  // `issues.length === 0` is the only state that renders it, and in that state
+  // `warningIssues` reduces exactly to `advisoryAcceptanceCount` — so the bar and
+  // the send control are now driven by the same number.
+  const issuesReadyLabel = readyBarLabel({
+    advisoryCount: advisoryAcceptanceCount,
+    counterpartyNoun: labels.counterpartyNoun,
+  });
+
   // The ONE send-copy ladder, shared with MobileTriage's sticky bar (WP-28).
   // `canSend` above stays the authority on whether the click is wired; this only
   // decides what the control SAYS, so the two can never disagree about a
@@ -1401,6 +1417,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
                 <IssuesPanel
                   issues={issues}
                   orderStatus={order.status}
+                  readyLabel={issuesReadyLabel}
                   onFocusField={onFocusField}
                   onFix={onFix}
                   resolve={issuesResolve}

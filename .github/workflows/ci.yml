@@ -332,6 +332,22 @@ jobs:
       - name: Check every backend endpoint has a caller
         if: always()
         run: bun run test src/test/endpoint-reachability.test.ts
+
+      # The SAME backend checkout, fifth question: does the pre-publish impact preview
+      # still agree with the backend about when a revision may go live at all?
+      #
+      # `ReplayPanel` headlined "safe to go live" for a draft that produced NO OUTPUT for
+      # every replayed order, because its `noImpact` excluded `errors` and an unrenderable
+      # order scores `outputChanged: false`. The correct predicate already existed in
+      # SupplierConnectionService (`OrderCount == 0 || rendered > 0`); the frontend had
+      # authored a second, weaker definition of the same idea instead of mirroring it.
+      #
+      # Runs HERE for the same reason as the two steps above: its backend assertions are
+      # `test.skipIf(BACKEND === null)`, so in the unit-test job — which checks no backend
+      # out — it would report green having compared nothing.
+      - name: Diff the replay impact verdict against the backend C#
+        if: always()
+        run: bun run test src/test/replayImpactBackendMirror.test.ts
   # ══ END backend-mirror job ══════════════════════════════════════════════════
 
   test-e2e:
