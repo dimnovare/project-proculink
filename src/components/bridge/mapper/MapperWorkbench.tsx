@@ -41,6 +41,7 @@ import type { OutgoingStatusInput } from "./outgoingStatusModel";
 import { computeOutgoingStatus, computeOutgoingStatuses } from "./outgoingStatusModel";
 import type { FieldFilter, TargetField } from "./types";
 import type { OrderMappingOverride, OutputFormatId } from "@/lib/api/types";
+import type { IncomingView } from "@/lib/sourceDocument";
 
 /**
  * Optional collapse/focus state for the workbench's incoming + preview panes,
@@ -63,6 +64,26 @@ export interface MapperWorkbenchLayout {
   onCollapseIncoming?: () => void;
   /** Collapse the (full) preview pane to a rail — the in-header caret. */
   onCollapsePreview?: () => void;
+  /**
+   * Which body the "What we received" column shows — the original document, or the field list
+   * that is the drag-source for wiring. Owned by `useWorkshopLayout` so it persists with the
+   * rest of the layout, and so selecting the Mapping focus can force the field list back: you
+   * cannot be asked to map from a pane that is showing a PDF.
+   */
+  incomingView?: IncomingView;
+  onIncomingView?: (view: IncomingView) => void;
+}
+
+/** The received column's document view, supplied by the caller that owns the order. */
+export interface MapperReceivedDocument {
+  /** The rendered document. Only read when `available`. */
+  slot: ReactNode;
+  /** True only when the source endpoint served a renderable file. */
+  available: boolean;
+  /** Short format tag for the pane header, derived from the served content type. */
+  formatLabel?: string | null;
+  /** One sentence explaining why there is no document. Shown above the field list. */
+  notice?: string | null;
 }
 
 /**
@@ -243,6 +264,12 @@ export interface MapperWorkbenchProps {
    * suppressed while active because the output anchors it draws to are unmounted.
    */
   outgoingBodyOverride?: ReactNode;
+  /**
+   * The original file this order arrived as, rendered by the caller (which owns the order id
+   * and therefore the fetch). Absent → the received column behaves exactly as it did before:
+   * the field list, no toggle, no notice.
+   */
+  receivedDocument?: MapperReceivedDocument;
 }
 
 export function MapperWorkbench(props: MapperWorkbenchProps) {
@@ -253,7 +280,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
     layout, attentionFirstOutput, trustedThreshold, focusFieldId, focusFieldSignal,
     previewDefaultFormat, autoFilledFields, mappingMode = "wires", reviewSignal,
     hideToolbar, hideOrientation, onToolbarState,
-    outgoingHeaderExtra, outgoingBodyOverride,
+    outgoingHeaderExtra, outgoingBodyOverride, receivedDocument,
   } = props;
   const pickerMode = mappingMode === "picker";
   const scopeId = (variant === "order" ? props.orderId : props.connectionId) ?? "";
@@ -726,8 +753,15 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
       onFilter={setFilter}
       portProps={wire.sourcePortProps}
       loading={model.loading}
-      sourceFileKey={model.sourceFileKey}
-      sourceType={sourceTypeFromKey(model.sourceFileKey)}
+      hasIncomingSource={model.hasIncomingSource}
+      // The format tag comes from the served document's content type — the ONLY thing that
+      // actually establishes it. It used to be derived from a "file key" that was an order id.
+      sourceType={receivedDocument?.formatLabel ?? undefined}
+      view={layout?.incomingView}
+      onView={receivedDocument ? layout?.onIncomingView : undefined}
+      documentAvailable={receivedDocument?.available}
+      documentSlot={receivedDocument?.slot}
+      documentNotice={receivedDocument?.notice}
       supplierName={supplierName}
       extractionFailed={extractionFailed}
       focusSearchSignal={focusSearchSignal}
@@ -1364,21 +1398,13 @@ function PaneCollapseCaret({ side, label, onClick }: { side: "left" | "right"; l
   );
 }
 
-// ── Derive the received document type from the stored file key's extension (drives the
-//    "What we received" PDF/CSV/… chip). Unknown / no key → undefined → no chip. ──
-function sourceTypeFromKey(key?: string | null): string | undefined {
-  if (!key) return undefined;
-  const ext = key.split("?")[0].split("#")[0].split(".").pop()?.toLowerCase();
-  switch (ext) {
-    case "pdf": return "PDF";
-    case "csv": return "CSV";
-    case "xlsx": case "xls": return "XLSX";
-    case "xml": return "XML";
-    case "json": return "JSON";
-    case "edi": case "txt": return ext.toUpperCase();
-    default: return undefined;
-  }
-}
+// `sourceTypeFromKey()` lived here. It split its argument on "." and switched on the extension,
+// and `model.sourceFileKey` — the value it was handed — was the ORDER ID. An order id has no
+// extension, so it returned `undefined` on every render of this route and the format chip never
+// once appeared, without ever throwing. The replacement is the served document's `Content-Type`
+// (`sourceFormatLabel` in src/lib/sourceDocument.ts), which is the only thing that establishes
+// the format; the model's flag is now a boolean called `hasIncomingSource`, so there is nothing
+// left here that looks like a filename.
 
 // ── Read an output path's current manipulator (fx) chain from an override (per-row feed) ──
 function fieldManipulatorsOf(override: OrderMappingOverride, outputPath: string) {

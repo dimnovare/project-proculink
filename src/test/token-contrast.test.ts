@@ -52,6 +52,12 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync, statSync } from "fs";
 import { join, resolve, relative } from "path";
+// The token NAMES come from the module that paints them, so the rows below cannot drift into
+// asserting a pair the preview no longer uses.
+import {
+  PREVIEW_BODY_REFRESHING_TOKEN,
+  PREVIEW_BODY_SETTLED_TOKEN,
+} from "@/components/bridge/mapper/previewBodyStyle";
 
 const REPO = resolve(__dirname, "../..");
 const SRC = join(REPO, "src");
@@ -226,6 +232,34 @@ const PAIRS: Array<[string, string, string, number, string]> = [
       "going DEEPER makes it worse: --brand-green-deep is 1.99:1. Dark surfaces need the " +
       "bright step, which is the opposite move from every other row here.",
   ],
+  // ─── The live preview body, added after an axe `serious` on /inbox/ord-002 ──
+  //
+  // A FOURTH BLIND SPOT, on top of the three listed in the header: this file resolves the
+  // colours a component NAMES, and element `opacity` names neither of the colours it produces.
+  //
+  // The preview <pre> was --navy-text on --navy — 11.06:1, and it would have passed this file
+  // every single time — carrying `opacity: 0.55` while a fetch was in flight. Opacity
+  // composites the text AND the dark background toward the page behind them, so both ends
+  // move. axe measured what actually reached the screen: #dfe4ed on #777f8c, 3.16:1. Neither
+  // of those hex values appears anywhere in the source, which is exactly why nothing here saw
+  // it.
+  //
+  // The fix replaced the opacity with a colour step, so the refreshing state is now a pair
+  // this file CAN see. Both rows are listed because both are painted.
+  [
+    "the live preview body, settled",
+    `var(${PREVIEW_BODY_SETTLED_TOKEN})`,
+    "var(--navy)",
+    4.5,
+    "MapperPreviewPane's <pre> — the supplier-ready output an operator reads most",
+  ],
+  [
+    "the live preview body, refreshing",
+    `var(${PREVIEW_BODY_REFRESHING_TOKEN})`,
+    "var(--navy)",
+    4.5,
+    "the state that used to be opacity: 0.55, which measured 3.16:1 on screen",
+  ],
 ];
 
 describe("resolved token pairs clear their WCAG floor", () => {
@@ -275,6 +309,32 @@ function hits(re: RegExp): string[] {
 }
 
 describe("the failing pairs cannot come back", () => {
+  it("never dims the live preview body with element opacity", () => {
+    // The defect this replaces, stated as source rather than as a comment, because the maths
+    // rows above cannot see it: a fractional `opacity` on the <pre> composites BOTH
+    // --navy-text and --navy toward the page behind the pane, and the pair that reaches the
+    // screen (#dfe4ed on #777f8c, 3.16:1) is named nowhere. axe reported it `serious` on
+    // /inbox/ord-002 — and only on a retry, because whether the preview is still fetching when
+    // the scan runs is a matter of timing. A rule that reads the source does not have that
+    // problem.
+    //
+    // Scoped to this file: opacity is legitimate elsewhere (it is how a disabled control is
+    // drawn). It is never legitimate on a dark surface carrying text.
+    const preview = SOURCES.find(
+      (s) => s.rel === "src/components/bridge/mapper/MapperPreviewPane.tsx",
+    );
+    expect(preview, "MapperPreviewPane.tsx moved — repoint this rule").toBeDefined();
+    const found = (preview?.text.split(/\r?\n/) ?? [])
+      .map((line, i) => ({ line: line.trim(), n: i + 1 }))
+      .filter(({ line }) => /\bopacity\s*:/.test(line) && !/opacity\s*:\s*1\b/.test(line));
+    expect(
+      found.map((f) => `MapperPreviewPane.tsx:${f.n}  ${f.line.slice(0, 120)}`),
+      "dim the preview with a colour step (previewBodyStyle) — element opacity drags the text "
+        + "AND the navy background toward whatever is painted behind the pane, and the pair "
+        + "collapsed to 3.16:1:\n",
+    ).toEqual([]);
+  });
+
   it("never assigns --amber / #B36D14 to a text colour", () => {
     // --amber (#B36D14) is 3.65:1 on --amber-soft, 4.11:1 on white and 3.83:1 on
     // --bg: it fails the 4.5:1 text floor on EVERY light surface this app has.

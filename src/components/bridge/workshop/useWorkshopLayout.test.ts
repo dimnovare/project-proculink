@@ -104,3 +104,78 @@ describe("useWorkshopLayout", () => {
     expect(focuses).toHaveLength(3);
   });
 });
+
+// ── The received column's body: document vs the field list ──
+//
+// The document is the default because it is the ground truth the field list was derived from.
+// The one thing that must override it is Mapping focus: those field rows are the drag-source
+// for the connector wires, so being asked to map from a column showing a PDF is being asked to
+// drag from nothing.
+describe("useWorkshopLayout — incoming view", () => {
+  // The hook rehydrates from sessionStorage, so a leaked key from the previous test would make
+  // "defaults to the document" pass for the wrong reason.
+  beforeEach(() => {
+    sessionStorage.clear();
+  });
+
+  test("defaults to the document", () => {
+    const { result } = renderHook(() => useWorkshopLayout());
+    expect(result.current.incomingView).toBe("document");
+  });
+
+  test("the operator can switch to the field list and back", () => {
+    const { result } = renderHook(() => useWorkshopLayout());
+    act(() => result.current.setIncomingView("fields"));
+    expect(result.current.incomingView).toBe("fields");
+    act(() => result.current.setIncomingView("document"));
+    expect(result.current.incomingView).toBe("document");
+  });
+
+  test("selecting Mapping focus forces the field list — it is the wiring drag-source", () => {
+    const { result } = renderHook(() => useWorkshopLayout());
+    expect(result.current.incomingView).toBe("document");
+    act(() => result.current.setFocus("mapping"));
+    expect(result.current.incomingView).toBe("fields");
+    // And the left zone really is the one being mapped from.
+    expect(result.current.grid.left).toBe("auto");
+  });
+
+  test("the other focuses leave the choice alone", () => {
+    const { result } = renderHook(() => useWorkshopLayout());
+    act(() => result.current.setFocus("all"));
+    expect(result.current.incomingView).toBe("document");
+    act(() => result.current.setFocus("output"));
+    expect(result.current.incomingView).toBe("document");
+
+    act(() => result.current.setIncomingView("fields"));
+    act(() => result.current.setFocus("all"));
+    expect(result.current.incomingView).toBe("fields");
+  });
+
+  test("persists across a remount, like the rest of the layout", () => {
+    const { result, unmount } = renderHook(() => useWorkshopLayout());
+    act(() => result.current.setIncomingView("fields"));
+    unmount();
+    const { result: again } = renderHook(() => useWorkshopLayout());
+    expect(again.current.incomingView).toBe("fields");
+  });
+
+  test("a corrupt persisted view falls back to the default rather than an empty pane", () => {
+    sessionStorage.setItem(
+      "plk-workshop-layout",
+      JSON.stringify({ focus: "all", leftCollapsed: false, rightCollapsed: false, incomingView: "sideways" }),
+    );
+    const { result } = renderHook(() => useWorkshopLayout());
+    expect(result.current.incomingView).toBe("document");
+  });
+
+  test("a layout persisted before this field existed still rehydrates", () => {
+    sessionStorage.setItem(
+      "plk-workshop-layout",
+      JSON.stringify({ focus: "output", leftCollapsed: true, rightCollapsed: false }),
+    );
+    const { result } = renderHook(() => useWorkshopLayout());
+    expect(result.current.focus).toBe("output");
+    expect(result.current.incomingView).toBe("document");
+  });
+});

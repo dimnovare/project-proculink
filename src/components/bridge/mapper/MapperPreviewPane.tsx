@@ -24,6 +24,7 @@ import { PREVIEW_FORMATS } from "@/lib/api/types";
 import { nextOutputFormat } from "./mapperCommands";
 import { splitForHighlight } from "./previewHighlightModel";
 import { shouldHonorFormat, previewInfoNote } from "./previewFormatModel";
+import { previewBodyStyle } from "./previewBodyStyle";
 
 export interface MapperPreviewPaneProps {
   /** The order to preview against (order variant: the order; connection variant: a sample). */
@@ -401,9 +402,12 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
             // the supplier receives" surface — light mono on navy, the same navy as the sidebar.
             margin: 0, padding: "14px 4px 24px", flex: 1, minHeight: 0, overflow: "auto",
             fontFamily: "'JetBrains Mono',monospace", fontVariantNumeric: "tabular-nums", fontSize: 11.5, lineHeight: 1.95,
-            background: "#0B1A2F", color: "#C8D1E0", whiteSpace: "pre-wrap", wordBreak: "break-word",
+            background: "#0B1A2F", whiteSpace: "pre-wrap", wordBreak: "break-word",
             borderTop: "1px solid #1F3252",
-            opacity: busy ? 0.55 : 1, transition: "opacity 150ms",
+            // Refreshing is a COLOUR change, never `opacity`. Element opacity drags this
+            // block's light text AND its navy background toward the page behind it, and the
+            // pair collapsed to 3.16:1 — see previewBodyStyle.ts for the measurement.
+            ...previewBodyStyle(busy),
           }}
         >
           {content == null
