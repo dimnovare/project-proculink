@@ -34,7 +34,10 @@ export const CRUMB_LABELS: Record<string, string> = {
   standards: "Format reference",
   operations: "Activity",
   log: "Deliveries",
-  connectors: "Delivery channels",
+  // NOTE: `connectors` is absent on purpose. /operations/connectors was deleted
+  // on 2026-08-13 (a read-only page nothing linked to, showing a channel type it
+  // had no data for) and now 308s to /library/suppliers, so no crumb is ever
+  // rendered for it — see src/lib/retired-routes.ts.
   // The tab a user clicks to get here now reads "Supplier changes"
   // (HubTabs.tsx, suppliers hub), so the crumb it lands under says the same
   // word. The per-record child crumb below stays "Connection <id>": that names

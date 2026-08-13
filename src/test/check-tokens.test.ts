@@ -282,7 +282,11 @@ export default function Page() {
   it("does not let the repo baseline absolve a fixture tree", () => {
     // A fixture placed at a path the real BASELINE forgives must still fail:
     // otherwise the ledger would silently exempt files it was never cut for.
-    fixture("(app)/operations/connectors/page.tsx", `const X = "#123456";\n`);
+    // The path has to be one the ledger really carries, or this proves nothing.
+    // It was (app)/operations/connectors/page.tsx until 2026-08-13, when that
+    // page was deleted and its row left the ledger with it; (app)/operations/
+    // health/page.tsx is a live row (5 violations) and serves the same purpose.
+    fixture("(app)/operations/health/page.tsx", `const X = "#123456";\n`);
     expect(run("--strict")).toBe(1);
     rmSync(join(ROOT, "src", "app", "(app)"), { recursive: true, force: true });
     expect(run("--strict")).toBe(0);

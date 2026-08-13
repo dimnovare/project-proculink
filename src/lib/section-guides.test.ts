@@ -112,8 +112,10 @@ describe("guideSeenKey", () => {
 describe("SECTION_GUIDES registry shape", () => {
   // 18 since FE #130 deleted /operations/webhooks and its guide with it — the
   // page was a duplicate of Settings ▸ Connectors that nothing navigated to.
-  it("has 18 entries with unique routes", () => {
-    expect(SECTION_GUIDES).toHaveLength(18);
+  // 17 since /operations/connectors went the same way: a read-only page nothing
+  // linked to, whose guide described an overview the page could not produce.
+  it("has 17 entries with unique routes", () => {
+    expect(SECTION_GUIDES).toHaveLength(17);
     const routes = SECTION_GUIDES.map((g) => g.route);
     expect(new Set(routes).size).toBe(routes.length);
   });

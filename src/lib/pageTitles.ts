@@ -48,7 +48,6 @@ export const HUB_TAB_TITLES: Record<string, string> = {
   "/library/mappings": "Item codes",
   "/connections": "Supplier changes",
   "/library/standards": "Format reference",
-  "/operations/connectors": "Delivery channels",
   // activity
   "/bridge": "Overview",
   "/operations/log": "Deliveries",

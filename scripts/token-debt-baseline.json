@@ -7,7 +7,6 @@
   "src/app/(app)/inbound/invoices/page.tsx": 1,
   "src/app/(app)/layout.tsx": 2,
   "src/app/(app)/library/buyers/page.tsx": 13,
-  "src/app/(app)/operations/connectors/page.tsx": 125,
   "src/app/(app)/operations/exceptions/page.tsx": 18,
   "src/app/(app)/operations/health/page.tsx": 5,
   "src/app/(app)/settings/page.tsx": 32,

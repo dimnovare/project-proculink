@@ -22,6 +22,7 @@ import {
   type AuditActionFact,
   type AuditEventKind,
 } from "@/lib/auditActionManifest";
+import { REACH_SENTENCE, auditActionRemedy } from "@/lib/auditActionRemedy";
 import { EmptyState } from "./EmptyState";
 import { isPlanGate, PlanGateNotice } from "./PlanGateNotice";
 import { PageHeader } from "./layout/PageHeader";
@@ -585,10 +586,40 @@ export function CrossingsLog() {
     URL.revokeObjectURL(url);
   }
 
+  /**
+   * The fields a search term is matched against.
+   *
+   * WHAT THIS USED TO BE: `po`, `buyer`, `supplier` — and nothing else. So the two
+   * things a row is actually ABOUT were unsearchable. An operator who had just read
+   * "Out of retries" in a row, or a supplier's own refusal sentence in the expanded
+   * panel, could not type either of them into the box above the list; the screen
+   * answered "No matching events on this page" and looked, from the outside,
+   * exactly like a log that contained no such failure. On a screen whose whole job
+   * is explaining a failure, the explanation was the one thing you could not search.
+   *
+   * `entryLabel(e)` is the words actually ON the row ("Couldn't build output",
+   * "Out of retries"), not the raw backend action — matching the visible text is the
+   * point, and the raw action is covered anyway because an unrecognised action falls
+   * back to it as its own label. `reason` is the sanitised supplier/engine sentence
+   * from the expanded panel. `actor.name` is included because the column is on
+   * screen and a reader who can see a value expects to be able to search it.
+   *
+   * NOT included: `crossingId` (the internal order id — the order FILTER owns that
+   * lookup and does it exactly, so a fuzzy substring match here would produce
+   * different results for the same question), and the raw ISO timestamp (the
+   * displayed time is `ts`, and matching an ISO string the operator cannot see is
+   * how "search found nothing" becomes unexplainable).
+   */
+  function searchableText(e: LogEntry): string {
+    return [e.po, e.buyer, e.supplier, entryLabel(e), e.message, e.reason ?? "", e.actor.name]
+      .join(" ")
+      .toLowerCase();
+  }
+
   const filtered = LOG.filter((e) => {
     const mev = filter === "all" || e.canonicalEvent === filter;
-    const q   = search.toLowerCase();
-    const ms  = !q || e.po.toLowerCase().includes(q) || e.buyer.toLowerCase().includes(q) || e.supplier.toLowerCase().includes(q);
+    const q   = search.trim().toLowerCase();
+    const ms  = !q || searchableText(e).includes(q);
     return mev && ms;
   });
 
@@ -712,7 +743,13 @@ export function CrossingsLog() {
           <input
             type="text"
             className="grow"
-            placeholder="Filter by PO…"
+            /* The placeholder said "Filter by PO…" while the predicate silently
+               also matched buyer and supplier — so it under-promised on two
+               fields and, now, on four more. A control that names less than it
+               does is the same class of defect as one that names more: either
+               way the operator cannot predict the result. */
+            placeholder="Search PO, supplier, event or message…"
+            aria-label="Search the delivery log"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             style={{ border: "none", background: "none", fontSize: 12.5, width: "100%", color: "var(--ink)" }}
@@ -734,15 +771,32 @@ export function CrossingsLog() {
         <PlanGateNotice error={error} capability="The full delivery log" />
       )}
 
-      {/* Error state */}
+      {/* Error state.
+          role="alert" — this card REPLACES the log, so it is the only thing on
+          screen, and it shipped as a silent <div>: a screen-reader user who
+          triggered a refetch got no announcement that the list had failed to
+          load, only a page that had stopped changing. Same semantics the sibling
+          ops error states use (operations/health/page.tsx, exceptions/page.tsx).
+          It is NOT a StatusNotice: those are one-line outcome banners for an
+          action the operator just took, and this is a full-card empty-of-content
+          state with its own layout. The tone vocabulary is shared; the chrome is
+          not.
+          The copy no longer blames the operator's connection — the request can
+          equally have been refused server-side, and "check your connection" sends
+          someone to reset a router over a 500. It now says what is and is not
+          true, the way the health page's dead-letter error does. */}
       {isError && !planGated && !isApiMockMode && (
-        <div className="card" style={{ padding: "48px 24px", textAlign: "center" }}>
-          <div style={{ fontSize: 28, color: "var(--danger)", marginBottom: 10 }}>⚠</div>
+        <div className="card" role="alert" style={{ padding: "48px 24px", textAlign: "center" }}>
+          <div style={{ fontSize: 28, color: "var(--danger)", marginBottom: 10 }} aria-hidden>⚠</div>
+          <p style={{ fontSize: 13.5, fontWeight: 600, color: "var(--danger)", marginBottom: 6 }}>
+            We couldn&apos;t load the delivery log
+          </p>
           <p style={{ fontSize: 13, color: "var(--ink-muted)", marginBottom: 16 }}>
-            Could not load the delivery log. Check your connection and try again.
+            That is not the same as &ldquo;nothing happened&rdquo; — entries may be waiting here.
+            No order has changed and nothing has been lost.
           </p>
           <button className="btn btn-secondary" onClick={() => refetch()}>
-            Retry
+            Try again
           </button>
         </div>
       )}
@@ -805,6 +859,11 @@ export function CrossingsLog() {
                     const hasDetails = !!c.details && Object.keys(c.details).length > 0;
                     const hasDiff    = !!c.diff?.length;
                     const hasText    = !!c.detail;
+                    // Derived from the raw backend action, not from the canonical
+                    // event kind: two actions can share a kind and still want
+                    // different next steps (a supplier's refusal and an exhausted
+                    // retry are both `failed`, and the advice for them is opposite).
+                    const remedy     = auditActionRemedy(c.action);
                     const isLast     = idx === entries.length - 1;
 
                     return (
@@ -895,6 +954,12 @@ export function CrossingsLog() {
                         ) : (
                         <button
                           onClick={() => setOpenId(open ? null : c.id)}
+                          /* The mobile row carried aria-expanded; this one did not,
+                             so on desktop the control that reveals the whole
+                             explanation announced itself as a plain button and gave
+                             no hint that anything was behind it — or that it was
+                             already open. Same state, same attribute, both breakpoints. */
+                          aria-expanded={open}
                           className="row gap-3 items-center"
                           style={{
                             width: "100%",
@@ -1118,6 +1183,46 @@ export function CrossingsLog() {
                                       readable ceiling upstream, and cutting it again here
                                       would remove the half that says what to do. */}
                                   <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>{c.reason}</span>
+                                </div>
+                              )}
+
+                              {/* HOW FAR IT GOT, AND WHAT TO DO NOW.
+                                  The expanded row owed the operator four things — what we
+                                  tried to send, where we sent it, what came back, what to do
+                                  now. The first three were on screen (PO + format on the row,
+                                  supplier on the row, the reason block above). The fourth
+                                  existed nowhere, and its absence is why the four real
+                                  failure shapes read the same: a supplier's refusal, a
+                                  channel that could not be reached, a plan hold, and a
+                                  validation refusal that never left the building all rendered
+                                  as one grey card with the same three buttons.
+                                  Both sentences come from the ACTION, so they need nothing
+                                  the audit payload does not carry — there is no HTTP status
+                                  and no endpoint in these payloads, and a shape distinction
+                                  resting on those would be one the data cannot support.
+                                  Renders nothing for a success, and nothing for an action
+                                  this build cannot name: `auditActionRemedy` answers null for
+                                  both rather than inventing a next step. */}
+                              {remedy && (
+                                <div
+                                  data-testid="audit-remedy"
+                                  data-failure-reach={remedy.reach}
+                                  style={{
+                                    marginTop: 8,
+                                    padding: "8px 11px",
+                                    background: "var(--surface-2)",
+                                    borderRadius: "var(--radius)",
+                                    fontSize: 11.5,
+                                    lineHeight: 1.55,
+                                    color: "var(--ink-muted)",
+                                  }}
+                                >
+                                  <span style={{ display: "block", fontWeight: 600, color: "var(--ink)" }}>
+                                    {REACH_SENTENCE[remedy.reach]}
+                                  </span>
+                                  <span style={{ display: "block", marginTop: 3, overflowWrap: "anywhere" }}>
+                                    {remedy.next}
+                                  </span>
                                 </div>
                               )}
 

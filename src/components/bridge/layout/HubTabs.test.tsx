@@ -117,8 +117,12 @@ describe("HubTabs — hidden entries are reachable, not switchable", () => {
   // was a duplicate of Settings ▸ Connectors — same four endpoints, same query
   // key — and the lossier copy. The URL 308s to /settings?tab=connectors; see
   // `theWebhooksPageIsGoneAndSettingsOwnsIt` in route-reachability.test.ts.
+  // /operations/connectors left by the same door on 2026-08-13: read-only, no
+  // endpoint behind it, and no delivery-config signal to render, so the delete-
+  // or-rebuild call it was tracked under came back "delete". It 308s to
+  // /library/suppliers; see `theConnectorsPageIsGoneAndSuppliersOwnsIt` there.
   const HIDDEN = {
-    suppliers: ["/library/standards", "/operations/connectors"],
+    suppliers: ["/library/standards"],
     activity: ["/operations/health"],
   } as const;
 

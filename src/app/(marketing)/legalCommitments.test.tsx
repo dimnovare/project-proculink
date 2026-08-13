@@ -114,8 +114,8 @@ function section(ui: React.ReactElement, heading: RegExp): string {
 }
 
 // Source-text reads for the two pages that are heavy client components
-// (the home page hero + footer, the pricing fine print). Same pattern as
-// src/test/plain-language-copy.test.ts — cheap, and no Clerk/query provider.
+// (the home page hero + footer, the pricing fine print). Source-text assertion
+// rather than an RTL render — cheap, and no Clerk/query provider.
 const ROOT = join(__dirname, "..", "..", "..");
 const read = (rel: string) => readFileSync(join(ROOT, rel), "utf8");
 

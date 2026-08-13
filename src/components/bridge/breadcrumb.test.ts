@@ -189,7 +189,7 @@ describe("buildCrumbTrail — unlinked group-root heads (no index route → neve
   });
 
   it("no crumb in a hub trail ever points at a group-root 404", () => {
-    for (const path of ["/library/suppliers", "/library/mappings", "/operations/exceptions", "/operations/connectors"]) {
+    for (const path of ["/library/suppliers", "/library/mappings", "/operations/exceptions", "/operations/log"]) {
       const trail = buildCrumbTrail(path, {});
       expect(trail.some((c) => c.href === "/library")).toBe(false);
       expect(trail.some((c) => c.href === "/operations")).toBe(false);

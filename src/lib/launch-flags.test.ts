@@ -18,18 +18,25 @@ describe("LAUNCH_CORE_HREFS (STRUCT-1)", () => {
     }
   });
 
-  it("includes every announced hub's first-tab href so all 5 hubs survive core mode", () => {
-    // Partners, Rules & formats, Operations, Integrations, Inbound (Inbound is
-    // additionally gated by INBOUND_ENABLED in buildVisibleNav, so listing it
-    // here does not leak it — it only lets it survive the core filter once on).
+  it("includes every announced hub's first-tab href so all 4 hubs survive core mode", () => {
+    // Partners, Rules & formats, Operations, Inbound (Inbound is additionally
+    // gated by INBOUND_ENABLED in buildVisibleNav, so listing it here does not
+    // leak it — it only lets it survive the core filter once on).
     for (const href of [
       "/library/suppliers",
       "/library/mappings",
       "/operations/health",
-      "/operations/connectors",
       "/inbound/invoices",
     ]) {
       expect(LAUNCH_CORE_HREFS.has(href)).toBe(true);
     }
+  });
+
+  // Integrations was a fifth entry, pointing at /operations/connectors. That
+  // page was deleted on 2026-08-13 and the URL now 308s to /library/suppliers
+  // (src/lib/retired-routes.ts) — a redirect needs no nav state, so keeping the
+  // href here would have let a deleted route survive the core filter.
+  it("carries no href for the deleted /operations/connectors", () => {
+    expect(LAUNCH_CORE_HREFS.has("/operations/connectors")).toBe(false);
   });
 });

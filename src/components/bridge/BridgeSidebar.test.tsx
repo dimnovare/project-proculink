@@ -239,7 +239,6 @@ describe("buildVisibleNav — four items, one flat section", () => {
       "/library/suppliers", "/library/buyers", "/connections",
       "/library/mappings", "/library/standards",
       "/operations/health", "/operations/exceptions", "/operations/log",
-      "/operations/connectors",
       "/inbound/invoices", "/inbound/asns",
       "/admin", "/settings", "/help",
       // Extended to the new tree's child routes — the four-item nav must keep
@@ -265,19 +264,20 @@ describe("buildVisibleNav — four items, one flat section", () => {
     // /operations/webhooks is not here: FE #130 deleted it (a duplicate of
     // Settings ▸ Connectors), and a permanent redirect has no nav state — the
     // same reason /library/rules and /library/templates are absent below.
+    // /operations/connectors is gone for the same reason: deleted 2026-08-13, so
+    // the cross-hub check that used to sit under this loop went with it.
     for (const p of [
       "/bridge", "/operations/log", "/operations/exceptions",
       "/operations/health",
     ]) {
       expect(isItemActive(p, activity), `${p} lights Activity`).toBe(true);
     }
-    expect(isItemActive("/operations/connectors", activity)).toBe(false); // Suppliers hub
     const suppliers = items.find((i) => i.label === "Suppliers")!;
     // /library/rules, /library/rule-definitions and /library/templates are NOT
     // here: FE #47 retired all three, and a permanent redirect has no nav state.
     for (const p of [
       "/library/suppliers", "/library/suppliers/abc", "/library/mappings",
-      "/library/standards", "/connections", "/connections/abc", "/operations/connectors",
+      "/library/standards", "/connections", "/connections/abc",
     ]) {
       expect(isItemActive(p, suppliers), `${p} lights Suppliers`).toBe(true);
     }
@@ -291,14 +291,19 @@ describe("buildVisibleNav — four items, one flat section", () => {
   });
 
   // AC: no duplicate nav surface for one data source, and no route claimed by
-  // two hubs. /operations/connectors is the live example: it shows the same
-  // per-supplier delivery channels as the supplier Delivery tab, so it stays
-  // hidden pending a delete-or-rebuild call.
+  // two hubs. There is no hidden-duplicate example left, because both of them
+  // were resolved the same way — by deletion, which is the other way this rule
+  // can be satisfied.
   //
-  // /operations/webhooks USED to be the example here — the same
-  // event-subscription data as Settings ▸ Connectors. It is gone: FE #130
-  // deleted the page rather than leaving a hidden duplicate, which is the other
-  // way this rule can be satisfied. Its URL 308s to /settings?tab=connectors.
+  // /operations/webhooks was the first: the same event-subscription data as
+  // Settings ▸ Connectors. FE #130 deleted the page rather than leaving a hidden
+  // duplicate, and its URL 308s to /settings?tab=connectors.
+  //
+  // /operations/connectors was the second, deleted 2026-08-13. It claimed to be
+  // a cross-supplier delivery-channel view, but it was read-only with no
+  // endpoint behind it and no delivery-config signal to render — the suppliers
+  // list prints each supplier's real channel and the supplier Delivery tab owns
+  // the config. Its URL 308s to /library/suppliers.
   //
   // /connections was listed here as the second example — "versioned supplier
   // setup belongs to the supplier Changes tab" — and it was NOT a duplicate.
@@ -315,11 +320,12 @@ describe("buildVisibleNav — four items, one flat section", () => {
         claimed.set(tab.href, hub);
       }
     }
-    // Per-supplier delivery channels belong to the supplier Delivery tab; the
-    // ops copy stays reachable, hidden — asserted through visibleHubTabs (what
-    // the strip renders) AND off HUB_TABS raw, so unhiding it fails here.
+    // Per-supplier delivery channels belong to the suppliers list and the
+    // supplier Delivery tab. The ops copy is not hidden any more, it is DELETED —
+    // so it is gone from BOTH the rendered strip and HUB_TABS raw, and re-adding
+    // it even as a hidden entry fails here.
     expect(visibleHubTabs("suppliers").some((t) => t.href === "/operations/connectors")).toBe(false);
-    expect(HUB_TABS.suppliers.some((t) => t.href === "/operations/connectors")).toBe(true);
+    expect(HUB_TABS.suppliers.some((t) => t.href === "/operations/connectors")).toBe(false);
     // Event subscriptions belong to Settings, and the duplicate that used to sit
     // in this hub was deleted rather than hidden — so it is gone from BOTH.
     expect(visibleHubTabs("activity").some((t) => t.href === "/operations/webhooks")).toBe(false);
@@ -360,7 +366,10 @@ describe("hubTooltip — lists a hub's VISIBLE tabs (derived from HUB_TABS, can'
     // "Changes" (/connections) is no longer here: it is a visible tab,
     // "Supplier changes". Removing it from this table is the deliberate half of
     // that change — leaving it would have failed on the comparison below.
-    suppliers: ["Format reference", "Delivery channels"],
+    // "Delivery channels" (/operations/connectors) is no longer here either: the
+    // page was DELETED on 2026-08-13, not unhidden. Removing it from this table
+    // is the deliberate half of that change.
+    suppliers: ["Format reference"],
     // "Notifications" (/operations/webhooks) is no longer here: the page was
     // DELETED, not unhidden. Removing it from this table is the deliberate half
     // of that change — leaving it would have failed on the comparison below.
@@ -389,11 +398,11 @@ describe("hubTooltip — lists a hub's VISIBLE tabs (derived from HUB_TABS, can'
         asserted++;
       }
     }
-    // Three hidden entries across three hubs (five until "Changes"//connections
-    // became visible, four until /operations/webhooks was deleted). If this
-    // drops to 0 the loop above proved nothing, whatever colour the run
-    // reported.
-    expect(asserted, "the hidden-entry loop ran zero assertions").toBe(3);
+    // Two hidden entries across three hubs (five until "Changes"//connections
+    // became visible, four until /operations/webhooks was deleted, three until
+    // /operations/connectors was). If this drops to 0 the loop above proved
+    // nothing, whatever colour the run reported.
+    expect(asserted, "the hidden-entry loop ran zero assertions").toBe(2);
   });
   it("returns undefined for non-hub items", () => {
     expect(hubTooltip(byLabel["Settings"])).toBeUndefined();
