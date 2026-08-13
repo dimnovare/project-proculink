@@ -399,6 +399,47 @@ export const PLAN_BY_ID: Record<PlanId, Plan> = PLANS.reduce(
 );
 
 /**
+ * Every plan id the ladder declares, longest-first.
+ *
+ * The ordering matters to `src/lib/planGate.ts`, which builds a regex alternation out of it:
+ * a shorter id that prefixes a longer one would shadow it. Nothing in the current ladder does,
+ * but the sort makes that a property of the code rather than of today's six names.
+ */
+export const PLAN_IDS: PlanId[] = PLANS.map((p) => p.id).sort((a, b) => b.length - a.length);
+
+/**
+ * A plan's name as a user reads it — `"Distributor plan"`.
+ *
+ * ── Why this is derived and not a map ────────────────────────────────────────
+ *
+ * Settings kept its own `PLAN_LABELS` object listing five of the six tiers. Distributor was
+ * missing, so a Distributor org — a live, self-serve tier with live Stripe prices — read
+ * `Acme · distributor` in its own Settings header: a raw lowercase wire value shown to a
+ * customer paying €1,499/month. The topbar and the sidebar each rolled their own instead,
+ * capitalising the FIRST LETTER OF THE WIRE VALUE, which happens to agree with the ladder
+ * today and is not derived from it at all.
+ *
+ * Three producers, three chances to miss the next tier. There is now one, here, next to the
+ * data it names, so adding a plan to `PLANS` is the whole change. `src/test/plans.test.ts`
+ * pins that every tier resolves to a name and that none of them renders as its own id.
+ *
+ * Unknown ids are returned unchanged. That path is unreachable through `BillingPlan`, and is
+ * only live if the backend ships a tier this ladder has not got yet — in which case the raw
+ * value is the honest thing to show, because inventing a display name for a plan we know
+ * nothing about is the larger lie.
+ */
+export function planDisplayName(plan: string): string {
+  const known = PLAN_BY_ID[plan as PlanId] as Plan | undefined;
+  return known ? `${known.name} plan` : plan;
+}
+
+/** Just the tier's own name — `"Distributor"` — for prose that supplies its own noun. */
+export function planName(plan: string): string {
+  const known = PLAN_BY_ID[plan as PlanId] as Plan | undefined;
+  return known ? known.name : plan;
+}
+
+/**
  * The line a card shows above its own bullets — `"Everything in Operations, plus"` — or null
  * for Pilot, which inherits nothing.
  *

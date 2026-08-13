@@ -8,6 +8,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { apiClient, checkAdminAccess, getBillingStatus, isApiMockMode } from "@/lib/api-client";
 import { guideSeenKey, matchGuide } from "@/lib/section-guides";
+import { planDisplayName } from "@/lib/plans";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { useOrganization } from "@clerk/nextjs";
@@ -562,9 +563,10 @@ function useWorkspaceCardData() {
     retryDelay: 800,
     staleTime: 60_000,
   });
-  const planLabel = billing
-    ? `${billing.plan.charAt(0).toUpperCase()}${billing.plan.slice(1)} plan`
-    : "Loading…";
+  // Derived from the ladder, not from the wire value. Capitalising the first letter of
+  // `billing.plan` agrees with the ladder only by coincidence — it is a string operation on
+  // an identifier, and it would render a future two-word tier as "Highvolume plan".
+  const planLabel = billing ? planDisplayName(billing.plan) : "Loading…";
   const orgName = organization?.name ?? "Your workspace";
   return { orgName, planLabel, activePlan: billing ? planLabel : null };
 }
