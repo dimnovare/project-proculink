@@ -19,8 +19,6 @@ import {
   type ConformanceCheck,
   ApiHttpError,
 } from "@/lib/api-client";
-import { UnifiedStatusBadge } from "@/components/bridge/UnifiedStatusBadge";
-
 const FORMATS: Array<{ id: ConformanceFormat; label: string }> = [
   { id: "cxml", label: "cXML 1.2" },
   { id: "ubl", label: "UBL 2.1" },
@@ -71,6 +69,45 @@ function PassMark({ passed }: { passed: boolean }) {
 /** A failing Error-severity check is the load-bearing blocker — highlight its row. */
 function isBlocking(c: ConformanceCheck): boolean {
   return !c.passed && c.severity === "Error";
+}
+
+/**
+ * The conformance verdict — deliberately NOT `<UnifiedStatusBadge>`.
+ *
+ * This pill used to be
+ *   `<UnifiedStatusBadge status={report.overallPass ? "delivered" : "rejected"} />`
+ * and UnifiedStatusBadge's vocabulary is the ORDER LIFECYCLE. So a read-only
+ * pre-flight check printed the word **"Delivered"** four lines under this panel's
+ * own "Read-only: nothing is delivered or changed." — and **"Supplier rejected"**
+ * on fail, naming a counterparty decision that no counterparty had made. Nothing
+ * was delivered and no supplier saw the document; the only thing that happened is
+ * that a profile's mandatory elements were counted.
+ *
+ * A check result is not a lifecycle state, so it must not borrow the lifecycle's
+ * words. It says what it is. Do not reach for a status badge here again: if this
+ * needs a second tone one day, add it to THIS component, not to STATUS_META.
+ *
+ * Tones reuse the same token pairs the badge used, so the contrast ratios that
+ * were audited for those pairs still hold (green-deep on green-soft, danger on
+ * danger-soft). No fractional opacity — the composite is the token value.
+ */
+function VerdictPill({ passed }: { passed: boolean }) {
+  const tone = passed
+    ? { bg: "var(--brand-green-soft)", fg: "var(--brand-green-deep)" }
+    : { bg: "var(--danger-soft)", fg: "var(--danger)" };
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 rounded-full h-6 px-2.5 text-[12px] font-semibold whitespace-nowrap"
+      style={{ background: tone.bg, color: tone.fg }}
+    >
+      <span
+        aria-hidden
+        className="w-[6px] h-[6px] rounded-full flex-shrink-0"
+        style={{ background: "currentColor" }}
+      />
+      {passed ? "Checks passed" : "Checks failed"}
+    </span>
+  );
 }
 
 export function ConformancePanel({ orderId, supplierName, defaultFormat }: {
@@ -218,7 +255,7 @@ export function ConformancePanel({ orderId, supplierName, defaultFormat }: {
           >
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <UnifiedStatusBadge status={report.overallPass ? "delivered" : "rejected"} size="md" />
+                <VerdictPill passed={report.overallPass} />
                 {/*
                   Says what was CHECKED, not what was proven. These checks are presence,
                   structure and cardinality against a hand-written profile — they cannot tell
