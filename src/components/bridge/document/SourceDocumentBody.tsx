@@ -26,6 +26,7 @@ import {
   sourceRenderFor,
   type SourceDocument,
 } from "@/lib/sourceDocument";
+import { scrollRegionProps } from "./scrollRegion";
 import {
   MAX_PREVIEW_ROWS,
   parseCsvTable,
@@ -151,7 +152,18 @@ function SheetView({
           ))}
         </div>
       )}
-      <div className={bounded ? "min-h-0 flex-1 overflow-auto" : "overflow-x-auto"}>
+      {/* Scrolls on both branches: vertically when bounded, horizontally otherwise — a wide
+          sheet on a phone is exactly the case a keyboard user must be able to pan. */}
+      <div
+        {...scrollRegionProps(
+          data.tables.length > 1 ? `Original document, sheet ${table.name}` : "Original document",
+          true,
+        )}
+        className={
+          (bounded ? "min-h-0 flex-1 overflow-auto" : "overflow-x-auto") +
+          " focus-visible:[outline-offset:-2px]"
+        }
+      >
         <SheetGrid table={table} />
       </div>
       <TruncationNote table={table} omitted={data.omittedSheetNames} />
@@ -279,7 +291,12 @@ function TextView({
           shown as Windows-1252. Accented characters may differ from the sender&rsquo;s copy.
         </p>
       )}
-      <div className={bounded ? "min-h-0 flex-1 overflow-auto" : ""}>
+      {/* Only the bounded branch scrolls. Unbounded, the list renders at its natural height and
+          <main> scrolls it, so a tab stop here would be a dead one. */}
+      <div
+        {...scrollRegionProps("Original document", bounded)}
+        className={bounded ? "min-h-0 flex-1 overflow-auto focus-visible:[outline-offset:-2px]" : ""}
+      >
         <ol
           className="m-0 list-none p-0 font-mono text-[11px] leading-[1.55]"
           data-testid="source-document-text"

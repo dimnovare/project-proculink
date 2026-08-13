@@ -15,6 +15,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { PDFDocumentProxy } from "pdfjs-dist";
+import { scrollRegionProps } from "./scrollRegion";
 
 /** Rendered at this CSS width times the device pixel ratio, capped so a phone stays responsive. */
 const MAX_CANVAS_SCALE = 2;
@@ -91,7 +92,17 @@ export function PdfDocumentView({ cacheKey, blob, bounded }: PdfDocumentViewProp
           </PagerButton>
         </div>
       )}
-      <div className={bounded ? "min-h-0 flex-1 overflow-auto bg-surface-2 p-3" : "overflow-x-auto bg-surface-2 p-3"}>
+      {/* Scrolls on both branches — vertically when bounded, horizontally on a phone when the
+          page is wider than the card — so it is a keyboard stop either way. The ring is drawn
+          INSIDE the box: the bounded shell clips, and a ring nobody can see is not a fix. */}
+      <div
+        {...scrollRegionProps("Original document", true)}
+        className={
+          (bounded
+            ? "min-h-0 flex-1 overflow-auto bg-surface-2 p-3"
+            : "overflow-x-auto bg-surface-2 p-3") + " focus-visible:[outline-offset:-2px]"
+        }
+      >
         <PdfPageCanvas doc={data} pageNumber={current} />
       </div>
     </div>
