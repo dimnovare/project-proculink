@@ -83,9 +83,9 @@ A failing endpoint is retried, and after **3 consecutive failures the subscripti
 
 There are no native ProcuLink apps in those directories yet. Both directions still work today with the generic pieces: point their HTTP modules at the inbound API (with your `plk_` key) to push orders in, and use a custom webhook endpoint to receive `order.*` events.
 
-## Connectors page
+## Where supplier delivery channels live
 
-**Operations → Connectors** is a read-only overview of each supplier's delivery channel with a safe test-fire button. The actual delivery endpoints are configured per supplier — see [setting up delivery and test-fire](/help/delivery-setup).
+Delivery endpoints are configured per supplier, not in one central list. **Suppliers** shows each supplier's delivery channel, and opening a supplier's **Delivery** tab is where you set the endpoint, its credentials, and test-fire it — see [setting up delivery and test-fire](/help/delivery-setup).
 
 ---
 

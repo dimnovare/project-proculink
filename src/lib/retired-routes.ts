@@ -80,6 +80,22 @@ export const RETIRED_ROUTES: RetiredRoute[] = [
       + "here rendered there as a raw string. Settings owns the data.",
   },
   {
+    source: "/operations/connectors",
+    destination: "/library/suppliers",
+    deletedDir: "src/app/(app)/operations/connectors",
+    why:
+      "A read-only page nothing linked to, describing a channel it could not see. Zero inbound "
+      + "links anywhere in src/, and its only registry entry was a `hidden: true` hub tab. Every "
+      + "field on it was `readOnly` and the panel said so, because no create or update endpoint "
+      + "for a connector exists — both \"Add connector\" buttons opened a panel whose only forward "
+      + "action was a link to /library/suppliers, so \"Add\" navigated away instead of adding. In "
+      + "live mode it derived nothing from delivery configs either: GET /api/suppliers carries no "
+      + "delivery-config signal, so every row was hardcoded to type \"API (REST)\", and the "
+      + "requirements panel keyed off that guess showed an SFTP or Erply supplier the HTTP field "
+      + "list. The suppliers list prints each supplier's real channel, and the supplier Delivery "
+      + "tab test-fires the same endpoint against the protocol actually chosen.",
+  },
+  {
     source: "/upload/preview/:orderId",
     destination: "/inbox/:orderId",
     deletedDir: "src/app/(app)/upload/preview",

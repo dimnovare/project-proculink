@@ -18,8 +18,8 @@
 // five per-entry checks would not. It also means a new entry can only go ABOVE
 // them, which is what append-only means for a newest-first list.
 //
-// Source-text assertion rather than an RTL render, matching the house pattern in
-// plain-language-copy.test.ts: cheap, and needs no Clerk or query provider.
+// Source-text assertion rather than an RTL render, the house pattern for a
+// module-private array: cheap, and needs no Clerk or query provider.
 
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";

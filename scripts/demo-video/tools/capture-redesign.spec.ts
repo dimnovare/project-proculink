@@ -53,7 +53,6 @@ const ROUTES: Array<[string, string, string]> = [
   ["18", "operations-exceptions", "/operations/exceptions"],
   ["19", "operations-health", "/operations/health"],
   ["20", "operations-log", "/operations/log"],
-  ["21", "operations-connectors", "/operations/connectors"],
   ["23", "settings", "/settings"],
   ["24", "admin", "/admin"],
 ];

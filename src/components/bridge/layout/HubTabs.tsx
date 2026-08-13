@@ -120,52 +120,16 @@ export const HUB_TABS: Record<HubKey, HubTab[]> = {
     // A read-only field↔standard matrix nobody opens cold; reached from the
     // format explainers.
     { label: "Format reference", href: "/library/standards", hidden: true },
-    // STAYS HIDDEN — and unlike /connections above, that is NOT a defect to fix
-    // by unhiding it. Both sentences this comment used to carry were false, and
-    // the investigation that replaced them (2026-08-08) found a duplicate, not a
-    // stranded surface:
-    //
-    //   • "Reached from a supplier's Delivery tab" — no such link exists. The
-    //     traffic runs the other way only: page.tsx:921 links OUT to
-    //     /library/suppliers/{id}?tab=delivery, and nothing links back.
-    //   • "a read-only grid of channel TYPES derived from supplier delivery
-    //     configs" — in live mode it derives nothing from them. Every row is
-    //     hardcoded `type: "API (REST)"`, `status: "available"` (page.tsx:298-309)
-    //     because GET /api/suppliers carries no delivery-config signal and the
-    //     page declines to fan out per-supplier fetches.
-    //
-    // The screen that really does the described job is /library/suppliers — the
-    // FIRST VISIBLE TAB of this same hub. It fans out exactly those per-supplier
-    // delivery-config fetches (SupplierDockList.tsx:39 DELIVERY_FETCH_CAP = 50)
-    // and prints each supplier's REAL channel (:892 desktop, :999 mobile).
-    //
-    // Its two remaining affordances already exist IN CONTEXT on the reachable
-    // supplier Delivery tab, in better form:
-    //
-    //   • Test-fire — the same endpoint. Connectors calls
-    //     testFireDeliveryConfig (api-client.ts:2683); the Delivery tab calls
-    //     testFireDelivery (lib/api/delivery.ts:44) — both POST
-    //     /api/suppliers/{id}/delivery-config/test-fire. The Delivery tab's
-    //     button (DeliveryConfigEditor.tsx:1561) is disabled until a config is
-    //     saved and renders the endpoint's captured response; the connectors
-    //     page has no saved-config signal at all, so it fires blind.
-    //   • Connector requirements — DeliveryConfigEditor.tsx:1451 renders
-    //     ConnectorRequirementsPanel keyed on the protocol actually selected.
-    //     The connectors copy derives its key from the hardcoded row type
-    //     (resolveManifestKey, page.tsx:492-502), so `"API (REST)"` resolves to
-    //     "http" for EVERY live supplier — an SFTP or Erply supplier is shown
-    //     the HTTP field list.
-    //
-    // And its own CTAs create nothing: "Add connector" (header + empty state)
-    // opens a panel whose test-fire returns "Connectors are set up per supplier
-    // — open the supplier's Delivery tab…" (page.tsx:684), while the page
-    // subtitle already tells the reader to go to the Delivery tab.
-    //
-    // So a door here would land an operator on a less accurate copy of the tab
-    // beside it. Delete-or-rebuild is a founder call, tracked in
-    // STRANDED_PENDING_DECISION (src/test/route-reachability.test.ts); until it
-    // is made, do not unhide this as-is.
-    { label: "Delivery channels", href: "/operations/connectors", hidden: true },
+    // "Delivery channels" (/operations/connectors) used to sit here, hidden. It
+    // is GONE, not unhidden: the delete-or-rebuild call tracked against it was
+    // taken on 2026-08-13, and the answer was delete. It was read-only with no
+    // create or update endpoint behind it, and in live mode it derived nothing
+    // from delivery configs — every row was hardcoded `type: "API (REST)"`,
+    // because GET /api/suppliers carries no delivery-config signal. The first
+    // visible tab of this same hub, /library/suppliers, prints each supplier's
+    // real channel, and the supplier Delivery tab test-fires the same endpoint
+    // against the protocol actually selected. The URL now 308s to
+    // /library/suppliers (src/lib/retired-routes.ts). Do not re-add a tab for it.
   ],
   // Activity is the receipt: did it go, what broke, is the system up.
   activity: [

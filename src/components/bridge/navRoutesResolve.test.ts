@@ -124,7 +124,15 @@ describe("nav routes resolve — nothing 404s, nothing is stranded", () => {
     const routes = appRoutes();
     // Sanity: the walker really found the tree, so an empty list can't make the
     // assertions below pass vacuously.
-    expect(routes.length).toBeGreaterThan(20);
+    //
+    // THE FLOOR MOVED 20 → 15 ON 2026-08-13, AND WHY. It sat one below the live
+    // count, which made it an accidental route-count PIN rather than an
+    // anti-vacuity floor: deleting /operations/connectors took the tree to
+    // exactly 20 and turned a correct deletion red for no reason. The job here is
+    // only to prove the walker read a tree — a broken walk returns 0, not 15 — so
+    // the floor now has room for the deletions this repo actually ships. The
+    // named routes below are what pins specific content.
+    expect(routes.length).toBeGreaterThan(15);
     expect(routes).toContain("/inbox");
     expect(routes).toContain("/library/suppliers/sample-id");
     expect(routes).toContain("/operations/health");

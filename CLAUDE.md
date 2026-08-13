@@ -238,12 +238,17 @@ aiSoft         #EEE7FB
 | Library | Rules | `/library/rules` |
 | Library | Output templates | `/library/templates` |
 | Operations | Delivery log | `/operations/log` |
-| Operations | Connectors | `/operations/connectors` |
 | — | Settings | `/settings` |
 
 > `/operations/webhooks` was deleted (2026-08-08): a duplicate of Settings ▸
 > Connectors that nothing navigated to. The URL 308s to `/settings?tab=connectors`
 > via `src/lib/retired-routes.ts`.
+
+> `/operations/connectors` was deleted (2026-08-13): a read-only page nothing
+> navigated to, whose rows were hardcoded to one channel type because
+> `GET /api/suppliers` carries no delivery-config signal. The suppliers list
+> prints each supplier's real channel and the supplier Delivery tab owns the
+> config. The URL 308s to `/library/suppliers` via `src/lib/retired-routes.ts`.
 
 **Active nav item style:** 2px link-gradient strip on left, slightly raised navy surface (`navy.surface`), white text.
 

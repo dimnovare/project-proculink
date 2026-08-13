@@ -529,26 +529,11 @@ test.describe("Live full E2E — every screen renders + heart-piece interactions
     await visitAndAssertHealthy(page, "/operations/log");
   });
 
-  test("Connectors (/operations/connectors) renders + manifest requirements panel", async ({ page }) => {
-    const watch = watchConsole(page);
-    try {
-      await page.goto("/operations/connectors");
-      await page.waitForLoadState("networkidle", { timeout: 30_000 }).catch(() => {});
-      await assertNoErrorBoundary(page);
-      await expect(page.getByRole("heading", { level: 1 }).first()).toBeVisible({ timeout: 20_000 });
-
-      // Expand a connector manifest requirements panel if present.
-      const reqToggle = page.locator("button[aria-controls='connector-requirements-body']").first();
-      if (await reqToggle.count() && (await reqToggle.isVisible())) {
-        await reqToggle.click();
-        await page.waitForTimeout(300);
-        await assertNoErrorBoundary(page);
-      }
-      expect(watch.errors, `Console/page errors on connectors:\n${watch.errors.join("\n")}`).toEqual([]);
-    } finally {
-      watch.detach();
-    }
-  });
+  // /operations/connectors was checked here until it was deleted (2026-08-13): a
+  // read-only page nothing linked to, whose rows were hardcoded to one channel
+  // type because GET /api/suppliers carries no delivery-config signal. The
+  // connector requirements panel this test expanded is rendered in context by
+  // the supplier Delivery tab, which the supplier-detail checks cover.
 
   // /operations/webhooks was checked here until FE #130 deleted it: a duplicate
   // of Settings ▸ Connectors that no user could navigate to. The surface that

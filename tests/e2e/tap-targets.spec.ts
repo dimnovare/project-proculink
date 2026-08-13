@@ -161,7 +161,9 @@ const ROUTES = [
   "/pricing",
   "/upload",
   "/settings",
-  "/operations/connectors",
+  // /operations/connectors was measured here until it was deleted (2026-08-13):
+  // a read-only page nothing linked to. It now 308s to /library/suppliers, which
+  // this list already measures.
   "/library/buyers",
   "/library/suppliers",
   "/inbox",

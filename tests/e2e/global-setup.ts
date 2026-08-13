@@ -49,7 +49,6 @@ const ROUTES = [
   "/library/standards",   // standards.spec.ts
   "/library/suppliers/s1",
   "/operations/exceptions",
-  "/operations/connectors",
   "/settings",
   "/admin",
   // ── tap-targets.spec.ts measures a phone viewport across these ──

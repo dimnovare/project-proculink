@@ -8,7 +8,7 @@
 //
 // The nav/hub tables are asserted against the real exported registries. The two
 // page-level TABS arrays are module-private, so they are asserted against source
-// text — the same cheap pattern src/test/plain-language-copy.test.ts uses, and
+// text — the same cheap house pattern changelog-append-only.test.ts uses, and
 // enough to catch a label/id pair drifting apart.
 
 import { describe, it, expect, vi } from "vitest";
@@ -80,7 +80,9 @@ describe("renamed hub tab labels keep their routes", () => {
     ["System status", "/operations/health", "§6.1 #25 System health → System status"],
     ["Issues", "/operations/exceptions", "§6.1 #26 Exceptions → Issues"],
     ["Deliveries", "/operations/log", "§6.1 #27 Delivery log → Deliveries"],
-    ["Delivery channels", "/operations/connectors", "§6.1 #28 Connectors → Delivery channels"],
+    // §6.1 #28 renamed Connectors → "Delivery channels". That tab is gone: the
+    // page behind it (/operations/connectors) was deleted on 2026-08-13, so a
+    // rename has nothing left to preserve — see the assertion below.
     ["Suppliers", "/library/suppliers", "§6.1 #14 unchanged"],
     ["Buyers", "/library/buyers", "§6.1 #15 unchanged"],
   ];
@@ -94,6 +96,16 @@ describe("renamed hub tab labels keep their routes", () => {
   // must not resurrect a retired destination.
   it("offers no tab for a route FE #47 retired", () => {
     for (const href of ["/library/rules", "/library/templates"]) {
+      expect(tabs.map((t) => t.href)).not.toContain(href);
+    }
+  });
+
+  // Same rule, later retirements: a renamed label must not keep a tab alive for
+  // a page that no longer exists. /operations/webhooks was deleted on 2026-08-08
+  // and /operations/connectors on 2026-08-13; both are permanent redirects now
+  // (src/lib/retired-routes.ts), and a redirect has no tab.
+  it("offers no tab for a route retired after the hub-label rename", () => {
+    for (const href of ["/operations/webhooks", "/operations/connectors"]) {
       expect(tabs.map((t) => t.href)).not.toContain(href);
     }
   });
@@ -119,7 +131,6 @@ describe("renamed breadcrumb labels keep their route segments", () => {
     ["standards", "Format reference"],
     ["operations", "Activity"],
     ["log", "Deliveries"],
-    ["connectors", "Delivery channels"],
     ["exceptions", "Issues"],
     ["health", "System status"],
     ["asns", "Shipping notices"],
@@ -132,6 +143,15 @@ describe("renamed breadcrumb labels keep their route segments", () => {
   // /library/templates permanently redirect (src/lib/retired-routes.ts).
   it("carries no label for a segment FE #47 retired", () => {
     for (const segment of ["rules", "templates", "drafts"]) {
+      expect(CRUMB_LABELS[segment]).toBeUndefined();
+    }
+  });
+
+  // `connectors` had the §6.1 #28 label "Delivery channels" until 2026-08-13,
+  // when /operations/connectors was deleted. A crumb for a permanent redirect
+  // can never render, so the label went with the page.
+  it("carries no label for a segment retired after the rename", () => {
+    for (const segment of ["connectors", "webhooks"]) {
       expect(CRUMB_LABELS[segment]).toBeUndefined();
     }
   });

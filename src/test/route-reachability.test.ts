@@ -173,9 +173,10 @@ export const KNOWN_DEEP_LINK_ONLY: Record<string, string> = {
  * the product. The resolution for each is "build the entry point" or "delete the
  * page", and both are product calls, not a guard's.
  *
- * THE LIST HAS SHRUNK TWICE, WHICH IS THE POINT — and each time by a DIFFERENT
- * resolution, because "build the entry point" and "delete the page" are the two
- * answers an entry here is waiting for, and both have now been given.
+ * THE LIST HAS SHRUNK THREE TIMES AND IS NOW EMPTY, WHICH IS THE POINT — and it
+ * shrank by BOTH of the resolutions an entry here waits for, because "build the
+ * entry point" and "delete the page" are the two answers, and both have been
+ * given.
  *
  * It held four routes until 2026-08-08, when the founder decided /connections
  * and /connections/[connectionId] were worth keeping and gave them a visible
@@ -191,9 +192,17 @@ export const KNOWN_DEEP_LINK_ONLY: Record<string, string> = {
  * had to go too. Its replacement is `theWebhooksPageIsGoneAndSettingsOwnsIt`
  * below, which asserts the deletion in both directions.
  *
- * BOTH deletions were FORCED, not remembered: `anExcuseCannotOutliveItsReason`
- * fails on a route that became reachable, and its sibling fails on a route that
- * stopped existing. An entry here cannot be left behind either way.
+ * It went to ZERO on 2026-08-13, when the last entry got the same answer:
+ * /operations/connectors was deleted and now 308s to /library/suppliers. Its
+ * replacement is `theConnectorsPageIsGoneAndSuppliersOwnsIt` below. An EMPTY
+ * list is a valid state, and it relaxes nothing — it says every stranded
+ * surface has been resolved, so the next one fails
+ * `theStrandedSetIsExactlyThis` instead of quietly joining a list. Adding an
+ * entry back is a deliberate act with a dated reason, exactly as before.
+ *
+ * EVERY removal was FORCED, not remembered: `anExcuseCannotOutliveItsReason`
+ * fails on a route that became reachable, and the per-deletion guards fail on a
+ * route that stopped existing. An entry here cannot be left behind either way.
  *
  * These entries PASS, on purpose. They were left failing at first, and the
  * consequence was a pipeline that could not go green until a product decision
@@ -204,26 +213,16 @@ export const KNOWN_DEEP_LINK_ONLY: Record<string, string> = {
  *   1. every entry carries its own reason, held to the same citation bar as
  *      KNOWN_DEEP_LINK_ONLY's;
  *   2. `printsTheStrandedSet` logs the count and the names on EVERY run, so the
- *      list appears in CI output rather than only in a file nobody opens;
- *   3. `theStrandedSetIsExactlyThis` fails when a THIRD route is stranded — a
- *      new gap cannot quietly join the list — and equally when one of these
- *      gains an entry point, so the list cannot rot into permanent cover.
+ *      list appears in CI output rather than only in a file nobody opens — and
+ *      it says so in words when the count is zero, because a silent empty list
+ *      reads the same as a broken one;
+ *   3. `theStrandedSetIsExactlyThis` fails when ANY route is stranded that is
+ *      not written down here — a new gap cannot quietly join the list — and
+ *      equally when an entry gains an entry point, so the list cannot rot into
+ *      permanent cover. With the list empty that comparison is at its
+ *      strongest: it now asserts that NOTHING is stranded.
  */
-export const STRANDED_PENDING_DECISION: Record<string, string> = {
-  "/operations/connectors":
-    "PENDING A DECISION, 2026-08-08 — still zero inbound links anywhere in src/, and the 2026-08-06 entry's open question is now " +
-    "answered: this is a DUPLICATE, so the resolution is delete-or-rebuild, NOT 'give it a door'. Investigated against the " +
-    "/connections precedent (FE #124) and it fails that test on every count. Live rows are hardcoded " +
-    "type:\"API (REST)\", status:\"available\" (operations/connectors/page.tsx:298-309) because GET /api/suppliers carries no " +
-    "delivery-config signal — so it derives nothing from delivery configs, which is the one thing its old HUB_TABS comment " +
-    "claimed it did. The screen that DOES that job is /library/suppliers, already this hub's first visible tab " +
-    "(SupplierDockList.tsx:39 fans out the per-supplier fetches, :892/:999 print the real channel). Its two affordances both " +
-    "exist in context on the reachable supplier Delivery tab: the same test-fire endpoint (DeliveryConfigEditor.tsx:1561 via " +
-    "lib/api/delivery.ts:44, gated on a saved config, vs a blind fire here) and ConnectorRequirementsPanel keyed on the real " +
-    "protocol (DeliveryConfigEditor.tsx:1451, vs resolveManifestKey at page.tsx:492-502 resolving every live supplier to " +
-    "\"http\"). Unhiding it would land an operator on a less accurate copy of the tab beside it — see " +
-    "theDuplicateExcuseForConnectorsIsStillTrue below, which fails if that stops being so.",
-};
+export const STRANDED_PENDING_DECISION: Record<string, string> = {};
 
 // ─── Route enumeration ────────────────────────────────────────────────────────
 
@@ -823,14 +822,22 @@ describe("route reachability (plan rule R1 — no new surface without a consumer
     ).toEqual([]);
   });
 
-  it("the stranded set is exactly the one on the record", () => {
-    // The mechanism that stops "tracked" turning into "forgotten". A SECOND strand
+  it("the stranded set is exactly the one on the record — and the record is empty", () => {
+    // The mechanism that stops "tracked" turning into "forgotten". A strand
     // fails here rather than quietly joining the list, and a route that gets its
     // entry point built drops out of UNREACHABLE and must be deleted from
     // STRANDED_PENDING_DECISION rather than left as a stale excuse — which is
     // exactly what happened to the two /connections routes on 2026-08-08.
     // Deleting the page has the same consequence: /operations/webhooks left this
-    // list the same day by being removed from disk, not by gaining a door.
+    // list the same day by being removed from disk, not by gaining a door, and
+    // /operations/connectors emptied it the same way on 2026-08-13.
+    //
+    // AN EMPTY RECORD MAKES THIS ASSERTION STRONGER, NOT WEAKER. `toEqual([])`
+    // against a computed walk is the claim "no page in this app is unreachable
+    // and unexplained" — the first stranded surface to appear fails here. The
+    // per-entry loop below runs zero times by construction; it is the rule any
+    // future entry must clear, and it cannot mask anything while the comparison
+    // above pins the list at empty.
     const unreachable = UNREACHABLE.map((u) => u.route);
     expect(
       unreachable.sort(),
@@ -868,20 +875,48 @@ describe("route reachability (plan rule R1 — no new surface without a consumer
     const routes = Object.keys(STRANDED_PENDING_DECISION).sort();
     console.log(
       `\n${"─".repeat(78)}\n` +
-        `${routes.length} page route(s) render but NO user can navigate to them, and they are\n` +
-        `awaiting a product decision (build the entry point, or delete the page):\n\n` +
-        routes
-          .map((r) => {
-            const file = fileFor(r);
-            return `  ${r}${file ? `\n  — ${rel(file)}` : ""}`;
-          })
-          .join("\n") +
-        `\n\nSee STRANDED_PENDING_DECISION in src/test/route-reachability.test.ts for the\n` +
+        (routes.length === 0
+          ? `0 page routes render with no way for a user to navigate to them. Every surface\n` +
+            `that was ever on this list has been resolved: /connections and\n` +
+            `/connections/[connectionId] by building the door, /operations/webhooks and\n` +
+            `/operations/connectors by deleting the page.\n`
+          : `${routes.length} page route(s) render but NO user can navigate to them, and they are\n` +
+            `awaiting a product decision (build the entry point, or delete the page):\n\n` +
+            routes
+              .map((r) => {
+                const file = fileFor(r);
+                return `  ${r}${file ? `\n  — ${rel(file)}` : ""}`;
+              })
+              .join("\n") +
+            `\n`) +
+        `\nSee STRANDED_PENDING_DECISION in src/test/route-reachability.test.ts for the\n` +
         `evidence on each. These are NOT the same as KNOWN_DEEP_LINK_ONLY, which is\n` +
         `${Object.keys(KNOWN_DEEP_LINK_ONLY).length} route(s) something outside this repo genuinely links to.\n` +
         `${"─".repeat(78)}\n`,
     );
-    expect(routes.length).toBeGreaterThan(0);
+
+    // THE FLOOR MOVED ON 2026-08-13, AND WHY. It used to be `routes.length > 0`,
+    // which was sound while the list had never been empty: empty could only mean
+    // the record had been gutted. /operations/connectors was the last entry, so
+    // empty is now the TRUE state and a non-emptiness floor would fail a correct
+    // repo — which is the one failure mode worse than no floor, because the fix
+    // is to re-add a fake strand.
+    //
+    // What replaces it is CONSISTENCY, which is meaningful at zero: every name
+    // printed above is a real page route, and the printed count is the WALK's
+    // count, not merely the record's. A gutted record — entries deleted while
+    // routes are still stranded — fails on the second assertion here as well as
+    // in `theStrandedSetIsExactlyThis`.
+    const real = new Set(ROUTES.map((r) => r.route));
+    expect(real.size, "the route walk collapsed — the print above named nothing").toBeGreaterThan(80);
+    for (const route of routes) {
+      expect(real.has(route), `${route} is printed as stranded but is not a route`).toBe(true);
+    }
+    expect(
+      routes.length,
+      "the record and the walk disagree about how many routes are stranded — the print " +
+        "above is fiction either way round",
+    ).toBe(UNREACHABLE.length);
   });
 
   it("/connections and its detail page are reached by the tab a user actually clicks", () => {
@@ -942,101 +977,159 @@ describe("route reachability (plan rule R1 — no new surface without a consumer
     ).toContain("src/components/connections/ConnectionsList.tsx");
   });
 
-  it("the duplicate excuse for /operations/connectors is still true", () => {
-    // THE OTHER ANSWER, PINNED. /connections above got a door because the record
-    // it holds exists nowhere else. /operations/connectors was surveyed against
-    // that same precedent (2026-08-08) and got the opposite verdict: it is a
-    // duplicate, so it stays hidden and the decision stays delete-or-rebuild.
+  it("the /operations/connectors page is gone, and the supplier surfaces still own the channel", () => {
+    // THE DEFECT, VERBATIM. /operations/connectors rendered, resolved and was
+    // bookmarkable while no user could arrive at it. Its ONLY registry entry was
+    // a `hidden: true` HUB_TABS row, and a hidden entry is stripped by
+    // visibleHubTabs — so the strip never printed it and nothing anywhere linked
+    // to it. It was read-only by construction (every input `readOnly`, the panel
+    // said so) because no create or update endpoint for a connector exists, and
+    // both "Add connector" buttons opened a panel whose only forward action was
+    // a link to /library/suppliers — "Add" navigated away instead of adding. In
+    // live mode it also derived nothing from delivery configs: GET /api/suppliers
+    // carries no delivery-config signal, so every row was hardcoded to
+    // type "API (REST)", and the requirements panel keyed off that guess showed
+    // an SFTP or Erply supplier the HTTP field list. It was tracked here as
+    // delete-or-rebuild from 2026-08-08; the founder took the delete on
+    // 2026-08-13, which is the same answer /operations/webhooks got.
     //
-    // A negative verdict rots more quietly than a positive one — nothing breaks
-    // when "it's a duplicate" stops being true, it just becomes a stranded real
-    // surface again with a stale excuse holding the guard off. So the excuse is
-    // asserted, not merely written down: this fails if the in-context originals
-    // move, and it fails if someone unhides the route while the record still
-    // says it is stranded.
-    const rendered = (Object.keys(HUB_TABS) as HubKey[]).flatMap((hub) =>
-      visibleHubTabs(hub, { inboundEnabled: true }).map((t) => t.href),
-    );
+    // A DELETION NEEDS BOTH DIRECTIONS, exactly as a door does. The negative half
+    // alone is satisfied by a repo where the suppliers surfaces were deleted too
+    // — "the worse copy is gone" and "the capability is gone" look identical to a
+    // `not.toContain`. So the positive half is asserted first and separately: the
+    // surfaces that already did this job must still be reachable and still do it.
+    const DEAD = "/operations/connectors";
 
-    // ANTI-VACUITY FLOOR, deliberately UNMOVED at 10. FE #124 moved it 9 → 10 by
-    // making /connections visible; this pass adds no tab, so the same floor is
-    // the correct one and a drift in either direction is a real change. Resolved
-    // through visibleHubTabs() — what the strip RENDERS — never through
-    // Object.values(HUB_TABS), which is the blindness that stranded these routes.
-    expect(rendered.length, "no hub tab resolved — the sweep is vacuous").toBe(10);
-
-    // The in-context alternative is genuinely reachable. Without this the
-    // "it's a duplicate" claim is worthless: a duplicate of an unreachable
-    // screen is still a stranded surface.
+    // ── THE POSITIVE HALF ────────────────────────────────────────────────────
+    // /library/suppliers is a real route, reachable on its own merits — not via
+    // an allowlist entry, not via a pending-decision excuse.
+    const routes = ROUTES.map((r) => r.route);
+    expect(routes.length, "the route walk found nothing — every check below is vacuous").toBeGreaterThan(40);
     expect(
-      rendered,
-      "/library/suppliers is off the strip — the screen this route duplicates is " +
-        "no longer reachable, so the duplicate excuse no longer holds",
+      routes,
+      "/library/suppliers does not exist — the delivery-channel view has no home at all",
     ).toContain("/library/suppliers");
-
-    // And this one is still off it, on purpose.
     expect(
-      rendered,
-      "/operations/connectors is on the rendered strip — the founder call to " +
-        "delete or rebuild it has been pre-empted. If that door is now wanted, " +
-        "delete its STRANDED_PENDING_DECISION entry in the same change.",
-    ).not.toContain("/operations/connectors");
+      UNREACHABLE_UNEXCUSED.has("/library/suppliers"),
+      "/library/suppliers is stranded — deleting the worse copy moved the problem instead of solving it",
+    ).toBe(false);
     expect(
-      UNREACHABLE_UNEXCUSED.has("/operations/connectors"),
-      "/operations/connectors is reachable now — remove it from " +
-        "STRANDED_PENDING_DECISION rather than leaving a stale excuse",
-    ).toBe(true);
+      Object.keys(ACCOUNTED_FOR),
+      "/library/suppliers must not need an excuse",
+    ).not.toContain("/library/suppliers");
 
-    // THE EXCUSE ITSELF. Both affordances the connectors page appears to offer
-    // must still exist, in context, on the supplier Delivery tab — which is
-    // reachable via /library/suppliers → a supplier → ?tab=delivery.
+    // …and the two affordances really do still exist, in context. The suppliers
+    // list is the cross-supplier channel view the deleted page only claimed to
+    // be, and the supplier Delivery tab test-fires the same endpoint keyed on the
+    // protocol actually chosen.
     const readSrc = (rel: string) => {
       const text = fs.readFileSync(path.join(SRC_DIR, rel), "utf8");
-      expect(text.length, `${rel} is empty — the probe below would pass vacuously`).toBeGreaterThan(0);
+      expect(text.length, `${rel} is empty — the probe below would pass vacuously`).toBeGreaterThan(1000);
       return text;
     };
     const deliveryEditor = readSrc("components/bridge/DeliveryConfigEditor.tsx");
     const supplierList = readSrc("components/bridge/SupplierDockList.tsx");
 
     expect(
+      supplierList,
+      "the suppliers list no longer prints each supplier's real delivery channel — the " +
+        "cross-supplier channel view now exists nowhere, so the deletion is a capability loss",
+    ).toContain("channelLabel(config.protocol)");
+    expect(
       deliveryEditor,
-      "the supplier Delivery tab no longer test-fires — /operations/connectors is " +
-        "then the ONLY place a saved delivery config can be tested, and it stops " +
-        "being a duplicate",
+      "the supplier Delivery tab no longer test-fires — that endpoint now has no caller, " +
+        "so the deletion took the test-fire with it",
     ).toContain("testFireDelivery");
     expect(
       deliveryEditor,
-      "the supplier Delivery tab no longer shows connector requirements — the " +
-        "connectors page's copy of that panel stops being redundant",
+      "the supplier Delivery tab no longer shows connector requirements — the accurate " +
+        "copy of that panel is gone as well as the misleading one",
     ).toContain("<ConnectorRequirementsPanel");
-    expect(
-      supplierList,
-      "the suppliers list no longer prints each supplier's real delivery channel — " +
-        "the cross-supplier channel view /operations/connectors only pretends to " +
-        "offer would then exist nowhere",
-    ).toContain("channelLabel(config.protocol)");
 
     // DISCRIMINATION CONTROL. A `toContain` over a 1,500-line file proves little
     // unless it can also fail, so pin a marker that is real, load-bearing, and
-    // genuinely absent here: resolveManifestKey is the connectors page's own
-    // helper, and it is exactly what makes that page WORSE than this one — it
-    // derives the manifest from the hardcoded row type, so every live supplier
-    // resolves to "http". The Delivery tab has no such helper because it knows
-    // the protocol the user actually chose.
+    // genuinely absent: resolveManifestKey was the deleted page's own helper, and
+    // it is exactly what made that page worse — it derived the manifest from the
+    // hardcoded row type, so every live supplier resolved to "http". The Delivery
+    // tab has no such helper because it knows the protocol the user chose, and it
+    // must not acquire one now that the page it came from is gone.
     expect(
       deliveryEditor,
-      "DeliveryConfigEditor grew a resolveManifestKey — check it is not the " +
-        "connectors page's hardcoded-protocol guess leaking into the real editor",
+      "DeliveryConfigEditor grew a resolveManifestKey — check the deleted page's " +
+        "hardcoded-protocol guess has not been transplanted into the real editor",
     ).not.toContain("resolveManifestKey");
-    const connectorsPage = fs.readFileSync(
-      path.join(APP_DIR, "(app)", "operations", "connectors", "page.tsx"),
-      "utf8",
+
+    // The redirect is the other half of "deleted, not 404'd": a bookmark must
+    // land on the surface that already did the job.
+    const retired = RETIRED_ROUTES.find((r) => r.source === DEAD);
+    expect(retired, `${DEAD} was deleted with no redirect — an old bookmark 404s`).toBeDefined();
+    expect(retired!.destination).toBe("/library/suppliers");
+
+    // ── ANTI-VACUITY FLOORS, BEFORE THE NEGATIVES ────────────────────────────
+    // #126's ordering trap, verbatim and deliberately repeated: a sweep that
+    // collapses to nothing makes every `not.toContain` below pass SPURIOUSLY,
+    // because there is nothing left to look through. Each corpus therefore
+    // asserts its own size BEFORE it is searched.
+    //
+    // The tab floor stays at 10: the deleted entry was HIDDEN, so the rendered
+    // strip never counted it and a drift here is a different change entirely.
+    const rendered = (Object.keys(HUB_TABS) as HubKey[]).flatMap((hub) =>
+      visibleHubTabs(hub, { inboundEnabled: true }).map((t) => t.href),
     );
+    expect(rendered.length, "no hub tab resolved — the sweep is vacuous").toBe(10);
+
+    // Every non-test source file, read the way retired-routes.test.ts reads the
+    // nav registries: a QUOTED path is a link, a path in a comment is
+    // documentation. That distinction is what lets the deletion be explained in
+    // prose (HubTabs.tsx, breadcrumb.ts, section-guides.ts and launch-flags.ts
+    // all say why it went) without those explanations reading as references.
+    const sources = walk(SRC_DIR).filter(
+      (f) => /\.(ts|tsx|mdx)$/.test(f) && !isTestFile(f),
+    );
+    expect(sources.length, "the source sweep found no files — the scan below is vacuous")
+      .toBeGreaterThan(200);
+    const quoted = new RegExp(`["'\`]${DEAD}(?:[/"'\`?]|["'\`])`);
+    const offenders = sources
+      .filter((f) => quoted.test(fs.readFileSync(f, "utf8")))
+      .map((f) => path.relative(ROOT, f).split(path.sep).join("/"));
+
+    // ── THE NEGATIVE HALF ────────────────────────────────────────────────────
+    // Gone from disk.
     expect(
-      connectorsPage,
-      "resolveManifestKey is gone from the connectors page — the misleading-manifest " +
-        "half of the verdict needs re-deriving before this excuse is trusted again",
-    ).toContain("resolveManifestKey");
+      routes.filter((r) => r === DEAD || r.startsWith(DEAD + "/")),
+      `${DEAD} is back on disk — it was read-only with no endpoint behind it and no ` +
+        `delivery-config signal to render, and the founder deleted it. Delete the redirect ` +
+        `in src/lib/retired-routes.ts in the same change if it is genuinely being rebuilt.`,
+    ).toEqual([]);
+
+    // Gone from the chrome. Resolved through visibleHubTabs() — what the strip
+    // RENDERS — never Object.values(HUB_TABS), which is the blindness that let
+    // this route hide behind a `hidden: true` flag in the first place.
+    expect(rendered, `${DEAD} is on the rendered tab strip but has no page`).not.toContain(DEAD);
+    expect(
+      (Object.keys(HUB_TABS) as HubKey[]).flatMap((hub) => HUB_TABS[hub].map((t) => t.href)),
+      `${DEAD} is back in HUB_TABS — even hidden, it is a tab pointing at a deleted page`,
+    ).not.toContain(DEAD);
+
+    // The ONLY place in src/ allowed to name it in quotes is the record of its
+    // own retirement. Anything else is a link to a page that does not exist.
+    expect(
+      offenders,
+      `${DEAD} is quoted as a path outside its retirement record:\n  ${offenders.join("\n  ")}\n` +
+        `The page was deleted — link /library/suppliers instead.`,
+    ).toEqual(["src/lib/retired-routes.ts"]);
+
+    // And no excuse survives it. A deleted route must not be recorded as
+    // awaiting a decision — the decision was made, and that is what deleted it.
+    expect(
+      Object.keys(STRANDED_PENDING_DECISION),
+      `${DEAD} is still recorded as PENDING A DECISION, but the decision was taken and ` +
+        `the page is gone. An excuse cannot outlive its reason.`,
+    ).not.toContain(DEAD);
+    expect(
+      Object.keys(KNOWN_DEEP_LINK_ONLY),
+      `${DEAD} is allowlisted as deep-link-only, but there is no page to deep link to`,
+    ).not.toContain(DEAD);
   });
 
   it("the /operations/webhooks page is gone, and Settings ▸ Connectors still owns the data", () => {
@@ -1350,7 +1443,10 @@ describe("route reachability (plan rule R1 — no new surface without a consumer
       "/sign-in",
       "/bridge",
     ]);
-    // operations/connectors/page.tsx:921 — literal and interpolated in one expr.
+    // The shape this case was cut from shipped on operations/connectors/page.tsx
+    // (a literal and an interpolation in one expression). That page was deleted
+    // on 2026-08-13, so the fixture is now the only record of it — which is why
+    // it is spelled out here in full rather than cited by file:line.
     expect(
       ex('<Link href={isNew ? "/library/suppliers" : `/library/suppliers/${connector.id}?tab=delivery`}>'),
     ).toEqual(["/library/suppliers", `/library/suppliers/${DYN}`]);

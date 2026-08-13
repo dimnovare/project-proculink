@@ -258,19 +258,12 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
     firstStep: { text: "Once orders exist, filter by Failed and open the order to retry it from there." },
     articleSlugs: ["dashboard-and-statuses", "delivery-setup"],
   },
-  {
-    route: "/operations/connectors",
-    title: "Connectors",
-    purpose: "A read-only overview of each {supplier}'s delivery channel, with safe test firing.",
-    bullets: [
-      { text: "See one card per {supplier} delivery channel" },
-      { text: "Review what each connector type needs — fields, secrets, auth" },
-      { text: "Test fire a {supplier}'s saved delivery endpoint" },
-      { text: "Configure real endpoints on the {supplier} profile's Delivery tab", href: "/library/suppliers" },
-    ],
-    firstStep: { text: "Open a card and jump to the {supplier}'s Delivery tab to set up the real endpoint, then come back and test fire." },
-    articleSlugs: ["delivery-setup", "oauth2-delivery-setup", "api-and-integrations", "api-order-schema-reference"],
-  },
+  // NOTE: /operations/connectors had a guide here until 2026-08-13, and the copy
+  // went with the page because the page never delivered it: it promised "a
+  // read-only overview of each supplier's delivery channel", while every live
+  // row was hardcoded to one channel type. The overview it described is the
+  // suppliers list, and test firing belongs to the supplier Delivery tab. The
+  // route 308s to /library/suppliers, whose guide covers both.
   // NOTE: /operations/webhooks had a guide here until 2026-08-08. The page was a
   // duplicate of Settings ▸ Connectors that no user could navigate to, so it was
   // deleted and now 308s to /settings?tab=connectors. Outbound webhooks are

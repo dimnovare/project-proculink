@@ -38,6 +38,8 @@ import {
 } from "@/lib/exceptionStateManifest";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
+import { StatusNotice, type NoticeTone } from "@/components/bridge/layout/StatusNotice";
+import { serverReason } from "@/lib/serverText";
 import { MobileListRow } from "@/components/bridge/layout/MobileListRow";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { ExceptionDetail } from "@/components/bridge/ExceptionDetail";
@@ -244,13 +246,51 @@ export default function ExceptionsPage() {
     retryDelay: 800,
   });
 
+  // ONE notice carrying its own severity, the shape /operations/health settled on.
+  // Both mutations below used to be `mutationFn` + `onSuccess` and nothing else,
+  // so a 4xx/5xx from PATCH /api/exceptions/{id}/resolve threw, TanStack caught
+  // it, `pendingId` cleared, the button re-enabled — and the row was unchanged
+  // with not one word said. The operator's only signal that Resolve had failed
+  // was that nothing happened, which is indistinguishable from not having
+  // clicked. `StatusNotice` derives its ARIA from the tone, so a failure here
+  // cannot be announced politely or painted in the success colour.
+  const [notice, setNotice] = useState<{ tone: NoticeTone; text: string } | null>(null);
+
   const resolveMut = useMutation({
     mutationFn: (id: string) => resolveException(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["exceptions"] }),
+    onSuccess: () => {
+      setNotice({ tone: "success", text: "Issue marked resolved." });
+      qc.invalidateQueries({ queryKey: ["exceptions"] });
+    },
+    // The server's own sentence is rendered VERBATIM where it has one — it is the
+    // only text that knows why THIS request was refused, and paraphrasing it
+    // would swap a specific reason for a generic one. Only the fallback, for an
+    // error carrying no message at all, is ours to write. It says what did not
+    // happen and that the issue is untouched, because the failure mode being
+    // fixed is an operator believing a row was dealt with when it was not.
+    onError: (err: Error) =>
+      setNotice({
+        tone: "error",
+        text: serverReason(
+          err.message,
+          "We couldn't mark that issue resolved. It is unchanged — you can try again.",
+        ),
+      }),
   });
   const ignoreMut = useMutation({
     mutationFn: (id: string) => ignoreException(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["exceptions"] }),
+    onSuccess: () => {
+      setNotice({ tone: "success", text: "Issue ignored. It won't be reopened." });
+      qc.invalidateQueries({ queryKey: ["exceptions"] });
+    },
+    onError: (err: Error) =>
+      setNotice({
+        tone: "error",
+        text: serverReason(
+          err.message,
+          "We couldn't ignore that issue. It is unchanged — you can try again.",
+        ),
+      }),
   });
   const pendingId =
     (resolveMut.isPending ? resolveMut.variables : undefined) ??
@@ -305,6 +345,15 @@ export default function ExceptionsPage() {
         Expand a row to see what&apos;s wrong, why, how to fix it, and its real delivery status. Fixing the cause clears the issue the next time the order is reprocessed.
       </p>
 
+      {/* Outcome of the last Resolve / Ignore. Sits above the tabs and the list so
+          it is in the reading path from the control that produced it, and stays
+          put when the list re-renders underneath. */}
+      {notice && (
+        <div className="mb-4">
+          <StatusNotice tone={notice.tone}>{notice.text}</StatusNotice>
+        </div>
+      )}
+
       {/* State filter tabs */}
       <div className="flex flex-wrap items-center gap-1.5 mb-4">
         {STATE_TABS.map(({ label }, i) => {
@@ -313,9 +362,17 @@ export default function ExceptionsPage() {
             <button
               key={label}
               onClick={() => selectTab(i)}
-              className="flex items-center rounded-[6px] px-3 text-[12px] font-medium transition-colors flex-shrink-0"
+              /* Tap floor: 44px on a phone, the dense 28px from sm: up — the same
+                 mobile-first shape DSPrimitives.BUTTON_SIZE uses, so the desktop
+                 appearance is unchanged. These were a flat `height: 28` and were
+                 relying entirely on the global `min-height: var(--tap-min)`
+                 safety net in globals.css. That net does hold, but it is invisible
+                 at the call site and applies only under `(pointer: coarse),
+                 (max-width: 639px)`, so the control's own size was 28px at every
+                 width it declared for itself. Declaring it here means the strip is
+                 correct on its own terms rather than by rescue. */
+              className="flex items-center justify-center rounded-[6px] px-3 text-[12px] font-medium transition-colors flex-shrink-0 h-[44px] sm:h-[28px]"
               style={{
-                height: 28,
                 border: `1px solid ${active ? "var(--ink)" : "var(--border)"}`,
                 background: active ? "var(--ink)" : "var(--surface)",
                 color: active ? "var(--surface)" : "var(--ink-muted)",
@@ -530,16 +587,21 @@ export default function ExceptionsPage() {
       {!showLoading && !isError && totalCount > 0 && (
         <div className="flex-shrink-0 flex flex-wrap items-center gap-3 pt-0.5">
           <span className="text-[11px]" style={{ color: "var(--ink-faint)" }}>
-            {totalCount.toLocaleString()} exception{totalCount !== 1 ? "s" : ""}
+            {/* "issue", not "exception": the page is called Issues in the hub tab,
+                the sr-only h1, the empty state and the error state. This footer was
+                the one place still using the engine's word for the same thing. */}
+            {totalCount.toLocaleString()} issue{totalCount !== 1 ? "s" : ""}
           </span>
           {totalPages > 1 && (
+            /* Same tap floor as the state tabs above: 44px on a phone, dense 28px
+               from sm: up. Both were flat `height: 28`. */
             <div className="ml-auto flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => setPage(Math.max(1, currentPage - 1))}
                 disabled={currentPage <= 1}
-                className="inline-flex items-center gap-1 rounded-[6px] px-2.5 text-[12px] font-medium"
-                style={{ height: 28, border: "1px solid var(--border)", background: "var(--surface)", color: currentPage <= 1 ? "var(--ink-faint)" : "var(--ink)", cursor: currentPage <= 1 ? "default" : "pointer" }}
+                className="inline-flex items-center justify-center gap-1 rounded-[6px] px-2.5 text-[12px] font-medium h-[44px] sm:h-[28px]"
+                style={{ border: "1px solid var(--border)", background: "var(--surface)", color: currentPage <= 1 ? "var(--ink-faint)" : "var(--ink)", cursor: currentPage <= 1 ? "default" : "pointer" }}
               >
                 <ArrowLeft size={13} aria-hidden />
                 Prev
@@ -551,8 +613,8 @@ export default function ExceptionsPage() {
                 type="button"
                 onClick={() => setPage(currentPage + 1)}
                 disabled={currentPage >= totalPages}
-                className="inline-flex items-center gap-1 rounded-[6px] px-2.5 text-[12px] font-medium"
-                style={{ height: 28, border: "1px solid var(--border)", background: "var(--surface)", color: currentPage >= totalPages ? "var(--ink-faint)" : "var(--ink)", cursor: currentPage >= totalPages ? "default" : "pointer" }}
+                className="inline-flex items-center justify-center gap-1 rounded-[6px] px-2.5 text-[12px] font-medium h-[44px] sm:h-[28px]"
+                style={{ border: "1px solid var(--border)", background: "var(--surface)", color: currentPage >= totalPages ? "var(--ink-faint)" : "var(--ink)", cursor: currentPage >= totalPages ? "default" : "pointer" }}
               >
                 Next
                 <ArrowRight size={13} aria-hidden />
