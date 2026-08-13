@@ -219,8 +219,20 @@ export function ConformancePanel({ orderId, supplierName, defaultFormat }: {
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <UnifiedStatusBadge status={report.overallPass ? "delivered" : "rejected"} size="md" />
+                {/*
+                  Says what was CHECKED, not what was proven. These checks are presence,
+                  structure and cardinality against a hand-written profile — they cannot tell
+                  anyone the document "matches the standard", and no vendored schema exists in
+                  this repo to make that claim true for any format.
+
+                  "Matches the standard" is named in gatedCapabilityClaims.test.ts as part of the
+                  Peppol defect itself: the emitter declared BIS conformance, the checker asserted
+                  the two ids the emitter had just written, and this line rendered the circle as a
+                  verdict under a green badge. The emitter and the checker were fixed; the sentence
+                  they fed was left behind, which is the half of a claim that reaches the operator.
+                */}
                 <span className="text-[13px] font-semibold" style={{ color: "var(--ink)" }}>
-                  {report.overallPass ? "Matches the standard" : "Doesn't match the standard"}
+                  {report.overallPass ? "Required elements present" : "Required elements missing or invalid"}
                 </span>
               </div>
               <p className="mt-1.5 text-[12px]" style={{ color: "var(--ink-muted)" }}>
