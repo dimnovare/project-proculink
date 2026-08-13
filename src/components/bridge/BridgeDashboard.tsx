@@ -35,6 +35,9 @@ import { PracticeChip } from "./PracticeChip";
 // The one registry of what to do about a stuck order. The dashboard reads the
 // same `rowAction` the inbox row renders, so the two can't disagree.
 import { problemFor } from "./problem/problemCopy";
+// One derivation, two surfaces — see rowNextStep.ts. The inbox row renders the same
+// words for the same order.
+import { REVIEW_STATUS, reviewNeedLine } from "./rowNextStep";
 // The one mirror of the backend's status machine. The dashboard's health and
 // exception groupings are DERIVED from its buckets rather than hand-listed — see
 // FAILED_STATUSES below for the defect that costs.
@@ -226,12 +229,11 @@ const ELIGIBLE_STATUSES = new Set(["ready", "ready_to_deliver", "delivered"]);
  * pure but unreachable, which is exactly how ROUND 2 survived review.
  */
 export function neededForOrder(o: Pick<OrderSummary, "status" | "unresolvedCount">): string {
-  const unresolved = o.unresolvedCount ?? 0;
-  if (o.status === "pending_review") {
-    return unresolved > 0
-      ? `${unresolved} item code${unresolved === 1 ? "" : "s"} to confirm`
-      : "Review before sending";
-  }
+  // ROUND 3 — the review wording was written HERE, and the inbox row, the screen an
+  // operator works all day, printed "14 lines · 3 to review" for the same order. The
+  // dashboard preview is six rows; the inbox is the queue. The better sentence was on
+  // the smaller surface, so it now lives in one module both of them import.
+  if (o.status === REVIEW_STATUS) return reviewNeedLine(o.unresolvedCount);
   const problem = problemFor(o.status);
   if (!problem) return statusLabel(o.status);
   const next = problem.rowAction.charAt(0).toLowerCase() + problem.rowAction.slice(1);
