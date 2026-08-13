@@ -2448,25 +2448,41 @@ describe("no surface offers a standard as an output format while nothing can pro
    * Wording checks are the wrong instrument here: the sentence is assembled from
    * `asList(READ_ONLY_LABELS)` at render time and contains no standard's name in the source at
    * all. So this reads the source for the mechanism, and checks the column ids it feeds on.
+   *
+   * The same page had the COMMERCIAL half of this defect — it derived "ProcuLink produces cXML
+   * 1.2, UBL 2.1 and X12" from `transform === "supported"` and named no tier, while cXML output
+   * is gated at Operations. No guard in THIS file could have caught it at any corpus width: the
+   * scans below match literal text in one source line, and that sentence has no format name in
+   * the source. The fix is pinned by rendering the screen, in
+   * `src/app/(app)/library/standards/planDisclosure.test.tsx`.
    */
   it("the standards matrix derives its direction marker from the catalog", () => {
+    // The column table moved out of the page into a sibling module so a test could read it —
+    // a Next.js page may not carry arbitrary named exports. The split is COMPUTED in
+    // `refColumns.ts` and RENDERED by `page.tsx`, so each half is checked where it lives.
     const rel = "src/app/(app)/library/standards/page.tsx";
+    const columnsRel = "src/app/(app)/library/standards/refColumns.ts";
     const source = readFileSync(join(process.cwd(), rel), "utf8");
+    const columns = readFileSync(join(process.cwd(), columnsRel), "utf8");
 
-    expect(source, `${rel} must read the catalog to decide direction`).toMatch(
+    expect(columns, `${columnsRel} must read the catalog to decide direction`).toMatch(
       /import\s*\{[^}]*\bSTANDARDS\b[^}]*\}\s*from\s*"@\/lib\/standards\/catalog"/,
     );
-    expect(source, "it must split its columns on the emitted/read-only line").toMatch(/READ_ONLY_LABELS/);
-    expect(source, "and render that split, not merely compute it").toMatch(/READ_ONLY_LABELS\.length\s*>\s*0/);
+    expect(columns, "it must split its columns on the emitted/read-only line").toMatch(
+      /READ_ONLY_COLUMNS/,
+    );
+    expect(source, "and the page must render that split, not merely compute it").toMatch(
+      /READ_ONLY_LABELS\.length\s*>\s*0/,
+    );
 
     // Every column the matrix shows must cite a catalog id that exists, or the split silently
     // classifies a column on a lookup that returned undefined.
-    const cited = [...source.matchAll(/catalogId:\s*"([^"]+)"/g)].map((m) => m[1]);
+    const cited = [...columns.matchAll(/catalogId:\s*"([^"]+)"/g)].map((m) => m[1]);
     expect(cited.length, "the columns must really carry catalog ids").toBeGreaterThanOrEqual(5);
     for (const id of cited) {
       expect(
         STANDARDS.some((s) => s.id === id),
-        `${rel} maps a column to '${id}', which is not a standard in src/lib/standards/catalog.ts. ` +
+        `${columnsRel} maps a column to '${id}', which is not a standard in src/lib/standards/catalog.ts. ` +
           "An unresolved id makes the emitted/read-only split answer on a missing row.",
       ).toBe(true);
     }
