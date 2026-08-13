@@ -562,6 +562,34 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     reasonKeys: [],
     note: "One attachment was dropped; the rest of the email may still have been processed.",
   },
+  // The next two used to be ONE branch that wrote a log line and no audit row, so a
+  // purchase order that arrived as an attachment nobody could decode left no trace an
+  // operator could see: the webhook answered 200, the provider never re-delivered, and
+  // no order was created. Backend PR 199 split the branch by cause and gave each a row.
+  // (The PR number is written bare on purpose — a hash in front of three hex digits is a
+  // colour literal to the design-token gate, and this file is not exempt from it.)
+  {
+    action: "inbound_email.attachment_skipped_undecodable",
+    kind: "failed",
+    label: "Attachment skipped — could not be read",
+    reachable: true,
+    backendSite: "ProcuLink.Infrastructure/Services/Email/InboundEmailRouter.cs:310",
+    reasonKeys: [],
+    note:
+      "The sender attached something the decoder could not turn into bytes. Deliberately not a rejection: a " +
+      "re-delivery replays the same bytes and fails the same way, so only this row makes the loss visible.",
+  },
+  {
+    action: "inbound_email.attachment_skipped_empty",
+    kind: "failed",
+    label: "Attachment skipped — empty file",
+    reachable: true,
+    backendSite: "ProcuLink.Infrastructure/Services/Email/InboundEmailRouter.cs:324",
+    reasonKeys: [],
+    note:
+      "Decoded cleanly to nothing — the sender really did attach an empty file. Distinct from " +
+      "attachment_skipped_undecodable, which is a file we could not read rather than a file with nothing in it.",
+  },
   {
     action: "inbound_email.attachment_skipped_too_large",
     kind: "failed",
