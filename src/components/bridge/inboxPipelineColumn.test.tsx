@@ -218,13 +218,21 @@ describe("the stage label matches the lit node", () => {
     expect(screen.queryByText("Couldn't read file")).toBeNull();
   });
 
-  it("the caption a row prints names the node the row lights", async () => {
+  it("the node a row lights is NAMED, not left as five anonymous dots", async () => {
     const { container } = await renderInbox([order({ status: "transforming", poNumber: "PO-66005" })]);
     await screen.findAllByText("PO-66005");
     const cell = container.querySelector<HTMLElement>("[data-pipeline]")!;
-    expect(cell.textContent).toContain("4 of 5");
-    expect(cell.textContent).toContain("Transform");
-    // …and the row's status badge says the same thing in words.
+    // This used to read `cell.textContent`, because the step and stage were printed as
+    // a caption line under the dots. That caption was 15px on every row — it took the
+    // queue from 44px rows to 59px — and it existed only because this column was once
+    // five bare dots with no words anywhere near them. The status pill now sits
+    // directly above the same dots, so the words are still on the row; the step and
+    // stage name moved into the cell's accessible name, which is where the assertion
+    // follows them. What must never come back is an unnamed track.
+    const name = cell.getAttribute("aria-label") ?? "";
+    expect(name).toContain("4 of 5");
+    expect(name).toContain("Transform");
+    // …and the row's status badge says the same thing in words, visibly.
     expect(screen.getAllByText("Preparing output").length).toBeGreaterThan(0);
   });
 });

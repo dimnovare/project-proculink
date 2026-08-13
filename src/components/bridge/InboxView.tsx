@@ -56,7 +56,6 @@ import {
 import {
   PIPELINE_STAGE_NAMES,
   pipelineAccessibleName,
-  pipelineCaption,
   pipelineCardLine,
 } from "./pipelineIndicator";
 import {
@@ -616,7 +615,7 @@ function buildColumns(labels: PartyLabels, rowSend: RowSendContext) {
         </div>
       </div>
     ),
-    size: 160,
+    size: 150,
   }),
   // Buyer → Supplier (or Customer → You in inbound mode)
   columnHelper.display({
@@ -642,7 +641,7 @@ function buildColumns(labels: PartyLabels, rowSend: RowSendContext) {
         </div>
       );
     },
-    size: 230,
+    size: 330,
   }),
   columnHelper.accessor("fmt", {
     header: "Source",
@@ -671,8 +670,17 @@ function buildColumns(labels: PartyLabels, rowSend: RowSendContext) {
   // this codebase has a documented habit of letting an absent value render as a
   // confident claim, and a dash under "What's needed" is exactly that shape — it
   // reads as "we checked, nothing needed" whether or not anything was checked. An
-  // empty cell beside a pill that says "Delivered" is the honest rendering, and the
-  // sr-only text below gives assistive tech the same reading rather than a blank.
+  // empty cell beside a pill that says "Delivered" is the honest rendering.
+  //
+  // It returns `null`, NOT an `sr-only` span, and that is load-bearing. An sr-only
+  // span here doubled the page height: Tailwind's `sr-only` is `position:absolute`,
+  // nothing between this <td> and the initial containing block is positioned, so the
+  // span's static position — deep inside a table that scrolls INSIDE a 421px card —
+  // was measured against the document instead of the scroll container. The last row's
+  // span sat at y≈1756 and `documentElement.scrollHeight` went 900 → 1758, i.e. ~860px
+  // of blank canvas under the footer. Desktop-only, because only this table rendered
+  // it. An empty cell needs no announcement: the Status cell beside it already says
+  // what the order is doing.
   columnHelper.display({
     id: "needed",
     header: "What's needed",
@@ -680,7 +688,7 @@ function buildColumns(labels: PartyLabels, rowSend: RowSendContext) {
     cell: ({ row }) => {
       const next = rowNextStep(row.original.rawStatus, row.original.issues);
       if (!next) {
-        return <span className="sr-only">Nothing needed — this order is moving on its own</span>;
+        return null;
       }
       return (
         <span
@@ -692,7 +700,7 @@ function buildColumns(labels: PartyLabels, rowSend: RowSendContext) {
         </span>
       );
     },
-    size: 208,
+    size: 176,
   }),
   // Status — ONE cell, two registers: the word, and where in the run it stopped.
   //
@@ -718,38 +726,37 @@ function buildColumns(labels: PartyLabels, rowSend: RowSendContext) {
     cell: (info) => {
       const stage = journeyStage(info.getValue(), info.row.original.rawStatus);
       return (
-        <div style={{ minWidth: 132, maxWidth: 178 }}>
+        <div>
           {/* Canonical status pill — keyed on the RAW backend OrderStatus so it can
               tell `ready` ("Ready to send") apart from `ready_to_deliver` ("Queued to
               send"); the collapsed display `status` can't (see UnifiedStatusBadge). */}
           <UnifiedStatusBadge status={info.row.original.rawStatus} icon />
-          {/* The track and its caption are ONE role="img" whose name says the step and
-              the status. The dots are aria-hidden decoration — a screen reader used to
-              announce the empty string here. The pill above already voices the status,
-              so the name is not duplicated aloud: it is the position that is new. */}
+          {/* The track is a role="img" whose accessible name carries the step number,
+              the stage name AND the status ("Step 3 of 5: Validate. Needs review."), so
+              nothing was lost when the printed caption came out from under it — the dots
+              were aria-hidden decoration before and still are.
+              The caption is gone because the reason it existed is gone. It was added
+              when this was a column of FIVE BARE DOTS with no words anywhere near them;
+              the pill now sits directly above the same dots and says the status in
+              words, and the legend above the table is what names positions 1-5. Keeping
+              a third line here cost 15px on EVERY row — 44px to 59px, a quarter of the
+              queue's density — on the screen whose whole job is scanning 50-200 orders.
+              `pipelineCaption` is still the single source of those words: it feeds the
+              accessible name through pipelineAccessibleName. */}
           <div
             data-pipeline
             role="img"
             aria-label={pipelineAccessibleName(stage, statusLabel(info.row.original.rawStatus))}
-            className="mt-1.5"
+            className="mt-0.5"
           >
             <span aria-hidden="true" style={{ display: "block" }}>
               <StatusJourney stage={stage} compact />
-            </span>
-            <span
-              aria-hidden="true"
-              className="mt-1 block text-[10px] tabular-nums"
-              // --ink-muted #56627A on white = 6.13:1 (AA). --ink-faint #8A93A5 would be
-              // 3.09:1 — below AA for text, which is why the caption is not faint.
-              style={{ color: "var(--ink-muted)", whiteSpace: "nowrap" }}
-            >
-              {pipelineCaption(stage)}
             </span>
           </div>
         </div>
       );
     },
-    size: 186,
+    size: 136,
   }),
   columnHelper.accessor("ageMin", {
     header: "Updated",
