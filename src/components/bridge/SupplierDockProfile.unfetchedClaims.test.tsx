@@ -249,7 +249,9 @@ describe("SupplierDockProfile — the catalog does not report a failed fetch as 
 
     renderProfile("catalog", { "supplier-catalog": resolved(CATALOG_FULL) }, ["catalog", "populated"]);
     expect(present(CATALOG_EMPTY_CLAIM)).toBe(false);
-    expect(screen.getByText("ACM-PL-22")).toBeInTheDocument();
+    // Two renderings, as on every other table on this screen: the table for sm and up, the
+    // stacked cards below it. Both carry the code, so this counts rather than assuming one.
+    expect(screen.getAllByText("ACM-PL-22").length).toBeGreaterThan(0);
   });
 });
 

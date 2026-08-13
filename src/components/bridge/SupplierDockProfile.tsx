@@ -1178,28 +1178,57 @@ function CatalogTab({ supplierId }: { supplierId: string }) {
         </div>
       ) : (
         <div style={{ border: "1px solid #E5E8EE", borderRadius: 8, overflow: "hidden" }}>
-          <table className="w-full border-collapse" style={{ fontSize: 12 }}>
-            <thead>
-              <tr style={{ background: "#F6F7FA", color: MUTED, textAlign: "left" }}>
-                <th style={{ padding: "7px 10px", fontWeight: 700 }}>Code</th>
-                <th style={{ padding: "7px 10px", fontWeight: 700 }}>Name</th>
-                <th style={{ padding: "7px 10px", fontWeight: 700 }}>Unit</th>
-                <th style={{ padding: "7px 10px", fontWeight: 700, textAlign: "right" }}>Price</th>
-                <th style={{ padding: "7px 10px", fontWeight: 700 }}>Barcode</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((p) => (
-                <tr key={p.id} style={{ borderTop: "1px solid #EEF0F4" }}>
-                  <td style={{ padding: "6px 10px", fontFamily: "'JetBrains Mono',monospace", color: INK }}>{p.code}</td>
-                  <td style={{ padding: "6px 10px", color: INK }}>{p.name ?? "—"}</td>
-                  <td style={{ padding: "6px 10px", color: MUTED }}>{p.unit ?? "—"}</td>
-                  <td style={{ padding: "6px 10px", textAlign: "right", fontFamily: "'JetBrains Mono',monospace", color: MUTED }}>{p.price != null ? p.price : "—"}</td>
-                  <td style={{ padding: "6px 10px", fontFamily: "'JetBrains Mono',monospace", color: MUTED }}>{p.barcode ?? "—"}</td>
+          {/* Five columns, two of them mono — this table cannot fit a phone. It used to be wrapped
+              in `overflow: hidden`, which clipped the last columns off with no way to reach them.
+              Same treatment as every other table on this screen: a real table that scrolls from sm
+              up, stacked cards below. The scroll container is focusable so the columns past the
+              fold are reachable by keyboard, not just by trackpad. */}
+          <div
+            className="hidden sm:block overflow-x-auto"
+            tabIndex={0}
+            role="region"
+            aria-label="Product catalog"
+          >
+            <table className="w-full border-collapse" style={{ fontSize: 12, minWidth: 560 }}>
+              <thead>
+                <tr style={{ background: "#F6F7FA", color: MUTED, textAlign: "left" }}>
+                  <th style={{ padding: "7px 10px", fontWeight: 700 }}>Code</th>
+                  <th style={{ padding: "7px 10px", fontWeight: 700 }}>Name</th>
+                  <th style={{ padding: "7px 10px", fontWeight: 700 }}>Unit</th>
+                  <th style={{ padding: "7px 10px", fontWeight: 700, textAlign: "right" }}>Price</th>
+                  <th style={{ padding: "7px 10px", fontWeight: 700 }}>Barcode</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {items.map((p) => (
+                  <tr key={p.id} style={{ borderTop: "1px solid #EEF0F4" }}>
+                    <td style={{ padding: "6px 10px", fontFamily: "'JetBrains Mono',monospace", color: INK }}>{p.code}</td>
+                    <td style={{ padding: "6px 10px", color: INK }}>{p.name ?? "—"}</td>
+                    <td style={{ padding: "6px 10px", color: MUTED }}>{p.unit ?? "—"}</td>
+                    <td style={{ padding: "6px 10px", textAlign: "right", fontFamily: "'JetBrains Mono',monospace", color: MUTED }}>{p.price != null ? p.price : "—"}</td>
+                    <td style={{ padding: "6px 10px", fontFamily: "'JetBrains Mono',monospace", color: MUTED }}>{p.barcode ?? "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Phone: the same rows, stacked. Code leads because it is what the operator is looking
+              for; unit, price and barcode only appear when the catalog actually carries them. */}
+          <ul className="m-0 list-none p-0 sm:hidden">
+            {items.map((p) => (
+              <li key={p.id} className="px-2.5 py-2" style={{ borderTop: `1px solid ${LINE}` }}>
+                <div className="text-[12px] font-semibold" style={{ color: INK, fontFamily: MONO }}>{p.code}</div>
+                {p.name && <div className="mt-0.5 text-[12px]" style={{ color: INK }}>{p.name}</div>}
+                <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px]" style={{ color: MUTED }}>
+                  {p.unit && <span>Unit {p.unit}</span>}
+                  {p.price != null && <span style={{ fontFamily: MONO }}>Price {p.price}</span>}
+                  {p.barcode && <span style={{ fontFamily: MONO }}>Barcode {p.barcode}</span>}
+                </div>
+              </li>
+            ))}
+          </ul>
+
           {data && data.total > items.length && (
             <div style={{ padding: "6px 10px", fontSize: 11, color: MUTED, borderTop: "1px solid #EEF0F4" }}>Showing {items.length} of {data.total}. Refine with search.</div>
           )}
@@ -1929,16 +1958,11 @@ export function SupplierDockProfile({ id }: { id: string }) {
                 users. The single-form editor below stays the default; this is a quiet
                 entry point that produces the SAME saved config via the SAME APIs. On
                 save it bumps deliveryReloadNonce so the editor reloads what it wrote. */}
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-[8px] px-4 py-2.5" style={{ border: "1px solid #E5E8EE", background: "#FBFCFE" }}>
-              <p className="m-0 text-[12px]" style={{ color: "#5E6779" }}>
-                First time setting up delivery for this {partyNounLower}? We can walk you through it.
-              </p>
-              <DeliveryGuidedSetup
-                supplierId={id}
-                nounLower={partyNounLower}
-                onSaved={() => setDeliveryReloadNonce((n) => n + 1)}
-              />
-            </div>
+            <FirstTimeDeliveryOffer
+              supplierId={id}
+              nounLower={partyNounLower}
+              onSaved={() => setDeliveryReloadNonce((n) => n + 1)}
+            />
             <DeliveryConfigEditor key={deliveryReloadNonce} supplierId={id} />
           </>
         )}
@@ -2152,6 +2176,52 @@ function OrderVolumeCard({ supplierId, nounLower }: { supplierId: string; nounLo
  * guessed at here: a summary that mis-parses a blob is the same defect wearing
  * a different hat, and the Delivery tab shows the real thing.
  */
+/**
+ * The "First time setting up delivery?" entry point, offered only when it is true.
+ *
+ * It used to render unconditionally, so a supplier with a working, tested delivery setup was
+ * asked every visit whether this was their first time — and the wizard behind it builds a config
+ * from scratch rather than carrying the saved values through, so accepting the offer on a
+ * configured supplier is how you lose a working one.
+ *
+ * Reuses the delivery-config query the Overview summary already runs (same key, same cache, no
+ * extra request). The offer needs a definite "nothing is configured": while the answer is loading
+ * or the request failed, we do not know, and an unknown must not render as a confident "you have
+ * not set this up yet".
+ */
+function FirstTimeDeliveryOffer({
+  supplierId,
+  nounLower,
+  onSaved,
+}: {
+  supplierId: string;
+  nounLower: string;
+  onSaved: () => void;
+}) {
+  const queryEnabled = useQueriesEnabled();
+  const { data, isLoading, isError } = useQuery<DeliveryConfig | null>({
+    queryKey: ["supplier-delivery-config", supplierId],
+    queryFn: () => getDeliveryConfig(supplierId),
+    enabled: queryEnabled,
+    staleTime: 30_000,
+    retry: 1,
+  });
+
+  // `null` is the real answer for "nothing saved" (the API returns 204); `undefined` is "no
+  // answer yet". Only the former earns the offer.
+  const nothingConfigured = data === null;
+  if (!queryEnabled || isLoading || isError || !nothingConfigured) return null;
+
+  return (
+    <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-[8px] px-4 py-2.5" style={{ border: "1px solid #E5E8EE", background: "#FBFCFE" }}>
+      <p className="m-0 text-[12px]" style={{ color: "#5E6779" }}>
+        Setting up delivery for this {nounLower}? We can walk you through it.
+      </p>
+      <DeliveryGuidedSetup supplierId={supplierId} nounLower={nounLower} onSaved={onSaved} />
+    </div>
+  );
+}
+
 function DeliverySummaryBody({
   supplierId,
   nounLower,
