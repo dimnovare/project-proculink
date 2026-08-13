@@ -120,6 +120,19 @@ const REMEDY_BY_ACTION: Record<string, ActionRemedy> = {
     reach: "before_send",
     next: "Ask the sender for the order as CSV, XLSX, PDF or XML, or upload it yourself.",
   },
+  "inbound_email.attachment_skipped_undecodable": {
+    reach: "before_send",
+    next:
+      "Ask the sender to attach the order to a new email rather than forwarding it, or upload the file " +
+      "yourself. The attachment that arrived could not be read, and a forwarded copy usually arrives the " +
+      "same way.",
+  },
+  "inbound_email.attachment_skipped_empty": {
+    reach: "before_send",
+    next:
+      "Ask the sender to attach the order again and check it opens before sending, or upload the file " +
+      "yourself. The attachment that arrived had nothing in it.",
+  },
   "inbound_email.attachment_skipped_too_large": {
     reach: "before_send",
     next: "Ask the sender to split the order, or upload the file directly.",

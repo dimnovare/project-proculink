@@ -308,12 +308,17 @@ describe("CrossingsLog — a parked delivery is not a delivered one", () => {
 
 describe("auditActionManifest — coverage floors", () => {
   it("covers the whole enumerated backend vocabulary", () => {
-    // 47 rows: 42 a production writer can emit + 5 declared-but-unwritten.
+    // 49 rows: 44 a production writer can emit + 5 declared-but-unwritten.
     // Read from ProcuLink @ main 5db0b05 — every `AuditEvents.Add` site in
     // production (there are no AddRange sites), plus AuditController.BuildMessage
     // and the OrdersController error-message query.
-    expect(AUDIT_ACTION_FACTS).toHaveLength(47);
-    expect(REACHABLE_AUDIT_ACTIONS).toHaveLength(42);
+    //
+    // +2 reachable from backend #199 (`inbound_email.attachment_skipped_undecodable`
+    // and `…_empty`), which split one silent attachment-skip branch into two audited
+    // causes. Bumping these numbers is the point: a backend action with no row here
+    // renders as `unknown`, so the count is what makes the manifest's growth deliberate.
+    expect(AUDIT_ACTION_FACTS).toHaveLength(49);
+    expect(REACHABLE_AUDIT_ACTIONS).toHaveLength(44);
   });
 
   it("classifies a substantial number of them as failures", () => {
