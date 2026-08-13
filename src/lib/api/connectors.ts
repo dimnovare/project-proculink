@@ -250,7 +250,9 @@ async function mockValidateConnectorConfig(
 // ── Real implementations ──────────────────────────────────────────────────────
 
 async function realListConnectorManifests(): Promise<ConnectorManifest[]> {
-  const manifests = await apiFetch<ConnectorManifest[]>("/connector-manifests");
+  // Backticked with nothing to interpolate, on purpose — see the note in
+  // src/lib/api/inboundEmail.ts. The reachability sweep reads template literals only.
+  const manifests = await apiFetch<ConnectorManifest[]>(`/connector-manifests`);
   return manifests.map(withResendCaveat);
 }
 
