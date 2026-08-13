@@ -3,7 +3,7 @@ import type {
   DeliveryTestResult,
   UpsertDeliveryConfigRequest,
 } from "./types";
-import { API_BASE_URL, authHeader } from "./core";
+import { API_BASE_URL, authHeader, isApiMockMode } from "./core";
 import { serverReason } from "@/lib/serverText";
 import { orgAdminRefusal } from "./refusal";
 
@@ -33,6 +33,15 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export async function getDeliveryConfig(supplierId: string): Promise<DeliveryConfig | null> {
+  // Mock mode has no delivery config for anyone, and until now it had no way to SAY so: the MSW
+  // handler table keys off a different base URL and never had a delivery-config route, so this
+  // call fell through to a real request that cannot succeed offline. Every reader then saw the
+  // failure state — which was invisible while the surfaces above rendered unconditionally, and
+  // became visible the moment one of them started asking before it spoke.
+  //
+  // `null` is the API's own answer for "nothing saved" (it returns 204), so this is the honest
+  // mock: a browsable supplier with delivery not yet set up.
+  if (isApiMockMode) return null;
   return apiFetch<DeliveryConfig | null>(`/suppliers/${supplierId}/delivery-config`);
 }
 

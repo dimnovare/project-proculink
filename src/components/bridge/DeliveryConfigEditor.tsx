@@ -17,10 +17,15 @@ import { invalidateOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { isArrowKey, rovingRadioNext } from "@/lib/roving-radio";
 import { buildCxmlCredentials } from "@/lib/cxml-credentials";
 import { inspectOutboundUrl, isRefusal } from "@/lib/outboundUrlPolicy";
-import { decideSftpCredentialAction, type SftpAuthMode } from "@/components/bridge/deliveryCredentialAction";
+import {
+  decideHttpCredentialAction,
+  decideSftpCredentialAction,
+  type SftpAuthMode,
+} from "@/components/bridge/deliveryCredentialAction";
 import type { DeliveryConfig, DeliveryProtocol, DeliveryTestResult } from "@/lib/api/types";
 import { useConfirm } from "@/components/ui/confirm";
 import { serverReasonOrNull } from "@/lib/serverText";
+import { describeDeliveryTestOutcome } from "@/components/bridge/deliveryTestOutcome";
 
 type AuthType = "none" | "apikey" | "bearer" | "basic" | "oauth2";
 
@@ -172,6 +177,10 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
 
   // HTTP / ERP auth
   const [authType, setAuthType] = useState<AuthType>("none");
+  // False while the SAVED auth shape is unknown — see decideHttpCredentialAction. The API returns
+  // no auth type, header name or token URL, so for a supplier that already has a credential this
+  // stays false until the operator picks a type, and "none" is never presented as the saved state.
+  const [authShapeChosen, setAuthShapeChosen] = useState(true);
   const [apiKeyHeader, setApiKeyHeader] = useState("X-Api-Key");
   const [apiKeyValue, setApiKeyValue] = useState("");
   const [bearerToken, setBearerToken] = useState("");
@@ -213,6 +222,19 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
           setAutoDeliver(config.autoDeliver);
           setOutputFormat(config.outputFormat ?? "");
           if (config.protocol === "erp_directo") setAuthType("basic");
+          // The header-style auth types (http / Erply) are the ones the API cannot describe back
+          // to us. A saved credential on either means the shape is unknown until the operator
+          // picks one. Directo has a single fixed shape, so it is known; so is "no credential
+          // stored yet", where the form's defaults are the honest starting point.
+          const httpShapeUnknown =
+            (config.protocol === "http" || config.protocol === "erp_erply") && config.hasCredentials;
+          setAuthShapeChosen(!httpShapeUnknown);
+          // "X-Api-Key" is a suggestion for a supplier being set up, but on one that already has a
+          // credential it is a DEFAULT WEARING THE COSTUME OF A SAVED VALUE — non-blank, plausible,
+          // and wrong for every supplier who uses a different header. Blank it so the field cannot
+          // be mistaken for what is stored, and so the save guard can see it is unanswered. The
+          // placeholder still offers the same suggestion.
+          if (httpShapeUnknown) setApiKeyHeader("");
           // B8: the saved SFTP secret's shape. The backend can't tell us password-vs-key, and
           // the editor opens a saved SFTP config in "password" mode (sftpAuthMode is never
           // hydrated), so the loaded shape IS "password" when a saved SFTP credential exists.
@@ -276,9 +298,19 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
 
   const configPreview = JSON.stringify(buildConfigObject(), null, 2);
 
-  // B8: non-null when the SFTP auth method was switched away from the saved shape without a
-  // new secret. Gates the Save button + drives an inline message in the auth section.
-  const credentialBlock = sftpCredentialBlockMessage();
+  // Non-null when saving would silently damage a stored credential: the SFTP auth method was
+  // switched away from the saved shape without a new secret (B8), or an HTTP credential is being
+  // replaced with one of this form's defaults standing in for a value the API never returned.
+  // Gates the Save button + drives an inline message in the auth section.
+  const credentialBlock = sftpCredentialBlockMessage() ?? httpCredentialBlockMessage();
+
+  // One notice, rendered in whichever auth branch is on screen. Both transports refuse the same
+  // way, so they say it the same way.
+  const credentialBlockNotice = credentialBlock ? (
+    <p className="rounded-[6px] px-3 py-2 text-[12px]" role="alert" style={{ background: "#FFF6E5", color: "#8A4B00", border: "1px solid #F0D39A" }}>
+      {credentialBlock}
+    </p>
+  ) : null;
 
   // Live transport verdict for the endpoint field. Only surfaced once something has been typed,
   // so an empty form does not open with a red error.
@@ -446,6 +478,43 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
     return decision.kind === "block" ? decision.message : null;
   }
 
+  /** True for the protocols that use the header-style auth selector rather than a fixed shape. */
+  function usesHttpAuthSelector(): boolean {
+    return protocol === "http" || protocol === "erp_erply";
+  }
+
+  /** The stored auth shape is unknown, and the operator has not stated a replacement. */
+  const authShapeUnknown = usesHttpAuthSelector() && hasSavedCredentials && !authShapeChosen;
+
+  function httpCredentialDecision() {
+    return decideHttpCredentialAction({
+      selected: authType,
+      shapeChosen: authShapeChosen,
+      hasSavedCredentials,
+      fields: {
+        apiKeyHeader,
+        apiKeyValue,
+        bearerToken,
+        basicUsername,
+        basicPassword,
+        tokenUrl,
+        oauthClientId,
+        oauthClientSecret,
+      },
+    });
+  }
+
+  /**
+   * Blocking message when replacing a stored HTTP credential would write one of this form's
+   * defaults over a saved value the API never showed us (a custom API-key header, an OAuth2
+   * token URL, a Basic username).
+   */
+  function httpCredentialBlockMessage(): string | null {
+    if (!usesHttpAuthSelector()) return null;
+    const decision = httpCredentialDecision();
+    return decision.kind === "block" ? decision.message : null;
+  }
+
   function buildCredentialsJson(): string | null {
     if (protocol === "email") return null; // HTTP email API — no credentials needed
     if (protocol === "sftp") {
@@ -475,18 +544,25 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
       return JSON.stringify({ user: basicUsername, password: basicPassword, key: directoKey });
     }
 
-    // http (and erp_erply) use the header-style auth selector
-    if (authType === "none") return hasSavedCredentials ? null : "{\"type\":\"none\"}";
+    // http (and erp_erply) use the header-style auth selector.
+    //
+    // One decision covers all five types, because the old per-type `!secret && hasSavedCredentials`
+    // shortcuts only ever asked whether the SECRET was blank. Every non-secret field in this block
+    // lives in the same stored record and was equally unfillable, so a rotation that supplied the
+    // secret sailed past the shortcut and wrote this form's defaults over the rest.
+    // "keep" → null (the stored credential, whatever shape it is, stays). "block" also returns null
+    // defensively; save() refuses to call the API in that case so nothing reaches the backend.
+    const httpDecision = httpCredentialDecision();
+    if (httpDecision.kind === "keep" || httpDecision.kind === "block") return null;
+
+    if (authType === "none") return "{\"type\":\"none\"}";
     if (authType === "apikey") {
-      if (!apiKeyValue && hasSavedCredentials) return null;
       return JSON.stringify({ type: "apikey", header: apiKeyHeader, value: apiKeyValue });
     }
     if (authType === "bearer") {
-      if (!bearerToken && hasSavedCredentials) return null;
       return JSON.stringify({ type: "bearer", token: bearerToken });
     }
     if (authType === "oauth2") {
-      if (!oauthClientSecret && hasSavedCredentials) return null;
       return JSON.stringify({
         type: "oauth2_client_credentials",
         tokenUrl,
@@ -499,15 +575,15 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
         tokenResponsePath: oauthTokenPath,
       });
     }
-    if (!basicPassword && hasSavedCredentials) return null;
     return JSON.stringify({ type: "basic", username: basicUsername, password: basicPassword });
   }
 
   async function save() {
-    // B8: refuse to save when the SFTP auth method was switched away from the saved shape
-    // without a new secret — otherwise the backend would keep the stale wrong-shape secret
-    // and silently discard the auth-mode change. Surface the message; don't show "saved".
-    const block = sftpCredentialBlockMessage();
+    // Refuse to save when writing the credential would damage what is stored: the B8 SFTP
+    // shape switch with no new secret (the backend would keep the stale wrong-shape secret and
+    // silently discard the auth-mode change), or an HTTP credential replacement with a blank
+    // standing in for a saved value. Surface the message; don't show "saved".
+    const block = credentialBlock;
     if (block) {
       setError(block);
       setJustSaved(false);
@@ -561,6 +637,12 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
       // B8: the just-saved SFTP shape becomes the new baseline so a later switch is detected
       // against what's now stored. Only meaningful when the saved config has a credential.
       setLoadedSftpAuthMode(saved.protocol === "sftp" && saved.hasCredentials ? sftpAuthMode : null);
+      // Back to "keep what is stored". The secret fields are cleared just below, so this form can
+      // no longer rewrite that credential even if it wanted to — and this is the same state a
+      // reload would produce, so the screen after saving matches the screen after returning.
+      setAuthShapeChosen(
+        !((saved.protocol === "http" || saved.protocol === "erp_erply") && saved.hasCredentials),
+      );
       setApiKeyValue("");
       setBearerToken("");
       setBasicPassword("");
@@ -617,6 +699,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
       setCxmlDtdSystemId("");
       setCxmlDtdPublicId("");
       setAuthType("none");
+      setAuthShapeChosen(true); // nothing stored anymore → "none" is now the truth, not a guess.
       setLoadedSftpAuthMode(null); // B8: no saved credential anymore → nothing to protect.
       setTestResult(null);
       setJustSaved(false);
@@ -697,7 +780,11 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
         </label>
       </div>
 
-      <div className="grid gap-0 lg:grid-cols-[220px_minmax(0,1fr)]">
+      {/* The channel picker sits beside the form from 768px up. It used to wait for 1024, so every
+          tablet got the phone layout: a full-width stack with the picker pushed above the fold.
+          220px + the remaining ~500px is a comfortable two-column at tablet width. The denser
+          numeric grids inside the form stay at lg — they genuinely have nowhere to go at 768. */}
+      <div className="grid gap-0 md:grid-cols-[220px_minmax(0,1fr)]">
         <div className="p-4" style={{ borderRight: "1px solid #E5E8EE", background: "#FBFCFE" }}>
           <p id="delivery-protocol-label" className="mb-2 text-[11px] font-semibold uppercase" style={{ color: "var(--ink-faint)" }}>Protocol</p>
           <div className="grid gap-2" role="radiogroup" aria-labelledby="delivery-protocol-label" onKeyDown={handleProtocolKeyDown}>
@@ -940,7 +1027,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                       />
                     </Field>
                   )}
-                  <Field label="Timeout">
+                  <Field label="Timeout (seconds)">
                     <input
                       type="number"
                       min={1}
@@ -989,7 +1076,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                         style={INPUT_STYLE}
                       />
                     </Field>
-                    <Field label="Timeout">
+                    <Field label="Timeout (seconds)">
                       <input
                         type="number"
                         min={1}
@@ -1167,7 +1254,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                         style={INPUT_STYLE}
                       />
                     </Field>
-                    <Field label="Timeout">
+                    <Field label="Timeout (seconds)">
                       <input
                         type="number"
                         min={1}
@@ -1293,14 +1380,24 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                   <div className="grid gap-3 p-3">
                     <Field label="Auth type">
                       <select
-                        value={authType}
+                        value={authShapeUnknown ? "__unknown__" : authType}
                         onChange={(e) => {
+                          if (e.target.value === "__unknown__") return;
                           setAuthType(e.target.value as AuthType);
+                          // The operator has now stated the shape. Until this point the stored
+                          // credential is written back untouched, because we cannot read it.
+                          setAuthShapeChosen(true);
                           markEdited();
                         }}
                         className="h-9 w-full rounded-[5px] px-2 text-[12px]"
                         style={{ ...INPUT_STYLE, background: "#FFF" }}
                       >
+                        {/* A saved credential whose type the API does not report. Showing "None"
+                            here claimed this supplier had no authentication, next to a note
+                            saying a credential was stored. */}
+                        {authShapeUnknown && (
+                          <option value="__unknown__">Keep the saved sign-in (type not shown)</option>
+                        )}
                         {protocol === "erp_directo" ? (
                           <option value="basic">Directo credentials</option>
                         ) : (
@@ -1315,20 +1412,39 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                       </select>
                     </Field>
 
+                    {/* What the reader is owed when the shape is unknown: why the field is blank,
+                        that nothing is broken, and what choosing a type will cost them. */}
+                    {authShapeUnknown && (
+                      <p className="text-[11px] leading-5" style={{ color: "var(--ink-muted)" }}>
+                        This supplier has a sign-in saved, but the type is not stored anywhere we can
+                        read it back, so we will not guess. Deliveries keep using it, and saving other
+                        settings leaves it alone. Pick a type only to replace it — you will need to
+                        re-enter every field, including ones you did not change.
+                      </p>
+                    )}
+
+                    {/* Replacing, not editing: the stored record goes and this form's contents take
+                        its place, so say so before they discover it from a supplier's 401. */}
+                    {hasSavedCredentials && authShapeChosen && (
+                      <p className="text-[11px] leading-5" style={{ color: "var(--amber-text)" }}>
+                        Saving now replaces the saved sign-in with what is in these fields.
+                      </p>
+                    )}
+
                     {authType === "apikey" && (
-                      <div className="grid gap-3 lg:grid-cols-[180px_minmax(0,1fr)]">
+                      <div className="grid gap-3 md:grid-cols-[180px_minmax(0,1fr)]">
                         <Field label="Header">
-                          <input value={apiKeyHeader} onChange={(e) => setApiKeyHeader(e.target.value)} placeholder="X-Api-Key" className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                          <input value={apiKeyHeader} onChange={(e) => { setApiKeyHeader(e.target.value); markEdited(); }} placeholder="X-Api-Key" className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
                         </Field>
                         <Field label="Value">
-                          <input type="password" value={apiKeyValue} onChange={(e) => setApiKeyValue(e.target.value)} placeholder={hasSavedCredentials ? "********" : "sk_live_… (paste the key your supplier gave you)"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                          <input type="password" value={apiKeyValue} onChange={(e) => { setApiKeyValue(e.target.value); markEdited(); }} placeholder={hasSavedCredentials ? "paste the replacement key" : "sk_live_… (paste the key your supplier gave you)"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
                         </Field>
                       </div>
                     )}
 
                     {authType === "bearer" && (
                       <Field label="Token">
-                        <input type="password" value={bearerToken} onChange={(e) => setBearerToken(e.target.value)} placeholder={hasSavedCredentials ? "********" : "paste the bearer token"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                        <input type="password" value={bearerToken} onChange={(e) => { setBearerToken(e.target.value); markEdited(); }} placeholder={hasSavedCredentials ? "paste the replacement token" : "paste the bearer token"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
                       </Field>
                     )}
 
@@ -1385,20 +1501,24 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                     )}
 
                     {authType === "basic" && (
-                      <div className={protocol === "erp_directo" ? "grid gap-3 lg:grid-cols-3" : "grid gap-3 lg:grid-cols-2"}>
+                      <div className={protocol === "erp_directo" ? "grid gap-3 md:grid-cols-2 lg:grid-cols-3" : "grid gap-3 md:grid-cols-2"}>
                         <Field label="Username">
-                          <input value={basicUsername} onChange={(e) => setBasicUsername(e.target.value)} placeholder="supplier-username" className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                          <input value={basicUsername} onChange={(e) => { setBasicUsername(e.target.value); markEdited(); }} placeholder="supplier-username" className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
                         </Field>
                         <Field label="Password">
-                          <input type="password" value={basicPassword} onChange={(e) => setBasicPassword(e.target.value)} placeholder={hasSavedCredentials ? "********" : "supplier password"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                          <input type="password" value={basicPassword} onChange={(e) => { setBasicPassword(e.target.value); markEdited(); }} placeholder={hasSavedCredentials ? "paste the replacement password" : "supplier password"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
                         </Field>
                         {protocol === "erp_directo" && (
                           <Field label="API key">
-                            <input type="password" value={directoKey} onChange={(e) => setDirectoKey(e.target.value)} placeholder={hasSavedCredentials ? "********" : "Optional key"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                            <input type="password" value={directoKey} onChange={(e) => { setDirectoKey(e.target.value); markEdited(); }} placeholder={hasSavedCredentials ? "********" : "Optional key"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
                           </Field>
                         )}
                       </div>
                     )}
+
+                    {/* Same guard as the SFTP branch below: a blank here would overwrite a stored
+                        value the API never returned, so the save is refused rather than silent. */}
+                    {credentialBlockNotice}
                   </div>
                 ) : (
                   <div className="grid gap-3 p-3">
@@ -1437,11 +1557,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                     )}
                     {/* B8: switched auth method away from the saved shape without a new secret —
                         we won't silently keep the old (wrong-shape) secret. Ask for the new one. */}
-                    {credentialBlock && (
-                      <p className="rounded-[6px] px-3 py-2 text-[12px]" role="alert" style={{ background: "#FFF6E5", color: "#8A4B00", border: "1px solid #F0D39A" }}>
-                        {credentialBlock}
-                      </p>
-                    )}
+                    {credentialBlockNotice}
                   </div>
                 )}
               </div>
@@ -1518,26 +1634,32 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                 </div>
               )}
 
-              {/* Verbatim test result (task 8): success/errorMessage/responseCode
-                  exactly as the backend reported them, plus the honesty note —
-                  a 2xx answer is NOT supplier business acceptance. */}
-              {testResult && (
+              {/* The test result, read for what the operator has to do next — see
+                  describeDeliveryTestOutcome. success/errorMessage/responseCode still appear
+                  exactly as the backend reported them; the heading and the guidance only say
+                  what the status code supports. The honesty note stays: a 2xx answer is NOT
+                  supplier business acceptance. */}
+              {testResult && (() => {
+                const outcome = describeDeliveryTestOutcome(testResult);
+                const reason = serverReasonOrNull(testResult.errorMessage);
+                return (
                 <div
                   className="rounded-[6px] px-3 py-2 text-[12px]"
+                  role="status"
                   style={{
-                    background: testResult.success ? "#F0F7F1" : "#FCEBEB",
-                    color: testResult.success ? "#1F6F2A" : "#A52E2E",
-                    border: `1px solid ${testResult.success ? "#CBE8CE" : "#F5C5C5"}`,
+                    background: outcome.tone === "pass" ? "#F0F7F1" : "#FCEBEB",
+                    color: outcome.tone === "pass" ? "#1F6F2A" : "#A52E2E",
+                    border: `1px solid ${outcome.tone === "pass" ? "#CBE8CE" : "#F5C5C5"}`,
                   }}
                 >
-                  <p className="m-0 font-semibold">
-                    {testResult.success ? "Test-fire succeeded" : "Test-fire failed"}
-                    {testResult.responseCode != null ? ` · response code ${testResult.responseCode}` : ""}
-                  </p>
-                  {/* A 200-OK test-fire result carrying the endpoint's captured response body.
-                      Not an ApiHttpError, so the constructor never saw it. */}
-                  {serverReasonOrNull(testResult.errorMessage) && (
-                    <p className="m-0 mt-1 font-medium">{serverReasonOrNull(testResult.errorMessage)}</p>
+                  <p className="m-0 font-semibold">{outcome.title}</p>
+                  {outcome.guidance && (
+                    <p className="m-0 mt-1 leading-5">{outcome.guidance}</p>
+                  )}
+                  {/* The supplier's own words, whatever they were. Kept verbatim and kept last:
+                      the guidance above is derived, this is evidence. */}
+                  {reason && (
+                    <p className="m-0 mt-1 font-medium">Their system said: {reason}</p>
                   )}
                   {testResult.success && (
                     <p className="m-0 mt-1 text-[11px]" style={{ color: "#2E5F35" }}>
@@ -1545,7 +1667,8 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                     </p>
                   )}
                 </div>
-              )}
+                );
+              })()}
             </div>
           )}
         </div>
@@ -1559,7 +1682,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
         )}
         <div className="hidden flex-1 sm:block" />
         <button onClick={testFire} disabled={!savedConfig || testing} title={!savedConfig ? "Save the delivery setup first, then you can test it." : "Send a small test to check the connection."} className="inline-flex h-8 items-center justify-center gap-1.5 rounded-[6px] px-3 text-[12px] font-semibold" style={{ border: "1px solid #D5DAEA", color: "#0B1A2F", background: "#FFF", opacity: !savedConfig ? 0.55 : 1 }}>
-          <Send size={13} /> {testing ? "Testing..." : "Test-fire"}
+          <Send size={13} /> {testing ? "Testing..." : "Test connection"}
         </button>
         <button onClick={save} disabled={saving || !canSave || credentialBlock !== null} title={credentialBlock ?? (!canSave ? "Fill in the required fields first (e.g. Host for SFTP/FTPS, URL for HTTP, or SMTP host + sender for email)." : undefined)} className="inline-flex h-8 items-center justify-center gap-1.5 rounded-[6px] px-3 text-[12px] font-semibold" style={{ border: "none", color: "#FFF", background: saving || !canSave || credentialBlock !== null ? "var(--ink-faint)" : "#0B1A2F" }}>
           <Save size={13} /> {saving ? "Saving..." : "Save delivery"}

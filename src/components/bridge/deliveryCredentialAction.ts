@@ -70,3 +70,126 @@ export function decideSftpCredentialAction({
         : "Enter the password for the new auth method — switching from key auth needs a new password.",
   };
 }
+
+// ── The same problem, one protocol over: HTTP / Erply header-style authentication ──────────
+//
+// SFTP (above) at least knows the shape it opened with, because there are only two shapes and
+// the editor always opens a saved one in "password" mode. The HTTP auth selector has no such
+// luck, and the consequences are worse.
+//
+// Everything the HTTP auth block collects — the auth type itself, the API-key HEADER NAME, the
+// Basic username, and every OAuth2 field except the secret (token URL, client id, scope, grant
+// type, token response field, request format, client auth style) — is written into the SAME
+// encrypted `credentialsJson` blob as the secret. The GET response carries none of it back:
+// `DeliveryConfig` exposes `hasCredentials: boolean` and `credentialsDisplay`, and the backend
+// sets the latter to a CONSTANT mask (`hasCredentials ? "********" : null`,
+// DeliveryConfigService.cs). There is no field on the contract that says which auth type is
+// stored, or on which header, or against which token URL.
+//
+// So the editor opens a supplier saved with Bearer auth showing "Auth type: None" — beside a
+// green "saved credential masked" note, which is the same screen asserting both that a
+// credential exists and that there is no authentication. The display half of that is merely a
+// lie. The write half corrupts data:
+//
+//   • A supplier authenticated by API key on a custom header (`Authorization`) is re-opened to
+//     rotate the key. The header input shows its DEFAULT, `X-Api-Key`, because nothing filled
+//     it in. The operator pastes the new key and saves — and the custom header is overwritten
+//     with `X-Api-Key`. Delivery then presents the key on a header the supplier does not read.
+//   • Worse for OAuth2: rotating only the client secret rewrites `tokenUrl`, `clientId` and
+//     `scope` as empty strings, because those inputs were never filled in either. The token
+//     fetch afterwards has no URL to call.
+//   • Basic auth loses its username the same way.
+//
+// The frontend cannot fix this by restoring the saved values: they are not on the contract, and
+// inventing them is exactly the failure this repo keeps paying for. What it CAN do is refuse to
+// pretend. Two rules:
+//
+//   1. While the operator has not chosen an auth type this session, the saved shape is UNKNOWN.
+//      Do not claim one, and write nothing — `credentialsJson: null` keeps whatever is stored.
+//   2. Once they DO choose one for a supplier that already has a credential, they are replacing
+//      the whole stored record, non-secret fields included. Require the fields that record
+//      needs, rather than silently writing this form's defaults over them.
+
+export type HttpAuthType = "none" | "apikey" | "bearer" | "basic" | "oauth2";
+
+export interface DecideHttpArgs {
+  /** The auth type currently selected in the UI. */
+  selected: HttpAuthType;
+  /**
+   * False until the operator picks an auth type this session. False + a saved credential means
+   * the stored shape is unknown, which is NOT the same as "none".
+   */
+  shapeChosen: boolean;
+  /** True when the backend reported a saved credential (DeliveryConfig.hasCredentials). */
+  hasSavedCredentials: boolean;
+  /** The auth fields as typed, untrimmed. Only the ones the selected type needs are read. */
+  fields: {
+    apiKeyHeader: string;
+    apiKeyValue: string;
+    bearerToken: string;
+    basicUsername: string;
+    basicPassword: string;
+    tokenUrl: string;
+    oauthClientId: string;
+    oauthClientSecret: string;
+  };
+}
+
+/** The non-secret + secret inputs each auth type writes into the stored credential. */
+const HTTP_AUTH_REQUIRED: Record<
+  HttpAuthType,
+  Array<{ key: keyof DecideHttpArgs["fields"]; label: string }>
+> = {
+  none: [],
+  apikey: [
+    { key: "apiKeyHeader", label: "Header" },
+    { key: "apiKeyValue", label: "Value" },
+  ],
+  bearer: [{ key: "bearerToken", label: "Token" }],
+  basic: [
+    { key: "basicUsername", label: "Username" },
+    { key: "basicPassword", label: "Password" },
+  ],
+  oauth2: [
+    { key: "tokenUrl", label: "Token URL" },
+    { key: "oauthClientId", label: "Client ID" },
+    { key: "oauthClientSecret", label: "Client secret" },
+  ],
+};
+
+/**
+ * Pure decision for the HTTP / Erply credential write.
+ *
+ *  • Saved credential, no auth type chosen this session → keep (write null; shape unknown).
+ *  • No saved credential                                → replace (first-time setup, nothing to lose).
+ *  • Chosen type, saved credential, all fields present  → replace (a deliberate, complete rewrite).
+ *  • Chosen type, saved credential, a field left blank  → block (that blank would overwrite a
+ *                                                         stored value this screen cannot show).
+ */
+export function decideHttpCredentialAction({
+  selected,
+  shapeChosen,
+  hasSavedCredentials,
+  fields,
+}: DecideHttpArgs): CredentialAction {
+  if (hasSavedCredentials && !shapeChosen) return { kind: "keep" };
+  if (!hasSavedCredentials) return { kind: "replace" };
+
+  const missing = HTTP_AUTH_REQUIRED[selected]
+    .filter(({ key }) => fields[key].trim() === "")
+    .map(({ label }) => label);
+  if (missing.length === 0) return { kind: "replace" };
+
+  return {
+    kind: "block",
+    message:
+      `Saving replaces this supplier's whole stored credential, and ${formatList(missing)} ` +
+      `${missing.length === 1 ? "is" : "are"} still blank. Fill ${missing.length === 1 ? "it" : "them"} ` +
+      `in, or change the auth type back to leave the saved credential untouched.`,
+  };
+}
+
+function formatList(items: string[]): string {
+  if (items.length <= 1) return items[0] ?? "";
+  return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
+}
