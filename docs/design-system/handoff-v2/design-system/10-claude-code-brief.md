@@ -577,7 +577,14 @@ The build is done when:
 - Decorative gradient backgrounds, sparkle icons, illustrated mascots, glassmorphism.
 - Modals when a drawer or inline editor will do.
 - Modal wizards that hide the source file during review.
-- "Good morning, Maria" greetings on the dashboard. Operators want the queue.
+- ~~"Good morning, Maria" greetings on the dashboard. Operators want the queue.~~
+  > **Overridden by the founder, 2026-07 — do not act on this line.** The dashboard
+  > greets by first name and it ships. `DashboardContextLine.tsx` is the approved
+  > form: a 36px context line carrying greeting + date + the one thing needing
+  > action, with a jump link to it — the queue is not pushed down by a hero, and
+  > the blockers count is `null` while loading so it never fabricates a number. It
+  > has tests (`DashboardContextLine.test.tsx`). See `CLAUDE.md` §12. Deleting it
+  > on the authority of this line would be a regression.
 - Auto-applying AI corrections without a visible accept step.
 - Notched corners everywhere — use `<XCard>`'s cross-section edge as the primary signature instead.
 - The directional-field background gradient on every screen — keep it only for marketing hero areas.
