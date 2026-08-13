@@ -4,9 +4,12 @@
 //   bunx playwright test tests/e2e/p6-supplier-delivery-shots.spec.ts --project=chromium
 import { test, expect } from "@playwright/test";
 
-const BASE = process.env.QA_BASE_URL ?? "http://127.0.0.1:8107";
-/** Non-mock server — see the catalog test for why it cannot share the mock one. */
-const CATALOG_BASE = process.env.QA_NONMOCK_BASE_URL ?? "http://127.0.0.1:8108";
+const BASE = process.env.QA_BASE_URL ?? "";
+
+// Opt-in only. This file drives a hand-started server on a port of the operator's choosing, so in
+// CI — where that server does not exist — it must not run at all. Guarding on the env var rather
+// than on CI detection keeps the rule "no QA_BASE_URL, no run" true everywhere.
+test.skip(!BASE, "QA capture — set QA_BASE_URL to the QA server to run it.");
 const OUT = ".qa-screenshots";
 
 /** A saved HTTP config WITH a credential — the state whose auth type is unknowable. */
