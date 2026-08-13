@@ -85,7 +85,7 @@ const ROWS: AuditLogEntry[] = [
     id: "e-parsed",
     action: "Parsed",
     poNumber: "PO-9999",
-    supplierName: "Baltica",
+    supplierName: "Northwind",
     message: "Parsed",
     payload: null,
   }),
