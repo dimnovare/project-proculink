@@ -851,7 +851,7 @@ export function CrossingsLog() {
                 <div className="eyebrow" style={{ marginBottom: 8 }}>{label}</div>
 
                 {/* Card with rows */}
-                <Card flush>
+                <Card edge="bridge" flush>
                   {entries.map((c, idx) => {
                     // Visual treatment is canonical-event-driven to match the design
                     // (green Validated/Delivered, violet Edited, blue Parsed, slate Created, red Failed).

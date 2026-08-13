@@ -1739,7 +1739,7 @@ export function UploadWorkbench() {
 
         {/* Recent uploads — hidden entirely when there is nothing recent */}
         {recentRows.length > 0 && (
-          <Card flush radius={8} style={{ minWidth: 0 }}>
+          <Card edge="blue" flush radius={8} style={{ minWidth: 0 }}>
             <div
               className="flex items-center px-4 py-3"
               style={{ borderBottom: "1px solid #E5E8EE" }}
@@ -2045,7 +2045,7 @@ function MoreWaysToIngest() {
   ];
 
   return (
-    <Card as="section" flush radius={14}>
+    <Card edge="blue" as="section" flush radius={14}>
       <div className="flex items-baseline justify-between gap-3 px-5 pt-4 pb-1">
         <h2
           className="text-[14px] font-semibold"

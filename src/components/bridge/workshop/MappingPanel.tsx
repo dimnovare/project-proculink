@@ -144,7 +144,7 @@ export function MappingPanel({
       )}
 
       {/* ── Attention rows — the only thing the operator must touch ──────────── */}
-      <Card flush>
+      <Card edge="bridge" flush>
         <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderBottom: "1px solid #EEF0F4" }}>
           <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#0B1A2F" }}>
             Needs you

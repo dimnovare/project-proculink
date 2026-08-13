@@ -164,7 +164,7 @@ function AddressRow({
   const live = state === "active";
 
   return (
-    <Card
+    <Card edge="blue"
       as="li"
       pad="13px 14px"
       radius={8}

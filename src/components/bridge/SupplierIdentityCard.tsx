@@ -118,7 +118,7 @@ export function SupplierIdentityCard({ supplierId }: { supplierId: string }) {
   ].join("|");
 
   return (
-    <Card flush>
+    <Card edge="green" flush>
       <div className="px-5 py-3.5" style={{ borderBottom: `1px solid ${LINE}` }}>
         <h3 className="text-[13px] font-semibold" style={{ color: INK }}>Identifiers</h3>
         <p className="mt-1 text-[12px]" style={{ color: MUTED, lineHeight: 1.5 }}>

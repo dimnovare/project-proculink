@@ -257,7 +257,7 @@ function SupplierRuleBindingsPanel({ supplierId }: { supplierId: string }) {
   const bindings = data ?? [];
 
   return (
-    <Card flush>
+    <Card edge="green" flush>
       <div className="flex items-center justify-between gap-2 px-5 py-3" style={{ borderBottom: `1px solid ${LINE}` }}>
         <div className="flex items-center gap-2">
           <Link2 size={14} strokeWidth={2} color={MUTED} />
@@ -564,7 +564,7 @@ function AcceptanceTab({ supplierId }: { supplierId: string }) {
       )}
 
       {/* Profile header card */}
-      <Card flush>
+      <Card edge="green" flush>
         <div className="flex items-center justify-between gap-3 px-5 py-3.5" style={{ borderBottom: `1px solid ${LINE}` }}>
           <div className="flex items-center gap-2">
             <ShieldCheck size={15} strokeWidth={2} color={MUTED} />
@@ -664,7 +664,7 @@ function AcceptanceTab({ supplierId }: { supplierId: string }) {
       </div>
 
       {/* Rules table / editor */}
-      <Card flush>
+      <Card edge="green" flush>
         <div className="flex items-center justify-between gap-2 px-5 py-3" style={{ borderBottom: `1px solid ${LINE}` }}>
           <span className="text-[13px] font-semibold" style={{ color: INK }}>Rules</span>
           {isEditing && (
@@ -1286,7 +1286,7 @@ function CatalogPushCard({ supplierId }: { supplierId: string }) {
   return (
     /* overflow stays `visible`: this div never declared it, and Card would
        otherwise clip the tinted header row's square corners. */
-    <Card flush radius={8} style={{ overflow: "visible" }}>
+    <Card edge="green" flush radius={8} style={{ overflow: "visible" }}>
       <div style={{ padding: "11px 14px", borderBottom: "1px solid #E5E8EE", background: "#F6F7FA" }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: INK }}>Push from your system</div>
         <div style={{ fontSize: 11.5, color: MUTED, marginTop: 2 }}>
@@ -1697,7 +1697,7 @@ export function SupplierDockProfile({ id }: { id: string }) {
             {/* Summary + recent deliveries */}
             <div className="grid gap-4 lg:grid-cols-2">
               {/* Delivery summary */}
-              <Card flush>
+              <Card edge="green" flush>
                 <div className="flex items-center gap-2 px-5 py-3.5" style={{ borderBottom: `1px solid ${LINE}` }}>
                   <Info size={15} strokeWidth={2} color={MUTED} />
                   <h3 className="text-[13px] font-semibold" style={{ color: INK }}>Delivery summary</h3>
@@ -1738,7 +1738,7 @@ export function SupplierDockProfile({ id }: { id: string }) {
 
               {/* Recent orders — demo list in mock mode, a real query otherwise. */}
               {isApiMockMode ? (
-                <Card flush>
+                <Card edge="green" flush>
                   <div className="flex items-center gap-2 px-5 py-3.5" style={{ borderBottom: `1px solid ${LINE}` }}>
                     <Clock size={15} strokeWidth={2} color={MUTED} />
                     <h3 className="text-[13px] font-semibold" style={{ color: INK }}>Recent orders</h3>
@@ -1771,7 +1771,7 @@ export function SupplierDockProfile({ id }: { id: string }) {
             Saved translations between your buyer codes and this {partyNounLower}&apos;s codes. Once saved,
             ProcuLink applies them automatically on every future order. Mappings are internal — never sent to the {partyNounLower}.
           </p>
-          <Card flush>
+          <Card edge="bridge" flush>
             {/* Card header */}
             <div className="flex flex-col items-start gap-3 px-4 py-4 sm:px-5 sm:flex-row sm:items-center" style={{ borderBottom: `1px solid ${LINE}` }}>
               <Link2 size={17} strokeWidth={2} color={MUTED} className="flex-shrink-0" />
@@ -2344,7 +2344,7 @@ function RecentOrdersPanel({ supplierId, nounLower }: { supplierId: string; noun
        and therefore carries its own copy of this panel's loading, error and retry
        surfaces. Naming the panel is what lets a reader — assistive tech or a test
        — say which of the two it is looking at. */
-    <Card
+    <Card edge="green"
       flush
       role="region"
       aria-labelledby="supplier-recent-orders-heading"

@@ -1512,7 +1512,7 @@ function MapperMobileSummary({
     { label: "Required without a source", value: `${requiredUnmapped}` },
   ];
   return (
-    <Card flush>
+    <Card edge="bridge" flush>
       <div style={{ padding: "10px 12px", borderBottom: "1px solid #EEF0F4", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--ink-faint)" }}>
         Mapping summary
       </div>

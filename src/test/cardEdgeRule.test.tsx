@@ -103,19 +103,32 @@ describe("the card edge is painted from the token, per edge", () => {
       const { container, unmount } = render(<Card edge={edge}>x</Card>);
       const strips = container.querySelectorAll("span[aria-hidden]");
       expect(strips, `edge="${edge}" paints exactly one strip`).toHaveLength(1);
-      // Read the INLINE STYLE ATTRIBUTE, not the parsed CSSOM: jsdom's
-      // CSSStyleDeclaration drops any value containing var(), so
-      // `.style.width` comes back as "" and an assertion against it would
-      // pass or fail for a reason that has nothing to do with the component.
-      const style = (strips[0] as HTMLElement).getAttribute("style") ?? "";
-      expect(style, "the strip width comes from --card-edge").toContain("width: var(--card-edge)");
-      expect(style).toContain(
-        edge === "bridge" ? "--gradient-link-spine" : edge === "blue" ? "--brand-blue" : "--brand-green",
-      );
+      // What jsdom CAN prove: the strip is a full-height overlay pinned to the
+      // left edge. It CANNOT prove the width or the colour — React writes style
+      // through the CSSOM, and jsdom's CSSStyleDeclaration silently drops any
+      // value containing var(), so both `.style.width` and the serialized style
+      // attribute come back without them. Asserting against that would fail for
+      // a reason with nothing to do with this component, so the token wiring is
+      // pinned from source below instead.
+      const s = (strips[0] as HTMLElement).style;
+      expect(s.position).toBe("absolute");
+      expect([s.left, s.top, s.bottom]).toEqual(["0px", "0px", "0px"]);
       unmount();
     }
     const { container } = render(<Card>x</Card>);
     expect(container.querySelectorAll("span[aria-hidden]")).toHaveLength(0);
+  });
+
+  it("the strip's width and colour come from tokens, one per edge", () => {
+    // Source-level, because jsdom cannot round-trip var() (see above). This is
+    // the half that catches someone hardcoding a hex back into the strip.
+    const src = readFileSync(join(SRC, "components/bridge/layout/Card.tsx"), "utf8");
+    expect(src, "the 3px is --card-edge, not a magic number").toContain('width: "var(--card-edge)"');
+    expect(src).toContain('blue: "var(--brand-blue)"');
+    expect(src).toContain('green: "var(--brand-green)"');
+    expect(src).toContain('bridge: "var(--gradient-link-spine)"');
+    // No raw colour literal anywhere in the component.
+    expect(src, "the card surface is tokens only").not.toMatch(/#[0-9A-Fa-f]{3,8}\b/);
   });
 
   it("the edge never changes the content box — it is paint, not layout", () => {

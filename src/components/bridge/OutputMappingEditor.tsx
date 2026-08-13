@@ -173,7 +173,7 @@ function RuleRow({ row, sources, sourceTokens, deliveredFormat, onChange, onRemo
   return (
     /* overflow stays `visible` (this div never declared it) so the source
        picker's popover is not clipped by the row. */
-    <Card pad={10} radius={8} style={{ overflow: "visible" }}>
+    <Card edge="bridge" pad={10} radius={8} style={{ overflow: "visible" }}>
       <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
         <input
           value={rule.outputPath ?? ""}

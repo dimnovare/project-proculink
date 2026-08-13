@@ -101,7 +101,7 @@ function ConfirmationCard({ confirmation, currency }: { confirmation: SupplierCo
   const confirmedCount = lines.filter((l) => l.state === "confirmed").length;
 
   return (
-    <Card flush radius={8}>
+    <Card edge="green" flush radius={8}>
       {/* Header */}
       <div style={{ padding: "12px 14px", borderBottom: "1px solid #E5E8EE", display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10 }}>
         <StatusBadge status={confirmation.status} />

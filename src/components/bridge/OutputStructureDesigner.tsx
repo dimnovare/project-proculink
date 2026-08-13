@@ -1452,7 +1452,7 @@ function CsvDialectEditor({
 
   return (
     /* overflow stays `visible` — this div never declared it. */
-    <Card flush radius={8} style={{ marginBottom: 12, overflow: "visible" }}>
+    <Card edge="green" flush radius={8} style={{ marginBottom: 12, overflow: "visible" }}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
