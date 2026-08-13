@@ -19,7 +19,7 @@ import { PROBLEM_COPY, problemFor, type ProblemCtx, type ProblemStatus } from "@
 import { orderGlyphColor } from "@/components/bridge/CommandPalette";
 import { neededForOrder } from "@/components/bridge/BridgeDashboard";
 import { notifKindFor } from "@/components/bridge/BridgeTopbar";
-import { rowNextStep } from "@/components/bridge/InboxView";
+import { rowNextStep } from "@/components/bridge/rowNextStep";
 import { STATUS_LABELS } from "@/components/bridge/UnifiedStatusBadge";
 import { ROOT, isInternalPageLink, listAppRoutes, matchesAny, normalizePath } from "./appRoutes";
 import { stripComments, syntaxFor } from "./sourceScan";
@@ -332,12 +332,41 @@ describe("the other screens do not paint a stopped order as a healthy one", () =
     );
   });
 
-  test("a healthy row keeps its count line", () => {
-    // Not inverted: on a moving order the line count IS the useful fact, and there
-    // is no action to name. A next-step line on every row is noise, not help.
-    for (const status of ["parsing", "pending_review", "ready", "delivered"]) {
+  test("a MOVING row keeps its count line", () => {
+    // Not inverted: on an order that is running, the line count IS the useful fact and
+    // there is no action to name. A next-step line on every row is noise, not help.
+    //
+    // `pending_review` used to be in this list, and that was the defect: it is not
+    // moving. Nothing in the system will advance it — it is waiting on a person, which
+    // is the one thing an inbox row exists to say. See the test below.
+    for (const status of ["parsing", "transforming", "ready", "delivering", "delivered"]) {
       expect(rowNextStep(status), `${status} rows lost their count line`).toBeNull();
     }
+  });
+
+  test("a row waiting on a person names what the person has to do, not how many lines it has", () => {
+    // The single most common exception state on the screen. It fell through the
+    // problem registry (correctly — nothing has FAILED) and out the other side into
+    // the count branch, so every "Needs review" row in the queue read "14 lines · 3 to
+    // review". A count is not a cause: "14 lines" is equally true of this order, a
+    // delivered one and one still parsing.
+    expect(rowNextStep("pending_review", 3)?.text).toBe("3 item codes to confirm");
+    expect(rowNextStep("pending_review", 1)?.text).toBe("1 item code to confirm");
+    // And it is the SAME sentence the dashboard's "Needs you" preview prints, because
+    // both read one module. This is the assertion that fails if either surface starts
+    // phrasing it locally again.
+    expect(rowNextStep("pending_review", 3)?.text).toBe(
+      neededForOrder({ status: "pending_review" as never, unresolvedCount: 3 }),
+    );
+    // An absent or zero count degrades to the generic line. It must NEVER print a
+    // number nothing supplied — the failure mode where an unfetched value renders as
+    // a confident claim.
+    expect(rowNextStep("pending_review", 0)?.text).toBe("Review before sending");
+    expect(rowNextStep("pending_review", null)?.text).toBe("Review before sending");
+    expect(rowNextStep("pending_review")?.text).toBe("Review before sending");
+    // Amber, not danger: nothing has failed. --amber-text, never --amber — the latter
+    // is 3.65:1 on this background and fails AA at 11-12px.
+    expect(rowNextStep("pending_review", 3)?.color).toBe("var(--amber-text)");
   });
 
   test.each(PROBLEM_BUCKET_STATUSES)("%s: the notification bell classifies it", (status) => {

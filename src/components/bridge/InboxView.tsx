@@ -31,7 +31,6 @@ import { PageHeader } from "./layout/PageHeader";
 import { PageShell } from "./layout/PageShell";
 import { StatusJourney, failedStageFor, isFailureStatus, type CrossingStatus, type OrderStage } from "./StatusJourney";
 import { UnifiedStatusBadge, statusLabel } from "@/components/bridge/UnifiedStatusBadge";
-import { tv2DotColor } from "@/components/bridge/layout/listTableV2";
 import { useOrderDirection, type PartyLabels } from "@/hooks/useOrderDirection";
 import {
   bulkSendConfirmCopy,
@@ -57,7 +56,6 @@ import {
 import {
   PIPELINE_STAGE_NAMES,
   pipelineAccessibleName,
-  pipelineCaption,
   pipelineCardLine,
 } from "./pipelineIndicator";
 import {
@@ -65,10 +63,11 @@ import {
   inboxSortingFor,
   resolveInboxStatusParam,
 } from "./inboxUrlFilter";
-// The two registries the row's second line is derived from — words from the first,
-// colour from the second. Neither is re-stated in this file; see rowNextStep.
-import { problemFor } from "./problem/problemCopy";
-import { statusFact } from "@/lib/orderStatusManifest";
+// The row's "what does this need?" line. It moved out of this file so the dashboard's
+// "Needs you" preview reads the SAME derivation instead of keeping its own copy — the
+// drift that let one screen say "3 item codes to confirm" while the other, the queue an
+// operator lives in, said "14 lines · 3 to review" about the same order.
+import { rowNextStep } from "./rowNextStep";
 import { useConfirm } from "@/components/ui/confirm";
 
 // Per-column metadata. `numeric` right-aligns value cells; `label` is the
@@ -172,55 +171,6 @@ export function journeyStage(status: CrossingStatus, rawStatus: string): OrderSt
 // CrossingStatus, so `transforming` printed "Extracting" there while the desktop badge
 // printed "Preparing output" for the same order. Both viewports now render
 // UnifiedStatusBadge on the raw status — one component, one vocabulary.)
-
-// ─── The row's next step ────────────────────────────────────────────────────────
-
-/**
- * The one line a STOPPED row owes the operator, and the colour it is owed in.
- *
- * Both viewports used to print a count here — "12 lines", the same eleven pixels of
- * type whether the order was mid-parse or had been dead-lettered three days ago.
- * `ProblemCopy.rowAction` has existed for exactly this slot since the problem registry
- * was written ("≤22 chars. The inbox row's second line — the one line that says what to
- * do"), its character budget is pinned by a test that names THIS screen, the order
- * screen renders it and the dashboard's "Needs you" line reads it — and the inbox, the
- * surface the field is named after, never imported the module. So the queue an operator
- * actually lives in was the one place that named a count instead of a next step.
- *
- * TWO REGISTRIES, NOTHING WRITTEN HERE:
- *   words  ← problemFor(rawStatus).rowAction — never re-phrased locally. A state that
- *            needs different words is an edit to problemCopy.ts, so that this line, the
- *            order screen's panel and the dashboard cannot come to describe the same
- *            stopped order in three vocabularies again.
- *   colour ← statusFact(rawStatus).bucket — `failure` reads danger, `parked` reads
- *            amber. Taken from the manifest rather than a status list typed here,
- *            because a hand-list is what that file's own header calls prose: a sixth
- *            backend failure status would join the bucket and this line would go on
- *            painting it as a park with nothing failing.
- *
- * RAW status, never the collapsed CrossingStatus. The red "Failed" pill folds five
- * backend statuses whose next steps are five DIFFERENT sentences — "Upload it again"
- * against "See their reply" against "Retrying automatically", the last of which asks
- * the operator to do nothing at all. Collapsing them is what the pill is for;
- * un-collapsing them is the whole reason `rowAction` exists.
- *
- * --amber-text (#8A5310), NEVER --amber (#C97A14): at 11–12.5px this is body text, and
- * --amber is 3.65:1 on the row's near-white background — under the 4.5:1 floor.
- *
- * Null for a healthy row, which keeps its shipped count line exactly as it was: on a
- * moving order the line count IS the useful fact, and there is no action to name.
- */
-export function rowNextStep(rawStatus: string): { text: string; color: string } | null {
-  const problem = problemFor(rawStatus);
-  if (!problem) return null;
-  // The manifest decides. Its bucket and the registry's own `tone` agree across all
-  // eight states today; the fallback covers the drift where one of the two learns a
-  // status before the other, so an unknown bucket still reads as the tone the copy
-  // was written in rather than silently defaulting to a colour.
-  const bucket = statusFact(rawStatus)?.bucket ?? null;
-  const danger = bucket === null ? problem.tone === "danger" : bucket === "failure";
-  return { text: problem.rowAction, color: danger ? "var(--danger)" : "var(--amber-text)" };
-}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -632,62 +582,40 @@ function buildColumns(labels: PartyLabels, rowSend: RowSendContext) {
     },
     size: 36,
   }),
-  // Order column: PO# + lines/exceptions
+  // Order column: PO# + size of the order.
+  //
+  // The 7px status dot that used to lead the PO is gone. It was the row's THIRD
+  // encoding of one variable — dot, five-node track, and pill — and the only one of
+  // the three carrying no information a colour-blind operator could read: it was
+  // aria-hidden, and its tone was derived from the same status the pill spells out
+  // in words two columns to the right.
+  //
+  // The second line is now only the count, and only the count. "· 3 to review" moved
+  // to the What's needed column, which says what those three are ("3 item codes to
+  // confirm") instead of how many there are.
   columnHelper.accessor("po", {
     header: "Order",
     enableHiding: false,
-    // v2 leading status dot: a small dot coloured by the row's status tone
-    // (via tv2DotColor on the raw backend status) leads the PO# — dot + word,
-    // where the word is the Status column's UnifiedStatusBadge. Colour always
-    // agrees with that badge because both derive from the same status→tone map.
     cell: (info) => (
-      <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-        <span
-          aria-hidden
-          style={{
-            width: 7,
-            height: 7,
-            borderRadius: "50%",
-            background: tv2DotColor(info.row.original.rawStatus),
-            flexShrink: 0,
-          }}
-        />
-        <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
-          <span className="flex items-center gap-1.5" style={{ minWidth: 0 }}>
-            <span
-              className="font-mono text-[12px] font-semibold tabular-nums"
-              style={{ color: INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-            >
-              {info.getValue()}
-            </span>
-            {/* Why this row is in a queue whose chips all count one lower. Without it the
-                only honest reading of "All orders 0" over a visible row is that the
-                screen is broken. */}
-            {info.row.original.isSample && <PracticeChip size="sm" />}
+      <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
+        <span className="flex items-center gap-1.5" style={{ minWidth: 0 }}>
+          <span
+            className="font-mono text-[12px] font-semibold tabular-nums"
+            style={{ color: INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+          >
+            {info.getValue()}
           </span>
-          {/* The second line answers one question, and which question depends on
-              whether the order is moving. Stopped → what to do about it (rowNextStep,
-              off the RAW status, so the five rows behind the one red pill each get
-              their own sentence). Moving → the shipped count, untouched. */}
-          {(() => {
-            const next = rowNextStep(info.row.original.rawStatus);
-            if (next) {
-              return (
-                <div className="text-[11px]" style={{ color: next.color, fontWeight: 600 }}>
-                  {next.text}
-                </div>
-              );
-            }
-            return (
-              <div className="text-[11px]" style={{ color: "#5E6779" }}>
-                {info.row.original.lines} lines{info.row.original.issues > 0 ? ` · ${info.row.original.issues} to review` : ""}
-              </div>
-            );
-          })()}
+          {/* Why this row is in a queue whose chips all count one lower. Without it the
+              only honest reading of "All orders 0" over a visible row is that the
+              screen is broken. */}
+          {info.row.original.isSample && <PracticeChip size="sm" />}
+        </span>
+        <div className="text-[11px]" style={{ color: "var(--ink-muted)" }}>
+          {info.row.original.lines} lines
         </div>
       </div>
     ),
-    size: 188,
+    size: 150,
   }),
   // Buyer → Supplier (or Customer → You in inbound mode)
   columnHelper.display({
@@ -713,13 +641,13 @@ function buildColumns(labels: PartyLabels, rowSend: RowSendContext) {
         </div>
       );
     },
-    size: 320,
+    size: 330,
   }),
   columnHelper.accessor("fmt", {
     header: "Source",
     cell: (info) => <FileChip type={info.getValue()} />,
     meta: { label: "Source" },
-    size: 72,
+    size: 68,
   }),
   columnHelper.accessor("value", {
     header: "Value",
@@ -729,56 +657,106 @@ function buildColumns(labels: PartyLabels, rowSend: RowSendContext) {
       </span>
     ),
     meta: { numeric: true, label: "Value" },
-    size: 110,
+    size: 104,
   }),
-  // Pipeline — the 5-node track, plus the words that make it readable.
+  // What's needed — the cause, in operator language, without a hover or a click.
   //
-  // It used to be five bare 11px dots in 184px: no role, no accessible name, no
-  // caption, and no legend anywhere on the page. A screen reader announced the empty
-  // string. Now the dots are aria-hidden decoration and the cell is one role="img"
-  // whose name says the step AND the status ("Step 3 of 5: Validate. Needs review."),
-  // with the same words printed under it for everyone else. The legend that turns
-  // "3 of 5" into a fact renders once above the table (see PipelineLegend).
+  // This is the column the screen exists for. It used to be an 11px second line
+  // sharing a 188px cell with the PO number, which capped every cause at the
+  // `rowAction` budget of 22 characters; here it gets a column of its own, so a
+  // cause can be a phrase a purchasing coordinator would say out loud.
+  //
+  // A moving order renders NOTHING here, deliberately. Not an em-dash, not "OK":
+  // this codebase has a documented habit of letting an absent value render as a
+  // confident claim, and a dash under "What's needed" is exactly that shape — it
+  // reads as "we checked, nothing needed" whether or not anything was checked. An
+  // empty cell beside a pill that says "Delivered" is the honest rendering.
+  //
+  // It returns `null`, NOT an `sr-only` span, and that is load-bearing. An sr-only
+  // span here doubled the page height: Tailwind's `sr-only` is `position:absolute`,
+  // nothing between this <td> and the initial containing block is positioned, so the
+  // span's static position — deep inside a table that scrolls INSIDE a 421px card —
+  // was measured against the document instead of the scroll container. The last row's
+  // span sat at y≈1756 and `documentElement.scrollHeight` went 900 → 1758, i.e. ~860px
+  // of blank canvas under the footer. Desktop-only, because only this table rendered
+  // it. An empty cell needs no announcement: the Status cell beside it already says
+  // what the order is doing.
+  columnHelper.display({
+    id: "needed",
+    header: "What's needed",
+    enableHiding: false,
+    cell: ({ row }) => {
+      const next = rowNextStep(row.original.rawStatus, row.original.issues);
+      if (!next) {
+        return null;
+      }
+      return (
+        <span
+          data-row-need
+          className="text-[12px]"
+          style={{ color: next.color, fontWeight: 600, display: "block", lineHeight: 1.35 }}
+        >
+          {next.text}
+        </span>
+      );
+    },
+    size: 176,
+  }),
+  // Status — ONE cell, two registers: the word, and where in the run it stopped.
+  //
+  // These were two adjacent columns, 184px of five-node track (captioned "3 of 5 ·
+  // Validate") and 124px of pill (reading "Needs review") — 308px, a quarter of the
+  // row, spent restating one variable in two vocabularies that an operator had to
+  // reconcile themselves. The track is a locked signature of this design and says
+  // something the pill cannot (WHERE it stopped: "Failed at Transform", not just
+  // "Failed"), so it stays; what goes is the SEPARATE column, the second header, and
+  // the 124px. Stacked in one cell the two readings are obviously one fact.
+  //
+  // Sorting is off. This was an accessor sorted on the COLLAPSED CrossingStatus
+  // string, so "sort by Pipeline" ordered rows alphabetically — delivering, extracting,
+  // failed, held — which is neither pipeline order nor any order a person asked for.
+  // A header that sorts by a word while showing a stage is a control that lies; the
+  // filter chips above the table are how this column gets grouped. It stays an
+  // accessor (not a display column) because mock-mode filtering feeds a columnFilter
+  // through this exact column id.
   columnHelper.accessor("status", {
-    header: "Pipeline",
+    header: "Status",
+    enableHiding: false,
+    enableSorting: false,
     cell: (info) => {
       const stage = journeyStage(info.getValue(), info.row.original.rawStatus);
       return (
-        <div
-          data-pipeline
-          role="img"
-          aria-label={pipelineAccessibleName(stage, statusLabel(info.row.original.rawStatus))}
-          style={{ minWidth: 132, maxWidth: 176 }}
-        >
-          <span aria-hidden="true" style={{ display: "block" }}>
-            <StatusJourney stage={stage} compact />
-          </span>
-          <span
-            aria-hidden="true"
-            className="mt-1 block text-[10px] tabular-nums"
-            // --ink-muted #56627A on white = 6.13:1 (AA). --ink-faint #8A93A5 would be
-            // 3.09:1 — below AA for text, which is why the caption is not faint.
-            style={{ color: "var(--ink-muted)", whiteSpace: "nowrap" }}
+        <div>
+          {/* Canonical status pill — keyed on the RAW backend OrderStatus so it can
+              tell `ready` ("Ready to send") apart from `ready_to_deliver` ("Queued to
+              send"); the collapsed display `status` can't (see UnifiedStatusBadge). */}
+          <UnifiedStatusBadge status={info.row.original.rawStatus} icon />
+          {/* The track is a role="img" whose accessible name carries the step number,
+              the stage name AND the status ("Step 3 of 5: Validate. Needs review."), so
+              nothing was lost when the printed caption came out from under it — the dots
+              were aria-hidden decoration before and still are.
+              The caption is gone because the reason it existed is gone. It was added
+              when this was a column of FIVE BARE DOTS with no words anywhere near them;
+              the pill now sits directly above the same dots and says the status in
+              words, and the legend above the table is what names positions 1-5. Keeping
+              a third line here cost 15px on EVERY row — 44px to 59px, a quarter of the
+              queue's density — on the screen whose whole job is scanning 50-200 orders.
+              `pipelineCaption` is still the single source of those words: it feeds the
+              accessible name through pipelineAccessibleName. */}
+          <div
+            data-pipeline
+            role="img"
+            aria-label={pipelineAccessibleName(stage, statusLabel(info.row.original.rawStatus))}
+            className="mt-0.5"
           >
-            {pipelineCaption(stage)}
-          </span>
+            <span aria-hidden="true" style={{ display: "block" }}>
+              <StatusJourney stage={stage} compact />
+            </span>
+          </div>
         </div>
       );
     },
-    meta: { label: "Pipeline" },
-    size: 184,
-  }),
-  // Status pill — soft rounded-full pill with leading dot + full semantic label
-  columnHelper.display({
-    id: "statusPill",
-    enableHiding: false,
-    header: "Status",
-    // Canonical status pill — one shape/size/padding, Lucide icon + word per tone.
-    // Keyed on the RAW backend OrderStatus so it can tell `ready` ("Ready to send")
-    // apart from `ready_to_deliver` ("Queued to send") — the collapsed display
-    // `status` can't (see UnifiedStatusBadge / STATUS_META).
-    cell: ({ row }) => <UnifiedStatusBadge status={row.original.rawStatus} icon />,
-    size: 124,
+    size: 136,
   }),
   columnHelper.accessor("ageMin", {
     header: "Updated",
@@ -881,6 +859,47 @@ function RowSendButton({ row, ctx }: { row: OrderRow; ctx: RowSendContext }) {
  * actually visible, so the legend never explains something the Columns menu has hidden.
  * --ink-muted #56627A on --bg #F6F7FA = 5.73:1 (AA).
  */
+/**
+ * The list failed to load — said inside the list, with the retry attached to it.
+ *
+ * Deliberately NOT an EmptyState: an empty state describes a queue that is fine and
+ * has nothing in it, and the whole point here is that we do not know what the queue
+ * holds. The wording says which is which, and the surrounding chrome (chips, search,
+ * counts) stays mounted so a different filter is still one click away.
+ */
+function QueueLoadError({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div
+      data-queue-load-error
+      role="alert"
+      className="flex flex-col items-center justify-center gap-3 px-6 py-16 text-center"
+    >
+      <div
+        aria-hidden
+        className="flex h-[46px] w-[46px] items-center justify-center rounded-full"
+        style={{ background: "var(--danger-soft)" }}
+      >
+        <span className="text-[22px]" style={{ color: "var(--danger)" }}>⚠</span>
+      </div>
+      <p className="text-[14px] font-semibold" style={{ color: "var(--ink)" }}>
+        Couldn&apos;t load your orders
+      </p>
+      <p className="max-w-[380px] text-[13px]" style={{ color: "var(--ink-muted)" }}>
+        This is a problem loading the list, not a problem with your orders — nothing has
+        been lost. Try again, or switch to a different filter above.
+      </p>
+      <button
+        type="button"
+        onClick={onRetry}
+        className="mt-2 rounded-[6px] px-4 text-[12.5px] font-semibold"
+        style={{ height: 32, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--ink)" }}
+      >
+        ↻ Try again
+      </button>
+    </div>
+  );
+}
+
 function PipelineLegend() {
   return (
     <div
@@ -1241,6 +1260,13 @@ export function InboxView() {
     enableRowSelection: (row) => isBulkSelectable(row.original.rawStatus),
   });
 
+  // The table's real minimum: what the columns actually on screen add up to. Recomputed
+  // when the Columns menu changes visibility, which is the case the old hard-coded
+  // constant could not see.
+  const tableMinWidth = table
+    .getVisibleLeafColumns()
+    .reduce((sum, col) => sum + col.getSize(), 0);
+
   const { rows } = table.getRowModel();
 
   // Client-side text search only in mock mode (live mode searches server-side).
@@ -1271,6 +1297,15 @@ export function InboxView() {
   const pagedRows = isApiMockMode
     ? filteredRows.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
     : filteredRows;
+
+  // True when a column sort can only reach part of what the operator is filtering.
+  //
+  // Mock mode holds every row in `data` and slices AFTER sorting, so its sort really
+  // is queue-wide. Live mode fetches one page and sorts that, and no amount of UI can
+  // change it from here: the server takes no sort parameter at all. This flag is what
+  // the header control and the footer both read, so the screen makes ONE claim about
+  // its own reach instead of quietly making the wrong one.
+  const sortIsPageScoped = !isApiMockMode && totalPages > 1;
 
   const selectedCount = Object.keys(rowSelection).length;
   // Parked rows currently in the selection. The confirm dialog is the hard gate, but
@@ -1389,42 +1424,20 @@ export function InboxView() {
   // shows the skeleton; subsequent page/filter fetches keep prior rows visible.
   const isInitialLoading = !isApiMockMode && isLoading && !ordersPage;
 
-  // Error state
-  if (!isApiMockMode && isError) {
-    return (
-      <PageShell variant="wide" className="flex flex-col items-center justify-center">
-        <div style={{ textAlign: "center" }}>
-          <div
-            style={{
-              width: 46,
-              height: 46,
-              borderRadius: "50%",
-              background: "#FBE3E3",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              margin: "0 auto 14px",
-            }}
-          >
-            <span style={{ fontSize: "22px", color: "#B43838" }}>⚠</span>
-          </div>
-          <div style={{ fontWeight: 600, fontSize: "16px", color: "#0B1A2F" }}>
-            Couldn't load the queue
-          </div>
-          <div className="muted" style={{ fontSize: "13px", maxWidth: 380, margin: "6px auto 14px", color: "#5E6779" }}>
-            We couldn&apos;t load your orders right now — your data is safe. Try again in a moment.
-          </div>
-          <button
-            onClick={() => refetch()}
-            className="rounded-[6px] px-4 text-[12.5px] font-medium"
-            style={{ height: 32, border: "1px solid #E5E8EE", background: "#FFFFFF", color: "#0B1A2F" }}
-          >
-            ↻ Retry
-          </button>
-        </div>
-      </PageShell>
-    );
-  }
+  // A failed fetch is a state of the LIST, not of the page.
+  //
+  // This used to be an early return that swapped the entire screen for a bare card,
+  // taking the filter chips, the search box, the counts and the Upload action with it.
+  // An operator whose "Failed" view timed out could not so much as try "All orders"
+  // without a browser reload — the one affordance that might have worked was removed
+  // by the error telling them something had not.
+  //
+  // It also has to outrank the empty state. `pagedRows` is [] after a failed fetch
+  // exactly as it is for an account with nothing in it, and the empty branch says
+  // "Your inbox is clear" — a confident, favourable, wrong claim, which is the defect
+  // shape this codebase has hit on four unrelated surfaces. Every list branch below
+  // therefore tests `hasLoadError` FIRST.
+  const hasLoadError = !isApiMockMode && isError;
 
   return (
     <PageShell variant="wide" className="flex flex-col">
@@ -1802,7 +1815,9 @@ export function InboxView() {
                 <div className="h-[15px] w-2/3 rounded bg-[#EEF1F6] animate-pulse" />
               </div>
             ))}
-          {!isInitialLoading && pagedRows.length === 0 && (
+          {/* Error outranks empty — see hasLoadError. */}
+          {hasLoadError && <QueueLoadError onRetry={() => refetch()} />}
+          {!hasLoadError && !isInitialLoading && pagedRows.length === 0 && (
             <div className="flex flex-col items-center justify-center py-16 px-6 text-center gap-3">
               <div style={{ fontSize: 28, color: "#CBD0DA" }}>⊘</div>
               {isFiltered ? (
@@ -1871,7 +1886,7 @@ export function InboxView() {
               style={{ background: "#FFFFFF", border: "1px solid #E5E8EE", boxShadow: "0 1px 2px rgba(11,26,47,0.05)" }}
             >
             <button
-              className="block w-full px-4 py-3.5 text-left transition-colors active:bg-[#F6F7FA]"
+              className="block w-full px-4 py-3 text-left transition-colors active:bg-[#F6F7FA]"
               style={{ background: "transparent", border: 0, minHeight: 44 }}
               onClick={() => router.push(`/inbox/${row.original.id}`)}
             >
@@ -1894,7 +1909,8 @@ export function InboxView() {
                       character-for-character what it always did. */}
                   <p className="mt-0.5 text-[12.5px]" style={{ color: "var(--ink-faint)" }}>
                     {row.original.age} ago
-                    {rowNextStep(row.original.rawStatus) === null && ` · ${row.original.lines} lines`}
+                    {rowNextStep(row.original.rawStatus, row.original.issues) === null &&
+                      ` · ${row.original.lines} lines`}
                     {" · "}
                     <span className="whitespace-nowrap">{row.original.valueLabel}</span>
                   </p>
@@ -1917,7 +1933,7 @@ export function InboxView() {
                   mutually exclusive — the cards that grow are exactly the ones with no
                   button under them, and the card's own hit area only gets taller. */}
               {(() => {
-                const next = rowNextStep(row.original.rawStatus);
+                const next = rowNextStep(row.original.rawStatus, row.original.issues);
                 if (!next) return null;
                 return (
                   <p className="mb-2 text-[12.5px]" style={{ color: next.color, fontWeight: 600 }}>
@@ -1931,14 +1947,15 @@ export function InboxView() {
               <p className="mb-2 text-[12px] tabular-nums" style={{ color: "var(--ink-muted)" }}>
                 {pipelineCardLine(journeyStage(row.original.status, row.original.rawStatus))}
               </p>
-              <div className="mb-2 flex items-center gap-2">
-                <FileChip type={row.original.fmt} />
-                {row.original.issues > 0 && (
-                  <span className="rounded px-1.5 py-0.5 text-[10.5px] font-semibold" style={{ background: "#FBE3E3", color: "#B43838" }}>
-                    {row.original.issues} to review
-                  </span>
-                )}
-              </div>
+              {/* Format chip and both parties on ONE line.
+                  They were three stacked blocks — a chip row, then buyer, then a ↓, then
+                  supplier — which is 46px of card spent on facts that fit across it, on
+                  the viewport where card height decides how many orders an operator can
+                  see at once. Truncation is the same trade the desktop lane cell already
+                  makes, and it degrades to a readable prefix rather than to nothing.
+                  The "N to review" badge went with them: the action line above now says
+                  what those N are ("3 item codes to confirm"), and a count beside a cause
+                  is the duplication this whole change is about. */}
               {(() => {
                 const buyer = row.original.buyer;
                 const hasBuyer = buyer != null && buyer.trim() !== "" && buyer.trim() !== "—";
@@ -1959,25 +1976,20 @@ export function InboxView() {
                 // Missing buyer → one honest line (supplier only) instead of two
                 // disconnected dashes. Present buyer → buyer → supplier rail that
                 // stacks vertically on mobile, horizontal from sm up.
-                if (!hasBuyer) {
-                  return (
-                    <div className="flex items-center gap-1.5 text-[13px]">
-                      <span className="text-[11.5px]" style={{ color: "var(--ink-faint)" }}>{labels.unknownBuyer}</span>
-                      <span aria-hidden style={{ color: "#CBD0DA" }}>→</span>
-                      {supplierSlot}
-                    </div>
-                  );
-                }
                 return (
-                  <div className="flex flex-col items-start gap-1 text-[13px] sm:flex-row sm:items-center sm:gap-2">
-                    <span className="truncate font-medium" style={{ color: BLUE_DEEP }}>{buyer}</span>
-                    <span
-                      aria-hidden
-                      className="h-px w-5 flex-shrink-0 hidden sm:block"
-                      style={{ background: "linear-gradient(90deg, #1E66C9, #2E8E3A)" }}
-                    />
-                    <span aria-hidden className="text-[11px] leading-none sm:hidden" style={{ color: "#CBD0DA" }}>↓</span>
-                    {supplierSlot}
+                  <div className="flex min-w-0 items-center gap-2 text-[12.5px]">
+                    <span className="flex-shrink-0">
+                      <FileChip type={row.original.fmt} />
+                    </span>
+                    {hasBuyer ? (
+                      <span className="truncate font-medium" style={{ color: BLUE_DEEP, minWidth: 0 }}>{buyer}</span>
+                    ) : (
+                      <span className="truncate text-[11.5px]" style={{ color: "var(--ink-faint)", minWidth: 0 }}>
+                        {labels.unknownBuyer}
+                      </span>
+                    )}
+                    <span aria-hidden className="flex-shrink-0" style={{ color: "#CBD0DA" }}>→</span>
+                    <span className="min-w-0 truncate">{supplierSlot}</span>
                   </div>
                 );
               })()}
@@ -2014,9 +2026,14 @@ export function InboxView() {
         <table
           style={{
             width: "100%",
-            // 1180 → 1280: the chevron slot grew to 132px to hold the "Ready to send"
-            // row's primary send button. The table already scrolls horizontally.
-            minWidth: 1280,
+            // Derived, never typed. This was a hard-coded 1280 while the columns summed
+            // to 1238 — 42px of width the table demanded and no cell used — and hiding
+            // a column through the Columns menu did not shrink it by one pixel. On a
+            // 1280px laptop the work area is ~1210px, so the table overflowed by 70px
+            // and the column the operator lost was the LAST one: the send button.
+            // Summing the visible leaf columns means the declared minimum is the real
+            // minimum, and hiding Source or Value now buys back exactly its own width.
+            minWidth: tableMinWidth,
             borderCollapse: "collapse",
             fontSize: 12.5,
             tableLayout: "fixed",
@@ -2078,7 +2095,19 @@ export function InboxView() {
                         <button
                           type="button"
                           onClick={toggleSort}
-                          aria-label={`Sort by ${columnLabel}`}
+                          // WHAT THE CONTROL CAN ACTUALLY DO, not what it looks like it
+                          // does. Sorting is client-side over the rows in `data`, and in
+                          // live mode `data` is ONE server page — `GetOrdersParams` has
+                          // no sort field, so the server is never asked to order anything.
+                          // "Sort by Value descending" on page 1 of 8 therefore returns
+                          // the largest order ON THIS PAGE and looks exactly like the
+                          // largest order in the account. On a single page the two are
+                          // the same set and the plain label is true; past that the label
+                          // says which set it means. Not disabled: reordering what you
+                          // are looking at is genuinely useful — believing you reordered
+                          // the queue is what is not.
+                          aria-label={sortIsPageScoped ? `Sort this page by ${columnLabel}` : `Sort by ${columnLabel}`}
+                          title={sortIsPageScoped ? `Reorders the ${pagedRows.length} orders on this page. The queue spans ${totalPages} pages.` : undefined}
                           style={{
                             display: "inline-flex",
                             alignItems: "center",
@@ -2184,9 +2213,18 @@ export function InboxView() {
               );
             })}
 
+            {/* Error outranks empty — see hasLoadError. Without this the desktop table
+                answers a failed request with "Your inbox is clear". */}
+            {hasLoadError && (
+              <tr>
+                <td colSpan={table.getVisibleLeafColumns().length} style={{ padding: 0 }}>
+                  <QueueLoadError onRetry={() => refetch()} />
+                </td>
+              </tr>
+            )}
             {/* Empty state — filter-aware: 0 rows under a filter/search means "no
                 MATCHING orders" (clear filters), not a genuinely empty inbox. */}
-            {!isInitialLoading && pagedRows.length === 0 && (
+            {!hasLoadError && !isInitialLoading && pagedRows.length === 0 && (
               <tr>
                 <td colSpan={table.getVisibleLeafColumns().length} style={{ textAlign: "center", padding: "64px 0" }}>
                   <div style={{ fontSize: 32, marginBottom: 16, color: "#CBD0DA" }}>⊘</div>
@@ -2289,6 +2327,18 @@ export function InboxView() {
           {practiceOrderNote(population.practice) && <> · {practiceOrderNote(population.practice)}</>}
           {selectedCount > 0 && <span style={{ color: BLUE_DEEP }}> · {selectedCount} selected</span>}
         </span>
+        {/* Said once, in the one place the operator is already reading page numbers.
+            The alternative was to leave "Sort by Value" looking like it ranked the
+            account — the failure this repo keeps meeting, where a partial answer is
+            indistinguishable from a complete one. Search is NOT included in this
+            sentence: in live mode `?search=` goes to the server and really does cover
+            the whole queue, and widening the disclaimer to cover it would trade one
+            false claim for another. */}
+        {sortIsPageScoped && (
+          <span data-sort-scope-note className="text-[11px]" style={{ color: "var(--ink-muted)" }}>
+            Column sorting reorders this page only.
+          </span>
+        )}
         <div className="ml-auto flex items-center gap-2">
           <button
             type="button"

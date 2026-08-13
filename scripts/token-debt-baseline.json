@@ -61,7 +61,7 @@
   "src/components/bridge/ExceptionDetail.tsx": 6,
   "src/components/bridge/FileChip.tsx": 25,
   "src/components/bridge/HelpSlideover.tsx": 3,
-  "src/components/bridge/InboxView.tsx": 167,
+  "src/components/bridge/InboxView.tsx": 150,
   "src/components/bridge/LaneDrawer.tsx": 60,
   "src/components/bridge/layout/HubTabs.tsx": 15,
   "src/components/bridge/layout/listTableV2.ts": 15,
