@@ -34,15 +34,16 @@ import type {
   ReplayValidationFlip,
   ReprocessResponse,
 } from "@/lib/api/types";
+import {
+  replayImpact,
+  summariseReplay,
+  wouldStartFailing,
+  type ReplaySummary,
+} from "@/components/connections/replayImpactModel";
 
 const RECENT_LIMIT_DEFAULT = 20;
 const RECENT_LIMIT_MIN = 1;
 const RECENT_LIMIT_MAX = 50;
-
-/** An order currently passing that would start failing under the replayed revision. */
-function wouldStartFailing(o: ReplayOrderDiff): boolean {
-  return o.currentValidation.passed && !o.draftValidation.passed;
-}
 
 export function ReplayPanel({
   connectionId,
@@ -84,15 +85,10 @@ export function ReplayPanel({
 
   const result = replay.data ?? null;
 
-  const summary = useMemo(() => {
-    if (!result) return null;
-    const orders = result.orders;
-    const outputChanges = orders.filter((o) => o.outputChanged).length;
-    const validationChanges = orders.filter((o) => o.validationChanged).length;
-    const startFailing = orders.filter(wouldStartFailing).length;
-    const errors = orders.filter((o) => !!o.outputError).length;
-    return { total: orders.length, outputChanges, validationChanges, startFailing, errors };
-  }, [result]);
+  const summary = useMemo(
+    () => (result ? summariseReplay(result.orders) : null),
+    [result],
+  );
 
   // Most dangerous first: would-start-failing, then validation-changed, then
   // output-changed, then the rest. Stable within each band by input order.
@@ -300,17 +296,24 @@ function ReplaySummaryHeader({
   revisionStatus,
   versionNo,
 }: {
-  summary: { total: number; outputChanges: number; validationChanges: number; startFailing: number; errors: number };
+  summary: ReplaySummary;
   revisionStatus: string;
   versionNo: number;
 }) {
+  // The ONE verdict. Tone and headline come from the same call, so the fill can
+  // never stay calm under a sentence that is not — the old header keyed its colour
+  // off `startFailing` alone, which is blind to a revision that rendered nothing.
+  const impact = replayImpact(summary);
+  const SHELL: Record<typeof impact.tone, { border: string; bg: string; body: string; strong: string }> = {
+    danger: { border: "var(--danger)", bg: "var(--danger-soft)", body: "var(--danger)", strong: "var(--danger)" },
+    warning: { border: "var(--amber)", bg: "var(--amber-soft)", body: "var(--amber-text)", strong: "var(--ink)" },
+    calm: { border: "var(--border)", bg: "var(--brand-blue-soft)", body: "var(--ink-muted)", strong: "var(--ink)" },
+  };
+  const shell = SHELL[impact.tone];
   return (
     <div
       className="rounded-[8px] px-4 py-3"
-      style={{
-        border: `1px solid ${summary.startFailing > 0 ? "var(--danger)" : "var(--border)"}`,
-        background: summary.startFailing > 0 ? "var(--danger-soft)" : "var(--brand-blue-soft)",
-      }}
+      style={{ border: `1px solid ${shell.border}`, background: shell.bg }}
     >
       <div className="flex items-center gap-2 flex-wrap">
         <span className="text-[12.5px] font-mono font-semibold" style={{ color: "var(--ink)" }}>
@@ -318,23 +321,12 @@ function ReplaySummaryHeader({
         </span>
         <RevisionStatusBadge status={revisionStatus} size="sm" />
       </div>
-      {(() => {
-        const changedCount = summary.outputChanges + summary.validationChanges;
-        const noImpact = changedCount === 0 && summary.startFailing === 0;
-        return (
-          <p
-            className="mt-1.5 text-[12.5px] leading-[1.5] m-0"
-            style={{ color: summary.startFailing > 0 ? "var(--danger)" : "var(--ink-muted)" }}
-          >
-            {noImpact
-              ? "Good news: these recent orders would process the same way under this version — safe to go live."
-              : `This version changes the output for ${changedCount} order${changedCount === 1 ? "" : "s"}. Review the details below before going live.`}
-          </p>
-        );
-      })()}
+      <p className="mt-1.5 text-[12.5px] leading-[1.5] m-0" style={{ color: shell.body }}>
+        {impact.headline}
+      </p>
       <p
         className="mt-1.5 text-[13px] font-semibold leading-[1.5] m-0"
-        style={{ color: summary.startFailing > 0 ? "var(--danger)" : "var(--ink)" }}
+        style={{ color: shell.strong }}
       >
         {summary.total} order{summary.total === 1 ? "" : "s"} replayed · {summary.outputChanges} output change
         {summary.outputChanges === 1 ? "" : "s"} · {summary.validationChanges} validation change
