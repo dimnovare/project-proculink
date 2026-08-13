@@ -16,6 +16,7 @@ import { upsertDeliveryConfig, testFireDelivery } from "@/lib/api/delivery";
 import { invalidateOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import type { DeliveryProtocol, DeliveryTestResult, OutputFormatId } from "@/lib/api/types";
 import { serverReasonOrNull } from "@/lib/serverText";
+import { deliveryTestDisclosure } from "@/components/bridge/deliveryTestDisclosure";
 
 /**
  * Guided delivery setup — an OPT-IN, additive stepper that walks a non-technical
@@ -400,6 +401,7 @@ function WizardModal({
               testing={testing}
               testResult={testResult}
               onTestFire={handleTestFire}
+              protocol={spec?.protocol ?? null}
             />
           )}
 
@@ -835,12 +837,17 @@ function StepTest({
   testing,
   testResult,
   onTestFire,
+  protocol,
 }: {
   saved: boolean;
   testing: boolean;
   testResult: DeliveryTestResult | null;
   onTestFire: () => void;
+  /** The channel being set up. Decides what the test's side effect actually is. */
+  protocol: DeliveryProtocol | null;
 }) {
+  const disclosure = protocol ? deliveryTestDisclosure(protocol) : null;
+
   return (
     <div className="grid gap-3">
       {saved && (
@@ -854,6 +861,19 @@ function StepTest({
         This sends one tiny sample file to the address you configured. It proves ProcuLink can reach
         it — it does <span className="font-semibold">not</span> mean the supplier accepted a real order.
       </p>
+
+      {/* What the test leaves behind, per channel — a file on their server, a message in their
+          inbox, or a request against their live system. See deliveryTestDisclosure: the sentence
+          above says what the test PROVES, this says what it DOES, and they are different things. */}
+      {disclosure && (
+        <div
+          className="rounded-[6px] px-3 py-2 text-[11px] leading-5"
+          style={{ background: "var(--surface-2)", border: "1px solid var(--border)", color: MUTED }}
+        >
+          <p className="m-0">{disclosure.effect}</p>
+          {disclosure.caveat && <p className="m-0 mt-1">{disclosure.caveat}</p>}
+        </div>
+      )}
 
       <button
         type="button"
