@@ -47,7 +47,14 @@ const PASSED_EVIDENCE: RevisionTestEvidence = {
   revisionId: "rev-3",
   passed: true,
   testedAt: "2026-01-04T00:00:00Z",
-  summary: { replay: { passed: true, orderCount: 2, outputErrors: 0, outputChanged: 0, validationChanged: 0, note: null }, conformance: null, error: null },
+  summary: {
+    replay: { passed: true, orderCount: 2, outputErrors: 0, outputChanged: 0, validationChanged: 0, note: null },
+    conformance: null,
+    error: null,
+    // Explicit rather than absent: `parseLeg` is a real leg of the pack, and a fixture
+    // that could omit it is how the leg stayed invisible in the product for months.
+    parseLeg: null,
+  },
 };
 
 // Build a hook return value with overridable bits.

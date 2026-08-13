@@ -39,6 +39,10 @@ import {
 // (src/test/backendCopyVocabulary.test.ts), so it lives in one place rather than two.
 // Its own header explains why a `grep` cannot replace it.
 import { parseCsStringExpressions, stripCsComments } from "./csLiterals";
+import {
+  TEST_PACK_BACKEND_FILE,
+  TEST_PACK_BACKEND_RECORDS,
+} from "@/components/connections/testPackSummary";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // The cross-repo mirror check.
@@ -105,6 +109,8 @@ const OUTPUT_FORMAT_ENUM_REL = "ProcuLink.Core/Services/ITransformService.cs";
 const PROGRAM_REL = "ProcuLink.Api/Program.cs";
 /** The worker host. Registers the same transform layer; `TransformOrderJob` is where transform runs. */
 const WORKER_PROGRAM_REL = "ProcuLink.Worker/Program.cs";
+/** Declares the `TestPackSummary` record and its legs, serialized into `test_result_json`. */
+const CONNECTION_SERVICE_REL = TEST_PACK_BACKEND_FILE;
 
 /**
  * Every C# file this suite parses.
@@ -129,6 +135,7 @@ const PARSED_FILES = [
   OUTPUT_FORMAT_ENUM_REL,
   PROGRAM_REL,
   WORKER_PROGRAM_REL,
+  CONNECTION_SERVICE_REL,
 ] as const;
 
 /**
@@ -438,6 +445,7 @@ describe("the mirror gate decides correctly", () => {
       OUTPUT_FORMAT_ENUM_REL,
       PROGRAM_REL,
       WORKER_PROGRAM_REL,
+      CONNECTION_SERVICE_REL,
     ]);
     expect(missingParsedFiles("/tmp/backend", () => true)).toEqual([]);
     // A checkout with nothing in it must report all three, not zero.
@@ -1623,6 +1631,134 @@ describe("the formats we advertise as output are the formats a transform exists 
   });
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// The connection test-pack summary — the shape stored in `test_result_json`.
+//
+// THE DEFECT THIS EXISTS FOR. `SupplierConnectionService` grew a fourth field,
+// `ParseLegSummary? ParseLeg`, and the frontend's two hand-written copies of the
+// shape never did. The reader was `JSON.parse(json) as TestPackSummary`, and that
+// cast is what hid it: the leg really did arrive on every response, but the value
+// had been asserted into a three-field type, so `summary.parseLeg` was a compile
+// error and every consumer downstream was type-checked into ignoring it. Because
+// `passed` is `replayPassed && conformance… && parsePassed`, a pack that failed only
+// on the parse leg turned the evidence panel red and explained nothing — the one
+// sentence naming the cause was `parseLeg.note`, and nothing was allowed to read it.
+//
+// No check running in a browser can catch that: an unknown key and an absent key are
+// indistinguishable there. What catches it is this diff — the C# record's parameter
+// list against the field list `testPackSummary.ts` exports. The NEXT leg the backend
+// adds fails the build here.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * The parameter NAMES of a C# positional record, camelCased the way
+ * `JsonNamingPolicy.CamelCase` writes them (SupplierConnectionService.cs:36).
+ *
+ * Returns null when the record is not declared — never an empty list, so "the parser
+ * went blind" cannot be mistaken for "the record has no parameters" by a comparison
+ * that would then find two empty lists equal.
+ *
+ * Deliberately narrow: it handles `Type Name`, `Type? Name` and `Type? Name = null`,
+ * which is every parameter these four records have. A generic parameter containing a
+ * comma would defeat the split, and the assertion in the fixture test below is what
+ * would notice.
+ */
+function parseRecordParameterNames(cs: string, recordName: string): string[] | null {
+  const declaration = new RegExp(String.raw`record\s+${recordName}\s*\(([^)]*)\)`).exec(
+    stripCsComments(cs),
+  );
+  if (declaration === null) return null;
+  return declaration[1]
+    .split(",")
+    .map((param) => param.split("=")[0].trim())
+    .filter((param) => param.length > 0)
+    .map((param) => {
+      const name = param.split(/\s+/).pop() ?? "";
+      // CamelCase policy lowercases the leading capital. Every parameter in these
+      // records is ordinary PascalCase, so this is the whole of the transformation.
+      return name.charAt(0).toLowerCase() + name.slice(1);
+    });
+}
+
+describe("the connection test-pack summary mirrors the backend record", () => {
+  test("the record parser actually parses (so a green diff means something)", () => {
+    // The real declarations at SupplierConnectionService.cs:587-591, verbatim — including
+    // the defaulted parameter that was the whole defect, and a `bool?` leg.
+    const fixture = `
+    /// <summary>Serializable summary stored in <c>test_result_json</c> (camelCase).</summary>
+    private sealed record TestPackSummary(ReplayLeg? Replay, ConformanceLeg? Conformance, string? Error, ParseLegSummary? ParseLeg = null);
+    private sealed record ConformanceLeg(bool Skipped, bool? Passed, string? Profile, int Errors, int Warnings, string? Note);
+    private sealed record ParseLegSummary(bool Passed, int OrdersReParsed, int ParseChanges, int Failures, int Skipped, string? Note);`;
+
+    expect(parseRecordParameterNames(fixture, "TestPackSummary")).toEqual([
+      "replay",
+      "conformance",
+      "error",
+      "parseLeg",
+    ]);
+    expect(parseRecordParameterNames(fixture, "ConformanceLeg")).toEqual([
+      "skipped",
+      "passed",
+      "profile",
+      "errors",
+      "warnings",
+      "note",
+    ]);
+    expect(parseRecordParameterNames(fixture, "ParseLegSummary")).toEqual([
+      "passed",
+      "ordersReParsed",
+      "parseChanges",
+      "failures",
+      "skipped",
+      "note",
+    ]);
+    expect(parseRecordParameterNames(fixture, "NoSuchRecord")).toBeNull();
+  });
+
+  test("the parser sees the field whose absence was the defect", () => {
+    // The frontend shape as it shipped: three fields, no parse leg. Pinned so a later
+    // reader can see that this diff would have failed on the code that was there, and
+    // so a matcher change that stopped distinguishing the two is caught.
+    const asShipped = ["replay", "conformance", "error"];
+    expect(TEST_PACK_BACKEND_RECORDS.TestPackSummary).not.toEqual(asShipped);
+    expect(TEST_PACK_BACKEND_RECORDS.TestPackSummary).toContain("parseLeg");
+  });
+
+  test("the frontend field lists are themselves non-vacuous", () => {
+    const records = Object.entries(TEST_PACK_BACKEND_RECORDS);
+    expect(records.length, "no record is mirrored, so the diff below checks nothing").toBe(4);
+    for (const [name, fields] of records) {
+      expect(fields.length, `${name} mirrors an empty field list`).toBeGreaterThan(0);
+      expect(new Set(fields).size, `${name} names a field twice`).toBe(fields.length);
+    }
+  });
+
+  test.skipIf(!BACKEND)("every record's fields match the C#, in both directions", () => {
+    const cs = readFileSync(join(BACKEND!, CONNECTION_SERVICE_REL), "utf8");
+
+    for (const [recordName, frontendFields] of Object.entries(TEST_PACK_BACKEND_RECORDS)) {
+      const backendFields = parseRecordParameterNames(cs, recordName);
+      expect(
+        backendFields,
+        `${CONNECTION_SERVICE_REL} declares no \`record ${recordName}\`. Either it was renamed — in ` +
+          "which case src/components/connections/testPackSummary.ts mirrors a shape that no longer " +
+          "exists — or the parser above stopped matching.",
+      ).not.toBeNull();
+
+      recordComparison(
+        `${recordName} (${CONNECTION_SERVICE_REL})`,
+        backendFields!,
+        frontendFields,
+        `${recordName} drifted from src/components/connections/testPackSummary.ts. A field the ` +
+          "backend sends and the frontend does not name is DROPPED silently at the JSON boundary — " +
+          "which is exactly how `parseLeg` was lost, and how a test pack that failed only on the " +
+          "parse leg came to render a red panel with no reason on it. Add the field to the " +
+          "interface, to its *_FIELDS list, and to the reader.",
+      );
+    }
+  });
+});
+
 // ── The vacuity floor ────────────────────────────────────────────────────────
 //
 // Runs after every test in the file, so it is independent of test ORDER — which a
@@ -1638,7 +1774,8 @@ const EXPECTED_COMPARISONS =
   3 + // outbound URL policy: SecureSchemes, LoopbackOnlySchemes, the error-code walk
   2 + // invoices: the InvoiceService writer diff, and the citation walk over every fact
   2 + // transform causes: the per-pattern site count, and the end-to-end routing walk
-  3; // output formats: the buildable set, the standards catalog, PREVIEW_FORMATS
+  3 + // output formats: the buildable set, the standards catalog, PREVIEW_FORMATS
+  Object.keys(TEST_PACK_BACKEND_RECORDS).length; // one per test-pack record mirrored
 
 afterAll(() => {
   if (!BACKEND) return; // the mirror gate already ruled on whether that was allowed
