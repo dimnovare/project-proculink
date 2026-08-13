@@ -19,7 +19,8 @@
 //
 // Presentational + prop-driven. No data fetch here.
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { resolveIncomingView, type IncomingView } from "@/lib/sourceDocument";
 import type { MapperSourcePortProps } from "./MapperWireLayer";
 import type { SourceField, FieldFilter } from "./types";
 import { ConfidenceChip } from "../ConfidenceChip";
@@ -43,8 +44,18 @@ export interface IncomingPaneProps {
   /** Per-row RIGHT-edge PORT props from the wire layer (drag handle + keyboard connect). */
   portProps: (id: string) => MapperSourcePortProps;
   loading?: boolean;
-  /** Honest empty-state framing — API orders with no parsed data are rare but possible. */
-  sourceFileKey?: string | null;
+  /**
+   * Whether this order produced ANY incoming data at all (canonical fields or tokens) — it
+   * only picks which honest empty-state sentence to show.
+   *
+   * This was `sourceFileKey?: string | null` until the document view landed, and the name was
+   * the defect: the model set it to the ORDER ID as a truthiness flag, so a second consumer
+   * read it as a filename and fed it to `sourceTypeFromKey()`, which split on "." and switched
+   * on the extension. An order id has no extension, so the source-format chip returned
+   * `undefined` and never once rendered — without ever failing. The value is a boolean, so it
+   * is now spelled as one, and the real format comes from the source endpoint's content type.
+   */
+  hasIncomingSource?: boolean;
   /** True when extraction fell back to the deterministic parser — softens the empty copy. */
   extractionFailed?: boolean;
   /** Command-palette "Jump to field" → focus + select the search box (counter, not boolean). */
@@ -76,6 +87,26 @@ export interface IncomingPaneProps {
    * when absent, so the copy always reads sensibly.
    */
   supplierName?: string;
+
+  // ── The document view (Task: give the operator back the file they are correcting) ──
+  /**
+   * Which body this column shows. `document` is the default at the call site, because the
+   * field list below is DERIVED from the document and only the document can be checked.
+   * Absent → "fields", which is byte-identical to how this pane rendered before.
+   */
+  view?: IncomingView;
+  /** Absent → no toggle is rendered at all (call sites that have no document to offer). */
+  onView?: (view: IncomingView) => void;
+  /** True only when the source endpoint actually served a renderable file. */
+  documentAvailable?: boolean;
+  /** The rendered document. Only read when `documentAvailable`. */
+  documentSlot?: ReactNode;
+  /**
+   * One sentence saying why there is no document, shown above the field list. 204 (no stored
+   * file) and 410 (purged on the retention schedule) are ORDINARY states, so this is a quiet
+   * note on the pane that already existed — never an error surface.
+   */
+  documentNotice?: string | null;
 }
 
 const FILTERS: { id: FieldFilter; label: string }[] = [
@@ -94,7 +125,7 @@ export function IncomingPane({
   onFilter,
   portProps,
   loading,
-  sourceFileKey,
+  hasIncomingSource,
   extractionFailed,
   focusSearchSignal,
   anchorRef,
@@ -106,7 +137,18 @@ export function IncomingPane({
   readOnly,
   sourceType,
   supplierName,
+  view,
+  onView,
+  documentAvailable,
+  documentSlot,
+  documentNotice,
 }: IncomingPaneProps) {
+  // The request is never allowed to produce an empty pane: with no document to show, this
+  // resolves to the field list that has always been here, WITHOUT rewriting the preference.
+  const effectiveView = resolveIncomingView(view ?? "fields", !!documentAvailable);
+  const tabs = onView ? (
+    <ViewTabs value={effectiveView} onChange={onView} documentAvailable={!!documentAvailable} />
+  ) : null;
   // B2 sub-header: plain-language framing that incoming fields are read-only source data.
   const supplierLabel = supplierName?.trim() || "supplier";
   // 150ms debounce so the controlled query upstream doesn't thrash on every keystroke.
@@ -138,9 +180,19 @@ export function IncomingPane({
   const counts = useMemo(() => incomingFilterCounts(fields), [fields]);
   const groups = useMemo(() => buildIncomingGroups(fields, query, filter), [fields, query, filter]);
 
+  // The document is checkable; the field list below it is not. When one exists, it is what this
+  // column shows — the field list is one tap away and stays the drag-source for wiring.
+  if (effectiveView === "document") {
+    return (
+      <PaneFrame title="Original document" sourceType={sourceType} tabs={tabs}>
+        {documentSlot}
+      </PaneFrame>
+    );
+  }
+
   if (loading) {
     return (
-      <PaneFrame title="What we received" sourceType={sourceType}>
+      <PaneFrame title="What we received" sourceType={sourceType} tabs={tabs} notice={documentNotice}>
         <div style={{ padding: "10px 12px", fontSize: 11, color: "var(--ink-faint)" }}>Loading incoming data…</div>
       </PaneFrame>
     );
@@ -149,18 +201,24 @@ export function IncomingPane({
   if (!hasIncomingData(fields)) {
     const message = extractionFailed
       ? "We couldn't auto-extract fields from this document, so it fell back to the deterministic parser. The parsed values still flow through to the output — map any output fields manually."
-      : !sourceFileKey
+      : !hasIncomingSource
       ? "This order arrived already-structured — there are no extra raw fields to remap. The canonical values flow straight to the output."
       : "No extra incoming fields for this document type — the parsed values are the source of truth.";
     return (
-      <PaneFrame title="What we received" sourceType={sourceType}>
+      <PaneFrame title="What we received" sourceType={sourceType} tabs={tabs} notice={documentNotice}>
         <div style={{ padding: "12px", fontSize: 11.5, color: "var(--ink-faint)", lineHeight: 1.5 }}>{message}</div>
       </PaneFrame>
     );
   }
 
   return (
-    <PaneFrame title="What we received" subtitle={`${counts.all} field${counts.all === 1 ? "" : "s"}`} sourceType={sourceType}>
+    <PaneFrame
+      title="What we received"
+      subtitle={`${counts.all} field${counts.all === 1 ? "" : "s"}`}
+      sourceType={sourceType}
+      tabs={tabs}
+      notice={documentNotice}
+    >
       {/* B2 sub-header — clarifies that these incoming fields are read-only source data
           you map FROM (you don't edit them here). Plain-language, calm, muted. */}
       <div style={{ flexShrink: 0, padding: "10px 18px 0", fontSize: 11.5, color: "var(--ink-faint)", lineHeight: 1.5 }}>
@@ -245,11 +303,15 @@ export function IncomingPane({
 // `sourceType` (optional) renders a SourceTypeChip on the right of the header showing the
 // order's source document type (PDF/CSV/XLSX/…). Default-undefined → no chip rendered.
 function PaneFrame({
-  title, subtitle, sourceType, children,
+  title, subtitle, sourceType, tabs, notice, children,
 }: {
   title: string;
   subtitle?: string;
   sourceType?: string;
+  /** Document / Fields switch. Absent → this pane offers no document. */
+  tabs?: ReactNode;
+  /** Why there is no document to show. Rendered above the body, never as an error. */
+  notice?: string | null;
   children: React.ReactNode;
 }) {
   // app.jsx ColHead: plain white column, faint buyer tint on the 52px header only (NOT a blue
@@ -260,14 +322,82 @@ function PaneFrame({
         <span aria-hidden style={{ flexShrink: 0, width: 9, height: 9, borderRadius: "50%", background: "#1E66C9", boxShadow: "0 0 0 3px #EAF0F8" }} />
         <span style={{ fontFamily: "var(--font-display, 'Bricolage Grotesque', Inter, sans-serif)", fontSize: 13.5, fontWeight: 700, letterSpacing: "-0.01em", color: "#0B1A2F" }}>{title}</span>
         {subtitle && <span style={{ fontSize: 10.5, color: "var(--ink-faint)" }}>{subtitle}</span>}
-        {sourceType && (
-          <span style={{ marginLeft: "auto" }}>
-            <SourceTypeChip kind={sourceType} />
-          </span>
-        )}
+        <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 8 }}>
+          {tabs}
+          {sourceType && <SourceTypeChip kind={sourceType} />}
+        </span>
       </div>
+      {notice && (
+        <p
+          data-testid="incoming-document-notice"
+          style={{
+            flexShrink: 0, margin: 0, padding: "8px 18px", fontSize: 11,
+            lineHeight: 1.5, color: "var(--ink-faint)",
+            borderBottom: "1px solid var(--border)", background: "var(--surface-2)",
+          }}
+        >
+          {notice}
+        </p>
+      )}
       {children}
     </div>
+  );
+}
+
+// ── Document / Fields switch ─────────────────────────────────────────────────
+// Two plain buttons, not a dropdown: this is a binary the operator flips constantly while
+// checking a line against the paper it came from, and it has to be one tap each way.
+//
+// The Document tab is disabled — with the reason on the button — rather than hidden when there
+// is no file. A control that disappears reads as "this screen has no document view"; a disabled
+// one with a title reads as "this order has no document", which is what is actually true.
+function ViewTabs({
+  value, onChange, documentAvailable,
+}: {
+  value: IncomingView;
+  onChange: (v: IncomingView) => void;
+  documentAvailable: boolean;
+}) {
+  const base: React.CSSProperties = {
+    padding: "2px 8px", fontSize: 10.5, fontWeight: 600, lineHeight: 1.6,
+    border: "1px solid var(--border)", background: "var(--surface)",
+    color: "var(--ink-muted)", cursor: "pointer",
+  };
+  const on: React.CSSProperties = {
+    background: "var(--brand-blue-soft)",
+    color: "var(--brand-blue-deep)",
+    borderColor: "var(--brand-blue)",
+  };
+  return (
+    <span style={{ display: "inline-flex" }} role="group" aria-label="What this column shows">
+      <button
+        type="button"
+        onClick={() => onChange("document")}
+        disabled={!documentAvailable}
+        aria-pressed={value === "document"}
+        title={documentAvailable ? "Show the file this order arrived as" : "No document is stored for this order"}
+        data-testid="incoming-view-document"
+        style={{
+          ...base,
+          ...(value === "document" ? on : null),
+          borderRadius: "5px 0 0 5px",
+          opacity: documentAvailable ? 1 : 0.45,
+          cursor: documentAvailable ? "pointer" : "not-allowed",
+        }}
+      >
+        Document
+      </button>
+      <button
+        type="button"
+        onClick={() => onChange("fields")}
+        aria-pressed={value === "fields"}
+        title="Show the values we captured, which you map to the output"
+        data-testid="incoming-view-fields"
+        style={{ ...base, ...(value === "fields" ? on : null), borderRadius: "0 5px 5px 0", borderLeft: "none" }}
+      >
+        Fields
+      </button>
+    </span>
   );
 }
 

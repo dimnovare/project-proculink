@@ -38,7 +38,12 @@ import { practiceDeliveryNote, type PracticeDeliveryState } from "@/lib/practice
 import { PracticeChip } from "../PracticeChip";
 import type { OrderMappingOverride } from "@/lib/api/types";
 import type { CalibrationSummary } from "@/types/procurement";
-import { MapperWorkbench, type MapperWorkbenchLayout, type MapperToolbarState } from "../mapper/MapperWorkbench";
+import {
+  MapperWorkbench,
+  type MapperWorkbenchLayout,
+  type MapperToolbarState,
+  type MapperReceivedDocument,
+} from "../mapper/MapperWorkbench";
 import { UnifiedStatusBadge } from "../UnifiedStatusBadge";
 import { OrderProblemPanel } from "../problem/OrderProblemPanel";
 import { problemFor, waitPhrase } from "../problem/problemCopy";
@@ -50,6 +55,13 @@ import { useResolveActions } from "../review/hooks/useResolveActions";
 import { useAcceptanceValidation } from "../review/hooks/useAcceptanceValidation";
 import { useSendFlow } from "../review/hooks/useSendFlow";
 import { useWorkshopLayout, type WorkshopFocus } from "./useWorkshopLayout";
+import { useLgViewport, useSourceDocument } from "../document/useSourceDocument";
+import { SourceDocumentBody } from "../document/SourceDocumentBody";
+import { MobileSourceDocument } from "../document/MobileSourceDocument";
+import {
+  sourceFormatLabel,
+  sourceUnavailableMessage as sourceDocumentUnavailableMessage,
+} from "@/lib/sourceDocument";
 import { sendBarLabel } from "./sendBarLabel";
 import { InboxBackChip, WorkshopGateShell, poTitleFrom } from "./WorkshopGateChrome";
 import { ParsingGate } from "./ParsingGate";
@@ -502,11 +514,44 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
   });
   const mobilePreviewContent = mobilePreview?.error ? null : (mobilePreview?.content ?? null);
 
+  // ── The original document ───────────────────────────────────────────────────
+  // The operator is asked to confirm that line 14's item code was read correctly. Until this
+  // landed there was nothing on the screen to check it against — the source file was not
+  // rendered anywhere in the application, on any device, in any state.
+  // `hidden lg:flex` hides the desktop mapper but React still mounts it, so this fetch must be
+  // gated on the viewport or a phone downloads the file for a pane it never shows. Below lg the
+  // document is opt-in, inside MobileTriage's collapsed card.
+  const isWideWorkshop = useLgViewport();
+  const sourceDoc = useSourceDocument(orderId, { enabled: isWideWorkshop });
+  const sourceUnavailable = sourceDocumentUnavailableMessage(sourceDoc.state);
+  // Undefined below lg. The desktop mapper is CSS-hidden there but still mounted, and the two
+  // surfaces share one query key — so once the mobile card fills the cache, this pane would
+  // rasterise a second copy of the same page that nobody can see.
+  const receivedDocument = useMemo<MapperReceivedDocument | undefined>(() => {
+    if (!isWideWorkshop) return undefined;
+    return {
+      available: sourceDoc.hasDocument,
+      formatLabel:
+        sourceDoc.state.kind === "document"
+          ? sourceFormatLabel(sourceDoc.state.document.contentType)
+          : null,
+      // While the fetch is still open we say nothing rather than "unavailable" — a notice that
+      // appears and then retracts is worse than a beat of silence.
+      notice: sourceDoc.isLoading ? null : sourceUnavailable,
+      slot:
+        sourceDoc.state.kind === "document" ? (
+          <SourceDocumentBody cacheKey={orderId} document={sourceDoc.state.document} bounded />
+        ) : null,
+    };
+  }, [isWideWorkshop, orderId, sourceDoc.hasDocument, sourceDoc.isLoading, sourceDoc.state, sourceUnavailable]);
+
   // ── Layout (collapse/focus) ─────────────────────────────────────────────────
   const lay = useWorkshopLayout();
   const mapperLayout = useMemo<MapperWorkbenchLayout>(() => ({
     incoming: lay.grid.left,
     preview: lay.grid.right,
+    incomingView: lay.incomingView,
+    onIncomingView: lay.setIncomingView,
     // The per-pane collapse carets drive the SAME focus the All/Mapping/Output tabs do, so the tab
     // highlight always matches what's on screen: collapse the preview → Mapping (received+output);
     // collapse received → Output (output+preview); expand either rail → All (all three).
@@ -1306,6 +1351,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
             initialOverride={mappingOverride}
             order={order}
             layout={mapperLayout}
+            receivedDocument={receivedDocument}
             attentionFirstOutput
             mappingMode="picker"
             previewDefaultFormat={orderDeliveryFormat(order)}
@@ -1402,6 +1448,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
           suggestableCount={suggestableCount}
           highConfCount={highConfCount}
           hintSlot={columnNotes}
+          documentSlot={<MobileSourceDocument orderId={orderId} />}
         />
       </div>
 

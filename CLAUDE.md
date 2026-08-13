@@ -381,10 +381,10 @@ user-facing heading.
 | Table | TanStack Table (virtualized Inbox) |
 | Auth | Clerk (`@clerk/nextjs`). Secret keys in `.env.local` only. |
 | Monitoring | Sentry (`@sentry/nextjs`) |
-| PDF rendering | `pdfjs-dist` |
-| Spreadsheets | `react-data-grid` |
-| Syntax highlighting | `shiki` |
-| Mock data | MSW — 50 orders, 6 suppliers, 4 buyers, 200 SKU mappings |
+| PDF rendering | `pdfjs-dist` — the order review screen's document view (`src/components/bridge/document/PdfDocumentView.tsx`). A JS renderer, not an iframe: `frame-src` in `src/lib/security/csp.ts` allows neither `blob:` nor the API origin, and widening it was considered and rejected. |
+| Spreadsheets | **No grid library.** CSV and XLSX are read in-browser by `src/lib/sheetPreview.ts` — `fflate` for the OOXML unzip, the platform `DOMParser` for the three XML parts — and laid out as a plain table. |
+| Syntax highlighting | **None.** The live output preview marks the just-changed line via `src/components/bridge/mapper/previewHighlightModel.ts`; the document view renders numbered monospace lines. |
+| Mock data | `USE_MOCK` in `src/lib/api/core.ts` — an in-memory fixture set in `src/lib/api-client.ts` (4 orders, `ord-001`…`ord-004`). MSW exists under `src/mocks/` but is a **separate, off-by-default** layer: it needs `NEXT_PUBLIC_MSW=true` and points at its own base URL. |
 | Package manager | **bun** (never npm install) |
 | Hosting | Vercel (frontend) + Railway (backend, .NET 8) |
 

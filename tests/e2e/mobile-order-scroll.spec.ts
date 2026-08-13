@@ -117,7 +117,31 @@ test.describe("mobile order screen scrolls", () => {
         "MobileTriage collapsed to zero height — the body flexed to 0 and the order is unreachable",
       ).toBeGreaterThan(0);
 
-      const geometry = await page.evaluate(() => {
+      const geometry = await measureGeometry(page);
+      assertReachable(geometry);
+
+      // ── The operator's own test: can I get to the button. ─────────────────────
+      // `scrollIntoViewIfNeeded` moves real scrollers only; it cannot fake its way
+      // out of an `overflow: hidden` box, which is exactly the pre-fix state.
+      const sendBar = page.getByTestId("mobile-send-bar");
+      if (await sendBar.count()) {
+        expect(geometry.sendBarReachable, "the send bar has no scrollable ancestor").toBe(true);
+        await sendBar.scrollIntoViewIfNeeded();
+        await expect(sendBar).toBeInViewport();
+      }
+    });
+  }
+});
+
+/**
+ * The measurement, shared by every case above and by the document-card cases below.
+ *
+ * It measures user-scrollability via computed `overflow-y` + `scrollHeight − clientHeight` and
+ * walks ancestors for reachability. It never writes `scrollTop`: a programmatic scroll can move
+ * a box that a finger cannot.
+ */
+async function measureGeometry(page: Page) {
+  return page.evaluate(() => {
         const scrollable = (el: Element) =>
           /(auto|scroll)/.test(getComputedStyle(el).overflowY) &&
           el.scrollHeight - el.clientHeight > 1;
@@ -141,7 +165,18 @@ test.describe("mobile order screen scrolls", () => {
           const oy = getComputedStyle(el).overflowY;
           // `sr-only` is a 1px clip by construction; it holds no reachable content.
           const srOnly = typeof el.className === "string" && el.className.includes("sr-only");
-          if (over > 4 && !/(auto|scroll)/.test(oy) && !srOnly && el.contains(workshopEl.firstElementChild))
+          // Two populations, and the second was a hole.
+          //
+          // ANCESTORS of the workshop's first child are how the original lock was spelled — a
+          // fixed-height column above everything. But that predicate can only ever see boxes
+          // OUTSIDE the triage, so a clipping box added INSIDE it (a document viewer with its
+          // own `overflow: hidden`, say) was invisible to this sweep by construction. Content
+          // stranded inside MobileTriage is exactly as unreachable as content stranded above
+          // it, so both now count.
+          const triageEl = document.querySelector('[data-testid="mobile-triage"]');
+          const inScope =
+            el.contains(workshopEl.firstElementChild) || (!!triageEl && triageEl.contains(el));
+          if (over > 4 && !/(auto|scroll)/.test(oy) && !srOnly && inScope)
             traps.push({
               testid: el.getAttribute("data-testid"),
               cls: (typeof el.className === "string" ? el.className : "").slice(0, 60),
@@ -169,39 +204,30 @@ test.describe("mobile order screen scrolls", () => {
           traps,
           horizontalOverflow: document.documentElement.scrollWidth - window.innerWidth,
         };
-      });
+  });
+}
 
-      // ── The defect, asserted directly. ────────────────────────────────────────
-      // Nothing may clip workshop content that no ancestor can scroll.
-      expect(geometry.traps, "content is clipped with no scrollable ancestor").toEqual([]);
+type Geometry = Awaited<ReturnType<typeof measureGeometry>>;
 
-      // When the column is taller than the viewport, the page scroller must exist.
-      if (geometry.overflows) {
-        expect(
-          geometry.mainScrollable,
-          `content reaches ${geometry.contentBottom}px in a ${geometry.innerHeight}px viewport, but <main> cannot scroll (overflow-y: ${geometry.mainOverflowY})`,
-        ).toBe(true);
-      }
+/** The defect, asserted directly: nothing may clip content that no ancestor can scroll. */
+function assertReachable(geometry: Geometry) {
+  expect(geometry.traps, "content is clipped with no scrollable ancestor").toEqual([]);
 
-      // Neither a touch-action lock nor a stranded body scroll lock.
-      expect(geometry.workshopTouchAction).not.toBe("none");
-      expect(geometry.bodyOverflow).not.toBe("hidden");
-
-      // And no sideways scroll was traded for the vertical one.
-      expect(geometry.horizontalOverflow).toBeLessThanOrEqual(0);
-
-      // ── The operator's own test: can I get to the button. ─────────────────────
-      // `scrollIntoViewIfNeeded` moves real scrollers only; it cannot fake its way
-      // out of an `overflow: hidden` box, which is exactly the pre-fix state.
-      const sendBar = page.getByTestId("mobile-send-bar");
-      if (await sendBar.count()) {
-        expect(geometry.sendBarReachable, "the send bar has no scrollable ancestor").toBe(true);
-        await sendBar.scrollIntoViewIfNeeded();
-        await expect(sendBar).toBeInViewport();
-      }
-    });
+  // When the column is taller than the viewport, the page scroller must exist.
+  if (geometry.overflows) {
+    expect(
+      geometry.mainScrollable,
+      `content reaches ${geometry.contentBottom}px in a ${geometry.innerHeight}px viewport, but <main> cannot scroll (overflow-y: ${geometry.mainOverflowY})`,
+    ).toBe(true);
   }
-});
+
+  // Neither a touch-action lock nor a stranded body scroll lock.
+  expect(geometry.workshopTouchAction).not.toBe("none");
+  expect(geometry.bodyOverflow).not.toBe("hidden");
+
+  // And no sideways scroll was traded for the vertical one.
+  expect(geometry.horizontalOverflow).toBeLessThanOrEqual(0);
+}
 
 /**
  * The desktop model must survive the mobile fix.
@@ -233,4 +259,91 @@ test("desktop keeps the fixed-height pane", async ({ page }: { page: Page }) => 
   expect(desktop.mainOverflow).toBe(0);
   expect(desktop.workshopFillsMain).toBe(true);
   expect(desktop.triageShown).toBe(false);
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The document view, on the surface with the least room for it.
+//
+// MobileTriage is deliberately review-and-send only, and says so. The document is not
+// "advanced editing" though — it is the thing the operator is being asked to agree with — so it
+// ships here too, as a card that is collapsed by default. Collapsed is load-bearing twice: the
+// landing screen keeps its height, and the body is only MOUNTED when open, so no file is
+// downloaded over cellular until someone asks for it.
+//
+// The risk this adds is precisely the one the suite above exists to catch: a viewer wants a
+// bounded, scrollable box, and any fixed-height or clipping ancestor here that is not `lg:`-only
+// re-creates the lock. So the card is opened and the SAME geometry is re-measured — the trap
+// sweep now covers boxes inside the triage, which it could not see before.
+test.describe("the received document on a phone", () => {
+  const HEIGHT = 664;
+
+  test("ord-002 renders its PDF without trapping the page", async ({ page }: { page: Page }) => {
+    await page.setViewportSize({ width: 390, height: HEIGHT });
+    await page.goto("/inbox/ord-002");
+    await page.reload();
+    await expect(page.getByTestId("order-workshop")).toBeVisible({ timeout: 30_000 });
+
+    const card = page.getByTestId("mobile-card-document");
+    await expect(card).toBeAttached();
+    // Floor: nothing is fetched or rendered before the operator asks for it.
+    await expect(page.getByTestId("mobile-source-document")).toHaveCount(0);
+
+    await card.locator("button").first().click();
+    const body = page.getByTestId("mobile-source-document");
+    await expect(body).toBeVisible({ timeout: 30_000 });
+    // The whole path: authenticated fetch → Blob → pdf.js → a rasterised page.
+    await expect(body.getByTestId("source-document-pdf-canvas")).toBeVisible({ timeout: 30_000 });
+
+    assertReachable(await measureGeometry(page));
+
+    const sendBar = page.getByTestId("mobile-send-bar");
+    if (await sendBar.count()) {
+      await sendBar.scrollIntoViewIfNeeded();
+      await expect(sendBar).toBeInViewport();
+    }
+  });
+
+  test("ord-004 says why there is no document, and stays reachable", async ({ page }: { page: Page }) => {
+    await page.setViewportSize({ width: 390, height: HEIGHT });
+    await page.goto("/inbox/ord-004");
+    await page.reload();
+    await expect(page.getByTestId("order-workshop")).toBeVisible({ timeout: 30_000 });
+
+    await page.getByTestId("mobile-card-document").locator("button").first().click();
+
+    const body = page.getByTestId("mobile-source-document");
+    await expect(body).toBeVisible({ timeout: 30_000 });
+    // A purged blob is an ordinary state with its own sentence — not an error, not a blank box.
+    await expect(body).toContainText(/data-retention policy/i);
+    await expect(body.getByTestId("source-document-pdf-canvas")).toHaveCount(0);
+
+    // ord-004 is the blocked order whose tall problem banner caused the original lock, so this
+    // is the case where one more expanded panel matters most.
+    assertReachable(await measureGeometry(page));
+  });
+});
+
+test.describe("the received document on the desktop workshop", () => {
+  test("the left column shows the document, with the field list one click away", async ({
+    page,
+  }: {
+    page: Page;
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/inbox/ord-003");
+    await expect(page.getByTestId("order-workshop")).toBeVisible({ timeout: 30_000 });
+
+    // MobileTriage stays in the DOM (CSS-hidden) and carries its own copy of this card, so
+    // every locator here is scoped to the mapper canvas — the desktop pane under test.
+    const canvas = page.locator("[data-mapper-canvas]");
+
+    // ord-003 is the CSV fixture: the sheet viewer, with row numbers to point at.
+    await expect(canvas.getByTestId("source-document-sheet")).toBeVisible({ timeout: 30_000 });
+    await expect(canvas.getByText("Original document")).toBeVisible();
+
+    // The field list is the drag-source for the connector wires and must always be reachable.
+    await page.getByTestId("incoming-view-fields").click();
+    await expect(canvas.getByText("What we received")).toBeVisible();
+    await expect(canvas.getByTestId("source-document-sheet")).toHaveCount(0);
+  });
 });

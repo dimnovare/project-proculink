@@ -111,6 +111,13 @@ export interface MobileTriageProps {
    * decides its own visibility, this view only decides where it sits.
    */
   hintSlot?: ReactNode;
+  /**
+   * The file this order arrived as, rendered by the caller. Placed in a collapsed card above
+   * the summaries — the document is what the summaries are checked against, and a phone shows
+   * a page of a PO perfectly well, so this screen is not exempt from having it. Absent → the
+   * card is not rendered at all (no empty shell).
+   */
+  documentSlot?: ReactNode;
 }
 
 export function MobileTriage(props: MobileTriageProps) {
@@ -120,7 +127,7 @@ export function MobileTriage(props: MobileTriageProps) {
     issues, blockingIssues, exceptionCount, canSend, crossed, sendState,
     primaryCta, primaryCtaProgress, doneLabel,
     onFix, onFocusField, onSend, resolve, lines,
-    suggestableCount = 0, highConfCount = 0, hintSlot,
+    suggestableCount = 0, highConfCount = 0, hintSlot, documentSlot,
   } = props;
 
   const sendBlockCount = Math.max(blockingIssues, exceptionCount);
@@ -238,6 +245,25 @@ export function MobileTriage(props: MobileTriageProps) {
             You can check and send the order here. For advanced editing (changing how data is sent to the supplier), open this on a laptop or desktop.
           </p>
         </div>
+
+        {/* ── The original document ───────────────────────────────────────
+            First, because it is the ground truth every card below is derived from: the values
+            in "What we received" are only checkable against this. Collapsed by default so the
+            landing screen keeps its height and no file is downloaded until it is asked for —
+            SummaryCard mounts its body only when open. */}
+        {documentSlot && (
+          <SummaryCard
+            testid="mobile-card-document"
+            accent={BLUE}
+            accentWash={BLUE_WASH}
+            accentBorder={BLUE_BORDER}
+            title="Original document"
+            titleHint="The file this order arrived as"
+            defaultOpen={false}
+          >
+            {documentSlot}
+          </SummaryCard>
+        )}
 
         {/* ── Two collapsible summary cards ──────────────────────────────── */}
         <SummaryCard
@@ -465,7 +491,8 @@ function SummaryCard({
   title: string;
   /** Optional plain-language framing shown as a hover tooltip (e.g. "From your file"). */
   titleHint?: string;
-  badge: string;
+  /** Optional count/summary pill. Omitted when the card has no honest number to show. */
+  badge?: string;
   defaultOpen: boolean;
   children: ReactNode;
 }) {
@@ -497,20 +524,22 @@ function SummaryCard({
         }}
       >
         <span style={{ fontSize: 14, fontWeight: 700, color: NAVY, flex: 1, minWidth: 0 }}>{title}</span>
-        <span
-          style={{
-            fontSize: 11.5,
-            fontWeight: 700,
-            color: accent,
-            background: accentWash,
-            border: `1px solid ${accentBorder}`,
-            borderRadius: 5,
-            padding: "2px 8px",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {badge}
-        </span>
+        {badge && (
+          <span
+            style={{
+              fontSize: 11.5,
+              fontWeight: 700,
+              color: accent,
+              background: accentWash,
+              border: `1px solid ${accentBorder}`,
+              borderRadius: 5,
+              padding: "2px 8px",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {badge}
+          </span>
+        )}
         <Chevron open={open} />
       </button>
       {open && (

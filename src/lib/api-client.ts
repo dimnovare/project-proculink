@@ -35,6 +35,13 @@ import {
   ApiHttpError,
   retryAfterFrom,
 } from "./api/core";
+import { mockSourceBytesForKey } from "./api/mockSourceDocument";
+import {
+  SOURCE_PURGED_FALLBACK_MESSAGE,
+  filenameFromDisposition,
+  normalizeContentType,
+  type SourceDocumentState,
+} from "./sourceDocument";
 import { isPlanGateError, planGateMessage } from "./planGate";
 import { orgAdminRefusal, readRefusal } from "./api/refusal";
 import { serverReason } from "./serverText";
@@ -1046,6 +1053,83 @@ async function realGetDownloadUrl(orderId: string, artifactId: string): Promise<
   return res.json() as Promise<DownloadUrl>;
 }
 
+// ── The original source document ──────────────────────────────────────────
+
+/**
+ * `GET /api/orders/{id}/source` — the file the order arrived as, streamed (backend PR 189).
+ *
+ * The four documented refusals come back as VALUES, not exceptions, because none of them is a
+ * malfunction: 204 = there is no displayable file (a sample order, an object we cannot read, or
+ * one over the server's serve cap), 410 = the blob was purged on the retention schedule, 404 =
+ * no such order in this workspace. Each has its own sentence on screen, and none is worth
+ * retrying, so resolving them keeps the shared retry policy from hammering a settled answer.
+ *
+ * Everything else — 429, 5xx, a dropped connection — THROWS, so `shouldRetryApiFailure` and
+ * `apiRetryDelayMs` get to do their job. The caller turns an exhausted retry into copy.
+ *
+ * Two things this must not do. It must not branch on `res.ok`: **204 is a 2xx**, so `res.ok` is
+ * true and `await res.blob()` would hand back a 0-byte blob that renders as a corrupt document.
+ * And it must not derive a type from the key or the filename — `contentType` is the server's
+ * content sniff and is the only authority (see `sourceDocument.ts`).
+ */
+async function realGetOrderSource(orderId: string): Promise<SourceDocumentState> {
+  const res = await fetchWithTimeout(
+    `${API_BASE_URL}/api/orders/${orderId}/source`,
+    { headers: await authHeader() },
+    30000,
+  );
+
+  if (res.status === 204) return { kind: "none" };
+  if (res.status === 404) return { kind: "missing" };
+  if (res.status === 410) {
+    const { error } = parseApiErrorBody(await res.text().catch(() => ""));
+    return { kind: "purged", message: error || SOURCE_PURGED_FALLBACK_MESSAGE };
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    const { body, error } = parseApiErrorBody(text);
+    throw new ApiHttpError(
+      error || text || `Source document failed: ${res.statusText}`,
+      res.status,
+      body,
+      retryAfterFrom(res, body),
+    );
+  }
+
+  const blob = await res.blob();
+  // An empty 200 is not a document. The server answers 204 for that, so this is belt-and-braces
+  // against a proxy that rewrote the status — still better than rendering zero bytes.
+  if (blob.size === 0) return { kind: "none" };
+  return {
+    kind: "document",
+    document: {
+      blob,
+      contentType: normalizeContentType(res.headers.get("Content-Type")),
+      filename: filenameFromDisposition(res.headers.get("Content-Disposition")),
+    },
+  };
+}
+
+async function mockGetOrderSource(orderId: string): Promise<SourceDocumentState> {
+  await delay(180);
+  const order = mockOrders.find((o) => o.id === orderId);
+  if (!order) return { kind: "missing" };
+  // The four fixtures cover the four states between them, so every branch of the document view
+  // is reachable in demo mode and in the browser suite: ord-001 (.xlsx) has no demo bytes and
+  // answers "no document", ord-002 (.pdf) and ord-003 (.csv) serve the two viewers, and ord-004
+  // stands in for a blob purged on the retention schedule — it is already the fixture where
+  // everything else has gone wrong.
+  if (order.id === "ord-004") {
+    return { kind: "purged", message: SOURCE_PURGED_FALLBACK_MESSAGE };
+  }
+  const bytes = mockSourceBytesForKey(order.sourceFileKey);
+  if (!bytes) return { kind: "none" };
+  return {
+    kind: "document",
+    document: { blob: bytes.blob, contentType: bytes.contentType, filename: bytes.filename },
+  };
+}
+
 // ── Supplier mappings ─────────────────────────────────────────────────────
 
 async function mockGetSupplierMappings(supplierId: string): Promise<SupplierMapping[]> {
@@ -1835,6 +1919,7 @@ export const apiClient = {
   retryDelivery:          USE_MOCK ? mockRetryDelivery         : realRetryDelivery,
   assignSupplier:         USE_MOCK ? mockAssignSupplier        : realAssignSupplier,
   getDownloadUrl:         USE_MOCK ? mockGetDownloadUrl        : realGetDownloadUrl,
+  getOrderSource:         USE_MOCK ? mockGetOrderSource         : realGetOrderSource,
 
   // Supplier mappings
   getSupplierMappings:    USE_MOCK ? mockGetSupplierMappings   : realGetSupplierMappings,

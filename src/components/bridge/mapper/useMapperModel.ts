@@ -112,7 +112,19 @@ export interface MapperModel {
   /** The current draft (the source of truth the engine + preview read). */
   override: OrderMappingOverride;
   sourceFields: SourceField[];
-  sourceFileKey: string | null;
+  /**
+   * Whether this order produced ANY incoming data — canonical values from the order, or
+   * tokenized source fields. It picks which honest empty-state sentence the incoming pane shows
+   * and nothing else.
+   *
+   * It was called `sourceFileKey: string | null` and was set to the ORDER ID, used purely for
+   * its truthiness. The name promised a file key, so a second consumer read it as a filename
+   * and passed it to a `key.split(".")` extension switch — which returned `undefined` on every
+   * render, silently, for the life of the route. The value was always a boolean; it is now
+   * spelled as one so there is nothing left to misread. The order's real source format comes
+   * from `GET /api/orders/{id}/source`'s content type.
+   */
+  hasIncomingSource: boolean;
   canonicalNodes: CanonicalNode[];
   customFields: CanonicalFieldDef[];
   targetFields: TargetField[];
@@ -608,9 +620,9 @@ export function useMapperModel({
     error: saveErr,
     override,
     sourceFields,
-    // Truthy when there IS incoming data (canonical from the Order or tokenized) — drives the
-    // honest empty state. No longer keyed on tokens alone (a PDF order has 0 tokens but data).
-    sourceFileKey: (canonicalIncoming.length > 0 || tokens.length > 0) ? scopeId : null,
+    // True when there IS incoming data (canonical from the Order or tokenized) — drives the
+    // honest empty state. Not keyed on tokens alone (a PDF order has 0 tokens but data).
+    hasIncomingSource: canonicalIncoming.length > 0 || tokens.length > 0,
     canonicalNodes,
     customFields,
     targetFields,
