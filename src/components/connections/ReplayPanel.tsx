@@ -40,6 +40,11 @@ import {
   wouldStartFailing,
   type ReplaySummary,
 } from "@/components/connections/replayImpactModel";
+import {
+  outcomeIsFailure,
+  outcomeIsPass,
+  validationOutcome,
+} from "@/lib/validationOutcomeManifest";
 
 const RECENT_LIMIT_DEFAULT = 20;
 const RECENT_LIMIT_MIN = 1;
@@ -715,67 +720,177 @@ function FieldChangeTable({ changes }: { changes: ReplayFieldChange[] }) {
 // ── Validation flip list ──────────────────────────────────────────────────────
 
 function ValidationFlipList({ flips }: { flips: ReplayValidationFlip[] }) {
+  const legend = useMemo(() => legendLines(flips), [flips]);
   return (
-    <ul className="flex flex-col gap-1.5 list-none p-0 m-0">
-      {flips.map((f, i) => {
-        const startsFailing = f.currentStatus === "pass" && f.draftStatus === "fail";
-        return (
-          <li
-            key={`${f.code}-${f.lineNumber ?? "h"}-${i}`}
-            className="rounded-[6px] px-3 py-2 text-[12px] leading-[1.5]"
-            style={{
-              border: `1px solid ${startsFailing ? "var(--danger)" : "var(--border)"}`,
-              background: startsFailing ? "var(--danger-soft)" : "var(--surface)",
-            }}
-          >
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-mono font-semibold" style={{ color: "var(--ink)" }}>
-                {f.code}
-              </span>
-              {f.lineNumber != null && (
-                <span className="text-[10.5px]" style={{ color: "var(--ink-faint)" }}>
-                  line {f.lineNumber}
+    <>
+      <ul className="flex flex-col gap-1.5 list-none p-0 m-0">
+        {flips.map((f, i) => {
+          // Read through the manifest rather than comparing literals here: the token
+          // beside this border does, so a status that differs only in case would
+          // otherwise print "pass → fail" inside a row drawn as unchanged.
+          const startsFailing =
+            outcomeIsPass(validationOutcome(f.currentStatus)) &&
+            outcomeIsFailure(validationOutcome(f.draftStatus));
+          return (
+            <li
+              key={`${f.code}-${f.lineNumber ?? "h"}-${i}`}
+              className="rounded-[6px] px-3 py-2 text-[12px] leading-[1.5]"
+              style={{
+                border: `1px solid ${startsFailing ? "var(--danger)" : "var(--border)"}`,
+                background: startsFailing ? "var(--danger-soft)" : "var(--surface)",
+              }}
+            >
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-mono font-semibold" style={{ color: "var(--ink)" }}>
+                  {f.code}
                 </span>
+                {f.lineNumber != null && (
+                  <span className="text-[10.5px]" style={{ color: "var(--ink-faint)" }}>
+                    line {f.lineNumber}
+                  </span>
+                )}
+                <span className="inline-flex items-center gap-1.5">
+                  <StatusToken status={f.currentStatus} />
+                  <span aria-hidden style={{ color: "var(--ink-faint)" }}>→</span>
+                  <StatusToken status={f.draftStatus} />
+                </span>
+              </div>
+              {f.message && (
+                <p className="mt-1 m-0" style={{ color: startsFailing ? "var(--danger)" : "var(--ink-muted)" }}>
+                  {f.message}
+                </p>
               )}
-              <span className="inline-flex items-center gap-1.5">
-                <StatusToken status={f.currentStatus} />
-                <span aria-hidden style={{ color: "var(--ink-faint)" }}>→</span>
-                <StatusToken status={f.draftStatus} />
-              </span>
-            </div>
-            {f.message && (
-              <p className="mt-1 m-0" style={{ color: startsFailing ? "var(--danger)" : "var(--ink-muted)" }}>
-                {f.message}
-              </p>
-            )}
-          </li>
-        );
-      })}
-    </ul>
+            </li>
+          );
+        })}
+      </ul>
+      {legend.length > 0 && (
+        <p
+          data-testid="validation-token-legend"
+          className="mt-1.5 m-0 text-[10.5px] leading-[1.6]"
+          style={{ color: "var(--ink-faint)" }}
+        >
+          {legend.join(" ")}
+        </p>
+      )}
+    </>
   );
 }
 
+/**
+ * The sentences a reader needs for the non-verdict tokens ACTUALLY on screen.
+ *
+ * Conditional rather than always-on: a list of plain pass→fail flips needs no
+ * glossary, and a permanent one would be noise on the common case. It exists at all
+ * because the same em dash used to carry two different meanings — see `StatusToken`.
+ */
+function legendLines(flips: ReplayValidationFlip[]): string[] {
+  const drawn = new Set(
+    flips
+      .flatMap((f) => [f.currentStatus, f.draftStatus])
+      .map((s) => (statusIsAbsent(s) ? "absent" : validationOutcome(s))),
+  );
+  const lines: string[] = [];
+  if (drawn.has("absent")) {
+    lines.push("“—” means the rule isn't part of that version's profile.");
+  }
+  if (drawn.has("not_evaluated")) {
+    lines.push(
+      "“not checked” means the rule couldn't run — the order didn't carry the value it judges.",
+    );
+  }
+  if (drawn.has("unrecognised")) {
+    lines.push("“unknown” means this build can't read the status the server sent. It is not a pass.");
+  }
+  return lines;
+}
+
+/** A flip carries `null` for a side where the rule does not exist at all. */
+function statusIsAbsent(status: string | null): boolean {
+  return !(status ?? "").trim();
+}
+
+/**
+ * One side of one rule comparison — FOUR renderings, because there are four facts.
+ *
+ * This used to be two literal comparisons falling through to a grey em dash. When the
+ * backend gained `not_evaluated` (PR 206 — THE RULE COULD NOT RUN, because the value it
+ * judges was absent from the order) that outcome landed on the fall-through, so it drew
+ * the SAME glyph as a `null` status, which means something else entirely: the rule is not
+ * in that version's profile. Not a false pass — but on a screen whose whole job is putting
+ * two sides next to each other, "the rule wasn't there" and "the rule ran nothing" were
+ * indistinguishable in the same row.
+ *
+ * The verdicts and `not_evaluated` are read through `validationOutcomeManifest`, the one
+ * list allowed to answer "did this check pass?". A status the manifest has never heard of
+ * resolves to `unrecognised`, and — following `deliveryAttemptManifest`, where an unknown
+ * status once satisfied a `includes("deliver")` test for a completed delivery — it gets a
+ * rendering of its own that is NEVER a pass and never the absent-rule dash: amber, saying
+ * so in words, and printing the raw value, which is the only evidence of what arrived.
+ */
 function StatusToken({ status }: { status: string | null }) {
-  const s = (status ?? "").toLowerCase();
-  if (s === "pass") {
+  // Absent first, and only here: `validationOutcome(null)` is `unrecognised`, which is the
+  // right answer for a status the backend sent and we cannot read — not for a side of the
+  // comparison that has no rule on it.
+  if (statusIsAbsent(status)) {
+    return (
+      <span
+        className="text-[11px] font-semibold"
+        style={{ color: "var(--ink-faint)" }}
+        title="This rule isn't part of that version's profile."
+      >
+        —
+      </span>
+    );
+  }
+
+  const raw = (status ?? "").trim();
+  const outcome = validationOutcome(raw);
+
+  if (outcome === "pass") {
     return (
       <span className="text-[11px] font-semibold" style={{ color: "var(--brand-green-deep)" }}>
         pass
       </span>
     );
   }
-  if (s === "fail") {
+  if (outcome === "fail") {
     return (
       <span className="text-[11px] font-semibold" style={{ color: "var(--danger)" }}>
         fail
       </span>
     );
   }
+  if (outcome === "not_evaluated") {
+    // Neutral, not amber: a document that never stated a line amount is ordinary, the
+    // backend does not block on it, and colouring it like a problem would be its own
+    // false claim. "not checked" matches the words OrderPassport already uses.
+    return (
+      <span
+        className="inline-flex items-center rounded-[4px] px-1.5 h-[16px] text-[10.5px] font-semibold whitespace-nowrap"
+        style={{ background: "var(--surface-2)", color: "var(--ink-muted)" }}
+        title="The rule couldn't run: the order didn't carry the value it judges."
+      >
+        not checked
+      </span>
+    );
+  }
+
   return (
-    <span className="text-[11px] font-semibold" style={{ color: "var(--ink-faint)" }}>
-      —
+    <span
+      className="inline-flex items-center gap-1 rounded-[4px] px-1.5 h-[16px] text-[10.5px] font-semibold whitespace-nowrap"
+      style={{ background: "var(--amber-soft)", color: "var(--amber-text)" }}
+      title={`This build doesn't recognise the status “${raw}”. It is not being read as a pass.`}
+    >
+      unknown:
+      <span className="font-mono font-normal">{shortStatus(raw)}</span>
     </span>
   );
+}
+
+/** Keep an unreadable status from stretching the row; the whole value stays on `title`. */
+function shortStatus(status: string): string {
+  return status.length > 24 ? `${status.slice(0, 24)}…` : status;
 }
 
 // ── Small shared bits ─────────────────────────────────────────────────────────
