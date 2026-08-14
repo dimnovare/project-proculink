@@ -15,14 +15,17 @@ import { readyBarLabel } from "@/components/bridge/workshop/acceptanceGateModel"
 // and would have gone on teaching "every required field is filled and checked"
 // after the product stopped saying it.
 //
-// WHAT THIS GUARD DOES NOT DO. It does not ban the string. `IssuesPanel.tsx:243`
-// still holds it as the `readyLabel ?? "…"` fallback, and that file belongs to
-// another packet, so removing the literal is not this change's to make. Banning it
-// would also be the weaker guard: the defect was never the literal, it was that
-// NOTHING PRODUCED THE PROP. So the assertion below is the one that actually
-// prevents the regression — every production call site must pass `readyLabel` —
-// and it would fail the moment a new caller forgets, which is precisely how the
-// fallback became the only sentence in the product.
+// WHAT THIS GUARD DOES NOT DO. It does not ban the string. It used to note that
+// `IssuesPanel.tsx` still held it as the `readyLabel ?? "…"` fallback and that the
+// file belonged to another packet; that packet has since landed, so the fallback is
+// now `READY_BAR_DEFAULT` and the literal is gone from `src/` entirely — see
+// `issuesRailFailureState.test.tsx`, which renders all three bars and asserts on
+// `document.body.textContent`. Banning it here would still be the weaker guard: the
+// defect was never the literal, it was that NOTHING PRODUCED THE PROP. So the
+// assertion below is the one that actually prevents the regression — every
+// production call site must pass `readyLabel` — and it would fail the moment a new
+// caller forgets, which is precisely how the fallback became the only sentence in
+// the product.
 //
 // ANTI-VACUITY. Every walk counts what it EXTRACTED — files read, call sites
 // matched, guides matched — and fails on zero. A sweep over an empty set is
