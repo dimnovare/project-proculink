@@ -14,6 +14,7 @@ import {
   upsertDeliveryConfig,
 } from "@/lib/api/delivery";
 import { invalidateOnboardingStatus } from "@/hooks/useOnboardingStatus";
+import { invalidateDeliveryConfig } from "@/lib/deliveryConfigCache";
 import { isArrowKey, rovingRadioNext } from "@/lib/roving-radio";
 import { buildCxmlCredentials } from "@/lib/cxml-credentials";
 import { inspectOutboundUrl, isRefusal } from "@/lib/outboundUrlPolicy";
@@ -661,6 +662,13 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
       setJustSaved(true);
       // hasDeliveryConfig just flipped — refresh the checklist/chip surfaces.
       void invalidateOnboardingStatus(queryClient);
+      // What this supplier's delivery config IS just changed, and this editor holds its copy
+      // in local state — the shared cache is untouched by the lines above. Every other reader
+      // of that cache (the Overview summary, the suppliers list, and FirstTimeDeliveryOffer)
+      // would keep answering from the pre-save entry for the rest of its staleTime. The offer
+      // is the one that bites: a stale `null` renders "first time setting up delivery?" above
+      // a just-confirmed save, and its wizard rebuilds the config from scratch.
+      void invalidateDeliveryConfig(queryClient, supplierId);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save delivery config.");
     } finally {
@@ -711,6 +719,10 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
       setJustSaved(false);
       // hasDeliveryConfig may have flipped back — refresh checklist surfaces.
       void invalidateOnboardingStatus(queryClient);
+      // The config is GONE. Without this the cached entry outlives it, and every reader keeps
+      // printing a channel, a format and an "Auto-process · On" for a configuration that no
+      // longer exists — the most confident possible statement about the least existing thing.
+      void invalidateDeliveryConfig(queryClient, supplierId);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not delete delivery config.");
     } finally {

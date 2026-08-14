@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import type { KeyboardEvent, ReactNode } from "react";
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
-import { KeyRound, Save, Trash2, Zap, AlertTriangle, Download } from "lucide-react";
+import { KeyRound, Save, Trash2, Zap, AlertTriangle, Download, RefreshCw } from "lucide-react";
 import {
   deleteCatalogSource,
   getCatalogSource,
@@ -160,19 +160,32 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
   const [testResult, setTestResult] = useState<CatalogSourceTestResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // Distinguishes a FAILED INITIAL LOAD (getCatalogSource threw) from save/test errors that
+  // reuse `error`. The banner alone was not enough: it appeared ABOVE a complete, enabled form
+  // whose every field had fallen back to its "nothing configured" default, and `savedSource`
+  // stayed null. Saving from there is a write, and the write is the danger — `passwordPayload()`
+  // returns "" when `hasPassword` is false, which CLEARS the stored secret, alongside a blank
+  // `columnMapping` and a reset 24h schedule. So a source that exists but could not be read
+  // must block, not render as a source that does not exist. `reloadNonce` re-runs the loader.
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [reloadNonce, setReloadNonce] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
       setLoading(true);
       setError(null);
+      setLoadFailed(false);
       try {
         const source = await getCatalogSource(supplierId);
         if (cancelled) return;
         setSavedSource(source);
         if (source) hydrate(source);
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Could not load import source.");
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Could not load import source.");
+          setLoadFailed(true);
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -181,7 +194,7 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
     return () => {
       cancelled = true;
     };
-  }, [supplierId]);
+  }, [supplierId, reloadNonce]);
 
   function hydrate(s: CatalogSource) {
     setProtocol(s.protocol);
@@ -491,6 +504,37 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
   // Cleartext warning: plain ftp leaks creds; plain http:// leaks the URL + any header/token.
   // Keyed on the URL's actual scheme (not the picker) — the scheme in the URL is what the
   // fetch uses, regardless of which API button is selected.
+
+  // Initial-load failure — a blocking state with a retry, NOT the form. The form's fields all
+  // read "nothing is configured", and the Save button below them sits in the footer outside the
+  // `loading` branch, so it stays live: one click writes those defaults over a source that may
+  // be perfectly healthy and merely unreadable this second, clearing its stored password on the
+  // way through. Same shape as DeliveryConfigEditor's load-failure card, for the same reason.
+  // Save/test errors keep using `error` inside the form.
+  if (loadFailed && !loading) {
+    // Tokens, not the hex literals the rest of this (baselined) file still uses — new code does
+    // not add to that debt.
+    return (
+      <div className="overflow-hidden rounded-[8px]" style={{ border: "1px solid var(--border)", background: "var(--surface)" }}>
+        <div className="flex flex-col items-center justify-center gap-3 px-4 py-12 text-center" role="alert">
+          <p className="text-[13px] font-semibold" style={{ color: "var(--ink)" }}>Couldn&apos;t load this import source</p>
+          <p className="max-w-[380px] text-[12px] leading-5" style={{ color: "var(--ink-muted)" }}>
+            {error ?? "Something went wrong loading this supplier's import source."} That is not the
+            same as &ldquo;no import source&rdquo; — one may already be saved and syncing. Nothing has
+            been changed. Check your connection and try again.
+          </p>
+          <button
+            type="button"
+            onClick={() => setReloadNonce((n) => n + 1)}
+            className="inline-flex items-center gap-1.5 rounded-[6px] bg-surface px-3 text-[12px] font-medium"
+            style={{ minHeight: 36, border: "1px solid var(--border-strong)", color: "var(--ink)", cursor: "pointer" }}
+          >
+            <RefreshCw size={13} strokeWidth={2} aria-hidden /> Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="overflow-hidden rounded-[8px]" style={{ border: "1px solid #E5E8EE", background: "#FFFFFF" }}>
