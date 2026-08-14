@@ -338,9 +338,15 @@ jobs:
       #
       # `ReplayPanel` headlined "safe to go live" for a draft that produced NO OUTPUT for
       # every replayed order, because its `noImpact` excluded `errors` and an unrenderable
-      # order scores `outputChanged: false`. The correct predicate already existed in
-      # SupplierConnectionService (`OrderCount == 0 || rendered > 0`); the frontend had
+      # order scores `outputChanged: false`. The predicate already existed in
+      # SupplierConnectionService (then `OrderCount == 0 || rendered > 0`); the frontend had
       # authored a second, weaker definition of the same idea instead of mirroring it.
+      #
+      # THAT PREDICATE HAS SINCE MOVED (backend PR 207): the leg now reports an OUTCOME, a
+      # zero-order replay is `not_exercised` rather than a pass, and any render error fails
+      # it. The spec below reads BOTH shapes and FAILS on a third — which is why no `ref:`
+      # is pinned above and why this step must not be made conditional: the two repos deploy
+      # independently, so this checkout is pre-207 until that PR merges and post-207 after.
       #
       # Runs HERE for the same reason as the two steps above: its backend assertions are
       # `test.skipIf(BACKEND === null)`, so in the unit-test job — which checks no backend
