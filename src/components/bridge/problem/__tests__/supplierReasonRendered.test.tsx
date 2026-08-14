@@ -134,7 +134,7 @@ function attempt(attemptNumber: number, errorMessage: string | null) {
     destination: "https://example.invalid/po",
     attemptedAt: `2026-08-0${attemptNumber}T09:00:00Z`,
     responseCode: 404,
-    acknowledgedAt: null,
+    transportAcceptedAt: null,
     rejectionReason: null,
     errorMessage,
     artifactId: null,

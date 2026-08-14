@@ -73,7 +73,7 @@ function attempt(status: string): PassportDeliveryAttempt {
     destination: "orders@supplier.example",
     attemptedAt: "2026-08-06T09:00:00Z",
     responseCode: null,
-    acknowledgedAt: null,
+    transportAcceptedAt: null,
     rejectionReason: null,
     errorMessage: null,
     artifactId: ARTIFACT_ID,

@@ -637,10 +637,18 @@ async function mockGetOrderPassport(orderId: string): Promise<PassportDto> {
       ? { artifactId: artifact.id, format: artifact.format, fileKey: artifact.fileKey, createdAt: artifact.createdAt, artifactSha256: mockSha256(artifact.id) }
       : null,
     deliveryAttempts: isDelivered
-      ? [{ attemptNumber: 1, status: "delivered", channel: "https", destination: `https://${o.supplierName.toLowerCase().replace(/\s+/g, "")}.example.com/po`, attemptedAt: o.updatedAt, responseCode: 200, acknowledgedAt: o.updatedAt, rejectionReason: null, errorMessage: null, artifactId: artifact?.id ?? null, artifactSha256: artifact ? mockSha256(artifact.id) : null }]
+      // `status` is "success" — the ONE value DELIVERY_ATTEMPT_STATUS_FACTS maps to `sent`. It said
+      // "delivered", which the manifest has never heard of and therefore resolves to
+      // `unrecognised`, so the mock passport only ever looked delivered via `finalStatus` and the
+      // supplier-response outcome. A demo fixture that misses the real allow-list teaches the
+      // screen's most important guard to look decorative.
+      ? [{ attemptNumber: 1, status: "success", channel: "https", destination: `https://${o.supplierName.toLowerCase().replace(/\s+/g, "")}.example.com/po`, attemptedAt: o.updatedAt, responseCode: 200, transportAcceptedAt: o.updatedAt, rejectionReason: null, errorMessage: null, artifactId: artifact?.id ?? null, artifactSha256: artifact ? mockSha256(artifact.id) : null }]
       : [],
     supplierResponse: isDelivered
-      ? { outcome: "acknowledged", acknowledgedAt: o.updatedAt, rejectionReason: null, responseCode: 200, responseBody: null }
+      // "delivered", not "acknowledged": the mock must not demo a supplier acceptance the product
+      // cannot observe. `responseBody` stays null — a fabricated supplier payload in a demo is
+      // exactly the kind of staged content the J2 purge removed.
+      ? { outcome: "delivered", transportAcceptedAt: o.updatedAt, rejectionReason: null, responseCode: 200, responseBody: null }
       : null,
     finalStatus: o.status,
     timeline,
