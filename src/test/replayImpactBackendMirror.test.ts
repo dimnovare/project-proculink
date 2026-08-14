@@ -629,7 +629,18 @@ describe("replayImpactModel mirrors SupplierConnectionService's replay-leg predi
     // satisfied by a model that simply reproduced the old rule and would break the
     // moment PR 207 lands. Both states below pass the old predicate; neither may be
     // recommended.
-    const stricter = states.filter((s) => oldBackendPasses(s) && !replayImpact(s).safeToGoLive);
+    //
+    // CLEAN APART FROM THE TERM UNDER TEST. Every other reason to refuse is filtered
+    // out first, because they are not filtered out the assertion passes on a state that
+    // was refused for an unrelated reason — `startFailing: 1` refuses on its own branch
+    // and would satisfy both `some(...)` calls below while the term being tested had
+    // been reverted to the old rule. That vacuity was real: it kept this comparison
+    // green through a model restored to `total === 0 || rendered > 0`.
+    const cleanApartFrom = (s: ReplaySummary) =>
+      s.startFailing === 0 && s.outputChanges === 0 && s.validationChanges === 0;
+    const stricter = states.filter(
+      (s) => cleanApartFrom(s) && oldBackendPasses(s) && !replayImpact(s).safeToGoLive,
+    );
     expect(
       stricter.some((s) => s.total === 0),
       "the zero-order state is graded go-live — the onboarding case regressed",
@@ -638,6 +649,13 @@ describe("replayImpactModel mirrors SupplierConnectionService's replay-leg predi
       stricter.some((s) => s.rendered > 0 && s.errors > 0),
       "a partially-rendered state is graded go-live — the 'four of five errored' case regressed",
     ).toBe(true);
+    // Anti-vacuity on the filter itself: a `cleanApartFrom` that excluded everything
+    // would make both `some(...)` calls above unreachable-but-passing if they were ever
+    // rewritten as `every`, and would mean this comparison inspected nothing.
+    expect(
+      states.filter(cleanApartFrom).length,
+      "no state survives the clean-apart-from filter — this comparison inspected nothing",
+    ).toBeGreaterThan(0);
     comparisonsRun += 1;
   });
 });
