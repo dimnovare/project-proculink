@@ -1,5 +1,6 @@
 import { helpArticleMetadata } from "@/lib/seo";
 import { requiresPlan } from "@/lib/gatedCapabilities";
+import { STANDARDS_FIELD_COVERAGE } from "@/lib/standards/catalog";
 
 export const metadata = helpArticleMetadata({
   slug: "output-templates",
@@ -28,7 +29,7 @@ The format a supplier receives is chosen on that supplier's **delivery config**.
 | EDIFACT ORDERS | Not yet — parsing exists, no outbound transformer |
 | XLSX / PDF / SAP IDoc | Input only — ProcuLink reads them but does not emit them |
 
-The in-app **Rules & formats → Standards** page is the always-current version of this table, down to field-level references (how "PO number" maps to UBL `cbc:ID`, X12 `BEG03`, and so on).
+The in-app **Rules & formats → Standards** page is the always-current version of this table, and adds field-level references — how "PO number" maps to UBL `cbc:ID`, X12 `BEG03`, and so on — for {STANDARDS_FIELD_COVERAGE.referenced} of the {STANDARDS_FIELD_COVERAGE.total} canonical fields ProcuLink carries. That is the core of a purchase order rather than the whole canonical model: a field with no reference there is still in the order model and can be mapped, transformed and sent — only its path in these standards is unrecorded. The page states its own coverage, and you can request a missing path from it.
 
 ## Exact custom shapes: per-order custom templates
 

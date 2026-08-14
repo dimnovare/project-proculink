@@ -36,6 +36,8 @@
 // ISO 20022 is reference-only (documentation alignment; no transport in scope).
 // ──────────────────────────────────────────────────────────────────────────
 
+import { BINDABLE_HEADER_FIELDS, BINDABLE_LINE_FIELDS } from "@/lib/api/types";
+
 export type SupportLevel = "supported" | "partial" | "planned" | "none";
 
 /** Coarse grouping used by the comparison screen. */
@@ -385,6 +387,90 @@ export const FIELD_STANDARDS: CanonicalFieldStandards[] = [
     cxml: "ItemOut/UnitPrice/Money",
   },
 ];
+
+// ── How much of the canonical model this reference actually covers ──────────
+//
+// FIELD_STANDARDS is a TRANSCRIPTION of the field table in standards-matrix.md, not a
+// projection of the canonical model. It carries the fields somebody researched paths for and
+// stops there. The model an output rule may bind is far larger — BINDABLE_HEADER_FIELDS +
+// BINDABLE_LINE_FIELDS, mirroring `ProcuLink.Transform/Output/CanonicalRowFields.cs` — and
+// the gap includes `SupplierItemCode`, the resolved code the product exists to produce.
+//
+// DO NOT CLOSE THE GAP BY ADDING ROWS. A field's UBL / EDIFACT / X12 / cXML path is real
+// research; a guessed one is worse than a blank cell, because a blank cell does not get
+// pasted into a supplier's onboarding spec.
+//
+// The gap gets DISCLOSED instead, and disclosed with numbers nobody types. This is the shape
+// `requiresPlan()` uses in src/lib/gatedCapabilities.ts, for the same reason: a count typed
+// into copy is a claim that stops tracking the data the moment either side moves. Three
+// surfaces said otherwise until 2026-08-14 — the landing page promised "Every order field",
+// /library/standards answered "No fields match" for fields the product carries, and
+// /help/output-templates routed the reader to that screen.
+
+/** Every canonical field an output rule may bind, both scopes — the denominator. */
+const BINDABLE_CANONICAL_FIELDS: readonly string[] = [
+  ...BINDABLE_HEADER_FIELDS,
+  ...BINDABLE_LINE_FIELDS,
+];
+
+/** Canonical field names that carry a row in FIELD_STANDARDS. */
+const REFERENCED_FIELDS: ReadonlySet<string> = new Set(
+  FIELD_STANDARDS.map((f) => f.canonicalField),
+);
+
+export interface StandardsFieldCoverage {
+  /** Bindable canonical fields that carry a standards reference row. */
+  referenced: number;
+  /** Bindable canonical fields in total. */
+  total: number;
+}
+
+/**
+ * `{ referenced: 10, total: 53 }` — the coverage of the field reference table, for copy that
+ * needs to state it.
+ *
+ * Counted as an INTERSECTION rather than `FIELD_STANDARDS.length`, because the table also
+ * carries the structural `Lines` container (`cac:OrderLine` / `PO1`), which is not a bindable
+ * field — the row count overstates coverage by one. Derived from both registries, so adding a
+ * reference row moves the numerator and adding a canonical field moves the denominator, with
+ * no copy to update in either direction.
+ */
+export const STANDARDS_FIELD_COVERAGE: StandardsFieldCoverage = {
+  referenced: BINDABLE_CANONICAL_FIELDS.filter((f) => REFERENCED_FIELDS.has(f)).length,
+  total: BINDABLE_CANONICAL_FIELDS.length,
+};
+
+/**
+ * A readable name for a canonical field — `"SupplierItemCode"` → `"Supplier item code"`.
+ *
+ * Prefers the catalog's own label when the field has a row; otherwise splits the PascalCase
+ * key. Sentence case, because it renders inside a sentence.
+ */
+export function canonicalFieldLabel(field: string): string {
+  const row = FIELD_STANDARDS.find((f) => f.canonicalField === field);
+  if (row) return row.label;
+  const words = field.replace(/([a-z0-9])([A-Z])/g, "$1 $2");
+  return words.charAt(0).toUpperCase() + words.slice(1).toLowerCase();
+}
+
+/**
+ * Canonical fields matching a free-text query that ProcuLink carries but has no standards
+ * reference for. Empty for a blank query, and empty for a name the product does not have.
+ *
+ * This is the difference between the two honest empty states on /library/standards: "we have
+ * no such field" and "we have this field, we just have not written its standards path down".
+ * The screen said the first for both until 2026-08-14, so a search for `SupplierItemCode` —
+ * the central resolved field — reported that it did not exist.
+ */
+export function canonicalFieldsWithoutStandards(query: string): readonly string[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return [];
+  return BINDABLE_CANONICAL_FIELDS.filter(
+    (f) =>
+      !REFERENCED_FIELDS.has(f) &&
+      (f.toLowerCase().includes(q) || canonicalFieldLabel(f).toLowerCase().includes(q)),
+  );
+}
 
 // ── Lookup helpers ──────────────────────────────────────────────────────────
 
