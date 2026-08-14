@@ -97,9 +97,13 @@ const ACTIVE_BUNDLE: ConnectionRevision = {
 };
 
 const TEST_EVIDENCE: ConnectionTestEvidence = {
+  // `outcome` is the authority; `passed` is the backend's fail-closed narrowing of it and
+  // is deliberately not what the hook reads. The three non-passing outcomes are covered
+  // in testPackOutcome.test.tsx.
+  outcome: "passed",
   passed: true,
   testedAt: "2026-01-04T00:00:00Z",
-  summaryJson: JSON.stringify({ replay: { passed: true, orderCount: 2, outputErrors: 0, outputChanged: 0, validationChanged: 0, note: null }, conformance: null, error: null }),
+  summaryJson: JSON.stringify({ outcome: "passed", replay: { outcome: "passed", orderCount: 2, outputErrors: 0, outputChanged: 0, validationChanged: 0, note: null }, conformance: null, error: null }),
 };
 
 beforeEach(() => {
@@ -158,7 +162,7 @@ describe("useConnectionRevisions", () => {
 
     await waitFor(() => expect(markConnectionRevisionTest).toHaveBeenCalledWith("conn-1", "rev-3"));
     await waitFor(() => expect(result.current.testEvidence?.revisionId).toBe("rev-3"));
-    expect(result.current.testEvidence?.passed).toBe(true);
+    expect(result.current.testEvidence?.outcome).toBe("passed");
     // The summary JSON is parsed into the structured shape HistoryContent reads.
     expect(result.current.testEvidence?.summary?.replay?.orderCount).toBe(2);
   });

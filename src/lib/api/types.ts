@@ -871,11 +871,27 @@ export interface ConnectionSummary {
 export interface ConnectionRevisionSummary {
   id: string;
   versionNo: number;
+  /**
+   * Lifecycle state. NOTE that `test` means only that the checks RAN — `MarkTestAsync`
+   * sets it unconditionally, pass or fail — so it is not a verdict and must not be
+   * rendered as one. `testOutcome` below is the verdict.
+   */
   status: ConnectionRevisionStatus | string;
   effectiveFrom: string | null;
   effectiveTo: string | null;
   publishedAt: string | null;
   createdAt: string;
+  /**
+   * Verdict of the last check run — `passed` | `failed` | `not_exercised`, or null when
+   * never run (and also null on rows last run before the column existed, which are
+   * deliberately NOT backfilled to `passed`).
+   *
+   * Read it through `testPackOutcome` in `@/lib/testPackOutcomeManifest`; never compare
+   * the literal. Absent on a backend older than BE PR 207.
+   */
+  testOutcome?: string | null;
+  /** When that run happened; null when never run. */
+  testedAt?: string | null;
 }
 
 /** A connection plus its revision history (the detail-page header). */
@@ -926,24 +942,55 @@ export interface ConnectionRevision {
   /** 'live' in V1 — the catalog is read live at ingest (no snapshot). */
   catalogMode: string;
   itemMappings: ConnectionItemMapping[];
-  // Launch batch 3 — stored test evidence (null/absent on never-tested revisions).
+  // Launch batch 3 — stored check evidence (null/absent on never-checked revisions).
+  /**
+   * Fail-closed narrowing of `testOutcome`, true ONLY for `passed`. It cannot tell a run
+   * that FAILED from one that never tested anything, so gate on it if you must but never
+   * render words from it.
+   */
   testPassed?: boolean | null;
   testedAt?: string | null;
   testResultJson?: string | null;
+  /**
+   * The verdict — `passed` | `failed` | `not_exercised`, or null when never run.
+   * Read through `testPackOutcome` in `@/lib/testPackOutcomeManifest`.
+   * Absent on a backend older than BE PR 207.
+   */
+  testOutcome?: string | null;
 }
 
 /**
  * Evidence returned by POST /api/connections/{id}/revisions/{revId}/test.
- * The backend RUNS the real test pack (replay over recent orders + a conformance
- * check; never delivers), stores the evidence on the revision, marks it `test`,
- * and returns this summary. A FAILED pack still returns 200 with passed=false —
- * failure to PASS is not failure to RUN. `summaryJson` is the stored camelCase
- * TestPackSummary: { replay, conformance, error }.
+ *
+ * The backend RUNS the real check pack (recent orders rebuilt through this version, a
+ * standards check, and a source re-read; it never delivers), stores the evidence on the
+ * revision, marks it `test`, and returns this summary. A FAILED run still returns 200 —
+ * failure to PASS is not failure to RUN, and neither is a run that tested nothing.
+ *
+ * `summaryJson` is the stored camelCase TestPackSummary:
+ * `{ outcome, replay, conformance, error, parseLeg }` — see
+ * `src/components/connections/testPackSummary.ts`, which parses it field by field.
  */
 export interface ConnectionTestEvidence {
+  /**
+   * Fail-closed narrowing of `outcome`, true ONLY for `passed`.
+   *
+   * Kept because the backend still sends it, but it is NOT the authority and nothing a
+   * person reads may be derived from it: it collapses "the checks found a fault" and
+   * "the checks tested nothing" into the same `false`, and before BE PR 207 it collapsed
+   * "tested nothing" into `true`.
+   */
   passed: boolean;
   testedAt: string;
   summaryJson: string;
+  /**
+   * THE AUTHORITY — `passed` | `failed` | `not_exercised`
+   * (`TestPackOutcomeNames`, ProcuLink.Core/Services/ISupplierConnectionService.cs:160).
+   *
+   * Optional because a backend older than BE PR 207 does not send it. An absent value is
+   * read as `unrecognised` and is never favourable — see `@/lib/testPackOutcomeManifest`.
+   */
+  outcome?: string | null;
 }
 
 /** The mutable bundle a caller may set when creating/updating a DRAFT revision. */

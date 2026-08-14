@@ -28,8 +28,18 @@ The day-to-day editing still happens in the supplier's own editors (mapping, del
 ## The lifecycle: draft → test → publish → archive
 
 1. **Draft** — create a draft revision, usually cloned from the live one. Drafts are the only editable state.
-2. **Test** — run the test pack. ProcuLink replays recent real orders through the draft and runs a standards check. **Nothing is delivered** during a test. The result is stored honestly: a failed pack is recorded as failed, not hidden.
-3. **Publish** — flips the draft live. Publishing requires a **passing** test run that is at least as new as your last edit — editing a draft clears its old test evidence, so you re-test after changes. Publishing archives the previously live revision; one revision is live per connection at a time.
+2. **Test** — run the test pack. It has three checks: recent real orders are replayed through the draft and the outgoing document is rebuilt, that rebuilt document is checked against a published standard where one exists for your output format, and the stored source files are re-read under the draft's input mapping. **Nothing is delivered** during a test, and nothing is sent to the supplier — a passing run says the draft can *build* the right document, not that the endpoint or credentials work.
+
+   Each check reports what it actually did, and there are more than two answers:
+
+   - **Passed** — it ran against real material and found no problem.
+   - **Failed** — it ran and found a problem. This blocks publishing.
+   - **Not run** — there was nothing to run it on. Most often: this supplier has no orders yet, so nothing could be replayed and nothing was built. Nothing is broken; the run simply proves nothing. Put one order through for the supplier and test again.
+   - **No such check for this setup** — the standards check over CSV, JSON or XML output. These are flexible formats with no published standard to check against, so the check does not exist for them rather than having been missed. Your output still delivers normally, and this never blocks publishing.
+
+   The result is stored honestly: a failed run is recorded as failed, and a run that tested nothing is recorded as having tested nothing — never as a pass.
+
+3. **Publish** — flips the draft live. Publishing requires a test run that **passed** *and* that actually exercised the draft, at least as new as your last edit — editing a draft clears its old test evidence, so you re-test after changes. A run that found no problems but replayed nothing is refused, with a message saying so rather than a failure. Publishing archives the previously live revision; one revision is live per connection at a time.
 4. **Archive** — published revisions that get replaced become archived. Archived and published revisions are immutable — they can't be edited, only cloned into a new draft.
 
 ## Every order is pinned to a revision
@@ -44,7 +54,7 @@ When an order arrives, it records exactly which revision processed it. That pin 
 
 From any revision you can **replay** recent orders (up to 50 per run) through it without delivering or saving anything. For each order you get a diff against its current result: how the output text changes, which effective field values change, and which validation checks flip between pass and fail.
 
-Differences are information, not automatic failures — a changed output may be exactly what you intended. Read the diff, then decide. The hard gate is the test pack: publish stays blocked until a test run passes.
+Differences are information, not automatic failures — a changed output may be exactly what you intended. Read the diff, then decide. The hard gate is the test pack: publish stays blocked until a test run passes *and* has genuinely been run against at least one order. A run over a supplier with no orders finds no problems and proves nothing, so it does not open that gate.
 
 ## Rollback
 

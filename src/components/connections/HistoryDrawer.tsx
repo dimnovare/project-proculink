@@ -27,8 +27,21 @@ import type { ConnectionRevisionSummary } from "@/lib/api/types";
 // the type it was mirrored from did not have one either, so there was nothing for
 // the drop to disagree with. One declaration now, in ./testPackSummary, checked
 // against the C# record by src/test/backendMirror.test.ts.
-import { evidenceNotes, failedLegLabels } from "./testPackSummary";
+import {
+  evidenceNotes,
+  failedLegLabels,
+  isLegacyTestPackPayload,
+  unprovenLegLabels,
+} from "./testPackSummary";
 import type { RevisionTestEvidence } from "./testPackSummary";
+// The four outcomes a check run can have, and the ONE place their wording is written.
+// This panel and the banner above it used to compose their own sentences from the same
+// boolean, and said different things about the same run.
+import {
+  MAKE_LIVE_NEEDS_CHECKS_TITLE,
+  testLegWord,
+  testPackReading,
+} from "@/lib/testPackOutcomeManifest";
 
 export type { RevisionTestEvidence } from "./testPackSummary";
 
@@ -161,7 +174,14 @@ export function HistoryContent(props: HistoryContentProps) {
 
               const evidenceForThisRevision =
                 testEvidence && testEvidence.revisionId === r.id ? testEvidence : null;
-              const testsPassed = evidenceForThisRevision?.passed === true;
+              // One reading of one outcome, feeding BOTH the gate and the words beside
+              // it. `favourable` is true only for `passed`, so a run that tested nothing
+              // — a supplier with no orders, i.e. the default at onboarding — leaves the
+              // button shut and says why, instead of unlocking it and calling that a pass.
+              const evidenceReading = evidenceForThisRevision
+                ? testPackReading(evidenceForThisRevision.outcome)
+                : null;
+              const testsPassed = evidenceReading?.favourable === true;
 
               return (
                 <li
@@ -208,11 +228,12 @@ export function HistoryContent(props: HistoryContentProps) {
                         variant="primary"
                         size="sm"
                         disabled={busy || !testsPassed}
-                        title={
-                          testsPassed
-                            ? "Applies this version to new orders. Orders already sent keep their original format. You can revert anytime."
-                            : "Run tests — checks must pass before going live."
-                        }
+                        // The tooltip is the button's own explanation of why it is shut,
+                        // so it has to distinguish the same four states the panel does.
+                        // "Run tests — checks must pass" was the only wording available
+                        // before, and it was wrong twice over for a run that HAD been
+                        // done and had simply tested nothing.
+                        title={evidenceReading?.makeLiveTitle ?? MAKE_LIVE_NEEDS_CHECKS_TITLE}
                         onClick={() => onRequestPublish(r.id, r.versionNo)}
                       >
                         Make live
@@ -445,32 +466,56 @@ export function HistoryDrawer(props: HistoryDrawerProps) {
 
 // ── Test-pack evidence summary (inline under a tested version row) ───────────
 
+/**
+ * Three paint jobs for three kinds of news. `warn` is not decoration: a run that found
+ * no fault but tested nothing is neither "carry on" nor "you broke something", and
+ * borrowing either colour re-tells the lie the headline just stopped telling.
+ */
+const EVIDENCE_TONE_STYLE: Record<"ok" | "warn" | "err", React.CSSProperties> = {
+  ok: { background: "var(--brand-green-soft)", border: "1px solid var(--brand-green-soft)", color: "var(--brand-green-deep)" },
+  warn: { background: "var(--amber-soft)", border: "1px solid var(--amber-soft)", color: "var(--amber-text)" },
+  err: { background: "var(--danger-soft)", border: "1px solid var(--danger-soft)", color: "var(--danger)" },
+};
+
 function TestEvidenceSummary({ evidence }: { evidence: RevisionTestEvidence }) {
-  const { passed, testedAt, summary } = evidence;
+  const { outcome, testedAt, summary } = evidence;
+  const reading = testPackReading(outcome);
+  // PRE-PR-207 COMPATIBILITY — SCAFFOLDING, delete this line, the sentence it renders
+  // below, and `isLegacyTestPackPayload` once PR 207 is deployed everywhere.
+  //
+  // The old backend sent only booleans, which cannot say whether a check ran. That
+  // resolves to the same not-favourable reading as any answer this page cannot read —
+  // but an operator deserves the real reason rather than a generic one, so when the
+  // payload is recognisably the old shape we say which it is.
+  const isLegacyPayload =
+    reading.outcome === "unrecognised" &&
+    (isLegacyTestPackPayload(summary) || typeof evidence.legacyPassed === "boolean");
   const notes = evidenceNotes(summary);
   const replay = summary?.replay ?? null;
   const conformance = summary?.conformance ?? null;
   const parseLeg = summary?.parseLeg ?? null;
-  // `passed` is an AND over all three legs, so the red state on its own names none of
-  // them. Read back which ones actually failed — a pack that fails only on the parse
-  // leg used to turn this panel red and then say nothing at all about why.
-  const failedLegs = passed ? [] : failedLegLabels(summary);
+  // The run's verdict names no leg, so read back which ones actually found a fault — a
+  // run that fails only on the source re-read used to turn this panel red and then say
+  // nothing at all about why.
+  const failedLegs = failedLegLabels(summary);
+  // And which ones proved nothing. Kept separate because "these did not run" is not
+  // "these failed": pointing an operator at fixing a version that may be perfectly fine
+  // is its own wrong answer. `not_applicable` is excluded — see unprovenLegLabels.
+  const unprovenLegs = reading.outcome === "passed" ? [] : unprovenLegLabels(summary);
 
   return (
     <div
       className="mt-2.5 rounded-[6px] px-3 py-2.5 text-[11.5px] leading-[1.55]"
-      style={
-        passed
-          ? { background: "var(--brand-green-soft)", border: "1px solid var(--brand-green-soft)", color: "var(--brand-green-deep)" }
-          : { background: "var(--danger-soft)", border: "1px solid var(--danger-soft)", color: "var(--danger)" }
-      }
+      style={EVIDENCE_TONE_STYLE[reading.tone]}
       role="status"
+      data-testid="revision-check-evidence"
+      data-outcome={reading.outcome}
     >
-      <span className="font-semibold">
-        Checks {passed ? "passed" : "failed"}
-        {/* Which check. Without this a parse-leg-only failure read as an unexplained
-            red panel: replay and conformance both printed normal-looking lines, and
-            the top-level flag says only that something went wrong. */}
+      <span className="font-semibold" data-testid="revision-check-headline">
+        {reading.headline}
+        {/* Which check. Without this a source-re-read-only failure read as an
+            unexplained red panel: the other two legs printed normal-looking lines, and
+            the verdict says only that something went wrong. */}
         {failedLegs.length > 0 ? ` — ${failedLegs.join(" and ")}` : ""}
       </span>
       <span> · {formatDateTime(testedAt)}</span>
@@ -478,36 +523,50 @@ function TestEvidenceSummary({ evidence }: { evidence: RevisionTestEvidence }) {
         <div className="mt-1" style={{ opacity: 0.92 }}>
           {replay && (
             <span>
-              Replay: {replay.orderCount} order{replay.orderCount === 1 ? "" : "s"}
-              {replay.outputErrors > 0 ? `, ${replay.outputErrors} render error${replay.outputErrors === 1 ? "" : "s"}` : ""}
+              Recent orders rebuilt: {testLegWord(replay.outcome)} · {replay.orderCount} order
+              {replay.orderCount === 1 ? "" : "s"}
+              {replay.outputErrors > 0 ? `, ${replay.outputErrors} couldn't be rebuilt` : ""}
             </span>
           )}
           {replay && conformance && <span> · </span>}
           {conformance && (
             <span>
-              Conformance:{" "}
-              {conformance.skipped
-                ? "skipped"
-                : `${conformance.passed ? "passed" : "failed"}${conformance.profile ? ` (${conformance.profile})` : ""}`}
+              {/* "no such check for this setup" rather than "skipped": CSV, JSON and XML
+                  have no published standard to check against and no operator action can
+                  create one, so this is a fact about the format, not a gap in the run.
+                  It used to print "skipped" here while the pack counted it as a pass. */}
+              Standards: {testLegWord(conformance.outcome)}
+              {conformance.profile ? ` (${conformance.profile})` : ""}
             </span>
           )}
           {(replay || conformance) && parseLeg && <span> · </span>}
-          {/* `failures > 0` is NOT on its own a failed leg — the backend passes the leg
-              whenever at least one eligible order re-parsed — so the count is reported
-              as a count and the pass/fail verdict is left to `failedLegs` above. */}
           {parseLeg && (
             <span>
-              Re-parse: {parseLeg.ordersReParsed} order{parseLeg.ordersReParsed === 1 ? "" : "s"}
-              {parseLeg.parseChanges > 0 ? `, ${parseLeg.parseChanges} would parse differently` : ""}
+              Source files re-read: {testLegWord(parseLeg.outcome)} · {parseLeg.ordersReParsed} order
+              {parseLeg.ordersReParsed === 1 ? "" : "s"}
+              {parseLeg.parseChanges > 0 ? `, ${parseLeg.parseChanges} would read differently` : ""}
               {parseLeg.failures > 0 ? `, ${parseLeg.failures} failed` : ""}
               {parseLeg.skipped > 0 ? `, ${parseLeg.skipped} skipped` : ""}
             </span>
           )}
         </div>
       )}
-      {/* A failure the payload does not attribute to any leg. Saying so beats an
+      {/* Name what was left unproven, so "did not test this version" is attributable
+          rather than a bare assertion the operator cannot act on. */}
+      {unprovenLegs.length > 0 && (
+        <div className="mt-1">Not proven here: {unprovenLegs.join(", ")}.</div>
+      )}
+      {/* SCAFFOLDING — delete with the rest of the pre-PR-207 compatibility block. */}
+      {isLegacyPayload && (
+        <div className="mt-1">
+          This result came from an earlier version of these checks, which could not report
+          whether each check actually ran. Run the checks again to get a result this page can
+          read.
+        </div>
+      )}
+      {/* A fault the payload does not attribute to any leg. Saying so beats an
           unexplained red box, and beats guessing at a leg. */}
-      {!passed && failedLegs.length === 0 && notes.length === 0 && (
+      {reading.outcome === "failed" && failedLegs.length === 0 && notes.length === 0 && (
         <div className="mt-1">The server did not say which check failed.</div>
       )}
       {notes.length > 0 && (
