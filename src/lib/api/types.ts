@@ -1040,8 +1040,15 @@ export interface ReplayRequest {
 /** "header" or "line" — scope of an effective-value or validation change. */
 export type ReplayChangeScope = "header" | "line" | string;
 
-/** "pass" or "fail" — a rule's outcome under one side of a validation diff. */
-export type ReplayRuleStatus = "pass" | "fail" | string;
+/**
+ * A rule's outcome under one side of a validation diff, verbatim off the wire.
+ *
+ * NOT just "pass" or "fail": backend PR 206 added `not_evaluated`, meaning the rule
+ * could not run because the value it judges was absent from the order. Read it with
+ * `validationOutcome` from `src/lib/validationOutcomeManifest.ts` — that file owns the
+ * vocabulary and resolves anything it has never heard of to `unrecognised`, never a pass.
+ */
+export type ReplayRuleStatus = "pass" | "fail" | "not_evaluated" | string;
 
 /** A single effective canonical-value change (header- or line-scoped). */
 export interface ReplayFieldChange {
@@ -1068,9 +1075,9 @@ export interface ReplayValidationSummary {
 export interface ReplayValidationFlip {
   code: string;
   lineNumber: number | null;
-  /** "pass"|"fail" under the order's current bound profile (null when the rule did not exist there). */
+  /** The outcome under the order's current bound profile. Null when the rule did not exist there — which is a different fact from `not_evaluated`, where the rule existed and could not run. */
   currentStatus: ReplayRuleStatus | null;
-  /** "pass"|"fail" under the replayed revision's bound profile (null when the rule does not exist there). */
+  /** The outcome under the replayed revision's bound profile. Null when the rule does not exist there. */
   draftStatus: ReplayRuleStatus | null;
   message: string;
 }
