@@ -45,9 +45,17 @@
 // would be worse than the defect; the reader's next move is identical in both
 // cases, so the dash points at the supplier page, where that panel lives.
 //
-// Note "unknown" is also the only honest reading of a STALE hit: nothing
-// currently invalidates ["supplier-delivery-config", id] when a config is saved,
-// so a cell may be up to staleTime old. Nothing here claims otherwise.
+// Staleness is a different question from those three readings, and it is now
+// bounded. The key this file reads — `deliveryConfigQueryKey(id)` — is invalidated
+// by every mutation that changes a delivery config: the supplier create below,
+// `DeliveryConfigEditor`'s save and delete, and `DeliveryGuidedSetup`'s save, all
+// via `invalidateDeliveryConfig` (src/lib/deliveryConfigCache.ts). A mounted row
+// re-reads after any of them instead of answering from the entry it warmed before
+// the change.
+//
+// What that cannot cover is a change no mutation in this app saw — a config edited
+// in another tab, or by a teammate — so a cell may still be up to staleTime old.
+// Nothing here claims otherwise.
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -56,6 +64,7 @@ import { useDialogA11y } from "@/hooks/useDialogA11y";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getBillingStatus, apiClient, listConnections } from "@/lib/api-client";
 import { getDeliveryConfig, upsertDeliveryConfig } from "@/lib/api/delivery";
+import { deliveryConfigQueryKey, invalidateDeliveryConfig } from "@/lib/deliveryConfigCache";
 import {
   isOrgAdminError,
   isPlanGateError,
@@ -286,7 +295,7 @@ export function SupplierDockList() {
     },
     onSuccess: ({ supplier, channelError, wantedChannel }) => {
       void qc.invalidateQueries({ queryKey: ["suppliers"] });
-      void qc.invalidateQueries({ queryKey: ["supplier-delivery-config", supplier.id] });
+      void invalidateDeliveryConfig(qc, supplier.id);
       setShowAddPanel(false);
       setNewName("");
       setNewProtocol(null);
@@ -866,7 +875,7 @@ function SupplierTableHeader({ counterpartyNoun = "Supplier" }: { counterpartyNo
  */
 function useSupplierDeliveryConfig(supplierId: string, enabled: boolean) {
   return useQuery<DeliveryConfig | null>({
-    queryKey: ["supplier-delivery-config", supplierId],
+    queryKey: deliveryConfigQueryKey(supplierId),
     queryFn: () => getDeliveryConfig(supplierId),
     enabled,
     staleTime: 5 * 60_000,
