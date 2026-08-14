@@ -46,7 +46,11 @@ The order payload is JSON:
 
 At least one line is required. `supplierId` accepts the supplier's GUID or its exact name (case-insensitive). The created order then runs through the normal pipeline — review, transform, deliver.
 
-**Duplicates are handled for you.** Automation tools deliver "at least once", so the same order may be posted twice. Send an `Idempotency-Key` header if you can; without one, ProcuLink derives a key from the payload itself. Within 24 hours, a repeat post returns the original order instead of creating a duplicate.
+**Duplicates are handled on this endpoint.** Automation tools deliver "at least once", so the same order may be posted twice. Send an `Idempotency-Key` header if you can; without one, ProcuLink derives a key from the payload itself. Within 24 hours, a repeat post returns the original order instead of creating a duplicate.
+
+The upload screen is covered too, and it is worth knowing exactly how, because the two rules differ. It sends a key of its own for each file you choose, so pressing **Send** twice, or retrying after a dropped connection, returns the order it already created rather than making a second one. Choosing the file again is treated as a new order on purpose — including the same file, picked a second time — because a deliberate re-send has to reach your supplier. So the endpoint above deduplicates by what the order *contains*, while the upload screen deduplicates by which selection you are sending: an automation posting the same payload twice is one order, and a person choosing the same document twice is two.
+
+Anything else posting to `/api/orders/upload` directly gets this only if it sends its own `Idempotency-Key` — nothing is derived from the file for you.
 
 ## Outbound webhooks
 

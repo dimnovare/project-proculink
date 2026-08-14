@@ -46,6 +46,7 @@ import { isPlanGateError, planGateMessage } from "./planGate";
 import { orgAdminRefusal, readRefusal } from "./api/refusal";
 import { serverReason } from "./serverText";
 import { practiceDeliveryFrom, type PracticeDeliveryState } from "./practiceDelivery";
+import { uploadIdempotencyKey } from "./uploadIdempotency";
 
 /**
  * Normalised public API base (no trailing slash). Exported so UI that needs to
@@ -417,8 +418,24 @@ async function realUploadPurchaseOrder(file: File, supplierId: string): Promise<
   formData.append("file", file);
   formData.append("supplierId", supplierId);
 
+  // Duplicate protection for the one ingest path a human drives by hand. The API
+  // has always honoured this header and the browser never sent it, so a second
+  // press of "Send" — or a retry after a dropped connection — created a second
+  // order that a supplier could then be sent. The key is stable per file
+  // SELECTION (see uploadIdempotencyKey): every attempt at the same chosen file
+  // carries the same key, while choosing a file again mints a new one, so a
+  // deliberate re-upload still creates a real second order.
+  //
+  // Set here rather than at the call sites so every caller of uploadPurchaseOrder
+  // is covered by construction — this screen's single and batch paths today, and
+  // whatever calls it next.
   const res = await fetchWithTimeout(`${API_BASE_URL}/api/orders/upload`, {
-    method: "POST", headers: await authHeader(), body: formData,
+    method: "POST",
+    headers: {
+      ...(await authHeader()),
+      "Idempotency-Key": uploadIdempotencyKey(file, supplierId),
+    },
+    body: formData,
   }, 60000);
   if (!res.ok) {
     const contentType = res.headers.get("content-type") ?? "";
