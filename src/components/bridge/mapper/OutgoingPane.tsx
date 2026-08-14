@@ -31,7 +31,7 @@ import type { ManipulatorEntry, OutputFormatId } from "@/lib/api/types";
 import type { CanonicalNode, SourceField, TargetField } from "./types";
 import { isTargetWired, isRenameAffordanceShown } from "./targetLaneModel";
 import { ignoresManualOutputFields, structuredFormatLabel } from "./previewFormatModel";
-import { computeOutgoingStatus, type OutgoingStatusInput, type OutgoingFieldStatus } from "./outgoingStatusModel";
+import { computeOutgoingStatus, needsSourceStatus, type OutgoingStatusInput, type OutgoingFieldStatus } from "./outgoingStatusModel";
 import { TransformPopover } from "./TransformPopover";
 import { SourcePickerChip } from "./SourcePickerChip";
 import { suggestedSourceFor } from "./sourcePickerModel";
@@ -43,17 +43,11 @@ import {
   SAVED_MAPPING_TITLE,
 } from "./suggestionBasisModel";
 
-/**
- * The one definition of "this row is a blocker": the supplier requires it and we KNOW nothing
- * fills it. Shared by the pane's needs/auto split and by the row's own amber treatment so the
- * group an operator scrolls to and the marker they read can never disagree.
- *
- * `resolution === "missing"`, never `!mapped` — see the split's comment below for why the latter
- * was structurally incapable of being true.
- */
-function needsSourceStatus(status: OutgoingFieldStatus): boolean {
-  return status.required && status.resolution === "missing";
-}
+// `needsSourceStatus` — "the supplier requires it and we KNOW nothing fills it" — is imported from
+// outgoingStatusModel, not defined here. It was a private copy in this file for exactly as long as
+// it took the workbench's attention split to be found asking the same question a third way; it now
+// lives beside the `resolution` tri-state it reads, so the group an operator scrolls to, the marker
+// they read, the header count and the split can never disagree.
 
 export interface OutgoingPaneProps {
   variant: "order" | "connection";
