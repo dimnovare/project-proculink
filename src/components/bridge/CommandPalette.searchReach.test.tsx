@@ -87,8 +87,19 @@ function order(n: number, over: Partial<OrderSummary> = {}): OrderSummary {
   };
 }
 
-/** The order the operator is looking for. Deliberately the 13th-newest. */
-const NEEDLE_PO = "PO-6012";
+/**
+ * The order the operator is looking for. Deliberately the 13th-newest, and the
+ * only row in the set whose text contains a "z" — which is what makes the
+ * one-character query below a real question rather than a lucky one.
+ *
+ * The "z" rides on the PO NUMBER rather than on an invented supplier: party
+ * names in this repo are policed by src/test/counterpartyDeIdentification.test.ts
+ * (both repos are private now but their CI logs were public for weeks), and a
+ * made-up company added here would have to be added to that guard's approved
+ * vocabulary as well. The PO number carries the distinguishing character for
+ * free, and it is also the first field the backend's search matches.
+ */
+const NEEDLE_PO = "PO-6012Z";
 const NEEDLE_INDEX = 12;
 
 /**
@@ -96,7 +107,7 @@ const NEEDLE_INDEX = 12;
  * Exactly one row carries a "z", and it sits outside the six-row preview.
  */
 const RECENT: OrderSummary[] = Array.from({ length: 20 }, (_, i) =>
-  i === NEEDLE_INDEX ? order(i, { supplierName: "Zenith Fasteners" }) : order(i),
+  i === NEEDLE_INDEX ? order(i, { poNumber: NEEDLE_PO }) : order(i),
 );
 
 /**
