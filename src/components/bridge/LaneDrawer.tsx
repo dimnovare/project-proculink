@@ -11,12 +11,32 @@ import { useOrderDirection } from "@/hooks/useOrderDirection";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import type { OrderStatus } from "@/types/procurement";
 
+/**
+ * The population behind `Lane.health`, and whether it is the whole one.
+ *
+ * The same shape, and the same reason, as `BlockersReading` on the dashboard: the count
+ * is honest about the set it was computed over, and the VERDICT is the thing that needs
+ * an entitlement. `deriveTopology` buckets `allOrders`, which is one `pageSize: 100`
+ * page, so on the client-derived path a wire's `failed === 0` means "no failures in the
+ * orders we loaded", not "no failures on this connection".
+ *
+ * Not optional, deliberately: a construction site that has not decided cannot fall
+ * through to the favourable answer.
+ */
+export interface LaneHealthBasis {
+  /** True when the verdict really does cover every order on this connection. */
+  complete: boolean;
+  /** How many orders the verdict was computed over. Only read when `complete` is false. */
+  scanned: number;
+}
+
 export type Lane = {
   buyerName: string;
   buyerCode: string;
   supplierName: string;
   supplierCode: string;
   health: "ok" | "risk" | "down";
+  healthBasis: LaneHealthBasis;
   volume: string;
   alert?: number;
 };
@@ -46,6 +66,41 @@ const HEALTH_LABEL: Record<string, string> = {
   risk: "At risk",
   down: "Down",
 };
+
+/**
+ * What a truncated working set is allowed to call a clean connection.
+ *
+ * "Healthy" is a claim about the connection; "No failures seen" is a claim about what
+ * was looked at, and that is the difference the sample can carry.
+ */
+export const PARTIAL_OK_LABEL = "No failures seen";
+
+/**
+ * The health word this Lane has evidence for.
+ *
+ * Only the FAVOURABLE verdict retreats. "At risk" and "Down" are existential — one
+ * failure in the sample is a real failure, and a wider window can only add more — so a
+ * truncated set proves them exactly as well as a complete one does. "Healthy" is
+ * universal: it asserts something about every order on the connection, which is the one
+ * thing a first-100-orders sample cannot establish. Widening the page size would make
+ * the wrong predicate right by accident; the fix is the claim.
+ */
+export function laneHealthLabel(health: Lane["health"], basis: LaneHealthBasis): string {
+  if (basis.complete || health !== "ok") return HEALTH_LABEL[health];
+  return PARTIAL_OK_LABEL;
+}
+
+/**
+ * The sentence that names the population, or null when the verdict covers everything.
+ *
+ * Rendered under the stats row rather than folded into the label because the label is a
+ * 9px eyebrow and a 14px stat value — neither has room to carry a scope, and a scope
+ * that does not fit is a scope that gets dropped.
+ */
+export function laneHealthScopeNote(basis: LaneHealthBasis): string | null {
+  if (basis.complete) return null;
+  return `Based on the ${basis.scanned.toLocaleString()} most recent orders in this account, not every order on this connection.`;
+}
 
 // Mock recent crossings for the selected lane
 const MOCK_CROSSINGS = [
@@ -94,6 +149,10 @@ interface LaneDrawerProps {
 export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
   const hc     = HEALTH_COLOR[lane.health];      // the gradient wire — non-text
   const hcText = HEALTH_TEXT_COLOR[lane.health]; // the health label + stat — text
+  // One word, read by both sites that print it, so the eyebrow and the stat tile cannot
+  // disagree about what this connection's evidence supports.
+  const healthWord = laneHealthLabel(lane.health, lane.healthBasis);
+  const healthScopeNote = laneHealthScopeNote(lane.healthBasis);
   const router = useRouter();
   // Direction-aware party labels (avoids a split-brain "Supplier" UI for inbound
   // orgs). railHeader is "Buyer → Supplier" (outbound) / "Customer → You"
@@ -297,9 +356,15 @@ export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
                   color: hcText,
                   fontWeight: 700,
                   letterSpacing: "0.05em",
+                  // Caps the scoped wording so it wraps inside this column instead of
+                  // stretching the row and squeezing the two party names either side.
+                  // Never binds on "Healthy"/"At risk"/"Down", so the complete-verdict
+                  // layout is byte-identical.
+                  maxWidth: 86,
+                  textAlign: "center",
                 }}
               >
-                {HEALTH_LABEL[lane.health]}
+                {healthWord}
               </div>
             </div>
 
@@ -357,7 +422,7 @@ export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
           >
             {[
               { label: "Volume",  value: lane.volume },
-              { label: "Health",  value: HEALTH_LABEL[lane.health], color: hcText },
+              { label: "Health",  value: healthWord, color: hcText },
               { label: "Alerts",  value: lane.alert ? `${lane.alert}` : "—", color: lane.alert ? "#8A5310" : undefined },
             ].map(({ label, value, color }, i) => (
               <div
@@ -386,6 +451,22 @@ export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
               </div>
             ))}
           </div>
+
+          {/* Which orders the Health verdict actually read. Absent when it read all of
+              them — a scope note under a complete verdict would be noise, and the
+              server-aggregated topology path is complete. */}
+          {healthScopeNote && (
+            <p
+              style={{
+                margin: "8px 0 0",
+                fontSize: 11,
+                lineHeight: 1.45,
+                color: "var(--ink-muted)",
+              }}
+            >
+              {healthScopeNote}
+            </p>
+          )}
         </div>
 
         {/* Recent crossings */}
