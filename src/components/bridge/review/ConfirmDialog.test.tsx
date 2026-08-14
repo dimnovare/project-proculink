@@ -129,3 +129,61 @@ describe("THE CONTRADICTION: zero exceptions with failing acceptance rules", () 
     expect(document.body.textContent).not.toMatch(/failed validation/i);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The retry note promised a policy the product does not implement. It was
+// unconditional — no prop, no gate — on the consent step of every send, at both
+// breakpoints. Checked against the backend:
+//
+//   • DeliveryReliabilityOptions.MaxAttempts = 3, documented as "first attempt
+//     + 2 backoff retries". The copy said three retries.
+//   • BackoffMinutes = 30 / 60 / 120, doubling, and RetryJitterPercent = 20
+//     pushes each step further up. The copy said 30-minute intervals.
+//   • IEmailSender has ONE production consumer, SupportContactService — the
+//     contact form. There is no delivery-failure email anywhere in the product.
+//     The copy said we would email you.
+//   • A business rejection is retried ZERO times: DeliverOrderJob returns early
+//     on SupplierResponseClassification.SuppressesAutomaticRetry.
+//
+// The replacement carries no numbers on purpose: the schedule is configuration
+// (Delivery:Reliability), so any figure printed here drifts silently.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("the retry note describes the policy the backend actually runs", () => {
+  it("promises no email, because no delivery-failure email exists", () => {
+    renderDialog();
+    expect(document.body.textContent).not.toMatch(/email/i);
+  });
+
+  it("states no retry count and no interval — both were wrong and both drift", () => {
+    renderDialog();
+    const body = document.body.textContent ?? "";
+    expect(body).not.toMatch(/3 automatic retries/i);
+    expect(body).not.toMatch(/30-min/i);
+    // No bare digit may creep back into the sentence in any form.
+    expect(body).not.toMatch(/\d+\s*(automatic )?retries/i);
+    expect(body).not.toMatch(/\d+\s*-?\s*min/i);
+  });
+
+  it("says what does happen: repeated tries with a growing wait, and where it lands", () => {
+    // Anti-vacuity: the absences above would all pass if the note were deleted.
+    renderDialog();
+    const body = document.body.textContent ?? "";
+    expect(body).toContain("we retry automatically, waiting longer each time");
+    expect(body).toContain("comes back here with what happened");
+  });
+
+  it("names the case that is NOT retried at all", () => {
+    // A refusal the supplier read and sent back suppresses the retry queue
+    // entirely, so a flat "we retry on failure" would be its own false promise.
+    renderDialog();
+    expect(document.body.textContent).toContain("a refusal from the supplier is not retried");
+  });
+
+  it("routes the party noun, so an inbound org reads customer", () => {
+    renderDialog({ labels: INBOUND });
+    const body = document.body.textContent ?? "";
+    expect(body).toContain("a refusal from the customer is not retried");
+    expect(body).not.toMatch(/refusal from the supplier/i);
+  });
+});

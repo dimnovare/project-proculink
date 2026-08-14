@@ -208,6 +208,89 @@ describe("WorkshopStatusBar — the issue summary is always present", () => {
     expect(document.body.innerHTML).not.toMatch(/every rule passed/i);
   });
 
+  // ── the green tick on an order that already failed ─────────────────────────
+  // The bar took NO order status at all, so a clean field set drew "✓ No issues"
+  // in green on an order that had stopped — delivery_failed, transform_failed,
+  // rejected_by_supplier and four more. Seven of the eight problem statuses
+  // render the workshop under a banner rather than gating it
+  // (problemCopy.ts — only `failed` is presentation "gate"), so the tick sat
+  // directly beneath a red banner saying the send had failed. IssuesPanel and
+  // MobileTriage already took `orderStatus`; this bar was missed.
+  //
+  // The control that matters is ZERO blockers and ZERO notes: any blocker sends
+  // the chip down a different branch and never reaches the green at all.
+
+  test.each([
+    "delivery_failed",
+    "transform_failed",
+    "rejected_by_supplier",
+    "delivery_dead_letter",
+    "delivery_held",
+    "delivery_unconfirmed",
+    "unrouted",
+  ])("a stopped order (%s) with zero blockers and zero notes never goes green", (status) => {
+    render(
+      <WorkshopStatusBar
+        blockers={[]}
+        notes={0}
+        orderStatus={status}
+        onJump={vi.fn()}
+        mapper={mapperState()}
+      />,
+    );
+    const chip = screen.getByTestId("status-bar-issue-summary");
+    expect(chip.textContent).toBe("Stopped");
+    expect(chip.getAttribute("data-order-stopped")).toBe("true");
+    // The green claim is gone from the document, tooltip included.
+    expect(document.body.textContent).not.toContain("No issues");
+    expect(document.body.innerHTML).not.toContain("everything ProcuLink can check before sending");
+    // …and it points at the surface that owns the cause instead.
+    expect(chip.getAttribute("title")).toBe(
+      "No field problems, but this order stopped before it was sent. " +
+      "The panel above says what happened and what to do next.",
+    );
+    // The green tick itself must not survive the wording change.
+    expect(chip.querySelector("svg")).toBeNull();
+  });
+
+  test("a stopped order keeps its optional-note count rather than dropping it", () => {
+    render(
+      <WorkshopStatusBar
+        blockers={[]}
+        notes={2}
+        orderStatus="delivery_failed"
+        onJump={vi.fn()}
+        mapper={mapperState()}
+      />,
+    );
+    expect(screen.getByTestId("status-bar-issue-summary").textContent).toBe("Stopped · 2 optional");
+  });
+
+  test("a HEALTHY status still goes green — the guard is the status, not the prop", () => {
+    // Anti-vacuity: if `stopped` were stuck true, or the chip had simply stopped
+    // rendering its green face, every assertion above would pass for free.
+    render(
+      <WorkshopStatusBar
+        blockers={[]}
+        notes={0}
+        orderStatus="ready_to_deliver"
+        onJump={vi.fn()}
+        mapper={mapperState()}
+      />,
+    );
+    const chip = screen.getByTestId("status-bar-issue-summary");
+    expect(chip.textContent).toBe("No issues");
+    expect(chip.getAttribute("data-order-stopped")).toBeNull();
+    expect(chip.querySelector("svg")).not.toBeNull();
+  });
+
+  test("hosts that pass no status are untouched", () => {
+    // The mapping panel and the connection editor mount this bar without an
+    // order at all; they must keep today's behaviour exactly.
+    render(<WorkshopStatusBar blockers={[]} notes={0} onJump={vi.fn()} mapper={mapperState()} />);
+    expect(screen.getByTestId("status-bar-issue-summary").textContent).toBe("No issues");
+  });
+
   test("blockers present → the red segment owns the count; no duplicate summary chip", () => {
     render(
       <WorkshopStatusBar

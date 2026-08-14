@@ -21,6 +21,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { isProblemBucketStatus } from "@/lib/orderStatusManifest";
 import type { MapperToolbarState } from "../mapper/MapperWorkbench";
 import { statusChipTitle } from "./acceptanceGateModel";
 
@@ -73,6 +74,7 @@ export function WorkshopStatusBar({
   saveMappingsTitle,
   notice,
   noticeSeverity = "info",
+  orderStatus = null,
 }: {
   blockers: BlockerChip[];
   /** Warning-level (non-blocking) issue count — shown as a quiet optional note. */
@@ -127,8 +129,24 @@ export function WorkshopStatusBar({
    */
   notice?: string | null;
   noticeSeverity?: "info" | "success" | "error";
+  /**
+   * The order's raw status. Absent → the summary chip behaves exactly as before,
+   * which is what keeps the hosts that are NOT an order review unchanged.
+   *
+   * It is here because the bar had no status input at all, so its green tick
+   * rendered on an order that had already failed to send. IssuesPanel and
+   * MobileTriage have taken this for the same reason since WP-39 §4.3.
+   */
+  orderStatus?: string | null;
 }) {
   const chips = useMemo(() => dedupeBlockerChips(blockers), [blockers]);
+  // Seven of the eight problem statuses render the workshop under a banner rather
+  // than gating it, so this bar really does draw beneath a stopped order.
+  const stopped = isProblemBucketStatus(orderStatus);
+  // One amber palette serves both non-green faces — a stopped order and
+  // warnings-only. Sharing it is deliberate: no new colour enters the file, and
+  // the tick below is keyed off the same flag so it cannot outlive the green.
+  const chipAmber = stopped || notes > 0;
   const allMapped = mapper != null && mapper.total > 0 && mapper.mapped >= mapper.total;
   const suggestionCount = mapper?.suggestionCount ?? 0;
 
@@ -240,23 +258,26 @@ export function WorkshopStatusBar({
             // The tooltip is NOT written here. It is the same claim the green
             // ready bar makes off the same two numbers, so acceptanceGateModel
             // owns both — see statusChipTitle for what this chip may not say.
-            title={statusChipTitle({ noteCount: notes })}
+            data-order-stopped={stopped ? "true" : undefined}
+            title={statusChipTitle({ noteCount: notes, orderStopped: stopped })}
             style={{
               display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700,
               borderRadius: 999, padding: "3px 10px", whiteSpace: "nowrap", flexShrink: 0,
               // #8A5310 on #FAF1DD = 5.62:1; #1E6D29 on #E9F1EA = 5.57:1. Both AA.
               // NOT #B36D14, which is 3.65:1 on its own soft background.
-              color: notes > 0 ? "#8A5310" : "#1E6D29",
-              background: notes > 0 ? "#FAF1DD" : "#E9F1EA",
-              border: `1px solid ${notes > 0 ? "#F1E2BE" : "#CDE7D1"}`,
+              color: chipAmber ? "#8A5310" : "#1E6D29",
+              background: chipAmber ? "#FAF1DD" : "#E9F1EA",
+              border: `1px solid ${chipAmber ? "#F1E2BE" : "#CDE7D1"}`,
             }}
           >
-            {notes > 0 ? null : (
+            {chipAmber ? null : (
               <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden style={{ flexShrink: 0 }}>
                 <path d="M2.5 6.2 5 8.6 9.5 3.6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             )}
-            {notes > 0 ? `${notes} optional` : "No issues"}
+            {stopped
+              ? (notes > 0 ? `Stopped · ${notes} optional` : "Stopped")
+              : notes > 0 ? `${notes} optional` : "No issues"}
           </span>
         )}
         {mapper != null && mapper.total > 0 && (

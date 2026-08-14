@@ -179,9 +179,26 @@ export function ConfirmDialog({ exceptionCount, onConfirm, onCancel, supplierNam
           </div>
         )}
 
-        {/* Retry note */}
+        {/* Retry note. It used to promise, unconditionally and with no prop and no
+            gate: three automatic retries, 30-minute intervals, and an email. All
+            three clauses were false, checked against the backend:
+              • DeliveryReliabilityOptions.MaxAttempts = 3, documented as "first
+                attempt + 2 backoff retries" — so TWO retries, not three.
+              • BackoffMinutes = { 30, 60, 120 } doubles, and RetryJitterPercent
+                = 20 pushes each step further up. Not 30-minute intervals.
+              • IEmailSender has one production consumer, SupportContactService
+                (the contact form). No delivery-failure email exists anywhere.
+              • And a business rejection gets ZERO retries — DeliverOrderJob.cs
+                returns early on SupplierResponseClassification
+                .SuppressesAutomaticRetry, which is true exactly for a refusal the
+                supplier read and sent back.
+            Deliberately carries no numbers: the schedule is configuration
+            (section Delivery:Reliability), so any figure printed here is a promise
+            that drifts the moment an option changes. */}
         <div style={{ margin: "0 24px 20px", padding: "8px 12px", background: "#ECFDF3", borderRadius: 6, fontSize: 11.5, color: "#1E6D29" }}>
-          On delivery failure: 3 automatic retries · 30-min intervals · we&apos;ll email you
+          If delivery fails we retry automatically, waiting longer each time — but a refusal
+          from the {labels.counterpartyNoun.toLowerCase()} is not retried. Either way the order
+          comes back here with what happened.
         </div>
 
         {/* Actions */}
