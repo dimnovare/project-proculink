@@ -24,6 +24,9 @@ import { useState, type KeyboardEvent, type ReactNode } from "react";
 import { UnifiedStatusBadge } from "../UnifiedStatusBadge";
 import { sendBarLabel } from "./sendBarLabel";
 import { isProblemBucketStatus } from "@/lib/orderStatusManifest";
+// The stopped-order note is the SAME sentence the desktop panel renders, owned in
+// one place so the two breakpoints cannot drift apart.
+import { STOPPED_ORDER_NOTE } from "./acceptanceGateModel";
 import type { WorkshopIssue, IssuesResolveApi } from "./IssuesPanel";
 import type { OrderLine } from "@/types/procurement";
 
@@ -350,9 +353,7 @@ export function MobileTriage(props: MobileTriageProps) {
               !
             </span>
             <span style={{ fontSize: 13.5, fontWeight: 600 }}>
-              <strong style={{ fontWeight: 700 }}>No field problems.</strong> Every required
-              field is filled and checked. This order stopped for another reason — see what
-              happened and what to do next.
+              <strong style={{ fontWeight: 700 }}>No field problems.</strong> {STOPPED_ORDER_NOTE}
             </span>
           </div>
         ) : issues.length === 0 ? (

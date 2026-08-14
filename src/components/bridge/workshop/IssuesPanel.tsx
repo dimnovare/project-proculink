@@ -23,6 +23,9 @@
 
 import type { CSSProperties, KeyboardEvent } from "react";
 import { isProblemBucketStatus } from "@/lib/orderStatusManifest";
+// Both bars below state what was looked at. acceptanceGateModel owns those words —
+// this panel does not retype them. See CHECK_SCOPE_SENTENCE for why "checked" went.
+import { READY_BAR_DEFAULT, STOPPED_ORDER_NOTE } from "./acceptanceGateModel";
 import { confidenceTone } from "../ConfidenceChip";
 import type { FixCardKind } from "../review/buildFixQueue";
 import type { OrderLine } from "@/types/procurement";
@@ -204,8 +207,7 @@ export function IssuesPanel({ issues, onFocusField, onFix, readyLabel, resolve, 
         </span>
         <span style={{ fontSize: 13, fontWeight: 700 }}>No field problems</span>
         <span style={{ fontSize: 11.5, color: C.amberText, fontWeight: 500 }}>
-          Every required field is filled and checked. This order stopped for another
-          reason — see what happened and what to do next.
+          {STOPPED_ORDER_NOTE}
         </span>
       </div>
     );
@@ -241,7 +243,7 @@ export function IssuesPanel({ issues, onFocusField, onFix, readyLabel, resolve, 
             fill — the row's own `color` two elements up was already the right
             value, and this span was overriding it with a worse one. */}
         <span style={{ fontSize: 11.5, color: C.greenDeep, fontWeight: 500 }}>
-          {readyLabel ?? "No open issues — every required field is filled and checked."}
+          {readyLabel ?? READY_BAR_DEFAULT}
         </span>
       </div>
     );

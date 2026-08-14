@@ -98,6 +98,25 @@ export function failingAcceptanceCount(
 }
 
 /**
+ * THE ONE CLAUSE every "nothing is outstanding" surface states, so no surface can
+ * quietly widen it again.
+ *
+ * It names the SCOPE of what was looked at and stops there. It deliberately does NOT
+ * say a field was "checked": the only rule-level check this screen can run is
+ * `POST /api/orders/{id}/validate`, which has no caller anywhere in `src/` (see
+ * readyBarLabel below for the full reasoning), so nothing rule-level ever ran behind
+ * any of these bars.
+ *
+ * No terminal punctuation and no party noun, so each surface attaches its own
+ * continuation. Every consumer composes from THIS constant rather than retyping the
+ * words, which is what stops a fifth phrasing from appearing on a sixth surface.
+ *
+ * Help guides quote `readyBarLabel`s output verbatim and `src/test/readyBarClaim.test.ts`
+ * compares them against it, so changing this text changes those guides too.
+ */
+export const CHECK_SCOPE_SENTENCE = "This is everything ProcuLink can check before sending";
+
+/**
  * The sub-line under the IssuesPanel's green "Ready to send" bar.
  *
  * WHY THIS IS PRODUCED RATHER THAN LEFT TO THE DEFAULT (audit 2026-08-13 v3, P0-2).
@@ -141,7 +160,44 @@ export function readyBarLabel(input: {
   // it is the true half of the old sentence, and two help guides and
   // issuesRailFailureState.test.tsx both key off it.
   return (
-    `No open issues. This is everything ProcuLink can check before sending — ` +
+    `No open issues. ${CHECK_SCOPE_SENTENCE} — ` +
     `it is not a guarantee that the ${noun} will accept the order.`
   );
 }
+
+/**
+ * The sub-line on the ZERO-FIELD-PROBLEMS-BUT-STOPPED bar — IssuesPanel and, below
+ * lg, MobileTriage. Both render the same branch of the same decision, so both read
+ * this one string.
+ *
+ * WHAT IT REPLACED, and why (audit follow-up to P0-2). Both surfaces said:
+ *
+ *     Every required field is filled and checked. This order stopped for another
+ *     reason — see what happened and what to do next.
+ *
+ * "and checked" is the exact claim readyBarLabel retired, on the exact same
+ * evidence: no rule-level check runs on this screen at all, and the gate decision
+ * carries no signal for whether the counterparty even HAS an acceptance profile, so
+ * a counterparty with no rules is indistinguishable from one that passed every rule.
+ * The headline above this line is already "No field problems", which is true and
+ * carries the good news; it was only the second sentence that overreached.
+ *
+ * No party noun: neither surface has one in scope here, and inventing one would be a
+ * second fabrication in a string whose whole purpose is to stop fabricating.
+ * "stopped for another reason" is kept verbatim — issuesRailFailureState.test.tsx
+ * keys both surfaces off it.
+ */
+export const STOPPED_ORDER_NOTE =
+  `${CHECK_SCOPE_SENTENCE}. This order stopped for another reason — ` +
+  `see what happened and what to do next.`;
+
+/**
+ * IssuesPanels `readyLabel` fallback — what the green bar renders for a caller that
+ * passes no label.
+ *
+ * Every PRODUCTION call site passes one (readyBarClaim.test.ts asserts it), so this
+ * is reached only by pure-view callers. It still held the retired claim verbatim
+ * until now, which made the panel the last place in `src/` an operator could have
+ * read it. Noun-free, because a fallback has no direction to route.
+ */
+export const READY_BAR_DEFAULT = `No open issues. ${CHECK_SCOPE_SENTENCE}.`;

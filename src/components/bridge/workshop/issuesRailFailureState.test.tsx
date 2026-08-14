@@ -7,6 +7,11 @@ import {
   REACHABLE_STATUSES,
   isProblemBucketStatus,
 } from "@/lib/orderStatusManifest";
+import {
+  CHECK_SCOPE_SENTENCE,
+  READY_BAR_DEFAULT,
+  STOPPED_ORDER_NOTE,
+} from "./acceptanceGateModel";
 
 // WP-39 §4.3 — after a live delivery failure the Issues rail still said there was
 // nothing wrong.
@@ -166,5 +171,85 @@ describe("mobile triage — an order that stopped (WP-39 §4.3)", () => {
     render(<MobileTriage {...mobileProps({ status: "ready" })} />);
 
     expect(screen.getByTestId("mobile-triage-ready")).toBeInTheDocument();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// What the bars SAY once inside the branch above.
+//
+// Everything above this line guards which BRANCH each surface takes. Nothing
+// guarded the words, so the claim `readyBarLabel` retired went on rendering inside
+// the branch this file created: "Every required field is filled and checked." sat on
+// the stopped bar at BOTH breakpoints, and in IssuesPanel's `readyLabel ?? "…"`
+// fallback, long after acceptanceGateModel had written out why no check runs behind
+// it — POST /api/orders/{id}/validate has no caller anywhere in src/, so
+// `validationResult` is permanently null, and AcceptanceGateDecision carries no
+// signal for whether the counterparty even HAS an acceptance profile.
+//
+// ASSERTED ON document.body.textContent, NOT ON PROPS. A prop assertion is green
+// while a hardcoded sentence sits in the JSX two lines below it — which is precisely
+// how three copies of this survived the fix that named them.
+//
+// The expected strings are IMPORTED from the module that owns them, never retyped.
+// A literal here would be a fourth copy, and this repo has been bitten by exactly
+// that: a hand-typed string in a test is usually WHY a drift survived.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** The retired claim, verbatim — the one thing that must never render again. */
+const RETIRED_CLAIM = "filled and checked";
+
+describe("the stopped-order note claims only what was looked at", () => {
+  test("acceptanceGateModel really owns one shared vocabulary — anti-vacuity", () => {
+    // Without this, every assertion below could be comparing empty strings and pass.
+    expect(CHECK_SCOPE_SENTENCE.length).toBeGreaterThan(20);
+    expect(CHECK_SCOPE_SENTENCE).not.toContain(RETIRED_CLAIM);
+    // Both surfaces compose from the SAME clause. If a future edit retypes the words
+    // into one of them instead, this is what fails.
+    expect(STOPPED_ORDER_NOTE).toContain(CHECK_SCOPE_SENTENCE);
+    expect(READY_BAR_DEFAULT).toContain(CHECK_SCOPE_SENTENCE);
+    expect(STOPPED_ORDER_NOTE).toMatch(/stopped for another reason/i);
+  });
+
+  test.each([...PROBLEM_BUCKET_STATUSES])(
+    "IssuesPanel does not claim the fields were CHECKED — %s",
+    (status) => {
+      render(<IssuesPanel issues={[]} orderStatus={status} onFocusField={vi.fn()} />);
+      const rendered = document.body.textContent ?? "";
+
+      expect(
+        rendered,
+        `the stopped bar still renders "${RETIRED_CLAIM}" — no rule-level check runs on this screen`,
+      ).not.toContain(RETIRED_CLAIM);
+      expect(rendered).toContain(CHECK_SCOPE_SENTENCE);
+      expect(rendered).toContain(STOPPED_ORDER_NOTE);
+    },
+  );
+
+  test.each([...PROBLEM_BUCKET_STATUSES])(
+    "MobileTriage says the same sentence as the desktop panel — %s",
+    (status) => {
+      render(<MobileTriage {...mobileProps({ status })} />);
+      const rendered = document.body.textContent ?? "";
+
+      expect(
+        rendered,
+        `the mobile stopped bar still renders "${RETIRED_CLAIM}" — no rule-level check runs on this screen`,
+      ).not.toContain(RETIRED_CLAIM);
+      expect(rendered).toContain(STOPPED_ORDER_NOTE);
+    },
+  );
+
+  test("the green bar's own fallback no longer carries the retired claim", () => {
+    // Every production call site passes `readyLabel` (readyBarClaim.test.ts asserts
+    // it), so this default is what pure-view callers get — and it was the last live
+    // copy of the sentence in src/.
+    render(<IssuesPanel issues={[]} onFocusField={vi.fn()} />);
+    const rendered = document.body.textContent ?? "";
+
+    expect(
+      rendered,
+      `the readyLabel fallback still renders "${RETIRED_CLAIM}"`,
+    ).not.toContain(RETIRED_CLAIM);
+    expect(rendered).toContain(READY_BAR_DEFAULT);
   });
 });

@@ -9,8 +9,9 @@ import type { AcceptanceGateDecision } from "@/lib/api/types";
 // P0-B (audit 2026-08-13 v3, finding 2) — "No open issues — every required field
 // is filled and checked." rendered over a check that never ran.
 //
-// THE DEFECT, verbatim. `IssuesPanel.tsx:243` is
+// THE DEFECT, verbatim. `IssuesPanel.tsx` read
 //     {readyLabel ?? "No open issues — every required field is filled and checked."}
+// (the fallback is now `READY_BAR_DEFAULT`, which carries no such claim)
 // and `readyLabel` had NO PRODUCER anywhere in `src/`, so only the default ever
 // rendered. "and checked" names a check; the only rule-level check this screen can
 // run is `POST /api/orders/{id}/validate`, which has no caller in `src/` — the
