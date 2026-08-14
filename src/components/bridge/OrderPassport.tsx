@@ -1,10 +1,16 @@
 "use client";
 
-// PO Passport — the provenance + acceptance record for a single order.
+// PO Passport — the provenance + delivery record for a single order.
 // Renders a Uploaded → Parsed → Validated → Mapped → Transformed → Delivered →
-// (Accepted / Failed / Needs review) timeline derived from the live passport,
-// plus the evidence behind each stage. "Download acceptance proof" exports the
-// raw passport JSON returned by the API; PDF export is a marked TODO.
+// (Awaiting response / Supplier rejected / Failed / Needs review) timeline derived
+// from the live passport, plus the evidence behind each stage. "Download acceptance
+// proof" exports the raw passport JSON returned by the API; PDF export is a marked TODO.
+//
+// There is no "Accepted" outcome, and adding one back needs a supplier to have said so.
+// ProcuLink parses no functional acknowledgement on any channel (997, CONTRL,
+// ApplicationResponse, MDN, cXML <Response>), and SFTP/FTPS/SMTP have no back-channel
+// that could carry one. Until that changes, a successful delivery is a successful
+// HANDOVER: the only supplier verdict this screen can show is a rejection.
 
 import { useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -17,6 +23,7 @@ import {
   deliveryAttemptOutcome,
 } from "@/lib/deliveryAttemptManifest";
 import type { DeliveryAttemptOutcome } from "@/lib/deliveryAttemptManifest";
+import { supplierReasonText } from "@/components/bridge/problem/supplierReasonText";
 import type {
   PassportDto,
   PassportEvent,
@@ -113,7 +120,7 @@ export function deriveTimeline(p: PassportDto): DerivedTimeline {
   // the ONE status the channel confirmed is the only thing allowed to set it.
   const deliveredOk =
     fs.includes("delivered") ||
-    respOutcome === "acknowledged" ||
+    respOutcome === "delivered" ||
     attempts.some((a) => attemptSendWasObserved(a.status));
   const deliveryFailed =
     fs.includes("delivery_failed") ||
@@ -147,8 +154,8 @@ export function deriveTimeline(p: PassportDto): DerivedTimeline {
       case 3: return timelineAt(p.timeline, "map", "resolv");
       case 4: return timelineAt(p.timeline, "transform") ?? p.outputArtifact?.createdAt ?? null;
       case 5: {
-        const ack = attempts.find((a) => a.acknowledgedAt)?.acknowledgedAt;
-        return timelineAt(p.timeline, "deliver") ?? ack ?? attempts[attempts.length - 1]?.attemptedAt ?? null;
+        const sentAt = attempts.find((a) => a.transportAcceptedAt)?.transportAcceptedAt;
+        return timelineAt(p.timeline, "deliver") ?? sentAt ?? attempts[attempts.length - 1]?.attemptedAt ?? null;
       }
       default: return null;
     }
@@ -190,11 +197,16 @@ export function deriveTimeline(p: PassportDto): DerivedTimeline {
   });
 
   // Final node.
+  //
+  // There is deliberately NO "Accepted" arm. One used to sit at the top of this chain, gated on
+  // `respOutcome === "acknowledged"` — a value the API produced for every successful delivery, off
+  // our own dispatch clock — and it rendered "Accepted" with the detail "Acknowledged by supplier".
+  // It shadowed the honest `deliveredOk` arm below, which was therefore unreachable. Nothing in the
+  // product parses a supplier acknowledgement on any channel, so until something does, the only
+  // supplier VERDICT that can appear here is a rejection.
   let final: DerivedTimeline["final"];
-  if (respOutcome === "acknowledged") {
-    final = { label: "Accepted", state: "done", at: resp?.acknowledgedAt ?? at(5), detail: resp?.responseCode != null ? `Response ${resp.responseCode}` : "Acknowledged by supplier" };
-  } else if (respOutcome === "rejected") {
-    final = { label: "Supplier rejected", state: "failed", at: resp?.acknowledgedAt ?? at(5), detail: resp?.rejectionReason ?? "The supplier read this order and refused it." };
+  if (respOutcome === "rejected") {
+    final = { label: "Supplier rejected", state: "failed", at: resp?.transportAcceptedAt ?? at(5), detail: resp?.rejectionReason ?? "The supplier read this order and refused it." };
   } else if (parseFailed || transformFailed || deliveryFailed) {
     const lastErr = attempts.map((a) => a.errorMessage || a.rejectionReason).filter(Boolean).pop();
     final = { label: "Failed", state: "failed", at: at(failedAt ?? 5), detail: lastErr ?? (p.finalStatus ?? p.order.status) };
@@ -207,6 +219,63 @@ export function deriveTimeline(p: PassportDto): DerivedTimeline {
   }
 
   return { stages, final };
+}
+
+/**
+ * The supplier endpoint's raw response body, shown as THEIRS.
+ *
+ * Until 2026-08-14 the API sent this field and nothing rendered it — while two other files
+ * justified sanitising their own copy on the grounds that "the full body stays in the order
+ * passport, which is where an integrator goes to read exactly what came back". It did not.
+ *
+ * Three rules hold here, and each is why this is a component rather than an inline block:
+ *
+ *  1. It is ATTRIBUTED. The heading says whose words these are. ProcuLink draws no conclusion
+ *     from the body — it does not parse it — so it must never appear as our sentence.
+ *  2. It is QUOTED, not narrated: monospace, pre-wrapped, in its own bordered block, so an HTML
+ *     error page or a JSON blob reads as a payload rather than as prose we wrote.
+ *  3. It is BOUNDED by the API (DeliveryAttempt.MaxResponseBodyLength) and again here, so a
+ *     hostile or enormous body cannot run away with the panel.
+ *
+ * Deliberately NOT passed through `supplierReasonText`: that helper exists to lift a sentence out
+ * of a payload for use in OUR copy, and returns null when it cannot. This block is the opposite
+ * job — showing the payload itself, verbatim, for an integrator diagnosing a 2xx that carried a
+ * refusal. React escapes it; it is never dangerouslySetInnerHTML.
+ */
+function SupplierResponseBody({ body }: { body: string | null }) {
+  const trimmed = body?.trim();
+  if (!trimmed) return null;
+
+  const MAX = 2000;
+  const shown = trimmed.length > MAX ? trimmed.slice(0, MAX) : trimmed;
+  const truncated = trimmed.length > MAX;
+
+  return (
+    <div className="flex flex-col gap-1">
+      <div style={{ color: "var(--ink-faint)" }}>What the supplier&apos;s endpoint returned</div>
+      <pre
+        className="font-mono text-[11.5px] overflow-x-auto"
+        style={{
+          margin: 0,
+          padding: "8px 10px",
+          border: "1px solid var(--border)",
+          borderRadius: "6px",
+          background: "var(--surface-2)",
+          whiteSpace: "pre-wrap",
+          wordBreak: "break-word",
+          maxHeight: "220px",
+          overflowY: "auto",
+        }}
+      >
+        {shown}
+      </pre>
+      {truncated && (
+        <div style={{ color: "var(--ink-faint)" }}>
+          Truncated for display. The full recorded response is in the downloaded acceptance proof.
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ─── Visual atoms ───────────────────────────────────────────────────────────
@@ -648,11 +717,17 @@ export function OrderPassport({ orderId }: { orderId: string }) {
             {passport.supplierResponse ? (
               <div className="flex flex-col gap-2 text-[12.5px]" style={{ color: "#5E6779" }}>
                 <div>
-                  Outcome: <strong style={{ color: lc(passport.supplierResponse.outcome) === "acknowledged" ? "#1E6D29" : lc(passport.supplierResponse.outcome) === "rejected" ? "#B43838" : "#0B1A2F", textTransform: "capitalize" }}>{passport.supplierResponse.outcome}</strong>
+                  Outcome: <strong style={{ color: lc(passport.supplierResponse.outcome) === "delivered" ? "#1E6D29" : lc(passport.supplierResponse.outcome) === "rejected" ? "#B43838" : "#0B1A2F", textTransform: "capitalize" }}>{passport.supplierResponse.outcome}</strong>
                   {passport.supplierResponse.responseCode != null && <span className="font-mono"> · {passport.supplierResponse.responseCode}</span>}
                 </div>
-                {passport.supplierResponse.acknowledgedAt && <div>Acknowledged: {fmtDateTime(passport.supplierResponse.acknowledgedAt)}</div>}
-                {passport.supplierResponse.rejectionReason && <div style={{ color: "#B43838" }}>{passport.supplierResponse.rejectionReason}</div>}
+                {/* Our dispatch clock, labelled as ours. This read "Acknowledged: {t}" off a field
+                    named acknowledgedAt, which no supplier had anything to do with. */}
+                {passport.supplierResponse.transportAcceptedAt && <div>Sent: {fmtDateTime(passport.supplierResponse.transportAcceptedAt)}</div>}
+                {lc(passport.supplierResponse.outcome) === "delivered" && (
+                  <div>The supplier has not confirmed this order. ProcuLink does not receive acknowledgements on any delivery channel.</div>
+                )}
+                {passport.supplierResponse.rejectionReason && <div style={{ color: "#B43838" }}>{supplierReasonText(passport.supplierResponse.rejectionReason) ?? "The supplier refused this order without giving a readable reason."}</div>}
+                <SupplierResponseBody body={passport.supplierResponse.responseBody} />
               </div>
             ) : (
               <p className="text-[12.5px]" style={{ color: "var(--ink-faint)", margin: 0 }}>No supplier response recorded yet.</p>

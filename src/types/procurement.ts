@@ -775,7 +775,8 @@ export interface PassportDeliveryAttempt {
   destination: string | null;
   attemptedAt: string | null;
   responseCode: number | string | null;
-  acknowledgedAt: string | null;
+  /** When our dispatch call returned success. Our clock, not a supplier's verdict. */
+  transportAcceptedAt: string | null;
   rejectionReason: string | null;
   errorMessage: string | null;
   /** The artifact THIS attempt dispatched — an order can hold several of each. Null when
@@ -787,10 +788,34 @@ export interface PassportDeliveryAttempt {
 }
 
 export interface PassportSupplierResponse {
-  outcome: "acknowledged" | "rejected" | "unknown" | string;
-  acknowledgedAt: string | null;
+  /**
+   * `delivered` | `rejected` | `unknown`. Only `rejected` is a supplier VERDICT.
+   *
+   * The API emitted `acknowledged` until 2026-08-14 and every successful delivery satisfied it,
+   * so the passport printed "Accepted" / "Acknowledged by supplier" for orders no supplier had
+   * answered — including SFTP, FTPS and SMTP, which have no back-channel at all. Nothing in the
+   * product parses a functional acknowledgement (997 / CONTRL / ApplicationResponse / MDN /
+   * cXML `<Response>`), so no value here may be rendered as supplier acceptance.
+   *
+   * The `| string` tail is deliberate and load-bearing: the compiler cannot flag a value the
+   * backend adds, so consumers must branch on the values they know and fall through safely.
+   */
+  outcome: "delivered" | "rejected" | "unknown" | string;
+  /**
+   * When OUR dispatch call returned success — the same instant as the attempt itself. Named
+   * `acknowledgedAt` until 2026-08-14. Never render this as a supplier confirmation.
+   */
+  transportAcceptedAt: string | null;
   rejectionReason: string | null;
   responseCode: number | string | null;
+  /**
+   * The supplier endpoint's raw response body, verbatim and bounded by the API. Captured on a
+   * rejection and — since 2026-08-14 — on a 2xx too, because a 2xx can carry an application-level
+   * refusal.
+   *
+   * UNTRUSTED, supplier-controlled text. Render it attributed to the supplier and never as our own
+   * words; run it through `supplierReasonText` rather than pasting it into a sentence.
+   */
   responseBody: string | null;
 }
 
