@@ -30,13 +30,34 @@ interface DashboardContextLineProps {
    * and jump link are simply absent, never a fabricated number.
    */
   blockers: number | null;
+  /**
+   * How many orders `blockers` was counted over.
+   *
+   * REQUIRED, and deliberately not defaulted. `blockers === 0` on its own cannot tell
+   * "nothing is wrong" apart from "nothing is wrong in the part we looked at", and a
+   * default would let the next caller skip the question — which is exactly how this
+   * component came to print "All clear" over a 100-order page.
+   */
+  blockersScanned: number;
+  /**
+   * True when those `blockersScanned` orders are EVERY order in the account.
+   *
+   * Also required. False is the honest answer whenever the source is paged, and the
+   * component says which window it covers instead of a verdict it cannot support.
+   */
+  blockersComplete: boolean;
   /** Scrolls the "Needs you" section into view. */
   onJumpToBlockers: () => void;
 }
 
 const SEP = <span aria-hidden style={{ color: "#CBD0DA" }}>·</span>;
 
-export function DashboardContextLine({ blockers, onJumpToBlockers }: DashboardContextLineProps) {
+export function DashboardContextLine({
+  blockers,
+  blockersScanned,
+  blockersComplete,
+  onJumpToBlockers,
+}: DashboardContextLineProps) {
   const { user } = useUser();
   // Mounted guard: date + greeting depend on the client clock; rendering them
   // only after mount keeps server and first-client markup identical.
@@ -83,12 +104,25 @@ export function DashboardContextLine({ blockers, onJumpToBlockers }: DashboardCo
               </b>{" "}
               {blockers === 1 ? "needs you first" : "need you first"}
             </span>
-          ) : (
+          ) : blockersComplete ? (
+            // Earned: the count covered every order in the account, and found none.
             <span
               className="whitespace-nowrap"
               style={{ color: "var(--brand-green-deep, #1E6D29)", fontWeight: 600 }}
             >
               All clear
+            </span>
+          ) : (
+            // Not earned. The count covered one page, and the attention strip further
+            // down the same screen prints the whole population — so "All clear" here
+            // could sit directly above "137 orders need your attention". Name the window
+            // instead of returning a verdict. Muted, not brand green: the green is the
+            // verdict colour, and this is a fact about what was looked at.
+            // (GET /api/orders is OrderByDescending(o => o.CreatedAt), so "newest" is
+            // the real ordering, not a guess.)
+            <span className="whitespace-nowrap">
+              No blockers in the newest {blockersScanned.toLocaleString()}{" "}
+              {blockersScanned === 1 ? "order" : "orders"}
             </span>
           )}
         </>

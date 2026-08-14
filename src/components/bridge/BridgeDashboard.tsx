@@ -501,6 +501,56 @@ export function supplierHealthPct(total: number, failed: number): number | null 
   return Math.round((100 * (total - failed)) / total);
 }
 
+/** What the context line may say about blockers, and the population it may say it about. */
+export interface BlockersReading {
+  /** Loaded orders that need a human. `null` when the source has not settled with data. */
+  count: number | null;
+  /** How many orders `count` was actually computed over. */
+  scanned: number;
+  /** True when `scanned` really is every order in the account, not just the first page. */
+  complete: boolean;
+}
+
+/**
+ * The blockers verdict, and whether it is entitled to speak for the whole account.
+ *
+ * `count` alone was never the problem — a count of the loaded working set is honest, and
+ * it has to be that set, because the context line links to the "Needs you" section which
+ * renders those exact rows. THE VERDICT was the problem. `count === 0` rendered a flat
+ * "All clear" while the working set is one 100-order page and the amber strip two inches
+ * below prints `openExceptionsAll` from the summary endpoint — the whole population. Past
+ * a hundred orders the screen could say "All clear" directly above "137 orders need your
+ * attention", and both numbers were individually correct.
+ *
+ * So this returns `complete` rather than a bigger number. Fetching more pages would make
+ * a wrong predicate right by accident; the fix is the claim. Zero blockers in a truncated
+ * sample is not "all clear", it is no evidence about the rest — the same rule
+ * `supplierHealthPct` above already applies to zero orders.
+ *
+ * `settled` carries the other half. An unsettled source (loading, errored, or the Clerk
+ * cold-mount window where a disabled query reports isLoading=false with no data) yields
+ * `count: null` and the segment does not render at all. Without it, `ordersPage?.items ?? []`
+ * turns a failed fetch into an empty array, and an empty array reads as "all clear" —
+ * this repo's most-repeated defect, an absent answer rendering as the favourable one.
+ */
+export function readBlockers(input: {
+  /** queryEnabled && the page arrived && !isLoading && !isError. */
+  settled: boolean;
+  /** needsYouAll.length — matches within the loaded working set. */
+  matches: number;
+  /** allOrders.length — how many orders that set actually holds. */
+  scanned: number;
+  /** pagePopulation(ordersPage).rows — every row the account has, practice included. */
+  population: number;
+}): BlockersReading {
+  if (!input.settled) return { count: null, scanned: 0, complete: false };
+  return {
+    count: input.matches,
+    scanned: input.scanned,
+    complete: input.population <= input.scanned,
+  };
+}
+
 /**
  * Build the wire topology from the org's real data. Suppliers come from the
  * configured supplier list (docks exist even before their first order) plus any
@@ -907,10 +957,19 @@ export function BridgeDashboard() {
   // disabled query reports isLoading=false with no data in TanStack v5
   // (enabled:false never enters loading), so it must also require queryEnabled
   // and a real ordersPage before trusting needsYouAll.length.
-  const blockersCount =
-    queryEnabled && ordersPage !== undefined && !ordersLoading && !ordersError
-      ? needsYouAll.length
-      : null;
+  //
+  // `complete` rides along because the number and the VERDICT have different
+  // entitlements. The count is over `allOrders`, and it must be — the context line
+  // links to the "Needs you" section, which renders those exact rows. But "All clear"
+  // speaks for the account, and `allOrders` is capped at one 100-order page while the
+  // amber strip below prints openExceptionsAll from the summary endpoint, i.e. the
+  // whole population. readBlockers decides which sentence the working set can support.
+  const blockers = readBlockers({
+    settled: queryEnabled && ordersPage !== undefined && !ordersLoading && !ordersError,
+    matches: needsYouAll.length,
+    scanned: allOrders.length,
+    population: pagePopulation(ordersPage).rows,
+  });
 
   // ── "Ready to send" rows — validated orders with nothing blocking ─────────
   //
@@ -1278,7 +1337,9 @@ export function BridgeDashboard() {
           is the page name; this row says what the tab cannot — greeting, date,
           and the blockers count with a jump link. Pinned above the scroll area. */}
       <DashboardContextLine
-        blockers={blockersCount}
+        blockers={blockers.count}
+        blockersScanned={blockers.scanned}
+        blockersComplete={blockers.complete}
         onJumpToBlockers={() =>
           document.getElementById("needs-you")?.scrollIntoView({ behavior: "smooth", block: "start" })
         }
