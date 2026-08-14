@@ -177,7 +177,12 @@ function cleanOrder(over: Partial<Order> = {}): Order {
     id: "ord-1",
     poNumber: "PO-1",
     supplierId: "sup-1",
-    supplierName: "Nordkiosk Components",
+    // Every token here is in the counterparty guard's APPROVED_PARTY_TOKENS
+    // ("nordmark", "components"). That guard is an ALLOW-list on purpose: it
+    // refuses any party name it cannot prove was invented, because a name that
+    // reads as made-up can still be a real company in some market. Pick an
+    // approved name; never widen the vocabulary to admit a new one.
+    supplierName: "Nordmark Components",
     buyerName: "Buyer Co",
     orderDate: "2026-06-18",
     currency: "EUR",
@@ -219,7 +224,7 @@ const CLEAR: AcceptanceGateDecision = {
  */
 const OVERRIDDEN: AcceptanceGateDecision = {
   blocked: false,
-  reason: "Nordkiosk Components flagged this order.",
+  reason: "Nordmark Components flagged this order.",
   overridden: true,
   overriddenBy: "ops@example.com",
   overrideReason: "Agreed by phone with the supplier",
@@ -308,7 +313,7 @@ describe(`"What we will send" at ${MOBILE}px names no format until one exists`, 
   test("an order with NO deliverable artifact says nothing about XML", async () => {
     // The control the finding names: no artifact, and a supplier that does not
     // receive XML. Pre-fix this card carried an `XML` badge and the sentence
-    // "A XML file is generated for Nordkiosk Components when you send."
+    // "A XML file is generated for Nordmark Components when you send."
     renderWorkshop();
 
     const card = await sendCardText();
@@ -317,7 +322,7 @@ describe(`"What we will send" at ${MOBILE}px names no format until one exists`, 
       "the mobile send card named a delivery format before any artifact decided one",
     ).not.toMatch(/XML/i);
     // The rest of the card still does its job — this is an omission, not a deletion.
-    expect(card).toContain("A file is generated for Nordkiosk Components when you send.");
+    expect(card).toContain("A file is generated for Nordmark Components when you send.");
     expect(card).toContain("Open this order on a larger screen");
   });
 
@@ -351,7 +356,7 @@ describe(`"What we will send" at ${MOBILE}px names no format until one exists`, 
 
     const card = await sendCardText();
     expect(card, "the format badge/sentence no longer render at all").toContain("CSV");
-    expect(card).toContain("A CSV file is generated for Nordkiosk Components when you send.");
+    expect(card).toContain("A CSV file is generated for Nordmark Components when you send.");
   });
 
   test("ANTI-VACUITY — the locator resolves the card it claims to read", async () => {
