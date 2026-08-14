@@ -10,7 +10,7 @@ export const metadata = helpArticleMetadata({
 
 UBL (Universal Business Language, OASIS 2.1) is the XML document standard behind most European e-procurement. ProcuLink parses inbound UBL 2.1 `Order` documents and emits UBL 2.1 `Order` documents, so a buyer running UBL and a supplier that needs something else can still trade.
 
-Peppol BIS Order 3 is a *profile* on top of UBL 2.1 — the same document, with extra business rules the Peppol network enforces. Read [what this does not cover](#what-this-does-not-cover) before you commit to a Peppol counterparty: ProcuLink is not a Peppol conformance tool.
+Peppol BIS Order 3 is a *profile* on top of UBL 2.1 — the same document, with extra business rules the Peppol network enforces and two identifier elements that declare which profile a document follows. ProcuLink emits UBL 2.1, not Peppol. Read [what this does not cover](#what-this-does-not-cover) before you commit to a Peppol counterparty: ProcuLink is not a Peppol conformance tool.
 
 ## When to use this
 
@@ -53,13 +53,19 @@ Every parsed field can surface its exact UBL element path in the app — open th
 
 On a supplier's **Delivery** tab, choose **UBL 2.1** as the output format and sending auto-transforms the reviewed order into a UBL 2.1 `Order` document.
 
+What comes out is a plain OASIS UBL 2.1 `Order`: `cbc:UBLVersionID` 2.1, the mandatory `cbc:ID`, `cbc:IssueDate` and `cbc:DocumentCurrencyCode`, a buyer party and a supplier party, a delivery block when the order carries ship-to data, and one `cac:OrderLine` per line. It declares no profile — see [what this does not cover](#what-this-does-not-cover).
+
+The emitted document is validated against the OASIS UBL 2.1 `Order` schema itself — the published XSD, vendored into ProcuLink unmodified — which checks element order, cardinality and datatypes. That is a grammar check on the file, and it is worth more than a presence check because UBL content models are ordered sequences: a document with every mandatory element present but two of them transposed still fails it. It is not a statement that your supplier, or the Peppol network, will accept the order.
+
 ## What this does not cover
 
 ProcuLink emits UBL. It does not certify Peppol BIS Order 3 conformance — and we would rather tell you here than have you find out at an access point. Today, specifically:
 
 - **No BIS business-rule validation runs.** There is no Schematron and no EN 16931 / UBL-CR rule engine in the product. Nothing checks an emitted order against the BIS 3 rule set.
-- **The conformance identifiers are written, not verified.** The emitted document carries `cbc:CustomizationID` and `cbc:ProfileID`. The order-side check available in the app reports whether they are *present* — not whether their contents are right for your profile.
-- **Two known gaps in the document itself.** The supplier party name is emitted as an internal identifier rather than the supplier's registered name, and no `cbc:EndpointID` is emitted for either party. Both are mandatory under BIS 3, and neither is fixed today.
+- **No profile is declared in the document.** The emitted order carries neither `cbc:CustomizationID` nor `cbc:ProfileID`. Both are optional in UBL 2.1, so omitting them is still valid UBL — but those two elements are what would declare the file a Peppol BIS Order-only 3.0 document, and writing them would assert a conformance to your counterparty's software that nothing here checks. They were removed for that reason.
+- **So the file is not routable on the Peppol network as it stands.** Peppol composes a document type identifier as `<syntax specific id>##<customization id>::<version>`, which makes the customization ID part of the key an access point looks up to find what the receiver is registered to accept. An order without one gives the network nothing to route on. Your access point supplies the profile the receiver expects, and the document is completed to it before it enters the network — so treat this output as the input to that step, not as a file you can hand straight to Peppol.
+- **Party electronic addresses are incomplete.** `cbc:EndpointID` — the address a receiver routes on — is emitted for the supplier only when that supplier's stored EDI code is provably a GS1 GLN: 13 digits with a valid check digit, tagged scheme `0088`. A VAT or registration number is left out rather than tagged with a guessed scheme, because its EAS code depends on the issuing country and nothing stored beside the number records which country that was. The buyer party carries no `cbc:EndpointID` at all. BIS 3 requires one for both parties, so on this point the emitted document does not meet the profile.
+- **The supplier party name is whatever ProcuLink holds for that supplier.** It resolves to the stored supplier name, falling back to the supplier's internal identifier only when no name is recorded anywhere. Check the supplier record before sending to a counterparty that matches on registered name.
 - **No emitted order has been accepted by a live Peppol access point.** We have not run that test, so we do not claim the result.
 - **AS4 transport into the Peppol network is not ours.** ProcuLink produces a document; getting it onto the network runs through an access-point partner, arranged with you.
 
