@@ -1241,6 +1241,14 @@ describe("every pricing-card bullet is accounted for by something real", () => {
   it("catches the Growth 'Field mapping + validation' bullet that shipped, whole-bullet excuse and all", () => {
     const growth = PLANS.find((p) => p.id === "growth")!;
 
+    // 0. The shipped strings, pinned directly. `/pricing` carries a committed visual baseline, but
+    //    its threshold is `maxDiffPixelRatio: 0.002` — a reworded bullet does not move enough
+    //    pixels to trip it, so the screenshot gate cannot be what holds this copy in place.
+    expect(growth.features, "the honest bullet must be the one that ships").toContain(
+      "Field mapping + built-in order checks",
+    );
+    expect(growth.features, "and the compound must not come back").not.toContain("Field mapping + validation");
+
     // 1. The bullet, verbatim. "validation" alone names no gated capability, is not a quota, and is
     //    not on the allowlist — so the clause split has to leave it unaccounted.
     const shipped = accountFor(growth, "Field mapping + validation");
