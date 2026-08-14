@@ -145,12 +145,25 @@ describe("a paid plan the server has stopped says so, loudly", () => {
   });
 
   it("stops printing the raw account status at the customer", async () => {
-    await renderBilling(billing());
     // "past due" is the database value with its underscore swapped for a space. It
     // was the ONLY signal on the screen. The banner says it in words now; the same
     // rule already guards the cancellation disclosure in this file
     // (gatedCapabilityClaims: "never leaks the internal status name").
-    expect(pageText()).not.toMatch(/\bpast due\b/i);
+    //
+    // queryByText, NOT a regex over document.body.textContent. textContent
+    // concatenates adjacent nodes with no separator, so the string really reads
+    // "…Change planpast due" and `/\bpast due\b/` cannot match it — the word
+    // boundary the assertion depended on does not exist. Written that way this
+    // test passed against the DEFECT, which is worse than not having it.
+    // The raw status is its own element whose whole text is the value.
+    await renderBilling(billing());
+    expect(screen.queryByText("past due")).toBeNull();
+
+    // Anti-vacuity: the same query DOES find it when the workspace is healthy, so a
+    // null here means "not rendered", not "never findable".
+    cleanup();
+    await renderBilling(billing({ accountStatus: "active", canProcessOrders: true }));
+    expect(screen.getByText("active")).toBeInTheDocument();
   });
 
   it("the banner's own Manage button really opens the portal, and reports a refusal", async () => {
