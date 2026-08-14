@@ -33,7 +33,7 @@ import { practiceDeliveryKnown } from "@/hooks/useSampleOrder";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 import { isPlanGateError, planGateMessage, planGateUpgradeUrl } from "@/lib/planGate";
 import { hasAssignedSupplier } from "@/lib/catalogCodes";
-import { isProblemBucketStatus } from "@/lib/orderStatusManifest";
+import { orderProblemState } from "@/lib/orderStatusManifest";
 import { practiceDeliveryNote, type PracticeDeliveryState } from "@/lib/practiceDelivery";
 import { PracticeChip } from "../PracticeChip";
 import type { OrderMappingOverride } from "@/lib/api/types";
@@ -1430,7 +1430,11 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
             }
             issuesOpenCount={issues.length}
             issuesBlockingCount={blockingIssues}
-            issuesAllClear={!isProblemBucketStatus(order.status)}
+            // NOT `!isProblemBucketStatus(order.status)`. That predicate answers false for a
+            // status this build has never heard of, so negating it turned "I don't know" into
+            // "all clear" and the Issues head drew a green tick. `orderProblemState` keeps the
+            // third answer separate.
+            issuesVerdict={orderProblemState(order.status)}
             showIssuesSignal={showIssuesSignal}
           />
         </div>

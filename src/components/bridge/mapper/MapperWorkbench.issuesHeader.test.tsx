@@ -36,7 +36,8 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
-import { MapperWorkbench } from "./MapperWorkbench";
+import { orderProblemState } from "@/lib/orderStatusManifest";
+import { MapperWorkbench, type MapperIssuesVerdict } from "./MapperWorkbench";
 
 function restingModel() {
   return {
@@ -79,7 +80,7 @@ function restingModel() {
   };
 }
 
-function renderWorkbench(props: { issuesOpenCount?: number; issuesAllClear?: boolean } = {}) {
+function renderWorkbench(props: { issuesOpenCount?: number; issuesVerdict?: MapperIssuesVerdict } = {}) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
@@ -90,7 +91,7 @@ function renderWorkbench(props: { issuesOpenCount?: number; issuesAllClear?: boo
         supplierId="sup-1"
         issuesSlot={<div data-testid="issues-slot" />}
         issuesOpenCount={props.issuesOpenCount ?? 0}
-        issuesAllClear={props.issuesAllClear}
+        issuesVerdict={props.issuesVerdict}
       />
     </QueryClientProvider>,
   );
@@ -103,34 +104,105 @@ beforeEach(() => {
 
 afterEach(cleanup);
 
+/** The green check badge — the strongest all-clear claim the head makes. */
+function hasGreenTick(): boolean {
+  const head = screen.getByTestId("issues-column-head");
+  return head.querySelector('span[style*="rgb(46, 142, 58)"] svg') != null;
+}
+
 describe("MapperWorkbench — the Issues column head (WP-39 §4.3)", () => {
   it("does not say 'Nothing to fix' when the order stopped for another reason", () => {
-    renderWorkbench({ issuesOpenCount: 0, issuesAllClear: false });
+    renderWorkbench({ issuesOpenCount: 0, issuesVerdict: "problem" });
 
     const head = screen.getByTestId("issues-column-head");
     expect(within(head).queryByText("Nothing to fix")).toBeNull();
     expect(within(head).getByText("Something else stopped this order")).toBeInTheDocument();
+    expect(hasGreenTick()).toBe(false);
   });
 
   it("still says 'Nothing to fix' when there is genuinely nothing wrong", () => {
-    renderWorkbench({ issuesOpenCount: 0, issuesAllClear: true });
+    renderWorkbench({ issuesOpenCount: 0, issuesVerdict: "clear" });
 
     expect(within(screen.getByTestId("issues-column-head")).getByText("Nothing to fix")).toBeInTheDocument();
-  });
-
-  it("falls back to the open count for callers that pass no verdict", () => {
-    // Every non-order caller of the workbench (the connection mapper) is in this branch,
-    // so omitting the prop has to be byte-identical to the behaviour before this change.
-    renderWorkbench({ issuesOpenCount: 0 });
-
-    expect(within(screen.getByTestId("issues-column-head")).getByText("Nothing to fix")).toBeInTheDocument();
+    expect(hasGreenTick()).toBe(true);
   });
 
   it("open issues still take precedence over everything", () => {
-    renderWorkbench({ issuesOpenCount: 3, issuesAllClear: false });
+    renderWorkbench({ issuesOpenCount: 3, issuesVerdict: "problem" });
 
     const head = screen.getByTestId("issues-column-head");
     expect(within(head).getByText("Fix these before you send")).toBeInTheDocument();
     expect(within(head).getByTestId("issues-column-count")).toHaveTextContent("3");
+  });
+});
+
+// ── The verdict is a THIRD state, and the head must not round it to "fine" ──────
+//
+// `issuesAllClear` was a boolean and the order screen produced it by NEGATING
+// `isProblemBucketStatus`, which answers false for a status this build has never heard
+// of. Unknown therefore arrived as `true` and drew the green tick beside the words
+// "Nothing to fix" — the strongest all-clear on the screen — on the one order the
+// frontend understood least. Frontend and backend deploy separately, so a status this
+// build cannot read is a routine event, not a hypothetical.
+//
+// Asserted on rendered TEXT and on the tick element, never on the prop: the whole defect
+// was that the prop was set to a confident value and the DOM faithfully drew it.
+describe("MapperWorkbench — an unreadable verdict never renders as an all-clear", () => {
+  it("does not claim an all-clear when the caller could not tell", () => {
+    renderWorkbench({ issuesOpenCount: 0, issuesVerdict: "unknown" });
+
+    expect(document.body.textContent).not.toContain("Nothing to fix");
+    expect(document.body.textContent).toContain("We can't confirm this order is clear");
+    expect(hasGreenTick()).toBe(false);
+  });
+
+  it("does not claim a stoppage it never observed either", () => {
+    // The safe direction is still not a licence to invent the opposite claim. Nothing
+    // told us this order stopped; only that we cannot read its state.
+    renderWorkbench({ issuesOpenCount: 0, issuesVerdict: "unknown" });
+
+    expect(document.body.textContent).not.toContain("Something else stopped this order");
+  });
+
+  it("treats an omitted verdict as unknown, not as zero issues", () => {
+    // This used to fall back to `issuesOpenCount === 0` — the exact substitution the prop
+    // exists to prevent, restated as a default. No caller that mounts the issues column
+    // omits the verdict in production; if one ever does, it gets the honest answer.
+    renderWorkbench({ issuesOpenCount: 0 });
+
+    expect(document.body.textContent).not.toContain("Nothing to fix");
+    expect(hasGreenTick()).toBe(false);
+  });
+});
+
+// ── The real producer, wired to the real manifest ───────────────────────────────
+//
+// The two halves of the defect were `orderProblemState`'s ancestor answering false for an
+// unknown status and the head rendering that false as green. This drives the SHIPPED
+// manifest function into the SHIPPED head, so neither half can be fixed alone and still
+// pass. The status below is deliberately not in ORDER_STATUS_FACTS — a real backend
+// status the frontend has not learned yet is exactly this shape.
+describe("MapperWorkbench — real status through the real manifest", () => {
+  it("draws no all-clear for a status this build has never heard of", () => {
+    renderWorkbench({ issuesOpenCount: 0, issuesVerdict: orderProblemState("awaiting_supplier_ack") });
+
+    expect(document.body.textContent).not.toContain("Nothing to fix");
+    expect(hasGreenTick()).toBe(false);
+  });
+
+  it("still draws the all-clear for a healthy status it does know", () => {
+    // The anti-vacuity half: a head that never says "Nothing to fix" would pass every
+    // assertion above while being just as useless.
+    renderWorkbench({ issuesOpenCount: 0, issuesVerdict: orderProblemState("delivered") });
+
+    expect(document.body.textContent).toContain("Nothing to fix");
+    expect(hasGreenTick()).toBe(true);
+  });
+
+  it("draws no all-clear for a status it knows to be a problem", () => {
+    renderWorkbench({ issuesOpenCount: 0, issuesVerdict: orderProblemState("delivery_failed") });
+
+    expect(document.body.textContent).not.toContain("Nothing to fix");
+    expect(hasGreenTick()).toBe(false);
   });
 });
