@@ -870,6 +870,15 @@ describe("the mirrored gate table is load-bearing, row by row", () => {
       const probe = uniquelyMatched[form];
       expect(re.test(probe), `the "${form}" form no longer matches its own probe: ${probe}`).toBe(true);
 
+      // …and the PREDICATE has to agree with the array, or the array is documentation. Rewriting
+      // `SELLS_CONFIGURABLE_SUPPLIER_RULES` to something narrower while leaving these five rows in
+      // place would otherwise sail through every assertion in this test.
+      expect(
+        SELLS_CONFIGURABLE_SUPPLIER_RULES(probe),
+        `the matcher no longer recognises the "${form}" form that this table says it has — the ` +
+          "predicate has drifted from the array it is meant to be the disjunction of",
+      ).toBe(true);
+
       const alsoMatched = CONFIGURABLE_SUPPLIER_RULE_FORMS.filter((f) => f.form !== form && f.re.test(probe));
       expect(
         alsoMatched.map((f) => f.form),
