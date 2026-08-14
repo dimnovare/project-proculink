@@ -22,7 +22,10 @@
 //   UBL 2.1 Order ....... parse supported · transform supported  (UblOrderParser / UblOrderTransformService, registered)
 //   Peppol BIS Order 3.0  parse partial · transform PLANNED — a BIS Order file IS a UBL 2.1 Order, so it parses;
 //                         BIS-conformant OUTPUT does not exist and must not be advertised (see the row's conformance note)
-//   SAP IDoc ORDERS05 ... parse supported · transform none       (IDocOrders05Parser registered; hand-rolled XML, no EdiFabric; INBOUND only — no IDoc output; live-verified on prod 2026-06-08)
+//   Peppol BIS Billing 3.0 (INVOICE, not an order) parse partial · transform partial — the generator
+//                         emits the profile identifiers but nothing verifies them; no Schematron exists here,
+//                         so BIS conformance is NOT checked and must not be advertised. API-only, no screen.
+//   SAP IDoc ORDERS05 ... parse supported · transform none     (IDocOrders05Parser registered; hand-rolled XML, no EdiFabric; INBOUND only — no IDoc output; live-verified on prod 2026-06-08)
 //   EDIFACT ORDERS ...... parse partial · transform planned     (EdifactOrderParser registered; EdiFabric library decision pending; NO output transformer)
 //   ANSI X12 850 ........ parse supported · transform supported  (X12OrderParser / X12TransformService, registered; 004010/005010 header + line-item fidelity, output selectable per supplier)
 //   JSON / REST payload . parse partial · transform supported    (inline parse in OrderService; JsonTransformService registered)
@@ -121,6 +124,42 @@ export const STANDARDS: StandardSupport[] = [
       "Inbound: a Peppol BIS Order file IS a UBL 2.1 Order, so it parses on the UBL pipeline (UblOrderParser has no BIS-specific branch). Outbound: BIS-CONFORMANT OUTPUT IS NOT OFFERED AND MUST NOT BE ADVERTISED. The emitted UBL order declares no Peppol profile at all — no cbc:CustomizationID and no cbc:ProfileID — because a receiving access point routes and validates on those, and nothing here can back the claim: there is no Schematron anywhere in either repo, and PeppolBisValidator is invoice-only. UblProfileChecker now checks OASIS UBL 2.1 mandatory elements and cardinalities only, and says so in its profile name. The emitter also writes the supplier GUID into SellerSupplierParty/PartyName/Name when no name is stored (UblOrderTransformService, flagged a placeholder in its own comment). No emitted order has been accepted by a real Access Point. Access Point delivery is partner-wrapped in any case.",
     referenceUrl:
       "https://docs.peppol.eu/poacc/upgrade-3/profiles/3-order/",
+  },
+  // The INVOICE profile, and a different document from the order row above. It has its own row
+  // because it is the one format still declaring a Peppol profile, and a format that makes a
+  // standards claim while absent from this catalog is invisible to every guard that reads it.
+  //
+  // Direction note: `parse`/`transform` are defined at the top of this file against the canonical
+  // PO model, and an invoice is not a PO — it runs through InvoiceEntity, UblInvoiceParser and
+  // PeppolBisInvoiceTransformService. The levels below describe that pipeline.
+  {
+    id: "peppol-bis-billing-3",
+    name: "Peppol BIS Billing (invoice)",
+    version: "3.0",
+    family: "xml",
+    // A BIS Billing file IS a UBL 2.1 Invoice, so it reads on the UBL invoice pipeline
+    // (UblInvoiceParser has no BIS-specific branch) — same argument as the order row.
+    parse: "partial",
+    // NOT `supported`. The generator is registered and emits a BIS-shaped document covering the
+    // business terms listed in PeppolBisInvoiceTransformService, but nothing validates the profile
+    // it declares, so the catalog's own rule at the top of this file applies: under-claim.
+    transform: "partial",
+    transport: "Peppol Access Point (AS4) — ProcuLink does not provide the transport",
+    conformance:
+      "Outbound: the generator emits cbc:CustomizationID and cbc:ProfileID, and ProcuLink does not " +
+      "verify them — the declaration is unverified, not a conformance result. Unlike the order row " +
+      "above the identifiers are NOT removed, because they are a substring of the Peppol document " +
+      "type identifier used for SMP lookup and AS4 routing (POLICY 20), so a document without them " +
+      "cannot be addressed rather than being merely undeclared; the same is true of orders, which " +
+      "is not why the order path dropped them. The official PEPPOL-EN16931-UBL Schematron is not " +
+      "run: there is no Schematron in either repo, and .NET cannot execute the XSLT 2.0 it compiles " +
+      "to without a new dependency. Covered are the mandatory business terms and arithmetic checks " +
+      "in PeppolBisValidator; NOT covered are codelists, scheme-id correctness, allowances/charges, " +
+      "payment means and mixed-rate VAT. No invoice has been accepted by a live access point. Treat " +
+      "the file as input to an access point's validator. The generator is reachable only through " +
+      "the API (GET /api/invoices/{id}/download?format=peppol and .../validate-peppol); no screen " +
+      "offers it.",
+    referenceUrl: "https://docs.peppol.eu/poacc/billing/3.0/",
   },
   {
     id: "sap-idoc-orders05",
