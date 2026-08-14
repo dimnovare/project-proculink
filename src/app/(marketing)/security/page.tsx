@@ -186,8 +186,34 @@ const POSTURE: Array<{ title: string; body: React.ReactNode; icon: React.ReactNo
   },
 ];
 
+// The GDPR row said "Compliant · DPA available" and was struck 2026-08-14.
+//
+// "Compliant" is a legal CONCLUSION about ProcuLink, and nothing anywhere backs it: there
+// is no audit, no attestation, no supervisory-authority finding, and no assessment in
+// either repo. It was a self-assertion of a verdict, sitting in the same three-row card as
+// "Readiness on our roadmap" and "On our roadmap" — two rows that are careful in exactly
+// the way it was not — on a page whose other cards already carry four struck claims (see
+// the notes at the AI and access-control cards above). Self-certification under GDPR is
+// not a thing that exists; the regulation has no certification this product holds.
+//
+// So the row states ARTIFACTS instead, and only ones a reader can reach:
+//   • The DPA is not "available", it is PUBLISHED IN FULL at /dpa (linked in the footer of
+//     this page) — Art. 28 processor terms, Annex I–III, Effective July 2026 · Version 1.2.
+//     "Published" is both truer and stronger than "available".
+//   • SCCs (Commission Implementing Decision 2021/914) cover every extra-EEA transfer —
+//     DPA §4. The transfers themselves are named on this page and on /privacy rather than
+//     hidden, which is what makes the clause worth citing.
+//
+// DELIBERATELY NOT WRITTEN HERE: "EU processing". It is false on the normal path — OpenAI
+// takes order content for extraction and Postmark carries orders in and out, both US — and
+// the three EU-region STORAGE locations this page does name (Railway, Neon, Cloudflare R2)
+// are themselves marked UNSOURCED in src/lib/subprocessors.ts:52-66. Residency belongs to
+// the "Where your data lives" card, which already states the storage/route split honestly;
+// repeating a stronger version of it in a compliance table is how the original defect
+// happened. src/app/(marketing)/legalCommitments.test.tsx already fails an EU-processing
+// claim; this row must not go looking for the edge of that guard.
 const COMPLIANCE_ROWS: Array<[string, string]> = [
-  ["GDPR", "Compliant · DPA available"],
+  ["GDPR", "DPA published · SCCs for transfers outside the EEA"],
   ["SOC 2", "Readiness on our roadmap"],
   ["ISO 27001", "On our roadmap"],
 ];

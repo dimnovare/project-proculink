@@ -23,7 +23,7 @@ import { statusLabel } from "./UnifiedStatusBadge";
 import { StatusJourney, failedStageFor, isFailureStatus } from "./StatusJourney";
 import type { OrderStage } from "./StatusJourney";
 import { LaneDrawer } from "./LaneDrawer";
-import type { Lane } from "./LaneDrawer";
+import type { Lane, LaneHealthBasis } from "./LaneDrawer";
 import { OnboardingChecklist } from "./OnboardingChecklist";
 import { OnboardingWizard } from "./OnboardingWizard";
 import { buildChecklistSteps } from "./buildChecklistSteps";
@@ -1033,6 +1033,28 @@ export function BridgeDashboard() {
   // Show window selector + export only when there is order data to act on.
   const showWindowControls = hasOrders || ordersLoading;
 
+  /**
+   * The population `wire.health` was decided over.
+   *
+   * Two paths reach `effective.wires` and they have different entitlements. The endpoint
+   * aggregates server-side over the org's orders, so its verdict covers the connection.
+   * `deriveTopology` buckets `allOrders`, which is ONE `pageSize: 100` page — so its
+   * `w.failed > 0 ? "down" : …` chain ends at "ok" as soon as the first hundred orders
+   * are clean, and the drawer printed that as "Healthy". Same defect as the context
+   * line's "All clear", same answer as `readBlockers`: report the scope, do not fetch
+   * more pages to make a wrong verdict right.
+   *
+   * `complete` still comes out true on the derived path whenever the working set really
+   * is the whole account (`population <= scanned`), which is most orgs — the note only
+   * appears where it is earned.
+   */
+  const laneHealthBasis: LaneHealthBasis = endpointHasData
+    ? { complete: true, scanned: allOrders.length }
+    : {
+        complete: pagePopulation(ordersPage).rows <= allOrders.length,
+        scanned: allOrders.length,
+      };
+
   function handleWireClick(wire: Wire, buyer: WireBuyer, supplier: WireSupplier) {
     setActiveLane({
       buyerName: buyer.name,
@@ -1040,6 +1062,7 @@ export function BridgeDashboard() {
       supplierName: supplier.name,
       supplierCode: supplier.code,
       health: wire.health,
+      healthBasis: laneHealthBasis,
       volume: buyer.volume,
       alert: wire.alert,
     });

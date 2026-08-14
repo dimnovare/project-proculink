@@ -89,6 +89,44 @@ const STATE_TABS: Array<{ label: string; state?: ExceptionStateName }> = [
   ...EXCEPTION_STATE_FACTS.map((f) => ({ label: f.label, state: f.state })),
 ];
 
+/**
+ * What the empty state may say, given WHICH tab is empty.
+ *
+ * The page runs one query PER TAB — `getExceptions(activeState)`, keyed on `activeState`
+ * — so `exceptions.length === 0` means "this filter returned nothing", never "this
+ * account has no issues". The empty state read the second sentence off the first:
+ * selecting Ignored on an account that has ignored nothing printed "No issues — all
+ * clear. Nothing is blocked right now." while the Open tab, one click away, held live
+ * blockers. The favourable account-wide verdict was being produced by an absent result
+ * in a narrow filter.
+ *
+ * Only the All tab loads every state, so only the All tab is entitled to speak for the
+ * account. Every other tab states its own scope and points at All rather than answering
+ * for it.
+ */
+function emptyStateCopy(tab: { label: string; state?: ExceptionStateName }): {
+  headline: string;
+  body: string;
+  allClear: boolean;
+} {
+  if (tab.state === undefined) {
+    return {
+      allClear: true,
+      headline: "No issues — all clear",
+      body:
+        "Nothing is blocked right now. Issues appear here when an order needs a " +
+        "decision before it can be sent to a supplier.",
+    };
+  }
+  return {
+    allClear: false,
+    headline: `No ${tab.label.toLowerCase()} issues`,
+    body:
+      `Nothing matches the ${tab.label} filter. Other filters may still have issues — ` +
+      "switch to All to see every issue on your orders.",
+  };
+}
+
 // The order-detail route in this app (see src/app/(app)/inbox/[orderId]).
 function orderHref(orderId: string): string {
   return `/inbox/${orderId}`;
@@ -313,6 +351,9 @@ export default function ExceptionsPage() {
   // not-yet-ready state as loading, never as an error (known repo gotcha).
   const showLoading = !queryEnabled || (isLoading && data === undefined);
 
+  // Scoped to the tab that came back empty — see emptyStateCopy.
+  const emptyCopy = emptyStateCopy(STATE_TABS[activeTab]);
+
   return (
     <PageShell variant="wide">
       {/* Page header — titleHidden: the topbar hub tab "Issues" is the page
@@ -435,19 +476,25 @@ export default function ExceptionsPage() {
           </div>
         )}
 
-        {/* Empty state */}
+        {/* Empty state — scoped to the ACTIVE TAB, because that is all this query loaded.
+            The green tick is the all-clear signal and rides with the all-clear sentence:
+            a scoped tab gets the neutral one, so the colour cannot say what the words
+            no longer do. */}
         {!showLoading && !isError && exceptions.length === 0 && (
           <div className="flex flex-col items-center justify-center py-16 px-6 text-center gap-2">
-            <CheckCircle2 size={32} style={{ color: "var(--brand-green)" }} aria-hidden />
+            <CheckCircle2
+              size={32}
+              style={{ color: emptyCopy.allClear ? "var(--brand-green)" : "var(--ink-faint)" }}
+              aria-hidden
+            />
             <p
               className="text-[20px] font-semibold"
               style={{ color: "var(--ink)", fontFamily: "'Bricolage Grotesque', Inter, sans-serif" }}
             >
-              No issues — all clear
+              {emptyCopy.headline}
             </p>
             <p className="text-[13px]" style={{ color: "var(--ink-muted)", maxWidth: 380 }}>
-              Nothing is blocked right now. Issues appear here when an order needs a
-              decision before it can be sent to a supplier.
+              {emptyCopy.body}
             </p>
           </div>
         )}
