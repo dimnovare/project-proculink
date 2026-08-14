@@ -24,6 +24,8 @@ const UNSOURCED: OutgoingFieldStatus = {
   valuePreview: null,
   required: true,
   auto: false,
+  // No rule emits this output at all, which is knowable without resolving any value.
+  resolution: "missing",
 };
 
 const SAVED_FIELD: SourceField = {

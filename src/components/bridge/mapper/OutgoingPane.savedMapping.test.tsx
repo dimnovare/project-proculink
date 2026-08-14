@@ -37,6 +37,9 @@ const STATUS_INPUT: OutgoingStatusInput = {
   tokenValueById: new Map(),
   canonicalValueByKey: new Map(),
   labelForCanonical: (k) => k,
+  // Both value maps are empty and no order backs this fixture, so the honest flag is false:
+  // an unresolved field here means nobody looked, not that the supplier gets nothing.
+  valuesKnown: false,
 };
 
 const SAVED_FIELD: SourceField = {

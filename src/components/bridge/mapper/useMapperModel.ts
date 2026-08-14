@@ -140,6 +140,16 @@ export interface MapperModel {
    * unaffected, there are simply no ghost wires.
    */
   aiUnavailable: boolean;
+  /**
+   * True when the field-validation endpoint errored. The mirror of `aiUnavailable` above, and
+   * it did not exist: `validationStates` was `validationQuery.data ?? []` and `isError` was
+   * never consulted, so a failed fetch produced an empty list, `blockingCount` 0, and a Send
+   * gate that read "nothing is wrong" off a request that had failed.
+   *
+   * Unlike AI suggestions — whose absence costs nothing but ghost wires — validation is the
+   * evidence the gate stands on, so its absence has to reach the gate rather than be swallowed.
+   */
+  validationUnavailable: boolean;
   /** Per-field validation lookup (output path / canonical key → state). */
   validationByKey: Map<string, FieldValidationState>;
   /** Per-line catalog price/code variance lookup (lineKey → hint). */
@@ -287,6 +297,10 @@ export function useMapperModel({
   const validationStates = useMemo(() => validationQuery.data ?? [], [validationQuery.data]);
   const validationByKey = useMemo(() => indexValidation(validationStates), [validationStates]);
   const blockingCount = useMemo(() => blockingReviewCount(validationStates), [validationStates]);
+  // getFieldValidation throws on any non-2xx that isn't a 404 (mapper-ai.ts), so an errored
+  // query means we asked and could not be told. `blockingCount` is 0 in that case for the same
+  // reason it is 0 for a clean order, which is precisely why the flag has to travel separately.
+  const validationUnavailable = validationQuery.isError;
 
   // ── Catalog price/code hints (mock-fallback returns []) ────────────────────
   const catalogQuery = useQuery({
@@ -642,6 +656,7 @@ export function useMapperModel({
     knownSourceTokenIds,
     suggestions,
     aiUnavailable,
+    validationUnavailable,
     validationByKey,
     catalogHintByLine,
     blockingCount,

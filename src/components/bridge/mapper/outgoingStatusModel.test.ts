@@ -13,7 +13,14 @@ const tf = (outputPath: string, scope: "header" | "line" = "header"): TargetFiel
   scope,
 });
 
-/** A baseline input with no wires/fixed/values — overridable per test. */
+/**
+ * A baseline input with no wires/fixed/values — overridable per test.
+ *
+ * `valuesKnown: true` is the default because most of this file is about an ORDER whose parsed
+ * values are loaded: there, an absent value means the supplier really gets nothing. The tests
+ * that flip it to false are the ones about the connection editor with no sample order, where an
+ * absent value means nobody ever looked.
+ */
 function baseInput(over: Partial<OutgoingStatusInput> = {}): OutgoingStatusInput {
   return {
     outputConnections: {},
@@ -22,6 +29,7 @@ function baseInput(over: Partial<OutgoingStatusInput> = {}): OutgoingStatusInput
     tokenValueById: new Map(),
     canonicalValueByKey: new Map(),
     labelForCanonical: (k) => k,
+    valuesKnown: true,
     ...over,
   };
 }
@@ -134,15 +142,29 @@ describe("computeOutgoingStatus — unmapped honesty", () => {
     expect(s.valuePreview).toBeNull();
   });
 
-  it("a required output (non-canonical-path) that is unmapped is flagged required+unmapped", () => {
-    // SupplierItemCode is required; as a line output with no source/auto value it is loud.
-    const s = computeOutgoingStatus(
-      tf("SupplierItemCode", "line"),
-      baseInput(), // no value anywhere
-    );
-    // SupplierItemCode is a canonical spine key → auto branch; but with no value it's still
-    // "mapped" by the default transform. Required loudness is for genuinely sourceless fields.
+  it("a required output the default transform emits with nothing in it resolves to 'missing'", () => {
+    // SupplierItemCode is required AND a canonical spine key, so it takes the auto branch and
+    // `mapped` stays true — the default transform really does emit the column. What it emits is
+    // empty, and that is what `resolution` reports. This assertion used to read only
+    // `expect(s.required).toBe(true)` under a name that promised the field was "flagged
+    // required+unmapped", which nothing checked and nothing did.
+    const s = computeOutgoingStatus(tf("SupplierItemCode", "line"), baseInput()); // no value anywhere
+
     expect(s.required).toBe(true);
+    expect(s.kind).toBe("auto");
+    expect(s.mapped).toBe(true);
+    expect(s.valuePreview).toBeNull();
+    expect(s.resolution).toBe("missing");
+  });
+
+  it("an output with no rule at all is 'missing' whether or not the order's values are loaded", () => {
+    // Branch 4 needs no value lookup to be certain: nothing emits this column, so there is
+    // nothing to be unsure about. Only the branches that CHASE a value can answer "unknown".
+    for (const valuesKnown of [true, false]) {
+      const s = computeOutgoingStatus(tf("SupplierSpecificCol"), baseInput({ valuesKnown }));
+      expect(s.kind).toBe("none");
+      expect(s.resolution).toBe("missing");
+    }
   });
 });
 
@@ -170,6 +192,110 @@ describe("computeOutgoingStatuses — summary", () => {
     // Not a canonical key, not required by name → stays 0 required-unmapped.
     const { summary } = computeOutgoingStatuses(fields, baseInput());
     expect(summary.requiredUnmapped).toBe(0);
+  });
+});
+
+/**
+ * `requiredUnmapped` is the Send gate's own term, and it was structurally incapable of being
+ * anything but 0.
+ *
+ * REQUIRED_CANONICAL = {PoNumber, Quantity, UnitPrice, SupplierItemCode} is a strict SUBSET of
+ * CANONICAL_SPINE, so branch 3 (the implicit 1:1 auto default) fires first for every required
+ * field and hard-codes `mapped: true` — while `value` may be null. The summary then counted
+ * `required && !mapped`, which no required field could ever satisfy. The gate that reads it
+ * (`canDeliver`) therefore had a term that was pinned to zero, and the amber "N fields need a
+ * source" warnings that read it were unreachable code.
+ *
+ * The two `toBe(0)` assertions above are not the guard: both fixtures give every required field
+ * a value, so they pass identically before and after the fix. THIS block is the control — a
+ * required field whose resolved value is null — and it fails against the old model.
+ */
+describe("computeOutgoingStatuses — a required output that resolves to nothing is counted", () => {
+  it("counts the required canonical field the default transform would emit empty", () => {
+    const { summary } = computeOutgoingStatuses(
+      [tf("PoNumber"), tf("SupplierItemCode", "line")],
+      // The order parsed a PO number but no supplier item code — the ordinary state of an
+      // order that has not been mapped yet, and exactly what review exists to resolve.
+      baseInput({ canonicalValueByKey: new Map([["PoNumber", "PO-1"]]) }),
+    );
+
+    expect(summary.requiredUnmapped).toBe(1);
+    expect(summary.requiredUnknown).toBe(0);
+  });
+
+  it("counts a required field wired to a canonical key that carries no value", () => {
+    // The wired branch resolves through the wire and finds nothing. `mapped` stays true (there
+    // IS a wire) but the supplier still receives an empty required field.
+    const { summary } = computeOutgoingStatuses(
+      [tf("SupplierItemCode", "line")],
+      baseInput({ outputConnections: { SupplierItemCode: "BuyerItemCode" } }),
+    );
+
+    expect(summary.requiredUnmapped).toBe(1);
+  });
+
+  it("counts nothing once every required output resolves", () => {
+    // Anti-vacuity: a model that flagged everything would satisfy the assertions above and be
+    // just as useless. A fully resolved order must still read clean.
+    const { summary } = computeOutgoingStatuses(
+      [tf("PoNumber"), tf("SupplierItemCode", "line"), tf("Quantity", "line"), tf("UnitPrice", "line")],
+      baseInput({
+        canonicalValueByKey: new Map([
+          ["PoNumber", "PO-1"], ["SupplierItemCode", "SKU-9"], ["Quantity", "3"], ["UnitPrice", "9.50"],
+        ]),
+      }),
+    );
+
+    expect(summary.requiredUnmapped).toBe(0);
+    expect(summary.requiredUnknown).toBe(0);
+  });
+
+  it("counts a fixed value as resolved without consulting the order at all", () => {
+    // A literal needs no lookup, so it is "resolved" even where nothing else could be judged.
+    const { summary } = computeOutgoingStatuses(
+      [tf("SupplierItemCode", "line")],
+      baseInput({ valuesKnown: false, fixedValues: { SupplierItemCode: "SKU-FIXED" } }),
+    );
+
+    expect(summary.requiredUnmapped).toBe(0);
+    expect(summary.requiredUnknown).toBe(0);
+  });
+});
+
+/**
+ * The same defect rotated: an absent value must not become an accusation either.
+ *
+ * `canonicalValueByKey` is EMPTY whenever there is no order to build it from — the connection
+ * editor with no sample order is the shipped case. Reading that as "these four required fields
+ * have no source" would be the identical mistake pointed the other way: a verdict drawn from
+ * evidence nobody produced. The third state is the answer, and it is carried separately so no
+ * caller can fold it into either verdict by accident.
+ */
+describe("computeOutgoingStatuses — no order values loaded is UNKNOWN, not 'needs a source'", () => {
+  const REQUIRED = [tf("PoNumber"), tf("Quantity", "line"), tf("UnitPrice", "line"), tf("SupplierItemCode", "line")];
+
+  it("accuses nothing when there was never anything to resolve against", () => {
+    const { summary } = computeOutgoingStatuses(REQUIRED, baseInput({ valuesKnown: false }));
+
+    expect(summary.requiredUnmapped).toBe(0);
+    expect(summary.requiredUnknown).toBe(4);
+  });
+
+  it("keeps unknown out of the resolved count too", () => {
+    // The opposite over-claim: "we couldn't look" is not "it's fine" either.
+    const statuses = computeOutgoingStatuses(REQUIRED, baseInput({ valuesKnown: false })).statuses;
+
+    expect(statuses.every((s) => s.resolution === "unknown")).toBe(true);
+    expect(statuses.some((s) => s.resolution === "resolved")).toBe(false);
+  });
+
+  it("switches to the accusation as soon as the order's values ARE loaded", () => {
+    // Anti-vacuity for the unknown arm: the flag must actually change the answer, or it is
+    // just a permanent excuse that re-pins requiredUnmapped to 0 by another route.
+    const { summary } = computeOutgoingStatuses(REQUIRED, baseInput({ valuesKnown: true }));
+
+    expect(summary.requiredUnmapped).toBe(4);
+    expect(summary.requiredUnknown).toBe(0);
   });
 });
 
