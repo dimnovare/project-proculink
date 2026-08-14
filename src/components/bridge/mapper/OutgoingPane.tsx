@@ -733,15 +733,8 @@ function OutgoingRow({
             the short status tag stays clustered immediately left of the chips, RIGHT-aligned, exactly
             as before — the classic screen is visually unchanged. */}
         <div style={pickerMode
-          ? { display: "flex", alignItems: "center", gap: 6, flex: "0 1 auto", minWidth: 0, marginLeft: "auto" }
-          : { display: "flex", alignItems: "center", gap: 6, marginLeft: "auto", minWidth: 0 }}>
-
-          {/* The amber marker sits BESIDE the binding control, not instead of it. A required row
-              with no value is almost always `kind: "auto"` — the 1:1 default is emitting the
-              column and the column is empty — so replacing the control would hide the true
-              binding, and omitting the marker is what left the operator unable to see which row
-              the toolbar meant. Both facts, in the order they need reading. */}
-          {needsSource && <NeedsValueTag />}
+          ? { display: "flex", alignItems: "center", flex: "0 1 auto", minWidth: 0, marginLeft: "auto" }
+          : { display: "flex", alignItems: "center", marginLeft: "auto", minWidth: 0 }}>
 
 
           {pickerMode && onPickSource ? (
@@ -817,15 +810,22 @@ function OutgoingRow({
         </div>
       </div>
 
-      {/* Resolved value preview (mono) — the real delivered value as far as it's known. */}
-      {status.mapped && !fixedEditing && (
-        <div style={{ marginTop: 5, display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+      {/* Resolved value preview (mono) — the real delivered value as far as it's known, and the
+          amber marker when there ISN'T one.
+          The marker belongs on THIS line, not up in the header's action cluster: at 1024px (the
+          narrowest width this column renders at — below lg the workshop swaps to MobileTriage)
+          the header's three columns already spend their whole budget, and adding an 89px chip
+          there drove the source picker straight through the "Edit value" chip. This line is a
+          glyph and a value, it has the room, and "→ —  needs a value" is the sentence anyway. */}
+      {(status.mapped || needsSource) && !fixedEditing && (
+        <div style={{ marginTop: 5, display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
           <span aria-hidden style={{ fontSize: 8.5, fontWeight: 800, color: "#9AA3B2", flexShrink: 0 }}>
             →
           </span>
-          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontVariantNumeric: "tabular-nums", fontSize: 12, fontWeight: 600, color: status.valuePreview ? "#1E6D29" : "#AEB6C4", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontVariantNumeric: "tabular-nums", fontSize: 12, fontWeight: 600, color: status.valuePreview ? "#1E6D29" : "#AEB6C4", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {status.valuePreview ?? "—"}
           </span>
+          {needsSource && <NeedsValueTag />}
         </div>
       )}
 
