@@ -35,6 +35,7 @@ import { computeOutgoingStatus, type OutgoingStatusInput, type OutgoingFieldStat
 import { TransformPopover } from "./TransformPopover";
 import { SourcePickerChip } from "./SourcePickerChip";
 import { suggestedSourceFor } from "./sourcePickerModel";
+import { Card } from "../layout/Card";
 import { ConfidenceChip } from "../ConfidenceChip";
 import {
   suggestionConfidenceDisplay,
@@ -232,7 +233,7 @@ export function OutgoingPane({
   // The predicate is `status.resolution === "missing"`, not `!status.mapped`. `mapped` answers
   // "does a rule emit this column", and every required canonical name is a CANONICAL_SPINE member
   // that the implicit 1:1 branch claims — so `required && !mapped` was structurally false and this
-  // split had exactly one bucket. The header count moved to `resolution` in PR #181 and the rows
+  // split had exactly one bucket. The header count moved to `resolution` in PR 181 and the rows
   // were deliberately left behind, which is how the toolbar came to say "1 field needs a source"
   // over a column in which nothing was marked.
   //
@@ -933,27 +934,26 @@ function OutgoingRow({
 // and nothing for the operator to do here, so it is a statement rather than a control. Neutral
 // tokens, not the amber of the needs-attention rows above it — amber is a finding, and this is
 // the absence of one. Mirrors the toolbar chip's wording (MapperWorkbench) on purpose.
+// `edge="none"`: the card is a statement that we could not read the order, which is not a claim
+// about either side of the bridge. `pad`/`radius` match the sibling summary's geometry (10px /
+// 10px) rather than the canonical 18px, so the two group headers line up in the same column.
 function NotCheckedSummary({ count }: { count: number }) {
   return (
-    <div
-      role="note"
-      style={{
-        display: "flex", alignItems: "center", gap: 10, padding: "10px 12px",
-        borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface-2)",
-      }}
-    >
-      <span aria-hidden style={{ width: 20, height: 20, borderRadius: "50%", background: "var(--surface)", border: "1px solid var(--border)", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 11, fontWeight: 800, color: "var(--ink-muted)" }}>
-        ?
-      </span>
-      <span style={{ minWidth: 0 }}>
-        <span style={{ fontSize: 12.5, fontWeight: 650, color: "var(--ink)" }}>
-          {count} required field{count === 1 ? "" : "s"} not checked yet
+    <Card edge="none" pad={12} radius={10} role="note">
+      <span style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+        <span aria-hidden style={{ width: 20, height: 20, borderRadius: "50%", background: "var(--surface-2)", border: "1px solid var(--border)", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 11, fontWeight: 800, color: "var(--ink-muted)" }}>
+          ?
         </span>
-        <span style={{ display: "block", marginTop: 2, fontSize: 11.5, lineHeight: 1.45, color: "var(--ink-muted)" }}>
-          This order&rsquo;s values aren&rsquo;t loaded, so we can&rsquo;t tell whether these have a source.
+        <span style={{ minWidth: 0 }}>
+          <span style={{ fontSize: 12.5, fontWeight: 650, color: "var(--ink)" }}>
+            {count} required field{count === 1 ? "" : "s"} not checked yet
+          </span>
+          <span style={{ display: "block", marginTop: 2, fontSize: 11.5, lineHeight: 1.45, color: "var(--ink-muted)" }}>
+            This order&rsquo;s values aren&rsquo;t loaded, so we can&rsquo;t tell whether these have a source.
+          </span>
         </span>
       </span>
-    </div>
+    </Card>
   );
 }
 

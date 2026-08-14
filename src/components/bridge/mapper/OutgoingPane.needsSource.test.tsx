@@ -1,6 +1,6 @@
 // The outgoing column has to MARK the field the toolbar is complaining about.
 //
-// PR #181 gave `OutgoingFieldStatus` a tri-state `resolution` and repointed the pane HEADER count
+// PR 181 gave `OutgoingFieldStatus` a tri-state `resolution` and repointed the pane HEADER count
 // (`summary.requiredUnmapped`) at it, but left the per-ROW split on `status.required &&
 // !status.mapped`. Every required canonical name is a CANONICAL_SPINE member, so
 // `computeOutgoingStatus` claims all four through its implicit 1:1 "auto" branch with
