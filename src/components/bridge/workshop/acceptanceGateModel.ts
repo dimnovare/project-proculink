@@ -242,11 +242,38 @@ export const READY_BAR_DEFAULT = `No open issues. ${CHECK_SCOPE_SENTENCE}.`;
  * counterparty HAS an acceptance profile, so one with no rules at all is
  * indistinguishable from one that passed every rule. "every rule passed" asserts
  * both of the things the evidence cannot support.
+ *
+ * `orderStopped` is the second half, and it is a different failure: the chip took
+ * no order status at all, so a green tick rendered on an order that had already
+ * FAILED TO SEND — delivery_failed, transform_failed, rejected_by_supplier and
+ * four more — as long as its fields happened to resolve. Seven of the eight
+ * problem statuses render the workshop with a banner rather than gating it
+ * (problemCopy.ts: only `failed` is presentation "gate"), so the green tick sat
+ * directly under a red banner saying the order had stopped. IssuesPanel and
+ * MobileTriage already took the status for exactly this reason; this bar was
+ * missed. Same answer IssuesPanel gives: amber, and point at the panel that owns
+ * the cause.
  */
 export function statusChipTitle(input: {
   /** Warning-severity issues behind the chip. Zero renders the "No issues" face. */
   noteCount: number;
+  /**
+   * The order is in a problem status — `isProblemBucketStatus(orderStatus)`.
+   * NOTE its unknown-status behaviour: it answers FALSE for a status this build
+   * has never heard of, so an unrecognised status still reaches the clean arm
+   * below. That hole is real and is owned by the orderStatusManifest tri-state
+   * work, not closed here.
+   */
+  orderStopped?: boolean;
 }): string {
+  if (input.orderStopped) {
+    // Deliberately does NOT re-state that the fields are fine and stop there:
+    // that is what made the green tick a contradiction of the banner above it.
+    return (
+      "No field problems, but this order stopped before it was sent. " +
+      "The panel above says what happened and what to do next."
+    );
+  }
   if (input.noteCount > 0) {
     // The chip itself already carries the count, so this says what to do with
     // them and claims nothing about anything else.

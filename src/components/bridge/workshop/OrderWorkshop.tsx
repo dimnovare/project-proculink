@@ -1330,6 +1330,9 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
         <WorkshopStatusBar
           blockers={blockerChips}
           notes={noteCount}
+          /* Same value IssuesPanel and MobileTriage already receive. Without it
+             the bar drew a green tick under the red banner of a stopped order. */
+          orderStatus={order.status}
           onJump={onJumpToIssueCard}
           /* The issue list is always on screen now, so this is no longer a
              "switch to the Issues tab" — it re-opens a railed third column and
