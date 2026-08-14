@@ -12,12 +12,42 @@
 // (they'd need a per-supplier order/delivery-success aggregate the API doesn't
 // expose here) — were DROPPED rather than rendered as permanent dashes, per the
 // offer↔works rule. Format / Channel / Auto-process come from the delivery
-// config and read "Not set" only when the supplier genuinely has no config yet.
+// config, and read "Not set" only when a COMPLETED read established that this
+// supplier has no config yet.
 //
 // Performance: the delivery config is fetched PER ROW via a child component's own
 // query, but bounded — only the first DELIVERY_FETCH_CAP rows fetch — so a large
 // supplier book can't trigger an unbounded burst of requests. Each row's query
 // has a long staleTime so navigating away and back doesn't re-hit the API.
+//
+// That bound is one of TWO reasons these cells have THREE readings, not two.
+// Both reasons produce the same shape at the call site — `isLoading === false`
+// with `data === undefined` — which is byte-for-byte what a settled "this
+// supplier has no config" read produces, so `!config` collapsed all three:
+//
+//   1. NEVER ASKED. A row past DELIVERY_FETCH_CAP passes `enabled: false`, and a
+//      disabled TanStack v5 query reports exactly that shape. Every row past the
+//      cap therefore asserted an absence nobody had checked — with the shimmer
+//      deliberately suppressed (`fetchConfig && isLoading`), so nothing on
+//      screen hinted the question had never been put.
+//   2. ASKED AND FAILED. `getDeliveryConfig` throws on any non-ok response, and
+//      `isError` was never destructured at either consumer. A settled-errored
+//      query has `isLoading === false` too, so a supplier with a live, working
+//      delivery config read as "Not set" the moment its request 5xx'd — and
+//      this list fires up to DELIVERY_FETCH_CAP of them in parallel on mount,
+//      which is precisely the shape that produces intermittent failures.
+//
+// `deliveryConfigState` below separates them: both become "unknown", which
+// renders a dash saying the setup was not loaded rather than any verdict about
+// it. The two share ONE rendering deliberately. A 44px cell cannot carry the
+// paragraph-plus-"Try again" panel that DeliverySummaryBody
+// (SupplierDockProfile.tsx) already ships for this same query, and fifty of them
+// would be worse than the defect; the reader's next move is identical in both
+// cases, so the dash points at the supplier page, where that panel lives.
+//
+// Note "unknown" is also the only honest reading of a STALE hit: nothing
+// currently invalidates ["supplier-delivery-config", id] when a config is saved,
+// so a cell may be up to staleTime old. Nothing here claims otherwise.
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -43,7 +73,11 @@ import { tv2HeaderCell, tv2BodyCell, tv2RowDivider } from "./layout/listTableV2"
 // How many rows enrich themselves with a delivery-config fetch. Procurement
 // books are typically 3–20 suppliers (the ICP), so this comfortably covers a
 // real account while capping the request burst on the rare oversized list.
-const DELIVERY_FETCH_CAP = 50;
+//
+// Exported so its guard can DERIVE the fixture size it needs instead of
+// hard-coding one: a test with fewer suppliers than the cap never reaches a
+// single un-fetched row and passes without exercising the defect at all.
+export const DELIVERY_FETCH_CAP = 50;
 
 // Friendly channel labels for the raw protocol ids (mirrors DeliveryConfigEditor).
 const PROTOCOL_LABEL: Record<DeliveryProtocol, string> = {
@@ -827,7 +861,8 @@ function SupplierTableHeader({ counterpartyNoun = "Supplier" }: { counterpartyNo
  * staleTime so the configs survive navigation without re-hitting the API.
  *
  * Returns null both when no config exists (backend 204 → null) and when the
- * fetch is disabled/still loading — callers distinguish via `isLoading`.
+ * fetch is disabled/still loading — callers must NOT read that null directly.
+ * Pass the whole result through `deliveryConfigState` instead.
  */
 function useSupplierDeliveryConfig(supplierId: string, enabled: boolean) {
   return useQuery<DeliveryConfig | null>({
@@ -841,9 +876,70 @@ function useSupplierDeliveryConfig(supplierId: string, enabled: boolean) {
 }
 
 /**
+ * What one row actually knows about its delivery config.
+ *
+ *   "loading"  a read is in flight — shimmer
+ *   "present"  a completed read returned a config
+ *   "absent"   a completed read returned none (backend 204 → null) — "Not set"
+ *   "unknown"  nobody asked, or the asking failed — NOT an absence
+ *
+ * The last one is the whole reason this function exists. `enabled` is false for
+ * every row past DELIVERY_FETCH_CAP, and a disabled TanStack v5 query reports
+ * `isLoading === false` with `data === undefined` — byte-for-byte what a settled
+ * "this supplier has no config" read looks like at the call site. Deriving the
+ * cell from `!config` therefore printed the same verdict for both, and a failed
+ * fetch joined them: three different situations, one sentence.
+ */
+type DeliveryConfigState = "loading" | "present" | "absent" | "unknown";
+
+function deliveryConfigState(
+  fetchConfig: boolean,
+  config: DeliveryConfig | null | undefined,
+  isLoading: boolean,
+  isError: boolean,
+): DeliveryConfigState {
+  if (!fetchConfig) return "unknown";
+  if (isLoading) return "loading";
+  if (isError) return "unknown";
+  return config ? "present" : "absent";
+}
+
+/**
+ * Hover text on every cell of a row whose delivery config was not loaded.
+ *
+ * The middle clause is the load-bearing one and is lifted from the treatment
+ * DeliverySummaryBody already ships for this same query on the supplier page:
+ * the reader has to be told that this is not the "nothing is configured"
+ * answer, because that is the reading the cell used to give them.
+ */
+const NOT_LOADED_TITLE =
+  'Not loaded — not the same as "not configured". Open the supplier to see its delivery setup.';
+/** The same fact for a screen reader, which cannot hover a title attribute. */
+const NOT_LOADED_LABEL = "Not loaded";
+
+/**
+ * The cell value for a row whose delivery config was never read, or whose read
+ * failed.
+ *
+ * Deliberately the same faint dash the configured-but-empty cells use: this
+ * screen has nothing to report, and inventing a distinct visual state for
+ * "we didn't look" would be a second claim on top of the first. The sentence
+ * carries the difference, and it names where the answer actually lives.
+ */
+function NotLoadedValue() {
+  return (
+    <span className="text-[12.5px]" style={{ color: PLACEHOLDER }} title={NOT_LOADED_TITLE}>
+      —<span className="sr-only"> {NOT_LOADED_LABEL}</span>
+    </span>
+  );
+}
+
+/**
  * Auto-process status pill. ON = green (delivery is auto-fired), OFF = neutral
- * "Off", and "Not set" when the supplier has no delivery config yet (the honest
- * empty state — distinct from a configured-but-manual supplier).
+ * "Off", and "Not set" when a completed read established that the supplier has
+ * no delivery config yet (the honest empty state — distinct from a
+ * configured-but-manual supplier, and from one nobody looked up: see
+ * `deliveryConfigState`, whose "unknown" never reaches this component).
  */
 function AutoProcessPill({ state, onHoverRow }: { state: "on" | "off" | "unset"; onHoverRow: boolean }) {
   if (state === "unset") return <NotSetPill onHoverRow={onHoverRow} />;
@@ -863,16 +959,19 @@ function AutoProcessPill({ state, onHoverRow }: { state: "on" | "off" | "unset";
   );
 }
 
-/** Faint inline placeholder cell value (loading shimmer or honest "—"). */
+/** Faint inline placeholder cell value (loading shimmer, "not loaded", or honest "—"). */
 function CellValue({
-  isLoading,
+  state,
   value,
 }: {
-  isLoading: boolean;
+  state: DeliveryConfigState;
   value: string | null;
 }) {
-  if (isLoading) {
+  if (state === "loading") {
     return <span className="inline-block h-3 w-12 rounded animate-pulse align-middle" style={{ background: "#F1F3F7" }} />;
+  }
+  if (state === "unknown") {
+    return <NotLoadedValue />;
   }
   if (value == null) {
     return <span className="text-[12.5px]" style={{ color: PLACEHOLDER }}>—</span>;
@@ -909,9 +1008,11 @@ function SupplierTableRow({
   onLeave: () => void;
   onOpen: () => void;
 }) {
-  const { data: config, isLoading } = useSupplierDeliveryConfig(id, fetchConfig);
-  // Only show the loading shimmer while a fetch is genuinely in flight.
-  const loading = fetchConfig && isLoading;
+  const { data: config, isLoading, isError } = useSupplierDeliveryConfig(id, fetchConfig);
+  // Four states, one derivation — see deliveryConfigState. "unknown" is a row
+  // that never fetched (past DELIVERY_FETCH_CAP) or whose fetch failed; it must
+  // never reach the "Not set" pill, which is a claim about the SERVER's answer.
+  const state = deliveryConfigState(fetchConfig, config, isLoading, isError);
   const autoState: "on" | "off" | "unset" = !config ? "unset" : config.autoDeliver ? "on" : "off";
   // v2 row dividers use the faint border (shared listTableV2 token).
   const cellBorder = isLast ? "none" : tv2RowDivider;
@@ -962,18 +1063,20 @@ function SupplierTableRow({
 
       {/* Format — from delivery config outputFormat */}
       <td style={{ ...tv2BodyCell("left", false), borderBottom: cellBorder }}>
-        <CellValue isLoading={loading} value={config ? formatLabel(config.outputFormat) : null} />
+        <CellValue state={state} value={config ? formatLabel(config.outputFormat) : null} />
       </td>
 
       {/* Channel — from delivery config protocol */}
       <td style={{ ...tv2BodyCell("left", false), borderBottom: cellBorder }}>
-        <CellValue isLoading={loading} value={config ? channelLabel(config.protocol) : null} />
+        <CellValue state={state} value={config ? channelLabel(config.protocol) : null} />
       </td>
 
       {/* Auto-process — from delivery config autoDeliver */}
       <td style={{ ...tv2BodyCell("left", false), borderBottom: cellBorder }}>
-        {loading ? (
+        {state === "loading" ? (
           <span className="inline-block h-4 w-14 rounded-full animate-pulse align-middle" style={{ background: "#F1F3F7" }} />
+        ) : state === "unknown" ? (
+          <NotLoadedValue />
         ) : (
           <AutoProcessPill state={autoState} onHoverRow={isHover} />
         )}
@@ -1025,8 +1128,10 @@ function SupplierMobileCard({
   connectionId: string | null;
   onOpen: () => void;
 }) {
-  const { data: config, isLoading } = useSupplierDeliveryConfig(id, fetchConfig);
-  const loading = fetchConfig && isLoading;
+  const { data: config, isLoading, isError } = useSupplierDeliveryConfig(id, fetchConfig);
+  // Same four-state derivation as the desktop row — the phone card is the SAME
+  // claim in different markup, so it cannot be allowed to drift from it.
+  const state = deliveryConfigState(fetchConfig, config, isLoading, isError);
   const autoState: "on" | "off" | "unset" = !config ? "unset" : config.autoDeliver ? "on" : "off";
 
   return (
@@ -1073,15 +1178,17 @@ function SupplierMobileCard({
           className="mt-3.5 grid grid-cols-2 gap-x-4 gap-y-3 border-t pt-3.5"
           style={{ borderColor: "#EEF1F6" }}
         >
-          <MobileStat label="Format" loading={loading} value={config ? formatLabel(config.outputFormat) : null} />
-          <MobileStat label="Channel" loading={loading} value={config ? channelLabel(config.protocol) : null} />
+          <MobileStat label="Format" state={state} value={config ? formatLabel(config.outputFormat) : null} />
+          <MobileStat label="Channel" state={state} value={config ? channelLabel(config.protocol) : null} />
           <div className="col-span-2 flex items-center justify-between">
             <dt className="text-[10.5px] font-semibold uppercase tracking-[0.06em]" style={{ color: "var(--ink-faint)" }}>
               Auto-process
             </dt>
             <dd className="m-0">
-              {loading ? (
+              {state === "loading" ? (
                 <span className="inline-block h-4 w-14 rounded-full animate-pulse" style={{ background: "#F1F3F7" }} />
+              ) : state === "unknown" ? (
+                <NotLoadedValue />
               ) : (
                 <AutoProcessPill state={autoState} onHoverRow={false} />
               )}
@@ -1128,17 +1235,20 @@ function NotSetPill({ onHoverRow }: { onHoverRow: boolean }) {
 /**
  * One label/value stat inside a mobile supplier card. Stacks the uppercase
  * column label above its value so the card stays scannable at 390px. A null
- * value renders the honest faint "—"; `loading` shows a shimmer.
+ * value from a completed read renders the honest faint "—"; "loading" shows a
+ * shimmer; "unknown" renders the dash that says nobody looked.
  */
-function MobileStat({ label, value, loading = false }: { label: string; value: string | null; loading?: boolean }) {
+function MobileStat({ label, value, state }: { label: string; value: string | null; state: DeliveryConfigState }) {
   return (
     <div className="flex flex-col gap-1">
       <dt className="text-[10.5px] font-semibold uppercase tracking-[0.06em]" style={{ color: "var(--ink-faint)" }}>
         {label}
       </dt>
       <dd className="m-0 text-[13px]" style={{ color: value == null ? PLACEHOLDER : INK }}>
-        {loading ? (
+        {state === "loading" ? (
           <span className="inline-block h-3 w-12 rounded animate-pulse" style={{ background: "#F1F3F7" }} />
+        ) : state === "unknown" ? (
+          <NotLoadedValue />
         ) : (
           value ?? "—"
         )}

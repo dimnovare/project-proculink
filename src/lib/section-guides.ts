@@ -51,7 +51,13 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       { text: "Once orders arrive, filter stats by Today, 7d, 30d, or All" },
       { text: "See open issues and jump straight to them", href: "/operations/exceptions" },
       { text: "Track each {supplier}'s delivery health for the time window you pick", href: "/library/suppliers" },
-      { text: "Export the current view as CSV — it covers your most recent 100 orders" },
+      // No number here, deliberately. This sentence used to promise "your most
+      // recent 100 orders": a literal hand-copied from a `pageSize: 100` in
+      // BridgeDashboard, in a file that cannot see that value change, describing
+      // an export that actually writes the orders in the SELECTED time window —
+      // twelve rows on "Today". The exported file already states its own exact
+      // count on its first line, derived at write time. Let it do the counting.
+      { text: "Export the current view as CSV — it covers the orders in the time window you've selected, up to the most recent page" },
     ],
     firstStep: { text: "Complete the two-step setup wizard — choose your order direction and add your first {supplier} — then use \"Try a practice order\" in the checklist." },
     articleSlugs: ["dashboard-and-statuses", "inbox-basics"],
