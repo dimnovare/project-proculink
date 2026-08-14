@@ -7,11 +7,14 @@ import {
   PROBLEM_BUCKET_STATUSES,
   REACHABLE_STATUSES,
   isProblemBucketStatus,
+  orderProblemState,
+  statusFact,
 } from "@/lib/orderStatusManifest";
 import {
   CHECK_SCOPE_SENTENCE,
   READY_BAR_DEFAULT,
   STOPPED_ORDER_NOTE,
+  UNVERIFIED_ORDER_NOTE,
 } from "./acceptanceGateModel";
 
 // WP-39 §4.3 — after a live delivery failure the Issues rail still said there was
@@ -92,23 +95,6 @@ describe("Issues rail — an order that stopped (WP-39 §4.3)", () => {
       expect(screen.getByText(/No open issues/i)).toBeInTheDocument();
     },
   );
-
-  test("an unknown status is not treated as a failure", () => {
-    // isProblemBucketStatus answers false for anything it does not recognise, and every
-    // caller is required to read that as "I cannot tell", not "it is fine". Here the
-    // conservative reading and the permissive one agree: with zero field issues and no
-    // recognised problem, the all-clear is what the screen already showed before this
-    // change, so nothing regresses for a status the frontend has not learned yet.
-    render(<IssuesPanel issues={[]} orderStatus="a_status_nobody_shipped" onFocusField={vi.fn()} />);
-
-    expect(screen.getByText("Ready to send")).toBeInTheDocument();
-  });
-
-  test("omitting the status keeps the old behaviour for callers that do not pass one", () => {
-    render(<IssuesPanel issues={[]} onFocusField={vi.fn()} />);
-
-    expect(screen.getByText("Ready to send")).toBeInTheDocument();
-  });
 
   test("real field issues still win — the list renders, not the stopped-order note", () => {
     render(
@@ -246,7 +232,12 @@ describe("the stopped-order note claims only what was looked at", () => {
     // Every production call site passes `readyLabel` (readyBarClaim.test.ts asserts
     // it), so this default is what pure-view callers get — and it was the last live
     // copy of the sentence in src/.
-    render(<IssuesPanel issues={[]} onFocusField={vi.fn()} />);
+    //
+    // A healthy `orderStatus` is now required to reach the green bar at all: an omitted
+    // one is "unknown", which draws the amber unverified bar instead (see the block
+    // below). That is a change to how the bar is REACHED, not to what it says, which is
+    // what this test is about.
+    render(<IssuesPanel issues={[]} orderStatus="ready" onFocusField={vi.fn()} />);
     const rendered = document.body.textContent ?? "";
 
     expect(
@@ -254,5 +245,144 @@ describe("the stopped-order note claims only what was looked at", () => {
       `the readyLabel fallback still renders "${RETIRED_CLAIM}"`,
     ).not.toContain(RETIRED_CLAIM);
     expect(rendered).toContain(READY_BAR_DEFAULT);
+  });
+});
+
+// ── A status this build has never heard of ──────────────────────────────────────
+//
+// The Issues COLUMN HEAD already answers this in three states, not two: `clear` draws
+// the green tick and "Nothing to fix", `problem` draws "Something else stopped this
+// order", and `unknown` draws "We can't confirm this order is clear"
+// (MapperWorkbench.issuesHeader.test.tsx). The head takes that verdict from
+// `orderProblemState`.
+//
+// The panel and the mobile list took the SAME question to `isProblemBucketStatus`,
+// which answers false for a status it does not recognise — so on one order, on one
+// screen, the head said it could not confirm the order was clear and the panel
+// directly beneath it said "Ready to send". The test that used to sit here pinned that
+// permissive answer on the reasoning that "the conservative reading and the permissive
+// one agree, so nothing regresses". Once the head learned the third answer they stopped
+// agreeing, and the reasoning stopped being true.
+//
+// All three surfaces now read `orderProblemState`, and the two claims an unknown status
+// must not produce are asserted separately: it is not an all-clear, and it is not a
+// stoppage either. Nothing observed a stoppage — only that the state is unreadable.
+//
+// Asserted on `document.body.textContent`, never on a prop: the defect was always that a
+// confident value reached the DOM and the DOM drew it faithfully. The expected sentence
+// is IMPORTED from acceptanceGateModel for the reason the block above gives — a literal
+// here would be a second copy, and a hand-typed string in a test is usually WHY a drift
+// survives.
+
+/** Deliberately absent from ORDER_STATUS_FACTS — a real backend status this build has not learned. */
+const UNKNOWN_STATUS = "awaiting_supplier_ack";
+
+describe("Issues rail — a status this build has never heard of", () => {
+  test("the status under test really is unknown to the manifest", () => {
+    // Without this the whole block silently stops testing unknowns the day
+    // `awaiting_supplier_ack` is added to ORDER_STATUS_FACTS: every assertion below
+    // would then be describing a healthy status and would keep passing for the wrong
+    // reason. Fail loudly instead, and pick a new string.
+    expect(statusFact(UNKNOWN_STATUS)).toBeNull();
+    expect(orderProblemState(UNKNOWN_STATUS)).toBe("unknown");
+  });
+
+  test("the unverified note is a real, distinct sentence — anti-vacuity", () => {
+    // Every `toContain(UNVERIFIED_ORDER_NOTE)` below would pass against an empty string,
+    // and every `not.toContain(STOPPED_ORDER_NOTE)` would pass if the two were the same
+    // sentence. Both directions are pinned here.
+    expect(UNVERIFIED_ORDER_NOTE.length).toBeGreaterThan(40);
+    expect(UNVERIFIED_ORDER_NOTE).not.toBe(STOPPED_ORDER_NOTE);
+    // It shares the one scope clause with its two siblings rather than retyping it…
+    expect(UNVERIFIED_ORDER_NOTE).toContain(CHECK_SCOPE_SENTENCE);
+    // …carries neither the claim `readyBarLabel` retired…
+    expect(UNVERIFIED_ORDER_NOTE).not.toContain(RETIRED_CLAIM);
+    // …nor a stoppage nobody observed.
+    expect(UNVERIFIED_ORDER_NOTE).not.toMatch(/stopped for another reason/i);
+  });
+
+  test("the panel does not claim the order is ready to send", () => {
+    render(<IssuesPanel issues={[]} orderStatus={UNKNOWN_STATUS} onFocusField={vi.fn()} />);
+
+    expect(document.body.textContent).not.toContain("Ready to send");
+    expect(document.body.textContent).not.toContain("No open issues");
+  });
+
+  test("the panel does not invent a stoppage nobody observed", () => {
+    render(<IssuesPanel issues={[]} orderStatus={UNKNOWN_STATUS} onFocusField={vi.fn()} />);
+
+    expect(document.body.textContent).not.toContain("stopped for another reason");
+    expect(document.body.textContent).not.toContain(STOPPED_ORDER_NOTE);
+  });
+
+  test("the panel says the fields are fine and that the rest is unverified", () => {
+    render(<IssuesPanel issues={[]} orderStatus={UNKNOWN_STATUS} onFocusField={vi.fn()} />);
+    const rendered = document.body.textContent ?? "";
+
+    expect(rendered).toContain("No field problems");
+    expect(rendered).toContain(UNVERIFIED_ORDER_NOTE);
+    // The same clause the other two bars state, and not one word more than it licenses.
+    expect(rendered).toContain(CHECK_SCOPE_SENTENCE);
+    expect(rendered).not.toContain(RETIRED_CLAIM);
+  });
+
+  test("an omitted status is unknown too, not an all-clear", () => {
+    // The head already ships this rule for its own prop: an omitted verdict is not
+    // "zero issues". Nothing tells this panel the order is fine when no status arrives,
+    // and a green bar drawn from an absent input is the same defect as one drawn from an
+    // unreadable one. The only production call site (OrderWorkshop) always passes
+    // `order.status`, so this governs the pure-view callers.
+    render(<IssuesPanel issues={[]} onFocusField={vi.fn()} />);
+
+    expect(document.body.textContent).not.toContain("Ready to send");
+    expect(document.body.textContent).toContain(UNVERIFIED_ORDER_NOTE);
+  });
+
+  test("an explicit null status is unknown too", () => {
+    render(<IssuesPanel issues={[]} orderStatus={null} onFocusField={vi.fn()} />);
+
+    expect(document.body.textContent).not.toContain("Ready to send");
+    expect(document.body.textContent).toContain(UNVERIFIED_ORDER_NOTE);
+  });
+
+  test("real field issues still win over the unverified note", () => {
+    render(
+      <IssuesPanel
+        issues={[issue({ code: "a", title: "Needs a supplier code" })]}
+        orderStatus={UNKNOWN_STATUS}
+        onFocusField={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Needs a supplier code")).toBeInTheDocument();
+    expect(document.body.textContent).not.toContain(UNVERIFIED_ORDER_NOTE);
+    expect(allClearIsOnScreen()).toBe(false);
+  });
+
+  test("mobile triage gives the panel's answer, not the opposite one", () => {
+    render(<MobileTriage {...mobileProps({ status: UNKNOWN_STATUS })} />);
+    const rendered = document.body.textContent ?? "";
+
+    expect(screen.queryByTestId("mobile-triage-ready")).toBeNull();
+    expect(screen.queryByTestId("mobile-triage-stopped")).toBeNull();
+    expect(screen.getByTestId("mobile-triage-unverified")).toBeInTheDocument();
+    expect(rendered).not.toContain("No open issues");
+    expect(rendered).not.toContain(STOPPED_ORDER_NOTE);
+    expect(rendered).not.toContain(RETIRED_CLAIM);
+    expect(rendered).toContain("No field problems");
+    // Byte for byte the desktop panel's sentence — one constant, two breakpoints.
+    expect(rendered).toContain(UNVERIFIED_ORDER_NOTE);
+  });
+
+  test("the healthy control still draws the all-clear on both surfaces", () => {
+    // The anti-vacuity half. Surfaces that never say "ready to send" would satisfy every
+    // negative assertion above while being exactly as useless as ones that always do.
+    render(<IssuesPanel issues={[]} orderStatus="ready" onFocusField={vi.fn()} />);
+    expect(document.body.textContent).toContain("Ready to send");
+    cleanup();
+
+    render(<MobileTriage {...mobileProps({ status: "ready" })} />);
+    expect(screen.getByTestId("mobile-triage-ready")).toBeInTheDocument();
+    expect(document.body.textContent).not.toContain(UNVERIFIED_ORDER_NOTE);
   });
 });

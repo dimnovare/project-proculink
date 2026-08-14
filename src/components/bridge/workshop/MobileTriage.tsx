@@ -23,10 +23,10 @@
 import { useState, type KeyboardEvent, type ReactNode } from "react";
 import { UnifiedStatusBadge } from "../UnifiedStatusBadge";
 import { sendBarLabel } from "./sendBarLabel";
-import { isProblemBucketStatus } from "@/lib/orderStatusManifest";
-// The stopped-order note is the SAME sentence the desktop panel renders, owned in
-// one place so the two breakpoints cannot drift apart.
-import { STOPPED_ORDER_NOTE } from "./acceptanceGateModel";
+import { orderProblemState } from "@/lib/orderStatusManifest";
+// Both amber notes are the SAME sentences the desktop panel renders, owned in one
+// place so the two breakpoints cannot drift apart.
+import { STOPPED_ORDER_NOTE, UNVERIFIED_ORDER_NOTE } from "./acceptanceGateModel";
 import type { WorkshopIssue, IssuesResolveApi } from "./IssuesPanel";
 import type { OrderLine } from "@/types/procurement";
 
@@ -166,6 +166,14 @@ export function MobileTriage(props: MobileTriageProps) {
   } = props;
 
   const sendBlockCount = Math.max(blockingIssues, exceptionCount);
+
+  // Three answers about the ORDER itself, kept separate from the count of FIELD issues:
+  // only `"clear"` may draw the green "ready to send" bar. Read through
+  // `orderProblemState` rather than `isProblemBucketStatus` so a status this build has
+  // never heard of stays "unknown" instead of collapsing into "fine" — the same verdict
+  // the desktop IssuesPanel and the Issues column head take, so the three cannot
+  // contradict each other on one order.
+  const orderVerdict = orderProblemState(status);
 
   // The button copy mirrors the desktop send button exactly — because it is
   // literally the same function now (WP-28). Two hand-written ladders is how the
@@ -379,12 +387,14 @@ export function MobileTriage(props: MobileTriageProps) {
         {hintSlot}
 
         {/* ── Issue list ─────────────────────────────────────────────────── */}
-        {issues.length === 0 && isProblemBucketStatus(status) ? (
-          /* Zero FIELD problems, but the order itself stopped. Saying "ready to send"
-             here is the mobile half of WP-39 §4.3 — see IssuesPanel's `orderStatus`. */
+        {issues.length === 0 && orderVerdict !== "clear" ? (
+          /* Zero FIELD problems, and the order itself is not known to be fine. Saying
+             "ready to send" here is the mobile half of WP-39 §4.3 — see IssuesPanel's
+             `orderStatus`. Two sentences, because "it stopped" and "we cannot read its
+             state" are two different claims and only one of them was ever observed. */
           <div
             role="status"
-            data-testid="mobile-triage-stopped"
+            data-testid={orderVerdict === "problem" ? "mobile-triage-stopped" : "mobile-triage-unverified"}
             className="flex items-start gap-2.5"
             style={{
               borderRadius: 10,
@@ -401,7 +411,8 @@ export function MobileTriage(props: MobileTriageProps) {
               !
             </span>
             <span style={{ fontSize: 13.5, fontWeight: 600 }}>
-              <strong style={{ fontWeight: 700 }}>No field problems.</strong> {STOPPED_ORDER_NOTE}
+              <strong style={{ fontWeight: 700 }}>No field problems.</strong>{" "}
+              {orderVerdict === "problem" ? STOPPED_ORDER_NOTE : UNVERIFIED_ORDER_NOTE}
             </span>
           </div>
         ) : issues.length === 0 ? (

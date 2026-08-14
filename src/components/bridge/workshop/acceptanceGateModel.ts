@@ -192,6 +192,30 @@ export const STOPPED_ORDER_NOTE =
   `see what happened and what to do next.`;
 
 /**
+ * The sub-line on the ZERO-FIELD-PROBLEMS-AND-WE-CANNOT-TELL bar — the same two
+ * surfaces, the same amber bar, a DIFFERENT sentence.
+ *
+ * `orderProblemState` has three answers and `STOPPED_ORDER_NOTE` may only be said for
+ * one of them. On `"unknown"` — a status this build has never heard of, which is a
+ * routine consequence of the frontend and the backend deploying separately — nothing
+ * observed a stoppage. Saying "this order stopped for another reason" there would
+ * invent an event, which is the same class of overreach as the "and checked" this
+ * module retired, only pointing the other way.
+ *
+ * So it states the scope, then the limit, then the one thing the operator can do. It
+ * shares `CHECK_SCOPE_SENTENCE` with its two siblings for the same reason they share
+ * it: three surfaces render this and a retyped clause is how they drift.
+ *
+ * The Issues column head says the same thing in its own words — "We can't confirm this
+ * order is clear" (MapperWorkbench's IssuesColumn). It phrases the claim against its
+ * own green ("Nothing to fix"); this one is phrased against the green bar it replaces
+ * ("Ready to send").
+ */
+export const UNVERIFIED_ORDER_NOTE =
+  `${CHECK_SCOPE_SENTENCE}. We can't confirm this order is ready to send — ` +
+  `its current status isn't one we recognise. Check the status before you send.`;
+
+/**
  * IssuesPanels `readyLabel` fallback — what the green bar renders for a caller that
  * passes no label.
  *
