@@ -1175,6 +1175,12 @@ export function InboxView() {
       // attached (a raw fetch here 401'd for real users). It resolves on
       // success and throws on failure — keep the error message, it carries
       // the backend's actual reason (e.g. the not-redeliverable-status 400).
+      //
+      // `ok: true` means ACCEPTED, not delivered. The endpoint answers 202 after
+      // enqueuing DeliverOrderJob; nothing has reached a supplier when this
+      // resolves, and each of these orders can still end in delivery_failed or
+      // delivery_unconfirmed. `accepted` and formatBulkSendResult's copy both
+      // say so — do not rename this back to `sent`.
       const results = await Promise.all(
         ids.map((id) =>
           apiClient
@@ -1190,11 +1196,11 @@ export function InboxView() {
       const failures = results
         .filter((r): r is { id: string; ok: false; reason: string } => !r.ok)
         .map((r) => ({ po: poById.get(r.id) ?? r.id.slice(0, 8), reason: r.reason }));
-      const sent = results.length - failures.length;
+      const accepted = results.length - failures.length;
       queryClient.invalidateQueries({ queryKey: ["orders"] });
-      setBulkResult(formatBulkSendResult(sent, failures));
-      // Keep ONLY the failed rows selected (so a retry can't re-send the
-      // orders that already went out); clear entirely on full success.
+      setBulkResult(formatBulkSendResult(accepted, failures));
+      // Keep ONLY the failed rows selected (so a retry can't re-queue the
+      // orders already accepted); clear entirely on full success.
       setRowSelection(
         Object.fromEntries(results.filter((r) => !r.ok).map((r) => [r.id, true])),
       );
@@ -1499,8 +1505,9 @@ export function InboxView() {
 
       {/* Bulk action bar — shown while selecting AND while a send result is on
           display. A full success clears the selection, which previously
-          unmounted the bar together with its "N orders sent" confirmation, so
-          the action read as a silent no-op; now the bar stays until dismissed. */}
+          unmounted the bar together with its "N orders queued to send"
+          confirmation, so the action read as a silent no-op; now the bar stays
+          until dismissed. */}
       {shouldShowBulkBar(selectedCount, bulkResult) && (
         <div
           className="flex items-center justify-between rounded-[8px] px-4 py-2 mb-3 flex-shrink-0"
@@ -1510,11 +1517,16 @@ export function InboxView() {
             <span style={{ fontSize: "12.5px", fontWeight: 600 }}>
               {/* Drive the headline from the real result: a fully-failed bulk
                   must not read "Send complete". Falls back to a neutral
-                  "Send finished" if a result is on display without a flag. */}
+                  "Send finished" if a result is on display without a flag.
+
+                  "Queued", not "Sent": /redeliver answers 202 and the supplier has
+                  not been contacted yet — the same reason bulkSendQueuedCopy says
+                  "queued to send" in the line beside it. Two words for one outcome
+                  is how the honest line ends up read as the optimistic one. */}
               {selectedCount > 0
                 ? `${selectedCount} selected`
                 : bulkResult
-                  ? (bulkResult.ok ? "Sent" : "Some failed to send")
+                  ? (bulkResult.ok ? "Queued" : "Some failed to send")
                   : "Send finished"}
             </span>
             {/* Names the parked rows swept into this selection — the operator is

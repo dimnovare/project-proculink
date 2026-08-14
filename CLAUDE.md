@@ -574,6 +574,27 @@ Required billing copy:
 - Order limit banner: `You've reached your plan's order limit. Upgrade to continue processing new orders this month.`
 - Supplier limit banner: `Your plan includes 1 supplier. Upgrade to Growth to add more supplier flows.`
 
+**Paid-plan processing-paused banner (added 2026-08-14).** This list had nothing for the
+state that actually costs money: a paying customer whose card was declined. Every blocking
+surface in `BillingSection.tsx` was gated on `status.plan === "pilot"`, so a `past_due`
+Operations workspace saw a healthy blue plan card, no banner, and — as the only trace — the
+raw account status printed at 11px in `--ink-faint`, while every ingest path refused. The
+banner is gated on **`!status.canProcessOrders`**, derived from the server. Never re-gate a
+blocking surface on a plan name; that check is what caused this.
+
+- Paused plan badge (non-Pilot): `<Plan> · Processing paused` (Pilot keeps `Pilot ended · Processing paused` above)
+- Headline, by `accountStatus`:
+  - `past_due` → `Your last payment didn't go through.`
+  - `cancelled` → `Your subscription has ended.`
+  - `read_only` → `Your subscription isn't active.` — stays vague ON PURPOSE: `StripeBillingMapping.MapStatusToAccountStatus` folds Stripe `paused`, `canceled`, **and** a deleted subscription into this one value, so naming a cause would be a guess
+  - `trial_expired` → `Your trial has ended.`
+  - anything else, including a status this build does not know → `Order processing is paused on your account.`
+- Consequence (shared by every cause, and deliberately the same claims as the `/pricing`
+  cancellation disclosure): `New orders aren't being accepted — uploads, emailed orders, SFTP and S3 pickups, and the REST API all refuse, and nothing is held to deliver later, so redirect your suppliers if this will take a while. Everything already processed stays readable and exportable.`
+- Route back: `Manage in Stripe` (self-serve paid plans) / `Contact support` (Enterprise —
+  a manual agreement has no portal). Only `past_due` and `read_only` may promise processing
+  restarts by itself; a cancelled subscription needs a new one.
+
 Pricing cards — **do not hand-maintain this list.** The card feature bullets and CTAs live in
 `PLANS` in `src/lib/plans.ts`; the summary below drifted (it still described Integration as
 1,000 orders and claimed delivery/ingestion channels start at Integration when the backend

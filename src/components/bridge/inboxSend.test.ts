@@ -104,8 +104,16 @@ describe("bulkSendConfirmCopy — states the risk and the count", () => {
 
 describe("formatBulkSendResult — failure summary names POs and reasons", () => {
   it("formats an all-success result (singular and plural)", () => {
-    expect(formatBulkSendResult(1, [])).toEqual({ ok: true, text: "1 order sent" });
-    expect(formatBulkSendResult(3, [])).toEqual({ ok: true, text: "3 orders sent" });
+    // "queued", not "sent": /redeliver answers 202 and nothing has reached a
+    // supplier yet. See inboxBulkSendClaim.test.tsx for the rendered proof.
+    expect(formatBulkSendResult(1, [])).toEqual({
+      ok: true,
+      text: "1 order queued to send — its status updates as it goes",
+    });
+    expect(formatBulkSendResult(3, [])).toEqual({
+      ok: true,
+      text: "3 orders queued to send — each row's status updates as it goes",
+    });
   });
 
   it("lists the failing PO number and reason on a partial failure", () => {
@@ -114,7 +122,7 @@ describe("formatBulkSendResult — failure summary names POs and reasons", () =>
     ]);
     expect(r.ok).toBe(false);
     expect(r.text).toBe(
-      "2 sent · 1 failed: PO-2026-008412 — Order is not in a deliverable state",
+      "2 queued · 1 failed: PO-2026-008412 — Order is not in a deliverable state",
     );
   });
 
@@ -136,7 +144,7 @@ describe("formatBulkSendResult — failure summary names POs and reasons", () =>
     }));
     const r = formatBulkSendResult(1, failures);
     expect(r.text).toBe(
-      "1 sent · 5 failed: PO-1 — rejected; PO-2 — rejected; PO-3 — rejected and 2 more",
+      "1 queued · 5 failed: PO-1 — rejected; PO-2 — rejected; PO-3 — rejected and 2 more",
     );
   });
 
@@ -159,7 +167,7 @@ describe("shouldShowBulkBar — keeps the success confirmation reachable", () =>
   it("stays mounted on FULL success after selection is cleared", () => {
     // The actual bug: a full success clears rowSelection (selectedCount → 0)
     // AND sets a result. Gating on selectedCount alone unmounted the bar with
-    // its "N orders sent" line, so the send read as a silent no-op.
+    // its "N orders queued to send" line, so the send read as a silent no-op.
     const result = formatBulkSendResult(3, []);
     expect(shouldShowBulkBar(0, result)).toBe(true);
   });

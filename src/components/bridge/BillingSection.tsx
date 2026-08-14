@@ -93,9 +93,180 @@ function TrialCountdown({ endsAt }: { endsAt: string }) {
   );
 }
 
+/**
+ * True when the SERVER says this workspace cannot process orders.
+ *
+ * Derived from `canProcessOrders` and nothing else. A plan-name check is what caused
+ * the defect this replaces: every blocking surface on this screen was written as
+ * `status.plan === "pilot" && …`, so a paid workspace whose card was declined saw a
+ * healthy plan card and no banner at all — while every ingest path refused.
+ *
+ * The backend computes the flag (StripeBillingService.GetStatusAsync) as:
+ *   • Enterprise → !IsReadOnlyStatus(accountStatus)
+ *   • Pilot      → statusAllowsProcessing && !isTrialExpired && !isOrderLimitReached
+ *   • paid plan  → statusAllowsProcessing
+ * where statusAllowsProcessing is membership of the ALLOWLIST {trialing, active}.
+ * That allowlist shape is why this predicate is safe against a status nobody has
+ * seen yet: an unrecognised account status is not "fine", it is paused, and it
+ * arrives here already false rather than falling through to a healthy render.
+ */
+function isProcessingPaused(status: BillingStatus): boolean {
+  return !status.canProcessOrders;
+}
+
+/**
+ * What to tell a NON-Pilot workspace whose processing is paused.
+ *
+ * Keyed on `accountStatus` for the headline and the route back, with a fallback arm
+ * that names the pause without inventing a cause. The consequence paragraph is shared,
+ * because the consequence really is identical across causes — it is `canProcessOrders`
+ * that every ingest path checks, not the particular status behind it.
+ *
+ * ⚠ `read_only` is DELIBERATELY vague about the cause, and must stay that way.
+ * StripeBillingMapping.MapStatusToAccountStatus folds THREE different Stripe states into
+ * it — `paused`, `canceled`, and (via BillingController's subscription-deleted arm) a
+ * deleted subscription. "Your subscription has ended" would be a guess on a paused
+ * subscription, and a guess about someone's money is the same class of defect as the
+ * silence it replaces. It says the subscription is not active, which is true of all three,
+ * and sends them to the portal to see which.
+ *
+ * The resume promise is per-cause for the same reason. `past_due` really does resume by
+ * itself (the recovered-payment webhook flips the org back to active and
+ * ReleaseBillingHeldOrdersAsync re-drives every held order); a cancelled subscription
+ * does not, and telling that customer to sit and wait would strand them.
+ */
+export function pausedCauseCopy(accountStatus: string): {
+  headline: string;
+  resume: string;
+} {
+  switch (accountStatus) {
+    case "past_due":
+      return {
+        headline: "Your last payment didn't go through.",
+        resume:
+          "Update your payment details in Stripe — processing restarts on its own once the payment clears, and any orders waiting on it go out then.",
+      };
+    case "cancelled":
+      return {
+        headline: "Your subscription has ended.",
+        resume: "Start a plan again in Stripe to resume processing.",
+      };
+    case "read_only":
+      return {
+        headline: "Your subscription isn't active.",
+        resume:
+          "Open the billing portal to see whether it is paused or ended, and to restart it. Processing restarts on its own once the subscription is active again.",
+      };
+    case "trial_expired":
+      return {
+        headline: "Your trial has ended.",
+        resume: "Choose a plan in Stripe to resume processing.",
+      };
+    default:
+      // An account status this build does not recognise. Say what is certainly true —
+      // the server refused processing — and do not narrate a cause or a mechanism.
+      return {
+        headline: "Order processing is paused on your account.",
+        resume: "Open the billing portal to check your subscription, or contact support.",
+      };
+  }
+}
+
+/**
+ * The consequence, shared by every cause and deliberately identical in substance to the
+ * cancellation disclosure further down this file and to the /pricing copy: name the
+ * channels, and say that nothing is held back for later. A customer who thinks the
+ * orders are queueing up somewhere will not redirect their suppliers.
+ */
+const PAUSED_CONSEQUENCE =
+  "New orders aren't being accepted — uploads, emailed orders, SFTP and S3 pickups, and the REST API all refuse, and nothing is held to deliver later, so redirect your suppliers if this will take a while. Everything already processed stays readable and exportable.";
+
+/**
+ * The two conditions under which LimitBanner below prints Pilot's own paused copy.
+ *
+ * Exists so the hand-off between the two banners is ONE expression instead of an
+ * assumption. Writing the hand-off as a bare `plan === "pilot"` would re-open the defect
+ * rotated 90°: a Pilot workspace set `read_only` by an administrator BEFORE its trial
+ * expires has `canProcessOrders: false` with `isTrialExpired` and `isOrderLimitReached`
+ * both false — LimitBanner has nothing to say about it, and a plain plan check would have
+ * sent it away from the only banner that did.
+ */
+function pilotLimitBannerCovers(status: BillingStatus): boolean {
+  return status.plan === "pilot" && (status.isTrialExpired || status.isOrderLimitReached);
+}
+
+/**
+ * Blocking banner for a paused workspace.
+ *
+ * The gate is `!canProcessOrders`. The only thing skipped is a workspace LimitBanner is
+ * already speaking for — never a plan, and never a status — so a paused workspace always
+ * gets exactly one banner. BillingSection.paused.test.tsx walks every plan × every account
+ * status to keep that true.
+ */
+function ProcessingPausedBanner({
+  status,
+  onManage,
+  managePending,
+  manageError,
+}: {
+  status: BillingStatus;
+  onManage: () => void;
+  managePending: boolean;
+  manageError: unknown;
+}) {
+  if (!isProcessingPaused(status)) return null;
+  if (pilotLimitBannerCovers(status)) return null; // LimitBanner owns those two.
+
+  const { headline, resume } = pausedCauseCopy(status.accountStatus);
+  // Which route back exists for THIS workspace — a control is only offered where it
+  // can do something. Enterprise is a manual agreement with no self-serve portal;
+  // Pilot has no Stripe customer at all, so "Manage in Stripe" would open nothing
+  // (its route is the upgrade block further down this page).
+  const route =
+    status.plan === "enterprise" ? "support" : status.plan === "pilot" ? "upgrade" : "stripe";
+  const resumeLine =
+    route === "support"
+      ? "Contact support to restore processing on your agreement."
+      : route === "upgrade"
+        ? "Choose a plan below to resume processing."
+        : resume;
+
+  return (
+    <div role="alert" style={pausedBannerStyle}>
+      <strong>{headline}</strong>
+      <span>{PAUSED_CONSEQUENCE}</span>
+      <span>{resumeLine}</span>
+      {route === "support" ? (
+        <a
+          href="mailto:sales@proculink.eu"
+          style={{ alignSelf: "flex-start", marginTop: 4, fontSize: 12.5, fontWeight: 700, color: "var(--danger)" }}
+        >
+          Contact support
+        </a>
+      ) : route === "upgrade" ? null : (
+        <button type="button" onClick={onManage} disabled={managePending} style={pausedActionButton(managePending)}>
+          {managePending ? "Opening..." : "Manage in Stripe"}
+        </button>
+      )}
+      {/* The refusal belongs next to the control that was pressed — same rule as the
+          "Change plan" button below. A member who is not an org admin cannot open the
+          portal at all, and being told to "try again" about that is its own dead end. */}
+      {manageError != null && (
+        <p role="status" style={{ margin: 0, fontSize: 12, lineHeight: 1.5, color: "var(--danger)" }}>
+          {portalErrorCopy(manageError)}
+        </p>
+      )}
+    </div>
+  );
+}
+
 // Blocking banner — ONLY for Pilot, whose trial/limit really does pause
-// processing (Pilot becomes read-only). Paid plans are NEVER blocked; their
-// over-limit state is handled by the non-blocking OverageNotice below.
+// processing (Pilot becomes read-only). A PAID plan's over-limit state is
+// non-blocking and handled by OverageNotice below — but a paid plan IS blocked
+// by a non-processing account status (past_due / read_only / cancelled), which is
+// ProcessingPausedBanner above. This comment used to read "Paid plans are NEVER
+// blocked", which contradicted StripeBillingService's own comment and left a
+// declined card entirely unreported.
 function LimitBanner({ status }: { status: BillingStatus }) {
   if (status.plan === "pilot" && status.isTrialExpired) {
     return (
@@ -181,6 +352,26 @@ const bannerStyle: React.CSSProperties = {
   color: "var(--amber-text)",
 };
 
+/**
+ * Danger, not amber. The Pilot banner above is amber because a trial ending is expected
+ * and the workspace is doing what it said it would; this one fires when a workspace that
+ * is PAYING has stopped being able to work, which is the loudest thing this screen can
+ * have to say. Amber alongside an amber "approaching your limit" heads-up would read as
+ * the same weight of news.
+ */
+const pausedBannerStyle: React.CSSProperties = {
+  borderRadius: 10,
+  padding: "14px 18px",
+  background: "var(--danger-soft)",
+  border: "1px solid var(--danger)",
+  display: "flex",
+  flexDirection: "column",
+  gap: 6,
+  fontSize: 13,
+  lineHeight: 1.5,
+  color: "var(--danger)",
+};
+
 // Gentle amber heads-up (approaching cap) — softer than the blocking bannerStyle.
 const warnNoticeStyle: React.CSSProperties = {
   borderRadius: 10,
@@ -215,16 +406,26 @@ const infoNoticeStyle: React.CSSProperties = {
 // per the design render (the buyer side of the buyer→supplier bridge).
 function PlanCard({ status, action }: { status: BillingStatus; action?: React.ReactNode }) {
   const meta = PLAN_META[status.plan];
+  // The card's tint, label and status line are driven by the SERVER's canProcessOrders,
+  // not by the plan name. `isExpired` is kept as a narrower flag for the one string
+  // CLAUDE.md §11.5 pins verbatim; every other paused workspace — including a paid plan
+  // whose payment failed, which this card used to render as perfectly healthy — now
+  // carries the same "· Processing paused" suffix.
   const isExpired = status.plan === "pilot" && status.isTrialExpired;
-  const displayLabel = isExpired ? "Pilot ended · Processing paused" : meta.label;
+  const isPaused = isProcessingPaused(status);
+  const displayLabel = isExpired
+    ? "Pilot ended · Processing paused"
+    : isPaused
+      ? `${meta.label} · Processing paused`
+      : meta.label;
   // Expired pilot uses amber tint; an active plan uses the buyer-blue soft tint
   // (sampled var(--brand-blue-soft)) with a buyer-blue price — matches the design render.
   // --amber-text, not --amber: `accent` is the PRICE text below, and --amber on
   // --amber-soft is 3.6547:1. It clears the 3:1 large-text floor at 24px/700 by
   // a hair, but the token is documented as non-text only. 5.6206:1.
-  const accent = isExpired ? "var(--amber-text)" : "var(--brand-blue)";
-  const softBg = isExpired ? "var(--amber-soft)" : "var(--brand-blue-soft)";
-  const borderCol = isExpired ? "#F0D8A8" : "var(--brand-blue-soft-2)";
+  const accent = isPaused ? "var(--amber-text)" : "var(--brand-blue)";
+  const softBg = isPaused ? "var(--amber-soft)" : "var(--brand-blue-soft)";
+  const borderCol = isPaused ? "#F0D8A8" : "var(--brand-blue-soft-2)";
 
   return (
     <div style={{
@@ -261,7 +462,16 @@ function PlanCard({ status, action }: { status: BillingStatus; action?: React.Re
             <TrialCountdown endsAt={status.trialEndsAt} />
           </div>
         )}
-        {!isExpired && (
+        {/*
+          Hidden while paused. This line prints the raw account status with its
+          underscores swapped for spaces — "past due", "read only" — at 11px in
+          --ink-faint with no colour and no icon, and for months it was the ONLY
+          trace on this screen that a paid workspace had stopped working. It is a
+          database word doing a sentence's job. When paused, the banner above says
+          it in words instead; the same rule already guards the cancellation
+          disclosure (gatedCapabilityClaims: "never leaks the internal status name").
+        */}
+        {!isPaused && (
           <div style={{ fontSize: 11, color: "var(--ink-faint)" }}>
             {status.accountStatus.replaceAll("_", " ")}
           </div>
@@ -331,6 +541,16 @@ export function BillingSection() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+      {/* First thing on the screen, because it is the reason nothing is working.
+          /operations/health links here labelled "Go to billing" under "Sending
+          resumes automatically once your billing is up to date" — this is the
+          sentence that link was promising. */}
+      <ProcessingPausedBanner
+        status={status}
+        onManage={() => portalMutation.mutate()}
+        managePending={portalMutation.isPending}
+        manageError={portalMutation.isError ? portalMutation.error : null}
+      />
       <LimitBanner status={status} />
       <OverageNotice status={status} />
 
@@ -611,6 +831,28 @@ function primaryButton(background: string, disabled: boolean): React.CSSProperti
     cursor: disabled ? "not-allowed" : "pointer",
     opacity: disabled ? 0.6 : 1,
     boxShadow: "0 1px 2px rgba(11,26,47,0.06)",
+  };
+}
+
+/**
+ * The paused banner's route back. A helper rather than an inline object so the button
+ * carries no `style={{ background: … }}` of its own — check-tokens' inline-button-bg
+ * rule, which this file is already at its baseline for.
+ */
+function pausedActionButton(disabled: boolean): React.CSSProperties {
+  return {
+    alignSelf: "flex-start",
+    marginTop: 4,
+    minHeight: 34,
+    padding: "0 14px",
+    borderRadius: 8,
+    border: "1px solid var(--danger)",
+    background: "var(--surface)",
+    color: "var(--danger)",
+    fontSize: 12.5,
+    fontWeight: 700,
+    cursor: disabled ? "not-allowed" : "pointer",
+    opacity: disabled ? 0.6 : 1,
   };
 }
 
