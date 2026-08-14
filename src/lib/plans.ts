@@ -185,10 +185,34 @@ export const PLANS: Plan[] = [
       "Email · SFTP · S3 ingestion",
       // "Mapping library" named a surface that does not exist — WP-11 deleted the
       // BillingFeature of that name for exactly that reason ("no such surface exists anywhere
-      // in the product"). What Growth actually gets is the field mapper and validation, so the
-      // bullet now says that. The bulk import/export lever is the Operations differentiator and
+      // in the product"). The bulk import/export lever is the Operations differentiator and
       // stays there.
-      "Field mapping + validation",
+      //
+      // The repair for that then read "Field mapping + validation", and its second half was
+      // false at a €2,350/month distance. ProcuLink has TWO validation products and only one of
+      // them is on this tier:
+      //
+      //   • BUILT-IN checks — InvariantValidator plus OutputFieldValidator (required fields,
+      //     zero/negative unit price, zero/negative quantity, format-mandatory buyer item code,
+      //     delimiter contamination). Ungated on every plan, Pilot included: every transform
+      //     calls OutputFieldValidator.ValidateEntity before writing a byte
+      //     (CsvTransformService.cs:46, CxmlTransformService.cs:112, JsonTransformService.cs:38,
+      //     UblOrderTransformService.cs:103, X12TransformService.cs:108, XmlTransformService.cs:45),
+      //     and SupplierAcceptanceService.cs:202-204 runs the invariant and output-field passes
+      //     alongside the profile pass — EvaluateProfile returns empty when there is no profile
+      //     (:389), so these two still produce results with no profile at all.
+      //   • PER-SUPPLIER ACCEPTANCE RULES — the versioned acceptance profile on the supplier's
+      //     Validation rules tab. Gated on BillingFeature.CustomSupplierRules, whose minimum is
+      //     Enterprise (PlanConstants.cs:287), refused on BOTH authoring and activating
+      //     (SupplierAcceptanceController.cs:37-46, :70, :99). The Enterprise card sells it as
+      //     "Custom transformation rules"; only reading existing versions is left open, so a
+      //     downgraded org can still see what its suppliers enforce.
+      //
+      // "validation" on a €149 card points a reader straight at the tab named "Validation
+      // rules", which is the Enterprise one. The bullet now names the half Growth really has.
+      // Deleting it outright was the wrong repair in the other direction — the built-in checks
+      // are real, they run on every order, and under-claiming them is its own false statement.
+      "Field mapping + built-in order checks",
       // "Audit log" was imprecise in the one direction that costs a customer money. ProcuLink has
       // TWO audit surfaces and only one of them is on this tier:
       //

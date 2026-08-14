@@ -574,6 +574,49 @@ const SELLS_ORG_WIDE_AUDIT = (text: string): boolean =>
   (/\baudit\b/i.test(text) || /\bdelivery log\b/i.test(text)) &&
   !/\bper[- ]order\b|\bsingle[- ]order\b|\border[- ]level\b|\bfor (?:each|any|a single) order\b/i.test(text);
 
+/**
+ * The CONFIGURABLE per-supplier rule set — the versioned acceptance profile on a supplier's
+ * Validation rules tab. `SupplierAcceptanceController.GateAsync`
+ * (SupplierAcceptanceController.cs:37-46) refuses it below Enterprise on BOTH authoring (:70) and
+ * activating (:99); only reading existing versions is left open, so a downgraded org can still see
+ * what its suppliers enforce.
+ *
+ * This matcher used to be `/custom (transformation|supplier) rule/i`. Measured over the buyer-facing
+ * corpus that phrasing matched exactly ONE line in the entire product — the Enterprise card's own
+ * bullet — and nothing anybody else would ever type. So the €149 Growth card sold
+ * `"Field mapping + validation"` and three help articles taught the feature with no tier at all,
+ * and this row read past every one of them.
+ *
+ * The real boundary is the same shape as `SELLS_ORG_WIDE_AUDIT`'s: not an adjective, but WHICH of
+ * two products is named. BUILT-IN checks are ungated on every plan including Pilot —
+ * `InvariantValidator` and `OutputFieldValidator` run whether or not a profile exists
+ * (SupplierAcceptanceService.cs:202-204; `EvaluateProfile` returns empty at :389), and every
+ * transform calls `OutputFieldValidator.ValidateEntity` before emitting a byte. A CONFIGURABLE
+ * per-supplier rule set is the gated one, and in this product it has a small, stable set of names:
+ * "validation rules", "acceptance rules", "validation/acceptance profile", "acceptance checks",
+ * "validation checks", and the Enterprise card's "custom transformation rules".
+ *
+ * ── Why not simply `/\bvalidat/i` ──────────────────────────────────────────────
+ *
+ * Measured before widening, over the 82-file / 13,249-line buyer-facing corpus: the bare verb
+ * matched 57 lines and the great majority had nothing to do with this gate — "FTPS certificate
+ * validation", "No BIS business-rule validation runs", the Parse · Normalize · Validate pipeline
+ * labels, "They are not validated against a live ERP sandbox", the ROI calculator's prose. A
+ * matcher that noisy gets narrowed by the next reader until it catches nothing, which is exactly
+ * the state this row was found in. The named-surface form below matched 14 lines across 7 files
+ * and every single one is a real presentation of the gated surface.
+ *
+ * ── What is deliberately NOT excluded ──────────────────────────────────────────
+ *
+ * There is no `!built-in` escape here, even though the honest Growth bullet is about built-in
+ * checks. It does not need one — "built-in order checks" names no rule set — and adding one would
+ * open the hole a bullet reading "Built-in validation rules" could walk straight through. The
+ * words "validation rules" name the Enterprise tab whatever adjective precedes them.
+ */
+const SELLS_CONFIGURABLE_SUPPLIER_RULES = (text: string): boolean =>
+  /\b(?:validation|acceptance)\s+(?:rule|rules|profile|profiles|check|checks)\b/i.test(text) ||
+  /\bcustom\s+(?:transformation|supplier)\s+rules?\b/i.test(text);
+
 const CAPABILITY_CLAIMS: Record<keyof typeof BACKEND_MINIMUM_PLAN, { label: string; sells: ClaimMatcher }> = {
   webhookDelivery: { label: "webhook / API delivery", sells: /webhook/i },
   // Scoped to ingestion. A bare /\bemail\b/ would read an ordinary "Email support" bullet on the
@@ -589,7 +632,7 @@ const CAPABILITY_CLAIMS: Record<keyof typeof BACKEND_MINIMUM_PLAN, { label: stri
   cxml: { label: "cXML support", sells: /\bcxml\b/i },
   advancedAudit: { label: "the org-wide delivery log", sells: SELLS_ORG_WIDE_AUDIT },
   erpConnectors: { label: "ERP connectors", sells: /\berp\b/i },
-  customSupplierRules: { label: "custom transformation rules", sells: /custom (transformation|supplier) rule/i },
+  customSupplierRules: { label: "per-supplier validation rules", sells: SELLS_CONFIGURABLE_SUPPLIER_RULES },
   sso: { label: "SSO", sells: SELLS_SSO },
 };
 
@@ -657,6 +700,40 @@ describe("the mirrored gate table is load-bearing, row by row", () => {
     // The Operations/Integration wording that already shipped still has to register as a sale,
     // or `pins exactly which gated capabilities no card currently sells` goes quiet.
     expect(claims(CAPABILITY_CLAIMS.advancedAudit.sells, "Advanced audit trail + priority support")).toBe(true);
+  });
+
+  /**
+   * MUST-FLAG CONTROL for `customSupplierRules`, whose matcher was `/custom (transformation|
+   * supplier) rule/i` and recognised exactly one string in the product: the Enterprise card's own
+   * bullet. A row that can only see the copy already at the right tier polices nothing.
+   */
+  it("recognises the per-supplier rules surface by the names it actually ships under", () => {
+    // The wordings that name the Enterprise-gated configurable rule set. These are not invented:
+    // every one is a live line in the product, quoted from the corpus measurement.
+    for (const text of [
+      "Field mapping + validation rules",                        // the shape the Growth card would take
+      "Custom transformation rules",                             // the Enterprise card, as it stands
+      "| **Validation rules** | The acceptance checks that actually hold orders.",
+      "- the **validation profile** (which acceptance rules check orders),",
+      "which validation checks flip between pass and fail",
+      "Built-in validation rules",                               // no `!built-in` escape — see the matcher note
+    ]) {
+      expect(claims(CAPABILITY_CLAIMS.customSupplierRules.sells, text), `must flag: ${text}`).toBe(true);
+    }
+
+    // And the BUILT-IN checks, which really are on every plan including Pilot. If these start
+    // flagging, the guard has stopped distinguishing the two validation products and the only
+    // obvious repair is to narrow it back to `/custom .* rule/i` — the blind version.
+    for (const text of [
+      "Field mapping + built-in order checks",
+      "Built-in order checks",
+      "FTPS certificate validation",
+      "No BIS business-rule validation runs",
+      "Parse · Normalize · Validate · Transform · Deliver",
+      "They are not validated against a live ERP sandbox",
+    ]) {
+      expect(claims(CAPABILITY_CLAIMS.customSupplierRules.sells, text), `must allow: ${text}`).toBe(false);
+    }
   });
 
   it("pins exactly which gated capabilities no card currently sells", () => {
@@ -826,9 +903,31 @@ const UNGATED_BULLETS: ReadonlyArray<{ matches: RegExp; why: string }> = [
     matches: /^Supplier-ready export$/i,
     why: "downloading the transform artifact is ungated — the DELIVERY CHANNELS are what gate (WebhookDelivery, Growth+), and they are sold as their own bullets",
   },
+  // These two were ONE entry — `/^Field mapping \+ validation$/i`, excused by "the field mapper
+  // and validation rules are ungated". Half of that reason contradicted the gate table outright:
+  // `BillingFeature.CustomSupplierRules` is Enterprise (PlanConstants.cs:287). A stated reason is
+  // worth LESS than no allowlist entry when it is wrong, because it reads as considered and stops
+  // the next reader looking. Splitting the entry is not cosmetic — an entry may now only carry a
+  // reason for one claim, so a wrong half cannot ride along with a right one.
   {
-    matches: /^Field mapping \+ validation$/i,
-    why: "the field mapper and validation rules are ungated. Only BULK mapping import/export is gated (BulkMapping, Operations+), and Operations/Distributor sell that separately",
+    matches: /^Field mapping$/i,
+    why:
+      "no BillingFeature gates the field mapper. MapperEnrichmentController, " +
+      "MappingSuggestionsController and PoMappingTemplatesController carry no HasFeatureAsync " +
+      "call at all; the only gate anywhere near mapping is BULK import/export " +
+      "(SuppliersController.cs:472, BillingFeature.BulkMapping, Operations+), which Operations " +
+      "sells as its own bullet",
+  },
+  {
+    matches: /^Built-in order checks$/i,
+    why:
+      "InvariantValidator + OutputFieldValidator run on every plan including Pilot: every " +
+      "transform calls OutputFieldValidator.ValidateEntity before writing a byte " +
+      "(CsvTransformService.cs:46 and its five siblings), and SupplierAcceptanceService.cs:202-204 " +
+      "runs the invariant and output-field passes whether or not a profile exists (EvaluateProfile " +
+      "returns empty at :389). The CONFIGURABLE per-supplier rules are the gated product — " +
+      "BillingFeature.CustomSupplierRules, Enterprise — and the Enterprise card sells those " +
+      "separately as 'Custom transformation rules'",
   },
   {
     matches: /^Per-order audit trail$/i,
@@ -930,18 +1029,32 @@ const accountFor = (plan: Plan, bullet: string): Verdict => {
     return { ok: true, because: `quota bullet, matches plan.${quota.kind === "orders" ? "orderLimit" : "supplierLimit"}` };
   }
 
-  // An UNGATED_BULLETS entry matching the WHOLE bullet accounts for the whole bullet. That is the
-  // one place a compound may be excused in one go, and it is safe precisely because it is not
-  // silent: the entry is anchored, hand-written, carries a stated reason, and `no allowlist entry
-  // is dead` deletes it the moment the bullet stops existing. The bypass was never the allowlist —
-  // it was a CAPABILITY matcher answering for text it had not read.
-  const wholeBullet = UNGATED_BULLETS.find(({ matches }) => matches.test(bullet));
-  if (wholeBullet) return { ok: true, because: `ungated: ${wholeBullet.why}` };
+  // An UNGATED_BULLETS entry matching the WHOLE bullet accounts for the whole bullet — but ONLY
+  // when the bullet makes a single claim.
+  //
+  // This condition was not here, and the note in its place argued the whole-bullet escape was safe
+  // because the entries are anchored, hand-written, carry a stated reason, and are deleted the
+  // moment the bullet stops existing. Every one of those things was true and it was still the
+  // hole. `/^Field mapping \+ validation$/i` matched a COMPOUND, so ONE hand-written reason —
+  // "the field mapper and validation rules are ungated" — answered for TWO claims, and its second
+  // half contradicted the gate table (CustomSupplierRules is Enterprise, PlanConstants.cs:287).
+  // The clause split below never ran, so `customSupplierRules` never got to see the word
+  // "validation" at all.
+  //
+  // So the bypass had a second form the earlier note missed. It is not only a CAPABILITY matcher
+  // answering for text it had not read; it is ANY single verdict answering for more claims than it
+  // read. A multi-clause bullet is now accounted for clause by clause no matter which mechanism
+  // would excuse it, which is precisely where the capability matchers get their look.
+  const clauses = splitClauses(bullet);
+  if (clauses.length === 1) {
+    const wholeBullet = UNGATED_BULLETS.find(({ matches }) => matches.test(bullet));
+    if (wholeBullet) return { ok: true, because: `ungated: ${wholeBullet.why}` };
+  }
 
   const because: string[] = [];
   const unaccounted: string[] = [];
 
-  for (const clause of splitClauses(bullet)) {
+  for (const clause of clauses) {
     const gated = Object.entries(CAPABILITY_CLAIMS).find(([, { sells }]) => claims(sells, clause));
     if (gated) {
       because.push(`"${clause}" → BillingFeature.${gated[0]} (its tier is policed above)`);
@@ -1104,11 +1217,72 @@ describe("every pricing-card bullet is accounted for by something real", () => {
     for (const honest of [
       "Webhook/API delivery + email · SFTP · S3 ingestion",
       "Bulk mapping import/export + cXML support",
-      "Field mapping + validation",
+      "Field mapping + built-in order checks",
       "Email · SFTP · S3 ingestion",
     ]) {
       expect(accountFor(operations, honest).ok, `must allow: ${honest}`).toBe(true);
     }
+  });
+
+  /**
+   * MUST-FLAG CONTROL for the SECOND form of the compound bypass, quoted exactly as it shipped.
+   *
+   * `plans.ts:191` read `"Field mapping + validation"` on the €149 Growth card while per-supplier
+   * validation rules gate at Enterprise — from €2,500/month — refused on authoring AND on
+   * activating (`SupplierAcceptanceController.cs:37-46`, `:70`, `:99`; `PlanConstants.cs:287`).
+   *
+   * It survived the control directly above because that control only closed the CAPABILITY half of
+   * the bypass. This bullet was excused earlier than any capability matcher ran, by an
+   * `UNGATED_BULLETS` entry that matched the whole compound and carried one reason for two claims —
+   * a reason whose second half ("validation rules are ungated") contradicted the gate table. Both
+   * halves are replayed here: the bullet on a COPY of `PLANS`, and the allowlist entry that excused
+   * it put back verbatim.
+   */
+  it("catches the Growth 'Field mapping + validation' bullet that shipped, whole-bullet excuse and all", () => {
+    const growth = PLANS.find((p) => p.id === "growth")!;
+
+    // 0. The shipped strings, pinned directly. `/pricing` carries a committed visual baseline, but
+    //    its threshold is `maxDiffPixelRatio: 0.002` — a reworded bullet does not move enough
+    //    pixels to trip it, so the screenshot gate cannot be what holds this copy in place.
+    expect(growth.features, "the honest bullet must be the one that ships").toContain(
+      "Field mapping + built-in order checks",
+    );
+    expect(growth.features, "and the compound must not come back").not.toContain("Field mapping + validation");
+
+    // 1. The bullet, verbatim. "validation" alone names no gated capability, is not a quota, and is
+    //    not on the allowlist — so the clause split has to leave it unaccounted.
+    const shipped = accountFor(growth, "Field mapping + validation");
+    expect(shipped.ok, "the bullet that shipped on the €149 card must be refused").toBe(false);
+    expect(
+      "problem" in shipped && shipped.problem,
+      "and refused for the RIGHT clause — naming the mapping half would mean the split ran backwards",
+    ).toMatch(/"validation"/);
+
+    // 2. The backed half on its own is still fine. The fix must not have been "ban the word mapping".
+    expect(accountFor(growth, "Field mapping").ok).toBe(true);
+    expect(accountFor(growth, "Built-in order checks").ok).toBe(true);
+
+    // 3. The whole-bullet allowlist escape, restored exactly as it was. A single anchored entry
+    //    carrying one reason may no longer answer for a two-claim bullet, so this must STILL fail —
+    //    otherwise the repair is one deleted line away from undoing itself.
+    const asItWas: typeof UNGATED_BULLETS = [
+      { matches: /^Field mapping \+ validation$/i, why: "the field mapper and validation rules are ungated" },
+    ];
+    const excused = asItWas.find(({ matches }) => matches.test("Field mapping + validation"));
+    expect(excused, "the old entry really did match the whole bullet").toBeDefined();
+    expect(
+      splitClauses("Field mapping + validation").length,
+      "and the bullet really is a compound, which is what now denies it the whole-bullet escape",
+    ).toBe(2);
+
+    // 4. Once the clause names the gated surface outright, the tier scans take over and refuse it
+    //    on the Growth card. Accounting for a clause and policing its tier are two different jobs.
+    const cheapest = cheapestSeller(withBullet("growth", "Validation rules"), CAPABILITY_CLAIMS.customSupplierRules.sells);
+    expect(cheapest?.id, "a Growth bullet naming the gated surface must be seen at all").toBe("growth");
+    expect(
+      rank(cheapest!.id),
+      "and seen as BELOW Enterprise — a matcher that finds it but ranks it fine is decoration",
+    ).toBeLessThan(rank(BACKEND_MINIMUM_PLAN.customSupplierRules));
   });
 });
 
@@ -1758,6 +1932,21 @@ describe("a gated capability is never presented with no tier at all", () => {
       capability: "erpConnectors" as const,
       label: "the Erply / Directo ERP connectors",
       presents: (lines: string[], i: number) => ERP_CONNECTOR_CLAIM(lines[i]),
+    },
+    /**
+     * Per-supplier validation rules. Added because `/help/validation-rules`, `/help/connections`
+     * and `/help/managing-suppliers` each taught the Enterprise-gated feature end to end with no
+     * tier anywhere on the page — one of them calling the supplier tab "the only place a check is
+     * set, and the only place one runs" — and every scan in this file read past all three.
+     *
+     * `presents` is the same predicate the card scans use, deliberately. The two questions are
+     * different ("sold below its gate" vs "presented with no gate named") but the thing being
+     * recognised is one thing, and two matchers for one capability drift apart.
+     */
+    {
+      capability: "customSupplierRules" as const,
+      label: "per-supplier validation rules",
+      presents: (lines: string[], i: number) => SELLS_CONFIGURABLE_SUPPLIER_RULES(lines[i]),
     },
   ];
 
