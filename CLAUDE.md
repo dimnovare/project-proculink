@@ -566,13 +566,39 @@ Plan-gate 403s carry `{ error: "<capability>_requires_<plan>", upgradeUrl }`. Th
 segment is derived server-side from the gate table, so **never match these codes by full
 literal** — use `isPlanGateError` / `planGateMessage` from `src/lib/planGate.ts`.
 
-Required billing copy:
+**Quota 429s are a different, also-structured payload — do not confuse the two.** A refused
+upload or supplier-create answers `429` with `{ error, plan, limit, upgradeUrl }`, where
+`error` is one of the machine tokens `pilot_expired` / `order_limit_reached` /
+`supplier_limit_reached`, `plan` is the org's tier, and `limit` is the **effective** cap
+(`admin override ?? plan default`, `LimitCheckResult.Limit`). Match those codes **whole** —
+never by substring. The exception, and the only one, is the global rate limiter
+(`ProcuLink.Api/Program.cs`), which writes a prose sentence with no code in it
+(`"Rate limit exceeded. Please slow down and retry shortly."`); prose sniffing is legitimate
+there and nowhere else on this path.
+
+Which endpoint emits which code is load-bearing: `supplier_limit_reached` comes from
+`POST /api/suppliers` **only** (`SuppliersController.cs`). `POST /api/orders/upload` can
+answer `pilot_expired` or `order_limit_reached` and nothing else (`OrdersController.cs`).
+
+Required billing copy — **the two banners below are DERIVED, not literals.** This list used
+to print `Your plan includes 1 supplier. Upgrade to Growth to add more supplier flows.` as
+mandated copy, and `UploadWorkbench.tsx` shipped it hardcoded for every tier: a €1,499/mo
+Distributor org with 30 supplier flows was told it had one and should upgrade to the €149
+tier. **A tier name or an allowance typed into a banner is the defect** — read the allowance
+from the refusal's `limit` (falling back to `PLANS[plan].supplierLimit`) and the tier to name
+from `PLANS[plan].next`, the same way `requiresPlan()` in `src/lib/gatedCapabilities.ts`
+derives tier names for marketing copy.
+
+`next` is **null at the top of the self-serve ladder** (Distributor) and on Enterprise. That
+null is a real branch, not a missing value: there is no upgrade to offer, so the copy must
+say `Contact us to add more supplier flows.` with a `Contact support` route — never name a
+cheaper tier. Enterprise supplier counts are set by agreement (`supplierLimit: null`).
 
 - Pilot active badge: `Pilot · 14-day trial`
 - Pilot expired badge: `Pilot ended · Processing paused`
-- Pilot expired banner: `Your Pilot has ended. You can still view previous orders, but new processing is paused. Upgrade to Growth to continue.`
+- Pilot expired banner: `Your Pilot has ended. You can still view previous orders, but new processing is paused.` + a CTA naming `PLANS.pilot.next` (today: `Upgrade to Growth`)
 - Order limit banner: `You've reached your plan's order limit. Upgrade to continue processing new orders this month.`
-- Supplier limit banner: `Your plan includes 1 supplier. Upgrade to Growth to add more supplier flows.`
+- Supplier limit banner: `Your plan includes {limit} supplier(s).` + `Upgrade to {next} to add more supplier flows.` — for a Pilot org that renders exactly the old sentence, which is why the hardcode survived this long. Pinned by `src/components/bridge/UploadWorkbench.supplierLimitCopy.test.tsx`.
 
 **Paid-plan processing-paused banner (added 2026-08-14).** This list had nothing for the
 state that actually costs money: a paying customer whose card was declined. Every blocking
