@@ -180,6 +180,29 @@ describe("SECTION_GUIDES registry shape", () => {
     }
   });
 
+  // The dashboard CSV bullet used to read "it covers your most recent 100
+  // orders". That 100 was a literal hand-copied from `pageSize: 100` in
+  // BridgeDashboard — a second copy of a number, in a file that cannot see the
+  // first one change. It was also simply wrong: the export writes the orders in
+  // the SELECTED time window, so with the window on "Today" the file can hold
+  // twelve rows. The exported CSV already states its own exact count on its
+  // first line, derived at write time; this sentence must not compete with it.
+  it("the dashboard CSV bullet promises no count of its own", () => {
+    const dashboard = SECTION_GUIDES.find((g) => g.route === "/bridge");
+    expect(dashboard, "/bridge guide").toBeDefined();
+
+    // ANTI-VACUITY FLOOR: the bullet still exists and still describes the
+    // export. Deleting it would pass every assertion below for free.
+    const csv = dashboard?.bullets.filter((b) => /\bCSV\b/.test(b.text)) ?? [];
+    expect(csv, "the CSV export bullet").toHaveLength(1);
+    expect(csv[0].text).toMatch(/export/i);
+
+    // No digits: any number here is a copy of a value this file cannot read.
+    expect(csv[0].text).not.toMatch(/\d/);
+    // …and it says what actually bounds the file, which is the window.
+    expect(csv[0].text).toMatch(/time window/i);
+  });
+
   it("uses only the four known party tokens", () => {
     const KNOWN = new Set(["supplier", "suppliers", "Supplier", "Suppliers"]);
     for (const g of SECTION_GUIDES) {
