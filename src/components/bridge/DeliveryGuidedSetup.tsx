@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { upsertDeliveryConfig, testFireDelivery } from "@/lib/api/delivery";
 import { invalidateOnboardingStatus } from "@/hooks/useOnboardingStatus";
+import { invalidateDeliveryConfig } from "@/lib/deliveryConfigCache";
 import type { DeliveryProtocol, DeliveryTestResult, OutputFormatId } from "@/lib/api/types";
 import { serverReasonOrNull } from "@/lib/serverText";
 import { deliveryTestDisclosure } from "@/components/bridge/deliveryTestDisclosure";
@@ -306,6 +307,10 @@ function WizardModal({
       setSaved(true);
       // hasDeliveryConfig just flipped — refresh checklist/chip surfaces.
       void invalidateOnboardingStatus(queryClient);
+      // This supplier now HAS a delivery config. The offer that opened this wizard renders on a
+      // cached `data === null`, so without this the wizard it launched stays on offer after
+      // writing the very config that should retire it.
+      void invalidateDeliveryConfig(queryClient, supplierId);
       // Let the parent reload the underlying editor with the freshly-saved config.
       onSaved?.();
       return true;

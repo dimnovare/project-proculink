@@ -27,6 +27,7 @@ import { pagePopulation, practiceOrderNote } from "./orderCountContract";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { invalidateOnboardingStatus } from "@/hooks/useOnboardingStatus";
+import { deliveryConfigQueryKey } from "@/lib/deliveryConfigCache";
 import { PageShell } from "./layout/PageShell";
 import { Card } from "@/components/bridge/layout/Card";
 import { SupplierIdentityCard } from "./SupplierIdentityCard";
@@ -2212,7 +2213,7 @@ function FirstTimeDeliveryOffer({
 }) {
   const queryEnabled = useQueriesEnabled();
   const { data, isLoading, isError } = useQuery<DeliveryConfig | null>({
-    queryKey: ["supplier-delivery-config", supplierId],
+    queryKey: deliveryConfigQueryKey(supplierId),
     queryFn: () => getDeliveryConfig(supplierId),
     enabled: queryEnabled,
     staleTime: 30_000,
@@ -2245,7 +2246,7 @@ function DeliverySummaryBody({
 }) {
   const queryEnabled = useQueriesEnabled();
   const { data, isLoading, isError, isFetching, refetch } = useQuery<DeliveryConfig | null>({
-    queryKey: ["supplier-delivery-config", supplierId],
+    queryKey: deliveryConfigQueryKey(supplierId),
     queryFn: () => getDeliveryConfig(supplierId),
     enabled: queryEnabled,
     staleTime: 30_000,
