@@ -42,12 +42,18 @@
  *     two files and found three violations; check a sibling route group before
  *     trusting any corpus in src/app.
  *
- * WHAT IS EXEMPT FROM THE BLOCK TIERS (and why — each is measured, §7.1):
- *   • src/app/(marketing)/help/**   reference docs for a technical reader; they
- *                                   MUST say cXML, UBL, `Idempotency-Key`
- *   • src/app/(app)/admin/**        our own staff runbook, not customer copy
- *   • (marketing)/{dpa,terms,privacy,aup,subprocessors}   legal text
- *   • **\/*.test.*, src/mocks/**, src/lib/standards/**    fixtures + fact tables
+ * WHAT IS EXEMPT FROM THE BLOCK TIERS (and why — each is measured, §7.1). An
+ * exemption names the TIER(S) it buys; there is no "exempt from the block tiers"
+ * in the plural sense, because the two tiers are excused by different reasons:
+ *   • src/app/(marketing)/help/**, src/components/help/**, and the help
+ *     registries in src/lib   — JARGON ONLY. Reference docs for a technical
+ *     reader, so they may say `Idempotency-Key` and keep "exception" (see the
+ *     note beside that entry in scripts/lib/vocabularyTerms.mjs). That reason
+ *     does NOT reach the metaphor tier — see the BLOCK_EXEMPT table below.
+ *   • src/app/(app)/admin/**        BOTH. Our own staff runbook, not customer copy.
+ *   • (marketing)/{dpa,terms,privacy,aup,subprocessors}   BOTH. Legal text.
+ *   • src/components/ui/**          BOTH. Vendored shadcn primitives.
+ *   • **\/*.test.*, src/mocks/**, src/lib/standards/**    BOTH. Fixtures + fact tables.
  *
  * FALSE-POSITIVE GUARDS (DESIGN-DB-1 §7.3 — a careless list turns CI red):
  *   • whole-word matching only (\b…\b). "AST" inside "P-ast- due" produced 51
@@ -84,7 +90,7 @@ import { maskLiterals, stripComments } from "./lib/sourceScan.mjs";
 // The three tiers themselves. See that module's header for why they no longer live
 // inline here: the backend composes user-facing sentences too, and the guard that
 // polices those must read the SAME list rather than a second copy of it.
-import { GLOSS, JARGON, METAPHOR, termPattern } from "./lib/vocabularyTerms.mjs";
+import { GLOSS, TIERS, termPattern } from "./lib/vocabularyTerms.mjs";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 
@@ -110,21 +116,71 @@ const SCAN_TARGETS = [
   { dir: ["src", "lib"], recursive: false, ext: /\.ts$/ },
 ];
 
-/** Paths exempt from the BLOCK tiers. Justified in the header comment. */
+/**
+ * Paths excused from a BLOCK tier — PER TIER, never from "the block tiers" as a set.
+ *
+ * This was ONE list that exempted a path from BOTH blocking tiers at once, on ONE
+ * justification, written at the top of this file: the help corpus is reference
+ * documentation for a technical reader, so it must be free to say cXML, UBL and
+ * `Idempotency-Key`.
+ *
+ * That reason is real and it covers the JARGON tier exactly. "idempotency" IS a jargon
+ * word, and vocabularyTerms.mjs keeps "exception" on the list with a comment saying the
+ * help articles may have it because they are BLOCK-exempt. Both deliberate; both stay.
+ *
+ * It never reached the METAPHOR tier. bridge / crossing / dock / lane / spine / wire /
+ * traveller / topology are the words the founder purged from user-facing copy
+ * (CLAUDE.md §9) — no technical reader needs any of them — while the help corpus is the
+ * single largest body of user-facing prose in the product. So the tier this file's own
+ * header calls "a regression guard" for a war that "is won" was not reading the copy
+ * most likely to lose it. Two thirds of the stated reason did not even apply: cXML and
+ * UBL are GLOSS words, and gloss never blocks.
+ *
+ * MEASURED WHEN THE SPLIT LANDED: the exempt corpus was already almost clean, so this is
+ * a guard that holds a clean corpus clean rather than a copy fix. The shapes that make a
+ * metaphor word appear there and are NOT copy — a CSS variable
+ * (`--gradient-link-spine`), an import path (`@/components/bridge/layout/Card`), a route
+ * (`href="/bridge"`), a proper noun (Proton Bridge) — all pass untouched, because none of
+ * them reaches a visible span. If one of them ever reddens CI, the extractor or
+ * PROPER_NOUN_MASKS is what is wrong; do not rewrite a help article to satisfy a
+ * mis-scoped matcher.
+ *
+ * TWO SPANS DID HAVE TO CHANGE, and both were ordinary English rather than the metaphor:
+ * "on the wire in clear text" in the catalog-sync guide, and "Zapier/Make wiring" in a
+ * help-articles blurb. Neither meant a Bezier wire on the dashboard. They were reworded
+ * ("across the network", "setup") rather than masked, because the same matcher already
+ * blocks "on the wire" everywhere else a user can read it — carving out an exception for
+ * the help corpus alone would rebuild, one idiom at a time, the hole this split closes.
+ *
+ * `tiers` is a closed list of tier NAMES, matched against `TIERS` in vocabularyTerms.mjs.
+ * A name that is not a real tier excuses nothing, so a typo fails loudly rather than
+ * opening a silent hole — which is the direction that matters here.
+ *
+ * Both directions are pinned by `check-vocabulary.mjs — per-tier BLOCK exemption` in
+ * src/lib/vocabulary.test.ts: a must-flag control (metaphor in a help file FAILS) and a
+ * must-allow control (jargon in the same file PASSES). Collapsing this back into one
+ * list turns one of the two red whichever way it is collapsed.
+ */
 const BLOCK_EXEMPT = [
-  /^src\/app\/\(marketing\)\/help\//,
-  /^src\/app\/\(app\)\/admin\//,
-  /^src\/app\/\(marketing\)\/(dpa|terms|privacy|aup|subprocessors)\//,
-  /^src\/components\/help\//,
+  // ─── jargon only: reference docs for a technical reader ───
+  { path: /^src\/app\/\(marketing\)\/help\//, tiers: ["jargon"] },
+  { path: /^src\/components\/help\//, tiers: ["jargon"] },
+  { path: /^src\/lib\/(help-articles|help-search|guides|guide-shots\.generated)\.ts$/, tiers: ["jargon"] },
+
+  // ─── both tiers: not customer-facing product copy at all ───
+  // Our own staff runbook.
+  { path: /^src\/app\/\(app\)\/admin\//, tiers: ["metaphor", "jargon"] },
+  // Legal text, drafted to its own conventions.
+  { path: /^src\/app\/\(marketing\)\/(dpa|terms|privacy|aup|subprocessors)\//, tiers: ["metaphor", "jargon"] },
   // Vendored shadcn/ui primitives — dependency infrastructure with no product
   // copy of its own (CLAUDE.md §14). Their generics (`FieldPath<T>`) also read
   // as JSX text to any line-based extractor.
-  /^src\/components\/ui\//,
-  /^src\/lib\/(help-articles|help-search|guides|guide-shots\.generated)\.ts$/,
-  /^src\/lib\/standards\//,
-  /^src\/mocks\//,
-  /\.test\.(ts|tsx)$/,
-  /\.stories\.(ts|tsx)$/,
+  { path: /^src\/components\/ui\//, tiers: ["metaphor", "jargon"] },
+  // Fact tables and fixtures.
+  { path: /^src\/lib\/standards\//, tiers: ["metaphor", "jargon"] },
+  { path: /^src\/mocks\//, tiers: ["metaphor", "jargon"] },
+  { path: /\.test\.(ts|tsx)$/, tiers: ["metaphor", "jargon"] },
+  { path: /\.stories\.(ts|tsx)$/, tiers: ["metaphor", "jargon"] },
 ];
 
 // ─── The three tiers ──────────────────────────────────────────────────────────
@@ -134,8 +190,14 @@ const BLOCK_EXEMPT = [
 // sentence composed in the BACKEND repo — into the operator's explanation block, so
 // src/test/backendCopyVocabulary.test.ts applies the same three tiers to the C#. Two
 // hand-kept copies of one rule is the exact drift that module's header describes.
-const METAPHOR_RE = termPattern(METAPHOR);
-const JARGON_RE = termPattern(JARGON);
+// Built from TIERS rather than from the tier arrays directly, so `blocks: false` is the
+// ONE fact that decides what can fail a build. A fourth blocking tier added over there
+// starts being enforced everywhere here — including in the help corpus — until an entry
+// in BLOCK_EXEMPT names it. That is the safe direction: a new tier defaults to policed.
+const BLOCK_MATCHERS = TIERS.filter((t) => t.blocks).map((t) => ({
+  name: t.name,
+  re: termPattern(t.terms),
+}));
 const GLOSS_RE = termPattern(GLOSS);
 
 /** Files allowed to keep a policed term in render copy. Justify every entry. */
@@ -190,7 +252,14 @@ function collect(dir, ext, recursive) {
 }
 
 const toRel = (p) => relative(ROOT, p).replace(/\\/g, "/");
-const isBlockExempt = (rel) => BLOCK_EXEMPT.some((re) => re.test(rel));
+/** The set of BLOCK tier names this path is excused from — usually empty. */
+const exemptTiers = (rel) => {
+  const out = new Set();
+  for (const entry of BLOCK_EXEMPT) {
+    if (entry.path.test(rel)) for (const tier of entry.tiers) out.add(tier);
+  }
+  return out;
+};
 
 // ─── Visible-span extraction ──────────────────────────────────────────────────
 
@@ -429,7 +498,7 @@ function scanTerms() {
   for (const file of files) {
     const rel = toRel(file);
     if (FILE_ALLOWLIST.has(rel)) continue;
-    const exempt = isBlockExempt(rel);
+    const exempt = exemptTiers(rel);
     const kind = /\.mdx$/.test(file) ? "mdx" : /\.tsx$/.test(file) ? "tsx" : "ts";
     const scan =
       kind === "mdx" ? mdxScanner() : kind === "tsx" ? tsxScanner() : visibleSpansTs;
@@ -442,11 +511,10 @@ function scanTerms() {
         if (PHRASE_ALLOWLIST.includes(span.trim())) continue;
         const masked = maskProperNouns(span);
         const rec = { file: rel, line: i + 1, text: span.trim().slice(0, 120) };
-        if (!exempt) {
-          const metaphor = masked.match(METAPHOR_RE);
-          if (metaphor) blocked.push({ ...rec, tier: "metaphor", term: metaphor[1].toLowerCase() });
-          const jargon = masked.match(JARGON_RE);
-          if (jargon) blocked.push({ ...rec, tier: "jargon", term: jargon[1].toLowerCase() });
+        for (const { name, re } of BLOCK_MATCHERS) {
+          if (exempt.has(name)) continue;
+          const hit = masked.match(re);
+          if (hit) blocked.push({ ...rec, tier: name, term: hit[1].toLowerCase() });
         }
         const gloss = masked.match(GLOSS_RE);
         if (gloss) warned.push({ ...rec, term: gloss[1].toLowerCase() });

@@ -334,6 +334,150 @@ describe("check-vocabulary.mjs scan", () => {
   });
 });
 
+// ─── BLOCK exemptions are PER TIER ────────────────────────────────────────────
+//
+// `BLOCK_EXEMPT` used to exempt a path from BOTH blocking tiers at once, on ONE
+// justification: the help corpus is reference documentation for a technical reader,
+// so it must be free to say cXML, UBL and `Idempotency-Key`.
+//
+// That reason is real, and it covers the JARGON tier only. "idempotency" IS a jargon
+// word, and vocabularyTerms.mjs keeps "exception" on the list with a comment saying
+// the help articles are allowed it because they are BLOCK-exempt. Both deliberate.
+//
+// It does not reach the METAPHOR tier. bridge / crossing / dock / lane / spine / wire /
+// traveller / topology are the words the founder purged from user-facing copy
+// (CLAUDE.md §9); no technical reader needs them, and the help corpus is the single
+// largest body of user-facing prose in the product. The stated reason also names cXML
+// and UBL, which are GLOSS words — a tier that never blocks — so that half of the
+// justification bought nothing at all.
+//
+// The exempt corpus was already almost clean when this landed, so the split is a guard
+// that holds a clean corpus clean rather than a copy fix. The shapes that put a metaphor
+// word in a help file WITHOUT it being copy — a CSS variable (`--gradient-link-spine`),
+// an import path (`@/components/bridge/layout/Card`), a route (`href="/bridge"`), a
+// proper noun (Proton Bridge) — all pass untouched; none of them reaches a visible span.
+// Two spans did have to change, and both were ordinary English rather than the metaphor:
+// "on the wire in clear text" and "Zapier/Make wiring". They were reworded, not masked —
+// the same matcher already blocks "on the wire" everywhere else a user can read it.
+//
+// BOTH DIRECTIONS ARE PINNED, so the split cannot be "simplified" back into one list
+// without a test going red:
+//   • must-flag  — a metaphor word in a help file now FAILS
+//   • must-allow — jargon in the same help file still PASSES
+// Re-merging as "exempt from both" reddens the first; as "exempt from neither",
+// the second.
+describe("check-vocabulary.mjs — per-tier BLOCK exemption", () => {
+  let root: string;
+
+  /** A fixture path is a literal in these patterns — `(marketing)` and `.mdx` are not syntax. */
+  const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+  const METAPHOR_PROSE = "This crossing uses the supplier dock.";
+  const JARGON_PROSE = "Every exception is recorded, and the write is idempotent.";
+  const CLEAN_PROSE = "Every order reaches its supplier.";
+
+  /** The three help corpora, and how prose is written in each file kind. */
+  const HELP_CORPUS = [
+    {
+      what: "a help reference article",
+      rel: "src/app/(marketing)/help/api/page.mdx",
+      body: (prose: string) => ["# Help", "", prose, ""].join("\n"),
+    },
+    {
+      what: "a help component",
+      rel: "src/components/help/GuideNote.tsx",
+      body: (prose: string) => `export const GuideNote = () => <p>${prose}</p>;\n`,
+    },
+    {
+      what: "the help article registry",
+      rel: "src/lib/help-articles.ts",
+      body: (prose: string) => `export const HELP_ARTICLES = [{ summary: "${prose}" }];\n`,
+    },
+  ];
+
+  /**
+   * The staff runbook is exempt for a DIFFERENT reason — it is our own operations copy,
+   * not customer copy — and that reason does cover both tiers. Pinned so the split stays
+   * targeted at the help corpus rather than becoming "metaphor is enforced everywhere".
+   */
+  const ADMIN = {
+    what: "the staff runbook",
+    rel: "src/app/(app)/admin/page.tsx",
+    body: (prose: string) => `export const Admin = () => <p>${prose}</p>;\n`,
+  };
+
+  const ALL = [...HELP_CORPUS, ADMIN];
+
+  const write = (rel: string, text: string) =>
+    writeFileSync(join(root, ...rel.split("/")), text, "utf8");
+
+  /** Every exempt file written clean, then `prose` planted in exactly one of them. */
+  const plant = (target: { rel: string }, prose: string) => {
+    for (const f of ALL) write(f.rel, f.body(f.rel === target.rel ? prose : CLEAN_PROSE));
+  };
+
+  beforeAll(() => {
+    root = mkdtempSync(join(tmpdir(), "vocab-tier-"));
+    for (const f of ALL) {
+      mkdirSync(join(root, ...f.rel.split("/").slice(0, -1)), { recursive: true });
+    }
+  });
+
+  afterAll(() => rmSync(root, { recursive: true, force: true }));
+
+  // A green baseline is what makes each planted word below attributable to its own
+  // fixture rather than to something left behind by the previous test.
+  it("baseline: the exempt corpus carrying ordinary copy is GREEN", () => {
+    plant(HELP_CORPUS[0], CLEAN_PROSE);
+    const { code, out } = runGate([], root);
+    expect(code).toBe(0);
+    expect(out).toContain("OK — no retired metaphor");
+  });
+
+  // THE REPORT IS ASSERTED BEFORE THE EXIT CODE, in every test below. Both mutations were
+  // actually run, and with the exit code first each one failed as a bare `0 !== 1` — true,
+  // but it tells the next reader nothing about which file or which word. Asserting the
+  // report first makes vitest print the gate's own output, which names both.
+  for (const f of HELP_CORPUS) {
+    it(`FAILS on a retired metaphor word in ${f.what}`, () => {
+      plant(f, METAPHOR_PROSE);
+      const { code, out } = runGate([], root);
+      // One pattern rather than two `toContain`s, for two reasons: the failure message
+      // then carries BOTH the file and the word (a test aborts at its first failed
+      // assertion, so two of them only ever report the first), and it pins the file and
+      // the tier hit to the SAME reported line — `file:line  [metaphor: crossing]` — so a
+      // stray metaphor hit somewhere else in the fixture tree cannot satisfy it.
+      expect(out).toMatch(new RegExp(`${escapeRe(f.rel)}:\\d+\\s+\\[metaphor: crossing]`));
+      expect(code).toBe(1);
+    });
+
+    it(`still exempts ${f.what} from the JARGON tier`, () => {
+      plant(f, JARGON_PROSE);
+      const { code, out } = runGate([], root);
+      // A green run prints no file paths at all, so naming this file IS the offence.
+      expect(out).not.toContain(f.rel);
+      expect(out).toContain("OK — no retired metaphor");
+      expect(code).toBe(0);
+    });
+  }
+
+  it(`keeps BOTH exemptions on ${ADMIN.what}`, () => {
+    plant(ADMIN, `${METAPHOR_PROSE} ${JARGON_PROSE}`);
+    const { code, out } = runGate([], root);
+    expect(out).not.toContain(ADMIN.rel);
+    expect(out).toContain("OK — no retired metaphor");
+    expect(code).toBe(0);
+  });
+
+  // The deliverable is a guard over a corpus that is ALREADY clean. This is the
+  // assertion that says so: the real help tree passes with the metaphor tier live.
+  it("the REAL repo stays green with the metaphor tier live over the help corpus", () => {
+    const { code, out } = runGate([], REPO_ROOT);
+    expect(code).toBe(0);
+    expect(out).toContain("OK — no retired metaphor");
+  }, 30_000);
+});
+
 // ─── blockBody anchoring — what may and may not capture a registry declaration ────────
 //
 // The noun budget finds each policed registry with `\bconst\s+NAME\b` and takes the FIRST

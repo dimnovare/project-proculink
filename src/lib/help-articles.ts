@@ -240,7 +240,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
   {
     slug: "api-order-schema-reference",
     title: "Inbound order API — schema reference",
-    blurb: "The endpoint, X-ProcuLink-Key header, JSON order body, success response, and Zapier/Make wiring for pushing structured purchase orders into ProcuLink.",
+    blurb: "The endpoint, X-ProcuLink-Key header, JSON order body, success response, and Zapier/Make setup for pushing structured purchase orders into ProcuLink.",
     category: "Integrations",
     keywords: ["inbound order api", "ingress endpoint", "X-ProcuLink-Key", "api key", "json order body", "zapier", "make webhooks", "idempotency key", "push order", "workspace slug"],
     readMin: 4,
