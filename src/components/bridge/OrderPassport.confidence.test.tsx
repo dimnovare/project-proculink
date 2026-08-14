@@ -51,7 +51,7 @@ function passport(mappingDecisions: PassportDto["mappingDecisions"]): PassportDt
       poNumber: "PO-CONF-001",
       status: "delivered",
       supplierId: "sup-1",
-      supplierName: "Fabrikam Supply",
+      supplierName: "Boltworks Components",
       buyerName: "Acme",
       currency: "EUR",
       orderDate: "2026-08-14",

@@ -92,9 +92,11 @@ function renderEditor(initialConfig: PoMappingConfig | null = null) {
  * A pending row renders the <AiSuggestion> card instead, so the chip assertions would be vacuous.
  */
 const ACCEPTED_CONFIG: PoMappingConfig = {
+  hasHeaderRecord: true,
+  separator: ",",
   header: { PoNumber: { externalField: "po_number" } },
   lines: {},
-} as PoMappingConfig;
+};
 
 /**
  * Anti-vacuity floor: prove the row rendered, that it is in the ACCEPTED state, and that a

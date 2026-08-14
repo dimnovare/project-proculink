@@ -219,12 +219,24 @@ export function heuristicSuggestFields(columns: string[]): FieldSuggestion[] {
  * out of range — is an absence of evidence and must stay one.
  */
 function coerceConfidence(raw: unknown): number | null {
-  const n = typeof raw === "number" ? raw : Number(raw);
+  // Only a number, or a string that is one. NOT a bare `Number(raw)`: `Number(null)`, `Number("")`
+  // and `Number([])` are all 0 — so an explicitly null confidence would coerce to a hard 0%, which
+  // is the very substitution this is here to prevent. (Caught by its own test, not by review.)
+  let n: number;
+  if (typeof raw === "number") n = raw;
+  else if (typeof raw === "string" && raw.trim() !== "") n = Number(raw);
+  else return null;
+
   return Number.isFinite(n) && n >= 0 && n <= 1 ? n : null;
 }
 
-/** Normalize an unknown backend payload into FieldSuggestion[]. */
-function coerceSuggestions(data: unknown): FieldSuggestion[] | null {
+/**
+ * Normalize an unknown backend payload into FieldSuggestion[].
+ *
+ * Exported for testing: its two defaults decide whether the UI makes an AI claim, and both used
+ * to invent one from an absent field. Nothing else imports it.
+ */
+export function coerceSuggestions(data: unknown): FieldSuggestion[] | null {
   if (!Array.isArray(data)) return null;
   return data
     .map((d) => {
