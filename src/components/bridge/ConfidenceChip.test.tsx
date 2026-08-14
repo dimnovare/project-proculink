@@ -64,8 +64,13 @@ describe("<ConfidenceChip>", () => {
     expect(screen.getByLabelText("Confidence 92%")).toBeInTheDocument();
   });
 
-  it("says 'AI confidence' when the caller states it, for a real model score", () => {
-    render(<ConfidenceChip value={86} label="AI confidence" />);
+  it("says 'AI confidence' when the caller states it AND a model produced the number", () => {
+    // This test used to pass `label="AI confidence"` with nothing else and assert the AI wording
+    // came out — i.e. it pinned "the caller's word is enough". That was the contract, and the
+    // contract was the bug: saying the words was the whole of the requirement, so a call site
+    // rendering a client-side Levenshtein score satisfied it. `basis` is now the evidence, and
+    // the label alone no longer buys the claim (see "an AI claim has to be earned" below).
+    render(<ConfidenceChip value={86} label="AI confidence" basis="model" />);
     expect(screen.getByLabelText("AI confidence 86%")).toBeInTheDocument();
     expect(screen.getByTitle("AI confidence · 86%")).toBeInTheDocument();
   });
@@ -87,5 +92,68 @@ describe("<ConfidenceChip>", () => {
 
     rerender(<ConfidenceChip value={74} />);
     expect(screen.getByText("74%")).toHaveStyle({ color: DANGER_FG });
+  });
+});
+
+/**
+ * The chip's own guard rails.
+ *
+ * `label` was a free string, which moved the "is this really AI?" decision to every call site and
+ * then trusted all of them. They did not all get it right: PoMappingEditor passed
+ * `label="AI confidence"` gated only on `score != null`, so a client-side Levenshtein match —
+ * the LIVE fallback whenever the suggest-fields request errors, 404s, or returns an unparseable
+ * body — rendered `aria-label="AI confidence 89%"` in the violet reserved for model output.
+ *
+ * The rule now lives in the component, where a fourth call site cannot forget it.
+ */
+describe("an AI claim has to be earned", () => {
+  it("keeps the AI label when a model really scored it", () => {
+    render(<ConfidenceChip value={0.89} label="AI confidence" basis="model" />);
+    expect(screen.getByLabelText("AI confidence 89%")).toBeInTheDocument();
+  });
+
+  it("strips the AI label from a heuristic score, in BOTH the text and the accessible name", () => {
+    render(<ConfidenceChip value={0.89} label="AI confidence" basis="heuristic" />);
+
+    // The number survives — a string-similarity score is a real measurement.
+    expect(screen.getByText("89%")).toBeInTheDocument();
+
+    // The attribution does not. Asserted on the accessible name specifically: the defect lived in
+    // an aria-label, which never appears in textContent.
+    expect(screen.queryByLabelText(/AI confidence/i)).toBeNull();
+    expect(screen.getByLabelText("Match 89%")).toBeInTheDocument();
+    expect(document.querySelector('[aria-label*="AI"]')).toBeNull();
+  });
+
+  it("strips the AI label when the basis is simply not stated", () => {
+    // An omitted basis is not evidence of a model. Defaulting the other way is precisely how the
+    // fabricated attribution spread.
+    render(<ConfidenceChip value={0.89} label="AI confidence" />);
+    expect(screen.queryByLabelText(/AI confidence/i)).toBeNull();
+    expect(screen.getByLabelText("Confidence 89%")).toBeInTheDocument();
+  });
+
+  it("renders nothing at all when there is no number", () => {
+    // Not "0%". On the confidence ramp 0% is red — a claim of near-certain wrongness — so an
+    // absent score rendering as zero is a LOUDER lie than the fabricated 95% this work removed.
+    const { container, rerender } = render(<ConfidenceChip value={null} label="AI confidence" basis="model" />);
+    expect(container).toBeEmptyDOMElement();
+
+    rerender(<ConfidenceChip value={undefined} label="AI confidence" basis="model" />);
+    expect(container).toBeEmptyDOMElement();
+
+    rerender(<ConfidenceChip value={Number.NaN} label="AI confidence" basis="model" />);
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("renders nothing for a deterministic basis — a lookup has no score", () => {
+    const { container } = render(<ConfidenceChip value={1} label="AI confidence" basis="deterministic" />);
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("does not mistake the letters 'ai' inside an ordinary word for an AI claim", () => {
+    // The guard matches the word AI, not the substring: "Plain confidence" must survive intact.
+    render(<ConfidenceChip value={0.89} label="Plain confidence" basis="heuristic" />);
+    expect(screen.getByLabelText("Plain confidence 89%")).toBeInTheDocument();
   });
 });

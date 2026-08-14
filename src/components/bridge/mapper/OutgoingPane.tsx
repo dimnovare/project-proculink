@@ -898,7 +898,10 @@ function OutgoingRow({
               suggestion is a configured fact, not a probability, and gets a neutral marker —
               the endpoint used to send a hard-coded 0.95 here and it read "AI confidence 95%". */}
           {aiFix.display === "score" && aiFix.confidence != null && (
-            <ConfidenceChip value={aiFix.confidence} sm label="AI confidence" />
+            // `display === "score"` comes from suggestionConfidenceDisplay(basis, confidence), so
+            // this branch is model-only. Stated explicitly because ConfidenceChip now requires the
+            // evidence rather than taking the label's word for it.
+            <ConfidenceChip value={aiFix.confidence} sm label="AI confidence" basis="model" />
           )}
           {aiFix.display === "saved_mapping" && (
             <span
