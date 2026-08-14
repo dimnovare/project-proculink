@@ -22,6 +22,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { MapperToolbarState } from "../mapper/MapperWorkbench";
+import { statusChipTitle } from "./acceptanceGateModel";
 
 export interface BlockerChip {
   /** Stable id (the issue code) — passed to onJump to focus + open that card. */
@@ -236,9 +237,10 @@ export function WorkshopStatusBar({
         {blockers.length === 0 && (
           <span
             data-testid="status-bar-issue-summary"
-            title={notes > 0
-              ? "Nothing is blocking this order. These are worth a look before you send."
-              : "Every required field is filled and every rule passed."}
+            // The tooltip is NOT written here. It is the same claim the green
+            // ready bar makes off the same two numbers, so acceptanceGateModel
+            // owns both — see statusChipTitle for what this chip may not say.
+            title={statusChipTitle({ noteCount: notes })}
             style={{
               display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700,
               borderRadius: 999, padding: "3px 10px", whiteSpace: "nowrap", flexShrink: 0,

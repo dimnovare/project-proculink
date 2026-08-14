@@ -177,6 +177,37 @@ describe("WorkshopStatusBar — the issue summary is always present", () => {
     expect(screen.getByTestId("status-bar-issue-summary").textContent).toBe("1 optional");
   });
 
+  // ── the tooltip on that chip ───────────────────────────────────────────────
+  // It said "Every required field is filled and every rule passed." — a claim
+  // STRONGER than the one acceptanceGateModel.readyBarLabel had already retired
+  // on this same screen, off these same two numbers. No rule-level check runs
+  // here at all (POST /api/orders/{id}/validate has no caller in src/), and the
+  // gate decision cannot tell "the supplier has no rules" from "every rule
+  // passed". Read off the rendered DOM, never off the prop: an assertion on what
+  // the component was HANDED passes while the attribute says something else.
+
+  test("no issues → the tooltip bounds the claim instead of asserting every rule passed", () => {
+    render(<WorkshopStatusBar blockers={[]} notes={0} onJump={vi.fn()} mapper={mapperState()} />);
+    const title = screen.getByTestId("status-bar-issue-summary").getAttribute("title") ?? "";
+    expect(title).toBe(
+      "Nothing is blocking this order. This is everything ProcuLink can check before sending.",
+    );
+    // The false sentence is nowhere in the rendered document, attributes included.
+    expect(document.body.innerHTML).not.toMatch(/every rule passed/i);
+    expect(document.body.innerHTML).not.toMatch(/filled and check/i);
+  });
+
+  test("warnings only → the already-true wording survives untouched", () => {
+    render(<WorkshopStatusBar blockers={[]} notes={2} onJump={vi.fn()} mapper={mapperState()} />);
+    const chip = screen.getByTestId("status-bar-issue-summary");
+    expect(chip.getAttribute("title")).toBe(
+      "Nothing is blocking this order. These are worth a look before you send.",
+    );
+    // Anti-vacuity: the chip is really rendering, and the two states really differ.
+    expect(chip.textContent).toBe("2 optional");
+    expect(document.body.innerHTML).not.toMatch(/every rule passed/i);
+  });
+
   test("blockers present → the red segment owns the count; no duplicate summary chip", () => {
     render(
       <WorkshopStatusBar
