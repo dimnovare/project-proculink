@@ -23,6 +23,13 @@ import {
   deliveryAttemptOutcome,
 } from "@/lib/deliveryAttemptManifest";
 import type { DeliveryAttemptOutcome } from "@/lib/deliveryAttemptManifest";
+import {
+  outcomeIsOpenIssue,
+  outcomeIsPass,
+  outcomeWasNotEvaluated,
+  validationOutcome,
+} from "@/lib/validationOutcomeManifest";
+import type { ValidationOutcome } from "@/lib/validationOutcomeManifest";
 import { supplierReasonText } from "@/components/bridge/problem/supplierReasonText";
 import type {
   PassportDto,
@@ -38,18 +45,26 @@ import type {
 const lc = (s: string | null | undefined) => (s ?? "").toLowerCase();
 
 /**
- * Did this check FAIL? `status` is the only field that answers that — severity says how
- * loud the rule is when it fails, and the producer stamps passing rows with it too.
+ * What did this check actually say? `status` is the only field that answers that —
+ * severity says how loud the rule is when it fails, and the producer stamps passing rows
+ * with it too.
+ *
+ * THIS USED TO RETURN A BOOLEAN, `status === "fail"`, which meant every value that was
+ * not literally "fail" was counted into the "N checks passed" claim below. When the
+ * backend gained a third outcome for rules that COULD NOT RUN, that arithmetic turned
+ * "we could not check this" into a green tick — the same defect the third outcome was
+ * added to remove. An outcome this build has never heard of lands on `unrecognised` and
+ * is likewise never counted as a check that cleared.
  *
  * The severity fallback is for responses from an API older than WP-39, which sent no
- * `status` at all. It is the pre-fix behaviour and it over-reports; that is the correct
- * direction to be wrong in while the two deploys are out of step, because the opposite —
- * reading a missing field as "everything passed" — hides a real failure.
+ * `status` at all. It is the pre-fix behaviour and it over-reports failures; that is the
+ * correct direction to be wrong in while the two deploys are out of step, because the
+ * opposite — reading a missing field as "everything passed" — hides a real failure.
  */
-function validationRowFailed(v: PassportValidationResult): boolean {
+function validationRowOutcome(v: PassportValidationResult): ValidationOutcome {
   const status = lc(v.status).trim();
-  if (status) return status === "fail";
-  return lc(v.severity).trim() === "error";
+  if (status) return validationOutcome(status);
+  return lc(v.severity).trim() === "error" ? "fail" : "pass";
 }
 
 function fmtDateTime(at: string | null | undefined): string {
@@ -184,13 +199,31 @@ export function deriveTimeline(p: PassportDto): DerivedTimeline {
       case 0: return p.sourceArtifact?.detectedFormat ? `${p.sourceArtifact.detectedFormat.toUpperCase()} source` : undefined;
       case 1: return lineCount > 0 ? `${lineCount} line${lineCount !== 1 ? "s" : ""} extracted` : undefined;
       case 2: {
-        const rows = p.validationResults;
-        const errs = rows.filter(validationRowFailed).length;
-        if (errs > 0) return `${errs} validation issue${errs !== 1 ? "s" : ""}`;
+        // Three counts, not two. A row is only counted into the claim its own outcome
+        // supports: `rows.length` used to stand in for "checks passed", which silently
+        // enrolled every row that was not a failure — including the ones the backend
+        // said it could not evaluate, and any status this build cannot read.
+        const outcomes = p.validationResults.map(validationRowOutcome);
+        const errs = outcomes.filter(outcomeIsOpenIssue).length;
+        const notRun = outcomes.filter(outcomeWasNotEvaluated).length;
+        const passed = outcomes.filter(outcomeIsPass).length;
+
+        // "not checked" rather than "skipped" or "n/a": the rule did not run because the
+        // document did not carry the value it judges. Each row's `message` says which
+        // value, in the backend's own words (AcceptanceMessages.ForNotEvaluated).
+        const notRunSuffix = notRun > 0 ? ` · ${notRun} not checked` : "";
+
+        if (errs > 0) return `${errs} validation issue${errs !== 1 ? "s" : ""}${notRunSuffix}`;
         // Say how many checks ran rather than nothing at all. The producer emits a row
         // per check PERFORMED — that is the whole point of the invariants — so "4 checks
         // passed" is the evidence the node is claiming, and a bare "Validated" is not.
-        return rows.length > 0 ? `${rows.length} checks passed` : undefined;
+        if (passed > 0) return `${passed} check${passed !== 1 ? "s" : ""} passed${notRunSuffix}`;
+        // Nothing cleared and nothing failed: every rule that ran could not look at
+        // anything. Saying "0 checks passed" would invite reading it as a failure, and
+        // saying nothing at all would leave the node claiming a validation it cannot
+        // evidence — so it says what happened.
+        if (notRun > 0) return `${notRun} check${notRun !== 1 ? "s" : ""} not run`;
+        return undefined;
       }
       case 3: {
         const unresolved = p.mappingDecisions.filter((d) => lc(d.source) === "unresolved").length;

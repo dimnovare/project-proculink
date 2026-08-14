@@ -61,6 +61,37 @@ const PRODUCTION_ALL_PASS: PassportDto["validationResults"] = [
   { code: "invariant.currency_present", lineNumber: null, message: "Currency is set (EUR).", severity: "error", status: "pass" },
 ];
 
+/**
+ * A rule that COULD NOT RUN, shaped as backend PR 206 emits it.
+ *
+ * `line_amount_reconcile` on a CSV order: nine of the eleven line-producing parsers
+ * never populate `LineAmount`, so the evaluator compared the computed amount against
+ * itself and the rule was arithmetically incapable of rejecting anything. The
+ * `message` is the backend's own sentence, from `AcceptanceMessages.ForNotEvaluated`.
+ */
+const NOT_EVALUATED_ROW: PassportDto["validationResults"][number] = {
+  code: "rule.line_amount_reconcile",
+  lineNumber: 1,
+  message: "Line 1: not checked — this document didn't state a line amount to reconcile against.",
+  severity: "warning",
+  status: "not_evaluated",
+};
+
+/**
+ * A status no build in this repo has ever heard of.
+ *
+ * Not a hypothetical: `not_evaluated` itself was one of these until backend PR 206, and
+ * the frontend rendered it green. The next outcome the backend adds must not get the
+ * same free pass on this screen's schedule.
+ */
+const UNRECOGNISED_ROW: PassportDto["validationResults"][number] = {
+  code: "rule.some_future_operator",
+  lineNumber: 2,
+  message: "Line 2: something this build cannot interpret.",
+  severity: "warning",
+  status: "waived_by_operator",
+};
+
 /** The mapping decision the same passport carried — fully resolved, deterministic. */
 const PRODUCTION_RESOLVED_MAPPING: PassportDto["mappingDecisions"] = [
   { lineNumber: 1, buyerItemCode: "00010", supplierItemCode: "EXSUP12345", source: "deterministic", confidence: 1 },
@@ -163,6 +194,25 @@ describe("audit trail — validation outcome (WP-39 §4.1)", () => {
     renderPassport();
 
     expect(await screen.findByText("2 validation issues")).toBeTruthy();
+  });
+
+  it("counts only the rows that passed, so a partial run cannot inflate the number", async () => {
+    // The arithmetic the fix replaces was `rows.length`, which enrolled EVERY row that
+    // was not a failure into the "checks passed" claim.
+    api.getOrderPassport.mockResolvedValue(
+      passport({
+        validationResults: [
+          ...PRODUCTION_ALL_PASS,                                   // 4 real passes
+          NOT_EVALUATED_ROW,                                        // + 1 that never ran
+        ],
+      }),
+    );
+
+    renderPassport();
+
+    // Four, not five.
+    expect(await screen.findByText("4 checks passed · 1 not checked")).toBeTruthy();
+    expect(screen.queryByText("5 checks passed")).toBeNull();
   });
 
   it("shows nothing rather than a guess when no checks were recorded", async () => {
@@ -300,6 +350,125 @@ describe("audit trail — the Validated node claims a check that ran", () => {
 
     expect((await screen.findByTestId("timeline-node-transformed")).textContent).toContain("✓");
     expect(screen.getByTestId("timeline-node-delivered").textContent).toContain("✓");
+  });
+});
+
+describe("audit trail — a check that could not run is not a check that passed", () => {
+  // THE CONTROLS FOR THE DEFECT (pairs with backend PR 206).
+  //
+  // `validationRowFailed` returned `status === "fail"`, so EVERY value that was not
+  // literally "fail" was counted into `${rows.length} checks passed`. When the backend
+  // gained a third outcome for rules that could not run, that turned "we could not check
+  // this" into a green tick on the passport — a fresh instance of exactly the defect the
+  // third outcome was added to remove.
+  //
+  // Note what these feed: a `not_evaluated` row AND a status outside the union. A
+  // control built from pass/fail rows alone goes green against the defective code and
+  // proves nothing.
+  //
+  // Every assertion is SCOPED to the Validated node rather than to the document. jsdom
+  // applies no Tailwind, so a `lg:hidden` and a `hidden lg:block` copy of a subtree both
+  // mount here — an unscoped `document.body.textContent` check can be satisfied by a
+  // tree the operator never sees at that width.
+  async function validatedDetail(): Promise<string> {
+    return (await screen.findByTestId("timeline-node-validated")).textContent ?? "";
+  }
+
+  it("does not count a not-evaluated rule as a check that passed", async () => {
+    api.getOrderPassport.mockResolvedValue(
+      passport({ validationResults: [NOT_EVALUATED_ROW] }),
+    );
+
+    renderPassport();
+
+    // The one thing that must never render: a green claim over a rule that looked at
+    // nothing. Before the fix this node read "1 checks passed".
+    const detail = await validatedDetail();
+    expect(detail).toContain("1 check not run");
+    expect(detail).not.toContain("passed");
+  });
+
+  it("does not call a not-evaluated rule a failure either", async () => {
+    api.getOrderPassport.mockResolvedValue(
+      passport({ validationResults: [NOT_EVALUATED_ROW] }),
+    );
+
+    renderPassport();
+
+    // The opposite over-correction, and the one api-client.ts made on the same field.
+    // Nothing failed: the backend never blocks on this row.
+    const detail = await validatedDetail();
+    expect(detail).toContain("1 check not run");
+    expect(detail).not.toContain("validation issue");
+  });
+
+  it("says how many checks did not run alongside the ones that did", async () => {
+    api.getOrderPassport.mockResolvedValue(
+      passport({ validationResults: [...PRODUCTION_ALL_PASS, NOT_EVALUATED_ROW] }),
+    );
+
+    renderPassport();
+
+    expect(await validatedDetail()).toContain("4 checks passed · 1 not checked");
+    // And exactly one node makes the claim — not a second copy in a hidden subtree.
+    expect(screen.getAllByText("4 checks passed · 1 not checked")).toHaveLength(1);
+  });
+
+  it("keeps the not-run count visible next to a real failure", async () => {
+    api.getOrderPassport.mockResolvedValue(
+      passport({
+        validationResults: [
+          { code: "rule.qty", lineNumber: 1, message: "Line 1: quantity must be positive.", severity: "error", status: "fail" },
+          NOT_EVALUATED_ROW,
+        ],
+      }),
+    );
+
+    renderPassport();
+
+    // The failure still leads — but the operator is not told the remaining rule cleared.
+    const detail = await validatedDetail();
+    expect(detail).toContain("1 validation issue · 1 not checked");
+    expect(detail).not.toContain("passed");
+  });
+
+  it("does not count a status outside the union as a check that passed", async () => {
+    api.getOrderPassport.mockResolvedValue(
+      passport({ validationResults: [...PRODUCTION_ALL_PASS, UNRECOGNISED_ROW] }),
+    );
+
+    renderPassport();
+
+    // Four passes and one row nobody can read. It is surfaced as something to look at,
+    // never folded into the pass count — "5 checks passed" is the failure mode.
+    const detail = await validatedDetail();
+    expect(detail).toContain("1 validation issue");
+    expect(detail).not.toContain("passed");
+  });
+
+  it("does not silently drop a status outside the union", async () => {
+    api.getOrderPassport.mockResolvedValue(
+      passport({ validationResults: [UNRECOGNISED_ROW] }),
+    );
+
+    renderPassport();
+
+    // Hiding it would be the other way to lie about it: the node would read as a clean
+    // "Validated" with no evidence at all behind it.
+    expect(await validatedDetail()).toContain("1 validation issue");
+  });
+
+  it("still reports a clean order cleanly — the fix does not tax the normal case", async () => {
+    // The negative control. If this ever fails, the change has started treating ordinary
+    // passes as suspect, which is its own kind of false claim.
+    api.getOrderPassport.mockResolvedValue(passport());
+
+    renderPassport();
+
+    const detail = await validatedDetail();
+    expect(detail).toContain("4 checks passed");
+    expect(detail).not.toContain("not checked");
+    expect(detail).not.toContain("not run");
   });
 });
 

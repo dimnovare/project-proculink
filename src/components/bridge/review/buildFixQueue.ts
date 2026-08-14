@@ -13,6 +13,7 @@
 //   • Initial order (no prevQueue): severity rank, then line number, then key.
 
 import type { Order, OrderValidationResult } from "@/types/procurement";
+import { outcomeIsOpenIssue } from "@/lib/validationOutcomeManifest";
 
 export type FixCardKind = "ai-suggestion" | "manual-code" | "review-flag" | "rule-failure";
 
@@ -93,7 +94,12 @@ function freshCards(order: Order, validationResult: OrderValidationResult | null
     // identical failure sets produce identical keys across rebuilds.
     const seen = new Map<string, number>();
     for (const r of validationResult.results) {
-      if (r.passed) continue;
+      // Only a rule that RAN and failed — or one whose outcome this build cannot read —
+      // is something a person can act on. A `not_evaluated` row is skipped here for the
+      // same reason the backend never blocks on it: the document did not carry the value
+      // the rule judges, so there is nothing in the queue for anyone to fix. It is not
+      // counted as a pass anywhere either; the passport reports it in its own words.
+      if (!outcomeIsOpenIssue(r.outcome)) continue;
       const base = r.lineNumber != null
         ? `rule:${r.rule.fieldPath}:${r.lineNumber}`
         : `rule:${r.rule.fieldPath}:h`;

@@ -2,6 +2,12 @@
 // diffed against the real C# by src/test/backendMirror.test.ts. Re-exported here rather
 // than re-declared so there is one copy to keep true.
 import type { ExceptionStateName } from "@/lib/exceptionStateManifest";
+// Likewise the acceptance-rule outcome vocabulary, owned by
+// src/lib/validationOutcomeManifest.ts. It is a UNION rather than a boolean because a
+// rule has three possible answers, the third being "I could not run" — see that file.
+import type { ValidationOutcome } from "@/lib/validationOutcomeManifest";
+
+export type { ValidationOutcome };
 
 export interface SupplierProfile {
   supplierName: string;
@@ -725,7 +731,16 @@ export interface PassportValidationResult {
    * green "Passed". Read `status`, never this, to tell a pass from a failure.
    */
   severity?: string | null;
-  /** pass | fail — the outcome. Absent on responses from an API older than WP-39. */
+  /**
+   * pass | fail | not_evaluated — the outcome. Read it through
+   * `validationOutcome()` in `src/lib/validationOutcomeManifest.ts`, never by
+   * comparing here: this is an open `string` on the wire, and the two sites that
+   * compared it inline disagreed about which way an unknown value fell.
+   *
+   * `not_evaluated` means the rule COULD NOT RUN because the value it judges was
+   * absent — it is not a quiet pass. Absent entirely on responses from an API older
+   * than WP-39.
+   */
   status?: string | null;
   code?: string | null;
   message?: string | null;
@@ -896,12 +911,32 @@ export interface AcceptanceProfile {
   createdAt: string;
 }
 
+/**
+ * The result of `POST /api/orders/{id}/validate`, normalised into an envelope.
+ *
+ * The per-row outcome is `ValidationOutcome`, NOT a boolean. It used to be
+ * `passed: boolean`, and that type is why the two sites reading it could disagree
+ * without anything noticing: a boolean has no room for "the rule could not run", so
+ * each site invented its own answer for that case — `!== "fail"` in the passport
+ * (which rendered it as a pass) and `=== "pass"` here (which rendered it as a
+ * failure). See `src/lib/validationOutcomeManifest.ts` for the vocabulary and for
+ * which claims each outcome supports.
+ */
 export interface OrderValidationResult {
   orderId: string;
+  /**
+   * True ONLY when at least one rule ran and every row is a pass.
+   *
+   * A `not_evaluated` or unrecognised row makes this false, because it is not a pass
+   * — but false here does NOT mean something failed. Count failures from
+   * `results[].outcome`; this flag is a shortcut for "may I say this order cleared
+   * validation?", and the honest answer when a rule could not run is no.
+   */
   passed: boolean;
   results: Array<{
     rule: AcceptanceRule;
-    passed: boolean;
+    /** pass | fail | not_evaluated | unrecognised — see the manifest. Never a boolean. */
+    outcome: ValidationOutcome;
     message?: string;
     /** Plain-language headline from the rule catalog (e.g. "Unit price at most"); message is the why+fix. */
     title?: string;

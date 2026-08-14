@@ -172,7 +172,7 @@ vi.mock("../../review/hooks/useAcceptanceValidation", () => ({
   useAcceptanceValidation: () => ({
     validationResult: mockState.validationResult,
     failingRuleCount: mockState.validationResult && !mockState.validationResult.passed
-      ? mockState.validationResult.results.filter((r) => !r.passed).length
+      ? mockState.validationResult.results.filter((r) => r.outcome === "fail").length
       : 0,
     isStale: false,
   }),
@@ -346,7 +346,7 @@ describe("invariant 2 — issues === send-gate; -3 qty is not green, Send disabl
       passed: false,
       results: [
         {
-          passed: false, severity: "error", lineNumber: 1,
+          outcome: "fail", severity: "error", lineNumber: 1,
           rule: { fieldPath: "Quantity" },
           title: "Quantity must be positive",
           message: "Quantity (-3) failed rule: greater than 0",
@@ -891,7 +891,7 @@ describe("Lines view — field-anchored actions route back to Fields; a jump is 
       passed: false,
       results: [
         {
-          passed: false, severity: "error", lineNumber: 1,
+          outcome: "fail", severity: "error", lineNumber: 1,
           rule: { fieldPath: "Quantity" },
           title: "Quantity must be positive",
           message: "Quantity (-3) failed rule: greater than 0",

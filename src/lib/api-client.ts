@@ -2911,6 +2911,7 @@ export async function uploadAsn(file: File, supplierId?: string): Promise<AsnDto
 // POST /api/suppliers/{id}/acceptance-profile/{versionNo}/activate
 
 import type { AcceptanceRule, AcceptanceProfile, OrderValidationResult, OrderException } from "@/types/procurement";
+import { outcomeIsPass, validationOutcome } from "@/lib/validationOutcomeManifest";
 
 async function mockGetAcceptanceProfile(_supplierId: string): Promise<AcceptanceProfile | null> {
   await delay(200);
@@ -3003,7 +3004,11 @@ async function realValidateOrder(orderId: string): Promise<OrderValidationResult
     // An EMPTY result set is NOT a pass. Validation always emits mandatory invariant rows now, so
     // this is defensive: `[].every()` is vacuously true, which previously reported a green "Passed"
     // for an order that was never actually checked.
-    passed: rows.length > 0 && rows.every((r) => r.status === "pass"),
+    //
+    // Neither is a NOT-EVALUATED row a pass. `outcomeIsPass` is exactly `=== "pass"`, so a rule the
+    // backend reported it could not run keeps this flag false — which is the honest answer to "may
+    // I say this order cleared validation?". It does not mean anything failed; see the type.
+    passed: rows.length > 0 && rows.every((r) => outcomeIsPass(validationOutcome(r.status))),
     results: rows.map((r) => {
       const severity: "error" | "warning" = r.severity === "warning" ? "warning" : "error";
       const code = r.code ?? "";
@@ -3015,7 +3020,11 @@ async function realValidateOrder(orderId: string): Promise<OrderValidationResult
           severity,
           blockOnFail: severity === "error",
         },
-        passed: r.status === "pass",
+        // The THIRD outcome is carried through rather than collapsed. This line used to read
+        // `passed: r.status === "pass"`, which reported `not_evaluated` as a failure — while
+        // OrderPassport's `!== "fail"` reported the same row as a pass. Both were guesses about a
+        // value neither file enumerated, and the boolean type left no room to notice.
+        outcome: validationOutcome(r.status),
         message: r.message ?? undefined,
         title: r.title ?? undefined,
         lineNumber: r.lineNumber ?? undefined,
