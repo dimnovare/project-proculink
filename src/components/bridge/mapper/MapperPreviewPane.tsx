@@ -290,10 +290,33 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
           </span>
         </span>
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+          {/* WHAT THIS CHIP IS ALLOWED TO SAY.
+              Its entire evidence is the condition it is gated on — `content && !err`,
+              i.e. "the transform endpoint returned a non-empty document and did not
+              fail". That is a fact about PRODUCTION, not a verdict, and the word chosen
+              here has to stay true for the WEAKEST format this pane renders, not the
+              strongest. PREVIEW_FORMATS is csv/json/xml/cxml/ubl/x12, and the first
+              three have no named standard profile at all — ConformanceService
+              .ProfileForFormat returns null for them ("Xml / Csv / Json are generic
+              supplier templates with no named standard profile"), so there is nothing
+              they could have been checked against even in principle.
+
+              Until 2026-08-14 this said "Valid", in forest green, behind a tick, sitting
+              directly under "Live preview · {FORMAT}" and "exactly what {supplier}
+              receives" — a stronger claim than the real standards check makes two screens
+              over ("Checks passed"), on strictly less evidence, on the screen an operator
+              reads most. Neutral fill and no tick are both deliberate: green is this
+              the pass colour here and a tick is the glyph for "passed a check", and no
+              check ran. The band under the format bar carries the other half of the
+              sentence — what has NOT happened — so the denial is on the screen and not
+              merely implied by a missing badge. */}
           {content && !err && (
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "2px 8px", borderRadius: 999, background: "#E9F1EA", color: "#1E6D29", fontSize: 10.5, fontWeight: 600 }}>
-              <svg width="11" height="11" viewBox="0 0 16 16" fill="none" aria-hidden><path d="M13.5 4.5 6.5 11.5 3 8" stroke="#1E6D29" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-              Valid
+            <span
+              title="ProcuLink built this document from your current mapping. It has not been checked against a standard."
+              style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "2px 8px", borderRadius: 999, background: "#F1F3F7", color: "#5E6779", fontSize: 10.5, fontWeight: 600 }}
+            >
+              <svg width="11" height="11" viewBox="0 0 16 16" fill="none" aria-hidden><path d="M9.2 2H4.5A1.5 1.5 0 0 0 3 3.5v9A1.5 1.5 0 0 0 4.5 14h7a1.5 1.5 0 0 0 1.5-1.5V6.3z" stroke="#5E6779" strokeWidth="1.6" strokeLinejoin="round" /></svg>
+              Generated
             </span>
           )}
           {lastTouched && <span style={{ fontSize: 10, color: "var(--ink-faint)" }}>edited {lastTouched}</span>}
@@ -352,9 +375,16 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
 
       {/* B4 format-toggle sub — one plain line explaining that this preview is the exact
           delivered document, and that the format buttons above switch the previewed output
-          type. Calm + muted; sits directly under the segmented control it describes. */}
+          type. Calm + muted; sits directly under the segmented control it describes.
+
+          The third sentence is the other half of the "Generated" chip above: the chip states
+          what happened, this states what did not. It is unconditional because it is true for
+          every one of PREVIEW_FORMATS — this pane runs no check on any format, and three of
+          the six have no standard to be checked against. Saying it out loud is the point:
+          the recurring defect in this repo is an absent answer rendering as the favourable one,
+          and a missing badge is exactly that shape. */}
       <div style={{ flexShrink: 0, padding: "8px 16px", fontSize: 11, color: "#5E6779", background: "#FBFBFD", borderBottom: "1px solid #EEF0F4", lineHeight: 1.5 }}>
-        This is exactly what {supplierName ? supplierName : "the supplier"} receives. Switch formats to preview a different output type.
+        This is exactly what {supplierName ? supplierName : "the supplier"} receives. Switch formats to preview a different output type. Producing this document is not a check — nothing here has been checked against a standard.
       </div>
 
       {info && (
