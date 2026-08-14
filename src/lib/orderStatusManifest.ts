@@ -289,20 +289,31 @@ export function statusFact(status: string | null | undefined): OrderStatusFact |
 }
 
 /**
- * True when the order is stopped and owes the operator a next step.
+ * True when the manifest names `status` and its bucket is not `healthy`.
  *
- * UNKNOWN STATUSES ANSWER FALSE, and every caller must treat that as "I cannot
- * offer an action here" rather than "carry on". The opposite default is what let
- * `/operations/health` render a requeue button for any status it did not
- * recognise — a control the endpoint answers 400 to, offered precisely when the
- * frontend understood the row least.
+ * NO PRODUCTION CODE CALLS THIS. Every render path that once did — the issues rail,
+ * the mobile triage list, the desktop Issues column head — now calls
+ * `orderProblemState`, because each of them draws a VERDICT and this boolean cannot
+ * carry one: `false` here means both "healthy" and "this build has never heard of
+ * that status", and a live status string off the wire is routinely the second, since
+ * frontend and backend deploy separately.
  *
- * NEVER NEGATE THIS. `!isProblemBucketStatus(s)` reads an unrecognised status as
- * "nothing is wrong" — the false that means "I don't know" becomes a true that
- * means "all clear". The order review screen did exactly that and drew a green
- * tick with "Nothing to fix" for any status this build had not heard of. When you
- * need the third answer, call `orderProblemState` below; it cannot be negated
- * into a claim because it does not return a boolean.
+ * It is retained as a manifest primitive for DERIVING SETS, the one job the collapse
+ * is safe for. Walked over statuses the manifest already names — `REACHABLE_STATUSES`,
+ * `ORDER_STATUS_FACTS` — the unknown arm cannot arise, so the boolean is total and
+ * `REACHABLE_STATUSES.filter((s) => !isProblemBucketStatus(s))` is exactly the healthy
+ * walk. Both in-tree callers are tests doing that split
+ * (`orderStatusManifest.problemState.test.ts`, `workshop/issuesRailFailureState.test.tsx`);
+ * the first also pins the difference between the two functions as an executable fact
+ * rather than a comment, which is the other reason this one still exists.
+ *
+ * False-for-unknown is deliberate and stays. Read forward — never negated — it answers
+ * "may I offer a recovery action here?", and no is the honest answer for a status this
+ * build cannot read. `/operations/health` once defaulted the other way and rendered a
+ * requeue button for any status it did not recognise: a control the endpoint answers
+ * 400 to, offered precisely where the frontend understood the row least.
+ *
+ * Reaching for this inside a component means you want `orderProblemState` below.
  */
 export function isProblemBucketStatus(status: string | null | undefined): boolean {
   const fact = statusFact(status);
