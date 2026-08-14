@@ -225,3 +225,66 @@ export const UNVERIFIED_ORDER_NOTE =
  * read it. Noun-free, because a fallback has no direction to route.
  */
 export const READY_BAR_DEFAULT = `No open issues. ${CHECK_SCOPE_SENTENCE}.`;
+ * Tooltip for WorkshopStatusBar's zero-blocker summary chip ("No issues" /
+ * "N optional").
+ *
+ * WHY IT LIVES HERE AND NOT ON THE BAR (audit follow-up 2026-08-14).
+ * It is the same claim readyBarLabel makes, on the same screen, computed from the
+ * same two numbers — and while readyBarLabel was being corrected, the chip a few
+ * pixels away was hand-writing a STRONGER version of the very sentence that was
+ * being retired:
+ *
+ *     Every required field is filled and every rule passed.
+ *
+ * Both reasons recorded above apply to it verbatim. `POST /api/orders/{id}/validate`
+ * has no caller anywhere in `src/`, so no rule-level check ever runs behind that
+ * green; and `AcceptanceGateDecision` carries no signal for whether the
+ * counterparty HAS an acceptance profile, so one with no rules at all is
+ * indistinguishable from one that passed every rule. "every rule passed" asserts
+ * both of the things the evidence cannot support.
+ */
+export function statusChipTitle(input: {
+  /** Warning-severity issues behind the chip. Zero renders the "No issues" face. */
+  noteCount: number;
+}): string {
+  if (input.noteCount > 0) {
+    // The chip itself already carries the count, so this says what to do with
+    // them and claims nothing about anything else.
+    return "Nothing is blocking this order. These are worth a look before you send.";
+  }
+  return `Nothing is blocking this order. ${CHECK_SCOPE_SENTENCE}.`;
+}
+
+/**
+ * Label for the send-confirmation checkbox in `review/ConfirmDialog.tsx`.
+ *
+ * THE ZERO-EXCEPTION ARM USED TO READ "Everything checks out." False in both
+ * ways readyBarLabel documents, and false in a third way of its own: the ternary
+ * that produced it read `exceptionCount` alone and ignored `failingRuleCount`,
+ * whose own prop doc says it is "0 if it passed OR WAS NOT RUN". So an order with
+ * zero exceptions and N failed acceptance rules rendered "Everything checks out."
+ * eighteen lines above that same dialog panel reading "N acceptance rules failed
+ * validation" — both on screen at once, on the consent step for an irreversible
+ * action.
+ *
+ * The failing-rule arm therefore states the action and stops. That panel below
+ * already names the failures and takes its own separate acknowledgement, so a
+ * second sentence up here can only repeat it or contradict it.
+ */
+export function confirmAckLabel(input: {
+  /** Unresolved exceptions the operator is being asked to say they reviewed. */
+  exceptionCount: number;
+  /** Acceptance rules that did not pass. Per the note above, 0 also means "not run". */
+  failingRuleCount: number;
+  /** "Send to BoltWorks BV" / "Confirm for BoltWorks BV" — the caller owns direction. */
+  actionPhrase: string;
+}): string {
+  const { exceptionCount, failingRuleCount, actionPhrase } = input;
+  if (exceptionCount > 0) {
+    const n = exceptionCount;
+    return `I've reviewed the ${n} issue${n === 1 ? "" : "s"}. ${actionPhrase}.`;
+  }
+  if (failingRuleCount > 0) return `${actionPhrase}.`;
+  // Names what was looked at — the issue list — rather than the order as a whole.
+  return `No open issues to review. ${actionPhrase}.`;
+}
