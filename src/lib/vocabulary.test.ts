@@ -431,28 +431,35 @@ describe("check-vocabulary.mjs — per-tier BLOCK exemption", () => {
     expect(out).toContain("OK — no retired metaphor");
   });
 
+  // THE REPORT IS ASSERTED BEFORE THE EXIT CODE, in every test below. Both mutations were
+  // actually run, and with the exit code first each one failed as a bare `0 !== 1` — true,
+  // but it tells the next reader nothing about which file or which word. Asserting the
+  // report first makes vitest print the gate's own output, which names both.
   for (const f of HELP_CORPUS) {
     it(`FAILS on a retired metaphor word in ${f.what}`, () => {
       plant(f, METAPHOR_PROSE);
       const { code, out } = runGate([], root);
-      expect(code).toBe(1);
       expect(out).toContain(f.rel);
       expect(out).toContain("[metaphor: crossing]");
+      expect(code).toBe(1);
     });
 
     it(`still exempts ${f.what} from the JARGON tier`, () => {
       plant(f, JARGON_PROSE);
       const { code, out } = runGate([], root);
-      expect(code).toBe(0);
+      // A green run prints no file paths at all, so naming this file IS the offence.
+      expect(out).not.toContain(f.rel);
       expect(out).toContain("OK — no retired metaphor");
+      expect(code).toBe(0);
     });
   }
 
   it(`keeps BOTH exemptions on ${ADMIN.what}`, () => {
     plant(ADMIN, `${METAPHOR_PROSE} ${JARGON_PROSE}`);
     const { code, out } = runGate([], root);
-    expect(code).toBe(0);
+    expect(out).not.toContain(ADMIN.rel);
     expect(out).toContain("OK — no retired metaphor");
+    expect(code).toBe(0);
   });
 
   // The deliverable is a guard over a corpus that is ALREADY clean. This is the
