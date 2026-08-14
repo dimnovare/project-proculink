@@ -1,8 +1,9 @@
 import { describe, it, expect } from "vitest";
 import type { ReplayOrderDiff } from "@/lib/api/types";
 import {
-  backendWouldPassReplayLeg,
+  backendReplayLegOutcome,
   replayImpact,
+  replayLegOutcomeIsFavourable,
   replayRenderedCount,
   summariseReplay,
   type ReplaySummary,
@@ -107,7 +108,28 @@ describe("replayImpact — zero output is not zero impact (P0-C)", () => {
     const impact = replayImpact(s);
     expect(impact.headline).not.toContain("safe to go live");
     expect(impact.safeToGoLive).toBe(false);
-    expect(impact.tone).toBe("warning");
+    // `danger`, not `warning`: from BE PR 207 any render error FAILS the replay leg,
+    // so this version cannot be published at all. The old rule passed it on the
+    // strength of `rendered > 0` — four of five orders could fail to rebuild while
+    // the summary printed the error count under a calm headline.
+    expect(impact.tone).toBe("danger");
+    expect(backendReplayLegOutcome(s)).toBe("failed");
+  });
+
+  it("keeps a failed leg ahead of the changed-output branch", () => {
+    // The ordering is the point. `changedCount > 0` paints itself `calm` whenever
+    // nothing would start failing, so a version with unrebuilt orders reaching that
+    // branch gets a calm blue header for a version the backend now refuses to publish.
+    const s = summariseReplay([order({ outputChanged: true }), unrenderable("PO-2")]);
+    expect(s.outputChanges).toBe(1);
+    expect(s.errors).toBe(1);
+    expect(s.rendered).toBe(1);
+
+    const impact = replayImpact(s);
+    expect(backendReplayLegOutcome(s)).toBe("failed");
+    expect(impact.tone).toBe("danger");
+    expect(impact.safeToGoLive).toBe(false);
+    expect(impact.headline).toContain("produced no output under this version");
   });
 
   it("still says 'safe to go live' — unchanged — when the version really is clean", () => {
@@ -183,14 +205,86 @@ describe("replayImpact — zero output is not zero impact (P0-C)", () => {
 
   it("never recommends go-live where the backend would refuse to publish", () => {
     const refused: ReplaySummary[] = [
+      // Nothing rendered at all — refused by both backends.
       { total: 3, rendered: 0, outputChanges: 0, validationChanges: 0, startFailing: 0, errors: 3 },
-      { total: 1, rendered: 0, outputChanges: 0, validationChanges: 0, startFailing: 0, errors: 1 },
       { total: 50, rendered: 0, outputChanges: 0, validationChanges: 0, startFailing: 0, errors: 0 },
+      // Zero orders — the onboarding state. PASSED the pre-PR-207 predicate; PR 207
+      // calls it `not_exercised` and PublishAsync refuses it by name.
+      { total: 0, rendered: 0, outputChanges: 0, validationChanges: 0, startFailing: 0, errors: 0 },
+      // Four of five errored. PASSED the pre-PR-207 predicate on `rendered > 0`.
+      { total: 5, rendered: 1, outputChanges: 0, validationChanges: 0, startFailing: 0, errors: 4 },
     ];
     expect(refused.length).toBeGreaterThan(0);
     for (const s of refused) {
-      expect(backendWouldPassReplayLeg(s), "fixture is not actually a refused case").toBe(false);
+      expect(backendReplayLegOutcome(s), "fixture is not actually a refused case").not.toBe("passed");
       expect(replayImpact(s).safeToGoLive).toBe(false);
+    }
+  });
+});
+
+describe("backendReplayLegOutcome — transcribes the PR 207 ternary, arm for arm", () => {
+  it("calls a zero-order replay not_exercised, which is the onboarding state", () => {
+    // Every newly configured supplier is here, which is exactly the population that
+    // runs checks. The old predicate returned a plain pass for it.
+    const s = summariseReplay([]);
+    expect(backendReplayLegOutcome(s)).toBe("not_exercised");
+    expect(replayLegOutcomeIsFavourable(backendReplayLegOutcome(s))).toBe(false);
+    expect(replayImpact(s).safeToGoLive).toBe(false);
+  });
+
+  it("fails the leg on ANY render error, not only on rendering nothing", () => {
+    const partial = summariseReplay([order(), unrenderable("PO-2"), unrenderable("PO-3")]);
+    expect(partial.rendered).toBe(1);
+    expect(partial.errors).toBe(2);
+    expect(backendReplayLegOutcome(partial)).toBe("failed");
+
+    const none = summariseReplay([unrenderable("PO-1")]);
+    expect(backendReplayLegOutcome(none)).toBe("failed");
+  });
+
+  it("passes only a replay that ran, rendered everything, and errored on nothing", () => {
+    const clean = summariseReplay([order(), order({ orderId: "ord-2", poNumber: "PO-2" })]);
+    expect(backendReplayLegOutcome(clean)).toBe("passed");
+    expect(replayLegOutcomeIsFavourable("passed")).toBe(true);
+  });
+
+  it("orders its arms the way the C# orders them", () => {
+    // `replay.OrderCount == 0` comes FIRST over there, so an empty replay is
+    // `not_exercised` even though `rendered == 0` also holds and would say `failed`.
+    // Getting this backwards would tell the operator their checks failed when in fact
+    // nothing ran, which is its own lie.
+    const empty: ReplaySummary = {
+      total: 0, rendered: 0, outputChanges: 0, validationChanges: 0, startFailing: 0, errors: 0,
+    };
+    expect(backendReplayLegOutcome(empty)).toBe("not_exercised");
+    // And `outputErrors > 0` comes before `rendered == 0`, so both holding still
+    // reports `failed` — the same answer, but reached by the arm the backend uses.
+    const both: ReplaySummary = {
+      total: 2, rendered: 0, outputChanges: 0, validationChanges: 0, startFailing: 0, errors: 2,
+    };
+    expect(backendReplayLegOutcome(both)).toBe("failed");
+  });
+});
+
+describe("replayLegOutcomeIsFavourable — an allow-list, never a deny-list", () => {
+  it("admits `passed` and nothing else the backend can currently send", () => {
+    expect(replayLegOutcomeIsFavourable("passed")).toBe(true);
+    expect(replayLegOutcomeIsFavourable("failed")).toBe(false);
+    expect(replayLegOutcomeIsFavourable("not_exercised")).toBe(false);
+    // Leg-only, and the standards leg's answer rather than the replay leg's — but if it
+    // ever arrived here it is still not evidence of anything.
+    expect(replayLegOutcomeIsFavourable("not_applicable")).toBe(false);
+  });
+
+  it("refuses an outcome nothing in the manifest recognises", () => {
+    // The mutation this guards: `outcome !== "failed"`. A deny-list that names only
+    // failures lets `not_exercised` — and every outcome added upstream after this file
+    // was written — through as approval. That is the defect one level down.
+    for (const unknown of ["", "unrecognised", "probably_fine", "PASSED ", "pass", "skipped", "true"]) {
+      expect(
+        replayLegOutcomeIsFavourable(unknown),
+        `\`${unknown}\` was treated as evidence the version is safe to make live`,
+      ).toBe(false);
     }
   });
 });
