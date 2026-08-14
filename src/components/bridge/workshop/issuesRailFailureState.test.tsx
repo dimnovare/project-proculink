@@ -2,6 +2,7 @@ import { describe, test, expect, afterEach, vi } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import { IssuesPanel, type WorkshopIssue } from "./IssuesPanel";
 import { MobileTriage, type MobileTriageProps } from "./MobileTriage";
+import { readyBarLabel } from "./acceptanceGateModel";
 import {
   PROBLEM_BUCKET_STATUSES,
   REACHABLE_STATUSES,
@@ -143,6 +144,8 @@ const mobileProps = (over: Partial<MobileTriageProps> = {}): MobileTriageProps =
   issues: [],
   blockingIssues: 0,
   exceptionCount: 0,
+  readyLabel: readyBarLabel({ advisoryCount: 0, counterpartyNoun: "Supplier" }),
+  advisoryCount: 0,
   canSend: true,
   crossed: false,
   sendState: "idle",

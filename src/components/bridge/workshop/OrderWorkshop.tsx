@@ -49,7 +49,7 @@ import { OrderProblemPanel } from "../problem/OrderProblemPanel";
 import { problemFor, waitPhrase } from "../problem/problemCopy";
 import { ConfirmDialog } from "../review/ConfirmDialog";
 import { buildFixQueue, type FixQueueCard } from "../review/buildFixQueue";
-import { orderGrandTotalLabel, outputArtifactType, buyerLabel, orderDeliveryFormat } from "../review/orderDisplay";
+import { orderGrandTotalLabel, deliveryFormatLabel, buyerLabel, orderDeliveryFormat } from "../review/orderDisplay";
 import { useOrderReview } from "../review/hooks/useOrderReview";
 import { useResolveActions } from "../review/hooks/useResolveActions";
 import { useAcceptanceValidation } from "../review/hooks/useAcceptanceValidation";
@@ -967,20 +967,27 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
   // the extracted number already starts with "PO" (including separator-less
   // "PO12345"); "Order" when it is empty. Shared with the gate headers.
   const poTitle = poTitleFrom(order?.poNumber);
-  const outputFormatLabel = order ? outputArtifactType(order.artifacts) : "";
   // The supplier's ACTUAL delivery output format — used in the Send confirmation
   // modal so it always reflects what will be delivered, not whichever format the
-  // user last previewed (exploratory previews set outputFormatLabel to that tab's
-  // format, which caused the modal to say "XML" when the supplier receives CSV).
+  // user last previewed (exploratory previews set the label to that tab's format,
+  // which caused the modal to say "XML" when the supplier receives CSV).
   //
-  // NOT `|| outputFormatLabel`. That fallback ran whenever orderDeliveryFormat
-  // returned null, and outputArtifactType answers "XML" for an order with no
+  // NOT `|| outputArtifactType(...)`. That fallback ran whenever orderDeliveryFormat
+  // returned null, and outputArtifactType answered "XML" for an order with no
   // artifact — so the modal named a format confidently on the strength of a
   // hard-coded default. Null now travels to the dialog, which omits the format
   // rather than inventing one. This became reachable rather than theoretical
   // when the format started coming from the DELIVERABLE artifact: an order whose
   // only artifact is a re-processed preview has no deliverable format to name.
   const sendModalFormat = order ? orderDeliveryFormat(order) : null;
+  // The SAME answer, as a display string, for MobileTriage's "What we will send"
+  // card. It used to come from `outputArtifactType(order.artifacts)`, whose
+  // no-artifact default was "XML" — so the sub-lg surface told the operator the
+  // delivery format before anything had decided it, and told every non-XML
+  // supplier the wrong one, while the confirmation modal one tap later omitted
+  // the format entirely. One producer now feeds both. Null → the card shows no
+  // format badge and its sentence names none.
+  const outputFormatLabel = deliveryFormatLabel(sendModalFormat);
 
   // ── Loading / error gates (after all hooks) ─────────────────────────────────
   //    Every gate return below wraps itself in WorkshopGateShell: BridgeTopbar
@@ -1455,6 +1462,17 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
           issues={issues}
           blockingIssues={blockingIssues}
           exceptionCount={exceptionCount}
+          // The two values that made the sub-lg screen the more confident one.
+          // `readyLabel` is the SAME sentence `readyBarLabel` produces for the
+          // desktop rail (`issuesReadyLabel` above) — MobileTriage used to hold
+          // its own literal, "No open issues — ready to send.", which stayed
+          // silent about overridden supplier rules the desktop bar named out
+          // loud. `advisoryCount` is the number that sentence is derived from,
+          // and the same one the desktop send button counts into "· N optional".
+          // Both must come from here: the gate has to read identically at
+          // 390/768/1440 (see the header of this file).
+          readyLabel={issuesReadyLabel}
+          advisoryCount={advisoryAcceptanceCount}
           canSend={canSend}
           crossed={crossed}
           sendState={sendState}

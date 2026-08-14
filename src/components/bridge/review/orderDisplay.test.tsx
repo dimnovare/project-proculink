@@ -4,9 +4,9 @@ import { ConfirmDialog } from "./ConfirmDialog";
 import {
   REPROCESSED_ARTIFACT_KEY_MARKER,
   deliverableArtifact,
+  deliveryFormatLabel,
   orderDeliveryFormat,
   outputArtifactLabel,
-  outputArtifactType,
 } from "./orderDisplay";
 import type { PartyLabels } from "@/hooks/useOrderDirection";
 import type { Artifact, Order } from "@/types/procurement";
@@ -109,11 +109,48 @@ describe("the deliverable artifact is not simply the newest one", () => {
 
   it("every display helper asks the same question", () => {
     expect(orderDeliveryFormat({ artifacts: NEWEST_IS_A_PREVIEW })).toBe("csv");
-    expect(outputArtifactType(NEWEST_IS_A_PREVIEW)).toBe("CSV");
+    expect(deliveryFormatLabel(orderDeliveryFormat({ artifacts: NEWEST_IS_A_PREVIEW }))).toBe("CSV");
     expect(outputArtifactLabel(NEWEST_IS_A_PREVIEW, "BoltWorks BV")).toBe("boltworks-bv.csv");
     // …and none of them says "json", the preview's format.
     expect(orderDeliveryFormat({ artifacts: NEWEST_IS_A_PREVIEW })).not.toBe("json");
-    expect(outputArtifactType(NEWEST_IS_A_PREVIEW)).not.toBe("JSON");
+    expect(deliveryFormatLabel(orderDeliveryFormat({ artifacts: NEWEST_IS_A_PREVIEW }))).not.toBe("JSON");
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// deliveryFormatLabel replaced `outputArtifactType`, whose whole body was:
+//
+//     const fmt = deliverableArtifact(artifacts)?.format?.toLowerCase();
+//     if (!fmt)           return "XML";
+//     if (fmt === "cxml") return "cXML";
+//     if (fmt === "csv")  return "CSV";
+//     return fmt.toUpperCase();
+//
+// Line 2 is the defect. Its one production consumer was the sub-lg review card, so
+// on every order awaiting review — which is every order that has not been sent, since
+// the transform runs BECAUSE no deliverable artifact exists — the phone displayed a
+// delivery format nothing had chosen, and the wrong one for every supplier not on XML.
+// ─────────────────────────────────────────────────────────────────────────────
+describe("deliveryFormatLabel — null in, null out", () => {
+  it("returns null for null, and never a default format", () => {
+    expect(deliveryFormatLabel(null)).toBeNull();
+  });
+
+  it("labels every format the product can deliver", () => {
+    expect(deliveryFormatLabel("csv")).toBe("CSV");
+    expect(deliveryFormatLabel("json")).toBe("JSON");
+    expect(deliveryFormatLabel("xml")).toBe("XML");
+    expect(deliveryFormatLabel("cxml")).toBe("cXML");
+    expect(deliveryFormatLabel("ubl")).toBe("UBL");
+    expect(deliveryFormatLabel("x12")).toBe("X12");
+  });
+
+  it("an order with no deliverable artifact yields no label at all", () => {
+    // The end-to-end shape of the defect, through the one normalizer.
+    const noArtifacts = deliveryFormatLabel(orderDeliveryFormat({ artifacts: [] }));
+    expect(noArtifacts).toBeNull();
+    const previewOnly = deliveryFormatLabel(orderDeliveryFormat({ artifacts: [REPROCESSED_PREVIEW] }));
+    expect(previewOnly).toBeNull();
   });
 });
 
