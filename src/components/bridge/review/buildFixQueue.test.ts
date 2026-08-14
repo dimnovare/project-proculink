@@ -132,6 +132,28 @@ describe("buildFixQueue — blocker coverage (G3)", () => {
     const validation = makeValidation([{ fieldPath: "Header.Currency", outcome: "pass" }]);
     expect(buildFixQueue(order, validation)).toHaveLength(0);
   });
+
+  it("emits no card for a rule that COULD NOT RUN", () => {
+    // `not_evaluated` (backend PR 206): the rule's input was absent, so nothing was
+    // examined. There is nothing here for a person to fix — a document that printed no
+    // line amount is not an operator error — and the backend never blocks on it, so
+    // raising it as a rule failure would be the same false claim the third outcome was
+    // added to remove, only pointing the other way.
+    const order = makeOrder([makeLine({ id: "l1", lineNumber: 1, supplierItemCode: "S-1" })]);
+    const validation = makeValidation([{ fieldPath: "Lines[].LineAmount", outcome: "not_evaluated" }]);
+    expect(buildFixQueue(order, validation)).toHaveLength(0);
+  });
+
+  it("DOES emit a card for an outcome it cannot read at all", () => {
+    // The other direction, and the one that must not be quiet. `not_evaluated` was
+    // itself an unknown value until backend PR 206 and the passport rendered it green;
+    // a row this build cannot interpret is shown to a person rather than assumed clean.
+    const order = makeOrder([makeLine({ id: "l1", lineNumber: 1, supplierItemCode: "S-1" })]);
+    const validation = makeValidation([{ fieldPath: "Header.Currency", outcome: "unrecognised" }]);
+    const queue = buildFixQueue(order, validation);
+    expect(queue).toHaveLength(1);
+    expect(queue[0].kind).toBe("rule-failure");
+  });
 });
 
 describe("buildFixQueue — initial ordering", () => {
