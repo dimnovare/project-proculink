@@ -592,19 +592,39 @@ const SELLS_ORG_WIDE_AUDIT = (text: string): boolean =>
  * `InvariantValidator` and `OutputFieldValidator` run whether or not a profile exists
  * (SupplierAcceptanceService.cs:202-204; `EvaluateProfile` returns empty at :389), and every
  * transform calls `OutputFieldValidator.ValidateEntity` before emitting a byte. A CONFIGURABLE
- * per-supplier rule set is the gated one, and in this product it has a small, stable set of names:
- * "validation rules", "acceptance rules", "validation/acceptance profile", "acceptance checks",
- * "validation checks", and the Enterprise card's "custom transformation rules".
+ * per-supplier rule set is the gated one.
  *
- * ── Why not simply `/\bvalidat/i` ──────────────────────────────────────────────
+ * ── The blind spot that was measured, and closed ────────────────────────────────
  *
- * Measured before widening, over the 82-file / 13,249-line buyer-facing corpus: the bare verb
- * matched 57 lines and the great majority had nothing to do with this gate — "FTPS certificate
- * validation", "No BIS business-rule validation runs", the Parse · Normalize · Validate pipeline
- * labels, "They are not validated against a live ERP sandbox", the ROI calculator's prose. A
- * matcher that noisy gets narrowed by the next reader until it catches nothing, which is exactly
- * the state this row was found in. The named-surface form below matched 14 lines across 7 files
- * and every single one is a real presentation of the gated surface.
+ * The form above recognised the rule set by its NOUN PHRASE — "validation rules", "acceptance
+ * profile", "acceptance checks", "custom transformation rules" — which requires the qualifier and
+ * the noun to be ADJACENT. Four buyer-facing surfaces name exactly the same product without ever
+ * putting those two words together, and every one of them read straight past this row:
+ *
+ *     /how-it-works    "Validate against your rules" · "Per-supplier rules catch …"
+ *     /security        "Validation before delivery"  · "Per-supplier rules block …"
+ *     /watch (+layout) "… validated against the supplier's rules, and sent."  ← also the SERP
+ *                                                                              meta description
+ *     /                "Per-supplier validation" · "Configurable rules per supplier — …"
+ *
+ * `rules` is there; `validation` is there; they are one to four words apart. So the second half
+ * below recognises the rule set by WHOSE it is — per-supplier, configurable, custom, yours, the
+ * supplier's — with the noun a word or two away, plus the bare qualifier on "validation" itself.
+ *
+ * ── Why not simply `/\bvalidat/i`, measured ────────────────────────────────────
+ *
+ * Over the buyer-facing corpus as it stood on 2026-08-14 — 82 files, 13,337 lines:
+ *
+ *     /\bvalidat/i                  59 lines · 26 files   almost all unrelated
+ *     noun-phrase form only         16 lines ·  7 files   (the pre-widening state)
+ *     noun-phrase + possessive      25 lines · 13 files   (this matcher)
+ *
+ * The bare verb's extra 34 lines are FTPS certificate validation, "No BIS business-rule validation
+ * runs", the Parse · Normalize · Validate pipeline labels, "They are not validated against a live
+ * ERP sandbox", and the ROI calculator's prose. A matcher that noisy gets narrowed by the next
+ * reader until it catches nothing — which is the state this row was already found in once. Every
+ * one of the 25 the shipped form matches is a real presentation of the gated surface, and the
+ * `must flag` / `must allow` controls below pin both edges of that measurement.
  *
  * ── What is deliberately NOT excluded ──────────────────────────────────────────
  *
@@ -612,10 +632,44 @@ const SELLS_ORG_WIDE_AUDIT = (text: string): boolean =>
  * checks. It does not need one — "built-in order checks" names no rule set — and adding one would
  * open the hole a bullet reading "Built-in validation rules" could walk straight through. The
  * words "validation rules" name the Enterprise tab whatever adjective precedes them.
+ *
+ * Nor is there an escape for a rule set named as the CAUSE of a failure rather than as a feature
+ * ("the supplier's own rules turning the order down", /help/exceptions-and-stuck-orders). A reader
+ * on Growth meets that sentence and learns their orders can be held by rules they cannot author.
+ * That is the same undisclosed capability wearing a different verb, and the file-scoped remedy —
+ * one disclosure per page — costs a clause either way.
  */
+const CONFIGURABLE_SUPPLIER_RULE_FORMS: ReadonlyArray<{ form: string; re: RegExp }> = [
+  {
+    // The rule set by its noun phrase: qualifier and noun adjacent. This was the whole matcher.
+    form: "noun phrase — 'validation rules', 'acceptance profile', 'acceptance checks'",
+    re: /\b(?:validation|acceptance)\s+(?:rule|rules|profile|profiles|check|checks)\b/i,
+  },
+  {
+    // The rule set by WHOSE it is, with the noun up to two words away. `{0,2}` is what buys
+    // "Configurable rules per supplier" and "Validate against your rules"; a wider window starts
+    // joining two unrelated clauses on the same line.
+    form: "qualifier, then 'rules' within two words — 'Configurable rules per supplier'",
+    re: /\b(?:custom|customi[sz]ed|customi[sz]able|configurable|per[- ]supplier|supplier[- ]specific|your own|your)\s+(?:[a-z-]+\s+){0,2}rules?\b/i,
+  },
+  {
+    form: "the same thing said the other way round — 'rules you set', 'rules per supplier'",
+    re: /\brules?\s+(?:you\s+(?:set|write|author|configure|define)|per\s+supplier|for\s+(?:each|every)\s+supplier)\b/i,
+  },
+  {
+    // `&apos;` and `&#39;` are in the class because JSX text escapes the apostrophe and this scan
+    // reads SOURCE lines, not rendered output — /watch wrote `supplier&apos;s rules`.
+    form: "the possessive — \"the supplier's rules\", \"a supplier's own rules\"",
+    re: /\bsupplier(?:'|’|&apos;|&#39;)s\s+(?:own\s+)?(?:[a-z-]+\s+)?rules?\b/i,
+  },
+  {
+    form: "qualified 'validation' with no noun at all — 'Per-supplier validation'",
+    re: /\b(?:per[- ]supplier|supplier[- ]specific|configurable|customi[sz]able)\s+(?:validation|acceptance)\b/i,
+  },
+];
+
 const SELLS_CONFIGURABLE_SUPPLIER_RULES = (text: string): boolean =>
-  /\b(?:validation|acceptance)\s+(?:rule|rules|profile|profiles|check|checks)\b/i.test(text) ||
-  /\bcustom\s+(?:transformation|supplier)\s+rules?\b/i.test(text);
+  CONFIGURABLE_SUPPLIER_RULE_FORMS.some(({ re }) => re.test(text));
 
 const CAPABILITY_CLAIMS: Record<keyof typeof BACKEND_MINIMUM_PLAN, { label: string; sells: ClaimMatcher }> = {
   webhookDelivery: { label: "webhook / API delivery", sells: /webhook/i },
@@ -733,6 +787,126 @@ describe("the mirrored gate table is load-bearing, row by row", () => {
       "They are not validated against a live ERP sandbox",
     ]) {
       expect(claims(CAPABILITY_CLAIMS.customSupplierRules.sells, text), `must allow: ${text}`).toBe(false);
+    }
+  });
+
+  /**
+   * MUST-FLAG CONTROL for the four surfaces the ADJACENCY requirement hid, quoted from
+   * `git show d48907e` — the tree they were found on. Every one of these lines names the
+   * Enterprise-gated rule set, none of them puts "validation" next to "rules", and the matcher
+   * that shipped before this test read past all four for months.
+   *
+   * They are pinned here rather than left to the file walk on purpose: the walk can only see a
+   * defect that is still in the tree, and these have been fixed. A control quoting the original
+   * is what makes narrowing the matcher back out fail loudly instead of quietly.
+   */
+  it("catches the four undisclosed surfaces the adjacency requirement hid", () => {
+    for (const [where, shipped] of [
+      ["/how-it-works step 04 title", '    title: "Validate against your rules",'],
+      [
+        "/how-it-works step 04 body",
+        '      "Per-supplier rules catch missing fields, wrong currency, or unresolved codes before anything leaves your system. Bad orders never reach the supplier.",',
+      ],
+      [
+        "/security 'Validation before delivery'",
+        '    body: "Per-supplier rules block malformed orders before they ever reach a supplier endpoint — wrong currency, missing fields, unresolved codes.",',
+      ],
+      [
+        "/watch layout — also the SERP meta description",
+        '    "See how a single upload becomes a delivered supplier order — parsed, mapped, validated against the supplier\'s rules, and sent.",',
+      ],
+      [
+        "/watch page body (JSX-escaped apostrophe)",
+        "        See how a single upload becomes a delivered supplier order — parsed, mapped, validated against the supplier&apos;s rules, and sent.",
+      ],
+      ["/ landing card title", '    title: "Per-supplier validation",'],
+      ["/ landing card body", "        Block bad orders before they reach the supplier. Configurable rules per"],
+      [
+        "/help/exceptions-and-stuck-orders — the rule set named as a failure CAUSE",
+        "- **Couldn't build output** — … a line still missing its supplier item code, the supplier's own rules turning the order down, or something going wrong at our end.",
+      ],
+    ] as const) {
+      expect(
+        claims(CAPABILITY_CLAIMS.customSupplierRules.sells, shipped),
+        `must flag (${where}): ${shipped.trim().slice(0, 80)}…`,
+      ).toBe(true);
+    }
+  });
+
+  /**
+   * ANTI-VACUITY FLOOR for the widening.
+   *
+   * `SELLS_CONFIGURABLE_SUPPLIER_RULES` is an OR over five named forms, and an OR hides a dead
+   * limb perfectly: delete any one and the other four keep every existing assertion green. So each
+   * form is required to match a line it was written for and to be the ONLY form that does, which
+   * is what makes deleting or narrowing it go red by name rather than by accident.
+   *
+   * Two of the five (the possessive, and the qualified bare "validation") now have no live line in
+   * the corpus, because the copy that carried them was the defect and it was fixed. That is stated
+   * rather than papered over: a form whose only evidence is a fixed defect still earns its place —
+   * it is what stops the wording coming back — but it can only be pinned by a control, never by
+   * the walk.
+   */
+  it("every recognised form of the rule set is load-bearing, not one of five that overlap", () => {
+    const uniquelyMatched: Record<string, string> = {
+      "noun phrase — 'validation rules', 'acceptance profile', 'acceptance checks'":
+        "Rules are grouped into a versioned acceptance profile.",
+      "qualifier, then 'rules' within two words — 'Configurable rules per supplier'":
+        "Configurable rules, tuned once and reused.",
+      "the same thing said the other way round — 'rules you set', 'rules per supplier'":
+        "The checks you set yourself are rules you write, once, and reuse.",
+      "the possessive — \"the supplier's rules\", \"a supplier's own rules\"":
+        "parsed, mapped, validated against the supplier's rules, and sent",
+      "qualified 'validation' with no noun at all — 'Per-supplier validation'":
+        "Per-supplier validation, before anything leaves.",
+    };
+
+    expect(
+      Object.keys(uniquelyMatched).sort(),
+      "a form was added or renamed without a control that pins it",
+    ).toEqual(CONFIGURABLE_SUPPLIER_RULE_FORMS.map(({ form }) => form).sort());
+
+    for (const { form, re } of CONFIGURABLE_SUPPLIER_RULE_FORMS) {
+      const probe = uniquelyMatched[form];
+      expect(re.test(probe), `the "${form}" form no longer matches its own probe: ${probe}`).toBe(true);
+
+      const alsoMatched = CONFIGURABLE_SUPPLIER_RULE_FORMS.filter((f) => f.form !== form && f.re.test(probe));
+      expect(
+        alsoMatched.map((f) => f.form),
+        `"${probe}" is meant to isolate the "${form}" form, but other forms match it too — ` +
+          "delete that form and this control stays green, which is how a dead limb survives",
+      ).toEqual([]);
+    }
+  });
+
+  /**
+   * And the floor under the WALK: the corpus scan for this capability must really be extracting
+   * lines. `presenting.length > 3` inside the shared `it.each` is the generic version; this names
+   * the files, so narrowing the matcher drops one out and fails here with the file that stopped
+   * being seen — rather than sliding under a count that four other files still satisfy.
+   */
+  it("the per-supplier rules walk still reaches every page that presents the rule set", () => {
+    const seen = new Set(
+      buyerFacingLines()
+        .filter(({ line }) => SELLS_CONFIGURABLE_SUPPLIER_RULES(line))
+        .map(({ file }) => file.replace(/\\/g, "/")),
+    );
+
+    expect(seen.size, "zero extractions — the walk or the matcher has gone blind").toBeGreaterThan(0);
+
+    for (const file of [
+      "/src/app/(marketing)/help/validation-rules/page.mdx",
+      "/src/app/(marketing)/help/connections/page.mdx",
+      "/src/app/(marketing)/help/managing-suppliers/page.mdx",
+      "/src/app/(marketing)/help/ai-suggestions/page.mdx",
+      "/src/app/(marketing)/help/exceptions-and-stuck-orders/page.mdx",
+      "/src/app/(marketing)/how-it-works/page.tsx",
+      "/src/app/(marketing)/security/page.tsx",
+      "/src/app/(home)/page.tsx",
+      "/src/lib/help-articles.ts",
+      "/src/lib/plans.ts",
+    ]) {
+      expect([...seen], `${file} presents the configurable rule set and the walk no longer sees it`).toContain(file);
     }
   });
 
@@ -1807,9 +1981,12 @@ describe("no buyer-facing copy claims records are immutable, because nothing enf
  *     (The page that renders that panel, `/how-it-works`, does disclose.)
  *   • It catches the ERP adapters by name, which is safe because Erply and Directo exist in this
  *     product only as delivery channels. A generic "your ERP" is deliberately not a claim.
- *   • It says nothing about `webhookDelivery`, `emailIngestion`, `customSupplierRules` or
- *     `advancedAudit` in prose. Those are separate clusters with their own untiered surfaces
- *     still outstanding; extending this list is the follow-up, and the shape is already here.
+ *   • `customSupplierRules` IS covered, by the same predicate the card scans use. Its reach is
+ *     documented at that matcher rather than here, because the interesting limit is which
+ *     WORDINGS it recognises, not which files it walks — and the wordings were measured.
+ *   • It still says nothing about `webhookDelivery`, `emailIngestion` or `advancedAudit` in
+ *     prose. Those are separate clusters with their own untiered surfaces still outstanding;
+ *     extending this list is the follow-up, and the shape is already here.
  */
 describe("a gated capability is never presented with no tier at all", () => {
   /**

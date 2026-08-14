@@ -107,9 +107,30 @@ const STEPS: Array<{
   },
   {
     n: "04",
-    title: "Validate against your rules",
+    title: "Validate before anything leaves",
     desc:
-      "Per-supplier rules catch missing fields, wrong currency, or unresolved codes before anything leaves your system. Bad orders never reach the supplier.",
+      // This step used to be titled "Validate against your rules" and read
+      // "Per-supplier rules catch missing fields, wrong currency, or unresolved
+      // codes". Two products are being conflated there, and only one of them is
+      // included:
+      //
+      //   • BUILT-IN checks run on every plan, Pilot included, with no profile
+      //     configured — InvariantValidator (PO number present, currency present,
+      //     quantity > 0, unit price not negative) and OutputFieldValidator (a
+      //     line still flagged for review, an unresolved supplier item code, a
+      //     buyer item code the format mandates, a negative price, a quantity of
+      //     zero or less), which throws before a transform writes a byte.
+      //     SupplierAcceptanceService.cs:202,204 runs both passes unconditionally.
+      //   • A CONFIGURABLE per-supplier rule set is the versioned acceptance
+      //     profile, and SupplierAcceptanceController.cs:70,99 refuses both
+      //     authoring and activating below Enterprise.
+      //
+      // Of the three examples the old sentence gave, unresolved codes are built-in
+      // and missing PO number / currency are built-in; only "wrong currency" —
+      // an allowed-list or an equals check on the VALUE — needs the gated profile
+      // (RuleCatalog.cs:107,115). Naming no tier while listing all three read as
+      // "every plan gets per-supplier rules".
+      `Built-in checks run on every plan and cannot be switched off: an order needs a PO number and a currency, every line needs a quantity above zero and a price that is not negative, and a line whose supplier item code is still unresolved holds the order back instead of being sent blind. Your own rules for a supplier — an accepted currency list, a required ship-to or incoterm, a value range — are a versioned acceptance profile, and authoring or activating one is ${requiresPlan("customSupplierRules")}.`,
     color: AMBER,
     bg: AMBER_SOFT,
     icon: <CheckSquareIcon />,

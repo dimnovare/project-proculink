@@ -181,12 +181,22 @@ const FEATURES: Array<{
   },
   {
     icon: "shield-check",
-    title: "Per-supplier validation",
+    // Was "Per-supplier validation" / "Configurable rules per supplier — missing
+    // fields, wrong currency, item codes that won't resolve." The configurable
+    // per-supplier rule set is the Enterprise-gated product
+    // (BillingFeature.CustomSupplierRules, PlanConstants.cs:287;
+    // SupplierAcceptanceController.cs:70,99 refuses authoring and activating), so
+    // a card headed with it and naming no tier read as included on every plan.
+    // Two of the three examples were not even the gated product: unresolved item
+    // codes and a missing PO number or currency are built-in and run on Pilot.
+    title: "Validation before send",
     desc: (
       <>
-        Block bad orders before they reach the supplier. Configurable rules per
-        supplier — missing fields, wrong currency, item codes that won&apos;t
-        resolve.
+        Bad orders are held before they reach the supplier. Built-in checks run
+        on every plan — no PO number, no currency, a quantity of zero, a negative
+        price, an item code that won&apos;t resolve. Your own rules for a
+        supplier, such as an accepted currency list, are{" "}
+        {requiresPlan("customSupplierRules")}.
       </>
     ),
     color: GREEN_DEEP,
