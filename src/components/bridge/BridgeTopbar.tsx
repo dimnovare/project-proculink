@@ -313,19 +313,61 @@ export function notifKindFor(status: string, unresolvedCount?: number | null): N
   return null;
 }
 
-function NotificationsBell() {
+/**
+ * How many of the newest orders the panel scans, and how many rows it lists.
+ *
+ * These two numbers are why the empty state below is not a bare "No new activity."
+ * The row list is built from `GET /api/orders?pageSize=100`, which the backend
+ * returns newest-first (`OrderQueryService.ListWindowAsync`,
+ * `OrderByDescending(o => o.CreatedAt)`), and then capped at seven. But `unread`
+ * is summed from `GET /api/orders/summary`, which counts the WHOLE account. An
+ * order that is failed, held or unrouted but older than the newest hundred
+ * therefore raises the badge and the header while having no row to render — and
+ * the panel used to answer that state with "No new activity.", i.e. it told the
+ * operator nothing needed doing on the same 40 pixels where it had just said
+ * twelve things did. The gap between the two numbers is structural and fine; the
+ * claim of emptiness on top of it is not.
+ */
+const NOTIF_SCAN_PAGE_SIZE = 100;
+const NOTIF_ROW_LIMIT = 7;
+
+/**
+ * Copy for the notifications panel when it has no rows to show. Kept as one
+ * function so the three cases are decided in one place and cannot drift apart:
+ *
+ *   loading    → say so. Neither query has answered, so "nothing needs action"
+ *                is a claim about data we have not received.
+ *   unread = 0 → genuinely nothing. The original copy, unchanged.
+ *   unread > 0 → the defect case. Orders need action; none is recent enough to
+ *                list. Name that, and point at the inbox — which is also what
+ *                the panel's own footer button does.
+ */
+function notificationsEmptyMessage(unread: number, loading: boolean): string {
+  if (loading) return "Checking for new activity…";
+  if (unread <= 0) return "No new activity.";
+  return unread === 1
+    ? "1 order needs action, but it's older than the recent activity shown here — open the inbox to see it."
+    : `${unread} orders need action, but they're older than the recent activity shown here — open the inbox to see them.`;
+}
+
+/**
+ * Exported for `BridgeTopbar.notificationsReach.test.tsx`, which renders this
+ * panel on its own rather than dragging the whole topbar (and Clerk, and the
+ * breadcrumb cache) into a test about one empty state.
+ */
+export function NotificationsBell() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  const { data: ordersPage } = useQuery({
+  const { data: ordersPage, isLoading: ordersLoading } = useQuery({
     queryKey: ["orders"],
-    queryFn: () => apiClient.getOrders({ pageSize: 100 }),
+    queryFn: () => apiClient.getOrders({ pageSize: NOTIF_SCAN_PAGE_SIZE }),
     enabled: !isApiMockMode,
     staleTime: 30_000,
   });
 
-  const { data: ordersSummary } = useQuery({
+  const { data: ordersSummary, isLoading: summaryLoading } = useQuery({
     queryKey: ["orders-summary"],
     queryFn: () => apiClient.getOrdersSummary(),
     staleTime: 30_000,
@@ -344,7 +386,7 @@ function NotificationsBell() {
   // until it has a supplier to review it against).
   const rank = (k: string) => (k === "failed" ? 0 : k === "held" || k === "unconfirmed" || k === "unrouted" ? 1 : k === "review" ? 2 : 3);
   items.sort((a, b) => rank(a.kind) - rank(b.kind) || new Date(b.o.createdAt).getTime() - new Date(a.o.createdAt).getTime());
-  const top = items.slice(0, 7);
+  const top = items.slice(0, NOTIF_ROW_LIMIT);
   const unread = !isApiMockMode
     ? ((ordersSummary?.byStatus?.["pending_review"] ?? 0) +
        (ordersSummary?.byStatus?.["failed"] ?? 0) +
@@ -409,7 +451,9 @@ function NotificationsBell() {
           </div>
           <div className="max-h-[60vh] sm:max-h-[360px]" style={{ overflowY: "auto" }}>
             {top.length === 0 ? (
-              <div style={{ padding: "24px 16px", textAlign: "center", fontSize: 12.5, color: "var(--ink-faint)" }}>No new activity.</div>
+              <div style={{ padding: "24px 16px", textAlign: "center", fontSize: 12.5, color: "var(--ink-faint)", lineHeight: 1.5 }}>
+                {notificationsEmptyMessage(unread, ordersLoading || summaryLoading)}
+              </div>
             ) : (
               top.map(({ o, kind }) => {
                 const meta = NOTIF_META[kind];
