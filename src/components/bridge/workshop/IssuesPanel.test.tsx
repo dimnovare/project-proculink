@@ -76,7 +76,10 @@ describe("IssuesPanel", () => {
   });
 
   test("0 issues → the green 'ready to send' bar, no issue rows", () => {
-    render(<IssuesPanel issues={[]} onFocusField={vi.fn()} />);
+    // `orderStatus` is what says the ORDER is fine; zero issues only says its FIELDS are.
+    // A healthy one is required here — omitting it now reads as "unknown" and draws the
+    // amber unverified bar instead (issuesRailFailureState.test.tsx owns that rule).
+    render(<IssuesPanel issues={[]} orderStatus="ready" onFocusField={vi.fn()} />);
     expect(screen.getByText("Ready to send")).toBeInTheDocument();
     expect(screen.queryAllByTestId("issue-row")).toHaveLength(0);
     expect(screen.getByTestId("issues-panel")).toHaveAttribute("data-issues", "0");

@@ -22,10 +22,10 @@
 // The prop contract, test ids, roles, anchors and resolution wiring are unchanged.
 
 import type { CSSProperties, KeyboardEvent } from "react";
-import { isProblemBucketStatus } from "@/lib/orderStatusManifest";
+import { orderProblemState } from "@/lib/orderStatusManifest";
 // Both bars below state what was looked at. acceptanceGateModel owns those words —
 // this panel does not retype them. See CHECK_SCOPE_SENTENCE for why "checked" went.
-import { READY_BAR_DEFAULT, STOPPED_ORDER_NOTE } from "./acceptanceGateModel";
+import { READY_BAR_DEFAULT, STOPPED_ORDER_NOTE, UNVERIFIED_ORDER_NOTE } from "./acceptanceGateModel";
 import { confidenceTone } from "../ConfidenceChip";
 import type { FixCardKind } from "../review/buildFixQueue";
 import type { OrderLine } from "@/types/procurement";
@@ -136,9 +136,16 @@ export interface IssuesPanelProps {
    * moment, as the failure panel and a `Couldn't send` badge, on an order the API
    * reported as `delivery_failed`.
    *
-   * Membership is decided by `isProblemBucketStatus` from the status manifest, never
-   * by a list typed into this file. Omitted → the caller is not order-scoped and the
-   * bar behaves as before.
+   * Read through `orderProblemState`, which has THREE answers, never through
+   * `isProblemBucketStatus`, which has two. This panel used the two-answer predicate
+   * and the Issues column head directly above it uses the three-answer one, so on a
+   * status this build cannot read the head said "We can't confirm this order is clear"
+   * while this bar, three pixels below it, said "Ready to send".
+   *
+   * Omitted or null is `"unknown"` like any other unreadable state — it is NOT an
+   * all-clear. The only production call site (OrderWorkshop) always passes
+   * `order.status`; a green bar drawn from an absent input would be the same defect as
+   * one drawn from an unrecognised input.
    */
   orderStatus?: string | null;
 }
@@ -175,18 +182,25 @@ const SEVERITY: Record<IssueSeverity, { accent: string; soft: string; text: stri
 };
 
 export function IssuesPanel({ issues, onFocusField, onFix, readyLabel, resolve, lines, suggestableCount = 0, highConfCount = 0, onJumpToLine, orderStatus }: IssuesPanelProps) {
-  // ── 0 field issues, but the order itself has stopped ──
+  // ── 0 field issues, and the order itself is NOT known to be fine ──
   //
-  // Not green, and not silent. The operator did clear every field problem and should be
-  // told so; what they must not be told is that the order is therefore ready to send.
-  // The failure panel on the same screen owns the cause and the next step — this bar's
-  // whole job is to stop contradicting it.
-  if (issues.length === 0 && isProblemBucketStatus(orderStatus)) {
+  // Three answers, not two. Only `"clear"` earns the green bar below. `"problem"` and
+  // `"unknown"` share this amber one because neither of them is an all-clear, and they
+  // say DIFFERENT sentences because they are not the same claim: one reports a stoppage
+  // that was observed, the other reports that the order's state cannot be read at all.
+  //
+  // Not green, and not silent, in either case. The operator did clear every field problem
+  // and should be told so; what they must not be told is that the order is therefore
+  // ready to send. On a stoppage the failure panel on the same screen owns the cause and
+  // the next step — this bar's whole job is to stop contradicting it.
+  const verdict = orderProblemState(orderStatus);
+
+  if (issues.length === 0 && verdict !== "clear") {
     return (
       <div
         data-testid="issues-panel"
         data-issues="0"
-        data-order-stopped="true"
+        data-order-verdict={verdict}
         role="status"
         style={{
           display: "flex",
@@ -207,13 +221,16 @@ export function IssuesPanel({ issues, onFocusField, onFix, readyLabel, resolve, 
         </span>
         <span style={{ fontSize: 13, fontWeight: 700 }}>No field problems</span>
         <span style={{ fontSize: 11.5, color: C.amberText, fontWeight: 500 }}>
-          {STOPPED_ORDER_NOTE}
+          {/* NOT one sentence for both. `STOPPED_ORDER_NOTE` reports an event; on
+              `"unknown"` no event was observed, only that the order's state cannot be
+              read. acceptanceGateModel owns both strings and they share one clause. */}
+          {verdict === "problem" ? STOPPED_ORDER_NOTE : UNVERIFIED_ORDER_NOTE}
         </span>
       </div>
     );
   }
 
-  // ── 0 issues → the green "ready to send" bar (the list collapses) ──
+  // ── 0 issues on an order we know to be healthy → the green "ready to send" bar ──
   if (issues.length === 0) {
     return (
       <div
