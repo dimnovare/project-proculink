@@ -53,8 +53,8 @@ Choose the protocol first, because it changes the fields below it:
 | AES 2FA signed API | **Catalog URL** plus the vendor's own credential fields: customer number, consumer key and secret, access-token key, currency |
 
 A plain `http://` catalog URL is refused when you save it. The pull sends whatever API key, bearer
-token or Basic password you configure below on every request, so an unencrypted address would put
-that credential — and the whole price list — on the wire in clear text. Ask the supplier for their
+token or Basic password you configure below on every request, so an unencrypted address would send
+that credential — and the whole price list — across the network in clear text. Ask the supplier for their
 `https://` address. (`http://localhost` is still accepted, for testing against something on your
 own machine.)
 
