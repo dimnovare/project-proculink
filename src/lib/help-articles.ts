@@ -156,7 +156,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
   {
     slug: "validation-rules",
     title: "Validation rules",
-    blurb: "Set the checks that run on a supplier's orders, and read the pass/fail results.",
+    blurb: `Set the checks that run on a supplier's orders, and read the pass/fail results. Authoring and activating a supplier's own rules is ${requiresPlan("customSupplierRules")}; the built-in order checks run on every plan.`,
     category: "Mapping",
     keywords: ["validation", "rules", "severity", "acceptance", "operators", "required", "blocking"],
     readMin: 4,

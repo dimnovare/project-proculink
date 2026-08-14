@@ -1,4 +1,5 @@
 import { helpArticleMetadata } from "@/lib/seo";
+import { requiresPlan } from "@/lib/gatedCapabilities";
 
 export const metadata = helpArticleMetadata({
   slug: "managing-suppliers",
@@ -29,7 +30,7 @@ Open a supplier to find its full setup across six tabs:
 | **Catalog** | The supplier's product list — the ground truth for code matching (more below). |
 | **PO Mapping** | Maps the columns of this supplier's order files to ProcuLink's standard fields. It works from a real sample, so upload an order for this supplier first. |
 | **Delivery** | Output format, channel, credentials, and a safe test send — see [setting up delivery and test-fire](/help/delivery-setup). |
-| **Validation rules** | The acceptance checks that actually hold orders. Edits save as a **draft**; nothing is enforced until you activate that version. |
+| **Validation rules** | The acceptance checks you set yourself, on top of ProcuLink's built-in ones. Edits save as a **draft**; nothing is enforced until you activate that version. Saving and activating are {requiresPlan("customSupplierRules")} — see [validation rules](/help/validation-rules) for what runs on every plan without them. |
 
 Edits on these tabs apply to live processing — there's no separate "publish" step outside the validation-rules draft flow and [versioned connections](/help/connections).
 

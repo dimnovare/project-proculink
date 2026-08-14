@@ -1,4 +1,5 @@
 import { helpArticleMetadata } from "@/lib/seo";
+import { requiresPlan } from "@/lib/gatedCapabilities";
 
 export const metadata = helpArticleMetadata({
   slug: "connections",
@@ -19,7 +20,7 @@ Each revision is a complete snapshot of how orders for that supplier are process
 - the **input mapping** (how your file's columns become standard order fields),
 - the **output mapping and output format** (what the supplier receives),
 - the **delivery setup** (protocol, configuration, auto-deliver on/off),
-- the **validation profile** (which acceptance rules check orders),
+- the **validation profile** (which acceptance rules check orders — authoring and activating one is {requiresPlan("customSupplierRules")}; ProcuLink's built-in checks run on every plan and need no profile),
 - the **item-code mappings** and catalog mode.
 
 The day-to-day editing still happens in the supplier's own editors (mapping, delivery, validation tabs). The connection page is where you version, test, and publish those changes as one unit.

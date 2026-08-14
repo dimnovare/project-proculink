@@ -1,4 +1,5 @@
 import { helpArticleMetadata } from "@/lib/seo";
+import { requiresPlan } from "@/lib/gatedCapabilities";
 
 export const metadata = helpArticleMetadata({
   slug: "validation-rules",
@@ -8,7 +9,21 @@ export const metadata = helpArticleMetadata({
 
 # Validation rules
 
-Validation rules are the checks an order has to pass for a supplier. They live on **each supplier's Validation rules tab** — open **Partners**, pick a supplier, then **Validation rules**. That is the only place a check is set, and the only place one runs.
+> **Which plan you need.** Setting up a supplier's own validation rules is {requiresPlan("customSupplierRules")}. Saving a new version of a profile and activating one are both refused below that plan; reading the versions you already have is not, so a workspace that downgrades can still see what its suppliers enforce. ProcuLink's **built-in checks** are separate and are on every plan, Pilot included — see below.
+
+Validation rules are the checks *you* set for a supplier, on top of the built-in ones. They live on **each supplier's Validation rules tab** — open **Partners**, pick a supplier, then **Validation rules**. That is the only place a rule of your own is set.
+
+## What runs without any rules of your own
+
+On every plan, and with no acceptance profile configured at all, ProcuLink checks every order it validates:
+
+- the order carries a **PO number** and a **currency**,
+- every line has a **quantity greater than zero**,
+- every line has a **unit price that is not negative** — a price of exactly zero is flagged as a warning ("confirm this is intentional") rather than treated as an error, because a genuinely free line has to be able to go out.
+
+A second set runs immediately before an order is transformed, and holds it back rather than emitting a broken document: a line still flagged for review, a line whose supplier item code is unresolved, a missing buyer item code on the formats that make it mandatory (EDIFACT ORDERS and X12 850), a negative unit price, and a quantity of zero or less.
+
+None of this needs setting up and none of it can be switched off. Everything below is what you add on top.
 
 ## Setting up checks for a supplier
 
