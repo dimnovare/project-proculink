@@ -273,13 +273,15 @@ describe("supplier-limit banner — selected by code, never by the word 'supplie
   });
 
   it("an_order_limit_429_mentioning_a_supplier_stays_an_order_limit", async () => {
-    // The other direction: the code is authoritative even when the payload carries a
-    // supplier name alongside it. Substring matching read this as a supplier cap.
+    // The other direction, and the supplier name has to be INSIDE `error` for this to
+    // mean anything: `error` is the only field the classifier reads, so a supplier name
+    // in a sibling key was never scanned and this test would stay green against the
+    // defect — a control that exercises nothing. Prose here, not a code, which is the
+    // shape a supplier-scoped quota message would really take.
     const banner = await refuseWith({
-      error: "order_limit_reached",
+      error: "Order limit reached for supplier BoltWorks BV.",
       plan: "growth",
       limit: 150,
-      supplier: "BoltWorks BV",
     });
 
     expect(banner.textContent).toContain("You've reached your plan's order limit.");
