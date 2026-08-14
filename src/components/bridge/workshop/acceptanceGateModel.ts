@@ -225,6 +225,7 @@ export const UNVERIFIED_ORDER_NOTE =
  * read it. Noun-free, because a fallback has no direction to route.
  */
 export const READY_BAR_DEFAULT = `No open issues. ${CHECK_SCOPE_SENTENCE}.`;
+/**
  * Tooltip for WorkshopStatusBar's zero-blocker summary chip ("No issues" /
  * "N optional").
  *
