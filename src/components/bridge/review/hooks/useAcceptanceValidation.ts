@@ -16,6 +16,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { validateOrder } from "@/lib/api-client";
 import type { OrderValidationResult } from "@/types/procurement";
+import { outcomeIsOpenIssue } from "@/lib/validationOutcomeManifest";
 
 const REVALIDATE_DEBOUNCE_MS = 800;
 
@@ -77,8 +78,13 @@ export function useAcceptanceValidation(orderId: string, opts?: {
   // An explicit validate() result wins (it is the freshest, most specific answer);
   // otherwise fall back to the live server-side blocking count so the dialog
   // reflects what the gate will actually do.
+  //
+  // Counted from the rows that are actually open issues, not from "everything that is
+  // not a pass": a rule the backend reported it COULD NOT RUN is neither, and calling it
+  // a failing rule in the confirm dialog would be the same false claim as calling it a
+  // pass, only pointing the other way.
   const failingRuleCount = validationResult
-    ? (validationResult.passed ? 0 : validationResult.results.filter(r => !r.passed).length)
+    ? (validationResult.passed ? 0 : validationResult.results.filter(r => outcomeIsOpenIssue(r.outcome)).length)
     : (opts?.serverFailingCount ?? 0);
 
   return {

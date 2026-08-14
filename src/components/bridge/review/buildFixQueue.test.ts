@@ -7,6 +7,7 @@ import { describe, it, expect } from "vitest";
 import { buildFixQueue, openCardCount, adjacentOpenKey, bulkAcceptStats, bulkAcceptDisabledReason, type FixQueueCard } from "./buildFixQueue";
 import { shouldRequireConfirmCheckbox } from "./confirmPolicy";
 import type { Order, OrderLine, OrderValidationResult, AcceptanceRule } from "@/types/procurement";
+import type { ValidationOutcome } from "@/lib/validationOutcomeManifest";
 
 // ── Factories ────────────────────────────────────────────────────────────────
 
@@ -50,18 +51,25 @@ const rule = (fieldPath: string): AcceptanceRule => ({
 });
 
 function makeValidation(
-  failures: Array<{ fieldPath: string; lineNumber?: number; severity?: "error" | "warning"; passed?: boolean }>,
+  failures: Array<{
+    fieldPath: string;
+    lineNumber?: number;
+    severity?: "error" | "warning";
+    /** Defaults to "fail" — every caller below that omits it is describing a failure. */
+    outcome?: ValidationOutcome;
+  }>,
 ): OrderValidationResult {
+  const results = failures.map(f => ({
+    rule: rule(f.fieldPath),
+    outcome: f.outcome ?? ("fail" as ValidationOutcome),
+    message: `msg ${f.fieldPath}`,
+    lineNumber: f.lineNumber,
+    severity: f.severity ?? ("error" as const),
+  }));
   return {
     orderId: "ord-test",
-    passed: failures.every(f => f.passed === true),
-    results: failures.map(f => ({
-      rule: rule(f.fieldPath),
-      passed: f.passed ?? false,
-      message: `msg ${f.fieldPath}`,
-      lineNumber: f.lineNumber,
-      severity: f.severity ?? "error",
-    })),
+    passed: results.length > 0 && results.every(r => r.outcome === "pass"),
+    results,
   };
 }
 
@@ -86,13 +94,13 @@ describe("buildFixQueue — blocker coverage (G3)", () => {
     const validation = makeValidation([
       { fieldPath: "Header.Currency" },                    // header-level failure
       { fieldPath: "Lines[].Quantity", lineNumber: 2 },    // line-level failure
-      { fieldPath: "Header.PoNumber", passed: true },      // passed — NOT a card
+      { fieldPath: "Header.PoNumber", outcome: "pass" },  // passed — NOT a card
     ]);
 
     const queue = buildFixQueue(order, validation);
 
     const needsReview = order.lines.filter(l => l.needsReview).length;          // 3
-    const failingRules = validation.results.filter(r => !r.passed).length;      // 2
+    const failingRules = validation.results.filter(r => r.outcome === "fail").length; // 2
     expect(queue).toHaveLength(needsReview + failingRules);
     expect(openCardCount(queue)).toBe(needsReview + failingRules);
   });
@@ -121,7 +129,7 @@ describe("buildFixQueue — blocker coverage (G3)", () => {
 
   it("emits no cards for a clean, validated order", () => {
     const order = makeOrder([makeLine({ id: "l1", lineNumber: 1, supplierItemCode: "S-1" })]);
-    const validation = makeValidation([{ fieldPath: "Header.Currency", passed: true }]);
+    const validation = makeValidation([{ fieldPath: "Header.Currency", outcome: "pass" }]);
     expect(buildFixQueue(order, validation)).toHaveLength(0);
   });
 });
