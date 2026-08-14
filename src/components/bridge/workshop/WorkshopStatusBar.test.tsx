@@ -1,6 +1,8 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, test, expect, vi, afterEach } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
-import { WorkshopStatusBar, dedupeBlockerChips } from "./WorkshopStatusBar";
+import { WorkshopStatusBar, dedupeBlockerChips, UNKNOWN_CHIP_STYLE } from "./WorkshopStatusBar";
 import type { MapperToolbarState } from "../mapper/MapperWorkbench";
 
 // Radix DropdownMenu (the ⋯ overflow) positions its content with a
@@ -300,5 +302,180 @@ describe("save mappings", () => {
     const btn = screen.getByRole("button", { name: /save mappings/i });
     expect(btn).toHaveProperty("disabled", true);
     expect(btn.getAttribute("title")).toContain("Assign a supplier first");
+  });
+});
+
+/**
+ * The two UNKNOWN states, re-hosted from the mapper's toolbar.
+ *
+ * THE DEFECT. `MapperToolbarState` gained `requiredUnknown` and
+ * `validationUnavailable` so a host could tell "we checked and it's fine" from "we
+ * could not check". This bar read neither. The mapper's own toolbar renders both,
+ * but the workshop passes `hideToolbar`, so on the order review screen the two
+ * states had no surface at all: at `requiredUnmapped: 0` the bar printed nothing,
+ * which reads as a clean order, and the amber count beside it was a partial number
+ * presented as a whole one.
+ */
+describe("WorkshopStatusBar — 'we could not check' is not 'we checked'", () => {
+  test("requiredUnknown > 0 → the neutral chip appears, in the mapper's own words", () => {
+    render(
+      <WorkshopStatusBar
+        blockers={[]}
+        onJump={vi.fn()}
+        mapper={mapperState({ requiredUnmapped: 0, requiredUnknown: 3 })}
+      />,
+    );
+    const chip = screen.getByTestId("status-bar-required-unknown");
+    expect(chip.textContent).toBe("Required fields not checked yet");
+    // The amber "N fields need a source" chip is absent at requiredUnmapped 0 — so
+    // before this chip existed, the bar's whole answer to an unevaluated order was
+    // silence. That silence is the regression; assert it is gone.
+    expect(screen.queryByText(/fields? needs? a source/)).toBeNull();
+  });
+
+  test("validationUnavailable → the neutral chip appears, in the mapper's own words", () => {
+    render(
+      <WorkshopStatusBar
+        blockers={[]}
+        onJump={vi.fn()}
+        mapper={mapperState({ validationUnavailable: true })}
+      />,
+    );
+    expect(screen.getByTestId("status-bar-validation-unavailable").textContent)
+      .toBe("Validation checks unavailable");
+  });
+
+  // ANTI-VACUITY. Without this the two tests above would still pass if the chips
+  // rendered unconditionally, which would be a worse defect than the one being fixed.
+  test("checked-and-clean → NEITHER chip renders", () => {
+    render(
+      <WorkshopStatusBar
+        blockers={[]}
+        onJump={vi.fn()}
+        mapper={mapperState({ requiredUnmapped: 0, requiredUnknown: 0, validationUnavailable: false })}
+      />,
+    );
+    expect(screen.queryByTestId("status-bar-required-unknown")).toBeNull();
+    expect(screen.queryByTestId("status-bar-validation-unavailable")).toBeNull();
+  });
+
+  // The fields are OPTIONAL on MapperToolbarState, so every host that predates them
+  // publishes a state with both absent. Absent must behave exactly like clean, not
+  // like unknown — an undefined that rendered the chip would put "not checked yet"
+  // on every order in every other host of this bar.
+  test("a toolbar state that omits both fields renders neither chip", () => {
+    render(<WorkshopStatusBar blockers={[]} onJump={vi.fn()} mapper={mapperState()} />);
+    expect(screen.queryByTestId("status-bar-required-unknown")).toBeNull();
+    expect(screen.queryByTestId("status-bar-validation-unavailable")).toBeNull();
+  });
+
+  test("a partly-evaluated order shows BOTH the amber count and the unknown chip", () => {
+    render(
+      <WorkshopStatusBar
+        blockers={[]}
+        onJump={vi.fn()}
+        mapper={mapperState({ requiredUnmapped: 2, requiredUnknown: 5 })}
+      />,
+    );
+    // The amber chip still states what IS known…
+    expect(screen.getByText(/2 fields need a source/)).toBeTruthy();
+    // …and the neutral chip beside it is what says the 2 is not the whole answer.
+    expect(screen.getByTestId("status-bar-required-unknown")).toBeTruthy();
+  });
+
+  /**
+   * Amber is a FINDING. These two are the ABSENCE of one, and the moment they are
+   * drawn amber they read as "we checked and it's bad" — the same conflation the
+   * fields were added to break.
+   *
+   * Asserted on the exported style OBJECT, not on the rendered node. jsdom's
+   * cssstyle drops every `var()` value from a typed property, so both chips report
+   * `style.color === ""` in this environment and a DOM-level colour assertion would
+   * pass no matter what colour was written. This one can fail.
+   */
+  test("the shared chip face is neutral tokens, with no amber anywhere in it", () => {
+    expect(UNKNOWN_CHIP_STYLE.color).toBe("var(--ink-muted)");
+    expect(UNKNOWN_CHIP_STYLE.background).toBe("var(--surface-2)");
+    expect(UNKNOWN_CHIP_STYLE.border).toBe("1px solid var(--border)");
+    // Catches a re-tint written any of the three ways this repo writes amber.
+    const written = JSON.stringify(UNKNOWN_CHIP_STYLE).toLowerCase();
+    for (const amberish of ["amber", "#fff7e6", "#faefd6", "#f1e2be", "#8a5310", "#c97a14"]) {
+      expect(written).not.toContain(amberish);
+    }
+  });
+
+  // …and both chips really wear that one face, rather than a private copy that the
+  // test above would never see.
+  test("both chips render the SAME face, and it is not the amber chip's", () => {
+    render(
+      <WorkshopStatusBar
+        blockers={[]}
+        onJump={vi.fn()}
+        mapper={mapperState({ requiredUnmapped: 1, requiredUnknown: 4, validationUnavailable: true })}
+      />,
+    );
+    const unknown = screen.getByTestId("status-bar-required-unknown").getAttribute("style");
+    const unavailable = screen.getByTestId("status-bar-validation-unavailable").getAttribute("style");
+    expect(unknown).toBe(unavailable);
+
+    // The amber chip's soft background is a literal hex, so it survives jsdom and
+    // stays a real discriminator: the neutral chips must not carry it.
+    const amber = screen.getByText(/1 field needs a source/).getAttribute("style") ?? "";
+    expect(amber).toContain("rgb(255, 247, 230)");
+    expect(unknown).not.toContain("rgb(255, 247, 230)");
+  });
+
+  /**
+   * COPY PARITY. Both hosts render these two states, and an operator who sees the
+   * mapper's toolbar on one screen and this bar on another must read the same words.
+   * Derived from MapperWorkbench's source rather than restated here, because a
+   * second hand-typed copy of a string is how the two hosts drift apart in the first
+   * place. One file read — deliberately not a tree walk.
+   */
+  test("the chip labels are byte-identical to the mapper's own", () => {
+    const mapperSrc = readFileSync(
+      join(process.cwd(), "src/components/bridge/mapper/MapperWorkbench.tsx"),
+      "utf8",
+    );
+    render(
+      <WorkshopStatusBar
+        blockers={[]}
+        onJump={vi.fn()}
+        mapper={mapperState({ requiredUnknown: 1, validationUnavailable: true })}
+      />,
+    );
+    for (const id of ["status-bar-required-unknown", "status-bar-validation-unavailable"]) {
+      const label = screen.getByTestId(id).textContent ?? "";
+      expect(label.length).toBeGreaterThan(0);
+      expect(mapperSrc).toContain(label);
+    }
+  });
+
+  /**
+   * The tooltips deliberately do NOT match the mapper's, and this pins why.
+   *
+   * The mapper's two tooltips both end "Sending is paused until…", which is true in
+   * that host — MapperWorkbench's `canDeliver` reads both fields. `OrderWorkshop`'s
+   * `canSend` is `blockingIssues === 0 && exceptionCount === 0` and reads neither,
+   * so this bar cannot promise a pause its host does not perform. If the workshop's
+   * send gate is ever taught to read these fields, delete this test and take the
+   * mapper's sentence.
+   */
+  test("neither tooltip claims sending is paused — this host's gate does not read these fields", () => {
+    render(
+      <WorkshopStatusBar
+        blockers={[]}
+        onJump={vi.fn()}
+        mapper={mapperState({ requiredUnknown: 1, validationUnavailable: true })}
+      />,
+    );
+    const unknown = screen.getByTestId("status-bar-required-unknown").getAttribute("title") ?? "";
+    const unavailable = screen.getByTestId("status-bar-validation-unavailable").getAttribute("title") ?? "";
+    // The true half is kept word-for-word from the mapper…
+    expect(unknown).toContain("we can't tell whether the required fields have a source");
+    expect(unavailable).toContain("we can't confirm it's ready");
+    // …and the claim this host cannot support is not made.
+    expect(unknown).not.toMatch(/sending is paused/i);
+    expect(unavailable).not.toMatch(/sending is paused/i);
   });
 });

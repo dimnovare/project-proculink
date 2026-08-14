@@ -12,7 +12,7 @@
 // Layout: [ red blockers segment — only as wide as its content, absent at zero
 // blockers ][ white segment: mapped chip · save state · stepper · ⋯ overflow ].
 
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { useMemo } from "react";
 import {
   DropdownMenu,
@@ -46,6 +46,28 @@ export function dedupeBlockerChips(
   }
   return [...byName.values()];
 }
+
+/**
+ * The ONE neutral face for "we could not check", shared by both unknown-state chips.
+ *
+ * Tokens rather than this file's neighbouring raw hex, because these are literally the
+ * same two chips the mapper's own toolbar draws (MapperWorkbench.tsx) and the two hosts
+ * must not diverge into two greys. `--ink-muted` on `--surface-2` measures 5.12:1 —
+ * AA at this 10.5px bold. The values are deliberately NOT restated here as hex: the
+ * design-token gate counts hex in comments too, and a contrast note is not a reason to
+ * grow this file's debt baseline. `whiteSpace` is the one addition to the mapper's
+ * version: this bar wraps its chips and every neighbour here carries it.
+ *
+ * EXPORTED for its test. jsdom's cssstyle drops every `var()` value from a typed
+ * property, so a rendered chip reports `style.color === ""` — the one drift worth
+ * guarding against (someone re-tinting these amber) is invisible from the DOM.
+ * Asserting on this object is the only assertion here that can actually fail.
+ */
+export const UNKNOWN_CHIP_STYLE: CSSProperties = {
+  display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10.5, fontWeight: 700,
+  color: "var(--ink-muted)", background: "var(--surface-2)", border: "1px solid var(--border)",
+  borderRadius: 5, padding: "2px 8px", whiteSpace: "nowrap",
+};
 
 function SparkleGlyph() {
   return (
@@ -287,6 +309,44 @@ export function WorkshopStatusBar({
             style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10.5, fontWeight: 700, color: "var(--amber-text)", background: "#FFF7E6", border: "1px solid #F1E2BE", borderRadius: 5, padding: "2px 8px", whiteSpace: "nowrap" }}
           >
             ⚠ {mapper.requiredUnmapped} {mapper.requiredUnmapped === 1 ? "field needs" : "fields need"} a source
+          </span>
+        )}
+        {/* ── The two UNKNOWN states ────────────────────────────────────────────
+            Re-hosted from the mapper's own toolbar for the same reason everything
+            else on this bar is: the workshop passes `hideToolbar`, so that toolbar
+            never renders here and this row is the ONLY place they can appear.
+            Without them this bar printed the amber count above — or, at
+            requiredUnmapped 0, printed nothing — with no way to tell "we checked
+            and it's fine" from "we could not check".
+
+            Deliberately NEUTRAL, not the amber directly above. Amber is a FINDING;
+            these are the absence of one, and drawing them the same colour is how
+            "we couldn't check" starts reading as "we checked and it's bad".
+
+            The chip LABELS are the mapper's verbatim, so the two hosts say the same
+            words. The TOOLTIPS are not, and that is deliberate: the mapper's both end
+            "Sending is paused until…", which is true there — MapperWorkbench's
+            `canDeliver` reads both of these fields — and FALSE here.
+            `OrderWorkshop.canSend` is `blockingIssues === 0 && exceptionCount === 0`
+            and reads neither, so this bar may not promise a pause its host does not
+            perform. Each tooltip keeps the mapper's first sentence word-for-word and
+            drops only the claim this host cannot support. */}
+        {mapper != null && (mapper.requiredUnknown ?? 0) > 0 && (
+          <span
+            data-testid="status-bar-required-unknown"
+            title="This order's values aren't loaded, so we can't tell whether the required fields have a source."
+            style={UNKNOWN_CHIP_STYLE}
+          >
+            Required fields not checked yet
+          </span>
+        )}
+        {mapper?.validationUnavailable && (
+          <span
+            data-testid="status-bar-validation-unavailable"
+            title="We couldn't run the field checks for this order, so we can't confirm it's ready. Reload in a moment to try again."
+            style={UNKNOWN_CHIP_STYLE}
+          >
+            Validation checks unavailable
           </span>
         )}
         {mapper?.aiUnavailable && (
