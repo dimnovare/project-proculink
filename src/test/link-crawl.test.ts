@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { readdirSync, readFileSync, statSync } from "fs";
 import { join, relative } from "path";
 
 import nextConfig from "../../next.config";
@@ -8,6 +7,7 @@ import { GUIDES } from "@/lib/guides";
 import { SECTION_GUIDES } from "@/lib/section-guides";
 import { ROOT, listAppRoutes, matchesAny, normalizePath, isInternalPageLink } from "./appRoutes";
 import { extractLinks, stripComments, syntaxFor } from "./linkExtract";
+import { dirEntries, readSource } from "./sourceCorpus";
 
 /**
  * Zero dead links.
@@ -42,12 +42,12 @@ const NON_PAGE_PATHS = [
 
 function walk(dir: string, test: (file: string) => boolean): string[] {
   const out: string[] = [];
-  for (const entry of readdirSync(dir)) {
-    const full = join(dir, entry);
-    if (statSync(full).isDirectory()) {
-      if (entry === "node_modules") continue;
+  for (const entry of dirEntries(dir)) {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory) {
+      if (entry.name === "node_modules") continue;
       out.push(...walk(full, test));
-    } else if (test(entry)) out.push(full);
+    } else if (test(entry.name)) out.push(full);
   }
   return out;
 }
@@ -95,17 +95,35 @@ function crawlableFiles(...dirs: string[]): string[] {
  */
 const isVerifiablePath = (href: string) => !href.includes("${");
 
+/**
+ * Memoised per file: the src/ sweep and the help-centre sweep overlap, and extraction is the
+ * expensive half — `extractLinks` strips comments and masks literals before any regex runs.
+ */
+const LINKS_IN = new Map<string, Array<{ from: string; href: string }>>();
 function linksIn(file: string): Array<{ from: string; href: string }> {
-  return extractLinks(readFileSync(file, "utf8"), syntaxFor(file)).map((href) => ({
+  const cached = LINKS_IN.get(file);
+  if (cached) return cached;
+
+  const links = extractLinks(readSource(file), syntaxFor(file)).map((href) => ({
     from: relative(ROOT, file).split("\\").join("/"),
     href,
   }));
+  LINKS_IN.set(file, links);
+  return links;
 }
 
+/**
+ * Memoised: `resolves` asks for this once per unresolved link, and re-running next.config's
+ * `redirects()` for each of several hundred links is pure repeat work — the config is static.
+ */
+let REDIRECT_SOURCES: Promise<string[]> | null = null;
 async function redirectSources(): Promise<string[]> {
-  const redirects = (await nextConfig.redirects?.()) ?? [];
-  // Host-conditional redirects (www → apex) are not path retirements.
-  return redirects.filter((r) => !("has" in r && r.has)).map((r) => r.source);
+  REDIRECT_SOURCES ??= (async () => {
+    const redirects = (await nextConfig.redirects?.()) ?? [];
+    // Host-conditional redirects (www → apex) are not path retirements.
+    return redirects.filter((r) => !("has" in r && r.has)).map((r) => r.source);
+  })();
+  return REDIRECT_SOURCES;
 }
 
 async function resolves(path: string): Promise<boolean> {
@@ -126,17 +144,26 @@ async function assertAllResolve(entries: Array<{ from: string; href: string }>) 
 }
 
 describe("link crawl — nothing we ship points at a 404", () => {
+  /**
+   * The src/ sweep, run in the `describe` body rather than inside the assertion.
+   *
+   * Reading and extracting ~290 source files is ~2.5s with the rest of the suite competing for
+   * the machine, against vitest's 5000ms per-test budget — thin enough that this gate failed on
+   * a loaded machine with nothing wrong with it, and the margin only narrows as src/ grows. A
+   * `describe` body is evaluated during collection, which is not measured against that budget.
+   * The corpus is unchanged: same walk, same filters, same extractor.
+   */
+  const files = crawlableFiles(join(ROOT, "src"));
+  const entries = files.flatMap(linksIn);
+  const scanned = new Set(files.map((f) => relative(ROOT, f).split("\\").join("/")));
+
   it("every source file under src/ links only to live pages", async () => {
-    const files = crawlableFiles(join(ROOT, "src"));
     // Floors, so a broken walker or a bad filter cannot pass this vacuously. The first version of
     // this gate read 40-odd files; anything near that number means the widening was undone.
     expect(files.length).toBeGreaterThan(250);
-
-    const entries = files.flatMap(linksIn);
     expect(entries.length).toBeGreaterThan(300);
 
     // The widening is only real if the previously-invisible trees are genuinely in the set.
-    const scanned = new Set(files.map((f) => relative(ROOT, f).split("\\").join("/")));
     expect([...scanned].some((f) => f.startsWith("src/app/(app)/"))).toBe(true);
     expect([...scanned].some((f) => f.startsWith("src/components/bridge/"))).toBe(true);
 

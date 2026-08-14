@@ -95,6 +95,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { stripComments } from "./sourceScan";
+import { dirEntries, readSource, strippedSource } from "./sourceCorpus";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..", "..");
@@ -360,9 +361,9 @@ export function extractApiCalls(text: string, source: string): ApiCall[] {
 }
 
 function walk(dir: string, out: string[] = []): string[] {
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+  for (const entry of dirEntries(dir)) {
     const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) {
+    if (entry.isDirectory) {
       if (entry.name === "node_modules") continue;
       walk(full, out);
     } else out.push(full);
@@ -382,7 +383,7 @@ export function collectApiCalls(): ApiCall[] {
     // real call in the same file and carry no path of their own.
     if (isTestFile(file)) continue;
     if (file.startsWith(path.join(SRC_DIR, "test") + path.sep)) continue;
-    calls.push(...extractApiCalls(fs.readFileSync(file, "utf8"), path.normalize(file)));
+    calls.push(...extractApiCalls(readSource(file), path.normalize(file)));
   }
   return calls;
 }
@@ -489,7 +490,7 @@ export function collectEndpoints(backendRoot: string): Endpoint[] {
   const dir = path.join(backendRoot, CONTROLLERS_REL);
   return walk(dir)
     .filter((f) => f.endsWith(".cs"))
-    .flatMap((f) => parseController(fs.readFileSync(f, "utf8"), f))
+    .flatMap((f) => parseController(readSource(f), f))
     .sort((a, b) => `${a.path} ${a.method}`.localeCompare(`${b.path} ${b.method}`));
 }
 
@@ -788,7 +789,7 @@ describe("the frontend's call corpus", () => {
       if (isTestFile(file)) continue;
       if (file.startsWith(path.join(SRC_DIR, "test") + path.sep)) continue;
 
-      const code = stripComments(fs.readFileSync(file, "utf8"), "js");
+      const code = strippedSource(file, "js");
       if (!API_FETCH_WRAPPER_RE.test(code)) continue;
       wrapperModules++;
       backtickedFragments += [...code.matchAll(BARE_FRAGMENT_RE)].length;

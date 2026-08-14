@@ -122,6 +122,7 @@ import { HUB_TABS, visibleHubTabs, type HubKey } from "@/components/bridge/layou
 import { HELP_ARTICLES } from "@/lib/help-articles";
 import { GUIDES, linkedGuides } from "@/lib/guides";
 import { RETIRED_ROUTES } from "@/lib/retired-routes";
+import { dirEntries, readSource } from "./sourceCorpus";
 
 // ─── Allowlist ────────────────────────────────────────────────────────────────
 //
@@ -266,9 +267,9 @@ const REGISTRY_FILES = new Set(
 );
 
 function walk(dir: string, out: string[] = []): string[] {
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+  for (const entry of dirEntries(dir)) {
     const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) {
+    if (entry.isDirectory) {
       if (entry.name === "node_modules" || entry.name === "__tests__") continue;
       walk(full, out);
     } else {
@@ -484,7 +485,7 @@ export function extractTargets(
 }
 
 function scanFile(file: string, kind: LinkKind, patterns: Pattern[]): LinkTarget[] {
-  return extractTargets(fs.readFileSync(file, "utf8"), kind, file, patterns, syntaxFor(file));
+  return extractTargets(readSource(file), kind, file, patterns, syntaxFor(file));
 }
 
 export function collectLinkTargets(): LinkTarget[] {
@@ -651,7 +652,7 @@ function importsOf(file: string): string[] {
   if (cached) return cached;
   let text: string;
   try {
-    text = fs.readFileSync(file, "utf8");
+    text = readSource(file);
   } catch {
     IMPORTS_CACHE.set(file, []); // a fixture path, not a real file
     return [];
@@ -1023,7 +1024,7 @@ describe("route reachability (plan rule R1 — no new surface without a consumer
     // be, and the supplier Delivery tab test-fires the same endpoint keyed on the
     // protocol actually chosen.
     const readSrc = (rel: string) => {
-      const text = fs.readFileSync(path.join(SRC_DIR, rel), "utf8");
+      const text = readSource(path.join(SRC_DIR, rel));
       expect(text.length, `${rel} is empty — the probe below would pass vacuously`).toBeGreaterThan(1000);
       return text;
     };
@@ -1090,7 +1091,7 @@ describe("route reachability (plan rule R1 — no new surface without a consumer
       .toBeGreaterThan(200);
     const quoted = new RegExp(`["'\`]${DEAD}(?:[/"'\`?]|["'\`])`);
     const offenders = sources
-      .filter((f) => quoted.test(fs.readFileSync(f, "utf8")))
+      .filter((f) => quoted.test(readSource(f)))
       .map((f) => path.relative(ROOT, f).split(path.sep).join("/"));
 
     // ── THE NEGATIVE HALF ────────────────────────────────────────────────────
@@ -1211,7 +1212,7 @@ describe("route reachability (plan rule R1 — no new surface without a consumer
       .toBeGreaterThan(200);
     const quoted = new RegExp(`["'\`]${DEAD}(?:[/"'\`?]|["'\`])`);
     const offenders = sources
-      .filter((f) => quoted.test(fs.readFileSync(f, "utf8")))
+      .filter((f) => quoted.test(readSource(f)))
       .map((f) => path.relative(ROOT, f).split(path.sep).join("/"));
 
     // ── THE NEGATIVE HALF ────────────────────────────────────────────────────

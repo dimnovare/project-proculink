@@ -1,5 +1,4 @@
 import { describe, test, expect } from "vitest";
-import { readdirSync, readFileSync, statSync } from "fs";
 import { join, relative } from "path";
 import { STATUS_LABELS } from "@/components/bridge/UnifiedStatusBadge";
 import { PROBLEM_COPY, PROBLEM_STATUSES } from "@/components/bridge/problem/problemCopy";
@@ -8,6 +7,7 @@ import { recentStatusFromOrder } from "@/components/bridge/UploadWorkbench";
 import { deliveryNote } from "@/components/bridge/ExceptionDetail";
 import { ROOT } from "./appRoutes";
 import { stripComments, syntaxFor } from "./sourceScan";
+import { dirEntries, readSource } from "./sourceCorpus";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // The status-vocabulary gate.
@@ -147,7 +147,7 @@ const ARTICLE_STATUSES = `${HELP}/dashboard-and-statuses/page.mdx`;
 const ARTICLE_EXCEPTIONS = `${HELP}/exceptions-and-stuck-orders/page.mdx`;
 const ARTICLE_INBOX = `${HELP}/inbox-basics/page.mdx`;
 
-const readRaw = (rel: string) => readFileSync(join(ROOT, rel), "utf8");
+const readRaw = (rel: string) => readSource(join(ROOT, rel));
 
 /**
  * A file's RENDERED copy — everything except the help registry's `keywords`
@@ -172,15 +172,15 @@ const read = (rel: string) => readRaw(rel).replace(/keywords:\s*\[[^\]]*\]/g, "k
 function copyBearingFiles(): string[] {
   const out: string[] = [];
   const walk = (dir: string) => {
-    for (const entry of readdirSync(dir)) {
-      const full = join(dir, entry);
-      if (statSync(full).isDirectory()) {
-        if (entry === "mocks" || entry === "node_modules" || entry === "__snapshots__") continue;
+    for (const entry of dirEntries(dir)) {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory) {
+        if (entry.name === "mocks" || entry.name === "node_modules" || entry.name === "__snapshots__") continue;
         walk(full);
         continue;
       }
-      if (!/\.(ts|tsx|mdx)$/.test(entry)) continue;
-      if (/\.(test|spec|stories)\.(ts|tsx)$/.test(entry)) continue;
+      if (!/\.(ts|tsx|mdx)$/.test(entry.name)) continue;
+      if (/\.(test|spec|stories)\.(ts|tsx)$/.test(entry.name)) continue;
       out.push(relative(ROOT, full).replace(/\\/g, "/"));
     }
   };
@@ -465,6 +465,28 @@ describe("a sentence only promises a re-send when the product can re-send", () =
 describe("the retired vocabulary is gone from every surface that renders words", () => {
   const files = copyBearingFiles();
 
+  /**
+   * The corpus, read and comment-stripped ONCE for all nine retired phrases.
+   *
+   * The `test.each` below used to do this inside each case, so all ~330 copy-bearing files
+   * were re-read and re-stripped nine times over — nine identical sweeps producing nine
+   * identical line arrays, ~1.8s of work each on a quiet machine. With three vitest workers
+   * competing for the machine that put a single case over the 5000ms default budget, and the
+   * gate failed as a group with no assertion failure in it.
+   *
+   * Built in the `describe` body, which runs during collection rather than inside a test, so
+   * the first phrase does not pay for the sweep either. NOTHING about the scan narrows: the
+   * same `copyBearingFiles()` list, the same keyword-blanking `read`, the same stripper, and
+   * the per-phrase regex still runs over every line of every file.
+   */
+  const copyLines: Array<{ rel: string; lines: string[] }> = files.map((rel) => ({
+    rel,
+    // Comments are not copy. A comment explaining WHY a word was retired is the most useful
+    // place for it to survive, so stripping is what lets the ban be absolute in the text a
+    // user can actually read.
+    lines: stripComments(read(rel), syntaxFor(rel)).split(/\r?\n/),
+  }));
+
   test.each(OWNED_BY_HELP_COPY_PACKET)(
     "%s is still dirty, so deferring it to FE #75 is still the right call",
     (rel) => {
@@ -491,12 +513,8 @@ describe("the retired vocabulary is gone from every surface that renders words",
 
   test.each(RETIRED_LABELS)("$phrase is nowhere in shipped copy (use $nowUse)", ({ phrase, re, nowUse }) => {
     const hits: string[] = [];
-    for (const rel of files) {
-      // Comments are not copy. A comment explaining WHY a word was retired is
-      // the most useful place for it to survive, so stripping is what lets the
-      // ban be absolute in the text a user can actually read.
-      const code = stripComments(read(rel), syntaxFor(rel));
-      code.split(/\r?\n/).forEach((line, i) => {
+    for (const { rel, lines } of copyLines) {
+      lines.forEach((line, i) => {
         re.lastIndex = 0;
         if (re.test(line)) hits.push(`${rel}:${i + 1}  ${line.trim().slice(0, 110)}`);
       });

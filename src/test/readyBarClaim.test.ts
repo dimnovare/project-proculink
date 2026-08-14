@@ -1,8 +1,7 @@
 import { describe, test, expect } from "vitest";
-import { readFileSync, readdirSync, statSync } from "fs";
 import { join } from "path";
 import { ROOT } from "./appRoutes";
-import { stripComments, syntaxFor } from "./sourceScan";
+import { dirEntries, readSource, strippedSource } from "./sourceCorpus";
 import { readyBarLabel } from "@/components/bridge/workshop/acceptanceGateModel";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -39,11 +38,11 @@ const SRC = join(ROOT, "src");
 const SKIP_DIRS = new Set(["node_modules", ".next", "dist", "build"]);
 
 function walk(dir: string, match: RegExp, out: string[] = []): string[] {
-  for (const entry of readdirSync(dir)) {
-    if (SKIP_DIRS.has(entry)) continue;
-    const full = join(dir, entry);
-    if (statSync(full).isDirectory()) walk(full, match, out);
-    else if (match.test(entry)) out.push(full);
+  for (const entry of dirEntries(dir)) {
+    if (SKIP_DIRS.has(entry.name)) continue;
+    const full = join(dir, entry.name);
+    if (entry.isDirectory) walk(full, match, out);
+    else if (match.test(entry.name)) out.push(full);
   }
   return out;
 }
@@ -51,28 +50,37 @@ function walk(dir: string, match: RegExp, out: string[] = []): string[] {
 const isTestFile = (f: string) => /\.(test|spec)\.[jt]sx?$/.test(f);
 
 describe("the green ready bar's sub-line is produced, never defaulted", () => {
-  test("every production <IssuesPanel> call site passes readyLabel", () => {
-    const files = walk(SRC, /\.tsx$/).filter((f) => !isTestFile(f));
-    expect(files.length, "the walk found no production .tsx files — vacuous").toBeGreaterThan(100);
+  /**
+   * The walk and the extraction, run in the `describe` body rather than inside the assertion.
+   *
+   * Reading and comment-stripping every production .tsx is ~1s with the rest of the suite
+   * competing for the machine, against vitest's 5000ms per-test budget, and src/ only grows. A
+   * `describe` body is evaluated during collection, which is not measured against that budget.
+   * Both floors below still assert on what the walk and the locator actually produced.
+   */
+  const files = walk(SRC, /\.tsx$/).filter((f) => !isTestFile(f));
 
-    // Comments are stripped with the repo's own stripper rather than a second copy
-    // of one: a regex over raw source cannot tell code from a commented-out example,
-    // and four gates once missed a restored defect for exactly that reason.
-    const callSites: Array<{ rel: string; hasProp: boolean }> = [];
-    for (const file of files) {
-      const code = stripComments(readFileSync(file, "utf8"), syntaxFor(file));
-      for (const m of code.matchAll(/<IssuesPanel\b/g)) {
-        // The element's own attribute span: from the tag to its first `>` that is
-        // not inside a nested expression. Bounded so one call site's props can
-        // never be read as another's.
-        const tail = code.slice(m.index, m.index + 1200);
-        const end = tail.indexOf("/>") >= 0 ? tail.indexOf("/>") : tail.indexOf(">");
-        callSites.push({
-          rel: file.slice(ROOT.length + 1),
-          hasProp: /\breadyLabel\s*=/.test(tail.slice(0, end < 0 ? undefined : end)),
-        });
-      }
+  // Comments are stripped with the repo's own stripper rather than a second copy
+  // of one: a regex over raw source cannot tell code from a commented-out example,
+  // and four gates once missed a restored defect for exactly that reason.
+  const callSites: Array<{ rel: string; hasProp: boolean }> = [];
+  for (const file of files) {
+    const code = strippedSource(file);
+    for (const m of code.matchAll(/<IssuesPanel\b/g)) {
+      // The element's own attribute span: from the tag to its first `>` that is
+      // not inside a nested expression. Bounded so one call site's props can
+      // never be read as another's.
+      const tail = code.slice(m.index, m.index + 1200);
+      const end = tail.indexOf("/>") >= 0 ? tail.indexOf("/>") : tail.indexOf(">");
+      callSites.push({
+        rel: file.slice(ROOT.length + 1),
+        hasProp: /\breadyLabel\s*=/.test(tail.slice(0, end < 0 ? undefined : end)),
+      });
     }
+  }
+
+  test("every production <IssuesPanel> call site passes readyLabel", () => {
+    expect(files.length, "the walk found no production .tsx files — vacuous").toBeGreaterThan(100);
 
     // Floor on what was EXTRACTED. With zero call sites the filter below is empty
     // and `toEqual([])` is vacuously true — the exact shape this repo has been
@@ -109,7 +117,7 @@ describe("help guides quote the bar the product actually renders", () => {
     expect(docs.length, "no .md/.mdx found under src — vacuous").toBeGreaterThan(0);
 
     const offenders = docs
-      .filter((f) => readFileSync(f, "utf8").includes(RETIRED_CLAIM))
+      .filter((f) => readSource(f).includes(RETIRED_CLAIM))
       .map((f) => f.slice(ROOT.length + 1));
     expect(
       offenders,
@@ -121,7 +129,7 @@ describe("help guides quote the bar the product actually renders", () => {
     const files = walk(GUIDES, /\.mdx?$/);
     expect(files.length, "no help guides found — vacuous").toBeGreaterThan(0);
 
-    const quoting = files.filter((f) => readFileSync(f, "utf8").includes("Ready to send ·"));
+    const quoting = files.filter((f) => readSource(f).includes("Ready to send ·"));
     // Floor on what MATCHED: with no guide quoting the bar, the loop below proves
     // nothing at all.
     expect(
@@ -132,7 +140,7 @@ describe("help guides quote the bar the product actually renders", () => {
     const wanted = CURRENT_CLAIM.replace(/\s+/g, " ");
     for (const f of quoting) {
       // Guides wrap prose across lines, so compare on collapsed whitespace.
-      const collapsed = readFileSync(f, "utf8").replace(/\s+/g, " ");
+      const collapsed = readSource(f).replace(/\s+/g, " ");
       expect(
         collapsed.includes(wanted),
         `${f.slice(ROOT.length + 1)} quotes the ready bar but not the sentence readyBarLabel produces`,

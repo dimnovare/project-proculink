@@ -153,13 +153,27 @@ const PLACEHOLDER_ATTR = /placeholder="([^"]*)"/g;
 /** A GUID-shaped value is an identifier, not a party name. */
 const GUID_SHAPED = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/**
+ * A line that cannot possibly yield a candidate, so neither extractor is run over it.
+ *
+ * All three patterns the extractors use above — PARTY_FIELD, CXML_IDENTITY_FIELD and
+ * PLACEHOLDER_ATTR — require a quote character in their match, so a line carrying none has no
+ * candidates by construction. This narrows no scan: the corpus, the files and the lines examined
+ * are identical, and the two anti-vacuity floors count what was EXTRACTED rather than what was
+ * read, so a filter that dropped a real candidate would take those counts down with it. Checked
+ * against the whole corpus when it was written: 137k of 186k lines skipped, zero candidates lost.
+ */
+const CANNOT_CARRY_A_VALUE = (line: string) => !line.includes('"');
+
 /** Every party-field value on the line. Shared by detector and floor. */
 export function partyValuesIn(line: string): string[] {
+  if (CANNOT_CARRY_A_VALUE(line)) return [];
   return [...line.matchAll(PARTY_FIELD)].map((m) => m[1]);
 }
 
 /** Every cXML network identity on the line. Shared by detector and floor. */
 export function cxmlIdentitiesIn(line: string): string[] {
+  if (CANNOT_CARRY_A_VALUE(line)) return [];
   const found = [...line.matchAll(CXML_IDENTITY_FIELD)].map((m) => m[1]);
   if (CXML_PLACEHOLDER_LINE.test(line)) {
     found.push(...[...line.matchAll(PLACEHOLDER_ATTR)].map((m) => m[1]));
@@ -189,14 +203,26 @@ const CXML_VIOLATION =
  * Exported so the withholding test can drive it directly.
  */
 export function violationClasses(line: string): string[] {
+  return classesOf(partyValuesIn(line), cxmlIdentitiesIn(line));
+}
+
+/**
+ * The same judgement, over candidates already extracted.
+ *
+ * `sweep` counts the party values and cXML identities on every line for its anti-vacuity
+ * floors and then needed the same two lists again to classify them — so both extractors ran
+ * twice over every line of a ~740-file corpus. This is the one that runs; `violationClasses`
+ * above is the same call with the extraction in front of it, unchanged for its callers.
+ */
+function classesOf(partyValues: string[], cxmlIdentities: string[]): string[] {
   const classes: string[] = [];
-  for (const value of partyValuesIn(line)) {
+  for (const value of partyValues) {
     if (partyTokens(value).some((t) => !APPROVED_PARTY_TOKENS.has(t))) {
       classes.push(PARTY_VIOLATION);
       break;
     }
   }
-  for (const identity of cxmlIdentitiesIn(line)) {
+  for (const identity of cxmlIdentities) {
     const trimmed = identity.trim();
     if (trimmed && !trimmed.toLowerCase().startsWith(APPROVED_CXML_IDENTITY_PREFIX)) {
       classes.push(CXML_VIOLATION);
@@ -238,9 +264,12 @@ function sweep(): Scan {
 
     const lines = bytes.toString("utf8").split("\n");
     for (let i = 0; i < lines.length; i++) {
-      scannedPartyValues += partyValuesIn(lines[i]).length;
-      scannedCxmlIdentities += cxmlIdentitiesIn(lines[i]).length;
-      for (const violationClass of violationClasses(lines[i])) {
+      // Extracted once and used for both the floors and the judgement — see `classesOf`.
+      const partyValues = partyValuesIn(lines[i]);
+      const cxmlIdentities = cxmlIdentitiesIn(lines[i]);
+      scannedPartyValues += partyValues.length;
+      scannedCxmlIdentities += cxmlIdentities.length;
+      for (const violationClass of classesOf(partyValues, cxmlIdentities)) {
         violations.push(`  ${relative}:${i + 1}: ${violationClass}`);
       }
     }
@@ -256,9 +285,25 @@ function sweep(): Scan {
   };
 }
 
+/**
+ * The corpus sweep, run ONCE for both assertions below.
+ *
+ * It used to run inside each of them, so the whole `git ls-files` corpus — ~740 tracked
+ * sources, ~8MB — was enumerated, opened and line-scanned twice per run. That is ~1.8s of
+ * work each on a quiet machine and ~4s with three vitest workers competing, which put a
+ * single assertion over vitest's 5000ms default budget on a loaded machine and failed this
+ * gate with nothing wrong with it.
+ *
+ * Module scope rather than a test body, because collection is not measured against the
+ * per-test budget and the scan is a fixture shared by both assertions, not the thing either
+ * of them is timing. The scan itself is unchanged — same corpus query, same files, same
+ * detectors, same floors.
+ */
+const SCAN = sweep();
+
 describe("counterparty de-identification", () => {
   it("carries no party name or network identity outside the approved placeholder forms", () => {
-    const scan = sweep();
+    const scan = SCAN;
     expect(
       scan.violations,
       "a tracked source file names a party, or a cXML network identity, that this guard "
@@ -277,7 +322,7 @@ describe("counterparty de-identification", () => {
   // the corpus query breaking, the corpus narrowing, the files never being
   // opened, and the extractors themselves matching nothing.
   it("actually reads the source corpus and extracts candidates from it", () => {
-    const scan = sweep();
+    const scan = SCAN;
 
     expect(
       scan.scannedFiles,

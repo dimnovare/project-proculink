@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
+import { dirEntries, readSource } from "./sourceCorpus";
 
 /**
  * WP-28 — emoji may never be used as an icon inside the product UI.
@@ -40,36 +40,47 @@ const ROOT = join(process.cwd(), "src", "components");
 const EMOJI_ICON = new RegExp("\\p{Emoji_Presentation}|\\uFE0F", "u");
 
 function walk(dir: string, out: string[] = []): string[] {
-  for (const entry of readdirSync(dir)) {
-    const full = join(dir, entry);
-    if (statSync(full).isDirectory()) walk(full, out);
-    else if (/\.tsx?$/.test(entry)) out.push(full);
+  for (const entry of dirEntries(dir)) {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory) walk(full, out);
+    else if (/\.tsx?$/.test(entry.name)) out.push(full);
   }
   return out;
 }
 
+/**
+ * The sweep, run at module scope rather than inside the assertion.
+ *
+ * Reading every component source and testing each of its lines against a Unicode property escape
+ * is ~1s with the rest of the suite competing for the machine, against vitest's 5000ms per-test
+ * budget. Module scope is evaluated during collection, which is not measured against that budget,
+ * so the guard cannot fail for being slow — only for finding an emoji. Nothing about the scan
+ * changes: same walk, same files, same regex, same offender line.
+ */
+const OFFENDERS: string[] = (() => {
+  const found: string[] = [];
+  for (const file of walk(ROOT)) {
+    readSource(file)
+      .split(/\r?\n/)
+      .forEach((line, i) => {
+        const hit = line.match(EMOJI_ICON);
+        if (!hit) return;
+        const cp = hit[0].codePointAt(0)!.toString(16).toUpperCase().padStart(4, "0");
+        found.push(
+          `${relative(process.cwd(), file).replace(/\\/g, "/")}:${i + 1}  U+${cp}  ${line.trim().slice(0, 100)}`,
+        );
+      });
+  }
+  return found;
+})();
+
 describe("no emoji used as an icon in src/components", () => {
   it("finds no colour-by-default emoji in any component source", () => {
-    const offenders: string[] = [];
-
-    for (const file of walk(ROOT)) {
-      readFileSync(file, "utf8")
-        .split(/\r?\n/)
-        .forEach((line, i) => {
-          const hit = line.match(EMOJI_ICON);
-          if (!hit) return;
-          const cp = hit[0].codePointAt(0)!.toString(16).toUpperCase().padStart(4, "0");
-          offenders.push(
-            `${relative(process.cwd(), file).replace(/\\/g, "/")}:${i + 1}  U+${cp}  ${line.trim().slice(0, 100)}`,
-          );
-        });
-    }
-
     expect(
-      offenders,
+      OFFENDERS,
       "Emoji used as an icon. Use an SVG glyph or a CSS shape from the system's " +
         "construction language instead (MarkSystem / CheckGlyph / WarnGlyph / the 6px badge dot):\n" +
-        offenders.join("\n"),
+        OFFENDERS.join("\n"),
     ).toEqual([]);
   });
 });

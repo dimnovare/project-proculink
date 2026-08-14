@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join, sep } from "node:path";
 import { stripComments } from "./sourceScan";
+import { dirEntries, strippedSource } from "./sourceCorpus";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // THE DIRECTION THE NEXT INSTANCE COMES FROM.
@@ -41,9 +42,9 @@ const COUNT_FIELD_RE = /\.(totalCount|sampleCount|sampleTotal)\b/g;
 const SKIP_DIRS = new Set(["__tests__", "test", "mocks", "node_modules"]);
 
 function productionSources(dir: string, acc: string[] = []): string[] {
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+  for (const entry of dirEntries(dir)) {
     const full = join(dir, entry.name);
-    if (entry.isDirectory()) {
+    if (entry.isDirectory) {
       if (!SKIP_DIRS.has(entry.name)) productionSources(full, acc);
       continue;
     }
@@ -77,6 +78,22 @@ const DECLARED: Record<string, { reads: number; why: string }> = {
 describe("which population a count describes is declared, not assumed", () => {
   const files = productionSources(SRC);
 
+  /**
+   * The sweep, run ONCE here rather than inside the assertion below.
+   *
+   * A `describe` body is evaluated during collection, so this is the same place `files` is
+   * already built and it is not measured against vitest's 5000ms per-test budget. That
+   * matters: reading and comment-stripping ~390 production sources is ~1.8s on a quiet
+   * machine and ~4s with three workers competing, which is how this assertion came to fail
+   * on a loaded machine with nothing wrong with it. Nothing about WHAT is scanned changes —
+   * the same files, the same stripper, the same regex.
+   */
+  const found: Record<string, number> = {};
+  for (const file of files) {
+    const matches = strippedSource(file, "js").match(COUNT_FIELD_RE);
+    if (matches) found[rel(file)] = matches.length;
+  }
+
   it("scans a real corpus", () => {
     // ANTI-VACUITY. Every assertion below is satisfied for free by an empty file list —
     // a bad glob, a renamed directory, a `readdirSync` that threw and was swallowed — and
@@ -87,12 +104,6 @@ describe("which population a count describes is declared, not assumed", () => {
   });
 
   it("no production module reads an orders envelope's count fields for itself", () => {
-    const found: Record<string, number> = {};
-    for (const file of files) {
-      const matches = stripComments(readFileSync(file, "utf8")).match(COUNT_FIELD_RE);
-      if (matches) found[rel(file)] = matches.length;
-    }
-
     const undeclared = Object.entries(found).filter(([path]) => !(path in DECLARED));
     expect(
       undeclared,

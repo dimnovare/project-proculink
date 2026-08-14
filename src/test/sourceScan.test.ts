@@ -1,4 +1,3 @@
-import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -9,6 +8,49 @@ import {
   NAV_CALL_OR_NEW_URL_ANCHOR,
   stripComments,
 } from "./sourceScan";
+import { dirEntries, readSource } from "./sourceCorpus";
+
+/**
+ * Every `.ts` / `.tsx` / `.mjs` / `.js` file under src/ and scripts/, with its text — read ONCE,
+ * for both "declared exactly once" sweeps below.
+ *
+ * Each of those used to walk and read the whole tree itself, inside its own test body: ~800ms of
+ * I/O apiece on a quiet machine, several seconds with three vitest workers competing. That is why
+ * both carried an explicit `20_000` timeout — and one of them blew even that (22.7s on a contended
+ * full-suite run), taking the suite red with no assertion failure in it. A bigger number was never
+ * going to hold, because the tree only grows.
+ *
+ * Built at module scope, which vitest evaluates during collection and does not measure against a
+ * per-test budget. The corpus is unchanged: same two roots, same skip list, same extensions.
+ */
+const REPO_ROOT = path.resolve(__dirname, "..", "..");
+const SWEEP_SKIP = new Set([
+  "node_modules",
+  ".next",
+  ".git",
+  ".claude",
+  "playwright-report",
+  "test-results",
+]);
+
+const REPO_SOURCES: Array<{ rel: string; text: string }> = (() => {
+  const out: Array<{ rel: string; text: string }> = [];
+  const walk = (dir: string) => {
+    for (const entry of dirEntries(dir)) {
+      if (SWEEP_SKIP.has(entry.name)) continue;
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory) {
+        walk(full);
+        continue;
+      }
+      if (!/\.(ts|tsx|mjs|js)$/.test(entry.name)) continue;
+      out.push({ rel: path.relative(REPO_ROOT, full).replace(/\\/g, "/"), text: readSource(full) });
+    }
+  };
+  walk(path.join(REPO_ROOT, "src"));
+  walk(path.join(REPO_ROOT, "scripts"));
+  return out;
+})();
 
 /**
  * The shared source-scanning module (./sourceScan) is exercised end to end by BOTH guards that
@@ -117,45 +159,23 @@ describe("sourceScan — what the .mjs boundary must not cost", () => {
    * comment-strippers (visibleSpansTsx, tsxScanner) — out of scope here, and not matched.
    */
   it("defines each reading primitive exactly once in the repo", () => {
-    const repoRoot = path.resolve(__dirname, "..", "..");
-    const SKIP = new Set([
-      "node_modules",
-      ".next",
-      ".git",
-      ".claude",
-      "playwright-report",
-      "test-results",
-    ]);
     const FNS = ["stripComments", "maskLiterals", "readLiteral"] as const;
 
-    // Read each file ONCE and test all three names against it. Reading per-name instead
-    // tripled the I/O and pushed this past vitest's 5s default under full-suite load.
+    // Test all three names against each file's text. Reading per-name instead tripled the
+    // I/O and pushed this past vitest's 5s default under full-suite load; the reading now
+    // happens once at module scope, for this sweep and the vocabulary one below.
     const definers: Record<string, string[]> = { stripComments: [], maskLiterals: [], readLiteral: [] };
-    const walk = (dir: string) => {
-      for (const entry of readdirSync(dir)) {
-        if (SKIP.has(entry)) continue;
-        const full = path.join(dir, entry);
-        if (statSync(full).isDirectory()) {
-          walk(full);
-          continue;
-        }
-        if (!/\.(ts|tsx|mjs|js)$/.test(entry)) continue;
-        const text = readFileSync(full, "utf8");
-        if (!text.includes("function ")) continue;
-        for (const fn of FNS) {
-          if (new RegExp(String.raw`function\s+${fn}\s*\(`).test(text)) {
-            definers[fn].push(path.relative(repoRoot, full).replace(/\\/g, "/"));
-          }
-        }
+    for (const { rel, text } of REPO_SOURCES) {
+      if (!text.includes("function ")) continue;
+      for (const fn of FNS) {
+        if (new RegExp(String.raw`function\s+${fn}\s*\(`).test(text)) definers[fn].push(rel);
       }
-    };
-    walk(path.join(repoRoot, "src"));
-    walk(path.join(repoRoot, "scripts"));
+    }
 
     for (const fn of FNS) {
       expect(definers[fn], fn).toEqual(["scripts/lib/sourceScan.mjs"]);
     }
-  }, 20_000);
+  });
 
   /**
    * ONE VOCABULARY, TWO CONSUMERS, TWO LANGUAGES.
@@ -175,34 +195,20 @@ describe("sourceScan — what the .mjs boundary must not cost", () => {
    * so importing the list (which both consumers do) is not mistaken for redefining it.
    */
   it("declares each copy-vocabulary tier exactly once in the repo", () => {
-    const repoRoot = path.resolve(__dirname, "..", "..");
-    const SKIP = new Set(["node_modules", ".next", ".git", ".claude", "playwright-report", "test-results"]);
     const TIERS = ["METAPHOR", "JARGON", "GLOSS"] as const;
 
     const definers: Record<string, string[]> = { METAPHOR: [], JARGON: [], GLOSS: [] };
-    const walk = (dir: string) => {
-      for (const entry of readdirSync(dir)) {
-        if (SKIP.has(entry)) continue;
-        const full = path.join(dir, entry);
-        if (statSync(full).isDirectory()) {
-          walk(full);
-          continue;
-        }
-        if (!/\.(ts|tsx|mjs|js)$/.test(entry)) continue;
-        const text = readFileSync(full, "utf8");
-        if (!text.includes("const ")) continue;
-        for (const tier of TIERS) {
-          if (new RegExp(String.raw`(?:^|\n)\s*(?:export\s+)?const\s+${tier}\s*=`).test(text)) {
-            definers[tier].push(path.relative(repoRoot, full).replace(/\\/g, "/"));
-          }
+    for (const { rel, text } of REPO_SOURCES) {
+      if (!text.includes("const ")) continue;
+      for (const tier of TIERS) {
+        if (new RegExp(String.raw`(?:^|\n)\s*(?:export\s+)?const\s+${tier}\s*=`).test(text)) {
+          definers[tier].push(rel);
         }
       }
-    };
-    walk(path.join(repoRoot, "src"));
-    walk(path.join(repoRoot, "scripts"));
+    }
 
     for (const tier of TIERS) {
       expect(definers[tier], tier).toEqual(["scripts/lib/vocabularyTerms.mjs"]);
     }
-  }, 20_000);
+  });
 });
