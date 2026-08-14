@@ -89,11 +89,17 @@ export interface FieldSuggestion {
   canonicalField: string;
   /** Best source column for this field, or null when nothing matched. */
   suggestedColumn: string | null;
-  /** 0..1 match confidence. */
-  confidence: number;
+  /** 0..1 match confidence, or null when the payload carried no usable number. */
+  confidence: number | null;
   /** Why this column was chosen — surfaced on hover. */
   reason: string;
-  /** Origin of the suggestion: "ai" | "exact" | "heuristic" | … */
+  /**
+   * Origin of the suggestion: "ai" | "exact" | "heuristic" | "unknown" | …
+   *
+   * `isModelSuggestion` (PoMappingEditor) tests this for exactly `"ai"` to decide whether the
+   * violet AI treatment and the "AI confidence" label are allowed, so an unrecognised value must
+   * fall on the NOT-a-model side. It defaults to `"unknown"`, never to `"ai"`.
+   */
   source: string;
 }
 
@@ -206,8 +212,31 @@ export function heuristicSuggestFields(columns: string[]): FieldSuggestion[] {
   });
 }
 
-/** Normalize an unknown backend payload into FieldSuggestion[]. */
-function coerceSuggestions(data: unknown): FieldSuggestion[] | null {
+/**
+ * A confidence from an untrusted payload, or null when there isn't one.
+ *
+ * Only a finite number in [0, 1] counts. Anything else — absent, a string that won't parse, NaN,
+ * out of range — is an absence of evidence and must stay one.
+ */
+function coerceConfidence(raw: unknown): number | null {
+  // Only a number, or a string that is one. NOT a bare `Number(raw)`: `Number(null)`, `Number("")`
+  // and `Number([])` are all 0 — so an explicitly null confidence would coerce to a hard 0%, which
+  // is the very substitution this is here to prevent. (Caught by its own test, not by review.)
+  let n: number;
+  if (typeof raw === "number") n = raw;
+  else if (typeof raw === "string" && raw.trim() !== "") n = Number(raw);
+  else return null;
+
+  return Number.isFinite(n) && n >= 0 && n <= 1 ? n : null;
+}
+
+/**
+ * Normalize an unknown backend payload into FieldSuggestion[].
+ *
+ * Exported for testing: its two defaults decide whether the UI makes an AI claim, and both used
+ * to invent one from an absent field. Nothing else imports it.
+ */
+export function coerceSuggestions(data: unknown): FieldSuggestion[] | null {
   if (!Array.isArray(data)) return null;
   return data
     .map((d) => {
@@ -215,9 +244,17 @@ function coerceSuggestions(data: unknown): FieldSuggestion[] | null {
       return {
         canonicalField: String(o.canonicalField ?? ""),
         suggestedColumn: o.suggestedColumn == null ? null : String(o.suggestedColumn),
-        confidence: typeof o.confidence === "number" ? o.confidence : Number(o.confidence) || 0,
+        // Absent or unparseable → null, not 0. `|| 0` turned "the payload said nothing" into a
+        // confident 0%, which the confidence ramp paints RED — a stronger claim than the missing
+        // number ever made.
+        confidence: coerceConfidence(o.confidence),
         reason: String(o.reason ?? ""),
-        source: String(o.source ?? "ai"),
+        // NOT `?? "ai"`. A response that omits `source` says nothing about what produced the
+        // suggestion, and defaulting that silence to "ai" was enough on its own to switch on the
+        // violet AI card and the "AI confidence" chip — a fabricated attribution from a missing
+        // field. "unknown" is the truthful default and, because `isModelSuggestion` tests for
+        // exactly "ai", it lands on the safe side.
+        source: String(o.source ?? "unknown"),
       };
     })
     .filter((s) => s.canonicalField);

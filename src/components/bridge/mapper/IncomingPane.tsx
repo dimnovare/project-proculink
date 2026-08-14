@@ -556,7 +556,10 @@ function IncomingRow({
           configured fact, not a probability, so it gets a neutral marker instead — the endpoint
           used to send a hard-coded 0.95 for those and this slot printed "AI confidence 95%". */}
       {confidenceDisplay === "score" && confidence != null && (
-        <ConfidenceChip value={confidence} sm label="AI confidence" />
+        // `confidenceDisplay === "score"` is already derived from the suggestion's basis, so this
+        // branch is model-only. Stated explicitly because ConfidenceChip now requires the evidence
+        // rather than taking the label's word for it.
+        <ConfidenceChip value={confidence} sm label="AI confidence" basis="model" />
       )}
       {savedMapping && (
         <span

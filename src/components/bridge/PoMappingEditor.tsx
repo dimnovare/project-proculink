@@ -63,7 +63,11 @@ const DANGER     = "#B43838";
 // corrections without a visible accept step" among the things this product
 // refuses to build, and an `AUTO_ACCEPT_THRESHOLD = 0.85` here did exactly that
 // on mount, then rendered the result as a green "100%" (see `scoreForColumn`).
-const ADOPT_THRESHOLD       = 0.50; // minimum confidence to surface as a pending suggestion
+// Minimum confidence to surface as a pending suggestion. Compared as `(confidence ?? 0)`: a
+// suggestion nothing scored cannot clear a confidence threshold, so it is not auto-surfaced for
+// one-click adoption. Deliberately the conservative direction — the same call the backend makes
+// for an unscored suggestion at bulk-accept time.
+const ADOPT_THRESHOLD       = 0.50;
 
 // ─── Canonical field model ────────────────────────────────────────────────────
 type Section = "header" | "lines";
@@ -156,6 +160,9 @@ export function scoreForColumn(
   column: string | null | undefined,
 ): number | null {
   if (!column || !sug || sug.suggestedColumn !== column) return null;
+  // Nothing scored it → no score. `FieldSuggestion.confidence` is nullable because a payload can
+  // omit it, and the old coercion turned that silence into a hard 0.
+  if (sug.confidence == null) return null;
   return Math.round(sug.confidence * 100);
 }
 
@@ -280,7 +287,7 @@ export function PoMappingEditor({
       const accColumn = accepted.get(f.canonical);
       const sug = suggestionByField[f.canonical];
       const pendColumn =
-        !accColumn && !rejected.has(f.canonical) && sug?.suggestedColumn && sug.confidence >= ADOPT_THRESHOLD
+        !accColumn && !rejected.has(f.canonical) && sug?.suggestedColumn && (sug.confidence ?? 0) >= ADOPT_THRESHOLD
           ? sug.suggestedColumn
           : null;
       const colName = accColumn ?? pendColumn;
@@ -350,7 +357,7 @@ export function PoMappingEditor({
     for (const sug of suggestQuery.data ?? []) {
       if (
         sug.suggestedColumn &&
-        sug.confidence >= ADOPT_THRESHOLD &&
+        (sug.confidence ?? 0) >= ADOPT_THRESHOLD &&
         !rejected.has(sug.canonicalField)
       ) {
         if (!next.has(sug.canonicalField)) count++;
@@ -473,7 +480,7 @@ export function PoMappingEditor({
   const pendingSuggestions = (suggestQuery.data ?? []).filter(
     (s) =>
       s.suggestedColumn &&
-      s.confidence >= ADOPT_THRESHOLD &&
+      (s.confidence ?? 0) >= ADOPT_THRESHOLD &&
       !rejected.has(s.canonicalField) &&
       accepted.get(s.canonicalField) !== s.suggestedColumn,
   );
@@ -487,7 +494,7 @@ export function PoMappingEditor({
     const accValues = new Set(accepted.values());
     const sugColumns = new Set(
       (suggestQuery.data ?? [])
-        .filter((s) => s.suggestedColumn && s.confidence >= ADOPT_THRESHOLD)
+        .filter((s) => s.suggestedColumn && (s.confidence ?? 0) >= ADOPT_THRESHOLD)
         .map((s) => s.suggestedColumn as string),
     );
     return detectedColumns.map((name) => ({
@@ -919,7 +926,7 @@ export function PoMappingEditor({
               const accColumn  = accepted.get(f.canonical);
               const sug        = suggestionByField[f.canonical];
               const pendColumn =
-                !accColumn && !rejected.has(f.canonical) && sug?.suggestedColumn && sug.confidence >= ADOPT_THRESHOLD
+                !accColumn && !rejected.has(f.canonical) && sug?.suggestedColumn && (sug.confidence ?? 0) >= ADOPT_THRESHOLD
                   ? sug.suggestedColumn
                   : null;
               const isAcc     = !!accColumn;
@@ -983,10 +990,21 @@ export function PoMappingEditor({
                     </div>
                     {isAcc ? (
                       score != null ? (
-                        // Explicitly "AI confidence": `score` is scoreForColumn(), a real
-                        // suggester score for THIS column. The chip's own default is the
-                        // neutral "Confidence" now that not every caller has a model behind it.
-                        <ConfidenceChip value={score} label="AI confidence" />
+                        // `score` is scoreForColumn() — a real score for THIS column — but WHO
+                        // scored it decides the wording. This gated on `score != null` alone and
+                        // said "AI confidence" either way, so a heuristic match rendered
+                        // aria-label="AI confidence 89%": `suggestMappingFields` falls back to
+                        // `heuristicSuggestFields` (local Levenshtein) on a network error, a 404,
+                        // any non-OK status, an empty payload, or a parse failure — so the AI claim
+                        // was loudest exactly when the AI was unavailable. `fromModel` was already
+                        // computed two lines up for this very distinction and was only being used
+                        // to colour the card below. The chip now enforces it too: with a non-model
+                        // basis it drops the AI wording from the text AND the accessible name.
+                        <ConfidenceChip
+                          value={score}
+                          label="AI confidence"
+                          basis={fromModel ? "model" : "heuristic"}
+                        />
                       ) : (
                         // Mapped, but nothing ever scored this pairing. Neutral
                         // marker, no percentage and no tier colour — the same
@@ -1066,7 +1084,9 @@ export function PoMappingEditor({
                     <div style={{ marginTop: 6 }}>
                       <AiSuggestion
                         kind={fromModel ? "ai" : "heuristic"}
-                        confidence={score ?? 0}
+                        // Not `score ?? 0`: an unscored suggestion has no percentage, and
+                        // printing 0% would claim certainty that it is wrong.
+                        confidence={score}
                         title={
                           isMobile
                             ? `from: ${pendColumn}`

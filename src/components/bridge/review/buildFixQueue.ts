@@ -52,13 +52,29 @@ function freshCards(order: Order, validationResult: OrderValidationResult | null
   for (const l of order.lines) {
     if (!l.needsReview) continue;
     if (!l.supplierItemCode && l.aiSuggestion) {
+      // Only a suggestion a MODEL scored may be called an AI suggestion.
+      //
+      // This title was the flat string "AI suggestion to review" for every suggestion on the
+      // line, and the backend put two DETERMINISTIC producers behind that same field: an exact
+      // hit on the supplier's own catalog, and a straight echo of a manufacturer part number the
+      // document prints. Neither ran a model. The operator was told the machine had guessed when
+      // the machine had looked something up — which understates a catalog match and misattributes
+      // it in the same breath.
+      //
+      // A recorded confidence is the discriminator: since the deterministic producers stopped
+      // stamping a fabricated 0.95, a number exists here only if a scorer produced one. The
+      // `typeof` test is deliberate rather than `!= null` — `AiMappingSuggestion.confidence` is
+      // still declared non-nullable in src/types/procurement.ts (a parallel packet owns that
+      // file), so the type currently disagrees with what the API sends and this read must not
+      // trust it.
+      const scored = typeof l.aiSuggestion.confidence === "number";
       cards.push({
         key: `line:${l.id}`,
         kind: "ai-suggestion",
         lineId: l.id,
         lineNumber: l.lineNumber,
         severity: KIND_SEVERITY["ai-suggestion"],
-        title: "AI suggestion to review",
+        title: scored ? "AI suggestion to review" : "Suggested code to review",
         detail: l.aiSuggestion.supplierItemCode,
         resolved: false,
       });

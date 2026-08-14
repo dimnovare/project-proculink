@@ -55,6 +55,23 @@ export function confidenceTone(pct: number): { fg: string; bg: string; bd: strin
 }
 
 /**
+ * What produced the number on the chip. This is the chip's own guard rail, not
+ * decoration — see `ConfidenceChip` below.
+ *
+ *  - `"model"`         a scorer produced this. The only basis allowed to wear an
+ *                      "AI" label.
+ *  - `"heuristic"`     a real measurement, but not a model: client-side
+ *                      Levenshtein/token similarity, a supplier auto-detect
+ *                      score. Honest to show, dishonest to call AI.
+ *  - `"deterministic"` a lookup or an echo. There is no score at all, so there is
+ *                      no chip.
+ */
+export type ConfidenceBasis = "model" | "heuristic" | "deterministic";
+
+/** An "AI"-flavoured label: the word AI standing alone, not the "ai" in "plain". */
+const AI_CLAIM = /\bAI\b/i;
+
+/**
  * `label` names WHAT scored this, and it defaults to the neutral "Confidence" on
  * purpose. The chip used to hard-code "AI confidence", which made every call site
  * an AI claim whether or not a model was involved — including a supplier
@@ -62,20 +79,64 @@ export function confidenceTone(pct: number): { fg: string; bg: string; bd: strin
  * never even invoked for. Call sites that really do render a model score pass
  * `label="AI confidence"` and read exactly as before; anything else says less and
  * says it truthfully.
+ *
+ * ── Why the label alone was not enough ──────────────────────────────────────
+ *
+ * Making the label a free string moved the decision to the call site and then
+ * trusted every call site to get it right. They did not. `PoMappingEditor`
+ * passed `label="AI confidence"` gated only on `score != null`, so a heuristic
+ * Levenshtein match — the LIVE fallback whenever the suggest-fields call fails,
+ * 404s, or returns an unparseable body — rendered `aria-label="AI confidence
+ * 89%"`. The same file already computed `isModelSuggestion` for exactly this
+ * reason and used it only to colour the surrounding card.
+ *
+ * So the rule now lives HERE, where it cannot be forgotten by a fourth call site:
+ *
+ *   1. **No number, no chip.** A nullish `value` renders nothing. A basis of
+ *      `"deterministic"` renders nothing. Previously a caller that forgot to
+ *      check would print `0%` or `NaN%` — and `0%` on the confidence ramp is a
+ *      red "we are certain this is wrong", which is a louder lie than the
+ *      fabricated 95% this change removes.
+ *   2. **An AI label requires `basis="model"`.** Any other basis (including an
+ *      omitted one) downgrades the wording to a truthful neutral — the chip still
+ *      shows the number, because a heuristic score is a real measurement; it just
+ *      stops attributing it to a model. The downgrade applies to BOTH the visible
+ *      text and the accessible name, because the original defect lived in an
+ *      `aria-label` that a DOM-text assertion would have walked straight past.
+ *
+ * Pinned by ConfidenceChip.test.tsx.
  */
 export function ConfidenceChip({
   value,
   sm = false,
   label = "Confidence",
-}: { value: number; sm?: boolean; label?: string }) {
+  basis,
+}: {
+  value: number | null | undefined;
+  sm?: boolean;
+  label?: string;
+  basis?: ConfidenceBasis;
+}) {
+  // Rule 1 — nothing measured this, so there is nothing to draw. Not "0%".
+  if (value == null || Number.isNaN(value)) return null;
+  if (basis === "deterministic") return null;
+
+  // Rule 2 — the AI claim has to be earned.
+  const effectiveLabel =
+    AI_CLAIM.test(label) && basis !== "model"
+      ? basis === "heuristic"
+        ? "Match"
+        : "Confidence"
+      : label;
+
   // Call sites pass either a 0..1 score (API suggestions) or a whole percent
   // (mapping rows). Normalise before tiering, or a 0.92 would tier as "danger".
   const pct = Math.round(value <= 1 ? value * 100 : value);
   const tone = confidenceTone(pct);
   return (
     <span
-      aria-label={`${label} ${pct}%`}
-      title={`${label} · ${pct}%`}
+      aria-label={`${effectiveLabel} ${pct}%`}
+      title={`${effectiveLabel} · ${pct}%`}
       style={{
         display: "inline-flex", alignItems: "center", justifyContent: "center",
         fontFamily: "'JetBrains Mono',monospace", fontWeight: 700,

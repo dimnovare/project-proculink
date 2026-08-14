@@ -134,7 +134,15 @@ export function Pill({
 
 /* -------- AiSuggestion -------- */
 type AiSuggestionProps = {
-  confidence: number;
+  /**
+   * The score behind this suggestion, or null/undefined when nothing scored it.
+   *
+   * Nullable on purpose. It was a required `number`, so the one live caller wrote
+   * `confidence={score ?? 0}` and an unscored suggestion would have rendered
+   * "AI · 0%" — a confident claim of near-certain wrongness, minted from an
+   * absence. The tag below prints the percentage only when there is one.
+   */
+  confidence: number | null | undefined;
   title: string;
   /** Short body / description text (muted, below title) */
   description?: string;
@@ -198,7 +206,7 @@ export function AiSuggestion({
             color: accent,
           }}
         >
-          {isAi ? "AI" : "MATCH"} · {confidence}%
+          {isAi ? "AI" : "MATCH"}{confidence != null ? ` · ${confidence}%` : ""}
         </span>
         {provenance && (
           <span style={{ fontSize: 10.5, color: "var(--ink-faint)" }}>{provenance}</span>

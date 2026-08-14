@@ -238,10 +238,13 @@ export function IssuesPanel({ issues, onFocusField, onFix, readyLabel, resolve, 
           <CheckGlyph />
         </span>
         <span style={{ fontSize: 13, fontWeight: 700 }}>Ready to send</span>
-        {/* C.greenDeep on C.greenSoft = 5.5685:1. The #2E7D38 that was here is a
+        {/* C.greenDeep on C.greenSoft = 5.5685:1. The hex 2E7D38 that was here is a
             fourth green existing in no token file, and it was 4.4403:1 on this
             fill — the row's own `color` two elements up was already the right
-            value, and this span was overriding it with a worse one. */}
+            value, and this span was overriding it with a worse one.
+            (Written without the leading '#' on purpose: lint:tokens scans comments
+            too, so naming a removed colour in its literal form counts as using it —
+            which is why this file sat one over its baseline on main.) */}
         <span style={{ fontSize: 11.5, color: C.greenDeep, fontWeight: 500 }}>
           {readyLabel ?? READY_BAR_DEFAULT}
         </span>
@@ -275,7 +278,12 @@ export function IssuesPanel({ issues, onFocusField, onFix, readyLabel, resolve, 
               type="button"
               onClick={() => resolve!.bulkAcceptSuggestions!(0)}
               disabled={resolve!.bulkAccepting}
-              title="Auto-fills supplier codes for all items using AI. You can still edit any of them afterward."
+              // "using AI" was a blanket claim over a mixed set: the suggestions this button
+              // accepts also come from an exact supplier-catalog lookup and from a part number
+              // the document itself states, neither of which involves a model. The button's own
+              // visible label already says the honest thing ("Resolve all suggested"), so the
+              // tooltip now matches it instead of contradicting it.
+              title="Fills in the suggested supplier code for every item that has one. You can still edit any of them afterward."
               style={{ ...navyBtn, opacity: resolve!.bulkAccepting ? 0.6 : 1, cursor: resolve!.bulkAccepting ? "wait" : "pointer" }}
             >
               <SparkleGlyph />

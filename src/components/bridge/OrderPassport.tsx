@@ -365,10 +365,30 @@ const STATE_STYLE: Record<StageState, { ring: string; fill: string; text: string
  * mappings printed a green **100%**, a parser-flagged line a red **50%**, and an unresolved line a
  * red **0%**. No model produced any of those numbers. The backend now sends null for every line
  * nothing scored, and the row's `source` badge beside this carries the resolution state, which is
- * what it always described. A number reaching here can now only be a real model confidence — which
- * is why the accessible name is allowed to say so.
+ * what it always described.
+ *
+ * ── On "a number here can only be a model confidence" ───────────────────────────────────────────
+ *
+ * This comment used to end by asserting exactly that, as settled fact, and it was NOT true when it
+ * was written. `line.Confidence` is only ever written from `AiSuggestionConfidence`
+ * (OrderResolutionService, on accept), and ingestion was still stamping a literal `0.95f` onto that
+ * field for two DETERMINISTIC producers — an exact supplier-catalog hit on a manufacturer part
+ * number, and an echo of a part number the source document prints. Accepting such a line promoted
+ * the 0.95 straight into this column, so the passport printed a green "95%" over a lookup, under an
+ * accessible name that called it AI. The comment was load-bearing and wrong: it is the stated reason
+ * the aria-label is allowed to say "AI confidence".
+ *
+ * It is true now, and here is the whole of what makes it true — it is not a property of this file:
+ * both deterministic producers send no confidence at all, so `AiSuggestionConfidence` is non-null
+ * only when a scorer produced a number, and this column inherits that. **If that invariant is ever
+ * relaxed upstream, this accessible name becomes a lie again.** It is pinned on the backend by
+ * `DeterministicSuggestionsCarryNoConfidenceTests`, and on this side by
+ * `OrderPassport.confidence.test.tsx`.
  */
-function Pct({ value }: { value: number }) {
+function Pct({ value }: { value: number | null | undefined }) {
+  // No number, no chip — never a 0%. The caller already guards, but a second reader of this
+  // component should not have to know that, and 0% on the ramp is a red "certainly wrong".
+  if (value == null || Number.isNaN(value)) return null;
   const pct = Math.round(value);
   const tone = confidenceTone(pct);
   return (
