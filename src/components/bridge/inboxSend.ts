@@ -204,6 +204,30 @@ export interface BulkSendFailure {
   reason: string;
 }
 
+/**
+ * The bulk send's success line.
+ *
+ * "QUEUED", NOT "SENT" — and the distinction is the whole reason this constant exists.
+ * POST /api/orders/{id}/redeliver answers **202 Accepted**: OrdersController enqueues
+ * DeliverOrderJob.EnqueueRedeliver and returns `{ status: "delivering" }` without any
+ * supplier having been contacted. apiClient.redeliverOrder resolves on `res.ok`, so a
+ * 202 arrived here as an unqualified success and the bar printed a green "✓ 3 orders
+ * sent" for three orders that can each still land in `delivery_failed` or
+ * `delivery_unconfirmed`.
+ *
+ * The single-row send one handler up has always said this correctly
+ * (`rowSendStartedCopy`: "building the output. This order's status updates as it goes"),
+ * and InboxView's own comment on that handler reads "The success line does not claim
+ * delivery." The bulk path is the SAME shape of promise about MORE orders; it now makes
+ * the same one, and points at the thing that carries the real answer — the row's status
+ * badge, which the handler invalidates ["orders"] precisely in order to refresh.
+ */
+export function bulkSendQueuedCopy(count: number): string {
+  return count === 1
+    ? "1 order queued to send — its status updates as it goes"
+    : `${count} orders queued to send — each row's status updates as it goes`;
+}
+
 /** Result of a bulk send — `ok` toggles the success/failure styling + glyph. */
 export interface BulkSendResult {
   ok: boolean;
@@ -213,10 +237,10 @@ export interface BulkSendResult {
 /**
  * Whether the inbox bulk-action bar should stay mounted.
  *
- * REGRESSION GUARD: a FULL success clears the row selection (so already-sent
+ * REGRESSION GUARD: a FULL success clears the row selection (so already-queued
  * orders can't be re-sent on retry), which — if the bar rendered on
  * `selectedCount > 0` alone — unmounted the bar together with its
- * "N orders sent" confirmation, making the send read as a silent no-op (the
+ * "N orders queued to send" confirmation, making the send read as a silent no-op (the
  * success line vanished the instant Send selected succeeded). The bar must
  * therefore render while EITHER rows are selected OR a result is still on
  * display awaiting dismissal.
@@ -241,13 +265,21 @@ function clipReason(reason: string): string {
  * Summarise a bulk send for the inbox bulk-action bar: names the failing PO
  * numbers WITH each order's reason (first three, then "and N more") instead
  * of an opaque "N failed".
+ *
+ * `accepted` counts orders the API ACCEPTED (202), not orders a supplier received —
+ * see bulkSendQueuedCopy. Both arms that mention that number say "queued".
+ *
+ * The all-failed arm keeps "Couldn't send": it asserts a NON-event, and a request that
+ * was refused really did send nothing and queue nothing, so it was never part of this
+ * defect. Only the arms that counted successes were claiming an outcome nobody had
+ * observed.
  */
 export function formatBulkSendResult(
-  sent: number,
+  accepted: number,
   failures: BulkSendFailure[],
 ): BulkSendResult {
   if (failures.length === 0) {
-    return { ok: true, text: `${sent} order${sent === 1 ? "" : "s"} sent` };
+    return { ok: true, text: bulkSendQueuedCopy(accepted) };
   }
 
   const listed = failures
@@ -259,8 +291,8 @@ export function formatBulkSendResult(
       ? ` and ${failures.length - MAX_LISTED_FAILURES} more`
       : "";
   const head =
-    sent > 0
-      ? `${sent} sent · ${failures.length} failed: `
+    accepted > 0
+      ? `${accepted} queued · ${failures.length} failed: `
       : `Couldn't send ${failures.length} order${failures.length === 1 ? "" : "s"}: `;
 
   return { ok: false, text: `${head}${listed}${more}` };

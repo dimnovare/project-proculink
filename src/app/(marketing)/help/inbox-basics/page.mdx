@@ -50,11 +50,13 @@ Only rows the backend can actually send are selectable: orders that are **Queued
 
 After a send, the bar tells you exactly what happened:
 
-- full success reads "N orders sent",
+- full success reads "N orders queued to send",
 - partial failures **name each failing PO with its reason** (the first three, then "and N more") — never an opaque "2 failed",
 - the rows that failed stay selected, so retrying can't accidentally re-send the orders that already went out.
 
-One honesty note: a successful send means the supplier's endpoint **accepted the transmission** — not that their business system accepted the order's content. A delivered order can still be [rejected by the supplier afterwards](/help/dashboard-and-statuses).
+"Queued", not "sent", is the literal truth: pressing **Send selected** hands each order to the delivery queue and returns immediately, before any supplier has been contacted. Watch each row's own status to see how it ends — a queued order can still fail to deliver.
+
+One honesty note: once an order does reach **Delivered**, that means the supplier's endpoint **accepted the transmission** — not that their business system accepted the order's content. A delivered order can still be [rejected by the supplier afterwards](/help/dashboard-and-statuses).
 
 ## Where each status leads next
 
