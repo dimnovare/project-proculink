@@ -17,7 +17,12 @@
 // catalog's STANDARD_REF_COLUMNS (which the StandardsFieldPopover also consumes).
 
 import { useState } from "react";
-import { FIELD_STANDARDS } from "@/lib/standards/catalog";
+import {
+  FIELD_STANDARDS,
+  STANDARDS_FIELD_COVERAGE,
+  canonicalFieldLabel,
+  canonicalFieldsWithoutStandards,
+} from "@/lib/standards/catalog";
 import { requiresPlan } from "@/lib/gatedCapabilities";
 import { EmptyState } from "@/components/bridge/EmptyState";
 import { PageShell } from "@/components/bridge/layout/PageShell";
@@ -59,6 +64,12 @@ const GATED_EMITTED_CLAUSES = GATED_EMITTED_COLUMNS.map(
 const asList = (items: readonly string[]): string =>
   items.length < 2 ? (items[0] ?? "") : `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
 
+/** The same, but it stops naming things after four — an empty state is not a field list. */
+const asShortList = (items: readonly string[]): string => {
+  if (items.length <= 4) return asList(items);
+  return `${items.slice(0, 4).join(", ")} and ${items.length - 4} more`;
+};
+
 export default function StandardsPage() {
   const [q, setQ] = useState("");
 
@@ -69,6 +80,11 @@ export default function StandardsPage() {
     if (f.canonicalField.toLowerCase().includes(query)) return true;
     return REF_COLUMNS.some(({ key }) => (f[key] ?? "").toLowerCase().includes(query));
   });
+
+  // Canonical fields the product really carries that this table has no reference row for.
+  // Only consulted when the table comes back empty — it is what separates "no such field"
+  // from "we have that field, we have not written its standards path down".
+  const unreferenced = canonicalFieldsWithoutStandards(q);
 
   // Field search input — rendered in the PageHeader actions slot.
   const searchInput = (
@@ -178,6 +194,25 @@ export default function StandardsPage() {
         </p>
       )}
 
+      {/* Coverage line — the OTHER thing this table does not say about itself.
+          The direction line above answers "can ProcuLink send this format?". Nothing answered
+          "does this table cover every field?", and the answer is no by a factor of five: it is
+          a transcription of the researched rows in standards-matrix.md, while the canonical
+          model an output may bind is 53 fields wide. A reader who searched `SupplierItemCode`
+          got "No fields match" and no reason to doubt it.
+          Both numbers are derived (STANDARDS_FIELD_COVERAGE) — a typed count is the same
+          defect one level up, and the reason `requiresPlan()` exists on this page already. */}
+      <p className="mb-2 max-w-[680px] text-[11.5px] leading-relaxed" style={{ color: "var(--ink-muted)" }}>
+        Field-level references are recorded for{" "}
+        <strong style={{ color: "var(--ink)" }}>
+          {STANDARDS_FIELD_COVERAGE.referenced} of the {STANDARDS_FIELD_COVERAGE.total} canonical
+          fields
+        </strong>{" "}
+        ProcuLink carries — the core of a purchase order. A field missing from this table is
+        still in the order model: you can map it, transform it and send it. Only its path in
+        these standards has not been written down yet.
+      </p>
+
       {/* Mobile-only swipe hint — the matrix h-scrolls but truncated cells give no
           cue on a phone. Hidden on sm+ where all columns fit. */}
       <p className="mb-2 flex items-center gap-1 text-[11.5px] sm:hidden" style={{ color: "var(--ink-faint)" }}>
@@ -281,14 +316,45 @@ export default function StandardsPage() {
           </table>
         </div>
 
+        {/* Three different things can empty this table, and they used to read as one.
+            "No fields match" / `Nothing for "SupplierItemCode".` is a denial: it says the
+            product has no such field. It has that field — it is the resolved supplier code
+            the whole review flow produces — and 42 others this table does not reference.
+            So the query is checked against the canonical model before the message is chosen. */}
         {rows.length === 0 && (
           FIELD_STANDARDS.length === 0 ? (
             <EmptyState
               title="No standards catalog"
               sub="The field reference isn't available. Reload the page, and if it stays empty, contact support."
             />
+          ) : unreferenced.length > 0 ? (
+            <EmptyState
+              compact
+              title={
+                unreferenced.length === 1
+                  ? `No standards path recorded for ${canonicalFieldLabel(unreferenced[0])}`
+                  : `No standards path recorded for ${unreferenced.length} matching fields`
+              }
+              sub={
+                `${asShortList(unreferenced.map(canonicalFieldLabel))} ` +
+                `${unreferenced.length === 1 ? "is a field ProcuLink carries" : "are fields ProcuLink carries"} — ` +
+                `you can map ${unreferenced.length === 1 ? "it" : "them"}, transform and send today. ` +
+                `This table references ${STANDARDS_FIELD_COVERAGE.referenced} of ` +
+                `${STANDARDS_FIELD_COVERAGE.total} canonical fields, and ` +
+                `${unreferenced.length === 1 ? "this one is" : "these are"} not among them yet. ` +
+                `Need the path? Ask below.`
+              }
+            />
           ) : (
-            <EmptyState compact title="No fields match" sub={`Nothing for "${q}".`} />
+            <EmptyState
+              compact
+              title="No fields match"
+              sub={
+                `Nothing for "${q}" — not as a field name, and not in any standard's path. ` +
+                `This table references ${STANDARDS_FIELD_COVERAGE.referenced} of ` +
+                `${STANDARDS_FIELD_COVERAGE.total} canonical fields, so try a shorter term.`
+              }
+            />
           )
         )}
       </Card>

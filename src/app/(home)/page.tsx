@@ -206,7 +206,14 @@ const FEATURES: Array<{
   {
     icon: "layers",
     title: "Standards, on demand",
-    desc: "Every order field maps to UBL, EDIFACT, X12, cXML and Peppol BIS paths — always visible, never hidden behind a mode. Built for 30-year procurement veterans.",
+    // "Every order field maps to…" was false by a factor of five. FIELD_STANDARDS carries
+    // references for the core of a purchase order; the canonical model an output may bind is
+    // 53 fields wide (BINDABLE_HEADER_FIELDS + BINDABLE_LINE_FIELDS), and 43 of them have no
+    // standards path recorded — SupplierItemCode among them. The claim is now about what the
+    // reference IS (core fields, always visible, never behind a mode), and /library/standards
+    // prints its own derived coverage. No universal quantifier may come back here while the
+    // gap exists — pinned by standardsCoverage.test.tsx.
+    desc: "Core order fields map to UBL, EDIFACT, X12, cXML and Peppol BIS paths — always visible, never hidden behind a mode. Built for 30-year procurement veterans.",
     color: BLUE_DEEP,
     bg: BLUE_SOFT,
   },
