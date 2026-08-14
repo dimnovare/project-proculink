@@ -45,10 +45,13 @@ const LIVE_SUMMARY: BundleSummaryData = {
 
 const PASSED_EVIDENCE: RevisionTestEvidence = {
   revisionId: "rev-3",
-  passed: true,
+  // `passed` — the only outcome that may unlock "Make live". The other three
+  // (failed / not_exercised / unrecognised) are covered in testPackOutcome.test.tsx.
+  outcome: "passed",
   testedAt: "2026-01-04T00:00:00Z",
   summary: {
-    replay: { passed: true, orderCount: 2, outputErrors: 0, outputChanged: 0, validationChanged: 0, note: null },
+    outcome: "passed",
+    replay: { outcome: "passed", orderCount: 2, outputErrors: 0, outputChanged: 0, validationChanged: 0, note: null },
     conformance: null,
     error: null,
     // Explicit rather than absent: `parseLeg` is a real leg of the pack, and a fixture

@@ -40,8 +40,10 @@ import {
 // Its own header explains why a `grep` cannot replace it.
 import { parseCsStringExpressions, stripCsComments } from "./csLiterals";
 import {
+  LEGACY_TEST_PACK_BACKEND_RECORDS,
   TEST_PACK_BACKEND_FILE,
   TEST_PACK_BACKEND_RECORDS,
+  parseTestSummary,
 } from "@/components/connections/testPackSummary";
 import { MINIMUM_PLAN } from "@/lib/gatedCapabilities";
 
@@ -1681,32 +1683,73 @@ function parseRecordParameterNames(cs: string, recordName: string): string[] | n
     });
 }
 
+/**
+ * The keys `parseTestSummary` really produces — derived by RUNNING it over a payload
+ * carrying both wire shapes at once, never typed out. A hand-written list here would be
+ * a third copy of the contract, which is the shape of every defect this file guards.
+ */
+const READER_KEYS = (() => {
+  const summary = parseTestSummary(
+    JSON.stringify({
+      outcome: "passed",
+      replay: { outcome: "passed", passed: true, orderCount: 0, outputErrors: 0, outputChanged: 0, validationChanged: 0, note: null },
+      conformance: { outcome: "passed", passed: true, skipped: false, profile: null, errors: 0, warnings: 0, note: null },
+      error: null,
+      parseLeg: { outcome: "passed", passed: true, ordersReParsed: 0, parseChanges: 0, failures: 0, skipped: 0, note: null },
+    }),
+  )!;
+  return {
+    TestPackSummary: Object.keys(summary),
+    ReplayLeg: Object.keys(summary.replay!),
+    ConformanceLeg: Object.keys(summary.conformance!),
+    ParseLegSummary: Object.keys(summary.parseLeg!),
+  };
+})();
+
+/**
+ * The reader key a C# record parameter lands in.
+ *
+ * Identity except for the two pre-PR-207 booleans, which are read into `legacy*` fields
+ * so they are visible and refusable rather than trusted. SCAFFOLDING — delete these two
+ * arms with the rest of the compatibility block in testPackSummary.ts.
+ *
+ * `ParseLegSummary.Skipped` is NOT one of them: it is a COUNT of orders and always was,
+ * which is exactly why the mapping is keyed by record and not by field name alone.
+ */
+function readerKeyFor(recordName: string, field: string): string {
+  if (field === "passed") return "legacyPassed";
+  if (field === "skipped" && recordName === "ConformanceLeg") return "legacySkipped";
+  return field;
+}
+
 describe("the connection test-pack summary mirrors the backend record", () => {
   test("the record parser actually parses (so a green diff means something)", () => {
-    // The real declarations at SupplierConnectionService.cs:587-591, verbatim — including
-    // the defaulted parameter that was the whole defect, and a `bool?` leg.
+    // The real declarations at SupplierConnectionService.cs:618-623 (BE PR 207), verbatim —
+    // including the defaulted parameter that was the original defect, and the multi-line
+    // declaration, which a parser that stopped at a newline would silently miss.
     const fixture = `
     /// <summary>Serializable summary stored in <c>test_result_json</c> (camelCase).</summary>
-    private sealed record TestPackSummary(ReplayLeg? Replay, ConformanceLeg? Conformance, string? Error, ParseLegSummary? ParseLeg = null);
-    private sealed record ConformanceLeg(bool Skipped, bool? Passed, string? Profile, int Errors, int Warnings, string? Note);
-    private sealed record ParseLegSummary(bool Passed, int OrdersReParsed, int ParseChanges, int Failures, int Skipped, string? Note);`;
+    private sealed record TestPackSummary(
+        string Outcome, ReplayLeg? Replay, ConformanceLeg? Conformance, string? Error, ParseLegSummary? ParseLeg = null);
+    private sealed record ConformanceLeg(string Outcome, string? Profile, int Errors, int Warnings, string? Note);
+    private sealed record ParseLegSummary(string Outcome, int OrdersReParsed, int ParseChanges, int Failures, int Skipped, string? Note);`;
 
     expect(parseRecordParameterNames(fixture, "TestPackSummary")).toEqual([
+      "outcome",
       "replay",
       "conformance",
       "error",
       "parseLeg",
     ]);
     expect(parseRecordParameterNames(fixture, "ConformanceLeg")).toEqual([
-      "skipped",
-      "passed",
+      "outcome",
       "profile",
       "errors",
       "warnings",
       "note",
     ]);
     expect(parseRecordParameterNames(fixture, "ParseLegSummary")).toEqual([
-      "passed",
+      "outcome",
       "ordersReParsed",
       "parseChanges",
       "failures",
@@ -1714,6 +1757,20 @@ describe("the connection test-pack summary mirrors the backend record", () => {
       "note",
     ]);
     expect(parseRecordParameterNames(fixture, "NoSuchRecord")).toBeNull();
+  });
+
+  test("the parser sees the field whose absence made every leg's verdict unreadable", () => {
+    // BE PR 207. Each leg carried `bool Passed`, and every "there was nothing to run this
+    // on" path set it to true — so an un-run leg and a satisfied one were the same value,
+    // and a run that exercised NOTHING reported a pass. The `outcome` string is what tells
+    // them apart; a frontend that does not name it drops it at the JSON boundary exactly
+    // as `parseLeg` was dropped, and falls straight back to the two-valued reading.
+    for (const [record, fields] of Object.entries(TEST_PACK_BACKEND_RECORDS)) {
+      expect(fields, `${record} does not mirror the outcome field`).toContain("outcome");
+      expect(fields, `${record} still mirrors the boolean that could not tell un-run from clean`)
+        .not.toContain("passed");
+    }
+    expect(TEST_PACK_BACKEND_RECORDS.ConformanceLeg).not.toContain("skipped");
   });
 
   test("the parser sees the field whose absence was the defect", () => {
@@ -1737,7 +1794,21 @@ describe("the connection test-pack summary mirrors the backend record", () => {
   test.skipIf(!BACKEND)("every record's fields match the C#, in both directions", () => {
     const cs = readFileSync(join(BACKEND!, CONNECTION_SERVICE_REL), "utf8");
 
-    for (const [recordName, frontendFields] of Object.entries(TEST_PACK_BACKEND_RECORDS)) {
+    // WHICH WIRE VERSION THIS BACKEND SPEAKS. PR 207 replaces every leg's `bool Passed`
+    // with an `outcome` string and adds one to the summary. The frontend reads BOTH — it
+    // can deploy before that backend does — so the mirror has to accept both, and the
+    // pair it accepts is enumerated rather than loosened: a THIRD shape still fails in
+    // both directions, which is the property this diff exists for.
+    const replayFields = parseRecordParameterNames(cs, "ReplayLeg");
+    expect(
+      replayFields,
+      `${CONNECTION_SERVICE_REL} declares no \`record ReplayLeg\`, so the wire version ` +
+        "cannot be determined and neither field list can be diffed honestly.",
+    ).not.toBeNull();
+    const speaksOutcome = replayFields!.includes("outcome");
+    const records = speaksOutcome ? TEST_PACK_BACKEND_RECORDS : LEGACY_TEST_PACK_BACKEND_RECORDS;
+
+    for (const [recordName, frontendFields] of Object.entries(records)) {
       const backendFields = parseRecordParameterNames(cs, recordName);
       expect(
         backendFields,
@@ -1756,6 +1827,17 @@ describe("the connection test-pack summary mirrors the backend record", () => {
           "parse leg came to render a red panel with no reason on it. Add the field to the " +
           "interface, to its *_FIELDS list, and to the reader.",
       );
+
+      // Whichever shape the backend speaks, the READER has to be able to hold every one
+      // of its fields — that is what the diff is protecting, and asserting only the list
+      // would let the list and the reader drift apart while both looked right.
+      for (const field of backendFields!) {
+        const key = readerKeyFor(recordName, field);
+        expect(
+          READER_KEYS[recordName as keyof typeof READER_KEYS],
+          `${recordName}.${field} is on the wire but parseTestSummary never produces it`,
+        ).toContain(key);
+      }
     }
   });
 });

@@ -14,7 +14,21 @@ import { isPlanGate, PlanGateNotice } from "@/components/bridge/PlanGateNotice";
 import { useDialogA11y } from "@/hooks/useDialogA11y";
 import type { ConfirmState, Notice } from "@/components/connections/useConnectionRevisions";
 
-/** Inline ok/err status banner driven by the hook's `notice` state. */
+/**
+ * Three tones, because a check run has an outcome that is neither good news nor bad.
+ *
+ * `warn` carries the run that found no fault and tested nothing — no orders existed to
+ * run this version against, which is the DEFAULT state at onboarding. Green would say
+ * "carry on" over evidence that does not exist; red would say "you broke something" when
+ * nothing is broken. Both were available before this; neither was true.
+ */
+export const NOTICE_TONE_STYLE: Record<NonNullable<Notice>["kind"], React.CSSProperties> = {
+  ok: { border: "1px solid var(--brand-green-soft)", borderLeft: "3px solid var(--brand-green)", background: "var(--brand-green-soft)", color: "var(--brand-green-deep)" },
+  warn: { border: "1px solid var(--amber-soft)", borderLeft: "3px solid var(--amber)", background: "var(--amber-soft)", color: "var(--amber-text)" },
+  err: { border: "1px solid var(--danger-soft)", borderLeft: "3px solid var(--danger)", background: "var(--danger-soft)", color: "var(--danger)" },
+};
+
+/** Inline ok/warn/err status banner driven by the hook's `notice` state. */
 export function ConnectionNotice({ notice }: { notice: Notice }) {
   if (!notice) return null;
   // The lifecycle mutations (create draft / publish / rollback) are refused on plan grounds
@@ -27,11 +41,9 @@ export function ConnectionNotice({ notice }: { notice: Notice }) {
     <div
       role="status"
       className="mb-4 rounded-[8px] px-4 py-3 text-[12.5px]"
-      style={
-        notice.kind === "ok"
-          ? { border: "1px solid var(--brand-green-soft)", borderLeft: "3px solid var(--brand-green)", background: "var(--brand-green-soft)", color: "var(--brand-green-deep)" }
-          : { border: "1px solid var(--danger-soft)", borderLeft: "3px solid var(--danger)", background: "var(--danger-soft)", color: "var(--danger)" }
-      }
+      data-testid="connection-notice"
+      data-tone={notice.kind}
+      style={NOTICE_TONE_STYLE[notice.kind]}
     >
       {notice.text}
     </div>

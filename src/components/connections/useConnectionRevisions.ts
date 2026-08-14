@@ -21,9 +21,13 @@
 // Backend lifecycle semantics are unchanged — see ConnectionsController.cs:
 //   - published revisions are IMMUTABLE; edit = create a NEW draft (clone-from-active).
 //   - publishing flips the active pointer + archives the prior published rev.
-//   - publish is EVIDENCE-GATED: the backend 409s until the test pack has passed
-//     since the last edit (that server message renders inline via `notice`).
-//   - POST .../test RUNS the test pack (replay + conformance; never delivers).
+//   - publish is EVIDENCE-GATED, on THREE outcomes not two (BE PR 207): the backend
+//     409s when there is no fresh evidence, 409s separately when the run tested
+//     nothing (`EvidenceNotExercised` — no orders to run it against), and only
+//     proceeds on `passed`. Both server messages render inline via `notice`.
+//   - POST .../test RUNS the checks (recent orders rebuilt through this version, a
+//     standards check, a source re-read; it never delivers). It returns 200 for a
+//     failed run AND for a run that tested nothing — read `outcome`, not `passed`.
 //   - POST .../rollback clones an archived previously-published revision into a
 //     NEW published revision; the target stays archived and pinned orders are
 //     unaffected.
@@ -43,10 +47,15 @@ import {
 } from "@/lib/api-client";
 import type { ConnectionRevisionSummary, ConnectionTestEvidence } from "@/lib/api/types";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
+import { testPackReading } from "@/lib/testPackOutcomeManifest";
 import { parseTestSummary } from "./testPackSummary";
 import type { RevisionTestEvidence } from "./testPackSummary";
 
-export type Notice = { text: string; kind: "ok" | "err" } | null;
+// `warn` exists because a check run has an outcome that is neither. A run that found no
+// fault but tested nothing must not be painted green ("carry on") and must not be painted
+// red ("you broke something") — the operator needs to know the version is UNPROVEN.
+// Collapsing it into either colour re-tells the lie in a different font.
+export type Notice = { text: string; kind: "ok" | "warn" | "err" } | null;
 
 export type ConfirmState =
   | { kind: "publish"; revisionId: string; versionNo: number }
@@ -124,17 +133,29 @@ export function useConnectionRevisions(connectionId: string) {
     mutationFn: (revisionId: string) => markConnectionRevisionTest(connectionId, revisionId),
     onSuccess: (evidence: ConnectionTestEvidence, revisionId: string) => {
       invalidate();
-      setTestEvidence({
-        revisionId,
-        passed: evidence.passed,
-        testedAt: evidence.testedAt,
-        summary: parseTestSummary(evidence.summaryJson),
-      });
-      setNotice(
-        evidence.passed
-          ? { text: "Checks passed — this version is ready to make live.", kind: "ok" }
-          : { text: "Checks ran but FAILED — see the details below. Fix these before making it live.", kind: "err" },
-      );
+      const summary = parseTestSummary(evidence.summaryJson);
+      // The endpoint's own field first, the stored summary's copy of it second. They are
+      // written from the same value (SupplierConnectionService.cs:245 and the summary's
+      // `Outcome`), so this only covers a half-deployed backend — and when NEITHER is
+      // there the value stays null, which the manifest reads as `unrecognised`.
+      //
+      // `evidence.passed` is deliberately not consulted. It is a narrowing of this same
+      // outcome and cannot distinguish "found a fault" from "tested nothing", which is
+      // the entire distinction this screen exists to draw.
+      const outcome = evidence.outcome ?? summary?.outcome ?? null;
+      // PRE-PR-207 COMPATIBILITY — SCAFFOLDING, delete when PR 207 is deployed
+      // everywhere. When neither field carried an outcome, the backend predates PR 207
+      // and `passed` is all it sent. It is recorded, NOT promoted: `true` there is the
+      // exact value a run that exercised nothing produced, so it resolves to the same
+      // conservative reading as an outcome this page cannot read, and never to a pass.
+      const legacyPassed = outcome === null ? evidence.passed : null;
+      setTestEvidence({ revisionId, outcome, legacyPassed, testedAt: evidence.testedAt, summary });
+      // One sentence, derived from the outcome in one place. This used to be a ternary
+      // over a boolean here AND a second ternary over the same boolean in HistoryDrawer,
+      // which is how the banner came to announce a pass while the panel below it said a
+      // leg had been skipped.
+      const reading = testPackReading(outcome);
+      setNotice({ text: reading.notice, kind: reading.tone });
     },
     onError: onMutationError,
   });
