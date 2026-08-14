@@ -207,6 +207,30 @@ describe("statusChipTitle — the zero-blocker chip tooltip", () => {
   it("says something different in each state — a constant would defeat the fix", () => {
     expect(statusChipTitle({ noteCount: 0 })).not.toBe(statusChipTitle({ noteCount: 1 }));
   });
+
+  it("a STOPPED order outranks both — the chip may not report a clean order", () => {
+    // The bar took no status at all, so this arm did not exist and a green tick
+    // drew under the red banner of an order that had already failed to send.
+    for (const noteCount of [0, 3]) {
+      const title = statusChipTitle({ noteCount, orderStopped: true });
+      expect(title, `noteCount=${noteCount}`).toBe(
+        "No field problems, but this order stopped before it was sent. " +
+        "The panel above says what happened and what to do next.",
+      );
+      // Neither of the not-stopped sentences may leak into it.
+      expect(title).not.toContain(CHECK_SCOPE_SENTENCE);
+      expect(title).not.toContain("Nothing is blocking this order");
+    }
+  });
+
+  it("orderStopped:false is the same answer as omitting it — hosts with no order are untouched", () => {
+    expect(statusChipTitle({ noteCount: 0, orderStopped: false })).toBe(
+      statusChipTitle({ noteCount: 0 }),
+    );
+    expect(statusChipTitle({ noteCount: 2, orderStopped: false })).toBe(
+      statusChipTitle({ noteCount: 2 }),
+    );
+  });
 });
 
 // ── confirmAckLabel ──────────────────────────────────────────────────────────
