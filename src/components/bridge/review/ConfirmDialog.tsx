@@ -12,6 +12,7 @@ import { useState, useRef, useEffect } from "react";
 import { useDialogA11y } from "@/hooks/useDialogA11y";
 import type { PartyLabels } from "@/hooks/useOrderDirection";
 import { shouldRequireConfirmCheckbox, confirmAlwaysFlag } from "./confirmPolicy";
+import { confirmAckLabel } from "../workshop/acceptanceGateModel";
 
 export function ConfirmDialog({ exceptionCount, onConfirm, onCancel, supplierName, outputFormat, grandTotal, lineCount, labels, failingRuleCount, validationStale = false }: {
   exceptionCount: number;
@@ -132,9 +133,16 @@ export function ConfirmDialog({ exceptionCount, onConfirm, onCancel, supplierNam
               style={{ marginTop: 2, width: 15, height: 15, accentColor: "#2E8E3A", cursor: "pointer", flexShrink: 0 }}
             />
             <label htmlFor="confirm-check" style={{ fontSize: 13, color: "#0B1A2F", lineHeight: 1.5, cursor: "pointer" }}>
-              {exceptionCount === 0
-                ? <>Everything checks out. {inbound ? `Confirm for ${supplierName}` : `Send to ${supplierName}`}.</>
-                : <>I&apos;ve reviewed the {exceptionCount} issue{exceptionCount !== 1 ? "s" : ""}. {inbound ? `Confirm for ${supplierName}` : `Send to ${supplierName}`}.</>}
+              {/* The sentence is NOT written here. This arm used to read
+                  "Everything checks out." off exceptionCount alone, which stated
+                  a verdict on a check that never runs AND contradicted the
+                  failed-rules panel a few lines below. acceptanceGateModel owns
+                  the ladder now, failingRuleCount included. */}
+              {confirmAckLabel({
+                exceptionCount,
+                failingRuleCount,
+                actionPhrase: inbound ? `Confirm for ${supplierName}` : `Send to ${supplierName}`,
+              })}
             </label>
           </div>
         )}
@@ -171,9 +179,26 @@ export function ConfirmDialog({ exceptionCount, onConfirm, onCancel, supplierNam
           </div>
         )}
 
-        {/* Retry note */}
+        {/* Retry note. It used to promise, unconditionally and with no prop and no
+            gate: three automatic retries, 30-minute intervals, and an email. All
+            three clauses were false, checked against the backend:
+              • DeliveryReliabilityOptions.MaxAttempts = 3, documented as "first
+                attempt + 2 backoff retries" — so TWO retries, not three.
+              • BackoffMinutes = { 30, 60, 120 } doubles, and RetryJitterPercent
+                = 20 pushes each step further up. Not 30-minute intervals.
+              • IEmailSender has one production consumer, SupportContactService
+                (the contact form). No delivery-failure email exists anywhere.
+              • And a business rejection gets ZERO retries — DeliverOrderJob.cs
+                returns early on SupplierResponseClassification
+                .SuppressesAutomaticRetry, which is true exactly for a refusal the
+                supplier read and sent back.
+            Deliberately carries no numbers: the schedule is configuration
+            (section Delivery:Reliability), so any figure printed here is a promise
+            that drifts the moment an option changes. */}
         <div style={{ margin: "0 24px 20px", padding: "8px 12px", background: "#ECFDF3", borderRadius: 6, fontSize: 11.5, color: "#1E6D29" }}>
-          On delivery failure: 3 automatic retries · 30-min intervals · we&apos;ll email you
+          If delivery fails we retry automatically, waiting longer each time — but a refusal
+          from the {labels.counterpartyNoun.toLowerCase()} is not retried. Either way the order
+          comes back here with what happened.
         </div>
 
         {/* Actions */}

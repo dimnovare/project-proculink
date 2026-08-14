@@ -24,8 +24,11 @@ import { describe, it, expect } from "vitest";
 import type { AcceptanceGateDecision } from "@/lib/api/types";
 import {
   acceptanceIssues,
+  confirmAckLabel,
   failingAcceptanceCount,
   readyBarLabel,
+  statusChipTitle,
+  CHECK_SCOPE_SENTENCE,
   GATE_UNAVAILABLE_CODE,
 } from "./acceptanceGateModel";
 
@@ -160,5 +163,128 @@ describe("readyBarLabel — the sub-line under the green Ready to send bar", () 
     const clean = readyBarLabel({ advisoryCount: 0, counterpartyNoun: "Supplier" });
     const advisory = readyBarLabel({ advisoryCount: 2, counterpartyNoun: "Supplier" });
     expect(clean).not.toBe(advisory);
+  });
+
+  it("draws its scope sentence from the shared constant, so a fourth copy cannot drift", () => {
+    expect(readyBarLabel({ advisoryCount: 0, counterpartyNoun: "Supplier" })).toContain(
+      CHECK_SCOPE_SENTENCE,
+    );
+    expect(statusChipTitle({ noteCount: 0 })).toContain(CHECK_SCOPE_SENTENCE);
+  });
+});
+
+// ── statusChipTitle ──────────────────────────────────────────────────────────
+// The WorkshopStatusBar summary chip carried a STRONGER version of the sentence
+// readyBarLabel had already retired, on the same screen and off the same two
+// numbers: "Every required field is filled and every rule passed." Both halves
+// are unsupported — no rule-level check runs (validate has no caller in src/),
+// and the decision carries no signal for whether an acceptance profile exists at
+// all, so "no rules" is indistinguishable from "every rule passed".
+
+describe("statusChipTitle — the zero-blocker chip tooltip", () => {
+  it("never claims a rule passed, and never claims a field was CHECKED", () => {
+    for (const noteCount of [0, 1, 2, 7]) {
+      const title = statusChipTitle({ noteCount });
+      expect(title, `noteCount=${noteCount}`).not.toMatch(/every rule passed/i);
+      expect(title, `noteCount=${noteCount}`).not.toMatch(/filled and check/i);
+      expect(title).not.toBe("Every required field is filled and every rule passed.");
+    }
+  });
+
+  it("bounds the claim to what ProcuLink actually looked at when nothing is outstanding", () => {
+    const title = statusChipTitle({ noteCount: 0 });
+    expect(title).toBe(
+      "Nothing is blocking this order. This is everything ProcuLink can check before sending.",
+    );
+  });
+
+  it("keeps the warnings-only wording untouched — that sentence was already true", () => {
+    expect(statusChipTitle({ noteCount: 2 })).toBe(
+      "Nothing is blocking this order. These are worth a look before you send.",
+    );
+  });
+
+  it("says something different in each state — a constant would defeat the fix", () => {
+    expect(statusChipTitle({ noteCount: 0 })).not.toBe(statusChipTitle({ noteCount: 1 }));
+  });
+
+  it("a STOPPED order outranks both — the chip may not report a clean order", () => {
+    // The bar took no status at all, so this arm did not exist and a green tick
+    // drew under the red banner of an order that had already failed to send.
+    for (const noteCount of [0, 3]) {
+      const title = statusChipTitle({ noteCount, orderStopped: true });
+      expect(title, `noteCount=${noteCount}`).toBe(
+        "No field problems, but this order stopped before it was sent. " +
+        "The panel above says what happened and what to do next.",
+      );
+      // Neither of the not-stopped sentences may leak into it.
+      expect(title).not.toContain(CHECK_SCOPE_SENTENCE);
+      expect(title).not.toContain("Nothing is blocking this order");
+    }
+  });
+
+  it("orderStopped:false is the same answer as omitting it — hosts with no order are untouched", () => {
+    expect(statusChipTitle({ noteCount: 0, orderStopped: false })).toBe(
+      statusChipTitle({ noteCount: 0 }),
+    );
+    expect(statusChipTitle({ noteCount: 2, orderStopped: false })).toBe(
+      statusChipTitle({ noteCount: 2 }),
+    );
+  });
+});
+
+// ── confirmAckLabel ──────────────────────────────────────────────────────────
+// The consent step for an irreversible action. Its zero-exception arm read
+// "Everything checks out." off exceptionCount ALONE, so an order with zero
+// exceptions and N failed acceptance rules rendered that sentence directly above
+// the dialog panel reading "N acceptance rules failed validation".
+
+describe("confirmAckLabel — the send-confirmation checkbox", () => {
+  const SEND = "Send to BoltWorks BV";
+
+  it("never says everything checks out, in any combination of the two counts", () => {
+    for (const exceptionCount of [0, 1, 3]) {
+      for (const failingRuleCount of [0, 1, 4]) {
+        const label = confirmAckLabel({ exceptionCount, failingRuleCount, actionPhrase: SEND });
+        expect(label, `${exceptionCount}/${failingRuleCount}`).not.toMatch(/everything checks out/i);
+        // Anti-vacuity: the checkbox must still have a readable label in every
+        // one of those nine states, and must still name the action.
+        expect(label).toContain(SEND);
+      }
+    }
+  });
+
+  it("bounds the clean case to the issue list it actually read", () => {
+    expect(confirmAckLabel({ exceptionCount: 0, failingRuleCount: 0, actionPhrase: SEND })).toBe(
+      `No open issues to review. ${SEND}.`,
+    );
+  });
+
+  it("THE CONTRADICTION CASE: zero exceptions with failing rules claims nothing at all", () => {
+    // The panel eighteen lines below says "2 acceptance rules failed validation"
+    // and takes its own acknowledgement. This label may not answer it.
+    const label = confirmAckLabel({ exceptionCount: 0, failingRuleCount: 2, actionPhrase: SEND });
+    expect(label).toBe(`${SEND}.`);
+    expect(label).not.toMatch(/no open issues/i);
+    expect(label).not.toMatch(/everything checks out/i);
+  });
+
+  it("keeps the reviewed-N-issues arm, with its grammar, when exceptions exist", () => {
+    expect(confirmAckLabel({ exceptionCount: 1, failingRuleCount: 0, actionPhrase: SEND })).toBe(
+      `I've reviewed the 1 issue. ${SEND}.`,
+    );
+    expect(confirmAckLabel({ exceptionCount: 3, failingRuleCount: 0, actionPhrase: SEND })).toBe(
+      `I've reviewed the 3 issues. ${SEND}.`,
+    );
+  });
+
+  it("routes the action phrase, so an inbound org never reads 'Send'", () => {
+    const inbound = confirmAckLabel({
+      exceptionCount: 0,
+      failingRuleCount: 0,
+      actionPhrase: "Confirm for BoltWorks BV",
+    });
+    expect(inbound).toContain("Confirm for BoltWorks BV");
+    expect(inbound).not.toMatch(/send/i);
   });
 });
