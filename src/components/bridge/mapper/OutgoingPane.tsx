@@ -35,12 +35,25 @@ import { computeOutgoingStatus, type OutgoingStatusInput, type OutgoingFieldStat
 import { TransformPopover } from "./TransformPopover";
 import { SourcePickerChip } from "./SourcePickerChip";
 import { suggestedSourceFor } from "./sourcePickerModel";
+import { Card } from "../layout/Card";
 import { ConfidenceChip } from "../ConfidenceChip";
 import {
   suggestionConfidenceDisplay,
   SAVED_MAPPING_LABEL,
   SAVED_MAPPING_TITLE,
 } from "./suggestionBasisModel";
+
+/**
+ * The one definition of "this row is a blocker": the supplier requires it and we KNOW nothing
+ * fills it. Shared by the pane's needs/auto split and by the row's own amber treatment so the
+ * group an operator scrolls to and the marker they read can never disagree.
+ *
+ * `resolution === "missing"`, never `!mapped` — see the split's comment below for why the latter
+ * was structurally incapable of being true.
+ */
+function needsSourceStatus(status: OutgoingFieldStatus): boolean {
+  return status.required && status.resolution === "missing";
+}
 
 export interface OutgoingPaneProps {
   variant: "order" | "connection";
@@ -212,18 +225,35 @@ export function OutgoingPane({
     [targetFields],
   );
 
-  // Split the rows into NEEDS-ATTENTION (required + genuinely unmapped — the loud blockers the
-  // honest status model already flags) shown at the top, and the AUTO-MAPPED rest folded behind a
-  // collapsible summary. "Needs attention" is derived from the SAME per-row status the row renders
-  // (status.required && !status.mapped) — never a fabricated status. Optional unmapped outputs stay
+  // Split the rows into NEEDS-ATTENTION (required + we KNOW nothing fills it) shown at the top,
+  // NOT-CHECKED (required + we never loaded the order's values, so there is no verdict to give),
+  // and the AUTO-MAPPED rest folded behind a collapsible summary. Optional unmapped outputs stay
   // quiet/inline with the auto group, exactly as before.
+  //
+  // The predicate is `status.resolution === "missing"`, not `!status.mapped`. `mapped` answers
+  // "does a rule emit this column", and every required canonical name is a CANONICAL_SPINE member
+  // that the implicit 1:1 branch claims — so `required && !mapped` was structurally false and this
+  // split had exactly one bucket. The header count moved to `resolution` in PR 181 and the rows
+  // were deliberately left behind, which is how the toolbar came to say "1 field needs a source"
+  // over a column in which nothing was marked.
+  //
+  // "unknown" gets its own bucket rather than either of the other two. Folding it into needs-
+  // attention accuses an order we never read; folding it into the auto group counts it in
+  // "N fields ready", and "we didn't check" reading as "ready" is the same defect reversed.
   const rows = useMemo(
     () => targetFields.map((field) => ({ field, status: computeOutgoingStatus(field, statusInput) })),
     [targetFields, statusInput],
   );
-  const needsRows = useMemo(() => rows.filter((r) => r.status.required && !r.status.mapped), [rows]);
-  const autoRows = useMemo(() => rows.filter((r) => !(r.status.required && !r.status.mapped)), [rows]);
-  const allReady = needsRows.length === 0;
+  const needsRows = useMemo(() => rows.filter((r) => needsSourceStatus(r.status)), [rows]);
+  const uncheckedRows = useMemo(
+    () => rows.filter((r) => r.status.required && r.status.resolution === "unknown"),
+    [rows],
+  );
+  const autoRows = useMemo(
+    () => rows.filter((r) => !needsSourceStatus(r.status) && !(r.status.required && r.status.resolution === "unknown")),
+    [rows],
+  );
+  const allReady = needsRows.length === 0 && uncheckedRows.length === 0;
 
   // The auto-mapped group is COLLAPSED while any row needs attention; it AUTO-EXPANDS once nothing
   // is blocking so the pane never reads as empty. Seeded from allReady + re-synced when readiness
@@ -360,6 +390,20 @@ export function OutgoingPane({
               onPickSource={onPickSource}
             />
           ))}
+
+          {/* Required fields we could NOT evaluate — the order's values were never loaded, so
+              there is no verdict to give. Neutral, above the auto group and outside its "ready"
+              count: amber would accuse an order nobody read, and the auto group would file it
+              under "N fields ready". Same wording as the toolbar's chip so the two read as one
+              statement rather than two findings. */}
+          {uncheckedRows.length > 0 && (
+            <>
+              <NotCheckedSummary count={uncheckedRows.length} />
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {uncheckedRows.map(({ field, status }) => renderRow(field, status))}
+              </div>
+            </>
+          )}
 
           {/* The auto-mapped group: a full-width collapsible summary, then the rows when open.
               Hidden entirely when there's nothing auto-mapped (e.g. every field needs attention). */}
@@ -539,8 +583,9 @@ function OutgoingRow({
   const canEditTransform = !!onFieldManipulatorsChange;
 
   const accent = field.scope === "line" ? "#2E8E3A" : "#1E66C9";
-  // Loud ONLY when required AND genuinely unmapped (no value resolves). Optional unmapped = quiet.
-  const needsSource = status.required && !status.mapped;
+  // Loud ONLY when required AND we KNOW no value reaches the supplier. Optional unmapped = quiet;
+  // required-but-unevaluated = quiet too (the pane groups those separately and says so).
+  const needsSource = needsSourceStatus(status);
 
   // INLINE AI FIX — reuse the EXISTING suggestion model (suggestedSourceFor). The suggested VALUE is
   // the suggested incoming field's own value (looked up by id); the rationale is "from {label}"
@@ -692,6 +737,7 @@ function OutgoingRow({
           ? { display: "flex", alignItems: "center", flex: "0 1 auto", minWidth: 0, marginLeft: "auto" }
           : { display: "flex", alignItems: "center", marginLeft: "auto", minWidth: 0 }}>
 
+
           {pickerMode && onPickSource ? (
             // PICKER mode — the row's source is an inline searchable dropdown (no dragging). Picking
             // routes through the host's onPickSource (→ the same wire-connect dispatch).
@@ -765,15 +811,22 @@ function OutgoingRow({
         </div>
       </div>
 
-      {/* Resolved value preview (mono) — the real delivered value as far as it's known. */}
-      {status.mapped && !fixedEditing && (
-        <div style={{ marginTop: 5, display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+      {/* Resolved value preview (mono) — the real delivered value as far as it's known, and the
+          amber marker when there ISN'T one.
+          The marker belongs on THIS line, not up in the header's action cluster: at 1024px (the
+          narrowest width this column renders at — below lg the workshop swaps to MobileTriage)
+          the header's three columns already spend their whole budget, and adding an 89px chip
+          there drove the source picker straight through the "Edit value" chip. This line is a
+          glyph and a value, it has the room, and "→ —  needs a value" is the sentence anyway. */}
+      {(status.mapped || needsSource) && !fixedEditing && (
+        <div style={{ marginTop: 5, display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
           <span aria-hidden style={{ fontSize: 8.5, fontWeight: 800, color: "#9AA3B2", flexShrink: 0 }}>
             →
           </span>
-          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontVariantNumeric: "tabular-nums", fontSize: 12, fontWeight: 600, color: status.valuePreview ? "#1E6D29" : "#AEB6C4", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontVariantNumeric: "tabular-nums", fontSize: 12, fontWeight: 600, color: status.valuePreview ? "#1E6D29" : "#AEB6C4", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {status.valuePreview ?? "—"}
           </span>
+          {needsSource && <NeedsValueTag />}
         </div>
       )}
 
@@ -876,6 +929,34 @@ function OutgoingRow({
   );
 }
 
+// ── Full-width "N required fields not checked yet" neutral note ───────────────
+// The third answer, and deliberately NOT a collapsible summary: there is nothing to fold away
+// and nothing for the operator to do here, so it is a statement rather than a control. Neutral
+// tokens, not the amber of the needs-attention rows above it — amber is a finding, and this is
+// the absence of one. Mirrors the toolbar chip's wording (MapperWorkbench) on purpose.
+// `edge="none"`: the card is a statement that we could not read the order, which is not a claim
+// about either side of the bridge. `pad`/`radius` match the sibling summary's geometry (10px /
+// 10px) rather than the canonical 18px, so the two group headers line up in the same column.
+function NotCheckedSummary({ count }: { count: number }) {
+  return (
+    <Card edge="none" pad={12} radius={10} role="note">
+      <span style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+        <span aria-hidden style={{ width: 20, height: 20, borderRadius: "50%", background: "var(--surface-2)", border: "1px solid var(--border)", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 11, fontWeight: 800, color: "var(--ink-muted)" }}>
+          ?
+        </span>
+        <span style={{ minWidth: 0 }}>
+          <span style={{ fontSize: 12.5, fontWeight: 650, color: "var(--ink)" }}>
+            {count} required field{count === 1 ? "" : "s"} not checked yet
+          </span>
+          <span style={{ display: "block", marginTop: 2, fontSize: 11.5, lineHeight: 1.45, color: "var(--ink-muted)" }}>
+            This order&rsquo;s values aren&rsquo;t loaded, so we can&rsquo;t tell whether these have a source.
+          </span>
+        </span>
+      </span>
+    </Card>
+  );
+}
+
 // ── Full-width "N fields ready · mapped automatically" collapsible summary ─────
 function AutoMappedSummary({ count, open, onToggle }: { count: number; open: boolean; onToggle: () => void }) {
   return (
@@ -962,16 +1043,28 @@ function OutgoingStatusTag({
       </span>
     );
   }
-  // Unmapped: loud amber ONLY when required; otherwise neutral + quiet.
-  if (status.required) {
-    return (
-      <span title="This field must be set before going live — map an incoming field to it or enter a fixed value." style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11, fontWeight: 700, color: "#8A5310", background: "#FAF1DD", border: "1px solid #F1E2BE", borderRadius: 4, padding: "1px 6px", flexShrink: 0 }}>
-        needs a value
-      </span>
-    );
-  }
+  // Unmapped and optional — neutral + quiet. The amber "needs a value" marker used to live here,
+  // on a `status.required` branch this function could never reach: REQUIRED_CANONICAL is a subset
+  // of CANONICAL_SPINE, so a required field always takes an earlier branch of
+  // computeOutgoingStatus and arrives with kind "auto", never "none". The marker now hangs off
+  // `needsSourceStatus` in the row itself, which is a question about the VALUE and can be true.
   return (
     <span style={{ fontSize: 11, fontWeight: 600, color: "#5E6779", flexShrink: 0 }}>not set</span>
+  );
+}
+
+// ── The amber "this required field will reach the supplier empty" marker ──────
+// Rendered by the row (both mapping modes) whenever needsSourceStatus holds, alongside whatever
+// the row's binding control says. Amber is reserved for a FINDING — never for a field we simply
+// could not evaluate; those are grouped under a neutral note instead.
+function NeedsValueTag() {
+  return (
+    <span
+      title="This field must be set before going live — map an incoming field to it or enter a fixed value."
+      style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11, fontWeight: 700, color: "#8A5310", background: "#FAF1DD", border: "1px solid #F1E2BE", borderRadius: 4, padding: "1px 6px", flexShrink: 0 }}
+    >
+      needs a value
+    </span>
   );
 }
 
