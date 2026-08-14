@@ -125,6 +125,59 @@ function glyphColor(fill: string): string {
   return GLYPH_TEXT_COLOR[fill] ?? fill;
 }
 
+/**
+ * The group name order rows are filed under. A constant, not a repeated literal,
+ * because the filter loop below has to recognise exactly the rows `buildIndex`
+ * produced from the server's search response — and a typo'd second copy would
+ * silently reinstate the client-side re-filter it exists to skip.
+ */
+const ORDERS_GROUP = "Orders";
+
+/**
+ * Shortest query that reaches the server search — ONE character.
+ *
+ * It was two, and the second character is where the bug lived. Below the
+ * threshold `debouncedQ` is forced to "" and the order rows fall back to the six
+ * most recent, so a one-character query searched six orders out of however many
+ * the account holds and then rendered "No results for “x”" — a confident,
+ * unqualified statement of absence over 6% of a 100-row page.
+ *
+ * The obvious objection to lowering it is cost: a request per keystroke. The
+ * existing 200ms debounce already answers that. Every keystroke clears the
+ * pending timer, so typing "PO-4711" fires ONE request when the typing stops,
+ * exactly as it did at a threshold of two. Dropping to one adds a request in
+ * precisely one situation — the user types a single character and pauses — which
+ * is the situation that was broken. TanStack's 30s `staleTime` keyed on the term
+ * absorbs the repeats after that.
+ */
+const SERVER_SEARCH_MIN_CHARS = 1;
+
+/** How many recent orders the palette previews when it is NOT searching the server. */
+const RECENT_PREVIEW_LIMIT = 6;
+
+/**
+ * What to say when nothing matched. Three different facts, three different
+ * sentences — the point of the whole fix is that "no results" is a claim about
+ * REACH as much as about matches, so a screen that has not finished searching,
+ * or that only looked at six rows, must not borrow the sentence that means "we
+ * searched everything and it is not there".
+ */
+function noResultsMessage(args: {
+  query: string;
+  searchPending: boolean;
+  serverSearchActive: boolean;
+  recentReach: number;
+}): string {
+  const { query, searchPending, serverSearchActive, recentReach } = args;
+  if (searchPending) return "Searching all orders…";
+  if (!serverSearchActive && query) {
+    return recentReach === 1
+      ? "No match in the 1 most recent order shown here."
+      : `No match in the ${recentReach} most recent orders shown here.`;
+  }
+  return `No results for “${query}”`;
+}
+
 function buildIndex(
   router: ReturnType<typeof useRouter>,
   orders: OrderSummary[],
@@ -141,7 +194,7 @@ function buildIndex(
   // unknown key instead of printing it raw.
   const orderItems: CmdItem[] = orders.map((order) => ({
     id: `o-${order.id}`,
-    group: "Orders",
+    group: ORDERS_GROUP,
     icon: "↗",
     label: order.poNumber,
     sub: `${order.buyerName ?? "Unknown buyer"} → ${order.supplierName ?? "Unknown supplier"} · ${statusLabel(order.status)}`,
@@ -232,10 +285,16 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
   const paletteRef               = useRef<HTMLDivElement>(null);
 
   // Debounce the user's query before firing a server search — avoids a request per keystroke.
+  // The term is TRIMMED before it is debounced, sent, or matched. The backend trims it too
+  // (`search.Trim()` in OrderQueryService), so an untrimmed client copy of the term filtered
+  // out rows the server had just matched: paste a PO number with a trailing space and the
+  // server returned the order while the client dropped it and reported no results.
+  const normalizedQ = q.trim();
   const [debouncedQ, setDebouncedQ] = useState("");
   useEffect(() => {
-    if (q.length < 2) { setDebouncedQ(""); return; }
-    const t = setTimeout(() => setDebouncedQ(q), 200);
+    const term = q.trim();
+    if (term.length < SERVER_SEARCH_MIN_CHARS) { setDebouncedQ(""); return; }
+    const t = setTimeout(() => setDebouncedQ(term), 200);
     return () => clearTimeout(t);
   }, [q]);
 
@@ -245,11 +304,11 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
     staleTime: 60_000,
   });
 
-  const { data: searchPage } = useQuery({
+  const { data: searchPage, isFetching: searchFetching } = useQuery({
     queryKey: ["orders-search", debouncedQ],
     queryFn: () => apiClient.getOrders({ search: debouncedQ, pageSize: 8 }),
     staleTime: 30_000,
-    enabled: !isApiMockMode && debouncedQ.length >= 2,
+    enabled: !isApiMockMode && debouncedQ.length >= SERVER_SEARCH_MIN_CHARS,
   });
   const { data: suppliers } = useQuery({
     queryKey: ["suppliers"],
@@ -263,19 +322,36 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
   });
 
   // When search term is active and server results are available, use them (all orders searchable).
-  // Otherwise fall back to first 6 from the working set (empty query = recent orders preview).
-  const orderResults: OrderSummary[] = debouncedQ.length >= 2 && !isApiMockMode
-    ? (searchPage?.items ?? [])
-    : (ordersPage?.items ?? []).slice(0, 6);
+  // Otherwise fall back to the recent-orders preview (empty query, or mock mode).
+  const serverSearchActive = !isApiMockMode && normalizedQ.length >= SERVER_SEARCH_MIN_CHARS;
+  // The response answers THIS query only once the debounce has caught up AND the request has
+  // landed. Until then the palette knows nothing about the term the user is looking at, and
+  // `searchPage` is `undefined` (TanStack drops data when the key changes) — which read as
+  // zero rows and printed "No results" over a search that had not been made yet.
+  const serverResultsCurrent =
+    serverSearchActive && debouncedQ === normalizedQ && !searchFetching && searchPage !== undefined;
+  const searchPending = serverSearchActive && !serverResultsCurrent;
+
+  const recentPreview = (ordersPage?.items ?? []).slice(0, RECENT_PREVIEW_LIMIT);
+  const orderResults: OrderSummary[] = serverSearchActive ? (searchPage?.items ?? []) : recentPreview;
 
   const items = buildIndex(router, orderResults, suppliers ?? [], buyers ?? []);
 
   // Build filtered groups + flat list for keyboard nav
   const groups: Record<string, CmdItem[]> = {};
+  const sq = normalizedQ.toLowerCase();
   for (const item of items) {
-    const label = item.label.toLowerCase();
-    const sq    = q.toLowerCase();
-    if (sq && !label.includes(sq) && !(item.sub ?? "").toLowerCase().includes(sq)) continue;
+    // Order rows from the server search are ALREADY filtered — by Postgres, over PoNumber,
+    // Supplier.Name and BuyerName, which is the same information this loop reads out of
+    // `label` and `sub`. Running the substring test over them again can therefore only ever
+    // DISCARD a real match, never find one, and Postgres `ILIKE '%term%'` and JS
+    // `.includes()` disagree in ways the user cannot see: `%` and `_` in the term are
+    // wildcards to one and literals to the other, and case folding follows the DB collation
+    // rather than `toLowerCase()`. Every such disagreement surfaced as "No results" printed
+    // on top of a NON-EMPTY server response, which is the worst reading of all — the account
+    // holds the order, the API returned it, and the screen denies both.
+    const preFiltered = serverResultsCurrent && item.group === ORDERS_GROUP;
+    if (!preFiltered && sq && !item.label.toLowerCase().includes(sq) && !(item.sub ?? "").toLowerCase().includes(sq)) continue;
     if (!groups[item.group]) groups[item.group] = [];
     groups[item.group].push(item);
   }
@@ -421,7 +497,12 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
                 fontSize: 13,
               }}
             >
-              No results for &ldquo;{q}&rdquo;
+              {noResultsMessage({
+                query: normalizedQ,
+                searchPending,
+                serverSearchActive,
+                recentReach: recentPreview.length,
+              })}
             </div>
           ) : (
             Object.entries(groups).map(([group, groupItems]) => (
