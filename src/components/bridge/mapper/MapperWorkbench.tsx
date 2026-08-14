@@ -39,7 +39,7 @@ import { useMapperModel } from "./useMapperModel";
 import type { IncomingOrderShape } from "./incomingFromOrder";
 import { MAPPER_EVENT, type MapperCommandEvent } from "./mapperCommands";
 import type { OutgoingStatusInput } from "./outgoingStatusModel";
-import { computeOutgoingStatus, computeOutgoingStatuses } from "./outgoingStatusModel";
+import { computeOutgoingStatus, computeOutgoingStatuses, needsAttentionStatus } from "./outgoingStatusModel";
 import type { FieldFilter, TargetField } from "./types";
 import type { OrderMappingOverride, OutputFormatId } from "@/lib/api/types";
 import type { IncomingView } from "@/lib/sourceDocument";
@@ -699,9 +699,12 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
     let mappedCount = 0;
     for (const f of model.targetFields) {
       const st = computeOutgoingStatus(f, statusInput);
-      // Needs attention: genuinely unmapped, OR required without a resolved value.
-      const needsAttention = !st.mapped || (st.required && !st.mapped);
-      if (needsAttention) attention.push(f);
+      // Needs attention: genuinely unmapped, OR required and known to carry nothing. This read
+      // `!st.mapped || (st.required && !st.mapped)`, whose second term is subsumed by the first —
+      // and could not have fired alone either, since every required name is a spine key that
+      // resolves through the implicit 1:1 branch with `mapped: true`. The real question is
+      // `resolution`, and the predicate that asks it is shared, not re-derived here.
+      if (needsAttentionStatus(st)) attention.push(f);
       else mappedCount++;
     }
     // Never hide everything: if a clean order has zero attention rows, fall back to

@@ -194,6 +194,41 @@ export function computeOutgoingStatus(
   return { outputPath: path, mapped: false, kind: "none", source: null, valuePreview: null, required, auto: false, resolution: "missing" };
 }
 
+/**
+ * True when this output is REQUIRED and we KNOW nothing reaches the supplier through it — the one
+ * predicate behind every "needs a source" marker, count and split.
+ *
+ * `resolution === "missing"`, never `!mapped`. `mapped` answers "does a rule emit this column",
+ * and every required canonical name is a CANONICAL_SPINE member that branch 3 claims with
+ * `mapped: true`, so `required && !mapped` is structurally false — it cannot fire, and three
+ * separate call sites hand-wrote it anyway. It lives here, beside the tri-state it reads, so the
+ * header count, the row marker and the workbench split can never disagree about which fields are
+ * blocking.
+ *
+ * `"unknown"` is deliberately NOT included: a required field whose order was never loaded has no
+ * verdict to give, and calling it missing would accuse the connection editor of four absent
+ * sources it never looked for.
+ */
+export function needsSourceStatus(status: OutgoingFieldStatus): boolean {
+  return status.required && status.resolution === "missing";
+}
+
+/**
+ * True when a row still needs a human — the attention-first output split's predicate.
+ *
+ * Two genuinely different reasons, not one written twice:
+ *   • `!mapped` — no rule emits this column at all (branch 4). Applies to optional outputs too;
+ *     an unmapped column is unmapped whether or not the supplier demands it.
+ *   • `needsSourceStatus` — a rule DOES emit it, but we know it carries nothing.
+ *
+ * The call site read `!mapped || (required && !mapped)`, whose second term is subsumed by the
+ * first, so the split saw only the first reason and filed every empty-but-emitted required field
+ * under "already mapped". A required field with `resolution: "unknown"` stays out of attention.
+ */
+export function needsAttentionStatus(status: OutgoingFieldStatus): boolean {
+  return !status.mapped || needsSourceStatus(status);
+}
+
 /** A small header summary chip: "N of M mapped". */
 export interface OutgoingSummary {
   mappedCount: number;
@@ -223,7 +258,7 @@ export function computeOutgoingStatuses(
 ): { statuses: OutgoingFieldStatus[]; summary: OutgoingSummary } {
   const statuses = fields.map((f) => computeOutgoingStatus(f, input));
   const mappedCount = statuses.filter((s) => s.mapped).length;
-  const requiredUnmapped = statuses.filter((s) => s.required && s.resolution === "missing").length;
+  const requiredUnmapped = statuses.filter(needsSourceStatus).length;
   const requiredUnknown = statuses.filter((s) => s.required && s.resolution === "unknown").length;
   return { statuses, summary: { mappedCount, total: statuses.length, requiredUnmapped, requiredUnknown } };
 }
