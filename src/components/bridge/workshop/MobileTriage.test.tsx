@@ -1,6 +1,7 @@
 import { describe, test, expect, vi, afterEach } from "vitest";
 import { render, screen, cleanup, within, fireEvent } from "@testing-library/react";
 import { MobileTriage, type MobileTriageProps } from "./MobileTriage";
+import { readyBarLabel } from "./acceptanceGateModel";
 import type { WorkshopIssue, IssuesResolveApi } from "./IssuesPanel";
 import type { OrderLine } from "@/types/procurement";
 
@@ -52,6 +53,10 @@ const makeProps = (over: Partial<MobileTriageProps> = {}): MobileTriageProps => 
   issues: [],
   blockingIssues: 0,
   exceptionCount: 0,
+  // Produced by readyBarLabel in production; the clean-order sentence is used here so
+  // these unrelated layout tests are not silently pinning the advisory wording.
+  readyLabel: readyBarLabel({ advisoryCount: 0, counterpartyNoun: "Supplier" }),
+  advisoryCount: 0,
   canSend: true,
   crossed: false,
   sendState: "idle",

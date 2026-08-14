@@ -70,8 +70,18 @@ export interface MobileTriageProps {
   receivedFieldCount: number;
   /** Number of order lines (shown in the received card). */
   lineCount: number;
-  /** Output format label, e.g. "JSON" / "cXML" ("What we will send"). */
-  outputFormatLabel: string;
+  /**
+   * Output format label, e.g. "JSON" / "cXML" ("What we will send") — or NULL when the
+   * order holds no deliverable artifact yet and nothing has decided the format.
+   *
+   * Null is the normal pre-send state, not a rare one: the transform runs BECAUSE no
+   * deliverable artifact exists. The caller derives this from `orderDeliveryFormat` via
+   * `deliveryFormatLabel`, the same producer the send confirmation uses, so the badge here
+   * and the format the modal names one tap later cannot disagree. Null → this view renders
+   * no badge and names no format in its prose. Never substitute a placeholder: the previous
+   * producer's hard-coded "XML" default is precisely the defect this type change closes.
+   */
+  outputFormatLabel: string | null;
   /** Live output preview text if it could be generated; null = none available yet. */
   previewContent?: string | null;
 
@@ -79,6 +89,28 @@ export interface MobileTriageProps {
   issues: WorkshopIssue[];
   blockingIssues: number;
   exceptionCount: number;
+  /**
+   * The green all-clear bar's sentence, produced by `readyBarLabel` in the caller — the SAME
+   * string the desktop rail's `<IssuesPanel readyLabel>` receives.
+   *
+   * REQUIRED, and required on purpose. This view used to hold its own literal —
+   * "No open issues — ready to send." — so an order whose supplier rules failed and were
+   * OVERRIDDEN read as entirely clean here while the desktop rail, for that same order, said
+   * "No open issues, but 2 supplier rules did not pass and were overridden." A second string is
+   * how the two diverged; an optional prop with a local fallback is how they would diverge
+   * again, silently, the first time a caller forgot it. There is no default to fall back to.
+   */
+  readyLabel: string;
+  /**
+   * Supplier acceptance rules that did not pass but that the server's gate will not refuse —
+   * i.e. an override is recorded (`blocked:false` with a non-empty `blockers` list).
+   *
+   * REQUIRED for the same reason as `readyLabel`: this view cannot derive it. `issues` carries
+   * FIELD problems only, so counting warnings out of it — which is all this component used to
+   * do — silently dropped every advisory rule, and the mobile send bar therefore never showed
+   * the "· N optional" the desktop button showed for the identical order.
+   */
+  advisoryCount: number;
   canSend: boolean;
   crossed: boolean;
   sendState: "idle" | "transforming" | "delivering";
@@ -127,7 +159,7 @@ export function MobileTriage(props: MobileTriageProps) {
   const {
     poNumber, buyerName, supplierName, grandTotalLabel, status,
     receivedFieldCount, lineCount, outputFormatLabel, previewContent,
-    issues, blockingIssues, exceptionCount, canSend, crossed, sendState,
+    issues, blockingIssues, exceptionCount, readyLabel, advisoryCount, canSend, crossed, sendState,
     primaryCta, primaryCtaProgress, doneLabel,
     onFix, onFocusField, onSend, resolve, lines,
     suggestableCount = 0, highConfCount = 0, hintSlot, documentSlot,
@@ -152,7 +184,11 @@ export function MobileTriage(props: MobileTriageProps) {
     },
     blockingIssues,
     exceptionCount,
-    warningIssues: issues.filter((i) => i.severity === "warning").length,
+    // `+ advisoryCount` mirrors OrderWorkshop's own `warningIssues` line character for
+    // character, off the same two inputs. Without it this sum counted FIELD warnings only,
+    // so the desktop button read "Send to supplier · 2 optional" on an overridden order and
+    // the button directly beside it here read a plain "Send to supplier".
+    warningIssues: issues.filter((i) => i.severity === "warning").length + advisoryCount,
     crossed,
     sendState,
   });
@@ -294,7 +330,10 @@ export function MobileTriage(props: MobileTriageProps) {
           accentBorder={GREEN_BORDER}
           title="What we will send"
           titleHint="To the supplier"
-          badge={outputFormatLabel}
+          /* Undefined, not a placeholder — SummaryCard omits the pill entirely. Nothing has
+             chosen the delivery format until a deliverable artifact exists, so there is no
+             honest badge to draw. */
+          badge={outputFormatLabel ?? undefined}
           defaultOpen={false}
         >
           {previewContent && previewContent.trim().length > 0 ? (
@@ -318,9 +357,18 @@ export function MobileTriage(props: MobileTriageProps) {
               {previewContent}
             </pre>
           ) : (
+            /* The format is named only when one is known. Same shape the send confirmation
+               already uses for the identical value (`ConfirmDialog`'s `formatLabel ? … : ""`),
+               so the two surfaces make the same claim or neither does. */
             <p style={{ fontSize: 13, lineHeight: 1.5, color: INK, margin: 0, overflowWrap: "anywhere" }}>
-              A <b>{outputFormatLabel}</b> file is generated for {supplierName} when you send. Open this order on a larger
-              screen to see a live preview.
+              {outputFormatLabel ? (
+                <>
+                  A <b>{outputFormatLabel}</b> file is generated for {supplierName} when you send.
+                </>
+              ) : (
+                <>A file is generated for {supplierName} when you send.</>
+              )}{" "}
+              Open this order on a larger screen to see a live preview.
             </p>
           )}
         </SummaryCard>
@@ -357,10 +405,14 @@ export function MobileTriage(props: MobileTriageProps) {
             </span>
           </div>
         ) : issues.length === 0 ? (
+          /* The all-clear. `readyLabel` arrives from the caller's `readyBarLabel` — the SAME
+             sentence the desktop rail shows for this order — so an overridden supplier rule is
+             named here too. items-start, not items-center: the sentence wraps to several lines
+             on a phone and a centred glyph would float mid-paragraph. */
           <div
             role="status"
             data-testid="mobile-triage-ready"
-            className="flex items-center gap-2.5"
+            className="flex items-start gap-2.5"
             style={{
               borderRadius: 10,
               background: GREEN_WASH,
@@ -369,8 +421,13 @@ export function MobileTriage(props: MobileTriageProps) {
               padding: "13px 14px",
             }}
           >
-            <CheckIcon color={GREEN_DEEP} />
-            <span style={{ fontSize: 14, fontWeight: 700 }}>No open issues — ready to send.</span>
+            <span style={{ flexShrink: 0, marginTop: 1, display: "inline-flex" }}>
+              <CheckIcon color={GREEN_DEEP} />
+            </span>
+            <span style={{ fontSize: 13.5, lineHeight: 1.45, overflowWrap: "anywhere" }}>
+              <strong style={{ fontWeight: 700 }}>Ready to send.</strong>{" "}
+              <span style={{ fontWeight: 500 }}>{readyLabel}</span>
+            </span>
           </div>
         ) : (
           <section data-testid="mobile-issue-list" aria-label="Open issues" className="flex flex-col gap-2.5">

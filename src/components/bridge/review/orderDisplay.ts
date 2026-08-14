@@ -109,13 +109,32 @@ export function outputArtifactLabel(artifacts: Order["artifacts"], supplierName:
   return fmt ? `${slug}.${fmt}` : `${slug}.xml`;
 }
 
-/** Derive FileChip format from the newest DELIVERABLE outbound artifact. */
-export function outputArtifactType(artifacts: Order["artifacts"]): string {
-  const fmt = deliverableArtifact(artifacts)?.format?.toLowerCase();
-  if (!fmt)           return "XML";
-  if (fmt === "cxml") return "cXML";
-  if (fmt === "csv")  return "CSV";
-  return fmt.toUpperCase();
+/**
+ * Display label for a delivery format id — "cxml" → "cXML", "csv" → "CSV", "x12" → "X12".
+ *
+ * NULL IN, NULL OUT, and that is the entire point of the function existing.
+ *
+ * It replaces `outputArtifactType(artifacts)`, which read the same artifact list and answered
+ * a confident **"XML"** whenever there was no deliverable artifact to read:
+ *
+ *     const fmt = deliverableArtifact(artifacts)?.format?.toLowerCase();
+ *     if (!fmt) return "XML";
+ *
+ * That branch is not an edge case — it is the NORMAL pre-send state. `useSendFlow` runs the
+ * transform precisely BECAUSE no deliverable artifact exists yet, so every order still awaiting
+ * review took it, and every supplier that does not receive XML was named wrongly. The desktop
+ * send confirmation had already been fixed for exactly this (OrderWorkshop's `sendModalFormat`
+ * comment); the reduced sub-lg surface was left on the old chain and went on printing a green
+ * `XML` badge over "What we will send · To the supplier".
+ *
+ * The input is deliberately an `OutputFormatId`, not a raw artifact string: `orderDeliveryFormat`
+ * is the ONE normalizer, so the badge, the send confirmation and the mapper preview's default
+ * cannot answer differently about the same order. A format the product cannot preview arrives
+ * here as null and renders as nothing.
+ */
+export function deliveryFormatLabel(format: OutputFormatId | null): string | null {
+  if (!format) return null;
+  return format === "cxml" ? "cXML" : format.toUpperCase();
 }
 
 /**
