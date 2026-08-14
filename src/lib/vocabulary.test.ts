@@ -369,6 +369,9 @@ describe("check-vocabulary.mjs scan", () => {
 describe("check-vocabulary.mjs — per-tier BLOCK exemption", () => {
   let root: string;
 
+  /** A fixture path is a literal in these patterns — `(marketing)` and `.mdx` are not syntax. */
+  const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
   const METAPHOR_PROSE = "This crossing uses the supplier dock.";
   const JARGON_PROSE = "Every exception is recorded, and the write is idempotent.";
   const CLEAN_PROSE = "Every order reaches its supplier.";
@@ -439,8 +442,12 @@ describe("check-vocabulary.mjs — per-tier BLOCK exemption", () => {
     it(`FAILS on a retired metaphor word in ${f.what}`, () => {
       plant(f, METAPHOR_PROSE);
       const { code, out } = runGate([], root);
-      expect(out).toContain(f.rel);
-      expect(out).toContain("[metaphor: crossing]");
+      // One pattern rather than two `toContain`s, for two reasons: the failure message
+      // then carries BOTH the file and the word (a test aborts at its first failed
+      // assertion, so two of them only ever report the first), and it pins the file and
+      // the tier hit to the SAME reported line — `file:line  [metaphor: crossing]` — so a
+      // stray metaphor hit somewhere else in the fixture tree cannot satisfy it.
+      expect(out).toMatch(new RegExp(`${escapeRe(f.rel)}:\\d+\\s+\\[metaphor: crossing]`));
       expect(code).toBe(1);
     });
 
