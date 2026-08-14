@@ -124,6 +124,18 @@ export interface MapperToolbarState {
   dismissAllSuggestions?: () => void;
 }
 
+/**
+ * The Issues column head's verdict, once the open-issue count is 0.
+ *
+ * Deliberately a string union rather than `boolean | "unknown"`: `"unknown"` is truthy,
+ * so a tri-state smuggled into a boolean-shaped prop keeps rendering the all-clear at
+ * every `verdict ? …` in the file. Nothing here is truthy-tested; every branch names its
+ * arm. Kept domain-neutral (the workbench must not import the order-status machine) but
+ * structurally identical to `OrderProblemState` in src/lib/orderStatusManifest.ts, which
+ * is what the order screen passes.
+ */
+export type MapperIssuesVerdict = "clear" | "problem" | "unknown";
+
 export interface MapperWorkbenchProps {
   variant: "order" | "connection";
   orderId?: string;
@@ -197,10 +209,17 @@ export interface MapperWorkbenchProps {
    * alone, so on the failed order in WP-39 §4.3 it declared an all-clear beside a
    * "Couldn't send" badge on the same screen.
    *
+   * THREE answers, not two. This was a `boolean` and the order screen produced it by
+   * negating a predicate that answers false for a status it does not recognise — so an
+   * unknown status arrived here as `true` and drew the green tick. A boolean has nowhere
+   * to put "I cannot tell", and the two callers that can tell deploy separately from the
+   * backend that names the statuses, so "I cannot tell" happens.
+   *
    * The workbench stays out of the order-status machine; the caller passes the verdict.
-   * Omitted → the count decides, exactly as before.
+   * Omitted → `"unknown"`. It is NOT defaulted to the open count: `issuesOpenCount === 0`
+   * is precisely the thing this prop exists to stop standing in for.
    */
-  issuesAllClear?: boolean;
+  issuesVerdict?: MapperIssuesVerdict;
   /** Bump to force the preview column onto its "Issues" tab (e.g. a send-readiness chip jump). */
   showIssuesSignal?: number;
   /**
@@ -277,7 +296,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
   const {
     variant, readOnly, onDeliver, deliverDisabled, deliverLabel, extractionFailed,
     supplierName, onSaveMappings, saveMappingsLabel, savingMappings, onValidate,
-    issuesSlot, issuesOpenCount = 0, issuesBlockingCount = 0, issuesAllClear, showIssuesSignal,
+    issuesSlot, issuesOpenCount = 0, issuesBlockingCount = 0, issuesVerdict = "unknown", showIssuesSignal,
     layout, attentionFirstOutput, trustedThreshold, focusFieldId, focusFieldSignal,
     previewDefaultFormat, autoFilledFields, mappingMode = "wires", reviewSignal,
     hideToolbar, hideOrientation, onToolbarState,
@@ -1211,7 +1230,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
                 issuesSlot={issuesSlot}
                 openCount={issuesOpenCount}
                 blockingCount={issuesBlockingCount}
-                allClear={issuesAllClear ?? issuesOpenCount === 0}
+                verdict={issuesVerdict}
                 showIssuesSignal={showIssuesSignal}
                 preview={previewNode}
               />
@@ -1250,18 +1269,25 @@ function PreviewColumnSplit({
   issuesSlot,
   openCount,
   blockingCount,
-  allClear,
+  verdict,
   showIssuesSignal,
   preview,
 }: {
   issuesSlot: ReactNode;
   openCount: number;
   blockingCount: number;
-  /** Nothing wrong with the order AT ALL — not merely no open field issues. */
-  allClear: boolean;
+  /**
+   * `"clear"` = nothing wrong with the order AT ALL — not merely no open field issues.
+   * `"unknown"` = the caller could not tell, and gets the same amber treatment as a
+   * known problem: the one thing it must never get is the green tick.
+   */
+  verdict: MapperIssuesVerdict;
   showIssuesSignal?: number;
   preview: ReactNode;
 }) {
+  // The ONLY thing allowed to draw the all-clear. Named once so no branch below can
+  // re-derive it from a count or lean on the truthiness of "unknown".
+  const allClear = verdict === "clear";
   const bodyRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     if (showIssuesSignal == null || showIssuesSignal === 0) return;
@@ -1297,7 +1323,16 @@ function PreviewColumnSplit({
             Issues
           </span>
           <span style={{ fontSize: 10.5, color: "#5E6779", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {openCount > 0 ? "Fix these before you send" : allClear ? "Nothing to fix" : "Something else stopped this order"}
+            {openCount > 0
+              ? "Fix these before you send"
+              : verdict === "clear"
+                ? "Nothing to fix"
+                : verdict === "problem"
+                  ? "Something else stopped this order"
+                  // Not "something stopped this order" — nothing observed one. We were
+                  // handed a state this build cannot read, so the only true sentence is
+                  // that the all-clear is unverified.
+                  : "We can't confirm this order is clear"}
           </span>
         </span>
         <span style={{ marginLeft: "auto", flexShrink: 0 }}>
@@ -1315,8 +1350,9 @@ function PreviewColumnSplit({
               </svg>
             </span>
           ) : (
-            /* A tick here would say the order is fine. It is not — it just has no
-               FIELD problems left. #FFFFFF on #B36D14 is 3.7:1, non-text glyph. */
+            /* A tick here would say the order is fine. Either it is not, or we cannot
+               tell — all that is established is that no FIELD problems are left.
+               #FFFFFF on #B36D14 is 3.7:1, non-text glyph. */
             <span aria-hidden style={{ display: "inline-flex", width: 18, height: 18, borderRadius: "50%", background: "#B36D14", alignItems: "center", justifyContent: "center", color: "#FFFFFF", fontSize: 12, fontWeight: 800 }}>
               !
             </span>

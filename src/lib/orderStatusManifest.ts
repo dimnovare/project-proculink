@@ -296,10 +296,35 @@ export function statusFact(status: string | null | undefined): OrderStatusFact |
  * `/operations/health` render a requeue button for any status it did not
  * recognise — a control the endpoint answers 400 to, offered precisely when the
  * frontend understood the row least.
+ *
+ * NEVER NEGATE THIS. `!isProblemBucketStatus(s)` reads an unrecognised status as
+ * "nothing is wrong" — the false that means "I don't know" becomes a true that
+ * means "all clear". The order review screen did exactly that and drew a green
+ * tick with "Nothing to fix" for any status this build had not heard of. When you
+ * need the third answer, call `orderProblemState` below; it cannot be negated
+ * into a claim because it does not return a boolean.
  */
 export function isProblemBucketStatus(status: string | null | undefined): boolean {
   const fact = statusFact(status);
   return fact !== null && fact.bucket !== "healthy";
+}
+
+/**
+ * The three answers a status can give about whether the order is in trouble.
+ *
+ * `"unknown"` is a first-class answer, not a shade of `"clear"`: frontend and
+ * backend deploy separately, so a status this build has never heard of is a
+ * routine event, and the only honest thing to say about it is that we cannot
+ * tell. Callers that render a VERDICT (a tick, an all-clear sentence, a green
+ * dot) must branch on all three.
+ */
+export type OrderProblemState = "clear" | "problem" | "unknown";
+
+/** `"clear"` healthy · `"problem"` stopped and owes a next step · `"unknown"` not in this build's manifest. */
+export function orderProblemState(status: string | null | undefined): OrderProblemState {
+  const fact = statusFact(status);
+  if (fact === null) return "unknown";
+  return fact.bucket === "healthy" ? "clear" : "problem";
 }
 
 /** True when the backend's guard for `op` admits `status`. Unknown status → false. */

@@ -194,6 +194,115 @@ describe("audit trail — validation outcome (WP-39 §4.1)", () => {
   });
 });
 
+// ── The "Validated" node must be evidenced by a validation ──────────────────────
+//
+// `reached` is a high-water mark: evidence for a LATER stage drags every earlier node to
+// "done". Nothing that raises it is a validation, and two ordinary orders reached this
+// node without one — an order merely HOLDING an output artifact (`hasOutput` forces
+// `reached >= 4`) and an order sitting in `pending_review` (rank 2). Both drew the green
+// ✓ beside the word "Validated", and since `detail(2)` returns undefined for an empty
+// `validationResults`, what rendered was a bare green "Validated" with nothing under it.
+//
+// The claim and the evidence were independent, which is the whole defect: the strongest
+// mark on the timeline appeared on the orders the API had said least about.
+//
+// Asserted on the node's rendered text — the ✓ glyph an operator actually sees — not on
+// the derivation. A test reading `stages[2].state` passes while the DOM shows the check.
+const OUTPUT_ARTIFACT: PassportDto["outputArtifact"] = {
+  artifactId: "art-1",
+  format: "csv",
+  fileKey: `org/${ORDER_ID}/out.csv`,
+  createdAt: "2026-08-01T09:20:00Z",
+  artifactSha256: null,
+};
+
+/** The ✓ the "done" state paints into the node's dot. */
+function validatedNodeText(): string {
+  return screen.getByTestId("timeline-node-validated").textContent ?? "";
+}
+
+describe("audit trail — the Validated node claims a check that ran", () => {
+  it("does not mark Validated done just because a transform artifact exists", async () => {
+    // An order that transformed and then failed to deliver, with no validation recorded.
+    // Pre-fix: hasOutput → reached 4 → nodes 0..4 green, including this one.
+    api.getOrderPassport.mockResolvedValue(
+      passport({
+        order: { ...passport().order, status: "delivery_failed" },
+        finalStatus: "delivery_failed",
+        outputArtifact: OUTPUT_ARTIFACT,
+        validationResults: [],
+      }),
+    );
+
+    renderPassport();
+
+    await screen.findByTestId("timeline-node-validated");
+    expect(validatedNodeText()).not.toContain("✓");
+  });
+
+  it("does not mark Validated done just because the order is in pending_review", async () => {
+    // The second path, independent of the first: STATUS_RANK.pending_review is 2, and its
+    // comment used to read "parsed + validated done".
+    api.getOrderPassport.mockResolvedValue(
+      passport({
+        order: { ...passport().order, status: "pending_review" },
+        finalStatus: "pending_review",
+        outputArtifact: null,
+        validationResults: [],
+      }),
+    );
+
+    renderPassport();
+
+    await screen.findByTestId("timeline-node-validated");
+    expect(validatedNodeText()).not.toContain("✓");
+  });
+
+  it("says nothing under a Validated node it cannot evidence", async () => {
+    // Not a bare green "Validated" AND not a fabricated count either.
+    api.getOrderPassport.mockResolvedValue(
+      passport({ outputArtifact: OUTPUT_ARTIFACT, validationResults: [] }),
+    );
+
+    renderPassport();
+
+    await screen.findByTestId("timeline-node-validated");
+    expect(document.body.textContent).toContain("Validated");
+    expect(document.body.textContent).not.toContain("checks passed");
+    expect(document.body.textContent).not.toContain("validation issue");
+  });
+
+  it("still marks Validated done when checks were actually recorded", async () => {
+    // Anti-vacuity. A node that never goes green would satisfy every assertion above and
+    // would have made the audit trail useless in the other direction.
+    api.getOrderPassport.mockResolvedValue(
+      passport({
+        order: { ...passport().order, status: "pending_review" },
+        finalStatus: "pending_review",
+        validationResults: PRODUCTION_ALL_PASS,
+      }),
+    );
+
+    renderPassport();
+
+    await screen.findByTestId("timeline-node-validated");
+    expect(validatedNodeText()).toContain("✓");
+    expect(document.body.textContent).toContain("4 checks passed");
+  });
+
+  it("leaves the later stages alone — only the unevidenced node loses its check", async () => {
+    // The fix must not un-do Transformed, which an output artifact really does evidence.
+    api.getOrderPassport.mockResolvedValue(
+      passport({ outputArtifact: OUTPUT_ARTIFACT, validationResults: [] }),
+    );
+
+    renderPassport();
+
+    expect((await screen.findByTestId("timeline-node-transformed")).textContent).toContain("✓");
+    expect(screen.getByTestId("timeline-node-delivered").textContent).toContain("✓");
+  });
+});
+
 describe("audit trail — mapping decisions (WP-39 §4.7)", () => {
   it("does not render a resolved supplier code as 'unresolved'", async () => {
     api.getOrderPassport.mockResolvedValue(passport());

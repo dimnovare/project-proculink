@@ -85,7 +85,8 @@ interface Stage {
 /** Map the order/final status to the index of the last *completed* pipeline stage. */
 const STATUS_RANK: Record<string, number> = {
   parsing: 0,          // uploaded done; parse in progress
-  pending_review: 2,   // parsed + validated done; mapping needs attention
+  pending_review: 2,   // parsed done; mapping needs attention. NOT evidence that validation
+                       // ran — the Validated node is gated on its own rows (see VALIDATED_STAGE)
   ready: 3,            // mapped done; ready to transform
   transforming: 3,     // mapped done; transform in progress
   ready_to_deliver: 4, // transformed done; ready to deliver
@@ -93,6 +94,23 @@ const STATUS_RANK: Record<string, number> = {
 };
 
 const PIPELINE = ["Uploaded", "Parsed", "Validated", "Mapped", "Transformed", "Delivered"];
+
+/**
+ * The one node with no evidence of its own in `reached`.
+ *
+ * `reached` is a high-water mark: any evidence for a LATER stage drags every earlier node
+ * to "done" with it. That is fine for stages whose predecessors really are implied — you
+ * cannot hold a transform artifact without having parsed — but nothing that raises `reached`
+ * is a VALIDATION. Two paths reached this node without one: an order merely holding an
+ * output artifact set `reached >= 4`, and `pending_review` sets rank 2. Either drew a green
+ * ✓ beside the word "Validated" on an order where no check had been recorded, and because
+ * `detail(2)` returns undefined for an empty `validationResults` what rendered was a bare
+ * green "Validated" with nothing under it — which the detail block below already says is
+ * not the evidence.
+ *
+ * So this node is decided by its own rows and nothing else. No rows → not "done".
+ */
+const VALIDATED_STAGE = PIPELINE.indexOf("Validated");
 
 interface DerivedTimeline {
   stages: Stage[];
@@ -187,10 +205,16 @@ export function deriveTimeline(p: PassportDto): DerivedTimeline {
     }
   };
 
+  // Did a validation actually run? The producer emits one row per check PERFORMED, so the
+  // rows are the only evidence this screen ever receives that the stage happened at all.
+  const validationRan = p.validationResults.length > 0;
+
   const stages: Stage[] = PIPELINE.map((label, i) => {
+    // "Done" needs evidence for THIS stage, not just a later one. See VALIDATED_STAGE.
+    const evidenced = i !== VALIDATED_STAGE || validationRan;
     let state: StageState;
     if (failedAt === i) state = "failed";
-    else if (i <= reached) state = "done";
+    else if (i <= reached && evidenced) state = "done";
     else if (i === reached + 1 && inProgress) state = "current";
     else state = "pending";
     return { key: label.toLowerCase(), label, state, at: at(i), detail: detail(i) };
@@ -624,7 +648,7 @@ export function OrderPassport({ orderId }: { orderId: string }) {
               {allNodes.map((n) => {
                 const s = STATE_STYLE[n.state];
                 return (
-                  <div key={n.key} style={{ position: "relative", paddingLeft: 28, paddingTop: 6, paddingBottom: 6 }}>
+                  <div key={n.key} data-testid={`timeline-node-${n.key}`} style={{ position: "relative", paddingLeft: 28, paddingTop: 6, paddingBottom: 6 }}>
                     <div
                       aria-hidden
                       style={{
