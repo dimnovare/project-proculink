@@ -46,10 +46,29 @@ const CANONICAL_SPINE = new Set<string>([...CANONICAL_HEADER_FIELDS, ...CANONICA
 /** How an output field gets its value, for the small source tag. */
 export type OutgoingSourceKind = "wired" | "fixed" | "auto" | "none";
 
+/**
+ * Whether this output will actually carry a value to the supplier.
+ *
+ * Deliberately three states and deliberately NOT a boolean. `mapped` answers "is there a rule
+ * that emits this column"; that is a different question, and for months the Send gate asked the
+ * first one while believing it had asked the second. `"unknown"` exists because the value
+ * lookups are empty in the shipped connection editor whenever there is no sample order — and an
+ * absent lookup is not evidence of an absent value.
+ */
+export type OutgoingResolution = "resolved" | "missing" | "unknown";
+
 /** The honest, per-output status the OutgoingPane row renders. */
 export interface OutgoingFieldStatus {
   outputPath: string;
-  /** True when the field resolves to a value (wired, fixed, OR a 1:1 auto default). */
+  /**
+   * True when SOMETHING emits this output — a fixed literal, an explicit wire, or the implicit
+   * 1:1 auto default. It does NOT promise a value: the auto and wired branches both stay
+   * `mapped` when the value behind them is null, because the column is still emitted (empty).
+   *
+   * This comment used to read "True when the field resolves to a value", which the code has
+   * never done, and `requiredUnmapped` was computed from `!mapped` on the strength of it.
+   * Ask `resolution` about values.
+   */
   mapped: boolean;
   /** Where the value comes from (drives the source tag + tone). */
   kind: OutgoingSourceKind;
@@ -61,6 +80,8 @@ export interface OutgoingFieldStatus {
   required: boolean;
   /** True when the value comes from an implicit 1:1 default (canonical key === output path). */
   auto: boolean;
+  /** Whether the rule behind `mapped` resolves to a value — the Send gate's real question. */
+  resolution: OutgoingResolution;
 }
 
 /** Inputs the status computation needs — all already derived by useMapperModel. */
@@ -77,6 +98,17 @@ export interface OutgoingStatusInput {
   canonicalValueByKey: Map<string, string>;
   /** Human label for a canonical field key (for the "← PO number" tag). */
   labelForCanonical: (key: string) => string;
+  /**
+   * True when `tokenValueById` + `canonicalValueByKey` are AUTHORITATIVE for this scope — an
+   * order's parsed values are loaded, so a key that is absent from them is genuinely absent
+   * from the order.
+   *
+   * False on the connection editor with no sample order, where both maps are empty because
+   * nobody looked. Required rather than optional on purpose: an omitted flag would silently
+   * default to one of the two verdicts, which is the whole failure mode this field exists to
+   * prevent. Callers pass `model.hasIncomingSource`.
+   */
+  valuesKnown: boolean;
 }
 
 /** True when an output path is required (loud when unmapped). */
@@ -102,11 +134,24 @@ function resolveCanonicalValue(
 }
 
 /**
+ * Classify a chased value. `null`/empty is only an accusation when we actually had the order's
+ * values to chase it through; otherwise it is the third answer.
+ */
+function resolutionOf(value: string | null, valuesKnown: boolean): OutgoingResolution {
+  if (value != null && value !== "") return "resolved";
+  return valuesKnown ? "missing" : "unknown";
+}
+
+/**
  * Compute the honest status for ONE output field. Precedence:
  *   1. explicit fixed value  → kind "fixed", value = the literal.
  *   2. explicit canonical wire → kind "wired", value = the resolved canonical value.
  *   3. implicit 1:1 default (outputPath is itself a canonical spine key) → kind "auto".
  *   4. otherwise → unmapped (kind "none"); loud only if required.
+ *
+ * Branches 2 and 3 stay `mapped: true` with a null value — the column IS emitted, just empty —
+ * and report that emptiness through `resolution`. Branch 4 is `"missing"` unconditionally: no
+ * rule emits it, which is knowable without resolving a single value.
  */
 export function computeOutgoingStatus(
   field: TargetField,
@@ -118,7 +163,8 @@ export function computeOutgoingStatus(
   // 1. Fixed literal.
   const fixed = input.fixedValues[path];
   if (fixed != null && fixed !== "") {
-    return { outputPath: path, mapped: true, kind: "fixed", source: `= ${fixed}`, valuePreview: fixed, required, auto: false };
+    // A literal needs no lookup, so it is resolved even where nothing else could be judged.
+    return { outputPath: path, mapped: true, kind: "fixed", source: `= ${fixed}`, valuePreview: fixed, required, auto: false, resolution: "resolved" };
   }
 
   // 2. Explicit canonical→output wire.
@@ -133,6 +179,7 @@ export function computeOutgoingStatus(
       valuePreview: value,
       required,
       auto: false,
+      resolution: resolutionOf(value, input.valuesKnown),
     };
   }
 
@@ -140,19 +187,33 @@ export function computeOutgoingStatus(
   //    transform carries the parsed value straight through. Honest "auto", muted (not red).
   if (CANONICAL_SPINE.has(path)) {
     const value = resolveCanonicalValue(path, input);
-    return { outputPath: path, mapped: true, kind: "auto", source: "auto", valuePreview: value, required, auto: true };
+    return { outputPath: path, mapped: true, kind: "auto", source: "auto", valuePreview: value, required, auto: true, resolution: resolutionOf(value, input.valuesKnown) };
   }
 
   // 4. Genuinely unmapped — quiet unless required.
-  return { outputPath: path, mapped: false, kind: "none", source: null, valuePreview: null, required, auto: false };
+  return { outputPath: path, mapped: false, kind: "none", source: null, valuePreview: null, required, auto: false, resolution: "missing" };
 }
 
 /** A small header summary chip: "N of M mapped". */
 export interface OutgoingSummary {
   mappedCount: number;
   total: number;
-  /** Count of REQUIRED outputs still unmapped — the "needs a source" badge feed. */
+  /**
+   * Count of REQUIRED outputs we KNOW will carry nothing — the "needs a source" badge feed and
+   * the Send gate's term.
+   *
+   * This was `required && !mapped`, and `mapped` is true for every required field by
+   * construction (REQUIRED_CANONICAL ⊂ CANONICAL_SPINE, so branch 3 claims them all), so the
+   * count could not leave 0 and every warning that read it was unreachable.
+   */
   requiredUnmapped: number;
+  /**
+   * Count of REQUIRED outputs we could not evaluate, because the order's values were never
+   * loaded. Kept as its own number rather than folded into either verdict: adding it to
+   * `requiredUnmapped` would accuse the connection editor of four missing sources it never
+   * looked for, and dropping it would let "we don't know" render as a clean bill of health.
+   */
+  requiredUnknown: number;
 }
 
 /** Compute the whole-pane status list + the header summary in one pass. */
@@ -162,6 +223,7 @@ export function computeOutgoingStatuses(
 ): { statuses: OutgoingFieldStatus[]; summary: OutgoingSummary } {
   const statuses = fields.map((f) => computeOutgoingStatus(f, input));
   const mappedCount = statuses.filter((s) => s.mapped).length;
-  const requiredUnmapped = statuses.filter((s) => s.required && !s.mapped).length;
-  return { statuses, summary: { mappedCount, total: statuses.length, requiredUnmapped } };
+  const requiredUnmapped = statuses.filter((s) => s.required && s.resolution === "missing").length;
+  const requiredUnknown = statuses.filter((s) => s.required && s.resolution === "unknown").length;
+  return { statuses, summary: { mappedCount, total: statuses.length, requiredUnmapped, requiredUnknown } };
 }

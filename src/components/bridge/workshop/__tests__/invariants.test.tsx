@@ -296,6 +296,8 @@ describe("invariant 1 — adding/wiring never shrinks the reachable target list"
     sourceConnections: {},
     fixedValues: {},
     tokenValueById: new Map(),
+    // An order whose parsed values ARE loaded, so an absent key is genuinely absent.
+    valuesKnown: true,
     canonicalValueByKey: new Map([["PoNumber", "PO-1"]]),
     labelForCanonical: (k) => k,
   };

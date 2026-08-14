@@ -94,11 +94,20 @@ export interface MapperReceivedDocument {
  * — relocated, not reimplemented.
  */
 export interface MapperToolbarState {
-  /** Output fields with a resolved value (same source as the "N of M mapped" chip). */
+  /** Output fields something EMITS (same source as the "N of M mapped" chip). Not a promise
+   *  that the emitted value is non-empty — `requiredUnmapped` below is that question. */
   mapped: number;
   total: number;
-  /** Required output fields still without a source (the amber toolbar warning). */
+  /** Required output fields we KNOW are without a source (the amber toolbar warning). */
   requiredUnmapped: number;
+  /**
+   * Required output fields we could not evaluate — the order's values were never loaded.
+   * Optional so existing hosts keep compiling; a host that renders `requiredUnmapped` without
+   * reading this one is printing a 0 it has not earned. WorkshopStatusBar is the open case.
+   */
+  requiredUnknown?: number;
+  /** True when the field-validation fetch failed, so "no blocking issues" was never observed. */
+  validationUnavailable?: boolean;
   /** Auto-save status (the "Saving… / ✓ Saved / error" toolbar indicators). */
   saving: boolean;
   justSaved: boolean;
@@ -614,14 +623,48 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
       tokenValueById: model.tokenValueById,
       canonicalValueByKey: model.canonicalValueByKey,
       labelForCanonical: model.labelForCanonical,
+      // The two value maps above are empty BOTH when the order genuinely carries nothing and
+      // when there was never an order to read — the connection editor with no sample order is
+      // the shipped second case. `hasIncomingSource` is the model's own answer to which one
+      // this is, and without it every required field would read as sourceless there.
+      valuesKnown: model.hasIncomingSource,
     }),
-    [model.outputConnections, model.sourceConnections, model.fixedValues, model.tokenValueById, model.canonicalValueByKey, model.labelForCanonical],
+    [model.outputConnections, model.sourceConnections, model.fixedValues, model.tokenValueById, model.canonicalValueByKey, model.labelForCanonical, model.hasIncomingSource],
   );
   const { summary } = useMemo(
     () => computeOutgoingStatuses(model.targetFields, statusInput),
     [model.targetFields, statusInput],
   );
-  const canDeliver = !readOnly && blockingCount === 0 && summary.requiredUnmapped === 0 && !deliverDisabled;
+
+  // ── The Send gate ───────────────────────────────────────────────────────────
+  // Both of its original terms were structurally pinned to 0 (see outgoingStatusModel.ts and
+  // useMapperModel's validationUnavailable), so it could not refuse anything. It now has a
+  // third refusal that neither term could express: we could not evaluate the order at all.
+  // Not-yet-answered is not the same as answered-clean, and only one of them may enable Send.
+  const gateUnknown = model.validationUnavailable || summary.requiredUnknown > 0;
+  const canDeliver = !readOnly && blockingCount === 0 && summary.requiredUnmapped === 0 && !gateUnknown && !deliverDisabled;
+
+  // The one sentence the mobile block prints under a greyed-out Send. `readOnly` and
+  // `deliverDisabled` are the HOST's refusals and the host already explains those, so this
+  // only speaks for the gate's own. Ordered most-actionable last: an operator who can fix
+  // something should be told what, not told we couldn't check.
+  const sendBlockedReason = useMemo<string | null>(() => {
+    if (readOnly || deliverDisabled) return null;
+    if (model.validationUnavailable) {
+      return "We couldn’t run the field checks for this order, so we can’t confirm it’s ready to send. Reload to try again.";
+    }
+    if (summary.requiredUnknown > 0) {
+      return "This order’s values aren’t loaded yet, so we can’t confirm the required fields have a source.";
+    }
+    if (summary.requiredUnmapped > 0) {
+      const n = summary.requiredUnmapped;
+      return `${n} required ${n === 1 ? "field has" : "fields have"} no source. Map one, or set a fixed value, before sending.`;
+    }
+    if (blockingCount > 0) {
+      return `${blockingCount} ${blockingCount === 1 ? "issue needs" : "issues need"} resolving before this order can be sent.`;
+    }
+    return null;
+  }, [readOnly, deliverDisabled, model.validationUnavailable, summary.requiredUnknown, summary.requiredUnmapped, blockingCount]);
 
   // ── The RESOLVED VALUE of the hovered output field (founder bug: hover→preview
   //    highlight didn't visibly work). The preview highlights by string match, but the
@@ -741,6 +784,8 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
       mapped: summary.mappedCount,
       total: summary.total,
       requiredUnmapped: summary.requiredUnmapped,
+      requiredUnknown: summary.requiredUnknown,
+      validationUnavailable: model.validationUnavailable,
       saving: model.saving,
       justSaved,
       error: model.error,
@@ -754,6 +799,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
     });
   }, [
     onToolbarState, summary.mappedCount, summary.total, summary.requiredUnmapped,
+    summary.requiredUnknown, model.validationUnavailable,
     model.saving, justSaved, model.error, model.aiUnavailable, showConnections,
     toggleConnections, openLayoutDesigner, openTemplateEditor, catalogHintCount,
     scrollToFirstCatalogHint, suggestionCount, dismissAllSuggestions,
@@ -981,6 +1027,31 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
               ⚠ {summary.requiredUnmapped} {summary.requiredUnmapped === 1 ? "field needs" : "fields need"} a source
             </span>
           )}
+          {/* The two UNKNOWN states, deliberately neutral rather than amber. Amber is a
+              finding; these are the absence of one, and drawing them the same colour is how
+              "we couldn't check" starts reading as "we checked and it's bad". Both disable
+              Send — the button beside them is greyed out and these are the sentence saying
+              why, because a Send with no explanation is its own defect. */}
+          {summary.requiredUnknown > 0 && (
+            <span
+              title="This order's values aren't loaded, so we can't tell whether the required fields have a source. Sending is paused until they are."
+              // Tokens, not the neighbouring chips' raw hex: --ink-muted on --surface-2 is
+              // 5.13:1, comfortably AA for this 10.5px bold.
+              style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10.5, fontWeight: 700, color: "var(--ink-muted)", background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: 5, padding: "2px 8px" }}
+            >
+              Required fields not checked yet
+            </span>
+          )}
+          {model.validationUnavailable && (
+            <span
+              title="We couldn't run the field checks for this order, so we can't confirm it's ready. Sending is paused until they load — reload to try again."
+              // Tokens, not the neighbouring chips' raw hex: --ink-muted on --surface-2 is
+              // 5.13:1, comfortably AA for this 10.5px bold.
+              style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10.5, fontWeight: 700, color: "var(--ink-muted)", background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: 5, padding: "2px 8px" }}
+            >
+              Validation checks unavailable
+            </span>
+          )}
           {/* ── Order variant: the secondary tools are surfaced INLINE (app.jsx Toolbar) —
               "Hide connections · Customize output layout · Fill from catalog" — instead of
               behind a "More ▾" dropdown, so the operator can reach them in one click. Each
@@ -1143,12 +1214,18 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
           outputCount={model.targetFields.length}
           mapped={summary.mappedCount}
           requiredUnmapped={summary.requiredUnmapped}
+          requiredUnknown={summary.requiredUnknown}
         />
         {onDeliver && (
           <div className="mt-3">
             <Button variant="primary" size="lg" className="w-full" disabled={!canDeliver} onClick={onDeliver}>
               {deliverLabel ?? "Send to supplier"}
             </Button>
+            {sendBlockedReason && (
+              <p role="note" style={{ marginTop: 8, fontSize: 12, lineHeight: 1.45, color: "var(--ink-muted)" }}>
+                {sendBlockedReason}
+              </p>
+            )}
           </div>
         )}
       </div>
@@ -1489,7 +1566,11 @@ function MappedSummaryChip({ mapped, total }: { mapped: number; total: number })
   const allMapped = mapped >= total;
   return (
     <span
-      title="Output fields with a resolved value (mapped, fixed, or auto)"
+      // Not "with a resolved value" — this counts fields something EMITS (a wire, a fixed
+      // value, or the 1:1 default), which is a weaker claim and the one the number supports.
+      // Whether the emitted value is empty is a separate question, and the amber
+      // "N fields need a source" chip beside this one is what answers it.
+      title="Output fields with a source — a mapping, a fixed value, or the 1:1 default"
       style={{
         display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10.5, fontWeight: 700,
         borderRadius: 999, padding: "2px 9px",
@@ -1537,15 +1618,20 @@ function CatalogBadge({ hint, onUse }: { hint: { catalogPrice?: number | null; c
 
 // ── Mobile read-only summary ─────────────────────────────────────────────────
 function MapperMobileSummary({
-  incomingCount, outputCount, mapped, requiredUnmapped,
+  incomingCount, outputCount, mapped, requiredUnmapped, requiredUnknown,
 }: {
-  incomingCount: number; outputCount: number; mapped: number; requiredUnmapped: number;
+  incomingCount: number; outputCount: number; mapped: number; requiredUnmapped: number; requiredUnknown: number;
 }) {
+  // This row printed a literal "0" — a measured number, from a count that was structurally
+  // incapable of leaving zero, above a Send button that read the same zero as permission. When
+  // the order's values aren't loaded there is no number to print, so it prints an em dash and
+  // says so, rather than rounding "we didn't look" down to "nothing is wrong".
+  const requiredValue = requiredUnknown > 0 ? "—" : `${requiredUnmapped}`;
   const rows = [
-    { label: "Incoming fields", value: `${incomingCount}` },
-    { label: "Output fields", value: `${outputCount}` },
-    { label: "Mapped outputs", value: `${mapped} of ${outputCount}` },
-    { label: "Required without a source", value: `${requiredUnmapped}` },
+    { label: "Incoming fields", value: `${incomingCount}`, testId: undefined as string | undefined },
+    { label: "Output fields", value: `${outputCount}`, testId: undefined },
+    { label: "Mapped outputs", value: `${mapped} of ${outputCount}`, testId: undefined },
+    { label: "Required without a source", value: requiredValue, testId: "mobile-summary-required" },
   ];
   return (
     <Card edge="bridge" flush>
@@ -1553,11 +1639,17 @@ function MapperMobileSummary({
         Mapping summary
       </div>
       {rows.map((r) => (
-        <div key={r.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "11px 12px", borderBottom: "1px solid #F2F4F8", minHeight: 44 }}>
+        <div key={r.label} data-testid={r.testId} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "11px 12px", borderBottom: "1px solid #F2F4F8", minHeight: 44 }}>
           <span style={{ fontSize: 12, color: "#5E6779" }}>{r.label}</span>
           <span style={{ fontSize: 13, fontWeight: 700, color: "#0B1A2F" }}>{r.value}</span>
         </div>
       ))}
+      {requiredUnknown > 0 && (
+        <div style={{ padding: "9px 12px", borderBottom: "1px solid var(--border-faint)", fontSize: 11.5, lineHeight: 1.45, color: "var(--ink-muted)" }}>
+          Required fields not checked yet — this order’s values aren’t loaded, so we can’t tell
+          whether they have a source.
+        </div>
+      )}
       <div style={{ padding: "10px 12px", fontSize: 11, color: "var(--ink-faint)", lineHeight: 1.45 }}>
         Open this order on a larger screen to drag fields into place. The mapping shown above is read-only here.
       </div>
