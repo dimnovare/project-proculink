@@ -68,11 +68,16 @@ vi.mock("@/lib/api-client", () => ({
   // Declared inside the factory: vi.mock is hoisted above every top-level binding in
   // this file, so a class defined outside would be in its temporal dead zone by the
   // time the component imports it.
+  // Same parameter order as the real class in src/lib/api/core.ts —
+  // `(message, status, body)`. The type checker resolves ApiHttpError from the REAL
+  // module even though the runtime value comes from this factory, so a mock that
+  // reorders the parameters compiles against one signature and runs against another.
   ApiHttpError: class ApiHttpError extends Error {
     status: number;
     body: unknown;
-    constructor(status: number, body?: unknown) {
-      super(`HTTP ${status}`);
+    constructor(message: string, status: number, body: unknown = null) {
+      super(message);
+      this.name = "ApiHttpError";
       this.status = status;
       this.body = body;
     }
@@ -158,7 +163,7 @@ function sendButton(): HTMLButtonElement {
  */
 async function refuseWith(body: unknown): Promise<HTMLElement> {
   await mountWithFile();
-  api.uploadPurchaseOrder.mockRejectedValue(new ApiHttpError(429, body));
+  api.uploadPurchaseOrder.mockRejectedValue(new ApiHttpError("Upload failed", 429, body));
   await act(async () => {
     fireEvent.click(sendButton());
   });
