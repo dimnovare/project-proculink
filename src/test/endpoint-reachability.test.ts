@@ -131,6 +131,14 @@ export const KNOWN_MACHINE_FACING: Record<string, string> = {
     "Postmark's inbound-webhook callback. InboundEmailController has no [Authorize] and is reached " +
     "by the mail provider; the frontend configures the address in settings and never posts here. " +
     "Registered 2026-08-06 with the rest of this allowlist.",
+  "POST /api/inbound-email/postmark-bounce":
+    "The OUTBOUND half of the same provider relationship, added by ProcuLink #216 (B-12): Postmark " +
+    "POSTs here when a purchase order we emailed to a supplier hard-bounces or is reported as spam, " +
+    "and the handler moves the order off `delivered`. Until it existed a mistyped supplier address " +
+    "read as delivered forever. Same shared-token authentication as the inbound half, URL configured " +
+    "in the Postmark dashboard (contract: https://postmarkapp.com/developer/webhooks/bounce-webhook), " +
+    "so a frontend caller would be a bug. Backend handler: " +
+    "ProcuLink.Infrastructure/Services/Delivery/DeliveryBounceHandler.cs. Registered 2026-08-15.",
 
   // ── Operator tooling with a documented out-of-band caller.
   "POST /api/admin/organisations/{}/account-status":
