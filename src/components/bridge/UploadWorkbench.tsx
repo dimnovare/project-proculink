@@ -64,9 +64,13 @@ export function detectionQualifier(detection: DetectFormatResult): string | null
 
 /** Dot colour for the detection chip. An unscored FACT is not a low-confidence guess. */
 export function detectionDotColour(detection: DetectFormatResult): string {
+  // Named once, and used by both arms below, so the "a signature is as strong as a high
+  // score" claim is a shared reference rather than two literals that can drift apart.
+  const strongest = "#1E6D29";
+
   if (typeof detection.confidence === "number" && Number.isFinite(detection.confidence)) {
     return detection.confidence >= 0.8
-      ? "#1E6D29"
+      ? strongest
       : detection.confidence >= 0.5
       ? "#B36D14"
       : "var(--ink-faint)";
@@ -75,7 +79,7 @@ export function detectionDotColour(detection: DetectFormatResult): string {
   // A spec-mandated file signature is the STRONGEST answer the detector has, not the
   // weakest. Rendering it faint — as the old `confidence >= 0.8` chain did for a null —
   // told the operator the opposite of what the backend meant.
-  if (detection.basis === "magic_bytes") return "#1E6D29";
+  if (detection.basis === "magic_bytes") return strongest;
 
   return "var(--ink-faint)";
 }
