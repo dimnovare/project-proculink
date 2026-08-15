@@ -166,9 +166,15 @@ function scoreColumn(column: string, field: string): number {
 }
 
 /**
- * Client-side fuzzy matcher — the fallback when suggest-fields isn't deployed.
- * Greedily assigns the highest-scoring column to each canonical field so two
- * fields never claim the same column.
+ * Client-side fuzzy matcher. **Mock mode only** — `mockSuggestMappingFields` is its one caller.
+ *
+ * It is deliberately NOT the live path's fallback any more. Its alias table and scoring were
+ * written independently of the backend's and disagree with it on which columns map, so reaching
+ * for it when the API is unreachable silently answers with a different matcher under the same
+ * `MATCH · nn%` chip. See `realSuggestMappingFields` for the full divergence.
+ *
+ * Greedily assigns the highest-scoring column to each canonical field so two fields never claim
+ * the same column.
  */
 export function heuristicSuggestFields(columns: string[]): FieldSuggestion[] {
   const candidates: Array<{ field: string; column: string; score: number }> = [];
@@ -194,7 +200,10 @@ export function heuristicSuggestFields(columns: string[]): FieldSuggestion[] {
       return {
         canonicalField: field,
         suggestedColumn: null,
-        confidence: 0,
+        // null, not 0. There is no column here to have scored, so there is no score — and 0 sits
+        // on the same ramp the mapper paints RED, reading as "certainly wrong" rather than
+        // "nothing matched". Same distinction `coerceConfidence` makes for the live payload.
+        confidence: null,
         reason: "No close column match — map this field manually.",
         source: "heuristic",
       };
@@ -346,29 +355,55 @@ async function mockSuggestMappingFields(
   return heuristicSuggestFields(columns);
 }
 
+/**
+ * Ask the backend for canonical-field → source-column matches.
+ *
+ * **A failure here fails.** Every arm below used to answer with `heuristicSuggestFields` — a
+ * network error, a 404, any non-OK status, an unparseable body, and an empty payload all
+ * returned the local scorer's guesses instead. That is not the same matcher reached by another
+ * route. The two were written independently and disagree on the accept floor (backend 0.45, local
+ * 0.5), on the substring rule (backend needs the alias to be >= 4 chars and to appear INSIDE the
+ * column; local also accepts the column inside the alias, at any length), on negative tokens
+ * (backend excludes "price"/"cost"/"net" from Unit; local has no such concept), and on the alias
+ * tables themselves, which are disjoint in both directions.
+ *
+ * So the swap changed WHICH columns mapped, not just the percentage next to them: a column named
+ * "EAN" maps to BuyerItemCode on the backend and stays unmapped locally; a column named "ID" stays
+ * unmapped on the backend and takes LineNumber locally, at 66%. The operator sees `MATCH · nn%`
+ * either way and saves it. A supplier connection ends up wrong because the API was slow, and
+ * nothing anywhere records that a different scorer answered.
+ *
+ * The 404 arm was the tell: its comment said "endpoint not deployed", written before
+ * `MappingSuggestionsController` existed. It has existed for a long time; a 404 now means a wrong
+ * supplier id or a broken route, which is worth showing rather than guessing around.
+ *
+ * The editor handles the rejection: it shows what failed, offers a retry, and leaves the operator
+ * mapping by hand — which is the primary path anyway, not a degraded one.
+ */
 async function realSuggestMappingFields(
   supplierId: string,
   columns: string[]
 ): Promise<FieldSuggestion[]> {
   if (columns.length === 0) return [];
-  let res: Response;
-  try {
-    res = await magicFetch(`/suppliers/${supplierId}/mapping/suggest-fields`, {
-      method: "POST",
-      body: JSON.stringify({ columns }),
-    });
-  } catch {
-    return heuristicSuggestFields(columns); // network / timeout → client-side
+
+  const res = await magicFetch(`/suppliers/${supplierId}/mapping/suggest-fields`, {
+    method: "POST",
+    body: JSON.stringify({ columns }),
+  });
+
+  if (!res.ok) {
+    throw new Error(`API error ${res.status}: auto-map could not be reached.`);
   }
-  if (res.status === 404 || !res.ok) {
-    return heuristicSuggestFields(columns); // endpoint not deployed → client-side
+
+  const parsed = coerceSuggestions(await res.json());
+  if (!parsed) {
+    throw new Error("Auto-map returned a response this app could not read.");
   }
-  try {
-    const parsed = coerceSuggestions(await res.json());
-    return parsed && parsed.length > 0 ? parsed : heuristicSuggestFields(columns);
-  } catch {
-    return heuristicSuggestFields(columns);
-  }
+
+  // An empty list is a real verdict — "nothing in this file matched a canonical field" — and is
+  // returned as one. Answering it with a second scorer's guesses turned a considered no into an
+  // unattributed maybe.
+  return parsed;
 }
 
 /** Detect the source columns for a supplier's most recent sample document. */

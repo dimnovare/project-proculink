@@ -27,7 +27,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { fieldRefList } from "@/lib/standards/catalog";
 import { StandardsFieldPopover } from "./StandardsFieldPopover";
 import { ConfidenceChip } from "./ConfidenceChip";
-import { AiSuggestion } from "./DSPrimitives";
+import { AiSuggestion, Button } from "./DSPrimitives";
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const NAVY       = "#0B1A2F";
@@ -600,6 +600,47 @@ export function PoMappingEditor({
                 {applyState.status === "applying" ? "Applying…" : "Apply template"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Auto-map failure ───────────────────────────────────────────────── */}
+      {/*
+        `suggestMappingFields` used to answer a network error, a 404, any non-OK status, an
+        unparseable body and an empty payload with `heuristicSuggestFields` — a local alias table
+        written independently of the backend's, disagreeing with it on which columns map, under the
+        same `MATCH · nn%` chip. That fallback is gone, so the query can reject; a rejection here
+        would otherwise render as an auto-map that quietly produced nothing. Name it, offer the
+        retry, and point at the manual path — which is the primary one, not a consolation.
+      */}
+      {suggestQuery.isError && (
+        <div
+          className="px-4 py-3 sm:px-5"
+          style={{ background: AMBER_SOFT, borderBottom: `1px solid ${BORDER}` }}
+          role="status"
+        >
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <div style={{ fontSize: 13, fontWeight: 600, color: AMBER_TEXT }}>
+                Couldn&rsquo;t run auto-map.
+              </div>
+              <div style={{ fontSize: 11.5, color: MUTED, marginTop: 2 }}>
+                {(suggestQuery.error instanceof Error && suggestQuery.error.message) ||
+                  "The suggestion service didn't answer."}{" "}
+                Retry, or map the fields below by hand — nothing is mapped until you accept it.
+              </div>
+            </div>
+            {/* The DSPrimitives Button, not an inline-styled one: the design-token gate bans a
+                new inline `background` on a <button> (rule `inline-button-bg`), and it is right
+                to — this file already carries 73 ledgered colour literals. */}
+            <Button
+              variant="secondary"
+              size="sm"
+              className="shrink-0"
+              onClick={() => void suggestQuery.refetch()}
+            >
+              Retry auto-map
+            </Button>
           </div>
         </div>
       )}
