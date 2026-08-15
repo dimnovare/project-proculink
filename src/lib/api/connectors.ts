@@ -20,7 +20,7 @@ import type { DeliveryProtocol } from "./types";
 // D-2 fix: canonical authHeader (waits up to 5s for Clerk.loaded — the 48cea6e
 // cold-mount fix) + base URL + USE_MOCK from core, replacing local copies whose
 // authHeader read the token BEFORE Clerk loaded → 401 on a cold/hard page load.
-import { authHeader, API_BASE_URL, USE_MOCK } from "./core";
+import { authHeader, API_BASE_URL, USE_MOCK, ApiHttpError, retryAfterFrom } from "./core";
 import { serverReason } from "@/lib/serverText";
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
@@ -35,10 +35,25 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
       ...init?.headers,
     },
   });
-  if (res.status === 404) throw new Error(`Not found: ${path}`);
+  // Both throws are ApiHttpError, not bare Errors, and both MESSAGES are byte-identical to the
+  // ones these lines always threw. `classifyApiFailure` (src/lib/apiFailure.ts) opens with an
+  // `instanceof` test, so a plain Error made every status here read as `unreachable` — a dropped
+  // connection — and the QueryClient in src/app/(app)/layout.tsx retried them. That was worst on
+  // the 404 arm, whose whole purpose is to say "no connector answers to that key": a deterministic
+  // answer, re-asked, and rendered through network-failure copy. Nothing branching on a specific
+  // `kind` fired either. The constructor runs `operatorSafeApiMessage`, which returns plain prose
+  // byte-for-byte — pinned, not assumed, by connectors.httpFailureKind.test.ts.
+  if (res.status === 404) throw new ApiHttpError(`Not found: ${path}`, 404);
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    throw new Error(`API error ${res.status}: ` + serverReason(text, res.statusText || `HTTP ${res.status}`));
+    // The raw body rides along on `.body` because `serverReason` lifts only the `error` field out
+    // of a plan gate, dropping the `upgradeUrl` beside it that `PlanGateNotice` links to.
+    throw new ApiHttpError(
+      `API error ${res.status}: ` + serverReason(text, res.statusText || `HTTP ${res.status}`),
+      res.status,
+      text,
+      retryAfterFrom(res, text),
+    );
   }
   return res.json() as Promise<T>;
 }

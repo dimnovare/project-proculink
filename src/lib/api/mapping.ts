@@ -17,7 +17,22 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   if (!res.ok) {
     // Rendered by PoMappingEditor's "Couldn't save — …" line; a gateway answers with a page.
     const text = await res.text().catch(() => "");
-    throw new Error(`API error ${res.status}: ` + serverReason(text, res.statusText || `HTTP ${res.status}`));
+    // ApiHttpError, not a bare Error, and the MESSAGE is byte-identical to the one this line
+    // always threw. `classifyApiFailure` (src/lib/apiFailure.ts) opens with an `instanceof` test,
+    // so a plain Error made every status here read as `unreachable` — a dropped connection — and
+    // the QueryClient in src/app/(app)/layout.tsx retried a plan-gate 403, a 404 and a 409, none
+    // of which answer differently the second time. Nothing branching on a specific `kind` fired.
+    //
+    // The string may not move: `PoMappingEditor` renders it verbatim. The constructor runs
+    // `operatorSafeApiMessage`, which returns plain prose byte-for-byte — pinned, not assumed, by
+    // mapping.httpFailureKind.test.ts. The raw body rides along on `.body` because `serverReason`
+    // lifts only the `error` field out of a plan gate, dropping the `upgradeUrl` beside it.
+    throw new ApiHttpError(
+      `API error ${res.status}: ` + serverReason(text, res.statusText || `HTTP ${res.status}`),
+      res.status,
+      text,
+      retryAfterFrom(res, text),
+    );
   }
   return res.json() as Promise<T>;
 }
