@@ -3,7 +3,7 @@ import type {
   DeliveryTestResult,
   UpsertDeliveryConfigRequest,
 } from "./types";
-import { API_BASE_URL, authHeader, isApiMockMode } from "./core";
+import { API_BASE_URL, ApiHttpError, authHeader, isApiMockMode } from "./core";
 import { serverReason } from "@/lib/serverText";
 import { orgAdminRefusal } from "./refusal";
 
@@ -25,8 +25,16 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
     // which lifts the body's `error` field ahead of its `message` and would have shown the
     // machine code `requires_org_admin` instead. Every other failure keeps the shape below,
     // including a plan gate, whose code `DeliveryConfigEditor` still detects in this string.
+    //
+    // The MESSAGE is thrown alone; the STATUS still has to ride along, which is why this is an
+    // `ApiHttpError` and not a bare `Error`. `classifyApiFailure` opens with an `instanceof`
+    // test, so a plain Error classified this refusal as `unreachable` — a dropped connection —
+    // and the QueryClient retried a PUT/DELETE that is refused by role and can never succeed,
+    // while anything branching on `kind === "forbidden"` never fired. The constructor runs
+    // `operatorSafeApiMessage`, which returns plain prose byte-for-byte, so the sentence is
+    // unchanged (pinned by delivery.retryPolicy.test.ts).
     const admin = orgAdminRefusal(res.status, text);
-    if (admin) throw new Error(admin);
+    if (admin) throw new ApiHttpError(admin, res.status);
     throw new Error(`API error ${res.status}: ` + serverReason(text, res.statusText || `HTTP ${res.status}`));
   }
   return res.json() as Promise<T>;
