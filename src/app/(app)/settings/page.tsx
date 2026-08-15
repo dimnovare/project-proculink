@@ -31,6 +31,7 @@ import {
 import type { EmailSettings, UpdateEmailSettingsPayload, OrderDirection } from "@/types/procurement";
 import type { ApiKey, IntegrationSubscription } from "@/lib/api-client";
 import { useTabParamSync } from "@/lib/tab-param-sync";
+import { isOrgAdminRefusal, orgAdminMessage } from "@/lib/planGate";
 import { PLAN_BY_ID, planDisplayName, planName } from "@/lib/plans";
 import { minimumPlanId } from "@/lib/gatedCapabilities";
 import { SftpPullSettings, S3PullSettings } from "@/components/settings/PullIngressSettings";
@@ -260,6 +261,48 @@ function InlineConfirm({
         Cancel
       </button>
     </div>
+  );
+}
+
+// ── Failed write, said out loud ─────────────────────────────────────────────
+
+/**
+ * Copy for a Settings write that did not land.
+ *
+ * `stillTrue` leads, and it names the state the user is STILL IN — not the fact that
+ * something went wrong. A revoke, a pause and a delete are all read by their absence
+ * of protest: someone who clicks Revoke on a leaked key and sees nothing concludes the
+ * key is dead. So does someone who sees a neutral "something went wrong". The lead-in
+ * has to close that door before the reason is given.
+ *
+ * The org-admin refusal is checked first because it is the one cause that retrying
+ * cannot fix (matching `actionErrorCopy` in InboundAddressSection, the same pattern
+ * one section up on this screen).
+ */
+function writeFailureCopy(error: unknown, stillTrue: string): string {
+  const why = isOrgAdminRefusal(error)
+    ? orgAdminMessage()
+    : "We could not complete the change — try again in a moment.";
+  return `${stillTrue} ${why}`;
+}
+
+/** Inline, row-scoped failure line. `role="alert"` — this is never ambient information. */
+function WriteFailure({ children, style }: { children: ReactNode; style?: CSSProperties }) {
+  return (
+    <p
+      role="alert"
+      style={{
+        margin: "8px 0 0",
+        fontSize: 11.5,
+        lineHeight: 1.5,
+        fontWeight: 500,
+        color: "var(--danger)",
+        textAlign: "left",
+        ...style,
+      }}
+    >
+      {children}
+    </p>
   );
 }
 
@@ -1119,6 +1162,21 @@ function ApiKeysSection() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["api-keys"] }),
   });
 
+  // A failed revoke is the one failure on this screen that is dangerous to misread.
+  // Someone revoking a leaked credential and seeing silence walks away believing the
+  // key is dead; so does someone shown a neutral "that didn't work". The line has to
+  // put the key's live status first, and it points at the ONE thing that would prove
+  // the revoke landed — the row flipping to "Revoked" — so the reader has a test
+  // rather than a reassurance.
+  const revokeFailureFor = (keyId: string): string | null =>
+    revoke.isError && revoke.variables === keyId
+      ? writeFailureCopy(
+          revoke.error,
+          "Still active — do not assume this key is revoked. Anyone holding it can still use the API " +
+            "until this row shows Revoked.",
+        )
+      : null;
+
   const handleCopy = async (key: string) => {
     try {
       await navigator.clipboard.writeText(key);
@@ -1215,7 +1273,7 @@ function ApiKeysSection() {
 
         {/* Desktop: dense table (hidden on mobile to avoid horizontal overflow) */}
         {keys.length > 0 && (
-          <table className="hidden md:table" style={{ width: "100%", borderCollapse: "collapse" }}>
+          <table data-testid="api-keys-table" className="hidden md:table" style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr>
                 {["Name", "Key", "Created", "Last used", ""].map((h) => (
@@ -1240,24 +1298,31 @@ function ApiKeysSection() {
                   </td>
                   <td style={{ padding: "11px 12px", borderBottom: "1px solid var(--border)", textAlign: "right" }}>
                     {key.isActive ? (
-                      <div style={{ display: "inline-flex", justifyContent: "flex-end" }}>
-                        <InlineConfirm
-                          onConfirm={() => revoke.mutate(key.id)}
-                          confirmLabel="Revoke"
-                          prompt="Break any integration using it?"
-                          trigger={(open) => (
-                            <button
-                              onClick={open}
-                              style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-muted)", padding: "4px 2px", fontSize: 12.5, fontWeight: 600 }}
-                              title="Revoke key"
-                              onMouseEnter={(e) => { e.currentTarget.style.color = "var(--danger)"; }}
-                              onMouseLeave={(e) => { e.currentTarget.style.color = "var(--ink-muted)"; }}
-                            >
-                              Revoke
-                            </button>
-                          )}
-                        />
-                      </div>
+                      <>
+                        <div style={{ display: "inline-flex", justifyContent: "flex-end" }}>
+                          <InlineConfirm
+                            onConfirm={() => revoke.mutate(key.id)}
+                            confirmLabel="Revoke"
+                            prompt="Break any integration using it?"
+                            trigger={(open) => (
+                              <button
+                                onClick={open}
+                                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-muted)", padding: "4px 2px", fontSize: 12.5, fontWeight: 600 }}
+                                title="Revoke key"
+                                onMouseEnter={(e) => { e.currentTarget.style.color = "var(--danger)"; }}
+                                onMouseLeave={(e) => { e.currentTarget.style.color = "var(--ink-muted)"; }}
+                              >
+                                Revoke
+                              </button>
+                            )}
+                          />
+                        </div>
+                        {revokeFailureFor(key.id) && (
+                          <WriteFailure style={{ textAlign: "right", maxWidth: 340, marginLeft: "auto" }}>
+                            {revokeFailureFor(key.id)}
+                          </WriteFailure>
+                        )}
+                      </>
                     ) : (
                       <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 7px", borderRadius: 4, background: "var(--surface-2)", color: "var(--ink-muted)" }}>Revoked</span>
                     )}
@@ -1270,7 +1335,7 @@ function ApiKeysSection() {
 
         {/* Mobile: each key as a stacked row-card (no horizontal scroll) */}
         {keys.length > 0 && (
-          <div className="flex flex-col gap-2 md:hidden">
+          <div data-testid="api-keys-cards" className="flex flex-col gap-2 md:hidden">
             {keys.map(key => (
               <Card
                 key={key.id}
@@ -1306,6 +1371,9 @@ function ApiKeysSection() {
                         </button>
                       )}
                     />
+                    {revokeFailureFor(key.id) && (
+                      <WriteFailure>{revokeFailureFor(key.id)}</WriteFailure>
+                    )}
                   </div>
                 )}
               </Card>
@@ -1428,6 +1496,30 @@ function ConnectorsSection() {
     mutationFn: (id: string) => deleteIntegration(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["integrations"] }),
   });
+
+  // Both of these are read by their absence of protest too: the button label and the
+  // badge are driven by server data, so a failed toggle/delete leaves a row that looks
+  // exactly like one nobody touched. Each line names the state the subscription is
+  // still in, so "paused" can never be confused with "we could not reach the server".
+  const rowFailureFor = (sub: IntegrationSubscription): string | null => {
+    if (toggle.isError && toggle.variables === sub.id) {
+      return writeFailureCopy(
+        toggle.error,
+        sub.isActive
+          ? "Still active — this webhook was not paused. Events are still being sent to this URL."
+          : "Still paused — this webhook was not resumed. Events are still not being sent to this URL.",
+      );
+    }
+    if (remove.isError && remove.variables === sub.id) {
+      return writeFailureCopy(
+        remove.error,
+        sub.isActive
+          ? "Still here — this webhook was not deleted, and events are still being sent to this URL."
+          : "Still here — this webhook was not deleted.",
+      );
+    }
+    return null;
+  };
 
   return (
     <div>
@@ -1600,7 +1692,7 @@ function ConnectorsSection() {
           </div>
         )}
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div data-testid="webhook-list" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {subs.map(sub => {
           const health = webhookHealth(sub);
           return (
@@ -1608,8 +1700,8 @@ function ConnectorsSection() {
               key={sub.id}
               pad="13px 16px"
               radius={10}
-              style={{ display: "flex", alignItems: "flex-start", gap: 10 }}
             >
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap", marginBottom: 4 }}>
                   <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 7px", borderRadius: 4, background: "var(--surface-2)", color: "var(--ink-muted)" }}>
@@ -1663,6 +1755,8 @@ function ConnectorsSection() {
                   )}
                 />
               </div>
+              </div>
+              {rowFailureFor(sub) && <WriteFailure>{rowFailureFor(sub)}</WriteFailure>}
             </Card>
           );
           })}
