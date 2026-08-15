@@ -19,7 +19,10 @@ import { ApiHttpError, apiClient, getBillingStatus, isApiMockMode, type DetectFo
 // planGate already turns a gate code into a sentence + the upgrade route the
 // SERVER named. This screen only chooses words and destinations.
 import { classifyApiFailure, isRequestTimeout } from "@/lib/apiFailure";
-import { planGateMessage, planGateUpgradeUrl } from "@/lib/planGate";
+import { isPlanGateError, planGateMessage, planGateUpgradeUrl } from "@/lib/planGate";
+// The plan ladder — allowances and the tier above each one — is DERIVED from here, never
+// typed into a banner. See the plan-limit banner block near the bottom of this file.
+import { PLAN_BY_ID, type PlanId } from "@/lib/plans";
 import type { Supplier } from "@/types/procurement";
 import { capture } from "@/lib/analytics";
 import { BOOK_DEMO_URL, BOOK_DEMO_LINK_ATTRS } from "@/lib/book-demo";
@@ -639,7 +642,9 @@ export function UploadWorkbench() {
   async function handleUpload() {
     if (uploading) return;
     if (isReadOnly) {
-      setUploadError(getLimitMessage(billing?.isTrialExpired ? "pilot_expired" : "order_limit_reached"));
+      setUploadError(
+        localLimitBanner(billing?.isTrialExpired ? "pilot_expired" : "order_limit_reached", billing?.plan),
+      );
       return;
     }
     // Defensive only — the CTA is disabled without a file. This used to call
@@ -682,7 +687,7 @@ export function UploadWorkbench() {
       }
     } catch (error) {
       if (error instanceof ApiHttpError && error.status === 429) {
-        setUploadError(getLimitMessage(getLimitCode(error.body)));
+        setUploadError(getLimitMessage(readLimitRefusal(error.body)));
       } else {
         // WP-36 · defect B.2 + B.3 — this branch used to print `error.message`
         // verbatim under a fixed "Upload could not start." title with a fixed
@@ -800,7 +805,9 @@ export function UploadWorkbench() {
   async function handleBatchUpload(allFiles: File[]) {
     if (uploading) return;
     if (isReadOnly) {
-      setUploadError(getLimitMessage(billing?.isTrialExpired ? "pilot_expired" : "order_limit_reached"));
+      setUploadError(
+        localLimitBanner(billing?.isTrialExpired ? "pilot_expired" : "order_limit_reached", billing?.plan),
+      );
       return;
     }
     if (!selectedSupplier?.id) {
@@ -829,13 +836,13 @@ export function UploadWorkbench() {
         setBatchResults((prev) => prev.map((r, idx) => (idx === i ? { ...r, status: "done", orderId: result.order.id } : r)));
       } catch (error) {
         if (error instanceof ApiHttpError && error.status === 429) {
-          const code = getLimitCode(error.body);
+          const refusal = readLimitRefusal(error.body);
           // A SPEED throttle (per-minute upload limiter) is NOT a plan cap. Pace THIS
           // file and retry it — don't mislabel it "Plan limit reached" or fail the rest.
-          if (code === "rate_limited") {
+          if (refusal.code === "rate_limited") {
             attempts[i] += 1;
             if (attempts[i] <= RATE_LIMIT_MAX_RETRIES) {
-              setUploadError(getLimitMessage(code));
+              setUploadError(getLimitMessage(refusal));
               setBatchResults((prev) => prev.map((r, idx) => (idx === i ? { ...r, status: "waiting", error: undefined } : r)));
               await sleep(RATE_LIMIT_BACKOFF_MS[Math.min(attempts[i] - 1, RATE_LIMIT_BACKOFF_MS.length - 1)]);
               i--; // retry the same file once the window clears
@@ -846,7 +853,7 @@ export function UploadWorkbench() {
             continue;
           }
           // A genuine plan/quota cap — every subsequent file would also be rejected, so abort.
-          const capMsg = getLimitMessage(code);
+          const capMsg = getLimitMessage(refusal);
           setBatchResults((prev) => prev.map((r, idx) => (idx >= i ? { ...r, status: "failed", error: capMsg.title } : r)));
           setUploadError(capMsg);
           break;
@@ -1605,6 +1612,7 @@ export function UploadWorkbench() {
             {uploadError && (
               <div
                 role="alert"
+                data-testid="upload-error-banner"
                 style={{
                   borderRadius: 7,
                   padding: "10px 14px",
@@ -2164,22 +2172,92 @@ const RATE_LIMIT_MAX_RETRIES = 3;
 const RATE_LIMIT_BACKOFF_MS = [15000, 35000, 61000];
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-function getLimitCode(body: unknown): string {
-  const rawError =
-    body && typeof body === "object" && "error" in body
-      ? String((body as { error?: unknown }).error).toLowerCase()
-      : "order_limit_reached";
+/* ── Plan-limit banners: what the server actually sends, and why it is not a plan gate ──
+ *
+ * These run on ONE trigger — `error instanceof ApiHttpError && error.status === 429`, in
+ * handleUpload and handleBatchUpload. Exactly two 429 bodies can reach them:
+ *
+ *   POST /api/orders/upload  →  { error: "pilot_expired" | "order_limit_reached",
+ *                                 plan, limit, upgradeUrl }
+ *                               ProcuLink.Api/Controllers/OrdersController.cs:353-360
+ *   the global rate limiter  →  { error: "Rate limit exceeded. Please slow down and
+ *                                 retry shortly." }
+ *                               ProcuLink.Api/Program.cs:380
+ *
+ * `supplier_limit_reached` is emitted by exactly ONE endpoint — POST /api/suppliers,
+ * SuppliersController.cs:126 — which this screen never calls. So the substring test that
+ * used to select the supplier banner here,
+ *
+ *     if (rawError.includes("supplier")) return "supplier_limit_reached";
+ *
+ * could not be reached by the case it was written for. What it COULD match is any other
+ * 429 whose prose happens to contain the word — a supplier-scoped throttle message, an
+ * edge/WAF page naming a supplier host — and it then told the operator their supplier
+ * allowance was full when it was not. Codes are matched whole now; prose is sniffed only
+ * where there is no code to match.
+ *
+ * NOT PLAN GATES. `<capability>_requires_<plan>` bodies never arrive here: they are 403s,
+ * classified by classifyApiFailure and answered by describeUploadFailure's `plan_gate` arm
+ * through planGateMessage(). isPlanGateError is still consulted below so that a gate code
+ * showing up on a 429 gets the gate sentence rather than a quota banner it is not, but the
+ * refusals this path really serves carry their own structured payload — a code plus the
+ * `plan` and the EFFECTIVE `limit` the server enforced — which is richer than the gate
+ * shape, not a substitute for it. */
 
-  // A SPEED throttle (the per-minute upload limiter) is NOT a plan/quota cap. The
-  // backend's rate-limiter rejection body is { error: "Rate limit exceeded. Please
-  // slow down and retry shortly." } — historically this fell through to the
-  // "order_limit_reached" default and was shown to users as "Plan limit reached",
-  // which is alarming and wrong (their plan is fine; they just uploaded too fast).
-  if (rawError.includes("rate limit") || rawError.includes("slow down") || rawError.includes("too many"))
+/** The codes the API emits as machine tokens. Matched whole — never by substring. */
+const LIMIT_CODES = new Set(["pilot_expired", "order_limit_reached", "supplier_limit_reached"]);
+
+interface LimitRefusal {
+  /** A LIMIT_CODES member, or the derived "plan_gate" / "rate_limited". */
+  code: string;
+  /** The plan the server named, or null when it named none this build knows. */
+  plan: PlanId | null;
+  /**
+   * The EFFECTIVE limit the server enforced for the check that failed — `LimitCheckResult.Limit`,
+   * which is `admin override ?? plan default`. Preferred over the `plans.ts` default precisely
+   * because of that override: an org whose supplier cap was raised by an admin must not be shown
+   * the smaller number its tier ships with.
+   */
+  limit: number | null;
+  /** The raw `error` value, kept only so a plan-gate code can be turned into its sentence. */
+  raw: string;
+}
+
+/** A plan id the ladder in plans.ts actually knows, or null. Never a snake_case token. */
+function knownPlanId(value: unknown): PlanId | null {
+  if (typeof value !== "string") return null;
+  const id = value.trim().toLowerCase();
+  return id in PLAN_BY_ID ? (id as PlanId) : null;
+}
+
+function classifyLimitCode(normalized: string): string {
+  // Exact code first, so no code can ever be re-read as prose by the sniff below.
+  if (LIMIT_CODES.has(normalized)) return normalized;
+  // A gate code on a 429 would be a backend change rather than a shape invented here — but
+  // if one arrives, the gate sentence is the honest answer, not "you've hit your order limit".
+  if (isPlanGateError(normalized)) return "plan_gate";
+  // The ONE 429 with no code to match: the global rate limiter writes a SENTENCE, so prose
+  // is all there is. A SPEED throttle is not a plan/quota cap — this used to fall through to
+  // "order_limit_reached" and was shown as "Plan limit reached", which is alarming and wrong
+  // (their plan is fine; they just uploaded too fast).
+  if (normalized.includes("rate limit") || normalized.includes("slow down") || normalized.includes("too many"))
     return "rate_limited";
-  if (rawError.includes("pilot") && rawError.includes("expired")) return "pilot_expired";
-  if (rawError.includes("supplier")) return "supplier_limit_reached";
   return "order_limit_reached";
+}
+
+function readLimitRefusal(body: unknown): LimitRefusal {
+  const record = body && typeof body === "object" ? (body as Record<string, unknown>) : null;
+  const raw = record && "error" in record ? String(record.error) : "";
+  const limit = typeof record?.limit === "number" && Number.isFinite(record.limit) ? record.limit : null;
+  return { code: classifyLimitCode(raw.trim().toLowerCase()), plan: knownPlanId(record?.plan), limit, raw };
+}
+
+/**
+ * The refusals this screen raises ITSELF, before any request leaves the browser (a
+ * read-only workspace). No server payload exists, so the plan comes from billing status.
+ */
+function localLimitBanner(code: string, plan: unknown): UploadErrorBanner {
+  return getLimitMessage({ code, plan: knownPlanId(plan), limit: null, raw: "" });
 }
 
 /**
@@ -2322,7 +2400,26 @@ export function describeUploadFailure(error: unknown, fileName: string): UploadE
   }
 }
 
-function getLimitMessage(code: string): UploadErrorBanner {
+/**
+ * The tier above `plan`, or null when there is none to sell.
+ *
+ * `next` is the ladder pointer already declared in plans.ts, and it is **null at the top of
+ * the self-serve ladder** (Distributor) as well as on Enterprise. That null is the whole
+ * point of reading it rather than hardcoding a tier name: a €1,499/mo Distributor org with
+ * 30 supplier flows has no cheaper tier to be sent to, and telling it to "upgrade to Growth"
+ * — €149, five suppliers — is an offer to pay less for less.
+ *
+ * Same derivation shape as requiresPlan()/minimumPlanName() in src/lib/gatedCapabilities.ts:
+ * the ladder is stated once, in plans.ts, and the copy follows it.
+ */
+function nextPlanUp(plan: PlanId | null): { name: string } | null {
+  const nextId = plan ? PLAN_BY_ID[plan].next : null;
+  return nextId ? PLAN_BY_ID[nextId] : null;
+}
+
+function getLimitMessage(refusal: LimitRefusal): UploadErrorBanner {
+  const { code, plan } = refusal;
+
   if (code === "rate_limited") {
     return {
       code,
@@ -2333,21 +2430,53 @@ function getLimitMessage(code: string): UploadErrorBanner {
     };
   }
 
+  // A 403 gate code that arrived on a 429. planGate owns both the sentence and the
+  // destination; nothing about the tier is guessed here.
+  if (code === "plan_gate") {
+    return {
+      code: "upload_plan_gate",
+      title: "Your plan doesn't include this yet.",
+      message: planGateMessage(refusal.raw),
+      cta: "Upgrade plan",
+      href: planGateUpgradeUrl(refusal.raw),
+    };
+  }
+
   if (code === "pilot_expired") {
+    // "Upgrade to Growth" was typed here. Only a Pilot org can be trial-expired
+    // (LimitCheckResult.PilotExpired is "true only for Pilot accounts past their window"),
+    // so the literal was right — and would have stayed right only for as long as
+    // pilot.next stayed "growth". Derived, the sentence is identical and stays correct.
+    const next = nextPlanUp(plan ?? "pilot");
     return {
       code,
       title: "Your Pilot has ended.",
       message: "You can still view previous orders, but new processing is paused.",
-      cta: "Upgrade to Growth",
+      cta: next ? `Upgrade to ${next.name}` : "See plans",
+      href: next ? undefined : "/pricing",
     };
   }
 
   if (code === "supplier_limit_reached") {
+    // The number the SERVER enforced first (it is the effective limit, admin override
+    // included); the plan default from plans.ts only as a fallback; and no number at all
+    // rather than an invented one when neither is known.
+    const allowance = refusal.limit ?? (plan ? PLAN_BY_ID[plan].supplierLimit : null);
+    const next = nextPlanUp(plan);
     return {
       code,
-      title: "Your plan includes 1 supplier.",
-      message: "Upgrade to Growth to add more supplier flows.",
-      cta: "Upgrade plan",
+      title:
+        allowance == null
+          ? "You've reached your plan's supplier limit."
+          : `Your plan includes ${allowance} ${allowance === 1 ? "supplier" : "suppliers"}.`,
+      // No tier above means no upgrade to offer. Enterprise supplier counts are set by
+      // agreement (plans.ts gives Enterprise `supplierLimit: null`), so the honest next
+      // step is a conversation, not a checkout.
+      message: next
+        ? `Upgrade to ${next.name} to add more supplier flows.`
+        : "Contact us to add more supplier flows.",
+      cta: next ? "Upgrade plan" : "Contact support",
+      href: next ? undefined : "/support",
     };
   }
 
