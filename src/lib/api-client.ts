@@ -1633,9 +1633,33 @@ async function realGetDashboardTopology(): Promise<DashboardTopology> {
 
 // ── Format detection ─────────────────────────────────────────────────────
 
+/**
+ * Values for {@link DetectFormatResult.basis} — mirrors the backend's
+ * `FormatDetectionBasis` (`ProcuLink.Core/Services/Detection/IFormatDetector.cs`).
+ *
+ * The invariant, enforced backend-side by `FormatDetectorBasisInvariantTests`:
+ * **`heuristic` carries a number and the other two never do.**
+ */
+export type DetectFormatBasis = "magic_bytes" | "heuristic" | "undetermined";
+
 export interface DetectFormatResult {
   format: "csv" | "xlsx" | "pdf" | "cxml" | "ubl" | "edifact" | "x12" | "unknown";
-  confidence: number;
+  /**
+   * A heuristic score in [0, 1], or **null when nothing scored this detection**.
+   *
+   * Nullable, and null is a normal answer. A `%PDF-` signature at byte 0 either is that
+   * sequence or is not — there is no doubt there to express as a fraction — and an
+   * undetermined format has no score either. This was typed as a non-nullable `number`
+   * while the backend sent null, which made `Math.round(null * 100)` render **0%**: on a
+   * percentage ramp that reads as "certainly wrong", which is a louder lie than the
+   * fabricated 95% it replaced. Read {@link basis} to know which kind of answer this is.
+   */
+  confidence: number | null;
+  /**
+   * Which kind of answer the detection is. Widened to `string` so an unrecognised value
+   * from a newer API is inert rather than mis-rendered as one of the three we know.
+   */
+  basis: DetectFormatBasis | string;
   suggestedParser: string | null;
   detectedPoNumber: string | null;
   detectedSupplier: string | null;
@@ -1650,6 +1674,7 @@ async function mockDetectFormat(_file: File): Promise<DetectFormatResult> {
   return {
     format: "csv",
     confidence: 0.92,
+    basis: "heuristic",
     suggestedParser: "csv-tabular",
     detectedPoNumber: "PO-DETECT-DEMO",
     detectedSupplier: null,

@@ -31,6 +31,55 @@ import { PracticeOrderPrompt } from "./PracticeOrderPrompt";
 import { ACCEPTED_UPLOAD_FORMATS, hasAcceptedUploadExtension, isClearlyUnsupportedDragType } from "@/lib/upload-formats";
 import { serverReasonOrNull } from "@/lib/serverText";
 
+// ── Format-detection chip: what to say when there is no score ────────────────
+//
+// `confidence` is nullable and null is a NORMAL answer, so neither of these may
+// arithmetic its way past an absent value. The chip used to render
+// `Math.round(detection.confidence * 100)%` unconditionally, which for a null is
+// `Math.round(null * 100)` = 0 — printing "Detected: PDF · 0%" with a grey dot for
+// the one detection the backend is CERTAIN about, because `%PDF-` at byte 0 is a
+// byte comparison rather than a guess. On a percentage ramp 0% reads as "certainly
+// wrong", so the fix that removed a fabricated 95% would have shipped a louder lie
+// than the one it removed.
+//
+// `basis` says which kind of answer it is (mirrors the backend's
+// FormatDetectionBasis). The rule it encodes: only a heuristic carries a number,
+// and only a number may be shown as a percentage.
+
+/**
+ * The qualifier after the format name, or null when there is nothing honest to add.
+ * Never returns a percentage for an absent score.
+ */
+export function detectionQualifier(detection: DetectFormatResult): string | null {
+  if (typeof detection.confidence === "number" && Number.isFinite(detection.confidence))
+    return `${Math.round(detection.confidence * 100)}%`;
+
+  // No number. Say what the evidence WAS rather than scoring it.
+  if (detection.basis === "magic_bytes") return "file signature";
+  if (detection.basis === "undetermined") return "format not determined";
+
+  // A basis this build does not know, with no score: add nothing rather than guess.
+  return null;
+}
+
+/** Dot colour for the detection chip. An unscored FACT is not a low-confidence guess. */
+export function detectionDotColour(detection: DetectFormatResult): string {
+  if (typeof detection.confidence === "number" && Number.isFinite(detection.confidence)) {
+    return detection.confidence >= 0.8
+      ? "#1E6D29"
+      : detection.confidence >= 0.5
+      ? "#B36D14"
+      : "var(--ink-faint)";
+  }
+
+  // A spec-mandated file signature is the STRONGEST answer the detector has, not the
+  // weakest. Rendering it faint — as the old `confidence >= 0.8` chain did for a null —
+  // told the operator the opposite of what the backend meant.
+  if (detection.basis === "magic_bytes") return "#1E6D29";
+
+  return "var(--ink-faint)";
+}
+
 // THERE IS NO STAGE TRACK ON THIS SCREEN, and the comment that used to sit here
 // is the reason why. It argued about WHICH stages were honest to show ("Transform
 // is NOT shown here: nothing is transformed before the review step") while all
@@ -1392,12 +1441,7 @@ export function UploadWorkbench() {
                               height: 7,
                               borderRadius: "50%",
                               flexShrink: 0,
-                              background:
-                                detection.confidence >= 0.8
-                                  ? "#1E6D29"
-                                  : detection.confidence >= 0.5
-                                  ? "#B36D14"
-                                  : "var(--ink-faint)",
+                              background: detectionDotColour(detection),
                             }}
                           />
                           Detected:{" "}
@@ -1416,8 +1460,12 @@ export function UploadWorkbench() {
                             : detection.format === "x12"
                             ? "X12"
                             : "Unknown format"}
-                          {" · "}
-                          {Math.round(detection.confidence * 100)}%
+                          {detectionQualifier(detection) !== null && (
+                            <>
+                              {" · "}
+                              {detectionQualifier(detection)}
+                            </>
+                          )}
                           {detection.reasoning.length > 0 && (
                             <InfoDisclosure
                               label="Why this format was detected"
