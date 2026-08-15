@@ -4,7 +4,7 @@ import { isApiMockMode } from "@/lib/api-client";
 // 48cea6e cold-mount fix) + the normalized base URL, instead of a local copy that
 // read the token BEFORE Clerk finished loading → unauthenticated request → 401 on a
 // cold/hard page load (the magic auto-map then silently degraded to empty).
-import { authHeader, API_BASE_URL, ApiHttpError, retryAfterFrom } from "./core";
+import { authHeader, API_BASE_URL, ApiHttpError, retryAfterFrom, jsonBodyOrNull } from "./core";
 import { serverReason } from "@/lib/serverText";
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
@@ -25,13 +25,19 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
     //
     // The string may not move: `PoMappingEditor` renders it verbatim. The constructor runs
     // `operatorSafeApiMessage`, which returns plain prose byte-for-byte — pinned, not assumed, by
-    // mapping.httpFailureKind.test.ts. The raw body rides along on `.body` because `serverReason`
-    // lifts only the `error` field out of a plan gate, dropping the `upgradeUrl` beside it.
+    // mapping.httpFailureKind.test.ts. The body rides along on `.body` because `serverReason`
+    // lifts only the `error` field out of a plan gate, dropping the `upgradeUrl` beside it — and it
+    // rides as an OBJECT where it parses, because both readers of it prefer one. `retryAfterFrom`
+    // reads `retryAfterSeconds` off the body, which is the ONLY carrier that survives cross-origin
+    // (the header is not CORS-safelisted — see core.ts), and `"key" in body` is false for a string.
+    // `planGateUpgradeUrl` reads `.upgradeUrl` directly rather than regexing the serialised form.
+    // Raw text is kept when it is not JSON, so a gateway's HTML page still arrives intact.
+    const body = jsonBodyOrNull(text);
     throw new ApiHttpError(
       `API error ${res.status}: ` + serverReason(text, res.statusText || `HTTP ${res.status}`),
       res.status,
-      text,
-      retryAfterFrom(res, text),
+      body ?? text,
+      retryAfterFrom(res, body),
     );
   }
   return res.json() as Promise<T>;

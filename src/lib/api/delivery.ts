@@ -3,7 +3,14 @@ import type {
   DeliveryTestResult,
   UpsertDeliveryConfigRequest,
 } from "./types";
-import { API_BASE_URL, ApiHttpError, authHeader, isApiMockMode, retryAfterFrom } from "./core";
+import {
+  API_BASE_URL,
+  ApiHttpError,
+  authHeader,
+  isApiMockMode,
+  jsonBodyOrNull,
+  retryAfterFrom,
+} from "./core";
 import { serverReason } from "@/lib/serverText";
 import { orgAdminRefusal } from "./refusal";
 
@@ -44,13 +51,19 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
     // The string may not move: `DeliveryConfigEditor` renders it, and `PlanGateNotice` reads the
     // `<capability>_requires_<plan>` code back out of it. The constructor runs
     // `operatorSafeApiMessage`, which returns plain prose byte-for-byte — pinned, not assumed, by
-    // delivery.httpFailureKind.test.ts. The raw body rides along on `.body` because `serverReason`
-    // lifts only the `error` field out of a plan gate, dropping the `upgradeUrl` beside it.
+    // delivery.httpFailureKind.test.ts. The body rides along on `.body` because `serverReason`
+    // lifts only the `error` field out of a plan gate, dropping the `upgradeUrl` beside it — and it
+    // rides as an OBJECT where it parses, because both readers of it prefer one. `retryAfterFrom`
+    // reads `retryAfterSeconds` off the body, which is the ONLY carrier that survives cross-origin
+    // (the header is not CORS-safelisted — see core.ts), and `"key" in body` is false for a string.
+    // `planGateUpgradeUrl` reads `.upgradeUrl` directly rather than regexing the serialised form.
+    // Raw text is kept when it is not JSON, so a gateway's HTML page still arrives intact.
+    const body = jsonBodyOrNull(text);
     throw new ApiHttpError(
       `API error ${res.status}: ` + serverReason(text, res.statusText || `HTTP ${res.status}`),
       res.status,
-      text,
-      retryAfterFrom(res, text),
+      body ?? text,
+      retryAfterFrom(res, body),
     );
   }
   return res.json() as Promise<T>;
