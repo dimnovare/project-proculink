@@ -167,13 +167,21 @@ describe("delivery apiFetch — the rejection carries what the failure WAS", () 
     expect(failure.retryable).toBe(true);
   });
 
-  it("keeps the literal response body for anything that needs exactly what came back", async () => {
+  it("keeps the response body for anything the message dropped", async () => {
     respondWith(PLAN_GATE_BODY, 403);
 
     const err = await refusalFrom(() => upsertDeliveryConfig("sup-1", emptyConfig));
 
     // The sentence lost the `upgradeUrl` when `serverReason` lifted the `error` field out of the
     // body. `PlanGateNotice` prefers `ApiHttpError.body` over the message for exactly that reason.
-    expect((err as ApiHttpError).body).toBe(PLAN_GATE_BODY);
+    //
+    // It arrives PARSED, not as the literal text this asserted when it was written. That is the
+    // convention everywhere else in this layer — api-client.ts feeds its throw sites
+    // `parseApiErrorBody(text).body` — and both readers prefer it: `planGateUpgradeUrl` reads
+    // `.upgradeUrl` off an object instead of regexing the serialised string, and `retryAfterFrom`
+    // can only see a body-carried `retryAfterSeconds` on an object, which is the only wait carrier
+    // that survives cross-origin. A non-JSON body is still kept verbatim. See
+    // errorBodyCarrier.test.ts.
+    expect((err as ApiHttpError).body).toEqual(JSON.parse(PLAN_GATE_BODY));
   });
 });

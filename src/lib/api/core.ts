@@ -174,6 +174,36 @@ export function retryAfterFrom(res: Response | null, body: unknown): number | nu
 }
 
 /**
+ * An error response body as an object, or null when it is not JSON.
+ *
+ * `retryAfterFrom` above reads BOTH the header and the body, and its own comment says why: the
+ * header is not CORS-safelisted, the app and the API are different origins in every deployed
+ * environment, and "the body field always survives". But that second reader only works on an
+ * object — `"retryAfterSeconds" in body` is simply false for a string, with no error and no
+ * warning. So a throw site that hands `ApiHttpError` the raw response TEXT silently keeps only
+ * the carrier that production cannot read, and honours the server's wait in a test and nowhere
+ * else.
+ *
+ * `planGateUpgradeUrl` (src/lib/planGate.ts) has the same two-carrier shape and states the
+ * preference explicitly: given an object it reads `.upgradeUrl`; given a string it falls back to
+ * a regex over the serialised body. Passing the parsed object takes the first branch.
+ *
+ * Returns null rather than the raw text so callers keep an explicit choice about what lands on
+ * `.body` — the convention in this layer is `body ?? text`, which preserves an HTML gateway page
+ * or a bare status line exactly as it arrived. Mirrors `parseApiErrorBody` in api-client.ts,
+ * which does the same job for the throw sites that also need the lifted `error` sentence.
+ */
+export function jsonBodyOrNull(text: string): unknown {
+  if (!text) return null;
+  try {
+    const parsed = JSON.parse(text);
+    return typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null; // not JSON — an HTML gateway page, a bare status line, an empty body
+  }
+}
+
+/**
  * A wait we can act on: finite and at least one second. Anything else — NaN, a
  * boolean coerced to 1, a negative, or a zero — is "the server did not tell us",
  * which is null. Never zero: see the note above.

@@ -20,7 +20,7 @@ import type { DeliveryProtocol } from "./types";
 // D-2 fix: canonical authHeader (waits up to 5s for Clerk.loaded — the 48cea6e
 // cold-mount fix) + base URL + USE_MOCK from core, replacing local copies whose
 // authHeader read the token BEFORE Clerk loaded → 401 on a cold/hard page load.
-import { authHeader, API_BASE_URL, USE_MOCK, ApiHttpError, retryAfterFrom } from "./core";
+import { authHeader, API_BASE_URL, USE_MOCK, ApiHttpError, retryAfterFrom, jsonBodyOrNull } from "./core";
 import { serverReason } from "@/lib/serverText";
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
@@ -46,13 +46,19 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   if (res.status === 404) throw new ApiHttpError(`Not found: ${path}`, 404);
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    // The raw body rides along on `.body` because `serverReason` lifts only the `error` field out
-    // of a plan gate, dropping the `upgradeUrl` beside it that `PlanGateNotice` links to.
+    // The body rides along on `.body` because `serverReason` lifts only the `error` field out of a
+    // plan gate, dropping the `upgradeUrl` beside it that `PlanGateNotice` links to — and it rides
+    // as an OBJECT where it parses, because both readers of it prefer one. `retryAfterFrom` reads
+    // `retryAfterSeconds` off the body, which is the ONLY carrier that survives cross-origin (the
+    // header is not CORS-safelisted — see core.ts), and `"key" in body` is false for a string.
+    // `planGateUpgradeUrl` reads `.upgradeUrl` directly rather than regexing the serialised form.
+    // Raw text is kept when it is not JSON, so a gateway's HTML page still arrives intact.
+    const body = jsonBodyOrNull(text);
     throw new ApiHttpError(
       `API error ${res.status}: ` + serverReason(text, res.statusText || `HTTP ${res.status}`),
       res.status,
-      text,
-      retryAfterFrom(res, text),
+      body ?? text,
+      retryAfterFrom(res, body),
     );
   }
   return res.json() as Promise<T>;
