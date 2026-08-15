@@ -72,6 +72,116 @@ function isBlocking(c: ConformanceCheck): boolean {
 }
 
 /**
+ * The two evidence classes, labelled exactly as the downloadable Markdown labels them
+ * (`ConformanceModels.ToMarkdown` → `EvidenceLabel`). The same report is read here and
+ * forwarded as a file from the button below; two vocabularies for one distinction is how
+ * the panel and the file came to disagree in the first place.
+ */
+const EVIDENCE_LABEL = {
+  ExternalArtifact: "Published schema",
+  SelfCheck: "Self-check",
+} as const;
+
+/**
+ * A row's evidence class, or `null` when the server said nothing this build understands.
+ *
+ * `null` renders as NO label anywhere. Deliberately not "Self-check": a value this build
+ * does not recognise is a class the backend added after this shipped, and labelling a
+ * stronger artifact with the weaker word is the same under-claim in a new place. And
+ * obviously not "Published schema" — an unrecognised value falling through to the
+ * favourable reading is the defect this repo repeats most.
+ */
+function evidenceLabel(c: ConformanceCheck): string | null {
+  return c.evidence === "ExternalArtifact" || c.evidence === "SelfCheck"
+    ? EVIDENCE_LABEL[c.evidence]
+    : null;
+}
+
+/**
+ * Which formats are checked against a machine-readable grammar ProcuLink did not author,
+ * and what to call it.
+ *
+ * A MIRROR OF THE BACKEND, and named as one. The fact lives in
+ * `ProcuLink.Transform/Conformance/*ProfileChecker.cs`: today only `UblProfileChecker`
+ * emits an `ExternalArtifact` row — `ubl.xsd`, validated by `UblSchemaValidator` against
+ * the vendored, unmodified OASIS UBL 2.1 Order-2 XSD in `Conformance/Schemas/ubl-2.1/`
+ * (provenance + SHA-256 in its `PROVENANCE.md`). cXML and X12 have no vendored grammar,
+ * so every one of their checks is ours.
+ *
+ * It is only the FALLBACK. `scopeNote()` prefers the wire whenever the wire says anything,
+ * because a hand-maintained mirror of a backend fact drifts — and in this repo it drifts
+ * the under-claiming way, which is exactly the sentence this replaced.
+ */
+const VENDORED_SCHEMA_BY_FORMAT: Record<string, string> = {
+  ubl: "the OASIS UBL 2.1 Order schema",
+};
+
+/**
+ * What this report is worth, said where the verdict is shown — and said per format.
+ *
+ * The sentence here used to be one blanket claim for all three formats: "Not a full schema
+ * validation, and not a certification". It was false in both directions at once. Too harsh,
+ * because `ubl.xsd` really is validated against a standards-body artifact, and denying it
+ * gave away the one verdict in the report a third party produced — UBL content models are
+ * ordered `xsd:sequence`es, so that check catches a document with every mandatory element
+ * present but two of them transposed, which every presence check below passes. Too
+ * generous, because for cXML and X12 nothing is vendored at all and several checks assert a
+ * constant our own transformer just wrote, so a PASS restates our output back to us.
+ *
+ * Matches the two evidence classes the downloadable Markdown now prints per row.
+ */
+function scopeNote(format: string, checks: ConformanceCheck[]): string {
+  const labels = checks.map(evidenceLabel).filter((l): l is string => l !== null);
+  const named = VENDORED_SCHEMA_BY_FORMAT[format] ?? null;
+
+  // The wire overrules the constant in BOTH directions: it can reveal a published-schema
+  // check for a format this app has no name for, and it can withdraw one for a format this
+  // app still lists. The constant answers only for a server with no `evidence` field.
+  const external = labels.filter((l) => l === EVIDENCE_LABEL.ExternalArtifact).length;
+  const schemaName =
+    labels.length > 0
+      ? external > 0
+        ? named ?? "a published schema"
+        : null
+      : named;
+
+  if (!schemaName) {
+    return (
+      "Every check here is ProcuLink's own reading of the profile — presence and cardinality " +
+      "of its mandatory elements — and some assert values our own transformer writes, so " +
+      "passing them is not independent evidence. No published schema for this format is " +
+      "vendored into ProcuLink, and this is not a certification — confirm with your supplier " +
+      "or access point before you rely on it."
+    );
+  }
+
+  const lead = external > 1 ? `${external} checks are` : "One check is";
+  return (
+    `Two kinds of check. ${lead} validated against ${schemaName} vendored into ProcuLink — ` +
+    "element order, cardinality and datatypes, which a presence check cannot see. The rest " +
+    "are ProcuLink's own reading of the profile, and some assert values our own transformer " +
+    "writes, so passing them is not independent evidence. Neither is a certification — " +
+    "confirm with your supplier or access point before you rely on it."
+  );
+}
+
+/** Per-row evidence class. Rendered only where the server supplied one. */
+function EvidenceTag({ label }: { label: string }) {
+  const external = label === EVIDENCE_LABEL.ExternalArtifact;
+  return (
+    <span
+      className="inline-flex items-center rounded-[4px] px-2 py-0.5 text-[10.5px] font-semibold whitespace-nowrap"
+      style={{
+        background: external ? "var(--brand-blue-soft)" : "var(--surface-2)",
+        color: external ? "var(--brand-blue-deep)" : "var(--ink-muted)",
+      }}
+    >
+      {label}
+    </span>
+  );
+}
+
+/**
  * The conformance verdict — deliberately NOT `<UnifiedStatusBadge>`.
  *
  * This pill used to be
@@ -133,6 +243,11 @@ export function ConformancePanel({ orderId, supplierName, defaultFormat }: {
   // A disabled query reports undefined data with isLoading=true; treat not-yet-ready
   // as loading, never as an error (known repo gotcha).
   const showLoading = !queryEnabled || (isLoading && report === undefined);
+
+  // The evidence column exists only when the server labelled at least one row. A server that
+  // predates the field gets the table it has always had, rather than a column this app filled
+  // in by pattern-matching check codes.
+  const showEvidence = (report?.checks ?? []).some((c) => evidenceLabel(c) !== null);
 
   // 400 = no named profile / unresolvable format; 422 = unresolved lines.
   const httpStatus = error instanceof ApiHttpError ? error.status : null;
@@ -257,10 +372,17 @@ export function ConformancePanel({ orderId, supplierName, defaultFormat }: {
               <div className="flex items-center gap-2">
                 <VerdictPill passed={report.overallPass} />
                 {/*
-                  Says what was CHECKED, not what was proven. These checks are presence,
-                  structure and cardinality against a hand-written profile — they cannot tell
-                  anyone the document "matches the standard", and no vendored schema exists in
-                  this repo to make that claim true for any format.
+                  Says what was CHECKED, not what was proven. It stays deliberately modest even
+                  for UBL, where `ubl.xsd` really does validate against the vendored OASIS schema:
+                  a grammar is not a business-rule engine and not a certification, and no format's
+                  report can tell anyone the document "matches the standard". What the UBL check
+                  IS worth is stated by scopeNote() a few lines down, which is the right altitude
+                  for it — this line is the headline over ALL the checks, most of which are ours.
+
+                  (This comment used to end "no vendored schema exists in this repo to make that
+                  claim true for any format". True of THIS repo and false about the product: the
+                  XSD is vendored in the backend and the verdict crosses the wire. A rationale
+                  scoped to the wrong repo is how a real check came to be denied on screen.)
 
                   "Matches the standard" is named in gatedCapabilityClaims.test.ts as part of the
                   Peppol defect itself: the emitter declared BIS conformance, the checker asserted
@@ -279,15 +401,13 @@ export function ConformancePanel({ orderId, supplierName, defaultFormat }: {
                 {report.errorCount} error{report.errorCount === 1 ? "" : "s"} · {report.warningCount} warning{report.warningCount === 1 ? "" : "s"} · {report.checks.length} checks
               </p>
               {/*
-                What a pass means, said where the pass is shown. "Matches the standard" above sits
-                beside a green badge, and the checks behind it are presence and cardinality only —
-                not a schema validation and not a certification. Saying so here is the difference
-                between a useful pre-flight and a conformance claim the product cannot back.
+                What a pass means, said where the pass is shown, and split by evidence class —
+                see scopeNote(). One sentence for all three formats could only be wrong for two
+                of them: it denied the vendored-schema check UBL really runs, while excusing the
+                cXML/X12 checks that assert our own emitter's constants.
               */}
               <p className="mt-1.5 text-[11.5px]" style={{ color: "var(--ink-faint)" }}>
-                Checks the mandatory elements and cardinalities of this profile. Not a full schema
-                validation, and not a certification — validate with your supplier or access point
-                before you rely on it.
+                {scopeNote(report.format, report.checks)}
               </p>
             </div>
             <div className="flex flex-col items-start gap-1 sm:items-end">
@@ -309,13 +429,14 @@ export function ConformancePanel({ orderId, supplierName, defaultFormat }: {
 
           {/* Checks — desktop table */}
           <div
+            data-testid="conformance-checks-table"
             className="hidden overflow-x-auto rounded-[10px] md:block"
             style={{ border: "1px solid var(--border)", background: "var(--surface)" }}
           >
-            <table className="w-full border-collapse" style={{ minWidth: 640, fontSize: 12.5 }}>
+            <table className="w-full border-collapse" style={{ minWidth: showEvidence ? 760 : 640, fontSize: 12.5 }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--border)" }}>
-                  {["Result", "Severity", "Code", "Message", "Profile reference"].map((h) => (
+                  {["Result", ...(showEvidence ? ["Evidence"] : []), "Severity", "Code", "Message", "Profile reference"].map((h) => (
                     <th key={h} className="px-4 py-2.5 text-left text-[10.5px] font-semibold uppercase tracking-[0.05em]" style={{ color: "var(--ink-faint)", whiteSpace: "nowrap" }}>
                       {h}
                     </th>
@@ -325,6 +446,7 @@ export function ConformancePanel({ orderId, supplierName, defaultFormat }: {
               <tbody>
                 {report.checks.map((c, i) => {
                   const blocking = isBlocking(c);
+                  const evidence = evidenceLabel(c);
                   return (
                     <tr
                       key={c.code + i}
@@ -334,6 +456,9 @@ export function ConformancePanel({ orderId, supplierName, defaultFormat }: {
                       }}
                     >
                       <td className="px-4 py-3" style={{ whiteSpace: "nowrap" }}><PassMark passed={c.passed} /></td>
+                      {showEvidence && (
+                        <td className="px-4 py-3">{evidence ? <EvidenceTag label={evidence} /> : null}</td>
+                      )}
                       <td className="px-4 py-3"><SeverityPill severity={c.severity} /></td>
                       <td className="px-4 py-3 font-mono text-[11.5px]" style={{ color: "var(--ink)", whiteSpace: "nowrap" }}>{c.code}</td>
                       <td className="px-4 py-3" style={{ color: blocking ? "var(--danger)" : "var(--ink)" }}>{c.message}</td>
@@ -346,9 +471,10 @@ export function ConformancePanel({ orderId, supplierName, defaultFormat }: {
           </div>
 
           {/* Checks — mobile cards */}
-          <div className="flex flex-col gap-2 md:hidden">
+          <div data-testid="conformance-checks-cards" className="flex flex-col gap-2 md:hidden">
             {report.checks.map((c, i) => {
               const blocking = isBlocking(c);
+              const evidence = evidenceLabel(c);
               return (
                 <div
                   key={c.code + i}
@@ -363,7 +489,10 @@ export function ConformancePanel({ orderId, supplierName, defaultFormat }: {
                     <SeverityPill severity={c.severity} />
                   </div>
                   <p className="mt-2 text-[12.5px] leading-snug" style={{ color: blocking ? "var(--danger)" : "var(--ink)" }}>{c.message}</p>
-                  <div className="mt-2 grid gap-0.5 pt-2 text-[11px]" style={{ borderTop: "1px solid #F0F2F6" }}>
+                  <div className="mt-2 grid gap-1 pt-2 text-[11px]" style={{ borderTop: "1px solid #F0F2F6" }}>
+                    {evidence ? (
+                      <span><EvidenceTag label={evidence} /></span>
+                    ) : null}
                     <span className="font-mono" style={{ color: "var(--ink-faint)" }}>{c.code}</span>
                     <span className="font-mono" style={{ color: "var(--ink-muted)" }}>{c.profileRef}</span>
                   </div>

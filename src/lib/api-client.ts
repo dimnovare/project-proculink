@@ -3106,6 +3106,23 @@ export interface ConformanceCheck {
   message: string;
   /** The exact element / segment / cardinality reference in the named profile. */
   profileRef: string;
+  /**
+   * What this row's verdict is worth — `"ExternalArtifact"` (validated by a standards-body
+   * artifact vendored into the backend, today only the OASIS UBL 2.1 Order-2 XSD) or
+   * `"SelfCheck"` (ProcuLink's own reading of the profile, several of which assert a constant
+   * our own transformer just wrote). Mirrors `ConformanceEvidence` in
+   * `ProcuLink.Transform/Conformance/ConformanceModels.cs`.
+   *
+   * OPTIONAL, and typed `string` rather than a union, both on purpose. `ConformanceCheckDto`
+   * does not carry the field yet — backend PR 209 added the class to the Markdown report and
+   * left the wire alone, so putting it on the DTO (one `.Select` in `OrdersController`) is a
+   * separate backend PR. Until then every check arrives unlabelled, and `ConformancePanel`
+   * renders no per-row class rather than deriving one from the check code. `string` because a
+   * class added after this build ships must arrive as something this build can see it does not
+   * recognise — a union would make an unknown value indistinguishable from a known one at the
+   * only place it matters.
+   */
+  evidence?: string;
 }
 
 /** A standards conformance report for one order's would-be outbound document. Mirrors ConformanceReportDto. */
@@ -3146,7 +3163,10 @@ export const CONFORMANCE_PROFILES: Record<
   cxml: { profile: "Cxml12OrderRequest", name: "cXML 1.2 OrderRequest", version: "1.2.060" },
   // NOT "UBL 2.1 Order (Peppol BIS Order-only 3.0)". ProcuLink emits a plain OASIS UBL 2.1 Order
   // and declares no Peppol profile; the catalog records Peppol BIS Order 3.0 as transform: "planned".
-  ubl:  { profile: "Ubl21Order",         name: "OASIS UBL 2.1 Order — mandatory elements", version: "2.1" },
+  // "schema validation and" is not decoration: `UblProfileChecker` really does run the emitted
+  // document against the vendored OASIS UBL 2.1 Order-2 XSD. The mirror sat one revision behind
+  // the backend and understated it, which is the same under-claim the panel's scope note carried.
+  ubl:  { profile: "Ubl21Order",         name: "OASIS UBL 2.1 Order — schema validation and mandatory elements", version: "2.1" },
   x12:  { profile: "X12_850",            name: "X12 850 Purchase Order", version: "004010" },
 };
 
@@ -3159,6 +3179,20 @@ async function mockGetConformanceReport(orderId: string, format: ConformanceForm
     { code: `${format}.lines`,    severity: "Error",   passed: format !== "x12", message: format === "x12" ? "At least one PO1 line segment is required." : "Order has at least one line.", profileRef: format === "ubl" ? "cac:OrderLine" : format === "x12" ? "PO1" : "ItemOut" },
     { code: `${format}.shipto`,   severity: "Warning", passed: false, message: "Ship-to party is recommended but missing.", profileRef: format === "ubl" ? "cac:Delivery/cac:DeliveryLocation" : format === "x12" ? "N1*ST" : "ShipTo/Address" },
   ];
+  // UBL, and only UBL, carries the one row whose verdict a third party produced — the fixture
+  // has to have it, or mock mode renders the panel's "one check is validated against the OASIS
+  // UBL 2.1 Order schema" sentence over a table with no such row. No `evidence` field on any of
+  // these, deliberately: the live wire has none either (see ConformanceCheck.evidence), and a
+  // fixture that labels rows production cannot label would demo a column that does not exist.
+  if (format === "ubl") {
+    checks.push({
+      code: "ubl.xsd",
+      severity: "Error",
+      passed: true,
+      message: "Valid against the OASIS UBL 2.1 Order schema — element order, cardinality and datatypes. A grammar check, not a statement that the supplier will accept the order.",
+      profileRef: "OASIS UBL 2.1 Order-2 XSD",
+    });
+  }
   const errorCount = checks.filter(c => c.severity === "Error" && !c.passed).length;
   const warningCount = checks.filter(c => c.severity === "Warning" && !c.passed).length;
   return {
