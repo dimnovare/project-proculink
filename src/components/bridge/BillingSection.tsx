@@ -14,6 +14,7 @@ import { isOrgAdminRefusal, orgAdminMessage } from "@/lib/planGate";
 import { BOOK_DEMO_URL, BOOK_DEMO_LINK_ATTRS } from "@/lib/book-demo";
 import { pausedCauseCopy } from "@/lib/billingPause";
 import { Card } from "@/components/bridge/layout/Card";
+import { isPlanGate, PlanGateNotice } from "@/components/bridge/PlanGateNotice";
 
 type BillingInterval = "monthly" | "yearly";
 
@@ -35,6 +36,45 @@ function portalErrorCopy(error: unknown): string {
     return "No billing customer on file. Contact support to link your account.";
   }
   return "Could not open billing portal. Please try again or contact support.";
+}
+
+/**
+ * The same question for the CHECKOUT button, which had no answer at all.
+ *
+ * Both upgrade blocks below used to render
+ *
+ *     {(checkoutMutation.error as Error)?.message || "Could not start checkout. Please try again."}
+ *
+ * and nothing on this path writes a message for a person to read. `readRefusal`
+ * (src/lib/api/refusal.ts) puts the body's `error` field into the message verbatim — a machine
+ * token — and when the body carries no such field it falls back to the string `billing.ts`
+ * passed it, `billing/checkout: <status>`, which is a status line the CLIENT built. So the
+ * customer's last screen before paying showed either a snake_case code or an internal label
+ * with an HTTP number in it.
+ *
+ * Nothing server-authored is passed through here, deliberately: there is no branch on this
+ * endpoint that produces prose, so a rule like "print it if it looks like a sentence" would be
+ * guessing about a string that is never a sentence.
+ *
+ * A plan gate is handled OUTSIDE this function, by PlanGateNotice, because "your plan does not
+ * include this" must not be rendered in the same red box as "something broke" — they have
+ * different next steps and only one of them is worth money.
+ */
+function checkoutErrorCopy(error: unknown): string {
+  if (isOrgAdminRefusal(error)) return orgAdminMessage();
+  return "Could not start checkout. Please try again, or contact support if it keeps happening.";
+}
+
+/** The upgrade block's failure line — amber upsell for a gate, red box for a malfunction. */
+function CheckoutFailure({ error }: { error: unknown }) {
+  if (isPlanGate(error)) {
+    return <PlanGateNotice error={error} capability="This plan change" />;
+  }
+  return (
+    <p role="alert" data-testid="checkout-error" style={{ margin: 0, fontSize: 12, color: "var(--danger)" }}>
+      {checkoutErrorCopy(error)}
+    </p>
+  );
 }
 
 // Derived annual save-% for the upgrade toggle (uniform across the paid ladder
@@ -590,11 +630,7 @@ export function BillingSection() {
               </button>
             ))}
           </div>
-          {checkoutMutation.isError && (
-            <p style={{ margin: 0, fontSize: 12, color: "var(--danger)" }}>
-              {(checkoutMutation.error as Error)?.message || "Could not start checkout. Please try again."}
-            </p>
-          )}
+          {checkoutMutation.isError && <CheckoutFailure error={checkoutMutation.error} />}
           <a href="mailto:sales@proculink.eu" style={{ fontSize: 12, color: "var(--ink-faint)" }}>
             Need Enterprise? Contact sales
           </a>
@@ -639,11 +675,7 @@ export function BillingSection() {
               </button>
             </>
           )}
-          {checkoutMutation.isError && (
-            <p style={{ margin: 0, fontSize: 12, color: "var(--danger)" }}>
-              {(checkoutMutation.error as Error)?.message || "Could not start checkout. Please try again."}
-            </p>
-          )}
+          {checkoutMutation.isError && <CheckoutFailure error={checkoutMutation.error} />}
         </div>
       )}
 
