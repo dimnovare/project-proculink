@@ -121,6 +121,24 @@ describe("suggestMappingFields — the rejection carries what the failure WAS", 
     expect(failure.retryAfterSeconds).toBe(30);
   });
 
+  it("honours a wait carried in the body when the header is unreadable", async () => {
+    // `retryAfterFrom` reads the wait from TWO places, and only one of them survives here. The
+    // `Retry-After` header is the standard, but it is not CORS-safelisted and the app and the API
+    // are different origins in every deployed environment, so script can read it only while the
+    // API explicitly exposes it. The body field always survives — but ONLY if the body reaches
+    // `ApiHttpError` as an object. Handing the constructor the raw response TEXT loses it in
+    // silence: `"retryAfterSeconds" in body` is simply false for a string, no error, no warning.
+    //
+    // This endpoint carries [EnableRateLimiting("ai")] (MappingSuggestionsController), so it is
+    // the one place in the app where a 429 is routinely produced and the wait matters most.
+    fetchMock.mockResolvedValue(jsonResponse({ error: "slow down", retryAfterSeconds: 17 }, 429));
+
+    const err = await suggestMappingFields("sup-1", COLUMNS).catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(ApiHttpError);
+    expect(classifyApiFailure(err).retryAfterSeconds).toBe(17);
+  });
+
   it("rejects a 404 as deterministic, so it is not retried pointlessly", async () => {
     fetchMock.mockResolvedValue(jsonResponse({}, 404));
 

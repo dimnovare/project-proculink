@@ -419,11 +419,18 @@ async function realSuggestMappingFields(
   // respected. A bare Error would retry it straight into the closed window, and would retry a 404
   // that can only answer the same way twice.
   if (!res.ok) {
-    const body = await res.text().catch(() => "");
+    // The body goes on as an OBJECT where it parses. `retryAfterFrom` reads `retryAfterSeconds`
+    // off it and `looksLikePlanGate` reads `error`, and neither can read a string — `"key" in
+    // body` is false for one, silently, with no error and no warning. The wait is what this
+    // costs here: the `Retry-After` header is not CORS-safelisted and the app and the API are
+    // different origins in every deployed environment, so the body is the carrier that survives.
+    // The message still derives from the raw TEXT — `serverReason` lifts the `error` field itself.
+    const text = await res.text().catch(() => "");
+    const body = jsonBodyOrNull(text);
     throw new ApiHttpError(
-      serverReason(body, `Auto-map failed (HTTP ${res.status}).`),
+      serverReason(text, `Auto-map failed (HTTP ${res.status}).`),
       res.status,
-      body,
+      body ?? text,
       retryAfterFrom(res, body),
     );
   }
