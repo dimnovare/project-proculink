@@ -1,17 +1,46 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
-import { NextResponse, type NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-const isProtectedRoute = createRouteMatcher([
+/**
+ * Every URL segment that `src/app/(app)/` serves. One entry per top-level
+ * directory under that route group — that correspondence is the whole rule, and
+ * it is not a convention you have to remember: `src/test/protectedRouteCoverage.test.ts`
+ * walks the route tree and fails if a page under `(app)` is missing from here,
+ * or if a route outside `(app)` is claimed by it.
+ *
+ * It was a convention you had to remember until 2026-08-15, and it did not hold.
+ * `/connections` and `/inbound/*` were both absent while `/connections` sat on a
+ * VISIBLE nav tab (HubTabs.tsx, suppliers hub), so a signed-out visitor got the
+ * app shell and a confident "No connections yet" — a disabled TanStack query
+ * reports `isLoading === false`, so "never asked" renders as "nothing there".
+ * Nothing enforced the correspondence, so nothing caught it. The guard does now.
+ */
+export const PROTECTED_ROUTE_PATTERNS = [
   "/bridge(.*)",
   "/inbox(.*)",
   "/upload(.*)",
   "/library(.*)",
   "/operations(.*)",
   "/settings(.*)",
+  // Versioned supplier connections — reachable from the Suppliers hub strip as
+  // "Supplier changes", and from the sidebar.
+  "/connections(.*)",
+  // Inbound documents (invoices, shipping notices). Behind INBOUND_ENABLED in the
+  // nav, but a launch flag hides a tab; it does not make a URL unroutable.
+  "/inbound(.*)",
   // /admin requires sign-in at the edge; the real admin allowlist is enforced
   // server-side by /api/admin (403 for non-admins), surfaced as a clean page.
   "/admin(.*)",
-]);
+] as const;
+
+const isProtectedRoute = createRouteMatcher([...PROTECTED_ROUTE_PATTERNS]);
+
+/** Does the edge guard claim `pathname`? Exported for the coverage guard. */
+export function isProtectedPath(pathname: string): boolean {
+  return isProtectedRoute(
+    new NextRequest(new URL(pathname, "https://proculink.eu"), { method: "GET" }),
+  );
+}
 
 const isClerkConfigured =
   Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)
