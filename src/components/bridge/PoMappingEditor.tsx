@@ -63,11 +63,20 @@ const DANGER     = "#B43838";
 // corrections without a visible accept step" among the things this product
 // refuses to build, and an `AUTO_ACCEPT_THRESHOLD = 0.85` here did exactly that
 // on mount, then rendered the result as a green "100%" (see `scoreForColumn`).
-// Minimum confidence to surface as a pending suggestion. Compared as `(confidence ?? 0)`: a
-// suggestion nothing scored cannot clear a confidence threshold, so it is not auto-surfaced for
-// one-click adoption. Deliberately the conservative direction — the same call the backend makes
-// for an unscored suggestion at bulk-accept time.
-const ADOPT_THRESHOLD       = 0.50;
+//
+// There is deliberately no confidence FLOOR here either, which is a newer
+// removal. This file held `ADOPT_THRESHOLD = 0.50` — the minimum score to draw a
+// suggestion as a pending card — while the backend's own accept floor
+// (`HeuristicFieldMappingSuggester.MinAcceptScore`) said 0.45. Two floors,
+// neither aware of the other, so the lower one was dead and every suggestion the
+// API scored between them was computed, serialized, sent, and then dropped here
+// without ever being drawn or explained. The operator was never told a candidate
+// existed; that is indistinguishable, on screen, from the backend having had
+// none.
+//
+// The floor now lives once, in the backend, which no longer emits below it —
+// including on the AI path, which never had one. This editor renders what the
+// API returns.
 
 // ─── Canonical field model ────────────────────────────────────────────────────
 type Section = "header" | "lines";
@@ -179,6 +188,29 @@ export function isModelSuggestion(sug: FieldSuggestion | undefined): boolean {
   return sug?.source === "ai";
 }
 
+/**
+ * Whether a suggestion is drawn as a pending card the operator can accept.
+ *
+ * This is NOT a confidence floor — see the note beside the palette constants at
+ * the top of this file for the two-floor defect that removing `ADOPT_THRESHOLD`
+ * fixed. A scored suggestion surfaces whatever it scored; the backend decides
+ * what is worth sending.
+ *
+ * What it does still refuse is the *unscored* suggestion. `confidence` is
+ * nullable because a payload can omit the number, and a suggestion nothing
+ * scored must not be offered for one-click adoption on the strength of a
+ * default — the same call `scoreForColumn` makes when it renders "Not scored"
+ * instead of a made-up percentage. Absence of a score is not a low score.
+ *
+ * One predicate, used at every site. The scattered inline comparison is how the
+ * floor drifted out of agreement with the backend's in the first place.
+ */
+export function isSurfaceable(
+  sug: FieldSuggestion | undefined | null,
+): sug is FieldSuggestion & { suggestedColumn: string; confidence: number } {
+  return !!sug?.suggestedColumn && sug.confidence != null;
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 export function PoMappingEditor({
   supplierId,
@@ -287,7 +319,7 @@ export function PoMappingEditor({
       const accColumn = accepted.get(f.canonical);
       const sug = suggestionByField[f.canonical];
       const pendColumn =
-        !accColumn && !rejected.has(f.canonical) && sug?.suggestedColumn && (sug.confidence ?? 0) >= ADOPT_THRESHOLD
+        !accColumn && !rejected.has(f.canonical) && isSurfaceable(sug)
           ? sug.suggestedColumn
           : null;
       const colName = accColumn ?? pendColumn;
@@ -355,11 +387,7 @@ export function PoMappingEditor({
     const next = new Map(accepted);
     let count = 0;
     for (const sug of suggestQuery.data ?? []) {
-      if (
-        sug.suggestedColumn &&
-        (sug.confidence ?? 0) >= ADOPT_THRESHOLD &&
-        !rejected.has(sug.canonicalField)
-      ) {
+      if (isSurfaceable(sug) && !rejected.has(sug.canonicalField)) {
         if (!next.has(sug.canonicalField)) count++;
         next.set(sug.canonicalField, sug.suggestedColumn);
       }
@@ -479,8 +507,7 @@ export function PoMappingEditor({
   // automatically", which was both the auto-apply and its advertisement.
   const pendingSuggestions = (suggestQuery.data ?? []).filter(
     (s) =>
-      s.suggestedColumn &&
-      (s.confidence ?? 0) >= ADOPT_THRESHOLD &&
+      isSurfaceable(s) &&
       !rejected.has(s.canonicalField) &&
       accepted.get(s.canonicalField) !== s.suggestedColumn,
   );
@@ -494,8 +521,8 @@ export function PoMappingEditor({
     const accValues = new Set(accepted.values());
     const sugColumns = new Set(
       (suggestQuery.data ?? [])
-        .filter((s) => s.suggestedColumn && (s.confidence ?? 0) >= ADOPT_THRESHOLD)
-        .map((s) => s.suggestedColumn as string),
+        .filter(isSurfaceable)
+        .map((s) => s.suggestedColumn),
     );
     return detectedColumns.map((name) => ({
       name,
@@ -992,7 +1019,7 @@ export function PoMappingEditor({
               const accColumn  = accepted.get(f.canonical);
               const sug        = suggestionByField[f.canonical];
               const pendColumn =
-                !accColumn && !rejected.has(f.canonical) && sug?.suggestedColumn && (sug.confidence ?? 0) >= ADOPT_THRESHOLD
+                !accColumn && !rejected.has(f.canonical) && isSurfaceable(sug)
                   ? sug.suggestedColumn
                   : null;
               const isAcc     = !!accColumn;

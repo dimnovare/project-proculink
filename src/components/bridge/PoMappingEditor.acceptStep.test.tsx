@@ -46,8 +46,8 @@ import type { PoMappingConfig } from "@/lib/api/types";
 // ── The suggestion corpus under test ────────────────────────────────────────
 // Three of these sit at or above the retired 0.85 auto-accept threshold, so
 // under the old behaviour they arrived already in the mapping, each labelled
-// 100%. One sits below it but above ADOPT_THRESHOLD (0.50), so it was always a
-// pending card — it is the control that proves the pending path itself works.
+// 100%. One sits below it, so it was always a pending card — it is the control
+// that proves the pending path itself works.
 const SUGGESTIONS: FieldSuggestion[] = [
   { canonicalField: "PoNumber",      suggestedColumn: "po_number",  confidence: 0.97, reason: "exact name match", source: "ai" },
   { canonicalField: "OrderDate",     suggestedColumn: "order_date", confidence: 0.92, reason: "close match",      source: "ai" },
