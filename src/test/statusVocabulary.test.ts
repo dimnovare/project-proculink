@@ -450,6 +450,7 @@ describe("a sentence only promises a re-send when the product can re-send", () =
       failureCause: null,
       retryAfterSeconds: null,
       readOnly: false,
+      accountStatus: null,
       atOrderLimit: false,
       processingPaused: false,
     });

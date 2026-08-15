@@ -27,6 +27,7 @@ import { AlertCircle, AlertTriangle, HelpCircle, PauseCircle } from "lucide-reac
 import { apiClient } from "@/lib/api-client";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { useProcessingStatus } from "@/hooks/useProcessingStatus";
+import { useBillingReadOnly } from "@/hooks/useBillingReadOnly";
 import type { Order } from "@/types/procurement";
 import { UnifiedStatusBadge } from "../UnifiedStatusBadge";
 import { poTitleFrom } from "../workshop/WorkshopGateChrome";
@@ -127,14 +128,10 @@ const ICON: Record<ProblemStatus, typeof AlertTriangle> = {
 export function OrderProblemPanel({
   order,
   mode,
-  readOnly = false,
-  atOrderLimit = false,
   detailFallback = null,
 }: {
   order: Order;
   mode?: "gate" | "banner";
-  readOnly?: boolean;
-  atOrderLimit?: boolean;
   /**
    * Server detail to show when the order row carries no errorMessage — the parse
    * failure writes its reason into the ParseFailed audit payload instead.
@@ -145,6 +142,13 @@ export function OrderProblemPanel({
   const copy = problemFor(status);
   const queryEnabled = useQueriesEnabled();
   const { paused } = useProcessingStatus();
+  // Read-only is asked for HERE rather than handed in. It was a `readOnly` prop with
+  // a `false` default and not one call site that passed it, so a workspace the server
+  // had already stopped — a lapsed Pilot, a cancelled plan, a declined card — was shown
+  // a live "Try sending now" that could only come back refused, and the sentence
+  // explaining why was unreachable code. A workspace fact does not belong in a prop
+  // every future call site can forget.
+  const { readOnly, accountStatus, atOrderLimit } = useBillingReadOnly();
   const action = useProblemAction(order.id, status);
 
   // The reason lives on the passport, three clicks away behind Details → Supplier response.
@@ -190,6 +194,7 @@ export function OrderProblemPanel({
     failureCause: order.failureCause?.trim() ? order.failureCause : null,
     retryAfterSeconds: order.retryAfterSeconds ?? null,
     readOnly,
+    accountStatus,
     atOrderLimit,
     processingPaused: paused,
   };

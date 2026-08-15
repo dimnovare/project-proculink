@@ -34,6 +34,7 @@ function ctx(over: Partial<ProblemCtx> = {}): ProblemCtx {
     failureCause: null,
     retryAfterSeconds: null,
     readOnly: false,
+    accountStatus: null,
     atOrderLimit: false,
     processingPaused: false,
     ...over,
@@ -76,6 +77,11 @@ const CTX_VARIANTS: Array<readonly [string, ProblemCtx]> = [
   ["supplier not known yet", ctx({ supplierId: null, supplier: "this supplier" })],
   ["delivery config missing", ctx({ serverMessage: "Supplier delivery config is missing." })],
   ["read-only plan", ctx({ readOnly: true })],
+  // Read-only is NOT a Pilot state. A paying workspace whose card was declined is
+  // refused by the same server flag and reaches the same disabled controls, so the
+  // walk carries one of those too — the reason it prints differs, and a walk that
+  // only ever saw an unknown account status would never see that arm.
+  ["read-only plan, card declined", ctx({ readOnly: true, accountStatus: "past_due" })],
   ["at the plan's order limit", ctx({ atOrderLimit: true })],
   ["order processing paused", ctx({ processingPaused: true })],
   // WP-19 — the named delivery causes. Each is its own arm of `delivery_failed`,

@@ -36,6 +36,7 @@ function actionLabel(status: keyof typeof PROBLEM_COPY, op: string): string {
       failureCause: null,
       retryAfterSeconds: null,
       readOnly: false,
+      accountStatus: null,
       atOrderLimit: false,
       processingPaused: false,
     })

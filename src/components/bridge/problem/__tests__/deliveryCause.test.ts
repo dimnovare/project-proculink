@@ -33,6 +33,7 @@ function ctx(over: Partial<ProblemCtx> = {}): ProblemCtx {
     failureCause: null,
     retryAfterSeconds: null,
     readOnly: false,
+    accountStatus: null,
     atOrderLimit: false,
     processingPaused: false,
     ...over,

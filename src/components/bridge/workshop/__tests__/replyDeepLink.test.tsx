@@ -197,6 +197,7 @@ describe("a refused order's reply is reachable from its own panel", () => {
         failureCause: null,
         retryAfterSeconds: null,
         readOnly: false,
+        accountStatus: null,
         atOrderLimit: false,
         processingPaused: false,
       })
