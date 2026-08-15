@@ -1,12 +1,14 @@
 "use client";
 
-import { Suspense, useEffect } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { capture } from "@/lib/analytics";
 import { requiresPlan } from "@/lib/gatedCapabilities";
 import { ProcuLinkMark } from "@/components/bridge/DSPrimitives";
+import { CheckoutReceipt } from "./checkoutReceipt";
 
 /* This page has TWO referrers and both are load-bearing:
    - Stripe checkout returns every paying customer here with `?upgraded={plan}`
@@ -14,7 +16,12 @@ import { ProcuLinkMark } from "@/components/bridge/DSPrimitives";
      receipt block below is conditional and why the route is noindex and absent
      from the sitemap.
    - It is also the first-order guide for a new workspace.
-   Do not delete it, and do not remove the `upgraded` branch. */
+   Do not delete it, and do not remove the `upgraded` branch.
+
+   ⚠ `upgraded` is a HINT, never the claim. The receipt reads the plan and the
+   "active" assertion off `GET /api/billing/status`; see checkoutReceipt.tsx for
+   what this page used to assert from the URL alone and why that was a truth
+   defect rather than a cosmetic one. */
 
 const S = {
   page: { maxWidth: 680, margin: "0 auto", padding: "72px 32px 80px", textAlign: "center" as const },
@@ -151,29 +158,10 @@ function WelcomeBody() {
         ProcuLink turns the purchase orders you send out into the exact format each supplier needs, and delivers them automatically. Here&apos;s how to get to your first delivered order.
       </p>
 
-      {upgraded && (
-        <div style={{ ...S.card, borderLeft: "3px solid var(--brand-green)", marginBottom: 16 }}>
-          <h2
-            style={{
-              fontFamily: "var(--font-display)",
-              fontSize: 18,
-              fontWeight: 600,
-              color: "var(--ink)",
-              margin: "0 0 6px",
-              textAlign: "left",
-            }}
-          >
-            You&apos;re on {upgraded.charAt(0).toUpperCase() + upgraded.slice(1)}.
-          </h2>
-          <p style={{ fontSize: 13.5, color: "var(--ink-muted)", lineHeight: 1.55, margin: 0, textAlign: "left" }}>
-            Your subscription is active. Your billing portal is in{" "}
-            <Link href="/settings" style={{ color: "var(--brand-green-deep)", textDecoration: "underline" }}>
-              Settings → Billing
-            </Link>
-            . Receipt was emailed to {user?.primaryEmailAddress?.emailAddress ?? "your inbox"}.
-          </p>
-        </div>
-      )}
+      <CheckoutReceipt
+        expectedPlan={upgraded}
+        email={user?.primaryEmailAddress?.emailAddress ?? null}
+      />
 
       <div style={S.card}>
         {STEPS.map((s, i) => (
@@ -194,9 +182,20 @@ function WelcomeBody() {
 }
 
 export default function WelcomePage() {
+  // The (marketing) layout has no QueryClientProvider — only the (app) layout does,
+  // and /welcome deliberately sits outside it (a customer returning from Stripe may
+  // not have completed org selection yet). The receipt needs a real server read, so
+  // this route brings its own client. Same query key as the app's billing query, so
+  // nothing is lost when the user walks into /settings next.
+  const [queryClient] = useState(
+    () => new QueryClient({ defaultOptions: { queries: { refetchOnWindowFocus: false } } }),
+  );
+
   return (
-    <Suspense fallback={null}>
-      <WelcomeBody />
-    </Suspense>
+    <QueryClientProvider client={queryClient}>
+      <Suspense fallback={null}>
+        <WelcomeBody />
+      </Suspense>
+    </QueryClientProvider>
   );
 }
