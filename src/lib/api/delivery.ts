@@ -3,7 +3,7 @@ import type {
   DeliveryTestResult,
   UpsertDeliveryConfigRequest,
 } from "./types";
-import { API_BASE_URL, ApiHttpError, authHeader, isApiMockMode } from "./core";
+import { API_BASE_URL, ApiHttpError, authHeader, isApiMockMode, retryAfterFrom } from "./core";
 import { serverReason } from "@/lib/serverText";
 import { orgAdminRefusal } from "./refusal";
 
@@ -35,7 +35,23 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
     // unchanged (pinned by delivery.retryPolicy.test.ts).
     const admin = orgAdminRefusal(res.status, text);
     if (admin) throw new ApiHttpError(admin, res.status);
-    throw new Error(`API error ${res.status}: ` + serverReason(text, res.statusText || `HTTP ${res.status}`));
+    // The line above carries the same reasoning for the org-admin 403; this is every OTHER status,
+    // and the MESSAGE here is byte-identical to the one this line always threw. A plain Error made
+    // all of them read as `unreachable`, so the QueryClient in src/app/(app)/layout.tsx retried a
+    // plan-gate 403, a 404 and a 409, none of which answer differently the second time, and a 429
+    // was retried immediately against a window that had not moved.
+    //
+    // The string may not move: `DeliveryConfigEditor` renders it, and `PlanGateNotice` reads the
+    // `<capability>_requires_<plan>` code back out of it. The constructor runs
+    // `operatorSafeApiMessage`, which returns plain prose byte-for-byte — pinned, not assumed, by
+    // delivery.httpFailureKind.test.ts. The raw body rides along on `.body` because `serverReason`
+    // lifts only the `error` field out of a plan gate, dropping the `upgradeUrl` beside it.
+    throw new ApiHttpError(
+      `API error ${res.status}: ` + serverReason(text, res.statusText || `HTTP ${res.status}`),
+      res.status,
+      text,
+      retryAfterFrom(res, text),
+    );
   }
   return res.json() as Promise<T>;
 }
