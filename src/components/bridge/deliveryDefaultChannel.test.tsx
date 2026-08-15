@@ -16,7 +16,13 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { DeliveryGuidedSetup } from "./DeliveryGuidedSetup";
 
+vi.mock("@clerk/nextjs", () => ({
+  useAuth: () => ({ isLoaded: true, isSignedIn: true, orgId: "org_1", userId: "user_1" }),
+}));
+
 vi.mock("@/lib/api/delivery", () => ({
+  // `null` = the API's 204, i.e. nothing configured — the state this wizard is offered in.
+  getDeliveryConfig: vi.fn().mockResolvedValue(null),
   upsertDeliveryConfig: vi.fn().mockResolvedValue(undefined),
   testFireDelivery: vi.fn().mockResolvedValue({ success: true }),
 }));

@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Wand2, ArrowLeft, ArrowRight, Send, Check, X } from "lucide-react";
 import {
   Dialog,
@@ -12,12 +12,19 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { upsertDeliveryConfig, testFireDelivery } from "@/lib/api/delivery";
+import { getDeliveryConfig, upsertDeliveryConfig, testFireDelivery } from "@/lib/api/delivery";
 import { invalidateOnboardingStatus } from "@/hooks/useOnboardingStatus";
-import { invalidateDeliveryConfig } from "@/lib/deliveryConfigCache";
-import type { DeliveryProtocol, DeliveryTestResult, OutputFormatId } from "@/lib/api/types";
+import { deliveryConfigQueryKey, invalidateDeliveryConfig } from "@/lib/deliveryConfigCache";
+import type { DeliveryConfig, DeliveryProtocol, DeliveryTestResult, OutputFormatId } from "@/lib/api/types";
 import { serverReasonOrNull } from "@/lib/serverText";
 import { deliveryTestDisclosure } from "@/components/bridge/deliveryTestDisclosure";
+import { isPlanGate, PlanGateNotice } from "@/components/bridge/PlanGateNotice";
+import {
+  decideHttpCredentialAction,
+  decideSftpCredentialAction,
+  type CredentialAction,
+} from "@/components/bridge/deliveryCredentialAction";
+import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 
 /**
  * Guided delivery setup — an OPT-IN, additive stepper that walks a non-technical
@@ -194,12 +201,46 @@ function WizardModal({
 }) {
   const queryClient = useQueryClient();
 
+  const queryEnabled = useQueriesEnabled();
+
+  // What is ALREADY stored for this supplier.
+  //
+  // The wizard used to assert, in a comment, that "this is a fresh config from the wizard, so
+  // there is never a saved credential to preserve". That was a claim about the CALLER, not
+  // about this component: `FirstTimeDeliveryOffer` only renders on a definite `data === null`,
+  // so the assumption held by placement alone — off a cache with a 30s staleTime, and off a
+  // cache that another tab's save never invalidates. Nothing in the save path enforced it, and
+  // the write it produced for an untouched HTTP form was `{"type":"none"}`, which REPLACES a
+  // stored Bearer token or API key with "unauthenticated".
+  //
+  // Same query key as the offer that opened the wizard, so in the normal case this is a cache
+  // read and costs no request.
+  const { data: savedConfig } = useQuery<DeliveryConfig | null, Error, DeliveryConfig | null | undefined>({
+    queryKey: deliveryConfigQueryKey(supplierId),
+    queryFn: () => getDeliveryConfig(supplierId),
+    enabled: queryEnabled,
+    staleTime: 30_000,
+    retry: 1,
+  });
+  // `undefined` is "no answer yet", and an unknown must be treated as "there might be something
+  // to lose" — the conservative reading is the one that cannot destroy a credential. It costs
+  // nothing on a genuinely new supplier: a `keep` decision writes null, and null and
+  // `{"type":"none"}` mean the same thing where no credential exists.
+  // `null` is a real answer — the API's 204 for "nothing saved" — and is NOT the same as
+  // `undefined`, which is "no answer yet". Only the second one is the unknown.
+  const hasSavedCredentials = savedConfig === undefined ? true : (savedConfig?.hasCredentials ?? false);
+  const hasSavedConfig = savedConfig != null;
+
   const [step, setStep] = useState<Step>(1);
   const [channel, setChannel] = useState<SimpleChannel | null>(null);
 
   // Step-2 fields (only the ones the selected channel needs are shown).
   const [url, setUrl] = useState("");
   const [authType, setAuthType] = useState<AuthType>("none");
+  // False until the operator picks an auth type in this wizard. "none" is the SELECT'S
+  // DEFAULT, not a statement about what is stored, and the two must not be confused —
+  // see decideHttpCredentialAction.
+  const [authShapeChosen, setAuthShapeChosen] = useState(false);
   const [apiKeyHeader, setApiKeyHeader] = useState("X-Api-Key");
   const [apiKeyValue, setApiKeyValue] = useState("");
   const [bearerToken, setBearerToken] = useState("");
@@ -267,11 +308,54 @@ function WizardModal({
     return { url, method: "POST", timeoutSeconds: 30 }; // http
   }
 
-  // Build the credentials JSON — SAME shapes the editor's buildCredentialsJson()
-  // produces. This is a fresh config from the wizard, so there is never a saved
-  // credential to preserve (the editor's "leave blank to keep" paths don't apply).
+  /**
+   * Keep / replace / block for the stored credential — the SAME pure decisions the full
+   * editor uses (deliveryCredentialAction.ts), not a second set of rules.
+   *
+   * `keep` means write `credentialsJson: null`, which leaves whatever is stored untouched.
+   * That is the answer whenever this wizard would otherwise write its own defaults over a
+   * record it cannot read back: the API returns `hasCredentials` and a constant mask, and
+   * nothing else, so an auth type the operator did not choose is a guess.
+   */
+  function credentialDecision(): CredentialAction {
+    if (channel === "email") return { kind: "replace" }; // no per-supplier credentials at all
+    if (channel === "sftp" || channel === "ftps") {
+      return decideSftpCredentialAction({
+        selected: channel === "sftp" ? sftpAuthMode : "password",
+        // The saved shape the backend cannot describe. A saved SFTP/FTPS credential is
+        // presented in password mode here exactly as the editor presents it.
+        loaded: hasSavedCredentials ? "password" : null,
+        hasNewSecret:
+          channel === "sftp" && sftpAuthMode === "key"
+            ? privateKey.trim() !== ""
+            : basicPassword.trim() !== "",
+        hasSavedCredentials,
+      });
+    }
+    return decideHttpCredentialAction({
+      selected: authType,
+      shapeChosen: authShapeChosen,
+      hasSavedCredentials,
+      fields: {
+        apiKeyHeader,
+        apiKeyValue,
+        bearerToken,
+        basicUsername,
+        basicPassword,
+        // OAuth2 is deferred to the full editor by this wizard, so its inputs do not exist
+        // here. They are only read when `selected === "oauth2"`, which cannot happen.
+        tokenUrl: "",
+        oauthClientId: "",
+        oauthClientSecret: "",
+      },
+    });
+  }
+
+  // Build the credentials JSON — SAME shapes the editor's buildCredentialsJson() produces.
+  // Returns null on a `keep` decision, which is what preserves a stored credential.
   function buildCredentialsJson(): string | null {
     if (channel === "email") return null; // HTTP email API — no per-supplier credentials
+    if (credentialDecision().kind !== "replace") return null;
     if (channel === "sftp") {
       if (sftpAuthMode === "key") {
         return JSON.stringify({ username: basicUsername, privateKey, privateKeyPassphrase });
@@ -294,6 +378,13 @@ function WizardModal({
 
   async function saveConfig(): Promise<boolean> {
     if (!spec) return false;
+    // A `block` decision is a refusal to write, not a failure to report: the operator's
+    // selection would replace a stored secret with a blank, and the fix is to fill it in.
+    const decision = credentialDecision();
+    if (decision.kind === "block") {
+      setError(decision.message);
+      return false;
+    }
     setSaving(true);
     setError(null);
     try {
@@ -366,6 +457,26 @@ function WizardModal({
         {/* Body scroll area gives up the cookie-banner inset (0 once dismissed) so
             the step footer below stays visible instead of scrolling out of reach. */}
         <div className="px-5 py-4" style={{ borderTop: "1px solid #E5E8EE", maxHeight: "calc(60vh - var(--plk-bottom-inset, 0px))", overflowY: "auto" }}>
+          {/* The wizard is offered on a supplier with nothing saved. When it is opened
+              against one that DOES have a config — a stale cache, another tab, a teammate —
+              say so, because finishing replaces what is there. */}
+          {hasSavedConfig && (
+            <div
+              role="status"
+              data-testid="guided-existing-config"
+              className="mb-3 rounded-[6px] px-3 py-2 text-[12px] leading-5"
+              style={{
+                background: "var(--amber-soft)",
+                border: "1px solid var(--amber-border, var(--amber-soft))",
+                borderLeft: "3px solid var(--amber)",
+                color: "var(--amber-text)",
+              }}
+            >
+              This {nounLower} already has delivery set up. Finishing here replaces it.
+              {hasSavedCredentials && " The saved sign-in is kept unless you choose a new one."}
+            </div>
+          )}
+
           {step === 1 && <StepChannel onSelect={selectChannel} onClose={onClose} />}
 
           {step === 2 && spec && (
@@ -373,6 +484,8 @@ function WizardModal({
               channel={spec.id}
               url={url} setUrl={setUrl}
               authType={authType} setAuthType={setAuthType}
+              authShapeUnknown={hasSavedCredentials && !authShapeChosen}
+              onAuthShapeChosen={() => setAuthShapeChosen(true)}
               apiKeyHeader={apiKeyHeader} setApiKeyHeader={setApiKeyHeader}
               apiKeyValue={apiKeyValue} setApiKeyValue={setApiKeyValue}
               bearerToken={bearerToken} setBearerToken={setBearerToken}
@@ -410,7 +523,20 @@ function WizardModal({
             />
           )}
 
-          {error && (
+          {/* A plan-gate 403 is not a malfunction, and it must not be printed as one — nor
+              as the machine code it arrives as. `src/lib/api/delivery.ts` deliberately keeps
+              `<capability>_requires_<plan>` in the message so a reader downstream can pull the
+              plan out of it; this wizard had no such reader and rendered the token verbatim,
+              so a refused save read "API error 403: delivery_config_requires_growth". The full
+              editor has branched on this since WP-11 — same save call, same refusal, and until
+              now two different answers. */}
+          {error && isPlanGate(error) && (
+            <div className="mt-3">
+              <PlanGateNotice error={error} capability="This delivery setup" />
+            </div>
+          )}
+
+          {error && !isPlanGate(error) && (
             <div className="mt-3 rounded-[6px] px-3 py-2 text-[12px]" role="alert" style={{ background: "#FCEBEB", color: "#A52E2E", border: "1px solid #F5C5C5" }}>
               {error}
             </div>
@@ -629,6 +755,9 @@ interface StepDestinationProps {
   channel: SimpleChannel;
   url: string; setUrl: (v: string) => void;
   authType: AuthType; setAuthType: (v: AuthType) => void;
+  /** True while a credential IS stored and the operator has not said which shape it is. */
+  authShapeUnknown: boolean;
+  onAuthShapeChosen: () => void;
   apiKeyHeader: string; setApiKeyHeader: (v: string) => void;
   apiKeyValue: string; setApiKeyValue: (v: string) => void;
   bearerToken: string; setBearerToken: (v: string) => void;
@@ -661,13 +790,30 @@ function StepDestination(p: StepDestinationProps) {
           />
         </WizardField>
 
-        <WizardField label="How does it check who you are?" hint="If your supplier gave you a key, token, or login, pick it here. Otherwise leave as None.">
+        {/* The API returns no auth type — only `hasCredentials` and a constant mask — so for a
+            supplier that already has one, "None" would be this select's default wearing the
+            costume of a saved value. It shows the saved shape as UNKNOWN instead, and choosing
+            anything is what makes the write a deliberate replacement. Same rule and same
+            sentinel as DeliveryConfigEditor. */}
+        <WizardField
+          label="How does it check who you are?"
+          hint={
+            p.authShapeUnknown
+              ? "This supplier already has a sign-in saved. We can't show which kind it is — leave this as it is to keep it, or pick one to replace it."
+              : "If your supplier gave you a key, token, or login, pick it here. Otherwise leave as None."
+          }
+        >
           <select
-            value={p.authType}
-            onChange={(e) => p.setAuthType(e.target.value as AuthType)}
+            value={p.authShapeUnknown ? "__unknown__" : p.authType}
+            onChange={(e) => {
+              if (e.target.value === "__unknown__") return;
+              p.onAuthShapeChosen();
+              p.setAuthType(e.target.value as AuthType);
+            }}
             className="h-9 w-full rounded-[5px] px-2 text-[12px]"
             style={{ ...INPUT_STYLE, background: "#FFF" }}
           >
+            {p.authShapeUnknown && <option value="__unknown__">Keep the saved sign-in (type not shown)</option>}
             <option value="none">None</option>
             <option value="apikey">API key</option>
             <option value="bearer">Bearer token</option>
@@ -675,7 +821,7 @@ function StepDestination(p: StepDestinationProps) {
           </select>
         </WizardField>
 
-        {p.authType === "apikey" && (
+        {!p.authShapeUnknown && p.authType === "apikey" && (
           <div className="grid gap-3 lg:grid-cols-[160px_minmax(0,1fr)]">
             <WizardField label="Header name" hint="The header your supplier told you to send the key in.">
               <input value={p.apiKeyHeader} onChange={(e) => p.setApiKeyHeader(e.target.value)} placeholder="X-Api-Key" className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
@@ -685,12 +831,12 @@ function StepDestination(p: StepDestinationProps) {
             </WizardField>
           </div>
         )}
-        {p.authType === "bearer" && (
+        {!p.authShapeUnknown && p.authType === "bearer" && (
           <WizardField label="Bearer token">
             <input type="password" value={p.bearerToken} onChange={(e) => p.setBearerToken(e.target.value)} placeholder="paste the token" className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
           </WizardField>
         )}
-        {p.authType === "basic" && (
+        {!p.authShapeUnknown && p.authType === "basic" && (
           <div className="grid gap-3 lg:grid-cols-2">
             <WizardField label="Username">
               <input value={p.basicUsername} onChange={(e) => p.setBasicUsername(e.target.value)} placeholder="supplier-username" className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />

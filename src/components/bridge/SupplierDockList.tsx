@@ -72,6 +72,13 @@ import {
   planGateMessage,
   planGateUpgradeUrl,
 } from "@/lib/planGate";
+import { PlanGateNotice } from "./PlanGateNotice";
+// The quota-429 copy is SHARED with UploadWorkbench — see src/lib/limitRefusal.ts. It is
+// imported rather than rewritten because the correct `supplier_limit_reached` sentence
+// already existed there, in a screen that can never receive that code.
+import { isLimitCode, knownPlanId, limitRefusalCopy, type LimitRefusalCopy } from "@/lib/limitRefusal";
+import { planName } from "@/lib/plans";
+import { serverReason } from "@/lib/serverText";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import type { DeliveryConfig, DeliveryProtocol } from "@/lib/api/types";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
@@ -307,14 +314,19 @@ export function SupplierDockList() {
           : null,
       );
     },
-    onError: (err: Error) => {
-      try {
-        const parsed = JSON.parse(err.message);
-        setAddError(parsed.error ?? err.message);
-      } catch {
-        setAddError(err.message);
-      }
-    },
+    // KEEP THE REASON, DO NOT RENDER IT. This used to be
+    //
+    //     const parsed = JSON.parse(err.message);
+    //     setAddError(parsed.error ?? err.message);
+    //
+    // which lifted the machine token out of the refusal and put it on screen: an org that
+    // crossed its supplier allowance was shown `supplier_limit_reached`, in the add-supplier
+    // modal, at the moment it is deciding whether to spend money. `createSupplier` already
+    // runs the body through `serverReason`, so `err.message` IS that token by the time it
+    // arrives — the JSON.parse arm never even fired. The string is kept raw here because the
+    // discriminators downstream match on it (`isPlanGateError` reads the plan out of the
+    // code); it is turned into a sentence at render, by `addFailure` below.
+    onError: (err: Error) => setAddError(err.message),
   });
 
   function handleSave() {
@@ -359,6 +371,65 @@ export function SupplierDockList() {
       : isOrgAdminRefusal(pageNotice.reason)
         ? "org_admin"
         : "other";
+
+  // ── What the add-supplier modal is allowed to say when the CREATE is refused ──
+  //
+  // The second step of this button (the delivery-config write) has been routed through
+  // planGate since #128; the FIRST step never was, so the two failures on one click took
+  // two different paths and only one of them produced a sentence. Same three causes, same
+  // three fixes, plus the one this endpoint adds:
+  //
+  //   plan gate    403 `<capability>_requires_<plan>`   → upgrading is the fix
+  //   org admin    403 `requires_org_admin`             → asking an administrator is the fix
+  //   quota        429 `supplier_limit_reached` etc.    → a bigger allowance is the fix
+  //   anything else (a 500, a name clash, a timeout)    → trying again / reading the reason
+  //
+  // A quota refusal is NOT a plan gate and must not borrow its sentence: a gate means the
+  // capability is absent from the tier, a quota means the tier has it and the allowance is
+  // spent. Both end in "upgrade", which is exactly why they are easy to conflate and why
+  // they are told apart by two different discriminators here.
+  //
+  // The allowance and the tier are read from the billing status this component already
+  // holds, because `createSupplier` throws a plain `Error` and the structured body (`plan`,
+  // the effective `limit`) does not survive it. When billing is unknown the copy says no
+  // number at all rather than inventing the plan default.
+  type AddFailure =
+    | { kind: "plan_gate"; reason: string }
+    | { kind: "org_admin" }
+    | { kind: "quota"; copy: LimitRefusalCopy }
+    | { kind: "other"; message: string };
+
+  // A snake_case token with no spaces is a machine code, whatever it says. Anything this
+  // build does not recognise falls through to generic copy rather than being printed: a
+  // code the frontend has never heard of is still not a sentence, and a new one appearing
+  // on the server must not become user-facing text by default.
+  const looksLikeMachineCode = (value: string) => /^[a-z0-9]+(?:_[a-z0-9]+)+$/.test(value.trim());
+
+  const addFailure: AddFailure | null = !addError
+    ? null
+    : isPlanGateError(addError)
+      ? { kind: "plan_gate", reason: addError }
+      : isOrgAdminRefusal(addError)
+        ? { kind: "org_admin" }
+        : isLimitCode(addError)
+          ? {
+              kind: "quota",
+              copy: limitRefusalCopy({
+                code: addError.trim().toLowerCase(),
+                plan: knownPlanId(billing?.plan),
+                limit: billing?.supplierLimit ?? null,
+                raw: addError,
+              }),
+            }
+          : {
+              kind: "other",
+              message: looksLikeMachineCode(addError)
+                ? `Could not add this ${nounLower}. Please try again, or contact support if it keeps happening.`
+                : serverReason(
+                    addError,
+                    `Could not add this ${nounLower}. Please try again, or contact support if it keeps happening.`,
+                  ),
+            };
 
   const limitReached = !billingError && billing && !billing.canAddSupplier;
   const hasRows = !isLoading && !suppliersError && suppliers.length > 0;
@@ -474,8 +545,12 @@ export function SupplierDockList() {
           >
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
+                {/* `billing.plan` is the plan ID — `growth`, `distributor` — and it was being
+                    read straight into the sentence, so the banner said "Your growth plan".
+                    `planName` is the ladder's own display name (src/lib/plans.ts) and returns
+                    an unknown id unchanged, which is the honest fallback. */}
                 <p className="text-[13px] font-semibold" style={{ color: INK }}>
-                  Your {billing.plan} plan includes {billing.supplierLimit} {nounLower}{billing.supplierLimit === 1 ? "" : "s"}.
+                  Your {planName(billing.plan)} plan includes {billing.supplierLimit} {nounLower}{billing.supplierLimit === 1 ? "" : "s"}.
                 </p>
                 <p className="mt-1 text-[12px] leading-5" style={{ color: "#7A4D0B" }}>
                   Existing {nounLower} flows remain viewable. Upgrade when you are ready to add another {nounLower} route.
@@ -650,8 +725,50 @@ export function SupplierDockList() {
                   Auto-process means orders are sent to this {nounLower} automatically once they pass checks. It stays off until you set up delivery and turn it on.
                 </div>
 
-                {addError && (
-                  <p className="text-[12px]" style={{ color: "#B43838" }}>{addError}</p>
+                {/* A plan gate gets the amber upsell; everything else gets the red failure
+                    box. The two must not look alike — "you need a bigger plan" and
+                    "something broke" have different next steps and only one of them is
+                    worth money. */}
+                {addFailure?.kind === "plan_gate" && (
+                  <PlanGateNotice error={addFailure.reason} capability={`Adding a ${nounLower}`} />
+                )}
+
+                {addFailure?.kind === "quota" && (
+                  <div
+                    role="status"
+                    data-testid="add-supplier-quota"
+                    className="rounded-[6px] px-3 py-2.5 text-[12px] leading-5"
+                    style={{
+                      border: "1px solid var(--amber-border, var(--amber-soft))",
+                      borderLeft: "3px solid var(--amber)",
+                      background: "var(--amber-soft)",
+                      color: "var(--amber-text)",
+                    }}
+                  >
+                    <p className="m-0 font-semibold">{addFailure.copy.title}</p>
+                    <p className="m-0 mt-0.5">{addFailure.copy.message}</p>
+                    {addFailure.copy.href && (
+                      <Link
+                        href={addFailure.copy.href}
+                        className="mt-1 inline-block font-semibold"
+                        style={{ color: "inherit", textDecoration: "underline", textUnderlineOffset: 2 }}
+                      >
+                        {addFailure.copy.cta} →
+                      </Link>
+                    )}
+                  </div>
+                )}
+
+                {addFailure?.kind === "org_admin" && (
+                  <p className="text-[12px]" data-testid="add-supplier-error" style={{ color: "var(--danger)" }}>
+                    {orgAdminMessage()}
+                  </p>
+                )}
+
+                {addFailure?.kind === "other" && (
+                  <p className="text-[12px]" data-testid="add-supplier-error" style={{ color: "var(--danger)" }}>
+                    {addFailure.message}
+                  </p>
                 )}
               </div>
 
