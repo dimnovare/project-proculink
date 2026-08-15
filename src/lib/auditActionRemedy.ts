@@ -108,6 +108,18 @@ const REMEDY_BY_ACTION: Record<string, ActionRemedy> = {
     reach: "before_send",
     next: "Upgrade the plan to start accepting orders again, then ask the sender to resend.",
   },
+  "inbound_email.rejected_plan_gate": {
+    reach: "before_send",
+    next:
+      "Upgrade to a plan that includes email intake. The sender is not told anything — if the " +
+      "upgrade is not immediate, give them another way to send this order.",
+  },
+  "inbound_email.rejected_order_limit": {
+    reach: "before_send",
+    next:
+      "Upgrade the plan, then ask the sender to resend. Emails are retried for about ten hours, so " +
+      "an upgrade inside that window lands this order without a resend.",
+  },
   "inbound_email.unrouted_no_supplier": {
     reach: "before_send",
     next: "Add the sending address to a supplier so future emails from it are routed automatically.",

@@ -531,9 +531,34 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     kind: "failed",
     label: "Email rejected — plan is read-only",
     reachable: true,
-    backendSite: "ProcuLink.Infrastructure/Services/Email/InboundEmailRouter.cs:187",
+    backendSite: "ProcuLink.Infrastructure/Services/Email/InboundEmailRouter.cs:231",
     reasonKeys: [],
     note: "Nothing was queued for later; the order simply never arrived. §11.5's cancellation rule, seen from the log.",
+  },
+  {
+    action: "inbound_email.rejected_plan_gate",
+    kind: "failed",
+    label: "Email rejected — plan does not include email intake",
+    reachable: true,
+    backendSite: "ProcuLink.Infrastructure/Services/Email/InboundEmailRouter.cs:252",
+    reasonKeys: [],
+    note:
+      "Hosted inbound email is BillingFeature.EmailIngestion, Growth and up, but the inbound address " +
+      "is minted for every org on every plan — so a Pilot can be sent mail it may not process. The " +
+      "refusal is transient: Postmark keeps re-delivering for ~10.5 hours, so an upgrade inside that " +
+      "window still lands the order.",
+  },
+  {
+    action: "inbound_email.rejected_order_limit",
+    kind: "failed",
+    label: "Email rejected — order allowance exhausted",
+    reachable: true,
+    backendSite: "ProcuLink.Infrastructure/Services/Email/InboundEmailRouter.cs:277",
+    reasonKeys: [],
+    note:
+      "The same CheckOrderLimitAsync gate the upload and REST paths apply, so this is Pilot's hard " +
+      "cap or a non-processing account status — never a paid plan going over its monthly allowance, " +
+      "which accrues overage and still ingests.",
   },
   {
     action: "inbound_email.unrouted_no_supplier",

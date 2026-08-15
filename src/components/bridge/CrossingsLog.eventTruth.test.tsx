@@ -317,8 +317,13 @@ describe("auditActionManifest — coverage floors", () => {
     // and `…_empty`), which split one silent attachment-skip branch into two audited
     // causes. Bumping these numbers is the point: a backend action with no row here
     // renders as `unknown`, so the count is what makes the manifest's growth deliberate.
-    expect(AUDIT_ACTION_FACTS).toHaveLength(49);
-    expect(REACHABLE_AUDIT_ACTIONS).toHaveLength(44);
+    //
+    // +2 reachable from backend #214 (`inbound_email.rejected_plan_gate` and
+    // `…_rejected_order_limit`), the two gates the Postmark webhook never had. Both
+    // are refusals a customer can act on, so a row that reads `unknown` would be the
+    // audit trail failing at precisely the moment it is being consulted.
+    expect(AUDIT_ACTION_FACTS).toHaveLength(51);
+    expect(REACHABLE_AUDIT_ACTIONS).toHaveLength(46);
   });
 
   it("classifies a substantial number of them as failures", () => {
