@@ -36,11 +36,22 @@ import { STANDARDS } from "@/lib/standards/catalog";
  * nothing in the codebase read the catalog's `transform` level, so the promised derivation existed
  * for `IMPORT_FORMATS` alone.
  *
- * Behind the badge there was nothing to badge. There is no Schematron in either repo,
- * `PeppolBisValidator` is invoice-only, and the one order-side check asserts the conformance ids
- * are non-empty rather than correct — while the emitter writes a GUID into the supplier party name
- * and emits no `cbc:EndpointID`. Founder decision, 2026-08-01: keep emitting UBL, drop the Peppol
- * BIS claim.
+ * Behind the badge there was nothing to badge, and there still is not. There is no Schematron in
+ * either repo, `PeppolBisValidator` is invoice-only, and the order-side checker
+ * (`UblProfileChecker`) covers OASIS UBL 2.1 schema validation and mandatory elements only — no
+ * BIS business rule is evaluated anywhere. The emitted order also declares no Peppol profile at
+ * all: `UblOrderTransformService` writes neither `cbc:CustomizationID` nor `cbc:ProfileID` (both
+ * are `minOccurs="0"` in UBL 2.1), and the two order-side checks that once required them were
+ * deleted as circular — they read back elements the emitter had just written. A receiving access
+ * point routes on `CustomizationID`, so its absence leaves the document unaddressable on the
+ * Peppol network rather than invalid off it. Founder decision, 2026-08-01: keep emitting UBL,
+ * drop the Peppol BIS claim.
+ *
+ * Two clauses this comment used to carry as evidence are now stale and are corrected here rather
+ * than repeated: the supplier party name resolves `SupplierName` → `Supplier.Name` and falls back
+ * to the supplier GUID only as a last resort, and `SellerSupplierParty` does carry a
+ * `cbc:EndpointID` — schemeID `0088` — when the supplier's stored `EdiCode` is provably a GS1 GLN.
+ * The buyer party carries none.
  *
  * Two mechanisms below, each doing one job. The STRUCTURAL guard binds a row's name to the catalog
  * entry it derives from, and no wording can get around it. The PROSE guard is the backstop for the
@@ -423,8 +434,9 @@ describe("no user-facing copy claims Peppol BIS conformance", () => {
     expect(
       offenders,
       "these lines tell a reader ProcuLink produces or satisfies Peppol BIS Order 3. Nothing in " +
-        "either repo can back that: no Schematron, an invoice-only validator, and an order-side " +
-        "check that asserts the conformance ids are non-empty rather than correct. Say \"UBL 2.1 " +
+        "either repo can back that: no Schematron, an invoice-only validator, an order-side " +
+        "checker that covers OASIS UBL 2.1 only, and an emitted order that declares no Peppol " +
+        "profile at all — no cbc:CustomizationID and no cbc:ProfileID. Say \"UBL 2.1 " +
         "Order\", or disclaim it on the same line:\n" + offenders.join("\n"),
     ).toEqual([]);
   });

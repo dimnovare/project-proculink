@@ -63,9 +63,10 @@ export interface DesignProblem {
  * Mirror of `OutputTreeFormats.IsRenderable` — an exhaustive switch with NO default arm on the
  * backend, deliberately, so a new format has to be classified rather than defaulting to renderable.
  *
- * cXML carries a DOCTYPE and a From/To/Sender header; UBL carries mandatory UBLVersionID /
- * CustomizationID / ProfileID; X12 and EDIFACT are positional segments inside an ISA/GS or UNB/UNH
- * envelope. None of that is expressible as a generic element tree, so a tree-emitted document would
+ * cXML carries a DOCTYPE and a From/To/Sender header; UBL is an ordered `xsd:sequence` of
+ * namespaced cbc:/cac: elements, and Peppol UBL layers CustomizationID / ProfileID on top of it
+ * (both are `minOccurs="0"` in plain UBL 2.1, and ProcuLink's UBL order emits neither); X12 and
+ * EDIFACT are positional segments inside an ISA/GS or UNB/UNH envelope. None of that is expressible as a generic element tree, so a tree-emitted document would
  * be well-formed and REJECTED by the receiver. Each is produced instead by its own dedicated
  * transform, configured on the supplier's Delivery tab.
  */
