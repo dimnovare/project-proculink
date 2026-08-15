@@ -44,8 +44,18 @@ export default function WatchPage() {
       <h1 style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", fontSize: "clamp(30px, 4vw, 44px)", fontWeight: 700, color: "#0B1A2F", marginBottom: 12, letterSpacing: "-0.025em" }}>
         Watch the walkthrough
       </h1>
+      {/*
+        This read "validated against the supplier's rules" and matched the page's
+        SERP description word for word. "A supplier's own rules" names the
+        CONFIGURABLE acceptance profile, which is gated at Enterprise
+        (BillingFeature.CustomSupplierRules; SupplierAcceptanceController refuses
+        both authoring and activating below it), so the sentence promised a
+        capability most readers' plans would refuse. The bare verb is true on
+        every plan — the built-in checks run with no profile configured — and it
+        is also what the walkthrough actually shows.
+      */}
       <p style={{ fontSize: 16, color: "#56627A", lineHeight: 1.6, marginBottom: 32, maxWidth: 600 }}>
-        See how a single upload becomes a delivered supplier order — parsed, mapped, validated against the supplier&apos;s rules, and sent.
+        See how a single upload becomes a delivered supplier order — parsed, mapped, validated, and sent.
       </p>
 
       {videoUrl ? (

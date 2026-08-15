@@ -131,7 +131,35 @@ const POSTURE: Array<{ title: string; body: React.ReactNode; icon: React.ReactNo
   },
   {
     title: "Validation before delivery",
-    body: "Per-supplier rules block malformed orders before they ever reach a supplier endpoint — wrong currency, missing fields, unresolved codes.",
+    // This card said: "Per-supplier rules block malformed orders before they ever
+    // reach a supplier endpoint — wrong currency, missing fields, unresolved
+    // codes." Every clause of that is true of SOMETHING, which is what made it
+    // hard to see. It named one product and described two.
+    //
+    // The CONFIGURABLE per-supplier rule set — the versioned acceptance profile on
+    // a supplier's Validation rules tab — is gated at Enterprise:
+    // PlanConstants.cs:287 maps BillingFeature.CustomSupplierRules to Enterprise,
+    // and SupplierAcceptanceController.GateAsync (:36-46) refuses both authoring
+    // (:70) and activating (:99) with custom_supplier_rules_requires_enterprise.
+    // Reading versions you already hold is deliberately left open (:51-63), so a
+    // workspace that downgrades can still see what its suppliers enforce.
+    //
+    // The BUILT-IN checks are a different product and are on every plan including
+    // Pilot. SupplierAcceptanceService.cs:198-204 runs InvariantValidator and the
+    // output-field pass unconditionally — neither sits inside a `profile is not
+    // null` branch, and EvaluateProfile returns empty when there is none (:387-391).
+    //
+    // Of the three examples the old sentence gave, exactly one belonged to the
+    // gated product. Unresolved supplier item codes are built-in and hard-block
+    // (OutputFieldValidator.cs:69-71, throwing at :115-126 before a transform
+    // writes a byte). A missing PO number or currency is built-in
+    // (InvariantValidator.cs:37-51). "Wrong currency" is NOT: nothing built-in
+    // validates the currency VALUE — InvariantValidator.cs:47 is a
+    // !IsNullOrWhiteSpace presence test — so an allowed-list or equals check is
+    // the gated profile (RuleCatalog.cs:107,115). Naming no tier while listing all
+    // three sold the Enterprise product at every price on the page a compliance
+    // reviewer reads.
+    body: `Built-in checks run on every plan and cannot be switched off: an order needs a PO number and a currency, every line needs a quantity above zero and a unit price that is not negative, and immediately before an order is transformed it is held back rather than emitted if a line is still flagged for review or its supplier item code is unresolved. Checks of your own for a supplier — an accepted currency list, a required ship-to or incoterm, a value range — are a separate versioned acceptance profile: authoring a version and activating one are both ${requiresPlan("customSupplierRules")}, while reading the versions you already have is not gated, so a workspace that downgrades can still see what its suppliers enforce.`,
     icon: <RulesIcon />,
   },
   {
