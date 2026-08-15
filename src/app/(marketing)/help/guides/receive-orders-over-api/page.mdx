@@ -1,5 +1,6 @@
 import { guideMetadata } from "@/lib/seo";
 import { Step, Prereqs, IfThisFails, Outcome, GuideShot } from "@/components/help/guide";
+import { requiresPlan } from "@/lib/gatedCapabilities";
 
 export const metadata = guideMetadata({
   slug: "receive-orders-over-api",
@@ -27,6 +28,8 @@ That is the whole distinction, and getting it wrong costs an afternoon:
   parses it: [by email](/help/guides/receive-orders-by-email), [from an SFTP
   folder](/help/guides/receive-orders-by-sftp), [from S3 or R2](/help/guides/receive-orders-from-s3), or
   [by hand](/help/guides/upload-orders-manually). Posting a file to this endpoint will not work.
+  Upload and this API are on every plan; the email, SFTP and S3 routes are
+  {requiresPlan("emailIngestion", "sftpIngestion", "s3Ingestion")}.
 
 <Outcome>
 You know which of the two shapes you have, and you are on the right guide.

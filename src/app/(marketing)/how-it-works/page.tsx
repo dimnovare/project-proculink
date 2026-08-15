@@ -75,7 +75,10 @@ const STEPS: Array<{
     n: "01",
     title: "Receive in any format",
     desc:
-      "Buyers send POs however they like — a PDF email attachment, an XLSX export, cXML posted to your REST endpoint, EDI dropped on SFTP. ProcuLink ingests all of it through one inbox.",
+      // "however they like" is the claim, and the automatic routes behind it are not free:
+      // inbound email, IMAP, SFTP and S3 pickups are all BillingFeature gates at Growth
+      // (PlanConstants.cs:283-285). Manual upload and the inbound API are the ones on every plan.
+      `Buyers send POs however they like — a PDF email attachment, an XLSX export, cXML posted to your REST endpoint, EDI dropped on SFTP. ProcuLink ingests all of it through one inbox. Upload and the inbound API are on every plan; email, IMAP, SFTP and S3 pickups are ${requiresPlan("emailIngestion", "sftpIngestion", "s3Ingestion")}.`,
     color: BLUE,
     bg: BLUE_SOFT,
     icon: <UploadIcon />,
@@ -142,7 +145,7 @@ const STEPS: Array<{
       // "ERP connector" sat in this list as a peer of SFTP and email. It is not: the Erply and
       // Directo adapters gate at Enterprise (BillingFeature.ErpConnectors), so an unqualified
       // mention reads as included on every plan.
-      `The canonical order is transformed into the exact format the supplier requires and delivered over their channel — webhook, SFTP or email, or an ERP connector on ${requiresPlan("erpConnectors")}. cXML output is ${requiresPlan("cxml")}; the other formats are on every plan. Every attempt is recorded with its response code and a SHA-256 fingerprint of the bytes sent.`,
+      `The canonical order is transformed into the exact format the supplier requires and delivered over their channel — webhook on ${requiresPlan("webhookDelivery")}, SFTP or email on every plan, or an ERP connector on ${requiresPlan("erpConnectors")}. cXML output is ${requiresPlan("cxml")}; the other formats are on every plan. Every attempt is recorded with its response code and a SHA-256 fingerprint of the bytes sent.`,
     color: GREEN,
     bg: GREEN_SOFT,
     icon: <SendIcon />,

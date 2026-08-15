@@ -1,5 +1,6 @@
 import { guideMetadata } from "@/lib/seo";
 import { Step, Prereqs, IfThisFails, Outcome, GuideShot } from "@/components/help/guide";
+import { requiresPlan } from "@/lib/gatedCapabilities";
 
 export const metadata = guideMetadata({
   slug: "receive-orders-from-s3",
@@ -9,7 +10,7 @@ export const metadata = guideMetadata({
 });
 
 <Prereqs>
-- A paid plan. The form saves on Pilot, but the watch toggle needs a paid plan.
+- {requiresPlan("s3Ingestion")}. The form saves on Pilot, but the watch toggle is refused below that plan.
 - At least one supplier added, to attribute imported objects to.
 - Access to the bucket's IAM (AWS) or API tokens (Cloudflare R2) so you can issue a **read-only** key.
 - The **bucket name**, the **prefix** objects land under, and the **region** — or, for R2, the account endpoint URL.

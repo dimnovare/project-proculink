@@ -161,6 +161,9 @@ Pick the channel that matches how orders already reach you and set it up once:
   folder](/help/guides/receive-orders-by-sftp) or [from S3 or Cloudflare
   R2](/help/guides/receive-orders-from-s3)
 
+The API is on every plan, as manual upload is. The email, SFTP and S3 routes are
+{requiresPlan("emailIngestion", "sftpIngestion", "s3Ingestion")}.
+
 They all land in the same Inbox and are reviewed exactly as you just did. Only the way in changes.
 
 <Outcome>

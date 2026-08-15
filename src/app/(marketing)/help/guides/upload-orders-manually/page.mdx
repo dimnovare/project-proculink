@@ -1,5 +1,6 @@
 import { guideMetadata } from "@/lib/seo";
 import { Step, Prereqs, IfThisFails, Outcome, GuideShot } from "@/components/help/guide";
+import { requiresPlan } from "@/lib/gatedCapabilities";
 
 export const metadata = guideMetadata({
   slug: "upload-orders-manually",
@@ -118,7 +119,8 @@ Past that, every other intake channel exists so nobody has to remember: orders c
 [by email](/help/guides/receive-orders-by-email), [over the API](/help/guides/receive-orders-over-api),
 [from an SFTP folder](/help/guides/receive-orders-by-sftp), or [from an S3 or R2
 bucket](/help/guides/receive-orders-from-s3). They all land in the same Inbox and are reviewed the same
-way — only the way in differs.
+way — only the way in differs. Upload and the API stay on every plan; the email, SFTP and S3 routes are
+{requiresPlan("emailIngestion", "sftpIngestion", "s3Ingestion")}.
 
 <Outcome>
 You can get any order into ProcuLink in under a minute without setting anything up, and you know which

@@ -1,5 +1,6 @@
 import { guideMetadata } from "@/lib/seo";
 import { Step, Prereqs, IfThisFails, Outcome, GuideShot } from "@/components/help/guide";
+import { requiresPlan } from "@/lib/gatedCapabilities";
 
 export const metadata = guideMetadata({
   slug: "poll-a-mailbox-over-imap",
@@ -9,7 +10,7 @@ export const metadata = guideMetadata({
 });
 
 <Prereqs>
-- A paid plan. The form saves on Pilot, but the polling toggle needs a paid plan.
+- {requiresPlan("emailIngestion")}. The form saves on Pilot, but the polling toggle is refused below that plan — and so is the hosted inbound address this guide offers as the shorter path, so neither email route is a way around it.
 - A mailbox **you already run** that receives purchase orders as attachments, and permission to create credentials on it.
 - At least one supplier added — imported messages have to be attributed to someone.
 - Twenty minutes, mostly spent in your mail provider's security settings rather than in ProcuLink.

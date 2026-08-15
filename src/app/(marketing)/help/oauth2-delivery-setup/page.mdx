@@ -1,4 +1,5 @@
 import { helpArticleMetadata } from "@/lib/seo";
+import { requiresPlan } from "@/lib/gatedCapabilities";
 
 export const metadata = helpArticleMetadata({
   slug: "oauth2-delivery-setup",
@@ -9,6 +10,8 @@ export const metadata = helpArticleMetadata({
 # OAuth2 client-credentials for HTTP delivery
 
 Some supplier APIs don't accept a static API key or bearer token — they require you to exchange a client id and secret for a short-lived access token first. ProcuLink's **OAuth2 fetch-token** auth method (on the HTTP delivery channel) does that exchange for you before each send, using the **client-credentials** grant.
+
+> **Which plan you need.** Everything here is on the HTTP delivery channel, which is {requiresPlan("webhookDelivery")}. Saving an HTTP delivery config on a cheaper plan is refused at the point of saving, so the OAuth2 fields below are not reachable until then. SFTP, FTPS and email delivery are on every plan and need none of this.
 
 > This article is the OAuth2 reference. For the delivery set-up it belongs to, follow [set up delivery to a supplier and test-fire it](/help/guides/set-up-supplier-delivery).
 

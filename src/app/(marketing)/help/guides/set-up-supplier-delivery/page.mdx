@@ -30,8 +30,8 @@ whichever the supplier already runs — this is not a preference:
 
 The plan column is not a footnote: saving a delivery config on a channel your plan does not include is
 refused at the point of saving, not at the point of sending. SFTP, FTPS and email really are on every plan
-— it is the **inbound** SFTP and email pulls that start at Growth, which is a different setting in a
-different place.
+— it is the **inbound** SFTP and email pulls that are {requiresPlan("sftpIngestion", "emailIngestion")},
+which is a different setting in a different place.
 
 Until something is configured here, sending an order stops honestly at *delivery not set up* rather than
 pretending it went somewhere.
