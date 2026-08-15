@@ -2234,6 +2234,27 @@ describe("a gated capability is never presented with no tier at all", () => {
    * `presents` does not happen to match still counts. Too narrow here manufactures offenders;
    * too broad only restores the old file-scoped behaviour for that one line.
    */
+  /**
+   * Does this LINE disclose the tier for this capability? The one definition, used by the sweep
+   * and by its controls alike.
+   *
+   * It is a named function rather than a closure built inside the `it.each` because the first
+   * version was the closure, and a mutation run proved the anchor was untestable: un-anchoring the
+   * real rule left every assertion green, because the control that demonstrates the anchor had
+   * built its own private copy of it. That is the same "predicate has drifted from the array it is
+   * meant to be the disjunction of" hazard `CONFIGURABLE_SUPPLIER_RULE_FORMS` already carries a
+   * control for, and it hid a rule that could not fail.
+   */
+  const disclosesFor =
+    (capability: keyof typeof BACKEND_MINIMUM_PLAN) =>
+    (line: string): boolean => {
+      const literal = literalDisclosure(BACKEND_MINIMUM_PLAN[capability]);
+      return (
+        derivedDisclosure(capability).test(line) ||
+        (literal.test(line) && CAPABILITY_KEYWORD[capability].test(line))
+      );
+    };
+
   const CAPABILITY_KEYWORD: Record<keyof typeof BACKEND_MINIMUM_PLAN, RegExp> = {
     webhookDelivery: /\bwebhook\b|\bhttp\b/i,
     emailIngestion: /\bimap\b|\bemail\b|\bmailbox\b/i,
@@ -2588,13 +2609,10 @@ describe("a gated capability is never presented with no tier at all", () => {
     "$label: every file presenting it names the tier somewhere",
     ({ capability, label, presents, reaches }) => {
       const minimumPlan = BACKEND_MINIMUM_PLAN[capability];
-      const derived = derivedDisclosure(capability);
-      const literal = literalDisclosure(minimumPlan);
-      const keyword = CAPABILITY_KEYWORD[capability];
       // A literal tier only discloses THIS capability when it sits on a line naming it. See
       // CAPABILITY_KEYWORD: `/` named Enterprise for the ERP connectors and that was excusing a
       // Growth-gated webhook claim in the same sentence.
-      const discloses = (line: string) => derived.test(line) || (literal.test(line) && keyword.test(line));
+      const discloses = disclosesFor(capability);
 
       const files = buyerFacingFiles().filter(({ file }) => !EXEMPT.some((e) => e.endsWith(file)));
       expect(files.length, "the corpus must really be reading files").toBeGreaterThan(40);
@@ -2708,9 +2726,9 @@ describe("a gated capability is never presented with no tier at all", () => {
         "to make the webhook line read as disclosed",
     ).toBe(true);
 
-    const anchored = (line: string) =>
-      derivedDisclosure("webhookDelivery").test(line) ||
-      (literal.test(line) && CAPABILITY_KEYWORD.webhookDelivery.test(line));
+    // `disclosesFor` — the function the sweep itself calls, not a restatement of it. A control
+    // that rebuilds the rule it is testing passes whatever the rule becomes.
+    const anchored = disclosesFor("webhookDelivery");
     expect(file.some(anchored), "anchored: nothing in this file ties a tier to webhook delivery").toBe(false);
 
     // …and the derived disclosure the fix actually uses does satisfy it, or the guard would be
