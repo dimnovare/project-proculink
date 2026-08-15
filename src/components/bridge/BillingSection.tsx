@@ -12,6 +12,7 @@ import { PLAN_BY_ID, CHECKOUT_PLAN_IDS, yearlySavePercent } from "@/lib/plans";
 import { capture } from "@/lib/analytics";
 import { isOrgAdminRefusal, orgAdminMessage } from "@/lib/planGate";
 import { BOOK_DEMO_URL, BOOK_DEMO_LINK_ATTRS } from "@/lib/book-demo";
+import { pausedCauseCopy } from "@/lib/billingPause";
 import { Card } from "@/components/bridge/layout/Card";
 
 type BillingInterval = "monthly" | "yearly";
@@ -115,62 +116,16 @@ function isProcessingPaused(status: BillingStatus): boolean {
 }
 
 /**
- * What to tell a NON-Pilot workspace whose processing is paused.
+ * What to tell a workspace whose processing is paused.
  *
- * Keyed on `accountStatus` for the headline and the route back, with a fallback arm
- * that names the pause without inventing a cause. The consequence paragraph is shared,
- * because the consequence really is identical across causes — it is `canProcessOrders`
- * that every ingest path checks, not the particular status behind it.
+ * MOVED to `@/lib/billingPause` — it is no longer this screen's private copy. The order
+ * review panel disables its recovery POSTs for the same server fact (`canProcessOrders`)
+ * and has to name the same cause, and two definitions of "why your account is paused" is
+ * how one of them ends up saying "Your Pilot has ended" to a past-due Operations org.
  *
- * ⚠ `read_only` is DELIBERATELY vague about the cause, and must stay that way.
- * StripeBillingMapping.MapStatusToAccountStatus folds THREE different Stripe states into
- * it — `paused`, `canceled`, and (via BillingController's subscription-deleted arm) a
- * deleted subscription. "Your subscription has ended" would be a guess on a paused
- * subscription, and a guess about someone's money is the same class of defect as the
- * silence it replaces. It says the subscription is not active, which is true of all three,
- * and sends them to the portal to see which.
- *
- * The resume promise is per-cause for the same reason. `past_due` really does resume by
- * itself (the recovered-payment webhook flips the org back to active and
- * ReleaseBillingHeldOrdersAsync re-drives every held order); a cancelled subscription
- * does not, and telling that customer to sit and wait would strand them.
+ * Re-exported here so this screen's existing importers keep their import path.
  */
-export function pausedCauseCopy(accountStatus: string): {
-  headline: string;
-  resume: string;
-} {
-  switch (accountStatus) {
-    case "past_due":
-      return {
-        headline: "Your last payment didn't go through.",
-        resume:
-          "Update your payment details in Stripe — processing restarts on its own once the payment clears, and any orders waiting on it go out then.",
-      };
-    case "cancelled":
-      return {
-        headline: "Your subscription has ended.",
-        resume: "Start a plan again in Stripe to resume processing.",
-      };
-    case "read_only":
-      return {
-        headline: "Your subscription isn't active.",
-        resume:
-          "Open the billing portal to see whether it is paused or ended, and to restart it. Processing restarts on its own once the subscription is active again.",
-      };
-    case "trial_expired":
-      return {
-        headline: "Your trial has ended.",
-        resume: "Choose a plan in Stripe to resume processing.",
-      };
-    default:
-      // An account status this build does not recognise. Say what is certainly true —
-      // the server refused processing — and do not narrate a cause or a mechanism.
-      return {
-        headline: "Order processing is paused on your account.",
-        resume: "Open the billing portal to check your subscription, or contact support.",
-      };
-  }
-}
+export { pausedCauseCopy };
 
 /**
  * The consequence, shared by every cause and deliberately identical in substance to the

@@ -19,6 +19,7 @@
 // The status is the ONLY input. There is deliberately no `title`/`message`/`tone`
 // prop anywhere downstream.
 
+import { pausedCauseCopy } from "@/lib/billingPause";
 import type { ProblemOp } from "./problemActions";
 
 export const PROBLEM_STATUSES = [
@@ -81,8 +82,21 @@ export interface ProblemCtx {
   failureCause: string | null;
   /** order.retryAfterSeconds — the supplier's own requested wait, when they named one. */
   retryAfterSeconds: number | null;
-  /** Pilot ended / plan is read-only: every POST is refused server-side. */
+  /**
+   * The server says this workspace cannot process orders (`canProcessOrders` is
+   * false): every recovery POST on this panel is refused before it runs.
+   *
+   * NOT a plan check, and it must never become one. This is true of a lapsed
+   * Pilot, a cancelled plan, and a paying customer whose card was declined alike —
+   * gating it on `plan === "pilot"` is the defect CLAUDE.md §11.5 records.
+   */
   readOnly: boolean;
+  /**
+   * `billing/status.accountStatus` — WHY processing stopped, so the sentence beside
+   * a disabled control can name the cause instead of guessing one. Null when we have
+   * no billing answer, in which case `readOnly` is false too.
+   */
+  accountStatus: string | null;
   atOrderLimit: boolean;
   /** The Hangfire Worker is down: nothing parses, transforms or delivers. */
   processingPaused: boolean;
@@ -611,12 +625,37 @@ const HELP = (c: ProblemCtx, status: ProblemStatus): ProblemAction => ({
   href: `/support?order=${encodeURIComponent(c.po)}&problem=${status}`,
 });
 
-const READ_ONLY_REASON =
-  "Your Pilot has ended. You can still view previous orders, but new processing is paused.";
+/**
+ * The half of the read-only reason that is true of every cause: the action is
+ * blocked, and there is one screen where it gets unblocked. Written once because
+ * the consequence really is identical across causes — it is `canProcessOrders`
+ * that every path checks, not the particular status behind it.
+ */
+const READ_ONLY_REASON_TAIL =
+  "Nothing can be sent or retried until processing is active again. See Settings → Billing.";
+
+/**
+ * The sentence printed beside a disabled recovery control.
+ *
+ * It used to be one frozen string — "Your Pilot has ended. You can still view
+ * previous orders, but new processing is paused." — which was wrong for most of
+ * the workspaces that can reach it. Read-only is not a Pilot state: a cancelled
+ * plan and a paying customer whose card was declined are refused by the same
+ * server flag, and telling an Operations org its Pilot ended is a false statement
+ * about their money on top of a blocked button.
+ *
+ * The cause half is `pausedCauseCopy`, the SAME map the billing screen prints, so
+ * the two surfaces cannot disagree about why an account is paused. Its fallback arm
+ * is what an unrecognised (or absent) status resolves to — it names the pause without
+ * inventing a cause, which is the honest answer when we do not have one.
+ */
+export function readOnlyReason(accountStatus: string | null): string {
+  return `${pausedCauseCopy(accountStatus ?? "").headline} ${READ_ONLY_REASON_TAIL}`;
+}
 
 /** Read-only plans refuse every POST server-side — say so instead of firing it. */
 function postGuard(c: ProblemCtx): string | null {
-  return c.readOnly ? READ_ONLY_REASON : null;
+  return c.readOnly ? readOnlyReason(c.accountStatus) : null;
 }
 
 function withAutomaticFor(
