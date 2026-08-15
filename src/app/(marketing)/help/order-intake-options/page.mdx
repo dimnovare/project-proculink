@@ -1,4 +1,5 @@
 import { helpArticleMetadata } from "@/lib/seo";
+import { requiresPlan } from "@/lib/gatedCapabilities";
 
 export const metadata = helpArticleMetadata({
   slug: "order-intake-options",
@@ -15,7 +16,7 @@ ProcuLink is designed to receive purchase orders the way your buyer or procureme
 ## Recommended order
 
 1. **Manual upload** — best for the first supplier setup and testing real files.
-2. **Email intake** — best when buyers already send POs as attachments.
+2. **Email intake** — best when buyers already send POs as attachments ({requiresPlan("emailIngestion")}).
 3. **API push** — best when an ERP, procurement system, or automation tool can send structured order data.
 4. **SFTP or storage-folder polling** — best for recurring file exports from older systems. Configure it yourself in **Settings → SFTP pull** or **S3 / R2 pull** (any paid plan — Growth and up).
 
@@ -27,7 +28,9 @@ Common PO formats include CSV, XLSX, text-based PDF, XML/cXML, UBL/Peppol-style 
 
 ## Email intake
 
-There are two email patterns:
+Both email patterns below are {requiresPlan("emailIngestion")}. The inbound address exists on every
+plan — it is minted for the workspace automatically — but mail sent to it is only imported once the
+plan includes email ingestion, so the address being visible is not the same as the channel being on.
 
 - **IMAP polling**: ProcuLink checks a mailbox you own every 5 minutes and imports supported attachments. This is configured in **Settings → Email intake**.
 - **Hosted inbound address**: every workspace gets its own address in the form `your-workspace@orders.proculink.eu` — it is shown (with a copy button) in **Settings → Email intake** and **Settings → API keys**. Forward or send orders to it and ProcuLink imports the attachments; routing to your workspace is automatic, with no mailbox setup on your side.

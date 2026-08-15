@@ -60,15 +60,46 @@ export function minimumPlanName(capability: GatedCapability): string {
 }
 
 /**
+ * The one plan shared by every capability named, or a thrown error.
+ *
+ * Copy very often presents several gated capabilities in one breath — "email, SFTP and S3
+ * intake", "webhook delivery" — and all four of those really do start on the same tier, because
+ * `PlanConstants.cs` decouples channels from volume. Writing four separate clauses to say one
+ * thing is how a reader stops reading, and how five of them end up disagreeing.
+ *
+ * It THROWS rather than returning the dearest tier when the capabilities disagree. Returning the
+ * dearest would quietly overcharge for the cheap member (a reader told webhook delivery needs
+ * Enterprise because ERP connectors were named in the same call), and returning the cheapest
+ * would promise the dear one below its gate. Both are the exact failure this module exists to
+ * prevent, so neither is available: group capabilities that share a tier, or write two clauses.
+ */
+function sharedMinimumPlan(capabilities: readonly GatedCapability[]): PlanId {
+  const plans = [...new Set(capabilities.map((c) => MINIMUM_PLAN[c]))];
+  if (plans.length !== 1) {
+    throw new Error(
+      `requiresPlan() was given capabilities from different tiers (${capabilities
+        .map((c) => `${c}=${MINIMUM_PLAN[c]}`)
+        .join(", ")}). One clause cannot honestly name one tier for all of them — ` +
+        "naming the dearest overcharges for the cheapest, and naming the cheapest promises the " +
+        "dearest below its gate. Write one clause per tier.",
+    );
+  }
+  return plans[0];
+}
+
+/**
  * The standard disclosure clause used across `/formats` and the help articles —
  * `"Operations plan and up"`.
  *
  * One phrasing everywhere is deliberate. A reader who has met it once on `/formats` reads it
  * the same way in a help table, and `gatedCapabilityClaims.test.ts` can recognise a real
  * disclosure without having to guess at a dozen synonyms.
+ *
+ * Variadic, so one clause can disclose the whole group a sentence presents — see
+ * `sharedMinimumPlan` for why a mixed-tier group is refused rather than flattened.
  */
-export function requiresPlan(capability: GatedCapability): string {
-  return `${minimumPlanName(capability)} plan and up`;
+export function requiresPlan(...capabilities: [GatedCapability, ...GatedCapability[]]): string {
+  return `${PLAN_BY_ID[sharedMinimumPlan(capabilities)].name} plan and up`;
 }
 
 /** A whole sentence, for prose that needs one — `"Included from the Operations plan up."` */

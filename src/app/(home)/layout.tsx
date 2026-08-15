@@ -11,7 +11,7 @@ export const metadata = pageMetadata({
   description:
     "Stop reformatting purchase orders by hand. ProcuLink turns any incoming order into the exact format and channel each supplier needs — with a full audit trail behind every order.",
   ogDescription:
-    "Stop reformatting purchase orders by hand. ProcuLink turns any incoming order into the exact format and channel each supplier needs — with a full audit trail.",
+    "Stop reformatting purchase orders by hand. ProcuLink turns any incoming order into the exact format and channel each supplier needs — with a full audit trail behind every order.",
 });
 
 export default function HomeLayout({ children }: { children: React.ReactNode }) {

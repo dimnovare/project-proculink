@@ -208,7 +208,11 @@ const FEATURES: Array<{
     // The ERP connectors are not an ordinary channel alongside SFTP and email: they gate at
     // Enterprise (BillingFeature.ErpConnectors, from €2,500/mo), while HTTP webhook gates at
     // Growth and SFTP/email are ungated. Listing all four in one breath read as "pick any".
-    desc: `HTTP webhook, SFTP or email — or download the artifact. ERP connectors (Erply, Directo) on ${requiresPlan("erpConnectors")}. Encrypted credentials, AES-GCM at rest, full audit trail per attempt.`,
+    //
+    // The webhook half of that sentence was then left undisclosed for months, next to an ERP
+    // clause that DID name its tier — which is what taught a reader that an unqualified channel
+    // on this card is included. Naming Enterprise beside it made the silence louder, not safer.
+    desc: `HTTP webhook, SFTP or email — or download the artifact. Webhook delivery is ${requiresPlan("webhookDelivery")}; SFTP and email delivery are on every plan. ERP connectors (Erply, Directo) on ${requiresPlan("erpConnectors")}. Encrypted credentials, AES-GCM at rest, full audit trail per attempt.`,
     color: BLUE_DEEP,
     bg: BLUE_SOFT,
     topGradient: true,
@@ -988,7 +992,7 @@ export default function RootPage() {
               </Link>
               <p style={{ fontSize: 13, lineHeight: 1.6, maxWidth: 300, marginTop: 14 }}>
                 The missing link between buyers and suppliers. Turn any purchase order into the exact
-                format your supplier needs — with a full audit trail.
+                format your supplier needs — with a full audit trail on every order.
               </p>
             </div>
             {[

@@ -250,7 +250,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
   {
     slug: "sftp-polling-setup",
     title: "Polling an SFTP folder for order files",
-    blurb: "Set up ProcuLink to pull purchase-order files from an SFTP server on a schedule, and learn what fails silently when the path is wrong.",
+    blurb: `Set up ProcuLink to pull purchase-order files from an SFTP server on a schedule, and learn what fails silently when the path is wrong. Inbound SFTP polling is ${requiresPlan("sftpIngestion")}.`,
     category: "Integrations",
     keywords: ["sftp", "polling", "pull", "order files", "host", "port 22", "private key", "password", "folder path", "schedule"],
     readMin: 3,
@@ -260,7 +260,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
   {
     slug: "s3-polling-setup",
     title: "Polling an S3 or R2 bucket for order files",
-    blurb: "Set up ProcuLink to pull purchase-order files from an S3-compatible bucket on a schedule, with a minimal read-only IAM policy.",
+    blurb: `Set up ProcuLink to pull purchase-order files from an S3-compatible bucket on a schedule, with a minimal read-only IAM policy. Bucket polling is ${requiresPlan("s3Ingestion")}.`,
     category: "Integrations",
     keywords: ["s3", "r2", "cloudflare", "bucket", "prefix", "region", "iam policy", "s3:ListBucket", "s3:GetObject", "access key", "polling"],
     readMin: 3,
@@ -268,7 +268,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
   {
     slug: "imap-provider-setup",
     title: "Polling an existing mailbox with IMAP",
-    blurb: "Connect ProcuLink to a mailbox you already own so it imports order attachments, with per-provider host/port settings, app-password guidance, and the polling cadence.",
+    blurb: `Connect ProcuLink to a mailbox you already own so it imports order attachments, with per-provider host/port settings, app-password guidance, and the polling cadence. Email intake is ${requiresPlan("emailIngestion")}.`,
     category: "Integrations",
     keywords: ["imap", "email intake", "email polling", "mailbox", "attachments", "gmail", "office 365", "outlook", "proton bridge", "app password", "port 993", "tls", "growth"],
     readMin: 5,

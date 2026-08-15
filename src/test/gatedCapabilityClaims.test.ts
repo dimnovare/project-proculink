@@ -570,9 +570,32 @@ const claims = (sells: ClaimMatcher, text: string): boolean =>
  * BillingGateEnforcementIsRealTests.cs:143-155). So a bullet that scopes itself to one order
  * is honest on any tier, and a bullet that does not is a claim on the gated log.
  */
+/**
+ * The RECORD, not the verb, and not a customer's contractual audit right.
+ *
+ * A bare `\baudit\b` was fine while this row only ever read pricing-card bullets — a card does not
+ * contain the sentence "you can audit what the model saw". Over the buyer-facing prose corpus it
+ * was not: `/dpa` says "audits are not provided as standard; mutual non-disclosure terms apply to
+ * any audit", which is a SOC-2-style inspection right and nothing to do with `AdvancedAudit`, and
+ * `/help/ai-suggestions` uses the plain verb. Requiring the noun the product actually ships —
+ * a log, a trail, a record, a history, entries — costs none of the card wordings below and drops
+ * both false positives.
+ */
+const AUDIT_RECORD_NOUN = /\baudit (?:log|logs|trail|trails|record|records|history|entries)\b|\bdelivery log\b/i;
+
+/**
+ * Scoped to ONE order, so honest on every plan including Pilot.
+ *
+ * `per attempt` is in here because a delivery attempt belongs to exactly one order: the per-order
+ * trail is what records the attempts, and `GET /api/orders/{id}/audit` is ungated. `behind every
+ * order` / `on every order` are the phrasings the footer and the `og:description` were fixed with,
+ * and pinning them is what stops the fix being reverted by a copy edit that reads better.
+ */
+const ORDER_SCOPED_AUDIT =
+  /\bper[- ]order\b|\bsingle[- ]order\b|\border[- ]level\b|\bfor (?:each|any|that|this|a single) order\b|\b(?:behind|on|for|with|against) (?:every|each) order\b|\bper (?:delivery )?attempt\b/i;
+
 const SELLS_ORG_WIDE_AUDIT = (text: string): boolean =>
-  (/\baudit\b/i.test(text) || /\bdelivery log\b/i.test(text)) &&
-  !/\bper[- ]order\b|\bsingle[- ]order\b|\border[- ]level\b|\bfor (?:each|any|a single) order\b/i.test(text);
+  AUDIT_RECORD_NOUN.test(text) && !ORDER_SCOPED_AUDIT.test(text);
 
 /**
  * The CONFIGURABLE per-supplier rule set — the versioned acceptance profile on a supplier's
@@ -1993,9 +2016,47 @@ describe("no buyer-facing copy claims records are immutable, because nothing enf
  *   • `customSupplierRules` IS covered, by the same predicate the card scans use. Its reach is
  *     documented at that matcher rather than here, because the interesting limit is which
  *     WORDINGS it recognises, not which files it walks — and the wordings were measured.
- *   • It still says nothing about `webhookDelivery`, `emailIngestion` or `advancedAudit` in
- *     prose. Those are separate clusters with their own untiered surfaces still outstanding;
- *     extending this list is the follow-up, and the shape is already here.
+ *
+ * ── The gap that was the actual defect, closed 2026-08-15 ───────────────────────
+ *
+ * The three bullets above used to end with a fourth: "it still says nothing about
+ * `webhookDelivery`, `emailIngestion` or `advancedAudit` in prose … extending this list is the
+ * follow-up." That note was the defect. `CAPABILITY_CLAIMS` policed TEN capabilities against the
+ * pricing cards; `CLAIMS` policed THREE against prose, and the seven missing rows are where the
+ * money is: four of them gate at Growth, which is the tier a reader on the landing page is
+ * deciding whether to buy.
+ *
+ * What the seven were hiding, measured on the tree of 2026-08-15:
+ *
+ *   • `/` and `/one-pager` and `/how-it-works` and `/help` each listed "HTTP webhook, SFTP or
+ *     email" as delivery channels with no tier, **directly beside an ERP clause that DID name
+ *     Enterprise**. Webhook delivery is `BillingFeature.WebhookDelivery`, Growth. Naming the
+ *     dearer neighbour is what made the silence read as "included" — a reader who sees one
+ *     channel qualified concludes the unqualified ones are free.
+ *   • `/one-pager` — print collateral, so it travels detached from every link — offered "let
+ *     ProcuLink poll an IMAP mailbox" with no tier at all.
+ *   • Four intake guides (`receive-orders-by-email`, `poll-a-mailbox-over-imap`,
+ *     `receive-orders-by-sftp`, `receive-orders-from-s3`) taught a Growth-gated channel end to
+ *     end saying only "a paid plan", which names no tier this suite or a reader can check.
+ *   • `receive-orders-by-email` went further and was **wrong**: "For the IMAP option only … a
+ *     paid plan. Polling is not included in Pilot" told a Pilot reader the hosted inbound
+ *     address was theirs. `InboundEmailRouter.cs:242-247` gates hosted inbound mail on
+ *     `BillingFeature.EmailIngestion` — Growth — and rejects it; the address is minted for every
+ *     org, which is exactly why its existence was mistaken for its being switched on.
+ *   • The footer on `/` and every marketing page, plus the homepage's `og:description`, promised
+ *     "a full audit trail" unqualified. That phrase straddles two products — the per-order trail
+ *     (`GET /api/orders/{id}/audit`, ungated, the IL scanner's negative control) and the
+ *     org-wide log (`GET /api/audit`, `AdvancedAudit`, Operations) — and that exact ambiguity
+ *     sent a live Growth org to `/operations/log` on 2026-08-06 and got them refused.
+ *
+ * ── And the second half of the same defect: a disclosure that disclosed nothing ──
+ *
+ * Widening the list alone would still have missed every webhook line above, because a file
+ * counted as disclosed if it named ANY tier at or above the minimum ANYWHERE in it. `/` names
+ * Enterprise for the ERP connectors; that satisfied a Growth-gated webhook claim four words
+ * earlier. So the literal form is now ANCHORED: the tier has to be on a line that also names the
+ * capability. The derived form (`requiresPlan("webhookDelivery")`) needs no anchor — it names its
+ * capability in the call.
  */
 describe("a gated capability is never presented with no tier at all", () => {
   /**
@@ -2012,7 +2073,49 @@ describe("a gated capability is never presented with no tier at all", () => {
   const EXEMPT = [
     join(process.cwd(), "src/lib/plans.ts"),
     join(process.cwd(), "src/app/(marketing)/changelog/page.tsx"),
+    // ── added 2026-08-15 with the seven new rows ──────────────────────────────
+    // `/privacy` and `/dpa` are data-processing disclosures. They name IMAP passwords, webhook
+    // URLs and audit-log retention because those are categories of data ProcuLink HOLDS, not
+    // capabilities it sells, and a GDPR record that answered "which plan is that on?" would be
+    // answering a question nobody reading it is asking. They carry no CTA and no price.
+    //
+    // This is the one exemption on the list that could be abused, so it is bounded by what these
+    // pages are rather than by convenience: a marketing claim moved into either of them to dodge
+    // this scan would be a claim on a page with no reader deciding whether to buy.
+    join(process.cwd(), "src/app/(marketing)/privacy/page.tsx"),
+    join(process.cwd(), "src/app/(marketing)/dpa/page.tsx"),
   ];
+
+  /**
+   * Prose only — a code sample is not a claim, and a search-keyword array is not a sentence.
+   *
+   * Both were measured before being excluded, and both produced false positives that a later
+   * reader would have fixed by weakening a matcher:
+   *
+   *   • `receive-orders-from-s3` embeds an IAM policy whose `"s3:prefix"` condition is not an
+   *     offer of the S3 channel; `receive-orders-over-api` suggests naming an API key
+   *     `Staging webhook`, which is not an offer of webhook delivery.
+   *   • `help-articles.ts` carries a `keywords:` array per article for the search box. It lists
+   *     "sftp", "imap", "s3" as SEARCH TERMS. Nothing renders them as a sentence, and requiring a
+   *     tier next to a search term would put plan names in the search index.
+   *
+   * FENCED blocks only. Inline back-ticked text is left alone deliberately: MDX styles UI labels
+   * and tier names as code, and `/help/billing-faq` writes its whole plan ladder as
+   * `` `Enterprise` — custom pricing from €2,500/month ``. Stripping inline code deleted that
+   * page's only disclosure and reported the honest page as an offender.
+   */
+  const proseOnly = (lines: string[]): string[] => {
+    let fenced = false;
+    return lines.map((line) => {
+      if (/^\s*(?:```|~~~)/.test(line)) {
+        fenced = !fenced;
+        return "";
+      }
+      if (fenced) return "";
+      if (/^\s*keywords:\s*\[/.test(line)) return "";
+      return line;
+    });
+  };
 
   /** Every buyer-facing file, with its scannable lines — the same corpus, grouped by file. */
   const buyerFacingFiles = (): Array<{ file: string; lines: string[] }> => {
@@ -2022,7 +2125,7 @@ describe("a gated capability is never presented with no tier at all", () => {
       list.push(line);
       byFile.set(file, list);
     }
-    return [...byFile].map(([file, lines]) => ({ file, lines }));
+    return [...byFile].map(([file, lines]) => ({ file, lines: proseOnly(lines) }));
   };
 
   /** Words that put a format in the OUTBOUND direction. Inbound cXML parsing is ungated. */
@@ -2080,10 +2183,18 @@ describe("a gated capability is never presented with no tier at all", () => {
   const ERP_CONNECTOR_CLAIM = (line: string): boolean =>
     ERP_CHANNEL.test(line) && !ERP_AS_FILE_SOURCE.test(line);
 
-  /** `requiresPlan("cxml")` and friends — a disclosure DERIVED from the gate table. */
+  /**
+   * `requiresPlan("cxml")` and friends — a disclosure DERIVED from the gate table.
+   *
+   * The argument list is scanned rather than matched exactly, because `requiresPlan` is variadic:
+   * one clause discloses the whole group a sentence presents (`requiresPlan("emailIngestion",
+   * "sftpIngestion", "s3Ingestion")` → "Growth plan and up"). The helper refuses a group whose
+   * members do not share a tier, so a multi-argument call cannot launder a dear capability into a
+   * cheap clause — see `sharedMinimumPlan` in `src/lib/gatedCapabilities.ts`.
+   */
   const derivedDisclosure = (capability: string) =>
     new RegExp(
-      `\\b(?:requiresPlan|minimumPlanName|minimumPlanId|includedFromPlan)\\(\\s*["'\`]${capability}["'\`]\\s*\\)`,
+      `\\b(?:requiresPlan|minimumPlanName|minimumPlanId|includedFromPlan)\\(\\s*[^)\\n]{0,200}["'\`]${capability}["'\`]`,
     );
 
   /**
@@ -2108,16 +2219,314 @@ describe("a gated capability is never presented with no tier at all", () => {
     );
   };
 
-  const CLAIMS = [
+  /**
+   * What ANCHORS a literal tier to a capability — the second half of the 2026-08-15 fix.
+   *
+   * Disclosure stays FILE-scoped, for the reason in this block's header: a reader reads an
+   * article, not a line. But a tier named on a line about a DIFFERENT capability is not a
+   * disclosure of this one, and that distinction is what the whole webhook cluster turned on.
+   * `/` names Enterprise, correctly, for the ERP connectors; before this anchor that satisfied
+   * the Growth-gated webhook claim in the same sentence, and the landing page read as compliant
+   * while telling a Pilot reader that "HTTP webhook" was theirs.
+   *
+   * These are deliberately BROADER than the `presents` matchers. Their job is to recognise a line
+   * that is TALKING ABOUT the capability at all, so an honest disclosure written in a phrasing
+   * `presents` does not happen to match still counts. Too narrow here manufactures offenders;
+   * too broad only restores the old file-scoped behaviour for that one line.
+   */
+  const CAPABILITY_KEYWORD: Record<keyof typeof BACKEND_MINIMUM_PLAN, RegExp> = {
+    webhookDelivery: /\bwebhook\b|\bhttp\b/i,
+    emailIngestion: /\bimap\b|\bemail\b|\bmailbox\b/i,
+    sftpIngestion: /\bsftp\b/i,
+    s3Ingestion: /\bs3\b|\br2\b|\bbucket\b/i,
+    bulkMapping: /\bbulk\b|\bmapping\b/i,
+    cxml: /\bcxml\b/i,
+    advancedAudit: /\baudit\b|\bdelivery log\b/i,
+    erpConnectors: /\berp\b|\berply\b|\bdirecto\b/i,
+    customSupplierRules: /\brules?\b|\bvalidation\b|\bacceptance\b/i,
+    sso: SELLS_SSO,
+  };
+
+  /**
+   * Words that put a channel in the INBOUND direction — the half of SFTP and email that is gated.
+   *
+   * Direction is the whole distinction for two of these four rows and getting it wrong would ship
+   * a false claim in the opposite direction: SFTP, FTPS and email DELIVERY are on every plan
+   * (`the catalog rows nothing gates`, above), while the inbound SFTP and email PULLS are Growth.
+   * A guard that demanded a tier beside "the order file is dropped on the supplier's server" would
+   * be selling an upgrade nobody needs.
+   */
+  const INBOUND_VERB = String.raw`(?:ingest\w*|inbound|incoming|intake|poll\w*|pull\w*|pick ?up\w*|pickup\w*|watch\w*|import\w*|receiv\w*|arrive\w*|dropped on|fetch\w*|from an|from your|from a)`;
+
+  /** …and the ones that put it OUTBOUND, where SFTP and email are ungated. */
+  const OUTBOUND_CHANNEL =
+    /\bdeliver\w*\b|\bsupplier(?:'|’|&apos;|&#39;)s (?:server|endpoint|system)\b|\boutbound\b|\bto the supplier\b/i;
+
+  /**
+   * A sentence about what CEASES is not an offer.
+   *
+   * `/pricing` and `/help/billing-faq` both carry the cancellation disclosure CLAUDE.md §11.5
+   * mandates — "uploads, emailed orders, IMAP, SFTP and S3 pickups … all refuse" — which names
+   * every gated channel precisely because it is listing what a customer LOSES. Requiring a tier
+   * beside each one would put four plan names inside a warning, and those two pages are the two
+   * that state the ladder in full anyway.
+   */
+  const CEASES = /\bstops? accepting\b|\brefuses?\b|\bsubscription ends\b|\bcancell?ing\b|\bcancellation\b|\bif you cancel\b/i;
+
+  /**
+   * Supplier delivery over HTTP — `BillingFeature.WebhookDelivery`, Growth.
+   *
+   * NOT the outbound EVENT webhooks. `IntegrationController` (subscriptions to `order.*` events)
+   * contains no `HasFeatureAsync` call at all: event webhooks are on every plan, and
+   * `/help/api-and-integrations` offers one for Zapier and Make in the same paragraph as the
+   * ungated inbound API. Demanding a Growth disclosure there would be this file's own defect
+   * mirrored — a tier advertised for something nothing gates.
+   */
+  const WEBHOOK_DELIVERY_CLAIM = (line: string): boolean =>
+    /\bwebhook\b|\bhttps? endpoint\b|\bapi delivery\b/i.test(line) &&
+    // the delivery context, without which "Staging webhook" (a suggested API-KEY NAME) reads as a
+    // channel offer
+    /\bdeliver\w*\b|\bsend\w*\b|\bsent\b|\bpost(?:s|ed|ing)?\b|\bsupplier\b|\bsftp\b|\berp\b|\bchannel\b|\bcxml\b/i.test(line) &&
+    !/\bevent\b|\bsubscription\w*\b|\border\.\*|\bsubscribe\b/i.test(line) &&
+    !CEASES.test(line);
+
+  /** Inbound email — IMAP polling AND the hosted address. Both are `EmailIngestion`, Growth. */
+  const EMAIL_INTAKE_CLAIM = (line: string): boolean =>
+    /\bimap\b|\binbound email\b|\bemail intake\b|\bhosted inbound address\b|\bemail\b[^\n]{0,25}\bintake\b|\bpoll\w*\b[^\n]{0,25}\bmailbox\b|\bmailbox\b[^\n]{0,25}\bpoll\w*\b|\breceive orders? by email\b|\borders?\b[^\n]{0,15}\barrive\b[^\n]{0,15}\bby email\b/i.test(
+      line,
+    ) && !CEASES.test(line);
+
+  const SFTP_INTAKE_CLAIM = (line: string): boolean =>
+    new RegExp(String.raw`\bsftp\b[^\n]{0,60}\b${INBOUND_VERB}\b|\b${INBOUND_VERB}\b[^\n]{0,60}\bsftp\b`, "i").test(line) &&
+    // a supplier's own catalog feed is pulled over SFTP too, and catalog sync has no gate
+    !/\bcatalog\b/i.test(line) &&
+    !OUTBOUND_CHANNEL.test(line) &&
+    !CEASES.test(line);
+
+  const S3_INTAKE_CLAIM = (line: string): boolean =>
+    new RegExp(
+      String.raw`\bs3\s*(?:\/|or)\s*(?:r2|cloudflare)\b|\br2 bucket\b|\bbucket (?:prefix|pull|polling)\b|\bs3\b[^\n]{0,60}\b${INBOUND_VERB}\b|\b${INBOUND_VERB}\b[^\n]{0,60}\bs3\b`,
+      "i",
+    ).test(line) &&
+    // R2 is also where ProcuLink keeps ITS files; `/security` and `/dpa` say so, and that is a
+    // statement about storage, not an intake channel on offer
+    !/\bobject storage\b|\bstored\b|\bstorage\b|\bat rest\b/i.test(line) &&
+    !CEASES.test(line);
+
+  const BULK_MAPPING_CLAIM = (line: string): boolean =>
+    /\bbulk mapping\b|\bmapping (?:import|export)\b|\bimport\/export\b[^\n]{0,25}\bmapping\b|\bmapping\b[^\n]{0,25}\bimport\/export\b/i.test(
+      line,
+    );
+
+  /**
+   * Every gated capability, and how a page PRESENTS it.
+   *
+   * Nine rows for ten mirrored gates; `sso` is on `PROSE_EXEMPT` below with its reason, and the
+   * two lists are asserted to cover the mirror exactly, so a new gate row cannot be added without
+   * a decision being made about its prose.
+   *
+   *   `reaches`   — files that really present it today. The anti-vacuity floor: it counts what the
+   *                 detector EXTRACTED, not what the walk scanned, and it names the files so a
+   *                 narrowed matcher fails with the page that stopped being seen rather than
+   *                 sliding under a count other files still satisfy.
+   *   `mustFlag`  — lines quoted from the tree BEFORE the fix. A walk can only see a defect still
+   *                 in the tree; these are what make re-narrowing fail loudly once it is gone.
+   *   `mustAllow` — the honest neighbour, usually the same words in the other direction. If one of
+   *                 these starts flagging, the only obvious repair is to weaken the matcher, which
+   *                 is how every row in this file has previously gone blind.
+   */
+  const CLAIMS: ReadonlyArray<{
+    capability: keyof typeof BACKEND_MINIMUM_PLAN;
+    label: string;
+    presents: (lines: string[], i: number) => boolean;
+    reaches: string[];
+    mustFlag: string[];
+    mustAllow: string[];
+  }> = [
     {
       capability: "cxml" as const,
       label: "cXML output",
       presents: presentsCxmlOutput,
+      reaches: [
+        "/src/app/(marketing)/help/cxml-setup/page.mdx",
+        "/src/app/(marketing)/help/delivery-setup/page.mdx",
+        "/src/app/(marketing)/help/output-templates/page.mdx",
+        "/src/app/(marketing)/help/guides/set-up-supplier-delivery/page.mdx",
+        "/src/app/(marketing)/how-it-works/page.tsx",
+        "/src/app/(marketing)/one-pager/page.tsx",
+      ],
+      mustFlag: ["ProcuLink parses inbound cXML orders and emits cXML output."],
+      mustAllow: ["choices are CSV, XLSX, JSON, XML (cXML Index or vendor XML), and CIF (Ariba 3.0)."],
     },
     {
       capability: "erpConnectors" as const,
       label: "the Erply / Directo ERP connectors",
       presents: (lines: string[], i: number) => ERP_CONNECTOR_CLAIM(lines[i]),
+      reaches: [
+        "/src/lib/marketing/format-catalog.ts",
+        "/src/app/(marketing)/help/erp-erply-and-directo/page.mdx",
+        "/src/app/(marketing)/help/page.tsx",
+        "/src/app/(marketing)/how-it-works/page.tsx",
+        "/src/app/(marketing)/one-pager/page.tsx",
+        "/src/app/(home)/page.tsx",
+      ],
+      mustFlag: ["- **Erply / Directo** — purpose-built ERP adapters for those tenants."],
+      mustAllow: [
+        "Use the inbound order API when an ERP, procurement system, or automation tool already holds the order as structured data",
+      ],
+    },
+    {
+      capability: "webhookDelivery" as const,
+      label: "supplier delivery over an HTTP webhook",
+      presents: (lines: string[], i: number) => WEBHOOK_DELIVERY_CLAIM(lines[i]),
+      reaches: [
+        "/src/lib/marketing/format-catalog.ts",
+        "/src/app/(marketing)/help/cxml-setup/page.mdx",
+        "/src/app/(marketing)/help/delivery-setup/page.mdx",
+        "/src/app/(marketing)/help/oauth2-delivery-setup/page.mdx",
+        "/src/app/(marketing)/help/page.tsx",
+        "/src/app/(marketing)/how-it-works/page.tsx",
+        "/src/app/(marketing)/one-pager/page.tsx",
+        "/src/app/(home)/page.tsx",
+      ],
+      mustFlag: [
+        // `/` at 5c209e0 — the D-F15 line, verbatim. The ERP half names Enterprise; the webhook
+        // half named nothing, and it gates at Growth.
+        '    desc: `HTTP webhook, SFTP or email — or download the artifact. ERP connectors (Erply, Directo) on ${requiresPlan("erpConnectors")}. Encrypted credentials, AES-GCM at rest, full audit trail per attempt.`,',
+        '  Delivery: `HTTP webhook, SFTP/FTPS, email, and ERP connectors (Erply, Directo) on ${requiresPlan("erpConnectors")}.`,',
+        '          { n: "3", t: "Deliver", d: `HTTP webhook, SFTP/FTPS, email, or download. Erply and Directo ERP adapters on ${requiresPlan("erpConnectors")}. Full audit trail and delivery status.` },',
+      ],
+      mustAllow: [
+        // An API KEY NAME, not a channel — /help/guides/receive-orders-over-api:43.
+        "the field suggests `Production integration` or `Staging webhook` — and press **Create key**.",
+        // Event subscriptions — IntegrationController gates nothing.
+        "point their HTTP modules at the inbound API (with your `plk_` key) to push orders in, and use a custom webhook endpoint to receive `order.*` events.",
+        "A failing endpoint is retried, and after **3 consecutive failures the subscription deactivates itself** so a dead URL doesn't get hammered forever.",
+      ],
+    },
+    {
+      capability: "emailIngestion" as const,
+      label: "inbound email intake (IMAP polling and the hosted address)",
+      presents: (lines: string[], i: number) => EMAIL_INTAKE_CLAIM(lines[i]),
+      reaches: [
+        "/src/lib/marketing/format-catalog.ts",
+        "/src/app/(marketing)/help/imap-provider-setup/page.mdx",
+        "/src/app/(marketing)/help/inbound-mode/page.mdx",
+        "/src/app/(marketing)/help/order-intake-options/page.mdx",
+        "/src/app/(marketing)/help/guides/poll-a-mailbox-over-imap/page.mdx",
+        "/src/app/(marketing)/help/guides/receive-orders-by-email/page.mdx",
+        "/src/app/(marketing)/help/page.tsx",
+        "/src/app/(marketing)/one-pager/page.tsx",
+        "/src/lib/help-articles.ts",
+      ],
+      mustFlag: [
+        '          { n: "1", t: "Import", d: "Upload CSV / XLSX / PDF, or let ProcuLink poll an IMAP mailbox." },',
+        // The one that was not merely silent but WRONG: it scoped the paid requirement to IMAP.
+        "- For the IMAP option only: the mailbox credentials, and a paid plan. Polling is not included in Pilot.",
+        "- email intake (IMAP polling or the hosted inbound address),",
+        "- **IMAP polling**: ProcuLink checks a mailbox you own every 5 minutes and imports supported attachments.",
+      ],
+      mustAllow: [
+        // Email DELIVERY, correctly marked ungated on /help/guides/set-up-supplier-delivery.
+        "| **Email** | They want an attachment in a mailbox. The least automated, and often the fastest to agree. | Every plan |",
+        "Email support",
+      ],
+    },
+    {
+      capability: "sftpIngestion" as const,
+      label: "SFTP folder intake",
+      presents: (lines: string[], i: number) => SFTP_INTAKE_CLAIM(lines[i]),
+      reaches: [
+        "/src/lib/marketing/format-catalog.ts",
+        "/src/app/(marketing)/help/sftp-polling-setup/page.mdx",
+        "/src/app/(marketing)/help/inbound-mode/page.mdx",
+        "/src/app/(marketing)/help/order-intake-options/page.mdx",
+        "/src/app/(marketing)/help/guides/receive-orders-by-sftp/page.mdx",
+        "/src/app/(marketing)/help/guides/upload-orders-manually/page.mdx",
+        "/src/app/(marketing)/how-it-works/page.tsx",
+      ],
+      mustFlag: [
+        "- A system **exports files to a folder** → [pull order files from an SFTP",
+        'title: "Pull order files from an SFTP folder — ProcuLink guide",',
+        '      "Buyers send POs however they like — a PDF email attachment, an XLSX export, cXML posted to your REST endpoint, EDI dropped on SFTP. ProcuLink ingests all of it through one inbox.",',
+      ],
+      mustAllow: [
+        // Outbound SFTP is on every plan, and both of these say so themselves.
+        "- **SFTP / FTPS** — the order file is dropped on the supplier's server (password or private-key authentication). Every plan.",
+        "When a supplier receives orders as files on their server rather than through an API, ProcuLink drops the transformed order file over **SFTP** or **FTPS**.",
+        // Catalog sync over SFTP — a different subsystem, and ungated.
+        '"Point ProcuLink at a supplier\'s own catalog feed over HTTPS, SFTP, FTPS or FTP: save the source, run a read-only test fetch, map the columns it ignored, then enable it."',
+      ],
+    },
+    {
+      capability: "s3Ingestion" as const,
+      label: "S3 / R2 bucket intake",
+      presents: (lines: string[], i: number) => S3_INTAKE_CLAIM(lines[i]),
+      reaches: [
+        "/src/lib/marketing/format-catalog.ts",
+        "/src/app/(marketing)/help/s3-polling-setup/page.mdx",
+        "/src/app/(marketing)/help/inbound-mode/page.mdx",
+        "/src/app/(marketing)/help/order-intake-options/page.mdx",
+        "/src/app/(marketing)/help/guides/receive-orders-from-s3/page.mdx",
+        "/src/app/(marketing)/help/guides/upload-orders-manually/page.mdx",
+      ],
+      mustFlag: [
+        'title: "Pull order files from S3 or Cloudflare R2 — ProcuLink guide",',
+        "- SFTP or S3/R2 folder polling on paid plans.",
+      ],
+      mustAllow: [
+        // ProcuLink's own storage. Saying where files live is not offering an intake channel.
+        "Order files and the database behind them are EU-region, stored in Cloudflare R2.",
+        "Cloudflare R2 server-side encryption at rest.",
+      ],
+    },
+    {
+      capability: "bulkMapping" as const,
+      label: "bulk mapping import/export",
+      presents: (lines: string[], i: number) => BULK_MAPPING_CLAIM(lines[i]),
+      // Deliberately empty, and asserted so below rather than left to look like an oversight: the
+      // ONLY buyer-facing surface naming bulk mapping is the Operations pricing card, and cards
+      // are exempt here because the card's own header is the tier. The floor for this row is its
+      // `mustFlag` set, not the walk — a walk over zero files proves nothing, and saying so is the
+      // difference between a known gap and a vacuous green.
+      reaches: [],
+      mustFlag: ["Bulk mapping import/export", "Bulk mapping import", "Mapping import/export in bulk"],
+      mustAllow: [
+        "Per-supplier field + item-code mapping with AI suggestions.",
+        "Field mapping + built-in order checks",
+      ],
+    },
+    {
+      capability: "advancedAudit" as const,
+      label: "the org-wide delivery log",
+      // The SAME predicate the card scans use, plus one line of lookahead. Two matchers for one
+      // capability drift apart, so this row borrows `SELLS_ORG_WIDE_AUDIT` rather than restating
+      // it; the lookahead is here and not there because prose WRAPS and a card bullet does not —
+      // `/pricing` renders "a full audit trail per order" with the qualifier on the next line, and
+      // a strictly line-scoped read calls the honest sentence an offender.
+      presents: (lines: string[], i: number) =>
+        SELLS_ORG_WIDE_AUDIT(lines[i]) && !ORDER_SCOPED_AUDIT.test(lines[i + 1] ?? ""),
+      reaches: [
+        "/src/app/(marketing)/help/dashboard-and-statuses/page.mdx",
+        "/src/app/(marketing)/help/guides/set-up-supplier-delivery/page.mdx",
+      ],
+      mustFlag: [
+        // The footer, on every marketing page and on `/`, and the homepage og:description.
+        "                format your supplier needs — with a full audit trail.",
+        "Full audit trail and delivery status.",
+        // A guide sending a Pilot reader to a surface Operations unlocks.
+        "The order shows **delivered**, and the delivery log records the attempt with the supplier's response.",
+      ],
+      mustAllow: [
+        "format your supplier needs — with a full audit trail on every order.",
+        "with a full audit trail behind every order.",
+        "Encrypted credentials, AES-GCM at rest, full audit trail per attempt.",
+        "with each attempt's error and response code kept in the audit trail for that order.",
+        "Per-order audit trail",
+        // The verb, and a customer's contractual audit right — neither is the product.
+        "- `provenance` — the source data the model was given, so you can audit what it actually saw.",
+        "audits are not provided as standard; mutual non-disclosure terms apply to any audit",
+      ],
     },
     /**
      * Per-supplier validation rules. Added because `/help/validation-rules`, `/help/connections`
@@ -2133,37 +2542,182 @@ describe("a gated capability is never presented with no tier at all", () => {
       capability: "customSupplierRules" as const,
       label: "per-supplier validation rules",
       presents: (lines: string[], i: number) => SELLS_CONFIGURABLE_SUPPLIER_RULES(lines[i]),
+      reaches: [
+        "/src/app/(marketing)/help/validation-rules/page.mdx",
+        "/src/app/(marketing)/help/connections/page.mdx",
+        "/src/app/(marketing)/help/managing-suppliers/page.mdx",
+        "/src/app/(marketing)/help/ai-suggestions/page.mdx",
+        "/src/app/(marketing)/help/exceptions-and-stuck-orders/page.mdx",
+        "/src/app/(marketing)/how-it-works/page.tsx",
+        "/src/app/(marketing)/security/page.tsx",
+        "/src/app/(home)/page.tsx",
+      ],
+      mustFlag: ['    title: "Per-supplier validation",', "        Block bad orders before they reach the supplier. Configurable rules per"],
+      mustAllow: ["Field mapping + built-in order checks", "They are not validated against a live ERP sandbox"],
     },
   ];
 
-  it.each(CLAIMS)("$label: every file presenting it names the tier somewhere", ({ capability, label, presents }) => {
-    const minimumPlan = BACKEND_MINIMUM_PLAN[capability];
-    const discloses = [derivedDisclosure(capability), literalDisclosure(minimumPlan)];
+  /**
+   * The tenth mirrored gate, and why it is not on the list above.
+   *
+   * Every other capability's failure mode is silence — a gated thing presented with no tier, which
+   * reads as included. SSO's is the opposite: it must not appear on a buyer-facing surface AT ALL
+   * until a Settings surface exists, because `BillingFeature.Sso` refuses nothing and
+   * `ssoAvailable` has no frontend consumer. Putting it in `CLAIMS` would demand that any page
+   * mentioning SSO name Enterprise beside it — which is precisely the false claim the block below
+   * exists to prevent. Different question, different guard, stated here so the gap is a decision
+   * rather than an omission.
+   */
+  const PROSE_EXEMPT: Record<string, string> = {
+    sso: "must be ABSENT, not tiered — policed by 'SSO is sold only where it can be configured'",
+  };
 
-    const files = buyerFacingFiles().filter(({ file }) => !EXEMPT.some((e) => e.endsWith(file)));
-    expect(files.length, "the corpus must really be reading files").toBeGreaterThan(40);
+  it("covers every mirrored gate row, in one list or the other", () => {
+    // The forcing function. A new row in `MINIMUM_PLAN` cannot be added without someone deciding
+    // whether its prose is policed here or somewhere else — which is exactly what did NOT happen
+    // for the seven rows added over the life of this file, leaving `CAPABILITY_CLAIMS` at ten and
+    // `CLAIMS` at three.
+    expect([...CLAIMS.map((c) => c.capability), ...Object.keys(PROSE_EXEMPT)].sort()).toEqual(
+      Object.keys(BACKEND_MINIMUM_PLAN).sort(),
+    );
+    // …and no capability may be in both, which would make the exemption unfalsifiable.
+    expect(CLAIMS.filter((c) => c.capability in PROSE_EXEMPT)).toEqual([]);
+  });
 
-    const presenting = files.filter(({ lines }) => lines.some((_, i) => presents(lines, i)));
+  it.each(CLAIMS)(
+    "$label: every file presenting it names the tier somewhere",
+    ({ capability, label, presents, reaches }) => {
+      const minimumPlan = BACKEND_MINIMUM_PLAN[capability];
+      const derived = derivedDisclosure(capability);
+      const literal = literalDisclosure(minimumPlan);
+      const keyword = CAPABILITY_KEYWORD[capability];
+      // A literal tier only discloses THIS capability when it sits on a line naming it. See
+      // CAPABILITY_KEYWORD: `/` named Enterprise for the ERP connectors and that was excusing a
+      // Growth-gated webhook claim in the same sentence.
+      const discloses = (line: string) => derived.test(line) || (literal.test(line) && keyword.test(line));
+
+      const files = buyerFacingFiles().filter(({ file }) => !EXEMPT.some((e) => e.endsWith(file)));
+      expect(files.length, "the corpus must really be reading files").toBeGreaterThan(40);
+
+      const presenting = buyerFacingFiles().filter(({ lines }) => lines.some((_, i) => presents(lines, i)));
+      const seen = presenting.map(({ file }) => file.replace(/\\/g, "/"));
+
+      // ANTI-VACUITY FLOOR — extractions, not files scanned. `.every()` over an empty set is true,
+      // and a matcher that has gone blind produces exactly that empty set.
+      for (const file of reaches) {
+        expect([...seen], `${file} presents ${label} and the walk no longer sees it`).toContain(file);
+      }
+
+      const offenders = presenting
+        .filter(({ file }) => !EXEMPT.some((e) => e.endsWith(file)))
+        .filter(({ lines }) => !lines.some(discloses))
+        .map(({ file, lines }) => {
+          const i = lines.findIndex((_, n) => presents(lines, n));
+          return `${file}:${i + 1}: ${lines[i].trim()}`;
+        });
+
+      expect(
+        offenders,
+        `these files present ${label} and never say it starts at ${minimumPlan}. On pages that name ` +
+          "the tier for IMAP, SFTP and S3, saying nothing reads as included on every plan. Import " +
+          `requiresPlan("${capability}") from @/lib/gatedCapabilities and state it once:\n` +
+          offenders.join("\n"),
+      ).toEqual([]);
+    },
+  );
+
+  /**
+   * The floor under the floor: every row's matcher, fed the copy that really shipped.
+   *
+   * `reaches` can only pin a defect still in the tree, and the whole point of this packet was that
+   * the copy got fixed. These are the strings as they stood at 5c209e0, so re-narrowing a matcher
+   * after the fix fails by name instead of quietly.
+   */
+  it.each(CLAIMS)("$label: flags the wordings that shipped", ({ label, presents, mustFlag }) => {
+    expect(mustFlag.length, `${label} has no must-flag control — its matcher cannot fail`).toBeGreaterThan(0);
+    for (const shipped of mustFlag) {
+      expect(presents([shipped], 0), `must flag: ${shipped.trim().slice(0, 90)}…`).toBe(true);
+    }
+  });
+
+  it.each(CLAIMS)("$label: leaves the honest neighbour alone", ({ label, presents, mustAllow }) => {
+    expect(mustAllow.length, `${label} has no must-allow control — nothing stops it over-reaching`).toBeGreaterThan(0);
+    for (const honest of mustAllow) {
+      expect(presents([honest], 0), `must allow: ${honest.trim().slice(0, 90)}…`).toBe(false);
+    }
+  });
+
+  it("a code sample and a search-keyword array are not claims", () => {
+    // The controls for `proseOnly`. Both of these DO match their capability's matcher as raw
+    // text — that is why they need blanking rather than a matcher exception, and why the blanking
+    // is asserted rather than assumed.
+    const fenced = [
+      "```json",
+      '  "Condition": { "StringLike": { "s3:prefix": "orders/inbound/*" } }',
+      "```",
+      "and back to prose about an S3 or R2 bucket pull",
+    ];
+    expect(S3_INTAKE_CLAIM(fenced[1]), "the raw line really does look like a claim").toBe(true);
+    const stripped = proseOnly(fenced);
+    expect(stripped[1], "inside a fenced block").toBe("");
+    expect(stripped[3], "and prose after the fence is still scanned").not.toBe("");
+
+    const keywords = '  keywords: ["email", "imap", "api", "sftp", "s3", "intake", "ingestion", "channels"],';
+    expect(EMAIL_INTAKE_CLAIM(keywords), "the raw line really does look like a claim").toBe(true);
+    expect(proseOnly([keywords])[0]).toBe("");
+
+    // Inline code is NOT stripped: /help/billing-faq writes its tier names that way, and stripping
+    // them deleted the page's only disclosure.
+    expect(proseOnly(["- `Enterprise` — custom pricing from €2,500/month; … ERP connectors, and SLA."])[0]).toContain(
+      "Enterprise",
+    );
+  });
+
+  /**
+   * MUST-FLAG CONTROL for D-F15 — the reason `literalDisclosure` is anchored at all.
+   *
+   * The shape, verbatim from `/`: a delivery-channel list whose ERP member names Enterprise and
+   * whose webhook member names nothing, on a page that elsewhere prints tier names for the pricing
+   * teaser. Under the old file-scoped reading, ANY tier anywhere in the file at or above the
+   * minimum counted — so Enterprise, named four words away for a different capability, disclosed
+   * a Growth-gated webhook claim. That is the whole of the finding.
+   *
+   * ── The residual limit, stated rather than implied ──────────────────────────────
+   *
+   * The anchor is the LINE. A tier and a capability on one line count as a disclosure of that
+   * capability, and this cannot tell "Enterprise, for the ERP connectors" from "Enterprise, for
+   * the webhook" when both sit in one sentence. Tightening it to a proximity window was tried and
+   * rejected on measurement: `/help/billing-faq` writes "`Enterprise` — custom pricing from
+   * €2,500/month; contact sales for custom volume, ERP connectors, and SLA", where the tier and
+   * the capability are 82 characters apart — further than the D-F15 line's 83 is from its webhook.
+   * No window separates the honest line from the offending one. What closes it in practice is that
+   * shipped copy DERIVES its tiers: `requiresPlan("erpConnectors")` names the capability it is
+   * disclosing, so it cannot be mistaken for a disclosure of anything else.
+   */
+  it("a tier named elsewhere in the file no longer excuses an undisclosed claim", () => {
+    const webhookLine = '    desc: `HTTP webhook, SFTP or email — or download the artifact. ERP connectors (Erply, Directo) on ${requiresPlan("erpConnectors")}.`,';
+    const pricingTeaserElsewhere = "        From €149/month on the Growth plan.";
+    const file = [webhookLine, "", pricingTeaserElsewhere];
+
+    expect(WEBHOOK_DELIVERY_CLAIM(webhookLine), "the line really does present webhook delivery").toBe(true);
+
+    const literal = literalDisclosure(BACKEND_MINIMUM_PLAN.webhookDelivery);
     expect(
-      presenting.length,
-      `no file presents ${label} — either the corpus emptied or the matcher went blind, and ` +
-        "either way this test proves nothing",
-    ).toBeGreaterThan(3);
+      file.some((line) => literal.test(line)),
+      "file-scoped: a tier at or above Growth IS named somewhere in this file, which is what used " +
+        "to make the webhook line read as disclosed",
+    ).toBe(true);
 
-    const offenders = presenting
-      .filter(({ lines }) => !lines.some((line) => discloses.some((d) => d.test(line))))
-      .map(({ file, lines }) => {
-        const i = lines.findIndex((_, n) => presents(lines, n));
-        return `${file}:${i + 1}: ${lines[i].trim()}`;
-      });
+    const anchored = (line: string) =>
+      derivedDisclosure("webhookDelivery").test(line) ||
+      (literal.test(line) && CAPABILITY_KEYWORD.webhookDelivery.test(line));
+    expect(file.some(anchored), "anchored: nothing in this file ties a tier to webhook delivery").toBe(false);
 
-    expect(
-      offenders,
-      `these files present ${label} and never say it starts at ${minimumPlan}. On pages that name ` +
-        "the tier for IMAP, SFTP and S3, saying nothing reads as included on every plan. Import " +
-        `requiresPlan("${capability}") from @/lib/gatedCapabilities and state it once:\n` +
-        offenders.join("\n"),
-    ).toEqual([]);
+    // …and the derived disclosure the fix actually uses does satisfy it, or the guard would be
+    // unsatisfiable and the only repair would be to delete it.
+    expect(anchored('  Delivery: `HTTP webhook on ${requiresPlan("webhookDelivery")}.`,')).toBe(true);
+    // The ERP call on the same line does NOT, which is the per-capability half of the anchor.
+    expect(anchored('    desc: `HTTP webhook … on ${requiresPlan("erpConnectors")}.`,')).toBe(false);
   });
 
   it("flags the claims that shipped, verbatim, so a green result means absence and not blindness", () => {
@@ -2240,10 +2794,12 @@ describe("a gated capability is never presented with no tier at all", () => {
     expect(discloses("- **Operations → Log** — a date-grouped audit trail.", "cxml"), "nav label only").toBe(false);
   });
 
-  it("exempts exactly two files, and says why in code rather than in a comment", () => {
+  it("exempts exactly four files, and says why in code rather than in a comment", () => {
     expect(EXEMPT.map((f) => f.replace(process.cwd(), "").replace(/\\/g, "/"))).toEqual([
       "/src/lib/plans.ts",
       "/src/app/(marketing)/changelog/page.tsx",
+      "/src/app/(marketing)/privacy/page.tsx",
+      "/src/app/(marketing)/dpa/page.tsx",
     ]);
     // Both must really exist; an exemption for a moved file is an exemption for nothing.
     for (const file of EXEMPT) expect(() => readFileSync(file, "utf8")).not.toThrow();

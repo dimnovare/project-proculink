@@ -36,7 +36,7 @@ The issues list mirrors reality; it doesn't replace it:
 
 ## Delivery failures and retries
 
-A **Couldn't send** order is retried automatically — **3 attempts in total** — and then it moves to **Out of retries**, with each attempt's error and response code kept in the audit trail.
+A **Couldn't send** order is retried automatically — **3 attempts in total** — and then it moves to **Out of retries**, with each attempt's error and response code kept in the audit trail for that order.
 
 Once retries are exhausted, nothing more happens on its own. Open the order: the panel there explains what happened and carries **Start sending again**, which puts the order back in the sending queue. Check the supplier's delivery settings first — if nothing has changed at their end, it will fail the same way. The same action is available in bulk from **Operations → System status**, in the table of orders we couldn't deliver.
 
@@ -68,7 +68,7 @@ When an order sits in **Extracting** or **Sending** longer than feels right, che
 
 ## Escalating to support
 
-If the cause isn't visible from the order page or Health, email [support@proculink.eu](mailto:support@proculink.eu) with the PO number, the order's status, and roughly when it got stuck — that's enough for us to trace it in the audit trail.
+If the cause isn't visible from the order page or Health, email [support@proculink.eu](mailto:support@proculink.eu) with the PO number, the order's status, and roughly when it got stuck — that's enough for us to trace it in the audit trail for that order.
 
 ---
 

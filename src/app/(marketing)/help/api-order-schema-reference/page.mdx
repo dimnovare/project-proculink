@@ -1,4 +1,5 @@
 import { helpArticleMetadata } from "@/lib/seo";
+import { requiresPlan } from "@/lib/gatedCapabilities";
 
 export const metadata = helpArticleMetadata({
   slug: "api-order-schema-reference",
@@ -28,7 +29,7 @@ Before sending an order, you can confirm the key and slug work with a `GET` to `
 
 ## When to use this
 
-Use the inbound order API when an ERP, procurement system, or automation tool already holds the order as structured data (a PO number, a supplier reference, and line items). If your source is instead a **file** — a CSV, an XLSX, a PDF, or an XML/EDI document — send it through browser upload, inbound email, or SFTP/S3 polling so ProcuLink can parse it. This JSON endpoint expects an already-structured order, not a raw file.
+Use the inbound order API when an ERP, procurement system, or automation tool already holds the order as structured data (a PO number, a supplier reference, and line items). If your source is instead a **file** — a CSV, an XLSX, a PDF, or an XML/EDI document — send it through browser upload, inbound email, or SFTP/S3 polling so ProcuLink can parse it. Upload and this API are on every plan; inbound email, SFTP and S3 polling are {requiresPlan("emailIngestion", "sftpIngestion", "s3Ingestion")}. This JSON endpoint expects an already-structured order, not a raw file.
 
 ## The request body
 

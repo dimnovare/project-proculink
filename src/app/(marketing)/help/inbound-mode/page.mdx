@@ -1,4 +1,5 @@
 import { helpArticleMetadata } from "@/lib/seo";
+import { requiresPlan } from "@/lib/gatedCapabilities";
 
 export const metadata = helpArticleMetadata({
   slug: "inbound-mode",
@@ -31,10 +32,10 @@ The direction setting is a **labelling choice, not a different product**:
 
 All intake channels work the same in inbound mode — you're just receiving from customers instead of suppliers:
 
-- manual upload,
-- email intake (IMAP polling or the hosted inbound address),
-- the inbound REST API,
-- SFTP or S3/R2 folder polling on paid plans.
+- manual upload — every plan,
+- email intake, both IMAP polling **and** the hosted inbound address — {requiresPlan("emailIngestion")},
+- the inbound REST API — every plan,
+- SFTP or S3/R2 folder polling — {requiresPlan("sftpIngestion", "s3Ingestion")}.
 
 See [ways to send orders to ProcuLink](/help/order-intake-options) for the full rundown of each channel.
 

@@ -1,5 +1,6 @@
 import { guideMetadata } from "@/lib/seo";
 import { Step, Prereqs, IfThisFails, Outcome, GuideShot } from "@/components/help/guide";
+import { requiresPlan } from "@/lib/gatedCapabilities";
 
 export const metadata = guideMetadata({
   slug: "receive-orders-by-sftp",
@@ -9,7 +10,7 @@ export const metadata = guideMetadata({
 });
 
 <Prereqs>
-- A paid plan. You can fill the form in and save it on Pilot, but the polling toggle needs a paid plan.
+- {requiresPlan("sftpIngestion")}. You can fill the form in and save it on Pilot, but the polling toggle is refused below that plan. Outbound SFTP *delivery* to a supplier is a different setting and is on every plan.
 - At least one supplier added — the form will not let you enable polling without a default supplier to attribute imported files to.
 - From whoever runs the SFTP server: the **host**, the **port** if it is not 22, a **username and password**, and the **exact absolute path** of the folder the files land in.
 - Confirmation that the sender writes *finished* files into that folder — see step 5.

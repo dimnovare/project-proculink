@@ -27,8 +27,10 @@ const CATEGORY_BLURB: Record<HelpCategory, string> = {
   Mapping: "Connect buyer fields to supplier formats.",
   // The ERP connectors gate at Enterprise; listing them next to the ungated channels with no
   // qualifier reads as "included". Tier derived from the mirrored gate table, never typed.
-  Delivery: `HTTP webhook, SFTP/FTPS, email, and ERP connectors (Erply, Directo) on ${requiresPlan("erpConnectors")}.`,
-  Integrations: "Email intake, API keys, outbound webhooks, and connectors.",
+  // Webhook delivery is gated too — at Growth — and naming only the Enterprise one made the
+  // rest of the list read as free.
+  Delivery: `HTTP webhook on ${requiresPlan("webhookDelivery")}; SFTP/FTPS and email on every plan; ERP connectors (Erply, Directo) on ${requiresPlan("erpConnectors")}.`,
+  Integrations: `Email intake on ${requiresPlan("emailIngestion")}, plus API keys, outbound event webhooks, and connectors.`,
   AI: "How mapping suggestions work and what confidence means.",
   Billing: "Plans, quotas, and what happens at the limit.",
   Troubleshooting: "Resolve failed deliveries and validation errors.",

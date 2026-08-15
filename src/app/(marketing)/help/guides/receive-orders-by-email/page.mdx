@@ -1,5 +1,6 @@
 import { guideMetadata } from "@/lib/seo";
 import { Step, Prereqs, IfThisFails, Outcome, GuideShot } from "@/components/help/guide";
+import { requiresPlan } from "@/lib/gatedCapabilities";
 
 export const metadata = guideMetadata({
   slug: "receive-orders-by-email",
@@ -12,7 +13,8 @@ export const metadata = guideMetadata({
 - Access to **Settings** in your ProcuLink workspace.
 - One real purchase order file to test with — CSV, XLSX, or a text-based PDF.
 - At least one supplier already added, so a test order has somewhere to go.
-- For the IMAP option only: the mailbox credentials, and a paid plan. Polling is not included in Pilot.
+- {requiresPlan("emailIngestion")} — for **both** routes on this page, not only IMAP. The inbound address is minted for every workspace, but mail sent to it is refused below that plan (`BillingFeature.EmailIngestion`), so a Pilot workspace can copy the address and still receive nothing.
+- For the IMAP option only: the mailbox credentials.
 </Prereqs>
 
 <Step n={1} title="Copy the address your workspace already has">

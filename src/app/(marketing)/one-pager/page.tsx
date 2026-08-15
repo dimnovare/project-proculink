@@ -44,14 +44,17 @@ export default function OnePagerPage() {
       <h2 style={S.h2}>How it works</h2>
       <div style={S.threeCol}>
         {[
-          { n: "1", t: "Import", d: "Upload CSV / XLSX / PDF, or let ProcuLink poll an IMAP mailbox." },
+          // The IMAP half of this line named no tier for five releases. Manual upload is on every
+          // plan; every automatic intake route — inbound email, IMAP, SFTP and S3 — is gated, and
+          // on a printed sheet there is nowhere to click to find that out.
+          { n: "1", t: "Import", d: `Upload CSV / XLSX / PDF on any plan, or let ProcuLink poll an IMAP mailbox — inbound email, IMAP, SFTP and S3 intake are ${requiresPlan("emailIngestion", "sftpIngestion", "s3Ingestion")}.` },
           // This sheet is print collateral: it travels detached from the site, so a reader
           // cannot click through to /formats or /pricing to discover that two of the things
           // listed here are gated. cXML output gates at Operations and the Erply/Directo ERP
           // adapters at Enterprise, so both say so on the page itself. The tier names are
           // derived from the mirrored gate table, never typed.
           { n: "2", t: "Map + transform", d: `Per-supplier field + item-code mapping with AI suggestions. Output to CSV, XML, JSON — cXML on ${requiresPlan("cxml")}.` },
-          { n: "3", t: "Deliver", d: `HTTP webhook, SFTP/FTPS, email, or download. Erply and Directo ERP adapters on ${requiresPlan("erpConnectors")}. Full audit trail and delivery status.` },
+          { n: "3", t: "Deliver", d: `HTTP webhook on ${requiresPlan("webhookDelivery")}; SFTP/FTPS, email and download on every plan. Erply and Directo ERP adapters on ${requiresPlan("erpConnectors")}. Per-order audit trail and delivery status.` },
         ].map((s) => (
           <div key={s.n} style={S.step}>
             <div style={S.stepN}>0{s.n}</div>

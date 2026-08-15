@@ -141,7 +141,7 @@ jump to its field.
 When it goes through, the order moves `ready_to_deliver` → `delivering` → `delivered`.
 
 <Outcome>
-The order shows **delivered**, and the delivery log records the attempt with the supplier's response.
+The order shows **delivered**, and the attempt is recorded on the order itself with the supplier's response.
 </Outcome>
 
 <IfThisFails>
@@ -159,7 +159,7 @@ their side accepted the order.
 
 A supplier can still come back and reject it — unknown item codes, a price that does not match their
 contract, a delivery date they cannot meet. ProcuLink tracks that separately, so a delivered order can
-later be marked as rejected by the supplier, and the delivery log keeps both facts.
+later be marked as rejected by the supplier, and the order keeps both facts.
 
 Practically: `delivered` means stop worrying about the plumbing. It does not mean stop reading their
 replies.
