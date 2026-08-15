@@ -31,7 +31,8 @@ import {
 import type { EmailSettings, UpdateEmailSettingsPayload, OrderDirection } from "@/types/procurement";
 import type { ApiKey, IntegrationSubscription } from "@/lib/api-client";
 import { useTabParamSync } from "@/lib/tab-param-sync";
-import { planDisplayName } from "@/lib/plans";
+import { PLAN_BY_ID, planDisplayName, planName } from "@/lib/plans";
+import { minimumPlanId } from "@/lib/gatedCapabilities";
 import { SftpPullSettings, S3PullSettings } from "@/components/settings/PullIngressSettings";
 import { InboundAddressSection } from "@/components/settings/InboundAddressSection";
 import { pollingHealthLine, type PollingHealthTone } from "@/components/settings/pollingHealth";
@@ -554,7 +555,7 @@ function EmailSettingsSection() {
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   });
-  const { data: billing } = useQuery({
+  const { data: billing, isLoading: billingLoading } = useQuery({
     queryKey: ["billing-status"],
     queryFn: getBillingStatus,
     retry: false,
@@ -609,6 +610,13 @@ function EmailSettingsSection() {
 
   // Pilot is the only tier without email ingestion (decoupled to all paid plans).
   const canEnable = !!billing && billing.plan !== "pilot";
+
+  // The tier that unlocks this switch, and what it costs — DERIVED, never typed. The gate
+  // table (src/lib/gatedCapabilities.ts, mirroring PlanConstants.MinimumPlan) chooses the
+  // tier; the ladder (src/lib/plans.ts) supplies its name and its price. Same shape as
+  // requiresPlan() on the help pages. Note this is a capability MINIMUM, not the tier above
+  // the reader's own — `PLAN_BY_ID[plan].next` would be the wrong pointer here.
+  const emailUnlock = PLAN_BY_ID[minimumPlanId("emailIngestion")];
 
   // The status line under the switch. Driven by `lastPolledAt` — a stamp the Worker writes only
   // after a poll fully succeeded — NOT by `enabled`, which is only what the operator asked for.
@@ -715,19 +723,47 @@ function EmailSettingsSection() {
           </Link>.
         </p>
 
-        {/* Enable row + billing gate notice */}
-        {/* Name the EXACT unlock: Growth (€149/mo) is the cheapest paid tier that
-            includes email ingestion, so a Pilot user upgrades to Growth. */}
-        {!canEnable && (
-          <div style={{ marginBottom: 16, borderRadius: 8, padding: "12px 14px", fontSize: 12.5, lineHeight: 1.5, border: "1px solid var(--amber-soft)", background: "var(--amber-soft)", color: "var(--amber-text)" }}>
-            Email ingestion is included on every paid plan. You can set it up here, but turning on polling needs a paid plan — the Pilot plan doesn&rsquo;t include it.{" "}
-            <Link
-              href="/settings?tab=billing"
-              style={{ color: "inherit", fontWeight: 600, textDecoration: "underline" }}
-            >
-              Upgrade to Growth (€149/mo)
-            </Link>{" "}
-            to switch it on.
+        {/* Enable row + billing gate notice.
+
+            Two arms, because `!canEnable` is true for TWO different reasons and only one of
+            them is a plan. `canEnable` is `!!billing && billing.plan !== "pilot"`, so it is
+            also false while the billing query has no data — and that query is `retry: false`,
+            so a single failed request leaves it undefined for the rest of the page's life.
+            This banner used to answer both cases with "the Pilot plan doesn't include it" and
+            an "Upgrade to Growth (€149/mo)" link, which is how a Distributor workspace whose
+            billing lookup failed got told it was on Pilot and offered a €1,350/month
+            downgrade. A plan is named here only when the server named one.
+
+            The loading arm renders nothing at all: during the first fetch we do not yet know
+            which of the two sentences is true, and neither is worth flashing. */}
+        {!canEnable && !billingLoading && (
+          <div
+            data-testid="email-plan-gate"
+            style={{ marginBottom: 16, borderRadius: 8, padding: "12px 14px", fontSize: 12.5, lineHeight: 1.5, border: "1px solid var(--amber-soft)", background: "var(--amber-soft)", color: "var(--amber-text)" }}
+          >
+            {billing ? (
+              <>
+                Email ingestion is included on every paid plan. You can set it up here, but turning on polling needs a paid plan — the {planName(billing.plan)} plan doesn&rsquo;t include it.{" "}
+                <Link
+                  href="/settings?tab=billing"
+                  style={{ color: "inherit", fontWeight: 600, textDecoration: "underline" }}
+                >
+                  Upgrade to {emailUnlock.name} ({emailUnlock.billingPriceLabel})
+                </Link>{" "}
+                to switch it on.
+              </>
+            ) : (
+              <>
+                Email ingestion is included on every paid plan. We couldn&rsquo;t check which plan this workspace is on just now, so if it isn&rsquo;t on a paid plan, turning polling on will be refused.{" "}
+                <Link
+                  href="/settings?tab=billing"
+                  style={{ color: "inherit", fontWeight: 600, textDecoration: "underline" }}
+                >
+                  Open plan &amp; billing
+                </Link>{" "}
+                to check yours.
+              </>
+            )}
           </div>
         )}
 
