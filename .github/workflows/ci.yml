@@ -354,6 +354,59 @@ jobs:
       - name: Diff the replay impact verdict against the backend C#
         if: always()
         run: bun run test src/test/replayImpactBackendMirror.test.ts
+
+      # The SAME backend checkout, sixth question: does this build have a row for every
+      # audit action the backend can write? `/operations/log` renders `GET /api/audit`'s
+      # `action` verbatim, and an action with no row in src/lib/auditActionManifest.ts
+      # renders as `unknown` — honest, but an unclassified failure nobody can filter for,
+      # on the one screen that exists to show failures.
+      #
+      # ADDED 2026-08-15, because this job's own header defect had repeated one level down.
+      # src/test/auditActionMirror.test.ts had NEVER run against a backend: it was not named
+      # in this step list, and the unit-test job sets no PROCULINK_BACKEND_PATH, so its
+      # `test.skipIf(!BACKEND)` diff reported green in every CI run since the file was
+      # written. Watched fail first — backend #214 added `inbound_email.rejected_plan_gate`
+      # and `inbound_email.rejected_order_limit`, and this step named exactly those two
+      # before the manifest rows were written.
+      - name: Diff the audit-action vocabulary against the backend C#
+        if: always()
+        run: bun run test src/test/auditActionMirror.test.ts
+
+      # Seventh: is a delivery attempt's status still the same four-value vocabulary the
+      # delivery rows are read with? The frontend used to answer this with a substring
+      # match over an open string, which said "yes, delivered" for `undeliverable`.
+      #
+      # Same position as the step above: named nowhere, so never run against a backend.
+      - name: Diff the delivery-attempt statuses against the backend C#
+        if: always()
+        run: bun run test src/test/deliveryAttemptMirror.test.ts
+
+      # Eighth: does the check-run outcome vocabulary still match? A supplier connection may
+      # only be published on a test pack that actually ran, and what this replaced was a
+      # boolean that four backend paths set to `true` over a run which had executed nothing.
+      # This suite reads two accepted backend versions and FAILS on a third, so it has to see
+      # a real checkout to mean anything at all.
+      - name: Diff the test-pack outcome vocabulary against the backend C#
+        if: always()
+        run: bun run test src/test/testPackOutcomeMirror.test.ts
+
+      # Ninth: can the order screen render every source-document media type the server can
+      # send? An unknown type renders as opaque bytes, and a type the frontend claims but the
+      # server cannot send is dead code that reads as coverage. This one already honoured
+      # PROCULINK_REQUIRE_BACKEND_MIRROR — it was simply never given a checkout to honour it
+      # against, which is the same silent green by a different route.
+      - name: Diff the source-document media types against the backend C#
+        if: always()
+        run: bun run test src/lib/sourceDocument.test.ts
+
+      # WHY THE LIST ABOVE IS NOT WHERE TO STOP THINKING.
+      #
+      # Every step in this job runs a suite whose cross-repo assertions are `skipIf(!BACKEND)`.
+      # A mirror suite that is NOT named here still runs — in the unit-test job, which checks
+      # no backend out — where it skips its diff and reports green. FOUR of these nine were in
+      # exactly that state on 2026-08-15. src/test/ciGatesReallyRun.test.ts now derives both
+      # sides (every test file that reads a backend checkout, and every file this job runs) and
+      # fails when they disagree, so a tenth mirror suite is enforced rather than remembered.
   # ══ END backend-mirror job ══════════════════════════════════════════════════
 
   test-e2e:

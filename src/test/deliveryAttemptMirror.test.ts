@@ -56,6 +56,35 @@ function findBackendRoot(): string | null {
 
 const BACKEND = findBackendRoot();
 
+/**
+ * Set by the `backend-mirror` CI job. When true, "no backend checkout" stops being a
+ * legitimate reason to skip and becomes a build failure.
+ *
+ * Opt-IN, as in `src/test/backendMirror.test.ts`: a developer without the backend cloned
+ * still gets the parser tests, which is the honest amount of coverage that machine can
+ * give. CI has no such excuse — the job checks the backend out.
+ */
+const REQUIRE_MIRROR = process.env.PROCULINK_REQUIRE_BACKEND_MIRROR === "1";
+
+/**
+ * Why this run may not proceed, or null.
+ *
+ * Pure, and unit-tested on BOTH branches below. The branch that matters is unreachable on
+ * any machine that has the backend cloned, which is every machine this file has been
+ * edited on — so it has to be exercised as a function rather than as a run condition.
+ */
+export function mirrorGateFailure(input: { backendRoot: string | null; required: boolean }): string | null {
+  if (input.backendRoot !== null || !input.required) return null;
+  return (
+    "PROCULINK_REQUIRE_BACKEND_MIRROR=1 but no backend checkout was reachable, so the " +
+    "attempt-status diff did not run. This run proves nothing about " +
+    "src/lib/deliveryAttemptManifest.ts. Set PROCULINK_BACKEND_PATH to a ProcuLink checkout " +
+    "(the `backend-mirror` job in .github/workflows/ci.yml does this with actions/checkout), " +
+    "or unset PROCULINK_REQUIRE_BACKEND_MIRROR if this run is genuinely not meant to enforce " +
+    "the mirror."
+  );
+}
+
 // ── The parsers ──────────────────────────────────────────────────────────────
 // Small and total. Each returns what it found; the callers assert on the contents,
 // so "found nothing" fails loudly rather than passing quietly.
@@ -275,9 +304,29 @@ function scan(): Scan {
   return cached;
 }
 
+describe("the backend-required gate (fixture — runs everywhere)", () => {
+  test("no checkout is a legitimate skip when the mirror is not required", () => {
+    expect(mirrorGateFailure({ backendRoot: null, required: false })).toBeNull();
+  });
+
+  test("no checkout is a FAILURE when CI required the mirror", () => {
+    const failure = mirrorGateFailure({ backendRoot: null, required: true });
+    expect(failure).toContain("PROCULINK_REQUIRE_BACKEND_MIRROR=1");
+    expect(failure).toContain("src/lib/deliveryAttemptManifest.ts");
+  });
+
+  test("a resolved checkout passes the gate either way", () => {
+    expect(mirrorGateFailure({ backendRoot: "/tmp/backend", required: true })).toBeNull();
+    expect(mirrorGateFailure({ backendRoot: "/tmp/backend", required: false })).toBeNull();
+  });
+});
+
 describe("deliveryAttemptManifest mirrors the backend's attempt-status vocabulary", () => {
   test("the diff either runs, or is skipped for a declared reason", () => {
-    // Runs everywhere, including CI. A skip must be attributable, never silent.
+    // Runs everywhere, including CI. A skip must be attributable, never silent — and under
+    // PROCULINK_REQUIRE_BACKEND_MIRROR it may not even be attributable, because there the
+    // checkout is the job's own responsibility.
+    expect(mirrorGateFailure({ backendRoot: BACKEND, required: REQUIRE_MIRROR })).toBeNull();
     if (!BACKEND) {
       expect(SKIP_REASON).toContain("PROCULINK_BACKEND_PATH");
       return;
