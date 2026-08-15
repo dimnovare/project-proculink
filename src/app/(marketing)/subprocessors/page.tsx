@@ -5,6 +5,7 @@ import {
   SUBPROCESSORS_UPDATED,
   SUBPROCESSOR_PLANNED_CHANGES,
 } from "@/lib/subprocessors";
+import { TableScroller } from "@/components/marketing/TableScroller";
 
 export const metadata = pageMetadata({
   path: "/subprocessors",
@@ -44,26 +45,31 @@ export default function SubprocessorsPage() {
       </p>
 
       <h2 style={S.h2}>Current subprocessors</h2>
-      <table style={S.table}>
-        <thead>
-          <tr>
-            <th style={S.th}>Subprocessor</th>
-            <th style={S.th}>Purpose</th>
-            <th style={S.th}>Location</th>
-            <th style={S.th}>Contract</th>
-          </tr>
-        </thead>
-        <tbody>
-          {SUBPROCESSORS.map((s) => (
-            <tr key={s.name}>
-              <td style={{ ...S.td, fontWeight: 600, color: "#0B1A2F" }}>{s.name}</td>
-              <td style={S.td}>{s.purpose}</td>
-              <td style={S.td}>{s.location}</td>
-              <td style={S.td}>{s.contract}</td>
+      {/* Four columns of Art. 28 disclosure need 465px of min-content; a 375px
+          viewport gives this page a 311px content box, so the table used to push
+          the document out to 497px and hide the Contract column off-screen. */}
+      <TableScroller label="Current subprocessors">
+        <table style={S.table}>
+          <thead>
+            <tr>
+              <th style={S.th}>Subprocessor</th>
+              <th style={S.th}>Purpose</th>
+              <th style={S.th}>Location</th>
+              <th style={S.th}>Contract</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {SUBPROCESSORS.map((s) => (
+              <tr key={s.name}>
+                <td style={{ ...S.td, fontWeight: 600, color: "#0B1A2F" }}>{s.name}</td>
+                <td style={S.td}>{s.purpose}</td>
+                <td style={S.td}>{s.location}</td>
+                <td style={S.td}>{s.contract}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </TableScroller>
 
       <h2 style={S.h2}>Planned changes</h2>
       {SUBPROCESSOR_PLANNED_CHANGES.length === 0 ? (
@@ -72,28 +78,33 @@ export default function SubprocessorsPage() {
           appears here, with its effective date, before it starts processing customer data.
         </p>
       ) : (
-        <table style={S.table}>
-          <thead>
-            <tr>
-              <th style={S.th}>Subprocessor</th>
-              <th style={S.th}>Purpose</th>
-              <th style={S.th}>Change</th>
-              <th style={S.th}>Notice published</th>
-              <th style={S.th}>Effective</th>
-            </tr>
-          </thead>
-          <tbody>
-            {SUBPROCESSOR_PLANNED_CHANGES.map((c) => (
-              <tr key={c.name}>
-                <td style={{ ...S.td, fontWeight: 600, color: "#0B1A2F" }}>{c.name}</td>
-                <td style={S.td}>{c.purpose}</td>
-                <td style={S.td}>{c.change}</td>
-                <td style={S.td}>{c.noticePublished}</td>
-                <td style={{ ...S.td, fontWeight: 600, color: "#0B1A2F" }}>{c.effective}</td>
+        // FIVE columns — wider than the current-subprocessors table above, and it
+        // renders the moment a planned change is published. Wrapped now, not later:
+        // it is only invisible today because SUBPROCESSOR_PLANNED_CHANGES is empty.
+        <TableScroller label="Planned subprocessor changes">
+          <table style={S.table}>
+            <thead>
+              <tr>
+                <th style={S.th}>Subprocessor</th>
+                <th style={S.th}>Purpose</th>
+                <th style={S.th}>Change</th>
+                <th style={S.th}>Notice published</th>
+                <th style={S.th}>Effective</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {SUBPROCESSOR_PLANNED_CHANGES.map((c) => (
+                <tr key={c.name}>
+                  <td style={{ ...S.td, fontWeight: 600, color: "#0B1A2F" }}>{c.name}</td>
+                  <td style={S.td}>{c.purpose}</td>
+                  <td style={S.td}>{c.change}</td>
+                  <td style={S.td}>{c.noticePublished}</td>
+                  <td style={{ ...S.td, fontWeight: 600, color: "#0B1A2F" }}>{c.effective}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </TableScroller>
       )}
 
       <div style={S.callout}>

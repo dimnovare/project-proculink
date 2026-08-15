@@ -2,6 +2,7 @@ import { pageMetadata } from "@/lib/seo";
 import Link from "next/link";
 import { LEGAL_ENTITY, PRODUCT_OPERATOR_NOTICE } from "@/lib/legal-entity";
 import { SUBPROCESSORS } from "@/lib/subprocessors";
+import { TableScroller } from "@/components/marketing/TableScroller";
 
 export const metadata = pageMetadata({
   path: "/privacy",
@@ -152,24 +153,29 @@ export default function PrivacyPage() {
         <Link href="/subprocessors" style={{ color: "var(--brand-green-deep)", textDecoration: "underline" }}>/subprocessors</Link>{" "}
         with a 30-day change-notification commitment. The current snapshot:
       </p>
-      <table style={S.table}>
-        <thead>
-          <tr>
-            <th style={S.th}>Processor</th>
-            <th style={S.th}>Purpose</th>
-            <th style={S.th}>Location</th>
-          </tr>
-        </thead>
-        <tbody>
-          {SUBPROCESSORS.map((s) => (
-            <tr key={s.name}>
-              <td style={S.td}>{s.name}</td>
-              <td style={S.td}>{s.purpose}</td>
-              <td style={S.td}>{s.location}</td>
+      {/* This table needs 350px of min-content and the page's content box is 311px
+          at a 375px viewport — it used to push the whole document sideways. See
+          TableScroller for why the columns are scrolled rather than dropped. */}
+      <TableScroller label="Subprocessors">
+        <table style={S.table}>
+          <thead>
+            <tr>
+              <th style={S.th}>Processor</th>
+              <th style={S.th}>Purpose</th>
+              <th style={S.th}>Location</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {SUBPROCESSORS.map((s) => (
+              <tr key={s.name}>
+                <td style={S.td}>{s.name}</td>
+                <td style={S.td}>{s.purpose}</td>
+                <td style={S.td}>{s.location}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </TableScroller>
 
       <h2 style={S.h2}>Contact and DPO</h2>
       <p style={S.p}>

@@ -17,7 +17,13 @@ const S = {
   lead:    { fontSize: 15, color: "#3D4A5C", lineHeight: 1.5, margin: "0 0 28px", maxWidth: 640 },
   h2:      { fontFamily: "'Bricolage Grotesque', Inter, sans-serif", fontSize: 14, fontWeight: 700, color: "#0B1A2F", textTransform: "uppercase" as const, letterSpacing: "0.05em", margin: "0 0 8px" },
   p:       { fontSize: 13.5, color: "#3D4A5C", lineHeight: 1.55, margin: "0 0 10px" },
-  threeCol:{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 22, margin: "16px 0 28px" },
+  // `repeat(3, 1fr)` was three FIXED tracks, and `1fr` is `minmax(auto, 1fr)` — its
+  // floor is min-content, not zero. The three step cards needed 319px plus 44px of
+  // gaps against the 303px content box a 375px phone leaves after print.css's
+  // `32px 36px` padding, so the row spilled out of the page's own padding. auto-fit
+  // keeps the printed 3-up layout (A4 gives ~722px, room for three 170px tracks)
+  // and collapses to one column on a phone instead of overflowing.
+  threeCol:{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 22, margin: "16px 0 28px" },
   step:    { padding: 12, background: "#F6F7FA", border: "1px solid #E2E6EE", borderRadius: 8 },
   stepN:   { fontFamily: "'Bricolage Grotesque', Inter, sans-serif", fontSize: 18, fontWeight: 700, color: "#2E8E3A" },
   stepT:   { fontSize: 13, fontWeight: 600, color: "#0B1A2F", margin: "4px 0 4px" },
@@ -42,7 +48,11 @@ export default function OnePagerPage() {
       </p>
 
       <h2 style={S.h2}>How it works</h2>
-      <div style={S.threeCol}>
+      {/* data-testid is the handle for tests/e2e/marketing-narrow-viewport.spec.ts.
+          This row overflowed its own container at 375px WITHOUT scrolling the
+          document — it spilled into the page's padding — so the page-level
+          invariant cannot see it and measures this box directly. */}
+      <div data-testid="one-pager-steps" style={S.threeCol}>
         {[
           // The IMAP half of this line named no tier for five releases. Manual upload is on every
           // plan; every automatic intake route — inbound email, IMAP, SFTP and S3 — is gated, and
