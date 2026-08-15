@@ -28,8 +28,8 @@
 // the shape being read here (jobs → steps → run) is fixed by the Actions schema.
 
 import { describe, it, expect } from "vitest";
-import { readFileSync, existsSync } from "fs";
-import { join } from "path";
+import { readFileSync, existsSync, readdirSync } from "fs";
+import { join, relative, sep } from "path";
 
 const ROOT = join(__dirname, "..", "..");
 const WORKFLOW_PATH = ".github/workflows/ci.yml";
@@ -311,5 +311,162 @@ describe(`quality gates in ${WORKFLOW_PATH}`, () => {
       .map((name) => `${name} — a gate-shaped script no CI step invokes`);
 
     expect(orphans).toEqual([]);
+  });
+});
+
+// ── Cross-repo mirror suites, and the one job that can actually run them ──────
+//
+// THE THIRD DIRECTION, and the one this file did not have. The two tests above ask
+// whether a step names a script that exists, and whether a gate-shaped script gets
+// named by a step. Neither can see a gate that IS named, IS blocking, and still
+// checks nothing.
+//
+// That is what a cross-repo mirror suite is when it runs in a job with no backend
+// checked out. Its diff is `test.skipIf(!BACKEND)`, so the file reports green having
+// compared nothing at all — the identical failure the backend-mirror job's own header
+// describes, one level up.
+//
+// Not hypothetical. On 2026-08-15, FOUR of the nine test files that read a backend
+// checkout were in that state, `src/test/auditActionMirror.test.ts` among them: never
+// named in that job, so never once run against a backend, and by then two audit actions
+// behind the API it mirrors. The manifest drift was found by hand.
+//
+// Both sides are DERIVED, for the reason in this file's header. The job is identified
+// by the ENV IT SETS rather than by its name — it has been renamed once already, and
+// its name still says `orderStatusManifest` while it asks nine different questions —
+// and the suite list is every test file that really reads a checkout, rather than a
+// list retyped here that would go stale the same way.
+
+/**
+ * The raw YAML of each job, comments stripped, keyed by job id.
+ *
+ * Comments have to go before anything is read out of these blocks, and for two separate
+ * reasons that both bite in this file: the backend-mirror job's long header comment sits
+ * at job indentation BEFORE its own `job:` key, so it lands in the previous job's block
+ * and would make that job look like the one setting PROCULINK_BACKEND_PATH; and the same
+ * header contains a `bun run test src/test/backendMirror.test.ts` line as a
+ * reproduce-locally hint, which is a doc comment, not a step that runs.
+ */
+function jobBlocks(yaml: string): Map<string, string> {
+  const lines = yaml.split(/\r?\n/);
+  const start = lines.findIndex((line) => /^jobs:\s*$/.test(line));
+  const out = new Map<string, string>();
+  if (start === -1) return out;
+
+  let job: string | null = null;
+  let buf: string[] = [];
+  for (let i = start + 1; i < lines.length; i++) {
+    const line = lines[i];
+    if (/^\S/.test(line)) break; // dedented back out of `jobs:`
+    if (/^\s*#/.test(line)) continue;
+    const header = /^ {2}([A-Za-z0-9_-]+):\s*$/.exec(line);
+    if (header) {
+      if (job) out.set(job, buf.join("\n"));
+      job = header[1];
+      buf = [];
+      continue;
+    }
+    if (job) buf.push(line);
+  }
+  if (job) out.set(job, buf.join("\n"));
+  return out;
+}
+
+/** Every `*.test.ts(x)` under src/, repo-relative with forward slashes. */
+function testFilesUnder(dir: string, acc: string[] = []): string[] {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) testFilesUnder(full, acc);
+    else if (/\.test\.tsx?$/.test(entry.name)) acc.push(relative(ROOT, full).split(sep).join("/"));
+  }
+  return acc;
+}
+
+/**
+ * This file names both env vars in order to DETECT them and never reads a checkout
+ * itself, so without this it would demand a step for itself.
+ */
+const SELF = "src/test/ciGatesReallyRun.test.ts";
+
+/**
+ * The suites whose cross-repo assertions need a backend checkout to mean anything.
+ *
+ * Identified by THE READ, not by a naming convention: `src/lib/sourceDocument.test.ts` is
+ * not called a mirror and does not live in src/test, and it is in exactly the same
+ * position as the five files that are.
+ */
+const backendReadingTests = testFilesUnder(join(ROOT, "src"))
+  .filter((file) => file !== SELF)
+  .map((file) => ({ file, source: readFileSync(join(ROOT, file), "utf8") }))
+  .filter(({ source }) => /process\.env\.PROCULINK_BACKEND_PATH/.test(source));
+
+/** The job that checks a backend out, found by the env it sets rather than by its name. */
+const mirrorJob = [...jobBlocks(workflow).entries()].find(
+  ([, body]) =>
+    /^\s+PROCULINK_BACKEND_PATH:/m.test(body) && /^\s+PROCULINK_REQUIRE_BACKEND_MIRROR:\s*'1'/m.test(body),
+);
+
+/** The test files that job runs, in the steps themselves — comments already stripped. */
+const filesRunByMirrorJob = [
+  ...new Set([...(mirrorJob?.[1] ?? "").matchAll(/\bbun run test\s+(src\/[\w./-]+\.test\.tsx?)/g)].map((m) => m[1])),
+];
+
+describe("cross-repo mirror suites run somewhere a backend exists", () => {
+  // ANTI-VACUITY FLOOR, both sides. Each list below is walked, and `filter(...).length
+  // === 0` over an empty list is TRUE — so a broken walk or a renamed job would turn
+  // every assertion after this into a green no-op, which is the shape of defect this
+  // whole section exists to catch. Floors have headroom; they are not a census.
+  it("finds both sides — the suites, and the job that checks a backend out", () => {
+    expect(backendReadingTests.length, "no backend-reading test files found — the walk is broken").toBeGreaterThanOrEqual(8);
+    expect(mirrorJob?.[0], "no job in ci.yml sets PROCULINK_BACKEND_PATH — the backend-mirror job is gone").toBeTruthy();
+    expect(filesRunByMirrorJob.length, "the backend-mirror job runs no test files at all").toBeGreaterThanOrEqual(8);
+
+    // The walk must reach BOTH directories that hold one. A corpus that stopped at
+    // src/test would clear the count above and miss src/lib entirely — the
+    // one-directory-short shape guards in this repo have failed by before.
+    const found = new Set(backendReadingTests.map((t) => t.file));
+    expect(found).toContain("src/test/backendMirror.test.ts");
+    expect(found).toContain("src/lib/sourceDocument.test.ts");
+  });
+
+  it("names every backend-reading suite as a step in that job", () => {
+    const job = mirrorJob?.[0] ?? "(none)";
+    const missing = backendReadingTests
+      .map((t) => t.file)
+      .filter((file) => !filesRunByMirrorJob.includes(file))
+      .map(
+        (file) =>
+          `${file} — reads a backend checkout, but no step in the \`${job}\` job runs it, so its ` +
+          "cross-repo diff only ever skips and the file reports green having compared nothing",
+      );
+    expect(missing).toEqual([]);
+  });
+
+  it("runs nothing in that job that does not need the checkout", () => {
+    // The reverse direction, and cheap to get right: a suite that needs no backend
+    // costs a second checkout of this repo's whole dependency tree to run twice, and it
+    // makes the job's purpose harder to read for whoever adds the tenth step.
+    const pointless = filesRunByMirrorJob
+      .filter((file) => !backendReadingTests.some((t) => t.file === file))
+      .map((file) => `${file} — run by the backend-mirror job but reads no backend checkout`);
+    expect(pointless).toEqual([]);
+  });
+
+  it("makes every one of them FAIL, not skip, when the job says the mirror is required", () => {
+    // Being named in the job is half of it. The job sets PROCULINK_REQUIRE_BACKEND_MIRROR=1
+    // so that a checkout which did not arrive — a 404 on a renamed repo, an expired token,
+    // a path typo — is a red build rather than a silent skip. A suite that never reads the
+    // variable ignores that instruction and skips politely under a green check.
+    //
+    // The READ is required, not a mention: a comment saying the flag is honoured is exactly
+    // the kind of claim this repo has been burned by.
+    const deaf = backendReadingTests
+      .filter(({ source }) => !/process\.env\.PROCULINK_REQUIRE_BACKEND_MIRROR/.test(source))
+      .map(
+        ({ file }) =>
+          `${file} — never reads PROCULINK_REQUIRE_BACKEND_MIRROR, so a missing checkout in the ` +
+          "backend-mirror job leaves its diff skipped instead of failing the build",
+      );
+    expect(deaf).toEqual([]);
   });
 });

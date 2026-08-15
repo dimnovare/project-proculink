@@ -416,6 +416,34 @@ function findBackendRoot(): string | null {
 
 const BACKEND = findBackendRoot();
 
+/**
+ * Set by the `backend-mirror` CI job. When true, "no backend checkout" stops being a
+ * legitimate reason to skip and becomes a build failure.
+ *
+ * This file HAS been named in that job since 2026-08-13, and still went without the flag —
+ * the job's env said the mirror was mandatory and this suite was not listening. That is a
+ * narrower hole than never running at all, but the same shape: the job's checkout step
+ * failing, or resolving to a directory without the controllers, would leave every
+ * assertion below skipping under a green check.
+ */
+const REQUIRE_MIRROR = process.env.PROCULINK_REQUIRE_BACKEND_MIRROR === "1";
+
+/**
+ * Why this run may not proceed, or null. Pure, and unit-tested on BOTH branches below —
+ * the branch that matters cannot be reached on a machine that has the backend cloned.
+ */
+export function mirrorGateFailure(input: { backendRoot: string | null; required: boolean }): string | null {
+  if (input.backendRoot !== null || !input.required) return null;
+  return (
+    "PROCULINK_REQUIRE_BACKEND_MIRROR=1 but no backend checkout was reachable, so the " +
+    "endpoint diff did not run. This run proves nothing about whether the app can reach " +
+    "the API's routes. Set PROCULINK_BACKEND_PATH to a ProcuLink checkout (the " +
+    "`backend-mirror` job in .github/workflows/ci.yml does this with actions/checkout), or " +
+    "unset PROCULINK_REQUIRE_BACKEND_MIRROR if this run is genuinely not meant to enforce " +
+    "the mirror."
+  );
+}
+
 export interface Endpoint {
   method: HttpMethod;
   /** Normalized: every `{id:guid}` route parameter becomes `{}`. */
@@ -828,13 +856,25 @@ describe("every state-changing endpoint has a caller, or a written reason", () =
     "no backend checkout found — set PROCULINK_BACKEND_PATH to the ProcuLink repo to run the endpoint diff";
 
   it("a backend checkout was located, or this run says why not", () => {
-    // Always runs. It cannot fail the suite where the backend is absent, but it
-    // puts the state on the record instead of leaving a silent skip.
+    // Always runs. Where the mirror is not required it cannot fail the suite, but it puts
+    // the state on the record instead of leaving a silent skip. Where CI DID require it,
+    // the absence is a failure — the job's own checkout step is what should have supplied it.
+    expect(mirrorGateFailure({ backendRoot: BACKEND, required: REQUIRE_MIRROR })).toBeNull();
     if (!BACKEND) {
       expect(reason).toContain("PROCULINK_BACKEND_PATH");
       return;
     }
     expect(fs.existsSync(path.join(BACKEND, CONTROLLERS_REL))).toBe(true);
+  });
+
+  it("no checkout is a legitimate skip when the mirror is not required", () => {
+    expect(mirrorGateFailure({ backendRoot: null, required: false })).toBeNull();
+  });
+
+  it("no checkout is a FAILURE when CI required the mirror", () => {
+    const failure = mirrorGateFailure({ backendRoot: null, required: true });
+    expect(failure).toContain("PROCULINK_REQUIRE_BACKEND_MIRROR=1");
+    expect(mirrorGateFailure({ backendRoot: "/tmp/backend", required: true })).toBeNull();
   });
 
   it.skipIf(!BACKEND)("the endpoint corpus is whole", () => {
