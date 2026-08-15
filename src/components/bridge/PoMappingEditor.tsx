@@ -604,6 +604,23 @@ export function PoMappingEditor({
         </div>
       )}
 
+      {/* ── Auto-map in flight ─────────────────────────────────────────────── */}
+      {/*
+        The fallback used to make this settle instantly, so the gap was never visible. Without it
+        the query can retry (one more attempt for an unreachable API, `magicFetch` waiting 8s each),
+        which leaves the editor sitting there with columns and no suggestions and nothing said.
+      */}
+      {suggestQuery.isLoading && (
+        <div
+          className="px-4 py-3 sm:px-5"
+          style={{ background: SURFACE2, borderBottom: `1px solid ${BORDER}`, fontSize: 12.5, color: MUTED }}
+          role="status"
+        >
+          Looking for matches in your {detectedColumns.length} column
+          {detectedColumns.length !== 1 ? "s" : ""}&hellip;
+        </div>
+      )}
+
       {/* ── Auto-map failure ───────────────────────────────────────────────── */}
       {/*
         `suggestMappingFields` used to answer a network error, a 404, any non-OK status, an
@@ -625,8 +642,16 @@ export function PoMappingEditor({
                 Couldn&rsquo;t run auto-map.
               </div>
               <div style={{ fontSize: 11.5, color: MUTED, marginTop: 2 }}>
-                {(suggestQuery.error instanceof Error && suggestQuery.error.message) ||
-                  "The suggestion service didn't answer."}{" "}
+                {/*
+                  Only an ApiHttpError's message is shown verbatim: it came from the server and
+                  `operatorSafeApiMessage` has already stripped any markup out of it. Everything
+                  else here is a browser string — a dropped connection rejects with "Failed to
+                  fetch", `magicFetch`'s 8s abort with "signal is aborted without reason" — and
+                  neither is a sentence an operator can act on.
+                */}
+                {suggestQuery.error instanceof ApiHttpError
+                  ? suggestQuery.error.message
+                  : "The suggestion service couldn’t be reached."}{" "}
                 Retry, or map the fields below by hand — nothing is mapped until you accept it.
               </div>
             </div>

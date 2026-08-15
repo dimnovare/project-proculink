@@ -21,17 +21,23 @@ vi.mock("@/lib/api/mapping", () => ({
   getMappingSourceColumns: vi.fn(),
   suggestMappingFields: vi.fn(),
 }));
-vi.mock("@/lib/api-client", () => ({
+// The REAL ApiHttpError, not a stub: production has exactly one class identity for it
+// (api-client re-exports core's), and the banner branches on `instanceof`. A stub here would make
+// the test pass for the wrong reason — every error would look like a non-HTTP one.
+vi.mock("@/lib/api-client", async () => ({
   getPoMappingTemplates: vi.fn(),
   applyPoMappingTemplate: vi.fn(),
-  ApiHttpError: class ApiHttpError extends Error {
-    status = 0;
-  },
+  ApiHttpError: (await vi.importActual<typeof import("@/lib/api/core")>("@/lib/api/core"))
+    .ApiHttpError,
 }));
+
+import { ApiHttpError } from "@/lib/api/core";
 
 const COLUMNS = ["po_number", "order_date", "item_code", "qty", "buyer_name"];
 
 let suggestRefetch: ReturnType<typeof vi.fn>;
+let suggestError: unknown;
+let suggestPending = false;
 
 vi.mock("@tanstack/react-query", () => ({
   useQuery: ({ queryKey }: { queryKey: unknown[] }) => {
@@ -46,9 +52,9 @@ vi.mock("@tanstack/react-query", () => ({
       // What TanStack Query hands the component when the queryFn rejects.
       return {
         data: undefined,
-        isLoading: false,
-        isError: true,
-        error: new Error("API error 503: auto-map could not be reached."),
+        isLoading: suggestPending,
+        isError: !suggestPending,
+        error: suggestPending ? null : suggestError,
         refetch: suggestRefetch,
       };
     }
@@ -82,8 +88,29 @@ function renderEditor() {
   );
 }
 
-beforeEach(() => { suggestRefetch = vi.fn(); });
+beforeEach(() => {
+  suggestRefetch = vi.fn();
+  suggestPending = false;
+  suggestError = new ApiHttpError("Auto-map failed (HTTP 503).", 503);
+});
 afterEach(cleanup);
+
+describe("PoMappingEditor — auto-map in flight says so", () => {
+  // Before this change the query never rejected, so it always settled fast and an unexplained
+  // gap was brief. It can now retry: `classifyApiFailure` allows one more attempt for an
+  // unreachable API, and `magicFetch` waits 8s per attempt — so the operator can face a live
+  // editor with columns, no suggestions, and no explanation for the better part of 20 seconds.
+  // That is the same "silently nothing" the fallback removal exists to stop, just time-boxed.
+  it("says it is still looking while the request is in flight", () => {
+    suggestPending = true;
+    renderEditor();
+    floor();
+
+    expect(screen.getByText(/looking for matches/i)).toBeTruthy();
+    // …and does not claim failure at the same time.
+    expect(screen.queryByText(/couldn['’]t run auto-map/i)).toBeNull();
+  });
+});
 
 describe("PoMappingEditor — a failed auto-map is reported, not swallowed", () => {
   it("tells the operator auto-map failed instead of showing an empty result", () => {
@@ -110,6 +137,28 @@ describe("PoMappingEditor — a failed auto-map is reported, not swallowed", () 
     floor();
 
     expect(screen.getByText(/map the fields below by hand/i)).toBeTruthy();
+  });
+
+  it("shows the server's reason when the server gave one", () => {
+    suggestError = new ApiHttpError("Auto-map failed (HTTP 503).", 503);
+    renderEditor();
+    floor();
+
+    expect(screen.getByText(/Auto-map failed \(HTTP 503\)/)).toBeTruthy();
+  });
+
+  it("does not print a raw browser error at the operator", () => {
+    // A dropped connection rejects with `TypeError: Failed to fetch`; an 8s `magicFetch` timeout
+    // rejects with an AbortError whose message is "signal is aborted without reason". Neither is
+    // a sentence an operator can act on, and CLAUDE.md's plain-language rule bans exactly this
+    // kind of internal string in user-facing copy. Only a server-attributable reason
+    // (`ApiHttpError`, whose message is already sanitised) may be shown verbatim.
+    suggestError = new TypeError("Failed to fetch");
+    renderEditor();
+    floor();
+
+    expect(screen.queryByText(/Failed to fetch/)).toBeNull();
+    expect(screen.getByText(/couldn['’]t be reached/i)).toBeTruthy();
   });
 
   it("renders no confidence chip for suggestions it never received", () => {

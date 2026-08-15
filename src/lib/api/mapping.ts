@@ -4,7 +4,7 @@ import { isApiMockMode } from "@/lib/api-client";
 // 48cea6e cold-mount fix) + the normalized base URL, instead of a local copy that
 // read the token BEFORE Clerk finished loading → unauthenticated request → 401 on a
 // cold/hard page load (the magic auto-map then silently degraded to empty).
-import { authHeader, API_BASE_URL } from "./core";
+import { authHeader, API_BASE_URL, ApiHttpError, retryAfterFrom } from "./core";
 import { serverReason } from "@/lib/serverText";
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
@@ -391,8 +391,20 @@ async function realSuggestMappingFields(
     body: JSON.stringify({ columns }),
   });
 
+  // ApiHttpError, not a bare Error. The shared retry policy (src/lib/apiFailure.ts) branches on
+  // `ApiHttpError.status`; anything else classifies as "unreachable" — retryable, one attempt, no
+  // server-named wait honoured. This endpoint carries [EnableRateLimiting("ai")], so a 429 is a
+  // condition it really produces and the one failure here that clears by itself IF the wait is
+  // respected. A bare Error would retry it straight into the closed window, and would retry a 404
+  // that can only answer the same way twice.
   if (!res.ok) {
-    throw new Error(`API error ${res.status}: auto-map could not be reached.`);
+    const body = await res.text().catch(() => "");
+    throw new ApiHttpError(
+      serverReason(body, `Auto-map failed (HTTP ${res.status}).`),
+      res.status,
+      body,
+      retryAfterFrom(res, body),
+    );
   }
 
   const parsed = coerceSuggestions(await res.json());

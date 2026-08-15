@@ -28,21 +28,28 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // isApiMockMode: false pins the LIVE path — the mock path legitimately keeps the local scorer.
 vi.mock("@/lib/api-client", () => ({ isApiMockMode: false }));
-vi.mock("./core", () => ({
+// The REAL ApiHttpError — the whole point of the retry assertions below is that the rejection is
+// one, so `classifyApiFailure` can tell a 429 from a 404 from a dropped connection.
+vi.mock("./core", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./core")>()),
   authHeader: async () => ({}),
   API_BASE_URL: "http://api.test",
   USE_MOCK: false,
 }));
 
+import { ApiHttpError } from "./core";
+import { classifyApiFailure } from "../apiFailure";
 import { suggestMappingFields, heuristicSuggestFields } from "./mapping";
 
 const COLUMNS = ["po_number", "item_code", "qty", "unit_price"];
 
-function jsonResponse(body: unknown, status = 200): Response {
+function jsonResponse(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
   return {
     ok: status >= 200 && status < 300,
     status,
+    headers: { get: (k: string) => headers[k.toLowerCase()] ?? null },
     json: async () => body,
+    text: async () => JSON.stringify(body),
   } as unknown as Response;
 }
 
@@ -90,6 +97,46 @@ describe("suggestMappingFields — a failed call fails", () => {
     } as unknown as Response);
 
     await expect(suggestMappingFields("sup-1", COLUMNS)).rejects.toThrow();
+  });
+});
+
+describe("suggestMappingFields — the rejection carries what the failure WAS", () => {
+  // Dropping the fallback made this path throw for the first time, which hands it to the shared
+  // retry policy in src/lib/apiFailure.ts. That policy branches on `ApiHttpError.status`; anything
+  // else classifies as "unreachable" — retryable, one attempt, no server-named wait honoured.
+  //
+  // This endpoint carries [EnableRateLimiting("ai")] (MappingSuggestionsController), so a 429 is a
+  // condition it really produces, and it is the one failure here guaranteed to clear on its own IF
+  // the wait is respected. Throwing a plain Error would retry it immediately against a window that
+  // has not moved — the exact defect WP-19 removed for every other query.
+
+  it("rejects a rate limit as a 429 that honours the server's wait", async () => {
+    fetchMock.mockResolvedValue(jsonResponse({}, 429, { "retry-after": "30" }));
+
+    const err = await suggestMappingFields("sup-1", COLUMNS).catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(ApiHttpError);
+    const failure = classifyApiFailure(err);
+    expect(failure.kind).toBe("rate_limited");
+    expect(failure.retryAfterSeconds).toBe(30);
+  });
+
+  it("rejects a 404 as deterministic, so it is not retried pointlessly", async () => {
+    fetchMock.mockResolvedValue(jsonResponse({}, 404));
+
+    const err = await suggestMappingFields("sup-1", COLUMNS).catch((e: unknown) => e);
+
+    const failure = classifyApiFailure(err);
+    expect(failure.kind).toBe("not_found");
+    expect(failure.retryable).toBe(false);
+  });
+
+  it("rejects a 500 as a server fault, which waiting plausibly helps", async () => {
+    fetchMock.mockResolvedValue(jsonResponse({}, 500));
+
+    const err = await suggestMappingFields("sup-1", COLUMNS).catch((e: unknown) => e);
+
+    expect(classifyApiFailure(err).kind).toBe("server");
   });
 });
 
