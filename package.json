@@ -15,6 +15,7 @@
     "test:e2e:live": "cross-env PLAYWRIGHT_LIVE=1 playwright test --project=chromium --grep-invert @a11y",
     "test:e2e:full": "cross-env PLAYWRIGHT_LIVE=1 PLAYWRIGHT_FULL=1 playwright test --project=chromium live-full-e2e.spec.ts",
     "test:e2e:ui": "playwright test --ui",
+    "test:prod": "playwright test --config=playwright.prod.config.ts",
     "test:e2e:a11y": "playwright test --project=chromium --grep @a11y",
     "test:e2e:a11y:update": "cross-env A11Y_UPDATE_BASELINE=1 playwright test --project=chromium --workers=1 a11y-axe.spec.ts",
     "test:e2e:visual": "playwright test visual.spec.ts",

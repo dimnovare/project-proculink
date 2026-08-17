@@ -1,0 +1,136 @@
+name: Production smoke (authenticated)
+
+# Signs in to https://proculink.eu with a REAL production Clerk session and walks
+# the signed-in screens. See tests/prod/signed-in-screens.spec.ts for what it
+# asserts and why a 200 is not evidence that anything rendered.
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# GUARDRAIL 1 — WHY THERE IS NO `pull_request` OR `push` TRIGGER, EVER.
+#
+# This job needs `secrets.CLERK_SECRET_KEY`, which is the PRODUCTION `sk_live_…`
+# key. That key can read every user, mint a sign-in ticket for ANY account
+# including the founder's, and delete users and organisations.
+#
+# `pull_request_target` and `pull_request` from a fork both run workflow code
+# with the base repository's context. Adding either trigger here would mean a
+# stranger's first PR could edit this file, or edit anything it runs, and print
+# the key. `push` is only marginally better: any branch push, including one from
+# a compromised or mistaken local, would exercise production writes.
+#
+# So the trigger set is `workflow_dispatch` + `schedule` and nothing else. Both
+# can only ever run workflow code that already exists on the default branch, by
+# someone with write access or by GitHub's own scheduler. If you find yourself
+# adding a trigger to "test the workflow on a PR", the answer is
+# `gh workflow run prod-smoke.yml --ref <branch>` — dispatch already accepts a
+# ref, so there is no case this restriction blocks.
+#
+# GUARDRAIL 2 — EVERY RUN GETS ITS OWN DISPOSABLE IDENTITY.
+#
+# The run creates its own Clerk user AND its own organisation, does all its work
+# inside them, and deletes both in an `if: always()` step. The real production
+# workspace is never signed into, never read, and never written. The cleanup
+# script additionally refuses to delete any organisation whose name does not
+# carry the run-scoped prefix — see scripts/prod-smoke/clerk-disposable.mjs.
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 06:00 and 18:00 UTC. Twice a day is enough to catch a bad deploy or an
+    # expired key within a working day, without creating (and deleting) a Clerk
+    # user every ten minutes. The cheap always-on liveness check is the backend
+    # repo's uptime.yml; this is the expensive, high-signal one.
+    - cron: '0 6,18 * * *'
+
+# Never two runs at once: each provisions a disposable identity, and overlapping
+# runs would have two of them alive against the same production instance.
+concurrency:
+  group: prod-smoke
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: Signed-in screens against proculink.eu
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # Referenced by name. Never echoed, never written to an output, never
+      # interpolated into a `run:` string — the scripts read it from the
+      # environment so it cannot land in a rendered command line.
+      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+      PROD_SMOKE_RUN_ID: ${{ github.run_id }}-${{ github.run_attempt }}
+      # Overridable via repo Variables if the domain ever moves.
+      PROD_SMOKE_BASE_URL: ${{ vars.PROD_SMOKE_BASE_URL || 'https://proculink.eu' }}
+      # RFC 2606 reserved by default: a disposable address that can never reach a
+      # real inbox. Override only if the Clerk instance restricts sign-up domains.
+      PROD_SMOKE_EMAIL_DOMAIN: ${{ vars.PROD_SMOKE_EMAIL_DOMAIN || 'example.com' }}
+
+    steps:
+      - name: Fail fast if the Clerk secret is missing
+        # Without this the run reaches Playwright and fails with a browser
+        # timeout, which reads like a production outage. A missing secret is a
+        # configuration problem and must say so.
+        run: |
+          if [ -z "${CLERK_SECRET_KEY}" ]; then
+            echo "::error title=Missing secret::CLERK_SECRET_KEY is not set on this repository. Add the production sk_live key under Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
+      - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: bunx playwright install --with-deps chromium
+
+      - name: Install system deps for Playwright
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: bunx playwright install-deps chromium
+
+      # GUARDRAIL 2, first half.
+      - name: Provision disposable Clerk user + organisation
+        run: node scripts/prod-smoke/clerk-disposable.mjs provision
+
+      - name: Run the authenticated production smoke test
+        run: bun run test:prod
+
+      # GUARDRAIL 2, second half. `always()` so the identity is destroyed after a
+      # failed assertion, a timeout, and a cancelled run alike — the one case
+      # where leaving a live user behind is most likely is the one where
+      # something already went wrong.
+      - name: Delete the disposable Clerk user + organisation
+        if: always()
+        run: node scripts/prod-smoke/clerk-disposable.mjs cleanup
+
+      # Deliberately NOT `.prod-smoke/` — that directory holds the sign-in ticket
+      # and the session cookies, and an artifact is downloadable by anyone with
+      # read access to the repo.
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prod-smoke-report
+          path: |
+            playwright-report-prod/
+            test-results/
+          retention-days: 14
