@@ -106,6 +106,24 @@ function renderEditor(initialConfig: PoMappingConfig | null = null) {
 }
 
 const save = () => fireEvent.click(screen.getByRole("button", { name: "Save mapping" }));
+
+/**
+ * `Save mapping` refuses a mapping that is missing a required canonical field
+ * (PoMappingEditor.saveGate.test.tsx) — a product rule, not a fixture detail. These tests are
+ * about the retired CONFIDENCE FLOOR, so the required fields this three-suggestion corpus does not
+ * cover arrive already mapped, to columns no suggestion here names. Anything the suggester adds on
+ * top is therefore visibly its own doing.
+ */
+function preMapped(fields: Record<string, string>): PoMappingConfig {
+  const header: PoMappingConfig["header"] = {};
+  const lines: PoMappingConfig["lines"] = {};
+  // Mirrors the editor's own header/lines split for these canonical fields.
+  for (const [canonical, column] of Object.entries(fields)) {
+    if (canonical === "PoNumber" || canonical === "OrderDate") header[canonical] = { externalField: column };
+    else lines[canonical] = { externalField: column };
+  }
+  return { hasHeaderRecord: true, separator: ",", header, lines };
+}
 const savedConfig = (): PoMappingConfig => {
   expect(onSave).toHaveBeenCalledTimes(1);
   return onSave.mock.calls[0][0] as PoMappingConfig;
@@ -154,24 +172,31 @@ describe("PoMappingEditor — the editor applies no confidence floor of its own"
 
   it("lets the operator adopt it", () => {
     fixtureIsLive();
-    renderEditor();
+    // Every required field except the low-scored one arrives mapped, so the save is reachable and
+    // the only thing the operator does here is accept the suggestion under test.
+    renderEditor(preMapped({ PoNumber: "seeded_po", OrderDate: "seeded_date", Quantity: "seeded_qty" }));
 
     fireEvent.click(within(row(DISCARDED.canonicalField)).getByRole("button", { name: "Accept" }));
     save();
 
-    expect(mappedFields(savedConfig())).toEqual([DISCARDED.canonicalField]);
+    const cfg = savedConfig();
+    expect(cfg.lines?.[DISCARDED.canonicalField]?.externalField).toBe(DISCARDED.suggestedColumn);
+    // and only that one — the neighbours kept the columns they came in with.
+    expect(cfg.header?.PoNumber?.externalField).toBe("seeded_po");
+    expect(cfg.lines?.Quantity?.externalField).toBe("seeded_qty");
   });
 
   it("takes it in a bulk accept too", () => {
     fixtureIsLive();
-    renderEditor();
+    // OrderDate is required and this corpus does not suggest it, so it arrives mapped.
+    renderEditor(preMapped({ OrderDate: "seeded_date" }));
 
     fireEvent.click(screen.getByRole("button", { name: /Accept all 3/ }));
     expect(screen.getByText("Accepted 3 suggestions.")).toBeTruthy();
 
     save();
     expect(mappedFields(savedConfig()).sort()).toEqual(
-      SUGGESTIONS.map((s) => s.canonicalField).sort(),
+      [...SUGGESTIONS.map((s) => s.canonicalField), "OrderDate"].sort(),
     );
   });
 
@@ -180,13 +205,22 @@ describe("PoMappingEditor — the editor applies no confidence floor of its own"
     // omit the number, and removing the floor must not turn that silence into an
     // implicit zero that is now "above the floor" and therefore adoptable.
     suggestions = [{ ...DISCARDED, confidence: null }];
-    renderEditor();
+    // Fully mapped on arrival — including the field the unscored suggestion is about, pointed
+    // somewhere else. So the save is reachable AND adoption would be visible as a changed column.
+    renderEditor(
+      preMapped({
+        PoNumber: "seeded_po",
+        OrderDate: "seeded_date",
+        Quantity: "seeded_qty",
+        [DISCARDED.canonicalField]: "seeded_item",
+      }),
+    );
 
     expect(screen.queryByRole("button", { name: "Accept" })).toBeNull();
     expect(screen.queryByRole("button", { name: /Accept all/ })).toBeNull();
 
     save();
-    expect(mappedFields(savedConfig())).toEqual([]);
+    expect(savedConfig().lines?.[DISCARDED.canonicalField]?.externalField).toBe("seeded_item");
   });
 });
 

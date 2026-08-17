@@ -18,6 +18,7 @@ import { deliveryConfigQueryKey, invalidateDeliveryConfig } from "@/lib/delivery
 import type { DeliveryConfig, DeliveryProtocol, DeliveryTestResult, OutputFormatId } from "@/lib/api/types";
 import { serverReasonOrNull } from "@/lib/serverText";
 import { deliveryTestDisclosure } from "@/components/bridge/deliveryTestDisclosure";
+import { describeDeliveryTestOutcome } from "@/components/bridge/deliveryTestOutcome";
 import { isPlanGate, PlanGateNotice } from "@/components/bridge/PlanGateNotice";
 import {
   decideHttpCredentialAction,
@@ -107,6 +108,45 @@ const SIMPLE_CHANNELS: SimpleChannelSpec[] = [
 
 /** The option offered first, and the one a bare "Continue" would take. */
 export const DEFAULT_SIMPLE_CHANNEL: SimpleChannel = "email";
+
+/**
+ * Per channel, the config keys this WIZARD has an input for — the only ones it is entitled to
+ * replace.
+ *
+ * The backend assigns `request.ConfigJson` wholesale (DeliveryConfigService), so whatever this
+ * builds IS the supplier's config afterwards. A fixed literal therefore does not "write the same
+ * shapes the editor writes" — it DELETES every per-supplier setting the wizard has no field for.
+ * The full editor solved this in DeliveryConfigEditor.unknownKeys.test.tsx; this is the same rule,
+ * and it has more to protect because the wizard has fewer fields:
+ *
+ *   * `headers` — custom HTTP request headers, injected into every outbound request
+ *     (HttpDeliveryDispatcher). Losing one means the supplier starts rejecting orders.
+ *   * `subjectTemplate` / `bodyTemplate` / `fromAddress` — the email connector's templates and
+ *     its VERIFIED sender.
+ *   * `overwriteExisting` — the SFTP/FTPS setting WP-20 added; the wizard has no checkbox for it.
+ *
+ * A key that IS listed here can be genuinely cleared by this wizard. A key that is not is carried
+ * through the save untouched.
+ */
+const WIZARD_MANAGED_CONFIG_KEYS: Record<SimpleChannel, readonly string[]> = {
+  http: ["url"],
+  sftp: ["host", "port", "remotePath"],
+  ftps: ["host", "port", "remotePath", "allowInvalidCertificate"],
+  email: ["toAddresses", "replyTo"],
+};
+
+/**
+ * What a BRAND-NEW config gets for the keys the wizard has no field for. These are defaults, not
+ * decisions: they are laid down UNDER the stored config, so a supplier whose saved method is PUT,
+ * or whose timeout was raised to 120s, keeps it. Only a supplier that has nothing stored for the
+ * key gets the default.
+ */
+const WIZARD_CONFIG_DEFAULTS: Record<SimpleChannel, Record<string, unknown>> = {
+  http: { method: "POST", timeoutSeconds: 30 },
+  sftp: { makeDirectories: true, timeoutSeconds: 30 },
+  ftps: { makeDirectories: true, timeoutSeconds: 30 },
+  email: {},
+};
 
 // Advanced channels: the wizard does NOT rebuild these. It shows a short note and a
 // link to the matching /help article, then closes back to the full editor.
@@ -269,6 +309,11 @@ function WizardModal({
 
   const spec = useMemo(() => SIMPLE_CHANNELS.find((c) => c.id === channel) ?? null, [channel]);
 
+  // Finishing on a DIFFERENT channel than the stored one is a different promise than finishing on
+  // the same one: same channel keeps the stored keys this wizard has no field for, a switch drops
+  // them because they describe the old transport. The banner has to say which.
+  const switchingChannel = spec != null && savedConfig != null && savedConfig.protocol !== spec.protocol;
+
   // Step-2 completeness — mirrors the editor's canSave for these channels.
   const step2Ready = useMemo(() => {
     if (!channel) return false;
@@ -286,26 +331,54 @@ function WizardModal({
     setStep(2);
   }
 
-  // Build the config JSON the backend stores — SAME shapes the editor's
-  // buildConfigObject() produces, for the subset of channels handled here.
+  /**
+   * The config JSON the backend stores — built the SAME WAY the full editor builds it: defaults
+   * underneath, everything already stored on top of those, and the fields this wizard actually
+   * owns last. See WIZARD_MANAGED_CONFIG_KEYS.
+   *
+   * This used to be a fixed literal, described in a comment as "the SAME shapes the editor's
+   * buildConfigObject() produces". The editor's is `{ ...carriedOverConfigKeys(),
+   * ...buildManagedConfigObject() }`; a literal is the opposite of that, and finishing the wizard
+   * on an existing supplier destroyed custom HTTP headers, the email templates and verified
+   * sender, and the SFTP overwrite setting.
+   */
   function buildConfigObject(): Record<string, unknown> {
+    const defaults = channel ? WIZARD_CONFIG_DEFAULTS[channel] : {};
+    return { ...defaults, ...carriedOverConfigKeys(), ...buildManagedConfigObject() };
+  }
+
+  /**
+   * The stored config's keys that this wizard does not manage.
+   *
+   * Empty when the selected channel is not the one the stored config was written for — those keys
+   * describe a different transport and must not follow it — and empty while the config query has
+   * not answered (`undefined`), because keys we have not read are keys we cannot carry.
+   */
+  function carriedOverConfigKeys(): Record<string, unknown> {
+    if (!channel || !spec || !savedConfig || savedConfig.protocol !== spec.protocol) return {};
+    let stored: Record<string, unknown>;
+    try {
+      stored = JSON.parse(savedConfig.configJson) as Record<string, unknown>;
+    } catch {
+      return {}; // unparseable: nothing trustworthy to carry, so nothing is carried
+    }
+    if (stored === null || typeof stored !== "object" || Array.isArray(stored)) return {};
+    const managed = WIZARD_MANAGED_CONFIG_KEYS[channel];
+    return Object.fromEntries(Object.entries(stored).filter(([key]) => !managed.includes(key)));
+  }
+
+  /** Only the keys this wizard has an input for — every one of them in WIZARD_MANAGED_CONFIG_KEYS. */
+  function buildManagedConfigObject(): Record<string, unknown> {
     if (channel === "sftp") {
-      return { host, port: Number(port) || 22, remotePath, makeDirectories: true, timeoutSeconds: 30 };
+      return { host, port: Number(port) || 22, remotePath };
     }
     if (channel === "ftps") {
-      return {
-        host,
-        port: Number(port) || 21,
-        remotePath,
-        makeDirectories: true,
-        timeoutSeconds: 30,
-        allowInvalidCertificate,
-      };
+      return { host, port: Number(port) || 21, remotePath, allowInvalidCertificate };
     }
     if (channel === "email") {
       return { toAddresses, ...(replyTo ? { replyTo } : {}) };
     }
-    return { url, method: "POST", timeoutSeconds: 30 }; // http
+    return { url }; // http
   }
 
   /**
@@ -414,8 +487,24 @@ function WizardModal({
   }
 
   async function handleSaveAndAdvance() {
+    // A verdict from a previous attempt describes the config that WAS stored. Re-saving replaces
+    // it, so the old result stops being about anything on screen.
+    setTestResult(null);
     const ok = await saveConfig();
     if (ok) setStep(4);
+  }
+
+  /**
+   * One step back, available on every step after the first — including step 4.
+   *
+   * Step 4 had no Back button at all, so a failed test on the explicitly non-technical path ended
+   * the wizard: the only control was "Done". The address or the sign-in that failed is two steps
+   * back, and this is the way to it.
+   */
+  function goBack() {
+    setError(null);
+    setTestResult(null);
+    setStep((s) => (s - 1) as Step);
   }
 
   async function handleTestFire() {
@@ -472,7 +561,11 @@ function WizardModal({
                 color: "var(--amber-text)",
               }}
             >
-              This {nounLower} already has delivery set up. Finishing here replaces it.
+              This {nounLower} already has delivery set up. Finishing here replaces the destination
+              and format with what you enter.
+              {switchingChannel
+                ? " You are switching it to a different channel, so the settings saved for the old one are dropped."
+                : " Settings this guided setup has no fields for — custom request headers, email subject and body templates, the sender address — are kept as they are."}
               {hasSavedCredentials && " The saved sign-in is kept unless you choose a new one."}
             </div>
           )}
@@ -548,10 +641,10 @@ function WizardModal({
           className="flex items-center gap-2 px-5 py-3"
           style={{ borderTop: "1px solid #E5E8EE", background: "#F6F7FA" }}
         >
-          {step > 1 && step < 4 && (
+          {step > 1 && (
             <button
               type="button"
-              onClick={() => setStep((s) => (s - 1) as Step)}
+              onClick={goBack}
               className="inline-flex items-center gap-1.5 rounded-[6px] px-3 py-1.5 text-[12px] font-medium"
               style={{ border: `1px solid ${BORDER}`, background: "#FFFFFF", color: NAVY, cursor: "pointer" }}
             >
@@ -1036,35 +1129,58 @@ function StepTest({
         <Send size={13} /> {testing ? "Testing..." : "Send a test"}
       </button>
 
-      {testResult && (
+      {/* The result read for what the user has to DO next — describeDeliveryTestOutcome, the same
+          module the full editor uses. This step used to render a bare
+          `testResult.success ? … : "Test failed"`, which is the one place it could least afford to:
+          a refused sign-in, a hostname that does not resolve and a path that is not there are three
+          different jobs, and this is the path taken by the people least able to tell them apart. */}
+      {testResult && (() => {
+        const outcome = describeDeliveryTestOutcome(testResult);
+        const reason = serverReasonOrNull(testResult.errorMessage);
+        const passed = outcome.tone === "pass";
+        return (
         <div
           className="rounded-[6px] px-3 py-2.5 text-[12px]"
+          role="status"
           style={{
-            background: testResult.success ? "#F0F7F1" : "#FCEBEB",
-            color: testResult.success ? GREEN_DEEP : "#A52E2E",
-            border: `1px solid ${testResult.success ? "#CBE8CE" : "#F5C5C5"}`,
+            background: passed ? "#F0F7F1" : "#FCEBEB",
+            color: passed ? GREEN_DEEP : "#A52E2E",
+            border: `1px solid ${passed ? "#CBE8CE" : "#F5C5C5"}`,
           }}
         >
           <p className="m-0 flex items-center gap-1.5 font-semibold">
-            {testResult.success ? <Check size={14} /> : <X size={14} />}
-            {testResult.success ? "The endpoint answered" : "Test failed"}
-            {testResult.responseCode != null ? ` · response code ${testResult.responseCode}` : ""}
+            {passed ? <Check size={14} /> : <X size={14} />}
+            {outcome.title}
           </p>
+          {outcome.guidance && <p className="m-0 mt-1 leading-5">{outcome.guidance}</p>}
           {/* Captured endpoint response body on a 200 test-fire — see DeliveryConfigEditor. */}
-          {serverReasonOrNull(testResult.errorMessage) && <p className="m-0 mt-1 font-medium">{serverReasonOrNull(testResult.errorMessage)}</p>}
-          {testResult.success && (
+          {reason && <p className="m-0 mt-1 font-medium">Their system said: {reason}</p>}
+          {passed && (
             <p className="m-0 mt-1 text-[11px]" style={{ color: "#2E5F35" }}>
               The endpoint answered — that doesn&apos;t prove the supplier accepted the order, but the
               connection works. You&apos;re set up.
             </p>
           )}
         </div>
-      )}
+        );
+      })()}
 
-      <p className="text-[11px]" style={{ color: FAINT }}>
-        You can skip the test and run it later from the delivery tab. Click Done to finish — your setup
-        is already saved.
-      </p>
+      {/* "Click Done — your setup is already saved" is an ending, and it used to render under a
+          failure too, telling someone whose test just did not get through that they were finished.
+          The save really did happen either way, so that fact stays; what changes is what to do
+          with it. */}
+      {testResult && !testResult.success ? (
+        <p className="text-[11px]" style={{ color: FAINT }}>
+          Your settings are saved, but this test did not get through, so orders would not either
+          yet. Use <span className="font-semibold">Back</span> to correct the details above and save
+          again — or click Done and pick it up from the delivery tab.
+        </p>
+      ) : (
+        <p className="text-[11px]" style={{ color: FAINT }}>
+          You can skip the test and run it later from the delivery tab. Click Done to finish — your
+          setup is already saved.
+        </p>
+      )}
     </div>
   );
 }
