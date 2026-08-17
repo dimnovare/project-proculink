@@ -43,6 +43,11 @@ tsconfig.tsbuildinfo
 # Playwright test artifacts
 test-results/
 playwright-report/
+playwright-report-prod/
+
+# Disposable production-smoke identity. Holds a live Clerk sign-in ticket and the
+# resulting session cookies — never commit it, and never upload it as an artifact.
+.prod-smoke/
 
 # clerk configuration (can include secrets)
 /.clerk/
