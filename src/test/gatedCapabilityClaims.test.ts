@@ -1157,6 +1157,117 @@ const UNGATED_BULLETS: ReadonlyArray<{ matches: RegExp; why: string }> = [
   },
 ];
 
+/**
+ * Bare nouns that a reader takes as naming a GATED capability, which no allowlist entry may excuse.
+ *
+ * ── The hole this closes, measured ───────────────────────────────────────────────────────────
+ *
+ * `"Field mapping + validation"` shipped on the €149 Growth card and IS refused today — but by the
+ * wrong mechanism, and that distinction is the whole finding. `accountFor` splits the compound and
+ * reaches `unaccounted.push(clause)`: NOTHING explains the word "validation". The tier comparison
+ * never runs. `SELLS_CONFIGURABLE_SUPPLIER_RULES` is the disjunction of five forms, every one of
+ * which requires the token `rules`, or `validation`/`acceptance` sitting next to a qualifier — so
+ * bare `validation` matches none of them, `cheapestSeller` never sees the Growth card as selling
+ * per-supplier rules, and the below-gate assertion at the top of this file is never reached.
+ *
+ * Being caught by the fallback rather than by the tier scan is not academic. The fallback's whole
+ * purpose is to be silenced by an allowlist entry. Two lines put the claim back:
+ *
+ *   plans.ts, growth card:  "Field mapping + acceptance"
+ *   UNGATED_BULLETS:        { matches: /^acceptance$/i, why: "…" }
+ *
+ * That pair was run against this suite before the guard below existed, and the whole file passed —
+ * 107/107. `no allowlist entry is dead` counts clauses as live, so the entry is not an orphan; the
+ * per-clause lookup excuses it, so `accountFor` returns ok; and the tier scan is blind to the word,
+ * so nothing anywhere objects to a €2,500/mo capability appearing on a €149 card. The two pins that
+ * name `"Field mapping + validation"` verbatim do not generalise — they hold one bullet, and the
+ * bypass has a synonym.
+ *
+ * ── Why not just widen the matcher ───────────────────────────────────────────────────────────
+ *
+ * Because that was tried and measured: `/\bvalidat/i` over the buyer-facing corpus matches dozens
+ * of lines with nothing to do with the gated product — schema validation, address validation, "we
+ * validate the file before parsing". The narrowness of `CONFIGURABLE_SUPPLIER_RULE_FORMS` is
+ * deliberate and argued at its own definition, and a guard bought by making it noisy is a guard
+ * that gets loosened until it catches nothing.
+ *
+ * So this table does not read copy at all. It reads the ALLOWLIST — ten hand-written entries — and
+ * denies the ENTRY rather than the sentence, exactly as the whole-bullet escape was denied once one
+ * anchored entry was found answering for a two-claim bullet. Prose is untouched: a bullet may still
+ * say "validation", and it will still be refused as unaccounted, which is the correct and already
+ * shipping behaviour. What it may no longer do is be excused.
+ *
+ * ── Membership rule ──────────────────────────────────────────────────────────────────────────
+ *
+ * A noun belongs here only if it is in the BLIND SPOT: its own capability's `sells` matcher does
+ * NOT recognise it. `webhook`, `sftp`, `s3`, `cxml`, `erp` are all matched by their own matchers,
+ * so a bare bullet naming them is already policed by the tier scan and needs no entry here — and
+ * the blind-spot test below fails the build for any row that stops being blind.
+ */
+const BARE_GATED_NOUNS: ReadonlyArray<{ noun: string; capability: keyof typeof BACKEND_MINIMUM_PLAN; why: string }> = [
+  {
+    noun: "validation",
+    capability: "customSupplierRules",
+    why:
+      "the word that shipped on the Growth card. Read on a pricing card, 'validation' is the " +
+      "per-supplier rule set — the Enterprise capability the card beside it sells as 'Custom " +
+      "transformation rules'. The honest ungated wording is 'Built-in order checks', which is on " +
+      "the allowlist and says what really runs on every plan",
+  },
+  {
+    noun: "validations",
+    capability: "customSupplierRules",
+    why: "the plural of the same claim — an allowlist may not be reopened by a letter",
+  },
+  {
+    noun: "rules",
+    capability: "customSupplierRules",
+    why:
+      "the capability's own noun, unqualified. Every form in CONFIGURABLE_SUPPLIER_RULE_FORMS " +
+      "needs a qualifier beside it ('configurable rules', 'rules you set'), so the bare word is " +
+      "the one shape the tier scan cannot see",
+  },
+  {
+    noun: "rule",
+    capability: "customSupplierRules",
+    why: "singular of the same",
+  },
+  {
+    noun: "acceptance",
+    capability: "customSupplierRules",
+    why:
+      "acceptance profiles are the same gated object under its internal name, and this is the " +
+      "synonym the measured exploit above used: form 1 needs the noun after it and form 5 a " +
+      "qualifier before it, so bare 'acceptance' is blind too",
+  },
+  {
+    noun: "audit",
+    capability: "advancedAudit",
+    why:
+      "AUDIT_RECORD_NOUN deliberately requires the record noun ('audit log', 'audit trail') so " +
+      "that /dpa's inspection right and the plain verb are not false positives. That narrowness " +
+      "is right, and it leaves the bare noun — which on a pricing card is the org-wide log, " +
+      "Operations+ — with nothing watching it",
+  },
+];
+
+/**
+ * Allowlist entries that would excuse a bare gated noun.
+ *
+ * Deliberately BEHAVIOURAL (`matches.test(noun)`) rather than textual. A check that read
+ * `matches.source` looking for the literal `validation` would be walked around by
+ * `/^validat(e|ion)?$/i` or `/^\s*validation\s*$/i`; asking the pattern whether it matches the word
+ * cannot be.
+ */
+const bareNounOffenders = (entries: ReadonlyArray<{ matches: RegExp; why: string }>): string[] =>
+  entries.flatMap(({ matches }) =>
+    BARE_GATED_NOUNS.filter(({ noun }) => matches.test(noun)).map(
+      ({ noun, capability }) =>
+        `/${matches.source}/ excuses the bare word "${noun}", which names BillingFeature.` +
+        `${capability} (gated at ${BACKEND_MINIMUM_PLAN[capability]})`,
+    ),
+  );
+
 /** Parsed shape of a quota bullet — "150 orders/month", "5 suppliers", "Custom volume". */
 const parseQuotaBullet = (
   bullet: string,
@@ -1345,6 +1456,147 @@ describe("every pricing-card bullet is accounted for by something real", () => {
       orphans,
       "these UNGATED_BULLETS entries match no bullet on any card. Delete them — an allowlist may " +
         "only excuse claims that are actually being made:\n" + orphans.join("\n"),
+    ).toEqual([]);
+  });
+
+  it("no allowlist entry excuses a bare capability noun", () => {
+    // The second form of the bypass the whole-bullet rule closed: one verdict answering for more
+    // than it read. There it was one entry covering two clauses; here it is one entry covering a
+    // word whose meaning on a pricing card is a gated capability. See BARE_GATED_NOUNS.
+    const offenders = bareNounOffenders(UNGATED_BULLETS);
+
+    expect(
+      offenders,
+      "an UNGATED_BULLETS entry excuses a word that names a gated capability. The allowlist is for " +
+        "things NOTHING gates; a bare capability noun is not one of them, and excusing it stops the " +
+        'clause ever reaching the tier scan. Either qualify the bullet into wording that is honestly ' +
+        'ungated ("Built-in order checks" rather than "validation"), or teach CAPABILITY_CLAIMS the ' +
+        "wording so the tier scans police it:\n" + offenders.join("\n"),
+    ).toEqual([]);
+  });
+
+  it("the bare nouns really are blind spots, not words the tier scan already sees", () => {
+    // Anti-vacuity, and the rule that stops this list growing into a second, worse matcher. A noun
+    // its own capability matcher recognises is ALREADY policed by `cheapestSeller`, so listing it
+    // here would be decoration — and would let this guard take credit for work done elsewhere.
+    const notBlind = BARE_GATED_NOUNS.filter(({ noun, capability }) =>
+      claims(CAPABILITY_CLAIMS[capability].sells, noun),
+    ).map(({ noun, capability }) => `"${noun}" is already matched by CAPABILITY_CLAIMS.${capability}.sells`);
+
+    expect(
+      notBlind,
+      "these nouns are visible to the tier scan, so they need no allowlist ban — remove them. If a " +
+        "matcher was widened to see one, that is the better fix and this row is now decoration:\n" +
+        notBlind.join("\n"),
+    ).toEqual([]);
+
+    expect(BARE_GATED_NOUNS.length, "the list must not be empty — an empty ban bans nothing").toBeGreaterThan(0);
+    expect(
+      BARE_GATED_NOUNS.map(({ noun }) => noun),
+      "the two measured holes must stay in the list",
+    ).toEqual(expect.arrayContaining(["validation", "acceptance"]));
+    for (const { capability } of BARE_GATED_NOUNS) {
+      expect(
+        BACKEND_MINIMUM_PLAN[capability],
+        `${capability} is not a row in the mirrored gate table, so nothing gates it and banning its ` +
+          "noun would be a claim about a capability that is free",
+      ).toBeDefined();
+    }
+  });
+
+  /**
+   * MUST-FLAG CONTROL, replaying the exploit that was actually run.
+   *
+   * The synonym is the point. Two pins name `"Field mapping + validation"` verbatim, so the bypass
+   * only has to pick a different word: `"Field mapping + acceptance"` on the Growth card plus
+   * `{ matches: /^acceptance$/i }` on the allowlist passed this entire file, 107/107, before this
+   * guard existed. Every link of that pair is asserted below, so the repair cannot be undone by
+   * deleting one line without a red test naming what was deleted.
+   */
+  it("catches the one-line allowlist entry that puts a gated capability back on the Growth card", () => {
+    const offender = { matches: /^acceptance$/i, why: "PROBE — the acceptance pass runs on every plan" };
+    const compound = "Field mapping + acceptance";
+    const clauses = splitClauses(compound);
+    expect(clauses, "the bullet is a compound, so it is judged clause by clause").toEqual([
+      "Field mapping",
+      "acceptance",
+    ]);
+
+    // 1. The entry really would excuse the clause — this is accountFor's per-clause lookup, verbatim.
+    expect(
+      [offender].find(({ matches }) => matches.test("acceptance")),
+      "the entry must really match the clause, or this control is replaying nothing",
+    ).toBeDefined();
+
+    // 2. And it would not read as dead: liveness counts clauses, and the added bullet supplies one.
+    const live = [
+      ...everyBullet.flatMap(({ bullet }) => [bullet, ...splitClauses(bullet)]),
+      compound,
+      ...clauses,
+    ];
+    expect(
+      live.some((text) => offender.matches.test(text)),
+      "`no allowlist entry is dead` counts clauses, so it stays green — it cannot be the guard here",
+    ).toBe(true);
+
+    // 3. And the tier scan cannot see it either. This is what makes the fallback the only thing
+    //    standing: the bare noun matches none of the five configurable-rule forms, so the Growth
+    //    card is never counted as selling the capability and the below-gate assertion passes.
+    expect(
+      claims(CAPABILITY_CLAIMS.customSupplierRules.sells, "acceptance"),
+      "the bare noun must be invisible to the capability matcher — if this goes true the matcher " +
+        "was widened, and THAT is the better fix",
+    ).toBe(false);
+    const cheapest = cheapestSeller(withBullet("growth", compound), CAPABILITY_CLAIMS.customSupplierRules.sells);
+    expect(cheapest?.id, "the Growth card carrying the bullet is not seen as selling it").not.toBe("growth");
+    expect(
+      rank(cheapest!.id),
+      "so the below-gate assertion stays green with the bullet on the €149 card — that is the hole",
+    ).toBeGreaterThanOrEqual(rank(BACKEND_MINIMUM_PLAN.customSupplierRules));
+
+    // 4. Which leaves this guard as the only thing that refuses it.
+    const flagged = bareNounOffenders([...UNGATED_BULLETS, offender]);
+    expect(flagged, "the offending entry must be flagged").toHaveLength(1);
+    expect(flagged[0], "and flagged by name, so the failure says which entry and which word").toContain(
+      '"acceptance"',
+    );
+    expect(
+      bareNounOffenders(UNGATED_BULLETS),
+      "and the flag must come from the offender, not from an entry that already ships",
+    ).toEqual([]);
+
+    // 5. The original wording is refused too, and so is a pattern dressed up to be hard to grep for:
+    //    the check asks the regex whether it matches the word, not how the word is spelled in source.
+    expect(
+      bareNounOffenders([{ matches: /^validation$/i, why: "the validator runs on every plan" }]),
+      "the wording that actually shipped must be caught as well as its synonym",
+    ).toHaveLength(1);
+    expect(
+      bareNounOffenders([{ matches: /^\s*validat(?:e|ion)?\s*$/i, why: "same claim, harder to grep for" }]),
+      "a rewritten pattern that still excuses the word must still be caught",
+    ).toHaveLength(1);
+  });
+
+  it("the bare-noun ban reads the allowlist, never the copy", () => {
+    // Why this guard is shaped as a ban on ten hand-written entries rather than as a wider matcher.
+    // Widening CONFIGURABLE_SUPPLIER_RULE_FORMS to a bare `/\bvalidat/i` was tried and measured: it
+    // matches dozens of buyer-facing lines with nothing to do with the gated rule set — schema and
+    // address validation, "we validate the file before parsing". A guard bought at that price is
+    // one that gets loosened until it catches nothing, which is what its own definition warns
+    // about. So no prose is scanned here, and none of those lines can ever be flagged.
+    const widened = /\bvalidat/i;
+    const wouldHaveFlagged = buyerFacingLines().filter(({ line }) => widened.test(line));
+    expect(
+      wouldHaveFlagged.length,
+      "the noisy widening must still be measurably noisy — if this drops to nothing the rationale " +
+        "above is stale and the matcher question should be reopened",
+    ).toBeGreaterThan(20);
+
+    expect(UNGATED_BULLETS.length, "and the ban must have entries to read").toBeGreaterThan(5);
+    expect(
+      bareNounOffenders(UNGATED_BULLETS),
+      "while flagging nothing that actually ships: honest ungated wording like 'Built-in order " +
+        "checks' and 'Per-order audit trail' names no bare capability noun",
     ).toEqual([]);
   });
 
