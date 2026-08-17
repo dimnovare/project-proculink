@@ -53,6 +53,32 @@ export interface UseSourceDocument {
   isLoading: boolean;
   /** Convenience: a document exists AND arrived. */
   hasDocument: boolean;
+  /**
+   * True when asking again could plausibly change the answer — i.e. the document could not be
+   * FETCHED, as opposed to not existing.
+   *
+   * `hasDocument` is false for all six states, which is correct for "can I render it" and
+   * useless for "should I offer a way out". `none`, `purged` and `missing` are settled facts
+   * about the order: retrying them just re-reads the same answer. `error` and `throttled` are
+   * facts about this one request.
+   */
+  canRetry: boolean;
+  /**
+   * Seconds the server asked us to wait, from a 429's `Retry-After`. Null on every other
+   * state, and also on a 429 that named no wait — never "there is no wait", only "none given".
+   * Lifted out of the union so a surface can render the number without narrowing the state.
+   */
+  retryAfterSeconds: number | null;
+  /**
+   * Ask again.
+   *
+   * This return value did not exist, and its absence was the whole defect: no consumer COULD
+   * offer a retry after a failed document load, so with a 5-minute staleTime a momentary blip
+   * left the pane looking permanently empty until the operator reloaded the browser. The
+   * fetching policy is right — the bytes are immutable, there is nothing to poll — which is
+   * exactly why the one manual escape hatch has to exist.
+   */
+  refetch: () => void;
 }
 
 export function useSourceDocument(
@@ -62,7 +88,7 @@ export function useSourceDocument(
   const queriesEnabled = useQueriesEnabled();
   const enabled = queriesEnabled && !!orderId && options?.enabled !== false;
 
-  const { data, error, isError, isLoading } = useQuery({
+  const { data, error, isError, isLoading, refetch } = useQuery({
     queryKey: ["order-source", orderId],
     queryFn: () => apiClient.getOrderSource(orderId as string),
     enabled,
@@ -71,22 +97,38 @@ export function useSourceDocument(
     staleTime: 5 * 60_000,
   });
 
-  if (data) return { state: data, isLoading: false, hasDocument: data.kind === "document" };
+  // `refetch()` returns a promise nobody here awaits; swallowing its rejection keeps a failed
+  // retry inside the query state (where the next render reads it) instead of surfacing as an
+  // unhandled rejection in the console.
+  const retry = useCallback(() => {
+    void refetch().catch(() => {});
+  }, [refetch]);
+
+  const settled = { isLoading: false, canRetry: false, retryAfterSeconds: null, refetch: retry };
+
+  if (data) return { ...settled, state: data, hasDocument: data.kind === "document" };
 
   if (isError) {
     // 429 survives the shared retry policy only when the budget is genuinely exhausted, so by
     // the time it lands here "wait and reload" is the honest instruction.
     if (error instanceof ApiHttpError && error.status === 429) {
       return {
+        ...settled,
         state: { kind: "throttled", retryAfterSeconds: error.retryAfterSeconds },
-        isLoading: false,
         hasDocument: false,
+        canRetry: true,
+        retryAfterSeconds: error.retryAfterSeconds,
       };
     }
-    return { state: { kind: "error" }, isLoading: false, hasDocument: false };
+    return { ...settled, state: { kind: "error" }, hasDocument: false, canRetry: true };
   }
 
   // A disabled query reports isLoading:true with no data — treat "not asked yet" as loading,
   // never as an error (the repo's documented TanStack gotcha).
-  return { state: { kind: "error" }, isLoading: enabled ? isLoading : true, hasDocument: false };
+  return {
+    ...settled,
+    state: { kind: "error" },
+    isLoading: enabled ? isLoading : true,
+    hasDocument: false,
+  };
 }
