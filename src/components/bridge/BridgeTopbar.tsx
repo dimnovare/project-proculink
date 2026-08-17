@@ -26,7 +26,9 @@ import {
   buildVisibleNav,
   hubTooltip,
   isItemActive,
+  NAV_BADGE_UNKNOWN_LABEL,
   PINNED_ACTION_HREF,
+  type NavBadge,
   type SidebarNavItem,
 } from "./BridgeSidebar";
 
@@ -332,17 +334,55 @@ const NOTIF_SCAN_PAGE_SIZE = 100;
 const NOTIF_ROW_LIMIT = 7;
 
 /**
- * Copy for the notifications panel when it has no rows to show. Kept as one
- * function so the three cases are decided in one place and cannot drift apart:
+ * The bell's corner chip, shared by the count badge and the "count unknown"
+ * badge so the two can never diverge in size or position.
  *
+ * #8A5310 not --amber: this badge carries a NUMERAL, so it is text at 9.5px/700.
+ * White on --amber is 4.1061:1; on #8A5310 it is 6.3150:1. --amber stays correct
+ * for the dot forms elsewhere, which are non-text and only need 3:1.
+ */
+const NOTIF_BADGE_STYLE: React.CSSProperties = {
+  top: 4,
+  right: 4,
+  minWidth: 15,
+  height: 15,
+  padding: "0 3.5px",
+  borderRadius: 8,
+  background: "#8A5310",
+  color: "#FFFFFF",
+  fontSize: 9.5,
+  fontWeight: 700,
+  border: "1.5px solid #0B1A2F",
+  lineHeight: 1,
+};
+
+/**
+ * Copy for the notifications panel when it has no rows to show. Kept as one
+ * function so the four cases are decided in one place and cannot drift apart:
+ *
+ *   failed     → the query did not answer. See the paragraph below.
  *   loading    → say so. Neither query has answered, so "nothing needs action"
  *                is a claim about data we have not received.
  *   unread = 0 → genuinely nothing. The original copy, unchanged.
- *   unread > 0 → the defect case. Orders need action; none is recent enough to
+ *   unread > 0 → the reach case. Orders need action; none is recent enough to
  *                list. Name that, and point at the inbox — which is also what
  *                the panel's own footer button does.
+ *
+ * `failed` is the fourth case and it was missing for the whole life of this
+ * function. Neither query had an `isError` branch, so a failed
+ * `GET /api/orders/summary` left `unread` at the `?? 0` default: the bell badge
+ * vanished, both nav badges read zero, and this panel — the app's ONLY
+ * always-visible "is anything wrong?" affordance — answered with the sentence
+ * that means "we checked the whole account and it is clean". A check that did
+ * not run is not a check that passed. `failed` is tested FIRST because an
+ * errored query is not loading and its `unread` is not a number we received.
+ *
+ * The sibling surface already got this right: BridgeDashboard branches on its
+ * own `summaryError` and prints "—" rather than a fabricated zero, so the
+ * dashboard showed dashes while the chrome directly above it showed all-clear.
  */
-function notificationsEmptyMessage(unread: number, loading: boolean): string {
+export function notificationsEmptyMessage(unread: number, loading: boolean, failed: boolean): string {
+  if (failed) return "We couldn't check for new activity.";
   if (loading) return "Checking for new activity…";
   if (unread <= 0) return "No new activity.";
   return unread === 1
@@ -360,14 +400,14 @@ export function NotificationsBell() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  const { data: ordersPage, isLoading: ordersLoading } = useQuery({
+  const { data: ordersPage, isLoading: ordersLoading, isError: ordersError } = useQuery({
     queryKey: ["orders"],
     queryFn: () => apiClient.getOrders({ pageSize: NOTIF_SCAN_PAGE_SIZE }),
     enabled: !isApiMockMode,
     staleTime: 30_000,
   });
 
-  const { data: ordersSummary, isLoading: summaryLoading } = useQuery({
+  const { data: ordersSummary, isLoading: summaryLoading, isError: summaryError } = useQuery({
     queryKey: ["orders-summary"],
     queryFn: () => apiClient.getOrdersSummary(),
     staleTime: 30_000,
@@ -387,7 +427,18 @@ export function NotificationsBell() {
   const rank = (k: string) => (k === "failed" ? 0 : k === "held" || k === "unconfirmed" || k === "unrouted" ? 1 : k === "review" ? 2 : 3);
   items.sort((a, b) => rank(a.kind) - rank(b.kind) || new Date(b.o.createdAt).getTime() - new Date(a.o.createdAt).getTime());
   const top = items.slice(0, NOTIF_ROW_LIMIT);
-  const unread = !isApiMockMode
+  // Did either query fail with nothing to fall back on? A failed fetch that still
+  // has cached data is NOT unknown — the counts below are then a real, if older,
+  // answer, which is why this tests `=== undefined` rather than `isError` alone.
+  const activityUnknown =
+    (summaryError && ordersSummary === undefined) ||
+    (!isApiMockMode && ordersError && ordersPage === undefined);
+  // `null` = we do not know, and it is deliberately NOT 0. Every reader below
+  // branches on it, so the bell, the panel header and the panel body cannot
+  // drift into three different opinions about a summary that never arrived.
+  const unread: number | null = activityUnknown
+    ? null
+    : !isApiMockMode
     ? ((ordersSummary?.byStatus?.["pending_review"] ?? 0) +
        (ordersSummary?.byStatus?.["failed"] ?? 0) +
        (ordersSummary?.byStatus?.["delivery_failed"] ?? 0) +
@@ -412,7 +463,13 @@ export function NotificationsBell() {
     <div ref={ref} className="relative">
       <button
         type="button"
-        aria-label={unread > 0 ? `Notifications, ${unread} need action` : "Notifications"}
+        aria-label={
+          unread === null
+            ? "Notifications, activity status unavailable"
+            : unread > 0
+            ? `Notifications, ${unread} need action`
+            : "Notifications"
+        }
         onClick={() => setOpen((v) => !v)}
         className="flex items-center justify-center relative"
         style={{ minWidth: "var(--tap-min)", minHeight: "var(--tap-min)", background: "transparent", border: "none", padding: 0, cursor: "pointer" }}
@@ -425,15 +482,21 @@ export function NotificationsBell() {
           onMouseLeave={(e) => { if (!open) { (e.currentTarget as HTMLElement).style.background = "transparent"; } }}
         >
           <Bell size={17} strokeWidth={1.9} />
-          {unread > 0 && (
-            <span
-              className="absolute flex items-center justify-center"
-              // #8A5310 not --amber: this badge carries a NUMERAL, so it is text
-              // at 9.5px/700. White on --amber is 4.1061:1; on #8A5310 it is
-              // 6.3150:1. --amber stays correct for the dot forms below, which
-              // are non-text and only need 3:1.
-              style={{ top: 4, right: 4, minWidth: 15, height: 15, padding: "0 3.5px", borderRadius: 8, background: "#8A5310", color: "#FFFFFF", fontSize: 9.5, fontWeight: 700, border: "1.5px solid #0B1A2F", lineHeight: 1 }}
-            >
+          {/* ONE style object for both badges below. They were written twice and
+              the duplicate is how the two would have drifted — and the whole point
+              of the unknown badge is that it occupies the same 15px the count
+              occupies, so the eye reads "there is something here" identically. */}
+          {unread === null && (
+            /* The "we don't know" badge. Its absence was the defect: with the
+               count unknown the chip simply disappeared, and a disappeared chip is
+               the same pixels as a clean workspace. "?" is not a count and cannot
+               be mistaken for one. */
+            <span className="absolute flex items-center justify-center" aria-hidden style={NOTIF_BADGE_STYLE}>
+              ?
+            </span>
+          )}
+          {unread !== null && unread > 0 && (
+            <span className="absolute flex items-center justify-center" style={NOTIF_BADGE_STYLE}>
               {unread > 9 ? "9+" : unread}
             </span>
           )}
@@ -447,12 +510,13 @@ export function NotificationsBell() {
         >
           <div className="flex items-center justify-between" style={{ padding: "10px 12px", borderBottom: "1px solid #E5E8EE" }}>
             <span style={{ fontSize: 12.5, fontWeight: 700, color: "#0B1A2F" }}>Notifications</span>
-            {unread > 0 && <span style={{ fontSize: 10.5, fontWeight: 600, color: "#8A5310" }}>{unread} need action</span>}
+            {unread === null && <span style={{ fontSize: 10.5, fontWeight: 600, color: "var(--amber-text)" }}>Status unavailable</span>}
+            {unread !== null && unread > 0 && <span style={{ fontSize: 10.5, fontWeight: 600, color: "#8A5310" }}>{unread} need action</span>}
           </div>
           <div className="max-h-[60vh] sm:max-h-[360px]" style={{ overflowY: "auto" }}>
             {top.length === 0 ? (
               <div style={{ padding: "24px 16px", textAlign: "center", fontSize: 12.5, color: "var(--ink-faint)", lineHeight: 1.5 }}>
-                {notificationsEmptyMessage(unread, ordersLoading || summaryLoading)}
+                {notificationsEmptyMessage(unread ?? 0, ordersLoading || summaryLoading, unread === null)}
               </div>
             ) : (
               top.map(({ o, kind }) => {
@@ -512,7 +576,7 @@ function TopNavLink({
 }: {
   item: SidebarNavItem;
   active: boolean;
-  badge?: number;
+  badge?: NavBadge;
   onNavigate?: () => void;
 }) {
   const title = hubTooltip(item);
@@ -538,6 +602,18 @@ function TopNavLink({
       onMouseLeave={(e) => { if (!active) (e.currentTarget as HTMLElement).style.color = "#C8D1E0"; }}
     >
       {item.label}
+      {/* No count to print. A dash chip, not an absent chip: absence here reads
+          as "nothing needs review", which is a claim the failed summary never
+          supported. Muted so it cannot be mistaken for a real count. */}
+      {badge === "unknown" && (
+        <span
+          className="flex items-center justify-center rounded-full"
+          style={{ minWidth: 17, height: 17, padding: "0 5px", background: "transparent", color: "var(--navy-text)", border: "1px solid var(--navy-muted)", fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 700, borderRadius: 999 }}
+        >
+          <span aria-hidden>—</span>
+          <span className="sr-only">{NAV_BADGE_UNKNOWN_LABEL}</span>
+        </span>
+      )}
       {typeof badge === "number" && badge > 0 && (
         <span
           className="flex items-center justify-center rounded-full"
@@ -575,13 +651,20 @@ function useTopNav() {
   });
   const isAdmin = adminAccess === true;
 
-  const { data: ordersSummary } = useQuery({
+  const { data: ordersSummary, isError: summaryError } = useQuery({
     queryKey: ["orders-summary"],
     queryFn: () => apiClient.getOrdersSummary(),
     enabled: queryEnabled,
     staleTime: 30_000,
   });
-  const reviewCount = ordersSummary?.byStatus?.["pending_review"] ?? 0;
+  // `undefined` = the summary failed and left nothing behind, so there is no
+  // count to print. It is NOT 0: `?? 0` here rendered a nav item with no badge,
+  // which is the exact pixels of a workspace with nothing to review. A cached
+  // answer still counts, hence `=== undefined` rather than `isError` alone.
+  const reviewCount: number | undefined =
+    summaryError && ordersSummary === undefined
+      ? undefined
+      : ordersSummary?.byStatus?.["pending_review"] ?? 0;
 
   const { main, tail } = useMemo(
     () => buildVisibleNav(labels.counterpartyPlural, isAdmin),
@@ -956,7 +1039,14 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
       >
         {navItems.map((item) => {
           const active = isItemActive(pathname, item);
-          const badge = item.badgeKey === "review" && reviewCount > 0 ? reviewCount : undefined;
+          const badge: NavBadge =
+            item.badgeKey !== "review"
+              ? undefined
+              : reviewCount === undefined
+              ? "unknown"
+              : reviewCount > 0
+              ? reviewCount
+              : undefined;
           return <TopNavLink key={item.href} item={item} active={active} badge={badge} />;
         })}
       </nav>

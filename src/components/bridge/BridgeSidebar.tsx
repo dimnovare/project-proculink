@@ -55,6 +55,26 @@ export type SidebarNavItem = {
 };
 export type SidebarNavSection = { group?: string; items: SidebarNavItem[] };
 
+/**
+ * What a nav item's count badge can be. THREE values, not two, and the third is
+ * the whole point:
+ *
+ *   number     → a count we received and it is worth showing.
+ *   undefined  → a count we received and it is zero. Render nothing.
+ *   "unknown"  → `GET /api/orders/summary` failed and left no cached answer, so
+ *                there is no count. Render the dash chip, never nothing.
+ *
+ * "unknown" exists because `reviewCount = summary?.byStatus?.pending_review ?? 0`
+ * collapsed the third case into the second: a failed summary produced 0, 0
+ * produced no badge, and no badge is exactly what a clean workspace looks like.
+ * The sidebar drawer and the desktop topbar both read this type so the two
+ * cannot answer the same failure differently.
+ */
+export type NavBadge = number | "unknown" | undefined;
+
+/** Accessible name for the "count unavailable" chip. One string, both surfaces. */
+export const NAV_BADGE_UNKNOWN_LABEL = "Needs-review count unavailable";
+
 /** The pinned primary action at the top of the rail (not a nav item). */
 export const PINNED_ACTION_HREF = "/upload";
 
@@ -208,14 +228,18 @@ export function BridgeSidebar({
   const orgName = organization?.name ?? "Your workspace";
 
   // Live "needs review" count → Inbox badge via summary endpoint (accurate regardless of volume).
-  const { data: ordersSummary } = useQuery({
+  const { data: ordersSummary, isError: summaryError } = useQuery({
     queryKey: ["orders-summary"],
     queryFn: () => apiClient.getOrdersSummary(),
     enabled: queryEnabled,
     staleTime: 30_000,
   });
+  // See NavBadge above. A failed summary with no cached answer yields "unknown",
+  // not 0 — the `?? 0` default is what let a dead endpoint render a clean drawer.
+  const summaryUnknown = summaryError && ordersSummary === undefined;
   const reviewCount = ordersSummary?.byStatus?.["pending_review"] ?? 0;
-  const badgeFor = (key?: "review") => (key === "review" && reviewCount > 0 ? reviewCount : undefined);
+  const badgeFor = (key?: "review"): NavBadge =>
+    key !== "review" ? undefined : summaryUnknown ? "unknown" : reviewCount > 0 ? reviewCount : undefined;
 
   useEffect(() => {
     if (!collapsible) return;
@@ -287,10 +311,25 @@ export function BridgeSidebar({
         )}
         <Ico size={16} strokeWidth={1.9} style={{ flexShrink: 0, color: active ? "#FFFFFF" : "#7C8DA6", opacity: active ? 1 : 0.82 }} />
         {!isCollapsed && <span className="flex-1 truncate">{item.label}</span>}
-        {!isCollapsed && badge && (
+        {!isCollapsed && badge === "unknown" && (
+          <span
+            className="flex items-center justify-center rounded-full text-[10.5px]"
+            style={{ minWidth: 18, height: 18, padding: "0 5px", background: "transparent", color: "var(--navy-text)", border: "1px solid var(--navy-muted)", fontFamily: "'JetBrains Mono',monospace", borderRadius: 999, fontWeight: 700 }}
+          >
+            <span aria-hidden>—</span>
+            <span className="sr-only">{NAV_BADGE_UNKNOWN_LABEL}</span>
+          </span>
+        )}
+        {!isCollapsed && typeof badge === "number" && (
           <span className="flex items-center justify-center rounded-full text-[10.5px]" style={{ minWidth: 18, height: 18, padding: "0 5px", background: "#1E66C9", color: "#FFFFFF", fontFamily: "'JetBrains Mono',monospace", borderRadius: 999, fontWeight: 700 }}>{badge}</span>
         )}
-        {isCollapsed && badge && (
+        {isCollapsed && badge === "unknown" && (
+          <>
+            <span className="absolute rounded-full" style={{ top: 5, right: 12, width: 7, height: 7, background: "transparent", border: "1.5px solid var(--amber-text)" }} aria-hidden />
+            <span className="sr-only">{NAV_BADGE_UNKNOWN_LABEL}</span>
+          </>
+        )}
+        {isCollapsed && typeof badge === "number" && (
           <span className="absolute rounded-full" style={{ top: 5, right: 12, width: 7, height: 7, background: "#1E66C9", border: "1.5px solid #0A1728" }} aria-hidden />
         )}
       </Link>
@@ -408,7 +447,7 @@ export function BridgeSidebar({
       )}
 
       {/* ── Navigation (grouped hubs; flexible spacer pushes the tail down) ── */}
-      <nav className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "none", padding: "4px 0 12px" }}>
+      <nav aria-label="Workspace" className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "none", padding: "4px 0 12px" }}>
         {NAV_VISIBLE.map((section, si) => (
           <div key={si}>
             {section.group && !isCollapsed && (

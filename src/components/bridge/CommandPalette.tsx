@@ -18,6 +18,7 @@ import type {
   BuyerDto,
 } from "@/types/procurement";
 import { statusLabel } from "./UnifiedStatusBadge";
+import { Button } from "./DSPrimitives";
 
 // ─── Index ────────────────────────────────────────────────────────────────────
 
@@ -156,19 +157,29 @@ const SERVER_SEARCH_MIN_CHARS = 1;
 const RECENT_PREVIEW_LIMIT = 6;
 
 /**
- * What to say when nothing matched. Three different facts, three different
+ * What to say when nothing matched. Four different facts, four different
  * sentences — the point of the whole fix is that "no results" is a claim about
  * REACH as much as about matches, so a screen that has not finished searching,
  * or that only looked at six rows, must not borrow the sentence that means "we
  * searched everything and it is not there".
+ *
+ * `searchFailed` is the fourth, and it was missing while the other three were
+ * being written. The search query's `isError` was never read, so a failed
+ * `GET /api/orders?search=` left `searchPage` undefined forever: that made
+ * `serverResultsCurrent` false, which made `searchPending` TRUE with no end
+ * condition, and cmd-K sat on "Searching all orders…" indefinitely — no error,
+ * no retry, no way to tell a dead endpoint from a slow one. It is tested FIRST
+ * because a failed query is not a pending one.
  */
-function noResultsMessage(args: {
+export function noResultsMessage(args: {
   query: string;
   searchPending: boolean;
+  searchFailed: boolean;
   serverSearchActive: boolean;
   recentReach: number;
 }): string {
-  const { query, searchPending, serverSearchActive, recentReach } = args;
+  const { query, searchPending, searchFailed, serverSearchActive, recentReach } = args;
+  if (searchFailed) return `We couldn't search your orders for “${query}”. This isn't a result — try again.`;
   if (searchPending) return "Searching all orders…";
   if (!serverSearchActive && query) {
     return recentReach === 1
@@ -304,7 +315,12 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
     staleTime: 60_000,
   });
 
-  const { data: searchPage, isFetching: searchFetching } = useQuery({
+  const {
+    data: searchPage,
+    isFetching: searchFetching,
+    isError: searchIsError,
+    refetch: refetchSearch,
+  } = useQuery({
     queryKey: ["orders-search", debouncedQ],
     queryFn: () => apiClient.getOrders({ search: debouncedQ, pageSize: 8 }),
     staleTime: 30_000,
@@ -330,7 +346,12 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
   // zero rows and printed "No results" over a search that had not been made yet.
   const serverResultsCurrent =
     serverSearchActive && debouncedQ === normalizedQ && !searchFetching && searchPage !== undefined;
-  const searchPending = serverSearchActive && !serverResultsCurrent;
+  // The request answered with an error and left nothing behind. Without this the
+  // condition below can never become false, so "Searching all orders…" was a
+  // terminal state rather than a transient one.
+  const searchFailed =
+    serverSearchActive && debouncedQ === normalizedQ && !searchFetching && searchIsError && searchPage === undefined;
+  const searchPending = serverSearchActive && !serverResultsCurrent && !searchFailed;
 
   const recentPreview = (ordersPage?.items ?? []).slice(0, RECENT_PREVIEW_LIMIT);
   const orderResults: OrderSummary[] = serverSearchActive ? (searchPage?.items ?? []) : recentPreview;
@@ -488,7 +509,45 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
           aria-label={hasResults ? "Results" : undefined}
           style={{ maxHeight: 420, overflowY: "auto" }}
         >
-          {!hasResults ? (
+          {/* Rendered whether or not anything else matched. Actions, suppliers and
+              buyers are matched client-side and are unaffected by a failed order
+              search, so on failure the palette can still be full of rows — which
+              is precisely when a silent failure is most misleading, because the
+              rows present look like the complete answer. */}
+          {searchFailed && (
+            <div
+              role="alert"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 12,
+                padding: "10px 16px",
+                background: "var(--danger-soft)",
+                borderBottom: "1px solid var(--danger-border)",
+                color: "var(--danger)",
+                fontSize: 12.5,
+              }}
+            >
+              <span>
+                {noResultsMessage({
+                  query: normalizedQ,
+                  searchPending,
+                  searchFailed,
+                  serverSearchActive,
+                  recentReach: recentPreview.length,
+                })}
+              </span>
+              <span style={{ flexShrink: 0 }}>
+                <Button variant="secondary" size="sm" onClick={() => { void refetchSearch(); }}>
+                  Try again
+                </Button>
+              </span>
+            </div>
+          )}
+          {/* The failure strip above already carries the sentence and the control,
+              so the empty block would only repeat it. */}
+          {!hasResults && searchFailed ? null : !hasResults ? (
             <div
               style={{
                 padding: "32px 16px",
@@ -500,6 +559,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
               {noResultsMessage({
                 query: normalizedQ,
                 searchPending,
+                searchFailed,
                 serverSearchActive,
                 recentReach: recentPreview.length,
               })}
