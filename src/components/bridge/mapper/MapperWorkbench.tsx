@@ -749,6 +749,20 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
 
   // ── Catalog enrich: count hinted lines + a scroll-to-first action ──────────
   const catalogHintCount = model.catalogHintByLine.size;
+  // Three states, not two. "No hints" and "we couldn't ask" both arrive here as an empty map,
+  // and the button used to state the first for both — telling an operator their catalog matches
+  // when the fetch had failed. The unavailable branch says so instead, and never claims the
+  // lines agree with a catalog nobody read.
+  const catalogTitle = model.catalogUnavailable
+    ? "We couldn’t load the catalog hints for this order, so we can’t tell whether any line differs from the supplier’s catalog. Reload to try again."
+    : catalogHintCount > 0
+      ? "Jump to the lines with catalog price/code hints — apply each per line"
+      : "No catalog hints for this order. Add a supplier catalog, or no lines differ from it.";
+  const catalogLabel = catalogHintCount > 0
+    ? `Fill from catalog · ${catalogHintCount}`
+    : model.catalogUnavailable
+      ? "Fill from catalog · unavailable"
+      : "Fill from catalog";
   const scrollToFirstCatalogHint = useCallback(() => {
     const target = model.targetFields.find((f) =>
       model.catalogHintByLine.has(f.outputPath) ||
@@ -1097,23 +1111,15 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
                 onClick={() => { setShowDesigner(false); setShowOutputEditor(true); }}
               />
               <ToolbarButton
-                label={catalogHintCount > 0 ? `Fill from catalog · ${catalogHintCount}` : "Fill from catalog"}
-                title={
-                  catalogHintCount > 0
-                    ? "Jump to the lines with catalog price/code hints — apply each per line"
-                    : "No catalog hints for this order. Add a supplier catalog, or no lines differ from it."
-                }
+                label={catalogLabel}
+                title={catalogTitle}
                 onClick={catalogHintCount > 0 ? scrollToFirstCatalogHint : undefined}
               />
             </>
           ) : (
             <ToolbarButton
-              label={catalogHintCount > 0 ? `Fill from catalog · ${catalogHintCount}` : "Fill from catalog"}
-              title={
-                catalogHintCount > 0
-                  ? "Jump to the lines with catalog price/code hints — apply each per line"
-                  : "No catalog hints for this order. Add a supplier catalog, or no lines differ from it."
-              }
+              label={catalogLabel}
+              title={catalogTitle}
               onClick={catalogHintCount > 0 ? scrollToFirstCatalogHint : undefined}
             />
           )}
@@ -1144,6 +1150,33 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
           that hide the toolbar would have swallowed it entirely. ────────────────────── */}
       {isPlanGate(model.error) && (
         <PlanGateNotice error={model.error} capability="This connection setup" className="mb-3" />
+      )}
+
+      {/* ── Saved-mapping load failure ────────────────────────────────────────
+          The one banner that is NOT gated on `hideToolbar` or on a breakpoint, because
+          the state it reports is destructive at every width and in every host.
+
+          When the override GET fails the model falls back to a blank document and this
+          screen is pixel-identical to an order nobody has mapped yet. The mutators are
+          refused while the flag is set (useMapperModel.apply), so without a sentence here
+          the operator would drag a wire, watch nothing happen, and have no way to tell a
+          refusal from a broken page. Says what is paused, why, and what to do. ───────── */}
+      {model.overrideUnavailable && (
+        <div
+          role="alert"
+          data-testid="mapper-override-unavailable"
+          // Tokens, not the raw hex the neighbouring banners in this file still use:
+          // --danger on --danger-soft is the design system's own refusal pairing, and the
+          // design-token gate counts every literal added under src/.
+          style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 12, padding: "9px 12px", borderRadius: 8, background: "var(--danger-soft)", border: "1px solid var(--danger-border)", color: "var(--danger)", fontSize: 12, lineHeight: 1.45 }}
+        >
+          <span aria-hidden style={{ fontSize: 13, lineHeight: 1.2 }}>⚠</span>
+          <span>
+            We couldn&rsquo;t load the mapping saved for this {variant === "order" ? "order" : "supplier"}, so editing is
+            paused. Saving now would replace that mapping with a blank one. Nothing has been changed —
+            reload to try again.
+          </span>
+        </div>
       )}
 
       {/* ── AI suggestions banner ─────────────────────────────────────────
@@ -1262,8 +1295,17 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
           NO gaps (the three areas share borders as one connected strip) + align-items:stretch (all
           three are equal, full height). The wire SVG overlays ONLY the inner received↔output wrap,
           so the wires are short clean curves at the column boundary (no 56px gutter to span). */}
+      {/* TRACK FLOORS MUST FIT `lg`. This grid mounts at lg (1024px) and its minmax
+          floors are the width it physically needs: outer track 2 + the inner grid's two
+          tracks. They summed to 1040px (300 + 360 + 380), so every viewport from 1024 to
+          1039 — a 13" laptop, a landscape tablet — overflowed horizontally, and no
+          breakpoint caught it because the breakpoint was not the thing that was wrong.
+          They now sum to 980px, which clears 1024 with room for a scrollbar gutter.
+          Pinned by MapperWorkbench.trackFloors.test.tsx: change a floor and that test
+          re-adds them up. */}
       <div
         className="hidden lg:grid"
+        data-testid="mapper-desktop-grid"
         style={{
           // Chrome above (action bar, banners) keeps the wrapper's px-6 indent so it aligns with
           // the page title; the column grid bleeds back out to the wrapper edges (flush to the
@@ -1274,7 +1316,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
             ? "minmax(0,1fr) 46px"
             : incomingCollapsed
               ? "minmax(0,1fr) minmax(400px,1fr)"
-              : "minmax(0,1.85fr) minmax(380px,1.05fr)",
+              : "minmax(0,1.85fr) minmax(360px,1.05fr)",
         }}
       >
         {/* INNER wrap — received | output, the wire overlay's host (canvasRef). */}
@@ -1284,8 +1326,8 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
           style={{
             position: "relative", minWidth: 0, minHeight: 0, display: "grid", alignItems: "stretch", gridTemplateRows: "minmax(0,1fr)",
             gridTemplateColumns: incomingCollapsed
-              ? "46px minmax(360px,1fr)"
-              : "minmax(300px,0.92fr) minmax(360px,1fr)",
+              ? "46px minmax(340px,1fr)"
+              : "minmax(280px,0.92fr) minmax(340px,1fr)",
           }}
         >
           {incomingCollapsed ? (

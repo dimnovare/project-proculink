@@ -296,6 +296,20 @@ export function useMapperWireLayer({
     setDrag(null); setHoverTarget(null);
   }, [drag, ptToCanvas, nearestTarget, stopAutoScroll, fireConnect]);
 
+  // The current keyboard target, spoken. Arrow-key cycling moved `kbTarget`, and the ONLY
+  // thing that drew the new selection was a dashed path inside an `aria-hidden` <svg> — so a
+  // screen-reader operator heard "Connect mode…", then silence through every press, then
+  // "Mapped X to Y" for a field they were never told they had landed on. The live region has
+  // to say which output is selected on every move, or the whole keyboard path is blind.
+  // Returns the sentence rather than speaking it: `announce` replaces the live region's whole
+  // text on the next frame, so two calls in one keypress would leave only the second. Callers
+  // compose one message.
+  const targetSentence = useCallback((index: number): string | null => {
+    const target = targetIds[index];
+    if (!target) return null;
+    return `${target}, output ${index + 1} of ${targetIds.length}. Enter maps to this field.`;
+  }, [targetIds]);
+
   // ── Keyboard connect ─────────────────────────────────────────────────────────
   const onHandleKey = useCallback((e: React.KeyboardEvent, id: string) => {
     if (readOnly) return;
@@ -308,16 +322,29 @@ export function useMapperWireLayer({
         setKbSource(null);
       } else {
         setKbSource(id); setKbTarget(0);
-        announce("Connect mode. Arrow keys choose the output field, Enter confirms, Escape cancels.");
+        // Entering connect mode already selects index 0; naming it is part of the same beat.
+        const first = targetSentence(0);
+        announce(
+          "Connect mode. Arrow keys choose the output field, Enter confirms, Escape cancels."
+          + (first ? ` ${first}` : ""),
+        );
       }
     } else if (kbSource === id && (e.key === "ArrowDown" || e.key === "ArrowRight")) {
-      e.preventDefault(); setKbTarget((p) => (p + 1) % len);
+      e.preventDefault();
+      const next = (kbTarget + 1) % len;
+      setKbTarget(next);
+      const sentence = targetSentence(next);
+      if (sentence) announce(sentence);
     } else if (kbSource === id && (e.key === "ArrowUp" || e.key === "ArrowLeft")) {
-      e.preventDefault(); setKbTarget((p) => (p - 1 + len) % len);
+      e.preventDefault();
+      const next = (kbTarget - 1 + len) % len;
+      setKbTarget(next);
+      const sentence = targetSentence(next);
+      if (sentence) announce(sentence);
     } else if (e.key === "Escape") {
       setKbSource(null);
     }
-  }, [kbSource, kbTarget, targetIds, fireConnect, readOnly]);
+  }, [kbSource, kbTarget, targetIds, fireConnect, readOnly, targetSentence]);
 
   useEffect(() => {
     const onEsc = (e: KeyboardEvent) => { if (e.key === "Escape") setKbSource(null); };

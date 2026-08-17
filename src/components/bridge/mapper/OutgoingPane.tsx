@@ -69,8 +69,19 @@ export interface OutgoingPaneProps {
   /** Output path currently snap-highlighted under a drag (drives the drop-target glow). */
   snapTarget?: string | null;
   onDisconnect?: (outputPath: string) => void;
-  /** Set/clear a fixed literal (real control; disabled-with-reason when absent). */
-  onSetFixedValue?: (outputPath: string, value: string | null) => void;
+  /**
+   * Set/clear a fixed literal (real control; disabled-with-reason when absent).
+   *
+   * `scope` is REQUIRED, not optional, and it is why this signature changed. The model's
+   * handler defaults a missing scope to "header" (useMapperModel.onSetFixedValue), and this
+   * prop type declared two parameters — so every fixed value typed in this pane was written
+   * to `output.header[path]`, including the ones typed on Quantity, UnitPrice and
+   * SupplierItemCode, three of the four required LINE fields. The violet "fixed" chip
+   * confirmed the edit and the line column still shipped empty. Declaring the parameter
+   * makes dropping it a type error rather than a silent header write; the workbench's drop
+   * handler and onUseCatalogPrice already passed `field.scope` and were unaffected.
+   */
+  onSetFixedValue?: (outputPath: string, value: string | null, scope: "header" | "line") => void;
   /** Rename a declared output path (connection editor only; hidden when absent). */
   onRenamePath?: (oldPath: string, newPath: string) => void;
   /** Add a new declared output field (both variants). */
@@ -555,7 +566,8 @@ function OutgoingRow({
   onHover?: (outputPath: string | null) => void;
   onSelect?: (outputPath: string) => void;
   onDisconnect?: (outputPath: string) => void;
-  onSetFixedValue?: (outputPath: string, value: string | null) => void;
+  /** See OutgoingPaneProps.onSetFixedValue — `scope` decides header vs. line placement. */
+  onSetFixedValue?: (outputPath: string, value: string | null, scope: "header" | "line") => void;
   onRenamePath?: (oldPath: string, newPath: string) => void;
   manipulators?: ManipulatorEntry[];
   onFieldManipulatorsChange?: (outputPath: string, next: ManipulatorEntry[], scope: "header" | "line") => void;
@@ -617,13 +629,24 @@ function OutgoingRow({
     setFixedEditing(true);
   }
   function commitFixedEdit() {
-    onSetFixedValue?.(field.outputPath, draftFixed.trim() || null);
+    // `field.scope` — a fixed value typed on a LINE field belongs in output.lines, not
+    // output.header. The row has always known its own scope; it simply never passed it.
+    onSetFixedValue?.(field.outputPath, draftFixed.trim() || null, field.scope);
     setFixedEditing(false);
   }
 
   return (
     <div
       data-mapper-row
+      // THE ROW STAYS A PLAIN CONTAINER. It carries `onClick` as a mouse convenience and
+      // nothing else — no role, no tabIndex, no key handler.
+      //
+      // It briefly carried role="button" + tabIndex to make selection keyboard-reachable, and
+      // that was wrong: the row contains the source picker, the "= value" and "Edit value"
+      // chips and the fixed-value input, so an interactive row has focusable descendants and
+      // every output field tripped axe's `nested-interactive` (0 → 13 violating nodes on
+      // /inbox/ord-002 locally, 55 in CI). The keyboard path belongs on a CHILD control — the
+      // field-name button below owns it. Pinned by OutgoingPane.rowSelection.a11y.test.tsx.
       onMouseEnter={() => onHover?.(field.outputPath)}
       onMouseLeave={() => onHover?.(null)}
       onFocusCapture={() => setFocusWithin(true)}
@@ -698,12 +721,36 @@ function OutgoingRow({
         ) : (
           <button
             type="button"
-            disabled={!canRename}
-            onClick={(e) => { if (canRename) { e.stopPropagation(); setRenaming(true); } }}
+            // THE ROW'S KEYBOARD ENTRY POINT. Selecting a field focuses it and deep-links it
+            // (`?field=`), and until now that lived only on the row's onClick — mouse-only.
+            // It belongs here, on a real <button> that is already the row's first tab stop and
+            // already names the field, rather than on the row container, which holds the
+            // picker, the chips and the fixed-value input and so may not itself be interactive
+            // (axe `nested-interactive`).
+            //
+            // Two jobs, split by capability and unchanged from what a CLICK already did:
+            //   • canRename (connection editor) → open the rename input, and stop the event so
+            //     the row's own onClick does not also fire. Exactly the previous behaviour.
+            //   • otherwise (the order review) → select the field. It used to be `disabled`
+            //     here, which is why there was no keyboard path at all.
+            disabled={!canRename && !onSelect}
+            onClick={(e) => {
+              if (canRename) { e.stopPropagation(); setRenaming(true); return; }
+              onSelect?.(field.outputPath);
+            }}
+            // Only claims an action it can perform. With neither rename nor selection wired the
+            // button is disabled and falls back to its own text, so nothing announces a
+            // "Select output field" control that does nothing.
+            aria-label={
+              canRename ? `Rename output field ${field.outputPath}`
+                : onSelect ? `Select output field ${field.label || field.outputPath}`
+                  : undefined
+            }
             title={canRename ? "Rename output field" : field.outputPath}
             style={{
               flex: "0 1 38%", minWidth: 0, textAlign: "left", border: "none", background: "none",
-              cursor: canRename ? "text" : "default", padding: 0, display: "flex", flexDirection: "column", gap: 1,
+              cursor: canRename ? "text" : onSelect ? "pointer" : "default",
+              padding: 0, display: "flex", flexDirection: "column", gap: 1,
             }}
           >
             {/* M1: lead with the HUMAN label (readable to a coordinator); the machine
@@ -743,7 +790,7 @@ function OutgoingRow({
               onPickFixed={startFixedEdit}
               onClear={() => {
                 if (wired) onDisconnect?.(field.outputPath);
-                else if (status.kind === "fixed") onSetFixedValue?.(field.outputPath, null);
+                else if (status.kind === "fixed") onSetFixedValue?.(field.outputPath, null, field.scope);
               }}
               readOnly={readOnly}
             />
@@ -808,7 +855,9 @@ function OutgoingRow({
       {/* Resolved value preview (mono) — the real delivered value as far as it's known, and the
           amber marker when there ISN'T one.
           The marker belongs on THIS line, not up in the header's action cluster: at 1024px (the
-          narrowest width this column renders at — below lg the workshop swaps to MobileTriage)
+          narrowest width this column renders at — below lg the workshop swaps to MobileTriage;
+          this was an ASSERTION contradicted by the grid it describes until 2026-08-17, when the
+          workbench's track floors summed to 1040px and 1024–1039 overflowed sideways)
           the header's three columns already spend their whole budget, and adding an 89px chip
           there drove the source picker straight through the "Edit value" chip. This line is a
           glyph and a value, it has the room, and "→ —  needs a value" is the sentence anyway. */}
@@ -851,7 +900,7 @@ function OutgoingRow({
           {fixedValue != null && (
             <button
               type="button"
-              onClick={() => { onSetFixedValue?.(field.outputPath, null); setFixedEditing(false); }}
+              onClick={() => { onSetFixedValue?.(field.outputPath, null, field.scope); setFixedEditing(false); }}
               title="Clear the fixed value"
               style={{ border: "1px solid #DCE0E8", background: "#FFFFFF", color: "var(--ink-faint)", borderRadius: 5, padding: "0 9px", minHeight: 26, fontSize: 10, fontWeight: 700, cursor: "pointer" }}
             >
