@@ -21,7 +21,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { isProblemBucketStatus } from "@/lib/orderStatusManifest";
+import { orderProblemState } from "@/lib/orderStatusManifest";
 import type { MapperToolbarState } from "../mapper/MapperWorkbench";
 import { statusChipTitle } from "./acceptanceGateModel";
 
@@ -162,13 +162,48 @@ export function WorkshopStatusBar({
   orderStatus?: string | null;
 }) {
   const chips = useMemo(() => dedupeBlockerChips(blockers), [blockers]);
-  // Seven of the eight problem statuses render the workshop under a banner rather
-  // than gating it, so this bar really does draw beneath a stopped order.
-  const stopped = isProblemBucketStatus(orderStatus);
-  // One amber palette serves both non-green faces — a stopped order and
-  // warnings-only. Sharing it is deliberate: no new colour enters the file, and
-  // the tick below is keyed off the same flag so it cannot outlive the green.
-  const chipAmber = stopped || notes > 0;
+  // An ABSENT status is a host that is not an order review — the prop is optional for
+  // exactly that reason — and must not be read as an unrecognisable one. Only a status
+  // we were actually handed can be unverifiable.
+  const statusGiven = (orderStatus ?? "").trim().length > 0;
+  // Three answers, not two. This was `isProblemBucketStatus`, which collapses "healthy"
+  // and "this build has never heard of that status" into one `false` — so an
+  // unrecognised status reached the green tick here while IssuesPanel, on the SAME
+  // SCREEN, drew amber "we can't confirm this order is clear" off `orderProblemState`.
+  // Seven of the eight problem statuses render the workshop under a banner rather than
+  // gating it, so this bar really does draw beneath a stopped order.
+  const verdict = statusGiven ? orderProblemState(orderStatus) : null;
+  const stopped = verdict === "problem";
+  const statusUnverified = verdict === "unknown";
+  // The two "we could not check" signals the bar ALREADY renders as their own neutral
+  // chips further down this same row, and which never reached the summary beside them:
+  // at zero blockers and zero notes an operator read a green ✓ and "No issues" inches
+  // from a chip saying the checks could not run. A partial zero is not a clean order.
+  const checksUnavailable =
+    (mapper?.validationUnavailable ?? false) || (mapper?.requiredUnknown ?? 0) > 0;
+  // One amber palette serves every non-green face — a stopped order, an unreadable
+  // status, an unfinished check, and warnings-only. Sharing it is deliberate: no new
+  // colour enters the file, and the tick below is keyed off the same flag so it cannot
+  // outlive the green.
+  const chipAmber = stopped || statusUnverified || checksUnavailable || notes > 0;
+  // The chip's own words. Each non-green face names ITS OWN reason rather than falling
+  // back on "No issues" with a different colour: the colour alone cannot tell an
+  // operator whether the order stopped, could not be read, or was not fully checked.
+  const summaryFace = stopped
+    ? "Stopped"
+    : statusUnverified
+      ? "Status unconfirmed"
+      : checksUnavailable
+        ? "Not fully checked"
+        : null;
+  const summaryLabel =
+    summaryFace == null
+      ? notes > 0
+        ? `${notes} optional`
+        : "No issues"
+      : notes > 0
+        ? `${summaryFace} · ${notes} optional`
+        : summaryFace;
   const allMapped = mapper != null && mapper.total > 0 && mapper.mapped >= mapper.total;
   const suggestionCount = mapper?.suggestionCount ?? 0;
 
@@ -281,7 +316,17 @@ export function WorkshopStatusBar({
             // ready bar makes off the same two numbers, so acceptanceGateModel
             // owns both — see statusChipTitle for what this chip may not say.
             data-order-stopped={stopped ? "true" : undefined}
-            title={statusChipTitle({ noteCount: notes, orderStopped: stopped })}
+            // The verdict and the unfinished-check signal, exposed so a test can read
+            // WHICH of the four faces is drawn rather than inferring it from a colour
+            // jsdom does not compute.
+            data-order-verdict={verdict ?? undefined}
+            data-checks-unavailable={checksUnavailable ? "true" : undefined}
+            title={statusChipTitle({
+              noteCount: notes,
+              orderStopped: stopped,
+              statusUnverified,
+              checksUnavailable,
+            })}
             style={{
               display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700,
               borderRadius: 999, padding: "3px 10px", whiteSpace: "nowrap", flexShrink: 0,
@@ -297,9 +342,7 @@ export function WorkshopStatusBar({
                 <path d="M2.5 6.2 5 8.6 9.5 3.6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             )}
-            {stopped
-              ? (notes > 0 ? `Stopped · ${notes} optional` : "Stopped")
-              : notes > 0 ? `${notes} optional` : "No issues"}
+            {summaryLabel}
           </span>
         )}
         {mapper != null && mapper.total > 0 && (
