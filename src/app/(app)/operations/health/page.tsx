@@ -28,6 +28,7 @@ import { Card } from "@/components/bridge/layout/Card";
 import { MobileListRow } from "@/components/bridge/layout/MobileListRow";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { UnifiedStatusBadge } from "@/components/bridge/UnifiedStatusBadge";
+import { StaleDataBanner } from "@/components/bridge/StaleDataBanner";
 import {
   TV2,
   tv2CardStyle,
@@ -177,7 +178,14 @@ export default function OperationsHealthPage() {
       </PageShell>
     );
   }
-  if (healthQ.isError || healthQ.data === undefined) {
+  // `healthQ.data === undefined` ONLY — the `isError ||` that used to lead this
+  // condition threw away a perfectly good cached picture. This query polls every
+  // 45s, so one transient 5xx replaced the whole dashboard — INCLUDING the
+  // dead-letter requeue buttons, which are the only escalation path on this
+  // screen — with "we just can't show you the current picture", a sentence that
+  // is false while a 45-second-old picture is sitting in the cache. An error that
+  // still has data is now a staleness BANNER (below), not a blocking card.
+  if (healthQ.data === undefined) {
     return (
       <PageShell variant="wide">
         <PageHeader titleHidden title="System status" />
@@ -232,6 +240,17 @@ export default function OperationsHealthPage() {
           "Operations" + hub tab "System health"); "Operations health" was a
           mashup of the two. sr-only h1 kept; the descriptive sub is dropped. */}
       <PageHeader titleHidden title="System status" />
+
+      {/* Error WITH data. The whole dashboard used to be replaced here; now the
+          numbers stay, the requeue buttons stay, and the banner says how old what
+          you are reading is. Nothing below this line claims to be current. */}
+      {healthQ.isError && (
+        <StaleDataBanner
+          what="system status"
+          dataUpdatedAt={healthQ.dataUpdatedAt}
+          onRetry={() => { void healthQ.refetch(); }}
+        />
+      )}
 
       {/* Worker / pipeline-engine status — a dead Worker stalls the whole pipeline. */}
       <div
@@ -371,7 +390,19 @@ export default function OperationsHealthPage() {
           </div>
         )}
 
-        {deadLetterQ.isError ? (
+        {/* Error WITH rows already fetched: the rows — and their "Start sending
+            again" buttons — are the escalation path, so they stay on screen and
+            the banner downgrades them to "as of N minutes ago". Only a failure
+            with NOTHING cached gets the blocking card below. */}
+        {deadLetterQ.isError && deadLetterQ.data !== undefined && (
+          <StaleDataBanner
+            what="this list"
+            dataUpdatedAt={deadLetterQ.dataUpdatedAt}
+            onRetry={() => { void deadLetterQ.refetch(); }}
+          />
+        )}
+
+        {deadLetterQ.isError && deadLetterQ.data === undefined ? (
           /* THE PAGE MUST NOT SAY "NONE" WHEN IT MEANS "I DON'T KNOW".
              `deadLetters` is `deadLetterQ.data ?? []`, and this branch used to test
              only `deadLetters.length === 0` — so a FAILED fetch fell through the `??`

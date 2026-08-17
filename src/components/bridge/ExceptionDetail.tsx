@@ -23,6 +23,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { apiClient } from "@/lib/api-client";
 import type { OrderException } from "@/types/procurement";
+import { Button } from "@/components/bridge/DSPrimitives";
 import { UnifiedStatusBadge } from "@/components/bridge/UnifiedStatusBadge";
 import { DELIVERY_UNCONFIRMED_MESSAGE } from "@/components/bridge/review/hooks/useOrderReview";
 import { serverReason, serverReasonOrNull } from "@/lib/serverText";
@@ -140,13 +141,19 @@ export function ExceptionDetail({ exc }: { exc: OrderException }) {
   const orderId = exc.orderId ?? null;
 
   // Lazy — only runs once this detail is mounted (i.e. the row is expanded).
-  const { data: order, isLoading } = useQuery({
+  const { data: order, isLoading, isError, refetch } = useQuery({
     queryKey: ["order", orderId],
     queryFn: () => apiClient.getOrderById(orderId as string),
     enabled: queryEnabled && !!orderId,
     staleTime: 15_000,
     retry: 1,
   });
+  // `isError` was never destructured, so once `retry: 1` was exhausted the render
+  // below fell through to `!order` and the Status shimmer animated forever —
+  // under a page whose own instruction line promises "…and its real delivery
+  // status". A permanent loading animation is a claim that an answer is still
+  // coming; it never was.
+  const statusUnavailable = isError && order === undefined;
 
   const reviewHref = orderId ? `/inbox/${orderId}` : null;
   const conformanceHref = orderId ? `/inbox/${orderId}?tab=conformance` : null;
@@ -210,6 +217,21 @@ export function ExceptionDetail({ exc }: { exc: OrderException }) {
       <Section step="4" title="Status">
         {!orderId ? (
           <p style={{ margin: 0, color: "var(--ink-muted)" }}>No owning order.</p>
+        ) : statusUnavailable ? (
+          <div role="alert">
+            <p style={{ margin: 0, color: "var(--danger)" }}>
+              We couldn&apos;t load this order&apos;s delivery status.
+            </p>
+            <p className="mt-1 text-[12px]" style={{ margin: "4px 0 0", color: "var(--ink-muted)" }}>
+              That is not the same as &ldquo;nothing is wrong&rdquo; — the order is unchanged and its real
+              status is still whatever it was.
+            </p>
+            <div className="mt-2">
+              <Button variant="secondary" size="sm" onClick={() => { void refetch(); }}>
+                Try again
+              </Button>
+            </div>
+          </div>
         ) : isLoading || !order ? (
           <span className="inline-block h-4 w-40 animate-pulse rounded" style={{ background: "var(--surface-2)" }} />
         ) : (

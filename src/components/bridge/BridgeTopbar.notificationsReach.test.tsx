@@ -213,3 +213,94 @@ describe("notifications panel — does not answer before it has asked", () => {
     expect(bodyText()).not.toContain("No new activity.");
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// THE SAME SENTENCE, LYING A SECOND WAY — the failure case, which the reach fix
+// above did not cover.
+//
+// The guard written for reach asserts what the panel says when the summary
+// ANSWERS. It never once made the summary fail. So this survived it, verbatim:
+//
+//     const { data: ordersSummary, isLoading: summaryLoading } = useQuery({
+//       queryKey: ["orders-summary"], …                      // no isError
+//     const unread = (ordersSummary?.byStatus?.["pending_review"] ?? 0) + …
+//
+// `?? 0`, nine times. A failed GET /api/orders/summary is therefore
+// indistinguishable, in every pixel, from a workspace with nothing wrong: the
+// bell badge disappears, the panel header drops "N need action", and the body
+// prints "No new activity." — while failed, held, unconfirmed and unrouted
+// orders sit in the account. This is the app's ONLY always-visible "is anything
+// wrong?" affordance, and it is the one that fails open.
+//
+// The divergence was visible on one screen: BridgeDashboard branches on its own
+// summaryError and prints "—", so the dashboard showed dashes while the chrome
+// directly above it showed all-clear.
+//
+// A check that did not run is not a check that passed.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("notifications panel — a failed summary is not an all-clear", () => {
+  it("does not say 'No new activity.' when the summary query failed", async () => {
+    getOrdersSummary.mockRejectedValue(new Error("500 Internal Server Error"));
+    renderBell();
+    await openPanel();
+
+    await waitFor(() => expect(bodyText()).toContain("We couldn't check for new activity."));
+    // The whole defect, in one assertion: the sentence that means "we looked at
+    // the whole account and it is clean" must not appear over a lookup that 500'd.
+    expect(bodyText()).not.toContain("No new activity.");
+  });
+
+  it("keeps a visible bell badge when the count is unknown", async () => {
+    getOrdersSummary.mockRejectedValue(new Error("500 Internal Server Error"));
+    renderBell();
+
+    // The accessible name is the assertion, because the visual badge is the thing
+    // that used to vanish. "Notifications" alone — the healthy, nothing-to-do name
+    // — is what a failed summary rendered.
+    const bell = await screen.findByRole("button", { name: /activity status unavailable/i });
+    expect(bell).toBeTruthy();
+  });
+
+  it("says so in the panel header too, where '12 need action' would go", async () => {
+    getOrdersSummary.mockRejectedValue(new Error("500 Internal Server Error"));
+    renderBell();
+    await openPanel();
+
+    await waitFor(() => expect(bodyText()).toContain("Status unavailable"));
+    expect(bodyText()).not.toMatch(/\d+ need action/);
+  });
+
+  it("also refuses the all-clear when the ORDERS page is what failed", async () => {
+    // The other half of the pair. `top` comes from GET /api/orders; if that call
+    // dies the panel has no rows for a reason that has nothing to do with there
+    // being no work — and with the summary healthy and empty it would print the
+    // clean sentence.
+    getOrders.mockRejectedValue(new Error("503 Service Unavailable"));
+    getOrdersSummary.mockResolvedValue(SUMMARY_ALL_CLEAR);
+    renderBell();
+    await openPanel();
+
+    await waitFor(() => expect(bodyText()).toContain("We couldn't check for new activity."));
+    expect(bodyText()).not.toContain("No new activity.");
+  });
+});
+
+describe("notifications panel — failure copy is NOT the empty copy (anti-vacuity control)", () => {
+  it("a healthy, genuinely empty account still gets the clean sentence and the plain bell", async () => {
+    // The control that makes the four tests above mean something. Identical
+    // component, identical orders fixture, ONE difference: the summary resolves
+    // instead of rejecting. If this test and the failure tests both passed
+    // against a component that always printed the failure sentence, neither would
+    // be evidence of anything.
+    getOrdersSummary.mockResolvedValue(SUMMARY_ALL_CLEAR);
+    renderBell();
+    await openPanel();
+
+    await waitFor(() => expect(bodyText()).toContain("No new activity."));
+    expect(bodyText()).not.toContain("We couldn't check for new activity.");
+    expect(bodyText()).not.toContain("Status unavailable");
+    // The plain name — no "activity status unavailable" suffix.
+    expect(screen.getByRole("button", { name: "Notifications" })).toBeTruthy();
+  });
+});

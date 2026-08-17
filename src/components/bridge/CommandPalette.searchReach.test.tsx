@@ -267,3 +267,107 @@ describe("command palette search — still says no when the answer is no", () =>
     expect(bodyText()).toContain("qqqq");
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// "Searching all orders…" WAS A TERMINAL STATE, NOT A TRANSIENT ONE.
+//
+// The reach fix above wrote three careful sentences for three states of a query
+// that ANSWERS. It never made the query fail. So this survived it, verbatim:
+//
+//     const { data: searchPage, isFetching: searchFetching } = useQuery({…});   // no isError
+//     const serverResultsCurrent =
+//       serverSearchActive && debouncedQ === normalizedQ && !searchFetching && searchPage !== undefined;
+//     const searchPending = serverSearchActive && !serverResultsCurrent;
+//
+// Follow it through on a 500. `searchPage` stays `undefined` forever, so
+// `serverResultsCurrent` is permanently false, so `searchPending` is permanently
+// TRUE, so the palette prints "Searching all orders…" for as long as it is open.
+// No error, no retry, no way to distinguish a dead endpoint from a slow one —
+// and the honest-looking progress sentence is what makes it worse than a blank:
+// it actively tells the operator to keep waiting for something that will never
+// arrive.
+//
+// This is the same one-directional-guard shape as the notifications panel: the
+// guard was written for REACH and is blind to FAILURE.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Reject only the server SEARCH; the recent-orders page keeps working. */
+function failSearchOnly(): void {
+  getOrders.mockImplementation(async (params: GetOrdersParams = {}) => {
+    if (params.search !== undefined) throw new Error("500 Internal Server Error");
+    return pageOf(RECENT, params.pageSize ?? 25);
+  });
+}
+
+describe("command palette search — a failed search is not a pending one", () => {
+  it("stops claiming it is still searching once the request has failed", async () => {
+    failSearchOnly();
+    renderPalette();
+    await waitFor(() => expect(bodyText()).toContain("PO-6000"));
+
+    type("z");
+
+    await waitFor(() => expect(bodyText()).toContain("We couldn't search your orders"));
+    // The exact defect: the progress sentence outliving the request that justified it.
+    expect(bodyText()).not.toContain("Searching all orders");
+  });
+
+  it("does not report the search as a no-match verdict either", async () => {
+    failSearchOnly();
+    renderPalette();
+    await waitFor(() => expect(bodyText()).toContain("PO-6000"));
+
+    type("z");
+
+    await waitFor(() => expect(bodyText()).toContain("We couldn't search your orders"));
+    // The other wrong answer. A 500 is not evidence about whether PO-6012Z exists.
+    expect(bodyText()).not.toContain("No results for");
+  });
+
+  it("offers a way out", async () => {
+    failSearchOnly();
+    renderPalette();
+    await waitFor(() => expect(bodyText()).toContain("PO-6000"));
+
+    type("z");
+
+    const retry = await screen.findByRole("button", { name: /try again/i });
+    expect(retry).toBeTruthy();
+  });
+
+  it("says so even when actions matched, so a partial list can't read as the whole answer", async () => {
+    // "u" matches the "Upload document" action client-side, so `hasResults` is
+    // true and the empty-state slot never renders. Without a notice outside that
+    // slot the palette would show a short, confident, ORDER-FREE list over a
+    // failed order search — the most misleading shape of all, because nothing on
+    // screen is obviously missing.
+    failSearchOnly();
+    renderPalette();
+    await waitFor(() => expect(bodyText()).toContain("PO-6000"));
+
+    type("u");
+
+    await waitFor(() => expect(bodyText()).toContain("We couldn't search your orders"));
+    expect(bodyText()).toContain("Upload document");
+  });
+});
+
+describe("command palette search — failure copy is NOT the no-match copy (anti-vacuity control)", () => {
+  it("a search that genuinely returns nothing still gets the no-results verdict", async () => {
+    // Same component, same keystroke, one difference: the request RESOLVES with
+    // an empty page instead of throwing. If the failure sentence appeared here
+    // too, the four tests above would be testing nothing.
+    getOrders.mockImplementation(async (params: GetOrdersParams = {}) => {
+      const pageSize = params.pageSize ?? 25;
+      return params.search !== undefined ? pageOf([], pageSize) : pageOf(RECENT, pageSize);
+    });
+    renderPalette();
+    await waitFor(() => expect(bodyText()).toContain("PO-6000"));
+
+    type("qqqq");
+
+    await waitFor(() => expect(bodyText()).toContain("No results for"));
+    expect(bodyText()).not.toContain("We couldn't search your orders");
+    expect(bodyText()).not.toContain("Searching all orders");
+  });
+});

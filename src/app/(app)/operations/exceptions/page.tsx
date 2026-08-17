@@ -43,6 +43,7 @@ import { serverReason } from "@/lib/serverText";
 import { MobileListRow } from "@/components/bridge/layout/MobileListRow";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { ExceptionDetail } from "@/components/bridge/ExceptionDetail";
+import { StaleDataBanner } from "@/components/bridge/StaleDataBanner";
 import { TV2, tv2HeaderCell } from "@/components/bridge/layout/listTableV2";
 import { RefreshCw, AlertTriangle, CheckCircle2, ArrowLeft, ArrowRight } from "lucide-react";
 
@@ -275,7 +276,7 @@ export default function ExceptionsPage() {
   // skeleton forever. See useQueriesEnabled.
   const queryEnabled = useQueriesEnabled();
 
-  const { data, isLoading, isError, refetch, isFetching } = useQuery({
+  const { data, isLoading, isError, refetch, isFetching, dataUpdatedAt } = useQuery({
     queryKey: ["exceptions", activeState ?? "all"],
     queryFn: () => getExceptions(activeState),
     enabled: queryEnabled,
@@ -351,6 +352,15 @@ export default function ExceptionsPage() {
   // not-yet-ready state as loading, never as an error (known repo gotcha).
   const showLoading = !queryEnabled || (isLoading && data === undefined);
 
+  // Two different failures wearing one name. `isError` alone drove the blocking
+  // error panel, so a failed BACKGROUND refresh — a retry, a Sync click, a
+  // remount — wiped a list of issues that was already fetched and on screen, and
+  // replaced it with "Couldn't load issues". The rows were never gone; only the
+  // refresh was. Split them: nothing cached → the panel; something cached → a
+  // staleness banner over the rows the operator was already reading.
+  const listUnavailable = isError && data === undefined;
+  const listStale = isError && data !== undefined;
+
   // Scoped to the tab that came back empty — see emptyStateCopy.
   const emptyCopy = emptyStateCopy(STATE_TABS[activeTab]);
 
@@ -364,7 +374,7 @@ export default function ExceptionsPage() {
         sub={
           [
             "Every order that needs a human decision before it can be sent.",
-            !showLoading && !isError ? `${exceptions.length.toLocaleString()} shown` : "",
+            !showLoading && !listUnavailable ? `${exceptions.length.toLocaleString()} shown` : "",
           ]
             .filter(Boolean)
             .join("  ")
@@ -385,6 +395,16 @@ export default function ExceptionsPage() {
       <p className="text-[12px] mb-4 -mt-3" style={{ color: "var(--ink-faint)" }}>
         Expand a row to see what&apos;s wrong, why, how to fix it, and its real delivery status. Fixing the cause clears the issue the next time the order is reprocessed.
       </p>
+
+      {/* Refresh failed but the rows are still here. The rows stay; the banner
+          takes away the claim that they are current. */}
+      {listStale && (
+        <StaleDataBanner
+          what="this list"
+          dataUpdatedAt={dataUpdatedAt}
+          onRetry={() => { void refetch(); }}
+        />
+      )}
 
       {/* Outcome of the last Resolve / Ignore. Sits above the tabs and the list so
           it is in the reading path from the control that produced it, and stays
@@ -453,7 +473,7 @@ export default function ExceptionsPage() {
         )}
 
         {/* Error state */}
-        {!showLoading && isError && (
+        {!showLoading && listUnavailable && (
           <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
             <div
               style={{
@@ -480,7 +500,7 @@ export default function ExceptionsPage() {
             The green tick is the all-clear signal and rides with the all-clear sentence:
             a scoped tab gets the neutral one, so the colour cannot say what the words
             no longer do. */}
-        {!showLoading && !isError && exceptions.length === 0 && (
+        {!showLoading && !listUnavailable && exceptions.length === 0 && (
           <div className="flex flex-col items-center justify-center py-16 px-6 text-center gap-2">
             <CheckCircle2
               size={32}
@@ -500,7 +520,7 @@ export default function ExceptionsPage() {
         )}
 
         {/* List — mobile cards */}
-        {!showLoading && !isError && exceptions.length > 0 && (
+        {!showLoading && !listUnavailable && exceptions.length > 0 && (
           <>
             <div className="flex flex-col gap-2 p-3 md:hidden">
               {pagedExceptions.map((exc) => (
@@ -631,7 +651,7 @@ export default function ExceptionsPage() {
 
       {/* Footer: total + client-side pagination controls (the API returns the
           whole list at once, so paging is over the loaded array). */}
-      {!showLoading && !isError && totalCount > 0 && (
+      {!showLoading && !listUnavailable && totalCount > 0 && (
         <div className="flex-shrink-0 flex flex-wrap items-center gap-3 pt-0.5">
           <span className="text-[11px]" style={{ color: "var(--ink-faint)" }}>
             {/* "issue", not "exception": the page is called Issues in the hub tab,
