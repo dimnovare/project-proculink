@@ -114,6 +114,12 @@ const PROGRAM_REL = "ProcuLink.Api/Program.cs";
 const WORKER_PROGRAM_REL = "ProcuLink.Worker/Program.cs";
 /** Declares the `TestPackSummary` record and its legs, serialized into `test_result_json`. */
 const CONNECTION_SERVICE_REL = TEST_PACK_BACKEND_FILE;
+/**
+ * Declares `PlanConstants.MinimumPlan` — the price list, in code. Which tier a gated
+ * capability starts on is a COMMERCIAL decision, and `src/lib/gatedCapabilities.ts`
+ * re-types the whole table by hand so marketing and help copy can derive tier names.
+ */
+const PLAN_CONSTANTS_REL = "ProcuLink.Core/Constants/PlanConstants.cs";
 
 /**
  * Every C# file this suite parses.
@@ -139,6 +145,7 @@ const PARSED_FILES = [
   PROGRAM_REL,
   WORKER_PROGRAM_REL,
   CONNECTION_SERVICE_REL,
+  PLAN_CONSTANTS_REL,
 ] as const;
 
 /**
@@ -449,6 +456,7 @@ describe("the mirror gate decides correctly", () => {
       PROGRAM_REL,
       WORKER_PROGRAM_REL,
       CONNECTION_SERVICE_REL,
+      PLAN_CONSTANTS_REL,
     ]);
     expect(missingParsedFiles("/tmp/backend", () => true)).toEqual([]);
     // A checkout with nothing in it must report all three, not zero.
@@ -1964,6 +1972,117 @@ describe("the plan-gate codes the admin guides quote are the codes the backend e
   });
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// `PlanConstants.MinimumPlan` — the price list, diffed.
+//
+// WHAT WAS UNPROTECTED. `MINIMUM_PLAN` in src/lib/gatedCapabilities.ts is a hand-typed
+// copy of a C# dictionary, and it is the single input to `requiresPlan()` /
+// `minimumPlanName()` — every tier name in marketing and help copy is derived from it.
+// It carried a comment naming the C# symbol and no check, which is the exact shape the
+// header of this file was written about.
+//
+// Worse, the value was unpinned on BOTH sides. On the backend,
+// `BillingGateEnforcementIsRealTests` proves via IL only that a gate is PRESENT and
+// reaches `HasFeatureAsync` — its `Site` record carries no tier — and
+// `BillingFeatureGateCoverageTests` asserts only RELATIVE shape (on at the minimum, off
+// on the tier directly below, monotone above, off on Pilot), all of it derived from
+// `GetMinimumPlan(feature)` and therefore moving with the value. So re-tiering
+// `CustomSupplierRules` from Enterprise to Growth — giving away a €2,500/mo capability —
+// left every backend billing test green and every frontend test green. Two repos, full
+// suites, and nothing anywhere held the number.
+//
+// The backend now pins the absolute tiers itself (`PlanLadderTierTests`). This diff is
+// the other half: it makes the frontend's copy answerable to the C#, so a re-tier that
+// is made deliberately on one side cannot silently disagree with the other.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * The `MinimumPlan` rows: `[BillingFeature.BulkMapping] = Operations,`
+ *   → `{ BulkMapping: "Operations" }`
+ *
+ * Plan names come back UNRESOLVED (the C# identifier, not `"operations"`), so a renamed
+ * plan constant surfaces at the call site as an unknown identifier rather than as a
+ * silently dropped row. Null when the dictionary is absent, so "found nothing" fails
+ * loudly instead of diffing an empty map against an empty map.
+ */
+export function parseMinimumPlanRows(cs: string): Record<string, string> | null {
+  // Comments are stripped first: a commented-out row is not a gate, and this file has
+  // several paragraphs of prose sitting inside the dictionary body.
+  const src = stripCsComments(cs);
+  const start = src.search(/IReadOnlyDictionary<BillingFeature,\s*string>\s+MinimumPlan\s*=/);
+  if (start < 0) return null;
+  const end = src.indexOf("};", start);
+  if (end < 0) return null;
+  const out: Record<string, string> = {};
+  for (const m of src.slice(start, end).matchAll(/\[BillingFeature\.(\w+)\]\s*=\s*(\w+)\s*,?/g)) {
+    out[m[1]] = m[2];
+  }
+  return out;
+}
+
+describe("the frontend's minimum-plan table mirrors PlanConstants.MinimumPlan", () => {
+  test("the row parser actually parses (so a green diff means something)", () => {
+    const fixture = `
+public static class PlanConstants
+{
+    public const string Growth      = "growth";
+    public const string Enterprise  = "enterprise";
+
+    // A commented-out row is not a gate:
+    // [BillingFeature.Ghost] = Growth,
+    private static readonly IReadOnlyDictionary<BillingFeature, string> MinimumPlan =
+        new Dictionary<BillingFeature, string>
+        {
+            [BillingFeature.BulkMapping]        = Operations,
+            // prose between rows
+            [BillingFeature.CustomSupplierRules]= Enterprise,
+        };
+}`;
+    expect(parseMinimumPlanRows(fixture)).toEqual({
+      BulkMapping: "Operations",
+      CustomSupplierRules: "Enterprise",
+    });
+    expect(parseStatusConstants(fixture).Growth).toBe("growth");
+    // Absent dictionary answers null, not {} — the difference decides whether a missing
+    // symbol reads as "the backend renamed it" or as "the backend gates nothing".
+    expect(parseMinimumPlanRows("public static class PlanConstants { }")).toBeNull();
+  });
+
+  test.skipIf(!BACKEND)("every gated capability starts on the same tier in both repos", () => {
+    const cs = readFileSync(join(BACKEND!, PLAN_CONSTANTS_REL), "utf8");
+    const rows = parseMinimumPlanRows(cs);
+    expect(
+      rows,
+      `${PLAN_CONSTANTS_REL} no longer declares an IReadOnlyDictionary<BillingFeature, string> ` +
+        "MinimumPlan. src/lib/gatedCapabilities.ts names that symbol as its source of truth, so " +
+        "the symbol moving is drift the mirror has to answer for — not a reason to pass.",
+    ).not.toBeNull();
+
+    const planValues = parseStatusConstants(cs);
+    const backendPairs = Object.entries(rows!).map(([feature, planIdentifier]) => {
+      const value = planValues[planIdentifier];
+      if (!value) {
+        throw new Error(
+          `BillingFeature.${feature} is gated to the C# identifier \`${planIdentifier}\`, which is ` +
+            `not a plan constant in ${PLAN_CONSTANTS_REL}. The parser or the backend moved.`,
+        );
+      }
+      return `${featureKey(feature)}=${value}`;
+    });
+
+    recordComparison(
+      "PlanConstants.MinimumPlan",
+      backendPairs,
+      Object.entries(MINIMUM_PLAN).map(([capability, plan]) => `${capability}=${plan}`),
+      "src/lib/gatedCapabilities.ts MINIMUM_PLAN disagrees with PlanConstants.MinimumPlan. Every " +
+        "tier name in marketing and help copy is derived from that table via requiresPlan(), so a " +
+        "row that drifts either sells a capability below the tier that enforces it, or tells a " +
+        "customer to buy a tier they do not need. Fix whichever side is wrong — a re-tier is a " +
+        "commercial decision and has to be made in both repos on purpose.",
+    );
+  });
+});
+
 // ── The vacuity floor ────────────────────────────────────────────────────────
 //
 // Runs after every test in the file, so it is independent of test ORDER — which a
@@ -1981,7 +2100,8 @@ const EXPECTED_COMPARISONS =
   2 + // transform causes: the per-pattern site count, and the end-to-end routing walk
   3 + // output formats: the buildable set, the standards catalog, PREVIEW_FORMATS
   Object.keys(TEST_PACK_BACKEND_RECORDS).length + // one per test-pack record mirrored
-  1; // the plan-gate codes quoted in the admin guides
+  1 + // the plan-gate codes quoted in the admin guides
+  1; // MINIMUM_PLAN against PlanConstants.MinimumPlan
 
 afterAll(() => {
   if (!BACKEND) return; // the mirror gate already ruled on whether that was allowed
