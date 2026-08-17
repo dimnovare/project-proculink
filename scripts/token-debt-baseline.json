@@ -70,7 +70,7 @@
   "src/components/bridge/mapper/MapperPreviewPane.tsx": 45,
   "src/components/bridge/mapper/MapperWireLayer.tsx": 10,
   "src/components/bridge/mapper/MapperWorkbench.tsx": 143,
-  "src/components/bridge/mapper/OutgoingPane.tsx": 135,
+  "src/components/bridge/mapper/OutgoingPane.tsx": 134,
   "src/components/bridge/mapper/ProvenanceBadge.tsx": 5,
   "src/components/bridge/mapper/SourcePickerChip.tsx": 30,
   "src/components/bridge/mapper/SourceTypeChip.tsx": 10,

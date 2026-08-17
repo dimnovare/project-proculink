@@ -638,26 +638,15 @@ function OutgoingRow({
   return (
     <div
       data-mapper-row
-      // Selecting a row focuses the field and deep-links it (`?field=`). It was an onClick on
-      // a bare <div> with no role, no tabIndex and no key handler, so it existed only for a
-      // mouse — a keyboard or screen-reader operator could reach every control INSIDE the row
-      // and never the row itself.
+      // THE ROW STAYS A PLAIN CONTAINER. It carries `onClick` as a mouse convenience and
+      // nothing else — no role, no tabIndex, no key handler.
       //
-      // The key handler fires only for events raised ON the row (`e.target === e.currentTarget`).
-      // Without that guard Enter inside the fixed-value input — a descendant, whose own handler
-      // does not stop propagation — would commit the value AND select the row.
-      {...(onSelect ? {
-        role: "button" as const,
-        tabIndex: 0,
-        "aria-label": `Select output field ${field.label || field.outputPath}`,
-        onKeyDown: (e: React.KeyboardEvent<HTMLDivElement>) => {
-          if (e.target !== e.currentTarget) return;
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            onSelect(field.outputPath);
-          }
-        },
-      } : {})}
+      // It briefly carried role="button" + tabIndex to make selection keyboard-reachable, and
+      // that was wrong: the row contains the source picker, the "= value" and "Edit value"
+      // chips and the fixed-value input, so an interactive row has focusable descendants and
+      // every output field tripped axe's `nested-interactive` (0 → 13 violating nodes on
+      // /inbox/ord-002 locally, 55 in CI). The keyboard path belongs on a CHILD control — the
+      // field-name button below owns it. Pinned by OutgoingPane.rowSelection.a11y.test.tsx.
       onMouseEnter={() => onHover?.(field.outputPath)}
       onMouseLeave={() => onHover?.(null)}
       onFocusCapture={() => setFocusWithin(true)}
@@ -732,12 +721,36 @@ function OutgoingRow({
         ) : (
           <button
             type="button"
-            disabled={!canRename}
-            onClick={(e) => { if (canRename) { e.stopPropagation(); setRenaming(true); } }}
+            // THE ROW'S KEYBOARD ENTRY POINT. Selecting a field focuses it and deep-links it
+            // (`?field=`), and until now that lived only on the row's onClick — mouse-only.
+            // It belongs here, on a real <button> that is already the row's first tab stop and
+            // already names the field, rather than on the row container, which holds the
+            // picker, the chips and the fixed-value input and so may not itself be interactive
+            // (axe `nested-interactive`).
+            //
+            // Two jobs, split by capability and unchanged from what a CLICK already did:
+            //   • canRename (connection editor) → open the rename input, and stop the event so
+            //     the row's own onClick does not also fire. Exactly the previous behaviour.
+            //   • otherwise (the order review) → select the field. It used to be `disabled`
+            //     here, which is why there was no keyboard path at all.
+            disabled={!canRename && !onSelect}
+            onClick={(e) => {
+              if (canRename) { e.stopPropagation(); setRenaming(true); return; }
+              onSelect?.(field.outputPath);
+            }}
+            // Only claims an action it can perform. With neither rename nor selection wired the
+            // button is disabled and falls back to its own text, so nothing announces a
+            // "Select output field" control that does nothing.
+            aria-label={
+              canRename ? `Rename output field ${field.outputPath}`
+                : onSelect ? `Select output field ${field.label || field.outputPath}`
+                  : undefined
+            }
             title={canRename ? "Rename output field" : field.outputPath}
             style={{
               flex: "0 1 38%", minWidth: 0, textAlign: "left", border: "none", background: "none",
-              cursor: canRename ? "text" : "default", padding: 0, display: "flex", flexDirection: "column", gap: 1,
+              cursor: canRename ? "text" : onSelect ? "pointer" : "default",
+              padding: 0, display: "flex", flexDirection: "column", gap: 1,
             }}
           >
             {/* M1: lead with the HUMAN label (readable to a coordinator); the machine
