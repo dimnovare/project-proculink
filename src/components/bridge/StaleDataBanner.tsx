@@ -3,6 +3,7 @@
 import { RefreshCw } from "lucide-react";
 
 import { Button } from "./DSPrimitives";
+import { StatusNotice } from "./layout/StatusNotice";
 
 /**
  * The banner a screen shows when a refresh FAILED but the previous answer is
@@ -19,6 +20,25 @@ import { Button } from "./DSPrimitives";
  * erase KNOWLEDGE. Blocking cards are for `data === undefined`. Everything else
  * gets this banner, which says three things and no more — the refresh failed,
  * how old what you are reading is, and how to try again.
+ *
+ * WHY <StatusNotice> AND NOT <Card>. The first draft of this file hand-rolled a
+ * bordered, padded, rounded `<div>`, and the card-surface gate failed it — which
+ * was the correct call twice over. CLAUDE.md §6 makes `<Card>` the one card, and
+ * §12 says a card edge names which SIDE of the bridge a card is on (buyer /
+ * supplier / both / neither) and is never a status colour. This banner is pure
+ * TONE: it carries no side at all, so its `<Card>` edge could only ever have
+ * been `edge="none"`, and reaching for an amber edge to signal staleness is
+ * precisely the misuse §12 names. Tone belongs to `<StatusNotice>`, which
+ * signals it with its own 3px left border.
+ *
+ * WHY tone="error". `StatusNotice` has three tones and none of them is amber.
+ * `working` is the blue in-progress/informational tone, and painting a failed
+ * request in it is the exact defect StatusNotice was extracted to prevent
+ * (/operations/health once rendered a REFUSED requeue in success-adjacent blue).
+ * The refresh did not happen, so it is an error, and the `role="alert"` that
+ * StatusNotice derives from that tone is right: the operator is reading numbers
+ * that are not current on a screen whose whole job is to be current. The ARIA is
+ * derived, never passed — see that component's header.
  */
 
 /**
@@ -58,30 +78,18 @@ export function StaleDataBanner({
   now?: number;
 }) {
   return (
-    <div
-      role="alert"
-      style={{
-        marginBottom: 12,
-        display: "flex",
-        flexWrap: "wrap",
-        alignItems: "center",
-        gap: 10,
-        background: "var(--amber-soft)",
-        border: "1px solid var(--amber)",
-        borderRadius: "var(--radius-md)",
-        padding: "9px 12px",
-        fontSize: 12.5,
-        color: "var(--amber-text)",
-      }}
+    <StatusNotice
+      tone="error"
+      className="mb-3"
+      action={
+        <Button variant="secondary" size="sm" onClick={onRetry}>
+          <RefreshCw size={13} aria-hidden />
+          Try again
+        </Button>
+      }
     >
-      <span style={{ flex: "1 1 240px", minWidth: 0 }}>
-        We couldn&apos;t refresh {what}. What you&apos;re reading is the last successful check,{" "}
-        {staleAgeSentence(dataUpdatedAt, now)}, so it may be out of date.
-      </span>
-      <Button variant="secondary" size="sm" onClick={onRetry}>
-        <RefreshCw size={13} aria-hidden />
-        Try again
-      </Button>
-    </div>
+      We couldn&apos;t refresh {what}. What you&apos;re reading is the last successful check,{" "}
+      {staleAgeSentence(dataUpdatedAt, now)}, so it may be out of date.
+    </StatusNotice>
   );
 }
