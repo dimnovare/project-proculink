@@ -179,7 +179,27 @@ function SheetGrid({ table }: { table: SheetTable }) {
   );
 
   if (table.rows.length === 0) {
-    return <Message>This sheet is empty.</Message>;
+    // NOT "This sheet is empty." — a zero-row table does not establish that.
+    //
+    // `parseXlsxWorkbook`'s own docblock says it "throws when the bytes are not a readable
+    // OOXML zip — the caller turns that into the honest 'we can't display this one' state
+    // rather than pretending the sheet is empty". Two paths inside it break that contract
+    // without throwing: `readSheetRows` returns `[]` when `parseXml` fails on the worksheet
+    // XML (sheetPreview.ts:318-319), and `parseXlsxWorkbook` substitutes `[]` when the
+    // worksheet part named by the workbook relationships is not in the zip (:399). Both
+    // arrive here as a table with no rows, indistinguishable from a genuinely blank sheet.
+    //
+    // So an operator checking an item code against a full spreadsheet read "This sheet is
+    // empty" and stopped. This says what is actually known — no rows could be read — names
+    // both possibilities, and points at the file itself, which is one button away below.
+    return (
+      <Message>
+        <span data-testid="source-document-no-rows">
+          We couldn&rsquo;t read any rows from this sheet. It may be empty, or laid out in a way
+          this preview can&rsquo;t read — download the file below to check the values.
+        </span>
+      </Message>
+    );
   }
 
   return (

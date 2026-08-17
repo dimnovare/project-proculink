@@ -102,11 +102,18 @@ describe("with no document the column is the pane that already existed, plus a r
 
   it("the Document tab is disabled and says why, instead of vanishing", () => {
     // A control that disappears reads as "this screen has no document view". A disabled one
-    // with a reason reads as "this order has no document", which is what is actually true.
-    const { onView } = setup({ documentAvailable: false, documentSlot: null });
+    // with a reason reads as "this order has no document".
+    //
+    // This used to pin the literal "No document is stored for this order" — asserted with
+    // NO documentNotice supplied, so it was pinning a cause the pane had never been told,
+    // and it stayed green while the same screen simultaneously said the fetch had failed.
+    // The tab now quotes the caller's own sentence; which sentence, per state, is
+    // IncomingPane.documentUnavailableCause.test.tsx.
+    const notice = "No original document is stored for this order, so there is nothing to display.";
+    const { onView } = setup({ documentAvailable: false, documentSlot: null, documentNotice: notice });
     const tab = screen.getByTestId("incoming-view-document");
     expect(tab).toBeDisabled();
-    expect(tab).toHaveAttribute("title", "No document is stored for this order");
+    expect(tab).toHaveAttribute("title", notice);
     fireEvent.click(tab);
     expect(onView).not.toHaveBeenCalled();
   });

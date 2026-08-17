@@ -152,7 +152,12 @@ export function IncomingPane({
   // resolves to the field list that has always been here, WITHOUT rewriting the preference.
   const effectiveView = resolveIncomingView(view ?? "fields", !!documentAvailable);
   const tabs = onView ? (
-    <ViewTabs value={effectiveView} onChange={onView} documentAvailable={!!documentAvailable} />
+    <ViewTabs
+      value={effectiveView}
+      onChange={onView}
+      documentAvailable={!!documentAvailable}
+      unavailableReason={documentNotice}
+    />
   ) : null;
   // B2 sub-header: plain-language framing that incoming fields are read-only source data.
   const supplierLabel = supplierName?.trim() || "supplier";
@@ -355,13 +360,28 @@ function PaneFrame({
 //
 // The Document tab is disabled — with the reason on the button — rather than hidden when there
 // is no file. A control that disappears reads as "this screen has no document view"; a disabled
-// one with a title reads as "this order has no document", which is what is actually true.
+// one with a title reads as "this order has no document".
+//
+// WHICH IS ONLY ONE OF THE REASONS IT CAN BE DISABLED. The tab is driven by
+// `documentAvailable`, which is `useSourceDocument`'s `hasDocument` — false for a 204 (no file
+// stored), and equally false for a failed fetch, a 429, and the beat before the request has
+// answered. The title said "No document is stored for this order" for all four. On the error
+// path the surrounding screen simultaneously said "We couldn't load the original document just
+// now": two panes, one screen, contradicting each other about whether a file exists — and only
+// one of them had been told.
+//
+// So the tab does not author a cause. `unavailableReason` is the SAME sentence the pane prints
+// above the field list (`documentNotice`, from `sourceUnavailableMessage`), so the two cannot
+// disagree by construction. With no reason supplied, the title states the observable fact and
+// stops there.
 function ViewTabs({
-  value, onChange, documentAvailable,
+  value, onChange, documentAvailable, unavailableReason,
 }: {
   value: IncomingView;
   onChange: (v: IncomingView) => void;
   documentAvailable: boolean;
+  /** Why the document cannot be shown, in the caller's own words. Null → say nothing beyond the fact. */
+  unavailableReason?: string | null;
 }) {
   const base: React.CSSProperties = {
     padding: "2px 8px", fontSize: 10.5, fontWeight: 600, lineHeight: 1.6,
@@ -380,7 +400,11 @@ function ViewTabs({
         onClick={() => onChange("document")}
         disabled={!documentAvailable}
         aria-pressed={value === "document"}
-        title={documentAvailable ? "Show the file this order arrived as" : "No document is stored for this order"}
+        title={
+          documentAvailable
+            ? "Show the file this order arrived as"
+            : unavailableReason?.trim() || "The original document isn't available to show right now."
+        }
         data-testid="incoming-view-document"
         style={{
           ...base,

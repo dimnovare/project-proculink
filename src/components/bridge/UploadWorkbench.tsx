@@ -24,6 +24,10 @@ import { isPlanGateError, planGateMessage, planGateUpgradeUrl } from "@/lib/plan
 // The plan ladder (allowances, and the tier above each one) is DERIVED there from plans.ts,
 // never typed into a banner.
 import { knownPlanId, limitRefusalCopy, readLimitRefusal } from "@/lib/limitRefusal";
+// Why a workspace is paused is answered in ONE place. BillingSection and the order-review
+// problem panel already read it; /upload — the screen where the operator meets the wall —
+// was the one surface still guessing.
+import { pausedCauseCopy } from "@/lib/billingPause";
 import type { Supplier } from "@/types/procurement";
 import { capture } from "@/lib/analytics";
 import { BOOK_DEMO_URL, BOOK_DEMO_LINK_ATTRS } from "@/lib/book-demo";
@@ -64,6 +68,30 @@ export function detectionQualifier(detection: DetectFormatResult): string | null
 
   // A basis this build does not know, with no score: add nothing rather than guess.
   return null;
+}
+
+/**
+ * The PO line under the format chip — "PO DO-4711", plus the line count ONLY when the
+ * backend counted one. `null` when there is no PO number to name.
+ *
+ * This is the sibling of the `confidence` defect above, one line away in the JSX and with the
+ * same shape: `{detection.estimatedLineCount ?? 0} lines` renders "PO DO-4711 · 0 lines" for a
+ * null. And null is a NORMAL answer here, not a missing value — the detector peeks at the
+ * first 1 KiB, so a cXML or UBL document whose header runs past that peek carries no count,
+ * and an EDIFACT or X12 interchange never carries one at all. "0 lines" for an order with 40
+ * lines is not a softer version of "we didn't count": it is a number the operator can act on,
+ * and the action it invites is discarding a good file.
+ *
+ * A real zero is still printed. The backend saying "I read it and found no lines" is worth
+ * seeing — it is the absent count, not the count of zero, that has nothing to say.
+ */
+export function detectionPoSummary(detection: DetectFormatResult): string | null {
+  const po = detection.detectedPoNumber;
+  if (po === null || po === undefined || `${po}`.trim() === "") return null;
+
+  const lines = detection.estimatedLineCount;
+  if (typeof lines !== "number" || !Number.isFinite(lines)) return `PO ${po}`;
+  return `PO ${po} · ${lines} ${lines === 1 ? "line" : "lines"}`;
 }
 
 /** Dot colour for the detection chip. An unscored FACT is not a low-confidence guess. */
@@ -216,13 +244,28 @@ type FormatKey = "PDF" | "XLSX" | "CSV" | "cXML" | "EDI" | "JSON" | "EMAIL";
 
 type RecentStatus = "processing" | "done" | "failed" | "review" | "ready" | "draft";
 
+/**
+ * Buyer / supplier as TEXT, in the recent-uploads route cell.
+ *
+ * CLAUDE.md §2: with the edge rails struck, the label/colour pair is one of only two
+ * surviving buyer-left / supplier-right signatures — and this cell rendered BOTH names in
+ * green, with a green→green arrow between them, so the one thing the colour was carrying
+ * (which side of the bridge you are looking at) said nothing at all. The queue does it
+ * correctly in InboxView.tsx; these are the same two values.
+ *
+ * Both are the deepened variants, and that is a contrast fix rather than a different colour:
+ * this is 12px text on white, where brand blue (#1E66C9) reads 4.16:1 and brand green
+ * (#2E8E3A) 3.32:1. Named once each so the pair cannot drift apart the way it did.
+ */
+const BUYER_TEXT = "#0F4FA8";
+const SUPPLIER_TEXT = "#1E6D29";
+
 interface RecentRow {
   id: string;
   name: string;
   fmt: FormatKey;
   buyer: string;
   supplier: string;
-  size: string;
   age: string;
   /** Tone bucket only — the WORDS come from `rawStatus`. */
   status: RecentStatus;
@@ -240,9 +283,9 @@ interface RecentRow {
 // Demo rows are dev-only (mock mode). Real users see their own orders from the
 // live API, or nothing when there are no recent uploads — never staged data.
 const DEMO_RECENT: RecentRow[] = [
-  { id: "ord-001", name: "PO-DEMO-001.pdf",   fmt: "PDF",   buyer: "Heinrich Industries",  supplier: "Acme Components",    size: "214 KB", age: "2m",  status: "processing", rawStatus: "parsing"   },
-  { id: "ord-002", name: "NRD_orders_may.xlsx",  fmt: "XLSX",  buyer: "Nordmark Logistics",   supplier: "VanDerBerg Metaal",  size: "88 KB",  age: "18m", status: "done",       rawStatus: "delivered" },
-  { id: "ord-003", name: "westmark_q2.csv",      fmt: "CSV",   buyer: "Westmark Tools",       supplier: "Acme Components",    size: "44 KB",  age: "3h",  status: "done",       rawStatus: "delivered" },
+  { id: "ord-001", name: "PO-DEMO-001.pdf",   fmt: "PDF",   buyer: "Heinrich Industries",  supplier: "Acme Components",    age: "2m",  status: "processing", rawStatus: "parsing"   },
+  { id: "ord-002", name: "NRD_orders_may.xlsx",  fmt: "XLSX",  buyer: "Nordmark Logistics",   supplier: "VanDerBerg Metaal",  age: "18m", status: "done",       rawStatus: "delivered" },
+  { id: "ord-003", name: "westmark_q2.csv",      fmt: "CSV",   buyer: "Westmark Tools",       supplier: "Acme Components",    age: "3h",  status: "done",       rawStatus: "delivered" },
 ];
 
 // Colour only. The words are statusLabel(row.rawStatus) at the two render
@@ -564,7 +607,14 @@ export function UploadWorkbench() {
   // Recent uploads come from the live orders API. In mock mode we show demo
   // rows for local dev; otherwise the list reflects the user's real orders and
   // the whole card is hidden when there are none.
-  const { data: ordersPage } = useQuery({
+  const {
+    data: ordersPage,
+    // `data` defaults to [] on a FAILED fetch exactly as it does on an empty one, so without
+    // these two flags an unanswered orders query is indistinguishable from an org that has
+    // never uploaded anything. See isEmptyOrg below.
+    isError: ordersError,
+    isLoading: ordersLoading,
+  } = useQuery({
     queryKey: ["orders"],
     queryFn: () => apiClient.getOrders({ pageSize: 100 }),
     staleTime: 60 * 1000,
@@ -585,7 +635,6 @@ export function UploadWorkbench() {
           fmt: formatKeyFromSource(o.sourceFormat),
           buyer: o.buyerName ?? "—",
           supplier: o.supplierName,
-          size: "—",
           age: relativeAge(o.createdAt),
           status: recentStatusFromOrder(o.status),
           rawStatus: o.status,
@@ -597,7 +646,18 @@ export function UploadWorkbench() {
   // First-run org (no suppliers configured AND no recent orders): promote the
   // zero-friction "Try a sample" path above the dropzone. Established orgs keep
   // it below. In mock mode there's always demo data, so never treat as empty.
-  const isEmptyOrg = !isApiMockMode && suppliers.length === 0 && recentRows.length === 0;
+  //
+  // "EMPTY" IS A CLAIM ABOUT THE SERVER, AND IT NEEDS AN ANSWER FROM THE SERVER.
+  // Both queries destructure `data = []`, and a failed fetch reaches this line looking
+  // byte-identical to a successful one that returned nothing. So a workspace with 30
+  // suppliers whose API call failed was greeted as a first-run org: "New here? Start with a
+  // sample order", rendered directly above its own "We couldn't load your suppliers" —
+  // two statements on one screen, one of them fabricated from an error. An unanswered
+  // question is not a no; while either query is still open or has failed, this stays false
+  // and the sample card keeps its established-org position below the dropzone.
+  const orgShapeKnown = !suppliersError && !ordersError && !suppliersLoading && !ordersLoading;
+  const isEmptyOrg =
+    !isApiMockMode && orgShapeKnown && suppliers.length === 0 && recentRows.length === 0;
 
   useEffect(() => {
     if (suppliers.length === 0) {
@@ -643,9 +703,7 @@ export function UploadWorkbench() {
   async function handleUpload() {
     if (uploading) return;
     if (isReadOnly) {
-      setUploadError(
-        localLimitBanner(billing?.isTrialExpired ? "pilot_expired" : "order_limit_reached", billing?.plan),
-      );
+      setUploadError(pausedUploadBanner(billing));
       return;
     }
     // Defensive only — the CTA is disabled without a file. This used to call
@@ -806,9 +864,7 @@ export function UploadWorkbench() {
   async function handleBatchUpload(allFiles: File[]) {
     if (uploading) return;
     if (isReadOnly) {
-      setUploadError(
-        localLimitBanner(billing?.isTrialExpired ? "pilot_expired" : "order_limit_reached", billing?.plan),
-      );
+      setUploadError(pausedUploadBanner(billing));
       return;
     }
     if (!selectedSupplier?.id) {
@@ -1149,15 +1205,27 @@ export function UploadWorkbench() {
             )}
           </div>
 
-          {/* Read-only / trial-ended note (kept visible — it was in the left card). */}
-          {billing && isReadOnly && (
-            <div
-              className="px-5 py-2.5 text-[11.5px] leading-5"
-              style={{ background: "#FFF8EA", borderBottom: "1px solid #F0D39A", color: "#7A4D0B" }}
-            >
-              You can still view previous orders, but new order processing is paused until the plan is upgraded.
-            </div>
-          )}
+          {/* Processing-paused note (kept visible — it was in the left card).
+              It used to end "…until the plan is upgraded", which is true of exactly one cause
+              (a Pilot that ran out) and false of the one that costs money: upgrading does not
+              settle a declined card. The cause and the route back are now derived from the
+              server's own accountStatus — see pausedUploadBanner. */}
+          {billing && isReadOnly && (() => {
+            const paused = pausedUploadBanner(billing);
+            return (
+              <div
+                data-testid="upload-paused-note"
+                className="px-5 py-2.5 text-[11.5px] leading-5"
+                style={{ background: "#FFF8EA", borderBottom: "1px solid #F0D39A", color: "#7A4D0B" }}
+              >
+                <strong>{paused.title}</strong>{" "}
+                <span>You can still view previous orders. {paused.message}</span>{" "}
+                <Link href={paused.href ?? "/settings?tab=billing"} className="font-semibold underline">
+                  {paused.cta}
+                </Link>
+              </div>
+            );
+          })()}
           {billing && !isReadOnly && billing.trialEndsAt && billing.plan === "pilot" && (
             <div
               className="px-5 py-2 text-[11.5px]"
@@ -1485,15 +1553,16 @@ export function UploadWorkbench() {
                             />
                           )}
                         </span>
-                        {detection.detectedPoNumber !== null && (
+                        {detectionPoSummary(detection) !== null && (
                           <span
+                            data-testid="detection-po-summary"
                             style={{
                               fontFamily: "'JetBrains Mono', monospace",
                               fontSize: 11,
                               color: "#5E6779",
                             }}
                           >
-                            PO {detection.detectedPoNumber} · {detection.estimatedLineCount ?? 0} lines
+                            {detectionPoSummary(detection)}
                           </span>
                         )}
                         {/* Schema fingerprint recognition — org-scoped "we've seen this before" */}
@@ -1821,7 +1890,7 @@ export function UploadWorkbench() {
               </Link>
             </div>
 
-            <div className="flex flex-col gap-2 p-3 lg:hidden">
+            <div className="flex flex-col gap-2 p-3 lg:hidden" data-testid="recent-uploads-cards">
               {recentRows.map((row) => {
                 const pill = STATUS_PILL[row.status];
                 return (
@@ -1854,19 +1923,18 @@ export function UploadWorkbench() {
                     <div className="mb-2 flex items-center gap-2">
                       <FileChip type={row.fmt} />
                       <span className="text-[11.5px]" style={{ color: "var(--ink-faint)" }}>
-                        {row.size === "—" ? row.age : `${row.size} · ${row.age}`}
+                        {row.age}
                       </span>
                     </div>
                     <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 text-[12px]">
-                      {/* #1E6D29 not #2E8E3A: buyer name is 12px TEXT on
-                          var(--surface) (#FFFFFF) — 4.1613:1 with green,
-                          6.4128:1 with green-deep. The hairline below keeps the
-                          green→green-deep gradient; it is non-text. */}
-                      <span className="truncate" style={{ color: "#1E6D29" }}>
+                      {/* Buyer left, supplier right — see BUYER_TEXT / SUPPLIER_TEXT. The
+                          hairline between them keeps the buyer→supplier gradient; it is
+                          non-text and so uses the undeepened brand pair. */}
+                      <span className="truncate" data-testid="recent-buyer" style={{ color: BUYER_TEXT }}>
                         {row.buyer}
                       </span>
-                      <span className="h-px w-5" style={{ background: "linear-gradient(90deg, #2E8E3A, #1E6D29)" }} />
-                      <span className="truncate text-right" style={{ color: "#1E6D29" }}>
+                      <span className="h-px w-5" style={{ background: "linear-gradient(90deg, #1E66C9, #2E8E3A)" }} />
+                      <span className="truncate text-right" data-testid="recent-supplier" style={{ color: SUPPLIER_TEXT }}>
                         {row.supplier}
                       </span>
                     </div>
@@ -1875,14 +1943,18 @@ export function UploadWorkbench() {
               })}
             </div>
 
-            <div className="hidden overflow-x-auto lg:block">
+            <div className="hidden overflow-x-auto lg:block" data-testid="recent-uploads-table">
               <table
                 className="w-full min-w-[760px] border-collapse"
                 style={{ fontSize: 12.5 }}
               >
                 <thead>
                   <tr style={{ borderBottom: "1px solid #E5E8EE" }}>
-                    {["File", "Format", "Route", "Size", "Age", "Status"].map(
+                    {/* No "Size" column. It was in this header for every real user and its cell
+                        was an em-dash in every row, because the orders API carries no file size
+                        — `size: "—"` was hardcoded at the mapping. A column that can only ever
+                        print "unknown" is not a column. */}
+                    {["File", "Format", "Route", "Age", "Status"].map(
                       (h) => (
                         <th
                           key={h}
@@ -1925,13 +1997,13 @@ export function UploadWorkbench() {
                           <FileChip type={row.fmt} />
                         </td>
                         <td className="px-4 py-2.5 min-w-[250px]">
-                          {/* #1E6D29 not #2E8E3A: buyer name is 12px TEXT. Rows
-                              are transparent over the white XCard — 4.1613:1
-                              with green, 6.4128:1 with green-deep; on the
-                              #F6F7FA hover row, 3.8846:1 → 5.9863:1. */}
+                          {/* Buyer left, supplier right — see BUYER_TEXT / SUPPLIER_TEXT.
+                              Rows are transparent over the white card, and stay legible on
+                              the #F6F7FA hover row. */}
                           <span
                             className="text-[12px]"
-                            style={{ color: "#1E6D29" }}
+                            data-testid="recent-buyer"
+                            style={{ color: BUYER_TEXT }}
                           >
                             {row.buyer}
                           </span>
@@ -1943,16 +2015,11 @@ export function UploadWorkbench() {
                           </span>
                           <span
                             className="text-[12px]"
-                            style={{ color: "#1E6D29" }}
+                            data-testid="recent-supplier"
+                            style={{ color: SUPPLIER_TEXT }}
                           >
                             {row.supplier}
                           </span>
-                        </td>
-                        <td
-                          className="px-4 py-2.5 text-[12px]"
-                          style={{ color: "#5E6779" }}
-                        >
-                          {row.size}
                         </td>
                         <td
                           className="px-4 py-2.5 text-[12px]"
@@ -2188,6 +2255,46 @@ const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve,
  */
 function localLimitBanner(code: string, plan: unknown): UploadErrorBanner {
   return limitRefusalCopy({ code, plan: knownPlanId(plan), limit: null, raw: "" });
+}
+
+/** The subset of billing status this screen needs to explain a pause. */
+export interface PausedBillingFacts {
+  plan?: string | null;
+  accountStatus?: string | null;
+  isTrialExpired?: boolean | null;
+}
+
+/**
+ * Why THIS workspace cannot upload right now.
+ *
+ * The old line was `billing?.isTrialExpired ? "pilot_expired" : "order_limit_reached"`, and the
+ * else-arm is never true on a paid plan: paid order caps are SOFT (going over accrues €0.50/order
+ * overage and blocks nothing — CLAUDE.md §11.5), so the only thing that stops a paying workspace
+ * is its account status. A past-due Operations org pressing Upload was told it had reached its
+ * order limit and should upgrade — wrong cause, and an upgrade does not clear a declined card.
+ *
+ * `pausedCauseCopy` is the same map BillingSection.tsx and problemCopy.ts print, so the three
+ * surfaces cannot disagree, and its fallback arm names the pause without inventing a cause for a
+ * status this build does not know.
+ */
+export function pausedUploadBanner(billing: PausedBillingFacts | null | undefined): UploadErrorBanner {
+  // Pilot trial expiry keeps the ladder copy CLAUDE.md §11.5 mandates, including the derived
+  // "Upgrade to <next tier>" CTA — that IS the route back for a Pilot, and Stripe is not.
+  if (billing?.isTrialExpired) return localLimitBanner("pilot_expired", billing?.plan);
+
+  const { headline, resume } = pausedCauseCopy(billing?.accountStatus ?? "");
+  // Enterprise is a manual agreement with no self-serve portal, so the route back is a
+  // conversation. Everything else routes to the billing screen, which owns the Stripe portal.
+  const enterprise = billing?.plan === "enterprise";
+  return {
+    code: "processing_paused",
+    title: headline,
+    message: enterprise
+      ? "Contact support to restore processing on your agreement. Everything already processed stays readable and exportable."
+      : `${resume} Everything already processed stays readable and exportable.`,
+    cta: enterprise ? "Contact support" : "Manage billing",
+    href: enterprise ? "/support" : "/settings?tab=billing",
+  };
 }
 
 /**
