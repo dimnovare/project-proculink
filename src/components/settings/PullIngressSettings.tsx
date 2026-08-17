@@ -15,6 +15,9 @@ import {
 import { SettingsGroup } from "@/components/settings/SettingsPrimitives";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { isPlanGateError, planGateMessage } from "@/lib/planGate";
+import { PLAN_BY_ID, planName } from "@/lib/plans";
+import { minimumPlanId, type GatedCapability } from "@/lib/gatedCapabilities";
+import type { BillingStatus } from "@/types/procurement";
 
 const INK = "var(--ink)";
 const MUTED = "var(--ink-muted)";
@@ -50,7 +53,17 @@ function humanizeError(message: string): string {
   if (/username is required/i.test(message)) return "Enter a username before saving.";
   if (/bucket/i.test(message) && /required/i.test(message)) return "Enter a bucket name before saving.";
   if (/access key/i.test(message) && /required/i.test(message)) return "Enter the access key ID before saving.";
-  return message || "Could not save settings. Please try again.";
+  // Everything else gets a sentence, not the raw message.
+  //
+  // This arm used to `return message`, and the message on this path is almost never
+  // something a person wrote. `updateSftpSettings` / `updateS3Settings` throw
+  // `readRefusal(res, "settings/sftp: <status>")` (src/lib/api/settings.ts:175, :192), whose
+  // fallback is a label the CLIENT built with an HTTP number appended — so a 500 showed the
+  // customer `settings/sftp: 500`. When the body DOES carry an `error` field it is a machine
+  // token (`sftp_ingestion_requires_growth`), which the plan-gate branch above already claims.
+  // Nothing left over is prose, so passing it through is a guess about a string that is never
+  // a sentence.
+  return "Could not save these settings. Please try again, or contact support if it keeps happening.";
 }
 
 // Small, quiet "Need help?" link to the matching /help article. Opens in a new
@@ -193,15 +206,58 @@ function Notice({ msg }: { msg: { kind: "ok" | "err"; text: string } | null }) {
   );
 }
 
-// Amber upgrade notice mirroring the Email section's proactive gate.
-function UpgradeNotice({ label }: { label: string }) {
+/**
+ * Amber upgrade notice mirroring the Email section's proactive gate — and, now, its TWO ARMS.
+ *
+ * `canEnable` was `!!billing && billing.plan !== "pilot"`, and this notice rendered whenever it
+ * was false. But that expression is false for two different reasons and only one of them is a
+ * plan: `useBilling()` is `retry: false`, so a single failed `GET /api/billing/status` leaves
+ * `billing` undefined for the rest of the page's life. A Distributor workspace whose billing
+ * lookup blipped was told, as flat fact, that its "current plan doesn't include it" — about a
+ * channel it pays €1,499/month for — and had the toggle taken away as well.
+ *
+ * The identical repair already shipped one tab over, on Email
+ * (src/app/(app)/settings/page.tsx:782-811). A plan is named here only when the server named one.
+ *
+ * `render` is gated on `!billingLoading` by the caller: during the first fetch we do not yet know
+ * which of the two sentences is true, and neither is worth flashing.
+ */
+function UpgradeNotice({
+  label,
+  capability,
+  billing,
+}: {
+  label: string;
+  capability: GatedCapability;
+  billing: BillingStatus | undefined;
+}) {
+  const unlock = PLAN_BY_ID[minimumPlanId(capability)];
   return (
     <div
+      data-testid={`pull-ingress-plan-gate-${capability}`}
       className="rounded-[8px] px-3.5 py-3 text-[12.5px]"
       style={{ border: "1px solid #F0D39A", background: "#FFF8EA", color: "#7A4D0B", lineHeight: 1.5 }}
     >
-      {label} ingestion is included on any paid plan. You can set it up here,
-      but turning on polling needs a paid plan — your current plan doesn&rsquo;t include it.
+      {billing ? (
+        <>
+          {label} ingestion is included on every paid plan. You can set it up here, but turning on
+          polling needs a paid plan — the {planName(billing.plan)} plan doesn&rsquo;t include it.{" "}
+          <Link href="/settings?tab=billing" style={{ color: "inherit", fontWeight: 600, textDecoration: "underline" }}>
+            Upgrade to {unlock.name} ({unlock.billingPriceLabel})
+          </Link>{" "}
+          to switch it on.
+        </>
+      ) : (
+        <>
+          {label} ingestion is included on every paid plan. We couldn&rsquo;t check which plan this
+          workspace is on just now, so if it isn&rsquo;t on a paid plan, turning polling on will be
+          refused.{" "}
+          <Link href="/settings?tab=billing" style={{ color: "inherit", fontWeight: 600, textDecoration: "underline" }}>
+            Open plan &amp; billing
+          </Link>{" "}
+          to check yours.
+        </>
+      )}
     </div>
   );
 }
@@ -291,11 +347,17 @@ export function SftpPullSettings() {
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   });
-  const { data: billing } = useBilling();
+  const { data: billing, isLoading: billingLoading } = useBilling();
   const { data: suppliers, isLoading: suppliersLoading } = useSuppliers();
 
   // Pilot is the only tier without pull ingestion (decoupled to all paid plans).
   const canEnable = !!billing && billing.plan !== "pilot";
+  // Only the SERVER may take the toggle away. `!canEnable` also covers "we never found out",
+  // and disabling on that would stop a paying workspace configuring a channel it bought
+  // because one status request failed — the same undefined that produced the wrong sentence.
+  // When the plan is unknown the attempt is allowed and the backend decides; its plan-gate
+  // refusal comes back through humanizeError with the tier the server derived.
+  const planBlocks = !!billing && !canEnable;
   // Block enabling only once we know the org genuinely has zero suppliers
   // (not while the list is still loading, to avoid disabling a working toggle).
   const noSuppliers = !suppliersLoading && (suppliers ?? []).length === 0;
@@ -350,10 +412,12 @@ export function SftpPullSettings() {
 
   return (
     <Shell title={title} subtitle={subtitle}>
-      {!canEnable && <UpgradeNotice label="SFTP" />}
+      {!canEnable && !billingLoading && (
+        <UpgradeNotice label="SFTP" capability="sftpIngestion" billing={billing} />
+      )}
       <Toggle
         checked={enabled}
-        disabled={(!canEnable && !enabled) || (noSuppliers && !enabled)}
+        disabled={(planBlocks && !enabled) || (noSuppliers && !enabled)}
         onChange={setEnabled}
         label="Poll this SFTP folder for orders"
       />
@@ -386,10 +450,13 @@ export function S3PullSettings() {
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   });
-  const { data: billing } = useBilling();
+  const { data: billing, isLoading: billingLoading } = useBilling();
   const { data: suppliers, isLoading: suppliersLoading } = useSuppliers();
 
+  // Same two-arm rule as SFTP above — see UpgradeNotice's header for why `!canEnable`
+  // is not on its own a statement about anybody's plan.
   const canEnable = !!billing && billing.plan !== "pilot";
+  const planBlocks = !!billing && !canEnable;
   const noSuppliers = !suppliersLoading && (suppliers ?? []).length === 0;
 
   const [enabled, setEnabled] = useState(false);
@@ -442,10 +509,12 @@ export function S3PullSettings() {
 
   return (
     <Shell title={title} subtitle={subtitle}>
-      {!canEnable && <UpgradeNotice label="S3 / R2" />}
+      {!canEnable && !billingLoading && (
+        <UpgradeNotice label="S3 / R2" capability="s3Ingestion" billing={billing} />
+      )}
       <Toggle
         checked={enabled}
-        disabled={(!canEnable && !enabled) || (noSuppliers && !enabled)}
+        disabled={(planBlocks && !enabled) || (noSuppliers && !enabled)}
         onChange={setEnabled}
         label="Watch this bucket for orders"
       />

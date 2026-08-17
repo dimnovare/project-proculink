@@ -255,6 +255,24 @@ function ProcessingPausedBanner({
   );
 }
 
+/**
+ * "Upgrade to <tier> to <do the thing>." — derived from the ladder, never typed.
+ *
+ * The sentence next to "You've used all 20 Pilot orders" read `Upgrade to Growth` as a literal,
+ * one line below an order limit that was already being read out of `PLAN_BY_ID.pilot.orderLimit`.
+ * Half a sentence derived and half hand-typed is how the two halves come to disagree — and this
+ * is the same shape as the supplier-limit banner that told a 30-supplier Distributor org it had
+ * one and offered it the €149 tier (CLAUDE.md §11.5).
+ *
+ * `next` is NULL at the top of the self-serve ladder (Distributor) and on Enterprise, and that
+ * null is a real branch rather than a missing value: there is no upgrade to sell, so the copy
+ * asks them to talk to us. Naming a tier there would be naming a CHEAPER one.
+ */
+function upgradeSentence(plan: BillingPlan, outcome: string): string {
+  const next = PLAN_BY_ID[plan]?.next;
+  return next ? `Upgrade to ${PLAN_BY_ID[next].name} to ${outcome}.` : `Contact us to ${outcome}.`;
+}
+
 // Blocking banner — ONLY for Pilot, whose trial/limit really does pause
 // processing (Pilot becomes read-only). A PAID plan's over-limit state is
 // non-blocking and handled by OverageNotice below — but a paid plan IS blocked
@@ -276,7 +294,7 @@ function LimitBanner({ status }: { status: BillingStatus }) {
     return (
       <div style={bannerStyle}>
         <strong>You&apos;ve used all {PLAN_BY_ID.pilot.orderLimit} Pilot orders.</strong>
-        <span>Upgrade to Growth to continue processing new orders.</span>
+        <span>{upgradeSentence(status.plan, "continue processing new orders")}</span>
       </div>
     );
   }
@@ -533,6 +551,24 @@ export function BillingSection() {
   const isEnterprise = status.plan === "enterprise";
   const isPaid       = CHECKOUT_PLANS.includes(status.plan);
   const nextPlan     = PLAN_META[status.plan].next;
+  /**
+   * Whether the Stripe Billing Portal exists for THIS workspace.
+   *
+   * Every "Change plan" / "Manage in Stripe" / "Edit billing email" control on this screen
+   * opens `POST /api/billing/portal`, which needs a Stripe customer. The whole Payment method
+   * card and the "Change plan" button were gated on `isPaid || isEnterprise` instead — a plan
+   * name — so an Enterprise workspace on a manual agreement was offered a card manager, a
+   * billing-email editor and a Stripe cancellation disclosure five lines below the sentence
+   * "Enterprise plans use a manual agreement. Contact support to adjust volume, suppliers, SLA,
+   * or connector scope." The customer found out which of the two was true by pressing the
+   * button and reading "No billing customer on file."
+   *
+   * `stripeCustomerId` was on the payload the whole time and this component never read it. It
+   * is the fact these controls depend on, so it is the fact they are gated on — an Enterprise
+   * org that IS billed through Stripe keeps its portal, and a paid plan that somehow has no
+   * customer record stops being sent to one.
+   */
+  const hasStripePortal = status.stripeCustomerId != null;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
@@ -558,7 +594,7 @@ export function BillingSection() {
         <div style={{ padding: "16px 18px", display: "flex", flexDirection: "column", gap: 16 }}>
           <PlanCard
             status={status}
-            action={(isPaid || isEnterprise) ? (
+            action={hasStripePortal ? (
               <button
                 onClick={() => portalMutation.mutate()}
                 disabled={portalMutation.isPending}
@@ -671,7 +707,12 @@ export function BillingSection() {
                 disabled={checkoutMutation.isPending}
                 style={secondaryButton(PLAN_META[nextPlan].color, checkoutMutation.isPending)}
               >
-                Need more volume? Upgrade to {nextPlan.charAt(0).toUpperCase() + nextPlan.slice(1)}.
+                {/* PLAN_META[nextPlan].label, not the wire value with its first letter forced
+                    upper. That capitalise-the-id trick is the pattern plans.ts:437-453 records
+                    as the bug that printed `Acme · distributor` to a €1,499/month customer: it
+                    agrees with the ladder only by coincidence of today's six names, and the
+                    tier's own name is already in scope one line above. */}
+                Need more volume? Upgrade to {PLAN_META[nextPlan].label}.
               </button>
             </>
           )}
@@ -685,8 +726,22 @@ export function BillingSection() {
         </p>
       )}
 
+      {/* A paid plan with no Stripe customer has no portal either, and unlike Enterprise it has
+          no sentence of its own saying where to go. Without this it would simply lose the whole
+          Payment method card and be left with nothing. */}
+      {isPaid && !isEnterprise && !hasStripePortal && (
+        <p style={{ fontSize: 13, color: "var(--ink-muted)", margin: 0 }}>
+          Billing for this workspace isn&apos;t linked to a self-serve Stripe account, so card and
+          invoice details are handled by us.{" "}
+          <a href="mailto:sales@proculink.eu" style={{ color: "inherit", fontWeight: 600 }}>
+            Contact support
+          </a>{" "}
+          to change your plan or payment details.
+        </p>
+      )}
+
       {/* ── Payment method — managed in Stripe (canonical structure, real binding) ── */}
-      {(isPaid || isEnterprise) && (
+      {hasStripePortal && (
         <Card flush radius="var(--radius-md)">
           <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--border)" }}>
             <div style={{ fontWeight: 600, fontSize: 14.5, letterSpacing: "-0.01em", color: "var(--ink)" }}>Payment method</div>

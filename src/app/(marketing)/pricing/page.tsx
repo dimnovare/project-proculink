@@ -122,7 +122,11 @@ const FAQ: Array<[string, string]> = [
   ],
   [
     "What happens after the Pilot?",
-    "Nothing breaks. Your suppliers and mappings stay configured; you simply pick a plan when you're ready to keep processing orders past the 20-order trial.",
+    // The trial size is read from the ladder, not typed. It was `the 20-order trial` here while
+    // the Pilot card 300 lines below already rendered PLAN_BY_ID.pilot.orderLimit, so the same
+    // page had one derived copy of this number and one hand-maintained one — and the FAQ half
+    // is the one nobody re-reads when a limit moves.
+    `Nothing breaks. Your suppliers and mappings stay configured; you simply pick a plan when you're ready to keep processing orders past the ${PLAN_BY_ID.pilot.orderLimit}-order trial.`,
   ],
   [
     "Do you charge for failed orders?",
@@ -130,7 +134,10 @@ const FAQ: Array<[string, string]> = [
   ],
   [
     "What if I go over my monthly orders?",
-    "Nothing blocks. Orders above your plan's monthly allowance are billed automatically at €0.50 per order at the end of the billing period — and the overage is capped so you never pay more than the price of the next plan that covers your volume.",
+    // Same rule as the trial size above: the per-order overage is the constant the price cards
+    // on this very page already render from OVERAGE_PER_ORDER_EUR (see the card footnote).
+    // Typing it again in the FAQ meant a repricing would have had to find both.
+    `Nothing blocks. Orders above your plan's monthly allowance are billed automatically at €${OVERAGE_PER_ORDER_EUR.toFixed(2)} per order at the end of the billing period — and the overage is capped so you never pay more than the price of the next plan that covers your volume.`,
   ],
   [
     "Can I change plans later?",
