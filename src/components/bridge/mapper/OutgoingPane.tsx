@@ -69,8 +69,19 @@ export interface OutgoingPaneProps {
   /** Output path currently snap-highlighted under a drag (drives the drop-target glow). */
   snapTarget?: string | null;
   onDisconnect?: (outputPath: string) => void;
-  /** Set/clear a fixed literal (real control; disabled-with-reason when absent). */
-  onSetFixedValue?: (outputPath: string, value: string | null) => void;
+  /**
+   * Set/clear a fixed literal (real control; disabled-with-reason when absent).
+   *
+   * `scope` is REQUIRED, not optional, and it is why this signature changed. The model's
+   * handler defaults a missing scope to "header" (useMapperModel.onSetFixedValue), and this
+   * prop type declared two parameters — so every fixed value typed in this pane was written
+   * to `output.header[path]`, including the ones typed on Quantity, UnitPrice and
+   * SupplierItemCode, three of the four required LINE fields. The violet "fixed" chip
+   * confirmed the edit and the line column still shipped empty. Declaring the parameter
+   * makes dropping it a type error rather than a silent header write; the workbench's drop
+   * handler and onUseCatalogPrice already passed `field.scope` and were unaffected.
+   */
+  onSetFixedValue?: (outputPath: string, value: string | null, scope: "header" | "line") => void;
   /** Rename a declared output path (connection editor only; hidden when absent). */
   onRenamePath?: (oldPath: string, newPath: string) => void;
   /** Add a new declared output field (both variants). */
@@ -555,7 +566,8 @@ function OutgoingRow({
   onHover?: (outputPath: string | null) => void;
   onSelect?: (outputPath: string) => void;
   onDisconnect?: (outputPath: string) => void;
-  onSetFixedValue?: (outputPath: string, value: string | null) => void;
+  /** See OutgoingPaneProps.onSetFixedValue — `scope` decides header vs. line placement. */
+  onSetFixedValue?: (outputPath: string, value: string | null, scope: "header" | "line") => void;
   onRenamePath?: (oldPath: string, newPath: string) => void;
   manipulators?: ManipulatorEntry[];
   onFieldManipulatorsChange?: (outputPath: string, next: ManipulatorEntry[], scope: "header" | "line") => void;
@@ -617,13 +629,35 @@ function OutgoingRow({
     setFixedEditing(true);
   }
   function commitFixedEdit() {
-    onSetFixedValue?.(field.outputPath, draftFixed.trim() || null);
+    // `field.scope` — a fixed value typed on a LINE field belongs in output.lines, not
+    // output.header. The row has always known its own scope; it simply never passed it.
+    onSetFixedValue?.(field.outputPath, draftFixed.trim() || null, field.scope);
     setFixedEditing(false);
   }
 
   return (
     <div
       data-mapper-row
+      // Selecting a row focuses the field and deep-links it (`?field=`). It was an onClick on
+      // a bare <div> with no role, no tabIndex and no key handler, so it existed only for a
+      // mouse — a keyboard or screen-reader operator could reach every control INSIDE the row
+      // and never the row itself.
+      //
+      // The key handler fires only for events raised ON the row (`e.target === e.currentTarget`).
+      // Without that guard Enter inside the fixed-value input — a descendant, whose own handler
+      // does not stop propagation — would commit the value AND select the row.
+      {...(onSelect ? {
+        role: "button" as const,
+        tabIndex: 0,
+        "aria-label": `Select output field ${field.label || field.outputPath}`,
+        onKeyDown: (e: React.KeyboardEvent<HTMLDivElement>) => {
+          if (e.target !== e.currentTarget) return;
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onSelect(field.outputPath);
+          }
+        },
+      } : {})}
       onMouseEnter={() => onHover?.(field.outputPath)}
       onMouseLeave={() => onHover?.(null)}
       onFocusCapture={() => setFocusWithin(true)}
@@ -743,7 +777,7 @@ function OutgoingRow({
               onPickFixed={startFixedEdit}
               onClear={() => {
                 if (wired) onDisconnect?.(field.outputPath);
-                else if (status.kind === "fixed") onSetFixedValue?.(field.outputPath, null);
+                else if (status.kind === "fixed") onSetFixedValue?.(field.outputPath, null, field.scope);
               }}
               readOnly={readOnly}
             />
@@ -808,7 +842,9 @@ function OutgoingRow({
       {/* Resolved value preview (mono) — the real delivered value as far as it's known, and the
           amber marker when there ISN'T one.
           The marker belongs on THIS line, not up in the header's action cluster: at 1024px (the
-          narrowest width this column renders at — below lg the workshop swaps to MobileTriage)
+          narrowest width this column renders at — below lg the workshop swaps to MobileTriage;
+          this was an ASSERTION contradicted by the grid it describes until 2026-08-17, when the
+          workbench's track floors summed to 1040px and 1024–1039 overflowed sideways)
           the header's three columns already spend their whole budget, and adding an 89px chip
           there drove the source picker straight through the "Edit value" chip. This line is a
           glyph and a value, it has the room, and "→ —  needs a value" is the sentence anyway. */}
@@ -851,7 +887,7 @@ function OutgoingRow({
           {fixedValue != null && (
             <button
               type="button"
-              onClick={() => { onSetFixedValue?.(field.outputPath, null); setFixedEditing(false); }}
+              onClick={() => { onSetFixedValue?.(field.outputPath, null, field.scope); setFixedEditing(false); }}
               title="Clear the fixed value"
               style={{ border: "1px solid #DCE0E8", background: "#FFFFFF", color: "var(--ink-faint)", borderRadius: 5, padding: "0 9px", minHeight: 26, fontSize: 10, fontWeight: 700, cursor: "pointer" }}
             >

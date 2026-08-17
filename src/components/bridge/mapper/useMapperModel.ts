@@ -150,8 +150,33 @@ export interface MapperModel {
    * evidence the gate stands on, so its absence has to reach the gate rather than be swallowed.
    */
   validationUnavailable: boolean;
+  /**
+   * True when loading the saved mapping override FAILED (not a 404 — that resolves to
+   * `null` and legitimately means "no override saved yet").
+   *
+   * This is the most dangerous of the three unavailable flags and it did not exist. The
+   * backend PUT replaces the WHOLE OrderMappingOverride (see the CRITICAL INVARIANT at the
+   * top of this file). When the GET fails, `overrideQuery.data` is undefined, `override`
+   * falls back to `emptyOverride()`, and the workbench renders exactly as it does for an
+   * order that has never been mapped. The first wire the operator drags then assembles a
+   * draft from that EMPTY document and PUTs it — replacing a saved mapping we never read
+   * with a blank one. A failed read became a destructive write.
+   *
+   * So the flag does two things: it refuses every mutator while it is set, and it drives the
+   * banner that says why. Nothing about the failure may be silent — an editor that ignores
+   * drags without explaining is its own defect.
+   */
+  overrideUnavailable: boolean;
   /** Per-field validation lookup (output path / canonical key → state). */
   validationByKey: Map<string, FieldValidationState>;
+  /**
+   * True when the catalog price/code hint fetch errored. The third mirror of
+   * `aiUnavailable` / `validationUnavailable`, and the one query in this file that had no
+   * such flag: `catalogHints` was `catalogQuery.data ?? []` with `isError` unread, so a
+   * failed fetch produced an empty map and the toolbar stated "No catalog hints for this
+   * order" — an absence asserted from a question that was never answered.
+   */
+  catalogUnavailable: boolean;
   /** Per-line catalog price/code variance lookup (lineKey → hint). */
   catalogHintByLine: Map<string, CatalogPriceHint>;
   /** Count of BLOCKING review badges — the Deliver button gate. */
@@ -310,6 +335,11 @@ export function useMapperModel({
   });
   const catalogHints = useMemo(() => catalogQuery.data ?? [], [catalogQuery.data]);
   const catalogHintByLine = useMemo(() => indexCatalogHints(catalogHints), [catalogHints]);
+  // getCatalogHints throws on any non-2xx that isn't a 404 (mapper-ai.ts), so an errored query
+  // means we asked and could not be told. The empty map it leaves behind is the SAME map a
+  // supplier with a clean catalog produces — identical to the validation case above, which is
+  // why the flag travels separately instead of being inferred from `size === 0`.
+  const catalogUnavailable = catalogQuery.isError;
 
   // ── Derived lane props ─────────────────────────────────────────────────────
   const canonicalNodes = useMemo(
@@ -540,15 +570,24 @@ export function useMapperModel({
     },
   });
 
+  // The saved override could not be READ. See MapperModel.overrideUnavailable — this is the
+  // one flag that has to reach `apply`, because the failure mode is a destructive write, not a
+  // missing badge.
+  const overrideUnavailable = overrideQuery.isError;
+
   // Apply a pure transform → optimistic local draft + bump signature + persist.
   const apply = useCallback((next: OrderMappingOverride, touched: string | null) => {
     if (readOnly) return;
+    // REFUSE while the saved override is unknown. `override` is emptyOverride() in that state,
+    // so `next` was assembled from a blank document — persisting it would PUT that blank over
+    // the real saved mapping. Refusing costs one edit; not refusing costs the mapping.
+    if (overrideUnavailable) return;
     // B9: capture the draft we're about to replace so onError can restore it verbatim.
     rollbackDraftRef.current = draft;
     setDraft(next);
     setLastTouched(touched);
     saveMut.mutate(next);
-  }, [readOnly, saveMut, draft]);
+  }, [readOnly, overrideUnavailable, saveMut, draft]);
 
   const onSourceConnect = useCallback((tokenId: string, canonicalField: string) => {
     apply(withSourceConnect(override, canonicalField, tokenId), canonicalField);
@@ -657,7 +696,9 @@ export function useMapperModel({
     suggestions,
     aiUnavailable,
     validationUnavailable,
+    overrideUnavailable,
     validationByKey,
+    catalogUnavailable,
     catalogHintByLine,
     blockingCount,
     tokenValueById,
