@@ -1061,6 +1061,12 @@ export function BridgeDashboard() {
       buyerCode: buyer.code,
       supplierName: supplier.name,
       supplierCode: supplier.code,
+      // The wire already knows which supplier it was drawn for. Passing it means the
+      // drawer's order lookup survives a rename, instead of silently disabling itself
+      // and printing "no recent deliveries" over a question it never asked. The drawer
+      // confirms this id against the suppliers library before querying — `deriveTopology`
+      // above mints a synthetic `sup-<name>` id for suppliers with orders but no record.
+      supplierId: supplier.id,
       health: wire.health,
       healthBasis: laneHealthBasis,
       volume: buyer.volume,
