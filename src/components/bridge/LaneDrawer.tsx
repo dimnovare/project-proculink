@@ -3,12 +3,13 @@
 // LaneDrawer — slides in from right when a wire is clicked in WireTopology.
 // Shows lane overview: buyer + supplier, health, recent crossings on this wire.
 
-import { useEffect, useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient, isApiMockMode } from "@/lib/api-client";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
+import { useDialogA11y } from "@/hooks/useDialogA11y";
 import type { OrderStatus } from "@/types/procurement";
 
 /**
@@ -35,11 +36,69 @@ export type Lane = {
   buyerCode: string;
   supplierName: string;
   supplierCode: string;
+  /**
+   * The supplier id the clicked wire was drawn from, when the topology had one.
+   *
+   * The drawer used to carry only display names, so the only way to reach this
+   * supplier's orders was an exact normalized NAME match against the suppliers
+   * list — which breaks the moment somebody renames a supplier, and breaks
+   * silently, because a disabled query reports `isLoading: false` and the empty
+   * state then asserted "no recent deliveries" over a question never asked.
+   *
+   * OPTIONAL, and CONFIRMED rather than trusted (see `resolvedSupplierId`). The
+   * derived-topology path in `BridgeDashboard.deriveTopology` synthesises an id
+   * (`sup-<normalised-name>`) for a supplier that has orders but no record in the
+   * library, so an id arriving here is a CANDIDATE, not a guarantee.
+   */
+  supplierId?: string;
   health: "ok" | "risk" | "down";
   healthBasis: LaneHealthBasis;
   volume: string;
   alert?: number;
 };
+
+/**
+ * What the "Recent deliveries" panel is entitled to say.
+ *
+ * Four answers, because there are four different things that can be true, and the
+ * panel previously collapsed three of them into one sentence — "No recent
+ * deliveries on this connection yet." The orders query is gated on a resolved
+ * supplier id, and a query that never ran reports `isLoading: false` with an
+ * empty `data`, so a rename, a failed suppliers fetch, or a supplier that simply
+ * has no library record all rendered as a confident, wrong absence.
+ *
+ * ORDER IS THE POINT. Failure is read first: a fetch that broke must never fall
+ * through to "we looked and there is nothing", which is the exact shape of every
+ * unknown-renders-as-success defect in this repo.
+ */
+export type RecentDeliveriesReading =
+  | { state: "loading" }
+  /** A query we needed answered came back an error. We do not know. */
+  | { state: "unavailable" }
+  /** We never asked: nothing in the library matched this connection's supplier. */
+  | { state: "unlinked" }
+  /** We asked, and this supplier genuinely has no recent orders. */
+  | { state: "empty" }
+  | { state: "orders"; count: number };
+
+export function readRecentDeliveries(input: {
+  /** Clerk/mock gating — false means the queries have not been allowed to start. */
+  queriesEnabled: boolean;
+  suppliersFailed: boolean;
+  suppliersLoaded: boolean;
+  /** The id the orders query was actually enabled on, or undefined. */
+  supplierId: string | undefined;
+  ordersFailed: boolean;
+  ordersLoading: boolean;
+  orderCount: number;
+}): RecentDeliveriesReading {
+  if (input.suppliersFailed || input.ordersFailed) return { state: "unavailable" };
+  if (!input.queriesEnabled || !input.suppliersLoaded) return { state: "loading" };
+  if (!input.supplierId) return { state: "unlinked" };
+  if (input.ordersLoading) return { state: "loading" };
+  if (input.orderCount > 0) return { state: "orders", count: input.orderCount };
+  return { state: "empty" };
+}
 
 const HEALTH_COLOR: Record<string, string> = {
   ok:   "#2E8E3A",
@@ -141,6 +200,18 @@ function liveStatusDot(status: OrderStatus | string): string {
   }
 }
 
+/** Shared chrome for the three empty-panel actions, so they stay one control. */
+const EMPTY_ACTION_STYLE: React.CSSProperties = {
+  borderRadius: 7,
+  padding: "7px 14px",
+  fontSize: 12.5,
+  fontWeight: 600,
+  background: "#FFFFFF",
+  color: "#0F4FA8",
+  border: "1px solid #E5E8EE",
+  cursor: "pointer",
+};
+
 interface LaneDrawerProps {
   lane: Lane;
   onClose: () => void;
@@ -176,7 +247,11 @@ export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
   const queriesEnabled = useQueriesEnabled();
   const liveEnabled = !isApiMockMode && queriesEnabled;
 
-  const { data: suppliers } = useQuery({
+  const {
+    data: suppliers,
+    isError: suppliersFailed,
+    refetch: refetchSuppliers,
+  } = useQuery({
     queryKey: ["suppliers"],
     queryFn: () => apiClient.getSuppliers(),
     enabled: liveEnabled,
@@ -184,34 +259,68 @@ export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
     retry: 1,
   });
 
-  const supplierId = useMemo(() => {
+  /**
+   * The supplier id this connection's orders can be fetched with, or undefined.
+   *
+   * Id first, name second. The id from the wire survives a rename; the name match
+   * does not, and a rename silently disabling the query is what let the panel
+   * assert an absence it never checked. The id is still CONFIRMED against the
+   * library rather than trusted, because `deriveTopology` mints a synthetic
+   * `sup-<name>` id for suppliers that have orders but no library record, and
+   * querying orders by an id no supplier has would answer "empty" — the same lie
+   * in a new place.
+   */
+  const resolvedSupplierId = useMemo(() => {
     if (!suppliers) return undefined;
+    if (lane.supplierId) {
+      const byId = suppliers.find(s => s.id === lane.supplierId);
+      if (byId) return byId.id;
+    }
     const want = lane.supplierName.trim().toLowerCase();
     return suppliers.find(s => s.name.trim().toLowerCase() === want)?.id;
-  }, [suppliers, lane.supplierName]);
+  }, [suppliers, lane.supplierId, lane.supplierName]);
 
-  const { data: ordersPage, isLoading: ordersLoading } = useQuery({
-    queryKey: ["lane-orders", supplierId],
-    queryFn: () => apiClient.getOrders({ supplierId, pageSize: 5 }),
-    enabled: liveEnabled && !!supplierId,
+  const {
+    data: ordersPage,
+    isLoading: ordersLoading,
+    isError: ordersFailed,
+    refetch: refetchOrders,
+  } = useQuery({
+    queryKey: ["lane-orders", resolvedSupplierId],
+    queryFn: () => apiClient.getOrders({ supplierId: resolvedSupplierId, pageSize: 5 }),
+    enabled: liveEnabled && !!resolvedSupplierId,
     staleTime: 15_000,
     retry: 1,
   });
   const recentOrders = ordersPage?.items ?? [];
 
-  // esc closes
-  useEffect(() => {
-    function down(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    document.addEventListener("keydown", down);
-    return () => document.removeEventListener("keydown", down);
-  }, [onClose]);
+  const reading = readRecentDeliveries({
+    queriesEnabled: liveEnabled,
+    suppliersFailed,
+    suppliersLoaded: !!suppliers,
+    supplierId: resolvedSupplierId,
+    ordersFailed,
+    ordersLoading,
+    orderCount: recentOrders.length,
+  });
+
+  // Escape, focus-in, Tab trap, focus restore and the body scroll lock — the whole
+  // modal contract, from the one shared implementation. This drawer shipped as a
+  // scrimmed 400px panel of plain <div>s: no role, no aria-modal, no trap, no
+  // restore, and a hand-rolled document-level Escape listener that fired even when
+  // a dialog opened on top of it. The dialog gate could not see it, because that
+  // gate keys on the PRESENCE of role="dialog"/aria-modal — an unmarked modal was
+  // invisible to it. See src/test/unmarked-modal.test.ts, which now catches the
+  // shape rather than the marking.
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  useDialogA11y({ open: true, onClose, panelRef });
 
   return (
     <>
-      {/* Dim overlay */}
+      {/* Dim overlay. aria-hidden: it carries no content, and its click-to-close is
+          duplicated by the header's real Close button and by Escape. */}
       <div
+        aria-hidden
         style={{
           position: "fixed",
           inset: 0,
@@ -223,6 +332,12 @@ export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
 
       {/* Drawer */}
       <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="lane-drawer-title"
+        data-testid="lane-drawer"
+        tabIndex={-1}
         style={{
           position: "fixed",
           top: 0,
@@ -255,6 +370,7 @@ export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
             }}
           >
             <h2
+              id="lane-drawer-title"
               style={{
                 fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
                 fontSize: 17,
@@ -470,7 +586,7 @@ export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
         </div>
 
         {/* Recent crossings */}
-        <div style={{ flex: 1, overflow: "auto" }}>
+        <div style={{ flex: 1, overflow: "auto" }} data-testid="lane-drawer-recent">
           <div
             style={{
               padding: "12px 20px 8px",
@@ -485,7 +601,7 @@ export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
           </div>
 
           {/* Live mode — real orders for this supplier (best available filter). */}
-          {!isApiMockMode && ordersLoading && (
+          {!isApiMockMode && reading.state === "loading" && (
             <div style={{ padding: "0 20px" }}>
               {Array.from({ length: 3 }).map((_, i) => (
                 <div
@@ -502,7 +618,7 @@ export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
             </div>
           )}
 
-          {!isApiMockMode && !ordersLoading && recentOrders.length > 0 && recentOrders.map((o) => (
+          {!isApiMockMode && reading.state === "orders" && recentOrders.map((o) => (
             <div
               key={o.id}
               role="button"
@@ -566,24 +682,57 @@ export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
             </div>
           ))}
 
-          {/* Honest empty state — no always-empty fake list; offer a real path. */}
-          {!isApiMockMode && !ordersLoading && recentOrders.length === 0 && (
+          {/* THREE nothings, three sentences. Which one is on screen is decided by
+              `readRecentDeliveries`, not by `recentOrders.length === 0`, because
+              that length is 0 for all three and the panel used to print the most
+              flattering of them over the other two. */}
+
+          {/* A query broke. We do not know whether there are deliveries. */}
+          {!isApiMockMode && reading.state === "unavailable" && (
+            <div style={{ padding: "24px 20px", textAlign: "center" }} role="alert">
+              <div style={{ fontSize: 13, color: "var(--ink)", fontWeight: 600, marginBottom: 4 }}>
+                We couldn&apos;t load recent deliveries for this connection.
+              </div>
+              <div style={{ fontSize: 12, lineHeight: 1.5, color: "var(--ink-muted)", marginBottom: 12 }}>
+                That is not the same as there being none — the lookup itself failed.
+              </div>
+              <button
+                onClick={() => { void refetchSuppliers(); void refetchOrders(); }}
+                style={EMPTY_ACTION_STYLE}
+              >
+                Try again
+              </button>
+            </div>
+          )}
+
+          {/* We never asked: no supplier record to look the orders up by. */}
+          {!isApiMockMode && reading.state === "unlinked" && (
+            <div style={{ padding: "24px 20px", textAlign: "center" }}>
+              <div style={{ fontSize: 13, color: "var(--ink)", fontWeight: 600, marginBottom: 4 }}>
+                We haven&apos;t checked recent deliveries for this connection.
+              </div>
+              <div style={{ fontSize: 12, lineHeight: 1.5, color: "var(--ink-muted)", marginBottom: 12 }}>
+                {lane.supplierName} doesn&apos;t match a supplier in your library, so there was
+                nothing to look its orders up by.
+              </div>
+              <button
+                onClick={() => { onClose(); router.push("/library/suppliers"); }}
+                style={EMPTY_ACTION_STYLE}
+              >
+                Open suppliers →
+              </button>
+            </div>
+          )}
+
+          {/* We asked, and the answer really was none. */}
+          {!isApiMockMode && reading.state === "empty" && (
             <div style={{ padding: "24px 20px", textAlign: "center" }}>
               <div style={{ fontSize: 13, color: "var(--ink-faint)", marginBottom: 12 }}>
                 No recent deliveries on this connection yet.
               </div>
               <button
                 onClick={() => { onClose(); router.push("/inbox"); }}
-                style={{
-                  borderRadius: 7,
-                  padding: "7px 14px",
-                  fontSize: 12.5,
-                  fontWeight: 600,
-                  background: "#FFFFFF",
-                  color: "#0F4FA8",
-                  border: "1px solid #E5E8EE",
-                  cursor: "pointer",
-                }}
+                style={EMPTY_ACTION_STYLE}
               >
                 Open inbox →
               </button>
@@ -678,7 +827,9 @@ export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
               onClose();
               // Deep-link to the resolved supplier when we have its id; otherwise
               // fall back to the suppliers list so the button is never a no-op.
-              router.push(supplierId ? `/library/suppliers/${supplierId}` : "/library/suppliers");
+              router.push(
+                resolvedSupplierId ? `/library/suppliers/${resolvedSupplierId}` : "/library/suppliers",
+              );
             }}
             style={{
               borderRadius: 7,

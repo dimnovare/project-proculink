@@ -15,6 +15,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { getAuditLog, isApiMockMode, type AuditLogEntry } from "@/lib/api-client";
 import {
+  AUDIT_ACTION_FACTS,
   auditActionFact,
   auditActionLabel,
   auditEventKind,
@@ -322,13 +323,42 @@ const EV_CANON: Record<
   unknown:   { bg: "var(--surface-2)",        color: "var(--ink-muted)",         label: "Unrecognised", iconPath: "M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2z M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3 M12 17h.01" },
 };
 
+/**
+ * What the `delivered` chip may honestly promise.
+ *
+ * A chip is a claim about what clicking it will show, and this one was the widest
+ * claim on a page titled "Deliveries" — while being the narrowest filter on it. The
+ * manifest states it plainly (`delivered` entry, `auditActionManifest.ts`): "an
+ * automatic successful send currently leaves no audit row of its own", and
+ * `DeliveryConfirmedManually` is the ONLY reachable action in the `delivered` kind.
+ * So a workspace that had delivered hundreds of POs clicked "Delivered" and read
+ * "Nothing in this workspace's log matches."
+ *
+ * DERIVED FROM THE MANIFEST, not retyped, so it self-corrects: the day a writer for
+ * an automatic delivery-success row appears, `reachable` flips on a second
+ * `delivered` action and the chip goes back to saying "Delivered" with no edit here.
+ * Zero reachable actions means the chip can match nothing at all and is dropped
+ * rather than shown as a dead control.
+ */
+export function deliveredFilterLabel(reachableDeliveredActionCount: number): string | null {
+  if (reachableDeliveredActionCount === 0) return null;
+  if (reachableDeliveredActionCount === 1) return "Confirmed by hand";
+  return "Delivered";
+}
+
+const REACHABLE_DELIVERED_ACTION_COUNT = AUDIT_ACTION_FACTS.filter(
+  (f) => f.kind === "delivered" && f.reachable,
+).length;
+
 // Canonical filter labels (from CrossingsLogScreen), plus the two kinds the
 // manifest added. `unknown` gets NO chip on purpose: it is a signal that this build
 // is behind the backend, not a workflow an operator filters by — it stays visible
 // under "All events", where it cannot be missed.
 const FILTERS: Array<{ key: CanonicalEvent | "all"; label: string }> = [
   { key: "all",       label: "All events" },
-  { key: "delivered", label: "Delivered" },
+  ...(deliveredFilterLabel(REACHABLE_DELIVERED_ACTION_COUNT)
+    ? [{ key: "delivered" as const, label: deliveredFilterLabel(REACHABLE_DELIVERED_ACTION_COUNT)! }]
+    : []),
   { key: "failed",    label: "Failed" },
   { key: "held",      label: "Held" },
   { key: "recovered", label: "Recovered" },
@@ -413,13 +443,29 @@ function SkeletonRow() {
 }
 
 // ─── Desktop column header ────────────────────────────────────────────────────
-// Gives the flat desktop row-list a real, sticky table head. Column widths match
-// the desktop CrossingRow exactly (Time 64 · icon 26 · Event 150 · PO 150 · Route
-// grow · Actor 110 · chevron 15) with the same gap-3 / 11px-16px padding. The log
-// is an append-only, time-descending feed, so Time carries a static
-// aria-sort="descending". Sticks to the PageShell scroll viewport; opaque
-// surface-2 (the unified listTableV2 tinted header band) so scrolled rows don't
-// bleed through, single low-contrast --border gridline below.
+// Gives the flat desktop row-list a sticky VISUAL head. Column widths match the
+// desktop CrossingRow exactly (Time 64 · icon 26 · Event 150 · PO 150 · Route grow
+// · Actor 110 · chevron 15) with the same gap-3 / 11px-16px padding. Sticks to the
+// PageShell scroll viewport; opaque surface-2 (the unified listTableV2 tinted
+// header band) so scrolled rows don't bleed through, single low-contrast --border
+// gridline below.
+//
+// IT IS NOT A TABLE, AND NO LONGER SAYS IT IS. This shipped as
+// role="table" > role="row" > role="columnheader" (+ aria-sort="descending") — but
+// the log's rows are not inside it. They render below, per date group, each in its
+// own <Card> as a plain <button>. So assistive tech was handed a table named
+// "Delivery log columns" with a full header row and ZERO data rows, immediately
+// followed by loose buttons with no columns: worse than no table semantics, because
+// it asserts a structure the reader can then never find the contents of. The headers
+// also could not associate with anything, so aria-sort described a sort order over
+// an empty grid.
+//
+// Making it a real table would mean re-parenting every row and the date eyebrows
+// into one grid, which is a different change from this one. Until then the honest
+// rendering is a decorative band: each row button already announces its own time,
+// event, PO, route and actor as text, which is how a list of buttons is meant to
+// read. Hence aria-hidden — visible to the eye, silent to the reader, no lie either
+// way.
 function DesktopColHeader() {
   const cell = {
     fontSize: 10.5,
@@ -429,13 +475,9 @@ function DesktopColHeader() {
     color: "var(--ink-muted)",
   };
   return (
-    // role="table" wrapper so the columnheader + aria-sort roles below are valid
-    // (an orphaned role="row"/"columnheader" with no table/grid ancestor is dropped
-    // by assistive tech). Sticky + visual layout live on this container unchanged;
-    // the inner role="row" is display:contents so it adds no box.
     <div
-      role="table"
-      aria-label="Delivery log columns"
+      aria-hidden
+      data-testid="delivery-log-col-header"
       className="row gap-3 items-center"
       style={{
         position: "sticky",
@@ -448,20 +490,16 @@ function DesktopColHeader() {
         marginBottom: 8,
       }}
     >
-      <div role="row" style={{ display: "contents" }}>
-        <span role="columnheader" aria-sort="descending" style={{ ...cell, width: 64, flexShrink: 0 }}>
-          Time
-        </span>
+      <div style={{ display: "contents" }}>
+        <span style={{ ...cell, width: 64, flexShrink: 0 }}>Time</span>
         {/* icon circle column (26px) — no header text */}
-        <span aria-hidden style={{ width: 26, flexShrink: 0 }} />
-        <span role="columnheader" style={{ ...cell, width: 150, flexShrink: 0 }}>Event</span>
-        <span role="columnheader" style={{ ...cell, width: 150, flexShrink: 0 }}>PO</span>
-        <span role="columnheader" className="grow" style={{ ...cell, minWidth: 0 }}>Route</span>
-        <span role="columnheader" style={{ ...cell, width: 110, flexShrink: 0, textAlign: "right" }}>
-          Actor
-        </span>
+        <span style={{ width: 26, flexShrink: 0 }} />
+        <span style={{ ...cell, width: 150, flexShrink: 0 }}>Event</span>
+        <span style={{ ...cell, width: 150, flexShrink: 0 }}>PO</span>
+        <span className="grow" style={{ ...cell, minWidth: 0 }}>Route</span>
+        <span style={{ ...cell, width: 110, flexShrink: 0, textAlign: "right" }}>Actor</span>
         {/* chevron column (15px) — no header text */}
-        <span aria-hidden style={{ width: 15, flexShrink: 0 }} />
+        <span style={{ width: 15, flexShrink: 0 }} />
       </div>
     </div>
   );
@@ -712,11 +750,17 @@ export function CrossingsLog() {
         }}
       >
         {/* Filter chips — canonical .fchip row (auto horizontal-scroll on mobile via .fchip-row) */}
-        <div className="row gap-2 wrap items-center fchip-row">
+        <div className="row gap-2 wrap items-center fchip-row" role="group" aria-label="Filter events by kind">
           {FILTERS.map(({ key, label }) => (
             <button
               key={key}
+              type="button"
               className={`fchip ${filter === key ? "active" : ""}`}
+              // Which chip is on was carried ONLY by the `active` class — a tinted
+              // background and nothing else. A screen-reader user could press every
+              // chip in the row and never be told which one they had landed on, so
+              // the list below changed under them for no announced reason.
+              aria-pressed={filter === key}
               onClick={() => setFilter(key)}
               style={isMobile ? { height: 36 } : undefined}
             >

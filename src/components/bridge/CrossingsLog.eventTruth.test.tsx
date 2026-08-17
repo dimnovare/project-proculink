@@ -47,7 +47,25 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => searchParams,
 }));
 
-import { CrossingsLog } from "./CrossingsLog";
+import { CrossingsLog, deliveredFilterLabel } from "./CrossingsLog";
+
+/**
+ * The delivered-kind chip, addressed by the label the component DERIVES rather than
+ * by a literal.
+ *
+ * It reads "Confirmed by hand" today, because `DeliveryConfirmedManually` is the only
+ * reachable action in the `delivered` kind and the manifest says so — an automatic
+ * successful send currently leaves no audit row at all. The day a writer for one
+ * appears, the chip goes back to saying "Delivered" and this keeps pointing at the
+ * same control instead of failing on a stale string.
+ */
+function deliveredChip(): HTMLElement {
+  const label = deliveredFilterLabel(
+    AUDIT_ACTION_FACTS.filter((f) => f.kind === "delivered" && f.reachable).length,
+  );
+  expect(label, "the delivered kind has no reachable action, so there is no chip").not.toBeNull();
+  return screen.getByRole("button", { name: label! });
+}
 
 const BASE: Omit<AuditLogEntry, "id" | "action" | "message"> = {
   ts: "2026-08-06T09:15:00.000Z",
@@ -213,7 +231,7 @@ describe("CrossingsLog — the 'Failed' chip matches real failures", () => {
     expect(screen.queryByText("PO-OK-2")).toBeNull();
   });
 
-  it("the 'Delivered' chip does NOT sweep up failures", async () => {
+  it("the delivered-kind chip does NOT sweep up failures", async () => {
     getAuditLog.mockResolvedValue(
       apiPage([
         { ...evt("DeliveryDeadLettered", "f1"), poNumber: "PO-FAIL-1" },
@@ -224,7 +242,7 @@ describe("CrossingsLog — the 'Failed' chip matches real failures", () => {
     renderLog();
 
     await screen.findByText("PO-FAIL-1");
-    screen.getByRole("button", { name: "Delivered" }).click();
+    deliveredChip().click();
 
     expect(await screen.findByText("PO-OK-1")).toBeInTheDocument();
     // The whole defect, stated as a filter: a dead-lettered delivery is not a delivery.
@@ -265,7 +283,7 @@ describe("CrossingsLog — an action this build does not know", () => {
     expect(await screen.findByTitle("SomeBrandNewBackendAction")).toBeInTheDocument();
   });
 
-  it("is excluded from the Delivered chip", async () => {
+  it("is excluded from the delivered-kind chip", async () => {
     getAuditLog.mockResolvedValue(
       apiPage([
         { ...evt("SomeBrandNewBackendAction", "u1"), poNumber: "PO-UNK-1" },
@@ -276,7 +294,7 @@ describe("CrossingsLog — an action this build does not know", () => {
     renderLog();
 
     await screen.findByText("PO-UNK-1");
-    screen.getByRole("button", { name: "Delivered" }).click();
+    deliveredChip().click();
 
     expect(await screen.findByText("PO-OK-1")).toBeInTheDocument();
     expect(screen.queryByText("PO-UNK-1")).toBeNull();

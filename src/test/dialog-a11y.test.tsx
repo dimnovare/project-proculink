@@ -127,9 +127,15 @@ describe("dialog registry is DERIVED from the source, not hand-maintained", () =
     // The packet said "11 of 17". Measured at 478b809 the grep matched 19 FILES,
     // one of which (InboxView) renders no dialog — so 18 dialogs in 18 files, and
     // 12 of the 18 had no focus trap. Both of the packet's numbers were low.
-    expect(DIALOG_REGISTRY.length).toBe(18);
-    expect(TOTAL_DIALOGS).toBe(18);
-    expect(DIALOG_REGISTRY.filter((d) => !d.hadTrapBefore).length).toBe(12);
+    //
+    // 19 since LaneDrawer was marked up. It was a modal the whole time; this gate
+    // could not count it, because the grep it derives from asks whether a dialog is
+    // MARKED, and LaneDrawer was not. That direction is now guarded by
+    // src/test/unmarked-modal.test.ts. The 18/12 above are the 478b809 baseline and
+    // do not move; the totals here do.
+    expect(DIALOG_REGISTRY.length).toBe(19);
+    expect(TOTAL_DIALOGS).toBe(19);
+    expect(DIALOG_REGISTRY.filter((d) => !d.hadTrapBefore).length).toBe(13);
     expect(DIALOG_REGISTRY.filter((d) => !d.hadEscapeBefore).length).toBe(6);
   });
 });
@@ -194,6 +200,7 @@ import { HelpSlideover } from "@/components/bridge/HelpSlideover";
 import { HistoryDrawer } from "@/components/connections/HistoryDrawer";
 import { OrderDetailsDrawer } from "@/components/bridge/workshop/OrderDetailsDrawer";
 import { OnboardingWizard } from "@/components/bridge/OnboardingWizard";
+import { LaneDrawer } from "@/components/bridge/LaneDrawer";
 import type { AdminOrganisation } from "@/lib/api/billing";
 import type { PartyLabels } from "@/hooks/useOrderDirection";
 
@@ -314,6 +321,23 @@ const RENDERABLE: RenderableDialog[] = [
   {
     file: "src/components/bridge/OnboardingWizard.tsx",
     render: (onClose) => <OnboardingWizard onDismiss={onClose} />,
+  },
+  {
+    file: "src/components/bridge/LaneDrawer.tsx",
+    render: (onClose) => (
+      <LaneDrawer
+        lane={{
+          buyerName: "Heinrich Industries",
+          buyerCode: "HEI",
+          supplierName: "Acme Components",
+          supplierCode: "ACM",
+          health: "ok",
+          healthBasis: { complete: true, scanned: 12 },
+          volume: "12 ord",
+        }}
+        onClose={onClose}
+      />
+    ),
   },
 ];
 
