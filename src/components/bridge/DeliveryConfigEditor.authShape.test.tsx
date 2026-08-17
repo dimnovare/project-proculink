@@ -242,12 +242,32 @@ describe("DeliveryConfigEditor — leaving the credential alone still leaves it 
 });
 
 describe("DeliveryConfigEditor — a passed connection test does not survive an unsaved credential edit", () => {
+  // These two now SAVE between filling the credential in and testing it, because the test-fire
+  // button is gated on the form matching what is stored (DeliveryConfigEditor.testBeforeSave.test.tsx
+  // — the test posts only the supplier id, so a verdict taken over unsaved fields is a verdict about
+  // values that are not on screen). The claim being pinned here is unchanged and is the OTHER
+  // direction: once a pass exists, editing the credential it was a pass for must retire it.
+  //
+  // The fixture is the no-credential one so the auth shape stays known across the save: with a
+  // stored credential the editor deliberately drops back to "__unknown__" afterwards and hides the
+  // API-key inputs, which would leave nothing to edit.
+  async function saveSoTheFormMatchesWhatIsStored() {
+    fireEvent.click(screen.getByRole("button", { name: /Save delivery/i }));
+    await waitFor(() => expect(upsertDeliveryConfig).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /Test connection/i })).not.toBeDisabled(),
+    );
+  }
+
   it("clears the pass when the API-key value is edited afterwards", async () => {
+    getDeliveryConfig.mockResolvedValue(SAVED_HTTP_NO_CREDENTIAL);
+    upsertDeliveryConfig.mockResolvedValue(SAVED_HTTP_NO_CREDENTIAL);
     testFireDelivery.mockResolvedValue({ success: true, errorMessage: null, responseCode: 200 });
     renderEditor();
     fireEvent.change(await screen.findByLabelText(/Auth type/i), { target: { value: "apikey" } });
     fireEvent.change(screen.getByLabelText(/^Header$/i), { target: { value: "Authorization" } });
     fireEvent.change(screen.getByLabelText(/^Value$/i), { target: { value: "sk_live_a" } });
+    await saveSoTheFormMatchesWhatIsStored();
 
     fireEvent.click(screen.getByRole("button", { name: /Test connection/i }));
     expect(await screen.findByText(/The supplier's system answered/i)).toBeInTheDocument();
@@ -261,11 +281,14 @@ describe("DeliveryConfigEditor — a passed connection test does not survive an 
   });
 
   it("clears the pass when the API-key header is edited afterwards", async () => {
+    getDeliveryConfig.mockResolvedValue(SAVED_HTTP_NO_CREDENTIAL);
+    upsertDeliveryConfig.mockResolvedValue(SAVED_HTTP_NO_CREDENTIAL);
     testFireDelivery.mockResolvedValue({ success: true, errorMessage: null, responseCode: 200 });
     renderEditor();
     fireEvent.change(await screen.findByLabelText(/Auth type/i), { target: { value: "apikey" } });
     fireEvent.change(screen.getByLabelText(/^Header$/i), { target: { value: "Authorization" } });
     fireEvent.change(screen.getByLabelText(/^Value$/i), { target: { value: "sk_live_a" } });
+    await saveSoTheFormMatchesWhatIsStored();
 
     fireEvent.click(screen.getByRole("button", { name: /Test connection/i }));
     expect(await screen.findByText(/The supplier's system answered/i)).toBeInTheDocument();

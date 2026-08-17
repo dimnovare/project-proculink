@@ -112,6 +112,19 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
   // form is edited again or a test result lands — drives the success strip
   // with the "Send a test now" shortcut to the EXISTING test-fire flow.
   const [justSaved, setJustSaved] = useState(false);
+  // True once anything on this form has been changed and not yet saved.
+  //
+  // The test fire posts NOTHING but the supplier id (`testFireDelivery(supplierId)`) — the backend
+  // runs it against the STORED config. So a verdict rendered under edited fields is a verdict about
+  // values that are no longer on screen, and the pass panel says "The supplier's system answered"
+  // directly beneath an address that was never contacted. The disclosure text above already reasons
+  // this way (it is keyed on `savedConfig.protocol`, not the picker); this is the same rule applied
+  // to the button and the result.
+  //
+  // Set by markEdited(), which every input on this screen already calls. Cleared only where the form
+  // and the stored config are known to agree again: after a load, after a successful save, and after
+  // a delete.
+  const [dirty, setDirty] = useState(false);
   const [savedConfig, setSavedConfig] = useState<DeliveryConfig | null>(null);
   // The config object exactly as it came back from the server, together with the protocol it was
   // written for. buildConfigObject() lays the editor's own keys ON TOP of this, so a per-supplier
@@ -219,6 +232,8 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
         const config = await getDeliveryConfig(supplierId);
         if (cancelled) return;
         setSavedConfig(config);
+        // What is on screen is what is stored — nothing has been edited yet.
+        setDirty(false);
         if (config) {
           setProtocol(config.protocol);
           setAutoDeliver(config.autoDeliver);
@@ -394,6 +409,9 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
     setTestResult(null);
     setError(null);
     setJustSaved(false);
+    // The form and the stored config have diverged. Until they agree again, a test fire would
+    // report on values that are not the ones being read on screen.
+    setDirty(true);
   }
 
   /**
@@ -660,6 +678,8 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
       setCxmlSenderSharedSecret(""); // clear the write-only secret after save
       setTestResult(null);
       setJustSaved(true);
+      // Stored and on-screen agree again, so a test fire now reports on the values being read.
+      setDirty(false);
       // hasDeliveryConfig just flipped — refresh the checklist/chip surfaces.
       void invalidateOnboardingStatus(queryClient);
       // What this supplier's delivery config IS just changed, and this editor holds its copy
@@ -717,6 +737,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
       setLoadedSftpAuthMode(null); // B8: no saved credential anymore → nothing to protect.
       setTestResult(null);
       setJustSaved(false);
+      setDirty(false); // nothing stored to diverge from anymore
       // hasDeliveryConfig may have flipped back — refresh checklist surfaces.
       void invalidateOnboardingStatus(queryClient);
       // The config is GONE. Without this the cached entry outlives it, and every reader keeps
@@ -1652,6 +1673,29 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                 </div>
               )}
 
+              {/* Why "Test connection" is unavailable right now. The test fire sends only the
+                  supplier id; the backend runs it against the STORED config, so a verdict taken
+                  while these fields are unsaved would describe an address, a folder or a sign-in
+                  the operator can no longer see. Saying so is the point — a greyed button with no
+                  reason reads as a broken screen. */}
+              {dirty && savedConfig && (
+                <div
+                  className="rounded-[6px] px-3 py-2 text-[12px] leading-5"
+                  role="status"
+                  data-testid="delivery-test-blocked-unsaved"
+                  style={{
+                    background: "var(--amber-soft)",
+                    border: "1px solid var(--amber-border, var(--amber-soft))",
+                    borderLeft: "3px solid var(--amber)",
+                    color: "var(--amber-text)",
+                  }}
+                >
+                  <span className="font-semibold">Save before testing.</span> A test connection runs
+                  against the settings already saved for this supplier, not the unsaved changes on
+                  screen — so testing now would tell you about the old ones.
+                </div>
+              )}
+
               {/* What the test DOES, per channel, before it is clicked — an SFTP test leaves a
                   file in the supplier's folder, an email test lands in their inbox, an HTTP/ERP
                   test hits their live system. See deliveryTestDisclosure: one sentence cannot be
@@ -1714,7 +1758,9 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
           </button>
         )}
         <div className="hidden flex-1 sm:block" />
-        <button onClick={testFire} disabled={!savedConfig || testing} title={!savedConfig ? "Save the delivery setup first, then you can test it." : "Send a small test to check the connection."} className="inline-flex h-8 items-center justify-center gap-1.5 rounded-[6px] px-3 text-[12px] font-semibold" style={{ border: "1px solid #D5DAEA", color: "#0B1A2F", background: "#FFF", opacity: !savedConfig ? 0.55 : 1 }}>
+        {/* The test runs against the SAVED config — see `dirty`. Blocked while the form has
+            unsaved changes, so a verdict is never printed about values that are not on screen. */}
+        <button onClick={testFire} disabled={!savedConfig || testing || dirty} aria-disabled={!savedConfig || testing || dirty} title={!savedConfig ? "Save the delivery setup first, then you can test it." : dirty ? "The test runs against the saved settings, not the unsaved changes on screen. Save first, then test." : "Send a small test to check the connection."} className="inline-flex h-8 items-center justify-center gap-1.5 rounded-[6px] px-3 text-[12px] font-semibold" style={{ border: "1px solid #D5DAEA", color: "#0B1A2F", background: "#FFF", opacity: !savedConfig || dirty ? 0.55 : 1 }}>
           <Send size={13} /> {testing ? "Testing..." : "Test connection"}
         </button>
         <button onClick={save} disabled={saving || !canSave || credentialBlock !== null} title={credentialBlock ?? (!canSave ? "Fill in the required fields first (e.g. Host for SFTP/FTPS, URL for HTTP, or SMTP host + sender for email)." : undefined)} className="inline-flex h-8 items-center justify-center gap-1.5 rounded-[6px] px-3 text-[12px] font-semibold" style={{ border: "none", color: "#FFF", background: saving || !canSave || credentialBlock !== null ? "var(--ink-faint)" : "#0B1A2F" }}>

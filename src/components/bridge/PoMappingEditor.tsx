@@ -388,7 +388,13 @@ export function PoMappingEditor({
     let count = 0;
     for (const sug of suggestQuery.data ?? []) {
       if (isSurfaceable(sug) && !rejected.has(sug.canonicalField)) {
-        if (!next.has(sug.canonicalField)) count++;
+        // What CHANGED, not what was absent. `next.set` replaces unconditionally, so a suggestion
+        // that re-points an already-mapped field is a change like any other — counting only
+        // `!next.has(...)` reported "Nothing new to accept." while silently rewriting every one of
+        // them, and then threw the undo snapshot away because the count was zero. This is the same
+        // predicate `pendingSuggestions` uses for the "Accept all N" label, so the button's number
+        // and the note's number are now derived the same way.
+        if (next.get(sug.canonicalField) !== sug.suggestedColumn) count++;
         next.set(sug.canonicalField, sug.suggestedColumn);
       }
     }
@@ -432,6 +438,15 @@ export function PoMappingEditor({
   }
 
   async function handleSave() {
+    // The footer says "Map required (*) fields to continue" and dims this button to 0.6 — and the
+    // button was only ever disabled on `isSaving`, so the click went through, a config with no
+    // PoNumber / OrderDate / BuyerItemCode / Quantity was persisted, and "Mapping saved" was
+    // printed over it. The button is disabled now; this is the second lock, so no other caller can
+    // reach the save either.
+    if (!reqMapped) {
+      setSaveState({ status: "error", message: missingRequiredMessage });
+      return;
+    }
     setSaveState({ status: "saving" });
     try {
       await onSave(buildConfig());
@@ -499,6 +514,12 @@ export function PoMappingEditor({
   // ── Derived values ─────────────────────────────────────────────────────────
   const isSaving      = saving || saveState.status === "saving";
   const reqMapped     = REQUIRED_FIELDS.every((f) => accepted.has(f));
+  // The required fields still unmapped, named. "Map required (*) fields to continue" tells the
+  // reader a rule; this tells them which rows to go to.
+  const missingRequired = ALL_CANONICAL.filter((f) => f.required && !accepted.has(f.canonical));
+  const missingRequiredMessage = `Map every required field before saving — still missing: ${missingRequired
+    .map((f) => f.label)
+    .join(", ")}.`;
   // Mobile progress: how many canonical fields currently have an accepted column.
   const matchedCount  = ALL_CANONICAL.reduce((n, f) => (accepted.has(f.canonical) ? n + 1 : n), 0);
   const totalFields   = ALL_CANONICAL.length;
@@ -1375,25 +1396,32 @@ export function PoMappingEditor({
             </span>
           ) : (
             // #8A5310 on the footer's #FFFFFF = 6.3150:1. NOT #B36D14, which is 4.1061:1 here.
-            <span style={{ fontSize: 12, fontWeight: 500, color: AMBER_TEXT }}>
+            <span style={{ fontSize: 12, fontWeight: 500, color: AMBER_TEXT }} title={missingRequiredMessage}>
               Map required (*) fields to continue
+              {missingRequired.length > 0 ? ` — ${missingRequired.map((f) => f.label).join(", ")}` : ""}
             </span>
           )}
         </div>
 
         <SaveFeedback state={saveState} />
 
+        {/* Dimmed AND disabled. It was dimmed to 0.6 with `disabled={isSaving}` only, so the state
+            the footer described — "Map required (*) fields to continue" — was one a click walked
+            straight past, and nothing in the accessibility tree carried it either: a screen reader
+            announced an enabled button while sighted users saw a greyed one. */}
         <button
           type="button"
           onClick={handleSave}
-          disabled={isSaving}
+          disabled={isSaving || !reqMapped}
+          aria-disabled={isSaving || !reqMapped}
+          title={!reqMapped ? missingRequiredMessage : undefined}
           className="inline-flex items-center justify-center rounded-[6px] px-4 text-[13px] font-semibold transition-colors"
           style={{
             height: 34,
             background: isSaving ? FAINT : NAVY,
             color: "#FFF",
             border: "none",
-            cursor: isSaving ? "default" : "pointer",
+            cursor: isSaving || !reqMapped ? "default" : "pointer",
             opacity: !reqMapped && !isSaving ? 0.6 : 1,
           }}
         >

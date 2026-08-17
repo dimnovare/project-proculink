@@ -151,14 +151,19 @@ describe("PoMappingEditor — nothing enters the mapping without a human action"
     renderEditor();
     floor();
 
-    // Saving straight off the mount must persist an empty mapping: the four
-    // suggestions are on screen, and not one of them has been adopted.
-    save();
-    const cfg = savedConfig();
-    expect(mappedFields(cfg)).toEqual([]);
-    for (const s of ABOVE_OLD_THRESHOLD) {
-      expect(mappedFields(cfg)).not.toContain(s.canonicalField);
+    // Read off the footer rather than off a save: `Save mapping` now refuses an incomplete
+    // mapping (PoMappingEditor.saveGate.test.tsx), and an empty one is incomplete by definition.
+    // The footer is a stronger probe anyway — it NAMES the required fields still unmapped, and
+    // every suggestion above the retired threshold is one of them. Restore the auto-apply and
+    // those names disappear from this list.
+    const footerNote = screen.getByText(/Map required \(\*\) fields to continue/);
+    for (const label of ["PO Number", "Order Date", "Buyer Item Code"]) {
+      expect(footerNote.textContent).toContain(label);
     }
+    expect(screen.getByRole("button", { name: "Save mapping" })).toBeDisabled();
+
+    save();
+    expect(onSave).not.toHaveBeenCalled();
   });
 
   it("keeps an unaccepted suggestion visibly pending rather than silently absent", () => {
@@ -233,12 +238,20 @@ describe("PoMappingEditor — accepting still works", () => {
     floor();
 
     fireEvent.click(within(row("BuyerItemCode")).getByRole("button", { name: "Accept" }));
-    save();
 
-    const cfg = savedConfig();
-    expect(mappedColumn(cfg, "BuyerItemCode")).toBe("item_code");
-    // and only that one — accepting one field does not adopt its neighbours.
-    expect(mappedFields(cfg)).toEqual(["BuyerItemCode"]);
+    // Only that one — accepting one field does not adopt its neighbours. Read off the footer,
+    // which names the required fields still unmapped, because a partial mapping can no longer be
+    // saved (PoMappingEditor.saveGate.test.tsx).
+    const footerNote = screen.getByText(/Map required \(\*\) fields to continue/);
+    for (const label of ["PO Number", "Order Date", "Quantity"]) {
+      expect(footerNote.textContent).toContain(label);
+    }
+    expect(footerNote.textContent).not.toContain("Buyer Item Code");
+
+    // And the accepted one really does reach the saved config.
+    fireEvent.click(screen.getByRole("button", { name: /Accept all 3/ }));
+    save();
+    expect(mappedColumn(savedConfig(), "BuyerItemCode")).toBe("item_code");
   });
 
   it("adopts every pending suggestion through one explicit bulk accept, reversibly", () => {
@@ -268,9 +281,16 @@ describe("PoMappingEditor — accepting still works", () => {
     fireEvent.click(within(row("PoNumber")).getByRole("button", { name: "Reject" }));
     expect(within(row("PoNumber")).getByText("unmapped")).toBeTruthy();
 
+    // A bulk accept must not quietly pick it back up. PoNumber is required, so the proof that it
+    // stayed out of the mapping is the footer naming it — and the save refusing because of it.
     fireEvent.click(screen.getByRole("button", { name: /Accept all 3/ }));
+    const footerNote = screen.getByText(/Map required \(\*\) fields to continue/);
+    expect(footerNote.textContent).toContain("PO Number");
+    expect(footerNote.textContent).not.toContain("Order Date");
+    expect(screen.getByRole("button", { name: "Save mapping" })).toBeDisabled();
+
     save();
-    expect(mappedFields(savedConfig())).not.toContain("PoNumber");
+    expect(onSave).not.toHaveBeenCalled();
   });
 });
 
