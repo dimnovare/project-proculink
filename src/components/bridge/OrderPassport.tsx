@@ -23,6 +23,7 @@ import {
   deliveryAttemptOutcome,
 } from "@/lib/deliveryAttemptManifest";
 import type { DeliveryAttemptOutcome } from "@/lib/deliveryAttemptManifest";
+import { statusFact } from "@/lib/orderStatusManifest";
 import {
   outcomeIsOpenIssue,
   outcomeIsPass,
@@ -88,7 +89,12 @@ function hasTimeline(timeline: PassportEvent[], ...keywords: string[]): boolean 
 
 // ─── Stage derivation ───────────────────────────────────────────────────────
 
-type StageState = "done" | "current" | "pending" | "failed";
+// `blocked` is the fourth state, added with the manifest read below. The three that
+// existed could not express a PARKED order: it has not finished (not `done`), nothing
+// broke (not `failed`), and nothing is moving (not `current` — which literally prints
+// "in progress" beside the node). Drawing a parked order in any of the three was the
+// defect, so the state it needed exists now.
+type StageState = "done" | "current" | "pending" | "failed" | "blocked";
 interface Stage {
   key: string;
   label: string;
@@ -127,6 +133,70 @@ const PIPELINE = ["Uploaded", "Parsed", "Validated", "Mapped", "Transformed", "D
  */
 const VALIDATED_STAGE = PIPELINE.indexOf("Validated");
 
+/**
+ * Which pipeline node a FAILURE-bucket status broke at.
+ *
+ * Keyed by `FAILURE_STATUSES` from the order-status manifest, which is the whole point:
+ * this file used to decide the same question with hand-written substring tests —
+ * `includes("delivered")`, `includes("dead_letter")`, `includes("review")` — and three
+ * real statuses fell through every one of them. `rejected_by_supplier` had NO ARM AT
+ * ALL, so an order the supplier had read and refused fell forward onto `deliveredOk`
+ * on the strength of its own successful transport and rendered six green ticks, a final
+ * node reading "Delivered — no supplier confirmation yet", and a "Download what we
+ * sent" button.
+ *
+ * `OrderPassport.statusBucket.test.tsx` walks FAILURE_STATUSES and fails if a member
+ * has no entry here, so a status added to the manifest cannot silently lose its node.
+ */
+export const FAILURE_STAGE: Readonly<Record<string, number>> = {
+  failed: 1,                    // the source file could not be read — DeclaredTerminal
+  transform_failed: 4,          // the output could not be built; holds no artifact
+  delivery_failed: 5,
+  delivery_dead_letter: 5,
+  rejected_by_supplier: 5,      // transport succeeded; the SUPPLIER refused it
+};
+
+/**
+ * The final node's face for a PARKED status — stopped, but nothing broke.
+ *
+ * The manifest's own doc for the bucket is the rule these three obey: an operator
+ * "cannot tell 'stuck because it broke' from 'stuck because it is waiting for me' by
+ * how badly it is going, only by what they must do". So each names the wait and the
+ * next step, and none of them says "failed".
+ *
+ * The labels match `UnifiedStatusBadge`'s for the same statuses ("Delivery paused",
+ * "Delivery unknown"), because that badge renders on the workshop bar beside this
+ * timeline and the two panes were contradicting each other.
+ *
+ * `delivery_unconfirmed`'s sentence is `auditActionRemedy.ts`'s remedy, kept because
+ * this screen was actively fighting it: the remedy tells the operator to ASK THE
+ * SUPPLIER before resending, and the timeline was telling them it had been delivered.
+ *
+ * Walked by the same test as FAILURE_STAGE, against PARKED_STATUSES.
+ */
+export const PARKED_FINAL: Readonly<Record<string, { label: string; detail: string }>> = {
+  unrouted: {
+    label: "Needs a supplier",
+    detail: "No supplier has been resolved for this order, so there is nowhere to send it yet.",
+  },
+  delivery_held: {
+    label: "Delivery paused",
+    detail: "Sending is paused because the account can't process orders right now. It releases automatically.",
+  },
+  delivery_unconfirmed: {
+    label: "Delivery unknown",
+    detail:
+      "A send was attempted and its outcome was lost. Ask the supplier whether this order arrived " +
+      "before sending it again — a second copy would reach them as a duplicate.",
+  },
+};
+
+/** The face for a parked status the manifest has but this table has not. Never green. */
+const PARKED_FALLBACK = {
+  label: "Stopped",
+  detail: "This order stopped and needs a person to move it on.",
+};
+
 interface DerivedTimeline {
   stages: Stage[];
   final: { label: string; state: StageState; detail?: string; at: string | null };
@@ -147,23 +217,47 @@ export function deriveTimeline(p: PassportDto): DerivedTimeline {
   const resp = p.supplierResponse;
   const respOutcome = lc(resp?.outcome);
 
+  // The ORDER status goes through the order-status manifest's allow-list, exactly as the
+  // ATTEMPT status below goes through the delivery-attempt manifest's. Both used to be
+  // hand-written substring tests here; the attempt half was fixed first, and this half
+  // still had three real statuses with no arm — `delivery_held` and
+  // `delivery_unconfirmed` (PARKED) drew the Delivered node as in-progress, and
+  // `rejected_by_supplier` had no arm at all and fell through to `deliveredOk`.
+  const fact = statusFact(fs);
+  const statusFailed = fact?.bucket === "failure";
+  const statusParked = fact?.bucket === "parked";
+  // A status this build has never heard of. Frontend and backend deploy separately, so
+  // this is routine — and it is a first-class answer, never a shade of "fine". It gates
+  // every DECIDED face below: we cannot say an order arrived, is moving, or broke when
+  // we cannot read what it is.
+  const statusUnknown = fact === null;
+
   // Attempt statuses go through the manifest allow-list, never a substring test — see
   // src/lib/deliveryAttemptManifest.ts. `deliveredOk` forces `reached = 5`, which draws
   // all six pipeline nodes green with a checkmark and offers "Download what we sent", so
-  // the ONE status the channel confirmed is the only thing allowed to set it.
+  // the ONE status the channel confirmed is the only thing allowed to set it — and only
+  // when the order's own status does not contradict it. A rejected order's transport DID
+  // succeed; that is precisely why the attempt evidence alone could not be trusted here.
   const deliveredOk =
-    fs.includes("delivered") ||
-    respOutcome === "delivered" ||
-    attempts.some((a) => attemptSendWasObserved(a.status));
+    !statusFailed && !statusParked && !statusUnknown &&
+    (fs === "delivered" ||
+      respOutcome === "delivered" ||
+      attempts.some((a) => attemptSendWasObserved(a.status)));
+
+  // Where the pipeline broke, read off the manifest bucket. A failure status the manifest
+  // names but FAILURE_STAGE does not is pinned to the last node rather than dropped —
+  // wrong-but-loud beats silently green, and the coverage test stops it arising.
+  const failureStage = statusFailed ? FAILURE_STAGE[fs] ?? 5 : null;
+  const parseFailed = failureStage === 1;
+  const transformFailed = failureStage === 4;
   const deliveryFailed =
-    fs.includes("delivery_failed") ||
-    fs.includes("dead_letter") ||
+    failureStage === 5 ||
     respOutcome === "rejected" ||
-    (attempts.length > 0 && !deliveredOk &&
+    // Attempt-level evidence, still honoured for a status that is not itself a failure —
+    // but never over a parked one, whose whole claim is that the outcome is unknown.
+    (attempts.length > 0 && !deliveredOk && !statusParked &&
       attempts.every((a) => deliveryAttemptOutcome(a.status) === "failed"));
-  const transformFailed = fs.includes("transform_failed");
-  const parseFailed = fs === "failed" || (fs.includes("parse") && fs.includes("fail"));
-  const needsReview = fs.includes("review") || fs.includes("pending");
+  const needsReview = fs === "pending_review";
 
   // Last completed stage index, taking the higher of status rank and evidence.
   let reached = STATUS_RANK[fs] ?? 0;
@@ -177,7 +271,18 @@ export function deriveTimeline(p: PassportDto): DerivedTimeline {
   else if (transformFailed) failedAt = 4;
   else if (deliveryFailed) failedAt = 5;
 
-  const inProgress = failedAt == null && !deliveredOk && !needsReview;
+  // Where (if anywhere) it PARKED. Both parked delivery statuses are about the Delivered
+  // node specifically; `unrouted` is a routing hold that precedes every node here and so
+  // claims none of them.
+  const parkedAt: number | null =
+    failedAt == null && (fs === "delivery_held" || fs === "delivery_unconfirmed")
+      ? PIPELINE.indexOf("Delivered")
+      : null;
+
+  // "In progress" is a claim that the order is MOVING. A parked order is not moving, and
+  // an order whose status we cannot read is not something we can claim either way.
+  const inProgress =
+    failedAt == null && !deliveredOk && !needsReview && !statusParked && !statusUnknown;
 
   const at = (i: number): string | null => {
     switch (i) {
@@ -247,6 +352,7 @@ export function deriveTimeline(p: PassportDto): DerivedTimeline {
     const evidenced = i !== VALIDATED_STAGE || validationRan;
     let state: StageState;
     if (failedAt === i) state = "failed";
+    else if (parkedAt === i) state = "blocked";
     else if (i <= reached && evidenced) state = "done";
     else if (i === reached + 1 && inProgress) state = "current";
     else state = "pending";
@@ -261,16 +367,39 @@ export function deriveTimeline(p: PassportDto): DerivedTimeline {
   // It shadowed the honest `deliveredOk` arm below, which was therefore unreachable. Nothing in the
   // product parses a supplier acknowledgement on any channel, so until something does, the only
   // supplier VERDICT that can appear here is a rejection.
+  //
+  // `rejected_by_supplier` is named here as well as on `respOutcome`. The status alone
+  // is enough: `PassportSupplierResponse` is nullable (types/procurement.ts), and
+  // `POST /api/orders/{id}/mark-rejected` sets the status without necessarily leaving one
+  // behind — so a null response used to drop the whole rejection and hand the operator
+  // "Delivered — no supplier confirmation yet".
   let final: DerivedTimeline["final"];
-  if (respOutcome === "rejected") {
+  if (respOutcome === "rejected" || fs === "rejected_by_supplier") {
     final = { label: "Supplier rejected", state: "failed", at: resp?.transportAcceptedAt ?? at(5), detail: resp?.rejectionReason ?? "The supplier read this order and refused it." };
   } else if (parseFailed || transformFailed || deliveryFailed) {
     const lastErr = attempts.map((a) => a.errorMessage || a.rejectionReason).filter(Boolean).pop();
     final = { label: "Failed", state: "failed", at: at(failedAt ?? 5), detail: lastErr ?? (p.finalStatus ?? p.order.status) };
+  } else if (statusParked) {
+    // Above `deliveredOk` on purpose: a parked delivery may well have a transport-accepted
+    // attempt behind it, and that attempt is exactly what must not be read as arrival.
+    const parked = PARKED_FINAL[fs] ?? PARKED_FALLBACK;
+    final = { label: parked.label, state: "blocked", at: at(5), detail: parked.detail };
   } else if (needsReview) {
     final = { label: "Needs review", state: "current", at: null, detail: "Resolve exceptions to continue" };
   } else if (deliveredOk) {
     final = { label: "Awaiting response", state: "current", at: at(5), detail: "Delivered — no supplier confirmation yet" };
+  } else if (statusUnknown) {
+    // NOT "In progress". That is a decided answer — it says the order is moving — and
+    // this build cannot read the status well enough to say so. The raw value is quoted
+    // because it is the one thing the operator can act on.
+    final = {
+      label: "Status not recognised",
+      state: "blocked",
+      at: null,
+      detail:
+        `This order's status is "${p.finalStatus ?? p.order.status ?? "missing"}", which this ` +
+        `version of ProcuLink can't read. Check the order itself before acting on this history.`,
+    };
   } else {
     final = { label: "In progress", state: "pending", at: null };
   }
@@ -348,6 +477,20 @@ const STATE_STYLE: Record<StageState, { ring: string; fill: string; text: string
   current: { ring: "#1E66C9", fill: "#FFFFFF", text: "#0F4FA8", glyph: "●" },
   pending: { ring: "#CBD0DA", fill: "#FFFFFF", text: "var(--ink-faint)", glyph: "" },
   failed:  { ring: "#B43838", fill: "#B43838", text: "#B43838", glyph: "✕" },
+  // Parked / unreadable — stopped, but nothing broke, so it is neither the green nor the
+  // red. TOKENS, not the neighbouring raw hex, deliberately: this row is new debt and the
+  // design-token gate counts every literal (comments included), so there is no reason to
+  // add four.
+  //
+  // All three slots are `--amber-text`, and `ring` is NOT the lighter `--amber` even
+  // though a 2px border would clear the 3:1 non-text floor with it. The node's glyph
+  // colour is `n.state === "current" ? s.ring : white`, so `ring` reaches a TEXT slot by
+  // indirection — src/test/textColorScan.test.ts catches exactly that spelling, and
+  // `--amber` fails the 4.5:1 text floor on every light surface this app has. Same
+  // one-colour shape as the `failed` row above, for the same reason. `--amber-text`
+  // carries the white glyph at 6.3161:1 and sits on the Section's white at the same
+  // 6.3161:1 — over AA in both slots.
+  blocked: { ring: "var(--amber-text)", fill: "var(--amber-text)", text: "var(--amber-text)", glyph: "!" },
 };
 
 /**
@@ -717,8 +860,11 @@ export function OrderPassport({ orderId }: { orderId: string }) {
                     <div style={{ display: "flex", alignItems: "baseline", gap: 6, flexWrap: "wrap" }}>
                       <span style={{ fontSize: 12.5, fontWeight: 600, color: n.state === "pending" ? "var(--ink-faint)" : "#0B1A2F" }}>{n.label}</span>
                       {n.state === "current" && <span style={{ fontSize: 9.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: s.text }}>in progress</span>}
+                      {/* Never "in progress" — that is the word a parked node must not
+                          wear, and wearing it is what this state was added to stop. */}
+                      {n.state === "blocked" && <span style={{ fontSize: 9.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: s.text }}>waiting on you</span>}
                     </div>
-                    {n.detail && <div style={{ fontSize: 11, color: n.state === "failed" ? "#B43838" : "#5E6779", marginTop: 1 }}>{n.detail}</div>}
+                    {n.detail && <div style={{ fontSize: 11, color: n.state === "failed" ? "#B43838" : n.state === "blocked" ? "var(--amber-text)" : "#5E6779", marginTop: 1 }}>{n.detail}</div>}
                     {n.at && <div style={{ fontSize: 10.5, color: "var(--ink-faint)", marginTop: 1 }}>{fmtDateTime(n.at)}</div>}
                   </div>
                 );

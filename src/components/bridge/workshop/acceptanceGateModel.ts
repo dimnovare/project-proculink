@@ -225,6 +225,24 @@ export const UNVERIFIED_ORDER_NOTE =
  * read it. Noun-free, because a fallback has no direction to route.
  */
 export const READY_BAR_DEFAULT = `No open issues. ${CHECK_SCOPE_SENTENCE}.`;
+
+/**
+ * The sub-line for WE-COULD-NOT-FINISH-CHECKING — a check this screen relies on did not
+ * run at all, so the zero it is about to report is a partial number, not a whole one.
+ *
+ * A third answer, distinct from both of its siblings. `STOPPED_ORDER_NOTE` reports an
+ * observed stoppage and `UNVERIFIED_ORDER_NOTE` reports a status we cannot read; this
+ * one reports that the CHECK itself did not complete, which says nothing about the
+ * order's status either way. Merging it into either sibling would assert something
+ * about the order that no evidence supports.
+ *
+ * Deliberately does NOT open with `CHECK_SCOPE_SENTENCE`: that clause names the scope
+ * of what WAS looked at, and here the honest claim is that the looking did not finish.
+ */
+export const CHECKS_UNAVAILABLE_NOTE =
+  "No field problems were found, but we couldn't finish checking this order — " +
+  "so this is not an all-clear. Reload in a moment to try again.";
+
 /**
  * Tooltip for WorkshopStatusBar's zero-blocker summary chip ("No issues" /
  * "N optional").
@@ -254,18 +272,47 @@ export const READY_BAR_DEFAULT = `No open issues. ${CHECK_SCOPE_SENTENCE}.`;
  * MobileTriage already took the status for exactly this reason; this bar was
  * missed. Same answer IssuesPanel gives: amber, and point at the panel that owns
  * the cause.
+ *
+ * THE TWO REMAINING HOLES, CLOSED 2026-08-17. This doc used to record the first of
+ * them as a known, deliberately-unclosed gap ("that hole is real and is owned by the
+ * orderStatusManifest tri-state work, not closed here"), and it stayed open long
+ * enough to become a shipped contradiction:
+ *
+ *   • `orderStopped` was computed with `isProblemBucketStatus`, a TWO-answer
+ *     predicate that answers false for a status this build has never heard of. So an
+ *     unrecognised status reached the clean arm and rendered a green tick — while
+ *     `IssuesPanel`, on the SAME SCREEN, drew its amber "we can't confirm this order
+ *     is clear" off the three-answer `orderProblemState`. Two panes, one order,
+ *     opposite verdicts. `statusUnverified` is that third answer.
+ *   • The bar renders "Validation checks unavailable" and "Required fields not
+ *     checked yet" as their own neutral chips, and fed NEITHER into this tooltip. At
+ *     zero blockers and zero notes an operator read a green ✓, "No issues", and
+ *     "Nothing is blocking this order" sitting inches from a chip saying the checks
+ *     could not run. `checksUnavailable` is that signal.
+ *
+ * Every flag here is OPTIONAL and false-by-default, so a caller that passes only
+ * `noteCount` behaves exactly as it did.
  */
 export function statusChipTitle(input: {
   /** Warning-severity issues behind the chip. Zero renders the "No issues" face. */
   noteCount: number;
   /**
-   * The order is in a problem status — `isProblemBucketStatus(orderStatus)`.
-   * NOTE its unknown-status behaviour: it answers FALSE for a status this build
-   * has never heard of, so an unrecognised status still reaches the clean arm
-   * below. That hole is real and is owned by the orderStatusManifest tri-state
-   * work, not closed here.
+   * The order is in a problem status — `orderProblemState(orderStatus) === "problem"`.
+   * NOT `isProblemBucketStatus`: see the note above for what that cost.
    */
   orderStopped?: boolean;
+  /**
+   * The order's status is not one this build's manifest names —
+   * `orderProblemState(orderStatus) === "unknown"`. Frontend and backend deploy
+   * separately, so this is routine, and the only honest answer is that we cannot tell.
+   */
+  statusUnverified?: boolean;
+  /**
+   * A check behind this chip's zero did not run: `mapper.validationUnavailable`, or
+   * `mapper.requiredUnknown > 0`. The count is therefore partial, and saying nothing
+   * is blocking is a claim the evidence does not reach.
+   */
+  checksUnavailable?: boolean;
 }): string {
   if (input.orderStopped) {
     // Deliberately does NOT re-state that the fields are fine and stop there:
@@ -275,6 +322,12 @@ export function statusChipTitle(input: {
       "The panel above says what happened and what to do next."
     );
   }
+  // Shared verbatim with the IssuesPanel / MobileTriage amber bar, which says exactly
+  // this about exactly this state — one claim, one string, three surfaces.
+  if (input.statusUnverified) return UNVERIFIED_ORDER_NOTE;
+  // Ranked above the note count on purpose: an unfinished check makes the note count
+  // partial too, so "these are worth a look" would present a fragment as the whole.
+  if (input.checksUnavailable) return CHECKS_UNAVAILABLE_NOTE;
   if (input.noteCount > 0) {
     // The chip itself already carries the count, so this says what to do with
     // them and claims nothing about anything else.

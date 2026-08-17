@@ -1,8 +1,14 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, test, expect, vi, afterEach } from "vitest";
-import { render, screen, cleanup, fireEvent } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, within } from "@testing-library/react";
 import { WorkshopStatusBar, dedupeBlockerChips, UNKNOWN_CHIP_STYLE } from "./WorkshopStatusBar";
+import {
+  CHECKS_UNAVAILABLE_NOTE,
+  CHECK_SCOPE_SENTENCE,
+  UNVERIFIED_ORDER_NOTE,
+} from "./acceptanceGateModel";
+import { REACHABLE_STATUSES, orderProblemState } from "@/lib/orderStatusManifest";
 import type { MapperToolbarState } from "../mapper/MapperWorkbench";
 
 // Radix DropdownMenu (the ⋯ overflow) positions its content with a
@@ -591,5 +597,236 @@ describe("WorkshopStatusBar — 'we could not check' is not 'we checked'", () =>
     // …and the claim this host cannot support is not made.
     expect(unknown).not.toMatch(/sending is paused/i);
     expect(unavailable).not.toMatch(/sending is paused/i);
+  });
+});
+
+/**
+ * THE SUMMARY CHIP MAY NOT SAY "NO ISSUES" ABOUT A ZERO IT DID NOT FINISH COUNTING.
+ *
+ * Two holes, one chip, both shipped:
+ *
+ *  1. `chipAmber` read `stopped || notes > 0` and NEITHER unknown flag — so with zero
+ *     blockers, zero notes, a healthy status and a failed /validation fetch the bar drew
+ *     a green tick, the words "No issues", and the tooltip "Nothing is blocking this
+ *     order" BESIDE ITS OWN CHIP saying "Validation checks unavailable", in the same flex
+ *     row. The chips already existed; the summary simply never read them.
+ *
+ *  2. `stopped` came from `isProblemBucketStatus`, a TWO-answer predicate whose own doc
+ *     admits an unrecognised status falls to the clean arm — while `IssuesPanel`, on this
+ *     same screen, branches on the THREE-answer `orderProblemState`. So an unknown status
+ *     made the panel say amber "we can't confirm this order is clear" and the bar say
+ *     green "No issues".
+ *
+ * SCOPING. jsdom applies no Tailwind, so every breakpoint tree in a component mounts at
+ * once and an unscoped `getByText` can answer from the wrong one. Every assertion about
+ * the SUMMARY is therefore scoped to the summary chip node itself, and "the scoping
+ * bites" below is the control proving that scope is real rather than decorative — it
+ * fails if `within` is ever silently widened back to `screen`.
+ */
+describe("WorkshopStatusBar — the summary chip and the unknown states", () => {
+  // The chip's two faces are inline literal hex, which survives jsdom (unlike `var()`),
+  // so the rendered background is a real discriminator between green and amber.
+  const GREEN_BG = "rgb(233, 241, 234)"; // #E9F1EA — the all-clear face
+  const AMBER_BG = "rgb(250, 241, 221)"; // #FAF1DD — every non-green face
+
+  function summary(): HTMLElement {
+    return screen.getByTestId("status-bar-issue-summary");
+  }
+
+  /** The green face is the tick AND the green ground; either one alone is not it. */
+  function isGreenAllClear(chip: HTMLElement): boolean {
+    const style = chip.getAttribute("style") ?? "";
+    return style.includes(GREEN_BG) && chip.querySelector("svg") != null;
+  }
+
+  test("validation checks unavailable → no green tick, no 'No issues', no 'Nothing is blocking'", () => {
+    render(
+      <WorkshopStatusBar
+        blockers={[]}
+        notes={0}
+        onJump={vi.fn()}
+        orderStatus="ready"
+        mapper={mapperState({ requiredUnmapped: 0, validationUnavailable: true })}
+      />,
+    );
+    const chip = summary();
+
+    // The exact rendering the defect produced, named so it cannot return by another route.
+    expect(isGreenAllClear(chip)).toBe(false);
+    expect(within(chip).queryByText("No issues")).toBeNull();
+    expect(chip.getAttribute("title")).not.toContain("Nothing is blocking this order");
+
+    // …and what it says instead: the unfinished check, in the model's own words.
+    expect(chip.textContent).toBe("Not fully checked");
+    expect(chip.getAttribute("style")).toContain(AMBER_BG);
+    expect(chip.getAttribute("title")).toBe(CHECKS_UNAVAILABLE_NOTE);
+    expect(chip.getAttribute("data-checks-unavailable")).toBe("true");
+
+    // The chip this summary was contradicting is still on screen, unchanged.
+    expect(screen.getByTestId("status-bar-validation-unavailable").textContent)
+      .toBe("Validation checks unavailable");
+  });
+
+  test("required fields not loaded → the same refusal to claim a clean order", () => {
+    render(
+      <WorkshopStatusBar
+        blockers={[]}
+        notes={0}
+        onJump={vi.fn()}
+        orderStatus="ready"
+        mapper={mapperState({ requiredUnmapped: 0, requiredUnknown: 3 })}
+      />,
+    );
+    const chip = summary();
+    expect(isGreenAllClear(chip)).toBe(false);
+    expect(chip.textContent).toBe("Not fully checked");
+    expect(chip.getAttribute("title")).toBe(CHECKS_UNAVAILABLE_NOTE);
+    expect(screen.getByTestId("status-bar-required-unknown")).toBeTruthy();
+  });
+
+  test("an unfinished check outranks the optional-note count, which is also partial", () => {
+    render(
+      <WorkshopStatusBar
+        blockers={[]}
+        notes={2}
+        onJump={vi.fn()}
+        orderStatus="ready"
+        mapper={mapperState({ validationUnavailable: true })}
+      />,
+    );
+    const chip = summary();
+    // The count is still shown — it is real — but it is not presented as the whole answer.
+    expect(chip.textContent).toBe("Not fully checked · 2 optional");
+    expect(chip.getAttribute("title")).toBe(CHECKS_UNAVAILABLE_NOTE);
+    expect(chip.getAttribute("title")).not.toContain("Nothing is blocking this order");
+  });
+
+  test("an unrecognised status → the bar gives the SAME verdict IssuesPanel gives", () => {
+    // A status this build has never heard of, which is routine: frontend and backend
+    // deploy separately. `orderProblemState` calls it "unknown"; `isProblemBucketStatus`
+    // called it `false`, i.e. indistinguishable from healthy, and that was the defect.
+    const UNKNOWN_STATUS = "delivery_quarantined";
+    expect(orderProblemState(UNKNOWN_STATUS)).toBe("unknown");
+
+    render(
+      <WorkshopStatusBar
+        blockers={[]}
+        notes={0}
+        onJump={vi.fn()}
+        orderStatus={UNKNOWN_STATUS}
+        mapper={mapperState({ requiredUnmapped: 0 })}
+      />,
+    );
+    const chip = summary();
+    expect(isGreenAllClear(chip)).toBe(false);
+    expect(within(chip).queryByText("No issues")).toBeNull();
+    expect(chip.textContent).toBe("Status unconfirmed");
+    expect(chip.getAttribute("data-order-verdict")).toBe("unknown");
+    // The identical sentence the panel's amber bar renders for this state — one claim,
+    // one string, so the two panes cannot drift back into contradicting each other.
+    expect(chip.getAttribute("title")).toBe(UNVERIFIED_ORDER_NOTE);
+  });
+
+  test("a stopped order still reads as stopped, and still says so first", () => {
+    // The arm that already worked, kept under the new four-way branch: `orderStopped`
+    // outranks both unknown signals, because an observed stoppage is the most specific
+    // true thing the bar can say.
+    render(
+      <WorkshopStatusBar
+        blockers={[]}
+        notes={0}
+        onJump={vi.fn()}
+        orderStatus="delivery_failed"
+        mapper={mapperState({ validationUnavailable: true })}
+      />,
+    );
+    const chip = summary();
+    expect(chip.textContent).toBe("Stopped");
+    expect(chip.getAttribute("data-order-stopped")).toBe("true");
+    expect(chip.getAttribute("title")).toContain("this order stopped before it was sent");
+  });
+
+  // ── ANTI-VACUITY ───────────────────────────────────────────────────────────
+  // Every assertion above is "not green". A suite of only those passes just as well when
+  // the chip renders nothing at all, or when it went amber unconditionally.
+
+  test("ANTI-VACUITY — a checked, clean, recognised order IS still green", () => {
+    render(
+      <WorkshopStatusBar
+        blockers={[]}
+        notes={0}
+        onJump={vi.fn()}
+        orderStatus="ready"
+        mapper={mapperState({ requiredUnmapped: 0, requiredUnknown: 0, validationUnavailable: false })}
+      />,
+    );
+    const chip = summary();
+    expect(isGreenAllClear(chip)).toBe(true);
+    expect(chip.textContent).toBe("No issues");
+    expect(chip.getAttribute("data-order-verdict")).toBe("clear");
+    expect(chip.getAttribute("data-checks-unavailable")).toBeNull();
+    expect(chip.getAttribute("title")).toContain("Nothing is blocking this order");
+    expect(chip.getAttribute("title")).toContain(CHECK_SCOPE_SENTENCE);
+  });
+
+  test("ANTI-VACUITY — an ABSENT status is a non-review host, not an unreadable one", () => {
+    // `orderStatus` is optional precisely so the bar's other hosts are unchanged, and
+    // `orderProblemState(null)` answers "unknown". Reading that as unverifiable would put
+    // "Status unconfirmed" on every order in every one of those hosts.
+    render(<WorkshopStatusBar blockers={[]} notes={0} onJump={vi.fn()} mapper={mapperState()} />);
+    const chip = summary();
+    expect(isGreenAllClear(chip)).toBe(true);
+    expect(chip.textContent).toBe("No issues");
+    expect(chip.getAttribute("data-order-verdict")).toBeNull();
+  });
+
+  test("the scoping bites — within(chip) really excludes the rest of the bar", () => {
+    // The control for every `within(chip)` above. Both nodes are in the same DOM; only
+    // the scope keeps them apart, and if the scope stopped applying this test fails while
+    // the assertions it protects would silently keep passing.
+    render(
+      <WorkshopStatusBar
+        blockers={[]}
+        onJump={vi.fn()}
+        orderStatus="ready"
+        mapper={mapperState({ validationUnavailable: true })}
+      />,
+    );
+    const chip = summary();
+    const bar = screen.getByTestId("workshop-status-bar");
+    expect(within(bar).getByText("Validation checks unavailable")).toBeTruthy();
+    expect(within(chip).queryByText("Validation checks unavailable")).toBeNull();
+    expect(bar.contains(chip)).toBe(true);
+  });
+
+  /**
+   * The two predicates agree on every status the manifest NAMES — which is the property
+   * `isProblemBucketStatus` also had, and why the swap cannot be verified by walking the
+   * manifest alone. This walk is the floor; "an unrecognised status" above is the test
+   * that actually bites, because the disagreement only exists off the end of this list.
+   */
+  test("every reachable status renders the verdict orderProblemState gives it", () => {
+    // Anti-vacuity floor for the walk itself: a manifest that lost its rows would make
+    // this trivially true by knowing nothing at all.
+    expect(REACHABLE_STATUSES.length).toBeGreaterThanOrEqual(14);
+    expect(REACHABLE_STATUSES.some((s) => orderProblemState(s) === "clear")).toBe(true);
+    expect(REACHABLE_STATUSES.some((s) => orderProblemState(s) === "problem")).toBe(true);
+
+    for (const status of REACHABLE_STATUSES) {
+      cleanup();
+      render(
+        <WorkshopStatusBar
+          blockers={[]}
+          notes={0}
+          onJump={vi.fn()}
+          orderStatus={status}
+          mapper={mapperState({ requiredUnmapped: 0 })}
+        />,
+      );
+      const chip = summary();
+      const expected = orderProblemState(status);
+      expect(chip.getAttribute("data-order-verdict"), `verdict for "${status}"`).toBe(expected);
+      expect(isGreenAllClear(chip), `green tick for "${status}"`).toBe(expected === "clear");
+    }
   });
 });
