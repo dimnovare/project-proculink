@@ -25,10 +25,34 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
-/** `useDialogA11y` moves focus in on a rAF, so every open must be flushed. */
+// The nav lazy-loads `MarketingClerkLinks` (next/dynamic, ssr:false) whenever
+// NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY is set, and that module calls `useUser()`,
+// which throws outside a <ClerkProvider>. Two things made that a real CI failure
+// rather than a hypothetical: the key is set in CI and not in a bare local shell,
+// and WHEN the dynamic import resolves relative to these assertions is timing, not
+// something the test controls — so the same file passed locally with the key set
+// and still threw on the runner. Mocking the auth surface removes both variables:
+// signed-out is the marketing default, and it holds either way.
+vi.mock("@clerk/nextjs", () => ({
+  useUser: () => ({ isLoaded: true, isSignedIn: false, user: null }),
+  UserButton: () => null,
+}));
+
+// Pin the riskier of the two configurations ON. Without a key the nav skips the
+// lazy Clerk module entirely, so a local run would exercise the easy branch and
+// leave the branch CI actually runs untested — which is exactly how the first
+// version of this file went green here and red on the runner.
+process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ||= "pk_test_marketing_nav_a11y";
+
+/**
+ * `useDialogA11y` moves focus in on a rAF, so every open must be flushed. The
+ * macrotask after it gives the `next/dynamic` import a turn to resolve and mount,
+ * so the Clerk branch is really rendered rather than skipped by timing.
+ */
 const flush = async () => {
   await act(async () => {
     await new Promise((r) => requestAnimationFrame(() => r(null)));
+    await new Promise((r) => setTimeout(r, 0));
   });
 };
 
