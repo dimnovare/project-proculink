@@ -128,15 +128,15 @@ describe("dialog registry is DERIVED from the source, not hand-maintained", () =
     // one of which (InboxView) renders no dialog — so 18 dialogs in 18 files, and
     // 12 of the 18 had no focus trap. Both of the packet's numbers were low.
     //
-    // 19 since LaneDrawer was marked up. It was a modal the whole time; this gate
-    // could not count it, because the grep it derives from asks whether a dialog is
-    // MARKED, and LaneDrawer was not. That direction is now guarded by
-    // src/test/unmarked-modal.test.ts. The 18/12 above are the 478b809 baseline and
-    // do not move; the totals here do.
-    expect(DIALOG_REGISTRY.length).toBe(19);
-    expect(TOTAL_DIALOGS).toBe(19);
-    expect(DIALOG_REGISTRY.filter((d) => !d.hadTrapBefore).length).toBe(13);
-    expect(DIALOG_REGISTRY.filter((d) => !d.hadEscapeBefore).length).toBe(6);
+    // 20 since LaneDrawer and SupplierDockProfile's delete confirmation were marked
+    // up. Both were modals the whole time; this gate could count neither, because
+    // the grep it derives from asks whether a dialog is MARKED, and neither was.
+    // That direction is now guarded by src/test/unmarked-modal.test.ts. The 18/12
+    // above are the 478b809 baseline and do not move; the totals here do.
+    expect(DIALOG_REGISTRY.length).toBe(20);
+    expect(TOTAL_DIALOGS).toBe(20);
+    expect(DIALOG_REGISTRY.filter((d) => !d.hadTrapBefore).length).toBe(14);
+    expect(DIALOG_REGISTRY.filter((d) => !d.hadEscapeBefore).length).toBe(7);
   });
 });
 
@@ -201,6 +201,7 @@ import { HistoryDrawer } from "@/components/connections/HistoryDrawer";
 import { OrderDetailsDrawer } from "@/components/bridge/workshop/OrderDetailsDrawer";
 import { OnboardingWizard } from "@/components/bridge/OnboardingWizard";
 import { LaneDrawer } from "@/components/bridge/LaneDrawer";
+import { DeleteSupplierDialog } from "@/components/bridge/SupplierDockProfile";
 import type { AdminOrganisation } from "@/lib/api/billing";
 import type { PartyLabels } from "@/hooks/useOrderDirection";
 
@@ -321,6 +322,19 @@ const RENDERABLE: RenderableDialog[] = [
   {
     file: "src/components/bridge/OnboardingWizard.tsx",
     render: (onClose) => <OnboardingWizard onDismiss={onClose} />,
+  },
+  {
+    file: "src/components/bridge/SupplierDockProfile.tsx",
+    render: (onClose) => (
+      <DeleteSupplierDialog
+        name="Acme Components"
+        partyNounLower="supplier"
+        deleting={false}
+        deleteError={null}
+        onCancel={onClose}
+        onConfirm={() => {}}
+      />
+    ),
   },
   {
     file: "src/components/bridge/LaneDrawer.tsx",

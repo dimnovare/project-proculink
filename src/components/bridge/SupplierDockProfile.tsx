@@ -3,7 +3,7 @@
 // Supplier Dock Profile — /library/suppliers/[id]
 // §5.8 — Header + tabs: Overview · Mappings · PO Mapping · Delivery · Acceptance
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -26,6 +26,7 @@ import { formatMoney } from "./review/orderDisplay";
 import { pagePopulation, practiceOrderNote } from "./orderCountContract";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
+import { useDialogA11y } from "@/hooks/useDialogA11y";
 import { invalidateOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { deliveryConfigQueryKey } from "@/lib/deliveryConfigCache";
 import { PageShell } from "./layout/PageShell";
@@ -1329,6 +1330,104 @@ function CatalogPushCard({ supplierId }: { supplierId: string }) {
   );
 }
 
+/**
+ * The "Delete {name}?" confirmation.
+ *
+ * IT WAS AN UNMARKED MODAL. It shipped as a `fixed inset-0` scrim wrapping a
+ * centred panel, both plain <div>s: no `role="dialog"`, no `aria-modal`, no focus
+ * trap, no focus restore, no scroll lock and no Escape. That is the same shape
+ * `LaneDrawer` had, on a DESTRUCTIVE confirmation — a screen-reader user got no
+ * announcement that a decision was being asked for, and a keyboard user could Tab
+ * straight out of it onto the page behind. `src/test/unmarkedOverlays.ts` is the
+ * guard that catches this direction; the marking guard in `dialog-a11y.test.tsx`
+ * never could, because it keys on a dialog role that was not there.
+ *
+ * EXPORTED so `src/test/dialog-a11y.test.tsx` can mount it on its own. The page
+ * around it needs a router, `useSearchParams` and several queries; a dialog that
+ * can only be reached through all of that is a dialog whose behaviour nobody
+ * tests.
+ */
+export function DeleteSupplierDialog({
+  name,
+  partyNounLower,
+  deleting,
+  deleteError,
+  onCancel,
+  onConfirm,
+}: {
+  name: string;
+  partyNounLower: string;
+  deleting: boolean;
+  deleteError: string | null;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const titleId = useId();
+  // Escape is switched off while the delete is in flight, for the same reason the
+  // scrim's click-to-close is: the request has already left, so dismissing the
+  // dialog would hide the only place its error can be reported.
+  useDialogA11y({ open: true, onClose: onCancel, panelRef, closeOnEscape: !deleting });
+
+  return (
+    <>
+      {/* Scrim. `aria-hidden` AND a sibling of the panel rather than its parent:
+          aria-hidden on an ancestor hides the dialog it is meant to sit behind. */}
+      <div
+        aria-hidden
+        className="fixed inset-0 z-50"
+        style={{ background: "rgba(11,26,47,0.45)" }}
+        onClick={() => { if (!deleting) onCancel(); }}
+      />
+      {/* Centring layer only — `pointer-events-none` so a click in the margin still
+          reaches the scrim underneath and closes the dialog. */}
+      <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div
+          ref={panelRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={titleId}
+          tabIndex={-1}
+          className="pointer-events-auto w-full max-w-[420px] rounded-[12px] p-5"
+          style={{ background: SURFACE, border: `1px solid ${LINE}`, boxShadow: "0 12px 40px rgba(11,26,47,0.25)" }}
+        >
+          <h3 id={titleId} className="text-[15px] font-semibold" style={{ color: INK, fontFamily: DISPLAY }}>
+            Delete {name || `this ${partyNounLower}`}?
+          </h3>
+          <p className="mt-2 text-[12.5px] leading-relaxed" style={{ color: MUTED }}>
+            This removes it from your {partyNounLower} list. Past orders are kept for audit. This can’t be undone here.
+          </p>
+          {deleteError && (
+            <div className="mt-3 rounded-[6px] px-3 py-2 text-[12px]" style={{ background: "#FBE3E3", color: DANGER, border: "1px solid #F0C2C2" }}>
+              {deleteError}
+            </div>
+          )}
+          <div className="mt-4 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={onCancel}
+              disabled={deleting}
+              className="rounded-[7px] px-3 text-[12.5px] font-medium"
+              style={{ height: 34, border: `1px solid ${LINE}`, background: SURFACE, color: MUTED, cursor: "pointer" }}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={onConfirm}
+              disabled={deleting}
+              className="rounded-[7px] px-3 text-[12.5px] font-semibold"
+              style={{ height: 34, border: "none", background: DANGER, color: "#FFFFFF", cursor: "pointer", opacity: deleting ? 0.7 : 1 }}
+            >
+              {deleting ? "Deleting…" : `Delete ${partyNounLower}`}
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 export function SupplierDockProfile({ id }: { id: string }) {
   const router = useRouter();
   const qc = useQueryClient();
@@ -1488,49 +1587,14 @@ export function SupplierDockProfile({ id }: { id: string }) {
   return (
     <PageShell variant="wide" className="flex flex-col">
       {confirmDelete && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: "rgba(11,26,47,0.45)" }}
-          onClick={() => { if (!deleting) { setConfirmDelete(false); setDeleteError(null); } }}
-        >
-          <div
-            className="w-full max-w-[420px] rounded-[12px] p-5"
-            style={{ background: SURFACE, border: `1px solid ${LINE}`, boxShadow: "0 12px 40px rgba(11,26,47,0.25)" }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-[15px] font-semibold" style={{ color: INK, fontFamily: DISPLAY }}>
-              Delete {name || `this ${partyNounLower}`}?
-            </h3>
-            <p className="mt-2 text-[12.5px] leading-relaxed" style={{ color: MUTED }}>
-              This removes it from your {partyNounLower} list. Past orders are kept for audit. This can’t be undone here.
-            </p>
-            {deleteError && (
-              <div className="mt-3 rounded-[6px] px-3 py-2 text-[12px]" style={{ background: "#FBE3E3", color: DANGER, border: "1px solid #F0C2C2" }}>
-                {deleteError}
-              </div>
-            )}
-            <div className="mt-4 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => { setConfirmDelete(false); setDeleteError(null); }}
-                disabled={deleting}
-                className="rounded-[7px] px-3 text-[12.5px] font-medium"
-                style={{ height: 34, border: `1px solid ${LINE}`, background: SURFACE, color: MUTED, cursor: "pointer" }}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={doDelete}
-                disabled={deleting}
-                className="rounded-[7px] px-3 text-[12.5px] font-semibold"
-                style={{ height: 34, border: "none", background: DANGER, color: "#FFFFFF", cursor: "pointer", opacity: deleting ? 0.7 : 1 }}
-              >
-                {deleting ? "Deleting…" : `Delete ${partyNounLower}`}
-              </button>
-            </div>
-          </div>
-        </div>
+        <DeleteSupplierDialog
+          name={name}
+          partyNounLower={partyNounLower}
+          deleting={deleting}
+          deleteError={deleteError}
+          onCancel={() => { setConfirmDelete(false); setDeleteError(null); }}
+          onConfirm={doDelete}
+        />
       )}
 
       {/* Header — bespoke detail header (back link + avatar + meta + actions) on the
