@@ -196,6 +196,19 @@ export const DIALOG_REGISTRY: DialogEntry[] = [
     hadTrapBefore: true,
     hadEscapeBefore: true,
   },
+  {
+    file: "src/components/marketing/MarketingNav.tsx",
+    name: "marketing mobile menu",
+    dialogs: 1,
+    kind: "modal",
+    // It is navigation by content, but an OPAQUE `fixed inset-0` sheet by
+    // behaviour: nothing behind it is visible or clickable. It shipped with no
+    // role, no aria-modal, no Escape and no focus restore — invisible to the
+    // derived guard above for the same reason LaneDrawer was, and caught instead
+    // by src/test/unmarked-modal.test.ts, which carried it on its baseline.
+    hadTrapBefore: false,
+    hadEscapeBefore: false,
+  },
 
   // ── Anchored popovers — Escape + restore, NO Tab trap ──────────────────────
   {

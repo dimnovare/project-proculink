@@ -133,10 +133,14 @@ describe("dialog registry is DERIVED from the source, not hand-maintained", () =
     // the grep it derives from asks whether a dialog is MARKED, and neither was.
     // That direction is now guarded by src/test/unmarked-modal.test.ts. The 18/12
     // above are the 478b809 baseline and do not move; the totals here do.
-    expect(DIALOG_REGISTRY.length).toBe(20);
-    expect(TOTAL_DIALOGS).toBe(20);
-    expect(DIALOG_REGISTRY.filter((d) => !d.hadTrapBefore).length).toBe(14);
-    expect(DIALOG_REGISTRY.filter((d) => !d.hadEscapeBefore).length).toBe(7);
+    //
+    // 21 since the marketing mobile menu (MarketingNav) — the last row off that same
+    // unmarked-overlay baseline, which is now empty. It had neither a trap nor an
+    // Escape handler, so both "before" counts move with it.
+    expect(DIALOG_REGISTRY.length).toBe(21);
+    expect(TOTAL_DIALOGS).toBe(21);
+    expect(DIALOG_REGISTRY.filter((d) => !d.hadTrapBefore).length).toBe(15);
+    expect(DIALOG_REGISTRY.filter((d) => !d.hadEscapeBefore).length).toBe(8);
   });
 });
 

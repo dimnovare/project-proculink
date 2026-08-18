@@ -89,20 +89,18 @@ export function unmarkedOverlays(files: ScannedFile[]): string[] {
 }
 
 /**
- * Known offenders, as of 2026-08-17, that this packet did not fix.
+ * Files that cover the viewport and tell nobody, and are knowingly not fixed yet.
  *
- * A real instance of the same defect LaneDrawer had, baselined rather than fixed
- * because it belongs to a file in flight and a drive-by edit would collide. A
- * baseline row is a debt with a name on it, NOT a verdict that the file is fine —
- * and it is subtracted, not consulted, so the row for SupplierDockProfile.tsx had
- * to come out the moment that dialog was marked up.
+ * EMPTY, as of 2026-08-18 — and that is a state to defend, not a reason to delete
+ * the list. Both original rows are gone because both were fixed: LaneDrawer's shape
+ * appeared again in `SupplierDockProfile`'s delete confirmation, and in
+ * `MarketingNav`'s mobile menu, an OPAQUE `fixed inset-0` sheet that was marked
+ * `role="dialog"` + `aria-modal="true"` and routed through `useDialogA11y` — the
+ * same treatment the app shell's mobile drawer gets.
+ *
+ * The array is subtracted, not consulted, and `unmarked-modal.test.ts` fails on a
+ * stale row as well as on a new offender. So a row added here is a debt with a name
+ * on it, never a permanent exemption, and an empty baseline means every full-viewport
+ * overlay in src/ currently announces itself.
  */
-export const UNMARKED_OVERLAY_BASELINE: { file: string; why: string }[] = [
-  {
-    file: "src/components/marketing/MarketingNav.tsx",
-    why:
-      "The mobile menu (line ~100) is a full-screen navy overlay with no role and no Escape. It is " +
-      "navigation rather than a dialog, so the right marking is probably a labelled <nav> plus " +
-      "Escape and focus restore — a decision about marketing chrome, not this packet.",
-  },
-];
+export const UNMARKED_OVERLAY_BASELINE: { file: string; why: string }[] = [];

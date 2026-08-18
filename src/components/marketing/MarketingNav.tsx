@@ -6,9 +6,10 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { ProcuLinkMark } from "@/components/bridge/DSPrimitives";
 import { MarketingAuthLinks } from "@/components/marketing/MarketingAuthLinks";
+import { useDialogA11y } from "@/hooks/useDialogA11y";
 
 // Clerk UI (UserButton + useUser) is the single heaviest dependency of the
 // marketing pages (~140 kB chunk). It's code-split out of the first-load JS
@@ -37,6 +38,21 @@ export function MarketingNav() {
   // True once the lazily-loaded Clerk module confirms a signed-in session —
   // only then do the static signed-out links yield to the dashboard cluster.
   const [signedIn, setSignedIn] = useState(false);
+
+  const menuRef = useRef<HTMLDivElement>(null);
+  const closeMenu = useCallback(() => setOpen(false), []);
+
+  // The mobile menu is NAVIGATION, but it is served as an opaque `fixed inset-0`
+  // sheet: nothing behind it is visible or clickable while it is up. That is a
+  // modal by behaviour, so it is marked as one — the same treatment the app
+  // shell's mobile drawer gets (`src/app/(app)/layout.tsx`), and for the same
+  // reason. A labelled <nav> alone would announce a region but leave the page
+  // behind it exposed to AT while it is visually covered.
+  //
+  // Before this, the sheet had no role, no aria-modal, no Escape and no focus
+  // restore: a keyboard user who opened it was dropped into an unannounced layer
+  // with no way back to the hamburger except tabbing blind for the ✕.
+  useDialogA11y({ open, onClose: closeMenu, panelRef: menuRef });
 
   return (
     <nav
@@ -88,6 +104,7 @@ export function MarketingNav() {
           onClick={() => setOpen((o) => !o)}
           aria-label="Menu"
           aria-expanded={open}
+          aria-controls="marketing-mobile-menu"
           className="sm:hidden flex items-center justify-center text-[20px]"
           style={{ width: 44, height: 44, color: "#FFFFFF", background: "transparent", border: 0 }}
         >
@@ -98,7 +115,13 @@ export function MarketingNav() {
       {/* Mobile menu — fixed full-screen overlay so hero is fully covered */}
       {open && (
         <div
-          className="fixed inset-0 z-50 flex flex-col sm:hidden"
+          id="marketing-mobile-menu"
+          ref={menuRef}
+          tabIndex={-1}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Menu"
+          className="fixed inset-0 z-50 flex flex-col outline-none sm:hidden"
           style={{ background: "#0B1A2F" }}
         >
           {/* Top bar row: logo + close button */}
@@ -127,8 +150,9 @@ export function MarketingNav() {
             </button>
           </div>
 
-          {/* Nav links */}
-          <div className="flex flex-col px-4 pt-4 gap-1">
+          {/* Nav links — a landmark inside the sheet, so the content is still
+              reachable as navigation once AT is inside the modal layer. */}
+          <nav aria-label="Mobile" className="flex flex-col px-4 pt-4 gap-1">
             {LINKS.map(({ label, href }) => (
               <Link
                 key={href}
@@ -148,7 +172,7 @@ export function MarketingNav() {
             >
               Sign in
             </Link>
-          </div>
+          </nav>
 
           {/* CTA */}
           <div className="px-4 pt-6">
