@@ -91,19 +91,13 @@ export function unmarkedOverlays(files: ScannedFile[]): string[] {
 /**
  * Known offenders, as of 2026-08-17, that this packet did not fix.
  *
- * Both are real instances of the same defect LaneDrawer had. They are baselined
- * rather than fixed because they belong to other files in flight and a drive-by edit
- * to either would collide; each is tracked separately. A baseline row is a debt with
- * a name on it, NOT a verdict that the file is fine.
+ * A real instance of the same defect LaneDrawer had, baselined rather than fixed
+ * because it belongs to a file in flight and a drive-by edit would collide. A
+ * baseline row is a debt with a name on it, NOT a verdict that the file is fine —
+ * and it is subtracted, not consulted, so the row for SupplierDockProfile.tsx had
+ * to come out the moment that dialog was marked up.
  */
 export const UNMARKED_OVERLAY_BASELINE: { file: string; why: string }[] = [
-  {
-    file: "src/components/bridge/SupplierDockProfile.tsx",
-    why:
-      "The 'Delete this supplier?' confirmation (line ~1490) is a scrim + centred panel of plain " +
-      "<div>s: no role, no aria-modal, no trap. A destructive confirmation is the worst place to " +
-      "have one, and it needs the same useDialogA11y treatment LaneDrawer just got.",
-  },
   {
     file: "src/components/marketing/MarketingNav.tsx",
     why:
