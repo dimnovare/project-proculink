@@ -147,6 +147,27 @@ export const KNOWN_MACHINE_FACING: Record<string, string> = {
     "`$API_BASE/api/admin/organisations/$ORG_ID/account-status`. [AdminOnly], cross-tenant. The " +
     "other AdminController writes have no such caller and are deliberately left failing.",
 
+  // ── GDPR erasure: DECIDED 2026-08-18, and the decision was "no self-serve control".
+  //    These two sat in UNCALLED_PENDING_DECISION since 2026-08-06 with the open question
+  //    "a data-protection obligation with no operator surface", the reason citing the absence
+  //    of a runbook. The founder ruled: erasure stays admin-only, and is documented instead —
+  //    publicly for customers, and as an operator runbook. Both halves now exist, so the
+  //    endpoints have a real out-of-band caller and belong here rather than on the open list.
+  //    They are still uncalled from this app, and must stay that way: a browser control that
+  //    hard-deletes another tenant's orders is the surface nobody wanted to build.
+  "DELETE /api/admin/organisations/{}/orders/{}":
+    "Single-order GDPR erasure (Art. 17), run by hand by a platform admin — never from a screen, " +
+    "by decision. The customer-facing half is the \"Deleting your data\" section of " +
+    "src/app/(marketing)/privacy/page.tsx; the operator half is the step-by-step in the backend " +
+    "repo at docs/ops/2026-08-18-gdpr-erasure-runbook.md, which carries the curl, the " +
+    "requester-verification query and the post-erase verification SQL. [AdminOnly], cross-tenant, " +
+    "irreversible.",
+  "POST /api/admin/organisations/{}/orders/bulk-erase":
+    "The bulk half of the same admin-only erasure path, documented in the same runbook " +
+    "(docs/ops/2026-08-18-gdpr-erasure-runbook.md §4). An empty filter is refused with 400 so it " +
+    "can never mass-wipe an organisation. Deliberately has no frontend caller for the same reason " +
+    "as the single-order erase above.",
+
   // ── Reached by a computed final segment, which the matcher refuses to credit.
   //    See "WHAT IT CANNOT SEE" above: the refusal is deliberate.
   "POST /api/connections/{}/revisions/{}/publish":
@@ -200,14 +221,6 @@ export const UNCALLED_PENDING_DECISION: Record<string, string> = {
     "ProcuLink.Api/Controllers/SuppliersController.cs:584 calls it \"the recovery door for a " +
     "layout that cannot deliver this supplier's format\", and nothing in the mapper offers it. A " +
     "door with no handle.",
-  "DELETE /api/admin/organisations/{}/orders/{}":
-    "PENDING A DECISION, 2026-08-06 — single-order erasure, an data-protection obligation with no " +
-    "operator surface. Unlike account-status it has no runbook entry either; " +
-    "src/app/(app)/admin/guides/onboard-a-new-client/content.mdx documents no curl for it.",
-  "POST /api/admin/organisations/{}/orders/bulk-erase":
-    "PENDING A DECISION, 2026-08-06 — bulk erasure, same gap as the single-order erase above and " +
-    "the same absence from src/app/(app)/admin/guides/onboard-a-new-client/content.mdx. The admin " +
-    "screens call only /limits and /invoices.",
   "POST /api/admin/organisations/{}/retention":
     "PENDING A DECISION, 2026-08-06 — sets an organisation's retention window with no control " +
     "anywhere in src/app/(app)/admin/, and no documented curl. Wire it into the admin org view or " +
