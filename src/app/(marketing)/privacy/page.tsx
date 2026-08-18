@@ -28,7 +28,7 @@ export default function PrivacyPage() {
   return (
     <div style={S.page}>
       <h1 style={S.h1}>Privacy Policy</h1>
-      <p style={S.updated}>Last updated: 11 June 2026</p>
+      <p style={S.updated}>Last updated: 18 August 2026</p>
 
       <h2 style={S.h2}>Who we are</h2>
       <p style={S.p}>
@@ -120,9 +120,10 @@ export default function PrivacyPage() {
       <h2 style={S.h2}>Data retention</h2>
       <ul style={{ paddingLeft: 20, marginBottom: 14 }}>
         <li style={S.li}>Active account data is retained while your account is active.</li>
-        <li style={S.li}>Order files and output artifacts are retained for the life of the account by default. We delete order data on written request, and automated retention windows are on our roadmap.</li>
+        <li style={S.li}>Order files and output artifacts are retained for the life of the account by default. We delete order data on written request — see &quot;Deleting your data&quot; below for what that covers.</li>
+        <li style={S.li}>A shorter automatic window can be set on a workspace, so that stored order files are removed once they reach the age you choose. It is off unless you ask us for it.</li>
         <li style={S.li}>Account and billing data is deleted within 30 days of account closure on written request.</li>
-        <li style={S.li}>Audit log entries are retained for the life of the account.</li>
+        <li style={S.li}>Audit log entries are retained for the life of the account, except where they belong to an order you have asked us to delete — those go with the order.</li>
       </ul>
 
       <h2 style={S.h2}>Your rights under GDPR</h2>
@@ -138,7 +139,40 @@ export default function PrivacyPage() {
       <p style={S.p}>
         To exercise any of these rights, email{" "}
         <a href="mailto:privacy@proculink.eu" style={{ color: "var(--brand-green-deep)", textDecoration: "underline" }}>privacy@proculink.eu</a>.
-        We aim to respond within 30 days.
+        We respond within one month, which is the period the GDPR sets. If a request is
+        complex we may extend that by up to two further months, and we will tell you inside
+        the first month if we need to.
+      </p>
+
+      <h2 style={S.h2}>Deleting your data</h2>
+      <p style={S.p}>
+        To have order data deleted, email{" "}
+        <a href="mailto:privacy@proculink.eu" style={{ color: "var(--brand-green-deep)", textDecoration: "underline" }}>privacy@proculink.eu</a>{" "}
+        from the address on your account and tell us which orders — a list of PO numbers, a
+        number prefix, or a date range. We check that the address belongs to the workspace you
+        name, and we confirm the scope with you in writing before anything is deleted. Deletion
+        is run by us rather than from a button in the product, and it cannot be undone.
+      </p>
+      <p style={S.p}><strong>What gets deleted</strong></p>
+      <ul style={{ paddingLeft: 20, marginBottom: 14 }}>
+        <li style={S.li}>The document you sent us, as held in our file storage.</li>
+        <li style={S.li}>The order content we extracted from it — line items, quantities, prices, and the names, addresses and contact details captured from the document.</li>
+        <li style={S.li}>The output files we generated for your supplier.</li>
+        <li style={S.li}>The processing and delivery history for those orders, and the mapping decisions recorded against them.</li>
+      </ul>
+      <p style={S.p}><strong>What we keep, and why</strong></p>
+      <ul style={{ paddingLeft: 20, marginBottom: 14 }}>
+        <li style={S.li}><strong>A note that the deletion happened</strong> — the date, who ran it, and how much it covered. It holds none of your order content. We keep it because we have to be able to demonstrate what we did and when, which is what GDPR Article 5(2) asks of us.</li>
+        <li style={S.li}><strong>Workspace configuration</strong> — suppliers, buyers, mappings, validation rules, output templates, and delivery settings with their stored credentials. These are settings rather than order content, so deleting orders leaves them in place and the workspace keeps working. Ask us if you want them removed as well; we do that by hand.</li>
+        <li style={S.li}><strong>Billing and tax records</strong> — kept for as long as accounting law requires us to keep them.</li>
+        <li style={S.li}><strong>A marker for orders collected from your own systems</strong> — where we picked a file up from your SFTP server or S3 bucket, we keep a note that the file was already handled, with its link to the deleted order cut. The file itself stays yours and we never remove it. Without that marker your file would simply be collected again and turned into a new order.</li>
+        <li style={S.li}><strong>Backup copies</strong> — until they age out on their normal rotation. We do not restore deleted order data from a backup.</li>
+      </ul>
+      <p style={S.p}>
+        Two things sit outside this. Your sign-in account is held by our authentication
+        provider, and deleting order data does not remove it — ask us and we will. And a
+        purchase order we have already sent to your supplier is in your supplier&apos;s systems
+        from that point on, which we have no way to reach.
       </p>
 
       <h2 style={S.h2}>Cookies</h2>
