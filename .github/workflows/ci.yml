@@ -13,13 +13,39 @@ on:
   # the same image that compares them — which makes this the highest-fidelity
   # option available, not a workaround.
   #
-  #   gh workflow run ci.yml --ref <branch> -f regenerate_visual_baselines=true
-  #   gh run download <run-id> -n visual-baselines -D tests/e2e/__screenshots__
-  #   git add tests/e2e/__screenshots__ && git commit
+  # `Regenerate baselines` runs test:e2e:visual:update, which rewrites ALL 30
+  # PNGs, and `Upload regenerated baselines` uploads the whole directory. The
+  # artifact is therefore never a diff. Download it straight into the committed
+  # directory and you have overwritten every screen at once — including screens
+  # your branch never touched — and `git add tests/e2e/__screenshots__` then
+  # stages the lot as though someone had looked at it. Nobody can review a
+  # 30-file binary diff and say which files their own change caused.
   #
-  # Review the changed PNGs before committing — each one is a visual change
-  # somebody should have to look at. To see a diff WITHOUT regenerating, read the
-  # `visual-report` artifact from the failing PR run; it carries expected/actual/diff.
+  # So download to a TEMP directory, diff it against the committed baselines, and
+  # copy across only the files your change accounts for:
+  #
+  #   gh workflow run ci.yml --ref <branch> -f regenerate_visual_baselines=true
+  #   gh run download <run-id> -n visual-baselines -D /tmp/vb   # NOT tests/e2e/__screenshots__
+  #
+  #   # list what actually differs (bash; `cmp` is POSIX, so use Git Bash on Windows)
+  #   for f in /tmp/vb/*.png; do
+  #     cmp -s "$f" "tests/e2e/__screenshots__/$(basename "$f")" || echo "DIFFERS: $(basename "$f")"
+  #   done
+  #
+  #   # then copy ONLY the ones you reviewed and can explain, by name
+  #   cp /tmp/vb/<the-one-you-reviewed>.png tests/e2e/__screenshots__/
+  #   git add tests/e2e/__screenshots__/<the-one-you-reviewed>.png && git commit
+  #
+  # A screen you did not touch turning up in that DIFFERS list is a FINDING to
+  # investigate, not a file to copy. Either the change reaches further than you
+  # thought, or a baseline is drifting on its own — a font, a dependency, a runner
+  # image bump. Both are worth knowing; neither is fixed by committing the new
+  # PNG. Work out which it is before that file moves.
+  #
+  # Review every PNG you do copy — each one is a visual change somebody should
+  # have to look at. To see a diff WITHOUT regenerating, read the
+  # `visual-report` artifact from the failing PR run; it carries
+  # expected/actual/diff.
   workflow_dispatch:
     inputs:
       regenerate_visual_baselines:
