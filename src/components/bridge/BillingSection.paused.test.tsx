@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, cleanup, waitFor, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { BillingPlan, BillingStatus } from "@/types/procurement";
+import { accountStatusLabel } from "@/lib/billingPause";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // THE DEFECT, exactly.
@@ -159,11 +160,22 @@ describe("a paid plan the server has stopped says so, loudly", () => {
     await renderBilling(billing());
     expect(screen.queryByText("past due")).toBeNull();
 
-    // Anti-vacuity: the same query DOES find it when the workspace is healthy, so a
-    // null here means "not rendered", not "never findable".
+    // Anti-vacuity: the same exact-text query DOES find that element on a healthy
+    // workspace, so a null above means "not rendered", not "never findable".
+    //
+    // It used to look for the literal `active` here, because that is what a healthy
+    // workspace printed — and that was the rest of the same defect. Hiding the line
+    // while PAUSED covered only the statuses that already had a banner spelling them
+    // out; `trialing` and `active` are what a WORKING workspace has, so the raw token
+    // was the normal rendering, and live production read the word "trialing" back to a
+    // Pilot customer on 2026-08-18. The line is derived now
+    // (`accountStatusLabel`, src/lib/billingPause.ts) and the control follows it —
+    // still an exact-text lookup of that one element, still proving the query bites.
+    // See BillingSection.accountStatusCopy.test.tsx for the derivation itself.
     cleanup();
     await renderBilling(billing({ accountStatus: "active", canProcessOrders: true }));
-    expect(screen.getByText("active")).toBeInTheDocument();
+    expect(screen.queryByText("active")).toBeNull();
+    expect(screen.getByText(accountStatusLabel("active")!)).toBeInTheDocument();
   });
 
   it("the banner's own Manage button really opens the portal, and reports a refusal", async () => {

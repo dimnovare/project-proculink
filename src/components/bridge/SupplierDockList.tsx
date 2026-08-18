@@ -77,7 +77,6 @@ import { PlanGateNotice } from "./PlanGateNotice";
 // imported rather than rewritten because the correct `supplier_limit_reached` sentence
 // already existed there, in a screen that can never receive that code.
 import { isLimitCode, knownPlanId, limitRefusalCopy, type LimitRefusalCopy } from "@/lib/limitRefusal";
-import { planName } from "@/lib/plans";
 import { serverReason } from "@/lib/serverText";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import type { DeliveryConfig, DeliveryProtocol } from "@/lib/api/types";
@@ -434,6 +433,41 @@ export function SupplierDockList() {
   const limitReached = !billingError && billing && !billing.canAddSupplier;
   const hasRows = !isLoading && !suppliersError && suppliers.length > 0;
 
+  // ── The supplier-limit banner, DERIVED ─────────────────────────────────────
+  //
+  // Same allowance, same tier, same null branch as the 429 the create call would have
+  // received — `limitRefusalCopy` is the one derivation and this is its second reader.
+  //
+  // What stood here was hand-typed and named no tier at all:
+  //
+  //     Your {planName(billing.plan)} plan includes {billing.supplierLimit} suppliers.
+  //     Existing supplier flows remain viewable. Upgrade when you are ready to add
+  //     another supplier route.
+  //
+  // Three defects in that, all of the shape CLAUDE.md §11.5 names — a tier or an allowance
+  // typed into a banner IS the defect:
+  //
+  //   1. NO TIER. "Upgrade when you are ready" tells a Growth org to upgrade to nothing in
+  //      particular, so the one fact that would let them act — which tier, and what it costs —
+  //      was the fact missing. §11.5 mandates "Upgrade to {next} to add more supplier flows."
+  //   2. NO NULL BRANCH. `next` is null at the top of the self-serve ladder (Distributor) and
+  //      on Enterprise. The old sentence read the same for them as for Pilot, so the two tiers
+  //      with nothing left to sell were sent to a checkout that has nothing to offer them.
+  //   3. AN EMPTY NUMBER. Enterprise supplier counts are set by agreement, so
+  //      `PLAN_BY_ID.enterprise.supplierLimit` is null and the banner rendered the literal
+  //      "Your Enterprise plan includes  suppliers." — a gap where the allowance should be.
+  //
+  // This screen never sees the 429 body here (nothing was POSTed — the server already said so
+  // on the billing status), so `limit` is the effective allowance off that status, which is
+  // where an admin override lands too. `knownPlanId` keeps an unrecognised plan id out of the
+  // ladder lookup: it becomes null, and the copy then claims no number and no tier at all.
+  const limitCopy = limitRefusalCopy({
+    code: "supplier_limit_reached",
+    plan: knownPlanId(billing?.plan),
+    limit: billing?.supplierLimit ?? null,
+    raw: "supplier_limit_reached",
+  });
+
   return (
     <PageShell variant="wide">
         {/* Page header — titleHidden: the topbar already names this page on
@@ -454,6 +488,12 @@ export function SupplierDockList() {
             <div className="w-full sm:w-auto">
               <button
                 disabled={!canAddSupplier || createMutation.isPending}
+                /* The label is a STATE, not a reason. On its own — which is what a
+                   screen-reader user got — "Supplier limit reached" says the door is
+                   shut and nothing about the allowance, the tier, or the way through.
+                   The banner below carries all three; this ties the two together so
+                   the refused control names its own reason. */
+                aria-describedby={limitReached ? "supplier-limit-banner" : undefined}
                 onClick={() => { setShowAddPanel(true); setAddError(null); }}
                 className="inline-flex h-[34px] w-full items-center justify-center gap-[7px] rounded-[7px] px-4 text-[12.5px] font-semibold tracking-[-0.005em] transition-colors sm:w-auto"
                 style={{
@@ -537,31 +577,32 @@ export function SupplierDockList() {
           </div>
         )}
 
-        {/* Billing limit banner */}
+        {/* Billing limit banner — every claim in it comes from `limitCopy` above. */}
         {billing && !billing.canAddSupplier && (
           <div
+            id="supplier-limit-banner"
+            data-testid="supplier-limit-banner"
             className="mb-4 rounded-[10px] px-4 py-3"
             style={{ border: "1px solid #F0D39A", borderLeft: "3px solid #B36D14", background: "#FFF8EA" }}
           >
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                {/* `billing.plan` is the plan ID — `growth`, `distributor` — and it was being
-                    read straight into the sentence, so the banner said "Your growth plan".
-                    `planName` is the ladder's own display name (src/lib/plans.ts) and returns
-                    an unknown id unchanged, which is the honest fallback. */}
                 <p className="text-[13px] font-semibold" style={{ color: INK }}>
-                  Your {planName(billing.plan)} plan includes {billing.supplierLimit} {nounLower}{billing.supplierLimit === 1 ? "" : "s"}.
+                  {limitCopy.title}
                 </p>
                 <p className="mt-1 text-[12px] leading-5" style={{ color: "#7A4D0B" }}>
-                  Existing {nounLower} flows remain viewable. Upgrade when you are ready to add another {nounLower} route.
+                  {limitCopy.message} Existing {nounLower} flows remain viewable.
                 </p>
               </div>
+              {/* Label AND destination both follow the ladder. `href` is set only on the
+                  no-tier-above branch, where the route is a conversation rather than a
+                  checkout; everywhere else the caller's own default is billing. */}
               <button
-                onClick={() => router.push("/settings")}
+                onClick={() => router.push(limitCopy.href ?? "/settings")}
                 className="h-8 rounded-[6px] px-3 text-[12px] font-semibold"
                 style={{ border: "1px solid #B36D14", background: "#FFFFFF", color: "#9A5F0A" }}
               >
-                View billing
+                {limitCopy.cta}
               </button>
             </div>
           </div>

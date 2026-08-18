@@ -12,7 +12,7 @@ import { PLAN_BY_ID, CHECKOUT_PLAN_IDS, yearlySavePercent } from "@/lib/plans";
 import { capture } from "@/lib/analytics";
 import { isOrgAdminRefusal, orgAdminMessage } from "@/lib/planGate";
 import { BOOK_DEMO_URL, BOOK_DEMO_LINK_ATTRS } from "@/lib/book-demo";
-import { pausedCauseCopy } from "@/lib/billingPause";
+import { accountStatusLabel, pausedCauseCopy } from "@/lib/billingPause";
 import { Card } from "@/components/bridge/layout/Card";
 import { isPlanGate, PlanGateNotice } from "@/components/bridge/PlanGateNotice";
 
@@ -436,12 +436,14 @@ function PlanCard({ status, action }: { status: BillingStatus; action?: React.Re
   // --amber-text, not --amber: `accent` is the PRICE text below, and --amber on
   // --amber-soft is 3.6547:1. It clears the 3:1 large-text floor at 24px/700 by
   // a hair, but the token is documented as non-text only. 5.6206:1.
+  // Human phrase for the account status, or null when this build has no phrase for it.
+  const statusLabel = accountStatusLabel(status.accountStatus);
   const accent = isPaused ? "var(--amber-text)" : "var(--brand-blue)";
   const softBg = isPaused ? "var(--amber-soft)" : "var(--brand-blue-soft)";
   const borderCol = isPaused ? "#F0D8A8" : "var(--brand-blue-soft-2)";
 
   return (
-    <div style={{
+    <div data-testid="plan-card" style={{
       borderRadius: 10,
       background: softBg,
       border: `1px solid ${borderCol}`,
@@ -476,17 +478,24 @@ function PlanCard({ status, action }: { status: BillingStatus; action?: React.Re
           </div>
         )}
         {/*
-          Hidden while paused. This line prints the raw account status with its
-          underscores swapped for spaces — "past due", "read only" — at 11px in
-          --ink-faint with no colour and no icon, and for months it was the ONLY
-          trace on this screen that a paid workspace had stopped working. It is a
-          database word doing a sentence's job. When paused, the banner above says
-          it in words instead; the same rule already guards the cancellation
-          disclosure (gatedCapabilityClaims: "never leaks the internal status name").
+          Hidden while paused — the banner above says it in words instead.
+
+          This line USED to print the raw account status with its underscores swapped
+          for spaces. That was written as a repair for the paused case only, and the
+          paused case was never the common one: a healthy workspace has `trialing` or
+          `active`, so hiding the line while paused left the raw token as the NORMAL
+          rendering. Live production, 2026-08-18, a Pilot workspace: the settings
+          billing tab read the word `trialing` back to the customer.
+
+          `accountStatusLabel` is the derivation, and it returns null for a value this
+          build does not know — so a status added server-side first renders nothing
+          rather than either the token or a reassuring guess. Same rule that guards the
+          cancellation disclosure (gatedCapabilityClaims: "never leaks the internal
+          status name"), now applied to the state line that sits above it.
         */}
-        {!isPaused && (
-          <div style={{ fontSize: 11, color: "var(--ink-faint)" }}>
-            {status.accountStatus.replaceAll("_", " ")}
+        {!isPaused && statusLabel && (
+          <div data-testid="account-status-line" style={{ fontSize: 11, color: "var(--ink-faint)" }}>
+            {statusLabel}
           </div>
         )}
       </div>
