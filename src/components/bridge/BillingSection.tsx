@@ -8,11 +8,11 @@ import {
 } from "@/lib/api-client";
 import { useState } from "react";
 import type { BillingPlan, BillingStatus } from "@/types/procurement";
-import { PLAN_BY_ID, CHECKOUT_PLAN_IDS, yearlySavePercent } from "@/lib/plans";
+import { PLAN_BY_ID, CHECKOUT_PLAN_IDS, yearlySavePercent, billingPriceLabelFor } from "@/lib/plans";
 import { capture } from "@/lib/analytics";
 import { isOrgAdminRefusal, orgAdminMessage } from "@/lib/planGate";
 import { BOOK_DEMO_URL, BOOK_DEMO_LINK_ATTRS } from "@/lib/book-demo";
-import { accountStatusLabel, pausedCauseCopy } from "@/lib/billingPause";
+import { accountStatusLabel, pausedCauseCopy, namesSubscriptionCause } from "@/lib/billingPause";
 import { Card } from "@/components/bridge/layout/Card";
 import { isPlanGate, PlanGateNotice } from "@/components/bridge/PlanGateNotice";
 
@@ -187,6 +187,13 @@ const PAUSED_CONSEQUENCE =
  * sent it away from the only banner that did.
  */
 function pilotLimitBannerCovers(status: BillingStatus): boolean {
+  // A status that names a subscription cause is ProcessingPausedBanner's, never LimitBanner's.
+  // Cancellation reverts the org to Pilot and an elapsed original trial makes `isTrialExpired`
+  // true again, so without this nearly every cancelled paid customer was handed off to a banner
+  // that said "Your Pilot has ended." — true months ago, and not why processing stopped today.
+  // LimitBanner carries the mirror of this guard; the two must stay in lock-step or a paused
+  // workspace gets two banners or none.
+  if (namesSubscriptionCause(status.accountStatus)) return false;
   return status.plan === "pilot" && (status.isTrialExpired || status.isOrderLimitReached);
 }
 
@@ -281,6 +288,10 @@ function upgradeSentence(plan: BillingPlan, outcome: string): string {
 // blocked", which contradicted StripeBillingService's own comment and left a
 // declined card entirely unreported.
 function LimitBanner({ status }: { status: BillingStatus }) {
+  // Mirror of the guard in pilotLimitBannerCovers above. Both arms below are Pilot-shaped and
+  // would speak over a subscription-level cause that ProcessingPausedBanner states correctly.
+  if (namesSubscriptionCause(status.accountStatus)) return null;
+
   if (status.plan === "pilot" && status.isTrialExpired) {
     return (
       <div style={bannerStyle}>
@@ -461,8 +472,14 @@ function PlanCard({ status, action }: { status: BillingStatus; action?: React.Re
         <div style={{ fontSize: 12.5, color: "var(--ink-muted)", marginTop: 4 }}>{meta.sub}</div>
       </div>
       <div style={{ textAlign: "right", flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
+        {/* The MONTHLY label is not the price an annual workspace pays. `meta.price` is
+            `billingPriceLabel`, which is monthly-only, so this printed "€149/mo" above a
+            "Billed annually" line on a €1,488/yr subscription — ×12 overstating the real
+            charge by exactly the annual discount. Derived per-interval from the ladder. */}
         <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 24, fontWeight: 700, color: accent, lineHeight: 1 }}>
-          {meta.price}
+          {PLAN_BY_ID[status.plan]
+            ? billingPriceLabelFor(PLAN_BY_ID[status.plan], status.billingInterval)
+            : meta.price}
         </div>
         {/* Payment interval — from billing-status billingInterval (server-derived
             from the Stripe price id). Hidden when null/absent (no subscription). */}
