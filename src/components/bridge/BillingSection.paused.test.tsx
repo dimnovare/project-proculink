@@ -230,6 +230,66 @@ describe("the pause is derived from the server's answer, not from a plan name", 
     }
   }
 
+  /**
+   * THE ROTATION THE WALK ABOVE COULD NOT SEE.
+   *
+   * The walk holds `isTrialExpired: false` on purpose — its comment says "(A Pilot org CAN be
+   * set read_only before its trial ends.)" — so it covers one direction and is blind to the
+   * other: a Pilot org that is read_only AFTER its trial ended. That is not a corner case, it
+   * is what every cancelled paying customer becomes. `HandleSubscriptionDeletedAsync` reverts
+   * the org to Pilot, and once the original 14 days have elapsed `isTrialExpired` reports true
+   * again, so `plan === "pilot" && isTrialExpired` claimed them for the Pilot banner and they
+   * were told "Your Pilot has ended." — true months earlier, and not why processing stopped.
+   *
+   * The backend keeps the distinction deliberately and expects this client to honour it:
+   * MarkPilotExpiredIfNeededAsync returns early on ReadOnly, commented "ReadOnly is a paid-plan
+   * terminal state (e.g. cancelled) — not ours to flip here."
+   */
+  const PILOT_BANNER_COPY = "Your Pilot has ended.";
+
+  it("a cancelled paid workspace is told its SUBSCRIPTION ended, not its Pilot", async () => {
+    await renderBilling(
+      billing({
+        plan: "pilot",              // HandleSubscriptionDeletedAsync reverts to Pilot
+        accountStatus: "read_only", // ...and records WHY, which is not a trial expiry
+        isTrialExpired: true,       // the original 14 days really did elapse, months ago
+        isOrderLimitReached: false,
+        stripeCustomerId: "cus_live",
+        stripeSubscriptionId: null,
+        billingInterval: null,
+      }),
+    );
+
+    const text = pageText();
+    expect(text, "the real cause must be named").toContain(pausedCauseCopy("read_only").headline);
+    expect(text, "their Pilot ending months ago is not why processing stopped today")
+      .not.toContain(PILOT_BANNER_COPY);
+  });
+
+  for (const accountStatus of PAUSED_STATUSES) {
+    it(`pilot + ${accountStatus} + an elapsed trial names exactly one cause`, async () => {
+      await renderBilling(
+        billing({ plan: "pilot", accountStatus, isTrialExpired: true, isOrderLimitReached: false }),
+      );
+
+      const text = pageText();
+      const namesSubscription = accountStatus === "past_due"
+        || accountStatus === "cancelled"
+        || accountStatus === "read_only";
+
+      if (namesSubscription) {
+        expect(text).toContain(pausedCauseCopy(accountStatus).headline);
+        expect(text, "a plan-shaped banner must not speak over a subscription cause")
+          .not.toContain(PILOT_BANNER_COPY);
+      } else {
+        // trial_expired is genuinely the Pilot's own cause, and an unrecognised status
+        // has none to name — both stay with the Pilot banner.
+        expect(text).toContain(PILOT_BANNER_COPY);
+      }
+      expect(text).toMatch(/paused|isn't active|ended|didn't go through/i);
+    });
+  }
+
   it("a Pilot whose trial really expired keeps its own pinned copy, not two banners", async () => {
     await renderBilling(
       billing({ plan: "pilot", accountStatus: "trial_expired", isTrialExpired: true }),

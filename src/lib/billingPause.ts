@@ -76,6 +76,36 @@ export function accountStatusLabel(accountStatus: string | null | undefined): st
   }
 }
 
+/**
+ * The account statuses whose `pausedCauseCopy` headline names a SUBSCRIPTION-level cause —
+ * a payment that failed, a subscription that ended, one that is not active. Kept beside that
+ * switch so the two cannot drift: if a status is added there with a subscription sentence, it
+ * belongs here too.
+ *
+ * Exists because a cancelled paid workspace was being told **"Your Pilot has ended."**
+ * Cancellation reverts the org to Pilot (`HandleSubscriptionDeletedAsync`), and any workspace
+ * whose original 14 days have elapsed reports `isTrialExpired: true` again — so the Pilot
+ * limit banner, gated on `plan === "pilot" && isTrialExpired`, claimed nearly every cancelled
+ * customer and hid the real reason. Their trial ending months ago is not why processing
+ * stopped today.
+ *
+ * The backend already draws this distinction deliberately and expects the client to honour it:
+ * `StripeBillingService.MarkPilotExpiredIfNeededAsync` returns early on ReadOnly with the
+ * comment *"ReadOnly is a paid-plan terminal state (e.g. cancelled) — not ours to flip here."*
+ *
+ * `trial_expired` is NOT here: that one really is the Pilot's own cause, and the Pilot banner
+ * should keep speaking for it.
+ */
+const SUBSCRIPTION_CAUSE_STATUSES = new Set(["past_due", "cancelled", "read_only"]);
+
+/**
+ * True when `accountStatus` names a subscription-level pause cause, so a plan-shaped banner
+ * must not speak over it.
+ */
+export function namesSubscriptionCause(accountStatus: string): boolean {
+  return SUBSCRIPTION_CAUSE_STATUSES.has(accountStatus);
+}
+
 export function pausedCauseCopy(accountStatus: string): {
   headline: string;
   resume: string;

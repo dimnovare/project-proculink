@@ -521,6 +521,33 @@ export function yearlyMonthlyEquivalent(plan: Plan): number | null {
 }
 
 /**
+ * The price to print on the IN-APP billing card, for the interval the workspace's
+ * subscription is actually on.
+ *
+ * `billingPriceLabel` is the MONTHLY price and nothing else. The billing card used it
+ * unconditionally, so an annual workspace was shown "€149/mo" with "Billed annually"
+ * printed directly beneath — and ×12 comes to €1,788 against a real charge of €1,488.
+ * It overstated the bill by exactly the annual discount the customer had just taken, on
+ * all four self-serve tiers.
+ *
+ * Annual returns the YEARLY total rather than a monthly-equivalent
+ * (see `yearlyMonthlyEquivalent`, which the /pricing comparison still wants) because
+ * this card's job is to be reconcilable against the Stripe invoice, and the invoice is
+ * one annual charge. Grouping is pinned to en-US so the rendered string does not depend
+ * on the reader's machine locale — "€1,488" is the same shape `priceLabel` already uses.
+ *
+ * Falls back to the monthly label whenever there is no yearly price to name: Pilot
+ * ("Free trial") and Enterprise ("Custom") have `priceYearly: null` by design.
+ */
+export function billingPriceLabelFor(
+  plan: Plan,
+  billingInterval: "monthly" | "yearly" | null | undefined,
+): string {
+  if (billingInterval !== "yearly" || plan.priceYearly == null) return plan.billingPriceLabel;
+  return `€${plan.priceYearly.toLocaleString("en-US")}/yr`;
+}
+
+/**
  * Setup / onboarding fee note. Self-serve plans include light setup at no extra
  * charge; the per-supplier onboarding fee applies only to Enterprise / complex
  * integrations and is arranged manually (never auto-charged through Stripe).
