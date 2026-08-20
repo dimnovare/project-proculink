@@ -9,7 +9,8 @@
 // step a placeholder supplier with an empty id) were deleted with the shrink.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { usePathname } from "next/navigation";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { useDialogA11y } from "@/hooks/useDialogA11y";
 import { useQueryClient } from "@tanstack/react-query";
@@ -506,6 +507,7 @@ const TOTAL_STEPS = 2;
 export function OnboardingWizard({ onDismiss }: OnboardingWizardProps) {
   const queryClient = useQueryClient();
   const pathname = usePathname();
+  const router = useRouter();
   const { user } = useUser();
   const { runSample, isPending: samplePending, error: sampleError } = useSampleOrder(pathname ?? "/bridge");
   const [step, setStep] = useState<WizardStep>(0);
@@ -523,6 +525,14 @@ export function OnboardingWizard({ onDismiss }: OnboardingWizardProps) {
     capture("wizard_dismissed", { at_step: step });
     onDismiss();
   }, [step, onDismiss]);
+
+  // The skip button's label promises an upload ("Skip — I'll upload my own
+  // order"), so the handler must actually take the user to /upload — it used
+  // to be plain onDismiss, which only closed the modal onto /bridge.
+  const handleSkipToUpload = useCallback(() => {
+    onDismiss();
+    router.push("/upload");
+  }, [onDismiss, router]);
 
   // WP-31: the wizard is a modal dialog (aria-modal, full-screen scrim) and had
   // NO Escape handler and NO focus trap — a keyboard user could Tab straight out
@@ -636,7 +646,7 @@ export function OnboardingWizard({ onDismiss }: OnboardingWizardProps) {
             running={samplePending}
             error={sampleError ? (sampleError.message || "Could not start the practice order.") : null}
             onRun={handleRunPractice}
-            onSkip={onDismiss}
+            onSkip={handleSkipToUpload}
           />
         )}
 
@@ -649,9 +659,21 @@ export function OnboardingWizard({ onDismiss }: OnboardingWizardProps) {
             lineHeight: 1.5,
           }}
         >
-          {step === "done"
-            ? "Your setup guide is on the dashboard whenever you want it"
-            : `Step ${step + 1} of ${TOTAL_STEPS} · You can dismiss this and come back any time`}
+          {step === "done" ? (
+            <>
+              Your{" "}
+              <Link
+                href="/bridge#onboarding-step-list"
+                onClick={onDismiss}
+                style={{ color: T.blue, fontWeight: 600, textDecoration: "underline" }}
+              >
+                setup guide
+              </Link>{" "}
+              is on the dashboard whenever you want it
+            </>
+          ) : (
+            `Step ${step + 1} of ${TOTAL_STEPS} · You can dismiss this and come back any time`
+          )}
         </p>
       </div>
     </div>
