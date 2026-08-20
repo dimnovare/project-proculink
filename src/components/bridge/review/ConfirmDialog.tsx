@@ -9,12 +9,99 @@
 // give the operator something real to acknowledge).
 
 import { useState, useRef, useEffect } from "react";
+import Link from "next/link";
 import { useDialogA11y } from "@/hooks/useDialogA11y";
 import type { PartyLabels } from "@/hooks/useOrderDirection";
+import type { DeliveryConfig } from "@/lib/api/types";
 import { shouldRequireConfirmCheckbox, confirmAlwaysFlag } from "./confirmPolicy";
 import { confirmAckLabel } from "../workshop/acceptanceGateModel";
 
-export function ConfirmDialog({ exceptionCount, onConfirm, onCancel, supplierName, outputFormat, grandTotal, lineCount, labels, failingRuleCount, validationStale = false }: {
+/**
+ * What this dialog can honestly say about WHERE the order goes. Three-valued on
+ * purpose — the repo's standing rule is that unknown never renders as either
+ * decided answer (see PracticeDeliveryState for the precedent):
+ *
+ *   configured     → name the channel/destination plainly.
+ *   not_configured → the API's own "nothing saved" (a 204 → null) — warn that
+ *                    this send will fail, and link the supplier's delivery tab.
+ *   unknown        → the check is still loading or FAILED. Claim neither way,
+ *                    and never block: the server owns refusal, and a failed
+ *                    config read must never lock a working send.
+ */
+export type DeliverySetupCheck =
+  | { state: "configured"; config: DeliveryConfig }
+  | { state: "not_configured"; supplierId: string | null }
+  | { state: "unknown" };
+
+/**
+ * Derive the three-valued check from a delivery-config query. Reads the query's
+ * STATUS, never `data === undefined` alone: pending, disabled (no assigned
+ * supplier) and error all mean "we do not know", and only a settled success may
+ * claim an answer in either direction.
+ */
+export function deliverySetupFrom(
+  query: { status: "pending" | "error" | "success"; data?: DeliveryConfig | null },
+  supplierId: string | null,
+): DeliverySetupCheck {
+  if (query.status !== "success") return { state: "unknown" };
+  return query.data
+    ? { state: "configured", config: query.data }
+    : { state: "not_configured", supplierId };
+}
+
+/**
+ * The one sentence for a configured delivery — plain channel wording matching
+ * the delivery tab (DeliveryConfigEditor / SupplierDockList channel labels).
+ * A protocol this build does not recognise says only that delivery is set up:
+ * naming a channel there would be a guess.
+ */
+export function configuredDeliverySentence(config: DeliveryConfig, supplierName: string): string {
+  let parsed: Record<string, unknown> = {};
+  try {
+    parsed = JSON.parse(config.configJson) as Record<string, unknown>;
+  } catch {
+    // Unparseable configJson: keep the channel, invent no destination.
+  }
+  const str = (key: string): string | null => {
+    const v = parsed[key];
+    return typeof v === "string" && v.trim() ? v.trim() : null;
+  };
+  const emailTo = (): string | null => {
+    const v = parsed["toAddresses"];
+    if (typeof v === "string" && v.trim()) return v.trim();
+    if (Array.isArray(v)) {
+      const items = v.filter((x): x is string => typeof x === "string" && !!x.trim());
+      return items.length ? items.join(", ") : null;
+    }
+    return null;
+  };
+  switch (config.protocol) {
+    case "email":
+    case "smtp": {
+      const to = emailTo();
+      return to ? `Sends by email to ${to}.` : "Sends by email.";
+    }
+    case "http": {
+      const url = str("url");
+      return url ? `Delivers by HTTP to ${url}.` : "Delivers by HTTP.";
+    }
+    case "sftp": {
+      const host = str("host");
+      return host ? `Delivers by SFTP to ${host}.` : "Delivers by SFTP.";
+    }
+    case "ftps": {
+      const host = str("host");
+      return host ? `Delivers by FTPS to ${host}.` : "Delivers by FTPS.";
+    }
+    case "erp_erply":
+      return "Delivers to Erply ERP.";
+    case "erp_directo":
+      return "Delivers to Directo ERP.";
+  }
+  return `Delivery is set up for ${supplierName}.`;
+}
+
+export function ConfirmDialog({ exceptionCount, onConfirm, onCancel, supplierName, outputFormat, grandTotal, lineCount, labels, failingRuleCount, validationStale = false, deliverySetup = { state: "unknown" } }: {
   exceptionCount: number;
   onConfirm: () => void;
   onCancel: () => void;
@@ -32,6 +119,12 @@ export function ConfirmDialog({ exceptionCount, onConfirm, onCancel, supplierNam
   failingRuleCount: number;
   /** True while the acceptance validation is stale / re-running after a commit. */
   validationStale?: boolean;
+  /**
+   * Where this send will actually go — or that nothing is set up so it will
+   * fail, or that we could not check. Defaults to unknown: a caller that has no
+   * answer must not imply one.
+   */
+  deliverySetup?: DeliverySetupCheck;
 }) {
   const inbound = labels.counterpartyNoun === "Customer";
   const [checked, setChecked] = useState(false);
@@ -119,6 +212,33 @@ export function ConfirmDialog({ exceptionCount, onConfirm, onCancel, supplierNam
             ))}
           </div>
         </div>
+
+        {/* Where the order goes. The consent step for an irreversible action must
+            say the destination — or that there is none, BEFORE the server refuses
+            (the first mention of missing delivery used to be the post-failure
+            problem panel). Three-valued; unknown claims nothing either way and
+            nothing here gates the confirm button — the server owns refusal. */}
+        {deliverySetup.state === "configured" && (
+          <div style={{ margin: "0 24px 16px", fontSize: 12.5, color: "var(--ink-muted)", lineHeight: 1.5 }}>
+            {configuredDeliverySentence(deliverySetup.config, supplierName)}
+          </div>
+        )}
+        {deliverySetup.state === "not_configured" && (
+          <div style={{ margin: "0 24px 16px", padding: "10px 12px", background: "var(--amber-soft)", border: "1px solid var(--amber)", borderRadius: 6, fontSize: 12.5, color: "var(--amber-text)", lineHeight: 1.5 }}>
+            No delivery is set up for <strong style={{ fontWeight: 700 }}>{supplierName}</strong> — this send will fail.{" "}
+            <Link
+              href={deliverySetup.supplierId ? `/library/suppliers/${deliverySetup.supplierId}?tab=delivery` : "/library/suppliers"}
+              style={{ color: "var(--amber-text)", fontWeight: 600, textDecoration: "underline", textUnderlineOffset: 2 }}
+            >
+              Set up delivery →
+            </Link>
+          </div>
+        )}
+        {deliverySetup.state === "unknown" && (
+          <div style={{ margin: "0 24px 16px", padding: "8px 12px", background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 12, color: "var(--ink-muted)", lineHeight: 1.5 }}>
+            We couldn&apos;t check whether delivery is set up for {supplierName} — sending is still available.
+          </div>
+        )}
 
         {/* Confirmation checkbox — policy-driven (always by default; conditional
             when NEXT_PUBLIC_CONFIRM_ALWAYS=false and nothing needs acknowledging). */}
