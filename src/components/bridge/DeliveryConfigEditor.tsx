@@ -1583,7 +1583,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                     {protocol === "sftp" && sftpAuthMode === "key" ? (
                       <>
                         <Field label="Private key">
-                          <textarea value={privateKey} onChange={(e) => { setPrivateKey(e.target.value); markEdited(); }} placeholder={hasSavedCredentials ? "******** (leave blank to keep saved key)" : "-----BEGIN OPENSSH PRIVATE KEY-----"} rows={4} className="w-full rounded-[5px] px-2.5 py-2 font-mono text-[11px]" style={INPUT_STYLE} />
+                          <SecretKeyTextarea value={privateKey} onChange={(v) => { setPrivateKey(v); markEdited(); }} placeholder={hasSavedCredentials ? "******** (leave blank to keep saved key)" : "-----BEGIN OPENSSH PRIVATE KEY-----"} />
                         </Field>
                         <Field label="Key passphrase (optional)">
                           <input type="password" value={privateKeyPassphrase} onChange={(e) => { setPrivateKeyPassphrase(e.target.value); markEdited(); }} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
@@ -1768,6 +1768,48 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
         </button>
       </div>
     </div>
+  );
+}
+
+/**
+ * A private key is a secret at rest, but `type="password"` does not exist for a
+ * textarea. So: the real textarea is live while the operator is entering or editing
+ * the key, and once they leave the field a masked presentation (a button that brings
+ * the textarea back on click) replaces it, so the key never stays on screen as plain
+ * text. Identical treatment to the same field in DeliveryGuidedSetup.tsx — keep the
+ * two in sync. Pinned by DeliveryConfigEditor.privateKeyMasked.test.tsx.
+ */
+function SecretKeyTextarea({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) {
+  const [revealed, setRevealed] = useState(false);
+  if (value !== "" && !revealed) {
+    return (
+      <button
+        type="button"
+        onClick={() => setRevealed(true)}
+        className="w-full rounded-[5px] px-2.5 py-2 text-left font-mono text-[11px]"
+        style={INPUT_STYLE}
+      >
+        ••••••••••••{" "}
+        <span style={{ color: "var(--ink-faint)" }}>Key hidden — click to show and edit</span>
+      </button>
+    );
+  }
+  return (
+    <textarea
+      value={value}
+      onChange={(e) => {
+        // Keep the textarea mounted while the operator types/pastes; blur re-masks.
+        setRevealed(true);
+        onChange(e.target.value);
+      }}
+      onBlur={() => setRevealed(false)}
+      autoComplete="off"
+      spellCheck={false}
+      placeholder={placeholder}
+      rows={4}
+      className="w-full rounded-[5px] px-2.5 py-2 font-mono text-[11px]"
+      style={INPUT_STYLE}
+    />
   );
 }
 

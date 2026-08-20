@@ -763,7 +763,8 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
                       </Field>
                     </div>
                     <Field label="Consumer key">
-                      <input value={aes2faConsumerKey} onChange={(e) => { setAes2faConsumerKey(e.target.value); markEdited(); }} placeholder={aes2faHasSavedCreds ? "•••• (leave blank to keep)" : "ConsumerKey"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                      {/* Masked like its siblings below: all four keys live in the same encrypted auth blob. */}
+                      <input type="password" value={aes2faConsumerKey} onChange={(e) => { setAes2faConsumerKey(e.target.value); markEdited(); }} placeholder={aes2faHasSavedCreds ? "•••• (leave blank to keep)" : "ConsumerKey"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
                     </Field>
                     <div className="grid gap-3 lg:grid-cols-2">
                       <Field label="Consumer secret">
