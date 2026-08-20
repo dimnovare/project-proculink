@@ -215,7 +215,7 @@ export function BridgeSidebar({
   );
 
   // Live billing plan for the workspace card + switcher (active org only).
-  const { data: billing } = useQuery({
+  const { data: billing, isError: billingFailed } = useQuery({
     queryKey: ["billing-status"],
     queryFn: getBillingStatus,
     enabled: queryEnabled,
@@ -224,7 +224,10 @@ export function BridgeSidebar({
     staleTime: 60_000,
   });
   // Derived from the ladder — see the note on planDisplayName in src/lib/plans.ts.
-  const planLabel = billing ? planDisplayName(billing.plan) : "Loading…";
+  // A failed billing read shows a neutral "—", never an eternal "Loading…": the
+  // loading label is a claim that an answer is coming, and after the last retry
+  // fails, none is.
+  const planLabel = billing ? planDisplayName(billing.plan) : billingFailed ? "—" : "Loading…";
   const orgName = organization?.name ?? "Your workspace";
 
   // Live "needs review" count → Inbox badge via summary endpoint (accurate regardless of volume).

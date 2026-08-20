@@ -95,7 +95,12 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
   // single order, so the mapper wires + previews against the most recent real order for the
   // supplier. None yet → the mapper's source lane + preview show their honest empty states.
   const supplierId = connection?.supplierId ?? null;
-  const { data: sampleOrderPage } = useQuery({
+  const {
+    data: sampleOrderPage,
+    isError: sampleOrderFailed,
+    refetch: refetchSampleOrder,
+    isFetching: sampleOrderFetching,
+  } = useQuery({
     queryKey: ["connection-sample-order", supplierId],
     queryFn: () => apiClient.getOrders({ supplierId: supplierId as string, pageSize: 1 }),
     enabled: queriesEnabled && !!supplierId,
@@ -103,6 +108,10 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
     retry: 1,
   });
   const sampleOrderId = sampleOrderPage?.items[0]?.id ?? null;
+  // A failed lookup leaves `sampleOrderId` null, and the mapper's preview then
+  // says "No sample order yet for this supplier" — a settled claim about orders
+  // this screen never managed to look at. The strip below corrects the record.
+  const sampleOrderUnknown = sampleOrderFailed && sampleOrderPage === undefined;
 
   return (
     <PageShell variant="wide">
@@ -264,6 +273,42 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
                   : "Map incoming fields → the supplier's output. Saved automatically; “Make live” to publish."
               }
             >
+              {sampleOrderUnknown && (
+                <div
+                  role="alert"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 12,
+                    marginBottom: 10,
+                    borderRadius: 8,
+                    border: "1px solid var(--danger-soft)",
+                    borderLeft: "3px solid var(--danger)",
+                    background: "var(--surface)",
+                    padding: "10px 12px",
+                    fontSize: 12.5,
+                    color: "var(--ink-muted)",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  <span>
+                    We couldn&rsquo;t check this supplier&rsquo;s recent orders just now — if the
+                    preview says there&rsquo;s no sample order, that&rsquo;s because we couldn&rsquo;t
+                    look, not because none exists.
+                  </span>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => void refetchSampleOrder()}
+                    disabled={sampleOrderFetching}
+                    style={{ flexShrink: 0 }}
+                  >
+                    {sampleOrderFetching ? "Trying again…" : "Try again"}
+                  </Button>
+                </div>
+              )}
               {mapperRevisionId ? (
                 // The mapper renders the LIVE mapping. When it's the published (read-only) version we
                 // overlay an unmistakable one-click "Edit" — clicking transparently opens an editable
