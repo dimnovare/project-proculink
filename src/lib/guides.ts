@@ -265,7 +265,8 @@ export const GUIDES: Guide[] = [
     blurb: "The account-status call, what it refuses, and when to extend the trial instead.",
     section: "Admin",
     audience: "admin",
-    status: "planned",
+    status: "live",
+    minutes: 10,
   },
 ];
 

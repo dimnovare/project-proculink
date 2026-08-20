@@ -1,0 +1,129 @@
+import { Step, Prereqs, IfThisFails, Outcome } from "@/components/help/guide";
+
+<Prereqs>
+- An admin account: the email or Clerk user id must be in `Admin__Emails` / `Admin__UserIds` on the API. Your ordinary signed-in session is the admin credential — there is no separate admin token.
+- The name or slug of the frozen workspace, from the customer's message or from the admin dashboard.
+- `curl` or an equivalent HTTP client. There is no button for this yet: the endpoint exists and the admin UI does not call it.
+</Prereqs>
+
+<Step n={1} title="Work out which kind of frozen this is">
+
+A workspace that has stopped processing orders is in one of two states, and they have
+**different fixes**. Read the **Status** column on the org's row in the [admin dashboard](/admin)
+before touching anything:
+
+- **Trial expired** (`trial_expired`) — the Pilot's 14-day window elapsed or its 20-order
+  allowance is spent. **Do not use the account-status endpoint for this.** Use **Adjust limits /
+  extend pilot** on the org's row: once the trial window is extended, the trial-window check
+  reactivates the org on its own. The account-status endpoint will refuse a `trial_expired` org
+  and tell you the same thing.
+- **Read-only** (`read_only`) — the org's Stripe subscription was cancelled (or paused, or
+  deleted) and the billing sync parked it here. Once the org has dropped back to the Pilot plan
+  with no live subscription, nothing reactivates it automatically — this is the state this
+  runbook exists for.
+
+This is the most common founder action during a pilot: a trial ends or a subscription lapses,
+the customer is blocked mid-evaluation, and every ingest path refuses until someone acts.
+
+</Step>
+
+<Step n={2} title="Get the organisation id">
+
+The admin table prints the org's name and slug, not its id. The id is in the response the page
+loads from — `GET /api/admin/organisations` — so fetch it with the same token you are about to
+use anyway (step 3), and match on name or slug:
+
+```bash
+curl -s "$API_BASE/api/admin/organisations" \
+  -H "Authorization: Bearer $ADMIN_JWT" | python -m json.tool
+```
+
+Each entry carries `id` (a GUID), `name`, `slug`, `plan`, and `accountStatus`. Confirm the
+`accountStatus` you read here matches what you decided in step 1. The browser devtools Network
+tab on `/admin` shows the same response if you prefer reading it there.
+
+</Step>
+
+<Step n={3} title="Send the account-status call">
+
+The API authenticates the same Clerk session JWT the app itself sends. Being on the admin
+allowlist is what makes it an admin credential, so grab your own session token from the signed-in
+app: open the browser console on any app page and run
+`await window.Clerk.session.getToken()`. The token is short-lived — mint it right before the
+call, and never paste it anywhere that persists.
+
+```bash
+curl -X POST \
+  "$API_BASE/api/admin/organisations/$ORG_ID/account-status" \
+  -H "Authorization: Bearer $ADMIN_JWT" \
+  -H "Content-Type: application/json" \
+  -d '{"accountStatus":"trialing"}'
+```
+
+Exactly one transition exists: `read_only` → `trialing`. Every other account status is owned by
+another writer — `active` / `past_due` / `cancelled` are derived from Stripe by the webhook and
+the reconciliation sweep, and `trial_expired` ⇄ `trialing` is owned by the trial-window check —
+so anything else you wrote here would be silently re-derived and overwritten.
+
+**Know what you are opening before you send it.** Setting `trialing` restores full Pilot
+processing with no subscription behind it: uploads and every other ingest path accept orders
+again the moment the write lands. The only backstops are the Pilot limits themselves — the
+trial window and the 20-order allowance — which the trial-window check re-applies immediately
+(step 5). Unfreeze because you have agreed with the customer that their evaluation continues,
+not to quiet an alert.
+
+</Step>
+
+<Step n={4} title="If it refuses — every refusal is deliberate">
+
+The endpoint answers 400 in four situations. Each error body says what to do instead; read it
+rather than retrying:
+
+- **Requested status is anything other than `trialing`.** The only manual transition is
+  `read_only` → `trialing`; everything else is derived from Stripe or the trial window.
+- **The org is not currently `read_only`.** A `trial_expired` org does not need this endpoint —
+  extend the trial with `POST /api/admin/organisations/{id}/limits` (the **Adjust limits**
+  modal) and it reactivates on its own.
+- **The org still has a live Stripe subscription.** Its status is maintained from Stripe, and
+  anything set here would be overwritten by the next reconciliation. Fix the subscription in
+  Stripe instead — resume it, or let the cancellation complete, which frees the org for a
+  manual reset.
+- **The org is not on the Pilot plan.** `trialing` is a Pilot state; a paid plan's account
+  status comes from its Stripe subscription.
+
+<IfThisFails>
+A 404 means the org id is wrong — re-check step 2. A 401/403 means the token expired (mint a
+fresh one) or the account is not on the admin allowlist.
+</IfThisFails>
+
+</Step>
+
+<Step n={5} title="Read the response — success can still mean re-frozen">
+
+The write is not the last word. Immediately after setting `trialing`, the endpoint hands the
+org to the canonical trial-window check, which re-expires it on the spot if the Pilot window
+has already elapsed or the order allowance is spent. The response reports what the database
+actually holds afterwards:
+
+- `accountStatus` — the **effective** status, not the requested one.
+- `revertedByTrialWindow: true` plus a `note` when the trial check took it straight back. The
+  note names the fix: extend the window or the order allowance with **Adjust limits**
+  (`POST /api/admin/organisations/{id}/limits`), then run this call again. In that order it
+  sticks.
+
+Every call is written to the audit log as `admin.org.account_status_changed`, recording who
+made the change and `from` / `requested` / `to` / `revertedByTrialWindow` / `plan` — the
+effective outcome, not the wish.
+
+<Outcome>
+The org's status reads `trialing`, the customer can upload again, and the audit log holds a
+record of who unfroze the workspace and what actually happened.
+</Outcome>
+
+<IfThisFails>
+If anything looks off afterwards, re-run the `GET /api/admin/organisations` call from step 2 —
+its `accountStatus` is read from the database and is the ground truth the response also
+reported. The response never claims more than what is stored.
+</IfThisFails>
+
+</Step>
