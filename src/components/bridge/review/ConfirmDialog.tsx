@@ -223,8 +223,12 @@ export function ConfirmDialog({ exceptionCount, onConfirm, onCancel, supplierNam
             {configuredDeliverySentence(deliverySetup.config, supplierName)}
           </div>
         )}
+        {/* Amber = tone, so this is a notice, not a card: it signals with the
+            3px LEFT border that is StatusNotice's tone signature (StatusNotice
+            itself has no amber tone, so the shape is written inline with the
+            existing amber tokens rather than growing that primitive here). */}
         {deliverySetup.state === "not_configured" && (
-          <div style={{ margin: "0 24px 16px", padding: "10px 12px", background: "var(--amber-soft)", border: "1px solid var(--amber)", borderRadius: 6, fontSize: 12.5, color: "var(--amber-text)", lineHeight: 1.5 }}>
+          <div style={{ margin: "0 24px 16px", padding: "10px 12px", background: "var(--amber-soft)", border: "1px solid var(--amber)", borderLeft: "3px solid var(--amber)", borderRadius: 6, fontSize: 12.5, color: "var(--amber-text)", lineHeight: 1.5 }}>
             No delivery is set up for <strong style={{ fontWeight: 700 }}>{supplierName}</strong> — this send will fail.{" "}
             <Link
               href={deliverySetup.supplierId ? `/library/suppliers/${deliverySetup.supplierId}?tab=delivery` : "/library/suppliers"}
@@ -234,8 +238,11 @@ export function ConfirmDialog({ exceptionCount, onConfirm, onCancel, supplierNam
             </Link>
           </div>
         )}
+        {/* Unknown carries no tone and no box: a plain text row like the
+            configured line above, because a bordered surface here would be a
+            hand-rolled card (the gate's definition) with no side to declare. */}
         {deliverySetup.state === "unknown" && (
-          <div style={{ margin: "0 24px 16px", padding: "8px 12px", background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 12, color: "var(--ink-muted)", lineHeight: 1.5 }}>
+          <div style={{ margin: "0 24px 16px", fontSize: 12, color: "var(--ink-muted)", lineHeight: 1.5 }}>
             We couldn&apos;t check whether delivery is set up for {supplierName} — sending is still available.
           </div>
         )}
