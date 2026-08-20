@@ -31,6 +31,7 @@ import {
 import type { EmailSettings, UpdateEmailSettingsPayload, OrderDirection } from "@/types/procurement";
 import type { ApiKey, IntegrationSubscription } from "@/lib/api-client";
 import { useTabParamSync } from "@/lib/tab-param-sync";
+import { INTEGRATION_EVENT_LABELS } from "@/lib/integrationEventManifest";
 import { isOrgAdminRefusal, orgAdminMessage } from "@/lib/planGate";
 import { PLAN_BY_ID, planDisplayName, planName } from "@/lib/plans";
 import { minimumPlanId } from "@/lib/gatedCapabilities";
@@ -1508,13 +1509,13 @@ function ApiKeysSection() {
 // code (`order.created`) stays on screen next to the description, because that is
 // what the payload carries and what the help article documents — a developer
 // wiring up an integration needs to be able to correlate the two.
-const EVENT_LABELS: Record<string, string> = {
-  "order.created":   "New PO uploaded or received",
-  "order.delivered": "PO delivered to supplier",
-  // "Couldn't send" is the shipped label for delivery_failed (orderStatusManifest);
-  // the retired "Delivery failed" must not come back in through this door.
-  "order.failed":    "Couldn't send to the supplier",
-};
+// The full backend webhook catalogue with plain-procurement descriptions.
+// This used to be a private three-entry map, and it drifted: the backend
+// allow-list (`IntegrationEventTypes.Subscribable`) grew `order.rejected` and
+// `order.dead_lettered` — the terminal "the order is NOT coming" signal — and
+// neither could be selected here. The map now lives in
+// src/lib/integrationEventManifest.ts, whose test diffs it against the real C#.
+const EVENT_LABELS: Record<string, string> = INTEGRATION_EVENT_LABELS;
 
 const PLATFORM_LABELS: Record<string, string> = {
   zapier: "Zapier", make: "Make.com", custom: "Custom",
