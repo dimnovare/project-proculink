@@ -471,6 +471,13 @@ export function OnboardingChecklist({ onResumeSetup }: OnboardingChecklistProps)
                 )}
               </div>
             )}
+            <Link
+              href="/welcome"
+              className="inline-flex min-h-[44px] items-center text-[12px] font-semibold"
+              style={{ color: T.blueDeep }}
+            >
+              How ProcuLink works
+            </Link>
           </div>
         </div>
 
