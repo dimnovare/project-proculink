@@ -19,8 +19,11 @@
 //      C# and diff its Subscribable values against the mirror. The parser is
 //      tested against an inline fixture on EVERY run, so a parser that quietly
 //      stopped matching cannot "confirm" the mirror by finding nothing. A bad
-//      PROCULINK_BACKEND_PATH (file not present) SKIPS — it never silently
-//      diffs a wrong checkout.
+//      PROCULINK_BACKEND_PATH (file not present) SKIPS locally — it never
+//      silently diffs a wrong checkout — but in the backend-mirror CI job,
+//      which sets PROCULINK_REQUIRE_BACKEND_MIRROR=1, a missing checkout is a
+//      FAILURE, not a skip: that job exists to check the backend out, so "no
+//      backend" there means the diff proved nothing and must say so.
 
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, cleanup, fireEvent, within } from "@testing-library/react";
@@ -169,8 +172,25 @@ function findBackendRoot(): string | null {
 }
 
 const BACKEND = findBackendRoot();
+/** CI checks the backend out, so there "no checkout" is a failure and not a reason to skip. */
+const REQUIRE_MIRROR = process.env.PROCULINK_REQUIRE_BACKEND_MIRROR === "1";
 
 describe("cross-repo diff against IntegrationEventTypes.cs", () => {
+  it("fails rather than skips when CI required the mirror", () => {
+    // The backend-mirror job sets PROCULINK_REQUIRE_BACKEND_MIRROR=1 so that a
+    // checkout that did not arrive — a 404 on a renamed repo, an expired token,
+    // a path typo — is a red build rather than a politely skipped diff under a
+    // green check. Locally, with the flag unset, no backend still skips.
+    if (REQUIRE_MIRROR) {
+      expect(
+        BACKEND,
+        "PROCULINK_REQUIRE_BACKEND_MIRROR=1 but no backend checkout was reachable — " +
+          `the diff against ${EVENT_TYPES_REL} did not run, so this run proves nothing ` +
+          "about src/lib/integrationEventManifest.ts",
+      ).not.toBeNull();
+    }
+  });
+
   it("parser extracts Subscribable values from a known fixture", () => {
     // Runs everywhere, every time — a parser that stopped matching would
     // otherwise let the diff below pass by comparing nothing.

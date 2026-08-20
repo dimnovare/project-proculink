@@ -425,6 +425,20 @@ jobs:
         if: always()
         run: bun run test src/lib/sourceDocument.test.ts
 
+      # Tenth: does the Settings webhook event menu offer every event the backend will
+      # deliver? The mirror this diffs (src/lib/integrationEventManifest.ts) exists because
+      # the menu was a private three-entry map while `IntegrationEventTypes.Subscribable`
+      # had five — `order.dead_lettered` is the terminal "the order is NOT coming" signal,
+      # so a customer wiring alerts could hear "this try failed" but never "we gave up".
+      #
+      # This step is the tenth mirror suite the WHY comment below anticipated, and it was
+      # added because src/test/ciGatesReallyRun.test.ts refused the suite until it ran here:
+      # its diff is `skipIf(!BACKEND)`, so in the unit-test job it reports green having
+      # compared nothing.
+      - name: Diff the integration-event catalogue against the backend C#
+        if: always()
+        run: bun run test src/lib/integrationEventManifest.test.tsx
+
       # WHY THE LIST ABOVE IS NOT WHERE TO STOP THINKING.
       #
       # Every step in this job runs a suite whose cross-repo assertions are `skipIf(!BACKEND)`.
