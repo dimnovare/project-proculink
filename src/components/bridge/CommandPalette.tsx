@@ -326,16 +326,31 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
     staleTime: 30_000,
     enabled: !isApiMockMode && debouncedQ.length >= SERVER_SEARCH_MIN_CHARS,
   });
-  const { data: suppliers } = useQuery({
+  const {
+    data: suppliers,
+    isError: suppliersIsError,
+    refetch: refetchSuppliers,
+  } = useQuery({
     queryKey: ["suppliers"],
     queryFn: () => apiClient.getSuppliers(),
     staleTime: 60_000,
   });
-  const { data: buyers } = useQuery({
+  const {
+    data: buyers,
+    isError: buyersIsError,
+    refetch: refetchBuyers,
+  } = useQuery({
     queryKey: ["buyers"],
     queryFn: () => getBuyers(),
     staleTime: 60_000,
   });
+  // Same defect shape as `searchFailed` below, rotated onto the library queries:
+  // a failed suppliers/buyers fetch fell into `?? []` in buildIndex and their
+  // rows were simply MISSING — a search for a supplier name read "No results",
+  // which is a settled claim about data the palette never had. A cached list
+  // (data !== undefined) still renders, so only a no-data failure raises this.
+  const libraryFailed =
+    (suppliersIsError && suppliers === undefined) || (buyersIsError && buyers === undefined);
 
   // When search term is active and server results are available, use them (all orders searchable).
   // Otherwise fall back to the recent-orders preview (empty query, or mock mode).
@@ -540,6 +555,39 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
               </span>
               <span style={{ flexShrink: 0 }}>
                 <Button variant="secondary" size="sm" onClick={() => { void refetchSearch(); }}>
+                  Try again
+                </Button>
+              </span>
+            </div>
+          )}
+          {libraryFailed && (
+            <div
+              role="alert"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 12,
+                padding: "10px 16px",
+                background: "var(--danger-soft)",
+                borderBottom: "1px solid var(--danger-border)",
+                color: "var(--danger)",
+                fontSize: 12.5,
+              }}
+            >
+              <span>
+                We couldn&rsquo;t load your suppliers and buyers, so their rows are missing from
+                these results — missing, not absent.
+              </span>
+              <span style={{ flexShrink: 0 }}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    if (suppliersIsError) void refetchSuppliers();
+                    if (buyersIsError) void refetchBuyers();
+                  }}
+                >
                   Try again
                 </Button>
               </span>

@@ -74,7 +74,13 @@ export function AssignSupplierBanner({ order }: { order: Order }) {
     .sort((a, b) => a.rank - b.rank)
     .slice(0, MAX_SUGGESTIONS);
 
-  const { data: suppliers = [], isLoading: suppliersLoading } = useQuery({
+  const {
+    data: suppliers = [],
+    isLoading: suppliersLoading,
+    isError: suppliersError,
+    refetch: refetchSuppliers,
+    isFetching: suppliersFetching,
+  } = useQuery({
     queryKey: ["suppliers"],
     queryFn: apiClient.getSuppliers,
     staleTime: 5 * 60 * 1000,
@@ -125,7 +131,14 @@ export function AssignSupplierBanner({ order }: { order: Order }) {
     }
   }
 
-  const noSuppliers = !suppliersLoading && suppliers.length === 0;
+  // A failed list fetch is NOT an org with zero suppliers. This banner is the
+  // only in-app way out of `unrouted`; claiming "no suppliers" here on a dead
+  // endpoint sent operators with real suppliers off to create a duplicate and
+  // removed the one control that routes the order. `suppliers.length === 0`
+  // under `suppliersError` means "no data at all" (a cached list still renders
+  // the picker), so the two states are mutually exclusive.
+  const suppliersUnavailable = suppliersError && suppliers.length === 0;
+  const noSuppliers = !suppliersLoading && !suppliersError && suppliers.length === 0;
   const hasSuggestions = suggestions.length > 0;
 
   return (
@@ -176,13 +189,45 @@ export function AssignSupplierBanner({ order }: { order: Order }) {
           />
         )}
 
-        {hasSuggestions && !noSuppliers && (
+        {hasSuggestions && !noSuppliers && !suppliersUnavailable && (
           <p className="text-[12px] font-semibold" style={{ color: T.inkMuted, margin: 0 }}>
             None of these? Choose the {counterparty} yourself.
           </p>
         )}
 
-        {noSuppliers ? (
+        {suppliersUnavailable ? (
+          /* The list REQUEST failed — a different fact from an empty list, and it
+             must never render as "add a {counterparty}". Say what happened and
+             offer the retry; the picker returns the moment a fetch lands. */
+          <div
+            role="alert"
+            className="flex flex-col gap-2 sm:flex-row sm:items-center lg:flex-shrink-0"
+          >
+            <p className="text-[12.5px] font-semibold" style={{ color: T.danger, margin: 0 }}>
+              We couldn&rsquo;t load your {labels.counterpartyPlural.toLowerCase()} just now, so
+              there&rsquo;s no list to choose from — that&rsquo;s a connection problem, not an
+              empty list.
+            </p>
+            <button
+              type="button"
+              onClick={() => void refetchSuppliers()}
+              disabled={suppliersFetching}
+              className="text-[12.5px] font-semibold"
+              style={{
+                minHeight: 40,
+                padding: "9px 16px",
+                borderRadius: 7,
+                border: `1px solid ${T.amberLine}`,
+                background: T.surface,
+                color: T.ink,
+                cursor: suppliersFetching ? "wait" : "pointer",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {suppliersFetching ? "Trying again…" : "Try again"}
+            </button>
+          </div>
+        ) : noSuppliers ? (
           <Link
             href="/library/suppliers"
             className="text-[12.5px] font-semibold lg:flex-shrink-0"

@@ -73,7 +73,7 @@ export function SupplierIdentityCard({ supplierId }: { supplierId: string }) {
   const queryEnabled = useQueriesEnabled();
   const [notice, setNotice] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
 
-  const { data: suppliers } = useQuery({
+  const { data: suppliers, isError: suppliersFailed } = useQuery({
     queryKey: ["suppliers"],
     queryFn: () => apiClient.getSuppliers(),
     enabled: isApiMockMode || queryEnabled,
@@ -104,6 +104,20 @@ export function SupplierIdentityCard({ supplierId }: { supplierId: string }) {
       setNotice({ kind: "error", text: err.message || `Could not save this ${partyNounLower}.` });
     },
   });
+
+  // A FAILED list fetch is not "a supplier the list doesn't have": vanishing
+  // silently here made a network error read as "this card has nothing to show".
+  // Say what happened, minimally — the page's other surfaces own the retry.
+  if (!supplier && suppliersFailed && suppliers === undefined) {
+    return (
+      <Card edge="green" flush>
+        <p role="alert" className="px-5 py-3.5 text-[12.5px]" style={{ color: MUTED, margin: 0, lineHeight: 1.5 }}>
+          We couldn&rsquo;t load this {partyNounLower}&rsquo;s identifiers just now — reload the
+          page to try again. Nothing saved here has been lost.
+        </p>
+      </Card>
+    );
+  }
 
   // Nothing to bind to (a supplier the list doesn't have) — render nothing rather
   // than an empty form whose Save would 404.

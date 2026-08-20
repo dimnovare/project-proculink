@@ -60,6 +60,15 @@ export function partyLabels(direction: OrderDirection): PartyLabels {
 export interface UseOrderDirectionResult {
   direction: OrderDirection;
   labels: PartyLabels;
+  /**
+   * True once the org's setting has actually been READ. False while the query is
+   * loading AND after a failed read — in both cases `direction` is the
+   * "outbound" fallback, not a settled server answer. The fallback wording is
+   * fine for labels (every existing org is outbound), but a consumer that makes
+   * a CLAIM from the direction (a checked control, a settled sentence) must
+   * check this flag rather than presenting the fallback as fact.
+   */
+  isDirectionKnown: boolean;
 }
 
 /**
@@ -81,5 +90,5 @@ export function useOrderDirection(): UseOrderDirectionResult {
   const direction: OrderDirection = data?.direction ?? "outbound";
   const labels = useMemo(() => partyLabels(direction), [direction]);
 
-  return { direction, labels };
+  return { direction, labels, isDirectionKnown: data !== undefined };
 }

@@ -82,9 +82,12 @@ export default function SettingsPage() {
   // sync fires only when the param VALUE itself changes.
   useTabParamSync<SettingsTab>(requestedTab, isSettingsTab, setTab);
   const { organization } = useOrganization();
-  const { data: billing } = useQuery({ queryKey: ["billing-status"], queryFn: getBillingStatus, staleTime: 60_000 });
+  const { data: billing, isError: billingFailed } = useQuery({ queryKey: ["billing-status"], queryFn: getBillingStatus, staleTime: 60_000 });
   const orgName   = organization?.name ?? "…";
-  const planLabel = billing ? planDisplayName(billing.plan) : "…";
+  // On a failed billing read the header shows a neutral "—", not an eternal "…":
+  // the ellipsis is a loading claim, and a dead endpoint would leave it there for
+  // the rest of the page's life.
+  const planLabel = billing ? planDisplayName(billing.plan) : billingFailed ? "—" : "…";
 
   return (
     <PageShell className="settings-shell">
@@ -430,12 +433,17 @@ const DIRECTION_OPTIONS: Array<{ value: OrderDirection; title: string }> = [
 
 function OrderDirectionSetting() {
   const queryClient = useQueryClient();
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ["org-settings"],
     queryFn: getOrgSettings,
     staleTime: 300_000,
   });
   const current: OrderDirection = data?.direction ?? "outbound";
+  // A FAILED read must not render the "outbound" fallback as the saved answer:
+  // a checked, enabled radio here asserts a choice this screen never fetched,
+  // and clicking the shown option early-returns as "already saved". While the
+  // read has failed (and no cached answer exists) the radios are withheld.
+  const readFailed = isError && data === undefined;
   const [feedback, setFeedback] = useState<{ text: string; kind: "ok" | "err" } | null>(null);
 
   const mutation = useMutation({
@@ -483,6 +491,26 @@ function OrderDirectionSetting() {
       title="How do you use ProcuLink?"
       sub="This sets how parties are labelled across your inbox, dashboard, and suppliers."
     >
+      {readFailed ? (
+        <div
+          role="alert"
+          data-testid="direction-load-failed"
+          style={{ borderRadius: 8, border: "1px solid var(--danger-soft)", borderLeft: "3px solid var(--danger)", background: "var(--surface)", padding: "12px 14px" }}
+        >
+          <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.55, color: "var(--ink-muted)" }}>
+            We couldn&rsquo;t load this setting just now, so we can&rsquo;t show which option is
+            currently active. Your saved choice is unchanged.
+          </p>
+          <button
+            type="button"
+            onClick={() => void refetch()}
+            disabled={isFetching}
+            style={{ marginTop: 10, height: 32, borderRadius: 6, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--ink)", fontSize: 12, fontWeight: 600, padding: "0 12px", cursor: isFetching ? "not-allowed" : "pointer" }}
+          >
+            {isFetching ? "Trying again…" : "Try again"}
+          </button>
+        </div>
+      ) : (
       <div
         role="radiogroup"
         aria-label="How do you use ProcuLink?"
@@ -536,6 +564,7 @@ function OrderDirectionSetting() {
           );
         })}
       </div>
+      )}
       {feedback && (
         <div style={{ marginTop: 12, fontSize: 12.5, fontWeight: 500, color: feedback.kind === "ok" ? "var(--brand-green-deep)" : "var(--danger)" }}>
           {feedback.text}
@@ -603,7 +632,15 @@ function EmailSettingsSection() {
     queryFn: getBillingStatus,
     retry: false,
   });
-  const { data: suppliers = [] } = useQuery({
+  // `retry: false` means ONE failed request would otherwise decide the rest of
+  // this page's life — so the failure must be distinguishable from an org with
+  // zero suppliers, which is a settled answer this screen acts on.
+  const {
+    data: suppliers = [],
+    isError: suppliersFailed,
+    refetch: refetchSuppliers,
+    isFetching: suppliersFetching,
+  } = useQuery({
     queryKey: ["suppliers"],
     queryFn: apiClient.getSuppliers,
     retry: false,
@@ -820,7 +857,10 @@ function EmailSettingsSection() {
           </div>
           <ToggleSwitch
             checked={form.enabled}
-            disabled={(!canEnable && !form.enabled) || (suppliers.length === 0 && !form.enabled)}
+            // `suppliers.length === 0` disables only when it is a SETTLED zero —
+            // a failed fetch must not freeze this toggle (the save path still
+            // validates that a default supplier is chosen before enabling).
+            disabled={(!canEnable && !form.enabled) || (suppliers.length === 0 && !suppliersFailed && !form.enabled)}
             onChange={(v) => update("enabled", v)}
             ariaLabel="Poll inbox for orders"
           />
@@ -902,7 +942,29 @@ function EmailSettingsSection() {
               <span style={{ fontSize: 11.5, color: "var(--ink-faint)", marginTop: 2 }}>Usually INBOX. Enter another folder name to poll it instead.</span>
             </FormField>
             <FormField label="Default supplier" required>
-              {suppliers.length === 0 ? (
+              {suppliersFailed && suppliers.length === 0 ? (
+                /* The list REQUEST failed — not an empty list. "No suppliers yet —
+                   add one first →" here sent operators with real suppliers off to
+                   create a duplicate. */
+                <div
+                  role="alert"
+                  data-testid="default-supplier-load-failed"
+                  style={{ borderRadius: 8, border: "1px solid var(--danger-soft)", borderLeft: "3px solid var(--danger)", background: "var(--surface)", padding: "10px 12px", fontSize: 12, color: "var(--ink-muted)", lineHeight: 1.5 }}
+                >
+                  We couldn&rsquo;t load your suppliers just now — this doesn&rsquo;t mean you have none.{" "}
+                  <button
+                    type="button"
+                    // FormField wraps this field in a <label>, which would swallow
+                    // the button's name into the label text — name it explicitly.
+                    aria-label="Try again"
+                    onClick={() => void refetchSuppliers()}
+                    disabled={suppliersFetching}
+                    style={{ border: "none", background: "none", padding: 0, font: "inherit", fontWeight: 600, color: "var(--brand-blue)", cursor: suppliersFetching ? "wait" : "pointer", textDecoration: "underline" }}
+                  >
+                    {suppliersFetching ? "Trying again…" : "Try again"}
+                  </button>
+                </div>
+              ) : suppliers.length === 0 ? (
                 <div style={{ borderRadius: 8, border: "1px dashed var(--border)", background: "var(--surface-2)", padding: "10px 12px", fontSize: 12, color: "var(--ink-muted)", lineHeight: 1.5 }}>
                   No suppliers yet —{" "}
                   <Link href="/library/suppliers" style={{ color: "var(--brand-green-deep)", fontWeight: 600 }}>add one first →</Link>
