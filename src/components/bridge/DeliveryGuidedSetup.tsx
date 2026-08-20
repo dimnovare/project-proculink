@@ -978,7 +978,7 @@ function StepDestination(p: StepDestinationProps) {
         {isSftp && p.sftpAuthMode === "key" ? (
           <>
             <WizardField label="Private key">
-              <textarea value={p.privateKey} onChange={(e) => p.setPrivateKey(e.target.value)} placeholder="-----BEGIN OPENSSH PRIVATE KEY-----" rows={4} className="w-full rounded-[5px] px-2.5 py-2 font-mono text-[11px]" style={INPUT_STYLE} />
+              <SecretKeyTextarea value={p.privateKey} onChange={p.setPrivateKey} placeholder="-----BEGIN OPENSSH PRIVATE KEY-----" />
             </WizardField>
             <WizardField label="Key passphrase (optional)">
               <input type="password" value={p.privateKeyPassphrase} onChange={(e) => p.setPrivateKeyPassphrase(e.target.value)} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
@@ -1186,6 +1186,48 @@ function StepTest({
 }
 
 // ── Small shared bits ────────────────────────────────────────────────────────
+/**
+ * A private key is a secret at rest, but `type="password"` does not exist for a
+ * textarea. So: the real textarea is live while the operator is entering or editing
+ * the key, and once they leave the field a masked presentation (a button that brings
+ * the textarea back on click) replaces it, so the key never stays on screen as plain
+ * text. Identical treatment to the same field in DeliveryConfigEditor.tsx — keep the
+ * two in sync. Pinned by DeliveryGuidedSetup.privateKeyMasked.test.tsx.
+ */
+function SecretKeyTextarea({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) {
+  const [revealed, setRevealed] = useState(false);
+  if (value !== "" && !revealed) {
+    return (
+      <button
+        type="button"
+        onClick={() => setRevealed(true)}
+        className="w-full rounded-[5px] px-2.5 py-2 text-left font-mono text-[11px]"
+        style={INPUT_STYLE}
+      >
+        ••••••••••••{" "}
+        <span style={{ color: FAINT }}>Key hidden — click to show and edit</span>
+      </button>
+    );
+  }
+  return (
+    <textarea
+      value={value}
+      onChange={(e) => {
+        // Keep the textarea mounted while the operator types/pastes; blur re-masks.
+        setRevealed(true);
+        onChange(e.target.value);
+      }}
+      onBlur={() => setRevealed(false)}
+      autoComplete="off"
+      spellCheck={false}
+      placeholder={placeholder}
+      rows={4}
+      className="w-full rounded-[5px] px-2.5 py-2 font-mono text-[11px]"
+      style={INPUT_STYLE}
+    />
+  );
+}
+
 function WizardField({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
     <label className="grid gap-1">
