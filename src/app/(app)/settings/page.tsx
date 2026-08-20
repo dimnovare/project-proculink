@@ -501,14 +501,15 @@ function OrderDirectionSetting() {
             We couldn&rsquo;t load this setting just now, so we can&rsquo;t show which option is
             currently active. Your saved choice is unchanged.
           </p>
-          <button
+          <Button
             type="button"
+            variant="secondary"
             onClick={() => void refetch()}
             disabled={isFetching}
-            style={{ marginTop: 10, height: 32, borderRadius: 6, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--ink)", fontSize: 12, fontWeight: 600, padding: "0 12px", cursor: isFetching ? "not-allowed" : "pointer" }}
+            style={{ marginTop: 10 }}
           >
             {isFetching ? "Trying again…" : "Try again"}
-          </button>
+          </Button>
         </div>
       ) : (
       <div
@@ -959,7 +960,8 @@ function EmailSettingsSection() {
                     aria-label="Try again"
                     onClick={() => void refetchSuppliers()}
                     disabled={suppliersFetching}
-                    style={{ border: "none", background: "none", padding: 0, font: "inherit", fontWeight: 600, color: "var(--brand-blue)", cursor: suppliersFetching ? "wait" : "pointer", textDecoration: "underline" }}
+                    className="bg-transparent"
+                    style={{ border: "none", padding: 0, font: "inherit", fontWeight: 600, color: "var(--brand-blue)", cursor: suppliersFetching ? "wait" : "pointer", textDecoration: "underline" }}
                   >
                     {suppliersFetching ? "Trying again…" : "Try again"}
                   </button>

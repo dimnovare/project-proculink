@@ -212,13 +212,12 @@ export function AssignSupplierBanner({ order }: { order: Order }) {
               type="button"
               onClick={() => void refetchSuppliers()}
               disabled={suppliersFetching}
-              className="text-[12.5px] font-semibold"
+              className="bg-surface text-[12.5px] font-semibold"
               style={{
                 minHeight: 40,
                 padding: "9px 16px",
                 borderRadius: 7,
                 border: `1px solid ${T.amberLine}`,
-                background: T.surface,
                 color: T.ink,
                 cursor: suppliersFetching ? "wait" : "pointer",
                 whiteSpace: "nowrap",

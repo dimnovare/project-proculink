@@ -297,14 +297,16 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
                     preview says there&rsquo;s no sample order, that&rsquo;s because we couldn&rsquo;t
                     look, not because none exists.
                   </span>
-                  <button
+                  <Button
                     type="button"
+                    variant="secondary"
+                    size="sm"
                     onClick={() => void refetchSampleOrder()}
                     disabled={sampleOrderFetching}
-                    style={{ flexShrink: 0, height: 30, borderRadius: 6, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--ink)", fontSize: 12, fontWeight: 600, padding: "0 12px", cursor: sampleOrderFetching ? "wait" : "pointer" }}
+                    style={{ flexShrink: 0 }}
                   >
                     {sampleOrderFetching ? "Trying again…" : "Try again"}
-                  </button>
+                  </Button>
                 </div>
               )}
               {mapperRevisionId ? (
