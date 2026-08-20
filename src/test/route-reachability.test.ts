@@ -142,14 +142,12 @@ export const KNOWN_DEEP_LINK_ONLY: Record<string, string> = {
   //    `the allowlist cannot rot` below is what forced the deletion rather than
   //    leaving three names pointing at nothing.
 
-  // ── Reachable, but the referrer is outside this repo. A frontend-only guard
-  //    is structurally blind to these; the reason is the evidence.
-  "/welcome":
-    "Reached from the BACKEND, not from this repo: Stripe checkout success_url is built as " +
-    "`{frontendUrl}/welcome?upgraded={plan}&interval={interval}&session_id={CHECKOUT_SESSION_ID}` in " +
-    "ProcuLink.Api/Services/StripeBillingService.cs:335. Every paying customer lands here after " +
-    "checkout, which is why the page reads `?upgraded=` and is noindex + absent from the sitemap. " +
-    "It is live billing infrastructure — do NOT delete it because nothing in this repo links to it.",
+  // ── /welcome was the "reachable, but the referrer is outside this repo"
+  //    entry: the Stripe checkout success_url (StripeBillingService.cs) is
+  //    still its main referrer and every paying customer still lands there.
+  //    2026-08-20: the OnboardingChecklist now links to it ("How ProcuLink
+  //    works"), so the page is reachable from inside this repo and the guard
+  //    enforces the link instead of allowlisting the route.
 
   // ── /one-pager was the third entry, parked as "wants either a real link or a
   //    deletion decision". Founder decision 2026-07-30: link it. The marketing
