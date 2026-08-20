@@ -17,6 +17,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/bridge/layout/Card";
 import { confidenceTone } from "@/components/bridge/ConfidenceChip";
 import { ApiHttpError, apiClient } from "@/lib/api-client";
+import { PracticeChip } from "@/components/bridge/PracticeChip";
 import {
   attemptOutcomeIsUnknown,
   attemptSendWasObserved,
@@ -767,7 +768,8 @@ export function OrderPassport({ orderId }: { orderId: string }) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `passport-${passport.order.poNumber || passport.order.id}.json`;
+    const suffix = passport.order.isSample ? "-practice" : "";
+    a.download = `passport-${passport.order.poNumber || passport.order.id}${suffix}.json`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -815,9 +817,12 @@ export function OrderPassport({ orderId }: { orderId: string }) {
       {/* Header + proof actions */}
       <div className="flex flex-wrap items-start justify-between gap-3 mb-5">
         <div className="min-w-0">
-          <h2 style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", fontSize: 20, fontWeight: 700, letterSpacing: "-0.02em", color: "#0B1A2F" }}>
-            Order history
-          </h2>
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", fontSize: 20, fontWeight: 700, letterSpacing: "-0.02em", color: "#0B1A2F" }}>
+              Order history
+            </h2>
+            {passport.order.isSample ? <PracticeChip size="sm" /> : null}
+          </div>
           <p className="text-[12.5px] mt-1" style={{ color: "#5E6779" }}>
             Full history for <span className="font-mono" style={{ color: "#0F4FA8" }}>{passport.order.poNumber}</span> — every stage, decision, and delivery attempt, with the supplier&apos;s response.
           </p>
