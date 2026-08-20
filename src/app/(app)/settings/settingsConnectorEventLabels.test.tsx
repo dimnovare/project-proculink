@@ -46,6 +46,10 @@ vi.mock("@/lib/api-client", async (importOriginal) => {
 });
 
 import { getIntegrations } from "@/lib/api-client";
+import {
+  INTEGRATION_EVENT_LABELS,
+  SUBSCRIBABLE_INTEGRATION_EVENTS,
+} from "@/lib/integrationEventManifest";
 import SettingsPage from "./page";
 
 function renderSettings() {
@@ -77,11 +81,17 @@ describe("Settings — Notifications describes webhook events in plain language"
     const eventSelect = screen.getByLabelText("Event") as HTMLSelectElement;
     const options = Array.from(eventSelect.options).map((o) => o.textContent?.replace(/\s+/g, " ").trim());
 
-    expect(options).toEqual([
-      "order.created — New PO uploaded or received",
-      "order.delivered — PO delivered to supplier",
-      "order.failed — Couldn't send to the supplier",
-    ]);
+    // Derived from the manifest that mirrors the backend allow-list
+    // (src/lib/integrationEventManifest.ts) — this assertion used to pin a
+    // hand-typed three-entry list, which is exactly how the menu stayed at
+    // three while the backend grew to five (order.rejected and
+    // order.dead_lettered could be delivered but never subscribed to).
+    // integrationEventManifest.test.tsx carries the >= 5 anti-vacuity floor.
+    expect(options).toEqual(
+      SUBSCRIBABLE_INTEGRATION_EVENTS.map(
+        (event) => `${event} — ${INTEGRATION_EVENT_LABELS[event]}`,
+      ),
+    );
   });
 
   it("says nothing about an event type it has no description for", async () => {
@@ -104,11 +114,7 @@ describe("Settings — Notifications describes webhook events in plain language"
     // The literal code still renders, so the row is never anonymous…
     expect(await screen.findByText("order.acknowledged")).toBeInTheDocument();
     // …but no description is invented for it.
-    for (const description of [
-      "New PO uploaded or received",
-      "PO delivered to supplier",
-      "Couldn't send to the supplier",
-    ]) {
+    for (const description of Object.values(INTEGRATION_EVENT_LABELS)) {
       expect(screen.queryByText(description)).not.toBeInTheDocument();
     }
   });
