@@ -28,7 +28,10 @@ import { CircleCheck } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient, getMappingOverride, previewMappingOverride, promoteMapping } from "@/lib/api-client";
 import { getAcceptanceGate } from "@/lib/api/acceptance-gate";
+import { getDeliveryConfig } from "@/lib/api/delivery";
+import { deliveryConfigQueryKey } from "@/lib/deliveryConfigCache";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
+import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { practiceDeliveryKnown } from "@/hooks/useSampleOrder";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 import { isPlanGateError, planGateMessage, planGateUpgradeUrl } from "@/lib/planGate";
@@ -47,7 +50,7 @@ import {
 import { UnifiedStatusBadge } from "../UnifiedStatusBadge";
 import { OrderProblemPanel } from "../problem/OrderProblemPanel";
 import { problemFor, waitPhrase } from "../problem/problemCopy";
-import { ConfirmDialog } from "../review/ConfirmDialog";
+import { ConfirmDialog, deliverySetupFrom } from "../review/ConfirmDialog";
 import { buildFixQueue, type FixQueueCard } from "../review/buildFixQueue";
 import { orderGrandTotalLabel, deliveryFormatLabel, buyerLabel, orderDeliveryFormat } from "../review/orderDisplay";
 import { useOrderReview } from "../review/hooks/useOrderReview";
@@ -285,12 +288,19 @@ function PracticeNote({
   delivers,
   nounLower,
   delivered,
+  realDeliveryHref,
 }: {
   /** What pressing send will actually do. `null` = we do not know (see practiceDeliveryKnown). */
   delivers: PracticeDeliveryState | null;
   /** From partyLabels(direction) — "supplier" outbound, "customer" inbound. */
   nounLower: string;
   delivered: boolean;
+  /**
+   * Delivery-setup link for the operator's REAL counterparty (onboarding
+   * `firstSupplierId`), never this practice order's own sample supplier —
+   * "/library/suppliers" when no real one exists yet.
+   */
+  realDeliveryHref: string;
 }) {
   return (
     <div
@@ -308,8 +318,21 @@ function PracticeNote({
           <strong style={{ color: "#1E6D29", fontWeight: 700 }}>Practice order delivered</strong>
           {" "}— we emailed you the finished file. That is byte-for-byte what a real order
           produces.{" "}
-          <Link href="/upload" style={{ color: "#1E6D29", fontWeight: 600, textDecoration: "underline", textUnderlineOffset: 2 }}>
-            Upload your own order →
+          {/* Delivery setup leads. The sole affordance here used to be "Upload
+              your own order →", which routes a fresh user PAST delivery setup
+              while the onboarding checklist locks "send" until delivery is
+              configured — so the first real order died at the exact step this
+              banner skipped. The href targets the REAL counterparty (see
+              realDeliveryHref at the call site), never this order's own sample
+              supplier. */}
+          {/* The literal deep-green here (= --brand-green-deep) predates this
+              edit — the token-debt baseline ledgers it for this file. */}
+          <Link href={realDeliveryHref} style={{ color: "#1E6D29", fontWeight: 700, textDecoration: "underline", textUnderlineOffset: 2 }}>
+            Set up delivery to your real {nounLower} →
+          </Link>
+          {" · "}
+          <Link href="/upload" style={{ color: "var(--brand-green-deep)", fontWeight: 500, textDecoration: "underline", textUnderlineOffset: 2 }}>
+            Upload your own order
           </Link>
         </span>
       ) : (
@@ -374,6 +397,39 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
   });
   const parseErrorFromAudit =
     (auditEvents.find((e) => e.action === "ParseFailed")?.payload?.["error"] as string | undefined) ?? null;
+
+  // ── Delivery-setup check for the confirm dialog — INFORM, never re-gate. ────
+  //    A new user used to reach a live green Send with no delivery config and
+  //    learn about it only from the server's refusal (the problem panel's
+  //    "Set up delivery" is post-failure). This query lets the consent step say
+  //    where the order goes — or that nothing is set up, so the send will fail.
+  //
+  //    Nothing here feeds `canSend`: the server owns refusal, and a failed read
+  //    must never lock a working send. The dialog receives a three-valued state
+  //    (configured / not configured / unknown) via deliverySetupFrom, and
+  //    unknown claims nothing either way.
+  const deliverySupplierId = hasAssignedSupplier(order?.supplierId) ? order!.supplierId : null;
+  const deliveryConfigQuery = useQuery({
+    queryKey: deliveryConfigQueryKey(deliverySupplierId ?? "unassigned"),
+    queryFn: () => getDeliveryConfig(deliverySupplierId as string),
+    enabled: queryEnabled && deliverySupplierId !== null,
+    retry: 1,
+    staleTime: 60_000,
+  });
+  const deliverySetup = deliverySetupFrom(deliveryConfigQuery, deliverySupplierId);
+
+  // ── Onboarding status — the delivered-practice banner's next step. ──────────
+  //    The practice order's own supplierId is the SAMPLE supplier, which the
+  //    backend deliberately excludes from onboarding signals (OnboardingController
+  //    filters IsSample), so the banner's delivery link must point at the
+  //    operator's REAL supplier: `firstSupplierId`, the same id
+  //    buildChecklistSteps uses for its own delivery step. Absent (loading,
+  //    failed, or no real supplier yet) falls back to the supplier list rather
+  //    than fabricating an id.
+  const onboardingStatus = useOnboardingStatus();
+  const realDeliveryHref = onboardingStatus.data?.firstSupplierId
+    ? `/library/suppliers/${onboardingStatus.data.firstSupplierId}?tab=delivery`
+    : "/library/suppliers";
 
   const {
     flowNotice, flowSeverity, setFlow,
@@ -822,6 +878,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
           delivers={practiceDelivers}
           nounLower={labels.counterpartyNoun.toLowerCase()}
           delivered={order?.status === "delivered"}
+          realDeliveryHref={realDeliveryHref}
         />
       )}
       {catalogHint}
@@ -1507,6 +1564,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
           labels={labels}
           failingRuleCount={failingRuleCount}
           validationStale={validation.isStale}
+          deliverySetup={deliverySetup}
         />
       )}
 
