@@ -68,8 +68,8 @@ const OVERVIEW: AdminOverview = {
 function org(over: Partial<AdminOrganisation> = {}): AdminOrganisation {
   return {
     id: "11111111-1111-1111-1111-111111111111",
-    name: "Nordmark Tooling",
-    slug: "nordmark-tooling",
+    name: "Nordmark Industries",
+    slug: "nordmark-industries",
     plan: "growth",
     accountStatus: "active",
     stripeCustomerId: "cus_1",
@@ -143,11 +143,11 @@ describe("admin — a lookup result names the owning workspace", () => {
       matches: [
         {
           orgId: "11111111-1111-1111-1111-111111111111",
-          orgName: "Nordmark Tooling",
-          orgSlug: "nordmark-tooling",
+          orgName: "Nordmark Industries",
+          orgSlug: "nordmark-industries",
           orderId: "aaaaaaaa-0000-0000-0000-000000000001",
           status: "delivery_failed",
-          supplierName: "Karlsson Fasteners",
+          supplierName: "Westmark Components",
           poNumber: "4500012580",
           createdAt: new Date("2026-08-18T09:00:00Z").toISOString(),
           updatedAt: new Date("2026-08-19T11:30:00Z").toISOString(),
@@ -158,10 +158,10 @@ describe("admin — a lookup result names the owning workspace", () => {
     await search("4500012580");
 
     const panel = lookup();
-    expect(await within(panel).findByText("Nordmark Tooling")).toBeTruthy();
-    expect(within(panel).getByText("nordmark-tooling")).toBeTruthy();
+    expect(await within(panel).findByText("Nordmark Industries")).toBeTruthy();
+    expect(within(panel).getByText("nordmark-industries")).toBeTruthy();
     expect(within(panel).getByText(/aaaaaaaa-0000-0000-0000-000000000001/)).toBeTruthy();
-    expect(within(panel).getByText("Karlsson Fasteners")).toBeTruthy();
+    expect(within(panel).getByText("Westmark Components")).toBeTruthy();
     expect(findAdminOrdersByPo).toHaveBeenCalledWith("4500012580");
   });
 
@@ -175,8 +175,8 @@ describe("admin — a lookup result names the owning workspace", () => {
       matches: [
         {
           orgId: "11111111-1111-1111-1111-111111111111",
-          orgName: "Nordmark Tooling",
-          orgSlug: "nordmark-tooling",
+          orgName: "Nordmark Industries",
+          orgSlug: "nordmark-industries",
           orderId: "aaaaaaaa-0000-0000-0000-000000000001",
           status: "delivered",
           supplierName: null,
@@ -190,7 +190,7 @@ describe("admin — a lookup result names the owning workspace", () => {
     await search("4500012580");
 
     const panel = lookup();
-    await within(panel).findByText("Nordmark Tooling");
+    await within(panel).findByText("Nordmark Industries");
     expect(within(panel).getByTestId("admin-order-find-limit").textContent ?? "").toMatch(
       /not a member|no membership|cannot open/i,
     );
@@ -203,8 +203,8 @@ describe("admin — a lookup result names the owning workspace", () => {
       capped: true,
       matches: Array.from({ length: 20 }, (_, i) => ({
         orgId: "11111111-1111-1111-1111-111111111111",
-        orgName: "Nordmark Tooling",
-        orgSlug: "nordmark-tooling",
+        orgName: "Nordmark Industries",
+        orgSlug: "nordmark-industries",
         orderId: `aaaaaaaa-0000-0000-0000-00000000000${i % 10}`,
         status: "delivered",
         supplierName: null,

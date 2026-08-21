@@ -85,8 +85,8 @@ const ORG_ID = "11111111-1111-1111-1111-111111111111";
 function org(over: Partial<AdminOrganisation> = {}): AdminOrganisation {
   return {
     id: ORG_ID,
-    name: "Nordmark Tooling",
-    slug: "nordmark-tooling",
+    name: "Nordmark Industries",
+    slug: "nordmark-industries",
     plan: "pilot",
     accountStatus: "read_only",
     stripeCustomerId: null,
@@ -164,7 +164,7 @@ describe("admin — un-freezing is confirmed, and its consequence is named", () 
   it("fires the write only after the confirmation is given", async () => {
     setOrgAccountStatus.mockResolvedValue({
       id: ORG_ID,
-      name: "Nordmark Tooling",
+      name: "Nordmark Industries",
       plan: "pilot",
       previousAccountStatus: "read_only",
       requestedAccountStatus: "trialing",
@@ -193,7 +193,7 @@ describe("admin — un-freezing is confirmed, and its consequence is named", () 
   it("does NOT report success when the trial window re-froze the org immediately", async () => {
     setOrgAccountStatus.mockResolvedValue({
       id: ORG_ID,
-      name: "Nordmark Tooling",
+      name: "Nordmark Industries",
       plan: "pilot",
       previousAccountStatus: "read_only",
       requestedAccountStatus: "trialing",
@@ -279,7 +279,7 @@ describe("admin — retention is confirmed in words that name the deletion", () 
   it("sends the days once confirmed", async () => {
     setOrgRetention.mockResolvedValue({
       id: ORG_ID,
-      name: "Nordmark Tooling",
+      name: "Nordmark Industries",
       retentionDays: 30,
       retentionEnabled: true,
     });
@@ -302,7 +302,7 @@ describe("admin — retention is confirmed in words that name the deletion", () 
   it("disabling retention sends clear, and says nothing will be deleted", async () => {
     setOrgRetention.mockResolvedValue({
       id: ORG_ID,
-      name: "Nordmark Tooling",
+      name: "Nordmark Industries",
       retentionDays: null,
       retentionEnabled: false,
     });

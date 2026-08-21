@@ -69,8 +69,8 @@ const OVERVIEW: AdminOverview = {
 
 const ORG: AdminOrganisation = {
   id: "11111111-1111-1111-1111-111111111111",
-  name: "Nordmark Tooling",
-  slug: "nordmark-tooling",
+  name: "Nordmark Industries",
+  slug: "nordmark-industries",
   plan: "growth",
   accountStatus: "active",
   stripeCustomerId: null,
