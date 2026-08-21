@@ -1,0 +1,146 @@
+import { Step, Prereqs, IfThisFails, Outcome } from "@/components/help/guide";
+
+<Prereqs>
+- An admin account: the email or Clerk user id must be in `Admin__Emails` / `Admin__UserIds` on the API. Your ordinary signed-in session is the admin credential — there is no separate admin token.
+- The organisation id of the workspace whose data is being erased, and the order id or the filter that selects exactly what is going.
+- A written request or ticket to point at afterwards. These calls are audited, and the audit row is only useful if you can say what it was for.
+- `curl` or an equivalent HTTP client. **There is no button for either of these, and that is the design.** Every other admin action gained a control on `/admin` this week; the two erasure calls deliberately did not. They hard-delete another workspace's data, the effect is irreversible, and the friction of typing the call is the last check between a mis-click and a customer's records being gone.
+</Prereqs>
+
+<Step n={1} title="Decide whether erasure is really what is being asked for">
+
+Three different requests get worded as "delete our data", and only one of them is this runbook:
+
+- **"Stop keeping the files."** That is the retention window, not erasure — **Retention** on the
+  organisation's row on the [admin dashboard](/admin). It removes stored source files and
+  generated output on a schedule and keeps the order records, the hashes, the provenance and the
+  audit trail. Reversible in the sense that you can turn it off before the next sweep runs.
+- **"We are leaving."** Cancelling the subscription already stops every ingest path. Nothing is
+  deleted by it, and nothing needs to be.
+- **"Erase this order / these orders."** GDPR Article 17, or a test workspace that has to be
+  cleaned out. That is this runbook, and it cannot be undone.
+
+Erasure hard-deletes the stored file objects **and** every database row tied to the order — lines,
+artifacts, delivery attempts, exceptions, validation results, provenance events, confirmations,
+AI suggestion decisions, idempotency keys, email-import records and supplier suggestions. There
+is no soft-delete behind it and no restore path. Confirm in writing which orders are in scope
+before you continue.
+
+</Step>
+
+<Step n={2} title="Get the ids, and confirm the scope by reading it back">
+
+Both calls are org-scoped by their route id: the organisation id is ANDed into every match, so
+neither can reach across workspaces. That makes the org id the thing to get right.
+
+```bash
+curl -s "$API_BASE/api/admin/organisations" \
+  -H "Authorization: Bearer $ADMIN_JWT" | python -m json.tool
+```
+
+Each entry carries `id` (a GUID), `name`, `slug`, `plan` and `accountStatus`. If the request came
+in quoting a PO number rather than a workspace, use the **Find an order by PO number** box at the
+top of [`/admin`](/admin) — it maps a PO number to the owning organisation, the order id and its
+status, which is the pair of ids both calls below need.
+
+The API authenticates the same Clerk session JWT the app itself sends; being on the admin
+allowlist is what makes it an admin credential. Mint one from the signed-in app with
+`await window.Clerk.session.getToken()` in the browser console, right before the call. It is
+short-lived — never paste it anywhere that persists.
+
+<IfThisFails>
+No matching organisation means you have the wrong workspace, not that it was already erased.
+Stop and re-check with whoever raised the request.
+</IfThisFails>
+
+</Step>
+
+<Step n={3} title="Erase one order">
+
+```bash
+curl -X DELETE \
+  "$API_BASE/api/admin/organisations/$ORG_ID/orders/$ORDER_ID" \
+  -H "Authorization: Bearer $ADMIN_JWT"
+```
+
+A 200 carries per-table counts of what went — `found: true`, `r2ObjectsDeleted`, `linesDeleted`,
+`artifactsDeleted`, `deliveryAttemptsDeleted`, `exceptionsDeleted`, `validationResultsDeleted`,
+`passportEventsDeleted`, `auditEventsDeleted`, `confirmationsDeleted` and the rest. Keep the
+response with the ticket: it is the record of exactly what was removed.
+
+A **404** means the order does not belong to that organisation, or it has already been erased.
+The two are the same answer on purpose — an admin surface that distinguished "wrong workspace"
+from "already gone" would be reporting on a tenant you did not name.
+
+<IfThisFails>
+A 401 or 403 means the token expired (mint a fresh one) or the account is not on the admin
+allowlist. Neither is a partial erase: the gate runs before any work.
+</IfThisFails>
+
+</Step>
+
+<Step n={4} title="Erase many orders in one batch — and read the filter twice">
+
+Use this for a test workspace, or for a request covering a range. It does the same erase
+server-side in one batch instead of thousands of rate-limited single deletes.
+
+```bash
+curl -X POST \
+  "$API_BASE/api/admin/organisations/$ORG_ID/orders/bulk-erase" \
+  -H "Authorization: Bearer $ADMIN_JWT" \
+  -H "Content-Type: application/json" \
+  -d '{"poNumberPrefix":"E2E-API-"}'
+```
+
+The filter fields combine with **AND**, and every one of them is optional on its own:
+
+- `poNumberPrefix` — orders whose PO number starts with this string.
+- `status` — orders in one lifecycle status.
+- `ids` — an explicit list of order ids.
+- `olderThan` — an ISO timestamp; orders created before it.
+
+**At least one real criterion is required.** A body of `{}` — or one whose only fields are blank
+strings and an empty `ids` list — is refused with **400** and the message "At least one filter
+criterion (poNumberPrefix, status, ids, or olderThan) is required. An empty filter is refused so
+it cannot mass-erase the organisation." That guard is the only thing standing between a
+fat-fingered empty body and an entire workspace, both in the controller and again in the erasure
+service. Do not work around it by passing a criterion that matches everything.
+
+A 200 carries `ordersErased` plus the same per-table counts summed across every order —
+`r2ObjectsDeleted`, `linesDeleted`, `artifactsDeleted`, and so on. `ordersErased: 0` means the
+filter matched nothing, which is a signal to re-read the filter rather than to broaden it.
+
+<IfThisFails>
+If the count is smaller than you expected, the filter is narrower than you expected — the fields
+are ANDed. Widen one field at a time and re-read the count before running it again. There is no
+undo, so an over-broad filter is not something a second call can correct.
+</IfThisFails>
+
+</Step>
+
+<Step n={5} title="Confirm the audit trail recorded it">
+
+Both calls write a durable audit event before they return, recording who ran it (the platform
+admin's Clerk subject and email), which organisation and entity it touched, and the result:
+
+- a single-order erase writes `admin.order.erased`, keyed to the erased order;
+- a bulk erase writes `admin.orders.bulk_erased`, carrying the filter that was used and the
+  summed result.
+
+These rows survive the erase — the audit trail is not part of what is deleted — and they are the
+receipt that proves an erase ran, and what it covered. If a later question asks whether data was
+removed, this is the answer, not a memory of running a command.
+
+<Outcome>
+The named orders are permanently gone from the workspace, you are holding the per-table counts of
+what was removed, and the audit log carries a `admin.order.erased` or `admin.orders.bulk_erased`
+row naming you and the scope.
+</Outcome>
+
+<IfThisFails>
+An audit-write failure does not fail the erase — the data is already gone by then, and the API
+logs the gap at Error level. If the audit row is missing, record the response body against the
+ticket yourself and say so; the accountability record is a compliance obligation, not a nicety.
+</IfThisFails>
+
+</Step>

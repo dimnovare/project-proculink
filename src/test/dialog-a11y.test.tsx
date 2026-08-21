@@ -137,10 +137,15 @@ describe("dialog registry is DERIVED from the source, not hand-maintained", () =
     // 21 since the marketing mobile menu (MarketingNav) — the last row off that same
     // unmarked-overlay baseline, which is now empty. It had neither a trap nor an
     // Escape handler, so both "before" counts move with it.
-    expect(DIALOG_REGISTRY.length).toBe(21);
-    expect(TOTAL_DIALOGS).toBe(21);
-    expect(DIALOG_REGISTRY.filter((d) => !d.hadTrapBefore).length).toBe(15);
-    expect(DIALOG_REGISTRY.filter((d) => !d.hadEscapeBefore).length).toBe(8);
+    //
+    // 22 since OrgActionModals (the admin un-freeze / retention confirmations). It
+    // is a NEW dialog, not a newly-marked old one: it did not exist at 478b809, so
+    // it moves both "before" counts the same way MarketingNav did, and for the
+    // opposite reason — there was nothing there to have a trap.
+    expect(DIALOG_REGISTRY.length).toBe(22);
+    expect(TOTAL_DIALOGS).toBe(22);
+    expect(DIALOG_REGISTRY.filter((d) => !d.hadTrapBefore).length).toBe(16);
+    expect(DIALOG_REGISTRY.filter((d) => !d.hadEscapeBefore).length).toBe(9);
   });
 });
 

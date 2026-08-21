@@ -50,7 +50,7 @@
 // which trains people to stop reading CI and then masks the next real failure.
 // A red nobody can clear today is noise with a good reason attached. So the gaps
 // are tracked loudly instead: every entry reasoned, the whole set printed on
-// every run, a fourteenth gap failing, and an entry that gains a caller failing.
+// every run, ONE MORE gap than the list holds failing, and an entry that gains a caller failing.
 //
 // ── WHAT IT CANNOT SEE (established by trying to defeat it) ───────────────────
 //
@@ -140,12 +140,14 @@ export const KNOWN_MACHINE_FACING: Record<string, string> = {
     "so a frontend caller would be a bug. Backend handler: " +
     "ProcuLink.Infrastructure/Services/Delivery/DeliveryBounceHandler.cs. Registered 2026-08-15.",
 
-  // ── Operator tooling with a documented out-of-band caller.
-  "POST /api/admin/organisations/{}/account-status":
-    "Run by hand from the admin runbook, not from a screen: " +
-    "src/app/(app)/admin/guides/onboard-a-new-client/content.mdx:82 spells out the curl against " +
-    "`$API_BASE/api/admin/organisations/$ORG_ID/account-status`. [AdminOnly], cross-tenant. The " +
-    "other AdminController writes have no such caller and are deliberately left failing.",
+  // NOTE, 2026-08-21: `POST /api/admin/organisations/{}/account-status` used to sit here as
+  // "run by hand from the admin runbook, not from a screen". It now has a real caller —
+  // setOrgAccountStatus in src/lib/api/billing.ts, reached from the Unfreeze control on the
+  // customers row in src/app/(app)/admin/page.tsx — so the entry was DELETED rather than
+  // reworded. An excuse that outlives its reason is what the hygiene tests below exist to
+  // catch, and leaving it would have failed "the pending set is exactly …" from the other
+  // direction. `POST /api/admin/organisations/{}/retention` left UNCALLED_PENDING_DECISION in
+  // the same change, for the same reason.
 
   // ── GDPR erasure: DECIDED 2026-08-18, and the decision was "no self-serve control".
   //    These two sat in UNCALLED_PENDING_DECISION since 2026-08-06 with the open question
@@ -205,8 +207,8 @@ export const KNOWN_MACHINE_FACING: Record<string, string> = {
  *   1. every entry carries its own reason, held to the same citation bar;
  *   2. `printsThePendingSet` logs the count and the names on EVERY run, so the
  *      list appears in CI output rather than only in a file nobody opens;
- *   3. `theUncalledSetIsExactlyThis` fails when a FOURTEENTH endpoint goes
- *      uncalled — a new gap cannot quietly join the list;
+ *   3. `theUncalledSetIsExactlyThis` fails when ONE MORE endpoint than this list
+ *      holds goes uncalled — a new gap cannot quietly join the list;
  *   4. `anExcuseCannotOutliveItsReason` fails when an entry here gains a
  *      caller, so the list cannot rot into permanent cover.
  */
@@ -221,10 +223,6 @@ export const UNCALLED_PENDING_DECISION: Record<string, string> = {
     "ProcuLink.Api/Controllers/SuppliersController.cs:584 calls it \"the recovery door for a " +
     "layout that cannot deliver this supplier's format\", and nothing in the mapper offers it. A " +
     "door with no handle.",
-  "POST /api/admin/organisations/{}/retention":
-    "PENDING A DECISION, 2026-08-06 — sets an organisation's retention window with no control " +
-    "anywhere in src/app/(app)/admin/, and no documented curl. Wire it into the admin org view or " +
-    "retire it.",
   "POST /api/billing/pilot/request-extension":
     "PENDING A DECISION, 2026-08-06 — a Pilot whose trial has ended can ask for an extension, and " +
     "no surface asks. The expiry copy in src/lib/plans.ts offers only Upgrade, so either the " +
@@ -926,8 +924,11 @@ describe("every state-changing endpoint has a caller, or a written reason", () =
     ).toEqual([]);
   });
 
-  it.skipIf(!BACKEND)("the pending set is exactly the thirteen on the record", () => {
-    // The mechanism that stops "tracked" turning into "forgotten". A FOURTEENTH
+  it.skipIf(!BACKEND)("the pending set is exactly the set on the record", () => {
+    // The mechanism that stops "tracked" turning into "forgotten". A count is
+    // deliberately NOT written into this title: it was "thirteen" against a list of
+    // eleven for weeks, and a stale number in a guard is how the guard stops being
+    // read. The assertion derives the set from the map either way. ONE MORE
     // uncalled endpoint fails here rather than quietly joining the list, and an
     // endpoint that gets wired must be deleted from the list rather than left as
     // a stale excuse.

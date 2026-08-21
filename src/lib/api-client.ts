@@ -2404,6 +2404,11 @@ export {
   checkAdminAccess,
   createAdminInvoice,
   setOrgLimits,
+  findAdminOrdersByPo,
+  getAdminJobFailures,
+  getAdminItemMappingTwins,
+  setOrgAccountStatus,
+  setOrgRetention,
 } from "@/lib/api/billing";
 export type {
   AdminOverview,
@@ -2411,6 +2416,15 @@ export type {
   CreateAdminInvoiceLineItem,
   CreateAdminInvoiceRequest,
   CreateAdminInvoiceResult,
+  AdminOrderFindMatch,
+  AdminOrderFindResult,
+  AdminJobFailure,
+  AdminJobFailures,
+  AdminItemMappingTwinGroup,
+  AdminItemMappingTwins,
+  OrgAccountStatusResult,
+  OrgRetentionResult,
+  SetOrgRetentionRequest,
 } from "@/lib/api/billing";
 
 // ── Email / org / ingress settings (moved to src/lib/api/settings.ts) ─────────

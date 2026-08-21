@@ -9,11 +9,21 @@
 // /sign-in before they ever reach this client component. The admin allowlist is
 // never sent to the browser, so showing the nav link leaks nothing.
 //
-// Sections:
-//   1. Overview headline cards — MRR / ARR / account-status counts / new orgs /
+// Sections, in the order they render:
+//   1. PO-number lookup — the "a customer just emailed me" entry point, so it
+//      leads. GET /api/admin/orders/find.
+//   2. Overview headline cards — MRR / ARR / account-status counts / new orgs /
 //      trial→paid %, with an honest DB-vs-Stripe MRR reconcile note.
-//   2. Customers table (sortable; mobile → stacked cards) with a Stripe link.
-//   3. "Create invoice" modal (org picker + line items → POST /api/admin/invoices).
+//   3. Customers table (sortable; mobile → stacked cards) with a Stripe link and
+//      the per-org actions: Adjust limits, Retention, and Unfreeze where the
+//      server would actually accept it.
+//   4. Collapsed diagnostics — worker job failures, case-variant item mappings.
+//   5. Modals: create invoice, adjust limits, unfreeze, retention.
+//
+// TWO ADMIN ENDPOINTS ARE DELIBERATELY ABSENT FROM THIS SCREEN and must stay
+// absent: `DELETE .../orders/{id}` and `POST .../orders/bulk-erase`. They hard-
+// delete a customer's data and cannot be undone; the friction of running them by
+// hand is the control. They are documented at /admin/guides/erase-order-data.
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
@@ -29,6 +39,9 @@ import {
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { CreateInvoiceModal } from "./CreateInvoiceModal";
 import { AdjustLimitsModal } from "./AdjustLimitsModal";
+import { OrderFindPanel } from "./OrderFindPanel";
+import { JobFailuresPanel, ItemMappingTwinsPanel } from "./DiagnosticsPanels";
+import { UnfreezeOrgModal, RetentionModal, canUnfreeze } from "./OrgActionModals";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import { Card } from "@/components/bridge/layout/Card";
@@ -138,6 +151,8 @@ export default function AdminPage() {
   const [showInvoice, setShowInvoice] = useState(false);
   const [invoiceOrgId, setInvoiceOrgId] = useState<string | null>(null);
   const [limitsOrg, setLimitsOrg] = useState<AdminOrganisation | null>(null);
+  const [unfreezeOrg, setUnfreezeOrg] = useState<AdminOrganisation | null>(null);
+  const [retentionOrg, setRetentionOrg] = useState<AdminOrganisation | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>("mrrContribution");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
@@ -177,6 +192,13 @@ export default function AdminPage() {
   const sortedOrgs = useMemo(
     () => sortOrgs(orgsQ.data ?? [], sortKey, sortDir),
     [orgsQ.data, sortKey, sortDir],
+  );
+
+  // Which orgs the customers table below is rendering, so a PO lookup hit can
+  // link down to its row instead of leaving the founder to scroll and match.
+  const knownOrgIds = useMemo(
+    () => new Set((orgsQ.data ?? []).map((o) => o.id)),
+    [orgsQ.data],
   );
 
   function toggleSort(key: SortKey) {
@@ -229,10 +251,15 @@ export default function AdminPage() {
   }
 
   // ── Loading gate ────────────────────────────────────────────────────────────
+  // The PO lookup renders here too, and in the error gate below. It is the
+  // support entry point: "which workspace owns this PO?" must still be
+  // answerable when the revenue query is slow or the overview call has failed,
+  // because those are exactly the moments someone is asking.
   if (!queryEnabled || overviewQ.isLoading) {
     return (
       <PageShell variant="wide">
         <PageHeader title="Admin" sub="Revenue, customer health, and manual invoicing for the platform owner." />
+        <OrderFindPanel knownOrgIds={knownOrgIds} />
         <div style={{ color: "var(--ink-muted)", fontSize: 14 }}>Loading admin overview…</div>
       </PageShell>
     );
@@ -243,6 +270,7 @@ export default function AdminPage() {
     return (
       <PageShell variant="wide">
         <PageHeader title="Admin" sub="Revenue, customer health, and manual invoicing for the platform owner." />
+        <OrderFindPanel knownOrgIds={knownOrgIds} />
         <div
           className="rounded-[12px] px-5 py-4 text-[14px]"
           style={{ background: "var(--surface)", border: "1px solid var(--danger-soft)", color: "var(--danger)" }}
@@ -285,6 +313,9 @@ export default function AdminPage() {
           </Button>
         }
       />
+
+      {/* ── PO-number lookup — the support entry point, so it leads ─────────── */}
+      <OrderFindPanel knownOrgIds={knownOrgIds} />
 
       {/* ── Overview cards ──────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -340,6 +371,7 @@ export default function AdminPage() {
               flush
               radius={12}
               className="hidden md:block"
+              data-testid="admin-orgs-table"
               style={{ overflowX: "auto", overflow: "auto" }}
             >
               <table style={{ width: "100%", minWidth: 920, borderCollapse: "collapse", fontSize: 13 }}>
@@ -359,7 +391,7 @@ export default function AdminPage() {
                 </thead>
                 <tbody>
                   {sortedOrgs.map((org) => (
-                    <tr key={org.id} style={{ borderTop: "1px solid var(--surface-2)" }}>
+                    <tr key={org.id} id={`org-${org.id}`} style={{ borderTop: "1px solid var(--surface-2)" }}>
                       <td style={td}>
                         <div style={{ fontWeight: 600, color: "var(--ink)" }}>{org.name}</div>
                         <div style={{ fontSize: 11.5, color: "var(--ink-faint)" }}>{org.slug}</div>
@@ -394,9 +426,23 @@ export default function AdminPage() {
                         )}
                       </td>
                       <td style={{ ...td, textAlign: "right", whiteSpace: "nowrap" }}>
-                        <Button variant="secondary" size="sm" onClick={() => setLimitsOrg(org)}>
-                          Adjust limits
-                        </Button>
+                        <div style={{ display: "inline-flex", gap: 6, justifyContent: "flex-end" }}>
+                          <Button variant="secondary" size="sm" onClick={() => setLimitsOrg(org)}>
+                            Adjust limits
+                          </Button>
+                          <Button variant="secondary" size="sm" onClick={() => setRetentionOrg(org)}>
+                            Retention
+                          </Button>
+                          {/* Offered ONLY where the server would accept it. See
+                              canUnfreeze() — the endpoint 400s on four separate
+                              branches, and a button that usually refuses is how
+                              an operator learns to stop trusting this screen. */}
+                          {canUnfreeze(org) && (
+                            <Button variant="secondary" size="sm" onClick={() => setUnfreezeOrg(org)}>
+                              Unfreeze
+                            </Button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -405,7 +451,7 @@ export default function AdminPage() {
             </Card>
 
             {/* Mobile cards — MobileListRow */}
-            <div className="md:hidden flex flex-col gap-3">
+            <div className="md:hidden flex flex-col gap-3" data-testid="admin-orgs-mobile">
               {sortedOrgs.map((org) => (
                 <MobileListRow key={org.id}>
                   <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
@@ -428,6 +474,14 @@ export default function AdminPage() {
                     <Button variant="secondary" size="sm" onClick={() => setLimitsOrg(org)}>
                       Adjust limits / extend pilot
                     </Button>
+                    <Button variant="secondary" size="sm" onClick={() => setRetentionOrg(org)}>
+                      Retention
+                    </Button>
+                    {canUnfreeze(org) && (
+                      <Button variant="secondary" size="sm" onClick={() => setUnfreezeOrg(org)}>
+                        Unfreeze
+                      </Button>
+                    )}
                     {org.stripeCustomerId && (
                       <a
                         href={`${STRIPE_CUSTOMER_BASE}${org.stripeCustomerId}`}
@@ -448,6 +502,18 @@ export default function AdminPage() {
         )}
       </section>
 
+      {/* ── Diagnostics — collapsed, and they fetch nothing until opened ────── */}
+      <section className="mt-7 flex flex-col gap-3">
+        <h2
+          className="text-[18px] font-semibold"
+          style={{ fontFamily: "var(--font-display)", color: "var(--ink)", margin: 0 }}
+        >
+          Diagnostics
+        </h2>
+        <JobFailuresPanel />
+        <ItemMappingTwinsPanel />
+      </section>
+
       {showInvoice && (
         <CreateInvoiceModal
           organisations={orgsForModal}
@@ -462,6 +528,18 @@ export default function AdminPage() {
           onClose={() => setLimitsOrg(null)}
           onSaved={() => orgsQ.refetch()}
         />
+      )}
+
+      {unfreezeOrg && (
+        <UnfreezeOrgModal
+          org={unfreezeOrg}
+          onClose={() => setUnfreezeOrg(null)}
+          onSaved={() => orgsQ.refetch()}
+        />
+      )}
+
+      {retentionOrg && (
+        <RetentionModal org={retentionOrg} onClose={() => setRetentionOrg(null)} />
       )}
     </PageShell>
   );
