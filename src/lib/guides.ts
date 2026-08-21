@@ -268,6 +268,17 @@ export const GUIDES: Guide[] = [
     status: "live",
     minutes: 10,
   },
+  {
+    slug: "erase-order-data",
+    href: "/admin/guides/erase-order-data",
+    title: "Erase a customer's order data",
+    blurb:
+      "The two erasure calls that deliberately have no button — what they require, what they return, and why they cannot be undone.",
+    section: "Admin",
+    audience: "admin",
+    status: "live",
+    minutes: 15,
+  },
 ];
 
 export function getGuideBySlug(slug: string): Guide | undefined {

@@ -3,7 +3,7 @@ import { Step, Prereqs, IfThisFails, Outcome } from "@/components/help/guide";
 <Prereqs>
 - An admin account: the email or Clerk user id must be in `Admin__Emails` / `Admin__UserIds` on the API. Your ordinary signed-in session is the admin credential — there is no separate admin token.
 - The name or slug of the frozen workspace, from the customer's message or from the admin dashboard.
-- `curl` or an equivalent HTTP client. There is no button for this yet: the endpoint exists and the admin UI does not call it.
+- Nothing else. There is now an **Unfreeze** button on the organisation's row on the [admin dashboard](/admin), and it is the shortest path: it appears only on a row the endpoint would actually accept, names what un-freezing re-opens, asks you to confirm, and reports the effective status afterwards. The `curl` below is the same call, kept here because it is what the button sends and because the refusal branches in step 4 read the same either way.
 </Prereqs>
 
 <Step n={1} title="Work out which kind of frozen this is">

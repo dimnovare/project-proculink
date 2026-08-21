@@ -58,6 +58,19 @@ export const DIALOG_REGISTRY: DialogEntry[] = [
     hadEscapeBefore: true,
   },
   {
+    // ONE `role="dialog"` element, shared by both exported modals (UnfreezeOrgModal
+    // and RetentionModal render through the same private `Dialog` shell), which is
+    // why `dialogs` is 1 and not 2.
+    file: "src/app/(app)/admin/OrgActionModals.tsx",
+    name: "OrgActionModals",
+    dialogs: 1,
+    kind: "modal",
+    // Written 2026-08-21, after 478b809 — it never existed without the contract,
+    // so both "before" flags are false in the sense of "there was no before".
+    hadTrapBefore: false,
+    hadEscapeBefore: false,
+  },
+  {
     file: "src/app/(app)/admin/CreateInvoiceModal.tsx",
     name: "CreateInvoiceModal",
     dialogs: 1,

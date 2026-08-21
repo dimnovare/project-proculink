@@ -231,3 +231,209 @@ export async function setOrgLimits(
   if (!res.ok) return adminError(res, "admin/organisations/limits");
   return res.json() as Promise<OrgLimitsResponse>;
 }
+
+// ── Admin: the endpoints that had no caller ──────────────────────────────────
+//
+// AdminController exposes eleven actions; until now this module reached four of
+// them (overview, organisations, invoices, limits) and every other one was
+// reachable only from a terminal. The five below are the reversible or read-only
+// half, and they are what /admin now calls.
+//
+// The two that are deliberately still absent are the erasure pair —
+// `DELETE .../orders/{id}` and `POST .../orders/bulk-erase`. They hard-delete a
+// customer's data and cannot be undone, so the friction of running them by hand
+// IS the control. They are documented instead, in the admin runbook at
+// /admin/guides/erase-order-data. Do not add wrappers for them here.
+
+/** One order matched by the support PO-number lookup, with the org that owns it. */
+export interface AdminOrderFindMatch {
+  orgId: string;
+  orgName: string;
+  orgSlug: string;
+  orderId: string;
+  status: string;
+  supplierName: string | null;
+  poNumber: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * GET /api/admin/orders/find. `capped` is true when MORE orders matched than the
+ * bounded response carries (the server takes one row over its cap so it can say
+ * so honestly) — surface it, never round it down to "these are all of them".
+ */
+export interface AdminOrderFindResult {
+  count: number;
+  capped: boolean;
+  matches: AdminOrderFindMatch[];
+}
+
+/** One recent Hangfire failure. Every field but `id` and `job` can be absent. */
+export interface AdminJobFailure {
+  id: string;
+  job: string;
+  exceptionType: string | null;
+  exceptionMessage: string | null;
+  reason: string | null;
+  failedAt: string | null;
+}
+
+/**
+ * GET /api/admin/job-failures.
+ *
+ * READ THE CAVEAT BEFORE RENDERING THIS. The backend catches an unavailable
+ * Hangfire monitoring API and answers 200 with `{ totalFailed: 0, shown: 0,
+ * failures: [] }` rather than a 500. An empty list is therefore NOT evidence the
+ * worker is healthy — it is either "no failures" or "the job store could not be
+ * reached", and this response cannot tell them apart. Any UI must say so.
+ */
+export interface AdminJobFailures {
+  totalFailed: number;
+  shown: number;
+  failures: AdminJobFailure[];
+}
+
+/** One group of learned item mappings whose buyer codes differ only in case. */
+export interface AdminItemMappingTwinGroup {
+  organisationId: string;
+  supplierId: string;
+  foldedCode: string;
+  rowCount: number;
+  spellings: string[];
+}
+
+/** GET /api/admin/item-mapping-twins. `note` is the server's own read-only caveat. */
+export interface AdminItemMappingTwins {
+  totalGroups: number;
+  note: string;
+  groups: AdminItemMappingTwinGroup[];
+}
+
+/**
+ * POST /api/admin/organisations/{id}/account-status.
+ *
+ * `accountStatus` is the EFFECTIVE status the database holds after the canonical
+ * trial-window arbiter has run, which is not necessarily the one that was asked
+ * for: when the org's Pilot window has already elapsed the arbiter re-freezes it
+ * on the spot and `revertedByTrialWindow` is true. Treating a 200 here as
+ * "un-frozen" is the mistake that field exists to prevent.
+ */
+export interface OrgAccountStatusResult {
+  id: string;
+  name: string;
+  plan: string;
+  previousAccountStatus: string;
+  requestedAccountStatus: string;
+  accountStatus: string;
+  revertedByTrialWindow: boolean;
+  effectiveTrialEndsAt: string | null;
+  note: string | null;
+}
+
+/** POST /api/admin/organisations/{id}/retention — body. `clear` wins over days. */
+export interface SetOrgRetentionRequest {
+  retentionDays?: number;
+  clear?: boolean;
+}
+
+/** POST /api/admin/organisations/{id}/retention — response. */
+export interface OrgRetentionResult {
+  id: string;
+  name: string;
+  retentionDays: number | null;
+  retentionEnabled: boolean;
+}
+
+/**
+ * Support triage: which organisation owns the PO number a customer quoted?
+ *
+ * The server refuses a blank query with 400, so callers must not send one; the
+ * guard here keeps that refusal off the network entirely.
+ */
+export async function findAdminOrdersByPo(po: string): Promise<AdminOrderFindResult> {
+  const trimmed = po.trim();
+  if (!trimmed) {
+    throw new Error("Enter the PO number the customer quoted.");
+  }
+  const headers = await authHeader();
+  const res = await fetchWithTimeout(
+    `${API_BASE_URL}/api/admin/orders/find?po=${encodeURIComponent(trimmed)}`,
+    { headers },
+  );
+  if (!res.ok) return adminError(res, "admin/orders/find");
+  return res.json() as Promise<AdminOrderFindResult>;
+}
+
+/** Recent Hangfire job failures. The server clamps `count` to 1..200. */
+export async function getAdminJobFailures(count = 50): Promise<AdminJobFailures> {
+  const headers = await authHeader();
+  const res = await fetchWithTimeout(
+    `${API_BASE_URL}/api/admin/job-failures?count=${encodeURIComponent(String(count))}`,
+    { headers },
+  );
+  if (!res.ok) return adminError(res, "admin/job-failures");
+  return res.json() as Promise<AdminJobFailures>;
+}
+
+/** Learned item mappings whose buyer codes differ only in case. Read-only. */
+export async function getAdminItemMappingTwins(): Promise<AdminItemMappingTwins> {
+  const headers = await authHeader();
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/admin/item-mapping-twins`, { headers });
+  if (!res.ok) return adminError(res, "admin/item-mapping-twins");
+  return res.json() as Promise<AdminItemMappingTwins>;
+}
+
+/**
+ * Move an organisation's account status by hand.
+ *
+ * The parameter is typed `"trialing"` rather than `string` on purpose: the server
+ * permits EXACTLY ONE transition (`read_only` to `trialing`, on a Pilot org with
+ * no live Stripe subscription) and answers 400 to every other value, because every
+ * other status is derived from Stripe or from the trial window and a hand-written
+ * one would be overwritten by the next reconcile.
+ */
+export async function setOrgAccountStatus(
+  orgId: string,
+  accountStatus: "trialing",
+): Promise<OrgAccountStatusResult> {
+  const headers = await authHeader();
+  const res = await fetchWithTimeout(
+    `${API_BASE_URL}/api/admin/organisations/${orgId}/account-status`,
+    {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({ accountStatus }),
+    },
+    30000,
+  );
+  if (!res.ok) return adminError(res, "admin/organisations/account-status");
+  return res.json() as Promise<OrgAccountStatusResult>;
+}
+
+/**
+ * Set or clear an organisation's blob-retention window.
+ *
+ * CONSEQUENTIAL. A window opts the org into the daily sweep that permanently
+ * deletes the stored source files and generated output of TERMINAL orders older
+ * than the window. Order records, hashes, provenance and the audit trail are not
+ * touched. `clear: true` disables it, which is the default state — no org is
+ * swept until someone opts it in.
+ */
+export async function setOrgRetention(
+  orgId: string,
+  body: SetOrgRetentionRequest,
+): Promise<OrgRetentionResult> {
+  const headers = await authHeader();
+  const res = await fetchWithTimeout(
+    `${API_BASE_URL}/api/admin/organisations/${orgId}/retention`,
+    {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+    30000,
+  );
+  if (!res.ok) return adminError(res, "admin/organisations/retention");
+  return res.json() as Promise<OrgRetentionResult>;
+}

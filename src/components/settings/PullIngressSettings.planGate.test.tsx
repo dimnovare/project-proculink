@@ -89,7 +89,7 @@ const S3: S3IngressSettings = {
 };
 
 /** A real supplier, so "no suppliers yet" never becomes the reason the toggle is off. */
-const SUPPLIERS = [{ id: "sup-1", name: "Nordmark Tooling" }];
+const SUPPLIERS = [{ id: "sup-1", name: "Nordmark Industries" }];
 
 type Panel = "sftp" | "s3";
 
