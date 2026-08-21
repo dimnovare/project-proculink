@@ -561,15 +561,21 @@ function StepList({
                       {done ? "Ready for the next step." : step.description}
                     </p>
                   )}
-                  {/* Intermediate step 5 keeps its own CTA visible even when a
-                      different step is active — the nudge is the point. */}
-                  {intermediate && !active && (
+                  {/* Any step that is UNLOCKED and not done stays reachable, even
+                      when a different step is next. The active step keeps the one
+                      green primary CTA up in the intro column; these are quiet
+                      blue text links, so the "do this next" spine survives.
+                      Without this, delivery — unlocked from the first supplier but
+                      never the active step until catalog + upload + resolve are all
+                      done — was only ever rendered as an inert row, and the first
+                      real send failed for want of a setup nobody was offered. */}
+                  {!done && !locked && !active && (
                     <Link
                       href={step.href}
                       className="mt-1 inline-flex min-h-[32px] items-center text-[12px] font-semibold"
                       style={{ color: T.blueDeep }}
                     >
-                      Send a test →
+                      {step.cta} →
                     </Link>
                   )}
                 </div>
