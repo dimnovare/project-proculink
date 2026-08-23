@@ -21,7 +21,7 @@ import { readDisposableState } from "./disposableIdentity";
  *
  * WHAT COUNTS AS "RENDERED". A 200 does not, and neither does a URL. Next.js
  * serves the app shell for a screen whose every query failed, and the error
- * boundary renders with a 200 too. So each screen has to clear four separate
+ * boundary renders with a 200 too. So each screen has to clear five separate
  * bars, and the interesting ones are the negatives:
  *
  *   1. It is still the screen we asked for — not /sign-in, not the org gate.
@@ -32,6 +32,10 @@ import { readDisposableState } from "./disposableIdentity";
  *   3. Exactly one non-empty `<h1>`, and a `<main>` with real content in it.
  *   4. No error boundary, and no uncaught exception on the page. A client bundle
  *      that throws during hydration still returns 200 and still paints chrome.
+ *   5. None of our own hosts answered 5xx while the screen loaded. Bars 1-4 watch
+ *      the document and the JS runtime; a query that fails in XHR is invisible to
+ *      all four, because TanStack Query catches it and renders an empty state.
+ *      See watchForServerErrors — this bar exists because that really happened.
  */
 
 const screens = listProdScreens();
@@ -58,10 +62,66 @@ function watchForPageErrors(page: Page): string[] {
   return errors;
 }
 
+/**
+ * Collect 5xx answers from our own hosts — the fifth bar, and the one the four above
+ * provably cannot see.
+ *
+ * On 2026-08-23 a new organisation's first page load produced a cascade of backend
+ * failures — a cold Neon connection, a failed Organisation INSERT, then four
+ * `UnauthorizedAccessException("Organisation not resolved")` responses across
+ * /api/orders, /api/suppliers, /api/billing/status and /api/onboarding/status. 255 such
+ * events accumulated in Sentry over 14 days. Every scheduled run of this suite reported
+ * success throughout.
+ *
+ * Nothing here was broken by accident: the four bars above watch the DOCUMENT and the JS
+ * runtime, and the failures were in XHR. TanStack Query catches a rejected query, retries
+ * it, and renders a loading or empty state — so the document is 200, the title is right,
+ * the h1 is there, `<main>` has well over 40 characters of chrome and empty-state copy,
+ * no error boundary mounts, and nothing throws. The product was visibly broken for the
+ * user and every assertion passed.
+ *
+ * Scope is deliberately OUR domain, taken from the base URL rather than hardcoded. A 5xx
+ * from api.proculink.eu is ours to fix and must redden this gate. A 5xx from PostHog or a
+ * Sentry ingest endpoint is neither our bug nor something merging code would repair, and
+ * letting a third party's bad afternoon fail this run would teach everyone to ignore it.
+ */
+function watchForServerErrors(page: Page, baseURL: string | undefined): string[] {
+  const failures: string[] = [];
+  const ourDomain = registrableDomain(baseURL);
+
+  page.on("response", (res) => {
+    if (res.status() < 500) return;
+    let host: string;
+    try {
+      host = new URL(res.url()).hostname;
+    } catch {
+      return;
+    }
+    if (ourDomain && host !== ourDomain && !host.endsWith(`.${ourDomain}`)) return;
+    failures.push(`${res.status()} ${res.request().method()} ${res.url()}`);
+  });
+
+  return failures;
+}
+
+/** "https://proculink.eu" → "proculink.eu". Null when the base URL is unusable. */
+function registrableDomain(baseURL: string | undefined): string | null {
+  if (!baseURL) return null;
+  try {
+    return new URL(baseURL).hostname.replace(/^www\./, "");
+  } catch {
+    return null;
+  }
+}
+
 test.describe("authenticated production", () => {
   for (const screen of screens) {
-    test(`${screen.label} (${screen.path}) renders for a signed-in user`, async ({ page }) => {
+    test(`${screen.label} (${screen.path}) renders for a signed-in user`, async ({
+      page,
+      baseURL,
+    }) => {
       const pageErrors = watchForPageErrors(page);
+      const serverErrors = watchForServerErrors(page, baseURL);
 
       const response = await page.goto(screen.path, { waitUntil: "domcontentloaded" });
       expect(response, `no response for ${screen.path}`).not.toBeNull();
@@ -100,6 +160,13 @@ test.describe("authenticated production", () => {
       // 4. No error boundary, no uncaught exception.
       await expect(page.locator(ERROR_BOUNDARY_SELECTOR)).toHaveCount(0);
       expect(pageErrors, `uncaught exceptions on ${screen.path}`).toEqual([]);
+
+      // 5. Nothing of ours answered 5xx while the screen was assembling itself.
+      //    Give in-flight queries a bounded moment to land first — a screen can satisfy
+      //    every bar above off its shell before its data arrives. Screens that poll never
+      //    go idle, so the wait is best-effort and its timeout is not a failure.
+      await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
+      expect(serverErrors, `server errors while loading ${screen.path}`).toEqual([]);
     });
   }
 
