@@ -1,4 +1,4 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test as base, expect, type Page } from "@playwright/test";
 import { listProdScreens } from "./prodScreens";
 import { readDisposableState } from "./disposableIdentity";
 
@@ -37,6 +37,36 @@ import { readDisposableState } from "./disposableIdentity";
  *      all four, because TanStack Query catches it and renders an empty state.
  *      See watchForServerErrors — this bar exists because that really happened.
  */
+
+/**
+ * The fifth bar, applied to EVERY test in this file by construction.
+ *
+ * It shipped as a per-test opt-in and the very next test forgot it. The greeting test
+ * below was not instrumented, and within an hour a real production 500 —
+ * GET /api/dashboard/topology answering UnauthorizedAccessException("Organisation not
+ * resolved") for a freshly created organisation — ran straight through a green run. A gate
+ * you have to remember to attach is a gate that documents the last failure rather than
+ * catching the next one.
+ *
+ * `auto: true` means no test opts in and none can opt out, including tests added later.
+ * The assertion lives in fixture teardown, which Playwright runs after the test body and
+ * before `page` is disposed, so a late-arriving response is still counted.
+ */
+const test = base.extend<{ noServerErrors: void }>({
+  noServerErrors: [
+    async ({ page, baseURL }, use) => {
+      const failures = watchForServerErrors(page, baseURL);
+      await use();
+
+      // In-flight queries get a bounded moment to land: a screen can satisfy every other
+      // bar off its shell before its data arrives. Screens that poll never go idle, so the
+      // wait is best-effort and its timeout is not a failure.
+      await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
+      expect(failures, "5xx from our own hosts during this test").toEqual([]);
+    },
+    { auto: true },
+  ],
+});
 
 const screens = listProdScreens();
 
@@ -116,12 +146,8 @@ function registrableDomain(baseURL: string | undefined): string | null {
 
 test.describe("authenticated production", () => {
   for (const screen of screens) {
-    test(`${screen.label} (${screen.path}) renders for a signed-in user`, async ({
-      page,
-      baseURL,
-    }) => {
+    test(`${screen.label} (${screen.path}) renders for a signed-in user`, async ({ page }) => {
       const pageErrors = watchForPageErrors(page);
-      const serverErrors = watchForServerErrors(page, baseURL);
 
       const response = await page.goto(screen.path, { waitUntil: "domcontentloaded" });
       expect(response, `no response for ${screen.path}`).not.toBeNull();
@@ -160,13 +186,6 @@ test.describe("authenticated production", () => {
       // 4. No error boundary, no uncaught exception.
       await expect(page.locator(ERROR_BOUNDARY_SELECTOR)).toHaveCount(0);
       expect(pageErrors, `uncaught exceptions on ${screen.path}`).toEqual([]);
-
-      // 5. Nothing of ours answered 5xx while the screen was assembling itself.
-      //    Give in-flight queries a bounded moment to land first — a screen can satisfy
-      //    every bar above off its shell before its data arrives. Screens that poll never
-      //    go idle, so the wait is best-effort and its timeout is not a failure.
-      await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
-      expect(serverErrors, `server errors while loading ${screen.path}`).toEqual([]);
     });
   }
 
