@@ -17,7 +17,7 @@ import { StatusNotice, noticeAria, TONE_PALETTE, type NoticeTone } from "./Statu
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const ALL_TONES: readonly NoticeTone[] = ["success", "error", "working"];
+const ALL_TONES: readonly NoticeTone[] = ["success", "error", "working", "warning"];
 
 /** Every tone that must never be announced politely or painted green. */
 const FAILURE_TONES: readonly NoticeTone[] = ["error"];
@@ -26,7 +26,7 @@ describe("StatusNotice — announcement semantics are derived, not passed", () =
   it("walks every tone the component supports", () => {
     // Anti-vacuity floor. If a tone is added to NoticeTone and not to this
     // array, the coverage assertions below would silently stop covering it.
-    expect(ALL_TONES.length).toBe(3);
+    expect(ALL_TONES.length).toBe(4);
     expect(new Set(ALL_TONES).size).toBe(ALL_TONES.length);
   });
 
@@ -101,6 +101,23 @@ describe("StatusNotice — a failure never wears the success palette", () => {
     // reason `working` exists as a third tone rather than reusing success.
     expect(TONE_PALETTE.working.bg).not.toBe(TONE_PALETTE.success.bg);
     expect(TONE_PALETTE.working.fg).not.toBe(TONE_PALETTE.success.fg);
+  });
+
+  it("gives the advisory tone its own colour — neither success nor failure", () => {
+    // "Possible duplicate — check before sending" must not read as an all-clear
+    // (green) or as "the send failed" (red). Both directions, both slots.
+    expect(TONE_PALETTE.warning.bg).not.toBe(TONE_PALETTE.success.bg);
+    expect(TONE_PALETTE.warning.fg).not.toBe(TONE_PALETTE.success.fg);
+    expect(TONE_PALETTE.warning.bg).not.toBe(TONE_PALETTE.error.bg);
+    expect(TONE_PALETTE.warning.fg).not.toBe(TONE_PALETTE.error.fg);
+  });
+
+  it("paints advisory text with the amber TEXT token, never --amber itself", () => {
+    // --amber (#B36D14) fails the 4.5:1 text floor on every light surface this
+    // app has — token-contrast.test.ts bans it as a text colour repo-wide. The
+    // border slot is a non-text stroke, where --amber is the correct member.
+    expect(TONE_PALETTE.warning.fg).toBe("var(--amber-text)");
+    expect(TONE_PALETTE.warning.bg).toBe("var(--amber-soft)");
   });
 
   it("uses no fractional opacity anywhere in the component", () => {

@@ -67,6 +67,7 @@ import {
 } from "@/lib/sourceDocument";
 import { sendBarLabel } from "./sendBarLabel";
 import { InboxBackChip, WorkshopGateShell, poTitleFrom } from "./WorkshopGateChrome";
+import { OrderExceptionsNotice } from "./OrderExceptionsNotice";
 import { ParsingGate } from "./ParsingGate";
 import { IssuesPanel, type WorkshopIssue, type IssuesResolveApi } from "./IssuesPanel";
 import { CatalogHintCard } from "../review/CatalogHintCard";
@@ -1287,6 +1288,17 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
           <OrderProblemPanel order={order} />
         </div>
       )}
+
+      {/* ── Order-level exceptions (today: the duplicate-PO warning). The backend
+          opens these on the ORDER, not on a line, so `exceptionCount` above —
+          `lines.filter(needsReview)` — never counts them, and until this row the
+          flag lived only in an endpoint nothing called: a clean second copy of a
+          PO showed a green Send with no warning anywhere on this screen. A
+          WARNING, not a gate — `canSend` is untouched (a legitimate PO revision
+          stays sendable); the operator reads it and decides. Rendered at every
+          width, same as the problem banner above, so both send surfaces (the
+          header button and MobileTriage's sticky bar) sit under the flag. */}
+      <OrderExceptionsNotice orderId={orderId} />
 
       {/* ── The practice-order banner used to stack here (and opened with an
           emoji). WP-28 split it: a `Practice` chip on the identity row above and
