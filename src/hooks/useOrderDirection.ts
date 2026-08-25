@@ -57,6 +57,49 @@ export function partyLabels(direction: OrderDirection): PartyLabels {
   };
 }
 
+/** How the buyers screen explains what a "buyer" is, in the org's own direction. */
+export interface BuyerDescription {
+  /** Full sentence — the buyers empty state. */
+  long: string;
+  /** Short qualifier — the "New buyer" panel subtitle. */
+  short: string;
+}
+
+/**
+ * Describe a buyer in the org's own direction.
+ *
+ * The noun itself is direction-invariant: a buyer is always the organization the
+ * order is issued BY. Who that organization is relative to the workspace is not.
+ * An OUTBOUND org issues the orders itself and its buyers are read off the
+ * documents it uploads; an INBOUND org's buyers are the customers sending orders
+ * in. The buyers screen shipped only the inbound sentence — "an organization that
+ * sends you purchase orders" — which told the primary, outbound audience the exact
+ * opposite of what its own setup answer said.
+ *
+ * `null` means the direction has not been READ yet (loading, or a failed
+ * settings fetch — see `isDirectionKnown`). A definition is a claim, so the
+ * qualifying clause is withheld rather than guessed; the invariant half is still
+ * true and still shown.
+ */
+export function buyerDescription(direction: OrderDirection | null): BuyerDescription {
+  if (direction === "inbound") {
+    return {
+      long: "A buyer is an organization that sends you purchase orders, in whatever format they use.",
+      short: "A buyer that sends you purchase orders",
+    };
+  }
+  if (direction === "outbound") {
+    return {
+      long: "A buyer is the organization an order is issued by — detected automatically from your uploaded documents.",
+      short: "The organization an order is issued by",
+    };
+  }
+  return {
+    long: "A buyer is the organization a purchase order is issued by.",
+    short: "The organization a purchase order is issued by",
+  };
+}
+
 export interface UseOrderDirectionResult {
   direction: OrderDirection;
   labels: PartyLabels;

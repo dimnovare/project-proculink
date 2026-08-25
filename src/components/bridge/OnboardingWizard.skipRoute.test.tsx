@@ -15,7 +15,10 @@ import type { Supplier } from "@/types/procurement";
 //
 // The fix: skip routes to /upload (in addition to dismissing), and "setup
 // guide" is a real link to the dashboard checklist anchor
-// (/bridge#onboarding-step-list — the id OnboardingChecklist's StepList owns).
+// (/bridge#onboarding-step-list — the id OnboardingChecklist puts on its CARD.
+// It used to sit on the step <ol>, which the compact layout does not render
+// until the disclosure is open, so the link resolved to nothing; see
+// OnboardingChecklist.setupGuideAnchor.test.tsx).
 // ─────────────────────────────────────────────────────────────────────────────
 
 const push = vi.fn();

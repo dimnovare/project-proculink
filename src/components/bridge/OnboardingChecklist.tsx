@@ -66,6 +66,22 @@ const CELEBRATED_KEY = "plk-checklist-celebrated";
  */
 const EXPANDED_KEY = "plk-checklist-expanded";
 
+/**
+ * The fragment the onboarding wizard's "setup guide" link points at
+ * (/bridge#onboarding-step-list, OnboardingWizard.tsx).
+ *
+ * It sits on the CARD, not on the step <ol>. It used to sit on the <ol>, which
+ * the compact layout does not render until the disclosure is open — so the link
+ * navigated to an element that was not in the document, the page did not move,
+ * and clicking "setup guide" looked like a dead control. The card is rendered in
+ * every density, so the fragment always resolves to something visible; the list
+ * itself is opened by the fragment check below.
+ */
+const CHECKLIST_ANCHOR_ID = "onboarding-step-list";
+
+/** The step <ol>'s own id — what the disclosure button's aria-controls names. */
+const STEP_LIST_ID = "onboarding-step-items";
+
 function sessionGet(key: string): string | null {
   try { return window.sessionStorage.getItem(key); } catch { return null; }
 }
@@ -137,9 +153,17 @@ function LockMark() {
 
 // ─── Card frame (shared by checklist + completion card) ─────────────────────
 
-function CardFrame({ children, ariaLabel }: { children: React.ReactNode; ariaLabel: string }) {
+function CardFrame({
+  children,
+  ariaLabel,
+  id,
+}: {
+  children: React.ReactNode;
+  ariaLabel: string;
+  id?: string;
+}) {
   return (
-    <Card as="section" aria-label={ariaLabel} flush radius={8} style={{ width: "100%" }}>
+    <Card as="section" id={id} aria-label={ariaLabel} flush radius={8} style={{ width: "100%" }}>
       {/* Cross-section edge — the bridge seen end-on: blue (buyer) → green (supplier). */}
       <div
         aria-hidden
@@ -236,6 +260,48 @@ export function OnboardingChecklist({ onResumeSetup }: OnboardingChecklistProps)
     if (localGet(EXPANDED_KEY) === "1") setExpanded(true);
   }, []);
 
+  // ── "/bridge#onboarding-step-list" — open the list and scroll to it ───────
+  // A same-page fragment click goes through history.pushState, which fires
+  // neither hashchange nor popstate, so a listener alone would never hear the
+  // wizard's link. The fragment is therefore re-read after every render (one
+  // string comparison) and LATCHED, so a deliberate "Hide steps" is not undone
+  // on the next render while the fragment is still in the URL. The hashchange
+  // listener covers the browser-driven changes (back/forward, a typed URL) that
+  // do not re-render this tree.
+  const [fragmentTargeted, setFragmentTargeted] = React.useState(false);
+  const fragmentHandledRef = React.useRef(false);
+
+  const readFragment = React.useCallback(() => {
+    if (typeof window === "undefined") return;
+    if (window.location.hash !== `#${CHECKLIST_ANCHOR_ID}`) {
+      fragmentHandledRef.current = false;
+      return;
+    }
+    if (fragmentHandledRef.current) return;
+    fragmentHandledRef.current = true;
+    setExpanded(true);
+    setFragmentTargeted(true);
+  }, []);
+
+  React.useEffect(readFragment);
+
+  React.useEffect(() => {
+    window.addEventListener("hashchange", readFragment);
+    return () => window.removeEventListener("hashchange", readFragment);
+  }, [readFragment]);
+
+  // The card exists only once the onboarding status has resolved, so on a cold
+  // load the browser's own fragment scroll happens before there is anything to
+  // scroll to. Do it ourselves, once, as soon as the element is in the document.
+  const scrolledRef = React.useRef(false);
+  React.useEffect(() => {
+    if (!fragmentTargeted || scrolledRef.current) return;
+    const el = document.getElementById(CHECKLIST_ANCHOR_ID);
+    if (!el || typeof el.scrollIntoView !== "function") return;
+    scrolledRef.current = true;
+    el.scrollIntoView();
+  }, [fragmentTargeted, status]);
+
   const model = React.useMemo(
     () => (status ? buildChecklistSteps(status, nounLower) : null),
     [status, nounLower],
@@ -289,7 +355,7 @@ export function OnboardingChecklist({ onResumeSetup }: OnboardingChecklistProps)
   // One row, with the full list one disclosure away. See checklistDensity().
   if (density === "compact") {
     return (
-      <CardFrame ariaLabel="Onboarding progress">
+      <CardFrame id={CHECKLIST_ANCHOR_ID} ariaLabel="Onboarding progress">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-3 px-4 py-3 sm:px-5">
           <div className="flex min-w-[160px] flex-1 items-center gap-2.5">
             <div
@@ -346,7 +412,7 @@ export function OnboardingChecklist({ onResumeSetup }: OnboardingChecklistProps)
                 localSet(EXPANDED_KEY, next ? "1" : "0");
               }}
               aria-expanded={expanded}
-              aria-controls="onboarding-step-list"
+              aria-controls={STEP_LIST_ID}
               className="inline-flex min-h-[44px] items-center rounded-[6px] px-3 text-[12.5px] font-semibold transition-colors"
               style={{ border: `1px solid ${T.border}`, background: T.surface, color: T.blueDeep, cursor: "pointer" }}
             >
@@ -365,7 +431,7 @@ export function OnboardingChecklist({ onResumeSetup }: OnboardingChecklistProps)
   }
 
   return (
-    <CardFrame ariaLabel="Onboarding progress">
+    <CardFrame id={CHECKLIST_ANCHOR_ID} ariaLabel="Onboarding progress">
       <div className="grid gap-x-10 gap-y-5 p-5 sm:p-6 lg:grid-cols-[minmax(280px,0.85fr)_minmax(430px,1.15fr)]">
         {/* ── Intro · progress · primary action ───────────────────────── */}
         <div className="min-w-0">
@@ -501,7 +567,7 @@ function StepList({
 }) {
   return (
         <ol
-          id="onboarding-step-list"
+          id={STEP_LIST_ID}
           className={`flex flex-col gap-2${bordered ? " lg:border-l lg:pl-8" : " pt-3"}`}
           style={{ listStyle: "none", margin: 0, borderColor: T.border }}
           aria-label="First delivery setup steps"
