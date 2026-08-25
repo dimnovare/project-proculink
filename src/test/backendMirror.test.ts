@@ -46,6 +46,7 @@ import {
   parseTestSummary,
 } from "@/components/connections/testPackSummary";
 import { MINIMUM_PLAN } from "@/lib/gatedCapabilities";
+import { OVERAGE_PER_ORDER_EUR, PLANS } from "@/lib/plans";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // The cross-repo mirror check.
@@ -2083,6 +2084,292 @@ public static class PlanConstants
   });
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// `PlanConstants.Limits`, `MonthlyPriceEur` and `OveragePerOrderEur` — the ladder's
+// NUMBERS, diffed.
+//
+// WHAT WAS UNPROTECTED. The mirror above covers which TIER a gated capability starts
+// on. It says nothing about the figures beside them, and those are mirrored in two
+// repos with nothing holding them together: `src/lib/plans.ts` re-types every order
+// allowance, supplier allowance, monthly price and the per-order overage rate by hand,
+// under a comment that says "These MUST match the backend `PlanConstants`" — a comment
+// naming the symbol it mirrors, which is the shape the header of this file was written
+// about.
+//
+// Both sides are load-bearing and neither side pins the other:
+//   • `orderLimit` / `supplierLimit` are what /pricing sells, what the ROI calculator
+//     computes an upgrade recommendation from, and what the upload and supplier-limit
+//     banners quote back to a customer who has just been refused.
+//   • `priceMonthly` is the number a buyer reads before entering a card, while the
+//     amount actually charged comes from Stripe. A price raised in the backend's MRR
+//     table and not here does not fail anything — it just quietly undersells.
+//   • `OVERAGE_PER_ORDER_EUR` is quoted as a promise in marketing fine print, in the
+//     billing FAQ and in the in-app over-cap notice; the backend meters the real charge.
+//
+// So this diff makes the frontend's copy answerable to the C#, in both directions: a
+// plan present on one side and not the other fails too, because the comparison is over
+// the row keys as well as the values.
+//
+// TWO SENTINELS, named rather than assumed. The backend spells "no fixed cap" as
+// `int.MaxValue` and the frontend spells it `null`; both normalise to the token
+// `custom` below. `MonthlyPriceEur` additionally uses `0m` for two different meanings —
+// Pilot is genuinely free, Enterprise has no list price ("custom — not a fixed list
+// price", its own comment) — and only the frontend distinguishes them (`0` vs `null`).
+// The Enterprise carve-out is therefore conditional on the value STILL being zero: give
+// Enterprise a real list price in the C# and the number is emitted and the diff fails,
+// rather than being silently absorbed into "custom".
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** The normalised token both repos' "no fixed number here" sentinels collapse to. */
+const CUSTOM = "custom";
+
+/**
+ * Plans whose backend `MonthlyPriceEur` entry of `0m` means "contact sales, no list
+ * price" rather than "free". Enterprise only — and the arm that uses this checks the
+ * value is really 0 before honouring it.
+ */
+const BACKEND_NO_LIST_PRICE_PLANS = new Set(["enterprise"]);
+
+/** `public const int PilotOrderLimit = 20;` → { PilotOrderLimit: 20 }. Digit separators allowed. */
+export function parseIntConstants(cs: string): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const m of stripCsComments(cs).matchAll(/public\s+const\s+int\s+(\w+)\s*=\s*(-?[0-9_]+)\s*;/g)) {
+    out[m[1]] = Number(m[2].replace(/_/g, ""));
+  }
+  return out;
+}
+
+/**
+ * The `Limits` rows: `[Growth] = (150, 5),` → `{ Growth: { orders: "150", suppliers: "5" } }`.
+ *
+ * Operands come back UNRESOLVED — they may be a literal (`150`, `1_500`), a named int
+ * constant (`PilotOrderLimit`) or the `int.MaxValue` sentinel — so the caller resolves
+ * them and a renamed constant surfaces as an unknown identifier rather than as a
+ * silently dropped row. Null when the dictionary is absent.
+ */
+export function parsePlanLimitRows(cs: string): Record<string, { orders: string; suppliers: string }> | null {
+  // Comments first: `PlanConstants` carries prose INSIDE this dictionary body, including
+  // a line that mentions `1_000 → 1_500`.
+  const src = stripCsComments(cs);
+  const start = src.search(/IReadOnlyDictionary<string,\s*\(int\s+Orders,\s*int\s+Suppliers\)>\s+Limits\s*=/);
+  if (start < 0) return null;
+  const end = src.indexOf("};", start);
+  if (end < 0) return null;
+  const out: Record<string, { orders: string; suppliers: string }> = {};
+  for (const m of src.slice(start, end).matchAll(/\[(\w+)\]\s*=\s*\(\s*([^,()]+?)\s*,\s*([^,()]+?)\s*\)/g)) {
+    out[m[1]] = { orders: m[2], suppliers: m[3] };
+  }
+  return out;
+}
+
+/**
+ * The `MonthlyPriceEur` rows: `[Growth] = 149m,` → `{ Growth: 149 }`. Null when absent.
+ *
+ * Scoped to the dictionary body on purpose — `PlanConstants` holds several other
+ * `[Plan] = value` dictionaries (AI token budgets among them) whose rows look identical.
+ */
+export function parseMonthlyPriceRows(cs: string): Record<string, number> | null {
+  const src = stripCsComments(cs);
+  const start = src.search(/IReadOnlyDictionary<string,\s*decimal>\s+MonthlyPriceEur\s*=/);
+  if (start < 0) return null;
+  const end = src.indexOf("};", start);
+  if (end < 0) return null;
+  const out: Record<string, number> = {};
+  for (const m of src.slice(start, end).matchAll(/\[(\w+)\]\s*=\s*([0-9_]+(?:\.[0-9]+)?)m/g)) {
+    out[m[1]] = Number(m[2].replace(/_/g, ""));
+  }
+  return out;
+}
+
+/** `public const decimal OveragePerOrderEur = 0.50m;` → 0.5. Null when absent. */
+export function parseDecimalConstant(cs: string, name: string): number | null {
+  const m = new RegExp(`public\\s+const\\s+decimal\\s+${name}\\s*=\\s*([0-9_]*\\.?[0-9_]+)m\\s*;`).exec(
+    stripCsComments(cs),
+  );
+  return m ? Number(m[1].replace(/_/g, "")) : null;
+}
+
+/**
+ * One `Limits` operand as a comparable token: a number, or `custom` for the
+ * no-fixed-cap sentinel. Throws on anything else, so an operand this parser does not
+ * understand fails the run instead of comparing as a raw identifier.
+ */
+function resolveLimitOperand(token: string, intConstants: Record<string, number>, where: string): string {
+  const t = token.trim();
+  if (t === "int.MaxValue") return CUSTOM;
+  if (/^-?[0-9_]+$/.test(t)) return String(Number(t.replace(/_/g, "")));
+  if (t in intConstants) return String(intConstants[t]);
+  throw new Error(
+    `${where}: the limit operand \`${t}\` is neither a numeric literal, the int.MaxValue sentinel, ` +
+      `nor a \`public const int\` in ${PLAN_CONSTANTS_REL}. The parser or the backend moved.`,
+  );
+}
+
+/** A plan's frontend allowance as the same token: the number, or `custom` for null. */
+const frontendAllowance = (n: number | null) => (n == null ? CUSTOM : String(n));
+
+describe("the frontend's plan ladder mirrors the numbers in PlanConstants", () => {
+  test("the limit / price / overage parsers actually parse (so a green diff means something)", () => {
+    const fixture = `
+public static class PlanConstants
+{
+    public const string Pilot      = "pilot";
+    public const string Growth     = "growth";
+    public const string Enterprise = "enterprise";
+
+    public const int PilotOrderLimit    = 20;
+    public const int PilotSupplierLimit = 1;
+
+    public static readonly IReadOnlyDictionary<string, (int Orders, int Suppliers)> Limits =
+        new Dictionary<string, (int, int)>
+        {
+            [Pilot]      = (PilotOrderLimit,  PilotSupplierLimit),
+            // a comment mentioning 1_000 -> 1_500 is not a row
+            [Growth]     = (1_500,            5),
+            [Enterprise] = (int.MaxValue,     int.MaxValue),
+        };
+
+    // A DIFFERENT dictionary with identically-shaped rows must not be read as prices:
+    public static readonly IReadOnlyDictionary<string, long> AiMonthlyTokenLimits =
+        new Dictionary<string, long>
+        {
+            [Growth] = 1_000_000,
+        };
+
+    public static readonly IReadOnlyDictionary<string, decimal> MonthlyPriceEur =
+        new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase)
+        {
+            [Pilot]      = 0m,
+            [Growth]     = 1_499m,
+            [Enterprise] = 0m,   // custom — not a fixed list price
+        };
+
+    public const decimal OveragePerOrderEur = 0.50m;
+}`;
+    expect(parseIntConstants(fixture)).toEqual({ PilotOrderLimit: 20, PilotSupplierLimit: 1 });
+    expect(parsePlanLimitRows(fixture)).toEqual({
+      Pilot: { orders: "PilotOrderLimit", suppliers: "PilotSupplierLimit" },
+      Growth: { orders: "1_500", suppliers: "5" },
+      Enterprise: { orders: "int.MaxValue", suppliers: "int.MaxValue" },
+    });
+    expect(parseMonthlyPriceRows(fixture)).toEqual({ Pilot: 0, Growth: 1499, Enterprise: 0 });
+    expect(parseDecimalConstant(fixture, "OveragePerOrderEur")).toBe(0.5);
+
+    const ints = parseIntConstants(fixture);
+    expect(resolveLimitOperand("PilotOrderLimit", ints, "fixture")).toBe("20");
+    expect(resolveLimitOperand("1_500", ints, "fixture")).toBe("1500");
+    expect(resolveLimitOperand("int.MaxValue", ints, "fixture")).toBe(CUSTOM);
+    expect(() => resolveLimitOperand("SomeOtherCap", ints, "fixture")).toThrow(/neither a numeric literal/);
+
+    // Absent symbols answer null, not {} / 0 — the difference decides whether a moved
+    // symbol reads as drift or as "the backend charges nothing and caps nothing".
+    const empty = "public static class PlanConstants { }";
+    expect(parsePlanLimitRows(empty)).toBeNull();
+    expect(parseMonthlyPriceRows(empty)).toBeNull();
+    expect(parseDecimalConstant(empty, "OveragePerOrderEur")).toBeNull();
+    expect(parseIntConstants(empty)).toEqual({});
+  });
+
+  test.skipIf(!BACKEND)("every plan's order and supplier allowance matches the C#", () => {
+    const cs = readFileSync(join(BACKEND!, PLAN_CONSTANTS_REL), "utf8");
+    const rows = parsePlanLimitRows(cs);
+    expect(
+      rows,
+      `${PLAN_CONSTANTS_REL} no longer declares the IReadOnlyDictionary<string, (int Orders, int ` +
+        "Suppliers)> Limits dictionary. src/lib/plans.ts names PlanConstants as the ladder it " +
+        "mirrors, so the symbol moving is drift the mirror has to answer for — not a reason to pass.",
+    ).not.toBeNull();
+
+    const planValues = parseStatusConstants(cs);
+    const intConstants = parseIntConstants(cs);
+    const backendPairs: string[] = [];
+    for (const [planIdentifier, operands] of Object.entries(rows!)) {
+      const plan = planValues[planIdentifier];
+      if (!plan) {
+        throw new Error(
+          `Limits has a row for the C# identifier \`${planIdentifier}\`, which is not a plan constant ` +
+            `in ${PLAN_CONSTANTS_REL}. The parser or the backend moved.`,
+        );
+      }
+      const where = `Limits[${planIdentifier}]`;
+      backendPairs.push(`${plan} orders=${resolveLimitOperand(operands.orders, intConstants, where)}`);
+      backendPairs.push(`${plan} suppliers=${resolveLimitOperand(operands.suppliers, intConstants, where)}`);
+    }
+
+    recordComparison(
+      "PlanConstants.Limits",
+      backendPairs,
+      PLANS.flatMap((p) => [
+        `${p.id} orders=${frontendAllowance(p.orderLimit)}`,
+        `${p.id} suppliers=${frontendAllowance(p.supplierLimit)}`,
+      ]),
+      "src/lib/plans.ts disagrees with PlanConstants.Limits about how much a plan includes. Those " +
+        "numbers are what /pricing sells, what the ROI calculator recommends from, and what the " +
+        "upload and supplier-limit banners quote back to a customer who has just been refused — so " +
+        "a row that drifts either promises volume the backend will not allow, or refuses volume the " +
+        "customer paid for. Fix whichever side is wrong; a re-size is a commercial decision and has " +
+        "to be made in both repos on purpose.",
+    );
+  });
+
+  test.skipIf(!BACKEND)("every plan's monthly list price matches the C#", () => {
+    const cs = readFileSync(join(BACKEND!, PLAN_CONSTANTS_REL), "utf8");
+    const rows = parseMonthlyPriceRows(cs);
+    expect(
+      rows,
+      `${PLAN_CONSTANTS_REL} no longer declares the IReadOnlyDictionary<string, decimal> ` +
+        "MonthlyPriceEur dictionary. src/lib/plans.ts mirrors those amounts, so the symbol moving " +
+        "is drift the mirror has to answer for — not a reason to pass.",
+    ).not.toBeNull();
+
+    const planValues = parseStatusConstants(cs);
+    const backendPairs = Object.entries(rows!).map(([planIdentifier, amount]) => {
+      const plan = planValues[planIdentifier];
+      if (!plan) {
+        throw new Error(
+          `MonthlyPriceEur has a row for the C# identifier \`${planIdentifier}\`, which is not a plan ` +
+            `constant in ${PLAN_CONSTANTS_REL}. The parser or the backend moved.`,
+        );
+      }
+      // The conditional carve-out described above: `0m` on a no-list-price plan is the
+      // sentinel the frontend spells `null`. Any other amount is emitted as itself.
+      const token = BACKEND_NO_LIST_PRICE_PLANS.has(plan) && amount === 0 ? CUSTOM : String(amount);
+      return `${plan}=${token}`;
+    });
+
+    recordComparison(
+      "PlanConstants.MonthlyPriceEur",
+      backendPairs,
+      PLANS.map((p) => `${p.id}=${p.priceMonthly == null ? CUSTOM : String(p.priceMonthly)}`),
+      "src/lib/plans.ts disagrees with PlanConstants.MonthlyPriceEur. The frontend amount is the " +
+        "one a buyer reads before entering a card; the backend's is what the MRR estimate is built " +
+        "from. Nothing fails when they part company — the price is simply advertised at one number " +
+        "and reasoned about at another. Fix whichever side is wrong.",
+    );
+  });
+
+  test.skipIf(!BACKEND)("the per-order overage rate matches the C#", () => {
+    const cs = readFileSync(join(BACKEND!, PLAN_CONSTANTS_REL), "utf8");
+    const overage = parseDecimalConstant(cs, "OveragePerOrderEur");
+    expect(
+      overage,
+      `${PLAN_CONSTANTS_REL} no longer declares \`public const decimal OveragePerOrderEur\`. ` +
+        "src/lib/plans.ts names that symbol as the source of OVERAGE_PER_ORDER_EUR, so the symbol " +
+        "moving is drift — not a reason to pass.",
+    ).not.toBeNull();
+
+    recordComparison(
+      "PlanConstants.OveragePerOrderEur",
+      [`OveragePerOrderEur=${overage}`],
+      [`OveragePerOrderEur=${OVERAGE_PER_ORDER_EUR}`],
+      "src/lib/plans.ts OVERAGE_PER_ORDER_EUR disagrees with PlanConstants.OveragePerOrderEur. That " +
+        "rate is quoted as a promise in the pricing fine print, the billing FAQ and the in-app " +
+        "over-cap notice, while the backend meters the charge that actually reaches the invoice — " +
+        "so a drift here is a quoted price the customer is not billed at.",
+    );
+  });
+});
+
 // ── The vacuity floor ────────────────────────────────────────────────────────
 //
 // Runs after every test in the file, so it is independent of test ORDER — which a
@@ -2101,7 +2388,8 @@ const EXPECTED_COMPARISONS =
   3 + // output formats: the buildable set, the standards catalog, PREVIEW_FORMATS
   Object.keys(TEST_PACK_BACKEND_RECORDS).length + // one per test-pack record mirrored
   1 + // the plan-gate codes quoted in the admin guides
-  1; // MINIMUM_PLAN against PlanConstants.MinimumPlan
+  1 + // MINIMUM_PLAN against PlanConstants.MinimumPlan
+  3; // the ladder's numbers: Limits, MonthlyPriceEur, OveragePerOrderEur
 
 afterAll(() => {
   if (!BACKEND) return; // the mirror gate already ruled on whether that was allowed

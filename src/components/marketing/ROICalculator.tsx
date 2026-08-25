@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { OVERAGE_PER_ORDER_EUR, planEffectiveMonthlyCost, recommendPlanByOrders } from "@/lib/plans";
+import { OVERAGE_PER_ORDER_EUR, PLAN_BY_ID, planEffectiveMonthlyCost, recommendPlanByOrders } from "@/lib/plans";
 import { Card } from "@/components/bridge/layout/Card";
 
 // ─── Design tokens (Bridge Layer design system) ──────────────────────────────
@@ -61,6 +61,21 @@ export const DEFAULT_AUTOMATION_PCT = 70;
 // print the €0.50 overage rate as "€1".
 const perOrderEur = (n: number) =>
   n.toLocaleString("en-GB", { style: "currency", currency: "EUR" });
+
+// ─── Pilot fallback copy ─────────────────────────────────────────────────────
+// The two sentences that send a reader to the free tier when the maths does not
+// justify a paid one. Their numbers come off the ladder for the same reason the
+// recommendation above does: the calculator already derives every paid figure from
+// plans.ts, so a hand-typed "20 orders" sitting two lines away from a derived
+// "€149/mo" is the half-derived-half-typed shape that lets the two halves disagree.
+// `priceCadence` is Pilot's price sub-label and, on the trial tier, it IS the trial
+// window ("14 days"). Both rendered sentences are unchanged.
+const PILOT = PLAN_BY_ID.pilot;
+const PILOT_FALLBACK_SENTENCE =
+  `Start with the free 14-day ${PILOT.name} — ${PILOT.orderLimit} orders, no card required — ` +
+  "and upgrade once the savings are real.";
+const PILOT_FINE_PRINT =
+  `The ${PILOT.name} tier is free for ${PILOT.priceCadence} (${PILOT.orderLimit} orders) and does not require a card.`;
 
 // ─── Field primitive (slider + value, as a row in the inputs card) ────────────
 function Field({
@@ -556,7 +571,7 @@ export function ROICalculator() {
                 >
                   {calc.plan.isCustom || calc.netPositive
                     ? calc.plan.recommendationBlurb
-                    : `At these inputs, the ${calc.plan.name} plan (${eur(calc.planPrice)}/mo at your volume) would cost more than the ${eur(calc.monthlySavings)}/mo it saves. Start with the free 14-day Pilot — 20 orders, no card required — and upgrade once the savings are real.`}
+                    : `At these inputs, the ${calc.plan.name} plan (${eur(calc.planPrice)}/mo at your volume) would cost more than the ${eur(calc.monthlySavings)}/mo it saves. ${PILOT_FALLBACK_SENTENCE}`}
                 </p>
                 <Link
                   href={calc.cta.href}
@@ -610,8 +625,7 @@ export function ROICalculator() {
           manually (never auto-charged), and we will waive it for the first design partners we take
           on. Paid plans include a monthly order allowance; orders above it bill at{" "}
           {`${perOrderEur(OVERAGE_PER_ORDER_EUR)}/order`} and are never blocked — the plan cost and
-          payback maths above already include that overage. The Pilot tier is free for 14 days
-          (20 orders) and does not require a card.
+          payback maths above already include that overage. {PILOT_FINE_PRINT}
         </p>
       </div>
     </section>
