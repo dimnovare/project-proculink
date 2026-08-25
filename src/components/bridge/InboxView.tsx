@@ -56,6 +56,7 @@ import {
 } from "./orderCountContract";
 import {
   PIPELINE_STAGE_NAMES,
+  UNKNOWN_STAGE_CAPTION,
   pipelineAccessibleName,
   pipelineCardLine,
 } from "./pipelineIndicator";
@@ -149,15 +150,28 @@ export const STATUS_PRESENTATION: Record<
   // lie on a rejected order). It stays "Failed" — plain English, and the SAME
   // word as the chip that filters it, so chip and row can never disagree.
   failed:     { key: "failed",     label: "Failed",         stage: null },
+  // A status string this build has never heard of. `stage: null` here means the same
+  // thing it means for `failed` — "no single stage" — but for the opposite reason:
+  // `failed` has five candidate nodes and picks one from the raw status, while this has
+  // none at all, so journeyStage answers null and the row prints no stage claim.
+  unknown:    { key: "unknown",    label: "Status unknown", stage: null },
 };
 
 /**
- * Journey stage for one inbox row. Non-failed statuses have a fixed stage
- * (STATUS_PRESENTATION); a failed row derives its node from the RAW status —
- * `transform_failed` puts the X on Transform, the three delivery failures on
- * Deliver, bare `failed` (the parse-terminal status) on Parse.
+ * Journey stage for one inbox row, or `null` when there is no honest node to light.
+ *
+ * Non-failed statuses have a fixed stage (STATUS_PRESENTATION); a failed row derives its
+ * node from the RAW status — `transform_failed` puts the X on Transform, the three
+ * delivery failures on Deliver, bare `failed` (the parse-terminal status) on Parse; and a
+ * status this build cannot read gets `null`, which both call sites render as words
+ * (UNKNOWN_STAGE_CAPTION) instead of a position on the track.
  */
-export function journeyStage(status: CrossingStatus, rawStatus: string): OrderStage {
+export function journeyStage(status: CrossingStatus, rawStatus: string): OrderStage | null {
+  // `null` is an ANSWER, not a missing value: this build cannot read the order's status,
+  // so it does not know which node the order is on and must not draw one. Returning 0
+  // here — which is what the old `mapStatus` fall-through to "new" amounted to — told the
+  // operator the pipeline had never started, on precisely the rows we understood least.
+  if (status === "unknown") return null;
   const preset = STATUS_PRESENTATION[status].stage;
   if (preset !== null) return preset;
   // status === "failed" here, and mapStatus only returns "failed" for the five
@@ -233,6 +247,10 @@ function fmtAge(min: number) {
 // rows act like delivery_failed, which IS redeliverable; "delivering" carries
 // ready_to_deliver — see mapStatus below).
 const MOCK_RAW_STATUS: Record<CrossingStatus, string> = {
+  // Not produced by the mock generator (STATUSES below does not list `unknown`) — the
+  // whole point of the display bucket is that no backend status maps to it. The entry
+  // exists because the Record is total; the string is a deliberate non-status.
+  unknown:    "a_status_this_build_does_not_know",
   new:        "pending_parse",
   extracting: "parsing",
   transforming: "transforming",
@@ -378,12 +396,13 @@ export function mapStatus(s: string): CrossingStatus {
     s === "delivery_dead_letter" ||
     s === "rejected_by_supplier"
   ) return "failed";
-  // Reached by `pending_parse` — queued, nothing run on it yet, which is what "New"
-  // (stage 0) genuinely means. This is the honest default, NOT the fall-through that
-  // produced the bugs above. Any status that HAS progressed needs an explicit arm:
-  // landing here claims the pipeline never started.
+  // `pending_parse` — queued, nothing run on it yet, which is what "New" (stage 0)
+  // genuinely means. It is now an ARM rather than the default, because the two are not
+  // the same statement: this one says "we know this order has not started", and a
+  // default says "we did not recognise this string". They were the same line for months,
+  // and the line said the first thing about both.
   //
-  // Before adding a status to this default, GREP THE PRODUCERS — do not trust a
+  // Before adding a status to this arm, GREP THE PRODUCERS — do not trust a
   // doc-comment. Every bug this function has had came from believing one. The
   // `delivering` arm exists because a comment here swore no such status was persisted
   // (DeliveryService writes it). The `unrouted` arm exists because the SECOND version of
@@ -391,7 +410,22 @@ export function mapStatus(s: string): CrossingStatus {
   // "unreachable until the content-routing ingest paths ship", echoing
   // OrderStatusConstants' doc-comment, which is stale — Phase 1/1b shipped, the ingress
   // code says so in its own comments, and OrderIngestionService parks live orders there.
-  return "new";
+  if (s === "pending_parse") return "new";
+  // Anything still here is a status THIS BUILD CANNOT PLACE, and there is no honest
+  // display bucket for it except one that says so. Two ways to arrive:
+  //
+  //   • the order-status manifest (src/lib/orderStatusManifest.ts) does not name it —
+  //     the API is ahead of this build. Frontend and backend deploy separately, so this
+  //     is routine, not exceptional.
+  //   • the manifest names it and this function grew no arm for it — a bug in THIS file.
+  //
+  // The operator is owed the same answer either way: we do not know. Falling through to
+  // "new" answered the first question ("has it started?") with a confident no, and
+  // STATUS_PRESENTATION.new renders that as "New" at stage 0 — the pipeline never
+  // started — on exactly the rows we understood least. The arms above name every entry
+  // in ORDER_STATUS_FACTS, and unknownStatus.test.tsx walks that manifest through here
+  // to keep it that way, so the second case cannot arrive silently.
+  return "unknown";
 }
 
 function summaryToRow(o: OrderSummary): OrderRow {
@@ -744,16 +778,31 @@ function buildColumns(labels: PartyLabels, rowSend: RowSendContext) {
               queue's density — on the screen whose whole job is scanning 50-200 orders.
               `pipelineCaption` is still the single source of those words: it feeds the
               accessible name through pipelineAccessibleName. */}
-          <div
-            data-pipeline
-            role="img"
-            aria-label={pipelineAccessibleName(stage, statusLabel(info.row.original.rawStatus))}
-            className="mt-0.5"
-          >
-            <span aria-hidden="true" style={{ display: "block" }}>
-              <StatusJourney stage={stage} compact />
-            </span>
-          </div>
+          {stage === null ? (
+            /* A status this build cannot read has no node to light, so the row says so in
+               words instead of drawing a track. Five dots with none lit would still read
+               as "at Parse" — and it carries no `data-pipeline`, because that attribute
+               marks a stage CLAIM (role="img" plus a "step n of 5" name) and this is the
+               absence of one. */
+            <div
+              data-pipeline-unknown
+              className="mt-0.5 text-[11px]"
+              style={{ color: "var(--ink-faint)" }}
+            >
+              {UNKNOWN_STAGE_CAPTION}
+            </div>
+          ) : (
+            <div
+              data-pipeline
+              role="img"
+              aria-label={pipelineAccessibleName(stage, statusLabel(info.row.original.rawStatus))}
+              className="mt-0.5"
+            >
+              <span aria-hidden="true" style={{ display: "block" }}>
+                <StatusJourney stage={stage} compact />
+              </span>
+            </div>
+          )}
         </div>
       );
     },

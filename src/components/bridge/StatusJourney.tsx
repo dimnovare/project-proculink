@@ -210,7 +210,14 @@ export function StatusJourney({ stage, compact = false, crossingRef }: StatusJou
 // "Extracting", and BOTH lit the Normalize node for an order that is at Transform.
 // The dashboard's own map has always put it at 3 (journeyStageFor, pinned by
 // statusJourneyFailedStage.test.tsx) — the inbox was the side that disagreed.
-export type CrossingStatus = "new" | "extracting" | "unrouted" | "review" | "ready" | "transforming" | "sent" | "delivering" | "sending" | "failed" | "held" | "unconfirmed";
+// `unknown` covers a status STRING THIS BUILD HAS NEVER HEARD OF — not a backend status
+// but the absence of one. Frontend and backend deploy separately, so an order arriving in
+// a status the manifest (src/lib/orderStatusManifest.ts) does not name is routine, and
+// every other member here would be a claim we cannot support: `new` says the pipeline
+// never started (the defect this member replaced — an order mid-anything rendered as
+// brand-new and untouched at stage 0), `failed` is red for something that may be going
+// perfectly, and the rest each name a node. It has no stage on purpose; see STATUS_STAGE.
+export type CrossingStatus = "new" | "extracting" | "unrouted" | "review" | "ready" | "transforming" | "sent" | "delivering" | "sending" | "failed" | "held" | "unconfirmed" | "unknown";
 
 const STATUS_PILL: Record<CrossingStatus, { bg: string; color: string; dot: string; pulse?: boolean; label: string }> = {
   // tokens.css .pill-new → surface-2 (#F1F3F7) / ink-muted (#5E6779) / ink-faint (#5B6980)
@@ -242,12 +249,20 @@ const STATUS_PILL: Record<CrossingStatus, { bg: string; color: string; dot: stri
   // needs a human, is not a red failure. No pulse: nothing is in flight, it's
   // waiting on an operator decision, not on the system.
   unconfirmed: { bg: "#FAF1DD", color: "#8A5310", dot: "#B36D14",  label: "Delivery unknown" },
+  // Neutral, and deliberately the quietest thing on the row: we are not saying the order
+  // is fine, broken, or anywhere in particular — only that this build cannot read its
+  // status. No pulse (nothing is known to be in flight). Written as tokens rather than
+  // literals because it is new; the hex above is pre-existing debt.
+  unknown:    { bg: "var(--surface-2)", color: "var(--ink-muted)", dot: "var(--ink-faint)", label: "Status unknown" },
 };
 
 // `failed` is deliberately absent: the collapsed CrossingStatus cannot know WHICH
 // node failed — that lives on the raw backend status (FAILURE_JOURNEY_STAGE), so
 // StatusCell demands `rawStatus` for failed rows instead of guessing a node.
-const STATUS_STAGE: Record<Exclude<CrossingStatus, "failed">, OrderStage> = {
+// `unknown` is absent for the stronger reason: there is no node to give it. A status
+// this build cannot read tells us nothing about where the order got to, and any entry
+// here — 0 most of all — would be a stage claim invented out of ignorance.
+const STATUS_STAGE: Record<Exclude<CrossingStatus, "failed" | "unknown">, OrderStage> = {
   new:        0,
   // Stage 0: an order being read IS at Parse. It sat at 1 (Normalize) and therefore
   // drew Parse as already done — for the one status that means Parse is still running.
@@ -274,15 +289,18 @@ const STATUS_STAGE: Record<Exclude<CrossingStatus, "failed">, OrderStage> = {
 };
 
 // A failed row must say which raw failure status it carries — the collapsed pill
-// alone cannot place the X (see STATUS_STAGE above).
+// alone cannot place the X (see STATUS_STAGE above). An `unknown` row carries no
+// stage at all and renders the pill on its own.
 type StatusCellProps =
-  | { status: Exclude<CrossingStatus, "failed">; rawStatus?: never }
-  | { status: "failed"; rawStatus: FailureStatus };
+  | { status: Exclude<CrossingStatus, "failed" | "unknown">; rawStatus?: never }
+  | { status: "failed"; rawStatus: FailureStatus }
+  | { status: "unknown"; rawStatus?: string };
 
 export function StatusCell(props: StatusCellProps) {
   const pill  = STATUS_PILL[props.status];
-  const stage = props.status === "failed"
-    ? failedStageFor(props.rawStatus)
+  const stage: OrderStage | null =
+    props.status === "unknown" ? null
+    : props.status === "failed" ? failedStageFor(props.rawStatus)
     : STATUS_STAGE[props.status];
   return (
     <div className="flex items-center gap-2">
@@ -296,7 +314,9 @@ export function StatusCell(props: StatusCellProps) {
         />
         {pill.label}
       </span>
-      <StatusJourney stage={stage} compact />
+      {/* No track for an unknown status: five dots with none lit would still be read as
+          "at Parse", which is the claim this member exists to stop making. */}
+      {stage !== null && <StatusJourney stage={stage} compact />}
     </div>
   );
 }

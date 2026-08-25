@@ -104,7 +104,7 @@
   "src/components/bridge/SupplierPicker.tsx": 15,
   "src/components/bridge/SupplierResponsePanel.tsx": 51,
   "src/components/bridge/UnifiedStatusBadge.tsx": 4,
-  "src/components/bridge/UploadWorkbench.tsx": 178,
+  "src/components/bridge/UploadWorkbench.tsx": 176,
   "src/components/bridge/UserChipMenu.tsx": 30,
   "src/components/bridge/WireTopology.tsx": 68,
   "src/components/bridge/workshop/AssignSupplierBanner.tsx": 18,

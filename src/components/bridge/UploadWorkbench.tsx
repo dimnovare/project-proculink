@@ -242,7 +242,14 @@ type FormatKey = "PDF" | "XLSX" | "CSV" | "cXML" | "EDI" | "JSON" | "EMAIL";
 
 // ─── Recent uploads ─────────────────────────────────────────────────────────
 
-type RecentStatus = "processing" | "done" | "failed" | "review" | "ready" | "draft";
+// `unknown` is the bucket for a status string this build has never heard of — the
+// backend deploys separately, so one arriving is routine. It was called `draft` and it
+// was the wrong name for two reasons: no order status this product produces is a draft
+// (nothing ever mapped to it), and naming an ignorance bucket after a decided state is
+// how it comes to be treated as one. Anything Draft ever grew — an icon, a filter, a
+// "resume editing" affordance — would have silently attached itself to every status the
+// frontend could not read.
+type RecentStatus = "processing" | "done" | "failed" | "review" | "ready" | "unknown";
 
 /**
  * Buyer / supplier as TEXT, in the recent-uploads route cell.
@@ -296,7 +303,11 @@ const STATUS_PILL: Record<RecentStatus, { bg: string; color: string }> = {
   failed:     { bg: "#FBE3E3", color: "#B43838" },
   review:     { bg: "#FAF1DD", color: "#9A5F0A" },
   ready:      { bg: "#E9F1EA", color: "#1E6D29" },
-  draft:      { bg: "#F1F3F7", color: "#5E6779" },
+  // Neutral and quiet on purpose: the pill beside it prints the humanized status string
+  // (statusLabel), so the colour must not add a verdict — success, failure, or progress —
+  // to a status whose meaning we do not have. Tokens rather than literals because the
+  // entry is new; the hex above is pre-existing debt this change does not add to.
+  unknown:    { bg: "var(--surface-2)", color: "var(--ink-muted)" },
 };
 
 /** Map source format string from the orders API → a FileChip format key. */
@@ -315,12 +326,13 @@ function formatKeyFromSource(src: string | null | undefined): FormatKey {
 }
 
 /**
- * Map an order status → the pill's TONE. Every status
- * OrderStatusConstants can produce is listed, so `draft` is now genuinely the
- * unknown-status fallback rather than the bucket five real states fell into.
+ * Map an order status → the pill's TONE. Every status the order-status manifest
+ * (src/lib/orderStatusManifest.ts) names has its own arm, so the default is reached only
+ * by a string this build cannot read — and it now SAYS so instead of borrowing the tone
+ * of a decided state.
  *
- * Exported for src/test/statusVocabulary.test.ts, which walks every backend
- * status through it. `draft` reachable from a real status is the bug.
+ * Exported for src/test/statusVocabulary.test.ts, which walks every backend status
+ * through it: the unknown tone reachable from a real status is the bug.
  */
 export function recentStatusFromOrder(status: string): RecentStatus {
   switch (status) {
@@ -346,7 +358,11 @@ export function recentStatusFromOrder(status: string): RecentStatus {
     case "delivery_unconfirmed":                       return "review";
     case "ready":
     case "ready_to_deliver":                           return "ready";
-    default:                                           return "draft";
+    // Not a status this build knows. Neutral is the only honest tone: we cannot say the
+    // order is progressing, done, broken, or waiting on anyone. The words beside the
+    // pill come from statusLabel(rawStatus), which humanizes the raw string, so the row
+    // still identifies the order — it just stops implying a verdict about it.
+    default:                                           return "unknown";
   }
 }
 
