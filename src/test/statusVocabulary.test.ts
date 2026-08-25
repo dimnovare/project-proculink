@@ -359,13 +359,28 @@ describe("the surfaces that name a status read the registry to do it", () => {
     expect(/statusLabel\s*\(|<UnifiedStatusBadge/.test(code)).toBe(true);
   });
 
+  /**
+   * The tone an unrecognised status falls into, obtained by ASKING the function rather
+   * than by typing its name. The bucket was called `draft` and is now called `unknown`;
+   * a literal here would have gone quietly vacuous the moment it was renamed, which is
+   * the failure mode this whole file exists to avoid.
+   */
+  const UNKNOWN_TONE = recentStatusFromOrder("a_status_no_build_has_ever_shipped");
+
+  test("the unknown-status bucket is findable (guards against a vacuous negative below)", () => {
+    // Without this, a `recentStatusFromOrder` that answered every input with a real tone
+    // would make every assertion under it pass by comparing against nothing.
+    expect(UNKNOWN_TONE).toBeTruthy();
+    expect(recentStatusFromOrder("another_status_no_build_has_ever_shipped")).toBe(UNKNOWN_TONE);
+  });
+
   test.each(BACKEND_STATUSES)(
     "the upload page gives %s an honest tone instead of the unknown-status bucket",
     (status) => {
-      // `draft` is the fallback for a status this list has never heard of. Five
-      // real ones landed in it — including a supplier REJECTION, which read
-      // "Draft" on /upload while the inbox called it what it was.
-      expect(recentStatusFromOrder(status)).not.toBe("draft");
+      // The fallback is for a status this list has never heard of. Five real ones landed
+      // in it — including a supplier REJECTION, which read as an unrecognised status on
+      // /upload while the inbox called it what it was.
+      expect(recentStatusFromOrder(status)).not.toBe(UNKNOWN_TONE);
     },
   );
 

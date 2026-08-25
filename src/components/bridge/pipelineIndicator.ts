@@ -40,6 +40,16 @@ export function pipelineStageName(stage: OrderStage): PipelineStageName {
 }
 
 /**
+ * The caption for a row this build cannot place on the track at all.
+ *
+ * A status the frontend has never heard of is a routine event — frontend and backend
+ * deploy separately — and the ONLY dishonest thing to print for one is a node. Every
+ * other caption here names a step, so an unknown row needs words that name none: no
+ * "1 of 5", no stage name, nothing an operator could act on by mistake.
+ */
+export const UNKNOWN_STAGE_CAPTION = "Progress unknown";
+
+/**
  * The visible caption under the dots, and the whole of the mobile card's pipeline line.
  *
  *   progressing → "3 of 5 · Validate"
@@ -74,8 +84,15 @@ export function pipelineAccessibleName(stage: OrderStage, statusLabel: string): 
   return `${head} ${statusLabel}.`;
 }
 
-/** The mobile card's line — the same words, prefixed so it reads as a sentence fragment. */
-export function pipelineCardLine(stage: OrderStage): string {
+/**
+ * The mobile card's line — the same words, prefixed so it reads as a sentence fragment.
+ *
+ * `null` means "this build cannot place the order on the track" (see
+ * UNKNOWN_STAGE_CAPTION). It is accepted here rather than resolved by the caller so
+ * that both viewports and the desktop cell all print ONE set of words for that case.
+ */
+export function pipelineCardLine(stage: OrderStage | null): string {
+  if (stage === null) return UNKNOWN_STAGE_CAPTION;
   if (typeof stage === "object") return `Failed at step ${pipelineNodeIndex(stage) + 1} of 5 · ${pipelineStageName(stage)}`;
   return `Step ${pipelineCaption(stage)}`;
 }
