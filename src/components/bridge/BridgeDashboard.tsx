@@ -728,6 +728,13 @@ export function BridgeDashboard() {
   }, [windowKey]);
 
   // Accurate windowed count queries (pageSize:1 — only totalCount matters).
+  //
+  // These two carry BOTH halves of the gate, same as the four queries above. They
+  // used to gate on `!isApiMockMode` alone, which reads like a complete condition
+  // and is not: it only says "there is a real backend to call", never "we have a
+  // token to call it with". On a cold mount that is precisely the 401 race the
+  // comment above describes — the four hero queries waited for Clerk while these
+  // two fired into an unauthenticated window and were parked as failed.
   const { data: windowedReceivedPage } = useQuery({
     queryKey: ["orders-count-received", windowKey],
     queryFn: () => apiClient.getOrders({
@@ -735,7 +742,7 @@ export function BridgeDashboard() {
       ...(windowCutoffISO ? { dateFrom: windowCutoffISO } : {}),
     }),
     staleTime: 60_000,
-    enabled: !isApiMockMode,
+    enabled: queryEnabled && !isApiMockMode,
   });
 
   const { data: windowedDeliveredPage } = useQuery({
@@ -746,7 +753,7 @@ export function BridgeDashboard() {
       ...(windowCutoffISO ? { dateFrom: windowCutoffISO } : {}),
     }),
     staleTime: 60_000,
-    enabled: !isApiMockMode,
+    enabled: queryEnabled && !isApiMockMode,
   });
 
   const allOrders = useMemo(() => ordersPage?.items ?? [], [ordersPage]);
