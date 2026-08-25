@@ -24,6 +24,7 @@ import type { InboundAddress } from "@/lib/api/inboundEmail";
 const getInboundAddresses = vi.fn();
 const rotateInboundAddress = vi.fn();
 const revokeInboundAddress = vi.fn();
+const getBillingStatus = vi.fn();
 
 vi.mock("@/lib/api/inboundEmail", async (importOriginal) => {
   // The pure helpers (state, expiry, kind constants) stay REAL — they are the logic under test.
@@ -36,7 +37,22 @@ vi.mock("@/lib/api/inboundEmail", async (importOriginal) => {
   };
 });
 
+vi.mock("@/lib/api-client", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/api-client")>();
+  return { ...actual, getBillingStatus: () => getBillingStatus() };
+});
+
 import { InboundAddressSection } from "./InboundAddressSection";
+import { minimumPlanId } from "@/lib/gatedCapabilities";
+import { PLANS, PLAN_BY_ID } from "@/lib/plans";
+
+// The tiers under test are DERIVED from the registries that own them — a literal tier name in a
+// test is how a re-tiered gate keeps passing against stale copy (test literals hide drift).
+const EMAIL_MINIMUM = minimumPlanId("emailIngestion");
+const EMAIL_UNLOCK = PLAN_BY_ID[EMAIL_MINIMUM];
+const EMAIL_MINIMUM_INDEX = PLANS.findIndex((p) => p.id === EMAIL_MINIMUM);
+/** The ladder tier directly below the gate — the plan the backend refuses hosted mail on. */
+const PLAN_BELOW = PLANS[EMAIL_MINIMUM_INDEX - 1];
 
 function address(over: Partial<InboundAddress> = {}): InboundAddress {
   return {
@@ -66,6 +82,8 @@ function renderSection() {
 beforeEach(() => {
   vi.clearAllMocks();
   getInboundAddresses.mockResolvedValue([address()]);
+  // Default: the capability's own minimum plan, so the promise copy is legitimate.
+  getBillingStatus.mockResolvedValue({ plan: EMAIL_MINIMUM, accountStatus: "active" });
 });
 
 afterEach(cleanup);
@@ -174,6 +192,88 @@ describe("InboundAddressSection — legacy addresses state the consequence of ex
 
     expect(await screen.findByText("Active")).toBeInTheDocument();
     expect(screen.queryByText("Current address")).not.toBeInTheDocument();
+  });
+});
+
+describe("InboundAddressSection — the import promise is made only on a plan that includes it", () => {
+  // The backend gates hosted inbound mail on `emailIngestion` while the address is minted for
+  // every org on every plan — and a refused message is silent: no bounce to the sender, nothing
+  // shown to the workspace. So "turn it into an order automatically" is a claim this section may
+  // only make once billing has CONFIRMED the plan includes it.
+
+  it("promises automatic import when the plan is confirmed to include email intake", async () => {
+    renderSection();
+
+    expect(await screen.findByText(/turn it into an order automatically/i)).toBeInTheDocument();
+    expect(screen.queryByTestId("inbound-address-plan-gate")).not.toBeInTheDocument();
+  });
+
+  it("on the tier below the gate, drops the promise and states the refusal with the derived tier", async () => {
+    getBillingStatus.mockResolvedValue({ plan: PLAN_BELOW.id, accountStatus: "active" });
+    renderSection();
+
+    const gate = await screen.findByTestId("inbound-address-plan-gate");
+    expect(screen.queryByText(/turn it into an order automatically/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/imported automatically/i)).not.toBeInTheDocument();
+
+    // Both tier names are DERIVED from the gate table and the ladder, never typed.
+    expect(gate.textContent).toContain(
+      `Upgrade to ${EMAIL_UNLOCK.name} (${EMAIL_UNLOCK.billingPriceLabel})`,
+    );
+    expect(gate.textContent).toContain(`the ${PLAN_BELOW.name} plan`);
+
+    // The consequence is stated, because it is the whole point: mail is dropped silently.
+    expect(gate.textContent).toMatch(/won’t be imported/);
+    expect(gate.textContent).toMatch(/sender isn’t told/);
+
+    // The address itself stays visible — hiding it would leave the operator wondering where it
+    // went, and the disclosure beside it is what makes its presence honest.
+    expect(screen.getByText("a1b2c3d4e5f6@orders.proculink.eu")).toBeInTheDocument();
+  });
+
+  it("makes no automatic-import claim while the plan is still unknown", async () => {
+    getBillingStatus.mockReturnValue(new Promise(() => {}));
+    renderSection();
+
+    await screen.findByText("a1b2c3d4e5f6@orders.proculink.eu");
+    expect(screen.queryByText(/turn it into an order automatically/i)).not.toBeInTheDocument();
+    // …and no refusal either: a plan we have not read is not a plan that excludes it.
+    expect(screen.queryByTestId("inbound-address-plan-gate")).not.toBeInTheDocument();
+    expect(screen.getByText(/address issued to this workspace/i)).toBeInTheDocument();
+  });
+
+  it("makes neither the promise nor a plan claim when the billing read failed", async () => {
+    getBillingStatus.mockRejectedValue(new Error("boom"));
+    renderSection();
+
+    await screen.findByText("a1b2c3d4e5f6@orders.proculink.eu");
+    expect(screen.queryByText(/turn it into an order automatically/i)).not.toBeInTheDocument();
+    expect(screen.queryByTestId("inbound-address-plan-gate")).not.toBeInTheDocument();
+    expect(screen.getByText(/address issued to this workspace/i)).toBeInTheDocument();
+  });
+
+  it("tracks the whole ladder: the promise is absent below the gate and present from it upward", async () => {
+    // Derived walk over the registry itself, so a re-tiered gate moves this test with it.
+    for (const [index, plan] of PLANS.entries()) {
+      getBillingStatus.mockResolvedValue({ plan: plan.id, accountStatus: "active" });
+      renderSection();
+      await screen.findByText("a1b2c3d4e5f6@orders.proculink.eu");
+
+      if (index >= EMAIL_MINIMUM_INDEX) {
+        expect(
+          await screen.findByText(/turn it into an order automatically/i),
+          `${plan.id} includes email intake and must keep the promise`,
+        ).toBeInTheDocument();
+        expect(screen.queryByTestId("inbound-address-plan-gate")).not.toBeInTheDocument();
+      } else {
+        expect(
+          await screen.findByTestId("inbound-address-plan-gate"),
+          `${plan.id} is below the gate and must disclose the refusal`,
+        ).toBeInTheDocument();
+        expect(screen.queryByText(/turn it into an order automatically/i)).not.toBeInTheDocument();
+      }
+      cleanup();
+    }
   });
 });
 

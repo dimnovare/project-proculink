@@ -156,7 +156,11 @@ export const IMPORT_METHODS: FormatRow[] = [
   { name: "Email inbox polling (IMAP)", status: "live", note: `We poll your mailbox for order attachments. ${requiresPlan("emailIngestion")}.` },
   { name: "SFTP folder pull", status: "live", note: `Point us at an SFTP folder; we import new files. ${requiresPlan("sftpIngestion")}.` },
   { name: "S3 / R2 bucket pull", status: "live", note: `Watch a bucket prefix for order files. ${requiresPlan("s3Ingestion")}.` },
-  { name: "Hosted inbound email address", status: "configurable", note: "Forward orders to your orders@… address; we set up the receiving domain." },
+  // Hosted inbound mail is the SAME backend gate as IMAP polling (`EmailIngestion`) — the
+  // address is minted for every org, which is exactly why its existence keeps being mistaken
+  // for its being switched on. Its siblings above name their tier; a row with no tier on this
+  // page reads as included on every plan, so this one names it the same derived way.
+  { name: "Hosted inbound email address", status: "configurable", note: `Forward orders to your orders@… address; we set up the receiving domain. ${requiresPlan("emailIngestion")}.` },
   { name: "AS2 / PEPPOL network receive", status: "onRequest", note: "Through a certified access-point partner." },
 ];
 

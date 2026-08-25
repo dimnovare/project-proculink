@@ -24,7 +24,7 @@
 // the row below. Re-tiering a capability is then one edit here, and every surface follows.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { PLAN_BY_ID, type PlanId } from "@/lib/plans";
+import { PLAN_BY_ID, PLANS, type PlanId } from "@/lib/plans";
 
 /**
  * The minimum plan per gated capability, mirroring `PlanConstants.MinimumPlan`.
@@ -57,6 +57,23 @@ export function minimumPlanId(capability: GatedCapability): PlanId {
 /** The plan's display name — `"Operations"`. Use this when writing prose around it. */
 export function minimumPlanName(capability: GatedCapability): string {
   return PLAN_BY_ID[MINIMUM_PLAN[capability]].name;
+}
+
+/**
+ * Whether a workspace's plan includes a gated capability — a ladder comparison against the
+ * mirrored minimum, so re-tiering a capability is still one edit in `MINIMUM_PLAN`.
+ *
+ * The ladder order is `PLANS` itself (cheapest first, Enterprise last), the same ordering the
+ * pricing page and the guard suite reason over. A plan id the ladder does not know answers
+ * **false**, never true: this function exists so UI can decide whether to render a capability
+ * as WORKING, and an unknown value resolving to the favourable claim is the exact failure
+ * class this repo keeps re-shipping (see "unknown renders as success"). A tier this build has
+ * never heard of gets the cautious answer, and the backend remains the enforcer either way.
+ */
+export function planIncludesCapability(plan: string, capability: GatedCapability): boolean {
+  const position = PLANS.findIndex((p) => p.id === plan);
+  if (position < 0) return false;
+  return position >= PLANS.findIndex((p) => p.id === MINIMUM_PLAN[capability]);
 }
 
 /**

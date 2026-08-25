@@ -34,7 +34,7 @@ import { useTabParamSync } from "@/lib/tab-param-sync";
 import { INTEGRATION_EVENT_LABELS } from "@/lib/integrationEventManifest";
 import { isOrgAdminRefusal, orgAdminMessage } from "@/lib/planGate";
 import { PLAN_BY_ID, planDisplayName, planName } from "@/lib/plans";
-import { minimumPlanId } from "@/lib/gatedCapabilities";
+import { minimumPlanId, planIncludesCapability } from "@/lib/gatedCapabilities";
 import { SftpPullSettings, S3PullSettings } from "@/components/settings/PullIngressSettings";
 import { InboundAddressSection } from "@/components/settings/InboundAddressSection";
 import { pollingHealthLine, type PollingHealthTone } from "@/components/settings/pollingHealth";
@@ -796,14 +796,29 @@ function EmailSettingsSection() {
             IMAP config below. Shown here as well as on the API-keys tab so the
             Email tab answers "where do I send orders?" on its own. */}
         <InboundAddressSection />
-        <p style={{ fontSize: 12, color: "var(--ink-muted)", margin: "-6px 0 18px", lineHeight: 1.55 }}>
-          This address needs no setup — anything sent to it is imported automatically. Share it with
-          the people who email you orders, or add a forwarding rule in your own mailbox. The IMAP
-          polling below is only for reading a mailbox you already own.{" "}
-          <Link href="/help/order-intake-options" style={{ color: "inherit", fontWeight: 600, textDecoration: "underline" }}>
-            See all order intake options
-          </Link>.
-        </p>
+        {/* "Imported automatically" is a promise the backend only keeps on plans that include
+            email ingestion — hosted inbound mail is refused below that gate, silently (no
+            bounce, nothing shown to the workspace). So the promise renders ONLY when the plan
+            is CONFIRMED to include it; while billing is loading or failed, and on a plan
+            without the capability, the paragraph keeps the IMAP contrast and drops the claim.
+            The refusal itself is disclosed inside InboundAddressSection, beside the address. */}
+        {!!billing && planIncludesCapability(billing.plan, "emailIngestion") ? (
+          <p style={{ fontSize: 12, color: "var(--ink-muted)", margin: "-6px 0 18px", lineHeight: 1.55 }}>
+            This address needs no setup — anything sent to it is imported automatically. Share it with
+            the people who email you orders, or add a forwarding rule in your own mailbox. The IMAP
+            polling below is only for reading a mailbox you already own.{" "}
+            <Link href="/help/order-intake-options" style={{ color: "inherit", fontWeight: 600, textDecoration: "underline" }}>
+              See all order intake options
+            </Link>.
+          </p>
+        ) : (
+          <p style={{ fontSize: 12, color: "var(--ink-muted)", margin: "-6px 0 18px", lineHeight: 1.55 }}>
+            The IMAP polling below is only for reading a mailbox you already own.{" "}
+            <Link href="/help/order-intake-options" style={{ color: "inherit", fontWeight: 600, textDecoration: "underline" }}>
+              See all order intake options
+            </Link>.
+          </p>
+        )}
 
         {/* Enable row + billing gate notice.
 

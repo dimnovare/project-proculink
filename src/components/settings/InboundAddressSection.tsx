@@ -28,12 +28,17 @@
  */
 
 import { useState } from "react";
+import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Copy, Plus } from "lucide-react";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { isOrgAdminRefusal, orgAdminMessage } from "@/lib/planGate";
 import { formatDate } from "@/lib/format-date";
 import { Card } from "@/components/bridge/layout/Card";
+import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
+import { getBillingStatus } from "@/lib/api-client";
+import { minimumPlanId, planIncludesCapability } from "@/lib/gatedCapabilities";
+import { PLAN_BY_ID, planName } from "@/lib/plans";
 import {
   INBOUND_KIND_PRIMARY,
   daysUntil,
@@ -307,6 +312,27 @@ export function InboundAddressSection() {
     refetchOnWindowFocus: false,
   });
 
+  // The address is minted for EVERY org on EVERY plan, but hosted inbound mail is gated on the
+  // backend (`InboundEmailRouter` refuses below the `emailIngestion` minimum) — and the refusal
+  // is silent from the operator's side: the sender gets no bounce and the workspace sees
+  // nothing. So the "imported automatically" promise below is one more claim this section may
+  // only make once it has VERIFIED it. Same query key as the rest of Settings, so this is a
+  // cache read there, not a second fetch.
+  const { data: billingStatus } = useQuery({
+    queryKey: ["billing-status"],
+    queryFn: getBillingStatus,
+    staleTime: 60_000,
+    retry: false,
+  });
+
+  // Three-state on purpose: `null` (still loading, or the read failed) is not "excluded", and
+  // must render neither the promise nor a refusal — a plan we could not read gets neutral copy.
+  // An unknown plan id answers `false` inside `planIncludesCapability`, never true.
+  const includesEmailIntake: boolean | null = billingStatus
+    ? planIncludesCapability(billingStatus.plan, "emailIngestion")
+    : null;
+  const emailUnlock = PLAN_BY_ID[minimumPlanId("emailIngestion")];
+
   // Both mutations answer with the whole updated list, so the cache is written from the response
   // rather than invalidated — the server's list is authoritative and one round trip is enough.
   const rotate = useMutation({
@@ -325,10 +351,40 @@ export function InboundAddressSection() {
   const heading = (
     <>
       <p style={{ fontSize: 12.5, fontWeight: 600, color: INK, margin: 0 }}>Your inbound email address</p>
-      <p style={{ fontSize: 11.5, color: MUTED, margin: "3px 0 10px", lineHeight: 1.5 }}>
-        Send or forward purchase orders to this address — we read the attachment (or the email body)
-        and turn it into an order automatically.
-      </p>
+      {includesEmailIntake === true ? (
+        // The plan is CONFIRMED to include hosted inbound email — the promise is true.
+        <p style={{ fontSize: 11.5, color: MUTED, margin: "3px 0 10px", lineHeight: 1.5 }}>
+          Send or forward purchase orders to this address — we read the attachment (or the email body)
+          and turn it into an order automatically.
+        </p>
+      ) : (
+        // Unconfirmed (loading / failed read) or confirmed-excluded: describe what the address
+        // IS without claiming mail sent to it is imported. The refusal notice below carries the
+        // consequence for the confirmed-excluded case.
+        <p style={{ fontSize: 11.5, color: MUTED, margin: "3px 0 10px", lineHeight: 1.5 }}>
+          The address issued to this workspace for purchase orders sent by email.
+        </p>
+      )}
+      {includesEmailIntake === false && billingStatus && (
+        // Tone belongs to <StatusNotice> (§12), never a hand-rolled surface: `warning` is the
+        // advisory tone — true, non-blocking, read before proceeding — and it derives the ARIA
+        // (role="status", polite) so this cannot be announced as a failure. The wrapper carries
+        // only the test hook and the section's spacing; it paints no surface of its own.
+        <div data-testid="inbound-address-plan-gate" style={{ margin: "0 0 12px" }}>
+          <StatusNotice tone="warning">
+            Emailed orders need a paid plan — the {planName(billingStatus.plan)} plan doesn&rsquo;t
+            include email intake, so purchase orders emailed to this address won&rsquo;t be imported,
+            and the sender isn&rsquo;t told.{" "}
+            <Link
+              href="/settings?tab=billing"
+              style={{ color: "inherit", fontWeight: 600, textDecoration: "underline" }}
+            >
+              Upgrade to {emailUnlock.name} ({emailUnlock.billingPriceLabel})
+            </Link>{" "}
+            to switch it on.
+          </StatusNotice>
+        </div>
+      )}
     </>
   );
 

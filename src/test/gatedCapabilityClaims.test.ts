@@ -188,7 +188,11 @@ const GATED_CATALOG_ROWS: ReadonlyArray<{
   matches: RegExp;
   minimumPlan: string;
 }> = [
-  { label: "IMAP / email inbox polling", rows: IMPORT_METHODS, matches: /imap|email inbox/i, minimumPlan: BACKEND_MINIMUM_PLAN.emailIngestion },
+  // `hosted inbound` is in the matcher because the hosted address row is the SAME backend gate
+  // as IMAP polling (`InboundEmailRouter` refuses on `EmailIngestion`) and shipped with no tier
+  // at all — the address is minted for every org, so the row read as included on every plan
+  // while a Pilot org's hosted mail was silently dropped.
+  { label: "IMAP / email inbox polling + hosted inbound email", rows: IMPORT_METHODS, matches: /imap|email inbox|hosted inbound/i, minimumPlan: BACKEND_MINIMUM_PLAN.emailIngestion },
   { label: "SFTP pull", rows: IMPORT_METHODS, matches: /sftp/i, minimumPlan: BACKEND_MINIMUM_PLAN.sftpIngestion },
   { label: "S3 / R2 pull", rows: IMPORT_METHODS, matches: /s3|r2 bucket/i, minimumPlan: BACKEND_MINIMUM_PLAN.s3Ingestion },
   { label: "HTTPS webhook delivery", rows: DELIVERY_METHODS, matches: /webhook/i, minimumPlan: BACKEND_MINIMUM_PLAN.webhookDelivery },
