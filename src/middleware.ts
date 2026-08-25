@@ -46,9 +46,37 @@ const isClerkConfigured =
   Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)
   && Boolean(process.env.CLERK_SECRET_KEY);
 
-const isQaAuthBypass =
-  process.env.PROCULINK_QA_BYPASS_AUTH === "true"
-  && process.env.NODE_ENV !== "production";
+/**
+ * Is the local QA auth bypass on?
+ *
+ * `PROCULINK_QA_BYPASS_AUTH=true` replaces the entire Clerk guard below with a
+ * pass-through, so protected-route screenshots can be taken without a session
+ * (CLAUDE.md §14). The `NODE_ENV` half is the only thing between that and an
+ * unauthenticated production app — and until 2026-08-21 it was an inline
+ * conditional that no test could reach, so the single most security-sensitive
+ * comparison in the frontend rested on nobody having typo'd it.
+ *
+ * It is a pure function taking its environment as an argument for exactly one
+ * reason: all four quadrants (flag on/off × production/not) are pinned in
+ * `src/middleware.test.ts`, including the one that matters — production with the
+ * flag ON must be false.
+ *
+ * The call site passes the two values individually rather than `process.env`
+ * itself. That is deliberate: Next inlines a literal `process.env.NODE_ENV` at
+ * build time, and a property read off a forwarded object would instead resolve
+ * at runtime, where an unset NODE_ENV would read as "not production".
+ */
+export function qaBypassActive(env: {
+  PROCULINK_QA_BYPASS_AUTH?: string;
+  NODE_ENV?: string;
+}): boolean {
+  return env.PROCULINK_QA_BYPASS_AUTH === "true" && env.NODE_ENV !== "production";
+}
+
+const isQaAuthBypass = qaBypassActive({
+  PROCULINK_QA_BYPASS_AUTH: process.env.PROCULINK_QA_BYPASS_AUTH,
+  NODE_ENV: process.env.NODE_ENV,
+});
 
 // Query parameters that can carry a Clerk handshake back to us. Both are JWTs:
 // @clerk/backend reads them in AuthenticateContext.initHandshakeValues() and hands
@@ -228,6 +256,63 @@ const middleware = isQaAuthBypass
 
 export default middleware;
 
+/**
+ * The file extensions that mark a request as a real static asset. A pathname
+ * ending in one of these is the only kind of dotted pathname the middleware is
+ * allowed to skip.
+ *
+ * Exported so `src/middleware.test.ts` can compile the matcher below with Next's
+ * own `getMiddlewareMatchers` and check, extension by extension, that the two
+ * agree — and that every file actually sitting in `public/` is still served.
+ */
+export const STATIC_ASSET_EXTENSIONS = [
+  "css",
+  "js",
+  "mjs",
+  "map",
+  "ico",
+  "png",
+  "jpg",
+  "jpeg",
+  "gif",
+  "svg",
+  "webp",
+  "avif",
+  "woff",
+  "woff2",
+  "ttf",
+  "otf",
+  "eot",
+  "xml",
+  "txt",
+  "webmanifest",
+  "csv",
+  "pdf",
+  "zip",
+  "mp4",
+  "webm",
+] as const;
+
+/**
+ * Next parses this object out of the module statically, so both patterns have to
+ * stay literal — they cannot be built from the two lists they mirror. The test
+ * file is what keeps them honest.
+ */
 export const config = {
-  matcher: ["/((?!_next|.*\\..*).*)"],
+  matcher: [
+    // Everything that is not a Next internal and does not END in a real asset
+    // extension.
+    //
+    // This read `/((?!_next|.*\..*).*)` until 2026-08-21: it skipped the
+    // middleware for ANY pathname containing a dot. Next dynamic segments accept
+    // dots, so `/inbox/an.order.id`, `/library/suppliers/a.b` and
+    // `/connections/a.b` all bypassed the guard and answered a signed-out
+    // visitor with 200 and the workspace shell instead of a redirect to
+    // /sign-in. Keep this list in sync with STATIC_ASSET_EXTENSIONS above.
+    "/((?!_next|.*\\.(?:css|js|mjs|map|ico|png|jpg|jpeg|gif|svg|webp|avif|woff|woff2|ttf|otf|eot|xml|txt|webmanifest|csv|pdf|zip|mp4|webm)$).*)",
+    // ...and every protected prefix unconditionally, so that an order id ending
+    // in ".png" can never be read as an asset either. Keep in sync with
+    // PROTECTED_ROUTE_PATTERNS above; the same test pins that correspondence.
+    "/(bridge|inbox|upload|library|operations|settings|connections|inbound|admin)/:path*",
+  ],
 };

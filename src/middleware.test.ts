@@ -1,11 +1,18 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
-import { describe, expect, it, beforeAll } from "vitest";
+import { afterEach, describe, expect, it, beforeAll, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { decodeJwt, hasValidSignature, signJwt } from "@clerk/backend/jwt";
 
-import { applyProtectedRouteGuards } from "./middleware";
+import {
+  applyProtectedRouteGuards,
+  config,
+  PROTECTED_ROUTE_PATTERNS,
+  qaBypassActive,
+  STATIC_ASSET_EXTENSIONS,
+} from "./middleware";
+import { ROOT } from "./test/appRoutes";
 
 /**
  * The bypass under test used to be `searchParams.has("__clerk_handshake")` → `next()`,
@@ -297,5 +304,326 @@ describe("the dependency contract the retry redirect relies on", () => {
     expect(appendsRequestStateHeaders).toBeGreaterThan(-1);
     expect(handlesRedirect).toBeGreaterThan(-1);
     expect(handlesRedirect).toBeGreaterThan(appendsRequestStateHeaders);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The matcher: which requests reach the guard above at all.
+//
+// THE DEFECT (2026-08-21). `config.matcher` was `/((?!_next|.*\..*).*)`. The
+// `.*\..*` arm excluded every pathname CONTAINING a dot, on the assumption that
+// a dot means a file. Next dynamic segments accept dots, so the three protected
+// routes with a dynamic segment — /inbox/[orderId],
+// /library/suppliers/[id] and /connections/[connectionId] — were all reachable
+// signed out by putting a dot in the id. Measured against a local dev server:
+// `/inbox/008412` answered 307 to /sign-in, `/inbox/anything.with.a.dot`
+// answered 200 with the workspace shell. No tenant data crossed — every data
+// query is gated on useQueriesEnabled(), which is false without a session, and
+// the API is org-scoped — but the guard did not run, which is the finding.
+//
+// These tests do not re-implement the matcher. They compile the REAL exported
+// `config.matcher` with the same two Next functions the framework itself uses
+// (getMiddlewareMatchers at build, getMiddlewareRouteMatcher at request time),
+// so a pattern that parses differently than assumed fails here rather than in
+// production.
+
+type CompiledMatcher = { regexp: string };
+
+const nodeRequire = createRequire(import.meta.url);
+
+const { getMiddlewareMatchers } = nodeRequire(
+  "next/dist/build/analysis/get-page-static-info",
+) as {
+  getMiddlewareMatchers: (
+    matcher: string | string[],
+    nextConfig: object,
+  ) => CompiledMatcher[];
+};
+
+const { getMiddlewareRouteMatcher } = nodeRequire(
+  "next/dist/shared/lib/router/utils/middleware-route-matcher",
+) as {
+  getMiddlewareRouteMatcher: (
+    matchers: CompiledMatcher[],
+  ) => (pathname: string, req: unknown, query: unknown) => boolean;
+};
+
+const matchCompiledMatcher = getMiddlewareRouteMatcher(
+  getMiddlewareMatchers(config.matcher, {}),
+);
+
+/** Does the middleware run for `pathname`? Answered by Next's own matcher. */
+function middlewareRunsFor(pathname: string): boolean {
+  return matchCompiledMatcher(pathname, {}, {});
+}
+
+/** Every file really sitting in `public/`, as the URL it is served at. */
+function listPublicFiles(dir: string, prefix = ""): string[] {
+  const found: string[] = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const url = `${prefix}/${entry.name}`;
+    if (entry.isDirectory()) found.push(...listPublicFiles(join(dir, entry.name), url));
+    else found.push(url);
+  }
+  return found;
+}
+
+const PUBLIC_FILES = listPublicFiles(join(ROOT, "public")).sort();
+
+/** "/inbox(.*)" -> "inbox". The prefix each protected pattern claims. */
+const PROTECTED_PREFIXES = PROTECTED_ROUTE_PATTERNS.map((pattern) =>
+  pattern.replace(/^\//, "").replace(/\(\.\*\)$/, ""),
+);
+
+describe("the matcher inputs are not vacuous", () => {
+  // Everything below iterates one of these three. A walk that finds nothing
+  // makes `it.each` register zero cases and the file goes green enforcing
+  // nothing — the failure this repo has already paid for elsewhere.
+  it("finds the files that really live in public/", () => {
+    expect(PUBLIC_FILES.length).toBeGreaterThanOrEqual(20);
+    expect(PUBLIC_FILES).toContain("/favicon.ico");
+    expect(PUBLIC_FILES).toContain("/robots.txt");
+    // A nested one: the exclusion cannot be anchored to the site root.
+    expect(PUBLIC_FILES.some((f) => f.startsWith("/guides/"))).toBe(true);
+  });
+
+  it("finds every protected prefix", () => {
+    expect(PROTECTED_PREFIXES.length).toBeGreaterThanOrEqual(8);
+    expect(PROTECTED_PREFIXES).toContain("inbox");
+    expect(PROTECTED_PREFIXES.every((p) => /^[a-z]+$/.test(p))).toBe(true);
+  });
+
+  it("finds a real list of asset extensions", () => {
+    expect(STATIC_ASSET_EXTENSIONS.length).toBeGreaterThanOrEqual(15);
+    expect(STATIC_ASSET_EXTENSIONS).toContain("png");
+  });
+
+  it("does not run for everything, and does not run for nothing", () => {
+    // Both degenerate matchers would satisfy half this file on their own.
+    expect(middlewareRunsFor("/upload")).toBe(true);
+    expect(middlewareRunsFor("/favicon.ico")).toBe(false);
+  });
+});
+
+describe("a dot in a protected path no longer skips the guard", () => {
+  // The finding verbatim, on each of the three routes that actually has a
+  // dynamic segment to put a dot in.
+  it.each([
+    ["/inbox/anything.with.a.dot"],
+    ["/inbox/PO-2026-008412.v2"],
+    ["/library/suppliers/a.b"],
+    ["/connections/a.b"],
+  ])("%s reaches the middleware", (pathname) => {
+    expect(middlewareRunsFor(pathname)).toBe(true);
+  });
+
+  it.each(PROTECTED_PREFIXES)(
+    "/%s/an.id.with.dots reaches the middleware",
+    (prefix) => {
+      expect(middlewareRunsFor(`/${prefix}/an.id.with.dots`)).toBe(true);
+    },
+  );
+
+  // The narrowing is an extension list, so an id that ends in one would still
+  // look like an asset to the first pattern. The second pattern is what covers
+  // it; without that, this is where the hole would reopen.
+  it.each(STATIC_ASSET_EXTENSIONS)(
+    "an order id ending in .%s still reaches the middleware",
+    (extension) => {
+      expect(middlewareRunsFor(`/inbox/order.${extension}`)).toBe(true);
+    },
+  );
+
+  it.each(PROTECTED_PREFIXES)("/%s itself still reaches the middleware", (prefix) => {
+    expect(middlewareRunsFor(`/${prefix}`)).toBe(true);
+  });
+
+  it("does not claim a route that merely starts with a protected prefix", () => {
+    // "/inboxes" is not "/inbox". Both reach the middleware, because every
+    // non-asset path does — that is the first pattern doing its job, and
+    // isProtectedRoute decides from there. The discriminator has to be an
+    // asset-shaped path, where only the second (protected-prefix) pattern can
+    // pull something through: "/inbox/x.png" must, "/inboxes.png" must not.
+    expect(middlewareRunsFor("/inbox/x.png")).toBe(true);
+    expect(middlewareRunsFor("/inboxes.png")).toBe(false);
+  });
+});
+
+describe("public routes and static assets are unaffected", () => {
+  it.each([["/"], ["/pricing"], ["/sign-in"], ["/onboarding/select-organization"]])(
+    "%s still reaches the middleware",
+    (pathname) => {
+      expect(middlewareRunsFor(pathname)).toBe(true);
+    },
+  );
+
+  it.each(PUBLIC_FILES)("%s is still served without the middleware", (pathname) => {
+    expect(middlewareRunsFor(pathname)).toBe(false);
+  });
+
+  it.each(STATIC_ASSET_EXTENSIONS)(
+    "a top-level .%s asset skips the middleware",
+    (extension) => {
+      expect(middlewareRunsFor(`/asset.${extension}`)).toBe(false);
+    },
+  );
+
+  it.each(STATIC_ASSET_EXTENSIONS)(
+    "a nested .%s asset skips the middleware",
+    (extension) => {
+      expect(middlewareRunsFor(`/deeply/nested/asset.${extension}`)).toBe(false);
+    },
+  );
+
+  // `/_next/data/<build-id>/...` is deliberately absent: Next wraps every
+  // matcher in an optional `_next/data/<build-id>` prefix group and evaluates
+  // the pattern against what follows, so that form is a Pages Router data route
+  // this App-Router-only app never serves.
+  it.each([
+    ["/_next/static/chunks/main.js"],
+    ["/_next/static/media/inter-latin.woff2"],
+    ["/_next/image"],
+  ])("%s skips the middleware", (pathname) => {
+    expect(middlewareRunsFor(pathname)).toBe(false);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The QA auth bypass.
+//
+// PROCULINK_QA_BYPASS_AUTH=true replaces the whole Clerk guard with a
+// pass-through so protected screens can be screenshotted without a session. Its
+// production safety is one NODE_ENV comparison, and until 2026-08-21 nothing
+// tested it. All four quadrants are pinned below — twice: once on the pure
+// decision, and once on the module that consumes it, because a decision function
+// nothing calls is not a guard.
+
+describe("qaBypassActive — all four quadrants", () => {
+  it("flag ON, not production → bypass active", () => {
+    expect(
+      qaBypassActive({ PROCULINK_QA_BYPASS_AUTH: "true", NODE_ENV: "development" }),
+    ).toBe(true);
+  });
+
+  it("flag ON, PRODUCTION → bypass refused", () => {
+    // The quadrant that matters. Everything else here is context for this line.
+    expect(
+      qaBypassActive({ PROCULINK_QA_BYPASS_AUTH: "true", NODE_ENV: "production" }),
+    ).toBe(false);
+  });
+
+  it("flag OFF, not production → bypass refused", () => {
+    expect(
+      qaBypassActive({ PROCULINK_QA_BYPASS_AUTH: "false", NODE_ENV: "development" }),
+    ).toBe(false);
+  });
+
+  it("flag OFF, PRODUCTION → bypass refused", () => {
+    expect(
+      qaBypassActive({ PROCULINK_QA_BYPASS_AUTH: "false", NODE_ENV: "production" }),
+    ).toBe(false);
+  });
+
+  it("an unset flag is not a bypass, in either environment", () => {
+    expect(qaBypassActive({ NODE_ENV: "development" })).toBe(false);
+    expect(qaBypassActive({ NODE_ENV: "production" })).toBe(false);
+    expect(qaBypassActive({})).toBe(false);
+  });
+
+  it.each([["TRUE"], ["True"], ["1"], ["yes"], ["on"], [""], [" true"], ["true "]])(
+    "%o is not the string that turns it on",
+    (value) => {
+      expect(
+        qaBypassActive({ PROCULINK_QA_BYPASS_AUTH: value, NODE_ENV: "development" }),
+      ).toBe(false);
+    },
+  );
+
+  it("treats an unknown NODE_ENV as not-production, as the local QA flow needs", () => {
+    // Documented, not incidental: `bun run dev` with the flag set is the whole
+    // point, and `test` and an absent NODE_ENV must behave the same way.
+    expect(qaBypassActive({ PROCULINK_QA_BYPASS_AUTH: "true", NODE_ENV: "test" })).toBe(true);
+    expect(qaBypassActive({ PROCULINK_QA_BYPASS_AUTH: "true" })).toBe(true);
+  });
+});
+
+describe("the module wires that decision to the guard it replaces", () => {
+  /**
+   * Loads a fresh copy of the middleware module under a given environment.
+   *
+   * Clerk is deliberately left unconfigured so the NOT-bypassed path resolves to
+   * the local fallback (a /sign-in redirect) instead of reaching for the
+   * network — the assertion is about which branch was taken, not about Clerk.
+   */
+  async function loadMiddleware(env: Record<string, string>) {
+    vi.resetModules();
+    vi.stubEnv("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", "");
+    vi.stubEnv("CLERK_SECRET_KEY", "");
+    for (const [key, value] of Object.entries(env)) vi.stubEnv(key, value);
+    const mod = (await import("./middleware")) as {
+      default: (req: NextRequest, event: unknown) => Promise<Response> | Response;
+    };
+    return (pathname: string) => mod.default(documentRequest(pathname), {});
+  }
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
+  it("flag ON, PRODUCTION → a protected route is still bounced to /sign-in", async () => {
+    const run = await loadMiddleware({
+      PROCULINK_QA_BYPASS_AUTH: "true",
+      NODE_ENV: "production",
+    });
+
+    const res = await run("/upload");
+    expect(res.status).toBe(307);
+    expect(new URL(res.headers.get("location")!).pathname).toBe("/sign-in");
+  });
+
+  it("flag ON, not production → the guard is replaced by a pass-through", async () => {
+    const run = await loadMiddleware({
+      PROCULINK_QA_BYPASS_AUTH: "true",
+      NODE_ENV: "development",
+    });
+
+    const res = await run("/upload");
+    expect(res.headers.get("location")).toBeNull();
+    expect(res.headers.get("x-middleware-next")).toBe("1");
+  });
+
+  it("flag OFF, not production → a protected route is bounced to /sign-in", async () => {
+    const run = await loadMiddleware({
+      PROCULINK_QA_BYPASS_AUTH: "false",
+      NODE_ENV: "development",
+    });
+
+    const res = await run("/upload");
+    expect(new URL(res.headers.get("location")!).pathname).toBe("/sign-in");
+  });
+
+  it("flag OFF, PRODUCTION → a protected route is bounced to /sign-in", async () => {
+    const run = await loadMiddleware({
+      PROCULINK_QA_BYPASS_AUTH: "false",
+      NODE_ENV: "production",
+    });
+
+    const res = await run("/upload");
+    expect(new URL(res.headers.get("location")!).pathname).toBe("/sign-in");
+  });
+
+  it("leaves public routes alone whether or not the bypass is on", async () => {
+    const bypassed = await loadMiddleware({
+      PROCULINK_QA_BYPASS_AUTH: "true",
+      NODE_ENV: "development",
+    });
+    expect((await bypassed("/pricing")).headers.get("location")).toBeNull();
+
+    const guarded = await loadMiddleware({
+      PROCULINK_QA_BYPASS_AUTH: "false",
+      NODE_ENV: "production",
+    });
+    expect((await guarded("/pricing")).headers.get("location")).toBeNull();
   });
 });
