@@ -9,9 +9,11 @@
 // as if it were permanent. This test now pins that the tab renders the SERVER'S
 // address, which is what makes rotation and revocation visible at all.
 
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
+const getBillingStatus = vi.fn();
 
 vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams("tab=email"),
@@ -61,12 +63,19 @@ vi.mock("@/lib/api-client", async (importOriginal) => {
       lastPolledAt: null,
       updatedAt: null,
     }),
-    getBillingStatus: vi.fn().mockResolvedValue({ plan: "growth", status: "active" }),
+    getBillingStatus: () => getBillingStatus(),
     apiClient: { ...actual.apiClient, getSuppliers: vi.fn().mockResolvedValue([]) },
   };
 });
 
 import SettingsPage from "./page";
+import { minimumPlanId } from "@/lib/gatedCapabilities";
+import { PLANS } from "@/lib/plans";
+
+// Tiers DERIVED from the registries, never typed: a literal plan name here is how a re-tiered
+// gate keeps passing against stale copy.
+const EMAIL_MINIMUM = minimumPlanId("emailIngestion");
+const PLAN_BELOW = PLANS[PLANS.findIndex((p) => p.id === EMAIL_MINIMUM) - 1];
 
 function renderSettings() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -76,6 +85,11 @@ function renderSettings() {
     </QueryClientProvider>,
   );
 }
+
+beforeEach(() => {
+  // Default: the cheapest plan that really includes email intake, derived from the gate table.
+  getBillingStatus.mockResolvedValue({ plan: EMAIL_MINIMUM, status: "active" });
+});
 
 afterEach(cleanup);
 
@@ -97,5 +111,39 @@ describe("Settings — Email intake tab surfaces the inbound address", () => {
   it("keeps the IMAP polling form on the same tab", async () => {
     renderSettings();
     expect(await screen.findByText("Poll inbox for orders")).toBeInTheDocument();
+  });
+});
+
+describe("Settings — the no-setup import promise is plan-gated", () => {
+  // Hosted inbound mail is gated on the backend at `emailIngestion` while the address is minted
+  // for every org — and a refused message is silent: no bounce, nothing shown in the app. So
+  // "imported automatically" may only render once billing CONFIRMS the plan includes it.
+
+  it("keeps the promise when the plan is confirmed to include email intake", async () => {
+    renderSettings();
+    expect(await screen.findByText(/imported automatically/i)).toBeInTheDocument();
+  });
+
+  it("drops the promise on the tier below the gate and discloses the refusal instead", async () => {
+    getBillingStatus.mockResolvedValue({ plan: PLAN_BELOW.id, status: "active" });
+    renderSettings();
+
+    // The section's own disclosure renders, with the consequence.
+    expect(await screen.findByTestId("inbound-address-plan-gate")).toBeInTheDocument();
+    expect(screen.queryByText(/imported automatically/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/needs no setup/i)).not.toBeInTheDocument();
+    // The address is still shown — it exists; only the promise about it was false.
+    expect(await screen.findByText("a1b2c3d4e5f6@orders.proculink.eu")).toBeInTheDocument();
+  });
+
+  it("makes no automatic-import claim when the billing read failed", async () => {
+    getBillingStatus.mockRejectedValue(new Error("boom"));
+    renderSettings();
+
+    await screen.findByText("a1b2c3d4e5f6@orders.proculink.eu");
+    expect(screen.queryByText(/imported automatically/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/needs no setup/i)).not.toBeInTheDocument();
+    // …and no refusal either: an unread plan is not a plan that excludes it.
+    expect(screen.queryByTestId("inbound-address-plan-gate")).not.toBeInTheDocument();
   });
 });
