@@ -34,13 +34,22 @@
 //                              double announcement gets shipped.
 //   success → role="status" + aria-live="polite"
 //   working → role="status" + aria-live="polite"
+//   warning → role="status" + aria-live="polite"
 //
-// TONES ARE THREE, NOT TWO. "Working" is its own tone rather than a shade of
+// TONES ARE FOUR, NOT TWO. "Working" is its own tone rather than a shade of
 // success: "Trying to send PO-4711 again" is not "PO-4711 was sent", and the
 // screens this replaces had no way to say the first without borrowing the
 // second's colour. Blue is the product's in-progress/informational colour
 // everywhere else (the delivery log's order-filter strip, the review backlog
 // card), so it carries that meaning here too.
+//
+// "Warning" (2026-08-25) is the advisory tone: the message is TRUE and the
+// operator should read it before proceeding, but nothing failed and nothing is
+// blocked. Its first consumer is the review screen's duplicate-PO notice, which
+// must warn without claiming a failure (error) or something in flight (working)
+// — and without wearing green, because "possible duplicate" is not an all-clear.
+// Amber, per §12: tone belongs to this component. Announced politely, not as an
+// alert: interrupting the reader is reserved for an action that did not happen.
 //
 // NO FRACTIONAL OPACITY ANYWHERE IN THIS FILE. `opacity` on a block composites
 // the text and the background together rather than fading the text against it,
@@ -55,9 +64,10 @@ import type { ReactNode } from "react";
  *
  * Deliberately not `"info"`: every use so far is the outcome of something the
  * operator just did, and a tone named for its colour rather than its meaning is
- * how "failure" ends up rendered as "info" by a caller in a hurry.
+ * how "failure" ends up rendered as "info" by a caller in a hurry. `"warning"`
+ * is a meaning, not a colour: true, non-blocking, read it before proceeding.
  */
-export type NoticeTone = "success" | "error" | "working";
+export type NoticeTone = "success" | "error" | "working" | "warning";
 
 interface TonePalette {
   bg: string;
@@ -91,6 +101,16 @@ export const TONE_PALETTE: Record<NoticeTone, TonePalette> = {
     bg: "var(--brand-blue-soft)",
     border: "var(--brand-blue-soft-2)",
     fg: "var(--brand-blue-deep)",
+  },
+  // The amber TEXT token, never `--amber` itself: --amber is the non-text member
+  // of the family (3.65:1 on --amber-soft) and token-contrast.test.ts bans it as
+  // a text colour repo-wide. --amber-text on --amber-soft is the measured 5.62:1
+  // pair that same file pins. --amber stays legal here as the 1px BORDER — a
+  // non-text stroke with a 3:1 floor.
+  warning: {
+    bg: "var(--amber-soft)",
+    border: "var(--amber)",
+    fg: "var(--amber-text)",
   },
 };
 
