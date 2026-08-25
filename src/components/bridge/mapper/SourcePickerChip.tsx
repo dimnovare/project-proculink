@@ -32,8 +32,13 @@ export interface SourcePickerChipProps {
   incomingFields: ReadonlyArray<SourceField>;
   /** Pick an incoming field as the source (host routes to onWireConnect). */
   onPickSource: (sourceId: string) => void;
-  /** Start editing a fixed value for this row. */
-  onPickFixed: () => void;
+  /**
+   * Start editing a fixed value for this row. OPTIONAL, and omitting it hides the
+   * "= Fixed value…" entry rather than rendering a dead one: the editor it opens commits
+   * through the host's fixed-value setter, so a host without that setter would show an
+   * editor whose "Set" button silently did nothing.
+   */
+  onPickFixed?: () => void;
   /** Clear the row's source (disconnect / clear fixed → back to default). */
   onClear: () => void;
   readOnly?: boolean;
@@ -250,15 +255,20 @@ export function SourcePickerChip({
             )}
           </div>
 
-          {/* Footer actions: a fixed value + (when sourced) clear. */}
+          {/* Footer actions: a fixed value + (when sourced) clear. Both are conditional, so
+              the whole strip goes when neither is available rather than leaving a bare rule. */}
+          {(onPickFixed || canClear) && (
           <div style={{ borderTop: "1px solid #EEF0F4", padding: 6, display: "flex", gap: 6, background: "#FBFBFD" }}>
+            {onPickFixed && (
             <button
               type="button"
+              data-testid="pick-fixed-value"
               onClick={() => { onPickFixed(); close(); }}
               style={{ flex: 1, border: "1px solid #C4ABE8", background: "#FFFFFF", color: "#5E3DB0", borderRadius: 6, padding: "5px 8px", fontSize: 10.5, fontWeight: 700, cursor: "pointer" }}
             >
               = Fixed value…
             </button>
+            )}
             {canClear && (
               <button
                 type="button"
@@ -269,6 +279,7 @@ export function SourcePickerChip({
               </button>
             )}
           </div>
+          )}
         </div>,
         document.body,
       )}

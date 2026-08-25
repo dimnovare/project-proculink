@@ -1338,9 +1338,11 @@ function FixedValueOrPicker({
         onClear={onClear}
         compact
       />
+      {/* aria-label matches the order review screen and the output mapping editor, so one
+          locator — and one screen-reader name — covers all three fixed-value inputs. */}
       {usingFixed && (
         <input value={node.rule?.fixedValue ?? ""} onChange={(e) => onChangeFixed(e.target.value)}
-          placeholder="value" aria-label="Fixed value"
+          placeholder="value" aria-label={`Fixed value for ${node.name}`}
           style={{ width: 110, height: 26, border: `1px solid ${BORDER}`, borderRadius: 6, padding: "0 8px", fontSize: 12, fontFamily: MONO }} />
       )}
     </span>

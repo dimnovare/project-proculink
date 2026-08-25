@@ -95,3 +95,78 @@ describe("OutgoingPane — anti-vacuity: a HEADER field must still land in the h
     expect(next.output?.lines?.Currency).toBeUndefined();
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// THE SAME EDITOR, REACHED THE OTHER WAY: the picker's "= Fixed value…" footer.
+//
+// `commitFixedEdit` calls `onSetFixedValue?.()` — optional chaining. The row chip that opens
+// the editor in "wires" mode is gated on that prop being present, and so is the fixed-chip's
+// own edit affordance. The PICKER footer was not: it was handed `startFixedEdit`
+// unconditionally, so a host that switched picker mode on without wiring the setter would
+// render a working-looking editor whose "Set" button did nothing at all and reported nothing.
+// Nothing ships in that state today, which is exactly why it was worth closing before one does.
+//
+// These drive the real portalled picker, not a stub, and the `pick-fixed-value` locator they
+// use is the shared one: the two source pickers put it on their footer entry and the row chip
+// puts it on "= value", so one selector reaches the control on all three fixed-value surfaces.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Render the pane in picker mode for one field and open the source picker's dropdown. */
+function openPicker(onSetFixedValue?: OutgoingPaneProps["onSetFixedValue"]) {
+  const props: OutgoingPaneProps = {
+    variant: "order",
+    targetFields: [QUANTITY],
+    statusInput: STATUS_INPUT,
+    mappingMode: "picker",
+    incomingFields: [],
+    onPickSource: vi.fn(),
+    onSetFixedValue,
+  };
+  const view = render(<OutgoingPane {...props} />);
+  // The trigger's accessible name is its CURRENT binding ("Auto (1:1)" for Quantity, "pick a
+  // field" when unsourced), so it is matched by its listbox role relationship instead.
+  const triggers = view.container.querySelectorAll<HTMLButtonElement>('button[aria-haspopup="listbox"]');
+  expect(triggers).toHaveLength(1);
+  fireEvent.click(triggers[0]);
+  return view;
+}
+
+describe("OutgoingPane — the picker's fixed-value entry is gated on the host being able to save", () => {
+  it("does not offer it when the host passes no onSetFixedValue", () => {
+    openPicker(undefined);
+    // The dropdown itself must still be open — otherwise this passes for the wrong reason.
+    expect(screen.getByRole("listbox", { name: `Source for ${QUANTITY.outputPath}` })).toBeTruthy();
+    expect(screen.queryByTestId("pick-fixed-value")).toBeNull();
+  });
+
+  it("offers it, and the editor it opens really commits, when the host does", () => {
+    // Anti-vacuity for the test above: "never render the entry" would satisfy it and remove a
+    // working feature from the order review screen.
+    const onSetFixedValue = vi.fn();
+    openPicker(onSetFixedValue);
+
+    fireEvent.click(screen.getByTestId("pick-fixed-value"));
+    const input = screen.getByLabelText(`Fixed value for ${QUANTITY.outputPath}`);
+    fireEvent.change(input, { target: { value: "12" } });
+    fireEvent.click(screen.getByRole("button", { name: "Set" }));
+
+    expect(onSetFixedValue).toHaveBeenCalledWith(QUANTITY.outputPath, "12", QUANTITY.scope);
+  });
+});
+
+describe("OutgoingPane — the shared fixed-value locator is on the wires-mode chip too", () => {
+  it("finds the row's '= value' chip by the same test id the pickers use", () => {
+    // "wires" is the default and what /inbox/[orderId] renders, so a cross-surface script that
+    // only knew the picker footer would find nothing on the screen operators actually use.
+    const { container } = render(
+      <OutgoingPane
+        variant="order"
+        targetFields={[QUANTITY]}
+        statusInput={STATUS_INPUT}
+        onSetFixedValue={vi.fn()}
+      />,
+    );
+    const row = within(container).getByText(QUANTITY.label!).closest("[data-mapper-row]") as HTMLElement;
+    expect(within(row).getByTestId("pick-fixed-value").textContent).toContain("= value");
+  });
+});
