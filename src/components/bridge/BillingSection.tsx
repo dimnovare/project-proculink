@@ -78,8 +78,10 @@ function CheckoutFailure({ error }: { error: unknown }) {
 }
 
 // Derived annual save-% for the upgrade toggle (uniform across the paid ladder
-// today; sourced from plans.ts so it self-corrects with the Stripe-verified
-// amounts — see TODO-verify-stripe-amounts there).
+// today; sourced from plans.ts so it self-corrects if a yearly amount is ever
+// repriced — see the annual-billing note above ANNUAL_BILLING_ENABLED there,
+// which records that `priceYearly` now holds the actual live Stripe yearly list
+// prices).
 const ANNUAL_SAVE_PERCENT = yearlySavePercent(PLAN_BY_ID.growth);
 
 // Plan presentation is derived from the shared plan ladder (src/lib/plans.ts)
@@ -287,6 +289,20 @@ function upgradeSentence(plan: BillingPlan, outcome: string): string {
 // ProcessingPausedBanner above. This comment used to read "Paid plans are NEVER
 // blocked", which contradicted StripeBillingService's own comment and left a
 // declined card entirely unreported.
+//
+// ── Why the second arm below is kept even though nothing can reach it ────────
+// On a Pilot org the server derives the two flags from the SAME number
+// (StripeBillingService.GetStatusAsync):
+//     isTrialExpired      = pilot && (now > trialEndsAt || ordersUsed >= pilotOrderCap)
+//     isOrderLimitReached = ordersUsed >= orderLimit
+// and for a Pilot org `orderLimit` and `pilotOrderCap` are the same call —
+// `GetEffectiveOrderLimit(pilot, org.OrderLimitOverride)` — so `isOrderLimitReached`
+// on Pilot IMPLIES `isTrialExpired`, and the first arm always claims the workspace.
+// Deleting the second arm anyway would open a hole rather than close one:
+// `pilotLimitBannerCovers` hands that payload to LimitBanner and sends
+// ProcessingPausedBanner away, so a paused workspace would get NO banner instead of
+// exactly one — the failure the two guards are written in lock-step to prevent. It
+// stays, and it states the effective allowance rather than a plan-default literal.
 function LimitBanner({ status }: { status: BillingStatus }) {
   // Mirror of the guard in pilotLimitBannerCovers above. Both arms below are Pilot-shaped and
   // would speak over a subscription-level cause that ProcessingPausedBanner states correctly.
@@ -301,10 +317,17 @@ function LimitBanner({ status }: { status: BillingStatus }) {
     );
   }
 
+  // The order-cap arm. No payload the server can build reaches it today, and it is kept
+  // deliberately rather than deleted — see the note above `LimitBanner`. The allowance it
+  // prints is `status.orderLimit`, the EFFECTIVE limit the server already computed
+  // (`admin override ?? plan default`), never `PLAN_BY_ID.pilot.orderLimit`. It used to
+  // print the plan default, which is wrong in exactly the case that would make this arm
+  // reachable at all: a per-org override moves the cap AND the trigger together, so an org
+  // granted 100 Pilot orders would have been told it had used all 20.
   if (status.plan === "pilot" && status.isOrderLimitReached) {
     return (
       <div style={bannerStyle}>
-        <strong>You&apos;ve used all {PLAN_BY_ID.pilot.orderLimit} Pilot orders.</strong>
+        <strong>You&apos;ve used all {status.orderLimit.toLocaleString()} Pilot orders.</strong>
         <span>{upgradeSentence(status.plan, "continue processing new orders")}</span>
       </div>
     );

@@ -89,10 +89,12 @@ describe("recommendPlanByOrders (cost-optimal)", () => {
   });
 });
 
-// Yearly billing (batch 8 FE). The yearly amounts are PLACEHOLDERS —
-// floor(monthly × 12 × 0.83) — pending Stripe verification
-// (TODO-verify-stripe-amounts in plans.ts). These tests pin the derivation,
-// not the final Stripe truth.
+// Yearly billing (batch 8 FE). The yearly amounts are no longer provisional: the
+// annual-billing note above ANNUAL_BILLING_ENABLED in plans.ts records that
+// `priceYearly` now holds the ACTUAL live Stripe yearly list prices, each of them
+// the monthly price × 12 less ~17%. These tests pin those amounts and the shape of
+// the ladder around them; the advertised save-% stays derived (yearlySavePercent),
+// never typed, so it self-corrects if an amount is ever repriced.
 describe("yearly pricing", () => {
   it("every self-serve checkout plan has a yearly price; Pilot/Enterprise have none", () => {
     for (const id of CHECKOUT_PLAN_IDS) {
@@ -102,7 +104,7 @@ describe("yearly pricing", () => {
     expect(PLAN_BY_ID.enterprise.priceYearly).toBeNull();
   });
 
-  it("placeholder yearly amounts equal floor(monthly × 12 × 0.83)", () => {
+  it("the live Stripe yearly amounts equal floor(monthly × 12 × 0.83)", () => {
     expect(PLAN_BY_ID.growth.priceYearly).toBe(1488);       // Stripe-verified
     expect(PLAN_BY_ID.operations.priceYearly).toBe(3972);   // Stripe-verified
     expect(PLAN_BY_ID.integration.priceYearly).toBe(9948);  // Stripe-verified

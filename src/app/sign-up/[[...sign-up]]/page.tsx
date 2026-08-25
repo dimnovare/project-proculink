@@ -1,6 +1,15 @@
 import { SignUp } from "@clerk/nextjs";
 import { AuthShell, AuthHeading, clerkAppearance } from "@/components/auth/AuthSurface";
 import { ClerkAvailabilityGate } from "@/components/bridge/ClerkAvailabilityGate";
+import { PLAN_BY_ID } from "@/lib/plans";
+
+/* The trial allowance in the sub-heading is read off the ladder, not typed. It is the
+   first promise a new buyer reads, and it is made on a screen that no pricing change
+   would ever bring anyone back to — so a Pilot re-sized in plans.ts would have kept
+   selling the old number here. `priceCadence` is Pilot's price sub-label and, for the
+   trial tier, it IS the trial window ("14 days"). The rendered sentence is unchanged. */
+const PILOT = PLAN_BY_ID.pilot;
+const PILOT_TRIAL_OFFER = `No credit card. ${PILOT.orderLimit} orders free for ${PILOT.priceCadence}.`;
 
 /* The shell, the brand panel and the Clerk appearance object live in
    @/components/auth/AuthSurface and are shared with /sign-in — which is how the
@@ -38,7 +47,7 @@ export default function SignUpPage() {
     // every marketing "Start for free" call to action does.
     <ClerkAvailabilityGate surface="auth">
       <AuthShell>
-        <AuthHeading title="Start for free" sub="No credit card. 20 orders free for 14 days." />
+        <AuthHeading title="Start for free" sub={PILOT_TRIAL_OFFER} />
         <SignUp
           appearance={clerkAppearance}
           fallbackRedirectUrl="/onboarding/select-organization"
