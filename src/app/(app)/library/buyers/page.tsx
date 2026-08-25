@@ -13,6 +13,7 @@ import { Card } from "@/components/bridge/layout/Card";
 import { MobileListRow } from "@/components/bridge/layout/MobileListRow";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { useConfirm } from "@/components/ui/confirm";
+import { useOrderDirection, buyerDescription } from "@/hooks/useOrderDirection";
 
 // Residual constants without a 1:1 design token — kept as literals.
 // CODE_GREY (#9196A5) — buyer short-code mono; no exact token.
@@ -108,6 +109,13 @@ function SkeletonCard() {
 export default function BuyersPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
+
+  // What a "buyer" IS depends on which way this workspace sends orders, and this
+  // page used to state only the inbound answer. isDirectionKnown gates the
+  // qualifying clause: an unread setting is not an answer to hand a user as a
+  // definition (see useOrderDirection).
+  const { direction, isDirectionKnown } = useOrderDirection();
+  const buyerCopy = buyerDescription(isDirectionKnown ? direction : null);
 
   const [addOpen, setAddOpen]   = useState(false);
   const [addName, setAddName]   = useState("");
@@ -239,7 +247,7 @@ export default function BuyersPage() {
                   New buyer
                 </h2>
                 <p className="mt-0.5 text-[12.5px] leading-5" style={{ color: "var(--ink-muted)" }}>
-                  A buyer that sends you purchase orders
+                  {buyerCopy.short}
                 </p>
               </div>
             </div>
@@ -769,7 +777,7 @@ export default function BuyersPage() {
         {showRows && buyers.length === 0 && (
           <EmptyState
             title="No buyers yet"
-            sub="A buyer is an organization that sends you purchase orders, in whatever format they use."
+            sub={buyerCopy.long}
             action={{ label: "New buyer", onClick: () => setAddOpen(true) }}
           />
         )}

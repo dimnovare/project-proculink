@@ -59,16 +59,23 @@ export function ConnectionsList() {
 
   return (
     <PageShell variant="wide">
-      {/* titleHidden: the topbar hub tab is the page name (sr-only h1 kept); the
-          descriptive subtitle was title-filler and is dropped — the action
-          button stays. The h1 has to BE the tab word, because for a screen
-          reader it is the only name this page has: the tab said "Changes" and
-          was hidden, so the visible name and the announced name were two
-          different words and neither was reachable. Both are "Supplier changes"
-          now (HubTabs.tsx, suppliers hub). */}
+      {/* titleHidden: the topbar hub tab is the page name (sr-only h1 kept). The
+          h1 has to BE the tab word, because for a screen reader it is the only
+          name this page has: the tab said "Changes" and was hidden, so the
+          visible name and the announced name were two different words and
+          neither was reachable. Both are "Supplier changes" now (HubTabs.tsx,
+          suppliers hub).
+
+          The subtitle is back, and it is not filler. With the h1 sr-only, a
+          SIGHTED user arriving from the "Supplier changes" tab saw no heading at
+          all and every string on the page said "connections" instead — one word
+          in the nav, another on the destination. This line is where the two
+          words are introduced together, so the row entity has a name the user
+          has actually been shown. */}
       <PageHeader
         titleHidden
         title="Supplier changes"
+        sub="Supplier changes are versioned: each supplier's mapping, output and delivery settings are saved together as a connection you can publish or roll back."
         actions={
           <Button variant="secondary" size="md" onClick={() => router.push("/library/suppliers")}>
             Manage suppliers
@@ -77,7 +84,7 @@ export function ConnectionsList() {
       />
 
       {isLoading && (
-        <div className="flex flex-col gap-2.5" aria-busy="true" aria-label="Loading connections">
+        <div className="flex flex-col gap-2.5" aria-busy="true" aria-label="Loading supplier changes">
           {[1, 2, 3].map((i) => (
             <div
               key={i}
@@ -91,7 +98,7 @@ export function ConnectionsList() {
       {!isLoading && isError && (
         <Card className="flex flex-col items-center justify-center gap-3 text-center" >
           <p className="text-[13px] font-semibold" style={{ color: "var(--danger)" }}>
-            Could not load connections
+            Could not load supplier changes
           </p>
           <p className="text-[12px]" style={{ color: "var(--ink-muted)" }}>
             Check the API connection and try again.
@@ -105,11 +112,11 @@ export function ConnectionsList() {
       {!isLoading && !isError && connections.length === 0 && (
         <Card className="flex items-center justify-center min-h-[360px]">
           <EmptyState
-            title="No connections yet"
+            title="No supplier changes yet"
             sub={
               isApiMockMode
-                ? "Connections appear here once a supplier integration exists."
-                : "A connection is created the first time you configure a supplier. Add a supplier and set up its mapping, output and delivery — it becomes a versioned connection you can publish and roll back."
+                ? "Supplier changes appear here once a supplier integration exists."
+                : "A supplier's mapping, output and delivery settings are saved together as a connection. Add a supplier and set one up — each version you publish shows here as a change you can review or roll back."
             }
             action={{ label: "Go to Suppliers", onClick: () => router.push("/library/suppliers") }}
           />
