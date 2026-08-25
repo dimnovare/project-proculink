@@ -787,7 +787,12 @@ function OutgoingRow({
               status={status}
               incomingFields={incomingFields ?? []}
               onPickSource={(sourceId) => onPickSource(field.outputPath, sourceId)}
-              onPickFixed={startFixedEdit}
+              // Gated on the host prop for the same reason `onEditFixed` is on the line
+              // below, and the same reason the "= value" chip is: `commitFixedEdit` calls
+              // `onSetFixedValue?.()`, so a host that turns picker mode on WITHOUT wiring
+              // the setter would open a working-looking editor whose "Set" silently did
+              // nothing. Undefined here hides the picker's fixed-value entry instead.
+              onPickFixed={onSetFixedValue ? startFixedEdit : undefined}
               onClear={() => {
                 if (wired) onDisconnect?.(field.outputPath);
                 else if (status.kind === "fixed") onSetFixedValue?.(field.outputPath, null, field.scope);
@@ -813,13 +818,14 @@ function OutgoingRow({
           {!readOnly && !pickerMode && !wired && status.kind !== "fixed" && (
             onSetFixedValue ? (
               <RowChipButton
+                testId="pick-fixed-value"
                 label="= value"
                 title="Set a fixed value to send for this field"
                 lit={actionsLit}
                 onClick={(e) => { e.stopPropagation(); startFixedEdit(); }}
               />
             ) : (
-              <RowChipButton label="= value" lit={actionsLit} disabled reason="Fixed values need an editable mapping" />
+              <RowChipButton testId="pick-fixed-value" label="= value" lit={actionsLit} disabled reason="Fixed values need an editable mapping" />
             )
           )}
 
@@ -1116,7 +1122,7 @@ function NeedsValueTag() {
 
 // ── Small inline row-action chip (fixed value / transform) ────────────────────
 function RowChipButton({
-  label, title, onClick, lit, active, disabled, reason, buttonRef,
+  label, title, onClick, lit, active, disabled, reason, buttonRef, testId,
 }: {
   label: string;
   title?: string;
@@ -1128,11 +1134,19 @@ function RowChipButton({
   reason?: string;
   /** Receives the underlying <button> element — used to anchor the portaled transform popover. */
   buttonRef?: (el: HTMLButtonElement | null) => void;
+  /**
+   * Shared cross-surface hook. The fixed-value chip carries "pick-fixed-value", the same
+   * value the two source pickers put on their "= Fixed value…" footer entry, so one
+   * locator reaches the control on the order review screen, the output mapping editor and
+   * the output structure designer alike.
+   */
+  testId?: string;
 }) {
   const isDisabled = disabled || !onClick;
   return (
     <button
       ref={buttonRef}
+      data-testid={testId}
       type="button"
       onClick={onClick}
       disabled={isDisabled}

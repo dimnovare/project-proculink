@@ -510,6 +510,7 @@ export function OutputSourcePicker({
           <div style={{ borderTop: "1px solid #EEF0F4", padding: 6, display: "flex", gap: 6, background: "#FBFBFD" }}>
             <button
               type="button"
+              data-testid="pick-fixed-value"
               onClick={() => { onPickFixed(); close(); }}
               style={{ flex: 1, border: "1px solid #C4ABE8", background: "#FFFFFF", color: "#5E3DB0", borderRadius: 6, padding: "5px 8px", fontSize: 10.5, fontWeight: 700, cursor: "pointer" }}
             >

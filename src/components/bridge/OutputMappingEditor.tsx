@@ -202,7 +202,10 @@ function RuleRow({ row, sources, sourceTokens, deliveredFormat, onChange, onRemo
             value={rule.fixedValue ?? ""}
             onChange={(e) => onChange({ fixedValue: e.target.value })}
             placeholder="fixed value"
-            aria-label="Fixed value"
+            // Same shape as the order review screen's inline editor and the output
+            // structure designer, so one locator — and one screen-reader name — covers
+            // all three fixed-value inputs. The fallback matches the picker's above.
+            aria-label={`Fixed value for ${rule.outputPath || "this field"}`}
             style={{ ...inputStyle, flex: "1 1 110px", minWidth: 90 }}
           />
         )}

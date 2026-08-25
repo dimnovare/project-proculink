@@ -2941,23 +2941,17 @@ const _mockAsns: AsnDto[] = [
   { id: "asn-002", supplierId: null, supplierName: "GlobalComponents", asnNumber: "ASN-2026-002", shipDate: "2026-05-20", packageCount: 1, status: "pending",  createdAt: new Date().toISOString() },
 ];
 
+// Read-only on purpose. There is no `uploadAsn` here because there is nothing for it
+// to call: the backend's `DesadvController` answers `POST /api/asns/upload` with 501
+// (the EDI DESADV path needs a commercial licence we do not hold), and `/inbound/asns`
+// deliberately renders no upload control. A client wrapper for a 501 is a promise the
+// product cannot keep — one existed, unreferenced, until 2026-08-25. If the backend
+// starts accepting ASN uploads, add the wrapper back together with the UI that uses it.
 export async function getAsns(): Promise<AsnDto[]> {
   if (USE_MOCK) { await delay(400); return [..._mockAsns]; }
   const headers = await authHeader();
   const res = await fetchWithTimeout(`${API_BASE_URL}/api/asns`, { headers });
   if (!res.ok) throw new Error(`asns: ${res.status}`);
-  return res.json();
-}
-
-export async function uploadAsn(file: File, supplierId?: string): Promise<AsnDto> {
-  const headers = await authHeader();
-  const form = new FormData();
-  form.append("file", file);
-  const url = supplierId
-    ? `${API_BASE_URL}/api/asns/upload?supplierId=${supplierId}`
-    : `${API_BASE_URL}/api/asns/upload`;
-  const res = await fetchWithTimeout(url, { method: "POST", headers, body: form }, 60000);
-  if (!res.ok) { const b = await res.json().catch(() => null); throw new Error(b?.error ?? `asns upload: ${res.status}`); }
   return res.json();
 }
 

@@ -21,9 +21,9 @@
 //     channel was sending complete purchase orders out through it.
 //   • Do not claim certifications or contract terms we do not have.
 //
-// WHICH LOCATIONS ARE SOURCED, AND WHICH ARE NOT (checked 2026-07-31).
+// WHERE EACH LOCATION CLAIM COMES FROM (last updated 2026-08-25).
 // The backend's docs/qa/2026-07-30-residency-ground-truth.md marked six of these
-// locations UNSOURCED. Two of the six can now be closed from a PUBLIC, repeatable
+// locations UNSOURCED. Two of the six were closed 2026-07-31 from a PUBLIC, repeatable
 // source — the production CSP response header, which src/lib/security/csp.ts
 // derives from the live NEXT_PUBLIC_SENTRY_DSN and NEXT_PUBLIC_POSTHOG_HOST:
 //
@@ -49,27 +49,34 @@
 // same default is in analytics.ts, so the browser goes to EU either way) but it is
 // weaker than "an override is ruled out". Read the two dashboards to finish these.
 //
-// STILL UNSOURCED — do not strengthen, and do not soften into a different guess:
-//   ✗ Railway "EU region"       (U1) — no region is pinned in ANY committed file in
-//                                      either repo; it is a dashboard-only setting.
-//                                      `x-railway-edge: ams1` on api.proculink.eu is
-//                                      NOT evidence: that header names the edge PoP
-//                                      nearest the CLIENT, not the deploy region.
-//   ✗ Neon    "EU region"       (U5) — no Neon hostname exists in either repo.
-//   ✗ Cloudflare "EU-region bucket" (U3) — R2Endpoint is "" in committed config, the
-//                                      app never creates a bucket, and zero hits for
-//                                      jurisdiction/locationHint. Note that even a
-//                                      confirmed LOCATION HINT would not license this
-//                                      wording: Cloudflare's own docs call hints
-//                                      "best effort and not a guarantee" and only a
-//                                      jurisdictional restriction is a residency
-//                                      control.
-// These three are left as they are ON PURPOSE. They are unsourced, not established
-// false — unlike the claims corrected in this pass, which code contradicts outright.
-// Retracting a probably-true residency claim across the whole site is a commercial
-// decision, and each is settled by ONE dashboard read: Cloudflare → R2 → bucket
-// `proculink` → Jurisdiction; Railway → service → Settings → Region (BOTH services);
-// Neon → Project → region label. Do those three, then write what they say.
+// THE OTHER THREE ARE NOW SOURCED TOO — the dashboard reads this header used to ask for
+// were done, and one of them changed the stack rather than merely recording it:
+//   ✔ Cloudflare "EU-region bucket" (was U3) — the storage was MIGRATED to an
+//                                      EU-jurisdiction R2 bucket on 2026-08-16: 46 of
+//                                      46 objects copied and ETag-verified, and both the
+//                                      API and the Worker repointed at it. That is a
+//                                      jurisdictional restriction, which is exactly what
+//                                      the note above says this wording requires — not a
+//                                      location hint, which would not have licensed it.
+//   ✔ Neon    "EU region"       (was U5) — the project region reads eu-central-1.
+//   ✔ Railway "EU region"       (was U1) — the service region reads EU. Note the old
+//                                      warning still holds for anyone re-checking:
+//                                      `x-railway-edge: ams1` on api.proculink.eu is NOT
+//                                      the evidence — that header names the edge PoP
+//                                      nearest the CLIENT. Read Settings → Region.
+// Re-verified 2026-08-25: the sixth audit raised these three location strings as a P1
+// ("residency labels contradict recorded facts") and its verifier REFUTED the finding —
+// the finder was reading the pre-migration record. See
+// docs/reports/2026-08-25-final-release-decision.md.
+//
+// So every location string below is sourced, and the three above are TRUE as written.
+// Do NOT retract them, and do not re-add an "unsourced" marker to them without doing the
+// reads again yourself. This header kept its stale UNSOURCED warning for nine days after
+// the reads were done, and a warning like that is a standing instruction to some future
+// session to delete true public copy. The rule that produced it is unchanged and still
+// binds anything added LATER: write what a vendor dashboard says, never what the stack
+// implies. The reads are Cloudflare → R2 → bucket → Jurisdiction; Railway → service →
+// Settings → Region (BOTH services); Neon → Project → region label.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface Subprocessor {
