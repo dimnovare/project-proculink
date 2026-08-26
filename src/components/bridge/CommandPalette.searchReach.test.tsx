@@ -56,6 +56,15 @@ vi.mock("@/lib/api-client", () => ({
   isApiMockMode: false,
 }));
 
+// The palette's ["orders"] query is gated on useTenantQueriesEnabled, like every other
+// tenant-scoped query in the shell. This suite is about SEARCH REACH, not about the
+// organisation-activation window, so the gate is mocked open — which is what a real
+// signed-in workspace with an active organisation returns.
+vi.mock("@/hooks/useQueriesEnabled", () => ({
+  useQueriesEnabled: () => true,
+  useTenantQueriesEnabled: () => true,
+}));
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
 }));
