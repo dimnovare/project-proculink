@@ -45,7 +45,7 @@ vi.mock("@/lib/api-client", () => ({
   },
 }));
 
-vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true }));
+vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true, useTenantQueriesEnabled: () => true }));
 vi.mock("@/hooks/useSampleOrder", () => ({
   useSampleOrder: () => ({ runSample: vi.fn(), isPending: false, error: null }),
 }));

@@ -66,7 +66,7 @@ vi.mock("@/lib/api-client", () => ({
   ApiHttpError: FakeApiHttpError,
 }));
 
-vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true }));
+vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true, useTenantQueriesEnabled: () => true }));
 
 import { HistoryContent } from "./HistoryDrawer";
 import { ConnectionNotice, NOTICE_TONE_STYLE } from "./ConnectionLifecycleUI";

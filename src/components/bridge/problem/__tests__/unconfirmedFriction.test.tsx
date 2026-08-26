@@ -47,7 +47,7 @@ vi.mock("@/lib/api-client", () => ({
   getOpsHealth: vi.fn().mockResolvedValue({ workerHealthy: true }),
 }));
 
-vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true }));
+vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true, useTenantQueriesEnabled: () => true }));
 
 import { OrderProblemPanel } from "../OrderProblemPanel";
 import { isBulkSelectable } from "../../inboxSend";

@@ -38,7 +38,7 @@ import type { ReactNode } from "react";
 // override. The constant is the fallback for a server that predates the field.
 // ─────────────────────────────────────────────────────────────────────────────
 
-vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true }));
+vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true, useTenantQueriesEnabled: () => true }));
 
 vi.mock("@/lib/api-client", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api-client")>();

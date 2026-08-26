@@ -39,7 +39,7 @@ vi.mock("@/lib/api-client", () => ({
   getOpsHealth: vi.fn().mockResolvedValue({ workerHealthy: true }),
 }));
 
-vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true }));
+vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true, useTenantQueriesEnabled: () => true }));
 
 // The panel under test moved: FailedPanel(stage="delivery") was retired into the
 // one OrderProblemPanel (WP-24), which reads its copy from PROBLEM_COPY and its

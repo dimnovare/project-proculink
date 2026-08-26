@@ -49,6 +49,9 @@ vi.mock("@/lib/api-client", () => ({
   checkAdminAccess: vi.fn().mockResolvedValue(false),
   getBuyers: vi.fn().mockResolvedValue([]),
   isApiMockMode: false,
+  // The real useQueriesEnabled reads both build flags, and the bell now sits
+  // behind it via useTenantQueriesEnabled.
+  isQaBypass: false,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -58,6 +61,9 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("@clerk/nextjs", () => ({
+  // The bell's two queries are gated on useTenantQueriesEnabled now, which reads
+  // useAuth().orgId — an active organisation, matching useOrganization below.
+  useAuth: () => ({ isLoaded: true, isSignedIn: true, orgId: "org_1", userId: "user_1" }),
   useOrganization: () => ({ organization: { id: "org_1", name: "Acme" }, membership: { role: "org:admin" } }),
   useOrganizationList: () => ({ isLoaded: true, setActive: vi.fn(), userMemberships: { data: [], isLoading: false, isFetching: false, hasNextPage: false, fetchNext: vi.fn() } }),
   useClerk: () => ({ openCreateOrganization: vi.fn(), openUserProfile: vi.fn(), signOut: vi.fn() }),

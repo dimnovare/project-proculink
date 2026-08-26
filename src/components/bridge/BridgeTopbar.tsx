@@ -10,7 +10,7 @@ import { apiClient, checkAdminAccess, getBillingStatus, isApiMockMode } from "@/
 import { guideSeenKey, matchGuide } from "@/lib/section-guides";
 import { planDisplayName } from "@/lib/plans";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
-import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
+import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { useOrganization } from "@clerk/nextjs";
 import type { Order, OrderSummary, Supplier } from "@/types/procurement";
 import { buildCrumbTrail, formatCrumbLabel, isLonePageCrumb, truncateLabel, type Crumb, type CrumbContext } from "./breadcrumb";
@@ -400,16 +400,28 @@ export function NotificationsBell() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
+  // The bell rides in the topbar, so it mounts on the FIRST paint of every
+  // session — including the window where a brand-new organisation's token has no
+  // org claim yet. Both queries below share their keys with the dashboard and the
+  // nav badge, and TanStack Query enables a query if ANY observer enables it, so
+  // an ungated observer here would have kept firing /api/orders and
+  // /api/orders/summary into that window no matter what its siblings said. The
+  // orders query kept `!isApiMockMode` beside the gate: that flag answers "is
+  // there a real backend to call?", never "do we have a tenant to call it for?",
+  // and the summary query had no gate at all.
+  const queryEnabled = useTenantQueriesEnabled();
+
   const { data: ordersPage, isLoading: ordersLoading, isError: ordersError } = useQuery({
     queryKey: ["orders"],
     queryFn: () => apiClient.getOrders({ pageSize: NOTIF_SCAN_PAGE_SIZE }),
-    enabled: !isApiMockMode,
+    enabled: queryEnabled && !isApiMockMode,
     staleTime: 30_000,
   });
 
   const { data: ordersSummary, isLoading: summaryLoading, isError: summaryError } = useQuery({
     queryKey: ["orders-summary"],
     queryFn: () => apiClient.getOrdersSummary(),
+    enabled: queryEnabled,
     staleTime: 30_000,
   });
 
@@ -639,7 +651,7 @@ function TopNavLink({
  */
 function useTopNav() {
   const pathname = usePathname();
-  const queryEnabled = useQueriesEnabled();
+  const queryEnabled = useTenantQueriesEnabled();
   const { labels } = useOrderDirection();
 
   const { data: adminAccess } = useQuery({
@@ -680,7 +692,7 @@ function useTopNav() {
 
 /** Live workspace name + billing plan for the compact OrgSwitcher. */
 function useWorkspaceCardData() {
-  const queryEnabled = useQueriesEnabled();
+  const queryEnabled = useTenantQueriesEnabled();
   const { organization } = useOrganization();
   const { data: billing } = useQuery({
     queryKey: ["billing-status"],

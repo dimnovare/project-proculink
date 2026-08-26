@@ -14,7 +14,7 @@ import { apiClient, getBillingStatus, checkAdminAccess } from "@/lib/api-client"
 import { SIDEBAR_AUTO_COLLAPSE_EVENT } from "@/lib/sidebar-auto-collapse";
 import { planDisplayName } from "@/lib/plans";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
-import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
+import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { ProcuLinkMark } from "./DSPrimitives";
 import { hubForPath, visibleHubTabs, type HubKey } from "./layout/HubTabs";
 import { OrgSwitcher } from "./OrgSwitcher";
@@ -197,7 +197,7 @@ export function BridgeSidebar({
   // <1440px). Session-only — never persisted; the requester restores it on exit.
   const [autoCollapsed, setAutoCollapsed] = useState(false);
   const { organization } = useOrganization();
-  const queryEnabled = useQueriesEnabled();
+  const queryEnabled = useTenantQueriesEnabled();
   // Direction-aware nav: "Suppliers" → "Customers" in inbound mode (route unchanged).
   const { labels } = useOrderDirection();
   // Admin-link visibility probe (UX hint only; the page + API re-gate server-side).

@@ -43,7 +43,7 @@ import { REVIEW_STATUS, reviewNeedLine } from "./rowNextStep";
 // FAILED_STATUSES below for the defect that costs.
 import { FAILURE_STATUSES, PARKED_STATUSES } from "@/lib/orderStatusManifest";
 import { apiClient, isApiMockMode } from "@/lib/api-client";
-import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
+import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 import type { OrderStatus, OrderSummary, Supplier } from "@/types/procurement";
@@ -687,8 +687,12 @@ export function BridgeDashboard() {
   // Gate all data queries on auth readiness to prevent the cold-mount 401 race:
   // on a hard refresh, queries fire before the Clerk token is ready → 401 →
   // TanStack Query parks them (fetchStatus 'paused'), leaving the dashboard empty.
-  // useQueriesEnabled() resolves true for mock mode, QA-bypass, AND signed-in Clerk.
-  const queryEnabled = useQueriesEnabled();
+  // useTenantQueriesEnabled() resolves true for mock mode, QA-bypass, and a
+  // signed-in Clerk user WHOSE ORGANISATION IS RESOLVABLE. That last clause is
+  // what keeps a brand-new workspace's first paint off the wire: this is the
+  // screen the org gate lands on, so these are the queries that used to fire
+  // before setActive attached the org claim and take a 500 apiece.
+  const queryEnabled = useTenantQueriesEnabled();
 
   // Shared onboarding-status query (same cache the checklist + wizard read).
   const { data: onboardingStatus } = useOnboardingStatus();

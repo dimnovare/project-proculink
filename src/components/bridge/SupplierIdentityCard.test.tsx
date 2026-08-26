@@ -26,7 +26,7 @@ vi.mock("@/lib/api-client", () => ({
   },
 }));
 
-vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true }));
+vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true, useTenantQueriesEnabled: () => true }));
 vi.mock("@/hooks/useOrderDirection", () => ({
   useOrderDirection: () => ({
     direction: "outbound",
