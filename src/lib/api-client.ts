@@ -2941,12 +2941,18 @@ const _mockAsns: AsnDto[] = [
   { id: "asn-002", supplierId: null, supplierName: "GlobalComponents", asnNumber: "ASN-2026-002", shipDate: "2026-05-20", packageCount: 1, status: "pending",  createdAt: new Date().toISOString() },
 ];
 
-// Read-only on purpose. There is no `uploadAsn` here because there is nothing for it
-// to call: the backend's `DesadvController` answers `POST /api/asns/upload` with 501
-// (the EDI DESADV path needs a commercial licence we do not hold), and `/inbound/asns`
-// deliberately renders no upload control. A client wrapper for a 501 is a promise the
-// product cannot keep — one existed, unreferenced, until 2026-08-25. If the backend
-// starts accepting ASN uploads, add the wrapper back together with the UI that uses it.
+// Read-only on purpose. There is no `uploadAsn` here because there is no endpoint left for
+// it to call: `POST /api/asns/upload` was deleted from the backend's `DesadvController` on
+// 2026-08-26 (ProcuLink PR 256), together with `GET /api/asns/{id}`. The route no longer
+// exists at all — it 404s; it does not answer 501. It used to refuse with 501 because full
+// EDIFACT DESADV parsing needs a commercial EDI licence we do not hold, and once the
+// exported-but-unreferenced `uploadAsn` client was removed here on 2026-08-25 the endpoint
+// had no caller in either repository, which is what the backend's endpoint reachability
+// guard then failed on. `GET /api/asns` is the whole surface now.
+//
+// `/inbound/asns` deliberately renders no upload control, and a client wrapper for a route
+// that does not exist is a promise the product cannot keep. If the licence lands and the
+// backend accepts ASN uploads again, add the wrapper back together with the UI that uses it.
 export async function getAsns(): Promise<AsnDto[]> {
   if (USE_MOCK) { await delay(400); return [..._mockAsns]; }
   const headers = await authHeader();
