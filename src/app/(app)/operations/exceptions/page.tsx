@@ -46,6 +46,7 @@ import { ExceptionDetail } from "@/components/bridge/ExceptionDetail";
 import { StaleDataBanner } from "@/components/bridge/StaleDataBanner";
 import { TV2, tv2HeaderCell } from "@/components/bridge/layout/listTableV2";
 import { RefreshCw, AlertTriangle, CheckCircle2, ArrowLeft, ArrowRight } from "lucide-react";
+import { NUMBER_LOCALE } from "@/lib/format-number";
 
 // ─── Severity presentation ───────────────────────────────────────────────────
 // Critical/error read in the alert-red family; warning amber; info blue-grey.
@@ -374,7 +375,7 @@ export default function ExceptionsPage() {
         sub={
           [
             "Every order that needs a human decision before it can be sent.",
-            !showLoading && !listUnavailable ? `${exceptions.length.toLocaleString()} shown` : "",
+            !showLoading && !listUnavailable ? `${exceptions.length.toLocaleString(NUMBER_LOCALE)} shown` : "",
           ]
             .filter(Boolean)
             .join("  ")
@@ -657,7 +658,7 @@ export default function ExceptionsPage() {
             {/* "issue", not "exception": the page is called Issues in the hub tab,
                 the sr-only h1, the empty state and the error state. This footer was
                 the one place still using the engine's word for the same thing. */}
-            {totalCount.toLocaleString()} issue{totalCount !== 1 ? "s" : ""}
+            {totalCount.toLocaleString(NUMBER_LOCALE)} issue{totalCount !== 1 ? "s" : ""}
           </span>
           {totalPages > 1 && (
             /* Same tap floor as the state tabs above: 44px on a phone, dense 28px

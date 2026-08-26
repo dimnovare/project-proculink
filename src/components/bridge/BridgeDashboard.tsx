@@ -48,6 +48,7 @@ import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 import type { OrderStatus, OrderSummary, Supplier } from "@/types/procurement";
 import { ArrowRight, ArrowUpRight, Clock, AlertTriangle, CheckCircle2, Send, Activity, Download, BarChart3, Network, ChevronRight } from "lucide-react";
+import { NUMBER_LOCALE } from "@/lib/format-number";
 
 // ─── Brand accent (supplier green) ────────────────────────────────────────
 // The supplier accent is the calm forest green from the design tokens
@@ -1010,7 +1011,7 @@ export function BridgeDashboard() {
   const fmtMoney = (o: OrderSummary): string | null => {
     if (o.totalValue == null) return null;
     try {
-      return new Intl.NumberFormat(undefined, {
+      return new Intl.NumberFormat(NUMBER_LOCALE, {
         style: "currency",
         currency: o.currency || "EUR",
         maximumFractionDigits: 2,
@@ -1329,7 +1330,7 @@ export function BridgeDashboard() {
                 className="tabular-nums"
                 style={{ fontFamily: "var(--font-display, 'Bricolage Grotesque', Inter, sans-serif)", fontWeight: 800, fontSize: 30, lineHeight: 1, color: s.value === 0 ? "var(--ink-faint)" : "#0B1A2F" }}
               >
-                {s.value.toLocaleString()}
+                {s.value.toLocaleString(NUMBER_LOCALE)}
               </span>
             </Link>
           ))}
@@ -1362,7 +1363,7 @@ export function BridgeDashboard() {
                 to say what the funnel's "Received" excludes. Without it the tile's 0 sits
                 directly above a "Needs you" list holding the practice order. */}
             <span className="ml-auto text-[11px]" style={{ color: "var(--ink-faint)" }}>
-              of {countReceived.toLocaleString()} received · all time
+              of {countReceived.toLocaleString(NUMBER_LOCALE)} received · all time
               {practiceOrderNote(allTimePopulation.practice) && ` · ${practiceOrderNote(allTimePopulation.practice)}`}
             </span>
           </div>
@@ -1460,7 +1461,7 @@ export function BridgeDashboard() {
                   disabled={windowedOrders.length === 0}
                   title={
                     !isApiMockMode && receivedPopulation.rows > 100
-                      ? `Export contains the most recent 100 of ${receivedPopulation.rows.toLocaleString()} orders in this window`
+                      ? `Export contains the most recent 100 of ${receivedPopulation.rows.toLocaleString(NUMBER_LOCALE)} orders in this window`
                       : windowedOrders.length === 0
                         ? "No orders in this window to export"
                         : "Download this window's orders as CSV"
@@ -1931,7 +1932,7 @@ export function BridgeDashboard() {
                         up read the metered total, so a first-run org saw 1 here and 0 there
                         with one order on the screen. Both are the metered population now,
                         and the practice line below says what that leaves out. */}
-                    {ordersLoading ? "…" : ordersError ? "—" : (windowedReceivedPage ? receivedPopulation.metered : windowedOrders.length).toLocaleString()}
+                    {ordersLoading ? "…" : ordersError ? "—" : (windowedReceivedPage ? receivedPopulation.metered : windowedOrders.length).toLocaleString(NUMBER_LOCALE)}
                   </span>
                   <span className="text-[12px]" style={{ color: "#5E6779" }}>orders received · {windowSub.toLowerCase()}</span>
                 </div>
@@ -1950,7 +1951,7 @@ export function BridgeDashboard() {
                     {/* Metered for the same reason as the line above: a delivered practice
                         order is a rehearsal, not throughput, and the "Delivered" tile does
                         not count it either. */}
-                    {ordersLoading ? "…" : ordersError ? "—" : (windowedDeliveredPage ? deliveredPopulation.metered : windowedOrders.filter((o) => o.status === "delivered").length).toLocaleString()}
+                    {ordersLoading ? "…" : ordersError ? "—" : (windowedDeliveredPage ? deliveredPopulation.metered : windowedOrders.filter((o) => o.status === "delivered").length).toLocaleString(NUMBER_LOCALE)}
                   </span>
                   <span>delivered · {windowSub.toLowerCase()}</span>
                 </div>
@@ -1990,7 +1991,7 @@ export function BridgeDashboard() {
                   const ratePct = attempted > 0 ? Math.round((100 * countDelivered) / attempted) : null;
                   const rateStr = funnelLoading ? "…" : funnelError ? "—" : ratePct == null ? "—" : `${ratePct}%`;
                   const rateColor = ratePct == null ? "var(--ink-faint)" : ratePct >= 90 ? GREEN_DEEP : ratePct >= 80 ? AMBER : "#B43838";
-                  const failedStr = funnelLoading ? "…" : funnelError ? "—" : countFailed.toLocaleString();
+                  const failedStr = funnelLoading ? "…" : funnelError ? "—" : countFailed.toLocaleString(NUMBER_LOCALE);
                   return (
                     <>
                       <div className="flex items-center gap-3.5">

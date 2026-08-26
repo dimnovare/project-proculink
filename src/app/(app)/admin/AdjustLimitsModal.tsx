@@ -22,6 +22,7 @@ import {
   type AdminOrganisation,
 } from "@/lib/api-client";
 import type { OrgLimitsResponse, SetOrgLimitsRequest } from "@/types/procurement";
+import { NUMBER_LOCALE } from "@/lib/format-number";
 
 const NAVY = "#0B1A2F";
 const BLUE = "#1E66C9";
@@ -180,16 +181,16 @@ export function AdjustLimitsModal({
                 <span>Limits updated for <strong>{result.name}</strong>.</span>
               </div>
               <dl className="text-[13px]" style={{ color: NAVY }}>
-                <Row label="Effective orders" value={result.effectiveOrderLimit.toLocaleString()} />
-                <Row label="Effective suppliers" value={result.effectiveSupplierLimit.toLocaleString()} />
+                <Row label="Effective orders" value={result.effectiveOrderLimit.toLocaleString(NUMBER_LOCALE)} />
+                <Row label="Effective suppliers" value={result.effectiveSupplierLimit.toLocaleString(NUMBER_LOCALE)} />
                 <Row label="Trial ends" value={shortDate(result.effectiveTrialEndsAt)} />
                 <Row
                   label="Order override"
-                  value={result.orderLimitOverride != null ? result.orderLimitOverride.toLocaleString() : "plan default"}
+                  value={result.orderLimitOverride != null ? result.orderLimitOverride.toLocaleString(NUMBER_LOCALE) : "plan default"}
                 />
                 <Row
                   label="Supplier override"
-                  value={result.supplierLimitOverride != null ? result.supplierLimitOverride.toLocaleString() : "plan default"}
+                  value={result.supplierLimitOverride != null ? result.supplierLimitOverride.toLocaleString(NUMBER_LOCALE) : "plan default"}
                 />
               </dl>
             </div>

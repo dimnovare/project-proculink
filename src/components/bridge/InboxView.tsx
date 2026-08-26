@@ -71,6 +71,7 @@ import {
 // operator lives in, said "14 lines · 3 to review" about the same order.
 import { rowNextStep } from "./rowNextStep";
 import { useConfirm } from "@/components/ui/confirm";
+import { NUMBER_LOCALE } from "@/lib/format-number";
 
 // Per-column metadata. `numeric` right-aligns value cells; `label` is the
 // human-readable name shown in the desktop "Columns" visibility menu (the raw
@@ -1508,7 +1509,7 @@ export function InboxView() {
              is shown ONCE, in the footer next to pagination — not duplicated here. */
           sub={
             <>
-              {reviewCount.toLocaleString()} need review{" · "}{failedCount.toLocaleString()} failed
+              {reviewCount.toLocaleString(NUMBER_LOCALE)} need review{" · "}{failedCount.toLocaleString(NUMBER_LOCALE)} failed
               {selectedCount > 0 && <span style={{ color: BLUE_DEEP, marginLeft: 8 }}>· {selectedCount} selected</span>}
             </>
           }
@@ -1739,7 +1740,7 @@ export function InboxView() {
                     color: active ? "#FFFFFF" : primary ? GREEN_DEEP : "#5E6779",
                   }}
                 >
-                  {chipCounts[i]?.toLocaleString() ?? 0}
+                  {chipCounts[i]?.toLocaleString(NUMBER_LOCALE) ?? 0}
                 </span>
               </button>
             );
@@ -2389,7 +2390,7 @@ export function InboxView() {
             explained on the screen instead of read as a bug. */}
         <span className="text-[11px]" style={{ color: "var(--ink-faint)" }}>
           <span data-count-label="All orders" data-count-value={population.metered}>
-            {population.metered.toLocaleString()} order{population.metered !== 1 ? "s" : ""}
+            {population.metered.toLocaleString(NUMBER_LOCALE)} order{population.metered !== 1 ? "s" : ""}
           </span>
           {practiceOrderNote(population.practice) && <> · {practiceOrderNote(population.practice)}</>}
           {selectedCount > 0 && <span style={{ color: BLUE_DEEP }}> · {selectedCount} selected</span>}

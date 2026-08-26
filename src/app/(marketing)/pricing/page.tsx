@@ -14,6 +14,7 @@ import {
   yearlyMonthlyEquivalent,
   yearlySavePercent,
 } from "@/lib/plans";
+import { NUMBER_LOCALE } from "@/lib/format-number";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Pricing page — pixel-exact port of the Claude Design source (app/Pricing.html).
@@ -238,7 +239,7 @@ export default function PricingPage() {
                 aria-describedby="plk-reco-readout"
               />
               <span className="plk-reco-count" id="plk-reco-readout" aria-live="polite">
-                {orders.toLocaleString()}
+                {orders.toLocaleString(NUMBER_LOCALE)}
                 <small> POs/mo</small>
               </span>
             </div>

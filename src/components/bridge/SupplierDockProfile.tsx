@@ -37,6 +37,7 @@ import { useConfirm } from "@/components/ui/confirm";
 import type { DeliveryConfig, PoMappingConfig } from "@/lib/api/types";
 import type { AcceptanceRule, AcceptanceProfile, SupplierMapping, OrdersPage } from "@/types/procurement";
 import { isPlanGate, PlanGateNotice } from "@/components/bridge/PlanGateNotice";
+import { NUMBER_LOCALE } from "@/lib/format-number";
 
 type Tab = "overview" | "mappings" | "catalog" | "po-mapping" | "delivery" | "acceptance" | "history";
 
@@ -1745,7 +1746,7 @@ export function SupplierDockProfile({ id }: { id: string }) {
             {isApiMockMode ? (
               <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
                 {[
-                  { label: "Total orders",   value: DEMO_MOCK.totalOrders.toLocaleString(), sub: "all time",     subAccent: false },
+                  { label: "Total orders",   value: DEMO_MOCK.totalOrders.toLocaleString(NUMBER_LOCALE), sub: "all time",     subAccent: false },
                   { label: "Avg cycle time", value: DEMO_MOCK.avgCycle,                     sub: "−14% vs prev", subAccent: true  },
                   { label: "Issue rate",     value: DEMO_MOCK.exceptionRate,                sub: "within target", subAccent: true  },
                   { label: "Acceptance",     value: `${DEMO_MOCK.health}%`,                 sub: "last 30 days", subAccent: true  },
@@ -1783,7 +1784,7 @@ export function SupplierDockProfile({ id }: { id: string }) {
                       ["Delivery channel",  DEMO_MOCK.summary.deliveryChannel,  true ],
                       ["Endpoint",          DEMO_MOCK.summary.endpoint,         true ],
                       ["Standards profile", DEMO_MOCK.summary.standardsProfile, true ],
-                      ["Code translations",  DEMO_MOCK.summary.savedMappings.toLocaleString(), false],
+                      ["Code translations",  DEMO_MOCK.summary.savedMappings.toLocaleString(NUMBER_LOCALE), false],
                       ["Last delivery",     DEMO_MOCK.summary.lastDelivery,     false],
                     ] as Array<[string, string, boolean]>).map(([k, v, mono], i, arr) => (
                       <div
@@ -1852,7 +1853,7 @@ export function SupplierDockProfile({ id }: { id: string }) {
               <div className="min-w-0">
                 <h3 className="text-[14px] font-semibold" style={{ color: INK }}>Code translations</h3>
                 <p className="mt-0.5 text-[12px]" style={{ color: MUTED }}>
-                  {isApiMockMode ? `${DEMO_MOCK.summary.savedMappings.toLocaleString()} buyer → supplier item codes` : "Buyer → supplier item codes"}
+                  {isApiMockMode ? `${DEMO_MOCK.summary.savedMappings.toLocaleString(NUMBER_LOCALE)} buyer → supplier item codes` : "Buyer → supplier item codes"}
                 </p>
               </div>
               <a
@@ -2229,7 +2230,7 @@ function OrderVolumeCard({ supplierId, nounLower }: { supplierId: string; nounLo
       ) : (
         <>
           <div className="m-value" style={{ fontSize: 30, color: INK }}>
-            {population.metered.toLocaleString()}
+            {population.metered.toLocaleString(NUMBER_LOCALE)}
           </div>
           <div className="m-sub" style={{ color: FAINT }}>{practiceNote ?? "all time"}</div>
         </>
@@ -2429,7 +2430,7 @@ function RecentOrdersPanel({ supplierId, nounLower }: { supplierId: string; noun
         {/* The count is rendered only once a query has actually returned one. */}
         {!showLoading && !isError && population.metered > 0 && (
           <span className="ml-auto text-[11.5px]" style={{ color: FAINT }}>
-            {population.metered.toLocaleString()} total
+            {population.metered.toLocaleString(NUMBER_LOCALE)} total
           </span>
         )}
       </div>

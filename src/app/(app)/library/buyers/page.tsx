@@ -14,6 +14,7 @@ import { MobileListRow } from "@/components/bridge/layout/MobileListRow";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { useConfirm } from "@/components/ui/confirm";
 import { useOrderDirection, buyerDescription } from "@/hooks/useOrderDirection";
+import { NUMBER_LOCALE } from "@/lib/format-number";
 
 // Residual constants without a 1:1 design token — kept as literals.
 // CODE_GREY (#9196A5) — buyer short-code mono; no exact token.
@@ -585,7 +586,7 @@ export default function BuyersPage() {
                       whiteSpace: "nowrap",
                     }}
                   >
-                    {b.orderCount.toLocaleString()}
+                    {b.orderCount.toLocaleString(NUMBER_LOCALE)}
                   </td>
 
                   {/* Last order — relative age from backend, or em-dash */}
@@ -760,7 +761,7 @@ export default function BuyersPage() {
                       letterSpacing: "-0.01em",
                     }}
                   >
-                    {b.orderCount.toLocaleString()}
+                    {b.orderCount.toLocaleString(NUMBER_LOCALE)}
                   </span>
                 </MobileField>
                 <MobileField label="Last order">

@@ -11,6 +11,7 @@ import { useOrderDirection } from "@/hooks/useOrderDirection";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { useDialogA11y } from "@/hooks/useDialogA11y";
 import type { OrderStatus } from "@/types/procurement";
+import { NUMBER_LOCALE } from "@/lib/format-number";
 
 /**
  * The population behind `Lane.health`, and whether it is the whole one.
@@ -158,7 +159,7 @@ export function laneHealthLabel(health: Lane["health"], basis: LaneHealthBasis):
  */
 export function laneHealthScopeNote(basis: LaneHealthBasis): string | null {
   if (basis.complete) return null;
-  return `Based on the ${basis.scanned.toLocaleString()} most recent orders in this account, not every order on this connection.`;
+  return `Based on the ${basis.scanned.toLocaleString(NUMBER_LOCALE)} most recent orders in this account, not every order on this connection.`;
 }
 
 // Mock recent crossings for the selected lane
@@ -672,7 +673,7 @@ export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
                     color: "#5E6779",
                   }}
                 >
-                  {o.totalValue.toLocaleString(undefined, {
+                  {o.totalValue.toLocaleString(NUMBER_LOCALE, {
                     style: "currency",
                     currency: o.currency || "EUR",
                     maximumFractionDigits: 0,
