@@ -179,6 +179,26 @@ export default defineConfig({
     // touch-target floors in globals.css are behind `(pointer: coarse)`, and a
     // sweep that measured them with a fine pointer would report the pre-fix
     // numbers and call the fix a failure.
+    // ── Journey projects ──────────────────────────────────────────────────────
+    //
+    // The scenario specs — first run to delivered, upload to workshop, error
+    // recovery, sample order — all ran at 1280 only. They are the new-client and
+    // new-supplier paths, i.e. the flows that decide whether a pilot customer
+    // gets anywhere, and they walk screens whose DOM forks by breakpoint.
+    //
+    // Scoped by testMatch to those four specs, so this is roughly a dozen tests
+    // per width, not the whole suite three more times.
+    {
+      name: "journey-mobile",
+      use: { ...devices["Desktop Chrome"], viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true },
+      testMatch: /(first-run-to-delivered|upload-to-workshop|error-recovery|sample-order-happy-path)\.spec\.ts/,
+    },
+    {
+      name: "journey-tablet",
+      use: { ...devices["Desktop Chrome"], viewport: { width: 768, height: 1024 }, hasTouch: true },
+      testMatch: /(first-run-to-delivered|upload-to-workshop|error-recovery|sample-order-happy-path)\.spec\.ts/,
+    },
+
     {
       name: "sweep-mobile",
       use: { ...devices["Desktop Chrome"], viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true },

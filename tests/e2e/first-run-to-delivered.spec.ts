@@ -1,4 +1,4 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Locator, type Page } from "@playwright/test";
 
 /**
  * WP-27 — first run reaches a DELIVERED supplier-ready file.
@@ -39,6 +39,27 @@ const PRACTICE_ADDRESS = "coordinator@northgate.example";
 
 /** The code the fixture's one unmapped line resolves to (it IS in the sample catalog). */
 const SUPPLIER_CODE = "SMP-BRACKET-S";
+
+/**
+ * The first VISIBLE match, not the first match in document order.
+ *
+ * This app mounts both breakpoint trees at once — /inbox/[orderId] renders
+ * `IssuesPanel` (desktop) and `MobileTriage` (mobile) together, and Tailwind hides
+ * one with `lg:hidden` / `hidden lg:block`. Both carry a "supplier code" input.
+ *
+ * `.first()` therefore picks by DOM position, which means it picks the desktop
+ * tree at every width. At 1280 that happens to be the visible one and the spec
+ * passed; at 390 and 768 it resolved to an input that exists and is `hidden`, and
+ * the journey timed out waiting for it to appear.
+ *
+ * This is the same trap the repo already documents for jsdom — both trees mount,
+ * so an unscoped query silently reads the wrong one — rotated into Playwright,
+ * where it is easier to miss because the run is "in a real browser" and feels
+ * authoritative.
+ */
+function visible(locator: Locator): Locator {
+  return locator.filter({ visible: true }).first();
+}
 
 /** The consent banner is fixed to the bottom and can intercept clicks on the review screen. */
 async function dismissCookieBanner(page: Page) {
@@ -110,11 +131,11 @@ test("a brand-new account reaches a DELIVERED file without contacting a supplier
   // review screen offers exactly one "Enter code" action.
   await dismissCookieBanner(page);
   const enterCode = page.getByRole("button", { name: /^enter code$/i });
-  await expect(enterCode.first()).toBeVisible({ timeout: 60_000 });
+  await expect(visible(enterCode)).toBeVisible({ timeout: 60_000 });
 
-  const codeInput = page.getByPlaceholder(/supplier code/i).first();
+  const codeInput = visible(page.getByPlaceholder(/supplier code/i));
   await expect(async () => {
-    await enterCode.first().click();
+    await visible(enterCode).click();
     await expect(codeInput).toBeVisible({ timeout: 4_000 });
   }).toPass({ timeout: 40_000, intervals: [500, 1000] });
 
@@ -122,7 +143,7 @@ test("a brand-new account reaches a DELIVERED file without contacting a supplier
   await codeInput.press("Enter");
 
   // ── Send ─────────────────────────────────────────────────────────────────
-  const send = page.getByRole("button", { name: "Send to supplier" }).first();
+  const send = visible(page.getByRole("button", { name: "Send to supplier" }));
   await expect(send).toBeEnabled({ timeout: 30_000 });
   await send.click();
 
