@@ -56,3 +56,7 @@ playwright-report-prod/
 # Playwright scratch output from the guide screenshot rig (bun run guides:capture).
 # The screenshots themselves are committed under public/guides/.
 scripts/guide-shots/.playwright/
+
+# Control-sweep output (tests/e2e/control-sweep.spec.ts). Kept OUT of test-results/,
+# which Playwright clears at the start of every run.
+.qa-sweep/

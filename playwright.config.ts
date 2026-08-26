@@ -135,7 +135,7 @@ export default defineConfig({
       // The visual spec is excluded so it does not run a fourth time at a viewport
       // it has no baselines for.
       use: { ...devices["Desktop Chrome"] },
-      testIgnore: /visual\.spec\.ts/,
+      testIgnore: /(visual|control-sweep)\.spec\.ts/,
     },
 
     // ── Viewport presets ──────────────────────────────────────────────────────
@@ -166,6 +166,35 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"], ...VISUAL_RENDERING, viewport: { width: 768, height: 1024 } },
       testMatch: /visual\.spec\.ts/,
     },
+    // ── The control sweep ─────────────────────────────────────────────────────
+    //
+    // Scoped with `testMatch` for the same reason the visual projects are: three
+    // UNSCOPED projects would run the whole suite four times for no extra signal.
+    // The sweep is the one spec where the extra signal is real, because it
+    // enumerates the DOM — and 51 source files fork their DOM by breakpoint, so
+    // the mobile tree and the desktop tree carry different controls.
+    //
+    // Widths match the visual projects exactly, so a sweep finding and a visual
+    // diff describe the same rendering. `hasTouch` is set below 1024 because the
+    // touch-target floors in globals.css are behind `(pointer: coarse)`, and a
+    // sweep that measured them with a fine pointer would report the pre-fix
+    // numbers and call the fix a failure.
+    {
+      name: "sweep-mobile",
+      use: { ...devices["Desktop Chrome"], viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true },
+      testMatch: /control-sweep\.spec\.ts/,
+    },
+    {
+      name: "sweep-tablet",
+      use: { ...devices["Desktop Chrome"], viewport: { width: 768, height: 1024 }, hasTouch: true },
+      testMatch: /control-sweep\.spec\.ts/,
+    },
+    {
+      name: "sweep-desktop",
+      use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } },
+      testMatch: /control-sweep\.spec\.ts/,
+    },
+
     {
       name: "visual-desktop",
       use: { ...devices["Desktop Chrome"], ...VISUAL_RENDERING, viewport: { width: 1440, height: 900 } },
