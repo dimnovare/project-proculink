@@ -36,7 +36,7 @@ vi.mock("@/lib/api-client", () => ({
   getOpsHealth: vi.fn().mockResolvedValue({ workerHealthy: true }),
 }));
 
-vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true }));
+vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true, useTenantQueriesEnabled: () => true }));
 
 import { UnifiedStatusBadge, statusLabel, statusTone } from "./UnifiedStatusBadge";
 import { finalDeliveryMessage, BILLING_HELD_MESSAGE } from "./review/hooks/useOrderReview";

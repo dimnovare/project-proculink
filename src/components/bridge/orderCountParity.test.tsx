@@ -74,7 +74,7 @@ vi.mock("@/lib/api-client", () => ({
 // DashboardContextLine reads Clerk's useUser() for the operator's first name; the
 // dashboard is not mounted inside a ClerkProvider here.
 vi.mock("@clerk/nextjs", () => ({ useUser: () => ({ user: null, isLoaded: true }) }));
-vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true }));
+vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true, useTenantQueriesEnabled: () => true }));
 vi.mock("@/hooks/useSampleOrder", () => ({
   useSampleOrder: () => ({ runSample: vi.fn(), isPending: false, error: null }),
 }));

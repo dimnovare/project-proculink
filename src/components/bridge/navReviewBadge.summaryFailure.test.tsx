@@ -60,7 +60,7 @@ vi.mock("@clerk/nextjs", () => ({
 // Signed in, so every `enabled: queryEnabled` query actually runs. Mocked at the
 // hook rather than through Clerk's useAuth so the gate cannot silently disable
 // the query under test and turn a failure assertion into a never-fetched one.
-vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true }));
+vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true, useTenantQueriesEnabled: () => true }));
 
 // Outbound labels, from the real helper — the direction relabel is a different
 // concern and a stubbed literal here would drift from it.

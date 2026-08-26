@@ -20,6 +20,7 @@ const api = { getOrgSettings: vi.fn() };
 
 vi.mock("@/hooks/useQueriesEnabled", () => ({
   useQueriesEnabled: () => true,
+  useTenantQueriesEnabled: () => true,
 }));
 
 vi.mock("@/lib/api-client", () => ({

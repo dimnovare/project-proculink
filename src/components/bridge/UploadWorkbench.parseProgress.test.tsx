@@ -90,7 +90,7 @@ vi.mock("@/lib/api-client", () => ({
 }));
 
 vi.mock("@/lib/analytics", () => ({ capture: vi.fn() }));
-vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true }));
+vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true, useTenantQueriesEnabled: () => true }));
 vi.mock("@/hooks/useOnboardingStatus", () => ({
   useOnboardingStatus: () => ({ data: undefined }),
 }));

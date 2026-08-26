@@ -288,7 +288,7 @@ const workshopState: { order: Order | null; exceptionCount: number } = {
   exceptionCount: 0,
 };
 
-vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true }));
+vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true, useTenantQueriesEnabled: () => true }));
 vi.mock("@/hooks/useOrderDirection", () => ({
   useOrderDirection: () => ({
     direction: "outbound",

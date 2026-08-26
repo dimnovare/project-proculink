@@ -47,7 +47,7 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => mockState.search,
 }));
 
-vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true }));
+vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true, useTenantQueriesEnabled: () => true }));
 
 vi.mock("@/hooks/useOrderDirection", () => ({
   useOrderDirection: () => ({

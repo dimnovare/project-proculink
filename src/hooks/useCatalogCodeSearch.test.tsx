@@ -12,7 +12,7 @@ import type { ReactNode } from "react";
 vi.mock("@/lib/api-client", () => ({
   getSupplierCatalog: vi.fn().mockResolvedValue({ total: 0, items: [] }),
 }));
-vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true }));
+vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true, useTenantQueriesEnabled: () => true }));
 
 import { getSupplierCatalog } from "@/lib/api-client";
 import { CATALOG_CODES_TAKE } from "@/lib/catalogCodes";

@@ -20,6 +20,7 @@ vi.mock("@/lib/api-client", () => ({
 }));
 vi.mock("@/hooks/useQueriesEnabled", () => ({
   useQueriesEnabled: () => true,
+  useTenantQueriesEnabled: () => true,
 }));
 
 import { getSupplierCatalog } from "@/lib/api-client";

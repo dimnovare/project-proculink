@@ -31,7 +31,7 @@ vi.mock("@/lib/api-client", () => ({
 vi.mock("@/hooks/useOrderDirection", () => ({
   useOrderDirection: () => ({ labels: { counterpartyPlural: "Suppliers" } }),
 }));
-vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true }));
+vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true, useTenantQueriesEnabled: () => true }));
 
 import { buildVisibleNav } from "./BridgeSidebar";
 import { HUB_TABS, HUB_LABELS, hubForPath, type HubKey } from "./layout/HubTabs";

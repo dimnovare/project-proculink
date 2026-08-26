@@ -13,7 +13,7 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getOrgSettings } from "@/lib/api-client";
-import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
+import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import type { OrderDirection } from "@/types/procurement";
 
 /** The canonical label set every component reads, so strings stay identical. */
@@ -117,11 +117,14 @@ export interface UseOrderDirectionResult {
 /**
  * Reads the org's order direction once and exposes the resolved labels. Defaults
  * to "outbound" until the query resolves (every existing org is outbound). The
- * query is gated via `useQueriesEnabled()` (mock || qa-bypass || signed-in) to
- * avoid the known clerkReady-starvation bug, including in live QA-bypass e2e.
+ * query is gated via `useTenantQueriesEnabled()`, which keeps the mock and live
+ * QA-bypass paths enabled (avoiding the known clerkReady-starvation bug) and
+ * additionally waits out organisation activation: the direction flag lives on
+ * `GET /api/settings/organisation`, which is answered per organisation and 500s
+ * with `Organisation not resolved` if it is asked before the claim exists.
  */
 export function useOrderDirection(): UseOrderDirectionResult {
-  const queryEnabled = useQueriesEnabled();
+  const queryEnabled = useTenantQueriesEnabled();
 
   const { data } = useQuery({
     queryKey: ["org-settings"],

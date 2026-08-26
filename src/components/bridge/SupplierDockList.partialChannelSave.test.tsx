@@ -39,6 +39,18 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@clerk/nextjs", () => ({
   useAuth: () => ({ isLoaded: true, isSignedIn: true, orgId: "org_1", userId: "user_1" }),
+  // An active organisation implies a membership it was activated from. Present
+  // because useTenantQueriesEnabled reads this list unconditionally (rules of
+  // hooks) before it ever looks at orgId.
+  useOrganizationList: () => ({
+    isLoaded: true,
+    userMemberships: {
+      isLoading: false,
+      isError: false,
+      count: 1,
+      data: [{ organization: { id: "org_1" } }],
+    },
+  }),
 }));
 
 const createSupplier = vi.fn();

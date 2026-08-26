@@ -60,7 +60,7 @@ vi.mock("@/lib/api-client", () => ({
 let queriesEnabled = true;
 
 vi.mock("@clerk/nextjs", () => ({ useUser: () => ({ user: null, isLoaded: true }) }));
-vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => queriesEnabled }));
+vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => queriesEnabled, useTenantQueriesEnabled: () => queriesEnabled }));
 vi.mock("@/hooks/useSampleOrder", () => ({
   useSampleOrder: () => ({ runSample: vi.fn(), isPending: false, error: null }),
 }));

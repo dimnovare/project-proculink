@@ -25,7 +25,7 @@ vi.mock("@/lib/api-client", () => ({
 }));
 
 // Force queries enabled without a Clerk session.
-vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true }));
+vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true, useTenantQueriesEnabled: () => true }));
 
 // AI / canonical reads — all empty so the model has nothing extra to do.
 vi.mock("@/lib/api/canonical-fields", () => ({ getCanonicalFields: vi.fn().mockResolvedValue([]) }));

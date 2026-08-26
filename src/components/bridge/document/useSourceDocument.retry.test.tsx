@@ -56,7 +56,7 @@ vi.mock("@/lib/api-client", () => ({
   apiClient: { getOrderSource: (...a: unknown[]) => getOrderSource(...a) },
 }));
 
-vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true }));
+vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true, useTenantQueriesEnabled: () => true }));
 
 import { useSourceDocument } from "./useSourceDocument";
 import { ApiHttpError } from "@/lib/api-client";

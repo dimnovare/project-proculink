@@ -33,7 +33,7 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => searchParams,
 }));
 vi.mock("@/lib/tab-param-sync", () => ({ useTabParamSync: () => {} }));
-vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true }));
+vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true, useTenantQueriesEnabled: () => true }));
 vi.mock("@/hooks/useOrderDirection", () => ({
   useOrderDirection: () => ({ labels: { counterpartyNoun: "Supplier", counterpartyPlural: "Suppliers" } }),
 }));

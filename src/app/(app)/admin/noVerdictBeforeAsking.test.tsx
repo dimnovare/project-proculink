@@ -39,7 +39,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 // The whole point of this file: queries are NOT enabled.
-vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => false }));
+vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => false, useTenantQueriesEnabled: () => false }));
 
 vi.mock("@/lib/api-client", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api-client")>();

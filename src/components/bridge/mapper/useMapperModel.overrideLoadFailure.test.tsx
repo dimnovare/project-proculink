@@ -34,7 +34,7 @@ vi.mock("@/lib/api-client", () => ({
   isQaBypass: false,
 }));
 
-vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true }));
+vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true, useTenantQueriesEnabled: () => true }));
 vi.mock("@/lib/api/canonical-fields", () => ({ getCanonicalFields: vi.fn().mockResolvedValue([]) }));
 vi.mock("@/lib/api/mapper-ai", () => ({
   getMappingSuggestions: vi.fn().mockResolvedValue([]),

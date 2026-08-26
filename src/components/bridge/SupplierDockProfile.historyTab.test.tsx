@@ -50,7 +50,7 @@ vi.mock("@/lib/api-client", () => ({
   listConnections: vi.fn(),
 }));
 
-vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true }));
+vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true, useTenantQueriesEnabled: () => true }));
 vi.mock("@/hooks/useOrderDirection", () => ({
   useOrderDirection: () => ({ labels: { counterpartyNoun: "Supplier", counterpartyPlural: "Suppliers" } }),
 }));

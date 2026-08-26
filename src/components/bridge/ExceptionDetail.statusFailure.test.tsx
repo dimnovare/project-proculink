@@ -46,7 +46,7 @@ vi.mock("@/lib/api-client", () => ({
   apiClient: { getOrderById: (...a: unknown[]) => getOrderById(...a) },
 }));
 
-vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true }));
+vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true, useTenantQueriesEnabled: () => true }));
 
 import { ExceptionDetail } from "./ExceptionDetail";
 

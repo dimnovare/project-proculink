@@ -3,9 +3,14 @@
 // useOnboardingStatus — single shared query for GET /api/onboarding/status
 // (extended B1 payload; see OnboardingStatus in types/procurement.ts).
 //
-// Gated via useQueriesEnabled() — mock || qa-bypass || signed-in — per the
-// known clerkReady-starvation rule: a query gated on clerkReady alone never
-// runs in mock mode or live QA-bypass e2e, so dependent UI starves forever.
+// Gated via useTenantQueriesEnabled() — the org-scoped gate, which still covers
+// mock mode and live QA-bypass e2e (a query gated on clerkReady alone never runs
+// in either, so dependent UI starves forever) and additionally holds the request
+// back while a brand-new organisation is still being activated. /api/onboarding/
+// status is answered per organisation, so sending it before the org claim exists
+// earns a 500 `Organisation not resolved` and nothing else. Every screen that
+// reads this hook shares the one cache entry, so gating it here covers the
+// dashboard checklist, the wizard and the upload page at once.
 //
 // Consumers (checklist, dashboard, wizard, upload page) share the same
 // queryKey, so one fetch serves them all and a single invalidation after any
@@ -14,13 +19,13 @@
 
 import { useQuery, type QueryClient, type UseQueryResult } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
-import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
+import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import type { OnboardingStatus } from "@/types/procurement";
 
 export const ONBOARDING_STATUS_QUERY_KEY = ["onboarding-status"];
 
 export function useOnboardingStatus(): UseQueryResult<OnboardingStatus> {
-  const enabled = useQueriesEnabled();
+  const enabled = useTenantQueriesEnabled();
   return useQuery<OnboardingStatus>({
     queryKey: ONBOARDING_STATUS_QUERY_KEY,
     queryFn: () => apiClient.getOnboardingStatus(),
