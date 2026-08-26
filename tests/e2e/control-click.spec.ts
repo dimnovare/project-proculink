@@ -18,6 +18,12 @@ import { sweepRoutes } from "./sweepRoutes";
  * nothing observable happened: no DOM mutation, no URL change, no network
  * request, no scroll.
  *
+ * A FILE CHOOSER counts too, and it is the fifth signal for the same reason the
+ * fourth exists. `Upload invoice` on /inbound/invoices calls
+ * `fileInputRef.current?.click()`, which opens the operating system's file
+ * picker: no DOM mutation, no navigation, no request, no scroll. It read as dead
+ * at two of three widths, and it works.
+ *
  * A dead click is a LEAD, not a verdict, and it is reported rather than asserted.
  * A toggle that re-renders to an identical tree is legitimately silent, and so is
  * a control whose only effect is outside anything a page can observe. What IS
@@ -174,10 +180,19 @@ async function clickAndObserve(page: Page, control: Locator): Promise<{ outcome:
   };
   page.on("request", countRequest);
 
+  // A file chooser must be consumed or it blocks the page. Listening for it both
+  // records the signal and dismisses it.
+  let openedFileChooser = false;
+  const onFileChooser = () => {
+    openedFileChooser = true;
+  };
+  page.on("filechooser", onFileChooser);
+
   try {
     await control.click({ timeout: 3_000, noWaitAfter: true });
   } catch (error) {
     page.off("request", countRequest);
+    page.off("filechooser", onFileChooser);
     const message = String(error);
     // A control that left the DOM between being listed and being clicked is a
     // consequence of the previous click, not a defect in this one.
@@ -196,6 +211,9 @@ async function clickAndObserve(page: Page, control: Locator): Promise<{ outcome:
 
   await page.waitForTimeout(SETTLE_MS);
   page.off("request", countRequest);
+  page.off("filechooser", onFileChooser);
+
+  if (openedFileChooser) return { outcome: "changed", detail: "opened a file chooser" };
 
   if (page.url() !== before) return { outcome: "navigated", detail: page.url() };
 
