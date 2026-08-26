@@ -37,11 +37,40 @@ function AutoActivateOrg() {
     const first = userMemberships.data?.[0]?.organization;
     if (!first || !setActive) return;
 
-    void setActive({ organization: first.id }).then(() => {
-      // Session token now contains org_id. Invalidate all cached queries so
-      // any requests that fired before the token refreshed will retry correctly.
-      void queryClient.invalidateQueries();
-    });
+    void (async () => {
+      await setActive({ organization: first.id });
+
+      // `setActive` resolving means Clerk has set the ACTIVE ORGANISATION. It does
+      // NOT mean a new session token exists. This comment used to assert "session
+      // token now contains org_id" and that assertion was false — which is what
+      // made the refetch below the second-largest source of production 500s.
+      //
+      // `authHeader()` (src/lib/api/core.ts) reads `Clerk.session.getToken()` with
+      // NO `skipCache`, and Clerk caches the JWT. So invalidating here handed every
+      // refetch the PRE-activation token — no org_id claim — and the backend
+      // answered each one `UnauthorizedAccessException("Organisation not resolved")`
+      // → 500. The gate in useTenantQueriesEnabled cannot prevent this: by now an
+      // organisation IS active, so the gate is correctly open; the staleness is in
+      // the token, not the state.
+      //
+      // Force the reissue first, through the SAME accessor authHeader will use, so
+      // the token it reads next is the one carrying the claim. Failure here is not
+      // fatal: the invalidate still runs, and the worst case is the behaviour we
+      // had before this line existed.
+      try {
+        await (
+          window as unknown as {
+            Clerk?: { session?: { getToken?: (o?: { skipCache?: boolean }) => Promise<string | null> } };
+          }
+        ).Clerk?.session?.getToken?.({ skipCache: true });
+      } catch {
+        // Ignore — fall through to the invalidate below.
+      }
+
+      // Now refetch: anything that fired before the claim landed retries with a
+      // token that carries it.
+      await queryClient.invalidateQueries();
+    })();
   }, [activeOrg, userMemberships.data, setActive, queryClient]);
 
   return null;
