@@ -1145,6 +1145,8 @@ function RowChipButton({
   const isDisabled = disabled || !onClick;
   return (
     <button
+      /* Lit state was border + background only. */
+      aria-pressed={active}
       ref={buttonRef}
       data-testid={testId}
       type="button"
