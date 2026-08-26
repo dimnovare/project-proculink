@@ -53,8 +53,16 @@ const SETTLE_TIMEOUT_MS = 10_000;
  * Returns a LIVE array: it keeps filling for as long as the page exists, so a caller
  * asserts on it after the work is done rather than capturing a snapshot up front.
  */
-export function watchForServerErrors(page: Page, baseURL: string | undefined): string[] {
+export interface ServerErrorWatch {
+  /** 5xx that are genuinely faults. The gate asserts this is empty. */
+  failures: string[];
+  /** 503 + Retry-After: the documented "not ready yet" answer. Reported, never asserted on. */
+  retryable: string[];
+}
+
+export function watchForServerErrors(page: Page, baseURL: string | undefined): ServerErrorWatch {
   const failures: string[] = [];
+  const retryable: string[] = [];
   const ourDomain = registrableDomain(baseURL);
 
   page.on("response", (res) => {
@@ -66,10 +74,50 @@ export function watchForServerErrors(page: Page, baseURL: string | undefined): s
       return;
     }
     if (ourDomain && host !== ourDomain && !host.endsWith(`.${ourDomain}`)) return;
+    if (isDocumentedRetry(res.status(), res.headers())) {
+      retryable.push(`${res.status()} ${res.request().method()} ${res.url()}`);
+      return;
+    }
     failures.push(`${res.status()} ${res.request().method()} ${res.url()}`);
   });
 
-  return failures;
+  return { failures, retryable };
+}
+
+/**
+ * A `503` carrying `Retry-After` is this system's DOCUMENTED "not ready yet, ask again"
+ * answer, and it is not a failure of the thing this bar exists to catch.
+ *
+ * Read the history before relaxing this any further, because the bar was deliberately
+ * strict when it shipped and this narrowing is the result of the semantics changing
+ * underneath it, not of the rule proving inconvenient:
+ *
+ *   • The defect was four to five HTTP **500**s on a new organisation's first page load —
+ *     `UnauthorizedAccessException("Organisation not resolved")` — because Clerk mints the
+ *     session token before the organisation claim is attached, and the API had no mapping
+ *     for that exception. A 500 says "this server has a bug".
+ *   • The backend now answers `503 + Retry-After` there instead, matching what
+ *     TenantResolutionMiddleware already returned for its sibling condition (tenant
+ *     resolution cannot reach the database during a Neon cold start). Nothing is broken:
+ *     the request arrived a moment early.
+ *   • The client agrees, without being told twice. `classifyApiFailure` in
+ *     src/lib/apiFailure.ts marks `status >= 500` retryable, and `apiRetryDelayMs` honours
+ *     a server-named `Retry-After` over its own backoff — so these retry transparently and
+ *     the user sees a slightly later first paint, not an error.
+ *
+ * The test of whether a narrowing is legitimate is whether the ORIGINAL defect would still
+ * trip the gate. It would: those were 500s, and a 500 still fails here. So does a 502, a
+ * 504, and — deliberately — a 503 with NO `Retry-After`, which is a server falling over
+ * rather than one asking to be asked again.
+ *
+ * These are still reported, never swallowed: `settleInFlightRequests`'s caller prints them.
+ * A run where they climb is telling you the activation window is getting wider, and that is
+ * worth seeing before it becomes something worse.
+ */
+function isDocumentedRetry(status: number, headers: Record<string, string>): boolean {
+  if (status !== 503) return false;
+  const retryAfter = headers["retry-after"];
+  return typeof retryAfter === "string" && retryAfter.trim().length > 0;
 }
 
 /**

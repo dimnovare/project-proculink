@@ -38,7 +38,7 @@ setup("sign in to production with a disposable Clerk identity", async ({ page, b
 
   // Armed before the first navigation, because the responses that matter arrive
   // during the redirect chain and the /bridge landing — not after them.
-  const serverErrors = watchForServerErrors(page, baseURL);
+  const watch = watchForServerErrors(page, baseURL);
 
   // Navigating with `__clerk_ticket` is the redemption. Clerk resolves it before
   // the app's own middleware runs and sets __session / __client on the redirect.
@@ -67,7 +67,18 @@ setup("sign in to production with a disposable Clerk identity", async ({ page, b
   // The fifth bar. In-flight queries get the same bounded, best-effort settle the
   // spec gives them before asserting; that wait timing out is not a failure.
   await settleInFlightRequests(page);
-  expect(serverErrors, signInServerErrorReport(serverErrors)).toEqual([]);
+
+  // A 503 carrying Retry-After is the documented "the organisation claim has not landed
+  // yet" answer, which the client retries transparently — reported so the count stays
+  // visible, never asserted on. See isDocumentedRetry in ./serverErrorWatch for why this
+  // narrowing is not a loosening: the 500s this bar was built for still fail it.
+  if (watch.retryable.length > 0) {
+    console.log(
+      `note: ${watch.retryable.length} documented retry response(s) during sign-in — `
+        + watch.retryable.join("; "),
+    );
+  }
+  expect(watch.failures, signInServerErrorReport(watch.failures)).toEqual([]);
 });
 
 /**

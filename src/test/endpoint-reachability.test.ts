@@ -213,15 +213,16 @@ export const KNOWN_MACHINE_FACING: Record<string, string> = {
  *      caller, so the list cannot rot into permanent cover.
  */
 export const UNCALLED_PENDING_DECISION: Record<string, string> = {
-  "POST /api/asns/upload":
-    "PENDING A DECISION, 2026-08-25 — and unusually, the endpoint refuses everyone, not just this " +
-    "app: the backend's DesadvController answers 501 because parsing EDI DESADV needs a commercial " +
-    "licence ProcuLink does not hold. The ASN page states that on the screen and deliberately " +
-    "renders no upload control (src/app/(app)/inbound/asns/page.tsx:100), so the FRONTEND question " +
-    "is already settled. What is open is the backend's: license the format and implement it, or " +
-    "delete the stub. It became visible here when the unreferenced `uploadAsn` wrapper was removed " +
-    "from src/lib/api-client.ts — it had never had a call site, and a client for a 501 is a promise " +
-    "the product cannot keep. Do NOT clear this entry by re-adding a caller.",
+  // `POST /api/asns/upload` was here and is GONE, 2026-08-26 — removed because the question it
+  // posed was answered, not because it became inconvenient. Its own text set the terms: "What is
+  // open is the backend's: license the format and implement it, or delete the stub." The stub was
+  // deleted (ProcuLink #256, which also removed `GET /api/asns/{id}`), so there is no endpoint left
+  // to excuse. `GET /api/asns` survives and has a real caller in `getAsns`.
+  //
+  // This is the list doing exactly what it is for. The entry was added when the dead `uploadAsn`
+  // wrapper was removed, and it recorded a decision nobody had made yet rather than pretending one
+  // had. Now that the decision is made, the entry goes with it — a shrink, which these lists allow,
+  // and never a caller re-added to clear it, which the entry explicitly forbade.
   "POST /api/orders/{}/acceptance-gate/override":
     "PENDING A DECISION, 2026-08-06 — named by the v2 audit. " +
     "ProcuLink.Api/Controllers/OrderAcceptanceGateController.cs:74 documents it as the manual " +

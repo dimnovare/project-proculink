@@ -57,14 +57,24 @@ import { settleInFlightRequests, watchForServerErrors } from "./serverErrorWatch
 const test = base.extend<{ noServerErrors: void }>({
   noServerErrors: [
     async ({ page, baseURL }, use) => {
-      const failures = watchForServerErrors(page, baseURL);
+      const watch = watchForServerErrors(page, baseURL);
       await use();
 
       // In-flight queries get a bounded moment to land before the assertion: a screen can
       // satisfy every other bar off its shell before its data arrives. Best-effort, and its
       // timeout is not a failure — see settleInFlightRequests.
       await settleInFlightRequests(page);
-      expect(failures, "5xx from our own hosts during this test").toEqual([]);
+
+      // Reported, not asserted on: a 503 + Retry-After is the documented "not ready yet"
+      // answer the client retries transparently. Printing them keeps the count visible, so
+      // a widening activation window is noticed before it becomes something worse.
+      if (watch.retryable.length > 0) {
+        console.log(
+          `note: ${watch.retryable.length} documented retry response(s) during this test — `
+            + watch.retryable.join("; "),
+        );
+      }
+      expect(watch.failures, "5xx from our own hosts during this test").toEqual([]);
     },
     { auto: true },
   ],
