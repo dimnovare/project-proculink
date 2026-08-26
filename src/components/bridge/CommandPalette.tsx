@@ -9,6 +9,7 @@ import { useDialogA11y } from "@/hooks/useDialogA11y";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient, getBuyers, isApiMockMode } from "@/lib/api-client";
+import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { statusFact } from "@/lib/orderStatusManifest";
 import { buildMapperCommands, dispatchMapper } from "./mapper/mapperCommands";
 import type {
@@ -288,6 +289,7 @@ function buildIndex(
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function CommandPalette({ onClose }: { onClose: () => void }) {
+  const tenantQueriesEnabled    = useTenantQueriesEnabled();
   const [q, setQ]               = useState("");
   const [activeIndex, setActive] = useState(0);
   const router                   = useRouter();
@@ -309,10 +311,21 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
     return () => clearTimeout(t);
   }, [q]);
 
+  // This query had NO `enabled` at all, which made it the one observer of ["orders"]
+  // that could fetch regardless of whether a tenant was known. That matters more than
+  // it looks: TanStack Query starts a fetch if ANY observer of a key is enabled, so a
+  // single ungated observer re-opens the door for every gated one sharing the key —
+  // and ["orders"] is shared with BridgeDashboard and BridgeTopbar, both of which are
+  // gated precisely to keep tenant-scoped requests from outrunning the organisation
+  // claim on a new workspace's first load.
+  //
+  // The palette only mounts when it is opened, so this was not the observed cause;
+  // it is the same defect one keystroke away.
   const { data: ordersPage } = useQuery({
     queryKey: ["orders"],
     queryFn: () => apiClient.getOrders({ pageSize: 100 }),
     staleTime: 60_000,
+    enabled: tenantQueriesEnabled,
   });
 
   const {
