@@ -1,6 +1,7 @@
 import { test as base, expect, type Page } from "@playwright/test";
 import { listProdScreens } from "./prodScreens";
 import { readDisposableState } from "./disposableIdentity";
+import { settleInFlightRequests, watchForServerErrors } from "./serverErrorWatch";
 
 /**
  * Does the signed-in product actually render in production?
@@ -35,7 +36,8 @@ import { readDisposableState } from "./disposableIdentity";
  *   5. None of our own hosts answered 5xx while the screen loaded. Bars 1-4 watch
  *      the document and the JS runtime; a query that fails in XHR is invisible to
  *      all four, because TanStack Query catches it and renders an empty state.
- *      See watchForServerErrors — this bar exists because that really happened.
+ *      See watchForServerErrors in ./serverErrorWatch — this bar exists because
+ *      that really happened.
  */
 
 /**
@@ -58,10 +60,10 @@ const test = base.extend<{ noServerErrors: void }>({
       const failures = watchForServerErrors(page, baseURL);
       await use();
 
-      // In-flight queries get a bounded moment to land: a screen can satisfy every other
-      // bar off its shell before its data arrives. Screens that poll never go idle, so the
-      // wait is best-effort and its timeout is not a failure.
-      await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
+      // In-flight queries get a bounded moment to land before the assertion: a screen can
+      // satisfy every other bar off its shell before its data arrives. Best-effort, and its
+      // timeout is not a failure — see settleInFlightRequests.
+      await settleInFlightRequests(page);
       expect(failures, "5xx from our own hosts during this test").toEqual([]);
     },
     { auto: true },
@@ -90,58 +92,6 @@ function watchForPageErrors(page: Page): string[] {
   const errors: string[] = [];
   page.on("pageerror", (err) => errors.push(err.message));
   return errors;
-}
-
-/**
- * Collect 5xx answers from our own hosts — the fifth bar, and the one the four above
- * provably cannot see.
- *
- * On 2026-08-23 a new organisation's first page load produced a cascade of backend
- * failures — a cold Neon connection, a failed Organisation INSERT, then four
- * `UnauthorizedAccessException("Organisation not resolved")` responses across
- * /api/orders, /api/suppliers, /api/billing/status and /api/onboarding/status. 255 such
- * events accumulated in Sentry over 14 days. Every scheduled run of this suite reported
- * success throughout.
- *
- * Nothing here was broken by accident: the four bars above watch the DOCUMENT and the JS
- * runtime, and the failures were in XHR. TanStack Query catches a rejected query, retries
- * it, and renders a loading or empty state — so the document is 200, the title is right,
- * the h1 is there, `<main>` has well over 40 characters of chrome and empty-state copy,
- * no error boundary mounts, and nothing throws. The product was visibly broken for the
- * user and every assertion passed.
- *
- * Scope is deliberately OUR domain, taken from the base URL rather than hardcoded. A 5xx
- * from api.proculink.eu is ours to fix and must redden this gate. A 5xx from PostHog or a
- * Sentry ingest endpoint is neither our bug nor something merging code would repair, and
- * letting a third party's bad afternoon fail this run would teach everyone to ignore it.
- */
-function watchForServerErrors(page: Page, baseURL: string | undefined): string[] {
-  const failures: string[] = [];
-  const ourDomain = registrableDomain(baseURL);
-
-  page.on("response", (res) => {
-    if (res.status() < 500) return;
-    let host: string;
-    try {
-      host = new URL(res.url()).hostname;
-    } catch {
-      return;
-    }
-    if (ourDomain && host !== ourDomain && !host.endsWith(`.${ourDomain}`)) return;
-    failures.push(`${res.status()} ${res.request().method()} ${res.url()}`);
-  });
-
-  return failures;
-}
-
-/** "https://proculink.eu" → "proculink.eu". Null when the base URL is unusable. */
-function registrableDomain(baseURL: string | undefined): string | null {
-  if (!baseURL) return null;
-  try {
-    return new URL(baseURL).hostname.replace(/^www\./, "");
-  } catch {
-    return null;
-  }
 }
 
 test.describe("authenticated production", () => {
