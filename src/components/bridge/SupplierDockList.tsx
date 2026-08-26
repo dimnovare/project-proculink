@@ -222,7 +222,11 @@ export function SupplierDockList() {
   useDialogA11y({ open: showAddPanel, onClose: closeAddPanel, panelRef: addPanelRef });
 
   // ── Billing check ──────────────────────────────────────────────────────────
-  const { data: billing, isError: billingError } = useQuery({
+  const {
+    data: billing,
+    isError: billingError,
+    isPending: billingPending,
+  } = useQuery({
     queryKey: ["billing-status"],
     queryFn: getBillingStatus,
     enabled: queryEnabled,
@@ -231,7 +235,30 @@ export function SupplierDockList() {
   });
 
   // When billing API is unavailable, optimistically allow adding (backend enforces the limit).
+  //
+  // FAILING OPEN ON AN ERROR IS DELIBERATE AND STAYS. Locking someone out of
+  // their own workspace because a billing call 500'd is worse than letting the
+  // backend refuse a create it was always going to refuse.
   const canAddSupplier = billingError ? true : (billing?.canAddSupplier ?? true);
+
+  // FAILING OPEN WHILE LOADING WAS NOT DELIBERATE, and it is a different thing.
+  //
+  // `?? true` covered both states with one answer: "billing said no" and "billing
+  // has not answered yet". So on every load of this page a limit-reached
+  // workspace got a blue, enabled "New supplier" button until the query resolved,
+  // and clicking inside that window opened the panel for a create the server was
+  // certain to refuse with a 429.
+  //
+  // `limitReached` three hundred lines below already got this right — it requires
+  // `billing` to exist before it claims anything. The two guards disagreed inside
+  // one component, and the disagreement is what rendered.
+  //
+  // `isPending` alone is NOT the predicate. TanStack reports pending for a
+  // DISABLED query too, so a workspace where `queryEnabled` is false — no Clerk
+  // session, no organisation yet — would sit behind a permanently dead button.
+  // That would be a worse bug than the one being fixed, so the enabled-ness is
+  // part of the condition.
+  const billingUnknown = queryEnabled && billingPending && !billingError;
 
   // ── Live supplier list ─────────────────────────────────────────────────────
   const {
@@ -431,6 +458,13 @@ export function SupplierDockList() {
             };
 
   const limitReached = !billingError && billing && !billing.canAddSupplier;
+
+  /**
+   * "You cannot press this right now" — true whether the answer is a refusal or
+   * has not arrived. Kept separate from `limitReached`, which is "we know the
+   * reason and it is the plan ceiling", because only one of the two may speak.
+   */
+  const notActionable = limitReached || billingUnknown;
   const hasRows = !isLoading && !suppliersError && suppliers.length > 0;
 
   // ── The supplier-limit banner, DERIVED ─────────────────────────────────────
@@ -487,7 +521,8 @@ export function SupplierDockList() {
           actions={
             <div className="w-full sm:w-auto">
               <button
-                disabled={!canAddSupplier || createMutation.isPending}
+                disabled={!canAddSupplier || billingUnknown || createMutation.isPending}
+                aria-busy={billingUnknown || undefined}
                 /* The label is a STATE, not a reason. On its own — which is what a
                    screen-reader user got — "Supplier limit reached" says the door is
                    shut and nothing about the allowance, the tier, or the way through.
@@ -496,18 +531,23 @@ export function SupplierDockList() {
                 aria-describedby={limitReached ? "supplier-limit-banner" : undefined}
                 onClick={() => { setShowAddPanel(true); setAddError(null); }}
                 className="inline-flex h-[34px] w-full items-center justify-center gap-[7px] rounded-[7px] px-4 text-[12.5px] font-semibold tracking-[-0.005em] transition-colors sm:w-auto"
+                /* Appearance answers "can I act on this?", which is false in BOTH
+                   states. The LABEL answers "why not?", which is only knowable in
+                   one of them — so it stays keyed to `limitReached` and says
+                   nothing about a limit that has not been checked. A blue button
+                   that does not respond is the defect this replaces. */
                 style={{
-                  background: limitReached ? "#F1F3F7" : BLUE,
-                  color: limitReached ? "var(--ink-faint)" : "#FFFFFF",
+                  background: notActionable ? "#F1F3F7" : BLUE,
+                  color: notActionable ? "var(--ink-faint)" : "#FFFFFF",
                   border: "none",
-                  cursor: !canAddSupplier ? "not-allowed" : "pointer",
+                  cursor: notActionable ? "not-allowed" : "pointer",
                   whiteSpace: "nowrap",
-                  boxShadow: limitReached ? "none" : "0 1px 2px rgba(30,102,201,0.30)",
+                  boxShadow: notActionable ? "none" : "0 1px 2px rgba(30,102,201,0.30)",
                 }}
-                onMouseEnter={(e) => { if (canAddSupplier && !limitReached) (e.currentTarget as HTMLButtonElement).style.background = BLUE_DEEP; }}
-                onMouseLeave={(e) => { if (canAddSupplier && !limitReached) (e.currentTarget as HTMLButtonElement).style.background = BLUE; }}
+                onMouseEnter={(e) => { if (!notActionable) (e.currentTarget as HTMLButtonElement).style.background = BLUE_DEEP; }}
+                onMouseLeave={(e) => { if (!notActionable) (e.currentTarget as HTMLButtonElement).style.background = BLUE; }}
               >
-                {!limitReached && (
+                {!notActionable && (
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M5 12h14M12 5v14" />
                   </svg>
