@@ -125,9 +125,31 @@ function testBody(lines: string[], openIndex: number, indent: string): string[] 
   return lines.slice(openIndex);
 }
 
+/**
+ * `expect.soft(...)` and `expect.poll(...)` are assertions, and this gate could not
+ * see either of them.
+ *
+ * The pattern was a literal call — `expect` followed by `(` — so a MEMBER form put
+ * a `.` where the `(` had to be, and the body read as having no assertion at all.
+ * Found 2026-08-26 by the first spec in the repo to use soft assertions: a
+ * fully-asserting 40-route sweep was reported as "navigating and clicking without
+ * checking anything".
+ *
+ * That is the one-directional shape this repo keeps producing — the gate encoded
+ * the call form of the day and went blind to the same assertion rotated. The two
+ * modifiers are listed explicitly rather than matched as `.\w+`, so a member that
+ * is NOT an assertion (`expect.configure(...)`) still does not count.
+ *
+ * eslint's `playwright/expect-expect` already understands these forms, so the
+ * lockstep note on ASSERT_HELPERS still holds: the list of helper NAMES is
+ * unchanged, and only this gate's call-shape pattern was too narrow.
+ */
+const ASSERT_MODIFIERS = ["soft", "poll"];
+
 function hasAssertion(body: string[]): boolean {
   const text = body.join("\n");
-  return ASSERT_HELPERS.some((fn) => new RegExp(`\\b${fn}\\s*\\(`).test(text));
+  const modifier = `(?:\\.(?:${ASSERT_MODIFIERS.join("|")}))?`;
+  return ASSERT_HELPERS.some((fn) => new RegExp(`\\b${fn}${modifier}\\s*\\(`).test(text));
 }
 
 function scan(source: string, file: string): Offence[] {
@@ -301,6 +323,41 @@ describe("no vacuous Playwright tests", () => {
 
     const rules = scan(offender, "Synthetic.spec.ts").map((o) => o.rule);
     expect(rules.some((r) => r.includes("no assertion"))).toBe(true);
+  });
+
+  it("counts expect.soft and expect.poll — an assertion wearing a modifier", () => {
+    // The regression this pins. The pattern used to be a literal `expect(` call, so
+    // a MEMBER form put a `.` exactly where the `(` had to be and the whole body
+    // read as unasserted. tests/e2e/control-sweep.spec.ts — 40 routes, four soft
+    // assertions each — was reported as "navigating and clicking without checking
+    // anything" on the day it was written.
+    const soft = [
+      'test("sweeps a route", async ({ page }) => {',
+      '  await page.goto("/inbox");',
+      "  expect.soft(await page.title()).toContain(\"ProcuLink\");",
+      "});",
+    ].join("\n");
+    expect(scan(soft, "Synthetic.spec.ts")).toEqual([]);
+
+    const poll = [
+      'test("waits for a count", async ({ page }) => {',
+      "  await expect.poll(() => page.locator(\"tr\").count()).toBeGreaterThan(0);",
+      "});",
+    ].join("\n");
+    expect(scan(poll, "Synthetic.spec.ts")).toEqual([]);
+  });
+
+  it("still refuses a non-asserting member of expect", () => {
+    // The other direction, and the reason the modifiers are listed explicitly
+    // instead of matched as `.\\w+`: `expect.configure` returns a configured expect,
+    // it does not assert anything, so a body containing only that call is vacuous.
+    const configured = [
+      'test("configures and does nothing", async ({ page }) => {',
+      "  const e = expect.configure({ timeout: 1000 });",
+      '  await page.goto("/inbox");',
+      "});",
+    ].join("\n");
+    expect(scan(configured, "Synthetic.spec.ts").some((o) => o.rule.includes("no assertion"))).toBe(true);
   });
 
   it("allows a body that asserts directly, or through a declared helper", () => {

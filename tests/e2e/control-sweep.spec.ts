@@ -322,7 +322,15 @@ test.describe("control sweep", () => {
     });
   }
 
-  test.afterAll(async (_fixtures, testInfo) => {
+  // Playwright REQUIRES the object-destructuring pattern for the fixtures
+  // argument and rejects `(_fixtures, testInfo)` at load time with "First
+  // argument must use the object destructuring pattern". eslint's
+  // no-empty-pattern objects to the `{}` that satisfies it, so the rule is
+  // disabled for this one line rather than the framework being fought. Found by
+  // running the spec after "fixing" the lint error, which is the only way this
+  // surfaces — it is a runtime load error, not a type error.
+  // eslint-disable-next-line no-empty-pattern
+  test.afterAll(async ({}, testInfo) => {
     // Aggregation deliberately does NOT live here. With parallel workers this hook
     // runs once per worker and can only see that worker's routes, so an aggregate
     // printed from here would under-report and look authoritative doing it. Each
