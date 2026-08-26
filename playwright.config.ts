@@ -135,7 +135,7 @@ export default defineConfig({
       // The visual spec is excluded so it does not run a fourth time at a viewport
       // it has no baselines for.
       use: { ...devices["Desktop Chrome"] },
-      testIgnore: /(visual|control-sweep)\.spec\.ts/,
+      testIgnore: /(visual|control-sweep|control-click)\.spec\.ts/,
     },
 
     // ── Viewport presets ──────────────────────────────────────────────────────
@@ -182,17 +182,17 @@ export default defineConfig({
     {
       name: "sweep-mobile",
       use: { ...devices["Desktop Chrome"], viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true },
-      testMatch: /control-sweep\.spec\.ts/,
+      testMatch: /control-(sweep|click)\.spec\.ts/,
     },
     {
       name: "sweep-tablet",
       use: { ...devices["Desktop Chrome"], viewport: { width: 768, height: 1024 }, hasTouch: true },
-      testMatch: /control-sweep\.spec\.ts/,
+      testMatch: /control-(sweep|click)\.spec\.ts/,
     },
     {
       name: "sweep-desktop",
       use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } },
-      testMatch: /control-sweep\.spec\.ts/,
+      testMatch: /control-(sweep|click)\.spec\.ts/,
     },
 
     {
