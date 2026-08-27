@@ -357,7 +357,7 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
             onClick={onCopy}
             disabled={!content}
             aria-label="Copy preview"
-            style={{ display: "inline-flex", alignItems: "center", gap: 5, cursor: content ? "pointer" : "default", fontSize: 11.5, fontWeight: 600, border: 0, background: "transparent", color: copied ? "#1E6D29" : content ? "#5E6779" : "#AEB6C4" }}
+            style={{ display: "inline-flex", alignItems: "center", minHeight: 24, gap: 5, cursor: content ? "pointer" : "default", fontSize: 11.5, fontWeight: 600, border: 0, background: "transparent", color: copied ? "#1E6D29" : content ? "#5E6779" : "#AEB6C4" }}
           >
             {copied ? "✓ Copied" : "Copy"}
           </button>
@@ -366,7 +366,7 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
             onClick={onDownload}
             disabled={!content}
             aria-label="Download preview"
-            style={{ display: "inline-flex", alignItems: "center", gap: 5, cursor: content ? "pointer" : "default", fontSize: 11.5, fontWeight: 600, border: 0, background: "transparent", color: content ? "#5E6779" : "#AEB6C4" }}
+            style={{ display: "inline-flex", alignItems: "center", minHeight: 24, gap: 5, cursor: content ? "pointer" : "default", fontSize: 11.5, fontWeight: 600, border: 0, background: "transparent", color: content ? "#5E6779" : "#AEB6C4" }}
           >
             Download
           </button>

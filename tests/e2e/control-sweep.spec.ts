@@ -79,8 +79,18 @@ interface ControlRecord {
    * is reporting the pattern working.
    */
   visuallyHidden: boolean;
-  /** Viewport-relative box, kept so the SC 2.5.8 spacing exception can be computed. */
+  /** Viewport-relative box, kept so a reviewer can see the geometry behind a verdict. */
   box: { x: number; y: number; w: number; h: number };
+  /**
+   * WCAG 2.2 SC 2.5.8's SPACING EXCEPTION, decided here rather than in the
+   * report, because this is the only place the geometry of ONE PAGE exists at
+   * one time. The report used to recompute it from the merged records and
+   * compared every control against every other one IN THE PROJECT — so a
+   * button on /inbox could be "crowded" by a link on /pricing, two pages that
+   * never coexist. Deciding it once, next to the boxes, is what makes that
+   * mistake unavailable.
+   */
+  crowded: boolean;
   /**
    * The control sits inside an ancestor that scrolls horizontally. This turns
    * "pushed off the viewport" from a defect into a question: a scroll strip is a
@@ -171,12 +181,27 @@ async function collect(page: Page, route: string): Promise<Omit<PageRecord, "app
         return "";
       }
 
-      /** A link sitting among text in a prose block — the SC 2.5.8 inline exception. */
+      /**
+       * A link sitting among text in a prose block — the SC 2.5.8 inline exception.
+       *
+       * DIV IS IN THE LIST, and the display guard below is why it can be. Without
+       * DIV this reported the "email legal@proculink.eu with your organisation's
+       * legal name" link on /dpa as a failure: the sentence lives in a callout
+       * <div>, not a <p>, and the tag allowlist could not see that. Enlarging that
+       * link would break the line it sits in — which is the exact thing the SC
+       * exempts — so the finding was mine, not the product's.
+       *
+       * DIV alone would be too broad: a link ROW is usually a <div> too, and one
+       * stray text node ("Filters", a separator) would exempt every link in it. So
+       * the parent must also be in NORMAL TEXT FLOW. A sentence is; a flex or grid
+       * row is not, and that is what separates the two cases.
+       */
       function isInlineInText(el: Element): boolean {
         if (el.tagName !== "A") return false;
-        const PROSE = ["P", "LI", "TD", "TH", "DD", "DT", "BLOCKQUOTE", "FIGCAPTION", "SPAN", "SMALL", "EM", "STRONG", "LABEL"];
+        const PROSE = ["P", "LI", "TD", "TH", "DD", "DT", "BLOCKQUOTE", "FIGCAPTION", "SPAN", "SMALL", "EM", "STRONG", "LABEL", "DIV"];
+        const FLOW = ["block", "inline", "inline-block", "list-item", "table-cell"];
         let parent = el.parentElement;
-        while (parent && PROSE.includes(parent.tagName)) {
+        while (parent && PROSE.includes(parent.tagName) && FLOW.includes(getComputedStyle(parent).display)) {
           // Text belonging to the parent but NOT to this link = the link is in a sentence.
           const own = Array.from(parent.childNodes)
             .filter((n) => n.nodeType === Node.TEXT_NODE)
@@ -209,7 +234,21 @@ async function collect(page: Page, route: string): Promise<Omit<PageRecord, "app
 
         const style = getComputedStyle(el);
         if (style.display === "none" || style.visibility === "hidden" || style.opacity === "0") continue;
-        const rect = el.getBoundingClientRect();
+        // SC 2.5.8 measures "the region that would accept a pointer action" for the
+        // control, and a wrapping <label> forwards its clicks to the control — so
+        // the label's box IS the target, not the input's. Two real cases: the
+        // /library/standards search box, where the <input> is 18.8px inside a 32px
+        // <label>, and the inbox checkboxes, which are 13px by design inside a 24px
+        // one. Measuring the input reported both as failures when neither is.
+        //
+        // Only ever GROWS the measured box, and only for a label that really
+        // contains this control, so it cannot hide a small target that has none.
+        let rect = el.getBoundingClientRect();
+        const label = el.closest("label");
+        if (label && label !== el) {
+          const lr = label.getBoundingClientRect();
+          if (lr.width >= rect.width && lr.height >= rect.height) rect = lr;
+        }
         if (rect.width === 0 || rect.height === 0) continue;
 
         controls.push({
@@ -230,7 +269,34 @@ async function collect(page: Page, route: string): Promise<Omit<PageRecord, "app
           inlineInText: isInlineInText(el),
           visuallyHidden: rect.width <= 1 || rect.height <= 1 || /inset\(50%\)|rect\(0/.test(style.clipPath + style.clip),
           inScrollContainer: hasScrollingAncestor(el),
+          crowded: false, // filled in below, once every control on the page is known
         });
+      }
+
+      // The spacing exception. The SC does not require a 24px target: it requires
+      // that a 24px circle centred on the target does not touch another target's
+      // circle. A row of 20px icons with real gaps passes; two jammed together
+      // does not. On this app the exception carries almost everything: 17
+      // controls are still under 24px at desktop and NONE of them has a
+      // neighbour inside its circle, so size alone would report 17 failures
+      // where the SC has none.
+      //
+      // Two circles of equal diameter intersect when their centres are closer
+      // than one diameter, so centre distance is the honest test. Where the
+      // NEIGHBOUR is already 24px or wider the SC would use its own bounds, and
+      // this is slightly stricter than that — stricter is the safe direction for
+      // a gate, and saying which way it errs is the point of writing it down.
+      //
+      // NOT implemented: the `enclosed`, `essential` and `user-agent control`
+      // exceptions. All three would only ever REDUCE the count, so this stays an
+      // upper bound.
+      const boxed = controls.filter((c) => c.box.w > 0 && c.box.h > 0);
+      for (const c of controls) {
+        const cx = (b: { x: number; y: number; w: number; h: number }) => b.x + b.w / 2;
+        const cy = (b: { x: number; y: number; w: number; h: number }) => b.y + b.h / 2;
+        c.crowded = boxed.some(
+          (o) => o !== c && Math.hypot(cx(c.box) - cx(o.box), cy(c.box) - cy(o.box)) < 24,
+        );
       }
 
       // Heading order. A skipped level (h2 → h4) is a real screen-reader
@@ -327,6 +393,43 @@ test.describe("control sweep", () => {
           `${route.path} scrolls horizontally by ${record.horizontalOverflow}px at this viewport`,
         )
         .toBe(0);
+
+      // WCAG 2.2 SC 2.5.8, level AA. Zero failures now — and, the part worth
+      // recording, zero on the day the sweep first ran too. The report that said
+      // 49 on desktop, 10 on mobile and 7 on tablet was comparing each control
+      // against every control IN THE PROJECT rather than on its own page, so a
+      // button on /inbox came back crowded by a link on /pricing that happened to
+      // sit 5px away in viewport coordinates. All 66 were ghosts. Deciding the
+      // verdict here, per page, is what makes that mistake unavailable.
+      //
+      // Asserted anyway, because the CAUSE is real and shipped even though this
+      // SC never caught it: a standalone <Link> inside a <p> renders as an inline
+      // box, and `min-height` does not apply to one (CSS 2.1 §10.7) — so the 44px
+      // floor in globals.css was silently inert on the sign-in link of 19
+      // marketing routes, five legal pages' cross-link rows and both topbar
+      // breadcrumbs. tap-targets.spec.ts is what measured that; it checks HEIGHT
+      // at 390px, which is why the width shortfalls here were invisible to it.
+      //
+      // MUTATION-PROVED 2026-08-27, and the first attempt was the useful one:
+      // reverting one of those links to `inline` does NOT fail this, because it
+      // is under 24px with nothing inside its circle — the exception working, not
+      // the check failing. Widening the diameter to 200 turns / and the admin
+      // guide routes red, which is what proves the field is recorded, the filter
+      // selects, and the expectation bites.
+      const tooSmall = record.controls.filter(
+        (c) =>
+          c.crowded &&
+          !c.disabled &&
+          !c.inlineInText &&
+          !c.visuallyHidden &&
+          (c.width < 24 || c.height < 24),
+      );
+      expect
+        .soft(
+          tooSmall.map((c) => `<${c.tag}> "${c.name}" ${c.width}x${c.height}`),
+          `${route.path}: target under 24px with another target inside its 24px circle (WCAG 2.2 SC 2.5.8)`,
+        )
+        .toEqual([]);
     });
   }
 

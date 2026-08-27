@@ -398,7 +398,7 @@ function OrgSection() {
             <div style={{ display: "flex", justifyContent: "space-between", gap: 12, fontSize: 12.5 }}>
               <dt style={{ color: "var(--ink-muted)" }}>Order storage</dt>
               <dd style={{ margin: 0, fontWeight: 600, color: "var(--ink)" }}>
-                <Link href="/security" style={{ color: "inherit" }}>EU-region</Link>
+                <Link href="/security" className="inline-flex min-h-[24px] items-center" style={{ color: "inherit" }}>EU-region</Link>
               </dd>
             </div>
           </dl>

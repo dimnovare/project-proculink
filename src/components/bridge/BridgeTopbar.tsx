@@ -98,8 +98,8 @@ function useAutoCrumb(): ReactNode {
               <Link
                 href={crumb.href}
                 title={crumb.label}
-                className="truncate transition-colors hover:underline"
-                style={{ color: "#7C8DA6", maxWidth: 220 }}
+                className="tap-wide inline-block truncate transition-colors hover:underline"
+                style={{ color: "#7C8DA6", maxWidth: 220, minHeight: 24, lineHeight: "24px" }}
                 onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "#C8D1E0"; }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "#7C8DA6"; }}
               >
@@ -198,8 +198,8 @@ function HubRowCrumb({ crumb, isCurrent }: { crumb: Crumb; isCurrent: boolean })
       <Link
         href={crumb.href}
         title={crumb.label}
-        className="truncate transition-colors hover:underline"
-        style={{ color: "#7C8DA6", maxWidth: 220 }}
+        className="tap-wide inline-block truncate transition-colors hover:underline"
+        style={{ color: "#7C8DA6", maxWidth: 220, minHeight: 24, lineHeight: "24px" }}
         onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "#C8D1E0"; }}
         onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "#7C8DA6"; }}
       >

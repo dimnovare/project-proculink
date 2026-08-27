@@ -561,59 +561,79 @@ function buildColumns(labels: PartyLabels, rowSend: RowSendContext) {
       // say why, so the click isn't a silent no-op.
       const selectable = table.getRowModel().rows.filter((r) => r.getCanSelect()).length;
       const none = selectable === 0;
+      // The checkbox itself stays 13px — a 24px one looks broken in a row this dense
+      // — but SC 2.5.8 measures the region that ACCEPTS the pointer action, and a
+      // wrapping <label> is that region. 24x24 fits the 36px column. It stops
+      // propagation for the same reason the input already does: this column selects,
+      // it does not open the order.
       return (
-        <input
-          type="checkbox"
-          disabled={none}
-          style={{ accentColor: BLUE, cursor: none ? "not-allowed" : "pointer", width: 13, height: 13, opacity: none ? 0.4 : 1 }}
-          checked={!none && table.getIsAllPageRowsSelected()}
-          onChange={table.getToggleAllPageRowsSelectedHandler()}
-          aria-label={none ? "No sendable orders on this view" : "Select all sendable orders"}
-          // Names the chips that actually exist. It used to send the operator to a
-          // “Ready to send” tab that did not exist — and now that one does, it would
-          // send them to the WRONG one: `ready` rows carry their own row button and are
-          // deliberately not bulk-selectable (see isRowSendable / isBulkSelectable).
-          title={none
-            ? "No orders here can be sent together. Switch to the “Queued to send” or “Failed” filter, or use the Send button on a “Ready to send” row."
-            : "Selects orders that are queued to send or had a delivery failure."}
-        />
+        <label
+          style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 24, height: 24 }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <input
+            type="checkbox"
+            disabled={none}
+            style={{ accentColor: BLUE, cursor: none ? "not-allowed" : "pointer", width: 13, height: 13, opacity: none ? 0.4 : 1 }}
+            checked={!none && table.getIsAllPageRowsSelected()}
+            onChange={table.getToggleAllPageRowsSelectedHandler()}
+            aria-label={none ? "No sendable orders on this view" : "Select all sendable orders"}
+            // Names the chips that actually exist. It used to send the operator to a
+            // “Ready to send” tab that did not exist — and now that one does, it would
+            // send them to the WRONG one: `ready` rows carry their own row button and are
+            // deliberately not bulk-selectable (see isRowSendable / isBulkSelectable).
+            title={none
+              ? "No orders here can be sent together. Switch to the “Queued to send” or “Failed” filter, or use the Send button on a “Ready to send” row."
+              : "Selects orders that are queued to send or had a delivery failure."}
+          />
+        </label>
       );
     },
     cell: ({ row }) => {
       const canSelect = row.getCanSelect();
+      // The checkbox itself stays 13px — a 24px one looks broken in a row this dense
+      // — but SC 2.5.8 measures the region that ACCEPTS the pointer action, and a
+      // wrapping <label> is that region. 24x24 fits the 36px column. It stops
+      // propagation for the same reason the input already does: this column selects,
+      // it does not open the order.
       return (
-        <input
-          type="checkbox"
-          style={{
-            accentColor: BLUE,
-            cursor: canSelect ? "pointer" : "not-allowed",
-            width: 13,
-            height: 13,
-            opacity: canSelect ? 1 : 0.35,
-          }}
-          checked={row.getIsSelected()}
-          disabled={!canSelect}
-          onChange={row.getToggleSelectedHandler()}
+        <label
+          style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 24, height: 24 }}
           onClick={(e) => e.stopPropagation()}
-          aria-label={
-            canSelect
-              ? "Select row"
-              : row.original.rawStatus === "delivery_unconfirmed"
-                ? "Delivery unknown — open the order to resolve it safely"
-                : isRowSendable(row.original.rawStatus)
-                  ? "Use this row's Send button — this order still needs its output built"
-                  : "Can't select — only orders that are queued to send or had a failed delivery can be sent together"
-          }
-          title={
-            canSelect
-              ? undefined
-              : row.original.rawStatus === "delivery_unconfirmed"
-                ? "Delivery unknown — open the order to resolve it safely"
-                : isRowSendable(row.original.rawStatus)
-                  ? "This order still needs its output built, so it is sent one at a time — use the Send button on this row."
-                  : "Only orders that are queued to send or had a failed delivery can be sent together. Open the others to see what they need."
-          }
-        />
+        >
+          <input
+            type="checkbox"
+            style={{
+              accentColor: BLUE,
+              cursor: canSelect ? "pointer" : "not-allowed",
+              width: 13,
+              height: 13,
+              opacity: canSelect ? 1 : 0.35,
+            }}
+            checked={row.getIsSelected()}
+            disabled={!canSelect}
+            onChange={row.getToggleSelectedHandler()}
+            onClick={(e) => e.stopPropagation()}
+            aria-label={
+              canSelect
+                ? "Select row"
+                : row.original.rawStatus === "delivery_unconfirmed"
+                  ? "Delivery unknown — open the order to resolve it safely"
+                  : isRowSendable(row.original.rawStatus)
+                    ? "Use this row's Send button — this order still needs its output built"
+                    : "Can't select — only orders that are queued to send or had a failed delivery can be sent together"
+            }
+            title={
+              canSelect
+                ? undefined
+                : row.original.rawStatus === "delivery_unconfirmed"
+                  ? "Delivery unknown — open the order to resolve it safely"
+                  : isRowSendable(row.original.rawStatus)
+                    ? "This order still needs its output built, so it is sent one at a time — use the Send button on this row."
+                    : "Only orders that are queued to send or had a failed delivery can be sent together. Open the others to see what they need."
+            }
+          />
+        </label>
       );
     },
     size: 36,
@@ -1773,6 +1793,7 @@ export function InboxView() {
               flex: 1,
               minWidth: 0,
               padding: 0,
+              alignSelf: "stretch",
             }}
           />
         </div>
@@ -2190,6 +2211,7 @@ export function InboxView() {
                             whiteSpace: "nowrap",
                             cursor: "pointer",
                             userSelect: "none",
+                            minHeight: 24,
                           }}
                         >
                           {flexRender(header.column.columnDef.header, header.getContext())}

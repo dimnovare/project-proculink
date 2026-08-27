@@ -750,7 +750,7 @@ function OutgoingRow({
             style={{
               flex: "0 1 38%", minWidth: 0, textAlign: "left", border: "none", background: "none",
               cursor: canRename ? "text" : onSelect ? "pointer" : "default",
-              padding: 0, display: "flex", flexDirection: "column", gap: 1,
+              padding: 0, display: "flex", flexDirection: "column", justifyContent: "center", gap: 1, minHeight: 24,
             }}
           >
             {/* M1: lead with the HUMAN label (readable to a coordinator); the machine

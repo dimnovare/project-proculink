@@ -284,7 +284,7 @@ export function MappingEditor() {
                 aria-pressed={active}
                 key={s}
                 onClick={() => setSrc(s)}
-                className="h-9 flex-shrink-0 rounded-full px-3.5 text-[12.5px] font-semibold transition-colors lg:h-[28px] lg:px-3 lg:text-[11.5px]"
+                className="h-9 min-w-[44px] flex-shrink-0 rounded-full px-3.5 text-[12.5px] font-semibold transition-colors lg:h-[28px] lg:px-3 lg:text-[11.5px]"
                 style={{
                   border: `1px solid ${active ? BLUE : "#E5E8EE"}`,
                   background: active ? BLUE_SOFT : "#FFFFFF",

@@ -1,6 +1,7 @@
 import { pageMetadata } from "@/lib/seo";
 import Link from "next/link";
 import { LEGAL_ENTITY, LEGAL_ENTITY_REFERENCE } from "@/lib/legal-entity";
+import { LegalPageLinks } from "@/components/marketing/LegalPageLinks";
 
 export const metadata = pageMetadata({
   path: "/dpa",
@@ -181,12 +182,14 @@ export default function DpaPage() {
         <a href="mailto:legal@proculink.eu" style={{ color: "#1E6D29", textDecoration: "underline" }}>legal@proculink.eu</a>.
       </p>
 
-      <p style={{ ...S.p, marginTop: 40, paddingTop: 24, borderTop: "1px solid #E2E6EE" }}>
-        <Link href="/privacy" style={{ color: "#1E6D29", marginRight: 16 }}>Privacy Policy</Link>
-        <Link href="/terms" style={{ color: "#1E6D29", marginRight: 16 }}>Terms of Service</Link>
-        <Link href="/subprocessors" style={{ color: "#1E6D29", marginRight: 16 }}>Subprocessors</Link>
-        <Link href="/security" style={{ color: "#1E6D29" }}>Security</Link>
-      </p>
+      <LegalPageLinks
+        links={[
+          ["Privacy Policy", "/privacy"],
+          ["Terms of Service", "/terms"],
+          ["Subprocessors", "/subprocessors"],
+          ["Security", "/security"],
+        ]}
+      />
     </div>
   );
 }

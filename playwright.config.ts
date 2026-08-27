@@ -23,6 +23,14 @@ const isLive = process.env.PLAYWRIGHT_LIVE === "1";
 // Dev-server port. Defaults to the project's 8082 (what CI uses); overridable so two
 // git worktrees can run their own suites at once instead of one silently reusing the
 // other's server and testing the wrong tree.
+//
+// THE OVERRIDE IS NOT FREE, measured 2026-08-27. The Clerk development instance
+// allowlists origins, and localhost:8082 is the only one on it. At 8083 the same
+// tree that passes 140/140 fails 23: /admin logs "[GSI_LOGGER]: The given origin
+// is not allowed for the given client ID" plus a 403 and trips the console-error
+// assertion, and the journey specs cannot find the controls they drive. So a
+// second worktree running here in parallel gets FAILURES THAT ARE NOT ITS OWN.
+// Re-run on 8082 before believing any of them.
 const PORT = process.env.PLAYWRIGHT_PORT ?? "8082";
 const ORIGIN = `http://localhost:${PORT}`;
 

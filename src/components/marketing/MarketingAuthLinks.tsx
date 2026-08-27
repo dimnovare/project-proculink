@@ -10,7 +10,7 @@ import Link from "next/link";
 export function MarketingAuthLinks() {
   return (
     <div className="flex shrink-0 items-center gap-3">
-      <Link href="/sign-in" className="hidden text-[13.5px] font-medium sm:inline" style={{ color: "#C5D2E4" }}>
+      <Link href="/sign-in" className="hidden min-h-[44px] min-w-[44px] items-center justify-center text-[13.5px] font-medium sm:inline-flex" style={{ color: "#C5D2E4" }}>
         Sign in
       </Link>
       <Link

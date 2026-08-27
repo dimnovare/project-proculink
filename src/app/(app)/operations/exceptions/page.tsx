@@ -439,7 +439,7 @@ export default function ExceptionsPage() {
                  (max-width: 639px)`, so the control's own size was 28px at every
                  width it declared for itself. Declaring it here means the strip is
                  correct on its own terms rather than by rescue. */
-              className="flex items-center justify-center rounded-[6px] px-3 text-[12px] font-medium transition-colors flex-shrink-0 h-[44px] sm:h-[28px]"
+              className="flex min-w-[44px] items-center justify-center rounded-[6px] px-3 text-[12px] font-medium transition-colors flex-shrink-0 h-[44px] sm:h-[28px]"
               style={{
                 border: `1px solid ${active ? "var(--ink)" : "var(--border)"}`,
                 background: active ? "var(--ink)" : "var(--surface)",

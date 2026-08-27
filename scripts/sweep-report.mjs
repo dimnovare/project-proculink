@@ -38,49 +38,17 @@ const key = (c) => `${c.route}|${c.tag}${c.role ? `[${c.role}]` : ""}|${c.name}`
 
 
 /**
- * WCAG 2.2 SC 2.5.8 — the SPACING exception, which is why the raw undersized
- * count is an upper bound and not a finding.
+ * SC 2.5.8's spacing verdict is NOT computed here. It rides on each control as
+ * `crowded`, decided inside tests/e2e/control-sweep.spec.ts where one page's
+ * geometry exists at one time.
  *
- * The SC does not require a 24px target. It requires that a 24px-diameter circle
- * centred on the target does not intersect the circle of any OTHER target. A row
- * of 20px icons with generous gaps passes; two 20px icons jammed together do not.
- * Reporting size alone therefore over-reports, and `tap-targets.spec.ts` said as
- * much when it deferred the desktop work: "That is a real gap and it is
- * deliberately NOT closed here."
- *
- * Measuring it changes the question from "how many controls are under 24px"
- * (which nobody can act on) to "how many are under 24px AND crowded" (which is
- * the conformance failure). On this app that is the difference between a number
- * in the hundreds and a short list.
- *
- * WHAT THIS DOES NOT IMPLEMENT, stated so a green count is not over-read:
- *  • The `enclosed` exception (a target inside a larger sibling target).
- *  • The `essential` and `user-agent control` exceptions, which are judgement
- *    calls a script cannot make.
- * Both would only ever REDUCE the count further, so the number below stays an
- * upper bound — just a far tighter one.
- *
- * The test itself is a deliberate simplification: centre-to-centre distance
- * against the 24px diameter. The SC compares the undersized target's circle to
- * the OTHER target's circle, and where that other target is already 24px or
- * larger its own bounds are what count — so on a wide neighbour this is slightly
- * stricter than the SC. Stricter is the safe direction for a report, and saying
- * which direction it errs in is the point of writing it down.
- *
- * Distance between centres is the honest test: two circles of the same diameter
- * intersect when their centres are closer than the diameter itself.
+ * It used to be computed here, and it was wrong: this file only ever sees the
+ * MERGED records, so "is another target within 24px" was asked across every
+ * route in the project at once. A button on /inbox at (100, 200) came back
+ * crowded because a link on /pricing happened to sit at (100, 205). Two pages
+ * that never coexist, one inflated count, and nothing in the output to show it.
+ * The fix is not a better comparison here — it is not having the data here.
  */
-function isCrowded(target, all, diameter) {
-  const cx = (b) => b.x + b.w / 2;
-  const cy = (b) => b.y + b.h / 2;
-  for (const other of all) {
-    if (other === target) continue;
-    const dx = cx(target.box) - cx(other.box);
-    const dy = cy(target.box) - cy(other.box);
-    if (Math.hypot(dx, dy) < diameter) return true;
-  }
-  return false;
-}
 
 const projects = {};
 for (const project of readdirSync(ROOT)) {
@@ -105,12 +73,24 @@ for (const project of readdirSync(ROOT)) {
     (c) => !c.disabled && !c.inlineInText && !c.visuallyHidden && (c.width < WCAG_MIN || c.height < WCAG_MIN),
   );
 
+  // PER ROUTE, and this was wrong until 2026-08-27. A box is in VIEWPORT
+  // coordinates, so comparing every control in the project against every other
+  // one asked whether a button on /inbox sits within 24px of a link on /pricing
+  // — pages that never exist at the same time. It inflated the count with pairs
+  // that cannot crowd each other, and the inflation is invisible: a ghost
+  // neighbour looks exactly like a real one in the output.
+  // A record written before the spec decided this carries no `crowded` field at
+  // all, and `undefined` would quietly read as "not crowded" — a clean report
+  // from a run that measured nothing. Counted so the report can say so.
+  const undecided = withBoxes.filter((c) => typeof c.crowded !== "boolean").length;
+
   projects[project] = {
     project,
     width,
     floor,
     routes: pages.length,
     controls: controls.length,
+    undecided,
     findings: {
       // Below the WCAG 2.2 AA floor at ANY width — the hard one.
       //
@@ -121,11 +101,11 @@ for (const project of readdirSync(ROOT)) {
       // BY DESIGN. Reporting those is reporting the pattern working, and it buries
       // the real ones.
       // Under the floor AND crowded — this is the SC 2.5.8 failure.
-      belowWcagCrowded: undersized.filter((c) => isCrowded(c, withBoxes, WCAG_MIN)),
+      belowWcagCrowded: undersized.filter((c) => c.crowded === true),
       // Under the floor but far enough from every other target to pass by the
       // spacing exception. Reported so the exemption stays visible and arguable
       // rather than silently shrinking the count.
-      belowWcagButSpaced: undersized.filter((c) => !isCrowded(c, withBoxes, WCAG_MIN)),
+      belowWcagButSpaced: undersized.filter((c) => c.crowded === false),
       // Below the touch floor. Only meaningful where the pointer is coarse.
       belowTouch:
         width <= 768
@@ -190,6 +170,14 @@ for (const n of names) {
 }
 push();
 for (const n of names) {
+  if (projects[n].undecided > 0) {
+    push(
+      `> ⚠ **${n}**: ${projects[n].undecided} control(s) carry no SC 2.5.8 verdict. ` +
+        "Those records predate the spec deciding it, so their crowded count is zero because " +
+        "nothing decided it, not because nothing is crowded. Re-run the sweep.",
+    );
+    push();
+  }
   if (projects[n].boxesRecorded === 0 && projects[n].controls > 0) {
     push(
       `> \u26a0 **${n}**: no control boxes were recorded, so the SC 2.5.8 spacing measurement did not run. ` +

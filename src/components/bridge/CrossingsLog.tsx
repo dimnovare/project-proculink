@@ -797,7 +797,7 @@ export function CrossingsLog() {
             aria-label="Search the delivery log"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            style={{ border: "none", background: "none", fontSize: 12.5, width: "100%", color: "var(--ink)" }}
+            style={{ border: "none", background: "none", fontSize: 12.5, width: "100%", color: "var(--ink)", alignSelf: "stretch" }}
           />
         </div>
       </div>

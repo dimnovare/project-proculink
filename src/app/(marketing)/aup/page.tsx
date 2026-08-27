@@ -1,5 +1,6 @@
 import { pageMetadata } from "@/lib/seo";
 import Link from "next/link";
+import { LegalPageLinks } from "@/components/marketing/LegalPageLinks";
 
 export const metadata = pageMetadata({
   path: "/aup",
@@ -65,11 +66,13 @@ export default function AupPage() {
         attack), we will document and notify the responsible account contact promptly.
       </p>
 
-      <p style={{ ...S.p, marginTop: 40, paddingTop: 24, borderTop: "1px solid #E2E6EE" }}>
-        <Link href="/terms" style={{ color: "#1E6D29", marginRight: 16 }}>Terms of Service</Link>
-        <Link href="/privacy" style={{ color: "#1E6D29", marginRight: 16 }}>Privacy Policy</Link>
-        <Link href="/security" style={{ color: "#1E6D29" }}>Security</Link>
-      </p>
+      <LegalPageLinks
+        links={[
+          ["Terms of Service", "/terms"],
+          ["Privacy Policy", "/privacy"],
+          ["Security", "/security"],
+        ]}
+      />
     </div>
   );
 }

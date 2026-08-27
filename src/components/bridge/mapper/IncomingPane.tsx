@@ -383,9 +383,18 @@ function ViewTabs({
   /** Why the document cannot be shown, in the caller's own words. Null → say nothing beyond the fact. */
   unavailableReason?: string | null;
 }) {
+  // LONGHAND BORDERS, DELIBERATELY. `base` carried the `border` shorthand while
+  // `on` overrode `borderColor`, and the "Fields" button below added
+  // `borderLeft`. Mixing the two is a React warning on every RERENDER —
+  // "Removing borderColor border" and "Removing borderColor borderLeft" — which
+  // this control reaches without anyone clicking it, because `value` flips once
+  // the source document resolves. It surfaced as a FLAKY console-error failure
+  // in the responsive sweep: intermittent because it races the document load,
+  // and the sweep is a blocking gate, so intermittent is the expensive kind.
   const base: React.CSSProperties = {
-    padding: "2px 8px", fontSize: 10.5, fontWeight: 600, lineHeight: 1.6,
-    border: "1px solid var(--border)", background: "var(--surface)",
+    padding: "2px 8px", fontSize: 10.5, fontWeight: 600, lineHeight: 1.6, minHeight: 24,
+    borderWidth: 1, borderStyle: "solid", borderColor: "var(--border)",
+    background: "var(--surface)",
     color: "var(--ink-muted)", cursor: "pointer",
   };
   const on: React.CSSProperties = {
@@ -422,7 +431,7 @@ function ViewTabs({
         aria-pressed={value === "fields"}
         title="Show the values we captured, which you map to the output"
         data-testid="incoming-view-fields"
-        style={{ ...base, ...(value === "fields" ? on : null), borderRadius: "0 5px 5px 0", borderLeft: "none" }}
+        style={{ ...base, ...(value === "fields" ? on : null), borderRadius: "0 5px 5px 0", borderLeftWidth: 0 }}
       >
         Fields
       </button>
