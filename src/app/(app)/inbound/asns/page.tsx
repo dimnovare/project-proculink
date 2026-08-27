@@ -96,11 +96,11 @@ export default function AsnsPage() {
         sub={isLoading && !isApiMockMode ? "Loading…" : `${asns.length} notice${asns.length !== 1 ? "s" : ""}`}
       />
 
-      {/* ASN / EDIFACT DESADV ingestion is not built yet (DESADV parsing requires a
-          commercial EDI licence — DesadvController POST /api/asns/upload returns 501).
-          We do NOT render an upload control that always fails. The list of any ASNs
-          created by other means still renders below; the not-available notice carries
-          the honest "coming soon" message. */}
+      {/* ASN / EDIFACT DESADV ingestion is not built (DESADV parsing requires a commercial
+          EDI licence). This said the endpoint "returns 501"; backend PR 256 deleted
+          `DesadvController.Upload` on 2026-08-26, so there is nothing there at all.
+          We do NOT render an upload control that always fails. Any ASNs created by other
+          means still render below; the notice carries the honest not-available message. */}
       <div
         className="mb-4 rounded-[8px] px-4 py-3 text-[12.5px]"
         style={{
