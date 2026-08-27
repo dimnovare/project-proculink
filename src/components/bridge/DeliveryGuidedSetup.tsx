@@ -1044,6 +1044,13 @@ function StepFormat({
           const selected = outputFormat === f.id;
           return (
             <button
+              /* OutputStructureDesigner's format pills use role="radio" +
+                 aria-checked for the same concept. That is the better shape and
+                 it is NOT copied here on purpose: these buttons have no
+                 radiogroup container, and a lone role="radio" claims a keyboard
+                 contract (arrow keys, roving tabindex) that does not exist here.
+                 aria-pressed states the fact without the false claim. */
+              aria-pressed={selected}
               key={f.id}
               type="button"
               onClick={() => setOutputFormat(f.id)}

@@ -588,7 +588,15 @@ function SortableTh({
 }) {
   const active = sortKey === col;
   return (
-    <th style={{ ...th, textAlign: align }}>
+    // aria-sort, NOT aria-pressed. This is a sortable column header, and the
+    // direction chevron beside the label is `aria-hidden` — so the sort state and
+    // its direction were visible only as a glyph and a colour, and reached a
+    // screen reader not at all. WCAG 2.2 / the data-table pattern want the state
+    // on the header cell, which is also the only element that can carry it.
+    <th
+      aria-sort={active ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
+      style={{ ...th, textAlign: align }}
+    >
       <button
         onClick={() => toggleSort(col)}
         className="inline-flex items-center gap-1"

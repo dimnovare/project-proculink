@@ -423,6 +423,12 @@ export default function ExceptionsPage() {
           return (
             <button
               key={label}
+              /* The active tab was signalled by fill colour alone, so nothing
+                 announced WHICH filter was applied. `aria-pressed` is the right
+                 shape here rather than role=tab: these are buttons in a plain
+                 row, and a `role="tab"` without a tablist and arrow-key roving
+                 focus would claim a widget this is not. */
+              aria-pressed={active}
               onClick={() => selectTab(i)}
               /* Tap floor: 44px on a phone, the dense 28px from sm: up — the same
                  mobile-first shape DSPrimitives.BUTTON_SIZE uses, so the desktop

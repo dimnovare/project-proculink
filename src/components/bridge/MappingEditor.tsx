@@ -279,6 +279,9 @@ export function MappingEditor() {
             const active = srcFilter === s;
             return (
               <button
+                /* Active chip was signalled by fill colour alone — see the
+                   exceptions page for the same fix and the reasoning. */
+                aria-pressed={active}
                 key={s}
                 onClick={() => setSrc(s)}
                 className="h-9 flex-shrink-0 rounded-full px-3.5 text-[12.5px] font-semibold transition-colors lg:h-[28px] lg:px-3 lg:text-[11.5px]"
