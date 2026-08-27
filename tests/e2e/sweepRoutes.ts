@@ -62,6 +62,13 @@ export const SKIPPED: Record<string, string> = {
   "/sign-in/[[...sign-in]]":
     "Clerk publishable key is empty in mock mode, so this renders an 'Sign-in is not configured' placeholder, not the real widget. Sweeping it would report the placeholder as coverage.",
   "/sign-up/[[...sign-up]]": "Same as /sign-in — placeholder, not the real widget.",
+  "/onboarding/select-organization":
+    "The organisation gate. Its real screen — including its <h1> — lives behind " +
+    "`useOrganizationList`, and Clerk is dormant in mock mode (empty publishable key, " +
+    "NEXT_PUBLIC_CLERK_KEYLESS_DISABLED=true), so the route renders nothing but the cookie " +
+    "banner. The sweep duly reported it as a screen with no <h1> and one control. Same " +
+    "placeholder problem as /sign-in above: scanning it measures the placeholder and reports " +
+    "it as coverage of the gate. Needs an authenticated harness, not a curated exclusion.",
 };
 
 export interface SweepRoute {

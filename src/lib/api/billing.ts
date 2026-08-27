@@ -153,7 +153,114 @@ export interface CreateAdminInvoiceResult {
   status: string;
 }
 
+/**
+ * Admin-console fixtures for mock mode.
+ *
+ * `checkAdminAccess` has answered `if (USE_MOCK) return true` since it was
+ * written — mock mode says "you are an admin" — while every admin READ below it
+ * went straight to the network. So `/admin` granted itself access and then had
+ * nothing to render: measured by the three-viewport control sweep on 2026-08-26,
+ * which recorded `ERR_CONNECTION_REFUSED` on that route with no API running.
+ * Mock mode is this repo's documented offline QA path, so a route that ignores
+ * it cannot be QA'd, demoed, or screenshotted.
+ *
+ * READS ONLY, and that is the whole rule. The mutations in this file —
+ * createCheckoutSession, createPortalSession, createAdminInvoice, setOrgLimits,
+ * updateEmailSettings — deliberately keep no mock branch. A mocked mutation
+ * reports success for something that did not happen, which is the exact class of
+ * lie this codebase keeps removing (see the Group J2 fabricated-data purge in
+ * CLAUDE.md). Offline, they fail loudly, which is the honest answer.
+ *
+ * The numbers below are obviously synthetic — an org literally named "Example
+ * Workspace" — for the same reason `DEMO_MOCK` is named that: nobody should be
+ * able to mistake a fixture for a customer.
+ */
+const MOCK_ADMIN = {
+  overview: {
+    mrr: 1_497,
+    arr: 17_964,
+    stripeMrr: 1_497,
+    reconciled: true,
+    countsByAccountStatus: { active: 6, trialing: 3, past_due: 1 },
+    newOrgsThisMonth: 3,
+    trialToPaidConversion: 0.42,
+  } satisfies AdminOverview,
+
+  organisations: [
+    {
+      id: "org_example_1",
+      name: "Example Workspace",
+      slug: "example-workspace",
+      plan: "growth",
+      accountStatus: "active",
+      stripeCustomerId: "cus_example",
+      stripeSubscriptionId: "sub_example",
+      mrrContribution: 149,
+      createdAt: "2026-06-01T09:00:00Z",
+      lastOrderActivity: "2026-08-25T14:11:00Z",
+      orderVolume30d: 84,
+      supplierCount: 3,
+    },
+    {
+      id: "org_example_2",
+      name: "Second Example Workspace",
+      slug: "second-example-workspace",
+      plan: "pilot",
+      accountStatus: "trialing",
+      stripeCustomerId: null,
+      stripeSubscriptionId: null,
+      mrrContribution: 0,
+      createdAt: "2026-08-20T11:30:00Z",
+      lastOrderActivity: null,
+      orderVolume30d: 4,
+      supplierCount: 1,
+    },
+  ] as AdminOrganisation[],
+
+  jobFailures: {
+    // Non-zero on purpose. A zero here would render the one state the type's own
+    // caveat says is ambiguous — "no failures" and "the job store was
+    // unreachable" are indistinguishable — so the fixture would be showing the
+    // reader the least informative screen the panel has.
+    totalFailed: 2,
+    shown: 2,
+    failures: [
+      {
+        id: "job-example-1",
+        job: "ParseOrderJob",
+        exceptionType: "System.TimeoutException",
+        exceptionMessage: "The operation has timed out.",
+        reason: "Exceeded retry attempts",
+        failedAt: "2026-08-26T08:14:22Z",
+      },
+      {
+        id: "job-example-2",
+        job: "DeliverOrderJob",
+        exceptionType: null,
+        exceptionMessage: null,
+        reason: null,
+        failedAt: null,
+      },
+    ],
+  } satisfies AdminJobFailures,
+
+  itemMappingTwins: {
+    totalGroups: 1,
+    note: "Read-only. Codes differing only in case are shown so they can be reconciled by hand.",
+    groups: [
+      {
+        organisationId: "org_example_1",
+        supplierId: "s1",
+        foldedCode: "hx-4410",
+        rowCount: 2,
+        spellings: ["HX-4410", "hx-4410"],
+      },
+    ],
+  } satisfies AdminItemMappingTwins,
+} as const;
+
 export async function getAdminOverview(): Promise<AdminOverview> {
+  if (USE_MOCK) return MOCK_ADMIN.overview;
   const headers = await authHeader();
   const res = await fetchWithTimeout(`${API_BASE_URL}/api/admin/overview`, { headers });
   if (!res.ok) return adminError(res, "admin/overview");
@@ -161,6 +268,7 @@ export async function getAdminOverview(): Promise<AdminOverview> {
 }
 
 export async function getAdminOrganisations(): Promise<AdminOrganisation[]> {
+  if (USE_MOCK) return [...MOCK_ADMIN.organisations];
   const headers = await authHeader();
   const res = await fetchWithTimeout(`${API_BASE_URL}/api/admin/organisations`, { headers });
   if (!res.ok) return adminError(res, "admin/organisations");
@@ -352,6 +460,28 @@ export interface OrgRetentionResult {
  * guard here keeps that refusal off the network entirely.
  */
 export async function findAdminOrdersByPo(po: string): Promise<AdminOrderFindResult> {
+  if (USE_MOCK) {
+    // A lookup that finds nothing is the panel's other real state, so the
+    // fixture answers on the search term rather than always returning a hit.
+    const hit = po.trim().toUpperCase() === "PO-DEMO-001";
+    return {
+      count: hit ? 1 : 0,
+      capped: false,
+      matches: hit
+        ? [{
+            orgId: "org_example_1",
+            orgName: "Example Workspace",
+            orgSlug: "example-workspace",
+            orderId: "ord-002",
+            status: "review",
+            supplierName: "Example Supplier",
+            poNumber: "PO-DEMO-001",
+            createdAt: "2026-08-25T13:02:00Z",
+            updatedAt: "2026-08-25T14:11:00Z",
+          }]
+        : [],
+    };
+  }
   const trimmed = po.trim();
   if (!trimmed) {
     throw new Error("Enter the PO number the customer quoted.");
@@ -367,6 +497,7 @@ export async function findAdminOrdersByPo(po: string): Promise<AdminOrderFindRes
 
 /** Recent Hangfire job failures. The server clamps `count` to 1..200. */
 export async function getAdminJobFailures(count = 50): Promise<AdminJobFailures> {
+  if (USE_MOCK) return MOCK_ADMIN.jobFailures;
   const headers = await authHeader();
   const res = await fetchWithTimeout(
     `${API_BASE_URL}/api/admin/job-failures?count=${encodeURIComponent(String(count))}`,
@@ -378,6 +509,7 @@ export async function getAdminJobFailures(count = 50): Promise<AdminJobFailures>
 
 /** Learned item mappings whose buyer codes differ only in case. Read-only. */
 export async function getAdminItemMappingTwins(): Promise<AdminItemMappingTwins> {
+  if (USE_MOCK) return MOCK_ADMIN.itemMappingTwins;
   const headers = await authHeader();
   const res = await fetchWithTimeout(`${API_BASE_URL}/api/admin/item-mapping-twins`, { headers });
   if (!res.ok) return adminError(res, "admin/item-mapping-twins");
