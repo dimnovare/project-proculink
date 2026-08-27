@@ -54,6 +54,18 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
  * distinct from a failure, which throws.
  */
 export async function getPoMapping(supplierId: string): Promise<PoMappingConfig | null> {
+  // The last call on /library/suppliers/{id} that ignored mock mode, so that
+  // route was the only one left in the app firing a real request with no API
+  // running — caught by the control sweep as ERR_CONNECTION_REFUSED on
+  // GET /api/suppliers/s1/po-mapping.
+  //
+  // `null` is the honest fixture, not a placeholder for one. It is exactly what
+  // the endpoint's 204 means and what the paragraph above describes: this
+  // supplier has no saved layout. Inventing a PoMappingConfig here would seed
+  // the editor with a mapping nobody configured, which is the failure mode this
+  // function was written to END — a blank editor was the old bug, a fabricated
+  // one would be a worse new one.
+  if (isApiMockMode) return null;
   return apiFetch<PoMappingConfig | null>(`/suppliers/${supplierId}/po-mapping`);
 }
 

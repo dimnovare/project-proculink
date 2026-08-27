@@ -792,7 +792,20 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
                    Admin (admin-gated) · Help · account chip.
           Mobile (< md) collapses to hamburger + brand + the compact control
           cluster; the full nav is reached through the drawer (onMenuClick). */}
-      <div className="flex items-center gap-2 sm:gap-3 px-3 sm:px-5" style={{ height: 52 }}>
+      {/* `md:gap-2 lg:gap-3` — 768 is the tightest width this row ever has, and the
+          only one where it overflowed. It is the breakpoint at which BOTH the
+          workspace switcher (`hidden md:block`) and the cmd-K search
+          (`hidden md:flex`) appear, so everything is on screen at the narrowest
+          width that shows everything. Every child is `flex-shrink-0`, so the
+          surplus went to the last item: the Help button's 44px hit area was
+          clipped 2px past the right edge on /inbox/[orderId], /library/buyers and
+          /library/suppliers/[id]. Measured by the control sweep at 768.
+
+          Narrowing the gap for that band only recovers far more than the 2px and
+          leaves 390 and 1440 untouched. The alternative — letting the workspace
+          switcher shrink — would truncate a workspace name to save a gap, which
+          is the worse trade. */}
+      <div className="flex items-center gap-2 sm:gap-3 md:gap-2 lg:gap-3 px-3 sm:px-5" style={{ height: 52 }}>
         {/* Mobile menu — opens the BridgeSidebar drawer (full nav on < md). */}
         <button
           type="button"
