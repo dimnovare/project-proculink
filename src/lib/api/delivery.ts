@@ -9,8 +9,7 @@ import {
   authHeader,
   isApiMockMode,
   jsonBodyOrNull,
-  retryAfterFrom,
-} from "./core";
+  retryAfterFrom, delay } from "./core";
 import { serverReason } from "@/lib/serverText";
 import { orgAdminRefusal } from "./refusal";
 
@@ -78,7 +77,10 @@ export async function getDeliveryConfig(supplierId: string): Promise<DeliveryCon
   //
   // `null` is the API's own answer for "nothing saved" (it returns 204), so this is the honest
   // mock: a browsable supplier with delivery not yet set up.
-  if (isApiMockMode) return null;
+  if (isApiMockMode) {
+    await delay(120); // mock reads simulate latency — see getBillingStatus in api/billing.ts
+    return null;
+  }
   return apiFetch<DeliveryConfig | null>(`/suppliers/${supplierId}/delivery-config`);
 }
 

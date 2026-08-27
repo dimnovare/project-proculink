@@ -4,7 +4,7 @@ import { isApiMockMode } from "@/lib/api-client";
 // 48cea6e cold-mount fix) + the normalized base URL, instead of a local copy that
 // read the token BEFORE Clerk finished loading → unauthenticated request → 401 on a
 // cold/hard page load (the magic auto-map then silently degraded to empty).
-import { authHeader, API_BASE_URL, ApiHttpError, retryAfterFrom, jsonBodyOrNull } from "./core";
+import { authHeader, API_BASE_URL, ApiHttpError, retryAfterFrom, jsonBodyOrNull, delay } from "./core";
 import { serverReason } from "@/lib/serverText";
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
@@ -65,7 +65,10 @@ export async function getPoMapping(supplierId: string): Promise<PoMappingConfig 
   // the editor with a mapping nobody configured, which is the failure mode this
   // function was written to END — a blank editor was the old bug, a fabricated
   // one would be a worse new one.
-  if (isApiMockMode) return null;
+  if (isApiMockMode) {
+    await delay(120); // mock reads simulate latency — see getBillingStatus in api/billing.ts
+    return null;
+  }
   return apiFetch<PoMappingConfig | null>(`/suppliers/${supplierId}/po-mapping`);
 }
 

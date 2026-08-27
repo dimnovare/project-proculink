@@ -2297,6 +2297,7 @@ export async function promoteMapping(
 
 export async function getBuyers(): Promise<import("@/types/procurement").BuyerDto[]> {
   if (USE_MOCK) {
+    await delay(120); // mock reads simulate latency — see getBillingStatus in api/billing.ts
     return [
       { id: "b1", name: "Heinrich Industries GmbH", code: "HEI", orderCount: 1820, lastOrderAge: "2m",  formats: ["PDF", "XLSX"] },
       { id: "b2", name: "Nordmark Logistics A/S",   code: "NRD", orderCount: 1104, lastOrderAge: "14m", formats: ["cXML", "EDI"] },
@@ -2364,6 +2365,7 @@ export interface AuditLogPage {
 
 export async function getAuditLog(page = 1, pageSize = 50): Promise<AuditLogPage> {
   if (USE_MOCK) {
+    await delay(120); // mock reads simulate latency — see getBillingStatus in api/billing.ts
     return {
       events: [
         { id: "e1", ts: new Date(Date.now() - 2*60000).toISOString(), orderId: "demo-001", poNumber: "PO-DEMO-001", buyerName: "Heinrich Industries", supplierName: "Acme Components", format: "PDF", action: "flagged", actorType: "ai", actorName: "Extraction engine", actorInitials: "AI", message: "3 validation errors flagged", payload: null },
@@ -2826,7 +2828,10 @@ export interface DeliveryConfigSummary {
 }
 
 export async function getSupplierDeliveryConfig(supplierId: string): Promise<DeliveryConfigSummary | null> {
-  if (USE_MOCK) return null;
+  if (USE_MOCK) {
+    await delay(120); // mock reads simulate latency — see getBillingStatus in api/billing.ts
+    return null;
+  }
   const headers = await authHeader();
   const res = await fetchWithTimeout(`${API_BASE_URL}/api/suppliers/${supplierId}/delivery-config`, { headers });
   if (res.status === 404) return null;

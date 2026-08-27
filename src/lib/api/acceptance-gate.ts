@@ -20,7 +20,7 @@
 // clear decision.
 
 import type { AcceptanceGateDecision } from "@/lib/api/types";
-import { API_BASE_URL, authHeader, fetchWithTimeout, isApiMockMode } from "@/lib/api/core";
+import { API_BASE_URL, authHeader, fetchWithTimeout, isApiMockMode, delay } from "@/lib/api/core";
 
 /** A decision that blocks nothing — mock mode, and the shape of "all clear". */
 export const CLEAR_ACCEPTANCE_GATE: AcceptanceGateDecision = {
@@ -33,7 +33,10 @@ export const CLEAR_ACCEPTANCE_GATE: AcceptanceGateDecision = {
 };
 
 export async function getAcceptanceGate(orderId: string): Promise<AcceptanceGateDecision> {
-  if (isApiMockMode) return CLEAR_ACCEPTANCE_GATE;
+  if (isApiMockMode) {
+    await delay(120); // mock reads simulate latency — see getBillingStatus in api/billing.ts
+    return CLEAR_ACCEPTANCE_GATE;
+  }
 
   const res = await fetchWithTimeout(
     `${API_BASE_URL}/api/orders/${orderId}/acceptance-gate`,

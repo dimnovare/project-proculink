@@ -36,11 +36,27 @@ name: Production smoke (authenticated)
 on:
   workflow_dispatch:
   schedule:
-    # 06:00 and 18:00 UTC. Twice a day is enough to catch a bad deploy or an
-    # expired key within a working day, without creating (and deleting) a Clerk
-    # user every ten minutes. The cheap always-on liveness check is the backend
-    # repo's uptime.yml; this is the expensive, high-signal one.
-    - cron: '0 6,18 * * *'
+    # Twice a day is enough to catch a bad deploy or an expired key within a
+    # working day, without creating (and deleting) a Clerk user every ten minutes.
+    # The cheap always-on liveness check is the backend repo's uptime.yml; this is
+    # the expensive, high-signal one.
+    #
+    # :23 AND NOT :00. GitHub runs scheduled workflows on a best-effort queue and
+    # the top of the hour is its most contended minute — their own docs say to
+    # avoid it. Measured on this workflow's last twelve scheduled runs, against a
+    # cron of `0 6,18`:
+    #
+    #   06:17  06:19  06:22  06:23  06:25  06:31
+    #   18:11  18:11  18:18  18:20  18:20  19:29
+    #
+    # Not one started on time. Mean drift about 24 minutes, worst case 89, and on
+    # 2026-08-27 the 06:00 run did not happen at all.
+    #
+    # BE CLEAR ABOUT WHAT THIS FIXES. Moving off the hour reduces contention; it
+    # buys nothing in guarantees, because GitHub promises none. A run that never
+    # happens still looks exactly like a run that passed, and the answer to THAT is
+    # alerting on the workflow's failure and absence — not a better cron.
+    - cron: '23 6,18 * * *'
 
 # Never two runs at once: each provisions a disposable identity, and overlapping
 # runs would have two of them alive against the same production instance.
