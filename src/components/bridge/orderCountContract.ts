@@ -22,6 +22,7 @@
 
 import type { OrderStatus, OrdersPage, OrdersSummary } from "@/types/procurement";
 import { FAILURE_STATUSES } from "@/lib/orderStatusManifest";
+import { NUMBER_LOCALE } from "@/lib/format-number";
 
 // ─── Practice orders: shown in every list, counted by nothing ─────────────────
 //
@@ -92,7 +93,7 @@ export function summaryPopulation(summary: Pick<OrdersSummary, "total" | "sample
  */
 export function practiceOrderNote(practice: number): string | null {
   if (practice <= 0) return null;
-  return `${practice.toLocaleString()} practice order${practice === 1 ? "" : "s"}, not counted toward your plan`;
+  return `${practice.toLocaleString(NUMBER_LOCALE)} practice order${practice === 1 ? "" : "s"}, not counted toward your plan`;
 }
 
 /**

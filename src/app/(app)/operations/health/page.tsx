@@ -39,6 +39,7 @@ import {
   tv2DotColor,
 } from "@/components/bridge/layout/listTableV2";
 import { serverReasonOrNull } from "@/lib/serverText";
+import { NUMBER_LOCALE } from "@/lib/format-number";
 
 /**
  * The dead-letter row's `lastError` as a person can read it, or nothing.
@@ -286,7 +287,7 @@ export default function OperationsHealthPage() {
           style={{ background: "var(--brand-blue-soft)", border: "1px solid #D6E3F2", textDecoration: "none" }}
         >
           <span style={{ fontSize: 26, fontWeight: 700, color: "var(--brand-blue-deep)", lineHeight: 1.1, fontVariantNumeric: "tabular-nums" }}>
-            {(h.pendingReview ?? 0).toLocaleString()}
+            {(h.pendingReview ?? 0).toLocaleString(NUMBER_LOCALE)}
           </span>
           <span style={{ display: "flex", flexDirection: "column" }}>
             <span style={{ fontSize: 13.5, fontWeight: 600, color: "var(--brand-blue-deep)" }}>Awaiting your review</span>

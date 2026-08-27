@@ -38,6 +38,7 @@ import { useSampleOrder } from "@/hooks/useSampleOrder";
 import { PracticeOrderPrompt } from "./PracticeOrderPrompt";
 import { ACCEPTED_UPLOAD_FORMATS, hasAcceptedUploadExtension, isClearlyUnsupportedDragType } from "@/lib/upload-formats";
 import { serverReasonOrNull } from "@/lib/serverText";
+import { formatDate } from "@/lib/format-date";
 
 // ── Format-detection chip: what to say when there is no score ────────────────
 //
@@ -1247,7 +1248,7 @@ export function UploadWorkbench() {
               className="px-5 py-2 text-[11.5px]"
               style={{ background: "#FAFBFD", borderBottom: "1px solid #EEF0F4", color: "#5E6779" }}
             >
-              Pilot ends {new Date(billing.trialEndsAt).toLocaleDateString()}.
+              Pilot ends {formatDate(billing.trialEndsAt)}.
             </div>
           )}
           {billingError && !billing && (

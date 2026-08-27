@@ -6,7 +6,8 @@
 // user's browser — the classic source of hydration drift on dates. Do NOT swap
 // this back to the ambient locale.
 
-const DATE_LOCALE = "en-GB";
+/** Exported for call sites that need their own Intl options but must not pass `undefined`. */
+export const DATE_LOCALE = "en-GB";
 
 const DATE_OPTIONS: Intl.DateTimeFormatOptions = {
   day: "numeric",

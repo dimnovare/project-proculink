@@ -15,6 +15,7 @@ import { BOOK_DEMO_URL, BOOK_DEMO_LINK_ATTRS } from "@/lib/book-demo";
 import { accountStatusLabel, pausedCauseCopy, namesSubscriptionCause } from "@/lib/billingPause";
 import { Card } from "@/components/bridge/layout/Card";
 import { isPlanGate, PlanGateNotice } from "@/components/bridge/PlanGateNotice";
+import { NUMBER_LOCALE } from "@/lib/format-number";
 
 type BillingInterval = "monthly" | "yearly";
 
@@ -117,7 +118,7 @@ function UsageBar({ used, limit, label }: { used: number; limit: number; label: 
       <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
         <span style={{ fontSize: 12.5, color: "var(--ink-muted)" }}>{label}</span>
         <span style={{ fontSize: 12.5, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: atLimit ? "var(--danger)" : "var(--ink)" }}>
-          {used.toLocaleString()} / {unlimited ? "Custom" : limit.toLocaleString()}
+          {used.toLocaleString(NUMBER_LOCALE)} / {unlimited ? "Custom" : limit.toLocaleString(NUMBER_LOCALE)}
         </span>
       </div>
       <div style={{ height: 8, borderRadius: 4, background: "var(--surface-2)", overflow: "hidden" }}>
@@ -327,7 +328,7 @@ function LimitBanner({ status }: { status: BillingStatus }) {
   if (status.plan === "pilot" && status.isOrderLimitReached) {
     return (
       <div style={bannerStyle}>
-        <strong>You&apos;ve used all {status.orderLimit.toLocaleString()} Pilot orders.</strong>
+        <strong>You&apos;ve used all {status.orderLimit.toLocaleString(NUMBER_LOCALE)} Pilot orders.</strong>
         <span>{upgradeSentence(status.plan, "continue processing new orders")}</span>
       </div>
     );
@@ -357,7 +358,7 @@ function OverageNotice({ status }: { status: BillingStatus }) {
         <strong style={{ color: "var(--brand-blue-deep)" }}>You&apos;re over your monthly order allowance.</strong>
         <span>
           Extra orders still process and bill at €0.50 each —{" "}
-          <strong>{status.overageOrders.toLocaleString()}</strong> this period (≈{" "}
+          <strong>{status.overageOrders.toLocaleString(NUMBER_LOCALE)}</strong> this period (≈{" "}
           <strong>{eur}</strong>{" "}
           <span style={{ color: "var(--ink-faint)", fontWeight: 400 }}>estimate</span>). Upgrade for more
           included volume if this keeps up.
@@ -375,8 +376,8 @@ function OverageNotice({ status }: { status: BillingStatus }) {
       <div style={warnNoticeStyle}>
         <strong style={{ color: "var(--amber-text)" }}>You&apos;re approaching your monthly order limit.</strong>
         <span>
-          You&apos;ve used {status.ordersThisMonth.toLocaleString()} of{" "}
-          {status.orderLimit.toLocaleString()} orders. Orders keep processing past the limit and any
+          You&apos;ve used {status.ordersThisMonth.toLocaleString(NUMBER_LOCALE)} of{" "}
+          {status.orderLimit.toLocaleString(NUMBER_LOCALE)} orders. Orders keep processing past the limit and any
           extras bill at €0.50 each.
         </span>
       </div>

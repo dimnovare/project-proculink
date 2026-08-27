@@ -3,6 +3,7 @@ import {
   BILLING_HELD_MESSAGE,
   BILLING_HELD_MESSAGE_PLURAL,
 } from "@/components/bridge/review/hooks/useOrderReview";
+import { NUMBER_LOCALE } from "@/lib/format-number";
 
 /**
  * Orders paused at the delivery step because the plan can't process orders right now.
@@ -35,7 +36,7 @@ export function DeliveryPausedCard({ count }: { count: number }) {
             lineHeight: 1.1, fontVariantNumeric: "tabular-nums",
           }}
         >
-          {count.toLocaleString()}
+          {count.toLocaleString(NUMBER_LOCALE)}
         </span>
         <span style={{ fontSize: 13.5, fontWeight: 600, color: "var(--amber-text)" }}>
           {count === 1 ? "Delivery paused" : "Deliveries paused"}

@@ -12,6 +12,7 @@ import type { SupplierMapping } from "@/types/procurement";
 import { PageShell } from "./layout/PageShell";
 import { PageHeader } from "./layout/PageHeader";
 import { isPlanGate, PlanGateNotice } from "./PlanGateNotice";
+import { NUMBER_LOCALE } from "@/lib/format-number";
 
 // ─── Palette (sampled pixel-exact from the design render 2026-05-30) ───────────
 // Topology semantics in this screen: the BUYER side is blue, the SUPPLIER side is
@@ -205,7 +206,7 @@ export function MappingEditor() {
             <>
               {isApiMockMode ? "Global buyer" : "Buyer"} → {partyNounLower} item code library ·{" "}
               <span style={{ color: "#0B1A2F", fontWeight: 600 }}>
-                {allRows.length.toLocaleString()}
+                {allRows.length.toLocaleString(NUMBER_LOCALE)}
               </span>{" "}
               saved{isApiMockMode ? "" : selectedSupplierName ? ` for ${selectedSupplierName}` : ""}
             </>
@@ -264,7 +265,7 @@ export function MappingEditor() {
               <span style={{ color: INK, fontWeight: 600 }}>{filtered.length}</span>{" "}
               of{" "}
               <span style={{ color: INK, fontWeight: 600 }}>
-                {allRows.length.toLocaleString()}
+                {allRows.length.toLocaleString(NUMBER_LOCALE)}
               </span>
             </>
           )}

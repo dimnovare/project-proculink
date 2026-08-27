@@ -15,6 +15,8 @@
 
 import { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
+import { NUMBER_LOCALE } from "@/lib/format-number";
+import { DATE_LOCALE } from "@/lib/format-date";
 
 /** Day-part for the greeting, from the client's local hour. */
 export function greetingForHour(hour: number): "morning" | "afternoon" | "evening" {
@@ -69,7 +71,7 @@ export function DashboardContextLine({
   const firstName = user?.firstName ?? null;
   const greeting = now ? `Good ${greetingForHour(now.getHours())}` : null;
   const dateLabel = now
-    ? now.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })
+    ? now.toLocaleDateString(DATE_LOCALE, { weekday: "long", day: "numeric", month: "long" })
     : null;
 
   return (
@@ -121,7 +123,7 @@ export function DashboardContextLine({
             // (GET /api/orders is OrderByDescending(o => o.CreatedAt), so "newest" is
             // the real ordering, not a guess.)
             <span className="whitespace-nowrap">
-              No blockers in the newest {blockersScanned.toLocaleString()}{" "}
+              No blockers in the newest {blockersScanned.toLocaleString(NUMBER_LOCALE)}{" "}
               {blockersScanned === 1 ? "order" : "orders"}
             </span>
           )}

@@ -40,6 +40,7 @@ import { InboundAddressSection } from "@/components/settings/InboundAddressSecti
 import { pollingHealthLine, type PollingHealthTone } from "@/components/settings/pollingHealth";
 import { webhookHealth, type WebhookHealthTone } from "@/components/settings/webhookHealth";
 import { formatDateTime } from "@/lib/format-date";
+import { formatDate } from "@/lib/format-date";
 
 type SettingsTab = "org" | "billing" | "email" | "sftp" | "s3" | "api" | "connectors";
 
@@ -1371,10 +1372,10 @@ function ApiKeysSection() {
                     <code style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--ink-muted)" }}>{key.keyPrefix}…</code>
                   </td>
                   <td style={{ padding: "13px 12px", borderBottom: "1px solid var(--border)", fontSize: 12.5, color: "var(--ink-faint)", whiteSpace: "nowrap" }}>
-                    {new Date(key.createdAt).toLocaleDateString()}
+                    {formatDate(key.createdAt)}
                   </td>
                   <td style={{ padding: "13px 12px", borderBottom: "1px solid var(--border)", fontSize: 12.5, color: "var(--ink-faint)", whiteSpace: "nowrap" }}>
-                    {key.lastUsedAt ? new Date(key.lastUsedAt).toLocaleDateString() : "—"}
+                    {formatDate(key.lastUsedAt)}
                   </td>
                   <td style={{ padding: "11px 12px", borderBottom: "1px solid var(--border)", textAlign: "right" }}>
                     {key.isActive ? (
@@ -1431,9 +1432,9 @@ function ApiKeysSection() {
                 </div>
                 <code style={{ display: "block", marginTop: 6, fontSize: 12, fontFamily: "'JetBrains Mono', monospace", color: "var(--ink-muted)" }}>{key.keyPrefix}…</code>
                 <div style={{ marginTop: 6, fontSize: 11.5, color: "var(--ink-faint)" }}>
-                  Created {new Date(key.createdAt).toLocaleDateString()}
+                  Created {formatDate(key.createdAt)}
                   {" · Last used "}
-                  {key.lastUsedAt ? new Date(key.lastUsedAt).toLocaleDateString() : "—"}
+                  {formatDate(key.lastUsedAt)}
                 </div>
                 {key.isActive && (
                   <div style={{ marginTop: 10 }}>

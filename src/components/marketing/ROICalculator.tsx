@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { OVERAGE_PER_ORDER_EUR, PLAN_BY_ID, planEffectiveMonthlyCost, recommendPlanByOrders } from "@/lib/plans";
 import { Card } from "@/components/bridge/layout/Card";
+import { NUMBER_LOCALE } from "@/lib/format-number";
 
 // ─── Design tokens (Bridge Layer design system) ──────────────────────────────
 // Primary accent is BUYER-BLUE (#1E66C9) — sliders, eyebrow, annual savings.
@@ -355,7 +356,7 @@ export function ROICalculator() {
             <Field
               label="Orders per month"
               value={orders}
-              display={orders.toLocaleString()}
+              display={orders.toLocaleString(NUMBER_LOCALE)}
               min={10}
               max={5000}
               step={10}
@@ -555,8 +556,8 @@ export function ROICalculator() {
                     plan's monthly allowance (soft cap — never blocked). */}
                 {!calc.plan.isCustom && calc.netPositive && calc.overageOrders > 0 && (
                   <p style={{ fontSize: 12.5, color: "#9DB2CE", lineHeight: 1.5, margin: "0 0 10px" }}>
-                    {eur(calc.plan.priceMonthly ?? 0)} plan + {calc.overageOrders.toLocaleString()}{" "}
-                    orders over the {calc.plan.orderLimit?.toLocaleString()}/mo allowance ×{" "}
+                    {eur(calc.plan.priceMonthly ?? 0)} plan + {calc.overageOrders.toLocaleString(NUMBER_LOCALE)}{" "}
+                    orders over the {calc.plan.orderLimit?.toLocaleString(NUMBER_LOCALE)}/mo allowance ×{" "}
                     {perOrderEur(OVERAGE_PER_ORDER_EUR)} = {eur(calc.overageEur)} overage.
                     Processing is never blocked.
                   </p>

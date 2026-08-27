@@ -34,6 +34,7 @@ import {
 import { useConfirm } from "@/components/ui/confirm";
 import { isPlanGateError, planGateMessage } from "@/lib/planGate";
 import { inspectOutboundUrl, isRefusal, OUTBOUND_URL_ERRORS } from "@/lib/outboundUrlPolicy";
+import { NUMBER_LOCALE } from "@/lib/format-number";
 
 const INPUT_STYLE = { border: "1px solid #D5DAEA", color: "#0B1A2F" } as const;
 
@@ -1052,7 +1053,7 @@ function TestReport({ result }: { result: CatalogSourceTestResult }) {
         <span className="font-semibold">Connected.</span>
         {result.fileName && <span>{result.fileName}</span>}
         {result.detectedFormat && <span>format: {result.detectedFormat.toUpperCase()}</span>}
-        {result.bytes != null && <span>{result.bytes.toLocaleString()} bytes</span>}
+        {result.bytes != null && <span>{result.bytes.toLocaleString(NUMBER_LOCALE)} bytes</span>}
         {result.parsedRows != null && <span>{result.parsedRows} rows</span>}
         {result.rowsWithCode != null && <span>{result.rowsWithCode} with a code</span>}
       </div>
