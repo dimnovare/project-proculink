@@ -19,17 +19,6 @@ const withMDX = createMDX({
 
 const nextConfig: NextConfig = {
   pageExtensions: ["ts", "tsx", "mdx"],
-  // The dev-server overlay is a fixed-position element in the bottom corner. At
-  // 390 and 768 it sits exactly on top of the cookie banner's Reject button, and
-  // Playwright reports `<nextjs-portal> intercepts pointer events` — so the
-  // first-run journey could not run at either width, while passing at 1280 where
-  // the banner is wide enough to clear it.
-  //
-  // Suppressed ONLY under the Playwright QA bypass, which is `next dev` in a test
-  // run and nothing else: the flag is already the switch that opts this process
-  // into test behaviour, and NODE_ENV keeps it out of production builds. Not a
-  // blanket disable — a developer running `bun run dev` still gets the overlay.
-  ...(process.env.PROCULINK_QA_BYPASS_AUTH === "true" ? { devIndicators: { position: "top-right" as const } } : {}),
   // Tree-shake the lucide-react icon barrel into per-icon imports so a route
   // that uses a handful of icons doesn't pull the whole set into its bundle.
   // Zero behavior change — Next rewrites the imports at build time.

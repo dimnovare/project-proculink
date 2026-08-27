@@ -100,6 +100,24 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             __html: JSON.stringify(ORGANIZATION_STRUCTURED_DATA).replace(/</g, "\\u003c"),
           }}
         />
+        {/* The dev-server overlay is a fixed-position element, and there is no
+            corner where it is harmless.
+
+            It sat over the cookie banner's Reject button at 390 and 768 — the
+            banner's buttons are `flex-1` below `sm`, so Reject spans the whole
+            width and reaches into the badge's corner — which meant the first-run
+            journey could not even dismiss the banner at those widths. Moving it
+            to top-right fixed that and immediately broke `a11y-overlay-open`,
+            where it landed on the marketing mobile-menu trigger. `devIndicators:
+            false` was tried too, and Next 15.5 ignores it silently.
+
+            So it is hidden outright, and ONLY under NEXT_PUBLIC_QA_BYPASS_AUTH —
+            the flag that already means "this build is a Playwright run". It is
+            build-time false in every real build, dev included, so a developer
+            running `bun run dev` still gets the overlay where they expect it. */}
+        {isQaBypass && (
+          <style dangerouslySetInnerHTML={{ __html: "nextjs-portal{display:none !important}" }} />
+        )}
       </head>
       <body>
         <ClerkProvider publishableKey={publishableKey}>
