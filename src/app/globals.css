@@ -819,6 +819,36 @@
           mask-image: linear-gradient(to right, #000 calc(100% - 22px), transparent);
 }
 
+/* The same affordance, for a control strip rather than a code sample.
+
+   The order queue's status filter is the app's only other `no-scrollbar`
+   consumer: it hides the native scrollbar and, at 390px, pushes "Queued to
+   send", "Delivered" and "Failed" up to 315px past the right edge with nothing
+   at all to say they are there. Measured by the three-viewport control sweep on
+   2026-08-26 — "Failed" is arguably the most important filter on that screen and
+   was the most hidden.
+
+   Scoped to below `sm` because that is where it overflows; above `sm` the strip
+   fits and a permanent fade would be decoration.
+
+   Right padding is what makes the fade honest — when the chips fit, the gradient
+   sits over padding and is invisible; only real overflow puts it over content —
+   and it is deliberately NOT set here. Two of the three strips already carry
+   their own horizontal padding, and a `padding-right` in this rule would land at
+   the same specificity as Tailwind's `px-4` with source order deciding the
+   winner. Each call site declares its own.
+
+   Kept separate from `.help-scroll` rather than shared. They are the same three
+   declarations today, and they are for different things — one is MDX prose
+   styling reached from `mdx-components.tsx`, the other is app chrome. If a third
+   consumer appears, that is the moment to extract one. */
+@media (max-width: 639px) {
+  .scroll-cue-x {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 22px), transparent);
+            mask-image: linear-gradient(to right, #000 calc(100% - 22px), transparent);
+  }
+}
+
 /* ── Step-by-step guides ───────────────────────────────────────────────────
    Margin normalisation for MDX prose nested inside a guide's <Step> bodies and
    callouts (Prereqs / IfThisFails / Outcome).

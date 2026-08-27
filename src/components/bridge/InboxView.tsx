@@ -1701,7 +1701,7 @@ export function InboxView() {
             </button>
           </div>
         )}
-        <div className="no-scrollbar flex items-center gap-1.5 overflow-x-auto flex-nowrap w-full sm:w-auto sm:flex-1 min-w-0">
+        <div className="no-scrollbar scroll-cue-x pr-[22px] sm:pr-0 flex items-center gap-1.5 overflow-x-auto flex-nowrap w-full sm:w-auto sm:flex-1 min-w-0">
           {FILTER_CHIPS.map(({ label }, i) => {
             const active = i === activeChip;
             // "Ready to send" is the one chip that is visually PRIMARY: it is the state

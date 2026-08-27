@@ -274,7 +274,7 @@ export function MappingEditor() {
         <div className="hidden flex-1 lg:block" />
 
         {/* Source filter chips — rounded-full pills, buyer-blue active (design v2) */}
-        <div className="-mx-4 flex items-center gap-1.5 overflow-x-auto px-4 sm:mx-0 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="scroll-cue-x -mx-4 flex items-center gap-1.5 overflow-x-auto px-4 sm:mx-0 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {(["All", "AI", "Manual", "Imported", "Inherited"] as const).map((s) => {
             const active = srcFilter === s;
             return (
