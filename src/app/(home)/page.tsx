@@ -1001,7 +1001,7 @@ export default function RootPage() {
               { h: "Legal",   links: [["Privacy", "/privacy"], ["Terms", "/terms"], ["AUP", "/aup"], ["DPA", "/dpa"], ["Subprocessors", "/subprocessors"]] },
             ].map((col) => (
               <div key={col.h}>
-                <h4 style={{ color: SURFACE, fontSize: 12.5, fontWeight: 600, marginBottom: 12 }}>{col.h}</h4>
+                <h3 style={{ color: SURFACE, fontSize: 12.5, fontWeight: 600, marginBottom: 12 }}>{col.h}</h3>
                 {/* ≥44px-tall flex rows so each footer link is a full touch target
                     (WCAG 2.5.8); row height replaces the container gap. */}
                 <div className="flex flex-col">

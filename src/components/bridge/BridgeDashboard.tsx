@@ -434,12 +434,12 @@ function SectionHead({
 }) {
   return (
     <div className="mb-3 flex items-center gap-2.5">
-      <h3
+      <h2
         className="m-0 whitespace-nowrap"
         style={{ fontFamily: "var(--font-display, 'Bricolage Grotesque', Inter, sans-serif)", fontWeight: 700, fontSize: 15.5, letterSpacing: "-0.01em", color: "#0B1A2F" }}
       >
         {title}
-      </h3>
+      </h2>
       {count != null && (
         <span
           className="tabular-nums"

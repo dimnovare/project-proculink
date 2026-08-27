@@ -571,7 +571,7 @@ function AcceptanceTab({ supplierId }: { supplierId: string }) {
         <div className="flex items-center justify-between gap-3 px-5 py-3.5" style={{ borderBottom: `1px solid ${LINE}` }}>
           <div className="flex items-center gap-2">
             <ShieldCheck size={15} strokeWidth={2} color={MUTED} />
-            <h3 className="text-[13px] font-semibold" style={{ color: INK }}>Supplier validation rules</h3>
+            <h2 className="text-[13px] font-semibold" style={{ color: INK }}>Supplier validation rules</h2>
             {profile && (
               <span
                 className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
@@ -1690,7 +1690,7 @@ export function SupplierDockProfile({ id }: { id: string }) {
       {/* Tabs */}
       <div className="relative flex-shrink-0">
         <div
-          className="flex items-center gap-0 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+          className="scroll-cue-x pr-[22px] sm:pr-0 flex items-center gap-0 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
           style={{ borderBottom: `1px solid ${LINE}`, height: 44 }}
         >
           {TABS.map((t) => (
@@ -1775,7 +1775,7 @@ export function SupplierDockProfile({ id }: { id: string }) {
               <Card edge="green" flush>
                 <div className="flex items-center gap-2 px-5 py-3.5" style={{ borderBottom: `1px solid ${LINE}` }}>
                   <Info size={15} strokeWidth={2} color={MUTED} />
-                  <h3 className="text-[13px] font-semibold" style={{ color: INK }}>Delivery summary</h3>
+                  <h2 className="text-[13px] font-semibold" style={{ color: INK }}>Delivery summary</h2>
                 </div>
                 {isApiMockMode ? (
                   <div className="px-4 py-1 sm:px-5">
@@ -1816,7 +1816,7 @@ export function SupplierDockProfile({ id }: { id: string }) {
                 <Card edge="green" flush>
                   <div className="flex items-center gap-2 px-5 py-3.5" style={{ borderBottom: `1px solid ${LINE}` }}>
                     <Clock size={15} strokeWidth={2} color={MUTED} />
-                    <h3 className="text-[13px] font-semibold" style={{ color: INK }}>Recent orders</h3>
+                    <h2 className="text-[13px] font-semibold" style={{ color: INK }}>Recent orders</h2>
                   </div>
                   <div className="px-4 py-1 sm:px-5">
                     {DEMO_MOCK.recent.map((r, i) => (
@@ -1851,7 +1851,7 @@ export function SupplierDockProfile({ id }: { id: string }) {
             <div className="flex flex-col items-start gap-3 px-4 py-4 sm:px-5 sm:flex-row sm:items-center" style={{ borderBottom: `1px solid ${LINE}` }}>
               <Link2 size={17} strokeWidth={2} color={MUTED} className="flex-shrink-0" />
               <div className="min-w-0">
-                <h3 className="text-[14px] font-semibold" style={{ color: INK }}>Code translations</h3>
+                <h2 className="text-[14px] font-semibold" style={{ color: INK }}>Code translations</h2>
                 <p className="mt-0.5 text-[12px]" style={{ color: MUTED }}>
                   {isApiMockMode ? `${DEMO_MOCK.summary.savedMappings.toLocaleString(NUMBER_LOCALE)} buyer → supplier item codes` : "Buyer → supplier item codes"}
                 </p>
@@ -1953,7 +1953,7 @@ export function SupplierDockProfile({ id }: { id: string }) {
           <div className="mb-3 flex items-start gap-2.5">
             <GitBranch size={16} strokeWidth={2} color={MUTED} className="mt-0.5 flex-shrink-0" />
             <div className="min-w-0">
-              <h3 className="text-[14px] font-semibold" style={{ color: INK }}>Order layout</h3>
+              <h2 className="text-[14px] font-semibold" style={{ color: INK }}>Order layout</h2>
               <p className="mt-0.5 text-[12px]" style={{ color: MUTED }}>
                 Tell ProcuLink how to read this {partyNounLower}&apos;s order files — e.g. if column A is the PO number
                 and column C is quantity, connect each one. Set this up after uploading a sample order.
@@ -2426,7 +2426,7 @@ function RecentOrdersPanel({ supplierId, nounLower }: { supplierId: string; noun
     >
       <div className="flex items-center gap-2 px-5 py-3.5" style={{ borderBottom: `1px solid ${LINE}` }}>
         <Clock size={15} strokeWidth={2} color={MUTED} />
-        <h3 id="supplier-recent-orders-heading" className="text-[13px] font-semibold" style={{ color: INK }}>Recent orders</h3>
+        <h2 id="supplier-recent-orders-heading" className="text-[13px] font-semibold" style={{ color: INK }}>Recent orders</h2>
         {/* The count is rendered only once a query has actually returned one. */}
         {!showLoading && !isError && population.metered > 0 && (
           <span className="ml-auto text-[11.5px]" style={{ color: FAINT }}>

@@ -354,7 +354,7 @@ export default function SecurityPage() {
                 >
                   {p.icon}
                 </div>
-                <h3
+                <h2
                   style={{
                     fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
                     fontSize: 17,
@@ -365,7 +365,7 @@ export default function SecurityPage() {
                   }}
                 >
                   {p.title}
-                </h3>
+                </h2>
                 <p style={{ color: MUTE, fontSize: 13.5, lineHeight: 1.6, margin: 0 }}>{p.body}</p>
               </article>
             ))}
