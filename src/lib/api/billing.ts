@@ -46,6 +46,20 @@ async function adminError(res: Response, label: string): Promise<never> {
 
 export async function getBillingStatus(): Promise<BillingStatus> {
   if (USE_MOCK) {
+    // Latency, on purpose, and it is not cosmetic.
+    //
+    // Every other mock read in this codebase awaits `delay` — 73 call sites in
+    // api-client.ts alone. This one returned in a microtask, which meant the
+    // browser had billing data BEFORE hydration while the server render did not,
+    // and React reported a hydration mismatch that exists nowhere but mock mode.
+    // /settings failed the responsive sweep on it deterministically, 3 runs out of
+    // 3, with `… · …` on the server and `… · Pilot plan` on the client.
+    //
+    // Removing the artifact matters more than the one screen: it is what lets a
+    // hydration error in the sweep be treated as REAL. Two genuine ones were
+    // caught this way on 2026-08-26 (server "1284", client "1,284"), and a gate
+    // that cries wolf about hydration would have buried them.
+    await delay(120);
     return {
       plan:                   "pilot",
       accountStatus:          "trialing",
@@ -260,7 +274,10 @@ const MOCK_ADMIN = {
 } as const;
 
 export async function getAdminOverview(): Promise<AdminOverview> {
-  if (USE_MOCK) return MOCK_ADMIN.overview;
+  if (USE_MOCK) {
+    await delay(120); // see getBillingStatus above
+    return MOCK_ADMIN.overview;
+  }
   const headers = await authHeader();
   const res = await fetchWithTimeout(`${API_BASE_URL}/api/admin/overview`, { headers });
   if (!res.ok) return adminError(res, "admin/overview");
@@ -268,7 +285,10 @@ export async function getAdminOverview(): Promise<AdminOverview> {
 }
 
 export async function getAdminOrganisations(): Promise<AdminOrganisation[]> {
-  if (USE_MOCK) return [...MOCK_ADMIN.organisations];
+  if (USE_MOCK) {
+    await delay(120); // see getBillingStatus above
+    return [...MOCK_ADMIN.organisations];
+  }
   const headers = await authHeader();
   const res = await fetchWithTimeout(`${API_BASE_URL}/api/admin/organisations`, { headers });
   if (!res.ok) return adminError(res, "admin/organisations");
@@ -276,7 +296,10 @@ export async function getAdminOrganisations(): Promise<AdminOrganisation[]> {
 }
 
 export async function checkAdminAccess(): Promise<boolean> {
-  if (USE_MOCK) return true;
+  if (USE_MOCK) {
+    await delay(120); // mock reads simulate latency — see getBillingStatus in api/billing.ts
+    return true;
+  }
   try {
     const headers = await authHeader();
     const res = await fetchWithTimeout(`${API_BASE_URL}/api/admin/access`, { headers });
@@ -461,6 +484,7 @@ export interface OrgRetentionResult {
  */
 export async function findAdminOrdersByPo(po: string): Promise<AdminOrderFindResult> {
   if (USE_MOCK) {
+    await delay(120); // mock reads simulate latency — see getBillingStatus in api/billing.ts
     // A lookup that finds nothing is the panel's other real state, so the
     // fixture answers on the search term rather than always returning a hit.
     const hit = po.trim().toUpperCase() === "PO-DEMO-001";
@@ -497,7 +521,10 @@ export async function findAdminOrdersByPo(po: string): Promise<AdminOrderFindRes
 
 /** Recent Hangfire job failures. The server clamps `count` to 1..200. */
 export async function getAdminJobFailures(count = 50): Promise<AdminJobFailures> {
-  if (USE_MOCK) return MOCK_ADMIN.jobFailures;
+  if (USE_MOCK) {
+    await delay(120); // see getBillingStatus above
+    return MOCK_ADMIN.jobFailures;
+  }
   const headers = await authHeader();
   const res = await fetchWithTimeout(
     `${API_BASE_URL}/api/admin/job-failures?count=${encodeURIComponent(String(count))}`,
@@ -509,7 +536,10 @@ export async function getAdminJobFailures(count = 50): Promise<AdminJobFailures>
 
 /** Learned item mappings whose buyer codes differ only in case. Read-only. */
 export async function getAdminItemMappingTwins(): Promise<AdminItemMappingTwins> {
-  if (USE_MOCK) return MOCK_ADMIN.itemMappingTwins;
+  if (USE_MOCK) {
+    await delay(120); // see getBillingStatus above
+    return MOCK_ADMIN.itemMappingTwins;
+  }
   const headers = await authHeader();
   const res = await fetchWithTimeout(`${API_BASE_URL}/api/admin/item-mapping-twins`, { headers });
   if (!res.ok) return adminError(res, "admin/item-mapping-twins");

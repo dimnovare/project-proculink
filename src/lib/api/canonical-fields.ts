@@ -17,7 +17,7 @@
 // is identical from the client's side — the backend resolves the org/connection scope.
 
 import type { CanonicalFieldDef } from "@/lib/api/types";
-import { API_BASE_URL, authHeader, fetchWithTimeout, isApiMockMode } from "@/lib/api/core";
+import { API_BASE_URL, authHeader, fetchWithTimeout, isApiMockMode, delay } from "@/lib/api/core";
 
 /**
  * In-memory store for mock mode (dev only). Keyed by scopeId so two open scopes don't
@@ -36,7 +36,10 @@ function mockList(scopeId: string): CanonicalFieldDef[] {
 
 /** List the Tier-2 custom canonical fields for a scope. Empty list when Phase-2 is absent. */
 export async function getCanonicalFields(scopeId: string): Promise<CanonicalFieldDef[]> {
-  if (isApiMockMode) return [...mockList(scopeId)];
+  if (isApiMockMode) {
+    await delay(120); // mock reads simulate latency — see getBillingStatus in api/billing.ts
+    return [...mockList(scopeId)];
+  }
   const res = await fetchWithTimeout(
     `${API_BASE_URL}/api/connections/${encodeURIComponent(scopeId)}/canonical-fields`,
     { headers: await authHeader() },

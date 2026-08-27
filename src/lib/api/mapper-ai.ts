@@ -17,7 +17,7 @@ import type {
   FieldValidationState,
   CatalogPriceHint,
 } from "@/lib/api/types";
-import { API_BASE_URL, authHeader, fetchWithTimeout, isApiMockMode } from "@/lib/api/core";
+import { API_BASE_URL, authHeader, fetchWithTimeout, isApiMockMode, delay } from "@/lib/api/core";
 
 /**
  * AI-proposed source→canonical / canonical→target mappings for an order, rendered as
@@ -25,7 +25,10 @@ import { API_BASE_URL, authHeader, fetchWithTimeout, isApiMockMode } from "@/lib
  * Phase-2 suggestion endpoint is not deployed yet — also [].
  */
 export async function getMappingSuggestions(orderId: string): Promise<MappingSuggestion[]> {
-  if (isApiMockMode) return [];
+  if (isApiMockMode) {
+    await delay(120); // mock reads simulate latency — see getBillingStatus in api/billing.ts
+    return [];
+  }
   const res = await fetchWithTimeout(`${API_BASE_URL}/api/orders/${orderId}/mapping-suggestions`, {
     headers: await authHeader(),
   });
@@ -40,7 +43,10 @@ export async function getMappingSuggestions(orderId: string): Promise<MappingSug
  * 404 → [] so fields render clean and nothing blocks before Phase 2 lands.
  */
 export async function getFieldValidation(orderId: string): Promise<FieldValidationState[]> {
-  if (isApiMockMode) return [];
+  if (isApiMockMode) {
+    await delay(120); // mock reads simulate latency — see getBillingStatus in api/billing.ts
+    return [];
+  }
   const res = await fetchWithTimeout(`${API_BASE_URL}/api/orders/${orderId}/validation`, {
     headers: await authHeader(),
   });
@@ -56,7 +62,10 @@ export async function getFieldValidation(orderId: string): Promise<FieldValidati
  * Mock / 404 → [] so no badges render before Phase 2 lands.
  */
 export async function getCatalogHints(orderId: string): Promise<CatalogPriceHint[]> {
-  if (isApiMockMode) return [];
+  if (isApiMockMode) {
+    await delay(120); // mock reads simulate latency — see getBillingStatus in api/billing.ts
+    return [];
+  }
   const res = await fetchWithTimeout(`${API_BASE_URL}/api/orders/${orderId}/catalog-hints`, {
     headers: await authHeader(),
   });

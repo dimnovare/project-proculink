@@ -202,17 +202,50 @@ export default defineConfig({
     {
       name: "sweep-mobile",
       use: { ...devices["Desktop Chrome"], viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true },
-      testMatch: /control-(sweep|click)\.spec\.ts/,
+      testMatch: /control-sweep\.spec\.ts/,
     },
     {
       name: "sweep-tablet",
       use: { ...devices["Desktop Chrome"], viewport: { width: 768, height: 1024 }, hasTouch: true },
-      testMatch: /control-(sweep|click)\.spec\.ts/,
+      testMatch: /control-sweep\.spec\.ts/,
     },
     {
       name: "sweep-desktop",
       use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } },
-      testMatch: /control-(sweep|click)\.spec\.ts/,
+      testMatch: /control-sweep\.spec\.ts/,
+    },
+
+    // ── The click pass ────────────────────────────────────────────────────────
+    //
+    // Split out of the sweep projects when the sweep became a PR gate. They ran
+    // the same two specs and the difference in cost is the whole reason:
+    //
+    //   control-sweep  enumerates          3 viewports ~ 3.5 min
+    //   control-click  presses every button 3 viewports ~ 26 min
+    //
+    // 26 minutes on every pull request buys pressure to skip it, and a gate people
+    // route around is worse than none. So the enumeration gates and the click pass
+    // is run deliberately — `bun run sweep:click` — before a release or after a
+    // change to a control-heavy screen.
+    //
+    // Deliberately NOT put on a nightly schedule. A scheduled job nobody is paged
+    // about is exactly the failure this repo had on 2026-08-26: the production
+    // smoke run died at 19:30 and nothing surfaced it for fourteen hours. Adding a
+    // second unwatched schedule would repeat that, not fix it.
+    {
+      name: "click-mobile",
+      use: { ...devices["Desktop Chrome"], viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true },
+      testMatch: /control-click\.spec\.ts/,
+    },
+    {
+      name: "click-tablet",
+      use: { ...devices["Desktop Chrome"], viewport: { width: 768, height: 1024 }, hasTouch: true },
+      testMatch: /control-click\.spec\.ts/,
+    },
+    {
+      name: "click-desktop",
+      use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } },
+      testMatch: /control-click\.spec\.ts/,
     },
 
     {

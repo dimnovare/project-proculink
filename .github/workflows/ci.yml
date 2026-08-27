@@ -630,6 +630,92 @@ jobs:
             test-results/
           retention-days: 7
 
+  # ── Responsive behaviour, at three widths ────────────────────────────────────
+  #
+  # Every other e2e job runs at ONE screen width. `playwright.config.ts` used to
+  # say why — "the existing specs assert behaviour, which does not change with
+  # viewport width" — and that is false here: 51 source files fork their DOM by
+  # breakpoint, 110 controls exist only at 390px and 144 only at 1440px, and until
+  # 2026-08-26 nothing could reach either set at its own width.
+  #
+  # This job runs the two things that are cheap enough to gate on:
+  #
+  #   control-sweep     40 routes x 390/768/1440 — every visible control's
+  #                     accessible name, computed box, overflow; per page the
+  #                     horizontal overflow, heading order and console errors
+  #   the four journeys at 390 and 768 — first run to delivered, upload to
+  #                     workshop, error recovery, sample order
+  #
+  # About five minutes. The CLICK pass — pressing all 589 controls — is 26 minutes
+  # and is deliberately not here; see the note on the click-* projects in
+  # playwright.config.ts.
+  #
+  # WHY IT IS BLOCKING. It was held back until the findings it opened were closed,
+  # so it would not land a red main and teach everyone to ignore it. They are
+  # closed: the last full run was 120 passed, zero P0s. A non-blocking check is one
+  # people stop reading.
+  #
+  # WHAT IT ASSERTS is narrower than what it MEASURES, on purpose. Four things fail
+  # the build — a route that did not render, a page that threw, console errors, and
+  # a page-level horizontal scroll — and they are `expect.soft`, so one bad route
+  # reports its finding without costing the other 39. Target-size and naming
+  # findings are collected into .qa-sweep/ and printed. A gate that failed on 200
+  # pre-existing findings would be disabled within a week.
+  test-responsive:
+    name: Responsive sweep (390 / 768 / 1440)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PROCULINK_QA_BYPASS_AUTH: 'true'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
+      - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: bunx playwright install --with-deps chromium
+
+      - name: Install system deps for Playwright
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: bunx playwright install-deps chromium
+
+      - name: Sweep every route at three widths
+        run: bun run sweep
+
+      # The report is the review. A responsive failure a reviewer cannot look at is
+      # a failure they will override — and the per-route records carry the findings
+      # that are measured but not asserted, which is most of them.
+      - name: Merge the per-route records into a report
+        if: always()
+        run: bun run sweep:report || true
+
+      - name: Upload the sweep report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: responsive-sweep
+          path: .qa-sweep/
+          retention-days: 14
+          if-no-files-found: warn
+
   test-visual:
     name: Visual regression (390 / 768 / 1440)
     runs-on: ubuntu-latest
