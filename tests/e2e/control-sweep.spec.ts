@@ -79,6 +79,8 @@ interface ControlRecord {
    * is reporting the pattern working.
    */
   visuallyHidden: boolean;
+  /** Viewport-relative box, kept so the SC 2.5.8 spacing exception can be computed. */
+  box: { x: number; y: number; w: number; h: number };
   /**
    * The control sits inside an ancestor that scrolls horizontally. This turns
    * "pushed off the viewport" from a defect into a question: a scroll strip is a
@@ -219,6 +221,12 @@ async function collect(page: Page, route: string): Promise<Omit<PageRecord, "app
           height: Math.round(rect.height * 10) / 10,
           disabled: el.hasAttribute("disabled") || el.getAttribute("aria-disabled") === "true",
           overflowRight: Math.max(0, Math.round(rect.right - vw)),
+          box: {
+            x: Math.round(rect.x * 10) / 10,
+            y: Math.round(rect.y * 10) / 10,
+            w: Math.round(rect.width * 10) / 10,
+            h: Math.round(rect.height * 10) / 10,
+          },
           inlineInText: isInlineInText(el),
           visuallyHidden: rect.width <= 1 || rect.height <= 1 || /inset\(50%\)|rect\(0/.test(style.clipPath + style.clip),
           inScrollContainer: hasScrollingAncestor(el),

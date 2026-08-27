@@ -16,7 +16,7 @@
  *   node scripts/sweep-report.mjs            → markdown to stdout
  *   node scripts/sweep-report.mjs --json     → merged JSON
  */
-import { readdirSync, readFileSync, existsSync, writeFileSync, mkdirSync } from "node:fs";
+import { readdirSync, readFileSync, existsSync, writeFileSync, mkdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 // NOT under test-results/: Playwright CLEARS that directory at the start of every
@@ -36,10 +36,60 @@ const VIEWPORT_WIDTH = { "sweep-mobile": 390, "sweep-tablet": 768, "sweep-deskto
 /** A control's identity across viewports: route + how it is named + what it is. */
 const key = (c) => `${c.route}|${c.tag}${c.role ? `[${c.role}]` : ""}|${c.name}`;
 
+
+/**
+ * WCAG 2.2 SC 2.5.8 — the SPACING exception, which is why the raw undersized
+ * count is an upper bound and not a finding.
+ *
+ * The SC does not require a 24px target. It requires that a 24px-diameter circle
+ * centred on the target does not intersect the circle of any OTHER target. A row
+ * of 20px icons with generous gaps passes; two 20px icons jammed together do not.
+ * Reporting size alone therefore over-reports, and `tap-targets.spec.ts` said as
+ * much when it deferred the desktop work: "That is a real gap and it is
+ * deliberately NOT closed here."
+ *
+ * Measuring it changes the question from "how many controls are under 24px"
+ * (which nobody can act on) to "how many are under 24px AND crowded" (which is
+ * the conformance failure). On this app that is the difference between a number
+ * in the hundreds and a short list.
+ *
+ * WHAT THIS DOES NOT IMPLEMENT, stated so a green count is not over-read:
+ *  • The `enclosed` exception (a target inside a larger sibling target).
+ *  • The `essential` and `user-agent control` exceptions, which are judgement
+ *    calls a script cannot make.
+ * Both would only ever REDUCE the count further, so the number below stays an
+ * upper bound — just a far tighter one.
+ *
+ * The test itself is a deliberate simplification: centre-to-centre distance
+ * against the 24px diameter. The SC compares the undersized target's circle to
+ * the OTHER target's circle, and where that other target is already 24px or
+ * larger its own bounds are what count — so on a wide neighbour this is slightly
+ * stricter than the SC. Stricter is the safe direction for a report, and saying
+ * which direction it errs in is the point of writing it down.
+ *
+ * Distance between centres is the honest test: two circles of the same diameter
+ * intersect when their centres are closer than the diameter itself.
+ */
+function isCrowded(target, all, diameter) {
+  const cx = (b) => b.x + b.w / 2;
+  const cy = (b) => b.y + b.h / 2;
+  for (const other of all) {
+    if (other === target) continue;
+    const dx = cx(target.box) - cx(other.box);
+    const dy = cy(target.box) - cy(other.box);
+    if (Math.hypot(dx, dy) < diameter) return true;
+  }
+  return false;
+}
+
 const projects = {};
 for (const project of readdirSync(ROOT)) {
   const dir = join(ROOT, project);
-  if (!existsSync(dir) || !readdirSync(dir).length) continue;
+  // Directories only. This script WRITES REPORT.md into ROOT, so a second run
+  // would otherwise try to readdir() its own output and crash — which it did,
+  // the first time anyone ran it twice.
+  if (!existsSync(dir) || !statSync(dir).isDirectory()) continue;
+  if (!readdirSync(dir).length) continue;
   const pages = readdirSync(dir)
     .filter((f) => f.endsWith(".json"))
     .map((f) => JSON.parse(readFileSync(join(dir, f), "utf8")));
@@ -47,6 +97,13 @@ for (const project of readdirSync(ROOT)) {
   const width = VIEWPORT_WIDTH[project] ?? 0;
   const floor = width <= 768 ? TOUCH_MIN : WCAG_MIN;
   const controls = pages.flatMap((p) => p.controls);
+  // Only controls whose box was recorded can take part in a spacing measurement.
+  // A run from before boxes were recorded has none, which the report says out
+  // loud rather than reporting zero crowded controls as a clean result.
+  const withBoxes = controls.filter((c) => c.box);
+  const undersized = withBoxes.filter(
+    (c) => !c.disabled && !c.inlineInText && !c.visuallyHidden && (c.width < WCAG_MIN || c.height < WCAG_MIN),
+  );
 
   projects[project] = {
     project,
@@ -63,9 +120,12 @@ for (const project of readdirSync(ROOT)) {
       // inside a sentence) and the visually-hidden skip link, which measures 1px
       // BY DESIGN. Reporting those is reporting the pattern working, and it buries
       // the real ones.
-      belowWcag: controls.filter(
-        (c) => !c.disabled && !c.inlineInText && !c.visuallyHidden && (c.width < WCAG_MIN || c.height < WCAG_MIN),
-      ),
+      // Under the floor AND crowded — this is the SC 2.5.8 failure.
+      belowWcagCrowded: undersized.filter((c) => isCrowded(c, withBoxes, WCAG_MIN)),
+      // Under the floor but far enough from every other target to pass by the
+      // spacing exception. Reported so the exemption stays visible and arguable
+      // rather than silently shrinking the count.
+      belowWcagButSpaced: undersized.filter((c) => !isCrowded(c, withBoxes, WCAG_MIN)),
       // Below the touch floor. Only meaningful where the pointer is coarse.
       belowTouch:
         width <= 768
@@ -96,6 +156,7 @@ for (const project of readdirSync(ROOT)) {
       backendRefused: pages.filter((p) => p.backendRefused?.length).map((p) => p.route),
       didNotRender: pages.filter((p) => !p.ok).map((p) => `${p.route} (HTTP ${p.status})`),
     },
+    boxesRecorded: withBoxes.length,
     controlKeys: new Set(controls.map(key)),
     pages,
   };
@@ -128,10 +189,31 @@ for (const n of names) {
   push(`| ${n} (${projects[n].width}px) | ${projects[n].routes} | ${projects[n].controls} | ${exclusive[n].length} |`);
 }
 push();
-push(
-  "The last column is why this sweep exists. A control that appears at only one width lives in a " +
-    "breakpoint-forked tree, and before this run no automated test in the repo could reach it at that width.",
-);
+for (const n of names) {
+  if (projects[n].boxesRecorded === 0 && projects[n].controls > 0) {
+    push(
+      `> \u26a0 **${n}**: no control boxes were recorded, so the SC 2.5.8 spacing measurement did not run. ` +
+        "Its crowded/spaced counts are zero because nothing was measured, not because nothing is crowded. " +
+        "Re-run the sweep on a build that records boxes.",
+    );
+    push();
+  }
+}
+if (names.length < 2) {
+  // With one project loaded, EVERY control is "only at this width" and the column
+  // is a tautology. It printed 1060 of 1207 on a desktop-only run, which reads as
+  // a startling finding and is arithmetic.
+  push(
+    "> ⚠ Only one viewport is present in `.qa-sweep/`, so the last column is meaningless — " +
+      "every control is trivially exclusive when there is nothing to compare against. Run all three " +
+      "projects (`bun run sweep`) before reading it.",
+  );
+} else {
+  push(
+    "The last column is why this sweep exists. A control that appears at only one width lives in a " +
+      "breakpoint-forked tree, and before this run no automated test in the repo could reach it at that width.",
+  );
+}
 push();
 
 const SEVERITY = [
@@ -142,7 +224,8 @@ const SEVERITY = [
   ["clipped", "Control clipped outside the viewport with no scroller", "P1"],
   ["inScrollStrip", "Control off-screen inside a horizontal scroll strip", "P2"],
   ["unnamed", "Control with no accessible name", "P1"],
-  ["belowWcag", `Under ${WCAG_MIN}px — SC 2.5.8 spacing exception NOT checked`, "P2"],
+  ["belowWcagCrowded", `Under ${WCAG_MIN}px AND crowded — fails WCAG 2.2 SC 2.5.8`, "P2"],
+  ["belowWcagButSpaced", `Under ${WCAG_MIN}px but spaced — exempt under SC 2.5.8`, "info"],
   ["belowTouch", `Below the ${TOUCH_MIN}px touch floor`, "P2"],
   ["placeholderOnly", "Named only by placeholder/value", "P2"],
   ["noH1", "No <h1>", "P2"],
