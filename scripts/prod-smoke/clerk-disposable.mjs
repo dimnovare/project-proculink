@@ -57,7 +57,11 @@ const CLERK_API = "https://api.clerk.com/v1";
  * assumption. The prefix is checked against the object Clerk returns, not
  * against the one we think we created.
  */
-export const DISPOSABLE_PREFIX = "proculink-ci-smoke";
+// Re-exported so existing importers keep working; the definition, and every
+// name built from it, now live in the side-effect-free module beside this one
+// so they can be unit-tested. See its header for the two 422s that forced it.
+export { DISPOSABLE_PREFIX, disposableNames } from "./disposableNames.mjs";
+import { DISPOSABLE_PREFIX, disposableNames } from "./disposableNames.mjs";
 
 /** Where provision writes what cleanup must read. Gitignored; workspace-local. */
 const STATE_PATH = resolve(process.cwd(), ".prod-smoke/state.json");
@@ -108,49 +112,13 @@ function readState() {
   return JSON.parse(readFileSync(STATE_PATH, "utf8"));
 }
 
-/**
- * Every digit replaced by a letter: 0->a, 1->b, ... 9->j. Anything else is left
- * alone, so a run id's "-" separator survives.
- *
- * One-to-one, so uniqueness is preserved exactly — two different run ids can
- * never collide — and reversible by eye, which matters when the only trace of a
- * failed cleanup is a name in the Clerk dashboard.
- */
-function digitsAsLetters(value) {
-  return String(value).replace(/\d/g, (d) => "abcdefghij"[Number(d)]);
-}
-
 async function provision() {
   const runId = process.env.PROD_SMOKE_RUN_ID;
   if (!runId) throw new Error("PROD_SMOKE_RUN_ID is not set.");
   const domain = process.env.PROD_SMOKE_EMAIL_DOMAIN || "example.com";
 
-  const slug = `${DISPOSABLE_PREFIX}-${runId}`;
-  const email = `${slug}@${domain}`;
+  const { slug, email, firstName } = disposableNames(runId, domain);
 
-  // The first name is not decoration. The dashboard greets by first name
-  // (DashboardContextLine), so a unique value here gives the spec one assertion
-  // that can only pass if a real Clerk session hydrated in a real browser
-  // against production — see tests/prod/signed-in-screens.spec.ts.
-  //
-  // IT MUST NOT LOOK LIKE A PHONE NUMBER. `Smoke${runId}` was the obvious form
-  // and it broke production monitoring on 2026-08-26 at 19:30, when Clerk began
-  // refusing it:
-  //
-  //   Clerk POST /users -> HTTP 422: The first name "Smoke33005458702-1" is
-  //   invalid: contains a phone number
-  //
-  // A GitHub run id is an eleven-digit number, and eleven digits beginning "33"
-  // parse as an international dialling code. The failure is therefore a function
-  // of WHICH run ids GitHub happens to be issuing — it was fine for months and
-  // will not come back on its own — and it kills the run before a single test
-  // executes, so the smoke job reports failure with no report to read.
-  //
-  // Mapping each digit to a letter keeps the value exactly as unique as the run
-  // id it comes from, while making it impossible to read as a number. It is a
-  // substitution, not a hash: 33005458702-1 -> ddaafefihac-b, and a human
-  // debugging a stray Clerk user can decode it by hand.
-  const firstName = `Smoke${digitsAsLetters(runId)}`;
 
   const user = await clerk("/users", {
     method: "POST",
