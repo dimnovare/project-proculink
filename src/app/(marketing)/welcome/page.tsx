@@ -70,7 +70,7 @@ const S = {
     marginTop: 8,
     minHeight: 44,
   },
-  skip: { display: "block", marginTop: 16, color: "var(--ink-faint)", fontSize: 13 },
+  skip: { display: "inline-flex", alignItems: "center", minHeight: 44, marginTop: 16, color: "var(--ink-faint)", fontSize: 13 },
 };
 
 /* Every step goes somewhere.

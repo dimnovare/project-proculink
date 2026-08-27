@@ -1444,7 +1444,7 @@ export function BridgeDashboard() {
                         aria-pressed={active}
                         title={w.sub}
                         onClick={() => setWindowKey(w.key)}
-                        className="min-h-[28px] min-w-0 rounded-[6px] px-3 py-1 font-medium transition-colors"
+                        className="min-h-[28px] min-w-[44px] rounded-[6px] px-3 py-1 font-medium transition-colors"
                         style={{
                           background: active ? "#0B1A2F" : "transparent",
                           color: active ? "#FFFFFF" : "#5E6779",

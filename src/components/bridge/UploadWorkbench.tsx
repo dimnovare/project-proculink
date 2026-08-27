@@ -1418,7 +1418,7 @@ export function UploadWorkbench() {
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={(e) => e.stopPropagation()}
-                      className="text-[11px]"
+                      className="inline-flex min-h-[24px] items-center text-[11px]"
                       style={{ color: "var(--ink-muted)", textDecoration: "underline", textUnderlineOffset: 2 }}
                     >
                       Need help? See the file format guide →
@@ -1680,7 +1680,7 @@ export function UploadWorkbench() {
                         Orders created. We&apos;re extracting each document now — the buyer, line
                         items and totals fill in automatically once extraction finishes.
                       </p>
-                      <Link href="/inbox" className="text-[12px] font-semibold" style={{ color: "#1E6D29" }}>
+                      <Link href="/inbox" className="inline-flex min-h-[24px] items-center text-[12px] font-semibold" style={{ color: "#1E6D29" }}>
                         View all in inbox ↗
                       </Link>
                     </div>
@@ -1900,7 +1900,7 @@ export function UploadWorkbench() {
               <div className="flex-1" />
               <Link
                 href="/inbox"
-                className="text-[12px] font-medium"
+                className="inline-flex min-h-[24px] items-center text-[12px] font-medium"
                 style={{ color: "#1E6D29" }}
               >
                 View all ↗

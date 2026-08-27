@@ -2,6 +2,7 @@ import { pageMetadata } from "@/lib/seo";
 import Link from "next/link";
 import { LEGAL_ENTITY, PRODUCT_OPERATOR_NOTICE } from "@/lib/legal-entity";
 import { OVERAGE_PER_ORDER_EUR, PLANS } from "@/lib/plans";
+import { LegalPageLinks } from "@/components/marketing/LegalPageLinks";
 
 export const metadata = pageMetadata({
   path: "/terms",
@@ -147,11 +148,13 @@ export default function TermsPage() {
         General support: <a href="mailto:support@proculink.eu" style={{ color: "#1E6D29", textDecoration: "underline" }}>support@proculink.eu</a>
       </p>
 
-      <p style={{ ...S.p, marginTop: 40, paddingTop: 24, borderTop: "1px solid #E2E6EE" }}>
-        <Link href="/privacy" style={{ color: "#1E6D29", marginRight: 16 }}>Privacy Policy</Link>
-        <Link href="/security" style={{ color: "#1E6D29", marginRight: 16 }}>Security</Link>
-        <Link href="/support" style={{ color: "#1E6D29" }}>Support</Link>
-      </p>
+      <LegalPageLinks
+        links={[
+          ["Privacy Policy", "/privacy"],
+          ["Security", "/security"],
+          ["Support", "/support"],
+        ]}
+      />
     </div>
   );
 }

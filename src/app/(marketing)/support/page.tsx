@@ -51,7 +51,7 @@ export default function SupportPage() {
           Email support
         </div>
         <p style={{ ...S.p, marginBottom: 4 }}>
-          <a href="mailto:support@proculink.eu" style={{ color: "#1E6D29", fontWeight: 500 }}>
+          <a href="mailto:support@proculink.eu" className="inline-flex min-h-[44px] items-center" style={{ color: "#1E6D29", fontWeight: 500 }}>
             support@proculink.eu
           </a>
         </p>

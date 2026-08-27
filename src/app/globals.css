@@ -1060,4 +1060,16 @@ details[open] > summary [data-disclosure-chevron] {
   button[aria-label] {
     min-width: var(--tap-min) !important;
   }
+
+  /* Short text controls that want the WIDTH floor too, opted in by name.
+
+     The rule above is scoped to aria-labelled icon controls on purpose, and the
+     height floor does not help a control that is short rather than flat: the
+     topbar breadcrumb crumbs measure 37.6px and 41.3px wide by 44 tall on a
+     tablet. Widening every <button> and <a> instead would reach hundreds of
+     controls that are wide already and squeeze the dense ones that are not, so
+     the opt-in is a class rather than a broader selector. */
+  .tap-wide {
+    min-width: var(--tap-min) !important;
+  }
 }

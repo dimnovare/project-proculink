@@ -1,11 +1,11 @@
 import { pageMetadata } from "@/lib/seo";
-import Link from "next/link";
 import {
   SUBPROCESSORS,
   SUBPROCESSORS_UPDATED,
   SUBPROCESSOR_PLANNED_CHANGES,
 } from "@/lib/subprocessors";
 import { TableScroller } from "@/components/marketing/TableScroller";
+import { LegalPageLinks } from "@/components/marketing/LegalPageLinks";
 
 export const metadata = pageMetadata({
   path: "/subprocessors",
@@ -131,11 +131,13 @@ export default function SubprocessorsPage() {
         agreement; email the address above.
       </p>
 
-      <p style={{ ...S.p, marginTop: 40, paddingTop: 24, borderTop: "1px solid #E2E6EE" }}>
-        <Link href="/dpa" style={{ color: "#1E6D29", marginRight: 16 }}>Data Processing Addendum</Link>
-        <Link href="/privacy" style={{ color: "#1E6D29", marginRight: 16 }}>Privacy Policy</Link>
-        <Link href="/security" style={{ color: "#1E6D29" }}>Security</Link>
-      </p>
+      <LegalPageLinks
+        links={[
+          ["Data Processing Addendum", "/dpa"],
+          ["Privacy Policy", "/privacy"],
+          ["Security", "/security"],
+        ]}
+      />
     </div>
   );
 }

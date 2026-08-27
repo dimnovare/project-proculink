@@ -614,6 +614,7 @@ export default function RootPage() {
         <div style={{ textAlign: "center", marginTop: 22 }}>
           <Link
             href="/formats"
+            className="inline-flex min-h-[44px] items-center"
             style={{ fontSize: 13, fontWeight: 600, color: BLUE_DEEP, textDecoration: "none" }}
           >
             See every format and method, honestly tagged →
