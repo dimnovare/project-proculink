@@ -2941,12 +2941,12 @@ const _mockAsns: AsnDto[] = [
   { id: "asn-002", supplierId: null, supplierName: "GlobalComponents", asnNumber: "ASN-2026-002", shipDate: "2026-05-20", packageCount: 1, status: "pending",  createdAt: new Date().toISOString() },
 ];
 
-// Read-only on purpose. There is no `uploadAsn` here because there is nothing for it
-// to call: the backend's `DesadvController` answers `POST /api/asns/upload` with 501
-// (the EDI DESADV path needs a commercial licence we do not hold), and `/inbound/asns`
-// deliberately renders no upload control. A client wrapper for a 501 is a promise the
-// product cannot keep — one existed, unreferenced, until 2026-08-25. If the backend
-// starts accepting ASN uploads, add the wrapper back together with the UI that uses it.
+// Read-only on purpose. There is no `uploadAsn` here because there is nothing to call:
+// backend PR 256 DELETED `DesadvController.Upload` on 2026-08-26, so `POST /api/asns/upload`
+// does not answer 501 — it does not exist. (This comment claimed 501 for a day after that
+// stopped being true.) DESADV parsing needs a commercial EDI licence we do not hold, so
+// `/inbound/asns` renders no upload control. If ASN ingestion is ever built, the endpoint,
+// this wrapper and the UI arrive together — not one of them ahead of the others.
 export async function getAsns(): Promise<AsnDto[]> {
   if (USE_MOCK) { await delay(400); return [..._mockAsns]; }
   const headers = await authHeader();
