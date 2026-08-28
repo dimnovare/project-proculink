@@ -98,6 +98,10 @@ describe("buildContentSecurityPolicy", () => {
     expect(d["connect-src"]).toContain("https://api.proculink.eu");
     expect(d["connect-src"]).toContain("https://clerk.proculink.eu");
     expect(d["connect-src"]).toContain("https://eu.posthog.com");
+    // The host posthog-js ACTUALLY posts to. This line existed above it for
+    // months asserting only the configured app host, which is why the test was
+    // green while production reported 188 blocked connections to this one.
+    expect(d["connect-src"]).toContain("https://eu.i.posthog.com");
     expect(d["connect-src"]).toContain("https://o4511461459558400.ingest.de.sentry.io");
 
     expect(d["img-src"]).toContain("https://img.clerk.com");
@@ -209,5 +213,40 @@ describe("cspModeFromEnv", () => {
     expect(cspModeFromEnv("report-only")).toBe("report-only");
     expect(cspModeFromEnv(undefined)).toBe("report-only");
     expect(cspModeFromEnv("true")).toBe("report-only");
+  });
+});
+
+describe("the PostHog ingest host", () => {
+  // Production Sentry issue 136782317: 188 CSP reports, 2026-07-30 to 2026-08-20,
+  // all `connect-src` / `eu.i.posthog.com`, on proculink.eu. That host is the ONLY
+  // thing that stood between this policy and CSP_MODE=enforce.
+  const blockedInProduction = "https://eu.i.posthog.com";
+
+  it("allows the host production was measured to be blocking", () => {
+    const d = parse(buildContentSecurityPolicy({ ...BASE, posthogHost: "https://eu.posthog.com" }));
+
+    expect(d["connect-src"]).toContain(blockedInProduction);
+  });
+
+  it("derives the US ingest host from a US app host", () => {
+    const d = parse(buildContentSecurityPolicy({ ...BASE, posthogHost: "https://us.posthog.com" }));
+
+    expect(d["connect-src"]).toContain("https://us.i.posthog.com");
+    expect(d["connect-src"]).not.toContain("https://eu.i.posthog.com");
+  });
+
+  it("does not double up when the ingest host is configured directly", () => {
+    const d = parse(buildContentSecurityPolicy({ ...BASE, posthogHost: blockedInProduction }));
+
+    expect(d["connect-src"].filter((v) => v === blockedInProduction)).toHaveLength(1);
+    expect(d["connect-src"]).not.toContain("https://eu.i.i.posthog.com");
+  });
+
+  it("still names only hosts we chose — a policy that allows everything allows nothing", () => {
+    const d = parse(buildContentSecurityPolicy(BASE));
+
+    expect(d["connect-src"]).not.toContain("*");
+    expect(d["connect-src"]).not.toContain("https:");
+    expect(d["connect-src"]).not.toContain("https://evil.example.com");
   });
 });

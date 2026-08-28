@@ -111,6 +111,23 @@ export function buildContentSecurityPolicy(env: CspEnv): string {
   const posthogAssets = posthog.includes("eu.")
     ? "https://eu-assets.i.posthog.com"
     : "https://us-assets.i.posthog.com";
+  // THE HOST EVENTS ACTUALLY GO TO, which is none of the two above.
+  //
+  // NEXT_PUBLIC_POSTHOG_HOST is `https://eu.posthog.com` in production — the app
+  // host — but posthog-js remaps that to the regional INGEST host and posts
+  // every event to `https://eu.i.posthog.com/e/` and `/i/v0/e/`. Note the `.i.`;
+  // it is the whole difference, and allowing the configured origin does not
+  // allow it.
+  //
+  // Measured, not reasoned: production Sentry issue 136782317, 188 CSP reports
+  // between 2026-07-30 and 2026-08-20, every one `effective-directive:
+  // connect-src`, `blocked-host: eu.i.posthog.com`, on proculink.eu. The policy
+  // has been report-only, so nothing broke — but this is the single reason it
+  // could not be enforced, and it would have taken analytics down on the day
+  // anyone flipped CSP_MODE.
+  const posthogIngest = posthog.includes("eu.")
+    ? "https://eu.i.posthog.com"
+    : "https://us.i.posthog.com";
   const media = uniq((env.mediaUrls ?? []).map(originOf));
 
   // The Vercel preview toolbar (comments / feedback) injects its own scripts,
@@ -159,6 +176,7 @@ export function buildContentSecurityPolicy(env: CspEnv): string {
       "https://clerk-telemetry.com",
       posthog,
       posthogAssets,
+      posthogIngest,
       sentry,
       ...vercelToolbar,
       isPreview ? "wss://ws-us3.pusher.com" : null,
