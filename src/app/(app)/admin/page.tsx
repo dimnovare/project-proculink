@@ -370,7 +370,7 @@ export default function AdminPage() {
             <Card
               flush
               radius={12}
-              className="hidden md:block"
+              className="hidden lg:block"
               data-testid="admin-orgs-table"
               style={{ overflowX: "auto", overflow: "auto" }}
             >
@@ -451,7 +451,7 @@ export default function AdminPage() {
             </Card>
 
             {/* Mobile cards — MobileListRow */}
-            <div className="md:hidden flex flex-col gap-3" data-testid="admin-orgs-mobile">
+            <div className="lg:hidden flex flex-col gap-3" data-testid="admin-orgs-mobile">
               {sortedOrgs.map((org) => (
                 <MobileListRow key={org.id}>
                   <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
