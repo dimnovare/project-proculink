@@ -1,8 +1,12 @@
 // Sentry client-side init — LAZY-LOADED so the ~122 KB @sentry/nextjs SDK is
 // code-split OUT of every route's first-load JS.
 //
-// The SDK auto-executes this file (withSentryConfig injects it into the client
-// entry in next.config.ts, production only). A module-scope
+// NEXT LOADS THIS FILE BY NAME. It was `sentry.client.config.ts`, which the
+// Sentry SDK injected into the client entry via withSentryConfig; since Next
+// 15.3 the framework itself runs `instrumentation-client.ts` on the client, and
+// @sentry/nextjs v10 deprecates the old filename in favour of it. The rename is
+// the whole migration — the contents below are unchanged, and nothing needs to
+// register it. A module-scope
 // `import * as Sentry from "@sentry/nextjs"` used to pull the whole SDK into the
 // shared first-load chunk of EVERY route — marketing included — ~45% of the
 // marketing first-load JS and the top Time-to-Blocking contributor on `/` and

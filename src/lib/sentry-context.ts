@@ -1,6 +1,6 @@
 /**
  * Thin helpers around @sentry/nextjs for setting context that future errors
- * arrive with. Only fires in production (matches sentry.client.config.ts).
+ * arrive with. Only fires in production (matches instrumentation-client.ts).
  *
  * Why this exists: the wizard, sample-order CTA, and contact form all catch
  * fetch errors and convert them to UI notices. Without explicit captureException
@@ -26,7 +26,7 @@ let sentryPromise: Promise<typeof SentryType> | null = null;
 
 /**
  * Fetch the @sentry/nextjs chunk on first use (deduped — webpack resolves this
- * and sentry.client.config.ts's dynamic import to the same async chunk).
+ * and instrumentation-client.ts's dynamic import to the same async chunk).
  * Returns null outside production so the SDK is never fetched in dev/mock/CI.
  */
 function loadSentry(): Promise<typeof SentryType> | null {

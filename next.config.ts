@@ -111,7 +111,7 @@ export default process.env.NODE_ENV === "production"
       silent: !process.env.SENTRY_AUTH_TOKEN,
       telemetry: false,
       // Strip dead Sentry code from the client bundle. Session Replay is NOT
-      // registered in sentry.client.config.ts (no replayIntegration()), so the
+      // registered in instrumentation-client.ts (no replayIntegration()), so the
       // replay excludes are guaranteed no-ops functionally; debug statements
       // are the SDK's internal logger, unused in production. Tracing is kept —
       // tracesSampleRate: 0.1 is live functionality.
