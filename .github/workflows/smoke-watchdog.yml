@@ -1,0 +1,169 @@
+name: Smoke watchdog (did production get checked at all?)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# WHY THIS EXISTS.
+#
+# On 2026-08-26 the scheduled production smoke run failed at 19:29 UTC and every
+# run after it would have failed identically. Nobody found out for fourteen
+# hours, and the reason is worth stating plainly:
+#
+#   A run that never happens looks exactly like a run that passed.
+#
+# Both leave the Actions tab with a green tick from some earlier run and no new
+# red anywhere. prod-smoke.yml's own cron comment already says the answer is
+# "alerting on the workflow's failure and absence — not a better cron". This is
+# that alert.
+#
+# WHAT IT ACTUALLY BUYS, STATED HONESTLY.
+#
+# It converts a SILENT absence into a FAILING CHECK. A failing scheduled workflow
+# is something GitHub emails about, which is the hook a mail-to-SMS rule can hang
+# off — so this is the piece that makes a pager possible, not the pager itself.
+#
+# It does not solve the problem in general, and pretending otherwise would repeat
+# the mistake it was written for: if THIS workflow stops running, nothing here
+# notices. That regress does not end inside GitHub Actions. It ends at an external
+# heartbeat service, or at a human habit.
+#
+# NO SECRETS. Unlike prod-smoke.yml this touches nothing in production — it only
+# reads this repository's own workflow-run history with the job token.
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# THE TWO CHECKS ARE SPLIT ON PURPOSE, AND THE REASON IS MEASURED.
+#
+# The obvious design is one rule: "fail if the last success is older than N
+# hours". It does not survive contact with GitHub's scheduler.
+#
+#   2026-08-27 18:23 UTC scheduled  ->  actually started 2026-08-28 02:12 UTC
+#                                       SEVEN HOURS AND FORTY-NINE MINUTES LATE
+#
+# The twelve runs before that drifted by 24 minutes on average and 89 at worst,
+# which is what the first draft of this file budgeted for. That budget was wrong
+# within a day. Any age threshold tight enough to catch one missed run (~14h) is
+# also tight enough to fire on a run that is merely very late — and a watchdog
+# that cries wolf gets muted, which would leave production exactly as unwatched
+# as it was on 26 August.
+#
+# So the two failure modes are checked separately, each on its own timescale:
+#
+#   FAILING   the last COMPLETED run did not succeed. Detected within one
+#             watchdog cycle regardless of drift, because a red run exists the
+#             moment it goes red. This is the 2026-08-26 case.
+#
+#   ABSENT    no success for 26 hours — two full cycles plus room for the drift
+#             above. Deliberately slower, because absence is the rarer failure
+#             and the cost of being wrong about it is a false alarm.
+#
+# Four times a day rather than twice: the API call is free, and it bounds the
+# FAILING case at about six hours instead of twelve.
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  workflow_dispatch:
+  schedule:
+    # :07 rather than :00 — the top of the hour is the most contended minute on
+    # GitHub's queue, the same reason prod-smoke.yml uses :23. It buys slightly
+    # less lateness on average and guarantees nothing; see the drift note above.
+    - cron: '7 3,9,15,21 * * *'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: smoke-watchdog
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    name: Has the production smoke run succeeded recently?
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Ask GitHub when production was last actually checked
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # 26 hours: two 12-hour cycles plus two hours. Wide enough that the
+          # 7h49m drift measured on 2026-08-27 cannot trip it, narrow enough
+          # that a smoke run which has genuinely stopped is caught within a day.
+          # The FAILING check below is what gives fast detection; this one only
+          # has to catch silence.
+          MAX_AGE_HOURS: '26'
+          WORKFLOW: prod-smoke.yml
+        run: |
+          set -euo pipefail
+          api="repos/${GITHUB_REPOSITORY}/actions/workflows/${WORKFLOW}/runs?per_page=30"
+
+          # `gh --jq` rather than piping to jq: gh embeds jq, so this has one
+          # fewer dependency on the runner image and can be dry-run anywhere gh
+          # is installed — which is how it was checked before it ever ran here.
+          total=$(gh api "$api" --jq '.workflow_runs | length')
+          if [ "${total:-0}" -eq 0 ]; then
+            echo "::error::No runs of ${WORKFLOW} exist at all. Production has never been checked."
+            exit 1
+          fi
+
+          # The most recent SUCCESS is the only thing that proves production was
+          # visited and answered correctly. A red run and a missing run are both
+          # "not that".
+          last_success=$(gh api "$api" --jq '[.workflow_runs[] | select(.conclusion == "success")][0].updated_at // ""')
+
+          # The latest COMPLETED run, not the latest run. A run in flight has a
+          # null conclusion, and treating that as "not success" would fail this
+          # job every time it happened to land during a smoke run — a self-
+          # inflicted false alarm of exactly the kind the header warns about.
+          IFS=$'\t' read -r latest_concl latest_when latest_url < <(
+            gh api "$api" --jq '[.workflow_runs[] | select(.conclusion != null)][0] | "\(.conclusion)\t\(.created_at)\t\(.html_url)"'
+          )
+
+          {
+            echo "### Production smoke watchdog"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Last completed run | \`${latest_concl}\` started ${latest_when} |"
+            echo "| Last success | ${last_success:-none in the last ${total} runs} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ -z "$last_success" ]; then
+            echo "::error::${WORKFLOW} has not succeeded once in its last ${total} runs. Last completed: ${latest_concl} — ${latest_url}"
+            {
+              echo ""
+              echo "**FAILING.** No successful production check in the last ${total} runs."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+          age_h=$(( ( $(date -u +%s) - $(date -u -d "$last_success" +%s) ) / 3600 ))
+          echo "Last successful production smoke: ${last_success} (${age_h}h ago). Absence threshold ${MAX_AGE_HOURS}h."
+          echo "| Age of last success | ${age_h}h (absent above ${MAX_AGE_HOURS}h) |" >> "$GITHUB_STEP_SUMMARY"
+
+          # FAILING — checked first, because it is the fast signal and the one
+          # that would have caught 2026-08-26 the same morning.
+          if [ "$latest_concl" != "success" ]; then
+            echo "::error::The last completed production smoke run is '${latest_concl}', not success — ${latest_url}"
+            {
+              echo ""
+              echo "**FAILING.** The last completed run was [\`${latest_concl}\`](${latest_url})."
+              echo "Production is not being verified, whatever the age above says."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+          # ABSENT — the slow signal.
+          if [ "$age_h" -gt "${MAX_AGE_HOURS}" ]; then
+            echo "::error::Production has not been successfully checked for ${age_h}h (threshold ${MAX_AGE_HOURS}h). The smoke workflow appears to have stopped running. Last completed attempt: ${latest_concl} — ${latest_url}"
+            {
+              echo ""
+              echo "**ABSENT.** No successful production check for ${age_h}h."
+              echo "The last completed run passed, so this is not a failure — \`${WORKFLOW}\` appears to have stopped being scheduled."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+          echo "OK — production was successfully checked ${age_h}h ago."
+          {
+            echo ""
+            echo "OK — production was successfully checked ${age_h}h ago."
+          } >> "$GITHUB_STEP_SUMMARY"
