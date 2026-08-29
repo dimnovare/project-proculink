@@ -201,8 +201,21 @@ export function buildContentSecurityPolicy(env: CspEnv): string {
     ([name, values]) => `${name} ${values.join(" ")}`,
   );
 
+  // upgrade-insecure-requests, and ONLY on a header that is actually enforced.
+  //
+  // A report-only policy ignores this directive outright — Chrome says so, once per
+  // page load: "The Content Security Policy directive 'upgrade-insecure-requests' is
+  // ignored when delivered in a report-only policy." Measured live on proculink.eu
+  // 2026-08-29: twenty-five of those per navigation, and the directive doing nothing
+  // the whole time. It was on the report-only header and nowhere else, so the one
+  // protection here that is not merely observational was the one switched off.
+  //
+  // In report-only mode it therefore moves to baselineEnforcedPolicy below, which is
+  // the header that IS enforced. In enforce mode this string is that header, so it
+  // belongs here. Either way it ships exactly once, on something that obeys it.
+  //
   // Localhost dev talks to the API over plain http, so this must not apply there.
-  if (!env.isDev) serialized.push("upgrade-insecure-requests");
+  if (!env.isDev && env.mode === "enforce") serialized.push("upgrade-insecure-requests");
 
   const report = sentryReportUri(env.sentryDsn, env.vercelEnv);
   if (report) {
@@ -253,15 +266,18 @@ export function securityHeaders(env: CspEnv): HeaderPair[] {
 
   headers.push({
     key: "Content-Security-Policy",
-    value: baselineEnforcedPolicy(report),
+    value: baselineEnforcedPolicy(report, env.isDev),
   });
   headers.push({ key: "Content-Security-Policy-Report-Only", value: policy });
   return headers;
 }
 
 /** The subset that is safe to enforce before the full policy has been measured. */
-function baselineEnforcedPolicy(report: string | null): string {
+function baselineEnforcedPolicy(report: string | null, isDev: boolean): string {
   const parts = ["frame-ancestors 'self'", "base-uri 'self'", "object-src 'none'"];
+  // Carried here rather than on the report-only header, where a browser ignores it.
+  // See the note in buildContentSecurityPolicy.
+  if (!isDev) parts.push("upgrade-insecure-requests");
   if (report) {
     parts.push(`report-uri ${report}`);
     parts.push("report-to csp-endpoint");
