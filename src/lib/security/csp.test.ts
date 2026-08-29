@@ -250,3 +250,43 @@ describe("the PostHog ingest host", () => {
     expect(d["connect-src"]).not.toContain("https://evil.example.com");
   });
 });
+
+describe("upgrade-insecure-requests lands on a header that obeys it", () => {
+  // Measured live on proculink.eu, 2026-08-29: Chrome logged "The Content Security
+  // Policy directive 'upgrade-insecure-requests' is ignored when delivered in a
+  // report-only policy" twenty-five times per navigation. The directive sat on the
+  // report-only header and nowhere else, so it did nothing at all.
+  const key = (headers: { key: string; value: string }[], k: string) =>
+    headers.find((h) => h.key === k)?.value ?? "";
+
+  it("in report-only mode it rides the ENFORCED header, not the report-only one", () => {
+    const headers = securityHeaders({ ...BASE, mode: "report-only" });
+
+    expect(key(headers, "Content-Security-Policy")).toContain("upgrade-insecure-requests");
+    expect(key(headers, "Content-Security-Policy-Report-Only")).not.toContain("upgrade-insecure-requests");
+  });
+
+  it("in enforce mode there is one header and it carries the directive", () => {
+    const headers = securityHeaders({ ...BASE, mode: "enforce" });
+
+    expect(key(headers, "Content-Security-Policy")).toContain("upgrade-insecure-requests");
+    expect(headers.map((h) => h.key)).not.toContain("Content-Security-Policy-Report-Only");
+  });
+
+  it("never in dev, on either header — localhost talks to the API over plain http", () => {
+    for (const mode of ["report-only", "enforce"] as const) {
+      const headers = securityHeaders({ ...BASE, mode, isDev: true });
+      for (const h of headers) expect(h.value).not.toContain("upgrade-insecure-requests");
+    }
+  });
+
+  it("the enforced baseline still carries the guarantees it already had", () => {
+    // Anti-vacuity: a baseline that lost frame-ancestors while gaining this would
+    // be a downgrade wearing a fix's clothes.
+    const enforced = key(securityHeaders({ ...BASE, mode: "report-only" }), "Content-Security-Policy");
+
+    expect(enforced).toContain("frame-ancestors 'self'");
+    expect(enforced).toContain("base-uri 'self'");
+    expect(enforced).toContain("object-src 'none'");
+  });
+});
