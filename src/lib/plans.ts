@@ -152,6 +152,27 @@ export const PLANS: Plan[] = [
       "CSV/XLSX/PDF/XML upload",
       "Manual review",
       "Supplier-ready export",
+      // Pilot really can SEND, and this card said otherwise for its whole life.
+      //
+      // "Supplier-ready export" above is true and was the only outbound bullet, so the free tier
+      // read as download-only — a demo you check by hand rather than a trial that finishes the
+      // job. It is the understating direction, which is why no guard caught it: every check in
+      // gatedCapabilityClaims.test.ts hunts cards claiming MORE than the backend grants.
+      //
+      // The backend is unambiguous. BillingGateErrors.RequiredFeatures(protocol, outputFormat)
+      // adds a requirement for exactly three things — ERP protocols (ErpConnectors), `http`
+      // (WebhookDelivery), and `cxml` output (Cxml). Email, SFTP and FTPS match none of them, so
+      // they carry no gate on any tier, Pilot included. /formats has said so for months; this
+      // card was the page a buyer actually reads before deciding.
+      //
+      // Email is the channel named here rather than the full ungated set, and that is a choice,
+      // not an omission. SFTP and FTPS are equally ungated, but both need the supplier to hand
+      // over a folder and credentials — a second party to negotiate with before a free trial can
+      // send anything. Email needs one address and nothing from the supplier at all, so it is
+      // the one that makes the Pilot genuinely self-serve. Naming SFTP here would also collide
+      // with two direction-blind guards that match the bare token `sftp` (it is INGESTION that
+      // is Growth-gated), and loosening those to fit one bullet would cost more than it buys.
+      "Email delivery to your supplier",
     ],
     inheritsFrom: null,
     cta: { label: "Start Pilot", href: SIGN_UP },
