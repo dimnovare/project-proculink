@@ -1113,6 +1113,19 @@ const UNGATED_BULLETS: ReadonlyArray<{ matches: RegExp; why: string }> = [
     matches: /^Supplier-ready export$/i,
     why: "downloading the transform artifact is ungated — the DELIVERY CHANNELS are what gate (WebhookDelivery, Growth+), and they are sold as their own bullets",
   },
+  {
+    matches: /^Email delivery to your supplier$/i,
+    why:
+      "not every delivery channel gates, and reading the entry above as though they all do is " +
+      "what kept this bullet off the Pilot card. BillingGateErrors.RequiredFeatures(protocol, " +
+      "outputFormat) adds a requirement for exactly three inputs: the two ERP protocols " +
+      "(BillingFeature.ErpConnectors), DeliveryProtocolConstants.Http (WebhookDelivery), and " +
+      "`cxml` output (Cxml). Email, SFTP and FTPS fall through all three branches and return an " +
+      "empty requirement list, so no tier withholds them — /formats has carried its Email row " +
+      "with no plan qualifier for months, and the row-scan above already asserts that bareness " +
+      "is honest. Pilot selling email delivery is therefore the card catching up with the " +
+      "backend, not a new claim",
+  },
   // These two were ONE entry — `/^Field mapping \+ validation$/i`, excused by "the field mapper
   // and validation rules are ungated". Half of that reason contradicted the gate table outright:
   // `BillingFeature.CustomSupplierRules` is Enterprise (PlanConstants.cs:287). A stated reason is
