@@ -9,7 +9,7 @@ export const metadata = helpArticleMetadata({
 
 # Working the issues queue
 
-**Operations → Issues** is the one list of every order blocked on a human decision. Nothing is hidden to look tidy: if an order can't move forward, an issue says so, with the step it stopped at and the reason. (The API calls these rows `exceptions`; the screen calls them issues.)
+**Activity → Issues** is the one list of every order blocked on a human decision. Nothing is hidden to look tidy: if an order can't move forward, an issue says so, with the step it stopped at and the reason. (The API calls these rows `exceptions`; the screen calls them issues.)
 
 > This article covers what to do when an order stops. For the ordinary path through review, follow [review an order and send it](/help/guides/review-an-order).
 
@@ -38,7 +38,7 @@ The issues list mirrors reality; it doesn't replace it:
 
 A **Couldn't send** order is retried automatically — **3 attempts in total** — and then it moves to **Out of retries**, with each attempt's error and response code kept in the audit trail for that order.
 
-Once retries are exhausted, nothing more happens on its own. Open the order: the panel there explains what happened and carries **Start sending again**, which puts the order back in the sending queue. Check the supplier's delivery settings first — if nothing has changed at their end, it will fail the same way. The same action is available in bulk from **Operations → System status**, in the table of orders we couldn't deliver.
+Once retries are exhausted, nothing more happens on its own. Open the order: the panel there explains what happened and carries **Start sending again**, which puts the order back in the sending queue. Check the supplier's delivery settings first — if nothing has changed at their end, it will fail the same way. The same action is available in bulk from **System status**, in the table of orders we couldn't deliver.
 
 One caveat to keep front of mind: a successful delivery means the supplier's endpoint answered — **HTTP 200 is not business acceptance**. A delivered order can still come back as **Supplier rejected**; that opens an issue of its own.
 
@@ -60,7 +60,7 @@ SFTP, FTPS, and HTTP deliveries don't have this problem the same way: an SFTP/FT
 
 ## "Is it slow, or is it dead?"
 
-When an order sits in **Extracting** or **Sending** longer than feels right, check **Operations → Health** before re-uploading:
+When an order sits in **Extracting** or **Sending** longer than feels right, check **System status** before re-uploading:
 
 - the **worker banner** shows whether the background worker is alive — an offline worker stalls every upload in the workspace, and no amount of re-uploading helps;
 - the count tiles show orders stuck past the threshold, failed transforms/deliveries, and orders we've stopped retrying, and each tile links to exactly those orders;
