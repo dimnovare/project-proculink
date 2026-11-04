@@ -604,6 +604,7 @@ export async function setOrgRetention(
 export interface OrgEraseReceipt {
   rowsDeleted: Record<string, number>;
   blobsDeleted: number;
+  failedBlobKeys: string[];
 }
 
 /**

@@ -12,13 +12,14 @@ import { ApiHttpError, eraseOrganisation, type AdminOrganisation, type OrgEraseR
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { Button } from "@/components/bridge/DSPrimitives";
 
+// A 409 is a refusal the server made before touching anything. Anything else may have landed
+// mid-erase, so it never claims nothing happened.
 function refusalMessage(err: unknown): string {
-  if (err instanceof ApiHttpError && err.status === 409) {
-    return (err.body as { error?: string } | null)?.error === "billing_evidence"
-      ? "This workspace has been billed for overage — its billing records can't be erased."
-      : "This workspace has a paid subscription — cancel it in Stripe first.";
-  }
-  return err instanceof Error && err.message ? err.message : "Nothing was erased — the server gave no reason.";
+  const code = err instanceof ApiHttpError && err.status === 409 ? (err.body as { error?: string } | null)?.error : undefined;
+  if (code === "billing_evidence") return "This workspace has been billed for overage — its billing records can't be erased.";
+  if (code === "paid_subscription") return "This workspace has a paid subscription — cancel it in Stripe first.";
+  if (code) return `The server refused the erase (${code}).`;
+  return "The erase did not confirm — check the receipt before retrying.";
 }
 
 export function EraseWorkspacePanel({ org, onClose }: { org: AdminOrganisation; onClose: () => void }) {
@@ -48,6 +49,7 @@ export function EraseWorkspacePanel({ org, onClose }: { org: AdminOrganisation; 
       <div data-testid="admin-erase-panel" style={panel}>
         <StatusNotice tone="success" action={<Button variant="secondary" size="sm" onClick={onClose}>Done</Button>}>
           Erased {org.name}: {rows} rows across {tables.length} tables, {receipt.blobsDeleted} stored files.
+          {receipt.failedBlobKeys.length > 0 && ` ${receipt.failedBlobKeys.length} stored files could not be deleted — they are listed in the receipt.`}
         </StatusNotice>
         <div style={{ fontSize: 11.5, color: "var(--ink-muted)", fontFamily: "var(--font-mono)" }}>
           {tables.map(([table, n]) => `${table} ${n}`).join(" · ")}

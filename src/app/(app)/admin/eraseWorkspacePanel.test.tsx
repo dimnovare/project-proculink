@@ -37,5 +37,10 @@ describe("EraseWorkspacePanel", () => {
       await panel.findByText("This workspace has a paid subscription — cancel it in Stripe first."),
     ).toBeInTheDocument();
     expect(eraseOrganisation).toHaveBeenCalledWith(ORG.id, ORG.slug);
+
+    // A failure that is not a refusal may have landed mid-erase: never claim nothing happened.
+    eraseOrganisation.mockRejectedValue(new Error("network"));
+    fireEvent.click(button);
+    expect(await panel.findByText("The erase did not confirm — check the receipt before retrying.")).toBeInTheDocument();
   });
 });
