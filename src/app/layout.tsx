@@ -32,7 +32,7 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://proculink.eu"),
   title: "ProcuLink — Connecting Procurement",
   description:
-    "Stop reformatting purchase orders by hand. ProcuLink turns any incoming order into the exact format and channel each supplier needs — with a full audit trail behind every order.",
+    "A document comes in. ProcuLink reads it, checks it, turns it into the format you need and sends it on. Purchase orders work today; invoices are in early access.",
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" },
@@ -53,14 +53,14 @@ export const metadata: Metadata = {
     type: "website",
     title: "ProcuLink — Connecting Procurement",
     description:
-      "Stop reformatting purchase orders by hand. ProcuLink turns any incoming order into the exact format and channel each supplier needs — with a full audit trail.",
+      "Your documents, read, checked and sent in the format you need. Purchase orders work today; invoices are in early access.",
     images: [{ url: "/og-image.png", width: 1200, height: 630 }],
   },
   twitter: {
     card: "summary_large_image",
     title: "ProcuLink — Connecting Procurement",
     description:
-      "Stop reformatting purchase orders by hand. Any incoming order, delivered in the exact format and channel each supplier needs — with a full audit trail.",
+      "Your documents, read, checked and sent in the format you need. Purchase orders work today; invoices are in early access.",
     images: ["/og-image.png"],
   },
 };
