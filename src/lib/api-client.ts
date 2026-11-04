@@ -2411,6 +2411,7 @@ export {
   getAdminItemMappingTwins,
   setOrgAccountStatus,
   setOrgRetention,
+  eraseOrganisation,
 } from "@/lib/api/billing";
 export type {
   AdminOverview,
@@ -2426,6 +2427,7 @@ export type {
   AdminItemMappingTwins,
   OrgAccountStatusResult,
   OrgRetentionResult,
+  OrgEraseReceipt,
   SetOrgRetentionRequest,
 } from "@/lib/api/billing";
 
