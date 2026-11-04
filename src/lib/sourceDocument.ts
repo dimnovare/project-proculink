@@ -129,19 +129,20 @@ export function filenameFromDisposition(header: string | null | undefined): stri
  *
  * These strings are the packet's honest answer to "what if it cannot be rendered": the field
  * list the screen has always had, plus one line saying why the paper is not next to it.
+ * `noun` names the document ("invoice" on the invoice screen); the order screens keep "order".
  */
-export function sourceUnavailableMessage(state: SourceDocumentState): string | null {
+export function sourceUnavailableMessage(state: SourceDocumentState, noun = "order"): string | null {
   switch (state.kind) {
     case "document":
       return null;
     case "none":
-      return "No original document is stored for this order, so there is nothing to display. The values below are what we captured.";
+      return `No original document is stored for this ${noun}, so there is nothing to display. The values below are what we captured.`;
     case "purged":
       return state.message;
     case "missing":
-      return "We could not find this order's document. If you have just switched workspace, reopen the order from your inbox.";
+      return `We could not find this ${noun}'s document. If you have just switched workspace, reopen the ${noun} from your inbox.`;
     case "throttled":
-      return "Too many document requests just now. Wait a moment, then reload the order.";
+      return `Too many document requests just now. Wait a moment, then reload the ${noun}.`;
     case "error":
       return "We couldn't load the original document just now. The captured values below are unaffected.";
   }

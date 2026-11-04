@@ -325,9 +325,12 @@ export function useSendFlow({ orderId, order, labels, refetchOrder }: {
     } catch (err) {
       // A quota refusal (transform answers 429 `pilot_expired` / `order_limit_reached`) is a
       // settled answer, not a blip: say it with the shared limit copy — never the raw code.
+      // The global rate limiter answers in prose with no code; its sentence is the answer here,
+      // not the upload copy ("each one retries automatically"), which a send does not do.
       if (err instanceof ApiHttpError && err.status === 429) {
-        const copy = limitRefusalCopy(readLimitRefusal(err.body));
-        setFlow(`${copy.title} ${copy.message}`, "error");
+        const refusal = readLimitRefusal(err.body);
+        const copy = limitRefusalCopy(refusal);
+        setFlow(refusal.code === "rate_limited" ? serverReason(refusal.raw, err.message) : `${copy.title} ${copy.message}`, "error");
         return;
       }
       // Before painting a red "Send failed", re-read SERVER truth once. The browser

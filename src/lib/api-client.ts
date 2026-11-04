@@ -324,6 +324,10 @@ const mockOrders: Order[] = [
     sellerTaxId: "DE123456789",
     paymentIban: "DE89370400440532013000",
     paymentReference: "INV-2024-0042",
+    // Lines add up to the net (48.00 + 124.00); net plus 19% VAT is 204.68, the invoice states 214.68.
+    subTotal: 172.0,
+    taxTotal: 32.68,
+    grandTotal: 214.68,
     sourceFileKey: "orgs/demo/orders/inv-0042.pdf",
     createdAt: "2024-01-18T10:00:00Z",
     updatedAt: "2024-01-18T10:00:00Z",
@@ -3126,7 +3130,7 @@ async function mockGetOrderExceptions(orderId: string): Promise<OrderException[]
   return [{
     id: "exc-005-1",
     severity: "error",
-    message: "The line totals add up to 172.00 but the invoice states 182.00.",
+    message: "Net plus VAT does not equal the total.",
     createdAt: "2024-01-18T10:00:00Z",
     resolvedAt: null,
     orderId,

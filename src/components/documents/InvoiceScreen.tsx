@@ -5,8 +5,9 @@
 // Left to right: the original, what we read (editable), the checks, and where it goes.
 // Nothing here is new machinery: the order query and its polling (useOrderReview), the
 // original pane (useSourceDocument + SourceDocumentBody), the order-level problem read the
-// review screen uses (OrderExceptionsNotice's query + openOrderLevelExceptions), and the
-// review screen's own send flow (useSendFlow: transform → deliver, the same explicit states).
+// review screen uses (OrderExceptionsNotice's query + openOrderLevelExceptions), the review
+// screen's own send flow (useSendFlow: transform → deliver, the same explicit states) and its
+// problem panel (OrderProblemPanel) for every problem state but `unrouted`.
 //
 // The original is never behind a step: it is open by default at every width, and only the
 // person's own "Hide original" closes it. Below lg the same panes stack in the same order.
@@ -18,6 +19,7 @@ import { apiClient, getOrderExceptions } from "@/lib/api-client";
 import { getDeliveryConfig } from "@/lib/api/delivery";
 import { deliveryConfigQueryKey } from "@/lib/deliveryConfigCache";
 import { hasAssignedSupplier } from "@/lib/catalogCodes";
+import { formatDateTime } from "@/lib/format-date";
 import { opAllowsStatus, RESOLVE_HELD_FROM } from "@/lib/orderStatusManifest";
 import { sourceUnavailableMessage } from "@/lib/sourceDocument";
 import { partyLabels } from "@/hooks/useOrderDirection";
@@ -26,50 +28,62 @@ import { PageShell } from "@/components/bridge/layout/PageShell";
 import { Card } from "@/components/bridge/layout/Card";
 import { StatusNotice, type NoticeTone } from "@/components/bridge/layout/StatusNotice";
 import { Button } from "@/components/bridge/DSPrimitives";
+import { FileChip } from "@/components/bridge/FileChip";
 import { STAGES, StatusJourney } from "@/components/bridge/StatusJourney";
 import { BridgePageLoader } from "@/components/bridge/BridgeLoader";
 import { journeyStage, mapStatus } from "@/components/bridge/InboxView";
-import { finalDeliveryMessage, useOrderReview } from "@/components/bridge/review/hooks/useOrderReview";
+import { useOrderReview } from "@/components/bridge/review/hooks/useOrderReview";
 import { useSendFlow } from "@/components/bridge/review/hooks/useSendFlow";
-import { deliverableArtifact, orderGrandTotalLabel } from "@/components/bridge/review/orderDisplay";
+import { deliverableArtifact, deliveryChannelLabel, formatMoney } from "@/components/bridge/review/orderDisplay";
 import { openOrderLevelExceptions } from "@/components/bridge/workshop/OrderExceptionsNotice";
 import { formatAmount } from "@/components/bridge/workshop/workshopLinesModel";
+import { OrderProblemPanel } from "@/components/bridge/problem/OrderProblemPanel";
+import { problemFor } from "@/components/bridge/problem/problemCopy";
 import { useLgViewport, useSourceDocument } from "@/components/bridge/document/useSourceDocument";
 import { SourceDocumentBody } from "@/components/bridge/document/SourceDocumentBody";
 
 /** The read fields, in reading order. Every key is both an `Order` field and a /resolve field. */
 const FIELDS = [
   { key: "poNumber", label: "Invoice number" },
+  { key: "supplierName", label: "Seller" },
   { key: "orderDate", label: "Invoice date", type: "date" },
   { key: "dueDate", label: "Due date", type: "date" },
-  { key: "supplierName", label: "Seller" },
   { key: "sellerTaxId", label: "Seller VAT ID" },
-  { key: "paymentIban", label: "IBAN" },
   { key: "paymentReference", label: "Payment reference" },
+  { key: "paymentIban", label: "IBAN" },
   { key: "subTotal", label: "Net", type: "number" },
   { key: "taxTotal", label: "VAT", type: "number" },
   { key: "grandTotal", label: "Total", type: "number" },
 ] as const;
-type FieldKey = (typeof FIELDS)[number]["key"];
+type Field = (typeof FIELDS)[number];
+type FieldKey = Field["key"];
 type Draft = Partial<Record<FieldKey, string>>;
+const isNumber = (f: Field) => "type" in f && f.type === "number";
 
-/** Statuses finalDeliveryMessage names explicitly — the outcome shown when no send just ran. */
-const DELIVERY_OUTCOMES = new Set(["delivered", "delivery_failed", "rejected_by_supplier", "delivery_dead_letter", "delivery_held", "delivery_unconfirmed"]);
+/** The backend's sentence for this check (InvoiceChecks.cs), verbatim — it is what marks Total. */
+const TOTAL_MISMATCH = "Net plus VAT does not equal the total.";
+const CHECKED = [
+  "Net plus VAT equals the total",
+  "The lines add up to the net total",
+  "The bank account (IBAN) is valid",
+  "It isn't a duplicate of an invoice already received",
+];
 const FLOW_TONE: Record<"info" | "success" | "error", NoticeTone> = { info: "working", success: "success", error: "error" };
+const CAPTION = "mt-2 text-[12px] text-ink-muted";
 
 /** Only the fields the person edited go to /resolve; the backend reads absent as "not edited". */
 function editsToPayload(draft: Draft): ResolvePayload {
   const header: Record<string, string | number> = {};
   for (const f of FIELDS) {
     const v = draft[f.key]?.trim();
-    if (v) header[f.key] = "type" in f && f.type === "number" ? Number(v) : v;
+    if (v) header[f.key] = isNumber(f) ? Number(v) : v;
   }
   return { saveMappings: false, lineResolutions: [], ...header };
 }
 
 export function InvoiceScreen({ orderId }: { orderId: string }) {
   const qc = useQueryClient();
-  const { order, isLoading, refetchOrder, queryEnabled } = useOrderReview(orderId);
+  const { order, isLoading, isError, refetchOrder, queryEnabled } = useOrderReview(orderId);
   const [showOriginal, setShowOriginal] = useState(true);
   const [draft, setDraft] = useState<Draft>({});
   const isLg = useLgViewport();
@@ -85,7 +99,7 @@ export function InvoiceScreen({ orderId }: { orderId: string }) {
   });
 
   // The invoice destination is an ordinary supplier row: its name from the supplier list, its
-  // format from its delivery config — the same two reads the supplier pages use.
+  // channel and format from its delivery config — the same two reads the supplier pages use.
   const destinationId = order && order.status !== "unrouted" && hasAssignedSupplier(order.supplierId) ? order.supplierId : null;
   const suppliers = useQuery({
     queryKey: ["suppliers"],
@@ -102,6 +116,7 @@ export function InvoiceScreen({ orderId }: { orderId: string }) {
   });
   const destination = suppliers.data?.find((s) => s.id === destinationId)?.name ?? null;
   const format = delivery.data?.outputFormat?.toUpperCase() ?? null;
+  const channel = delivery.data ? deliveryChannelLabel(delivery.data.protocol) : null;
 
   const labels = useMemo(
     () => ({ ...partyLabels("outbound"), deliveredLabel: destination ? `Sent to ${destination}` : "Sent" }),
@@ -114,7 +129,11 @@ export function InvoiceScreen({ orderId }: { orderId: string }) {
   const save = useMutation({
     mutationFn: () => apiClient.resolvePurchaseOrder(orderId, editsToPayload(draft)),
     onSuccess: async () => {
-      await Promise.all([refetchOrder(), qc.invalidateQueries({ queryKey: ["order-exceptions", orderId] })]);
+      await Promise.all([
+        refetchOrder(),
+        qc.invalidateQueries({ queryKey: ["order-exceptions", orderId] }),
+        qc.invalidateQueries({ queryKey: ["orders"] }),
+      ]);
       setDraft({});
     },
   });
@@ -128,14 +147,16 @@ export function InvoiceScreen({ orderId }: { orderId: string }) {
     }
   }
 
-  if (isLoading) return <BridgePageLoader label="Opening the invoice…" />;
-  if (!order) {
+  // A disabled query is not a failed one: until it runs, `order` is undefined and isLoading is
+  // false. Only a real failure (or a null answer) says it couldn't load — as OrderWorkshop does.
+  if (isError || order === null) {
     return (
       <PageShell>
         <StatusNotice tone="error">We couldn&rsquo;t load this document. Go back to Documents and open it again.</StatusNotice>
       </PageShell>
     );
   }
+  if (!queryEnabled || isLoading || order === undefined) return <BridgePageLoader label="Opening the invoice…" />;
   if (order.documentType !== "invoice") {
     return (
       <PageShell>
@@ -147,26 +168,74 @@ export function InvoiceScreen({ orderId }: { orderId: string }) {
   }
 
   const problems = openOrderLevelExceptions(checks.data);
+  const problem = problemFor(order.status);
   const stage = journeyStage(mapStatus(order.status), order.status);
+  const reading = order.status === "parsing";
+  const held = order.status === "pending_review";
   const sent = crossed || order.status === "delivered";
+  // A problem state (rejected, unconfirmed, …) owns its own recovery in the panel: a Send here
+  // would POST /redeliver into a guaranteed refusal, or deliver an unconfirmed invoice twice.
   const canSend =
-    !sent && sendState === "idle" && (opAllowsStatus("transformOrder", order.status) || opAllowsStatus("redeliverOrder", order.status));
-  const canSave = Object.keys(draft).length > 0 && !RESOLVE_HELD_FROM.includes(order.status);
+    !problem && !sent && sendState === "idle" && (opAllowsStatus("transformOrder", order.status) || opAllowsStatus("redeliverOrder", order.status));
+  const value = (k: FieldKey) => draft[k] ?? String(order[k] ?? "");
+  const hasEdits = FIELDS.some((f) => draft[f.key]?.trim());
+  const canSave = hasEdits && !RESOLVE_HELD_FROM.includes(order.status);
   const artifact = deliverableArtifact(order.artifacts);
-  const outcome = !flowNotice && DELIVERY_OUTCOMES.has(order.status) ? finalDeliveryMessage(order.status, order.errorMessage, labels) : null;
-  const outcomeTone: NoticeTone = order.status === "delivered" ? "success" : order.status === "delivery_held" ? "working" : "error";
+  // Success is the sent notice below; in-flight progress is the button's own label.
+  const notice = sendState === "idle" && !problem && flowSeverity !== "success" ? flowNotice : null;
+  const totalOff = problems.some((p) => p.message === TOTAL_MISMATCH);
+  const [net, vat] = [value("subTotal"), value("taxTotal")].map((v) => (v.trim() ? Number(v) : NaN));
+  const seller = order.supplierName?.trim() || null;
+  const statedTotal = order.grandTotal != null ? formatMoney(order.currency, order.grandTotal) : null;
+
+  const field = (f: Field) => {
+    const invalid = f.key === "grandTotal" && totalOff;
+    return (
+      <label key={f.key} className="flex min-w-0 flex-col gap-1 text-[11.5px] font-semibold text-ink-muted">
+        {f.label}
+        <input
+          id={invalid ? "invoice-total" : undefined}
+          type={"type" in f ? f.type : "text"}
+          step={isNumber(f) ? "0.01" : undefined}
+          value={value(f.key)}
+          onChange={(e) => setDraft((d) => ({ ...d, [f.key]: e.target.value }))}
+          aria-invalid={invalid || undefined}
+          aria-describedby={invalid && Number.isFinite(net + vat) ? "invoice-total-hint" : undefined}
+          className={`h-9 w-full rounded-[6px] border bg-surface px-2.5 text-[12.5px] font-normal text-ink ${
+            f.key === "supplierName" ? "" : "font-mono"
+          } ${isNumber(f) ? "text-right" : ""} ${invalid ? "border-amber ring-[3px] ring-amber-soft" : "border-border"}`}
+        />
+        {invalid && Number.isFinite(net + vat) && (
+          <span id="invoice-total-hint" className="font-medium text-amber-text">
+            Net + VAT = {formatAmount(net + vat)}
+          </span>
+        )}
+      </label>
+    );
+  };
 
   return (
     <PageShell variant="wide">
       <header className="mb-5 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
         <div className="min-w-0">
-          <Link href="/inbox" className="text-[12px] font-medium text-ink-muted hover:text-ink">
-            ← Documents
-          </Link>
-          <h1 className="mt-1 font-display text-[26px] font-semibold leading-tight tracking-tight text-ink">
-            Invoice <span className="font-mono text-[21px]">{order.poNumber}</span>
-          </h1>
-          <p className="mt-0.5 text-[13px] text-ink-muted">{[order.supplierName, orderGrandTotalLabel(order)].filter(Boolean).join(" · ")}</p>
+          <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-[12px] font-medium text-ink-muted">
+            <Link href="/inbox" className="flex items-center hover:text-ink">
+              Documents
+            </Link>
+            <span aria-hidden>›</span>
+            <span aria-current="page">Invoice {order.poNumber}</span>
+          </nav>
+          <div className="mt-1 flex flex-wrap items-center gap-2.5">
+            <h1 className="font-display text-[26px] font-semibold leading-tight tracking-tight text-ink">
+              Invoice <span className="font-mono text-[21px]">{order.poNumber}</span>
+            </h1>
+            <span className="rounded-full border border-border-strong px-2 text-[11px] font-semibold leading-[20px] text-ink-muted">Early access</span>
+          </div>
+          <p className="mt-0.5 text-[13px] text-ink-muted">
+            {seller && <>From <strong className="font-semibold text-ink">{seller}</strong> · </>}
+            arrived {formatDateTime(order.createdAt)}
+            {statedTotal && <> · stated total <strong className="font-semibold text-ink">{statedTotal}</strong></>}
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-4">
           {stage !== null && (
@@ -175,64 +244,55 @@ export function InvoiceScreen({ orderId }: { orderId: string }) {
               {STAGES[typeof stage === "number" ? stage : stage.failed]}
             </span>
           )}
-          <Button size="sm" onClick={() => setShowOriginal((v) => !v)}>
+          <Button size="sm" aria-expanded={showOriginal} aria-controls="invoice-original-pane" onClick={() => setShowOriginal((v) => !v)}>
             {showOriginal ? "Hide original" : "Show original"}
           </Button>
+          <Link href={`/inbox/${orderId}`} className="text-[12.5px] font-medium text-brand-blue hover:underline">
+            Open in Advanced
+          </Link>
         </div>
       </header>
+
+      {/* The review screen's panel, unchanged; it names the recipient, which here is the destination. */}
+      {problem && order.status !== "unrouted" && (
+        <div className="mb-4">
+          <OrderProblemPanel order={{ ...order, supplierName: destination ?? "" }} mode="banner" />
+        </div>
+      )}
 
       <div
         className={`grid items-start gap-4 ${
           showOriginal ? "lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_minmax(0,0.85fr)]" : "lg:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)]"
         }`}
       >
-        {showOriginal && (
-          <div className="min-w-0 lg:sticky lg:top-0 lg:h-[calc(100vh-150px)]">
-            <Card edge="blue" flush as="section" aria-labelledby="invoice-original" className="flex h-full flex-col">
-              <h2 id="invoice-original" className="px-4 pb-2 pt-3.5 text-[13px] font-semibold text-ink">
+        <div id="invoice-original-pane" hidden={!showOriginal} className="min-w-0 lg:sticky lg:top-0 lg:h-[calc(100vh-150px)]">
+          <Card edge="blue" flush as="section" aria-labelledby="invoice-original" className="flex h-full flex-col">
+            <div className="px-4 pb-2 pt-3.5">
+              <h2 id="invoice-original" className="text-[13px] font-semibold text-ink">
                 Original document
               </h2>
-              {source.state.kind === "document" ? (
-                <SourceDocumentBody cacheKey={orderId} document={source.state.document} bounded={isLg} />
-              ) : (
-                <p className="px-4 pb-4 text-[12.5px] text-ink-muted">
-                  {source.isLoading ? "Opening the document…" : sourceUnavailableMessage(source.state)}
-                </p>
-              )}
-            </Card>
-          </div>
-        )}
+              <p className="text-[12px] text-ink-muted">Exactly what arrived. It stays here while you check.</p>
+            </div>
+            {source.state.kind === "document" ? (
+              <SourceDocumentBody cacheKey={orderId} document={source.state.document} bounded={isLg} />
+            ) : (
+              <p className="px-4 pb-4 text-[12.5px] text-ink-muted">
+                {source.isLoading ? "Opening the document…" : sourceUnavailableMessage(source.state, "invoice")}
+              </p>
+            )}
+          </Card>
+        </div>
 
         <Card edge="blue" as="section" aria-labelledby="invoice-read" className="min-w-0">
-          <h2 id="invoice-read" className="mb-3 text-[13px] font-semibold text-ink">
+          <h2 id="invoice-read" className="text-[13px] font-semibold text-ink">
             What we read
           </h2>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-            {FIELDS.map((f) => (
-              <label key={f.key} className="flex min-w-0 flex-col gap-1 text-[11.5px] font-semibold text-ink-muted">
-                {f.label}
-                <input
-                  type={"type" in f ? f.type : "text"}
-                  step={"type" in f && f.type === "number" ? "0.01" : undefined}
-                  value={draft[f.key] ?? String(order[f.key] ?? "")}
-                  onChange={(e) => setDraft((d) => ({ ...d, [f.key]: e.target.value }))}
-                  className={`h-9 w-full rounded-[6px] border border-border bg-surface px-2.5 text-[12.5px] font-normal text-ink ${
-                    f.key === "supplierName" ? "" : "font-mono"
-                  }`}
-                />
-              </label>
-            ))}
-          </div>
-          <div className="mt-3 flex flex-wrap items-center gap-3">
-            <Button size="sm" onClick={() => save.mutate()} disabled={!canSave} loading={save.isPending}>
-              Save changes
-            </Button>
-            {save.isError && (
-              <span role="alert" className="text-[12px] text-danger">
-                {save.error.message}
-              </span>
-            )}
-          </div>
+          <p className="mb-3 text-[12px] text-ink-muted">Correct anything we misread, then save. The checks run again.</p>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">{FIELDS.filter((f) => !isNumber(f)).map(field)}</div>
+          <fieldset className="mt-4">
+            <legend className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-ink-muted">Totals · {order.currency}</legend>
+            <div className="grid grid-cols-3 gap-3">{FIELDS.filter(isNumber).map(field)}</div>
+          </fieldset>
 
           <h3 className="mb-1.5 mt-5 text-[12px] font-semibold text-ink">Lines</h3>
           <div className="overflow-x-auto">
@@ -257,64 +317,134 @@ export function InvoiceScreen({ orderId }: { orderId: string }) {
               </tbody>
             </table>
           </div>
+          <div className="mt-4 flex flex-wrap items-center justify-end gap-3">
+            {save.isError && (
+              <span role="alert" className="mr-auto text-[12px] text-danger">
+                {save.error.message}
+              </span>
+            )}
+            {!hasEdits && <span className="text-[12px] text-ink-muted">No unsaved changes</span>}
+            <Button size="sm" onClick={() => save.mutate()} disabled={!canSave} loading={save.isPending}>
+              Save changes
+            </Button>
+          </div>
         </Card>
 
         <div className="flex min-w-0 flex-col gap-4">
-          <section aria-labelledby="invoice-checks" className="flex flex-col gap-2">
-            <h2 id="invoice-checks" className="text-[13px] font-semibold text-ink">
-              Checks
-            </h2>
-            {checks.isError ? (
-              <p className="text-[12.5px] text-ink-muted">We couldn&rsquo;t load this invoice&rsquo;s checks just now.</p>
-            ) : checks.isPending || order.status === "parsing" ? null : problems.length === 0 ? (
-              <StatusNotice tone="success">All checks passed</StatusNotice>
-            ) : (
-              problems.map((p) => (
-                <StatusNotice key={p.id} tone="warning">
-                  {p.message}
-                </StatusNotice>
-              ))
-            )}
-          </section>
+          <Card as="section" aria-labelledby="invoice-checks">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <h2 id="invoice-checks" className="text-[13px] font-semibold text-ink">
+                Checks
+              </h2>
+              {problems.length > 0 && (
+                <span className="rounded-full bg-amber-soft px-2 text-[11.5px] font-semibold leading-[22px] text-amber-text">
+                  {problems.length} {problems.length === 1 ? "problem" : "problems"}
+                </span>
+              )}
+            </div>
+            <div className="flex flex-col gap-2">
+              {checks.isError ? (
+                <p className="text-[12.5px] text-ink-muted">We couldn&rsquo;t load this invoice&rsquo;s checks just now.</p>
+              ) : reading ? (
+                <StatusNotice tone="working">Reading the invoice… The checks run as soon as it&rsquo;s read.</StatusNotice>
+              ) : checks.isPending ? null : problems.length > 0 ? (
+                <>
+                  {problems.map((p) => (
+                    <StatusNotice
+                      key={p.id}
+                      tone="warning"
+                      action={p.message === TOTAL_MISMATCH && <a href="#invoice-total" className="font-semibold underline">Go to Total</a>}
+                    >
+                      {p.message}
+                    </StatusNotice>
+                  ))}
+                  <p className="text-[12px] text-ink-muted">The other checks passed.</p>
+                </>
+              ) : held ? (
+                // A held invoice whose problems were all dismissed is still held: never "passed".
+                <StatusNotice tone="warning">This invoice is held for review. Open it in Advanced to see why.</StatusNotice>
+              ) : order.status === "failed" ? null : (
+                <StatusNotice tone="success">All checks passed.</StatusNotice>
+              )}
+            </div>
+            <details className="mt-3 text-[12px] text-ink-muted">
+              <summary className="cursor-pointer font-semibold text-brand-blue">What we check</summary>
+              <ul className="mt-1.5 list-disc pl-5">
+                {CHECKED.map((c) => (
+                  <li key={c}>{c}</li>
+                ))}
+              </ul>
+            </details>
+            <p className="mt-3 text-[12px] text-ink-muted">
+              Misread? Correct the field and save. Wrong on the invoice itself? Ask {seller ?? "the seller"} for a corrected invoice.
+            </p>
+          </Card>
 
           <Card edge="green" as="section" aria-labelledby="invoice-output">
             <h2 id="invoice-output" className="mb-2 text-[13px] font-semibold text-ink">
-              Where it goes
+              {sent ? "Where it went" : "Where it goes"}
             </h2>
             {order.status === "unrouted" ? (
-              <StatusNotice
-                tone="warning"
-                action={
-                  <Link href="/settings?tab=org" className="font-semibold underline">
-                    Choose where invoices go
+              <>
+                <StatusNotice tone="working">
+                  Invoices have nowhere to go yet. Pick one place for every invoice: an accounting inbox, an SFTP folder or an
+                  API. This one waits here until then.
+                </StatusNotice>
+                <Link
+                  href="/settings?tab=org"
+                  className="mt-3 flex h-[38px] w-full items-center justify-center rounded bg-navy text-[13px] font-semibold text-white"
+                >
+                  Choose where invoices go
+                </Link>
+              </>
+            ) : sent ? (
+              <>
+                <StatusNotice tone="success">
+                  <strong className="block">{destination ? `Sent to ${destination}` : "Sent"}</strong>
+                  {[formatDateTime(order.updatedAt), channel].filter(Boolean).join(" · ")}
+                </StatusNotice>
+                <div className="mt-3 flex gap-2">
+                  {artifact && (
+                    <Button className="flex-1" onClick={() => void download(artifact.id)}>
+                      Download
+                    </Button>
+                  )}
+                  <Link
+                    href="/operations/log"
+                    className="flex h-[44px] flex-1 items-center justify-center rounded border border-border bg-surface text-[12.5px] font-medium text-ink sm:h-[32px]"
+                  >
+                    See delivery
                   </Link>
-                }
-              >
-                Invoices have nowhere to go yet.
-              </StatusNotice>
+                </div>
+              </>
             ) : (
-              <p className="text-[13px] text-ink">
-                {destination ? `Goes to ${destination}` : "Goes to your invoice destination"}
-                {format && ` as ${format}`}
-              </p>
+              <>
+                <div className="flex items-center gap-2.5 rounded-[6px] border border-border bg-bg p-2.5">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[13px] font-semibold text-ink">{destination ?? "Your invoice destination"}</p>
+                    {channel && <p className="text-[11.5px] text-ink-muted">{channel}</p>}
+                  </div>
+                  {format && <FileChip type={format} />}
+                </div>
+                <Button
+                  variant="navy"
+                  size="lg"
+                  className="mt-3 w-full"
+                  onClick={() => void confirmSend()}
+                  disabled={!canSend}
+                  loading={sendState !== "idle"}
+                >
+                  {sendState === "transforming" ? "Preparing…" : sendState === "delivering" ? "Sending…" : "Send invoice"}
+                </Button>
+                {reading && <p className={CAPTION}>Available once the checks finish.</p>}
+                {held && <p className={CAPTION}>Fix the problem in Checks first.</p>}
+              </>
             )}
-            {order.status === "pending_review" && (
-              <p className="mt-2 text-[12px] text-ink-muted">Fix the problems above and save — Send unlocks once every check passes.</p>
-            )}
-            {(flowNotice || outcome) && (
-              <StatusNotice tone={flowNotice ? FLOW_TONE[flowSeverity] : outcomeTone} className="mt-3">
-                {flowNotice ?? outcome}
+            {notice && (
+              <StatusNotice tone={FLOW_TONE[flowSeverity]} className="mt-3">
+                {notice}
               </StatusNotice>
             )}
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <Button variant="send" onClick={() => void confirmSend()} disabled={!canSend} loading={sendState !== "idle"}>
-                {sent ? "Sent" : sendState === "transforming" ? "Preparing…" : sendState === "delivering" ? "Sending…" : "Send"}
-              </Button>
-              {artifact && <Button onClick={() => void download(artifact.id)}>Download</Button>}
-              <Link href={`/inbox/${orderId}`} className="ml-auto text-[12.5px] font-medium text-brand-blue hover:underline">
-                Open in Advanced
-              </Link>
-            </div>
           </Card>
         </div>
       </div>

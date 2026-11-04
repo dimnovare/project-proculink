@@ -9,7 +9,11 @@ vi.hoisted(() => {
 });
 afterAll(() => vi.unstubAllEnvs());
 
-vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true, useTenantQueriesEnabled: () => true }));
+const queries = vi.hoisted(() => ({ enabled: true }));
+vi.mock("@/hooks/useQueriesEnabled", () => ({
+  useQueriesEnabled: () => queries.enabled,
+  useTenantQueriesEnabled: () => queries.enabled,
+}));
 // pdf.js cannot run in jsdom; the pane around it is what is under test.
 vi.mock("@/components/bridge/document/SourceDocumentBody", () => ({
   SourceDocumentBody: () => <div data-testid="original-body" />,
@@ -18,7 +22,10 @@ vi.mock("@/components/bridge/document/SourceDocumentBody", () => ({
 import { apiClient } from "@/lib/api-client";
 import { InvoiceScreen } from "./InvoiceScreen";
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  queries.enabled = true;
+});
 
 function renderScreen() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -40,7 +47,15 @@ describe("InvoiceScreen", () => {
     renderScreen();
     expect(await screen.findByTestId("original-body")).toBeInTheDocument();
     expect(await screen.findByLabelText("IBAN")).toHaveValue("DE89370400440532013000");
-    expect(await screen.findByText(/line totals add up to 172\.00/)).toBeInTheDocument();
+    expect(await screen.findByText("Net plus VAT does not equal the total.")).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Total/)).toHaveAttribute("aria-invalid", "true");
+  });
+
+  it("waits for the query instead of claiming the document could not load", () => {
+    queries.enabled = false;
+    renderScreen();
+    expect(screen.getByLabelText("Opening the invoice…")).toBeInTheDocument();
+    expect(screen.queryByText(/couldn.t load this document/)).toBeNull();
   });
 
   it("Send transforms then delivers", async () => {
@@ -55,7 +70,7 @@ describe("InvoiceScreen", () => {
     }));
 
     renderScreen();
-    const send = await screen.findByRole("button", { name: "Send" });
+    const send = await screen.findByRole("button", { name: "Send invoice" });
     await waitFor(() => expect(send).toBeEnabled());
     fireEvent.click(send);
 
@@ -64,13 +79,24 @@ describe("InvoiceScreen", () => {
     expect(transform.mock.invocationCallOrder[0]).toBeLessThan(deliver.mock.invocationCallOrder[0]);
   });
 
-  it("unrouted invoice links to choose where invoices go and disables Send", async () => {
+  it("unrouted invoice links to choose where invoices go instead of offering Send", async () => {
     const base = await seededInvoice();
     vi.spyOn(apiClient, "getOrderById").mockResolvedValue({ ...base, status: "unrouted" });
 
     renderScreen();
     const link = await screen.findByRole("link", { name: "Choose where invoices go" });
     expect(link).toHaveAttribute("href", "/settings?tab=org");
-    expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Send invoice" })).toBeNull();
+  });
+
+  // Both are statuses /transform or /redeliver accept, so only the problem gate keeps Send shut:
+  // a rejected invoice would be refused again, an unconfirmed one could be paid twice.
+  it.each(["rejected_by_supplier", "delivery_unconfirmed"] as const)("Send stays disabled on %s", async (status) => {
+    const base = await seededInvoice();
+    vi.spyOn(apiClient, "getOrderById").mockResolvedValue({ ...base, status });
+
+    renderScreen();
+    expect(await screen.findByTestId("order-problem-panel")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Send invoice" })).toBeDisabled();
   });
 });
