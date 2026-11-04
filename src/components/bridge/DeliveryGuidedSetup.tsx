@@ -189,6 +189,7 @@ const OUTPUT_FORMATS: Array<{ id: OutputFormatId; label: string; blurb: string }
   { id: "cxml", label: "cXML", blurb: "The cXML procurement standard (Ariba / Coupa style)." },
   { id: "ubl", label: "UBL 2.1", blurb: "The OASIS UBL 2.1 Order document, common in EU e-procurement. Not checked against Peppol BIS business rules." },
   { id: "x12", label: "X12 850", blurb: "The ANSI X12 850 EDI purchase-order format." },
+  { id: "pdf", label: "PDF", blurb: "A readable document. Invoices only." },
 ];
 
 interface DeliveryGuidedSetupProps {

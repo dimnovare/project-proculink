@@ -74,6 +74,8 @@ export interface OrgSettings {
    * the UI shows "generating…" when absent.
    */
   slug?: string;
+  /** Supplier row every invoice is sent to; null = not set (invoices wait in Documents). */
+  invoiceDestinationSupplierId?: string | null;
 }
 
 /**

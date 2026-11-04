@@ -672,7 +672,7 @@ export const SCRIBAN_STARTER_TEMPLATE = `{
 
 export type DeliveryProtocol = "http" | "sftp" | "ftps" | "smtp" | "email" | "erp_erply" | "erp_directo";
 
-export type OutputFormatId = "xml" | "csv" | "cxml" | "json" | "ubl" | "x12";
+export type OutputFormatId = "xml" | "csv" | "cxml" | "json" | "ubl" | "x12" | "pdf";
 
 /**
  * cXML network identities returned by the API (cleartext) plus a flag for the write-only Sender

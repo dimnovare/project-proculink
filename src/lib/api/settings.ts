@@ -75,10 +75,18 @@ function toApiDirection(direction: OrderDirection): "Outbound" | "Inbound" {
   return direction === "inbound" ? "Inbound" : "Outbound";
 }
 
+type OrgSettingsWire = { direction?: unknown; slug?: unknown; invoiceDestinationSupplierId?: unknown };
+
+function orgSettingsFrom(raw: OrgSettingsWire): OrgSettings {
+  const slug = typeof raw.slug === "string" && raw.slug.trim() ? raw.slug.trim() : undefined;
+  const dest = typeof raw.invoiceDestinationSupplierId === "string" && raw.invoiceDestinationSupplierId ? raw.invoiceDestinationSupplierId : null;
+  return { direction: normalizeDirection(raw.direction), slug, invoiceDestinationSupplierId: dest };
+}
+
 export async function getOrgSettings(): Promise<OrgSettings> {
   if (USE_MOCK) {
     await delay(120); // mock reads simulate latency — see getBillingStatus in api/billing.ts
-    return { direction: "outbound", slug: "demo-workspace" };
+    return { direction: "outbound", slug: "demo-workspace", invoiceDestinationSupplierId: null };
   }
 
   const headers = await authHeader();
@@ -87,19 +95,28 @@ export async function getOrgSettings(): Promise<OrgSettings> {
   const body = await res.json().catch(() => ({}));
   const raw = body as { direction?: unknown; slug?: unknown };
   const slug = typeof raw.slug === "string" && raw.slug.trim() ? raw.slug.trim() : undefined;
-  return { direction: normalizeDirection(raw.direction), slug };
+  return orgSettingsFrom(raw);
 }
 
-export async function updateOrgSettings(direction: OrderDirection): Promise<OrgSettings> {
+/** Partial: a field left out is unchanged server-side; an explicit `null` clears the destination. */
+export interface UpdateOrgSettingsPayload {
+  direction?: OrderDirection;
+  invoiceDestinationSupplierId?: string | null;
+}
+
+export async function updateOrgSettings(payload: UpdateOrgSettingsPayload): Promise<OrgSettings> {
   if (USE_MOCK) {
-    return { direction };
+    return { direction: payload.direction ?? "outbound", invoiceDestinationSupplierId: payload.invoiceDestinationSupplierId };
   }
 
   const headers = await authHeader();
   const res = await fetchWithTimeout(`${API_BASE_URL}/api/settings/organisation`, {
     method: "PUT",
     headers: { ...headers, "Content-Type": "application/json" },
-    body: JSON.stringify({ direction: toApiDirection(direction) }),
+    body: JSON.stringify({
+      ...(payload.direction !== undefined && { direction: toApiDirection(payload.direction) }),
+      ...(payload.invoiceDestinationSupplierId !== undefined && { invoiceDestinationSupplierId: payload.invoiceDestinationSupplierId }),
+    }),
   }, 30000);
 
   if (!res.ok) {
@@ -108,9 +125,7 @@ export async function updateOrgSettings(direction: OrderDirection): Promise<OrgS
   }
 
   const body = await res.json().catch(() => ({}));
-  const raw = body as { direction?: unknown; slug?: unknown };
-  const slug = typeof raw.slug === "string" && raw.slug.trim() ? raw.slug.trim() : undefined;
-  return { direction: normalizeDirection(raw.direction), slug };
+  return orgSettingsFrom(body as OrgSettingsWire);
 }
 
 // ── SFTP / S3 pull-ingress settings ───────────────────────────────────────

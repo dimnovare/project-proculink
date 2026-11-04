@@ -136,7 +136,7 @@ function Step0Direction({ onSuccess }: Step0Props) {
     setSaving(direction);
     setError(null);
     try {
-      await updateOrgSettings(direction);
+      await updateOrgSettings({ direction });
       onSuccess(direction);
     } catch (err) {
       captureException(err, {
