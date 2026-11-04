@@ -694,7 +694,7 @@ export function BillingSection() {
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <div style={{ borderRadius: 10, padding: "13px 15px", background: "var(--surface)", border: "1px solid var(--border)", borderLeft: "3px solid var(--brand-green)", fontSize: 12.5, lineHeight: 1.55, color: "var(--ink-muted)" }}>
             <strong style={{ color: "var(--ink)" }}>Upgrade when this is ready for daily orders.</strong>{" "}
-            Growth keeps the same workflow but raises your monthly order volume, adds more suppliers, and keeps processing open after the Pilot window ends.
+            Growth keeps the same workflow but raises your monthly document allowance, adds more suppliers, and keeps processing open after the Pilot window ends.
           </div>
           <IntervalToggle value={checkoutInterval} onChange={setCheckoutInterval} disabled={checkoutMutation.isPending} />
           <button
