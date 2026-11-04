@@ -46,8 +46,8 @@ export default function MarketingLayout({
                 <ProcuLinkMark size={24} mono /> ProcuLink
               </a>
               <p style={{ fontSize: 13, lineHeight: 1.6, maxWidth: 300, marginTop: 14 }}>
-                The missing link between buyers and suppliers. Turn any purchase order into the exact
-                format your supplier needs — with a full audit trail on every order.
+                The missing link between buyers and suppliers. ProcuLink reads your documents, checks
+                them and sends them on in the format you need — with a full audit trail on every order.
               </p>
             </div>
             {FOOTER_COLS.map((col) => (

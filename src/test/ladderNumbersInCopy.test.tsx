@@ -81,11 +81,11 @@ vi.mock("@/lib/reload", () => ({ reloadPage: () => {} }));
 // new buyer meets first. The pair below still holds it byte-for-byte AND proves it moves.
 const SIGN_UP_SUB = "20 orders · 1 supplier · 14 days · no credit card";
 const ROI_FALLBACK =
-  "Start with the free 14-day Pilot — 20 orders, no card required — and upgrade once the savings are real.";
-const ROI_FINE_PRINT = "The Pilot tier is free for 14 days (20 orders) and does not require a card.";
+  "Start with the free 14-day Pilot — 20 documents, no card required — and upgrade once the savings are real.";
+const ROI_FINE_PRINT = "The Pilot tier is free for 14 days (20 documents) and does not require a card.";
 const PRICING_DESCRIPTION =
-  "Plans for purchase-order automation: a free 14-day pilot, self-serve paid tiers from €149/mo, " +
-  "and custom Enterprise. Orders are never blocked — predictable €0.50 per-order overage above your plan.";
+  "Plans for document processing: a free 14-day pilot, self-serve paid tiers from €149/mo, " +
+  "and custom Enterprise. Going over never blocks — predictable €0.50 per-document overage above your plan.";
 
 let PRISTINE_LADDER: Record<string, Plan> = {};
 let PRISTINE_OVERAGE = 0;
@@ -179,8 +179,8 @@ describe("the ROI calculator's Pilot copy comes off the ladder", () => {
     h.ladder.pilot = { ...h.ladder.pilot, name: "Trial", orderLimit: 500, priceCadence: "30 days" };
 
     const copy = await roiCopyWithNoSavings();
-    expect(copy).toContain("Start with the free 14-day Trial — 500 orders, no card required —");
-    expect(copy).toContain("The Trial tier is free for 30 days (500 orders) and does not require a card.");
+    expect(copy).toContain("Start with the free 14-day Trial — 500 documents, no card required —");
+    expect(copy).toContain("The Trial tier is free for 30 days (500 documents) and does not require a card.");
     expect(copy, "the typed sentence must be gone, not merely joined").not.toContain(ROI_FINE_PRINT);
   });
 });
@@ -211,8 +211,8 @@ describe("/pricing metadata quotes the ladder, not a remembered price", () => {
     h.overage.value = 0.75;
 
     const description = await pricingDescription();
-    expect(description).toContain("predictable €0.75 per-order overage");
-    expect(description, "the typed rate must be gone, not merely joined").not.toContain("€0.50 per-order");
+    expect(description).toContain("predictable €0.75 per-document overage");
+    expect(description, "the typed rate must be gone, not merely joined").not.toContain("€0.50 per-document");
   });
 });
 

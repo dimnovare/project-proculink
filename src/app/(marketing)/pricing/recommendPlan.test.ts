@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   PLAN_BY_ID,
+  VOLUME_SLIDER_MAX,
   planEffectiveMonthlyCost,
   recommendPlanByOrders,
   type Plan,
@@ -13,20 +14,20 @@ import {
 } from "./recommendPlan";
 
 // Every expectation below is derived from the plan ladder, never typed. A literal
-// "200 orders, 8 suppliers → Operations" would keep passing after a repricing moved
+// "200 documents, 8 suppliers → Operations" would keep passing after a repricing moved
 // the answer, which is the drift the recommender exists to prevent.
 
-/** Same range and step the /pricing orders slider offers. */
-const ORDER_GRID = Array.from({ length: 500 }, (_, i) => 10 + i * 10);
+/** Same range and step the /pricing documents slider offers. */
+const ORDER_GRID = Array.from({ length: VOLUME_SLIDER_MAX / 10 }, (_, i) => 10 + i * 10);
 const SUPPLIER_GRID = Array.from({ length: MAX_SELF_SERVE_SUPPLIERS + 5 }, (_, i) => i + 1);
 
 const cost = (plan: Plan, orders: number) => planEffectiveMonthlyCost(plan, orders)?.total ?? Infinity;
 
-describe("recommendPlan — orders AND suppliers", () => {
+describe("recommendPlan — documents AND suppliers", () => {
   it("THE DEFECT: a volume-only answer whose supplier allowance is too small is no longer recommended", () => {
     // Find a real case where the old volume-only recommender undershoots the supplier
     // count — then assert the new one does not. Derived, so it survives repricing.
-    const orders = 200;
+    const orders = SELF_SERVE_TIERS[0].orderLimit!;
     const byVolume = recommendPlanByOrders(orders);
     expect(byVolume.supplierLimit, "the volume answer must be a capped tier for this case").not.toBeNull();
     const suppliers = byVolume.supplierLimit! + 1;
@@ -98,8 +99,9 @@ describe("recommendPlan — orders AND suppliers", () => {
   });
 
   it("goes to Enterprise one supplier past the largest self-serve allowance", () => {
-    expect(recommendPlan(200, MAX_SELF_SERVE_SUPPLIERS).isCustom).toBe(false);
-    expect(recommendPlan(200, MAX_SELF_SERVE_SUPPLIERS + 1).id).toBe(PLAN_BY_ID.enterprise.id);
+    const documents = SELF_SERVE_TIERS[0].orderLimit!;
+    expect(recommendPlan(documents, MAX_SELF_SERVE_SUPPLIERS).isCustom).toBe(false);
+    expect(recommendPlan(documents, MAX_SELF_SERVE_SUPPLIERS + 1).id).toBe(PLAN_BY_ID.enterprise.id);
   });
 
   it("never recommends the Pilot trial as a monthly plan", () => {

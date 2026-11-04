@@ -20,9 +20,9 @@ export const metadata = pageMetadata({
   path: "/watch",
   title: "Watch the walkthrough — ProcuLink",
   description:
-    "See how a single upload becomes a delivered supplier order — parsed, mapped, validated, and sent.",
+    "See one document go through ProcuLink: a purchase order read, checked, transformed and sent to the supplier.",
   ogDescription:
-    "Watch a single upload become a delivered supplier order — parsed, mapped, validated, and sent.",
+    "Watch one document go through ProcuLink: a purchase order read, checked, transformed and sent to the supplier.",
 });
 
 export default function WatchLayout({ children }: { children: React.ReactNode }) {

@@ -41,9 +41,9 @@ test.describe("Book a 20-minute call — /book-demo", () => {
   test("renders the H1 and every required field resolves by accessible name", async ({ page }) => {
     await page.goto("/book-demo");
 
-    // Reframed from a generic demo to a 20-minute call about one of the visitor's orders.
+    // Reframed from a generic demo to a 20-minute call about one of the visitor's documents.
     await expect(
-      page.getByRole("heading", { level: 1, name: "Show us one of your orders" }),
+      page.getByRole("heading", { level: 1, name: "Show us one of your documents" }),
     ).toBeVisible({ timeout: 15_000 });
 
     // Required fields are bound label→input (htmlFor/id) — resolvable by

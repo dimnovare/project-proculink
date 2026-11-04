@@ -78,8 +78,9 @@ export default function FormatsPage() {
         Every format and method, in one place
       </h1>
       <p className="mt-3 text-[15px] leading-relaxed" style={{ color: MUTED }}>
-        ProcuLink takes orders in however your buyers send them and delivers them in exactly the
-        format and channel each supplier needs. Here's the full picture — and we keep it honest:
+        ProcuLink takes documents in however they arrive and delivers them in the format and channel
+        you need. The tables below are for purchase orders, which work today; invoices are in{" "}
+        <Link href="/pilot" style={{ color: "var(--brand-blue-deep)" }}>early access</Link>. We keep it honest:
         nothing is marked <strong style={{ color: "#1F6F2A" }}>Supported</strong> unless it works in
         production today. <strong style={{ color: INK }}>Don't see yours? It's very likely Configurable
         or On request — <Link href="/support" style={{ color: "#0F4FA8" }}>just ask</Link>.</strong>

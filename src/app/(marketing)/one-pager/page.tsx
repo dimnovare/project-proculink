@@ -8,7 +8,7 @@ export const metadata = pageMetadata({
   path: "/one-pager",
   title: "ProcuLink — one-pager",
   description:
-    "Print-friendly one-page overview of ProcuLink for procurement teams: what it does, how an order moves through it, and what each plan includes.",
+    "Print-friendly one-page overview of ProcuLink: what it does, how a document moves through it, and what each plan includes.",
 });
 
 const S = {
@@ -39,12 +39,12 @@ export default function OnePagerPage() {
     <div className="proculink-one-pager-root">
       <p style={S.brand}>ProcuLink</p>
 
-      <h1 style={S.h1}>Stop reformatting purchase orders. Start delivering them.</h1>
+      <h1 style={S.h1}>Stop retyping documents. Send them in the format you need.</h1>
       <p style={S.lead}>
-        ProcuLink is B2B outbound procurement automation for buyer teams. We import the
-        POs you send, validate them, map fields and item codes per supplier, transform
-        to the format each supplier requires, and deliver them automatically over HTTP,
-        SFTP, or email.
+        ProcuLink processes business documents. A document comes in; we read all of its data,
+        check it, transform it into the format you need and send it on the channel you choose.
+        Purchase orders work today: we map your item codes to each supplier&apos;s once and reuse
+        the match next time. Invoices are in early access — apply at proculink.eu/pilot.
       </p>
 
       <h2 style={S.h2}>How it works</h2>
@@ -78,7 +78,7 @@ export default function OnePagerPage() {
       {/* Rows are built from src/lib/plans.ts (the shared plan ladder, aligned
           with backend PlanConstants) so this one-pager can never go stale. */}
       <table style={S.table}>
-        <thead><tr><th style={S.th}>Plan</th><th style={S.th}>Price</th><th style={S.th}>Orders / month</th><th style={S.th}>Suppliers</th></tr></thead>
+        <thead><tr><th style={S.th}>Plan</th><th style={S.th}>Price</th><th style={S.th}>Documents / month</th><th style={S.th}>Suppliers</th></tr></thead>
         <tbody>
           {PLANS.filter((p) => !p.hidden).map((p) => (
             <tr key={p.id}>
@@ -103,8 +103,8 @@ export default function OnePagerPage() {
         </tbody>
       </table>
       <p style={{ ...S.p, marginTop: -14, fontSize: 12 }}>
-        Paid plans never block at the included volume — additional orders bill automatically at
-        €{OVERAGE_PER_ORDER_EUR.toFixed(2)}/order.
+        Paid plans never block at the included volume — additional documents bill automatically at
+        €{OVERAGE_PER_ORDER_EUR.toFixed(2)}/document.
       </p>
 
       {/*
