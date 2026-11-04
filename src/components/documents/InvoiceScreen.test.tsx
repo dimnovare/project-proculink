@@ -48,7 +48,7 @@ describe("InvoiceScreen", () => {
     expect(await screen.findByTestId("original-body")).toBeInTheDocument();
     expect(await screen.findByLabelText("IBAN")).toHaveValue("DE89370400440532013000");
     expect(await screen.findByText("Net plus VAT does not equal the total.")).toBeInTheDocument();
-    expect(screen.getByLabelText(/^Total/)).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByLabelText("Total")).toHaveAttribute("aria-invalid", "true");
   });
 
   it("waits for the query instead of claiming the document could not load", () => {

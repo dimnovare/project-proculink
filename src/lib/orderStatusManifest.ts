@@ -280,6 +280,26 @@ export const OP_GUARDS: Record<OrderOp, OpGuard> = {
  */
 export const RESOLVE_HELD_FROM: readonly string[] = ["unrouted", "delivering", "parsing", "transforming"];
 
+/**
+ * Statuses an order only reaches once review is behind it: read, checked, released. A positive
+ * list on purpose — a status this build does not know is NOT past review, so a screen that claims
+ * "all checks passed" from it can never be talked into the claim by a new or unknown status.
+ * Frontend-only (no backend set); `unrouted`, `parsing`, `pending_review` and `failed` are absent.
+ */
+export const PAST_REVIEW_STATUSES: readonly string[] = [
+  "ready",
+  "transforming",
+  "ready_to_deliver",
+  "delivering",
+  "delivered",
+  "delivery_held",
+  "delivery_failed",
+  "delivery_unconfirmed",
+  "delivery_dead_letter",
+  "transform_failed",
+  "rejected_by_supplier",
+];
+
 const FACT_BY_STATUS = new Map(ORDER_STATUS_FACTS.map((f) => [f.status, f] as const));
 
 /** The manifest row for a raw status, or null when the machine has never heard of it. */

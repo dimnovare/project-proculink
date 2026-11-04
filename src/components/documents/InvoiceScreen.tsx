@@ -20,7 +20,7 @@ import { getDeliveryConfig } from "@/lib/api/delivery";
 import { deliveryConfigQueryKey } from "@/lib/deliveryConfigCache";
 import { hasAssignedSupplier } from "@/lib/catalogCodes";
 import { formatDateTime } from "@/lib/format-date";
-import { opAllowsStatus, RESOLVE_HELD_FROM } from "@/lib/orderStatusManifest";
+import { opAllowsStatus, PAST_REVIEW_STATUSES, RESOLVE_HELD_FROM } from "@/lib/orderStatusManifest";
 import { sourceUnavailableMessage } from "@/lib/sourceDocument";
 import { partyLabels } from "@/hooks/useOrderDirection";
 import type { ResolvePayload } from "@/types/procurement";
@@ -183,6 +183,7 @@ export function InvoiceScreen({ orderId }: { orderId: string }) {
   const artifact = deliverableArtifact(order.artifacts);
   // Success is the sent notice below; in-flight progress is the button's own label.
   const notice = sendState === "idle" && !problem && flowSeverity !== "success" ? flowNotice : null;
+  const problemCount = `${problems.length} ${problems.length === 1 ? "problem" : "problems"}`;
   const totalOff = problems.some((p) => p.message === TOTAL_MISMATCH);
   const [net, vat] = [value("subTotal"), value("taxTotal")].map((v) => (v.trim() ? Number(v) : NaN));
   const seller = order.supplierName?.trim() || null;
@@ -190,27 +191,30 @@ export function InvoiceScreen({ orderId }: { orderId: string }) {
 
   const field = (f: Field) => {
     const invalid = f.key === "grandTotal" && totalOff;
+    const hint = invalid && Number.isFinite(net + vat);
     return (
-      <label key={f.key} className="flex min-w-0 flex-col gap-1 text-[11.5px] font-semibold text-ink-muted">
-        {f.label}
-        <input
-          id={invalid ? "invoice-total" : undefined}
-          type={"type" in f ? f.type : "text"}
-          step={isNumber(f) ? "0.01" : undefined}
-          value={value(f.key)}
-          onChange={(e) => setDraft((d) => ({ ...d, [f.key]: e.target.value }))}
-          aria-invalid={invalid || undefined}
-          aria-describedby={invalid && Number.isFinite(net + vat) ? "invoice-total-hint" : undefined}
-          className={`h-9 w-full rounded-[6px] border bg-surface px-2.5 text-[12.5px] font-normal text-ink ${
-            f.key === "supplierName" ? "" : "font-mono"
-          } ${isNumber(f) ? "text-right" : ""} ${invalid ? "border-amber ring-[3px] ring-amber-soft" : "border-border"}`}
-        />
-        {invalid && Number.isFinite(net + vat) && (
+      <div key={f.key} className="flex min-w-0 flex-col gap-1 text-[11.5px] font-semibold text-ink-muted">
+        <label className="flex flex-col gap-1">
+          {f.label}
+          <input
+            id={invalid ? "invoice-total" : undefined}
+            type={"type" in f ? f.type : "text"}
+            step={isNumber(f) ? "0.01" : undefined}
+            value={value(f.key)}
+            onChange={(e) => setDraft((d) => ({ ...d, [f.key]: e.target.value }))}
+            aria-invalid={invalid || undefined}
+            aria-describedby={hint ? "invoice-total-hint" : undefined}
+            className={`h-9 w-full rounded-[6px] border bg-surface px-2.5 text-[12.5px] font-normal text-ink ${
+              f.key === "supplierName" ? "" : "font-mono"
+            } ${isNumber(f) ? "text-right" : ""} ${invalid ? "border-amber ring-[3px] ring-amber-soft" : "border-border"}`}
+          />
+        </label>
+        {hint && (
           <span id="invoice-total-hint" className="font-medium text-amber-text">
-            Net + VAT = {formatAmount(net + vat)}
+            Net + VAT = {formatMoney(order.currency, net + vat)}
           </span>
         )}
-      </label>
+      </div>
     );
   };
 
@@ -218,22 +222,15 @@ export function InvoiceScreen({ orderId }: { orderId: string }) {
     <PageShell variant="wide">
       <header className="mb-5 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
         <div className="min-w-0">
-          <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-[12px] font-medium text-ink-muted">
-            <Link href="/inbox" className="flex items-center hover:text-ink">
-              Documents
-            </Link>
-            <span aria-hidden>›</span>
-            <span aria-current="page">Invoice {order.poNumber}</span>
-          </nav>
-          <div className="mt-1 flex flex-wrap items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2.5">
             <h1 className="font-display text-[26px] font-semibold leading-tight tracking-tight text-ink">
               Invoice <span className="font-mono text-[21px]">{order.poNumber}</span>
             </h1>
             <span className="rounded-full border border-border-strong px-2 text-[11px] font-semibold leading-[20px] text-ink-muted">Early access</span>
           </div>
           <p className="mt-0.5 text-[13px] text-ink-muted">
-            {seller && <>From <strong className="font-semibold text-ink">{seller}</strong> · </>}
-            arrived {formatDateTime(order.createdAt)}
+            {seller ? <>From <strong className="font-semibold text-ink">{seller}</strong> · arrived </> : "Arrived "}
+            {formatDateTime(order.createdAt)}
             {statedTotal && <> · stated total <strong className="font-semibold text-ink">{statedTotal}</strong></>}
           </p>
         </div>
@@ -252,6 +249,15 @@ export function InvoiceScreen({ orderId }: { orderId: string }) {
           </Link>
         </div>
       </header>
+
+      {/* Below lg the Checks card sits under the original and the read data, so its count leads here. */}
+      {problems.length > 0 && (
+        <div className="mb-4 lg:hidden">
+          <StatusNotice tone="warning" action={<a href="#invoice-checks" className="font-semibold underline">Go to Checks</a>}>
+            {problemCount} — {problems[0].message}
+          </StatusNotice>
+        </div>
+      )}
 
       {/* The review screen's panel, unchanged; it names the recipient, which here is the destination. */}
       {problem && order.status !== "unrouted" && (
@@ -338,7 +344,7 @@ export function InvoiceScreen({ orderId }: { orderId: string }) {
               </h2>
               {problems.length > 0 && (
                 <span className="rounded-full bg-amber-soft px-2 text-[11.5px] font-semibold leading-[22px] text-amber-text">
-                  {problems.length} {problems.length === 1 ? "problem" : "problems"}
+                  {problemCount}
                 </span>
               )}
             </div>
@@ -363,9 +369,9 @@ export function InvoiceScreen({ orderId }: { orderId: string }) {
               ) : held ? (
                 // A held invoice whose problems were all dismissed is still held: never "passed".
                 <StatusNotice tone="warning">This invoice is held for review. Open it in Advanced to see why.</StatusNotice>
-              ) : order.status === "failed" ? null : (
+              ) : PAST_REVIEW_STATUSES.includes(order.status) ? (
                 <StatusNotice tone="success">All checks passed.</StatusNotice>
-              )}
+              ) : null}
             </div>
             <details className="mt-3 text-[12px] text-ink-muted">
               <summary className="cursor-pointer font-semibold text-brand-blue">What we check</summary>
@@ -403,19 +409,11 @@ export function InvoiceScreen({ orderId }: { orderId: string }) {
                   <strong className="block">{destination ? `Sent to ${destination}` : "Sent"}</strong>
                   {[formatDateTime(order.updatedAt), channel].filter(Boolean).join(" · ")}
                 </StatusNotice>
-                <div className="mt-3 flex gap-2">
-                  {artifact && (
-                    <Button className="flex-1" onClick={() => void download(artifact.id)}>
-                      Download
-                    </Button>
-                  )}
-                  <Link
-                    href="/operations/log"
-                    className="flex h-[44px] flex-1 items-center justify-center rounded border border-border bg-surface text-[12.5px] font-medium text-ink sm:h-[32px]"
-                  >
-                    See delivery
-                  </Link>
-                </div>
+                {artifact && (
+                  <Button className="mt-3 w-full" onClick={() => void download(artifact.id)}>
+                    Download
+                  </Button>
+                )}
               </>
             ) : (
               <>
@@ -437,7 +435,7 @@ export function InvoiceScreen({ orderId }: { orderId: string }) {
                   {sendState === "transforming" ? "Preparing…" : sendState === "delivering" ? "Sending…" : "Send invoice"}
                 </Button>
                 {reading && <p className={CAPTION}>Available once the checks finish.</p>}
-                {held && <p className={CAPTION}>Fix the problem in Checks first.</p>}
+                {problems.length > 0 && <p className={CAPTION}>Fix the problem in Checks first.</p>}
               </>
             )}
             {notice && (
