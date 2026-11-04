@@ -79,7 +79,9 @@ type OrgSettingsWire = { direction?: unknown; slug?: unknown; invoiceDestination
 
 function orgSettingsFrom(raw: OrgSettingsWire): OrgSettings {
   const slug = typeof raw.slug === "string" && raw.slug.trim() ? raw.slug.trim() : undefined;
-  const dest = typeof raw.invoiceDestinationSupplierId === "string" && raw.invoiceDestinationSupplierId ? raw.invoiceDestinationSupplierId : null;
+  // Absent stays undefined (unknown); only an explicit null means "Not set".
+  const d = raw.invoiceDestinationSupplierId;
+  const dest = typeof d === "string" && d ? d : d === null ? null : undefined;
   return { direction: normalizeDirection(raw.direction), slug, invoiceDestinationSupplierId: dest };
 }
 
@@ -93,9 +95,7 @@ export async function getOrgSettings(): Promise<OrgSettings> {
   const res = await fetchWithTimeout(`${API_BASE_URL}/api/settings/organisation`, { headers });
   if (!res.ok) throw new Error(`settings/organisation: ${res.status}`);
   const body = await res.json().catch(() => ({}));
-  const raw = body as { direction?: unknown; slug?: unknown };
-  const slug = typeof raw.slug === "string" && raw.slug.trim() ? raw.slug.trim() : undefined;
-  return orgSettingsFrom(raw);
+  return orgSettingsFrom(body as OrgSettingsWire);
 }
 
 /** Partial: a field left out is unchanged server-side; an explicit `null` clears the destination. */
@@ -106,7 +106,8 @@ export interface UpdateOrgSettingsPayload {
 
 export async function updateOrgSettings(payload: UpdateOrgSettingsPayload): Promise<OrgSettings> {
   if (USE_MOCK) {
-    return { direction: payload.direction ?? "outbound", invoiceDestinationSupplierId: payload.invoiceDestinationSupplierId };
+    // A destination-only save carries no direction; do not invent one.
+    return { direction: payload.direction, invoiceDestinationSupplierId: payload.invoiceDestinationSupplierId } as OrgSettings;
   }
 
   const headers = await authHeader();

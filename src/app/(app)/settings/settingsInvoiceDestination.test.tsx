@@ -1,4 +1,6 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+// Settings ▸ Organisation ▸ "Where invoices go". Exercises the real settings.ts serialisation:
+// only `fetch` and the auth header are stubbed, so the PUT body asserted here is the wire body.
+import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
@@ -9,15 +11,18 @@ vi.mock("next/navigation", () => ({
 vi.mock("@clerk/nextjs", () => ({
   useOrganization: () => ({ organization: { name: "Test Org" } }),
 }));
-
-const api = { updateOrgSettings: vi.fn() };
-
+vi.mock("@/lib/api/core", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/api/core")>()),
+  authHeader: async () => ({}),
+}));
+vi.mock("@/lib/api/delivery", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/api/delivery")>()),
+  getDeliveryConfig: vi.fn().mockResolvedValue({ protocol: "http", outputFormat: "csv" }),
+}));
 vi.mock("@/lib/api-client", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api-client")>();
   return {
     ...actual,
-    getOrgSettings: vi.fn().mockResolvedValue({ direction: "outbound", invoiceDestinationSupplierId: null }),
-    updateOrgSettings: (...a: unknown[]) => api.updateOrgSettings(...a),
     getBillingStatus: vi.fn().mockResolvedValue({ plan: "growth", status: "active" }),
     apiClient: { ...actual.apiClient, getSuppliers: vi.fn().mockResolvedValue([{ id: "sup-1", name: "Nordic Fasteners" }]) },
   };
@@ -25,18 +30,61 @@ vi.mock("@/lib/api-client", async (importOriginal) => {
 
 import SettingsPage from "./page";
 
-afterEach(cleanup);
+let orgBody: Record<string, unknown>;
+const puts: unknown[] = [];
+
+beforeEach(() => {
+  puts.length = 0;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      const isOrg = String(url).endsWith("/api/settings/organisation");
+      if (isOrg && init?.method === "PUT") {
+        puts.push(JSON.parse(String(init.body)));
+        return new Response(JSON.stringify(orgBody), { status: 200 });
+      }
+      if (isOrg) return new Response(JSON.stringify(orgBody), { status: 200 });
+      return new Response("{}", { status: 404 });
+    }),
+  );
+});
+
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
+
+function renderPage() {
+  render(
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <SettingsPage />
+    </QueryClientProvider>,
+  );
+}
 
 describe("Settings ▸ Organisation — where invoices go", () => {
-  it("choosing where invoices go saves the supplier id", async () => {
-    api.updateOrgSettings.mockReset().mockResolvedValue({ direction: "outbound" });
-    render(
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <SettingsPage />
-      </QueryClientProvider>,
-    );
+  it("choosing a supplier sends exactly the supplier id, and no direction", async () => {
+    orgBody = { direction: "Outbound", invoiceDestinationSupplierId: null };
+    renderPage();
     await screen.findByRole("option", { name: "Nordic Fasteners" });
     fireEvent.change(screen.getByLabelText("Where invoices go"), { target: { value: "sup-1" } });
-    await waitFor(() => expect(api.updateOrgSettings).toHaveBeenCalledWith({ invoiceDestinationSupplierId: "sup-1" }));
+    await waitFor(() => expect(puts).toEqual([{ invoiceDestinationSupplierId: "sup-1" }]));
+  });
+
+  it("choosing Not set sends an explicit null", async () => {
+    orgBody = { direction: "Outbound", invoiceDestinationSupplierId: "sup-1" };
+    renderPage();
+    await screen.findByRole("option", { name: "Nordic Fasteners" });
+    await waitFor(() => expect(screen.getByLabelText("Where invoices go")).toHaveValue("sup-1"));
+    fireEvent.change(screen.getByLabelText("Where invoices go"), { target: { value: "" } });
+    await waitFor(() => expect(puts).toEqual([{ invoiceDestinationSupplierId: null }]));
+    expect(Object.keys(puts[0] as object)).toContain("invoiceDestinationSupplierId");
+  });
+
+  it("a destination that is no longer a supplier says so instead of showing Not set", async () => {
+    orgBody = { direction: "Outbound", invoiceDestinationSupplierId: "gone-9" };
+    renderPage();
+    expect(await screen.findByRole("option", { name: "Supplier no longer exists" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Where invoices go")).toHaveValue("gone-9");
   });
 });
