@@ -7,7 +7,7 @@ import { stripComments, syntaxFor } from "@/test/sourceScan";
 import DpaPage from "./dpa/page";
 import SubprocessorsPage from "./subprocessors/page";
 import SecurityPage from "./security/page";
-import CustomersPage from "./customers/page";
+import PilotPage from "./pilot/page";
 import PrivacyPage from "./privacy/page";
 import PricingPage from "./pricing/page";
 import MarketingLayout from "./layout";
@@ -459,7 +459,8 @@ const PUBLIC_PAGES: Array<[string, () => React.ReactElement]> = [
   ["/privacy", () => <PrivacyPage />],
   ["/dpa", () => <DpaPage />],
   ["/pricing", () => <PricingPage />],
-  ["/customers", () => <CustomersPage />],
+  // /customers 308s to /pilot (src/lib/retired-routes.ts); its slot here moved with it.
+  ["/pilot", () => <PilotPage />],
   ["/one-pager", () => <OnePagerPage />],
   ["/ (home)", () => <HomePage />],
   ["marketing layout", () => <MarketingLayout>{null}</MarketingLayout>],
@@ -980,6 +981,32 @@ describe("sign-in and sign-up trust line", () => {
 //   • arity   — at most ONE archetype anywhere, quoted or not. Two profiles
 //               need two archetypes, so the restored pair dies even if someone
 //               puts both of them inside quotes.
+//
+// ── 2026-11-04: the guard moved with the job, not with the URL ───────────────
+//
+// /customers is retired and 308s to /pilot (src/lib/retired-routes.ts). /pilot is
+// now the page a prospect lands on when they go looking for references, so it is
+// the page that must not invent one, and every rule above now runs against it.
+// Three of the original assertions had to change SHAPE on a page whose subject is
+// a pilot programme. Each change is stated so it reads as a decision, not a
+// loosening:
+//
+//   • "no pilot / design-partner / case-study language in the page's own voice"
+//     cannot hold on a page that describes the programme. What it protected was
+//     never the word — it was the claim that someone is IN a pilot. That claim is
+//     now banned directly: "our/current/existing pilots", "pilot customers",
+//     "trusted by", "N companies", outcome percentages.
+//   • the volume ban is narrowed to MONTHLY volumes — the shape of both fabricated
+//     profiles ("~120 POs/month", "roughly 120 purchase orders a month"). The page
+//     prints the self-service Pilot's own allowance, read off plans.ts; that is a
+//     plan fact, not a customer.
+//   • "states plainly that there are no public references yet" became "makes a
+//     named reference conditional on the client's approval". The advisor's
+//     direction was to stop making the absence the content; the honest half of
+//     that is that a reference is something agreed, never something asserted.
+//
+// Arity tightens rather than loosens: the old page quoted one specimen, this one
+// quotes none, so it may carry no archetype at all.
 
 // Built fresh on each use: a /g regex carries lastIndex between calls.
 const ARCHETYPE = "\\b(wholesaler|distributor|retailer|manufacturer|reseller|merchant)s?\\b";
@@ -987,33 +1014,57 @@ const ARCHETYPE = "\\b(wholesaler|distributor|retailer|manufacturer|reseller|mer
 /** Drop quoted spans — a quotation is a specimen, not a claim. */
 const unquoted = (s: string) => s.replace(/[“"][^“”"]*[”"]/g, " ");
 
-describe("customer references", () => {
+describe("pilot programme page (replaces /customers) invents no customer", () => {
   it("describes no customer in the page's own voice", () => {
-    const body = unquoted(text(<CustomersPage />));
+    const body = unquoted(text(<PilotPage />));
     expect(body).not.toMatch(new RegExp(ARCHETYPE, "i"));
-    expect(body).not.toMatch(/\b\d[\d,.]*\s*\+?\s*(purchase orders|orders|POs)\b/i);
-    expect(body).not.toMatch(/\b(pilots?|design partners?|case stud(y|ies))\b/i);
+    expect(body).not.toMatch(
+      /\b\d[\d,.]*\s*\+?\s*(purchase orders|orders|POs)\s*(?:a|per|\/)\s*month\b/i,
+    );
+    expect(body).not.toMatch(
+      /\b\d[\d,.]*\s*\+?\s*(companies|customers|clients|teams|businesses|organi[sz]ations)\b/i,
+    );
   });
 
-  it("ships no second profile, quoted or not", () => {
-    const body = text(<CustomersPage />);
-    expect((body.match(new RegExp(ARCHETYPE, "gi")) ?? []).length).toBeLessThanOrEqual(1);
+  it("ships no customer profile at all, quoted or not", () => {
+    const body = text(<PilotPage />);
+    expect((body.match(new RegExp(ARCHETYPE, "gi")) ?? []).length).toBe(0);
   });
 
-  it("does not claim pilots or customers we cannot point at", () => {
-    const body = text(<CustomersPage />);
-    expect(body).not.toMatch(/we(?:'|&apos;|’)?re in early pilots/i);
-    expect(body).not.toMatch(/procurement teams using ProcuLink/i);
+  it("claims no pilot, customer or result we cannot point at", () => {
+    const body = text(<PilotPage />);
+    const CLAIMS: RegExp[] = [
+      /we(?:'|&apos;|’)?re in early pilots/i,
+      /procurement teams using ProcuLink/i,
+      /\b(?:our|current|existing|recent|ongoing|previous) (?:pilots?|pilot (?:customers|clients|partners)|customers|clients|design partners)\b/i,
+      /\bpilot (?:customers|clients|partners) (?:have|are|say|report)/i,
+      /\b(?:trusted|used|loved|chosen) by\b/i,
+      /\bcustomers? (?:say|said|report(?:ed)?)\b/i,
+      /\d+\s?%/,
+    ];
+    for (const re of CLAIMS) {
+      expect(body.match(re)?.[0], `claim matched ${re}`).toBeUndefined();
+    }
   });
 
-  it("states plainly that there are no public references yet", () => {
-    const body = text(<CustomersPage />);
-    expect(body).toMatch(/no public (customer )?references/i);
+  it("makes a named reference conditional on the client's approval", () => {
+    const body = text(<PilotPage />);
+    expect(body).toMatch(/named reference/i);
+    expect(body).toMatch(/without your approval of the wording and figures/i);
   });
 
-  it("offers checkable capability pages instead of social proof", () => {
-    const markup = html(<CustomersPage />);
-    expect(markup).toContain('href="/formats"');
-    expect(markup).toContain('href="/security"');
+  it("offers checkable capability pages and the company's legal pages instead of social proof", () => {
+    const markup = html(<PilotPage />);
+    for (const href of ["/formats", "/security", "/privacy", "/dpa", "/subprocessors"]) {
+      expect(markup).toContain(`href="${href}"`);
+    }
+  });
+
+  it("does not ask for the supplier's name", () => {
+    const { container } = render(<PilotPage />);
+    const prompts = Array.from(container.querySelectorAll("label, legend")).map((l) => l.textContent ?? "");
+    // Anti-vacuity: the application form really rendered its questions.
+    expect(prompts.length).toBeGreaterThan(8);
+    expect(prompts.join(" | ")).not.toMatch(/supplier(?:'s|’s)? name|which supplier|name of (?:the|your) supplier/i);
   });
 });
