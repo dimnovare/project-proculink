@@ -136,12 +136,12 @@ export default function TermsPage() {
         carries purchase orders to suppliers the review called it unusually one-sided. This is
         a balanced proposal, not a settled term:
           • mutual cap — the greater of 12 months' fees and a fixed floor, so a Pilot or a
-            new customer is not capped at zero. EUR [X] is deliberately left unset: the
-            founder sets it, and this page must not be published with the placeholder;
+            new customer is not capped at zero. Founder set the floor at EUR 5,000
+            (2026-11-04);
           • carve-outs for what Estonian law does not let a cap exclude (intent and gross
             negligence — counsel to confirm against the Law of Obligations Act) and for fees
-            due; whether data-protection breaches get a separate, higher cap is a decision
-            for the founder and counsel;
+            due; founder decided (2026-11-04) there is no separate data-protection cap — one
+            cap covers every claim;
           • "data loss" was removed from the excluded heads of loss, so a loss of customer
             data caused by our breach is recoverable up to the cap rather than excluded.
       */}
@@ -154,7 +154,7 @@ export default function TermsPage() {
         Subject to that, each party&apos;s total liability arising out of or in connection with
         these Terms and the service is limited to the greater of (a) the fees paid and payable
         by you for the service in the 12 months before the event giving rise to the claim, and
-        (b) EUR [X]. This limit does not apply to your obligation to pay fees that are due.
+        (b) EUR 5,000. This limit does not apply to your obligation to pay fees that are due.
         Neither party is liable for indirect or consequential loss, or for loss of profit,
         revenue or business opportunity.
       </p>
