@@ -248,7 +248,7 @@ const FEATURES: Array<{
     // "Built for 30-year procurement veterans." used to close this card. It sold to the wrong
     // reader: the person this page is written for is whoever sits closest to repeat order
     // preparation — often a buyer, a purchasing or operations lead, or the owner of a smaller
-    // business — not a procurement career. The audience is named once, in WHO_IT_IS_FOR below.
+    // business — not a procurement career. The audience is named once, in the "Who it is for" section.
     desc: "Core order fields map to UBL, EDIFACT, X12, cXML and Peppol BIS paths — always visible, never hidden behind a mode.",
     color: BLUE_DEEP,
     bg: BLUE_SOFT,
@@ -340,7 +340,11 @@ const HOME_STEPS: Array<{ title: string; body: string }> = [
   },
 ];
 
-const WHO_IT_IS_FOR: Array<{ who: string; problem: string }> = [
+// EXAMPLES, not a target list. Who it is for is defined by the workflow — anyone who orders
+// repeatedly from the same suppliers where item codes differ, in any trade — and the section
+// heading says so. These rows only illustrate what that looks like in a few trades, and are
+// rendered under an explicit "For example" label. Do not add sector rows to narrow the audience.
+const WHO_IT_IS_FOR_EXAMPLES: Array<{ who: string; problem: string }> = [
   {
     who: "Wholesale / distribution",
     problem: "You buy the same products repeatedly, but your internal SKU is not the supplier's SKU.",
@@ -358,11 +362,6 @@ const WHO_IT_IS_FOR: Array<{ who: string; problem: string }> = [
   {
     who: "Spare parts / electrical / HVAC / building materials",
     problem: "Part-number-heavy purchasing means the same code translation can recur on many repeat lines.",
-  },
-  {
-    who: "Food & beverage",
-    problem:
-      "You reorder the same ingredients, drinks and packaging, but your product list does not use your supplier's article numbers.",
   },
 ];
 
@@ -822,20 +821,36 @@ export default function RootPage() {
           <div style={{ textAlign: "center", maxWidth: 680, margin: "0 auto 44px" }}>
             <Eyebrow>Who it is for</Eyebrow>
             <h2 style={{ ...sectionTitle, textAlign: "center" }}>
-              For the person closest to repeat order preparation
+              Anyone who orders from the same suppliers again and again
             </h2>
             <p style={{ ...bodyCopy, fontSize: 16, textAlign: "center" }}>
-              Usually a buyer, someone in purchasing, supply or logistics, an
-              operations lead — or the owner, in a smaller business. If you
-              prepare repeat orders to the same suppliers, one of these will
-              look familiar.
+              If your item codes differ from your suppliers&apos; codes, it fits —
+              whatever you buy and whatever trade you are in. It is built for
+              the person closest to repeat order preparation: a buyer, someone
+              in purchasing, supply or logistics, an operations lead, or the
+              owner of a smaller business.
             </p>
           </div>
+          <p
+            id="who-examples-label"
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: "0.07em",
+              textTransform: "uppercase",
+              color: INK_MUTED,
+              textAlign: "center",
+              margin: "0 0 16px",
+            }}
+          >
+            For example
+          </p>
           <ul
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+            aria-labelledby="who-examples-label"
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4"
             style={{ gap: 18, listStyle: "none", padding: 0, margin: 0 }}
           >
-            {WHO_IT_IS_FOR.map((row) => (
+            {WHO_IT_IS_FOR_EXAMPLES.map((row) => (
               <li key={row.who} style={{ display: "flex" }}>
                 <Card style={{ width: "100%" }}>
                   <div className="p-1 sm:p-2">
