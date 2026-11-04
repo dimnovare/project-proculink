@@ -205,7 +205,7 @@ const FAQ: Array<[string, ReactNode]> = [
   // PO goes missing. Pinned by cancelDisclosure.test.tsx.
   [
     "What happens if I cancel?",
-    "If you cancel, ProcuLink stops accepting new documents when your subscription ends. Everything you have already processed remains readable and exportable — past orders, suppliers, mappings and delivery records all stay — but nothing new comes in on any route: uploads, emailed orders, SFTP and S3 pickups, and the REST API all stop. Documents sent to you after that are not held and delivered later, so redirect your suppliers before you cancel. Resubscribing turns processing back on immediately, with your setup untouched.",
+    "If you cancel, ProcuLink stops accepting new documents when your subscription ends. Everything you have already processed remains readable and exportable — past orders, suppliers and mappings stay until you ask us to delete them, and activity records such as delivery attempts are removed after 180 days (see the Privacy Policy) — but nothing new comes in on any route: uploads, emailed orders, SFTP and S3 pickups, and the REST API all stop. Documents sent to you after that are not held and delivered later, so redirect your suppliers before you cancel. Resubscribing turns processing back on immediately, with your setup untouched.",
   ],
   // STORED and PROCESSED are two different questions, and this answer used to give
   // one answer to both: "All order data is stored and processed in the EU". The
