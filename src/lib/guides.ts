@@ -38,7 +38,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
 
 /** One-line section descriptions for the index. Plain procurement copy. */
 export const SECTION_BLURB: Record<GuideSection, string> = {
-  "Get started": "Set up the workspace and get one order through end to end.",
+  "Get started": "Set up the workspace and take one order to supplier-ready.",
   "Receive orders": "Every way an order can reach ProcuLink, set up step by step.",
   "Suppliers & catalogs": "Add a supplier, load their item codes, keep them current.",
   "Review & mapping": "Fix what parsing could not decide, and teach it for next time.",
@@ -82,13 +82,14 @@ export const GUIDES: Guide[] = [
   {
     slug: "first-order-end-to-end",
     href: "/help/guides/first-order-end-to-end",
-    title: "Take your first order from upload to delivered",
-    blurb: "Upload a real purchase order, review it, and send it to the supplier.",
+    title: "Take your first order to supplier-ready",
+    blurb:
+      "Add one supplier, upload a real order, confirm its item codes, and download the result to send yourself — no delivery set-up needed.",
     section: "Get started",
     audience: "client",
     status: "live",
     minutes: 20,
-    related: ["order-intake-options", "inbox-basics", "dashboard-and-statuses"],
+    related: ["order-intake-options", "item-codes", "inbox-basics", "dashboard-and-statuses"],
   },
 
   // ── Receive orders ───────────────────────────────────────────────────────
@@ -233,6 +234,21 @@ export const GUIDES: Guide[] = [
   },
 
   // ── Deliver ──────────────────────────────────────────────────────────────
+  // The follow-on to first-order-end-to-end, and first in this section on purpose: the
+  // first-order guide stops at a downloaded file and never configures delivery, so this is
+  // where a reader who has proved the output goes next.
+  {
+    slug: "automate-delivery",
+    href: "/help/guides/automate-delivery",
+    title: "Ready to automate delivery?",
+    blurb:
+      "Agree a channel with the supplier, set it up, test the connection, send one real order — then choose review before delivery or automatic delivery.",
+    section: "Deliver",
+    audience: "client",
+    status: "live",
+    minutes: 30,
+    related: ["delivery-setup", "sftp-ftps-delivery-keys", "oauth2-delivery-setup", "dashboard-and-statuses"],
+  },
   {
     slug: "set-up-supplier-delivery",
     href: "/help/guides/set-up-supplier-delivery",

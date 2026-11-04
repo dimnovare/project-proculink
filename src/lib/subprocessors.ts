@@ -136,7 +136,7 @@ export const SUBPROCESSORS: Subprocessor[] = [
   },
   {
     name: "Cloudflare",
-    purpose: "R2 object storage (order files and the output files we generate) and DNS",
+    purpose: "R2 object storage (the documents you send us and the output files we generate) and DNS",
     location: "EU-region bucket",
     contract: "Cloudflare DPA",
   },
@@ -147,7 +147,7 @@ export const SUBPROCESSORS: Subprocessor[] = [
     // every order request go from the browser straight to our API. It holds no
     // order data, which also means it is no evidence about where order data
     // lives — the old "source data EU" implied otherwise.
-    purpose: "Website and app hosting (order files do not pass through it)",
+    purpose: "Website and app hosting (document files do not pass through it)",
     location: "Global CDN",
     contract: "Vercel DPA + SCCs",
   },

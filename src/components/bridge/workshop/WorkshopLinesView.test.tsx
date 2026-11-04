@@ -53,6 +53,9 @@ function makeLine(over: Partial<OrderLine>): OrderLine {
   } as OrderLine;
 }
 
+/** The bulk button's visible label — neutral, because the set it applies is mixed. */
+const BULK_APPLY_LABEL = "Apply suggested codes to all blocked lines";
+
 const READY_LINE = makeLine({ id: "line-1", lineNumber: 1 });
 const BLOCKED_LINE = makeLine({
   id: "line-2",
@@ -195,15 +198,70 @@ describe("footer — reconcile chip and bulk apply", () => {
 
   it("bulk apply is enabled when a blocked line has a suggestion", () => {
     renderView(makeOrder([BLOCKED_LINE], null));
-    const btn = screen.getByRole("button", { name: "Apply AI suggestions to all blocked lines" });
+    const btn = screen.getByRole("button", { name: BULK_APPLY_LABEL });
     expect((btn as HTMLButtonElement).disabled).toBe(false);
   });
 
   it("bulk apply is disabled when no blocked line has a suggestion", () => {
     const blockedNoSuggestion = makeLine({ id: "line-4", lineNumber: 4, supplierItemCode: null, needsReview: true, aiSuggestion: null });
     renderView(makeOrder([blockedNoSuggestion], null));
-    const btn = screen.getByRole("button", { name: "Apply AI suggestions to all blocked lines" });
+    const btn = screen.getByRole("button", { name: BULK_APPLY_LABEL });
     expect((btn as HTMLButtonElement).disabled).toBe(true);
+  });
+});
+
+// Only a suggestion a scorer produced may be called AI. A deterministic catalog hit or a part
+// number the document prints arrives with NO confidence (the producers stopped fabricating
+// 0.95), and the bulk set mixes both kinds — so the bulk dialog is neutral and the per-line chip
+// says "AI" only for a scored suggestion. Same discriminator as buildFixQueue.aiAttribution.
+describe("suggestion attribution — only a scored suggestion is called AI", () => {
+  const CATALOG_LINE = makeLine({
+    id: "line-5",
+    lineNumber: 5,
+    buyerItemCode: "EXT-WINTER",
+    supplierItemCode: null,
+    needsReview: true,
+    aiSuggestion: {
+      supplierItemCode: "TY-CAT-501",
+      confidence: null,
+      reason: "",
+      provenance: "catalog: manufacturer part number",
+    } as unknown as OrderLine["aiSuggestion"],
+  });
+
+  it("an unscored catalog match is offered as a suggestion, not as AI", () => {
+    renderView(makeOrder([CATALOG_LINE], null));
+    fireEvent.click(screen.getByRole("button", { name: "Line 5 details" }));
+
+    // Positive first: the suggestion is still offered, with its one-click accept.
+    expect(screen.getByText("Suggested: TY-CAT-501")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Accept suggested code TY-CAT-501 for line 5" })).toBeTruthy();
+    expect(screen.queryByText(/AI suggestion/)).toBeNull();
+  });
+
+  it("CONTROL — a scored suggestion is still called AI", () => {
+    // Without this, the test above passes by deleting the AI wording everywhere.
+    renderView(makeOrder([BLOCKED_LINE], null));
+    fireEvent.click(screen.getByRole("button", { name: "Line 2 details" }));
+    expect(screen.getByText("AI suggestion: TY-90112 (92%)")).toBeTruthy();
+  });
+
+  it("the bulk confirmation calls a mixed set suggested codes, never AI", async () => {
+    // No ConfirmProvider in this isolated render, so useConfirm falls back to window.confirm
+    // with the dialog's title and description — the exact words the dialog would show.
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+    try {
+      renderView(makeOrder([BLOCKED_LINE, CATALOG_LINE], null));
+      fireEvent.click(screen.getByRole("button", { name: BULK_APPLY_LABEL }));
+      await waitFor(() => expect(confirmSpy).toHaveBeenCalledTimes(1));
+
+      const message = String(confirmSpy.mock.calls[0][0]);
+      expect(message).toContain("Apply suggested codes to all blocked lines?");
+      expect(message).toContain("2 blocked lines have a suggested supplier code");
+      expect(message).not.toMatch(/\bAI\b/);
+    } finally {
+      confirmSpy.mockRestore();
+    }
   });
 });
 
