@@ -331,6 +331,11 @@ export interface Order {
   contactPhone?: string | null;
   /** Buyer tax / VAT registration id. */
   buyerTaxId?: string | null;
+  /** Invoice fields (ISO "yyyy-MM-dd" for dueDate); null/absent on a purchase order. */
+  dueDate?: string | null;
+  sellerTaxId?: string | null;
+  paymentIban?: string | null;
+  paymentReference?: string | null;
   /**
    * Ranked supplier candidates for an order that arrived with no supplier, best
    * first, at most three. Absent/empty for every routed order and for any unrouted
@@ -352,6 +357,8 @@ export interface OrderSummary {
   totalValue?: number;
   currency?: string;
   sourceFormat?: string | null;
+  /** "purchase_order" | "invoice" | "other" | null. */
+  documentType?: string | null;
   createdAt: string;
   /**
    * True when this row is a practice order (backend `PurchaseOrder.IsSample`).

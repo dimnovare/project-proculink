@@ -218,6 +218,8 @@ type OrderRow = {
    * that every number on the screen denies. See orderCountContract.ts.
    */
   isSample: boolean;
+  /** "invoice" rows get a tag and link to the document screen. */
+  documentType?: string | null;
 };
 
 // ─── Data generation ──────────────────────────────────────────────────────────
@@ -459,6 +461,7 @@ function summaryToRow(o: OrderSummary): OrderRow {
     // This function DROPS any field it does not name, which is why the practice flag has
     // to be listed here before any row can render it.
     isSample: o.isSample === true,
+    documentType: o.documentType ?? null,
   };
 }
 
@@ -665,6 +668,7 @@ function buildColumns(labels: PartyLabels, rowSend: RowSendContext) {
               only honest reading of "All orders 0" over a visible row is that the
               screen is broken. */}
           {info.row.original.isSample && <PracticeChip size="sm" />}
+          {info.row.original.documentType === "invoice" && <FileChip type="Invoice" />}
         </span>
         <div className="text-[11px]" style={{ color: "var(--ink-muted)" }}>
           {info.row.original.lines} lines
@@ -1001,6 +1005,11 @@ function PipelineLegend() {
  * The row itself already navigates here on click; this is the keyboard-reachable,
  * NAMED version of that, and the only thing on the row that says what it needs.
  */
+/** Where a queue row opens: invoices have their own screen, everything else is the order review. */
+export function documentHref(row: { id: string; documentType?: string | null }): string {
+  return row.documentType === "invoice" ? `/documents/${row.id}` : `/inbox/${row.id}`;
+}
+
 function AssignSupplierCell({ orderId, noun }: { orderId: string; noun: string }) {
   const router = useRouter();
   return (
@@ -1453,7 +1462,7 @@ export function InboxView() {
       } else if (key === "Enter") {
         if (activeRow >= 0 && activeRow < pagedRows.length) {
           e.preventDefault();
-          router.push(`/inbox/${pagedRows[activeRow].original.id}`);
+          router.push(documentHref(pagedRows[activeRow].original));
         }
       }
     };
@@ -1977,7 +1986,7 @@ export function InboxView() {
             <button
               className="block w-full px-4 py-3 text-left transition-colors active:bg-[#F6F7FA]"
               style={{ background: "transparent", border: 0, minHeight: 44 }}
-              onClick={() => router.push(`/inbox/${row.original.id}`)}
+              onClick={() => router.push(documentHref(row.original))}
             >
               <div className="mb-2 flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
@@ -1988,6 +1997,7 @@ export function InboxView() {
                     {/* The same chip the desktop row and the review screen render — one
                         practice affordance, all three surfaces. */}
                     {row.original.isSample && <PracticeChip size="sm" />}
+                    {row.original.documentType === "invoice" && <FileChip type="Invoice" />}
                   </div>
                   {/* On a stopped row the LINE COUNT yields to the action line below —
                       the same trade the desktop cell makes — but age and value stay.
@@ -2111,7 +2121,7 @@ export function InboxView() {
           ))}
         </div>
 
-        <div className="hidden overflow-x-auto lg:block">
+        <div data-testid="queue-table" className="hidden overflow-x-auto lg:block">
         <table
           style={{
             width: "100%",
@@ -2251,7 +2261,7 @@ export function InboxView() {
                 <tr
                   key={row.id}
                   data-row
-                  onClick={() => router.push(`/inbox/${row.original.id}`)}
+                  onClick={() => router.push(documentHref(row.original))}
                   style={{
                     height: 44,
                     borderBottom: "1px solid #EEF0F4",

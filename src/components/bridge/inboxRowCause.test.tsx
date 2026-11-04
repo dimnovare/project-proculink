@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, cleanup, waitFor } from "@testing-library/react";
+import { render, screen, cleanup, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ConfirmProvider } from "@/components/ui/confirm";
 import type { OrderSummary } from "@/types/procurement";
@@ -78,7 +78,7 @@ vi.mock("@/hooks/useOrderDirection", () => ({
   }),
 }));
 
-import { InboxView } from "./InboxView";
+import { InboxView, documentHref } from "./InboxView";
 
 let seq = 0;
 function order(over: Partial<OrderSummary> = {}): OrderSummary {
@@ -288,4 +288,14 @@ describe("the sort control says which set it can reach", () => {
     expect(document.querySelector("[data-sort-scope-note]")).toBeNull();
     expect(screen.getByLabelText("Sort by Value")).toBeTruthy();
   });
+});
+
+it("invoice row shows an Invoice tag and links to the document screen", async () => {
+  await renderInbox([order({ id: "inv-1", poNumber: "INV-1", documentType: "invoice" }), order({ poNumber: "PO-PLAIN" })]);
+  const table = await screen.findByTestId("queue-table");
+  const row = (await within(table).findByText("INV-1")).closest("tr")!;
+  expect(within(row).getByText("Invoice")).toBeTruthy();
+  expect(within(within(table).getByText("PO-PLAIN").closest("tr")!).queryByText("Invoice")).toBeNull();
+  expect(documentHref({ id: "inv-1", documentType: "invoice" })).toBe("/documents/inv-1");
+  expect(documentHref({ id: "x", documentType: null })).toBe("/inbox/x");
 });

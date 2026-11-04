@@ -308,6 +308,31 @@ const mockOrders: Order[] = [
       },
     ],
   },
+  {
+    // An invoice held with one open problem: invoices reuse the order model, so it has the
+    // same statuses; the problem is an `invoice_check` exception (see mockGetOrderExceptions).
+    id: "ord-005",
+    poNumber: "INV-2024-0042",
+    supplierId: "11111111-1111-1111-1111-111111111111",
+    supplierName: "Example Supplies GmbH",
+    buyerName: "Sample Buyer AG",
+    orderDate: "2024-01-18",
+    currency: "EUR",
+    status: "pending_review",
+    documentType: "invoice",
+    dueDate: "2024-02-17",
+    sellerTaxId: "DE123456789",
+    paymentIban: "DE89370400440532013000",
+    paymentReference: "INV-2024-0042",
+    sourceFileKey: "orgs/demo/orders/inv-0042.pdf",
+    createdAt: "2024-01-18T10:00:00Z",
+    updatedAt: "2024-01-18T10:00:00Z",
+    lines: [
+      { id: "l-005-1", lineNumber: 1, buyerItemCode: "EX-PAPER-A4", supplierItemCode: "EX-PAPER-A4", description: "Copy paper A4, 500 sheets", quantity: 10, unit: "PCS", unitPrice: 4.8,  confidence: 1.0, needsReview: false },
+      { id: "l-005-2", lineNumber: 2, buyerItemCode: "EX-TONER-01", supplierItemCode: "EX-TONER-01", description: "Toner cartridge black",     quantity: 2,  unit: "PCS", unitPrice: 62.0, confidence: 1.0, needsReview: false },
+    ],
+    artifacts: [],
+  },
 ];
 
 // ── Suppliers ─────────────────────────────────────────────────────────────
@@ -478,6 +503,7 @@ function orderToSummary(o: Order): OrderSummary {
     totalValue: o.lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0),
     currency: o.currency,
     sourceFormat,
+    documentType: o.documentType ?? null,
     createdAt: o.createdAt,
   };
 }
@@ -3094,9 +3120,20 @@ async function realValidateOrder(orderId: string): Promise<OrderValidationResult
 // ── Order exceptions ──────────────────────────────────────────────────────────
 // GET /api/orders/{id}/exceptions
 
-async function mockGetOrderExceptions(_orderId: string): Promise<OrderException[]> {
+async function mockGetOrderExceptions(orderId: string): Promise<OrderException[]> {
   await delay(150);
-  return [];
+  if (orderId !== "ord-005") return [];
+  return [{
+    id: "exc-005-1",
+    severity: "error",
+    message: "The line totals add up to 172.00 but the invoice states 182.00.",
+    createdAt: "2024-01-18T10:00:00Z",
+    resolvedAt: null,
+    orderId,
+    stage: "Validate",
+    code: "invoice_check",
+    state: "open",
+  }];
 }
 
 async function realGetOrderExceptions(orderId: string): Promise<OrderException[]> {
