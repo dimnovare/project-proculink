@@ -90,7 +90,8 @@ export function InvoiceScreen({ orderId }: { orderId: string }) {
   const [draft, setDraft] = useState<Draft>({});
   const [anywayOpen, setAnywayOpen] = useState(false);
   const [reason, setReason] = useState("");
-  const { membership } = useOrganization();
+  const { membership, isLoaded: orgLoaded } = useOrganization();
+  const adminKnown = isApiMockMode || orgLoaded;
   const isAdmin = isApiMockMode || membership?.role === "org:admin";
   const isLg = useLgViewport();
   const source = useSourceDocument(orderId);
@@ -454,11 +455,11 @@ export function InvoiceScreen({ orderId }: { orderId: string }) {
                 </Button>
                 {reading && <p className={CAPTION}>Available once the checks finish.</p>}
                 {problems.length > 0 && <p className={CAPTION}>Fix the problem in Checks first.</p>}
-                {held && problems.length > 0 &&
+                {held && problems.length > 0 && adminKnown &&
                   (!isAdmin ? (
                     <p className={CAPTION}>A workspace admin can send it anyway.</p>
                   ) : !anywayOpen ? (
-                    <button type="button" onClick={() => setAnywayOpen(true)} className="mt-2 text-[12.5px] font-semibold text-brand-blue hover:underline">
+                    <button type="button" aria-expanded={false} onClick={() => setAnywayOpen(true)} className="mt-2 text-[12.5px] font-semibold text-brand-blue hover:underline">
                       Send anyway…
                     </button>
                   ) : (
@@ -468,6 +469,7 @@ export function InvoiceScreen({ orderId }: { orderId: string }) {
                         <textarea
                           value={reason}
                           onChange={(e) => setReason(e.target.value)}
+                          autoFocus
                           maxLength={500}
                           rows={3}
                           className="w-full rounded-[6px] border border-border bg-surface px-2.5 py-2 text-[12.5px] font-normal text-ink"
