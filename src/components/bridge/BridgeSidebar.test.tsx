@@ -124,7 +124,7 @@ describe("BridgeSidebar — the four destinations", () => {
 
   it("renders the four primary destinations with their hub first-tab hrefs", () => {
     render(<BridgeSidebar />);
-    expect(screen.getByRole("link", { name: /^Orders/i })).toHaveAttribute("href", "/inbox");
+    expect(screen.getByRole("link", { name: /^Documents/i })).toHaveAttribute("href", "/inbox");
     expect(screen.getByRole("link", { name: /^Suppliers/i })).toHaveAttribute("href", "/library/suppliers");
     expect(screen.getByRole("link", { name: /^Activity/i })).toHaveAttribute("href", "/bridge");
     expect(screen.getByRole("link", { name: /Settings/i })).toHaveAttribute("href", "/settings");
@@ -153,7 +153,7 @@ describe("BridgeSidebar — the four destinations", () => {
     mockPath = "/operations/exceptions";
     render(<BridgeSidebar />);
     expect(screen.getByRole("link", { name: /^Activity/i })).toHaveAttribute("aria-current", "page");
-    expect(screen.getByRole("link", { name: /^Orders/i })).not.toHaveAttribute("aria-current");
+    expect(screen.getByRole("link", { name: /^Documents/i })).not.toHaveAttribute("aria-current");
   });
 
   it("lights the Suppliers hub item for a supplier detail route", () => {
@@ -178,13 +178,13 @@ describe("buildVisibleNav — four items, one flat section", () => {
     expect(nav.main[0].items).toHaveLength(4);
   });
 
-  it("produces one ungrouped section: Orders · Suppliers · Activity · Settings", () => {
+  it("produces one ungrouped section: Documents · Suppliers · Activity · Settings", () => {
     const nav = buildVisibleNav("Suppliers", true);
     // Four items need no group headers — the old Workbench/Library/Monitor
     // headers are gone, so every section label is null.
     expect(nav.main.map((s) => s.group ?? null)).toEqual([null]);
     expect(nav.main.map((s) => s.items.map((i) => i.label))).toEqual([
-      ["Orders", "Suppliers", "Activity", "Settings"],
+      ["Documents", "Suppliers", "Activity", "Settings"],
     ]);
     // Settings is promoted to primary; the tail keeps only the icon-only items.
     expect(nav.tail.map((i) => i.label)).toEqual(["Admin", "Help & support"]);
@@ -204,7 +204,7 @@ describe("buildVisibleNav — four items, one flat section", () => {
 
   it("hub items link to their hub's FIRST VISIBLE tab route", () => {
     const byLabel = Object.fromEntries(allItems(buildVisibleNav("Suppliers", true)).map((i) => [i.label, i]));
-    expect(byLabel["Orders"].href).toBe("/inbox");
+    expect(byLabel["Documents"].href).toBe("/inbox");
     expect(byLabel["Suppliers"].href).toBe("/library/suppliers");
     expect(byLabel["Activity"].href).toBe("/bridge");
     for (const hub of HUBS) {
@@ -281,7 +281,7 @@ describe("buildVisibleNav — four items, one flat section", () => {
     ]) {
       expect(isItemActive(p, suppliers), `${p} lights Suppliers`).toBe(true);
     }
-    const orders = items.find((i) => i.label === "Orders")!;
+    const orders = items.find((i) => i.label === "Documents")!;
     for (const p of [
       "/inbox", "/inbox/008412", "/library/buyers",
       "/inbound/invoices", "/inbound/asns",
@@ -345,7 +345,7 @@ describe("hubTooltip — lists a hub's VISIBLE tabs (derived from HUB_TABS, can'
     allItems(buildVisibleNav("Suppliers", true)).map((i) => [i.label, i]),
   );
   it("describes each hub with its visible tab labels", () => {
-    expect(hubTooltip(byLabel["Orders"])).toBe("Orders · Buyers");
+    expect(hubTooltip(byLabel["Documents"])).toBe("Orders · Buyers");
     // Three visible tabs: FE #47 retired /library/rules (and its rule catalog)
     // and /library/templates behind permanent redirects; "Supplier changes"
     // (/connections) stopped being hidden in the reachability fix.

@@ -85,7 +85,7 @@ const NAV_MAIN: SidebarNavSection[] = [
   {
     // Four items need no group headers.
     items: [
-      { label: "Orders", href: hubHome("orders"), icon: Inbox, badgeKey: "review", hub: "orders" },
+      { label: "Documents", href: hubHome("orders"), icon: Inbox, badgeKey: "review", hub: "orders" },
       // STRUCT-1 still holds: no standalone "Connections" entry — /connections is
       // a hidden entry of this hub and stays fully routable.
       { label: "Suppliers", href: hubHome("suppliers"), icon: Users, hub: "suppliers" },

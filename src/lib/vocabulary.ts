@@ -17,9 +17,10 @@
  * jargon tiers in scripts/check-vocabulary.mjs, not by this budget.
  */
 
-/** The nine nouns a customer may be taught. DESIGN-DB-1 §7.4. */
+/** The ten nouns a customer may be taught. DESIGN-DB-1 §7.4. */
 export const APPROVED_NOUNS = [
   "order",
+  "document",
   "supplier",
   "item code",
   "order layout",

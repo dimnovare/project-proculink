@@ -50,7 +50,7 @@ describe("renamed sidebar labels keep their routes", () => {
   // "Overview" is no longer a sidebar item — WP-26 made it the Activity hub's
   // first tab, and the "Activity" nav item inherits its /bridge href.
   const rows: Array<[string, string, string]> = [
-    ["Orders", "/inbox", "§6.1 #2 Inbox → Orders"],
+    ["Documents", "/inbox", "§6.1 #2 Inbox → Documents"],
     ["Suppliers", "/library/suppliers", "§6.1 #6 Partners → Suppliers"],
     ["Activity", "/bridge", "§6.1 #8 Operations → Activity"],
     ["Settings", "/settings", "§6.1 #32 unchanged"],

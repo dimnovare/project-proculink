@@ -113,6 +113,7 @@ import { InboxView, mapStatus, journeyStage, STATUS_PRESENTATION } from "./Inbox
 import { UploadWorkbench, recentStatusFromOrder } from "./UploadWorkbench";
 import { UNKNOWN_STAGE_CAPTION, pipelineCardLine } from "./pipelineIndicator";
 import { statusLabel } from "./UnifiedStatusBadge";
+import { STAGES } from "./StatusJourney";
 
 let seq = 0;
 function order(over: Partial<OrderSummary> = {}): OrderSummary {
@@ -218,7 +219,7 @@ describe("the unknown bucket makes no stage claim", () => {
     expect(pipelineCardLine(null)).toBe(UNKNOWN_STAGE_CAPTION);
     expect(UNKNOWN_STAGE_CAPTION).not.toMatch(/\d/);
     // Control: the caption function has not simply started saying "unknown" everywhere.
-    expect(pipelineCardLine(0)).toBe("Step 1 of 5 · Parse");
+    expect(pipelineCardLine(0)).toBe(`Step 1 of 5 · ${STAGES[0]}`);
     expect(pipelineCardLine({ failed: 3 })).toBe("Failed at step 4 of 5 · Transform");
   });
 });
@@ -257,11 +258,11 @@ describe("an inbox row for an unreadable status says so on both viewports", () =
     expect(screen.queryByText(UNKNOWN_STAGE_CAPTION)).toBeNull();
     // Mobile card prints the step in words; the desktop cell carries it as the
     // accessible name of the dot track.
-    expect(screen.getAllByText("Step 3 of 5 · Validate").length).toBeGreaterThan(0);
+    expect(screen.getAllByText(`Step 3 of 5 · ${STAGES[2]}`).length).toBeGreaterThan(0);
     const claim = container.querySelector<HTMLElement>("[data-pipeline]");
     expect(claim).not.toBeNull();
     expect(claim!.getAttribute("role")).toBe("img");
-    expect(claim!.getAttribute("aria-label")).toMatch(/Step 3 of 5: Validate/);
+    expect(claim!.getAttribute("aria-label")).toContain(`Step 3 of 5: ${STAGES[2]}`);
     expect(container.querySelector("[data-pipeline-unknown]")).toBeNull();
   });
 });

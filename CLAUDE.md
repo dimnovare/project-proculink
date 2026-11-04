@@ -201,7 +201,7 @@ behind a modal or a wizard step.
   (`bg-link-spine` / `--gradient-link-spine`). Distinct from the deleted canonical
   spine — this one ships.
 - **Status as a journey.** Order status = 5-node mini-track
-  (Parse · Normalize · Validate · Transform · Deliver), not a static pill.
+  (In · Read · Check · Transform · Send), not a static pill.
   `<StatusJourney>`.
 - **Monumental numbers.** KPIs in Bricolage Grotesque 600, tight letterspacing.
 - **System Identity mark.** SVG glyph: an arc with a blue circle on the left end and
@@ -382,7 +382,7 @@ All Bridge-specific components live in `src/components/bridge/`.
 |---|---|---|
 | `<WireTopology>` | `bridge/WireTopology.tsx` | SVG canvas: buyer ports left, supplier ports right, animated Bezier wires. Props: `buyers`, `suppliers`, `wires`. Renders in the `/bridge` **"System map" tab**, not as the dashboard hero. |
 | `<Card>` | `bridge/layout/Card.tsx` | **The one card.** 3px cross-section edge strip, applied by a semantic rule written in the file's header: `edge="blue"` buyer/incoming · `"green"` supplier/outgoing · `"bridge"` spans both · `"none"` neutral **or undeterminable** (the default, and the majority). Also `pad` / `radius` / `flush` / `as` for migrated geometry. Server-component safe. |
-| `<StatusJourney>` | `bridge/StatusJourney.tsx` | 5-node mini-track: Parse · Normalize · Validate · Transform · Deliver. Props: `stage` (0–4), `compact?`. |
+| `<StatusJourney>` | `bridge/StatusJourney.tsx` | 5-node mini-track: In · Read · Check · Transform · Send. Props: `stage` (0–4), `compact?`. |
 | `<MarkSystem>` | `bridge/MarkSystem.tsx` | System Identity mark SVG in 3 sizes. Props: `size`, `white?`. (Also exports a dead `RailPort` — see §2.) |
 | `<BridgeSidebar>` | `bridge/BridgeSidebar.tsx` | 220px navy sidebar — **mobile drawer only**. Desktop nav is in the topbar. |
 | `<BridgeTopbar>` | `bridge/BridgeTopbar.tsx` | 52px navy topbar: nav, breadcrumbs, cmd-K, avatar, link-spine. Props: `crumb`. |
@@ -473,7 +473,7 @@ terms in anything a user reads.
 **Dashboard title:** "Orders" (plain). Do not ship "Order topology" as a
 user-facing heading.  
 **Primary action:** "Send to supplier" (shipped copy; not "Cross the bridge →").  
-**Stages:** Parse · Normalize · Validate · Transform · Deliver.  
+**Stages:** In · Read · Check · Transform · Send.  
 **AI CTAs:** Accept / Edit / Reject — never "Apply magic" or sparkles.
 
 > Note: `dock`, `crossing`, `lane`, and `spine` now survive **only** as code

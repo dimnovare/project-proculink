@@ -60,7 +60,7 @@ interface HubTab {
  * clicked. Kept next to HUB_TABS so labels and tabs can't drift.
  */
 export const HUB_LABELS: Record<HubKey, string> = {
-  orders: "Orders",
+  orders: "Documents",
   suppliers: "Suppliers",
   activity: "Activity",
 };
