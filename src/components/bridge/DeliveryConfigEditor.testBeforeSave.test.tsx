@@ -27,6 +27,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, cleanup, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { DeliveryConfig } from "@/lib/api/types";
+import { AUTOMATIC_DELIVERY_LABEL } from "@/lib/deliveryMode";
 
 const getDeliveryConfig = vi.fn();
 const upsertDeliveryConfig = vi.fn();
@@ -178,13 +179,13 @@ describe("DeliveryConfigEditor — a connection test may not precede the save it
     expect((JSON.parse(body.configJson) as { url: string }).url).toBe(TYPED_URL);
   });
 
-  it("blocks the test on an edit that changes no text at all — the auto-deliver toggle", async () => {
+  it("blocks the test on an edit that changes no text at all — the automatic-delivery toggle", async () => {
     // The gate cannot be a URL check. Any managed setting on this screen is part of what a test
     // exercises, and a checkbox leaves no display value behind to notice.
     renderEditor();
     await floorTestFireWorksOnAnUneditedForm();
 
-    fireEvent.click(screen.getByLabelText(/Auto-deliver/i));
+    fireEvent.click(screen.getByLabelText(AUTOMATIC_DELIVERY_LABEL));
 
     await waitFor(() => expect(testButton()).toBeDisabled());
     fireEvent.click(testButton());

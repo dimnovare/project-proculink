@@ -28,6 +28,7 @@ import { useConfirm } from "@/components/ui/confirm";
 import { serverReasonOrNull } from "@/lib/serverText";
 import { describeDeliveryTestOutcome } from "@/components/bridge/deliveryTestOutcome";
 import { deliveryTestDisclosure } from "@/components/bridge/deliveryTestDisclosure";
+import { AUTOMATIC_DELIVERY_LABEL, REVIEW_BEFORE_DELIVERY_LABEL } from "@/lib/deliveryMode";
 
 type AuthType = "none" | "apikey" | "bearer" | "basic" | "oauth2";
 
@@ -741,7 +742,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
       // hasDeliveryConfig may have flipped back — refresh checklist surfaces.
       void invalidateOnboardingStatus(queryClient);
       // The config is GONE. Without this the cached entry outlives it, and every reader keeps
-      // printing a channel, a format and an "Auto-process · On" for a configuration that no
+      // printing a channel, a format and an "Automatic delivery" for a configuration that no
       // longer exists — the most confident possible statement about the least existing thing.
       void invalidateDeliveryConfig(queryClient, supplierId);
     } catch (err) {
@@ -805,6 +806,13 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
           <p className="text-[11px]" style={{ color: "#5E6779" }}>
             Configure the channel used once an order is ready to send.
           </p>
+          {/* Names the CURRENT mode in words, so the off state has a name too — not just an
+              unticked box. Reads the checkbox, so it follows an unsaved edit. */}
+          <p className="text-[11px]" style={{ color: "var(--ink-muted)" }} data-testid="delivery-mode-line">
+            {autoDeliver
+              ? `${AUTOMATIC_DELIVERY_LABEL} is on — an order is sent as soon as its output is prepared.`
+              : `${REVIEW_BEFORE_DELIVERY_LABEL} — each order waits until someone sends it.`}
+          </p>
         </div>
         <label className="flex items-center gap-2 text-[12px] font-medium" style={{ color: "#0B1A2F" }}>
           <input
@@ -815,7 +823,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
               markEdited();
             }}
           />
-          Auto-deliver
+          {AUTOMATIC_DELIVERY_LABEL}
         </label>
       </div>
 
