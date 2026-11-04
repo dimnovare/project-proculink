@@ -289,7 +289,7 @@ describe("supplier-limit banner — selected by code, never by the word 'supplie
       limit: 150,
     });
 
-    expect(banner.textContent).toContain("You've reached your plan's order limit.");
+    expect(banner.textContent).toContain("You've reached your plan's document limit.");
     expect(banner.textContent).not.toContain("supplier flows");
     expect(banner.textContent).not.toMatch(/Your plan includes/);
   });
