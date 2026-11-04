@@ -789,7 +789,7 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
           CENTER = the primary nav as horizontal links (md+), built from the
                    SAME buildVisibleNav/isItemActive the sidebar used; scrolls
                    horizontally at the md→lg band so links never wrap or clip.
-          RIGHT  = Upload order · demo/setup chips · ⌘K search · notifications ·
+          RIGHT  = Upload document · demo/setup chips · ⌘K search · notifications ·
                    Admin (admin-gated) · Help · account chip.
           Mobile (< md) collapses to hamburger + brand + the compact control
           cluster; the full nav is reached through the drawer (onMenuClick). */}
@@ -888,7 +888,7 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
             incomplete (server-verified); hides itself at completion/unknown. */}
         <SetupProgressChip />
 
-        {/* Upload order — pinned primary create action (reuses the sidebar's
+        {/* Upload document — pinned primary create action (reuses the sidebar's
             PINNED_ACTION_HREF). Blue = buyer/source action per the semantic law.
             md+ shows the labelled button; mobile keeps it in the drawer. */}
         <Link
@@ -899,7 +899,7 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
           onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "#1E66C9"; }}
         >
           <Upload size={15} strokeWidth={2} />
-          <span>Upload order</span>
+          <span>Upload document</span>
         </Link>
 
         {/* Search — icon-only trigger for the ⌘K command palette (sm+). Icon-only

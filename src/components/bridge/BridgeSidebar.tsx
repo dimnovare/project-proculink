@@ -414,7 +414,7 @@ export function BridgeSidebar({
         activePlan={billing ? planLabel : null}
       />
 
-      {/* ── Pinned primary action — Upload order ──────────────────────
+      {/* ── Pinned primary action — Upload document ──────────────────────
           v2 shell pins the primary create action at the top of the rail
           (the Workbench group no longer carries a separate Upload entry).
           Blue = buyer/source action, matching the semantic law. */}
@@ -429,7 +429,7 @@ export function BridgeSidebar({
             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "#1E66C9"; }}
           >
             <Upload size={15} strokeWidth={2} />
-            Upload order
+            Upload document
           </Link>
         </div>
       ) : (
@@ -437,8 +437,8 @@ export function BridgeSidebar({
           <Link
             href={PINNED_ACTION_HREF}
             onClick={onNavigate}
-            title="Upload order"
-            aria-label="Upload order"
+            title="Upload document"
+            aria-label="Upload document"
             className="flex items-center justify-center text-white"
             style={{ width: 40, height: 40, borderRadius: 10, background: "#1E66C9", boxShadow: "0 1px 2px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.14)", transition: "background 140ms" }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#0F4FA8"; }}

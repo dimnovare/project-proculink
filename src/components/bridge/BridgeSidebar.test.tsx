@@ -130,7 +130,7 @@ describe("BridgeSidebar — the four destinations", () => {
     expect(screen.getByRole("link", { name: /Settings/i })).toHaveAttribute("href", "/settings");
     expect(screen.getByRole("link", { name: /Help & support/i })).toHaveAttribute("href", "/help");
     // Pinned primary action.
-    expect(screen.getByRole("link", { name: /Upload order/i })).toHaveAttribute("href", PINNED_ACTION_HREF);
+    expect(screen.getByRole("link", { name: /Upload document/i })).toHaveAttribute("href", PINNED_ACTION_HREF);
   });
 
   it("retires the container words the old nav taught", () => {
