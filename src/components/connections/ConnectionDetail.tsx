@@ -39,6 +39,7 @@ import { ConnectionNotice, ConnectionConfirmDialog } from "@/components/connecti
 import { MapperWorkbench } from "@/components/bridge/mapper/MapperWorkbench";
 import { apiClient } from "@/lib/api-client";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
+import { deliveryModeLabel } from "@/lib/deliveryMode";
 
 export function ConnectionDetail({ connectionId }: { connectionId: string }) {
   const router = useRouter();
@@ -476,7 +477,7 @@ function BundleSummary(props: {
         title="Where and how the finished order is sent."
         value={
           props.deliveryProtocol
-            ? `${deliveryLabel}${props.deliveryAutoDeliver ? " · auto-send" : ""}${props.hasCredentials ? " · credentials set" : ""}`
+            ? `${deliveryLabel} · ${deliveryModeLabel(props.deliveryAutoDeliver).toLowerCase()}${props.hasCredentials ? " · credentials set" : ""}`
             : deliveryLabel
         }
         unconfigured={!props.deliveryProtocol}

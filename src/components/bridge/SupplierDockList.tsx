@@ -4,14 +4,14 @@
 // List of every supplier the buyer delivers orders to. Fetches live data from
 // GET /api/suppliers, then enriches each visible row with its delivery config
 // (GET /api/suppliers/{id}/delivery-config) so the Supplier / Format / Channel /
-// Auto-process columns carry real data. A green supplier-entity accent (badge
+// Delivery mode columns carry real data. A green supplier-entity accent (badge
 // tile, hover band) and a blue primary "New supplier" action.
 //
 // Columns the design once showed but for which no real data source exists on
 // either the supplier list or the delivery config — "Orders" and "Acceptance"
 // (they'd need a per-supplier order/delivery-success aggregate the API doesn't
 // expose here) — were DROPPED rather than rendered as permanent dashes, per the
-// offer↔works rule. Format / Channel / Auto-process come from the delivery
+// offer↔works rule. Format / Channel / Delivery mode come from the delivery
 // config, and read "Not set" only when a COMPLETED read established that this
 // supplier has no config yet.
 //
@@ -84,6 +84,7 @@ import { useOrderDirection } from "@/hooks/useOrderDirection";
 import { PageHeader } from "./layout/PageHeader";
 import { PageShell } from "./layout/PageShell";
 import { tv2HeaderCell, tv2BodyCell, tv2RowDivider } from "./layout/listTableV2";
+import { AUTOMATIC_DELIVERY_LABEL, DELIVERY_MODE_HEADING, REVIEW_BEFORE_DELIVERY_LABEL } from "@/lib/deliveryMode";
 
 // How many rows enrich themselves with a delivery-config fetch. Procurement
 // books are typically 3–20 suppliers (the ICP), so this comfortably covers a
@@ -803,7 +804,7 @@ export function SupplierDockList() {
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" style={{ marginTop: 1, flexShrink: 0 }}>
                     <circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" />
                   </svg>
-                  Auto-process means orders are sent to this {nounLower} automatically once they pass checks. It stays off until you set up delivery and turn it on.
+                  Every new {nounLower} starts on review before delivery: each order waits until you send it. Automatic delivery sends an order as soon as its output is prepared — it stays off until you set up delivery and turn it on.
                 </div>
 
                 {/* A plan gate gets the amber upsell; everything else gets the red failure
@@ -987,7 +988,7 @@ export function SupplierDockList() {
                     { label: noun,           align: "left"  },
                     { label: "Format",       align: "left"  },
                     { label: "Channel",      align: "left"  },
-                    { label: "Auto-process", align: "left"  },
+                    { label: DELIVERY_MODE_HEADING, align: "left" },
                     { label: "",             align: "right" },
                     { label: "",             align: "right" },
                   ] as const).map((col, i) => (
@@ -1055,7 +1056,7 @@ function SupplierTableHeader({ counterpartyNoun = "Supplier" }: { counterpartyNo
       <span className={cls} style={{ color }}>{counterpartyNoun}</span>
       <span className={cls} style={{ color }}>Format</span>
       <span className={cls} style={{ color }}>Channel</span>
-      <span className={cls} style={{ color }}>Auto-process</span>
+      <span className={cls} style={{ color }}>{DELIVERY_MODE_HEADING}</span>
       <span />
     </div>
   );
@@ -1142,8 +1143,10 @@ function NotLoadedValue() {
 }
 
 /**
- * Auto-process status pill. ON = green (delivery is auto-fired), OFF = neutral
- * "Off", and "Not set" when a completed read established that the supplier has
+ * Delivery-mode pill, driven by `autoDeliver`. ON = green "Automatic delivery"
+ * (delivery is auto-fired), OFF = neutral "Review before delivery" (the default —
+ * one name per state, the same two words every other surface uses for this switch),
+ * and "Not set" when a completed read established that the supplier has
  * no delivery config yet (the honest empty state — distinct from a
  * configured-but-manual supplier, and from one nobody looked up: see
  * `deliveryConfigState`, whose "unknown" never reaches this component).
@@ -1153,7 +1156,7 @@ function AutoProcessPill({ state, onHoverRow }: { state: "on" | "off" | "unset";
   const isOn = state === "on";
   return (
     <span
-      className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-[3px] text-[11px] font-medium"
+      className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-[3px] text-[11px] font-medium"
       style={{
         background: isOn ? GREEN_SOFT : (onHoverRow ? "#FFFFFF" : PILL_BG),
         color: isOn ? GREEN_DEEP : TEXT_MUTED,
@@ -1161,7 +1164,7 @@ function AutoProcessPill({ state, onHoverRow }: { state: "on" | "off" | "unset";
       }}
     >
       <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: isOn ? GREEN : "#CBD0DA" }} />
-      {isOn ? "On" : "Off"}
+      {isOn ? AUTOMATIC_DELIVERY_LABEL : REVIEW_BEFORE_DELIVERY_LABEL}
     </span>
   );
 }
@@ -1188,7 +1191,7 @@ function CellValue({
 
 /**
  * One desktop table row, enriched with its delivery config. Format / Channel are
- * derived from the config (or a faint "—" when unconfigured); Auto-process is a
+ * derived from the config (or a faint "—" when unconfigured); Delivery mode is a
  * pill driven by `autoDeliver`.
  */
 function SupplierTableRow({
@@ -1278,7 +1281,7 @@ function SupplierTableRow({
         <CellValue state={state} value={config ? channelLabel(config.protocol) : null} />
       </td>
 
-      {/* Auto-process — from delivery config autoDeliver */}
+      {/* Delivery mode — from delivery config autoDeliver */}
       <td style={{ ...tv2BodyCell("left", false), borderBottom: cellBorder }}>
         {state === "loading" ? (
           <span className="inline-block h-4 w-14 rounded-full animate-pulse align-middle" style={{ background: "#F1F3F7" }} />
@@ -1380,7 +1383,7 @@ function SupplierMobileCard({
           </svg>
         </div>
 
-        {/* Card body: label / value rows (Format · Channel · Auto-process) */}
+        {/* Card body: label / value rows (Format · Channel · Delivery mode) */}
         <dl
           className="mt-3.5 grid grid-cols-2 gap-x-4 gap-y-3 border-t pt-3.5"
           style={{ borderColor: "#EEF1F6" }}
@@ -1389,7 +1392,7 @@ function SupplierMobileCard({
           <MobileStat label="Channel" state={state} value={config ? channelLabel(config.protocol) : null} />
           <div className="col-span-2 flex items-center justify-between">
             <dt className="text-[10.5px] font-semibold uppercase tracking-[0.06em]" style={{ color: "var(--ink-faint)" }}>
-              Auto-process
+              {DELIVERY_MODE_HEADING}
             </dt>
             <dd className="m-0">
               {state === "loading" ? (

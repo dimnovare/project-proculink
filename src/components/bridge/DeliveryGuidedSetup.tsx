@@ -26,6 +26,7 @@ import {
   type CredentialAction,
 } from "@/components/bridge/deliveryCredentialAction";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
+import { AUTOMATIC_DELIVERY_LABEL, REVIEW_BEFORE_DELIVERY_LABEL } from "@/lib/deliveryMode";
 
 /**
  * Guided delivery setup — an OPT-IN, additive stepper that walks a non-technical
@@ -1074,8 +1075,9 @@ function StepFormat({
       <label className="mt-1 flex items-start gap-2 rounded-[7px] px-3 py-2.5 text-[12px]" style={{ border: "1px solid #E5E8EE", background: "#FBFCFE", color: NAVY }}>
         <input type="checkbox" checked={autoDeliver} onChange={(e) => setAutoDeliver(e.target.checked)} className="mt-0.5" />
         <span>
-          <span className="font-semibold">Auto-deliver</span> — send automatically once an order is
-          transformed and ready. Leave off to review each order before it goes.
+          <span className="font-semibold">{AUTOMATIC_DELIVERY_LABEL}</span> — send each order as soon as
+          its output is prepared. Leave it off for {REVIEW_BEFORE_DELIVERY_LABEL.toLowerCase()}: each
+          order waits until someone sends it.
         </span>
       </label>
     </div>

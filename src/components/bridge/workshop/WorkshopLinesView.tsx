@@ -263,9 +263,14 @@ export function WorkshopLinesView({
 
   const onBulkClick = async () => {
     if (!bulkOn || bulkAccepting) return;
+    // Neutral on purpose. The bulk set is MIXED: a suggestion can be an exact hit on the
+    // supplier's own catalog, a part number the document itself prints, or a model's guess
+    // (see buildFixQueue and the IssuesPanel bulk-button tooltip). Calling all of them "AI"
+    // misattributes the deterministic ones, so the dialog says "suggested code" and the
+    // per-line chip keeps "AI" for the scored ones only.
     const ok = await confirm({
-      title: "Apply AI suggestions to all blocked lines?",
-      description: `${bulkCount} blocked ${bulkCount === 1 ? "line has" : "lines have"} an AI-suggested supplier code. Each suggestion will be saved as that line's supplier code — you can still change any line afterwards.`,
+      title: "Apply suggested codes to all blocked lines?",
+      description: `${bulkCount} blocked ${bulkCount === 1 ? "line has" : "lines have"} a suggested supplier code. Each suggestion will be saved as that line's supplier code — you can still change any line afterwards.`,
       confirmLabel: `Apply ${bulkCount} suggestion${bulkCount === 1 ? "" : "s"}`,
     });
     if (ok) onBulkApply!();
@@ -389,8 +394,8 @@ export function WorkshopLinesView({
             disabled={!bulkOn || bulkAccepting}
             title={
               bulkOn
-                ? "Save each blocked line's AI-suggested supplier code"
-                : "None of the blocked lines has an AI suggestion to apply"
+                ? "Save each blocked line's suggested supplier code"
+                : "None of the blocked lines has a suggested code to apply"
             }
             style={{
               marginLeft: "auto",
@@ -408,7 +413,7 @@ export function WorkshopLinesView({
               whiteSpace: "nowrap",
             }}
           >
-            {bulkAccepting ? "Applying…" : "Apply AI suggestions to all blocked lines"}
+            {bulkAccepting ? "Applying…" : "Apply suggested codes to all blocked lines"}
           </button>
         )}
       </div>
@@ -452,6 +457,11 @@ function LineRow({
   const statedMatches =
     line.lineAmount != null && Math.abs(line.lineAmount - computed) <= RECONCILE_TOLERANCE + 1e-9;
   const suggestion = line.aiSuggestion ?? null;
+  // Only a suggestion a scorer produced may be called "AI" — the same discriminator
+  // buildFixQueue uses. The deterministic producers (catalog hit, document part number)
+  // record no confidence, so a missing number means nothing modelled this. `typeof`, not
+  // `!= null`: the type still declares `confidence` non-nullable while the API sends null.
+  const suggestionScored = suggestion != null && typeof suggestion.confidence === "number";
   const suggestionPct =
     suggestion && suggestion.confidence > 0 && suggestion.confidence <= 1
       ? Math.round(suggestion.confidence * 100)
@@ -568,8 +578,8 @@ function LineRow({
                   type="button"
                   onClick={onAccept}
                   disabled={busy}
-                  title={suggestion.reason || "Save the AI-suggested supplier code for this line"}
-                  aria-label={`Accept AI suggestion ${suggestion.supplierItemCode} for line ${line.lineNumber}`}
+                  title={suggestion.reason || (suggestionScored ? "Save the AI-suggested supplier code for this line" : "Save the suggested supplier code for this line")}
+                  aria-label={`Accept ${suggestionScored ? "AI suggestion" : "suggested code"} ${suggestion.supplierItemCode} for line ${line.lineNumber}`}
                   style={{
                     border: "1px solid #BBD2F0",
                     background: "#FFFFFF",
@@ -594,11 +604,16 @@ function LineRow({
                           WorkshopStatusBar), not a sparkle EMOJI: the emoji
                           rendered in the platform's own colour, ignoring the
                           button's, and CLAUDE.md §12 bans both emoji icons and
-                          decorative sparkles (WP-28). */}
-                      <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden style={{ flexShrink: 0 }}>
-                        <path d="M6 1.2l1.1 3.2 3.2 1.1-3.2 1.1L6 9.8 4.9 6.6 1.7 5.5l3.2-1.1z" fill="currentColor" />
-                      </svg>
-                      {`AI suggestion: ${suggestion.supplierItemCode}${suggestionPct != null ? ` (${suggestionPct}%)` : ""}`}
+                          decorative sparkles (WP-28). It marks AI, so a catalog or
+                          document match that nothing scored goes without it. */}
+                      {suggestionScored && (
+                        <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden style={{ flexShrink: 0 }}>
+                          <path d="M6 1.2l1.1 3.2 3.2 1.1-3.2 1.1L6 9.8 4.9 6.6 1.7 5.5l3.2-1.1z" fill="currentColor" />
+                        </svg>
+                      )}
+                      {suggestionScored
+                        ? `AI suggestion: ${suggestion.supplierItemCode}${suggestionPct != null ? ` (${suggestionPct}%)` : ""}`
+                        : `Suggested: ${suggestion.supplierItemCode}`}
                     </>
                   )}
                 </button>

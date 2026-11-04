@@ -599,3 +599,31 @@ export async function setOrgRetention(
   if (!res.ok) return adminError(res, "admin/organisations/retention");
   return res.json() as Promise<OrgRetentionResult>;
 }
+
+/** POST /api/admin/organisations/{id}/erase — response. Counts are per table, taken before the deletes. */
+export interface OrgEraseReceipt {
+  rowsDeleted: Record<string, number>;
+  blobsDeleted: number;
+  failedBlobKeys: string[];
+}
+
+/**
+ * Permanently erase a whole workspace: every row it owns, its stored files and the
+ * organisation itself. IRREVERSIBLE. The server re-checks `confirmSlug` against the
+ * org's slug (400) and refuses a workspace with a paid subscription or billed
+ * overage (409, `error` = `paid_subscription` | `billing_evidence`).
+ */
+export async function eraseOrganisation(orgId: string, confirmSlug: string): Promise<OrgEraseReceipt> {
+  const headers = await authHeader();
+  const res = await fetchWithTimeout(
+    `${API_BASE_URL}/api/admin/organisations/${orgId}/erase`,
+    {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({ confirmSlug }),
+    },
+    60000,
+  );
+  if (!res.ok) return adminError(res, "admin/organisations/erase");
+  return res.json() as Promise<OrgEraseReceipt>;
+}

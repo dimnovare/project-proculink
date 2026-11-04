@@ -135,15 +135,17 @@ The panel shows **shared secret saved** once the secret is stored — it is neve
 
 Press **Save delivery**.
 
-**Test-fire** stays disabled until you do — *"Save the delivery setup first, then you can test it."* The test
-runs server-side against stored credentials, so there has to be something stored.
+**Test connection** stays disabled until you do — *"Save the delivery setup first, then you can test it."*
+The test runs server-side against stored credentials, so there has to be something stored.
 
-Now press **Test-fire** (or **Send a test now** on the strip that appears after saving). ProcuLink sends a
-real test payload to the configured destination and reports back verbatim:
+Now press **Test connection** (or **Send a test now** on the strip that appears after saving). ProcuLink
+sends a small sample file — not an order — to the configured destination, and the panel says before you
+press it what that leaves behind on their side. The result comes back in plain words:
 
-- **Test-fire succeeded · response code *N*** — the endpoint answered.
-- **Test-fire failed · response code *N*** — with the error message underneath, as the supplier's system
-  gave it.
+- **The supplier's system answered** — the endpoint replied.
+- **We could not reach the supplier's system** — nothing answered at that address.
+- A sentence naming the response code when they answered but refused — the sign-in, the address, or the
+  request — and, when they gave a reason, their own words under **Their system said:**.
 
 This is the rehearsal that makes the first real send boring. It proves the credentials, the URL or host, and
 the network path against the supplier's *actual* endpoint rather than a mock.
@@ -193,8 +195,9 @@ Then check the two things a test cannot tell you:
 - The **supplier** confirms — by whatever means you normally use — that the order arrived and is workable.
   For a first send to a new supplier, ask. Once.
 
-Only after that is it reasonable to turn on **Auto-deliver**, which sends reviewed orders without a further
-click.
+Only after that is it reasonable to switch from **Review before delivery** to **Automatic delivery**, which
+sends an order as soon as its output is prepared, without a further click. When you are ready, [ready to
+automate delivery?](/help/guides/automate-delivery) walks through that switch.
 
 <Outcome>
 An order for this supplier goes from review to delivered without anyone touching a file, and the first one
