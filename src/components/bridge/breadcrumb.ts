@@ -127,7 +127,7 @@ export function formatCrumbLabel(
     const parent = index > 0 ? segments[index - 1] : undefined;
 
     // /inbox/[orderId]
-    if (parent === "inbox") {
+    if (parent === "inbox" || parent === "documents") {
       if (ctx.orderPoNumber && ctx.orderPoNumber.trim().length > 0) return ctx.orderPoNumber;
       return `Order ${shortId(segment)}`;
     }
@@ -176,7 +176,7 @@ const WORKBENCH_GROUP_ROOTS: ReadonlySet<string> = new Set(["inbound"]);
  * (the hub the page belongs to), never a link, exactly like the "Workbench" head.
  * Nulling the href here keeps every breadcrumb off a dead 404 target.
  */
-const UNLINKED_GROUP_ROOTS: ReadonlySet<string> = new Set(["library", "operations", "inbound"]);
+const UNLINKED_GROUP_ROOTS: ReadonlySet<string> = new Set(["library", "operations", "inbound", "documents"]);
 
 /**
  * True when a pathname's trail is a SINGLE crumb — the current page, which by

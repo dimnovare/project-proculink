@@ -10,6 +10,8 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { apiClient } from "@/lib/api-client";
+import { ApiHttpError } from "@/lib/api/core";
+import { limitRefusalCopy, readLimitRefusal } from "@/lib/limitRefusal";
 import type { Order } from "@/types/procurement";
 import type { PartyLabels } from "@/hooks/useOrderDirection";
 import { useProcessingStatus } from "@/hooks/useProcessingStatus";
@@ -321,6 +323,13 @@ export function useSendFlow({ orderId, order, labels, refetchOrder }: {
       }
       await refetchOrder();
     } catch (err) {
+      // A quota refusal (transform answers 429 `pilot_expired` / `order_limit_reached`) is a
+      // settled answer, not a blip: say it with the shared limit copy — never the raw code.
+      if (err instanceof ApiHttpError && err.status === 429) {
+        const copy = limitRefusalCopy(readLimitRefusal(err.body));
+        setFlow(`${copy.title} ${copy.message}`, "error");
+        return;
+      }
       // Before painting a red "Send failed", re-read SERVER truth once. The browser
       // poll can throw on a navigation-away / cold-auth / network blip while the
       // Worker job (enqueued with CancellationToken.None) is still healthily mid-flight

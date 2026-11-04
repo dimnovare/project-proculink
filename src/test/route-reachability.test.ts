@@ -124,6 +124,7 @@ import { HUB_TABS, visibleHubTabs, type HubKey } from "@/components/bridge/layou
 import { HELP_ARTICLES } from "@/lib/help-articles";
 import { GUIDES, linkedGuides } from "@/lib/guides";
 import { RETIRED_ROUTES } from "@/lib/retired-routes";
+import { documentHref } from "@/lib/documentHref";
 
 // ─── Allowlist ────────────────────────────────────────────────────────────────
 //
@@ -535,6 +536,11 @@ export function collectLinkTargets(): LinkTarget[] {
   for (const guide of linkedGuides()) {
     targets.push({ path: guide.href, kind: "link", source: "<linkedGuides via GuideIndex>" });
   }
+
+  // Queue rows, the dashboard, the command palette and notifications open a document through
+  // documentHref() — a computed href the text scan cannot see. Credit it through the function
+  // itself, for the one input that reaches /documents/[id].
+  targets.push({ path: documentHref({ id: "sample", documentType: "invoice" }), kind: "link", source: "<documentHref via document rows>" });
 
   // 3 — next.config.ts redirect destinations.
   targets.push(

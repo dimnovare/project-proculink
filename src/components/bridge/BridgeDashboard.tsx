@@ -49,6 +49,7 @@ import { useOrderDirection } from "@/hooks/useOrderDirection";
 import type { OrderStatus, OrderSummary, Supplier } from "@/types/procurement";
 import { ArrowRight, ArrowUpRight, Clock, AlertTriangle, CheckCircle2, Send, Activity, Download, BarChart3, Network, ChevronRight } from "lucide-react";
 import { NUMBER_LOCALE } from "@/lib/format-number";
+import { documentHref } from "@/lib/documentHref";
 
 // ─── Brand accent (supplier green) ────────────────────────────────────────
 // The supplier accent is the calm forest green from the design tokens
@@ -1695,7 +1696,7 @@ export function BridgeDashboard() {
                       {needsYouRows.map((o, i) => (
                         <Link
                           key={o.id}
-                          href={`/inbox/${o.id}`}
+                          href={documentHref(o)}
                           className="grid grid-cols-1 items-center gap-x-3.5 gap-y-1.5 px-4 py-3 no-underline transition-colors hover:bg-[#F6F7FA] sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1.4fr)_minmax(0,1.3fr)_84px] sm:py-2.5"
                           style={i ? { borderTop: "1px solid #EEF0F4" } : undefined}
                         >

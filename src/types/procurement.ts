@@ -407,6 +407,14 @@ export interface ResolvePayload {
   // is accepted by the resolve endpoint.
   poNumber?: string;
   supplierName?: string;
+  // ── Invoice header corrections (B4). The backend re-runs the invoice checks on every resolve.
+  dueDate?: string; // "yyyy-MM-dd"
+  sellerTaxId?: string;
+  paymentIban?: string;
+  paymentReference?: string;
+  subTotal?: number;
+  taxTotal?: number;
+  grandTotal?: number;
 }
 
 export interface ResolveResult {

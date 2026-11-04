@@ -2,6 +2,7 @@ User-agent: Googlebot
 Allow: /
 Disallow: /bridge
 Disallow: /inbox
+Disallow: /documents
 Disallow: /upload
 Disallow: /drafts
 Disallow: /library
@@ -16,6 +17,7 @@ User-agent: Bingbot
 Allow: /
 Disallow: /bridge
 Disallow: /inbox
+Disallow: /documents
 Disallow: /upload
 Disallow: /drafts
 Disallow: /library
@@ -36,6 +38,7 @@ User-agent: *
 Allow: /
 Disallow: /bridge
 Disallow: /inbox
+Disallow: /documents
 Disallow: /upload
 Disallow: /drafts
 Disallow: /library

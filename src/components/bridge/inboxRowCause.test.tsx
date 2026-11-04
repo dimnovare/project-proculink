@@ -78,7 +78,8 @@ vi.mock("@/hooks/useOrderDirection", () => ({
   }),
 }));
 
-import { InboxView, documentHref } from "./InboxView";
+import { InboxView } from "./InboxView";
+import { documentHref } from "@/lib/documentHref";
 
 let seq = 0;
 function order(over: Partial<OrderSummary> = {}): OrderSummary {

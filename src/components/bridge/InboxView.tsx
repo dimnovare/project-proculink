@@ -72,6 +72,7 @@ import {
 import { rowNextStep } from "./rowNextStep";
 import { useConfirm } from "@/components/ui/confirm";
 import { NUMBER_LOCALE } from "@/lib/format-number";
+import { documentHref } from "@/lib/documentHref";
 
 // Per-column metadata. `numeric` right-aligns value cells; `label` is the
 // human-readable name shown in the desktop "Columns" visibility menu (the raw
@@ -1005,10 +1006,6 @@ function PipelineLegend() {
  * The row itself already navigates here on click; this is the keyboard-reachable,
  * NAMED version of that, and the only thing on the row that says what it needs.
  */
-/** Where a queue row opens: invoices have their own screen, everything else is the order review. */
-export function documentHref(row: { id: string; documentType?: string | null }): string {
-  return row.documentType === "invoice" ? `/documents/${row.id}` : `/inbox/${row.id}`;
-}
 
 function AssignSupplierCell({ orderId, noun }: { orderId: string; noun: string }) {
   const router = useRouter();

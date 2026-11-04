@@ -97,6 +97,7 @@ export const OFF_HUB_TITLES: Record<string, string> = {
   "/settings": "Settings",
   "/admin": "Admin",
   "/library/suppliers/[id]": "Supplier",
+  "/documents/[id]": "Document",
 };
 
 /** Route pattern → the page's own name (no product suffix). */
