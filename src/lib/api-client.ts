@@ -1554,6 +1554,29 @@ async function realGetOrderAudit(orderId: string): Promise<AuditEvent[]> {
   return res.json() as Promise<AuditEvent[]>;
 }
 
+// ── Send anyway (a held invoice) ──────────────────────────────────────────
+
+async function mockSendInvoiceAnyway(orderId: string, reason: string): Promise<Order> {
+  await delay(300);
+  const o = mockOrders.find(x => x.id === orderId);
+  if (!o || o.status !== "pending_review" || reason.trim().length < 3) throw new Error("Only an invoice held by its checks can be sent anyway.");
+  o.status = "ready";
+  return { ...o };
+}
+
+async function realSendInvoiceAnyway(orderId: string, reason: string): Promise<Order> {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/orders/${orderId}/send-anyway`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...await authHeader() },
+    body: JSON.stringify({ reason }),
+  });
+  if (!res.ok) {
+    const { error } = parseApiErrorBody(await res.text());
+    throw new Error(error ?? `Send anyway failed: ${res.statusText || `HTTP ${res.status}`}`);
+  }
+  return res.json() as Promise<Order>;
+}
+
 // ── Onboarding ────────────────────────────────────────────────────────────
 
 async function mockGetOnboardingStatus(): Promise<OnboardingStatus> {
@@ -1996,6 +2019,7 @@ export const apiClient = {
   getOrderConfirmation:   USE_MOCK ? mockGetOrderConfirmation  : realGetOrderConfirmation,
   resolvePurchaseOrder:   USE_MOCK ? mockResolvePurchaseOrder  : realResolvePurchaseOrder,
   transformOrder:         USE_MOCK ? mockTransformOrder        : realTransformOrder,
+  sendInvoiceAnyway:      USE_MOCK ? mockSendInvoiceAnyway     : realSendInvoiceAnyway,
   retryDelivery:          USE_MOCK ? mockRetryDelivery         : realRetryDelivery,
   assignSupplier:         USE_MOCK ? mockAssignSupplier        : realAssignSupplier,
   getDownloadUrl:         USE_MOCK ? mockGetDownloadUrl        : realGetDownloadUrl,
@@ -3126,7 +3150,7 @@ async function realValidateOrder(orderId: string): Promise<OrderValidationResult
 
 async function mockGetOrderExceptions(orderId: string): Promise<OrderException[]> {
   await delay(150);
-  if (orderId !== "ord-005") return [];
+  if (orderId !== "ord-005" || mockOrders.find(o => o.id === orderId)?.status !== "pending_review") return [];
   return [{
     id: "exc-005-1",
     severity: "error",

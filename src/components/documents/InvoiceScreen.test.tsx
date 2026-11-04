@@ -14,6 +14,7 @@ vi.mock("@/hooks/useQueriesEnabled", () => ({
   useQueriesEnabled: () => queries.enabled,
   useTenantQueriesEnabled: () => queries.enabled,
 }));
+vi.mock("@clerk/nextjs", () => ({ useOrganization: () => ({ membership: { role: "org:admin" } }) }));
 // pdf.js cannot run in jsdom; the pane around it is what is under test.
 vi.mock("@/components/bridge/document/SourceDocumentBody", () => ({
   SourceDocumentBody: () => <div data-testid="original-body" />,
@@ -98,5 +99,21 @@ describe("InvoiceScreen", () => {
     renderScreen();
     expect(await screen.findByTestId("order-problem-panel")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Send invoice" })).toBeDisabled();
+  });
+
+  it("Send anyway releases the held invoice with the reason, then runs the normal send", async () => {
+    const release = vi.spyOn(apiClient, "sendInvoiceAnyway").mockResolvedValue(await seededInvoice());
+    const transform = vi.spyOn(apiClient, "transformOrder").mockRejectedValue(new Error("stop here"));
+
+    renderScreen();
+    fireEvent.click(await screen.findByRole("button", { name: "Send anyway…" }));
+    const go = screen.getByRole("button", { name: "Send anyway" });
+    expect(go).toBeDisabled();
+    fireEvent.change(screen.getByLabelText(/Why it.s fine to send/), { target: { value: "  Seller confirmed the total  " } });
+    fireEvent.click(go);
+
+    await waitFor(() => expect(transform).toHaveBeenCalledWith("ord-005"));
+    expect(release).toHaveBeenCalledWith("ord-005", "Seller confirmed the total");
+    expect(release.mock.invocationCallOrder[0]).toBeLessThan(transform.mock.invocationCallOrder[0]);
   });
 });

@@ -14,8 +14,10 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useOrganization } from "@clerk/nextjs";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient, getOrderExceptions } from "@/lib/api-client";
+import { isApiMockMode } from "@/lib/api/core";
 import { getDeliveryConfig } from "@/lib/api/delivery";
 import { deliveryConfigQueryKey } from "@/lib/deliveryConfigCache";
 import { hasAssignedSupplier } from "@/lib/catalogCodes";
@@ -86,6 +88,10 @@ export function InvoiceScreen({ orderId }: { orderId: string }) {
   const { order, isLoading, isError, refetchOrder, queryEnabled } = useOrderReview(orderId);
   const [showOriginal, setShowOriginal] = useState(true);
   const [draft, setDraft] = useState<Draft>({});
+  const [anywayOpen, setAnywayOpen] = useState(false);
+  const [reason, setReason] = useState("");
+  const { membership } = useOrganization();
+  const isAdmin = isApiMockMode || membership?.role === "org:admin";
   const isLg = useLgViewport();
   const source = useSourceDocument(orderId);
 
@@ -136,6 +142,18 @@ export function InvoiceScreen({ orderId }: { orderId: string }) {
       ]);
       setDraft({});
     },
+  });
+
+  // Release the hold (admin, with a reason kept in the history), re-read the order and its
+  // checks, then run the same send the Send button runs.
+  const sendAnyway = useMutation({
+    mutationFn: async () => {
+      await apiClient.sendInvoiceAnyway(orderId, reason.trim());
+      await Promise.all(
+        [["order", orderId], ["order-exceptions", orderId], ["orders"]].map((queryKey) => qc.invalidateQueries({ queryKey })),
+      );
+    },
+    onSuccess: () => void confirmSend(),
   });
 
   async function download(artifactId: string) {
@@ -436,6 +454,40 @@ export function InvoiceScreen({ orderId }: { orderId: string }) {
                 </Button>
                 {reading && <p className={CAPTION}>Available once the checks finish.</p>}
                 {problems.length > 0 && <p className={CAPTION}>Fix the problem in Checks first.</p>}
+                {held && problems.length > 0 &&
+                  (!isAdmin ? (
+                    <p className={CAPTION}>A workspace admin can send it anyway.</p>
+                  ) : !anywayOpen ? (
+                    <button type="button" onClick={() => setAnywayOpen(true)} className="mt-2 text-[12.5px] font-semibold text-brand-blue hover:underline">
+                      Send anyway…
+                    </button>
+                  ) : (
+                    <div className="mt-3 flex flex-col gap-2">
+                      <label className="flex flex-col gap-1 text-[11.5px] font-semibold text-ink-muted">
+                        Why it&rsquo;s fine to send (kept in the history)
+                        <textarea
+                          value={reason}
+                          onChange={(e) => setReason(e.target.value)}
+                          maxLength={500}
+                          rows={3}
+                          className="w-full rounded-[6px] border border-border bg-surface px-2.5 py-2 text-[12.5px] font-normal text-ink"
+                        />
+                      </label>
+                      {sendAnyway.isError && (
+                        <span role="alert" className="text-[12px] text-danger">
+                          {sendAnyway.error.message}
+                        </span>
+                      )}
+                      <Button
+                        className="w-full border-amber text-amber-text"
+                        onClick={() => sendAnyway.mutate()}
+                        disabled={reason.trim().length < 3}
+                        loading={sendAnyway.isPending || sendState !== "idle"}
+                      >
+                        Send anyway
+                      </Button>
+                    </div>
+                  ))}
               </>
             )}
             {notice && (
