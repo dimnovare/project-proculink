@@ -9,9 +9,9 @@ export const metadata = pageMetadata({
   path: "/",
   title: "ProcuLink — Connecting Procurement",
   description:
-    "Stop reformatting purchase orders by hand. ProcuLink turns any incoming order into the exact format and channel each supplier needs — with a full audit trail behind every order.",
+    "Do your item numbers match your supplier's? Map once, reuse next time: ProcuLink remembers the match and reuses it on the next order to that supplier.",
   ogDescription:
-    "Stop reformatting purchase orders by hand. ProcuLink turns any incoming order into the exact format and channel each supplier needs — with a full audit trail behind every order.",
+    "Do your item numbers match your supplier's? Map once, reuse next time: ProcuLink remembers the match and reuses it on the next order to that supplier.",
 });
 
 export default function HomeLayout({ children }: { children: React.ReactNode }) {

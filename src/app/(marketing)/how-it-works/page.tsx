@@ -8,9 +8,9 @@ export const metadata = pageMetadata({
   path: "/how-it-works",
   title: "How it works — ProcuLink",
   description:
-    "Parse, normalize, validate, review, transform, and deliver purchase orders — from any format to each supplier's required format and channel. See the pipeline step by step.",
+    "Choose a repeat supplier, upload the purchase order you already create, confirm item codes once, and review the supplier-ready result before anything is sent. Plus the pipeline behind it.",
   ogDescription:
-    "From any order format to each supplier's required format and channel — the ProcuLink pipeline, step by step.",
+    "One supplier. One order. Then less work next time — confirmed item-code matches are remembered for the next order to that supplier.",
 });
 
 // ─── Palette — ALIASES for the design tokens, never copies of their values ────
@@ -43,7 +43,69 @@ const AMBER_SOFT = "var(--amber-soft)";
 const VIOLET_SOFT = "var(--ai-soft)";
 const NEUTRAL_SOFT = "var(--surface-2)";
 
-// ─── Steps ────────────────────────────────────────────────────────────────────
+// ─── The buyer-facing workflow ─────────────────────────────────────────────────
+// What a buyer DOES, in the order they do it. This comes first on the page; the pipeline
+// stages below are what ProcuLink does to each order, and they are for technical readers.
+//
+// Truth notes, because each step makes a promise:
+//   • Step 1 — a supplier really is created from a name alone (CreateSupplierPayload: `name`
+//     plus optional identity fields).
+//   • Steps 3 and 5 — a confirmed code pair is saved PER SUPPLIER and applied automatically to
+//     later orders to that supplier. The review screen does not mark which codes were carried
+//     over, so no step may promise a "recognised from a previous order" marker or a count.
+//   • Step 4 — the downloadable result is the supplier-ready file (XML, CSV, cXML, JSON, UBL,
+//     X12). ProcuLink does not produce PDF or Excel output, so the step says neither.
+//   • Step 6 — automatic delivery is off until a person turns it on for a supplier. An order
+//     with an unresolved item code or a failed built-in check cannot be transformed, so it
+//     never reaches automatic delivery. There is no per-order "hold this one" override while
+//     automatic delivery is on, so the step does not offer one.
+
+const WORKFLOW: Array<{ title: string; desc: string; color: string; bg: string; icon: React.ReactNode }> = [
+  {
+    title: "Choose a repeat supplier",
+    desc: "Add the supplier you want to test. A name is enough to start.",
+    color: BLUE,
+    bg: BLUE_SOFT,
+    icon: <SupplierIcon />,
+  },
+  {
+    title: "Upload the order you already create",
+    desc: "Use PDF, Excel, CSV or another supported input. No ERP integration is required to test the workflow.",
+    color: BLUE,
+    bg: BLUE_SOFT,
+    icon: <UploadIcon />,
+  },
+  {
+    title: "Confirm any supplier item codes that need attention",
+    desc: "If your code differs from the supplier's, confirm the match once. ProcuLink remembers it for later orders to that supplier.",
+    color: VIOLET,
+    bg: VIOLET_SOFT,
+    icon: <MatchIcon />,
+  },
+  {
+    title: "Review the supplier-ready output",
+    desc: "Check the result before anything is sent. Download it and send it yourself if you want to stay completely in control.",
+    color: AMBER,
+    bg: AMBER_SOFT,
+    icon: <CheckSquareIcon />,
+  },
+  {
+    title: "Run the next order from the same supplier",
+    desc: "Previously confirmed mappings can be reused automatically. This is where the repeated work should start to disappear.",
+    color: GREEN,
+    bg: GREEN_SOFT,
+    icon: <RepeatIcon />,
+  },
+  {
+    title: "Automate delivery when you are ready",
+    desc: "Once you trust the workflow, choose whether routine orders to that supplier should be delivered automatically. An order with an unresolved item code or a failed check is still held for review.",
+    color: GREEN,
+    bg: GREEN_SOFT,
+    icon: <SendIcon />,
+  },
+];
+
+// ─── The pipeline, for technical readers ───────────────────────────────────────
 
 type Pill = { label: string; fg: string; bg: string };
 
@@ -183,11 +245,11 @@ export default function HowItWorksPage() {
             letterSpacing: "-0.035em",
             color: "var(--surface)",
             margin: "20px auto 0",
-            maxWidth: 640,
+            maxWidth: 720,
             lineHeight: 1.08,
           }}
         >
-          From any purchase order to a delivered supplier document
+          One supplier. One order. Then less work next time.
         </h1>
 
         <p
@@ -195,12 +257,137 @@ export default function HowItWorksPage() {
           style={{
             lineHeight: 1.6,
             color: "var(--navy-faint)",
-            maxWidth: 520,
+            maxWidth: 600,
             margin: "18px auto 0",
           }}
         >
-          Six stages, one workflow. Here&apos;s exactly what happens when an
-          order is sent to the supplier.
+          ProcuLink reads the purchase order you already create, maps your item
+          codes to the supplier&apos;s codes, checks the result and remembers
+          confirmed mappings for future orders.
+        </p>
+        <p
+          className="hiw-hero-sub"
+          style={{
+            lineHeight: 1.6,
+            color: "var(--navy-faint)",
+            maxWidth: 600,
+            margin: "12px auto 0",
+          }}
+        >
+          You can start with a real, test or anonymised order. Nothing needs to
+          be sent automatically while you evaluate it.
+        </p>
+
+        <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap", marginTop: 32 }}>
+          <Link
+            href="/sign-up"
+            className="hiw-cta-btn"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 9,
+              borderRadius: 9,
+              padding: "13px 26px",
+              fontSize: 14.5,
+              fontWeight: 600,
+              background: BLUE,
+              color: "var(--surface)",
+              textDecoration: "none",
+            }}
+          >
+            Start your FREE Pilot
+            <ArrowRight />
+          </Link>
+          <a
+            href="#pipeline"
+            className="hiw-cta-btn"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              borderRadius: 9,
+              padding: "13px 22px",
+              fontSize: 14.5,
+              fontWeight: 600,
+              color: "var(--navy-pale)",
+              textDecoration: "none",
+            }}
+          >
+            For technical readers: the pipeline ↓
+          </a>
+        </div>
+      </section>
+
+      {/* ── The workflow (light) — what a buyer does, first ─────────────── */}
+      <section className="hiw-steps" style={{ maxWidth: 860, margin: "0 auto" }} aria-labelledby="hiw-workflow-title">
+        <div style={{ textAlign: "center" }}>
+          <Eyebrow>The workflow</Eyebrow>
+          <h2
+            id="hiw-workflow-title"
+            className="hiw-section-title"
+            style={{
+              fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
+              fontWeight: 700,
+              letterSpacing: "-0.03em",
+              color: INK,
+              margin: "16px auto 0",
+              maxWidth: 620,
+              lineHeight: 1.12,
+            }}
+          >
+            Six steps, starting with one supplier
+          </h2>
+        </div>
+        <ol style={{ listStyle: "none", padding: 0, margin: "28px 0 0" }}>
+          {WORKFLOW.map((step, i) => (
+            <li key={step.title}>
+              <StepRow n={String(i + 1).padStart(2, "0")} {...step} />
+              {i < WORKFLOW.length - 1 && <div style={{ height: 1, background: HAIR }} />}
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      {/* ── The pipeline (dark) — for technical readers ─────────────────── */}
+      <section
+        id="pipeline"
+        className="hiw-hero"
+        style={{
+          background: `radial-gradient(105% 120% at 50% -8%, var(--navy-glow) 0%, ${NAVY} 58%)`,
+          textAlign: "center",
+          scrollMarginTop: 70,
+        }}
+        aria-labelledby="hiw-pipeline-title"
+      >
+        <Eyebrow dark>For technical readers</Eyebrow>
+
+        <h2
+          id="hiw-pipeline-title"
+          className="hiw-section-title"
+          style={{
+            fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
+            fontWeight: 700,
+            letterSpacing: "-0.03em",
+            color: "var(--surface)",
+            margin: "20px auto 0",
+            maxWidth: 680,
+            lineHeight: 1.1,
+          }}
+        >
+          From any purchase order to a delivered supplier document
+        </h2>
+
+        <p
+          className="hiw-hero-sub"
+          style={{
+            lineHeight: 1.6,
+            color: "var(--navy-faint)",
+            maxWidth: 560,
+            margin: "18px auto 0",
+          }}
+        >
+          Behind those six steps, every order goes through the same six stages:
+          receive, parse, normalize, validate, transform and deliver. Here&apos;s
+          exactly what happens when an order is sent to the supplier.
         </p>
 
         {/* Terminal mock + pipeline */}
@@ -251,94 +438,11 @@ export default function HowItWorksPage() {
         </div>
       </section>
 
-      {/* ── Steps (light) ───────────────────────────────────────────────── */}
-      <section className="hiw-steps" style={{ maxWidth: 860, margin: "0 auto" }}>
+      {/* ── Pipeline stages (light) ─────────────────────────────────────── */}
+      <section className="hiw-steps" style={{ maxWidth: 860, margin: "0 auto" }} aria-label="Pipeline stages">
         {STEPS.map((step, i) => (
           <div key={step.n}>
-            <div className="hiw-step-row">
-              {/* Big number */}
-              <div
-                className="hiw-step-num"
-                style={{
-                  fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
-                  fontWeight: 700,
-                  lineHeight: 1,
-                  color: "var(--ink-faint)",
-                  letterSpacing: "-0.02em",
-                }}
-              >
-                {step.n}
-              </div>
-
-              {/* Content */}
-              <div>
-                <div className="hiw-step-head" style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 14 }}>
-                  <span
-                    style={{
-                      width: 38,
-                      height: 38,
-                      borderRadius: 11,
-                      background: step.bg,
-                      color: step.color,
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexShrink: 0,
-                    }}
-                  >
-                    {step.icon}
-                  </span>
-                  <h2
-                    className="hiw-step-title"
-                    style={{
-                      fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
-                      fontWeight: 700,
-                      letterSpacing: "-0.02em",
-                      color: INK,
-                      lineHeight: 1.15,
-                      margin: 0,
-                    }}
-                  >
-                    {step.title}
-                  </h2>
-                </div>
-
-                <p
-                  className="hiw-step-desc"
-                  style={{
-                    lineHeight: 1.7,
-                    color: MUTE,
-                    maxWidth: 560,
-                    margin: 0,
-                  }}
-                >
-                  {step.desc}
-                </p>
-
-                {step.pills && (
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginTop: 16 }}>
-                    {step.pills.map((p) => (
-                      <span
-                        key={p.label}
-                        style={{
-                          fontFamily: "'JetBrains Mono', ui-monospace, monospace",
-                          fontSize: 11,
-                          fontWeight: 600,
-                          letterSpacing: "0.04em",
-                          color: p.fg,
-                          background: p.bg,
-                          padding: "4px 8px",
-                          borderRadius: 6,
-                        }}
-                      >
-                        {p.label}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
+            <StepRow {...step} />
             {i < STEPS.length - 1 && (
               <div style={{ height: 1, background: HAIR }} />
             )}
@@ -382,7 +486,7 @@ export default function HowItWorksPage() {
           Watch a single upload become a delivered supplier order — parsed,
           mapped, validated, and sent.
         </p>
-        <div style={{ marginTop: 34 }}>
+        <div style={{ marginTop: 34, display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
           <Link
             href="/watch"
             className="hiw-cta-btn"
@@ -402,6 +506,22 @@ export default function HowItWorksPage() {
           >
             Watch the walkthrough
             <ArrowRight />
+          </Link>
+          <Link
+            href="/sign-up"
+            className="hiw-cta-btn"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              borderRadius: 9,
+              padding: "13px 26px",
+              fontSize: 14.5,
+              fontWeight: 600,
+              color: "var(--brand-blue-deep)",
+              textDecoration: "none",
+            }}
+          >
+            Start your FREE Pilot
           </Link>
         </div>
       </section>
@@ -423,6 +543,7 @@ const responsiveCss = `
 .hiw-node { display: flex; flex-direction: column; align-items: center; gap: 12px; }
 .hiw-cells { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
 
+.hiw-section-title { font-size: clamp(28px, 4vw, 42px); }
 .hiw-steps { padding: 80px 24px 88px; }
 .hiw-step-row { display: grid; grid-template-columns: 72px 1fr; gap: 24px; padding: 28px 0; }
 .hiw-step-num { font-size: 40px; padding-top: 4px; }
@@ -435,6 +556,7 @@ const responsiveCss = `
 @media (max-width: 640px) {
   .hiw-hero { padding: 56px 18px 60px; }
   .hiw-h1 { font-size: 30px; max-width: 100%; }
+  .hiw-section-title { font-size: 26px; max-width: 100%; }
   .hiw-hero-sub { font-size: 15px; }
   .hiw-terminal { margin-top: 32px; border-radius: 13px; }
   .hiw-term-bar { padding: 12px 16px; }
@@ -465,6 +587,112 @@ const responsiveCss = `
 `;
 
 // ─── Small presentational helpers ──────────────────────────────────────────────
+
+/** One numbered row — shared by the buyer workflow and the pipeline stages. */
+function StepRow({
+  n,
+  title,
+  desc,
+  color,
+  bg,
+  icon,
+  pills,
+}: {
+  n: string;
+  title: string;
+  desc: string;
+  color: string;
+  bg: string;
+  icon: React.ReactNode;
+  pills?: Pill[];
+}) {
+  return (
+    <div className="hiw-step-row">
+      {/* Big number */}
+      <div
+        aria-hidden
+        className="hiw-step-num"
+        style={{
+          fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
+          fontWeight: 700,
+          lineHeight: 1,
+          color: "var(--ink-faint)",
+          letterSpacing: "-0.02em",
+        }}
+      >
+        {n}
+      </div>
+
+      {/* Content */}
+      <div>
+        <div className="hiw-step-head" style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 14 }}>
+          <span
+            style={{
+              width: 38,
+              height: 38,
+              borderRadius: 11,
+              background: bg,
+              color,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+            }}
+          >
+            {icon}
+          </span>
+          <h3
+            className="hiw-step-title"
+            style={{
+              fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
+              fontWeight: 700,
+              letterSpacing: "-0.02em",
+              color: INK,
+              lineHeight: 1.15,
+              margin: 0,
+            }}
+          >
+            {title}
+          </h3>
+        </div>
+
+        <p
+          className="hiw-step-desc"
+          style={{
+            lineHeight: 1.7,
+            color: MUTE,
+            maxWidth: 560,
+            margin: 0,
+          }}
+        >
+          {desc}
+        </p>
+
+        {pills && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginTop: 16 }}>
+            {pills.map((p) => (
+              <span
+                key={p.label}
+                style={{
+                  fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  letterSpacing: "0.04em",
+                  color: p.fg,
+                  background: p.bg,
+                  padding: "4px 8px",
+                  borderRadius: 6,
+                }}
+              >
+                {p.label}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 function Eyebrow({ children, dark = false }: { children: React.ReactNode; dark?: boolean }) {
   return (
@@ -516,6 +744,36 @@ function UploadIcon() {
       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
       <polyline points="17 8 12 3 7 8" />
       <line x1="12" y1="3" x2="12" y2="15" />
+    </svg>
+  );
+}
+
+function SupplierIcon() {
+  return (
+    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 21h18" />
+      <path d="M5 21V8l7-4 7 4v13" />
+      <path d="M9 21v-6h6v6" />
+    </svg>
+  );
+}
+
+function MatchIcon() {
+  return (
+    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.5 1.4" />
+      <path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.5-1.4" />
+    </svg>
+  );
+}
+
+function RepeatIcon() {
+  return (
+    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17 2l4 4-4 4" />
+      <path d="M3 11V9a3 3 0 0 1 3-3h15" />
+      <path d="M7 22l-4-4 4-4" />
+      <path d="M21 13v2a3 3 0 0 1-3 3H3" />
     </svg>
   );
 }

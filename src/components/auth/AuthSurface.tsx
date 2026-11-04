@@ -29,11 +29,27 @@
 
 import { ProcuLinkMark } from "@/components/bridge/DSPrimitives";
 
-const FEATURES: { kind: "zap" | "check" | "clock"; label: string }[] = [
-  { kind: "zap", label: "AI-assisted mapping with visible confidence" },
-  { kind: "check", label: "Validate before anything reaches the supplier" },
-  { kind: "clock", label: "Orders out in minutes, fully audited" },
+type FeatureKind = "file" | "check" | "clock";
+
+/* The three value claims, shown on the desktop brand panel AND the mobile stack.
+   Exported so a test can read them off this module instead of retyping them.
+
+   They used to sell speed and AI ("Orders out in minutes, fully audited"; "AI-assisted
+   mapping with visible confidence"). The first sign-up a buyer makes is a decision about
+   risk, not throughput, so the claims now answer the three questions that decide it: will
+   my own files work, will anything be sent without me, and will I have a record. Each one
+   is true on every plan, Pilot included — upload takes PDF, Excel and CSV; nothing is sent
+   until a person sends it unless automatic delivery is switched on for a supplier; and the
+   per-order history is ungated. */
+export const AUTH_VALUE_CLAIMS: { kind: FeatureKind; label: string }[] = [
+  { kind: "file", label: "Use the order format you already have" },
+  { kind: "check", label: "Review the result before anything is sent" },
+  // "of your orders", not "of every order": the trust line renders straight after this row,
+  // and "every order … EU-region order storage" is read — by people and by the residency
+  // guard in legalCommitments.test.tsx — as a promise that every order stays in the EU.
+  { kind: "clock", label: "Keep a complete history of your orders" },
 ];
+const FEATURES = AUTH_VALUE_CLAIMS;
 
 /** The qualified storage line, shown on both the desktop panel and the mobile stack. */
 function TrustLine({ tone }: { tone: "onNavy" | "onLight" }) {
@@ -55,8 +71,8 @@ function TrustLine({ tone }: { tone: "onNavy" | "onLight" }) {
   );
 }
 
-/** Lucide-style line icons, matching the design's Icon set (zap / checkCircle / clock). */
-function FeatureIcon({ kind }: { kind: "zap" | "check" | "clock" }) {
+/** Lucide-style line icons, matching the design's Icon set (file / checkCircle / clock). */
+function FeatureIcon({ kind }: { kind: FeatureKind }) {
   const common = {
     width: 15,
     height: 15,
@@ -71,10 +87,11 @@ function FeatureIcon({ kind }: { kind: "zap" | "check" | "clock" }) {
     strokeLinejoin: "round" as const,
     "aria-hidden": true,
   };
-  if (kind === "zap") {
+  if (kind === "file") {
     return (
       <svg {...common}>
-        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
+        <polyline points="14 2 14 8 20 8" />
       </svg>
     );
   }
@@ -99,7 +116,7 @@ function FeatureRow({
   label,
   tone,
 }: {
-  kind: "zap" | "check" | "clock";
+  kind: FeatureKind;
   label: string;
   tone: "onNavy" | "onLight";
 }) {
@@ -248,8 +265,9 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** The page heading + sub-line. The only copy that legitimately differs per route. */
-export function AuthHeading({ title, sub }: { title: string; sub: string }) {
+/** The page heading + sub-line (+ an optional second line). The only copy that
+ *  legitimately differs per route. */
+export function AuthHeading({ title, sub, detail }: { title: string; sub: string; detail?: string }) {
   return (
     <div className="mb-6">
       <h1
@@ -265,6 +283,9 @@ export function AuthHeading({ title, sub }: { title: string; sub: string }) {
         {title}
       </h1>
       <p style={{ fontSize: 13.5, marginTop: 6, color: "var(--ink-muted)" }}>{sub}</p>
+      {detail && (
+        <p style={{ fontSize: 13.5, lineHeight: 1.5, marginTop: 8, color: "var(--ink-muted)" }}>{detail}</p>
+      )}
     </div>
   );
 }
