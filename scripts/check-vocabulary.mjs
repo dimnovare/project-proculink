@@ -23,7 +23,7 @@
  *
  *   4. `--nouns` (BLOCK).  The positive check: DESIGN-DB-1 §7.4. Navigation
  *      labels (sidebar items + group headers, hub tabs, supplier tabs, settings
- *      tabs, inbox filter chips) may only use the nine approved nouns plus the
+ *      tabs, inbox filter chips) may only use the ten approved nouns plus the
  *      closed place/support word lists in src/lib/vocabulary.ts. A blocklist
  *      can only catch a bad word; this catches a tenth CONCEPT ("Partners",
  *      "Rules & formats", "PO Mapping", "Normalized").
@@ -847,7 +847,7 @@ if (WANT_NOUNS) {
   // plausible — losing NAV_MAIN drops 42 to 36, which no loose floor can distinguish from an
   // ordinary IA change. src/lib/vocabulary.test.ts pins this number.
   console.log(
-    `\nNoun budget — checked ${labelCount} navigation label(s) across ${blocksPoliced} registry block(s) against the nine nouns`,
+    `\nNoun budget — checked ${labelCount} navigation label(s) across ${blocksPoliced} registry block(s) against the ten nouns`,
   );
   if (offences.length === 0) {
     console.log("OK — every navigation label stays inside the approved vocabulary.\n");

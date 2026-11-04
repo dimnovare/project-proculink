@@ -7,7 +7,7 @@
  * (sidebar item, hub tab, supplier tab, settings tab, inbox filter chip)
  * introduces a word outside them.
  *
- * Only nine nouns are taught to a customer. Everything else a label may contain
+ * Only ten nouns are taught to a customer. Everything else a label may contain
  * is either a place word, a support word from the closed list below, or a
  * grammatical filler.
  *

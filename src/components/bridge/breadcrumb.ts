@@ -1,4 +1,5 @@
 import { getGuideBySlug } from "@/lib/guides";
+import { HUB_LABELS } from "./layout/HubTabs";
 
 // breadcrumb.ts — pure helpers for the topbar auto-breadcrumb.
 //
@@ -21,7 +22,7 @@ import { getGuideBySlug } from "@/lib/guides";
  */
 export const CRUMB_LABELS: Record<string, string> = {
   bridge: "Overview",
-  inbox: "Orders",
+  inbox: HUB_LABELS.orders,
   upload: "Upload",
   settings: "Settings",
   library: "Library",

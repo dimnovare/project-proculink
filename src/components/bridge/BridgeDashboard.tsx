@@ -20,7 +20,7 @@ import { WireTopology } from "./WireTopology";
 import type { WireBuyer, WireSupplier, Wire } from "./WireTopology";
 import { FileChip } from "./FileChip";
 import { statusLabel } from "./UnifiedStatusBadge";
-import { StatusJourney, failedStageFor, isFailureStatus } from "./StatusJourney";
+import { STAGES, StatusJourney, failedStageFor, isFailureStatus } from "./StatusJourney";
 import type { OrderStage } from "./StatusJourney";
 import { LaneDrawer } from "./LaneDrawer";
 import type { Lane, LaneHealthBasis } from "./LaneDrawer";
@@ -248,8 +248,8 @@ export function neededForOrder(o: Pick<OrderSummary, "status" | "unresolvedCount
  *  "Needs review" in the inbox. (The Parse→…→Deliver rail track names are separate.) */
 function stageLabel(status: string): string {
   switch (status) {
-    case "parsing":         return "Parse";
-    case "pending_parse":   return "Parse";
+    case "parsing":         return STAGES[0];
+    case "pending_parse":   return STAGES[0];
     case "pending_review":  return "Needs review";
     // Canonical pipeline vocabulary: "Transform" (not "Extract") and "Delivering"
     // (not "Ready") — a green "Ready" badge on an actively-delivering order
@@ -263,7 +263,7 @@ function stageLabel(status: string): string {
 
 const STAGE_COLOR: Record<string, string> = {
   // Canonical human labels (live rows via stageLabel)
-  Parse: "#1E66C9", "Needs review": "#B36D14", Validate: "#B36D14", Transform: "#6F4FCE", Delivering: "#2E8E3A", Failed: "#B43838",
+  [STAGES[0]]: "#1E66C9", Parse: "#1E66C9", "Needs review": "#B36D14", Validate: "#B36D14", Transform: "#6F4FCE", Delivering: "#2E8E3A", Failed: "#B43838",
   // Legacy human labels still emitted by the mock fallback rows
   Extract: "#6F4FCE", Ready: "#2E8E3A",
   // Raw API status values (defensive — if an unmapped status is shown verbatim)
@@ -302,7 +302,8 @@ export function journeyStageFor(stage: string): OrderStage {
   switch (stage) {
     case "parsing":
     case "pending_parse":
-    case "Parse":          return 0;
+    case "Parse":
+    case "In":             return 0;
     case "Normalize":      return 1;
     case "pending_review":
     case "Needs review":
