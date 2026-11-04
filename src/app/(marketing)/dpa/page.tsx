@@ -28,7 +28,9 @@ export default function DpaPage() {
   return (
     <div style={S.page}>
       <h1 style={S.h1}>Data Processing Addendum</h1>
-      <p style={S.updated}>Effective: July 2026 · Version 1.2</p>
+      {/* FOUNDER DECISION: set the effective month when this version is published. Revised from
+          an advisor's pilot review (2026-11): roles, breach notice, termination, Annex I/II. */}
+      <p style={S.updated}>Effective: November 2026 · Version 1.3</p>
 
       <p style={S.intro}>
         This Data Processing Addendum (&quot;DPA&quot;) forms part of the agreement between{" "}
@@ -51,15 +53,27 @@ export default function DpaPage() {
       <h2 style={S.h2}>1. Definitions</h2>
       <p style={S.p}>
         Capitalised terms used but not defined here have the meaning given in the GDPR.
-        &quot;Service&quot; means the ProcuLink procurement automation platform as described in
+        &quot;Service&quot; means the ProcuLink platform for business documents such as purchase
+        orders and invoices, as described in
         the <Link href="/terms" style={{ color: "#1E6D29", textDecoration: "underline" }}>Terms of Service</Link>.
       </p>
 
       <h2 style={S.h2}>2. Roles and scope</h2>
       <p style={S.p}>
-        The Controller determines the purposes and means of processing personal data
-        submitted to the Service. ProcuLink processes personal data on the Controller&apos;s
-        documented instructions as set out in this DPA and the Terms of Service.
+        This DPA covers the personal data contained in the documents the Controller submits to
+        the Service — purchase orders, and invoices while invoices are in early access — and in
+        the supplier, buyer and contact records the Controller keeps in the Service. For that
+        data the Controller determines the purposes and means of processing, and ProcuLink acts
+        as processor: it processes the data only on the Controller&apos;s documented
+        instructions as set out in this DPA and the Terms of Service.
+      </p>
+      <p style={S.p}>
+        ProcuLink is itself the controller for the personal data it needs to run the customer
+        relationship — website visits, user accounts and sign-in, billing and invoicing
+        records, its own product analytics, error monitoring and security logs, and
+        correspondence. That data is described in the{" "}
+        <Link href="/privacy" style={{ color: "var(--brand-green-deep)", textDecoration: "underline" }}>Privacy Policy</Link>{" "}
+        and is not covered by this DPA.
       </p>
 
       <h2 style={S.h2}>3. Processor obligations (GDPR Art. 28)</h2>
@@ -69,8 +83,17 @@ export default function DpaPage() {
         <li style={S.li}>Implement the technical and organisational measures described in <strong>Annex II</strong>.</li>
         <li style={S.li}>Use sub-processors only as listed in <strong>Annex III</strong>, and publish any addition or replacement — with the date it takes effect — at least 30 days before it starts processing Controller data.</li>
         <li style={S.li}>Assist the Controller in responding to data-subject rights requests under GDPR Chapter III.</li>
-        <li style={S.li}>Notify the Controller without undue delay (within 72 hours of awareness) of any personal data breach affecting the Controller&apos;s data.</li>
-        <li style={S.li}>On termination, delete or return all Controller personal data within the retention windows in the <Link href="/privacy" style={{ color: "#1E6D29", textDecoration: "underline" }}>Privacy Policy</Link>.</li>
+        {/* "within 72 hours" was the CONTROLLER's own deadline to the authority (Art. 33(1))
+            borrowed as the processor's — which, if used in full, leaves the Controller no time
+            to make its own assessment. Art. 33(2) asks a processor for "without undue delay".
+            FOUNDER DECISION: whether to add a contractual maximum; if one is added it must be
+            well under 72 hours, so the Controller still has time for its own assessment. */}
+        <li style={S.li}>Notify the Controller without undue delay after becoming aware of a personal data breach affecting the Controller&apos;s data, and give the Controller the information it needs to assess the breach and to meet its own obligations under GDPR Articles 33 and 34 — as soon as that information is available, in stages if necessary.</li>
+        {/* Art. 28(3)(g): delete or return "at the choice of the controller". There is no
+            automatic deletion at the end of the agreement (see /privacy "How long we keep
+            data"), so the choice is exercised by request. FOUNDER DECISION: a defined
+            post-termination deletion period, once a job exists to keep it. */}
+        <li style={S.li}>After the agreement ends, delete the Controller personal data or keep it available for the Controller to download, at the Controller&apos;s choice, on the Controller&apos;s written request — unless EU or Member State law requires it to be kept. Data is not deleted automatically when the agreement ends; deletion is carried out on request as described in the <Link href="/privacy" style={{ color: "#1E6D29", textDecoration: "underline" }}>Privacy Policy</Link>.</li>
         <li style={S.li}>Make available the information necessary to demonstrate compliance with GDPR Art. 28(3).</li>
       </ul>
 
@@ -144,30 +167,55 @@ export default function DpaPage() {
       </p>
 
       <h3 style={S.h3}>Categories of data subjects</h3>
-      <p style={S.p}>Employees and authorised users of the Controller; suppliers identified in purchase orders submitted by the Controller.</p>
+      <p style={S.p}>
+        Employees and authorised users of the Controller; contacts at the Controller&apos;s
+        suppliers, buyers and customers who are named in documents (such as purchase orders and
+        invoices) submitted by the Controller, or in the records the Controller keeps in the
+        Service.
+      </p>
 
+      {/* "Account data" and "usage data" moved OUT of this list: §2 now says ProcuLink is the
+          controller for those (Privacy Policy). Users' names and emails stay in where they are
+          recorded against workspace activity, because that is part of the Controller's
+          workspace. Invoices are read today (UBL upload, early access), so what an invoice can
+          carry is listed. Counsel to check this split. */}
       <h3 style={S.h3}>Categories of personal data</h3>
       <p style={S.p}>
-        Account data (name, work email, organisation), purchase-order content (which may include
-        contact names and emails for the Controller&apos;s suppliers), authentication tokens,
-        and usage data.
+        The content of submitted documents: on purchase orders, contact names, email addresses,
+        phone numbers and postal and delivery addresses of the Controller&apos;s suppliers,
+        buyers and customers; on invoices, the same contact details for suppliers and vendors,
+        plus bank account details such as IBAN and payment references. Supplier, buyer and
+        contact records the Controller keeps in the Service. Names and work email addresses of
+        the Controller&apos;s users where they are recorded against workspace activity — for
+        example, who approved or sent an order. Credentials the Controller configures for
+        delivering and collecting documents.
       </p>
 
       <h3 style={S.h3}>Purpose and duration</h3>
       <p style={S.p}>
-        Processing is for the provision of the Service and runs for the term of the agreement
-        plus the retention windows described in the <Link href="/privacy" style={{ color: "#1E6D29", textDecoration: "underline" }}>Privacy Policy</Link>.
+        Processing is for the provision of the Service. It runs for the term of the agreement
+        and afterwards until the Controller personal data is deleted, as described in section 3
+        and the <Link href="/privacy" style={{ color: "#1E6D29", textDecoration: "underline" }}>Privacy Policy</Link>.
       </p>
 
       <h2 style={S.h2}>Annex II — Technical and organisational measures</h2>
       <ul style={{ paddingLeft: 20, marginBottom: 14 }}>
         <li style={S.li}><strong>Encryption in transit</strong>: TLS 1.2+ for all client and inter-service traffic.</li>
-        <li style={S.li}><strong>Encryption at rest</strong>: AES-256-GCM authenticated encryption for delivery credentials and IMAP passwords. Cloudflare R2 server-side encryption for stored order files.</li>
+        <li style={S.li}><strong>Encryption at rest</strong>: AES-256-GCM authenticated encryption for delivery credentials and IMAP passwords. Cloudflare R2 server-side encryption for stored document files.</li>
         <li style={S.li}><strong>Access control</strong>: Clerk-issued JWT authentication, organisation-scoped session isolation, every database query bound to the authenticated organisation id.</li>
         <li style={S.li}><strong>Logging and monitoring</strong>: Sentry error monitoring (EU region) without PII leakage; structured backend logging; audit trail for status transitions, delivery attempts, and mapping changes.</li>
-        <li style={S.li}><strong>Backups</strong>: Daily automated PostgreSQL backups with point-in-time recovery.</li>
+        {/* Was "Daily automated PostgreSQL backups with point-in-time recovery". Neon does not
+            take daily backups; it keeps a continuous point-in-time history for a restore window
+            set by the plan, and nothing in either repo takes a separate backup (no pg_dump job,
+            no backup workflow). FOUNDER DECISION: read the restore window off the Neon
+            dashboard and state it here if wanted. */}
+        <li style={S.li}><strong>Backups</strong>: The database provider keeps a continuous point-in-time history of the PostgreSQL database, so it can be restored to an earlier moment within a rolling recovery window. Data deleted from the database drops out of that history once it is older than the window; no separate long-term backup copies are kept.</li>
         <li style={S.li}><strong>Personnel</strong>: All personnel with access to production data are under written confidentiality obligations.</li>
-        <li style={S.li}><strong>Incident response</strong>: Documented breach-notification process; target 72-hour Controller notification on confirmed personal-data breach.</li>
+        {/* Was "Documented breach-notification process; target 72-hour Controller
+            notification". No breach runbook exists in either repo, so "documented" was a claim
+            nothing backed, and 72 hours is the wrong deadline (see section 3).
+            FOUNDER DECISION: write the incident/breach runbook; then "documented" can return. */}
+        <li style={S.li}><strong>Incident response</strong>: On becoming aware of a personal-data breach, we notify the Controller without undue delay and share what we know as it becomes available, as set out in section 3.</li>
         <li style={S.li}><strong>Sub-processor management</strong>: additions and replacements are published with their effective date at least 30 days in advance (see Annex III).</li>
       </ul>
 

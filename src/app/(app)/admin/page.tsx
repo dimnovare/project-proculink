@@ -16,7 +16,8 @@
 //      trial→paid %, with an honest DB-vs-Stripe MRR reconcile note.
 //   3. Customers table (sortable; mobile → stacked cards) with a Stripe link and
 //      the per-org actions: Adjust limits, Retention, and Unfreeze where the
-//      server would actually accept it.
+//      server would actually accept it, and Erase workspace (an inline panel that
+//      arms only on the exact slug; see EraseWorkspacePanel).
 //   4. Collapsed diagnostics — worker job failures, case-variant item mappings.
 //   5. Modals: create invoice, adjust limits, unfreeze, retention.
 //
@@ -24,9 +25,12 @@
 // absent: `DELETE .../orders/{id}` and `POST .../orders/bulk-erase`. They hard-
 // delete a customer's data and cannot be undone; the friction of running them by
 // hand is the control. They are documented at /admin/guides/erase-order-data.
+// Erase workspace is the one erase ON this screen, by founder decision
+// (2026-11-04): it is slug-confirmed, and the server refuses a workspace with a
+// paid subscription or billed overage.
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Lock, Plus, ExternalLink, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
 import {
@@ -42,6 +46,7 @@ import { AdjustLimitsModal } from "./AdjustLimitsModal";
 import { OrderFindPanel } from "./OrderFindPanel";
 import { JobFailuresPanel, ItemMappingTwinsPanel } from "./DiagnosticsPanels";
 import { UnfreezeOrgModal, RetentionModal, canUnfreeze } from "./OrgActionModals";
+import { EraseWorkspacePanel } from "./EraseWorkspacePanel";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import { Card } from "@/components/bridge/layout/Card";
@@ -153,6 +158,7 @@ export default function AdminPage() {
   const [limitsOrg, setLimitsOrg] = useState<AdminOrganisation | null>(null);
   const [unfreezeOrg, setUnfreezeOrg] = useState<AdminOrganisation | null>(null);
   const [retentionOrg, setRetentionOrg] = useState<AdminOrganisation | null>(null);
+  const [eraseOrgId, setEraseOrgId] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>("mrrContribution");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
@@ -183,6 +189,10 @@ export default function AdminPage() {
     retry: adminRetry,
     staleTime: 30_000,
   });
+  const closeErase = () => {
+    setEraseOrgId(null);
+    void orgsQ.refetch();
+  };
 
   const accessError =
     (overviewQ.error instanceof AdminAccessError && overviewQ.error) ||
@@ -391,7 +401,8 @@ export default function AdminPage() {
                 </thead>
                 <tbody>
                   {sortedOrgs.map((org) => (
-                    <tr key={org.id} id={`org-${org.id}`} style={{ borderTop: "1px solid var(--surface-2)" }}>
+                    <Fragment key={org.id}>
+                    <tr id={`org-${org.id}`} style={{ borderTop: "1px solid var(--surface-2)" }}>
                       <td style={td}>
                         <div style={{ fontWeight: 600, color: "var(--ink)" }}>{org.name}</div>
                         <div style={{ fontSize: 11.5, color: "var(--ink-faint)" }}>{org.slug}</div>
@@ -442,9 +453,20 @@ export default function AdminPage() {
                               Unfreeze
                             </Button>
                           )}
+                          <Button variant="secondary" size="sm" onClick={() => setEraseOrgId(org.id)}>
+                            Erase workspace
+                          </Button>
                         </div>
                       </td>
                     </tr>
+                    {eraseOrgId === org.id && (
+                      <tr>
+                        <td colSpan={10}>
+                          <EraseWorkspacePanel org={org} onClose={closeErase} />
+                        </td>
+                      </tr>
+                    )}
+                    </Fragment>
                   ))}
                 </tbody>
               </table>
@@ -482,6 +504,9 @@ export default function AdminPage() {
                         Unfreeze
                       </Button>
                     )}
+                    <Button variant="secondary" size="sm" onClick={() => setEraseOrgId(org.id)}>
+                      Erase workspace
+                    </Button>
                     {org.stripeCustomerId && (
                       <a
                         href={`${STRIPE_CUSTOMER_BASE}${org.stripeCustomerId}`}
@@ -495,6 +520,7 @@ export default function AdminPage() {
                       </a>
                     )}
                   </div>
+                  {eraseOrgId === org.id && <EraseWorkspacePanel org={org} onClose={closeErase} />}
                 </MobileListRow>
               ))}
             </div>

@@ -23,7 +23,8 @@ export default function AupPage() {
   return (
     <div style={S.page}>
       <h1 style={S.h1}>Acceptable Use Policy</h1>
-      <p style={S.updated}>Effective: May 2026 · Version 1.0</p>
+      {/* FOUNDER DECISION: set the effective month when this version is published. */}
+      <p style={S.updated}>Effective: November 2026 · Version 1.1</p>
 
       <p style={S.intro}>
         This Acceptable Use Policy supplements the{" "}
@@ -33,20 +34,22 @@ export default function AupPage() {
 
       <h2 style={S.h2}>Permitted use</h2>
       <p style={S.p}>
-        ProcuLink may be used by businesses and organisations for the purpose of automating
-        legitimate procurement workflows: receiving, parsing, mapping, validating,
-        transforming, and delivering purchase orders to suppliers and service providers.
+        ProcuLink may be used by businesses and organisations, for business purposes only, to
+        automate legitimate procurement workflows around business documents: receiving,
+        parsing, mapping, validating, transforming, and delivering purchase orders to suppliers
+        and service providers, and — while invoices are in early access — reading and
+        converting invoices.
       </p>
 
       <h2 style={S.h2}>Prohibited use</h2>
       <p style={S.p}>You must not use ProcuLink to:</p>
       <ul style={{ paddingLeft: 20, marginBottom: 14 }}>
-        <li style={S.li}>Process orders for goods or services that are illegal in the supplier&apos;s or buyer&apos;s jurisdiction.</li>
+        <li style={S.li}>Process orders or invoices for goods or services that are illegal in the supplier&apos;s or buyer&apos;s jurisdiction.</li>
         <li style={S.li}>Upload malware, exploits, or files crafted to attack ProcuLink, suppliers, or other tenants.</li>
         <li style={S.li}>Attempt to bypass authentication, organisation isolation, or rate limits.</li>
         <li style={S.li}>Reverse engineer, decompile, or extract proprietary algorithms or models.</li>
         <li style={S.li}>Send unsolicited bulk messages or use delivery destinations to spam recipients.</li>
-        <li style={S.li}>Process the personal data of natural persons unrelated to procurement (for example, marketing email lists).</li>
+        <li style={S.li}>Process the personal data of natural persons unrelated to procurement or invoicing (for example, marketing email lists).</li>
         <li style={S.li}>Share account credentials, sublicense access, or resell the Service without a written agreement.</li>
         <li style={S.li}>Operate workloads that materially degrade Service availability for other customers.</li>
       </ul>

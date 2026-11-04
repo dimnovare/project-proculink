@@ -1068,3 +1068,36 @@ describe("pilot programme page (replaces /customers) invents no customer", () =>
     expect(prompts.join(" | ")).not.toMatch(/supplier(?:'s|’s)? name|which supplier|name of (?:the|your) supplier/i);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// An advisor's pilot review (2026-11). Each line below was a claim the product did not keep,
+// or a GDPR term used the wrong way round; these pin the corrections so they cannot drift back.
+describe("legal pages after the pilot review", () => {
+  it("gives the processor the processor's breach deadline, not the controller's", () => {
+    // 72 hours is the controller's Art. 33(1) deadline; a processor borrowing it in full leaves
+    // the controller no time for its own assessment.
+    const body = text(<DpaPage />);
+    expect(body).toMatch(/without undue delay after becoming aware/i);
+    expect(body).not.toMatch(/72[- ]hour/i);
+  });
+
+  it("states both roles, the complaint authority, and appoints no DPO it never named", () => {
+    const body = text(<PrivacyPage />);
+    expect(body).toMatch(/We are the controller/);
+    expect(body).toMatch(/We are normally a processor/);
+    expect(body).toMatch(/Data Protection Inspectorate/);
+    const { container } = render(<PrivacyPage />);
+    const headings = Array.from(container.querySelectorAll("h2")).map((h) => h.textContent ?? "");
+    expect(headings.filter((h) => /\bDPO\b/.test(h))).toEqual([]);
+  });
+
+  it("states the retention the backend enforces, and no automatic file removal it does not", () => {
+    // DataRetention is enabled on the Worker (180-day prune); the per-workspace file window is
+    // still a dry run, and nothing deletes data when an account closes.
+    const body = section(<PrivacyPage />, /how long we keep data/i);
+    expect(body).toMatch(/180 days/);
+    expect(body).toMatch(/nothing is deleted automatically/i);
+    expect(body).not.toMatch(/life of the account/i);
+    expect(body).not.toMatch(/files are removed once/i);
+  });
+});
