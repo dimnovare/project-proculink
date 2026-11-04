@@ -85,9 +85,7 @@ export function InvoiceDestinationSetting() {
               <option key={s.id} value={s.id}>{s.name}</option>
             ))}
           </select>
-          {feedback && (
-            <span className={`ml-3 text-[12.5px] font-medium ${feedback.kind === "ok" ? "text-brand-green-deep" : "text-danger"}`}>{feedback.text}</span>
-          )}
+          <span role="status" className={`ml-3 text-[12.5px] font-medium ${feedback?.kind === "ok" ? "text-brand-green-deep" : "text-danger"}`}>{feedback?.text}</span>
           {unreadable && <p className="mt-2 text-[12.5px] text-ink-muted">Couldn&rsquo;t read the current destination.</p>}
           {missing && (
             <div className="mt-2">
