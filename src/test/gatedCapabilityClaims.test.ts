@@ -1285,14 +1285,14 @@ const bareNounOffenders = (entries: ReadonlyArray<{ matches: RegExp; why: string
     ),
   );
 
-/** Parsed shape of a quota bullet — "150 orders/month", "5 suppliers", "Custom volume". */
+/** Parsed shape of a quota bullet — "150 documents/month", "5 suppliers", "Custom volume". Documents ARE the order allowance. */
 const parseQuotaBullet = (
   bullet: string,
 ): { kind: "orders" | "suppliers"; value: number | null; saysMonthly: boolean } | null => {
-  const numeric = /^([\d,]+)\s+(orders?|suppliers?)\b/i.exec(bullet);
+  const numeric = /^([\d,]+)\s+(orders?|documents?|suppliers?)\b/i.exec(bullet);
   if (numeric) {
     return {
-      kind: /^orders?$/i.test(numeric[2]) ? "orders" : "suppliers",
+      kind: /^(orders?|documents?)$/i.test(numeric[2]) ? "orders" : "suppliers",
       value: Number(numeric[1].replace(/,/g, "")),
       saysMonthly: /\/\s*month|per month/i.test(bullet),
     };

@@ -7,8 +7,8 @@ import {
 } from "@/lib/plans";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// The /pricing recommender: the cheapest plan that fits BOTH the visitor's order
-// volume and their number of supplier flows.
+// The /pricing recommender: the cheapest plan that fits BOTH the visitor's document
+// volume and the number of suppliers they send orders to.
 //
 // It used to ask for volume alone (recommendPlanByOrders), which could point a
 // visitor at a plan their supplier count does not fit — 200 orders a month across
@@ -55,8 +55,8 @@ export function fitsSuppliers(plan: Plan, suppliers: number): boolean {
   return plan.supplierLimit == null || plan.supplierLimit >= suppliers;
 }
 
-export function recommendPlan(ordersPerMonth: number, suppliers: number): Plan {
-  const byVolume = recommendPlanByOrders(ordersPerMonth);
+export function recommendPlan(documentsPerMonth: number, suppliers: number): Plan {
+  const byVolume = recommendPlanByOrders(documentsPerMonth);
   if (byVolume.isCustom || fitsSuppliers(byVolume, suppliers)) return byVolume;
 
   const fitting = SELF_SERVE_TIERS.filter((p) => fitsSuppliers(p, suppliers));
@@ -67,7 +67,7 @@ export function recommendPlan(ordersPerMonth: number, suppliers: number): Plan {
   // Enterprise, and that returned early.)
   let current = fitting[0];
   for (const next of fitting.slice(1)) {
-    const cost = planEffectiveMonthlyCost(current, ordersPerMonth);
+    const cost = planEffectiveMonthlyCost(current, documentsPerMonth);
     if (cost != null && next.priceMonthly != null && cost.total >= next.priceMonthly) current = next;
   }
   return current;

@@ -9,9 +9,9 @@ export const metadata = pageMetadata({
   path: "/",
   title: "ProcuLink — Connecting Procurement",
   description:
-    "Do your item numbers match your supplier's? Map once, reuse next time: ProcuLink remembers the match and reuses it on the next order to that supplier.",
+    "A document comes in. ProcuLink reads it, checks it, turns it into the format you need and sends it on. Purchase orders work today; invoices are in early access.",
   ogDescription:
-    "Do your item numbers match your supplier's? Map once, reuse next time: ProcuLink remembers the match and reuses it on the next order to that supplier.",
+    "Your documents, read, checked and sent in the format you need. Purchase orders work today; invoices are in early access.",
 });
 
 export default function HomeLayout({ children }: { children: React.ReactNode }) {

@@ -155,7 +155,7 @@ function WelcomeBody() {
 
       <h1 style={S.h1}>Welcome to ProcuLink{user?.firstName ? `, ${user.firstName}` : ""}.</h1>
       <p style={S.sub}>
-        ProcuLink turns the purchase orders you send out into the exact format each supplier needs, and delivers them automatically. Here&apos;s how to get to your first delivered order.
+        ProcuLink reads your documents, checks them and sends them on in the format you need. Purchase orders work today. Here&apos;s how to get to your first delivered order.
       </p>
 
       <CheckoutReceipt

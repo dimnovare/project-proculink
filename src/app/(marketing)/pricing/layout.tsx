@@ -28,9 +28,9 @@ export const metadata = pageMetadata({
   path: "/pricing",
   title: "Pricing — ProcuLink",
   description:
-    `Plans for purchase-order automation: a free 14-day pilot, self-serve paid tiers from ${ENTRY_PRICE}, and custom Enterprise. Orders are never blocked — predictable ${OVERAGE_RATE} per-order overage above your plan.`,
+    `Plans for document processing: a free 14-day pilot, self-serve paid tiers from ${ENTRY_PRICE}, and custom Enterprise. Going over never blocks — predictable ${OVERAGE_RATE} per-document overage above your plan.`,
   ogDescription:
-    "Free pilot, self-serve paid tiers, and custom Enterprise for PO automation. Tell us your order volume and how many suppliers you order from, and we'll point you at the right plan.",
+    "Free pilot, self-serve paid tiers, and custom Enterprise for document processing. Tell us how many documents you process and how many suppliers you send orders to, and we'll point you at the right plan.",
 });
 
 export default function PricingLayout({ children }: { children: React.ReactNode }) {

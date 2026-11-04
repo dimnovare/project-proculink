@@ -55,7 +55,7 @@ export default function WatchPage() {
         is also what the walkthrough actually shows.
       */}
       <p style={{ fontSize: 16, color: "#56627A", lineHeight: 1.6, marginBottom: 32, maxWidth: 600 }}>
-        See how a single upload becomes a delivered supplier order — parsed, mapped, validated, and sent.
+        See one document go through ProcuLink: a purchase order read, checked, transformed and sent to the supplier.
       </p>
 
       {videoUrl ? (
