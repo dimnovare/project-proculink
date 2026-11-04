@@ -91,7 +91,7 @@ const APPROVED_PARTY_TOKENS: ReadonlySet<string> = new Set([
   // Generic role, sector and descriptor words.
   "buyer", "supplier", "components", "distribution", "electronics",
   "industries", "logistics", "logistik", "manufacturing", "metaal", "nordic",
-  "pharma", "steel", "steelworks", "tools", "trading", "transit", "tyre", "it",
+  "pharma", "steel", "steelworks", "supplies", "tools", "trading", "transit", "tyre", "it",
   // Legal-form suffixes. A suffix says nothing about whether the name in front
   // of it belongs to anybody, so these are allowed on their own merits.
   "ag", "bv", "co", "gmbh", "inc", "oy", "oü",

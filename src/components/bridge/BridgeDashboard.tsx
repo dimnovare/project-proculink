@@ -264,7 +264,7 @@ function stageLabel(status: string): string {
 
 const STAGE_COLOR: Record<string, string> = {
   // Canonical human labels (live rows via stageLabel)
-  [STAGES[0]]: "#1E66C9", Parse: "#1E66C9", "Needs review": "#B36D14", Validate: "#B36D14", Transform: "#6F4FCE", Delivering: "#2E8E3A", Failed: "#B43838",
+  [STAGES[0]]: "#1E66C9", "Needs review": "#B36D14", Validate: "#B36D14", Transform: "#6F4FCE", Delivering: "#2E8E3A", Failed: "#B43838",
   // Legacy human labels still emitted by the mock fallback rows
   Extract: "#6F4FCE", Ready: "#2E8E3A",
   // Raw API status values (defensive — if an unmapped status is shown verbatim)
@@ -326,7 +326,7 @@ export function journeyStageFor(stage: string): OrderStage {
 // Dev-only demo rows — gated to mock mode so prospects never see staged content.
 const IN_TRANSIT_MOCK_FALLBACK = [
   { po: "PO-DEMO-001",   buyer: "Heinrich",  fmt: "PDF",   stage: "Validate" },
-  { po: "PO-NRD-9981",   buyer: "Nordmark",  fmt: "cXML",  stage: "Parse"    },
+  { po: "PO-NRD-9981",   buyer: "Nordmark",  fmt: "cXML",  stage: STAGES[0]  },
   { po: "SH-PO-44120",   buyer: "Steel.",    fmt: "XLSX",  stage: "Extract"  },
   { po: "850-99201",     buyer: "Centralis", fmt: "EDI",   stage: "Failed"   },
   { po: "WMT-2026-0341", buyer: "Westmark",  fmt: "EMAIL", stage: "Ready"    },
