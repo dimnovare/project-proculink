@@ -126,7 +126,7 @@ describe("renamed breadcrumb labels keep their route segments", () => {
   // The KEY is the URL segment. A rename may change the value, never the key.
   const rows: Array<[string, string]> = [
     ["bridge", "Overview"],
-    ["inbox", "Orders"],
+    ["inbox", HUB_LABELS.orders],
     ["mappings", "Item codes"],
     ["standards", "Format reference"],
     ["operations", "Activity"],
