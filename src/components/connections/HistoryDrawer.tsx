@@ -42,6 +42,7 @@ import {
   testLegWord,
   testPackReading,
 } from "@/lib/testPackOutcomeManifest";
+import { deliveryModeLabel } from "@/lib/deliveryMode";
 
 export type { RevisionTestEvidence } from "./testPackSummary";
 
@@ -614,7 +615,7 @@ function ConfigSummary({ data }: { data: BundleSummaryData }) {
         label="Delivery channel"
         value={
           data.deliveryProtocol
-            ? `${deliveryLabel}${data.deliveryAutoDeliver ? " · auto-send" : ""}${data.hasCredentials ? " · credentials set" : ""}`
+            ? `${deliveryLabel} · ${deliveryModeLabel(data.deliveryAutoDeliver).toLowerCase()}${data.hasCredentials ? " · credentials set" : ""}`
             : deliveryLabel
         }
         unconfigured={!data.deliveryProtocol}
