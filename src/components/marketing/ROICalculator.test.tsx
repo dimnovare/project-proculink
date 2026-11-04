@@ -4,7 +4,7 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import { stripComments, syntaxFor } from "@/test/sourceScan";
 import { OVERAGE_PER_ORDER_EUR } from "@/lib/plans";
-import { ROICalculator, DEFAULT_AUTOMATION_PCT } from "./ROICalculator";
+import { ROICalculator, DEFAULT_AUTOMATION_PCT, ROI_STARTING_VALUES } from "./ROICalculator";
 
 // WP-40 — the 70% automation assumption.
 //
@@ -145,5 +145,49 @@ describe("ROI calculator — the overage rate derives from the plan ladder", () 
     const code = stripComments(readFileSync(SRC, "utf8"), syntaxFor(SRC));
     const literals = code.match(/€\s?\d+[.,]\d+/g) ?? [];
     expect(literals, `hardcoded euro amounts in ${SRC}: ${literals.join(", ")}`).toEqual([]);
+  });
+});
+
+// Every starting value is an assumption, not only the automation share. 200 orders, 40%
+// manual, 10 minutes, €25/hour, 2% errors and €30 per fix were never measured either, and
+// only the last slider used to say so. Each row is now labelled "illustrative" while it sits
+// at its starting value, and loses the label once the reader makes the number their own.
+describe("ROI calculator — every starting value is labelled illustrative and editable", () => {
+  const STARTING_KEYS = Object.keys(ROI_STARTING_VALUES);
+
+  it("labels each of the seven sliders while it is at its starting value", () => {
+    const { container } = mount();
+    const sliders = container.querySelectorAll('input[type="range"]');
+    // Anti-vacuity: the label count is only meaningful against the slider count.
+    expect(sliders.length).toBe(7);
+    expect(STARTING_KEYS.length, "ROI_STARTING_VALUES no longer covers every slider").toBe(sliders.length);
+    expect(screen.getAllByTestId("roi-illustrative-tag")).toHaveLength(sliders.length);
+    for (const slider of Array.from(sliders)) {
+      expect(slider.closest("label")?.textContent, "a slider row without its illustrative label").toMatch(
+        /illustrative/i,
+      );
+    }
+  });
+
+  it("says above the sliders that every value is the reader's to set", () => {
+    mount();
+    expect(screen.getByTestId("roi-starting-values-note").textContent).toMatch(
+      /every starting value .* illustrative/i,
+    );
+  });
+
+  it("drops the label from a slider once the reader moves it, and only from that one", () => {
+    const { container } = mount();
+    const first = container.querySelector('input[type="range"]') as HTMLInputElement;
+    expect(first.value).toBe(String(ROI_STARTING_VALUES.orders));
+
+    fireEvent.change(first, { target: { value: "500" } });
+
+    expect(first.closest("label")?.textContent).not.toMatch(/illustrative/i);
+    expect(screen.getAllByTestId("roi-illustrative-tag")).toHaveLength(6);
+  });
+
+  it("starts the automation slider from the same constant the disclosure names", () => {
+    expect(ROI_STARTING_VALUES.automationPct).toBe(DEFAULT_AUTOMATION_PCT);
   });
 });

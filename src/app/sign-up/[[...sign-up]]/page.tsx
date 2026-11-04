@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { SignUp } from "@clerk/nextjs";
 import { AuthShell, AuthHeading, clerkAppearance } from "@/components/auth/AuthSurface";
 import { ClerkAvailabilityGate } from "@/components/bridge/ClerkAvailabilityGate";
@@ -7,9 +8,19 @@ import { PLAN_BY_ID } from "@/lib/plans";
    first promise a new buyer reads, and it is made on a screen that no pricing change
    would ever bring anyone back to — so a Pilot re-sized in plans.ts would have kept
    selling the old number here. `priceCadence` is Pilot's price sub-label and, for the
-   trial tier, it IS the trial window ("14 days"). The rendered sentence is unchanged. */
+   trial tier, it IS the trial window ("14 days").
+
+   The line now names the supplier allowance too ("20 orders · 1 supplier · …"), because
+   the Pilot is pitched as a test of ONE repeat supplier and the supplier cap is the limit
+   a new buyer meets first. It keeps the trial window: the Pilot is not free forever, and a
+   sign-up line that dropped "14 days" would read as if it were. */
 const PILOT = PLAN_BY_ID.pilot;
-const PILOT_TRIAL_OFFER = `No credit card. ${PILOT.orderLimit} orders free for ${PILOT.priceCadence}.`;
+const PILOT_SUPPLIERS = PILOT.supplierLimit ?? 0;
+const PILOT_TRIAL_OFFER =
+  `${PILOT.orderLimit} orders · ${PILOT_SUPPLIERS} ${PILOT_SUPPLIERS === 1 ? "supplier" : "suppliers"} · ` +
+  `${PILOT.priceCadence} · no credit card`;
+const PILOT_TRIAL_DETAIL =
+  "Test one real, test or anonymised supplier workflow before deciding whether ProcuLink is right for you.";
 
 /* The shell, the brand panel and the Clerk appearance object live in
    @/components/auth/AuthSurface and are shared with /sign-in — which is how the
@@ -47,12 +58,21 @@ export default function SignUpPage() {
     // every marketing "Start for free" call to action does.
     <ClerkAvailabilityGate surface="auth">
       <AuthShell>
-        <AuthHeading title="Start for free" sub={PILOT_TRIAL_OFFER} />
+        <AuthHeading title="Start your FREE Pilot" sub={PILOT_TRIAL_OFFER} detail={PILOT_TRIAL_DETAIL} />
         <SignUp
           appearance={clerkAppearance}
           fallbackRedirectUrl="/onboarding/select-organization"
           signInFallbackRedirectUrl="/onboarding/select-organization"
         />
+        <p style={{ fontSize: 13, lineHeight: 1.5, marginTop: 20, color: "var(--ink-muted)" }}>
+          Based on a repeat supplier and want more help?{" "}
+          <Link
+            href="/pilot"
+            style={{ fontWeight: 600, color: "var(--brand-blue-deep)", textDecoration: "none" }}
+          >
+            Apply for a FREE supported pilot →
+          </Link>
+        </p>
       </AuthShell>
     </ClerkAvailabilityGate>
   );

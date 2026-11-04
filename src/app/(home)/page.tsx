@@ -21,6 +21,7 @@ import {
   partitionByDirection,
 } from "@/lib/marketing/format-catalog";
 import { requiresPlan } from "@/lib/gatedCapabilities";
+import { PLAN_BY_ID } from "@/lib/plans";
 
 // ─── Brand tokens (Bridge Layer design system) ───────────────────────────────
 // Primary accent is BUYER-BLUE; supplier side is forest green. These are ALIASES
@@ -136,6 +137,22 @@ function Icon({ name, color }: { name: string; color: string }) {
           <polyline points="12 7 12 12 16 14" />
         </svg>
       );
+    case "repeat":
+      return (
+        <svg {...common}>
+          <path d="M17 2l4 4-4 4" />
+          <path d="M3 11V9a3 3 0 0 1 3-3h15" />
+          <path d="M7 22l-4-4 4-4" />
+          <path d="M21 13v2a3 3 0 0 1-3 3H3" />
+        </svg>
+      );
+    case "eye":
+      return (
+        <svg {...common}>
+          <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
+          <circle cx="12" cy="12" r="3" />
+        </svg>
+      );
     default:
       return null;
   }
@@ -227,7 +244,12 @@ const FEATURES: Array<{
     // reference IS (core fields, always visible, never behind a mode), and /library/standards
     // prints its own derived coverage. No universal quantifier may come back here while the
     // gap exists — pinned by standardsCoverage.test.tsx.
-    desc: "Core order fields map to UBL, EDIFACT, X12, cXML and Peppol BIS paths — always visible, never hidden behind a mode. Built for 30-year procurement veterans.",
+    //
+    // "Built for 30-year procurement veterans." used to close this card. It sold to the wrong
+    // reader: the person this page is written for is whoever sits closest to repeat order
+    // preparation — often a buyer, a purchasing or operations lead, or the owner of a smaller
+    // business — not a procurement career. The audience is named once, in WHO_IT_IS_FOR below.
+    desc: "Core order fields map to UBL, EDIFACT, X12, cXML and Peppol BIS paths — always visible, never hidden behind a mode.",
     color: BLUE_DEEP,
     bg: BLUE_SOFT,
   },
@@ -263,6 +285,95 @@ const STATS: Array<{ value: string; label: string; href?: string }> = [
   { value: String(DELIVERY_CHANNEL_COUNT), label: "Delivery channels"  },
   { value: "EU", label: "Data residency", href: "/security" },
 ];
+
+// ─── The item-code wedge ──────────────────────────────────────────────────────
+// The page used to open on breadth — "Send every purchase order to any supplier, any
+// format" — which is the claim every EDI vendor makes and the one a smaller buyer has no
+// reason to believe. It now opens on the one recurring problem ProcuLink removes: the
+// buyer's item number is not the supplier's, and someone looks the match up again on every
+// order. Format breadth is still here, lower down, as the depth behind that promise.
+//
+// TRUTH NOTES for whoever edits the copy below. Each line is something the product does
+// today, and the nearby phrasing it replaced was not:
+//   • Saved code pairs are PER SUPPLIER and are applied automatically to later orders from
+//     that supplier. The review screen does NOT mark which codes came from an earlier order
+//     and does NOT print an "N of M recognised" count — so no copy here may promise either.
+//   • Nothing is sent automatically by default: auto-delivery is off until a person turns it
+//     on for a supplier, and an order with an unresolved item code or a failed built-in check
+//     cannot be transformed, so it never reaches automatic delivery. There is NO per-order
+//     override that holds one order back while the supplier's automatic delivery is on, so
+//     the copy must not offer one.
+//   • ProcuLink cannot produce PDF or Excel OUTPUT. "Download the supplier-ready file" is
+//     true; "download a PDF" is not.
+//   • The supplier receives an ordinary file or email. It does not sign up for anything.
+
+const TRUST_STRIP = [
+  "No ERP integration needed to start",
+  "Your supplier doesn't need an account or new software",
+  "Start with a test or anonymised order",
+  "Review first, automate later",
+];
+
+/** Invented codes, shown as an example of the pairing — not taken from any real catalogue. */
+const MAPPING_EXAMPLE: Array<{ yours: string; theirs: string; item: string }> = [
+  { yours: "INT-10442", theirs: "4471-208", item: "Hex bolt M8 × 40, zinc" },
+  { yours: "PKG-BOX-40", theirs: "CB-4030-DW", item: "Shipping carton 40 × 30" },
+  { yours: "VLV-015-BR", theirs: "BV-12-B", item: "Ball valve ½\", brass" },
+];
+
+const HOME_STEPS: Array<{ title: string; body: string }> = [
+  {
+    title: "Choose a repeat supplier",
+    body: "Start with one you order from regularly, especially where item codes differ.",
+  },
+  {
+    title: "Upload the PO you already create",
+    body: "PDF, Excel, CSV or another supported input.",
+  },
+  {
+    title: "Confirm anything ProcuLink does not already know",
+    body: "Supplier code mappings are remembered for next time.",
+  },
+  {
+    title: "Review the finished order",
+    body: "Download it and send it yourself, or use ProcuLink delivery when you are ready.",
+  },
+];
+
+const WHO_IT_IS_FOR: Array<{ who: string; problem: string }> = [
+  {
+    who: "Wholesale / distribution",
+    problem: "You buy the same products repeatedly, but your internal SKU is not the supplier's SKU.",
+  },
+  {
+    who: "Manufacturing",
+    problem:
+      "You repeatedly order components, materials or packaging and need to translate internal part numbers into supplier references.",
+  },
+  {
+    who: "Import / specialist trade",
+    problem:
+      "You maintain your own product catalogue while suppliers use different identifiers, templates or file layouts.",
+  },
+  {
+    who: "Spare parts / electrical / HVAC / building materials",
+    problem: "Part-number-heavy purchasing means the same code translation can recur on many repeat lines.",
+  },
+  {
+    who: "Food & beverage",
+    problem:
+      "You reorder the same ingredients, drinks and packaging, but your product list does not use your supplier's article numbers.",
+  },
+];
+
+// The Pilot's allowance is read off the ladder, never typed: this line is the last promise
+// on the page and a re-sized Pilot in plans.ts must move it. `priceLabel` is "Free" and
+// `priceCadence` IS the trial window ("14 days") on the trial tier.
+const PILOT = PLAN_BY_ID.pilot;
+const PILOT_SUPPLIERS = PILOT.supplierLimit ?? 0;
+const PILOT_OFFER_LINE =
+  `${PILOT.priceLabel} for ${PILOT.priceCadence} · ${PILOT.orderLimit} orders · ` +
+  `${PILOT_SUPPLIERS} ${PILOT_SUPPLIERS === 1 ? "supplier" : "suppliers"} · no credit card.`;
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
@@ -342,27 +453,27 @@ export default function RootPage() {
                 color: NAVY_TEXT,
               }}
             >
-              B2B order automation
+              For repeat supplier orders
             </span>
           </div>
 
-          {/* Headline — left aligned, plain procurement copy */}
+          {/* Headline — the recurring item-code problem, in the buyer's words.
+              Blue = the buyer's side, green = the supplier's, as everywhere else. */}
           <h1
             style={{
               fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
-              fontSize: "clamp(40px, 6vw, 68px)",
+              fontSize: "clamp(36px, 6vw, 64px)",
               fontWeight: 700,
               letterSpacing: "-0.035em",
-              lineHeight: 1.04,
+              lineHeight: 1.06,
               color: SURFACE,
-              maxWidth: 760,
+              maxWidth: 800,
               margin: "0 0 22px",
               textWrap: "balance",
             }}
           >
-            Send every purchase order to{" "}
-            <span style={{ color: BLUE_BRIGHT }}>any supplier</span>,{" "}
-            <span style={{ color: GREEN_BRIGHT }}>any format</span>.
+            Do <span style={{ color: BLUE_BRIGHT }}>your item numbers</span> match{" "}
+            <span style={{ color: GREEN_BRIGHT }}>your supplier&apos;s</span>?
           </h1>
 
           {/* Sub */}
@@ -371,13 +482,25 @@ export default function RootPage() {
               fontSize: "clamp(15px, 1.6vw, 18px)",
               lineHeight: 1.6,
               color: NAVY_TEXT,
-              maxWidth: 560,
+              maxWidth: 600,
+              margin: "0 0 14px",
+            }}
+          >
+            If not, someone may be looking them up again every time you order.
+            ProcuLink remembers the match between your item code and your
+            supplier&apos;s code, then reuses it on future orders.
+          </p>
+          <p
+            style={{
+              fontSize: "clamp(14px, 1.4vw, 16px)",
+              lineHeight: 1.6,
+              color: NAVY_TEXT,
+              maxWidth: 600,
               margin: "0 0 30px",
             }}
           >
-            Stop reformatting purchase orders by hand. Drop in an order in any
-            format, and ProcuLink delivers it in exactly the format and channel
-            each supplier needs — with a full audit trail behind every order.
+            Start with the PDF, Excel or CSV purchase order you already use.
+            Review the supplier-ready result before anything is sent.
           </p>
 
           {/* CTAs */}
@@ -404,7 +527,7 @@ export default function RootPage() {
                 boxShadow: "0 8px 24px rgba(30,102,201,0.32)",
               }}
             >
-              Start free →
+              Start your FREE Pilot →
             </Link>
             <Link
               href="/how-it-works"
@@ -424,6 +547,27 @@ export default function RootPage() {
               See how it works →
             </Link>
           </div>
+
+          {/* Trust strip — the four things that make a first try low-risk. */}
+          <ul
+            className="grid grid-cols-1 gap-x-6 gap-y-2.5 sm:grid-cols-2 sm:max-w-[720px] xl:flex xl:max-w-none xl:flex-wrap"
+            style={{ listStyle: "none", padding: 0, margin: "26px 0 0" }}
+          >
+            {TRUST_STRIP.map((item) => (
+              <li
+                key={item}
+                className="flex items-start"
+                style={{ gap: 8, fontSize: 13, lineHeight: 1.45, color: NAVY_TEXT }}
+              >
+                <span aria-hidden style={{ display: "inline-flex", color: GREEN_BRIGHT, marginTop: 1, flexShrink: 0 }}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="m5 12.5 4.5 4.5L19 7.5" />
+                  </svg>
+                </span>
+                {item}
+              </li>
+            ))}
+          </ul>
 
           {/* Illustration — framed window panel */}
           <div
@@ -539,86 +683,235 @@ export default function RootPage() {
         </div>
       </section>
 
-      {/* ── Stats strip ────────────────────────────────────────────── */}
-      <section
-        style={{
-          background: SURFACE_2,
-          borderTop: `1px solid ${NAVY_BORDER}`,
-          borderBottom: `1px solid ${BORDER}`,
-          display: "flex",
-          justifyContent: "center",
-        }}
-      >
+      {/* ── Map once · Review first ─────────────────────────────────── */}
+      <section className="px-4 sm:px-8" style={{ background: BG, paddingTop: 76, paddingBottom: 76 }}>
         <div
-          className="grid w-full grid-cols-2 divide-x divide-y divide-border sm:grid-cols-4 sm:divide-y-0"
-          style={{ maxWidth: 1180, textAlign: "center" }}
+          className="grid grid-cols-1 gap-[18px] lg:grid-cols-[1.15fr_1fr]"
+          style={{ maxWidth: 1180, margin: "0 auto" }}
         >
-          {STATS.map((s, i) => {
-            const inner = (
-              <>
-                <div
-                  style={{
-                    fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
-                    fontSize: 30,
-                    fontWeight: 600,
-                    letterSpacing: "-0.03em",
-                    color: INK,
-                    lineHeight: 1,
-                  }}
-                >
-                  {s.value}
-                </div>
-                <div style={{ fontSize: 12, color: INK_MUTED, marginTop: 4 }}>
-                  {s.label}
-                </div>
-              </>
-            );
-            return s.href ? (
-              <Link
-                key={i}
-                href={s.href}
-                style={{ display: "block", padding: "26px 24px", textDecoration: "none" }}
-              >
-                {inner}
-              </Link>
-            ) : (
-              <div key={i} style={{ padding: "26px 24px" }}>
-                {inner}
-              </div>
-            );
-          })}
+          {/* The pairing of a buyer code with a supplier code IS the relationship
+              between the two sides, so this card takes the bridge edge. */}
+          <Card edge="bridge" as="article" aria-labelledby="map-once-title">
+            <div className="p-2 sm:p-4">
+              <Eyebrow>Recurring value</Eyebrow>
+              <h2 id="map-once-title" style={sectionTitle}>
+                Map once. Reuse next time.
+              </h2>
+              <p style={bodyCopy}>
+                The first order teaches ProcuLink how your codes relate to your
+                supplier&apos;s. Confirm the matches that need your attention and
+                those mappings can be reused the next time you order from the
+                same supplier.
+              </p>
+              <p style={bodyCopy}>
+                That is where repeated orders become easier: less code lookup,
+                fewer manual touches and more orders that can reach
+                supplier-ready output without intervention.
+              </p>
+              <MappingExample />
+            </div>
+          </Card>
+
+          <Card as="article" aria-labelledby="review-first-title">
+            <div className="p-2 sm:p-4">
+              <Eyebrow>Safe start</Eyebrow>
+              <h2 id="review-first-title" style={sectionTitle}>
+                Review first. Automate later.
+              </h2>
+              <p style={bodyCopy}>
+                You do not have to let ProcuLink send anything while you are
+                testing it. Upload a real, test or anonymised order, review the
+                mapped result, download the supplier-ready output and send it
+                yourself as you do today.
+              </p>
+              <p style={bodyCopy}>
+                When you trust the workflow, you can choose to let ProcuLink
+                deliver routine orders to that supplier automatically. An order
+                with an unresolved item code or a failed check is still held for
+                you to review.
+              </p>
+              <ul style={{ listStyle: "none", padding: 0, margin: "22px 0 0", display: "grid", gap: 12 }}>
+                {[
+                  { icon: "eye", text: "Every order waits for you until you choose otherwise" },
+                  { icon: "check-circle", text: "Built-in checks run before anything can be sent" },
+                  { icon: "repeat", text: "Confirmed matches carry over to your next order from that supplier" },
+                ].map((row) => (
+                  <li key={row.text} className="flex items-start" style={{ gap: 12, fontSize: 13.5, lineHeight: 1.5, color: INK }}>
+                    <span
+                      aria-hidden
+                      className="inline-flex shrink-0 items-center justify-center"
+                      style={{ width: 32, height: 32, borderRadius: 8, background: SURFACE_2 }}
+                    >
+                      <Icon name={row.icon} color={BLUE_DEEP} />
+                    </span>
+                    <span style={{ paddingTop: 6 }}>{row.text}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </Card>
         </div>
       </section>
 
-      {/* ── Logo strip ─────────────────────────────────────────────── */}
-      <section className="px-4 sm:px-8" style={{ background: SURFACE, paddingTop: 48, paddingBottom: 48 }}>
-        <p style={{ textAlign: "center", fontSize: 12, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: INK_MUTED, marginBottom: 26 }}>
-          Reads and sends the formats your buyers and suppliers already use
-        </p>
-        {/* No opacity:0.8 — it blended the --ink-faint mono labels down to ~3.3:1
-            (WCAG fail). At full opacity the darkened --ink-faint token passes AA;
-            the labels are still visually "faint" via the token itself. */}
-        <div className="flex flex-wrap items-center justify-center gap-x-[38px] gap-y-4" style={{ maxWidth: 1180, margin: "0 auto" }}>
-          {[...FORMAT_STRIP.emitted, ...FORMAT_STRIP.inboundOnly].map((name) => (
-            <span key={name} style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 15, fontWeight: 600, color: INK_FAINT, letterSpacing: "0.02em" }}>
-              {name}
-            </span>
-          ))}
-        </div>
-        {FORMAT_STRIP.inboundOnly.length > 0 && (
-          <p style={{ textAlign: "center", fontSize: 12.5, color: INK_MUTED, marginTop: 16, maxWidth: 640, marginLeft: "auto", marginRight: "auto", lineHeight: 1.5 }}>
-            {FORMAT_STRIP.inboundOnly.join(", ")} are read, not emitted — ProcuLink parses them
-            inbound and delivers to your supplier in one of the formats it produces.
-          </p>
-        )}
-        <div style={{ textAlign: "center", marginTop: 22 }}>
-          <Link
-            href="/formats"
-            className="inline-flex min-h-[44px] items-center"
-            style={{ fontSize: 13, fontWeight: 600, color: BLUE_DEEP, textDecoration: "none" }}
+      {/* ── How it works — homepage version ────────────────────────── */}
+      <section className="px-4 sm:px-8" style={{ background: SURFACE, paddingTop: 80, paddingBottom: 80 }}>
+        <div style={{ maxWidth: 1180, margin: "0 auto" }}>
+          <div style={{ textAlign: "center", maxWidth: 640, margin: "0 auto 44px" }}>
+            <Eyebrow>How it works</Eyebrow>
+            <h2 style={{ ...sectionTitle, textAlign: "center" }}>One supplier is enough to start</h2>
+          </div>
+          <ol
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4"
+            style={{ gap: 18, listStyle: "none", padding: 0, margin: 0 }}
           >
-            See every format and method, honestly tagged →
-          </Link>
+            {HOME_STEPS.map((step, i) => (
+              <li key={step.title} style={{ display: "flex" }}>
+                <Card style={{ width: "100%" }}>
+                  <div className="p-1 sm:p-2">
+                    <span
+                      aria-hidden
+                      className="inline-flex items-center justify-center"
+                      style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: "50%",
+                        background: BLUE_SOFT,
+                        color: BLUE_DEEP,
+                        fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
+                        fontSize: 15,
+                        fontWeight: 700,
+                      }}
+                    >
+                      {i + 1}
+                    </span>
+                    <h3
+                      style={{
+                        fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
+                        fontSize: 17,
+                        fontWeight: 600,
+                        letterSpacing: "-0.01em",
+                        lineHeight: 1.25,
+                        color: INK,
+                        margin: "14px 0 8px",
+                      }}
+                    >
+                      <span className="sr-only">Step {i + 1}: </span>
+                      {step.title}
+                    </h3>
+                    <p style={{ fontSize: 13.5, lineHeight: 1.6, color: INK_MUTED, margin: 0 }}>{step.body}</p>
+                  </div>
+                </Card>
+              </li>
+            ))}
+          </ol>
+          <div style={{ textAlign: "center", marginTop: 26 }}>
+            <Link
+              href="/how-it-works"
+              className="inline-flex min-h-[44px] items-center"
+              style={{ fontSize: 14, fontWeight: 600, color: BLUE_DEEP, textDecoration: "none" }}
+            >
+              See the full workflow →
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Who it is for ──────────────────────────────────────────── */}
+      <section className="px-4 sm:px-8" style={{ background: BG, paddingTop: 80, paddingBottom: 80 }}>
+        <div style={{ maxWidth: 1180, margin: "0 auto" }}>
+          <div style={{ textAlign: "center", maxWidth: 680, margin: "0 auto 44px" }}>
+            <Eyebrow>Who it is for</Eyebrow>
+            <h2 style={{ ...sectionTitle, textAlign: "center" }}>
+              For the person closest to repeat order preparation
+            </h2>
+            <p style={{ ...bodyCopy, fontSize: 16, textAlign: "center" }}>
+              Usually a buyer, someone in purchasing, supply or logistics, an
+              operations lead — or the owner, in a smaller business. If you
+              prepare repeat orders to the same suppliers, one of these will
+              look familiar.
+            </p>
+          </div>
+          <ul
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+            style={{ gap: 18, listStyle: "none", padding: 0, margin: 0 }}
+          >
+            {WHO_IT_IS_FOR.map((row) => (
+              <li key={row.who} style={{ display: "flex" }}>
+                <Card style={{ width: "100%" }}>
+                  <div className="p-1 sm:p-2">
+                    <h3
+                      style={{
+                        fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
+                        fontSize: 16.5,
+                        fontWeight: 600,
+                        letterSpacing: "-0.01em",
+                        lineHeight: 1.3,
+                        color: INK,
+                        margin: "0 0 8px",
+                      }}
+                    >
+                      {row.who}
+                    </h3>
+                    <p style={{ fontSize: 13.5, lineHeight: 1.6, color: INK_MUTED, margin: 0 }}>{row.problem}</p>
+                  </div>
+                </Card>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      {/* ── Supported pilot invitation ─────────────────────────────── */}
+      <section className="px-4 sm:px-8" style={{ background: SURFACE, paddingTop: 80, paddingBottom: 80 }}>
+        <div style={{ maxWidth: 980, margin: "0 auto" }}>
+          <Card as="article" aria-labelledby="supported-pilot-title">
+            <div className="p-2 sm:p-6">
+              <Eyebrow>Supported pilot</Eyebrow>
+              <h2 id="supported-pilot-title" style={sectionTitle}>
+                Could one of your repeat suppliers be a good test case?
+              </h2>
+              <p style={bodyCopy}>
+                A small number of companies can take part in a FREE supported
+                pilot before wider rollout.
+              </p>
+              <p style={bodyCopy}>
+                If your team repeatedly looks up supplier item codes, changes the
+                same type of order or corrects the same supplier-specific
+                details, one repeat supplier may be enough to test whether
+                ProcuLink helps.
+              </p>
+              <p style={bodyCopy}>
+                The supported pilot can run for roughly 60–90 days so there is
+                enough repeat usage to measure the difference. Start in
+                review-first mode and compare the same workflow against your
+                current process.
+              </p>
+              <p style={bodyCopy}>
+                If the pilot works and you are comfortable becoming a named
+                client reference, we can discuss heavily discounted ongoing
+                access. Any published wording and figures remain subject to your
+                approval.
+              </p>
+              <div style={{ marginTop: 24 }}>
+                <Link
+                  href="/pilot"
+                  className="inline-flex min-h-[44px] items-center"
+                  style={{
+                    gap: 8,
+                    borderRadius: 8,
+                    padding: "12px 24px",
+                    fontSize: 14,
+                    fontWeight: 600,
+                    background: BLUE,
+                    color: SURFACE,
+                    textDecoration: "none",
+                  }}
+                >
+                  Apply for a FREE supported pilot →
+                </Link>
+              </div>
+            </div>
+          </Card>
         </div>
       </section>
 
@@ -642,7 +935,7 @@ export default function RootPage() {
               marginBottom: 16,
             }}
           >
-            The workflow
+            Under the hood
           </div>
           <h2
             style={{
@@ -656,10 +949,12 @@ export default function RootPage() {
               textWrap: "balance",
             }}
           >
-            Everything you need to receive, transform, and deliver
+            Formats, checks and delivery, when you need them
           </h2>
           <p style={{ fontSize: 16, color: INK_MUTED, lineHeight: 1.6, marginTop: 14 }}>
-            One workflow from inbound purchase order to delivered supplier document — built for procurement teams that don&apos;t want an integration project.
+            Item-code matching sits on a complete order workflow: the same order can be read from
+            many file types, checked before it goes, and delivered over the channel each supplier
+            uses — without an integration project.
           </p>
         </div>
 
@@ -717,115 +1012,86 @@ export default function RootPage() {
         </div>
       </section>
 
-      {/* ── Why ProcuLink ─────────────────────────────────────────── */}
+      {/* ── Stats strip ────────────────────────────────────────────── */}
       <section
-        className="px-4 sm:px-8"
-        style={{ background: SURFACE, paddingTop: "84px", paddingBottom: "84px" }}
+        style={{
+          background: SURFACE_2,
+          borderTop: `1px solid ${BORDER}`,
+          borderBottom: `1px solid ${BORDER}`,
+          display: "flex",
+          justifyContent: "center",
+        }}
       >
-        <div style={{ maxWidth: 1180, margin: "0 auto" }}>
-          <div style={{ textAlign: "center", maxWidth: 620, margin: "0 auto 48px" }}>
-            <div
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                height: 26,
-                padding: "0 12px",
-                borderRadius: 13,
-                background: BLUE_SOFT,
-                fontSize: 11,
-                fontWeight: 700,
-                color: BLUE_DEEP,
-                letterSpacing: "0.07em",
-                textTransform: "uppercase",
-                marginBottom: 16,
-              }}
-            >
-              Why ProcuLink
-            </div>
-            <h2
-              style={{
-                fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
-                fontSize: "clamp(28px, 3.6vw, 40px)",
-                fontWeight: 600,
-                letterSpacing: "-0.03em",
-                lineHeight: 1.1,
-                color: INK,
-                margin: 0,
-                textWrap: "balance",
-              }}
-            >
-              Why procurement teams choose ProcuLink
-            </h2>
-            <p style={{ fontSize: 16, color: INK_MUTED, lineHeight: 1.6, marginTop: 14 }}>
-              What ProcuLink changes for teams moving from manual reformatting to automated order delivery.
-            </p>
-          </div>
-          <div
-            className="grid grid-cols-1 gap-[18px] sm:grid-cols-3"
-          >
-            {[
-              {
-                stat: "Skip the manual reformatting",
-                body: "Teams stop hand-converting orders for each supplier. ProcuLink maps your buyer PO to exactly what each supplier needs — automatically.",
-                color: BLUE,
-                icon: "link",
-              },
-              {
-                stat: "Stop orders getting bounced",
-                body: "Rejections for wrong item codes, missing fields, or bad formats cost hours of back-and-forth. ProcuLink validates before you send.",
-                color: GREEN,
-                icon: "check-circle",
-              },
-              {
-                stat: "Orders out in minutes",
-                body: "From uploaded PO to delivered supplier order in one workflow. No email chains, no spreadsheet wrestling, no copy-paste errors.",
-                color: AMBER,
-                icon: "clock",
-              },
-            ].map((item, i) => (
-              <Card key={i} pad={24} radius={10}>
-                {/* Colored left edge */}
-                <span
-                  style={{
-                    position: "absolute",
-                    left: 0,
-                    top: 0,
-                    bottom: 0,
-                    width: 3,
-                    background: item.color,
-                  }}
-                />
+        <div
+          className="grid w-full grid-cols-2 divide-x divide-y divide-border sm:grid-cols-4 sm:divide-y-0"
+          style={{ maxWidth: 1180, textAlign: "center" }}
+        >
+          {STATS.map((s, i) => {
+            const inner = (
+              <>
                 <div
                   style={{
-                    width: 38,
-                    height: 38,
-                    borderRadius: 8,
-                    background: SURFACE_2,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <Icon name={item.icon} color={item.color} />
-                </div>
-                <h3
-                  style={{
                     fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
-                    fontSize: 16,
+                    fontSize: 30,
                     fontWeight: 600,
+                    letterSpacing: "-0.03em",
                     color: INK,
-                    margin: "14px 0 8px",
-                    letterSpacing: "-0.01em",
+                    lineHeight: 1,
                   }}
                 >
-                  {item.stat}
-                </h3>
-                <p style={{ fontSize: 13.5, lineHeight: 1.6, color: INK_MUTED, margin: 0 }}>
-                  {item.body}
-                </p>
-              </Card>
-            ))}
-          </div>
+                  {s.value}
+                </div>
+                <div style={{ fontSize: 12, color: INK_MUTED, marginTop: 4 }}>
+                  {s.label}
+                </div>
+              </>
+            );
+            return s.href ? (
+              <Link
+                key={i}
+                href={s.href}
+                style={{ display: "block", padding: "26px 24px", textDecoration: "none" }}
+              >
+                {inner}
+              </Link>
+            ) : (
+              <div key={i} style={{ padding: "26px 24px" }}>
+                {inner}
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* ── Logo strip ─────────────────────────────────────────────── */}
+      <section className="px-4 sm:px-8" style={{ background: SURFACE, paddingTop: 48, paddingBottom: 48 }}>
+        <p style={{ textAlign: "center", fontSize: 12, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: INK_MUTED, marginBottom: 26 }}>
+          Reads the order files you already have, and writes the formats suppliers use
+        </p>
+        {/* No opacity:0.8 — it blended the --ink-faint mono labels down to ~3.3:1
+            (WCAG fail). At full opacity the darkened --ink-faint token passes AA;
+            the labels are still visually "faint" via the token itself. */}
+        <div className="flex flex-wrap items-center justify-center gap-x-[38px] gap-y-4" style={{ maxWidth: 1180, margin: "0 auto" }}>
+          {[...FORMAT_STRIP.emitted, ...FORMAT_STRIP.inboundOnly].map((name) => (
+            <span key={name} style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 15, fontWeight: 600, color: INK_FAINT, letterSpacing: "0.02em" }}>
+              {name}
+            </span>
+          ))}
+        </div>
+        {FORMAT_STRIP.inboundOnly.length > 0 && (
+          <p style={{ textAlign: "center", fontSize: 12.5, color: INK_MUTED, marginTop: 16, maxWidth: 640, marginLeft: "auto", marginRight: "auto", lineHeight: 1.5 }}>
+            {FORMAT_STRIP.inboundOnly.join(", ")} are read, not emitted — ProcuLink parses them
+            inbound and delivers to your supplier in one of the formats it produces.
+          </p>
+        )}
+        <div style={{ textAlign: "center", marginTop: 22 }}>
+          <Link
+            href="/formats"
+            className="inline-flex min-h-[44px] items-center"
+            style={{ fontSize: 13, fontWeight: 600, color: BLUE_DEEP, textDecoration: "none" }}
+          >
+            See every format and method, honestly tagged →
+          </Link>
         </div>
       </section>
 
@@ -858,10 +1124,11 @@ export default function RootPage() {
               textWrap: "balance",
             }}
           >
-            Stop reformatting purchase orders.{" "}
-            <span style={{ color: GREEN_BRIGHT }}>Start delivering them.</span>{" "}
-            Any incoming order, sent out in exactly the format and channel each
-            supplier needs.
+            Your item number is not always your supplier&apos;s item number.{" "}
+            <span style={{ color: GREEN_BRIGHT }}>
+              ProcuLink remembers the connection between the two,
+            </span>{" "}
+            so you do not have to look it up every time you order.
           </blockquote>
 
           {/* No fabricated customer attribution — the value statement stands on its own
@@ -936,10 +1203,10 @@ export default function RootPage() {
             margin: 0,
           }}
         >
-          Ready to put your orders on autopilot?
+          Start with one supplier and one order.
         </h2>
-        <p style={{ fontSize: 16, color: NAVY_TEXT, margin: "14px auto 0", maxWidth: 480, lineHeight: 1.6 }}>
-          Start free. No credit card required.
+        <p style={{ fontSize: 16, color: NAVY_TEXT, margin: "14px auto 0", maxWidth: 520, lineHeight: 1.6 }}>
+          {PILOT_OFFER_LINE} Review the result before anything is sent.
         </p>
         <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap", marginTop: 28 }}>
           <Link
@@ -958,7 +1225,7 @@ export default function RootPage() {
               boxShadow: "0 8px 24px rgba(30,102,201,0.32)",
             }}
           >
-            Get started free →
+            Start your FREE Pilot →
           </Link>
           <Link
             href="/pricing"
@@ -992,13 +1259,16 @@ export default function RootPage() {
                 <span style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", color: SURFACE, fontWeight: 700, fontSize: 17 }}>ProcuLink</span>
               </Link>
               <p style={{ fontSize: 13, lineHeight: 1.6, maxWidth: 300, marginTop: 14 }}>
-                The missing link between buyers and suppliers. Turn any purchase order into the exact
-                format your supplier needs — with a full audit trail on every order.
+                The missing link between buyers and suppliers. Match your item codes to your
+                supplier&apos;s once, and reuse the match on later orders to that supplier — with a
+                full audit trail on every order.
               </p>
             </div>
             {[
               { h: "Product", links: [["How it works", "/how-it-works"], ["Pricing", "/pricing"], ["Security", "/security"], ["Open the dashboard", "/bridge"]] },
-              { h: "Company", links: [["Customers", "/customers"], ["Changelog", "/changelog"], ["Support", "/support"]] },
+              // "Customers" → "Pilot programme": /customers is being replaced by /pilot, which
+              // carries the supported-pilot offer this page now links to twice.
+              { h: "Company", links: [["Pilot programme", "/pilot"], ["Changelog", "/changelog"], ["Support", "/support"]] },
               { h: "Legal",   links: [["Privacy", "/privacy"], ["Terms", "/terms"], ["AUP", "/aup"], ["DPA", "/dpa"], ["Subprocessors", "/subprocessors"]] },
             ].map((col) => (
               <div key={col.h}>
@@ -1086,6 +1356,116 @@ function CanonicalPreview() {
 </OrderRequest>`}</pre>
       </HeroPane>
     </div>
+  );
+}
+
+// ─── Section primitives (item-code wedge sections) ────────────────────────────
+
+const sectionTitle: React.CSSProperties = {
+  fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
+  fontSize: "clamp(26px, 3.4vw, 36px)",
+  fontWeight: 600,
+  letterSpacing: "-0.03em",
+  lineHeight: 1.12,
+  color: INK,
+  margin: "14px 0 0",
+  textWrap: "balance",
+};
+
+const bodyCopy: React.CSSProperties = {
+  fontSize: 15,
+  lineHeight: 1.65,
+  color: INK_MUTED,
+  margin: "14px 0 0",
+};
+
+/** Small uppercase label above a section title. A pill fill with no border, so it is a
+ *  label and not a card surface. */
+function Eyebrow({ children }: { children: ReactNode }) {
+  return (
+    <div
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        height: 26,
+        padding: "0 12px",
+        borderRadius: 13,
+        background: BLUE_SOFT,
+        fontSize: 11,
+        fontWeight: 700,
+        color: BLUE_DEEP,
+        letterSpacing: "0.07em",
+        textTransform: "uppercase",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+/**
+ * The pairing the whole page is about, drawn as a diagram rather than a screenshot: it
+ * shows WHAT ProcuLink keeps (your code ↔ the supplier's code, per supplier) and WHEN it is
+ * used. It deliberately does not mimic the review screen, which does not label a code as
+ * carried over from an earlier order.
+ */
+function MappingExample() {
+  return (
+    <figure style={{ margin: "24px 0 0" }}>
+      <div
+        role="table"
+        aria-label="Example item-code matches saved for one supplier"
+        style={{ borderTop: `1px solid ${BORDER}` }}
+      >
+        <div
+          role="row"
+          className="grid grid-cols-[minmax(0,1fr)_20px_minmax(0,1fr)] items-center"
+          style={{ gap: 10, padding: "10px 0", borderBottom: `1px solid ${BORDER}` }}
+        >
+          <span role="columnheader" className="flex items-center" style={{ gap: 7, fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: BLUE_DEEP }}>
+            <span aria-hidden style={{ width: 7, height: 7, borderRadius: "50%", background: BLUE, display: "inline-block", flexShrink: 0 }} />
+            Your item code
+          </span>
+          <span aria-hidden />
+          <span role="columnheader" className="flex items-center" style={{ gap: 7, fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: GREEN_DEEP }}>
+            <span aria-hidden style={{ width: 7, height: 7, borderRadius: "50%", background: GREEN, display: "inline-block", flexShrink: 0 }} />
+            Supplier&apos;s code
+          </span>
+        </div>
+        {MAPPING_EXAMPLE.map((row) => (
+          <div
+            key={row.yours}
+            role="row"
+            className="grid grid-cols-[minmax(0,1fr)_20px_minmax(0,1fr)] items-center"
+            style={{ gap: 10, padding: "11px 0", borderBottom: `1px solid ${BORDER}` }}
+          >
+            <span role="cell" style={{ minWidth: 0 }}>
+              <span style={{ display: "block", fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 13, fontWeight: 600, color: INK, overflowWrap: "anywhere" }}>
+                {row.yours}
+              </span>
+              <span style={{ display: "block", fontSize: 12, color: INK_MUTED, marginTop: 2 }}>{row.item}</span>
+            </span>
+            <span aria-hidden style={{ color: INK_FAINT, fontSize: 15, textAlign: "center" }}>→</span>
+            <span role="cell" style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 13, fontWeight: 600, color: GREEN_DEEP, overflowWrap: "anywhere" }}>
+              {row.theirs}
+            </span>
+          </div>
+        ))}
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2" style={{ gap: 12, marginTop: 16 }}>
+        <div style={{ fontSize: 12.5, lineHeight: 1.5, color: INK_MUTED }}>
+          <strong style={{ display: "block", color: INK, fontWeight: 600 }}>First order to this supplier</strong>
+          You confirm any match ProcuLink does not already know.
+        </div>
+        <div style={{ fontSize: 12.5, lineHeight: 1.5, color: INK_MUTED }}>
+          <strong style={{ display: "block", color: INK, fontWeight: 600 }}>Next order to the same supplier</strong>
+          Saved matches are applied automatically. You review the result as before.
+        </div>
+      </div>
+      <figcaption style={{ fontSize: 11.5, color: INK_FAINT, marginTop: 12 }}>
+        Illustrative codes. Matches are saved per supplier.
+      </figcaption>
+    </figure>
   );
 }
 

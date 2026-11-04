@@ -58,6 +58,24 @@ const T = {
 // the reader's assumption to set, and every figure downstream derives from it.
 export const DEFAULT_AUTOMATION_PCT = 70;
 
+// ─── Every other starting value ──────────────────────────────────────────────
+// The same reasoning applies to the six sliders above the automation share, and only the
+// last one used to say so. 200 orders, 40% manual, 10 minutes, €25/hour, a 2% error rate
+// and €30 per fix are not measured from any customer either — they are a plausible place
+// for the sliders to start. So each one is labelled "illustrative" for as long as it sits
+// at its starting value, and the panel says above the first slider that every value is the
+// reader's to set. The label drops the moment the reader moves that slider, because from
+// then on the number is theirs.
+export const ROI_STARTING_VALUES = {
+  orders: 200,
+  manualPct: 40,
+  minutes: 10,
+  hourly: 25,
+  errorPct: 2,
+  reworkCost: 30,
+  automationPct: DEFAULT_AUTOMATION_PCT,
+} as const;
+
 // €/order, at full precision — `eur()` below rounds to whole euros, which would
 // print the €0.50 overage rate as "€1".
 const perOrderEur = (n: number) =>
@@ -88,6 +106,7 @@ function Field({
   step,
   onChange,
   divider,
+  startingValue,
 }: {
   label: string;
   value: number;
@@ -97,7 +116,11 @@ function Field({
   step: number;
   onChange: (v: number) => void;
   divider: boolean;
+  /** The illustrative value the slider starts at. While `value` still equals it, the row
+   *  says so — see ROI_STARTING_VALUES. */
+  startingValue: number;
 }) {
+  const illustrative = value === startingValue;
   return (
     <label
       style={{
@@ -119,15 +142,34 @@ function Field({
         >
           {label}
         </span>
-        <span
-          style={{
-            fontFamily: "'JetBrains Mono', ui-monospace, monospace",
-            fontSize: 14,
-            color: T.accent,
-            fontWeight: 600,
-          }}
-        >
-          {display}
+        <span style={{ display: "inline-flex", alignItems: "baseline", gap: 8, flexShrink: 0 }}>
+          {illustrative && (
+            <span
+              data-testid="roi-illustrative-tag"
+              style={{
+                fontSize: 10.5,
+                fontWeight: 600,
+                letterSpacing: "0.04em",
+                textTransform: "uppercase",
+                color: T.inkSoft,
+                background: T.surface2,
+                borderRadius: 4,
+                padding: "2px 6px",
+              }}
+            >
+              illustrative
+            </span>
+          )}
+          <span
+            style={{
+              fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+              fontSize: 14,
+              color: T.accent,
+              fontWeight: 600,
+            }}
+          >
+            {display}
+          </span>
         </span>
       </div>
       <input
@@ -206,13 +248,14 @@ function StatCard({
 
 // ─── Component ───────────────────────────────────────────────────────────────
 export function ROICalculator() {
-  const [orders, setOrders] = useState(200);
-  const [manualPct, setManualPct] = useState(40);
-  const [minutes, setMinutes] = useState(10);
-  const [hourly, setHourly] = useState(25);
-  const [errorPct, setErrorPct] = useState(2);
-  const [reworkCost, setReworkCost] = useState(30);
-  const [automationPct, setAutomationPct] = useState(DEFAULT_AUTOMATION_PCT);
+  const S = ROI_STARTING_VALUES;
+  const [orders, setOrders] = useState<number>(S.orders);
+  const [manualPct, setManualPct] = useState<number>(S.manualPct);
+  const [minutes, setMinutes] = useState<number>(S.minutes);
+  const [hourly, setHourly] = useState<number>(S.hourly);
+  const [errorPct, setErrorPct] = useState<number>(S.errorPct);
+  const [reworkCost, setReworkCost] = useState<number>(S.reworkCost);
+  const [automationPct, setAutomationPct] = useState<number>(S.automationPct);
 
   const calc = useMemo(() => {
     const manualCost = orders * (manualPct / 100) * (minutes / 60) * hourly;
@@ -353,6 +396,20 @@ export function ROICalculator() {
         >
           {/* Inputs — single card, slider rows */}
           <Card pad="8px 24px" radius={12}>
+            <p
+              data-testid="roi-starting-values-note"
+              style={{
+                fontSize: 12.5,
+                lineHeight: 1.5,
+                color: T.inkSoft,
+                margin: 0,
+                padding: "14px 0 12px",
+                borderBottom: `1px solid ${T.borderSoft}`,
+              }}
+            >
+              Every starting value below is illustrative, not a measured figure. Move each slider
+              to your own numbers.
+            </p>
             <Field
               label="Orders per month"
               value={orders}
@@ -362,6 +419,7 @@ export function ROICalculator() {
               step={10}
               onChange={setOrders}
               divider={false}
+              startingValue={S.orders}
             />
             <Field
               label="% needing manual entry"
@@ -372,6 +430,7 @@ export function ROICalculator() {
               step={1}
               onChange={setManualPct}
               divider
+              startingValue={S.manualPct}
             />
             <Field
               label="Avg minutes per manual order"
@@ -382,6 +441,7 @@ export function ROICalculator() {
               step={1}
               onChange={setMinutes}
               divider
+              startingValue={S.minutes}
             />
             <Field
               label="Internal hourly labour cost"
@@ -392,6 +452,7 @@ export function ROICalculator() {
               step={1}
               onChange={setHourly}
               divider
+              startingValue={S.hourly}
             />
             <Field
               label="Error / rework rate"
@@ -402,6 +463,7 @@ export function ROICalculator() {
               step={0.5}
               onChange={setErrorPct}
               divider
+              startingValue={S.errorPct}
             />
             <Field
               label="Avg cost to fix one error"
@@ -412,6 +474,7 @@ export function ROICalculator() {
               step={5}
               onChange={setReworkCost}
               divider
+              startingValue={S.reworkCost}
             />
             <Field
               label="% of that work you expect ProcuLink to remove"
@@ -422,6 +485,7 @@ export function ROICalculator() {
               step={5}
               onChange={setAutomationPct}
               divider
+              startingValue={S.automationPct}
             />
           </Card>
 
@@ -618,7 +682,9 @@ export function ROICalculator() {
         >
           Savings model assumes ProcuLink removes {automationPct}% of the manual reformatting and
           validation flow — you set that share yourself on the last slider, and its starting value
-          is an illustrative default, not a measured customer outcome. Adjust the sliders for your
+          is an illustrative default, not a measured customer outcome. The same goes for every other
+          starting value — order volume, manual share, minutes per order, labour cost, error rate and
+          cost per fix are examples to replace with your own figures. Adjust the sliders for your
           own numbers; your result will be higher if your current process involves multiple retypes
           or supplier-specific formats.
           Plans are billed monthly and include light, self-serve setup at no extra cost; hands-on

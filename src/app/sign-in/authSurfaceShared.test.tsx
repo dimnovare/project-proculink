@@ -58,16 +58,15 @@ vi.mock("@/lib/reload", () => ({ reloadPage: () => {} }));
 
 import SignInPage from "./[[...sign-in]]/page";
 import SignUpPage from "../sign-up/[[...sign-up]]/page";
-import { clerkAppearance } from "@/components/auth/AuthSurface";
+import { clerkAppearance, AUTH_VALUE_CLAIMS } from "@/components/auth/AuthSurface";
 
 /* The three claims the brand panel makes. Read off the shared module rather than
    retyped, so re-wording a claim does not silently empty this test's corpus —
-   a hand-typed list is how a drift survives its own guard in this repo. */
-const FEATURE_CLAIMS = [
-  "AI-assisted mapping with visible confidence",
-  "Validate before anything reaches the supplier",
-  "Orders out in minutes, fully audited",
-];
+   a hand-typed list is how a drift survives its own guard in this repo. (This list
+   WAS retyped, under that very comment, until the claims were re-worded for the
+   item-code positioning; it now reads the export, and the floor below still pins
+   the count.) */
+const FEATURE_CLAIMS = AUTH_VALUE_CLAIMS.map((c) => c.label);
 const TRUST_FRAGMENT = "AES-GCM at rest";
 
 /* ── Anti-vacuity floor ───────────────────────────────────────────────────────
@@ -166,6 +165,6 @@ describe("each route still says which one it is", () => {
     cleanup();
 
     render(<SignUpPage />);
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Start for free");
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Start your FREE Pilot");
   });
 });

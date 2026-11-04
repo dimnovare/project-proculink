@@ -120,7 +120,10 @@ describe("/sign-up", () => {
     advance(CLERK_LOAD_DEADLINE_MS);
 
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(HEADING);
-    expect(screen.queryByText("Start for free")).not.toBeInTheDocument();
+    // The sign-up heading, which must NOT render behind the outage card. It was "Start for
+    // free" until the item-code re-positioning; left at the old string this line would pass
+    // whatever the page did.
+    expect(screen.queryByText("Start your FREE Pilot")).not.toBeInTheDocument();
     expect(screen.queryByText("clerk sign-up form")).not.toBeInTheDocument();
   });
 

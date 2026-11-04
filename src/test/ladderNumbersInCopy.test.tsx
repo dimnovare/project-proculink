@@ -76,7 +76,10 @@ vi.mock("@/lib/navigationClock", () => ({ msSinceNavigationStart: () => 0 }));
 vi.mock("@/lib/reload", () => ({ reloadPage: () => {} }));
 
 // ── What ships today, verbatim ───────────────────────────────────────────────
-const SIGN_UP_SUB = "No credit card. 20 orders free for 14 days.";
+// Re-worded deliberately for the item-code positioning (it was "No credit card. 20 orders
+// free for 14 days."): it now also names the supplier allowance, which is the Pilot limit a
+// new buyer meets first. The pair below still holds it byte-for-byte AND proves it moves.
+const SIGN_UP_SUB = "20 orders · 1 supplier · 14 days · no credit card";
 const ROI_FALLBACK =
   "Start with the free 14-day Pilot — 20 orders, no card required — and upgrade once the savings are real.";
 const ROI_FINE_PRINT = "The Pilot tier is free for 14 days (20 orders) and does not require a card.";
@@ -157,10 +160,10 @@ describe("/sign-up sells the Pilot allowance the ladder declares", () => {
   });
 
   it("moves when the Pilot allowance moves", async () => {
-    h.ladder.pilot = { ...h.ladder.pilot, orderLimit: 500, priceCadence: "30 days" };
+    h.ladder.pilot = { ...h.ladder.pilot, orderLimit: 500, supplierLimit: 3, priceCadence: "30 days" };
 
     const copy = await signUpCopy();
-    expect(copy).toContain("No credit card. 500 orders free for 30 days.");
+    expect(copy).toContain("500 orders · 3 suppliers · 30 days · no credit card");
     expect(copy, "the typed sentence must be gone, not merely joined").not.toContain(SIGN_UP_SUB);
   });
 });
