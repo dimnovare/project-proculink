@@ -136,7 +136,7 @@ describe("the Pilot limit banner reads its upgrade tier off the ladder", () => {
     ladder.pilot.next = "distributor";
     await renderBilling(billing());
 
-    expect(pageText()).toContain(`Upgrade to ${RENAMED_DISTRIBUTOR} to continue processing new orders.`);
+    expect(pageText()).toContain(`Upgrade to ${RENAMED_DISTRIBUTOR} to continue processing new documents.`);
     expect(pageText(), "the hardcoded tier must be gone, not merely joined").not.toContain("Upgrade to Growth to continue");
   });
 
@@ -146,7 +146,7 @@ describe("the Pilot limit banner reads its upgrade tier off the ladder", () => {
     ladder.pilot.next = null;
     await renderBilling(billing());
 
-    expect(pageText()).toContain("Contact us to continue processing new orders.");
+    expect(pageText()).toContain("Contact us to continue processing new documents.");
     for (const name of ["Growth", "Operations", "Integration", RENAMED_DISTRIBUTOR]) {
       expect(pageText(), `must not offer ${name} when there is no upgrade`).not.toContain(
         `Upgrade to ${name} to continue`,
@@ -160,9 +160,9 @@ describe("the Pilot limit banner reads its upgrade tier off the ladder", () => {
     await renderBilling(billing());
 
     expect(ladder.pilot.next, "the real ladder still points Pilot at Growth").toBe("growth");
-    expect(pageText()).toContain("Upgrade to Growth to continue processing new orders.");
+    expect(pageText()).toContain("Upgrade to Growth to continue processing new documents.");
     // And the other half of the same sentence, which was already derived, is still derived.
-    expect(pageText()).toContain(`You've used all ${ladder.pilot.orderLimit} Pilot orders.`);
+    expect(pageText()).toContain(`You've used all ${ladder.pilot.orderLimit} Pilot documents.`);
   });
 });
 
