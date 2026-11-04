@@ -93,7 +93,7 @@ export function BookDemoForm() {
 
   if (state.status === "success") {
     return (
-      <div style={S.wrap} aria-label="Demo request sent">
+      <div style={S.wrap} aria-label="Call request sent">
         <div
           ref={successRef}
           tabIndex={-1}
@@ -111,7 +111,9 @@ export function BookDemoForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} style={S.wrap} aria-label="Request a demo">
+    // /book-demo is framed as a 20-minute call about one of the visitor's orders or a pilot,
+    // not a generic demo — the form's own labels say the same thing as the page around it.
+    <form onSubmit={onSubmit} style={S.wrap} aria-label="Request a 20-minute call">
       <div style={S.row}>
         <label htmlFor="demo-name" style={S.label}>Name <span style={{ color: "#8A2A2A" }}>*</span></label>
         <input
@@ -190,7 +192,7 @@ export function BookDemoForm() {
           id="demo-message"
           value={message}
           onChange={(e) => setMessage(e.target.value)}
-          placeholder="Suppliers or customers you'd like covered, questions you want answered…"
+          placeholder="The order or workflow you'd like to look at, questions you want answered…"
           style={S.textarea}
           maxLength={4000}
         />
@@ -198,14 +200,14 @@ export function BookDemoForm() {
 
       <div style={S.actions}>
         <p style={{ fontSize: 12.5, color: "var(--ink-faint)", margin: 0 }}>
-          Prefer email? <a href="mailto:hello@proculink.eu?subject=ProcuLink%20demo" style={{ color: "#1E6D29", textDecoration: "underline" }}>hello@proculink.eu</a>
+          Prefer email? <a href="mailto:hello@proculink.eu?subject=ProcuLink%20call" style={{ color: "#1E6D29", textDecoration: "underline" }}>hello@proculink.eu</a>
         </p>
         <button
           type="submit"
           disabled={!canSubmit}
           style={canSubmit ? S.submit : S.submitDisabled}
         >
-          {state.status === "submitting" ? "Sending…" : "Request a demo"}
+          {state.status === "submitting" ? "Sending…" : "Request a call"}
         </button>
       </div>
 

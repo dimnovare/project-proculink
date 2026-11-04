@@ -37,12 +37,13 @@ test.beforeEach(async ({ page }) => {
 // 1. /book-demo — the marketing book-a-demo request page
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe("Book a demo — /book-demo", () => {
+test.describe("Book a 20-minute call — /book-demo", () => {
   test("renders the H1 and every required field resolves by accessible name", async ({ page }) => {
     await page.goto("/book-demo");
 
+    // Reframed from a generic demo to a 20-minute call about one of the visitor's orders.
     await expect(
-      page.getByRole("heading", { level: 1, name: "Book a demo" }),
+      page.getByRole("heading", { level: 1, name: "Show us one of your orders" }),
     ).toBeVisible({ timeout: 15_000 });
 
     // Required fields are bound label→input (htmlFor/id) — resolvable by
@@ -55,10 +56,10 @@ test.describe("Book a demo — /book-demo", () => {
   test("submit stays disabled until required fields are filled; success notice appears AND receives focus", async ({ page }) => {
     await page.goto("/book-demo");
 
-    const form = page.getByRole("form", { name: /request a demo/i });
+    const form = page.getByRole("form", { name: /request a 20-minute call/i });
     await expect(form).toBeVisible({ timeout: 15_000 });
 
-    const submit = form.getByRole("button", { name: /request a demo/i });
+    const submit = form.getByRole("button", { name: /request a call/i });
     await expect(submit).toBeDisabled();
 
     // Partial fill — still gated (all three of Name / Work email / Company are required).

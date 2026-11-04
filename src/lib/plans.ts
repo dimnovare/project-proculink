@@ -143,7 +143,9 @@ export const PLANS: Plan[] = [
     orderLimit: 20,
     supplierLimit: 1,
     orderLimitIsMonthly: false,
-    blurb: "Test ProcuLink with real buyer orders and one supplier flow.",
+    // The PDF / Excel / CSV named here are INPUTS — upload formats every plan accepts. ProcuLink
+    // does not write PDF or Excel; "supplier-ready" output is XML, CSV, cXML, JSON, UBL or X12.
+    blurb: "Test one repeat supplier using the PDF, Excel, CSV or other supported order files you already use.",
     recommendationBlurb:
       "Free for 14 days. Process up to 20 orders across one supplier flow before you commit to a paid plan.",
     features: [
@@ -175,7 +177,7 @@ export const PLANS: Plan[] = [
       "Email delivery to your supplier",
     ],
     inheritsFrom: null,
-    cta: { label: "Start Pilot", href: SIGN_UP },
+    cta: { label: "Start your FREE Pilot", href: SIGN_UP },
     // #8A5310, not the stale #C97A14 (which is not a token in globals.css and
     // measured 3.1094:1 as label text on its own tint). 5.7164:1.
     color: "#8A5310",

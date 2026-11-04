@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ANNUAL_BILLING_ENABLED,
   OVERAGE_PER_ORDER_EUR,
@@ -13,8 +13,10 @@ import {
   recommendPlanByOrders,
   yearlyMonthlyEquivalent,
   yearlySavePercent,
+  type Plan,
 } from "@/lib/plans";
 import { NUMBER_LOCALE } from "@/lib/format-number";
+import { MAX_SELF_SERVE_SUPPLIERS, recommendPlan } from "./recommendPlan";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Pricing page — pixel-exact port of the Claude Design source (app/Pricing.html).
@@ -33,27 +35,30 @@ import { NUMBER_LOCALE } from "@/lib/format-number";
 //   • Real plan ladder + prices come from src/lib/plans.ts (6 tiers), not the
 //     demo tiers baked into the HTML — so pricing can never drift from billing.
 //   • Plain product copy only (no "bridge"/"dock"/"crossing" vocabulary).
-//   • The Operations tier is the featured ("Most popular") anchor card: buyer-blue
-//     border + soft blue glow + centred blue→green gradient badge + blue CTA,
-//     exactly matching the design's .price-card.featured + .price-badge.
+//   • NO "Most popular" badge. Operations used to carry one as a static anchor, with
+//     the featured border and blue CTA. Nothing measured it: ProcuLink has no usage
+//     data that makes any tier "most popular", so the badge was a claim about
+//     customers we cannot point at — the same class of defect as the fabricated
+//     profiles purged from the old references page. The featured treatment
+//     (.price-card.featured + .price-badge) now belongs ONLY to the card the
+//     recommender points at, so it always reflects the visitor's own answer. Bring
+//     a popularity badge back only when real usage supports it.
 //
 // CHOICE-OVERLOAD REDUCTION (UX#1):
 //   The 6-tier ladder is no longer shown as one flat 6-card wall. Instead the page
-//   leads with the ROI/volume recommender (reusing recommendPlanByOrders — the
-//   same helper the landing-page ROICalculator uses) and shows FOUR primary
-//   decisions above the fold:
+//   leads with the recommender (orders AND suppliers — see ./recommendPlan.ts, which
+//   reuses recommendPlanByOrders, the same helper the landing-page ROICalculator
+//   uses) and shows FOUR primary decisions above the fold:
 //     1. Pilot       (free trial)
 //     2. Growth      (the €149 first paid step — hiding it made the cheapest
 //                     paid entry invisible at 1080p without a click)
-//     3. Operations  (the €399 ICP anchor, "Most popular")
+//     3. Operations  (the €399 step)
 //     4. Enterprise  (contact sales)
 //   The remaining tiers (Integration, Distributor) live behind a
 //   "See all tiers / compare plans" disclosure so every tier — and every
 //   CHECKOUT_PLAN_ID — stays reachable, while only four cards compete for
 //   attention by default.
 // ─────────────────────────────────────────────────────────────────────────────
-
-const FEATURED_ID = "operations";
 
 // Above-the-fold primary decisions, in display order. Everything else
 // (Integration, Distributor) is reachable behind the "See all tiers" disclosure.
@@ -93,7 +98,6 @@ const ALL_TIERS = PLANS.filter((p) => !p.hidden).map((p) => ({
   yearlyMonthlyEq: yearlyMonthlyEquivalent(p),
   savePercent: yearlySavePercent(p),
   orderLimit: p.orderLimit,
-  featured: p.id === FEATURED_ID,
 }));
 
 // Uniform advertised annual discount, DERIVED from the plan ladder (all paid
@@ -116,7 +120,43 @@ const SECONDARY_TIERS = ALL_TIERS.filter(
   (t) => !PRIMARY_IDS.includes(t.id as (typeof PRIMARY_IDS)[number]),
 );
 
-const FAQ: Array<[string, string]> = [
+// Answers are ReactNode, not string, so an answer can link to the page that owns the
+// detail (the supported pilot programme) instead of restating it here.
+const FAQ: Array<[string, ReactNode]> = [
+  // ── Getting started ──────────────────────────────────────────────────────
+  // These five answer the questions a first-time buyer asks BEFORE pricing: can I try it
+  // without an integration project, without my supplier, without real data, and without
+  // anything being sent. Every claim is one the product makes true by default:
+  //   • upload accepts CSV/XLSX/PDF/XML on every plan (no ERP needed);
+  //   • the supplier needs no account — they receive a file, or an ordinary email;
+  //   • test/anonymised uploads are ordinary uploads, so they DO count toward the
+  //     allowance — only the built-in sample is free (same rule as "What counts as an
+  //     order?" below; saying otherwise would be a billing promise nothing honours);
+  //   • auto-deliver is off until switched on per supplier, so sending is a person
+  //     clicking "Send to supplier";
+  //   • a confirmed item-code match is saved per supplier and reused on later orders.
+  // Output is never described as PDF or Excel: ProcuLink reads those, it does not write them.
+  [
+    "Do I need an ERP or integration to start?",
+    "No. Start by uploading the PDF, Excel or CSV purchase order you already create. ERP and API connections are optional, for later.",
+  ],
+  [
+    "Does my supplier need to take part?",
+    "No. ProcuLink prepares the supplier-ready order, and you can download it and send it yourself, the way you do today. If you later choose email delivery, your supplier keeps receiving an ordinary email with the order attached — they don't need an account or any new software.",
+  ],
+  [
+    "Can I use a test or anonymised order?",
+    "Yes. You can try the workflow without uploading a commercially sensitive live order. Test and anonymised uploads are processed like any other upload, so they count toward your order allowance — only the built-in sample order doesn't.",
+  ],
+  [
+    "Will ProcuLink send anything automatically during the Pilot?",
+    "Not unless you choose to. Automatic delivery stays off until you switch it on for a supplier, so nothing reaches your supplier until someone on your team clicks Send to supplier. The recommended start is review-first: check the supplier-ready result, then download it or send it through ProcuLink.",
+  ],
+  [
+    "What happens when my item code doesn't match the supplier's?",
+    "You confirm the supplier's code once. That match is saved for that supplier and reused on later orders from them, so nobody has to look it up again next time.",
+  ],
+  // ── Billing ──────────────────────────────────────────────────────────────
   [
     "What counts as an order?",
     "One buyer purchase order that enters processing in ProcuLink. Each order counts once, at intake; retries and re-deliveries of the same order don't count again, and sample orders never count toward your allowance.",
@@ -127,7 +167,19 @@ const FAQ: Array<[string, string]> = [
     // the Pilot card 300 lines below already rendered PLAN_BY_ID.pilot.orderLimit, so the same
     // page had one derived copy of this number and one hand-maintained one — and the FAQ half
     // is the one nobody re-reads when a limit moves.
-    `Nothing breaks. Your suppliers and mappings stay configured; you simply pick a plan when you're ready to keep processing orders past the ${PLAN_BY_ID.pilot.orderLimit}-order trial.`,
+    //
+    // The second half separates the two things called "pilot": this short self-service trial,
+    // and the supported pilot programme you apply for on /pilot. Without it, a visitor who has
+    // just read about a longer supported pilot reads "the trial" here as the same offer.
+    <>
+      Nothing breaks. Your suppliers and mappings stay configured; you simply pick a plan when
+      you&apos;re ready to keep processing orders past the {PLAN_BY_ID.pilot.orderLimit}-order trial.
+      That is the self-service Pilot. The{" "}
+      <Link href="/pilot" className="plk-faq-link">
+        supported pilot programme
+      </Link>{" "}
+      is separate: a longer, hands-on pilot on one repeat supplier, which you apply for.
+    </>,
   ],
   [
     "Do you charge for failed orders?",
@@ -183,13 +235,21 @@ export default function PricingPage() {
   // Only treat the selection as yearly when annual is enabled (kill-switch safe).
   const yearly = ANNUAL_BILLING_ENABLED && billing === "yearly";
 
-  // Volume recommender — reuses the SAME helper the landing-page ROICalculator
-  // uses (recommendPlanByOrders), so the pricing page and ROI calculator can
-  // never recommend different tiers for the same volume. The recommendation is
-  // COST-OPTIMAL: flat price + €0.50/order overage, cheapest effective cost.
+  // Recommender — orders AND suppliers (./recommendPlan.ts). Volume alone could point
+  // a visitor at a plan their supplier count does not fit; supplier allowances are a
+  // hard cap, order allowances are not. For volume it reuses the SAME helper the
+  // landing-page ROICalculator uses (recommendPlanByOrders), so the two can never
+  // disagree about volume: with one supplier the answer is identical. COST-OPTIMAL:
+  // flat price + per-order overage, cheapest effective cost among tiers that fit.
   const [orders, setOrders] = useState(200);
-  const recommended = useMemo(() => recommendPlanByOrders(orders), [orders]);
+  // One supplier is the default because that is how a pilot starts.
+  const [suppliers, setSuppliers] = useState(1);
+  const recommended = useMemo(() => recommendPlan(orders, suppliers), [orders, suppliers]);
   const recommendedId = recommended.id;
+  // When the supplier count, not the volume, decided the tier, say so — otherwise a
+  // visitor who moved only the supplier slider sees the price jump with no reason.
+  const volumeOnly = useMemo(() => recommendPlanByOrders(orders), [orders]);
+  const supplierDriven = volumeOnly.id !== recommendedId;
   const recommendedCost = useMemo(
     () => planEffectiveMonthlyCost(recommended, orders),
     [recommended, orders],
@@ -213,14 +273,19 @@ export default function PricingPage() {
             Pricing
           </span>
 
-          <h1 className="plk-h1">Pay for orders processed, nothing else</h1>
+          {/* "Pay for orders processed, nothing else" was too absolute: supplier allowances,
+              feature gates and Enterprise onboarding also decide which plan you need. This
+              says what plans are actually priced on. "No per-seat pricing" is true — no plan
+              in src/lib/plans.ts, and nothing in the backend's PlanConstants, counts users. */}
+          <h1 className="plk-h1">Start FREE. Pay when the workflow proves useful.</h1>
 
           <p className="plk-sub">
-            Tell us your order volume and we&apos;ll point you at the right plan. Self-serve plans
-            include light setup at no extra cost. No per-seat pricing, no integration project.
+            Self-service plans are based on monthly orders and supplier flows, with no per-seat
+            pricing. Start with the Pilot on one supplier; after that, choose the plan that fits and
+            move up only when you need more volume, more suppliers or advanced features.
           </p>
 
-          {/* Volume recommender — leads with the ROI helper's recommendation */}
+          {/* Recommender — monthly orders AND supplier flows (./recommendPlan.ts) */}
           <div className="plk-reco">
             <label className="plk-reco-label" htmlFor="plk-orders">
               How many purchase orders do you send per month?
@@ -243,6 +308,32 @@ export default function PricingPage() {
                 <small> POs/mo</small>
               </span>
             </div>
+
+            {/* Supplier flows — a HARD allowance, unlike orders. The slider stops one past
+                the largest self-serve allowance, which is where only Enterprise fits. */}
+            <label className="plk-reco-label plk-reco-label-2" htmlFor="plk-suppliers">
+              How many suppliers do you order from regularly?
+            </label>
+            <div className="plk-reco-input-row">
+              <input
+                id="plk-suppliers"
+                className="plk-reco-input"
+                type="range"
+                min={1}
+                max={MAX_SELF_SERVE_SUPPLIERS + 1}
+                step={1}
+                value={suppliers}
+                onChange={(e) => setSuppliers(Number(e.target.value))}
+                aria-label="Suppliers you order from regularly"
+                aria-describedby="plk-reco-suppliers-readout"
+                aria-valuetext={supplierCountLabel(suppliers)}
+              />
+              <span className="plk-reco-count" id="plk-reco-suppliers-readout" aria-live="polite">
+                {suppliers > MAX_SELF_SERVE_SUPPLIERS ? `${MAX_SELF_SERVE_SUPPLIERS + 1}+` : suppliers}
+                <small> {suppliers === 1 ? "supplier" : "suppliers"}</small>
+              </span>
+            </div>
+
             <div className="plk-reco-out" role="status">
               <span className="plk-reco-out-label">Recommended plan</span>
               <strong className="plk-reco-out-plan">{recommended.name}</strong>
@@ -262,6 +353,9 @@ export default function PricingPage() {
                 {recommended.isCustom ? "Contact sales" : `Start with ${recommended.name}`}{" "}
                 <span aria-hidden>→</span>
               </Link>
+              <span className="plk-reco-why">
+                {recommendationReason(recommended, supplierDriven ? volumeOnly : null)}
+              </span>
             </div>
           </div>
 
@@ -416,10 +510,33 @@ export default function PricingPage() {
   );
 }
 
+// ─── Recommender copy helpers ────────────────────────────────────────────────
+
+const plural = (n: number, one: string, many: string) => `${n.toLocaleString(NUMBER_LOCALE)} ${n === 1 ? one : many}`;
+
+function supplierCountLabel(n: number): string {
+  return n > MAX_SELF_SERVE_SUPPLIERS
+    ? `More than ${plural(MAX_SELF_SERVE_SUPPLIERS, "supplier", "suppliers")}`
+    : plural(n, "supplier", "suppliers");
+}
+
+/**
+ * One line under the recommendation saying what it includes — and, when the supplier count
+ * rather than the volume decided the tier, why the cheaper volume answer was passed over.
+ * Every number is read off the plan, so the sentence moves with the ladder.
+ */
+function recommendationReason(plan: Plan, passedOver: Plan | null): string {
+  const includes =
+    plan.supplierLimit != null
+      ? `Includes up to ${plural(plan.supplierLimit, "supplier", "suppliers")}.`
+      : "Supplier count set by agreement.";
+  if (passedOver == null || passedOver.supplierLimit == null) return includes;
+  return `${includes} ${passedOver.name} covers your volume but includes ${plural(passedOver.supplierLimit, "supplier", "suppliers")}.`;
+}
+
 // ─── Small components ─────────────────────────────────────────────────────────
 
 function PriceCard({ tier, yearly, recommended }: { tier: Tier; yearly: boolean; recommended: boolean }) {
-  const featured = tier.featured;
 
   // Annual display: the plan's live Stripe yearly price (plans.ts single
   // source), shown as a monthly equivalent with the billed-annually total +
@@ -429,14 +546,13 @@ function PriceCard({ tier, yearly, recommended }: { tier: Tier; yearly: boolean;
   const bigPrice = showYearly ? `€${tier.yearlyMonthlyEq!.toLocaleString("en-IE")}` : tier.price;
   const priceTag = tier.isMonthly;
 
-  // A card is visually emphasised when it is the static anchor (featured =
-  // Operations) OR when the volume recommender currently points at it.
-  const emphasised = featured || recommended;
+  // A card is visually emphasised ONLY when the recommender points at it. There is no
+  // static anchor tier and no "Most popular" fallback: no usage data supports one (see
+  // the header comment), so the only emphasis on this page is the visitor's own answer.
+  const emphasised = recommended;
   const cardClass = emphasised ? "plk-price-card featured" : "plk-price-card";
-
-  // Badge text: the recommender wins over the static "Most popular" label so the
-  // user's own volume answer is always reflected on the card it points at.
-  const badge = recommended ? "Recommended for you" : featured ? "Most popular" : null;
+  const badge = recommended ? "Recommended for you" : null;
+  const isPilot = tier.id === PLAN_BY_ID.pilot.id;
 
   return (
     <article className={cardClass}>
@@ -483,6 +599,26 @@ function PriceCard({ tier, yearly, recommended }: { tier: Tier; yearly: boolean;
           </li>
         ))}
       </ul>
+
+      {/* The Pilot card carries two lines no other card needs. The first says nothing is sent
+          before you have looked at it — the trial's biggest objection, and true by default
+          (auto-deliver is off until switched on). It names email because that is the delivery
+          channel the card's own bullet sells. The second separates this self-service trial from
+          the longer supported pilot, which is applied for rather than signed up to. */}
+      {isPilot && (
+        <>
+          <p className="plk-card-note">
+            Review the supplier-ready result before anything is sent — download it yourself, or
+            email it to your supplier when you&apos;re ready.
+          </p>
+          <p className="plk-card-aside">
+            Need more time or hands-on help?{" "}
+            <Link href="/pilot" className="plk-card-aside-link">
+              Apply for a FREE supported pilot <span aria-hidden>→</span>
+            </Link>
+          </p>
+        </>
+      )}
     </article>
   );
 }
@@ -503,7 +639,7 @@ function CheckIcon() {
   );
 }
 
-function FaqItem({ q, a }: { q: string; a: string }) {
+function FaqItem({ q, a }: { q: string; a: ReactNode }) {
   const [open, setOpen] = useState(false);
   // The open height is MEASURED from the answer, not hardcoded. The previous
   // `maxHeight: 240` silently clipped any answer taller than that -- at 390px the
@@ -624,6 +760,8 @@ const PRICING_CSS = `
 .plk-reco-out-plan { font-family: var(--font-display); font-size: 20px; font-weight: 700; letter-spacing: -0.02em; color: #fff; }
 .plk-reco-out-price { font-size: 14px; font-weight: 600; color: var(--navy-text); }
 .plk-reco-cta { width: auto; margin-top: 0; margin-left: auto; }
+.plk-reco-label-2 { margin-top: 18px; }
+.plk-reco-why { flex-basis: 100%; font-size: 12.5px; line-height: 1.5; color: var(--navy-text); }
 
 /* Section head + eyebrow (design .section-head / .section-eyebrow / .section-title) */
 .plk-section-head { text-align: center; max-width: 620px; margin: 0 auto 30px; }
@@ -718,6 +856,12 @@ const PRICING_CSS = `
 .plk-feats { list-style: none; padding: 0; margin: 20px 0 0; display: flex; flex-direction: column; gap: 11px; flex: 1; }
 .plk-feats li { display: flex; gap: 9px; align-items: flex-start; font-size: 13px; color: var(--ink); line-height: 1.4; }
 .plk-check { margin-top: 1px; flex-shrink: 0; }
+
+/* Pilot card extras: the review-first note and the supported-pilot route */
+.plk-card-note { font-size: 12.5px; line-height: 1.5; color: var(--ink-muted); margin: 18px 0 0; padding-top: 14px; border-top: 1px solid var(--border); }
+.plk-card-aside { font-size: 12.5px; line-height: 1.5; color: var(--ink-muted); margin: 10px 0 0; }
+.plk-card-aside-link, .plk-faq-link { color: var(--brand-blue-deep); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+.plk-card-aside-link { display: inline-flex; align-items: center; gap: 4px; min-height: 24px; }
 
 .plk-fine { text-align: center; font-size: 12px; color: var(--ink-faint); line-height: 1.6; max-width: 880px; margin: 24px auto 0; }
 

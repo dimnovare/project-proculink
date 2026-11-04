@@ -104,6 +104,17 @@ export const RETIRED_ROUTES: RetiredRoute[] = [
       + "review screen became a superset of this one. The order id is preserved so an old "
       + "link opens the same order.",
   },
+  {
+    source: "/customers",
+    destination: "/pilot",
+    deletedDir: "src/app/(marketing)/customers",
+    why:
+      "A references page with no references: it existed to say there were none yet. That was "
+      + "honest, but it made the absence the content. The Pilot Programme page took over the job "
+      + "a prospect came for — how to try ProcuLink on one repeat supplier, and how a named "
+      + "reference is agreed (only with the client's approval of wording and figures). When "
+      + "approved references exist, a Clients page replaces this redirect.",
+  },
 ];
 
 /** The `redirects()` entries next.config.ts needs. `permanent: true` → HTTP 308. */

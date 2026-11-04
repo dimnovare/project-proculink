@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  COMPANY_TRUST_LINE,
   COPYRIGHT_NOTICE,
   LEGAL_ENTITY,
   LEGAL_ENTITY_REFERENCE,
@@ -23,7 +24,10 @@ describe("legal entity identity", () => {
     expect(PRODUCT_OPERATOR_NOTICE).toBe(
       "ProcuLink is a product operated by Diip Solutions OÜ, registry code 17527757, registered at Uus-Sadama tn 15-2, 10120 Tallinn, Estonia.",
     );
-    expect(COPYRIGHT_NOTICE).toBe("© 2026 Diip Solutions OÜ · ProcuLink");
+    // The footer trust line: entity, registry code and registered city — what a procurement
+    // buyer needs to look the company up without a founder page.
+    expect(COMPANY_TRUST_LINE).toBe("Diip Solutions OÜ · Registry code 17527757 · Tallinn, Estonia");
+    expect(COPYRIGHT_NOTICE).toBe("© 2026 Diip Solutions OÜ · Registry code 17527757 · Tallinn, Estonia");
   });
 
   it("publishes the legal entity and product brand in Organization structured data", () => {
@@ -49,6 +53,7 @@ describe("legal entity identity", () => {
       LEGAL_ENTITY,
       LEGAL_ENTITY_REFERENCE,
       PRODUCT_OPERATOR_NOTICE,
+      COMPANY_TRUST_LINE,
       COPYRIGHT_NOTICE,
       ORGANIZATION_STRUCTURED_DATA,
     });

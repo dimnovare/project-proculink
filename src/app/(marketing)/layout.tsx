@@ -7,11 +7,16 @@ import { COPYRIGHT_NOTICE } from "@/lib/legal-entity";
 // offer (what it does, how an order moves through it, the full plan ladder,
 // security, contact). It was published in sitemap.ts and linked from nowhere,
 // so the only people who ever saw it were the ones handed the URL. It belongs
-// in Product rather than on /pricing or /customers because it is not about
+// in Product rather than on /pricing or /pilot because it is not about
 // either one on its own, and the footer puts it under both.
+//
+// "Pilot programme" replaced "Customers": the references page had nothing to show,
+// and an empty references page is not the content a prospect should land on. /customers
+// now 308s to /pilot (src/lib/retired-routes.ts). When there are named, approved
+// references, this item becomes "Clients".
 const FOOTER_COLS: { h: string; links: [string, string][] }[] = [
   { h: "Product", links: [["How it works", "/how-it-works"], ["Pricing", "/pricing"], ["Security", "/security"], ["One-page overview", "/one-pager"], ["Open the dashboard", "/bridge"]] },
-  { h: "Company", links: [["Customers", "/customers"], ["Book a demo", "/book-demo"], ["Changelog", "/changelog"], ["Help center", "/help"], ["Support", "/support"]] },
+  { h: "Company", links: [["Pilot programme", "/pilot"], ["Book a 20-minute call", "/book-demo"], ["Changelog", "/changelog"], ["Help center", "/help"], ["Support", "/support"]] },
   { h: "Legal",   links: [["Privacy", "/privacy"], ["Terms", "/terms"], ["AUP", "/aup"], ["DPA", "/dpa"], ["Subprocessors", "/subprocessors"]] },
 ];
 

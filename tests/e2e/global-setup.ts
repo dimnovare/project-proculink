@@ -33,7 +33,7 @@ const ROUTES = [
   "/book-demo",
   "/help",
   "/support",
-  "/customers",
+  "/pilot",
   "/one-pager",
   "/privacy",
   "/terms",

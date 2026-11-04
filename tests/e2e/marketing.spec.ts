@@ -131,7 +131,7 @@ test.describe("Legal + trust pages", () => {
     ["/subprocessors", /^subprocessors$/i],
     ["/aup",           /acceptable use policy/i],
     ["/support",       /^support$/i],
-    ["/customers",     /no public customer references/i],
+    ["/pilot",         /test ProcuLink on one repeat supplier/i],
     ["/one-pager",     /stop reformatting purchase orders/i],
     ["/help",          /help/i],
   ];

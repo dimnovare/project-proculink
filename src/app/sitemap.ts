@@ -20,6 +20,7 @@ const routes = [
     .filter((g) => g.status === "live")
     .map((g) => g.href),
   "/watch",
+  "/pilot",
   "/book-demo",
   "/support",
   "/privacy",
@@ -28,7 +29,8 @@ const routes = [
   "/aup",
   "/subprocessors",
   "/changelog",
-  "/customers",
+  // "/customers" is retired — it 308s to /pilot (src/lib/retired-routes.ts), and a
+  // sitemap must not offer crawlers a URL that only redirects.
   "/one-pager",
 ];
 
