@@ -38,6 +38,7 @@ import type { DeliveryConfig, PoMappingConfig } from "@/lib/api/types";
 import type { AcceptanceRule, AcceptanceProfile, SupplierMapping, OrdersPage } from "@/types/procurement";
 import { isPlanGate, PlanGateNotice } from "@/components/bridge/PlanGateNotice";
 import { NUMBER_LOCALE } from "@/lib/format-number";
+import { DELIVERY_MODE_HEADING, deliveryModeLabel } from "@/lib/deliveryMode";
 
 type Tab = "overview" | "mappings" | "catalog" | "po-mapping" | "delivery" | "acceptance" | "history";
 
@@ -1635,7 +1636,7 @@ export function SupplierDockProfile({ id }: { id: string }) {
               >
                 {name}
               </h1>
-              {/* Inline meta row — code · required format chip · delivery channel chip · auto-process pill */}
+              {/* Inline meta row — code · required format chip · delivery channel chip · delivery mode pill */}
               <div className="flex flex-wrap items-center gap-2 mt-1.5">
                 {code && (
                   <span className="text-[11.5px]" style={{ color: FAINT, fontFamily: MONO }}>
@@ -1650,7 +1651,7 @@ export function SupplierDockProfile({ id }: { id: string }) {
                     </span>
                     <span className={`pill ${DEMO_MOCK.autoProcess ? "pill-ready" : "pill-new"}`}>
                       <span className="dot" />
-                      Auto-process: {DEMO_MOCK.autoProcess ? "ON" : "OFF"}
+                      {deliveryModeLabel(DEMO_MOCK.autoProcess)}
                     </span>
                   </>
                 )}
@@ -2371,7 +2372,7 @@ function DeliverySummaryBody({
   const rows: Array<[string, string, boolean]> = [
     ["Delivery channel", data.protocol, true],
     ["Output format", data.outputFormat || "Not set", Boolean(data.outputFormat)],
-    ["Send automatically", data.autoDeliver ? "On" : "Off", false],
+    [DELIVERY_MODE_HEADING, deliveryModeLabel(data.autoDeliver), false],
     [
       "Credentials",
       data.hasCredentials ? (data.credentialsDisplay || "Stored") : "None stored",

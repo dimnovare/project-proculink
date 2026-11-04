@@ -4,7 +4,7 @@ import { requiresPlan } from "@/lib/gatedCapabilities";
 export const metadata = helpArticleMetadata({
   slug: "managing-suppliers",
   title: "Managing suppliers and their catalogs — ProcuLink Help",
-  description: "The suppliers list, the six-tab supplier profile, and the three ways to fill a supplier's product catalog: file upload, scheduled pull, and API push.",
+  description: "The suppliers list, the seven-tab supplier profile, and the three ways to fill a supplier's product catalog: file upload, scheduled pull, and API push.",
 });
 
 # Managing suppliers and their catalogs
@@ -17,20 +17,21 @@ export const metadata = helpArticleMetadata({
 
 ## The suppliers list
 
-The list shows one row per supplier with three at-a-glance columns: the **output format** it receives, the **delivery channel** it's sent over, and whether **auto-process** is on. Creating a supplier needs only a name — everything else is configured afterwards on the detail page. Auto-process stays off until delivery is configured and you deliberately switch it on, and plan limits apply (Pilot includes one supplier).
+The list shows one row per supplier with three at-a-glance columns: the **output format** it receives, the **delivery channel** it's sent over, and its **delivery mode** — **Review before delivery** or **Automatic delivery**. Creating a supplier needs only a name — everything else is configured afterwards on the detail page. Every supplier starts on review before delivery, where each order waits until someone sends it; automatic delivery stays off until delivery is configured and you deliberately switch it on. Plan limits apply (Pilot includes one supplier).
 
-## The six tabs
+## The seven tabs
 
-Open a supplier to find its full setup across six tabs:
+Open a supplier to find its full setup across seven tabs:
 
 | Tab | What lives there |
 |---|---|
 | **Overview** | Order stats, the delivery summary, and recent deliveries for this supplier. |
-| **Mappings** | The saved buyer-code → supplier-code pairs, each with its source (AI, Manual, Imported, Inherited) and confidence. |
+| **Item codes** | The saved buyer-code → supplier-code pairs, each with its source (AI, Manual, Imported, Inherited) and confidence. |
 | **Catalog** | The supplier's product list — the ground truth for code matching (more below). |
-| **PO Mapping** | Maps the columns of this supplier's order files to ProcuLink's standard fields. It works from a real sample, so upload an order for this supplier first. |
+| **Order layout** | Maps the columns of this supplier's order files to ProcuLink's standard fields. It works from a real sample, so upload an order for this supplier first. |
 | **Delivery** | Output format, channel, credentials, and a safe test send — see [setting up delivery and test-fire](/help/delivery-setup). |
-| **Validation rules** | The acceptance checks you set yourself, on top of ProcuLink's built-in ones. Edits save as a **draft**; nothing is enforced until you activate that version. Saving and activating are {requiresPlan("customSupplierRules")} — see [validation rules](/help/validation-rules) for what runs on every plan without them. |
+| **Rules** | The acceptance checks you set yourself, on top of ProcuLink's built-in ones. Edits save as a **draft**; nothing is enforced until you activate that version. Saving and activating are {requiresPlan("customSupplierRules")} — see [validation rules](/help/validation-rules) for what runs on every plan without them. |
+| **Changes** | Every saved version of this supplier's setup, and which one is live — see [versioned connections](/help/connections). |
 
 Edits on these tabs apply to live processing — there's no separate "publish" step outside the validation-rules draft flow and [versioned connections](/help/connections).
 

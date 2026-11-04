@@ -131,10 +131,10 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
   {
     route: "/library/suppliers",
     title: "{Suppliers}",
-    purpose: "Every {supplier} you process orders for, with its configured output format, delivery channel, and auto-process status.",
+    purpose: "Every {supplier} you process orders for, with its configured output format, delivery channel, and delivery mode — automatic delivery or review before delivery.",
     bullets: [
       { text: "Add a {supplier} by name — configure everything else afterwards" },
-      { text: "See each {supplier}'s format, channel, and auto-process setting" },
+      { text: "See each {supplier}'s format, channel, and delivery mode" },
       { text: "Open a row to set up mapping, catalog, and delivery" },
       { text: "Jump to a {supplier}'s versioned connection once one exists" },
       { text: "Plan limits apply — Pilot includes one {supplier}", href: "/settings?tab=billing" },
@@ -145,7 +145,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
   {
     route: "/library/suppliers/[id]",
     title: "{Supplier} detail",
-    purpose: "One {supplier}'s full setup across six tabs: overview, saved code mappings, product catalog, PO column mapping, delivery, and validation rules.",
+    purpose: "One {supplier}'s full setup across seven tabs: overview, item codes, catalog, order layout, delivery, rules, and changes.",
     bullets: [
       { text: "Import the {supplier}'s product catalog (CSV or XLSX)", href: "?tab=catalog" },
       { text: "Set delivery format, channel, and credentials, then send a test", href: "?tab=delivery" },

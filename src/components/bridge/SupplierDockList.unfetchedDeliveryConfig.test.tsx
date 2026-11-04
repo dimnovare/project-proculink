@@ -6,7 +6,7 @@
 // the SAME shape a settled "this supplier has no config" read produces. The row
 // derived its cells from `!config`, so every supplier past the cap printed:
 //
-//     Format  —      Channel  —      Auto-process  [ Not set ]
+//     Format  —      Channel  —      Delivery mode  [ Not set ]
 //
 // …with the shimmer explicitly suppressed (`fetchConfig && isLoading`), so
 // nothing on screen suggested the question had never been put. The file's own
@@ -95,6 +95,7 @@ vi.mock("@/lib/api/delivery", () => ({
 }));
 
 import { SupplierDockList, DELIVERY_FETCH_CAP } from "./SupplierDockList";
+import { AUTOMATIC_DELIVERY_LABEL, REVIEW_BEFORE_DELIVERY_LABEL } from "@/lib/deliveryMode";
 
 // ── The two sentences under test, verbatim ──────────────────────────────────
 
@@ -115,7 +116,7 @@ const SUPPLIER_COUNT = DELIVERY_FETCH_CAP + EXTRA_PAST_CAP;
 
 /** Each supplier renders twice — the ≥sm table row and the phone card. */
 const LAYOUTS = 2;
-/** Cells on a row that are driven by the delivery config: Format, Channel, Auto-process. */
+/** Cells on a row that are driven by the delivery config: Format, Channel, Delivery mode. */
 const CONFIG_CELLS_PER_ROW = 3;
 
 const pad = (n: number) => String(n).padStart(3, "0");
@@ -285,8 +286,8 @@ describe("SupplierDockList — a row past the fetch cap does not report an absen
     expect(text).toContain(NOT_LOADED_CLAIM);
     // …and none of the three verdicts the delivery config could have produced.
     expect(text).not.toContain(ABSENCE_CLAIM);
-    expect(text).not.toContain("On");
-    expect(text).not.toContain("Off");
+    expect(text).not.toContain(AUTOMATIC_DELIVERY_LABEL);
+    expect(text).not.toContain(REVIEW_BEFORE_DELIVERY_LABEL);
     expect(text).not.toContain("CXML");
     expect(text).not.toContain("HTTP");
   });
@@ -317,13 +318,15 @@ describe("SupplierDockList — a row past the fetch cap does not report an absen
 // ── The control: the rows that DID fetch still report what they found ───────
 
 describe("SupplierDockList — a completed read still reports what it found", () => {
-  it("prints the saved format, channel and auto-process for a configured supplier", async () => {
+  it("prints the saved format, channel and delivery mode for a configured supplier", async () => {
     await renderSettled();
 
     const text = rowFor(IN_CAP_CONFIGURED.name).textContent ?? "";
     expect(text).toContain("CXML");
     expect(text).toContain("HTTP");
-    expect(text).toContain("On");
+    // CONFIG.autoDeliver is true — the configured row names the mode, and only that one.
+    expect(text).toContain(AUTOMATIC_DELIVERY_LABEL);
+    expect(text).not.toContain(REVIEW_BEFORE_DELIVERY_LABEL);
     expect(text).not.toContain(NOT_LOADED_CLAIM);
   });
 

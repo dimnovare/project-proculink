@@ -108,9 +108,9 @@ export const HELP_ARTICLES: HelpArticle[] = [
   {
     slug: "managing-suppliers",
     title: "Managing suppliers and their catalogs",
-    blurb: "The suppliers list, the six-tab supplier profile, and the three ways to fill a catalog: file upload, scheduled pull, and API push.",
+    blurb: "The suppliers list, the seven-tab supplier profile, and the three ways to fill a catalog: file upload, scheduled pull, and API push.",
     category: "Mapping",
-    keywords: ["suppliers", "customers", "supplier list", "catalog import", "catalog sync", "sftp", "ftps", "http api", "push", "auto-process", "tabs", "profile"],
+    keywords: ["suppliers", "customers", "supplier list", "catalog import", "catalog sync", "sftp", "ftps", "http api", "push", "automatic delivery", "review before delivery", "tabs", "profile"],
     readMin: 6,
     videoUrl: `${TOOL_VIDEO_BASE}/suppliers.mp4`,
     videoPosterUrl: `${TOOL_VIDEO_BASE}/suppliers-poster.jpg`,
