@@ -117,7 +117,8 @@ describe("DeliveryConfigEditor — configurable cXML DTD (T7)", () => {
     getDeliveryConfig.mockResolvedValue({ ...SAVED_CXML, outputFormat: "xml", cxmlCredentials: null });
     renderEditor();
     // Wait for load to finish (the output-format select appears).
-    await screen.findByText(/Output format/i);
+    await screen.findByText(/Supplier delivery/i);
+    await waitFor(() => expect(screen.queryByText(/Loading delivery config/i)).toBeNull());
     expect(screen.queryByLabelText(/cXML DTD \(SYSTEM id/i)).toBeNull();
   });
 });

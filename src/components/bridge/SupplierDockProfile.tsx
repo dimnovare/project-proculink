@@ -10,6 +10,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight, Trash2, Info, Clock, Link2, Truck, Plus, ShieldCheck, GitBranch, RefreshCw } from "lucide-react";
 import { PoMappingEditor } from "./PoMappingEditor";
 import { DeliveryConfigEditor } from "./DeliveryConfigEditor";
+import { OutputSettings } from "./supplier/OutputSettings";
 import { DeliveryGuidedSetup } from "./DeliveryGuidedSetup";
 import { CatalogSourceEditor } from "./CatalogSourceEditor";
 import { SupplierHistoryTab } from "@/components/connections/SupplierHistoryTab";
@@ -40,7 +41,7 @@ import { isPlanGate, PlanGateNotice } from "@/components/bridge/PlanGateNotice";
 import { NUMBER_LOCALE } from "@/lib/format-number";
 import { DELIVERY_MODE_HEADING, deliveryModeLabel } from "@/lib/deliveryMode";
 
-type Tab = "overview" | "mappings" | "catalog" | "po-mapping" | "delivery" | "acceptance" | "history";
+type Tab = "overview" | "mappings" | "catalog" | "po-mapping" | "output" | "delivery" | "acceptance" | "history";
 
 // ── Design tokens (ported from tokens.css / globals.css) ─────────────────────
 // Buyer side = blue (#1E66C9, also the ACTIVE accent), supplier side = forest green.
@@ -126,6 +127,7 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: "mappings",    label: "Item codes"   },
   { id: "catalog",     label: "Catalog"      },
   { id: "po-mapping",  label: "Order layout" },
+  { id: "output",      label: "Output"       },
   { id: "delivery",    label: "Delivery"     },
   { id: "acceptance",  label: "Rules"        },
   // STRUCT-1: the versioned-connection history view (was the standalone
@@ -2030,6 +2032,8 @@ export function SupplierDockProfile({ id }: { id: string }) {
 
         {tab === "catalog" && <CatalogTab supplierId={id} />}
 
+        {tab === "output" && <OutputSettings supplierId={id} footer={<OutputPreviewLink supplierId={id} />} />}
+
         {tab === "delivery" && (
           <>
             <LiveEditNotice connectionId={connectionId} nounLower={partyNounLower} onOpenHistory={() => setTab("history")} />
@@ -2403,6 +2407,18 @@ function DeliverySummaryBody({
         </p>
       )}
     </div>
+  );
+}
+
+/** Link to the supplier's latest order, where its output can be previewed and downloaded. Reuses the recent-orders read. */
+function OutputPreviewLink({ supplierId }: { supplierId: string }) {
+  const latest = useSupplierOrdersPage(supplierId).data?.items[0];
+  if (!latest) return null;
+  return (
+    <p className="mt-3 text-[12px]">
+      <Link href={`/inbox/${latest.id}`} className="underline">Preview / download</Link>
+      <span style={{ color: MUTED }}> the output of the latest order</span>
+    </p>
   );
 }
 

@@ -50,6 +50,12 @@ export interface DeliveryTestDisclosure {
  * sentence rather than a fallback — a retired channel that still sends is still sending.
  */
 export const DELIVERY_TEST_DISCLOSURE: Record<DeliveryProtocol, DeliveryTestDisclosure> = {
+  manual: {
+    effect:
+      "There is nothing to test here. ProcuLink sends nothing for this supplier, so no test file and " +
+      "no order is sent; you send each file yourself.",
+    caveat: null,
+  },
   sftp: {
     effect:
       `This uploads a small sample file called ${TEST_ARTIFACT_FILENAME} to the folder you configured, ` +

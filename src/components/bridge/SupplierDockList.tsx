@@ -97,6 +97,7 @@ export const DELIVERY_FETCH_CAP = 50;
 
 // Friendly channel labels for the raw protocol ids (mirrors DeliveryConfigEditor).
 const PROTOCOL_LABEL: Record<DeliveryProtocol, string> = {
+  manual: "I'll send it myself",
   http: "HTTP",
   sftp: "SFTP",
   ftps: "FTPS",

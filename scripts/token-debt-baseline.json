@@ -48,7 +48,7 @@
   "src/components/bridge/ConnectorRequirementsPanel.tsx": 48,
   "src/components/bridge/CrossingsLog.tsx": 5,
   "src/components/bridge/DashboardContextLine.tsx": 9,
-  "src/components/bridge/DeliveryConfigEditor.tsx": 102,
+  "src/components/bridge/DeliveryConfigEditor.tsx": 99,
   "src/components/bridge/DeliveryGuidedSetup.tsx": 62,
   "src/components/bridge/DependencyUnavailable.tsx": 7,
   "src/components/bridge/DSPrimitives.tsx": 16,

@@ -60,7 +60,7 @@ export function InvoiceDestinationSetting() {
         <span className="rounded-full border border-border-strong px-2 text-[11px] font-semibold leading-[20px] text-ink-muted">Early access</span>
       </div>
       <p className="mt-0.5 text-[12px] leading-[1.45] text-ink-muted">
-        Every invoice, from any sender, goes here — never back to the seller. Set its channel and format on its Delivery tab.
+        Every invoice, from any sender, goes here — never back to the seller. Set its channel on its Delivery tab and its format on its Output tab.
       </p>
       {org.isError || suppliers.isError ? (
         <div className="mt-3">
@@ -109,7 +109,7 @@ export function InvoiceDestinationSetting() {
               </p>
               {delivery.isSuccess && (!format || !INVOICE_FORMATS.includes(format)) && (
                 <div className="mt-2">
-                  <StatusNotice tone="warning">Invoices go out as CSV, JSON or PDF. Change this destination&rsquo;s format on its Delivery tab.</StatusNotice>
+                  <StatusNotice tone="warning">Invoices go out as CSV, JSON or PDF. Change this destination&rsquo;s format on its <Link href={`/library/suppliers/${destinationId}?tab=output`} className="underline">Output tab</Link>.</StatusNotice>
                 </div>
               )}
             </>

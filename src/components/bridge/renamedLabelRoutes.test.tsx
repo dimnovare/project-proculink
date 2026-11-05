@@ -165,6 +165,7 @@ describe("renamed supplier tabs keep their ?tab= ids", () => {
     ["acceptance", "Rules"],
     ["history", "Changes"],
     ["overview", "Overview"],
+    ["output", "Output"],
     ["delivery", "Delivery"],
   ];
   for (const [id, label] of rows) {

@@ -37,6 +37,7 @@ interface DeliveryConfigEditorProps {
 }
 
 const PROTOCOLS: Array<{ id: DeliveryProtocol; label: string; enabled: boolean }> = [
+  { id: "manual", label: "I'll send it myself", enabled: true },
   { id: "http", label: "HTTP", enabled: true },
   { id: "sftp", label: "SFTP", enabled: true },
   { id: "ftps", label: "FTPS", enabled: true },
@@ -76,6 +77,7 @@ const INPUT_STYLE = { border: "1px solid #D5DAEA", color: "#0B1A2F" } as const;
  * Adding a field to this editor means adding its key here.
  */
 const MANAGED_CONFIG_KEYS: Record<DeliveryProtocol, readonly string[]> = {
+  manual: [],
   http: ["url", "method", "timeoutSeconds"],
   sftp: ["host", "port", "remotePath", "makeDirectories", "overwriteExisting", "timeoutSeconds"],
   ftps: [
@@ -300,6 +302,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
   // Shared by the click handler and the arrow-key radiogroup navigation.
   function selectProtocol(id: DeliveryProtocol) {
     setProtocol(id);
+    if (id === "manual") setAutoDeliver(false);
     if (id === "erp_erply" && authType === "basic") setAuthType("bearer");
     if (id === "erp_directo") setAuthType("basic");
     if (HOST_PROTOCOLS.includes(id)) setPort((prev) => (prev === "" ? defaultPortFor(id) : prev));
@@ -341,7 +344,9 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
   const urlProblem = urlVerdict && isRefusal(urlVerdict) ? urlVerdict.message : null;
 
   const canSave =
-    protocol === "sftp" || protocol === "ftps"
+    protocol === "manual"
+      ? true
+      : protocol === "sftp" || protocol === "ftps"
       ? Boolean(host)
       : protocol === "email"
         ? Boolean(toAddresses.trim())
@@ -447,6 +452,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
    * carried-over spread above.
    */
   function buildManagedConfigObject(): Record<string, unknown> {
+    if (protocol === "manual") return {};
     if (protocol === "erp_erply") return { url, clientCode: erplyClientCode, timeoutSeconds };
     if (protocol === "erp_directo") return { url, database: directoDatabase, timeoutSeconds };
     if (protocol === "sftp")
@@ -542,7 +548,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
   }
 
   function buildCredentialsJson(): string | null {
-    if (protocol === "email") return null; // HTTP email API — no credentials needed
+    if (protocol === "email" || protocol === "manual") return null; // no credentials needed
     if (protocol === "sftp") {
       const decision = decideSftpCredentialAction({
         selected: sftpAuthMode,
@@ -632,7 +638,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
     try {
       const saved = await upsertDeliveryConfig(supplierId, {
         protocol,
-        autoDeliver,
+        autoDeliver: protocol === "manual" ? false : autoDeliver,
         configJson: JSON.stringify(buildConfigObject()),
         credentialsJson: buildCredentialsJson(),
         outputFormat: outputFormat || null,
@@ -814,6 +820,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
               : `${REVIEW_BEFORE_DELIVERY_LABEL} — each order waits until someone sends it.`}
           </p>
         </div>
+        {protocol !== "manual" && (
         <label className="flex items-center gap-2 text-[12px] font-medium" style={{ color: "#0B1A2F" }}>
           <input
             type="checkbox"
@@ -825,6 +832,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
           />
           {AUTOMATIC_DELIVERY_LABEL}
         </label>
+        )}
       </div>
 
       {/* The channel picker sits beside the form from 768px up. It used to wait for 1024, so every
@@ -881,36 +889,6 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
             <p className="text-[13px]" style={{ color: "#5E6779" }}>Loading delivery config...</p>
           ) : (
             <div className="grid gap-4">
-              {/* ── Output format (what this supplier requires) ────────────── */}
-              <div className="rounded-[7px] p-3" style={{ border: "1px solid #E5E8EE", background: "#FBFCFE" }}>
-                <Field label="Output format — the format this supplier requires">
-                  <select
-                    value={outputFormat}
-                    onChange={(e) => {
-                      setOutputFormat(e.target.value);
-                      markEdited();
-                    }}
-                    className="h-9 w-full rounded-[5px] px-2 text-[12px]"
-                    style={{ ...INPUT_STYLE, background: "#FFF" }}
-                  >
-                    <option value="">Not set — defaults to XML</option>
-                    <option value="csv">CSV</option>
-                    <option value="xml">XML (generic)</option>
-                    <option value="cxml">cXML</option>
-                    <option value="ubl">UBL 2.1 Order</option>
-                    <option value="x12">ANSI X12 850</option>
-                    <option value="json">JSON</option>
-                    <option value="pdf">PDF</option>
-                  </select>
-                </Field>
-                <p className="mt-1.5 text-[11px]" style={{ color: "var(--ink-faint)" }}>
-                  When set, an order is converted to this format right before it&rsquo;s sent to this supplier.
-                </p>
-                <p className="mt-1 text-[11px]" style={{ color: "var(--ink-faint)" }}>
-                  This is the file format your supplier&rsquo;s system expects. If unsure, ask them or leave as default.
-                </p>
-              </div>
-
               {/* ── cXML network credentials (only for cXML output) ────────── */}
               {outputFormat === "cxml" && (
                 <div className="rounded-[7px]" style={{ border: "1px solid #E5E8EE" }}>
@@ -1406,7 +1384,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
               {/* ── Authentication ─────────────────────────────────────────── */}
               {/* Email (HTTP API) sends from ProcuLink's own mail servers — no per-supplier
                   credentials, so the whole auth block is hidden for it. */}
-              {protocol !== "email" && (
+              {protocol !== "email" && protocol !== "manual" && (
               <div className="rounded-[7px]" style={{ border: "1px solid #E5E8EE" }}>
                 <div className="flex items-center gap-2 px-3 py-2" style={{ borderBottom: "1px solid #E5E8EE" }}>
                   <KeyRound size={14} color="#2E8E3A" />
@@ -1661,7 +1639,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
               {/* Post-save nudge (task 8): config is saved but unproven — offer
                   the EXISTING test-fire flow right here. Hidden once a result
                   lands or the form is edited again. */}
-              {justSaved && !testResult && (
+              {justSaved && !testResult && protocol !== "manual" && (
                 <div
                   className="flex flex-col items-start gap-2 rounded-[6px] px-3 py-2 sm:flex-row sm:items-center"
                   role="status"
@@ -1710,7 +1688,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                   test hits their live system. See deliveryTestDisclosure: one sentence cannot be
                   true of all three, so this is keyed on the selected protocol. Hidden once a
                   result lands — by then the result panel is the thing to read. */}
-              {!testResult && disclosure && (
+              {!testResult && disclosure && protocol !== "manual" && (
                 <div
                   className="rounded-[6px] px-3 py-2 text-[11px] leading-5"
                   style={{ background: "var(--surface-2)", border: "1px solid var(--border)", color: "var(--ink-muted)" }}
@@ -1769,9 +1747,11 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
         <div className="hidden flex-1 sm:block" />
         {/* The test runs against the SAVED config — see `dirty`. Blocked while the form has
             unsaved changes, so a verdict is never printed about values that are not on screen. */}
+        {protocol !== "manual" && (
         <button onClick={testFire} disabled={!savedConfig || testing || dirty} aria-disabled={!savedConfig || testing || dirty} title={!savedConfig ? "Save the delivery setup first, then you can test it." : dirty ? "The test runs against the saved settings, not the unsaved changes on screen. Save first, then test." : "Send a small test to check the connection."} className="inline-flex h-8 items-center justify-center gap-1.5 rounded-[6px] px-3 text-[12px] font-semibold" style={{ border: "1px solid #D5DAEA", color: "#0B1A2F", background: "#FFF", opacity: !savedConfig || dirty ? 0.55 : 1 }}>
           <Send size={13} /> {testing ? "Testing..." : "Test connection"}
         </button>
+        )}
         <button onClick={save} disabled={saving || !canSave || credentialBlock !== null} title={credentialBlock ?? (!canSave ? "Fill in the required fields first (e.g. Host for SFTP/FTPS, URL for HTTP, or SMTP host + sender for email)." : undefined)} className="inline-flex h-8 items-center justify-center gap-1.5 rounded-[6px] px-3 text-[12px] font-semibold" style={{ border: "none", color: "#FFF", background: saving || !canSave || credentialBlock !== null ? "var(--ink-faint)" : "#0B1A2F" }}>
           <Save size={13} /> {saving ? "Saving..." : "Save delivery"}
         </button>
