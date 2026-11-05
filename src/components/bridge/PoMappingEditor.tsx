@@ -283,6 +283,7 @@ export function PoMappingEditor({
   }>({ status: "idle" });
 
   const autoNoteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const justDrawnTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function flashNote(msg: string) {
     setAutoNote(msg);
@@ -292,6 +293,7 @@ export function PoMappingEditor({
 
   useEffect(() => () => {
     if (autoNoteTimer.current) clearTimeout(autoNoteTimer.current);
+    if (justDrawnTimer.current) clearTimeout(justDrawnTimer.current);
   }, []);
 
   // NOTE: suggestions are deliberately NOT seeded into `accepted` on load.
@@ -368,7 +370,8 @@ export function PoMappingEditor({
     setSaveState({ status: "idle" });
     setBulkUndo(null);
     setJustDrawn(canonical);
-    setTimeout(() => setJustDrawn(null), 900);
+    if (justDrawnTimer.current) clearTimeout(justDrawnTimer.current);
+    justDrawnTimer.current = setTimeout(() => setJustDrawn(null), 900);
   }
 
   function handleReject(canonical: string) {
