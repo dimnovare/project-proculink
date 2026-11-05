@@ -303,6 +303,12 @@ export const PAST_REVIEW_STATUSES: readonly string[] = [
   "rejected_by_supplier",
 ];
 
+/**
+ * Statuses where the supplier already has the order, or a send is in flight or its outcome is
+ * unknown. A per-order hold (hold for review) has nothing left to hold back. Frontend-only.
+ */
+export const SENT_OR_SENDING_STATUSES: readonly string[] = ["delivering", "delivered", "delivery_unconfirmed"];
+
 const FACT_BY_STATUS = new Map(ORDER_STATUS_FACTS.map((f) => [f.status, f] as const));
 
 /** The manifest row for a raw status, or null when the machine has never heard of it. */

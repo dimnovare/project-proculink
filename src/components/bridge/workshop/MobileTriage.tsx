@@ -22,7 +22,8 @@
 
 import { useState, type KeyboardEvent, type ReactNode } from "react";
 import { UnifiedStatusBadge } from "../UnifiedStatusBadge";
-import { sendBarLabel } from "./sendBarLabel";
+import { sendBarLabel, type DeliveryBarMode } from "./sendBarLabel";
+import { DownloadButton, SECONDARY_BAR_BUTTON } from "./DownloadButton";
 import { orderProblemState } from "@/lib/orderStatusManifest";
 // Both amber notes are the SAME sentences the desktop panel renders, owned in one
 // place so the two breakpoints cannot drift apart.
@@ -127,6 +128,15 @@ export interface MobileTriageProps {
   onFocusField: (ref: string) => void;
   /** Open the send confirm dialog (→ setShowConfirm(true)). */
   onSend: () => void;
+  /**
+   * Which action leads the bar (deliveryBarMode). Optional → today's Send-first bar, no Download.
+   * `onDownload` is the finished-file download; `hasFile` says one exists (Send-first mode offers
+   * Download only then, because building a file there would send the order).
+   */
+  barMode?: DeliveryBarMode;
+  onDownload?: () => void;
+  downloading?: boolean;
+  hasFile?: boolean;
   /** Inline per-line resolution actions (same server-truth path as desktop). */
   resolve?: IssuesResolveApi;
   /** The order lines, to read each card's current code / AI suggestion by lineId. */
@@ -162,6 +172,7 @@ export function MobileTriage(props: MobileTriageProps) {
     issues, blockingIssues, exceptionCount, readyLabel, advisoryCount, canSend, crossed, sendState,
     primaryCta, primaryCtaProgress, doneLabel,
     onFix, onFocusField, onSend, resolve, lines,
+    barMode = "send", onDownload, downloading = false, hasFile = false,
     suggestableCount = 0, highConfCount = 0, hintSlot, documentSlot,
   } = props;
 
@@ -201,6 +212,12 @@ export function MobileTriage(props: MobileTriageProps) {
     sendState,
   });
   const sendLabel = sendCopy.label;
+  const downloadPrimary = barMode !== "send";
+  const showDownload = !!onDownload && (downloadPrimary || hasFile);
+  const downloadEnabled = !downloading && (!downloadPrimary || canSend);
+  const downloadButton = (
+    <DownloadButton size="sticky" primary={downloadPrimary} enabled={downloadEnabled} busy={downloading} onClick={() => onDownload?.()} />
+  );
 
   return (
     <div
@@ -512,14 +529,20 @@ export function MobileTriage(props: MobileTriageProps) {
           borderTop: `1px solid ${HAIRLINE}`,
           padding: "10px 14px calc(10px + env(safe-area-inset-bottom, 0px))",
           boxShadow: "0 -6px 18px rgba(11,26,47,.06)",
+          display: "flex",
+          flexDirection: "column",
+          gap: 8,
         }}
       >
+        {downloadPrimary && showDownload && downloadButton}
+        {barMode !== "download-only" && (
         <button
           type="button"
           onClick={() => { if (canSend) onSend(); }}
           disabled={!canSend}
           aria-label={sendCopy.ariaLabel}
-          className="plk-mobile-send"
+          className={`plk-mobile-send ${downloadPrimary ? SECONDARY_BAR_BUTTON : ""}`}
+          data-cta-weight={downloadPrimary ? "secondary" : "primary"}
           style={{
             width: "100%",
             minHeight: 48,
@@ -530,20 +553,20 @@ export function MobileTriage(props: MobileTriageProps) {
             alignItems: "center",
             justifyContent: "center",
             gap: 9,
-            background: canSend ? GREEN_BTN : "#5A7660",
-            color: "#FFFFFF",
-            border: `1px solid ${canSend ? GREEN_DEEP : "#5A7660"}`,
+            ...(downloadPrimary ? {} : { background: canSend ? GREEN_BTN : "#5A7660", color: "#FFFFFF", border: `1px solid ${canSend ? GREEN_DEEP : "#5A7660"}` }),
             cursor: canSend ? "pointer" : "not-allowed",
             transition: "filter 150ms ease",
           }}
         >
           {sendState === "idle" && !crossed && (
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
-              <path d="M14.5 1.5 7.2 8.8M14.5 1.5 9.8 14.5 7.2 8.8 1.5 6.2 14.5 1.5Z" stroke="#FFFFFF" strokeWidth="1.3" strokeLinejoin="round" />
+              <path d="M14.5 1.5 7.2 8.8M14.5 1.5 9.8 14.5 7.2 8.8 1.5 6.2 14.5 1.5Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
             </svg>
           )}
           {sendLabel}
         </button>
+        )}
+        {!downloadPrimary && showDownload && downloadButton}
       </div>
     </div>
   );

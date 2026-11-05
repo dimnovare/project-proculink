@@ -101,3 +101,20 @@ export function sendBarLabel(input: SendBarInput): SendBarCopy {
   }
   return { label: labels.primaryCta, ariaLabel: labels.primaryCta, enabled: true, override: false };
 }
+
+/**
+ * Which action leads the review bar. Download leads only where downloading cannot send:
+ * a "manual" supplier (never dispatched — and the server refuses a send, so no Send at all),
+ * Automatic delivery off, or a held order. Anything unknown (config loading, failed or
+ * absent) keeps today's Send-first bar: never guess.
+ */
+export type DeliveryBarMode = "send" | "download-first" | "download-only";
+
+export function deliveryBarMode(
+  config: { protocol: string; autoDeliver: boolean } | null | undefined,
+  held: boolean | undefined,
+): DeliveryBarMode {
+  if (config?.protocol === "manual") return "download-only";
+  if (held || (config && !config.autoDeliver)) return "download-first";
+  return "send";
+}

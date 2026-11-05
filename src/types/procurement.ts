@@ -268,6 +268,8 @@ export interface Order {
   artifacts: Artifact[];
   /** True when this order was created by the onboarding sample-order endpoint. */
   isSample?: boolean;
+  /** Held for review: never auto-delivered; an explicit Send still works. */
+  holdForReview?: boolean;
   /** Human-readable error from the newest *Failed audit event; null for non-failed orders. */
   errorMessage?: string | null;
   /**
@@ -393,6 +395,8 @@ export interface LineResolution {
 export interface ResolvePayload {
   saveMappings: boolean;
   lineResolutions: LineResolution[];
+  /** Hold-only when sent alone: flips the flag, changes nothing else. */
+  holdForReview?: boolean;
   // ── Optional header-field corrections (Item 2) ─────────────────────────────
   // Sent ONLY for fields the user actually edited in the order-review header.
   // The backend treats null/absent as "no change", so omitting a field leaves

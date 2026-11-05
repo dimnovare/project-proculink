@@ -35,6 +35,7 @@ import { BridgePageLoader } from "@/components/bridge/BridgeLoader";
 import { journeyStage, mapStatus } from "@/components/bridge/InboxView";
 import { useOrderReview } from "@/components/bridge/review/hooks/useOrderReview";
 import { useSendFlow } from "@/components/bridge/review/hooks/useSendFlow";
+import { useDownloadFinished } from "@/hooks/useDownloadFinished";
 import { deliverableArtifact, deliveryChannelLabel, formatMoney } from "@/components/bridge/review/orderDisplay";
 import { openOrderLevelExceptions } from "@/components/bridge/workshop/OrderExceptionsNotice";
 import { formatAmount } from "@/components/bridge/workshop/workshopLinesModel";
@@ -129,6 +130,11 @@ export function InvoiceScreen({ orderId }: { orderId: string }) {
     [destination],
   );
   const { flowNotice, flowSeverity, setFlow, sendState, crossed, confirmSend } = useSendFlow({ orderId, order, labels, refetchOrder });
+
+  // A destination set to "I'll send it myself" is never dispatched (the server refuses a send), so
+  // its action is Download.
+  const manual = delivery.data?.protocol === "manual";
+  const finished = useDownloadFinished({ orderId, order, setFlow, refetchOrder });
 
   // /resolve re-runs the invoice checks, so the order AND its problems are re-read before the
   // draft is dropped — the inputs never flash the old values.
@@ -460,11 +466,11 @@ export function InvoiceScreen({ orderId }: { orderId: string }) {
                   variant="navy"
                   size="lg"
                   className="mt-3 w-full"
-                  onClick={() => void confirmSend()}
+                  onClick={() => void (manual ? finished.download() : confirmSend())}
                   disabled={!canSend}
-                  loading={sendState !== "idle"}
+                  loading={manual ? finished.busy : sendState !== "idle"}
                 >
-                  {sendState === "transforming" ? "Preparing…" : sendState === "delivering" ? "Sending…" : "Send invoice"}
+                  {manual ? (finished.busy ? "Preparing…" : "Download") : sendState === "transforming" ? "Preparing…" : sendState === "delivering" ? "Sending…" : "Send invoice"}
                 </Button>
                 {reading && <p className={CAPTION}>Available once the checks finish.</p>}
                 {problems.length > 0 && <p className={CAPTION}>Fix the problem in Checks first.</p>}

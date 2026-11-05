@@ -381,7 +381,10 @@ async function realSubmitSupportRequest(payload: SupportContactPayload): Promise
 
 // ── Upload ────────────────────────────────────────────────────────────────
 
-async function mockUploadPurchaseOrder(file: File, supplierId: string): Promise<UploadResult> {
+/** Optional per-upload choices. `holdForReview` keeps this one order from auto-delivering. */
+interface UploadOptions { holdForReview?: boolean }
+
+async function mockUploadPurchaseOrder(file: File, supplierId: string, _options?: UploadOptions): Promise<UploadResult> {
   await delay(1500);
   const supplier    = MOCK_SUPPLIERS.find(s => s.id === supplierId);
   const supplierName = supplier?.name ?? "Unknown Supplier";
@@ -442,10 +445,11 @@ async function mockUploadPurchaseOrder(file: File, supplierId: string): Promise<
   return { order, validationMessages: unresolvedCount > 0 ? [`${unresolvedCount} line(s) require supplier item codes`] : [] };
 }
 
-async function realUploadPurchaseOrder(file: File, supplierId: string): Promise<UploadResult> {
+async function realUploadPurchaseOrder(file: File, supplierId: string, options?: UploadOptions): Promise<UploadResult> {
   const formData = new FormData();
   formData.append("file", file);
   formData.append("supplierId", supplierId);
+  if (options?.holdForReview) formData.append("holdForReview", "true");
 
   // Duplicate protection for the one ingest path a human drives by hand. The API
   // has always honoured this header and the browser never sent it, so a second
@@ -766,6 +770,7 @@ async function mockResolvePurchaseOrder(
   if (payload.currency     !== undefined) order.currency     = payload.currency;
   if (payload.poNumber     !== undefined) order.poNumber     = payload.poNumber;
   if (payload.supplierName !== undefined) order.supplierName = payload.supplierName;
+  if (payload.holdForReview !== undefined) order.holdForReview = payload.holdForReview;
 
   for (const res of payload.lineResolutions) {
     const li = order.lines.findIndex(l => l.lineNumber === res.lineNumber);
