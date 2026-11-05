@@ -14,7 +14,8 @@ vi.mock("@/hooks/useQueriesEnabled", () => ({
   useQueriesEnabled: () => queries.enabled,
   useTenantQueriesEnabled: () => queries.enabled,
 }));
-vi.mock("@clerk/nextjs", () => ({ useOrganization: () => ({ membership: { role: "org:admin" } }) }));
+const role = vi.hoisted(() => ({ isAdmin: true }));
+vi.mock("@/hooks/useIsOrgAdmin", () => ({ useIsOrgAdmin: () => ({ known: true, isAdmin: role.isAdmin }) }));
 // pdf.js cannot run in jsdom; the pane around it is what is under test.
 vi.mock("@/components/bridge/document/SourceDocumentBody", () => ({
   SourceDocumentBody: () => <div data-testid="original-body" />,
@@ -26,6 +27,7 @@ import { InvoiceScreen } from "./InvoiceScreen";
 afterEach(() => {
   vi.restoreAllMocks();
   queries.enabled = true;
+  role.isAdmin = true;
 });
 
 function renderScreen() {
@@ -50,6 +52,15 @@ describe("InvoiceScreen", () => {
     expect(await screen.findByLabelText("IBAN")).toHaveValue("DE89370400440532013000");
     expect(await screen.findByText("Net plus VAT does not equal the total.")).toBeInTheDocument();
     expect(screen.getByLabelText("Total")).toHaveAttribute("aria-invalid", "true");
+  });
+
+  it("a non-admin sees the IBAN, number and seller read-only, the dates still editable", async () => {
+    role.isAdmin = false;
+    renderScreen();
+    expect(await screen.findByLabelText("IBAN")).toHaveAttribute("readonly");
+    expect(screen.getByLabelText("Seller")).toHaveAttribute("readonly");
+    expect(screen.getByLabelText("Due date")).not.toHaveAttribute("readonly");
+    expect(screen.getByText("Only a workspace admin can change the IBAN, number or seller.")).toBeInTheDocument();
   });
 
   it("waits for the query instead of claiming the document could not load", () => {
@@ -102,7 +113,7 @@ describe("InvoiceScreen", () => {
   });
 
   it("Send anyway releases the held invoice with the reason, then runs the normal send", async () => {
-    const release = vi.spyOn(apiClient, "sendInvoiceAnyway").mockResolvedValue(await seededInvoice());
+    const release = vi.spyOn(apiClient, "sendInvoiceAnyway").mockResolvedValue();
     const transform = vi.spyOn(apiClient, "transformOrder").mockRejectedValue(new Error("stop here"));
 
     renderScreen();

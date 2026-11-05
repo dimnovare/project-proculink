@@ -122,7 +122,11 @@ export async function updateOrgSettings(payload: UpdateOrgSettingsPayload): Prom
 
   if (!res.ok) {
     const body = await res.json().catch(() => null);
-    throw new Error(body?.error ?? `settings/organisation: ${res.status}`);
+    throw new Error(
+      body?.error === "invoice_destination_not_found"
+        ? "That supplier no longer exists. Choose another destination."
+        : (body?.error ?? `settings/organisation: ${res.status}`),
+    );
   }
 
   const body = await res.json().catch(() => ({}));

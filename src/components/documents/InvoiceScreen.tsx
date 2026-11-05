@@ -14,17 +14,16 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useOrganization } from "@clerk/nextjs";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient, getOrderExceptions } from "@/lib/api-client";
-import { isApiMockMode } from "@/lib/api/core";
 import { getDeliveryConfig } from "@/lib/api/delivery";
 import { deliveryConfigQueryKey } from "@/lib/deliveryConfigCache";
 import { hasAssignedSupplier } from "@/lib/catalogCodes";
 import { formatDateTime } from "@/lib/format-date";
-import { opAllowsStatus, PAST_REVIEW_STATUSES, RESOLVE_HELD_FROM } from "@/lib/orderStatusManifest";
+import { INVOICE_EDITABLE_STATUSES, opAllowsStatus, PAST_REVIEW_STATUSES } from "@/lib/orderStatusManifest";
 import { sourceUnavailableMessage } from "@/lib/sourceDocument";
 import { partyLabels } from "@/hooks/useOrderDirection";
+import { useIsOrgAdmin } from "@/hooks/useIsOrgAdmin";
 import type { ResolvePayload } from "@/types/procurement";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { Card } from "@/components/bridge/layout/Card";
@@ -61,6 +60,8 @@ type Field = (typeof FIELDS)[number];
 type FieldKey = Field["key"];
 type Draft = Partial<Record<FieldKey, string>>;
 const isNumber = (f: Field) => "type" in f && f.type === "number";
+/** Changing these needs a workspace admin (the backend enforces it); the rest any member may edit. */
+const ADMIN_ONLY: readonly FieldKey[] = ["paymentIban", "poNumber", "supplierName", "sellerTaxId"];
 
 /** The backend's sentence for this check (InvoiceChecks.cs), verbatim — it is what marks Total. */
 const TOTAL_MISMATCH = "Net plus VAT does not equal the total.";
@@ -90,9 +91,7 @@ export function InvoiceScreen({ orderId }: { orderId: string }) {
   const [draft, setDraft] = useState<Draft>({});
   const [anywayOpen, setAnywayOpen] = useState(false);
   const [reason, setReason] = useState("");
-  const { membership, isLoaded: orgLoaded } = useOrganization();
-  const adminKnown = isApiMockMode || orgLoaded;
-  const isAdmin = isApiMockMode || membership?.role === "org:admin";
+  const { known: adminKnown, isAdmin } = useIsOrgAdmin();
   const isLg = useLgViewport();
   const source = useSourceDocument(orderId);
 
@@ -186,7 +185,9 @@ export function InvoiceScreen({ orderId }: { orderId: string }) {
     );
   }
 
-  const problems = openOrderLevelExceptions(checks.data);
+  // Only the invoice's own checks count here; another open order exception is not a check problem.
+  const problems = openOrderLevelExceptions(checks.data).filter((e) => e.code === "invoice_check");
+  const sentAnyway = problems.length === 0 && !!checks.data?.some((e) => e.code === "invoice_check" && e.state === "ignored");
   const problem = problemFor(order.status);
   const stage = journeyStage(mapStatus(order.status), order.status);
   const reading = order.status === "parsing";
@@ -198,7 +199,8 @@ export function InvoiceScreen({ orderId }: { orderId: string }) {
     !problem && !sent && sendState === "idle" && (opAllowsStatus("transformOrder", order.status) || opAllowsStatus("redeliverOrder", order.status));
   const value = (k: FieldKey) => draft[k] ?? String(order[k] ?? "");
   const hasEdits = FIELDS.some((f) => draft[f.key]?.trim());
-  const canSave = hasEdits && !RESOLVE_HELD_FROM.includes(order.status);
+  const editable = INVOICE_EDITABLE_STATUSES.includes(order.status);
+  const canSave = hasEdits && editable;
   const artifact = deliverableArtifact(order.artifacts);
   // Success is the sent notice below; in-flight progress is the button's own label.
   const notice = sendState === "idle" && !problem && flowSeverity !== "success" ? flowNotice : null;
@@ -211,6 +213,7 @@ export function InvoiceScreen({ orderId }: { orderId: string }) {
   const field = (f: Field) => {
     const invalid = f.key === "grandTotal" && totalOff;
     const hint = invalid && Number.isFinite(net + vat);
+    const readOnly = !editable || (ADMIN_ONLY.includes(f.key) && !(adminKnown && isAdmin));
     return (
       <div key={f.key} className="flex min-w-0 flex-col gap-1 text-[11.5px] font-semibold text-ink-muted">
         <label className="flex flex-col gap-1">
@@ -220,12 +223,13 @@ export function InvoiceScreen({ orderId }: { orderId: string }) {
             type={"type" in f ? f.type : "text"}
             step={isNumber(f) ? "0.01" : undefined}
             value={value(f.key)}
+            readOnly={readOnly}
             onChange={(e) => setDraft((d) => ({ ...d, [f.key]: e.target.value }))}
             aria-invalid={invalid || undefined}
             aria-describedby={hint ? "invoice-total-hint" : undefined}
             className={`h-9 w-full rounded-[6px] border bg-surface px-2.5 text-[12.5px] font-normal text-ink ${
               f.key === "supplierName" ? "" : "font-mono"
-            } ${isNumber(f) ? "text-right" : ""} ${invalid ? "border-amber ring-[3px] ring-amber-soft" : "border-border"}`}
+            } ${isNumber(f) ? "text-right" : ""} ${invalid ? "border-amber ring-[3px] ring-amber-soft" : "border-border"} ${readOnly ? "bg-bg text-ink-muted" : ""}`}
           />
         </label>
         {hint && (
@@ -342,16 +346,21 @@ export function InvoiceScreen({ orderId }: { orderId: string }) {
               </tbody>
             </table>
           </div>
+          {editable && adminKnown && !isAdmin && (
+            <p className={CAPTION}>Only a workspace admin can change the IBAN, number or seller.</p>
+          )}
           <div className="mt-4 flex flex-wrap items-center justify-end gap-3">
             {save.isError && (
               <span role="alert" className="mr-auto text-[12px] text-danger">
                 {save.error.message}
               </span>
             )}
-            {!hasEdits && <span className="text-[12px] text-ink-muted">No unsaved changes</span>}
-            <Button size="sm" onClick={() => save.mutate()} disabled={!canSave} loading={save.isPending}>
-              Save changes
-            </Button>
+            {editable && !hasEdits && <span className="text-[12px] text-ink-muted">No unsaved changes</span>}
+            {editable && (
+              <Button size="sm" onClick={() => save.mutate()} disabled={!canSave} loading={save.isPending}>
+                Save changes
+              </Button>
+            )}
           </div>
         </Card>
 
@@ -389,7 +398,11 @@ export function InvoiceScreen({ orderId }: { orderId: string }) {
                 // A held invoice whose problems were all dismissed is still held: never "passed".
                 <StatusNotice tone="warning">This invoice is held for review. Open it in Advanced to see why.</StatusNotice>
               ) : PAST_REVIEW_STATUSES.includes(order.status) ? (
-                <StatusNotice tone="success">All checks passed.</StatusNotice>
+                sentAnyway ? (
+                  <StatusNotice tone="working">Sent anyway by an admin.</StatusNotice>
+                ) : (
+                  <StatusNotice tone="success">All checks passed.</StatusNotice>
+                )
               ) : null}
             </div>
             <details className="mt-3 text-[12px] text-ink-muted">

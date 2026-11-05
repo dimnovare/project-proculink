@@ -78,7 +78,6 @@ describe("Settings ▸ Organisation — where invoices go", () => {
     await waitFor(() => expect(screen.getByLabelText("Where invoices go")).toHaveValue("sup-1"));
     fireEvent.change(screen.getByLabelText("Where invoices go"), { target: { value: "" } });
     await waitFor(() => expect(puts).toEqual([{ invoiceDestinationSupplierId: null }]));
-    expect(Object.keys(puts[0] as object)).toContain("invoiceDestinationSupplierId");
   });
 
   it("a destination that is no longer a supplier says so instead of showing Not set", async () => {

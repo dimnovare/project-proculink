@@ -693,7 +693,7 @@ function buildColumns(labels: PartyLabels, rowSend: RowSendContext) {
           </span>
           <span style={{ color: "var(--ink-faint)", flexShrink: 0 }}>→</span>
           {row.original.rawStatus === "unrouted" ? (
-            <AssignSupplierCell orderId={row.original.id} noun={labels.counterpartyNoun} />
+            <AssignSupplierCell href={documentHref(row.original)} noun={labels.counterpartyNoun} />
           ) : (
             <span style={{ color: GREEN_DEEP, fontWeight: 500, flex: 1, minWidth: 0, textOverflow: "ellipsis", whiteSpace: "nowrap", overflow: "hidden" }}>
               {row.original.supplier}
@@ -1007,13 +1007,13 @@ function PipelineLegend() {
  * NAMED version of that, and the only thing on the row that says what it needs.
  */
 
-function AssignSupplierCell({ orderId, noun }: { orderId: string; noun: string }) {
+function AssignSupplierCell({ href, noun }: { href: string; noun: string }) {
   const router = useRouter();
   return (
     <button
       type="button"
       // The row's own onClick would fire too and race this push to the same URL.
-      onClick={(e) => { e.stopPropagation(); router.push(`/inbox/${orderId}`); }}
+      onClick={(e) => { e.stopPropagation(); router.push(href); }}
       className="text-[12px] font-semibold"
       style={{
         flex: 1,

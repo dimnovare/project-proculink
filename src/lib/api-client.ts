@@ -1556,15 +1556,14 @@ async function realGetOrderAudit(orderId: string): Promise<AuditEvent[]> {
 
 // ── Send anyway (a held invoice) ──────────────────────────────────────────
 
-async function mockSendInvoiceAnyway(orderId: string, reason: string): Promise<Order> {
+async function mockSendInvoiceAnyway(orderId: string, reason: string): Promise<void> {
   await delay(300);
   const o = mockOrders.find(x => x.id === orderId);
   if (!o || o.status !== "pending_review" || reason.trim().length < 3) throw new Error("Only an invoice held by its checks can be sent anyway.");
   o.status = "ready";
-  return { ...o };
 }
 
-async function realSendInvoiceAnyway(orderId: string, reason: string): Promise<Order> {
+async function realSendInvoiceAnyway(orderId: string, reason: string): Promise<void> {
   const res = await fetchWithTimeout(`${API_BASE_URL}/api/orders/${orderId}/send-anyway`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...await authHeader() },
@@ -1574,7 +1573,6 @@ async function realSendInvoiceAnyway(orderId: string, reason: string): Promise<O
     const { error } = parseApiErrorBody(await res.text());
     throw new Error(error ?? `Send anyway failed: ${res.statusText || `HTTP ${res.status}`}`);
   }
-  return res.json() as Promise<Order>;
 }
 
 // ── Onboarding ────────────────────────────────────────────────────────────

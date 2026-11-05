@@ -11,6 +11,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient, getOrgSettings, updateOrgSettings } from "@/lib/api-client";
 import { getDeliveryConfig } from "@/lib/api/delivery";
 import { deliveryConfigQueryKey } from "@/lib/deliveryConfigCache";
+import { useIsOrgAdmin } from "@/hooks/useIsOrgAdmin";
 import { Card } from "@/components/bridge/layout/Card";
 import type { OrgSettings } from "@/types/procurement";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
@@ -20,6 +21,7 @@ const INVOICE_FORMATS = ["csv", "json", "pdf"];
 
 export function InvoiceDestinationSetting() {
   const queryClient = useQueryClient();
+  const { known, isAdmin } = useIsOrgAdmin();
   const org = useQuery({ queryKey: ["org-settings"], queryFn: getOrgSettings, staleTime: 300_000 });
   const suppliers = useQuery({ queryKey: ["suppliers"], queryFn: () => apiClient.getSuppliers(), staleTime: 60_000 });
   // undefined = the server did not say; that is "unavailable", never "Not set".
@@ -39,6 +41,7 @@ export function InvoiceDestinationSetting() {
     onSuccess: (_saved, id) => {
       queryClient.setQueryData<OrgSettings>(["org-settings"], (old) => (old ? { ...old, invoiceDestinationSupplierId: id } : old));
       void queryClient.invalidateQueries({ queryKey: ["org-settings"] });
+      void queryClient.invalidateQueries({ queryKey: ["orders"] }); // parked invoices moved to the new destination
       setFeedback({ text: "Saved.", kind: "ok" });
     },
     onError: (err: Error) => setFeedback({ text: err.message || "Could not save changes.", kind: "err" }),
@@ -68,7 +71,7 @@ export function InvoiceDestinationSetting() {
           <select
             aria-label="Where invoices go"
             value={destinationId ?? ""}
-            disabled={!ready || unreadable || mutation.isPending}
+            disabled={!ready || unreadable || mutation.isPending || !(known && isAdmin)}
             onChange={(e) => {
               setFeedback(null);
               mutation.mutate(e.target.value || null);
@@ -86,6 +89,7 @@ export function InvoiceDestinationSetting() {
             ))}
           </select>
           <span role="status" className={`ml-3 text-[12.5px] font-medium ${feedback?.kind === "ok" ? "text-brand-green-deep" : "text-danger"}`}>{feedback?.text}</span>
+          {known && !isAdmin && <p className="mt-2 text-[12.5px] text-ink-muted">Only a workspace admin can change this.</p>}
           {unreadable && <p className="mt-2 text-[12.5px] text-ink-muted">Couldn&rsquo;t read the current destination.</p>}
           {missing && (
             <div className="mt-2">

@@ -280,6 +280,9 @@ export const OP_GUARDS: Record<OrderOp, OpGuard> = {
  */
 export const RESOLVE_HELD_FROM: readonly string[] = ["unrouted", "delivering", "parsing", "transforming"];
 
+/** An INVOICE is editable only before it is sent: the backend refuses /resolve on one from any other status (409). */
+export const INVOICE_EDITABLE_STATUSES: readonly string[] = ["pending_review", "ready", "transform_failed"];
+
 /**
  * Statuses an order only reaches once review is behind it: read, checked, released. A positive
  * list on purpose — a status this build does not know is NOT past review, so a screen that claims
