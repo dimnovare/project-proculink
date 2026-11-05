@@ -908,6 +908,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
           status: l.needsReview ? "suggested" : "resolved",
           aiSuggestedSupplierCode: l.aiSuggestion?.supplierItemCode ?? null,
           confidence: l.aiSuggestion?.confidence ?? l.confidence ?? null,
+          basis: l.aiSuggestionBasis,
         }))
       : [];
     const empty: ReadonlySet<number> = new Set();

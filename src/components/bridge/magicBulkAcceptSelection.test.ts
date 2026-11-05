@@ -17,6 +17,16 @@ const lines: BulkSelectableLine[] = [
   { lineNumber: 5, status: "suggested", aiSuggestedSupplierCode: "S-5", confidence: null }, // null conf = 0.0
 ];
 
+describe("exact catalog matches (>=85% accept)", () => {
+  it("counts a catalog null-confidence line and a 0.85 model line, not a document echo or a 0.84 model line", () => {
+    const l = (n: number, confidence: number | null, basis: BulkSelectableLine["basis"]): BulkSelectableLine => ({
+      lineNumber: n, status: "suggested", aiSuggestedSupplierCode: `S-${n}`, confidence, basis,
+    });
+    const set = [l(1, null, "catalog"), l(2, null, "source_document"), l(3, 0.84, "model"), l(4, 0.85, "model")];
+    expect(bulkAcceptCount({ lines: set, minConfidence: 0.85, rejectedLineNumbers: new Set() })).toBe(2);
+  });
+});
+
 describe("bulkAcceptLines / count / resolutions (B11)", () => {
   it("with no rejections, includes every suggested-unresolved line at minConfidence 0", () => {
     const sel = bulkAcceptLines({ lines, minConfidence: 0, rejectedLineNumbers: new Set() });

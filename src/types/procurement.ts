@@ -155,6 +155,8 @@ export interface OrderLine {
   deliveryDate?: string | null;
   /** How the supplier code was set: "saved_mapping" | "manual" | "ai"; null when unresolved or older than this field. */
   resolvedVia?: string | null;
+  /** Kind of evidence behind the suggestion; an exact "catalog" match is a fact and passes the ≥85% bulk accept without a score. */
+  aiSuggestionBasis?: "catalog" | "source_document" | "model" | null;
 }
 
 export interface AiMappingSuggestion {

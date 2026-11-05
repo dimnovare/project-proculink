@@ -302,7 +302,7 @@ export function IssuesPanel({ issues, onFocusField, onFix, readyLabel, resolve, 
                 disabled={resolve!.bulkAccepting}
                 // The suggestions this accepts also come from an exact supplier-catalog lookup and
                 // from a part number the document itself states, so the tooltip does not say "AI".
-                title="Fills in the suggested supplier code for every item matched at 85% or more. Weaker matches stay for you to review."
+                title="Fills in the suggested supplier code for every exact catalog match and every item matched at 85% or more. Weaker matches stay for you to review."
                 style={{ ...navyBtn, opacity: resolve!.bulkAccepting ? 0.6 : 1, cursor: resolve!.bulkAccepting ? "wait" : "pointer" }}
               >
                 {resolve!.bulkAccepting ? "Accepting…" : "Accept matches ≥85%"}
