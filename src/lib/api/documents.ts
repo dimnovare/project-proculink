@@ -52,7 +52,7 @@ export interface EditValuesRequest {
 const UPLOAD_TIMEOUT_MS = 60_000;
 
 /** One request path for JSON, multipart and binary: a FormData body must not get a JSON content type. */
-async function send(path: string, init?: RequestInit, timeoutMs?: number): Promise<Response> {
+async function apiFetch<T>(path: string, init?: RequestInit, timeoutMs?: number, as: "json" | "blob" = "json"): Promise<T> {
   if (isApiMockMode) throw new Error("Flows are not available in mock mode yet.");
   const auth = await authHeader();
   const type = init?.body instanceof FormData ? {} : { "Content-Type": "application/json" };
@@ -62,11 +62,7 @@ async function send(path: string, init?: RequestInit, timeoutMs?: number): Promi
     timeoutMs,
   );
   if (!res.ok) throw await readRefusal(res, `documents: ${res.status}`);
-  return res;
-}
-
-async function apiFetch<T>(path: string, init?: RequestInit, timeoutMs?: number): Promise<T> {
-  return (await (await send(path, init, timeoutMs)).json()) as T;
+  return (as === "blob" ? res.blob() : res.json()) as Promise<T>;
 }
 
 const json = (data: unknown) => JSON.stringify(data);
@@ -88,8 +84,7 @@ export function uploadDocument(flowId: string, file: File): Promise<DocumentSumm
 export function listDocuments(params: { flowId?: string; status?: string; take?: number } = {}): Promise<DocumentSummary[]> {
   const query = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) if (value !== undefined) query.set(key, String(value));
-  const qs = query.toString();
-  return apiFetch<DocumentSummary[]>(`/documents${qs ? `?${qs}` : ""}`);
+  return apiFetch<DocumentSummary[]>(`/documents?${query}`);
 }
 
 export const getDocument = (id: string) => apiFetch<DocumentDetail>(`/documents/${id}`);
@@ -99,6 +94,5 @@ export const getDocumentHistory = (id: string) => apiFetch<HistoryEntry[]>(`/doc
 export const retryDocumentRead = (id: string) =>
   apiFetch<DocumentSummary>(`/documents/${id}/retry-read`, { method: "POST" });
 
-export async function fetchDocumentSource(id: string): Promise<Blob> {
-  return (await send(`/documents/${id}/source`, undefined, UPLOAD_TIMEOUT_MS)).blob();
-}
+export const fetchDocumentSource = (id: string) =>
+  apiFetch<Blob>(`/documents/${id}/source`, undefined, UPLOAD_TIMEOUT_MS, "blob");

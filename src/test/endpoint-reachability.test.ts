@@ -495,7 +495,9 @@ export function normalizeRouteTemplate(template: string, controller: string): st
  *
  * Written against the shapes this codebase actually uses and nothing more: a
  * class-level `[Route("literal")]` or none at all, an action template that is
- * absent, relative, or absolute (`[HttpGet("/health")]`). `parserReadsRealShapes`
+ * absent, relative, or absolute (`[HttpGet("/health")]`, or app-relative
+ * `[HttpPost("~/api/...")]`, which ASP.NET also treats as ignoring the class
+ * route — mirrors `EndpointReachabilityScanner.NormalisePath`). `parserReadsRealShapes`
  * below pins each of those against a fixture, so a shape that stops parsing
  * fails there rather than quietly shrinking the corpus.
  */
@@ -517,7 +519,7 @@ export function parseController(text: string, file: string): Endpoint[] {
     const attr = HTTP_ATTR_RE.exec(lines[i]);
     if (!attr) continue;
     const verb = attr[1].toUpperCase() as HttpMethod;
-    const template = attr[2] ?? "";
+    const template = (attr[2] ?? "").replace(/^~(?=\/)/, "");
     const full = template.startsWith("/")
       ? template
       : template
@@ -749,6 +751,15 @@ describe("the parsers run everywhere, on fixtures", () => {
         "<f.cs>",
       ).map((e) => `${e.method} ${e.path}`),
     ).toEqual(["GET /health"]);
+
+    // App-relative `~/` template ignores the class route (DocumentsController upload).
+    expect(
+      parseController(
+        '[Route("api/documents")]\npublic class DocumentsController {\n' +
+          '  [HttpPost("~/api/flows/{flowId:guid}/documents")]\n  public Task Upload() {}\n}',
+        "<f.cs>",
+      ).map((e) => `${e.method} ${e.path}`),
+    ).toEqual(["POST /api/flows/{}/documents"]);
 
     // No class [Route] but absolute action templates (OrderConfirmationController).
     expect(
