@@ -36,7 +36,7 @@ import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { useSampleOrder } from "@/hooks/useSampleOrder";
 import { PracticeOrderPrompt } from "./PracticeOrderPrompt";
-import { ACCEPTED_UPLOAD_FORMATS, hasAcceptedUploadExtension, isClearlyUnsupportedDragType } from "@/lib/upload-formats";
+import { ACCEPTED_UPLOAD_FORMATS, hasAcceptedUploadExtension, isClearlyUnsupportedDragType, uploadFileKind } from "@/lib/upload-formats";
 import { serverReasonOrNull } from "@/lib/serverText";
 import { formatDate } from "@/lib/format-date";
 
@@ -746,13 +746,7 @@ export function UploadWorkbench() {
     let uploadedOrderId: string;
     try {
       if (onboardingStatus && !onboardingStatus.hasUpload) {
-        const name = selectedFile.name.toLowerCase();
-        const fileKind = name.endsWith(".pdf")
-          ? "pdf"
-          : name.endsWith(".xlsx") || name.endsWith(".xls")
-          ? "xlsx"
-          : "csv";
-        capture("first_upload_started", { file_kind: fileKind });
+        capture("first_upload_started", { file_kind: uploadFileKind(selectedFile.name) });
       }
       const result = await apiClient.uploadPurchaseOrder(selectedFile, selectedSupplier.id, uploadOptions);
       uploadedOrderId = result.order.id;

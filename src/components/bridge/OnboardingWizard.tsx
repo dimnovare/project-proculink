@@ -19,7 +19,7 @@ import { captureException } from "@/lib/sentry-context";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 import { invalidateOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { useSampleOrder } from "@/hooks/useSampleOrder";
-import { ACCEPTED_UPLOAD_FORMATS } from "@/lib/upload-formats";
+import { ACCEPTED_UPLOAD_FORMATS, uploadFileKind } from "@/lib/upload-formats";
 import type { Supplier, OrderDirection } from "@/types/procurement";
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
@@ -404,7 +404,7 @@ function StepSeeItWork({
 
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         <label
-          htmlFor="wizard-upload-order"
+          className="focus-within:ring-2 focus-within:ring-brand-blue focus-within:ring-offset-2"
           style={{
             display: "flex",
             alignItems: "center",
@@ -419,18 +419,18 @@ function StepSeeItWork({
           }}
         >
           Upload one of your orders
+          <input
+            id="wizard-upload-order"
+            type="file"
+            accept={ACCEPTED_UPLOAD_FORMATS.dropzoneAccept}
+            disabled={running}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) onUpload(file);
+            }}
+            style={{ position: "absolute", width: 1, height: 1, opacity: 0, overflow: "hidden" }}
+          />
         </label>
-        <input
-          id="wizard-upload-order"
-          type="file"
-          accept={ACCEPTED_UPLOAD_FORMATS.dropzoneAccept}
-          disabled={running}
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) onUpload(file);
-          }}
-          style={{ position: "absolute", width: 1, height: 1, opacity: 0, overflow: "hidden" }}
-        />
         <p style={{ fontSize: 11.5, color: T.muted, margin: 0 }}>{ACCEPTED_UPLOAD_FORMATS.humanList}</p>
         {error && <p style={{ fontSize: 12, color: T.red, margin: 0 }}>{error}</p>}
       </div>
@@ -508,6 +508,7 @@ export function OnboardingWizard({ onDismiss }: OnboardingWizardProps) {
 
   function handleRunPractice() {
     capture("wizard_step_completed", { step: 2, step_name: "practice_order" });
+    setUploadError(null);
     // useSampleOrder owns the POST, the cache invalidation, and the route to the order.
     // The wizard is unmounted by that navigation, so there is nothing to close here.
     runSample();
@@ -517,6 +518,8 @@ export function OnboardingWizard({ onDismiss }: OnboardingWizardProps) {
     if (!firstSupplier) return;
     setUploading(true);
     setUploadError(null);
+    // The wizard only runs before an org's first order, so this is always the first upload.
+    capture("first_upload_started", { file_kind: uploadFileKind(file.name) });
     try {
       const { order } = await apiClient.uploadPurchaseOrder(file, firstSupplier.id);
       capture("wizard_step_completed", { step: 2, step_name: "practice_order" });
