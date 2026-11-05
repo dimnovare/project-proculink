@@ -44,9 +44,8 @@ import { OnboardingChecklist } from "./OnboardingChecklist";
 import { buildChecklistSteps } from "./buildChecklistSteps";
 
 /**
- * Supplier added; delivery therefore UNLOCKED. Catalog, upload, resolve and send
- * are all still outstanding, so the active step is CATALOG and the SEND step is
- * genuinely locked (no upload, no resolved mapping, no delivery config).
+ * Supplier added: upload and catalog are UNLOCKED, the active step is UPLOAD, and
+ * resolve, delivery and send are genuinely locked.
  */
 const SUPPLIER_ONLY: OnboardingStatus = {
   hasSupplier: true,
@@ -58,6 +57,13 @@ const SUPPLIER_ONLY: OnboardingStatus = {
   hasDeliveryConfig: false,
   hasTestFired: false,
   firstSupplierId: "sup-1",
+} as OnboardingStatus;
+
+/** Upload + item codes confirmed: delivery unlocked, but catalog is still the active step. */
+const CODES_CONFIRMED: OnboardingStatus = {
+  ...SUPPLIER_ONLY,
+  hasUpload: true,
+  hasResolvedMapping: true,
 } as OnboardingStatus;
 
 beforeEach(() => {
@@ -87,7 +93,7 @@ function stepRow(label: string): HTMLElement {
 
 describe("buildChecklistSteps — the state the UI has to render", () => {
   it("leaves delivery unlocked and not active while earlier steps are outstanding", () => {
-    const model = buildChecklistSteps(SUPPLIER_ONLY, "supplier");
+    const model = buildChecklistSteps(CODES_CONFIRMED, "supplier");
     const delivery = model.steps.find((s) => s.id === "delivery")!;
     const send = model.steps.find((s) => s.id === "send")!;
 
@@ -103,30 +109,31 @@ describe("buildChecklistSteps — the state the UI has to render", () => {
 
 describe("OnboardingChecklist — unlocked steps are reachable", () => {
   it("gives the unlocked delivery step a working link even though it is not next", () => {
+    statusValue = CODES_CONFIRMED;
     render(<OnboardingChecklist />);
 
-    const row = stepRow("Set up delivery and send a test");
+    const row = stepRow("Ready to automate delivery?");
     const link = within(row).getByRole("link");
     expect(link).toHaveAttribute("href", "/library/suppliers/sup-1?tab=delivery");
   });
 
-  it("also offers the other unlocked-but-not-active step (upload)", () => {
+  it("also offers the other unlocked-but-not-active step (catalog)", () => {
     render(<OnboardingChecklist />);
 
-    const row = stepRow("Upload an order");
-    expect(within(row).getByRole("link")).toHaveAttribute("href", "/upload");
+    const row = stepRow("Add the supplier's item codes");
+    expect(within(row).getByRole("link")).toHaveAttribute("href", "/library/suppliers/sup-1?tab=catalog");
   });
 
   it("keeps the active step visually primary — its CTA is the one green button", () => {
     render(<OnboardingChecklist />);
 
-    // The primary CTA for the active step (catalog) lives outside the step list.
-    const primary = screen.getByRole("link", { name: /Add item codes/ });
+    // The primary CTA for the active step (upload) lives outside the step list.
+    const primary = screen.getByRole("link", { name: /Upload an order/ });
     const list = screen.getByRole("list", { name: "First delivery setup steps" });
     expect(list.contains(primary)).toBe(false);
 
     // And the active row itself does not sprout a competing secondary link.
-    const activeRow = stepRow("Add the supplier's item codes");
+    const activeRow = stepRow("Upload an order");
     expect(within(activeRow).queryByRole("link")).toBeNull();
   });
 
@@ -136,7 +143,7 @@ describe("OnboardingChecklist — unlocked steps are reachable", () => {
     const locked = stepRow("Send your first order");
     expect(within(locked).queryByRole("link")).toBeNull();
 
-    const lockedResolve = stepRow("Match item codes on an order");
+    const lockedResolve = stepRow("Confirm item codes");
     expect(within(lockedResolve).queryByRole("link")).toBeNull();
   });
 });

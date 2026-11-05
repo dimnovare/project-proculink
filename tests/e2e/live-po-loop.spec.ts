@@ -153,10 +153,10 @@ test.describe("Order Workshop — mock parity subset", () => {
     // It appears inside the issues-bulk-accept slot in the IssuesPanel.
     await expect(page.getByTestId("issues-bulk-accept")).toBeVisible({ timeout: 15_000 });
     // The actual button must be visible and enabled. The one-click bulk accept
-    // is labelled "Resolve all suggested" (renamed from "Accept all AI
+    // is labelled "Accept matches ≥85%" or "Accept all suggestions" (renamed from "Accept all AI
     // suggestions" in the issues banner-actions redesign, f365aa0); it still
     // drives the same POST /accept-ai-suggestions path.
-    const acceptAll = page.getByRole("button", { name: /resolve all suggested/i }).first();
+    const acceptAll = page.getByRole("button", { name: /accept matches ≥85%|accept all suggestions/i }).first();
     await expect(acceptAll).toBeVisible();
     await expect(acceptAll).toBeEnabled();
   });

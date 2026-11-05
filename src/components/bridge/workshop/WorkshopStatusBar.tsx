@@ -24,6 +24,8 @@ import {
 import { orderProblemState } from "@/lib/orderStatusManifest";
 import type { MapperToolbarState } from "../mapper/MapperWorkbench";
 import { statusChipTitle } from "./acceptanceGateModel";
+import { learnedCodeCount } from "./workshopLinesModel";
+import type { OrderLine } from "@/types/procurement";
 
 export interface BlockerChip {
   /** Stable id (the issue code) — passed to onJump to focus + open that card. */
@@ -71,13 +73,6 @@ export const UNKNOWN_CHIP_STYLE: CSSProperties = {
   borderRadius: 5, padding: "2px 8px", whiteSpace: "nowrap",
 };
 
-function SparkleGlyph() {
-  return (
-    <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden style={{ flexShrink: 0 }}>
-      <path d="M6 1.2l1.1 3.2 3.2 1.1-3.2 1.1L6 9.8 4.9 6.6 1.7 5.5l3.2-1.1z" fill="#FFFFFF" />
-    </svg>
-  );
-}
 
 export function WorkshopStatusBar({
   blockers,
@@ -97,15 +92,18 @@ export function WorkshopStatusBar({
   notice,
   noticeSeverity = "info",
   orderStatus = null,
+  lines = [],
 }: {
   blockers: BlockerChip[];
+  /** The order's lines — only `resolvedVia` is read, for the "filled from your saved item codes" line. */
+  lines?: ReadonlyArray<Pick<OrderLine, "resolvedVia">>;
   /** Warning-level (non-blocking) issue count — shown as a quiet optional note. */
   notes?: number;
   /** Jump to + flash a blocker's issue card. */
   onJump: (id: string) => void;
   /** Bring the issue list back into view (lives in the ⋯ overflow). */
   onReviewIssues?: () => void;
-  /** Bulk-accept every AI suggestion (the "Resolve suggested (n)" button). */
+  /** Bulk-accept the strong matches (the "Accept matches ≥85% (n)" button). */
   onResolveAll?: () => void;
   /** How many issues the bulk resolve would clear → its count; hidden when 0. */
   resolveAllCount?: number;
@@ -268,8 +266,7 @@ export function WorkshopStatusBar({
                 display: "inline-flex", alignItems: "center", gap: 6, whiteSpace: "nowrap",
               }}
             >
-              <SparkleGlyph />
-              {resolving ? "Resolving…" : `Resolve suggested (${resolveAllCount})`}
+              {resolving ? "Accepting…" : `Accept matches ≥85% (${resolveAllCount})`}
             </button>
           )}
         </div>
@@ -360,6 +357,11 @@ export function WorkshopStatusBar({
               <path d="M2.5 6.2 L5 8.6 L9.5 3.6" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
             {mapper.mapped}/{mapper.total} mapped
+          </span>
+        )}
+        {learnedCodeCount(lines) > 0 && (
+          <span data-testid="status-bar-learned" style={{ fontSize: 11.5, fontWeight: 600, color: "var(--ink-muted)", whiteSpace: "nowrap" }}>
+            {learnedCodeCount(lines)} of {lines.length} item codes filled from your saved item codes
           </span>
         )}
         {/* Save-state + rare warnings relocated from the old mapper toolbar row. */}

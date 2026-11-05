@@ -40,6 +40,7 @@ import {
   formatAmount,
   lineAmountOf,
   lineChipStatus,
+  unresolvedFirst,
   linesToggleAlert,
   reconcileTotals,
   round2,
@@ -269,7 +270,7 @@ export function WorkshopLinesView({
     // misattributes the deterministic ones, so the dialog says "suggested code" and the
     // per-line chip keeps "AI" for the scored ones only.
     const ok = await confirm({
-      title: "Apply suggested codes to all blocked lines?",
+      title: "Accept all suggestions, including low-confidence?",
       description: `${bulkCount} blocked ${bulkCount === 1 ? "line has" : "lines have"} a suggested supplier code. Each suggestion will be saved as that line's supplier code — you can still change any line afterwards.`,
       confirmLabel: `Apply ${bulkCount} suggestion${bulkCount === 1 ? "" : "s"}`,
     });
@@ -284,7 +285,7 @@ export function WorkshopLinesView({
             <tr>
               <Th style={{ width: 34 }}>#</Th>
               <Th>Your item code</Th>
-              <Th>Supplier code</Th>
+              <Th><span aria-hidden>→ </span>Supplier code</Th>
               <Th>Description</Th>
               <Th style={{ width: 46 }}>Qty</Th>
               <Th style={{ width: 82 }}>{`Unit ${sym}`.trim()}</Th>
@@ -293,7 +294,7 @@ export function WorkshopLinesView({
             </tr>
           </thead>
           <tbody>
-            {lines.map((line) => {
+            {unresolvedFirst(lines).map((line) => {
               const status = lineChipStatus(line);
               const expandable = status !== "ready";
               // `open` is DERIVED (expandable && in the expanded set), never stored:
@@ -413,7 +414,7 @@ export function WorkshopLinesView({
               whiteSpace: "nowrap",
             }}
           >
-            {bulkAccepting ? "Applying…" : "Apply suggested codes to all blocked lines"}
+            {bulkAccepting ? "Applying…" : `Accept all suggestions, including low-confidence (${bulkCount})`}
           </button>
         )}
       </div>
@@ -498,7 +499,12 @@ function LineRow({
         </td>
         <td style={td({ fontFamily: C.mono, fontSize: 11.5, color: C.ink })}>{line.buyerItemCode}</td>
         <td style={td({ fontFamily: C.mono, fontSize: 11.5, color: missingCode ? C.red : C.ink })}>
-          {missingCode ? "— missing" : line.supplierItemCode}
+          {missingCode ? (blockedRow ? "Supplier code needs confirmation" : "— missing") : line.supplierItemCode}
+          {line.resolvedVia === "saved_mapping" && (
+            <span style={{ ...chipBase, background: C.greenSoft, color: C.green, marginLeft: 6 }}>
+              From your saved item codes
+            </span>
+          )}
         </td>
         <td
           title={description ?? undefined}
@@ -569,7 +575,7 @@ function LineRow({
               }
             >
               {missingCode ? (
-                <ValueChip tone="red">— missing</ValueChip>
+                <ValueChip tone="red">{blockedRow ? "Supplier code needs confirmation" : "— missing"}</ValueChip>
               ) : (
                 <ValueChip>{line.supplierItemCode}</ValueChip>
               )}

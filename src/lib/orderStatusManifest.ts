@@ -280,6 +280,9 @@ export const OP_GUARDS: Record<OrderOp, OpGuard> = {
  */
 export const RESOLVE_HELD_FROM: readonly string[] = ["unrouted", "delivering", "parsing", "transforming"];
 
+/** Statuses where a hold-only resolve is accepted AND the hold is honoured (later retries ignore it). Frontend-only. */
+export const HOLDABLE_STATUSES: readonly string[] = ["pending_review", "ready", "ready_to_deliver"];
+
 /** An INVOICE is editable only before it is sent: the backend refuses /resolve on one from any other status (409). */
 export const INVOICE_EDITABLE_STATUSES: readonly string[] = ["pending_review", "ready", "transform_failed"];
 
@@ -302,6 +305,12 @@ export const PAST_REVIEW_STATUSES: readonly string[] = [
   "transform_failed",
   "rejected_by_supplier",
 ];
+
+/**
+ * Statuses where the supplier already has the order, or a send is in flight or its outcome is
+ * unknown. A per-order hold (hold for review) has nothing left to hold back. Frontend-only.
+ */
+export const SENT_OR_SENDING_STATUSES: readonly string[] = ["delivering", "delivered", "delivery_unconfirmed"];
 
 const FACT_BY_STATUS = new Map(ORDER_STATUS_FACTS.map((f) => [f.status, f] as const));
 

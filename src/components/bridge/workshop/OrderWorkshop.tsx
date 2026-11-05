@@ -52,7 +52,10 @@ import { OrderProblemPanel } from "../problem/OrderProblemPanel";
 import { problemFor, waitPhrase } from "../problem/problemCopy";
 import { ConfirmDialog, deliverySetupFrom } from "../review/ConfirmDialog";
 import { buildFixQueue, type FixQueueCard } from "../review/buildFixQueue";
-import { orderGrandTotalLabel, deliveryFormatLabel, buyerLabel, orderDeliveryFormat } from "../review/orderDisplay";
+import { orderGrandTotalLabel, deliveryFormatLabel, buyerLabel, orderDeliveryFormat, deliverableArtifact } from "../review/orderDisplay";
+import { useDownloadFinished } from "@/hooks/useDownloadFinished";
+import { HoldForReviewToggle } from "./HoldForReviewToggle";
+import { DownloadButton, SECONDARY_BAR_BUTTON } from "./DownloadButton";
 import { useOrderReview } from "../review/hooks/useOrderReview";
 import { useResolveActions } from "../review/hooks/useResolveActions";
 import { useAcceptanceValidation } from "../review/hooks/useAcceptanceValidation";
@@ -65,7 +68,7 @@ import {
   sourceFormatLabel,
   sourceUnavailableMessage as sourceDocumentUnavailableMessage,
 } from "@/lib/sourceDocument";
-import { sendBarLabel } from "./sendBarLabel";
+import { sendBarLabel, deliveryBarMode } from "./sendBarLabel";
 import { InboxBackChip, WorkshopGateShell, poTitleFrom } from "./WorkshopGateChrome";
 import { OrderExceptionsNotice } from "./OrderExceptionsNotice";
 import { ParsingGate } from "./ParsingGate";
@@ -73,7 +76,7 @@ import { IssuesPanel, type WorkshopIssue, type IssuesResolveApi } from "./Issues
 import { CatalogHintCard } from "../review/CatalogHintCard";
 import { WorkshopLinesView, WorkshopLinesToggle } from "./WorkshopLinesView";
 import { showLinesToggle } from "./workshopLinesModel";
-import { bulkAcceptCount, type BulkSelectableLine } from "../magicBulkAcceptSelection";
+import { BULK_ACCEPT_CONFIDENCE, bulkAcceptCount, type BulkSelectableLine } from "../magicBulkAcceptSelection";
 import { MobileTriage } from "./MobileTriage";
 import { acceptanceIssues, failingAcceptanceCount, readyBarLabel } from "./acceptanceGateModel";
 import { WorkshopStepper } from "./WorkshopStepper";
@@ -437,6 +440,11 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
     sendState, crossed, confirmSend,
     showConfirm, setShowConfirm,
   } = useSendFlow({ orderId, order, labels, refetchOrder });
+
+  // Download leads where downloading cannot send (manual, review-before-delivery, held);
+  // an unknown config keeps today's Send-first bar.
+  const barMode = deliveryBarMode(deliveryConfigQuery.data, order?.holdForReview);
+  const { download, busy: downloading } = useDownloadFinished({ orderId, order, setFlow, refetchOrder });
 
   // Resolution actions — header/line nodes aren't needed here (the mapper owns the
   // canonical line nodes), so we pass an empty node list; acceptSuggestion is the
@@ -888,7 +896,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
 
   // ── Bulk-accept scope counts — derived from order.lines, mapped to the SAME
   //    BulkSelectableLine shape MagicMappingPreview feeds bulkAcceptCount, so the
-  //    workshop's "Accept all"/"Accept ≥85%" badges match the preview's semantics
+  //    workshop's "Accept matches ≥85%"/accept-all badges match the preview's semantics
   //    exactly. A line is suggestable when it's still unresolved (needsReview) AND
   //    carries an AI-suggested supplier code; the ≥85% subset uses the suggestion's
   //    own confidence (falling back to the line confidence). The workshop has no
@@ -900,12 +908,13 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
           status: l.needsReview ? "suggested" : "resolved",
           aiSuggestedSupplierCode: l.aiSuggestion?.supplierItemCode ?? null,
           confidence: l.aiSuggestion?.confidence ?? l.confidence ?? null,
+          basis: l.aiSuggestionBasis,
         }))
       : [];
     const empty: ReadonlySet<number> = new Set();
     return {
       suggestableCount: bulkAcceptCount({ lines: selectable, minConfidence: 0, rejectedLineNumbers: empty }),
-      highConfCount: bulkAcceptCount({ lines: selectable, minConfidence: 0.85, rejectedLineNumbers: empty }),
+      highConfCount: bulkAcceptCount({ lines: selectable, minConfidence: BULK_ACCEPT_CONFIDENCE, rejectedLineNumbers: empty }),
     };
   }, [order]);
 
@@ -1001,6 +1010,15 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
     sendState,
     problemAction: problem?.rowAction ?? null,
   });
+
+  // Download = the finished file. Primary where it cannot send; in Send-first mode it is a
+  // secondary offered only once a file exists (building one there would send the order).
+  const downloadPrimary = barMode !== "send";
+  const showDownload = downloadPrimary || deliverableArtifact(order?.artifacts) !== null;
+  const downloadEnabled = !downloading && (!downloadPrimary || canSend);
+  const downloadButton = (
+    <DownloadButton size="bar" primary={downloadPrimary} enabled={downloadEnabled} busy={downloading} onClick={() => void download()} />
+  );
 
   // ── v3 chrome derivations (pipeline stepper + send-readiness strip) ──────────
   // Parse + Normalize are always done (the order is parsed); the active stage walks
@@ -1228,9 +1246,13 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
               <FocusControl focus={lay.focus} onFocus={lay.setFocus} />
             </div>
 
+            <HoldForReviewToggle order={order} refetchOrder={refetchOrder} setFlow={setFlow} />
+            {downloadPrimary && showDownload && downloadButton}
+
             {/* Send — gated by canSend (issues clear + server-truth exceptions clear).
                 While blocked the button label carries the count ("Send · N blockers")
                 — the old separate caption line is folded into the button itself. */}
+            {barMode !== "download-only" && (
             <div style={{ position: "relative", display: "flex", alignItems: "center" }} onMouseEnter={() => setSendTip(true)} onMouseLeave={() => setSendTip(false)}>
               <button
                 type="button"
@@ -1241,10 +1263,11 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
                    "Send to supplier" on an order that cannot be sent. That arm
                    now lives in sendBarLabel, alongside the blocked/override arms. */
                 aria-label={sendCopy.ariaLabel}
+                data-cta-weight={downloadPrimary ? "secondary" : "primary"}
+                className={downloadPrimary ? SECONDARY_BAR_BUTTON : undefined}
                 style={{
                   height: 36, padding: "0 18px", borderRadius: 8, fontSize: 13, fontWeight: 700,
-                  background: canSend ? "#297F34" : "#5A7660", color: "#FFFFFF",
-                  border: `1px solid ${canSend ? "#1E6D29" : "#5A7660"}`,
+                  ...(downloadPrimary ? {} : { background: canSend ? "#297F34" : "#5A7660", color: "#FFFFFF", border: `1px solid ${canSend ? "#1E6D29" : "#5A7660"}` }),
                   cursor: canSend ? "pointer" : "not-allowed", whiteSpace: "nowrap", flexShrink: 0,
                   display: "inline-flex", alignItems: "center", gap: 8, transition: "filter .12s",
                 }}
@@ -1252,7 +1275,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
                 onMouseLeave={(e) => { e.currentTarget.style.filter = "none"; }}
               >
                 <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
-                  <path d="M14.5 1.5 7.2 8.8M14.5 1.5 9.8 14.5 7.2 8.8 1.5 6.2 14.5 1.5Z" stroke="#FFFFFF" strokeWidth="1.3" strokeLinejoin="round" />
+                  <path d="M14.5 1.5 7.2 8.8M14.5 1.5 9.8 14.5 7.2 8.8 1.5 6.2 14.5 1.5Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
                 </svg>
                 {sendCopy.label}
               </button>
@@ -1266,6 +1289,8 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
                 </div>
               )}
             </div>
+            )}
+            {!downloadPrimary && showDownload && downloadButton}
           </div>
         </div>
       </div>
@@ -1398,6 +1423,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
       <div className="hidden lg:block flex-shrink-0">
         <WorkshopStatusBar
           blockers={blockerChips}
+          lines={order.lines}
           notes={noteCount}
           /* Same value IssuesPanel and MobileTriage already receive. Without it
              the bar drew a green tick under the red banner of a stopped order. */
@@ -1407,8 +1433,8 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
              "switch to the Issues tab" — it re-opens a railed third column and
              scrolls the list back to the top. */
           onReviewIssues={() => { lay.setFocus("all"); setShowIssuesSignal((s) => s + 1); }}
-          onResolveAll={issuesResolve.bulkAcceptSuggestions ? () => issuesResolve.bulkAcceptSuggestions!(0) : undefined}
-          resolveAllCount={suggestableCount}
+          onResolveAll={issuesResolve.bulkAcceptSuggestions ? () => issuesResolve.bulkAcceptSuggestions!(BULK_ACCEPT_CONFIDENCE) : undefined}
+          resolveAllCount={highConfCount}
           resolving={issuesResolve.bulkAccepting}
           mapper={statusBarMapper}
           pipeline={<WorkshopStepper stage={stepperStage} failed={stepperFailed} />}
@@ -1554,6 +1580,10 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
           onFix={onFix}
           onFocusField={onFocusField}
           onSend={() => setShowConfirm(true)}
+          barMode={barMode}
+          onDownload={() => void download()}
+          downloading={downloading}
+          hasFile={deliverableArtifact(order?.artifacts) !== null}
           resolve={issuesResolve}
           lines={order.lines}
           suggestableCount={suggestableCount}

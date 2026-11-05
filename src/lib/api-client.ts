@@ -165,8 +165,8 @@ const mockOrders: Order[] = [
     createdAt: "2024-01-10T14:30:00Z",
     updatedAt: "2024-01-10T14:30:00Z",
     lines: [
-      { id: "l-001-1", lineNumber: 1, buyerItemCode: "ACM-BOLT-001",   supplierItemCode: "FP-B001",   description: "Steel Bolt M10x50",   quantity: 500,  unit: "PCS", unitPrice: 0.45, confidence: 1.0, needsReview: false },
-      { id: "l-001-2", lineNumber: 2, buyerItemCode: "ACM-NUT-001",    supplierItemCode: "FP-N001",   description: "Steel Nut M10",       quantity: 500,  unit: "PCS", unitPrice: 0.25, confidence: 1.0, needsReview: false },
+      { id: "l-001-1", lineNumber: 1, buyerItemCode: "ACM-BOLT-001",   supplierItemCode: "FP-B001",   description: "Steel Bolt M10x50",   quantity: 500,  unit: "PCS", unitPrice: 0.45, confidence: 1.0, needsReview: false, resolvedVia: "saved_mapping" },
+      { id: "l-001-2", lineNumber: 2, buyerItemCode: "ACM-NUT-001",    supplierItemCode: "FP-N001",   description: "Steel Nut M10",       quantity: 500,  unit: "PCS", unitPrice: 0.25, confidence: 1.0, needsReview: false, resolvedVia: "saved_mapping" },
       { id: "l-001-3", lineNumber: 3, buyerItemCode: "ACM-WASHER-001", supplierItemCode: "FP-W001",   description: "Steel Washer M10",    quantity: 1000, unit: "PCS", unitPrice: 0.10, confidence: 1.0, needsReview: false },
     ],
     artifacts: [],
@@ -381,7 +381,10 @@ async function realSubmitSupportRequest(payload: SupportContactPayload): Promise
 
 // ── Upload ────────────────────────────────────────────────────────────────
 
-async function mockUploadPurchaseOrder(file: File, supplierId: string): Promise<UploadResult> {
+/** Optional per-upload choices. `holdForReview` keeps this one order from auto-delivering. */
+interface UploadOptions { holdForReview?: boolean }
+
+async function mockUploadPurchaseOrder(file: File, supplierId: string, _options?: UploadOptions): Promise<UploadResult> {
   await delay(1500);
   const supplier    = MOCK_SUPPLIERS.find(s => s.id === supplierId);
   const supplierName = supplier?.name ?? "Unknown Supplier";
@@ -442,10 +445,11 @@ async function mockUploadPurchaseOrder(file: File, supplierId: string): Promise<
   return { order, validationMessages: unresolvedCount > 0 ? [`${unresolvedCount} line(s) require supplier item codes`] : [] };
 }
 
-async function realUploadPurchaseOrder(file: File, supplierId: string): Promise<UploadResult> {
+async function realUploadPurchaseOrder(file: File, supplierId: string, options?: UploadOptions): Promise<UploadResult> {
   const formData = new FormData();
   formData.append("file", file);
   formData.append("supplierId", supplierId);
+  if (options?.holdForReview) formData.append("holdForReview", "true");
 
   // Duplicate protection for the one ingest path a human drives by hand. The API
   // has always honoured this header and the browser never sent it, so a second
@@ -766,6 +770,7 @@ async function mockResolvePurchaseOrder(
   if (payload.currency     !== undefined) order.currency     = payload.currency;
   if (payload.poNumber     !== undefined) order.poNumber     = payload.poNumber;
   if (payload.supplierName !== undefined) order.supplierName = payload.supplierName;
+  if (payload.holdForReview !== undefined) order.holdForReview = payload.holdForReview;
 
   for (const res of payload.lineResolutions) {
     const li = order.lines.findIndex(l => l.lineNumber === res.lineNumber);

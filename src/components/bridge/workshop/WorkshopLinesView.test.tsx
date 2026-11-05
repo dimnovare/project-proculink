@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen, fireEvent, cleanup, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, cleanup, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 // WorkshopLinesView — the workshop middle column's per-line "Lines" view.
@@ -26,6 +26,7 @@ vi.mock("@/hooks/useQueriesEnabled", () => ({
 import { getSupplierCatalog } from "@/lib/api-client";
 import { CATALOG_CODES_TAKE } from "@/lib/catalogCodes";
 import { WorkshopLinesView, WorkshopLinesToggle } from "./WorkshopLinesView";
+import { WorkshopStatusBar } from "./WorkshopStatusBar";
 import type { Order, OrderLine } from "@/types/procurement";
 
 const catalogMock = vi.mocked(getSupplierCatalog);
@@ -54,7 +55,7 @@ function makeLine(over: Partial<OrderLine>): OrderLine {
 }
 
 /** The bulk button's visible label — neutral, because the set it applies is mixed. */
-const BULK_APPLY_LABEL = "Apply suggested codes to all blocked lines";
+const BULK_APPLY_LABEL = /accept all suggestions, including low-confidence/i;
 
 const READY_LINE = makeLine({ id: "line-1", lineNumber: 1 });
 const BLOCKED_LINE = makeLine({
@@ -118,7 +119,7 @@ describe("row expand — the per-line mapping panel", () => {
     // node is the label alone.
     expect(screen.getByText("AI suggestion: TY-90112 (92%)")).toBeTruthy();
     // The blocked line's missing supplier code is stated, in red column copy.
-    expect(screen.getAllByText("— missing").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Supplier code needs confirmation").length).toBeGreaterThan(0);
   });
 
   it("the suggestion chip calls the existing accept action with the line id", () => {
@@ -256,7 +257,7 @@ describe("suggestion attribution — only a scored suggestion is called AI", () 
       await waitFor(() => expect(confirmSpy).toHaveBeenCalledTimes(1));
 
       const message = String(confirmSpy.mock.calls[0][0]);
-      expect(message).toContain("Apply suggested codes to all blocked lines?");
+      expect(message).toContain("Accept all suggestions, including low-confidence?");
       expect(message).toContain("2 blocked lines have a suggested supplier code");
       expect(message).not.toMatch(/\bAI\b/);
     } finally {
@@ -455,5 +456,36 @@ describe("WorkshopLinesToggle", () => {
     const fields = screen.getByRole("button", { name: "Fields" });
     expect(lines.getAttribute("aria-pressed")).toBe("true");
     expect(fields.getAttribute("aria-pressed")).toBe("false");
+  });
+});
+
+describe("codes learned from previous orders", () => {
+  it("saved-mapping lines show the learned chip and the bar shows 7 of 11", () => {
+    const lines = Array.from({ length: 11 }, (_, i) =>
+      makeLine({
+        id: `l${i + 1}`,
+        lineNumber: i + 1,
+        buyerItemCode: `B-${i + 1}`,
+        supplierItemCode: i >= 8 ? null : `S-${i + 1}`,
+        needsReview: i >= 8 && i < 10, // line 11: no code but not flagged (e.g. an invoice line)
+        resolvedVia: i < 7 ? "saved_mapping" : i === 7 ? "manual" : null,
+      }),
+    );
+    renderView(makeOrder(lines, null));
+    const view = within(screen.getByTestId("lines-view"));
+    expect(view.getAllByText("From your saved item codes")).toHaveLength(7);
+    const rows = view.getAllByRole("row").slice(1);
+    expect(rows[0].textContent).toContain("B-9");
+    expect(rows[1].textContent).toContain("B-10");
+    expect(rows[2].textContent).toContain("B-1"); // original order resumes; unflagged B-11 is not hoisted
+    expect(view.getAllByText("Supplier code needs confirmation")).toHaveLength(2);
+
+    render(<WorkshopStatusBar blockers={[]} onJump={vi.fn()} mapper={null} lines={lines} />);
+    expect(screen.getByTestId("status-bar-learned").textContent).toBe(
+      "7 of 11 item codes filled from your saved item codes",
+    );
+    cleanup();
+    render(<WorkshopStatusBar blockers={[]} onJump={vi.fn()} mapper={null} lines={[makeLine({})]} />);
+    expect(screen.queryByTestId("status-bar-learned")).toBeNull();
   });
 });

@@ -159,6 +159,7 @@ export function orderDeliveryFormat(order: Pick<Order, "artifacts">): OutputForm
 // Friendly channel labels for the raw delivery protocol ids (mirrors
 // DeliveryConfigEditor / SupplierDockList).
 export const PROTOCOL_LABEL: Record<DeliveryProtocol, string> = {
+  manual: "I'll send it myself",
   http: "HTTP",
   sftp: "SFTP",
   ftps: "FTPS",

@@ -36,7 +36,7 @@ import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { useSampleOrder } from "@/hooks/useSampleOrder";
 import { PracticeOrderPrompt } from "./PracticeOrderPrompt";
-import { ACCEPTED_UPLOAD_FORMATS, hasAcceptedUploadExtension, isClearlyUnsupportedDragType } from "@/lib/upload-formats";
+import { ACCEPTED_UPLOAD_FORMATS, hasAcceptedUploadExtension, isClearlyUnsupportedDragType, uploadFileKind } from "@/lib/upload-formats";
 import { serverReasonOrNull } from "@/lib/serverText";
 import { formatDate } from "@/lib/format-date";
 
@@ -580,6 +580,9 @@ export function UploadWorkbench() {
   // a disallowed file is dropped or picked (before any upload round-trip).
   const [fileError, setFileError] = useState<string | null>(null);
   const [uploading, setUploading]   = useState(false);
+  // Per-upload choice: keep these orders from auto-delivering until someone has looked.
+  const [holdForReview, setHoldForReview] = useState(false);
+  const uploadOptions = holdForReview ? { holdForReview: true } : undefined;
   const [uploadError, setUploadError] = useState<UploadErrorBanner | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const router = useRouter();
@@ -743,15 +746,9 @@ export function UploadWorkbench() {
     let uploadedOrderId: string;
     try {
       if (onboardingStatus && !onboardingStatus.hasUpload) {
-        const name = selectedFile.name.toLowerCase();
-        const fileKind = name.endsWith(".pdf")
-          ? "pdf"
-          : name.endsWith(".xlsx") || name.endsWith(".xls")
-          ? "xlsx"
-          : "csv";
-        capture("first_upload_started", { file_kind: fileKind });
+        capture("first_upload_started", { file_kind: uploadFileKind(selectedFile.name) });
       }
-      const result = await apiClient.uploadPurchaseOrder(selectedFile, selectedSupplier.id);
+      const result = await apiClient.uploadPurchaseOrder(selectedFile, selectedSupplier.id, uploadOptions);
       uploadedOrderId = result.order.id;
       // Cache the format-detection result so ParseFailedPanel can show it if parsing fails.
       if (detection) {
@@ -904,7 +901,7 @@ export function UploadWorkbench() {
       const file = allFiles[i];
       setBatchResults((prev) => prev.map((r, idx) => (idx === i ? { ...r, status: "uploading" } : r)));
       try {
-        const result = await apiClient.uploadPurchaseOrder(file, selectedSupplier.id);
+        const result = await apiClient.uploadPurchaseOrder(file, selectedSupplier.id, uploadOptions);
         anySucceeded = true;
         setUploadError(null); // recovered — clear any "pacing" banner shown while throttled
         setBatchResults((prev) => prev.map((r, idx) => (idx === i ? { ...r, status: "done", orderId: result.order.id } : r)));
@@ -1778,6 +1775,11 @@ export function UploadWorkbench() {
                 })()}
               </div>
             )}
+
+            <label className="flex items-center gap-2 text-[12.5px] text-ink">
+              <input type="checkbox" checked={holdForReview} onChange={(e) => setHoldForReview(e.target.checked)} />
+              Hold this order for review
+            </label>
 
             <div className="flex items-center gap-3">
               <StepBadge n={3} tone="green" />

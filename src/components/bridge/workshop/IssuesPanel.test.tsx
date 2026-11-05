@@ -1,5 +1,5 @@
 import { describe, test, expect, vi, afterEach } from "vitest";
-import { render, screen, fireEvent, cleanup } from "@testing-library/react";
+import { render, screen, fireEvent, cleanup, within, waitFor } from "@testing-library/react";
 import { IssuesPanel, type WorkshopIssue, type IssuesResolveApi } from "./IssuesPanel";
 import type { OrderLine } from "@/types/procurement";
 
@@ -229,56 +229,52 @@ describe("IssuesPanel — inline line resolution", () => {
 // secondary is hidden when its scope equals the primary's.
 // ─────────────────────────────────────────────────────────────────────────────
 describe("IssuesPanel — bulk-accept header (STRUCT-2)", () => {
-  test("renders 'Resolve all suggested' with the suggestable count and calls bulkAcceptSuggestions(0)", () => {
+  const oneSuggestion = [makeLine({ id: "l1", aiSuggestion: { supplierItemCode: "AI-1", confidence: 0.9, reason: "", provenance: "ai" } })];
+  const suggestionIssue = [issue({ code: "line:l1", kind: "ai-suggestion", lineId: "l1", fixAction: { label: "Accept suggestion" } })];
+
+  test("normal bulk accept sends minConfidence 0.85; accept-all needs a confirm", async () => {
     const bulkAcceptSuggestions = vi.fn();
-    render(
-      <IssuesPanel
-        issues={[issue({ code: "line:l1", kind: "ai-suggestion", lineId: "l1", fixAction: { label: "Accept suggestion" } })]}
-        onFocusField={vi.fn()}
-        resolve={makeResolve({ bulkAcceptSuggestions, bulkAccepting: false })}
-        lines={[makeLine({ id: "l1", aiSuggestion: { supplierItemCode: "AI-1", confidence: 0.9, reason: "", provenance: "ai" } })]}
-        suggestableCount={3}
-        highConfCount={3}
-      />,
-    );
-    const bulkBtn = screen.getByRole("button", { name: /resolve all suggested/i });
-    expect(bulkBtn).toBeInTheDocument();
-    // The badge shows the suggestable count.
-    expect(bulkBtn).toHaveTextContent("3");
-    fireEvent.click(bulkBtn);
-    expect(bulkAcceptSuggestions).toHaveBeenCalledWith(0);
+    // No ConfirmProvider here, so useConfirm falls back to window.confirm.
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValueOnce(true);
+    try {
+      render(
+        <IssuesPanel
+          issues={suggestionIssue}
+          onFocusField={vi.fn()}
+          resolve={makeResolve({ bulkAcceptSuggestions })}
+          lines={oneSuggestion}
+          suggestableCount={3}
+          highConfCount={1}
+        />,
+      );
+      const bulk = within(screen.getByTestId("issues-bulk-accept"));
+      const normal = bulk.getByRole("button", { name: /accept matches ≥85%/i });
+      expect(normal).toHaveTextContent("1");
+      fireEvent.click(normal);
+      expect(bulkAcceptSuggestions).toHaveBeenCalledWith(0.85);
+      expect(confirmSpy).not.toHaveBeenCalled();
+
+      bulkAcceptSuggestions.mockClear();
+      const all = bulk.getByRole("button", { name: /accept all suggestions, including low-confidence/i });
+      expect(all).toHaveTextContent("3");
+      fireEvent.click(all); // declined
+      await waitFor(() => expect(confirmSpy).toHaveBeenCalledTimes(1));
+      expect(bulkAcceptSuggestions).not.toHaveBeenCalled();
+      fireEvent.click(all); // confirmed
+      await waitFor(() => expect(bulkAcceptSuggestions).toHaveBeenCalledWith(0));
+    } finally {
+      confirmSpy.mockRestore();
+    }
   });
 
-  test("hides 'Accept ≥85% only' when highConfCount === suggestableCount (identical scope)", () => {
-    render(
-      <IssuesPanel
-        issues={[issue({ code: "line:l1", kind: "ai-suggestion", lineId: "l1", fixAction: { label: "Accept suggestion" } })]}
-        onFocusField={vi.fn()}
-        resolve={makeResolve({ bulkAcceptSuggestions: vi.fn() })}
-        lines={[makeLine({ id: "l1", aiSuggestion: { supplierItemCode: "AI-1", confidence: 0.9, reason: "", provenance: "ai" } })]}
-        suggestableCount={3}
-        highConfCount={3}
-      />,
-    );
-    expect(screen.queryByRole("button", { name: /accept ≥85% only/i })).not.toBeInTheDocument();
-  });
-
-  test("shows 'Accept ≥85% only' (calling bulkAcceptSuggestions(0.85)) when its scope is a strict subset", () => {
-    const bulkAcceptSuggestions = vi.fn();
-    render(
-      <IssuesPanel
-        issues={[issue({ code: "line:l1", kind: "ai-suggestion", lineId: "l1", fixAction: { label: "Accept suggestion" } })]}
-        onFocusField={vi.fn()}
-        resolve={makeResolve({ bulkAcceptSuggestions })}
-        lines={[makeLine({ id: "l1", aiSuggestion: { supplierItemCode: "AI-1", confidence: 0.9, reason: "", provenance: "ai" } })]}
-        suggestableCount={3}
-        highConfCount={1}
-      />,
-    );
-    const highBtn = screen.getByRole("button", { name: /accept ≥85% only/i });
-    expect(highBtn).toHaveTextContent("1");
-    fireEvent.click(highBtn);
-    expect(bulkAcceptSuggestions).toHaveBeenCalledWith(0.85);
+  test("hides accept-all when every suggestion is already ≥85%, and the normal action when none is", () => {
+    const props = { issues: suggestionIssue, onFocusField: vi.fn(), resolve: makeResolve({ bulkAcceptSuggestions: vi.fn() }), lines: oneSuggestion };
+    const { rerender } = render(<IssuesPanel {...props} suggestableCount={3} highConfCount={3} />);
+    expect(screen.queryByRole("button", { name: /including low-confidence/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /accept matches ≥85%/i })).toBeInTheDocument();
+    rerender(<IssuesPanel {...props} suggestableCount={3} highConfCount={0} />);
+    expect(screen.queryByRole("button", { name: /accept matches/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /including low-confidence/i })).toBeInTheDocument();
   });
 
   test("no bulk-accept header when there is no bulk handler (pure-view / unchanged callers)", () => {

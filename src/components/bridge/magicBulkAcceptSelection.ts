@@ -7,11 +7,16 @@
 //
 // Pure + framework-free so it can be unit-tested directly and reused by the count + the action.
 
+/** The confidence bar of the normal bulk accept ("Accept matches ≥85%"): the button's count and its call both use it. */
+export const BULK_ACCEPT_CONFIDENCE = 0.85;
+
 export interface BulkSelectableLine {
   lineNumber: number;
   status: "suggested" | "resolved" | "unresolved";
   aiSuggestedSupplierCode: string | null;
   confidence: number | null;
+  /** Evidence behind the suggestion; "catalog" (an exact supplier-catalog hit) passes any threshold. */
+  basis?: "catalog" | "source_document" | "model" | null;
 }
 
 export interface BulkAcceptSelectionArgs {
@@ -27,8 +32,8 @@ export interface BulkAcceptSelectionArgs {
  * suggestion, meet the threshold, and are NOT locally rejected. The count shown on the button
  * and the lines actually sent are both derived from this one function so they can't drift.
  *
- * Null confidence counts as 0.0 (matches the backend, which treats a null-confidence suggestion
- * as acceptable at minConfidence=0).
+ * Null confidence counts as 0.0 (matches the backend), except an exact catalog match, which is a
+ * fact and always passes. A document echo ("source_document") has no score and does not.
  */
 export function bulkAcceptLines({
   lines,
@@ -39,7 +44,7 @@ export function bulkAcceptLines({
     (l) =>
       l.status !== "resolved" &&
       l.aiSuggestedSupplierCode !== null &&
-      (l.confidence ?? 0) >= minConfidence &&
+      (l.basis === "catalog" || (l.confidence ?? 0) >= minConfidence) &&
       !rejectedLineNumbers.has(l.lineNumber),
   );
 }

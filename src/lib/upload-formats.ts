@@ -55,3 +55,9 @@ export function isClearlyUnsupportedDragType(mimeType: string): boolean {
   const t = mimeType.toLowerCase();
   return t.startsWith("image/") || t.startsWith("audio/") || t.startsWith("video/");
 }
+
+/** The coarse file kind sent with the `first_upload_started` analytics event. */
+export function uploadFileKind(fileName: string): "pdf" | "xlsx" | "csv" {
+  const name = fileName.toLowerCase();
+  return name.endsWith(".pdf") ? "pdf" : name.endsWith(".xlsx") || name.endsWith(".xls") ? "xlsx" : "csv";
+}

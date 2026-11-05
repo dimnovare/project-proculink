@@ -22,12 +22,15 @@
 
 import { useState, type KeyboardEvent, type ReactNode } from "react";
 import { UnifiedStatusBadge } from "../UnifiedStatusBadge";
-import { sendBarLabel } from "./sendBarLabel";
+import { sendBarLabel, type DeliveryBarMode } from "./sendBarLabel";
+import { DownloadButton, SECONDARY_BAR_BUTTON } from "./DownloadButton";
 import { orderProblemState } from "@/lib/orderStatusManifest";
 // Both amber notes are the SAME sentences the desktop panel renders, owned in one
 // place so the two breakpoints cannot drift apart.
 import { STOPPED_ORDER_NOTE, UNVERIFIED_ORDER_NOTE } from "./acceptanceGateModel";
 import type { WorkshopIssue, IssuesResolveApi } from "./IssuesPanel";
+import { BULK_ACCEPT_CONFIDENCE } from "../magicBulkAcceptSelection";
+import { useAcceptAllConfirm } from "./useAcceptAllConfirm";
 import type { OrderLine } from "@/types/procurement";
 
 // ── Semantic color tokens (mirrors the rest of the workshop) ──────────────────
@@ -127,6 +130,15 @@ export interface MobileTriageProps {
   onFocusField: (ref: string) => void;
   /** Open the send confirm dialog (→ setShowConfirm(true)). */
   onSend: () => void;
+  /**
+   * Which action leads the bar (deliveryBarMode). Optional → today's Send-first bar, no Download.
+   * `onDownload` is the finished-file download; `hasFile` says one exists (Send-first mode offers
+   * Download only then, because building a file there would send the order).
+   */
+  barMode?: DeliveryBarMode;
+  onDownload?: () => void;
+  downloading?: boolean;
+  hasFile?: boolean;
   /** Inline per-line resolution actions (same server-truth path as desktop). */
   resolve?: IssuesResolveApi;
   /** The order lines, to read each card's current code / AI suggestion by lineId. */
@@ -138,7 +150,7 @@ export interface MobileTriageProps {
    * is present. Optional → callers without bulk support render no control.
    */
   suggestableCount?: number;
-  /** The ≥0.85-confidence subset of `suggestableCount` ("Accept ≥85% only"). */
+  /** The ≥0.85-confidence subset of `suggestableCount` ("Accept matches ≥85%"). */
   highConfCount?: number;
   /**
    * Teaching content rendered directly above the issue list — today the catalog
@@ -162,9 +174,11 @@ export function MobileTriage(props: MobileTriageProps) {
     issues, blockingIssues, exceptionCount, readyLabel, advisoryCount, canSend, crossed, sendState,
     primaryCta, primaryCtaProgress, doneLabel,
     onFix, onFocusField, onSend, resolve, lines,
+    barMode = "send", onDownload, downloading = false, hasFile = false,
     suggestableCount = 0, highConfCount = 0, hintSlot, documentSlot,
   } = props;
 
+  const acceptAll = useAcceptAllConfirm(resolve?.bulkAcceptSuggestions, suggestableCount);
   const sendBlockCount = Math.max(blockingIssues, exceptionCount);
 
   // Three answers about the ORDER itself, kept separate from the count of FIELD issues:
@@ -201,6 +215,12 @@ export function MobileTriage(props: MobileTriageProps) {
     sendState,
   });
   const sendLabel = sendCopy.label;
+  const downloadPrimary = barMode !== "send";
+  const showDownload = !!onDownload && (downloadPrimary || hasFile);
+  const downloadEnabled = !downloading && (!downloadPrimary || canSend);
+  const downloadButton = (
+    <DownloadButton size="sticky" primary={downloadPrimary} enabled={downloadEnabled} busy={downloading} onClick={() => onDownload?.()} />
+  );
 
   return (
     <div
@@ -463,23 +483,25 @@ export function MobileTriage(props: MobileTriageProps) {
                 parent's setFlow, so no separate notice here. */}
             {resolve?.bulkAcceptSuggestions && suggestableCount > 0 && (
               <div data-testid="mobile-bulk-accept" className="flex flex-col gap-2">
-                <button
-                  type="button"
-                  onClick={() => resolve.bulkAcceptSuggestions!(0)}
-                  disabled={resolve.bulkAccepting}
-                  className="plk-mobile-accept"
-                  style={{ ...mobilePrimaryBtn, width: "100%", justifyContent: "center", display: "inline-flex", alignItems: "center", gap: 8, opacity: resolve.bulkAccepting ? 0.6 : 1, cursor: resolve.bulkAccepting ? "wait" : "pointer" }}
-                >
-                  {resolve.bulkAccepting ? "Resolving…" : `Resolve all suggested (${suggestableCount})`}
-                </button>
-                {highConfCount > 0 && highConfCount < suggestableCount && (
+                {highConfCount > 0 && (
                   <button
                     type="button"
-                    onClick={() => resolve.bulkAcceptSuggestions!(0.85)}
+                    onClick={() => resolve.bulkAcceptSuggestions!(BULK_ACCEPT_CONFIDENCE)}
+                    disabled={resolve.bulkAccepting}
+                    className="plk-mobile-accept"
+                    style={{ ...mobilePrimaryBtn, width: "100%", justifyContent: "center", display: "inline-flex", alignItems: "center", gap: 8, opacity: resolve.bulkAccepting ? 0.6 : 1, cursor: resolve.bulkAccepting ? "wait" : "pointer" }}
+                  >
+                    {resolve.bulkAccepting ? "Accepting…" : `Accept matches ≥85% (${highConfCount})`}
+                  </button>
+                )}
+                {highConfCount < suggestableCount && (
+                  <button
+                    type="button"
+                    onClick={acceptAll}
                     disabled={resolve.bulkAccepting}
                     style={{ ...mobileGhostBtn, width: "100%", justifyContent: "center", display: "inline-flex", alignItems: "center", gap: 8, opacity: resolve.bulkAccepting ? 0.6 : 1, cursor: resolve.bulkAccepting ? "wait" : "pointer" }}
                   >
-                    {resolve.bulkAccepting ? "Accepting…" : `Accept ≥85% only (${highConfCount})`}
+                    {`Accept all suggestions, including low-confidence (${suggestableCount})`}
                   </button>
                 )}
               </div>
@@ -512,14 +534,20 @@ export function MobileTriage(props: MobileTriageProps) {
           borderTop: `1px solid ${HAIRLINE}`,
           padding: "10px 14px calc(10px + env(safe-area-inset-bottom, 0px))",
           boxShadow: "0 -6px 18px rgba(11,26,47,.06)",
+          display: "flex",
+          flexDirection: "column",
+          gap: 8,
         }}
       >
+        {downloadPrimary && showDownload && downloadButton}
+        {barMode !== "download-only" && (
         <button
           type="button"
           onClick={() => { if (canSend) onSend(); }}
           disabled={!canSend}
           aria-label={sendCopy.ariaLabel}
-          className="plk-mobile-send"
+          className={`plk-mobile-send ${downloadPrimary ? SECONDARY_BAR_BUTTON : ""}`}
+          data-cta-weight={downloadPrimary ? "secondary" : "primary"}
           style={{
             width: "100%",
             minHeight: 48,
@@ -530,20 +558,20 @@ export function MobileTriage(props: MobileTriageProps) {
             alignItems: "center",
             justifyContent: "center",
             gap: 9,
-            background: canSend ? GREEN_BTN : "#5A7660",
-            color: "#FFFFFF",
-            border: `1px solid ${canSend ? GREEN_DEEP : "#5A7660"}`,
+            ...(downloadPrimary ? {} : { background: canSend ? GREEN_BTN : "#5A7660", color: "#FFFFFF", border: `1px solid ${canSend ? GREEN_DEEP : "#5A7660"}` }),
             cursor: canSend ? "pointer" : "not-allowed",
             transition: "filter 150ms ease",
           }}
         >
           {sendState === "idle" && !crossed && (
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
-              <path d="M14.5 1.5 7.2 8.8M14.5 1.5 9.8 14.5 7.2 8.8 1.5 6.2 14.5 1.5Z" stroke="#FFFFFF" strokeWidth="1.3" strokeLinejoin="round" />
+              <path d="M14.5 1.5 7.2 8.8M14.5 1.5 9.8 14.5 7.2 8.8 1.5 6.2 14.5 1.5Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
             </svg>
           )}
           {sendLabel}
         </button>
+        )}
+        {!downloadPrimary && showDownload && downloadButton}
       </div>
     </div>
   );

@@ -35,6 +35,7 @@ import { BridgePageLoader } from "@/components/bridge/BridgeLoader";
 import { journeyStage, mapStatus } from "@/components/bridge/InboxView";
 import { useOrderReview } from "@/components/bridge/review/hooks/useOrderReview";
 import { useSendFlow } from "@/components/bridge/review/hooks/useSendFlow";
+import { useDownloadFinished } from "@/hooks/useDownloadFinished";
 import { deliverableArtifact, deliveryChannelLabel, formatMoney } from "@/components/bridge/review/orderDisplay";
 import { openOrderLevelExceptions } from "@/components/bridge/workshop/OrderExceptionsNotice";
 import { formatAmount } from "@/components/bridge/workshop/workshopLinesModel";
@@ -130,6 +131,11 @@ export function InvoiceScreen({ orderId }: { orderId: string }) {
   );
   const { flowNotice, flowSeverity, setFlow, sendState, crossed, confirmSend } = useSendFlow({ orderId, order, labels, refetchOrder });
 
+  // A destination set to "I'll send it myself" is never dispatched (the server refuses a send), so
+  // its action is Download.
+  const manual = delivery.data?.protocol === "manual";
+  const finished = useDownloadFinished({ orderId, order, setFlow, refetchOrder });
+
   // /resolve re-runs the invoice checks, so the order AND its problems are re-read before the
   // draft is dropped — the inputs never flash the old values.
   const save = useMutation({
@@ -153,7 +159,8 @@ export function InvoiceScreen({ orderId }: { orderId: string }) {
         [["order", orderId], ["order-exceptions", orderId], ["orders"]].map((queryKey) => qc.invalidateQueries({ queryKey })),
       );
     },
-    onSuccess: () => void confirmSend(),
+    // A manual destination is never sent to: releasing the hold leads to the download instead.
+    onSuccess: () => void (manual ? finished.download() : confirmSend()),
   });
 
   async function download(artifactId: string) {
@@ -460,11 +467,11 @@ export function InvoiceScreen({ orderId }: { orderId: string }) {
                   variant="navy"
                   size="lg"
                   className="mt-3 w-full"
-                  onClick={() => void confirmSend()}
+                  onClick={() => void (manual ? finished.download() : confirmSend())}
                   disabled={!canSend}
-                  loading={sendState !== "idle"}
+                  loading={manual ? finished.busy : sendState !== "idle"}
                 >
-                  {sendState === "transforming" ? "Preparing…" : sendState === "delivering" ? "Sending…" : "Send invoice"}
+                  {manual ? (finished.busy ? "Preparing…" : "Download") : sendState === "transforming" ? "Preparing…" : sendState === "delivering" ? "Sending…" : "Send invoice"}
                 </Button>
                 {reading && <p className={CAPTION}>Available once the checks finish.</p>}
                 {problems.length > 0 && <p className={CAPTION}>Fix the problem in Checks first.</p>}
@@ -473,7 +480,7 @@ export function InvoiceScreen({ orderId }: { orderId: string }) {
                     <p className={CAPTION}>A workspace admin can send it anyway.</p>
                   ) : !anywayOpen ? (
                     <button type="button" aria-expanded={false} onClick={() => setAnywayOpen(true)} className="mt-2 text-[12.5px] font-semibold text-brand-blue hover:underline">
-                      Send anyway…
+                      {manual ? "Download anyway…" : "Send anyway…"}
                     </button>
                   ) : (
                     <div className="mt-3 flex flex-col gap-2">
@@ -497,9 +504,9 @@ export function InvoiceScreen({ orderId }: { orderId: string }) {
                         className="w-full border-amber text-amber-text"
                         onClick={() => sendAnyway.mutate()}
                         disabled={reason.trim().length < 3}
-                        loading={sendAnyway.isPending || sendState !== "idle"}
+                        loading={sendAnyway.isPending || (manual ? finished.busy : sendState !== "idle")}
                       >
-                        Send anyway
+                        {manual ? "Download anyway" : "Send anyway"}
                       </Button>
                     </div>
                   ))}

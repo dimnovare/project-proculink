@@ -660,7 +660,7 @@ describe("deriveTrustedThreshold", () => {
 //       workshop's "Accept all" / "Accept ≥85%" badges can't drift from the
 //       /upload/preview step's semantics;
 //   (b) the wired count reaches the IssuesPanel's bulk-accept header, and clicking
-//       it calls the server-truth bulkAcceptSuggestions(0).
+//       it calls the server-truth bulkAcceptSuggestions(0.85).
 // ─────────────────────────────────────────────────────────────────────────────
 describe("STRUCT-2 — order.lines → BulkSelectableLine adapter parity", () => {
   // Mirrors the adapter inside OrderWorkshop's suggestableCount/highConfCount memo:
@@ -709,7 +709,7 @@ describe("STRUCT-2 — order.lines → BulkSelectableLine adapter parity", () =>
 });
 
 describe("STRUCT-2 — the workshop wires the bulk-accept header to the IssuesPanel", () => {
-  test("an order with an unresolved AI-suggested line renders 'Resolve all suggested' → bulkAcceptSuggestions(0)", () => {
+  test("an order with an unresolved AI-suggested line renders 'Accept matches ≥85%' → bulkAcceptSuggestions(0.85)", () => {
     mockState.order = makeOrder({
       lines: [
         {
@@ -725,13 +725,13 @@ describe("STRUCT-2 — the workshop wires the bulk-accept header to the IssuesPa
 
     render(<OrderWorkshop orderId="ord-1" />);
 
-    // Two surfaces carry the bulk accept: the status bar's "Resolve suggested (n)"
-    // and the IssuesPanel header's "Resolve all suggested" — both hit the same
-    // server-truth bulkAcceptSuggestions(0).
-    const bulkBtns = screen.getAllByRole("button", { name: /resolve (all )?suggested/i });
+    // Two surfaces carry the bulk accept: the status bar's "Accept matches ≥85% (n)"
+    // and the IssuesPanel header's "Accept matches ≥85%" — both hit the same
+    // server-truth bulkAcceptSuggestions(0.85).
+    const bulkBtns = screen.getAllByRole("button", { name: /accept matches ≥85%/i });
     expect(bulkBtns.length).toBeGreaterThan(0);
     fireEvent.click(bulkBtns[0]);
-    expect(mockState.bulkAcceptSuggestions).toHaveBeenCalledWith(0);
+    expect(mockState.bulkAcceptSuggestions).toHaveBeenCalledWith(0.85);
   });
 });
 

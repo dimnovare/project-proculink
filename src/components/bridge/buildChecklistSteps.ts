@@ -4,11 +4,11 @@
 //
 // Six server-verified steps (all signals sample-excluded on the backend):
 //   1 supplier  — hasSupplier
-//   2 catalog   — hasCatalog || hasItemMappings           (locked until 1)
-//   3 upload    — hasUpload                               (locked until 1)
-//   4 resolve   — hasResolvedMapping                      (locked until 3)
-//   5 delivery  — (hasDeliveryConfig && hasTestFired) || hasDelivery (locked until 1)
-//   6 send      — hasDelivery                             (locked until 3, 4, 5-config)
+//   2 upload    — hasUpload                               (locked until 1)
+//   3 resolve   — hasResolvedMapping                      (locked until 2)
+//   4 catalog   — hasCatalog || hasItemMappings           (locked until 1)
+//   5 delivery  — (hasDeliveryConfig && hasTestFired) || hasDelivery (locked until 3)
+//   6 send      — hasDelivery                             (locked until 2, 3, 5-config)
 //
 // Honesty rules:
 //   • Extended fields are OPTIONAL (backend may predate them). A step whose
@@ -105,19 +105,6 @@ export function buildChecklistSteps(
     intermediate: false,
   });
 
-  if (catalogKnown) {
-    steps.push({
-      id: "catalog",
-      label: `Add the ${nounLower}'s item codes`,
-      description: `Import their catalog or map the codes their system expects.`,
-      href: catalogHref,
-      cta: "Add item codes",
-      done: catalogDone,
-      locked: !supplierDone,
-      intermediate: false,
-    });
-  }
-
   steps.push({
     id: "upload",
     label: "Upload an order",
@@ -131,26 +118,39 @@ export function buildChecklistSteps(
 
   steps.push({
     id: "resolve",
-    label: "Match item codes on an order",
+    label: "Confirm item codes",
     description: `Connect buyer item codes to the ${nounLower}'s own codes on the review screen.`,
     href: orderHref,
-    cta: "Match item codes",
+    cta: "Confirm item codes",
     done: resolveDone,
     locked: !uploadDone,
     intermediate: false,
   });
 
+  if (catalogKnown) {
+    steps.push({
+      id: "catalog",
+      label: `Add the ${nounLower}'s item codes`,
+      description: `Import their catalog or map the codes their system expects.`,
+      href: catalogHref,
+      cta: "Add item codes",
+      done: catalogDone,
+      locked: !supplierDone,
+      intermediate: false,
+    });
+  }
+
   if (deliveryKnown) {
     steps.push({
       id: "delivery",
-      label: "Set up delivery and send a test",
+      label: "Ready to automate delivery?",
       description: deliveryIntermediate
         ? "Configured — send a test to finish. A successful test means their endpoint answered."
-        : `Tell ProcuLink where orders go, then prove the connection with a test.`,
+        : `Optional. Once you have seen a finished order, tell ProcuLink where orders go and prove the connection with a test.`,
       href: deliveryHref,
       cta: deliveryIntermediate ? "Send a test" : "Set up delivery",
       done: deliveryDone,
-      locked: !supplierDone,
+      locked: !resolveDone,
       intermediate: deliveryIntermediate,
     });
   }

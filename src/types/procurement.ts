@@ -153,6 +153,10 @@ export interface OrderLine {
   taxRate?: number | null;
   /** Phase 4 enrichment — per-line delivery date, ISO "yyyy-MM-dd". */
   deliveryDate?: string | null;
+  /** How the supplier code was set: "saved_mapping" | "manual" | "ai"; null when unresolved or older than this field. */
+  resolvedVia?: string | null;
+  /** Kind of evidence behind the suggestion; an exact "catalog" match is a fact and passes the ≥85% bulk accept without a score. */
+  aiSuggestionBasis?: "catalog" | "source_document" | "model" | null;
 }
 
 export interface AiMappingSuggestion {
@@ -268,6 +272,8 @@ export interface Order {
   artifacts: Artifact[];
   /** True when this order was created by the onboarding sample-order endpoint. */
   isSample?: boolean;
+  /** Held for review: never auto-delivered; an explicit Send still works. */
+  holdForReview?: boolean;
   /** Human-readable error from the newest *Failed audit event; null for non-failed orders. */
   errorMessage?: string | null;
   /**
@@ -393,6 +399,8 @@ export interface LineResolution {
 export interface ResolvePayload {
   saveMappings: boolean;
   lineResolutions: LineResolution[];
+  /** Hold-only when sent alone: flips the flag, changes nothing else. */
+  holdForReview?: boolean;
   // ── Optional header-field corrections (Item 2) ─────────────────────────────
   // Sent ONLY for fields the user actually edited in the order-review header.
   // The backend treats null/absent as "no change", so omitting a field leaves

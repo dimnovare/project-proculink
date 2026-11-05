@@ -168,11 +168,11 @@ describe("MobileTriage — long real-data values wrap (no mobile overflow)", () 
 });
 
 // The bulk-accept affordance must carry the SAME label as the desktop workshop
-// (IssuesPanel / SendReadinessStrip renamed to "Resolve all suggested" in f365aa0;
+// (IssuesPanel and mobile both lead with "Accept matches ≥85%"; accept-all is confirm-gated;
 // mobile was missed). The workshop is the only review surface now — the preview
 // screen that carried its own "Accept all AI suggestions" wording was retired.
 describe("MobileTriage — bulk-accept label parity with the desktop workshop", () => {
-  test("renders 'Resolve all suggested (N)' and calls bulkAcceptSuggestions(0)", () => {
+  test("renders 'Accept matches ≥85% (N)' and calls bulkAcceptSuggestions(0.85)", () => {
     const bulkAcceptSuggestions = vi.fn();
     render(
       <MobileTriage
@@ -187,9 +187,9 @@ describe("MobileTriage — bulk-accept label parity with the desktop workshop", 
       />,
     );
     const bulk = screen.getByTestId("mobile-bulk-accept");
-    const btn = within(bulk).getByRole("button", { name: /resolve all suggested \(3\)/i });
+    const btn = within(bulk).getByRole("button", { name: /accept matches ≥85% \(3\)/i });
     fireEvent.click(btn);
-    expect(bulkAcceptSuggestions).toHaveBeenCalledWith(0);
+    expect(bulkAcceptSuggestions).toHaveBeenCalledWith(0.85);
     // The pre-f365aa0 label must not reappear on this surface.
     expect(screen.queryByRole("button", { name: /accept all ai suggestions/i })).not.toBeInTheDocument();
   });
