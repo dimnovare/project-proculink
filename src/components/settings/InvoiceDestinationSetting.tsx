@@ -105,7 +105,9 @@ export function InvoiceDestinationSetting() {
                     ? "Couldn’t read this destination’s channel and format."
                     : [channel, format?.toUpperCase() ?? "No format set"].filter(Boolean).join(" · ")}
                 {" · "}
-                <Link href={`/library/suppliers/${destinationId}?tab=delivery`} className="underline">Change channel or format</Link>
+                <Link href={`/library/suppliers/${destinationId}?tab=delivery`} className="underline">Change channel</Link>
+                {" · "}
+                <Link href={`/library/suppliers/${destinationId}?tab=output`} className="underline">Change format</Link>
               </p>
               {delivery.isSuccess && (!format || !INVOICE_FORMATS.includes(format)) && (
                 <div className="mt-2">

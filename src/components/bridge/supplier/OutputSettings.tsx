@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/components/bridge/layout/Card";
 import { getDeliveryConfig, upsertDeliveryConfig } from "@/lib/api/delivery";
 import { deliveryConfigQueryKey, invalidateDeliveryConfig } from "@/lib/deliveryConfigCache";
+import { invalidateOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import type { UpsertDeliveryConfigRequest } from "@/lib/api/types";
 
 /**
@@ -41,6 +42,8 @@ export function OutputSettings({ supplierId, footer }: { supplierId: string; foo
     },
     onSuccess: () => {
       setDraft(null);
+      // A first save creates the supplier's delivery config, which onboarding counts.
+      void invalidateOnboardingStatus(queryClient);
       return invalidateDeliveryConfig(queryClient, supplierId);
     },
   });
