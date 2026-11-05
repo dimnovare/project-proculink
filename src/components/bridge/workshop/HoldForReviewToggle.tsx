@@ -1,12 +1,12 @@
 "use client";
 
 // "Hold this order for review" — a per-order hold: the order is never auto-delivered, and an
-// explicit Send still works. Hold-only resolve request (no line or header edit). Hidden once
-// the order is sent or sending, and for invoices (they have their own send path).
+// explicit Send still works. Hold-only resolve request (no line or header edit). Shown only
+// while a hold is accepted and honoured (HOLDABLE_STATUSES), and not for invoices (they have their own send path).
 
 import { useState } from "react";
 import { apiClient } from "@/lib/api-client";
-import { SENT_OR_SENDING_STATUSES } from "@/lib/orderStatusManifest";
+import { HOLDABLE_STATUSES } from "@/lib/orderStatusManifest";
 import type { Order } from "@/types/procurement";
 
 export function HoldForReviewToggle({ order, refetchOrder, setFlow }: {
@@ -26,7 +26,7 @@ export function HoldForReviewToggle({ order, refetchOrder, setFlow }: {
       setPending(false);
     }
   }
-  if (order.documentType === "invoice" || SENT_OR_SENDING_STATUSES.includes(order.status)) return null;
+  if (order.documentType === "invoice" || !HOLDABLE_STATUSES.includes(order.status)) return null;
   return (
     <label className="flex items-center gap-2 whitespace-nowrap text-[12.5px] font-medium text-ink">
       <input

@@ -52,7 +52,7 @@ export function OutputSettings({ supplierId, footer }: { supplierId: string; foo
     <Card>
       <h2 className="text-[13px] font-semibold text-ink">Output format</h2>
       <p className="mt-1 text-[12px] text-ink-muted">
-        The file format this supplier requires. An order is converted to it right before it&rsquo;s sent.
+        The file format this supplier requires. Each order is converted to this format when it&rsquo;s ready.
       </p>
       {isError ? (
         <p role="alert" className="mt-3 text-[12px] text-danger">

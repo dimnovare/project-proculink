@@ -3,7 +3,7 @@
 // bar is rendered by OrderWorkshop itself (MobileTriage is stubbed), so this is one tree.
 
 import { describe, test, expect, vi, afterEach } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import type { Order } from "@/types/procurement";
@@ -25,8 +25,14 @@ vi.mock("@/hooks/useOrderDirection", () => ({
     },
   }),
 }));
+const calls: string[] = [];
+const resolvePurchaseOrder = vi.fn(async () => { calls.push("resolve"); });
+const transformOrder = vi.fn(async () => { calls.push("transform"); });
 vi.mock("@/lib/api-client", () => ({
   apiClient: {
+    resolvePurchaseOrder: (...a: unknown[]) => (resolvePurchaseOrder as (...x: unknown[]) => unknown)(...a),
+    transformOrder: (...a: unknown[]) => (transformOrder as (...x: unknown[]) => unknown)(...a),
+    getOrderById: vi.fn().mockResolvedValue({ id: "ord-1", status: "transform_failed", artifacts: [] }),
     getAiCalibration: vi.fn().mockResolvedValue({ isActive: false, buckets: [] }),
     getOrderAudit: vi.fn().mockResolvedValue([]),
     getOnboardingStatus: vi.fn().mockResolvedValue({ hasSupplier: true, hasUpload: true, hasDelivery: false }),
@@ -123,5 +129,15 @@ describe("review bar: download first where downloading cannot send", () => {
 
     await screen.findByRole("button", { name: "Download" });
     expect(screen.queryByRole("button", { name: /Send to supplier/ })).toBeNull();
+  });
+
+  test("downloading an unbuilt, unheld order holds it before the transform", async () => {
+    renderWorkshop(config({ protocol: "email", autoDeliver: false }));
+
+    fireEvent.click(await screen.findByRole("button", { name: "Download" }));
+
+    await waitFor(() => expect(transformOrder).toHaveBeenCalled());
+    expect(resolvePurchaseOrder).toHaveBeenCalledWith("ord-1", expect.objectContaining({ holdForReview: true }));
+    expect(calls).toEqual(["resolve", "transform"]);
   });
 });

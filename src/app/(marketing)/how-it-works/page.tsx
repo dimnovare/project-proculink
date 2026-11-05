@@ -52,8 +52,8 @@ const NEUTRAL_SOFT = "var(--surface-2)";
 //     plus optional identity fields).
 //   • Steps 3 and 5 — a confirmed code pair is saved PER SUPPLIER and applied automatically to
 //     later orders to that supplier. The review screen DOES mark them: a line whose code came from a
-//     saved mapping carries a "Learned from a previous order" chip and the status bar counts them
-//     ("n of total item codes recognised from previous orders"; hidden at zero).
+//     saved mapping carries a "From your saved item codes" chip and the status bar counts them
+//     ("n of total item codes filled from your saved item codes"; hidden at zero).
 //   • Step 4 — the downloadable result is the supplier-ready file (XML, CSV, cXML, JSON, UBL,
 //     X12), plus a PDF of the order. ProcuLink does not produce Excel output, so the step does not
 //     promise it.

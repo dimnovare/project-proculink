@@ -95,7 +95,7 @@ export function WorkshopStatusBar({
   lines = [],
 }: {
   blockers: BlockerChip[];
-  /** The order's lines — only `resolvedVia` is read, for the "recognised from previous orders" line. */
+  /** The order's lines — only `resolvedVia` is read, for the "filled from your saved item codes" line. */
   lines?: ReadonlyArray<Pick<OrderLine, "resolvedVia">>;
   /** Warning-level (non-blocking) issue count — shown as a quiet optional note. */
   notes?: number;
@@ -361,7 +361,7 @@ export function WorkshopStatusBar({
         )}
         {learnedCodeCount(lines) > 0 && (
           <span data-testid="status-bar-learned" style={{ fontSize: 11.5, fontWeight: 600, color: "var(--ink-muted)", whiteSpace: "nowrap" }}>
-            {learnedCodeCount(lines)} of {lines.length} item codes recognised from previous orders
+            {learnedCodeCount(lines)} of {lines.length} item codes filled from your saved item codes
           </span>
         )}
         {/* Save-state + rare warnings relocated from the old mapper toolbar row. */}

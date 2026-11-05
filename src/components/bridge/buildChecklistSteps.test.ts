@@ -70,7 +70,7 @@ describe("buildChecklistSteps", () => {
     ]);
   });
 
-  it("first-use path ends at download, not delivery", () => {
+  it("first-use steps are supplier, upload, resolve; delivery unlocks after a resolved mapping", () => {
     const model = buildChecklistSteps(allFalseExtended(), NOUN);
     expect(model.steps.map((s) => s.id).slice(0, 3)).toEqual(["supplier", "upload", "resolve"]);
     const resolved = { ...allFalseExtended(), hasSupplier: true, hasUpload: true };

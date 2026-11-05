@@ -502,7 +502,7 @@ function LineRow({
           {missingCode ? (blockedRow ? "Supplier code needs confirmation" : "— missing") : line.supplierItemCode}
           {line.resolvedVia === "saved_mapping" && (
             <span style={{ ...chipBase, background: C.greenSoft, color: C.green, marginLeft: 6 }}>
-              Learned from a previous order
+              From your saved item codes
             </span>
           )}
         </td>

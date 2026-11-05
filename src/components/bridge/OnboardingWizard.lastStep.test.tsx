@@ -137,7 +137,7 @@ describe("OnboardingWizard upload option", () => {
 });
 
 describe("OnboardingWizard last step", () => {
-  it("first-use path ends at download, not delivery", async () => {
+  it("first-use last step offers a sample order and no delivery field", async () => {
     renderWizard();
     const dialog = await reachDoneStep();
     expect(within(dialog).queryByRole("textbox", { name: /send the finished file/i })).toBeNull();

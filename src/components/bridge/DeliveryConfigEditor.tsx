@@ -817,7 +817,9 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
           <p className="text-[11px]" style={{ color: "var(--ink-muted)" }} data-testid="delivery-mode-line">
             {autoDeliver
               ? `${AUTOMATIC_DELIVERY_LABEL} is on — an order is sent as soon as its output is prepared.`
-              : `${REVIEW_BEFORE_DELIVERY_LABEL} — each order waits until someone sends it.`}
+              : protocol === "manual"
+                ? "You download each order's file and send it yourself."
+                : `${REVIEW_BEFORE_DELIVERY_LABEL} — each order waits until someone sends it.`}
           </p>
         </div>
         {protocol !== "manual" && (

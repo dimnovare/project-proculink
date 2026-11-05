@@ -473,7 +473,7 @@ describe("codes learned from previous orders", () => {
     );
     renderView(makeOrder(lines, null));
     const view = within(screen.getByTestId("lines-view"));
-    expect(view.getAllByText("Learned from a previous order")).toHaveLength(7);
+    expect(view.getAllByText("From your saved item codes")).toHaveLength(7);
     const rows = view.getAllByRole("row").slice(1);
     expect(rows[0].textContent).toContain("B-9");
     expect(rows[1].textContent).toContain("B-10");
@@ -482,7 +482,7 @@ describe("codes learned from previous orders", () => {
 
     render(<WorkshopStatusBar blockers={[]} onJump={vi.fn()} mapper={null} lines={lines} />);
     expect(screen.getByTestId("status-bar-learned").textContent).toBe(
-      "7 of 11 item codes recognised from previous orders",
+      "7 of 11 item codes filled from your saved item codes",
     );
     cleanup();
     render(<WorkshopStatusBar blockers={[]} onJump={vi.fn()} mapper={null} lines={[makeLine({})]} />);

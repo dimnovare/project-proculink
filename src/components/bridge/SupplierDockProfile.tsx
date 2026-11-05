@@ -2292,7 +2292,7 @@ function FirstTimeDeliveryOffer({
 
   // `null` is the real answer for "nothing saved" (the API returns 204); `undefined` is "no
   // answer yet". Only the former earns the offer.
-  const nothingConfigured = data === null;
+  const nothingConfigured = data === null || data?.protocol === "manual";
   if (!queryEnabled || isLoading || isError || !nothingConfigured) return null;
 
   return (

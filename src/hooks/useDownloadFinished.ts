@@ -27,6 +27,11 @@ export function useDownloadFinished({ orderId, order, setFlow, refetchOrder }: {
       let artifact = deliverableArtifact(order.artifacts);
       if (!artifact) {
         setFlow("Generating the output...", "info");
+        // Building always queues delivery, and the order's pinned connection may still be automatic:
+        // hold it first so the build can never send. Only a hold stops it.
+        if (order.holdForReview !== true) {
+          await apiClient.resolvePurchaseOrder(orderId, { saveMappings: false, lineResolutions: [], holdForReview: true });
+        }
         const built = await transformAndWait(orderId);
         if (built.order.status === "transform_failed") {
           setFlow(serverReason(built.order.errorMessage, "We couldn't build the output file. Check the output template and try again."), "error");
