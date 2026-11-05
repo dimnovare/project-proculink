@@ -28,14 +28,18 @@ export function HoldForReviewToggle({ order, refetchOrder, setFlow }: {
   }
   if (order.documentType === "invoice" || !HOLDABLE_STATUSES.includes(order.status)) return null;
   return (
-    <label className="flex items-center gap-2 whitespace-nowrap text-[12.5px] font-medium text-ink">
+    // Short label: the header row has no room for a longer one at 1440px (workshop-density.spec).
+    <label
+      className="flex items-center gap-2 whitespace-nowrap text-[12.5px] font-medium text-ink"
+      title="This order is never sent automatically. You can still send it yourself."
+    >
       <input
         type="checkbox"
         checked={order.holdForReview === true}
         disabled={pending}
         onChange={(e) => void toggle(e.target.checked)}
       />
-      Hold this order for review
+      Hold for review
     </label>
   );
 }
