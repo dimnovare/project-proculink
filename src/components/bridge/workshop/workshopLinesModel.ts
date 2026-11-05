@@ -66,6 +66,16 @@ export function lineChipStatus(line: Pick<OrderLine, "needsReview" | "supplierIt
   return "ready";
 }
 
+/** Lines whose supplier code came from a saved mapping — the only ones that earn the "learned" chip. */
+export function learnedCodeCount(lines: ReadonlyArray<Pick<OrderLine, "resolvedVia">>): number {
+  return lines.filter((l) => l.resolvedVia === "saved_mapping").length;
+}
+
+/** Lines with no supplier code first; otherwise the existing order (Array.sort is stable). */
+export function unresolvedFirst<T extends Pick<OrderLine, "supplierItemCode">>(lines: ReadonlyArray<T>): T[] {
+  return [...lines].sort((a, b) => Number(!!a.supplierItemCode) - Number(!!b.supplierItemCode));
+}
+
 /** Lines still blocking send (server-truth needsReview — same flag the send guard reads). */
 export function blockedLineCount(lines: ReadonlyArray<Pick<OrderLine, "needsReview">>): number {
   return lines.filter((l) => l.needsReview).length;

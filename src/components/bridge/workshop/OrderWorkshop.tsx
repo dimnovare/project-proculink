@@ -1422,6 +1422,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
       <div className="hidden lg:block flex-shrink-0">
         <WorkshopStatusBar
           blockers={blockerChips}
+          lines={order.lines}
           notes={noteCount}
           /* Same value IssuesPanel and MobileTriage already receive. Without it
              the bar drew a green tick under the red banner of a stopped order. */

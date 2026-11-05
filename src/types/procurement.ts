@@ -153,6 +153,8 @@ export interface OrderLine {
   taxRate?: number | null;
   /** Phase 4 enrichment — per-line delivery date, ISO "yyyy-MM-dd". */
   deliveryDate?: string | null;
+  /** How the supplier code was set: "saved_mapping" | "manual" | "ai"; null when unresolved or older than this field. */
+  resolvedVia?: string | null;
 }
 
 export interface AiMappingSuggestion {

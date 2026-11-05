@@ -24,6 +24,8 @@ import {
 import { orderProblemState } from "@/lib/orderStatusManifest";
 import type { MapperToolbarState } from "../mapper/MapperWorkbench";
 import { statusChipTitle } from "./acceptanceGateModel";
+import { learnedCodeCount } from "./workshopLinesModel";
+import type { OrderLine } from "@/types/procurement";
 
 export interface BlockerChip {
   /** Stable id (the issue code) — passed to onJump to focus + open that card. */
@@ -97,8 +99,11 @@ export function WorkshopStatusBar({
   notice,
   noticeSeverity = "info",
   orderStatus = null,
+  lines = [],
 }: {
   blockers: BlockerChip[];
+  /** The order's lines — only `resolvedVia` is read, for the "recognised from previous orders" line. */
+  lines?: ReadonlyArray<Pick<OrderLine, "resolvedVia">>;
   /** Warning-level (non-blocking) issue count — shown as a quiet optional note. */
   notes?: number;
   /** Jump to + flash a blocker's issue card. */
@@ -360,6 +365,11 @@ export function WorkshopStatusBar({
               <path d="M2.5 6.2 L5 8.6 L9.5 3.6" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
             {mapper.mapped}/{mapper.total} mapped
+          </span>
+        )}
+        {learnedCodeCount(lines) > 0 && (
+          <span data-testid="status-bar-learned" style={{ fontSize: 11.5, fontWeight: 600, color: "var(--ink-muted)", whiteSpace: "nowrap" }}>
+            {learnedCodeCount(lines)} of {lines.length} item codes recognised from previous orders
           </span>
         )}
         {/* Save-state + rare warnings relocated from the old mapper toolbar row. */}

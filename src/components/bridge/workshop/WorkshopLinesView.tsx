@@ -40,6 +40,7 @@ import {
   formatAmount,
   lineAmountOf,
   lineChipStatus,
+  unresolvedFirst,
   linesToggleAlert,
   reconcileTotals,
   round2,
@@ -284,7 +285,7 @@ export function WorkshopLinesView({
             <tr>
               <Th style={{ width: 34 }}>#</Th>
               <Th>Your item code</Th>
-              <Th>Supplier code</Th>
+              <Th><span aria-hidden>→ </span>Supplier code</Th>
               <Th>Description</Th>
               <Th style={{ width: 46 }}>Qty</Th>
               <Th style={{ width: 82 }}>{`Unit ${sym}`.trim()}</Th>
@@ -293,7 +294,7 @@ export function WorkshopLinesView({
             </tr>
           </thead>
           <tbody>
-            {lines.map((line) => {
+            {unresolvedFirst(lines).map((line) => {
               const status = lineChipStatus(line);
               const expandable = status !== "ready";
               // `open` is DERIVED (expandable && in the expanded set), never stored:
@@ -498,7 +499,12 @@ function LineRow({
         </td>
         <td style={td({ fontFamily: C.mono, fontSize: 11.5, color: C.ink })}>{line.buyerItemCode}</td>
         <td style={td({ fontFamily: C.mono, fontSize: 11.5, color: missingCode ? C.red : C.ink })}>
-          {missingCode ? "— missing" : line.supplierItemCode}
+          {missingCode ? "Supplier code needs confirmation" : line.supplierItemCode}
+          {line.resolvedVia === "saved_mapping" && (
+            <span style={{ ...chipBase, background: C.greenSoft, color: C.green, marginLeft: 6 }}>
+              Learned from a previous order
+            </span>
+          )}
         </td>
         <td
           title={description ?? undefined}
@@ -569,7 +575,7 @@ function LineRow({
               }
             >
               {missingCode ? (
-                <ValueChip tone="red">— missing</ValueChip>
+                <ValueChip tone="red">Supplier code needs confirmation</ValueChip>
               ) : (
                 <ValueChip>{line.supplierItemCode}</ValueChip>
               )}

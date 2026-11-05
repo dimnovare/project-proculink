@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen, fireEvent, cleanup, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, cleanup, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 // WorkshopLinesView — the workshop middle column's per-line "Lines" view.
@@ -26,6 +26,7 @@ vi.mock("@/hooks/useQueriesEnabled", () => ({
 import { getSupplierCatalog } from "@/lib/api-client";
 import { CATALOG_CODES_TAKE } from "@/lib/catalogCodes";
 import { WorkshopLinesView, WorkshopLinesToggle } from "./WorkshopLinesView";
+import { WorkshopStatusBar } from "./WorkshopStatusBar";
 import type { Order, OrderLine } from "@/types/procurement";
 
 const catalogMock = vi.mocked(getSupplierCatalog);
@@ -118,7 +119,7 @@ describe("row expand — the per-line mapping panel", () => {
     // node is the label alone.
     expect(screen.getByText("AI suggestion: TY-90112 (92%)")).toBeTruthy();
     // The blocked line's missing supplier code is stated, in red column copy.
-    expect(screen.getAllByText("— missing").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Supplier code needs confirmation").length).toBeGreaterThan(0);
   });
 
   it("the suggestion chip calls the existing accept action with the line id", () => {
@@ -455,5 +456,34 @@ describe("WorkshopLinesToggle", () => {
     const fields = screen.getByRole("button", { name: "Fields" });
     expect(lines.getAttribute("aria-pressed")).toBe("true");
     expect(fields.getAttribute("aria-pressed")).toBe("false");
+  });
+});
+
+describe("codes learned from previous orders", () => {
+  it("saved-mapping lines show the learned chip and the bar shows 7 of 10", () => {
+    const lines = Array.from({ length: 10 }, (_, i) =>
+      makeLine({
+        id: `l${i + 1}`,
+        lineNumber: i + 1,
+        buyerItemCode: `B-${i + 1}`,
+        supplierItemCode: i >= 8 ? null : `S-${i + 1}`,
+        needsReview: i >= 8,
+        resolvedVia: i < 7 ? "saved_mapping" : i === 7 ? "manual" : null,
+      }),
+    );
+    renderView(makeOrder(lines, null));
+    const view = within(screen.getByTestId("lines-view"));
+    expect(view.getAllByText("Learned from a previous order")).toHaveLength(7);
+    const rows = view.getAllByRole("row").slice(1);
+    expect(rows[0].textContent).toContain("B-9");
+    expect(rows[1].textContent).toContain("B-10");
+
+    render(<WorkshopStatusBar blockers={[]} onJump={vi.fn()} mapper={null} lines={lines} />);
+    expect(screen.getByTestId("status-bar-learned").textContent).toBe(
+      "7 of 10 item codes recognised from previous orders",
+    );
+    cleanup();
+    render(<WorkshopStatusBar blockers={[]} onJump={vi.fn()} mapper={null} lines={[makeLine({})]} />);
+    expect(screen.queryByTestId("status-bar-learned")).toBeNull();
   });
 });

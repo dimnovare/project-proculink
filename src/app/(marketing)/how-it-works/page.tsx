@@ -51,8 +51,9 @@ const NEUTRAL_SOFT = "var(--surface-2)";
 //   • Step 1 — a supplier really is created from a name alone (CreateSupplierPayload: `name`
 //     plus optional identity fields).
 //   • Steps 3 and 5 — a confirmed code pair is saved PER SUPPLIER and applied automatically to
-//     later orders to that supplier. The review screen does not mark which codes were carried
-//     over, so no step may promise a "recognised from a previous order" marker or a count.
+//     later orders to that supplier. The review screen DOES mark them: a line whose code came from a
+//     saved mapping carries a "Learned from a previous order" chip and the status bar counts them
+//     ("n of total item codes recognised from previous orders"; hidden at zero).
 //   • Step 4 — the downloadable result is the supplier-ready file (XML, CSV, cXML, JSON, UBL,
 //     X12). ProcuLink does not produce PDF or Excel output, so the step says neither.
 //   • Step 6 — automatic delivery is off until a person turns it on for a supplier. An order
