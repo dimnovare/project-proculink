@@ -468,7 +468,7 @@ export function InvoiceScreen({ orderId }: { orderId: string }) {
                 </Button>
                 {reading && <p className={CAPTION}>Available once the checks finish.</p>}
                 {problems.length > 0 && <p className={CAPTION}>Fix the problem in Checks first.</p>}
-                {held && problems.length > 0 && adminKnown &&
+                {held && adminKnown &&
                   (!isAdmin ? (
                     <p className={CAPTION}>A workspace admin can send it anyway.</p>
                   ) : !anywayOpen ? (

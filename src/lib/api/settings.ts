@@ -21,8 +21,8 @@ import { readRefusal } from "./refusal";
 // someone else controls is how an organisation gets fed fabricated purchase orders.
 // `readRefusal` names the administrator for the second and leaves the first byte-for-byte, so
 // `PullIngressSettings.humanizeError` keeps matching the plan-gate shape and naming the plan.
-// `PUT /api/settings/organisation` is NOT gated — it is an order-direction presentation flag —
-// so it deliberately keeps its own throw below.
+// `PUT /api/settings/organisation` is admin-gated only when it changes the invoice destination;
+// it uses `readRefusal` too.
 
 // ── Email polling settings ────────────────────────────────────────────────
 
@@ -121,12 +121,9 @@ export async function updateOrgSettings(payload: UpdateOrgSettingsPayload): Prom
   }, 30000);
 
   if (!res.ok) {
-    const body = await res.json().catch(() => null);
-    throw new Error(
-      body?.error === "invoice_destination_not_found"
-        ? "That supplier no longer exists. Choose another destination."
-        : (body?.error ?? `settings/organisation: ${res.status}`),
-    );
+    const err = await readRefusal(res, `settings/organisation: ${res.status}`);
+    if (err.message === "invoice_destination_not_found") err.message = "That supplier no longer exists. Choose another destination.";
+    throw err;
   }
 
   const body = await res.json().catch(() => ({}));
