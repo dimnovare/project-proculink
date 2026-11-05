@@ -73,13 +73,6 @@ export const UNKNOWN_CHIP_STYLE: CSSProperties = {
   borderRadius: 5, padding: "2px 8px", whiteSpace: "nowrap",
 };
 
-function SparkleGlyph() {
-  return (
-    <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden style={{ flexShrink: 0 }}>
-      <path d="M6 1.2l1.1 3.2 3.2 1.1-3.2 1.1L6 9.8 4.9 6.6 1.7 5.5l3.2-1.1z" fill="#FFFFFF" />
-    </svg>
-  );
-}
 
 export function WorkshopStatusBar({
   blockers,
@@ -273,7 +266,6 @@ export function WorkshopStatusBar({
                 display: "inline-flex", alignItems: "center", gap: 6, whiteSpace: "nowrap",
               }}
             >
-              <SparkleGlyph />
               {resolving ? "Accepting…" : `Accept matches ≥85% (${resolveAllCount})`}
             </button>
           )}

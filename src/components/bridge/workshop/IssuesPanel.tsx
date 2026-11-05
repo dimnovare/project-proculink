@@ -305,7 +305,6 @@ export function IssuesPanel({ issues, onFocusField, onFix, readyLabel, resolve, 
                 title="Fills in the suggested supplier code for every item matched at 85% or more. Weaker matches stay for you to review."
                 style={{ ...navyBtn, opacity: resolve!.bulkAccepting ? 0.6 : 1, cursor: resolve!.bulkAccepting ? "wait" : "pointer" }}
               >
-                <SparkleGlyph />
                 {resolve!.bulkAccepting ? "Accepting…" : "Accept matches ≥85%"}
                 <span style={countBadge}>{highConfCount}</span>
               </button>
@@ -420,13 +419,6 @@ function WarnGlyph({ color }: { color: string }) {
     <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden>
       <path d="M8 2.5l6 10.5H2z" stroke={color} strokeWidth="1.3" strokeLinejoin="round" />
       <path d="M8 6.5V9M8 11v.4" stroke={color} strokeWidth="1.3" strokeLinecap="round" />
-    </svg>
-  );
-}
-function SparkleGlyph() {
-  return (
-    <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden style={{ flexShrink: 0 }}>
-      <path d="M6 1.2l1.1 3.2 3.2 1.1-3.2 1.1L6 9.8 4.9 6.6 1.7 5.5l3.2-1.1z" fill="#FFFFFF" />
     </svg>
   );
 }
