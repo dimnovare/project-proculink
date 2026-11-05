@@ -28,10 +28,12 @@ vi.mock("@/hooks/useOrderDirection", () => ({
 const calls: string[] = [];
 const resolvePurchaseOrder = vi.fn(async () => { calls.push("resolve"); });
 const transformOrder = vi.fn(async () => { calls.push("transform"); });
+const markDelivered = vi.fn(async () => {});
 vi.mock("@/lib/api-client", () => ({
   apiClient: {
     resolvePurchaseOrder: (...a: unknown[]) => (resolvePurchaseOrder as (...x: unknown[]) => unknown)(...a),
     transformOrder: (...a: unknown[]) => (transformOrder as (...x: unknown[]) => unknown)(...a),
+    markDelivered: (...a: unknown[]) => (markDelivered as (...x: unknown[]) => unknown)(...a),
     getOrderById: vi.fn().mockResolvedValue({ id: "ord-1", status: "transform_failed", artifacts: [] }),
     getAiCalibration: vi.fn().mockResolvedValue({ isActive: false, buckets: [] }),
     getOrderAudit: vi.fn().mockResolvedValue([]),
@@ -94,11 +96,11 @@ function config(over: Partial<DeliveryConfig>): DeliveryConfig {
   };
 }
 
-function renderWorkshop(cfg: DeliveryConfig) {
+function renderWorkshop(cfg: DeliveryConfig, status = "pending_review") {
   getDeliveryConfigMock.mockResolvedValue(cfg);
   mockState.order = {
     id: "ord-1", poNumber: "PO-1", supplierId: "sup-1", supplierName: "Acme", buyerName: "Buyer Co",
-    orderDate: "2026-06-18", currency: "EUR", status: "pending_review",
+    orderDate: "2026-06-18", currency: "EUR", status,
     createdAt: "2026-06-18T00:00:00Z", updatedAt: "2026-06-18T00:00:00Z", artifacts: [],
     lines: [{ id: "l-1", lineNumber: 1, description: "Widget", quantity: 2, unitPrice: 10, supplierItemCode: "ACM-1", buyerItemCode: "B-1", needsReview: false }],
   } as unknown as Order;
@@ -129,6 +131,16 @@ describe("review bar: download first where downloading cannot send", () => {
 
     await screen.findByRole("button", { name: "Download" });
     expect(screen.queryByRole("button", { name: /Send to supplier/ })).toBeNull();
+    // Not built yet, so nothing to mark as sent.
+    expect(screen.queryByRole("button", { name: "Mark as sent" })).toBeNull();
+  });
+
+  test("a manual supplier's ready order can be marked as sent", async () => {
+    renderWorkshop(config({ protocol: "manual" as DeliveryConfig["protocol"] }), "ready_to_deliver");
+
+    fireEvent.click(await screen.findByRole("button", { name: "Mark as sent" }));
+
+    await waitFor(() => expect(markDelivered).toHaveBeenCalledWith("ord-1"));
   });
 
   test("downloading an unbuilt, unheld order holds it before the transform", async () => {

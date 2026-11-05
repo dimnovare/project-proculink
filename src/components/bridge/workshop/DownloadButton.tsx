@@ -4,6 +4,11 @@
 /** Applied to the Send button when Download leads the bar. */
 export const SECONDARY_BAR_BUTTON = "bg-surface text-ink border border-border-strong disabled:text-ink-faint";
 
+/** Button geometry for the desktop header bar ("bar") and the mobile sticky bar ("sticky"). */
+export function barButtonGeometry(size: "bar" | "sticky"): string {
+  return size === "sticky" ? "w-full min-h-[48px] rounded-[10px] text-[16px]" : "h-9 px-[18px] rounded-lg text-[13px] shrink-0 whitespace-nowrap";
+}
+
 export function DownloadButton({ primary, enabled, busy, onClick, size }: {
   primary: boolean;
   enabled: boolean;
@@ -11,7 +16,7 @@ export function DownloadButton({ primary, enabled, busy, onClick, size }: {
   onClick: () => void;
   size: "bar" | "sticky";
 }) {
-  const geometry = size === "sticky" ? "w-full min-h-[48px] rounded-[10px] text-[16px]" : "h-9 px-[18px] rounded-lg text-[13px] shrink-0 whitespace-nowrap";
+  const geometry = barButtonGeometry(size);
   const tone = primary
     ? "bg-brand-green-btn text-white border border-brand-green-deep disabled:opacity-60"
     : SECONDARY_BAR_BUTTON;

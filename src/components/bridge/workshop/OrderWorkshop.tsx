@@ -56,6 +56,7 @@ import { orderGrandTotalLabel, deliveryFormatLabel, buyerLabel, orderDeliveryFor
 import { useDownloadFinished } from "@/hooks/useDownloadFinished";
 import { HoldForReviewToggle } from "./HoldForReviewToggle";
 import { DownloadButton, SECONDARY_BAR_BUTTON } from "./DownloadButton";
+import { MarkAsSentButton } from "./MarkAsSentButton";
 import { useOrderReview } from "../review/hooks/useOrderReview";
 import { useResolveActions } from "../review/hooks/useResolveActions";
 import { useAcceptanceValidation } from "../review/hooks/useAcceptanceValidation";
@@ -1248,6 +1249,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
 
             <HoldForReviewToggle order={order} refetchOrder={refetchOrder} setFlow={setFlow} />
             {downloadPrimary && showDownload && downloadButton}
+            {barMode === "download-only" && <MarkAsSentButton order={order} size="bar" refetchOrder={refetchOrder} setFlow={setFlow} />}
 
             {/* Send — gated by canSend (issues clear + server-truth exceptions clear).
                 While blocked the button label carries the count ("Send · N blockers")
@@ -1584,6 +1586,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
           onDownload={() => void download()}
           downloading={downloading}
           hasFile={deliverableArtifact(order?.artifacts) !== null}
+          markSentSlot={barMode === "download-only" ? <MarkAsSentButton order={order} size="sticky" refetchOrder={refetchOrder} setFlow={setFlow} /> : null}
           resolve={issuesResolve}
           lines={order.lines}
           suggestableCount={suggestableCount}
