@@ -340,8 +340,10 @@ describe("auditActionManifest — coverage floors", () => {
     // `…_rejected_order_limit`), the two gates the Postmark webhook never had. Both
     // are refusals a customer can act on, so a row that reads `unknown` would be the
     // audit trail failing at precisely the moment it is being consulted.
-    expect(AUDIT_ACTION_FACTS).toHaveLength(51);
-    expect(REACHABLE_AUDIT_ACTIONS).toHaveLength(46);
+    //
+    // +2 reachable from the invoice flow (`InvoiceSentAnyway`, `InvoiceDestinationChanged`).
+    expect(AUDIT_ACTION_FACTS).toHaveLength(53);
+    expect(REACHABLE_AUDIT_ACTIONS).toHaveLength(48);
   });
 
   it("classifies a substantial number of them as failures", () => {

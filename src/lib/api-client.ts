@@ -308,6 +308,35 @@ const mockOrders: Order[] = [
       },
     ],
   },
+  {
+    // An invoice held with one open problem: invoices reuse the order model, so it has the
+    // same statuses; the problem is an `invoice_check` exception (see mockGetOrderExceptions).
+    id: "ord-005",
+    poNumber: "INV-2024-0042",
+    supplierId: "11111111-1111-1111-1111-111111111111",
+    supplierName: "Example Supplies GmbH",
+    buyerName: "Sample Buyer AG",
+    orderDate: "2024-01-18",
+    currency: "EUR",
+    status: "pending_review",
+    documentType: "invoice",
+    dueDate: "2024-02-17",
+    sellerTaxId: "DE123456789",
+    paymentIban: "DE89370400440532013000",
+    paymentReference: "INV-2024-0042",
+    // Lines add up to the net (48.00 + 124.00); net plus 19% VAT is 204.68, the invoice states 214.68.
+    subTotal: 172.0,
+    taxTotal: 32.68,
+    grandTotal: 214.68,
+    sourceFileKey: "orgs/demo/orders/inv-0042.pdf",
+    createdAt: "2024-01-18T10:00:00Z",
+    updatedAt: "2024-01-18T10:00:00Z",
+    lines: [
+      { id: "l-005-1", lineNumber: 1, buyerItemCode: "EX-PAPER-A4", supplierItemCode: "EX-PAPER-A4", description: "Copy paper A4, 500 sheets", quantity: 10, unit: "PCS", unitPrice: 4.8,  confidence: 1.0, needsReview: false },
+      { id: "l-005-2", lineNumber: 2, buyerItemCode: "EX-TONER-01", supplierItemCode: "EX-TONER-01", description: "Toner cartridge black",     quantity: 2,  unit: "PCS", unitPrice: 62.0, confidence: 1.0, needsReview: false },
+    ],
+    artifacts: [],
+  },
 ];
 
 // ── Suppliers ─────────────────────────────────────────────────────────────
@@ -478,6 +507,7 @@ function orderToSummary(o: Order): OrderSummary {
     totalValue: o.lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0),
     currency: o.currency,
     sourceFormat,
+    documentType: o.documentType ?? null,
     createdAt: o.createdAt,
   };
 }
@@ -1524,6 +1554,27 @@ async function realGetOrderAudit(orderId: string): Promise<AuditEvent[]> {
   return res.json() as Promise<AuditEvent[]>;
 }
 
+// ── Send anyway (a held invoice) ──────────────────────────────────────────
+
+async function mockSendInvoiceAnyway(orderId: string, reason: string): Promise<void> {
+  await delay(300);
+  const o = mockOrders.find(x => x.id === orderId);
+  if (!o || o.status !== "pending_review" || reason.trim().length < 3) throw new Error("Only an invoice held by its checks can be sent anyway.");
+  o.status = "ready";
+}
+
+async function realSendInvoiceAnyway(orderId: string, reason: string): Promise<void> {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/orders/${orderId}/send-anyway`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...await authHeader() },
+    body: JSON.stringify({ reason }),
+  });
+  if (!res.ok) {
+    const { error } = parseApiErrorBody(await res.text());
+    throw new Error(error ?? `Send anyway failed: ${res.statusText || `HTTP ${res.status}`}`);
+  }
+}
+
 // ── Onboarding ────────────────────────────────────────────────────────────
 
 async function mockGetOnboardingStatus(): Promise<OnboardingStatus> {
@@ -1966,6 +2017,7 @@ export const apiClient = {
   getOrderConfirmation:   USE_MOCK ? mockGetOrderConfirmation  : realGetOrderConfirmation,
   resolvePurchaseOrder:   USE_MOCK ? mockResolvePurchaseOrder  : realResolvePurchaseOrder,
   transformOrder:         USE_MOCK ? mockTransformOrder        : realTransformOrder,
+  sendInvoiceAnyway:      USE_MOCK ? mockSendInvoiceAnyway     : realSendInvoiceAnyway,
   retryDelivery:          USE_MOCK ? mockRetryDelivery         : realRetryDelivery,
   assignSupplier:         USE_MOCK ? mockAssignSupplier        : realAssignSupplier,
   getDownloadUrl:         USE_MOCK ? mockGetDownloadUrl        : realGetDownloadUrl,
@@ -3094,9 +3146,20 @@ async function realValidateOrder(orderId: string): Promise<OrderValidationResult
 // ── Order exceptions ──────────────────────────────────────────────────────────
 // GET /api/orders/{id}/exceptions
 
-async function mockGetOrderExceptions(_orderId: string): Promise<OrderException[]> {
+async function mockGetOrderExceptions(orderId: string): Promise<OrderException[]> {
   await delay(150);
-  return [];
+  if (orderId !== "ord-005" || mockOrders.find(o => o.id === orderId)?.status !== "pending_review") return [];
+  return [{
+    id: "exc-005-1",
+    severity: "error",
+    message: "Net plus VAT does not equal the total.",
+    createdAt: "2024-01-18T10:00:00Z",
+    resolvedAt: null,
+    orderId,
+    stage: "Validate",
+    code: "invoice_check",
+    state: "open",
+  }];
 }
 
 async function realGetOrderExceptions(orderId: string): Promise<OrderException[]> {

@@ -78,9 +78,9 @@ export const HUB_TAB_TITLES: Record<string, string> = {
 export const LABEL_PINNED_TO_A_DIFFERENT_TITLE: Record<string, string> = {
   // Hub tab: "Overview".
   "/bridge": "Dashboard",
-  // Hub tab: "Orders" — which is also the hub's own name; the queue is the one
+  // Hub tab: "Orders" — the hub itself is "Documents"; the queue is the one
   // screen users already call the inbox.
-  "/inbox": "Inbox",
+  "/inbox": "Documents",
 };
 
 /**
@@ -97,6 +97,7 @@ export const OFF_HUB_TITLES: Record<string, string> = {
   "/settings": "Settings",
   "/admin": "Admin",
   "/library/suppliers/[id]": "Supplier",
+  "/documents/[id]": "Document",
 };
 
 /** Route pattern → the page's own name (no product suffix). */

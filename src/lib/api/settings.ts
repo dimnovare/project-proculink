@@ -21,8 +21,8 @@ import { readRefusal } from "./refusal";
 // someone else controls is how an organisation gets fed fabricated purchase orders.
 // `readRefusal` names the administrator for the second and leaves the first byte-for-byte, so
 // `PullIngressSettings.humanizeError` keeps matching the plan-gate shape and naming the plan.
-// `PUT /api/settings/organisation` is NOT gated — it is an order-direction presentation flag —
-// so it deliberately keeps its own throw below.
+// `PUT /api/settings/organisation` is admin-gated only when it changes the invoice destination;
+// it uses `readRefusal` too.
 
 // ── Email polling settings ────────────────────────────────────────────────
 
@@ -75,42 +75,59 @@ function toApiDirection(direction: OrderDirection): "Outbound" | "Inbound" {
   return direction === "inbound" ? "Inbound" : "Outbound";
 }
 
+type OrgSettingsWire = { direction?: unknown; slug?: unknown; invoiceDestinationSupplierId?: unknown };
+
+function orgSettingsFrom(raw: OrgSettingsWire): OrgSettings {
+  const slug = typeof raw.slug === "string" && raw.slug.trim() ? raw.slug.trim() : undefined;
+  // Absent stays undefined (unknown); only an explicit null means "Not set".
+  const d = raw.invoiceDestinationSupplierId;
+  const dest = typeof d === "string" && d ? d : d === null ? null : undefined;
+  return { direction: normalizeDirection(raw.direction), slug, invoiceDestinationSupplierId: dest };
+}
+
 export async function getOrgSettings(): Promise<OrgSettings> {
   if (USE_MOCK) {
     await delay(120); // mock reads simulate latency — see getBillingStatus in api/billing.ts
-    return { direction: "outbound", slug: "demo-workspace" };
+    return { direction: "outbound", slug: "demo-workspace", invoiceDestinationSupplierId: null };
   }
 
   const headers = await authHeader();
   const res = await fetchWithTimeout(`${API_BASE_URL}/api/settings/organisation`, { headers });
   if (!res.ok) throw new Error(`settings/organisation: ${res.status}`);
   const body = await res.json().catch(() => ({}));
-  const raw = body as { direction?: unknown; slug?: unknown };
-  const slug = typeof raw.slug === "string" && raw.slug.trim() ? raw.slug.trim() : undefined;
-  return { direction: normalizeDirection(raw.direction), slug };
+  return orgSettingsFrom(body as OrgSettingsWire);
 }
 
-export async function updateOrgSettings(direction: OrderDirection): Promise<OrgSettings> {
+/** Partial: a field left out is unchanged server-side; an explicit `null` clears the destination. */
+export interface UpdateOrgSettingsPayload {
+  direction?: OrderDirection;
+  invoiceDestinationSupplierId?: string | null;
+}
+
+export async function updateOrgSettings(payload: UpdateOrgSettingsPayload): Promise<OrgSettings> {
   if (USE_MOCK) {
-    return { direction };
+    // A destination-only save carries no direction; do not invent one.
+    return { direction: payload.direction, invoiceDestinationSupplierId: payload.invoiceDestinationSupplierId } as OrgSettings;
   }
 
   const headers = await authHeader();
   const res = await fetchWithTimeout(`${API_BASE_URL}/api/settings/organisation`, {
     method: "PUT",
     headers: { ...headers, "Content-Type": "application/json" },
-    body: JSON.stringify({ direction: toApiDirection(direction) }),
+    body: JSON.stringify({
+      ...(payload.direction !== undefined && { direction: toApiDirection(payload.direction) }),
+      ...(payload.invoiceDestinationSupplierId !== undefined && { invoiceDestinationSupplierId: payload.invoiceDestinationSupplierId }),
+    }),
   }, 30000);
 
   if (!res.ok) {
-    const body = await res.json().catch(() => null);
-    throw new Error(body?.error ?? `settings/organisation: ${res.status}`);
+    const err = await readRefusal(res, `settings/organisation: ${res.status}`);
+    if (err.message === "invoice_destination_not_found") err.message = "That supplier no longer exists. Choose another destination.";
+    throw err;
   }
 
   const body = await res.json().catch(() => ({}));
-  const raw = body as { direction?: unknown; slug?: unknown };
-  const slug = typeof raw.slug === "string" && raw.slug.trim() ? raw.slug.trim() : undefined;
-  return { direction: normalizeDirection(raw.direction), slug };
+  return orgSettingsFrom(body as OrgSettingsWire);
 }
 
 // ── SFTP / S3 pull-ingress settings ───────────────────────────────────────

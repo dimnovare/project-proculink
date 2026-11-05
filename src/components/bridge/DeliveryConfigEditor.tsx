@@ -900,6 +900,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                     <option value="ubl">UBL 2.1 Order</option>
                     <option value="x12">ANSI X12 850</option>
                     <option value="json">JSON</option>
+                    <option value="pdf">PDF</option>
                   </select>
                 </Field>
                 <p className="mt-1.5 text-[11px]" style={{ color: "var(--ink-faint)" }}>

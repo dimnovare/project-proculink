@@ -11,7 +11,7 @@
 // from ONE stage list — an accessible name that disagreed with the visible caption
 // would be worse than no name at all.
 
-import type { OrderStage } from "./StatusJourney";
+import { STAGES, type OrderStage } from "./StatusJourney";
 
 /**
  * The five nodes, in order. Mirrors STAGES in StatusJourney.tsx, which renders them as
@@ -19,13 +19,7 @@ import type { OrderStage } from "./StatusJourney";
  * this module exists. CLAUDE.md §9 locks the names — this packet makes them legible,
  * it does not rename them.
  */
-export const PIPELINE_STAGE_NAMES = [
-  "Parse",
-  "Normalize",
-  "Validate",
-  "Transform",
-  "Deliver",
-] as const;
+export const PIPELINE_STAGE_NAMES = STAGES;
 
 export type PipelineStageName = (typeof PIPELINE_STAGE_NAMES)[number];
 
@@ -34,7 +28,7 @@ export function pipelineNodeIndex(stage: OrderStage): number {
   return typeof stage === "object" ? stage.failed : stage;
 }
 
-/** The node's own name, e.g. `2` → "Validate". */
+/** The node's own name, e.g. `2` → "Check". */
 export function pipelineStageName(stage: OrderStage): PipelineStageName {
   return PIPELINE_STAGE_NAMES[pipelineNodeIndex(stage)];
 }

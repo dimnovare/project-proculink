@@ -45,6 +45,7 @@ const WRITER_FILES = [
   "ProcuLink.Api/Controllers/AdminController.cs",
   "ProcuLink.Api/Controllers/OpsController.cs",
   "ProcuLink.Api/Controllers/OrdersController.cs",
+  "ProcuLink.Api/Controllers/SettingsController.cs",
   "ProcuLink.Api/Services/AcceptanceGate.cs",
   "ProcuLink.Api/Services/Orders/OrderIngestionService.cs",
   "ProcuLink.Api/Services/Orders/OrderResolutionService.cs",

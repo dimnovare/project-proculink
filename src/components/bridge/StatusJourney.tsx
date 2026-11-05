@@ -1,5 +1,5 @@
 // StatusJourney — 5-node mini-track showing the order pipeline.
-// Stage 0 = Parse, 1 = Normalize, 2 = Validate, 3 = Transform, 4 = Deliver
+// Stage 0 = In, 1 = Read, 2 = Check, 3 = Transform, 4 = Send
 // compact    = 11px nodes (tokens.css .journey.compact .jn)
 // full       = 18px nodes + labels (tokens.css .journey.full .jn)
 // crossingRef (optional) — adds "Stage N of 5 · {ref}" sub-label above full variant
@@ -10,7 +10,7 @@ export type FailedStage = 0 | 1 | 2 | 3 | 4;
 // red X to node 2 (Validate) — a delivery failure drew as a validation failure.
 export type OrderStage = FailedStage | { failed: FailedStage };
 
-const STAGES = ["Parse", "Normalize", "Validate", "Transform", "Deliver"] as const;
+export const STAGES = ["In", "Read", "Check", "Transform", "Send"] as const;
 
 // Which pipeline node each failure status points at — the backend producers, not a
 // FE guess: bare `failed` is the PARSE-terminal status (ParseOrderJob.cs:67-73 refuses

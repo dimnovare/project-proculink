@@ -113,7 +113,9 @@ export function AssignSupplierBanner({ order }: { order: Order }) {
       // 409 = the atomic claim matched no row: the order is no longer `unrouted`,
       // so another operator (or an ingress re-route) already handled it. Telling
       // the operator their click failed would be the opposite of what happened.
-      settled = err instanceof ApiHttpError && err.status === 409
+      // An invoice's 409 can instead mean the pick was not the invoice destination,
+      // so invoices always show the server's sentence.
+      settled = err instanceof ApiHttpError && err.status === 409 && order.documentType !== "invoice"
         ? { kind: "stale" }
         : { kind: "error", message: messageFor(err, counterparty) };
     }

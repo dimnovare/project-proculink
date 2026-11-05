@@ -22,6 +22,7 @@ import { OrgSwitcher } from "./OrgSwitcher";
 import { SetupProgressChip } from "./SetupProgressChip";
 import { statusLabel } from "./UnifiedStatusBadge";
 import { UserChipMenu } from "./UserChipMenu";
+import { documentHref } from "@/lib/documentHref";
 import {
   buildVisibleNav,
   hubTooltip,
@@ -49,8 +50,8 @@ function useCrumbContext(segments: string[]): CrumbContext {
   const qc = useQueryClient();
   const ctx: CrumbContext = {};
 
-  // /inbox/[orderId]
-  const orderId = (segments[0] === "inbox" && segments[1]) || null;
+  // /inbox/[orderId] and /documents/[id] (an invoice is an order row)
+  const orderId = ((segments[0] === "inbox" || segments[0] === "documents") && segments[1]) || null;
   if (orderId) {
     const order = qc.getQueryData<Order>(["order", orderId]);
     ctx.orderPoNumber = order?.poNumber ?? null;
@@ -537,7 +538,7 @@ export function NotificationsBell() {
                   <button
                     key={o.id}
                     type="button"
-                    onClick={() => { setOpen(false); router.push(`/inbox/${o.id}`); }}
+                    onClick={() => { setOpen(false); router.push(documentHref(o)); }}
                     className="w-full text-left flex items-start gap-2.5"
                     style={{ padding: "9px 12px", borderBottom: "1px solid #F0F2F6", background: "#FFFFFF", cursor: "pointer" }}
                     onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#F6F7FA"; }}
@@ -788,7 +789,7 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
           CENTER = the primary nav as horizontal links (md+), built from the
                    SAME buildVisibleNav/isItemActive the sidebar used; scrolls
                    horizontally at the md→lg band so links never wrap or clip.
-          RIGHT  = Upload order · demo/setup chips · ⌘K search · notifications ·
+          RIGHT  = Upload document · demo/setup chips · ⌘K search · notifications ·
                    Admin (admin-gated) · Help · account chip.
           Mobile (< md) collapses to hamburger + brand + the compact control
           cluster; the full nav is reached through the drawer (onMenuClick). */}
@@ -887,7 +888,7 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
             incomplete (server-verified); hides itself at completion/unknown. */}
         <SetupProgressChip />
 
-        {/* Upload order — pinned primary create action (reuses the sidebar's
+        {/* Upload document — pinned primary create action (reuses the sidebar's
             PINNED_ACTION_HREF). Blue = buyer/source action per the semantic law.
             md+ shows the labelled button; mobile keeps it in the drawer. */}
         <Link
@@ -898,7 +899,7 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
           onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "#1E66C9"; }}
         >
           <Upload size={15} strokeWidth={2} />
-          <span>Upload order</span>
+          <span>Upload document</span>
         </Link>
 
         {/* Search — icon-only trigger for the ⌘K command palette (sm+). Icon-only

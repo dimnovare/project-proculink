@@ -74,6 +74,8 @@ export interface OrgSettings {
    * the UI shows "generating…" when absent.
    */
   slug?: string;
+  /** Supplier row every invoice is sent to; null = not set (invoices wait in Documents). */
+  invoiceDestinationSupplierId?: string | null;
 }
 
 /**
@@ -331,6 +333,11 @@ export interface Order {
   contactPhone?: string | null;
   /** Buyer tax / VAT registration id. */
   buyerTaxId?: string | null;
+  /** Invoice fields (ISO "yyyy-MM-dd" for dueDate); null/absent on a purchase order. */
+  dueDate?: string | null;
+  sellerTaxId?: string | null;
+  paymentIban?: string | null;
+  paymentReference?: string | null;
   /**
    * Ranked supplier candidates for an order that arrived with no supplier, best
    * first, at most three. Absent/empty for every routed order and for any unrouted
@@ -352,6 +359,8 @@ export interface OrderSummary {
   totalValue?: number;
   currency?: string;
   sourceFormat?: string | null;
+  /** "purchase_order" | "invoice" | "other" | null. */
+  documentType?: string | null;
   createdAt: string;
   /**
    * True when this row is a practice order (backend `PurchaseOrder.IsSample`).
@@ -400,6 +409,14 @@ export interface ResolvePayload {
   // is accepted by the resolve endpoint.
   poNumber?: string;
   supplierName?: string;
+  // ── Invoice header corrections (B4). The backend re-runs the invoice checks on every resolve.
+  dueDate?: string; // "yyyy-MM-dd"
+  sellerTaxId?: string;
+  paymentIban?: string;
+  paymentReference?: string;
+  subTotal?: number;
+  taxTotal?: number;
+  grandTotal?: number;
 }
 
 export interface ResolveResult {

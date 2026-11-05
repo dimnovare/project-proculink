@@ -3,6 +3,7 @@ import { render, screen, cleanup, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ConfirmProvider } from "@/components/ui/confirm";
 import type { OrderSummary } from "@/types/procurement";
+import { STAGES } from "./StatusJourney";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // WP-29 — the Pipeline column: five unlabelled dots in 184px.
@@ -115,7 +116,7 @@ describe("the Pipeline column has an accessible name", () => {
     for (const cell of cells) {
       expect(cell.getAttribute("role")).toBe("img");
       const name = cell.getAttribute("aria-label") ?? "";
-      expect(name).toMatch(/Step 3 of 5: Validate/);
+      expect(name).toContain(`Step 3 of 5: ${STAGES[2]}`);
       expect(name).toMatch(/Needs review/);
     }
   });
@@ -161,17 +162,17 @@ describe("the stage label matches the lit node", () => {
   // `pending_parse` is a raw backend status the OrderStatus union does not carry, so
   // the tuple is keyed on string — mapStatus takes a string for exactly that reason.
   const EXPECTED: Array<[string, number, string]> = [
-    ["pending_parse", 0, "Parse"],
-    ["parsing", 0, "Parse"],
-    ["unrouted", 1, "Normalize"],
-    ["pending_review", 2, "Validate"],
-    ["ready", 3, "Transform"],
-    ["transforming", 3, "Transform"],
-    ["ready_to_deliver", 4, "Deliver"],
-    ["delivering", 4, "Deliver"],
-    ["delivered", 4, "Deliver"],
-    ["delivery_held", 4, "Deliver"],
-    ["delivery_unconfirmed", 4, "Deliver"],
+    ["pending_parse", 0, STAGES[0]],
+    ["parsing", 0, STAGES[0]],
+    ["unrouted", 1, STAGES[1]],
+    ["pending_review", 2, STAGES[2]],
+    ["ready", 3, STAGES[3]],
+    ["transforming", 3, STAGES[3]],
+    ["ready_to_deliver", 4, STAGES[4]],
+    ["delivering", 4, STAGES[4]],
+    ["delivered", 4, STAGES[4]],
+    ["delivery_held", 4, STAGES[4]],
+    ["delivery_unconfirmed", 4, STAGES[4]],
   ];
 
   it.each(EXPECTED)("%s lights %i (%s)", (status, node) => {
@@ -239,18 +240,16 @@ describe("the stage label matches the lit node", () => {
 
 describe("pure helpers", () => {
   it("caption and accessible name agree about the node", () => {
-    expect(pipelineCaption(2)).toBe("3 of 5 · Validate");
-    expect(pipelineCaption({ failed: 3 })).toBe("Failed at Transform");
-    expect(pipelineAccessibleName(2, "Needs review")).toBe("Step 3 of 5: Validate. Needs review.");
+    expect(pipelineCaption(2)).toBe(`3 of 5 · ${STAGES[2]}`);
+    expect(pipelineCaption({ failed: 3 })).toBe(`Failed at ${STAGES[3]}`);
+    expect(pipelineAccessibleName(2, "Needs review")).toBe(`Step 3 of 5: ${STAGES[2]}. Needs review.`);
     expect(pipelineAccessibleName({ failed: 4 }, "Couldn't send")).toBe(
-      "Failed at step 5 of 5: Deliver. Couldn't send.",
+      `Failed at step 5 of 5: ${STAGES[4]}. Couldn't send.`,
     );
   });
 
   it("the stage names are the locked five, in order", () => {
-    expect([...PIPELINE_STAGE_NAMES]).toEqual([
-      "Parse", "Normalize", "Validate", "Transform", "Deliver",
-    ]);
+    expect([...PIPELINE_STAGE_NAMES]).toEqual([...STAGES]);
   });
 });
 
@@ -259,6 +258,6 @@ describe("390px: the card carries the pipeline as text", () => {
     await renderInbox([order({ status: "pending_review", poNumber: "PO-66006" })]);
     await screen.findAllByText("PO-66006");
     // The card's caption is plain text — legible at any width and announced without ARIA.
-    expect(screen.getAllByText(/Step 3 of 5 · Validate/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(`Step 3 of 5 · ${STAGES[2]}`).length).toBeGreaterThan(0);
   });
 });

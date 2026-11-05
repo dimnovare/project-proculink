@@ -69,12 +69,12 @@ export interface MapperPreviewPaneProps {
 }
 
 const FORMAT_EXT: Record<OutputFormatId, string> = {
-  csv: "csv", json: "json", xml: "xml", cxml: "xml", ubl: "xml", x12: "txt",
+  csv: "csv", json: "json", xml: "xml", cxml: "xml", ubl: "xml", x12: "txt", pdf: "pdf",
 };
 
 const FORMAT_MIME: Record<OutputFormatId, string> = {
   csv: "text/csv", json: "application/json", xml: "application/xml",
-  cxml: "application/xml", ubl: "application/xml", x12: "text/plain",
+  cxml: "application/xml", ubl: "application/xml", x12: "text/plain", pdf: "application/pdf",
 };
 
 /**

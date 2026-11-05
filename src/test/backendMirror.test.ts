@@ -1415,6 +1415,8 @@ const BUILDABLE_FORMATS: Record<string, { catalogId: string | null }> = {
   json: { catalogId: "json-rest" },
   ubl: { catalogId: "ubl-2-1-order" },
   x12: { catalogId: "x12-850" },
+  // One clean A4 copy (DocumentPdfOutput). No catalog row: `pdf-text` is the PDF intake standard.
+  pdf: { catalogId: null },
 };
 
 /**
@@ -1630,9 +1632,11 @@ describe("the formats we advertise as output are the formats a transform exists 
     const { tokens } = readBuildableFormats(BACKEND!);
     expect(tokens.length, "no buildable formats derived — this comparison would prove nothing").toBeGreaterThan(0);
 
+    // PDF is built but binary, and the live preview renders text, so the picker does not offer it yet.
+    const NOT_PREVIEWED = ["pdf"];
     recordComparison(
       "PREVIEW_FORMATS",
-      tokens,
+      tokens.filter((t) => !NOT_PREVIEWED.includes(t)),
       PREVIEW_FORMATS.map((f) => f.value),
       "PREVIEW_FORMATS in src/lib/api/types.ts is this app's mirror of the buildable formats, " +
         "and outputTreeProblems.ts derives `isEmittedFormat` from it — which is what decides " +

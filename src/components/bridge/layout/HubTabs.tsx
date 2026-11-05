@@ -60,7 +60,7 @@ interface HubTab {
  * clicked. Kept next to HUB_TABS so labels and tabs can't drift.
  */
 export const HUB_LABELS: Record<HubKey, string> = {
-  orders: "Orders",
+  orders: "Documents",
   suppliers: "Suppliers",
   activity: "Activity",
 };
@@ -68,7 +68,7 @@ export const HUB_LABELS: Record<HubKey, string> = {
 export const HUB_TABS: Record<HubKey, HubTab[]> = {
   // Orders is the shift: the queue, plus who issued the orders in it.
   orders: [
-    { label: "Orders", href: "/inbox" },
+    { label: "Orders", href: "/inbox", match: ["/documents"] },
     { label: "Buyers", href: "/library/buyers" },
     { label: "Invoices", href: "/inbound/invoices", flag: "inbound" },
     { label: "Shipping notices", href: "/inbound/asns", flag: "inbound" },

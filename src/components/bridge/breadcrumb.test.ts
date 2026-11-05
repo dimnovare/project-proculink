@@ -6,6 +6,7 @@
 //   • every crumb except the current page links to its cumulative path.
 
 import { describe, it, expect } from "vitest";
+import { HUB_LABELS } from "./layout/HubTabs";
 import {
   formatCrumbLabel,
   crumbHref,
@@ -68,7 +69,7 @@ describe("titleCaseSegment", () => {
 
 describe("formatCrumbLabel — static segments", () => {
   it("maps known segments to their vocabulary label", () => {
-    expect(formatCrumbLabel("inbox", 0, ["inbox"])).toBe("Orders");
+    expect(formatCrumbLabel("inbox", 0, ["inbox"])).toBe(HUB_LABELS.orders);
     expect(formatCrumbLabel("connections", 0, ["connections"])).toBe("Supplier changes");
     expect(formatCrumbLabel("standards", 1, ["library", "standards"])).toBe("Format reference");
   });
@@ -144,7 +145,7 @@ describe("buildCrumbTrail", () => {
   it("links every crumb except the last (current page has no href)", () => {
     const trail = buildCrumbTrail(`/inbox/${UUID}`, { orderPoNumber: "PO-2026-001" });
     expect(trail).toHaveLength(2);
-    expect(trail[0]).toEqual({ label: "Orders", href: "/inbox" });
+    expect(trail[0]).toEqual({ label: HUB_LABELS.orders, href: "/inbox" });
     expect(trail[1]).toEqual({ label: "PO-2026-001", href: null });
   });
 
@@ -207,7 +208,7 @@ describe("buildCrumbTrail — Workbench group head (v2 nav)", () => {
   });
 
   it("leaves /inbox bare — matches the design captures", () => {
-    expect(buildCrumbTrail("/inbox", {})).toEqual([{ label: "Orders", href: null }]);
+    expect(buildCrumbTrail("/inbox", {})).toEqual([{ label: HUB_LABELS.orders, href: null }]);
   });
 
   it("leaves Library/Operations trails untouched (already two-level)", () => {

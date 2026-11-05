@@ -18,6 +18,8 @@ import { NextRequest, NextResponse } from "next/server";
 export const PROTECTED_ROUTE_PATTERNS = [
   "/bridge(.*)",
   "/inbox(.*)",
+  // The Simple document screen (invoices) — /documents/[id].
+  "/documents(.*)",
   "/upload(.*)",
   "/library(.*)",
   "/operations(.*)",
@@ -313,6 +315,6 @@ export const config = {
     // ...and every protected prefix unconditionally, so that an order id ending
     // in ".png" can never be read as an asset either. Keep in sync with
     // PROTECTED_ROUTE_PATTERNS above; the same test pins that correspondence.
-    "/(bridge|inbox|upload|library|operations|settings|connections|inbound|admin)/:path*",
+    "/(bridge|inbox|documents|upload|library|operations|settings|connections|inbound|admin)/:path*",
   ],
 };

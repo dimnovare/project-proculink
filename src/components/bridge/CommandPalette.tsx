@@ -19,6 +19,7 @@ import type {
   BuyerDto,
 } from "@/types/procurement";
 import { statusLabel } from "./UnifiedStatusBadge";
+import { documentHref } from "@/lib/documentHref";
 import { Button } from "./DSPrimitives";
 
 // ─── Index ────────────────────────────────────────────────────────────────────
@@ -210,7 +211,7 @@ function buildIndex(
     icon: "↗",
     label: order.poNumber,
     sub: `${order.buyerName ?? "Unknown buyer"} → ${order.supplierName ?? "Unknown supplier"} · ${statusLabel(order.status)}`,
-    href: `/inbox/${order.id}`,
+    href: documentHref(order),
     color: orderColor(order.status),
   }));
 

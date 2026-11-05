@@ -7,7 +7,7 @@
  * (sidebar item, hub tab, supplier tab, settings tab, inbox filter chip)
  * introduces a word outside them.
  *
- * Only nine nouns are taught to a customer. Everything else a label may contain
+ * Only ten nouns are taught to a customer. Everything else a label may contain
  * is either a place word, a support word from the closed list below, or a
  * grammatical filler.
  *
@@ -17,9 +17,10 @@
  * jargon tiers in scripts/check-vocabulary.mjs, not by this budget.
  */
 
-/** The nine nouns a customer may be taught. DESIGN-DB-1 §7.4. */
+/** The ten nouns a customer may be taught. DESIGN-DB-1 §7.4. */
 export const APPROVED_NOUNS = [
   "order",
+  "document",
   "supplier",
   "item code",
   "order layout",

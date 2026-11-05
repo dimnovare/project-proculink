@@ -11,6 +11,7 @@ import { AlertTriangle, Building, Copy, Database, Euro, HardDrive, Key, Mail, Pl
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { BillingSection } from "@/components/bridge/BillingSection";
 import { SettingsGroup } from "@/components/settings/SettingsPrimitives";
+import { InvoiceDestinationSetting } from "@/components/settings/InvoiceDestinationSetting";
 import { Button } from "@/components/bridge/DSPrimitives";
 import {
   apiClient,
@@ -418,6 +419,7 @@ function OrgSection() {
       </SettingsGroup>
 
       <OrderDirectionSetting />
+      <InvoiceDestinationSetting />
     </div>
   );
 }
@@ -449,7 +451,7 @@ function OrderDirectionSetting() {
   const [feedback, setFeedback] = useState<{ text: string; kind: "ok" | "err" } | null>(null);
 
   const mutation = useMutation({
-    mutationFn: (direction: OrderDirection) => updateOrgSettings(direction),
+    mutationFn: (direction: OrderDirection) => updateOrgSettings({ direction }),
     onSuccess: (saved) => {
       queryClient.setQueryData(["org-settings"], saved);
       // Relabel the whole app immediately.
