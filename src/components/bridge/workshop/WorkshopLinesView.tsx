@@ -499,7 +499,7 @@ function LineRow({
         </td>
         <td style={td({ fontFamily: C.mono, fontSize: 11.5, color: C.ink })}>{line.buyerItemCode}</td>
         <td style={td({ fontFamily: C.mono, fontSize: 11.5, color: missingCode ? C.red : C.ink })}>
-          {missingCode ? "Supplier code needs confirmation" : line.supplierItemCode}
+          {missingCode ? (blockedRow ? "Supplier code needs confirmation" : "— missing") : line.supplierItemCode}
           {line.resolvedVia === "saved_mapping" && (
             <span style={{ ...chipBase, background: C.greenSoft, color: C.green, marginLeft: 6 }}>
               Learned from a previous order
@@ -575,7 +575,7 @@ function LineRow({
               }
             >
               {missingCode ? (
-                <ValueChip tone="red">Supplier code needs confirmation</ValueChip>
+                <ValueChip tone="red">{blockedRow ? "Supplier code needs confirmation" : "— missing"}</ValueChip>
               ) : (
                 <ValueChip>{line.supplierItemCode}</ValueChip>
               )}

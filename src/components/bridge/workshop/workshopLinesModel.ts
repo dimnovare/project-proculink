@@ -71,9 +71,10 @@ export function learnedCodeCount(lines: ReadonlyArray<Pick<OrderLine, "resolvedV
   return lines.filter((l) => l.resolvedVia === "saved_mapping").length;
 }
 
-/** Lines with no supplier code first; otherwise the existing order (Array.sort is stable). */
-export function unresolvedFirst<T extends Pick<OrderLine, "supplierItemCode">>(lines: ReadonlyArray<T>): T[] {
-  return [...lines].sort((a, b) => Number(!!a.supplierItemCode) - Number(!!b.supplierItemCode));
+/** Blocked lines (no supplier code and flagged) first; otherwise the existing order (Array.sort is stable). */
+export function unresolvedFirst<T extends Pick<OrderLine, "needsReview" | "supplierItemCode">>(lines: ReadonlyArray<T>): T[] {
+  const blocked = (l: T) => Number(lineChipStatus(l) !== "supplier-code");
+  return [...lines].sort((a, b) => blocked(a) - blocked(b));
 }
 
 /** Lines still blocking send (server-truth needsReview — same flag the send guard reads). */

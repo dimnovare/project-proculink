@@ -460,14 +460,14 @@ describe("WorkshopLinesToggle", () => {
 });
 
 describe("codes learned from previous orders", () => {
-  it("saved-mapping lines show the learned chip and the bar shows 7 of 10", () => {
-    const lines = Array.from({ length: 10 }, (_, i) =>
+  it("saved-mapping lines show the learned chip and the bar shows 7 of 11", () => {
+    const lines = Array.from({ length: 11 }, (_, i) =>
       makeLine({
         id: `l${i + 1}`,
         lineNumber: i + 1,
         buyerItemCode: `B-${i + 1}`,
         supplierItemCode: i >= 8 ? null : `S-${i + 1}`,
-        needsReview: i >= 8,
+        needsReview: i >= 8 && i < 10, // line 11: no code but not flagged (e.g. an invoice line)
         resolvedVia: i < 7 ? "saved_mapping" : i === 7 ? "manual" : null,
       }),
     );
@@ -477,10 +477,12 @@ describe("codes learned from previous orders", () => {
     const rows = view.getAllByRole("row").slice(1);
     expect(rows[0].textContent).toContain("B-9");
     expect(rows[1].textContent).toContain("B-10");
+    expect(rows[2].textContent).toContain("B-1"); // original order resumes; unflagged B-11 is not hoisted
+    expect(view.getAllByText("Supplier code needs confirmation")).toHaveLength(2);
 
     render(<WorkshopStatusBar blockers={[]} onJump={vi.fn()} mapper={null} lines={lines} />);
     expect(screen.getByTestId("status-bar-learned").textContent).toBe(
-      "7 of 10 item codes recognised from previous orders",
+      "7 of 11 item codes recognised from previous orders",
     );
     cleanup();
     render(<WorkshopStatusBar blockers={[]} onJump={vi.fn()} mapper={null} lines={[makeLine({})]} />);

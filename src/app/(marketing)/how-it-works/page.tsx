@@ -55,11 +55,12 @@ const NEUTRAL_SOFT = "var(--surface-2)";
 //     saved mapping carries a "Learned from a previous order" chip and the status bar counts them
 //     ("n of total item codes recognised from previous orders"; hidden at zero).
 //   • Step 4 — the downloadable result is the supplier-ready file (XML, CSV, cXML, JSON, UBL,
-//     X12). ProcuLink does not produce PDF or Excel output, so the step says neither.
+//     X12), plus a PDF of the order. ProcuLink does not produce Excel output, so the step does not
+//     promise it.
 //   • Step 6 — automatic delivery is off until a person turns it on for a supplier. An order
 //     with an unresolved item code or a failed built-in check cannot be transformed, so it
-//     never reaches automatic delivery. There is no per-order "hold this one" override while
-//     automatic delivery is on, so the step does not offer one.
+//     never reaches automatic delivery. A per-order "Hold this order for review"
+//     control exists on this branch; the step copy does not mention it.
 
 const WORKFLOW: Array<{ title: string; desc: string; color: string; bg: string; icon: React.ReactNode }> = [
   {
