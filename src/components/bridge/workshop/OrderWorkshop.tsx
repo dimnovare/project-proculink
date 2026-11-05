@@ -76,7 +76,7 @@ import { IssuesPanel, type WorkshopIssue, type IssuesResolveApi } from "./Issues
 import { CatalogHintCard } from "../review/CatalogHintCard";
 import { WorkshopLinesView, WorkshopLinesToggle } from "./WorkshopLinesView";
 import { showLinesToggle } from "./workshopLinesModel";
-import { bulkAcceptCount, type BulkSelectableLine } from "../magicBulkAcceptSelection";
+import { BULK_ACCEPT_CONFIDENCE, bulkAcceptCount, type BulkSelectableLine } from "../magicBulkAcceptSelection";
 import { MobileTriage } from "./MobileTriage";
 import { acceptanceIssues, failingAcceptanceCount, readyBarLabel } from "./acceptanceGateModel";
 import { WorkshopStepper } from "./WorkshopStepper";
@@ -896,7 +896,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
 
   // ── Bulk-accept scope counts — derived from order.lines, mapped to the SAME
   //    BulkSelectableLine shape MagicMappingPreview feeds bulkAcceptCount, so the
-  //    workshop's "Accept all"/"Accept ≥85%" badges match the preview's semantics
+  //    workshop's "Accept matches ≥85%"/accept-all badges match the preview's semantics
   //    exactly. A line is suggestable when it's still unresolved (needsReview) AND
   //    carries an AI-suggested supplier code; the ≥85% subset uses the suggestion's
   //    own confidence (falling back to the line confidence). The workshop has no
@@ -913,7 +913,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
     const empty: ReadonlySet<number> = new Set();
     return {
       suggestableCount: bulkAcceptCount({ lines: selectable, minConfidence: 0, rejectedLineNumbers: empty }),
-      highConfCount: bulkAcceptCount({ lines: selectable, minConfidence: 0.85, rejectedLineNumbers: empty }),
+      highConfCount: bulkAcceptCount({ lines: selectable, minConfidence: BULK_ACCEPT_CONFIDENCE, rejectedLineNumbers: empty }),
     };
   }, [order]);
 
@@ -1432,8 +1432,8 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
              "switch to the Issues tab" — it re-opens a railed third column and
              scrolls the list back to the top. */
           onReviewIssues={() => { lay.setFocus("all"); setShowIssuesSignal((s) => s + 1); }}
-          onResolveAll={issuesResolve.bulkAcceptSuggestions ? () => issuesResolve.bulkAcceptSuggestions!(0) : undefined}
-          resolveAllCount={suggestableCount}
+          onResolveAll={issuesResolve.bulkAcceptSuggestions ? () => issuesResolve.bulkAcceptSuggestions!(BULK_ACCEPT_CONFIDENCE) : undefined}
+          resolveAllCount={highConfCount}
           resolving={issuesResolve.bulkAccepting}
           mapper={statusBarMapper}
           pipeline={<WorkshopStepper stage={stepperStage} failed={stepperFailed} />}

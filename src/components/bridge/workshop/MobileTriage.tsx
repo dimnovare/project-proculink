@@ -29,6 +29,8 @@ import { orderProblemState } from "@/lib/orderStatusManifest";
 // place so the two breakpoints cannot drift apart.
 import { STOPPED_ORDER_NOTE, UNVERIFIED_ORDER_NOTE } from "./acceptanceGateModel";
 import type { WorkshopIssue, IssuesResolveApi } from "./IssuesPanel";
+import { BULK_ACCEPT_CONFIDENCE } from "../magicBulkAcceptSelection";
+import { useAcceptAllConfirm } from "./useAcceptAllConfirm";
 import type { OrderLine } from "@/types/procurement";
 
 // ── Semantic color tokens (mirrors the rest of the workshop) ──────────────────
@@ -148,7 +150,7 @@ export interface MobileTriageProps {
    * is present. Optional → callers without bulk support render no control.
    */
   suggestableCount?: number;
-  /** The ≥0.85-confidence subset of `suggestableCount` ("Accept ≥85% only"). */
+  /** The ≥0.85-confidence subset of `suggestableCount` ("Accept matches ≥85%"). */
   highConfCount?: number;
   /**
    * Teaching content rendered directly above the issue list — today the catalog
@@ -176,6 +178,7 @@ export function MobileTriage(props: MobileTriageProps) {
     suggestableCount = 0, highConfCount = 0, hintSlot, documentSlot,
   } = props;
 
+  const acceptAll = useAcceptAllConfirm(resolve?.bulkAcceptSuggestions, suggestableCount);
   const sendBlockCount = Math.max(blockingIssues, exceptionCount);
 
   // Three answers about the ORDER itself, kept separate from the count of FIELD issues:
@@ -480,23 +483,25 @@ export function MobileTriage(props: MobileTriageProps) {
                 parent's setFlow, so no separate notice here. */}
             {resolve?.bulkAcceptSuggestions && suggestableCount > 0 && (
               <div data-testid="mobile-bulk-accept" className="flex flex-col gap-2">
-                <button
-                  type="button"
-                  onClick={() => resolve.bulkAcceptSuggestions!(0)}
-                  disabled={resolve.bulkAccepting}
-                  className="plk-mobile-accept"
-                  style={{ ...mobilePrimaryBtn, width: "100%", justifyContent: "center", display: "inline-flex", alignItems: "center", gap: 8, opacity: resolve.bulkAccepting ? 0.6 : 1, cursor: resolve.bulkAccepting ? "wait" : "pointer" }}
-                >
-                  {resolve.bulkAccepting ? "Resolving…" : `Resolve all suggested (${suggestableCount})`}
-                </button>
-                {highConfCount > 0 && highConfCount < suggestableCount && (
+                {highConfCount > 0 && (
                   <button
                     type="button"
-                    onClick={() => resolve.bulkAcceptSuggestions!(0.85)}
+                    onClick={() => resolve.bulkAcceptSuggestions!(BULK_ACCEPT_CONFIDENCE)}
+                    disabled={resolve.bulkAccepting}
+                    className="plk-mobile-accept"
+                    style={{ ...mobilePrimaryBtn, width: "100%", justifyContent: "center", display: "inline-flex", alignItems: "center", gap: 8, opacity: resolve.bulkAccepting ? 0.6 : 1, cursor: resolve.bulkAccepting ? "wait" : "pointer" }}
+                  >
+                    {resolve.bulkAccepting ? "Accepting…" : `Accept matches ≥85% (${highConfCount})`}
+                  </button>
+                )}
+                {highConfCount < suggestableCount && (
+                  <button
+                    type="button"
+                    onClick={acceptAll}
                     disabled={resolve.bulkAccepting}
                     style={{ ...mobileGhostBtn, width: "100%", justifyContent: "center", display: "inline-flex", alignItems: "center", gap: 8, opacity: resolve.bulkAccepting ? 0.6 : 1, cursor: resolve.bulkAccepting ? "wait" : "pointer" }}
                   >
-                    {resolve.bulkAccepting ? "Accepting…" : `Accept ≥85% only (${highConfCount})`}
+                    {`Accept all suggestions, including low-confidence (${suggestableCount})`}
                   </button>
                 )}
               </div>

@@ -7,6 +7,9 @@
 //
 // Pure + framework-free so it can be unit-tested directly and reused by the count + the action.
 
+/** The confidence bar of the normal bulk accept ("Accept matches ≥85%"): the button's count and its call both use it. */
+export const BULK_ACCEPT_CONFIDENCE = 0.85;
+
 export interface BulkSelectableLine {
   lineNumber: number;
   status: "suggested" | "resolved" | "unresolved";

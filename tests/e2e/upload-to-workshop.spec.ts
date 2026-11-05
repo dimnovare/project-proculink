@@ -88,14 +88,13 @@ test.describe("Order Workshop — bulk-accept parity (the retired preview step's
    * STRUCT-2 acceptance: at /inbox/<id> (the Order Workshop), an order with
    * unresolved AI-suggested lines surfaces the SAME one-click bulk-accept
    * control the retired /upload/preview step had, and accepting clears those issues.
-   * The workshop's control is labelled "Resolve all suggested" (renamed from
-   * "Accept all AI suggestions" in the issues banner-actions redesign,
-   * f365aa0); it still drives the same POST /accept-ai-suggestions path.
+   * With every seeded match under 85%, only the confirm-gated "Accept all suggestions,
+   * including low-confidence" control shows; it drives POST /accept-ai-suggestions.
    *
    * ord-002 is seeded with 2 lines carrying pending AI suggestions (84% + 72%),
    * so the workshop's IssuesPanel renders the bulk-accept header.
    */
-  test("the workshop exposes 'Resolve all suggested' and clicking it clears issues", async ({ page }) => {
+  test("the workshop exposes 'Accept all suggestions' (both seeded matches are under 85%) and confirming clears issues", async ({ page }) => {
     await page.goto("/inbox/ord-002");
 
     // The workshop shell renders (desktop mapper view).
@@ -103,14 +102,15 @@ test.describe("Order Workshop — bulk-accept parity (the retired preview step's
 
     // The bulk-accept control (parity with the retired preview step) is present for the
     // unresolved AI-suggested lines.
-    const acceptAll = page.getByRole("button", { name: /resolve all suggested/i }).first();
+    const acceptAll = page.getByRole("button", { name: /accept all suggestions, including low-confidence/i }).first();
     await expect(acceptAll).toBeVisible({ timeout: 10_000 });
     await acceptAll.click();
+    await page.getByRole("button", { name: /^accept 2$/i }).click();
 
     // After accepting, the AI-suggestion issues clear — the bulk-accept control
     // (which only renders while suggestable lines remain) disappears.
     await expect(
-      page.getByRole("button", { name: /resolve all suggested/i }),
+      page.getByRole("button", { name: /accept all suggestions, including low-confidence/i }),
     ).toHaveCount(0, { timeout: 15_000 });
   });
 });

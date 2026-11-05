@@ -110,7 +110,7 @@ export function WorkshopStatusBar({
   onJump: (id: string) => void;
   /** Bring the issue list back into view (lives in the ⋯ overflow). */
   onReviewIssues?: () => void;
-  /** Bulk-accept every AI suggestion (the "Resolve suggested (n)" button). */
+  /** Bulk-accept the strong matches (the "Accept matches ≥85% (n)" button). */
   onResolveAll?: () => void;
   /** How many issues the bulk resolve would clear → its count; hidden when 0. */
   resolveAllCount?: number;
@@ -274,7 +274,7 @@ export function WorkshopStatusBar({
               }}
             >
               <SparkleGlyph />
-              {resolving ? "Resolving…" : `Resolve suggested (${resolveAllCount})`}
+              {resolving ? "Accepting…" : `Accept matches ≥85% (${resolveAllCount})`}
             </button>
           )}
         </div>

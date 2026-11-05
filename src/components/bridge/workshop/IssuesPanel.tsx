@@ -27,6 +27,8 @@ import { orderProblemState } from "@/lib/orderStatusManifest";
 // this panel does not retype them. See CHECK_SCOPE_SENTENCE for why "checked" went.
 import { READY_BAR_DEFAULT, STOPPED_ORDER_NOTE, UNVERIFIED_ORDER_NOTE } from "./acceptanceGateModel";
 import { confidenceTone } from "../ConfidenceChip";
+import { BULK_ACCEPT_CONFIDENCE } from "../magicBulkAcceptSelection";
+import { useAcceptAllConfirm } from "./useAcceptAllConfirm";
 import type { FixCardKind } from "../review/buildFixQueue";
 import type { OrderLine } from "@/types/procurement";
 
@@ -117,7 +119,7 @@ export interface IssuesPanelProps {
    * `resolve?.bulkAcceptSuggestions` is present. Optional → pure-view callers omit it.
    */
   suggestableCount?: number;
-  /** The ≥0.85-confidence subset of `suggestableCount` (the "Accept ≥85% only" scope). */
+  /** The ≥0.85-confidence subset of `suggestableCount` (the "Accept matches ≥85%" scope). */
   highConfCount?: number;
   /**
    * Jump to a line in the workshop's Lines view (switch the middle column to
@@ -182,6 +184,7 @@ const SEVERITY: Record<IssueSeverity, { accent: string; soft: string; text: stri
 };
 
 export function IssuesPanel({ issues, onFocusField, onFix, readyLabel, resolve, lines, suggestableCount = 0, highConfCount = 0, onJumpToLine, orderStatus }: IssuesPanelProps) {
+  const acceptAll = useAcceptAllConfirm(resolve?.bulkAcceptSuggestions, suggestableCount);
   // ── 0 field issues, and the order itself is NOT known to be fine ──
   //
   // Three answers, not two. Only `"clear"` earns the green bar below. `"problem"` and
@@ -271,7 +274,8 @@ export function IssuesPanel({ issues, onFocusField, onFix, readyLabel, resolve, 
 
   const blocking = issues.filter((i) => i.severity === "blocking").length;
   const showBulk = !!resolve?.bulkAcceptSuggestions && suggestableCount > 0;
-  const showHigh = showBulk && highConfCount > 0 && highConfCount < suggestableCount;
+  const showHigh = showBulk && highConfCount > 0;
+  const showAll = showBulk && highConfCount < suggestableCount;
 
   return (
     <div data-testid="issues-panel" data-issues={issues.length} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -291,31 +295,30 @@ export function IssuesPanel({ issues, onFocusField, onFix, readyLabel, resolve, 
             least one suggestable line. Feedback flows through the parent's setFlow. */}
         {showBulk && (
           <div data-testid="issues-bulk-accept" style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-            <button
-              type="button"
-              onClick={() => resolve!.bulkAcceptSuggestions!(0)}
-              disabled={resolve!.bulkAccepting}
-              // "using AI" was a blanket claim over a mixed set: the suggestions this button
-              // accepts also come from an exact supplier-catalog lookup and from a part number
-              // the document itself states, neither of which involves a model. The button's own
-              // visible label already says the honest thing ("Resolve all suggested"), so the
-              // tooltip now matches it instead of contradicting it.
-              title="Fills in the suggested supplier code for every item that has one. You can still edit any of them afterward."
-              style={{ ...navyBtn, opacity: resolve!.bulkAccepting ? 0.6 : 1, cursor: resolve!.bulkAccepting ? "wait" : "pointer" }}
-            >
-              <SparkleGlyph />
-              {resolve!.bulkAccepting ? "Resolving…" : "Resolve all suggested"}
-              <span style={countBadge}>{suggestableCount}</span>
-            </button>
             {showHigh && (
               <button
                 type="button"
-                onClick={() => resolve!.bulkAcceptSuggestions!(0.85)}
+                onClick={() => resolve!.bulkAcceptSuggestions!(BULK_ACCEPT_CONFIDENCE)}
+                disabled={resolve!.bulkAccepting}
+                // The suggestions this accepts also come from an exact supplier-catalog lookup and
+                // from a part number the document itself states, so the tooltip does not say "AI".
+                title="Fills in the suggested supplier code for every item matched at 85% or more. Weaker matches stay for you to review."
+                style={{ ...navyBtn, opacity: resolve!.bulkAccepting ? 0.6 : 1, cursor: resolve!.bulkAccepting ? "wait" : "pointer" }}
+              >
+                <SparkleGlyph />
+                {resolve!.bulkAccepting ? "Accepting…" : "Accept matches ≥85%"}
+                <span style={countBadge}>{highConfCount}</span>
+              </button>
+            )}
+            {showAll && (
+              <button
+                type="button"
+                onClick={acceptAll}
                 disabled={resolve!.bulkAccepting}
                 style={{ ...ghostBtn, opacity: resolve!.bulkAccepting ? 0.6 : 1, cursor: resolve!.bulkAccepting ? "wait" : "pointer" }}
               >
-                {resolve!.bulkAccepting ? "Accepting…" : "Accept ≥85% only"}
-                <span style={{ ...countBadge, background: C.surface2, color: C.ink }}>{highConfCount}</span>
+                Accept all suggestions, including low-confidence
+                <span style={{ ...countBadge, background: C.surface2, color: C.ink }}>{suggestableCount}</span>
               </button>
             )}
           </div>

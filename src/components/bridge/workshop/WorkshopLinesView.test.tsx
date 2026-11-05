@@ -55,7 +55,7 @@ function makeLine(over: Partial<OrderLine>): OrderLine {
 }
 
 /** The bulk button's visible label — neutral, because the set it applies is mixed. */
-const BULK_APPLY_LABEL = "Apply suggested codes to all blocked lines";
+const BULK_APPLY_LABEL = /accept all suggestions, including low-confidence/i;
 
 const READY_LINE = makeLine({ id: "line-1", lineNumber: 1 });
 const BLOCKED_LINE = makeLine({
@@ -257,7 +257,7 @@ describe("suggestion attribution — only a scored suggestion is called AI", () 
       await waitFor(() => expect(confirmSpy).toHaveBeenCalledTimes(1));
 
       const message = String(confirmSpy.mock.calls[0][0]);
-      expect(message).toContain("Apply suggested codes to all blocked lines?");
+      expect(message).toContain("Accept all suggestions, including low-confidence?");
       expect(message).toContain("2 blocked lines have a suggested supplier code");
       expect(message).not.toMatch(/\bAI\b/);
     } finally {

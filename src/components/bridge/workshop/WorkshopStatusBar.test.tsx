@@ -84,7 +84,7 @@ describe("WorkshopStatusBar", () => {
     expect(onJump).toHaveBeenCalledWith("line:l1");
   });
 
-  test("'Resolve suggested (n)' fires the resolve-all handler; absent at count 0", () => {
+  test("'Accept matches ≥85% (n)' fires the bulk handler; absent at count 0", () => {
     const onResolveAll = vi.fn();
     const { rerender } = render(
       <WorkshopStatusBar
@@ -95,7 +95,7 @@ describe("WorkshopStatusBar", () => {
         mapper={null}
       />,
     );
-    const btn = screen.getByRole("button", { name: /resolve suggested \(2\)/i });
+    const btn = screen.getByRole("button", { name: /accept matches ≥85% \(2\)/i });
     fireEvent.click(btn);
     expect(onResolveAll).toHaveBeenCalled();
 
@@ -108,7 +108,7 @@ describe("WorkshopStatusBar", () => {
         mapper={null}
       />,
     );
-    expect(screen.queryByRole("button", { name: /resolve suggested/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /accept matches/i })).toBeNull();
   });
 
   test("the mapped chip shows M/T from the re-hosted mapper state; absent until it registers", () => {

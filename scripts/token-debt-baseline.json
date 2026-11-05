@@ -106,7 +106,7 @@
   "src/components/bridge/UserChipMenu.tsx": 30,
   "src/components/bridge/WireTopology.tsx": 68,
   "src/components/bridge/workshop/AssignSupplierBanner.tsx": 18,
-  "src/components/bridge/workshop/IssuesPanel.tsx": 37,
+  "src/components/bridge/workshop/IssuesPanel.tsx": 36,
   "src/components/bridge/workshop/MappingPanel.tsx": 34,
   "src/components/bridge/workshop/MobileTriage.tsx": 56,
   "src/components/bridge/workshop/OrderDetailsDrawer.tsx": 26,

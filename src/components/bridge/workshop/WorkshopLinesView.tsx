@@ -270,7 +270,7 @@ export function WorkshopLinesView({
     // misattributes the deterministic ones, so the dialog says "suggested code" and the
     // per-line chip keeps "AI" for the scored ones only.
     const ok = await confirm({
-      title: "Apply suggested codes to all blocked lines?",
+      title: "Accept all suggestions, including low-confidence?",
       description: `${bulkCount} blocked ${bulkCount === 1 ? "line has" : "lines have"} a suggested supplier code. Each suggestion will be saved as that line's supplier code — you can still change any line afterwards.`,
       confirmLabel: `Apply ${bulkCount} suggestion${bulkCount === 1 ? "" : "s"}`,
     });
@@ -414,7 +414,7 @@ export function WorkshopLinesView({
               whiteSpace: "nowrap",
             }}
           >
-            {bulkAccepting ? "Applying…" : "Apply suggested codes to all blocked lines"}
+            {bulkAccepting ? "Applying…" : `Accept all suggestions, including low-confidence (${bulkCount})`}
           </button>
         )}
       </div>
