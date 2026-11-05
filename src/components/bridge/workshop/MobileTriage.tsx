@@ -139,6 +139,8 @@ export interface MobileTriageProps {
   onDownload?: () => void;
   downloading?: boolean;
   hasFile?: boolean;
+  /** "Mark as sent" for a manual supplier (download-only bar), built by the caller. */
+  markSentSlot?: ReactNode;
   /** Inline per-line resolution actions (same server-truth path as desktop). */
   resolve?: IssuesResolveApi;
   /** The order lines, to read each card's current code / AI suggestion by lineId. */
@@ -174,7 +176,7 @@ export function MobileTriage(props: MobileTriageProps) {
     issues, blockingIssues, exceptionCount, readyLabel, advisoryCount, canSend, crossed, sendState,
     primaryCta, primaryCtaProgress, doneLabel,
     onFix, onFocusField, onSend, resolve, lines,
-    barMode = "send", onDownload, downloading = false, hasFile = false,
+    barMode = "send", onDownload, downloading = false, hasFile = false, markSentSlot,
     suggestableCount = 0, highConfCount = 0, hintSlot, documentSlot,
   } = props;
 
@@ -540,6 +542,7 @@ export function MobileTriage(props: MobileTriageProps) {
         }}
       >
         {downloadPrimary && showDownload && downloadButton}
+        {markSentSlot}
         {barMode !== "download-only" && (
         <button
           type="button"
