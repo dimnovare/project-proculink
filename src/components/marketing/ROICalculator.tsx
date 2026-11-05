@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { OVERAGE_PER_ORDER_EUR, PLAN_BY_ID, planEffectiveMonthlyCost, recommendPlanByOrders } from "@/lib/plans";
+import { OVERAGE_PER_ORDER_EUR, PLAN_BY_ID, VOLUME_SLIDER_MAX, planEffectiveMonthlyCost, recommendPlanByOrders } from "@/lib/plans";
 import { Card } from "@/components/bridge/layout/Card";
 import { NUMBER_LOCALE } from "@/lib/format-number";
 
@@ -91,10 +91,10 @@ const perOrderEur = (n: number) =>
 // window ("14 days"). Both rendered sentences are unchanged.
 const PILOT = PLAN_BY_ID.pilot;
 const PILOT_FALLBACK_SENTENCE =
-  `Start with the free 14-day ${PILOT.name} — ${PILOT.orderLimit} orders, no card required — ` +
+  `Start with the free 14-day ${PILOT.name} — ${PILOT.orderLimit} documents, no card required — ` +
   "and upgrade once the savings are real.";
 const PILOT_FINE_PRINT =
-  `The ${PILOT.name} tier is free for ${PILOT.priceCadence} (${PILOT.orderLimit} orders) and does not require a card.`;
+  `The ${PILOT.name} tier is free for ${PILOT.priceCadence} (${PILOT.orderLimit} documents) and does not require a card.`;
 
 // ─── Field primitive (slider + value, as a row in the inputs card) ────────────
 function Field({
@@ -374,7 +374,7 @@ export function ROICalculator() {
               marginBottom: 12,
             }}
           >
-            How much is manual order processing costing you?
+            How much is manual document handling costing you?
           </h2>
           <p
             style={{
@@ -411,11 +411,11 @@ export function ROICalculator() {
               to your own numbers.
             </p>
             <Field
-              label="Orders per month"
+              label="Documents per month"
               value={orders}
               display={orders.toLocaleString(NUMBER_LOCALE)}
               min={10}
-              max={5000}
+              max={VOLUME_SLIDER_MAX}
               step={10}
               onChange={setOrders}
               divider={false}
@@ -433,7 +433,7 @@ export function ROICalculator() {
               startingValue={S.manualPct}
             />
             <Field
-              label="Avg minutes per manual order"
+              label="Avg minutes per manual document"
               value={minutes}
               display={`${minutes} min`}
               min={1}
@@ -621,7 +621,7 @@ export function ROICalculator() {
                 {!calc.plan.isCustom && calc.netPositive && calc.overageOrders > 0 && (
                   <p style={{ fontSize: 12.5, color: "#9DB2CE", lineHeight: 1.5, margin: "0 0 10px" }}>
                     {eur(calc.plan.priceMonthly ?? 0)} plan + {calc.overageOrders.toLocaleString(NUMBER_LOCALE)}{" "}
-                    orders over the {calc.plan.orderLimit?.toLocaleString(NUMBER_LOCALE)}/mo allowance ×{" "}
+                    documents over the {calc.plan.orderLimit?.toLocaleString(NUMBER_LOCALE)}/mo allowance ×{" "}
                     {perOrderEur(OVERAGE_PER_ORDER_EUR)} = {eur(calc.overageEur)} overage.
                     Processing is never blocked.
                   </p>
@@ -683,15 +683,15 @@ export function ROICalculator() {
           Savings model assumes ProcuLink removes {automationPct}% of the manual reformatting and
           validation flow — you set that share yourself on the last slider, and its starting value
           is an illustrative default, not a measured customer outcome. The same goes for every other
-          starting value — order volume, manual share, minutes per order, labour cost, error rate and
+          starting value — document volume, manual share, minutes per document, labour cost, error rate and
           cost per fix are examples to replace with your own figures. Adjust the sliders for your
           own numbers; your result will be higher if your current process involves multiple retypes
           or supplier-specific formats.
           Plans are billed monthly and include light, self-serve setup at no extra cost; hands-on
           per-supplier onboarding applies only to Enterprise and other complex setups, is arranged
           manually (never auto-charged), and we will waive it for the first design partners we take
-          on. Paid plans include a monthly order allowance; orders above it bill at{" "}
-          {`${perOrderEur(OVERAGE_PER_ORDER_EUR)}/order`} and are never blocked — the plan cost and
+          on. Paid plans include a monthly document allowance; documents above it bill at{" "}
+          {`${perOrderEur(OVERAGE_PER_ORDER_EUR)}/document`} and are never blocked — the plan cost and
           payback maths above already include that overage. {PILOT_FINE_PRINT}
         </p>
       </div>

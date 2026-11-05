@@ -57,17 +57,17 @@ describe("/pricing FAQ reads its numbers off the plan ladder", () => {
   it("quotes the ladder's overage fee, not a typed €0.50", () => {
     const body = pageText();
 
-    expect(body).toContain(`billed automatically at €${h.overage.toFixed(2)} per order`);
+    expect(body).toContain(`billed automatically at €${h.overage.toFixed(2)} per document`);
     expect(body, "the hardcoded fee must be gone from the FAQ, not merely joined").not.toContain(
-      "at €0.50 per order",
+      "at €0.50 per document",
     );
   });
 
   it("quotes the ladder's Pilot allowance, not a typed 20", () => {
     const body = pageText();
 
-    expect(body).toContain(`past the ${h.pilotOrders}-order trial`);
-    expect(body).not.toContain("past the 20-order trial");
+    expect(body).toContain(`past the ${h.pilotOrders}-document trial`);
+    expect(body).not.toContain("past the 20-document trial");
   });
 
   it("ANTI-VACUITY: the mock really is what the page is reading", () => {
@@ -80,9 +80,9 @@ describe("/pricing FAQ reads its numbers off the plan ladder", () => {
     // The card footnote is the copy that was ALREADY derived. It must move with the
     // ladder too — proving the moved constant reaches this page at all, so a failure
     // above is about the FAQ and not about the mock.
-    expect(body).toContain(`€${h.overage.toFixed(2)}/order, never blocked`);
+    expect(body).toContain(`€${h.overage.toFixed(2)}/document, never blocked`);
     // And the FAQ questions themselves are still on the page, so the answers were read.
-    expect(body).toContain("What if I go over my monthly orders?");
+    expect(body).toContain("What if I go over my monthly allowance?");
     expect(body).toContain("What happens after the Pilot?");
   });
 });

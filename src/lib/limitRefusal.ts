@@ -197,8 +197,8 @@ export function limitRefusalCopy(refusal: LimitRefusal): LimitRefusalCopy {
 
   return {
     code,
-    title: "You've reached your plan's order limit.",
-    message: "Upgrade to continue processing new orders this month.",
+    title: "You've reached your plan's document limit.",
+    message: "Upgrade to continue processing new documents this month.",
     cta: "Upgrade plan",
   };
 }

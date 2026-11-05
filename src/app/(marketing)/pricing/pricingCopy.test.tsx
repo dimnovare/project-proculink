@@ -35,7 +35,7 @@ describe("/pricing pilot-stage copy", () => {
     );
     const body = container.textContent ?? "";
     expect(body).not.toMatch(/Pay for orders processed, nothing else/i);
-    expect(body).toMatch(/monthly orders and supplier flows, with no per-seat pricing/);
+    expect(body).toMatch(/documents you process each month and the suppliers you send orders to, with no per-seat pricing/);
   });
 
   it("adds the five getting-started questions and keeps every billing question", () => {
@@ -47,10 +47,10 @@ describe("/pricing pilot-stage copy", () => {
       "Will ProcuLink send anything automatically during the Pilot?",
       "What happens when my item code doesn't match the supplier's?",
       // billing — must survive
-      "What counts as an order?",
+      "What counts as a document?",
       "What happens after the Pilot?",
-      "Do you charge for failed orders?",
-      "What if I go over my monthly orders?",
+      "Do you charge for failed documents?",
+      "What if I go over my monthly allowance?",
       "Can I change plans later?",
       "What happens if I cancel?",
       "Where is my data stored?",
@@ -70,18 +70,18 @@ describe("/pricing pilot-stage copy", () => {
   it("says test uploads count toward the allowance — only the built-in sample is free", () => {
     const { container } = renderPage();
     expect(container.textContent ?? "").toMatch(
-      /count toward your order allowance — only the built-in sample order doesn't/,
+      /count toward your document allowance — only the built-in sample order doesn't/,
     );
   });
 
   it("asks for suppliers too, and the supplier count really changes the recommendation", () => {
     const { q } = renderPage();
     const status = q.getByRole("status");
-    const suppliers = q.getByLabelText("Suppliers you order from regularly") as HTMLInputElement;
+    const suppliers = q.getByLabelText("Suppliers you send orders to") as HTMLInputElement;
     expect(suppliers.max).toBe(String(MAX_SELF_SERVE_SUPPLIERS + 1));
 
     // Default: one supplier, so the answer is the volume answer.
-    const orders = Number((q.getByLabelText("Purchase orders per month") as HTMLInputElement).value);
+    const orders = Number((q.getByLabelText("Documents per month") as HTMLInputElement).value);
     const byVolume = recommendPlanByOrders(orders);
     expect(within(status).getByText(byVolume.name)).toBeTruthy();
 

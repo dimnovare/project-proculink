@@ -129,6 +129,10 @@ export default function PilotPage() {
           test or anonymised orders, and nothing needs to be sent automatically while you evaluate
           the result.
         </p>
+        <p className="plk-pilot-p">
+          Invoices are in early access. If your team retypes supplier invoices from PDFs, especially
+          from a new vendor with no template yet, apply below and tell us about it in the last box.
+        </p>
         <div className="plk-pilot-ctas">
           <a href="#apply" className="plk-pilot-btn plk-pilot-btn-primary">
             Apply for a FREE supported pilot <span aria-hidden>→</span>
@@ -215,7 +219,7 @@ export default function PilotPage() {
           <Card as="article">
             <h3 className="plk-pilot-h3">Self-service {PILOT.name}</h3>
             <p className="plk-pilot-small">
-              {PILOT.priceLabel} for {PILOT.priceCadence} · {PILOT.orderLimit} orders ·{" "}
+              {PILOT.priceLabel} for {PILOT.priceCadence} · {PILOT.orderLimit} documents ·{" "}
               {PILOT.supplierLimit} {PILOT.supplierLimit === 1 ? "supplier" : "suppliers"} · no credit
               card. Explore on your own, at your own pace.
             </p>

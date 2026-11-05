@@ -11,6 +11,7 @@ import {
   inheritanceLine,
   planEffectiveMonthlyCost,
   recommendPlanByOrders,
+  VOLUME_SLIDER_MAX,
   yearlyMonthlyEquivalent,
   yearlySavePercent,
   type Plan,
@@ -130,8 +131,8 @@ const FAQ: Array<[string, ReactNode]> = [
   //   • upload accepts CSV/XLSX/PDF/XML on every plan (no ERP needed);
   //   • the supplier needs no account — they receive a file, or an ordinary email;
   //   • test/anonymised uploads are ordinary uploads, so they DO count toward the
-  //     allowance — only the built-in sample is free (same rule as "What counts as an
-  //     order?" below; saying otherwise would be a billing promise nothing honours);
+  //     allowance — only the built-in sample is free (same rule as "What counts as a
+  //     document?" below; saying otherwise would be a billing promise nothing honours);
   //   • auto-deliver is off until switched on per supplier, so sending is a person
   //     clicking "Send to supplier";
   //   • a confirmed item-code match is saved per supplier and reused on later orders.
@@ -146,7 +147,7 @@ const FAQ: Array<[string, ReactNode]> = [
   ],
   [
     "Can I use a test or anonymised order?",
-    "Yes. You can try the workflow without uploading a commercially sensitive live order. Test and anonymised uploads are processed like any other upload, so they count toward your order allowance — only the built-in sample order doesn't.",
+    "Yes. You can try the workflow without uploading a commercially sensitive live order. Test and anonymised uploads are processed like any other upload, so they count toward your document allowance — only the built-in sample order doesn't.",
   ],
   [
     "Will ProcuLink send anything automatically during the Pilot?",
@@ -158,8 +159,8 @@ const FAQ: Array<[string, ReactNode]> = [
   ],
   // ── Billing ──────────────────────────────────────────────────────────────
   [
-    "What counts as an order?",
-    "One buyer purchase order that enters processing in ProcuLink. Each order counts once, at intake; retries and re-deliveries of the same order don't count again, and sample orders never count toward your allowance.",
+    "What counts as a document?",
+    "One document that enters processing in ProcuLink. Each one counts once, at intake, whatever its type: a purchase order counts as one, and so will an invoice once invoices leave early access. Retries and re-deliveries of the same document don't count again, and sample orders never count toward your allowance.",
   ],
   [
     "What happens after the Pilot?",
@@ -173,7 +174,7 @@ const FAQ: Array<[string, ReactNode]> = [
     // just read about a longer supported pilot reads "the trial" here as the same offer.
     <>
       Nothing breaks. Your suppliers and mappings stay configured; you simply pick a plan when
-      you&apos;re ready to keep processing orders past the {PLAN_BY_ID.pilot.orderLimit}-order trial.
+      you&apos;re ready to keep processing documents past the {PLAN_BY_ID.pilot.orderLimit}-document trial.
       That is the self-service Pilot. The{" "}
       <Link href="/pilot" className="plk-faq-link">
         supported pilot programme
@@ -182,15 +183,15 @@ const FAQ: Array<[string, ReactNode]> = [
     </>,
   ],
   [
-    "Do you charge for failed orders?",
-    "An order counts when it enters processing, whether or not delivery later fails. Retries and re-deliveries of the same order are free, and sample orders are always free.",
+    "Do you charge for failed documents?",
+    "A document counts when it enters processing, whether or not delivery later fails. Retries and re-deliveries of the same document are free, and sample orders are always free.",
   ],
   [
-    "What if I go over my monthly orders?",
+    "What if I go over my monthly allowance?",
     // Same rule as the trial size above: the per-order overage is the constant the price cards
     // on this very page already render from OVERAGE_PER_ORDER_EUR (see the card footnote).
     // Typing it again in the FAQ meant a repricing would have had to find both.
-    `Nothing blocks. Orders above your plan's monthly allowance are billed automatically at €${OVERAGE_PER_ORDER_EUR.toFixed(2)} per order at the end of the billing period — and the overage is capped so you never pay more than the price of the next plan that covers your volume.`,
+    `Nothing blocks. Documents above your plan's monthly allowance are billed automatically at €${OVERAGE_PER_ORDER_EUR.toFixed(2)} per document at the end of the billing period — and the overage is capped so you never pay more than the price of the next plan that covers your volume.`,
   ],
   [
     "Can I change plans later?",
@@ -204,7 +205,7 @@ const FAQ: Array<[string, ReactNode]> = [
   // PO goes missing. Pinned by cancelDisclosure.test.tsx.
   [
     "What happens if I cancel?",
-    "If you cancel, ProcuLink stops accepting new orders when your subscription ends. Everything you have already processed remains readable and exportable — past orders, suppliers, mappings and delivery records all stay — but nothing new comes in on any route: uploads, emailed orders, SFTP and S3 pickups, and the REST API all stop. Orders sent to you after that are not held and delivered later, so redirect your suppliers before you cancel. Resubscribing turns processing back on immediately, with your setup untouched.",
+    "If you cancel, ProcuLink stops accepting new documents when your subscription ends. Everything you have already processed remains readable and exportable — past orders, suppliers and mappings stay until you ask us to delete them, and activity records such as delivery attempts are removed after 180 days (see the Privacy Policy) — but nothing new comes in on any route: uploads, emailed orders, SFTP and S3 pickups, and the REST API all stop. Documents sent to you after that are not held and delivered later, so redirect your suppliers before you cancel. Resubscribing turns processing back on immediately, with your setup untouched.",
   ],
   // STORED and PROCESSED are two different questions, and this answer used to give
   // one answer to both: "All order data is stored and processed in the EU". The
@@ -280,15 +281,15 @@ export default function PricingPage() {
           <h1 className="plk-h1">Start FREE. Pay when the workflow proves useful.</h1>
 
           <p className="plk-sub">
-            Self-service plans are based on monthly orders and supplier flows, with no per-seat
-            pricing. Start with the Pilot on one supplier; after that, choose the plan that fits and
+            Self-service plans are based on the documents you process each month and the suppliers
+            you send orders to, with no per-seat pricing. Start with the Pilot on one supplier; after that, choose the plan that fits and
             move up only when you need more volume, more suppliers or advanced features.
           </p>
 
           {/* Recommender — monthly orders AND supplier flows (./recommendPlan.ts) */}
           <div className="plk-reco">
             <label className="plk-reco-label" htmlFor="plk-orders">
-              How many purchase orders do you send per month?
+              How many documents do you process per month?
             </label>
             <div className="plk-reco-input-row">
               <input
@@ -296,23 +297,23 @@ export default function PricingPage() {
                 className="plk-reco-input"
                 type="range"
                 min={10}
-                max={5000}
+                max={VOLUME_SLIDER_MAX}
                 step={10}
                 value={orders}
                 onChange={(e) => setOrders(Number(e.target.value))}
-                aria-label="Purchase orders per month"
+                aria-label="Documents per month"
                 aria-describedby="plk-reco-readout"
               />
               <span className="plk-reco-count" id="plk-reco-readout" aria-live="polite">
                 {orders.toLocaleString(NUMBER_LOCALE)}
-                <small> POs/mo</small>
+                <small> documents/mo</small>
               </span>
             </div>
 
             {/* Supplier flows — a HARD allowance, unlike orders. The slider stops one past
                 the largest self-serve allowance, which is where only Enterprise fits. */}
             <label className="plk-reco-label plk-reco-label-2" htmlFor="plk-suppliers">
-              How many suppliers do you order from regularly?
+              How many suppliers do you send orders to?
             </label>
             <div className="plk-reco-input-row">
               <input
@@ -324,7 +325,7 @@ export default function PricingPage() {
                 step={1}
                 value={suppliers}
                 onChange={(e) => setSuppliers(Number(e.target.value))}
-                aria-label="Suppliers you order from regularly"
+                aria-label="Suppliers you send orders to"
                 aria-describedby="plk-reco-suppliers-readout"
                 aria-valuetext={supplierCountLabel(suppliers)}
               />
@@ -466,7 +467,7 @@ export default function PricingPage() {
               the FAQ answer is inside a collapsed panel — so the headline consequence also
               sits here, in the open, next to the prices it applies to. */}
           <p className="plk-fine" style={{ marginTop: 10 }}>
-            Cancel any time. New orders stop arriving on every channel once your subscription
+            Cancel any time. New documents stop arriving on every channel once your subscription
             ends — what you have already processed stays available to read and export.
           </p>
         </div>
@@ -528,7 +529,7 @@ function supplierCountLabel(n: number): string {
 function recommendationReason(plan: Plan, passedOver: Plan | null): string {
   const includes =
     plan.supplierLimit != null
-      ? `Includes up to ${plural(plan.supplierLimit, "supplier", "suppliers")}.`
+      ? `Includes up to ${plural(plan.supplierLimit, "supplier", "suppliers")} you send orders to.`
       : "Supplier count set by agreement.";
   if (passedOver == null || passedOver.supplierLimit == null) return includes;
   return `${includes} ${passedOver.name} covers your volume but includes ${plural(passedOver.supplierLimit, "supplier", "suppliers")}.`;
@@ -574,8 +575,8 @@ function PriceCard({ tier, yearly, recommended }: { tier: Tier; yearly: boolean;
           allowance — extra orders meter at €0.50/order. */}
       {tier.isMonthly && tier.orderLimit != null && (
         <div className="plk-overage-note">
-          {tier.orderLimit.toLocaleString("en-IE")} orders/mo included · then €
-          {OVERAGE_PER_ORDER_EUR.toFixed(2)}/order, never blocked
+          {tier.orderLimit.toLocaleString("en-IE")} documents/mo included · then €
+          {OVERAGE_PER_ORDER_EUR.toFixed(2)}/document, never blocked
         </div>
       )}
 

@@ -108,11 +108,11 @@ describe("the Pilot order-cap banner quotes the effective allowance", () => {
   it("states the granted cap, not the ladder's plan default", async () => {
     await renderBilling(billing());
 
-    expect(pageText()).toContain("You've used all 100 Pilot orders.");
+    expect(pageText()).toContain("You've used all 100 Pilot documents.");
     expect(
       pageText(),
       "the plan-default allowance must be gone, not merely joined by the effective one",
-    ).not.toContain(`You've used all ${PLAN_DEFAULT_ORDER_LIMIT} Pilot orders.`);
+    ).not.toContain(`You've used all ${PLAN_DEFAULT_ORDER_LIMIT} Pilot documents.`);
   });
 
   it("still reads correctly for a workspace with no override", async () => {
@@ -120,7 +120,7 @@ describe("the Pilot order-cap banner quotes the effective allowance", () => {
     // this half proves the fix did not simply move the sentence somewhere else.
     await renderBilling(billing({ ordersThisMonth: 20, orderLimit: 20 }));
 
-    expect(pageText()).toContain(`You've used all ${PLAN_DEFAULT_ORDER_LIMIT} Pilot orders.`);
+    expect(pageText()).toContain(`You've used all ${PLAN_DEFAULT_ORDER_LIMIT} Pilot documents.`);
   });
 
   it("names the upgrade tier the ladder points at, in the same sentence", async () => {
@@ -132,7 +132,7 @@ describe("the Pilot order-cap banner quotes the effective allowance", () => {
     const next = PLAN_BY_ID.pilot.next;
     expect(next, "plans.ts no longer gives Pilot an upgrade tier").not.toBeNull();
     expect(pageText()).toContain(
-      `Upgrade to ${PLAN_BY_ID[next!].name} to continue processing new orders.`,
+      `Upgrade to ${PLAN_BY_ID[next!].name} to continue processing new documents.`,
     );
   });
 });

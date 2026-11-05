@@ -207,7 +207,7 @@ describe("pressing Upload on a paused workspace", () => {
     for (const status of ["past_due", "cancelled", "read_only", "trial_expired", "who_knows"]) {
       const banner = pausedUploadBanner({ plan: "operations", accountStatus: status, isTrialExpired: false });
       expect(banner.title, status).toBe(pausedCauseCopy(status).headline);
-      expect(banner.title, status).not.toBe("You've reached your plan's order limit.");
+      expect(banner.title, status).not.toBe("You've reached your plan's document limit.");
     }
   });
 });

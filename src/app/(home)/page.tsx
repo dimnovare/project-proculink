@@ -286,12 +286,9 @@ const STATS: Array<{ value: string; label: string; href?: string }> = [
   { value: "EU", label: "Data residency", href: "/security" },
 ];
 
-// ─── The item-code wedge ──────────────────────────────────────────────────────
-// The page used to open on breadth — "Send every purchase order to any supplier, any
-// format" — which is the claim every EDI vendor makes and the one a smaller buyer has no
-// reason to believe. It now opens on the one recurring problem ProcuLink removes: the
-// buyer's item number is not the supplier's, and someone looks the match up again on every
-// order. Format breadth is still here, lower down, as the depth behind that promise.
+// ─── One flow, worked examples ────────────────────────────────────────────────
+// The page leads with the one flow — read, check, transform, send — and keeps the item-code
+// match as its worked example. Purchase orders work today; invoices are early access ONLY.
 //
 // TRUTH NOTES for whoever edits the copy below. Each line is something the product does
 // today, and the nearby phrasing it replaced was not:
@@ -310,7 +307,7 @@ const STATS: Array<{ value: string; label: string; href?: string }> = [
 const TRUST_STRIP = [
   "No ERP integration needed to start",
   "Your supplier doesn't need an account or new software",
-  "Start with a test or anonymised order",
+  "Start with a test or anonymised document",
   "Review first, automate later",
 ];
 
@@ -340,28 +337,22 @@ const HOME_STEPS: Array<{ title: string; body: string }> = [
   },
 ];
 
-// EXAMPLES, not a target list. Who it is for is defined by the workflow — anyone who orders
-// repeatedly from the same suppliers where item codes differ, in any trade — and the section
-// heading says so. These rows only illustrate what that looks like in a few trades, and are
-// rendered under an explicit "For example" label. Do not add sector rows to narrow the audience.
+// EXAMPLES, not a target list. Who it is for is defined by the workflow — anyone who handles
+// the same kind of document by hand, in any trade — and the section heading says so. These rows
+// only illustrate it, under an explicit "For example" label. Do not add sector rows to narrow the
+// audience. The invoice row says "early access": invoice reading is not live yet (offer ⇔ works).
 const WHO_IT_IS_FOR_EXAMPLES: Array<{ who: string; problem: string }> = [
   {
-    who: "Wholesale / distribution",
-    problem: "You buy the same products repeatedly, but your internal SKU is not the supplier's SKU.",
+    who: "A buyer with repeat suppliers",
+    problem: "Your item numbers don't match your supplier's. Confirm a match once, and ProcuLink reuses it on the next order to that supplier.",
   },
   {
-    who: "Manufacturing",
-    problem:
-      "You repeatedly order components, materials or packaging and need to translate internal part numbers into supplier references.",
+    who: "A team sending orders in many formats",
+    problem: "Each supplier wants the order in its own file layout or by its own channel. ProcuLink writes each supplier's format, from the ones it supports, and sends it.",
   },
   {
-    who: "Import / specialist trade",
-    problem:
-      "You maintain your own product catalogue while suppliers use different identifiers, templates or file layouts.",
-  },
-  {
-    who: "Spare parts / electrical / HVAC / building materials",
-    problem: "Part-number-heavy purchasing means the same code translation can recur on many repeat lines.",
+    who: "A bookkeeper — early access",
+    problem: "You retype supplier invoices from PDFs into your system, and a new vendor has no template yet. Invoice reading is being built now: apply for the pilot below.",
   },
 ];
 
@@ -371,7 +362,7 @@ const WHO_IT_IS_FOR_EXAMPLES: Array<{ who: string; problem: string }> = [
 const PILOT = PLAN_BY_ID.pilot;
 const PILOT_SUPPLIERS = PILOT.supplierLimit ?? 0;
 const PILOT_OFFER_LINE =
-  `${PILOT.priceLabel} for ${PILOT.priceCadence} · ${PILOT.orderLimit} orders · ` +
+  `${PILOT.priceLabel} for ${PILOT.priceCadence} · ${PILOT.orderLimit} documents · ` +
   `${PILOT_SUPPLIERS} ${PILOT_SUPPLIERS === 1 ? "supplier" : "suppliers"} · no credit card.`;
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -452,12 +443,11 @@ export default function RootPage() {
                 color: NAVY_TEXT,
               }}
             >
-              For repeat supplier orders
+              Document processing
             </span>
           </div>
 
-          {/* Headline — the recurring item-code problem, in the buyer's words.
-              Blue = the buyer's side, green = the supplier's, as everywhere else. */}
+          {/* Headline — the one flow. Blue = what comes in, green = what goes out. */}
           <h1
             style={{
               fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
@@ -471,8 +461,8 @@ export default function RootPage() {
               textWrap: "balance",
             }}
           >
-            Do <span style={{ color: BLUE_BRIGHT }}>your item numbers</span> match{" "}
-            <span style={{ color: GREEN_BRIGHT }}>your supplier&apos;s</span>?
+            <span style={{ color: BLUE_BRIGHT }}>Your documents</span>, read, checked and sent{" "}
+            <span style={{ color: GREEN_BRIGHT }}>in the format you need</span>.
           </h1>
 
           {/* Sub */}
@@ -485,9 +475,9 @@ export default function RootPage() {
               margin: "0 0 14px",
             }}
           >
-            If not, someone may be looking them up again every time you order.
-            ProcuLink remembers the match between your item code and your
-            supplier&apos;s code, then reuses it on future orders.
+            A document comes in. ProcuLink reads all of its data, checks it,
+            turns it into the format you need and sends it on the channel you
+            choose.
           </p>
           <p
             style={{
@@ -498,8 +488,10 @@ export default function RootPage() {
               margin: "0 0 30px",
             }}
           >
-            Start with the PDF, Excel or CSV purchase order you already use.
-            Review the supplier-ready result before anything is sent.
+            Purchase orders work today: start with the PDF, Excel or CSV order
+            you already use and review the result before anything is sent.
+            Invoices are in early access —{" "}
+            <Link href="/pilot" style={{ color: SURFACE, textDecoration: "underline" }}>apply for the pilot</Link>.
           </p>
 
           {/* CTAs */}
@@ -692,7 +684,7 @@ export default function RootPage() {
               between the two sides, so this card takes the bridge edge. */}
           <Card edge="bridge" as="article" aria-labelledby="map-once-title">
             <div className="p-2 sm:p-4">
-              <Eyebrow>Recurring value</Eyebrow>
+              <Eyebrow>Example: purchase orders</Eyebrow>
               <h2 id="map-once-title" style={sectionTitle}>
                 Map once. Reuse next time.
               </h2>
@@ -757,7 +749,7 @@ export default function RootPage() {
         <div style={{ maxWidth: 1180, margin: "0 auto" }}>
           <div style={{ textAlign: "center", maxWidth: 640, margin: "0 auto 44px" }}>
             <Eyebrow>How it works</Eyebrow>
-            <h2 style={{ ...sectionTitle, textAlign: "center" }}>One supplier is enough to start</h2>
+            <h2 style={{ ...sectionTitle, textAlign: "center" }}>Purchase orders: one supplier is enough to start</h2>
           </div>
           <ol
             className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4"
@@ -821,14 +813,13 @@ export default function RootPage() {
           <div style={{ textAlign: "center", maxWidth: 680, margin: "0 auto 44px" }}>
             <Eyebrow>Who it is for</Eyebrow>
             <h2 style={{ ...sectionTitle, textAlign: "center" }}>
-              Anyone who orders from the same suppliers again and again
+              Anyone who handles the same kind of document by hand, again and again
             </h2>
             <p style={{ ...bodyCopy, fontSize: 16, textAlign: "center" }}>
-              If your item codes differ from your suppliers&apos; codes, it fits —
-              whatever you buy and whatever trade you are in. It is built for
-              the person closest to repeat order preparation: a buyer, someone
-              in purchasing, supply or logistics, an operations lead, or the
-              owner of a smaller business.
+              It fits whatever the document and whatever trade you are in. It is
+              built for the person who retypes or reformats those documents today: a
+              buyer, someone in purchasing or logistics, a bookkeeper, an
+              operations lead, or the owner of a smaller business.
             </p>
           </div>
           <p
@@ -847,7 +838,7 @@ export default function RootPage() {
           </p>
           <ul
             aria-labelledby="who-examples-label"
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4"
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
             style={{ gap: 18, listStyle: "none", padding: 0, margin: 0 }}
           >
             {WHO_IT_IS_FOR_EXAMPLES.map((row) => (
@@ -906,6 +897,10 @@ export default function RootPage() {
                 client reference, we can discuss heavily discounted ongoing
                 access. Any published wording and figures remain subject to your
                 approval.
+              </p>
+              <p style={bodyCopy}>
+                Invoices are in early access. If your team retypes supplier
+                invoices, you can apply for an invoice pilot too.
               </p>
               <div style={{ marginTop: 24 }}>
                 <Link
@@ -967,9 +962,9 @@ export default function RootPage() {
             Formats, checks and delivery, when you need them
           </h2>
           <p style={{ fontSize: 16, color: INK_MUTED, lineHeight: 1.6, marginTop: 14 }}>
-            Item-code matching sits on a complete order workflow: the same order can be read from
-            many file types, checked before it goes, and delivered over the channel each supplier
-            uses — without an integration project.
+            Every document goes through the same flow: read, check, transform, send. For purchase
+            orders today, that means many input file types, checks before anything goes, and the
+            channel each supplier uses — without an integration project.
           </p>
         </div>
 
@@ -1139,11 +1134,11 @@ export default function RootPage() {
               textWrap: "balance",
             }}
           >
-            Your item number is not always your supplier&apos;s item number.{" "}
+            Stop retyping documents.{" "}
             <span style={{ color: GREEN_BRIGHT }}>
-              ProcuLink remembers the connection between the two,
+              ProcuLink reads them, checks them and sends them on
             </span>{" "}
-            so you do not have to look it up every time you order.
+            in the format you need.
           </blockquote>
 
           {/* No fabricated customer attribution — the value statement stands on its own
@@ -1218,7 +1213,7 @@ export default function RootPage() {
             margin: 0,
           }}
         >
-          Start with one supplier and one order.
+          Start with one document.
         </h2>
         <p style={{ fontSize: 16, color: NAVY_TEXT, margin: "14px auto 0", maxWidth: 520, lineHeight: 1.6 }}>
           {PILOT_OFFER_LINE} Review the result before anything is sent.
@@ -1274,9 +1269,8 @@ export default function RootPage() {
                 <span style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", color: SURFACE, fontWeight: 700, fontSize: 17 }}>ProcuLink</span>
               </Link>
               <p style={{ fontSize: 13, lineHeight: 1.6, maxWidth: 300, marginTop: 14 }}>
-                The missing link between buyers and suppliers. Match your item codes to your
-                supplier&apos;s once, and reuse the match on later orders to that supplier — with a
-                full audit trail on every order.
+                The missing link between buyers and suppliers. ProcuLink reads your documents, checks
+                them and sends them on in the format you need — with a full audit trail on every order.
               </p>
             </div>
             {[

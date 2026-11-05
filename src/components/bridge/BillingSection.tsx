@@ -328,8 +328,8 @@ function LimitBanner({ status }: { status: BillingStatus }) {
   if (status.plan === "pilot" && status.isOrderLimitReached) {
     return (
       <div style={bannerStyle}>
-        <strong>You&apos;ve used all {status.orderLimit.toLocaleString(NUMBER_LOCALE)} Pilot orders.</strong>
-        <span>{upgradeSentence(status.plan, "continue processing new orders")}</span>
+        <strong>You&apos;ve used all {status.orderLimit.toLocaleString(NUMBER_LOCALE)} Pilot documents.</strong>
+        <span>{upgradeSentence(status.plan, "continue processing new documents")}</span>
       </div>
     );
   }
@@ -355,9 +355,9 @@ function OverageNotice({ status }: { status: BillingStatus }) {
     });
     return (
       <div style={infoNoticeStyle}>
-        <strong style={{ color: "var(--brand-blue-deep)" }}>You&apos;re over your monthly order allowance.</strong>
+        <strong style={{ color: "var(--brand-blue-deep)" }}>You&apos;re over your monthly document allowance.</strong>
         <span>
-          Extra orders still process and bill at €0.50 each —{" "}
+          Extra documents still process and bill at €0.50 each —{" "}
           <strong>{status.overageOrders.toLocaleString(NUMBER_LOCALE)}</strong> this period (≈{" "}
           <strong>{eur}</strong>{" "}
           <span style={{ color: "var(--ink-faint)", fontWeight: 400 }}>estimate</span>). Upgrade for more
@@ -374,10 +374,10 @@ function OverageNotice({ status }: { status: BillingStatus }) {
   if (status.nearLimit) {
     return (
       <div style={warnNoticeStyle}>
-        <strong style={{ color: "var(--amber-text)" }}>You&apos;re approaching your monthly order limit.</strong>
+        <strong style={{ color: "var(--amber-text)" }}>You&apos;re approaching your monthly document limit.</strong>
         <span>
           You&apos;ve used {status.ordersThisMonth.toLocaleString(NUMBER_LOCALE)} of{" "}
-          {status.orderLimit.toLocaleString(NUMBER_LOCALE)} orders. Orders keep processing past the limit and any
+          {status.orderLimit.toLocaleString(NUMBER_LOCALE)} documents. Documents keep processing past the limit and any
           extras bill at €0.50 each.
         </span>
       </div>
@@ -678,7 +678,7 @@ export function BillingSection() {
             <UsageBar
               used={status.ordersThisMonth}
               limit={status.orderLimit}
-              label={isPilot ? "Orders (Pilot total)" : "Orders this month"}
+              label={isPilot ? "Documents (Pilot total)" : "Documents this month"}
             />
             <UsageBar
               used={status.suppliersUsed}
@@ -694,7 +694,7 @@ export function BillingSection() {
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <div style={{ borderRadius: 10, padding: "13px 15px", background: "var(--surface)", border: "1px solid var(--border)", borderLeft: "3px solid var(--brand-green)", fontSize: 12.5, lineHeight: 1.55, color: "var(--ink-muted)" }}>
             <strong style={{ color: "var(--ink)" }}>Upgrade when this is ready for daily orders.</strong>{" "}
-            Growth keeps the same workflow but raises your monthly order volume, adds more suppliers, and keeps processing open after the Pilot window ends.
+            Growth keeps the same workflow but raises your monthly document allowance, adds more suppliers, and keeps processing open after the Pilot window ends.
           </div>
           <IntervalToggle value={checkoutInterval} onChange={setCheckoutInterval} disabled={checkoutMutation.isPending} />
           <button

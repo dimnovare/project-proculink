@@ -139,7 +139,7 @@ export const PLANS: Plan[] = [
     priceLabel: "Free",
     priceCadence: "14 days",
     billingPriceLabel: "Free trial",
-    billingSummary: "Up to 20 orders · 1 supplier · 14 days",
+    billingSummary: "Up to 20 documents · 1 supplier · 14 days",
     orderLimit: 20,
     supplierLimit: 1,
     orderLimitIsMonthly: false,
@@ -147,9 +147,9 @@ export const PLANS: Plan[] = [
     // does not write PDF or Excel; "supplier-ready" output is XML, CSV, cXML, JSON, UBL or X12.
     blurb: "Test one repeat supplier using the PDF, Excel, CSV or other supported order files you already use.",
     recommendationBlurb:
-      "Free for 14 days. Process up to 20 orders across one supplier flow before you commit to a paid plan.",
+      "Free for 14 days. Process up to 20 documents with one supplier before you commit to a paid plan.",
     features: [
-      "20 orders total",
+      "20 documents total",
       "1 supplier",
       "CSV/XLSX/PDF/XML upload",
       "Manual review",
@@ -194,15 +194,15 @@ export const PLANS: Plan[] = [
     priceLabel: "€149",
     priceCadence: "per month",
     billingPriceLabel: "€149/mo",
-    billingSummary: "Up to 150 orders / month · 5 suppliers · all channels",
+    billingSummary: "Up to 150 documents / month · 5 suppliers · all channels",
     orderLimit: 150,
     supplierLimit: 5,
     orderLimitIsMonthly: true,
     blurb: "For teams ready to process recurring buyer orders.",
     recommendationBlurb:
-      "Self-serve. Best for a single team replacing up to 150 monthly orders across 5 suppliers — with every delivery and ingestion channel included.",
+      "Self-serve. Best for a single team processing up to 150 documents a month with 5 suppliers — with every delivery and ingestion channel included.",
     features: [
-      "150 orders/month",
+      "150 documents/month",
       "5 suppliers",
       "Webhook/API delivery",
       "Email · SFTP · S3 ingestion",
@@ -269,13 +269,13 @@ export const PLANS: Plan[] = [
     priceLabel: "€399",
     priceCadence: "per month",
     billingPriceLabel: "€399/mo",
-    billingSummary: "Up to 500 orders / month · 10 suppliers · all channels",
+    billingSummary: "Up to 500 documents / month · 10 suppliers · all channels",
     orderLimit: 500,
     supplierLimit: 10,
     orderLimitIsMonthly: true,
     blurb: "For order teams that need reliable daily processing.",
     recommendationBlurb:
-      "Reliable daily processing for 150–500 monthly orders across up to 10 suppliers, with every channel included.",
+      "Reliable daily processing for 150–500 documents a month with up to 10 suppliers, with every channel included.",
     // "Webhook/API + email/SFTP/S3 channels" is gone because `inheritsFrom: "growth"` already
     // says it — the channels gate at Growth and restating them here is what forced every card
     // above to restate them too, and then to be judged on how many bullets it had.
@@ -287,7 +287,7 @@ export const PLANS: Plan[] = [
     // Pilot included, the same "within one business day". Selling a €399 tier on a promise the
     // free tier already has is the offer⇔works rule broken on the price list itself.
     features: [
-      "500 orders/month",
+      "500 documents/month",
       "10 suppliers",
       "Bulk mapping import/export",
       "cXML support",
@@ -311,13 +311,13 @@ export const PLANS: Plan[] = [
     priceLabel: "€999",
     priceCadence: "per month",
     billingPriceLabel: "€999/mo",
-    billingSummary: "Up to 1,500 orders / month · 20 suppliers · all channels",
+    billingSummary: "Up to 1,500 documents / month · 20 suppliers · all channels",
     orderLimit: 1500,
     supplierLimit: 20,
     orderLimitIsMonthly: true,
     blurb: "For higher-volume teams scaling order processing across more suppliers.",
     recommendationBlurb:
-      "Higher volume — up to 1,500 orders/month across 20 suppliers at about €0.67 per order, with every channel included.",
+      "Higher volume — up to 1,500 documents/month with 20 suppliers at about €0.67 per document, with every channel included.",
     // "Custom output templates" was removed: the saved-template subsystem it named was retired
     // (BE #75) and its plan flag deleted with it (BE #80), so nothing gated it at Integration —
     // the output designer and the per-order template override are available on every plan. Selling
@@ -332,7 +332,7 @@ export const PLANS: Plan[] = [
     // dearer tier lose two capabilities. Integration's real differentiators are volume,
     // suppliers, and onboarding; the two numbers sit on the fixed axis every card shares.
     features: [
-      "1,500 orders/month",
+      "1,500 documents/month",
       "20 suppliers",
       "Assisted onboarding",
     ],
@@ -354,18 +354,18 @@ export const PLANS: Plan[] = [
     priceLabel: "€1,499",
     priceCadence: "per month",
     billingPriceLabel: "€1,499/mo",
-    billingSummary: "Up to 2,500 orders / month · 30 suppliers · all channels",
+    billingSummary: "Up to 2,500 documents / month · 30 suppliers · all channels",
     orderLimit: 2500,
     supplierLimit: 30,
     orderLimitIsMonthly: true,
     blurb: "For distributors and resellers routing high order volume across many suppliers.",
     recommendationBlurb:
-      "For distributors and resellers: up to 2,500 orders/month across 30 suppliers.",
+      "For distributors and resellers: up to 2,500 documents/month with 30 suppliers.",
     // Channels and bulk mapping come from `inheritsFrom: "integration"`. This card used to list
     // those two and omit cXML and advanced audit — both of which Distributor includes — so the
     // €1,499 tier read as thinner than the €399 one.
     features: [
-      "2,500 orders/month",
+      "2,500 documents/month",
       "30 suppliers",
       "Priority onboarding",
       "Founder-led supplier setup",
@@ -400,7 +400,7 @@ export const PLANS: Plan[] = [
     orderLimitIsMonthly: true,
     blurb: "For complex supplier networks, ERP integrations, and high-volume order flows.",
     recommendationBlurb:
-      "Custom volume above 2,500 orders/month, named onboarding, DPA, and a tailored security review.",
+      "Custom volume above 2,500 documents/month, named onboarding, DPA, and a tailored security review.",
     features: [
       "Custom volume",
       "Custom suppliers",
@@ -654,3 +654,6 @@ export function recommendPlanByOrders(ordersPerMonth: number): Plan {
   }
   return current;
 }
+
+/** Top of the documents-per-month sliders (/pricing, ROI calculator): twice the largest self-serve allowance. */
+export const VOLUME_SLIDER_MAX = 2 * Math.max(...CHECKOUT_PLAN_IDS.map((id) => PLAN_BY_ID[id].orderLimit ?? 0));

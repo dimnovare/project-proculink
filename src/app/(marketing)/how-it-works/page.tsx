@@ -8,9 +8,9 @@ export const metadata = pageMetadata({
   path: "/how-it-works",
   title: "How it works — ProcuLink",
   description:
-    "Choose a repeat supplier, upload the purchase order you already create, confirm item codes once, and review the supplier-ready result before anything is sent. Plus the pipeline behind it.",
+    "A document comes in. ProcuLink reads all of its data, checks it, transforms it into the format you need and sends it on the channel you choose. Purchase orders work today; invoices are in early access.",
   ogDescription:
-    "One supplier. One order. Then less work next time — confirmed item-code matches are remembered for the next order to that supplier.",
+    "Read it, check it, transform it, send it. Purchase orders work today; invoices are in early access.",
 });
 
 // ─── Palette — ALIASES for the design tokens, never copies of their values ────
@@ -249,7 +249,7 @@ export default function HowItWorksPage() {
             lineHeight: 1.08,
           }}
         >
-          One supplier. One order. Then less work next time.
+          Read it. Check it. Transform it. Send it.
         </h1>
 
         <p
@@ -261,9 +261,11 @@ export default function HowItWorksPage() {
             margin: "18px auto 0",
           }}
         >
-          ProcuLink reads the purchase order you already create, maps your item
-          codes to the supplier&apos;s codes, checks the result and remembers
-          confirmed mappings for future orders.
+          A document comes in. ProcuLink reads all of its data, checks it,
+          transforms it into the format you need and sends it on the channel you
+          choose. Purchase orders work this way today. Invoices are in early
+          access —{" "}
+          <Link href="/pilot" style={{ color: "var(--surface)", textDecoration: "underline" }}>apply for the pilot</Link>.
         </p>
         <p
           className="hiw-hero-sub"
@@ -334,7 +336,7 @@ export default function HowItWorksPage() {
               lineHeight: 1.12,
             }}
           >
-            Six steps, starting with one supplier
+            A purchase order in six steps, starting with one supplier
           </h2>
         </div>
         <ol style={{ listStyle: "none", padding: 0, margin: "28px 0 0" }}>
@@ -483,8 +485,8 @@ export default function HowItWorksPage() {
             margin: "16px auto 0",
           }}
         >
-          Watch a single upload become a delivered supplier order — parsed,
-          mapped, validated, and sent.
+          Watch one purchase order go through: read, checked, transformed
+          and sent to the supplier.
         </p>
         <div style={{ marginTop: 34, display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
           <Link

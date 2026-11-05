@@ -135,7 +135,7 @@ describe("ROI calculator — the overage rate derives from the plan ladder", () 
   });
 
   it("prints the rate the billing constant actually sets", () => {
-    expect(rendered()).toContain(`${rate}/order`);
+    expect(rendered()).toContain(`${rate}/document`);
   });
 
   it("types no euro rate of its own", () => {

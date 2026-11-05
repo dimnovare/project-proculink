@@ -13,13 +13,13 @@ export const metadata = pageMetadata({
   path: "/book-demo",
   title: "Book a 20-minute call — ProcuLink",
   description:
-    "Show us one of your purchase orders, or talk through a FREE supported pilot on one repeat supplier — a 20-minute call. We reply within 1 business day to find a time.",
+    "Show us one of your documents — a purchase order or a supplier invoice — or talk through a FREE supported pilot on a 20-minute call. We reply within 1 business day to find a time.",
 });
 
 const COVER: Array<[string, string]> = [
   [
-    "One of your orders",
-    "Bring a PDF, Excel or CSV purchase order you send to a repeat supplier — or a test or anonymised one. We can run it through ProcuLink while we talk.",
+    "One of your documents",
+    "Bring a PDF, Excel or CSV purchase order you send to a repeat supplier — or a test or anonymised one. We can run it through ProcuLink while we talk. Invoices are in early access: bring one and we'll talk through the pilot.",
   ],
   [
     "Your item codes",
@@ -39,10 +39,10 @@ export default function BookDemoPage() {
         <span className="plk-call-badge-dot" aria-hidden />
         20-minute call
       </span>
-      <h1 className="plk-call-h1">Show us one of your orders</h1>
+      <h1 className="plk-call-h1">Show us one of your documents</h1>
       <p className="plk-call-intro">
-        A short call to look at one purchase order you send to a repeat supplier, or to discuss a
-        pilot. Tell us a little about how you order today and we&apos;ll reply within 1 business day
+        A short call to look at one document you handle by hand — a purchase order you send to a
+        repeat supplier, or a supplier invoice you retype — or to discuss a pilot. Tell us a little about how you order today and we&apos;ll reply within 1 business day
         to find a time.
       </p>
 

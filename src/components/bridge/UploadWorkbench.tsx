@@ -1208,7 +1208,7 @@ export function UploadWorkbench() {
                   tone={isReadOnly ? "amber" : "green"}
                   value={isReadOnly ? "Processing paused" : "Ready"}
                 />
-                <UsageChip label="Orders" value={usageValue(billing.ordersThisMonth, billing.orderLimit)} />
+                <UsageChip label="Documents" value={usageValue(billing.ordersThisMonth, billing.orderLimit)} />
                 <UsageChip label={labels.counterpartyPlural} value={usageValue(billing.suppliersUsed, billing.supplierLimit)} />
               </div>
             )}
