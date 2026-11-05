@@ -159,7 +159,8 @@ export function InvoiceScreen({ orderId }: { orderId: string }) {
         [["order", orderId], ["order-exceptions", orderId], ["orders"]].map((queryKey) => qc.invalidateQueries({ queryKey })),
       );
     },
-    onSuccess: () => void confirmSend(),
+    // A manual destination is never sent to: releasing the hold leads to the download instead.
+    onSuccess: () => void (manual ? finished.download() : confirmSend()),
   });
 
   async function download(artifactId: string) {
@@ -479,7 +480,7 @@ export function InvoiceScreen({ orderId }: { orderId: string }) {
                     <p className={CAPTION}>A workspace admin can send it anyway.</p>
                   ) : !anywayOpen ? (
                     <button type="button" aria-expanded={false} onClick={() => setAnywayOpen(true)} className="mt-2 text-[12.5px] font-semibold text-brand-blue hover:underline">
-                      Send anyway…
+                      {manual ? "Download anyway…" : "Send anyway…"}
                     </button>
                   ) : (
                     <div className="mt-3 flex flex-col gap-2">
@@ -503,9 +504,9 @@ export function InvoiceScreen({ orderId }: { orderId: string }) {
                         className="w-full border-amber text-amber-text"
                         onClick={() => sendAnyway.mutate()}
                         disabled={reason.trim().length < 3}
-                        loading={sendAnyway.isPending || sendState !== "idle"}
+                        loading={sendAnyway.isPending || (manual ? finished.busy : sendState !== "idle")}
                       >
-                        Send anyway
+                        {manual ? "Download anyway" : "Send anyway"}
                       </Button>
                     </div>
                   ))}

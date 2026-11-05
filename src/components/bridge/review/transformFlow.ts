@@ -36,13 +36,12 @@ export const SEND_POLL_WINDOW_MS = 45_000;
  */
 export type PollOutcome = { order: Order; settled: boolean };
 
-
 export async function pollOrder(
   orderId: string,
   predicate: (next: Order) => boolean,
   timeoutMs: number,
 ): Promise<PollOutcome> {
-    const started = Date.now();
+  const started = Date.now();
   let latest: Order | null = null;
 
   while (Date.now() - started < timeoutMs) {
