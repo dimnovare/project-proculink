@@ -84,7 +84,7 @@ const EVERY_REASON_KEY = [...new Set(AUDIT_ACTION_FACTS.flatMap((f) => f.reasonK
  * again. It throws rather than skipping, so a collapsed population is a build failure.
  */
 function floor(): void {
-  expect(EXPLAINED, "no action declares a reason key — the manifest has gone silent").toHaveLength(9);
+  expect(EXPLAINED, "no action declares a reason key — the manifest has gone silent").toHaveLength(10);
   expect(SILENT_FAILURES.length, "no failure lacks a reason key").toBeGreaterThanOrEqual(6);
   expect(SUCCESSES.length, "no success kinds to check").toBeGreaterThanOrEqual(3);
   expect(EVERY_REASON_KEY.length, "no reason keys at all").toBeGreaterThanOrEqual(4);
