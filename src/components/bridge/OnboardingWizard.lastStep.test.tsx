@@ -37,6 +37,7 @@ vi.mock("@clerk/nextjs", () => ({
 const api = {
   updateOrgSettings: vi.fn(),
   createSupplier: vi.fn(),
+  uploadPurchaseOrder: vi.fn(),
 };
 
 vi.mock("@/lib/api-client", () => ({
@@ -45,6 +46,7 @@ vi.mock("@/lib/api-client", () => ({
   getOrgSettings: () => Promise.resolve({ direction: "outbound" }),
   apiClient: {
     createSupplier: (...a: unknown[]) => api.createSupplier(...a),
+    uploadPurchaseOrder: (...a: unknown[]) => api.uploadPurchaseOrder(...a),
   },
 }));
 
@@ -95,9 +97,7 @@ async function reachDoneStep() {
   const nameInput = await within(dialog).findByLabelText(/name/i);
   fireEvent.change(nameInput, { target: { value: "Nordic Fasteners" } });
   fireEvent.submit(nameInput.closest("form")!);
-  await within(dialog).findByRole("button", {
-    name: /skip — i'll upload my own order/i,
-  });
+  await within(dialog).findByLabelText(/upload one of your orders/i);
   return dialog;
 }
 
@@ -111,20 +111,19 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe("OnboardingWizard skip button", () => {
-  it("routes to /upload when the user clicks 'Skip — I'll upload my own order'", async () => {
+describe("OnboardingWizard upload option", () => {
+  it("uploads the chosen file for the new supplier and routes to the order", async () => {
+    api.uploadPurchaseOrder.mockResolvedValue({ order: { id: "ord-9" } });
     const { onDismiss } = renderWizard();
     const dialog = await reachDoneStep();
+    const file = new File(["a,b"], "po.csv", { type: "text/csv" });
 
-    fireEvent.click(
-      within(dialog).getByRole("button", {
-        name: /skip — i'll upload my own order/i,
-      }),
-    );
+    fireEvent.change(within(dialog).getByLabelText(/upload one of your orders/i), {
+      target: { files: [file] },
+    });
 
-    // The label promises an upload; the handler must actually go there.
-    expect(push).toHaveBeenCalledWith("/upload");
-    // …and the modal still closes, as before.
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/inbox/ord-9"));
+    expect(api.uploadPurchaseOrder).toHaveBeenCalledWith(file, "sup-001");
     expect(onDismiss).toHaveBeenCalled();
   });
 
@@ -137,6 +136,17 @@ describe("OnboardingWizard skip button", () => {
   });
 });
 
+describe("OnboardingWizard last step", () => {
+  it("first-use path ends at download, not delivery", async () => {
+    renderWizard();
+    const dialog = await reachDoneStep();
+    expect(within(dialog).queryByRole("textbox", { name: /send the finished file/i })).toBeNull();
+    expect(within(dialog).getByLabelText(/upload one of your orders/i)).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: /try a sample order/i }));
+    expect(runSample).toHaveBeenCalledWith();
+  });
+});
+
 describe("OnboardingWizard primary flow (control)", () => {
   it("still creates the supplier on step submit and reaches the practice step", async () => {
     renderWizard();
@@ -145,7 +155,7 @@ describe("OnboardingWizard primary flow (control)", () => {
     expect(api.createSupplier).toHaveBeenCalledWith({ name: "Nordic Fasteners" });
     // The practice-order form is intact and skip did not fire on its own.
     expect(
-      within(dialog).getByRole("button", { name: /run a practice order/i }),
+      within(dialog).getByRole("button", { name: /try a sample order/i }),
     ).toBeInTheDocument();
     expect(push).not.toHaveBeenCalled();
   });

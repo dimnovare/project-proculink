@@ -70,6 +70,16 @@ describe("buildChecklistSteps", () => {
     ]);
   });
 
+  it("first-use path ends at download, not delivery", () => {
+    const model = buildChecklistSteps(allFalseExtended(), NOUN);
+    expect(model.steps.map((s) => s.id).slice(0, 3)).toEqual(["supplier", "upload", "resolve"]);
+    const resolved = { ...allFalseExtended(), hasSupplier: true, hasUpload: true };
+    const locked = (hasResolvedMapping: boolean) =>
+      buildChecklistSteps({ ...resolved, hasResolvedMapping }, NOUN).steps.find((s) => s.id === "delivery")?.locked;
+    expect(locked(false)).toBe(true);
+    expect(locked(true)).toBe(false);
+  });
+
   // ── Sample-only org: extended payload, everything honestly false ─────────
   it("shows 0/6 with only step 1 unlocked for a sample-only org", () => {
     const model = buildChecklistSteps(allFalseExtended(), NOUN);
@@ -78,7 +88,7 @@ describe("buildChecklistSteps", () => {
     expect(model.complete).toBe(false);
     expect(model.activeStep?.id).toBe("supplier");
     const lockedIds = model.steps.filter((s) => s.locked).map((s) => s.id);
-    expect(lockedIds).toEqual(["catalog", "upload", "resolve", "delivery", "send"]);
+    expect(lockedIds).toEqual(["upload", "resolve", "catalog", "delivery", "send"]);
   });
 
   // ── Lock-gating ───────────────────────────────────────────────────────────

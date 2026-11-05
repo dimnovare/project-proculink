@@ -76,7 +76,7 @@
   "src/components/bridge/MappingEditor.tsx": 103,
   "src/components/bridge/MarkSystem.tsx": 9,
   "src/components/bridge/OnboardingChecklist.tsx": 36,
-  "src/components/bridge/OnboardingWizard.tsx": 24,
+  "src/components/bridge/OnboardingWizard.tsx": 23,
   "src/components/bridge/orderCountContract.ts": 3,
   "src/components/bridge/OrderPassport.tsx": 85,
   "src/components/bridge/OrgSwitcher.tsx": 37,

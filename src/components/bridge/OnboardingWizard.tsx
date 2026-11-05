@@ -11,7 +11,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
 import { useDialogA11y } from "@/hooks/useDialogA11y";
 import { useQueryClient } from "@tanstack/react-query";
 import { apiClient, updateOrgSettings, isApiMockMode } from "@/lib/api-client";
@@ -20,6 +19,7 @@ import { captureException } from "@/lib/sentry-context";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 import { invalidateOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { useSampleOrder } from "@/hooks/useSampleOrder";
+import { ACCEPTED_UPLOAD_FORMATS } from "@/lib/upload-formats";
 import type { Supplier, OrderDirection } from "@/types/procurement";
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
@@ -364,43 +364,25 @@ function Step1AddSupplier({ onSuccess }: Step1Props) {
 
 // ─── Step 2 — see it work now (the step that closes the loop) ────────────────
 //
-// This slot used to be a dead "Open my setup guide" notice: the wizard handed the
-// user back to a six-step checklist whose fifth step needed a supplier's endpoint
-// and credentials, so a brand-new account could not finish in one sitting and never
-// saw the product work. Now the wizard ENDS by running a whole order.
-//
-// The address is prefilled from the signed-in user, so the default interaction is
-// "read it, press the button". It is editable because a shared purchasing inbox is a
-// normal answer, and visible because sending mail on someone's behalf to an address
-// they never read is not a first-run experience.
+// The wizard ends on a finished order, not on delivery set-up: the user uploads one
+// of their own orders (routed to the review screen) or runs a sample order. Where
+// the file goes next is configured later, from the checklist.
 
 function StepSeeItWork({
   supplier,
-  defaultEmail,
   running,
   error,
+  onUpload,
   onRun,
-  onSkip,
 }: {
   supplier: Supplier;
-  defaultEmail: string;
   running: boolean;
   error: string | null;
-  onRun: (deliverTo: string) => void;
-  onSkip: () => void;
+  onUpload: (file: File) => void;
+  onRun: () => void;
 }) {
-  const [email, setEmail] = useState(defaultEmail);
-  const trimmed = email.trim();
-  const ready = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
-
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        if (ready && !running) onRun(trimmed);
-      }}
-      style={{ display: "flex", flexDirection: "column", gap: 16 }}
-    >
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <div>
         <h2
           style={{
@@ -415,66 +397,47 @@ function StepSeeItWork({
           <strong>{supplier.name}</strong> is in. Now see it work.
         </h2>
         <p style={{ fontSize: 13, color: T.muted, margin: 0, lineHeight: 1.55 }}>
-          We&apos;ll run one practice order all the way through and email you the finished
-          file — the same file a real order produces. Nothing is sent to anyone else, and it
-          doesn&apos;t count against your plan.
+          Upload one of your orders, confirm its item codes, and download the finished file.
+          Nothing is sent to anyone.
         </p>
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         <label
-          htmlFor="wizard-deliver-to"
-          style={{ fontSize: 12.5, fontWeight: 600, color: T.text, letterSpacing: "0.01em" }}
+          htmlFor="wizard-upload-order"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            height: 44,
+            background: running ? "#CBD0DA" : T.greenBtn,
+            color: "#fff",
+            borderRadius: 6,
+            fontSize: 13.5,
+            fontWeight: 600,
+            cursor: running ? "not-allowed" : "pointer",
+          }}
         >
-          Send the finished file to
+          Upload one of your orders
         </label>
         <input
-          id="wizard-deliver-to"
-          type="email"
-          inputMode="email"
-          autoComplete="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="you@your-company.example"
+          id="wizard-upload-order"
+          type="file"
+          accept={ACCEPTED_UPLOAD_FORMATS.dropzoneAccept}
           disabled={running}
-          style={{
-            height: 44,
-            padding: "0 12px",
-            // 16px is the iOS zoom floor — anything smaller zooms the viewport on focus.
-            fontSize: 16,
-            color: T.text,
-            background: T.surface,
-            border: `1px solid ${error ? T.red : T.border}`,
-            borderRadius: 6,
-            width: "100%",
-            boxSizing: "border-box",
-            fontFamily: "Inter, sans-serif",
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) onUpload(file);
           }}
+          style={{ position: "absolute", width: 1, height: 1, opacity: 0, overflow: "hidden" }}
         />
+        <p style={{ fontSize: 11.5, color: T.muted, margin: 0 }}>{ACCEPTED_UPLOAD_FORMATS.humanList}</p>
         {error && <p style={{ fontSize: 12, color: T.red, margin: 0 }}>{error}</p>}
       </div>
 
       <button
-        type="submit"
-        disabled={!ready || running}
-        style={{
-          height: 44,
-          background: !ready || running ? "#CBD0DA" : T.greenBtn,
-          color: "#fff",
-          border: "none",
-          borderRadius: 6,
-          fontSize: 13.5,
-          fontWeight: 600,
-          cursor: !ready || running ? "not-allowed" : "pointer",
-          letterSpacing: "0.01em",
-        }}
-      >
-        {running ? "Starting your practice order…" : "Run a practice order →"}
-      </button>
-
-      <button
         type="button"
-        onClick={onSkip}
+        onClick={onRun}
         disabled={running}
         style={{
           minHeight: 44,
@@ -487,9 +450,9 @@ function StepSeeItWork({
           cursor: running ? "default" : "pointer",
         }}
       >
-        Skip — I&apos;ll upload my own order
+        {running ? "Starting your sample order…" : "Try a sample order"}
       </button>
-    </form>
+    </div>
   );
 }
 
@@ -508,10 +471,11 @@ export function OnboardingWizard({ onDismiss }: OnboardingWizardProps) {
   const queryClient = useQueryClient();
   const pathname = usePathname();
   const router = useRouter();
-  const { user } = useUser();
   const { runSample, isPending: samplePending, error: sampleError } = useSampleOrder(pathname ?? "/bridge");
   const [step, setStep] = useState<WizardStep>(0);
   const [firstSupplier, setFirstSupplier] = useState<Supplier | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   // Emit wizard_opened once per mount (ref-guarded against StrictMode re-runs).
   const openedRef = useRef(false);
@@ -525,14 +489,6 @@ export function OnboardingWizard({ onDismiss }: OnboardingWizardProps) {
     capture("wizard_dismissed", { at_step: step });
     onDismiss();
   }, [step, onDismiss]);
-
-  // The skip button's label promises an upload ("Skip — I'll upload my own
-  // order"), so the handler must actually take the user to /upload — it used
-  // to be plain onDismiss, which only closed the modal onto /bridge.
-  const handleSkipToUpload = useCallback(() => {
-    onDismiss();
-    router.push("/upload");
-  }, [onDismiss, router]);
 
   // WP-31: the wizard is a modal dialog (aria-modal, full-screen scrim) and had
   // NO Escape handler and NO focus trap — a keyboard user could Tab straight out
@@ -550,11 +506,27 @@ export function OnboardingWizard({ onDismiss }: OnboardingWizardProps) {
     setStep(1);
   }
 
-  function handleRunPractice(deliverTo: string) {
+  function handleRunPractice() {
     capture("wizard_step_completed", { step: 2, step_name: "practice_order" });
     // useSampleOrder owns the POST, the cache invalidation, and the route to the order.
     // The wizard is unmounted by that navigation, so there is nothing to close here.
-    runSample(deliverTo);
+    runSample();
+  }
+
+  async function handleUpload(file: File) {
+    if (!firstSupplier) return;
+    setUploading(true);
+    setUploadError(null);
+    try {
+      const { order } = await apiClient.uploadPurchaseOrder(file, firstSupplier.id);
+      capture("wizard_step_completed", { step: 2, step_name: "practice_order" });
+      void invalidateOnboardingStatus(queryClient);
+      onDismiss();
+      router.push(`/inbox/${encodeURIComponent(order.id)}`);
+    } catch (e) {
+      setUploadError(e instanceof Error && e.message ? e.message : "Could not upload that file.");
+      setUploading(false);
+    }
   }
 
   function handleStep1Success(s: Supplier) {
@@ -642,11 +614,10 @@ export function OnboardingWizard({ onDismiss }: OnboardingWizardProps) {
         {step === "done" && firstSupplier && (
           <StepSeeItWork
             supplier={firstSupplier}
-            defaultEmail={user?.primaryEmailAddress?.emailAddress ?? ""}
-            running={samplePending}
-            error={sampleError ? (sampleError.message || "Could not start the practice order.") : null}
+            running={samplePending || uploading}
+            error={uploadError ?? (sampleError ? (sampleError.message || "Could not start the sample order.") : null)}
+            onUpload={handleUpload}
             onRun={handleRunPractice}
-            onSkip={handleSkipToUpload}
           />
         )}
 
