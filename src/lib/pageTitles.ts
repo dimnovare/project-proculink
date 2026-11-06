@@ -96,6 +96,7 @@ export const OFF_HUB_TITLES: Record<string, string> = {
   "/upload": "Upload",
   "/flows": "Flows",
   "/flows/new": "New flow",
+  "/flows/[flowId]": "Flow",
   "/settings": "Settings",
   "/admin": "Admin",
   "/library/suppliers/[id]": "Supplier",
