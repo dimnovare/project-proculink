@@ -7,8 +7,6 @@ import { relativeTime } from "@/components/bridge/catalogSourceHelpers";
 import { documentStatus } from "@/lib/documentStatusManifest";
 import type { DocumentSummary } from "@/lib/api/documents";
 
-const href = (d: DocumentSummary) => `/flows/${d.flowId}/documents/${d.id}`;
-
 export function DocumentList({ documents, showFlow }: { documents: DocumentSummary[]; showFlow: boolean }) {
   return (
     <>
@@ -29,7 +27,7 @@ export function DocumentList({ documents, showFlow }: { documents: DocumentSumma
               return (
                 <tr key={d.id} style={{ borderTop: "1px solid var(--border)" }}>
                   <td className="px-3 py-2">
-                    <Link href={href(d)} className="font-medium underline-offset-2 hover:underline">{d.fileName}</Link>
+                    <Link href={`/flows/${d.flowId}/documents/${d.id}`} className="font-medium underline-offset-2 hover:underline">{d.fileName}</Link>
                   </td>
                   {showFlow && <td className="px-3 py-2">{d.flowName}</td>}
                   <td className="px-3 py-2"><StatusJourney stage={s.stage} compact /></td>
@@ -45,7 +43,7 @@ export function DocumentList({ documents, showFlow }: { documents: DocumentSumma
         {documents.map((d) => {
           const s = documentStatus(d.status, d.statusReason);
           return (
-            <Link key={d.id} href={href(d)} className="block">
+            <Link key={d.id} href={`/flows/${d.flowId}/documents/${d.id}`} className="block">
               <MobileListRow>
                 <span className="font-medium" style={{ fontSize: 13 }}>{d.fileName}</span>
                 {showFlow && <span style={{ fontSize: 12, color: "var(--ink-muted)" }}>{d.flowName}</span>}
