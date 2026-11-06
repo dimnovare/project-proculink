@@ -49,7 +49,7 @@ function parseJson(text: string): unknown {
 }
 
 /** The conventional `{ "error": "<code or sentence>" }` field, when the body carries one. */
-function errorField(body: unknown): string | null {
+export function errorField(body: unknown): string | null {
   if (!body || typeof body !== "object") return null;
   const raw = (body as { error?: unknown }).error;
   return typeof raw === "string" && raw.trim() ? raw.trim() : null;

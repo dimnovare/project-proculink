@@ -2397,7 +2397,8 @@ const EXPECTED_COMPARISONS =
   Object.keys(TEST_PACK_BACKEND_RECORDS).length + // one per test-pack record mirrored
   1 + // the plan-gate codes quoted in the admin guides
   1 + // MINIMUM_PLAN against PlanConstants.MinimumPlan
-  3; // the ladder's numbers: Limits, MonthlyPriceEur, OveragePerOrderEur
+  3 + // the ladder's numbers: Limits, MonthlyPriceEur, OveragePerOrderEur
+  1; // document statuses
 
 afterAll(() => {
   if (!BACKEND) return; // the mirror gate already ruled on whether that was allowed
@@ -2412,10 +2413,11 @@ afterAll(() => {
 describe("document statuses mirror the backend", () => {
   test.skipIf(!BACKEND)("DOCUMENT_STATUSES keys equal DocumentStatus's constants", () => {
     const cs = readFileSync(join(BACKEND!, DOCUMENT_STATUS_REL), "utf8");
-    expect(Object.keys(DOCUMENT_STATUSES)).toHaveLength(8);
+    const backend = Object.values(parseStatusConstants(cs));
+    expect(backend).toEqual(expect.arrayContaining(Object.keys(DOCUMENT_STATUSES)));
     recordComparison(
       "DocumentStatus constants",
-      Object.values(parseStatusConstants(cs)),
+      backend,
       Object.keys(DOCUMENT_STATUSES),
       "The document status vocabulary drifted from DocumentStatus.cs.",
     );

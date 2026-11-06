@@ -1,4 +1,5 @@
 import { ApiHttpError } from "@/lib/api/core";
+import { errorField } from "@/lib/api/refusal";
 
 const GENERIC = "Something went wrong. Try again.";
 
@@ -17,14 +18,14 @@ const COPY: Record<string, string> = {
   unsupported_destination: "That kind of destination isn't available.",
 };
 
+const body = (error: unknown) => (error instanceof ApiHttpError ? error.body : null);
 const field = (error: unknown, key: string): string | null => {
-  const body = error instanceof ApiHttpError ? error.body : null;
-  const v = body && typeof body === "object" ? (body as Record<string, unknown>)[key] : null;
+  const v = (body(error) as Record<string, unknown> | null)?.[key];
   return typeof v === "string" && v.trim() ? v.trim() : null;
 };
 
 /** The server's machine token (`error`), or null when this isn't an API refusal. */
-export const refusalToken = (error: unknown): string | null => field(error, "error");
+export const refusalToken = (error: unknown): string | null => errorField(body(error));
 
 export function documentRefusalMessage(error: unknown): string {
   const token = refusalToken(error);
