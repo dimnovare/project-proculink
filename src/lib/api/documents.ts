@@ -10,6 +10,7 @@
 
 import { API_BASE_URL, authHeader, fetchWithTimeout, isApiMockMode } from "./core";
 import { readRefusal } from "./refusal";
+import type { OutputNodeTemplate } from "./types";
 
 export interface Box { x: number; y: number; width: number; height: number }
 export interface SourceLocation { page: number | null; box: Box | null; address: string | null }
@@ -30,6 +31,7 @@ export interface FlowTable { key: string; label: string; columns: FlowField[] }
 export interface FlowFieldList { fields: FlowField[]; tables: FlowTable[] }
 export interface Flow {
   id: string; name: string; fieldsConfirmed: boolean; fields: FlowFieldList; documentCount: number; createdAt: string;
+  automation: "review" | "auto";
 }
 
 export interface DocumentSummary {
@@ -47,6 +49,26 @@ export interface EditValuesRequest {
   cells?: { table: string; row: number; column: string; value: string | null }[];
   addRowToTables?: string[];
   removeRows?: { table: string; row: number }[];
+}
+
+export interface Destination {
+  id: string; name: string; protocol: string; config: Record<string, unknown>; hasCredentials: boolean; createdAt: string;
+}
+export interface DestinationRequest {
+  name: string; protocol: string; config: Record<string, unknown>; credentials?: Record<string, unknown> | null;
+}
+export interface DestinationTestResult { success: boolean; message: string | null; responseCode: number | null }
+export interface FlowOutput {
+  id: string; flowId: string; name: string; format: string; tableKey: string | null; destinationId: string | null;
+  template: OutputNodeTemplate; createdAt: string;
+}
+export interface OutputRequest {
+  name: string; format: string; tableKey?: string | null; destinationId?: string | null; template?: OutputNodeTemplate | null;
+}
+export interface OutputPreview { contentType: string; fileName: string; content: string }
+export interface DocumentDelivery {
+  id: string; outputName: string; protocol: string; status: string; attempts: number;
+  lastError: string | null; fileName: string | null; deliveredAt: string | null;
 }
 
 const UPLOAD_TIMEOUT_MS = 60_000;
@@ -72,6 +94,8 @@ export const createFlow = (name: string) => apiFetch<Flow>(`/flows`, { method: "
 export const getFlow = (id: string) => apiFetch<Flow>(`/flows/${id}`);
 export const renameFlow = (id: string, name: string) =>
   apiFetch<Flow>(`/flows/${id}`, { method: "PATCH", body: json({ name }) });
+export const updateFlow = (id: string, patch: { name?: string; automation?: "review" | "auto" }) =>
+  apiFetch<Flow>(`/flows/${id}`, { method: "PATCH", body: json(patch) });
 export const saveFlowFields = (id: string, fields: FlowFieldList) =>
   apiFetch<Flow>(`/flows/${id}/fields`, { method: "PUT", body: json(fields) });
 
@@ -96,3 +120,28 @@ export const retryDocumentRead = (id: string) =>
 
 export const fetchDocumentSource = (id: string) =>
   apiFetch<Blob>(`/documents/${id}/source`, undefined, UPLOAD_TIMEOUT_MS, "blob");
+
+export const listDestinations = () => apiFetch<Destination[]>(`/destinations`);
+export const createDestination = (body: DestinationRequest) =>
+  apiFetch<Destination>(`/destinations`, { method: "POST", body: json(body) });
+export const updateDestination = (id: string, body: DestinationRequest) =>
+  apiFetch<Destination>(`/destinations/${id}`, { method: "PUT", body: json(body) });
+export const deleteDestination = (id: string) =>
+  apiFetch<void>(`/destinations/${id}`, { method: "DELETE" }).then(() => undefined);
+export const testDestination = (id: string) =>
+  apiFetch<DestinationTestResult>(`/destinations/${id}/test`, { method: "POST" });
+
+export const listOutputs = (flowId: string) => apiFetch<FlowOutput[]>(`/flows/${flowId}/outputs`);
+export const createOutput = (flowId: string, body: OutputRequest) =>
+  apiFetch<FlowOutput>(`/flows/${flowId}/outputs`, { method: "POST", body: json(body) });
+export const updateOutput = (flowId: string, id: string, body: OutputRequest) =>
+  apiFetch<FlowOutput>(`/flows/${flowId}/outputs/${id}`, { method: "PUT", body: json(body) });
+export const deleteOutput = (flowId: string, id: string) =>
+  apiFetch<void>(`/flows/${flowId}/outputs/${id}`, { method: "DELETE" }).then(() => undefined);
+export const previewOutput = (documentId: string, outputId: string) =>
+  apiFetch<OutputPreview>(`/documents/${documentId}/outputs/${outputId}/preview`, { method: "POST" });
+
+export const sendDocument = (id: string) => apiFetch<DocumentDelivery[]>(`/documents/${id}/send`, { method: "POST" });
+export const listDeliveries = (id: string) => apiFetch<DocumentDelivery[]>(`/documents/${id}/deliveries`);
+export const downloadDeliveryFile = (id: string, deliveryId: string) =>
+  apiFetch<Blob>(`/documents/${id}/deliveries/${deliveryId}/file`, undefined, UPLOAD_TIMEOUT_MS, "blob");
