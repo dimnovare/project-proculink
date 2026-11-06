@@ -15,6 +15,7 @@ import {
   SECURE_SCHEMES,
 } from "@/lib/outboundUrlPolicy";
 import { CATALOG_SYNC_STATUS_FACTS, CATALOG_SYNC_STATUSES } from "@/lib/catalogSyncStatusManifest";
+import { DOCUMENT_STATUSES } from "@/lib/documentStatusManifest";
 import { PREVIEW_FORMATS } from "@/lib/api/types";
 import { STANDARDS } from "@/lib/standards/catalog";
 import {
@@ -121,6 +122,7 @@ const CONNECTION_SERVICE_REL = TEST_PACK_BACKEND_FILE;
  * re-types the whole table by hand so marketing and help copy can derive tier names.
  */
 const PLAN_CONSTANTS_REL = "ProcuLink.Core/Constants/PlanConstants.cs";
+const DOCUMENT_STATUS_REL = "ProcuLink.Core/Documents/DocumentStatus.cs";
 
 /**
  * Every C# file this suite parses.
@@ -147,6 +149,7 @@ const PARSED_FILES = [
   WORKER_PROGRAM_REL,
   CONNECTION_SERVICE_REL,
   PLAN_CONSTANTS_REL,
+  DOCUMENT_STATUS_REL,
 ] as const;
 
 /**
@@ -458,6 +461,7 @@ describe("the mirror gate decides correctly", () => {
       WORKER_PROGRAM_REL,
       CONNECTION_SERVICE_REL,
       PLAN_CONSTANTS_REL,
+      DOCUMENT_STATUS_REL,
     ]);
     expect(missingParsedFiles("/tmp/backend", () => true)).toEqual([]);
     // A checkout with nothing in it must report all three, not zero.
@@ -2403,4 +2407,17 @@ afterAll(() => {
       `${EXPECTED_COMPARISONS} declared comparisons. Some part of the diff did not execute, so this run ` +
       `does NOT verify src/lib/orderStatusManifest.ts against the C#. Treat it as a failure, not a pass.`,
   );
+});
+
+describe("document statuses mirror the backend", () => {
+  test.skipIf(!BACKEND)("DOCUMENT_STATUSES keys equal DocumentStatus's constants", () => {
+    const cs = readFileSync(join(BACKEND!, DOCUMENT_STATUS_REL), "utf8");
+    expect(Object.keys(DOCUMENT_STATUSES)).toHaveLength(8);
+    recordComparison(
+      "DocumentStatus constants",
+      Object.values(parseStatusConstants(cs)),
+      Object.keys(DOCUMENT_STATUSES),
+      "The document status vocabulary drifted from DocumentStatus.cs.",
+    );
+  });
 });

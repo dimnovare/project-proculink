@@ -847,7 +847,7 @@ if (WANT_NOUNS) {
   // plausible — losing NAV_MAIN drops 42 to 36, which no loose floor can distinguish from an
   // ordinary IA change. src/lib/vocabulary.test.ts pins this number.
   console.log(
-    `\nNoun budget — checked ${labelCount} navigation label(s) across ${blocksPoliced} registry block(s) against the ten nouns`,
+    `\nNoun budget — checked ${labelCount} navigation label(s) across ${blocksPoliced} registry block(s) against the approved nouns`,
   );
   if (offences.length === 0) {
     console.log("OK — every navigation label stays inside the approved vocabulary.\n");
