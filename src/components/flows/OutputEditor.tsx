@@ -56,8 +56,8 @@ function RowList({ rows, options, onChange }: {
   );
 }
 
-export function OutputEditor({ flow, output, previewDocumentId, onSaved, onCancel }: {
-  flow: Flow; output?: FlowOutput; previewDocumentId?: string; onSaved(): void; onCancel(): void;
+export function OutputEditor({ flow, output, previewDocumentId, hideDestination, onSaved, onCancel }: {
+  flow: Flow; output?: FlowOutput; previewDocumentId?: string; hideDestination?: boolean; onSaved(): void; onCancel(): void;
 }) {
   const qc = useQueryClient();
   const [current, setCurrent] = useState(output);
@@ -128,7 +128,7 @@ export function OutputEditor({ flow, output, previewDocumentId, onSaved, onCance
             </select>
           </Field>
         )}
-        <Field label="Send to">
+        {!hideDestination && <Field label="Send to">
           <select className={INPUT} value={newDestination ? NEW_DESTINATION : (destinationId ?? "")}
             onChange={(e) => {
               setNewDestination(e.target.value === NEW_DESTINATION);
@@ -138,9 +138,9 @@ export function OutputEditor({ flow, output, previewDocumentId, onSaved, onCance
             {destinations.data?.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
             <option value={NEW_DESTINATION}>New destination…</option>
           </select>
-        </Field>
-        {destinations.isError && <StatusNotice tone="error">{documentRefusalMessage(destinations.error)}</StatusNotice>}
-        {newDestination && (
+        </Field>}
+        {!hideDestination && destinations.isError && <StatusNotice tone="error">{documentRefusalMessage(destinations.error)}</StatusNotice>}
+        {!hideDestination && newDestination && (
           <DestinationForm
             onCancel={() => setNewDestination(false)}
             onSaved={(d) => { setDestinationId(d.id); setNewDestination(false); qc.invalidateQueries({ queryKey: ["destinations"] }); }}

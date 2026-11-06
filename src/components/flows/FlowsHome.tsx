@@ -10,9 +10,9 @@ import { Card } from "@/components/bridge/layout/Card";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { EmptyState } from "@/components/bridge/EmptyState";
-import { useDocumentEngine } from "@/hooks/useDocumentEngine";
+import { flowsQuery, useDocumentEngine } from "@/hooks/useDocumentEngine";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
-import { listFlows, listDocuments, type DocumentSummary } from "@/lib/api/documents";
+import { listDocuments, type DocumentSummary } from "@/lib/api/documents";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
 import { documentStatus } from "@/lib/documentStatusManifest";
 import { DocumentList } from "./DocumentList";
@@ -38,13 +38,7 @@ export function FlowsHome() {
   const engine = useDocumentEngine();
   const [filter, setFilter] = useState(0);
   // Same key and options as useDocumentEngine, so the two share one request.
-  const flows = useQuery({
-    queryKey: ["flows"],
-    queryFn: listFlows,
-    enabled: useTenantQueriesEnabled(),
-    retry: false,
-    staleTime: 300_000,
-  });
+  const flows = useQuery({ ...flowsQuery, enabled: useTenantQueriesEnabled() });
   const docs = useQuery({
     queryKey: ["documents", { take: 100 }],
     queryFn: () => listDocuments({ take: 100 }),
