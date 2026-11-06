@@ -181,6 +181,9 @@ describe("every authenticated route names itself in the browser tab", () => {
     const resolved = resolveTitle(r);
     if ("problem" in resolved) throw new Error(`${r.route}: ${resolved.problem}`);
     expect(resolved.title, `${r.route} title`).not.toBe(GENERIC_TITLE);
+    // A hand-written title on a route the registry names must say what the registry says:
+    // /inbox kept "Inbox" after the registry moved to "Documents", and only production noticed.
+    if (r.route in APP_PAGE_TITLES) expect(resolved.title, `${r.route} title`).toBe(appPageTitle(r.route));
     // "<Name> — ProcuLink…": the page is named BEFORE the product, because a
     // tab strip truncates from the right. The tail is loose on purpose — the
     // two admin runbooks qualify it ("… — ProcuLink admin") and are correct to.

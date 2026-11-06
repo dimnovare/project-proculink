@@ -2,9 +2,10 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { InboxView } from "@/components/bridge/InboxView";
 import { BridgePageLoader } from "@/components/bridge/BridgeLoader";
+import { appPageTitle } from "@/lib/pageTitles";
 
 export const metadata: Metadata = {
-  title: "Inbox — ProcuLink",
+  title: appPageTitle("/inbox"),
 };
 
 export default function InboxPage() {
