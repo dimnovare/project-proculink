@@ -43,25 +43,30 @@ function Header({ flow }: { flow: Flow }) {
     mutationFn: (patch: { name?: string; automation?: "review" | "auto" }) => updateFlow(flow.id, patch),
     onSuccess: (f) => { qc.setQueryData(["flow", flow.id], f); qc.invalidateQueries({ queryKey: ["flows"] }); },
   });
-  const rename = (name: string) => { if (name.trim() && name.trim() !== flow.name) update.mutate({ name: name.trim() }); };
+  const rename = (input: HTMLInputElement) => {
+    const name = input.value.trim();
+    if (!name) input.value = flow.name;
+    else if (name !== flow.name) update.mutate({ name });
+  };
   return (
     <Card>
       <div className="grid gap-3">
         <input
           key={flow.name} aria-label="Flow name" className={`${INPUT} font-medium`} defaultValue={flow.name}
-          onBlur={(e) => rename(e.target.value)} onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+          onBlur={(e) => rename(e.target)} onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
         />
-        <div role="radiogroup" aria-label="When a document is ready" className="flex flex-wrap gap-2">
+        <fieldset className="m-0 flex flex-wrap gap-4 border-0 p-0" disabled={update.isPending}>
+          <legend className="sr-only">When a document is ready</legend>
           {AUTOMATION.map(([value, label]) => (
-            <Button
-              key={value} type="button" role="radio" aria-checked={flow.automation === value} size="sm"
-              variant={flow.automation === value ? "primary" : "secondary"} disabled={update.isPending}
-              onClick={() => flow.automation !== value && update.mutate({ automation: value })}
-            >
+            <label key={value} className="inline-flex cursor-pointer items-center gap-2 text-[13px]">
+              <input
+                type="radio" name="automation" checked={flow.automation === value}
+                onChange={() => update.mutate({ automation: value })}
+              />
               {label}
-            </Button>
+            </label>
           ))}
-        </div>
+        </fieldset>
         <p className="m-0 text-[12.5px] text-ink-muted">Documents with a number we&apos;ve already received always wait for you.</p>
         {update.isError && <StatusNotice tone="error">{documentRefusalMessage(update.error)}</StatusNotice>}
       </div>
@@ -84,7 +89,7 @@ function Outputs({ flow, previewDocumentId }: { flow: Flow; previewDocumentId?: 
     if (await confirm({ title: "Delete output", description: `Delete "${o.name}"? This cannot be undone.`, confirmLabel: "Delete", danger: true })) remove.mutate(o.id);
   };
 
-  if (outputs.isError) return <Failed error={outputs.error} retry={() => outputs.refetch()} />;
+  if (outputs.isError && !outputs.data) return <Failed error={outputs.error} retry={() => outputs.refetch()} />;
   if (!outputs.data) return <Quiet>Loading outputs…</Quiet>;
   if (editing)
     return (
@@ -94,10 +99,11 @@ function Outputs({ flow, previewDocumentId }: { flow: Flow; previewDocumentId?: 
       />
     );
   const destinationName = (o: FlowOutput) =>
-    !o.destinationId ? "Download only" : destinations.data?.find((d) => d.id === o.destinationId)?.name ?? "…";
+    !o.destinationId ? "Download only" : destinations.data?.find((d) => d.id === o.destinationId)?.name ?? (destinations.isError ? "Unknown destination" : "…");
   return (
     <div className="grid gap-2">
       {remove.isError && <StatusNotice tone="error">{documentRefusalMessage(remove.error)}</StatusNotice>}
+      {destinations.isError && <Failed error={destinations.error} retry={() => destinations.refetch()} />}
       {outputs.data.length === 0 && <Quiet>No outputs yet.</Quiet>}
       {outputs.data.map((o) => (
         <Card key={o.id} dense>

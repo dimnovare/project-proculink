@@ -40,7 +40,7 @@ describe("FlowPage", () => {
     fireEvent.click(await screen.findByRole("radio", { name: "Send automatically" }));
     await waitFor(() => expect(api.updateFlow).toHaveBeenCalledWith("f", { automation: "auto" }));
     expect(screen.getByText(DUPLICATE)).toBeTruthy();
-    await waitFor(() => expect(screen.getByRole("radio", { name: "Send automatically" }).getAttribute("aria-checked")).toBe("true"));
+    await waitFor(() => expect((screen.getByRole("radio", { name: "Send automatically" }) as HTMLInputElement).checked).toBe(true));
   });
 
   it("shows the format copy when the server refuses the file type", async () => {
