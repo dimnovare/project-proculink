@@ -5,7 +5,7 @@ vi.mock("./core", async (importOriginal) => {
   return { ...actual, authHeader: async () => ({}), API_BASE_URL: "http://api.test", isApiMockMode: false };
 });
 
-import { editDocumentValues, uploadDocument } from "./documents";
+import { editDocumentValues, sendDocument, uploadDocument } from "./documents";
 
 const fetchMock = vi.fn();
 const json = (body: unknown) => new Response(JSON.stringify(body), { status: 200 });
@@ -43,5 +43,15 @@ describe("documents api", () => {
     expect(init.method).toBe("PATCH");
     expect(JSON.parse(init.body)).toEqual(edits);
     expect(out).toEqual(detail);
+  });
+
+  it("sendDocument posts to send", async () => {
+    fetchMock.mockResolvedValue(json([]));
+
+    await sendDocument("d1");
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toMatch(/\/api\/documents\/d1\/send$/);
+    expect(init.method).toBe("POST");
   });
 });
