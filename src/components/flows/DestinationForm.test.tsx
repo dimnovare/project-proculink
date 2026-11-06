@@ -38,4 +38,18 @@ describe("DestinationForm", () => {
     expect(await screen.findByText("Receiver answered 200.")).toBeTruthy();
     expect(api.testDestination).toHaveBeenCalledWith("d1");
   });
+
+  it("refuses a half-filled login and does not call the API", () => {
+    api.updateDestination.mockClear();
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <DestinationForm destination={saved} onSaved={() => {}} onCancel={() => {}} />
+      </QueryClientProvider>,
+    );
+    fireEvent.change(screen.getByLabelText("Sign in with"), { target: { value: "basic" } });
+    fireEvent.change(screen.getByLabelText("Username"), { target: { value: "ops" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(screen.getByText(/Fill in every login field/)).toBeTruthy();
+    expect(api.updateDestination).not.toHaveBeenCalled();
+  });
 });

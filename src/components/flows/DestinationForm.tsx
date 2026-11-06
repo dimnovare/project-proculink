@@ -39,7 +39,7 @@ const DEFAULTS: Record<Protocol, Record<string, unknown>> = {
 
 type CredField = [key: string, label: string];
 const LOGIN: CredField[] = [["username", "Username"], ["password", "Password"]];
-const SFTP_LOGIN: CredField[] = [...LOGIN, ["privateKey", "Private key (instead of password)"]];
+const SFTP_LOGIN: CredField[] = [...LOGIN, ["privateKey", "Private key (instead of password)"], ["privateKeyPassphrase", "Key passphrase (optional)"]];
 const HTTP_AUTH: Record<string, CredField[]> = {
   bearer: [["token", "Token"]],
   apikey: [["header", "Header name"], ["value", "Key"]],
@@ -69,29 +69,25 @@ export function DestinationForm({ destination, onSaved, onCancel }: {
   const credFields: CredField[] =
     protocol === "http" ? HTTP_AUTH[auth] : protocol === "email" ? [] : protocol === "sftp" ? SFTP_LOGIN : LOGIN;
 
-  function buildCredentials(): Record<string, unknown> | null {
-    const typed = Object.fromEntries(credFields.filter(([k]) => creds[k]?.trim()).map(([k]) => [k, creds[k]]));
-    if (!Object.keys(typed).length) return null; // blank = keep what is saved
-    if (typed.privateKey) delete typed.password;
-    return protocol === "http" ? { type: auth, ...typed } : typed;
-  }
+  const typed = Object.fromEntries(credFields.filter(([k]) => creds[k]?.trim()).map(([k]) => [k, creds[k]]));
+  if (typed.privateKey) delete typed.password;
+  // Saving replaces the stored login wholesale, so a half-filled one must never be sent.
+  const required = protocol === "http" ? credFields.map(([k]) => k) : typed.privateKey ? ["username", "privateKey"] : ["username", "password"];
+  const loginIncomplete = Object.keys(typed).length > 0 && required.some((k) => !typed[k]);
 
+  const test = useMutation({ mutationFn: () => testDestination(current!.id) });
   const save = useMutation({
     mutationFn: (body: DestinationRequest) => (current ? updateDestination(current.id, body) : createDestination(body)),
-    onSuccess: (d) => { setCurrent(d); setProblem(null); onSaved(d); },
+    onSuccess: (d) => { setCurrent(d); setProblem(null); test.reset(); onSaved(d); },
     onError: (e) => setProblem(documentRefusalMessage(e)),
   });
-  const test = useMutation({ mutationFn: () => testDestination(current!.id) });
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return setProblem("Give this destination a name.");
-    const credentials = buildCredentials();
-    const loginIncomplete = (protocol === "ftps" || protocol === "sftp") && credentials && !credentials.privateKey
-      ? !credentials.username || !credentials.password
-      : false;
     if (loginIncomplete)
-      return setProblem("Enter both the username and the password, or leave both blank to keep the saved ones.");
+      return setProblem("Fill in every login field, or leave them all blank to keep the saved login.");
+    const credentials = Object.keys(typed).length ? (protocol === "http" ? { type: auth, ...typed } : typed) : null;
     const keys = MANAGED_CONFIG_KEYS[protocol];
     const kept = Object.fromEntries(
       Object.entries(config).filter(([k, v]) => v !== "" && (keys.includes(k) || !(k in CONFIG_FIELDS))),
@@ -112,7 +108,7 @@ export function DestinationForm({ destination, onSaved, onCancel }: {
           <select
             className={INPUT}
             value={protocol}
-            disabled={!!destination}
+            disabled={!!current}
             onChange={(e) => {
               const next = e.target.value as Protocol;
               setProtocol(next);
@@ -167,12 +163,13 @@ export function DestinationForm({ destination, onSaved, onCancel }: {
               type="password"
               autoComplete="new-password"
               value={creds[key] ?? ""}
-              placeholder={destination?.hasCredentials ? "Leave blank to keep the saved one" : ""}
+              placeholder={current?.hasCredentials ? "Leave blank to keep the saved one" : ""}
               onChange={(e) => setCreds((c) => ({ ...c, [key]: e.target.value }))}
             />
           </Field>
         ))}
-        {destination?.hasCredentials && credFields.length > 0 && <p className="text-[12px] text-ink-muted">Saved</p>}
+        {protocol === "http" && <p className="text-[12px] text-ink-muted">Leave blank if the address needs no login.</p>}
+        {current?.hasCredentials && credFields.length > 0 && <p className="text-[12px] text-ink-muted">Saved</p>}
         {problem && <StatusNotice tone="error">{problem}</StatusNotice>}
         <div className="flex flex-wrap gap-2">
           <Button type="submit" variant="primary" loading={save.isPending}>Save</Button>
