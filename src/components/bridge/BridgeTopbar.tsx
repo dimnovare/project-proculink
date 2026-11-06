@@ -9,6 +9,7 @@ import type { ReactNode } from "react";
 import { apiClient, checkAdminAccess, getBillingStatus, isApiMockMode } from "@/lib/api-client";
 import { guideSeenKey, matchGuide } from "@/lib/section-guides";
 import { planDisplayName } from "@/lib/plans";
+import { useDocumentEngine } from "@/hooks/useDocumentEngine";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { useOrganization } from "@clerk/nextjs";
@@ -663,6 +664,7 @@ function useTopNav() {
     retry: false,
   });
   const isAdmin = adminAccess === true;
+  const documentEngine = useDocumentEngine() === "on";
 
   const { data: ordersSummary, isError: summaryError } = useQuery({
     queryKey: ["orders-summary"],
@@ -680,8 +682,8 @@ function useTopNav() {
       : ordersSummary?.byStatus?.["pending_review"] ?? 0;
 
   const { main, tail } = useMemo(
-    () => buildVisibleNav(labels.counterpartyPlural, isAdmin),
-    [labels.counterpartyPlural, isAdmin],
+    () => buildVisibleNav(labels.counterpartyPlural, isAdmin, documentEngine),
+    [labels.counterpartyPlural, isAdmin, documentEngine],
   );
   // Flatten grouped sections into a single ordered list for the horizontal row.
   const items = useMemo(() => main.flatMap((s) => s.items), [main]);

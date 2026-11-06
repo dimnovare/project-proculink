@@ -94,6 +94,7 @@ export const LABEL_PINNED_TO_A_DIFFERENT_TITLE: Record<string, string> = {
  */
 export const OFF_HUB_TITLES: Record<string, string> = {
   "/upload": "Upload",
+  "/flows": "Flows",
   "/settings": "Settings",
   "/admin": "Admin",
   "/library/suppliers/[id]": "Supplier",

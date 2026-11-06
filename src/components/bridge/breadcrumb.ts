@@ -24,6 +24,7 @@ export const CRUMB_LABELS: Record<string, string> = {
   bridge: "Overview",
   inbox: HUB_LABELS.orders,
   upload: "Upload",
+  flows: "Flows",
   settings: "Settings",
   library: "Library",
   suppliers: "Suppliers",

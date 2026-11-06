@@ -21,6 +21,7 @@ export const PROTECTED_ROUTE_PATTERNS = [
   // The Simple document screen (invoices) — /documents/[id].
   "/documents(.*)",
   "/upload(.*)",
+  "/flows(.*)",
   "/library(.*)",
   "/operations(.*)",
   "/settings(.*)",

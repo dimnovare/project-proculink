@@ -6,13 +6,14 @@ import { useEffect, useMemo, useState } from "react";
 import { useOrganization } from "@clerk/nextjs";
 import { useQuery } from "@tanstack/react-query";
 import {
-  Upload, Inbox, Users, Zap,
+  Upload, Inbox, Users, Zap, Workflow,
   Lock, HelpCircle, Settings, ChevronsLeft, ChevronsRight, X,
   type LucideIcon,
 } from "lucide-react";
 import { apiClient, getBillingStatus, checkAdminAccess } from "@/lib/api-client";
 import { SIDEBAR_AUTO_COLLAPSE_EVENT } from "@/lib/sidebar-auto-collapse";
 import { planDisplayName } from "@/lib/plans";
+import { useDocumentEngine } from "@/hooks/useDocumentEngine";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { ProcuLinkMark } from "./DSPrimitives";
@@ -88,6 +89,7 @@ const NAV_MAIN: SidebarNavSection[] = [
       { label: "Documents", href: hubHome("orders"), icon: Inbox, badgeKey: "review", hub: "orders" },
       // STRUCT-1 still holds: no standalone "Connections" entry — /connections is
       // a hidden entry of this hub and stays fully routable.
+      { label: "Flows", href: "/flows", icon: Workflow },
       { label: "Suppliers", href: hubHome("suppliers"), icon: Users, hub: "suppliers" },
       { label: "Activity", href: hubHome("activity"), icon: Zap, hub: "activity" },
       { label: "Settings", href: "/settings", icon: Settings },
@@ -122,12 +124,14 @@ export interface VisibleNav {
 // `counterpartyPlural` relabels the "Suppliers" entry (href /library/suppliers)
 // for inbound orgs (DISPLAY ONLY — the route stays /library/suppliers): inbound
 // orgs see their counterparty word ("Customers").
-export function buildVisibleNav(counterpartyPlural: string, isAdmin: boolean): VisibleNav {
+export function buildVisibleNav(counterpartyPlural: string, isAdmin: boolean, documentEngine = false): VisibleNav {
   const filterItems = (items: SidebarNavItem[]) =>
     items
       // Hide the Admin link unless the server confirmed this user is on the
       // admin allowlist (UX only — the page + API re-gate server-side).
       .filter((item) => item.href !== "/admin" || isAdmin)
+      // Flows shows only once the probe confirmed the document engine is on.
+      .filter((item) => item.href !== "/flows" || documentEngine)
       .map((item) =>
         item.href === "/library/suppliers" && counterpartyPlural !== "Suppliers"
           ? { ...item, label: counterpartyPlural }
@@ -209,9 +213,10 @@ export function BridgeSidebar({
     retry: false,
   });
   const isAdmin = adminAccess === true;
+  const documentEngine = useDocumentEngine() === "on";
   const { main: NAV_VISIBLE, tail: TAIL_VISIBLE } = useMemo(
-    () => buildVisibleNav(labels.counterpartyPlural, isAdmin),
-    [labels.counterpartyPlural, isAdmin],
+    () => buildVisibleNav(labels.counterpartyPlural, isAdmin, documentEngine),
+    [labels.counterpartyPlural, isAdmin, documentEngine],
   );
 
   // Live billing plan for the workspace card + switcher (active org only).
