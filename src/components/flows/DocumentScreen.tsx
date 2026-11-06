@@ -48,7 +48,7 @@ function History({ documentId }: { documentId: string }) {
       <summary className="cursor-pointer font-medium text-ink">History</summary>
       {history.isError ? <p className="m-0 mt-2 text-ink-muted">{documentRefusalMessage(history.error)}</p> : (
         <ul className="m-0 mt-2 grid list-none gap-1 p-0 text-ink-muted">
-          {(history.data ?? []).map((h, i) => (
+          {!history.data ? <li>Loading…</li> : history.data.length === 0 ? <li>No changes yet.</li> : history.data.map((h, i) => (
             <li key={i}>{new Date(h.at).toLocaleString()} · {actionWords(h.action)}</li>
           ))}
         </ul>
@@ -61,7 +61,8 @@ function Original({ documentId, fileName }: { documentId: string; fileName: stri
   const isLg = useLgViewport();
   const enabled = useTenantQueriesEnabled();
   const source = useQuery({ queryKey: ["document-source", documentId], queryFn: () => fetchDocumentSource(documentId), enabled });
-  const type = TYPES[fileName.split(".").pop()?.toLowerCase() ?? ""] ?? "application/octet-stream";
+  const ext = /\.([^.]*)$/.exec(fileName)?.[1].toLowerCase() ?? "";
+  const type = Object.hasOwn(TYPES, ext) ? TYPES[ext] : "application/octet-stream";
   if (source.isPending) return <p className="px-4 pb-4 text-[12.5px] text-ink-muted">Opening the document…</p>;
   if (source.isError || source.data.size === 0)
     return <p className="px-4 pb-4 text-[12.5px] text-ink-muted">The original isn&apos;t available right now.</p>;
@@ -90,12 +91,11 @@ export function DocumentScreen({ flowId, documentId }: { flowId: string; documen
         titleHidden title="Flow document"
         actions={<Link href={`/flows/${flowId}`} className="text-[13px] text-brand-blue">Back to flow</Link>}
       />
-      {doc.isError ? (
-        <Failed error={doc.error} retry={() => doc.refetch()} />
-      ) : !doc.data || !summary || !status ? (
-        <Quiet>Loading document…</Quiet>
+      {!doc.data || !summary || !status ? (
+        doc.isError ? <Failed error={doc.error} retry={() => doc.refetch()} /> : <Quiet>Loading document…</Quiet>
       ) : (
         <div className="grid gap-4">
+          {doc.isError && <Failed error={doc.error} retry={() => doc.refetch()} />}
           <Card>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <span className="text-[14px] font-medium text-ink">{summary.fileName}</span>
@@ -132,7 +132,13 @@ export function DocumentScreen({ flowId, documentId }: { flowId: string; documen
             </div>
             <Card as="section" aria-labelledby="doc-read" className="min-w-0">
               <h2 id="doc-read" className="mb-3 text-[13px] font-semibold text-ink">What we read</h2>
-              <ReadValuesPanel detail={doc.data} editable={status.editable} />
+              {doc.data.read.fields.length + doc.data.read.tables.length === 0 ? (
+                <Quiet>
+                  {summary.status === "sending" ? "Sending…" : WORKING.includes(summary.status) ? "Reading the document…" : "Nothing was read from this document."}
+                </Quiet>
+              ) : (
+                <ReadValuesPanel detail={doc.data} editable={status.editable} />
+              )}
               <div className="mt-4"><History documentId={documentId} /></div>
             </Card>
             {/* Outputs and Send — Task 9 replaces this slot. */}

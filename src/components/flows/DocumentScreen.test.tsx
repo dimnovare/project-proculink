@@ -39,13 +39,13 @@ const renderScreen = () =>
 
 describe("DocumentScreen", () => {
   it("saves an edited field and shows the value the server returns", async () => {
-    api.editDocumentValues.mockResolvedValue(detail("INV-2"));
+    api.editDocumentValues.mockResolvedValue(detail("INV-2-saved"));
     renderScreen();
     const input = await screen.findByLabelText("Invoice number");
     fireEvent.change(input, { target: { value: "INV-2" } });
     fireEvent.blur(input);
     await waitFor(() => expect(api.editDocumentValues).toHaveBeenCalledWith("d", { fields: [{ key: "invoice_no", value: "INV-2" }] }));
-    expect(await screen.findByDisplayValue("INV-2")).toBeTruthy();
+    expect(await screen.findByDisplayValue("INV-2-saved")).toBeTruthy();
   });
 
   it("says so and reloads when the document was already sent", async () => {
