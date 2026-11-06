@@ -16,6 +16,7 @@ import {
 import type { Flow, FlowOutput } from "@/lib/api/documents";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
 import { documentStatus } from "@/lib/documentStatusManifest";
+import { AUTOMATIC_DELIVERY_LABEL, REVIEW_BEFORE_DELIVERY_LABEL } from "@/lib/deliveryMode";
 import { fieldListFromRead } from "@/lib/flowFieldModel";
 import { INPUT } from "./DestinationForm";
 import { DocumentList } from "./DocumentList";
@@ -25,7 +26,7 @@ import { OutputEditor } from "./OutputEditor";
 
 const TABS = [["documents", "Documents"], ["fields", "Fields"], ["outputs", "Outputs"]] as const;
 type Tab = (typeof TABS)[number][0];
-const AUTOMATION = [["review", "Review every document"], ["auto", "Send automatically"]] as const;
+const AUTOMATION = [["review", REVIEW_BEFORE_DELIVERY_LABEL], ["auto", AUTOMATIC_DELIVERY_LABEL]] as const;
 const FORMATS: Record<string, string> = { csv: "CSV", xlsx: "Excel", json: "JSON", xml: "XML" };
 
 const Quiet = ({ children }: { children: string }) => (

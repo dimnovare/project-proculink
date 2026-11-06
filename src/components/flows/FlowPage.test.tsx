@@ -37,10 +37,10 @@ describe("FlowPage", () => {
   it("switching to automatic sends the new setting and keeps the duplicate rule visible", async () => {
     api.updateFlow.mockResolvedValue({ ...flow, automation: "auto" });
     renderPage();
-    fireEvent.click(await screen.findByRole("radio", { name: "Send automatically" }));
+    fireEvent.click(await screen.findByRole("radio", { name: "Automatic delivery" }));
     await waitFor(() => expect(api.updateFlow).toHaveBeenCalledWith("f", { automation: "auto" }));
     expect(screen.getByText(DUPLICATE)).toBeTruthy();
-    await waitFor(() => expect((screen.getByRole("radio", { name: "Send automatically" }) as HTMLInputElement).checked).toBe(true));
+    await waitFor(() => expect((screen.getByRole("radio", { name: "Automatic delivery" }) as HTMLInputElement).checked).toBe(true));
   });
 
   it("shows the format copy when the server refuses the file type", async () => {

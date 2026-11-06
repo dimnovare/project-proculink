@@ -13,6 +13,7 @@ import { SourceDocumentBody } from "@/components/bridge/document/SourceDocumentB
 import { useLgViewport } from "@/components/bridge/document/useSourceDocument";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { fetchDocumentSource, getDocument, getDocumentHistory, retryDocumentRead } from "@/lib/api/documents";
+import { formatDateTime } from "@/lib/format-date";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
 import { documentStatus } from "@/lib/documentStatusManifest";
 import { DocumentOutputsPanel } from "./DocumentOutputsPanel";
@@ -50,7 +51,7 @@ function History({ documentId }: { documentId: string }) {
       {history.isError ? <p className="m-0 mt-2 text-ink-muted">{documentRefusalMessage(history.error)}</p> : (
         <ul className="m-0 mt-2 grid list-none gap-1 p-0 text-ink-muted">
           {!history.data ? <li>Loading…</li> : history.data.length === 0 ? <li>No changes yet.</li> : history.data.map((h, i) => (
-            <li key={i}>{new Date(h.at).toLocaleString()} · {actionWords(h.action)}</li>
+            <li key={i}>{formatDateTime(h.at)} · {actionWords(h.action)}</li>
           ))}
         </ul>
       )}
