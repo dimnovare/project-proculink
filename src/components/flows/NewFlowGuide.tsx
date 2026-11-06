@@ -18,43 +18,30 @@ import {
 } from "@/lib/api/documents";
 import type { Flow, FlowOutput } from "@/lib/api/documents";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
-import { documentStatus } from "@/lib/documentStatusManifest";
+import { Failed, Quiet, ReadProblem } from "@/components/flows/states";
 import { fieldListFromRead } from "@/lib/flowFieldModel";
 
 const NEW_DESTINATION = "\u0000new";
-const Loading = () => <p role="status" className="text-[13px] text-ink-muted">Loading…</p>;
-const failed = (e: unknown, retry: () => void) => (
-  <StatusNotice tone="error" action={<Button variant="secondary" size="sm" onClick={retry}>Retry</Button>}>
-    {documentRefusalMessage(e)}
-  </StatusNotice>
-);
 
 function ReadStep({ flow, docId, onConfirmed }: { flow: Flow; docId: string; onConfirmed(flow: Flow): void }) {
   const qc = useQueryClient();
   const doc = useQuery({
     queryKey: ["document", docId],
-    queryFn: () => getDocument(docId),
+    queryFn: () => getDocument(docId), enabled: useTenantQueriesEnabled(),
     refetchInterval: (q) => (["received", "reading"].includes(q.state.data?.summary.status ?? "") ? 2000 : false),
   });
   const retry = useMutation({
     mutationFn: () => retryDocumentRead(docId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["document", docId] }),
   });
-  if (doc.isError) return failed(doc.error, () => doc.refetch());
-  if (!doc.data) return <Loading />;
+  if (doc.isError) return <Failed error={doc.error} retry={() => doc.refetch()} />;
+  if (!doc.data) return <Quiet>Loading…</Quiet>;
   const { summary, read } = doc.data;
   if (summary.status === "received" || summary.status === "reading")
     return <p role="status" className="text-[13px] text-ink-muted">Reading your document…</p>;
-  if (summary.status === "read_failed")
-    return (
-      <StatusNotice
-        tone="error"
-        action={<Button variant="secondary" size="sm" loading={retry.isPending} onClick={() => retry.mutate()}>Try again</Button>}
-      >
-        {documentStatus(summary.status, summary.statusReason).label}
-        {summary.statusReason ? `: ${summary.statusReason.replaceAll("_", " ")}` : ""}
-      </StatusNotice>
-    );
+  const nothingRead = read.fields.length + read.tables.length === 0;
+  if (summary.status === "read_failed" || (summary.statusReason === "duplicate_file" && nothingRead))
+    return <ReadProblem summary={summary} nothingRead={nothingRead} retry={retry} />;
   return <FieldListEditor flow={flow} initial={fieldListFromRead(read)} onSaved={onConfirmed} />;
 }
 
@@ -93,7 +80,7 @@ function DestinationStep({ flow, output, onDone }: { flow: Flow; output: FlowOut
             <option value={NEW_DESTINATION}>New destination…</option>
           </select>
         </Field>
-        {destinations.isError && failed(destinations.error, () => destinations.refetch())}
+        {destinations.isError && <Failed error={destinations.error} retry={() => destinations.refetch()} />}
         {adding && (
           <DestinationForm
             onCancel={() => setAdding(false)}
@@ -145,7 +132,7 @@ export function NewFlowGuide() {
     body = (
       <Card title="Name your flow">
         <form className="grid gap-3" onSubmit={(e) => { e.preventDefault(); if (name.trim()) create.mutate(); }}>
-          <Field label="Flow name"><input className={INPUT} value={name} onChange={(e) => setName(e.target.value)} /></Field>
+          <Field label="Flow name"><input className={INPUT} maxLength={120} value={name} onChange={(e) => setName(e.target.value)} /></Field>
           {create.isError && <StatusNotice tone="error">{documentRefusalMessage(create.error)}</StatusNotice>}
           <div><Button type="submit" variant="primary" disabled={!name.trim()} loading={create.isPending}>Next</Button></div>
         </form>
@@ -156,13 +143,13 @@ export function NewFlowGuide() {
       <Card edge="blue" title="Upload a sample">
         <div className="grid gap-3">
           <p className="text-[13px] text-ink-muted">Add one document like the ones you will send. We read it and suggest the fields to pick up.</p>
-          <FlowUpload flowId={flowId!} onUploaded={(d) => go({ doc: d.id, step: "3" })} />
+          <FlowUpload flowId={flowId!} onUploaded={(d) => { qc.invalidateQueries({ queryKey: ["flows"] }); go({ doc: d.id, step: "3" }); }} />
         </div>
       </Card>
     );
   } else if (step === 6) {
     body = (
-      <Card edge="green" title="Your flow is ready">
+      <Card title="Your flow is ready">
         <div className="flex flex-wrap gap-2">
           <Button variant="primary" onClick={() => router.push(`/flows/${flowId}`)}>Open the flow</Button>
           <Button variant="secondary" onClick={() => router.push(`/flows/${flowId}?tab=documents`)}>Upload more documents</Button>
@@ -170,15 +157,15 @@ export function NewFlowGuide() {
       </Card>
     );
   } else if (flow.isError) {
-    body = failed(flow.error, () => flow.refetch());
+    body = <Failed error={flow.error} retry={() => flow.refetch()} />;
   } else if (!flow.data) {
-    body = <Loading />;
+    body = <Quiet>Loading…</Quiet>;
   } else if (step === 3) {
     body = <ReadStep flow={flow.data} docId={docId!} onConfirmed={(f) => { qc.setQueryData(["flow", f.id], f); go({ step: "4" }); }} />;
   } else if (outputs.isError) {
-    body = failed(outputs.error, () => outputs.refetch());
+    body = <Failed error={outputs.error} retry={() => outputs.refetch()} />;
   } else if (!outputs.data) {
-    body = <Loading />;
+    body = <Quiet>Loading…</Quiet>;
   } else if (step === 4) {
     body = (
       // Save is the only way forward, so edits made after "Create" are never skipped. An existing output is

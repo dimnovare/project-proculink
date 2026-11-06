@@ -22,21 +22,12 @@ import { INPUT } from "./DestinationForm";
 import { DocumentList } from "./DocumentList";
 import { FieldListEditor } from "./FieldListEditor";
 import { FlowUpload } from "./FlowUpload";
-import { OutputEditor } from "./OutputEditor";
+import { FORMATS, OutputEditor } from "./OutputEditor";
+import { destinationName, Failed, Quiet } from "./states";
 
 const TABS = [["documents", "Documents"], ["fields", "Fields"], ["outputs", "Outputs"]] as const;
 type Tab = (typeof TABS)[number][0];
 const AUTOMATION = [["review", REVIEW_BEFORE_DELIVERY_LABEL], ["auto", AUTOMATIC_DELIVERY_LABEL]] as const;
-const FORMATS: Record<string, string> = { csv: "CSV", xlsx: "Excel", json: "JSON", xml: "XML" };
-
-const Quiet = ({ children }: { children: string }) => (
-  <p role="status" className="m-0 text-[13px] text-ink-muted">{children}</p>
-);
-const Failed = ({ error, retry }: { error: unknown; retry(): void }) => (
-  <StatusNotice tone="error" action={<Button variant="secondary" size="sm" onClick={retry}>Retry</Button>}>
-    {documentRefusalMessage(error)}
-  </StatusNotice>
-);
 
 function Header({ flow }: { flow: Flow }) {
   const qc = useQueryClient();
@@ -53,7 +44,7 @@ function Header({ flow }: { flow: Flow }) {
     <Card>
       <div className="grid gap-3">
         <input
-          key={flow.name} aria-label="Flow name" className={`${INPUT} font-medium`} defaultValue={flow.name}
+          key={flow.name} aria-label="Flow name" maxLength={120} className={`${INPUT} font-medium`} defaultValue={flow.name}
           onBlur={(e) => rename(e.target)} onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
         />
         <fieldset className="m-0 flex flex-wrap gap-4 border-0 p-0" disabled={update.isPending}>
@@ -99,8 +90,6 @@ function Outputs({ flow, previewDocumentId }: { flow: Flow; previewDocumentId?: 
         onSaved={() => setEditing(null)} onCancel={() => setEditing(null)}
       />
     );
-  const destinationName = (o: FlowOutput) =>
-    !o.destinationId ? "Download only" : destinations.data?.find((d) => d.id === o.destinationId)?.name ?? (destinations.isError ? "Unknown destination" : "…");
   return (
     <div className="grid gap-2">
       {remove.isError && <StatusNotice tone="error">{documentRefusalMessage(remove.error)}</StatusNotice>}
@@ -110,7 +99,7 @@ function Outputs({ flow, previewDocumentId }: { flow: Flow; previewDocumentId?: 
         <Card key={o.id} dense>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="text-[13.5px] font-medium">{o.name}</span>
-            <span className="text-[12px] text-ink-muted">{FORMATS[o.format] ?? o.format} · {destinationName(o)}</span>
+            <span className="text-[12px] text-ink-muted">{Object.hasOwn(FORMATS, o.format) ? FORMATS[o.format as keyof typeof FORMATS] : o.format} · {destinationName(destinations, o.destinationId)}</span>
             <span className="flex gap-2">
               <Button size="sm" variant="secondary" onClick={() => setEditing(o)}>Edit</Button>
               <Button size="sm" variant="ghost" loading={remove.isPending && remove.variables === o.id} onClick={() => ask(o)}>Delete</Button>
@@ -132,7 +121,10 @@ export function FlowPage({ flowId }: { flowId: string }) {
   const tab: Tab = TABS.some(([t]) => t === asked) ? (asked as Tab) : "documents";
 
   const flow = useQuery({ queryKey: ["flow", flowId], queryFn: () => getFlow(flowId), enabled });
-  const docs = useQuery({ queryKey: ["documents", { flowId }], queryFn: () => listDocuments({ flowId }), enabled });
+  const docs = useQuery({
+    queryKey: ["documents", { flowId }], queryFn: () => listDocuments({ flowId }), enabled,
+    refetchInterval: (q) => (q.state.data?.some((d) => documentStatus(d.status, d.statusReason).tone === "working") ? 2000 : false),
+  });
   // Newest document the engine has finished reading, so Fields and Preview have something real to show.
   const latest = [...(docs.data ?? [])]
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
@@ -151,7 +143,7 @@ export function FlowPage({ flowId }: { flowId: string }) {
   if (tab === "documents") {
     body = (
       <div className="grid gap-4">
-        <FlowUpload flowId={flowId} onUploaded={() => qc.invalidateQueries({ queryKey: ["documents", { flowId }] })} />
+        <FlowUpload flowId={flowId} onUploaded={() => Promise.all([["documents", { flowId }], ["flows"]].map((queryKey) => qc.invalidateQueries({ queryKey })))} />
         {docs.isError ? <Failed error={docs.error} retry={() => docs.refetch()} />
           : !docs.data ? <Quiet>Loading documents…</Quiet>
           : docs.data.length === 0 ? <Quiet>No documents yet.</Quiet>

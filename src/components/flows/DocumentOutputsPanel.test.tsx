@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { MutationObserver, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ApiHttpError } from "@/lib/api/core";
 import { DocumentOutputsPanel } from "./DocumentOutputsPanel";
 
@@ -17,7 +17,7 @@ const detail = {
     pageCount: null, billingUnits: 1, failedChecks: 1, createdAt: "" },
   contentType: "text/csv", read: { kindLabel: null, fields: [], tables: [], truncated: false }, checks: [],
 };
-const stored = { id: "x", outputName: "Totals", protocol: "", status: "stored", attempts: 1, lastError: null, fileName: "totals.csv", deliveredAt: null };
+const stored = { id: "x", outputName: "Totals", protocol: "", status: "stored", attempts: 0, lastError: null, fileName: "totals.csv", deliveredAt: null };
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -25,8 +25,8 @@ beforeEach(() => {
   api.listDestinations.mockResolvedValue([]);
 });
 
-const renderPanel = () =>
-  render(<QueryClientProvider client={new QueryClient()}><DocumentOutputsPanel flowId="f" document={detail as never} /></QueryClientProvider>);
+const renderPanel = (qc = new QueryClient()) =>
+  render(<QueryClientProvider client={qc}><DocumentOutputsPanel flowId="f" document={detail as never} /></QueryClientProvider>);
 
 describe("DocumentOutputsPanel", () => {
   it("sends and then lists the delivery as ready to download", async () => {
@@ -36,6 +36,7 @@ describe("DocumentOutputsPanel", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Send" }));
     expect(await screen.findByText(/Ready to download/)).toBeTruthy();
     expect(screen.getByRole("button", { name: "Download" })).toBeTruthy();
+    expect(screen.queryByText(/attempt/)).toBeNull();
   });
 
   it("shows the refusal when there is no output to send to", async () => {
@@ -44,5 +45,16 @@ describe("DocumentOutputsPanel", () => {
     renderPanel();
     fireEvent.click(await screen.findByRole("button", { name: "Send" }));
     expect(await screen.findByText("Add an output to this flow before sending.")).toBeTruthy();
+  });
+
+  it("holds Send while a value edit is still saving", async () => {
+    api.listDeliveries.mockResolvedValue([]);
+    const qc = new QueryClient();
+    void new MutationObserver(qc, { mutationKey: ["edit-values", "d"], mutationFn: () => new Promise(() => {}) }).mutate();
+    renderPanel(qc);
+    const send = await screen.findByRole("button", { name: "Send" });
+    expect((send as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(send);
+    expect(api.sendDocument).not.toHaveBeenCalled();
   });
 });

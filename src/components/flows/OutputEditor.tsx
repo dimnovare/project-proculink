@@ -113,10 +113,11 @@ export function OutputEditor({ flow, output, previewDocumentId, hideDestination,
     <Card edge="green" title={current ? "Edit output" : "New output"}>
       <form onSubmit={submit} className="grid gap-3">
         <Field label="Name">
-          <input className={INPUT} value={name} onChange={(e) => setName(e.target.value)} />
+          <input className={INPUT} maxLength={120} value={name} onChange={(e) => setName(e.target.value)} />
         </Field>
         <Field label="File type">
           <select className={INPUT} value={format} disabled={external} onChange={(e) => setFormat(e.target.value)}>
+            {!Object.hasOwn(FORMATS, format) && <option value={format}>{format}</option>}
             {Object.entries(FORMATS).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
           </select>
         </Field>

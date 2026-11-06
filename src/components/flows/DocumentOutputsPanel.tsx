@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useIsMutating, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { Card } from "@/components/bridge/layout/Card";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
@@ -14,6 +14,7 @@ import { documentRefusalMessage } from "@/lib/documentRefusals";
 import { documentStatus } from "@/lib/documentStatusManifest";
 import { saveBlob } from "@/lib/saveBlob";
 import { FORMATS } from "./OutputEditor";
+import { destinationName, Failed, Quiet } from "./states";
 
 // An unknown token shows as itself, never as a success word.
 const CHANNELS = new Map([["", "Download"], ["email", "Email"], ["http", "Web address"], ["sftp", "SFTP"], ["ftps", "FTPS"]]);
@@ -23,13 +24,6 @@ const STATUSES = new Map([
 ]);
 const BAD = new Set(["failed", "dead_letter"]);
 const BUSY = new Set(["queued", "delivering"]);
-
-const Failed = ({ error, retry }: { error: unknown; retry(): void }) => (
-  <StatusNotice tone="error" action={<Button variant="secondary" size="sm" onClick={retry}>Retry</Button>}>
-    {documentRefusalMessage(error)}
-  </StatusNotice>
-);
-const Quiet = ({ children }: { children: string }) => <p role="status" className="m-0 text-[12.5px] text-ink-muted">{children}</p>;
 
 function Deliveries({ documentId }: { documentId: string }) {
   const enabled = useTenantQueriesEnabled();
@@ -54,7 +48,7 @@ function Deliveries({ documentId }: { documentId: string }) {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="font-medium text-ink">{d.outputName}</span>
             <span className={BAD.has(d.status) || !STATUSES.has(d.status) ? "text-danger" : "text-ink-muted"}>
-              {CHANNELS.get(d.protocol) ?? d.protocol} · {STATUSES.get(d.status) ?? d.status} · {d.attempts} {d.attempts === 1 ? "attempt" : "attempts"}
+              {CHANNELS.get(d.protocol) ?? d.protocol} · {STATUSES.get(d.status) ?? d.status}{d.attempts > 0 && ` · ${d.attempts} ${d.attempts === 1 ? "attempt" : "attempts"}`}
             </span>
             {d.fileName !== null && (
               <Button size="sm" variant="secondary" loading={download.isPending && download.variables?.id === d.id} onClick={() => download.mutate(d)}>
@@ -78,17 +72,17 @@ export function DocumentOutputsPanel({ flowId, document: doc }: { flowId: string
   const preview = useMutation({ mutationFn: (outputId: string) => previewOutput(documentId, outputId) });
   const send = useMutation({
     mutationFn: () => sendDocument(documentId),
-    onSuccess: () => Promise.all(["document", "deliveries"].map((k) => qc.invalidateQueries({ queryKey: [k, documentId] }))),
+    onSuccess: () => Promise.all(["document", "deliveries", "document-history"].map((k) => qc.invalidateQueries({ queryKey: [k, documentId] }))),
   });
+  // Send waits for a value edit that is still saving, so the file always carries what the screen shows.
+  const saving = useIsMutating({ mutationKey: ["edit-values", documentId] }) > 0;
   const canSend = documentStatus(doc.summary.status, doc.summary.statusReason).editable;
-  const destinationName = (id: string | null) =>
-    !id ? "Download only" : destinations.data?.find((d) => d.id === id)?.name ?? (destinations.isError ? "Unknown destination" : "…");
 
   return (
     <Card edge="green" as="section" aria-labelledby="doc-outputs" className="min-w-0">
       <div className="mb-3 flex items-center justify-between gap-2">
         <h2 id="doc-outputs" className="m-0 text-[13px] font-semibold text-ink">Outputs</h2>
-        <Button variant="send" size="sm" disabled={!canSend} loading={send.isPending} onClick={() => send.mutate()}>Send</Button>
+        <Button variant="send" size="sm" disabled={!canSend || saving} loading={send.isPending || saving} onClick={() => send.mutate()}>Send</Button>
       </div>
       <div className="grid gap-3">
         {send.isError && <StatusNotice tone="error">{documentRefusalMessage(send.error)}</StatusNotice>}
@@ -100,7 +94,7 @@ export function DocumentOutputsPanel({ flowId, document: doc }: { flowId: string
             <div key={o.id} className="grid gap-1.5">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-[13px] font-medium text-ink">{o.name}</span>
-                <span className="text-[12px] text-ink-muted">{Object.hasOwn(FORMATS, o.format) ? FORMATS[o.format as keyof typeof FORMATS] : o.format} · {destinationName(o.destinationId)}</span>
+                <span className="text-[12px] text-ink-muted">{Object.hasOwn(FORMATS, o.format) ? FORMATS[o.format as keyof typeof FORMATS] : o.format} · {destinationName(destinations, o.destinationId)}</span>
                 <Button size="sm" variant="secondary" loading={preview.isPending && preview.variables === o.id} onClick={() => preview.mutate(o.id)}>Preview</Button>
               </div>
               {preview.isError && preview.variables === o.id && <StatusNotice tone="error">{documentRefusalMessage(preview.error)}</StatusNotice>}

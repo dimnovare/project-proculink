@@ -10,7 +10,7 @@ import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 export const flowsQuery = {
   queryKey: ["flows"],
   queryFn: listFlows,
-  retry: false,
+  retry: (n: number, e: unknown) => refusalToken(e) !== "document_engine_not_enabled" && n < 2,
   staleTime: 300_000,
   refetchOnWindowFocus: false,
 } as const;

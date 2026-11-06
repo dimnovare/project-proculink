@@ -9,6 +9,7 @@ import { editDocumentValues } from "@/lib/api/documents";
 import type { DocumentDetail, EditValuesRequest, SourceLocation } from "@/lib/api/documents";
 import { documentRefusalMessage, refusalToken } from "@/lib/documentRefusals";
 import { INPUT } from "./DestinationForm";
+import { Checks } from "./states";
 
 /** "Page 2", or the sheet cell as a spreadsheet writes it (`cell:r2c3` becomes "Cell C2"). */
 export function locationText(l: SourceLocation | null): string | null {
@@ -47,15 +48,15 @@ export function ReadValuesPanel({ detail, editable }: { detail: DocumentDetail; 
   // Bumped after a refusal so every input drops what was typed and shows the server's value again.
   const [reset, setReset] = useState(0);
   const edit = useMutation({
+    mutationKey: ["edit-values", id],
     mutationFn: (req: EditValuesRequest) => editDocumentValues(id, req),
-    onSuccess: (d) => qc.setQueryData(["document", id], d),
+    onSuccess: (d) => { qc.setQueryData(["document", id], d); qc.invalidateQueries({ queryKey: ["document-history", id] }); },
     onError: (e) => {
       setReset((n) => n + 1);
       if (refusalToken(e) !== null) qc.invalidateQueries({ queryKey: ["document", id] });
     },
   });
   const { fields, tables } = detail.read;
-  const failed = detail.checks.filter((c) => !c.passed);
 
   return (
     <div key={reset} className="grid gap-4">
@@ -79,7 +80,7 @@ export function ReadValuesPanel({ detail, editable }: { detail: DocumentDetail; 
                 <thead>
                   <tr className="text-left text-[10.5px] uppercase tracking-wide text-ink-muted">
                     {t.columns.map((c) => <th key={c.key} className="py-1.5 pr-2 font-semibold">{c.label}</th>)}
-                    <th className="py-1.5"><span className="sr-only">Row actions</span></th>
+                    <th className="sticky right-0 bg-surface py-1.5"><span className="sr-only">Row actions</span></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -97,7 +98,7 @@ export function ReadValuesPanel({ detail, editable }: { detail: DocumentDetail; 
                           </td>
                         );
                       })}
-                      <td className="py-1">
+                      <td className="sticky right-0 bg-surface py-1">
                         <Button size="sm" variant="ghost" onClick={() => edit.mutate({ removeRows: [{ table: t.key, row: r }] })}>
                           Remove row <span className="sr-only">{r + 1} of {t.label}</span>
                         </Button>
@@ -111,12 +112,7 @@ export function ReadValuesPanel({ detail, editable }: { detail: DocumentDetail; 
           </div>
         ))}
       </fieldset>
-      {failed.length > 0 && (
-        <div className="grid gap-2">
-          {failed.map((c, i) => <StatusNotice key={`${c.code}-${i}`} tone="warning">{c.message}</StatusNotice>)}
-          <p className="m-0 text-[12px] text-ink-muted">Checks are a heads-up; they never stop you sending.</p>
-        </div>
-      )}
+      <Checks checks={detail.checks} />
     </div>
   );
 }

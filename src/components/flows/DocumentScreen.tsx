@@ -6,7 +6,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import { Card } from "@/components/bridge/layout/Card";
-import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { StatusJourney } from "@/components/bridge/StatusJourney";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { SourceDocumentBody } from "@/components/bridge/document/SourceDocumentBody";
@@ -16,8 +15,10 @@ import { fetchDocumentSource, getDocument, getDocumentHistory, retryDocumentRead
 import { formatDateTime } from "@/lib/format-date";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
 import { documentStatus } from "@/lib/documentStatusManifest";
+import type { DocumentDetail } from "@/lib/api/documents";
 import { DocumentOutputsPanel } from "./DocumentOutputsPanel";
 import { ReadValuesPanel } from "./ReadValuesPanel";
+import { Checks, Failed, Quiet, ReadProblem } from "./states";
 
 // The file's own extension decides the viewer. The server's content type is not trusted for this.
 const TYPES: Record<string, string> = {
@@ -25,16 +26,6 @@ const TYPES: Record<string, string> = {
   csv: "text/csv",
   xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 };
-const WORKING = ["received", "reading", "sending"];
-
-const Quiet = ({ children }: { children: string }) => (
-  <p role="status" className="m-0 text-[13px] text-ink-muted">{children}</p>
-);
-const Failed = ({ error, retry }: { error: unknown; retry(): void }) => (
-  <StatusNotice tone="error" action={<Button variant="secondary" size="sm" onClick={retry}>Retry</Button>}>
-    {documentRefusalMessage(error)}
-  </StatusNotice>
-);
 
 /** `document.value_edited` becomes "Value edited". The payload is never shown. */
 const actionWords = (action: string) => {
@@ -76,22 +67,34 @@ export function DocumentScreen({ flowId, documentId }: { flowId: string; documen
   const enabled = useTenantQueriesEnabled();
   const [showOriginal, setShowOriginal] = useState(true);
   const doc = useQuery({
-    queryKey: ["document", documentId], queryFn: () => getDocument(documentId), enabled,
-    refetchInterval: (q) => (WORKING.includes(q.state.data?.summary.status ?? "") ? 2000 : false),
+    queryKey: ["document", documentId], enabled,
+    queryFn: async () => {
+      const prev = qc.getQueryData<DocumentDetail>(["document", documentId]);
+      const next = await getDocument(documentId);
+      // A status change means the worker did something: the deliveries and history beside it are stale.
+      if (prev && prev.summary.status !== next.summary.status)
+        for (const k of ["deliveries", "document-history"]) qc.invalidateQueries({ queryKey: [k, documentId] });
+      return next;
+    },
+    refetchInterval: (q) => {
+      const d = q.state.data?.summary;
+      return d && documentStatus(d.status, d.statusReason).tone === "working" ? 2000 : false;
+    },
   });
   const retry = useMutation({
     mutationFn: () => retryDocumentRead(documentId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["document", documentId] }),
+    onSuccess: () => Promise.all(["document", "document-history"].map((k) => qc.invalidateQueries({ queryKey: [k, documentId] }))),
   });
 
   const summary = doc.data?.summary;
   const status = summary && documentStatus(summary.status, summary.statusReason);
+  const nothingRead = !doc.data || doc.data.read.fields.length + doc.data.read.tables.length === 0;
 
   return (
     <PageShell variant="wide">
       <PageHeader
         titleHidden title="Flow document"
-        actions={<Link href={`/flows/${flowId}`} className="text-[13px] text-brand-blue">Back to flow</Link>}
+        actions={<Link href={`/flows/${summary?.flowId ?? flowId}`} className="text-[13px] text-brand-blue">Back to flow</Link>}
       />
       {!doc.data || !summary || !status ? (
         doc.isError ? <Failed error={doc.error} retry={() => doc.refetch()} /> : <Quiet>Loading document…</Quiet>
@@ -109,17 +112,9 @@ export function DocumentScreen({ flowId, documentId }: { flowId: string; documen
                 {showOriginal ? "Hide original" : "Show original"}
               </Button>
             </div>
-            {summary.status === "read_failed" && (
-              <div className="mt-3 grid gap-2">
-                <StatusNotice
-                  tone="error"
-                  action={<Button variant="secondary" size="sm" loading={retry.isPending} onClick={() => retry.mutate()}>Try again</Button>}
-                >
-                  {summary.statusReason ? `We couldn't read this document: ${summary.statusReason.replaceAll("_", " ")}.` : "We couldn't read this document."}
-                </StatusNotice>
-                {retry.isError && <StatusNotice tone="error">{documentRefusalMessage(retry.error)}</StatusNotice>}
-              </div>
-            )}
+            <div className="mt-3">
+              <ReadProblem summary={summary} nothingRead={nothingRead} retry={retry} />
+            </div>
           </Card>
           <div
             className={`grid items-start gap-4 ${
@@ -134,16 +129,19 @@ export function DocumentScreen({ flowId, documentId }: { flowId: string; documen
             </div>
             <Card as="section" aria-labelledby="doc-read" className="min-w-0">
               <h2 id="doc-read" className="mb-3 text-[13px] font-semibold text-ink">What we read</h2>
-              {doc.data.read.fields.length + doc.data.read.tables.length === 0 ? (
-                <Quiet>
-                  {summary.status === "sending" ? "Sending…" : WORKING.includes(summary.status) ? "Reading the document…" : "Nothing was read from this document."}
-                </Quiet>
+              {nothingRead ? (
+                <div className="grid gap-3">
+                  <Quiet>
+                    {summary.status === "sending" ? "Sending…" : status.tone === "working" ? "Reading the document…" : "Nothing was read from this document."}
+                  </Quiet>
+                  {summary.statusReason !== "duplicate_file" && <Checks checks={doc.data.checks} />}
+                </div>
               ) : (
                 <ReadValuesPanel detail={doc.data} editable={status.editable} />
               )}
               <div className="mt-4"><History documentId={documentId} /></div>
             </Card>
-            <div className="min-w-0"><DocumentOutputsPanel flowId={flowId} document={doc.data} /></div>
+            <div className="min-w-0"><DocumentOutputsPanel flowId={summary.flowId} document={doc.data} /></div>
           </div>
         </div>
       )}

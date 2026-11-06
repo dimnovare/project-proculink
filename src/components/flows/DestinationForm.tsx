@@ -116,6 +116,7 @@ export function DestinationForm({ destination, onSaved, onCancel }: {
               setCreds({});
             }}
           >
+            {!Object.hasOwn(PROTOCOLS, protocol) && <option value={protocol}>{protocol}</option>}
             {Object.entries(PROTOCOLS).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
           </select>
         </Field>

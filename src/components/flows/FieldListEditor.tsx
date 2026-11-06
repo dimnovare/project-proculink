@@ -77,7 +77,7 @@ export function FieldListEditor({ flow, initial, onSaved }: {
   }
 
   return (
-    <Card edge="blue" title="Fields to read">
+    <Card edge="none" title="Fields to read">
       <form onSubmit={submit} className="grid gap-3">
         <p className="text-[12px] text-ink-muted">Every document in this flow is read into these fields. Untick what you don&apos;t need.</p>
         <div className="grid gap-2">

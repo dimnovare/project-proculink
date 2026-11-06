@@ -38,8 +38,8 @@ beforeEach(() => {
   api.fetchDocumentSource.mockRejectedValue(new Error("no source"));
 });
 
-const renderScreen = () =>
-  render(<QueryClientProvider client={new QueryClient()}><DocumentScreen flowId="f" documentId="d" /></QueryClientProvider>);
+const renderScreen = (qc = new QueryClient()) =>
+  render(<QueryClientProvider client={qc}><DocumentScreen flowId="f" documentId="d" /></QueryClientProvider>);
 
 describe("DocumentScreen", () => {
   it("saves an edited field and shows the value the server returns", async () => {
@@ -67,5 +67,31 @@ describe("DocumentScreen", () => {
     api.fetchDocumentSource.mockResolvedValue(new Blob([]));
     renderScreen();
     expect(await screen.findByText("The original isn't available right now.")).toBeTruthy();
+  });
+
+  it("offers to read a duplicate file anyway", async () => {
+    const dup = detail("");
+    api.getDocument.mockResolvedValue({
+      ...dup, summary: { ...dup.summary, statusReason: "duplicate_file", failedChecks: 1 },
+      read: { ...dup.read, fields: [] },
+      checks: [{ code: "duplicate", passed: false, fieldKey: null, message: "This file was already uploaded to this flow." }],
+    });
+    api.retryDocumentRead.mockResolvedValue({});
+    renderScreen();
+    expect(await screen.findByText("This file was already uploaded to this flow.")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Read it anyway" }));
+    await waitFor(() => expect(api.retryDocumentRead).toHaveBeenCalledWith("d"));
+  });
+
+  it("refreshes deliveries and history when the status changes under it", async () => {
+    const reading = detail("INV-1");
+    api.getDocument.mockResolvedValueOnce({ ...reading, summary: { ...reading.summary, status: "reading" } }).mockResolvedValue(detail("INV-1"));
+    const qc = new QueryClient();
+    renderScreen(qc);
+    await waitFor(() => expect(api.listDeliveries).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(api.getDocumentHistory).toHaveBeenCalledTimes(1));
+    await qc.invalidateQueries({ queryKey: ["document", "d"] });
+    await waitFor(() => expect(api.listDeliveries).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(api.getDocumentHistory).toHaveBeenCalledTimes(2));
   });
 });

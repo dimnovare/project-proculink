@@ -14,8 +14,10 @@ import { flowsQuery, useDocumentEngine } from "@/hooks/useDocumentEngine";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { listDocuments, type DocumentSummary } from "@/lib/api/documents";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
+import { deliveryModeLabel } from "@/lib/deliveryMode";
 import { documentStatus } from "@/lib/documentStatusManifest";
 import { DocumentList } from "./DocumentList";
+import { Quiet } from "./states";
 
 const FILTERS: { label: string; test: (d: DocumentSummary) => boolean }[] = [
   { label: "All", test: () => true },
@@ -29,10 +31,6 @@ const Retry = ({ onClick }: { onClick: () => void }) => (
   <Button variant="secondary" size="sm" onClick={onClick}>Retry</Button>
 );
 
-const Quiet = ({ children }: { children: string }) => (
-  <p role="status" style={{ fontSize: 13, color: "var(--ink-muted)", margin: 0 }}>{children}</p>
-);
-
 export function FlowsHome() {
   const router = useRouter();
   const engine = useDocumentEngine();
@@ -43,6 +41,7 @@ export function FlowsHome() {
     queryKey: ["documents", { take: 100 }],
     queryFn: () => listDocuments({ take: 100 }),
     enabled: engine === "on",
+    refetchInterval: (q) => (q.state.data?.some((d) => documentStatus(d.status, d.statusReason).tone === "working") ? 2000 : false),
   });
   const newFlow = () => router.push("/flows/new");
   const shown = docs.data?.filter(FILTERS[filter].test) ?? [];
@@ -79,7 +78,7 @@ export function FlowsHome() {
                     <span className="font-medium" style={{ fontSize: 13.5 }}>{f.name}</span>
                     <span style={{ fontSize: 12, color: "var(--ink-muted)" }}>
                       {f.documentCount} {f.documentCount === 1 ? "document" : "documents"} ·{" "}
-                      {f.automation === "auto" ? "Sends automatically" : "Review first"}
+                      {deliveryModeLabel(f.automation === "auto")}
                     </span>
                   </div>
                 </Card>

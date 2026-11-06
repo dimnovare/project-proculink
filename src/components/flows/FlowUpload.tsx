@@ -12,6 +12,8 @@ import { documentRefusalMessage } from "@/lib/documentRefusals";
 /** The document engine reads these three only, narrower than the order upload's list. */
 const ACCEPT = ".pdf,.csv,.xlsx";
 
+const MAX_BYTES = 10 * 1024 * 1024;
+
 export function FlowUpload({ flowId, onUploaded }: { flowId: string; onUploaded(d: DocumentSummary): void }) {
   const input = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
@@ -26,6 +28,7 @@ export function FlowUpload({ flowId, onUploaded }: { flowId: string; onUploaded(
     if (!file || upload.isPending) return;
     if (!ACCEPT.split(",").some((ext) => file.name.toLowerCase().endsWith(ext)))
       return setProblem(documentRefusalMessage(new ApiHttpError("unsupported", 415, { error: "unsupported_format" })));
+    if (file.size > MAX_BYTES) return setProblem(documentRefusalMessage(new ApiHttpError("too large", 413, { error: "file_too_large" })));
     upload.mutate(file);
   }
 

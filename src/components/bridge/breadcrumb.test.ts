@@ -242,3 +242,16 @@ describe("isLonePageCrumb", () => {
     expect(isLonePageCrumb("/")).toBe(false);
   });
 });
+
+describe("flow document trail", () => {
+  const f = "fba42463-1111-4a1b-9c2d-1f2e3a4b5c6d";
+  const d = "af13dd5e-2222-4a1b-9c2d-1f2e3a4b5c6d";
+  it("names the flow and file, and never links the page-less documents crumb", () => {
+    const trail = buildCrumbTrail(`/flows/${f}/documents/${d}`, { flowName: "Invoices", documentName: "june.pdf" });
+    expect(trail.map((c) => c.label)).toEqual(["Flows", "Invoices", "Documents", "june.pdf"]);
+    expect(trail[2].href).toBeNull();
+    expect(buildCrumbTrail(`/flows/${f}/documents/${d}`).map((c) => c.label).slice(1)).toEqual([
+      "Flow fba42463", "Documents", "Document af13dd5e",
+    ]);
+  });
+});
