@@ -15,6 +15,7 @@ import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { fetchDocumentSource, getDocument, getDocumentHistory, retryDocumentRead } from "@/lib/api/documents";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
 import { documentStatus } from "@/lib/documentStatusManifest";
+import { DocumentOutputsPanel } from "./DocumentOutputsPanel";
 import { ReadValuesPanel } from "./ReadValuesPanel";
 
 // The file's own extension decides the viewer. The server's content type is not trusted for this.
@@ -141,8 +142,7 @@ export function DocumentScreen({ flowId, documentId }: { flowId: string; documen
               )}
               <div className="mt-4"><History documentId={documentId} /></div>
             </Card>
-            {/* Outputs and Send — Task 9 replaces this slot. */}
-            <div data-slot="outputs" className="min-w-0" />
+            <div className="min-w-0"><DocumentOutputsPanel flowId={flowId} document={doc.data} /></div>
           </div>
         </div>
       )}

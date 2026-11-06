@@ -10,6 +10,7 @@ vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => tru
 const api = vi.hoisted(() => ({
   getDocument: vi.fn(), editDocumentValues: vi.fn(), getDocumentHistory: vi.fn(),
   retryDocumentRead: vi.fn(), fetchDocumentSource: vi.fn(),
+  listOutputs: vi.fn(), listDestinations: vi.fn(), listDeliveries: vi.fn(),
 }));
 vi.mock("@/lib/api/documents", () => api);
 
@@ -31,6 +32,9 @@ beforeEach(() => {
   vi.clearAllMocks();
   api.getDocument.mockResolvedValue(detail("INV-1"));
   api.getDocumentHistory.mockResolvedValue([]);
+  api.listOutputs.mockResolvedValue([]);
+  api.listDestinations.mockResolvedValue([]);
+  api.listDeliveries.mockResolvedValue([]);
   api.fetchDocumentSource.mockRejectedValue(new Error("no source"));
 });
 

@@ -13,7 +13,7 @@ import { fromSimple, toSimple } from "@/lib/flowOutputModel";
 import type { SimpleOutput, SimpleRow } from "@/lib/flowOutputModel";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 
-const FORMATS = { csv: "CSV", xlsx: "Excel", json: "JSON", xml: "XML" };
+export const FORMATS = { csv: "CSV", xlsx: "Excel", json: "JSON", xml: "XML" };
 const FIXED = "\u0000fixed";
 const NEW_DESTINATION = "\u0000new";
 

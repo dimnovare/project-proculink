@@ -18,6 +18,7 @@
 // a blocked order became unscrollable on a phone. Both call sites are already separated by
 // `hidden lg:grid` / `lg:hidden`, so this is a static choice, never a JS media query.
 
+import { saveBlob } from "@/lib/saveBlob";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
@@ -362,15 +363,7 @@ function DownloadRow({ document: doc, cacheKey }: { document: SourceDocument; ca
 
   const onDownload = () => {
     try {
-      const url = URL.createObjectURL(doc.blob);
-      const a = window.document.createElement("a");
-      a.href = url;
-      a.download = name;
-      window.document.body.appendChild(a);
-      a.click();
-      a.remove();
-      // Revoking on the next tick lets the navigation start before the URL is invalidated.
-      window.setTimeout(() => URL.revokeObjectURL(url), 0);
+      saveBlob(doc.blob, name);
       setFailed(false);
     } catch {
       setFailed(true);
