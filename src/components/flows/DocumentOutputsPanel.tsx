@@ -35,7 +35,10 @@ function Deliveries({ documentId }: { documentId: string }) {
   const enabled = useTenantQueriesEnabled();
   const deliveries = useQuery({
     queryKey: ["deliveries", documentId], queryFn: () => listDeliveries(documentId), enabled,
-    refetchInterval: (q) => (q.state.data?.some((d) => BUSY.has(d.status)) ? 2000 : false),
+    refetchInterval: (q) => {
+      const s = q.state.data?.map((d) => d.status) ?? [];
+      return s.some((x) => BUSY.has(x)) ? 2000 : s.includes("failed") ? 5000 : false; // failed rows are retried by the server
+    },
   });
   const download = useMutation({
     mutationFn: async (d: DocumentDelivery) => saveBlob(await downloadDeliveryFile(documentId, d.id), d.fileName!),
