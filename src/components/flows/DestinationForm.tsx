@@ -47,8 +47,8 @@ const HTTP_AUTH: Record<string, CredField[]> = {
 };
 const AUTH_LABEL = { bearer: "Bearer token", apikey: "API key", basic: "Username and password" };
 
-const INPUT = "h-9 w-full rounded border border-border bg-surface px-2.5 text-[13px] text-ink";
-const Field = ({ label, children }: { label: string; children: React.ReactNode }) => (
+export const INPUT = "h-9 w-full rounded border border-border bg-surface px-2.5 text-[13px] text-ink";
+export const Field = ({ label, children }: { label: string; children: React.ReactNode }) => (
   <label className="block text-[12px] font-medium text-ink-muted">
     <span className="mb-1 block">{label}</span>
     {children}
