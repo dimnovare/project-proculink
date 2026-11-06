@@ -63,7 +63,7 @@ export function OutputEditor({ flow, output, previewDocumentId, onSaved, onCance
   const [current, setCurrent] = useState(output);
   const [name, setName] = useState(output?.name ?? "");
   const [format, setFormat] = useState(output?.format ?? "csv");
-  const [tableKey, setTableKey] = useState<string | null>(output?.tableKey ?? flow.fields.tables[0]?.key ?? null);
+  const [tableKey, setTableKey] = useState<string | null>(output ? output.tableKey : (flow.fields.tables[0]?.key ?? null));
   const [destinationId, setDestinationId] = useState<string | null>(output?.destinationId ?? null);
   const [newDestination, setNewDestination] = useState(false);
   const [rows, setRows] = useState<SimpleOutput | null>(output ? toSimple(output.template) : null);
@@ -72,6 +72,7 @@ export function OutputEditor({ flow, output, previewDocumentId, onSaved, onCance
   const destinations = useQuery({ queryKey: ["destinations"], queryFn: listDestinations, enabled: useTenantQueriesEnabled() });
   const external = !!current && !rows;
 
+  const preview = useMutation({ mutationFn: () => previewOutput(previewDocumentId!, current!.id) });
   const save = useMutation({
     mutationFn: () => {
       const body = { name: name.trim(), format, tableKey, destinationId };
@@ -81,6 +82,7 @@ export function OutputEditor({ flow, output, previewDocumentId, onSaved, onCance
     onSuccess: (saved) => {
       const created = !current;
       setProblem(null);
+      preview.reset();
       setCurrent(saved);
       if (created) setRows(toSimple(saved.template));
       qc.invalidateQueries({ queryKey: ["outputs", flow.id] });
@@ -88,15 +90,22 @@ export function OutputEditor({ flow, output, previewDocumentId, onSaved, onCance
     },
     onError: (e) => setProblem(documentRefusalMessage(e)),
   });
-  const preview = useMutation({ mutationFn: () => previewOutput(previewDocumentId!, current!.id) });
 
   const table = flow.fields.tables.find((t) => t.key === rows?.table?.key);
   const fieldOptions = flow.fields.fields.map((f) => ({ key: f.key, label: f.label }));
   const columnOptions = (table?.columns ?? []).map((f) => ({ key: f.key, label: f.label }));
 
+  function changeTable(key: string | null) {
+    setTableKey(key);
+    const t = flow.fields.tables.find((x) => x.key === key);
+    if (rows) setRows({ ...rows, table: t ? { key: t.key, columns: t.columns.map((c) => ({ name: c.label, source: { field: c.key } })) } : null });
+  }
+
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return setProblem("Give this output a name.");
+    if ([...(rows?.fields ?? []), ...(rows?.table?.columns ?? [])].some((r) => !r.name.trim()))
+      return setProblem("Give every row a name.");
     save.mutate();
   }
 
@@ -113,7 +122,8 @@ export function OutputEditor({ flow, output, previewDocumentId, onSaved, onCance
         </Field>
         {flow.fields.tables.length > 0 && (
           <Field label="Table">
-            <select className={INPUT} value={tableKey ?? ""} disabled={!!current} onChange={(e) => setTableKey(e.target.value)}>
+            <select className={INPUT} value={tableKey ?? ""} disabled={external} onChange={(e) => changeTable(e.target.value || null)}>
+              <option value="">No table</option>
               {flow.fields.tables.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
             </select>
           </Field>
