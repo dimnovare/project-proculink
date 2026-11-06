@@ -84,6 +84,7 @@ async function apiFetch<T>(path: string, init?: RequestInit, timeoutMs?: number,
     timeoutMs,
   );
   if (!res.ok) throw await readRefusal(res, `documents: ${res.status}`);
+  if (res.status === 204) return undefined as T;
   return (as === "blob" ? res.blob() : res.json()) as Promise<T>;
 }
 
@@ -127,7 +128,7 @@ export const createDestination = (body: DestinationRequest) =>
 export const updateDestination = (id: string, body: DestinationRequest) =>
   apiFetch<Destination>(`/destinations/${id}`, { method: "PUT", body: json(body) });
 export const deleteDestination = (id: string) =>
-  apiFetch<void>(`/destinations/${id}`, { method: "DELETE" }).then(() => undefined);
+  apiFetch<void>(`/destinations/${id}`, { method: "DELETE" });
 export const testDestination = (id: string) =>
   apiFetch<DestinationTestResult>(`/destinations/${id}/test`, { method: "POST" });
 
@@ -137,7 +138,7 @@ export const createOutput = (flowId: string, body: OutputRequest) =>
 export const updateOutput = (flowId: string, id: string, body: OutputRequest) =>
   apiFetch<FlowOutput>(`/flows/${flowId}/outputs/${id}`, { method: "PUT", body: json(body) });
 export const deleteOutput = (flowId: string, id: string) =>
-  apiFetch<void>(`/flows/${flowId}/outputs/${id}`, { method: "DELETE" }).then(() => undefined);
+  apiFetch<void>(`/flows/${flowId}/outputs/${id}`, { method: "DELETE" });
 export const previewOutput = (documentId: string, outputId: string) =>
   apiFetch<OutputPreview>(`/documents/${documentId}/outputs/${outputId}/preview`, { method: "POST" });
 
