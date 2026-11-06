@@ -23,7 +23,7 @@ export function FlowUpload({ flowId, onUploaded }: { flowId: string; onUploaded(
   });
 
   function pick(file: File | undefined) {
-    if (!file) return;
+    if (!file || upload.isPending) return;
     if (!ACCEPT.split(",").some((ext) => file.name.toLowerCase().endsWith(ext)))
       return setProblem(documentRefusalMessage(new ApiHttpError("unsupported", 415, { error: "unsupported_format" })));
     upload.mutate(file);

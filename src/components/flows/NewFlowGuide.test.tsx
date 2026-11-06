@@ -72,13 +72,13 @@ describe("NewFlowGuide", () => {
     expect(await screen.findByText("Step 4 of 6")).toBeTruthy();
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Receipts file" } });
     fireEvent.click(screen.getByRole("button", { name: "Create" }));
-    await waitFor(() => expect((screen.getByRole("button", { name: "Continue" }) as HTMLButtonElement).disabled).toBe(false));
-    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Save" }));
+    await waitFor(() => expect(api.updateOutput).toHaveBeenCalled());
 
     expect(await screen.findByText("Step 5 of 6")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Finish" }));
     expect(await screen.findByText("Your flow is ready")).toBeTruthy();
-    expect(api.updateOutput).not.toHaveBeenCalled();
+    expect(api.updateOutput).toHaveBeenCalledTimes(1);
     expect(url.get().get("flow")).toBe("f");
     expect(url.get().get("doc")).toBe("d");
   }, 30000);
@@ -90,5 +90,22 @@ describe("NewFlowGuide", () => {
     expect(screen.getByText("Step 3 of 6")).toBeTruthy();
     expect(await screen.findByRole("button", { name: "Save fields" })).toBeTruthy();
     expect(api.createFlow).not.toHaveBeenCalled();
+  });
+
+  it("saves the destination with the stored template", async () => {
+    url.set("flow=f&doc=d&step=5");
+    const template = { root: { name: "document", nodeType: "object", children: [{ name: "kept", nodeType: "value" }] } };
+    api.listOutputs.mockResolvedValue([{ ...output, template }]);
+    api.listDestinations.mockResolvedValue([{ id: "x", name: "Warehouse", protocol: "http", config: {}, hasCredentials: false, createdAt: "" }]);
+    api.updateOutput.mockResolvedValue(output);
+    renderGuide();
+    const pick = await screen.findByLabelText("Send to");
+    await screen.findByRole("option", { name: "Warehouse" });
+    fireEvent.change(pick, { target: { value: "x" } });
+    fireEvent.click(screen.getByRole("button", { name: "Finish" }));
+    await waitFor(() => expect(api.updateOutput).toHaveBeenCalled());
+    const body = api.updateOutput.mock.calls[0][2];
+    expect(body.template).toEqual(template);
+    expect(body.destinationId).toBe("x");
   });
 });

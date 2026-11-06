@@ -125,7 +125,9 @@ export function NewFlowGuide() {
   const enabled = useTenantQueriesEnabled();
   const flowId = params.get("flow");
   const docId = params.get("doc");
-  const step = flowId ? Math.min(6, Math.max(2, Number(params.get("step")) || 2)) : 1;
+  const asked = flowId ? Math.min(6, Math.max(2, Number(params.get("step")) || 2)) : 1;
+  // Step 3 reads a sample, so without one the guide goes back to the upload.
+  const step = asked === 3 && !docId ? 2 : asked;
   const [name, setName] = useState("");
 
   const go = (patch: Record<string, string>) =>
@@ -169,7 +171,7 @@ export function NewFlowGuide() {
     );
   } else if (flow.isError) {
     body = failed(flow.error, () => flow.refetch());
-  } else if (!flow.data || (step === 3 && !docId)) {
+  } else if (!flow.data) {
     body = <Loading />;
   } else if (step === 3) {
     body = <ReadStep flow={flow.data} docId={docId!} onConfirmed={(f) => { qc.setQueryData(["flow", f.id], f); go({ step: "4" }); }} />;
@@ -179,17 +181,16 @@ export function NewFlowGuide() {
     body = <Loading />;
   } else if (step === 4) {
     body = (
-      <div className="grid gap-3">
-        <OutputEditor
-          flow={flow.data}
-          output={outputs.data[0]}
-          previewDocumentId={docId ?? undefined}
-          hideDestination
-          onSaved={() => go({ step: "5" })}
-          onCancel={() => go({ step: "3" })}
-        />
-        <div><Button variant="primary" disabled={!outputs.data.length} onClick={() => go({ step: "5" })}>Continue</Button></div>
-      </div>
+      // Save is the only way forward, so edits made after "Create" are never skipped. An existing output is
+      // edited, never duplicated.
+      <OutputEditor
+        flow={flow.data}
+        output={outputs.data[0]}
+        previewDocumentId={docId ?? undefined}
+        hideDestination
+        onSaved={() => go({ step: "5" })}
+        onCancel={() => go({ step: "3" })}
+      />
     );
   } else if (outputs.data[0]) {
     body = <DestinationStep flow={flow.data} output={outputs.data[0]} onDone={() => go({ step: "6" })} />;
