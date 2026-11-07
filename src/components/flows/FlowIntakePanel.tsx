@@ -169,7 +169,7 @@ function PickupsCard({ flowId, pickups }: { flowId: string; pickups: FlowIntake[
                 <span className="flex flex-wrap items-center gap-2">
                   <OnOff intake={i} flowId={flowId} run={run} />
                   <Button size="sm" variant="secondary" onClick={() => setEditing(i)}>Edit</Button>
-                  <Button size="sm" variant="ghost" onClick={() => remove(i)}>Remove</Button>
+                  <Button size="sm" variant="ghost" disabled={run.isPending} onClick={() => remove(i)}>Remove</Button>
                 </span>
               </div>
               <LastRun intake={i} />

@@ -54,7 +54,7 @@ export function PickupForm({ flowId, intake, onDone }: { flowId: string; intake?
   const save = useMutation({
     mutationFn: () => {
       const config = Object.fromEntries(
-        FIELDS[kind as Kind].map(([k]) => [k, k === "port" && values[k] !== "" ? Number(values[k]) : values[k]]),
+        FIELDS[kind as Kind].map(([k]) => [k, k === "port" ? Number(values[k] || DEFAULTS[kind as Kind].port) : values[k]]),
       );
       const req = { kind, config, credentials: secret ? { [secretKey]: secret } : null };
       return current ? updateIntake(flowId, current.id, req) : createIntake(flowId, req);
@@ -101,7 +101,7 @@ export function PickupForm({ flowId, intake, onDone }: { flowId: string; intake?
             </Field>
           </>
         )}
-        <p className="m-0 text-[12px] text-ink-muted">Each file is picked up once, by name. Files stay where they are. We check every five minutes.</p>
+        <p className="m-0 text-[12px] text-ink-muted">Each file is picked up once. A file that changes is picked up again. Files stay where they are. We check every five minutes.</p>
         {save.isError && <StatusNotice tone="error">{documentRefusalMessage(save.error)}</StatusNotice>}
         <div className="flex flex-wrap gap-2">
           <Button type="submit" variant="primary" disabled={!isKind(kind)} loading={save.isPending}>Save</Button>

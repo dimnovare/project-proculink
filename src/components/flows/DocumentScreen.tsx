@@ -117,9 +117,11 @@ export function DocumentScreen({ flowId, documentId }: { flowId: string; documen
                 {showOriginal ? "Hide original" : "Show original"}
               </Button>
             </div>
-            <p className="m-0 mt-1 text-[12.5px] text-ink-muted">
-              Arrived by {SOURCES.get(summary.source) ?? summary.source}{summary.sourceRef ? ` from ${summary.sourceRef}` : ""}
-            </p>
+            {summary.source && (
+              <p className="m-0 mt-1 text-[12.5px] text-ink-muted">
+                Arrived by {SOURCES.get(summary.source) ?? summary.source}{summary.sourceRef ? ` from ${summary.sourceRef}` : ""}
+              </p>
+            )}
             <div className="mt-3">
               <ReadProblem summary={summary} nothingRead={nothingRead} retry={retry} />
             </div>
