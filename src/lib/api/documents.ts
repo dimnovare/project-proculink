@@ -88,22 +88,28 @@ async function apiFetch<T>(path: string, init?: RequestInit, timeoutMs?: number,
   return (as === "blob" ? res.blob() : res.json()) as Promise<T>;
 }
 
+/** A path segment from outside (the URL, a row): never `..`, never a slash. */
+const seg = (id: string) => {
+  if (!id || id === "." || id === "..") throw new Error("Invalid id");
+  return encodeURIComponent(id);
+};
+
 const json = (data: unknown) => JSON.stringify(data);
 
 export const listFlows = () => apiFetch<Flow[]>(`/flows`);
 export const createFlow = (name: string) => apiFetch<Flow>(`/flows`, { method: "POST", body: json({ name }) });
-export const getFlow = (id: string) => apiFetch<Flow>(`/flows/${id}`);
+export const getFlow = (id: string) => apiFetch<Flow>(`/flows/${seg(id)}`);
 export const renameFlow = (id: string, name: string) =>
-  apiFetch<Flow>(`/flows/${id}`, { method: "PATCH", body: json({ name }) });
+  apiFetch<Flow>(`/flows/${seg(id)}`, { method: "PATCH", body: json({ name }) });
 export const updateFlow = (id: string, patch: { name?: string; automation?: "review" | "auto" }) =>
-  apiFetch<Flow>(`/flows/${id}`, { method: "PATCH", body: json(patch) });
+  apiFetch<Flow>(`/flows/${seg(id)}`, { method: "PATCH", body: json(patch) });
 export const saveFlowFields = (id: string, fields: FlowFieldList) =>
-  apiFetch<Flow>(`/flows/${id}/fields`, { method: "PUT", body: json(fields) });
+  apiFetch<Flow>(`/flows/${seg(id)}/fields`, { method: "PUT", body: json(fields) });
 
 export function uploadDocument(flowId: string, file: File): Promise<DocumentSummary> {
   const form = new FormData();
   form.append("file", file);
-  return apiFetch<DocumentSummary>(`/flows/${flowId}/documents`, { method: "POST", body: form }, UPLOAD_TIMEOUT_MS);
+  return apiFetch<DocumentSummary>(`/flows/${seg(flowId)}/documents`, { method: "POST", body: form }, UPLOAD_TIMEOUT_MS);
 }
 
 export function listDocuments(params: { flowId?: string; status?: string; take?: number } = {}): Promise<DocumentSummary[]> {
@@ -112,37 +118,37 @@ export function listDocuments(params: { flowId?: string; status?: string; take?:
   return apiFetch<DocumentSummary[]>(`/documents?${query}`);
 }
 
-export const getDocument = (id: string) => apiFetch<DocumentDetail>(`/documents/${id}`);
+export const getDocument = (id: string) => apiFetch<DocumentDetail>(`/documents/${seg(id)}`);
 export const editDocumentValues = (id: string, edits: EditValuesRequest) =>
-  apiFetch<DocumentDetail>(`/documents/${id}/values`, { method: "PATCH", body: json(edits) });
-export const getDocumentHistory = (id: string) => apiFetch<HistoryEntry[]>(`/documents/${id}/history`);
+  apiFetch<DocumentDetail>(`/documents/${seg(id)}/values`, { method: "PATCH", body: json(edits) });
+export const getDocumentHistory = (id: string) => apiFetch<HistoryEntry[]>(`/documents/${seg(id)}/history`);
 export const retryDocumentRead = (id: string) =>
-  apiFetch<DocumentSummary>(`/documents/${id}/retry-read`, { method: "POST" });
+  apiFetch<DocumentSummary>(`/documents/${seg(id)}/retry-read`, { method: "POST" });
 
 export const fetchDocumentSource = (id: string) =>
-  apiFetch<Blob>(`/documents/${id}/source`, undefined, UPLOAD_TIMEOUT_MS, "blob");
+  apiFetch<Blob>(`/documents/${seg(id)}/source`, undefined, UPLOAD_TIMEOUT_MS, "blob");
 
 export const listDestinations = () => apiFetch<Destination[]>(`/destinations`);
 export const createDestination = (body: DestinationRequest) =>
   apiFetch<Destination>(`/destinations`, { method: "POST", body: json(body) });
 export const updateDestination = (id: string, body: DestinationRequest) =>
-  apiFetch<Destination>(`/destinations/${id}`, { method: "PUT", body: json(body) });
+  apiFetch<Destination>(`/destinations/${seg(id)}`, { method: "PUT", body: json(body) });
 export const deleteDestination = (id: string) =>
-  apiFetch<void>(`/destinations/${id}`, { method: "DELETE" });
+  apiFetch<void>(`/destinations/${seg(id)}`, { method: "DELETE" });
 export const testDestination = (id: string) =>
-  apiFetch<DestinationTestResult>(`/destinations/${id}/test`, { method: "POST" });
+  apiFetch<DestinationTestResult>(`/destinations/${seg(id)}/test`, { method: "POST" });
 
-export const listOutputs = (flowId: string) => apiFetch<FlowOutput[]>(`/flows/${flowId}/outputs`);
+export const listOutputs = (flowId: string) => apiFetch<FlowOutput[]>(`/flows/${seg(flowId)}/outputs`);
 export const createOutput = (flowId: string, body: OutputRequest) =>
-  apiFetch<FlowOutput>(`/flows/${flowId}/outputs`, { method: "POST", body: json(body) });
+  apiFetch<FlowOutput>(`/flows/${seg(flowId)}/outputs`, { method: "POST", body: json(body) });
 export const updateOutput = (flowId: string, id: string, body: OutputRequest) =>
-  apiFetch<FlowOutput>(`/flows/${flowId}/outputs/${id}`, { method: "PUT", body: json(body) });
+  apiFetch<FlowOutput>(`/flows/${seg(flowId)}/outputs/${seg(id)}`, { method: "PUT", body: json(body) });
 export const deleteOutput = (flowId: string, id: string) =>
-  apiFetch<void>(`/flows/${flowId}/outputs/${id}`, { method: "DELETE" });
+  apiFetch<void>(`/flows/${seg(flowId)}/outputs/${seg(id)}`, { method: "DELETE" });
 export const previewOutput = (documentId: string, outputId: string) =>
-  apiFetch<OutputPreview>(`/documents/${documentId}/outputs/${outputId}/preview`, { method: "POST" });
+  apiFetch<OutputPreview>(`/documents/${seg(documentId)}/outputs/${seg(outputId)}/preview`, { method: "POST" });
 
-export const sendDocument = (id: string) => apiFetch<DocumentDelivery[]>(`/documents/${id}/send`, { method: "POST" });
-export const listDeliveries = (id: string) => apiFetch<DocumentDelivery[]>(`/documents/${id}/deliveries`);
+export const sendDocument = (id: string) => apiFetch<DocumentDelivery[]>(`/documents/${seg(id)}/send`, { method: "POST" });
+export const listDeliveries = (id: string) => apiFetch<DocumentDelivery[]>(`/documents/${seg(id)}/deliveries`);
 export const downloadDeliveryFile = (id: string, deliveryId: string) =>
-  apiFetch<Blob>(`/documents/${id}/deliveries/${deliveryId}/file`, undefined, UPLOAD_TIMEOUT_MS, "blob");
+  apiFetch<Blob>(`/documents/${seg(id)}/deliveries/${seg(deliveryId)}/file`, undefined, UPLOAD_TIMEOUT_MS, "blob");

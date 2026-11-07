@@ -9,6 +9,7 @@ import type { ReactNode } from "react";
 import { apiClient, checkAdminAccess, getBillingStatus, isApiMockMode } from "@/lib/api-client";
 import { guideSeenKey, matchGuide } from "@/lib/section-guides";
 import { planDisplayName } from "@/lib/plans";
+import { useDocumentEngine } from "@/hooks/useDocumentEngine";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { useOrganization } from "@clerk/nextjs";
@@ -67,6 +68,13 @@ function useCrumbContext(segments: string[]): CrumbContext {
   if (segments[0] === "library" && segments[1] === "suppliers" && segments[2]) {
     const suppliers = qc.getQueryData<Supplier[]>(["suppliers"]);
     ctx.supplierName = suppliers?.find((s) => s.id === segments[2])?.name ?? null;
+  }
+
+  // /flows/[id] and /flows/[id]/documents/[id] (the document carries its flow's name)
+  if (segments[0] === "flows" && segments[1]) {
+    const doc = segments[3] ? qc.getQueryData<{ summary?: { fileName?: string; flowName?: string } }>(["document", segments[3]])?.summary : undefined;
+    ctx.flowName = qc.getQueryData<{ name?: string }>(["flow", segments[1]])?.name ?? doc?.flowName ?? null;
+    ctx.documentName = doc?.fileName ?? null;
   }
 
   return ctx;
@@ -663,6 +671,7 @@ function useTopNav() {
     retry: false,
   });
   const isAdmin = adminAccess === true;
+  const documentEngine = useDocumentEngine() === "on";
 
   const { data: ordersSummary, isError: summaryError } = useQuery({
     queryKey: ["orders-summary"],
@@ -680,8 +689,8 @@ function useTopNav() {
       : ordersSummary?.byStatus?.["pending_review"] ?? 0;
 
   const { main, tail } = useMemo(
-    () => buildVisibleNav(labels.counterpartyPlural, isAdmin),
-    [labels.counterpartyPlural, isAdmin],
+    () => buildVisibleNav(labels.counterpartyPlural, isAdmin, documentEngine),
+    [labels.counterpartyPlural, isAdmin, documentEngine],
   );
   // Flatten grouped sections into a single ordered list for the horizontal row.
   const items = useMemo(() => main.flatMap((s) => s.items), [main]);

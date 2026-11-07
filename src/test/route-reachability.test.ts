@@ -494,7 +494,7 @@ export function collectLinkTargets(): LinkTarget[] {
   // 1 + 2 — the nav registries, read through their exports so launch-flag
   // filtering is respected. isAdmin: true because admins are real users and the
   // /admin route is genuinely reachable for them.
-  const nav = buildVisibleNav("Suppliers", true);
+  const nav = buildVisibleNav("Suppliers", true, true);
   for (const section of nav.main) {
     for (const item of section.items) targets.push({ path: item.href, kind: "nav", source: "<BridgeSidebar nav>" });
   }

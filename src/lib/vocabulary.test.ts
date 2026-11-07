@@ -38,7 +38,7 @@ function runGate(args: string[], root: string): { code: number; out: string } {
 }
 
 describe("APPROVED_NOUNS", () => {
-  it("is exactly the ten nouns a customer may be taught", () => {
+  it("is exactly the twelve nouns a customer may be taught", () => {
     expect([...APPROVED_NOUNS]).toEqual([
       "order",
       "document",
@@ -50,8 +50,10 @@ describe("APPROVED_NOUNS", () => {
       "rule",
       "issue",
       "workspace",
+      "flow",
+      "destination",
     ]);
-    expect(APPROVED_NOUNS).toHaveLength(10);
+    expect(APPROVED_NOUNS).toHaveLength(12);
   });
 
   it("keeps the place list closed and small", () => {

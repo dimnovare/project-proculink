@@ -107,7 +107,7 @@ function redirects(): Redirect[] {
 /** `/orders/:id` → `/orders/sample-id`, so a redirect can be checked concretely. */
 const concrete = (p: string) => p.replace(/:[^/*]+\*?/g, "sample-id");
 
-const NAV = buildVisibleNav("Suppliers", true);
+const NAV = buildVisibleNav("Suppliers", true, true);
 const NAV_ITEMS = [...NAV.main.flatMap((s) => s.items), ...NAV.tail];
 const HUBS = Object.keys(HUB_TABS) as HubKey[];
 

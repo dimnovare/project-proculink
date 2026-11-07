@@ -15,6 +15,7 @@ import {
   SECURE_SCHEMES,
 } from "@/lib/outboundUrlPolicy";
 import { CATALOG_SYNC_STATUS_FACTS, CATALOG_SYNC_STATUSES } from "@/lib/catalogSyncStatusManifest";
+import { DOCUMENT_STATUSES } from "@/lib/documentStatusManifest";
 import { PREVIEW_FORMATS } from "@/lib/api/types";
 import { STANDARDS } from "@/lib/standards/catalog";
 import {
@@ -121,6 +122,7 @@ const CONNECTION_SERVICE_REL = TEST_PACK_BACKEND_FILE;
  * re-types the whole table by hand so marketing and help copy can derive tier names.
  */
 const PLAN_CONSTANTS_REL = "ProcuLink.Core/Constants/PlanConstants.cs";
+const DOCUMENT_STATUS_REL = "ProcuLink.Core/Documents/DocumentStatus.cs";
 
 /**
  * Every C# file this suite parses.
@@ -147,6 +149,7 @@ const PARSED_FILES = [
   WORKER_PROGRAM_REL,
   CONNECTION_SERVICE_REL,
   PLAN_CONSTANTS_REL,
+  DOCUMENT_STATUS_REL,
 ] as const;
 
 /**
@@ -458,6 +461,7 @@ describe("the mirror gate decides correctly", () => {
       WORKER_PROGRAM_REL,
       CONNECTION_SERVICE_REL,
       PLAN_CONSTANTS_REL,
+      DOCUMENT_STATUS_REL,
     ]);
     expect(missingParsedFiles("/tmp/backend", () => true)).toEqual([]);
     // A checkout with nothing in it must report all three, not zero.
@@ -2393,7 +2397,8 @@ const EXPECTED_COMPARISONS =
   Object.keys(TEST_PACK_BACKEND_RECORDS).length + // one per test-pack record mirrored
   1 + // the plan-gate codes quoted in the admin guides
   1 + // MINIMUM_PLAN against PlanConstants.MinimumPlan
-  3; // the ladder's numbers: Limits, MonthlyPriceEur, OveragePerOrderEur
+  3 + // the ladder's numbers: Limits, MonthlyPriceEur, OveragePerOrderEur
+  1; // document statuses
 
 afterAll(() => {
   if (!BACKEND) return; // the mirror gate already ruled on whether that was allowed
@@ -2403,4 +2408,18 @@ afterAll(() => {
       `${EXPECTED_COMPARISONS} declared comparisons. Some part of the diff did not execute, so this run ` +
       `does NOT verify src/lib/orderStatusManifest.ts against the C#. Treat it as a failure, not a pass.`,
   );
+});
+
+describe("document statuses mirror the backend", () => {
+  test.skipIf(!BACKEND)("DOCUMENT_STATUSES keys equal DocumentStatus's constants", () => {
+    const cs = readFileSync(join(BACKEND!, DOCUMENT_STATUS_REL), "utf8");
+    const backend = Object.values(parseStatusConstants(cs));
+    expect(backend).toEqual(expect.arrayContaining(Object.keys(DOCUMENT_STATUSES)));
+    recordComparison(
+      "DocumentStatus constants",
+      backend,
+      Object.keys(DOCUMENT_STATUSES),
+      "The document status vocabulary drifted from DocumentStatus.cs.",
+    );
+  });
 });

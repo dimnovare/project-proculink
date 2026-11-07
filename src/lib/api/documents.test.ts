@@ -5,7 +5,7 @@ vi.mock("./core", async (importOriginal) => {
   return { ...actual, authHeader: async () => ({}), API_BASE_URL: "http://api.test", isApiMockMode: false };
 });
 
-import { editDocumentValues, sendDocument, uploadDocument } from "./documents";
+import { editDocumentValues, getDocument, getFlow, sendDocument, uploadDocument } from "./documents";
 
 const fetchMock = vi.fn();
 const json = (body: unknown) => new Response(JSON.stringify(body), { status: 200 });
@@ -53,5 +53,13 @@ describe("documents api", () => {
     const [url, init] = fetchMock.mock.calls[0];
     expect(String(url)).toMatch(/\/api\/documents\/d1\/send$/);
     expect(init.method).toBe("POST");
+  });
+
+  it("encodes path segments and refuses dot segments", async () => {
+    fetchMock.mockResolvedValue(json({}));
+    await getFlow("a/b");
+    expect(String(fetchMock.mock.calls[0][0])).toContain("/flows/a%2Fb");
+    await expect((async () => getDocument(".."))()).rejects.toThrow("Invalid id");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
