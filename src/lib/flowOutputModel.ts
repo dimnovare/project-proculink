@@ -12,7 +12,9 @@ export type SimpleOutput = { fields: SimpleRow[]; table: { key: string; columns:
 // array named for its table whose single "row" object holds the column leaves.
 const leaf = (n: OutputNode): SimpleRow | null => {
   const r = n.rule;
-  if (n.nodeType !== "field" || !r || n.children?.length || n.namespace || n.prefix || n.includeWhen || n.valueType || n.emptyValue) return null;
+  if (n.nodeType !== "field" || n.children?.length || n.namespace || n.prefix || n.includeWhen || n.valueType || n.emptyValue) return null;
+  // A disconnected field (Advanced view) has no rule; the backend emits it as an empty fixed value.
+  if (!r) return { name: n.name, source: { fixed: "" } };
   if (r.outputPath !== n.name || r.expression || r.sourceToken) return null;
   const steps = r.fieldManipulators ?? [];
   const [step] = steps;
