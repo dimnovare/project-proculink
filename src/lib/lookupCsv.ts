@@ -2,9 +2,10 @@ import type { LookupEntry } from "@/lib/api/documents";
 import { detectDelimiter, parseCsvRows } from "@/lib/sheetPreview";
 
 const key = (from: string) => from.trim().toLowerCase();
-// A leading one of these makes a spreadsheet read the cell as a formula: export prefixes "'", import strips it.
-const FORMULA = "=+-@\t\r";
-const unprefix = (v: string) => (v[0] === "'" && v.length > 1 && FORMULA.includes(v[1]) ? v.slice(1) : v);
+// A leading = + - @ tab or CR makes a spreadsheet read the cell as a formula: export prefixes one "'"
+// (also before quotes already there, so "'=x" survives), import strips exactly one.
+const FORMULA = /^'*[=+@\t\r-]/;
+const unprefix = (v: string) => (v[0] === "'" && FORMULA.test(v.slice(1)) ? v.slice(1) : v);
 
 /** Columns 1 and 2 are From and To. A later row with the same From replaces the earlier entry in place. */
 export function importLookupCsv(text: string, existing: LookupEntry[], firstRowIsHeadings: boolean) {
@@ -31,7 +32,7 @@ export function importLookupCsv(text: string, existing: LookupEntry[], firstRowI
 
 // Quote anything the importer's delimiter detection could mistake for a separator, too.
 const cell = (raw: string) => {
-  const v = /^'?[=+@\t\r-]/.test(raw) ? `'${raw}` : raw;
+  const v = FORMULA.test(raw) ? `'${raw}` : raw;
   return /[",;|\t\r\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
 };
 

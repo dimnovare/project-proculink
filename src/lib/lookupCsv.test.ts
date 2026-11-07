@@ -14,7 +14,7 @@ describe("lookup CSV", () => {
   it("export quotes what needs quoting and re-imports unchanged", () => {
     const entries = [
       { from: "NUT, 4", to: 'say "hi"' }, { from: "BLT-10", to: "A-7" },
-      { from: "A;B;C", to: "=1+1" }, { from: "-5", to: "x" },
+      { from: "A;B;C", to: "=1+1" }, { from: "-5", to: "x" }, { from: "'=x", to: "''+y" },
     ];
     const csv = exportLookupCsv(entries);
     expect(csv).toContain("'=1+1");
