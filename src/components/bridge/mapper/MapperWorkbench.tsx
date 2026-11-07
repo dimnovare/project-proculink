@@ -36,6 +36,7 @@ import { OutputStructureDesigner } from "../OutputStructureDesigner";
 import { OutputMappingEditor } from "../OutputMappingEditor";
 import { useMapperWireLayer } from "./MapperWireLayer";
 import { useMapperModel } from "./useMapperModel";
+import type { MapperAdapter } from "./types";
 import type { IncomingOrderShape } from "./incomingFromOrder";
 import { MAPPER_EVENT, type MapperCommandEvent } from "./mapperCommands";
 import type { OutgoingStatusInput } from "./outgoingStatusModel";
@@ -146,7 +147,11 @@ export interface MapperToolbarState {
 export type MapperIssuesVerdict = "clear" | "problem" | "unknown";
 
 export interface MapperWorkbenchProps {
-  variant: "order" | "connection";
+  variant: "order" | "connection" | "flow";
+  /** Required for the flow variant: load / save / preview / sources come from it. */
+  adapter?: MapperAdapter;
+  /** Overrides the preview pane's empty hint. */
+  emptyHint?: string;
   orderId?: string;
   connectionId?: string;
   revisionId?: string;
@@ -312,10 +317,11 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
     outgoingHeaderExtra, outgoingBodyOverride, receivedDocument,
   } = props;
   const pickerMode = mappingMode === "picker";
-  const scopeId = (variant === "order" ? props.orderId : props.connectionId) ?? "";
+  const scopeId = (variant === "flow" ? props.adapter?.scope : variant === "order" ? props.orderId : props.connectionId) ?? "";
 
   const model = useMapperModel({
     variant,
+    adapter: props.adapter,
     scopeId,
     revisionId: props.revisionId,
     supplierId: props.supplierId,
@@ -926,10 +932,12 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
       defaultFormat={previewDefaultFormat ?? model.outputFormat}
       supplierName={supplierName}
       reviewSignal={reviewSignal}
+      preview={props.adapter?.preview}
       emptyHint={
-        variant === "connection"
+        props.emptyHint ??
+        (variant === "connection"
           ? "No sample order yet for this supplier — upload or receive one order to preview the live output of this mapping."
-          : undefined
+          : undefined)
       }
     />
   );

@@ -50,7 +50,7 @@ import {
 // they read, the header count and the split can never disagree.
 
 export interface OutgoingPaneProps {
-  variant: "order" | "connection";
+  variant: "order" | "connection" | "flow";
   targetFields: TargetField[];
   /** outputPath → canonicalField (the canonical→output wire). */
   outputConnections?: Partial<Record<string, string>>;

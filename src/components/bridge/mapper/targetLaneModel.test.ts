@@ -129,3 +129,10 @@ describe("deriveTargetFields — order path merges canonical + authored", () => 
     expect(paths.filter((p) => p === "PoNumber")).toHaveLength(1);
   });
 });
+
+describe("deriveTargetFields without the spine fallback", () => {
+  it("keeps an empty scope empty instead of falling back to the canonical fields", () => {
+    const fields = deriveTargetFields({ header: {}, lines: { "lines/sku": rule("lines/sku") } }, false, false);
+    expect(fields.map((f) => f.outputPath)).toEqual(["lines/sku"]);
+  });
+});
