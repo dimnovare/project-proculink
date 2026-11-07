@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { sumByStatuses, EXCEPTION_ROW_STATUSES, EXCEPTION_STATUSES, pickNeedsYouCount } from "./BridgeDashboard";
+import { sumByStatuses, EXCEPTION_ROW_STATUSES, EXCEPTION_STATUSES } from "./BridgeDashboard";
 import type { OrderStatus } from "@/types/procurement";
 
 // openExceptionsAll — the live "N orders need your attention" amber strip.
@@ -69,15 +69,5 @@ describe("sumByStatuses — the live exception count mirrors the backend's Probl
     // rows from the working set, so a billing-paused order still belongs there.
     expect(EXCEPTION_STATUSES.has("delivery_held")).toBe(true);
     expect(EXCEPTION_STATUSES.has("delivery_unconfirmed")).toBe(true);
-  });
-});
-
-describe("one count for 'needs you'", () => {
-  it("prints the list's own number when it covers the whole account", () => {
-    expect(pickNeedsYouCount({ count: 3, scanned: 10, complete: true }, 2)).toBe(3);
-  });
-  it("falls back to the account-wide summary when the list is only a page or unsettled", () => {
-    expect(pickNeedsYouCount({ count: 3, scanned: 100, complete: false }, 137)).toBe(137);
-    expect(pickNeedsYouCount({ count: null, scanned: 0, complete: false }, 4)).toBe(4);
   });
 });

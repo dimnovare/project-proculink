@@ -198,8 +198,8 @@ function dupException(over: Partial<OrderException> = {}): OrderException {
   };
 }
 
-function renderWorkshop(exceptions: OrderException[] | null): void {
-  mockState.order = cleanOrder();
+function renderWorkshop(exceptions: OrderException[] | null, order: Order = cleanOrder()): void {
+  mockState.order = order;
   mockState.gate = NOTHING_BLOCKS;
   mockState.exceptions = exceptions;
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -302,6 +302,14 @@ describe("a flagged duplicate reaches the send screen (P1)", () => {
     expect(screen.queryByTestId("order-exceptions-notice")).toBeNull();
     const blocked = screen.getAllByRole("button", { name: /1 issue to fix first/i });
     for (const b of blocked) expect(b).toBeDisabled();
+  });
+
+  test("an invoice whose checks could not be read is not sendable", async () => {
+    renderWorkshop(null, { ...cleanOrder(), documentType: "invoice" }); // endpoint rejects
+    await screen.findByTestId("order-exceptions-check-failed", undefined, { timeout: 5000 });
+    const sends = allSendButtons();
+    expect(sends.length).toBeGreaterThan(0);
+    for (const b of sends) expect(b).toBeDisabled();
   });
 
   test("a failed check says so — it never renders as a silent all-clear", async () => {
