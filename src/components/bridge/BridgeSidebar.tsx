@@ -116,15 +116,15 @@ export interface VisibleNav {
   tail: SidebarNavItem[];
 }
 
-// The four primary items are never gated — a coordinator sees the same four
+// Nav entries that exist only when the document engine is on.
+const ENGINE_HREFS = new Set(["/flows", "/lookups"]);
+
+// The primary items are never gated by plan — a coordinator sees the same
 // words on day one and on day four hundred. The only nav-level gate left is the
 // admin allowlist; INBOUND_ENABLED now gates two TABS inside the Orders hub
 // (visibleHubTabs), not a nav item, and the old LAUNCH_CORE_ONLY narrowing is
 // gone because there is nothing left to narrow.
 //
-// Nav entries that exist only when the document engine is on.
-const ENGINE_HREFS = new Set(["/flows", "/lookups"]);
-
 // `counterpartyPlural` relabels the "Suppliers" entry (href /library/suppliers)
 // for inbound orgs (DISPLAY ONLY — the route stays /library/suppliers): inbound
 // orgs see their counterparty word ("Customers").

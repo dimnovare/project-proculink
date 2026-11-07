@@ -29,6 +29,7 @@ describe("LookupPage", () => {
     fireEvent.change(await screen.findByLabelText("Import CSV"), { target: { files: [file] } });
     expect(await screen.findByText("Imported 2 rows: 1 new, 1 changed.")).toBeTruthy();
 
+    fireEvent.click(screen.getByRole("button", { name: "Add row" }));
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() =>
       expect(updateLookup).toHaveBeenCalledWith("l1", {

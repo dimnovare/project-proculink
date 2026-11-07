@@ -12,7 +12,15 @@ describe("lookup CSV", () => {
   });
 
   it("export quotes what needs quoting and re-imports unchanged", () => {
-    const entries = [{ from: "NUT, 4", to: 'say "hi"' }, { from: "BLT-10", to: "A-7" }];
-    expect(importLookupCsv(exportLookupCsv(entries), [], true).entries).toEqual(entries);
+    const entries = [
+      { from: "NUT, 4", to: 'say "hi"' }, { from: "BLT-10", to: "A-7" },
+      { from: "A;B;C", to: "=1+1" }, { from: "-5", to: "x" },
+    ];
+    const csv = exportLookupCsv(entries);
+    expect(csv).toContain("'=1+1");
+    expect(importLookupCsv(csv, [], true).entries).toEqual(entries);
+    const rows600 = Array.from({ length: 600 }, (_, k) => `K${k},V${k}`);
+    const big = ["From,To", ...rows600].join(String.fromCharCode(10));
+    expect(importLookupCsv(big, [], true).added).toBe(600);
   });
 });

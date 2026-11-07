@@ -79,7 +79,7 @@ export function detectDelimiter(text: string): string {
 }
 
 /** RFC 4180 reader: quoted fields, doubled quotes, embedded newlines, CRLF or LF. */
-export function parseCsvRows(text: string, delimiter: string): string[][] {
+export function parseCsvRows(text: string, delimiter: string, maxRows = MAX_PREVIEW_ROWS): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];
   let field = "";
@@ -114,7 +114,7 @@ export function parseCsvRows(text: string, delimiter: string): string[][] {
       endField();
     } else if (ch === "\n") {
       endRow();
-      if (rows.length >= MAX_PREVIEW_ROWS + 1) break;
+      if (rows.length >= maxRows + 1) break;
     } else if (ch !== "\r") {
       field += ch;
     }
