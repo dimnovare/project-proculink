@@ -554,6 +554,11 @@ export function readBlockers(input: {
   };
 }
 
+/** The one count every "needs you" surface prints: the list's own when it covers the account. */
+export function pickNeedsYouCount(b: BlockersReading, summaryCount: number): number {
+  return b.count !== null && b.complete ? b.count : summaryCount;
+}
+
 /**
  * Build the wire topology from the org's real data. Suppliers come from the
  * configured supplier list (docks exist even before their first order) plus any
@@ -917,7 +922,6 @@ export function BridgeDashboard() {
   const exceptionsCountReliable = !isApiMockMode
     ? !summaryLoading && !summaryError
     : !ordersLoading && !ordersError;
-  const showExceptionStrip = exceptionsCountReliable && openExceptionsAll > 0;
 
   // ── In-transit rows (current pipeline activity) ───────────────────────────
   // Capped to keep the card compact — each row is a two-line entry with a
@@ -984,6 +988,9 @@ export function BridgeDashboard() {
     scanned: allOrders.length,
     population: pagePopulation(ordersPage).rows,
   });
+  // The strip and the context line say the same thing: one number, picked once.
+  const stripCount = pickNeedsYouCount(blockers, openExceptionsAll);
+  const showExceptionStrip = exceptionsCountReliable && stripCount > 0;
 
   // ── "Ready to send" rows — validated orders with nothing blocking ─────────
   //
@@ -1529,7 +1536,7 @@ export function BridgeDashboard() {
             >
               <span className="flex min-w-0 items-center gap-2 text-[13px] font-semibold" style={{ color: "#7A4D0B" }}>
                 <AlertTriangle size={15} strokeWidth={2.25} style={{ color: "#8A5310", flexShrink: 0 }} aria-hidden />
-                {openExceptionsAll} order{openExceptionsAll === 1 ? "" : "s"} need{openExceptionsAll === 1 ? "s" : ""} your attention
+                {stripCount} order{stripCount === 1 ? "" : "s"} need{stripCount === 1 ? "s" : ""} your attention
               </span>
               <span className="whitespace-nowrap text-[12.5px] font-semibold" style={{ color: "#9A5F0A" }}>
                 Review exceptions →
@@ -1612,14 +1619,14 @@ export function BridgeDashboard() {
                     At-risk connection
                   </span>
 
-                  {openExceptionsAll > 0 && (
+                  {stripCount > 0 && (
                     <Link
                       href="/operations/exceptions"
                       className="ml-auto inline-flex items-center gap-1 rounded-[5px] px-2 py-0.5 text-[11.5px] font-semibold no-underline transition-opacity hover:opacity-80"
                       style={{ background: "#FAF1DD", color: "#8A5310" }}
                       title="Review issues"
                     >
-                      ⚠ {openExceptionsAll} open exception{openExceptionsAll === 1 ? "" : "s"}
+                      ⚠ {stripCount} open exception{stripCount === 1 ? "" : "s"}
                     </Link>
                   )}
                 </div>
