@@ -33,6 +33,7 @@ export function Checks({ checks }: { checks: DocumentCheck[] }) {
 export function ReadProblem({ summary, nothingRead, retry }: {
   summary: DocumentSummary; nothingRead: boolean; retry: UseMutationResult<unknown, unknown, void>;
 }) {
+  if (summary.statusReason === "no_output_matches") return <StatusNotice tone="warning">{readFailureMessage(summary.statusReason)}</StatusNotice>;
   const duplicate = summary.statusReason === "duplicate_file" && nothingRead;
   if (summary.status !== "read_failed" && !duplicate) return null;
   const again = duplicate ? "Read it anyway" : canRetryRead(summary.statusReason) ? "Try again" : null;

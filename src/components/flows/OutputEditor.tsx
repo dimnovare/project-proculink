@@ -215,7 +215,7 @@ export function OutputEditor({ flow, output, previewDocumentId, hideDestination,
         </div>
         {previewDocumentId && current && <p className="text-[12px] text-ink-muted">Preview shows the last saved version.</p>}
         {preview.isError && <StatusNotice tone="error">{documentRefusalMessage(preview.error)}</StatusNotice>}
-        {preview.data?.lookupMisses.length ? [...Map.groupBy(preview.data.lookupMisses, (m) => m.lookupId)].map(([id, misses]) => (
+        {preview.data?.lookupMisses?.length ? [...Map.groupBy(preview.data.lookupMisses, (m) => m.lookupId)].map(([id, misses]) => (
           <p key={id} className="m-0 text-[12px] text-ink-muted">
             Not in “{lookups.data?.find((l) => l.id === id)?.name ?? "this lookup"}”: {misses.map((m) => m.value).join(", ")}.
           </p>
