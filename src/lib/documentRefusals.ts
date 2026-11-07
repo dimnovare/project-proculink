@@ -28,6 +28,9 @@ export const COPY: Record<string, string> = {
   invalid_name: "Use a name of 120 characters or fewer.",
   pilot_expired: "Your trial has ended, so new documents aren't being accepted.",
   order_limit_reached: "You've reached your plan's document limit for this month.",
+  no_output_matches: "No output is set to send this document. Check “Send when” on the flow's outputs.",
+  lookup_in_use: "An output uses this lookup. Remove it from the output first.",
+  lookup_invalid: "Check the rows: each needs a “From” value, and each “From” can appear only once.",
   scanned_not_supported: "This looks like a scanned document, which can't be read yet.",
 };
 

@@ -24,7 +24,7 @@ vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => tru
 const api = vi.hoisted(() => ({
   createFlow: vi.fn(), getFlow: vi.fn(), uploadDocument: vi.fn(), getDocument: vi.fn(), retryDocumentRead: vi.fn(),
   saveFlowFields: vi.fn(), listOutputs: vi.fn(), createOutput: vi.fn(), updateOutput: vi.fn(),
-  listDestinations: vi.fn(), testDestination: vi.fn(), previewOutput: vi.fn(), listIntakes: vi.fn(),
+  listDestinations: vi.fn(), listLookups: vi.fn(), testDestination: vi.fn(), previewOutput: vi.fn(), listIntakes: vi.fn(),
 }));
 vi.mock("@/lib/api/documents", () => api);
 
@@ -44,6 +44,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   url.set("");
   api.listDestinations.mockResolvedValue([]);
+  api.listLookups.mockResolvedValue([]);
   api.getFlow.mockResolvedValue(flow);
   api.listOutputs.mockResolvedValue([]);
   api.listIntakes.mockResolvedValue([]);

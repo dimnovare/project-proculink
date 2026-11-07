@@ -7,9 +7,10 @@ import { Card } from "@/components/bridge/layout/Card";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import {
-  downloadDeliveryFile, listDeliveries, listDestinations, listOutputs, previewOutput, sendDocument,
+  downloadDeliveryFile, getFlow, listDeliveries, listDestinations, listOutputs, previewOutput, sendDocument,
 } from "@/lib/api/documents";
 import type { DocumentDelivery, DocumentDetail } from "@/lib/api/documents";
+import { describeSendWhen } from "@/lib/flowOutputModel";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
 import { documentStatus } from "@/lib/documentStatusManifest";
 import { saveBlob } from "@/lib/saveBlob";
@@ -69,6 +70,7 @@ export function DocumentOutputsPanel({ flowId, document: doc }: { flowId: string
   const documentId = doc.summary.id;
   const outputs = useQuery({ queryKey: ["outputs", flowId], queryFn: () => listOutputs(flowId), enabled });
   const destinations = useQuery({ queryKey: ["destinations"], queryFn: listDestinations, enabled });
+  const flow = useQuery({ queryKey: ["flow", flowId], queryFn: () => getFlow(flowId), enabled });
   const preview = useMutation({ mutationFn: (outputId: string) => previewOutput(documentId, outputId) });
   const send = useMutation({
     mutationFn: () => sendDocument(documentId),
@@ -93,7 +95,10 @@ export function DocumentOutputsPanel({ flowId, document: doc }: { flowId: string
           : outputs.data.map((o) => (
             <div key={o.id} className="grid gap-1.5">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-[13px] font-medium text-ink">{o.name}</span>
+                <span className="grid">
+                  <span className="text-[13px] font-medium text-ink">{o.name}</span>
+                  {flow.data && describeSendWhen(o.sendWhen, flow.data.fields) && <span className="text-[12px] text-ink-muted">{describeSendWhen(o.sendWhen, flow.data.fields)}</span>}
+                </span>
                 <span className="text-[12px] text-ink-muted">{Object.hasOwn(FORMATS, o.format) ? FORMATS[o.format as keyof typeof FORMATS] : o.format} · {destinationName(destinations, o.destinationId)}</span>
                 <Button size="sm" variant="secondary" loading={preview.isPending && preview.variables === o.id} onClick={() => preview.mutate(o.id)}>Preview</Button>
               </div>

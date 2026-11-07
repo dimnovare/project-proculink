@@ -7,7 +7,7 @@ import { DocumentOutputsPanel } from "./DocumentOutputsPanel";
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => true }));
 
 const api = vi.hoisted(() => ({
-  listOutputs: vi.fn(), listDestinations: vi.fn(), previewOutput: vi.fn(),
+  listOutputs: vi.fn(), listDestinations: vi.fn(), previewOutput: vi.fn(), getFlow: vi.fn(),
   sendDocument: vi.fn(), listDeliveries: vi.fn(), downloadDeliveryFile: vi.fn(),
 }));
 vi.mock("@/lib/api/documents", () => api);
