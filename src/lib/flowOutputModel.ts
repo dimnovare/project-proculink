@@ -75,8 +75,8 @@ export const fromSimple = (s: SimpleOutput, format: string): OutputNodeTemplate 
 
 export const OP_LABEL = { is: "is", is_not: "is not", contains: "contains" } as const;
 
-export function describeSendWhen(sendWhen: SendWhen | null, fields: FlowFieldList): string | null {
+export function describeSendWhen(sendWhen: SendWhen | null, fields?: FlowFieldList): string | null {
   if (!sendWhen) return null;
-  const label = fields.fields.find((f) => f.key === sendWhen.field)?.label ?? sendWhen.field;
-  return `Only when ${label} ${OP_LABEL[sendWhen.op]} “${sendWhen.value}”`;
+  const label = fields?.fields.find((f) => f.key === sendWhen.field)?.label ?? sendWhen.field;
+  return `Only when ${label} ${OP_LABEL[sendWhen.op] ?? sendWhen.op} “${sendWhen.value}”`;
 }

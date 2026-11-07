@@ -11,7 +11,7 @@ import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { EmptyState } from "@/components/bridge/EmptyState";
 import { Field, INPUT } from "@/components/flows/DestinationForm";
-import { Quiet } from "@/components/flows/states";
+import { Failed, Quiet } from "@/components/flows/states";
 import { flowsQuery, useDocumentEngine } from "@/hooks/useDocumentEngine";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { createLookup, listLookups } from "@/lib/api/documents";
@@ -34,6 +34,8 @@ export function LookupsHome() {
   let body;
   if (engine === "off") {
     body = <StatusNotice tone="warning">{documentRefusalMessage(flows.error)}</StatusNotice>;
+  } else if (flows.isError) {
+    body = <Failed error={flows.error} retry={() => flows.refetch()} />;
   } else if (lookups.isError) {
     body = <StatusNotice tone="error">{documentRefusalMessage(lookups.error)}</StatusNotice>;
   } else if (!lookups.data) {

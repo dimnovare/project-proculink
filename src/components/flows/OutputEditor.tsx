@@ -7,8 +7,8 @@ import { Card } from "@/components/bridge/layout/Card";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { DestinationForm, Field, INPUT } from "@/components/flows/DestinationForm";
 import { createOutput, listDestinations, listLookups, previewOutput, updateOutput } from "@/lib/api/documents";
-import type { Flow, FlowOutput, LookupSummary, SendWhen, SendWhenOp } from "@/lib/api/documents";
-import { documentRefusalMessage } from "@/lib/documentRefusals";
+import type { Flow, FlowOutput, LookupMiss, LookupSummary, SendWhen, SendWhenOp } from "@/lib/api/documents";
+import { COPY, documentRefusalMessage } from "@/lib/documentRefusals";
 import { fromSimple, OP_LABEL, toSimple } from "@/lib/flowOutputModel";
 import type { SimpleOutput, SimpleRow } from "@/lib/flowOutputModel";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
@@ -16,6 +16,9 @@ import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 export const FORMATS = { csv: "CSV", xlsx: "Excel", json: "JSON", xml: "XML" };
 const FIXED = "\u0000fixed";
 const NEW_DESTINATION = "\u0000new";
+
+const missesByLookup = (misses: LookupMiss[]) =>
+  misses.reduce<Record<string, LookupMiss[]>>((by, m) => ((by[m.lookupId] ??= []).push(m), by), {});
 
 function RowList({ rows, options, lookups, onChange }: {
   rows: SimpleRow[]; options: { key: string; label: string }[]; lookups: LookupSummary[]; onChange(rows: SimpleRow[]): void;
@@ -44,6 +47,7 @@ function RowList({ rows, options, lookups, onChange }: {
           <select aria-label="Swap with lookup" className={`${INPUT} min-w-32 flex-1`} value={row.lookup?.id ?? ""}
             onChange={(e) => patch(i, { ...row, lookup: e.target.value ? { id: e.target.value, ifMissing: row.lookup?.ifMissing ?? "keep" } : undefined })}>
             <option value="">No lookup</option>
+            {row.lookup && !lookups.some((l) => l.id === row.lookup!.id) && <option value={row.lookup.id}>A lookup that no longer exists</option>}
             {lookups.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
           </select>
           {row.lookup && (
@@ -118,6 +122,7 @@ export function OutputEditor({ flow, output, previewDocumentId, hideDestination,
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return setProblem("Give this output a name.");
+    if (sendWhen && !sendWhen.value.trim()) return setProblem(COPY.send_when);
     if ([...(rows?.fields ?? []), ...(rows?.table?.columns ?? [])].some((r) => !r.name.trim()))
       return setProblem("Give every row a name.");
     save.mutate();
@@ -215,7 +220,7 @@ export function OutputEditor({ flow, output, previewDocumentId, hideDestination,
         </div>
         {previewDocumentId && current && <p className="text-[12px] text-ink-muted">Preview shows the last saved version.</p>}
         {preview.isError && <StatusNotice tone="error">{documentRefusalMessage(preview.error)}</StatusNotice>}
-        {preview.data?.lookupMisses?.length ? [...Map.groupBy(preview.data.lookupMisses, (m) => m.lookupId)].map(([id, misses]) => (
+        {preview.data?.lookupMisses?.length ? Object.entries(missesByLookup(preview.data.lookupMisses)).map(([id, misses]) => (
           <p key={id} className="m-0 text-[12px] text-ink-muted">
             Not in “{lookups.data?.find((l) => l.id === id)?.name ?? "this lookup"}”: {misses.map((m) => m.value).join(", ")}.
           </p>

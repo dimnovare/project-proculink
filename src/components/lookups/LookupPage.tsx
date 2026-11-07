@@ -13,6 +13,7 @@ import { Quiet } from "@/components/flows/states";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { deleteLookup, getLookup, updateLookup, type Lookup, type LookupEntry } from "@/lib/api/documents";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
+import { saveBlob } from "@/lib/saveBlob";
 import { exportLookupCsv, importLookupCsv } from "@/lib/lookupCsv";
 
 const readText = (file: File) =>
@@ -33,7 +34,7 @@ function LookupEditor({ lookup }: { lookup: Lookup }) {
   const [confirming, setConfirming] = useState(false);
 
   const save = useMutation({
-    mutationFn: () => updateLookup(lookup.id, { name: name.trim(), entries: entries.filter((e) => e.from.trim()) }),
+    mutationFn: () => updateLookup(lookup.id, { name: name.trim(), entries: entries.filter((e) => e.from.trim() || e.to.trim()) }),
     onSuccess: () => {
       setNote({ tone: "success", text: "Saved." });
       qc.invalidateQueries({ queryKey: ["lookups"] });
@@ -70,14 +71,7 @@ function LookupEditor({ lookup }: { lookup: Lookup }) {
     }
   };
 
-  const download = () => {
-    const url = URL.createObjectURL(new Blob([exportLookupCsv(entries)], { type: "text/csv" }));
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${name || "lookup"}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+  const download = () => saveBlob(new Blob([exportLookupCsv(entries)], { type: "text/csv" }), `${name || "lookup"}.csv`);
 
   const refusal = save.error ?? remove.error;
   return (

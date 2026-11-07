@@ -97,7 +97,7 @@ export function DocumentOutputsPanel({ flowId, document: doc }: { flowId: string
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="grid">
                   <span className="text-[13px] font-medium text-ink">{o.name}</span>
-                  {flow.data && describeSendWhen(o.sendWhen, flow.data.fields) && <span className="text-[12px] text-ink-muted">{describeSendWhen(o.sendWhen, flow.data.fields)}</span>}
+                  {o.sendWhen && <span className="text-[12px] text-ink-muted">{describeSendWhen(o.sendWhen, flow.data?.fields)}</span>}
                 </span>
                 <span className="text-[12px] text-ink-muted">{Object.hasOwn(FORMATS, o.format) ? FORMATS[o.format as keyof typeof FORMATS] : o.format} · {destinationName(destinations, o.destinationId)}</span>
                 <Button size="sm" variant="secondary" loading={preview.isPending && preview.variables === o.id} onClick={() => preview.mutate(o.id)}>Preview</Button>
