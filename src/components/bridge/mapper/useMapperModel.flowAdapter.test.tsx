@@ -53,13 +53,25 @@ describe("useMapperModel — flow variant", () => {
     expect(getMappingSuggestions).not.toHaveBeenCalled();
   });
 
-  it("saves through the adapter and shows what the server returned", async () => {
-    const resolved: OrderMappingOverride = { customFields: [], outputTemplate: "as-the-server-holds-it" };
-    const adapter = makeAdapter(vi.fn().mockResolvedValue(resolved));
+  it("saves through the adapter, shows what the server returned, and keeps a newer pending edit", async () => {
+    const one: OrderMappingOverride = { customFields: [], outputTemplate: "server-one" };
+    const two: OrderMappingOverride = { customFields: [], outputTemplate: "server-two" };
+    let resolveFirst!: (o: OrderMappingOverride) => void;
+    let resolveSecond!: (o: OrderMappingOverride) => void;
+    const save = vi.fn()
+      .mockImplementationOnce(() => new Promise<OrderMappingOverride>((r) => { resolveFirst = r; }))
+      .mockImplementationOnce(() => new Promise<OrderMappingOverride>((r) => { resolveSecond = r; }));
+    const adapter = makeAdapter(save);
     const { result } = renderHook(() => useMapperModel({ variant: "flow", scopeId: adapter.scope, adapter }), { wrapper });
     await waitFor(() => expect(result.current.loading).toBe(false));
-    act(() => { result.current.onSourceConnect("a", "PoNumber"); });
-    await waitFor(() => expect(result.current.override).toEqual(resolved));
-    expect(adapter.save).toHaveBeenCalledTimes(1);
+    act(() => { result.current.onTargetConnect("a", "Out1"); });
+    act(() => { result.current.onTargetConnect("b", "Out2"); });
+    await waitFor(() => expect(save).toHaveBeenCalledTimes(2));
+    // The first save lands while the second is still in flight: the second edit must stay.
+    await act(async () => { resolveFirst(one); });
+    expect(result.current.outputConnections["Out2"]).toBe("b");
+    // The last save lands: now the server's copy is what is shown.
+    await act(async () => { resolveSecond(two); });
+    await waitFor(() => expect(result.current.override).toEqual(two));
   });
 });

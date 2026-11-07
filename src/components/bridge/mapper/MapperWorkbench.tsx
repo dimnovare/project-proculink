@@ -570,7 +570,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
   // output's source; a raw token (id is a token id, NOT a canonical key) pins the output's value
   // to the token's literal (lossless + keeps the output-only save contract).
   const onWireConnect = useCallback((sourceId: string, outputPath: string) => {
-    if (knownCanonical.has(sourceId)) {
+    if (variant === "flow" || knownCanonical.has(sourceId)) {
       model.onTargetConnect(sourceId, outputPath);
     } else {
       const literal = model.tokenValueById.get(sourceId) ?? "";
@@ -579,7 +579,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
     }
     setSelectedId(outputPath);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [knownCanonical, model.onTargetConnect, model.onSetFixedValue, model.tokenValueById, model.targetFields]);
+  }, [variant, knownCanonical, model.onTargetConnect, model.onSetFixedValue, model.tokenValueById, model.targetFields]);
 
   // ── Collapse state for the incoming + preview panes (Order Workshop, Task 12a).
   //    `undefined` layout → never collapsed → today's full-width rendering. ──────

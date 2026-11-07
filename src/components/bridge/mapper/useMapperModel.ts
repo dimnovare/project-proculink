@@ -551,12 +551,13 @@ export function useMapperModel({
       return doc;
     },
     onMutate: () => { setSaveErr(null); },
-    onSuccess: (doc) => {
+    onSuccess: (doc, sent) => {
       setSaveErr(null);
       // Reflect the server's canonical copy into the cache + local draft.
       qc.setQueryData(["mapper-override", variant, scopeId, revisionId ?? null], doc);
-      // Flow: show what the server returned, not the optimistic draft it may have normalised.
-      if (adapter) setDraft(null);
+      // Flow: show what the server returned, not the draft it may have normalised — unless a newer
+      // edit is already pending (saves overlap), whose draft must stay.
+      if (adapter) setDraft((d) => (d === sent ? null : d));
       // MV-1 / D-3 / D-4: for a per-ORDER override, the saved mapping changes what
       // will be delivered. (1) Invalidate ["order", id] so status/artifact recompute
       // from server truth — the backend resets a transformed order back to `ready` on
@@ -694,7 +695,7 @@ export function useMapperModel({
     sourceFields,
     // True when there IS incoming data (canonical from the Order or tokenized) — drives the
     // honest empty state. Not keyed on tokens alone (a PDF order has 0 tokens but data).
-    hasIncomingSource: canonicalIncoming.length > 0 || tokens.length > 0 || !!adapter?.sourceFields.length,
+    hasIncomingSource: canonicalIncoming.length > 0 || tokens.length > 0,
     canonicalNodes,
     customFields,
     targetFields,
