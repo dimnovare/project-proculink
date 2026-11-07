@@ -30,8 +30,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Copy, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Button } from "@/components/bridge/DSPrimitives";
+import { CopyButton } from "@/components/bridge/CopyButton";
 import { isOrgAdminRefusal, orgAdminMessage } from "@/lib/planGate";
 import { formatDate } from "@/lib/format-date";
 import { Card } from "@/components/bridge/layout/Card";
@@ -118,35 +119,6 @@ function expiryCopy(address: InboundAddress): string | null {
   );
 }
 
-// ── Copy affordance ─────────────────────────────────────────────────────────
-
-function CopyAddressButton({ address }: { address: string }) {
-  const [copied, setCopied] = useState(false);
-
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(address);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // Clipboard may be blocked; the address stays selectable by hand.
-    }
-  };
-
-  return (
-    <Button
-      variant="secondary"
-      size="md"
-      onClick={copy}
-      aria-label="Copy email address"
-      className="sm:flex-none"
-    >
-      <Copy size={13} />
-      {copied ? "Copied!" : "Copy"}
-    </Button>
-  );
-}
-
 // ── One address ─────────────────────────────────────────────────────────────
 
 function AddressRow({
@@ -209,7 +181,7 @@ function AddressRow({
           >
             {address.address}
           </code>
-          {live && <CopyAddressButton address={address.address} />}
+          {live && <CopyButton text={address.address} />}
         </div>
       ) : (
         <p style={{ margin: "8px 0 0", fontSize: 12, lineHeight: 1.55, color: MUTED }}>

@@ -37,6 +37,7 @@ export interface Flow {
 export interface DocumentSummary {
   id: string; flowId: string; flowName: string; fileName: string; status: string; statusReason: string | null;
   pageCount: number | null; billingUnits: number; failedChecks: number; createdAt: string;
+  source: string; sourceRef: string | null;
 }
 export interface DocumentCheck { code: string; passed: boolean; fieldKey: string | null; message: string }
 export interface DocumentDetail {
@@ -58,6 +59,13 @@ export interface DestinationRequest {
   name: string; protocol: string; config: Record<string, unknown>; credentials?: Record<string, unknown> | null;
 }
 export interface DestinationTestResult { success: boolean; message: string | null; responseCode: number | null }
+export interface FlowIntake {
+  id: string; kind: string; config: Record<string, unknown>; hasCredentials: boolean; isEnabled: boolean;
+  address: string | null; lastRunAt: string | null; lastStatus: string | null; lastMessage: string | null;
+}
+export interface IntakeRequest {
+  kind: string; config: Record<string, unknown>; credentials: Record<string, string> | null; enabled?: boolean;
+}
 export interface FlowOutput {
   id: string; flowId: string; name: string; format: string; tableKey: string | null; destinationId: string | null;
   template: OutputNodeTemplate; createdAt: string;
@@ -137,6 +145,20 @@ export const deleteDestination = (id: string) =>
   apiFetch<void>(`/destinations/${seg(id)}`, { method: "DELETE" });
 export const testDestination = (id: string) =>
   apiFetch<DestinationTestResult>(`/destinations/${seg(id)}/test`, { method: "POST" });
+
+export const listIntakes = (flowId: string) => apiFetch<FlowIntake[]>(`/flows/${seg(flowId)}/intakes`);
+export const createIntake = (flowId: string, req: IntakeRequest) =>
+  apiFetch<FlowIntake>(`/flows/${seg(flowId)}/intakes`, { method: "POST", body: json(req) });
+export const updateIntake = (flowId: string, id: string, req: IntakeRequest) =>
+  apiFetch<FlowIntake>(`/flows/${seg(flowId)}/intakes/${seg(id)}`, { method: "PUT", body: json(req) });
+export const deleteIntake = (flowId: string, id: string) =>
+  apiFetch<void>(`/flows/${seg(flowId)}/intakes/${seg(id)}`, { method: "DELETE" });
+export const newIntakeAddress = (flowId: string, id: string) =>
+  apiFetch<FlowIntake>(`/flows/${seg(flowId)}/intakes/${seg(id)}/new-address`, { method: "POST" });
+export const testIntake = (flowId: string, id: string) =>
+  apiFetch<DestinationTestResult>(`/flows/${seg(flowId)}/intakes/${seg(id)}/test`, { method: "POST" });
+/** The machine-facing file API's URL for a flow (shown to the customer, never called from here). */
+export const flowApiEndpoint = (flowId: string) => `${API_BASE_URL}/api/v1/flows/${seg(flowId)}/documents`;
 
 export const listOutputs = (flowId: string) => apiFetch<FlowOutput[]>(`/flows/${seg(flowId)}/outputs`);
 export const createOutput = (flowId: string, body: OutputRequest) =>

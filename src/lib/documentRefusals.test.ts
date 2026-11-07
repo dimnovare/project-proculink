@@ -12,8 +12,11 @@ describe("documentRefusalMessage", () => {
   it("falls back to the generic line for an unknown token", () => {
     expect(documentRefusalMessage(refusal({ error: "mystery" }))).toBe("Something went wrong. Try again.");
   });
+  it("passes an invalid_intake detail through", () => {
+    expect(documentRefusalMessage(refusal({ error: "invalid_intake", detail: "Host is required." }))).toBe("Host is required.");
+  });
   it.each([
-    [403, "requires_org_admin", "Only a workspace admin can change destinations."],
+    [403, "requires_org_admin", "Only a workspace admin can change this."],
     [429, "pilot_expired", "Your trial has ended, so new documents aren't being accepted."],
     [429, "order_limit_reached", "You've reached your plan's document limit for this month."],
     [413, undefined, "This file is too large."],

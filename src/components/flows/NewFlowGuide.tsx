@@ -10,6 +10,7 @@ import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { DestinationForm, Field, INPUT } from "@/components/flows/DestinationForm";
 import { FieldListEditor } from "@/components/flows/FieldListEditor";
+import { FlowEmailCard } from "./FlowIntakePanel";
 import { FlowUpload } from "@/components/flows/FlowUpload";
 import { OutputEditor } from "@/components/flows/OutputEditor";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
@@ -149,12 +150,15 @@ export function NewFlowGuide() {
     );
   } else if (step === 6) {
     body = (
-      <Card title="Your flow is ready">
-        <div className="flex flex-wrap gap-2">
-          <Button variant="primary" onClick={() => router.push(`/flows/${flowId}`)}>Open the flow</Button>
-          <Button variant="secondary" onClick={() => router.push(`/flows/${flowId}?tab=documents`)}>Upload more documents</Button>
-        </div>
-      </Card>
+      <div className="grid gap-4">
+        <Card title="Your flow is ready">
+          <div className="flex flex-wrap gap-2">
+            <Button variant="primary" onClick={() => router.push(`/flows/${flowId}`)}>Open the flow</Button>
+            <Button variant="secondary" onClick={() => router.push(`/flows/${flowId}?tab=documents`)}>Upload more documents</Button>
+          </div>
+        </Card>
+        <FlowEmailCard flowId={flowId!} />
+      </div>
     );
   } else if (flow.isError) {
     body = <Failed error={flow.error} retry={() => flow.refetch()} />;

@@ -33,6 +33,11 @@ const actionWords = (action: string) => {
   return words.charAt(0).toUpperCase() + words.slice(1);
 };
 
+const SOURCES = new Map([
+  ["upload", "upload"], ["email", "email"], ["api", "the API"], ["imap", "mailbox"],
+  ["sftp", "SFTP"], ["ftp", "FTP"], ["ftps", "FTPS"], ["s3", "S3"],
+]);
+
 function History({ documentId }: { documentId: string }) {
   const enabled = useTenantQueriesEnabled();
   const history = useQuery({ queryKey: ["document-history", documentId], queryFn: () => getDocumentHistory(documentId), enabled });
@@ -112,6 +117,11 @@ export function DocumentScreen({ flowId, documentId }: { flowId: string; documen
                 {showOriginal ? "Hide original" : "Show original"}
               </Button>
             </div>
+            {summary.source && (
+              <p className="m-0 mt-1 text-[12.5px] text-ink-muted">
+                Arrived by {SOURCES.get(summary.source) ?? summary.source}{summary.sourceRef ? ` from ${summary.sourceRef}` : ""}
+              </p>
+            )}
             <div className="mt-3">
               <ReadProblem summary={summary} nothingRead={nothingRead} retry={retry} />
             </div>
