@@ -1,6 +1,11 @@
 import type { OutputNode, OutputNodeTemplate } from "@/lib/api/types";
+import type { FlowFieldList, SendWhen } from "@/lib/api/documents";
 
-export type SimpleRow = { name: string; source: { field: string } | { fixed: string } };
+export type SimpleRow = {
+  name: string;
+  source: { field: string } | { fixed: string };
+  lookup?: { id: string; ifMissing: "keep" | "blank" };
+};
 export type SimpleOutput = { fields: SimpleRow[]; table: { key: string; columns: SimpleRow[] } | null };
 
 // Mirrors the backend's DefaultOutputTemplate: a "document" object of bound leaves, plus at most one
@@ -8,9 +13,14 @@ export type SimpleOutput = { fields: SimpleRow[]; table: { key: string; columns:
 const leaf = (n: OutputNode): SimpleRow | null => {
   const r = n.rule;
   if (n.nodeType !== "field" || !r || n.children?.length || n.namespace || n.prefix || n.includeWhen || n.valueType || n.emptyValue) return null;
-  if (r.outputPath !== n.name || r.expression || r.sourceToken || r.fieldManipulators?.length) return null;
+  if (r.outputPath !== n.name || r.expression || r.sourceToken) return null;
+  const steps = r.fieldManipulators ?? [];
+  const [step] = steps;
+  const ifMissing = step?.params?.[1];
+  if (steps.length > 1 || (step && (step.type !== "Lookup" || !step.params?.[0] || (ifMissing !== "keep" && ifMissing !== "blank")))) return null;
   if ((r.canonicalField != null) === (r.fixedValue != null)) return null;
-  return { name: n.name, source: r.canonicalField != null ? { field: r.canonicalField } : { fixed: r.fixedValue! } };
+  const source = r.canonicalField != null ? { field: r.canonicalField } : { fixed: r.fixedValue! };
+  return { name: n.name, source, ...(step ? { lookup: { id: step.params![0], ifMissing: ifMissing as "keep" | "blank" } } : {}) };
 };
 
 const leaves = (nodes: OutputNode[]) => {
@@ -34,14 +44,14 @@ export function toSimple(t: OutputNodeTemplate): SimpleOutput | null {
   return columns ? { fields, table: { key: a.name, columns } } : null;
 }
 
-const toNode = ({ name, source }: SimpleRow): OutputNode => ({
+const toNode = ({ name, source, lookup }: SimpleRow): OutputNode => ({
   name,
   nodeType: "field",
   children: [],
   rule: {
     outputPath: name,
     ...("field" in source ? { canonicalField: source.field } : { fixedValue: source.fixed }),
-    fieldManipulators: [],
+    fieldManipulators: lookup ? [{ type: "Lookup", params: [lookup.id, lookup.ifMissing] }] : [],
   },
 });
 
@@ -62,3 +72,11 @@ export const fromSimple = (s: SimpleOutput, format: string): OutputNodeTemplate 
     ],
   },
 });
+
+export const OP_LABEL = { is: "is", is_not: "is not", contains: "contains" } as const;
+
+export function describeSendWhen(sendWhen: SendWhen | null, fields: FlowFieldList): string | null {
+  if (!sendWhen) return null;
+  const label = fields.fields.find((f) => f.key === sendWhen.field)?.label ?? sendWhen.field;
+  return `Only when ${label} ${OP_LABEL[sendWhen.op]} “${sendWhen.value}”`;
+}

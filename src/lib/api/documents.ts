@@ -68,12 +68,19 @@ export interface IntakeRequest {
 }
 export interface FlowOutput {
   id: string; flowId: string; name: string; format: string; tableKey: string | null; destinationId: string | null;
-  template: OutputNodeTemplate; createdAt: string;
+  template: OutputNodeTemplate; createdAt: string; sendWhen: SendWhen | null;
 }
+export type SendWhenOp = "is" | "is_not" | "contains";
+export type SendWhen = { field: string; op: SendWhenOp; value: string };
+export type LookupEntry = { from: string; to: string };
+export type LookupMiss = { lookupId: string; value: string };
+export type LookupSummary = { id: string; name: string; count: number; updatedAt: string };
+export type Lookup = { id: string; name: string; entries: LookupEntry[]; updatedAt: string };
 export interface OutputRequest {
   name: string; format: string; tableKey?: string | null; destinationId?: string | null; template?: OutputNodeTemplate | null;
+  sendWhen?: SendWhen | null;
 }
-export interface OutputPreview { contentType: string; fileName: string; content: string }
+export interface OutputPreview { contentType: string; fileName: string; content: string; lookupMisses: LookupMiss[] }
 export interface DocumentDelivery {
   id: string; outputName: string; protocol: string; status: string; attempts: number;
   lastError: string | null; fileName: string | null; deliveredAt: string | null;
@@ -169,6 +176,13 @@ export const deleteOutput = (flowId: string, id: string) =>
   apiFetch<void>(`/flows/${seg(flowId)}/outputs/${seg(id)}`, { method: "DELETE" });
 export const previewOutput = (documentId: string, outputId: string) =>
   apiFetch<OutputPreview>(`/documents/${seg(documentId)}/outputs/${seg(outputId)}/preview`, { method: "POST" });
+
+export const listLookups = () => apiFetch<LookupSummary[]>(`/lookups`);
+export const getLookup = (id: string) => apiFetch<Lookup>(`/lookups/${seg(id)}`);
+export const createLookup = (name: string) => apiFetch<Lookup>(`/lookups`, { method: "POST", body: json({ name }) });
+export const updateLookup = (id: string, body: { name: string; entries: LookupEntry[] }) =>
+  apiFetch<Lookup>(`/lookups/${seg(id)}`, { method: "PUT", body: json(body) });
+export const deleteLookup = (id: string) => apiFetch<void>(`/lookups/${seg(id)}`, { method: "DELETE" });
 
 export const sendDocument = (id: string) => apiFetch<DocumentDelivery[]>(`/documents/${seg(id)}/send`, { method: "POST" });
 export const listDeliveries = (id: string) => apiFetch<DocumentDelivery[]>(`/documents/${seg(id)}/deliveries`);
