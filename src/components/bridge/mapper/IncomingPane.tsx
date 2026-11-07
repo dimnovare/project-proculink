@@ -499,7 +499,7 @@ function IncomingGroup({
               key={f.id}
               flow={flow}
               field={f}
-              port={flow ? { ...portProps(f.id), "aria-label": undefined } : portProps(f.id)}
+              port={flow ? { ...portProps(f.id), "aria-label": f.label } : portProps(f.id)}
               anchorRef={anchorRef}
               hovered={activeIds ? activeIds.has(f.id) : hoveredId === f.id}
               onHover={onHover}
