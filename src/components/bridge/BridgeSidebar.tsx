@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useOrganization } from "@clerk/nextjs";
 import { useQuery } from "@tanstack/react-query";
 import {
-  Upload, Inbox, Users, Zap, Workflow,
+  Upload, Inbox, Users, Zap, Workflow, ArrowRightLeft,
   Lock, HelpCircle, Settings, ChevronsLeft, ChevronsRight, X,
   type LucideIcon,
 } from "lucide-react";
@@ -90,6 +90,7 @@ const NAV_MAIN: SidebarNavSection[] = [
       // STRUCT-1 still holds: no standalone "Connections" entry — /connections is
       // a hidden entry of this hub and stays fully routable.
       { label: "Flows", href: "/flows", icon: Workflow },
+      { label: "Lookups", href: "/lookups", icon: ArrowRightLeft },
       { label: "Suppliers", href: hubHome("suppliers"), icon: Users, hub: "suppliers" },
       { label: "Activity", href: hubHome("activity"), icon: Zap, hub: "activity" },
       { label: "Settings", href: "/settings", icon: Settings },
@@ -121,6 +122,9 @@ export interface VisibleNav {
 // (visibleHubTabs), not a nav item, and the old LAUNCH_CORE_ONLY narrowing is
 // gone because there is nothing left to narrow.
 //
+// Nav entries that exist only when the document engine is on.
+const ENGINE_HREFS = new Set(["/flows", "/lookups"]);
+
 // `counterpartyPlural` relabels the "Suppliers" entry (href /library/suppliers)
 // for inbound orgs (DISPLAY ONLY — the route stays /library/suppliers): inbound
 // orgs see their counterparty word ("Customers").
@@ -130,8 +134,8 @@ export function buildVisibleNav(counterpartyPlural: string, isAdmin: boolean, do
       // Hide the Admin link unless the server confirmed this user is on the
       // admin allowlist (UX only — the page + API re-gate server-side).
       .filter((item) => item.href !== "/admin" || isAdmin)
-      // Flows shows only once the probe confirmed the document engine is on.
-      .filter((item) => item.href !== "/flows" || documentEngine)
+      // Flows and Lookups show only once the probe confirmed the document engine is on.
+      .filter((item) => !ENGINE_HREFS.has(item.href) || documentEngine)
       .map((item) =>
         item.href === "/library/suppliers" && counterpartyPlural !== "Suppliers"
           ? { ...item, label: counterpartyPlural }

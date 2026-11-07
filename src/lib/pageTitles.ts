@@ -98,6 +98,8 @@ export const OFF_HUB_TITLES: Record<string, string> = {
   "/flows/new": "New flow",
   "/flows/[flowId]": "Flow",
   "/flows/[flowId]/documents/[documentId]": "Flow document",
+  "/lookups": "Lookups",
+  "/lookups/[lookupId]": "Lookup",
   "/settings": "Settings",
   "/admin": "Admin",
   "/library/suppliers/[id]": "Supplier",

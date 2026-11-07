@@ -25,6 +25,7 @@ export const CRUMB_LABELS: Record<string, string> = {
   inbox: HUB_LABELS.orders,
   upload: "Upload",
   flows: "Flows",
+  lookups: "Lookups",
   settings: "Settings",
   library: "Library",
   suppliers: "Suppliers",
