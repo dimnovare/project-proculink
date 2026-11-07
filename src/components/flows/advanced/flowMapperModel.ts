@@ -16,14 +16,27 @@ export interface Leaf { path: string; node: OutputNode; scope: Scope }
 
 const isLeaf = (n: OutputNode) => n.nodeType === "field" || n.nodeType === "attribute";
 
-/** Every field/attribute leaf, with its root-excluded path and whether it sits under an array. */
+/** The output's table. A null `tableKey` means the first table, as the backend reads it. */
+export const outputTable = <T extends { key: string }>(tables: T[], tableKey: string | null) =>
+  tableKey ? tables.find((t) => t.key === tableKey) : tables[0];
+
+/**
+ * Every field/attribute leaf, with its root-excluded path and whether it sits under an array.
+ * A repeated path (two siblings with one name) gets `#2`, `#3`… in tree order, so each leaf
+ * keeps its own rule; toOverride and toTemplate share this walk, so the suffix maps back.
+ */
 export function leafPaths(template: OutputNodeTemplate): Leaf[] {
   const out: Leaf[] = [];
+  const used = new Set<string>();
   const walk = (node: OutputNode, prefix: string[], scope: Scope) => {
     for (const child of node.children ?? []) {
       const path = [...prefix, child.name];
-      if (isLeaf(child)) out.push({ path: path.join("/"), node: child, scope });
-      else walk(child, path, child.nodeType === "array" ? "lines" : scope);
+      if (!isLeaf(child)) { walk(child, path, child.nodeType === "array" ? "lines" : scope); continue; }
+      const base = path.join("/");
+      let key = base;
+      for (let n = 2; used.has(key); n++) key = `${base}#${n}`;
+      used.add(key);
+      out.push({ path: key, node: child, scope });
     }
   };
   walk(template.root, [], "header");
@@ -71,8 +84,8 @@ export function flowSourceFields(fields: FlowFieldList, tableKey: string | null,
     ...base, id: f.key, label: f.label, group: "header",
     value: read?.fields.find((r) => r.key === f.key)?.value ?? "",
   }));
-  const table = fields.tables.find((t) => t.key === tableKey);
-  const firstRow = read?.tables.find((t) => t.key === tableKey)?.rows[0];
+  const table = outputTable(fields.tables, tableKey);
+  const firstRow = outputTable(read?.tables ?? [], tableKey)?.rows[0];
   const columnFields: SourceField[] = (table?.columns ?? []).map((c) => ({
     ...base, id: COLUMN_PREFIX + c.key, label: c.label, group: "line",
     value: firstRow?.cells[c.key]?.value ?? "",

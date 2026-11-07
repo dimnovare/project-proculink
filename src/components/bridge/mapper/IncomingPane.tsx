@@ -256,7 +256,7 @@ export function IncomingPane({
 
       {/* Filter chips. */}
       <div role="group" aria-label="Filter incoming fields" style={{ flexShrink: 0, display: "flex", flexWrap: "wrap", gap: 6, padding: "12px 18px 10px" }}>
-        {FILTERS.filter((f) => !flow || (f.id !== "mapped" && f.id !== "unmapped")).map((f) => {
+        {FILTERS.filter((f) => !flow || (f.id !== "mapped" && f.id !== "unmapped" && f.id !== "ai")).map((f) => {
           const active = filter === f.id;
           return (
             <button

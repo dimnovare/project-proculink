@@ -6,7 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
-import { MapperWorkbench } from "@/components/bridge/mapper/MapperWorkbench";
+import { MapperWorkbench, type MapperToolbarState } from "@/components/bridge/mapper/MapperWorkbench";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { fetchDocumentSource, getDocument, getFlow, listDocuments, listOutputs } from "@/lib/api/documents";
 import type { FlowOutput } from "@/lib/api/documents";
@@ -19,6 +19,8 @@ export function AdvancedView({ flowId, outputId, documentId }: { flowId: string;
   const qc = useQueryClient();
   const enabled = useTenantQueriesEnabled();
   const [incomingView, setIncomingView] = useState<IncomingView>("fields");
+  // The toolbar is hidden, so its save status is re-hosted beside "Back to flow".
+  const [bar, setBar] = useState<MapperToolbarState | null>(null);
   const flow = useQuery({ queryKey: ["flow", flowId], queryFn: () => getFlow(flowId), enabled });
   const outputs = useQuery({ queryKey: ["outputs", flowId], queryFn: () => listOutputs(flowId), enabled });
   const newest = useQuery({
@@ -48,7 +50,15 @@ export function AdvancedView({ flowId, outputId, documentId }: { flowId: string;
     <PageShell variant="wide">
       <PageHeader
         titleHidden title={output?.name ?? "Advanced view"} sub="Advanced view"
-        actions={<Link href={`/flows/${flowId}`} className="text-[13px] text-brand-blue">Back to flow</Link>}
+        actions={
+          <span className="inline-flex items-center gap-3 text-[12px]">
+            {bar?.saving ? <span className="text-ink-faint">Saving…</span>
+              : bar?.error ? <span role="alert" className="text-danger">{bar.error}</span>
+              : bar?.justSaved ? <span role="status" className="text-brand-green-deep">✓ Saved</span>
+              : null}
+            <Link href={`/flows/${flowId}`} className="text-[13px] text-brand-blue">Back to flow</Link>
+          </span>
+        }
       />
       <div className="lg:hidden">
         <StatusNotice tone="working">The Advanced view needs a wider screen. On this device, use the document page.</StatusNotice>
@@ -60,7 +70,7 @@ export function AdvancedView({ flowId, outputId, documentId }: { flowId: string;
           : (
             <div data-testid="advanced-workbench">
               <MapperWorkbench
-                variant="flow" adapter={adapter} supplierName={output.name} hideToolbar hideOrientation
+                variant="flow" adapter={adapter} supplierName={output.name} hideToolbar hideOrientation onToolbarState={setBar}
                 emptyHint="Upload a document to this flow to see a preview."
                 layout={{ incomingView, onIncomingView: setIncomingView }}
                 receivedDocument={{

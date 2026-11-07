@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ApiHttpError } from "@/lib/api/core";
+import { COPY } from "@/lib/documentRefusals";
 import { AdvancedView } from "./AdvancedView";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn(), push: vi.fn() }), useSearchParams: () => new URLSearchParams() }));
@@ -58,6 +60,15 @@ describe("AdvancedView", () => {
     expect(root.textContent).not.toMatch(words);
     expect(attrs.filter((t) => t && words.test(t))).toEqual([]);
     expect(bench.queryByRole("button", { name: /add output field/i })).toBeNull();
+    expect(bench.queryByRole("button", { name: /has ai suggestion/i })).toBeNull();
+  });
+
+  it("a refused save says why, in flow words", async () => {
+    api.updateOutput.mockRejectedValue(new ApiHttpError("nope", 422, { error: "lookup" }));
+    renderView();
+    const bench = within(await screen.findByTestId("advanced-workbench"));
+    fireEvent.click((await bench.findAllByRole("button", { name: "Disconnect Number" }))[0]);
+    expect(await screen.findByRole("alert")).toHaveTextContent(COPY.lookup);
   });
 
   it("with no document, the fields still show and the preview says why", async () => {

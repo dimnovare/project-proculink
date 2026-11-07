@@ -409,9 +409,12 @@ export function useMapperModel({
   // Order path MERGES canonical + authored (wiring/adding never collapses the document);
   // connection path uses the declared schema as-is. Declared FIRST so the "used as a source"
   // calc below (bug 3) can see which output paths exist for the 1:1 auto default.
+  // Flow: the row SET comes from the saved copy (its key set is the template's leaf set, which
+  // never changes here), so a disconnect empties a row instead of hiding it until the save lands.
+  const targetOutput = variant === "flow" ? overrideQuery.data?.output : override.output;
   const targetFields = useMemo(
-    () => deriveTargetFields(override.output, variant === "order", variant !== "flow"),
-    [override.output, variant],
+    () => deriveTargetFields(targetOutput, variant === "order", variant !== "flow"),
+    [targetOutput, variant],
   );
 
   // Incoming ids that are ACTUALLY USED as a mapping source. The old code keyed "mapped" only on
@@ -467,8 +470,9 @@ export function useMapperModel({
   // supplied we fall back to matching tokenized labels against canonical keys (legacy path).
   const canonicalValueByKey = useMemo(() => {
     const out = new Map<string, string>();
-    if (canonicalIncoming.length > 0) {
-      for (const f of canonicalIncoming) if (f.value !== "" && !out.has(f.id)) out.set(f.id, f.value);
+    const incoming = adapter?.sourceFields ?? canonicalIncoming;
+    if (incoming.length > 0) {
+      for (const f of incoming) if (f.value !== "" && !out.has(f.id)) out.set(f.id, f.value);
       return out;
     }
     const byLabel = new Map<string, string>();
@@ -485,7 +489,7 @@ export function useMapperModel({
       }
     }
     return out;
-  }, [canonicalIncoming, tokens, canonicalNodes]);
+  }, [adapter, canonicalIncoming, tokens, canonicalNodes]);
 
   // tokenValueById: id → value for BOTH raw tokens AND canonical incoming rows. The outgoing
   // status model resolves a canonical→output wire by looking up the wired source's value here
@@ -498,8 +502,10 @@ export function useMapperModel({
   }, [tokens, canonicalValueByKey]);
 
   const labelForCanonical = useCallback(
-    (key: string) => getFieldStandards(key)?.label ?? canonicalNodes.find((n) => n.id === key)?.label ?? key,
-    [canonicalNodes],
+    (key: string) =>
+      adapter?.sourceFields.find((f) => f.id === key)?.label ??
+      getFieldStandards(key)?.label ?? canonicalNodes.find((n) => n.id === key)?.label ?? key,
+    [adapter, canonicalNodes],
   );
 
   // ── Persistence ────────────────────────────────────────────────────────────

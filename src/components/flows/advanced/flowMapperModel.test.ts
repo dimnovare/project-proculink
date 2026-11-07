@@ -38,15 +38,28 @@ describe("flowMapperModel", () => {
 
   it("the same key in header and table stays two sources", () => {
     const t = template();
-    const ids = flowSourceFields(fields, "lines").map((f) => f.id);
+    const ids = flowSourceFields(fields, null).map((f) => f.id); // null = the first table
     expect(ids).toContain("date");
     expect(ids).toContain("col:date");
-    let o = withTargetConnect(toOverride(t, cols), "col:date", "lines/date");
-    o = withTargetConnect(o, "date", "date");
+    const loaded = toOverride(t, cols);
+    expect(loaded.output?.lines["lines/date"].canonicalField).toBe("col:date");
+    expect(loaded.output?.header["date"].canonicalField).toBe("date");
+    // Cross-wire both, so neither saved value can be the one it started with.
+    let o = withTargetConnect(loaded, "invoiceNumber", "date");
+    o = withTargetConnect(o, "col:sku", "lines/date");
     const out = toTemplate(t, o);
-    expect(find(out, "lines/date").rule?.canonicalField).toBe("date");
-    expect(find(out, "date").rule?.canonicalField).toBe("date");
+    expect(find(out, "date").rule?.canonicalField).toBe("invoiceNumber");
+    expect(find(out, "lines/date").rule?.canonicalField).toBe("sku");
     expect(find(out, "lines/sku")).toEqual(find(t, "lines/sku"));
+  });
+
+  it("two leaves with the same name stay two fields", () => {
+    const t = template();
+    t.root.children!.push(leaf("total", { outputPath: "total", canonicalField: "invoiceNumber", fieldManipulators: [] }));
+    const totals = (x: OutputNodeTemplate) => x.root.children!.filter((c) => c.name === "total");
+    const out = toTemplate(t, withTargetConnect(toOverride(t, cols), "date", "invoiceNumber"));
+    expect(find(out, "invoiceNumber").rule?.canonicalField).toBe("date");
+    expect(totals(out)).toEqual(totals(t));
   });
 
   it("a disconnect keeps the column, empty", () => {

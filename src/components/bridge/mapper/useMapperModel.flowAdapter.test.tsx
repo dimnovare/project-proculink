@@ -33,20 +33,27 @@ function wrapper({ children }: { children: ReactNode }) {
   return <QueryClientProvider client={qc}>{children}</QueryClientProvider>;
 }
 
-const field = (id: string): SourceField => ({ id, label: id, value: "v", group: "header", mapped: false });
+const field = (id: string): SourceField => ({ id, label: `${id} label`, value: "v", group: "header", mapped: false });
 const makeAdapter = (save: MapperAdapter["save"]): MapperAdapter => ({
   scope: "out-1",
-  load: vi.fn().mockResolvedValue({ customFields: [] } as OrderMappingOverride),
+  load: vi.fn().mockResolvedValue({
+    customFields: [], output: { header: { Out1: { outputPath: "Out1", canonicalField: "a", fieldManipulators: [] } }, lines: {} },
+  } as OrderMappingOverride),
   save,
   sourceFields: [field("a"), field("b")],
 });
 
 describe("useMapperModel — flow variant", () => {
   it("loads from the adapter and never calls the order endpoints", async () => {
-    const adapter = makeAdapter(vi.fn());
+    const adapter = makeAdapter(vi.fn(() => new Promise<OrderMappingOverride>(() => {})));
     const { result } = renderHook(() => useMapperModel({ variant: "flow", scopeId: adapter.scope, adapter }), { wrapper });
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.sourceFields.map((f) => f.id)).toEqual(["a", "b"]);
+    // A wired row names its source and shows its value from the adapter.
+    expect([result.current.labelForCanonical("a"), result.current.canonicalValueByKey.get("a")]).toEqual(["a label", "v"]);
+    // A disconnect empties the row; it does not hide it while the save is in flight.
+    await act(async () => { result.current.onTargetDisconnect("Out1"); });
+    expect([result.current.targetFields.map((f) => f.outputPath), result.current.outputConnections["Out1"]]).toEqual([["Out1"], undefined]);
     expect(adapter.load).toHaveBeenCalled();
     expect(getSourceTokens).not.toHaveBeenCalled();
     expect(getMappingOverride).not.toHaveBeenCalled();
