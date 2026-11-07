@@ -17,7 +17,11 @@ export const COPY: Record<string, string> = {
   processing_paused: "Processing is paused on this workspace.",
   destination_in_use: "An output still sends here. Change that output first.",
   unsupported_destination: "That kind of destination isn't available.",
-  requires_org_admin: "Only a workspace admin can change destinations.",
+  requires_org_admin: "Only a workspace admin can change this.",
+  intake_not_found: "This pickup no longer exists.",
+  unsupported_intake: "That kind of pickup isn't available.",
+  intake_exists: "This flow already has API settings.",
+  intake_required: "A flow's email address can be switched off, not removed.",
   document_not_found: "This document or flow no longer exists.",
   flow_not_found: "This document or flow no longer exists.",
   not_retryable: "This document can't be read again.",
@@ -49,7 +53,7 @@ export function documentRefusalMessage(error: unknown): string {
     const output = field(error, "output");
     return `The output${output ? ` "${output}"` : ""} couldn't be made${detail ? `: ${detail}` : "."}`;
   }
-  if (token === "invalid_destination" || token === "invalid_fields") return detail ?? GENERIC;
+  if (token === "invalid_destination" || token === "invalid_intake" || token === "invalid_fields") return detail ?? GENERIC;
   if (token && LIMIT_CODES.has(token))
     return token === "pilot_expired" ? COPY.pilot_expired : COPY.order_limit_reached;
   if (error instanceof ApiHttpError && error.status === 413 && !token) return COPY.file_too_large;

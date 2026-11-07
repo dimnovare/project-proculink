@@ -18,10 +18,10 @@ const field = (value: string) => ({
   key: "invoice_no", label: "Invoice number", value, type: "text", meaning: null, confidence: 0.92,
   location: { page: 2, box: null, address: null }, notOnPage: false, listed: true, edited: false,
 });
-const detail = (value: string) => ({
+const detail = (value: string, source = "upload", sourceRef: string | null = null) => ({
   summary: {
     id: "d", flowId: "f", flowName: "Receipts", fileName: "a.csv", status: "needs_review", statusReason: null,
-    pageCount: null, billingUnits: 1, failedChecks: 0, createdAt: "",
+    pageCount: null, billingUnits: 1, failedChecks: 0, createdAt: "", source, sourceRef,
   },
   contentType: "text/csv",
   read: { kindLabel: null, fields: [field(value)], tables: [], truncated: false },
@@ -42,6 +42,16 @@ const renderScreen = (qc = new QueryClient()) =>
   render(<QueryClientProvider client={qc}><DocumentScreen flowId="f" documentId="d" /></QueryClientProvider>);
 
 describe("DocumentScreen", () => {
+  it("says how the document arrived, and prints an unknown source as it is", async () => {
+    api.getDocument.mockResolvedValue(detail("INV-1", "email", "ap@example.test"));
+    const first = renderScreen();
+    expect(await screen.findByText("Arrived by email from ap@example.test")).toBeTruthy();
+    first.unmount();
+    api.getDocument.mockResolvedValue(detail("INV-1", "carrier-pigeon"));
+    renderScreen();
+    expect(await screen.findByText("Arrived by carrier-pigeon")).toBeTruthy();
+  });
+
   it("saves an edited field and shows the value the server returns", async () => {
     api.editDocumentValues.mockResolvedValue(detail("INV-2-saved"));
     renderScreen();

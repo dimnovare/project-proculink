@@ -122,6 +122,17 @@ export const KNOWN_MACHINE_FACING: Record<string, string> = {
     "rendered for the customer to paste into their system at SupplierDockProfile.tsx:1140; this " +
     "app never posts to it.",
 
+  "POST /api/v1/flows/{}/documents":
+    "2026-11-07 — machine-to-machine file API. ProcuLink.Api/Controllers/FlowFilesController.cs carries " +
+    "[Authorize(AuthenticationSchemes = \"ApiKey\")], not Clerk: the customer's own system calls it with an " +
+    "org API key to post a file into a flow, and the browser never posts to it, so a frontend caller would be " +
+    "the bug. Permanent entry.",
+  "GET /api/v1/documents/{}":
+    "2026-11-07 — machine-to-machine result fetch. ProcuLink.Api/Controllers/FlowFilesController.cs carries " +
+    "[Authorize(AuthenticationSchemes = \"ApiKey\")], not Clerk: after posting a file the customer's own " +
+    "system fetches the result by id with an org API key, and no browser screen calls it, so a frontend " +
+    "caller would be the bug. Permanent entry.",
+
   // ── Provider webhooks. The caller is Stripe / Postmark.
   "POST /api/billing/webhook":
     "Stripe calls this, not the browser. [AllowAnonymous] with signature verification; the URL is " +
