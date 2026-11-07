@@ -101,6 +101,8 @@ export interface CrumbContext {
   flowName?: string | null;
   /** File name for /flows/[id]/documents/[id]. */
   documentName?: string | null;
+  /** Lookup name for /lookups/[id]. */
+  lookupName?: string | null;
 }
 
 /**
@@ -135,6 +137,7 @@ export function formatCrumbLabel(
     // /flows/[id] and /flows/[id]/documents/[id]
     if (parent === "flows") return ctx.flowName?.trim() || `Flow ${shortId(segment)}`;
     if (parent === "documents" && segments[0] === "flows") return ctx.documentName?.trim() || `Document ${shortId(segment)}`;
+    if (parent === "lookups") return ctx.lookupName?.trim() || `Lookup ${shortId(segment)}`;
 
     // /inbox/[orderId]
     if (parent === "inbox" || parent === "documents") {
