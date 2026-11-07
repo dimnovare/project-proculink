@@ -6,10 +6,10 @@ import { Button } from "@/components/bridge/DSPrimitives";
 import { Card } from "@/components/bridge/layout/Card";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { DestinationForm, Field, INPUT } from "@/components/flows/DestinationForm";
-import { createOutput, listDestinations, previewOutput, updateOutput } from "@/lib/api/documents";
-import type { Flow, FlowOutput } from "@/lib/api/documents";
-import { documentRefusalMessage } from "@/lib/documentRefusals";
-import { fromSimple, toSimple } from "@/lib/flowOutputModel";
+import { createOutput, listDestinations, listLookups, previewOutput, updateOutput } from "@/lib/api/documents";
+import type { Flow, FlowOutput, LookupMiss, LookupSummary, SendWhen, SendWhenOp } from "@/lib/api/documents";
+import { COPY, documentRefusalMessage } from "@/lib/documentRefusals";
+import { fromSimple, OP_LABEL, toSimple } from "@/lib/flowOutputModel";
 import type { SimpleOutput, SimpleRow } from "@/lib/flowOutputModel";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 
@@ -17,8 +17,11 @@ export const FORMATS = { csv: "CSV", xlsx: "Excel", json: "JSON", xml: "XML" };
 const FIXED = "\u0000fixed";
 const NEW_DESTINATION = "\u0000new";
 
-function RowList({ rows, options, onChange }: {
-  rows: SimpleRow[]; options: { key: string; label: string }[]; onChange(rows: SimpleRow[]): void;
+const missesByLookup = (misses: LookupMiss[]) =>
+  misses.reduce<Record<string, LookupMiss[]>>((by, m) => ((by[m.lookupId] ??= []).push(m), by), {});
+
+function RowList({ rows, options, lookups, onChange }: {
+  rows: SimpleRow[]; options: { key: string; label: string }[]; lookups: LookupSummary[]; onChange(rows: SimpleRow[]): void;
 }) {
   const patch = (i: number, row: SimpleRow) => onChange(rows.map((r, j) => (j === i ? row : r)));
   const move = (i: number, by: number) => {
@@ -40,6 +43,19 @@ function RowList({ rows, options, onChange }: {
           {"fixed" in row.source && (
             <input aria-label="Fixed value" className={`${INPUT} min-w-32 flex-1`} value={row.source.fixed}
               onChange={(e) => patch(i, { ...row, source: { fixed: e.target.value } })} />
+          )}
+          <select aria-label="Swap with lookup" className={`${INPUT} min-w-32 flex-1`} value={row.lookup?.id ?? ""}
+            onChange={(e) => patch(i, { ...row, lookup: e.target.value ? { id: e.target.value, ifMissing: row.lookup?.ifMissing ?? "keep" } : undefined })}>
+            <option value="">No lookup</option>
+            {row.lookup && !lookups.some((l) => l.id === row.lookup!.id) && <option value={row.lookup.id}>A lookup that no longer exists</option>}
+            {lookups.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+          </select>
+          {row.lookup && (
+            <select aria-label="If it's not in the lookup" className={`${INPUT} min-w-32 flex-1`} value={row.lookup.ifMissing}
+              onChange={(e) => patch(i, { ...row, lookup: { id: row.lookup!.id, ifMissing: e.target.value as "keep" | "blank" } })}>
+              <option value="keep">Keep the value</option>
+              <option value="blank">Leave it blank</option>
+            </select>
           )}
           <Button type="button" variant="ghost" size="sm" disabled={i === 0} aria-label="Move up" onClick={() => move(i, -1)}>Up</Button>
           <Button type="button" variant="ghost" size="sm" disabled={i === rows.length - 1} aria-label="Move down" onClick={() => move(i, 1)}>Down</Button>
@@ -67,15 +83,17 @@ export function OutputEditor({ flow, output, previewDocumentId, hideDestination,
   const [destinationId, setDestinationId] = useState<string | null>(output?.destinationId ?? null);
   const [newDestination, setNewDestination] = useState(false);
   const [rows, setRows] = useState<SimpleOutput | null>(output ? toSimple(output.template) : null);
+  const [sendWhen, setSendWhen] = useState<SendWhen | null>(output?.sendWhen ?? null);
   const [problem, setProblem] = useState<string | null>(null);
 
   const destinations = useQuery({ queryKey: ["destinations"], queryFn: listDestinations, enabled: useTenantQueriesEnabled() });
+  const lookups = useQuery({ queryKey: ["lookups"], queryFn: listLookups, enabled: useTenantQueriesEnabled() });
   const external = !!current && !rows;
 
   const preview = useMutation({ mutationFn: () => previewOutput(previewDocumentId!, current!.id) });
   const save = useMutation({
     mutationFn: () => {
-      const body = { name: name.trim(), format, tableKey, destinationId };
+      const body = { name: name.trim(), format, tableKey, destinationId, sendWhen };
       if (!current) return createOutput(flow.id, body);
       return updateOutput(flow.id, current.id, { ...body, template: rows ? fromSimple(rows, format) : current.template });
     },
@@ -104,6 +122,7 @@ export function OutputEditor({ flow, output, previewDocumentId, hideDestination,
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return setProblem("Give this output a name.");
+    if (sendWhen && !sendWhen.value.trim()) return setProblem(COPY.send_when);
     if ([...(rows?.fields ?? []), ...(rows?.table?.columns ?? [])].some((r) => !r.name.trim()))
       return setProblem("Give every row a name.");
     save.mutate();
@@ -147,6 +166,32 @@ export function OutputEditor({ flow, output, previewDocumentId, hideDestination,
             onSaved={(d) => { setDestinationId(d.id); setNewDestination(false); qc.invalidateQueries({ queryKey: ["destinations"] }); }}
           />
         )}
+        {!hideDestination && (
+          <>
+            <Field label="Send when">
+              <select className={INPUT} value={sendWhen ? "only" : "always"}
+                onChange={(e) => setSendWhen(e.target.value === "only" ? { field: flow.fields.fields[0]?.key ?? "", op: "is", value: "" } : null)}>
+                <option value="always">Always</option>
+                <option value="only">Only when</option>
+              </select>
+            </Field>
+            {sendWhen && (
+              <div className="flex flex-wrap items-center gap-2">
+                <select aria-label="Field" className={`${INPUT} min-w-32 flex-1`} value={sendWhen.field}
+                  onChange={(e) => setSendWhen({ ...sendWhen, field: e.target.value })}>
+                  {fieldOptions.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+                </select>
+                <select aria-label="Condition" className={`${INPUT} min-w-24`} value={sendWhen.op}
+                  onChange={(e) => setSendWhen({ ...sendWhen, op: e.target.value as SendWhenOp })}>
+                  {Object.entries(OP_LABEL).map(([op, label]) => <option key={op} value={op}>{label}</option>)}
+                </select>
+                <input aria-label="Matches" className={`${INPUT} min-w-32 flex-1`} value={sendWhen.value}
+                  onChange={(e) => setSendWhen({ ...sendWhen, value: e.target.value })} />
+              </div>
+            )}
+            <p className="text-[12px] text-ink-muted">Send this output only for some documents, for example one output per recipient.</p>
+          </>
+        )}
         {external && (
           <p className="text-[12px] text-ink-muted">
             This output was set up outside this editor. You can change its name and destination here.
@@ -155,11 +200,11 @@ export function OutputEditor({ flow, output, previewDocumentId, hideDestination,
         {rows && (
           <>
             <p className="text-[12px] font-medium text-ink-muted">Values</p>
-            <RowList rows={rows.fields} options={fieldOptions} onChange={(fields) => setRows({ ...rows, fields })} />
+            <RowList rows={rows.fields} options={fieldOptions} lookups={lookups.data ?? []} onChange={(fields) => setRows({ ...rows, fields })} />
             {rows.table && (
               <>
                 <p className="text-[12px] font-medium text-ink-muted">{table?.label ?? "Table"} columns</p>
-                <RowList rows={rows.table.columns} options={columnOptions}
+                <RowList rows={rows.table.columns} options={columnOptions} lookups={lookups.data ?? []}
                   onChange={(columns) => setRows({ ...rows, table: { key: rows.table!.key, columns } })} />
               </>
             )}
@@ -175,6 +220,11 @@ export function OutputEditor({ flow, output, previewDocumentId, hideDestination,
         </div>
         {previewDocumentId && current && <p className="text-[12px] text-ink-muted">Preview shows the last saved version.</p>}
         {preview.isError && <StatusNotice tone="error">{documentRefusalMessage(preview.error)}</StatusNotice>}
+        {preview.data?.lookupMisses?.length ? Object.entries(missesByLookup(preview.data.lookupMisses)).map(([id, misses]) => (
+          <p key={id} className="m-0 text-[12px] text-ink-muted">
+            Not in “{lookups.data?.find((l) => l.id === id)?.name ?? "this lookup"}”: {misses.map((m) => m.value).join(", ")}.
+          </p>
+        )) : null}
         {preview.data && (
           <pre className="max-h-72 overflow-auto rounded border border-border bg-surface2 p-2.5 font-mono text-[12px] text-ink">
             {preview.data.content}

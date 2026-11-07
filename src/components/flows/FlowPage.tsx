@@ -18,6 +18,7 @@ import { documentRefusalMessage } from "@/lib/documentRefusals";
 import { documentStatus } from "@/lib/documentStatusManifest";
 import { AUTOMATIC_DELIVERY_LABEL, REVIEW_BEFORE_DELIVERY_LABEL } from "@/lib/deliveryMode";
 import { fieldListFromRead } from "@/lib/flowFieldModel";
+import { describeSendWhen } from "@/lib/flowOutputModel";
 import { INPUT } from "./DestinationForm";
 import { DocumentList } from "./DocumentList";
 import { FieldListEditor } from "./FieldListEditor";
@@ -99,7 +100,10 @@ function Outputs({ flow, previewDocumentId }: { flow: Flow; previewDocumentId?: 
       {outputs.data.map((o) => (
         <Card key={o.id} dense>
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="text-[13.5px] font-medium">{o.name}</span>
+            <span className="grid">
+              <span className="text-[13.5px] font-medium">{o.name}</span>
+              {describeSendWhen(o.sendWhen, flow.fields) && <span className="text-[12px] text-ink-muted">{describeSendWhen(o.sendWhen, flow.fields)}</span>}
+            </span>
             <span className="text-[12px] text-ink-muted">{Object.hasOwn(FORMATS, o.format) ? FORMATS[o.format as keyof typeof FORMATS] : o.format} · {destinationName(destinations, o.destinationId)}</span>
             <span className="flex gap-2">
               <Button size="sm" variant="secondary" onClick={() => setEditing(o)}>Edit</Button>

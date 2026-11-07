@@ -77,6 +77,9 @@ function useCrumbContext(segments: string[]): CrumbContext {
     ctx.documentName = doc?.fileName ?? null;
   }
 
+  // /lookups/[id]
+  if (segments[0] === "lookups" && segments[1]) ctx.lookupName = qc.getQueryData<{ name?: string }>(["lookup", segments[1]])?.name ?? null;
+
   return ctx;
 }
 

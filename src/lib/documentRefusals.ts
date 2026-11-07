@@ -28,6 +28,14 @@ export const COPY: Record<string, string> = {
   invalid_name: "Use a name of 120 characters or fewer.",
   pilot_expired: "Your trial has ended, so new documents aren't being accepted.",
   order_limit_reached: "You've reached your plan's document limit for this month.",
+  no_output_matches: "No output is set to send this document. Check “Send when” on the flow's outputs.",
+  lookup_in_use: "An output uses this lookup. Remove it from the output first.",
+  send_when: "Choose a field and a value for “Send when”, or set it to Always.",
+  lookup: "A lookup this output uses no longer exists. Choose another, or remove the swap.",
+  lookup_unavailable: "A lookup this output uses no longer exists. Choose another, or remove the swap.",
+  lookup_not_found: "This lookup no longer exists.",
+  output_invalid: "An output couldn't be made from this document. Check the flow's outputs.",
+  lookup_invalid: "Check the rows: each needs a “From” value, and each “From” can appear only once.",
   scanned_not_supported: "This looks like a scanned document, which can't be read yet.",
 };
 
@@ -50,10 +58,11 @@ export function documentRefusalMessage(error: unknown): string {
   const token = refusalToken(error);
   const detail = field(error, "detail");
   if (token === "output_invalid") {
+    if (detail && Object.hasOwn(COPY, detail)) return COPY[detail];
     const output = field(error, "output");
     return `The output${output ? ` "${output}"` : ""} couldn't be made${detail ? `: ${detail}` : "."}`;
   }
-  if (token === "invalid_destination" || token === "invalid_intake" || token === "invalid_fields") return detail ?? GENERIC;
+  if (token === "invalid_destination" || token === "invalid_intake" || token === "invalid_fields" || token === "lookup_invalid") return detail ?? GENERIC;
   if (token && LIMIT_CODES.has(token))
     return token === "pilot_expired" ? COPY.pilot_expired : COPY.order_limit_reached;
   if (error instanceof ApiHttpError && error.status === 413 && !token) return COPY.file_too_large;

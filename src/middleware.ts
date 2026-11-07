@@ -22,6 +22,7 @@ export const PROTECTED_ROUTE_PATTERNS = [
   "/documents(.*)",
   "/upload(.*)",
   "/flows(.*)",
+  "/lookups(.*)",
   "/library(.*)",
   "/operations(.*)",
   "/settings(.*)",

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { OutputNode, OutputNodeTemplate } from "@/lib/api/types";
-import { fromSimple, toSimple } from "@/lib/flowOutputModel";
+import { describeSendWhen, fromSimple, toSimple } from "@/lib/flowOutputModel";
 
 // Shaped like DefaultOutputTemplate.For(...) for csv: leaves named by label, one table "lines" of two columns.
 const leaf = (name: string, canonicalField: string): OutputNode => ({
@@ -32,5 +32,21 @@ describe("flowOutputModel", () => {
     const withManipulator = structuredClone(template);
     withManipulator.root.children![0].rule!.fieldManipulators = [{ type: "Trim" } as never];
     expect(toSimple(withManipulator)).toBeNull();
+  });
+
+  it("round-trips a lookup row and still refuses a mixed chain", () => {
+    const row = { name: "code", source: { field: "code" }, lookup: { id: "L1", ifMissing: "blank" as const } };
+    const out = fromSimple({ fields: [row], table: null }, "csv");
+    expect(toSimple(out)).toEqual({ fields: [row], table: null });
+
+    out.root.children![0].rule!.fieldManipulators = [
+      { type: "Lookup", params: ["L1", "blank"] },
+      { type: "Trim" },
+    ] as never;
+    expect(toSimple(out)).toBeNull();
+
+    const fields = { fields: [{ key: "supplier", label: "Supplier", type: "text", meaning: null, required: false }], tables: [] };
+    expect(describeSendWhen({ field: "supplier", op: "is_not", value: "Acme" }, fields)).toBe("Only when Supplier is not “Acme”");
+    expect(describeSendWhen(null, fields)).toBeNull();
   });
 });

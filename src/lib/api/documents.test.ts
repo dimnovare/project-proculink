@@ -5,7 +5,7 @@ vi.mock("./core", async (importOriginal) => {
   return { ...actual, authHeader: async () => ({}), API_BASE_URL: "http://api.test", isApiMockMode: false };
 });
 
-import { editDocumentValues, getDocument, getFlow, sendDocument, uploadDocument } from "./documents";
+import { editDocumentValues, getDocument, getFlow, sendDocument, updateLookup, uploadDocument } from "./documents";
 
 const fetchMock = vi.fn();
 const json = (body: unknown) => new Response(JSON.stringify(body), { status: 200 });
@@ -61,5 +61,17 @@ describe("documents api", () => {
     expect(String(fetchMock.mock.calls[0][0])).toContain("/flows/a%2Fb");
     await expect((async () => getDocument(".."))()).rejects.toThrow("Invalid id");
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("updateLookup PUTs the whole table", async () => {
+    fetchMock.mockResolvedValue(json({ id: "L1" }));
+    const body = { name: "Item codes", entries: [{ from: "BLT-10", to: "A-7" }] };
+
+    await updateLookup("L1", body);
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toMatch(/\/api\/lookups\/L1$/);
+    expect(init.method).toBe("PUT");
+    expect(init.body).toBe('{"name":"Item codes","entries":[{"from":"BLT-10","to":"A-7"}]}');
   });
 });

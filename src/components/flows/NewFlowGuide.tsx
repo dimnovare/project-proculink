@@ -58,7 +58,7 @@ function DestinationStep({ flow, output, onDone }: { flow: Flow; output: FlowOut
       choice === output.destinationId
         ? Promise.resolve(output)
         : updateOutput(flow.id, output.id, {
-            name: output.name, format: output.format, tableKey: output.tableKey, template: output.template, destinationId: choice,
+            name: output.name, format: output.format, tableKey: output.tableKey, template: output.template, sendWhen: output.sendWhen, destinationId: choice,
           }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["outputs", flow.id] }); onDone(); },
   });
