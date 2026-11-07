@@ -39,6 +39,7 @@ import { getOrderExceptions } from "@/lib/api-client";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { StatusNotice } from "../layout/StatusNotice";
 import type { OrderException } from "@/types/procurement";
+import type { WorkshopIssue } from "./IssuesPanel";
 
 /**
  * The rows worth interrupting the send decision for: order-scoped (a line-scoped
@@ -57,6 +58,17 @@ export function openOrderLevelExceptions(
   return rows.filter(
     (e) => !e.lineId && !e.resolvedAt && (e.state == null || e.state === "open"),
   );
+}
+
+/**
+ * An invoice's failed checks (`invoice_check`) block sending: the backend holds the invoice until
+ * they are fixed. They join the screen's one issue list as blockers, and the notice below leaves
+ * them out so they are reported once.
+ */
+export function invoiceCheckIssues(rows: OrderException[] | undefined): WorkshopIssue[] {
+  return openOrderLevelExceptions(rows)
+    .filter((e) => e.code === "invoice_check")
+    .map((e) => ({ code: `invoice_check:${e.id}`, severity: "blocking" as const, ref: "", title: e.message }));
 }
 
 export function OrderExceptionsNotice({ orderId }: { orderId: string }) {
@@ -92,7 +104,7 @@ export function OrderExceptionsNotice({ orderId }: { orderId: string }) {
     );
   }
 
-  const open = openOrderLevelExceptions(data);
+  const open = openOrderLevelExceptions(data).filter((e) => e.code !== "invoice_check");
   if (open.length === 0) return null;
 
   // Short plain framing only — the substance is the server's own sentence(s).

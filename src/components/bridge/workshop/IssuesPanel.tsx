@@ -522,7 +522,7 @@ function IssueActions({
             {issue.fixAction.label}
           </button>
         )}
-        {whereButton}
+        {issue.ref && whereButton}
       </div>
     );
   }
@@ -622,7 +622,7 @@ function IssueActions({
   }
 
   // Unknown kind → the read-only jump.
-  return <div style={actionRow}>{whereButton}</div>;
+  return <div style={actionRow}>{issue.ref && whereButton}</div>;
 }
 
 /**

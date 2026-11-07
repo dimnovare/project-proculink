@@ -804,6 +804,7 @@ function MobileIssueControls({
   // No inline resolution (header rule-failure / missing API) → the honest
   // "view on a larger screen" affordance (unchanged).
   if (!canResolveLine || issue.kind === "rule-failure") {
+    if (!issue.ref) return null; // no field to point at (an invoice check)
     return (
       <button
         type="button"

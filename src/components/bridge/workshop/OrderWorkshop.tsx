@@ -26,7 +26,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CircleCheck } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { apiClient, getMappingOverride, previewMappingOverride, promoteMapping } from "@/lib/api-client";
+import { apiClient, getMappingOverride, getOrderExceptions, previewMappingOverride, promoteMapping } from "@/lib/api-client";
 import { getAcceptanceGate } from "@/lib/api/acceptance-gate";
 import { getDeliveryConfig } from "@/lib/api/delivery";
 import { deliveryConfigQueryKey } from "@/lib/deliveryConfigCache";
@@ -71,7 +71,7 @@ import {
 } from "@/lib/sourceDocument";
 import { sendBarLabel, deliveryBarMode } from "./sendBarLabel";
 import { InboxBackChip, WorkshopGateShell, poTitleFrom } from "./WorkshopGateChrome";
-import { OrderExceptionsNotice } from "./OrderExceptionsNotice";
+import { OrderExceptionsNotice, invoiceCheckIssues } from "./OrderExceptionsNotice";
 import { ParsingGate } from "./ParsingGate";
 import { IssuesPanel, type WorkshopIssue, type IssuesResolveApi } from "./IssuesPanel";
 import { CatalogHintCard } from "../review/CatalogHintCard";
@@ -535,14 +535,22 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
     prevQueueRef.current = next;
     return next;
   }, [order, validationResult]);
-  // The ONE issue list every surface reads. The server's blocking acceptance rows
+  // Same key and options as OrderExceptionsNotice, so both read one cache entry.
+  const { data: orderExceptions } = useQuery({
+    queryKey: ["order-exceptions", orderId],
+    queryFn: () => getOrderExceptions(orderId),
+    enabled: queryEnabled,
+    staleTime: 30_000,
+    retry: 1,
+  });
+  // The ONE issue list every surface reads. An invoice's failed checks block too. The server's blocking acceptance rows
   // lead: they are the only entries that are certain to be refused on send, and
   // folding them in here is what carries them to the desktop IssuesPanel, the
   // status-bar blocker chips, the reduced sub-lg MobileTriage list, and
   // `blockingIssues` → `canSend` — one merge, every breakpoint.
   const issues = useMemo(
-    () => [...acceptanceBlockers, ...fixQueueToIssues(fixQueue)],
-    [acceptanceBlockers, fixQueue],
+    () => [...acceptanceBlockers, ...invoiceCheckIssues(orderExceptions), ...fixQueueToIssues(fixQueue)],
+    [acceptanceBlockers, orderExceptions, fixQueue],
   );
 
   // ── Mobile triage summary counts ("What we received") — distinct populated
