@@ -222,7 +222,7 @@ export function buildCrumbTrail(pathname: string, ctx: CrumbContext = {}): Crumb
     // A group-root at index 0 (e.g. "library") has no index route — never link it.
     const isUnlinkedGroupRoot = index === 0 && UNLINKED_GROUP_ROOTS.has(segment);
     // /flows/[id]/documents has no page of its own.
-    const isFlowDocuments = segments[0] === "flows" && (segment === "documents" || segment === "outputs");
+    const isFlowDocuments = segments[0] === "flows" && (segment === "documents" || segment === "outputs" || segments[index - 1] === "outputs");
     return {
       label: formatCrumbLabel(segment, index, segments, ctx),
       href: isLast || isUnlinkedGroupRoot || isFlowDocuments ? null : crumbHref(segments, index),

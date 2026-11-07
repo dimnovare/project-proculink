@@ -835,6 +835,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
   // ── The two value columns (shared by both layouts) ──────────────────────────
   const incomingNode = (
     <IncomingPane
+      flow={variant === "flow"}
       fields={model.sourceFields}
       query={query}
       onQuery={setQuery}
@@ -902,7 +903,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
       snapTarget={wire.hoverTarget}
       onDisconnect={model.onTargetDisconnect}
       onSetFixedValue={model.onSetFixedValue}
-      onAddField={model.onAddField}
+      onAddField={variant === "flow" ? undefined : model.onAddField}
       canonicalOptions={model.canonicalNodes}
       badgeSlot={badgeSlot}
       manipulatorsOf={(field) => fieldManipulatorsOf(model.override, field.outputPath)}

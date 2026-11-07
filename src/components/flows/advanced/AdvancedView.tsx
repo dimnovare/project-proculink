@@ -32,17 +32,17 @@ export function AdvancedView({ flowId, outputId, documentId }: { flowId: string;
   const read = doc.data?.read ?? null;
   const adapter = useMemo(
     () =>
-      flow.data && output
+      flow.data && output && !newest.isLoading && !(id && doc.isLoading)
         ? flowMapperAdapter({
             flow: flow.data, output, documentId: id, read,
             onSaved: (saved: FlowOutput) =>
               qc.setQueryData<FlowOutput[]>(["outputs", flowId], (list) => list?.map((o) => (o.id === saved.id ? saved : o))),
           })
         : null,
-    [flow.data, output, id, read, qc, flowId],
+    [flow.data, output, id, read, qc, flowId, newest.isLoading, doc.isLoading],
   );
 
-  const failed = flow.isError ? flow : outputs.isError ? outputs : null;
+  const failed = [flow, outputs, newest, doc].find((q) => q.isError) ?? null;
   const missing = outputs.data && !output;
   return (
     <PageShell variant="wide">
@@ -60,7 +60,7 @@ export function AdvancedView({ flowId, outputId, documentId }: { flowId: string;
           : (
             <div data-testid="advanced-workbench">
               <MapperWorkbench
-                variant="flow" adapter={adapter} supplierName={output.name} hideToolbar
+                variant="flow" adapter={adapter} supplierName={output.name} hideToolbar hideOrientation
                 emptyHint="Upload a document to this flow to see a preview."
                 layout={{ incomingView, onIncomingView: setIncomingView }}
                 receivedDocument={{

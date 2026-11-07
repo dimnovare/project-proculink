@@ -52,7 +52,12 @@ describe("AdvancedView", () => {
     expect((await bench.findAllByText("INV-1")).length).toBeGreaterThan(0);
     expect(bench.getAllByText("What we received").length).toBeGreaterThan(0);
     expect(bench.getByText("Invoice number")).toBeTruthy();
-    expect(screen.getByTestId("advanced-workbench").textContent).not.toMatch(/mapping|binding|canonical|manipulator|token/i);
+    const root = screen.getByTestId("advanced-workbench");
+    const words = /\bmap(s|ped|ping)?\b|unmapped|binding|canonical|manipulator|token|\border\b/i;
+    const attrs = [...root.querySelectorAll("[title],[aria-label]")].flatMap((e) => [e.getAttribute("title"), e.getAttribute("aria-label")]);
+    expect(root.textContent).not.toMatch(words);
+    expect(attrs.filter((t) => t && words.test(t))).toEqual([]);
+    expect(bench.queryByRole("button", { name: /add output field/i })).toBeNull();
   });
 
   it("with no document, the fields still show and the preview says why", async () => {

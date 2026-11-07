@@ -315,7 +315,7 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
               merely implied by a missing badge. */}
           {content && !err && (
             <span
-              title="ProcuLink built this document from your current mapping. It has not been checked against a standard."
+              title={preview ? undefined : "ProcuLink built this document from your current mapping. It has not been checked against a standard."}
               style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "2px 8px", borderRadius: 999, background: "#F1F3F7", color: "#5E6779", fontSize: 10.5, fontWeight: 600 }}
             >
               <svg width="11" height="11" viewBox="0 0 16 16" fill="none" aria-hidden><path d="M9.2 2H4.5A1.5 1.5 0 0 0 3 3.5v9A1.5 1.5 0 0 0 4.5 14h7a1.5 1.5 0 0 0 1.5-1.5V6.3z" stroke="#5E6779" strokeWidth="1.6" strokeLinejoin="round" /></svg>
