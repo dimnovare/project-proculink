@@ -21,11 +21,12 @@ import { fieldListFromRead } from "@/lib/flowFieldModel";
 import { INPUT } from "./DestinationForm";
 import { DocumentList } from "./DocumentList";
 import { FieldListEditor } from "./FieldListEditor";
+import { FlowIntakePanel } from "./FlowIntakePanel";
 import { FlowUpload } from "./FlowUpload";
 import { FORMATS, OutputEditor } from "./OutputEditor";
 import { destinationName, Failed, Quiet } from "./states";
 
-const TABS = [["documents", "Documents"], ["fields", "Fields"], ["outputs", "Outputs"]] as const;
+const TABS = [["documents", "Documents"], ["fields", "Fields"], ["outputs", "Outputs"], ["intake", "Intake"]] as const;
 type Tab = (typeof TABS)[number][0];
 const AUTOMATION = [["review", REVIEW_BEFORE_DELIVERY_LABEL], ["auto", AUTOMATIC_DELIVERY_LABEL]] as const;
 
@@ -150,6 +151,8 @@ export function FlowPage({ flowId }: { flowId: string }) {
           : <Card flush><DocumentList documents={docs.data} showFlow={false} /></Card>}
       </div>
     );
+  } else if (tab === "intake") {
+    body = <FlowIntakePanel flowId={flowId} />;
   } else if (!flow.data) {
     body = null;
   } else if (tab === "outputs") {
