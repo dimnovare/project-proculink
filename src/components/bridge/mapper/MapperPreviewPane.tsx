@@ -387,7 +387,7 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
           the recurring defect in this repo is an absent answer rendering as the favourable one,
           and a missing badge is exactly that shape. */}
       <div style={{ flexShrink: 0, padding: "8px 16px", fontSize: 11, color: "#5E6779", background: "#FBFBFD", borderBottom: "1px solid #EEF0F4", lineHeight: 1.5 }}>
-        This is exactly what {supplierName ? supplierName : "the supplier"} receives. Switch formats to preview a different output type. Producing this document is not a check — nothing here has been checked against a standard.
+        This is exactly what {supplierName ? supplierName : "the supplier"} receives.{!preview && " Switch formats to preview a different output type."} Producing this document is not a check — nothing here has been checked against a standard.
       </div>
 
       {info && !preview && (

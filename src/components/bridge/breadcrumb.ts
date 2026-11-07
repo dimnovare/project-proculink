@@ -25,6 +25,8 @@ export const CRUMB_LABELS: Record<string, string> = {
   inbox: HUB_LABELS.orders,
   upload: "Upload",
   flows: "Flows",
+  outputs: "Outputs",
+  advanced: "Advanced view",
   lookups: "Lookups",
   settings: "Settings",
   library: "Library",
@@ -101,6 +103,8 @@ export interface CrumbContext {
   flowName?: string | null;
   /** File name for /flows/[id]/documents/[id]. */
   documentName?: string | null;
+  /** Output name for /flows/[id]/outputs/[id]/advanced. */
+  outputName?: string | null;
   /** Lookup name for /lookups/[id]. */
   lookupName?: string | null;
 }
@@ -137,6 +141,7 @@ export function formatCrumbLabel(
     // /flows/[id] and /flows/[id]/documents/[id]
     if (parent === "flows") return ctx.flowName?.trim() || `Flow ${shortId(segment)}`;
     if (parent === "documents" && segments[0] === "flows") return ctx.documentName?.trim() || `Document ${shortId(segment)}`;
+    if (parent === "outputs" && segments[0] === "flows") return ctx.outputName?.trim() || `Output ${shortId(segment)}`;
     if (parent === "lookups") return ctx.lookupName?.trim() || `Lookup ${shortId(segment)}`;
 
     // /inbox/[orderId]
@@ -217,7 +222,7 @@ export function buildCrumbTrail(pathname: string, ctx: CrumbContext = {}): Crumb
     // A group-root at index 0 (e.g. "library") has no index route — never link it.
     const isUnlinkedGroupRoot = index === 0 && UNLINKED_GROUP_ROOTS.has(segment);
     // /flows/[id]/documents has no page of its own.
-    const isFlowDocuments = segments[0] === "flows" && segment === "documents";
+    const isFlowDocuments = segments[0] === "flows" && (segment === "documents" || segment === "outputs");
     return {
       label: formatCrumbLabel(segment, index, segments, ctx),
       href: isLast || isUnlinkedGroupRoot || isFlowDocuments ? null : crumbHref(segments, index),

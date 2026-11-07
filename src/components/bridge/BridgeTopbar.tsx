@@ -75,6 +75,8 @@ function useCrumbContext(segments: string[]): CrumbContext {
     const doc = segments[3] ? qc.getQueryData<{ summary?: { fileName?: string; flowName?: string } }>(["document", segments[3]])?.summary : undefined;
     ctx.flowName = qc.getQueryData<{ name?: string }>(["flow", segments[1]])?.name ?? doc?.flowName ?? null;
     ctx.documentName = doc?.fileName ?? null;
+    if (segments[2] === "outputs" && segments[3])
+      ctx.outputName = qc.getQueryData<{ id: string; name?: string }[]>(["outputs", segments[1]])?.find((o) => o.id === segments[3])?.name ?? null;
   }
 
   // /lookups/[id]

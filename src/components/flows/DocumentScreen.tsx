@@ -55,7 +55,7 @@ function History({ documentId }: { documentId: string }) {
   );
 }
 
-function Original({ documentId, fileName }: { documentId: string; fileName: string }) {
+export function Original({ documentId, fileName }: { documentId: string; fileName: string }) {
   const isLg = useLgViewport();
   const enabled = useTenantQueriesEnabled();
   const source = useQuery({ queryKey: ["document-source", documentId], queryFn: () => fetchDocumentSource(documentId), enabled });

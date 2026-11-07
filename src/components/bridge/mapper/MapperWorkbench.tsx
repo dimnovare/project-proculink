@@ -1169,7 +1169,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
           refused while the flag is set (useMapperModel.apply), so without a sentence here
           the operator would drag a wire, watch nothing happen, and have no way to tell a
           refusal from a broken page. Says what is paused, why, and what to do. ───────── */}
-      {model.overrideUnavailable && (
+      {model.overrideUnavailable && variant !== "flow" && (
         <div
           role="alert"
           data-testid="mapper-override-unavailable"
@@ -1252,7 +1252,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
       )}
 
       {/* ── Mobile read-only summary ────────────────────────────────────── */}
-      <div className="lg:hidden">
+      {variant !== "flow" && <div className="lg:hidden">
         <MapperMobileSummary
           incomingCount={model.sourceFields.length}
           outputCount={model.targetFields.length}
@@ -1272,7 +1272,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
             )}
           </div>
         )}
-      </div>
+      </div>}
 
       {extractionFailed && (
         <div

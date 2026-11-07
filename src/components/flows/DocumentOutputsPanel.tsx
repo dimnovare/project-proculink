@@ -100,7 +100,10 @@ export function DocumentOutputsPanel({ flowId, document: doc }: { flowId: string
                   {o.sendWhen && <span className="text-[12px] text-ink-muted">{describeSendWhen(o.sendWhen, flow.data?.fields)}</span>}
                 </span>
                 <span className="text-[12px] text-ink-muted">{Object.hasOwn(FORMATS, o.format) ? FORMATS[o.format as keyof typeof FORMATS] : o.format} · {destinationName(destinations, o.destinationId)}</span>
-                <Button size="sm" variant="secondary" loading={preview.isPending && preview.variables === o.id} onClick={() => preview.mutate(o.id)}>Preview</Button>
+                <span className="flex gap-2">
+                  <Button size="sm" variant="secondary" loading={preview.isPending && preview.variables === o.id} onClick={() => preview.mutate(o.id)}>Preview</Button>
+                  <Link href={`/flows/${flowId}/outputs/${o.id}/advanced?document=${documentId}`} className="inline-flex items-center rounded border border-border px-2.5 text-[12.5px] font-medium text-ink">Open in Advanced</Link>
+                </span>
               </div>
               {preview.isError && preview.variables === o.id && <StatusNotice tone="error">{documentRefusalMessage(preview.error)}</StatusNotice>}
               {preview.data && preview.variables === o.id && (

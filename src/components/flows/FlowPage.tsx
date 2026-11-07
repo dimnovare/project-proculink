@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
@@ -107,6 +108,7 @@ function Outputs({ flow, previewDocumentId }: { flow: Flow; previewDocumentId?: 
             <span className="text-[12px] text-ink-muted">{Object.hasOwn(FORMATS, o.format) ? FORMATS[o.format as keyof typeof FORMATS] : o.format} · {destinationName(destinations, o.destinationId)}</span>
             <span className="flex gap-2">
               <Button size="sm" variant="secondary" onClick={() => setEditing(o)}>Edit</Button>
+              <Link href={`/flows/${flow.id}/outputs/${o.id}/advanced`} className="inline-flex items-center rounded border border-border px-2.5 text-[12.5px] font-medium text-ink">Open in Advanced</Link>
               <Button size="sm" variant="ghost" loading={remove.isPending && remove.variables === o.id} onClick={() => ask(o)}>Delete</Button>
             </span>
           </div>
