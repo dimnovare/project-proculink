@@ -36,6 +36,8 @@ export const COPY: Record<string, string> = {
   lookup_not_found: "This lookup no longer exists.",
   output_invalid: "An output couldn't be made from this document. Check the flow's outputs.",
   lookup_invalid: "Check the rows: each needs a “From” value, and each “From” can appear only once.",
+  lookup_suggestions_off: "AI suggestions aren't switched on for this workspace.",
+  ai_usage_cap: "This workspace has used this month's AI allowance.",
   scanned_not_supported: "This looks like a scanned document, which can't be read yet.",
 };
 

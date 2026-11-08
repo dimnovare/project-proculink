@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { importLookupCsv, exportLookupCsv } from "./lookupCsv";
+import { importLookupCsv, exportLookupCsv, importCandidateCsv } from "./lookupCsv";
 
 describe("lookup CSV", () => {
   it("imports an Excel-style CSV and lets the later row win", () => {
@@ -22,5 +22,14 @@ describe("lookup CSV", () => {
     const rows600 = Array.from({ length: 600 }, (_, k) => `K${k},V${k}`);
     const big = ["From,To", ...rows600].join(String.fromCharCode(10));
     expect(importLookupCsv(big, [], true).added).toBe(600);
+  });
+
+  it("reads a list to choose from: column 1 is the value, the rest describe it", () => {
+    const csv = ["\uFEFFCode,Name,Unit", "SUP-1,Pilsner bottle,0.5L", "'=SUP-2,,", "sup-1,Pilsner can,", ",orphan,", `LONG-1,${"x".repeat(600)},`, ""].join("\n");
+    expect(importCandidateCsv(csv, true)).toEqual([
+      { value: "sup-1", description: "Pilsner can" },
+      { value: "=SUP-2", description: null },
+      { value: "LONG-1", description: "x".repeat(500) },
+    ]);
   });
 });

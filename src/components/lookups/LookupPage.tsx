@@ -11,10 +11,10 @@ import { Button } from "@/components/bridge/DSPrimitives";
 import { Field, INPUT } from "@/components/flows/DestinationForm";
 import { Quiet } from "@/components/flows/states";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
-import { deleteLookup, getLookup, updateLookup, type Lookup, type LookupEntry } from "@/lib/api/documents";
+import { deleteLookup, getLookup, updateLookup, type Lookup, type LookupCandidate, type LookupEntry } from "@/lib/api/documents";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
 import { saveBlob } from "@/lib/saveBlob";
-import { exportLookupCsv, importLookupCsv } from "@/lib/lookupCsv";
+import { exportLookupCsv, importCandidateCsv, importLookupCsv } from "@/lib/lookupCsv";
 
 const readText = (file: File) =>
   new Promise<string>((resolve, reject) => {
@@ -29,16 +29,20 @@ function LookupEditor({ lookup }: { lookup: Lookup }) {
   const qc = useQueryClient();
   const [name, setName] = useState(lookup.name);
   const [entries, setEntries] = useState<LookupEntry[]>(lookup.entries);
+  const [candidates, setCandidates] = useState<LookupCandidate[]>(lookup.candidates ?? []);
   const [headings, setHeadings] = useState(true);
   const [note, setNote] = useState<{ tone: "success" | "error"; text: string } | null>(null);
   const [confirming, setConfirming] = useState(false);
 
   const save = useMutation({
-    mutationFn: () => updateLookup(lookup.id, { name: name.trim(), entries: entries.filter((e) => e.from.trim() || e.to.trim()) }),
+    mutationFn: () => updateLookup(lookup.id, { name: name.trim(), entries: entries.filter((e) => e.from.trim() || e.to.trim()),
+        ...(lookup.suggestionsOn ? { candidates } : {}),
+      }),
     onSuccess: () => {
       setNote({ tone: "success", text: "Saved." });
       qc.invalidateQueries({ queryKey: ["lookups"] });
       qc.invalidateQueries({ queryKey: ["lookup", lookup.id] });
+      qc.removeQueries({ queryKey: ["lookup-suggestions"] });
     },
     onError: () => setNote(null),
   });
@@ -71,6 +75,19 @@ function LookupEditor({ lookup }: { lookup: Lookup }) {
     }
   };
 
+  const onListFile = async (input: HTMLInputElement) => {
+    const file = input.files?.[0];
+    input.value = "";
+    if (!file) return;
+    try {
+      const list = importCandidateCsv(await readText(file), headings);
+      setCandidates(list);
+      setNote({ tone: "success", text: `Imported ${list.length === 1 ? "1 value" : `${list.length} values`}.` });
+    } catch {
+      setNote({ tone: "error", text: "We couldn't read that file." });
+    }
+  };
+
   const download = () => saveBlob(new Blob([exportLookupCsv(entries)], { type: "text/csv" }), `${name || "lookup"}.csv`);
 
   const refusal = save.error ?? remove.error;
@@ -94,6 +111,26 @@ function LookupEditor({ lookup }: { lookup: Lookup }) {
               </label>
               <Button variant="secondary" size="sm" onClick={download}>Export CSV</Button>
             </div>
+            {lookup.suggestionsOn && (
+              <div className="flex flex-col gap-2 border-t border-border pt-3">
+                <h2 className="text-[13px] font-semibold text-ink">Values to choose from</h2>
+                <p className="text-[12px] text-ink-muted">
+                  AI suggestions only pick from this list — for example, your supplier&apos;s product list. Column 1 is the value; any other columns describe it.
+                </p>
+                <div className="flex flex-wrap items-center gap-3 text-[13px]">
+                  <span className="text-ink-muted">
+                    {candidates.length === 0 ? "No list yet." : candidates.length === 1 ? "1 value" : `${candidates.length} values`}
+                  </span>
+                  <label className="font-medium text-ink">
+                    <span className="mr-2">Import list (CSV)</span>
+                    <input type="file" accept=".csv,text/csv" onChange={(e) => onListFile(e.target)} />
+                  </label>
+                  {candidates.length > 0 && (
+                    <Button variant="secondary" size="sm" onClick={() => { setNote(null); setCandidates([]); }}>Clear list</Button>
+                  )}
+                </div>
+              </div>
+            )}
             <table className="w-full text-[13px]">
               <thead>
                 <tr className="text-left text-[12px] text-ink-muted"><th>From</th><th>To</th><th /></tr>

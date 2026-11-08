@@ -14,6 +14,7 @@ import { describeSendWhen } from "@/lib/flowOutputModel";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
 import { documentStatus } from "@/lib/documentStatusManifest";
 import { saveBlob } from "@/lib/saveBlob";
+import { LookupMisses } from "./LookupMisses";
 import { FORMATS } from "./OutputEditor";
 import { destinationName, Failed, Quiet } from "./states";
 
@@ -110,6 +111,9 @@ export function DocumentOutputsPanel({ flowId, document: doc }: { flowId: string
                 <div className="grid gap-1">
                   <span className="font-mono text-[11.5px] text-ink-muted">{preview.data.fileName}</span>
                   <pre className="m-0 max-h-72 overflow-auto rounded border border-border bg-surface2 p-2.5 font-mono text-[12px] text-ink">{preview.data.content}</pre>
+                  {preview.data.lookupMisses?.length ? (
+                    <LookupMisses documentId={documentId} outputId={o.id} misses={preview.data.lookupMisses} onChanged={() => preview.mutate(o.id)} />
+                  ) : null}
                 </div>
               )}
             </div>

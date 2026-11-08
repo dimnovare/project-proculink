@@ -44,4 +44,30 @@ describe("LookupPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Delete lookup" }));
     expect(await screen.findByText(/An output uses this lookup/)).toBeTruthy();
   });
+
+  it("shows the list to choose from only when suggestions are on, and saves it", async () => {
+    const wrap = () => (
+      <QueryClientProvider client={new QueryClient()}>
+        <LookupPage lookupId="l1" />
+      </QueryClientProvider>
+    );
+    getLookup.mockResolvedValue({ id: "l1", name: "Item codes", entries: [], updatedAt: "", candidates: [], suggestionsOn: false });
+    const off = render(wrap());
+    await screen.findByLabelText("Import CSV");
+    expect(screen.queryByText("Values to choose from")).toBeNull();
+    off.unmount();
+
+    getLookup.mockResolvedValue({ id: "l1", name: "Item codes", entries: [], updatedAt: "", candidates: [], suggestionsOn: true });
+    updateLookup.mockResolvedValue({});
+    render(wrap());
+    expect(await screen.findByText("No list yet.")).toBeTruthy();
+    const file = new File(["Code,Name\nSUP-1,Pilsner bottle"], "list.csv", { type: "text/csv" });
+    fireEvent.change(screen.getByLabelText("Import list (CSV)"), { target: { files: [file] } });
+    expect(await screen.findByText("Imported 1 value.")).toBeTruthy();
+    expect(screen.getByText("1 value")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() =>
+      expect(updateLookup).toHaveBeenCalledWith("l1", expect.objectContaining({ candidates: [{ value: "SUP-1", description: "Pilsner bottle" }] })),
+    );
+  });
 });

@@ -6,8 +6,9 @@ import { Button } from "@/components/bridge/DSPrimitives";
 import { Card } from "@/components/bridge/layout/Card";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { DestinationForm, Field, INPUT } from "@/components/flows/DestinationForm";
+import { LookupMisses } from "@/components/flows/LookupMisses";
 import { createOutput, listDestinations, listLookups, previewOutput, updateOutput } from "@/lib/api/documents";
-import type { Flow, FlowOutput, LookupMiss, LookupSummary, SendWhen, SendWhenOp } from "@/lib/api/documents";
+import type { Flow, FlowOutput, LookupSummary, SendWhen, SendWhenOp } from "@/lib/api/documents";
 import { COPY, documentRefusalMessage } from "@/lib/documentRefusals";
 import { fromSimple, OP_LABEL, toSimple } from "@/lib/flowOutputModel";
 import type { SimpleOutput, SimpleRow } from "@/lib/flowOutputModel";
@@ -16,9 +17,6 @@ import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 export const FORMATS = { csv: "CSV", xlsx: "Excel", json: "JSON", xml: "XML" };
 const FIXED = "\u0000fixed";
 const NEW_DESTINATION = "\u0000new";
-
-const missesByLookup = (misses: LookupMiss[]) =>
-  misses.reduce<Record<string, LookupMiss[]>>((by, m) => ((by[m.lookupId] ??= []).push(m), by), {});
 
 function RowList({ rows, options, lookups, onChange }: {
   rows: SimpleRow[]; options: { key: string; label: string }[]; lookups: LookupSummary[]; onChange(rows: SimpleRow[]): void;
@@ -220,11 +218,9 @@ export function OutputEditor({ flow, output, previewDocumentId, hideDestination,
         </div>
         {previewDocumentId && current && <p className="text-[12px] text-ink-muted">Preview shows the last saved version.</p>}
         {preview.isError && <StatusNotice tone="error">{documentRefusalMessage(preview.error)}</StatusNotice>}
-        {preview.data?.lookupMisses?.length ? Object.entries(missesByLookup(preview.data.lookupMisses)).map(([id, misses]) => (
-          <p key={id} className="m-0 text-[12px] text-ink-muted">
-            Not in “{lookups.data?.find((l) => l.id === id)?.name ?? "this lookup"}”: {misses.map((m) => m.value).join(", ")}.
-          </p>
-        )) : null}
+        {previewDocumentId && current && preview.data?.lookupMisses?.length ? (
+          <LookupMisses documentId={previewDocumentId} outputId={current.id} misses={preview.data.lookupMisses} onChanged={() => preview.mutate()} />
+        ) : null}
         {preview.data && (
           <pre className="max-h-72 overflow-auto rounded border border-border bg-surface2 p-2.5 font-mono text-[12px] text-ink">
             {preview.data.content}

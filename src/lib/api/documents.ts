@@ -74,8 +74,14 @@ export type SendWhenOp = "is" | "is_not" | "contains";
 export type SendWhen = { field: string; op: SendWhenOp; value: string };
 export type LookupEntry = { from: string; to: string };
 export type LookupMiss = { lookupId: string; value: string };
-export type LookupSummary = { id: string; name: string; count: number; updatedAt: string };
-export type Lookup = { id: string; name: string; entries: LookupEntry[]; updatedAt: string };
+export type LookupCandidate = { value: string; description: string | null };
+export type LookupSuggestion = { lookupId: string; value: string; to: string; confidence: number | null; description: string | null };
+export type LookupSummary = {
+  id: string; name: string; count: number; updatedAt: string; hasCandidates: boolean; suggestionsOn: boolean;
+};
+export type Lookup = {
+  id: string; name: string; entries: LookupEntry[]; updatedAt: string; candidates: LookupCandidate[]; suggestionsOn: boolean;
+};
 export interface OutputRequest {
   name: string; format: string; tableKey?: string | null; destinationId?: string | null; template?: OutputNodeTemplate | null;
   sendWhen?: SendWhen | null;
@@ -183,8 +189,17 @@ export const previewOutput = (documentId: string, outputId: string, template?: O
 export const listLookups = () => apiFetch<LookupSummary[]>(`/lookups`);
 export const getLookup = (id: string) => apiFetch<Lookup>(`/lookups/${seg(id)}`);
 export const createLookup = (name: string) => apiFetch<Lookup>(`/lookups`, { method: "POST", body: json({ name }) });
-export const updateLookup = (id: string, body: { name: string; entries: LookupEntry[] }) =>
+export const updateLookup = (id: string, body: { name: string; entries: LookupEntry[]; candidates?: LookupCandidate[] }) =>
   apiFetch<Lookup>(`/lookups/${seg(id)}`, { method: "PUT", body: json(body) });
+/** Sends no `candidates`, so the stored list is kept. */
+export const addLookupEntry = async (id: string, entry: LookupEntry) => {
+  const l = await getLookup(id);
+  return updateLookup(id, { name: l.name, entries: [...l.entries, entry] });
+};
+export const suggestLookupMatches = (documentId: string, outputId: string) =>
+  apiFetch<{ suggestions: LookupSuggestion[] }>(`/documents/${seg(documentId)}/outputs/${seg(outputId)}/preview?suggest=true`, {
+    method: "POST",
+  }, UPLOAD_TIMEOUT_MS).then((r) => r.suggestions);
 export const deleteLookup = (id: string) => apiFetch<void>(`/lookups/${seg(id)}`, { method: "DELETE" });
 
 export const sendDocument = (id: string) => apiFetch<DocumentDelivery[]>(`/documents/${seg(id)}/send`, { method: "POST" });
