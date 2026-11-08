@@ -128,6 +128,8 @@ export function PdfDocumentView({ cacheKey, blob, bounded, highlight }: PdfDocum
  */
 function PdfPageCanvas({ doc, pageNumber, box }: { doc: PDFDocumentProxy; pageNumber: number; box: Box | null }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  // Fit to the full-width row, never to the shrink-to-fit highlight wrapper around the canvas.
+  const rowRef = useRef<HTMLDivElement | null>(null);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
@@ -140,7 +142,7 @@ function PdfPageCanvas({ doc, pageNumber, box }: { doc: PDFDocumentProxy; pageNu
         const canvas = canvasRef.current;
         if (cancelled || !canvas) return;
 
-        const parentWidth = canvas.parentElement?.clientWidth ?? 620;
+        const parentWidth = rowRef.current?.clientWidth ?? 620;
         const base = pdfPage.getViewport({ scale: 1 });
         const fit = Math.max(parentWidth, 240) / base.width;
         const dpr = typeof window === "undefined" ? 1 : window.devicePixelRatio || 1;
@@ -174,7 +176,7 @@ function PdfPageCanvas({ doc, pageNumber, box }: { doc: PDFDocumentProxy; pageNu
   }, [doc, pageNumber]);
 
   return (
-    <div className="flex justify-center">
+    <div ref={rowRef} className="flex justify-center">
       {failed ? (
         <p className="px-3 py-4 text-[11.5px] leading-relaxed text-ink-faint">
           This page couldn&rsquo;t be drawn. Download the file to read it.
@@ -185,7 +187,7 @@ function PdfPageCanvas({ doc, pageNumber, box }: { doc: PDFDocumentProxy; pageNu
             ref={canvasRef}
             data-testid="source-document-pdf-canvas"
             aria-label={`Page ${pageNumber} of the received document`}
-            className="max-w-full border border-border bg-surface"
+            className="block max-w-full border border-border bg-surface"
           />
           {box && <SourceHighlight box={box} />}
         </div>

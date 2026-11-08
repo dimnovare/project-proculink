@@ -71,4 +71,19 @@ describe("highlight", () => {
     await screen.findByText("Page 3 of 3");
     expect(within(container).getByTestId("source-highlight")).toBeTruthy();
   });
+
+  it("the PDF page is sized to its row, not to the highlight wrapper", async () => {
+    const width = vi.spyOn(Element.prototype, "clientWidth", "get").mockImplementation(function (this: Element) {
+      return this.classList.contains("justify-center") ? 800 : 300;
+    });
+    try {
+      const blob = new Blob(["%PDF"], { type: "application/pdf" });
+      blob.arrayBuffer = async () => new ArrayBuffer(4);
+      render(wrap(<PdfDocumentView cacheKey="row" blob={blob} bounded={false} />));
+      const canvas = await screen.findByTestId("source-document-pdf-canvas");
+      await vi.waitFor(() => expect(canvas.style.width).toBe("800px"));
+    } finally {
+      width.mockRestore();
+    }
+  });
 });
