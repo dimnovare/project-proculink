@@ -103,6 +103,10 @@ export function sourceFormatLabel(contentType: string): string | null {
       return "XML";
     case "text/plain":
       return "TEXT";
+    case "image/png":
+      return "PNG";
+    case "image/jpeg":
+      return "JPG";
     default:
       return null;
   }
