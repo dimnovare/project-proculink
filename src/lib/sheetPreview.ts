@@ -85,6 +85,7 @@ export function parseCsvRows(text: string, delimiter: string, maxRows = MAX_PREV
   let field = "";
   let inQuotes = false;
   let sawAnyChar = false;
+  let quoted = false; // a quote opened a field on this row, so even an empty one is a record
 
   const endField = () => {
     row.push(field);
@@ -94,6 +95,7 @@ export function parseCsvRows(text: string, delimiter: string, maxRows = MAX_PREV
     endField();
     rows.push(row);
     row = [];
+    quoted = false;
   };
 
   for (let i = 0; i < text.length; i++) {
@@ -110,11 +112,12 @@ export function parseCsvRows(text: string, delimiter: string, maxRows = MAX_PREV
     }
     if (ch === '"') {
       inQuotes = true;
+      quoted = true;
     } else if (ch === delimiter) {
       endField();
     } else if (ch === "\n") {
       // A blank line is not a record (the backend reader skips it too).
-      if (row.length === 0 && field === "") continue;
+      if (row.length === 0 && field === "" && !quoted) continue;
       endRow();
       if (rows.length >= maxRows + 1) break;
     } else if (ch !== "\r") {
@@ -123,7 +126,7 @@ export function parseCsvRows(text: string, delimiter: string, maxRows = MAX_PREV
   }
   // A trailing newline must not manufacture an empty final row, but a file with no trailing
   // newline must keep its last one.
-  if (field.length > 0 || row.length > 0) endRow();
+  if (field.length > 0 || row.length > 0 || quoted) endRow();
   else if (!sawAnyChar) return [];
 
   return rows;

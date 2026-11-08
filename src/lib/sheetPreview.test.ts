@@ -31,6 +31,8 @@ describe("parseCsvRows", () => {
     expect(parseCsvRows("a,b\n\nc,d\n", ",")).toEqual([["a", "b"], ["c", "d"]]);
     expect(parseCsvRows('a,"x\n\ny"\n', ",")).toEqual([["a", "x\n\ny"]]);
     expect(parseCsvRows("a\n,,\n", ",")).toEqual([["a"], ["", "", ""]]);
+    expect(parseCsvRows('a\n""\nb\n', ",")).toEqual([["a"], [""], ["b"]]);
+    expect(parseCsvRows('a\n""', ",")).toEqual([["a"], [""]]);
   });
 
   it("handles quoted fields, doubled quotes and embedded newlines", () => {
