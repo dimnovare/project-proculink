@@ -36,6 +36,7 @@ import { OutputStructureDesigner } from "../OutputStructureDesigner";
 import { OutputMappingEditor } from "../OutputMappingEditor";
 import { useMapperWireLayer } from "./MapperWireLayer";
 import { useMapperModel } from "./useMapperModel";
+import type { MapperAdapter } from "./types";
 import type { IncomingOrderShape } from "./incomingFromOrder";
 import { MAPPER_EVENT, type MapperCommandEvent } from "./mapperCommands";
 import type { OutgoingStatusInput } from "./outgoingStatusModel";
@@ -146,7 +147,11 @@ export interface MapperToolbarState {
 export type MapperIssuesVerdict = "clear" | "problem" | "unknown";
 
 export interface MapperWorkbenchProps {
-  variant: "order" | "connection";
+  variant: "order" | "connection" | "flow";
+  /** Required for the flow variant: load / save / preview / sources come from it. */
+  adapter?: MapperAdapter;
+  /** Overrides the preview pane's empty hint. */
+  emptyHint?: string;
   orderId?: string;
   connectionId?: string;
   revisionId?: string;
@@ -312,10 +317,11 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
     outgoingHeaderExtra, outgoingBodyOverride, receivedDocument,
   } = props;
   const pickerMode = mappingMode === "picker";
-  const scopeId = (variant === "order" ? props.orderId : props.connectionId) ?? "";
+  const scopeId = (variant === "flow" ? props.adapter?.scope : variant === "order" ? props.orderId : props.connectionId) ?? "";
 
   const model = useMapperModel({
     variant,
+    adapter: props.adapter,
     scopeId,
     revisionId: props.revisionId,
     supplierId: props.supplierId,
@@ -564,7 +570,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
   // output's source; a raw token (id is a token id, NOT a canonical key) pins the output's value
   // to the token's literal (lossless + keeps the output-only save contract).
   const onWireConnect = useCallback((sourceId: string, outputPath: string) => {
-    if (knownCanonical.has(sourceId)) {
+    if (variant === "flow" || knownCanonical.has(sourceId)) {
       model.onTargetConnect(sourceId, outputPath);
     } else {
       const literal = model.tokenValueById.get(sourceId) ?? "";
@@ -573,7 +579,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
     }
     setSelectedId(outputPath);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [knownCanonical, model.onTargetConnect, model.onSetFixedValue, model.tokenValueById, model.targetFields]);
+  }, [variant, knownCanonical, model.onTargetConnect, model.onSetFixedValue, model.tokenValueById, model.targetFields]);
 
   // ── Collapse state for the incoming + preview panes (Order Workshop, Task 12a).
   //    `undefined` layout → never collapsed → today's full-width rendering. ──────
@@ -829,6 +835,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
   // ── The two value columns (shared by both layouts) ──────────────────────────
   const incomingNode = (
     <IncomingPane
+      flow={variant === "flow"}
       fields={model.sourceFields}
       query={query}
       onQuery={setQuery}
@@ -896,7 +903,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
       snapTarget={wire.hoverTarget}
       onDisconnect={model.onTargetDisconnect}
       onSetFixedValue={model.onSetFixedValue}
-      onAddField={model.onAddField}
+      onAddField={variant === "flow" ? undefined : model.onAddField}
       canonicalOptions={model.canonicalNodes}
       badgeSlot={badgeSlot}
       manipulatorsOf={(field) => fieldManipulatorsOf(model.override, field.outputPath)}
@@ -926,10 +933,12 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
       defaultFormat={previewDefaultFormat ?? model.outputFormat}
       supplierName={supplierName}
       reviewSignal={reviewSignal}
+      preview={props.adapter?.preview}
       emptyHint={
-        variant === "connection"
+        props.emptyHint ??
+        (variant === "connection"
           ? "No sample order yet for this supplier — upload or receive one order to preview the live output of this mapping."
-          : undefined
+          : undefined)
       }
     />
   );
@@ -1161,7 +1170,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
           refused while the flag is set (useMapperModel.apply), so without a sentence here
           the operator would drag a wire, watch nothing happen, and have no way to tell a
           refusal from a broken page. Says what is paused, why, and what to do. ───────── */}
-      {model.overrideUnavailable && (
+      {model.overrideUnavailable && variant !== "flow" && (
         <div
           role="alert"
           data-testid="mapper-override-unavailable"
@@ -1244,7 +1253,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
       )}
 
       {/* ── Mobile read-only summary ────────────────────────────────────── */}
-      <div className="lg:hidden">
+      {variant !== "flow" && <div className="lg:hidden">
         <MapperMobileSummary
           incomingCount={model.sourceFields.length}
           outputCount={model.targetFields.length}
@@ -1264,7 +1273,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
             )}
           </div>
         )}
-      </div>
+      </div>}
 
       {extractionFailed && (
         <div

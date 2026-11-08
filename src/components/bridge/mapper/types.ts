@@ -8,6 +8,8 @@ import type {
   FieldValidationState,
   CatalogPriceHint,
   CanonicalFieldScope,
+  OrderMappingOverride,
+  MappingOverridePreview,
 } from "@/lib/api/types";
 
 /**
@@ -58,3 +60,15 @@ export interface TargetField {
 }
 
 export type { MappingSuggestion, FieldValidationState, CatalogPriceHint };
+
+/** The data seam for the `"flow"` variant: load / save / preview / sources come from here, not the order endpoints. Hosts must keep the adapter stable (`useMemo`): the preview pane re-runs when it changes. */
+export interface MapperAdapter {
+  /** Query-key scope for this edit target, e.g. the flow output id. */
+  scope: string;
+  load: () => Promise<OrderMappingOverride>;
+  /** Saves and resolves with the override as the server now holds it. */
+  save: (next: OrderMappingOverride) => Promise<OrderMappingOverride>;
+  /** Absent when there is nothing to preview against; the pane then shows `emptyHint`. */
+  preview?: (next: OrderMappingOverride) => Promise<MappingOverridePreview>;
+  sourceFields: SourceField[];
+}

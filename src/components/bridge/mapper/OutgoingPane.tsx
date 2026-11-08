@@ -50,7 +50,7 @@ import {
 // they read, the header count and the split can never disagree.
 
 export interface OutgoingPaneProps {
-  variant: "order" | "connection";
+  variant: "order" | "connection" | "flow";
   targetFields: TargetField[];
   /** outputPath → canonicalField (the canonical→output wire). */
   outputConnections?: Partial<Record<string, string>>;
@@ -330,9 +330,9 @@ export function OutgoingPane({
 
       {/* B3 sub-header — plain-language framing of the output column: what it is, how to
           fill each field, and what the * marker means. Calm + muted, under the pane head. */}
-      <div style={{ flexShrink: 0, padding: "10px 18px 0", fontSize: 11.5, color: "var(--ink-faint)", lineHeight: 1.5 }}>
+      {variant !== "flow" && <div style={{ flexShrink: 0, padding: "10px 18px 0", fontSize: 11.5, color: "var(--ink-faint)", lineHeight: 1.5 }}>
         The output the {supplierLabel} receives. Map an incoming field to each one (drag from the left), or set a fixed value. Fields marked <span style={{ color: "#8A5310", fontWeight: 700 }}>*</span> are required.
-      </div>
+      </div>}
 
       {/* Structured-standard formats (cXML / X12 / UBL) are built by a fixed transformer that fills
           contact + addresses + structure automatically from the order — manual field edits here

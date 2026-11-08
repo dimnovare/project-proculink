@@ -24,6 +24,7 @@ import type { TargetField } from "./types";
 export function deriveTargetFields(
   output: OutputMappingConfig | null | undefined,
   mergeCanonical = false,
+  spineFallback = true,
 ): TargetField[] {
   // ORDER path (mergeCanonical=true): the canonical spine is ALWAYS shown and authored paths
   // (a wired field, a fixed value, an added custom column like "Identity") are LAYERED on top —
@@ -41,8 +42,8 @@ export function deriveTargetFields(
   } else {
     const headerKeys = output?.header ? Object.keys(output.header) : [];
     const lineKeys = output?.lines ? Object.keys(output.lines) : [];
-    headerPaths = headerKeys.length > 0 ? headerKeys : [...CANONICAL_HEADER_FIELDS];
-    linePaths = lineKeys.length > 0 ? lineKeys : [...CANONICAL_LINE_FIELDS];
+    headerPaths = headerKeys.length > 0 || !spineFallback ? headerKeys : [...CANONICAL_HEADER_FIELDS];
+    linePaths = lineKeys.length > 0 || !spineFallback ? lineKeys : [...CANONICAL_LINE_FIELDS];
   }
 
   const seen = new Set<string>();

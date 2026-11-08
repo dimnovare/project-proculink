@@ -47,7 +47,7 @@ import type {
   FieldValidationState,
   CatalogPriceHint,
 } from "@/lib/api/types";
-import type { CanonicalNode, SourceField, TargetField } from "./types";
+import type { CanonicalNode, MapperAdapter, SourceField, TargetField } from "./types";
 import { indexValidation, indexCatalogHints, blockingReviewCount } from "./fieldBadgesModel";
 import { systemCanonicalNodes, mergeCanonicalNodes } from "./canonicalFieldsModel";
 import { deriveTargetFields } from "./targetLaneModel";
@@ -79,7 +79,9 @@ import {
 } from "./mapperModel";
 
 export interface UseMapperModelArgs {
-  variant: "order" | "connection";
+  variant: "order" | "connection" | "flow";
+  /** Flow variant: where load / save / sources come from. Required for it. */
+  adapter?: MapperAdapter;
   /** orderId (order) or connectionId (connection). */
   scopeId: string;
   /** Required for the connection variant — the DRAFT revision being authored. */
@@ -235,14 +237,15 @@ function toSourceField(t: SourceToken, mapped: boolean, suggestedFor: string | n
 }
 
 export function useMapperModel({
-  variant, scopeId, revisionId, previewOrderId, initialOverride, incomingOrder, readOnly,
+  variant, adapter, scopeId, revisionId, previewOrderId, initialOverride, incomingOrder, readOnly,
 }: UseMapperModelArgs): MapperModel {
+  if (variant === "flow" && !adapter) throw new Error("useMapperModel: the flow variant needs an adapter");
   const qc = useQueryClient();
   const enabled = useQueriesEnabled();
 
   // The order id the source lane + preview run against. Order variant: the order itself.
   // Connection variant (author-once): a sample/recent order for this supplier (no single order).
-  const effectivePreviewOrderId = variant === "order" ? scopeId : (previewOrderId ?? null);
+  const effectivePreviewOrderId = variant === "order" ? scopeId : variant === "flow" ? null : (previewOrderId ?? null);
 
   // ── Connection revision (full bundle) — retained so a save can carry EVERY bundle
   //    field through unchanged (deliveryProtocol/itemMappings/acceptance/…). The PUT
@@ -257,6 +260,7 @@ export function useMapperModel({
   const overrideQuery = useQuery({
     queryKey: ["mapper-override", variant, scopeId, revisionId ?? null],
     queryFn: async (): Promise<OrderMappingOverride> => {
+      if (adapter) return adapter.load();
       if (variant === "order") return (await getMappingOverride(scopeId)) ?? emptyOverride();
       // connection — both sides live in the bundle: inputMappingJson (source→canonical)
       // + outputMappingJson (canonical→target). Merge them into one internal override.
@@ -264,7 +268,7 @@ export function useMapperModel({
       const rev = await getConnectionRevision(scopeId, revisionId);
       return overrideFromConnectionBundle(rev?.inputMappingJson ?? null, rev?.outputMappingJson ?? null);
     },
-    enabled: enabled && (variant === "order" || !!revisionId),
+    enabled: enabled && (variant !== "connection" || !!revisionId),
     initialData: variant === "order" && initialOverride !== undefined ? (initialOverride ?? emptyOverride()) : undefined,
   });
 
@@ -405,9 +409,12 @@ export function useMapperModel({
   // Order path MERGES canonical + authored (wiring/adding never collapses the document);
   // connection path uses the declared schema as-is. Declared FIRST so the "used as a source"
   // calc below (bug 3) can see which output paths exist for the 1:1 auto default.
+  // Flow: the row SET comes from the saved copy (its key set is the template's leaf set, which
+  // never changes here), so a disconnect empties a row instead of hiding it until the save lands.
+  const targetOutput = variant === "flow" ? overrideQuery.data?.output : override.output;
   const targetFields = useMemo(
-    () => deriveTargetFields(override.output, variant === "order"),
-    [override.output, variant],
+    () => deriveTargetFields(targetOutput, variant === "order", variant !== "flow"),
+    [targetOutput, variant],
   );
 
   // Incoming ids that are ACTUALLY USED as a mapping source. The old code keyed "mapped" only on
@@ -429,7 +436,9 @@ export function useMapperModel({
   }, [wiredFromIds, targetFields, canonicalIncoming, outputConnections]);
 
   const sourceFields = useMemo<SourceField[]>(() => {
-    const base = canonicalIncoming.length > 0
+    const base = adapter
+      ? adapter.sourceFields
+      : canonicalIncoming.length > 0
       ? [...canonicalIncoming, ...keptRawExtras]
       : tokens.map((t) => toSourceField(t, false, null, null));
     // Overlay used-as-source + suggestion state by row id (canonical key OR raw token id).
@@ -451,7 +460,7 @@ export function useMapperModel({
           : f.suggestionBasis ?? null,
       };
     });
-  }, [canonicalIncoming, keptRawExtras, tokens, suggestionByToken, usedAsSourceIds]);
+  }, [adapter, canonicalIncoming, keptRawExtras, tokens, suggestionByToken, usedAsSourceIds]);
 
   // ── Value lookups for the OutgoingPane's honest value preview ───────────────
   // canonicalValueByKey: the order's effective parsed value per canonical key, used for the
@@ -461,8 +470,9 @@ export function useMapperModel({
   // supplied we fall back to matching tokenized labels against canonical keys (legacy path).
   const canonicalValueByKey = useMemo(() => {
     const out = new Map<string, string>();
-    if (canonicalIncoming.length > 0) {
-      for (const f of canonicalIncoming) if (f.value !== "" && !out.has(f.id)) out.set(f.id, f.value);
+    const incoming = adapter?.sourceFields ?? canonicalIncoming;
+    if (incoming.length > 0) {
+      for (const f of incoming) if (f.value !== "" && !out.has(f.id)) out.set(f.id, f.value);
       return out;
     }
     const byLabel = new Map<string, string>();
@@ -479,7 +489,7 @@ export function useMapperModel({
       }
     }
     return out;
-  }, [canonicalIncoming, tokens, canonicalNodes]);
+  }, [adapter, canonicalIncoming, tokens, canonicalNodes]);
 
   // tokenValueById: id → value for BOTH raw tokens AND canonical incoming rows. The outgoing
   // status model resolves a canonical→output wire by looking up the wired source's value here
@@ -492,8 +502,10 @@ export function useMapperModel({
   }, [tokens, canonicalValueByKey]);
 
   const labelForCanonical = useCallback(
-    (key: string) => getFieldStandards(key)?.label ?? canonicalNodes.find((n) => n.id === key)?.label ?? key,
-    [canonicalNodes],
+    (key: string) =>
+      adapter?.sourceFields.find((f) => f.id === key)?.label ??
+      getFieldStandards(key)?.label ?? canonicalNodes.find((n) => n.id === key)?.label ?? key,
+    [adapter, canonicalNodes],
   );
 
   // ── Persistence ────────────────────────────────────────────────────────────
@@ -505,6 +517,7 @@ export function useMapperModel({
 
   const saveMut = useMutation({
     mutationFn: async (next: OrderMappingOverride) => {
+      if (adapter) return adapter.save(next);
       // ALWAYS assemble via buildOverrideDraft so customFields + sourceMap + template
       // carry through unchanged (the documented data-loss guard).
       const doc = buildOverrideDraft({
@@ -544,10 +557,13 @@ export function useMapperModel({
       return doc;
     },
     onMutate: () => { setSaveErr(null); },
-    onSuccess: (doc) => {
+    onSuccess: (doc, sent) => {
       setSaveErr(null);
       // Reflect the server's canonical copy into the cache + local draft.
       qc.setQueryData(["mapper-override", variant, scopeId, revisionId ?? null], doc);
+      // Flow: show what the server returned, not the draft it may have normalised — unless a newer
+      // edit is already pending (saves overlap), whose draft must stay.
+      if (adapter) setDraft((d) => (d === sent ? null : d));
       // MV-1 / D-3 / D-4: for a per-ORDER override, the saved mapping changes what
       // will be delivered. (1) Invalidate ["order", id] so status/artifact recompute
       // from server truth — the backend resets a transformed order back to `ready` on

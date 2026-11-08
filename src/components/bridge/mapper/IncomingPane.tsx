@@ -41,6 +41,8 @@ import {
 const SEARCH_DEBOUNCE_MS = 150;
 
 export interface IncomingPaneProps {
+  /** Flow variant: hides order wording and the mapped/unmapped filters. */
+  flow?: boolean;
   fields: SourceField[];
   query: string;
   onQuery: (q: string) => void;
@@ -123,6 +125,7 @@ const FILTERS: { id: FieldFilter; label: string }[] = [
 ];
 
 export function IncomingPane({
+  flow,
   fields,
   query,
   onQuery,
@@ -157,6 +160,7 @@ export function IncomingPane({
       onChange={onView}
       documentAvailable={!!documentAvailable}
       unavailableReason={documentNotice}
+      flow={flow}
     />
   ) : null;
   // B2 sub-header: plain-language framing that incoming fields are read-only source data.
@@ -231,9 +235,9 @@ export function IncomingPane({
     >
       {/* B2 sub-header — clarifies that these incoming fields are read-only source data
           you map FROM (you don't edit them here). Plain-language, calm, muted. */}
-      <div style={{ flexShrink: 0, padding: "10px 18px 0", fontSize: 11.5, color: "var(--ink-faint)", lineHeight: 1.5 }}>
+      {!flow && <div style={{ flexShrink: 0, padding: "10px 18px 0", fontSize: 11.5, color: "var(--ink-faint)", lineHeight: 1.5 }}>
         These are the fields in the {supplierLabel}&rsquo;s order. You don&rsquo;t edit them here — you map them to the output on the right.
-      </div>
+      </div>}
       {/* Search — finds any field/value across groups (collapsed groups auto-reveal). */}
       <div style={{ flexShrink: 0, padding: "12px 18px 10px" }}>
         <input
@@ -252,7 +256,7 @@ export function IncomingPane({
 
       {/* Filter chips. */}
       <div role="group" aria-label="Filter incoming fields" style={{ flexShrink: 0, display: "flex", flexWrap: "wrap", gap: 6, padding: "12px 18px 10px" }}>
-        {FILTERS.map((f) => {
+        {FILTERS.filter((f) => !flow || (f.id !== "mapped" && f.id !== "unmapped" && f.id !== "ai")).map((f) => {
           const active = filter === f.id;
           return (
             <button
@@ -288,6 +292,7 @@ export function IncomingPane({
           groups.map((g) => (
             <IncomingGroup
               key={g.group}
+              flow={flow}
               group={g.group}
               fields={g.fields}
               open={isOpen(g.group)}
@@ -375,8 +380,9 @@ function PaneFrame({
 // disagree by construction. With no reason supplied, the title states the observable fact and
 // stops there.
 function ViewTabs({
-  value, onChange, documentAvailable, unavailableReason,
+  value, onChange, documentAvailable, unavailableReason, flow,
 }: {
+  flow?: boolean;
   value: IncomingView;
   onChange: (v: IncomingView) => void;
   documentAvailable: boolean;
@@ -411,7 +417,7 @@ function ViewTabs({
         aria-pressed={value === "document"}
         title={
           documentAvailable
-            ? "Show the file this order arrived as"
+            ? (flow ? undefined : "Show the file this order arrived as")
             : unavailableReason?.trim() || "The original document isn't available to show right now."
         }
         data-testid="incoming-view-document"
@@ -429,7 +435,7 @@ function ViewTabs({
         type="button"
         onClick={() => onChange("fields")}
         aria-pressed={value === "fields"}
-        title="Show the values we captured, which you map to the output"
+        title={flow ? undefined : "Show the values we captured, which you map to the output"}
         data-testid="incoming-view-fields"
         style={{ ...base, ...(value === "fields" ? on : null), borderRadius: "0 5px 5px 0", borderLeftWidth: 0 }}
       >
@@ -441,8 +447,9 @@ function ViewTabs({
 
 // ── A collapsible group of incoming rows ──────────────────────────────────────
 function IncomingGroup({
-  group, fields, open, onToggle, forceOpen, portProps, anchorRef, hoveredId, activeIds, onHover, onSelect, dragging, readOnly,
+  group, fields, open, onToggle, forceOpen, portProps, anchorRef, hoveredId, activeIds, onHover, onSelect, dragging, readOnly, flow,
 }: {
+  flow?: boolean;
   group: SourceGroup;
   fields: SourceField[];
   open: boolean;
@@ -490,8 +497,9 @@ function IncomingGroup({
           {fields.map((f) => (
             <IncomingRow
               key={f.id}
+              flow={flow}
               field={f}
-              port={portProps(f.id)}
+              port={flow ? { ...portProps(f.id), "aria-label": f.label } : portProps(f.id)}
               anchorRef={anchorRef}
               hovered={activeIds ? activeIds.has(f.id) : hoveredId === f.id}
               onHover={onHover}
@@ -511,8 +519,9 @@ function IncomingGroup({
 // stability). The wire engine measures the PORT element (right edge), so wires emerge from
 // the right side and flow into the gutter — never over the row's text.
 function IncomingRow({
-  field, port, anchorRef, hovered, onHover, onSelect, dragging, readOnly,
+  field, port, anchorRef, hovered, onHover, onSelect, dragging, readOnly, flow,
 }: {
+  flow?: boolean;
   field: SourceField;
   port: MapperSourcePortProps;
   anchorRef?: (id: string, el: HTMLElement | null) => void;
@@ -576,7 +585,7 @@ function IncomingRow({
           <span style={{ fontFamily: "'JetBrains Mono',monospace", fontVariantNumeric: "tabular-nums", fontSize: 11.5, color: "var(--ink, #0B1A2F)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {field.value || <span style={{ color: "#CBD0DA" }}>(empty)</span>}
           </span>
-          {!wired && (
+          {!wired && !flow && (
             <span style={{ flexShrink: 0, fontSize: 9.5, fontWeight: 700, color: "#8A5310", background: "#FAF1DD", borderRadius: 4, padding: "2px 6px" }}>
               unmapped
             </span>
@@ -608,7 +617,7 @@ function IncomingRow({
       {!readOnly ? (
         <span
           {...portHandlers}
-          title={`Drag onto an output field to map ${field.label}${suggested ? ` (AI suggests → ${field.suggestedFor})` : ""}`}
+          title={flow ? undefined : `Drag onto an output field to map ${field.label}${suggested ? ` (AI suggests → ${field.suggestedFor})` : ""}`}
           style={{
             display: "inline-flex", alignItems: "center", gap: 7, flexShrink: 0,
             cursor: connecting ? "grabbing" : "grab", touchAction: "none",
@@ -633,7 +642,7 @@ function IncomingRow({
             transition: "border-color 120ms, background 120ms, box-shadow 120ms",
           }}/>
         </span>
-      ) : wired ? (
+      ) : wired && !flow ? (
         <span aria-hidden style={{ fontSize: 9, fontWeight: 700, color: "#0F4FA8", flexShrink: 0 }}>mapped →</span>
       ) : null}
     </div>

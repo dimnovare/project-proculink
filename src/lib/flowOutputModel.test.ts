@@ -28,6 +28,12 @@ describe("flowOutputModel", () => {
     expect(fromSimple(simple, "csv")).toEqual(template);
   });
 
+  it("reads a field with no rule as a blank fixed value", () => {
+    const disconnected = structuredClone(template);
+    delete disconnected.root.children![0].rule;
+    expect(toSimple(disconnected)!.fields[0].source).toEqual({ fixed: "" });
+  });
+
   it("refuses a leaf that carries a manipulator", () => {
     const withManipulator = structuredClone(template);
     withManipulator.root.children![0].rule!.fieldManipulators = [{ type: "Trim" } as never];

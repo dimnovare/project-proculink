@@ -253,6 +253,9 @@ describe("flow document trail", () => {
     expect(buildCrumbTrail(`/flows/${f}/documents/${d}`).map((c) => c.label).slice(1)).toEqual([
       "Flow fba42463", "Documents", "Document af13dd5e",
     ]);
+    const adv = buildCrumbTrail(`/flows/${f}/outputs/${d}/advanced`, { flowName: "Invoices", outputName: "Invoices CSV" });
+    expect(adv.map((c) => c.label)).toEqual(["Flows", "Invoices", "Outputs", "Invoices CSV", "Advanced view"]);
+    expect(adv.map((c) => c.href).slice(2)).toEqual([null, null, null]);
     expect(buildCrumbTrail(`/lookups/${f}`, { lookupName: "Item codes" }).map((c) => c.label)).toEqual(["Lookups", "Item codes"]);
     expect(buildCrumbTrail(`/lookups/${f}`).map((c) => c.label)[1]).toBe("Lookup fba42463");
   });

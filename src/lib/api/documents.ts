@@ -174,8 +174,11 @@ export const updateOutput = (flowId: string, id: string, body: OutputRequest) =>
   apiFetch<FlowOutput>(`/flows/${seg(flowId)}/outputs/${seg(id)}`, { method: "PUT", body: json(body) });
 export const deleteOutput = (flowId: string, id: string) =>
   apiFetch<void>(`/flows/${seg(flowId)}/outputs/${seg(id)}`, { method: "DELETE" });
-export const previewOutput = (documentId: string, outputId: string) =>
-  apiFetch<OutputPreview>(`/documents/${seg(documentId)}/outputs/${seg(outputId)}/preview`, { method: "POST" });
+export const previewOutput = (documentId: string, outputId: string, template?: OutputNodeTemplate) =>
+  apiFetch<OutputPreview>(`/documents/${seg(documentId)}/outputs/${seg(outputId)}/preview`, {
+    method: "POST",
+    ...(template ? { body: json({ template }) } : {}),
+  });
 
 export const listLookups = () => apiFetch<LookupSummary[]>(`/lookups`);
 export const getLookup = (id: string) => apiFetch<Lookup>(`/lookups/${seg(id)}`);
