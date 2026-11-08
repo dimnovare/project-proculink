@@ -199,7 +199,7 @@ export const addLookupEntry = async (id: string, entry: LookupEntry) => {
 export const suggestLookupMatches = (documentId: string, outputId: string) =>
   apiFetch<{ suggestions: LookupSuggestion[] }>(`/documents/${seg(documentId)}/outputs/${seg(outputId)}/preview?suggest=true`, {
     method: "POST",
-  }).then((r) => r.suggestions);
+  }, UPLOAD_TIMEOUT_MS).then((r) => r.suggestions);
 export const deleteLookup = (id: string) => apiFetch<void>(`/lookups/${seg(id)}`, { method: "DELETE" });
 
 export const sendDocument = (id: string) => apiFetch<DocumentDelivery[]>(`/documents/${seg(id)}/send`, { method: "POST" });

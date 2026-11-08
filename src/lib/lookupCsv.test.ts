@@ -25,10 +25,11 @@ describe("lookup CSV", () => {
   });
 
   it("reads a list to choose from: column 1 is the value, the rest describe it", () => {
-    const csv = ["\uFEFFCode,Name,Unit", "SUP-1,Pilsner bottle,0.5L", "'=SUP-2,,", "sup-1,Pilsner can,", ",orphan,", ""].join("\n");
+    const csv = ["\uFEFFCode,Name,Unit", "SUP-1,Pilsner bottle,0.5L", "'=SUP-2,,", "sup-1,Pilsner can,", ",orphan,", `LONG-1,${"x".repeat(600)},`, ""].join("\n");
     expect(importCandidateCsv(csv, true)).toEqual([
       { value: "sup-1", description: "Pilsner can" },
       { value: "=SUP-2", description: null },
+      { value: "LONG-1", description: "x".repeat(500) },
     ]);
   });
 });

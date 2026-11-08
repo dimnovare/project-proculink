@@ -42,6 +42,7 @@ function LookupEditor({ lookup }: { lookup: Lookup }) {
       setNote({ tone: "success", text: "Saved." });
       qc.invalidateQueries({ queryKey: ["lookups"] });
       qc.invalidateQueries({ queryKey: ["lookup", lookup.id] });
+      qc.removeQueries({ queryKey: ["lookup-suggestions"] });
     },
     onError: () => setNote(null),
   });

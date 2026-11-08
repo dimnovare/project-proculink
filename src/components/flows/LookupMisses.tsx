@@ -57,6 +57,7 @@ export function LookupMisses({ documentId, outputId, misses, onChanged }: {
   };
   const suggestions = suggest.data?.filter((s) => misses.some((m) => m.lookupId === s.lookupId && m.value === s.value));
   const accept = useMutation({
+    scope: { id: "lookup-entry" },
     mutationFn: ({ s, to }: { s: LookupSuggestion; to: string }) => addLookupEntry(s.lookupId, { from: s.value, to }),
     onSuccess: async (_, { s }) => {
       drop(s);

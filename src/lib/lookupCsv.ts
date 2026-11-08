@@ -40,7 +40,7 @@ export function importCandidateCsv(text: string, firstRowIsHeadings: boolean): L
   const at = new Map<string, number>();
   for (const [first = "", ...rest] of readRows(text, firstRowIsHeadings)) {
     if (!first.trim()) continue;
-    const description = rest.map((c) => unprefix(c.trim())).filter(Boolean).join(" · ") || null;
+    const description = rest.map((c) => unprefix(c.trim())).filter(Boolean).join(" · ").slice(0, 500) || null;
     const candidate = { value: unprefix(first.trim()), description };
     const i = at.get(key(candidate.value));
     if (i === undefined) at.set(key(candidate.value), out.push(candidate) - 1);
