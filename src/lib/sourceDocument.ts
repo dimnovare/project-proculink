@@ -12,8 +12,10 @@
 //   2. What the operator is told when there is no document to show.
 //   3. Which of the two "What we received" bodies the left column shows.
 //
-// The media types this can receive are a CLOSED allowlist on the server
-// (`ProcuLink.Core/Services/Detection/SourceDocumentMediaType.cs`): pdf → application/pdf,
+// Order sources get their media type from a CLOSED allowlist on the server
+// (`ProcuLink.Core/Services/Detection/SourceDocumentMediaType.cs`); flow documents are typed
+// from the file extension (`DocumentScreen.tsx`), which also gives the png/jpeg photos. The
+// server allowlist: pdf → application/pdf,
 // csv → text/csv, xlsx → the OOXML spreadsheet type, cxml|ubl|xml → application/xml,
 // edifact|x12 → text/plain, and everything else → application/octet-stream. Nothing in it can
 // produce text/html or image/svg+xml, which is why we can render what it sends. We still treat

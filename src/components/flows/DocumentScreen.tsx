@@ -11,7 +11,7 @@ import { Button } from "@/components/bridge/DSPrimitives";
 import { SourceDocumentBody } from "@/components/bridge/document/SourceDocumentBody";
 import { useLgViewport } from "@/components/bridge/document/useSourceDocument";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
-import { fetchDocumentSource, getDocument, getDocumentHistory, retryDocumentRead } from "@/lib/api/documents";
+import { fetchDocumentSource, getDocument, getFlow, getDocumentHistory, retryDocumentRead } from "@/lib/api/documents";
 import { formatDateTime } from "@/lib/format-date";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
 import { documentStatus } from "@/lib/documentStatusManifest";
@@ -96,6 +96,8 @@ export function DocumentScreen({ flowId, documentId }: { flowId: string; documen
   });
 
   const summary = doc.data?.summary;
+  const docFlowId = summary?.flowId ?? flowId;
+  const flow = useQuery({ queryKey: ["flow", docFlowId], queryFn: () => getFlow(docFlowId), enabled });
   const status = summary && documentStatus(summary.status, summary.statusReason);
   const nothingRead = !doc.data || doc.data.read.fields.length + doc.data.read.tables.length === 0;
 
@@ -127,7 +129,7 @@ export function DocumentScreen({ flowId, documentId }: { flowId: string; documen
               </p>
             )}
             <div className="mt-3">
-              <ReadProblem summary={summary} nothingRead={nothingRead} retry={retry} />
+              <ReadProblem summary={summary} nothingRead={nothingRead} retry={retry} scansOn={flow.data?.scansOn} />
             </div>
           </Card>
           <div

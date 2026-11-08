@@ -33,5 +33,8 @@ describe("scan read failures", () => {
     expect(readFailureMessage("no_egress")).toBe("This workspace keeps documents on our own servers, so they aren't sent to AI to be read.");
     expect(canRetryRead("no_egress")).toBe(false);
     expect(canRetryRead("usage_cap")).toBe(true);
+    expect(canRetryRead("scanned_not_supported", { scansOn: true })).toBe(true);
+    expect(canRetryRead("scanned_not_supported")).toBe(false);
+    expect(canRetryRead("scanned_not_supported", { scansOn: false })).toBe(false);
   });
 });

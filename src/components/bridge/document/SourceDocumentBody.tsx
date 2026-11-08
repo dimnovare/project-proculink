@@ -77,7 +77,7 @@ export function SourceDocumentBody({ cacheKey, document: doc, bounded, highlight
     return (
       <Shell bounded={bounded}>
         <div className={bounded ? "min-h-0 flex-1 overflow-auto" : "overflow-auto"}>
-          <ImageDocumentView blob={doc.blob} filename={doc.filename ?? "Original document"} highlight={highlight} />
+          <ImageDocumentView blob={doc.blob} contentType={doc.contentType} filename={doc.filename ?? "Original document"} highlight={highlight} />
         </div>
         <DownloadRow document={doc} cacheKey={cacheKey} />
       </Shell>

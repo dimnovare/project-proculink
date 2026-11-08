@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { FlowUpload } from "./FlowUpload";
 
+vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => true }));
 const api = vi.hoisted(() => ({ getFlow: vi.fn(), uploadDocument: vi.fn() }));
 vi.mock("@/lib/api/documents", () => api);
 

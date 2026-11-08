@@ -4,14 +4,15 @@ import { useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
+import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { getFlow, uploadDocument } from "@/lib/api/documents";
 import type { DocumentSummary } from "@/lib/api/documents";
 import { ApiHttpError } from "@/lib/api/core";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
 
-/** The document engine reads these three only, narrower than the order upload's list. */
+/** What the document engine reads, narrower than the order upload's list. */
 const ACCEPT = ".pdf,.csv,.xlsx";
-/** Added when the workspace has scans on. */
+/** Photos and scans, added when the workspace has scans on. */
 const PHOTOS = ".png,.jpg,.jpeg";
 
 const MAX_BYTES = 10 * 1024 * 1024;
@@ -20,7 +21,7 @@ export function FlowUpload({ flowId, onUploaded }: { flowId: string; onUploaded(
   const input = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
-  const flow = useQuery({ queryKey: ["flow", flowId], queryFn: () => getFlow(flowId) });
+  const flow = useQuery({ queryKey: ["flow", flowId], queryFn: () => getFlow(flowId), enabled: useTenantQueriesEnabled() });
   const scansOn = !!flow.data?.scansOn;
   const accept = scansOn ? `${ACCEPT},${PHOTOS}` : ACCEPT;
   const upload = useMutation({

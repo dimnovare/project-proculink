@@ -33,13 +33,13 @@ export function Checks({ checks }: { checks: DocumentCheck[] }) {
 }
 
 /** Why a document has nothing to edit, and the way forward: a failed read, or a file we had already. */
-export function ReadProblem({ summary, nothingRead, retry }: {
-  summary: DocumentSummary; nothingRead: boolean; retry: UseMutationResult<unknown, unknown, void>;
+export function ReadProblem({ summary, nothingRead, retry, scansOn }: {
+  summary: DocumentSummary; nothingRead: boolean; scansOn?: boolean; retry: UseMutationResult<unknown, unknown, void>;
 }) {
   if (AUTOMATIC_HOLDS.has(summary.statusReason ?? "")) return <StatusNotice tone="warning">{readFailureMessage(summary.statusReason)}</StatusNotice>;
   const duplicate = summary.statusReason === "duplicate_file" && nothingRead;
   if (summary.status !== "read_failed" && !duplicate) return null;
-  const again = duplicate ? "Read it anyway" : canRetryRead(summary.statusReason) ? "Try again" : null;
+  const again = duplicate ? "Read it anyway" : canRetryRead(summary.statusReason, { scansOn }) ? "Try again" : null;
   return (
     <div className="grid gap-2">
       <StatusNotice
