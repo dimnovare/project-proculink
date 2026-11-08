@@ -27,6 +27,12 @@ describe("detectDelimiter", () => {
 });
 
 describe("parseCsvRows", () => {
+  it("skips blank lines but keeps blank lines inside quotes", () => {
+    expect(parseCsvRows("a,b\n\nc,d\n", ",")).toEqual([["a", "b"], ["c", "d"]]);
+    expect(parseCsvRows('a,"x\n\ny"\n', ",")).toEqual([["a", "x\n\ny"]]);
+    expect(parseCsvRows("a\n,,\n", ",")).toEqual([["a"], ["", "", ""]]);
+  });
+
   it("handles quoted fields, doubled quotes and embedded newlines", () => {
     const csv = 'a,"b,c","say ""hi""","two\nlines"';
     expect(parseCsvRows(csv, ",")).toEqual([["a", "b,c", 'say "hi"', "two\nlines"]]);

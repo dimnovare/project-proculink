@@ -113,6 +113,8 @@ export function parseCsvRows(text: string, delimiter: string, maxRows = MAX_PREV
     } else if (ch === delimiter) {
       endField();
     } else if (ch === "\n") {
+      // A blank line is not a record (the backend reader skips it too).
+      if (row.length === 0 && field === "") continue;
       endRow();
       if (rows.length >= maxRows + 1) break;
     } else if (ch !== "\r") {
