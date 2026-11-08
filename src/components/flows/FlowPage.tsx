@@ -144,6 +144,15 @@ export function FlowPage({ flowId }: { flowId: string }) {
   });
 
   const go = (t: Tab) => router.replace(`/flows/${flowId}?tab=${t}`);
+  const onTabKey = (e: React.KeyboardEvent) => {
+    const i = TABS.findIndex(([t]) => t === tab);
+    const to = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: TABS.length - 1 }[e.key];
+    if (to === undefined) return;
+    e.preventDefault();
+    const next = TABS[(to + TABS.length) % TABS.length][0];
+    go(next);
+    document.getElementById(`flow-tab-${next}`)?.focus();
+  };
   const saved = (f: Flow) => qc.setQueryData(["flow", flowId], f);
 
   let body;
@@ -198,14 +207,15 @@ export function FlowPage({ flowId }: { flowId: string }) {
           <div role="tablist" aria-label="Flow sections" className="flex gap-1 border-b border-border">
             {TABS.map(([t, label]) => (
               <button
-                key={t} type="button" role="tab" aria-selected={t === tab} onClick={() => go(t)}
+                key={t} type="button" role="tab" id={`flow-tab-${t}`} aria-controls="flow-panel" aria-selected={t === tab}
+                tabIndex={t === tab ? 0 : -1} onKeyDown={onTabKey} onClick={() => go(t)}
                 className={`px-3 py-2 text-[13px] ${t === tab ? "border-b-2 border-brand-blue font-semibold" : "text-ink-muted"}`}
               >
                 {label}
               </button>
             ))}
           </div>
-          <div role="tabpanel">{body}</div>
+          <div role="tabpanel" id="flow-panel" aria-labelledby={`flow-tab-${tab}`}>{body}</div>
         </div>
       )}
     </PageShell>
