@@ -198,8 +198,8 @@ function dupException(over: Partial<OrderException> = {}): OrderException {
   };
 }
 
-function renderWorkshop(exceptions: OrderException[] | null): void {
-  mockState.order = cleanOrder();
+function renderWorkshop(exceptions: OrderException[] | null, order: Order = cleanOrder()): void {
+  mockState.order = order;
   mockState.gate = NOTHING_BLOCKS;
   mockState.exceptions = exceptions;
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -287,6 +287,29 @@ describe("a flagged duplicate reaches the send screen (P1)", () => {
     await waitFor(() => expect(getOrderExceptionsMock).toHaveBeenCalled());
     await screen.findByTestId("issues-panel");
     expect(screen.queryByTestId("order-exceptions-notice")).toBeNull();
+  });
+
+  test("an invoice's failed check is a counted blocker, not a warning beside a green Send", async () => {
+    const message = "Net plus VAT does not equal the total.";
+    renderWorkshop([dupException({ code: "invoice_check", message })]);
+
+    const slot = screen.getByTestId("issues-slot");
+    await waitFor(() => expect(within(slot).getByText(message)).toBeInTheDocument());
+    // Anti-vacuity: the acceptance gate has settled, so it is not what disables Send below.
+    await waitFor(() => expect(within(slot).queryByText(/couldn.t check this order/i)).toBeNull());
+    expect(within(slot).queryByText("Ready to send")).toBeNull();
+    // Reported once — in the issue list, not again in the order-level notice.
+    expect(screen.queryByTestId("order-exceptions-notice")).toBeNull();
+    const blocked = screen.getAllByRole("button", { name: /1 issue to fix first/i });
+    for (const b of blocked) expect(b).toBeDisabled();
+  });
+
+  test("an invoice whose checks could not be read is not sendable", async () => {
+    renderWorkshop(null, { ...cleanOrder(), documentType: "invoice" }); // endpoint rejects
+    await screen.findByTestId("order-exceptions-check-failed", undefined, { timeout: 5000 });
+    const sends = allSendButtons();
+    expect(sends.length).toBeGreaterThan(0);
+    for (const b of sends) expect(b).toBeDisabled();
   });
 
   test("a failed check says so — it never renders as a silent all-clear", async () => {

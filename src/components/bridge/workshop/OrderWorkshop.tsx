@@ -26,7 +26,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CircleCheck } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { apiClient, getMappingOverride, previewMappingOverride, promoteMapping } from "@/lib/api-client";
+import { apiClient, getMappingOverride, getOrderExceptions, previewMappingOverride, promoteMapping } from "@/lib/api-client";
 import { getAcceptanceGate } from "@/lib/api/acceptance-gate";
 import { getDeliveryConfig } from "@/lib/api/delivery";
 import { deliveryConfigQueryKey } from "@/lib/deliveryConfigCache";
@@ -71,7 +71,7 @@ import {
 } from "@/lib/sourceDocument";
 import { sendBarLabel, deliveryBarMode } from "./sendBarLabel";
 import { InboxBackChip, WorkshopGateShell, poTitleFrom } from "./WorkshopGateChrome";
-import { OrderExceptionsNotice } from "./OrderExceptionsNotice";
+import { OrderExceptionsNotice, invoiceCheckIssues } from "./OrderExceptionsNotice";
 import { ParsingGate } from "./ParsingGate";
 import { IssuesPanel, type WorkshopIssue, type IssuesResolveApi } from "./IssuesPanel";
 import { CatalogHintCard } from "../review/CatalogHintCard";
@@ -535,14 +535,23 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
     prevQueueRef.current = next;
     return next;
   }, [order, validationResult]);
+  // Same key and options as OrderExceptionsNotice, so both read one cache entry.
+  const { data: orderExceptions, isPending: exceptionsPending, isError: exceptionsError } = useQuery({
+    queryKey: ["order-exceptions", orderId],
+    queryFn: () => getOrderExceptions(orderId),
+    enabled: queryEnabled,
+    staleTime: 30_000,
+    retry: 1,
+  });
   // The ONE issue list every surface reads. The server's blocking acceptance rows
   // lead: they are the only entries that are certain to be refused on send, and
   // folding them in here is what carries them to the desktop IssuesPanel, the
   // status-bar blocker chips, the reduced sub-lg MobileTriage list, and
-  // `blockingIssues` → `canSend` — one merge, every breakpoint.
+  // `blockingIssues` → `canSend` — one merge, every breakpoint. An invoice's failed
+  // checks block too.
   const issues = useMemo(
-    () => [...acceptanceBlockers, ...fixQueueToIssues(fixQueue)],
-    [acceptanceBlockers, fixQueue],
+    () => [...acceptanceBlockers, ...invoiceCheckIssues(orderExceptions), ...fixQueueToIssues(fixQueue)],
+    [acceptanceBlockers, orderExceptions, fixQueue],
   );
 
   // ── Mobile triage summary counts ("What we received") — distinct populated
@@ -956,8 +965,10 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
   //    ever 400. While a problem is live the panel owns the only action on screen.
   const problem = problemFor(order?.status);
   const blockingIssues = issues.filter((i) => i.severity === "blocking").length;
-  const canSend = !problem && !crossed && sendState === "idle" && blockingIssues === 0 && exceptionCount === 0;
-  const sendReady = blockingIssues === 0 && exceptionCount === 0;
+  // An invoice whose checks are unread (loading or failed) is not sendable: a failed read is not an all-clear.
+  const invoiceChecksUnread = order?.documentType === "invoice" && queryEnabled && (exceptionsPending || exceptionsError);
+  const canSend = !problem && !crossed && sendState === "idle" && blockingIssues === 0 && exceptionCount === 0 && !invoiceChecksUnread;
+  const sendReady = blockingIssues === 0 && exceptionCount === 0 && !invoiceChecksUnread;
   // Non-blocking work the operator may deliberately send past. Two sources:
   //   • warning-severity rows from buildFixQueue, and
   //   • acceptance rules that did not pass but that the server's gate will not

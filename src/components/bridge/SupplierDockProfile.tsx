@@ -91,7 +91,6 @@ const DEMO_MOCK = {
   totalOrders:   1284,
   avgCycle:      "1m 38s",
   exceptionRate: "2.1%",
-  autoProcess:   true,
   summary: {
     requiredFormat:    "cXML",
     deliveryChannel:   "HTTP",
@@ -1492,6 +1491,14 @@ export function SupplierDockProfile({ id }: { id: string }) {
   // No connection yet → links stay hidden (a connection is created the first
   // time the supplier is configured).
   const connectionsEnabled = useQueriesEnabled();
+  // Same key as the Overview/Delivery readers, so the header pill follows every save.
+  const { data: deliveryConfig } = useQuery<DeliveryConfig | null>({
+    queryKey: deliveryConfigQueryKey(id),
+    queryFn: () => getDeliveryConfig(id),
+    enabled: connectionsEnabled,
+    staleTime: 30_000,
+    retry: 1,
+  });
   const {
     data: connectionList,
     isLoading: connectionsLoading,
@@ -1651,11 +1658,13 @@ export function SupplierDockProfile({ id }: { id: string }) {
                     <span className="chip" style={{ background: SURFACE_2, color: MUTED }}>
                       {DEMO_MOCK.summary.deliveryChannel}
                     </span>
-                    <span className={`pill ${DEMO_MOCK.autoProcess ? "pill-ready" : "pill-new"}`}>
-                      <span className="dot" />
-                      {deliveryModeLabel(DEMO_MOCK.autoProcess)}
-                    </span>
                   </>
+                )}
+                {deliveryConfig && deliveryConfig.protocol !== "manual" && (
+                  <span className={`pill ${deliveryConfig.autoDeliver ? "pill-ready" : "pill-new"}`}>
+                    <span className="dot" />
+                    {deliveryModeLabel(deliveryConfig.autoDeliver)}
+                  </span>
                 )}
               </div>
             </div>
