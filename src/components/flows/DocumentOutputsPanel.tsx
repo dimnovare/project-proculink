@@ -9,7 +9,7 @@ import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import {
   downloadDeliveryFile, getFlow, listDeliveries, listDestinations, listOutputs, previewOutput, sendDocument,
 } from "@/lib/api/documents";
-import type { DocumentDelivery, DocumentDetail } from "@/lib/api/documents";
+import type { DocumentDelivery, DocumentDetail, Flow, FlowOutput } from "@/lib/api/documents";
 import { describeSendWhen } from "@/lib/flowOutputModel";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
 import { documentStatus } from "@/lib/documentStatusManifest";
@@ -65,6 +65,38 @@ function Deliveries({ documentId }: { documentId: string }) {
   );
 }
 
+// Owns its own preview so opening one output never replaces another's.
+function OutputRow({ o, flowId, documentId, flowFields, destinations }: {
+  o: FlowOutput; flowId: string; documentId: string; flowFields: Flow["fields"] | undefined; destinations: Parameters<typeof destinationName>[0];
+}) {
+  const preview = useMutation({ mutationFn: () => previewOutput(documentId, o.id) });
+  return (
+    <div className="grid gap-1.5">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="grid">
+          <span className="text-[13px] font-medium text-ink">{o.name}</span>
+          {o.sendWhen && <span className="text-[12px] text-ink-muted">{describeSendWhen(o.sendWhen, flowFields)}</span>}
+        </span>
+        <span className="text-[12px] text-ink-muted">{Object.hasOwn(FORMATS, o.format) ? FORMATS[o.format as keyof typeof FORMATS] : o.format} · {destinationName(destinations, o.destinationId)}</span>
+        <span className="flex gap-2">
+          <Button size="sm" variant="secondary" loading={preview.isPending} onClick={() => preview.mutate()}>Preview</Button>
+          <Link href={`/flows/${flowId}/outputs/${o.id}/advanced?document=${documentId}`} className="inline-flex items-center rounded border border-border px-2.5 text-[12.5px] font-medium text-ink">Open in Advanced</Link>
+        </span>
+      </div>
+      {preview.isError && <StatusNotice tone="error">{documentRefusalMessage(preview.error)}</StatusNotice>}
+      {preview.data && (
+        <div className="grid gap-1">
+          <span className="font-mono text-[11.5px] text-ink-muted">{preview.data.fileName}</span>
+          <pre className="m-0 max-h-72 overflow-auto rounded border border-border bg-surface2 p-2.5 font-mono text-[12px] text-ink">{preview.data.content}</pre>
+          {preview.data.lookupMisses?.length ? (
+            <LookupMisses documentId={documentId} outputId={o.id} misses={preview.data.lookupMisses} onChanged={() => preview.mutate()} />
+          ) : null}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function DocumentOutputsPanel({ flowId, document: doc }: { flowId: string; document: DocumentDetail }) {
   const qc = useQueryClient();
   const enabled = useTenantQueriesEnabled();
@@ -72,7 +104,6 @@ export function DocumentOutputsPanel({ flowId, document: doc }: { flowId: string
   const outputs = useQuery({ queryKey: ["outputs", flowId], queryFn: () => listOutputs(flowId), enabled });
   const destinations = useQuery({ queryKey: ["destinations"], queryFn: listDestinations, enabled });
   const flow = useQuery({ queryKey: ["flow", flowId], queryFn: () => getFlow(flowId), enabled });
-  const preview = useMutation({ mutationFn: (outputId: string) => previewOutput(documentId, outputId) });
   const send = useMutation({
     mutationFn: () => sendDocument(documentId),
     onSuccess: () => Promise.all(["document", "deliveries", "document-history"].map((k) => qc.invalidateQueries({ queryKey: [k, documentId] }))),
@@ -94,29 +125,7 @@ export function DocumentOutputsPanel({ flowId, document: doc }: { flowId: string
           : !outputs.data ? <Quiet>Loading outputs…</Quiet>
           : outputs.data.length === 0 ? <Link href={`/flows/${flowId}?tab=outputs`} className="text-[13px] text-brand-blue">Add an output to this flow</Link>
           : outputs.data.map((o) => (
-            <div key={o.id} className="grid gap-1.5">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="grid">
-                  <span className="text-[13px] font-medium text-ink">{o.name}</span>
-                  {o.sendWhen && <span className="text-[12px] text-ink-muted">{describeSendWhen(o.sendWhen, flow.data?.fields)}</span>}
-                </span>
-                <span className="text-[12px] text-ink-muted">{Object.hasOwn(FORMATS, o.format) ? FORMATS[o.format as keyof typeof FORMATS] : o.format} · {destinationName(destinations, o.destinationId)}</span>
-                <span className="flex gap-2">
-                  <Button size="sm" variant="secondary" loading={preview.isPending && preview.variables === o.id} onClick={() => preview.mutate(o.id)}>Preview</Button>
-                  <Link href={`/flows/${flowId}/outputs/${o.id}/advanced?document=${documentId}`} className="inline-flex items-center rounded border border-border px-2.5 text-[12.5px] font-medium text-ink">Open in Advanced</Link>
-                </span>
-              </div>
-              {preview.isError && preview.variables === o.id && <StatusNotice tone="error">{documentRefusalMessage(preview.error)}</StatusNotice>}
-              {preview.data && preview.variables === o.id && (
-                <div className="grid gap-1">
-                  <span className="font-mono text-[11.5px] text-ink-muted">{preview.data.fileName}</span>
-                  <pre className="m-0 max-h-72 overflow-auto rounded border border-border bg-surface2 p-2.5 font-mono text-[12px] text-ink">{preview.data.content}</pre>
-                  {preview.data.lookupMisses?.length ? (
-                    <LookupMisses documentId={documentId} outputId={o.id} misses={preview.data.lookupMisses} onChanged={() => preview.mutate(o.id)} />
-                  ) : null}
-                </div>
-              )}
-            </div>
+            <OutputRow key={o.id} o={o} flowId={flowId} documentId={documentId} flowFields={flow.data?.fields} destinations={destinations} />
           ))}
         <h3 className="m-0 text-[12.5px] font-semibold text-ink">Deliveries</h3>
         <Deliveries documentId={documentId} />
