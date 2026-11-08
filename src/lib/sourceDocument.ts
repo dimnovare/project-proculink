@@ -21,7 +21,7 @@
 // acquire a renderer here.
 
 /** Which viewer a served document gets. `opaque` = we will not guess; offer the bytes instead. */
-export type SourceDocumentRender = "pdf" | "sheet" | "text" | "opaque";
+export type SourceDocumentRender = "pdf" | "sheet" | "text" | "image" | "opaque";
 
 /** A document the server actually served. */
 export interface SourceDocument {
@@ -75,6 +75,9 @@ export function sourceRenderFor(contentType: string): SourceDocumentRender {
     case "application/xml":
     case "text/plain":
       return "text";
+    case "image/png":
+    case "image/jpeg":
+      return "image";
     default:
       return "opaque";
   }

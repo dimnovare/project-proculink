@@ -27,6 +27,7 @@ import {
   sourceRenderFor,
   type SourceDocument,
 } from "@/lib/sourceDocument";
+import { ImageDocumentView } from "./ImageDocumentView";
 import { scrollRegionProps } from "./scrollRegion";
 import {
   MAX_PREVIEW_ROWS,
@@ -65,6 +66,16 @@ export function SourceDocumentBody({ cacheKey, document: doc, bounded }: SourceD
     return (
       <Shell bounded={bounded}>
         <SheetView cacheKey={cacheKey} document={doc} bounded={bounded} />
+        <DownloadRow document={doc} cacheKey={cacheKey} />
+      </Shell>
+    );
+  }
+  if (render === "image") {
+    return (
+      <Shell bounded={bounded}>
+        <div className={bounded ? "min-h-0 flex-1 overflow-auto" : "overflow-auto"}>
+          <ImageDocumentView blob={doc.blob} filename={doc.filename ?? "Original document"} />
+        </div>
         <DownloadRow document={doc} cacheKey={cacheKey} />
       </Shell>
     );

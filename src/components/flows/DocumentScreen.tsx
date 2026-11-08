@@ -25,6 +25,9 @@ const TYPES: Record<string, string> = {
   pdf: "application/pdf",
   csv: "text/csv",
   xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
 };
 
 /** `document.value_edited` becomes "Value edited". The payload is never shown. */

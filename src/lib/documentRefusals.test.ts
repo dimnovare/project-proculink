@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ApiHttpError } from "@/lib/api/core";
-import { COPY, documentRefusalMessage } from "./documentRefusals";
+import { COPY, canRetryRead, documentRefusalMessage, readFailureMessage } from "./documentRefusals";
 
 const refusal = (body: unknown) => new ApiHttpError("x", 422, body);
 
@@ -25,5 +25,13 @@ describe("documentRefusalMessage", () => {
     [413, undefined, "This file is too large."],
   ])("words a %s %s refusal", (status, error, words) => {
     expect(documentRefusalMessage(new ApiHttpError("x", status, error ? { error } : null))).toBe(words);
+  });
+});
+
+describe("scan read failures", () => {
+  it("a no-egress read failure has its own copy and no retry", () => {
+    expect(readFailureMessage("no_egress")).toBe("This workspace keeps documents on our own servers, so they aren't sent to AI to be read.");
+    expect(canRetryRead("no_egress")).toBe(false);
+    expect(canRetryRead("usage_cap")).toBe(true);
   });
 });

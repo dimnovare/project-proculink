@@ -32,6 +32,8 @@ export interface FlowFieldList { fields: FlowField[]; tables: FlowTable[] }
 export interface Flow {
   id: string; name: string; fieldsConfirmed: boolean; fields: FlowFieldList; documentCount: number; createdAt: string;
   automation: "review" | "auto";
+  /** Scanned PDFs and photos are readable. Absent on an older backend, which means off. */
+  scansOn?: boolean;
 }
 
 export interface DocumentSummary {
