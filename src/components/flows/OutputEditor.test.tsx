@@ -26,7 +26,7 @@ beforeEach(() => {
 });
 
 const renderEditor = (o: unknown = output) =>
-  render(<QueryClientProvider client={new QueryClient()}>
+  render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
     <OutputEditor flow={flow as never} output={o as never} previewDocumentId="d" onSaved={() => {}} onCancel={() => {}} />
   </QueryClientProvider>);
 
@@ -61,6 +61,15 @@ describe("OutputEditor", () => {
     expect(shown("Swap with lookup", 0)).toBe("Loading lookups…");
     expect(screen.queryByText("A lookup that no longer exists")).toBeNull();
     expect(shown("Value", 1)).toBe("A field that no longer exists");
+  });
+
+  it("says the lookups could not be loaded, not that the lookup is gone", async () => {
+    api.listLookups.mockRejectedValue(new Error("boom"));
+    renderEditor({ ...output, template: { root: { name: "document", nodeType: "object", children: [
+      { name: "Supplier", nodeType: "field", children: [], rule: { outputPath: "Supplier", canonicalField: "supplier", fieldManipulators: [{ type: "Lookup", params: ["L1", "keep"] }] } },
+    ] } } });
+    expect(await screen.findByRole("option", { name: "Couldn't load lookups" })).toBeTruthy();
+    expect(screen.queryByText("A lookup that no longer exists")).toBeNull();
   });
 
   it("lists values the lookup did not have in the preview", async () => {

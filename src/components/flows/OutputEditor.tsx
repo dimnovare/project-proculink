@@ -19,8 +19,9 @@ const FIXED = "\u0000fixed";
 const NEW_DESTINATION = "\u0000new";
 
 function RowList({ rows, options, lookups, onChange }: {
-  rows: SimpleRow[]; options: { key: string; label: string }[]; lookups: LookupSummary[] | undefined; onChange(rows: SimpleRow[]): void;
+  rows: SimpleRow[]; options: { key: string; label: string }[]; lookups: LookupSummary[] | "loading" | "failed"; onChange(rows: SimpleRow[]): void;
 }) {
+  const list = Array.isArray(lookups) ? lookups : [];
   const patch = (i: number, row: SimpleRow) => onChange(rows.map((r, j) => (j === i ? row : r)));
   const move = (i: number, by: number) => {
     const next = [...rows];
@@ -35,7 +36,7 @@ function RowList({ rows, options, lookups, onChange }: {
             onChange={(e) => patch(i, { ...row, name: e.target.value })} />
           <select aria-label="Value" className={`${INPUT} min-w-32 flex-1`} value={"field" in row.source ? row.source.field : FIXED}
             onChange={(e) => patch(i, { ...row, source: e.target.value === FIXED ? { fixed: "" } : { field: e.target.value } })}>
-            {"field" in row.source && !options.some((o) => o.key === (row.source as { field: string }).field) && <option value={row.source.field}>A field that no longer exists</option>}
+            {"field" in row.source && ((f) => !options.some((o) => o.key === f))(row.source.field) && <option value={row.source.field}>A field that no longer exists</option>}
             {options.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
             <option value={FIXED}>Fixed value</option>
           </select>
@@ -46,8 +47,8 @@ function RowList({ rows, options, lookups, onChange }: {
           <select aria-label="Swap with lookup" className={`${INPUT} min-w-32 flex-1`} value={row.lookup?.id ?? ""}
             onChange={(e) => patch(i, { ...row, lookup: e.target.value ? { id: e.target.value, ifMissing: row.lookup?.ifMissing ?? "keep" } : undefined })}>
             <option value="">No lookup</option>
-            {row.lookup && !lookups?.some((l) => l.id === row.lookup!.id) && <option value={row.lookup.id}>{lookups ? "A lookup that no longer exists" : "Loading lookups…"}</option>}
-            {lookups?.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+            {row.lookup && !list.some((l) => l.id === row.lookup!.id) && <option value={row.lookup.id}>{Array.isArray(lookups) ? "A lookup that no longer exists" : lookups === "failed" ? "Couldn't load lookups" : "Loading lookups…"}</option>}
+            {list.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
           </select>
           {row.lookup && (
             <select aria-label="If it's not in the lookup" className={`${INPUT} min-w-32 flex-1`} value={row.lookup.ifMissing}
@@ -87,6 +88,7 @@ export function OutputEditor({ flow, output, previewDocumentId, hideDestination,
 
   const destinations = useQuery({ queryKey: ["destinations"], queryFn: listDestinations, enabled: useTenantQueriesEnabled() });
   const lookups = useQuery({ queryKey: ["lookups"], queryFn: listLookups, enabled: useTenantQueriesEnabled() });
+  const lookupList = lookups.data ?? (lookups.isError ? "failed" : "loading");
   const external = !!current && !rows;
 
   const preview = useMutation({ mutationFn: () => previewOutput(previewDocumentId!, current!.id) });
@@ -199,11 +201,11 @@ export function OutputEditor({ flow, output, previewDocumentId, hideDestination,
         {rows && (
           <>
             <p className="text-[12px] font-medium text-ink-muted">Values</p>
-            <RowList rows={rows.fields} options={fieldOptions} lookups={lookups.isPending ? undefined : (lookups.data ?? [])} onChange={(fields) => setRows({ ...rows, fields })} />
+            <RowList rows={rows.fields} options={fieldOptions} lookups={lookupList} onChange={(fields) => setRows({ ...rows, fields })} />
             {rows.table && (
               <>
                 <p className="text-[12px] font-medium text-ink-muted">{table?.label ?? "Table"} columns</p>
-                <RowList rows={rows.table.columns} options={columnOptions} lookups={lookups.isPending ? undefined : (lookups.data ?? [])}
+                <RowList rows={rows.table.columns} options={columnOptions} lookups={lookupList}
                   onChange={(columns) => setRows({ ...rows, table: { key: rows.table!.key, columns } })} />
               </>
             )}
