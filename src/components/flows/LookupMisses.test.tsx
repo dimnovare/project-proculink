@@ -23,15 +23,16 @@ beforeEach(() => {
   api.addLookupEntry.mockResolvedValue({});
 });
 
-const renderMisses = (onChanged = () => {}) =>
-  render(<QueryClientProvider client={new QueryClient()}>
-    <LookupMisses documentId="d" outputId="o" misses={misses} onChanged={onChanged} />
+const renderMisses = (onChanged = () => {}, list = misses, client = new QueryClient()) =>
+  render(<QueryClientProvider client={client}>
+    <LookupMisses documentId="d" outputId="o" misses={list} onChanged={onChanged} />
   </QueryClientProvider>);
 
 describe("LookupMisses", () => {
   it("suggests, accepts and rejects matches for missed values", async () => {
     const onChanged = vi.fn();
-    renderMisses(onChanged);
+    const client = new QueryClient();
+    const first = renderMisses(onChanged, misses, client);
     expect(await screen.findByText("Not in “Codes”: A1, B2.")).toBeTruthy();
     fireEvent.click(await screen.findByRole("button", { name: "Suggest matches" }));
     expect(await screen.findByText("A1 → SUP-1")).toBeTruthy();
@@ -40,8 +41,14 @@ describe("LookupMisses", () => {
     await waitFor(() => expect(screen.queryByText("A1 → SUP-1")).toBeNull());
     expect(api.addLookupEntry).toHaveBeenCalledWith("L1", { from: "A1", to: "SUP-1" });
     expect(onChanged).toHaveBeenCalledTimes(1);
+    // Accepting re-previews, which unmounts this; the rest must come back without another AI call.
+    first.unmount();
+    renderMisses(onChanged, [{ lookupId: "L1", value: "B2" }], client);
+    expect(await screen.findByText("B2 → SUP-2")).toBeTruthy();
+    expect(api.suggestLookupMatches).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole("button", { name: "Reject" }));
-    expect(screen.queryByText("B2 → SUP-2")).toBeNull();
+    await waitFor(() => expect(screen.queryByText("B2 → SUP-2")).toBeNull());
+    expect(screen.getByRole("button", { name: "Suggest matches" })).toBeTruthy();
     expect(api.addLookupEntry).toHaveBeenCalledTimes(1);
   });
 

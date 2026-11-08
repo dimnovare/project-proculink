@@ -25,7 +25,7 @@ function SuggestionCard({ s, busy, onAccept, onReject }: {
       description={s.description ?? undefined}
       actions={editing ? (
         <>
-          <input aria-label="Swap to" className={`${INPUT} min-w-32 flex-1`} value={to} onChange={(e) => setTo(e.target.value)} />
+          <input aria-label="Swap to" autoFocus className={`${INPUT} min-w-32 flex-1`} value={to} onChange={(e) => setTo(e.target.value)} />
           <Button type="button" size="sm" variant="primary" loading={busy} disabled={!to.trim()} onClick={() => onAccept(to.trim())}>Save</Button>
           <Button type="button" size="sm" variant="ghost" onClick={() => { setEditing(false); setTo(s.to); }}>Cancel</Button>
         </>
@@ -45,12 +45,21 @@ export function LookupMisses({ documentId, outputId, misses, onChanged }: {
   const qc = useQueryClient();
   const enabled = useTenantQueriesEnabled();
   const lookups = useQuery({ queryKey: ["lookups"], queryFn: listLookups, enabled });
-  const [suggestions, setSuggestions] = useState<LookupSuggestion[] | null>(null);
-  const suggest = useMutation({ mutationFn: () => suggestLookupMatches(documentId, outputId), onSuccess: setSuggestions });
+  // In the query cache, not local state: accepting re-previews, which unmounts this component and must not lose the rest.
+  const key = ["lookup-suggestions", documentId, outputId];
+  const suggest = useQuery({
+    queryKey: key, queryFn: () => suggestLookupMatches(documentId, outputId), enabled: false, staleTime: Infinity, retry: false,
+  });
+  const drop = (s: LookupSuggestion) => {
+    const left = (qc.getQueryData<LookupSuggestion[]>(key) ?? []).filter((x) => !same(x, s));
+    if (left.length) qc.setQueryData(key, left);
+    else qc.resetQueries({ queryKey: key }); // back to the button, not "No suggestions"
+  };
+  const suggestions = suggest.data?.filter((s) => misses.some((m) => m.lookupId === s.lookupId && m.value === s.value));
   const accept = useMutation({
     mutationFn: ({ s, to }: { s: LookupSuggestion; to: string }) => addLookupEntry(s.lookupId, { from: s.value, to }),
     onSuccess: async (_, { s }) => {
-      setSuggestions((all) => all?.filter((x) => !same(x, s)) ?? null);
+      drop(s);
       await Promise.all([qc.invalidateQueries({ queryKey: ["lookups"] }), qc.invalidateQueries({ queryKey: ["lookup", s.lookupId] })]);
       onChanged();
     },
@@ -68,14 +77,14 @@ export function LookupMisses({ documentId, outputId, misses, onChanged }: {
         </p>
       ))}
       {canSuggest && (
-        <div><Button type="button" size="sm" variant="ai" loading={suggest.isPending} onClick={() => suggest.mutate()}>Suggest matches</Button></div>
+        <div><Button type="button" size="sm" variant="ai" loading={suggest.isFetching} onClick={() => suggest.refetch()}>Suggest matches</Button></div>
       )}
       {suggest.isError && <StatusNotice tone="error">{documentRefusalMessage(suggest.error)}</StatusNotice>}
       {accept.isError && <StatusNotice tone="error">{documentRefusalMessage(accept.error)}</StatusNotice>}
       {suggestions?.length === 0 && <p className="m-0 text-[12px] text-ink-muted">No suggestions for these values.</p>}
       {suggestions?.map((s) => (
         <SuggestionCard key={`${s.lookupId}\u0000${s.value}`} s={s} busy={accept.isPending && !!accept.variables && same(accept.variables.s, s)}
-          onAccept={(to) => accept.mutate({ s, to })} onReject={() => setSuggestions((all) => all?.filter((x) => !same(x, s)) ?? null)} />
+          onAccept={(to) => accept.mutate({ s, to })} onReject={() => { accept.reset(); drop(s); }} />
       ))}
     </div>
   );
