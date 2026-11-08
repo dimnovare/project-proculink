@@ -27,6 +27,7 @@ import {
   sourceRenderFor,
   type SourceDocument,
 } from "@/lib/sourceDocument";
+import type { SourceLocation } from "@/lib/api/documents";
 import { ImageDocumentView } from "./ImageDocumentView";
 import { scrollRegionProps } from "./scrollRegion";
 import {
@@ -49,15 +50,17 @@ export interface SourceDocumentBodyProps {
   cacheKey: string;
   document: SourceDocument;
   bounded: boolean;
+  /** Where the value being pointed at sits on the original (flows only). */
+  highlight?: SourceLocation | null;
 }
 
-export function SourceDocumentBody({ cacheKey, document: doc, bounded }: SourceDocumentBodyProps) {
+export function SourceDocumentBody({ cacheKey, document: doc, bounded, highlight }: SourceDocumentBodyProps) {
   const render = sourceRenderFor(doc.contentType);
 
   if (render === "pdf") {
     return (
       <Shell bounded={bounded}>
-        <PdfDocumentView cacheKey={cacheKey} blob={doc.blob} bounded={bounded} />
+        <PdfDocumentView cacheKey={cacheKey} blob={doc.blob} bounded={bounded} highlight={highlight} />
         <DownloadRow document={doc} cacheKey={cacheKey} />
       </Shell>
     );
@@ -74,7 +77,7 @@ export function SourceDocumentBody({ cacheKey, document: doc, bounded }: SourceD
     return (
       <Shell bounded={bounded}>
         <div className={bounded ? "min-h-0 flex-1 overflow-auto" : "overflow-auto"}>
-          <ImageDocumentView blob={doc.blob} filename={doc.filename ?? "Original document"} />
+          <ImageDocumentView blob={doc.blob} filename={doc.filename ?? "Original document"} highlight={highlight} />
         </div>
         <DownloadRow document={doc} cacheKey={cacheKey} />
       </Shell>

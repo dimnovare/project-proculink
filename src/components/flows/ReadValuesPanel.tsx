@@ -42,7 +42,13 @@ function ValueInput({ label, value, onSave }: { label?: string; value: string | 
   );
 }
 
-export function ReadValuesPanel({ detail, editable }: { detail: DocumentDetail; editable: boolean }) {
+/** Hover or focus a value to point at its place on the original. */
+function pointAt(onLocate: ((l: SourceLocation | null) => void) | undefined, l: SourceLocation | null) {
+  if (!onLocate || !l?.box) return {};
+  return { onMouseEnter: () => onLocate(l), onFocus: () => onLocate(l), onMouseLeave: () => onLocate(null), onBlur: () => onLocate(null) };
+}
+
+export function ReadValuesPanel({ detail, editable, onLocate }: { detail: DocumentDetail; editable: boolean; onLocate?(location: SourceLocation | null): void }) {
   const qc = useQueryClient();
   const id = detail.summary.id;
   // Bumped after a refusal so every input drops what was typed and shows the server's value again.
@@ -64,7 +70,7 @@ export function ReadValuesPanel({ detail, editable }: { detail: DocumentDetail; 
       <fieldset className="m-0 grid min-w-0 gap-4 border-0 p-0" disabled={!editable || edit.isPending}>
         <legend className="sr-only">Read values</legend>
         {fields.map((f) => (
-          <div key={f.key} className="grid gap-1">
+          <div key={f.key} className="grid gap-1" {...pointAt(onLocate, f.location)}>
             <label className="grid gap-1 text-[12px] font-medium text-ink">
               {f.label}
               <ValueInput value={f.value} onSave={(value) => edit.mutate({ fields: [{ key: f.key, value }] })} />
@@ -89,7 +95,7 @@ export function ReadValuesPanel({ detail, editable }: { detail: DocumentDetail; 
                       {t.columns.map((c) => {
                         const cell = row.cells[c.key];
                         return (
-                          <td key={c.key} className="min-w-[8rem] py-1 pr-2">
+                          <td key={c.key} className="min-w-[8rem] py-1 pr-2" {...pointAt(onLocate, cell?.location ?? null)}>
                             <ValueInput
                               label={`${t.label} row ${r + 1} ${c.label}`} value={cell?.value ?? null}
                               onSave={(value) => edit.mutate({ cells: [{ table: t.key, row: r, column: c.key, value }] })}

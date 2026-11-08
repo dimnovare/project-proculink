@@ -1,17 +1,22 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useState } from "react";
+import type { SourceLocation } from "@/lib/api/documents";
+import { SourceHighlight } from "./SourceHighlight";
 
 /** A photo or scan as the original. */
-export function ImageDocumentView({ blob, filename }: { blob: Blob; filename: string; highlight?: unknown }) {
-  const url = useMemo(
-    () => URL.createObjectURL(new Blob([blob], { type: blob.type === "image/jpeg" ? "image/jpeg" : "image/png" })), // fixed image type: never html/svg on our origin
-    [blob],
-  );
-  useEffect(() => () => URL.revokeObjectURL(url), [url]);
+export function ImageDocumentView({ blob, filename, highlight }: { blob: Blob; filename: string; highlight?: SourceLocation | null }) {
+  const [url, setUrl] = useState<string | null>(null);
+  // Created and revoked in the same effect so a StrictMode remount gets a fresh URL.
+  useEffect(() => {
+    const u = URL.createObjectURL(new Blob([blob], { type: blob.type === "image/jpeg" ? "image/jpeg" : "image/png" })); // fixed image type: never html/svg on our origin
+    setUrl(u);
+    return () => URL.revokeObjectURL(u);
+  }, [blob]);
   return (
     <div className="relative inline-block max-w-full">
-      <img src={url} alt={filename} className="block h-auto max-w-full" />
+      {url && <img src={url} alt={filename} className="block h-auto max-w-full" />}
+      {highlight?.box && <SourceHighlight box={highlight.box} />}
     </div>
   );
 }

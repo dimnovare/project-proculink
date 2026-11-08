@@ -15,7 +15,7 @@ import { fetchDocumentSource, getDocument, getDocumentHistory, retryDocumentRead
 import { formatDateTime } from "@/lib/format-date";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
 import { documentStatus } from "@/lib/documentStatusManifest";
-import type { DocumentDetail } from "@/lib/api/documents";
+import type { DocumentDetail, SourceLocation } from "@/lib/api/documents";
 import { DocumentOutputsPanel } from "./DocumentOutputsPanel";
 import { ReadValuesPanel } from "./ReadValuesPanel";
 import { Checks, Failed, Quiet, ReadProblem } from "./states";
@@ -58,7 +58,7 @@ function History({ documentId }: { documentId: string }) {
   );
 }
 
-export function Original({ documentId, fileName }: { documentId: string; fileName: string }) {
+export function Original({ documentId, fileName, highlight }: { documentId: string; fileName: string; highlight?: SourceLocation | null }) {
   const isLg = useLgViewport();
   const enabled = useTenantQueriesEnabled();
   const source = useQuery({ queryKey: ["document-source", documentId], queryFn: () => fetchDocumentSource(documentId), enabled });
@@ -67,13 +67,14 @@ export function Original({ documentId, fileName }: { documentId: string; fileNam
   if (source.isPending) return <p className="px-4 pb-4 text-[12.5px] text-ink-muted">Opening the document…</p>;
   if (source.isError || source.data.size === 0)
     return <p className="px-4 pb-4 text-[12.5px] text-ink-muted">The original isn&apos;t available right now.</p>;
-  return <SourceDocumentBody cacheKey={documentId} document={{ blob: source.data, contentType: type, filename: fileName }} bounded={isLg} />;
+  return <SourceDocumentBody cacheKey={documentId} document={{ blob: source.data, contentType: type, filename: fileName }} bounded={isLg} highlight={highlight} />;
 }
 
 export function DocumentScreen({ flowId, documentId }: { flowId: string; documentId: string }) {
   const qc = useQueryClient();
   const enabled = useTenantQueriesEnabled();
   const [showOriginal, setShowOriginal] = useState(true);
+  const [spot, setSpot] = useState<SourceLocation | null>(null);
   const doc = useQuery({
     queryKey: ["document", documentId], enabled,
     queryFn: async () => {
@@ -137,7 +138,7 @@ export function DocumentScreen({ flowId, documentId }: { flowId: string; documen
             <div hidden={!showOriginal} className="min-w-0 lg:sticky lg:top-0 lg:h-[calc(100vh-150px)]">
               <Card edge="blue" flush as="section" aria-labelledby="doc-original" className="flex h-full flex-col">
                 <h2 id="doc-original" className="px-4 pb-2 pt-3.5 text-[13px] font-semibold text-ink">Original document</h2>
-                <Original documentId={documentId} fileName={summary.fileName} />
+                <Original documentId={documentId} fileName={summary.fileName} highlight={spot} />
               </Card>
             </div>
             <Card as="section" aria-labelledby="doc-read" className="min-w-0">
@@ -150,7 +151,7 @@ export function DocumentScreen({ flowId, documentId }: { flowId: string; documen
                   {summary.statusReason !== "duplicate_file" && <Checks checks={doc.data.checks} />}
                 </div>
               ) : (
-                <ReadValuesPanel detail={doc.data} editable={status.editable} />
+                <ReadValuesPanel detail={doc.data} editable={status.editable} onLocate={setSpot} />
               )}
               <div className="mt-4"><History documentId={documentId} /></div>
             </Card>
