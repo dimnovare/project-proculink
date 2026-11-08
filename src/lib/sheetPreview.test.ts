@@ -33,6 +33,7 @@ describe("parseCsvRows", () => {
     expect(parseCsvRows("a\n,,\n", ",")).toEqual([["a"], ["", "", ""]]);
     expect(parseCsvRows('a\n""\nb\n', ",")).toEqual([["a"], [""], ["b"]]);
     expect(parseCsvRows('a\n""', ",")).toEqual([["a"], [""]]);
+    expect(parseCsvRows('Pipe 1/2" brass,4\nnext,5\n', ",")).toEqual([['Pipe 1/2" brass', "4"], ["next", "5"]]);
   });
 
   it("handles quoted fields, doubled quotes and embedded newlines", () => {

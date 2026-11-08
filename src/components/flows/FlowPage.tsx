@@ -145,7 +145,8 @@ export function FlowPage({ flowId }: { flowId: string }) {
 
   const go = (t: Tab) => router.replace(`/flows/${flowId}?tab=${t}`);
   const onTabKey = (e: React.KeyboardEvent) => {
-    const i = TABS.findIndex(([t]) => t === tab);
+    // From the focused tab, not the URL: a second press can land before the route commits.
+    const i = TABS.findIndex(([t]) => `flow-tab-${t}` === e.currentTarget.id);
     const to = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: TABS.length - 1 }[e.key];
     if (to === undefined) return;
     e.preventDefault();

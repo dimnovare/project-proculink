@@ -110,7 +110,9 @@ export function parseCsvRows(text: string, delimiter: string, maxRows = MAX_PREV
       } else field += ch;
       continue;
     }
-    if (ch === '"') {
+    // Only a quote that starts a field opens one; a stray quote mid-field (an inch mark,
+    // `1/2" brass`) is literal, as in the backend reader.
+    if (ch === '"' && field === "") {
       inQuotes = true;
       quoted = true;
     } else if (ch === delimiter) {
