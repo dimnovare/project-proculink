@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ReadResult } from "@/lib/api/documents";
-import { fieldListFromRead, withReadExtras } from "@/lib/flowFieldModel";
+import { addReadExtra, fieldListFromRead, withReadExtras } from "@/lib/flowFieldModel";
 
 const f = (key: string, label: string, type: string) => ({
   key, label, value: "x", type, meaning: null, confidence: 1, location: null, notOnPage: false, listed: true, edited: false,
@@ -53,5 +53,13 @@ describe("withReadExtras", () => {
     expect(clash.list.tables).toEqual([]);
     expect(clash.off.has("notes")).toBe(false);
     expect(withReadExtras({ fields: [own], tables: [] }, undefined)).toEqual({ list: { fields: [own], tables: [] }, off: new Set() });
+  });
+});
+
+describe("addReadExtra", () => {
+  it("adds exactly the chosen field and keeps the flow's labels", () => {
+    const read: ReadResult = { kindLabel: null, truncated: false, fields: [f("po", "PO number", "code"), f("total", "Total", "money"), f("date", "Date", "date")], tables: [] };
+    const own = { key: "po", label: "Order", type: "code", meaning: null, required: true };
+    expect(addReadExtra({ fields: [own], tables: [] }, read, "total").fields.map((x) => [x.key, x.label])).toEqual([["po", "Order"], ["total", "Total"]]);
   });
 });

@@ -6,7 +6,7 @@ const GENERIC = "Something went wrong. Try again.";
 
 export const COPY: Record<string, string> = {
   document_engine_not_enabled: "Flows aren't switched on for this workspace yet.",
-  unsupported_format: "This file type can't be read. Use PDF, CSV or Excel (.xlsx).",
+  unsupported_format: "This file type can't be read in this flow.",
   file_too_large: "This file is too large.",
   unreadable_file: "This file couldn't be opened. It may be password-protected or damaged.",
   fields_unconfirmed: "Confirm this flow's fields first.",

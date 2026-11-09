@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from "fs";
 import { dirname, join, resolve } from "path";
 import {
   decodeSourceText,
+  DOCX_MEDIA_TYPE,
   filenameFromDisposition,
   normalizeContentType,
   resolveIncomingView,
@@ -40,11 +41,12 @@ describe("sourceRenderFor", () => {
     ).toBe("sheet");
     expect(sourceRenderFor("application/xml")).toBe("text");
     expect(sourceRenderFor("text/plain")).toBe("text");
+    expect(sourceRenderFor("application/json")).toBe("text");
     expect(sourceRenderFor("application/octet-stream")).toBe("opaque");
   });
 
   it("anything unlisted is opaque — an unknown type never acquires a renderer by accident", () => {
-    for (const t of ["text/html", "image/svg+xml", "application/json", "", "garbage"]) {
+    for (const t of ["text/html", "image/svg+xml", "application/ld+json", "", "garbage"]) {
       expect(sourceRenderFor(t)).toBe("opaque");
     }
   });
@@ -235,6 +237,10 @@ describe("the media-type map mirrors the C# that produces it", () => {
         // The deliberate "we could not identify these bytes" answer.
         expect(render).toBe("opaque");
         expect(label).toBeNull();
+      } else if (t === DOCX_MEDIA_TYPE) {
+        // Word is a download on purpose: a browser cannot render it, so it gets a chip only.
+        expect(render).toBe("opaque");
+        expect(label).toBe("DOCX");
       } else {
         expect(render, `${t} has no renderer`).not.toBe("opaque");
         expect(label, `${t} has no chip label`).toBeTruthy();
@@ -251,6 +257,8 @@ describe("the media-type map mirrors the C# that produces it", () => {
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       "application/xml",
       "text/plain",
+      "application/json",
+      DOCX_MEDIA_TYPE,
     ];
     for (const t of claimed) {
       expect(serverTypes.has(t), `${t} has a renderer here but the server never sends it`).toBe(true);

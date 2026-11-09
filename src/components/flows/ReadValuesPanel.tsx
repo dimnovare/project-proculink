@@ -5,15 +5,18 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { ConfidenceChip } from "@/components/bridge/ConfidenceChip";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
-import { editDocumentValues } from "@/lib/api/documents";
-import type { DocumentDetail, EditValuesRequest, SourceLocation } from "@/lib/api/documents";
+import { editDocumentValues, saveFlowFields } from "@/lib/api/documents";
+import type { DocumentDetail, EditValuesRequest, Flow, SourceLocation } from "@/lib/api/documents";
 import { documentRefusalMessage, refusalToken } from "@/lib/documentRefusals";
+import { addReadExtra, withReadExtras } from "@/lib/flowFieldModel";
 import { INPUT } from "./DestinationForm";
 import { Checks } from "./states";
 
-/** "Page 2", or the sheet cell as a spreadsheet writes it (`cell:r2c3` becomes "Cell C2"). */
+/** "Page 2", "Paragraph 2", "Line 7", or the sheet cell as a spreadsheet writes it (`cell:r2c3` becomes "Cell C2"). */
 export function locationText(l: SourceLocation | null): string | null {
   if (l?.page != null) return `Page ${l.page}`;
+  const pl = /^(para|line):(\d+)$/.exec(l?.address ?? "");
+  if (pl) return `${pl[1] === "para" ? "Paragraph" : "Line"} ${pl[2]}`;
   const m = /^cell:r(\d+)c(\d+)$/.exec(l?.address ?? "");
   if (!m) return l?.address ?? null;
   let col = "";
@@ -48,7 +51,37 @@ function pointAt(onLocate: ((l: SourceLocation | null) => void) | undefined, l: 
   return { onMouseEnter: () => onLocate(l), onFocus: () => onLocate(l), onMouseLeave: () => onLocate(null), onBlur: () => onLocate(null) };
 }
 
-export function ReadValuesPanel({ detail, editable, onLocate }: { detail: DocumentDetail; editable: boolean; onLocate?(location: SourceLocation | null): void }) {
+/** What the read found that a confirmed flow does not have yet, each one click from joining it. */
+function NewFields({ flow, read, docId }: { flow: Flow; read: DocumentDetail["read"]; docId: string }) {
+  const qc = useQueryClient();
+  const add = useMutation({
+    mutationFn: (id: string) => saveFlowFields(flow.id, addReadExtra(flow.fields, read, id)),
+    // Saving the field list re-runs the checks on this document, so its checks are refetched too.
+    onSuccess: (saved) => { qc.setQueryData(["flow", flow.id], saved); qc.invalidateQueries({ queryKey: ["flows"] }); qc.invalidateQueries({ queryKey: ["document", docId] }); },
+  });
+  const { list, off } = withReadExtras(flow.fields, read);
+  const extras = [
+    ...list.fields.map((f) => [f.key, f.label] as const),
+    ...list.tables.flatMap((t) => [[t.key, t.label] as const, ...t.columns.map((c) => [`${t.key}/${c.key}`, c.label] as const)]),
+  ].filter(([id]) => off.has(id));
+  if (!extras.length) return null;
+  return (
+    <section className="grid gap-2">
+      <h3 className="m-0 text-[12px] font-semibold text-ink">New fields we noticed</h3>
+      {add.isError && <StatusNotice tone="error">{documentRefusalMessage(add.error)}</StatusNotice>}
+      <ul className="m-0 grid list-none gap-1 p-0">
+        {extras.map(([id, label]) => (
+          <li key={id} className="flex items-center justify-between gap-2 text-[12px] text-ink">
+            {label}
+            <Button size="sm" variant="secondary" disabled={add.isPending} aria-label={`Add ${label} to the flow`} onClick={() => add.mutate(id)}>Add to flow</Button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+export function ReadValuesPanel({ detail, editable, onLocate, flow }: { detail: DocumentDetail; editable: boolean; onLocate?(location: SourceLocation | null): void; flow?: Flow }) {
   const qc = useQueryClient();
   const id = detail.summary.id;
   // Bumped after a refusal so every input drops what was typed and shows the server's value again.
@@ -118,6 +151,7 @@ export function ReadValuesPanel({ detail, editable, onLocate }: { detail: Docume
           </div>
         ))}
       </fieldset>
+      {flow?.fieldsConfirmed && <NewFields flow={flow} read={detail.read} docId={id} />}
       <Checks checks={detail.checks} />
     </div>
   );

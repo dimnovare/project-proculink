@@ -68,6 +68,6 @@ describe("FlowPage", () => {
     await screen.findByDisplayValue("Receipts");
     const input = screen.getByLabelText("Choose a file", { selector: "input" });
     fireEvent.change(input, { target: { files: [new File(["x"], "a.pdf", { type: "application/pdf" })] } });
-    expect((await screen.findByRole("alert")).textContent).toBe("This file type can't be read. Use PDF, CSV or Excel (.xlsx).");
+    expect((await screen.findByRole("alert")).textContent).toBe("This file type can't be read in this flow.");
   });
 });

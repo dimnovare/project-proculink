@@ -9,6 +9,7 @@ import { Card } from "@/components/bridge/layout/Card";
 import { StatusJourney } from "@/components/bridge/StatusJourney";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { SourceDocumentBody } from "@/components/bridge/document/SourceDocumentBody";
+import { DOCX_MEDIA_TYPE } from "@/lib/sourceDocument";
 import { useLgViewport } from "@/components/bridge/document/useSourceDocument";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { fetchDocumentSource, getDocument, getFlow, getDocumentHistory, retryDocumentRead } from "@/lib/api/documents";
@@ -28,6 +29,13 @@ const TYPES: Record<string, string> = {
   png: "image/png",
   jpg: "image/jpeg",
   jpeg: "image/jpeg",
+  docx: DOCX_MEDIA_TYPE,
+  txt: "text/plain",
+  edi: "text/plain",
+  x12: "text/plain",
+  xml: "application/xml",
+  cxml: "application/xml",
+  json: "application/json",
 };
 
 /** `document.value_edited` becomes "Value edited". The payload is never shown. */
@@ -153,7 +161,7 @@ export function DocumentScreen({ flowId, documentId }: { flowId: string; documen
                   {summary.statusReason !== "duplicate_file" && <Checks checks={doc.data.checks} />}
                 </div>
               ) : (
-                <ReadValuesPanel detail={doc.data} editable={status.editable} onLocate={setSpot} />
+                <ReadValuesPanel detail={doc.data} editable={status.editable} onLocate={setSpot} flow={flow.data} />
               )}
               <div className="mt-4"><History documentId={documentId} /></div>
             </Card>

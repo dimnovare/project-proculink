@@ -28,6 +28,16 @@ export function withReadExtras(fields: FlowFieldList, read: ReadResult | undefin
   return { list, off };
 }
 
+/** The flow's fields plus exactly one thing the read noticed. `id` is a field key, a table key, or `table/column`. */
+export function addReadExtra(fields: FlowFieldList, read: ReadResult, id: string): FlowFieldList {
+  const { list, off } = withReadExtras(fields, read);
+  const keep = (k: string) => !off.has(k) || k === id;
+  return {
+    fields: list.fields.filter((f) => keep(f.key)),
+    tables: list.tables.filter((t) => keep(t.key)).map((t) => ({ ...t, columns: t.columns.filter((c) => keep(`${t.key}/${c.key}`)) })),
+  };
+}
+
 /** Field types the server accepts (`FieldTypes.All`), in words. */
 export const FIELD_TYPES: Record<string, string> = {
   text: "Text", number: "Number", money: "Amount", currency: "Currency", date: "Date",

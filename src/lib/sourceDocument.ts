@@ -17,7 +17,8 @@
 // from the file extension (`DocumentScreen.tsx`), which also gives the png/jpeg photos. The
 // server allowlist: pdf → application/pdf,
 // csv → text/csv, xlsx → the OOXML spreadsheet type, cxml|ubl|xml → application/xml,
-// edifact|x12 → text/plain, and everything else → application/octet-stream. Nothing in it can
+// edifact|x12|txt|edi → text/plain, json → application/json, docx → the Word type (a
+// download), png/jpg → image/*, and everything else → application/octet-stream. Nothing in it can
 // produce text/html or image/svg+xml, which is why we can render what it sends. We still treat
 // anything unlisted as opaque rather than assuming, so a future server type cannot silently
 // acquire a renderer here.
@@ -61,6 +62,8 @@ export function normalizeContentType(raw: string | null | undefined): string {
 
 const XLSX_MEDIA_TYPE =
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+export const DOCX_MEDIA_TYPE =
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 /**
  * The renderer for a media type. Unlisted → `opaque`, always. There is no fallback that
@@ -76,6 +79,7 @@ export function sourceRenderFor(contentType: string): SourceDocumentRender {
       return "sheet";
     case "application/xml":
     case "text/plain":
+    case "application/json":
       return "text";
     case "image/png":
     case "image/jpeg":
@@ -103,6 +107,10 @@ export function sourceFormatLabel(contentType: string): string | null {
       return "XLSX";
     case "application/xml":
       return "XML";
+    case "application/json":
+      return "JSON";
+    case DOCX_MEDIA_TYPE:
+      return "DOCX";
     case "text/plain":
       return "TEXT";
     case "image/png":

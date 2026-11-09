@@ -9,8 +9,8 @@ vi.mock("@/lib/api/documents", () => api);
 
 const flow = { id: "f", name: "Receipts", fieldsConfirmed: true, fields: { fields: [], tables: [] }, documentCount: 0, createdAt: "", automation: "review" };
 
-const drop = async (scansOn?: boolean) => {
-  api.getFlow.mockResolvedValue({ ...flow, scansOn });
+const drop = async (scansOn?: boolean, formatsOn?: boolean) => {
+  api.getFlow.mockResolvedValue({ ...flow, scansOn, formatsOn });
   const client = new QueryClient();
   const { container } = render(<QueryClientProvider client={client}><FlowUpload flowId="f" onUploaded={vi.fn()} /></QueryClientProvider>);
   await waitFor(() => expect(client.getQueryData(["flow", "f"])).toBeTruthy());
@@ -29,7 +29,12 @@ describe("FlowUpload", () => {
   it("refuses the same photo when scans are off", async () => {
     await drop(undefined);
     expect(screen.getByText("Drop a PDF, CSV or Excel file here")).toBeTruthy();
-    expect(await screen.findByText("This file type can't be read. Use PDF, CSV or Excel (.xlsx).")).toBeTruthy();
+    expect(await screen.findByText("This file type can't be read in this flow.")).toBeTruthy();
     expect(api.uploadDocument).not.toHaveBeenCalled();
+  });
+  it("offers Word, text, XML, JSON and EDI when formats are on", async () => {
+    await drop(false, true);
+    expect(screen.getByText("Drop a PDF, Word, Excel, CSV, text, XML, JSON or EDI file here")).toBeTruthy();
+    expect(screen.getByLabelText("Choose a file").getAttribute("accept")).toContain(".docx");
   });
 });
