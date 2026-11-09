@@ -160,7 +160,7 @@ export function DocumentScreen({ flowId, documentId }: { flowId: string; documen
                   {summary.statusReason !== "duplicate_file" && <Checks checks={doc.data.checks} />}
                 </div>
               ) : (
-                <ReadValuesPanel detail={doc.data} editable={status.editable} onLocate={setSpot} />
+                <ReadValuesPanel detail={doc.data} editable={status.editable} onLocate={setSpot} flow={flow.data} />
               )}
               <div className="mt-4"><History documentId={documentId} /></div>
             </Card>

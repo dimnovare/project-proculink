@@ -10,6 +10,7 @@ vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => tru
 const api = vi.hoisted(() => ({
   getDocument: vi.fn(), editDocumentValues: vi.fn(), getDocumentHistory: vi.fn(),
   retryDocumentRead: vi.fn(), fetchDocumentSource: vi.fn(),
+  getFlow: vi.fn(), saveFlowFields: vi.fn(),
   listOutputs: vi.fn(), listDestinations: vi.fn(), listDeliveries: vi.fn(),
 }));
 vi.mock("@/lib/api/documents", () => api);
@@ -32,6 +33,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   api.getDocument.mockResolvedValue(detail("INV-1"));
   api.getDocumentHistory.mockResolvedValue([]);
+  api.getFlow.mockResolvedValue({ id: "f", fieldsConfirmed: false });
   api.listOutputs.mockResolvedValue([]);
   api.listDestinations.mockResolvedValue([]);
   api.listDeliveries.mockResolvedValue([]);
@@ -103,5 +105,22 @@ describe("DocumentScreen", () => {
     await qc.invalidateQueries({ queryKey: ["document", "d"] });
     await waitFor(() => expect(api.listDeliveries).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(api.getDocumentHistory).toHaveBeenCalledTimes(2));
+  });
+
+  it("offers a field the read noticed and adds it to the flow in one click", async () => {
+    const fld = (key: string, label: string) => ({ ...field("x"), key, label });
+    const d = detail("x");
+    d.read.fields = [fld("po", "po"), fld("total", "total")];
+    api.getDocument.mockResolvedValue(d);
+    const own = { key: "po", label: "po", type: "text", meaning: null, required: false };
+    const flow = { id: "f", fieldsConfirmed: true, fields: { fields: [own], tables: [] } };
+    api.getFlow.mockResolvedValue(flow);
+    api.saveFlowFields.mockResolvedValue({ ...flow, fields: { fields: [own, { ...own, key: "total", label: "total" }], tables: [] } });
+    renderScreen();
+    expect(await screen.findByText("New fields we noticed")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Add po to the flow" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Add total to the flow" }));
+    await waitFor(() => expect(api.saveFlowFields).toHaveBeenCalledWith("f", expect.objectContaining({ fields: [expect.objectContaining({ key: "po" }), expect.objectContaining({ key: "total" })] })));
+    await waitFor(() => expect(screen.queryByText("New fields we noticed")).toBeNull());
   });
 });
