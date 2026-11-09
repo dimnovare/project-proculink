@@ -14,8 +14,19 @@ import { documentRefusalMessage } from "@/lib/documentRefusals";
 const ACCEPT = ".pdf,.csv,.xlsx";
 /** Photos and scans, added when the workspace has scans on. */
 const PHOTOS = ".png,.jpg,.jpeg";
+/** Word, text, XML and EDI files, added when the workspace has formats on. */
+const FORMATS = ".docx,.txt,.xml,.cxml,.json,.edi,.x12";
 
 const MAX_BYTES = 10 * 1024 * 1024;
+
+const dropText = (scansOn: boolean, formatsOn: boolean) =>
+  formatsOn
+    ? scansOn
+      ? "Drop a file or photo here: PDF, Word, Excel, CSV, text, XML, JSON, EDI, PNG or JPG"
+      : "Drop a PDF, Word, Excel, CSV, text, XML, JSON or EDI file here"
+    : scansOn
+      ? "Drop a PDF, CSV, Excel file or photo (PNG, JPG) here"
+      : "Drop a PDF, CSV or Excel file here";
 
 export function FlowUpload({ flowId, onUploaded }: { flowId: string; onUploaded(d: DocumentSummary): void }) {
   const input = useRef<HTMLInputElement>(null);
@@ -23,7 +34,8 @@ export function FlowUpload({ flowId, onUploaded }: { flowId: string; onUploaded(
   const [problem, setProblem] = useState<string | null>(null);
   const flow = useQuery({ queryKey: ["flow", flowId], queryFn: () => getFlow(flowId), enabled: useTenantQueriesEnabled() });
   const scansOn = !!flow.data?.scansOn;
-  const accept = scansOn ? `${ACCEPT},${PHOTOS}` : ACCEPT;
+  const formatsOn = !!flow.data?.formatsOn;
+  const accept = [ACCEPT, scansOn && PHOTOS, formatsOn && FORMATS].filter(Boolean).join(",");
   const upload = useMutation({
     mutationFn: (file: File) => uploadDocument(flowId, file),
     onSuccess: (d) => { setProblem(null); onUploaded(d); },
@@ -46,7 +58,7 @@ export function FlowUpload({ flowId, onUploaded }: { flowId: string; onUploaded(
         onDragLeave={() => setOver(false)}
         onDrop={(e) => { e.preventDefault(); setOver(false); pick(e.dataTransfer.files[0]); }}
       >
-        <p className="text-[13px] text-ink-muted">{scansOn ? "Drop a PDF, CSV, Excel file or photo (PNG, JPG) here" : "Drop a PDF, CSV or Excel file here"}</p>
+        <p className="text-[13px] text-ink-muted">{dropText(scansOn, formatsOn)}</p>
         <Button type="button" variant="secondary" loading={upload.isPending} onClick={() => input.current?.click()}>
           Choose a file
         </Button>

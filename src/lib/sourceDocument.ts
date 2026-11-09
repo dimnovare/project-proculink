@@ -76,6 +76,7 @@ export function sourceRenderFor(contentType: string): SourceDocumentRender {
       return "sheet";
     case "application/xml":
     case "text/plain":
+    case "application/json":
       return "text";
     case "image/png":
     case "image/jpeg":

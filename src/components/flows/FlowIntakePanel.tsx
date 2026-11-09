@@ -64,7 +64,7 @@ function EmailCard({ flowId, intake }: { flowId: string; intake: FlowIntake }) {
     <Card edge="blue" title="Email address">
       <div className="grid gap-3">
         <p className="m-0 text-[13px] text-ink-muted">
-          Forward or send documents here. Each attached PDF, CSV or Excel file becomes a document in this flow.
+          Forward or send documents here. Each attached file we can read becomes a document in this flow.
         </p>
         {intake.address ? (
           <div className="flex flex-wrap items-center gap-2">

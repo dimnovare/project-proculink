@@ -34,6 +34,8 @@ export interface Flow {
   automation: "review" | "auto";
   /** Scanned PDFs and photos are readable. Absent on an older backend, which means off. */
   scansOn?: boolean;
+  /** Word, text, XML, JSON and EDI files are readable. Absent on an older backend, which means off. */
+  formatsOn?: boolean;
 }
 
 export interface DocumentSummary {

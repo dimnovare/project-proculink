@@ -11,9 +11,11 @@ import { documentRefusalMessage, refusalToken } from "@/lib/documentRefusals";
 import { INPUT } from "./DestinationForm";
 import { Checks } from "./states";
 
-/** "Page 2", or the sheet cell as a spreadsheet writes it (`cell:r2c3` becomes "Cell C2"). */
+/** "Page 2", "Paragraph 2", "Line 7", or the sheet cell as a spreadsheet writes it (`cell:r2c3` becomes "Cell C2"). */
 export function locationText(l: SourceLocation | null): string | null {
   if (l?.page != null) return `Page ${l.page}`;
+  const pl = /^(para|line):(\d+)$/.exec(l?.address ?? "");
+  if (pl) return `${pl[1] === "para" ? "Paragraph" : "Line"} ${pl[2]}`;
   const m = /^cell:r(\d+)c(\d+)$/.exec(l?.address ?? "");
   if (!m) return l?.address ?? null;
   let col = "";

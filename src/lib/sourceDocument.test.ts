@@ -44,7 +44,7 @@ describe("sourceRenderFor", () => {
   });
 
   it("anything unlisted is opaque — an unknown type never acquires a renderer by accident", () => {
-    for (const t of ["text/html", "image/svg+xml", "application/json", "", "garbage"]) {
+    for (const t of ["text/html", "image/svg+xml", "", "garbage"]) {
       expect(sourceRenderFor(t)).toBe("opaque");
     }
   });
@@ -263,4 +263,8 @@ describe("the media-type map mirrors the C# that produces it", () => {
       expect(t).not.toMatch(/html|svg|xhtml|javascript|ecmascript/i);
     }
   });
+});
+
+it("renders JSON as text", () => {
+  expect(sourceRenderFor("application/json")).toBe("text");
 });

@@ -28,6 +28,13 @@ const TYPES: Record<string, string> = {
   png: "image/png",
   jpg: "image/jpeg",
   jpeg: "image/jpeg",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  txt: "text/plain",
+  edi: "text/plain",
+  x12: "text/plain",
+  xml: "application/xml",
+  cxml: "application/xml",
+  json: "application/json",
 };
 
 /** `document.value_edited` becomes "Value edited". The payload is never shown. */
