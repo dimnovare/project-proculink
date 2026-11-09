@@ -49,9 +49,11 @@ export interface PdfDocumentViewProps {
   highlight?: SourceLocation | null;
   /** Set to let the person draw a box on the page. */
   onPick?(p: SourcePick): void;
+  /** Accessible name of the scrolling page area. */
+  regionLabel?: string;
 }
 
-export function PdfDocumentView({ cacheKey, blob, bounded, highlight, onPick }: PdfDocumentViewProps) {
+export function PdfDocumentView({ cacheKey, blob, bounded, highlight, onPick, regionLabel = "Original document" }: PdfDocumentViewProps) {
   const [page, setPage] = useState(1);
   // Turn to a newly pointed-at page (adjusting state during render, not an effect).
   const [seenPage, setSeenPage] = useState(highlight?.page);
@@ -110,7 +112,7 @@ export function PdfDocumentView({ cacheKey, blob, bounded, highlight, onPick }: 
           page is wider than the card — so it is a keyboard stop either way. The ring is drawn
           INSIDE the box: the bounded shell clips, and a ring nobody can see is not a fix. */}
       <div
-        {...scrollRegionProps("Original document", true)}
+        {...scrollRegionProps(regionLabel, true)}
         className={
           (bounded
             ? "min-h-0 flex-1 overflow-auto bg-surface-2 p-3"

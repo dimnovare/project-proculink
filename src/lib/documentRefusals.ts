@@ -45,6 +45,7 @@ export const COPY: Record<string, string> = {
   widths: "Give every column a width from 1 to 1000.",
   layout: "Keep the title to 120 characters, and the top and bottom text to 500 each.",
   unknown_target: "That field is no longer on this flow. Reload to see its current fields.",
+  invalid_logo: "Use a PNG or JPG image of 256 KB or less.",
   scanned_not_supported: "This looks like a scanned document, which can't be read yet.",
 };
 

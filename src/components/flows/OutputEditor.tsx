@@ -1,14 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { Card } from "@/components/bridge/layout/Card";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { DestinationForm, Field, INPUT } from "@/components/flows/DestinationForm";
 import { LookupMisses } from "@/components/flows/LookupMisses";
-import { createOutput, listDestinations, listLookups, previewOutput, updateOutput } from "@/lib/api/documents";
+import { PdfDocumentView } from "@/components/bridge/document/PdfDocumentView";
+import { createOutput, deleteOutputLogo, listDestinations, listLookups, previewOutput, updateOutput, uploadOutputLogo } from "@/lib/api/documents";
 import type { Flow, FlowOutput, LookupSummary, OutputLayout, SendWhen, SendWhenOp } from "@/lib/api/documents";
+import { ApiHttpError } from "@/lib/api/core";
 import { COPY, documentRefusalMessage } from "@/lib/documentRefusals";
 import { defaultWidth, fromSimple, OP_LABEL, toSimple } from "@/lib/flowOutputModel";
 import type { SimpleOutput, SimpleRow } from "@/lib/flowOutputModel";
@@ -100,6 +102,17 @@ export function OutputEditor({ flow, output, previewDocumentId, hideDestination,
   const formatted = format === "pdf" || format === "txt";
 
   const preview = useMutation({ mutationFn: () => previewOutput(previewDocumentId!, current!.id) });
+  const logo = useMutation({
+    mutationFn: (file: File | null) => (file ? uploadOutputLogo(flow.id, current!.id, file) : deleteOutputLogo(flow.id, current!.id)),
+    onSuccess: (_, file) => {
+      setProblem(null);
+      setCurrent((c) => c && { ...c, hasLogo: !!file });
+      qc.invalidateQueries({ queryKey: ["outputs", flow.id] });
+    },
+    onError: (e) => setProblem(e instanceof ApiHttpError && e.status === 413 ? COPY.invalid_logo : documentRefusalMessage(e)),
+  });
+  const pdf = preview.data?.contentType === "application/pdf" && preview.data.base64 ? preview.data.base64 : null;
+  const pdfBlob = useMemo(() => pdf && new Blob([Uint8Array.from(atob(pdf), (c) => c.charCodeAt(0))], { type: "application/pdf" }), [pdf]);
   const save = useMutation({
     mutationFn: () => {
       const body = { name: name.trim(), format, tableKey, destinationId, sendWhen, layout: formatted ? layout : null };
@@ -168,6 +181,25 @@ export function OutputEditor({ flow, output, previewDocumentId, hideDestination,
               : <textarea className={INPUT} rows={2} maxLength={max} value={layout[key] ?? ""} onChange={(e) => setLayout({ ...layout, [key]: e.target.value })} />}
           </Field>
         ))}
+        {format === "pdf" && (
+          <Field label="Logo">
+            {!current ? <p className="text-[12px] text-ink-muted">Save the output first, then add a logo.</p>
+              : current.hasLogo ? <Button type="button" variant="secondary" loading={logo.isPending} onClick={() => logo.mutate(null)}>Remove logo</Button>
+              : (
+                <>
+                  <input type="file" aria-label="Add a logo" accept="image/png,image/jpeg" className={INPUT} disabled={logo.isPending}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      e.target.value = "";
+                      if (!file) return;
+                      if (file.size > 262_144) setProblem(COPY.invalid_logo);
+                      else logo.mutate(file);
+                    }} />
+                  <p className="text-[12px] text-ink-muted">PNG or JPG, up to 256 KB.</p>
+                </>
+              )}
+          </Field>
+        )}
         {flow.fields.tables.length > 0 && (
           <Field label="Table">
             <select className={INPUT} value={tableKey ?? ""} disabled={external} onChange={(e) => changeTable(e.target.value || null)}>
@@ -251,7 +283,8 @@ export function OutputEditor({ flow, output, previewDocumentId, hideDestination,
         {previewDocumentId && current && preview.data?.lookupMisses?.length ? (
           <LookupMisses documentId={previewDocumentId} outputId={current.id} misses={preview.data.lookupMisses} onChanged={() => preview.mutate()} />
         ) : null}
-        {preview.data && (
+        {pdfBlob && current ? <PdfDocumentView cacheKey={`output-preview-${current.id}-${pdf!.length}-${pdf!.slice(-16)}`} blob={pdfBlob} bounded regionLabel="Preview" />
+        : preview.data && (
           <pre className="max-h-72 overflow-auto rounded border border-border bg-surface2 p-2.5 font-mono text-[12px] text-ink">
             {preview.data.content}
           </pre>

@@ -198,6 +198,14 @@ export const previewOutput = (documentId: string, outputId: string, template?: O
     ...(template ? { body: json({ template }) } : {}),
   });
 
+export function uploadOutputLogo(flowId: string, outputId: string, file: File): Promise<void> {
+  const form = new FormData();
+  form.append("file", file);
+  return apiFetch<void>(`/flows/${seg(flowId)}/outputs/${seg(outputId)}/logo`, { method: "PUT", body: form });
+}
+export const deleteOutputLogo = (flowId: string, outputId: string) =>
+  apiFetch<void>(`/flows/${seg(flowId)}/outputs/${seg(outputId)}/logo`, { method: "DELETE" });
+
 export const listLookups = () => apiFetch<LookupSummary[]>(`/lookups`);
 export const getLookup = (id: string) => apiFetch<Lookup>(`/lookups/${seg(id)}`);
 export const createLookup = (name: string) => apiFetch<Lookup>(`/lookups`, { method: "POST", body: json({ name }) });
