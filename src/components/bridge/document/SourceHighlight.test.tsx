@@ -29,17 +29,20 @@ beforeAll(() => {
 
 const box = { x: 0.1, y: 0.2, width: 0.3, height: 0.05 };
 const location: SourceLocation = { page: 1, box, address: null };
+const NL = String.fromCharCode(10);
+const TXT = ["a", "Total 5", ""].join(NL);
+const CSV = ["Item,Total", "Bolt,5"].join(NL);
 const qc = new QueryClient();
 const wrap = (ui: ReactNode) => <QueryClientProvider client={qc}>{ui}</QueryClientProvider>;
 
-function Screen() {
+function Screen({ file, loc = location }: { file?: { blob: Blob; contentType: string; filename: string }; loc?: SourceLocation } = {}) {
   const [spot, setSpot] = useState<SourceLocation | null>(null);
   const detail = {
     summary: { id: "d1" }, checks: [], read: { tables: [], truncated: false, kindLabel: null, fields: [
-      { key: "po", label: "PO number", value: "PO-1", type: "text", meaning: null, confidence: 0.9, location, notOnPage: false, listed: true, edited: false },
+      { key: "po", label: "PO number", value: "PO-1", type: "text", meaning: null, confidence: 0.9, location: loc, notOnPage: false, listed: true, edited: false },
     ] },
   } as unknown as DocumentDetail;
-  const document = { blob: new Blob(["x"], { type: "image/png" }), contentType: "image/png", filename: "photo.png" };
+  const document = file ?? { blob: new Blob(["x"], { type: "image/png" }), contentType: "image/png", filename: "photo.png" };
   return (
     <>
       <div data-testid="original"><SourceDocumentBody cacheKey="d" document={document} bounded={false} highlight={spot} /></div>
@@ -85,5 +88,28 @@ describe("highlight", () => {
     } finally {
       width.mockRestore();
     }
+  });
+
+  it("hovering a value read from a text line highlights that line", async () => {
+    const blob = new Blob([TXT], { type: "text/plain" });
+    blob.arrayBuffer = async () => new TextEncoder().encode(TXT).buffer as ArrayBuffer;
+    render(wrap(<Screen file={{ blob, contentType: "text/plain", filename: "a.txt" }} loc={{ page: null, box: null, address: "line:2" }} />));
+    const original = within(screen.getByTestId("original"));
+    const items = await original.findAllByRole("listitem");
+    fireEvent.mouseEnter(within(screen.getByTestId("values")).getByLabelText("PO number").closest("div")!);
+    expect(items[1].getAttribute("data-highlighted")).toBe("true");
+    expect(items[0].getAttribute("data-highlighted")).toBeNull();
+  });
+
+  it("hovering a value read from a cell highlights that cell", async () => {
+    const blob = new Blob([CSV], { type: "text/csv" });
+    blob.arrayBuffer = async () => new TextEncoder().encode(CSV).buffer as ArrayBuffer;
+    render(wrap(<Screen file={{ blob, contentType: "text/csv", filename: "a.csv" }} loc={{ page: null, box: null, address: "cell:r2c2" }} />));
+    const original = within(screen.getByTestId("original"));
+    const cell = await original.findByText("5");
+    expect(cell.getAttribute("data-highlighted")).toBeNull();
+    fireEvent.mouseEnter(within(screen.getByTestId("values")).getByLabelText("PO number").closest("div")!);
+    expect(cell.getAttribute("data-highlighted")).toBe("true");
+    expect(original.getByText("Bolt").getAttribute("data-highlighted")).toBeNull();
   });
 });

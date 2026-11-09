@@ -9,19 +9,17 @@ import { editDocumentValues, saveFlowFields } from "@/lib/api/documents";
 import type { DocumentDetail, EditValuesRequest, Flow, SourceLocation } from "@/lib/api/documents";
 import { documentRefusalMessage, refusalToken } from "@/lib/documentRefusals";
 import { addReadExtra, withReadExtras } from "@/lib/flowFieldModel";
+import { parseAddress, spreadsheetColumnName } from "@/lib/sourceAddress";
 import { INPUT } from "./DestinationForm";
 import { Checks } from "./states";
 
 /** "Page 2", "Paragraph 2", "Line 7", or the sheet cell as a spreadsheet writes it (`cell:r2c3` becomes "Cell C2"). */
 export function locationText(l: SourceLocation | null): string | null {
   if (l?.page != null) return `Page ${l.page}`;
-  const pl = /^(para|line):(\d+)$/.exec(l?.address ?? "");
-  if (pl) return `${pl[1] === "para" ? "Paragraph" : "Line"} ${pl[2]}`;
-  const m = /^cell:r(\d+)c(\d+)$/.exec(l?.address ?? "");
-  if (!m) return l?.address ?? null;
-  let col = "";
-  for (let n = Number(m[2]); n > 0; n = Math.floor((n - 1) / 26)) col = String.fromCharCode(65 + ((n - 1) % 26)) + col;
-  return `Cell ${col}${m[1]}`;
+  const a = parseAddress(l?.address);
+  if (!a) return l?.address ?? null;
+  if (a.kind !== "cell") return `${a.kind === "para" ? "Paragraph" : "Line"} ${a.n}`;
+  return `Cell ${spreadsheetColumnName(a.col - 1)}${a.row}`;
 }
 
 function Meta({ read }: { read: { confidence: number; location: SourceLocation | null; notOnPage: boolean } }) {
@@ -47,7 +45,7 @@ function ValueInput({ label, value, onSave }: { label?: string; value: string | 
 
 /** Hover or focus a value to point at its place on the original. */
 function pointAt(onLocate: ((l: SourceLocation | null) => void) | undefined, l: SourceLocation | null) {
-  if (!onLocate || !l?.box) return {};
+  if (!onLocate || !(l?.box || l?.address)) return {};
   return { onMouseEnter: () => onLocate(l), onFocus: () => onLocate(l), onMouseLeave: () => onLocate(null), onBlur: () => onLocate(null) };
 }
 

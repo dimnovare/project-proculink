@@ -30,6 +30,12 @@ import {
 } from "@/lib/sourceDocument";
 import type { SourceLocation } from "@/lib/api/documents";
 import { ImageDocumentView } from "./ImageDocumentView";
+import { parseAddress, spreadsheetColumnName } from "@/lib/sourceAddress";
+
+export { spreadsheetColumnName };
+
+/** Stable ref: scrolls the highlighted line or cell into view (jsdom has no scrollIntoView). */
+const scrollTo = (el: HTMLElement | null) => el?.scrollIntoView?.({ block: "nearest" });
 import { scrollRegionProps } from "./scrollRegion";
 import {
   MAX_PREVIEW_ROWS,
@@ -69,7 +75,7 @@ export function SourceDocumentBody({ cacheKey, document: doc, bounded, highlight
   if (render === "sheet") {
     return (
       <Shell bounded={bounded}>
-        <SheetView cacheKey={cacheKey} document={doc} bounded={bounded} />
+        <SheetView cacheKey={cacheKey} document={doc} bounded={bounded} highlight={highlight} />
         <DownloadRow document={doc} cacheKey={cacheKey} />
       </Shell>
     );
@@ -87,7 +93,7 @@ export function SourceDocumentBody({ cacheKey, document: doc, bounded, highlight
   if (render === "text") {
     return (
       <Shell bounded={bounded}>
-        <TextView cacheKey={cacheKey} document={doc} bounded={bounded} />
+        <TextView cacheKey={cacheKey} document={doc} bounded={bounded} highlight={highlight} />
         <DownloadRow document={doc} cacheKey={cacheKey} />
       </Shell>
     );
@@ -109,10 +115,12 @@ function SheetView({
   cacheKey,
   document: doc,
   bounded,
+  highlight,
 }: {
   cacheKey: string;
   document: SourceDocument;
   bounded: boolean;
+  highlight?: SourceLocation | null;
 }) {
   const [sheetIndex, setSheetIndex] = useState(0);
   const base = useId();
@@ -197,14 +205,16 @@ function SheetView({
           " focus-visible:[outline-offset:-2px]"
         }
       >
-        <SheetGrid table={table} />
+        <SheetGrid table={table} highlight={sel === 0 ? highlight : null} />
       </div>
       <TruncationNote table={table} omitted={data.omittedSheetNames} />
     </div>
   );
 }
 
-function SheetGrid({ table }: { table: SheetTable }) {
+function SheetGrid({ table, highlight }: { table: SheetTable; highlight?: SourceLocation | null }) {
+  const spot = parseAddress(highlight?.address);
+  const cell = spot?.kind === "cell" ? spot : null;
   const width = table.rows.reduce((m, r) => Math.max(m, r.length), 0);
   const columnLabels = useMemo(
     () => Array.from({ length: width }, (_, i) => spreadsheetColumnName(i)),
@@ -261,7 +271,8 @@ function SheetGrid({ table }: { table: SheetTable }) {
             {columnLabels.map((label, c) => (
               <td
                 key={label}
-                className="whitespace-pre border border-border bg-surface px-2 py-1 align-top text-ink"
+                {...(cell?.row === r + 1 && cell.col === c + 1 && { "data-highlighted": "true", ref: scrollTo })}
+                className={`whitespace-pre border border-border px-2 py-1 align-top text-ink ${cell?.row === r + 1 && cell.col === c + 1 ? "bg-brand-blueSoft" : "bg-surface"}`}
               >
                 {row[c] ?? ""}
               </td>
@@ -286,18 +297,6 @@ function TruncationNote({ table, omitted }: { table: SheetTable; omitted: string
   );
 }
 
-/** 0 → A, 25 → Z, 26 → AA. */
-export function spreadsheetColumnName(index: number): string {
-  let n = index + 1;
-  let out = "";
-  while (n > 0) {
-    const rem = (n - 1) % 26;
-    out = String.fromCharCode(65 + rem) + out;
-    n = Math.floor((n - 1) / 26);
-  }
-  return out;
-}
-
 // ── Text (XML / cXML / UBL / EDIFACT / X12 / JSON / plain text) ──────────────────────────────────
 
 /** Long enough to cover a real interchange, short enough that the DOM stays cheap. */
@@ -307,11 +306,14 @@ function TextView({
   cacheKey,
   document: doc,
   bounded,
+  highlight,
 }: {
   cacheKey: string;
   document: SourceDocument;
   bounded: boolean;
+  highlight?: SourceLocation | null;
 }) {
+  const spot = parseAddress(highlight?.address);
   const { data, isLoading, isError } = useQuery({
     queryKey: ["source-document-text", cacheKey],
     queryFn: async () => {
@@ -355,7 +357,12 @@ function TextView({
           data-testid="source-document-text"
         >
           {data.lines.map((line, i) => (
-            <li key={i} className="flex gap-2 px-2 hover:bg-surface-2">
+            <li
+              key={i}
+              data-line={i + 1}
+              {...(spot?.kind === "line" && spot.n === i + 1 && { "data-highlighted": "true", ref: scrollTo })}
+              className={`flex gap-2 px-2 ${spot?.kind === "line" && spot.n === i + 1 ? "bg-brand-blueSoft" : "hover:bg-surface-2"}`}
+            >
               <span className="w-9 flex-shrink-0 select-none text-right text-[10px] text-ink-faint">
                 {i + 1}
               </span>
