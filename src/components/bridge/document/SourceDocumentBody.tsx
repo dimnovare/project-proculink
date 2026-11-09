@@ -20,7 +20,7 @@
 
 import { nextTabIndex } from "@/lib/tabKeys";
 import { saveBlob } from "@/lib/saveBlob";
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import {
@@ -115,6 +115,7 @@ function SheetView({
   bounded: boolean;
 }) {
   const [sheetIndex, setSheetIndex] = useState(0);
+  const base = useId();
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["source-document-sheet", cacheKey],
@@ -140,7 +141,8 @@ function SheetView({
     );
   }
 
-  const table = data.tables[Math.min(sheetIndex, data.tables.length - 1)];
+  const sel = Math.min(sheetIndex, data.tables.length - 1);
+  const table = data.tables[sel];
 
   return (
     <div className={bounded ? "flex min-h-0 flex-1 flex-col" : "flex flex-col"}>
@@ -155,20 +157,20 @@ function SheetView({
               key={`${t.name}-${i}`}
               type="button"
               role="tab"
-              id={`sheet-tab-${i}`}
-              aria-controls="sheet-panel"
-              aria-selected={i === sheetIndex}
-              tabIndex={i === sheetIndex ? 0 : -1}
+              id={`${base}-sheet-tab-${i}`}
+              aria-controls={`${base}-sheet-panel`}
+              aria-selected={i === sel}
+              tabIndex={i === sel ? 0 : -1}
               onKeyDown={(e) => {
                 const to = nextTabIndex(e.key, i, data.tables.length);
                 if (to === undefined) return;
                 e.preventDefault();
                 setSheetIndex(to);
-                document.getElementById(`sheet-tab-${to}`)?.focus();
+                document.getElementById(`${base}-sheet-tab-${to}`)?.focus();
               }}
               onClick={() => setSheetIndex(i)}
               className={
-                i === sheetIndex
+                i === sel
                   ? "flex-shrink-0 rounded border border-brand-blue px-2 py-0.5 text-[11px] font-semibold text-brand-blue-deep"
                   : "flex-shrink-0 rounded border border-border px-2 py-0.5 text-[11px] text-ink-muted"
               }
@@ -187,8 +189,8 @@ function SheetView({
         )}
         {...(data.tables.length > 1 && {
           role: "tabpanel",
-          id: "sheet-panel",
-          "aria-labelledby": `sheet-tab-${Math.min(sheetIndex, data.tables.length - 1)}`,
+          id: `${base}-sheet-panel`,
+          "aria-labelledby": `${base}-sheet-tab-${sel}`,
         })}
         className={
           (bounded ? "min-h-0 flex-1 overflow-auto" : "overflow-x-auto") +

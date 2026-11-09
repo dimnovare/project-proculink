@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { nextTabIndex } from "@/lib/tabKeys";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
@@ -141,7 +141,7 @@ export function FlowPage({ flowId }: { flowId: string }) {
       return (typeof s === "number" ? s : s.failed) >= 2;
     });
   const latestDoc = useQuery({
-    queryKey: ["document", latest?.id], queryFn: () => getDocument(latest!.id), enabled: enabled && !!latest && tab !== "documents",
+    queryKey: ["document", latest?.id], queryFn: () => getDocument(latest!.id), enabled: enabled && !!latest && tab !== "documents", placeholderData: keepPreviousData,
   });
 
   const go = (t: Tab) => router.replace(`/flows/${flowId}?tab=${t}`);
@@ -176,7 +176,7 @@ export function FlowPage({ flowId }: { flowId: string }) {
     body = <Outputs flow={flow.data} previewDocumentId={latest?.id} />;
   } else if (flow.data.fieldsConfirmed) {
     const { list, off } = withReadExtras(flow.data.fields, latestDoc.data?.read);
-    body = <FieldListEditor key={latestDoc.data?.summary.id ?? "none"} flow={flow.data} initial={list} initialOff={off} onSaved={saved} />;
+    body = <FieldListEditor key={latestDoc.data ? "read" : "none"} flow={flow.data} initial={list} initialOff={off} onSaved={saved} />;
   } else if (docs.isError) {
     body = <Failed error={docs.error} retry={() => docs.refetch()} />;
   } else if (!docs.data || (latest && latestDoc.isPending)) {

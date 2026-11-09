@@ -49,6 +49,9 @@ describe("withReadExtras", () => {
     expect(list.fields.map((x) => [x.key, x.label])).toEqual([["po", "Order"], ["total", "Total"]]);
     expect(list.tables.map((t) => [t.key, t.columns.map((c) => c.key)])).toEqual([["lines", ["item", "qty"]], ["taxes", ["x"]]]);
     expect([...off].sort()).toEqual(["lines/qty", "taxes", "total"]);
+    const clash = withReadExtras({ fields: [{ ...own, key: "notes" }], tables: [] }, { ...read, fields: [], tables: [{ ...tbl(["x"]), key: "notes" }] });
+    expect(clash.list.tables).toEqual([]);
+    expect(clash.off.has("notes")).toBe(false);
     expect(withReadExtras({ fields: [own], tables: [] }, undefined)).toEqual({ list: { fields: [own], tables: [] }, off: new Set() });
   });
 });

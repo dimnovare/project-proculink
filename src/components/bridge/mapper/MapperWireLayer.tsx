@@ -299,7 +299,7 @@ export function useMapperWireLayer({
   // The current keyboard target, spoken. Arrow-key cycling moved `kbTarget`, and the ONLY
   // thing that drew the new selection was a dashed path inside an `aria-hidden` <svg> — so a
   // screen-reader operator heard "Connect mode…", then silence through every press, then
-  // "Mapped X to Y" for a field they were never told they had landed on. The live region has
+  // "Connected X to Y" for a field they were never told they had landed on. The live region has
   // to say which output is selected on every move, or the whole keyboard path is blind.
   // Returns the sentence rather than speaking it: `announce` replaces the live region's whole
   // text on the next frame, so two calls in one keypress would leave only the second. Callers

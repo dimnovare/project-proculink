@@ -186,7 +186,7 @@ describe("sheet tabs are keyboard operable", () => {
     expect(document.activeElement).toBe(tab2);
     expect(tab2.tabIndex).toBe(0);
     expect(tab1.tabIndex).toBe(-1);
-    expect(screen.getByRole("tabpanel").getAttribute("aria-labelledby")).toBe("sheet-tab-1");
+    expect(screen.getByRole("tabpanel").getAttribute("aria-labelledby")).toBe(tab2.id);
     expect(screen.getByTestId("source-document-sheet").textContent).toContain("ZZZ-SECOND");
   });
 });

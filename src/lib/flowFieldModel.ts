@@ -13,10 +13,10 @@ export function withReadExtras(fields: FlowFieldList, read: ReadResult | undefin
   const off = new Set<string>();
   const extra = read ? fieldListFromRead(read) : { fields: [], tables: [] };
   const list: FlowFieldList = {
-    fields: [...fields.fields, ...extra.fields.filter((f) => !fields.fields.some((x) => x.key === f.key))],
+    fields: [...fields.fields, ...extra.fields.filter((f) => !fields.fields.some((x) => x.key === f.key) && !fields.tables.some((x) => x.key === f.key))],
     tables: [
       ...fields.tables.map((t) => ({ ...t, columns: [...t.columns, ...(extra.tables.find((x) => x.key === t.key)?.columns ?? []).filter((c) => !t.columns.some((x) => x.key === c.key))] })),
-      ...extra.tables.filter((t) => !fields.tables.some((x) => x.key === t.key)),
+      ...extra.tables.filter((t) => !fields.tables.some((x) => x.key === t.key) && !fields.fields.some((x) => x.key === t.key)),
     ],
   };
   for (const f of list.fields) if (!fields.fields.some((x) => x.key === f.key)) off.add(f.key);
