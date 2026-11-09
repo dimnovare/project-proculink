@@ -73,7 +73,7 @@ function NewFields({ flow, read, docId }: { flow: Flow; read: DocumentDetail["re
         {extras.map(([id, label]) => (
           <li key={id} className="flex items-center justify-between gap-2 text-[12px] text-ink">
             {label}
-            <Button size="sm" variant="secondary" disabled={add.isPending} aria-label={`Add ${label} to the flow`} onClick={() => add.mutate(id)}>Add to flow</Button>
+            <Button size="sm" variant="secondary" disabled={add.isPending} aria-label={`Add to flow: ${label}`} onClick={() => add.mutate(id)}>Add to flow</Button>
           </li>
         ))}
       </ul>
