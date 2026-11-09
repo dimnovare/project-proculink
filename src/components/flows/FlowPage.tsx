@@ -19,7 +19,7 @@ import type { Flow, FlowOutput } from "@/lib/api/documents";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
 import { documentStatus } from "@/lib/documentStatusManifest";
 import { AUTOMATIC_DELIVERY_LABEL, REVIEW_BEFORE_DELIVERY_LABEL } from "@/lib/deliveryMode";
-import { fieldListFromRead } from "@/lib/flowFieldModel";
+import { fieldListFromRead, withReadExtras } from "@/lib/flowFieldModel";
 import { describeSendWhen } from "@/lib/flowOutputModel";
 import { INPUT } from "./DestinationForm";
 import { DocumentList } from "./DocumentList";
@@ -175,7 +175,8 @@ export function FlowPage({ flowId }: { flowId: string }) {
   } else if (tab === "outputs") {
     body = <Outputs flow={flow.data} previewDocumentId={latest?.id} />;
   } else if (flow.data.fieldsConfirmed) {
-    body = <FieldListEditor flow={flow.data} initial={flow.data.fields} onSaved={saved} />;
+    const { list, off } = withReadExtras(flow.data.fields, latestDoc.data?.read);
+    body = <FieldListEditor key={latestDoc.data?.summary.id ?? "none"} flow={flow.data} initial={list} initialOff={off} onSaved={saved} />;
   } else if (docs.isError) {
     body = <Failed error={docs.error} retry={() => docs.refetch()} />;
   } else if (!docs.data || (latest && latestDoc.isPending)) {
