@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ApiHttpError } from "@/lib/api/core";
 import { OutputEditor } from "./OutputEditor";
 
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => true }));
@@ -35,6 +36,13 @@ describe("OutputEditor pdf", () => {
     const file = new File(["x"], "logo.png", { type: "image/png" });
     fireEvent.change(screen.getByLabelText("Add a logo"), { target: { files: [file] } });
     await waitFor(() => expect(api.uploadOutputLogo).toHaveBeenCalledWith("f", "o", file));
+  });
+
+  it("shows the logo refusal when the server answers 413", async () => {
+    api.uploadOutputLogo.mockRejectedValue(new ApiHttpError("logo too large", 413));
+    renderEditor();
+    fireEvent.change(screen.getByLabelText("Add a logo"), { target: { files: [new File(["x"], "logo.png", { type: "image/png" })] } });
+    expect(await screen.findByText("Use a PNG or JPG image of 256 KB or less.")).toBeTruthy();
   });
 
   it("shows a pdf preview in the viewer, not a <pre>", async () => {

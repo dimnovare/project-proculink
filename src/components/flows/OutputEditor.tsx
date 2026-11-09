@@ -283,7 +283,7 @@ export function OutputEditor({ flow, output, previewDocumentId, hideDestination,
         {previewDocumentId && current && preview.data?.lookupMisses?.length ? (
           <LookupMisses documentId={previewDocumentId} outputId={current.id} misses={preview.data.lookupMisses} onChanged={() => preview.mutate()} />
         ) : null}
-        {pdfBlob && current ? <PdfDocumentView cacheKey={`output-preview-${current.id}-${pdf!.length}-${pdf!.slice(-16)}`} blob={pdfBlob} bounded regionLabel="Preview" />
+        {pdfBlob && current ? <PdfDocumentView cacheKey={`output-preview-${current.id}-${preview.submittedAt}`} blob={pdfBlob} bounded regionLabel="Preview" />
         : preview.data && (
           <pre className="max-h-72 overflow-auto rounded border border-border bg-surface2 p-2.5 font-mono text-[12px] text-ink">
             {preview.data.content}
