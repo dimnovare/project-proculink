@@ -61,6 +61,8 @@ export function normalizeContentType(raw: string | null | undefined): string {
 
 const XLSX_MEDIA_TYPE =
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+export const DOCX_MEDIA_TYPE =
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 /**
  * The renderer for a media type. Unlisted → `opaque`, always. There is no fallback that
@@ -104,6 +106,10 @@ export function sourceFormatLabel(contentType: string): string | null {
       return "XLSX";
     case "application/xml":
       return "XML";
+    case "application/json":
+      return "JSON";
+    case DOCX_MEDIA_TYPE:
+      return "DOCX";
     case "text/plain":
       return "TEXT";
     case "image/png":
