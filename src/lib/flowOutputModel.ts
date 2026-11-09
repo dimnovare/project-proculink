@@ -5,8 +5,12 @@ export type SimpleRow = {
   name: string;
   source: { field: string } | { fixed: string };
   lookup?: { id: string; ifMissing: "keep" | "blank" };
+  width?: number;
 };
-export type SimpleOutput = { fields: SimpleRow[]; table: { key: string; columns: SimpleRow[] } | null };
+export type SimpleOutput = { fields: SimpleRow[]; table: { key: string; columns: SimpleRow[] } | null; delimiter?: string };
+
+/** Same rule as the backend's DefaultOutputTemplate: the name's length, from 10 to 1000. */
+export const defaultWidth = (name: string) => Math.min(Math.max(name.length, 10), 1000);
 
 // Mirrors the backend's DefaultOutputTemplate: a "document" object of bound leaves, plus at most one
 // array named for its table whose single "row" object holds the column leaves.
@@ -22,7 +26,7 @@ const leaf = (n: OutputNode): SimpleRow | null => {
   if (steps.length > 1 || (step && (step.type !== "Lookup" || !step.params?.[0] || (ifMissing !== "keep" && ifMissing !== "blank")))) return null;
   if ((r.canonicalField != null) === (r.fixedValue != null)) return null;
   const source = r.canonicalField != null ? { field: r.canonicalField } : { fixed: r.fixedValue! };
-  return { name: n.name, source, ...(step ? { lookup: { id: step.params![0], ifMissing: ifMissing as "keep" | "blank" } } : {}) };
+  return { name: n.name, source, ...(r.width ? { width: r.width } : {}), ...(step ? { lookup: { id: step.params![0], ifMissing: ifMissing as "keep" | "blank" } } : {}) };
 };
 
 const leaves = (nodes: OutputNode[]) => {
@@ -32,34 +36,38 @@ const leaves = (nodes: OutputNode[]) => {
 
 export function toSimple(t: OutputNodeTemplate): SimpleOutput | null {
   const { root } = t;
-  if (t.namespaces || t.envelope || t.csvDialect || root.name !== "document" || root.nodeType !== "object") return null;
+  const { delimiter, ...otherDialect } = t.csvDialect ?? {};
+  if (t.namespaces || t.envelope || Object.values(otherDialect).some((v) => v != null) || root.name !== "document" || root.nodeType !== "object") return null;
   const kids = root.children ?? [];
   const arrays = kids.filter((k) => k.nodeType === "array");
   const fields = leaves(kids.filter((k) => k.nodeType !== "array"));
   if (!fields || arrays.length > 1) return null;
-  if (!arrays.length) return { fields, table: null };
+  const dialect = delimiter ? { delimiter } : {};
+  if (!arrays.length) return { fields, table: null, ...dialect };
   const [a] = arrays;
   const item = a.children?.length === 1 ? a.children[0] : null;
   if (a.collection !== a.name || a.rule || a.namespace || a.prefix || a.includeWhen) return null;
   if (item?.name !== "row" || item.nodeType !== "object" || item.rule) return null;
   const columns = leaves(item.children ?? []);
-  return columns ? { fields, table: { key: a.name, columns } } : null;
+  return columns ? { fields, table: { key: a.name, columns }, ...dialect } : null;
 }
 
-const toNode = ({ name, source, lookup }: SimpleRow): OutputNode => ({
+const toNode = ({ name, source, lookup, width }: SimpleRow): OutputNode => ({
   name,
   nodeType: "field",
   children: [],
   rule: {
     outputPath: name,
     ...("field" in source ? { canonicalField: source.field } : { fixedValue: source.fixed }),
+    ...(width ? { width } : {}),
     fieldManipulators: lookup ? [{ type: "Lookup", params: [lookup.id, lookup.ifMissing] }] : [],
   },
 });
 
-/** `format` is the output format (csv, xlsx, json, xml); xlsx renders from the csv template, as on the server. */
+/** `format` is the output format; everything but json and xml renders from the csv template, as on the server. */
 export const fromSimple = (s: SimpleOutput, format: string): OutputNodeTemplate => ({
   format: format === "json" || format === "xml" ? format : "csv",
+  ...(s.delimiter && s.delimiter !== "," ? { csvDialect: { delimiter: s.delimiter } } : {}),
   root: {
     name: "document",
     nodeType: "object",

@@ -77,7 +77,9 @@ export interface IntakeRequest {
 export interface FlowOutput {
   id: string; flowId: string; name: string; format: string; tableKey: string | null; destinationId: string | null;
   template: OutputNodeTemplate; createdAt: string; sendWhen: SendWhen | null;
+  layout?: OutputLayout | null; hasLogo?: boolean;
 }
+export type OutputLayout = { title?: string | null; header?: string | null; footer?: string | null };
 export type SendWhenOp = "is" | "is_not" | "contains";
 export type SendWhen = { field: string; op: SendWhenOp; value: string };
 export type LookupEntry = { from: string; to: string };
@@ -92,9 +94,9 @@ export type Lookup = {
 };
 export interface OutputRequest {
   name: string; format: string; tableKey?: string | null; destinationId?: string | null; template?: OutputNodeTemplate | null;
-  sendWhen?: SendWhen | null;
+  sendWhen?: SendWhen | null; layout?: OutputLayout | null;
 }
-export interface OutputPreview { contentType: string; fileName: string; content: string; lookupMisses: LookupMiss[] }
+export interface OutputPreview { contentType: string; fileName: string; content: string; base64?: string; lookupMisses: LookupMiss[] }
 export interface DocumentDelivery {
   id: string; outputName: string; protocol: string; status: string; attempts: number;
   lastError: string | null; fileName: string | null; deliveredAt: string | null;

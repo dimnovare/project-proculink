@@ -28,6 +28,11 @@ describe("flowOutputModel", () => {
     expect(fromSimple(simple, "csv")).toEqual(template);
   });
 
+  it("round-trips widths and the separator", () => {
+    const simple = { fields: [{ name: "po", source: { field: "po" }, width: 6 }], table: null, delimiter: ";" };
+    expect(toSimple(fromSimple(simple, "fixed"))).toEqual(simple);
+  });
+
   it("reads a field with no rule as a blank fixed value", () => {
     const disconnected = structuredClone(template);
     delete disconnected.root.children![0].rule;

@@ -8,18 +8,20 @@ import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { DestinationForm, Field, INPUT } from "@/components/flows/DestinationForm";
 import { LookupMisses } from "@/components/flows/LookupMisses";
 import { createOutput, listDestinations, listLookups, previewOutput, updateOutput } from "@/lib/api/documents";
-import type { Flow, FlowOutput, LookupSummary, SendWhen, SendWhenOp } from "@/lib/api/documents";
+import type { Flow, FlowOutput, LookupSummary, OutputLayout, SendWhen, SendWhenOp } from "@/lib/api/documents";
 import { COPY, documentRefusalMessage } from "@/lib/documentRefusals";
-import { fromSimple, OP_LABEL, toSimple } from "@/lib/flowOutputModel";
+import { defaultWidth, fromSimple, OP_LABEL, toSimple } from "@/lib/flowOutputModel";
 import type { SimpleOutput, SimpleRow } from "@/lib/flowOutputModel";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 
-export const FORMATS = { csv: "CSV", xlsx: "Excel", json: "JSON", xml: "XML" };
+export const FORMATS = { csv: "CSV", xlsx: "Excel", json: "JSON", xml: "XML", pdf: "PDF", txt: "Text", fixed: "Fixed-width text" };
+const SEPARATORS = [[",", "Comma"], [";", "Semicolon"], ["	", "Tab"]];
+const LAYOUT_FIELDS = [["title", "Title", 120], ["header", "Text at the top", 500], ["footer", "Text at the bottom", 500]] as const;
 const FIXED = "\u0000fixed";
 const NEW_DESTINATION = "\u0000new";
 
-function RowList({ rows, options, lookups, onChange }: {
-  rows: SimpleRow[]; options: { key: string; label: string }[]; lookups: LookupSummary[] | "loading" | "failed"; onChange(rows: SimpleRow[]): void;
+function RowList({ rows, fixed, options, lookups, onChange }: {
+  rows: SimpleRow[]; fixed: boolean; options: { key: string; label: string }[]; lookups: LookupSummary[] | "loading" | "failed"; onChange(rows: SimpleRow[]): void;
 }) {
   const list = Array.isArray(lookups) ? lookups : [];
   const patch = (i: number, row: SimpleRow) => onChange(rows.map((r, j) => (j === i ? row : r)));
@@ -57,6 +59,10 @@ function RowList({ rows, options, lookups, onChange }: {
               <option value="blank">Leave it blank</option>
             </select>
           )}
+          {fixed && (
+            <input type="number" min={1} max={1000} aria-label={`Width of ${row.name}`} className={`${INPUT} w-24`}
+              value={row.width ?? defaultWidth(row.name)} onChange={(e) => patch(i, { ...row, width: Number(e.target.value) || undefined })} />
+          )}
           <Button type="button" variant="ghost" size="sm" disabled={i === 0} aria-label="Move up" onClick={() => move(i, -1)}>Up</Button>
           <Button type="button" variant="ghost" size="sm" disabled={i === rows.length - 1} aria-label="Move down" onClick={() => move(i, 1)}>Down</Button>
           <Button type="button" variant="ghost" size="sm" aria-label="Remove" onClick={() => onChange(rows.filter((_, j) => j !== i))}>Remove</Button>
@@ -84,19 +90,25 @@ export function OutputEditor({ flow, output, previewDocumentId, hideDestination,
   const [newDestination, setNewDestination] = useState(false);
   const [rows, setRows] = useState<SimpleOutput | null>(output ? toSimple(output.template) : null);
   const [sendWhen, setSendWhen] = useState<SendWhen | null>(output?.sendWhen ?? null);
+  const [layout, setLayout] = useState<OutputLayout>(output?.layout ?? {});
   const [problem, setProblem] = useState<string | null>(null);
 
   const destinations = useQuery({ queryKey: ["destinations"], queryFn: listDestinations, enabled: useTenantQueriesEnabled() });
   const lookups = useQuery({ queryKey: ["lookups"], queryFn: listLookups, enabled: useTenantQueriesEnabled() });
   const lookupList = lookups.data ?? (lookups.isError ? "failed" : "loading");
   const external = !!current && !rows;
+  const formatted = format === "pdf" || format === "txt";
 
   const preview = useMutation({ mutationFn: () => previewOutput(previewDocumentId!, current!.id) });
   const save = useMutation({
     mutationFn: () => {
-      const body = { name: name.trim(), format, tableKey, destinationId, sendWhen };
+      const body = { name: name.trim(), format, tableKey, destinationId, sendWhen, layout: formatted ? layout : null };
       if (!current) return createOutput(flow.id, body);
-      return updateOutput(flow.id, current.id, { ...body, template: rows ? fromSimple(rows, format) : current.template });
+      const withWidth = (r: SimpleRow) => ({ ...r, width: r.width ?? defaultWidth(r.name) });
+      const sent = rows && format === "fixed"
+        ? { ...rows, fields: rows.fields.map(withWidth), table: rows.table && { ...rows.table, columns: rows.table.columns.map(withWidth) } }
+        : rows;
+      return updateOutput(flow.id, current.id, { ...body, template: sent ? fromSimple(sent, format) : current.template });
     },
     onSuccess: (saved) => {
       const created = !current;
@@ -141,6 +153,20 @@ export function OutputEditor({ flow, output, previewDocumentId, hideDestination,
             {Object.entries(FORMATS).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
           </select>
         </Field>
+        {rows && format === "csv" && (
+          <Field label="Separator">
+            <select className={INPUT} value={rows.delimiter ?? ","} onChange={(e) => setRows({ ...rows, delimiter: e.target.value })}>
+              {SEPARATORS.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
+            </select>
+          </Field>
+        )}
+        {formatted && LAYOUT_FIELDS.map(([key, label, max]) => (
+          <Field key={key} label={label}>
+            {key === "title"
+              ? <input className={INPUT} maxLength={max} value={layout.title ?? ""} onChange={(e) => setLayout({ ...layout, title: e.target.value })} />
+              : <textarea className={INPUT} rows={2} maxLength={max} value={layout[key] ?? ""} onChange={(e) => setLayout({ ...layout, [key]: e.target.value })} />}
+          </Field>
+        ))}
         {flow.fields.tables.length > 0 && (
           <Field label="Table">
             <select className={INPUT} value={tableKey ?? ""} disabled={external} onChange={(e) => changeTable(e.target.value || null)}>
@@ -201,11 +227,11 @@ export function OutputEditor({ flow, output, previewDocumentId, hideDestination,
         {rows && (
           <>
             <p className="text-[12px] font-medium text-ink-muted">Values</p>
-            <RowList rows={rows.fields} options={fieldOptions} lookups={lookupList} onChange={(fields) => setRows({ ...rows, fields })} />
+            <RowList fixed={format === "fixed"} rows={rows.fields} options={fieldOptions} lookups={lookupList} onChange={(fields) => setRows({ ...rows, fields })} />
             {rows.table && (
               <>
                 <p className="text-[12px] font-medium text-ink-muted">{table?.label ?? "Table"} columns</p>
-                <RowList rows={rows.table.columns} options={columnOptions} lookups={lookupList}
+                <RowList fixed={format === "fixed"} rows={rows.table.columns} options={columnOptions} lookups={lookupList}
                   onChange={(columns) => setRows({ ...rows, table: { key: rows.table!.key, columns } })} />
               </>
             )}

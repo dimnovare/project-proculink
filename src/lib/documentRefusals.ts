@@ -42,6 +42,9 @@ export const COPY: Record<string, string> = {
   usage_cap: "This workspace has used this month's AI allowance.",
   no_egress: "This workspace keeps documents on our own servers, so they aren't sent to AI to be read.",
   unknown_spot: "That spot isn't on this document. Try again on the page.",
+  widths: "Give every column a width from 1 to 1000.",
+  layout: "Keep the title to 120 characters, and the top and bottom text to 500 each.",
+  unknown_target: "That field is no longer on this flow. Reload to see its current fields.",
   scanned_not_supported: "This looks like a scanned document, which can't be read yet.",
 };
 
