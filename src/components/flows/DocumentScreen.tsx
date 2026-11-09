@@ -9,6 +9,7 @@ import { Card } from "@/components/bridge/layout/Card";
 import { StatusJourney } from "@/components/bridge/StatusJourney";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { SourceDocumentBody } from "@/components/bridge/document/SourceDocumentBody";
+import { DOCX_MEDIA_TYPE } from "@/lib/sourceDocument";
 import { useLgViewport } from "@/components/bridge/document/useSourceDocument";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { fetchDocumentSource, getDocument, getFlow, getDocumentHistory, retryDocumentRead } from "@/lib/api/documents";
@@ -28,7 +29,7 @@ const TYPES: Record<string, string> = {
   png: "image/png",
   jpg: "image/jpeg",
   jpeg: "image/jpeg",
-  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  docx: DOCX_MEDIA_TYPE,
   txt: "text/plain",
   edi: "text/plain",
   x12: "text/plain",

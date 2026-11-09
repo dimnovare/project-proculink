@@ -52,11 +52,12 @@ function pointAt(onLocate: ((l: SourceLocation | null) => void) | undefined, l: 
 }
 
 /** What the read found that a confirmed flow does not have yet, each one click from joining it. */
-function NewFields({ flow, read }: { flow: Flow; read: DocumentDetail["read"] }) {
+function NewFields({ flow, read, docId }: { flow: Flow; read: DocumentDetail["read"]; docId: string }) {
   const qc = useQueryClient();
   const add = useMutation({
     mutationFn: (id: string) => saveFlowFields(flow.id, addReadExtra(flow.fields, read, id)),
-    onSuccess: (saved) => { qc.setQueryData(["flow", flow.id], saved); qc.invalidateQueries({ queryKey: ["flows"] }); },
+    // Saving the field list re-runs the checks on this document, so its checks are refetched too.
+    onSuccess: (saved) => { qc.setQueryData(["flow", flow.id], saved); qc.invalidateQueries({ queryKey: ["flows"] }); qc.invalidateQueries({ queryKey: ["document", docId] }); },
   });
   const { list, off } = withReadExtras(flow.fields, read);
   const extras = [
@@ -150,7 +151,7 @@ export function ReadValuesPanel({ detail, editable, onLocate, flow }: { detail: 
           </div>
         ))}
       </fieldset>
-      {flow?.fieldsConfirmed && <NewFields flow={flow} read={detail.read} />}
+      {flow?.fieldsConfirmed && <NewFields flow={flow} read={detail.read} docId={id} />}
       <Checks checks={detail.checks} />
     </div>
   );

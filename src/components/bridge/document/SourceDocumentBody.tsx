@@ -9,7 +9,7 @@
 //
 //   pdf   → PdfDocumentView (pdf.js, page at a time)
 //   sheet → CSV and XLSX as a real grid with row numbers and column letters
-//   text  → XML / cXML / UBL / EDIFACT / X12 as numbered, wrapped monospace lines
+//   text  → XML / cXML / UBL / EDIFACT / X12 / JSON / plain text as numbered, wrapped monospace lines
 //   opaque→ the server could not identify the bytes; we do not guess, we offer the file
 //
 // `bounded` is the mobile scroll-lock contract in prop form. The desktop pane owns a bounded
@@ -298,7 +298,7 @@ export function spreadsheetColumnName(index: number): string {
   return out;
 }
 
-// ── Text (XML / cXML / UBL / EDIFACT / X12) ──────────────────────────────────
+// ── Text (XML / cXML / UBL / EDIFACT / X12 / JSON / plain text) ──────────────────────────────────
 
 /** Long enough to cover a real interchange, short enough that the DOM stays cheap. */
 const MAX_TEXT_LINES = 4000;

@@ -17,7 +17,8 @@
 // from the file extension (`DocumentScreen.tsx`), which also gives the png/jpeg photos. The
 // server allowlist: pdf → application/pdf,
 // csv → text/csv, xlsx → the OOXML spreadsheet type, cxml|ubl|xml → application/xml,
-// edifact|x12 → text/plain, and everything else → application/octet-stream. Nothing in it can
+// edifact|x12|txt|edi → text/plain, json → application/json, docx → the Word type (a
+// download), png/jpg → image/*, and everything else → application/octet-stream. Nothing in it can
 // produce text/html or image/svg+xml, which is why we can render what it sends. We still treat
 // anything unlisted as opaque rather than assuming, so a future server type cannot silently
 // acquire a renderer here.

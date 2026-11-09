@@ -14,7 +14,7 @@ import { documentRefusalMessage } from "@/lib/documentRefusals";
 const ACCEPT = ".pdf,.csv,.xlsx";
 /** Photos and scans, added when the workspace has scans on. */
 const PHOTOS = ".png,.jpg,.jpeg";
-/** Word, text, XML and EDI files, added when the workspace has formats on. */
+/** Word, text, XML, JSON and EDI files, added when the workspace has formats on. */
 const FORMATS = ".docx,.txt,.xml,.cxml,.json,.edi,.x12";
 
 const MAX_BYTES = 10 * 1024 * 1024;

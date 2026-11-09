@@ -41,6 +41,7 @@ describe("sourceRenderFor", () => {
     ).toBe("sheet");
     expect(sourceRenderFor("application/xml")).toBe("text");
     expect(sourceRenderFor("text/plain")).toBe("text");
+    expect(sourceRenderFor("application/json")).toBe("text");
     expect(sourceRenderFor("application/octet-stream")).toBe("opaque");
   });
 
@@ -270,8 +271,4 @@ describe("the media-type map mirrors the C# that produces it", () => {
       expect(t).not.toMatch(/html|svg|xhtml|javascript|ecmascript/i);
     }
   });
-});
-
-it("renders JSON as text", () => {
-  expect(sourceRenderFor("application/json")).toBe("text");
 });
