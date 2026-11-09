@@ -49,6 +49,9 @@ describe("parseCsvRows", () => {
     expect(parseCsvRows("a,b\nc,d\n", ",")).toEqual([["a", "b"], ["c", "d"]]);
   });
 
+  it("ends a row at a lone CR (old Mac files)", () => {
+    expect(parseCsvRows("a,b\rc,d\r", ",")).toEqual([["a", "b"], ["c", "d"]]);
+  });
   it("survives CRLF", () => {
     expect(parseCsvRows("a,b\r\nc,d\r\n", ",")).toEqual([["a", "b"], ["c", "d"]]);
   });

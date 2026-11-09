@@ -18,6 +18,7 @@
 // a blocked order became unscrollable on a phone. Both call sites are already separated by
 // `hidden lg:grid` / `lg:hidden`, so this is a static choice, never a JS media query.
 
+import { nextTabIndex } from "@/lib/tabKeys";
 import { saveBlob } from "@/lib/saveBlob";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -154,7 +155,17 @@ function SheetView({
               key={`${t.name}-${i}`}
               type="button"
               role="tab"
+              id={`sheet-tab-${i}`}
+              aria-controls="sheet-panel"
               aria-selected={i === sheetIndex}
+              tabIndex={i === sheetIndex ? 0 : -1}
+              onKeyDown={(e) => {
+                const to = nextTabIndex(e.key, i, data.tables.length);
+                if (to === undefined) return;
+                e.preventDefault();
+                setSheetIndex(to);
+                document.getElementById(`sheet-tab-${to}`)?.focus();
+              }}
               onClick={() => setSheetIndex(i)}
               className={
                 i === sheetIndex
@@ -174,6 +185,11 @@ function SheetView({
           data.tables.length > 1 ? `Original document, sheet ${table.name}` : "Original document",
           true,
         )}
+        {...(data.tables.length > 1 && {
+          role: "tabpanel",
+          id: "sheet-panel",
+          "aria-labelledby": `sheet-tab-${Math.min(sheetIndex, data.tables.length - 1)}`,
+        })}
         className={
           (bounded ? "min-h-0 flex-1 overflow-auto" : "overflow-x-auto") +
           " focus-visible:[outline-offset:-2px]"

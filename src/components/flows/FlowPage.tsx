@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { nextTabIndex } from "@/lib/tabKeys";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import { Card } from "@/components/bridge/layout/Card";
@@ -147,10 +148,10 @@ export function FlowPage({ flowId }: { flowId: string }) {
   const onTabKey = (e: React.KeyboardEvent) => {
     // From the focused tab, not the URL: a second press can land before the route commits.
     const i = TABS.findIndex(([t]) => `flow-tab-${t}` === e.currentTarget.id);
-    const to = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: TABS.length - 1 }[e.key];
+    const to = nextTabIndex(e.key, i, TABS.length);
     if (to === undefined) return;
     e.preventDefault();
-    const next = TABS[(to + TABS.length) % TABS.length][0];
+    const next = TABS[to][0];
     go(next);
     document.getElementById(`flow-tab-${next}`)?.focus();
   };

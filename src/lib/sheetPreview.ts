@@ -60,7 +60,7 @@ export function detectDelimiter(text: string): string {
       continue;
     }
     if (inQuotes) continue;
-    if (ch === "\n") {
+    if (ch === "\n" || (ch === "\r" && sample[i + 1] !== "\n")) {
       lines++;
       continue;
     }
@@ -78,7 +78,7 @@ export function detectDelimiter(text: string): string {
   return best;
 }
 
-/** RFC 4180 reader: quoted fields, doubled quotes, embedded newlines, CRLF or LF. */
+/** RFC 4180 reader: quoted fields, doubled quotes, embedded newlines, CRLF, LF or a lone CR. */
 export function parseCsvRows(text: string, delimiter: string, maxRows = MAX_PREVIEW_ROWS): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];
@@ -117,7 +117,7 @@ export function parseCsvRows(text: string, delimiter: string, maxRows = MAX_PREV
       quoted = true;
     } else if (ch === delimiter) {
       endField();
-    } else if (ch === "\n") {
+    } else if (ch === "\n" || (ch === "\r" && text[i + 1] !== "\n")) {
       // A blank line is not a record (the backend reader skips it too).
       if (row.length === 0 && field === "" && !quoted) continue;
       endRow();
