@@ -152,7 +152,7 @@ describe("MapperWireLayer — the remove-wire control is announced", () => {
     const rect = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect")
       .mockReturnValue({ width: 400, height: 300, top: 0, left: 0, right: 400, bottom: 300 } as DOMRect);
     const { container } = render(<Harness connections={{ Currency: "poNumberRaw" }} />);
-    const remove = within(container).getByRole("button", { name: "Remove the mapping feeding Currency" });
+    const remove = within(container).getByRole("button", { name: "Disconnect Currency" });
     expect(remove.closest('[aria-hidden="true"]')).toBeNull();
     expect(remove.getAttribute("tabindex")).toBe("0");
     rect.mockRestore();
