@@ -38,12 +38,15 @@ export const COPY: Record<string, string> = {
   lookup_invalid: "Check the rows: each needs a “From” value, and each “From” can appear only once.",
   lookup_suggestions_off: "AI suggestions aren't switched on for this workspace.",
   ai_usage_cap: "This workspace has used this month's AI allowance.",
+  usage_cap: "This workspace has used this month's AI allowance.",
+  no_egress: "This workspace keeps documents on our own servers, so they aren't sent to AI to be read.",
   scanned_not_supported: "This looks like a scanned document, which can't be read yet.",
 };
 
-/** Reasons a read can never succeed on a retry (`ReadDocumentJob`). */
-const PERMANENT_READ_FAILURES = new Set(["unreadable_file", "scanned_not_supported"]);
-export const canRetryRead = (reason: string | null) => !PERMANENT_READ_FAILURES.has(reason ?? "");
+/** Reasons a read can never succeed on a retry (`ReadDocumentJob`). A scan that failed before scans were switched on can be read now. */
+const PERMANENT_READ_FAILURES = new Set(["unreadable_file", "scanned_not_supported", "no_egress"]);
+export const canRetryRead = (reason: string | null, { scansOn }: { scansOn?: boolean } = {}) =>
+  !PERMANENT_READ_FAILURES.has(reason ?? "") || (reason === "scanned_not_supported" && !!scansOn);
 export const readFailureMessage = (reason: string | null) =>
   (reason && Object.hasOwn(COPY, reason) && COPY[reason]) || "We couldn't read this document.";
 

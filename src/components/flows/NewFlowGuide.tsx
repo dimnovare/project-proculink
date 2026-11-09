@@ -42,7 +42,7 @@ function ReadStep({ flow, docId, onConfirmed }: { flow: Flow; docId: string; onC
     return <p role="status" className="text-[13px] text-ink-muted">Reading your document…</p>;
   const nothingRead = read.fields.length + read.tables.length === 0;
   if (summary.status === "read_failed" || (summary.statusReason === "duplicate_file" && nothingRead))
-    return <ReadProblem summary={summary} nothingRead={nothingRead} retry={retry} />;
+    return <ReadProblem summary={summary} nothingRead={nothingRead} retry={retry} scansOn={flow.scansOn} />;
   return <FieldListEditor flow={flow} initial={fieldListFromRead(read)} onSaved={onConfirmed} />;
 }
 

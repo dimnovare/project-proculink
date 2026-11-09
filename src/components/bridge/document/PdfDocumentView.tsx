@@ -15,7 +15,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { PDFDocumentProxy } from "pdfjs-dist";
+import type { Box, SourceLocation } from "@/lib/api/documents";
 import { scrollRegionProps } from "./scrollRegion";
+import { SourceHighlight } from "./SourceHighlight";
 
 /** Rendered at this CSS width times the device pixel ratio, capped so a phone stays responsive. */
 const MAX_CANVAS_SCALE = 2;
@@ -41,10 +43,18 @@ export interface PdfDocumentViewProps {
    * when unbounded so the column cannot grow without limit.
    */
   bounded: boolean;
+  /** A pointed-at value: its page is shown and its box drawn. */
+  highlight?: SourceLocation | null;
 }
 
-export function PdfDocumentView({ cacheKey, blob, bounded }: PdfDocumentViewProps) {
+export function PdfDocumentView({ cacheKey, blob, bounded, highlight }: PdfDocumentViewProps) {
   const [page, setPage] = useState(1);
+  // Turn to a newly pointed-at page (adjusting state during render, not an effect).
+  const [seenPage, setSeenPage] = useState(highlight?.page);
+  if (highlight?.page !== seenPage) {
+    setSeenPage(highlight?.page);
+    if (highlight?.page) setPage(highlight.page);
+  }
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["source-document-pdf", cacheKey],
@@ -103,7 +113,7 @@ export function PdfDocumentView({ cacheKey, blob, bounded }: PdfDocumentViewProp
             : "overflow-x-auto bg-surface-2 p-3") + " focus-visible:[outline-offset:-2px]"
         }
       >
-        <PdfPageCanvas doc={data} pageNumber={current} />
+        <PdfPageCanvas doc={data} pageNumber={current} box={highlight?.page === current ? highlight.box : null} />
       </div>
     </div>
   );
@@ -116,8 +126,10 @@ export function PdfDocumentView({ cacheKey, blob, bounded }: PdfDocumentViewProp
  * from TanStack Query above. Rasterising to a canvas is imperative DOM work with a cancellation
  * handle, which is exactly what an effect is for.
  */
-function PdfPageCanvas({ doc, pageNumber }: { doc: PDFDocumentProxy; pageNumber: number }) {
+function PdfPageCanvas({ doc, pageNumber, box }: { doc: PDFDocumentProxy; pageNumber: number; box: Box | null }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  // Fit to the full-width row, never to the shrink-to-fit highlight wrapper around the canvas.
+  const rowRef = useRef<HTMLDivElement | null>(null);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
@@ -130,7 +142,7 @@ function PdfPageCanvas({ doc, pageNumber }: { doc: PDFDocumentProxy; pageNumber:
         const canvas = canvasRef.current;
         if (cancelled || !canvas) return;
 
-        const parentWidth = canvas.parentElement?.clientWidth ?? 620;
+        const parentWidth = rowRef.current?.clientWidth ?? 620;
         const base = pdfPage.getViewport({ scale: 1 });
         const fit = Math.max(parentWidth, 240) / base.width;
         const dpr = typeof window === "undefined" ? 1 : window.devicePixelRatio || 1;
@@ -164,18 +176,21 @@ function PdfPageCanvas({ doc, pageNumber }: { doc: PDFDocumentProxy; pageNumber:
   }, [doc, pageNumber]);
 
   return (
-    <div className="flex justify-center">
+    <div ref={rowRef} className="flex justify-center">
       {failed ? (
         <p className="px-3 py-4 text-[11.5px] leading-relaxed text-ink-faint">
           This page couldn&rsquo;t be drawn. Download the file to read it.
         </p>
       ) : (
-        <canvas
-          ref={canvasRef}
-          data-testid="source-document-pdf-canvas"
-          aria-label={`Page ${pageNumber} of the received document`}
-          className="max-w-full border border-border bg-surface"
-        />
+        <div className="relative inline-block max-w-full">
+          <canvas
+            ref={canvasRef}
+            data-testid="source-document-pdf-canvas"
+            aria-label={`Page ${pageNumber} of the received document`}
+            className="block max-w-full border border-border bg-surface"
+          />
+          {box && <SourceHighlight box={box} />}
+        </div>
       )}
     </div>
   );

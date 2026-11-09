@@ -12,8 +12,10 @@
 //   2. What the operator is told when there is no document to show.
 //   3. Which of the two "What we received" bodies the left column shows.
 //
-// The media types this can receive are a CLOSED allowlist on the server
-// (`ProcuLink.Core/Services/Detection/SourceDocumentMediaType.cs`): pdf → application/pdf,
+// Order sources get their media type from a CLOSED allowlist on the server
+// (`ProcuLink.Core/Services/Detection/SourceDocumentMediaType.cs`); flow documents are typed
+// from the file extension (`DocumentScreen.tsx`), which also gives the png/jpeg photos. The
+// server allowlist: pdf → application/pdf,
 // csv → text/csv, xlsx → the OOXML spreadsheet type, cxml|ubl|xml → application/xml,
 // edifact|x12 → text/plain, and everything else → application/octet-stream. Nothing in it can
 // produce text/html or image/svg+xml, which is why we can render what it sends. We still treat
@@ -21,7 +23,7 @@
 // acquire a renderer here.
 
 /** Which viewer a served document gets. `opaque` = we will not guess; offer the bytes instead. */
-export type SourceDocumentRender = "pdf" | "sheet" | "text" | "opaque";
+export type SourceDocumentRender = "pdf" | "sheet" | "text" | "image" | "opaque";
 
 /** A document the server actually served. */
 export interface SourceDocument {
@@ -75,6 +77,9 @@ export function sourceRenderFor(contentType: string): SourceDocumentRender {
     case "application/xml":
     case "text/plain":
       return "text";
+    case "image/png":
+    case "image/jpeg":
+      return "image";
     default:
       return "opaque";
   }
@@ -100,6 +105,10 @@ export function sourceFormatLabel(contentType: string): string | null {
       return "XML";
     case "text/plain":
       return "TEXT";
+    case "image/png":
+      return "PNG";
+    case "image/jpeg":
+      return "JPG";
     default:
       return null;
   }
