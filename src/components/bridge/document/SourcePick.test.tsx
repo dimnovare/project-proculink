@@ -41,6 +41,16 @@ describe("pointing at the original", () => {
     expect(onBox).toHaveBeenCalledWith({ x: 0.1, y: 0.1, width: 0.5, height: 0.5 });
   });
 
+  it("the keyboard moves, resizes and uses a box", () => {
+    const { onBox, area } = picker();
+    fireEvent.keyDown(area, { key: "Enter" });
+    expect(onBox).not.toHaveBeenCalled();
+    fireEvent.keyDown(area, { key: "ArrowRight" });
+    fireEvent.keyDown(area, { key: "ArrowDown", shiftKey: true });
+    fireEvent.keyDown(area, { key: "Enter" });
+    expect(onBox).toHaveBeenCalledWith({ x: 0.40625, y: 0.4375, width: 0.25, height: 0.15625 });
+  });
+
   it("picking a cell and selected words", async () => {
     const onPick = vi.fn();
     const show = (name: string, type: string, text: string) => {

@@ -79,6 +79,7 @@ const PICK_HELP: Record<string, string> = {
   sheet: "Click the cell that holds {label}.",
   text: "Select the words for {label}, then choose Use selected words.",
 };
+const KEYS_HELP = "No mouse? Tab to the page, move the box with the arrow keys, resize it with Shift and the arrows, then press Enter.";
 
 /** What to do while pointing, and the way out when the box held no words. */
 function TeachBanner({ label, render, mutation, onSave, onCancel }: {
@@ -90,6 +91,7 @@ function TeachBanner({ label, render, mutation, onSave, onCancel }: {
     <div ref={scrollTo} className="grid gap-2 px-4 pb-2">
       <StatusNotice tone="working" action={<Button size="sm" variant="ghost" onClick={onCancel}>Cancel</Button>}>
         {PICK_HELP[render].replace("{label}", () => label)}
+        {(render === "pdf" || render === "image") && <span className="mt-1 block">{KEYS_HELP}</span>}
       </StatusNotice>
       {mutation.isError && (noText ? (
         <form onSubmit={(e) => { e.preventDefault(); if (typed.trim()) onSave(typed.trim()); }}>
