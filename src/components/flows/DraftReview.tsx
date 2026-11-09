@@ -33,28 +33,31 @@ export function DraftReview({ flow, draft, requireTest, previewDocumentId, onCre
   const [problem, setProblem] = useState<string | null>(null);
   const [destinationId, setDestinationId] = useState<string | null>(null);
   const [adding, setAdding] = useState<"new" | "proposed" | null>(null);
-  const [passedKey, setPassedKey] = useState<string | null>(null);
+  const [outcome, setOutcome] = useState<{ key: string; ok: boolean; message: string | null } | null>(null);
   const destinations = useQuery({ queryKey: ["destinations"], queryFn: listDestinations, enabled: useTenantQueriesEnabled() });
   const fixed = draft.format === "fixed";
   const leaves = leafPaths(template);
   const columns = flow.fields.tables.find((t) => t.key === draft.tableKey)?.columns ?? [];
 
+  // The one template both the test and Create send, so a test passes for exactly what gets saved.
+  const sent = fixed ? leaves.reduce((t, l) => setLeafWidth(t, l.path, l.node.rule?.width ?? defaultWidth(l.node.name)), template) : template;
   // A passing test counts only for the exact draft it was sent for: any edit changes the key.
   const gated = !!requireTest && !!destinationId;
-  const testKey = JSON.stringify({ template, tableKey: draft.tableKey, destinationId, format: draft.format });
+  const testKey = JSON.stringify({ template: sent, tableKey: draft.tableKey, destinationId, format: draft.format });
   const test = useMutation({
     mutationFn: (_key: string) =>
-      testOutput(previewDocumentId!, { format: draft.format, tableKey: draft.tableKey, destinationId: destinationId!, template }),
-    onSuccess: (r, key) => setPassedKey(r.success ? key : null),
-    onError: (e) => setProblem(documentRefusalMessage(e)),
+      testOutput(previewDocumentId!, { format: draft.format, tableKey: draft.tableKey, destinationId: destinationId!, template: sent }),
+    onMutate: () => setOutcome(null),
+    onSuccess: (r, key) => setOutcome({ key, ok: r.success, message: r.message }),
+    onError: (e, key) => setOutcome({ key, ok: false, message: documentRefusalMessage(e) }),
   });
-  const tested = passedKey === testKey;
+  const current = outcome?.key === testKey ? outcome : null;
+  const tested = !!current?.ok;
   const noteKeys = new Set(draft.notes);
   if (draft.truncated) noteKeys.add("truncated");
 
   const create = useMutation({
     mutationFn: () => {
-      const sent = fixed ? leaves.reduce((t, l) => setLeafWidth(t, l.path, l.node.rule?.width ?? defaultWidth(l.node.name)), template) : template;
       return createOutput(flow.id, { name: name.trim(), format: draft.format, tableKey: draft.tableKey, destinationId, template: sent });
     },
     onSuccess: (saved) => {
@@ -138,14 +141,14 @@ export function DraftReview({ flow, draft, requireTest, previewDocumentId, onCre
                   Send a test
                 </Button>
                 {tested && <span>{COPY.test_passed}</span>}
-                {test.data && !test.data.success && <span>{test.data.message}</span>}
+                {current && !current.ok && current.message && <span>{current.message}</span>}
               </div>
             ) : <p>{COPY.no_test_document}</p>}
           </div>
         )}
         {problem && <StatusNotice tone="error">{problem}</StatusNotice>}
         <div className="flex flex-wrap gap-2">
-          <Button type="submit" variant="primary" loading={create.isPending} disabled={gated && (!previewDocumentId || !tested)}>Create</Button>
+          <Button type="submit" variant="primary" loading={create.isPending} disabled={!!adding || (gated && (!previewDocumentId || !tested || test.isPending))}>Create</Button>
           <Button type="button" variant="ghost" onClick={onRestart}>Choose a different file</Button>
         </div>
       </form>

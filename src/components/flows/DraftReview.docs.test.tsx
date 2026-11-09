@@ -9,13 +9,13 @@ vi.mock("@/lib/api/documents", () => api);
 
 const flow = { id: "f", fields: { fields: [{ key: "po", label: "PO" }, { key: "ship", label: "Ship" }], tables: [] } };
 const template = {
-  format: "json",
+  format: "fixed",
   root: { name: "document", nodeType: "object", children: [
     { name: "OrderNumber", nodeType: "field", children: [], rule: { outputPath: "OrderNumber", canonicalField: "po" } },
   ] },
 };
 const draft = {
-  name: "Docs", format: "json", tableKey: null, template, notes: [], truncated: false,
+  name: "Docs", format: "fixed", tableKey: null, template, notes: [], truncated: false,
   leaves: [{ path: "OrderNumber", fieldKey: "po", by: "docs", confidence: null, required: true, cite: { where: "page 2", quote: "OrderNumber is required" } }],
 };
 
@@ -40,6 +40,7 @@ describe("DraftReview from documentation", () => {
     expect(create.disabled).toBe(true);
     fireEvent.click(screen.getByRole("button", { name: "Send a test" }));
     await screen.findByText("Test sent. You can create the output now.");
+    expect(api.testOutput.mock.calls[0][1].template.root.children[0].rule.width).toBe(11);
     expect(create.disabled).toBe(false);
     fireEvent.change(screen.getByLabelText("Value for OrderNumber"), { target: { value: "ship" } });
     await waitFor(() => expect(create.disabled).toBe(true));
