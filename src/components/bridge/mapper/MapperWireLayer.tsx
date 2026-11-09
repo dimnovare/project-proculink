@@ -415,7 +415,9 @@ export function useMapperWireLayer({
       <div ref={announcerRef} aria-live="polite" aria-atomic="true"
         style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0 0 0 0)", whiteSpace: "nowrap" }} />
 
-      <svg aria-hidden
+      {/* NOT aria-hidden: the remove/accept/dismiss controls inside are focusable buttons, and
+          aria-hidden made Tab land on silence. Unlabelled paths/circles are not exposed anyway. */}
+      <svg
         width={dims.w || undefined} height={dims.h || undefined}
         style={{
           position: "absolute", top: 0, left: 0, overflow: "hidden",

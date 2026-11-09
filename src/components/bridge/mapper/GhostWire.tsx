@@ -106,7 +106,7 @@ export function GhostWire({ suggestion: s, hx, hy, zx, zy, onAccept, onReject }:
           The ring itself is ALWAYS drawn, scored or not: it is the wire's visual midpoint and
           removing it would move the geometry. Only the numeral is withheld when nothing scored
           the suggestion — an empty ring reads as "no score", a fabricated number does not. */}
-      <g style={{ pointerEvents: "none" }}>
+      <g aria-hidden style={{ pointerEvents: "none" }}>
         <circle cx={mx} cy={my} r={9} fill="#FFFFFF" stroke={tierColor} strokeWidth={1.4} opacity={0.95} />
         {pct != null && (
           <text
