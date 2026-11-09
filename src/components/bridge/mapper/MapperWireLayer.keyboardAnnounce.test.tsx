@@ -10,7 +10,7 @@
 // so rendering that fragment plus one port handle is the whole surface under test.
 
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { cleanup, render, fireEvent, waitFor } from "@testing-library/react";
+import { cleanup, render, fireEvent, waitFor, within } from "@testing-library/react";
 import { useRef } from "react";
 import { useMapperWireLayer } from "./MapperWireLayer";
 import type { TargetField } from "./types";
@@ -25,7 +25,7 @@ const TARGETS: TargetField[] = [
 
 const onConnect = vi.fn();
 
-function Harness() {
+function Harness({ connections = {} }: { connections?: Record<string, string> }) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const sourceEls = useRef<Record<string, HTMLElement | null>>({});
   const targetEls = useRef<Record<string, HTMLElement | null>>({});
@@ -35,7 +35,7 @@ function Harness() {
     targetEls,
     sourceIds: ["poNumberRaw"],
     targetFields: TARGETS,
-    outputConnections: {},
+    outputConnections: connections,
     knownSourceIds: new Set(["poNumberRaw"]),
     onConnect,
     onDisconnect: vi.fn(),
@@ -44,12 +44,13 @@ function Harness() {
   return (
     <div ref={canvasRef}>
       <span data-testid="handle" {...wire.sourcePortProps("poNumberRaw")} />
+      <span ref={(el) => { targetEls.current.Currency = el; }} />
       {wire.svg}
     </div>
   );
 }
 
-/** The polite live region the hook renders beside the (aria-hidden) SVG. */
+/** The polite live region the hook renders beside the SVG. */
 function liveRegion(container: HTMLElement): HTMLElement {
   const el = container.querySelector('[aria-live="polite"]');
   expect(el).toBeTruthy();
@@ -139,5 +140,19 @@ describe("MapperWireLayer — anti-vacuity", () => {
     fireEvent.keyDown(handle, { key: "Enter" });
 
     expect(onConnect).toHaveBeenCalledWith("poNumberRaw", "Currency");
+  });
+});
+
+describe("MapperWireLayer — the remove-wire control is announced", () => {
+  it("is a named, focusable button with no aria-hidden ancestor", () => {
+    // It sat inside `<svg aria-hidden>`: Tab landed on it and a screen reader said nothing.
+    // getByRole skips aria-hidden subtrees, so this query alone fails on the old markup.
+    const rect = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect")
+      .mockReturnValue({ width: 400, height: 300, top: 0, left: 0, right: 400, bottom: 300 } as DOMRect);
+    const { container } = render(<Harness connections={{ Currency: "poNumberRaw" }} />);
+    const remove = within(container).getByRole("button", { name: "Remove the mapping feeding Currency" });
+    expect(remove.closest('[aria-hidden="true"]')).toBeNull();
+    expect(remove.getAttribute("tabindex")).toBe("0");
+    rect.mockRestore();
   });
 });
