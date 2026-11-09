@@ -28,8 +28,9 @@ import {
   sourceRenderFor,
   type SourceDocument,
 } from "@/lib/sourceDocument";
-import type { SourceLocation } from "@/lib/api/documents";
+import type { Box, SourceLocation } from "@/lib/api/documents";
 import { ImageDocumentView } from "./ImageDocumentView";
+import { parseAddress, spreadsheetColumnName } from "@/lib/sourceAddress";
 import { scrollRegionProps } from "./scrollRegion";
 import {
   MAX_PREVIEW_ROWS,
@@ -39,12 +40,18 @@ import {
   type SheetWorkbook,
 } from "@/lib/sheetPreview";
 
+/** Stable ref: scrolls the highlighted line or cell into view (jsdom has no scrollIntoView). */
+export const scrollTo = (el: HTMLElement | null) => el?.scrollIntoView?.({ block: "nearest" });
+
 // pdf.js is ~350KB and ESM-only; keeping it behind a client-only dynamic import means a CSV
 // order never downloads it and the server bundle never sees it.
 const PdfDocumentView = dynamic(
   () => import("./PdfDocumentView").then((m) => m.PdfDocumentView),
   { ssr: false, loading: () => <Message>Opening the document…</Message> },
 );
+
+/** A spot the person pointed at: a box on a page or image, or a sheet cell / words on a text line. */
+export type SourcePick = { page: number; box: Box } | { address: string; value: string };
 
 export interface SourceDocumentBodyProps {
   /** Stable cache identity — the order id. */
@@ -53,15 +60,17 @@ export interface SourceDocumentBodyProps {
   bounded: boolean;
   /** Where the value being pointed at sits on the original (flows only). */
   highlight?: SourceLocation | null;
+  /** Set to switch on pointing at the original; called with the spot picked. */
+  onPick?(p: SourcePick): void;
 }
 
-export function SourceDocumentBody({ cacheKey, document: doc, bounded, highlight }: SourceDocumentBodyProps) {
+export function SourceDocumentBody({ cacheKey, document: doc, bounded, highlight, onPick }: SourceDocumentBodyProps) {
   const render = sourceRenderFor(doc.contentType);
 
   if (render === "pdf") {
     return (
       <Shell bounded={bounded}>
-        <PdfDocumentView cacheKey={cacheKey} blob={doc.blob} bounded={bounded} highlight={highlight} />
+        <PdfDocumentView cacheKey={cacheKey} blob={doc.blob} bounded={bounded} highlight={highlight} onPick={onPick} />
         <DownloadRow document={doc} cacheKey={cacheKey} />
       </Shell>
     );
@@ -69,7 +78,7 @@ export function SourceDocumentBody({ cacheKey, document: doc, bounded, highlight
   if (render === "sheet") {
     return (
       <Shell bounded={bounded}>
-        <SheetView cacheKey={cacheKey} document={doc} bounded={bounded} />
+        <SheetView cacheKey={cacheKey} document={doc} bounded={bounded} highlight={highlight} onPick={onPick} />
         <DownloadRow document={doc} cacheKey={cacheKey} />
       </Shell>
     );
@@ -78,7 +87,7 @@ export function SourceDocumentBody({ cacheKey, document: doc, bounded, highlight
     return (
       <Shell bounded={bounded}>
         <div className={bounded ? "min-h-0 flex-1 overflow-auto" : "overflow-auto"}>
-          <ImageDocumentView blob={doc.blob} contentType={doc.contentType} filename={doc.filename ?? "Original document"} highlight={highlight} />
+          <ImageDocumentView blob={doc.blob} contentType={doc.contentType} filename={doc.filename ?? "Original document"} highlight={highlight} onPick={onPick} />
         </div>
         <DownloadRow document={doc} cacheKey={cacheKey} />
       </Shell>
@@ -87,7 +96,7 @@ export function SourceDocumentBody({ cacheKey, document: doc, bounded, highlight
   if (render === "text") {
     return (
       <Shell bounded={bounded}>
-        <TextView cacheKey={cacheKey} document={doc} bounded={bounded} />
+        <TextView cacheKey={cacheKey} document={doc} bounded={bounded} highlight={highlight} onPick={onPick} />
         <DownloadRow document={doc} cacheKey={cacheKey} />
       </Shell>
     );
@@ -109,10 +118,14 @@ function SheetView({
   cacheKey,
   document: doc,
   bounded,
+  highlight,
+  onPick,
 }: {
   cacheKey: string;
   document: SourceDocument;
   bounded: boolean;
+  highlight?: SourceLocation | null;
+  onPick?(p: SourcePick): void;
 }) {
   const [sheetIndex, setSheetIndex] = useState(0);
   const base = useId();
@@ -197,14 +210,16 @@ function SheetView({
           " focus-visible:[outline-offset:-2px]"
         }
       >
-        <SheetGrid table={table} />
+        <SheetGrid bounded={bounded} table={table} highlight={sel === 0 ? highlight : null} onPick={sel === 0 ? onPick : undefined} />
       </div>
       <TruncationNote table={table} omitted={data.omittedSheetNames} />
     </div>
   );
 }
 
-function SheetGrid({ table }: { table: SheetTable }) {
+function SheetGrid({ bounded, table, highlight, onPick }: { bounded: boolean; table: SheetTable; highlight?: SourceLocation | null; onPick?(p: SourcePick): void }) {
+  const spot = parseAddress(highlight?.address);
+  const cell = spot?.kind === "cell" ? spot : null;
   const width = table.rows.reduce((m, r) => Math.max(m, r.length), 0);
   const columnLabels = useMemo(
     () => Array.from({ length: width }, (_, i) => spreadsheetColumnName(i)),
@@ -258,14 +273,30 @@ function SheetGrid({ table }: { table: SheetTable }) {
             <td className="sticky left-0 z-10 border border-border bg-surface-2 px-2 py-1 text-right text-[10px] text-ink-faint">
               {r + 1}
             </td>
-            {columnLabels.map((label, c) => (
-              <td
-                key={label}
-                className="whitespace-pre border border-border bg-surface px-2 py-1 align-top text-ink"
-              >
-                {row[c] ?? ""}
-              </td>
-            ))}
+            {columnLabels.map((label, c) => {
+              const hit = cell?.row === r + 1 && cell.col === c + 1;
+              const text = row[c] ?? "";
+              return (
+                <td
+                  key={label}
+                  {...(hit && { "data-highlighted": "true", ref: bounded ? scrollTo : undefined })}
+                  className={`whitespace-pre border border-border px-2 py-1 align-top text-ink ${hit ? "bg-brand-blue-soft" : "bg-surface"}`}
+                >
+                  {onPick && text ? (
+                    <button
+                      type="button"
+                      aria-label={`Use cell ${label}${r + 1}`}
+                      className="whitespace-pre text-left hover:underline"
+                      onClick={() => onPick({ address: `cell:r${r + 1}c${c + 1}`, value: text })}
+                    >
+                      {text}
+                    </button>
+                  ) : (
+                    text
+                  )}
+                </td>
+              );
+            })}
           </tr>
         ))}
       </tbody>
@@ -286,18 +317,6 @@ function TruncationNote({ table, omitted }: { table: SheetTable; omitted: string
   );
 }
 
-/** 0 → A, 25 → Z, 26 → AA. */
-export function spreadsheetColumnName(index: number): string {
-  let n = index + 1;
-  let out = "";
-  while (n > 0) {
-    const rem = (n - 1) % 26;
-    out = String.fromCharCode(65 + rem) + out;
-    n = Math.floor((n - 1) / 26);
-  }
-  return out;
-}
-
 // ── Text (XML / cXML / UBL / EDIFACT / X12 / JSON / plain text) ──────────────────────────────────
 
 /** Long enough to cover a real interchange, short enough that the DOM stays cheap. */
@@ -307,11 +326,17 @@ function TextView({
   cacheKey,
   document: doc,
   bounded,
+  highlight,
+  onPick,
 }: {
   cacheKey: string;
   document: SourceDocument;
   bounded: boolean;
+  highlight?: SourceLocation | null;
+  onPick?(p: SourcePick): void;
 }) {
+  const spot = parseAddress(highlight?.address);
+  const [noSelection, setNoSelection] = useState(false);
   const { data, isLoading, isError } = useQuery({
     queryKey: ["source-document-text", cacheKey],
     queryFn: async () => {
@@ -344,6 +369,29 @@ function TextView({
           shown as Windows-1252. Accented characters may differ from the sender&rsquo;s copy.
         </p>
       )}
+      {onPick && (
+        <div className="flex flex-shrink-0 items-center gap-2 border-b border-border px-3 py-1.5">
+          <button
+            type="button"
+            onClick={() => {
+              const sel = window.getSelection();
+              const line = sel?.anchorNode?.parentElement?.closest("li[data-line]");
+              const value = sel?.toString().trim();
+              const ok = line && value && line === sel?.focusNode?.parentElement?.closest("li[data-line]");
+              setNoSelection(!ok);
+              if (ok) onPick({ address: `line:${line.getAttribute("data-line")}`, value });
+            }}
+            className="rounded border border-border px-2 py-0.5 text-[11px] text-ink-muted hover:border-border-strong"
+          >
+            Use selected words
+          </button>
+          {noSelection && (
+            <span role="status" className="text-[10.5px] text-ink-faint">
+              Select words on one line first.
+            </span>
+          )}
+        </div>
+      )}
       {/* Only the bounded branch scrolls. Unbounded, the list renders at its natural height and
           <main> scrolls it, so a tab stop here would be a dead one. */}
       <div
@@ -354,14 +402,22 @@ function TextView({
           className="m-0 list-none p-0 font-mono text-[11px] leading-[1.55]"
           data-testid="source-document-text"
         >
-          {data.lines.map((line, i) => (
-            <li key={i} className="flex gap-2 px-2 hover:bg-surface-2">
-              <span className="w-9 flex-shrink-0 select-none text-right text-[10px] text-ink-faint">
-                {i + 1}
-              </span>
-              <span className="min-w-0 flex-1 whitespace-pre-wrap break-words text-ink">{line}</span>
-            </li>
-          ))}
+          {data.lines.map((line, i) => {
+            const hit = spot?.kind === "line" && spot.n === i + 1;
+            return (
+              <li
+                key={i}
+                data-line={i + 1}
+                {...(hit && { "data-highlighted": "true", ref: bounded ? scrollTo : undefined })}
+                className={`flex gap-2 px-2 ${hit ? "bg-brand-blue-soft" : "hover:bg-surface-2"}`}
+              >
+                <span className="w-9 flex-shrink-0 select-none text-right text-[10px] text-ink-faint">
+                  {i + 1}
+                </span>
+                <span className="min-w-0 flex-1 whitespace-pre-wrap break-words text-ink">{line}</span>
+              </li>
+            );
+          })}
         </ol>
       </div>
       {data.truncated && (

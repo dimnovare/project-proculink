@@ -232,11 +232,11 @@ All Bridge Layer tokens live as flat Tailwind classes. The `brand.*`, `navy.*`, 
 
 ```
 brand.blue     #1E66C9   buyer / incoming / structure / trust
-brand.blueDeep #0F4FA8
-brand.blueSoft #E3EDFB
+brand.blue-deep #0F4FA8
+brand.blue-soft #EAF0F8
 brand.green    #2E8E3A   supplier / outgoing / completion
-brand.greenDeep #1E6D29
-brand.greenSoft #E2F1E2
+brand.green-deep #1E6D29
+brand.green-soft #E9F1EA
 navy.DEFAULT   #0B1A2F   sidebar + topbar
 navy.surface   #10243E   raised within chrome
 navy.border    #1C2F49
@@ -258,6 +258,8 @@ dangerSoft     #FBE3E3
 ai             #6F4FCE   ONLY for AI-generated content
 aiSoft         #EEE7FB
 ```
+
+Tailwind class names for these keys are kebab-case: `bg-brand-blue-soft`, not `bg-brand-blueSoft` (an unknown class compiles to nothing).
 
 **Fonts:**
 - `font-sans` → Inter (body, UI, 13/14px)

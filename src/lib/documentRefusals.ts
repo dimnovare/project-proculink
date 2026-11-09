@@ -41,6 +41,7 @@ export const COPY: Record<string, string> = {
   ai_usage_cap: "This workspace has used this month's AI allowance.",
   usage_cap: "This workspace has used this month's AI allowance.",
   no_egress: "This workspace keeps documents on our own servers, so they aren't sent to AI to be read.",
+  unknown_spot: "That spot isn't on this document. Try again on the page.",
   scanned_not_supported: "This looks like a scanned document, which can't be read yet.",
 };
 

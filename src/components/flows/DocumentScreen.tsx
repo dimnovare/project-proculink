@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PageShell } from "@/components/bridge/layout/PageShell";
@@ -8,17 +8,19 @@ import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import { Card } from "@/components/bridge/layout/Card";
 import { StatusJourney } from "@/components/bridge/StatusJourney";
 import { Button } from "@/components/bridge/DSPrimitives";
-import { SourceDocumentBody } from "@/components/bridge/document/SourceDocumentBody";
-import { DOCX_MEDIA_TYPE } from "@/lib/sourceDocument";
+import { SourceDocumentBody, scrollTo, type SourcePick } from "@/components/bridge/document/SourceDocumentBody";
+import { DOCX_MEDIA_TYPE, sourceRenderFor } from "@/lib/sourceDocument";
 import { useLgViewport } from "@/components/bridge/document/useSourceDocument";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
-import { fetchDocumentSource, getDocument, getFlow, getDocumentHistory, retryDocumentRead } from "@/lib/api/documents";
+import { fetchDocumentSource, getDocument, getFlow, getDocumentHistory, retryDocumentRead, teachDocument } from "@/lib/api/documents";
 import { formatDateTime } from "@/lib/format-date";
-import { documentRefusalMessage } from "@/lib/documentRefusals";
+import { documentRefusalMessage, refusalToken } from "@/lib/documentRefusals";
 import { documentStatus } from "@/lib/documentStatusManifest";
-import type { DocumentDetail, SourceLocation } from "@/lib/api/documents";
+import type { DocumentDetail, SourceLocation, TeachRequest } from "@/lib/api/documents";
 import { DocumentOutputsPanel } from "./DocumentOutputsPanel";
-import { ReadValuesPanel } from "./ReadValuesPanel";
+import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
+import { INPUT } from "./DestinationForm";
+import { ReadValuesPanel, type Teach } from "./ReadValuesPanel";
 import { Checks, Failed, Quiet, ReadProblem } from "./states";
 
 // The file's own extension decides the viewer. The server's content type is not trusted for this.
@@ -66,16 +68,50 @@ function History({ documentId }: { documentId: string }) {
   );
 }
 
-export function Original({ documentId, fileName, highlight }: { documentId: string; fileName: string; highlight?: SourceLocation | null }) {
+const typeOf = (fileName: string) => {
+  const ext = /\.([^.]*)$/.exec(fileName)?.[1].toLowerCase() ?? "";
+  return Object.hasOwn(TYPES, ext) ? TYPES[ext] : "application/octet-stream";
+};
+
+const PICK_HELP: Record<string, string> = {
+  pdf: "Draw a box around {label} on the page, or click two corners.",
+  image: "Draw a box around {label} on the page, or click two corners.",
+  sheet: "Click the cell that holds {label}.",
+  text: "Select the words for {label}, then choose Use selected words.",
+};
+
+/** What to do while pointing, and the way out when the box held no words. */
+function TeachBanner({ label, render, mutation, onSave, onCancel }: {
+  label: string; render: string; mutation: { isError: boolean; error: unknown }; onSave(value: string): void; onCancel(): void;
+}) {
+  const [typed, setTyped] = useState("");
+  const noText = mutation.isError && refusalToken(mutation.error) === "no_text_in_area";
+  return (
+    <div ref={scrollTo} className="grid gap-2 px-4 pb-2">
+      <StatusNotice tone="working" action={<Button size="sm" variant="ghost" onClick={onCancel}>Cancel</Button>}>
+        {PICK_HELP[render].replace("{label}", () => label)}
+      </StatusNotice>
+      {mutation.isError && (noText ? (
+        <form onSubmit={(e) => { e.preventDefault(); if (typed.trim()) onSave(typed.trim()); }}>
+          <StatusNotice tone="warning" action={<Button type="submit" size="sm" variant="secondary" disabled={!typed.trim()}>Save</Button>}>
+            We couldn&apos;t find text there. Type what it says:
+            <input autoFocus aria-label="What it says" className={`${INPUT} mt-1`} value={typed} onChange={(e) => setTyped(e.target.value)} />
+          </StatusNotice>
+        </form>
+      ) : <StatusNotice tone="error">{documentRefusalMessage(mutation.error)}</StatusNotice>)}
+    </div>
+  );
+}
+
+export function Original({ documentId, fileName, highlight, onPick }: { documentId: string; fileName: string; highlight?: SourceLocation | null; onPick?(p: SourcePick): void }) {
   const isLg = useLgViewport();
   const enabled = useTenantQueriesEnabled();
   const source = useQuery({ queryKey: ["document-source", documentId], queryFn: () => fetchDocumentSource(documentId), enabled });
-  const ext = /\.([^.]*)$/.exec(fileName)?.[1].toLowerCase() ?? "";
-  const type = Object.hasOwn(TYPES, ext) ? TYPES[ext] : "application/octet-stream";
+  const type = typeOf(fileName);
   if (source.isPending) return <p className="px-4 pb-4 text-[12.5px] text-ink-muted">Opening the document…</p>;
   if (source.isError || source.data.size === 0)
     return <p className="px-4 pb-4 text-[12.5px] text-ink-muted">The original isn&apos;t available right now.</p>;
-  return <SourceDocumentBody cacheKey={documentId} document={{ blob: source.data, contentType: type, filename: fileName }} bounded={isLg} highlight={highlight} />;
+  return <SourceDocumentBody cacheKey={documentId} document={{ blob: source.data, contentType: type, filename: fileName }} bounded={isLg} highlight={highlight} onPick={onPick} />;
 }
 
 export function DocumentScreen({ flowId, documentId }: { flowId: string; documentId: string }) {
@@ -103,10 +139,35 @@ export function DocumentScreen({ flowId, documentId }: { flowId: string; documen
     onSuccess: () => Promise.all(["document", "document-history"].map((k) => qc.invalidateQueries({ queryKey: [k, documentId] }))),
   });
 
+  const [teach, setTeach] = useState<Teach | null>(null);
+  const [taught, setTaught] = useState<string | null>(null);
+  const teachMutation = useMutation({
+    // `label` rides along for the notice only: Cancel can clear `teach` while the request is in flight.
+    mutationFn: ({ label: _label, ...req }: TeachRequest & { label: string }) => teachDocument(documentId, req),
+    onSuccess: (d, { label, ...req }) => {
+      qc.setQueryData(["document", documentId], d);
+      const keys = [["document-history", documentId], ...(req.newLabel ? [["flow", d.summary.flowId], ["flows"]] : [])];
+      for (const queryKey of keys) qc.invalidateQueries({ queryKey });
+      setTaught(d.senderLabel
+        ? `Saved. Next time a document from ${d.senderLabel} comes in, we'll look there for ${label}.`
+        : `Saved. We'll look there for ${label} in every document in this flow.`);
+      setTeach(null);
+    },
+  });
+  const cancelTeach = () => { setTeach(null); teachMutation.reset(); };
+  useEffect(() => {
+    if (!teach) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && cancelTeach();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
   const summary = doc.data?.summary;
   const docFlowId = summary?.flowId ?? flowId;
   const flow = useQuery({ queryKey: ["flow", docFlowId], queryFn: () => getFlow(docFlowId), enabled });
   const status = summary && documentStatus(summary.status, summary.statusReason);
+  const originalKind = summary ? sourceRenderFor(typeOf(summary.fileName)) : "opaque";
+  const canTeach = !!status?.editable && !!flow.data?.fieldsConfirmed && originalKind !== "opaque";
   const nothingRead = !doc.data || doc.data.read.fields.length + doc.data.read.tables.length === 0;
 
   return (
@@ -148,11 +209,16 @@ export function DocumentScreen({ flowId, documentId }: { flowId: string; documen
             <div hidden={!showOriginal} className="min-w-0 lg:sticky lg:top-0 lg:h-[calc(100vh-150px)]">
               <Card edge="blue" flush as="section" aria-labelledby="doc-original" className="flex h-full flex-col">
                 <h2 id="doc-original" className="px-4 pb-2 pt-3.5 text-[13px] font-semibold text-ink">Original document</h2>
-                <Original documentId={documentId} fileName={summary.fileName} highlight={spot} />
+                {teach && <TeachBanner key={teachMutation.submittedAt} label={teach.label} render={originalKind} mutation={teachMutation} onCancel={cancelTeach} onSave={(value) => teachMutation.mutate({ ...teachMutation.variables, value })} />}
+                <Original
+                  documentId={documentId} fileName={summary.fileName} highlight={spot}
+                  onPick={teach && !teachMutation.isPending ? (pick) => teachMutation.mutate({ label: teach.label, ...(teach.key ? { key: teach.key } : { newLabel: teach.newLabel }), ...pick }) : undefined}
+                />
               </Card>
             </div>
             <Card as="section" aria-labelledby="doc-read" className="min-w-0">
               <h2 id="doc-read" className="mb-3 text-[13px] font-semibold text-ink">What we read</h2>
+              {taught && <div ref={scrollTo} className="mb-3"><StatusNotice tone="success">{taught}</StatusNotice></div>}
               {nothingRead ? (
                 <div className="grid gap-3">
                   <Quiet>
@@ -161,7 +227,9 @@ export function DocumentScreen({ flowId, documentId }: { flowId: string; documen
                   {summary.statusReason !== "duplicate_file" && <Checks checks={doc.data.checks} />}
                 </div>
               ) : (
-                <ReadValuesPanel detail={doc.data} editable={status.editable} onLocate={setSpot} flow={flow.data} />
+                <ReadValuesPanel detail={doc.data} editable={status.editable} onLocate={setSpot} flow={flow.data}
+                  onTeach={canTeach ? (t) => { setTeach(t); setTaught(null); setShowOriginal(true); teachMutation.reset(); } : undefined}
+                />
               )}
               <div className="mt-4"><History documentId={documentId} /></div>
             </Card>

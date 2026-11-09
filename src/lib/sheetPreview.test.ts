@@ -185,6 +185,7 @@ function xlsxFixture(): Uint8Array {
     "xl/worksheets/sheet2.xml": strToU8(
       '<?xml version="1.0"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>' +
         '<row r="1"><c r="A1" t="inlineStr"><is><t>Second tab</t></is></c></row>' +
+        '<row r="3"><c r="A3" t="inlineStr"><is><t>After a gap</t></is></c></row>' +
         "</sheetData></worksheet>",
     ),
   });
@@ -195,6 +196,12 @@ describe("parseXlsxWorkbook", () => {
     const wb = parseXlsxWorkbook(xlsxFixture());
     expect(wb.tables.map((t) => t.name)).toEqual(["Order", "Notes"]);
     expect(wb.omittedSheetNames).toEqual([]);
+  });
+
+  it("keeps Excel row numbers when a row is missing", () => {
+    const notes = parseXlsxWorkbook(xlsxFixture()).tables[1];
+    expect(notes.rows[1].join("")).toBe("");
+    expect(notes.rows[2][0]).toBe("After a gap");
   });
 
   it("resolves shared strings, including multi-run cells", () => {

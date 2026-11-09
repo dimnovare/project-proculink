@@ -329,6 +329,9 @@ function readSheetRows(xml: string, shared: string[], styleKinds: CellKind[]): s
   const sheetData = doc.getElementsByTagName("sheetData")[0];
   const rowEls = sheetData ? childrenNamed(sheetData, "row") : [];
   for (const rowEl of rowEls) {
+    // Excel omits untouched rows: pad so index i is Excel row i + 1, as the backend's `cell:rNcM` counts.
+    const r = Number(rowEl.getAttribute("r")) || rows.length + 1;
+    while (rows.length < r - 1 && rows.length < MAX_PREVIEW_ROWS) rows.push([]);
     if (rows.length >= MAX_PREVIEW_ROWS) break;
     const cells: string[] = [];
     for (const c of childrenNamed(rowEl, "c")) {

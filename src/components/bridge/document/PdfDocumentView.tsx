@@ -18,6 +18,8 @@ import type { PDFDocumentProxy } from "pdfjs-dist";
 import type { Box, SourceLocation } from "@/lib/api/documents";
 import { scrollRegionProps } from "./scrollRegion";
 import { SourceHighlight } from "./SourceHighlight";
+import { RegionPicker } from "./RegionPicker";
+import type { SourcePick } from "./SourceDocumentBody";
 
 /** Rendered at this CSS width times the device pixel ratio, capped so a phone stays responsive. */
 const MAX_CANVAS_SCALE = 2;
@@ -45,9 +47,11 @@ export interface PdfDocumentViewProps {
   bounded: boolean;
   /** A pointed-at value: its page is shown and its box drawn. */
   highlight?: SourceLocation | null;
+  /** Set to let the person draw a box on the page. */
+  onPick?(p: SourcePick): void;
 }
 
-export function PdfDocumentView({ cacheKey, blob, bounded, highlight }: PdfDocumentViewProps) {
+export function PdfDocumentView({ cacheKey, blob, bounded, highlight, onPick }: PdfDocumentViewProps) {
   const [page, setPage] = useState(1);
   // Turn to a newly pointed-at page (adjusting state during render, not an effect).
   const [seenPage, setSeenPage] = useState(highlight?.page);
@@ -113,7 +117,7 @@ export function PdfDocumentView({ cacheKey, blob, bounded, highlight }: PdfDocum
             : "overflow-x-auto bg-surface-2 p-3") + " focus-visible:[outline-offset:-2px]"
         }
       >
-        <PdfPageCanvas doc={data} pageNumber={current} box={highlight?.page === current ? highlight.box : null} />
+        <PdfPageCanvas doc={data} pageNumber={current} box={highlight?.page === current ? highlight.box : null} onPick={onPick} />
       </div>
     </div>
   );
@@ -126,7 +130,7 @@ export function PdfDocumentView({ cacheKey, blob, bounded, highlight }: PdfDocum
  * from TanStack Query above. Rasterising to a canvas is imperative DOM work with a cancellation
  * handle, which is exactly what an effect is for.
  */
-function PdfPageCanvas({ doc, pageNumber, box }: { doc: PDFDocumentProxy; pageNumber: number; box: Box | null }) {
+function PdfPageCanvas({ doc, pageNumber, box, onPick }: { doc: PDFDocumentProxy; pageNumber: number; box: Box | null; onPick?(p: SourcePick): void }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   // Fit to the full-width row, never to the shrink-to-fit highlight wrapper around the canvas.
   const rowRef = useRef<HTMLDivElement | null>(null);
@@ -190,6 +194,7 @@ function PdfPageCanvas({ doc, pageNumber, box }: { doc: PDFDocumentProxy; pageNu
             className="block max-w-full border border-border bg-surface"
           />
           {box && <SourceHighlight box={box} />}
+          {onPick && <RegionPicker page={pageNumber} onBox={(b) => onPick({ page: pageNumber, box: b })} />}
         </div>
       )}
     </div>

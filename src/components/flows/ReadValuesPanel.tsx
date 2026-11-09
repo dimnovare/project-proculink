@@ -9,19 +9,17 @@ import { editDocumentValues, saveFlowFields } from "@/lib/api/documents";
 import type { DocumentDetail, EditValuesRequest, Flow, SourceLocation } from "@/lib/api/documents";
 import { documentRefusalMessage, refusalToken } from "@/lib/documentRefusals";
 import { addReadExtra, withReadExtras } from "@/lib/flowFieldModel";
+import { parseAddress, spreadsheetColumnName } from "@/lib/sourceAddress";
 import { INPUT } from "./DestinationForm";
 import { Checks } from "./states";
 
 /** "Page 2", "Paragraph 2", "Line 7", or the sheet cell as a spreadsheet writes it (`cell:r2c3` becomes "Cell C2"). */
 export function locationText(l: SourceLocation | null): string | null {
   if (l?.page != null) return `Page ${l.page}`;
-  const pl = /^(para|line):(\d+)$/.exec(l?.address ?? "");
-  if (pl) return `${pl[1] === "para" ? "Paragraph" : "Line"} ${pl[2]}`;
-  const m = /^cell:r(\d+)c(\d+)$/.exec(l?.address ?? "");
-  if (!m) return l?.address ?? null;
-  let col = "";
-  for (let n = Number(m[2]); n > 0; n = Math.floor((n - 1) / 26)) col = String.fromCharCode(65 + ((n - 1) % 26)) + col;
-  return `Cell ${col}${m[1]}`;
+  const a = parseAddress(l?.address);
+  if (!a) return l?.address ?? null;
+  if (a.kind !== "cell") return `${a.kind === "para" ? "Paragraph" : "Line"} ${a.n}`;
+  return `Cell ${spreadsheetColumnName(a.col - 1)}${a.row}`;
 }
 
 function Meta({ read }: { read: { confidence: number; location: SourceLocation | null; notOnPage: boolean } }) {
@@ -47,7 +45,7 @@ function ValueInput({ label, value, onSave }: { label?: string; value: string | 
 
 /** Hover or focus a value to point at its place on the original. */
 function pointAt(onLocate: ((l: SourceLocation | null) => void) | undefined, l: SourceLocation | null) {
-  if (!onLocate || !l?.box) return {};
+  if (!onLocate || !(l?.box || l?.address)) return {};
   return { onMouseEnter: () => onLocate(l), onFocus: () => onLocate(l), onMouseLeave: () => onLocate(null), onBlur: () => onLocate(null) };
 }
 
@@ -81,7 +79,46 @@ function NewFields({ flow, read, docId }: { flow: Flow; read: DocumentDetail["re
   );
 }
 
-export function ReadValuesPanel({ detail, editable, onLocate, flow }: { detail: DocumentDetail; editable: boolean; onLocate?(location: SourceLocation | null): void; flow?: Flow }) {
+export interface Teach { key?: string; newLabel?: string; label: string }
+
+/** Choose which field to point at on the original, or name a new one. */
+function TeachPicker({ flow, onTeach }: { flow: Flow; onTeach(t: Teach): void }) {
+  const fields = flow.fields.fields;
+  const [key, setKey] = useState(fields[0]?.key ?? "");
+  const [name, setName] = useState("");
+  // A teach that created a field adds it to the flow: select it and clear the name, so pointing
+  // again corrects that field instead of creating a second one.
+  const [count, setCount] = useState(fields.length);
+  if (fields.length !== count) {
+    setCount(fields.length);
+    setName("");
+    if (fields.length > count) setKey(fields[fields.length - 1].key);
+  }
+  const field = fields.find((f) => f.key === key);
+  const newLabel = name.trim();
+  return (
+    <section className="grid gap-2">
+      <h3 className="m-0 text-[12px] font-semibold text-ink">Point to a value</h3>
+      <select aria-label="Field to point to" className={INPUT} value={key} onChange={(e) => setKey(e.target.value)}>
+        {fields.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
+        <option value="">A new field…</option>
+      </select>
+      {!field && (
+        <label className="grid gap-1 text-[12px] font-medium text-ink">
+          New field name
+          <input className={INPUT} value={name} onChange={(e) => setName(e.target.value)} />
+        </label>
+      )}
+      <div>
+        <Button size="sm" variant="secondary" disabled={!field && !newLabel} onClick={() => onTeach(field ? { key, label: field.label } : { newLabel, label: newLabel })}>
+          Point to it
+        </Button>
+      </div>
+    </section>
+  );
+}
+
+export function ReadValuesPanel({ detail, editable, onLocate, flow, onTeach }: { detail: DocumentDetail; editable: boolean; onLocate?(location: SourceLocation | null): void; flow?: Flow; onTeach?(t: Teach): void }) {
   const qc = useQueryClient();
   const id = detail.summary.id;
   // Bumped after a refusal so every input drops what was typed and shows the server's value again.
@@ -152,6 +189,7 @@ export function ReadValuesPanel({ detail, editable, onLocate, flow }: { detail: 
         ))}
       </fieldset>
       {flow?.fieldsConfirmed && <NewFields flow={flow} read={detail.read} docId={id} />}
+      {flow && onTeach && <TeachPicker flow={flow} onTeach={onTeach} />}
       <Checks checks={detail.checks} />
     </div>
   );
