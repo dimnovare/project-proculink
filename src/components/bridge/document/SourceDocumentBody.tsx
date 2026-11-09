@@ -41,7 +41,7 @@ import {
 } from "@/lib/sheetPreview";
 
 /** Stable ref: scrolls the highlighted line or cell into view (jsdom has no scrollIntoView). */
-const scrollTo = (el: HTMLElement | null) => el?.scrollIntoView?.({ block: "nearest" });
+export const scrollTo = (el: HTMLElement | null) => el?.scrollIntoView?.({ block: "nearest" });
 
 // pdf.js is ~350KB and ESM-only; keeping it behind a client-only dynamic import means a CSV
 // order never downloads it and the server bundle never sees it.
@@ -210,14 +210,14 @@ function SheetView({
           " focus-visible:[outline-offset:-2px]"
         }
       >
-        <SheetGrid table={table} highlight={sel === 0 ? highlight : null} onPick={sel === 0 ? onPick : undefined} />
+        <SheetGrid bounded={bounded} table={table} highlight={sel === 0 ? highlight : null} onPick={sel === 0 ? onPick : undefined} />
       </div>
       <TruncationNote table={table} omitted={data.omittedSheetNames} />
     </div>
   );
 }
 
-function SheetGrid({ table, highlight, onPick }: { table: SheetTable; highlight?: SourceLocation | null; onPick?(p: SourcePick): void }) {
+function SheetGrid({ bounded, table, highlight, onPick }: { bounded: boolean; table: SheetTable; highlight?: SourceLocation | null; onPick?(p: SourcePick): void }) {
   const spot = parseAddress(highlight?.address);
   const cell = spot?.kind === "cell" ? spot : null;
   const width = table.rows.reduce((m, r) => Math.max(m, r.length), 0);
@@ -279,8 +279,8 @@ function SheetGrid({ table, highlight, onPick }: { table: SheetTable; highlight?
               return (
                 <td
                   key={label}
-                  {...(hit && { "data-highlighted": "true", ref: scrollTo })}
-                  className={`whitespace-pre border border-border px-2 py-1 align-top text-ink ${hit ? "bg-brand-blueSoft" : "bg-surface"}`}
+                  {...(hit && { "data-highlighted": "true", ref: bounded ? scrollTo : undefined })}
+                  className={`whitespace-pre border border-border px-2 py-1 align-top text-ink ${hit ? "bg-brand-blue-soft" : "bg-surface"}`}
                 >
                   {onPick && text ? (
                     <button
@@ -408,8 +408,8 @@ function TextView({
               <li
                 key={i}
                 data-line={i + 1}
-                {...(hit && { "data-highlighted": "true", ref: scrollTo })}
-                className={`flex gap-2 px-2 ${hit ? "bg-brand-blueSoft" : "hover:bg-surface-2"}`}
+                {...(hit && { "data-highlighted": "true", ref: bounded ? scrollTo : undefined })}
+                className={`flex gap-2 px-2 ${hit ? "bg-brand-blue-soft" : "hover:bg-surface-2"}`}
               >
                 <span className="w-9 flex-shrink-0 select-none text-right text-[10px] text-ink-faint">
                   {i + 1}

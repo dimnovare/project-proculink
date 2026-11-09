@@ -6,6 +6,7 @@ import { SourceHighlight } from "./SourceHighlight";
 
 type Pt = { x: number; y: number };
 const MIN = 0.005;
+const DRAG_PX = 8;
 
 /** Corner to corner, any direction; sums stay <= 1 because the backend compares them exactly. */
 function boxOf(a: Pt, b: Pt): Box {
@@ -19,6 +20,7 @@ function boxOf(a: Pt, b: Pt): Box {
 /** Draw a box on the page: drag, or click two corners. Place inside the `relative` page wrapper. */
 export function RegionPicker({ page, onBox }: { page: number; onBox(box: Box): void }) {
   const anchor = useRef<Pt | null>(null);
+  const down = useRef<Pt>({ x: 0, y: 0 }); // client px, to tell a click from a drag
   const [corner, setCorner] = useState<Pt | null>(null);
   const [draft, setDraft] = useState<Box | null>(null);
 
@@ -37,9 +39,11 @@ export function RegionPicker({ page, onBox }: { page: number; onBox(box: Box): v
     <div
       role="group"
       aria-label={`Draw a box on page ${page}`}
-      className="absolute inset-0 cursor-crosshair touch-none"
+      className="absolute inset-0 cursor-crosshair touch-manipulation"
       onPointerDown={(e) => {
+        if (e.button !== 0) return;
         anchor.current = pt(e);
+        down.current = { x: e.clientX, y: e.clientY };
         e.currentTarget.setPointerCapture?.(e.pointerId);
       }}
       onPointerCancel={() => {
@@ -53,7 +57,7 @@ export function RegionPicker({ page, onBox }: { page: number; onBox(box: Box): v
         setDraft(null);
         if (!a) return;
         const p = pt(e);
-        if (finish(boxOf(a, p))) return setCorner(null);
+        if (Math.hypot(e.clientX - down.current.x, e.clientY - down.current.y) >= DRAG_PX && finish(boxOf(a, p))) return setCorner(null);
         // Too short to be a drag: a click. The first marks a corner, the second completes the box.
         if (corner && finish(boxOf(corner, p))) return setCorner(null);
         setCorner(p);

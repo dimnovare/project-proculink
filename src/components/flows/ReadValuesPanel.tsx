@@ -86,6 +86,14 @@ function TeachPicker({ flow, onTeach }: { flow: Flow; onTeach(t: Teach): void })
   const fields = flow.fields.fields;
   const [key, setKey] = useState(fields[0]?.key ?? "");
   const [name, setName] = useState("");
+  // A teach that created a field adds it to the flow: select it and clear the name, so pointing
+  // again corrects that field instead of creating a second one.
+  const [count, setCount] = useState(fields.length);
+  if (fields.length !== count) {
+    setCount(fields.length);
+    setName("");
+    if (fields.length > count) setKey(fields[fields.length - 1].key);
+  }
   const field = fields.find((f) => f.key === key);
   const newLabel = name.trim();
   return (

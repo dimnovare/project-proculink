@@ -71,6 +71,18 @@ describe("DocumentScreen teach", () => {
     expect(await screen.findByText("Saved. Next time a document from shop.example comes in, we'll look there for Total.")).toBeTruthy();
   });
 
+  it("the notice keeps the field name when Cancel is pressed mid-request", async () => {
+    let done!: (d: ReturnType<typeof detail>) => void;
+    api.teachDocument.mockReturnValue(new Promise((res) => { done = res; }));
+    renderScreen();
+    await choose("total");
+    fireEvent.click(screen.getByRole("button", { name: "Point to it" }));
+    fireEvent.click(await screen.findByLabelText("Use cell B2"));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    done(detail("a.csv"));
+    expect(await screen.findByText("Saved. We'll look there for Total in every document in this flow.")).toBeTruthy();
+  });
+
   it("a box with no text asks for the value", async () => {
     api.getDocument.mockResolvedValue(detail("a.png"));
     api.fetchDocumentSource.mockResolvedValue(new Blob(["x"], { type: "image/png" }));

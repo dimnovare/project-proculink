@@ -46,7 +46,7 @@ export interface DocumentSummary {
 export interface DocumentCheck { code: string; passed: boolean; fieldKey: string | null; message: string }
 export interface DocumentDetail {
   summary: DocumentSummary; contentType: string; read: ReadResult; checks: DocumentCheck[];
-  /** Who this document is from, once the flow has learned to tell senders apart. */
+  /** Who this document is from, as read off it (VAT number, then name, then email domain), or null. */
   senderLabel?: string | null;
 }
 /** Where a value sits on the original: a box on a page, or a sheet cell / text line with the value read there. */

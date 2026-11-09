@@ -8,7 +8,7 @@ import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import { Card } from "@/components/bridge/layout/Card";
 import { StatusJourney } from "@/components/bridge/StatusJourney";
 import { Button } from "@/components/bridge/DSPrimitives";
-import { SourceDocumentBody, type SourcePick } from "@/components/bridge/document/SourceDocumentBody";
+import { SourceDocumentBody, scrollTo, type SourcePick } from "@/components/bridge/document/SourceDocumentBody";
 import { DOCX_MEDIA_TYPE, sourceRenderFor } from "@/lib/sourceDocument";
 import { useLgViewport } from "@/components/bridge/document/useSourceDocument";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
@@ -87,15 +87,17 @@ function TeachBanner({ label, render, mutation, onSave, onCancel }: {
   const [typed, setTyped] = useState("");
   const noText = mutation.isError && refusalToken(mutation.error) === "no_text_in_area";
   return (
-    <div className="grid gap-2 px-4 pb-2">
+    <div ref={scrollTo} className="grid gap-2 px-4 pb-2">
       <StatusNotice tone="working" action={<Button size="sm" variant="ghost" onClick={onCancel}>Cancel</Button>}>
-        {PICK_HELP[render].replace("{label}", label)}
+        {PICK_HELP[render].replace("{label}", () => label)}
       </StatusNotice>
       {mutation.isError && (noText ? (
-        <StatusNotice tone="warning" action={<Button size="sm" variant="secondary" disabled={!typed.trim()} onClick={() => onSave(typed.trim())}>Save</Button>}>
-          We couldn&apos;t find text there. Type what it says:
-          <input aria-label="What it says" className={`${INPUT} mt-1`} value={typed} onChange={(e) => setTyped(e.target.value)} />
-        </StatusNotice>
+        <form onSubmit={(e) => { e.preventDefault(); if (typed.trim()) onSave(typed.trim()); }}>
+          <StatusNotice tone="warning" action={<Button type="submit" size="sm" variant="secondary" disabled={!typed.trim()}>Save</Button>}>
+            We couldn&apos;t find text there. Type what it says:
+            <input autoFocus aria-label="What it says" className={`${INPUT} mt-1`} value={typed} onChange={(e) => setTyped(e.target.value)} />
+          </StatusNotice>
+        </form>
       ) : <StatusNotice tone="error">{documentRefusalMessage(mutation.error)}</StatusNotice>)}
     </div>
   );
@@ -140,12 +142,12 @@ export function DocumentScreen({ flowId, documentId }: { flowId: string; documen
   const [teach, setTeach] = useState<Teach | null>(null);
   const [taught, setTaught] = useState<string | null>(null);
   const teachMutation = useMutation({
-    mutationFn: (req: TeachRequest) => teachDocument(documentId, req),
-    onSuccess: (d, req) => {
+    // `label` rides along for the notice only: Cancel can clear `teach` while the request is in flight.
+    mutationFn: ({ label: _label, ...req }: TeachRequest & { label: string }) => teachDocument(documentId, req),
+    onSuccess: (d, { label, ...req }) => {
       qc.setQueryData(["document", documentId], d);
       const keys = [["document-history", documentId], ...(req.newLabel ? [["flow", d.summary.flowId], ["flows"]] : [])];
       for (const queryKey of keys) qc.invalidateQueries({ queryKey });
-      const label = teach?.label ?? "";
       setTaught(d.senderLabel
         ? `Saved. Next time a document from ${d.senderLabel} comes in, we'll look there for ${label}.`
         : `Saved. We'll look there for ${label} in every document in this flow.`);
@@ -207,16 +209,16 @@ export function DocumentScreen({ flowId, documentId }: { flowId: string; documen
             <div hidden={!showOriginal} className="min-w-0 lg:sticky lg:top-0 lg:h-[calc(100vh-150px)]">
               <Card edge="blue" flush as="section" aria-labelledby="doc-original" className="flex h-full flex-col">
                 <h2 id="doc-original" className="px-4 pb-2 pt-3.5 text-[13px] font-semibold text-ink">Original document</h2>
-                {teach && <TeachBanner label={teach.label} render={originalKind} mutation={teachMutation} onCancel={cancelTeach} onSave={(value) => teachMutation.mutate({ ...teachMutation.variables, value })} />}
+                {teach && <TeachBanner key={teachMutation.submittedAt} label={teach.label} render={originalKind} mutation={teachMutation} onCancel={cancelTeach} onSave={(value) => teachMutation.mutate({ ...teachMutation.variables, value })} />}
                 <Original
                   documentId={documentId} fileName={summary.fileName} highlight={spot}
-                  onPick={teach ? (pick) => teachMutation.mutate({ ...(teach.key ? { key: teach.key } : { newLabel: teach.newLabel }), ...pick }) : undefined}
+                  onPick={teach && !teachMutation.isPending ? (pick) => teachMutation.mutate({ label: teach.label, ...(teach.key ? { key: teach.key } : { newLabel: teach.newLabel }), ...pick }) : undefined}
                 />
               </Card>
             </div>
             <Card as="section" aria-labelledby="doc-read" className="min-w-0">
               <h2 id="doc-read" className="mb-3 text-[13px] font-semibold text-ink">What we read</h2>
-              {taught && <div className="mb-3"><StatusNotice tone="success">{taught}</StatusNotice></div>}
+              {taught && <div ref={scrollTo} className="mb-3"><StatusNotice tone="success">{taught}</StatusNotice></div>}
               {nothingRead ? (
                 <div className="grid gap-3">
                   <Quiet>

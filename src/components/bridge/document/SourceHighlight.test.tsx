@@ -110,6 +110,7 @@ describe("highlight", () => {
     expect(cell.getAttribute("data-highlighted")).toBeNull();
     fireEvent.mouseEnter(within(screen.getByTestId("values")).getByLabelText("PO number").closest("div")!);
     expect(cell.getAttribute("data-highlighted")).toBe("true");
+    expect(cell.className).toContain("bg-brand-blue-soft");
     expect(original.getByText("Bolt").getAttribute("data-highlighted")).toBeNull();
   });
 });
