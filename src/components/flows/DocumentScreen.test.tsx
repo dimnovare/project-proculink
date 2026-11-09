@@ -118,8 +118,8 @@ describe("DocumentScreen", () => {
     api.saveFlowFields.mockResolvedValue({ ...flow, fields: { fields: [own, { ...own, key: "total", label: "total" }], tables: [] } });
     renderScreen();
     expect(await screen.findByText("New fields we noticed")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Add po to the flow" })).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Add total to the flow" }));
+    expect(screen.queryByRole("button", { name: "Add to flow: po" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Add to flow: total" }));
     await waitFor(() => expect(api.saveFlowFields).toHaveBeenCalledWith("f", expect.objectContaining({ fields: [expect.objectContaining({ key: "po" }), expect.objectContaining({ key: "total" })] })));
     await waitFor(() => expect(screen.queryByText("New fields we noticed")).toBeNull());
   });
