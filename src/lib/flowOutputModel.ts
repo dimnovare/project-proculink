@@ -1,4 +1,4 @@
-import type { OutputNode, OutputNodeTemplate } from "@/lib/api/types";
+import type { OutputFieldRule, OutputNode, OutputNodeTemplate } from "@/lib/api/types";
 import type { FlowFieldList, SendWhen } from "@/lib/api/documents";
 
 export type SimpleRow = {
@@ -82,6 +82,40 @@ export const fromSimple = (s: SimpleOutput, format: string): OutputNodeTemplate 
     ],
   },
 });
+
+/** Same rule as the backend's OutputLeafPaths: field and attribute nodes depth-first, the path is the names below the root joined by "/". */
+export function leafPaths(t: OutputNodeTemplate): { path: string; node: OutputNode; inTable: boolean }[] {
+  const out: { path: string; node: OutputNode; inTable: boolean }[] = [];
+  const walk = (parent: OutputNode, prefix: string, inTable: boolean) => {
+    for (const c of parent.children ?? []) {
+      const path = prefix ? `${prefix}/${c.name}` : c.name;
+      if (c.nodeType === "field" || c.nodeType === "attribute") out.push({ path, node: c, inTable });
+      else walk(c, path, inTable || c.nodeType === "array");
+    }
+  };
+  walk(t.root, "", t.root.nodeType === "array");
+  return out;
+}
+
+/** A copy of the template with the leaf at `path` changed; the original is untouched. */
+function editLeaf(t: OutputNodeTemplate, path: string, edit: (rule: OutputFieldRule) => OutputFieldRule): OutputNodeTemplate {
+  const go = (n: OutputNode, prefix: string): OutputNode => ({
+    ...n,
+    children: n.children?.map((c) => {
+      const p = prefix ? `${prefix}/${c.name}` : c.name;
+      if (c.nodeType === "field" || c.nodeType === "attribute") return p === path ? { ...c, rule: edit(c.rule ?? { outputPath: c.name, fieldManipulators: [] }) } : c;
+      return go(c, p);
+    }),
+  });
+  return { ...t, root: go(t.root, "") };
+}
+
+/** Binds the leaf to a flow field, or (null) leaves it as an empty fixed value, which is how the server emits a leaf nothing feeds. */
+export const bindLeaf = (t: OutputNodeTemplate, path: string, fieldKey: string | null) =>
+  editLeaf(t, path, ({ canonicalField: _c, fixedValue: _f, ...rule }) => (fieldKey ? { ...rule, canonicalField: fieldKey } : { ...rule, fixedValue: "" }));
+
+export const setLeafWidth = (t: OutputNodeTemplate, path: string, width: number | undefined) =>
+  editLeaf(t, path, ({ width: _w, ...rule }) => (width ? { ...rule, width } : rule));
 
 export const OP_LABEL = { is: "is", is_not: "is not", contains: "contains" } as const;
 

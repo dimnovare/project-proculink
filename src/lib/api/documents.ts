@@ -96,6 +96,14 @@ export interface OutputRequest {
   name: string; format: string; tableKey?: string | null; destinationId?: string | null; template?: OutputNodeTemplate | null;
   sendWhen?: SendWhen | null; layout?: OutputLayout | null;
 }
+export type DraftCite = { where: string; quote: string };
+export type DraftLeaf = {
+  path: string; fieldKey: string | null; by: "name" | "ai" | "docs" | null; confidence: number | null; required?: boolean; cite?: DraftCite | null;
+};
+export type OutputDraft = {
+  name: string; format: string; tableKey: string | null; template: OutputNodeTemplate; leaves: DraftLeaf[]; notes: string[];
+  formatCite?: DraftCite | null; destination?: { url: string; method: string; authType: string; cite?: DraftCite | null } | null; truncated?: boolean;
+};
 export interface OutputPreview { contentType: string; fileName: string; content: string; base64?: string; lookupMisses: LookupMiss[] }
 export interface DocumentDelivery {
   id: string; outputName: string; protocol: string; status: string; attempts: number;
@@ -202,6 +210,11 @@ export function uploadOutputLogo(flowId: string, outputId: string, file: File): 
   const form = new FormData();
   form.append("file", file);
   return apiFetch<void>(`/flows/${seg(flowId)}/outputs/${seg(outputId)}/logo`, { method: "PUT", body: form });
+}
+export function outputFromSample(flowId: string, file: File): Promise<OutputDraft> {
+  const form = new FormData();
+  form.append("file", file);
+  return apiFetch<OutputDraft>(`/flows/${seg(flowId)}/outputs/from-sample`, { method: "POST", body: form }, UPLOAD_TIMEOUT_MS);
 }
 export const deleteOutputLogo = (flowId: string, outputId: string) =>
   apiFetch<void>(`/flows/${seg(flowId)}/outputs/${seg(outputId)}/logo`, { method: "DELETE" });

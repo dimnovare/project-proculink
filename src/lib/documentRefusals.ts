@@ -46,6 +46,7 @@ export const COPY: Record<string, string> = {
   layout: "Keep the title to 120 characters, and the top and bottom text to 500 each.",
   unknown_target: "That field is no longer on this flow. Reload to see its current fields.",
   invalid_logo: "Use a PNG or JPG image of 256 KB or less.",
+  moved_table_columns: "Columns that hold table values now come after the other columns.",
   scanned_not_supported: "This looks like a scanned document, which can't be read yet.",
 };
 

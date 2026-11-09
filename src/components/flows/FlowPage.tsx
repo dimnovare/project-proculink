@@ -26,6 +26,7 @@ import { DocumentList } from "./DocumentList";
 import { FieldListEditor } from "./FieldListEditor";
 import { FlowIntakePanel } from "./FlowIntakePanel";
 import { FlowUpload } from "./FlowUpload";
+import { OutputBuilder } from "./OutputBuilder";
 import { FORMATS, OutputEditor } from "./OutputEditor";
 import { destinationName, Failed, Quiet } from "./states";
 
@@ -87,10 +88,11 @@ function Outputs({ flow, previewDocumentId }: { flow: Flow; previewDocumentId?: 
 
   if (outputs.isError && !outputs.data) return <Failed error={outputs.error} retry={() => outputs.refetch()} />;
   if (!outputs.data) return <Quiet>Loading outputs…</Quiet>;
+  if (editing === "new") return <OutputBuilder flow={flow} previewDocumentId={previewDocumentId} onDone={() => setEditing(null)} />;
   if (editing)
     return (
       <OutputEditor
-        flow={flow} output={editing === "new" ? undefined : editing} previewDocumentId={previewDocumentId}
+        flow={flow} output={editing} previewDocumentId={previewDocumentId}
         onSaved={() => setEditing(null)} onCancel={() => setEditing(null)}
       />
     );
