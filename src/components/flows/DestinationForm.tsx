@@ -55,14 +55,15 @@ export const Field = ({ label, children }: { label: string; children: React.Reac
   </label>
 );
 
-export function DestinationForm({ destination, onSaved, onCancel }: {
-  destination?: Destination; onSaved(d: Destination): void; onCancel(): void;
+export function DestinationForm({ destination, preset, onSaved, onCancel }: {
+  destination?: Destination; /** Seeds a new web-address destination. */ preset?: { url: string; method?: string; authType?: string }; onSaved(d: Destination): void; onCancel(): void;
 }) {
   const [current, setCurrent] = useState(destination);
   const [name, setName] = useState(destination?.name ?? "");
   const [protocol, setProtocol] = useState<Protocol>((destination?.protocol as Protocol) ?? "http");
-  const [config, setConfig] = useState<Record<string, unknown>>(destination?.config ?? DEFAULTS.http);
-  const [auth, setAuth] = useState("bearer");
+  const [config, setConfig] = useState<Record<string, unknown>>(
+    destination?.config ?? { ...DEFAULTS.http, ...(preset && { url: preset.url, ...(preset.method && { method: preset.method.toUpperCase() }) }) });
+  const [auth, setAuth] = useState(preset?.authType && Object.hasOwn(HTTP_AUTH, preset.authType) ? preset.authType : "bearer");
   const [creds, setCreds] = useState<Record<string, string>>({});
   const [problem, setProblem] = useState<string | null>(null);
 

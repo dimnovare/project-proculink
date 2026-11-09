@@ -36,6 +36,8 @@ export interface Flow {
   scansOn?: boolean;
   /** Word, text, XML, JSON and EDI files are readable. Absent on an older backend, which means off. */
   formatsOn?: boolean;
+  /** Outputs can be proposed from the receiving system's documentation. Absent means off. */
+  docsOutputsOn?: boolean;
 }
 
 export interface DocumentSummary {
@@ -216,6 +218,13 @@ export function outputFromSample(flowId: string, file: File): Promise<OutputDraf
   form.append("file", file);
   return apiFetch<OutputDraft>(`/flows/${seg(flowId)}/outputs/from-sample`, { method: "POST", body: form }, UPLOAD_TIMEOUT_MS);
 }
+export function outputFromDocumentation(flowId: string, file: File): Promise<OutputDraft> {
+  const form = new FormData();
+  form.append("file", file);
+  return apiFetch<OutputDraft>(`/flows/${seg(flowId)}/outputs/from-documentation`, { method: "POST", body: form }, UPLOAD_TIMEOUT_MS);
+}
+export const testOutput = (documentId: string, body: { format: string; tableKey: string | null; destinationId: string; template: OutputNodeTemplate }) =>
+  apiFetch<DestinationTestResult>(`/documents/${seg(documentId)}/outputs/test`, { method: "POST", body: json(body) });
 export const deleteOutputLogo = (flowId: string, outputId: string) =>
   apiFetch<void>(`/flows/${seg(flowId)}/outputs/${seg(outputId)}/logo`, { method: "DELETE" });
 
