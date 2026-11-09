@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { nextTabIndex } from "@/lib/tabKeys";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import { Card } from "@/components/bridge/layout/Card";
@@ -18,7 +19,7 @@ import type { Flow, FlowOutput } from "@/lib/api/documents";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
 import { documentStatus } from "@/lib/documentStatusManifest";
 import { AUTOMATIC_DELIVERY_LABEL, REVIEW_BEFORE_DELIVERY_LABEL } from "@/lib/deliveryMode";
-import { fieldListFromRead } from "@/lib/flowFieldModel";
+import { fieldListFromRead, withReadExtras } from "@/lib/flowFieldModel";
 import { describeSendWhen } from "@/lib/flowOutputModel";
 import { INPUT } from "./DestinationForm";
 import { DocumentList } from "./DocumentList";
@@ -140,17 +141,17 @@ export function FlowPage({ flowId }: { flowId: string }) {
       return (typeof s === "number" ? s : s.failed) >= 2;
     });
   const latestDoc = useQuery({
-    queryKey: ["document", latest?.id], queryFn: () => getDocument(latest!.id), enabled: enabled && !!latest && tab !== "documents",
+    queryKey: ["document", latest?.id], queryFn: () => getDocument(latest!.id), enabled: enabled && !!latest && tab !== "documents", placeholderData: keepPreviousData,
   });
 
   const go = (t: Tab) => router.replace(`/flows/${flowId}?tab=${t}`);
   const onTabKey = (e: React.KeyboardEvent) => {
     // From the focused tab, not the URL: a second press can land before the route commits.
     const i = TABS.findIndex(([t]) => `flow-tab-${t}` === e.currentTarget.id);
-    const to = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: TABS.length - 1 }[e.key];
+    const to = nextTabIndex(e.key, i, TABS.length);
     if (to === undefined) return;
     e.preventDefault();
-    const next = TABS[(to + TABS.length) % TABS.length][0];
+    const next = TABS[to][0];
     go(next);
     document.getElementById(`flow-tab-${next}`)?.focus();
   };
@@ -174,7 +175,8 @@ export function FlowPage({ flowId }: { flowId: string }) {
   } else if (tab === "outputs") {
     body = <Outputs flow={flow.data} previewDocumentId={latest?.id} />;
   } else if (flow.data.fieldsConfirmed) {
-    body = <FieldListEditor flow={flow.data} initial={flow.data.fields} onSaved={saved} />;
+    const { list, off } = withReadExtras(flow.data.fields, latestDoc.data?.read);
+    body = <FieldListEditor key={latestDoc.data ? "read" : "none"} flow={flow.data} initial={list} initialOff={off} onSaved={saved} />;
   } else if (docs.isError) {
     body = <Failed error={docs.error} retry={() => docs.refetch()} />;
   } else if (!docs.data || (latest && latestDoc.isPending)) {

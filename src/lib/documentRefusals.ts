@@ -30,6 +30,7 @@ export const COPY: Record<string, string> = {
   order_limit_reached: "You've reached your plan's document limit for this month.",
   no_output_matches: "No output is set to send this document. Check “Send when” on the flow's outputs.",
   lookup_in_use: "An output uses this lookup. Remove it from the output first.",
+  template: "This output has an empty step. Remove it or finish setting it up.",
   send_when: "Choose a field and a value for “Send when”, or set it to Always.",
   lookup: "A lookup this output uses no longer exists. Choose another, or remove the swap.",
   lookup_unavailable: "A lookup this output uses no longer exists. Choose another, or remove the swap.",

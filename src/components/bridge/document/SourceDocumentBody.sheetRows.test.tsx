@@ -27,7 +27,7 @@
  * ──────────────────────────────────────────────────────────────────────────── */
 
 import { describe, it, expect, afterEach } from "vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { zipSync, strToU8 } from "fflate";
 import { SourceDocumentBody } from "./SourceDocumentBody";
@@ -160,5 +160,33 @@ describe("a sheet we could not read is not reported as an empty sheet", () => {
     const grid = await screen.findByTestId("source-document-sheet");
     expect(grid.textContent).toContain("ACM-BLT-M8");
     await waitFor(() => expect(screen.queryByTestId("source-document-no-rows")).toBeNull());
+  });
+});
+
+describe("sheet tabs are keyboard operable", () => {
+  it("ArrowRight selects the next sheet and moves focus to its tab", async () => {
+    const two = xlsx({
+      "xl/workbook.xml": WORKBOOK.replace(
+        '<sheet name="Orders" sheetId="1" r:id="rId1"/>',
+        '<sheet name="Orders" sheetId="1" r:id="rId1"/><sheet name="Lines" sheetId="2" r:id="rId2"/>',
+      ),
+      "xl/_rels/workbook.xml.rels": RELS.replace(
+        "</Relationships>",
+        '<Relationship Id="rId2" Type="worksheet" Target="worksheets/sheet2.xml"/></Relationships>',
+      ),
+      "xl/worksheets/sheet1.xml": GOOD_SHEET,
+      "xl/worksheets/sheet2.xml": GOOD_SHEET.replace("ACM-BLT-M8", "ZZZ-SECOND"),
+    });
+    mount(doc(two));
+    const tab1 = await screen.findByRole("tab", { name: "Orders" });
+    tab1.focus();
+    fireEvent.keyDown(tab1, { key: "ArrowRight" });
+    const tab2 = screen.getByRole("tab", { name: "Lines" });
+    expect(tab2.getAttribute("aria-selected")).toBe("true");
+    expect(document.activeElement).toBe(tab2);
+    expect(tab2.tabIndex).toBe(0);
+    expect(tab1.tabIndex).toBe(-1);
+    expect(screen.getByRole("tabpanel").getAttribute("aria-labelledby")).toBe(tab2.id);
+    expect(screen.getByTestId("source-document-sheet").textContent).toContain("ZZZ-SECOND");
   });
 });

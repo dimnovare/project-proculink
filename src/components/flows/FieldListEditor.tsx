@@ -33,13 +33,13 @@ function FieldRow({ field, on, onInclude, onChange }: {
   );
 }
 
-export function FieldListEditor({ flow, initial, onSaved }: {
-  flow: Flow; initial: FlowFieldList; onSaved(flow: Flow): void;
+export function FieldListEditor({ flow, initial, initialOff, onSaved }: {
+  flow: Flow; initial: FlowFieldList; initialOff?: Set<string>; onSaved(flow: Flow): void;
 }) {
   const qc = useQueryClient();
   const [list, setList] = useState(initial);
   // Unchecked rows, by "key" (field or table) or "table/column".
-  const [off, setOff] = useState<Set<string>>(new Set());
+  const [off, setOff] = useState<Set<string>>(initialOff ?? new Set());
   const [problem, setProblem] = useState<string | null>(null);
   const toggle = (id: string, on: boolean) => setOff((s) => { const n = new Set(s); if (on) n.delete(id); else n.add(id); return n; });
 

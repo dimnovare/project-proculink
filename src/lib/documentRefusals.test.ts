@@ -12,6 +12,10 @@ describe("documentRefusalMessage", () => {
   it("words an output_invalid machine token", () => {
     expect(documentRefusalMessage(refusal({ error: "output_invalid", detail: "send_when" }))).toBe(COPY.send_when);
   });
+  it("words an empty output step", () => {
+    expect(documentRefusalMessage(refusal({ error: "output_invalid", detail: "template" })))
+      .toBe("This output has an empty step. Remove it or finish setting it up.");
+  });
   it("falls back to the generic line for an unknown token", () => {
     expect(documentRefusalMessage(refusal({ error: "mystery" }))).toBe("Something went wrong. Try again.");
   });

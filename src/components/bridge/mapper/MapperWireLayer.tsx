@@ -266,7 +266,7 @@ export function useMapperWireLayer({
 
   const fireConnect = useCallback((sourceId: string, outputPath: string) => {
     onConnect(sourceId, outputPath);
-    announce(`Mapped ${sourceId} to ${outputPath}`);
+    announce(`Connected ${sourceId} to ${outputPath}`);
   }, [onConnect]);
 
   // ── Pointer drag ───────────────────────────────────────────────────────────────
@@ -299,7 +299,7 @@ export function useMapperWireLayer({
   // The current keyboard target, spoken. Arrow-key cycling moved `kbTarget`, and the ONLY
   // thing that drew the new selection was a dashed path inside an `aria-hidden` <svg> — so a
   // screen-reader operator heard "Connect mode…", then silence through every press, then
-  // "Mapped X to Y" for a field they were never told they had landed on. The live region has
+  // "Connected X to Y" for a field they were never told they had landed on. The live region has
   // to say which output is selected on every move, or the whole keyboard path is blind.
   // Returns the sentence rather than speaking it: `announce` replaces the live region's whole
   // text on the next frame, so two calls in one keypress would leave only the second. Callers
@@ -307,7 +307,7 @@ export function useMapperWireLayer({
   const targetSentence = useCallback((index: number): string | null => {
     const target = targetIds[index];
     if (!target) return null;
-    return `${target}, output ${index + 1} of ${targetIds.length}. Enter maps to this field.`;
+    return `${target}, output ${index + 1} of ${targetIds.length}. Enter connects to this field.`;
   }, [targetIds]);
 
   // ── Keyboard connect ─────────────────────────────────────────────────────────
@@ -458,7 +458,7 @@ export function useMapperWireLayer({
                 {/* Remove button on an EXPLICIT wire (a 1:1 default has nothing to remove). */}
                 {w.isOverride && !isDragging && !readOnly && (
                   <g role="button" tabIndex={0}
-                    aria-label={`Remove the mapping feeding ${w.outputPath}`}
+                    aria-label={`Disconnect ${w.outputPath}`}
                     style={{ pointerEvents: "auto", cursor: "pointer" }}
                     onClick={() => onDisconnect(w.outputPath)}
                     onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onDisconnect(w.outputPath); } }}>

@@ -87,8 +87,8 @@ function toTargetField(outputPath: string, scope: "header" | "line"): TargetFiel
   return {
     outputPath,
     // Use the canonical catalog label when the output path matches a canonical key,
-    // otherwise the raw path is its own label (arbitrary supplier-specific column).
-    label: getFieldStandards(outputPath)?.label ?? outputPath,
+    // otherwise the last path segment (arbitrary supplier-specific column).
+    label: getFieldStandards(outputPath)?.label ?? outputPath.split("/").pop()!,
     scope,
   };
 }
