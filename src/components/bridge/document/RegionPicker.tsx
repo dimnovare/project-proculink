@@ -35,12 +35,16 @@ export function RegionPicker({ page, onBox }: { page: number; onBox(box: Box): v
 
   return (
     <div
-      role="application"
+      role="group"
       aria-label={`Draw a box on page ${page}`}
       className="absolute inset-0 cursor-crosshair touch-none"
       onPointerDown={(e) => {
         anchor.current = pt(e);
         e.currentTarget.setPointerCapture?.(e.pointerId);
+      }}
+      onPointerCancel={() => {
+        anchor.current = null;
+        setDraft(null);
       }}
       onPointerMove={(e) => anchor.current && setDraft(boxOf(anchor.current, pt(e)))}
       onPointerUp={(e) => {
@@ -56,6 +60,7 @@ export function RegionPicker({ page, onBox }: { page: number; onBox(box: Box): v
       }}
     >
       {draft && <SourceHighlight box={draft} />}
+      {corner && !draft && <SourceHighlight box={boxOf(corner, { x: Math.min(corner.x + 0.01, 1), y: Math.min(corner.y + 0.01, 1) })} />}
     </div>
   );
 }
