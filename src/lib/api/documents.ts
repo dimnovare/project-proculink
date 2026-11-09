@@ -46,7 +46,11 @@ export interface DocumentSummary {
 export interface DocumentCheck { code: string; passed: boolean; fieldKey: string | null; message: string }
 export interface DocumentDetail {
   summary: DocumentSummary; contentType: string; read: ReadResult; checks: DocumentCheck[];
+  /** Who this document is from, once the flow has learned to tell senders apart. */
+  senderLabel?: string | null;
 }
+/** Where a value sits on the original: a box on a page, or a sheet cell / text line with the value read there. */
+export interface TeachRequest { key?: string; newLabel?: string; page?: number; box?: Box; address?: string; value?: string }
 export interface HistoryEntry { action: string; at: string; userId: string | null; payload: unknown }
 export interface EditValuesRequest {
   fields?: { key: string; value: string | null }[];
@@ -146,6 +150,8 @@ export function listDocuments(params: { flowId?: string; status?: string; take?:
 export const getDocument = (id: string) => apiFetch<DocumentDetail>(`/documents/${seg(id)}`);
 export const editDocumentValues = (id: string, edits: EditValuesRequest) =>
   apiFetch<DocumentDetail>(`/documents/${seg(id)}/values`, { method: "PATCH", body: json(edits) });
+export const teachDocument = (id: string, req: TeachRequest) =>
+  apiFetch<DocumentDetail>(`/documents/${seg(id)}/teach`, { method: "POST", body: json(req) });
 export const getDocumentHistory = (id: string) => apiFetch<HistoryEntry[]>(`/documents/${seg(id)}/history`);
 export const retryDocumentRead = (id: string) =>
   apiFetch<DocumentSummary>(`/documents/${seg(id)}/retry-read`, { method: "POST" });

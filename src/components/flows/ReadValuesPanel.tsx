@@ -79,7 +79,38 @@ function NewFields({ flow, read, docId }: { flow: Flow; read: DocumentDetail["re
   );
 }
 
-export function ReadValuesPanel({ detail, editable, onLocate, flow }: { detail: DocumentDetail; editable: boolean; onLocate?(location: SourceLocation | null): void; flow?: Flow }) {
+export interface Teach { key?: string; newLabel?: string; label: string }
+
+/** Choose which field to point at on the original, or name a new one. */
+function TeachPicker({ flow, onTeach }: { flow: Flow; onTeach(t: Teach): void }) {
+  const fields = flow.fields.fields;
+  const [key, setKey] = useState(fields[0]?.key ?? "");
+  const [name, setName] = useState("");
+  const field = fields.find((f) => f.key === key);
+  const newLabel = name.trim();
+  return (
+    <section className="grid gap-2">
+      <h3 className="m-0 text-[12px] font-semibold text-ink">Point to a value</h3>
+      <select aria-label="Field to point to" className={INPUT} value={key} onChange={(e) => setKey(e.target.value)}>
+        {fields.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
+        <option value="">A new field…</option>
+      </select>
+      {!field && (
+        <label className="grid gap-1 text-[12px] font-medium text-ink">
+          New field name
+          <input className={INPUT} value={name} onChange={(e) => setName(e.target.value)} />
+        </label>
+      )}
+      <div>
+        <Button size="sm" variant="secondary" disabled={!field && !newLabel} onClick={() => onTeach(field ? { key, label: field.label } : { newLabel, label: newLabel })}>
+          Point to it
+        </Button>
+      </div>
+    </section>
+  );
+}
+
+export function ReadValuesPanel({ detail, editable, onLocate, flow, onTeach }: { detail: DocumentDetail; editable: boolean; onLocate?(location: SourceLocation | null): void; flow?: Flow; onTeach?(t: Teach): void }) {
   const qc = useQueryClient();
   const id = detail.summary.id;
   // Bumped after a refusal so every input drops what was typed and shows the server's value again.
@@ -150,6 +181,7 @@ export function ReadValuesPanel({ detail, editable, onLocate, flow }: { detail: 
         ))}
       </fieldset>
       {flow?.fieldsConfirmed && <NewFields flow={flow} read={detail.read} docId={id} />}
+      {flow && onTeach && <TeachPicker flow={flow} onTeach={onTeach} />}
       <Checks checks={detail.checks} />
     </div>
   );
