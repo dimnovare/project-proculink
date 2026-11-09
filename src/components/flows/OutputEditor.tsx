@@ -15,7 +15,7 @@ import type { SimpleOutput, SimpleRow } from "@/lib/flowOutputModel";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 
 export const FORMATS = { csv: "CSV", xlsx: "Excel", json: "JSON", xml: "XML", pdf: "PDF", txt: "Text", fixed: "Fixed-width text" };
-const SEPARATORS = [[",", "Comma"], [";", "Semicolon"], ["	", "Tab"]];
+const SEPARATORS = [[",", "Comma"], [";", "Semicolon"], ["\t", "Tab"]];
 const LAYOUT_FIELDS = [["title", "Title", 120], ["header", "Text at the top", 500], ["footer", "Text at the bottom", 500]] as const;
 const FIXED = "\u0000fixed";
 const NEW_DESTINATION = "\u0000new";
@@ -156,6 +156,7 @@ export function OutputEditor({ flow, output, previewDocumentId, hideDestination,
         {rows && format === "csv" && (
           <Field label="Separator">
             <select className={INPUT} value={rows.delimiter ?? ","} onChange={(e) => setRows({ ...rows, delimiter: e.target.value })}>
+              {rows.delimiter && !SEPARATORS.some(([v]) => v === rows.delimiter) && <option value={rows.delimiter}>{rows.delimiter}</option>}
               {SEPARATORS.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
             </select>
           </Field>

@@ -30,7 +30,12 @@ describe("flowOutputModel", () => {
 
   it("round-trips widths and the separator", () => {
     const simple = { fields: [{ name: "po", source: { field: "po" }, width: 6 }], table: null, delimiter: ";" };
-    expect(toSimple(fromSimple(simple, "fixed"))).toEqual(simple);
+    expect(toSimple(fromSimple(simple, "fixed"))!.fields[0].width).toBe(6);
+    expect(toSimple(fromSimple(simple, "fixed"))!.delimiter).toBeUndefined();
+    expect(toSimple(fromSimple(simple, "csv"))).toEqual({ ...simple, fields: [{ name: "po", source: { field: "po" } }] });
+    const quoted = fromSimple(simple, "csv");
+    quoted.csvDialect = { delimiter: ";", quotePolicy: "always" };
+    expect(toSimple(quoted)).toBeNull();
   });
 
   it("reads a field with no rule as a blank fixed value", () => {

@@ -52,14 +52,14 @@ export function toSimple(t: OutputNodeTemplate): SimpleOutput | null {
   return columns ? { fields, table: { key: a.name, columns }, ...dialect } : null;
 }
 
-const toNode = ({ name, source, lookup, width }: SimpleRow): OutputNode => ({
+const toNode = (fixed: boolean) => ({ name, source, lookup, width }: SimpleRow): OutputNode => ({
   name,
   nodeType: "field",
   children: [],
   rule: {
     outputPath: name,
     ...("field" in source ? { canonicalField: source.field } : { fixedValue: source.fixed }),
-    ...(width ? { width } : {}),
+    ...(fixed && width ? { width } : {}),
     fieldManipulators: lookup ? [{ type: "Lookup", params: [lookup.id, lookup.ifMissing] }] : [],
   },
 });
@@ -67,16 +67,16 @@ const toNode = ({ name, source, lookup, width }: SimpleRow): OutputNode => ({
 /** `format` is the output format; everything but json and xml renders from the csv template, as on the server. */
 export const fromSimple = (s: SimpleOutput, format: string): OutputNodeTemplate => ({
   format: format === "json" || format === "xml" ? format : "csv",
-  ...(s.delimiter && s.delimiter !== "," ? { csvDialect: { delimiter: s.delimiter } } : {}),
+  ...(format === "csv" && s.delimiter && s.delimiter !== "," ? { csvDialect: { delimiter: s.delimiter } } : {}),
   root: {
     name: "document",
     nodeType: "object",
     children: [
-      ...s.fields.map(toNode),
+      ...s.fields.map(toNode(format === "fixed")),
       ...(s.table
         ? [{
             name: s.table.key, nodeType: "array" as const, collection: s.table.key,
-            children: [{ name: "row", nodeType: "object" as const, children: s.table.columns.map(toNode) }],
+            children: [{ name: "row", nodeType: "object" as const, children: s.table.columns.map(toNode(format === "fixed")) }],
           }]
         : []),
     ],
