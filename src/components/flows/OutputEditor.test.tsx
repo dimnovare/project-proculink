@@ -25,9 +25,9 @@ beforeEach(() => {
   api.updateOutput.mockResolvedValue(output);
 });
 
-const renderEditor = () =>
-  render(<QueryClientProvider client={new QueryClient()}>
-    <OutputEditor flow={flow as never} output={output as never} previewDocumentId="d" onSaved={() => {}} onCancel={() => {}} />
+const renderEditor = (o: unknown = output) =>
+  render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+    <OutputEditor flow={flow as never} output={o as never} previewDocumentId="d" onSaved={() => {}} onCancel={() => {}} />
   </QueryClientProvider>);
 
 describe("OutputEditor", () => {
@@ -45,6 +45,31 @@ describe("OutputEditor", () => {
     const body = api.updateOutput.mock.calls[0][2];
     expect(body.sendWhen).toEqual({ field: "supplier", op: "is", value: "Acme" });
     expect(body.template.root.children[0].rule.fieldManipulators).toEqual([{ type: "Lookup", params: ["L1", "blank"] }]);
+  });
+
+  it("names a loading lookup and a removed field honestly", () => {
+    api.listLookups.mockReturnValue(new Promise(() => {}));
+    const rule = (path: string, field: string, fieldManipulators: unknown[] = []) =>
+      ({ name: path, nodeType: "field", children: [], rule: { outputPath: path, canonicalField: field, fieldManipulators } });
+    renderEditor({ ...output, template: { root: { name: "document", nodeType: "object", children: [
+      rule("Supplier", "supplier", [{ type: "Lookup", params: ["L1", "keep"] }]), rule("Gone", "gone"),
+    ] } } });
+    const shown = (label: string, i: number) => {
+      const el = screen.getAllByLabelText(label)[i] as HTMLSelectElement;
+      return el.options[el.selectedIndex].text;
+    };
+    expect(shown("Swap with lookup", 0)).toBe("Loading lookups…");
+    expect(screen.queryByText("A lookup that no longer exists")).toBeNull();
+    expect(shown("Value", 1)).toBe("A field that no longer exists");
+  });
+
+  it("says the lookups could not be loaded, not that the lookup is gone", async () => {
+    api.listLookups.mockRejectedValue(new Error("boom"));
+    renderEditor({ ...output, template: { root: { name: "document", nodeType: "object", children: [
+      { name: "Supplier", nodeType: "field", children: [], rule: { outputPath: "Supplier", canonicalField: "supplier", fieldManipulators: [{ type: "Lookup", params: ["L1", "keep"] }] } },
+    ] } } });
+    expect(await screen.findByRole("option", { name: "Couldn't load lookups" })).toBeTruthy();
+    expect(screen.queryByText("A lookup that no longer exists")).toBeNull();
   });
 
   it("lists values the lookup did not have in the preview", async () => {

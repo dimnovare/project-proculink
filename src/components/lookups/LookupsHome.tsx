@@ -79,7 +79,7 @@ export function LookupsHome() {
               <Card dense>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="font-medium" style={{ fontSize: 13.5 }}>{l.name}</span>
-                  <span style={{ fontSize: 12, color: "var(--ink-muted)" }}>{l.count} rows</span>
+                  <span style={{ fontSize: 12, color: "var(--ink-muted)" }}>{l.count} {l.count === 1 ? "row" : "rows"}</span>
                 </div>
               </Card>
             </Link>

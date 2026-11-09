@@ -23,6 +23,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   api.listOutputs.mockResolvedValue([{ id: "o", flowId: "f", name: "Totals", format: "csv", tableKey: null, destinationId: null, template: {}, createdAt: "" }]);
   api.listDestinations.mockResolvedValue([]);
+  api.getFlow.mockResolvedValue({ id: "f", fields: { fields: [], tables: [] } });
 });
 
 const renderPanel = (qc = new QueryClient()) =>
@@ -37,6 +38,20 @@ describe("DocumentOutputsPanel", () => {
     expect(await screen.findByText(/Ready to download/)).toBeTruthy();
     expect(screen.getByRole("button", { name: "Download" })).toBeTruthy();
     expect(screen.queryByText(/attempt/)).toBeNull();
+  });
+
+  it("keeps each output's preview on screen", async () => {
+    const out = (id: string) => ({ id, flowId: "f", name: id, format: "csv", tableKey: null, destinationId: null, template: {}, createdAt: "" });
+    api.listOutputs.mockResolvedValue([out("A"), out("B")]);
+    api.listDeliveries.mockResolvedValue([]);
+    api.previewOutput.mockImplementation(async (_d: string, id: string) => ({ contentType: "text/csv", fileName: id + ".csv", content: "x" }));
+    renderPanel();
+    const [a, b] = await screen.findAllByRole("button", { name: "Preview" });
+    fireEvent.click(a);
+    await screen.findByText("A.csv");
+    fireEvent.click(b);
+    expect(await screen.findByText("B.csv")).toBeTruthy();
+    expect(screen.getByText("A.csv")).toBeTruthy();
   });
 
   it("shows the refusal when there is no output to send to", async () => {

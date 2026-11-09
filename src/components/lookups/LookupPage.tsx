@@ -69,7 +69,7 @@ function LookupEditor({ lookup }: { lookup: Lookup }) {
     try {
       const r = importLookupCsv(await readText(file), entries, headings);
       setEntries(r.entries);
-      setNote({ tone: "success", text: `Imported ${r.added + r.changed} rows: ${r.added} new, ${r.changed} changed.` });
+      setNote({ tone: "success", text: `Imported ${r.added + r.changed} ${r.added + r.changed === 1 ? "row" : "rows"}: ${r.added} new, ${r.changed} changed.` });
     } catch {
       setNote({ tone: "error", text: "We couldn't read that file." });
     }
