@@ -266,7 +266,7 @@ export function useMapperWireLayer({
 
   const fireConnect = useCallback((sourceId: string, outputPath: string) => {
     onConnect(sourceId, outputPath);
-    announce(`Mapped ${sourceId} to ${outputPath}`);
+    announce(`Connected ${sourceId} to ${outputPath}`);
   }, [onConnect]);
 
   // ── Pointer drag ───────────────────────────────────────────────────────────────
@@ -307,7 +307,7 @@ export function useMapperWireLayer({
   const targetSentence = useCallback((index: number): string | null => {
     const target = targetIds[index];
     if (!target) return null;
-    return `${target}, output ${index + 1} of ${targetIds.length}. Enter maps to this field.`;
+    return `${target}, output ${index + 1} of ${targetIds.length}. Enter connects to this field.`;
   }, [targetIds]);
 
   // ── Keyboard connect ─────────────────────────────────────────────────────────
@@ -456,7 +456,7 @@ export function useMapperWireLayer({
                 {/* Remove button on an EXPLICIT wire (a 1:1 default has nothing to remove). */}
                 {w.isOverride && !isDragging && !readOnly && (
                   <g role="button" tabIndex={0}
-                    aria-label={`Remove the mapping feeding ${w.outputPath}`}
+                    aria-label={`Disconnect ${w.outputPath}`}
                     style={{ pointerEvents: "auto", cursor: "pointer" }}
                     onClick={() => onDisconnect(w.outputPath)}
                     onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onDisconnect(w.outputPath); } }}>

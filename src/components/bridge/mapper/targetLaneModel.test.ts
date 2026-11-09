@@ -42,11 +42,12 @@ describe("deriveTargetFields", () => {
   it("labels a canonical-named output path from the catalog, raw path otherwise", () => {
     const output: OutputMappingConfig = {
       header: { PoNumber: rule("PoNumber"), Weird_Col: rule("Weird_Col") },
-      lines: {},
+      lines: { "lines/row/Item": rule("Item") },
     };
     const fields = deriveTargetFields(output);
     expect(fields.find((f) => f.outputPath === "PoNumber")!.label).toBe("PO number");
     expect(fields.find((f) => f.outputPath === "Weird_Col")!.label).toBe("Weird_Col");
+    expect(fields.find((f) => f.outputPath === "lines/row/Item")!.label).toBe("Item");
   });
 
   it("de-dupes a path present in both scopes (first scope wins)", () => {

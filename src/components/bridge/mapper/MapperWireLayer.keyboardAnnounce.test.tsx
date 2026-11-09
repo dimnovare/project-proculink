@@ -3,7 +3,7 @@
 // Arrow keys cycle `kbTarget`, and the only thing that DREW the new selection was a dashed
 // bezier inside an `<svg aria-hidden>`. The live region spoke exactly twice — on mode entry and
 // on commit — so a screen-reader operator heard "Connect mode. Arrow keys choose the output
-// field…", then nothing at all through every press, then "Mapped PoNumber to Currency" for a
+// field…", then nothing at all through every press, then "Connected PoNumber to Currency" for a
 // field they were never told they had moved onto. The keyboard path was navigable and blind.
 //
 // The hook is driven directly: the announcer element lives inside the returned `svg` fragment,
@@ -73,6 +73,7 @@ describe("MapperWireLayer — arrow-key target cycling is spoken", () => {
 
     // Index 1 of 3 — the announcement the operator had no way to get before.
     await waitFor(() => expect(region.textContent).toContain("Currency"));
+    expect(region.textContent).toContain("Enter connects to this field.");
     expect(region.textContent).toContain("output 2 of 3");
   });
 
@@ -131,7 +132,7 @@ describe("MapperWireLayer — anti-vacuity", () => {
   it("still commits the mapping the arrow keys selected", async () => {
     // The announcement must not have replaced the behaviour it describes.
     onConnect.mockClear();
-    const { getByTestId } = render(<Harness />);
+    const { container, getByTestId } = render(<Harness />);
     const handle = getByTestId("handle");
 
     enterConnectMode(handle);
@@ -139,5 +140,6 @@ describe("MapperWireLayer — anti-vacuity", () => {
     fireEvent.keyDown(handle, { key: "Enter" });
 
     expect(onConnect).toHaveBeenCalledWith("poNumberRaw", "Currency");
+    await waitFor(() => expect(liveRegion(container).textContent).toBe("Connected poNumberRaw to Currency"));
   });
 });

@@ -187,7 +187,7 @@ export function TransformPopover({ outputPath, manipulators, onChange, onClose, 
         </span>
       </div>
       <div style={{ fontSize: 10.5, color: "var(--ink-faint)", lineHeight: 1.4 }}>
-        Applied in order to this value before it&apos;s sent. Changes save + preview live.
+        Applied top to bottom to this value before it&apos;s sent. Changes save + preview live.
       </div>
 
       {manipulators.length === 0 ? (
