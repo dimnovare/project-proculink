@@ -129,7 +129,10 @@ export function DraftReview({ flow, draft, requireTest, previewDocumentId, onCre
           <DestinationForm
             preset={adding === "proposed" ? draft.destination ?? undefined : undefined}
             onCancel={() => setAdding(null)}
-            onSaved={(d) => { setDestinationId(d.id); setAdding(null); qc.invalidateQueries({ queryKey: ["destinations"] }); }}
+            onSaved={(d) => {
+              qc.setQueryData<(typeof d)[]>(["destinations"], (old) => [...(old ?? []).filter((x) => x.id !== d.id), d]);
+              setDestinationId(d.id); setAdding(null); qc.invalidateQueries({ queryKey: ["destinations"] });
+            }}
           />
         )}
         {gated && (
@@ -148,7 +151,7 @@ export function DraftReview({ flow, draft, requireTest, previewDocumentId, onCre
         )}
         {problem && <StatusNotice tone="error">{problem}</StatusNotice>}
         <div className="flex flex-wrap gap-2">
-          <Button type="submit" variant="primary" loading={create.isPending} disabled={!!adding || (gated && (!previewDocumentId || !tested || test.isPending))}>Create</Button>
+          <Button type="submit" variant="primary" loading={create.isPending} disabled={!!adding || draft.leaves.length === 0 || (gated && (!previewDocumentId || !tested || test.isPending))}>Create</Button>
           <Button type="button" variant="ghost" onClick={onRestart}>Choose a different file</Button>
         </div>
       </form>

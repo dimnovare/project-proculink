@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { Card } from "@/components/bridge/layout/Card";
@@ -102,6 +102,7 @@ export function OutputEditor({ flow, output, previewDocumentId, hideDestination,
   const formatted = format === "pdf" || format === "txt";
 
   const preview = useMutation({ mutationFn: () => previewOutput(previewDocumentId!, current!.id) });
+  const logoInput = useRef<HTMLInputElement>(null);
   const logo = useMutation({
     mutationFn: (file: File | null) => (file ? uploadOutputLogo(flow.id, current!.id, file) : deleteOutputLogo(flow.id, current!.id)),
     onSuccess: (_, file) => {
@@ -187,7 +188,8 @@ export function OutputEditor({ flow, output, previewDocumentId, hideDestination,
               : current.hasLogo ? <Button type="button" variant="secondary" loading={logo.isPending} onClick={() => logo.mutate(null)}>Remove logo</Button>
               : (
                 <>
-                  <input type="file" aria-label="Add a logo" accept="image/png,image/jpeg" className={INPUT} disabled={logo.isPending}
+                  <Button type="button" variant="secondary" loading={logo.isPending} onClick={() => logoInput.current?.click()}>Add a logo</Button>
+                  <input ref={logoInput} type="file" aria-label="Add a logo" accept="image/png,image/jpeg" className="hidden" tabIndex={-1} disabled={logo.isPending}
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       e.target.value = "";

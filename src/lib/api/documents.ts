@@ -221,7 +221,7 @@ export function outputFromSample(flowId: string, file: File): Promise<OutputDraf
 export function outputFromDocumentation(flowId: string, file: File): Promise<OutputDraft> {
   const form = new FormData();
   form.append("file", file);
-  return apiFetch<OutputDraft>(`/flows/${seg(flowId)}/outputs/from-documentation`, { method: "POST", body: form }, UPLOAD_TIMEOUT_MS);
+  return apiFetch<OutputDraft>(`/flows/${seg(flowId)}/outputs/from-documentation`, { method: "POST", body: form }, 180_000);
 }
 export const testOutput = (documentId: string, body: { format: string; tableKey: string | null; destinationId: string; template: OutputNodeTemplate }) =>
   apiFetch<DestinationTestResult>(`/documents/${seg(documentId)}/outputs/test`, { method: "POST", body: json(body) });
