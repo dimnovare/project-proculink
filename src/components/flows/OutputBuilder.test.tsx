@@ -30,8 +30,10 @@ beforeEach(() => {
 
 describe("OutputBuilder", () => {
   it("a sample becomes a reviewed output", async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const invalidate = vi.spyOn(client, "invalidateQueries");
     const { container } = render(
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <QueryClientProvider client={client}>
         <OutputBuilder flow={flow as never} onDone={() => {}} />
       </QueryClientProvider>);
     fireEvent.click(screen.getByRole("tab", { name: "From a sample" }));
@@ -41,6 +43,7 @@ describe("OutputBuilder", () => {
     fireEvent.change(screen.getByLabelText("Value for Ship to"), { target: { value: "ship_address" } });
     fireEvent.click(screen.getByRole("button", { name: "Create" }));
     await waitFor(() => expect(api.createOutput).toHaveBeenCalled());
+    await waitFor(() => expect(invalidate).toHaveBeenCalledWith({ queryKey: ["outputs", "f"] }));
     const body = api.createOutput.mock.calls[0][1];
     expect(body.template.root.children[0].rule.canonicalField).toBe("ship_address");
     expect(body.template.root.children[0].rule.fixedValue).toBeUndefined();

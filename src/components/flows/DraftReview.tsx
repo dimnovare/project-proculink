@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { Card } from "@/components/bridge/layout/Card";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
@@ -16,6 +16,7 @@ import { bindLeaf, defaultWidth, leafPaths, setLeafWidth } from "@/lib/flowOutpu
 export function DraftReview({ flow, draft, onCreated, onRestart }: {
   flow: Flow; draft: OutputDraft; onCreated(saved: FlowOutput): void; onRestart(): void;
 }) {
+  const qc = useQueryClient();
   const [name, setName] = useState(draft.name);
   const [template, setTemplate] = useState(draft.template);
   const [problem, setProblem] = useState<string | null>(null);
@@ -28,7 +29,10 @@ export function DraftReview({ flow, draft, onCreated, onRestart }: {
       const sent = fixed ? leaves.reduce((t, l) => setLeafWidth(t, l.path, l.node.rule?.width ?? defaultWidth(l.node.name)), template) : template;
       return createOutput(flow.id, { name: name.trim(), format: draft.format, tableKey: draft.tableKey, template: sent });
     },
-    onSuccess: onCreated,
+    onSuccess: (saved) => {
+      qc.invalidateQueries({ queryKey: ["outputs", flow.id] });
+      onCreated(saved);
+    },
     onError: (e) => setProblem(documentRefusalMessage(e)),
   });
 
@@ -47,7 +51,7 @@ export function DraftReview({ flow, draft, onCreated, onRestart }: {
         </Field>
         <p className="text-[13px] text-ink-muted">{Object.hasOwn(FORMATS, draft.format) ? FORMATS[draft.format as keyof typeof FORMATS] : draft.format}</p>
         {leaves.map(({ path, node, inTable }) => {
-          const by = draft.leaves.find((l) => l.path === path);
+          const draftLeaf = draft.leaves.find((l) => l.path === path);
           const options = inTable ? columns : flow.fields.fields;
           return (
             <div key={path} className="flex flex-wrap items-center gap-2">
@@ -57,8 +61,8 @@ export function DraftReview({ flow, draft, onCreated, onRestart }: {
                 <option value="">Not set</option>
                 {options.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
               </select>
-              {by?.by === "ai" && by.confidence != null && (
-                <span className="rounded bg-ai-soft px-1.5 text-[11px] text-ai">AI · {Math.round(by.confidence * 100)}%</span>
+              {draftLeaf?.by === "ai" && draftLeaf.confidence != null && (
+                <span className="rounded bg-ai-soft px-1.5 text-[11px] text-ai">AI · {Math.round(draftLeaf.confidence * 100)}%</span>
               )}
               {fixed && (
                 <input type="number" min={1} max={1000} aria-label={`Width of ${node.name}`} className={`${INPUT} w-24`}
