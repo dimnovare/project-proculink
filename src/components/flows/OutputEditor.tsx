@@ -1,25 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { Card } from "@/components/bridge/layout/Card";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { DestinationForm, Field, INPUT } from "@/components/flows/DestinationForm";
 import { LookupMisses } from "@/components/flows/LookupMisses";
-import { createOutput, listDestinations, listLookups, previewOutput, updateOutput } from "@/lib/api/documents";
-import type { Flow, FlowOutput, LookupSummary, SendWhen, SendWhenOp } from "@/lib/api/documents";
+import { PdfDocumentView } from "@/components/bridge/document/PdfDocumentView";
+import { createOutput, deleteOutputLogo, listDestinations, listLookups, previewOutput, updateOutput, uploadOutputLogo } from "@/lib/api/documents";
+import type { Flow, FlowOutput, LookupSummary, OutputLayout, SendWhen, SendWhenOp } from "@/lib/api/documents";
+import { ApiHttpError } from "@/lib/api/core";
 import { COPY, documentRefusalMessage } from "@/lib/documentRefusals";
-import { fromSimple, OP_LABEL, toSimple } from "@/lib/flowOutputModel";
+import { defaultWidth, fromSimple, OP_LABEL, toSimple } from "@/lib/flowOutputModel";
 import type { SimpleOutput, SimpleRow } from "@/lib/flowOutputModel";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 
-export const FORMATS = { csv: "CSV", xlsx: "Excel", json: "JSON", xml: "XML" };
+export const FORMATS = { csv: "CSV", xlsx: "Excel", json: "JSON", xml: "XML", pdf: "PDF", txt: "Text", fixed: "Fixed-width text" };
+const SEPARATORS = [[",", "Comma"], [";", "Semicolon"], ["\t", "Tab"]];
+const LAYOUT_FIELDS = [["title", "Title", 120], ["header", "Text at the top", 500], ["footer", "Text at the bottom", 500]] as const;
 const FIXED = "\u0000fixed";
 const NEW_DESTINATION = "\u0000new";
 
-function RowList({ rows, options, lookups, onChange }: {
-  rows: SimpleRow[]; options: { key: string; label: string }[]; lookups: LookupSummary[] | "loading" | "failed"; onChange(rows: SimpleRow[]): void;
+function RowList({ rows, fixed, options, lookups, onChange }: {
+  rows: SimpleRow[]; fixed: boolean; options: { key: string; label: string }[]; lookups: LookupSummary[] | "loading" | "failed"; onChange(rows: SimpleRow[]): void;
 }) {
   const list = Array.isArray(lookups) ? lookups : [];
   const patch = (i: number, row: SimpleRow) => onChange(rows.map((r, j) => (j === i ? row : r)));
@@ -57,6 +61,10 @@ function RowList({ rows, options, lookups, onChange }: {
               <option value="blank">Leave it blank</option>
             </select>
           )}
+          {fixed && (
+            <input type="number" min={1} max={1000} aria-label={`Width of ${row.name}`} className={`${INPUT} w-24`}
+              value={row.width ?? defaultWidth(row.name)} onChange={(e) => patch(i, { ...row, width: Number(e.target.value) || undefined })} />
+          )}
           <Button type="button" variant="ghost" size="sm" disabled={i === 0} aria-label="Move up" onClick={() => move(i, -1)}>Up</Button>
           <Button type="button" variant="ghost" size="sm" disabled={i === rows.length - 1} aria-label="Move down" onClick={() => move(i, 1)}>Down</Button>
           <Button type="button" variant="ghost" size="sm" aria-label="Remove" onClick={() => onChange(rows.filter((_, j) => j !== i))}>Remove</Button>
@@ -84,19 +92,37 @@ export function OutputEditor({ flow, output, previewDocumentId, hideDestination,
   const [newDestination, setNewDestination] = useState(false);
   const [rows, setRows] = useState<SimpleOutput | null>(output ? toSimple(output.template) : null);
   const [sendWhen, setSendWhen] = useState<SendWhen | null>(output?.sendWhen ?? null);
+  const [layout, setLayout] = useState<OutputLayout>(output?.layout ?? {});
   const [problem, setProblem] = useState<string | null>(null);
 
   const destinations = useQuery({ queryKey: ["destinations"], queryFn: listDestinations, enabled: useTenantQueriesEnabled() });
   const lookups = useQuery({ queryKey: ["lookups"], queryFn: listLookups, enabled: useTenantQueriesEnabled() });
   const lookupList = lookups.data ?? (lookups.isError ? "failed" : "loading");
   const external = !!current && !rows;
+  const formatted = format === "pdf" || format === "txt";
 
   const preview = useMutation({ mutationFn: () => previewOutput(previewDocumentId!, current!.id) });
+  const logoInput = useRef<HTMLInputElement>(null);
+  const logo = useMutation({
+    mutationFn: (file: File | null) => (file ? uploadOutputLogo(flow.id, current!.id, file) : deleteOutputLogo(flow.id, current!.id)),
+    onSuccess: (_, file) => {
+      setProblem(null);
+      setCurrent((c) => c && { ...c, hasLogo: !!file });
+      qc.invalidateQueries({ queryKey: ["outputs", flow.id] });
+    },
+    onError: (e) => setProblem(e instanceof ApiHttpError && e.status === 413 ? COPY.invalid_logo : documentRefusalMessage(e)),
+  });
+  const pdf = preview.data?.contentType === "application/pdf" && preview.data.base64 ? preview.data.base64 : null;
+  const pdfBlob = useMemo(() => pdf && new Blob([Uint8Array.from(atob(pdf), (c) => c.charCodeAt(0))], { type: "application/pdf" }), [pdf]);
   const save = useMutation({
     mutationFn: () => {
-      const body = { name: name.trim(), format, tableKey, destinationId, sendWhen };
+      const body = { name: name.trim(), format, tableKey, destinationId, sendWhen, layout: formatted ? layout : null };
       if (!current) return createOutput(flow.id, body);
-      return updateOutput(flow.id, current.id, { ...body, template: rows ? fromSimple(rows, format) : current.template });
+      const withWidth = (r: SimpleRow) => ({ ...r, width: r.width ?? defaultWidth(r.name) });
+      const sent = rows && format === "fixed"
+        ? { ...rows, fields: rows.fields.map(withWidth), table: rows.table && { ...rows.table, columns: rows.table.columns.map(withWidth) } }
+        : rows;
+      return updateOutput(flow.id, current.id, { ...body, template: sent ? fromSimple(sent, format) : current.template });
     },
     onSuccess: (saved) => {
       const created = !current;
@@ -141,6 +167,41 @@ export function OutputEditor({ flow, output, previewDocumentId, hideDestination,
             {Object.entries(FORMATS).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
           </select>
         </Field>
+        {rows && format === "csv" && (
+          <Field label="Separator">
+            <select className={INPUT} value={rows.delimiter ?? ","} onChange={(e) => setRows({ ...rows, delimiter: e.target.value })}>
+              {rows.delimiter && !SEPARATORS.some(([v]) => v === rows.delimiter) && <option value={rows.delimiter}>{rows.delimiter}</option>}
+              {SEPARATORS.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
+            </select>
+          </Field>
+        )}
+        {formatted && LAYOUT_FIELDS.map(([key, label, max]) => (
+          <Field key={key} label={label}>
+            {key === "title"
+              ? <input className={INPUT} maxLength={max} value={layout.title ?? ""} onChange={(e) => setLayout({ ...layout, title: e.target.value })} />
+              : <textarea className={INPUT} rows={2} maxLength={max} value={layout[key] ?? ""} onChange={(e) => setLayout({ ...layout, [key]: e.target.value })} />}
+          </Field>
+        ))}
+        {format === "pdf" && (
+          <Field label="Logo">
+            {!current ? <p className="text-[12px] text-ink-muted">Save the output first, then add a logo.</p>
+              : current.hasLogo ? <Button type="button" variant="secondary" loading={logo.isPending} onClick={() => logo.mutate(null)}>Remove logo</Button>
+              : (
+                <>
+                  <Button type="button" variant="secondary" loading={logo.isPending} onClick={() => logoInput.current?.click()}>Add a logo</Button>
+                  <input ref={logoInput} type="file" aria-label="Add a logo" accept="image/png,image/jpeg" className="hidden" tabIndex={-1} disabled={logo.isPending}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      e.target.value = "";
+                      if (!file) return;
+                      if (file.size > 262_144) setProblem(COPY.invalid_logo);
+                      else logo.mutate(file);
+                    }} />
+                  <p className="text-[12px] text-ink-muted">PNG or JPG, up to 256 KB.</p>
+                </>
+              )}
+          </Field>
+        )}
         {flow.fields.tables.length > 0 && (
           <Field label="Table">
             <select className={INPUT} value={tableKey ?? ""} disabled={external} onChange={(e) => changeTable(e.target.value || null)}>
@@ -201,11 +262,11 @@ export function OutputEditor({ flow, output, previewDocumentId, hideDestination,
         {rows && (
           <>
             <p className="text-[12px] font-medium text-ink-muted">Values</p>
-            <RowList rows={rows.fields} options={fieldOptions} lookups={lookupList} onChange={(fields) => setRows({ ...rows, fields })} />
+            <RowList fixed={format === "fixed"} rows={rows.fields} options={fieldOptions} lookups={lookupList} onChange={(fields) => setRows({ ...rows, fields })} />
             {rows.table && (
               <>
                 <p className="text-[12px] font-medium text-ink-muted">{table?.label ?? "Table"} columns</p>
-                <RowList rows={rows.table.columns} options={columnOptions} lookups={lookupList}
+                <RowList fixed={format === "fixed"} rows={rows.table.columns} options={columnOptions} lookups={lookupList}
                   onChange={(columns) => setRows({ ...rows, table: { key: rows.table!.key, columns } })} />
               </>
             )}
@@ -224,7 +285,8 @@ export function OutputEditor({ flow, output, previewDocumentId, hideDestination,
         {previewDocumentId && current && preview.data?.lookupMisses?.length ? (
           <LookupMisses documentId={previewDocumentId} outputId={current.id} misses={preview.data.lookupMisses} onChanged={() => preview.mutate()} />
         ) : null}
-        {preview.data && (
+        {pdfBlob && current ? <PdfDocumentView cacheKey={`output-preview-${current.id}-${preview.submittedAt}`} blob={pdfBlob} bounded regionLabel="Preview" />
+        : preview.data && (
           <pre className="max-h-72 overflow-auto rounded border border-border bg-surface2 p-2.5 font-mono text-[12px] text-ink">
             {preview.data.content}
           </pre>

@@ -72,6 +72,8 @@ export interface OutputFieldRule {
    * its date format — and the delivered document quietly changed with it.
    */
   expression?: string | null;
+  /** Fixed-width output only: the column's width in characters, 1–1000. */
+  width?: number;
   /** Ordered manipulators applied to the resolved value (Trim/Replace/Concat/…). */
   fieldManipulators: ManipulatorEntry[];
 }

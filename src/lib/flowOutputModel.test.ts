@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { OutputNode, OutputNodeTemplate } from "@/lib/api/types";
-import { describeSendWhen, fromSimple, toSimple } from "@/lib/flowOutputModel";
+import { describeSendWhen, fromSimple, leafPaths, toSimple } from "@/lib/flowOutputModel";
 
 // Shaped like DefaultOutputTemplate.For(...) for csv: leaves named by label, one table "lines" of two columns.
 const leaf = (name: string, canonicalField: string): OutputNode => ({
@@ -26,6 +26,16 @@ describe("flowOutputModel", () => {
     const simple = toSimple(template)!;
     expect(simple.table?.key).toBe("lines");
     expect(fromSimple(simple, "csv")).toEqual(template);
+  });
+
+  it("round-trips widths and the separator", () => {
+    const simple = { fields: [{ name: "po", source: { field: "po" }, width: 6 }], table: null, delimiter: ";" };
+    expect(toSimple(fromSimple(simple, "fixed"))!.fields[0].width).toBe(6);
+    expect(toSimple(fromSimple(simple, "fixed"))!.delimiter).toBeUndefined();
+    expect(toSimple(fromSimple(simple, "csv"))).toEqual({ ...simple, fields: [{ name: "po", source: { field: "po" } }] });
+    const quoted = fromSimple(simple, "csv");
+    quoted.csvDialect = { delimiter: ";", quotePolicy: "always" };
+    expect(toSimple(quoted)).toBeNull();
   });
 
   it("reads a field with no rule as a blank fixed value", () => {
@@ -54,5 +64,19 @@ describe("flowOutputModel", () => {
     const fields = { fields: [{ key: "supplier", label: "Supplier", type: "text", meaning: null, required: false }], tables: [] };
     expect(describeSendWhen({ field: "supplier", op: "is_not", value: "Acme" }, fields)).toBe("Only when Supplier is not “Acme”");
     expect(describeSendWhen(null, fields)).toBeNull();
+  });
+});
+
+describe("leafPaths", () => {
+  it("leaf paths follow the shared vector", () => {
+    const f = (name: string): OutputNode => ({ name, nodeType: "field", rule: { outputPath: name, fieldManipulators: [] } });
+    const obj = (name: string, children: OutputNode[]): OutputNode => ({ name, nodeType: "object", children });
+    const t = {
+      format: "json",
+      root: obj("document", [f("a"), obj("b", [f("c")]), { name: "lines", nodeType: "array", children: [obj("row", [f("q")])] }]),
+    } as OutputNodeTemplate;
+    const leaves = leafPaths(t);
+    expect(leaves.map((l) => l.path)).toEqual(["a", "b/c", "lines/row/q"]);
+    expect(leaves.filter((l) => l.inTable).map((l) => l.path)).toEqual(["lines/row/q"]);
   });
 });

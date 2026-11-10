@@ -16,6 +16,7 @@ import {
 } from "@/lib/outboundUrlPolicy";
 import { CATALOG_SYNC_STATUS_FACTS, CATALOG_SYNC_STATUSES } from "@/lib/catalogSyncStatusManifest";
 import { DOCUMENT_STATUSES } from "@/lib/documentStatusManifest";
+import { FORMATS } from "@/components/flows/OutputEditor";
 import { PREVIEW_FORMATS } from "@/lib/api/types";
 import { STANDARDS } from "@/lib/standards/catalog";
 import {
@@ -2411,6 +2412,14 @@ afterAll(() => {
 });
 
 describe("document statuses mirror the backend", () => {
+  // BE ⊆ FE, not equality: the FE PR merges first, and CI reads the BE default branch, which lacks the newest formats until its PR lands.
+  test.skipIf(!BACKEND)("every backend output format has a label", () => {
+    const cs = readFileSync(join(BACKEND!, "ProcuLink.Core/Documents/FlowOutputFormats.cs"), "utf8");
+    const backend = Object.values(parseStatusConstants(cs));
+    expect(backend.length, "FlowOutputFormats.cs parsed to no constants, so this would prove nothing").toBeGreaterThan(0);
+    expect(Object.keys(FORMATS)).toEqual(expect.arrayContaining(backend));
+  });
+
   test.skipIf(!BACKEND)("DOCUMENT_STATUSES keys equal DocumentStatus's constants", () => {
     const cs = readFileSync(join(BACKEND!, DOCUMENT_STATUS_REL), "utf8");
     const backend = Object.values(parseStatusConstants(cs));

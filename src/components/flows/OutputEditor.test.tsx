@@ -47,6 +47,19 @@ describe("OutputEditor", () => {
     expect(body.template.root.children[0].rule.fieldManipulators).toEqual([{ type: "Lookup", params: ["L1", "blank"] }]);
   });
 
+  it("fixed-width shows a width per column and saves them", async () => {
+    renderEditor({ ...output, template: { root: { name: "document", nodeType: "object", children: [
+      { name: "po", nodeType: "field", children: [], rule: { outputPath: "po", canonicalField: "supplier", fieldManipulators: [] } },
+    ] } } });
+    fireEvent.change(screen.getByLabelText("File type"), { target: { value: "fixed" } });
+    const width = screen.getByLabelText("Width of po");
+    expect(width).toHaveValue(10);
+    fireEvent.change(width, { target: { value: "6" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(api.updateOutput).toHaveBeenCalled());
+    expect(api.updateOutput.mock.calls[0][2].template.root.children[0].rule.width).toBe(6);
+  });
+
   it("names a loading lookup and a removed field honestly", () => {
     api.listLookups.mockReturnValue(new Promise(() => {}));
     const rule = (path: string, field: string, fieldManipulators: unknown[] = []) =>

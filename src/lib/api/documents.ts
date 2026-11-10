@@ -36,6 +36,8 @@ export interface Flow {
   scansOn?: boolean;
   /** Word, text, XML, JSON and EDI files are readable. Absent on an older backend, which means off. */
   formatsOn?: boolean;
+  /** Outputs can be proposed from the receiving system's documentation. Absent means off. */
+  docsOutputsOn?: boolean;
 }
 
 export interface DocumentSummary {
@@ -77,7 +79,9 @@ export interface IntakeRequest {
 export interface FlowOutput {
   id: string; flowId: string; name: string; format: string; tableKey: string | null; destinationId: string | null;
   template: OutputNodeTemplate; createdAt: string; sendWhen: SendWhen | null;
+  layout?: OutputLayout | null; hasLogo?: boolean;
 }
+export type OutputLayout = { title?: string | null; header?: string | null; footer?: string | null };
 export type SendWhenOp = "is" | "is_not" | "contains";
 export type SendWhen = { field: string; op: SendWhenOp; value: string };
 export type LookupEntry = { from: string; to: string };
@@ -92,9 +96,17 @@ export type Lookup = {
 };
 export interface OutputRequest {
   name: string; format: string; tableKey?: string | null; destinationId?: string | null; template?: OutputNodeTemplate | null;
-  sendWhen?: SendWhen | null;
+  sendWhen?: SendWhen | null; layout?: OutputLayout | null;
 }
-export interface OutputPreview { contentType: string; fileName: string; content: string; lookupMisses: LookupMiss[] }
+export type DraftCite = { where: string; quote: string };
+export type DraftLeaf = {
+  path: string; fieldKey: string | null; by: "name" | "ai" | "docs" | null; confidence: number | null; required?: boolean; cite?: DraftCite | null;
+};
+export type OutputDraft = {
+  name: string; format: string; tableKey: string | null; template: OutputNodeTemplate; leaves: DraftLeaf[]; notes: string[];
+  formatCite?: DraftCite | null; destination?: { url: string; method: string; authType: string; cite?: DraftCite | null } | null; truncated?: boolean;
+};
+export interface OutputPreview { contentType: string; fileName: string; content: string; base64?: string; lookupMisses: LookupMiss[] }
 export interface DocumentDelivery {
   id: string; outputName: string; protocol: string; status: string; attempts: number;
   lastError: string | null; fileName: string | null; deliveredAt: string | null;
@@ -195,6 +207,26 @@ export const previewOutput = (documentId: string, outputId: string, template?: O
     method: "POST",
     ...(template ? { body: json({ template }) } : {}),
   });
+
+export function uploadOutputLogo(flowId: string, outputId: string, file: File): Promise<void> {
+  const form = new FormData();
+  form.append("file", file);
+  return apiFetch<void>(`/flows/${seg(flowId)}/outputs/${seg(outputId)}/logo`, { method: "PUT", body: form });
+}
+export function outputFromSample(flowId: string, file: File): Promise<OutputDraft> {
+  const form = new FormData();
+  form.append("file", file);
+  return apiFetch<OutputDraft>(`/flows/${seg(flowId)}/outputs/from-sample`, { method: "POST", body: form }, UPLOAD_TIMEOUT_MS);
+}
+export function outputFromDocumentation(flowId: string, file: File): Promise<OutputDraft> {
+  const form = new FormData();
+  form.append("file", file);
+  return apiFetch<OutputDraft>(`/flows/${seg(flowId)}/outputs/from-documentation`, { method: "POST", body: form }, 180_000);
+}
+export const testOutput = (documentId: string, body: { format: string; tableKey: string | null; destinationId: string; template: OutputNodeTemplate }) =>
+  apiFetch<DestinationTestResult>(`/documents/${seg(documentId)}/outputs/test`, { method: "POST", body: json(body) });
+export const deleteOutputLogo = (flowId: string, outputId: string) =>
+  apiFetch<void>(`/flows/${seg(flowId)}/outputs/${seg(outputId)}/logo`, { method: "DELETE" });
 
 export const listLookups = () => apiFetch<LookupSummary[]>(`/lookups`);
 export const getLookup = (id: string) => apiFetch<Lookup>(`/lookups/${seg(id)}`);
