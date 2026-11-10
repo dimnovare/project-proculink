@@ -109,6 +109,7 @@ export function OutputEditor({ flow, output, previewDocumentId, hideDestination,
       setProblem(null);
       setCurrent((c) => c && { ...c, hasLogo: !!file });
       qc.invalidateQueries({ queryKey: ["outputs", flow.id] });
+      qc.invalidateQueries({ queryKey: ["flow", flow.id] });
     },
     onError: (e) => setProblem(e instanceof ApiHttpError && e.status === 413 ? COPY.invalid_logo : documentRefusalMessage(e)),
   });
@@ -131,6 +132,7 @@ export function OutputEditor({ flow, output, previewDocumentId, hideDestination,
       setCurrent(saved);
       if (created) setRows(toSimple(saved.template));
       qc.invalidateQueries({ queryKey: ["outputs", flow.id] });
+      qc.invalidateQueries({ queryKey: ["flow", flow.id] });
       if (!created) onSaved();
     },
     onError: (e) => setProblem(documentRefusalMessage(e)),

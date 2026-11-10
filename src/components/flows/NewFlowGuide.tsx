@@ -60,7 +60,8 @@ function DestinationStep({ flow, output, onDone }: { flow: Flow; output: FlowOut
         await updateOutput(flow.id, output.id, {
           name: output.name, format: output.format, tableKey: output.tableKey, template: output.template, sendWhen: output.sendWhen, destinationId: choice,
         });
-      await publishFlow(flow.id).catch((e) => { if (refusalToken(e) !== "nothing_to_publish") throw e; });
+      // An older backend sends no publishedVersion and has no publish endpoint.
+      if (flow.publishedVersion !== undefined) await publishFlow(flow.id).catch((e) => { if (refusalToken(e) !== "nothing_to_publish") throw e; });
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["outputs", flow.id] }); qc.invalidateQueries({ queryKey: ["flow", flow.id] }); onDone(); },
   });

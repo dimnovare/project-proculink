@@ -19,7 +19,7 @@ const api = vi.hoisted(() => ({
 vi.mock("@/lib/api/documents", () => api);
 
 const flow = {
-  id: "f", name: "Receipts", fieldsConfirmed: true, fields: { fields: [], tables: [] },
+  id: "f", name: "Receipts", fieldsConfirmed: true, publishedVersion: null, fields: { fields: [], tables: [] },
   documentCount: 0, createdAt: "", automation: "review",
 };
 const DUPLICATE = "Documents with a number we've already received always wait for you.";

@@ -25,14 +25,18 @@ beforeEach(() => {
   api.updateOutput.mockResolvedValue(output);
 });
 
-const renderEditor = (o: unknown = output) =>
-  render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+const renderEditor = (o: unknown = output) => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(<QueryClientProvider client={client}>
     <OutputEditor flow={flow as never} output={o as never} previewDocumentId="d" onSaved={() => {}} onCancel={() => {}} />
   </QueryClientProvider>);
+  return client;
+};
 
 describe("OutputEditor", () => {
   it("saves send-when and a lookup on a row", async () => {
-    renderEditor();
+    const client = renderEditor();
+    const invalidate = vi.spyOn(client, "invalidateQueries");
     fireEvent.change(screen.getByLabelText("Send when"), { target: { value: "only" } });
     fireEvent.change(screen.getByLabelText("Field"), { target: { value: "supplier" } });
     fireEvent.change(screen.getByLabelText("Condition"), { target: { value: "is" } });
@@ -45,6 +49,8 @@ describe("OutputEditor", () => {
     const body = api.updateOutput.mock.calls[0][2];
     expect(body.sendWhen).toEqual({ field: "supplier", op: "is", value: "Acme" });
     expect(body.template.root.children[0].rule.fieldManipulators).toEqual([{ type: "Lookup", params: ["L1", "blank"] }]);
+    // The changes bar reads the flow, so a saved output must refresh it.
+    await waitFor(() => expect(invalidate).toHaveBeenCalledWith({ queryKey: ["flow", flow.id] }));
   });
 
   it("fixed-width shows a width per column and saves them", async () => {

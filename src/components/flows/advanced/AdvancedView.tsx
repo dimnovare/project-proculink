@@ -37,8 +37,10 @@ export function AdvancedView({ flowId, outputId, documentId }: { flowId: string;
       flow.data && output && !newest.isLoading && !(id && doc.isLoading)
         ? flowMapperAdapter({
             flow: flow.data, output, documentId: id, read,
-            onSaved: (saved: FlowOutput) =>
-              qc.setQueryData<FlowOutput[]>(["outputs", flowId], (list) => list?.map((o) => (o.id === saved.id ? saved : o))),
+            onSaved: (saved: FlowOutput) => {
+              qc.setQueryData<FlowOutput[]>(["outputs", flowId], (list) => list?.map((o) => (o.id === saved.id ? saved : o)));
+              qc.invalidateQueries({ queryKey: ["flow", flowId] });
+            },
           })
         : null,
     [flow.data, output, id, read, qc, flowId, newest.isLoading, doc.isLoading],

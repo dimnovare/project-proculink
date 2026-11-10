@@ -69,7 +69,7 @@ describe("CrossingsLog — document rows", () => {
     render(<QueryClientProvider client={qc}><CrossingsLog /></QueryClientProvider>);
     await screen.findByText("PO-9");
     open("PO-9");
-    await screen.findByRole("button", { name: /View order/ });
-    expect(screen.queryByRole("button", { name: /View document/ })).toBeNull();
+    await screen.findByRole("button", { name: /Export entry/ });
+    expect(screen.queryByRole("button", { name: /View order|View document/ })).toBeNull();
   });
 });

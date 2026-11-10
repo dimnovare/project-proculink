@@ -30,7 +30,7 @@ const api = vi.hoisted(() => ({
 vi.mock("@/lib/api/documents", () => api);
 
 const fields = { fields: [{ key: "total", label: "Total", type: "money", meaning: null, required: false }], tables: [] };
-const flow = { id: "f", name: "Receipts", fieldsConfirmed: true, fields, documentCount: 1, createdAt: "", automation: "review" };
+const flow = { id: "f", name: "Receipts", fieldsConfirmed: true, fields, documentCount: 1, createdAt: "", automation: "review", publishedVersion: null };
 const summary = (status: string) => ({
   id: "d", flowId: "f", flowName: "Receipts", fileName: "a.csv", status, statusReason: null,
   pageCount: 1, billingUnits: 1, failedChecks: 0, createdAt: "",
@@ -112,6 +112,16 @@ describe("NewFlowGuide", () => {
     const body = api.updateOutput.mock.calls[0][2];
     expect(body.template).toEqual(template);
     expect(body.destinationId).toBe("x");
+  });
+  it("skips publishing against an older backend that sends no publishedVersion", async () => {
+    url.set("flow=f&doc=d&step=5");
+    const { publishedVersion, ...old } = flow;
+    api.getFlow.mockResolvedValue(old);
+    api.listOutputs.mockResolvedValue([output]);
+    renderGuide();
+    fireEvent.click(await screen.findByRole("button", { name: "Finish" }));
+    expect(await screen.findByText("Your flow is ready")).toBeTruthy();
+    expect(api.publishFlow).not.toHaveBeenCalled();
   });
   it("stays on step 5 and shows the refusal when publishing fails", async () => {
     url.set("flow=f&doc=d&step=5");

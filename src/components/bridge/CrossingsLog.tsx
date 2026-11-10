@@ -1335,7 +1335,7 @@ export function CrossingsLog() {
                               {/* Action buttons — canonical: View order / Retry delivery / Export entry */}
                               <div className="row gap-2 wrap" style={{ marginTop: 11 }}>
                                 {/* View order — secondary, navigates to /inbox/{id} */}
-                                <button
+                                {(c.documentHref || !c.action?.startsWith("document.")) && <button
                                   className="btn btn-secondary sm"
                                   onClick={() => router.push(c.documentHref ?? `/inbox/${c.crossingId}`)}
                                   style={isMobile ? { height: 36 } : undefined}
@@ -1345,7 +1345,7 @@ export function CrossingsLog() {
                                     <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z" /><circle cx="12" cy="12" r="3" />
                                   </svg>
                                   {c.documentHref ? "View document" : "View order"}
-                                </button>
+                                </button>}
 
                                 {/* Open to resend — secondary, only for failed events. There is no
                                     retry-from-here API; this navigates to the order, where the resend

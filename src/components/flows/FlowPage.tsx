@@ -89,7 +89,7 @@ function Outputs({ flow, previewDocumentId }: { flow: Flow; previewDocumentId?: 
   const destinations = useQuery({ queryKey: ["destinations"], queryFn: listDestinations, enabled });
   const remove = useMutation({
     mutationFn: (id: string) => deleteOutput(flow.id, id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["outputs", flow.id] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["outputs", flow.id] }); qc.invalidateQueries({ queryKey: ["flow", flow.id] }); },
   });
   const ask = async (o: FlowOutput) => {
     if (await confirm({ title: "Delete output", description: `Delete "${o.name}"? This cannot be undone.`, confirmLabel: "Delete", danger: true })) remove.mutate(o.id);
@@ -155,14 +155,16 @@ export function FlowPage({ flowId }: { flowId: string }) {
     queryKey: ["document", latest?.id], queryFn: () => getDocument(latest!.id), enabled: enabled && !!latest && tab !== "documents", placeholderData: keepPreviousData,
   });
 
+  // An older backend sends no publishedVersion and has no versions endpoints.
+  const tabs = TABS.filter(([t]) => t !== "versions" || flow.data?.publishedVersion !== undefined);
   const go = (t: Tab) => router.replace(`/flows/${flowId}?tab=${t}`);
   const onTabKey = (e: React.KeyboardEvent) => {
     // From the focused tab, not the URL: a second press can land before the route commits.
-    const i = TABS.findIndex(([t]) => `flow-tab-${t}` === e.currentTarget.id);
-    const to = nextTabIndex(e.key, i, TABS.length);
+    const i = tabs.findIndex(([t]) => `flow-tab-${t}` === e.currentTarget.id);
+    const to = nextTabIndex(e.key, i, tabs.length);
     if (to === undefined) return;
     e.preventDefault();
-    const next = TABS[to][0];
+    const next = tabs[to][0];
     go(next);
     document.getElementById(`flow-tab-${next}`)?.focus();
   };
@@ -222,7 +224,7 @@ export function FlowPage({ flowId }: { flowId: string }) {
           )}
           <FlowChangesBar flow={flow.data} />
           <div role="tablist" aria-label="Flow sections" className="flex gap-1 overflow-x-auto border-b border-border">
-            {TABS.map(([t, label]) => (
+            {tabs.map(([t, label]) => (
               <button
                 key={t} type="button" role="tab" id={`flow-tab-${t}`} aria-controls="flow-panel" aria-selected={t === tab}
                 tabIndex={t === tab ? 0 : -1} onKeyDown={onTabKey} onClick={() => go(t)}

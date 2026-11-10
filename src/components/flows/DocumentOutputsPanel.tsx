@@ -114,12 +114,12 @@ export function DocumentOutputsPanel({ flowId, document: doc }: { flowId: string
 
   return (
     <Card edge="green" as="section" aria-labelledby="doc-outputs" className="min-w-0">
-      <div className="fixed inset-x-0 bottom-0 z-20 flex lg:mb-3 items-center justify-between gap-2 border-t border-border bg-surface p-3 lg:static lg:border-0 lg:bg-transparent lg:p-0">
+      <div className="fixed inset-x-0 bottom-0 z-20 flex lg:mb-3 flex-wrap items-center justify-between gap-2 border-t border-border bg-surface p-3 lg:static lg:border-0 lg:bg-transparent lg:p-0">
         <h2 id="doc-outputs" className="m-0 text-[13px] font-semibold text-ink">Outputs</h2>
         <Button variant="send" size="sm" className="min-h-11 lg:min-h-0" disabled={!canSend || saving} loading={send.isPending || saving} onClick={() => send.mutate()}>Send</Button>
+        {send.isError && <div className="basis-full"><StatusNotice tone="error">{documentRefusalMessage(send.error)}</StatusNotice></div>}
       </div>
       <div className="grid gap-3">
-        {send.isError && <StatusNotice tone="error">{documentRefusalMessage(send.error)}</StatusNotice>}
         {destinations.isError && <Failed error={destinations.error} retry={() => destinations.refetch()} />}
         {outputs.isError && !outputs.data ? <Failed error={outputs.error} retry={() => outputs.refetch()} />
           : !outputs.data ? <Quiet>Loading outputs…</Quiet>
