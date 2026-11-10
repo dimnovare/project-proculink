@@ -221,12 +221,12 @@ export function FlowPage({ flowId }: { flowId: string }) {
             </StatusNotice>
           )}
           <FlowChangesBar flow={flow.data} />
-          <div role="tablist" aria-label="Flow sections" className="flex gap-1 border-b border-border">
+          <div role="tablist" aria-label="Flow sections" className="flex gap-1 overflow-x-auto border-b border-border">
             {TABS.map(([t, label]) => (
               <button
                 key={t} type="button" role="tab" id={`flow-tab-${t}`} aria-controls="flow-panel" aria-selected={t === tab}
                 tabIndex={t === tab ? 0 : -1} onKeyDown={onTabKey} onClick={() => go(t)}
-                className={`px-3 py-2 text-[13px] ${t === tab ? "border-b-2 border-brand-blue font-semibold" : "text-ink-muted"}`}
+                className={`whitespace-nowrap px-3 py-2 text-[13px] ${t === tab ? "border-b-2 border-brand-blue font-semibold" : "text-ink-muted"}`}
               >
                 {label}
               </button>

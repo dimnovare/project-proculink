@@ -207,7 +207,7 @@ export function DocumentScreen({ flowId, documentId }: { flowId: string; documen
             </div>
           </Card>
           <div
-            className={`grid items-start gap-4 ${
+            className={`grid items-start gap-4 pb-24 lg:pb-0 ${
               showOriginal ? "lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_minmax(0,0.85fr)]" : "lg:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)]"
             }`}
           >
