@@ -1381,7 +1381,7 @@ export function CrossingsLog() {
                                     const url = URL.createObjectURL(blob);
                                     const a = document.createElement("a");
                                     a.href = url;
-                                    a.download = `delivery-${c.po.replace(/[^w.-]+/g, "_")}-${c.ts.replace(/:/g, "-")}.csv`;
+                                    a.download = `delivery-${c.po.replace(/[^\w.-]+/g, "_")}-${c.ts.replace(/:/g, "-")}.csv`;
                                     document.body.appendChild(a); a.click(); document.body.removeChild(a);
                                     URL.revokeObjectURL(url);
                                   }}

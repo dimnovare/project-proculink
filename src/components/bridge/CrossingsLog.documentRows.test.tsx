@@ -52,6 +52,15 @@ describe("CrossingsLog — document rows", () => {
     (await screen.findByRole("button", { name: /View document/ })).click();
     expect(push).toHaveBeenCalledWith("/flows/f1/documents/d1");
 
+    // The per-row export names its file after the document, keeping the name legible.
+    URL.createObjectURL = vi.fn(() => "blob:x");
+    URL.revokeObjectURL = vi.fn();
+    let saved = "";
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) { saved = this.download; });
+    (await screen.findByRole("button", { name: /Export entry/ })).click();
+    expect(saved.startsWith("delivery-Invoice-1.pdf-")).toBe(true);
+    click.mockRestore();
+
     cleanup();
     getAuditLog.mockResolvedValue({
       events: [{ ...BASE, id: "e2", poNumber: "PO-9", orderId: "o9", action: "document.sent", message: "Sent · Gone.pdf", documentId: null, flowId: null, documentName: null }],

@@ -6,4 +6,5 @@ it("quotes cells and neutralises formula triggers", () => {
   expect(csvCell("PO-1")).toBe(`"PO-1"`);
   expect(csvCell('say "hi"')).toBe(`"say ""hi"""`);
   expect(csvCell(null)).toBe(`""`);
+  expect(csvCell(-5)).toBe(`"-5"`);
 });
