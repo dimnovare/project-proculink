@@ -192,6 +192,11 @@ export const deleteDestination = (id: string) =>
 export const testDestination = (id: string) =>
   apiFetch<DestinationTestResult>(`/destinations/${seg(id)}/test`, { method: "POST" });
 
+export interface NotificationSettings { email: string | null; onReview: boolean; onFailure: boolean }
+export const getNotificationSettings = () => apiFetch<NotificationSettings>(`/notification-settings`);
+export const saveNotificationSettings = (s: { onReview: boolean; onFailure: boolean }) =>
+  apiFetch<NotificationSettings>(`/notification-settings`, { method: "PUT", body: json(s) });
+
 export const listIntakes = (flowId: string) => apiFetch<FlowIntake[]>(`/flows/${seg(flowId)}/intakes`);
 export const createIntake = (flowId: string, req: IntakeRequest) =>
   apiFetch<FlowIntake>(`/flows/${seg(flowId)}/intakes`, { method: "POST", body: json(req) });
