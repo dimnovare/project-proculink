@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ApiHttpError } from "@/lib/api/core";
 import { NewFlowGuide } from "./NewFlowGuide";
 
 const url = vi.hoisted(() => {
@@ -111,5 +112,14 @@ describe("NewFlowGuide", () => {
     const body = api.updateOutput.mock.calls[0][2];
     expect(body.template).toEqual(template);
     expect(body.destinationId).toBe("x");
+  });
+  it("stays on step 5 and shows the refusal when publishing fails", async () => {
+    url.set("flow=f&doc=d&step=5");
+    api.listOutputs.mockResolvedValue([output]);
+    api.publishFlow.mockRejectedValue(new ApiHttpError("conflict", 409, { error: "publish_conflict" }));
+    renderGuide();
+    fireEvent.click(await screen.findByRole("button", { name: "Finish" }));
+    expect((await screen.findByRole("alert")).textContent).toContain("Someone else published this flow just now.");
+    expect(url.get().get("step")).toBe("5");
   });
 });

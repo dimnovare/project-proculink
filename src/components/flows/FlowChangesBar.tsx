@@ -23,8 +23,10 @@ export function FlowChangesBar({ flow }: { flow: Flow }) {
   const saved = useFlowSaved(flow.id);
   const [justPublished, setJustPublished] = useState(false);
   const live = flow.publishedVersion ?? null;
+  // An older backend sends no version info at all: there is nothing to publish to.
+  const unversioned = flow.publishedVersion === undefined;
   const publish = useMutation({ mutationFn: () => publishFlow(flow.id), onSuccess: (f) => { setJustPublished(true); saved(f); } });
-  const discard = useMutation({ mutationFn: () => restoreFlowVersion(flow.id, live!), onSuccess: saved });
+  const discard = useMutation({ mutationFn: () => restoreFlowVersion(flow.id, live!), onSuccess: (f) => { setJustPublished(false); saved(f); } });
   const ask = async () => {
     if (await confirm({ title: "Discard your changes?", description: `The flow goes back to version ${live}. This can't be undone.`, confirmLabel: "Discard", danger: true })) discard.mutate();
   };
@@ -34,7 +36,7 @@ export function FlowChangesBar({ flow }: { flow: Flow }) {
   if (live === null) message = "Changes to this flow apply straight away until you publish it.";
   else if (flow.hasChanges) message = `You have changes that aren't live yet. New work still uses version ${live}.`;
   else if (justPublished) message = `Version ${live} is live.`;
-  if (!message && !error) return null;
+  if (unversioned || (!message && !error)) return null;
   return (
     <div className="grid gap-2">
       {message && (

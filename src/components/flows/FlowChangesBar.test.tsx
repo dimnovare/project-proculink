@@ -38,6 +38,12 @@ describe("FlowChangesBar", () => {
     expect(asked).toContain("The flow goes back to version 3. This can't be undone.");
   });
 
+  it("renders no bar for a flow that carries no version info", () => {
+    const { publishedVersion: _p, hasChanges: _h, ...bare } = flow;
+    const { container } = render(bar(bare as Flow));
+    expect(container.textContent).toBe("");
+  });
+
   it("shows the conflict copy when someone else published first", async () => {
     api.publishFlow.mockRejectedValue(new ApiHttpError("conflict", 409, { error: "publish_conflict" }));
     render(bar(flow));
