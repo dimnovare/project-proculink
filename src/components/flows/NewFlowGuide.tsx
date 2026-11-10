@@ -15,10 +15,10 @@ import { FlowUpload } from "@/components/flows/FlowUpload";
 import { OutputEditor } from "@/components/flows/OutputEditor";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import {
-  createFlow, getDocument, getFlow, listDestinations, listOutputs, retryDocumentRead, testDestination, updateOutput,
+  createFlow, getDocument, getFlow, listDestinations, listOutputs, publishFlow, retryDocumentRead, testDestination, updateOutput,
 } from "@/lib/api/documents";
 import type { Flow, FlowOutput } from "@/lib/api/documents";
-import { documentRefusalMessage } from "@/lib/documentRefusals";
+import { documentRefusalMessage, refusalToken } from "@/lib/documentRefusals";
 import { Failed, Quiet, ReadProblem } from "@/components/flows/states";
 import { fieldListFromRead } from "@/lib/flowFieldModel";
 
@@ -53,14 +53,16 @@ function DestinationStep({ flow, output, onDone }: { flow: Flow; output: FlowOut
   const destinations = useQuery({ queryKey: ["destinations"], queryFn: listDestinations, enabled: useTenantQueriesEnabled() });
   const test = useMutation({ mutationFn: () => testDestination(choice!) });
   // The stored template goes back unchanged: leaving it out would make the server rebuild the default.
+  // Finishing publishes the flow; "nothing to publish" means it already is.
   const save = useMutation({
-    mutationFn: () =>
-      choice === output.destinationId
-        ? Promise.resolve(output)
-        : updateOutput(flow.id, output.id, {
-            name: output.name, format: output.format, tableKey: output.tableKey, template: output.template, sendWhen: output.sendWhen, destinationId: choice,
-          }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["outputs", flow.id] }); onDone(); },
+    mutationFn: async () => {
+      if (choice !== output.destinationId)
+        await updateOutput(flow.id, output.id, {
+          name: output.name, format: output.format, tableKey: output.tableKey, template: output.template, sendWhen: output.sendWhen, destinationId: choice,
+        });
+      await publishFlow(flow.id).catch((e) => { if (refusalToken(e) !== "nothing_to_publish") throw e; });
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["outputs", flow.id] }); qc.invalidateQueries({ queryKey: ["flow", flow.id] }); onDone(); },
   });
   const result = test.data;
   return (

@@ -59,6 +59,9 @@ export const COPY: Record<string, string> = {
   test_gate: "Send a test to {destination} before creating this output.",
   test_passed: "Test sent. You can create the output now.",
   no_test_document: "Upload a document to this flow to send a test.",
+  nothing_to_publish: "There are no changes to publish.",
+  publish_conflict: "Someone else published this flow just now. Reload to see the latest version.",
+  version_references_missing: "This version sends to a destination or uses a lookup that has been deleted, so it can't be restored.",
   scanned_not_supported: "This looks like a scanned document, which can't be read yet.",
 };
 

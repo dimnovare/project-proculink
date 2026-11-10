@@ -38,7 +38,12 @@ export interface Flow {
   formatsOn?: boolean;
   /** Outputs can be proposed from the receiving system's documentation. Absent means off. */
   docsOutputsOn?: boolean;
+  /** The live version number; null means never published. Only the single-flow response carries these three. */
+  publishedVersion?: number | null;
+  hasChanges?: boolean;
+  noCorrectionStreak?: number | null;
 }
+export interface FlowVersion { versionNo: number; publishedAt: string; publishedBy: string | null; live: boolean }
 
 export interface DocumentSummary {
   id: string; flowId: string; flowName: string; fileName: string; status: string; statusReason: string | null;
@@ -140,6 +145,10 @@ const json = (data: unknown) => JSON.stringify(data);
 export const listFlows = () => apiFetch<Flow[]>(`/flows`);
 export const createFlow = (name: string) => apiFetch<Flow>(`/flows`, { method: "POST", body: json({ name }) });
 export const getFlow = (id: string) => apiFetch<Flow>(`/flows/${seg(id)}`);
+export const publishFlow = (id: string) => apiFetch<Flow>(`/flows/${seg(id)}/publish`, { method: "POST" });
+export const listFlowVersions = (id: string) => apiFetch<FlowVersion[]>(`/flows/${seg(id)}/versions`);
+export const restoreFlowVersion = (id: string, versionNo: number) =>
+  apiFetch<Flow>(`/flows/${seg(id)}/versions/${versionNo}/restore`, { method: "POST" });
 export const renameFlow = (id: string, name: string) =>
   apiFetch<Flow>(`/flows/${seg(id)}`, { method: "PATCH", body: json({ name }) });
 export const updateFlow = (id: string, patch: { name?: string; automation?: "review" | "auto" }) =>

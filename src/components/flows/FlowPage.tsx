@@ -24,13 +24,15 @@ import { describeSendWhen } from "@/lib/flowOutputModel";
 import { INPUT } from "./DestinationForm";
 import { DocumentList } from "./DocumentList";
 import { FieldListEditor } from "./FieldListEditor";
+import { FlowChangesBar } from "./FlowChangesBar";
 import { FlowIntakePanel } from "./FlowIntakePanel";
+import { FlowVersionsPanel } from "./FlowVersionsPanel";
 import { FlowUpload } from "./FlowUpload";
 import { OutputBuilder } from "./OutputBuilder";
 import { FORMATS, OutputEditor } from "./OutputEditor";
 import { destinationName, Failed, Quiet } from "./states";
 
-const TABS = [["documents", "Documents"], ["fields", "Fields"], ["outputs", "Outputs"], ["intake", "Intake"]] as const;
+const TABS = [["documents", "Documents"], ["fields", "Fields"], ["outputs", "Outputs"], ["intake", "Intake"], ["versions", "Versions"]] as const;
 type Tab = (typeof TABS)[number][0];
 const AUTOMATION = [["review", REVIEW_BEFORE_DELIVERY_LABEL], ["auto", AUTOMATIC_DELIVERY_LABEL]] as const;
 
@@ -172,6 +174,8 @@ export function FlowPage({ flowId }: { flowId: string }) {
     );
   } else if (tab === "intake") {
     body = <FlowIntakePanel flowId={flowId} />;
+  } else if (tab === "versions") {
+    body = <FlowVersionsPanel flowId={flowId} />;
   } else if (!flow.data) {
     body = null;
   } else if (tab === "outputs") {
@@ -209,6 +213,7 @@ export function FlowPage({ flowId }: { flowId: string }) {
               Confirm this flow&apos;s fields so every document is read the same way
             </StatusNotice>
           )}
+          <FlowChangesBar flow={flow.data} />
           <div role="tablist" aria-label="Flow sections" className="flex gap-1 border-b border-border">
             {TABS.map(([t, label]) => (
               <button

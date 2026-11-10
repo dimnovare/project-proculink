@@ -24,7 +24,7 @@ vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => tru
 const api = vi.hoisted(() => ({
   createFlow: vi.fn(), getFlow: vi.fn(), uploadDocument: vi.fn(), getDocument: vi.fn(), retryDocumentRead: vi.fn(),
   saveFlowFields: vi.fn(), listOutputs: vi.fn(), createOutput: vi.fn(), updateOutput: vi.fn(),
-  listDestinations: vi.fn(), listLookups: vi.fn(), testDestination: vi.fn(), previewOutput: vi.fn(), listIntakes: vi.fn(),
+  listDestinations: vi.fn(), listLookups: vi.fn(), testDestination: vi.fn(), previewOutput: vi.fn(), listIntakes: vi.fn(), publishFlow: vi.fn(),
 }));
 vi.mock("@/lib/api/documents", () => api);
 
@@ -43,6 +43,7 @@ const renderGuide = () =>
 beforeEach(() => {
   vi.clearAllMocks();
   url.set("");
+  api.publishFlow.mockResolvedValue({});
   api.listDestinations.mockResolvedValue([]);
   api.listLookups.mockResolvedValue([]);
   api.getFlow.mockResolvedValue(flow);
@@ -81,6 +82,7 @@ describe("NewFlowGuide", () => {
     fireEvent.click(screen.getByRole("button", { name: "Finish" }));
     expect(await screen.findByText("Your flow is ready")).toBeTruthy();
     expect(api.updateOutput).toHaveBeenCalledTimes(1);
+    expect(api.publishFlow).toHaveBeenCalledWith("f");
     expect(url.get().get("flow")).toBe("f");
     expect(url.get().get("doc")).toBe("d");
   }, 30000);
