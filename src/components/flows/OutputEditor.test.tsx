@@ -53,7 +53,7 @@ describe("OutputEditor", () => {
     ] } } });
     fireEvent.change(screen.getByLabelText("File type"), { target: { value: "fixed" } });
     const width = screen.getByLabelText("Width of po");
-    expect(width).toHaveValue(10);
+    expect(width).toHaveValue(40);
     fireEvent.change(width, { target: { value: "6" } });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(api.updateOutput).toHaveBeenCalled());
