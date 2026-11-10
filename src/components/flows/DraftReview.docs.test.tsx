@@ -40,7 +40,7 @@ describe("DraftReview from documentation", () => {
     expect(create.disabled).toBe(true);
     fireEvent.click(screen.getByRole("button", { name: "Send a test" }));
     await screen.findByText("Test sent. You can create the output now.");
-    expect(api.testOutput.mock.calls[0][1].template.root.children[0].rule.width).toBe(11);
+    expect(api.testOutput.mock.calls[0][1].template.root.children[0].rule.width).toBe(40);
     expect(create.disabled).toBe(false);
     fireEvent.change(screen.getByLabelText("Value for OrderNumber"), { target: { value: "ship" } });
     await waitFor(() => expect(create.disabled).toBe(true));

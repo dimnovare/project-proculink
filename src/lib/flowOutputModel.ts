@@ -9,8 +9,8 @@ export type SimpleRow = {
 };
 export type SimpleOutput = { fields: SimpleRow[]; table: { key: string; columns: SimpleRow[] } | null; delimiter?: string };
 
-/** Same rule as the backend's DefaultOutputTemplate: the name's length, from 10 to 1000. */
-export const defaultWidth = (name: string) => Math.min(Math.max(name.length, 10), 1000);
+/** Same rule as the backend's DefaultOutputTemplate: the name's length, from 40 to 1000. */
+export const defaultWidth = (name: string) => Math.min(Math.max(name.length, 40), 1000);
 
 // Mirrors the backend's DefaultOutputTemplate: a "document" object of bound leaves, plus at most one
 // array named for its table whose single "row" object holds the column leaves.
