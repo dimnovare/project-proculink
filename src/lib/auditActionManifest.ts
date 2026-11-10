@@ -711,7 +711,7 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
   // ── Flow documents (entity type FlowDocument; written via DocumentAudit.Add) ─
   // Same org-scoped log as orders. The backend builds `message` for these
   // (AuditController.cs:261), so the row text is the server's; these rows give the
-  // badge, filters and kind. "Read again" and "Value taught" await copy approval.
+  // badge, filters and kind.
   {
     action: "document.received",
     kind: "created",
