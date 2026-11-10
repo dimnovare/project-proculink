@@ -49,6 +49,8 @@ function pointAt(onLocate: ((l: SourceLocation | null) => void) | undefined, l: 
   return { onMouseEnter: () => onLocate(l), onFocus: () => onLocate(l), onMouseLeave: () => onLocate(null), onBlur: () => onLocate(null) };
 }
 
+export const ADDED_TO_CHANGES = "Added to your changes. Publish them to read this field on new documents.";
+
 /** What the read found that a confirmed flow does not have yet, each one click from joining it. */
 function NewFields({ flow, read, docId }: { flow: Flow; read: DocumentDetail["read"]; docId: string }) {
   const qc = useQueryClient();
@@ -62,10 +64,12 @@ function NewFields({ flow, read, docId }: { flow: Flow; read: DocumentDetail["re
     ...list.fields.map((f) => [f.key, f.label] as const),
     ...list.tables.flatMap((t) => [[t.key, t.label] as const, ...t.columns.map((c) => [`${t.key}/${c.key}`, c.label] as const)]),
   ].filter(([id]) => off.has(id));
-  if (!extras.length) return null;
+  const unpublished = add.isSuccess && typeof flow.publishedVersion === "number";
+  if (!extras.length && !unpublished) return null;
   return (
     <section className="grid gap-2">
-      <h3 className="m-0 text-[12px] font-semibold text-ink">New fields we noticed</h3>
+      {extras.length > 0 && <h3 className="m-0 text-[12px] font-semibold text-ink">New fields we noticed</h3>}
+      {unpublished && <StatusNotice tone="success">{ADDED_TO_CHANGES}</StatusNotice>}
       {add.isError && <StatusNotice tone="error">{documentRefusalMessage(add.error)}</StatusNotice>}
       <ul className="m-0 grid list-none gap-1 p-0">
         {extras.map(([id, label]) => (

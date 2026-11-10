@@ -36,6 +36,12 @@ const TABS = [["documents", "Documents"], ["fields", "Fields"], ["outputs", "Out
 type Tab = (typeof TABS)[number][0];
 const AUTOMATION = [["review", REVIEW_BEFORE_DELIVERY_LABEL], ["auto", AUTOMATIC_DELIVERY_LABEL]] as const;
 
+function streakText(n: number) {
+  if (n === 0) return "The last document sent needed a correction.";
+  if (n === 1) return "The last document was sent without a correction.";
+  return `The last ${n > 200 ? "200+" : n} documents were sent without a correction.`;
+}
+
 function Header({ flow }: { flow: Flow }) {
   const qc = useQueryClient();
   const update = useMutation({
@@ -66,6 +72,7 @@ function Header({ flow }: { flow: Flow }) {
             </label>
           ))}
         </fieldset>
+        {typeof flow.noCorrectionStreak === "number" && <p className="m-0 text-[12.5px] text-ink-muted">{streakText(flow.noCorrectionStreak)}</p>}
         <p className="m-0 text-[12.5px] text-ink-muted">Documents with a number we&apos;ve already received always wait for you.</p>
         {update.isError && <StatusNotice tone="error">{documentRefusalMessage(update.error)}</StatusNotice>}
       </div>

@@ -26,7 +26,7 @@ export function flowMapperAdapter(args: {
     preview: documentId
       ? async (next) => {
           try {
-            const p = await previewOutput(documentId, output.id, toTemplate(output.template, next));
+            const p = await previewOutput(documentId, output.id, { template: toTemplate(output.template, next) });
             return { format, contentType: p.contentType, content: p.content };
           } catch (e) {
             return { format, content: "", error: documentRefusalMessage(e) };

@@ -69,7 +69,7 @@ function Deliveries({ documentId }: { documentId: string }) {
 function OutputRow({ o, flowId, documentId, flowFields, destinations }: {
   o: FlowOutput; flowId: string; documentId: string; flowFields: Flow["fields"] | undefined; destinations: Parameters<typeof destinationName>[0];
 }) {
-  const preview = useMutation({ mutationFn: () => previewOutput(documentId, o.id) });
+  const preview = useMutation({ mutationFn: () => previewOutput(documentId, o.id, { published: true }) });
   return (
     <div className="grid gap-1.5">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -101,7 +101,7 @@ export function DocumentOutputsPanel({ flowId, document: doc }: { flowId: string
   const qc = useQueryClient();
   const enabled = useTenantQueriesEnabled();
   const documentId = doc.summary.id;
-  const outputs = useQuery({ queryKey: ["outputs", flowId], queryFn: () => listOutputs(flowId), enabled });
+  const outputs = useQuery({ queryKey: ["outputs", flowId, "published"], queryFn: () => listOutputs(flowId, { published: true }), enabled });
   const destinations = useQuery({ queryKey: ["destinations"], queryFn: listDestinations, enabled });
   const flow = useQuery({ queryKey: ["flow", flowId], queryFn: () => getFlow(flowId), enabled });
   const send = useMutation({

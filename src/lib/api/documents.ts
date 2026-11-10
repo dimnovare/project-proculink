@@ -49,6 +49,8 @@ export interface DocumentSummary {
   id: string; flowId: string; flowName: string; fileName: string; status: string; statusReason: string | null;
   pageCount: number | null; billingUnits: number; failedChecks: number; createdAt: string;
   source: string; sourceRef: string | null;
+  /** The flow version this document was read with; null until read on a published flow. Absent on an older backend. */
+  flowVersion?: number | null;
 }
 export interface DocumentCheck { code: string; passed: boolean; fieldKey: string | null; message: string }
 export interface DocumentDetail {
@@ -204,17 +206,19 @@ export const testIntake = (flowId: string, id: string) =>
 /** The machine-facing file API's URL for a flow (shown to the customer, never called from here). */
 export const flowApiEndpoint = (flowId: string) => `${API_BASE_URL}/api/v1/flows/${seg(flowId)}/documents`;
 
-export const listOutputs = (flowId: string) => apiFetch<FlowOutput[]>(`/flows/${seg(flowId)}/outputs`);
+/** `published` reads the live version's outputs, which is what new documents use. */
+export const listOutputs = (flowId: string, opts?: { published?: boolean }) =>
+  apiFetch<FlowOutput[]>(`/flows/${seg(flowId)}/outputs${opts?.published ? "?published=true" : ""}`);
 export const createOutput = (flowId: string, body: OutputRequest) =>
   apiFetch<FlowOutput>(`/flows/${seg(flowId)}/outputs`, { method: "POST", body: json(body) });
 export const updateOutput = (flowId: string, id: string, body: OutputRequest) =>
   apiFetch<FlowOutput>(`/flows/${seg(flowId)}/outputs/${seg(id)}`, { method: "PUT", body: json(body) });
 export const deleteOutput = (flowId: string, id: string) =>
   apiFetch<void>(`/flows/${seg(flowId)}/outputs/${seg(id)}`, { method: "DELETE" });
-export const previewOutput = (documentId: string, outputId: string, template?: OutputNodeTemplate) =>
-  apiFetch<OutputPreview>(`/documents/${seg(documentId)}/outputs/${seg(outputId)}/preview`, {
+export const previewOutput = (documentId: string, outputId: string, opts?: { published?: boolean; template?: OutputNodeTemplate }) =>
+  apiFetch<OutputPreview>(`/documents/${seg(documentId)}/outputs/${seg(outputId)}/preview${opts?.published ? "?published=true" : ""}`, {
     method: "POST",
-    ...(template ? { body: json({ template }) } : {}),
+    ...(opts?.template ? { body: json({ template: opts.template }) } : {}),
   });
 
 export function uploadOutputLogo(flowId: string, outputId: string, file: File): Promise<void> {
