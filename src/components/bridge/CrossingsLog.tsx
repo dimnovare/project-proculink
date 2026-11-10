@@ -29,6 +29,7 @@ import { isPlanGate, PlanGateNotice } from "./PlanGateNotice";
 import { Card } from "./layout/Card";
 import { PageHeader } from "./layout/PageHeader";
 import { PageShell } from "./layout/PageShell";
+import { csvCell } from "@/lib/csvCell";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -610,13 +611,12 @@ export function CrossingsLog() {
 
   // Export filtered log as CSV
   function handleExport() {
-    const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
     const header = ["Timestamp", "Event", "PO", "Buyer", "Supplier", "Format", "Actor", "Message"];
     const body = filtered.map((e) =>
       [e.ts, entryLabel(e), e.po, e.buyer, e.supplier, e.fmt, e.actor.name, e.message]
-        .map(esc).join(","),
+        .map(csvCell).join(","),
     );
-    const csv = [header.map(esc).join(","), ...body].join("\r\n");
+    const csv = [header.map(csvCell).join(","), ...body].join("\r\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -1375,14 +1375,13 @@ export function CrossingsLog() {
                                 <button
                                   className="btn btn-ghost sm"
                                   onClick={() => {
-                                    const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-                                    const row = [c.ts, entryLabel(c), c.po, c.buyer, c.supplier, c.fmt, c.actor.name, c.message].map(esc).join(",");
+                                    const row = [c.ts, entryLabel(c), c.po, c.buyer, c.supplier, c.fmt, c.actor.name, c.message].map(csvCell).join(",");
                                     const csv = [`"Timestamp","Event","PO","Buyer","Supplier","Format","Actor","Message"`, row].join("\r\n");
                                     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
                                     const url = URL.createObjectURL(blob);
                                     const a = document.createElement("a");
                                     a.href = url;
-                                    a.download = `delivery-${c.po}-${c.ts.replace(/:/g, "-")}.csv`;
+                                    a.download = `delivery-${c.po.replace(/[^w.-]+/g, "_")}-${c.ts.replace(/:/g, "-")}.csv`;
                                     document.body.appendChild(a); a.click(); document.body.removeChild(a);
                                     URL.revokeObjectURL(url);
                                   }}

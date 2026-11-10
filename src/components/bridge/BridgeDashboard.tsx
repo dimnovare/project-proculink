@@ -50,6 +50,7 @@ import type { OrderStatus, OrderSummary, Supplier } from "@/types/procurement";
 import { ArrowRight, ArrowUpRight, Clock, AlertTriangle, CheckCircle2, Send, Activity, Download, BarChart3, Network, ChevronRight } from "lucide-react";
 import { NUMBER_LOCALE } from "@/lib/format-number";
 import { documentHref } from "@/lib/documentHref";
+import { csvCell } from "@/lib/csvCell";
 
 // ─── Brand accent (supplier green) ────────────────────────────────────────
 // The supplier accent is the calm forest green from the design tokens
@@ -1090,7 +1091,6 @@ export function BridgeDashboard() {
 
   /** Export the current window's orders as a CSV (client-side — no backend call). */
   function handleExport() {
-    const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
     const header = [
       "PO number", "Buyer", "Supplier", "Format", "Status",
       "Lines", "Unresolved", "Total value", "Currency", "Created",
@@ -1107,7 +1107,7 @@ export function BridgeDashboard() {
         o.totalValue != null ? o.totalValue.toFixed(2) : "",
         o.currency ?? "",
         o.createdAt,
-      ].map(esc).join(","),
+      ].map(csvCell).join(","),
     );
     // Make the 100-row working-set cap visible inside the file itself, not just
     // on the button's hover title: a truncated export must say so.
@@ -1115,7 +1115,7 @@ export function BridgeDashboard() {
     // export writes practice orders out like any other row.
     const windowTotal = receivedPopulation.rows;
     const truncated = windowTotal > allOrders.length;
-    const rows = [header.map(esc).join(","), ...body];
+    const rows = [header.map(csvCell).join(","), ...body];
     if (truncated) {
       rows.unshift(`# Most recent ${allOrders.length} of ${windowTotal} orders in this window`);
     }

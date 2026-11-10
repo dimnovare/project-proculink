@@ -186,6 +186,17 @@ const REMEDY_BY_ACTION: Record<string, ActionRemedy> = {
     next: "Open the order to see whether it is still being retried or needs a person.",
   },
 
+  // ── Flow documents. Reuses the sentences above until document-specific wording
+  // is approved (they say "order" where a document is meant). ──
+  "document.read_failed": {
+    reach: "before_send",
+    next: "Upload a corrected file. No order was built from this one, so nothing was sent.",
+  },
+  "document.delivery_failed": {
+    reach: "unknown_send",
+    next: "Open the order to see whether it is still being retried or needs a person.",
+  },
+
   // ── Blocked by something outside the order ────────────────────────────────
   DeliveryHeldForBilling: {
     reach: "paused",
