@@ -59,6 +59,8 @@ type LogEntry = {
   ts: string;         // display time HH:mm:ss
   isoTs: string;      // ISO for grouping
   crossingId: string;
+  /** Set only for a live document row (both ids present): links to the document, not an order. */
+  documentHref?: string;
   po: string;
   buyer: string;
   supplier: string;
@@ -240,7 +242,8 @@ function mapApiEntry(e: AuditLogEntry): LogEntry {
     ts,
     isoTs:          e.ts,
     crossingId:     e.orderId ?? e.id,
-    po:             e.poNumber ?? e.orderId ?? "—",
+    documentHref:   e.documentId && e.flowId ? `/flows/${e.flowId}/documents/${e.documentId}` : undefined,
+    po:             (e.documentId && e.flowId && e.documentName) || (e.poNumber ?? e.orderId ?? "—"),
     buyer:          e.buyerName ?? "—",
     supplier:       e.supplierName ?? "—",
     fmt:            e.format ?? "—",
@@ -1334,14 +1337,14 @@ export function CrossingsLog() {
                                 {/* View order — secondary, navigates to /inbox/{id} */}
                                 <button
                                   className="btn btn-secondary sm"
-                                  onClick={() => router.push(`/inbox/${c.crossingId}`)}
+                                  onClick={() => router.push(c.documentHref ?? `/inbox/${c.crossingId}`)}
                                   style={isMobile ? { height: 36 } : undefined}
                                 >
                                   {/* eye icon */}
                                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
                                     <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z" /><circle cx="12" cy="12" r="3" />
                                   </svg>
-                                  View order
+                                  {c.documentHref ? "View document" : "View order"}
                                 </button>
 
                                 {/* Open to resend — secondary, only for failed events. There is no
