@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
@@ -10,6 +11,8 @@ import { Button } from "@/components/bridge/DSPrimitives";
 import { flowsQuery, useDocumentEngine } from "@/hooks/useDocumentEngine";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { listDocuments, type DocumentSummary } from "@/lib/api/documents";
+import { apiClient } from "@/lib/api-client";
+import { pagePopulation } from "@/components/bridge/orderCountContract";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
 import { documentStatus } from "@/lib/documentStatusManifest";
 import { DocumentList } from "./DocumentList";
@@ -37,6 +40,11 @@ export function DocumentsHome() {
     queryFn: () => listDocuments({ take: 100 }),
     enabled: engine === "on",
     refetchInterval: (q) => (q.state.data?.some((d) => documentStatus(d.status, d.statusReason).tone === "working") ? 2000 : false),
+  });
+  const anyOldOrders = useQuery({
+    queryKey: ["archive-any"],
+    queryFn: () => apiClient.getOrders({ page: 1, pageSize: 1 }),
+    enabled: useTenantQueriesEnabled(),
   });
   const shown = docs.data?.filter(FILTERS[filter].test) ?? [];
 
@@ -81,6 +89,7 @@ export function DocumentsHome() {
             <DocumentList documents={shown} showFlow />
           </Card>
         )}
+        {pagePopulation(anyOldOrders.data).rows > 0 && <Link href="/archive" className="text-[13px]">Old orders</Link>}
       </section>
     );
   }

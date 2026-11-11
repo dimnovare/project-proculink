@@ -225,6 +225,8 @@ export const KNOWN_DEEP_LINK_ONLY: Record<string, string> = {
  */
 export const STRANDED_PENDING_DECISION: Record<string, string> = {
   "/documents": "PENDING A DECISION: added 2026-11-11 by docs/superpowers/plans/2026-11-11-plan-12a-relaunch-switch.md Task 3; Task 6 points the new navigation at it and deletes this entry.",
+  "/archive": "PENDING A DECISION: added 2026-11-11 by docs/superpowers/plans/2026-11-11-plan-12a-relaunch-switch.md Task 5; linked only from /documents, itself stranded until Task 6, which deletes this entry.",
+  "/archive/[orderId]": "PENDING A DECISION: added 2026-11-11 by docs/superpowers/plans/2026-11-11-plan-12a-relaunch-switch.md Task 5; linked only from /archive, itself stranded until Task 6, which deletes this entry.",
 };
 
 // ─── Route enumeration ────────────────────────────────────────────────────────
