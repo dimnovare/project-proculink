@@ -51,7 +51,7 @@ export function DocumentsHome() {
   let body;
   if (engine === "off") {
     body = <StatusNotice tone="warning">{documentRefusalMessage(flows.error)}</StatusNotice>;
-  } else if (flows.isError) {
+  } else if (flows.isError && !flows.data) {
     body = (
       <StatusNotice tone="error" action={<Retry onClick={() => flows.refetch()} />}>
         {documentRefusalMessage(flows.error)}
