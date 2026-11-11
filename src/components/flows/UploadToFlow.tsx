@@ -6,13 +6,11 @@ import { useQuery } from "@tanstack/react-query";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import { Card } from "@/components/bridge/layout/Card";
-import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { EmptyState } from "@/components/bridge/EmptyState";
 import { UploadWorkbench } from "@/components/bridge/UploadWorkbench";
 import { flowsQuery, useDocumentEngine } from "@/hooks/useDocumentEngine";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
-import { documentRefusalMessage } from "@/lib/documentRefusals";
-import { Quiet } from "./states";
+import { Failed, Quiet } from "./states";
 import { FlowUpload } from "./FlowUpload";
 
 /** Engine on: pick a flow, upload into it. Anything else (including a probe still loading): the legacy workbench. */
@@ -29,7 +27,7 @@ export function UploadToFlow() {
 
   let body;
   if (flows.isError) {
-    body = <StatusNotice tone="error">{documentRefusalMessage(flows.error)}</StatusNotice>;
+    body = <Failed error={flows.error} retry={() => void flows.refetch()} />;
   } else if (!flows.data) {
     body = <Quiet>Loading flows…</Quiet>;
   } else if (!flowId) {
