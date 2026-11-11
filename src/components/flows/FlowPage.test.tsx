@@ -1,12 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ApiHttpError } from "@/lib/api/core";
 import { FlowPage } from "./FlowPage";
 
 const replace = vi.hoisted(() => vi.fn());
+const search = vi.hoisted(() => ({ q: "" }));
 vi.mock("next/navigation", () => ({
-  useSearchParams: () => new URLSearchParams(""),
+  useSearchParams: () => new URLSearchParams(search.q),
   useRouter: () => ({ replace, push: vi.fn() }),
 }));
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => true }));
@@ -26,6 +27,7 @@ const DUPLICATE = "Documents with a number we've already received always wait fo
 
 beforeEach(() => {
   vi.clearAllMocks();
+  search.q = "";
   api.getFlow.mockResolvedValue(flow);
   api.listDocuments.mockResolvedValue([]);
   api.listOutputs.mockResolvedValue([]);
@@ -74,6 +76,18 @@ describe("FlowPage", () => {
     press("ArrowLeft", "versions", 4);
     press("End", "versions", 4);
     press("Home", "documents", 0);
+  });
+
+  it("the fields form shows the server's fields again after a discard or restore", async () => {
+    search.q = "tab=fields";
+    const field = { key: "number", label: "Number", type: "code", meaning: null, required: false };
+    api.getFlow.mockResolvedValue({ ...flow, publishedVersion: 1, fields: { fields: [field], tables: [] } });
+    const qc = new QueryClient();
+    render(<QueryClientProvider client={qc}><FlowPage flowId="f" /></QueryClientProvider>);
+    fireEvent.change(await screen.findByRole("textbox", { name: "Label" }), { target: { value: "Edited" } });
+    // What a discard or restore does with the flow the server sends back.
+    act(() => { qc.setQueryData(["flow", "f"], { ...flow, publishedVersion: 1, fields: { fields: [{ ...field, label: "Order no" }], tables: [] } }); });
+    await waitFor(() => expect((screen.getByRole("textbox", { name: "Label" }) as HTMLInputElement).value).toBe("Order no"));
   });
 
   it("shows the format copy when the server refuses the file type", async () => {
