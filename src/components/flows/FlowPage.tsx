@@ -191,7 +191,8 @@ export function FlowPage({ flowId }: { flowId: string }) {
     body = <Outputs flow={flow.data} previewDocumentId={latest?.id} />;
   } else if (flow.data.fieldsConfirmed) {
     const { list, off } = withReadExtras(flow.data.fields, latestDoc.data?.read);
-    body = <FieldListEditor key={latestDoc.data ? "read" : "none"} flow={flow.data} initial={list} initialOff={off} onSaved={saved} />;
+    // Keyed on the saved fields too, so a discard or restore replaces the form instead of leaving the old edits in it.
+    body = <FieldListEditor key={`${latestDoc.data ? "read" : "none"}:${JSON.stringify(flow.data.fields)}`} flow={flow.data} initial={list} initialOff={off} onSaved={saved} />;
   } else if (docs.isError) {
     body = <Failed error={docs.error} retry={() => docs.refetch()} />;
   } else if (!docs.data || (latest && latestDoc.isPending)) {
