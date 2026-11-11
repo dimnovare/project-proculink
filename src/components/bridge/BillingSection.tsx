@@ -558,6 +558,9 @@ export function BillingSection() {
   const engine = useDocumentEngine();
   const documentLadder = engine === "on";
   const { data: flows } = useQuery({ ...flowsQuery, enabled: documentLadder });
+  // A paid plan's upgrade changes the live subscription and charges the card on file at once —
+  // there is no Stripe page in between to confirm on — so it asks here first.
+  const [confirmingUpgrade, setConfirmingUpgrade] = useState(false);
 
   const checkoutMutation = useMutation({
     mutationFn: ({ plan, interval }: { plan: BillingPlan; interval: BillingInterval }) =>
@@ -603,10 +606,7 @@ export function BillingSection() {
   const isPilot      = status.plan === "pilot";
   const isEnterprise = status.plan === "enterprise";
   const isPaid       = [...CHECKOUT_PLANS, ...DOCUMENT_PLAN_IDS].includes(status.plan);
-  // A paid document plan gets no next-plan checkout, as if its `next` were null (like Scale):
-  // Checkout on a paid workspace opens a SECOND Stripe subscription and nothing cancels the
-  // first. Changing the live subscription's price instead is a separate task.
-  const nextPlan     = DOCUMENT_PLAN_IDS.includes(status.plan) ? null : nextPlanFor(status.plan, documentLadder);
+  const nextPlan     = nextPlanFor(status.plan, documentLadder);
   const flowLimit    = PLAN_BY_ID[status.plan].flowLimit;
   // The Pilot upgrade block's ladder: the document plans with the engine, else today's legacy one.
   const ladder       = documentLadder ? DOCUMENT_PLAN_IDS : CHECKOUT_PLANS;
@@ -766,10 +766,35 @@ export function BillingSection() {
           {nextPlan && (
             <>
               <IntervalToggle value={checkoutInterval} onChange={setCheckoutInterval} disabled={checkoutMutation.isPending} />
+              {confirmingUpgrade ? (
+                <Card pad="13px 15px" radius={10} role="group" aria-label={`Confirm upgrade to ${PLAN_META[nextPlan].label}`} style={{ display: "flex", flexDirection: "column", gap: 10, fontSize: 12.5, lineHeight: 1.55, color: "var(--ink-muted)" }}>
+                  <span>
+                    <strong style={{ color: "var(--ink)" }}>
+                      Upgrade to {PLAN_META[nextPlan].label} at {billingPriceLabelFor(PLAN_BY_ID[nextPlan], checkoutInterval)}?
+                    </strong>{" "}
+                    Your card on file is charged today. A new billing period starts today, and the unused part of your current plan is credited on that charge.
+                  </span>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button
+                      onClick={() => checkoutMutation.mutate({ plan: nextPlan, interval: checkoutInterval })}
+                      disabled={checkoutMutation.isPending}
+                      style={secondaryButton(PLAN_META[nextPlan].color, checkoutMutation.isPending)}
+                    >
+                      {checkoutMutation.isPending ? "Upgrading..." : "Upgrade now"}
+                    </button>
+                    <button
+                      onClick={() => setConfirmingUpgrade(false)}
+                      disabled={checkoutMutation.isPending}
+                      style={{ ...secondaryButton(PLAN_META[nextPlan].color, checkoutMutation.isPending), border: "1px solid var(--border-strong)", color: "var(--ink)" }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </Card>
+              ) : (
               <button
-                onClick={() => checkoutMutation.mutate({ plan: nextPlan, interval: checkoutInterval })}
-                disabled={checkoutMutation.isPending}
-                style={secondaryButton(PLAN_META[nextPlan].color, checkoutMutation.isPending)}
+                onClick={() => setConfirmingUpgrade(true)}
+                style={secondaryButton(PLAN_META[nextPlan].color, false)}
               >
                 {/* PLAN_META[nextPlan].label, not the wire value with its first letter forced
                     upper. That capitalise-the-id trick is the pattern plans.ts:437-453 records
@@ -778,6 +803,7 @@ export function BillingSection() {
                     tier's own name is already in scope one line above. */}
                 Need more volume? Upgrade to {PLAN_META[nextPlan].label}.
               </button>
+              )}
             </>
           )}
           {checkoutMutation.isError && <CheckoutFailure error={checkoutMutation.error} />}

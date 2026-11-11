@@ -172,3 +172,26 @@ describe("A-F8d — a refused checkout never shows a status line or an internal 
     expect(pageText()).not.toContain("Could not start checkout");
   });
 });
+
+describe("a paid plan's upgrade charges the card on file, so it asks first", () => {
+  it("the_upgrade_button_only_opens_the_confirmation_and_upgrade_now_sends_it", async () => {
+    api.getBillingStatus.mockResolvedValue(
+      billing({ plan: "growth", accountStatus: "active", orderLimit: 150, supplierLimit: 5, stripeCustomerId: "cus_live", stripeSubscriptionId: "sub_live" }),
+    );
+    api.createCheckoutSession.mockReturnValue(new Promise<string>(() => {}));
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={qc}>
+        <BillingSection />
+      </QueryClientProvider>,
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: /Need more volume\? Upgrade to Operations/ }));
+    const confirm = screen.getByRole("group", { name: "Confirm upgrade to Operations" });
+    expect(confirm.textContent).toContain("Your card on file is charged today.");
+    expect(api.createCheckoutSession).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Upgrade now" }));
+    await waitFor(() => expect(api.createCheckoutSession).toHaveBeenCalledWith("operations", "monthly"));
+  });
+});
