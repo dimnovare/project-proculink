@@ -24,15 +24,23 @@ import { describeSendWhen } from "@/lib/flowOutputModel";
 import { INPUT } from "./DestinationForm";
 import { DocumentList } from "./DocumentList";
 import { FieldListEditor } from "./FieldListEditor";
+import { FlowChangesBar } from "./FlowChangesBar";
 import { FlowIntakePanel } from "./FlowIntakePanel";
+import { FlowVersionsPanel } from "./FlowVersionsPanel";
 import { FlowUpload } from "./FlowUpload";
 import { OutputBuilder } from "./OutputBuilder";
 import { FORMATS, OutputEditor } from "./OutputEditor";
 import { destinationName, Failed, Quiet } from "./states";
 
-const TABS = [["documents", "Documents"], ["fields", "Fields"], ["outputs", "Outputs"], ["intake", "Intake"]] as const;
+const TABS = [["documents", "Documents"], ["fields", "Fields"], ["outputs", "Outputs"], ["intake", "Intake"], ["versions", "Versions"]] as const;
 type Tab = (typeof TABS)[number][0];
 const AUTOMATION = [["review", REVIEW_BEFORE_DELIVERY_LABEL], ["auto", AUTOMATIC_DELIVERY_LABEL]] as const;
+
+function streakText(n: number) {
+  if (n === 0) return "The last document sent needed a correction.";
+  if (n === 1) return "The last document was sent without a correction.";
+  return `The last ${n > 200 ? "200+" : n} documents were sent without a correction.`;
+}
 
 function Header({ flow }: { flow: Flow }) {
   const qc = useQueryClient();
@@ -64,6 +72,7 @@ function Header({ flow }: { flow: Flow }) {
             </label>
           ))}
         </fieldset>
+        {typeof flow.noCorrectionStreak === "number" && <p className="m-0 text-[12.5px] text-ink-muted">{streakText(flow.noCorrectionStreak)}</p>}
         <p className="m-0 text-[12.5px] text-ink-muted">Documents with a number we&apos;ve already received always wait for you.</p>
         {update.isError && <StatusNotice tone="error">{documentRefusalMessage(update.error)}</StatusNotice>}
       </div>
@@ -80,7 +89,7 @@ function Outputs({ flow, previewDocumentId }: { flow: Flow; previewDocumentId?: 
   const destinations = useQuery({ queryKey: ["destinations"], queryFn: listDestinations, enabled });
   const remove = useMutation({
     mutationFn: (id: string) => deleteOutput(flow.id, id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["outputs", flow.id] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["outputs", flow.id] }); qc.invalidateQueries({ queryKey: ["flow", flow.id] }); },
   });
   const ask = async (o: FlowOutput) => {
     if (await confirm({ title: "Delete output", description: `Delete "${o.name}"? This cannot be undone.`, confirmLabel: "Delete", danger: true })) remove.mutate(o.id);
@@ -146,14 +155,16 @@ export function FlowPage({ flowId }: { flowId: string }) {
     queryKey: ["document", latest?.id], queryFn: () => getDocument(latest!.id), enabled: enabled && !!latest && tab !== "documents", placeholderData: keepPreviousData,
   });
 
+  // An older backend sends no publishedVersion and has no versions endpoints.
+  const tabs = TABS.filter(([t]) => t !== "versions" || flow.data?.publishedVersion !== undefined);
   const go = (t: Tab) => router.replace(`/flows/${flowId}?tab=${t}`);
   const onTabKey = (e: React.KeyboardEvent) => {
     // From the focused tab, not the URL: a second press can land before the route commits.
-    const i = TABS.findIndex(([t]) => `flow-tab-${t}` === e.currentTarget.id);
-    const to = nextTabIndex(e.key, i, TABS.length);
+    const i = tabs.findIndex(([t]) => `flow-tab-${t}` === e.currentTarget.id);
+    const to = nextTabIndex(e.key, i, tabs.length);
     if (to === undefined) return;
     e.preventDefault();
-    const next = TABS[to][0];
+    const next = tabs[to][0];
     go(next);
     document.getElementById(`flow-tab-${next}`)?.focus();
   };
@@ -172,6 +183,8 @@ export function FlowPage({ flowId }: { flowId: string }) {
     );
   } else if (tab === "intake") {
     body = <FlowIntakePanel flowId={flowId} />;
+  } else if (tab === "versions") {
+    body = <FlowVersionsPanel flowId={flowId} />;
   } else if (!flow.data) {
     body = null;
   } else if (tab === "outputs") {
@@ -209,12 +222,13 @@ export function FlowPage({ flowId }: { flowId: string }) {
               Confirm this flow&apos;s fields so every document is read the same way
             </StatusNotice>
           )}
-          <div role="tablist" aria-label="Flow sections" className="flex gap-1 border-b border-border">
-            {TABS.map(([t, label]) => (
+          <FlowChangesBar flow={flow.data} />
+          <div role="tablist" aria-label="Flow sections" className="flex gap-1 overflow-x-auto border-b border-border">
+            {tabs.map(([t, label]) => (
               <button
                 key={t} type="button" role="tab" id={`flow-tab-${t}`} aria-controls="flow-panel" aria-selected={t === tab}
                 tabIndex={t === tab ? 0 : -1} onKeyDown={onTabKey} onClick={() => go(t)}
-                className={`px-3 py-2 text-[13px] ${t === tab ? "border-b-2 border-brand-blue font-semibold" : "text-ink-muted"}`}
+                className={`whitespace-nowrap px-3 py-2 text-[13px] ${t === tab ? "border-b-2 border-brand-blue font-semibold" : "text-ink-muted"}`}
               >
                 {label}
               </button>

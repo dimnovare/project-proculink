@@ -54,6 +54,16 @@ describe("DocumentOutputsPanel", () => {
     expect(screen.getByText("A.csv")).toBeTruthy();
   });
 
+  it("reads the live version's outputs and previews with it", async () => {
+    api.listDeliveries.mockResolvedValue([]);
+    api.previewOutput.mockResolvedValue({ contentType: "text/csv", fileName: "t.csv", content: "x" });
+    renderPanel();
+    fireEvent.click(await screen.findByRole("button", { name: "Preview" }));
+    await screen.findByText("t.csv");
+    expect(api.listOutputs).toHaveBeenCalledWith("f", { published: true });
+    expect(api.previewOutput).toHaveBeenCalledWith("d", "o", { published: true });
+  });
+
   it("shows the refusal when there is no output to send to", async () => {
     api.listDeliveries.mockResolvedValue([]);
     api.sendDocument.mockRejectedValue(new ApiHttpError("no", 409, { error: "no_outputs" }));

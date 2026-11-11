@@ -56,6 +56,15 @@
 //   ProcuLink.Infrastructure/Services/StuckDeliveryDetectionService.cs
 //   ProcuLink.Infrastructure/Services/StuckOrderDetectionService.cs
 //
+// Flow documents (added with plan 10) write through `DocumentAudit.Add`, `AddAudit`
+// and one `Action =` initialiser, in these five files:
+//
+//   ProcuLink.Api/Controllers/DocumentsController.cs        retry_read / value_taught / value_edited
+//   ProcuLink.Api/Jobs/ReadDocumentJob.cs                   read / read_failed
+//   ProcuLink.Api/Jobs/DeliverDocumentJob.cs                delivered / delivery_failed (ternary)
+//   ProcuLink.Api/Services/Documents/DocumentIntakeService.cs   received
+//   ProcuLink.Api/Services/Documents/DocumentSender.cs      sent
+//
 // Two further sources are folded in:
 //   ProcuLink.Api/Controllers/AuditController.cs:234  BuildMessage's switch, which is
 //       the backend's own presentation layer and names four actions no writer emits
@@ -695,6 +704,92 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     label: "Orders bulk-erased (admin)",
     reachable: true,
     backendSite: "ProcuLink.Api/Controllers/AdminController.cs:709",
+    reasonKeys: [],
+    note: "",
+  },
+
+  // ── Flow documents (entity type FlowDocument; written via DocumentAudit.Add) ─
+  // Same org-scoped log as orders. The backend builds `message` for these
+  // (AuditController.cs:261), so the row text is the server's; these rows give the
+  // badge, filters and kind.
+  {
+    action: "document.received",
+    kind: "created",
+    label: "Document received",
+    reachable: true,
+    backendSite: "ProcuLink.Api/Services/Documents/DocumentIntakeService.cs:96",
+    reasonKeys: [],
+    note: "",
+  },
+  {
+    action: "document.read",
+    kind: "parsed",
+    label: "Document read",
+    reachable: true,
+    backendSite: "ProcuLink.Api/Jobs/ReadDocumentJob.cs:180",
+    reasonKeys: [],
+    note: "",
+  },
+  {
+    action: "document.read_failed",
+    kind: "failed",
+    label: "Couldn't read",
+    reachable: true,
+    backendSite: "ProcuLink.Api/Jobs/ReadDocumentJob.cs:196",
+    reasonKeys: [],
+    note: "",
+  },
+  {
+    action: "document.retry_read",
+    kind: "recovered",
+    label: "Read again",
+    reachable: true,
+    backendSite: "ProcuLink.Api/Controllers/DocumentsController.cs:146",
+    reasonKeys: [],
+    note: "",
+  },
+  {
+    action: "document.value_edited",
+    kind: "edited",
+    label: "Value changed",
+    reachable: true,
+    backendSite: "ProcuLink.Api/Controllers/DocumentsController.cs:296",
+    reasonKeys: [],
+    note: "",
+  },
+  {
+    action: "document.value_taught",
+    kind: "edited",
+    label: "Value taught",
+    reachable: true,
+    backendSite: "ProcuLink.Api/Controllers/DocumentsController.cs:222",
+    reasonKeys: [],
+    note: "",
+  },
+  {
+    action: "document.sent",
+    kind: "validated",
+    label: "Sent",
+    reachable: true,
+    backendSite: "ProcuLink.Api/Services/Documents/DocumentSender.cs:157",
+    reasonKeys: [],
+    note: "",
+  },
+  {
+    action: "document.delivered",
+    kind: "delivered",
+    label: "Delivered",
+    reachable: true,
+    backendSite: "ProcuLink.Api/Jobs/DeliverDocumentJob.cs:122",
+    reasonKeys: [],
+    note: "",
+  },
+  {
+    action: "document.delivery_failed",
+    kind: "failed",
+    label: "Couldn't send", // statusVocabulary.test.ts retires the title-case "Delivery failed"
+    reachable: true,
+    backendSite: "ProcuLink.Api/Jobs/DeliverDocumentJob.cs:122",
     reasonKeys: [],
     note: "",
   },

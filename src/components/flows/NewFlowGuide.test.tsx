@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ApiHttpError } from "@/lib/api/core";
 import { NewFlowGuide } from "./NewFlowGuide";
 
 const url = vi.hoisted(() => {
@@ -24,12 +25,12 @@ vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => tru
 const api = vi.hoisted(() => ({
   createFlow: vi.fn(), getFlow: vi.fn(), uploadDocument: vi.fn(), getDocument: vi.fn(), retryDocumentRead: vi.fn(),
   saveFlowFields: vi.fn(), listOutputs: vi.fn(), createOutput: vi.fn(), updateOutput: vi.fn(),
-  listDestinations: vi.fn(), listLookups: vi.fn(), testDestination: vi.fn(), previewOutput: vi.fn(), listIntakes: vi.fn(),
+  listDestinations: vi.fn(), listLookups: vi.fn(), testDestination: vi.fn(), previewOutput: vi.fn(), listIntakes: vi.fn(), publishFlow: vi.fn(),
 }));
 vi.mock("@/lib/api/documents", () => api);
 
 const fields = { fields: [{ key: "total", label: "Total", type: "money", meaning: null, required: false }], tables: [] };
-const flow = { id: "f", name: "Receipts", fieldsConfirmed: true, fields, documentCount: 1, createdAt: "", automation: "review" };
+const flow = { id: "f", name: "Receipts", fieldsConfirmed: true, fields, documentCount: 1, createdAt: "", automation: "review", publishedVersion: null };
 const summary = (status: string) => ({
   id: "d", flowId: "f", flowName: "Receipts", fileName: "a.csv", status, statusReason: null,
   pageCount: 1, billingUnits: 1, failedChecks: 0, createdAt: "",
@@ -43,6 +44,7 @@ const renderGuide = () =>
 beforeEach(() => {
   vi.clearAllMocks();
   url.set("");
+  api.publishFlow.mockResolvedValue({});
   api.listDestinations.mockResolvedValue([]);
   api.listLookups.mockResolvedValue([]);
   api.getFlow.mockResolvedValue(flow);
@@ -81,6 +83,7 @@ describe("NewFlowGuide", () => {
     fireEvent.click(screen.getByRole("button", { name: "Finish" }));
     expect(await screen.findByText("Your flow is ready")).toBeTruthy();
     expect(api.updateOutput).toHaveBeenCalledTimes(1);
+    expect(api.publishFlow).toHaveBeenCalledWith("f");
     expect(url.get().get("flow")).toBe("f");
     expect(url.get().get("doc")).toBe("d");
   }, 30000);
@@ -109,5 +112,24 @@ describe("NewFlowGuide", () => {
     const body = api.updateOutput.mock.calls[0][2];
     expect(body.template).toEqual(template);
     expect(body.destinationId).toBe("x");
+  });
+  it("skips publishing against an older backend that sends no publishedVersion", async () => {
+    url.set("flow=f&doc=d&step=5");
+    const { publishedVersion, ...old } = flow;
+    api.getFlow.mockResolvedValue(old);
+    api.listOutputs.mockResolvedValue([output]);
+    renderGuide();
+    fireEvent.click(await screen.findByRole("button", { name: "Finish" }));
+    expect(await screen.findByText("Your flow is ready")).toBeTruthy();
+    expect(api.publishFlow).not.toHaveBeenCalled();
+  });
+  it("stays on step 5 and shows the refusal when publishing fails", async () => {
+    url.set("flow=f&doc=d&step=5");
+    api.listOutputs.mockResolvedValue([output]);
+    api.publishFlow.mockRejectedValue(new ApiHttpError("conflict", 409, { error: "publish_conflict" }));
+    renderGuide();
+    fireEvent.click(await screen.findByRole("button", { name: "Finish" }));
+    expect((await screen.findByRole("alert")).textContent).toContain("Someone else published this flow just now.");
+    expect(url.get().get("step")).toBe("5");
   });
 });

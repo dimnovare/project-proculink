@@ -43,6 +43,11 @@ import { ROOT } from "./appRoutes";
  */
 const WRITER_FILES = [
   "ProcuLink.Api/Controllers/AdminController.cs",
+  "ProcuLink.Api/Controllers/DocumentsController.cs",
+  "ProcuLink.Api/Jobs/DeliverDocumentJob.cs",
+  "ProcuLink.Api/Jobs/ReadDocumentJob.cs",
+  "ProcuLink.Api/Services/Documents/DocumentIntakeService.cs",
+  "ProcuLink.Api/Services/Documents/DocumentSender.cs",
   "ProcuLink.Api/Controllers/OpsController.cs",
   "ProcuLink.Api/Controllers/OrdersController.cs",
   "ProcuLink.Api/Controllers/SettingsController.cs",
@@ -186,6 +191,13 @@ export function parseAuditActions(src: string, consts: Map<string, string>): str
   }
 
   for (const m of src.matchAll(/WriteAuditAsync\(\s*[^,()]+,\s*"([^"]+)"/g)) found.add(m[1]);
+
+  // `DocumentAudit.Add(db, doc, <action>, …)` (third argument, possibly a ternary) and
+  // `AddAudit(doc, "action", …)` inside ReadDocumentJob.
+  for (const m of src.matchAll(/DocumentAudit\.Add\(\s*[^,()]+,\s*[^,()]+,\s*([^,]+),/g)) {
+    for (const a of resolveActionExpr(m[1], consts)) found.add(a);
+  }
+  for (const m of src.matchAll(/\bAddAudit\(\s*[^,()]+,\s*"([^"]+)"/g)) found.add(m[1]);
 
   return [...found];
 }
@@ -402,6 +414,9 @@ public class Sample
             orgId, orderId,
             accepted is not null ? "SupplierSuggestionAccepted" : "SupplierAssignedManually",
             new { }));
+        DocumentAudit.Add(db, doc, result.Success ? "document.delivered" : "document.delivery_failed",
+            new { output = o }, null);
+        AddAudit(doc, "document.read_failed", new { reason });
         await WriteAdminAuditAsync(org.Id, org.Id, "Organisation", "admin.org.limits_changed", data, ct);
         await WriteAuditAsync(
             org.Id,
@@ -430,6 +445,9 @@ public class Sample
         "SupplierAssignedManually",
         "admin.org.limits_changed", // WriteAdminAuditAsync 4th arg
         "inbound_email.no_attachments", // WriteAuditAsync 2nd arg, multi-line
+        "document.delivered", // DocumentAudit.Add ternary, both arms
+        "document.delivery_failed",
+        "document.read_failed", // AddAudit(doc, "…")
       ]),
     );
   });

@@ -16,11 +16,11 @@ import { fetchDocumentSource, getDocument, getFlow, getDocumentHistory, retryDoc
 import { formatDateTime } from "@/lib/format-date";
 import { documentRefusalMessage, refusalToken } from "@/lib/documentRefusals";
 import { documentStatus } from "@/lib/documentStatusManifest";
-import type { DocumentDetail, SourceLocation, TeachRequest } from "@/lib/api/documents";
+import type { DocumentDetail, Flow, SourceLocation, TeachRequest } from "@/lib/api/documents";
 import { DocumentOutputsPanel } from "./DocumentOutputsPanel";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { INPUT } from "./DestinationForm";
-import { ReadValuesPanel, type Teach } from "./ReadValuesPanel";
+import { ADDED_TO_CHANGES, ReadValuesPanel, type Teach } from "./ReadValuesPanel";
 import { Checks, Failed, Quiet, ReadProblem } from "./states";
 
 // The file's own extension decides the viewer. The server's content type is not trusted for this.
@@ -150,9 +150,11 @@ export function DocumentScreen({ flowId, documentId }: { flowId: string; documen
       qc.setQueryData(["document", documentId], d);
       const keys = [["document-history", documentId], ...(req.newLabel ? [["flow", d.summary.flowId], ["flows"]] : [])];
       for (const queryKey of keys) qc.invalidateQueries({ queryKey });
-      setTaught(d.senderLabel
+      const saved = d.senderLabel
         ? `Saved. Next time a document from ${d.senderLabel} comes in, we'll look there for ${label}.`
-        : `Saved. We'll look there for ${label} in every document in this flow.`);
+        : `Saved. We'll look there for ${label} in every document in this flow.`;
+      const unpublished = req.newLabel && typeof qc.getQueryData<Flow>(["flow", d.summary.flowId])?.publishedVersion === "number";
+      setTaught(unpublished ? `${saved} ${ADDED_TO_CHANGES}` : saved);
       setTeach(null);
     },
   });
@@ -194,6 +196,7 @@ export function DocumentScreen({ flowId, documentId }: { flowId: string; documen
                 {showOriginal ? "Hide original" : "Show original"}
               </Button>
             </div>
+            {typeof summary.flowVersion === "number" && <p className="m-0 mt-1 text-[12.5px] text-ink-muted">Processed with version {summary.flowVersion}</p>}
             {summary.source && (
               <p className="m-0 mt-1 text-[12.5px] text-ink-muted">
                 Arrived by {SOURCES.get(summary.source) ?? summary.source}{summary.sourceRef ? ` from ${summary.sourceRef}` : ""}
@@ -204,7 +207,7 @@ export function DocumentScreen({ flowId, documentId }: { flowId: string; documen
             </div>
           </Card>
           <div
-            className={`grid items-start gap-4 ${
+            className={`grid items-start gap-4 pb-24 lg:pb-0 ${
               showOriginal ? "lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_minmax(0,0.85fr)]" : "lg:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)]"
             }`}
           >

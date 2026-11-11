@@ -40,6 +40,7 @@ import { SftpPullSettings, S3PullSettings } from "@/components/settings/PullIngr
 import { InboundAddressSection } from "@/components/settings/InboundAddressSection";
 import { pollingHealthLine, type PollingHealthTone } from "@/components/settings/pollingHealth";
 import { webhookHealth, type WebhookHealthTone } from "@/components/settings/webhookHealth";
+import { NotificationEmailSection } from "@/components/flows/NotificationEmailSection";
 import { formatDateTime } from "@/lib/format-date";
 import { formatDate } from "@/lib/format-date";
 
@@ -1606,6 +1607,7 @@ function ConnectorsSection() {
 
   return (
     <div>
+      <NotificationEmailSection />
       <SettingsGroup title="Connectors" sub="ERP and channel integrations — send real-time events to Zapier, Make.com, or any webhook URL.">
 
         {/* How to connect — lead with the working REST/webhook path. The native

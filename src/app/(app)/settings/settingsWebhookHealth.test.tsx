@@ -24,6 +24,7 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/settings",
 }));
 
+vi.mock("@/components/flows/NotificationEmailSection", () => ({ NotificationEmailSection: () => null }));
 vi.mock("@clerk/nextjs", () => ({
   useOrganization: () => ({ organization: { name: "Test Org" } }),
 }));

@@ -88,25 +88,25 @@ describe("deliveredFilterLabel — derived from what the log can actually contai
     expect(deliveredFilterLabel(0)).toBeNull();
   });
 
-  it("CONTROL — the manifest really does have exactly one reachable delivered action", () => {
+  it("CONTROL — the manifest has exactly two reachable delivered actions (one order, one document)", () => {
     // Anti-vacuity for the whole rename: if this ever stops being 1, the rendered
     // chip below changes with it and the assertion about the rendered label must be
     // re-derived rather than left asserting a stale string.
     const reachable = AUDIT_ACTION_FACTS.filter((f) => f.kind === "delivered" && f.reachable);
-    expect(reachable.map((f) => f.action)).toEqual(["DeliveryConfirmedManually"]);
+    expect(reachable.map((f) => f.action)).toEqual(["DeliveryConfirmedManually", "document.delivered"]);
   });
 });
 
 describe("the delivery log's filter chips", () => {
-  it("does not offer a 'Delivered' chip that nothing can match", async () => {
+  it('offers a "Delivered" chip now that a document send can match it', async () => {
     renderLog();
     expect(await screen.findByRole("group", { name: "Filter events by kind" })).toBeTruthy();
 
-    expect(chips().queryByRole("button", { name: "Delivered" })).toBeNull();
-    expect(chips().getByRole("button", { name: "Confirmed by hand" })).toBeTruthy();
+    expect(chips().queryByRole("button", { name: "Confirmed by hand" })).toBeNull();
+    expect(chips().getByRole("button", { name: "Delivered" })).toBeTruthy();
   });
 
-  it("the renamed chip really does select the delivered kind", async () => {
+  it("the Delivered chip really does select the delivered kind", async () => {
     // The rename must not have quietly detached the chip from its filter — a chip
     // with honest words and no effect is a different defect, not a fix.
     const events: AuditLogEntry[] = [
@@ -118,7 +118,7 @@ describe("the delivery log's filter chips", () => {
     expect(await screen.findByText("PO-4711")).toBeTruthy();
     expect(screen.getByText("PO-9000")).toBeTruthy();
 
-    fireEvent.click(chips().getByRole("button", { name: "Confirmed by hand" }));
+    fireEvent.click(chips().getByRole("button", { name: "Delivered" }));
 
     expect(screen.getByText("PO-4711")).toBeTruthy();
     expect(screen.queryByText("PO-9000")).toBeNull();

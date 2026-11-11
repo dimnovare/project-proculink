@@ -342,8 +342,10 @@ describe("auditActionManifest — coverage floors", () => {
     // audit trail failing at precisely the moment it is being consulted.
     //
     // +2 reachable from the invoice flow (`InvoiceSentAnyway`, `InvoiceDestinationChanged`).
-    expect(AUDIT_ACTION_FACTS).toHaveLength(53);
-    expect(REACHABLE_AUDIT_ACTIONS).toHaveLength(48);
+    //
+    // +9 reachable from flow documents (`document.*`, written via DocumentAudit.Add).
+    expect(AUDIT_ACTION_FACTS).toHaveLength(62);
+    expect(REACHABLE_AUDIT_ACTIONS).toHaveLength(57);
   });
 
   it("classifies a substantial number of them as failures", () => {

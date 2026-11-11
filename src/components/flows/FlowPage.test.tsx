@@ -14,11 +14,12 @@ vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => tru
 const api = vi.hoisted(() => ({
   getFlow: vi.fn(), updateFlow: vi.fn(), listDocuments: vi.fn(), uploadDocument: vi.fn(), getDocument: vi.fn(),
   listOutputs: vi.fn(), deleteOutput: vi.fn(), listDestinations: vi.fn(),
+  publishFlow: vi.fn(), restoreFlowVersion: vi.fn(), listFlowVersions: vi.fn(),
 }));
 vi.mock("@/lib/api/documents", () => api);
 
 const flow = {
-  id: "f", name: "Receipts", fieldsConfirmed: true, fields: { fields: [], tables: [] },
+  id: "f", name: "Receipts", fieldsConfirmed: true, publishedVersion: null, fields: { fields: [], tables: [] },
   documentCount: 0, createdAt: "", automation: "review",
 };
 const DUPLICATE = "Documents with a number we've already received always wait for you.";
@@ -44,11 +45,24 @@ describe("FlowPage", () => {
     await waitFor(() => expect((screen.getByRole("radio", { name: "Automatic delivery" }) as HTMLInputElement).checked).toBe(true));
   });
 
+  it.each([[12, "The last 12 documents were sent without a correction."], [201, "The last 200+ documents were sent without a correction."]])(
+    "shows the no-correction streak %i beside the automation choice", async (n, text) => {
+      api.getFlow.mockResolvedValue({ ...flow, noCorrectionStreak: n });
+      renderPage();
+      expect(await screen.findByText(text)).toBeTruthy();
+    });
+
+  it("shows no streak text while the streak is absent", async () => {
+    renderPage();
+    await screen.findByRole("radio", { name: "Automatic delivery" });
+    expect(screen.queryByText(/without a correction|needed a correction/)).toBeNull();
+  });
+
   it("tabs are wired for screen readers and move with the arrow, Home and End keys", async () => {
     renderPage();
     const tabs = await screen.findAllByRole("tab");
     const panel = screen.getByRole("tabpanel");
-    expect(tabs.map((t) => t.tabIndex)).toEqual([0, -1, -1, -1]);
+    expect(tabs.map((t) => t.tabIndex)).toEqual([0, -1, -1, -1, -1]);
     expect(panel.getAttribute("aria-labelledby")).toBe(tabs[0].id);
     tabs.forEach((t) => expect(document.getElementById(t.getAttribute("aria-controls")!)).toBe(panel));
     const press = (key: string, expectedTab: string, i: number) => {
@@ -57,8 +71,8 @@ describe("FlowPage", () => {
       expect(document.activeElement).toBe(tabs[i]);
     };
     press("ArrowRight", "fields", 1);
-    press("ArrowLeft", "intake", 3);
-    press("End", "intake", 3);
+    press("ArrowLeft", "versions", 4);
+    press("End", "versions", 4);
     press("Home", "documents", 0);
   });
 

@@ -186,6 +186,16 @@ const REMEDY_BY_ACTION: Record<string, ActionRemedy> = {
     next: "Open the order to see whether it is still being retried or needs a person.",
   },
 
+  // ── Flow documents. ──
+  "document.read_failed": {
+    reach: "before_send",
+    next: "Open the document to retry the read or upload a corrected file. Nothing was sent from this one.",
+  },
+  "document.delivery_failed": {
+    reach: "unknown_send",
+    next: "Open the document to see whether it is still being retried or needs a person.",
+  },
+
   // ── Blocked by something outside the order ────────────────────────────────
   DeliveryHeldForBilling: {
     reach: "paused",

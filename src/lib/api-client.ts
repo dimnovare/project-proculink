@@ -2411,6 +2411,10 @@ export interface AuditLogEntry {
   actorInitials: string;
   message: string;
   payload: unknown;
+  /** Set together for FlowDocument events; null once the document is deleted. */
+  documentId?: string | null;
+  flowId?: string | null;
+  documentName?: string | null;
 }
 
 export interface AuditLogPage {

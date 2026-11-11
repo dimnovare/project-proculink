@@ -29,6 +29,7 @@ import { isPlanGate, PlanGateNotice } from "./PlanGateNotice";
 import { Card } from "./layout/Card";
 import { PageHeader } from "./layout/PageHeader";
 import { PageShell } from "./layout/PageShell";
+import { csvCell } from "@/lib/csvCell";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -59,6 +60,8 @@ type LogEntry = {
   ts: string;         // display time HH:mm:ss
   isoTs: string;      // ISO for grouping
   crossingId: string;
+  /** Set only for a live document row (both ids present): links to the document, not an order. */
+  documentHref?: string;
   po: string;
   buyer: string;
   supplier: string;
@@ -240,7 +243,8 @@ function mapApiEntry(e: AuditLogEntry): LogEntry {
     ts,
     isoTs:          e.ts,
     crossingId:     e.orderId ?? e.id,
-    po:             e.poNumber ?? e.orderId ?? "—",
+    documentHref:   e.documentId && e.flowId ? `/flows/${e.flowId}/documents/${e.documentId}` : undefined,
+    po:             (e.documentId && e.flowId && e.documentName) || (e.poNumber ?? e.orderId ?? "—"),
     buyer:          e.buyerName ?? "—",
     supplier:       e.supplierName ?? "—",
     fmt:            e.format ?? "—",
@@ -607,13 +611,12 @@ export function CrossingsLog() {
 
   // Export filtered log as CSV
   function handleExport() {
-    const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
     const header = ["Timestamp", "Event", "PO", "Buyer", "Supplier", "Format", "Actor", "Message"];
     const body = filtered.map((e) =>
       [e.ts, entryLabel(e), e.po, e.buyer, e.supplier, e.fmt, e.actor.name, e.message]
-        .map(esc).join(","),
+        .map(csvCell).join(","),
     );
-    const csv = [header.map(esc).join(","), ...body].join("\r\n");
+    const csv = [header.map(csvCell).join(","), ...body].join("\r\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -1332,17 +1335,17 @@ export function CrossingsLog() {
                               {/* Action buttons — canonical: View order / Retry delivery / Export entry */}
                               <div className="row gap-2 wrap" style={{ marginTop: 11 }}>
                                 {/* View order — secondary, navigates to /inbox/{id} */}
-                                <button
+                                {(c.documentHref || !c.action?.startsWith("document.")) && <button
                                   className="btn btn-secondary sm"
-                                  onClick={() => router.push(`/inbox/${c.crossingId}`)}
+                                  onClick={() => router.push(c.documentHref ?? `/inbox/${c.crossingId}`)}
                                   style={isMobile ? { height: 36 } : undefined}
                                 >
                                   {/* eye icon */}
                                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
                                     <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z" /><circle cx="12" cy="12" r="3" />
                                   </svg>
-                                  View order
-                                </button>
+                                  {c.documentHref ? "View document" : "View order"}
+                                </button>}
 
                                 {/* Open to resend — secondary, only for failed events. There is no
                                     retry-from-here API; this navigates to the order, where the resend
@@ -1372,14 +1375,13 @@ export function CrossingsLog() {
                                 <button
                                   className="btn btn-ghost sm"
                                   onClick={() => {
-                                    const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-                                    const row = [c.ts, entryLabel(c), c.po, c.buyer, c.supplier, c.fmt, c.actor.name, c.message].map(esc).join(",");
+                                    const row = [c.ts, entryLabel(c), c.po, c.buyer, c.supplier, c.fmt, c.actor.name, c.message].map(csvCell).join(",");
                                     const csv = [`"Timestamp","Event","PO","Buyer","Supplier","Format","Actor","Message"`, row].join("\r\n");
                                     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
                                     const url = URL.createObjectURL(blob);
                                     const a = document.createElement("a");
                                     a.href = url;
-                                    a.download = `delivery-${c.po}-${c.ts.replace(/:/g, "-")}.csv`;
+                                    a.download = `delivery-${c.po.replace(/[^\w.-]+/g, "_")}-${c.ts.replace(/:/g, "-")}.csv`;
                                     document.body.appendChild(a); a.click(); document.body.removeChild(a);
                                     URL.revokeObjectURL(url);
                                   }}
