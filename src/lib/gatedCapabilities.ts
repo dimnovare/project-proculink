@@ -24,7 +24,7 @@
 // the row below. Re-tiering a capability is then one edit here, and every surface follows.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { PLAN_BY_ID, PLANS, type PlanId } from "@/lib/plans";
+import { DOCUMENT_PLAN_IDS, PLAN_BY_ID, PLANS, type PlanId } from "@/lib/plans";
 
 /**
  * The minimum plan per gated capability, mirroring `PlanConstants.MinimumPlan`.
@@ -71,6 +71,8 @@ export function minimumPlanName(capability: GatedCapability): string {
  * never heard of gets the cautious answer, and the backend remains the enforcer either way.
  */
 export function planIncludesCapability(plan: string, capability: GatedCapability): boolean {
+  // A document plan has every feature but SSO, as `PlanConstants.PlanHasFeature` answers.
+  if (DOCUMENT_PLAN_IDS.includes(plan as PlanId)) return capability !== "sso";
   const position = PLANS.findIndex((p) => p.id === plan);
   if (position < 0) return false;
   return position >= PLANS.findIndex((p) => p.id === MINIMUM_PLAN[capability]);

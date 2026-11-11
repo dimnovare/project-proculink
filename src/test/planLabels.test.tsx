@@ -2,7 +2,7 @@ import { describe, expect, it, vi, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-import { PLANS, PLAN_IDS, planDisplayName, planName } from "@/lib/plans";
+import { DOCUMENT_PLANS, PLANS, PLAN_IDS, planDisplayName, planName } from "@/lib/plans";
 import { planGateRequiredPlan } from "@/lib/planGate";
 
 // Every tier the ladder sells must have a name a customer can read.
@@ -33,7 +33,7 @@ describe("the ladder being swept is real", () => {
     // list exactly like this one is the defect.
     expect(PLANS.length).toBe(6);
     expect(PLANS.map((p) => p.id)).toContain("distributor");
-    expect(PLAN_IDS.length).toBe(PLANS.length);
+    expect(PLAN_IDS.length).toBe(PLANS.length + DOCUMENT_PLANS.length);
   });
 
   it("orders PLAN_IDS longest-first, which planGate's alternation depends on", () => {

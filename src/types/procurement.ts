@@ -549,7 +549,12 @@ export type BillingPlan =
   | "operations"
   | "integration"
   | "distributor"
-  | "enterprise";
+  | "enterprise"
+  // The document ladder (plan 11), sold to workspaces with the document engine.
+  | "starter"
+  | "pro"
+  | "business"
+  | "scale";
 
 export interface BillingStatus {
   plan:                   BillingPlan;
