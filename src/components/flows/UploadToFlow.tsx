@@ -5,12 +5,10 @@ import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
-import { Card } from "@/components/bridge/layout/Card";
-import { EmptyState } from "@/components/bridge/EmptyState";
 import { UploadWorkbench } from "@/components/bridge/UploadWorkbench";
 import { flowsQuery, useDocumentEngine } from "@/hooks/useDocumentEngine";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
-import { Failed, Quiet } from "./states";
+import { Failed, FirstFlowEmpty, Quiet } from "./states";
 import { FlowUpload } from "./FlowUpload";
 
 /** Engine on: pick a flow, upload into it. Anything else (including a probe still loading): the legacy workbench. */
@@ -31,16 +29,7 @@ export function UploadToFlow() {
   } else if (!flows.data) {
     body = <Quiet>Loading flows…</Quiet>;
   } else if (!flowId) {
-    body = (
-      <Card>
-        <EmptyState
-          compact
-          title="Set up your first flow"
-          sub="A flow tells us what to read from your documents and where to send it."
-          action={{ label: "New flow", onClick: () => router.push("/flows/new") }}
-        />
-      </Card>
-    );
+    body = <FirstFlowEmpty />;
   } else {
     body = (
       <div className="flex flex-col gap-4">

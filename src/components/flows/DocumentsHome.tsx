@@ -16,7 +16,7 @@ import { pagePopulation } from "@/components/bridge/orderCountContract";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
 import { documentStatus } from "@/lib/documentStatusManifest";
 import { DocumentList } from "./DocumentList";
-import { Quiet } from "./states";
+import { FirstFlowEmpty, Quiet } from "./states";
 
 const FILTERS: { label: string; test: (d: DocumentSummary) => boolean }[] = [
   { label: "All", test: () => true },
@@ -59,6 +59,8 @@ export function DocumentsHome() {
     );
   } else if (engine === "unknown" || !flows.data) {
     body = <Quiet>Loading flows…</Quiet>;
+  } else if (flows.data.length === 0) {
+    body = <FirstFlowEmpty />;
   } else {
     body = (
       <section aria-label="Recent documents" className="flex flex-col gap-3">

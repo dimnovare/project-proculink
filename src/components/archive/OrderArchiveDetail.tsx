@@ -9,6 +9,7 @@ import { Button } from "@/components/bridge/DSPrimitives";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { formatMoney } from "@/components/bridge/mapper/fieldBadgesModel";
 import { Failed, Quiet } from "@/components/flows/states";
+import { downloadFailureMessage } from "@/components/bridge/OrderPassport";
 import { mapStatus, STATUS_PRESENTATION } from "@/components/bridge/InboxView";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { apiClient } from "@/lib/api-client";
@@ -59,7 +60,7 @@ export function OrderArchiveDetail({ orderId }: { orderId: string }) {
                     <td className="px-3 py-2">{l.lineNumber}</td>
                     <td className="px-3 py-2 font-mono">{l.supplierItemCode ?? l.buyerItemCode}</td>
                     <td className="px-3 py-2">{l.quantity}</td>
-                    <td className="px-3 py-2">{l.unitPrice}</td>
+                    <td className="px-3 py-2">{formatMoney(l.unitPrice, o.currency)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -74,7 +75,7 @@ export function OrderArchiveDetail({ orderId }: { orderId: string }) {
               </li>
             ))}
           </ul>
-          {dl.isError && <StatusNotice tone="error">We couldn't start the download. Try again in a moment.</StatusNotice>}
+          {dl.isError && <StatusNotice tone="error">{downloadFailureMessage(dl.error)}</StatusNotice>}
         </>
       )}
     </PageShell>

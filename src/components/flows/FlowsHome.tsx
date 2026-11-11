@@ -8,12 +8,11 @@ import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import { Card } from "@/components/bridge/layout/Card";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { Button } from "@/components/bridge/DSPrimitives";
-import { EmptyState } from "@/components/bridge/EmptyState";
 import { flowsQuery, useDocumentEngine } from "@/hooks/useDocumentEngine";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
 import { deliveryModeLabel } from "@/lib/deliveryMode";
-import { Quiet } from "./states";
+import { FirstFlowEmpty, Quiet } from "./states";
 
 const Retry = ({ onClick }: { onClick: () => void }) => (
   <Button variant="secondary" size="sm" onClick={onClick}>Retry</Button>
@@ -42,14 +41,7 @@ export function FlowsHome() {
       <div className="flex flex-col gap-6">
         <section aria-label="Flows" className="flex flex-col gap-2">
           {flows.data.length === 0 ? (
-            <Card>
-              <EmptyState
-                compact
-                title="Set up your first flow"
-                sub="A flow tells us what to read from your documents and where to send it."
-                action={{ label: "New flow", onClick: newFlow }}
-              />
-            </Card>
+            <FirstFlowEmpty />
           ) : (
             flows.data.map((f) => (
               <Link key={f.id} href={`/flows/${f.id}`} className="block">

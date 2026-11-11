@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { ApiHttpError } from "@/lib/api/core";
 import { describeUploadFailure } from "./UploadWorkbench";
+import { ORDERS_RETIRED_MESSAGE } from "@/lib/documentRefusals";
 
 /**
  * The upload banner reads `ApiHttpError.body`, not `.message` — so the constructor's cleaning does
@@ -78,5 +79,17 @@ describe("the upload banner never shows the operator a proxy's error page", () =
     );
     expectNoMarkup(banner.message);
     expect(banner.message.length).toBeGreaterThan(10);
+  });
+});
+
+describe("the retired legacy upload", () => {
+  it("says the workspace uses flows, with no file-guide link", () => {
+    const banner = describeUploadFailure(
+      new ApiHttpError("Upload failed: Gone", 410, { error: "orders_retired" }),
+      "orders.csv",
+    );
+    expect(banner.message).toBe(ORDERS_RETIRED_MESSAGE);
+    expect(banner.cta).toBe("");
+    expect(banner.href).toBeUndefined();
   });
 });

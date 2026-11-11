@@ -26,7 +26,7 @@ const mount = () =>
 
 describe("DocumentsHome", () => {
   it("lists recent documents and narrows to Needs you", async () => {
-    listFlows.mockResolvedValue([]);
+    listFlows.mockResolvedValue([{ id: "f1", name: "Invoices" }]);
     mount();
     const region = within(await screen.findByRole("region", { name: "Recent documents" }));
     expect((await region.findAllByText("sent-one.pdf")).length).toBeGreaterThan(0);

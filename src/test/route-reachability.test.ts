@@ -158,7 +158,6 @@ export const KNOWN_DEEP_LINK_ONLY: Record<string, string> = {
   //    the page is now reachable on its own merits and the entry is gone —
   //    see "/one-pager is reached by a real link" below, which is what stops
   //    this from quietly reverting to an allowlist entry.
-
 };
 
 /**
@@ -224,8 +223,7 @@ export const KNOWN_DEEP_LINK_ONLY: Record<string, string> = {
  *      permanent cover. With the list empty that comparison is at its
  *      strongest: it now asserts that NOTHING is stranded.
  */
-export const STRANDED_PENDING_DECISION: Record<string, string> = {
-};
+export const STRANDED_PENDING_DECISION: Record<string, string> = {};
 
 // ─── Route enumeration ────────────────────────────────────────────────────────
 

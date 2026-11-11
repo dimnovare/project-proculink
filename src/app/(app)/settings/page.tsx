@@ -1218,6 +1218,7 @@ function IngressEndpointRow({ slug }: { slug: string | undefined }) {
 // ── API Keys Section ──────────────────────────────────────────────────────
 
 function ApiKeysSection() {
+  const engineOn = useDocumentEngine() === "on";
   const qc = useQueryClient();
   const [newLabel, setNewLabel]   = useState("");
   const [newKey, setNewKey]       = useState<string | null>(null);
@@ -1304,10 +1305,10 @@ function ApiKeysSection() {
       <SettingsGroup title="API keys" sub="Authenticate the ProcuLink REST API. Each key is shown once at creation.">
 
         {/* Where to send orders — slug + endpoint + auth header */}
-        <IngressEndpointRow slug={orgSettings?.slug} />
+        {!engineOn && <IngressEndpointRow slug={orgSettings?.slug} />}
 
         {/* Where to email orders — the org's issued addresses (CF MX → Postmark → parse) */}
-        <InboundAddressSection />
+        {!engineOn && <InboundAddressSection />}
 
         {/* One-time API key reveal — a focus-trapped modal (Esc / ✕ / backdrop close).
             The secret is shown ONCE and cannot be retrieved again after dismissal. */}
