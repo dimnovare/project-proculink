@@ -96,6 +96,8 @@ describe("BillingSection on the document ladder", () => {
     const notice = view.getByText("You're over your monthly document allowance.").parentElement!;
     expect(notice.textContent).toContain("€0.24");
     expect(notice.textContent).not.toContain("€0.50");
+    // A paid document plan changes its live subscription, so its next plan is on offer again.
+    expect(view.getByRole("button", { name: /Need more volume\? Upgrade to Pro/ })).toBeTruthy();
 
     const growth = await renderWith(
       billing({ plan: "growth", accountStatus: "active", ordersThisMonth: 160, orderLimit: 150, overageOrders: 10, overageAmountEur: 5, atLimit: true }),
