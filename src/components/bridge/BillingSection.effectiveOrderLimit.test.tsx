@@ -40,6 +40,8 @@ vi.mock("@/lib/api-client", () => ({
 }));
 
 vi.mock("@/lib/analytics", () => ({ capture: vi.fn() }));
+// No tenant session here, so the real useDocumentEngine reports "unknown" and the legacy ladder renders.
+vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => false }));
 
 import { BillingSection } from "./BillingSection";
 

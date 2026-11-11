@@ -44,9 +44,12 @@ vi.mock("@/lib/api-client", () => ({
 }));
 
 vi.mock("@/lib/analytics", () => ({ capture: vi.fn() }));
+// No tenant session here, so the real useDocumentEngine reports "unknown" and the legacy ladder renders.
+vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => false }));
 
 /**
- * A MUTABLE clone of the ladder, shared with the component under test.
+ * The ladder's REAL plan objects, mutable and shared with the component under test — not a
+ * clone, so `nextPlanFor` (which reads plans.ts's own `PLAN_BY_ID`) sees every patch too.
  *
  * `Distributor` is renamed inside the factory because `PLAN_META` is built at module load
  * and can only see a rename that is already in place. `pilot.next` is re-pointed inside
@@ -63,9 +66,7 @@ const RENAMED_DISTRIBUTOR = h.renamedDistributor;
 
 vi.mock("@/lib/plans", async () => {
   const actual = await vi.importActual<typeof import("@/lib/plans")>("@/lib/plans");
-  for (const [id, plan] of Object.entries(actual.PLAN_BY_ID)) {
-    h.ladder[id] = { ...plan };
-  }
+  Object.assign(h.ladder, actual.PLAN_BY_ID);
   (h.ladder.distributor as Plan).name = h.renamedDistributor;
   return { ...actual, PLAN_BY_ID: h.ladder };
 });
