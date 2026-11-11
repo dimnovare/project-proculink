@@ -767,7 +767,7 @@ export function BillingSection() {
             <>
               <IntervalToggle value={checkoutInterval} onChange={setCheckoutInterval} disabled={checkoutMutation.isPending} />
               {confirmingUpgrade ? (
-                <div role="group" aria-label={`Confirm upgrade to ${PLAN_META[nextPlan].label}`} style={{ display: "flex", flexDirection: "column", gap: 10, borderRadius: 10, padding: "13px 15px", background: "var(--surface)", border: "1px solid var(--border)", fontSize: 12.5, lineHeight: 1.55, color: "var(--ink-muted)" }}>
+                <Card pad="13px 15px" radius={10} role="group" aria-label={`Confirm upgrade to ${PLAN_META[nextPlan].label}`} style={{ display: "flex", flexDirection: "column", gap: 10, fontSize: 12.5, lineHeight: 1.55, color: "var(--ink-muted)" }}>
                   <span>
                     <strong style={{ color: "var(--ink)" }}>
                       Upgrade to {PLAN_META[nextPlan].label} at {billingPriceLabelFor(PLAN_BY_ID[nextPlan], checkoutInterval)}?
@@ -790,7 +790,7 @@ export function BillingSection() {
                       Cancel
                     </button>
                   </div>
-                </div>
+                </Card>
               ) : (
               <button
                 onClick={() => setConfirmingUpgrade(true)}
