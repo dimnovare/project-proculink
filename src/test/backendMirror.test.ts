@@ -48,7 +48,7 @@ import {
   parseTestSummary,
 } from "@/components/connections/testPackSummary";
 import { MINIMUM_PLAN } from "@/lib/gatedCapabilities";
-import { OVERAGE_PER_ORDER_EUR, PLANS } from "@/lib/plans";
+import { OVERAGE_PER_ORDER_EUR, PLAN_BY_ID } from "@/lib/plans";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // The cross-repo mirror check.
@@ -2172,23 +2172,25 @@ export function parsePlanLimitRows(cs: string): Record<string, { orders: string;
 }
 
 /**
- * The `MonthlyPriceEur` rows: `[Growth] = 149m,` → `{ Growth: 149 }`. Null when absent.
+ * The rows of a numeric plan dictionary: `[Growth] = 149m,` → `{ Growth: 149 }`. Null when absent.
  *
- * Scoped to the dictionary body on purpose — `PlanConstants` holds several other
+ * Scoped to the named dictionary body on purpose — `PlanConstants` holds several
  * `[Plan] = value` dictionaries (AI token budgets among them) whose rows look identical.
  */
-export function parseMonthlyPriceRows(cs: string): Record<string, number> | null {
+export function parseNumberRows(cs: string, valueType: string, name: string): Record<string, number> | null {
   const src = stripCsComments(cs);
-  const start = src.search(/IReadOnlyDictionary<string,\s*decimal>\s+MonthlyPriceEur\s*=/);
+  const start = src.search(new RegExp(`IReadOnlyDictionary<string,\\s*${valueType}>\\s+${name}\\s*=`));
   if (start < 0) return null;
   const end = src.indexOf("};", start);
   if (end < 0) return null;
   const out: Record<string, number> = {};
-  for (const m of src.slice(start, end).matchAll(/\[(\w+)\]\s*=\s*([0-9_]+(?:\.[0-9]+)?)m/g)) {
+  for (const m of src.slice(start, end).matchAll(/\[(\w+)\]\s*=\s*([0-9_]+(?:\.[0-9]+)?)m?/g)) {
     out[m[1]] = Number(m[2].replace(/_/g, ""));
   }
   return out;
 }
+
+export const parseMonthlyPriceRows = (cs: string) => parseNumberRows(cs, "decimal", "MonthlyPriceEur");
 
 /** `public const decimal OveragePerOrderEur = 0.50m;` → 0.5. Null when absent. */
 export function parseDecimalConstant(cs: string, name: string): number | null {
@@ -2262,6 +2264,7 @@ public static class PlanConstants
       Enterprise: { orders: "int.MaxValue", suppliers: "int.MaxValue" },
     });
     expect(parseMonthlyPriceRows(fixture)).toEqual({ Pilot: 0, Growth: 1499, Enterprise: 0 });
+    expect(parseNumberRows(fixture, "long", "AiMonthlyTokenLimits")).toEqual({ Growth: 1_000_000 });
     expect(parseDecimalConstant(fixture, "OveragePerOrderEur")).toBe(0.5);
 
     const ints = parseIntConstants(fixture);
@@ -2308,7 +2311,7 @@ public static class PlanConstants
     recordComparison(
       "PlanConstants.Limits",
       backendPairs,
-      PLANS.flatMap((p) => [
+      Object.values(PLAN_BY_ID).flatMap((p) => [
         `${p.id} orders=${frontendAllowance(p.orderLimit)}`,
         `${p.id} suppliers=${frontendAllowance(p.supplierLimit)}`,
       ]),
@@ -2349,7 +2352,7 @@ public static class PlanConstants
     recordComparison(
       "PlanConstants.MonthlyPriceEur",
       backendPairs,
-      PLANS.map((p) => `${p.id}=${p.priceMonthly == null ? CUSTOM : String(p.priceMonthly)}`),
+      Object.values(PLAN_BY_ID).map((p) => `${p.id}=${p.priceMonthly == null ? CUSTOM : String(p.priceMonthly)}`),
       "src/lib/plans.ts disagrees with PlanConstants.MonthlyPriceEur. The frontend amount is the " +
         "one a buyer reads before entering a card; the backend's is what the MRR estimate is built " +
         "from. Nothing fails when they part company — the price is simply advertised at one number " +
@@ -2377,6 +2380,26 @@ public static class PlanConstants
         "so a drift here is a quoted price the customer is not billed at.",
     );
   });
+
+  // A plan with no row means "no cap" / "no overage" on both sides (the frontend spells it
+  // null), so the diff is over the rows present — and a row on one side only is drift.
+  test.skipIf(!BACKEND).each([
+    ["FlowLimits", "int", "flowLimit"],
+    ["OverageRatesEur", "decimal", "overageEur"],
+  ] as const)("every plan's %s row matches the C#", (table, valueType, field) => {
+    const cs = readFileSync(join(BACKEND!, PLAN_CONSTANTS_REL), "utf8");
+    const rows = parseNumberRows(cs, valueType, table);
+    expect(rows, `${PLAN_CONSTANTS_REL} no longer declares ${table}, which src/lib/plans.ts mirrors.`).not.toBeNull();
+    const planValues = parseStatusConstants(cs);
+    recordComparison(
+      `PlanConstants.${table}`,
+      Object.entries(rows!).map(([planIdentifier, n]) => `${planValues[planIdentifier] ?? planIdentifier}=${n}`),
+      Object.values(PLAN_BY_ID)
+        .filter((p) => p[field] != null)
+        .map((p) => `${p.id}=${p[field]}`),
+      `src/lib/plans.ts ${field} disagrees with PlanConstants.${table}. Fix whichever side is wrong.`,
+    );
+  });
 });
 
 // ── The vacuity floor ────────────────────────────────────────────────────────
@@ -2398,7 +2421,7 @@ const EXPECTED_COMPARISONS =
   Object.keys(TEST_PACK_BACKEND_RECORDS).length + // one per test-pack record mirrored
   1 + // the plan-gate codes quoted in the admin guides
   1 + // MINIMUM_PLAN against PlanConstants.MinimumPlan
-  3 + // the ladder's numbers: Limits, MonthlyPriceEur, OveragePerOrderEur
+  5 + // the ladder's numbers: Limits, MonthlyPriceEur, OveragePerOrderEur, FlowLimits, OverageRatesEur
   1; // document statuses
 
 afterAll(() => {

@@ -16,6 +16,11 @@ describe("documentRefusalMessage", () => {
     expect(documentRefusalMessage(refusal({ error: "output_invalid", detail: "template" })))
       .toBe("This output has an empty step. Remove it or finish setting it up.");
   });
+  it("words the flow cap and keeps the paused copy as its own control", () => {
+    expect(documentRefusalMessage(refusal({ error: "flow_limit_reached", limit: 2 })))
+      .toBe("You've reached your plan's flow limit. Upgrade in Settings → Plan & billing to add more flows.");
+    expect(documentRefusalMessage(refusal({ error: "processing_paused" }))).toBe("Processing is paused on this workspace.");
+  });
   it("falls back to the generic line for an unknown token", () => {
     expect(documentRefusalMessage(refusal({ error: "mystery" }))).toBe("Something went wrong. Try again.");
   });

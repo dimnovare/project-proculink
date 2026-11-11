@@ -50,6 +50,10 @@ export interface Plan {
   orderLimit: number | null;
   /** Supplier-flow allowance. null = custom (Enterprise). */
   supplierLimit: number | null;
+  /** Flows per workspace (`PlanConstants.FlowLimits`). null = no cap. */
+  flowLimit: number | null;
+  /** Billed rate per document above the allowance (`PlanConstants.OverageRatesEur`). null = none. */
+  overageEur: number | null;
   /** False for Pilot (its order limit is a one-time trial total, not monthly). */
   orderLimitIsMonthly: boolean;
   /** Short positioning blurb (pricing card description). */
@@ -142,6 +146,8 @@ export const PLANS: Plan[] = [
     billingSummary: "Up to 20 documents · 1 supplier · 14 days",
     orderLimit: 20,
     supplierLimit: 1,
+    flowLimit: 2,
+    overageEur: null,
     orderLimitIsMonthly: false,
     // The PDF / Excel / CSV named here are INPUTS — upload formats every plan accepts. ProcuLink
     // does not write PDF or Excel; "supplier-ready" output is XML, CSV, cXML, JSON, UBL or X12.
@@ -197,6 +203,8 @@ export const PLANS: Plan[] = [
     billingSummary: "Up to 150 documents / month · 5 suppliers · all channels",
     orderLimit: 150,
     supplierLimit: 5,
+    flowLimit: null,
+    overageEur: 0.5,
     orderLimitIsMonthly: true,
     blurb: "For teams ready to process recurring buyer orders.",
     recommendationBlurb:
@@ -272,6 +280,8 @@ export const PLANS: Plan[] = [
     billingSummary: "Up to 500 documents / month · 10 suppliers · all channels",
     orderLimit: 500,
     supplierLimit: 10,
+    flowLimit: null,
+    overageEur: 0.5,
     orderLimitIsMonthly: true,
     blurb: "For order teams that need reliable daily processing.",
     recommendationBlurb:
@@ -314,6 +324,8 @@ export const PLANS: Plan[] = [
     billingSummary: "Up to 1,500 documents / month · 20 suppliers · all channels",
     orderLimit: 1500,
     supplierLimit: 20,
+    flowLimit: null,
+    overageEur: 0.5,
     orderLimitIsMonthly: true,
     blurb: "For higher-volume teams scaling order processing across more suppliers.",
     recommendationBlurb:
@@ -357,6 +369,8 @@ export const PLANS: Plan[] = [
     billingSummary: "Up to 2,500 documents / month · 30 suppliers · all channels",
     orderLimit: 2500,
     supplierLimit: 30,
+    flowLimit: null,
+    overageEur: 0.5,
     orderLimitIsMonthly: true,
     blurb: "For distributors and resellers routing high order volume across many suppliers.",
     recommendationBlurb:
@@ -397,6 +411,8 @@ export const PLANS: Plan[] = [
     billingSummary: "Volume, SLA, and connector scope by agreement",
     orderLimit: null,
     supplierLimit: null,
+    flowLimit: null,
+    overageEur: null,
     orderLimitIsMonthly: true,
     blurb: "For complex supplier networks, ERP integrations, and high-volume order flows.",
     recommendationBlurb:
@@ -436,8 +452,52 @@ export const PLANS: Plan[] = [
   },
 ];
 
-/** Plans keyed by id for O(1) lookup. */
-export const PLAN_BY_ID: Record<PlanId, Plan> = PLANS.reduce(
+/**
+ * The document ladder (plan 11), sold to workspaces with the document engine beside the
+ * legacy ladder above. Mirrors the document rows of `PlanConstants` (Limits, MonthlyPriceEur,
+ * FlowLimits, OverageRatesEur), diffed by `backendMirror.test.ts`. Every one of them has every
+ * channel, output and check (`PlanHasFeature`: all but SSO); they differ by documents per month
+ * and flows. Annual is 10 × monthly. Deliberately NOT in `PLANS`, so no public page or
+ * card-walking test sees them; the accent is Growth's, already contrast-checked as button text.
+ */
+export const DOCUMENT_PLANS: Plan[] = (
+  [
+    ["starter", "Starter", 35, 150, 5, 0.24, "Up to 150 documents / month · 5 flows · every channel"],
+    ["pro", "Pro", 69, 400, 20, 0.18, "Up to 400 documents / month · 20 flows · every channel"],
+    ["business", "Business", 149, 1500, 100, 0.1, "Up to 1,500 documents / month · 100 flows · every channel"],
+    ["scale", "Scale", 399, 5000, null, 0.08, "Up to 5,000 documents / month · unlimited flows · every channel"],
+  ] as const
+).map(([id, name, priceMonthly, orderLimit, flowLimit, overageEur, billingSummary], i, ladder): Plan => ({
+  id,
+  name,
+  priceMonthly,
+  priceYearly: priceMonthly * 10,
+  priceLabel: `€${priceMonthly}`,
+  priceCadence: "per month",
+  billingPriceLabel: `€${priceMonthly}/mo`,
+  billingSummary,
+  orderLimit,
+  supplierLimit: null,
+  flowLimit,
+  overageEur,
+  orderLimitIsMonthly: true,
+  blurb: "",
+  recommendationBlurb: "",
+  features: [],
+  inheritsFrom: null,
+  cta: { label: `Upgrade to ${name}`, href: SIGN_UP },
+  color: PLANS.find((p) => p.id === "growth")!.color,
+  highlight: false,
+  isCheckout: true,
+  isCustom: false,
+  next: ladder[i + 1]?.[0] ?? null,
+  hidden: true,
+}));
+
+export const DOCUMENT_PLAN_IDS: PlanId[] = DOCUMENT_PLANS.map((p) => p.id);
+
+/** Plans keyed by id for O(1) lookup — both ladders. */
+export const PLAN_BY_ID: Record<PlanId, Plan> = [...PLANS, ...DOCUMENT_PLANS].reduce(
   (acc, plan) => {
     acc[plan.id] = plan;
     return acc;
@@ -450,9 +510,14 @@ export const PLAN_BY_ID: Record<PlanId, Plan> = PLANS.reduce(
  *
  * The ordering matters to `src/lib/planGate.ts`, which builds a regex alternation out of it:
  * a shorter id that prefixes a longer one would shadow it. Nothing in the current ladder does,
- * but the sort makes that a property of the code rather than of today's six names.
+ * but the sort makes that a property of the code rather than of today's names.
  */
-export const PLAN_IDS: PlanId[] = PLANS.map((p) => p.id).sort((a, b) => b.length - a.length);
+export const PLAN_IDS: PlanId[] = Object.values(PLAN_BY_ID).map((p) => p.id).sort((a, b) => b.length - a.length);
+
+/** The plan to offer next: Starter for a Pilot on the document ladder, otherwise the plan's own `next`. */
+export function nextPlanFor(plan: PlanId, documentLadder: boolean): PlanId | null {
+  return documentLadder && plan === "pilot" ? "starter" : PLAN_BY_ID[plan].next;
+}
 
 /**
  * A plan's name as a user reads it — `"Distributor plan"`.

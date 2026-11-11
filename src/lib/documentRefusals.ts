@@ -28,6 +28,7 @@ export const COPY: Record<string, string> = {
   invalid_name: "Use a name of 120 characters or fewer.",
   pilot_expired: "Your trial has ended, so new documents aren't being accepted.",
   order_limit_reached: "You've reached your plan's document limit for this month.",
+  flow_limit_reached: "You've reached your plan's flow limit. Upgrade in Settings → Plan & billing to add more flows.",
   no_output_matches: "No output is set to send this document. Check “Send when” on the flow's outputs.",
   lookup_in_use: "An output uses this lookup. Remove it from the output first.",
   template: "This output has an empty step. Remove it or finish setting it up.",

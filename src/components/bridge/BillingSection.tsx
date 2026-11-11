@@ -8,7 +8,8 @@ import {
 } from "@/lib/api-client";
 import { useState } from "react";
 import type { BillingPlan, BillingStatus } from "@/types/procurement";
-import { PLAN_BY_ID, CHECKOUT_PLAN_IDS, yearlySavePercent, billingPriceLabelFor } from "@/lib/plans";
+import { PLAN_BY_ID, CHECKOUT_PLAN_IDS, DOCUMENT_PLAN_IDS, nextPlanFor, yearlySavePercent, billingPriceLabelFor } from "@/lib/plans";
+import { useDocumentEngine, flowsQuery } from "@/hooks/useDocumentEngine";
 import { capture } from "@/lib/analytics";
 import { isOrgAdminRefusal, orgAdminMessage } from "@/lib/planGate";
 import { BOOK_DEMO_URL, BOOK_DEMO_LINK_ATTRS } from "@/lib/book-demo";
@@ -278,8 +279,8 @@ function ProcessingPausedBanner({
  * null is a real branch rather than a missing value: there is no upgrade to sell, so the copy
  * asks them to talk to us. Naming a tier there would be naming a CHEAPER one.
  */
-function upgradeSentence(plan: BillingPlan, outcome: string): string {
-  const next = PLAN_BY_ID[plan]?.next;
+function upgradeSentence(plan: BillingPlan, outcome: string, documentLadder: boolean): string {
+  const next = nextPlanFor(plan, documentLadder);
   return next ? `Upgrade to ${PLAN_BY_ID[next].name} to ${outcome}.` : `Contact us to ${outcome}.`;
 }
 
@@ -304,7 +305,7 @@ function upgradeSentence(plan: BillingPlan, outcome: string): string {
 // ProcessingPausedBanner away, so a paused workspace would get NO banner instead of
 // exactly one — the failure the two guards are written in lock-step to prevent. It
 // stays, and it states the effective allowance rather than a plan-default literal.
-function LimitBanner({ status }: { status: BillingStatus }) {
+function LimitBanner({ status, documentLadder }: { status: BillingStatus; documentLadder: boolean }) {
   // Mirror of the guard in pilotLimitBannerCovers above. Both arms below are Pilot-shaped and
   // would speak over a subscription-level cause that ProcessingPausedBanner states correctly.
   if (namesSubscriptionCause(status.accountStatus)) return null;
@@ -329,7 +330,7 @@ function LimitBanner({ status }: { status: BillingStatus }) {
     return (
       <div style={bannerStyle}>
         <strong>You&apos;ve used all {status.orderLimit.toLocaleString(NUMBER_LOCALE)} Pilot documents.</strong>
-        <span>{upgradeSentence(status.plan, "continue processing new documents")}</span>
+        <span>{upgradeSentence(status.plan, "continue processing new documents", documentLadder)}</span>
       </div>
     );
   }
@@ -345,21 +346,20 @@ function OverageNotice({ status }: { status: BillingStatus }) {
   if (status.plan === "pilot") return null;
   // Enterprise has custom/no hard cap — no overage messaging.
   if (status.plan === "enterprise") return null;
+  // The plan's own rate (€0.50 legacy, €0.24 Starter, …). A plan with none has no rate to state.
+  const rate = PLAN_BY_ID[status.plan]?.overageEur;
+  if (rate == null) return null;
+  const euro = (n: number) => n.toLocaleString("en-IE", { style: "currency", currency: "EUR", maximumFractionDigits: 2 });
 
   // Over the cap → honest overage line.
   if (status.atLimit || status.overageOrders > 0) {
-    const eur = status.overageAmountEur.toLocaleString("en-IE", {
-      style: "currency",
-      currency: "EUR",
-      maximumFractionDigits: 2,
-    });
     return (
       <div style={infoNoticeStyle}>
         <strong style={{ color: "var(--brand-blue-deep)" }}>You&apos;re over your monthly document allowance.</strong>
         <span>
-          Extra documents still process and bill at €0.50 each —{" "}
+          Extra documents still process and bill at {euro(rate)} each —{" "}
           <strong>{status.overageOrders.toLocaleString(NUMBER_LOCALE)}</strong> this period (≈{" "}
-          <strong>{eur}</strong>{" "}
+          <strong>{euro(status.overageAmountEur)}</strong>{" "}
           <span style={{ color: "var(--ink-faint)", fontWeight: 400 }}>estimate</span>). Upgrade for more
           included volume if this keeps up.
         </span>
@@ -378,7 +378,7 @@ function OverageNotice({ status }: { status: BillingStatus }) {
         <span>
           You&apos;ve used {status.ordersThisMonth.toLocaleString(NUMBER_LOCALE)} of{" "}
           {status.orderLimit.toLocaleString(NUMBER_LOCALE)} documents. Documents keep processing past the limit and any
-          extras bill at €0.50 each.
+          extras bill at {euro(rate)} each.
         </span>
       </div>
     );
@@ -555,6 +555,9 @@ export function BillingSection() {
   // Billing cadence for NEW checkouts (upgrades). Yearly is real self-serve:
   // the backend maps plan+interval to the Stripe `*YearlyPriceId`s.
   const [checkoutInterval, setCheckoutInterval] = useState<BillingInterval>("monthly");
+  const engine = useDocumentEngine();
+  const documentLadder = engine === "on";
+  const { data: flows } = useQuery({ ...flowsQuery, enabled: documentLadder });
 
   const checkoutMutation = useMutation({
     mutationFn: ({ plan, interval }: { plan: BillingPlan; interval: BillingInterval }) =>
@@ -599,8 +602,16 @@ export function BillingSection() {
 
   const isPilot      = status.plan === "pilot";
   const isEnterprise = status.plan === "enterprise";
-  const isPaid       = CHECKOUT_PLANS.includes(status.plan);
-  const nextPlan     = PLAN_META[status.plan].next;
+  const isPaid       = [...CHECKOUT_PLANS, ...DOCUMENT_PLAN_IDS].includes(status.plan);
+  // A paid document plan gets no next-plan checkout, as if its `next` were null (like Scale):
+  // Checkout on a paid workspace opens a SECOND Stripe subscription and nothing cancels the
+  // first. Changing the live subscription's price instead is a separate task.
+  const nextPlan     = DOCUMENT_PLAN_IDS.includes(status.plan) ? null : nextPlanFor(status.plan, documentLadder);
+  const flowLimit    = PLAN_BY_ID[status.plan].flowLimit;
+  // The Pilot upgrade block's ladder: the document plans with the engine, else today's legacy one.
+  const ladder       = documentLadder ? DOCUMENT_PLAN_IDS : CHECKOUT_PLANS;
+  // The legacy ladder is on sale only on an explicit "off"; until the engine answers, neither is.
+  const pilotCheckoutDisabled = checkoutMutation.isPending || engine === "unknown";
   /**
    * Whether the Stripe Billing Portal exists for THIS workspace.
    *
@@ -632,7 +643,7 @@ export function BillingSection() {
         managePending={portalMutation.isPending}
         manageError={portalMutation.isError ? portalMutation.error : null}
       />
-      <LimitBanner status={status} />
+      <LimitBanner status={status} documentLadder={documentLadder} />
       <OverageNotice status={status} />
 
       {/* ── Current plan card (large highlighted block) ── */}
@@ -685,6 +696,7 @@ export function BillingSection() {
               limit={status.supplierLimit}
               label="Suppliers"
             />
+            {documentLadder && flows && flowLimit != null && <UsageBar used={flows.length} limit={flowLimit} label="Flows" />}
           </div>
         </div>
       </Card>
@@ -693,24 +705,26 @@ export function BillingSection() {
       {isPilot && (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <div style={{ borderRadius: 10, padding: "13px 15px", background: "var(--surface)", border: "1px solid var(--border)", borderLeft: "3px solid var(--brand-green)", fontSize: 12.5, lineHeight: 1.55, color: "var(--ink-muted)" }}>
-            <strong style={{ color: "var(--ink)" }}>Upgrade when this is ready for daily orders.</strong>{" "}
-            Growth keeps the same workflow but raises your monthly document allowance, adds more suppliers, and keeps processing open after the Pilot window ends.
+            <strong style={{ color: "var(--ink)" }}>{documentLadder ? "Upgrade when this is ready for daily use." : "Upgrade when this is ready for daily orders."}</strong>{" "}
+            {documentLadder
+              ? "Every paid plan includes every channel, output and check. Plans differ by documents per month and number of flows."
+              : "Growth keeps the same workflow but raises your monthly document allowance, adds more suppliers, and keeps processing open after the Pilot window ends."}
           </div>
           <IntervalToggle value={checkoutInterval} onChange={setCheckoutInterval} disabled={checkoutMutation.isPending} />
           <button
-            onClick={() => checkoutMutation.mutate({ plan: "growth", interval: checkoutInterval })}
-            disabled={checkoutMutation.isPending}
-            style={primaryButton("var(--brand-green-btn)", checkoutMutation.isPending)}
+            onClick={() => checkoutMutation.mutate({ plan: ladder[0], interval: checkoutInterval })}
+            disabled={pilotCheckoutDisabled}
+            style={primaryButton("var(--brand-green-btn)", pilotCheckoutDisabled)}
           >
-            {status.isTrialExpired || status.isOrderLimitReached ? "Upgrade to continue" : "Upgrade to Growth"}
+            {status.isTrialExpired || status.isOrderLimitReached ? "Upgrade to continue" : `Upgrade to ${PLAN_META[ladder[0]].label}`}
           </button>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {(["operations", "integration", "distributor"] as const).map((plan) => (
+            {ladder.slice(1).map((plan) => (
               <button
                 key={plan}
                 onClick={() => checkoutMutation.mutate({ plan, interval: checkoutInterval })}
-                disabled={checkoutMutation.isPending}
-                style={secondaryButton(PLAN_META[plan].color, checkoutMutation.isPending)}
+                disabled={pilotCheckoutDisabled}
+                style={secondaryButton(PLAN_META[plan].color, pilotCheckoutDisabled)}
               >
                 {PLAN_META[plan].label}
               </button>

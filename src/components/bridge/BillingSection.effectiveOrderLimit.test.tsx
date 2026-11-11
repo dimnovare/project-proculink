@@ -40,6 +40,11 @@ vi.mock("@/lib/api-client", () => ({
 }));
 
 vi.mock("@/lib/analytics", () => ({ capture: vi.fn() }));
+// The engine answers an explicit "off", so the legacy ladder renders and is on sale.
+vi.mock("@/hooks/useDocumentEngine", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/hooks/useDocumentEngine")>()),
+  useDocumentEngine: () => "off",
+}));
 
 import { BillingSection } from "./BillingSection";
 

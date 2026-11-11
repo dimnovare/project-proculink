@@ -4,11 +4,13 @@ import {
   OVERAGE_PER_ORDER_EUR,
   PLAN_BY_ID,
   PLANS,
+  nextPlanFor,
   planEffectiveMonthlyCost,
   recommendPlanByOrders,
   yearlyMonthlyEquivalent,
   yearlySavePercent,
 } from "@/lib/plans";
+import { planIncludesCapability } from "@/lib/gatedCapabilities";
 
 // Cost-optimal recommendation (LAUNCH BATCH 1, Task C): effective monthly cost
 // = flat price + max(0, orders − allowance) × €0.50, mirroring the backend
@@ -124,5 +126,20 @@ describe("yearly pricing", () => {
     expect(yearlySavePercent(PLAN_BY_ID.pilot)).toBeNull();
     expect(yearlySavePercent(PLAN_BY_ID.enterprise)).toBeNull();
     expect(yearlyMonthlyEquivalent(PLAN_BY_ID.enterprise)).toBeNull();
+  });
+});
+
+// The document ladder (plan 11). Its numbers are diffed against PlanConstants in
+// backendMirror.test.ts; these pin the two behaviours that are not numbers.
+describe("the document ladder", () => {
+  it("a Pilot upgrades to Starter on the document ladder and to Growth otherwise; Scale is the top", () => {
+    expect(nextPlanFor("pilot", true)).toBe("starter");
+    expect(nextPlanFor("pilot", false)).toBe("growth");
+    expect(nextPlanFor("scale", true)).toBeNull();
+  });
+
+  it("a document plan has every capability except SSO, as PlanConstants.PlanHasFeature says", () => {
+    expect(planIncludesCapability("starter", "emailIngestion")).toBe(true);
+    expect(planIncludesCapability("starter", "sso")).toBe(false);
   });
 });
