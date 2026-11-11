@@ -1,18 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import { Card } from "@/components/bridge/layout/Card";
 import { Button } from "@/components/bridge/DSPrimitives";
+import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
+import { formatMoney } from "@/components/bridge/mapper/fieldBadgesModel";
 import { Failed, Quiet } from "@/components/flows/states";
 import { mapStatus, STATUS_PRESENTATION } from "@/components/bridge/InboxView";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { apiClient } from "@/lib/api-client";
 
-const open = async (orderId: string, artifactId: string) =>
-  window.open((await apiClient.getDownloadUrl(orderId, artifactId)).url, "_blank", "noopener");
+// Same hand-off as the review screen's Download: navigate to the signed URL (an attachment), no popup.
+const download = async (orderId: string, artifactId: string) =>
+  window.location.assign((await apiClient.getDownloadUrl(orderId, artifactId)).url);
 
 export function OrderArchiveDetail({ orderId }: { orderId: string }) {
   const q = useQuery({
@@ -21,6 +24,7 @@ export function OrderArchiveDetail({ orderId }: { orderId: string }) {
     enabled: useTenantQueriesEnabled(),
   });
   const o = q.data;
+  const dl = useMutation({ mutationFn: (artifactId: string) => download(orderId, artifactId) });
 
   return (
     <PageShell variant="wide">
@@ -35,7 +39,7 @@ export function OrderArchiveDetail({ orderId }: { orderId: string }) {
                 ["Buyer", o.buyerName],
                 ["Supplier", o.supplierName],
                 ["Status", STATUS_PRESENTATION[mapStatus(o.status)].label],
-                ["Total", `${o.lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0)} ${o.currency}`],
+                ["Total", formatMoney(o.lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0), o.currency)],
               ].map(([k, v]) => (
                 <div key={k} className="flex gap-3"><dt className="w-28 text-ink-muted">{k}</dt><dd className="m-0">{v}</dd></div>
               ))}
@@ -66,10 +70,11 @@ export function OrderArchiveDetail({ orderId }: { orderId: string }) {
             {o.artifacts.map((a) => (
               <li key={a.id} className="flex items-center gap-3 text-[13px]">
                 <span className="font-mono">{a.format}</span>
-                <Button size="sm" variant="secondary" onClick={() => open(o.id, a.id)}>Download</Button>
+                <Button size="sm" variant="secondary" disabled={dl.isPending} onClick={() => dl.mutate(a.id)}>Download</Button>
               </li>
             ))}
           </ul>
+          {dl.isError && <StatusNotice tone="error">We couldn't start the download. Try again in a moment.</StatusNotice>}
         </>
       )}
     </PageShell>

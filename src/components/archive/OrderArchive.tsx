@@ -11,19 +11,16 @@ import { Failed, Quiet } from "@/components/flows/states";
 import { mapStatus, STATUS_PRESENTATION } from "@/components/bridge/InboxView";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { apiClient } from "@/lib/api-client";
+import { saveBlob } from "@/lib/saveBlob";
+import { formatMoney } from "@/components/bridge/mapper/fieldBadgesModel";
 import { pagePopulation } from "@/components/bridge/orderCountContract";
 import { fetchAllOrders, ordersToCsv } from "@/lib/orderArchiveCsv";
 
 const PAGE_SIZE = 25;
 
+// The BOM lets Excel read non-ASCII buyer and supplier names as UTF-8.
 async function downloadCsv() {
-  const csv = ordersToCsv(await fetchAllOrders());
-  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "old-orders.csv";
-  a.click();
-  URL.revokeObjectURL(url);
+  saveBlob(new Blob(["\uFEFF" + ordersToCsv(await fetchAllOrders())], { type: "text/csv;charset=utf-8" }), "old-orders.csv");
 }
 
 export function OrderArchive() {
@@ -62,7 +59,7 @@ export function OrderArchive() {
                   <td className="px-3 py-2">{o.supplierName}</td>
                   <td className="px-3 py-2">{STATUS_PRESENTATION[mapStatus(o.status)].label}</td>
                   <td className="px-3 py-2">{o.lineCount}</td>
-                  <td className="px-3 py-2">{o.totalValue} {o.currency}</td>
+                  <td className="px-3 py-2">{formatMoney(o.totalValue, o.currency)}</td>
                 </tr>
               ))}
             </tbody>
