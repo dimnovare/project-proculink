@@ -9,7 +9,7 @@ import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
  *  counts as stale, so without `refetchOnWindowFocus: false` a 403 would re-hit the server on every focus. */
 export const flowsQuery = {
   queryKey: ["flows"],
-  queryFn: listFlows,
+  queryFn: () => listFlows(),
   retry: (n: number, e: unknown) => refusalToken(e) !== "document_engine_not_enabled" && n < 2,
   staleTime: 300_000,
   refetchOnWindowFocus: false,

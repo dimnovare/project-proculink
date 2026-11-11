@@ -503,11 +503,14 @@ describe("check-vocabulary.mjs — per-tier BLOCK exemption", () => {
 describe("check-vocabulary.mjs — blockBody anchoring", () => {
   let root: string;
 
-  /** Every policed registry, with labels drawn from the approved vocabulary. 8 labels total. */
+  /** Every policed registry, with labels drawn from the approved vocabulary. 9 labels total. */
   const CLEAN: Record<string, string[]> = {
     "src/components/bridge/BridgeSidebar.tsx": [
       "const NAV_MAIN: SidebarNavSection[] = [",
       '  { group: "Orders", items: [{ label: "Suppliers" }] },',
+      "];",
+      "const ENGINE_NAV_MAIN: SidebarNavSection[] = [",
+      '  { items: [{ label: "Orders" }] },',
       "];",
       "const NAV_TAIL: SidebarNavItem[] = [",
       '  { label: "Workspace" },',
@@ -566,7 +569,7 @@ describe("check-vocabulary.mjs — blockBody anchoring", () => {
     plant();
     const { code, out } = runGate(["--nouns"], root);
     expect(code).toBe(0);
-    expect(out).toContain("checked 8 navigation label(s)");
+    expect(out).toContain("checked 9 navigation label(s)");
   });
 
   /**
@@ -607,8 +610,8 @@ describe("check-vocabulary.mjs — blockBody anchoring", () => {
     });
     const { code, out } = runGate(["--nouns"], root);
     expect(code).toBe(0);
-    // The real block was still read — all 8 labels, not 7.
-    expect(out).toContain("checked 8 navigation label(s)");
+    // The real block was still read — all 9 labels, not 8.
+    expect(out).toContain("checked 9 navigation label(s)");
   });
 
   it("a TEMPLATE LITERAL naming the declaration does not become the anchor", () => {
@@ -622,7 +625,7 @@ describe("check-vocabulary.mjs — blockBody anchoring", () => {
     });
     const { code, out } = runGate(["--nouns"], root);
     expect(code).toBe(0);
-    expect(out).toContain("checked 8 navigation label(s)");
+    expect(out).toContain("checked 9 navigation label(s)");
   });
 
   it("a COMMENT naming the declaration does not become the anchor", () => {
@@ -636,7 +639,7 @@ describe("check-vocabulary.mjs — blockBody anchoring", () => {
     });
     const { code, out } = runGate(["--nouns"], root);
     expect(code).toBe(0);
-    expect(out).toContain("checked 8 navigation label(s)");
+    expect(out).toContain("checked 9 navigation label(s)");
   });
 
   // ─── …and a decoy may not SUPPRESS the failure when the registry really is gone ───
@@ -705,7 +708,7 @@ describe("check-vocabulary.mjs — blockBody anchoring", () => {
     });
     const { code, out } = runGate(["--nouns"], root);
     expect(code).toBe(0);
-    expect(out).toContain("checked 8 navigation label(s)");
+    expect(out).toContain("checked 9 navigation label(s)");
   });
 
   it("a JSX-TEXT decoy does not hide a registry that was renamed away", () => {
@@ -806,7 +809,7 @@ describe("check-vocabulary.mjs — blockBody anchoring", () => {
     });
     const { code, out } = runGate(["--nouns"], root);
     expect(code).toBe(0);
-    expect(out).toContain("checked 8 navigation label(s)");
+    expect(out).toContain("checked 9 navigation label(s)");
   });
 
   // ─── labels are not always double-quoted ───
@@ -849,7 +852,7 @@ describe("check-vocabulary.mjs — blockBody anchoring", () => {
       ],
     });
     const { code, out } = runGate(["--nouns"], root);
-    expect(out).toContain("checked 8 navigation label(s)");
+    expect(out).toContain("checked 9 navigation label(s)");
     expect(out).not.toContain("could not be read");
     expect(code).toBe(1);
     expect(out).toContain(`"Supplier's orders"`);
@@ -881,7 +884,7 @@ describe("check-vocabulary.mjs — blockBody anchoring", () => {
     expect(code).toBe(0);
     // 9, not 8: the second chip is only reached if the `]` inside the literal did not
     // decrement the depth counter and end the block early.
-    expect(out).toContain("checked 9 navigation label(s)");
+    expect(out).toContain("checked 10 navigation label(s)");
   });
 
   /**
@@ -904,7 +907,7 @@ describe("check-vocabulary.mjs — blockBody anchoring", () => {
     expect(out).toContain("teach a word outside the vocabulary");
     expect(out).not.toContain("could not be read");
     // …and the block really was read, which is why this is a wording problem.
-    expect(out).toContain("checked 8 navigation label(s)");
+    expect(out).toContain("checked 9 navigation label(s)");
   });
 
   // ─── the real tree ───
@@ -921,7 +924,7 @@ describe("check-vocabulary.mjs — blockBody anchoring", () => {
     // NAV_MAIN takes 42 to 36, HUB_LABELS to 39, FILTER_CHIPS to 37. A loose label floor
     // cannot tell any of those from an ordinary IA change; measured, a `>= 35` floor let five
     // of the six deletions through. Update this number deliberately, with the registry entry.
-    expect(out).toContain("across 7 registry block(s)");
+    expect(out).toContain("across 8 registry block(s)");
 
     // Labels stay a loose backstop on top of that, for a collapse the block count cannot see.
     const count = Number(/checked (\d+) navigation label/.exec(out)?.[1]);

@@ -107,8 +107,9 @@ function redirects(): Redirect[] {
 /** `/orders/:id` → `/orders/sample-id`, so a redirect can be checked concretely. */
 const concrete = (p: string) => p.replace(/:[^/*]+\*?/g, "sample-id");
 
-const NAV = buildVisibleNav("Suppliers", true, true);
-const NAV_ITEMS = [...NAV.main.flatMap((s) => s.items), ...NAV.tail];
+// Both variants: the legacy nav (engine off) and the new product nav (engine on).
+const NAVS = [buildVisibleNav("Suppliers", true, false), buildVisibleNav("Suppliers", true, true)];
+const NAV_ITEMS = NAVS.flatMap((n) => [...n.main.flatMap((s) => s.items), ...n.tail]);
 const HUBS = Object.keys(HUB_TABS) as HubKey[];
 
 /** The nav's own reachability rule, applied to any pathname. */
@@ -139,7 +140,8 @@ describe("nav routes resolve — nothing 404s, nothing is stranded", () => {
   });
 
   it("reaches every page that exists on disk from the four-item nav", () => {
-    // /archive is PENDING Task 6 of plan 12a (relaunch switch), which gives it a way in and deletes this filter.
+    // /archive is linked from Documents (when old orders exist), not from the nav; route-reachability.test.ts
+    // pins that link.
     const unreachable = appRoutes().filter((r) => !reachableFromNav(r) && !r.startsWith("/archive"));
     expect(unreachable, "every (app) route must be reachable from the nav").toEqual([]);
   });

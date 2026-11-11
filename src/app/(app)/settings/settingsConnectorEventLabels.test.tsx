@@ -22,6 +22,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("@/components/flows/NotificationEmailSection", () => ({ NotificationEmailSection: () => null }));
+vi.mock("@/hooks/useDocumentEngine", () => ({ useDocumentEngine: () => "unknown" }));
 vi.mock("@clerk/nextjs", () => ({
   useOrganization: () => ({ organization: { name: "Test Org" } }),
 }));

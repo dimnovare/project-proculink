@@ -89,10 +89,22 @@ const NAV_MAIN: SidebarNavSection[] = [
       { label: "Documents", href: hubHome("orders"), icon: Inbox, badgeKey: "review", hub: "orders" },
       // STRUCT-1 still holds: no standalone "Connections" entry — /connections is
       // a hidden entry of this hub and stays fully routable.
-      { label: "Flows", href: "/flows", icon: Workflow },
-      { label: "Lookups", href: "/lookups", icon: ArrowRightLeft },
       { label: "Suppliers", href: hubHome("suppliers"), icon: Users, hub: "suppliers" },
       { label: "Activity", href: hubHome("activity"), icon: Zap, hub: "activity" },
+      { label: "Settings", href: "/settings", icon: Settings },
+    ],
+  },
+];
+
+// The new product's navigation, for orgs on the document engine: no hubs and no
+// badge (the one "needs you" count lives on the Documents page).
+const ENGINE_NAV_MAIN: SidebarNavSection[] = [
+  {
+    items: [
+      { label: "Documents", href: "/documents", icon: Inbox },
+      { label: "Flows", href: "/flows", icon: Workflow },
+      { label: "Lookups", href: "/lookups", icon: ArrowRightLeft },
+      { label: "Activity", href: "/operations/log", icon: Zap },
       { label: "Settings", href: "/settings", icon: Settings },
     ],
   },
@@ -116,9 +128,6 @@ export interface VisibleNav {
   tail: SidebarNavItem[];
 }
 
-// Nav entries that exist only when the document engine is on.
-const ENGINE_HREFS = new Set(["/flows", "/lookups"]);
-
 // The primary items are never gated by plan — a coordinator sees the same
 // words on day one and on day four hundred. The only nav-level gate left is the
 // admin allowlist; INBOUND_ENABLED now gates two TABS inside the Orders hub
@@ -134,15 +143,13 @@ export function buildVisibleNav(counterpartyPlural: string, isAdmin: boolean, do
       // Hide the Admin link unless the server confirmed this user is on the
       // admin allowlist (UX only — the page + API re-gate server-side).
       .filter((item) => item.href !== "/admin" || isAdmin)
-      // Flows and Lookups show only once the probe confirmed the document engine is on.
-      .filter((item) => !ENGINE_HREFS.has(item.href) || documentEngine)
       .map((item) =>
         item.href === "/library/suppliers" && counterpartyPlural !== "Suppliers"
           ? { ...item, label: counterpartyPlural }
           : item,
       );
 
-  const main = NAV_MAIN
+  const main = (documentEngine ? ENGINE_NAV_MAIN : NAV_MAIN)
     .map((section) => ({ ...section, items: filterItems(section.items) }))
     // Drop any section left empty by the filters above.
     .filter((section) => section.items.length > 0);

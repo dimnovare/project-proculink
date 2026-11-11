@@ -14,9 +14,21 @@ vi.mock("next/navigation", () => ({
   usePathname: () => mockPath,
 }));
 
+let mockEngine: "on" | "off" | "unknown" = "unknown";
+vi.mock("@/hooks/useDocumentEngine", () => ({ useDocumentEngine: () => mockEngine }));
+
 afterEach(() => {
   cleanup();
   mockPath = "/library/suppliers";
+  mockEngine = "unknown";
+});
+
+test("engine-on orgs get no hub strip, and exact /documents never lights a legacy hub", () => {
+  mockEngine = "on";
+  const { container } = render(<HubTabs hub="suppliers" variant="topbar" />);
+  expect(container.firstChild).toBeNull();
+  expect(hubForPath("/documents")).toBeNull();
+  expect(hubForPath("/documents/d1")).toBe("orders");
 });
 
 describe("HubTabs — direction-aware Suppliers tab relabel", () => {

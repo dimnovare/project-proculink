@@ -32,6 +32,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { CSSProperties } from "react";
 import { INBOUND_ENABLED } from "@/lib/launch-flags";
+import { useDocumentEngine } from "@/hooks/useDocumentEngine";
 
 export type HubKey = "orders" | "suppliers" | "activity";
 
@@ -184,12 +185,15 @@ export function hubShowsTabs(hub: HubKey): boolean {
  */
 export function hubForPath(pathname: string): HubKey | null {
   for (const key of Object.keys(HUB_TABS) as HubKey[]) {
-    for (const t of HUB_TABS[key]) {
-      if (pathname === t.href || pathname.startsWith(t.href + "/")) return key;
-      if (t.match?.some((m) => pathname === m || pathname.startsWith(m + "/"))) return key;
-    }
+    for (const t of HUB_TABS[key]) if (tabOwnsPath(t, pathname)) return key;
   }
   return null;
+}
+
+/** Exact /documents is the new Documents page, not a legacy order route, so it never lights a hub tab. */
+function tabOwnsPath(t: HubTab, pathname: string): boolean {
+  if (pathname === t.href || pathname.startsWith(t.href + "/")) return true;
+  return t.match?.some((m) => (pathname === m && m !== "/documents") || pathname.startsWith(m + "/")) ?? false;
 }
 
 /**
@@ -241,18 +245,16 @@ export function HubTabs({
   counterpartyPlural?: string;
 }) {
   const pathname = usePathname() ?? "";
+  const engineOn = useDocumentEngine() === "on";
   // Hidden and pre-launch entries are reachable, never printed.
   const tabs = visibleHubTabs(hub);
   const topbar = variant === "topbar";
   // Nothing to switch to → no strip (see hubShowsTabs).
-  if (!hubShowsTabs(hub)) return null;
+  if (engineOn || !hubShowsTabs(hub)) return null;
   return (
     <nav aria-label="Section" style={topbar ? topbarBarStyle : barStyle}>
       {tabs.map((t) => {
-        const active =
-          pathname === t.href ||
-          pathname.startsWith(t.href + "/") ||
-          (t.match?.some((m) => pathname === m || pathname.startsWith(m + "/")) ?? false);
+        const active = tabOwnsPath(t, pathname);
         const count = counts?.[t.label] ?? counts?.[t.href];
         const label =
           t.href === "/library/suppliers" && counterpartyPlural && counterpartyPlural !== "Suppliers"

@@ -83,6 +83,7 @@ vi.mock("@/lib/api-client", async (importOriginal) => {
   return { ...actual, getBillingStatus: () => getBillingStatus() };
 });
 
+vi.mock("@/hooks/useDocumentEngine", () => ({ useDocumentEngine: () => "unknown" }));
 vi.mock("@clerk/nextjs", () => ({
   useOrganization: () => ({ organization: { name: "Acme Procurement" } }),
 }));

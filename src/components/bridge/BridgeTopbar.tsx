@@ -165,10 +165,12 @@ function useHubRow(): HubRow | null {
   const pathname = usePathname();
   const segments = pathname.split("/").filter(Boolean);
   const ctx = useCrumbContext(segments);
+  const engineOn = useDocumentEngine() === "on";
   const hub = hubForPath(pathname);
   // A hub with a single VISIBLE tab gets no strip (hubShowsTabs) — and therefore
   // no hub row at all; the route falls back to the plain breadcrumb below.
-  if (!hub || !hubShowsTabs(hub)) return null;
+  // Engine-on orgs have no hubs at all (HubTabs renders nothing for them).
+  if (engineOn || !hub || !hubShowsTabs(hub)) return null;
 
   // The LONGEST VISIBLE tab route (href or match alias) that owns the current
   // path — its depth marks where the prefix ends and the detail tail begins.

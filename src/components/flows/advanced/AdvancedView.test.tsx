@@ -6,6 +6,7 @@ import { COPY } from "@/lib/documentRefusals";
 import { AdvancedView } from "./AdvancedView";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn(), push: vi.fn() }), useSearchParams: () => new URLSearchParams() }));
+vi.mock("@/hooks/useDocumentEngine", () => ({ useDocumentEngine: () => "unknown" }));
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => true, useQueriesEnabled: () => true }));
 
 const api = vi.hoisted(() => ({

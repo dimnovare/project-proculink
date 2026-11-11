@@ -24,6 +24,7 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/settings",
 }));
 
+vi.mock("@/hooks/useDocumentEngine", () => ({ useDocumentEngine: () => "unknown" }));
 vi.mock("@clerk/nextjs", () => ({
   useOrganization: () => ({ organization: { name: "Test Org" } }),
 }));
