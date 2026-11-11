@@ -163,6 +163,13 @@ describe("nav routes resolve — nothing 404s, nothing is stranded", () => {
     expect(dead, "a nav destination with no page and no redirect is a 404").toEqual([]);
   });
 
+  it("never redirects away a path that has its own page", () => {
+    // Next applies redirects before routing, so a redirect on a path with a page hides that page.
+    // /documents kept a 308 to /inbox from the invoice work, and the new Documents page behind it was unreachable.
+    const shadowed = redirects().map((r) => r.source).filter((s) => pageExistsFor(concrete(s)));
+    expect(shadowed, "a redirect on a path that has a page makes the page unreachable").toEqual([]);
+  });
+
   it("keeps every permanent redirect landing on a live page the new nav can reach", () => {
     for (const r of redirects()) {
       expect(r.permanent, `${r.source} must be a permanent (308) redirect`).toBe(true);

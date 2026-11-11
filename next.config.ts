@@ -76,8 +76,6 @@ const nextConfig: NextConfig = {
       { source: "/suppliers",        destination: "/library/suppliers", permanent: true },
       { source: "/orders",           destination: "/inbox",             permanent: true },
       { source: "/orders/:id",       destination: "/inbox/:id",         permanent: true },
-      // An invoice opens at /documents/:id; the documents list itself lives at /inbox.
-      { source: "/documents",        destination: "/inbox",             permanent: true },
       // Help-article consolidation: delivery-config was deleted (it carried a
       // false claim about a test-fire gate); its true content was merged into
       // delivery-setup, which is now the single delivery article.
