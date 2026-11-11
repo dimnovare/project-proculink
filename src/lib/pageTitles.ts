@@ -78,9 +78,6 @@ export const HUB_TAB_TITLES: Record<string, string> = {
 export const LABEL_PINNED_TO_A_DIFFERENT_TITLE: Record<string, string> = {
   // Hub tab: "Overview".
   "/bridge": "Dashboard",
-  // Hub tab: "Orders" — the hub itself is "Documents"; the queue is the one
-  // screen users already call the inbox.
-  "/inbox": "Documents",
 };
 
 /**
@@ -94,6 +91,7 @@ export const LABEL_PINNED_TO_A_DIFFERENT_TITLE: Record<string, string> = {
  */
 export const OFF_HUB_TITLES: Record<string, string> = {
   "/upload": "Upload",
+  "/documents": "Documents",
   "/flows": "Flows",
   "/flows/new": "New flow",
   "/flows/[flowId]": "Flow",

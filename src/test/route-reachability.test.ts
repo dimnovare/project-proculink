@@ -223,7 +223,9 @@ export const KNOWN_DEEP_LINK_ONLY: Record<string, string> = {
  *      permanent cover. With the list empty that comparison is at its
  *      strongest: it now asserts that NOTHING is stranded.
  */
-export const STRANDED_PENDING_DECISION: Record<string, string> = {};
+export const STRANDED_PENDING_DECISION: Record<string, string> = {
+  "/documents": "PENDING A DECISION: added 2026-11-11 by docs/superpowers/plans/2026-11-11-plan-12a-relaunch-switch.md Task 3; Task 6 points the new navigation at it and deletes this entry.",
+};
 
 // ─── Route enumeration ────────────────────────────────────────────────────────
 
