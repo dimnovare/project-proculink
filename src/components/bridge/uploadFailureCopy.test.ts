@@ -88,7 +88,7 @@ describe("the retired legacy upload", () => {
       new ApiHttpError("Upload failed: Gone", 410, { error: "orders_retired" }),
       "orders.csv",
     );
-    expect(banner.message).toBe(ORDERS_RETIRED_MESSAGE);
+    expect(banner.title).toBe(ORDERS_RETIRED_MESSAGE);
     expect(banner.cta).toBe("");
     expect(banner.href).toBeUndefined();
   });

@@ -937,6 +937,7 @@ export function UploadWorkbench() {
         // after 60000ms" in a list a purchasing coordinator reads. Same
         // classification, short form.
         const message = describeUploadFailure(error, file.name).title;
+        if (refusalToken(error) === "orders_retired") void queryClient.invalidateQueries({ queryKey: ["flows"] });
         setBatchResults((prev) => prev.map((r, idx) => (idx === i ? { ...r, status: "failed", error: message } : r)));
         // A per-file failure does NOT abort the rest — keep going so one bad file doesn't sink the batch.
       }
@@ -2381,7 +2382,7 @@ export function describeUploadFailure(error: unknown, fileName: string): UploadE
 
   // The engine is on for this workspace: the legacy upload is retired, and there is no guide to link.
   if (refusalToken(error) === "orders_retired") {
-    return { code: "orders_retired", title: "Upload isn't available here.", message: ORDERS_RETIRED_MESSAGE, cta: "" };
+    return { code: "orders_retired", title: ORDERS_RETIRED_MESSAGE, message: "", cta: "" };
   }
 
   const failure = classifyApiFailure(error);
