@@ -588,6 +588,17 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
       "which accrues overage and still ingests.",
   },
   {
+    action: "inbound_email.rejected_orders_retired",
+    kind: "failed",
+    label: "Email rejected — this workspace now receives documents through flows",
+    reachable: true,
+    backendSite: "ProcuLink.Infrastructure/Services/Email/InboundEmailRouter.cs:265",
+    reasonKeys: [],
+    note:
+      "A legacy order email reached a workspace on the document engine. The refusal is transient: the " +
+      "mail stays with the email provider for re-delivery and was not turned into an order.",
+  },
+  {
     action: "inbound_email.unrouted_no_supplier",
     kind: "failed",
     label: "Email not routed — no matching supplier",
