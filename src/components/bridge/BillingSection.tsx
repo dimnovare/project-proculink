@@ -555,7 +555,8 @@ export function BillingSection() {
   // Billing cadence for NEW checkouts (upgrades). Yearly is real self-serve:
   // the backend maps plan+interval to the Stripe `*YearlyPriceId`s.
   const [checkoutInterval, setCheckoutInterval] = useState<BillingInterval>("monthly");
-  const documentLadder = useDocumentEngine() === "on";
+  const engine = useDocumentEngine();
+  const documentLadder = engine === "on";
   const { data: flows } = useQuery({ ...flowsQuery, enabled: documentLadder });
 
   const checkoutMutation = useMutation({
@@ -602,10 +603,15 @@ export function BillingSection() {
   const isPilot      = status.plan === "pilot";
   const isEnterprise = status.plan === "enterprise";
   const isPaid       = [...CHECKOUT_PLANS, ...DOCUMENT_PLAN_IDS].includes(status.plan);
-  const nextPlan     = nextPlanFor(status.plan, documentLadder);
+  // A paid document plan gets no next-plan checkout, as if its `next` were null (like Scale):
+  // Checkout on a paid workspace opens a SECOND Stripe subscription and nothing cancels the
+  // first. Changing the live subscription's price instead is a separate task.
+  const nextPlan     = DOCUMENT_PLAN_IDS.includes(status.plan) ? null : nextPlanFor(status.plan, documentLadder);
   const flowLimit    = PLAN_BY_ID[status.plan].flowLimit;
   // The Pilot upgrade block's ladder: the document plans with the engine, else today's legacy one.
   const ladder       = documentLadder ? DOCUMENT_PLAN_IDS : CHECKOUT_PLANS;
+  // The legacy ladder is on sale only on an explicit "off"; until the engine answers, neither is.
+  const pilotCheckoutDisabled = checkoutMutation.isPending || engine === "unknown";
   /**
    * Whether the Stripe Billing Portal exists for THIS workspace.
    *
@@ -707,8 +713,8 @@ export function BillingSection() {
           <IntervalToggle value={checkoutInterval} onChange={setCheckoutInterval} disabled={checkoutMutation.isPending} />
           <button
             onClick={() => checkoutMutation.mutate({ plan: ladder[0], interval: checkoutInterval })}
-            disabled={checkoutMutation.isPending}
-            style={primaryButton("var(--brand-green-btn)", checkoutMutation.isPending)}
+            disabled={pilotCheckoutDisabled}
+            style={primaryButton("var(--brand-green-btn)", pilotCheckoutDisabled)}
           >
             {status.isTrialExpired || status.isOrderLimitReached ? "Upgrade to continue" : `Upgrade to ${PLAN_META[ladder[0]].label}`}
           </button>
@@ -717,8 +723,8 @@ export function BillingSection() {
               <button
                 key={plan}
                 onClick={() => checkoutMutation.mutate({ plan, interval: checkoutInterval })}
-                disabled={checkoutMutation.isPending}
-                style={secondaryButton(PLAN_META[plan].color, checkoutMutation.isPending)}
+                disabled={pilotCheckoutDisabled}
+                style={secondaryButton(PLAN_META[plan].color, pilotCheckoutDisabled)}
               >
                 {PLAN_META[plan].label}
               </button>

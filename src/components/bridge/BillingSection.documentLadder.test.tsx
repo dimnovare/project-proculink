@@ -1,7 +1,7 @@
 // Plan 11, Task 7 — Settings → Plan & billing on the document ladder.
 //
 // A workspace with the document engine is offered Starter / Pro / Business / Scale, sees its
-// flow allowance, and is told its own overage rate. The legacy block (engine off or unknown)
+// flow allowance, and is told its own overage rate. The legacy block (engine off)
 // is pinned by the other BillingSection.*.test.tsx files, which never report the engine on.
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -21,8 +21,9 @@ vi.mock("@/lib/api-client", () => ({
   createCheckoutSession: (...a: unknown[]) => api.createCheckoutSession(...a),
 }));
 vi.mock("@/lib/analytics", () => ({ capture: vi.fn() }));
+const engine = { state: "on" as "on" | "off" | "unknown" };
 vi.mock("@/hooks/useDocumentEngine", () => ({
-  useDocumentEngine: () => "on",
+  useDocumentEngine: () => engine.state,
   flowsQuery: { queryKey: ["flows"], queryFn: async () => [{ id: "flow-1" }] },
 }));
 
@@ -67,6 +68,7 @@ async function renderWith(status: BillingStatus) {
 }
 
 beforeEach(() => {
+  engine.state = "on";
   Object.values(api).forEach((fn) => fn.mockReset());
   api.createCheckoutSession.mockReturnValue(new Promise<string>(() => {}));
 });
@@ -94,5 +96,17 @@ describe("BillingSection on the document ladder", () => {
     const notice = view.getByText("You're over your monthly document allowance.").parentElement!;
     expect(notice.textContent).toContain("€0.24");
     expect(notice.textContent).not.toContain("€0.50");
+
+    const growth = await renderWith(
+      billing({ plan: "growth", accountStatus: "active", ordersThisMonth: 160, orderLimit: 150, overageOrders: 10, overageAmountEur: 5, atLimit: true }),
+    );
+    expect(growth.getByText("You're over your monthly document allowance.").parentElement!.textContent).toContain("€0.50");
+  });
+
+  it("a trial whose engine is unknown is sold neither ladder", async () => {
+    engine.state = "unknown";
+    const view = await renderWith(billing());
+
+    expect((view.getByRole("button", { name: "Upgrade to Growth" }) as HTMLButtonElement).disabled).toBe(true);
   });
 });
