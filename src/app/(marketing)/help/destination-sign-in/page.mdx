@@ -14,7 +14,7 @@ Most destinations need to know who we are before they accept a file. You enter t
 
 ## How we keep them
 
-Passwords, tokens, keys and passphrases are encrypted when you save them. After that, the screen never shows them again.
+Passwords and tokens are encrypted when you save them. After that, the screen never shows them again.
 
 A login is saved as a whole. If you fill in only some of its fields, the form asks you to fill in all of them or none.
 
@@ -30,10 +30,7 @@ Do not put a login in the web address itself, and do not add it as an extra head
 
 ## SFTP
 
-Sign in with a **username** and either:
-
-- a **password**, or
-- a **private key**, pasted as text, with a **passphrase** if the key has one. When you give a key, the password is not used.
+Sign in with a **username** and **password**.
 
 The first time we connect, we learn the server's host key and save it. From then on we only connect to a server that shows the same key. If the key changes, we refuse to connect and say so, because that can mean you are talking to a different server. If the change is expected, ask your server's owner to confirm it, then contact us: the saved key cannot be cleared from the screen.
 
@@ -51,4 +48,4 @@ We do not sign the files we send to a destination. The **Signing secret** on a f
 
 ## Check it works
 
-A test is offered in the new-flow guide, right after you save a destination, and when you build an output from documentation. Otherwise the first real send is the test. If sign-in fails, the message says so. For SFTP it asks you to check the username, password or private key. See [Send outputs to a destination](/help/guides/send-to-a-destination) and [Troubleshooting](/help/troubleshooting).
+If sign-in fails, the message says so. For tests, see [Destinations](/help/destinations).

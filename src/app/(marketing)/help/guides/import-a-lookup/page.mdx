@@ -11,7 +11,6 @@ import { Step, Prereqs, IfThisFails, Outcome } from "@/components/help/guide";
 <Prereqs>
 - A CSV file with two columns. Column 1 holds the value as it appears on your documents (**From**). Column 2 holds the value your receiving system wants (**To**). Other columns are ignored.
 - A flow with an output, to use the lookup in. See [Build an output](/help/guides/build-an-output).
-- Optional, for AI suggestions: a second CSV file with the values your system accepts, such as a product list.
 </Prereqs>
 
 <Step n={1} title="Create the lookup">
@@ -28,23 +27,21 @@ The new lookup opens on its own page.
 
 Under **Import CSV**, choose your file. Leave **The first row is headings** ticked if the first row is a heading, and untick it if the first row is data.
 
-Rows with an empty **From** are skipped. A row whose **From** is already in the lookup replaces the old row. We compare without capital letters and without spaces at the ends.
+A row whose **From** is already in the lookup replaces the old row. Capital letters and spaces at the ends are ignored.
 
 <Outcome>
 A message says how many rows were imported, such as "Imported 12 rows: 10 new, 2 changed." The rows appear in the table. They are not saved yet.
 </Outcome>
 
 <IfThisFails>
-"We couldn't read that file." means the file is not a readable CSV. Open it in a spreadsheet program and save it again as CSV.
+"We couldn't read that file." means it is not a readable CSV. Save it again as CSV.
 </IfThisFails>
 
 </Step>
 
 <Step n={3} title="Check and save">
 
-Look through the table. You can change a cell, add a row with **Add row** or remove one with the cross.
-
-Select **Save**.
+Look through the table, change anything needed, and select **Save**.
 
 <Outcome>
 A message says "Saved." The lookup is ready to use.
@@ -68,20 +65,20 @@ The output swaps the value. **Preview** it to see the result. Values the lookup 
 
 <Step n={5} title="Optional: let AI suggest matches">
 
-If **Values to choose from** appears on the lookup's page, you can add a list for AI to choose from. Under **Import list (CSV)**, choose a file. Column 1 is the value. The other columns are joined into a note that helps pick it. Select **Save**.
+If **Values to choose from** appears on the lookup's page, choose a CSV file under **Import list (CSV)** and select **Save**. Column 1 is the value, and the other columns become a note that helps pick it.
 
-Now, when you preview an output and a value was not found, **Suggest matches** appears under the preview. Each suggestion shows the value, what we propose, and the note from your list. Choose **Accept** to add the pair to the lookup, **Edit** to change the proposal first, or **Reject** to drop it. Nothing is added until you accept.
+Then, when you preview an output and a value was not found, select **Suggest matches**. Nothing is added until you press **Accept**. See [Lookups](/help/lookups) for what is sent and how to accept, edit or reject.
 
 <Outcome>
 Accepted pairs join the lookup, and the preview updates.
 </Outcome>
 
 <IfThisFails>
-If you do not see **Values to choose from**, AI suggestions are not switched on for your workspace. If suggestions are refused, your workspace may have used its monthly AI allowance. See [Lookups](/help/lookups).
+No **Values to choose from** means AI suggestions are not switched on for your workspace.
 </IfThisFails>
 
 </Step>
 
 ## Take the rows out again
 
-Select **Export CSV** on the lookup's page. Values that start with a character a spreadsheet could read as a formula, such as `=`, `+` or `@`, get an apostrophe in front in the export. The import removes it again.
+Select **Export CSV** on the lookup's page.

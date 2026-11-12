@@ -46,7 +46,11 @@ Some failures are not tried again: the destination was deleted, its saved passwo
 
 ## Test a destination
 
-A test sends a small file named with `TEST_` at the start. An email subject starts with `[TEST]`, and a web request carries an `X-ProcuLink-Test` header. The new-flow guide offers **Send a test** right after you save a destination, and an output built from documentation needs a passing test before it can be created. Anywhere else the first real send is the test. See [Send outputs to a destination](/help/guides/send-to-a-destination).
+The new-flow guide offers **Send a test** right after you save a destination. It sends a small file marked `TEST_` that holds no document data. An email subject starts with `[TEST]`, and a web request carries an `X-ProcuLink-Test` header.
+
+An output built from documentation needs a passing test before it can be created. That test sends the output made from a real document in the flow, so it holds that document's values.
+
+Anywhere else the first real send is the test. See [Send outputs to a destination](/help/guides/send-to-a-destination).
 
 ## Rules we apply
 

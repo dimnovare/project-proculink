@@ -10,7 +10,7 @@ import { Step, Prereqs, IfThisFails, Outcome } from "@/components/help/guide";
 
 <Prereqs>
 - A flow, and a workspace admin account.
-- A mailbox you can reach over IMAP with an encrypted connection. You need its server name, its port (usually 993), your user name and your password. Some providers ask for an app password instead of your normal one.
+- A mailbox you can reach over IMAP with an encrypted connection. You need its server name, its port, your user name and your password. We always connect with SSL from the start, so the port must be an SSL one, normally 993. A provider that only offers port 143 will not work. Some providers ask for an app password instead of your normal one.
 - The mailbox must be reachable from the internet. A server on a private network is refused.
 </Prereqs>
 
@@ -26,7 +26,7 @@ The form shows the mailbox fields.
 
 <Step n={2} title="Fill in the mailbox">
 
-- **Server**, **Port** and **User name** come from your provider. The port is 993 unless you change it.
+- **Server**, **Port** and **User name** come from your provider. The port starts as 993.
 - **Folder** is the folder to read. It starts as `INBOX`.
 - **Only from** is optional. Type one or more words or addresses, separated by commas. A message is taken if the sender's address contains any of them.
 - **Subject contains** is optional, and works the same way on the subject. If you fill in both, a message must pass both.
@@ -76,6 +76,6 @@ New documents appear on the flow's **Documents** tab. The pickup shows when it l
 
 ## Good to know
 
-We only read unread messages. If you open a message in your own mail program first, it is marked read and we skip it. Keep a folder just for documents, and point **Folder** at it, to avoid that.
+We only read unread messages. A message you open in your own mail program first is marked read, and we skip it. Point **Folder** at a folder just for documents to avoid that.
 
-To stop collecting, untick **On**, or select **Remove**. Files already picked up stay in the flow.
+To stop collecting, untick **On**, or select **Remove**.
