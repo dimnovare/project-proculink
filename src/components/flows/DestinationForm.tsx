@@ -152,6 +152,7 @@ export function DestinationForm({ destination, preset, onSaved, onCancel }: {
                   className={INPUT}
                   type={kind === "number" ? "number" : "text"}
                   value={String(value ?? "")}
+                  aria-describedby={key === "serviceUrl" ? "dest-service-url-help" : undefined}
                   onChange={(e) =>
                     setValue(key, kind === "number" && e.target.value !== "" ? Number(e.target.value) : e.target.value)
                   }
@@ -159,7 +160,7 @@ export function DestinationForm({ destination, preset, onSaved, onCancel }: {
               )}
             </Field>
             {key === "serviceUrl" && (
-              <span className="text-[11px] text-ink-muted">Only for R2, MinIO or another S3-compatible service</span>
+              <span id="dest-service-url-help" className="text-[11px] text-ink-muted">Only for R2, MinIO or another S3-compatible service</span>
             )}
             </div>
           );
