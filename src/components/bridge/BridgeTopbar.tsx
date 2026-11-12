@@ -657,8 +657,7 @@ function TopNavLink({
 /**
  * The horizontal primary nav for md+. Reuses buildVisibleNav (admin gating and
  * the inbound "Suppliers → Customers" relabel; WP-26 removed the launch-flag
- * narrowing — with four items there is nothing to narrow, and INBOUND_ENABLED
- * now gates two TABS inside the Orders hub) and
+ * narrowing — with four items there is nothing to narrow) and
  * isItemActive (hub-lights-for-any-hub-route). Groups are flattened to a single
  * horizontal row (group headers belong to the vertical rail, not a top bar).
  * Overflows scroll horizontally at the md→lg band so links never wrap or clip.

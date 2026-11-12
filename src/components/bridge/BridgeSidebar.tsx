@@ -128,9 +128,8 @@ export interface VisibleNav {
 
 // The primary items are never gated by plan — a coordinator sees the same
 // words on day one and on day four hundred. The only nav-level gate left is the
-// admin allowlist; INBOUND_ENABLED now gates two TABS inside the Orders hub
-// (visibleHubTabs), not a nav item, and the old LAUNCH_CORE_ONLY narrowing is
-// gone because there is nothing left to narrow.
+// admin allowlist; the old launch-flag narrowing is gone because there is
+// nothing left to narrow.
 //
 // `_counterpartyPlural` is unused since the Suppliers item (the only one it relabelled) went;
 // the parameter stays so the shell's callers change with the shell sweep, not with this cut.

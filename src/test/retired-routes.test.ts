@@ -100,11 +100,17 @@ describe("retired routes", () => {
   });
 
   it("leaves no link to a retired path anywhere in the app", () => {
-    // A parameterised source (`/documents/:id`) is only the part of its base that has a
-    // param; when the base itself is a live page (`/documents` is the engine's list) the
-    // base is not dead, so it is not searched for.
+    // A parameterised source (`/documents/:id`) whose base is a live page (`/documents` is the
+    // engine's list) cannot have its base searched for, so it is searched for its DETAIL shape
+    // (`"/documents/...`) instead of being skipped.
+    const isLiveBase = (r: (typeof RETIRED_ROUTES)[number]) =>
+      r.source.includes("/:") && matchesAny(normalizePath(r.source.split("/:")[0]), listAppRoutes());
+    expect(RETIRED_ROUTES.filter(isLiveBase).map((r) => r.source)).toEqual(["/documents/:id"]);
     const deadPaths = RETIRED_ROUTES
-      .filter((r) => !r.source.includes("/:") || !matchesAny(normalizePath(r.source.split("/:")[0]), listAppRoutes()))
+      .filter((r) => !isLiveBase(r))
+      .map((r) => normalizePath(r.source.split("/:")[0]));
+    const liveBaseDetailPaths = RETIRED_ROUTES
+      .filter(isLiveBase)
       .map((r) => normalizePath(r.source.split("/:")[0]));
     const offenders: string[] = [];
 
@@ -125,6 +131,9 @@ describe("retired routes", () => {
         // Quoted string only — a path inside a comment is documentation, not a link.
         const quoted = new RegExp(`["'\`]${dead}(?:[/"'\`?]|\\(\\.\\*\\))`);
         if (quoted.test(source)) offenders.push(`${file} → ${dead}`);
+      }
+      for (const base of liveBaseDetailPaths) {
+        if (new RegExp(`["'\`]${base}/`).test(source)) offenders.push(`${file} -> ${base}/<id>`);
       }
     }
 

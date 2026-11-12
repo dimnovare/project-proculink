@@ -19,7 +19,7 @@ import { sweepRoutes } from "./sweepRoutes";
  * request, no scroll.
  *
  * A FILE CHOOSER counts too, and it is the fifth signal for the same reason the
- * fourth exists. `Upload invoice` on /inbound/invoices calls
+ * fourth exists. `Upload invoice` on the since-retired invoices screen called
  * `fileInputRef.current?.click()`, which opens the operating system's file
  * picker: no DOM mutation, no navigation, no request, no scroll. It read as dead
  * at two of three widths, and it works.

@@ -214,7 +214,7 @@ export const UNCALLED_PENDING_DECISION: Record<string, string> = {
   // posed was answered, not because it became inconvenient. Its own text set the terms: "What is
   // open is the backend's: license the format and implement it, or delete the stub." The stub was
   // deleted (ProcuLink #256, which also removed `GET /api/asns/{id}`), so there is no endpoint left
-  // to excuse. `GET /api/asns` survives and has a real caller in `getAsns`.
+  // to excuse. `GET /api/asns` went too, with the legacy ASN screens (plan 13b).
   //
   // This is the list doing exactly what it is for. The entry was added when the dead `uploadAsn`
   // wrapper was removed, and it recorded a decision nobody had made yet rather than pretending one

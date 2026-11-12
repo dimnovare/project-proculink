@@ -24,7 +24,7 @@
 // zero user value (DESIGN-DB-1 §12.3).
 //
 // Visual: reference core.jsx underline tabs — 13px/600, active ink + 2px blue
-// underline, optional mono count badge ("Invoices · 4" reads as label + count).
+// underline, optional mono count badge ("Orders · 4" reads as label + count).
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";

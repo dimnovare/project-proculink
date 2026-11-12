@@ -283,29 +283,6 @@ export const RESOLVE_HELD_FROM: readonly string[] = ["unrouted", "delivering", "
 /** Statuses where a hold-only resolve is accepted AND the hold is honoured (later retries ignore it). Frontend-only. */
 export const HOLDABLE_STATUSES: readonly string[] = ["pending_review", "ready", "ready_to_deliver"];
 
-/** An INVOICE is editable only before it is sent: the backend refuses /resolve on one from any other status (409). */
-export const INVOICE_EDITABLE_STATUSES: readonly string[] = ["pending_review", "ready", "transform_failed"];
-
-/**
- * Statuses an order only reaches once review is behind it: read, checked, released. A positive
- * list on purpose — a status this build does not know is NOT past review, so a screen that claims
- * "all checks passed" from it can never be talked into the claim by a new or unknown status.
- * Frontend-only (no backend set); `unrouted`, `parsing`, `pending_review` and `failed` are absent.
- */
-export const PAST_REVIEW_STATUSES: readonly string[] = [
-  "ready",
-  "transforming",
-  "ready_to_deliver",
-  "delivering",
-  "delivered",
-  "delivery_held",
-  "delivery_failed",
-  "delivery_unconfirmed",
-  "delivery_dead_letter",
-  "transform_failed",
-  "rejected_by_supplier",
-];
-
 /**
  * Statuses where the supplier already has the order, or a send is in flight or its outcome is
  * unknown. A per-order hold (hold for review) has nothing left to hold back. Frontend-only.

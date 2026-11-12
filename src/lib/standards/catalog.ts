@@ -142,7 +142,7 @@ export const STANDARDS: StandardSupport[] = [
     // A BIS Billing file IS a UBL 2.1 Invoice, so it reads on the UBL invoice pipeline
     // (UblInvoiceParser has no BIS-specific branch) — same argument as the order row.
     parse: "partial",
-    // NOT `supported`. The generator is registered and emits a BIS-shaped document covering the
+    // NOT `supported`. The generator is kept (Transform only) and emits a BIS-shaped document covering the
     // business terms listed in PeppolBisInvoiceTransformService, but nothing validates the profile
     // it declares, so the catalog's own rule at the top of this file applies: under-claim.
     transform: "partial",
@@ -158,9 +158,8 @@ export const STANDARDS: StandardSupport[] = [
       "to without a new dependency. Covered are the mandatory business terms and arithmetic checks " +
       "in PeppolBisValidator; NOT covered are codelists, scheme-id correctness, allowances/charges, " +
       "payment means and mixed-rate VAT. No invoice has been accepted by a live access point. Treat " +
-      "the file as input to an access point's validator. The generator is reachable only through " +
-      "the API (GET /api/invoices/{id}/download?format=peppol and .../validate-peppol); no screen " +
-      "offers it.",
+      "the file as input to an access point's validator. The generator has no API or screen entry " +
+      "point since the legacy invoice endpoints were removed (plan 13b).",
     referenceUrl: "https://docs.peppol.eu/poacc/billing/3.0/",
   },
   {

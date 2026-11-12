@@ -181,7 +181,7 @@ export interface Crumb {
  * (the hub the page belongs to), never a link.
  * Nulling the href here keeps every breadcrumb off a dead 404 target.
  */
-const UNLINKED_GROUP_ROOTS: ReadonlySet<string> = new Set(["library", "operations", "documents"]);
+const UNLINKED_GROUP_ROOTS: ReadonlySet<string> = new Set(["library", "operations"]);
 
 /**
  * True when a pathname's trail is a SINGLE crumb — the current page, which by
