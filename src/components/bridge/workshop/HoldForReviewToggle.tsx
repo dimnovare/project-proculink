@@ -28,7 +28,7 @@ export function HoldForReviewToggle({ order, refetchOrder, setFlow }: {
   }
   if (order.documentType === "invoice" || !HOLDABLE_STATUSES.includes(order.status)) return null;
   return (
-    // Short label: the header row has no room for a longer one at 1440px (workshop-density.spec).
+    // Short label: the header row has no room for a longer one at 1440px.
     <label
       className="flex items-center gap-2 whitespace-nowrap text-[12.5px] font-medium text-ink"
       title="This order is never sent automatically. You can still send it yourself."

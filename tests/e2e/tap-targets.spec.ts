@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { MOCK_ENGINE_IDS } from "../../src/lib/api/mockEngine";
 
 /**
  * Tap-target + iOS-zoom floors, MEASURED.
@@ -161,12 +162,12 @@ const ROUTES = [
   "/pricing",
   "/upload",
   "/settings",
-  // /operations/connectors was measured here until it was deleted (2026-08-13):
-  // a read-only page nothing linked to. It now 308s to /library/suppliers, which
-  // this list already measures.
-  "/library/buyers",
-  "/library/suppliers",
-  "/inbox",
+  "/documents",
+  "/flows",
+  `/flows/${MOCK_ENGINE_IDS.flow}`,
+  `/flows/${MOCK_ENGINE_IDS.flow}/documents/${MOCK_ENGINE_IDS.document}`,
+  "/lookups",
+  "/operations/log",
 ];
 
 test.describe("touch floors at a phone viewport", () => {

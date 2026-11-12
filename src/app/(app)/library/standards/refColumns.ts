@@ -21,7 +21,7 @@ export type RefKey = keyof Pick<
 
 //
 // `catalogId` is what makes the direction line derivable instead of typed. The column
-// LABELS cannot carry the marker themselves: tests/e2e/standards.spec.ts:33-34 asserts each
+// LABELS cannot carry the marker themselves: the standards e2e asserts each
 // columnheader's accessible name with `exact: true`, and that is the locked design contract, so
 // appending "(read only)" to a `<th>` would break the render this screen was ported from. The
 // disclosure goes above the table instead, where it can be a sentence rather than a tag.

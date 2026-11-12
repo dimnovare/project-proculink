@@ -163,3 +163,110 @@ test.describe("Legal entity", () => {
     }
   });
 });
+
+test("watch page renders the walkthrough video player", async ({ page }) => {
+  await page.goto("/watch");
+
+  await expect(page.getByRole("heading", { level: 1, name: /watch the walkthrough/i })).toBeVisible({
+    timeout: 10_000,
+  });
+
+  // /watch shows an HTML5 <video> when NEXT_PUBLIC_WALKTHROUGH_VIDEO_URL is set,
+  // falling back to a Loom iframe, then to a "coming shortly" placeholder
+  // (src/app/(marketing)/watch/page.tsx).
+  //
+  // The placeholder is the ABSENCE of a player. Accepting it as a pass — which
+  // this test used to do — meant "renders the walkthrough video player" could go
+  // green on a page with no player on it, forever. It is asserted away instead.
+  // The committed .env sets NEXT_PUBLIC_WALKTHROUGH_VIDEO_URL to the R2
+  // walkthrough, so a player is the state this suite runs against; if the
+  // placeholder shows up, the env the page was built with is wrong and that is
+  // worth failing on.
+  const video = page.locator("video");
+  const iframe = page.locator("iframe[title='ProcuLink walkthrough']");
+  const placeholder = page.getByText(/walkthrough is coming shortly/i);
+
+  await expect(
+    placeholder,
+    "/watch rendered the no-player placeholder — NEXT_PUBLIC_WALKTHROUGH_VIDEO_URL / _LOOM_URL are unset for this server",
+  ).toHaveCount(0);
+
+  // Whichever player it is, name it and assert it carries a real source — an
+  // empty <video> or a src-less iframe is a player in markup only.
+  if ((await video.count()) > 0) {
+    await expect(video.first()).toBeVisible();
+    await expect(video.first()).toHaveJSProperty("controls", true);
+    const src = await video.first().locator("source").first().getAttribute("src");
+    expect(src, "the <video> on /watch has no playable source").toMatch(/^https?:\/\/\S+/i);
+  } else {
+    await expect(
+      iframe.first(),
+      "/watch rendered neither a <video> nor the Loom embed",
+    ).toBeVisible();
+    const src = await iframe.first().getAttribute("src");
+    expect(src, "the walkthrough iframe on /watch has no src").toMatch(/^https?:\/\/\S+/i);
+  }
+});
+
+test("help index renders the browse-by-topic categories and popular articles", async ({ page }) => {
+  await page.goto("/help");
+
+  // Redesigned help center: hero is "How can we help?" (still the page h1).
+  await expect(page.getByRole("heading", { level: 1, name: /how can we help/i })).toBeVisible({
+    timeout: 10_000,
+  });
+
+  // The default (non-search) view is a browse-by-topic grid: one card per
+  // category that has at least one published article. Categories are <button>s
+  // (they filter the index in place), each carrying a category heading and an
+  // "N articles" count. Assert the full set of topic categories renders — this
+  // is the real article-surfacing structure (17 articles across 8 categories),
+  // replacing the old brittle "count keyword-matching links" assertion that
+  // assumed a flat link list.
+  const topicGrid = page.getByRole("heading", { level: 2, name: /browse help topics/i });
+  await expect(topicGrid).toBeAttached();
+
+  for (const category of [
+    "Getting started",
+    "Connections",
+    "Mapping",
+    "Delivery",
+    "Integrations",
+    "AI",
+    "Billing",
+    "Troubleshooting",
+  ]) {
+    await expect(
+      page.getByRole("heading", { level: 3, name: new RegExp(`^${category}$`, "i") }),
+    ).toBeVisible();
+  }
+
+  // The category cards advertise an article count each; the totals across all
+  // visible cards must add up to the full registry (17 articles). Assert at
+  // least 8 "N article(s)" counters are present (one per category).
+  const countLabels = page.getByText(/^\d+ articles?$/);
+  expect(await countLabels.count()).toBeGreaterThanOrEqual(8);
+
+  // The "Popular articles" rail renders real article links (not dead controls).
+  // Asserted on the href, not a title: POPULAR_ARTICLE_SLUGS is editorial and its
+  // entries get renamed/retired (this pinned "first-upload" until the phase-2 guide
+  // pass replaced it with "order-intake-options"). The slug is the contract the rail
+  // actually has to honour — a dead control would not carry one.
+  const popularLinks = page.locator('a[href^="/help/"]');
+  expect(await popularLinks.count()).toBeGreaterThan(0);
+  await expect(page.locator('a[href="/help/order-intake-options"]').first()).toBeVisible();
+});
+
+test("cookie consent banner appears on first marketing visit", async ({ context, page }) => {
+  // Fresh context so localStorage is empty.
+  await context.clearCookies();
+  await page.goto("/");
+
+  // Banner from Phase 3.
+  const banner = page.getByRole("dialog", { name: /cookie consent/i });
+  await expect(banner).toBeVisible({ timeout: 10_000 });
+
+  // Accepting persists the choice — banner should vanish.
+  await page.getByRole("button", { name: /accept analytics/i }).click();
+  await expect(banner).toBeHidden({ timeout: 5_000 });
+});

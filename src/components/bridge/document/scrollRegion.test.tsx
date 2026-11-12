@@ -31,7 +31,7 @@ function render(ui: ReactElement) {
 }
 
 // pdf.js is ESM-only and rasterises to a canvas jsdom does not implement. The PDF branch is
-// covered end to end in tests/e2e/mobile-order-scroll.spec.ts against a real browser; here it
+// covered end to end in tests/e2e/document-pdf.spec.ts against a real browser; here it
 // is stubbed so the sheet and text branches can be asserted without it.
 vi.mock("./PdfDocumentView", () => ({
   PdfDocumentView: () => <div data-testid="pdf-stub" />,
