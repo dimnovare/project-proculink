@@ -924,6 +924,6 @@ describe("check-vocabulary.mjs — blockBody anchoring", () => {
 
     // Labels stay a loose backstop on top of that, for a collapse the block count cannot see.
     const count = Number(/checked (\d+) navigation label/.exec(out)?.[1]);
-    expect(count).toBeGreaterThanOrEqual(28);
+    expect(count).toBeGreaterThanOrEqual(27);
   });
 });

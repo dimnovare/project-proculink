@@ -75,15 +75,12 @@ export const RETIRED_ROUTES: RetiredRoute[] = [
   },
   {
     source: "/operations/webhooks",
-    destination: "/settings?tab=connectors",
+    destination: "/settings",
     deletedDir: "src/app/(app)/operations/webhooks",
     why:
-      "A second copy of Settings ▸ Connectors that no user could open — zero inbound links "
-      + "anywhere in src/, and its only registry entry was a `hidden: true` hub tab. Both screens "
-      + "called the same four endpoints (getIntegrations, createIntegration, toggleIntegration, "
-      + "deleteIntegration) under the same TanStack key, and this copy was the lossier one: it "
-      + "hardcoded platform:\"webhook\", a value Settings has no label for, so an endpoint created "
-      + "here rendered there as a raw string. Settings owns the data.",
+      "A second copy of the Settings Connectors tab that no user could open — zero inbound links "
+      + "anywhere in src/. Both are gone: order-event webhooks belonged to the order pipeline, "
+      + "and a flow has its own webhook.",
   },
   {
     source: "/operations/connectors",

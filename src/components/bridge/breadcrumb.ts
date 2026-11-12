@@ -50,7 +50,7 @@ export const CRUMB_LABELS: Record<string, string> = {
   connections: "Supplier changes",
   // NOTE: `webhooks` is absent on purpose. /operations/webhooks was deleted on
   // 2026-08-08 (a duplicate of Settings ▸ Connectors nobody could navigate to)
-  // and now 308s to /settings?tab=connectors, so no crumb is ever rendered for
+  // and now 308s to /settings, so no crumb is ever rendered for
   // it — see src/lib/retired-routes.ts.
   admin: "Admin",
   help: "Help",

@@ -136,6 +136,12 @@ export interface AuditActionFact {
    * anyone, and the frontend is already correct for it when that happens.
    */
   reachable: boolean;
+  /**
+   * True when a writer existed and was deleted with the legacy order pipeline. Archived audit rows
+   * still carry the action, so the label stays and the row still reads in plain words. The
+   * mirror test pins this set exactly, so a row cannot become "historical" without a decision.
+   */
+  historical?: boolean;
   /** file:line of a writer (or, for unreachable rows, of whatever still names it). */
   backendSite: string;
   /**
@@ -548,8 +554,9 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "inbound_email.processed",
     kind: "created",
     label: "Email ingested",
-    reachable: true,
-    backendSite: "ProcuLink.Infrastructure/Services/Email/InboundEmailRouter.cs:418",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the legacy order email path was deleted; archived rows still carry this action.",
     reasonKeys: [],
     note: "The only inbound_email.* action that is not a refusal.",
   },
@@ -557,8 +564,9 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "inbound_email.rejected_read_only",
     kind: "failed",
     label: "Email rejected — plan is read-only",
-    reachable: true,
-    backendSite: "ProcuLink.Infrastructure/Services/Email/InboundEmailRouter.cs:231",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the legacy order email path was deleted; archived rows still carry this action.",
     reasonKeys: [],
     note: "Nothing was queued for later; the order simply never arrived. §11.5's cancellation rule, seen from the log.",
   },
@@ -566,8 +574,9 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "inbound_email.rejected_plan_gate",
     kind: "failed",
     label: "Email rejected — plan does not include email intake",
-    reachable: true,
-    backendSite: "ProcuLink.Infrastructure/Services/Email/InboundEmailRouter.cs:252",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the legacy order email path was deleted; archived rows still carry this action.",
     reasonKeys: [],
     note:
       "Hosted inbound email is BillingFeature.EmailIngestion, Growth and up, but the inbound address " +
@@ -579,8 +588,9 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "inbound_email.rejected_order_limit",
     kind: "failed",
     label: "Email rejected — order allowance exhausted",
-    reachable: true,
-    backendSite: "ProcuLink.Infrastructure/Services/Email/InboundEmailRouter.cs:277",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the legacy order email path was deleted; archived rows still carry this action.",
     reasonKeys: [],
     note:
       "The same CheckOrderLimitAsync gate the upload and REST paths apply, so this is Pilot's hard " +
@@ -602,8 +612,9 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "inbound_email.unrouted_no_supplier",
     kind: "failed",
     label: "Email not routed — no matching supplier",
-    reachable: true,
-    backendSite: "ProcuLink.Infrastructure/Services/Email/InboundEmailRouter.cs:218",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the legacy order email path was deleted; archived rows still carry this action.",
     reasonKeys: [],
     note: "No order was created, so this is an ingestion failure rather than the `unrouted` order status.",
   },
@@ -611,8 +622,9 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "inbound_email.no_attachments",
     kind: "failed",
     label: "Email had no attachments",
-    reachable: true,
-    backendSite: "ProcuLink.Infrastructure/Services/Email/InboundEmailRouter.cs:229",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the legacy order email path was deleted; archived rows still carry this action.",
     reasonKeys: [],
     note: "Nothing to ingest.",
   },
@@ -620,8 +632,9 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "inbound_email.attachment_skipped_unsupported",
     kind: "failed",
     label: "Attachment skipped — unsupported type",
-    reachable: true,
-    backendSite: "ProcuLink.Infrastructure/Services/Email/InboundEmailRouter.cs:242",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the legacy order email path was deleted; archived rows still carry this action.",
     reasonKeys: [],
     note: "One attachment was dropped; the rest of the email may still have been processed.",
   },
@@ -635,8 +648,9 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "inbound_email.attachment_skipped_undecodable",
     kind: "failed",
     label: "Attachment skipped — could not be read",
-    reachable: true,
-    backendSite: "ProcuLink.Infrastructure/Services/Email/InboundEmailRouter.cs:310",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the legacy order email path was deleted; archived rows still carry this action.",
     reasonKeys: [],
     note:
       "The sender attached something the decoder could not turn into bytes. Deliberately not a rejection: a " +
@@ -646,8 +660,9 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "inbound_email.attachment_skipped_empty",
     kind: "failed",
     label: "Attachment skipped — empty file",
-    reachable: true,
-    backendSite: "ProcuLink.Infrastructure/Services/Email/InboundEmailRouter.cs:324",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the legacy order email path was deleted; archived rows still carry this action.",
     reasonKeys: [],
     note:
       "Decoded cleanly to nothing — the sender really did attach an empty file. Distinct from " +
@@ -657,8 +672,9 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "inbound_email.attachment_skipped_too_large",
     kind: "failed",
     label: "Attachment skipped — too large",
-    reachable: true,
-    backendSite: "ProcuLink.Infrastructure/Services/Email/InboundEmailRouter.cs:264",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the legacy order email path was deleted; archived rows still carry this action.",
     reasonKeys: [],
     note: "Over IngressLimits.MaxFileBytes.",
   },

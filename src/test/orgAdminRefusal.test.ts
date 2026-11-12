@@ -38,8 +38,7 @@ import { classifyApiFailure } from "@/lib/apiFailure";
 import { PLAN_BY_ID } from "@/lib/plans";
 
 import { createCheckoutSession, createPortalSession, getBillingStatus } from "@/lib/api/billing";
-import { updateEmailSettings, updateSftpSettings, updateS3Settings } from "@/lib/api/settings";
-import { createApiKey, createIntegration, getAuditLog } from "@/lib/api-client";
+import { createApiKey, getAuditLog } from "@/lib/api-client";
 
 // ── The two bodies, exactly as the API sends them ────────────────────────────
 
@@ -113,38 +112,11 @@ const GATED: readonly GatedCall[] = [
     call: () => createApiKey("qa"),
     planGateSurvives: true,
   },
-  {
-    endpoint: "POST /api/integrations",
-    why: "Stands up an outbound subscription shipping every matching order's payload to an arbitrary URL.",
-    call: () => createIntegration({ platform: "custom", eventType: "order.delivered", targetUrl: "https://example.test/hook" }),
-    planGateSurvives: true,
-  },
-  {
-    endpoint: "PUT /api/settings/email",
-    why: "IMAP host and credentials: a member could repoint ingestion at a mailbox they control and feed the organisation fabricated purchase orders.",
-    call: () =>
-      updateEmailSettings({ enabled: true, host: "imap.example.test", port: 993, useSsl: true, username: "ops", folder: "INBOX" }),
-    planGateSurvives: true,
-  },
-  {
-    endpoint: "PUT /api/settings/sftp",
-    why: "The same, for the SFTP poller: host, credentials and the supplier arriving documents are attributed to.",
-    call: () =>
-      updateSftpSettings({ enabled: true, host: "sftp.example.test", port: 22, username: "ops", remoteDirectory: "/in", defaultSupplierId: null }),
-    planGateSurvives: true,
-  },
-  {
-    endpoint: "PUT /api/settings/s3",
-    why: "The same, for the S3/R2 poller: bucket, keys and the supplier arriving documents are attributed to.",
-    call: () =>
-      updateS3Settings({ enabled: true, bucketName: "b", keyPrefix: "", region: "eu", accessKeyId: "k", defaultSupplierId: null }),
-    planGateSurvives: true,
-  },
 ];
 
 /**
  * The last gated endpoint has no frontend caller at all, so there is no copy to fix. Declared
- * here rather than omitted, so the count below still ties to the eight and the gap is
+ * here rather than omitted, so the count below still ties to the four and the gap is
  * visible instead of looking like an oversight.
  */
 const NOT_CALLED_FROM_THE_FRONTEND = [
@@ -158,11 +130,11 @@ describe("the swept corpus is real", () => {
   it("covers every endpoint the backend gates, and nothing is silently missing", () => {
     // The floor. A corpus that emptied — a bad import, an entry deleted — would make every
     // assertion below pass while calling nothing at all.
-    expect(GATED.length, "the sweep must really have call sites in it").toBe(7);
+    expect(GATED.length, "the sweep must really have call sites in it").toBe(3);
     expect(
       GATED.length + NOT_CALLED_FROM_THE_FRONTEND.length,
-      "the eight gated actions this corpus names are either swept here or declared uncalled",
-    ).toBe(8);
+      "the four gated actions this corpus names are either swept here or declared uncalled",
+    ).toBe(4);
 
     for (const entry of [...GATED, ...NOT_CALLED_FROM_THE_FRONTEND]) {
       expect(typeof entry.endpoint).toBe("string");

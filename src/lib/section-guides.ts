@@ -153,22 +153,18 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
   // suppliers list, and test firing belongs to the supplier Delivery tab. The
   // route 308s to /settings.
   // NOTE: /operations/webhooks had a guide here until 2026-08-08. The page was a
-  // duplicate of Settings ▸ Connectors that no user could navigate to, so it was
-  // deleted and now 308s to /settings?tab=connectors. Outbound webhooks are
-  // covered by the Settings guide below.
+  // duplicate of the Settings Connectors tab that no user could navigate to, so it was
+  // deleted and now 308s to /settings.
   {
     route: "/settings",
     title: "Settings",
-    purpose: "Workspace name and order direction, billing, intake channels, API keys, and outbound webhooks.",
+    purpose: "Workspace name, billing, and API keys.",
     bullets: [
-      { text: "Set whether you send or receive purchase orders", href: "/settings?tab=org" },
       { text: "Check your plan, usage, and upgrade options", href: "/settings?tab=billing" },
-      { text: "Pull orders from email, SFTP, or S3 (paid plans; add a {supplier} first)", href: "/settings?tab=email" },
-      { text: "Create API keys and copy your order-intake URL", href: "/settings?tab=api" },
-      { text: "Add webhooks — failure counts show here too", href: "/settings?tab=connectors" },
+      { text: "Create API keys", href: "/settings?tab=api" },
     ],
-    firstStep: { text: "Set your order direction on the Organization tab first — it relabels the whole app.", href: "/settings?tab=org" },
-    articleSlugs: ["imap-provider-setup", "sftp-polling-setup", "s3-polling-setup", "api-order-schema-reference", "billing-faq", "api-and-integrations", "inbound-mode"],
+    firstStep: { text: "Check your plan, usage, and upgrade options", href: "/settings?tab=billing" },
+    articleSlugs: ["billing-faq"],
   },
 ];
 

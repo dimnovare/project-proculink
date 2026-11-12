@@ -76,7 +76,7 @@ export const HUB_TABS: Record<HubKey, HubTab[]> = {
     // user could open, and the founder deleted it on 2026-08-08. Both screens
     // called the same four endpoints under the same query key, and the copy
     // here was the lossier one — it hardcoded platform:"webhook", which
-    // Settings has no label for. The URL now 308s to /settings?tab=connectors
+    // Settings has no label for. The URL now 308s to /settings
     // (src/lib/retired-routes.ts). Do not re-add a tab for it.
   ],
 };

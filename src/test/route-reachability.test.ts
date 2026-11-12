@@ -188,7 +188,7 @@ export const KNOWN_DEEP_LINK_ONLY: Record<string, string> = {
  *
  * It went to one on the same day, when the founder took the OTHER answer for
  * /operations/webhooks and deleted it. The page is gone from disk and the URL
- * 308s to /settings?tab=connectors (src/lib/retired-routes.ts), so its entry
+ * 308s to /settings (src/lib/retired-routes.ts), so its entry
  * had to go too. Its replacement is `theWebhooksPageIsGoneAndSettingsOwnsIt`
  * below, which asserts the deletion in both directions.
  *
@@ -1062,32 +1062,11 @@ describe("route reachability (plan rule R1 — no new surface without a consumer
       "duplicate moved the problem instead of solving it").toBe(false);
     expect(Object.keys(ACCOUNTED_FOR), "/settings must not need an excuse").not.toContain("/settings");
 
-    // …and it really still renders the connectors tab that took the job over.
-    const settingsPage = fs.readFileSync(
-      path.join(APP_DIR, "(app)", "settings", "page.tsx"),
-      "utf8",
-    );
-    expect(settingsPage.length, "settings/page.tsx is empty — the probes below would pass vacuously")
-      .toBeGreaterThan(1000);
-    for (const marker of [
-      'id: "connectors"',      // the tab exists
-      "<ConnectorsSection",    // …and is mounted
-      "getIntegrations",       // …and reads the subscriptions
-      "createIntegration",     // …and can still add one
-      "deleteIntegration",     // …and can still remove one
-    ]) {
-      expect(
-        settingsPage,
-        `Settings ▸ Connectors no longer has ${marker} — the surface /operations/webhooks ` +
-          `was deleted in favour of cannot do its job, so the deletion is now a capability loss`,
-      ).toContain(marker);
-    }
-
     // The redirect is the other half of "deleted, not 404'd": a bookmark must
-    // land on the surface that took over, and on the TAB, not just the page.
+    // land on Settings, which no longer has a webhooks tab.
     const retired = RETIRED_ROUTES.find((r) => r.source === DEAD);
     expect(retired, `${DEAD} was deleted with no redirect — an old bookmark 404s`).toBeDefined();
-    expect(retired!.destination).toBe("/settings?tab=connectors");
+    expect(retired!.destination).toBe("/settings");
 
     // ── ANTI-VACUITY FLOORS, BEFORE THE NEGATIVES ────────────────────────────
     // #126's ordering trap, verbatim and deliberately repeated: a sweep that
@@ -1138,7 +1117,7 @@ describe("route reachability (plan rule R1 — no new surface without a consumer
     expect(
       offenders,
       `${DEAD} is quoted as a path outside its retirement record:\n  ${offenders.join("\n  ")}\n` +
-        `The page was deleted — link /settings?tab=connectors instead.`,
+        `The page was deleted — link /settings instead.`,
     ).toEqual(["src/lib/retired-routes.ts"]);
 
     // And no excuse survives it. A deleted route must not be recorded as

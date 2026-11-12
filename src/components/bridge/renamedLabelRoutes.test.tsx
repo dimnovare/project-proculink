@@ -155,19 +155,17 @@ describe("renamed settings tabs keep their ?tab= ids", () => {
   const rows: Array<[string, string]> = [
     ["org", "Workspace"],
     ["billing", "Plan & billing"],
-    ["sftp", "SFTP folder"],
-    ["s3", "Cloud folder \\(S3 or R2\\)"],
     ["api", "API keys"],
-    ["connectors", "Notifications"],
+    ["notifications", "Notifications"],
   ];
   for (const [id, label] of rows) {
     it(`?tab=${id} → "${label.replace(/\\/g, "")}"`, () => {
       expect(src).toMatch(new RegExp(`id:\\s*"${id}",\\s*label:\\s*"${label}"`));
     });
   }
-  it("keeps the SettingsTab union unchanged so old deep links still validate", () => {
+  it("keeps the SettingsTab union to the tabs that exist", () => {
     expect(src).toContain(
-      'type SettingsTab = "org" | "billing" | "email" | "sftp" | "s3" | "api" | "connectors"',
+      'type SettingsTab = "org" | "billing" | "api" | "notifications"',
     );
   });
 });

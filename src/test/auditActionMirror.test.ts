@@ -752,6 +752,24 @@ describe("auditActionManifest mirrors the backend's audit vocabulary", () => {
     expect(wrong, `reasonKeys naming a payload key the backend does not write: ${wrong.join(" · ")}`).toEqual([]);
   });
 
+  test("the historical rows (writer deleted, archived rows still readable) are exactly these", () => {
+    expect(
+      AUDIT_ACTION_FACTS.filter((f) => f.historical).map((f) => f.action).sort(),
+    ).toEqual([
+      "inbound_email.attachment_skipped_empty",
+      "inbound_email.attachment_skipped_too_large",
+      "inbound_email.attachment_skipped_undecodable",
+      "inbound_email.attachment_skipped_unsupported",
+      "inbound_email.no_attachments",
+      "inbound_email.processed",
+      "inbound_email.rejected_order_limit",
+      "inbound_email.rejected_plan_gate",
+      "inbound_email.rejected_read_only",
+      "inbound_email.unrouted_no_supplier",
+    ]);
+    expect(AUDIT_ACTION_FACTS.filter((f) => f.historical).every((f) => !f.reachable)).toBe(true);
+  });
+
   test.skipIf(!BACKEND)("each row's backendSite names a file that really contains that action", () => {
     const { root } = scan();
     // The provenance is load-bearing — it is how the next person re-derives this
@@ -763,6 +781,7 @@ describe("auditActionManifest mirrors the backend's audit vocabulary", () => {
     // which is the contract worth pointing at, while the writers are elsewhere.
     // A rename still breaks this, which is the point.
     for (const fact of AUDIT_ACTION_FACTS) {
+      if (fact.historical) continue; // no writer left to cite, pinned exactly by the test above
       const rel = fact.backendSite.split(":")[0].trim();
       const path = join(root, rel);
       expect(existsSync(path), `${fact.action} cites ${rel}, which does not exist`).toBe(true);

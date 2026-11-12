@@ -381,11 +381,6 @@ describe("the failing pairs cannot come back", () => {
 describe("the specific sites the refutation measured", () => {
   const read = (rel: string) => readFileSync(join(REPO, rel), "utf8");
 
-  it("settings' billing-gate notice uses the amber TEXT token", () => {
-    const src = read("src/app/(app)/settings/page.tsx");
-    expect(src).toContain(`background: "var(--amber-soft)", color: "var(--amber-text)"`);
-  });
-
   // A fourth site — the /operations/webhooks primary action — was measured here
   // until FE #130 deleted that page (a duplicate of Settings ▸ Connectors nobody
   // could navigate to). --brand-green-btn is still guarded by the Copy button

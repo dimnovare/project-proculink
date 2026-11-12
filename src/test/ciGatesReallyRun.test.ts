@@ -417,9 +417,9 @@ describe("cross-repo mirror suites run somewhere a backend exists", () => {
   // every assertion after this into a green no-op, which is the shape of defect this
   // whole section exists to catch. Floors have headroom; they are not a census.
   it("finds both sides — the suites, and the job that checks a backend out", () => {
-    expect(backendReadingTests.length, "no backend-reading test files found — the walk is broken").toBeGreaterThanOrEqual(8);
+    expect(backendReadingTests.length, "no backend-reading test files found — the walk is broken").toBeGreaterThanOrEqual(7);
     expect(mirrorJob?.[0], "no job in ci.yml sets PROCULINK_BACKEND_PATH — the backend-mirror job is gone").toBeTruthy();
-    expect(filesRunByMirrorJob.length, "the backend-mirror job runs no test files at all").toBeGreaterThanOrEqual(8);
+    expect(filesRunByMirrorJob.length, "the backend-mirror job runs no test files at all").toBeGreaterThanOrEqual(7);
 
     // The walk must reach BOTH directories that hold one. A corpus that stopped at
     // src/test would clear the count above and miss src/lib entirely — the

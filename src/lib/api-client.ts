@@ -2242,22 +2242,10 @@ export type {
   SetOrgRetentionRequest,
 } from "@/lib/api/billing";
 
-// ── Email / org / ingress settings (moved to src/lib/api/settings.ts) ─────────
+// ── Org settings (moved to src/lib/api/settings.ts) ───────────────────────────
 export {
-  getEmailSettings,
-  updateEmailSettings,
   getOrgSettings,
   updateOrgSettings,
-  getSftpSettings,
-  updateSftpSettings,
-  getS3Settings,
-  updateS3Settings,
-} from "@/lib/api/settings";
-export type {
-  SftpIngressSettings,
-  UpdateSftpIngressPayload,
-  S3IngressSettings,
-  UpdateS3IngressPayload,
 } from "@/lib/api/settings";
 
 // ── Supplier catalog pull-source config (plan 2026-06-12) ─────────────────────
@@ -2350,96 +2338,6 @@ export async function revokeApiKey(id: string): Promise<void> {
     headers,
   }, 30000);
   if (!res.ok && res.status !== 204) throw new Error(`api-keys DELETE: ${res.status}`);
-}
-
-// ── Wave 4: Integration Subscriptions ────────────────────────────────────
-
-export interface IntegrationSubscription {
-  id: string;
-  platform: string;
-  eventType: string;
-  targetUrl: string;
-  isActive: boolean;
-  failureCount: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
-const _mockIntegrations: IntegrationSubscription[] = [];
-
-export async function getIntegrations(): Promise<IntegrationSubscription[]> {
-  if (USE_MOCK) {
-    await delay(300);
-    return [..._mockIntegrations];
-  }
-  const headers = await authHeader();
-  const res = await fetchWithTimeout(`${API_BASE_URL}/api/integrations`, { headers });
-  if (!res.ok) throw new Error(`integrations: ${res.status}`);
-  return res.json();
-}
-
-export async function createIntegration(payload: {
-  platform: string;
-  eventType: string;
-  targetUrl: string;
-  secret?: string;
-}): Promise<IntegrationSubscription> {
-  if (USE_MOCK) {
-    await delay(500);
-    const sub: IntegrationSubscription = {
-      id: crypto.randomUUID(),
-      platform: payload.platform,
-      eventType: payload.eventType,
-      targetUrl: payload.targetUrl,
-      isActive: true,
-      failureCount: 0,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    _mockIntegrations.unshift(sub);
-    return sub;
-  }
-  const headers = await authHeader();
-  const res = await fetchWithTimeout(`${API_BASE_URL}/api/integrations`, {
-    method: "POST",
-    headers: { ...headers, "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  }, 30000);
-  // Creating an outbound subscription ships the payload of every matching order to a URL of
-  // the creator's choosing, so it is organisation-admin-gated. Same raw-token defect as above.
-  if (!res.ok) throw await readRefusal(res, `integrations POST: ${res.status}`);
-  return res.json();
-}
-
-export async function toggleIntegration(id: string): Promise<{ id: string; isActive: boolean }> {
-  if (USE_MOCK) {
-    await delay(300);
-    const sub = _mockIntegrations.find(s => s.id === id);
-    if (sub) sub.isActive = !sub.isActive;
-    return { id, isActive: sub?.isActive ?? false };
-  }
-  const headers = await authHeader();
-  const res = await fetchWithTimeout(`${API_BASE_URL}/api/integrations/${id}/toggle`, {
-    method: "PATCH",
-    headers,
-  }, 30000);
-  if (!res.ok) throw new Error(`integrations PATCH toggle: ${res.status}`);
-  return res.json();
-}
-
-export async function deleteIntegration(id: string): Promise<void> {
-  if (USE_MOCK) {
-    await delay(300);
-    const i = _mockIntegrations.findIndex(s => s.id === id);
-    if (i !== -1) _mockIntegrations.splice(i, 1);
-    return;
-  }
-  const headers = await authHeader();
-  const res = await fetchWithTimeout(`${API_BASE_URL}/api/integrations/${id}`, {
-    method: "DELETE",
-    headers,
-  }, 30000);
-  if (!res.ok && res.status !== 204) throw new Error(`integrations DELETE: ${res.status}`);
 }
 
 // ── Standalone suppliers export (for components that prefer named imports) ────

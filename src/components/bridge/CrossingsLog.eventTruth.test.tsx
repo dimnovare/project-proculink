@@ -344,8 +344,11 @@ describe("auditActionManifest — coverage floors", () => {
     // +2 reachable from the invoice flow (`InvoiceSentAnyway`, `InvoiceDestinationChanged`).
     //
     // +9 reachable from flow documents (`document.*`, written via DocumentAudit.Add).
+    //
+    // -10 reachable when the legacy order email path was deleted (plan 13b): those
+    // `inbound_email.*` rows stay as `historical` so archived audit rows still read.
     expect(AUDIT_ACTION_FACTS).toHaveLength(63);
-    expect(REACHABLE_AUDIT_ACTIONS).toHaveLength(58);
+    expect(REACHABLE_AUDIT_ACTIONS).toHaveLength(48);
   });
 
   it("classifies a substantial number of them as failures", () => {
@@ -380,7 +383,10 @@ describe("auditActionManifest — coverage floors", () => {
 
   it("every row cites a backend site and names a kind", () => {
     for (const fact of AUDIT_ACTION_FACTS) {
-      expect(fact.backendSite, `${fact.action} has no backendSite`).toMatch(/ProcuLink\.[A-Za-z.]+\/.+:\d+|\.cs:\d+/);
+      // A historical row has no writer left to cite; its set is pinned in auditActionMirror.test.ts.
+      if (!fact.historical) {
+        expect(fact.backendSite, `${fact.action} has no backendSite`).toMatch(/ProcuLink\.[A-Za-z.]+\/.+:\d+|\.cs:\d+/);
+      }
       expect(fact.label.length, `${fact.action} has no label`).toBeGreaterThan(0);
     }
   });

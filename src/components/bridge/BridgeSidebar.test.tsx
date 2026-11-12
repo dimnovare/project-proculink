@@ -254,7 +254,7 @@ describe("buildVisibleNav — three items, one flat section", () => {
   //
   // /operations/webhooks was the first: the same event-subscription data as
   // Settings ▸ Connectors. FE #130 deleted the page rather than leaving a hidden
-  // duplicate, and its URL 308s to /settings?tab=connectors.
+  // duplicate, and its URL 308s to /settings.
   //
   // /operations/connectors was the second, deleted 2026-08-13. It claimed to be
   // a cross-supplier delivery-channel view, but it was read-only with no

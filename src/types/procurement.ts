@@ -626,33 +626,6 @@ export interface OrgLimitsResponse {
   effectiveTrialEndsAt?:   string | null;
 }
 
-// ── Email polling settings ────────────────────────────────────────────────
-
-export interface EmailSettings {
-  enabled: boolean;
-  host: string;
-  port: number;
-  useSsl: boolean;
-  username: string;
-  folder: string;
-  defaultSupplierId: string | null;
-  hasPassword: boolean;
-  passwordDisplay?: string | null;
-  lastPolledAt?: string | null;
-  updatedAt?: string | null;
-}
-
-export interface UpdateEmailSettingsPayload {
-  enabled: boolean;
-  host: string;
-  port: number;
-  useSsl: boolean;
-  username: string;
-  password?: string | null;
-  folder: string;
-  defaultSupplierId?: string | null;
-}
-
 // ── Order list pagination ───────────────────────────────────────────────────
 // GET /api/orders now returns a paginated envelope instead of a bare array.
 
