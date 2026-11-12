@@ -25,7 +25,7 @@ const CONFIG_FIELDS: Record<string, [label: string, kind: Kind]> = {
   replyTo: ["Reply-to address", "text"],
   subjectTemplate: ["Subject", "text"],
   bodyTemplate: ["Message", "text"],
-  attachmentFileName: ["Attachment file name", "text"],
+  // No attachmentFileName box: a flow send always names the attachment after the document.
 };
 
 const PROTOCOLS = { http: "Web address (API)", sftp: "SFTP", ftps: "FTPS", email: "Email" } as const;
