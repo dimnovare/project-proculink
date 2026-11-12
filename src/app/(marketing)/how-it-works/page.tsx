@@ -13,16 +13,8 @@ export const metadata = pageMetadata({
 });
 
 // ─── Palette — ALIASES for the design tokens, never copies of their values ────
-// The page follows a buyer → supplier topology:
-//   • buyer / process / primary-CTA elements use buyer-blue  (--brand-blue)
-//   • supplier-output / success elements use forest green    (--brand-green)
-//   • AI = violet (--ai), validation = amber (--amber-text, AA-darkened)
-//
-// These were hex copies "sampled pixel-exact from the design render". Sampling a
-// render is how a page ends up a generation behind the tokens: BLUE_SOFT still
-// held the previous generation's value, and the header comment above described
-// the green family by one of the three emerald greens that
-// 11-unified-page-rules.md explicitly BANS. Enforced by scripts/check-tokens.mjs.
+// Colour roles: primary CTA and early-stage elements use blue (--brand-blue), the last stage uses green
+// (--brand-green), AI = violet (--ai), validation = amber (--amber-text, AA-darkened).
 
 const NAVY = "var(--navy)";
 const INK = "var(--ink)";
@@ -30,7 +22,7 @@ const MUTE = "var(--ink-muted)";
 const HAIR = "var(--border)";
 const PANEL = "var(--bg)";
 
-const BLUE = "var(--brand-blue)"; // buyer-blue — CTA, early-stage chips, first pipeline node
+const BLUE = "var(--brand-blue)"; // CTA, early-stage chips, first pipeline node
 const BLUE_SOFT = "var(--brand-blue-soft)"; // pale blue chip / eyebrow background
 const AMBER = "var(--amber-text)";
 // Supplier/output green. --brand-green on --brand-green-soft is 3.55:1 and fails
@@ -169,7 +161,7 @@ export default function HowItWorksPage() {
         </div>
       </section>
 
-      {/* ── The workflow (light) — what a buyer does, first ─────────────── */}
+      {/* ── The four steps (light) ─────────────── */}
       <section className="hiw-steps" style={{ maxWidth: 860, margin: "0 auto" }} aria-labelledby="hiw-workflow-title">
         <div style={{ textAlign: "center" }}>
           <Eyebrow>The workflow</Eyebrow>

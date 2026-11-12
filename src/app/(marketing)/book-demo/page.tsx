@@ -3,10 +3,8 @@ import { pageMetadata } from "@/lib/seo";
 import { BookDemoForm } from "@/components/marketing/BookDemoForm";
 import { Card } from "@/components/bridge/layout/Card";
 
-// /book-demo is a 20-minute call about ONE of the visitor's own documents — not a generic software demo. "Show us one workflow" is a promise we can keep on a
-// short call; "a demo" invites a feature tour nobody needs before they have seen their own
-// order come out supplier-ready. The route keeps its name: it is linked from the app and the
-// marketing site, and BOOK_DEMO_URL (src/lib/book-demo.ts) defaults to it.
+// /book-demo is a 20-minute call about ONE of the visitor's own documents. The route keeps its name:
+// it is linked from the app and the marketing site, and BOOK_DEMO_URL (src/lib/book-demo.ts) defaults to it.
 
 export const metadata = pageMetadata({
   path: "/book-demo",

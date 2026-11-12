@@ -253,7 +253,7 @@ export default function ChangelogPage() {
           }}
         >
           <p style={{ fontSize: 14, color: "var(--ink-faint)", marginBottom: 20 }}>
-            Ready to automate your purchase orders?
+            Try it on your own documents
           </p>
           <Link
             href="/sign-up"
@@ -269,7 +269,22 @@ export default function ChangelogPage() {
               textDecoration: "none",
             }}
           >
-            Get started free →
+            Start your free trial
+          </Link>
+          <Link
+            href="/book-demo"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              marginLeft: 12,
+              padding: "11px 20px",
+              fontSize: 14,
+              fontWeight: 600,
+              color: "var(--brand-blue-deep)",
+              textDecoration: "none",
+            }}
+          >
+            Talk to us
           </Link>
         </div>
       </section>

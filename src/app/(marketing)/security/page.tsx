@@ -34,18 +34,7 @@ const BLUE = "#1E66C9"; // buyer-blue — primary CTA
 
 const POSTURE: Array<{ title: string; body: React.ReactNode; icon: React.ReactNode }> = [
   {
-    // Narrowed 2026-08-06 to exactly what is enforced. This card used to say "Encryption
-    // everywhere — AES-GCM at rest and TLS 1.2+ in transit", and the in-transit half was
-    // false: no delivery channel required TLS, so a Directo endpoint saved as http:// shipped
-    // the purchase order together with the user/password/key that authenticate it, in clear
-    // text. Requiring https:// on every URL-configured channel is what made most of this
-    // sentence true; the last two clauses are the part that is still not, and they stay named
-    // rather than rounded away. The at-rest half was always true
-    // (DeliveryEncryptionService.cs:43/69, no plaintext fallback).
     title: "Encryption in transit and at rest",
-    // The channel list has to be complete for the TLS claim to be true, and a compliance reviewer
-    // reads this page before signing — so the one channel in it that is not on every plan says so.
-    // The ERP connectors gate at Enterprise (BillingFeature.ErpConnectors); tier derived, not typed.
     body: `Delivery credentials are encrypted at rest with AES-256-GCM authenticated encryption and are never written to application logs. Every outbound channel configured by URL — webhook and HTTP delivery, and S3 ingestion — must use https://, and a plain http:// address is refused when you save it. SFTP is encrypted by construction, and FTPS negotiates explicit TLS. Two connection settings can still weaken that if you switch them on: skipping FTPS certificate validation, and turning SSL off for IMAP or SMTP.`,
     icon: <KeyIcon />,
   },
@@ -130,34 +119,6 @@ const POSTURE: Array<{ title: string; body: React.ReactNode; icon: React.ReactNo
   },
   {
     title: "Validation before delivery",
-    // This card said: "Per-supplier rules block malformed orders before they ever
-    // reach a supplier endpoint — wrong currency, missing fields, unresolved
-    // codes." Every clause of that is true of SOMETHING, which is what made it
-    // hard to see. It named one product and described two.
-    //
-    // The CONFIGURABLE per-supplier rule set — the versioned acceptance profile on
-    // a supplier's Validation rules tab — is gated at Enterprise:
-    // PlanConstants.cs:287 maps BillingFeature.CustomSupplierRules to Enterprise,
-    // and SupplierAcceptanceController.GateAsync (:36-46) refuses both authoring
-    // (:70) and activating (:99) with custom_supplier_rules_requires_enterprise.
-    // Reading versions you already hold is deliberately left open (:51-63), so a
-    // workspace that downgrades can still see what its suppliers enforce.
-    //
-    // The BUILT-IN checks are a different product and are on every plan including
-    // Pilot. SupplierAcceptanceService.cs:198-204 runs InvariantValidator and the
-    // output-field pass unconditionally — neither sits inside a `profile is not
-    // null` branch, and EvaluateProfile returns empty when there is none (:387-391).
-    //
-    // Of the three examples the old sentence gave, exactly one belonged to the
-    // gated product. Unresolved supplier item codes are built-in and hard-block
-    // (OutputFieldValidator.cs:69-71, throwing at :115-126 before a transform
-    // writes a byte). A missing PO number or currency is built-in
-    // (InvariantValidator.cs:37-51). "Wrong currency" is NOT: nothing built-in
-    // validates the currency VALUE — InvariantValidator.cs:47 is a
-    // !IsNullOrWhiteSpace presence test — so an allowed-list or equals check is
-    // the gated profile (RuleCatalog.cs:107,115). Naming no tier while listing all
-    // three sold the Enterprise product at every price on the page a compliance
-    // reviewer reads.
     body: `Built-in checks run on every plan and cannot be switched off: we flag a total that does not add up or a value that is missing, and we hold a document we have already seen instead of sending it twice.`,
     icon: <RulesIcon />,
   },

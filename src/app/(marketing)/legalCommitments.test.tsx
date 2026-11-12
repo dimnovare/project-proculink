@@ -8,6 +8,7 @@ import SubprocessorsPage from "./subprocessors/page";
 import SecurityPage from "./security/page";
 import PrivacyPage from "./privacy/page";
 import PricingPage from "./pricing/page";
+import BookDemoPage from "./book-demo/page";
 import MarketingLayout from "./layout";
 import HomePage from "@/app/(home)/page";
 import SignInPage from "@/app/sign-in/[[...sign-in]]/page";
@@ -889,6 +890,77 @@ describe("sign-in and sign-up trust line", () => {
       expect(link?.getAttribute("href")).toBe("/security");
     });
   }
+});
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// /customers shipped two fabricated pilot profiles ("Mid-market wholesaler ·
+// ~120 POs/month", "Industrial distributor · ~500 POs/month") behind a
+// "Coming soon — anonymised pilot" badge. Production has no engagement that
+// matches either, so the anonymisation was concealing invention rather than an
+// identity. An anonymised-but-fabricated profile is the same defect as a named
+// fake one, so the fix is an empty page that says so — not a softer fiction.
+//
+// Quoting the two retired profiles was useless as a guard: "a mid-sized
+// wholesaler, roughly 120 purchase orders a month" restores both of them word
+// for word past every literal pin. What actually distinguishes the honest page
+// from the dishonest one is VOICE — the page is allowed to quote one invented
+// profile as the specimen it refuses to publish, and it does exactly that in
+// the "Why it is empty" panel. Outside quotation marks the page is speaking in
+// its own voice, and there it may not describe a customer we do not have.
+//
+// Two independent guards, because one is always beatable:
+//   • voice   — no archetype, volume or pilot language outside quotation marks;
+//   • arity   — at most ONE archetype anywhere, quoted or not. Two profiles
+//               need two archetypes, so the restored pair dies even if someone
+//               puts both of them inside quotes.
+//
+// ── Plan 12b: the guard moved again. /customers 308'd to /pilot, and /pilot is retired too.
+// The pages that now sit where a prospect looks for proof are /book-demo and the landing
+// page, so every rule here runs against both. Assertions are unchanged; a page about the
+// product may still say "free trial", which none of the claim patterns below match.
+
+// Built fresh on each use: a /g regex carries lastIndex between calls.
+const ARCHETYPE = "\\b(wholesaler|distributor|retailer|manufacturer|reseller|merchant)s?\\b";
+
+/** Drop quoted spans — a quotation is a specimen, not a claim. */
+const unquoted = (s: string) => s.replace(/[“"][^“”"]*[”"]/g, " ");
+
+describe.each([
+  ["/book-demo", () => <BookDemoPage />],
+  ["/ (home)", () => <HomePage />],
+])("%s invents no customer", (_name, page) => {
+  it("describes no customer in the page's own voice", () => {
+    const body = unquoted(text(page()));
+    expect(body).not.toMatch(new RegExp(ARCHETYPE, "i"));
+    expect(body).not.toMatch(
+      /\b\d[\d,.]*\s*\+?\s*(purchase orders|orders|POs)\s*(?:a|per|\/)\s*month\b/i,
+    );
+    expect(body).not.toMatch(
+      /\b\d[\d,.]*\s*\+?\s*(companies|customers|clients|teams|businesses|organi[sz]ations)\b/i,
+    );
+  });
+
+  it("ships no customer profile at all, quoted or not", () => {
+    const body = text(page());
+    expect((body.match(new RegExp(ARCHETYPE, "gi")) ?? []).length).toBe(0);
+  });
+
+  it("claims no pilot, customer or result we cannot point at", () => {
+    const body = text(page());
+    const CLAIMS: RegExp[] = [
+      /we(?:'|&apos;|’)?re in early pilots/i,
+      /procurement teams using ProcuLink/i,
+      /\b(?:our|current|existing|recent|ongoing|previous) (?:pilots?|pilot (?:customers|clients|partners)|customers|clients|design partners)\b/i,
+      /\bpilot (?:customers|clients|partners) (?:have|are|say|report)/i,
+      /\b(?:trusted|used|loved|chosen) by\b/i,
+      /\bcustomers? (?:say|said|report(?:ed)?)\b/i,
+      /\d+\s?%/,
+    ];
+    for (const re of CLAIMS) {
+      expect(body.match(re)?.[0], `claim matched ${re}`).toBeUndefined();
+    }
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
