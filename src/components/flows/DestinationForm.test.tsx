@@ -64,4 +64,25 @@ describe("DestinationForm", () => {
     expect(within(container).getByLabelText("Message")).toBeTruthy();
     expect(within(container).queryByLabelText(/attachment/i)).toBeNull();
   });
+
+  it("takes an SFTP private key in a textarea that keeps its line breaks, and does not show it after saving", async () => {
+    const key = "-----BEGIN OPENSSH PRIVATE KEY-----\nAAAA\nBBBB\n-----END OPENSSH PRIVATE KEY-----\n";
+    api.createDestination.mockResolvedValue({ ...saved, id: "d2", protocol: "sftp", config: {} });
+    const { container } = render(
+      <QueryClientProvider client={new QueryClient()}>
+        <DestinationForm onSaved={() => {}} onCancel={() => {}} />
+      </QueryClientProvider>,
+    );
+    const ui = within(container);
+    fireEvent.change(ui.getByLabelText("Send by"), { target: { value: "sftp" } });
+    fireEvent.change(ui.getByLabelText("Name"), { target: { value: "Files" } });
+    fireEvent.change(ui.getByLabelText("Username"), { target: { value: "ops" } });
+    const box = ui.getByLabelText("Private key (instead of password)") as HTMLTextAreaElement;
+    expect(box.tagName).toBe("TEXTAREA");
+    fireEvent.change(box, { target: { value: key } });
+    fireEvent.click(ui.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(api.createDestination).toHaveBeenCalled());
+    expect(api.createDestination.mock.calls[0][0].credentials).toEqual({ username: "ops", privateKey: key });
+    await waitFor(() => expect(box.value).toBe(""));
+  });
 });
