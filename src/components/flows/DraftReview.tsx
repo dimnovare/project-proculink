@@ -97,7 +97,7 @@ export function DraftReview({ flow, draft, requireTest, previewDocumentId, onCre
                 <span className="rounded bg-ai-soft px-1.5 text-[11px] text-ai">AI · {Math.round(draftLeaf.confidence * 100)}%</span>
               )}
               {draftLeaf?.by === "meaning" && (
-                <span className="rounded bg-ai-soft px-1.5 text-[11px] text-ai">
+                <span className="rounded bg-surface2 px-1.5 text-[11px] text-ink-muted">
                   Meaning{draftLeaf.confidence != null ? ` · ${Math.round(draftLeaf.confidence * 100)}%` : ""}
                 </span>
               )}
