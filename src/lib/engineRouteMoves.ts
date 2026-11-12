@@ -5,12 +5,10 @@ const MOVES: Array<[RegExp, (m: RegExpMatchArray) => string | null]> = [
   [/^\/inbox$/, () => "/archive"],
   [/^\/inbox\/([^/]+)$/, (m) => `/archive/${m[1]}`],
   [/^\/documents$/, () => null],
-  [/^\/documents\/([^/]+)$/, (m) => `/archive/${m[1]}`],
   [/^\/library\/mappings$/, () => "/lookups"],
   [/^\/library\/(suppliers(\/.*)?|buyers|standards)$/, () => "/flows"],
   [/^\/connections(\/.*)?$/, () => "/flows"],
   [/^\/operations\/(exceptions|health)$/, () => "/operations/log"],
-  [/^\/inbound\/(invoices|asns)$/, () => "/documents"],
 ];
 
 export function engineRouteMove(pathname: string): string | null {

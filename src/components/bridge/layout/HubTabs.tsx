@@ -7,7 +7,7 @@
 // The Suppliers hub (suppliers · item codes · supplier changes · format reference)
 // went with the supplier screens; their URLs 308 to the flow list.
 //
-//   Orders    → /inbox              (orders · +inbound docs behind a flag)
+//   Orders    → /inbox              (orders)
 //   Activity  → /bridge             (overview · deliveries · issues)
 //
 // Some routes are reachable but deliberately NOT on a strip — an incident page
@@ -29,7 +29,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { CSSProperties } from "react";
-import { INBOUND_ENABLED } from "@/lib/launch-flags";
 import { useDocumentEngine } from "@/hooks/useDocumentEngine";
 
 export type HubKey = "orders" | "activity";
@@ -45,12 +44,6 @@ interface HubTab {
    * coordinator's daily reading. Each has exactly one in-context entry point.
    */
   hidden?: true;
-  /**
-   * Shown as a tab only when this launch flag is on. Unlike `hidden`, the intent
-   * is "not yet", not "advanced" — the route still resolves and still belongs to
-   * the hub either way.
-   */
-  flag?: "inbound";
 }
 
 /**
@@ -67,8 +60,6 @@ export const HUB_TABS: Record<HubKey, HubTab[]> = {
   // Orders is the shift: the queue.
   orders: [
     { label: "Orders", href: "/inbox", match: ["/documents"] },
-    { label: "Invoices", href: "/inbound/invoices", flag: "inbound" },
-    { label: "Shipping notices", href: "/inbound/asns", flag: "inbound" },
     // No "Drafts" entry: FE #47 retired /drafts behind a permanent redirect to
     // /inbox, so there is no page left to keep reachable.
   ],
@@ -92,18 +83,12 @@ export const HUB_TABS: Record<HubKey, HubTab[]> = {
 
 /**
  * The tabs a hub actually prints. Hidden entries are reachable, not switchable;
- * flagged entries are pre-launch. Everything that reads the strip — the strip
+ * Everything that reads the strip — the strip
  * itself, hubShowsTabs, the nav item's href and its tooltip — reads THIS, so a
  * hidden route can never leak into the chrome by being added to HUB_TABS.
  */
-export function visibleHubTabs(
-  hub: HubKey,
-  opts: { inboundEnabled?: boolean } = {},
-): HubTab[] {
-  const inboundEnabled = opts.inboundEnabled ?? INBOUND_ENABLED;
-  return HUB_TABS[hub].filter(
-    (t) => !t.hidden && (t.flag !== "inbound" || inboundEnabled),
-  );
+export function visibleHubTabs(hub: HubKey): HubTab[] {
+  return HUB_TABS[hub].filter((t) => !t.hidden);
 }
 
 /**

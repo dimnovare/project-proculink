@@ -121,9 +121,10 @@ describe("every page under src/app/(app)/ is behind the edge guard", () => {
     expect(RETIRED_ROUTES.find((r) => r.source === "/connections")?.destination).toBe("/flows");
   });
 
-  it("claims /inbound/invoices and /inbound/asns — the A-F1 finding", () => {
-    expect(isProtectedPath("/inbound/invoices")).toBe(true);
-    expect(isProtectedPath("/inbound/asns")).toBe(true);
+  it("308s /inbound/invoices and /inbound/asns to /documents — the A-F1 finding, now retired", () => {
+    for (const source of ["/inbound/invoices", "/inbound/asns"]) {
+      expect(RETIRED_ROUTES.find((r) => r.source === source)?.destination).toBe("/documents");
+    }
   });
 });
 

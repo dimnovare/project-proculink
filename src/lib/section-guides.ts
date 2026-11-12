@@ -105,30 +105,6 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
     articleSlugs: ["output-mapping-editor", "item-codes", "delivery-setup"],
   },
   {
-    route: "/inbound/invoices",
-    title: "Invoices",
-    purpose: "Collect {supplier} invoices in one place — upload files, watch them parse, and track status.",
-    bullets: [
-      { text: "Upload {supplier} invoices as UBL 2.1 XML files" },
-      { text: "Watch each invoice move from parsing to pending review" },
-      { text: "Approve pending invoices from the list" },
-      { text: "Download an invoice as CSV" },
-    ],
-    firstStep: { text: "Upload a UBL 2.1 XML invoice from a {supplier} — it parses automatically and appears in the list as pending review." },
-    articleSlugs: ["order-intake-options"],
-  },
-  {
-    route: "/inbound/asns",
-    title: "Advance shipping notices",
-    purpose: "Where {supplier} shipping notices will appear — ASN intake isn't available yet, so this list stays empty for now.",
-    bullets: [
-      { text: "See shipping notices from {suppliers}, once intake becomes available" },
-      { text: "Uploading ASN files is not supported yet" },
-      { text: "Contact support if you need ASN or EDIFACT DESADV intake" },
-    ],
-    firstStep: { text: "Nothing needs your attention here yet — if you want ASNs in ProcuLink, contact support; otherwise start with your invoices.", href: "/inbound/invoices" },
-  },
-  {
     route: "/operations/exceptions",
     title: "Issues",
     purpose: "Every order blocked on a human decision, in one workspace-wide list.",

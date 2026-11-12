@@ -291,12 +291,12 @@ describe("the sort control says which set it can reach", () => {
   });
 });
 
-it("invoice row shows an Invoice tag and links to the document screen", async () => {
+it("invoice row shows an Invoice tag and opens the order review", async () => {
   await renderInbox([order({ id: "inv-1", poNumber: "INV-1", documentType: "invoice" }), order({ poNumber: "PO-PLAIN" })]);
   const table = await screen.findByTestId("queue-table");
   const row = (await within(table).findByText("INV-1")).closest("tr")!;
   expect(within(row).getByText("Invoice")).toBeTruthy();
   expect(within(within(table).getByText("PO-PLAIN").closest("tr")!).queryByText("Invoice")).toBeNull();
-  expect(documentHref({ id: "inv-1", documentType: "invoice" })).toBe("/documents/inv-1");
+  expect(documentHref({ id: "inv-1", documentType: "invoice" })).toBe("/inbox/inv-1");
   expect(documentHref({ id: "x", documentType: null })).toBe("/inbox/x");
 });

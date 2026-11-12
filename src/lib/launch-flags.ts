@@ -10,30 +10,18 @@
 // page — the /connections routes still resolve directly.)
 //
 // To reveal the full product surface (drafts, buyers, rules, templates,
-// standards, operations, inbound docs), set NEXT_PUBLIC_LAUNCH_FULL_NAV=true.
+// standards, operations), set NEXT_PUBLIC_LAUNCH_FULL_NAV=true.
 
 export const LAUNCH_CORE_ONLY =
   process.env.NEXT_PUBLIC_LAUNCH_FULL_NAV !== "true";
-
-// Inbound (Invoices / ASNs) is a real but pre-launch surface. It must stay
-// hidden from the primary nav even when the full nav is revealed
-// (NEXT_PUBLIC_LAUNCH_FULL_NAV=true), because those flows are not part of the
-// outbound-PO wedge we sell today. Gate it on its own dedicated flag (default
-// OFF) so revealing the full nav does NOT leak Inbound. The routes still
-// resolve if navigated to directly.
-export const INBOUND_ENABLED =
-  process.env.NEXT_PUBLIC_INBOUND_ENABLED === "true";
 
 /**
  * hrefs that remain in the sidebar during the first launch.
  *
  * Includes the FIRST-TAB href of every announced hub so all four hubs the
  * sidebar promises survive the core filter and stay reachable on mobile
- * (Operations → /operations/health, Inbound → /inbound/invoices). The supplier
+ * (Operations → /operations/health). The supplier
  * and item-code hubs went with their screens — see src/lib/retired-routes.ts.
- * Inbound additionally stays behind INBOUND_ENABLED
- * (its route is filtered out first in buildVisibleNav), so listing it here does
- * NOT leak it — it only lets it survive the core filter once inbound is enabled.
  * Sibling tabs inside each hub are reached via the HubTabs bar; their routes all
  * resolve directly.
  */
@@ -43,7 +31,6 @@ export const LAUNCH_CORE_HREFS: ReadonlySet<string> = new Set([
   "/inbox",
   "/operations/exceptions",
   "/operations/health",
-  "/inbound/invoices",
   "/admin",
   "/settings",
   "/help",

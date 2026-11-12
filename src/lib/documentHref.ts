@@ -1,4 +1,4 @@
-/** Where a document opens: invoices have their own screen, everything else is the order review. */
+/** Where a row opens: the order review. (Invoices lost their own screen; /documents/:id now 308s to the archive.) */
 export function documentHref(row: { id: string; documentType?: string | null }): string {
-  return row.documentType === "invoice" ? `/documents/${row.id}` : `/inbox/${row.id}`;
+  return `/inbox/${row.id}`;
 }

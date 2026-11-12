@@ -54,10 +54,6 @@ export const CRUMB_LABELS: Record<string, string> = {
   // it — see src/lib/retired-routes.ts.
   admin: "Admin",
   help: "Help",
-  inbound: "Inbound",
-  invoices: "Invoices",
-  // "ASN" is trade jargon; the plain phrase is unambiguous (§6.1 #13).
-  asns: "Shipping notices",
   exceptions: "Issues",
   health: "System status",
 };
@@ -180,21 +176,12 @@ export interface Crumb {
 }
 
 /**
- * Top-level route roots that belong to the WORKBENCH group in the v2 nav
- * (screenshots: "Workbench / Inbound documents"). Their trail gets an UNLINKED
- * "Workbench" head crumb — there is no /workbench route, so the head is context,
- * not a link. /inbox intentionally stays bare ("Inbox"), matching the design
- * captures.
- */
-const WORKBENCH_GROUP_ROOTS: ReadonlySet<string> = new Set(["inbound"]);
-
-/**
  * Top-level segments that name a NAV GROUP but have NO index route of their own —
- * "/library", "/operations", "/inbound" all 404 live. Their crumb is CONTEXT
- * (the hub the page belongs to), never a link, exactly like the "Workbench" head.
+ * "/library", "/operations" all 404 live. Their crumb is CONTEXT
+ * (the hub the page belongs to), never a link.
  * Nulling the href here keeps every breadcrumb off a dead 404 target.
  */
-const UNLINKED_GROUP_ROOTS: ReadonlySet<string> = new Set(["library", "operations", "inbound", "documents"]);
+const UNLINKED_GROUP_ROOTS: ReadonlySet<string> = new Set(["library", "operations", "documents"]);
 
 /**
  * True when a pathname's trail is a SINGLE crumb — the current page, which by
@@ -211,9 +198,8 @@ export function isLonePageCrumb(pathname: string): boolean {
 /**
  * Build the full ordered crumb trail for a pathname.
  * The last segment is the current page (no href); all earlier segments link,
- * EXCEPT group-root segments (library / operations / inbound) which have no
+ * EXCEPT group-root segments (library / operations) which have no
  * index route — those stay unlinked context crumbs so no crumb points at a 404.
- * Workbench-group routes are prefixed with an unlinked "Workbench" head crumb.
  */
 export function buildCrumbTrail(pathname: string, ctx: CrumbContext = {}): Crumb[] {
   const segments = pathname.split("/").filter(Boolean);
@@ -228,8 +214,5 @@ export function buildCrumbTrail(pathname: string, ctx: CrumbContext = {}): Crumb
       href: isLast || isUnlinkedGroupRoot || isFlowDocuments ? null : crumbHref(segments, index),
     };
   });
-  if (segments.length > 0 && WORKBENCH_GROUP_ROOTS.has(segments[0])) {
-    return [{ label: "Workbench", href: null }, ...trail];
-  }
   return trail;
 }

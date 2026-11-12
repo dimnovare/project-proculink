@@ -104,9 +104,10 @@ describe("SECTION_GUIDES registry shape", () => {
   // 17 since /operations/connectors went the same way: a read-only page nothing
   // linked to, whose guide described an overview the page could not produce.
   // 10 since plan 13b removed the supplier, buyer, mapping, standards and connection
-  // screens (seven guides) with their pages.
-  it("has 10 entries with unique routes", () => {
-    expect(SECTION_GUIDES).toHaveLength(10);
+  // screens (seven guides) with their pages. 8 since the inbound invoice and shipping-notice
+  // screens went too.
+  it("has 8 entries with unique routes", () => {
+    expect(SECTION_GUIDES).toHaveLength(8);
     const routes = SECTION_GUIDES.map((g) => g.route);
     expect(new Set(routes).size).toBe(routes.length);
   });
@@ -157,17 +158,6 @@ describe("SECTION_GUIDES registry shape", () => {
         expect(typeof slug, `slug type on ${g.route}`).toBe("string");
         expect(SLUG.test(slug), `slug "${slug}" on ${g.route} is not kebab-case`).toBe(true);
       }
-    }
-  });
-
-  it("honestly-unavailable screens carry no related articles", () => {
-    // /inbound/asns documents an unavailable feature — linking articles from it
-    // would violate offer⇔works. (/drafts used to be the other one; the screen
-    // itself was retired rather than kept as a permanently empty list.)
-    for (const route of ["/inbound/asns"]) {
-      const g = SECTION_GUIDES.find((e) => e.route === route);
-      expect(g, route).toBeDefined();
-      expect(g?.articleSlugs, `articleSlugs of ${route}`).toBeUndefined();
     }
   });
 

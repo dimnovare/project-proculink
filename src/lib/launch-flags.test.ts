@@ -21,12 +21,8 @@ describe("LAUNCH_CORE_HREFS (STRUCT-1)", () => {
   });
 
   it("includes every announced hub's first-tab href so the hubs survive core mode", () => {
-    // Operations, Inbound (Inbound is additionally
-    // gated by INBOUND_ENABLED in buildVisibleNav, so listing it here does not
-    // leak it — it only lets it survive the core filter once on).
     for (const href of [
       "/operations/health",
-      "/inbound/invoices",
     ]) {
       expect(LAUNCH_CORE_HREFS.has(href)).toBe(true);
     }

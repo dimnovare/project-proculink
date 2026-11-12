@@ -51,8 +51,8 @@ function useCrumbContext(segments: string[]): CrumbContext {
   const qc = useQueryClient();
   const ctx: CrumbContext = {};
 
-  // /inbox/[orderId] and /documents/[id] (an invoice is an order row)
-  const orderId = ((segments[0] === "inbox" || segments[0] === "documents") && segments[1]) || null;
+  // /inbox/[orderId]
+  const orderId = (segments[0] === "inbox" && segments[1]) || null;
   if (orderId) {
     const order = qc.getQueryData<Order>(["order", orderId]);
     ctx.orderPoNumber = order?.poNumber ?? null;

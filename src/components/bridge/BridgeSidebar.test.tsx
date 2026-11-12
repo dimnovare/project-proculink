@@ -15,8 +15,7 @@ import { render, screen, cleanup } from "@testing-library/react";
 //     invariant that makes "hide it from the nav" safe: nothing 404s and nothing
 //     becomes unreachable;
 //   • one data source never gets two visible nav surfaces;
-//   • the gates: INBOUND_ENABLED (now two TABS, not a nav item) and the admin
-//     allowlist.
+//   • the gate: the admin allowlist.
 
 let mockPath = "/bridge";
 vi.mock("next/navigation", () => ({
@@ -208,7 +207,6 @@ describe("buildVisibleNav — three items, one flat section", () => {
     const LEGACY_ROUTES = [
       "/bridge", "/upload", "/inbox",
       "/operations/health", "/operations/exceptions", "/operations/log",
-      "/inbound/invoices", "/inbound/asns",
       "/admin", "/settings", "/help",
       // Extended to the new tree's child routes — the four-item nav must keep
       // reaching them too, not just the top-level pages.
@@ -244,7 +242,6 @@ describe("buildVisibleNav — three items, one flat section", () => {
     const orders = items.find((i) => i.label === "Documents")!;
     for (const p of [
       "/inbox", "/inbox/008412",
-      "/inbound/invoices", "/inbound/asns",
     ]) {
       expect(isItemActive(p, orders), `${p} lights Orders`).toBe(true);
     }
@@ -349,19 +346,6 @@ describe("buildVisibleNav — gates", () => {
   it("hides Admin for non-admins", () => {
     const items = allItems(buildVisibleNav("Suppliers", false));
     expect(items.some((i) => i.href === "/admin")).toBe(false);
-  });
-
-  it("never puts /inbound in the nav — INBOUND_ENABLED now gates two Orders TABS", () => {
-    const items = allItems(buildVisibleNav("Suppliers", true));
-    expect(items.some((i) => i.href.startsWith("/inbound"))).toBe(false);
-    // Off: reachable through the Orders hub, absent from its strip.
-    expect(visibleHubTabs("orders", { inboundEnabled: false }).map((t) => t.href))
-      .toEqual(["/inbox"]);
-    expect(hubForPath("/inbound/invoices")).toBe("orders");
-    expect(hubForPath("/inbound/asns")).toBe("orders");
-    // On: two extra visible tabs, same hub, same hrefs.
-    expect(visibleHubTabs("orders", { inboundEnabled: true }).map((t) => t.href))
-      .toEqual(["/inbox", "/inbound/invoices", "/inbound/asns"]);
   });
 });
 

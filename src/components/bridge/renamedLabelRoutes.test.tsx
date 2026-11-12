@@ -127,7 +127,6 @@ describe("renamed breadcrumb labels keep their route segments", () => {
     ["log", "Deliveries"],
     ["exceptions", "Issues"],
     ["health", "System status"],
-    ["asns", "Shipping notices"],
   ];
   for (const [segment, label] of rows) {
     it(`/${segment} → "${label}"`, () => expect(CRUMB_LABELS[segment]).toBe(label));

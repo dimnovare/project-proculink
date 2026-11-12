@@ -100,7 +100,12 @@ describe("retired routes", () => {
   });
 
   it("leaves no link to a retired path anywhere in the app", () => {
-    const deadPaths = RETIRED_ROUTES.map((r) => normalizePath(r.source.split("/:")[0]));
+    // A parameterised source (`/documents/:id`) is only the part of its base that has a
+    // param; when the base itself is a live page (`/documents` is the engine's list) the
+    // base is not dead, so it is not searched for.
+    const deadPaths = RETIRED_ROUTES
+      .filter((r) => !r.source.includes("/:") || !matchesAny(normalizePath(r.source.split("/:")[0]), listAppRoutes()))
+      .map((r) => normalizePath(r.source.split("/:")[0]));
     const offenders: string[] = [];
 
     // The registries that put a path in front of a user: the sidebar, the hub

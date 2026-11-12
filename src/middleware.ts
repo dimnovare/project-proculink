@@ -18,7 +18,6 @@ import { NextRequest, NextResponse } from "next/server";
 export const PROTECTED_ROUTE_PATTERNS = [
   "/bridge(.*)",
   "/inbox(.*)",
-  // The Simple document screen (invoices) — /documents/[id].
   "/documents(.*)",
   "/upload(.*)",
   "/flows(.*)",
@@ -26,9 +25,6 @@ export const PROTECTED_ROUTE_PATTERNS = [
   "/lookups(.*)",
   "/operations(.*)",
   "/settings(.*)",
-  // Inbound documents (invoices, shipping notices). Behind INBOUND_ENABLED in the
-  // nav, but a launch flag hides a tab; it does not make a URL unroutable.
-  "/inbound(.*)",
   // /admin requires sign-in at the edge; the real admin allowlist is enforced
   // server-side by /api/admin (403 for non-admins), surfaced as a clean page.
   "/admin(.*)",
@@ -314,6 +310,6 @@ export const config = {
     // ...and every protected prefix unconditionally, so that an order id ending
     // in ".png" can never be read as an asset either. Keep in sync with
     // PROTECTED_ROUTE_PATTERNS above; the same test pins that correspondence.
-    "/(bridge|inbox|documents|upload|operations|settings|inbound|admin)/:path*",
+    "/(bridge|inbox|documents|upload|operations|settings|admin)/:path*",
   ],
 };

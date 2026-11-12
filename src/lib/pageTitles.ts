@@ -40,8 +40,6 @@ export const TITLE_SUFFIX = " — ProcuLink";
 export const HUB_TAB_TITLES: Record<string, string> = {
   // orders
   "/inbox": "Orders",
-  "/inbound/invoices": "Invoices",
-  "/inbound/asns": "Shipping notices",
   // activity
   "/bridge": "Overview",
   "/operations/log": "Deliveries",
@@ -97,7 +95,6 @@ export const OFF_HUB_TITLES: Record<string, string> = {
   "/lookups/[lookupId]": "Lookup",
   "/settings": "Settings",
   "/admin": "Admin",
-  "/documents/[id]": "Document",
 };
 
 /** Route pattern → the page's own name (no product suffix). */

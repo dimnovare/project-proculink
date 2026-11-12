@@ -227,7 +227,7 @@ describe("tab titles are the words the navigation teaches", () => {
   );
 
   it("reads a non-empty hub registry", () => {
-    expect(hubEntries.length).toBeGreaterThanOrEqual(6);
+    expect(hubEntries.length).toBeGreaterThanOrEqual(5);
     expect(Object.keys(HUB_TAB_TITLES).length).toBe(hubEntries.length);
   });
 

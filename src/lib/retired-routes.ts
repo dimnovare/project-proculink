@@ -170,6 +170,31 @@ export const RETIRED_ROUTES: RetiredRoute[] = [
       + "id is not a flow id, so the link lands on the flow list.",
   },
   {
+    source: "/inbound/invoices",
+    destination: "/documents",
+    deletedDir: "src/app/(app)/inbound/invoices",
+    why:
+      "The legacy inbound invoice list ran on the order pipeline, which every workspace has left. "
+      + "Documents of every kind, invoices included, now arrive through a flow and are listed on Documents.",
+  },
+  {
+    source: "/inbound/asns",
+    destination: "/documents",
+    deletedDir: "src/app/(app)/inbound/asns",
+    why:
+      "A permanently empty list: shipping-notice intake was never built. "
+      + "Documents of every kind now arrive through a flow and are listed on Documents.",
+  },
+  {
+    source: "/documents/:id",
+    destination: "/archive/:id",
+    deletedDir: "src/app/(app)/documents/[id]",
+    why:
+      "The legacy invoice screen opened an invoice that was stored as an order row. Those rows "
+      + "are read-only history now, and the archive opens the same id. The Documents list at "
+      + "/documents is the engine's own page and is not affected.",
+  },
+  {
     source: "/customers",
     destination: "/pilot",
     deletedDir: "src/app/(marketing)/customers",

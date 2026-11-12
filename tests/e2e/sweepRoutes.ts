@@ -9,7 +9,7 @@
  *
  * It is the wrong shape for "click every button". The app serves 40+ routes, and
  * the thirty that are not core are exactly the ones nobody looks at — admin
- * guides, legal pages, `/inbound/*`, `/welcome`. A control that
+ * guides, legal pages, `/welcome`. A control that
  * is broken on any of them is broken for a real user whether or not the
  * route made a curated list.
  *
@@ -85,7 +85,7 @@ export interface SweepRoute {
 }
 
 const APP_PREFIXES = [
-  "/admin", "/bridge", "/flows", "/inbound", "/inbox", "/lookups",
+  "/admin", "/bridge", "/flows", "/inbox", "/lookups",
   "/onboarding", "/operations", "/settings", "/upload", "/welcome",
 ];
 

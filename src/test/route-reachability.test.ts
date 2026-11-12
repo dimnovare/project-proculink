@@ -124,7 +124,6 @@ import { HUB_TABS, visibleHubTabs, type HubKey } from "@/components/bridge/layou
 import { HELP_ARTICLES } from "@/lib/help-articles";
 import { GUIDES, linkedGuides } from "@/lib/guides";
 import { RETIRED_ROUTES } from "@/lib/retired-routes";
-import { documentHref } from "@/lib/documentHref";
 
 // ─── Allowlist ────────────────────────────────────────────────────────────────
 //
@@ -512,12 +511,9 @@ export function collectLinkTargets(): LinkTarget[] {
   // rule exists for. Four entries carry it (five until /connections earned a
   // visible tab), and crediting them hid every route behind them.
   //
-  // `inboundEnabled: true` is passed for the SAME reason `isAdmin: true` is passed
-  // to buildVisibleNav: a launch flag is config, and this guard is stated to be
-  // flat across flags ("flipping one flag is a config change; deleting the only
-  // link is a code change"). `hidden` is not a flag — it is permanent.
+  // `hidden` is permanent, not a flag.
   for (const hub of Object.keys(HUB_TABS) as HubKey[]) {
-    for (const tab of visibleHubTabs(hub, { inboundEnabled: true })) {
+    for (const tab of visibleHubTabs(hub)) {
       targets.push({ path: tab.href, kind: "hub-tab", source: "<HubTabs via visibleHubTabs>" });
     }
   }
@@ -539,11 +535,6 @@ export function collectLinkTargets(): LinkTarget[] {
   for (const guide of linkedGuides()) {
     targets.push({ path: guide.href, kind: "link", source: "<linkedGuides via GuideIndex>" });
   }
-
-  // Queue rows, the dashboard, the command palette and notifications open a document through
-  // documentHref() — a computed href the text scan cannot see. Credit it through the function
-  // itself, for the one input that reaches /documents/[id].
-  targets.push({ path: documentHref({ id: "sample", documentType: "invoice" }), kind: "link", source: "<documentHref via document rows>" });
 
   // 3 — next.config.ts redirect destinations.
   targets.push(
@@ -981,12 +972,12 @@ describe("route reachability (plan rule R1 — no new surface without a consumer
     // because there is nothing left to look through. Each corpus therefore
     // asserts its own size BEFORE it is searched.
     //
-    // The tab floor is 6 (three Orders tabs with inbound on, three Activity): the deleted entry
+    // The tab floor is 4 (one Orders tab, three Activity): the deleted entry
     // was HIDDEN, so the rendered strip never counted it.
     const rendered = (Object.keys(HUB_TABS) as HubKey[]).flatMap((hub) =>
-      visibleHubTabs(hub, { inboundEnabled: true }).map((t) => t.href),
+      visibleHubTabs(hub).map((t) => t.href),
     );
-    expect(rendered.length, "no hub tab resolved — the sweep is vacuous").toBe(6);
+    expect(rendered.length, "no hub tab resolved — the sweep is vacuous").toBe(4);
 
     // Every non-test source file, read the way retired-routes.test.ts reads the
     // nav registries: a QUOTED path is a link, a path in a comment is
@@ -1105,9 +1096,9 @@ describe("route reachability (plan rule R1 — no new surface without a consumer
     // asserts its own size BEFORE it is searched, so a broken corpus fails RED
     // instead of reporting a clean bill of health.
     const rendered = (Object.keys(HUB_TABS) as HubKey[]).flatMap((hub) =>
-      visibleHubTabs(hub, { inboundEnabled: true }).map((t) => t.href),
+      visibleHubTabs(hub).map((t) => t.href),
     );
-    expect(rendered.length, "no hub tab resolved — the sweep is vacuous").toBe(6);
+    expect(rendered.length, "no hub tab resolved — the sweep is vacuous").toBe(4);
 
     // Every non-test source file, read the way retired-routes.test.ts reads the
     // nav registries: a QUOTED path is a link, a path in a comment is

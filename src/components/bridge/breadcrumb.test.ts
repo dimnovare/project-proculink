@@ -182,31 +182,16 @@ describe("buildCrumbTrail — unlinked group-root heads (no index route → neve
     expect(trail[1].label).toBe("System status");
   });
 
-  it("never links the /inbound group-root crumb (Workbench head + unlinked Inbound)", () => {
-    const trail = buildCrumbTrail("/inbound/invoices", {});
-    // Workbench head (context) + Inbound group-root (no index route) + current page.
-    expect(trail.map((c) => c.href)).toEqual([null, null, null]);
-    expect(trail.map((c) => c.label)).toEqual(["Workbench", "Inbound", "Invoices"]);
-  });
-
   it("no crumb in a hub trail ever points at a group-root 404", () => {
     for (const path of ["/library/suppliers", "/library/mappings", "/operations/exceptions", "/operations/log"]) {
       const trail = buildCrumbTrail(path, {});
       expect(trail.some((c) => c.href === "/library")).toBe(false);
       expect(trail.some((c) => c.href === "/operations")).toBe(false);
-      expect(trail.some((c) => c.href === "/inbound")).toBe(false);
     }
   });
 });
 
-describe("buildCrumbTrail — Workbench group head (v2 nav)", () => {
-  it("prefixes /inbound/* with an UNLINKED Workbench head crumb", () => {
-    const trail = buildCrumbTrail("/inbound/invoices", {});
-    // no /workbench route — the head is context, not a link
-    expect(trail.map((c) => c.label)).toEqual(["Workbench", "Inbound", "Invoices"]);
-    expect(trail[0].href).toBeNull();
-  });
-
+describe("buildCrumbTrail — hub roots", () => {
   it("leaves /inbox bare — matches the design captures", () => {
     expect(buildCrumbTrail("/inbox", {})).toEqual([{ label: HUB_LABELS.orders, href: null }]);
   });
@@ -231,8 +216,6 @@ describe("isLonePageCrumb", () => {
   });
 
   it("is false when the trail carries an ancestor crumb", () => {
-    // Workbench / Inbound — the head crumb is context the nav row does not show.
-    expect(isLonePageCrumb("/inbound/invoices")).toBe(false);
     expect(isLonePageCrumb("/library/suppliers")).toBe(false);
     expect(isLonePageCrumb("/operations/exceptions")).toBe(false);
     expect(isLonePageCrumb("/inbox/a8c18df7-dec8-4a1b-9c2d-1f2e3a4b5c6d")).toBe(false);
