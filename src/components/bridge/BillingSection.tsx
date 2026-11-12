@@ -712,7 +712,7 @@ export function BillingSection() {
             <strong style={{ color: "var(--ink)" }}>{documentLadder ? "Upgrade when this is ready for daily use." : "Upgrade when this is ready for daily orders."}</strong>{" "}
             {documentLadder
               ? "Every paid plan includes every channel, output and check. Plans differ by documents per month and number of flows."
-              : "Growth keeps the same workflow but raises your monthly document allowance, adds more suppliers, and keeps processing open after the {TRIAL_NAME} ends."}
+              : "Growth keeps the same workflow but raises your monthly document allowance, adds more suppliers, and keeps processing open after your trial ends."}
           </div>
           <IntervalToggle value={checkoutInterval} onChange={setCheckoutInterval} disabled={checkoutMutation.isPending} />
           <button

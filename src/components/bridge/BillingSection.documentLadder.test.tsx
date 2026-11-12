@@ -28,7 +28,8 @@ vi.mock("@/hooks/useDocumentEngine", () => ({
 }));
 
 import { BillingSection } from "./BillingSection";
-import { PLAN_BY_ID } from "@/lib/plans";
+import { PLAN_BY_ID, nextPlanFor } from "@/lib/plans";
+import { limitRefusalCopy, readLimitRefusal } from "@/lib/limitRefusal";
 
 function billing(over: Partial<BillingStatus> = {}): BillingStatus {
   return {
@@ -144,5 +145,28 @@ describe("the trial is called by its plan name, never by its wire id", () => {
     const view = await renderWith(billing({ plan: "growth", accountStatus: "active" }));
     expect(view.getAllByText(growth.name).length).toBeGreaterThan(0);
     expect(view.getByText(growth.billingPriceLabel)).toBeTruthy();
+  });
+});
+
+describe("trial copy details", () => {
+  it("the legacy-ladder upgrade sentence is plain prose with no stray template braces", async () => {
+    engine.state = "off";
+    const view = await renderWith(billing());
+    const sentence = view.getByText(/keeps processing open/).textContent ?? "";
+    expect(sentence).toContain("after your trial ends");
+    expect(sentence).not.toContain("{");
+  });
+
+  it("the allowance-used banner names the derived next plan", async () => {
+    const next = PLAN_BY_ID[nextPlanFor("pilot", true)!].name;
+    await renderWith(billing({ ordersThisMonth: 20, orderLimit: 20, isOrderLimitReached: true, atLimit: true }));
+    expect(document.body.textContent).toContain(`Upgrade to ${next}`);
+  });
+
+  it("limitRefusal's trial-ended title is C4's first sentence and never says Pilot", () => {
+    const copy = limitRefusalCopy(readLimitRefusal({ error: "pilot_expired", plan: "pilot" }));
+    expect(copy.title).toBe(`Your ${PLAN_BY_ID.pilot.name.toLowerCase()} has ended.`);
+    expect(copy.title).not.toMatch(/Pilot/);
+    expect(copy.cta).toBe(`Upgrade to ${PLAN_BY_ID[PLAN_BY_ID.pilot.next!].name}`);
   });
 });
