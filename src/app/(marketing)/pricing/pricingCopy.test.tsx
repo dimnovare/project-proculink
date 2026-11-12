@@ -30,7 +30,7 @@ describe("/pricing document ladder", () => {
     }
     // No legacy plan is sold, and the old order-era copy is gone.
     const body = container.textContent ?? "";
-    expect(body).not.toMatch(/most popular|supplier-ready|See all tiers/i);
+    expect(body).not.toMatch(/most popular|supplier-ready|See all tiers|Custom suppliers|ERP connectors/i);
   });
 
   it("shows each document plan's yearly price from plans.ts when the annual toggle is on", () => {

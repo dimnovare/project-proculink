@@ -43,7 +43,7 @@ const joinNames = (names: string[]) => `${names.slice(0, -1).join(", ")} or ${na
 const LEGACY_PLAN_NAMES = joinNames(LEGACY_PAID_PLANS.map((p) => p.name));
 
 // ERP connectors are not built in the document engine, and "Custom suppliers" is order-era wording: neither Enterprise bullet is sold here.
-const ENTERPRISE_FEATURES = PLAN_BY_ID.enterprise.features.filter((f) => !/\berp\b/i.test(f));
+const ENTERPRISE_FEATURES = PLAN_BY_ID.enterprise.features.filter((f) => !/\berp\b|suppliers/i.test(f));
 
 function cardFeatures(plan: Plan): string[] {
   if (plan.id === "enterprise") return ENTERPRISE_FEATURES;
