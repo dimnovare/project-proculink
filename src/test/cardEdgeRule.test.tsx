@@ -201,16 +201,16 @@ describe("the edge means something because it is not everywhere", () => {
  */
 const ANCHORS: { file: string; copy: string; edge: string; why: string }[] = [
   {
-    file: "src/components/connections/ConnectionDetail.tsx",
-    copy: "What this supplier receives for new orders today",
+    file: "src/components/flows/DestinationForm.tsx",
+    copy: "New destination",
     edge: "green",
-    why: "the card's own subtitle says it is what goes OUT to the supplier",
+    why: "the card configures where documents are sent OUT to",
   },
   {
-    file: "src/components/connections/ReplayPanel.tsx",
-    copy: "Test a version against recent orders",
+    file: "src/components/flows/FlowIntakePanel.tsx",
+    copy: "Pickups",
     edge: "blue",
-    why: "it replays orders that came IN; the card is about received orders",
+    why: "the card is about where documents are fetched IN from",
   },
 ];
 

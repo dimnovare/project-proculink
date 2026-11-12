@@ -90,23 +90,4 @@ describe("mock mode — the unrouted fixture carries supplier suggestions", () =
     const suppliers: Supplier[] = await apiClient.getSuppliers();
     expect(suppliers.some((s) => s.primaryDomain)).toBe(true);
   });
-
-  it("round-trips identity fields through the supplier update path", async () => {
-    const suppliers: Supplier[] = await apiClient.getSuppliers();
-    const target = suppliers[0];
-
-    await apiClient.renameSupplier(target.id, {
-      name: target.name,
-      vatNumber: "EE101234567",
-      registrationNumber: "12345678",
-      ediCode: "5412345000176",
-      primaryDomain: "example.com",
-    });
-
-    const after = (await apiClient.getSuppliers()).find((s) => s.id === target.id)!;
-    expect(after.vatNumber).toBe("EE101234567");
-    expect(after.registrationNumber).toBe("12345678");
-    expect(after.ediCode).toBe("5412345000176");
-    expect(after.primaryDomain).toBe("example.com");
-  });
 });

@@ -9,11 +9,6 @@ import {
   RESOLVE_HELD_FROM,
 } from "@/lib/orderStatusManifest";
 import { ROOT } from "./appRoutes";
-import {
-  LOOPBACK_ONLY_SCHEMES,
-  OUTBOUND_URL_ERRORS,
-  SECURE_SCHEMES,
-} from "@/lib/outboundUrlPolicy";
 import { CATALOG_SYNC_STATUS_FACTS, CATALOG_SYNC_STATUSES } from "@/lib/catalogSyncStatusManifest";
 import { DOCUMENT_STATUSES } from "@/lib/documentStatusManifest";
 import { FORMATS } from "@/components/flows/OutputEditor";
@@ -41,12 +36,6 @@ import {
 // (src/test/backendCopyVocabulary.test.ts), so it lives in one place rather than two.
 // Its own header explains why a `grep` cannot replace it.
 import { parseCsStringExpressions, stripCsComments } from "./csLiterals";
-import {
-  LEGACY_TEST_PACK_BACKEND_RECORDS,
-  TEST_PACK_BACKEND_FILE,
-  TEST_PACK_BACKEND_RECORDS,
-  parseTestSummary,
-} from "@/components/connections/testPackSummary";
 import { MINIMUM_PLAN } from "@/lib/gatedCapabilities";
 import { OVERAGE_PER_ORDER_EUR, PLAN_BY_ID } from "@/lib/plans";
 
@@ -89,7 +78,6 @@ import { OVERAGE_PER_ORDER_EUR, PLAN_BY_ID } from "@/lib/plans";
 
 const CONSTANTS_REL = "ProcuLink.Core/Constants/OrderStatusConstants.cs";
 const MACHINE_REL = "ProcuLink.Core/Constants/OrderStatusMachine.cs";
-const URL_POLICY_REL = "ProcuLink.Core/Security/OutboundUrlPolicy.cs";
 const INVOICE_SERVICE_REL = "ProcuLink.Infrastructure/Services/InvoiceService.cs";
 const INVOICE_ENTITY_REL = "ProcuLink.Core/Entities/InvoiceEntity.cs";
 /** Writes every value that can land in `OrderException.State` — assignments and transitions. */
@@ -115,8 +103,6 @@ const OUTPUT_FORMAT_ENUM_REL = "ProcuLink.Core/Services/ITransformService.cs";
 const PROGRAM_REL = "ProcuLink.Api/Program.cs";
 /** The worker host. Registers the same transform layer; `TransformOrderJob` is where transform runs. */
 const WORKER_PROGRAM_REL = "ProcuLink.Worker/Program.cs";
-/** Declares the `TestPackSummary` record and its legs, serialized into `test_result_json`. */
-const CONNECTION_SERVICE_REL = TEST_PACK_BACKEND_FILE;
 /**
  * Declares `PlanConstants.MinimumPlan` — the price list, in code. Which tier a gated
  * capability starts on is a COMMERCIAL decision, and `src/lib/gatedCapabilities.ts`
@@ -131,14 +117,13 @@ const DOCUMENT_STATUS_REL = "ProcuLink.Core/Documents/DocumentStatus.cs";
  * A checkout that resolves but is missing one of these is DRIFT, not "no backend" —
  * the manifest cites the file by path, so the path going away is exactly the thing
  * worth failing over. It is listed here rather than left to each test because a
- * missing file used to read as `skipIf` and skip green: URL_POLICY_READABLE below
- * was computed from `existsSync`, so renaming OutboundUrlPolicy.cs would have
- * retired both of its diffs silently while the rest of the suite stayed green.
+ * missing file used to read as `skipIf` and skip green: a readability flag computed
+ * from `existsSync` meant renaming a mirrored file retired its own diffs silently
+ * while the rest of the suite stayed green.
  */
 const PARSED_FILES = [
   CONSTANTS_REL,
   MACHINE_REL,
-  URL_POLICY_REL,
   INVOICE_SERVICE_REL,
   INVOICE_ENTITY_REL,
   EXCEPTION_SERVICE_REL,
@@ -148,7 +133,6 @@ const PARSED_FILES = [
   OUTPUT_FORMAT_ENUM_REL,
   PROGRAM_REL,
   WORKER_PROGRAM_REL,
-  CONNECTION_SERVICE_REL,
   PLAN_CONSTANTS_REL,
   DOCUMENT_STATUS_REL,
 ] as const;
@@ -304,24 +288,6 @@ export function parseNamedSet(cs: string, name: string): string[] | null {
     .filter((s) => s.length > 0 && /^\w+$/.test(s));
 }
 
-/**
- * A `new[] { "a", "b" }` initialiser for a named readonly string list:
- *
- *   public static readonly IReadOnlyList<string> SecureSchemes = new[] { "https" };
- *
- * Returns the literals. Null when the symbol is absent, so "found nothing" fails loudly at the
- * call site rather than diffing an empty list against an empty list.
- */
-export function parseStringLiteralList(cs: string, name: string): string[] | null {
-  const re = new RegExp(
-    `IReadOnlyList<string>\\s+${name}\\s*=\\s*new\\[\\]\\s*\\{([^}]*)\\}\\s*;`,
-    "s",
-  );
-  const m = re.exec(cs);
-  if (!m) return null;
-  return [...m[1].matchAll(/"([^"]+)"/g)].map((x) => x[1]);
-}
-
 /** The keys of the `Transitions` dictionary: `[PendingParse] = Set(...)`. */
 export function parseTransitionKeys(cs: string): string[] {
   const start = cs.indexOf("Transitions =");
@@ -434,11 +400,11 @@ describe("the mirror gate decides correctly", () => {
     // missing file here is drift in the manifest's own citations.
     const failure = mirrorGateFailure({
       backendRoot: "/tmp/backend",
-      missing: [URL_POLICY_REL],
+      missing: [MACHINE_REL],
       required: false,
     });
     expect(failure).not.toBeNull();
-    expect(failure).toContain(URL_POLICY_REL);
+    expect(failure).toContain(MACHINE_REL);
   });
 
   test("a complete backend passes, required or not", () => {
@@ -450,7 +416,6 @@ describe("the mirror gate decides correctly", () => {
     const present = new Set([join("/tmp/backend", CONSTANTS_REL)]);
     expect(missingParsedFiles("/tmp/backend", (p) => present.has(p))).toEqual([
       MACHINE_REL,
-      URL_POLICY_REL,
       INVOICE_SERVICE_REL,
       INVOICE_ENTITY_REL,
       EXCEPTION_SERVICE_REL,
@@ -460,7 +425,6 @@ describe("the mirror gate decides correctly", () => {
       OUTPUT_FORMAT_ENUM_REL,
       PROGRAM_REL,
       WORKER_PROGRAM_REL,
-      CONNECTION_SERVICE_REL,
       PLAN_CONSTANTS_REL,
       DOCUMENT_STATUS_REL,
     ]);
@@ -575,106 +539,6 @@ describe("the manifest matches the C# it claims to mirror", () => {
       for (const symbol of identifiers) {
         expect(cs, `${op} cites ${symbol}, which ${file} no longer mentions`).toContain(symbol);
       }
-    }
-    comparisonsRun += 1;
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// The outbound-URL transport policy mirror.
-//
-// `src/lib/outboundUrlPolicy.ts` is a hand-kept copy of
-// `ProcuLink.Core/Security/OutboundUrlPolicy.cs`. The frontend copy only decides what an
-// operator is told before they submit; the backend refuses independently. But if the two
-// disagree about which schemes are allowed, the UI either blocks a save the API would have
-// accepted or — the direction that matters — waves through a cleartext endpoint and lets the
-// operator believe it was fine until the 400 arrives.
-//
-// Same honesty rules as the status mirror above: the parser is exercised against an inline
-// fixture on every run, and the diff is skipped by a DECLARED condition when no backend
-// checkout is reachable, never silently passed.
-//
-// The skip condition is `!BACKEND` and NOT `existsSync(OutboundUrlPolicy.cs)`, which is what
-// it used to be. Keying a skip on the presence of the very file under test means that
-// renaming or moving that file retires its own guard — the two diffs below would have gone
-// quiet and the suite stayed green, which is the same shape as the CI gap this file's header
-// describes, one directory down. A resolved backend that is missing this file now fails the
-// mirror gate (see PARSED_FILES).
-// ─────────────────────────────────────────────────────────────────────────────
-
-const URL_POLICY_PATH = BACKEND ? join(BACKEND, URL_POLICY_REL) : null;
-
-describe("outbound URL policy mirrors the backend", () => {
-  test("the string-list parser actually parses (so a green diff means something)", () => {
-    const fixture = `
-namespace ProcuLink.Core.Security;
-public static class OutboundUrlPolicy
-{
-    public const string ErrorUrlRequired = "url_required";
-    public const string ErrorInsecureTransport = "url_requires_tls";
-    public static readonly IReadOnlyList<string> SecureSchemes = new[] { "https" };
-    public static readonly IReadOnlyList<string> LoopbackOnlySchemes = new[] { "http" };
-}`;
-
-    expect(parseStringLiteralList(fixture, "SecureSchemes")).toEqual(["https"]);
-    expect(parseStringLiteralList(fixture, "LoopbackOnlySchemes")).toEqual(["http"]);
-    expect(parseStringLiteralList(fixture, "NoSuchSymbol")).toBeNull();
-
-    const constants = parseStatusConstants(fixture);
-    expect(constants.ErrorUrlRequired).toBe("url_required");
-    expect(constants.ErrorInsecureTransport).toBe("url_requires_tls");
-  });
-
-  test("the frontend copy is itself non-vacuous", () => {
-    // Guards the diff below: two empty lists compare equal, so an accidentally emptied
-    // frontend constant would otherwise "mirror" a backend that lists https.
-    expect(SECURE_SCHEMES.length).toBeGreaterThan(0);
-    expect(LOOPBACK_ONLY_SCHEMES.length).toBeGreaterThan(0);
-    expect(Object.keys(OUTBOUND_URL_ERRORS).length).toBeGreaterThan(0);
-  });
-
-  test.skipIf(!BACKEND)("the scheme sets are identical", () => {
-    const cs = readFileSync(URL_POLICY_PATH!, "utf8");
-
-    const secure = parseStringLiteralList(cs, "SecureSchemes");
-    const loopbackOnly = parseStringLiteralList(cs, "LoopbackOnlySchemes");
-
-    expect(secure, "OutboundUrlPolicy.cs declares no SecureSchemes — the parser or the backend moved")
-      .not.toBeNull();
-    expect(
-      loopbackOnly,
-      "OutboundUrlPolicy.cs declares no LoopbackOnlySchemes — the parser or the backend moved",
-    ).not.toBeNull();
-
-    recordComparison(
-      "OutboundUrlPolicy.SecureSchemes",
-      secure!,
-      SECURE_SCHEMES,
-      "SECURE_SCHEMES drifted. A scheme the UI thinks is safe but the API refuses blocks a save; the reverse lets a cleartext endpoint through the form.",
-    );
-    recordComparison(
-      "OutboundUrlPolicy.LoopbackOnlySchemes",
-      loopbackOnly!,
-      LOOPBACK_ONLY_SCHEMES,
-      "LOOPBACK_ONLY_SCHEMES drifted from the schemes the backend only accepts on loopback.",
-    );
-  });
-
-  test.skipIf(!BACKEND)("every error code the UI branches on still exists in the C#", () => {
-    const constants = parseStatusConstants(readFileSync(URL_POLICY_PATH!, "utf8"));
-    const backendCodes = Object.entries(constants)
-      .filter(([name]) => name.startsWith("Error"))
-      .map(([, value]) => value);
-
-    expect(backendCodes.length, "OutboundUrlPolicy.cs declares no Error* constants").toBeGreaterThan(0);
-    const uiCodes = Object.entries(OUTBOUND_URL_ERRORS);
-    expect(uiCodes.length, "OUTBOUND_URL_ERRORS is empty, so this walk would check nothing").toBeGreaterThan(0);
-
-    for (const [key, code] of uiCodes) {
-      expect(
-        backendCodes,
-        `OUTBOUND_URL_ERRORS.${key} is "${code}", which the backend no longer emits. The UI would stop recognising that refusal and fall back to a raw 400 body.`,
-      ).toContain(code);
     }
     comparisonsRun += 1;
   });
@@ -1653,214 +1517,6 @@ describe("the formats we advertise as output are the formats a transform exists 
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// The connection test-pack summary — the shape stored in `test_result_json`.
-//
-// THE DEFECT THIS EXISTS FOR. `SupplierConnectionService` grew a fourth field,
-// `ParseLegSummary? ParseLeg`, and the frontend's two hand-written copies of the
-// shape never did. The reader was `JSON.parse(json) as TestPackSummary`, and that
-// cast is what hid it: the leg really did arrive on every response, but the value
-// had been asserted into a three-field type, so `summary.parseLeg` was a compile
-// error and every consumer downstream was type-checked into ignoring it. Because
-// `passed` is `replayPassed && conformance… && parsePassed`, a pack that failed only
-// on the parse leg turned the evidence panel red and explained nothing — the one
-// sentence naming the cause was `parseLeg.note`, and nothing was allowed to read it.
-//
-// No check running in a browser can catch that: an unknown key and an absent key are
-// indistinguishable there. What catches it is this diff — the C# record's parameter
-// list against the field list `testPackSummary.ts` exports. The NEXT leg the backend
-// adds fails the build here.
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * The parameter NAMES of a C# positional record, camelCased the way
- * `JsonNamingPolicy.CamelCase` writes them (SupplierConnectionService.cs:36).
- *
- * Returns null when the record is not declared — never an empty list, so "the parser
- * went blind" cannot be mistaken for "the record has no parameters" by a comparison
- * that would then find two empty lists equal.
- *
- * Deliberately narrow: it handles `Type Name`, `Type? Name` and `Type? Name = null`,
- * which is every parameter these four records have. A generic parameter containing a
- * comma would defeat the split, and the assertion in the fixture test below is what
- * would notice.
- */
-function parseRecordParameterNames(cs: string, recordName: string): string[] | null {
-  const declaration = new RegExp(String.raw`record\s+${recordName}\s*\(([^)]*)\)`).exec(
-    stripCsComments(cs),
-  );
-  if (declaration === null) return null;
-  return declaration[1]
-    .split(",")
-    .map((param) => param.split("=")[0].trim())
-    .filter((param) => param.length > 0)
-    .map((param) => {
-      const name = param.split(/\s+/).pop() ?? "";
-      // CamelCase policy lowercases the leading capital. Every parameter in these
-      // records is ordinary PascalCase, so this is the whole of the transformation.
-      return name.charAt(0).toLowerCase() + name.slice(1);
-    });
-}
-
-/**
- * The keys `parseTestSummary` really produces — derived by RUNNING it over a payload
- * carrying both wire shapes at once, never typed out. A hand-written list here would be
- * a third copy of the contract, which is the shape of every defect this file guards.
- */
-const READER_KEYS = (() => {
-  const summary = parseTestSummary(
-    JSON.stringify({
-      outcome: "passed",
-      replay: { outcome: "passed", passed: true, orderCount: 0, outputErrors: 0, outputChanged: 0, validationChanged: 0, note: null },
-      conformance: { outcome: "passed", passed: true, skipped: false, profile: null, errors: 0, warnings: 0, note: null },
-      error: null,
-      parseLeg: { outcome: "passed", passed: true, ordersReParsed: 0, parseChanges: 0, failures: 0, skipped: 0, note: null },
-    }),
-  )!;
-  return {
-    TestPackSummary: Object.keys(summary),
-    ReplayLeg: Object.keys(summary.replay!),
-    ConformanceLeg: Object.keys(summary.conformance!),
-    ParseLegSummary: Object.keys(summary.parseLeg!),
-  };
-})();
-
-/**
- * The reader key a C# record parameter lands in.
- *
- * Identity except for the two pre-PR-207 booleans, which are read into `legacy*` fields
- * so they are visible and refusable rather than trusted. SCAFFOLDING — delete these two
- * arms with the rest of the compatibility block in testPackSummary.ts.
- *
- * `ParseLegSummary.Skipped` is NOT one of them: it is a COUNT of orders and always was,
- * which is exactly why the mapping is keyed by record and not by field name alone.
- */
-function readerKeyFor(recordName: string, field: string): string {
-  if (field === "passed") return "legacyPassed";
-  if (field === "skipped" && recordName === "ConformanceLeg") return "legacySkipped";
-  return field;
-}
-
-describe("the connection test-pack summary mirrors the backend record", () => {
-  test("the record parser actually parses (so a green diff means something)", () => {
-    // The real declarations at SupplierConnectionService.cs:618-623 (BE PR 207), verbatim —
-    // including the defaulted parameter that was the original defect, and the multi-line
-    // declaration, which a parser that stopped at a newline would silently miss.
-    const fixture = `
-    /// <summary>Serializable summary stored in <c>test_result_json</c> (camelCase).</summary>
-    private sealed record TestPackSummary(
-        string Outcome, ReplayLeg? Replay, ConformanceLeg? Conformance, string? Error, ParseLegSummary? ParseLeg = null);
-    private sealed record ConformanceLeg(string Outcome, string? Profile, int Errors, int Warnings, string? Note);
-    private sealed record ParseLegSummary(string Outcome, int OrdersReParsed, int ParseChanges, int Failures, int Skipped, string? Note);`;
-
-    expect(parseRecordParameterNames(fixture, "TestPackSummary")).toEqual([
-      "outcome",
-      "replay",
-      "conformance",
-      "error",
-      "parseLeg",
-    ]);
-    expect(parseRecordParameterNames(fixture, "ConformanceLeg")).toEqual([
-      "outcome",
-      "profile",
-      "errors",
-      "warnings",
-      "note",
-    ]);
-    expect(parseRecordParameterNames(fixture, "ParseLegSummary")).toEqual([
-      "outcome",
-      "ordersReParsed",
-      "parseChanges",
-      "failures",
-      "skipped",
-      "note",
-    ]);
-    expect(parseRecordParameterNames(fixture, "NoSuchRecord")).toBeNull();
-  });
-
-  test("the parser sees the field whose absence made every leg's verdict unreadable", () => {
-    // BE PR 207. Each leg carried `bool Passed`, and every "there was nothing to run this
-    // on" path set it to true — so an un-run leg and a satisfied one were the same value,
-    // and a run that exercised NOTHING reported a pass. The `outcome` string is what tells
-    // them apart; a frontend that does not name it drops it at the JSON boundary exactly
-    // as `parseLeg` was dropped, and falls straight back to the two-valued reading.
-    for (const [record, fields] of Object.entries(TEST_PACK_BACKEND_RECORDS)) {
-      expect(fields, `${record} does not mirror the outcome field`).toContain("outcome");
-      expect(fields, `${record} still mirrors the boolean that could not tell un-run from clean`)
-        .not.toContain("passed");
-    }
-    expect(TEST_PACK_BACKEND_RECORDS.ConformanceLeg).not.toContain("skipped");
-  });
-
-  test("the parser sees the field whose absence was the defect", () => {
-    // The frontend shape as it shipped: three fields, no parse leg. Pinned so a later
-    // reader can see that this diff would have failed on the code that was there, and
-    // so a matcher change that stopped distinguishing the two is caught.
-    const asShipped = ["replay", "conformance", "error"];
-    expect(TEST_PACK_BACKEND_RECORDS.TestPackSummary).not.toEqual(asShipped);
-    expect(TEST_PACK_BACKEND_RECORDS.TestPackSummary).toContain("parseLeg");
-  });
-
-  test("the frontend field lists are themselves non-vacuous", () => {
-    const records = Object.entries(TEST_PACK_BACKEND_RECORDS);
-    expect(records.length, "no record is mirrored, so the diff below checks nothing").toBe(4);
-    for (const [name, fields] of records) {
-      expect(fields.length, `${name} mirrors an empty field list`).toBeGreaterThan(0);
-      expect(new Set(fields).size, `${name} names a field twice`).toBe(fields.length);
-    }
-  });
-
-  test.skipIf(!BACKEND)("every record's fields match the C#, in both directions", () => {
-    const cs = readFileSync(join(BACKEND!, CONNECTION_SERVICE_REL), "utf8");
-
-    // WHICH WIRE VERSION THIS BACKEND SPEAKS. PR 207 replaces every leg's `bool Passed`
-    // with an `outcome` string and adds one to the summary. The frontend reads BOTH — it
-    // can deploy before that backend does — so the mirror has to accept both, and the
-    // pair it accepts is enumerated rather than loosened: a THIRD shape still fails in
-    // both directions, which is the property this diff exists for.
-    const replayFields = parseRecordParameterNames(cs, "ReplayLeg");
-    expect(
-      replayFields,
-      `${CONNECTION_SERVICE_REL} declares no \`record ReplayLeg\`, so the wire version ` +
-        "cannot be determined and neither field list can be diffed honestly.",
-    ).not.toBeNull();
-    const speaksOutcome = replayFields!.includes("outcome");
-    const records = speaksOutcome ? TEST_PACK_BACKEND_RECORDS : LEGACY_TEST_PACK_BACKEND_RECORDS;
-
-    for (const [recordName, frontendFields] of Object.entries(records)) {
-      const backendFields = parseRecordParameterNames(cs, recordName);
-      expect(
-        backendFields,
-        `${CONNECTION_SERVICE_REL} declares no \`record ${recordName}\`. Either it was renamed — in ` +
-          "which case src/components/connections/testPackSummary.ts mirrors a shape that no longer " +
-          "exists — or the parser above stopped matching.",
-      ).not.toBeNull();
-
-      recordComparison(
-        `${recordName} (${CONNECTION_SERVICE_REL})`,
-        backendFields!,
-        frontendFields,
-        `${recordName} drifted from src/components/connections/testPackSummary.ts. A field the ` +
-          "backend sends and the frontend does not name is DROPPED silently at the JSON boundary — " +
-          "which is exactly how `parseLeg` was lost, and how a test pack that failed only on the " +
-          "parse leg came to render a red panel with no reason on it. Add the field to the " +
-          "interface, to its *_FIELDS list, and to the reader.",
-      );
-
-      // Whichever shape the backend speaks, the READER has to be able to hold every one
-      // of its fields — that is what the diff is protecting, and asserting only the list
-      // would let the list and the reader drift apart while both looked right.
-      for (const field of backendFields!) {
-        const key = readerKeyFor(recordName, field);
-        expect(
-          READER_KEYS[recordName as keyof typeof READER_KEYS],
-          `${recordName}.${field} is on the wire but parseTestSummary never produces it`,
-        ).toContain(key);
-      }
-    }
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Plan-gate error codes quoted in the admin guides.
 //
 // THE DEFECT THIS EXISTS FOR. `admin/guides/onboard-a-new-client` told staff that enabling
@@ -2414,11 +2070,9 @@ const EXPECTED_COMPARISONS =
   4 + // Transitions keys, FailureBucket, DeclaredTerminal, ResolveHeldFrom
   NAMED_GUARDS.length + // one per op guard that names a C# symbol
   1 + // the backendSite citation walk over every OP_GUARDS row
-  3 + // outbound URL policy: SecureSchemes, LoopbackOnlySchemes, the error-code walk
   2 + // invoices: the InvoiceService writer diff, and the citation walk over every fact
   2 + // transform causes: the per-pattern site count, and the end-to-end routing walk
   3 + // output formats: the buildable set, the standards catalog, PREVIEW_FORMATS
-  Object.keys(TEST_PACK_BACKEND_RECORDS).length + // one per test-pack record mirrored
   1 + // the plan-gate codes quoted in the admin guides
   1 + // MINIMUM_PLAN against PlanConstants.MinimumPlan
   5 + // the ladder's numbers: Limits, MonthlyPriceEur, OveragePerOrderEur, FlowLimits, OverageRatesEur

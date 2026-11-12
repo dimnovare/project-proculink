@@ -8,8 +8,10 @@ describe("LAUNCH_CORE_HREFS (STRUCT-1)", () => {
     expect(LAUNCH_CORE_HREFS.has("/connections")).toBe(false);
   });
 
-  it("still contains the supplier directory (where version history now lives)", () => {
-    expect(LAUNCH_CORE_HREFS.has("/library/suppliers")).toBe(true);
+  it("carries no href for the retired supplier and item-code screens", () => {
+    for (const href of ["/library/suppliers", "/library/mappings"]) {
+      expect(LAUNCH_CORE_HREFS.has(href)).toBe(false);
+    }
   });
 
   it("keeps the rest of the core launch surface", () => {
@@ -18,13 +20,11 @@ describe("LAUNCH_CORE_HREFS (STRUCT-1)", () => {
     }
   });
 
-  it("includes every announced hub's first-tab href so all 4 hubs survive core mode", () => {
-    // Partners, Rules & formats, Operations, Inbound (Inbound is additionally
+  it("includes every announced hub's first-tab href so the hubs survive core mode", () => {
+    // Operations, Inbound (Inbound is additionally
     // gated by INBOUND_ENABLED in buildVisibleNav, so listing it here does not
     // leak it — it only lets it survive the core filter once on).
     for (const href of [
-      "/library/suppliers",
-      "/library/mappings",
       "/operations/health",
       "/inbound/invoices",
     ]) {

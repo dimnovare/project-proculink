@@ -50,7 +50,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       { text: "Watch live order flow between you and your {suppliers}" },
       { text: "Once orders arrive, filter stats by Today, 7d, 30d, or All" },
       { text: "See open issues and jump straight to them", href: "/operations/exceptions" },
-      { text: "Track each {supplier}'s delivery health for the time window you pick", href: "/library/suppliers" },
+      { text: "Track each {supplier}'s delivery health for the time window you pick" },
       // No number here, deliberately. This sentence used to promise "your most
       // recent 100 orders": a literal hand-copied from a `pageSize: 100` in
       // BridgeDashboard, in a file that cannot see that value change, describing
@@ -129,100 +129,6 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
     firstStep: { text: "Nothing needs your attention here yet — if you want ASNs in ProcuLink, contact support; otherwise start with your invoices.", href: "/inbound/invoices" },
   },
   {
-    route: "/library/suppliers",
-    title: "{Suppliers}",
-    purpose: "Every {supplier} you process orders for, with its configured output format, delivery channel, and delivery mode — automatic delivery or review before delivery.",
-    bullets: [
-      { text: "Add a {supplier} by name — configure everything else afterwards" },
-      { text: "See each {supplier}'s format, channel, and delivery mode" },
-      { text: "Open a row to set up mapping, catalog, and delivery" },
-      { text: "Jump to a {supplier}'s versioned connection once one exists" },
-      { text: "Plan limits apply — Pilot includes one {supplier}", href: "/settings?tab=billing" },
-    ],
-    firstStep: { text: "Click \"New {supplier}\" and enter a name — mapping, catalog, and delivery are configured afterwards on the detail page." },
-    articleSlugs: ["managing-suppliers", "delivery-setup", "item-codes"],
-  },
-  {
-    route: "/library/suppliers/[id]",
-    title: "{Supplier} detail",
-    purpose: "One {supplier}'s full setup across seven tabs: overview, item codes, catalog, order layout, delivery, rules, and changes.",
-    bullets: [
-      { text: "Import the {supplier}'s product catalog (CSV or XLSX)", href: "?tab=catalog" },
-      { text: "Set delivery format, channel, and credentials, then send a test", href: "?tab=delivery" },
-      { text: "Map PO columns to fields after uploading a sample order" },
-      { text: "Add validation rules — saved as draft until you activate them" },
-      { text: "Edits on these tabs apply immediately to live processing" },
-    ],
-    firstStep: { text: "Import the {supplier}'s item catalog or set up delivery first — PO mapping only works after a sample order is uploaded.", href: "?tab=catalog" },
-    articleSlugs: ["managing-suppliers", "delivery-setup", "catalog-csv-field-guide", "cxml-setup", "oauth2-delivery-setup", "sftp-ftps-delivery-keys", "erp-erply-and-directo", "item-codes", "mapping-basics"],
-  },
-  {
-    route: "/library/buyers",
-    title: "Buyers",
-    purpose: "The organizations that send you purchase orders, with their observed formats and order history.",
-    bullets: [
-      { text: "Create a buyer with a name and short code" },
-      { text: "Click a buyer to filter the Inbox to its orders", href: "/inbox" },
-      { text: "See each buyer's primary format, order count, and last order" },
-      { text: "Delete a buyer with the × on its row" },
-    ],
-    firstStep: { text: "Create one buyer, then upload a PO — formats and order history fill in from real orders." },
-    articleSlugs: ["inbound-mode"],
-  },
-  {
-    route: "/connections",
-    title: "Connections",
-    purpose: "How each {supplier}'s orders get mapped and delivered — every version kept so you can change it safely or roll back.",
-    bullets: [
-      { text: "Open one to see its mapping and version history" },
-      { text: "See which {suppliers} have a live setup" },
-      { text: "Created automatically when you configure a {supplier}" },
-    ],
-    firstStep: { text: "Configure a {supplier}'s mapping, output, and delivery — it shows up here automatically.", href: "/library/suppliers" },
-    articleSlugs: ["connections"],
-  },
-  {
-    route: "/connections/[connectionId]",
-    title: "Connection detail",
-    purpose: "Build how this {supplier}'s orders are mapped — drag their incoming fields across to the output — then make it live. Each order remembers the version that processed it.",
-    bullets: [
-      { text: "Drag incoming fields across to the output to build the mapping" },
-      { text: "AI proposes likely matches as faint links you accept or reject" },
-      { text: "Add your own fields, and set transforms or fixed values per output field" },
-      { text: "The full list of raw incoming fields is collapsed — search or expand it to find any field" },
-      { text: "Preview what the {supplier} receives, then make it live; older versions stay so you can restore one" },
-    ],
-    firstStep: { text: "Click “Edit mapping”, drag incoming fields across to the output, preview the result, then make it live." },
-    articleSlugs: ["connections", "output-mapping-editor", "mapping-basics"],
-  },
-  {
-    route: "/library/mappings",
-    title: "Item mappings",
-    purpose: "Saved translations from your buyer item codes to each {supplier}'s item codes, applied automatically on every future order for that {supplier}.",
-    bullets: [
-      { text: "Pick a {supplier} to see its saved code mappings" },
-      { text: "Add one buyer code → {supplier} code pair at a time" },
-      { text: "Import many pairs from a CSV (buyer_code, supplier_code)" },
-      { text: "Export the selected {supplier}'s mappings as a CSV file" },
-      { text: "Filter by source: AI, Manual, Imported, or Inherited" },
-    ],
-    firstStep: { text: "Pick the {supplier} first, then import a CSV of your existing buyer-to-{supplier} code pairs." },
-    articleSlugs: ["mapping-basics", "output-mapping-editor", "item-codes"],
-  },
-  {
-    route: "/library/standards",
-    title: "Standards reference",
-    purpose: "A read-only table showing how each standard PO field maps to cXML, UBL, EDIFACT, X12, and Peppol BIS.",
-    bullets: [
-      { text: "Search fields or paths across all five standards" },
-      { text: "Look up the exact reference for any field" },
-      { text: "A dash means the standard has no mapped reference" },
-      { text: "Request a format that's missing", href: "/support" },
-    ],
-    firstStep: { text: "Search a field like \"PO number\" or \"currency\" to read its exact reference in each standard." },
-    articleSlugs: ["output-templates", "ubl-and-peppol", "x12-850", "edifact-orders", "sap-idoc-orders05", "cxml-setup", "order-intake-options"],
-  },
-  {
     route: "/operations/exceptions",
     title: "Issues",
     purpose: "Every order blocked on a human decision, in one workspace-wide list.",
@@ -269,7 +175,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
   // read-only overview of each supplier's delivery channel", while every live
   // row was hardcoded to one channel type. The overview it described is the
   // suppliers list, and test firing belongs to the supplier Delivery tab. The
-  // route 308s to /library/suppliers, whose guide covers both.
+  // route 308s to /settings.
   // NOTE: /operations/webhooks had a guide here until 2026-08-08. The page was a
   // duplicate of Settings ▸ Connectors that no user could navigate to, so it was
   // deleted and now 308s to /settings?tab=connectors. Outbound webhooks are

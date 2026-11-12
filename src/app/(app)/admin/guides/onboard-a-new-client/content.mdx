@@ -35,16 +35,16 @@ outside and are not:
 - **Feature tiers** — whether a capability exists on the plan at all. These are gates, and an
   admin override does **not** open them.
 
-The one that catches people: **scheduled catalog sync needs Growth or higher.** On Pilot, saving
-the source config and running a test fetch both work, and enabling the schedule returns 403 with
-`catalog_sync_requires_growth`. The tier in that code is derived on the server from the gate table
-(`PlanConstants.GetMinimumPlan(BillingFeature.SftpIngestion)`), so it names the plan that really
-unlocks the feature and will follow it if catalog sync is ever re-tiered. Read the plan out of the
-code and trust it. Lifting the order or supplier cap on a Pilot org does not help, because the
-feature check only ever looks at the plan name.
+The one that catches people: **the Activity log across all orders needs Operations or higher.**
+On a lower plan, opening it returns 403 with `advanced_audit_requires_operations`. The tier in that
+code is derived on the server from the gate table
+(`PlanConstants.GetMinimumPlan(BillingFeature.AdvancedAudit)`), so it names the plan that really
+unlocks the feature and will follow it if the log is ever re-tiered. Read the plan out of the code
+and trust it. Lifting the order or supplier cap on the org does not help, because the feature check
+only ever looks at the plan name.
 
-So: if the onboarding includes a scheduled catalog pull, the org has to be on Growth or above
-before you start. Confirm the plan first; do not discover it at the enable step.
+So: if the client expects to read the Activity log across all their orders, the org has to be on
+Operations or above before you start. Confirm the plan first; do not discover it at the first 403.
 
 <Outcome>
 You know which of the client's requirements need a paid plan and which will work on Pilot, before

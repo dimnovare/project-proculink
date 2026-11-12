@@ -87,14 +87,6 @@ export const DIALOG_REGISTRY: DialogEntry[] = [
     hadEscapeBefore: true,
   },
   {
-    file: "src/app/(app)/library/buyers/page.tsx",
-    name: "New buyer modal",
-    dialogs: 1,
-    kind: "modal",
-    hadTrapBefore: false,
-    hadEscapeBefore: true,
-  },
-  {
     file: "src/components/bridge/CommandPalette.tsx",
     name: "CommandPalette",
     dialogs: 1,
@@ -125,14 +117,6 @@ export const DIALOG_REGISTRY: DialogEntry[] = [
     hadEscapeBefore: true,
   },
   {
-    file: "src/components/bridge/MappingEditor.tsx",
-    name: "MappingEditor panel",
-    dialogs: 1,
-    kind: "modal",
-    hadTrapBefore: true,
-    hadEscapeBefore: true,
-  },
-  {
     file: "src/components/bridge/OnboardingWizard.tsx",
     name: "OnboardingWizard",
     dialogs: 1,
@@ -159,25 +143,6 @@ export const DIALOG_REGISTRY: DialogEntry[] = [
     hadEscapeBefore: false,
   },
   {
-    file: "src/components/bridge/SupplierDockList.tsx",
-    name: "New supplier modal",
-    dialogs: 1,
-    kind: "modal",
-    hadTrapBefore: false,
-    hadEscapeBefore: true,
-  },
-  {
-    file: "src/components/bridge/SupplierDockProfile.tsx",
-    name: "Delete supplier confirmation",
-    dialogs: 1,
-    kind: "modal",
-    // Same blind spot LaneDrawer sat in: a scrim + centred panel of plain <div>s,
-    // so the marking-derived guard above could not see it. It was found by
-    // src/test/unmarked-modal.test.ts, off that file's baseline.
-    hadTrapBefore: false,
-    hadEscapeBefore: false,
-  },
-  {
     file: "src/components/bridge/review/ConfirmDialog.tsx",
     name: "send ConfirmDialog",
     dialogs: 1,
@@ -188,22 +153,6 @@ export const DIALOG_REGISTRY: DialogEntry[] = [
   {
     file: "src/components/bridge/workshop/OrderDetailsDrawer.tsx",
     name: "OrderDetailsDrawer",
-    dialogs: 1,
-    kind: "modal",
-    hadTrapBefore: true,
-    hadEscapeBefore: true,
-  },
-  {
-    file: "src/components/connections/ConnectionLifecycleUI.tsx",
-    name: "ConnectionConfirmDialog",
-    dialogs: 1,
-    kind: "modal",
-    hadTrapBefore: false,
-    hadEscapeBefore: false,
-  },
-  {
-    file: "src/components/connections/HistoryDrawer.tsx",
-    name: "HistoryDrawer",
     dialogs: 1,
     kind: "modal",
     hadTrapBefore: true,

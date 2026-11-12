@@ -60,7 +60,7 @@ describe("a failure the operator must fix leads with the fix", () => {
     expect(first.kind).toBe("link");
     expect(label(first)).toBe("Check the delivery settings");
     expect((first as Extract<ProblemAction, { kind: "link" }>).href).toBe(
-      "/library/suppliers/sup-1?tab=delivery",
+      "/flows",
     );
     expect((first as Extract<ProblemAction, { kind: "link" }>).variant).toBe("primary");
 

@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
  * or if a route outside `(app)` is claimed by it.
  *
  * It was a convention you had to remember until 2026-08-15, and it did not hold.
- * `/connections` and `/inbound/*` were both absent while `/connections` sat on a
+ * The connections page and `/inbound/*` were both absent while the connections page sat on a
  * VISIBLE nav tab (HubTabs.tsx, suppliers hub), so a signed-out visitor got the
  * app shell and a confident "No connections yet" — a disabled TanStack query
  * reports `isLoading === false`, so "never asked" renders as "nothing there".
@@ -310,8 +310,8 @@ export const config = {
     //
     // This read `/((?!_next|.*\..*).*)` until 2026-08-21: it skipped the
     // middleware for ANY pathname containing a dot. Next dynamic segments accept
-    // dots, so `/inbox/an.order.id`, `/library/suppliers/a.b` and
-    // `/connections/a.b` all bypassed the guard and answered a signed-out
+    // dots, so `/inbox/an.order.id` and any dotted segment under a library or
+    // connections prefix all bypassed the guard and answered a signed-out
     // visitor with 200 and the workspace shell instead of a redirect to
     // /sign-in. Keep this list in sync with STATIC_ASSET_EXTENSIONS above.
     "/((?!_next|.*\\.(?:css|js|mjs|map|ico|png|jpg|jpeg|gif|svg|webp|avif|woff|woff2|ttf|otf|eot|xml|txt|webmanifest|csv|pdf|zip|mp4|webm)$).*)",

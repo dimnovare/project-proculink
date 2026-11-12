@@ -76,6 +76,11 @@ describe("retired routes", () => {
       const destParams = retired.destination.match(/:[A-Za-z0-9_]+/g) ?? [];
       // Dropping the id would send someone who bookmarked one order to a list of
       // all of them, which reads as data loss even though nothing was lost.
+      if (retired.segmentHasNoSuccessor) {
+        expect(destParams, `${retired.source} says its segment has no successor but still carries one`)
+          .toEqual([]);
+        return;
+      }
       for (const param of sourceParams) {
         expect(destParams, `${retired.source} drops ${param} on the way to ${retired.destination}`)
           .toContain(param);
@@ -106,7 +111,10 @@ describe("retired routes", () => {
       const source = readFileSync(join(ROOT, file), "utf8");
       for (const dead of deadPaths) {
         // Quoted string only — a path inside a comment is documentation, not a link.
-        const quoted = new RegExp(`["'\`]${dead}(?:[/"'\`?]|\\(\\.\\*\\))`);
+        // The middleware's "/connections(.*)" form is NOT an offender: the edge guard keeps
+        // every redirected prefix so a signed-out visit goes to sign-in, and
+        // protectedRouteCoverage.test.ts holds that direction.
+        const quoted = new RegExp(`["'\`]${dead}[/"'\`?]`);
         if (quoted.test(source)) offenders.push(`${file} → ${dead}`);
       }
     }

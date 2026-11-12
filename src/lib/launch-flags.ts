@@ -29,11 +29,8 @@ export const INBOUND_ENABLED =
  *
  * Includes the FIRST-TAB href of every announced hub so all four hubs the
  * sidebar promises survive the core filter and stay reachable on mobile
- * (Partners → /library/suppliers, Rules & formats → /library/mappings,
- * Operations → /operations/health, Inbound → /inbound/invoices). It was five
- * until 2026-08-13: the Integrations entry pointed at /operations/connectors,
- * which was deleted (a read-only page nothing linked to) and now 308s to
- * /library/suppliers — see src/lib/retired-routes.ts.
+ * (Operations → /operations/health, Inbound → /inbound/invoices). The supplier
+ * and item-code hubs went with their screens — see src/lib/retired-routes.ts.
  * Inbound additionally stays behind INBOUND_ENABLED
  * (its route is filtered out first in buildVisibleNav), so listing it here does
  * NOT leak it — it only lets it survive the core filter once inbound is enabled.
@@ -44,8 +41,6 @@ export const LAUNCH_CORE_HREFS: ReadonlySet<string> = new Set([
   "/bridge",
   "/upload",
   "/inbox",
-  "/library/suppliers",
-  "/library/mappings",
   "/operations/exceptions",
   "/operations/health",
   "/inbound/invoices",

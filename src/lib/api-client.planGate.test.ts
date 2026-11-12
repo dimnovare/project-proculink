@@ -2,9 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { isPlanGateError, planGateUpgradeUrl } from "./planGate";
 import {
   getAuditLog,
-  createConnectionDraft,
   updateConnectionDraft,
-  publishConnectionRevision,
   promoteMapping,
 } from "./api-client";
 import type { ConnectionRevisionBundle } from "./api/types";
@@ -61,37 +59,12 @@ describe("plan-gate 403s keep the backend's code and upgrade url", () => {
     expect(isPlanGateError((err as Error).message)).toBe(true);
   });
 
-  it("createConnectionDraft", async () => {
-    respondWith(GATE_BODY, 403);
-
-    const err = await createConnectionDraft("conn-1", { cloneFromActive: true }).catch((e: Error) => e);
-
-    expect(isPlanGateError((err as Error).message)).toBe(true);
-    expect(planGateUpgradeUrl((err as Error).message)).toBe("/settings?tab=billing");
-  });
-
   it("updateConnectionDraft — the draft bundle that selects a gated protocol/format", async () => {
     respondWith(JSON.stringify({ error: "cxml_output_requires_operations", upgradeUrl: "/settings" }), 403);
 
     const err = await updateConnectionDraft("conn-1", "rev-1", BUNDLE).catch((e: Error) => e);
 
     expect(isPlanGateError((err as Error).message)).toBe(true);
-  });
-
-  it("publishConnectionRevision", async () => {
-    respondWith(JSON.stringify({ error: "erp_delivery_requires_enterprise", upgradeUrl: "/settings" }), 403);
-
-    const err = await publishConnectionRevision("conn-1", "rev-1").catch((e: Error) => e);
-
-    expect(isPlanGateError((err as Error).message)).toBe(true);
-  });
-
-  it("still prefers the backend's own message on the 409s that already read the body", async () => {
-    respondWith("Run tests on this revision before publishing.", 409);
-
-    const err = await publishConnectionRevision("conn-1", "rev-1").catch((e: Error) => e);
-
-    expect((err as Error).message).toBe("Run tests on this revision before publishing.");
   });
 
   it("falls back to the status text when a failure has no body at all", async () => {

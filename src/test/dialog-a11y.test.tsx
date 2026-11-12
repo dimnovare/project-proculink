@@ -142,10 +142,16 @@ describe("dialog registry is DERIVED from the source, not hand-maintained", () =
     // is a NEW dialog, not a newly-marked old one: it did not exist at 478b809, so
     // it moves both "before" counts the same way MarketingNav did, and for the
     // opposite reason — there was nothing there to have a trap.
-    expect(DIALOG_REGISTRY.length).toBe(22);
-    expect(TOTAL_DIALOGS).toBe(22);
-    expect(DIALOG_REGISTRY.filter((d) => !d.hadTrapBefore).length).toBe(16);
-    expect(DIALOG_REGISTRY.filter((d) => !d.hadEscapeBefore).length).toBe(9);
+    //
+    // 16 since plan 13b removed the supplier, buyer, mapping and connection screens: the
+    // new-buyer modal, MappingEditor, SupplierDockList, SupplierDockProfile's delete
+    // confirmation, the connection lifecycle confirmation and HistoryDrawer left the
+    // registry with their files, taking four "no trap before" and two "no Escape before"
+    // rows with them.
+    expect(DIALOG_REGISTRY.length).toBe(16);
+    expect(TOTAL_DIALOGS).toBe(16);
+    expect(DIALOG_REGISTRY.filter((d) => !d.hadTrapBefore).length).toBe(12);
+    expect(DIALOG_REGISTRY.filter((d) => !d.hadEscapeBefore).length).toBe(7);
   });
 });
 
@@ -201,16 +207,13 @@ describe("every modal dialog routes through the shared contract", () => {
 
 // ─── Layer 3: table-driven behaviour ──────────────────────────────────────────
 
-import { ConnectionConfirmDialog } from "@/components/connections/ConnectionLifecycleUI";
 import { ConfirmDialog } from "@/components/bridge/review/ConfirmDialog";
 import { AdjustLimitsModal } from "@/app/(app)/admin/AdjustLimitsModal";
 import { CreateInvoiceModal } from "@/app/(app)/admin/CreateInvoiceModal";
 import { HelpSlideover } from "@/components/bridge/HelpSlideover";
-import { HistoryDrawer } from "@/components/connections/HistoryDrawer";
 import { OrderDetailsDrawer } from "@/components/bridge/workshop/OrderDetailsDrawer";
 import { OnboardingWizard } from "@/components/bridge/OnboardingWizard";
 import { LaneDrawer } from "@/components/bridge/LaneDrawer";
-import { DeleteSupplierDialog } from "@/components/bridge/SupplierDockProfile";
 import type { AdminOrganisation } from "@/lib/api/billing";
 import type { PartyLabels } from "@/hooks/useOrderDirection";
 
@@ -248,17 +251,6 @@ interface RenderableDialog {
 
 const RENDERABLE: RenderableDialog[] = [
   {
-    file: "src/components/connections/ConnectionLifecycleUI.tsx",
-    render: (onClose) => (
-      <ConnectionConfirmDialog
-        state={{ kind: "publish", revisionId: "rev_1", versionNo: 2 }}
-        busy={false}
-        onCancel={onClose}
-        onConfirm={() => {}}
-      />
-    ),
-  },
-  {
     file: "src/components/bridge/review/ConfirmDialog.tsx",
     render: (onClose) => (
       <ConfirmDialog
@@ -289,29 +281,6 @@ const RENDERABLE: RenderableDialog[] = [
     render: (onClose) => <HelpSlideover open onClose={onClose} />,
   },
   {
-    file: "src/components/connections/HistoryDrawer.tsx",
-    render: (onClose) => (
-      <HistoryDrawer
-        open
-        onClose={onClose}
-        connectionId="conn_1"
-        revisions={[]}
-        activeRevisionId={null}
-        liveSummary={null}
-        liveVersionNo={null}
-        testEvidence={null}
-        busy={false}
-        testingRevisionId={null}
-        rollingBackRevisionId={null}
-        discardingRevisionId={null}
-        onTest={() => {}}
-        onRequestPublish={() => {}}
-        onRequestRollback={() => {}}
-        onRequestArchive={() => {}}
-      />
-    ),
-  },
-  {
     file: "src/components/bridge/workshop/OrderDetailsDrawer.tsx",
     render: (onClose) => (
       <OrderDetailsDrawer
@@ -331,19 +300,6 @@ const RENDERABLE: RenderableDialog[] = [
   {
     file: "src/components/bridge/OnboardingWizard.tsx",
     render: (onClose) => <OnboardingWizard onDismiss={onClose} />,
-  },
-  {
-    file: "src/components/bridge/SupplierDockProfile.tsx",
-    render: (onClose) => (
-      <DeleteSupplierDialog
-        name="Acme Components"
-        partyNounLower="supplier"
-        deleting={false}
-        deleteError={null}
-        onCancel={onClose}
-        onConfirm={() => {}}
-      />
-    ),
   },
   {
     file: "src/components/bridge/LaneDrawer.tsx",
@@ -410,7 +366,8 @@ describe("shared dialog behaviour, applied to every renderable modal", () => {
       expect(registered.has(r.file), `${r.file} is rendered here but is not a registered modal`).toBe(true);
     }
     // Guard against the table quietly emptying out and every case below vanishing.
-    expect(RENDERABLE.length).toBeGreaterThanOrEqual(8);
+    // 7 since plan 13b removed three of the renderable rows with their screens (10 before).
+    expect(RENDERABLE.length).toBeGreaterThanOrEqual(7);
   });
 
   it.each(RENDERABLE.map((r) => [r.file, r] as const))("%s — focus moves INTO the dialog", async (_f, entry) => {

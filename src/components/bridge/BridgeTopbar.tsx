@@ -1126,7 +1126,7 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
                 <HubRowSeparator />
               </nav>
             )}
-            <HubTabs hub={hubRow.hub} variant="topbar" counterpartyPlural={directionLabels.counterpartyPlural} />
+            <HubTabs hub={hubRow.hub} variant="topbar" />
             {hubRow.tail.length > 0 && (
               <span className="flex min-w-0 items-center">
                 {hubRow.tail.map((c, i) => (

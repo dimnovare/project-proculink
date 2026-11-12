@@ -928,65 +928,7 @@ describe("route reachability (plan rule R1 — no new surface without a consumer
     ).toBe(UNREACHABLE.length);
   });
 
-  it("/connections and its detail page are reached by the tab a user actually clicks", () => {
-    // THE DEFECT, VERBATIM. Both routes rendered, resolved and were bookmarkable
-    // while no user could arrive at either. /connections reached the registry
-    // ONLY as a `hidden: true` HUB_TABS entry, and a hidden entry is stripped by
-    // visibleHubTabs — so the tab strip never printed it, the sidebar's hub
-    // tooltip never named it, and the two pages linked to nothing but each
-    // other (the closed cycle above). This guard credited HUB_TABS raw and
-    // therefore reported the route as covered, which is precisely how it stayed
-    // invisible; FE #110 fixed the guard, and this pins the route that motivated
-    // the fix.
-    //
-    // Everything below resolves through visibleHubTabs() — what the strip
-    // RENDERS — and never through Object.values(HUB_TABS). Reading the registry
-    // raw is the old blindness, and it would call this fixed with `hidden: true`
-    // back in place.
-    const rendered = (Object.keys(HUB_TABS) as HubKey[]).flatMap((hub) =>
-      visibleHubTabs(hub, { inboundEnabled: true }).map((t) => t.href),
-    );
-
-    // ANTI-VACUITY FLOOR. A sweep that collapses to nothing passes every
-    // `toContain` below by never running, so the size is asserted, not just
-    // non-emptiness: 4 Orders tabs (inbound on) + 3 Suppliers + 3 Activity.
-    expect(rendered.length, "no hub tab resolved — the sweep is vacuous").toBe(10);
-    expect(new Set(rendered).size, "a tab href is duplicated across the strip").toBe(10);
-    // A control that was visible before and after, so a change that empties the
-    // Suppliers hub cannot pass by emptying everything.
-    expect(rendered).toContain("/library/suppliers");
-
-    // The route itself, on the strip.
-    expect(
-      rendered,
-      "/connections is off the rendered tab strip again — an operator cannot see " +
-        "the record that decides what their suppliers receive",
-    ).toContain("/connections");
-
-    // Both pages exist, and neither is stranded under the FULL app walk with
-    // BOTH lists passed empty — so this cannot pass on the strength of an
-    // allowlist entry or a pending-decision excuse.
-    expect(ROUTES.map((r) => r.route).filter((r) => r.startsWith("/connections"))).toEqual([
-      "/connections",
-      "/connections/[connectionId]",
-    ]);
-    for (const route of ["/connections", "/connections/[connectionId]"]) {
-      expect(UNREACHABLE_UNEXCUSED.has(route), `${route} is stranded again`).toBe(false);
-      expect(Object.keys(ACCOUNTED_FOR), `${route} must not need an excuse`).not.toContain(route);
-    }
-
-    // The detail page is reached THROUGH the list, which is the whole reason the
-    // hub tab has to stay visible: the list is the only live source that links
-    // to it, so hiding the tab strands both halves at once.
-    const rel = (f: string) => path.relative(ROOT, f).split(path.sep).join("/");
-    expect(
-      TARGETS.filter((t) => targetSatisfiesRoute("/connections/[connectionId]", t.path)).map((t) =>
-        rel(t.source),
-      ),
-    ).toContain("src/components/connections/ConnectionsList.tsx");
-  });
-
-  it("the /operations/connectors page is gone, and the supplier surfaces still own the channel", () => {
+  it("the /operations/connectors page is gone", () => {
     // THE DEFECT, VERBATIM. /operations/connectors rendered, resolved and was
     // bookmarkable while no user could arrive at it. Its ONLY registry entry was
     // a `hidden: true` HUB_TABS row, and a hidden entry is stripped by
@@ -1002,77 +944,18 @@ describe("route reachability (plan rule R1 — no new surface without a consumer
     // delete-or-rebuild from 2026-08-08; the founder took the delete on
     // 2026-08-13, which is the same answer /operations/webhooks got.
     //
-    // A DELETION NEEDS BOTH DIRECTIONS, exactly as a door does. The negative half
-    // alone is satisfied by a repo where the suppliers surfaces were deleted too
-    // — "the worse copy is gone" and "the capability is gone" look identical to a
-    // `not.toContain`. So the positive half is asserted first and separately: the
-    // surfaces that already did this job must still be reachable and still do it.
     const DEAD = "/operations/connectors";
 
-    // ── THE POSITIVE HALF ────────────────────────────────────────────────────
-    // /library/suppliers is a real route, reachable on its own merits — not via
-    // an allowlist entry, not via a pending-decision excuse.
+    // The positive half this test used to carry (the suppliers list and the supplier Delivery
+    // tab still doing the job) went with those screens in plan 13b: the channel now lives on a
+    // flow's destinations, and /operations/connectors 308s to /settings.
     const routes = ROUTES.map((r) => r.route);
     expect(routes.length, "the route walk found nothing — every check below is vacuous").toBeGreaterThan(40);
-    expect(
-      routes,
-      "/library/suppliers does not exist — the delivery-channel view has no home at all",
-    ).toContain("/library/suppliers");
-    expect(
-      UNREACHABLE_UNEXCUSED.has("/library/suppliers"),
-      "/library/suppliers is stranded — deleting the worse copy moved the problem instead of solving it",
-    ).toBe(false);
-    expect(
-      Object.keys(ACCOUNTED_FOR),
-      "/library/suppliers must not need an excuse",
-    ).not.toContain("/library/suppliers");
 
-    // …and the two affordances really do still exist, in context. The suppliers
-    // list is the cross-supplier channel view the deleted page only claimed to
-    // be, and the supplier Delivery tab test-fires the same endpoint keyed on the
-    // protocol actually chosen.
-    const readSrc = (rel: string) => {
-      const text = fs.readFileSync(path.join(SRC_DIR, rel), "utf8");
-      expect(text.length, `${rel} is empty — the probe below would pass vacuously`).toBeGreaterThan(1000);
-      return text;
-    };
-    const deliveryEditor = readSrc("components/bridge/DeliveryConfigEditor.tsx");
-    const supplierList = readSrc("components/bridge/SupplierDockList.tsx");
-
-    expect(
-      supplierList,
-      "the suppliers list no longer prints each supplier's real delivery channel — the " +
-        "cross-supplier channel view now exists nowhere, so the deletion is a capability loss",
-    ).toContain("channelLabel(config.protocol)");
-    expect(
-      deliveryEditor,
-      "the supplier Delivery tab no longer test-fires — that endpoint now has no caller, " +
-        "so the deletion took the test-fire with it",
-    ).toContain("testFireDelivery");
-    expect(
-      deliveryEditor,
-      "the supplier Delivery tab no longer shows connector requirements — the accurate " +
-        "copy of that panel is gone as well as the misleading one",
-    ).toContain("<ConnectorRequirementsPanel");
-
-    // DISCRIMINATION CONTROL. A `toContain` over a 1,500-line file proves little
-    // unless it can also fail, so pin a marker that is real, load-bearing, and
-    // genuinely absent: resolveManifestKey was the deleted page's own helper, and
-    // it is exactly what made that page worse — it derived the manifest from the
-    // hardcoded row type, so every live supplier resolved to "http". The Delivery
-    // tab has no such helper because it knows the protocol the user chose, and it
-    // must not acquire one now that the page it came from is gone.
-    expect(
-      deliveryEditor,
-      "DeliveryConfigEditor grew a resolveManifestKey — check the deleted page's " +
-        "hardcoded-protocol guess has not been transplanted into the real editor",
-    ).not.toContain("resolveManifestKey");
-
-    // The redirect is the other half of "deleted, not 404'd": a bookmark must
-    // land on the surface that already did the job.
+    // The redirect is the other half of "deleted, not 404'd".
     const retired = RETIRED_ROUTES.find((r) => r.source === DEAD);
     expect(retired, `${DEAD} was deleted with no redirect — an old bookmark 404s`).toBeDefined();
-    expect(retired!.destination).toBe("/library/suppliers");
+    expect(retired!.destination).toBe("/settings");
 
     // ── ANTI-VACUITY FLOORS, BEFORE THE NEGATIVES ────────────────────────────
     // #126's ordering trap, verbatim and deliberately repeated: a sweep that
@@ -1080,12 +963,12 @@ describe("route reachability (plan rule R1 — no new surface without a consumer
     // because there is nothing left to look through. Each corpus therefore
     // asserts its own size BEFORE it is searched.
     //
-    // The tab floor stays at 10: the deleted entry was HIDDEN, so the rendered
-    // strip never counted it and a drift here is a different change entirely.
+    // The tab floor is 6 (three Orders tabs with inbound on, three Activity): the deleted entry
+    // was HIDDEN, so the rendered strip never counted it.
     const rendered = (Object.keys(HUB_TABS) as HubKey[]).flatMap((hub) =>
       visibleHubTabs(hub, { inboundEnabled: true }).map((t) => t.href),
     );
-    expect(rendered.length, "no hub tab resolved — the sweep is vacuous").toBe(10);
+    expect(rendered.length, "no hub tab resolved — the sweep is vacuous").toBe(6);
 
     // Every non-test source file, read the way retired-routes.test.ts reads the
     // nav registries: a QUOTED path is a link, a path in a comment is
@@ -1125,7 +1008,7 @@ describe("route reachability (plan rule R1 — no new surface without a consumer
     expect(
       offenders,
       `${DEAD} is quoted as a path outside its retirement record:\n  ${offenders.join("\n  ")}\n` +
-        `The page was deleted — link /library/suppliers instead.`,
+        `The page was deleted — link /settings instead.`,
     ).toEqual(["src/lib/retired-routes.ts"]);
 
     // And no excuse survives it. A deleted route must not be recorded as
@@ -1206,7 +1089,7 @@ describe("route reachability (plan rule R1 — no new surface without a consumer
     const rendered = (Object.keys(HUB_TABS) as HubKey[]).flatMap((hub) =>
       visibleHubTabs(hub, { inboundEnabled: true }).map((t) => t.href),
     );
-    expect(rendered.length, "no hub tab resolved — the sweep is vacuous").toBe(10);
+    expect(rendered.length, "no hub tab resolved — the sweep is vacuous").toBe(6);
 
     // Every non-test source file, read the way retired-routes.test.ts reads the
     // nav registries: a QUOTED path is a link, a path in a comment is

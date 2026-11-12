@@ -332,9 +332,12 @@ export type TransformCauseName =
   | "rules_check_failed"
   | "rules_refused";
 
-/** The supplier screen a recovery lands on, or its list when we have no id yet. */
-function supplierTab(c: ProblemCtx, tab: string): string {
-  return c.supplierId ? `/library/suppliers/${c.supplierId}?tab=${tab}` : "/library/suppliers";
+/**
+ * Where a recovery lands. The supplier screens it used to open are gone (their URLs 308 to the
+ * flow list), so every cause lands on the flow list rather than on a redirect.
+ */
+function supplierTab(_c: ProblemCtx, _tab: string): string {
+  return "/flows";
 }
 
 /** The state's own rebuild control, so a cause can re-order it without retyping it. */
@@ -718,7 +721,7 @@ export const PROBLEM_COPY: Record<ProblemStatus, ProblemCopy> = {
     consequence: () => "Nothing has been sent, and nothing will be, until this order has a supplier.",
     actions: () => [
       { kind: "slot", slot: "assignSupplier" },
-      { kind: "link", variant: "secondary", label: "Add a new supplier", href: "/library/suppliers" },
+      { kind: "link", variant: "secondary", label: "Add a new supplier", href: "/flows" },
     ],
     helper: () => "Once you choose, we read the file again and match the item codes automatically.",
     tier: () => "self",
@@ -829,7 +832,7 @@ export const PROBLEM_COPY: Record<ProblemStatus, ProblemCopy> = {
             kind: "link",
             variant: "primary",
             label: "Set up delivery",
-            href: c.supplierId ? `/library/suppliers/${c.supplierId}?tab=delivery` : "/library/suppliers",
+            href: "/flows",
           },
           retry,
         ];
@@ -840,7 +843,7 @@ export const PROBLEM_COPY: Record<ProblemStatus, ProblemCopy> = {
             kind: "link",
             variant: "primary",
             label: "Check the delivery settings",
-            href: c.supplierId ? `/library/suppliers/${c.supplierId}?tab=delivery` : "/library/suppliers",
+            href: "/flows",
           },
           retry,
           {
@@ -904,7 +907,7 @@ export const PROBLEM_COPY: Record<ProblemStatus, ProblemCopy> = {
         kind: "link",
         variant: "secondary",
         label: "Check the delivery settings",
-        href: c.supplierId ? `/library/suppliers/${c.supplierId}?tab=delivery` : "/library/suppliers",
+        href: "/flows",
       },
     ],
     helper: () =>

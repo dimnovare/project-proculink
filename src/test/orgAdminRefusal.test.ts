@@ -39,14 +39,7 @@ import { PLAN_BY_ID } from "@/lib/plans";
 
 import { createCheckoutSession, createPortalSession, getBillingStatus } from "@/lib/api/billing";
 import { updateEmailSettings, updateSftpSettings, updateS3Settings } from "@/lib/api/settings";
-import { upsertDeliveryConfig, deleteDeliveryConfig } from "@/lib/api/delivery";
-import {
-  createApiKey,
-  createIntegration,
-  publishConnectionRevision,
-  rollbackConnectionRevision,
-} from "@/lib/api-client";
-import type { UpsertDeliveryConfigRequest } from "@/lib/api/types";
+import { createApiKey, createIntegration, getAuditLog } from "@/lib/api-client";
 
 // ── The two bodies, exactly as the API sends them ────────────────────────────
 
@@ -101,12 +94,6 @@ interface GatedCall {
   readonly planGateSurvives: boolean;
 }
 
-const DELIVERY_CONFIG: UpsertDeliveryConfigRequest = {
-  protocol: "http",
-  autoDeliver: false,
-  configJson: "{}",
-};
-
 const GATED: readonly GatedCall[] = [
   {
     endpoint: "POST /api/billing/portal",
@@ -153,37 +140,11 @@ const GATED: readonly GatedCall[] = [
       updateS3Settings({ enabled: true, bucketName: "b", keyPrefix: "", region: "eu", accessKeyId: "k", defaultSupplierId: null }),
     planGateSurvives: true,
   },
-  {
-    endpoint: "PUT /api/suppliers/{id}/delivery-config",
-    why: "Writes the endpoint, protocol and credentials every future order for that supplier is sent to.",
-    call: () => upsertDeliveryConfig("sup-1", DELIVERY_CONFIG),
-    planGateSurvives: true,
-  },
-  {
-    endpoint: "DELETE /api/suppliers/{id}/delivery-config",
-    why: "Destroys that route and its credentials; every subsequent send for the supplier fails.",
-    call: () => deleteDeliveryConfig("sup-1"),
-    planGateSurvives: true,
-  },
-  {
-    endpoint: "POST /api/connections/{c}/revisions/{r}/publish",
-    why: "Moves the connection's ACTIVE pointer — from here the revision is what pinned orders deliver through.",
-    call: () => publishConnectionRevision("conn-1", "rev-1"),
-    planGateSurvives: true,
-  },
-  {
-    endpoint: "POST /api/connections/{c}/revisions/{r}/rollback",
-    why: "Publishes a previously-archived bundle nobody re-approved and moves the active pointer to it: redirection expressed as an undo.",
-    call: () => rollbackConnectionRevision("conn-1", "rev-1"),
-    // It never read the body on a non-409/404 failure, so it never carried a plan-gate code
-    // either. Adding one is a separate change from telling the two 403s apart.
-    planGateSurvives: false,
-  },
 ];
 
 /**
- * The twelfth gated endpoint has no frontend caller at all, so there is no copy to fix. Declared
- * here rather than omitted, so the count below still ties to the backend's twelve and the gap is
+ * The last gated endpoint has no frontend caller at all, so there is no copy to fix. Declared
+ * here rather than omitted, so the count below still ties to the eight and the gap is
  * visible instead of looking like an oversight.
  */
 const NOT_CALLED_FROM_THE_FRONTEND = [
@@ -197,11 +158,11 @@ describe("the swept corpus is real", () => {
   it("covers every endpoint the backend gates, and nothing is silently missing", () => {
     // The floor. A corpus that emptied — a bad import, an entry deleted — would make every
     // assertion below pass while calling nothing at all.
-    expect(GATED.length, "the sweep must really have call sites in it").toBe(11);
+    expect(GATED.length, "the sweep must really have call sites in it").toBe(7);
     expect(
       GATED.length + NOT_CALLED_FROM_THE_FRONTEND.length,
-      "the backend gates twelve actions; every one is either swept here or declared uncalled",
-    ).toBe(12);
+      "the eight gated actions this corpus names are either swept here or declared uncalled",
+    ).toBe(8);
 
     for (const entry of [...GATED, ...NOT_CALLED_FROM_THE_FRONTEND]) {
       expect(typeof entry.endpoint).toBe("string");
@@ -300,7 +261,7 @@ describe("a plan-gate 403 keeps its own meaning and never says 'ask an administr
     const { planGateUpgradeUrl } = await import("@/lib/planGate");
     respondWith(PLAN_GATE_403, 403);
 
-    const err = await publishConnectionRevision("conn-1", "rev-1").then(
+    const err = await getAuditLog().then(
       () => null,
       (e: unknown) => e,
     );

@@ -174,7 +174,7 @@ describe("every authenticated route names itself in the browser tab", () => {
   it("walks the whole (app) route tree", () => {
     expect(ROUTES.length).toBeGreaterThanOrEqual(20);
     expect(ROUTES.map((r) => r.route)).toContain("/settings");
-    expect(ROUTES.map((r) => r.route)).toContain("/library/suppliers/[id]");
+    expect(ROUTES.map((r) => r.route)).toContain("/flows/[flowId]");
   });
 
   it.each(ROUTES.map((r) => [r.route, r] as const))("%s has a title", (_route, r) => {
@@ -227,7 +227,7 @@ describe("tab titles are the words the navigation teaches", () => {
   );
 
   it("reads a non-empty hub registry", () => {
-    expect(hubEntries.length).toBeGreaterThanOrEqual(10);
+    expect(hubEntries.length).toBeGreaterThanOrEqual(6);
     expect(Object.keys(HUB_TAB_TITLES).length).toBe(hubEntries.length);
   });
 

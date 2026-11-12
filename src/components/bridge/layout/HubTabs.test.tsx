@@ -2,14 +2,10 @@ import { describe, test, expect, vi, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import { HubTabs, HUB_TABS, hubForPath, hubShowsTabs, visibleHubTabs } from "./HubTabs";
 
-// #22 follow-up: the suppliers page hides its visible title because "the topbar
-// names the page" — but the hub tab label was static "Suppliers", so an inbound
-// org (relabeled "Customers" everywhere else) lost the only surface carrying
-// the correct word, most visibly on mobile where the hub strip is the sole page
-// label. HubTabs accepts the direction-aware counterpartyPlural and applies the
-// SAME display-only relabel buildVisibleNav applies to the Suppliers item.
+// The hub strip: which tabs it prints, which routes it claims, and when it prints nothing.
+// (The Suppliers hub and its direction-aware relabel went with the supplier screens.)
 
-let mockPath = "/library/suppliers";
+let mockPath = "/bridge";
 vi.mock("next/navigation", () => ({
   usePathname: () => mockPath,
 }));
@@ -19,57 +15,16 @@ vi.mock("@/hooks/useDocumentEngine", () => ({ useDocumentEngine: () => mockEngin
 
 afterEach(() => {
   cleanup();
-  mockPath = "/library/suppliers";
+  mockPath = "/bridge";
   mockEngine = "unknown";
 });
 
 test("engine-on orgs get no hub strip, and exact /documents never lights a legacy hub", () => {
   mockEngine = "on";
-  const { container } = render(<HubTabs hub="suppliers" variant="topbar" />);
+  const { container } = render(<HubTabs hub="activity" variant="topbar" />);
   expect(container.firstChild).toBeNull();
   expect(hubForPath("/documents")).toBeNull();
   expect(hubForPath("/documents/d1")).toBe("orders");
-});
-
-describe("HubTabs — direction-aware Suppliers tab relabel", () => {
-  test("without counterpartyPlural the suppliers tabs keep their canonical labels", () => {
-    render(<HubTabs hub="suppliers" variant="topbar" />);
-    expect(screen.getByRole("link", { name: "Suppliers" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Item codes" })).toBeTruthy();
-    // No "Rules"/"Output layouts" tab — FE #47 retired both routes.
-    expect(screen.queryByRole("link", { name: "Rules" })).toBeNull();
-    expect(screen.queryByRole("link", { name: "Output layouts" })).toBeNull();
-  });
-
-  test("outbound ('Suppliers') is a no-op relabel", () => {
-    render(<HubTabs hub="suppliers" variant="topbar" counterpartyPlural="Suppliers" />);
-    expect(screen.getByRole("link", { name: "Suppliers" })).toBeTruthy();
-  });
-
-  test("inbound ('Customers') relabels ONLY the suppliers tab; href and active state are unchanged", () => {
-    render(<HubTabs hub="suppliers" variant="topbar" counterpartyPlural="Customers" />);
-    const customers = screen.getByRole("link", { name: "Customers" });
-    expect(customers.getAttribute("href")).toBe("/library/suppliers");
-    // Active state keys off the route, not the label — the relabel keeps it.
-    expect(customers.getAttribute("aria-current")).toBe("page");
-    expect(screen.queryByText("Suppliers")).toBeNull();
-    // The sibling tabs are untouched.
-    expect(screen.getByRole("link", { name: "Item codes" })).toBeTruthy();
-  });
-
-  test("counts stay keyed by the canonical label even when relabeled", () => {
-    render(
-      <HubTabs
-        hub="suppliers"
-        variant="topbar"
-        counterpartyPlural="Customers"
-        counts={{ Suppliers: 4 }}
-      />,
-    );
-    // The count badge renders inside the relabeled tab.
-    const customers = screen.getByRole("link", { name: /Customers/ });
-    expect(customers.textContent).toContain("4");
-  });
 });
 
 // FE-2 — a hub with a single VISIBLE tab has nowhere to switch TO. Rendering its
@@ -119,22 +74,11 @@ describe("HubTabs — a hub with nothing to switch to renders no strip", () => {
 describe("HubTabs — hidden entries are reachable, not switchable", () => {
   // The Orders hub has no hidden entry any more: its only one was /drafts, which
   // FE #47 retired behind a permanent redirect to /inbox.
-  // /connections is NOT here any more. It was, and that was the defect: the
-  // record that decides what a supplier receives had no door at all, because a
-  // hidden entry is the one thing the strip never prints. It is a visible tab
-  // now ("Supplier changes") — see `theVisibleSuppliersStrip` below, which is
-  // the positive half and fails if it is hidden again.
-  // /operations/webhooks is NOT here any more either, and for the opposite
-  // reason to /connections: it was DELETED (2026-08-08), not given a door. It
-  // was a duplicate of Settings ▸ Connectors — same four endpoints, same query
-  // key — and the lossier copy. The URL 308s to /settings?tab=connectors; see
-  // `theWebhooksPageIsGoneAndSettingsOwnsIt` in route-reachability.test.ts.
-  // /operations/connectors left by the same door on 2026-08-13: read-only, no
-  // endpoint behind it, and no delivery-config signal to render, so the delete-
-  // or-rebuild call it was tracked under came back "delete". It 308s to
-  // /library/suppliers; see `theConnectorsPageIsGoneAndSuppliersOwnsIt` there.
+  // The Suppliers hub is gone with the supplier screens (/library/*, /connections):
+  // those URLs 308 to the flow list; see src/lib/retired-routes.ts.
+  // /operations/webhooks and /operations/connectors were deleted earlier and are
+  // not hidden tabs either; they 308 as well.
   const HIDDEN = {
-    suppliers: ["/library/standards"],
     activity: ["/operations/health"],
   } as const;
 
@@ -156,33 +100,6 @@ describe("HubTabs — hidden entries are reachable, not switchable", () => {
         expect(hrefs, `${hub} strip must not link ${route}`).not.toContain(route);
       }
     }
-  });
-
-  // The positive half, and the one that would have caught the original defect:
-  // asserted on the RENDERED anchors, which is the same path a user's click
-  // takes. `hidden: true` on the /connections entry turns this red.
-  test("the Suppliers strip really renders Supplier changes as a link", () => {
-    cleanup();
-    mockPath = "/library/suppliers";
-    const { container } = render(<HubTabs hub="suppliers" variant="topbar" />);
-    const links = [...container.querySelectorAll("a")];
-    // Anti-vacuity floor: the strip rendered at all, and rendered the size we
-    // expect (three visible Suppliers tabs). A strip that collapsed to nothing
-    // would satisfy every `not.toContain` in the test above by rendering
-    // nothing at all.
-    expect(links.map((a) => a.getAttribute("href"))).toEqual([
-      "/library/suppliers",
-      "/library/mappings",
-      "/connections",
-    ]);
-    expect(
-      screen.getByRole("link", { name: "Supplier changes" }),
-      "an operator cannot click through to the record that decides what suppliers receive",
-    ).toHaveAttribute("href", "/connections");
-  });
-
-  test("a tab's sub-routes are claimed too (/connections/:id)", () => {
-    expect(hubForPath("/connections/9c0f")).toBe("suppliers");
   });
 
   test("the strip still renders on a hidden route so the user can leave it", () => {

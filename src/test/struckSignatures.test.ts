@@ -125,10 +125,11 @@ describe("kept signatures are still real", () => {
     expect(read("src/components/bridge/BridgeTopbar.tsx")).toContain('className="link-spine"');
   });
 
-  it("still ships the monument KPI treatment", () => {
-    // Same shape: real CSS, no <MonumentNumber> component.
-    expect(read(GLOBALS_CSS)).toContain(".monument");
-    expect(read("src/components/bridge/SupplierDockProfile.tsx")).toContain("monument");
+  // The monument KPI treatment is gone: its only consumer was SupplierDockProfile (plan 13b removed
+  // the supplier screens), so the `.monument` CSS went with it rather than staying as an unbuilt
+  // signature. Do not reinstate it as decoration; a KPI row that needs it brings its own consumer.
+  it("ships no .monument CSS without a consumer", () => {
+    expect(read(GLOBALS_CSS)).not.toContain(".monument");
   });
 
   it("still ships the cross-section card edge — from ONE card, not five", () => {

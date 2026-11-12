@@ -1,6 +1,6 @@
 // The error body must reach `ApiHttpError` as an OBJECT, not as the raw response text.
 //
-// #204 made all three `apiFetch` helpers throw `ApiHttpError` and passed the raw text as `.body`.
+// #204 made every `apiFetch` helper throw `ApiHttpError` and passed the raw text as `.body`.
 // That closes the classification defect — a 404 is a 404 — but it silently drops the two FIELDS
 // that consumers read off the body, because both readers were written to accept either form and
 // the string form is the weaker branch:
@@ -14,13 +14,12 @@
 //     back to a regex over the serialised string. The object branch is the one it prefers.
 //
 // So these tests do not re-check what #204 already pins (status → kind, and the exact message
-// strings — see *.httpFailureKind.test.ts). They pin the carrier: same fix, all three modules.
+// strings — see *.httpFailureKind.test.ts). They pin the carrier: same fix, every module.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import type { PoMappingConfig } from "./types";
 import type { UpsertDeliveryConfigRequest } from "./types";
 
-// mapping.ts reads isApiMockMode from api-client; stub it so the whole client is not pulled in.
+// delivery.ts reads isApiMockMode from api-client; stub it so the whole client is not pulled in.
 vi.mock("@/lib/api-client", () => ({ isApiMockMode: false }));
 // The REAL `ApiHttpError` and the REAL `retryAfterFrom` — this file asserts what the constructor
 // derived, so a hand-written stub would be asserting itself. `importOriginal` keeps one class
@@ -37,15 +36,11 @@ vi.mock("./core", async (importOriginal) => ({
 import { ApiHttpError } from "./core";
 import { classifyApiFailure } from "@/lib/apiFailure";
 import { planGateUpgradeUrl } from "@/lib/planGate";
-import { listConnectorManifests } from "./connectors";
 import { upsertDeliveryConfig } from "./delivery";
-import { upsertPoMapping } from "./mapping";
 
-/** One entry per `apiFetch` helper. All three share the throw site under test. */
+/** One entry per `apiFetch` helper. */
 const MODULES: Array<{ name: string; call: () => Promise<unknown> }> = [
-  { name: "connectors", call: () => listConnectorManifests() },
   { name: "delivery", call: () => upsertDeliveryConfig("sup-1", {} as UpsertDeliveryConfigRequest) },
-  { name: "mapping", call: () => upsertPoMapping("sup-1", {} as PoMappingConfig) },
 ];
 
 const originalFetch = globalThis.fetch;

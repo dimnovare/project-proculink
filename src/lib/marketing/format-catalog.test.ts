@@ -334,9 +334,6 @@ describe("no user-facing copy claims Peppol BIS conformance", () => {
     join(process.cwd(), "src/lib/section-guides.ts"),
     join(process.cwd(), "src/lib/upload-formats.ts"),
     join(process.cwd(), "src/lib/plans.ts"),
-    join(process.cwd(), "src/app/(app)/library/standards/page.tsx"),
-    join(process.cwd(), "src/components/bridge/DeliveryGuidedSetup.tsx"),
-    join(process.cwd(), "src/components/bridge/DeliveryConfigEditor.tsx"),
   ];
 
   it("recognises the claims that really shipped", () => {

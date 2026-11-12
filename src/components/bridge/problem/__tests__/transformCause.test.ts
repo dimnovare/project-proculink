@@ -294,7 +294,7 @@ describe("the tier says who has to act, and it is honest about it", () => {
 describe("each cause is pointed at something that can actually fix it", () => {
   test("a broken output mapping leads to the output settings, where it is edited", () => {
     const actions = copy.actions(forCause("output_mapping_failed"));
-    expect(hrefOf(actions[0])).toBe("/library/suppliers/sup-1?tab=delivery");
+    expect(hrefOf(actions[0])).toBe("/flows");
     expect(variantOf(actions[0])).toBe("primary");
     expect(labels(forCause("output_mapping_failed"))).toEqual([
       "Open the output settings",
@@ -306,7 +306,7 @@ describe("each cause is pointed at something that can actually fix it", () => {
     // The shipped copy sent this one to `?tab=delivery`, where no amount of
     // editing puts an item code on a line.
     const actions = copy.actions(forCause("unresolved_lines"));
-    expect(hrefOf(actions[0])).toBe("/library/suppliers/sup-1?tab=mappings");
+    expect(hrefOf(actions[0])).toBe("/flows");
     expect(variantOf(actions[0])).toBe("primary");
     expect(labels(forCause("unresolved_lines"))).toEqual([
       "Open this supplier's item codes",
@@ -322,7 +322,7 @@ describe("each cause is pointed at something that can actually fix it", () => {
 
   test("a refusal by the supplier's rules leads to the rules", () => {
     const actions = copy.actions(forCause("rules_refused"));
-    expect(hrefOf(actions[0])).toBe("/library/suppliers/sup-1?tab=acceptance");
+    expect(hrefOf(actions[0])).toBe("/flows");
     expect(labels(forCause("rules_refused"))).toEqual([
       "Check this supplier's rules",
       "Try building it again",
@@ -331,7 +331,7 @@ describe("each cause is pointed at something that can actually fix it", () => {
 
   test("a format we cannot build keeps the output settings, which is where it is chosen", () => {
     const actions = copy.actions(forCause("no_builder_for_format"));
-    expect(hrefOf(actions[0])).toBe("/library/suppliers/sup-1?tab=delivery");
+    expect(hrefOf(actions[0])).toBe("/flows");
     expect(labels(forCause("no_builder_for_format"))).toEqual([
       "Open the output settings",
       "Try building it again",
@@ -350,7 +350,7 @@ describe("each cause is pointed at something that can actually fix it", () => {
       const actions = copy.actions(forCause(cause, { supplierId: null, supplier: "this supplier" }));
       expect(actions.length, cause).toBeGreaterThan(0);
       for (const a of actions) {
-        if (a.kind === "link") expect(a.href, cause).toBe("/library/suppliers");
+        if (a.kind === "link") expect(a.href, cause).toBe("/flows");
       }
     }
   });

@@ -22,7 +22,7 @@ describe("matchGuide", () => {
   it("matches exact static routes", () => {
     expect(matchGuide("/bridge")?.route).toBe("/bridge");
     expect(matchGuide("/settings")?.route).toBe("/settings");
-    expect(matchGuide("/library/standards")?.route).toBe("/library/standards");
+    expect(matchGuide("/operations/log")?.route).toBe("/operations/log");
     expect(matchGuide("/operations/exceptions")?.route).toBe("/operations/exceptions");
   });
 
@@ -36,12 +36,6 @@ describe("matchGuide", () => {
     expect(matchGuide("/inbox/3f2b1a90-0c4d-4e5f-9a1b-2c3d4e5f6a7b")?.route).toBe(
       "/inbox/[orderId]",
     );
-    expect(matchGuide("/library/suppliers/8d2e77aa-1111-2222-3333-444455556666")?.route).toBe(
-      "/library/suppliers/[id]",
-    );
-    expect(matchGuide("/connections/abc-123")?.route).toBe(
-      "/connections/[connectionId]",
-    );
   });
 
   it("disambiguates /inbox from /inbox/[orderId]", () => {
@@ -49,11 +43,6 @@ describe("matchGuide", () => {
     expect(matchGuide("/inbox")?.title).toBe("Inbox");
     expect(matchGuide("/inbox/008412")?.route).toBe("/inbox/[orderId]");
     expect(matchGuide("/inbox/008412")?.title).toBe("Order review");
-  });
-
-  it("disambiguates /library/suppliers from /library/suppliers/[id]", () => {
-    expect(matchGuide("/library/suppliers")?.route).toBe("/library/suppliers");
-    expect(matchGuide("/library/suppliers/abc")?.route).toBe("/library/suppliers/[id]");
   });
 
   it("returns null when no entry matches", () => {
@@ -114,8 +103,10 @@ describe("SECTION_GUIDES registry shape", () => {
   // page was a duplicate of Settings ▸ Connectors that nothing navigated to.
   // 17 since /operations/connectors went the same way: a read-only page nothing
   // linked to, whose guide described an overview the page could not produce.
-  it("has 17 entries with unique routes", () => {
-    expect(SECTION_GUIDES).toHaveLength(17);
+  // 10 since plan 13b removed the supplier, buyer, mapping, standards and connection
+  // screens (seven guides) with their pages.
+  it("has 10 entries with unique routes", () => {
+    expect(SECTION_GUIDES).toHaveLength(10);
     const routes = SECTION_GUIDES.map((g) => g.route);
     expect(new Set(routes).size).toBe(routes.length);
   });

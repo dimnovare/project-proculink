@@ -320,7 +320,9 @@ describe("no failure state points a control at a page that is gone", () => {
   // Proof the predicate discriminates. Without this the two walks above are one
   // over-permissive helper away from being green on anything at all.
   test("the check rejects a dead target and a retired one — it is not vacuously green", () => {
-    expect(resolvesToLivePage("/library/suppliers/sup-1?tab=delivery")).toBe(true);
+    expect(resolvesToLivePage("/flows")).toBe(true);
+    // A supplier screen is retired too (plan 13b): its URL still 308s, so it must not count as live.
+    expect(resolvesToLivePage("/library/suppliers/sup-1?tab=delivery")).toBe(false);
     // Deliberately NOT `?details=response` any more. That href was this test's
     // positive control while it was the product's worst dead end — the page was
     // live, the parameter was read by nothing, and citing it here taught the next
@@ -330,7 +332,7 @@ describe("no failure state points a control at a page that is gone", () => {
     expect(resolvesToLivePage("/totally-dead-route-xyz")).toBe(false);
     // The exact link this test was written for: deleted by FE #47, still 308s.
     expect(resolvesToLivePage("/library/templates?supplierId=sup-1")).toBe(false);
-    expect(retirementFor("/library/templates")?.destination).toBe("/library/suppliers");
+    expect(retirementFor("/library/templates")?.destination).toBe("/flows");
     expect(matchesAny("/library/templates", RETIRED_SOURCES)).toBe(true);
   });
 });

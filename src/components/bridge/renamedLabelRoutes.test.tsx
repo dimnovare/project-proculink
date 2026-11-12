@@ -6,8 +6,8 @@
 // the e2e path lists. Each row below is (new label → route it must still open),
 // taken from DESIGN-DB-1 §6.1–§6.3.
 //
-// The nav/hub tables are asserted against the real exported registries. The two
-// page-level TABS arrays are module-private, so they are asserted against source
+// The nav/hub tables are asserted against the real exported registries. The
+// page-level TABS array is module-private, so it is asserted against source
 // text — the same cheap house pattern changelog-append-only.test.ts uses, and
 // enough to catch a label/id pair drifting apart.
 
@@ -51,7 +51,6 @@ describe("renamed sidebar labels keep their routes", () => {
   // first tab, and the "Activity" nav item inherits its /bridge href.
   const rows: Array<[string, string, string]> = [
     ["Documents", "/inbox", "§6.1 #2 Inbox → Documents"],
-    ["Suppliers", "/library/suppliers", "§6.1 #6 Partners → Suppliers"],
     ["Activity", "/bridge", "§6.1 #8 Operations → Activity"],
     ["Settings", "/settings", "§6.1 #32 unchanged"],
     ["Admin", "/admin", "§6.1 #30 unchanged"],
@@ -75,16 +74,12 @@ describe("renamed hub tab labels keep their routes", () => {
   const hrefFor = (label: string) => tabs.find((t) => t.label === label)?.href;
 
   const rows: Array<[string, string, string]> = [
-    ["Item codes", "/library/mappings", "§6.1 #17 Mappings → Item codes"],
-    ["Format reference", "/library/standards", "§6.1 #24 Standards → Format reference"],
     ["System status", "/operations/health", "§6.1 #25 System health → System status"],
     ["Issues", "/operations/exceptions", "§6.1 #26 Exceptions → Issues"],
     ["Deliveries", "/operations/log", "§6.1 #27 Delivery log → Deliveries"],
     // §6.1 #28 renamed Connectors → "Delivery channels". That tab is gone: the
     // page behind it (/operations/connectors) was deleted on 2026-08-13, so a
     // rename has nothing left to preserve — see the assertion below.
-    ["Suppliers", "/library/suppliers", "§6.1 #14 unchanged"],
-    ["Buyers", "/library/buyers", "§6.1 #15 unchanged"],
   ];
 
   for (const [label, href, why] of rows) {
@@ -117,7 +112,6 @@ describe("renamed hub tab labels keep their routes", () => {
   });
 
   it("the hub display names match the sidebar words they mirror", () => {
-    expect(HUB_LABELS.suppliers).toBe("Suppliers");
     expect(HUB_LABELS.activity).toBe("Activity");
   });
 });
@@ -154,27 +148,6 @@ describe("renamed breadcrumb labels keep their route segments", () => {
     for (const segment of ["connectors", "webhooks"]) {
       expect(CRUMB_LABELS[segment]).toBeUndefined();
     }
-  });
-});
-
-describe("renamed supplier tabs keep their ?tab= ids", () => {
-  const src = read("src/components/bridge/SupplierDockProfile.tsx");
-  const rows: Array<[string, string]> = [
-    ["mappings", "Item codes"],
-    ["po-mapping", "Order layout"],
-    ["acceptance", "Rules"],
-    ["history", "Changes"],
-    ["overview", "Overview"],
-    ["output", "Output"],
-    ["delivery", "Delivery"],
-  ];
-  for (const [id, label] of rows) {
-    it(`?tab=${id} → "${label}"`, () => {
-      expect(src).toMatch(new RegExp(`id:\\s*"${id}",\\s*label:\\s*"${label}"`));
-    });
-  }
-  it("drops the body-copy apology the old tab names needed", () => {
-    expect(src).not.toContain("use the Mappings tab instead");
   });
 });
 

@@ -72,8 +72,8 @@ const nextConfig: NextConfig = {
       // canonical Bridge-design routes so any bookmarked or typed old URL
       // ends up at the same place the sidebar links to.
       { source: "/dashboard",        destination: "/bridge",            permanent: true },
-      { source: "/mappings",         destination: "/library/mappings",  permanent: true },
-      { source: "/suppliers",        destination: "/library/suppliers", permanent: true },
+      { source: "/mappings",         destination: "/lookups",           permanent: true },
+      { source: "/suppliers",        destination: "/flows",             permanent: true },
       { source: "/orders",           destination: "/inbox",             permanent: true },
       { source: "/orders/:id",       destination: "/inbox/:id",         permanent: true },
       // Help-article consolidation: delivery-config was deleted (it carried a

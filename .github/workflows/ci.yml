@@ -379,29 +379,7 @@ jobs:
         if: always()
         run: bun run test src/test/endpoint-reachability.test.ts
 
-      # The SAME backend checkout, fifth question: does the pre-publish impact preview
-      # still agree with the backend about when a revision may go live at all?
-      #
-      # `ReplayPanel` headlined "safe to go live" for a draft that produced NO OUTPUT for
-      # every replayed order, because its `noImpact` excluded `errors` and an unrenderable
-      # order scores `outputChanged: false`. The predicate already existed in
-      # SupplierConnectionService (then `OrderCount == 0 || rendered > 0`); the frontend had
-      # authored a second, weaker definition of the same idea instead of mirroring it.
-      #
-      # THAT PREDICATE HAS SINCE MOVED (backend PR 207): the leg now reports an OUTCOME, a
-      # zero-order replay is `not_exercised` rather than a pass, and any render error fails
-      # it. The spec below reads BOTH shapes and FAILS on a third — which is why no `ref:`
-      # is pinned above and why this step must not be made conditional: the two repos deploy
-      # independently, so this checkout is pre-207 until that PR merges and post-207 after.
-      #
-      # Runs HERE for the same reason as the two steps above: its backend assertions are
-      # `test.skipIf(BACKEND === null)`, so in the unit-test job — which checks no backend
-      # out — it would report green having compared nothing.
-      - name: Diff the replay impact verdict against the backend C#
-        if: always()
-        run: bun run test src/test/replayImpactBackendMirror.test.ts
-
-      # The SAME backend checkout, sixth question: does this build have a row for every
+      # The SAME backend checkout, fifth question: does this build have a row for every
       # audit action the backend can write? `/operations/log` renders `GET /api/audit`'s
       # `action` verbatim, and an action with no row in src/lib/auditActionManifest.ts
       # renders as `unknown` — honest, but an unclassified failure nobody can filter for,
@@ -418,7 +396,7 @@ jobs:
         if: always()
         run: bun run test src/test/auditActionMirror.test.ts
 
-      # Seventh: is a delivery attempt's status still the same four-value vocabulary the
+      # Sixth: is a delivery attempt's status still the same four-value vocabulary the
       # delivery rows are read with? The frontend used to answer this with a substring
       # match over an open string, which said "yes, delivered" for `undeliverable`.
       #
@@ -427,16 +405,7 @@ jobs:
         if: always()
         run: bun run test src/test/deliveryAttemptMirror.test.ts
 
-      # Eighth: does the check-run outcome vocabulary still match? A supplier connection may
-      # only be published on a test pack that actually ran, and what this replaced was a
-      # boolean that four backend paths set to `true` over a run which had executed nothing.
-      # This suite reads two accepted backend versions and FAILS on a third, so it has to see
-      # a real checkout to mean anything at all.
-      - name: Diff the test-pack outcome vocabulary against the backend C#
-        if: always()
-        run: bun run test src/test/testPackOutcomeMirror.test.ts
-
-      # Ninth: can the order screen render every source-document media type the server can
+      # Seventh: can the order screen render every source-document media type the server can
       # send? An unknown type renders as opaque bytes, and a type the frontend claims but the
       # server cannot send is dead code that reads as coverage. This one already honoured
       # PROCULINK_REQUIRE_BACKEND_MIRROR — it was simply never given a checkout to honour it
@@ -445,7 +414,7 @@ jobs:
         if: always()
         run: bun run test src/lib/sourceDocument.test.ts
 
-      # Tenth: does the Settings webhook event menu offer every event the backend will
+      # Eighth: does the Settings webhook event menu offer every event the backend will
       # deliver? The mirror this diffs (src/lib/integrationEventManifest.ts) exists because
       # the menu was a private three-entry map while `IntegrationEventTypes.Subscribable`
       # had five — `order.dead_lettered` is the terminal "the order is NOT coming" signal,

@@ -105,13 +105,6 @@ export const ROUTE_QUERY_PARAMS: Record<string, readonly ParamContract[]> = {
       purpose: "Pre-selects the supplier so a re-upload does not start from nothing.",
     },
   ],
-  "/library/suppliers/[id]": [
-    {
-      param: "tab",
-      readBy: "src/components/bridge/SupplierDockProfile.tsx",
-      purpose: "`delivery` is where every 'set up / check delivery' recovery control lands.",
-    },
-  ],
   "/settings": [
     {
       param: "tab",

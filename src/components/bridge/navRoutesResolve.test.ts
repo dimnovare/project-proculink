@@ -135,7 +135,7 @@ describe("nav routes resolve — nothing 404s, nothing is stranded", () => {
     // named routes below are what pins specific content.
     expect(routes.length).toBeGreaterThan(15);
     expect(routes).toContain("/inbox");
-    expect(routes).toContain("/library/suppliers/sample-id");
+    expect(routes).toContain("/flows/sample-id");
     expect(routes).toContain("/operations/health");
   });
 
@@ -192,13 +192,12 @@ describe("nav routes resolve — nothing 404s, nothing is stranded", () => {
     expect(bySource["/dashboard"]?.destination).toBe("/bridge");
     expect(bySource["/orders"]?.destination).toBe("/inbox");
     expect(bySource["/orders/:id"]?.destination).toBe("/inbox/:id");
-    expect(bySource["/suppliers"]?.destination).toBe("/library/suppliers");
-    expect(bySource["/mappings"]?.destination).toBe("/library/mappings");
-    // …and each destination is a tab in the hub the four-item nav teaches.
+    expect(bySource["/suppliers"]?.destination).toBe("/flows");
+    expect(bySource["/mappings"]?.destination).toBe("/lookups");
+    // …and each destination is a tab in the hub the nav teaches (the two supplier
+    // destinations moved to the flow screens, which the engine nav reaches directly).
     expect(hubForPath("/bridge")).toBe("activity");
     expect(hubForPath("/inbox")).toBe("orders");
     expect(hubForPath("/inbox/sample-id")).toBe("orders");
-    expect(hubForPath("/library/suppliers")).toBe("suppliers");
-    expect(hubForPath("/library/mappings")).toBe("suppliers");
   });
 });

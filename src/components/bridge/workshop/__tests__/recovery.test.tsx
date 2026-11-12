@@ -267,7 +267,7 @@ describe("transform_failed — the recovery the backend already supports is reac
     // not change what a supplier receives. `outputFormat` (and the cXML credentials
     // the transform reads) live on the supplier's delivery config, and this is the
     // only screen that edits them.
-    expect(hrefs()).toContain("/library/suppliers/sup-1?tab=delivery");
+    expect(hrefs()).toContain("/flows");
     expect(hrefs()).not.toContain("/library/templates?supplierId=sup-1");
   });
 
@@ -282,7 +282,7 @@ describe("transform_failed — the recovery the backend already supports is reac
       errorMessage: "Cannot transform: lines 2, 5 still need review.",
     });
     renderWorkshop();
-    expect(hrefs()).not.toContain("/library/suppliers/sup-1?tab=delivery");
+    expect(hrefs()).not.toContain("/flows");
     expect(screen.getByRole("button", { name: /Try building it again/i })).toBeTruthy();
   });
 
@@ -333,7 +333,7 @@ describe("delivery_dead_letter — the button that used to 400 is gone", () => {
   test("checks the supplier's delivery settings before a blind retry", () => {
     mockState.order = makeOrder({ status: "delivery_dead_letter" });
     renderWorkshop();
-    expect(hrefs()).toContain("/library/suppliers/sup-1?tab=delivery");
+    expect(hrefs()).toContain("/flows");
   });
 });
 
@@ -401,7 +401,7 @@ describe("delivery_failed — the retry is real, and honest about what it cannot
     });
     renderWorkshop();
 
-    expect(hrefs()).toContain("/library/suppliers/sup-1?tab=delivery");
+    expect(hrefs()).toContain("/flows");
     const retry = screen.getByRole("button", { name: /Try sending now/i });
     expect(retry).toBeDisabled();
     fireEvent.click(retry);

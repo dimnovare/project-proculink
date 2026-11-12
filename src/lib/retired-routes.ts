@@ -30,12 +30,18 @@ export interface RetiredRoute {
   deletedDir: string;
   /** Why it went away, in plain language. Surfaces in review, not in the UI. */
   why: string;
+  /**
+   * Set when the source's dynamic segment names something the destination has no
+   * counterpart for (a supplier id is not a flow id), so the redirect cannot carry it.
+   * The route test otherwise fails a redirect that drops a segment.
+   */
+  segmentHasNoSuccessor?: true;
 }
 
 export const RETIRED_ROUTES: RetiredRoute[] = [
   {
     source: "/library/templates",
-    destination: "/library/suppliers",
+    destination: "/flows",
     deletedDir: "src/app/(app)/library/templates",
     why:
       "The output-templates page could not change what any supplier receives — "
@@ -44,7 +50,7 @@ export const RETIRED_ROUTES: RetiredRoute[] = [
   },
   {
     source: "/library/rules",
-    destination: "/library/suppliers",
+    destination: "/flows",
     deletedDir: "src/app/(app)/library/rules",
     why:
       "The rule catalog was editable but inert: nothing in the parse, transform or "
@@ -53,7 +59,7 @@ export const RETIRED_ROUTES: RetiredRoute[] = [
   },
   {
     source: "/library/rule-definitions",
-    destination: "/library/suppliers",
+    destination: "/flows",
     deletedDir: "src/app/(app)/library/rule-definitions",
     why:
       "A read-only list of rule shapes with no link into it from anywhere in the product. "
@@ -81,7 +87,7 @@ export const RETIRED_ROUTES: RetiredRoute[] = [
   },
   {
     source: "/operations/connectors",
-    destination: "/library/suppliers",
+    destination: "/settings",
     deletedDir: "src/app/(app)/operations/connectors",
     why:
       "A read-only page nothing linked to, describing a channel it could not see. Zero inbound "
@@ -103,6 +109,65 @@ export const RETIRED_ROUTES: RetiredRoute[] = [
       "Unreachable: uploading has routed straight to the order review screen since the "
       + "review screen became a superset of this one. The order id is preserved so an old "
       + "link opens the same order.",
+  },
+  {
+    source: "/library/suppliers",
+    destination: "/flows",
+    deletedDir: "src/app/(app)/library/suppliers",
+    why:
+      "Every workspace runs on the document tool, where what a supplier used to carry "
+      + "(its output format and delivery channel) belongs to a flow and its destinations. "
+      + "The supplier list had no counterpart left to open.",
+  },
+  {
+    source: "/library/suppliers/:id",
+    destination: "/flows",
+    deletedDir: "src/app/(app)/library/suppliers/[id]",
+    segmentHasNoSuccessor: true,
+    why:
+      "A supplier's detail page (delivery, mapping, catalog, rules) went with the supplier "
+      + "list. A supplier id is not a flow id, so the link lands on the flow list.",
+  },
+  {
+    source: "/library/buyers",
+    destination: "/flows",
+    deletedDir: "src/app/(app)/library/buyers",
+    why:
+      "A directory of buyers that no parse, mapping or delivery step ever read, kept for "
+      + "orders that now live in the read-only archive.",
+  },
+  {
+    source: "/library/mappings",
+    destination: "/lookups",
+    deletedDir: "src/app/(app)/library/mappings",
+    why:
+      "Supplier item-code mappings are what lookups hold now: a table a flow reads to turn "
+      + "one code into another.",
+  },
+  {
+    source: "/library/standards",
+    destination: "/flows",
+    deletedDir: "src/app/(app)/library/standards",
+    why:
+      "The field reference was written for purchase-order fields. The document tool has no "
+      + "equivalent screen yet, so the link lands on the flow list.",
+  },
+  {
+    source: "/connections",
+    destination: "/flows",
+    deletedDir: "src/app/(app)/connections",
+    why:
+      "Versioned supplier connections were replaced by flow versions: publish, restore and "
+      + "the version history live on each flow.",
+  },
+  {
+    source: "/connections/:connectionId",
+    destination: "/flows",
+    deletedDir: "src/app/(app)/connections/[connectionId]",
+    segmentHasNoSuccessor: true,
+    why:
+      "A connection's revisions and replay panel went with the connections list. A connection "
+      + "id is not a flow id, so the link lands on the flow list.",
   },
   {
     source: "/customers",

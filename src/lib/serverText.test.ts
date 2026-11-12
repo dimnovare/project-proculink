@@ -251,17 +251,4 @@ describe("a real 502 from the API produces a clean message", () => {
     expectNoMarkup(msg);
     expect(msg).toContain("502");
   });
-
-  it("mapping.ts apiFetch: PoMappingEditor's save error gets no markup", async () => {
-    const { deletePoMapping } = await import("@/lib/api/mapping");
-    let thrown: unknown;
-    try {
-      await deletePoMapping("sup-1");
-    } catch (e) {
-      thrown = e;
-    }
-    const msg = (thrown as Error).message;
-    expectNoMarkup(msg);
-    expect(msg).toContain("502");
-  });
 });

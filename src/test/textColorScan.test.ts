@@ -372,11 +372,6 @@ describe("the real tree — the green family", () => {
       reason: "lucide icon — currentColor STROKE, aria-hidden, non-text 3:1 floor.",
     },
     {
-      rel: "src/components/bridge/ConnectorRequirementsPanel.tsx",
-      contains: `<Info size={13} style={{ color: "#2E8E3A", flexShrink: 0 }} aria-hidden="true" />`,
-      reason: "lucide icon — currentColor STROKE, aria-hidden, non-text 3:1 floor.",
-    },
-    {
       rel: "src/components/bridge/OrgSwitcher.tsx",
       contains: `<Check size={15} strokeWidth={2.4} style={{ color: "#2E8E3A", flexShrink: 0 }}`,
       reason: "lucide icon — currentColor STROKE, non-text 3:1 floor.",

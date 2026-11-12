@@ -9,9 +9,8 @@ import type { OrderSummary } from "@/types/procurement";
 // h1 (sr-only) so heading hierarchy and getByRole("heading") queries survive.
 //
 // This file renders a representative slice of the audited pages end-to-end:
-// Overview, Orders, Suppliers, Connections, Deliveries, System status and
-// Format reference. The remaining audited pages (buyers, mappings, exceptions,
-// connectors, webhooks, invoices, ASNs) run their h1 through the SAME
+// Overview, Orders, Deliveries and System status. The remaining audited pages
+// (exceptions, connectors, webhooks, invoices, ASNs) run their h1 through the SAME
 // PageHeader `titleHidden` mechanism, whose contract — including the
 // kept-visible variant, which used to be demonstrated here by the now-retired
 // Drafts page — is pinned directly in layout/PageHeader.test.tsx.
@@ -73,11 +72,8 @@ vi.mock("@/lib/api-client", () => ({
 
 import { BridgeDashboard } from "./BridgeDashboard";
 import { InboxView } from "./InboxView";
-import { SupplierDockList } from "./SupplierDockList";
 import { CrossingsLog } from "./CrossingsLog";
-import { ConnectionsList } from "@/components/connections/ConnectionsList";
 import OperationsHealthPage from "@/app/(app)/operations/health/page";
-import StandardsPage from "@/app/(app)/library/standards/page";
 
 afterEach(() => {
   cleanup();
@@ -152,16 +148,6 @@ describe("nav dedup — each audited page keeps exactly one h1", () => {
     await waitFor(() => expectSingleH1("Orders"));
   });
 
-  it("Suppliers: sr-only h1", async () => {
-    renderPage(<SupplierDockList />);
-    await waitFor(() => expectSingleH1("Suppliers"));
-  });
-
-  it("Supplier changes: sr-only h1", async () => {
-    renderPage(<ConnectionsList />);
-    await waitFor(() => expectSingleH1("Supplier changes"));
-  });
-
   it("Deliveries: sr-only h1", async () => {
     renderPage(<CrossingsLog />);
     await waitFor(() => expectSingleH1("Deliveries"));
@@ -170,11 +156,6 @@ describe("nav dedup — each audited page keeps exactly one h1", () => {
   it("System status: sr-only h1", () => {
     renderPage(<OperationsHealthPage />);
     expectSingleH1("System status");
-  });
-
-  it("Format reference: sr-only h1", () => {
-    renderPage(<StandardsPage />);
-    expectSingleH1("Format reference");
   });
 
 });

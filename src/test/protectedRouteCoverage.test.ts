@@ -36,6 +36,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { isProtectedPath, PROTECTED_ROUTE_PATTERNS } from "../middleware";
+import { RETIRED_ROUTES } from "@/lib/retired-routes";
 import { listAppRoutes, ROOT } from "./appRoutes";
 
 const APP_GROUP_DIR = join(ROOT, "src", "app", "(app)");
@@ -89,7 +90,6 @@ describe("the route walk is not vacuous", () => {
       "/inbox/[orderId]",
       "/settings",
       "/upload",
-      "/library/suppliers",
       "/operations/log",
       "/admin",
     ]) {
@@ -140,12 +140,17 @@ describe("no pattern outlives the surface it protected", () => {
   it.each([...PROTECTED_ROUTE_PATTERNS])(
     "%s corresponds to a live route under (app)",
     (pattern) => {
-      // "/library(.*)" -> "/library"; the prefix must own at least one real page.
+      // "/library(.*)" -> "/library"; the prefix must own at least one real page, OR a retired
+      // route whose redirect still needs the edge guard: a deleted page keeps its prefix here
+      // so a signed-out visit to an old bookmark goes to sign-in, never to a workspace page.
       const prefix = pattern.replace(/\(\.\*\)$/, "");
       const owned = APP_GROUP_ROUTES.filter(
         (r) => r === prefix || r.startsWith(`${prefix}/`),
       );
-      expect(owned.length).toBeGreaterThan(0);
+      const redirected = RETIRED_ROUTES.filter(
+        (r) => r.source === prefix || r.source.startsWith(`${prefix}/`),
+      );
+      expect(owned.length + redirected.length).toBeGreaterThan(0);
     },
   );
 });

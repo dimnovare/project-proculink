@@ -393,7 +393,6 @@ describe("the scanned corpus", () => {
       "src/components/bridge/BridgeDashboard.tsx", // /bridge      (wrapper: 10 lines)
       "src/components/bridge/InboxView.tsx", // /inbox       (wrapper: 18 lines)
       "src/components/bridge/UploadWorkbench.tsx", // /upload      (wrapper: 11 lines)
-      "src/components/bridge/SupplierDockProfile.tsx", // suppliers/[id] (wrapper: 14 lines)
     ]) {
       expect(ledger[body], `${body} missing from the ledger`).toBeGreaterThan(0);
     }

@@ -2,14 +2,12 @@
 
 // HubTabs — the hub-page tab bar ("pages on the upper bar").
 //
-// WP-26 / DESIGN-DB-1: the nav teaches FOUR destinations — Orders · Suppliers ·
-// Activity · Settings — and three of them are hubs whose siblings live here.
-// The old five hubs were named after containers ("Partners", "Rules & formats",
-// "Integrations") that meant nothing on their own; these three are named after
-// the job. NO URL CHANGED — each tab IS the existing route.
+// WP-26 / DESIGN-DB-1: the nav teaches a few destinations, and the hubs among them
+// have siblings that live here. NO URL CHANGED — each tab IS the existing route.
+// The Suppliers hub (suppliers · item codes · supplier changes · format reference)
+// went with the supplier screens; their URLs 308 to the flow list.
 //
-//   Orders    → /inbox              (orders · buyers · +inbound docs behind a flag)
-//   Suppliers → /library/suppliers  (suppliers · item codes · rules · output layouts)
+//   Orders    → /inbox              (orders · +inbound docs behind a flag)
 //   Activity  → /bridge             (overview · deliveries · issues)
 //
 // Some routes are reachable but deliberately NOT on a strip — an incident page
@@ -34,7 +32,7 @@ import type { CSSProperties } from "react";
 import { INBOUND_ENABLED } from "@/lib/launch-flags";
 import { useDocumentEngine } from "@/hooks/useDocumentEngine";
 
-export type HubKey = "orders" | "suppliers" | "activity";
+export type HubKey = "orders" | "activity";
 
 interface HubTab {
   label: string;
@@ -62,75 +60,17 @@ interface HubTab {
  */
 export const HUB_LABELS: Record<HubKey, string> = {
   orders: "Documents",
-  suppliers: "Suppliers",
   activity: "Activity",
 };
 
 export const HUB_TABS: Record<HubKey, HubTab[]> = {
-  // Orders is the shift: the queue, plus who issued the orders in it.
+  // Orders is the shift: the queue.
   orders: [
     { label: "Orders", href: "/inbox", match: ["/documents"] },
-    { label: "Buyers", href: "/library/buyers" },
     { label: "Invoices", href: "/inbound/invoices", flag: "inbound" },
     { label: "Shipping notices", href: "/inbound/asns", flag: "inbound" },
     // No "Drafts" entry: FE #47 retired /drafts behind a permanent redirect to
     // /inbox, so there is no page left to keep reachable.
-  ],
-  // Suppliers is the setup: everything that can be wrong with a supplier.
-  suppliers: [
-    { label: "Suppliers", href: "/library/suppliers" },
-    { label: "Item codes", href: "/library/mappings" },
-    // The versioned setup that decides what each supplier actually receives.
-    //
-    // This was `hidden: true` and labelled "Changes", on the premise that it was
-    // "the same data as a supplier's Changes tab". Both halves were wrong, and
-    // the founder's call (2026-08-08) is to keep the route and give it a door:
-    //
-    //   • NOT the same data. A supplier's Changes tab (SupplierHistoryTab.tsx)
-    //     imports no mapper. The draft-mapping editor — MapperWorkbench
-    //     variant="connection", ConnectionDetail.tsx:272 — exists ONLY under
-    //     /connections/[connectionId], so the Edit → Make live lifecycle had no
-    //     entry point anywhere in the product.
-    //   • It is authoritative. Production sets Connections__RevisionAuthority =
-    //     true (ProcuLink.Api/Program.cs:555-557 records that the CODE default is
-    //     OFF and that this is NOT the deployed value), and with it on, an
-    //     order pinned to a published revision is transformed and delivered from
-    //     that revision's snapshot rather than the live supplier tables —
-    //     OrdersController.cs:1024-1029, :2497-2503,
-    //     Services/Orders/OrderIngestionService.cs:115-117, :898-901.
-    //
-    // So an operator could not see the record governing their own outbound
-    // documents. It is a tab now.
-    //
-    // Why "Supplier changes" and not "Connections": nav labels are a closed
-    // vocabulary (src/lib/vocabulary.ts, enforced by lint:vocab --nouns).
-    // "connection" is not one of the nine nouns — it only clears the gate via a
-    // PENDING_IA_LABELS amnesty whose own spec row says HIDE, so shipping it as
-    // a VISIBLE label would contradict the list that permits it. "Supplier
-    // changes" is in-budget (supplier + change), and the qualifier is doing
-    // work: a supplier's own tab is "Changes" (one supplier), this is the
-    // cross-supplier list plus the only place a draft can be edited and made
-    // live.
-    { label: "Supplier changes", href: "/connections" },
-    // No "Rules" or "Output layouts" entry: FE #47 retired /library/rules,
-    // /library/rule-definitions and /library/templates behind permanent
-    // redirects to /library/suppliers. Neither page could change what a supplier
-    // receives or whether an order passed — both jobs are per-supplier (a
-    // supplier's Rules and Delivery tabs).
-    //
-    // A read-only field↔standard matrix nobody opens cold; reached from the
-    // format explainers.
-    { label: "Format reference", href: "/library/standards", hidden: true },
-    // "Delivery channels" (/operations/connectors) used to sit here, hidden. It
-    // is GONE, not unhidden: the delete-or-rebuild call tracked against it was
-    // taken on 2026-08-13, and the answer was delete. It was read-only with no
-    // create or update endpoint behind it, and in live mode it derived nothing
-    // from delivery configs — every row was hardcoded `type: "API (REST)"`,
-    // because GET /api/suppliers carries no delivery-config signal. The first
-    // visible tab of this same hub, /library/suppliers, prints each supplier's
-    // real channel, and the supplier Delivery tab test-fires the same endpoint
-    // against the protocol actually selected. The URL now 308s to
-    // /library/suppliers (src/lib/retired-routes.ts). Do not re-add a tab for it.
   ],
   // Activity is the receipt: did it go, what broke, is the system up.
   activity: [
@@ -229,20 +169,10 @@ export function HubTabs({
   hub,
   counts,
   variant = "page",
-  counterpartyPlural,
 }: {
   hub: HubKey;
   counts?: Record<string, number>;
   variant?: HubTabsVariant;
-  /**
-   * Direction-aware counterparty word ("Suppliers" | "Customers"). When an
-   * inbound org relabels it (≠ "Suppliers"), the /library/suppliers tab shows
-   * that word instead of the static "Suppliers" — the same display-only relabel
-   * buildVisibleNav applies to the Suppliers nav item, and on mobile this tab is
-   * the only surface naming the page (the page's own title is sr-only). Routes,
-   * hrefs, and count keys are unchanged.
-   */
-  counterpartyPlural?: string;
 }) {
   const pathname = usePathname() ?? "";
   const engineOn = useDocumentEngine() === "on";
@@ -256,10 +186,7 @@ export function HubTabs({
       {tabs.map((t) => {
         const active = tabOwnsPath(t, pathname);
         const count = counts?.[t.label] ?? counts?.[t.href];
-        const label =
-          t.href === "/library/suppliers" && counterpartyPlural && counterpartyPlural !== "Suppliers"
-            ? counterpartyPlural
-            : t.label;
+        const label = t.label;
         return (
           <Link
             key={t.href}

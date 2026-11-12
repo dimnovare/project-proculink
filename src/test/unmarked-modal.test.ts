@@ -138,7 +138,8 @@ describe("no full-viewport overlay in src/ hides from assistive tech", () => {
     // A walk that silently stopped finding files would make every assertion below
     // pass. 19 overlay files were measured at 9fedca0.
     expect(CORPUS.length).toBeGreaterThan(300);
-    expect(CORPUS.filter((f) => buildsFullViewportOverlay(f.source)).length).toBeGreaterThanOrEqual(15);
+    // 14 measured after plan 13b removed the supplier, mapping and connection screens (15 before).
+    expect(CORPUS.filter((f) => buildsFullViewportOverlay(f.source)).length).toBeGreaterThanOrEqual(12);
   });
 
   it("every unmarked overlay is a known, named baseline entry", () => {

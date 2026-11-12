@@ -117,10 +117,6 @@ export const KNOWN_MACHINE_FACING: Record<string, string> = {
     "[Authorize(AuthenticationSchemes = \"ApiKey\")], not Clerk, and the URL is printed for the " +
     "customer to configure in SupplierDockProfile.tsx:1140 rather than called from here. " +
     "src/types/procurement.ts:61 documents the same shape.",
-  "POST /api/ingress/{}/catalog/{}":
-    "Machine-to-machine catalog push, same API-key scheme as the order ingress above. The URL is " +
-    "rendered for the customer to paste into their system at SupplierDockProfile.tsx:1140; this " +
-    "app never posts to it.",
 
   "POST /api/v1/flows/{}/documents":
     "2026-11-07 — machine-to-machine file API. ProcuLink.Api/Controllers/FlowFilesController.cs carries " +
@@ -181,16 +177,6 @@ export const KNOWN_MACHINE_FACING: Record<string, string> = {
     "can never mass-wipe an organisation. Deliberately has no frontend caller for the same reason " +
     "as the single-order erase above.",
 
-  // ── Reached by a computed final segment, which the matcher refuses to credit.
-  //    See "WHAT IT CANNOT SEE" above: the refusal is deliberate.
-  "POST /api/connections/{}/revisions/{}/publish":
-    "Called, but through a computed segment the matcher will not credit: api-client.ts builds " +
-    "`/api/connections/${connectionId}/revisions/${revisionId}/${action}` where action is the " +
-    "union \"publish\" | \"archive\". Crediting a computed segment against a literal one would let " +
-    "a single template mark a whole controller reachable.",
-  "POST /api/connections/{}/revisions/{}/archive":
-    "The other half of the same computed-segment call in src/lib/api-client.ts — see the publish " +
-    "entry directly above for why the matcher refuses to credit it structurally.",
 };
 
 /**
@@ -239,11 +225,6 @@ export const UNCALLED_PENDING_DECISION: Record<string, string> = {
     "ProcuLink.Api/Controllers/OrderAcceptanceGateController.cs:74 documents it as the manual " +
     "override for a blocked acceptance gate, and no screen offers it. Build the control or delete " +
     "the endpoint; this entry is the open question, not an answer.",
-  "DELETE /api/suppliers/{}/po-mapping/output-tree":
-    "PENDING A DECISION, 2026-08-06 — named by the v2 audit. Its own docstring at " +
-    "ProcuLink.Api/Controllers/SuppliersController.cs:584 calls it \"the recovery door for a " +
-    "layout that cannot deliver this supplier's format\", and nothing in the mapper offers it. A " +
-    "door with no handle.",
   "POST /api/billing/pilot/request-extension":
     "PENDING A DECISION, 2026-08-06 — a Pilot whose trial has ended can ask for an extension, and " +
     "no surface asks. The expiry copy in src/lib/plans.ts offers only Upgrade, so either the " +
@@ -260,21 +241,6 @@ export const UNCALLED_PENDING_DECISION: Record<string, string> = {
     "PENDING A DECISION, 2026-08-06 — marks an order rejected by the supplier. The review screen " +
     "renders the resulting `rejected_by_supplier` status (src/lib/orderStatusManifest.ts) but " +
     "offers no way to set it, so today the status can only arrive from a delivery response.",
-  "POST /api/schema/infer":
-    "PENDING A DECISION, 2026-08-06 — schema inference over an uploaded sample. No caller in " +
-    "src/lib/api-client.ts; the mapper's suggestion path uses the mapper-ai endpoints instead. " +
-    "Either the mapper adopts it or it is dead engine surface.",
-  "POST /api/schema/propose-mapping":
-    "PENDING A DECISION, 2026-08-06 — the second half of the inference pair above, and uncalled " +
-    "for the same reason. See ProcuLink.Api/Controllers/SchemaInferenceController.cs:96.",
-  "POST /api/suppliers/{}/po-mapping/test":
-    "PENDING A DECISION, 2026-08-06 — dry-runs a mapping against a sample without saving. " +
-    "src/lib/api/mapping.ts calls PUT and DELETE on /po-mapping and never /test, so the mapper's " +
-    "preview does not use it. Wire it into the preview or delete it.",
-  "POST /api/suppliers/{}/profiles":
-    "PENDING A DECISION, 2026-08-06 — upserts a supplier profile. src/lib/api-client.ts:1300 " +
-    "documents the route in a comment beside two GET callers and never posts to it, which is how " +
-    "a comment can look like a caller. Decide whether profiles are editable in-product.",
 };
 
 /**
@@ -839,8 +805,7 @@ describe("the frontend's call corpus", () => {
 
     const keys = new Set(CALLS.map((c) => `${c.method} ${c.path}`));
     expect(keys).toContain("POST /api/orders/upload");
-    expect(keys).toContain("PUT /api/suppliers/{}/delivery-config");
-    expect(keys).toContain("DELETE /api/suppliers/{}/po-mapping");
+    expect(keys).toContain("POST /api/billing/checkout");
   });
 
   // BARE_FRAGMENT_RE matches BACKTICKED path fragments only. In an apiFetch-wrapper
@@ -929,7 +894,7 @@ describe("every state-changing endpoint has a caller, or a written reason", () =
     expect(stateChanging.length).toBeGreaterThan(80);
     const keys = new Set(ENDPOINTS.map(endpointKey));
     expect(keys).toContain("POST /api/orders/upload");
-    expect(keys).toContain("PUT /api/suppliers/{}/delivery-config");
+    expect(keys).toContain("POST /api/billing/checkout");
     // Every path resolved against a class route — an unresolved one keeps the
     // controller's own prefix off the front.
     expect(ENDPOINTS.filter((e) => !e.path.startsWith("/api/") && e.path !== "/health")).toEqual([]);

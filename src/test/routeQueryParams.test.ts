@@ -62,7 +62,6 @@ describe("the registry describes code that exists", () => {
 describe("the checker is not vacuously green", () => {
   test("a href whose parameter IS read reports nothing", () => {
     expect(unconsumedParams("/inbox/ord-1?tab=response")).toEqual([]);
-    expect(unconsumedParams("/library/suppliers/sup-1?tab=delivery")).toEqual([]);
     expect(unconsumedParams("/inbox?status=delivery_failed")).toEqual([]);
     expect(unconsumedParams("/upload?supplierId=sup-1")).toEqual([]);
     // These three were inert on origin/main and were fixed by WRITING the reader

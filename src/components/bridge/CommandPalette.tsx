@@ -8,15 +8,13 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { useDialogA11y } from "@/hooks/useDialogA11y";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { apiClient, getBuyers, isApiMockMode } from "@/lib/api-client";
+import { apiClient, isApiMockMode } from "@/lib/api-client";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { statusFact } from "@/lib/orderStatusManifest";
 import { buildMapperCommands, dispatchMapper } from "./mapper/mapperCommands";
 import type {
   OrderSummary,
   OrderStatus,
-  Supplier,
-  BuyerDto,
 } from "@/types/procurement";
 import { statusLabel } from "./UnifiedStatusBadge";
 import { documentHref } from "@/lib/documentHref";
@@ -194,8 +192,6 @@ export function noResultsMessage(args: {
 function buildIndex(
   router: ReturnType<typeof useRouter>,
   orders: OrderSummary[],
-  suppliers: Supplier[],
-  buyers: BuyerDto[],
 ): CmdItem[] {
   // The palette lists orders by name and state, so the state has to be the SAME
   // word the row and the badge use. This used to be a local six-case switch:
@@ -215,40 +211,13 @@ function buildIndex(
     color: orderColor(order.status),
   }));
 
-  const supplierItems: CmdItem[] = suppliers.map((s) => ({
-    id: `s-${s.id}`,
-    group: "Suppliers",
-    icon: "⊞",
-    label: s.name,
-    sub: "Supplier",
-    href: `/library/suppliers/${s.id}`,
-    color: "#2E8E3A",
-  }));
-
-  const buyerItems: CmdItem[] = buyers.map((b) => ({
-    id: `b-${b.id}`,
-    group: "Buyers",
-    icon: "◎",
-    label: b.name,
-    sub: "Buyer",
-    href: "/library/buyers",
-    color: "#1E66C9",
-  }));
-
   return [
     ...orderItems,
-    ...supplierItems,
-    ...buyerItems,
     // ── Actions ────────────────────────────────────────
     { id: "a1",  group: "Actions", icon: "↑", label: "Upload document",      sub: "Open upload workbench",  action: () => router.push("/upload"),           color: "#0F4FA8" },
     // "View order inbox" — the inbox holds orders in EVERY state, not just
     // deliveries, so the old "View all deliveries" label over-claimed.
     { id: "a2",  group: "Actions", icon: "⊞", label: "View order inbox",     sub: "Go to inbox",            action: () => router.push("/inbox"),            color: "#0F4FA8" },
-    { id: "a3",  group: "Actions", icon: "⇄", label: "Manage mappings",      sub: "Open mapping editor",    action: () => router.push("/library/mappings"), color: "#0F4FA8" },
-    // Checks are set per supplier (Suppliers → a supplier → Rules), which is the
-    // only place they actually run — so the palette opens the supplier list
-    // rather than an org-wide catalog that decided nothing.
-    { id: "a4",  group: "Actions", icon: "✓", label: "Validation rules",     sub: "Choose a supplier to set its checks", action: () => router.push("/library/suppliers"), color: "#0F4FA8" },
     { id: "a5",  group: "Actions", icon: "⚠", label: "Issues",           sub: "Open the issues list", action: () => router.push("/operations/exceptions"), color: "#8A5310" },
     // These two labels are the NAV names, not palette-local ones, and that is
     // load-bearing rather than tidiness. `useSendFlow`'s in-flight notice is plain
@@ -262,7 +231,6 @@ function buildIndex(
     { id: "a6",  group: "Actions", icon: "❤", label: "System status",        sub: "Is order processing running? Check system health", action: () => router.push("/operations/health"),     color: "#0F4FA8" },
     { id: "a9",  group: "Actions", icon: "▤", label: "Deliveries",           sub: "Every delivery attempt — the delivery log", action: () => router.push("/operations/log"),   color: "#0F4FA8" },
     { id: "a7",  group: "Actions", icon: "⚙", label: "Settings",             sub: "Workspace settings",     action: () => router.push("/settings"),         color: "#0F4FA8" },
-    { id: "a8",  group: "Actions", icon: "≣", label: "View standards matrix", sub: "Open standards reference", action: () => router.push("/library/standards"), color: "#0F4FA8" },
     // ── Onboarding entry points (task 9) ────────────────────
     { id: "a10", group: "Actions", icon: "✓", label: "Getting started",      sub: "Open the setup checklist", action: () => router.push("/bridge"),          color: "#2E8E3A" },
     // Navigates to /upload, where the sample CTA lives: the palette unmounts
@@ -340,32 +308,6 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
     staleTime: 30_000,
     enabled: !isApiMockMode && debouncedQ.length >= SERVER_SEARCH_MIN_CHARS,
   });
-  const {
-    data: suppliers,
-    isError: suppliersIsError,
-    refetch: refetchSuppliers,
-  } = useQuery({
-    queryKey: ["suppliers"],
-    queryFn: () => apiClient.getSuppliers(),
-    staleTime: 60_000,
-  });
-  const {
-    data: buyers,
-    isError: buyersIsError,
-    refetch: refetchBuyers,
-  } = useQuery({
-    queryKey: ["buyers"],
-    queryFn: () => getBuyers(),
-    staleTime: 60_000,
-  });
-  // Same defect shape as `searchFailed` below, rotated onto the library queries:
-  // a failed suppliers/buyers fetch fell into `?? []` in buildIndex and their
-  // rows were simply MISSING — a search for a supplier name read "No results",
-  // which is a settled claim about data the palette never had. A cached list
-  // (data !== undefined) still renders, so only a no-data failure raises this.
-  const libraryFailed =
-    (suppliersIsError && suppliers === undefined) || (buyersIsError && buyers === undefined);
-
   // When search term is active and server results are available, use them (all orders searchable).
   // Otherwise fall back to the recent-orders preview (empty query, or mock mode).
   const serverSearchActive = !isApiMockMode && normalizedQ.length >= SERVER_SEARCH_MIN_CHARS;
@@ -385,7 +327,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
   const recentPreview = (ordersPage?.items ?? []).slice(0, RECENT_PREVIEW_LIMIT);
   const orderResults: OrderSummary[] = serverSearchActive ? (searchPage?.items ?? []) : recentPreview;
 
-  const items = buildIndex(router, orderResults, suppliers ?? [], buyers ?? []);
+  const items = buildIndex(router, orderResults);
 
   // Build filtered groups + flat list for keyboard nav
   const groups: Record<string, CmdItem[]> = {};
@@ -569,39 +511,6 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
               </span>
               <span style={{ flexShrink: 0 }}>
                 <Button variant="secondary" size="sm" onClick={() => { void refetchSearch(); }}>
-                  Try again
-                </Button>
-              </span>
-            </div>
-          )}
-          {libraryFailed && (
-            <div
-              role="alert"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 12,
-                padding: "10px 16px",
-                background: "var(--danger-soft)",
-                borderBottom: "1px solid var(--danger-border)",
-                color: "var(--danger)",
-                fontSize: 12.5,
-              }}
-            >
-              <span>
-                We couldn&rsquo;t load your suppliers and buyers, so their rows are missing from
-                these results — missing, not absent.
-              </span>
-              <span style={{ flexShrink: 0 }}>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => {
-                    if (suppliersIsError) void refetchSuppliers();
-                    if (buyersIsError) void refetchBuyers();
-                  }}
-                >
                   Try again
                 </Button>
               </span>

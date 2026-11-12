@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useOrganization } from "@clerk/nextjs";
 import { useQuery } from "@tanstack/react-query";
 import {
-  Upload, Inbox, Users, Zap, Workflow, ArrowRightLeft,
+  Upload, Inbox, Zap, Workflow, ArrowRightLeft,
   Lock, HelpCircle, Settings, ChevronsLeft, ChevronsRight, X,
   type LucideIcon,
 } from "lucide-react";
@@ -21,14 +21,15 @@ import { hubForPath, visibleHubTabs, type HubKey } from "./layout/HubTabs";
 import { OrgSwitcher } from "./OrgSwitcher";
 import { UserChipMenu } from "./UserChipMenu";
 
-// ─── Nav structure (WP-26 / DESIGN-DB-1: four destinations) ───────────────────
+// ─── Nav structure (WP-26 / DESIGN-DB-1) ──────────────────────────────────────
 //
-// FOUR top-level items, one flat section, no group headers:
+// Top-level items, one flat section, no group headers:
 //
 //   Orders    → /inbox              hub "orders"     · the shift
-//   Suppliers → /library/suppliers  hub "suppliers"  · the setup
 //   Activity  → /bridge             hub "activity"   · the receipt
 //   Settings  → /settings                            · the workspace
+//
+// (The Suppliers item and its hub went with the supplier screens.)
 //
 // What this replaces: ten top-level words across four group headers (Dashboard ·
 // Inbox · Drafts · Inbound · Partners · Rules & formats · Operations ·
@@ -84,12 +85,9 @@ const hubHome = (hub: HubKey) => visibleHubTabs(hub)[0].href;
 
 const NAV_MAIN: SidebarNavSection[] = [
   {
-    // Four items need no group headers.
+    // A few items need no group headers.
     items: [
       { label: "Documents", href: hubHome("orders"), icon: Inbox, badgeKey: "review", hub: "orders" },
-      // STRUCT-1 still holds: no standalone "Connections" entry — /connections is
-      // a hidden entry of this hub and stays fully routable.
-      { label: "Suppliers", href: hubHome("suppliers"), icon: Users, hub: "suppliers" },
       { label: "Activity", href: hubHome("activity"), icon: Zap, hub: "activity" },
       { label: "Settings", href: "/settings", icon: Settings },
     ],
@@ -134,20 +132,14 @@ export interface VisibleNav {
 // (visibleHubTabs), not a nav item, and the old LAUNCH_CORE_ONLY narrowing is
 // gone because there is nothing left to narrow.
 //
-// `counterpartyPlural` relabels the "Suppliers" entry (href /library/suppliers)
-// for inbound orgs (DISPLAY ONLY — the route stays /library/suppliers): inbound
-// orgs see their counterparty word ("Customers").
-export function buildVisibleNav(counterpartyPlural: string, isAdmin: boolean, documentEngine = false): VisibleNav {
+// `_counterpartyPlural` is unused since the Suppliers item (the only one it relabelled) went;
+// the parameter stays so the shell's callers change with the shell sweep, not with this cut.
+export function buildVisibleNav(_counterpartyPlural: string, isAdmin: boolean, documentEngine = false): VisibleNav {
   const filterItems = (items: SidebarNavItem[]) =>
     items
       // Hide the Admin link unless the server confirmed this user is on the
       // admin allowlist (UX only — the page + API re-gate server-side).
-      .filter((item) => item.href !== "/admin" || isAdmin)
-      .map((item) =>
-        item.href === "/library/suppliers" && counterpartyPlural !== "Suppliers"
-          ? { ...item, label: counterpartyPlural }
-          : item,
-      );
+      .filter((item) => item.href !== "/admin" || isAdmin);
 
   const main = (documentEngine ? ENGINE_NAV_MAIN : NAV_MAIN)
     .map((section) => ({ ...section, items: filterItems(section.items) }))
