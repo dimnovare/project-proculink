@@ -43,7 +43,10 @@ const flow2: Flow = {
   id: MOCK_ENGINE_IDS.setupFlow, name: "Delivery notes", fieldsConfirmed: false, documentCount: 1, createdAt: T,
   automation: "auto", fields: { fields: [], tables: [] }, publishedVersion: null, hasChanges: false, noCorrectionStreak: null,
 };
-const FLOWS = [flow1, flow2];
+// Two more published flows with no documents: list screens need enough rows at phone width to clear
+// the visual suite's "too little text to be a baseline" floor (tests/e2e/visual.spec.ts).
+const quietFlow = (id: string, name: string, automation: Flow["automation"]): Flow => ({ ...flow1, id, name, automation, documentCount: 0 });
+const FLOWS = [flow1, flow2, quietFlow("flow-3", "Purchase orders", "review"), quietFlow("flow-4", "Remittance advices", "auto")];
 const versions: FlowVersion[] = [{ versionNo: 1, publishedAt: T, publishedBy: null, live: true }];
 
 const cell = (value: string, r: number, c: number): ReadCell => ({
@@ -119,7 +122,12 @@ const lookup: Lookup = {
   id: MOCK_ENGINE_IDS.lookup, name: "Item codes", updatedAt: T, candidates: [], suggestionsOn: false,
   entries: [{ from: "A-100", to: "SKU-1" }, { from: "B-200", to: "SKU-2" }, { from: "C-300", to: "SKU-3" }],
 };
-const lookupSummary: LookupSummary = { id: lookup.id, name: lookup.name, count: lookup.entries.length, updatedAt: T, hasCandidates: false, suggestionsOn: false };
+const LOOKUPS: Lookup[] = [
+  lookup,
+  { ...lookup, id: "lookup-2", name: "Units of measure", entries: [{ from: "PCS", to: "EA" }, { from: "KGM", to: "KG" }] },
+  { ...lookup, id: "lookup-3", name: "Country codes", entries: [{ from: "Estonia", to: "EE" }, { from: "Finland", to: "FI" }] },
+];
+const summary = (l: Lookup): LookupSummary => ({ id: l.id, name: l.name, count: l.entries.length, updatedAt: T, hasCandidates: false, suggestionsOn: false });
 const notifications: NotificationSettings = { email: null, onReview: true, onFailure: true };
 const TEST_OK = { success: true, message: null, responseCode: 200 };
 
@@ -179,10 +187,10 @@ const ROUTES: [method: string, pattern: RegExp, run: Handler][] = [
   ["DELETE", re`/flows/${S}/outputs/${S}`, () => undefined],
   ["PUT", re`/flows/${S}/outputs/${S}/logo`, () => undefined],
   ["DELETE", re`/flows/${S}/outputs/${S}/logo`, () => undefined],
-  ["GET", re`/lookups`, () => [lookupSummary]],
+  ["GET", re`/lookups`, () => LOOKUPS.map(summary)],
   ["POST", re`/lookups`, (_m, _q, b) => echo({ ...lookup, id: "lookup-new", entries: [] }, b)],
-  ["GET", re`/lookups/${S}`, (m) => pick([lookup], m[1], "lookup")],
-  ["PUT", re`/lookups/${S}`, (m, _q, b) => echo(pick([lookup], m[1], "lookup"), b)],
+  ["GET", re`/lookups/${S}`, (m) => pick(LOOKUPS, m[1], "lookup")],
+  ["PUT", re`/lookups/${S}`, (m, _q, b) => echo(pick(LOOKUPS, m[1], "lookup"), b)],
   ["DELETE", re`/lookups/${S}`, () => undefined],
 ];
 
