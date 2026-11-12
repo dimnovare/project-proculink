@@ -1326,7 +1326,7 @@ function CatalogPushCard({ supplierId }: { supplierId: string }) {
           Authenticate with an API key from{" "}
           <Link href="/settings?tab=api" style={{ color: BLUE, fontWeight: 600 }}>Settings → API keys</Link>.{" "}
           See the{" "}
-          <Link href="/help/api-and-integrations" style={{ color: BLUE, fontWeight: 600 }}>API &amp; integrations guide</Link>.
+          <Link href="/help/api-reference" style={{ color: BLUE, fontWeight: 600 }}>API &amp; integrations guide</Link>.
         </div>
       </div>
     </Card>

@@ -163,19 +163,19 @@ const ADVANCED_CHANNELS: AdvancedChannelSpec[] = [
     id: "http-oauth2",
     label: "HTTP with OAuth2",
     blurb: "An API that needs a token fetched first (client id + secret + token URL).",
-    helpSlug: "oauth2-delivery-setup",
+    helpSlug: "destination-sign-in",
   },
   {
     id: "cxml",
     label: "cXML network credentials",
     blurb: "A cXML endpoint that needs From / To / Sender identities and a shared secret.",
-    helpSlug: "cxml-setup",
+    helpSlug: "outputs",
   },
   {
     id: "erp",
     label: "Erply or Directo ERP",
     blurb: "A direct ERP connector (client code / database + ERP credentials).",
-    helpSlug: "delivery-setup",
+    helpSlug: "destinations",
   },
 ];
 
@@ -942,7 +942,7 @@ function StepDestination(p: StepDestinationProps) {
           </div>
         )}
 
-        <HelpNote slug="oauth2-delivery-setup" label="delivery setup guide" />
+        <HelpNote slug="destination-sign-in" label="delivery setup guide" />
       </div>
     );
   }
@@ -999,7 +999,7 @@ function StepDestination(p: StepDestinationProps) {
           </label>
         )}
 
-        <HelpNote slug="sftp-ftps-delivery-keys" label="SFTP / FTPS key guide" />
+        <HelpNote slug="destination-sign-in" label="SFTP / FTPS key guide" />
       </div>
     );
   }
@@ -1016,7 +1016,7 @@ function StepDestination(p: StepDestinationProps) {
       <WizardField label="Reply-to (optional)" hint="Where replies from the supplier should go.">
         <input value={p.replyTo} onChange={(e) => p.setReplyTo(e.target.value)} placeholder="purchasing@your-company.example" className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
       </WizardField>
-      <HelpNote slug="delivery-setup" label="delivery setup guide" />
+      <HelpNote slug="destinations" label="delivery setup guide" />
     </div>
   );
 }

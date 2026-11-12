@@ -32,6 +32,85 @@ export interface RetiredRoute {
   why: string;
 }
 
+// Help pages retired by the relaunch rewrite (plan 12b). The 46 order-era articles and
+// guides were replaced by a smaller set around flows, documents, outputs and lookups, so
+// every old URL points at the nearest new page. Article values are `/help/<slug>` tails;
+// the `guides/` prefix marks a guide. One table here is the whole pairing — the retirement
+// gate and src/lib/help-articles.test.ts read it, so a slug cannot be dropped without a 308.
+const HELP_DIR = "src/app/(marketing)/help";
+const HELP_WHY =
+  "Rewritten for the document product at relaunch; the old page described purchase orders, "
+  + "so its URL permanently points at the nearest page in the new help set.";
+
+const RETIRED_HELP_ARTICLES: Record<string, string> = {
+  "inbound-mode": "how-proculink-works",
+  "dashboard-and-statuses": "documents-and-statuses",
+  "inbox-basics": "documents-and-statuses",
+  "x12-850": "what-we-read",
+  "edifact-orders": "what-we-read",
+  "sap-idoc-orders05": "what-we-read",
+  "ubl-and-peppol": "what-we-read",
+  "csv-xlsx-field-guide": "what-we-read",
+  "validation-rules": "checks",
+  "connections": "flows",
+  "order-intake-options": "intake-channels",
+  "mapping-basics": "outputs",
+  "output-mapping-editor": "outputs",
+  "output-templates": "outputs",
+  "cxml-setup": "outputs",
+  "delivery-setup": "destinations",
+  "delivery-config": "destinations",
+  "managing-suppliers": "destinations",
+  "erp-erply-and-directo": "destinations",
+  "oauth2-delivery-setup": "destination-sign-in",
+  "sftp-ftps-delivery-keys": "destination-sign-in",
+  "item-codes": "lookups",
+  "catalog-csv-field-guide": "lookups",
+  "ai-suggestions": "ai-in-proculink",
+  "api-and-integrations": "api-reference",
+  "api-order-schema-reference": "api-reference",
+  "exceptions-and-stuck-orders": "troubleshooting",
+  "first-upload": "guides/set-up-your-first-flow",
+  "imap-provider-setup": "guides/collect-from-a-mailbox",
+  "email-polling": "guides/collect-from-a-mailbox",
+  "sftp-polling-setup": "guides/collect-from-a-server",
+  "s3-polling-setup": "guides/collect-from-s3",
+};
+
+const RETIRED_HELP_GUIDES: Record<string, string> = {
+  "set-up-your-workspace": "set-up-your-first-flow",
+  "first-order-end-to-end": "set-up-your-first-flow",
+  "upload-orders-manually": "set-up-your-first-flow",
+  "receive-orders-by-email": "receive-documents-by-email",
+  "poll-a-mailbox-over-imap": "collect-from-a-mailbox",
+  "receive-orders-by-sftp": "collect-from-a-server",
+  "receive-orders-from-s3": "collect-from-s3",
+  "receive-orders-over-api": "send-documents-by-api",
+  "add-a-supplier": "send-to-a-destination",
+  "set-up-supplier-delivery": "send-to-a-destination",
+  "import-a-supplier-catalog": "import-a-lookup",
+  "keep-a-catalog-in-sync": "import-a-lookup",
+  "resolve-item-codes": "import-a-lookup",
+  "review-an-order": "check-and-send-a-document",
+  "map-supplier-po-fields": "build-an-output",
+  "automate-delivery": "publish-a-flow-version",
+};
+
+const RETIRED_HELP: RetiredRoute[] = [
+  ...Object.entries(RETIRED_HELP_ARTICLES).map(([old, to]) => ({
+    source: `/help/${old}`,
+    destination: `/help/${to}`,
+    deletedDir: `${HELP_DIR}/${old}`,
+    why: HELP_WHY,
+  })),
+  ...Object.entries(RETIRED_HELP_GUIDES).map(([old, to]) => ({
+    source: `/help/guides/${old}`,
+    destination: `/help/guides/${to}`,
+    deletedDir: `${HELP_DIR}/guides/${old}`,
+    why: HELP_WHY,
+  })),
+];
+
 export const RETIRED_ROUTES: RetiredRoute[] = [
   {
     source: "/library/templates",
@@ -137,6 +216,7 @@ export const RETIRED_ROUTES: RetiredRoute[] = [
       "A print page describing the order product. The landing page is the one place "
       + "that says what ProcuLink does.",
   },
+  ...RETIRED_HELP,
 ];
 
 /** The `redirects()` entries next.config.ts needs. `permanent: true` → HTTP 308. */

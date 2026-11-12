@@ -12,11 +12,11 @@ vi.mock("@/lib/analytics", () => ({ capture: (...a: unknown[]) => capture(...a) 
 // are exercised against the same guide.
 vi.mock("@/lib/guide-shots.generated", () => ({
   GUIDE_SHOTS: {
-    "receive-orders-by-email/settings-email-intake": { w: 2360, h: 1640 },
+    "receive-documents-by-email/settings-email-intake": { w: 2360, h: 1640 },
   },
 }));
 
-const clientGuide = getGuideBySlug("receive-orders-by-email") as Guide;
+const clientGuide = getGuideBySlug("receive-documents-by-email") as Guide;
 const adminGuide = getGuideBySlug("onboard-a-new-client") as Guide;
 
 function renderGuide(guide: Guide) {
@@ -143,7 +143,7 @@ describe("GuideShot", () => {
   it("renders a real image with intrinsic dimensions when the shot is captured", () => {
     renderShot("settings-email-intake");
     const img = screen.getByRole("img", { name: "What the reader should look for" });
-    expect(img).toHaveAttribute("src", "/guides/receive-orders-by-email/settings-email-intake.png");
+    expect(img).toHaveAttribute("src", "/guides/receive-documents-by-email/settings-email-intake.png");
     expect(img).toHaveAttribute("width", "2360");
     expect(img).toHaveAttribute("height", "1640");
   });
@@ -154,7 +154,7 @@ describe("GuideShot", () => {
     // In development the slot is visible so the author can see what is missing.
     expect(screen.getByText("Screenshot not captured")).toBeInTheDocument();
     expect(
-      screen.getByText("public/guides/receive-orders-by-email/not-captured-yet.png"),
+      screen.getByText("public/guides/receive-documents-by-email/not-captured-yet.png"),
     ).toBeInTheDocument();
   });
 });

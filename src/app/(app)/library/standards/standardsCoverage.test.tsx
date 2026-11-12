@@ -62,7 +62,6 @@ import { BINDABLE_HEADER_FIELDS, BINDABLE_LINE_FIELDS } from "@/lib/api/types";
 
 afterEach(cleanup);
 
-const HELP_REL = "src/app/(marketing)/help/output-templates/page.mdx";
 const HOME_REL = "src/app/(home)/page.tsx";
 const PAGE_REL = "src/app/(app)/library/standards/page.tsx";
 
@@ -293,35 +292,5 @@ describe("searching a field the product carries is not answered with a denial", 
     expect(text, "a nonexistent field is presented as one ProcuLink carries").not.toMatch(
       /no standards path recorded/i,
     );
-  });
-});
-
-// ── Face 3: the help article that routes the reader there ────────────────────
-
-describe("the help article matches what the screen actually holds", () => {
-  const help = readFileSync(join(process.cwd(), HELP_REL), "utf8");
-
-  it("derives the coverage rather than implying all of it", () => {
-    expect(help, `${HELP_REL} must import the coverage constant to state a fraction`).toMatch(
-      /import\s*\{[^}]*\bSTANDARDS_FIELD_COVERAGE\b[^}]*\}\s*from\s*"@\/lib\/standards\/catalog"/,
-    );
-    expect(help).toMatch(/\{STANDARDS_FIELD_COVERAGE\.referenced\}/);
-    expect(help).toMatch(/\{STANDARDS_FIELD_COVERAGE\.total\}/);
-    expect(help, `${HELP_REL} hand-types a coverage fraction`).not.toMatch(
-      /\b\d+\s+of\s+(?:the\s+)?\d+\s+canonical\s+fields?\b/i,
-    );
-  });
-
-  it("does not imply the reference covers the whole model", () => {
-    const prose = help.replace(/^import .*$/gm, "");
-    expect(
-      universalFieldClaim(prose),
-      `${HELP_REL} sends the reader to a table that covers ${COVERAGE.referenced} of ` +
-        `${COVERAGE.total} canonical fields and implies it covers them all`,
-    ).toBeNull();
-  });
-
-  it("tells the reader an unreferenced field can still be sent", () => {
-    expect(help).toMatch(/still in the order model/i);
   });
 });

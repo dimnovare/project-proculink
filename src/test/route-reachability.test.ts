@@ -65,8 +65,9 @@
 // status flipped to "live", so today it IS a real page and a real link.) No
 // user-facing link ever pointed at the planned entry, and src/app/sitemap.ts
 // filters on `status === "live"`, so no crawler was offered it either. The
-// remaining planned example is /help/guides/set-up-your-workspace
-// (src/lib/guides.ts:74). A planned entry is NOT a user-facing dead link.
+// remaining planned example was /help/guides/set-up-your-workspace, which the
+// relaunch help rewrite replaced with set-up-your-first-flow, so no guide is
+// planned today. A planned entry is NOT a user-facing dead link.
 //
 // What they ARE is a phantom-target source: their hrefs sat in a file this
 // guard was scanning as raw text, so creating a page at either path would have
@@ -1458,19 +1459,19 @@ describe("route reachability (plan rule R1 — no new surface without a consumer
     // strength of a target no user can click.
     const paths = new Set(TARGETS.map((t) => t.path));
 
-    // Planned — phantom. Must NOT be credited.
-    expect(paths.has("/help/guides/set-up-your-workspace")).toBe(false);
+    // Planned — phantom. Must NOT be credited. No guide is planned at the moment (the last one,
+    // set-up-your-workspace, was replaced at the relaunch), so the planned control is vacuous
+    // until the next one is added; the live half below still pins the filter.
     // Live — genuinely rendered as a <Link>. MUST still be credited, or the
     // exclusion has simply blinded the guard instead of sharpening it.
     // (unfreeze-a-pilot-workspace was the second planned example here until its
     // runbook shipped and its status flipped to "live".)
     expect(paths.has("/admin/guides/unfreeze-a-pilot-workspace")).toBe(true);
     expect(paths.has("/admin/guides/onboard-a-new-client")).toBe(true);
-    expect(paths.has("/help/guides/first-order-end-to-end")).toBe(true);
+    expect(paths.has("/help/guides/set-up-your-first-flow")).toBe(true);
 
     // The registry must agree with what is asserted above, so this test cannot
     // rot into a tautology if a guide's status flips.
-    expect(GUIDES.find((g) => g.slug === "set-up-your-workspace")?.status).toBe("planned");
     expect(GUIDES.find((g) => g.slug === "unfreeze-a-pilot-workspace")?.status).toBe("live");
     expect(GUIDES.find((g) => g.slug === "onboard-a-new-client")?.status).toBe("live");
   });
@@ -1529,7 +1530,7 @@ describe("route reachability (plan rule R1 — no new surface without a consumer
     // free to rot unlinked.
     const routes = ROUTES.map((r) => r.route);
     expect(routes).toContain("/help/troubleshooting"); // page.mdx
-    expect(routes).toContain("/help/guides/first-order-end-to-end"); // page.mdx
+    expect(routes).toContain("/help/guides/set-up-your-first-flow"); // page.mdx
     expect(ROUTES.length).toBeGreaterThan(80);
     // Widening the filter without widening fileToRoute yields "/help/x/page.mdx".
     expect(routes.filter((r) => /page\.(tsx|mdx)$/.test(r))).toEqual([]);

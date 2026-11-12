@@ -1416,7 +1416,7 @@ export function UploadWorkbench() {
                     </p>
                     {/* Quiet help link — stopPropagation so it doesn't trigger the dropzone picker. */}
                     <Link
-                      href="/help/csv-xlsx-field-guide"
+                      href="/help/what-we-read"
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={(e) => e.stopPropagation()}
@@ -2398,7 +2398,7 @@ export function describeUploadFailure(error: unknown, fileName: string): UploadE
       title: "That file is too big to send.",
       message: `${fileName} was refused for its size. Split it into smaller files, or send fewer order lines at a time.`,
       cta: "How to split a file",
-      href: "/help/guides/upload-orders-manually",
+      href: "/help/guides/set-up-your-first-flow",
     };
   }
 
@@ -2463,7 +2463,7 @@ export function describeUploadFailure(error: unknown, fileName: string): UploadE
           serverText ||
           `${fileName} wasn't accepted. Check it opens on your computer, then try a fresh copy of the file.`,
         cta: "See the file guide",
-        href: "/help/csv-xlsx-field-guide",
+        href: "/help/what-we-read",
       };
   }
 }

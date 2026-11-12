@@ -6,9 +6,9 @@ export const metadata = pageMetadata({
   path: "/help/guides",
   title: "Step-by-step setup guides — ProcuLink",
   description:
-    "Numbered walkthroughs for setting ProcuLink up: receiving orders by email, API, or a watched folder, adding suppliers and catalogs, mapping fields, and delivering to your supplier.",
+    "Numbered walkthroughs for setting ProcuLink up: your first flow, sending documents in, building an output, sending it to a destination, and importing a lookup.",
   ogDescription:
-    "Numbered walkthroughs for setting up order intake, suppliers, mapping, and delivery in ProcuLink.",
+    "Numbered walkthroughs for setting up flows, intake, outputs, destinations and lookups in ProcuLink.",
 });
 
 export default function GuidesIndexPage() {

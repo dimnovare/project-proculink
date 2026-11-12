@@ -10,18 +10,18 @@ describe("help search (shared Fuse index)", () => {
   });
 
   it("finds articles by curated keyword, not just title text", () => {
-    // "IMAP" appears in imap-provider-setup's keywords/title; "test-fire" only in
-    // delivery-setup's keywords — the operator vocabulary the MDX titles miss.
+    // "IMAP" appears only in intake-channels' keywords; "ppk" only in destination-sign-in's —
+    // the operator vocabulary the article titles miss.
     const imap = searchHelpArticles(fuse, "imap").map((a) => a.slug);
-    expect(imap).toContain("imap-provider-setup");
+    expect(imap).toContain("intake-channels");
 
-    const testFire = searchHelpArticles(fuse, "test-fire").map((a) => a.slug);
-    expect(testFire).toContain("delivery-setup");
+    const ppk = searchHelpArticles(fuse, "ppk").map((a) => a.slug);
+    expect(ppk).toContain("destination-sign-in");
   });
 
   it("finds articles by title", () => {
-    const out = searchHelpArticles(fuse, "ways to send orders").map((a) => a.slug);
-    expect(out[0]).toBe("order-intake-options");
+    const out = searchHelpArticles(fuse, "ways to send documents in").map((a) => a.slug);
+    expect(out[0]).toBe("intake-channels");
   });
 
   it("caps results at the given max", () => {

@@ -431,7 +431,7 @@ export function SftpPullSettings() {
       </div>
       <Field label="Remote directory"><input value={remoteDirectory} onChange={(e) => setRemoteDirectory(e.target.value)} placeholder="/incoming/orders" style={inputStyle} /></Field>
       <SupplierSelect value={defaultSupplierId} onChange={setDefaultSupplierId} />
-      <HelpLink href="/help/sftp-polling-setup" label="SFTP polling guide" />
+      <HelpLink href="/help/guides/collect-from-a-server" label="SFTP polling guide" />
       <Notice msg={notice} />
       <SaveBar onSave={handleSave} saving={save.isPending} hint={PLAN_HINT} />
     </Shell>
@@ -529,7 +529,7 @@ export function S3PullSettings() {
       <Field label="Endpoint URL (required for Cloudflare R2 / MinIO — leave blank for AWS S3)"><input value={serviceUrl} onChange={(e) => setServiceUrl(e.target.value)} placeholder="https://<account-id>.r2.cloudflarestorage.com" style={inputStyle} /></Field>
       <Field label="Secret access key"><input type="password" value={secretKey} onChange={(e) => setSecretKey(e.target.value)} placeholder={data?.hasSecretKey ? "•••••••• (leave blank to keep)" : "Secret access key"} style={inputStyle} /></Field>
       <SupplierSelect value={defaultSupplierId} onChange={setDefaultSupplierId} />
-      <HelpLink href="/help/s3-polling-setup" label="S3 polling guide" />
+      <HelpLink href="/help/guides/collect-from-s3" label="S3 polling guide" />
       <Notice msg={notice} />
       <SaveBar onSave={handleSave} saving={save.isPending} hint={PLAN_HINT} />
     </Shell>

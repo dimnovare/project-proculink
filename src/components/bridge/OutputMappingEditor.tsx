@@ -464,7 +464,7 @@ function FormulaHelp({ onTestExpression }: {
         ))}
         <div style={{ fontSize: 11, color: "var(--ink-faint)", lineHeight: 1.5 }}>
           Fields come from your order; <code style={{ fontFamily: "'JetBrains Mono',monospace" }}>|</code> applies a transform.{" "}
-          <Link href="/help/mapping-basics" style={{ color: "#1E66C9", fontWeight: 600 }}>
+          <Link href="/help/outputs" style={{ color: "#1E66C9", fontWeight: 600 }}>
             Mapping basics
           </Link>
         </div>
