@@ -16,6 +16,7 @@ import {
 } from "@/lib/outboundUrlPolicy";
 import { CATALOG_SYNC_STATUS_FACTS, CATALOG_SYNC_STATUSES } from "@/lib/catalogSyncStatusManifest";
 import { DOCUMENT_STATUSES } from "@/lib/documentStatusManifest";
+import { FIELD_MEANINGS } from "@/lib/fieldMeanings";
 import { FORMATS } from "@/components/flows/OutputEditor";
 import { PREVIEW_FORMATS } from "@/lib/api/types";
 import { STANDARDS } from "@/lib/standards/catalog";
@@ -2422,7 +2423,8 @@ const EXPECTED_COMPARISONS =
   1 + // the plan-gate codes quoted in the admin guides
   1 + // MINIMUM_PLAN against PlanConstants.MinimumPlan
   5 + // the ladder's numbers: Limits, MonthlyPriceEur, OveragePerOrderEur, FlowLimits, OverageRatesEur
-  1; // document statuses
+  1 + // document statuses
+  1; // field meanings
 
 afterAll(() => {
   if (!BACKEND) return; // the mirror gate already ruled on whether that was allowed
@@ -2452,6 +2454,21 @@ describe("document statuses mirror the backend", () => {
       backend,
       Object.keys(DOCUMENT_STATUSES),
       "The document status vocabulary drifted from DocumentStatus.cs.",
+    );
+  });
+});
+
+describe("field meanings mirror the backend", () => {
+  test.skipIf(!BACKEND)("FIELD_MEANINGS keys equal FieldMeanings.All", () => {
+    const cs = stripCsComments(readFileSync(join(BACKEND!, "ProcuLink.Core/Documents/FieldMeanings.cs"), "utf8"));
+    const constants = parseStatusConstants(cs);
+    const all = /All\s*=\s*\[([^\]]*)\]/.exec(cs)?.[1].match(/\w+/g) ?? [];
+    expect(all.map((n) => constants[n]), "All names a constant that does not exist").not.toContain(undefined);
+    recordComparison(
+      "FieldMeanings.All",
+      all.map((n) => constants[n]),
+      Object.keys(FIELD_MEANINGS),
+      "The field meaning vocabulary drifted from FieldMeanings.cs.",
     );
   });
 });

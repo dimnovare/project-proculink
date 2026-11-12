@@ -108,7 +108,7 @@ export interface OutputRequest {
 }
 export type DraftCite = { where: string; quote: string };
 export type DraftLeaf = {
-  path: string; fieldKey: string | null; by: "name" | "ai" | "docs" | null; confidence: number | null; required?: boolean; cite?: DraftCite | null;
+  path: string; fieldKey: string | null; by: "name" | "ai" | "meaning" | "docs" | null; confidence: number | null; required?: boolean; cite?: DraftCite | null;
 };
 export type OutputDraft = {
   name: string; format: string; tableKey: string | null; template: OutputNodeTemplate; leaves: DraftLeaf[]; notes: string[];

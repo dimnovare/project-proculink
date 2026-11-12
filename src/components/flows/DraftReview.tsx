@@ -96,6 +96,11 @@ export function DraftReview({ flow, draft, requireTest, previewDocumentId, onCre
               {draftLeaf?.by === "ai" && draftLeaf.confidence != null && (
                 <span className="rounded bg-ai-soft px-1.5 text-[11px] text-ai">AI · {Math.round(draftLeaf.confidence * 100)}%</span>
               )}
+              {draftLeaf?.by === "meaning" && (
+                <span className="rounded bg-surface2 px-1.5 text-[11px] text-ink-muted">
+                  Meaning{draftLeaf.confidence != null ? ` · ${Math.round(draftLeaf.confidence * 100)}%` : ""}
+                </span>
+              )}
               {draftLeaf?.required && <span className="rounded bg-surface2 px-1.5 text-[11px] text-ink-muted">{COPY.required_tag}</span>}
               {fixed && (
                 <input type="number" min={1} max={1000} aria-label={`Width of ${node.name}`} className={`${INPUT} w-24`}
