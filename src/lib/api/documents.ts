@@ -3,12 +3,13 @@
  *
  * Mirrors `ProcuLink.Api/Contracts/DocumentContracts.cs` and `ProcuLink.Core/Documents/*`
  * (camelCase JSON). Status and type values stay plain strings so a value from a newer backend is
- * never coerced. No mock fixtures yet: in mock mode every call throws.
+ * never coerced. In mock mode every call is served by `mockEngine.ts`.
  *
  * Paths are backticked on purpose so `src/test/endpoint-reachability.test.ts` can see them.
  */
 
 import { API_BASE_URL, authHeader, fetchWithTimeout, isApiMockMode } from "./core";
+import { mockEngineFetch } from "./mockEngine";
 import { readRefusal } from "./refusal";
 import type { OutputNodeTemplate } from "./types";
 
@@ -123,7 +124,7 @@ const UPLOAD_TIMEOUT_MS = 60_000;
 
 /** One request path for JSON, multipart and binary: a FormData body must not get a JSON content type. */
 async function apiFetch<T>(path: string, init?: RequestInit, timeoutMs?: number, as: "json" | "blob" = "json"): Promise<T> {
-  if (isApiMockMode) throw new Error("Flows are not available in mock mode yet.");
+  if (isApiMockMode) return mockEngineFetch<T>(path, init, as);
   const auth = await authHeader();
   const type = init?.body instanceof FormData ? {} : { "Content-Type": "application/json" };
   const res = await fetchWithTimeout(

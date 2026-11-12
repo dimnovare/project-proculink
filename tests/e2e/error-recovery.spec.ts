@@ -1,65 +1,21 @@
 import { test, expect } from "@playwright/test";
+import { MOCK_DOCUMENT_NUMBER, MOCK_ENGINE_IDS } from "../../src/lib/api/mockEngine";
 
 /**
- * Error-recovery smoke tests for the order-detail route.
+ * Error-recovery smoke tests for the document screen.
  *
- * NOTE: /orders/:id now permanently redirects to /inbox/:id (next.config.ts),
- * so these tests land on the order workshop, not the legacy OrderDetailPage.
- *
- * WP-19 replaced one flat pair of strings ("Order not found" / "Failed to load
- * order") with a branch per failure kind, so these assertions are written
- * against MEANING, not sentences:
- *
- *   • a 404 says the order cannot be found and offers NO retry — the second
- *     answer is the first answer;
- *   • a network failure says the order itself is fine and DOES offer a retry.
- *
- * The way back is `WorkshopGateShell`'s "Back to inbox" chip in both cases, and
- * it is asserted here because it is the only exit from these states. Matching
- * exact prose is what made the previous version of this file break on a
- * deliberate copy change while proving nothing about the behaviour.
- *
- * Mock mode: drives the in-memory api-client mock, so these run without a
- * backend.
+ * Mock mode: `mockEngineFetch` rejects with a 404 for a path with no fixture (it never answers an unknown
+ * id with an empty success), so an unknown document id must land on the screen's error state.
+ * Asserted against MEANING, not sentences: the error notice offers a Retry, and none of the
+ * fixture document's content is shown as if the read had worked.
  */
 
-test.describe("SpineReview error handling", () => {
-  test("a 404 says the order is gone, offers the way back, and offers no retry", async ({ page }) => {
-    // The mock returns null for unknown ids, surfacing the 404 path.
-    await page.goto("/inbox/does-not-exist-1234");
+test.describe("Document screen error handling", () => {
+  test("an unknown document shows the error state with a retry, not an empty success", async ({ page }) => {
+    await page.goto(`/flows/${MOCK_ENGINE_IDS.flow}/documents/does-not-exist-1234`);
 
-    await expect(page.getByText(/can't find this order/i)).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByRole("button", { name: /back to inbox/i })).toBeVisible();
-    // The load-bearing half: retrying a 404 buys a second identical answer, so
-    // neither wording of that control may appear.
-    await expect(page.getByRole("button", { name: /^retry$/i })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: /^try again$/i })).toHaveCount(0);
-  });
-
-  test("a network failure does not blame the order, and does offer a retry", async ({ page }) => {
-    // Declared conditional skip, not an if-wrapped self-skip with a dead `return` after it:
-    // the condition is the annotation, so the reason is reported the same way every run.
-    test.skip(
-      process.env.PLAYWRIGHT_LIVE !== "1",
-      "network-interception test requires PLAYWRIGHT_LIVE=1 (the mock api-client bypasses fetch)",
-    );
-
-    // Force /api/orders/:id to fail with a network-shaped error.
-    await page.route(/\/api\/orders\/[^/]+$/i, async (route) => {
-      await route.abort("failed");
-    });
-
-    await page.goto("/inbox/some-id-that-would-otherwise-resolve");
-
-    await expect(page.getByText(/couldn't load this order/i)).toBeVisible({ timeout: 15_000 });
-    // The distinction WP-19 exists to draw: this is NOT the order's fault, and
-    // unlike a 404 it is worth trying again.
-    await expect(page.getByText(/nothing is wrong with the order itself/i)).toBeVisible();
-    await expect(page.getByRole("button", { name: /^try again$/i })).toBeVisible();
-
-    const back = page.getByRole("button", { name: /back to inbox/i });
-    await expect(back).toBeVisible();
-    await expect(back).toBeEnabled();
+    await expect(page.getByRole("button", { name: /^retry$/i })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(MOCK_DOCUMENT_NUMBER)).toHaveCount(0);
   });
 });
 

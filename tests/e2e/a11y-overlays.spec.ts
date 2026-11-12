@@ -19,11 +19,12 @@ import { preparePage, settle, errorBoundaryMarker, DEV_OVERLAY_SELECTORS } from 
  * and it was fixed by a source-shape guard (`src/test/unmarked-modal.test.ts`),
  * never by the axe job — because the axe job could not see it.
  *
- * THE THREE. Chosen because each is a different opening mechanism, and because each
- * is a layer a keyboard or screen-reader user is *stuck inside* while it is up:
+ * THE ONE. A layer a keyboard or screen-reader user is *stuck inside* while it is up:
  *   • the app-shell mobile nav drawer — the only way to navigate below `md`
- *   • LaneDrawer — opened by clicking a wire on the dashboard's System map
- *   • the delete-supplier confirmation — a destructive confirm
+ * The LaneDrawer (dashboard System map) and delete-supplier confirmation cases were
+ * removed with their legacy screens (plan 13a): neither is reachable once the document
+ * engine is on. Engine screens DO open a modal (the useConfirm() AlertDialog, e.g. "Delete output"
+ * on a flow), but no case here scans it open yet: a known gap, add one.
  *
  * WHY THE SCAN IS SCOPED TO THE OVERLAY. `AxeBuilder.include()` narrows the scan to
  * the open layer's own subtree. Scanning the whole document instead would re-report
@@ -32,7 +33,7 @@ import { preparePage, settle, errorBoundaryMarker, DEV_OVERLAY_SELECTORS } from 
  * different question from "is this drawer accessible". A regression introduced in
  * the page behind an overlay belongs to that page's baseline, not to this file.
  *
- * WHAT THE FIRST RUN FOUND: nothing. All three overlays scan clean at WCAG 2.1
+ * WHAT THE FIRST RUN FOUND: nothing. The overlays this file covered scanned clean at WCAG 2.1
  * A/AA, and no product code was changed for this file. That is stated plainly
  * rather than dressed up, because the tempting alternative — inventing a fix to
  * justify the packet — is worse than a green scan. It is also not luck: both
@@ -173,7 +174,7 @@ test.describe("axe-core — overlays in their open state", { tag: "@a11y" }, () 
 
     test("the open mobile nav drawer has no WCAG A/AA violations", async ({ page }, testInfo) => {
       await preparePage(page);
-      await openScreen(page, "/bridge");
+      await openScreen(page, "/documents");
 
       const drawer = page.locator('[role="dialog"][aria-label="Navigation"]');
       await expect(drawer, "the drawer was already open before it was opened").toHaveCount(0);
@@ -189,66 +190,5 @@ test.describe("axe-core — overlays in their open state", { tag: "@a11y" }, () 
         testInfo,
       );
     });
-  });
-
-  /**
-   * LaneDrawer, reached by clicking a wire on the dashboard's "System map" tab.
-   * The wire hit target is an SVG `<g>` on desktop and a card in the mobile lane
-   * list; the desktop canvas is what the default viewport renders.
-   */
-  test("the open LaneDrawer has no WCAG A/AA violations", async ({ page }, testInfo) => {
-    await preparePage(page);
-    await openScreen(page, "/bridge");
-
-    await page.getByRole("tab", { name: /System map/i }).click();
-    await page.waitForTimeout(600);
-
-    const map = page.locator('svg[aria-label="Order routing map"]');
-    await expect(map, "the System map canvas never rendered — no wire to click").toBeVisible();
-
-    const opened = page.locator('[role="dialog"][aria-modal="true"]');
-    await expect(opened, "a modal dialog was open before any wire was clicked").toHaveCount(0);
-
-    const wire = map.locator("g[style*='cursor']").first();
-    await expect(wire, "the topology drew no clickable wire").toBeVisible();
-    await wire.click({ force: true });
-    await page.waitForTimeout(600);
-
-    await scanOpenOverlay(
-      page,
-      opened,
-      '[role="dialog"][aria-modal="true"]',
-      "lane-drawer",
-      testInfo,
-    );
-  });
-
-  /**
-   * The delete-supplier confirmation on `/library/suppliers/[id]`. That route is
-   * deliberately absent from CORE_SCREENS (see coreScreens.ts), so neither this
-   * dialog nor the screen behind it has ever been scanned.
-   */
-  test("the open delete-supplier confirmation has no WCAG A/AA violations", async ({
-    page,
-  }, testInfo) => {
-    await preparePage(page);
-    await openScreen(page, "/library/suppliers/11111111-1111-1111-1111-111111111111");
-
-    const trigger = page.getByRole("button", { name: /^Delete supplier$/i });
-    await expect(trigger, "the delete control is missing — the mock supplier did not load").toBeVisible();
-
-    const confirm = page.locator('[role="dialog"][aria-modal="true"]');
-    await expect(confirm, "the confirmation was open before Delete was clicked").toHaveCount(0);
-
-    await trigger.click();
-    await page.waitForTimeout(400);
-
-    await scanOpenOverlay(
-      page,
-      confirm,
-      '[role="dialog"][aria-modal="true"]',
-      "delete-supplier-confirm",
-      testInfo,
-    );
   });
 });

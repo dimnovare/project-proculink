@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { MOCK_ENGINE_IDS } from "../../src/lib/api/mockEngine";
 
 /**
  * Regression: the fixed cookie-consent banner must never cover a bottom-anchored
@@ -9,7 +10,7 @@ import { test, expect } from "@playwright/test";
  * and intercepted clicks — the commit CTA on the old /upload/preview screen was
  * the reported case (a Playwright click was swallowed, the commit never fired,
  * and navigation timed out). That screen has since been retired; the surviving
- * bottom-pinned primary action is the mobile Order Workshop send bar, which is
+ * bottom-pinned primary action is the document screen's mobile Send bar, which is
  * what this spec now guards. The other e2e specs pre-seed consent to dodge the
  * banner; THIS spec deliberately leaves it visible and proves the CTA clears it.
  *
@@ -19,25 +20,25 @@ import { test, expect } from "@playwright/test";
  * banner. The var collapses to 0 the moment consent is chosen.
  */
 
-const ORDER_URL = "/inbox/ord-002";
+const DOCUMENT_URL = `/flows/${MOCK_ENGINE_IDS.flow}/documents/${MOCK_ENGINE_IDS.document}`;
 
 test.describe("cookie banner never covers a bottom-anchored primary action", () => {
-  test("mobile 390 — the workshop send bar clears the compact banner", async ({ page }) => {
+  test("mobile 390 — the document Send bar clears the compact banner", async ({ page }) => {
     test.setTimeout(90_000);
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto(ORDER_URL);
+    await page.goto(DOCUMENT_URL);
 
     // The banner MUST be visible — no consent pre-seeded in this spec.
     const banner = page.getByRole("dialog", { name: /cookie consent/i });
     await expect(banner).toBeVisible({ timeout: 15_000 });
 
-    const sendBar = page.getByTestId("mobile-send-bar");
+    const sendBar = page.getByTestId("doc-send-bar");
     await expect(sendBar).toBeVisible({ timeout: 20_000 });
 
     // Worst case: scroll the triage list to its maximum, where an unlifted bar
     // would rest at the very bottom of the viewport, under the banner.
     await page.evaluate(() => {
-      let el = document.querySelector('[data-testid="mobile-send-bar"]')?.parentElement ?? null;
+      let el = document.querySelector('[data-testid="doc-send-bar"]')?.parentElement ?? null;
       while (el) {
         const oy = getComputedStyle(el).overflowY;
         if ((oy === "auto" || oy === "scroll") && el.scrollHeight > el.clientHeight) {
@@ -57,7 +58,7 @@ test.describe("cookie banner never covers a bottom-anchored primary action", () 
       const bannerRect = document
         .querySelector('[role="dialog"][aria-label="Cookie consent"]')!
         .getBoundingClientRect();
-      const bar = document.querySelector('[data-testid="mobile-send-bar"]')!;
+      const bar = document.querySelector('[data-testid="doc-send-bar"]')!;
       const r = bar.getBoundingClientRect();
       const hit = document.elementFromPoint(
         Math.round(r.left + r.width / 2),

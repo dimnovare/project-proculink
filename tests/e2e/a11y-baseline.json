@@ -1,12 +1,12 @@
 {
   "landing": {},
   "pricing": {},
-  "bridge": {},
-  "inbox": {},
-  "order-review": {},
+  "documents": {},
+  "document": {},
+  "flows": {},
+  "flow": {},
   "upload": {},
-  "suppliers": {},
-  "mappings": {},
+  "lookups": {},
   "delivery-log": {},
   "settings": {}
 }

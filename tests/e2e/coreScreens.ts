@@ -1,4 +1,5 @@
 import { listAppRoutes } from "../../src/test/appRoutes";
+import { MOCK_ENGINE_IDS } from "../../src/lib/api/mockEngine";
 
 /**
  * The ten core screens, and the guard that stops this list from rotting.
@@ -17,7 +18,7 @@ import { listAppRoutes } from "../../src/test/appRoutes";
  * and `routeQueryParams` already use — and `assertCoreScreenRegistry()` fails if
  * any of them has stopped existing.
  *
- * `pattern` is the App Router pattern (`/inbox/[orderId]`), which is what
+ * `pattern` is the App Router pattern (`/flows/[flowId]`), which is what
  * `listAppRoutes()` emits and therefore what can be verified. `path` is the
  * concrete URL a browser visits. They are separate fields on purpose: the
  * verifiable thing and the navigable thing are not the same string.
@@ -39,7 +40,7 @@ export interface CoreScreen {
 
 /**
  * Ten screens. The selection rule was "one per distinct surface a user has to get
- * through to go from landing to a delivered order", not "the ten biggest files".
+ * through to go from landing to a delivered document", not "the ten biggest files".
  *
  * DELIBERATELY NOT HERE:
  *  • `/sign-in` — the obvious candidate, and it was in this list until it was
@@ -50,9 +51,7 @@ export interface CoreScreen {
  *    here would have been scanning that placeholder and reporting it as coverage
  *    of the sign-in screen. The Clerk widget cannot be rendered without live
  *    keys, so this needs an authenticated-QA harness, not a curated list entry.
- *  • `/library/suppliers/[id]` — a detail view of a list already covered, and it
- *    still renders a hardcoded MOCK supplier for real users (a known, separately
- *    tracked defect). Baselining it would freeze that.
+ *  • `/archive` — read-only history of old orders; not on the document journey.
  *  • The output-structure designer surface — it is a dialog, not a route, and it
  *    is under active change in another work packet. Nothing here opens it.
  */
@@ -74,60 +73,60 @@ export const CORE_SCREENS: readonly CoreScreen[] = [
     why: "Where the plan ladder is stated. Six plan cards, the densest comparison surface.",
   },
   {
-    id: "bridge",
-    label: "Orders dashboard",
-    pattern: "/bridge",
-    path: "/bridge",
+    id: "documents",
+    label: "Documents list",
+    pattern: "/documents",
+    path: "/documents",
     auth: "app",
-    why: "The signature screen: wire topology, KPI strip, in-transit list.",
+    why: "Journey step: what needs you. The operator's home, with Needs you / In progress / Sent / Failed tabs.",
   },
   {
-    id: "inbox",
-    label: "Order queue",
-    pattern: "/inbox",
-    path: "/inbox",
+    id: "document",
+    label: "Document review",
+    pattern: "/flows/[flowId]/documents/[documentId]",
+    path: `/flows/${MOCK_ENGINE_IDS.flow}/documents/${MOCK_ENGINE_IDS.document}`,
     auth: "app",
-    why: "The operator's home. Densest data table in the product.",
+    why: "Journey step: review and send. Source document beside the read fields, checks, output preview and deliveries.",
   },
   {
-    id: "order-review",
-    label: "Order review",
-    pattern: "/inbox/[orderId]",
-    path: "/inbox/ord-002",
+    id: "flows",
+    label: "Flows list",
+    pattern: "/flows",
+    path: "/flows",
     auth: "app",
-    why: "The three-column review workbench — the screen the whole product exists for.",
+    why: "Journey step: where documents are set up. One card per flow, with automation and output state.",
+  },
+  {
+    id: "flow",
+    label: "Flow",
+    pattern: "/flows/[flowId]",
+    path: `/flows/${MOCK_ENGINE_IDS.flow}`,
+    auth: "app",
+    why: "Journey step: define the flow. Fields, outputs, intake and versions, the most form-dense engine screen.",
   },
   {
     id: "upload",
-    label: "Upload workbench",
+    label: "Upload to a flow",
     pattern: "/upload",
     path: "/upload",
     auth: "app",
-    why: "First action a new customer takes. Drop zone, file states, plan-limit banners.",
+    why: "Journey step: first document in. Pick a flow, drop a file.",
   },
   {
-    id: "suppliers",
-    label: "Supplier list",
-    pattern: "/library/suppliers",
-    path: "/library/suppliers",
+    id: "lookups",
+    label: "Lookups",
+    pattern: "/lookups",
+    path: "/lookups",
     auth: "app",
-    why: "Library list surface, and the supplier-limit / billing-gate copy lives here.",
-  },
-  {
-    id: "mappings",
-    label: "Mapping editor",
-    pattern: "/library/mappings",
-    path: "/library/mappings",
-    auth: "app",
-    why: "The editor surface — form controls, inline edit, import/export panels.",
+    why: "Journey step: translate values (item codes) on the way out. The list surface for lookup tables.",
   },
   {
     id: "delivery-log",
-    label: "Delivery log",
+    label: "Activity",
     pattern: "/operations/log",
     path: "/operations/log",
     auth: "app",
-    why: "The audit trail. Distinct event-list surface with status pills and grouping.",
+    why: "Journey step: confirm delivery. The audit trail, an event list with status pills and grouping.",
   },
   {
     id: "settings",
