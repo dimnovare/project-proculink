@@ -16,7 +16,6 @@ import SignInPage from "@/app/sign-in/[[...sign-in]]/page";
 import SignUpPage from "@/app/sign-up/[[...sign-up]]/page";
 import { LEGAL_ENTITY } from "@/lib/legal-entity";
 import { SUBPROCESSORS_UPDATED } from "@/lib/subprocessors";
-import { SETUP_FEE_NOTE } from "@/lib/plans";
 
 // Trust-commitment audit (2026-07-24), same spirit as the J2 fabrication purge:
 // a legal page may only promise what a solo-founder operation actually does.
@@ -204,25 +203,6 @@ describe("subprocessor change notice", () => {
 const flat = (s: string) => s.replace(/\s+/g, " ");
 
 describe("setup-fee design-partner waiver", () => {
-  it("does not claim early design partners are already being waived", () => {
-    expect(SETUP_FEE_NOTE).not.toMatch(/waived for early design partners/i);
-    expect(SETUP_FEE_NOTE).not.toMatch(/early design partners/i);
-  });
-
-  it("states the waiver as an offer we can still honour", () => {
-    expect(SETUP_FEE_NOTE).toMatch(/we will waive it for the first design partners we take on/i);
-  });
-
-  it("keeps the fee, the amounts and the manual mechanics disclosed", () => {
-    expect(SETUP_FEE_NOTE).toContain("€500 per supplier for the first 3, then €150 each");
-    expect(SETUP_FEE_NOTE).toMatch(/arranged manually/i);
-    expect(SETUP_FEE_NOTE).toMatch(/never auto-charged/i);
-  });
-
-  it("keeps the note on the pricing page", () => {
-    expect(read("src/app/(marketing)/pricing/page.tsx")).toContain("{SETUP_FEE_NOTE}");
-  });
-
   it("says the same thing in the ROI calculator fine print", () => {
     const src = flat(read("src/components/marketing/ROICalculator.tsx"));
     expect(src).not.toMatch(/waived for early design partners/i);

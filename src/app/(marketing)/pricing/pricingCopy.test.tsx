@@ -33,6 +33,17 @@ describe("/pricing document ladder", () => {
     expect(body).not.toMatch(/most popular|supplier-ready|See all tiers/i);
   });
 
+  it("shows each document plan's yearly price from plans.ts when the annual toggle is on", () => {
+    const { container, q } = renderPage();
+    fireEvent.click(q.getByRole("button", { name: /^Annual/ }));
+    for (const plan of DOCUMENT_PLANS) {
+      const card = Array.from(container.querySelectorAll("article.plk-price-card")).find(
+        (c) => c.querySelector(".plk-tier")!.textContent === plan.name,
+      )!;
+      expect(card.textContent, plan.id).toContain(`€${fmt(plan.priceYearly!)}/yr`);
+    }
+  });
+
   it("recommends by documents a month: the cheapest plan that covers it, Enterprise above the largest", () => {
     const { q } = renderPage();
     const status = q.getByRole("status");

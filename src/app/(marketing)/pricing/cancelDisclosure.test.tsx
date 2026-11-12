@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { render, cleanup } from "@testing-library/react";
+import { render, cleanup, within } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import PricingPage from "./page";
@@ -64,8 +64,13 @@ describe("/pricing cancellation disclosure", () => {
     const body = text(<PricingPage />);
 
     expect(body).not.toMatch(/read_only/);
-    // "read-only" is approved plain-language copy now (the trial-end FAQ answer says what it
-    // means), so only the internal token and the vaguer jargon stay banned.
+    // "read-only" is approved copy in the trial-end FAQ (C27), so it is banned only inside the
+    // cancel disclosure itself: the cancel FAQ item and the open fine-print line.
+    const { container } = render(<PricingPage />);
+    const faqItem = within(container).getByRole("button", { name: "What happens if I cancel?" }).closest(".plk-faq-item")!;
+    const finePrint = Array.from(container.querySelectorAll(".plk-fine")).find((e) => /Cancel any time/.test(e.textContent ?? ""))!;
+    expect(finePrint, "the open fine-print disclosure").toBeTruthy();
+    for (const el of [faqItem, finePrint]) expect(el.textContent).not.toMatch(/read-only/i);
     expect(body).not.toMatch(/frozen/i);
   });
 });

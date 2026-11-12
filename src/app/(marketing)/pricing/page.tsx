@@ -8,7 +8,6 @@ import {
   LEGACY_PAID_PLANS,
   PLAN_BY_ID,
   PUBLIC_LADDER,
-  SETUP_FEE_NOTE,
   yearlyMonthlyEquivalent,
   type Plan,
 } from "@/lib/plans";
@@ -43,7 +42,7 @@ const joinNames = (names: string[]) => `${names.slice(0, -1).join(", ")} or ${na
 
 const LEGACY_PLAN_NAMES = joinNames(LEGACY_PAID_PLANS.map((p) => p.name));
 
-// ERP connectors are not built in the document engine, so that Enterprise bullet is not sold here.
+// ERP connectors are not built in the document engine, and "Custom suppliers" is order-era wording: neither Enterprise bullet is sold here.
 const ENTERPRISE_FEATURES = PLAN_BY_ID.enterprise.features.filter((f) => !/\berp\b/i.test(f));
 
 function cardFeatures(plan: Plan): string[] {
@@ -205,10 +204,8 @@ export default function PricingPage() {
             ))}
           </div>
 
-          <p className="plk-fine">{SETUP_FEE_NOTE}</p>
-          <p className="plk-fine" style={{ marginTop: 10 }}>
-            All plans include EU-region order storage, AES-GCM encryption, and a full audit
-            trail per order.{" "}
+          <p className="plk-fine">
+            All plans include EU-region order storage and AES-GCM encryption.{" "}
             <Link href="/subprocessors" style={{ textDecoration: "underline" }}>
               Where each subprocessor runs
             </Link>{" "}
@@ -280,7 +277,7 @@ function PriceCard({ plan, yearly, recommended }: { plan: Plan; yearly: boolean;
       <div className="plk-price">
         {bigPrice}
         {isMonthly && <small>/mo</small>}
-        {isTrial && <small> for 14 days</small>}
+        {isTrial && <small> for {plan.priceCadence}</small>}
       </div>
       <div className="plk-price-note">
         {showYearly
