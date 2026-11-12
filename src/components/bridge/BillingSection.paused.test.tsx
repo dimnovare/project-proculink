@@ -126,8 +126,8 @@ describe("a paid plan the server has stopped says so, loudly", () => {
     expect(text, "the cause must be named").toContain("Your last payment didn't go through.");
     // The consequence is the part a customer cannot infer. Naming the channels is
     // what stops them assuming their POs are piling up somewhere safe.
-    expect(text).toContain("New orders aren't being accepted");
-    expect(text).toMatch(/uploads, emailed orders, SFTP and S3 pickups, and the REST API/);
+    expect(text).toContain("New documents aren't being accepted");
+    expect(text).toMatch(/uploads, emailed documents, mailbox, SFTP, FTP and S3 pickups, and the file API/);
     expect(text, "nothing is held for later — they must redirect suppliers").toMatch(
       /nothing is held to deliver later/,
     );
@@ -315,7 +315,7 @@ describe("the pause is derived from the server's answer, not from a plan name", 
     );
     expect(screen.queryByRole("alert")).toBeNull();
     expect(pageText()).not.toMatch(/Processing paused/);
-    expect(pageText()).not.toMatch(/New orders aren't being accepted/);
+    expect(pageText()).not.toMatch(/New documents aren't being accepted/);
     // The raw status line is untouched on the healthy path — the committed
     // /settings visual baselines are captured against a healthy mock org.
     expect(pageText()).toContain("active");

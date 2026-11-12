@@ -68,12 +68,12 @@ const FAQ: Array<[string, ReactNode]> = [
   // Cancelling is the one plan change that stops orders arriving, and it used to be
   // undisclosed: the answer above ("up or down, any time") reads as though cancelling
   // is just another move along the ladder. It is not — every ingest path refuses once
-  // the subscription ends, and nothing is queued for later, so a supplier who keeps
-  // emailing purchase orders gets silence. Say so before the buyer pays, not after a
+  // the subscription ends, and nothing is queued for later, so a sender who keeps
+  // emailing documents gets silence. Say so before the buyer pays, not after a
   // PO goes missing. Pinned by cancelDisclosure.test.tsx.
   [
     "What happens if I cancel?",
-    "If you cancel, ProcuLink stops accepting new documents when your subscription ends. Everything you have already processed remains readable and exportable — past orders, suppliers and mappings stay until you ask us to delete them, and activity records such as delivery attempts are removed after 180 days (see the Privacy Policy) — but nothing new comes in on any route: uploads, emailed orders, SFTP and S3 pickups, and the REST API all stop. Documents sent to you after that are not held and delivered later, so redirect your suppliers before you cancel. Resubscribing turns processing back on immediately, with your setup untouched.",
+    "If you cancel, ProcuLink stops accepting new documents when your subscription ends. Everything you have already processed remains readable and exportable — past documents, flows and outputs stay until you ask us to delete them, and activity records such as delivery attempts are removed after 180 days (see the Privacy Policy) — but nothing new comes in on any route: uploads, emailed documents, mailbox, SFTP, FTP and S3 pickups, and the file API all stop. Documents sent to you after that are not held and delivered later, so tell your senders before you cancel. Resubscribing turns processing back on immediately, with your setup untouched.",
   ],
   // STORED and PROCESSED are two different questions, and this answer used to give
   // one answer to both: "All order data is stored and processed in the EU". The
@@ -82,14 +82,14 @@ const FAQ: Array<[string, ReactNode]> = [
   // api.openai.com, and Postmark carries the outbound purchase order itself as an
   // email attachment. The retraction swept /security and missed this page, so the
   // sentence the packet exists to kill stayed live here for a day. This answer now
-  // says "order storage is EU-region" — the same words the fine print at the bottom
+  // says "document storage is EU-region" — the same words the fine print at the bottom
   // of this page and both site footers already use, and no more specific than that.
   // A draft that named Cloudflare R2 and Neon here was rejected in review: those two
   // regions are unsourced, and pinning an unsourced claim to named vendors makes it
   // more precise without making it more true.
   [
     "Where is my data stored?",
-    "Order storage is EU-region and encrypted with AES-GCM at rest. Some processing runs on named US subprocessors under standard contractual clauses — sign-in, AI extraction, payments, and email in both directions, including the purchase orders we email to your suppliers. See the Security page for the full posture.",
+    "Document storage is EU-region and encrypted with AES-GCM at rest. Some processing runs on named US subprocessors under standard contractual clauses — sign-in, AI extraction, payments, and email in both directions, including the documents we email to the destinations you set. See the Security page for the full posture.",
   ],
 ];
 
@@ -205,7 +205,7 @@ export default function PricingPage() {
           </div>
 
           <p className="plk-fine">
-            All plans include EU-region order storage and AES-GCM encryption.{" "}
+            All plans include EU-region document storage and AES-GCM encryption.{" "}
             <Link href="/subprocessors" style={{ textDecoration: "underline" }}>
               Where each subprocessor runs
             </Link>{" "}

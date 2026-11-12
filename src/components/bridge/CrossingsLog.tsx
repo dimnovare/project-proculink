@@ -25,6 +25,7 @@ import {
 } from "@/lib/auditActionManifest";
 import { REACH_SENTENCE, auditActionRemedy } from "@/lib/auditActionRemedy";
 import { EmptyState } from "./EmptyState";
+import { useDocumentEngine } from "@/hooks/useDocumentEngine";
 import { isPlanGate, PlanGateNotice } from "./PlanGateNotice";
 import { Card } from "./layout/Card";
 import { PageHeader } from "./layout/PageHeader";
@@ -509,6 +510,11 @@ function DesktopColHeader() {
   );
 }
 
+/** Own component so the engine probe runs only when the log is actually refused. */
+function LogGateNotice({ error }: { error: unknown }) {
+  return <PlanGateNotice error={error} capability="The full delivery log" documentEngine={useDocumentEngine() === "on"} />;
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function CrossingsLog() {
@@ -816,7 +822,7 @@ export function CrossingsLog() {
 
       {/* Plan-gated state — an upgrade prompt, not a retry loop */}
       {planGated && !isApiMockMode && (
-        <PlanGateNotice error={error} capability="The full delivery log" />
+        <LogGateNotice error={error} />
       )}
 
       {/* Error state.

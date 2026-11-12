@@ -26,6 +26,8 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
+vi.mock("@/hooks/useDocumentEngine", () => ({ useDocumentEngine: () => "off" }));
+
 import { CrossingsLog } from "./CrossingsLog";
 
 function renderLog() {

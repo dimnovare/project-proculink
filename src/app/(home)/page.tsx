@@ -216,7 +216,7 @@ export default function RootPage() {
               </Link>
               <p style={{ fontSize: 13, lineHeight: 1.6, maxWidth: 300, marginTop: 14 }}>
                 The missing link between buyers and suppliers. ProcuLink reads your documents, checks
-                them and sends them on in the format you need — with a full audit trail on every order.
+                them and sends them on in the format you need — with a full audit trail on every document.
               </p>
             </div>
             {FOOTER_COLS.map((col) => (
@@ -237,7 +237,7 @@ export default function RootPage() {
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3 mt-12" style={{ borderTop: "1px solid var(--navy-line)", padding: "18px 0 28px", fontSize: 12 }}>
             <span>{COPYRIGHT_NOTICE}</span>
-            <span className="flex items-center gap-3"><Link href="/security" style={{ color: "inherit", textDecoration: "none" }}>EU-region order storage</Link><span>·</span><span>AES-GCM at rest</span></span>
+            <span className="flex items-center gap-3"><Link href="/security" style={{ color: "inherit", textDecoration: "none" }}>EU-region document storage</Link><span>·</span><span>AES-GCM at rest</span></span>
           </div>
         </div>
       </footer>

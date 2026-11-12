@@ -364,7 +364,7 @@ describe("EU residency claim", () => {
     // "…fully auditedEU data residency" has no word boundary before "EU" —
     // that is exactly how the sign-in page's copy of this line escaped.
     expect(body).not.toMatch(/EU data residency/i);
-    expect(body).toMatch(/EU-region order storage/);
+    expect(body).toMatch(/EU-region document storage/);
   });
 });
 
@@ -742,7 +742,7 @@ const MUST_BE_ALLOWED: Array<[string, string]> = [
   ["disclosing a transfer out", "Where any sub-processor processes Controller personal data outside the EEA, the relevant Standard Contractual Clauses apply."],
   ["naming the US categories", "Some processing runs on named US subprocessors under standard contractual clauses — sign-in, AI extraction, payments, and email in both directions."],
   ["admitting the route is unknown", "The network path out to your supplier is chosen by our hosting provider and is not pinned to a region by us, so we cannot tell you today which country an outbound delivery leaves from."],
-  ["a narrow storage statement", "Order storage is EU-region and encrypted with AES-GCM at rest."],
+  ["a narrow storage statement", "Document storage is EU-region and encrypted with AES-GCM at rest."],
   ["the no-AI guarantee", "We can also turn AI extraction off for an organisation entirely, so nothing about its documents reaches OpenAI."],
   // This one pins the sentence boundary itself. Widening the window to tolerate
   // abbreviations is only safe while a REAL full stop still ends it — otherwise
@@ -841,9 +841,9 @@ function expectQualifiedFooter(ui: React.ReactElement) {
   expect(footer, "a <footer> to check").toBeTruthy();
   expect(visibleText(footer as HTMLElement)).not.toMatch(/EU data residency/i);
   const link = Array.from((footer as HTMLElement).querySelectorAll("a")).find(
-    (a) => (a.textContent ?? "").trim() === "EU-region order storage",
+    (a) => (a.textContent ?? "").trim() === "EU-region document storage",
   );
-  expect(link, 'the "EU-region order storage" link').toBeTruthy();
+  expect(link, 'the "EU-region document storage" link').toBeTruthy();
   expect(link?.getAttribute("href")).toBe("/security");
 }
 
@@ -884,9 +884,9 @@ describe("sign-in and sign-up trust line", () => {
     it(`qualifies the claim and links it on /${name}`, () => {
       const { container } = render(page());
       const link = Array.from(container.querySelectorAll("a")).find(
-        (a) => (a.textContent ?? "").trim() === "EU-region order storage",
+        (a) => (a.textContent ?? "").trim() === "EU-region document storage",
       );
-      expect(link, 'the "EU-region order storage" link').toBeTruthy();
+      expect(link, 'the "EU-region document storage" link').toBeTruthy();
       expect(link?.getAttribute("href")).toBe("/security");
     });
   }

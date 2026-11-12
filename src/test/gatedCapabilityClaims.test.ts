@@ -347,12 +347,12 @@ describe("cancellation is disclosed where cancelling happens", () => {
     expect(source).toMatch(/if you cancel/i);
     expect(source, "must name the channels that stop, not just say 'processing stops'").toMatch(/email/i);
     expect(source).toMatch(/sftp/i);
-    expect(source).toMatch(/rest api/i);
+    expect(source).toMatch(/file api/i);
     expect(source, "must say existing data survives, or it reads as data loss").toMatch(
       /stays readable|remain|still/i,
     );
-    expect(source, "must tell them to redirect suppliers — nothing is queued for later").toMatch(
-      /redirect your suppliers/i,
+    expect(source, "must tell them to warn their senders — nothing is queued for later").toMatch(
+      /tell your senders/i,
     );
   });
 
@@ -364,7 +364,7 @@ describe("cancellation is disclosed where cancelling happens", () => {
     const section = article.slice(howTo);
 
     expect(section, "the section must state the consequence").toMatch(/stops accepting new documents/i);
-    expect(section).toMatch(/redirect your suppliers/i);
+    expect(section).toMatch(/tell your senders/i);
     expect(section).toMatch(/readable and exportable|remain/i);
   });
 
@@ -602,7 +602,7 @@ const AUDIT_RECORD_NOUN = /\baudit (?:log|logs|trail|trails|record|records|histo
  * and pinning them is what stops the fix being reverted by a copy edit that reads better.
  */
 const ORDER_SCOPED_AUDIT =
-  /\bper[- ]order\b|\bsingle[- ]order\b|\border[- ]level\b|\bfor (?:each|any|that|this|a single) order\b|\b(?:behind|on|for|with|against) (?:every|each) order\b|\bper (?:delivery )?attempt\b/i;
+  /\bper[- ]order\b|\bsingle[- ]order\b|\border[- ]level\b|\bfor (?:each|any|that|this|a single) order\b|\b(?:behind|on|for|with|against) (?:every|each) (?:order|document)\b|\bper (?:delivery )?attempt\b/i;
 
 const SELLS_ORG_WIDE_AUDIT = (text: string): boolean =>
   AUDIT_RECORD_NOUN.test(text) && !ORDER_SCOPED_AUDIT.test(text);
@@ -2580,7 +2580,7 @@ describe("a gated capability is never presented with no tier at all", () => {
    * A sentence about what CEASES is not an offer.
    *
    * `/pricing` and `/help/billing-faq` both carry the cancellation disclosure CLAUDE.md §11.5
-   * mandates — "uploads, emailed orders, IMAP, SFTP and S3 pickups … all refuse" — which names
+   * mandates — "uploads, emailed documents, mailbox, SFTP, FTP and S3 pickups … all refuse" — which names
    * every gated channel precisely because it is listing what a customer LOSES. Requiring a tier
    * beside each one would put four plan names inside a warning, and those two pages are the two
    * that state the ladder in full anyway.
@@ -2796,6 +2796,7 @@ describe("a gated capability is never presented with no tier at all", () => {
       ],
       mustAllow: [
         "format your supplier needs — with a full audit trail on every order.",
+        "sends them on in the format you need — with a full audit trail on every document.",
         "with a full audit trail behind every order.",
         "Encrypted credentials, AES-GCM at rest, full audit trail per attempt.",
         "with each attempt's error and response code kept in the audit trail for that order.",

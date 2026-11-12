@@ -15,9 +15,9 @@ A destination is a place an output goes. You set one up once and any output in y
 ## The kinds
 
 - **Download only.** Nothing is sent. The file is kept for you to download from the document. It shows as **Ready to download**.
-- **Email.** The output goes as an attachment to the addresses you list. You can add a reply-to address. The email comes from ProcuLink's sender address, and its subject shows the flow name and the file name.
+- **Email.** The output goes as an attachment to the addresses you list. You can add a reply-to address. The email comes from ProcuLink's sender address. It uses the **Subject** and **Message** you enter. Left blank, ProcuLink uses a default subject (the flow name and the file name) and a short message. A test send puts `[TEST]` in front of the subject. The attachment is named after the document.
 - **Web address (API).** We send the file to your URL with a POST or a PUT request. The file is the body of the request, with its own content type.
-- **SFTP.** We upload the file to a folder on your server.
+- **SFTP.** We upload the file to a folder on your server. You sign in with a password or a private key.
 - **FTPS.** The same, over FTP with explicit TLS.
 
 A destination needs a name, and the details for its kind. Passwords, keys and tokens are kept encrypted. See [Destination sign-in, keys and signing](/help/destination-sign-in).

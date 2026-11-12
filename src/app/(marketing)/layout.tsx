@@ -31,7 +31,7 @@ export default function MarketingLayout({
               </a>
               <p style={{ fontSize: 13, lineHeight: 1.6, maxWidth: 300, marginTop: 14 }}>
                 The missing link between buyers and suppliers. ProcuLink reads your documents, checks
-                them and sends them on in the format you need — with a full audit trail on every order.
+                them and sends them on in the format you need — with a full audit trail on every document.
               </p>
             </div>
             {FOOTER_COLS.map((col) => (
@@ -60,7 +60,7 @@ export default function MarketingLayout({
           >
             <span>{COPYRIGHT_NOTICE}</span>
             <span className="flex items-center gap-3">
-              <a href="/security" className="inline-flex min-h-[44px] items-center" style={{ color: "inherit", textDecoration: "none" }}>EU-region order storage</a><span>·</span><span>AES-GCM at rest</span>
+              <a href="/security" className="inline-flex min-h-[44px] items-center" style={{ color: "inherit", textDecoration: "none" }}>EU-region document storage</a><span>·</span><span>AES-GCM at rest</span>
             </span>
           </div>
         </div>

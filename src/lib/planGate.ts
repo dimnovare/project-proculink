@@ -13,7 +13,7 @@
 // of a sentence. Match the SHAPE, read the plan out of it.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { PLAN_IDS, planName } from "@/lib/plans";
+import { DOCUMENT_PLANS, PLAN_IDS, planName } from "@/lib/plans";
 
 // The ids and their display names are DERIVED from the ladder in src/lib/plans.ts, which
 // owns it. Both used to be typed out here — a third and fourth copy of the tier list, after
@@ -51,9 +51,13 @@ export function planGateRequiredPlan(message: string | null | undefined): string
  * A plain sentence for a plan-gate 403. Names the plan the backend actually asked for, so
  * the upsell can never send a customer to a tier more expensive than the one that unlocks
  * the feature — the exact failure WP-11 fixed on the server side.
+ *
+ * A document-engine workspace buys from the document ladder, and every document plan has every
+ * gated feature, so the plan it is told is the cheapest document plan, not the legacy tier the
+ * code names (which /pricing no longer sells). Wording only: the code itself is unchanged.
  */
-export function planGateMessage(message: string | null | undefined): string {
-  const plan = planGateRequiredPlan(message);
+export function planGateMessage(message: string | null | undefined, documentEngine = false): string {
+  const plan = planGateRequiredPlan(message) && documentEngine ? DOCUMENT_PLANS[0].name : planGateRequiredPlan(message);
   return plan
     ? `This is included from the ${plan} plan up. Upgrade to turn it on.`
     : "Your current plan does not include this. Upgrade to turn it on.";

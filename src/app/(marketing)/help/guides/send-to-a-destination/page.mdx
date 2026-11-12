@@ -29,8 +29,8 @@ The **New destination** form opens under the list.
 Type a **Name** that tells you where the file goes. Choose **Send by**:
 
 - **Web address (API).** Fill in the **Web address** (it must start with `https://`) and the **Request method**, POST or PUT.
-- **SFTP** or **FTPS.** Fill in the **Server**, the **Port** (22 for SFTP, 21 for FTPS) and the **Folder on the server**.
-- **Email.** Fill in **Send to** with one or more addresses, separated by commas. Add a **Reply-to address** if you want one. ProcuLink writes the subject and the message itself: the subject shows the flow name and the file name, and the message says the file is attached.
+- **SFTP** or **FTPS.** Fill in the **Server**, the **Port** (22 for SFTP, 21 for FTPS) and the **Folder on the server**. SFTP can sign in with a password or a private key.
+- **Email.** Fill in **Send to** with one or more addresses, separated by commas. Add a **Reply-to address** if you want one. Add a **Subject** and a **Message** if you want your own. Left blank, ProcuLink uses a default subject (the flow name and the file name). A test send puts `[TEST]` in front of the subject. The attachment is always named after the document, and there is no box for its name.
 
 <Outcome>
 The form shows the boxes for the way you chose.
