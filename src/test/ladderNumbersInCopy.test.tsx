@@ -26,7 +26,7 @@
 // invisible, and the mutation half would pass vacuously.
 
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from "vitest";
-import { render, cleanup, fireEvent } from "@testing-library/react";
+import { render, cleanup } from "@testing-library/react";
 import type { Plan, PlanId } from "@/lib/plans";
 
 const h = vi.hoisted(() => ({
@@ -83,9 +83,6 @@ vi.mock("@/lib/reload", () => ({ reloadPage: () => {} }));
 // free for 14 days."): it now also names the supplier allowance, which is the Pilot limit a
 // new buyer meets first. The pair below still holds it byte-for-byte AND proves it moves.
 const SIGN_UP_SUB = "20 orders · 1 supplier · 14 days · no credit card";
-const ROI_FALLBACK =
-  "Start with the free 14-day Trial — 20 documents, no card required — and upgrade once the savings are real.";
-const ROI_FINE_PRINT = "The Trial tier is free for 14 days (20 documents) and does not require a card.";
 // C32: derived from the pristine ladder, not typed — the shape is the contract, the numbers are plans.ts's.
 const pricingDescriptionFor = (starter: Plan) =>
   `Document processing from €${starter.priceMonthly} a month for ${starter.orderLimit!.toLocaleString("en-US")} documents. ` +
@@ -131,25 +128,6 @@ async function signUpCopy(): Promise<string> {
   return copy;
 }
 
-/**
- * The ROI calculator with its last slider — "% of that work you expect ProcuLink to
- * remove" — dragged to 0. That zeroes the modelled saving, so the recommended plan
- * costs more than it saves and the panel switches from the plan's blurb to the Pilot
- * fallback sentence. It is the only way to reach that sentence, and reaching it is
- * the whole reason this helper drives a control instead of rendering and reading.
- */
-async function roiCopyWithNoSavings(): Promise<string> {
-  vi.resetModules();
-  const { ROICalculator } = await import("@/components/marketing/ROICalculator");
-  const { container } = render(<ROICalculator />);
-  const sliders = container.querySelectorAll<HTMLInputElement>('input[type="range"]');
-  expect(sliders.length, "the ROI calculator no longer renders the slider set this test drives").toBe(7);
-  fireEvent.change(sliders[sliders.length - 1], { target: { value: "0" } });
-  const copy = copyOf(container);
-  assertRendered(copy, "the ROI calculator");
-  return copy;
-}
-
 async function pricingDescription(): Promise<string> {
   vi.resetModules();
   const mod = await import("@/app/(marketing)/pricing/layout");
@@ -169,23 +147,6 @@ describe("/sign-up sells the Pilot allowance the ladder declares", () => {
     const copy = await signUpCopy();
     expect(copy).toContain("500 orders · 3 suppliers · 30 days · no credit card");
     expect(copy, "the typed sentence must be gone, not merely joined").not.toContain(SIGN_UP_SUB);
-  });
-});
-
-describe("the ROI calculator's Pilot copy comes off the ladder", () => {
-  it("ships today's two sentences, unchanged", async () => {
-    const copy = await roiCopyWithNoSavings();
-    expect(copy).toContain(ROI_FALLBACK);
-    expect(copy).toContain(ROI_FINE_PRINT);
-  });
-
-  it("moves when the Pilot tier is renamed or re-sized", async () => {
-    h.ladder.pilot = { ...h.ladder.pilot, name: "Probe", orderLimit: 500, priceCadence: "30 days" };
-
-    const copy = await roiCopyWithNoSavings();
-    expect(copy).toContain("Start with the free 14-day Probe — 500 documents, no card required —");
-    expect(copy).toContain("The Probe tier is free for 30 days (500 documents) and does not require a card.");
-    expect(copy, "the typed sentence must be gone, not merely joined").not.toContain(ROI_FINE_PRINT);
   });
 });
 

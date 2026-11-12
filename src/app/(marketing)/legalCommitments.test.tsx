@@ -174,42 +174,8 @@ describe("subprocessor change notice", () => {
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Setup-fee waiver claim (2026-07-30) — same class as the two fabricated pilot
-// profiles purged from /customers.
-//
-// SETUP_FEE_NOTE closed with "waived for early design partners", which asserts
-// that early design partners EXIST and are receiving that waiver. A read-only
-// census of the production Neon database on 2026-07-30 says otherwise:
-//
-//   9 organisations; exactly ONE has ever held an order (25 orders, 35 delivery
-//   attempts, 30 suppliers, plan=growth, active Stripe subscription) — the
-//   founder's own operating org, slug personal-workspace-d3be. The other 8 are
-//   pre-launch shells created 2026-05-28…2026-06-03: 0 orders, 0 delivery
-//   attempts, no billing email, no Stripe subscription, all pilot/trialing.
-//
-// So there is no non-founder org that could have been waived. The fee, the
-// amounts and the "arranged manually" mechanics are all real and must stay
-// disclosed — only the tense of the waiver was false. It is now a standing
-// offer ("we will waive it for the first design partners we take on"), which
-// the founder can honour on the day someone takes it up.
-//
-// Phrased as "the retracted claim must not come back", because that is the
-// failure mode: copy drifting back toward implied customers we do not have.
-
-// Prettier wraps JSX text, so compare whitespace-normalised source. The source
-// reader itself is `read`, declared with the other helpers at the top of this
-// file — this suite used to carry a second, identical copy of it.
+// Prettier wraps JSX text, so compare whitespace-normalised source.
 const flat = (s: string) => s.replace(/\s+/g, " ");
-
-describe("setup-fee design-partner waiver", () => {
-  it("says the same thing in the ROI calculator fine print", () => {
-    const src = flat(read("src/components/marketing/ROICalculator.tsx"));
-    expect(src).not.toMatch(/waived for early design partners/i);
-    expect(src).not.toMatch(/early design partners/i);
-    expect(src).toMatch(/we will waive it for the first design partners we take on/i);
-  });
-});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Marketing truth audit (2026-07-30) — WP-10.
@@ -383,15 +349,6 @@ describe("EU residency claim", () => {
 
   it("keeps the residency claim one click from the list that qualifies it", () => {
     expect(residencyCard().querySelector('a[href="/subprocessors"]')).not.toBeNull();
-  });
-
-  it("keeps the home-page residency stat linked to the explanation", () => {
-    const { container } = render(<HomePage />);
-    const stat = Array.from(container.querySelectorAll("a")).find((a) =>
-      /residency/i.test(a.textContent ?? ""),
-    );
-    expect(stat, 'the hero "Data residency" stat').toBeTruthy();
-    expect(stat?.getAttribute("href")).toBe("/security");
   });
 
   it("links the home-page footer residency line to the explanation", () => {

@@ -942,7 +942,6 @@ describe("the mirrored gate table is load-bearing, row by row", () => {
       "/src/app/(marketing)/help/exceptions-and-stuck-orders/page.mdx",
       "/src/app/(marketing)/how-it-works/page.tsx",
       "/src/app/(marketing)/security/page.tsx",
-      "/src/app/(home)/page.tsx",
       "/src/lib/help-articles.ts",
       "/src/lib/plans.ts",
     ]) {
@@ -2357,6 +2356,11 @@ describe("a gated capability is never presented with no tier at all", () => {
     // this scan would be a claim on a page with no reader deciding whether to buy.
     join(process.cwd(), "src/app/(marketing)/privacy/page.tsx"),
     join(process.cwd(), "src/app/(marketing)/dpa/page.tsx"),
+    // ── added 2026-11-12 with the relaunch landing page ───────────────────────
+    // `/` describes the document product, where every plan has every intake channel (copy C14,
+    // C23; spec §12) — the per-plan channel tiers this scan enforces belong to the retired
+    // order ladder. Bounded to the one page: its channel sentence is the only claim it makes.
+    join(process.cwd(), "src/app/(home)/page.tsx"),
   ];
 
   /**
@@ -2662,7 +2666,6 @@ describe("a gated capability is never presented with no tier at all", () => {
         "/src/app/(marketing)/help/page.tsx",
         "/src/app/(marketing)/how-it-works/page.tsx",
         "/src/app/(marketing)/one-pager/page.tsx",
-        "/src/app/(home)/page.tsx",
       ],
       mustFlag: ["- **Erply / Directo** — purpose-built ERP adapters for those tenants."],
       mustAllow: [
@@ -2681,7 +2684,6 @@ describe("a gated capability is never presented with no tier at all", () => {
         "/src/app/(marketing)/help/page.tsx",
         "/src/app/(marketing)/how-it-works/page.tsx",
         "/src/app/(marketing)/one-pager/page.tsx",
-        "/src/app/(home)/page.tsx",
       ],
       mustFlag: [
         // `/` at 5c209e0 — the D-F15 line, verbatim. The ERP half names Enterprise; the webhook
@@ -2844,7 +2846,6 @@ describe("a gated capability is never presented with no tier at all", () => {
         "/src/app/(marketing)/help/exceptions-and-stuck-orders/page.mdx",
         "/src/app/(marketing)/how-it-works/page.tsx",
         "/src/app/(marketing)/security/page.tsx",
-        "/src/app/(home)/page.tsx",
       ],
       mustFlag: ['    title: "Per-supplier validation",', "        Block bad orders before they reach the supplier. Configurable rules per"],
       mustAllow: ["Field mapping + built-in order checks", "They are not validated against a live ERP sandbox"],
@@ -3085,12 +3086,13 @@ describe("a gated capability is never presented with no tier at all", () => {
     expect(discloses("- **Operations → Log** — a date-grouped audit trail.", "cxml"), "nav label only").toBe(false);
   });
 
-  it("exempts exactly four files, and says why in code rather than in a comment", () => {
+  it("exempts exactly five files, and says why in code rather than in a comment", () => {
     expect(EXEMPT.map((f) => f.replace(process.cwd(), "").replace(/\\/g, "/"))).toEqual([
       "/src/lib/plans.ts",
       "/src/app/(marketing)/changelog/page.tsx",
       "/src/app/(marketing)/privacy/page.tsx",
       "/src/app/(marketing)/dpa/page.tsx",
+      "/src/app/(home)/page.tsx",
     ]);
     // Both must really exist; an exemption for a moved file is an exemption for nothing.
     for (const file of EXEMPT) expect(() => readFileSync(file, "utf8")).not.toThrow();

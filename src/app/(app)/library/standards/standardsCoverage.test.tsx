@@ -151,13 +151,6 @@ describe("the coverage gap being guarded is real", () => {
 // ── Face 1: the landing page ─────────────────────────────────────────────────
 
 describe("the landing page claims no universal field coverage", () => {
-  it("renders the standards feature card this test reads", () => {
-    render(<HomePage />);
-    expect(bodyText(), "the feature card is gone — this guard now proves nothing").toContain(
-      "Standards, on demand",
-    );
-  });
-
   it("does not promise every order field", () => {
     render(<HomePage />);
     const text = bodyText();
@@ -191,17 +184,6 @@ describe("the landing page claims no universal field coverage", () => {
     // And not on a disclosure, which is what the fix reads like.
     expect(universalFieldClaim("the core of a purchase order, not all of it: a field")).toBeNull();
     expect(universalFieldClaim("Core order fields map to UBL")).toBeNull();
-  });
-
-  it("still says the reference exists and is never behind a mode", () => {
-    // The other direction. The fix is to stop over-claiming, not to stop claiming: the
-    // always-visible standards reference is a real differentiator and it must survive.
-    render(<HomePage />);
-    const text = bodyText();
-    expect(text).toContain("never hidden behind a mode");
-    for (const standard of ["UBL", "EDIFACT", "X12", "cXML", "Peppol BIS"]) {
-      expect(text, `the landing card no longer names ${standard}`).toContain(standard);
-    }
   });
 
   it("does not hand-type a coverage count into marketing copy", () => {
