@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { MOCK_ENGINE_IDS } from "../../src/lib/api/mockEngine";
+import { MOCK_DOCUMENT_NUMBER, MOCK_ENGINE_IDS } from "../../src/lib/api/mockEngine";
 
 /**
  * Error-recovery smoke tests for the document screen.
@@ -15,7 +15,7 @@ test.describe("Document screen error handling", () => {
     await page.goto(`/flows/${MOCK_ENGINE_IDS.flow}/documents/does-not-exist-1234`);
 
     await expect(page.getByRole("button", { name: /^retry$/i })).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText("INV-1001")).toHaveCount(0);
+    await expect(page.getByText(MOCK_DOCUMENT_NUMBER)).toHaveCount(0);
   });
 });
 

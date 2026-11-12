@@ -11,14 +11,16 @@ import type {
   FlowVersion, Lookup, LookupSummary, NotificationSettings, OutputPreview, ReadCell, ReadResult,
 } from "./documents";
 
-export const MOCK_ENGINE_IDS = { flow: "flow-1", setupFlow: "flow-2", document: "doc-1", lookup: "lookup-1" } as const;
+export const MOCK_ENGINE_IDS = { flow: "flow-1", setupFlow: "flow-2", document: "doc-1", lookup: "lookup-1", output: "out-1" } as const;
+/** The document number every fixture read carries — specs assert against this, never a literal. */
+export const MOCK_DOCUMENT_NUMBER = "INV-1001";
 
 const STATUS = Object.fromEntries(Object.keys(DOCUMENT_STATUSES).map((k) => [k, k])) as Record<keyof typeof DOCUMENT_STATUSES, string>;
 const T = "2026-05-20T09:00:00Z";
 
 const CSV = [
   "Invoice no,Date,Supplier,Currency,Total,VAT",
-  "INV-1001,2026-05-20,Example Supplier Ltd,EUR,1240.00,240.00",
+  `${MOCK_DOCUMENT_NUMBER},2026-05-20,Example Supplier Ltd,EUR,1240.00,240.00`,
   "Item code,Quantity,Unit price",
   "A-100,10,50.00",
   "B-200,5,60.00",
@@ -47,7 +49,7 @@ const versions: FlowVersion[] = [{ versionNo: 1, publishedAt: T, publishedBy: nu
 const cell = (value: string, r: number, c: number): ReadCell => ({
   value, confidence: 0.97, location: { page: null, box: null, address: `cell:r${r}c${c}` }, notOnPage: false, edited: false,
 });
-const values = ["INV-1001", "2026-05-20", "Example Supplier Ltd", "EUR", "1240.00", "240.00"];
+const values = [MOCK_DOCUMENT_NUMBER, "2026-05-20", "Example Supplier Ltd", "EUR", "1240.00", "240.00"];
 const tableRows = [["A-100", "10", "50.00"], ["B-200", "5", "60.00"], ["C-300", "2", "120.00"]];
 const read: ReadResult = {
   kindLabel: "Invoice", truncated: false,
@@ -96,7 +98,7 @@ const intakes: FlowIntake[] = [{
   lastRunAt: null, lastStatus: null, lastMessage: null,
 }];
 const outputs: FlowOutput[] = [{
-  id: "out-1", flowId: flow1.id, name: "Invoice CSV", format: "csv", tableKey: "lines", destinationId: "dest-1", createdAt: T, sendWhen: null,
+  id: MOCK_ENGINE_IDS.output, flowId: flow1.id, name: "Invoice CSV", format: "csv", tableKey: "lines", destinationId: "dest-1", createdAt: T, sendWhen: null,
   template: {
     format: "csv",
     root: {
@@ -110,7 +112,7 @@ const outputs: FlowOutput[] = [{
 }];
 const preview: OutputPreview = {
   contentType: "text/csv", fileName: "invoice.csv", lookupMisses: [],
-  content: "Invoice,Item\nINV-1001,A-100\nINV-1001,B-200\nINV-1001,C-300\n",
+  content: `Invoice,Item\n${MOCK_DOCUMENT_NUMBER},A-100\n${MOCK_DOCUMENT_NUMBER},B-200\n${MOCK_DOCUMENT_NUMBER},C-300\n`,
 };
 
 const lookup: Lookup = {
@@ -194,10 +196,13 @@ function bodyOf(init?: RequestInit): Body {
   try { return JSON.parse(init.body) as Body; } catch { return {}; }
 }
 
+/** Mock-only: masks a self-healing hydration race on /upload that plan 13b removes with the legacy branch. */
+const MOCK_LATENCY_MS = 120;
+
 export async function mockEngineFetch<T>(path: string, init?: RequestInit, as: "json" | "blob" = "json"): Promise<T> {
   // Same latency as the legacy mock client: an instant answer lands before a lazily hydrated screen
   // mounts, so the engine flag reads "on" on the client while the server rendered "unknown".
-  await new Promise((resolve) => setTimeout(resolve, 120));
+  await new Promise((resolve) => setTimeout(resolve, MOCK_LATENCY_MS));
   const method = (init?.method ?? "GET").toUpperCase();
   const [pathname, query = ""] = path.split("?");
   if (as === "blob" && method === "GET") {

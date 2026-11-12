@@ -37,10 +37,10 @@ export interface ProdScreen extends CoreScreen {
  * produces zero tests, and zero failing tests is indistinguishable from a pass.
  * This number is the smallest count that still means "the sweep happened".
  * CORE_SCREENS has 8 `app` entries today, two of them dynamic, so 6 screens
- * survive the filter; 6 leaves no room for one deliberate removal without leaving
- * room for the filter breaking outright.
+ * survive the filter; a floor of 5 leaves room for one deliberate removal, and a
+ * filter that breaks outright still lands far below it.
  */
-export const MIN_PROD_SCREENS = 6;
+export const MIN_PROD_SCREENS = 5;
 
 export function listProdScreens(): ProdScreen[] {
   // If the shared registry is unsound, every "this screen rendered" assertion

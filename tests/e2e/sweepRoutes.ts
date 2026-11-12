@@ -49,7 +49,7 @@ function listRoutes(dir: string = APP_DIR, route = ""): string[] {
 const DYNAMIC_FILL: Record<string, string | null> = {
   "/flows/[flowId]": `/flows/${MOCK_ENGINE_IDS.flow}`,
   "/flows/[flowId]/documents/[documentId]": `/flows/${MOCK_ENGINE_IDS.flow}/documents/${MOCK_ENGINE_IDS.document}`,
-  "/flows/[flowId]/outputs/[outputId]/advanced": `/flows/${MOCK_ENGINE_IDS.flow}/outputs/out-1/advanced`,
+  "/flows/[flowId]/outputs/[outputId]/advanced": `/flows/${MOCK_ENGINE_IDS.flow}/outputs/${MOCK_ENGINE_IDS.output}/advanced`,
   "/lookups/[lookupId]": `/lookups/${MOCK_ENGINE_IDS.lookup}`,
   "/documents/[id]": `/documents/${MOCK_ENGINE_IDS.document}`,
   // Legacy pages still on disk until 13b. Ids are the old mock-client ids, so the sweep reports
