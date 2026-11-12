@@ -156,16 +156,16 @@ describe("renamed settings tabs keep their ?tab= ids", () => {
     ["org", "Workspace"],
     ["billing", "Plan & billing"],
     ["api", "API keys"],
-    ["notifications", "Notifications"],
+    ["connectors", "Notifications"],
   ];
   for (const [id, label] of rows) {
     it(`?tab=${id} → "${label.replace(/\\/g, "")}"`, () => {
       expect(src).toMatch(new RegExp(`id:\\s*"${id}",\\s*label:\\s*"${label}"`));
     });
   }
-  it("keeps the SettingsTab union to the tabs that exist", () => {
+  it("keeps the SettingsTab union unchanged so old deep links still validate", () => {
     expect(src).toContain(
-      'type SettingsTab = "org" | "billing" | "api" | "notifications"',
+      'type SettingsTab = "org" | "billing" | "api" | "connectors"',
     );
   });
 });

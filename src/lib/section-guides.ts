@@ -158,7 +158,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
   {
     route: "/settings",
     title: "Settings",
-    purpose: "Workspace name, billing, and API keys.",
+    purpose: "Workspace name, billing, notifications and API keys.",
     bullets: [
       { text: "Check your plan, usage, and upgrade options", href: "/settings?tab=billing" },
       { text: "Create API keys", href: "/settings?tab=api" },

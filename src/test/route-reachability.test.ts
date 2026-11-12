@@ -1063,10 +1063,10 @@ describe("route reachability (plan rule R1 — no new surface without a consumer
     expect(Object.keys(ACCOUNTED_FOR), "/settings must not need an excuse").not.toContain("/settings");
 
     // The redirect is the other half of "deleted, not 404'd": a bookmark must
-    // land on Settings, which no longer has a webhooks tab.
+    // land on the surface that took over, and on the TAB, not just the page.
     const retired = RETIRED_ROUTES.find((r) => r.source === DEAD);
     expect(retired, `${DEAD} was deleted with no redirect — an old bookmark 404s`).toBeDefined();
-    expect(retired!.destination).toBe("/settings");
+    expect(retired!.destination).toBe("/settings?tab=connectors");
 
     // ── ANTI-VACUITY FLOORS, BEFORE THE NEGATIVES ────────────────────────────
     // #126's ordering trap, verbatim and deliberately repeated: a sweep that

@@ -602,11 +602,11 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     kind: "failed",
     label: "Email rejected — this workspace now receives documents through flows",
     reachable: true,
-    backendSite: "ProcuLink.Infrastructure/Services/Email/InboundEmailRouter.cs:265",
+    backendSite: "ProcuLink.Infrastructure/Services/Email/InboundEmailRouter.cs:126",
     reasonKeys: [],
     note:
-      "A legacy order email reached a workspace on the document engine. The refusal is transient: the " +
-      "mail stays with the email provider for re-delivery and was not turned into an order.",
+      "Written by InboundEmailRouter.RouteAsync (the line number is the guard's format and will drift). A legacy order email reached a workspace on the document engine. The refusal is permanent: the " +
+      "provider is told to drop it and it was not turned into an order.",
   },
   {
     action: "inbound_email.unrouted_no_supplier",

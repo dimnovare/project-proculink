@@ -25,17 +25,17 @@ import { planDisplayName } from "@/lib/plans";
 import { NotificationEmailSection } from "@/components/flows/NotificationEmailSection";
 import { formatDate } from "@/lib/format-date";
 
-type SettingsTab = "org" | "billing" | "api" | "notifications";
+type SettingsTab = "org" | "billing" | "api" | "connectors";
 
 // The tab IDs are code. Only the words are user-facing:
 //   org           → "Workspace"
 //   billing       → "Plan & billing"
-//   notifications → "Notifications"
+//   connectors    → "Notifications" (id kept so old ?tab=connectors links still land)
 const TABS: Array<{ id: SettingsTab; label: string; Icon: React.ElementType }> = [
   { id: "org",           label: "Workspace",      Icon: Building },
   { id: "billing",       label: "Plan & billing", Icon: Euro     },
   { id: "api",           label: "API keys",       Icon: Key      },
-  { id: "notifications", label: "Notifications",  Icon: Plug     },
+  { id: "connectors",    label: "Notifications",  Icon: Plug     },
 ];
 
 // The plan label is DERIVED from the ladder in src/lib/plans.ts. This file used to keep
@@ -51,8 +51,7 @@ const isSettingsTab = (v: string | null | undefined): v is SettingsTab =>
 
 export default function SettingsPage() {
   // Initial tab honours a `?tab=` deep-link (e.g. the onboarding completion
-  // card's "Set up email intake" → ?tab=email and "Create an API key" →
-  // ?tab=api). Validated against the SettingsTab union; falls back to "org".
+  // card's "Create an API key" → ?tab=api). Validated against the SettingsTab union; falls back to "org".
   const searchParams = useSearchParams();
   const requestedTab = searchParams?.get("tab");
   const [tab, setTab] = useState<SettingsTab>(isSettingsTab(requestedTab) ? requestedTab : "org");
@@ -112,7 +111,7 @@ export default function SettingsPage() {
             {tab === "org"           && <OrgSection />}
             {tab === "billing"       && <BillingSectionWrapper />}
             {tab === "api"           && <ApiKeysSection />}
-            {tab === "notifications" && <NotificationEmailSection />}
+            {tab === "connectors" && <NotificationEmailSection />}
           </div>
         </div>
 
@@ -256,7 +255,7 @@ function InlineConfirm({
  *
  * The org-admin refusal is checked first because it is the one cause that retrying
  * cannot fix (the same pattern
- * one section up on this screen).
+ * as the other Settings writes on this screen).
  */
 function writeFailureCopy(error: unknown, stillTrue: string): string {
   const why = isOrgAdminRefusal(error)
