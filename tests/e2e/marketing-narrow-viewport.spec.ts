@@ -74,7 +74,8 @@ const ROUTES = discoverMarketingRoutes();
 test.describe(`marketing pages at ${NARROW_WIDTH}px`, () => {
   test("the route list is real — discovery cannot silently find nothing", () => {
     // Floor, not an exact count: a new marketing page must not fail this test.
-    expect(ROUTES.length).toBeGreaterThanOrEqual(18);
+    // 16 measured after the relaunch retired /pilot, /customers, /watch and /one-pager (2026-11).
+    expect(ROUTES.length).toBeGreaterThanOrEqual(16);
     // The two that actually broke, pinned by name. If a refactor moves them out
     // of (marketing), this fails and someone re-points the discovery rather than
     // quietly losing the coverage.
