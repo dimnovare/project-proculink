@@ -1,12 +1,16 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
+import { render } from "@testing-library/react";
+import { createElement } from "react";
 import { describe, expect, it } from "vitest";
+
+import PricingPage from "@/app/(marketing)/pricing/page";
 
 import { collectLayoutProblems, isEmittedFormat } from "@/components/bridge/outputTreeProblems";
 import { CONFORMANCE_PROFILES } from "@/lib/api-client";
 import { PREVIEW_FORMATS, type OutputNodeTemplate } from "@/lib/api/types";
-import { MINIMUM_PLAN } from "@/lib/gatedCapabilities";
+import { MINIMUM_PLAN, planIncludesCapability } from "@/lib/gatedCapabilities";
 import {
   DELIVERY_METHODS,
   IMPORT_METHODS,
@@ -14,7 +18,7 @@ import {
   STANDARD_NAME_TOKENS,
   type FormatRow,
 } from "@/lib/marketing/format-catalog";
-import { PLANS, effectiveFeatures, inheritanceLine, type Plan } from "@/lib/plans";
+import { PLANS, PUBLIC_LADDER, effectiveFeatures, inheritanceLine, type Plan } from "@/lib/plans";
 import { STANDARDS } from "@/lib/standards/catalog";
 
 /**
@@ -3763,5 +3767,28 @@ describe("no surface offers a standard as an output format while nothing can pro
     expect(isEmittedFormat("x12_850"), "OutputFormat.X12_850 is the X12 transform").toBe(true);
     expect(isEmittedFormat("edifactorders"), "OutputFormat.EdifactOrders has no transform behind it").toBe(false);
     expect(isEmittedFormat(null)).toBe(false);
+  });
+});
+
+describe("the /pricing cards, as rendered from PUBLIC_LADDER", () => {
+  it("every bullet a card sells is a capability the backend grants that plan", () => {
+    const { container } = render(createElement(PricingPage));
+    const cards = Array.from(container.querySelectorAll("article.plk-price-card"));
+    // Anti-vacuity: one card per public plan, and the document plans really carry bullets.
+    expect(cards).toHaveLength(PUBLIC_LADDER.length);
+
+    for (const card of cards) {
+      const name = card.querySelector(".plk-tier")!.textContent;
+      const plan = PUBLIC_LADDER.find((p) => p.name === name)!;
+      for (const li of Array.from(card.querySelectorAll("li"))) {
+        for (const [key, { label, sells }] of Object.entries(CAPABILITY_CLAIMS)) {
+          if (!claims(sells, li.textContent ?? "")) continue;
+          expect(
+            planIncludesCapability(plan.id, key as keyof typeof BACKEND_MINIMUM_PLAN),
+            `the ${plan.id} card sells ${label} ("${li.textContent}") but the backend does not grant it there`,
+          ).toBe(true);
+        }
+      }
+    }
   });
 });

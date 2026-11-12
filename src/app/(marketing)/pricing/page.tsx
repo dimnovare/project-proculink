@@ -4,201 +4,67 @@ import Link from "next/link";
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ANNUAL_BILLING_ENABLED,
-  OVERAGE_PER_ORDER_EUR,
-  PLANS,
-  PLAN_BY_ID,
-  SETUP_FEE_NOTE,
-  inheritanceLine,
+  DOCUMENT_PLAN_FEATURES,
   LEGACY_PAID_PLANS,
-  planEffectiveMonthlyCost,
-  recommendPlanByOrders,
-  VOLUME_SLIDER_MAX,
+  PLAN_BY_ID,
+  PUBLIC_LADDER,
+  SETUP_FEE_NOTE,
   yearlyMonthlyEquivalent,
-  yearlySavePercent,
   type Plan,
 } from "@/lib/plans";
 import { NUMBER_LOCALE } from "@/lib/format-number";
-import { MAX_SELF_SERVE_SUPPLIERS, recommendPlan } from "./recommendPlan";
+import { DOCUMENT_SLIDER_MAX, DOCUMENT_SLIDER_STEP, recommendPlan } from "./recommendPlan";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Pricing page — pixel-exact port of the Claude Design source (app/Pricing.html).
+// Pricing page — the document ladder. Visual contract: the marketing-scoped
+// .plk-* classes below (the app's globals.css must not be edited), every colour a
+// design token.
 //
-// The design realises every surface through the locked "design system" classes
-// (.hero / .section / .pricing-grid / .price-card / .billing-toggle / .faq-item /
-// .btn). Those marketing-scoped classes are NOT present in this app's globals.css
-// (which we must not edit), so the same visual contract is reproduced here with
-// inline styles driven by the design CSS variables — every colour resolves to a
-// token (var(--brand-blue) #1E66C9 buyer/primary, var(--brand-green) #2E8E3A
-// supplier, navy chrome, ink/border surfaces). No raw hexes are invented and the
-// retired emerald green is never used (banned repo-wide; see
-// src/test/token-contrast.test.ts).
+// Every card is a plan in PUBLIC_LADDER (src/lib/plans.ts): the trial, the four document
+// plans, Enterprise. Plans differ by documents a month and flows only, so the document
+// plans share one bullet list (DOCUMENT_PLAN_FEATURES) and every number on a card is read
+// off the plan. The legacy paid plans are hidden here; their names appear only in the
+// "I'm on …" FAQ question, derived from LEGACY_PAID_PLANS.
 //
-// Differences from the static design that are intentional and required:
-//   • Real plan ladder + prices come from src/lib/plans.ts (6 tiers), not the
-//     demo tiers baked into the HTML — so pricing can never drift from billing.
-//   • Plain product copy only (no "bridge"/"dock"/"crossing" vocabulary).
-//   • NO "Most popular" badge. Operations used to carry one as a static anchor, with
-//     the featured border and blue CTA. Nothing measured it: ProcuLink has no usage
-//     data that makes any tier "most popular", so the badge was a claim about
-//     customers we cannot point at — the same class of defect as the fabricated
-//     profiles purged from the old references page. The featured treatment
-//     (.price-card.featured + .price-badge) now belongs ONLY to the card the
-//     recommender points at, so it always reflects the visitor's own answer. Bring
-//     a popularity badge back only when real usage supports it.
-//
-// CHOICE-OVERLOAD REDUCTION (UX#1):
-//   The 6-tier ladder is no longer shown as one flat 6-card wall. Instead the page
-//   leads with the recommender (orders AND suppliers — see ./recommendPlan.ts, which
-//   reuses recommendPlanByOrders, the same helper the landing-page ROICalculator
-//   uses) and shows FOUR primary decisions above the fold:
-//     1. Pilot       (free trial)
-//     2. Growth      (the €149 first paid step — hiding it made the cheapest
-//                     paid entry invisible at 1080p without a click)
-//     3. Operations  (the €399 step)
-//     4. Enterprise  (contact sales)
-//   The remaining tiers (Integration, Distributor) live behind a
-//   "See all tiers / compare plans" disclosure so every tier — and every
-//   CHECKOUT_PLAN_ID — stays reachable, while only four cards compete for
-//   attention by default.
+// There is no "Most popular" badge: nothing measures popularity. The featured treatment
+// belongs only to the card the recommender points at, so it reflects the visitor's own answer.
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Above-the-fold primary decisions, in display order. Everything else
-// (Integration, Distributor) is reachable behind the "See all tiers" disclosure.
-const PRIMARY_IDS = ["pilot", "growth", "operations", "enterprise"] as const;
+const fmt = (n: number) => n.toLocaleString("en-IE");
 
-// Small contextual line under each price (design's "+ one-time setup" /
-// "No card required" / "Annual contract" sub-line). Kept consistent with
-// SETUP_FEE_NOTE — self-serve plans include light setup at no extra cost; the
-// per-supplier onboarding fee applies only to Enterprise / complex setups.
-const SETUP_NOTE: Record<string, string> = {
-  pilot: "No card required",
-  growth: "Setup included",
-  operations: "Setup included",
-  integration: "Setup included",
-  distributor: "Setup included",
-  enterprise: "Custom onboarding",
-};
+/** "150 documents a month · 5 flows" — the trial's allowance is a one-off total, not monthly. */
+function allowanceLine(plan: Plan): string {
+  const flows = plan.flowLimit == null ? "unlimited flows" : `${fmt(plan.flowLimit)} flows`;
+  return `${fmt(plan.orderLimit!)} documents${plan.orderLimitIsMonthly ? " a month" : ""} · ${flows}`;
+}
 
-// Legacy plans stay on the page until plan 12b Task 2 swaps it to PUBLIC_LADDER.
-const ALL_TIERS_SRC = PLANS.filter((p) => !p.hidden || LEGACY_PAID_PLANS.some((l) => l.id === p.id));
-const ALL_TIERS = ALL_TIERS_SRC.map((p) => ({
-  id: p.id,
-  name: p.name,
-  price: p.priceLabel,
-  sub: p.priceCadence,
-  setupNote: SETUP_NOTE[p.id] ?? "",
-  desc: p.blurb,
-  features: p.features,
-  /** "Everything in Operations, plus" — derived from plan.inheritsFrom, never typed per card. */
-  inherits: inheritanceLine(p),
-  cta: p.cta.label,
-  href: p.cta.href,
-  /** Plans whose price is a real recurring monthly amount get a "/mo" tag. */
-  isMonthly: p.orderLimitIsMonthly && p.priceMonthly != null && p.priceMonthly > 0,
-  priceMonthly: p.priceMonthly,
-  /** Live Stripe annual price billed once per year. Shown when annual billing
-   *  is enabled (ANNUAL_BILLING_ENABLED) — see plans.ts. */
-  priceYearly: p.priceYearly,
-  yearlyMonthlyEq: yearlyMonthlyEquivalent(p),
-  savePercent: yearlySavePercent(p),
-  orderLimit: p.orderLimit,
-}));
+/** "A, B, C or D" */
+const joinNames = (names: string[]) => `${names.slice(0, -1).join(", ")} or ${names[names.length - 1]}`;
 
-// Uniform advertised annual discount, DERIVED from the plan ladder (all paid
-// tiers currently share the same ~17% annual discount; if a per-tier Stripe
-// yearly price ever diverges, the per-card save-% still renders its own).
-const TOGGLE_SAVE_PERCENT = yearlySavePercent(PLAN_BY_ID.growth);
+const LEGACY_PLAN_NAMES = joinNames(LEGACY_PAID_PLANS.map((p) => p.name));
 
-type Tier = (typeof ALL_TIERS)[number];
+// ERP connectors are not built in the document engine, so that Enterprise bullet is not sold here.
+const ENTERPRISE_FEATURES = PLAN_BY_ID.enterprise.features.filter((f) => !/\berp\b/i.test(f));
 
-const TIER_BY_ID: Record<string, Tier> = ALL_TIERS.reduce(
-  (acc, t) => {
-    acc[t.id] = t;
-    return acc;
-  },
-  {} as Record<string, Tier>,
-);
+function cardFeatures(plan: Plan): string[] {
+  if (plan.id === "enterprise") return ENTERPRISE_FEATURES;
+  if (plan.id === "pilot") return [];
+  return [...DOCUMENT_PLAN_FEATURES, `€${plan.overageEur!.toFixed(2)} per extra document`];
+}
 
-const PRIMARY_TIERS = PRIMARY_IDS.map((id) => TIER_BY_ID[id]).filter(Boolean);
-const SECONDARY_TIERS = ALL_TIERS.filter(
-  (t) => !PRIMARY_IDS.includes(t.id as (typeof PRIMARY_IDS)[number]),
-);
-
-// Answers are ReactNode, not string, so an answer can link to the page that owns the
-// detail (the supported pilot programme) instead of restating it here.
+// Answers are ReactNode so an answer can link to the page that owns the detail.
 const FAQ: Array<[string, ReactNode]> = [
-  // ── Getting started ──────────────────────────────────────────────────────
-  // These five answer the questions a first-time buyer asks BEFORE pricing: can I try it
-  // without an integration project, without my supplier, without real data, and without
-  // anything being sent. Every claim is one the product makes true by default:
-  //   • upload accepts CSV/XLSX/PDF/XML on every plan (no ERP needed);
-  //   • the supplier needs no account — they receive a file, or an ordinary email;
-  //   • test/anonymised uploads are ordinary uploads, so they DO count toward the
-  //     allowance — only the built-in sample is free (same rule as "What counts as a
-  //     document?" below; saying otherwise would be a billing promise nothing honours);
-  //   • auto-deliver is off until switched on per supplier, so sending is a person
-  //     clicking "Send to supplier";
-  //   • a confirmed item-code match is saved per supplier and reused on later orders.
-  // Output is never described as PDF or Excel: ProcuLink reads those, it does not write them.
   [
-    "Do I need an ERP or integration to start?",
-    "No. Start by uploading the PDF, Excel or CSV purchase order you already create. ERP and API connections are optional, for later.",
+    `I'm on ${LEGACY_PLAN_NAMES}. What changes?`,
+    "Nothing until you change plan. You keep your current price and limits. When you change plan, you choose from the plans on this page.",
   ],
   [
-    "Does my supplier need to take part?",
-    "No. ProcuLink prepares the supplier-ready order, and you can download it and send it yourself, the way you do today. If you later choose email delivery, your supplier keeps receiving an ordinary email with the order attached — they don't need an account or any new software.",
-  ],
-  [
-    "Can I use a test or anonymised order?",
-    "Yes. You can try the workflow without uploading a commercially sensitive live order. Test and anonymised uploads are processed like any other upload, so they count toward your document allowance — only the built-in sample order doesn't.",
-  ],
-  [
-    "Will ProcuLink send anything automatically during the Pilot?",
-    "Not unless you choose to. Automatic delivery stays off until you switch it on for a supplier, so nothing reaches your supplier until someone on your team clicks Send to supplier. The recommended start is review-first: check the supplier-ready result, then download it or send it through ProcuLink.",
-  ],
-  [
-    "What happens when my item code doesn't match the supplier's?",
-    "You confirm the supplier's code once. That match is saved for that supplier and reused on later orders from them, so nobody has to look it up again next time.",
-  ],
-  // ── Billing ──────────────────────────────────────────────────────────────
-  [
-    "What counts as a document?",
-    "One document that enters processing in ProcuLink. Each one counts once, at intake, whatever its type: a purchase order counts as one, and so will an invoice once invoices leave early access. Retries and re-deliveries of the same document don't count again, and sample orders never count toward your allowance.",
-  ],
-  [
-    "What happens after the Pilot?",
-    // The trial size is read from the ladder, not typed. It was `the 20-order trial` here while
-    // the Pilot card 300 lines below already rendered PLAN_BY_ID.pilot.orderLimit, so the same
-    // page had one derived copy of this number and one hand-maintained one — and the FAQ half
-    // is the one nobody re-reads when a limit moves.
-    //
-    // The second half separates the two things called "pilot": this short self-service trial,
-    // and the supported pilot programme you apply for on /pilot. Without it, a visitor who has
-    // just read about a longer supported pilot reads "the trial" here as the same offer.
-    <>
-      Nothing breaks. Your suppliers and mappings stay configured; you simply pick a plan when
-      you&apos;re ready to keep processing documents past the {PLAN_BY_ID.pilot.orderLimit}-document trial.
-      That is the self-service Pilot. The{" "}
-      <Link href="/pilot" className="plk-faq-link">
-        supported pilot programme
-      </Link>{" "}
-      is separate: a longer, hands-on pilot on one repeat supplier, which you apply for.
-    </>,
-  ],
-  [
-    "Do you charge for failed documents?",
-    "A document counts when it enters processing, whether or not delivery later fails. Retries and re-deliveries of the same document are free, and sample orders are always free.",
-  ],
-  [
-    "What if I go over my monthly allowance?",
-    // Same rule as the trial size above: the per-order overage is the constant the price cards
-    // on this very page already render from OVERAGE_PER_ORDER_EUR (see the card footnote).
-    // Typing it again in the FAQ meant a repricing would have had to find both.
-    `Nothing blocks. Documents above your plan's monthly allowance are billed automatically at €${OVERAGE_PER_ORDER_EUR.toFixed(2)} per document at the end of the billing period — and the overage is capped so you never pay more than the price of the next plan that covers your volume.`,
+    "What happens when the trial ends?",
+    "Your workspace becomes read-only. You can still open and export everything, but new documents aren't accepted until you choose a plan.",
   ],
   [
     "Can I change plans later?",
-    "Yes — up or down, any time. We prorate the difference and your saved mappings and rules carry over untouched.",
+    "Yes — up or down, any time. We prorate the difference.",
   ],
   // Cancelling is the one plan change that stops orders arriving, and it used to be
   // undisclosed: the answer above ("up or down, any time") reads as though cancelling
@@ -228,42 +94,18 @@ const FAQ: Array<[string, ReactNode]> = [
   ],
 ];
 
+
 export default function PricingPage() {
-  // Monthly/Annual toggle — annual billing is LIVE (offer⇔works). Selecting a
-  // yearly plan calls createCheckoutSession(plan, "yearly"), which the backend
-  // maps to the plan's live Stripe `*YearlyPriceId`, so the Checkout resolves a
-  // real price. ANNUAL_BILLING_ENABLED stays as an env-overridable kill switch
-  // (set NEXT_PUBLIC_ANNUAL_BILLING_ENABLED=false to hide the toggle) but
-  // defaults ON — see plans.ts.
+  // Monthly/Annual toggle — annual billing is LIVE (offer⇔works): annual is 10 × monthly, and
+  // checkout maps it to the plan's live Stripe yearly price. ANNUAL_BILLING_ENABLED stays an
+  // env-overridable kill switch (NEXT_PUBLIC_ANNUAL_BILLING_ENABLED=false hides the toggle).
   const [billing, setBilling] = useState<"monthly" | "yearly">("monthly");
-  // Only treat the selection as yearly when annual is enabled (kill-switch safe).
   const yearly = ANNUAL_BILLING_ENABLED && billing === "yearly";
 
-  // Recommender — orders AND suppliers (./recommendPlan.ts). Volume alone could point
-  // a visitor at a plan their supplier count does not fit; supplier allowances are a
-  // hard cap, order allowances are not. For volume it reuses the SAME helper the
-  // landing-page ROICalculator uses (recommendPlanByOrders), so the two can never
-  // disagree about volume: with one supplier the answer is identical. COST-OPTIMAL:
-  // flat price + per-order overage, cheapest effective cost among tiers that fit.
-  const [orders, setOrders] = useState(200);
-  // One supplier is the default because that is how a pilot starts.
-  const [suppliers, setSuppliers] = useState(1);
-  const recommended = useMemo(() => recommendPlan(orders, suppliers), [orders, suppliers]);
-  const recommendedId = recommended.id;
-  // When the supplier count, not the volume, decided the tier, say so — otherwise a
-  // visitor who moved only the supplier slider sees the price jump with no reason.
-  const volumeOnly = useMemo(() => recommendPlanByOrders(orders), [orders]);
-  const supplierDriven = volumeOnly.id !== recommendedId;
-  const recommendedCost = useMemo(
-    () => planEffectiveMonthlyCost(recommended, orders),
-    [recommended, orders],
-  );
-
-  // If the recommended tier lives behind the disclosure, surface it by default
-  // so the recommendation is always actionable without a second click.
-  const recommendedIsSecondary = SECONDARY_TIERS.some((t) => t.id === recommendedId);
-  const [showAll, setShowAll] = useState(false);
-  const tiersExpanded = showAll || recommendedIsSecondary;
+  // Recommender — documents a month only (./recommendPlan.ts): the cheapest plan whose
+  // allowance covers it, Enterprise above the largest.
+  const [documents, setDocuments] = useState(200);
+  const recommended = useMemo(() => recommendPlan(documents), [documents]);
 
   return (
     <div style={{ background: "var(--surface)", color: "var(--ink)" }}>
@@ -277,64 +119,36 @@ export default function PricingPage() {
             Pricing
           </span>
 
-          {/* "Pay for orders processed, nothing else" was too absolute: supplier allowances,
-              feature gates and Enterprise onboarding also decide which plan you need. This
-              says what plans are actually priced on. "No per-seat pricing" is true — no plan
-              in src/lib/plans.ts, and nothing in the backend's PlanConstants, counts users. */}
-          <h1 className="plk-h1">Start FREE. Pay when the workflow proves useful.</h1>
+          <h1 className="plk-h1">Pay for documents. Every feature is included.</h1>
 
           <p className="plk-sub">
-            Self-service plans are based on the documents you process each month and the suppliers
-            you send orders to, with no per-seat pricing. Start with the Pilot on one supplier; after that, choose the plan that fits and
-            move up only when you need more volume, more suppliers or advanced features.
+            Every plan has every way to send documents in, every output and every check. Plans
+            differ only by how many documents you process and how many flows you set up.
+          </p>
+          <p className="plk-sub">
+            A document is one file of up to 10 pages. Longer files count once for every 10 pages.
           </p>
 
-          {/* Recommender — monthly orders AND supplier flows (./recommendPlan.ts) */}
           <div className="plk-reco">
-            <label className="plk-reco-label" htmlFor="plk-orders">
+            <label className="plk-reco-label" htmlFor="plk-documents">
               How many documents do you process per month?
             </label>
             <div className="plk-reco-input-row">
               <input
-                id="plk-orders"
+                id="plk-documents"
                 className="plk-reco-input"
                 type="range"
-                min={10}
-                max={VOLUME_SLIDER_MAX}
-                step={10}
-                value={orders}
-                onChange={(e) => setOrders(Number(e.target.value))}
+                min={DOCUMENT_SLIDER_STEP}
+                max={DOCUMENT_SLIDER_MAX}
+                step={DOCUMENT_SLIDER_STEP}
+                value={documents}
+                onChange={(e) => setDocuments(Number(e.target.value))}
                 aria-label="Documents per month"
                 aria-describedby="plk-reco-readout"
               />
               <span className="plk-reco-count" id="plk-reco-readout" aria-live="polite">
-                {orders.toLocaleString(NUMBER_LOCALE)}
+                {documents.toLocaleString(NUMBER_LOCALE)}
                 <small> documents/mo</small>
-              </span>
-            </div>
-
-            {/* Supplier flows — a HARD allowance, unlike orders. The slider stops one past
-                the largest self-serve allowance, which is where only Enterprise fits. */}
-            <label className="plk-reco-label plk-reco-label-2" htmlFor="plk-suppliers">
-              How many suppliers do you send orders to?
-            </label>
-            <div className="plk-reco-input-row">
-              <input
-                id="plk-suppliers"
-                className="plk-reco-input"
-                type="range"
-                min={1}
-                max={MAX_SELF_SERVE_SUPPLIERS + 1}
-                step={1}
-                value={suppliers}
-                onChange={(e) => setSuppliers(Number(e.target.value))}
-                aria-label="Suppliers you send orders to"
-                aria-describedby="plk-reco-suppliers-readout"
-                aria-valuetext={supplierCountLabel(suppliers)}
-              />
-              <span className="plk-reco-count" id="plk-reco-suppliers-readout" aria-live="polite">
-                {suppliers > MAX_SELF_SERVE_SUPPLIERS ? `${MAX_SELF_SERVE_SUPPLIERS + 1}+` : suppliers}
-                <small> {suppliers === 1 ? "supplier" : "suppliers"}</small>
               </span>
             </div>
 
@@ -342,13 +156,7 @@ export default function PricingPage() {
               <span className="plk-reco-out-label">Recommended plan</span>
               <strong className="plk-reco-out-plan">{recommended.name}</strong>
               <span className="plk-reco-out-price">
-                {recommended.isCustom
-                  ? "Custom"
-                  : recommended.priceMonthly === 0
-                    ? "Free"
-                    : recommendedCost && recommendedCost.overageOrders > 0
-                      ? `≈ €${Math.round(recommendedCost.total).toLocaleString("en-IE")}/mo (${recommended.priceLabel} + €${Math.round(recommendedCost.overageEur).toLocaleString("en-IE")} overage)`
-                      : `${recommended.priceLabel}/mo`}
+                {recommended.isCustom ? "Custom" : `${recommended.priceLabel}/mo`}
               </span>
               <Link
                 href={recommended.isCustom ? recommended.cta.href : "/sign-up"}
@@ -357,23 +165,17 @@ export default function PricingPage() {
                 {recommended.isCustom ? "Contact sales" : `Start with ${recommended.name}`}{" "}
                 <span aria-hidden>→</span>
               </Link>
-              <span className="plk-reco-why">
-                {recommendationReason(recommended, supplierDriven ? volumeOnly : null)}
-              </span>
+              {!recommended.isCustom && (
+                <span className="plk-reco-why">{allowanceLine(recommended)}</span>
+              )}
             </div>
           </div>
-
         </div>
       </header>
 
-      {/* ── Primary pricing cards (3 above the fold) ─────────────────────── */}
+      {/* ── Pricing cards — the whole public ladder in one grid ──────────── */}
       <section className="plk-section" style={{ paddingTop: 48 }}>
         <div className="plk-wrap">
-          {/* Billing cadence toggle — the design's .billing-toggle pill.
-              Rendered when annual billing is enabled (ANNUAL_BILLING_ENABLED,
-              default ON). Annual routes to the plan's live Stripe yearly price,
-              so the toggle never offers a Checkout that can't resolve. The flag
-              stays as an env kill switch to hide the toggle if annual is paused. */}
           {ANNUAL_BILLING_ENABLED && (
             <div className="plk-toggle-wrap">
               <div className="plk-billing-toggle" role="group" aria-label="Billing period">
@@ -391,69 +193,15 @@ export default function PricingPage() {
                   aria-pressed={yearly}
                   onClick={() => setBilling("yearly")}
                 >
-                  Annual{TOGGLE_SAVE_PERCENT != null ? ` · save ${TOGGLE_SAVE_PERCENT}%` : ""}
+                  Annual · 2 months free
                 </button>
               </div>
             </div>
           )}
 
-          <div className="plk-pricing-grid plk-primary-grid">
-            {PRIMARY_TIERS.map((tier) => (
-              <PriceCard key={tier.id} tier={tier} yearly={yearly} recommended={tier.id === recommendedId} />
-            ))}
-          </div>
-
-          {/* ── See all tiers / compare plans disclosure ──────────────────── */}
-          <div className="plk-disclosure">
-            <button
-              type="button"
-              className="plk-disclosure-btn"
-              aria-expanded={tiersExpanded}
-              aria-controls="plk-all-tiers"
-              onClick={() => setShowAll((v) => !v)}
-              disabled={recommendedIsSecondary}
-            >
-              {tiersExpanded ? "Hide other tiers" : "See all tiers · compare plans"}
-              {!recommendedIsSecondary && (
-                <svg
-                  aria-hidden
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  style={{
-                    transform: tiersExpanded ? "rotate(180deg)" : "none",
-                    transition: "transform 250ms var(--ease-out)",
-                  }}
-                >
-                  <path
-                    d="M6 9l6 6 6-6"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              )}
-            </button>
-            {recommendedIsSecondary && (
-              <span className="plk-disclosure-hint">
-                Showing {recommended.name} below because it fits your volume.
-              </span>
-            )}
-          </div>
-
-          {/* Secondary tiers stay in the DOM (SSR-crawlable + valid aria-controls
-              target) and collapse via [hidden] when not expanded, so search
-              engines and no-JS visitors still see Integration/Distributor
-              while only four cards compete for attention by default. */}
-          <div
-            id="plk-all-tiers"
-            className="plk-pricing-grid plk-secondary-grid"
-            hidden={!tiersExpanded}
-          >
-            {SECONDARY_TIERS.map((tier) => (
-              <PriceCard key={tier.id} tier={tier} yearly={yearly} recommended={tier.id === recommendedId} />
+          <div className="plk-pricing-grid">
+            {PUBLIC_LADDER.map((plan) => (
+              <PriceCard key={plan.id} plan={plan} yearly={yearly} recommended={plan.id === recommended.id} />
             ))}
           </div>
 
@@ -476,7 +224,7 @@ export default function PricingPage() {
         </div>
       </section>
 
-      {/* ── FAQ (mirrors .section.tint + .faq-item) ─────────────────────── */}
+      {/* ── FAQ ─────────────────────────────────────────────────────────── */}
       <section className="plk-section tint">
         <div className="plk-wrap narrow">
           <div className="plk-section-head">
@@ -491,21 +239,21 @@ export default function PricingPage() {
         </div>
       </section>
 
-      {/* ── Closing CTA band (mirrors .section.navy) ────────────────────── */}
+      {/* ── Closing CTA band ────────────────────────────────────────────── */}
       <section className="plk-section navy" style={{ textAlign: "center" }}>
         <div className="plk-wrap narrow">
           <h2 className="plk-section-title" style={{ color: "#fff" }}>
             Not sure which plan fits?
           </h2>
           <p className="plk-section-sub">
-            Use the ROI calculator on the home page, or start the free Pilot and decide later.
+            Start the free trial and see how many documents you process.
           </p>
           <div className="plk-cta-row">
             <Link href="/sign-up" className="plk-btn plk-btn-blue lg">
-              Start free Pilot <span aria-hidden>→</span>
+              Start your free trial <span aria-hidden>→</span>
             </Link>
-            <Link href="/#roi" className="plk-btn plk-btn-outline lg">
-              Open ROI calculator
+            <Link href="/book-demo" className="plk-btn plk-btn-outline lg">
+              Talk to us
             </Link>
           </div>
         </div>
@@ -514,115 +262,50 @@ export default function PricingPage() {
   );
 }
 
-// ─── Recommender copy helpers ────────────────────────────────────────────────
-
-const plural = (n: number, one: string, many: string) => `${n.toLocaleString(NUMBER_LOCALE)} ${n === 1 ? one : many}`;
-
-function supplierCountLabel(n: number): string {
-  return n > MAX_SELF_SERVE_SUPPLIERS
-    ? `More than ${plural(MAX_SELF_SERVE_SUPPLIERS, "supplier", "suppliers")}`
-    : plural(n, "supplier", "suppliers");
-}
-
-/**
- * One line under the recommendation saying what it includes — and, when the supplier count
- * rather than the volume decided the tier, why the cheaper volume answer was passed over.
- * Every number is read off the plan, so the sentence moves with the ladder.
- */
-function recommendationReason(plan: Plan, passedOver: Plan | null): string {
-  const includes =
-    plan.supplierLimit != null
-      ? `Includes up to ${plural(plan.supplierLimit, "supplier", "suppliers")} you send orders to.`
-      : "Supplier count set by agreement.";
-  if (passedOver == null || passedOver.supplierLimit == null) return includes;
-  return `${includes} ${passedOver.name} covers your volume but includes ${plural(passedOver.supplierLimit, "supplier", "suppliers")}.`;
-}
-
 // ─── Small components ─────────────────────────────────────────────────────────
 
-function PriceCard({ tier, yearly, recommended }: { tier: Tier; yearly: boolean; recommended: boolean }) {
-
-  // Annual display: the plan's live Stripe yearly price (plans.ts single
-  // source), shown as a monthly equivalent with the billed-annually total +
-  // derived save-% underneath. Tiers without an annual price (Pilot, Enterprise)
-  // render their normal monthly/custom card.
-  const showYearly = yearly && tier.isMonthly && tier.priceYearly != null && tier.yearlyMonthlyEq != null;
-  const bigPrice = showYearly ? `€${tier.yearlyMonthlyEq!.toLocaleString("en-IE")}` : tier.price;
-  const priceTag = tier.isMonthly;
-
-  // A card is visually emphasised ONLY when the recommender points at it. There is no
-  // static anchor tier and no "Most popular" fallback: no usage data supports one (see
-  // the header comment), so the only emphasis on this page is the visitor's own answer.
-  const emphasised = recommended;
-  const cardClass = emphasised ? "plk-price-card featured" : "plk-price-card";
-  const badge = recommended ? "Recommended for you" : null;
-  const isPilot = tier.id === PLAN_BY_ID.pilot.id;
+function PriceCard({ plan, yearly, recommended }: { plan: Plan; yearly: boolean; recommended: boolean }) {
+  const isTrial = plan.id === PLAN_BY_ID.pilot.id;
+  const isMonthly = plan.priceMonthly != null && plan.priceMonthly > 0;
+  // Annual: the plan's yearly price as a monthly equivalent, with the billed-annually total beneath.
+  const showYearly = yearly && isMonthly && plan.priceYearly != null;
+  const bigPrice = showYearly ? `€${fmt(yearlyMonthlyEquivalent(plan)!)}` : isTrial ? "Free" : plan.priceLabel;
 
   return (
-    <article className={cardClass}>
-      {badge && <span className="plk-price-badge">{badge}</span>}
+    <article className={recommended ? "plk-price-card featured" : "plk-price-card"}>
+      {recommended && <span className="plk-price-badge">Recommended for you</span>}
 
-      <div className="plk-tier">{tier.name}</div>
-      <div className="plk-tier-sub">{tier.desc}</div>
+      <div className="plk-tier">{plan.name}</div>
 
       <div className="plk-price">
         {bigPrice}
-        {priceTag && <small>/mo</small>}
+        {isMonthly && <small>/mo</small>}
+        {isTrial && <small> for 14 days</small>}
       </div>
       <div className="plk-price-note">
         {showYearly
-          ? `billed annually (€${tier.priceYearly!.toLocaleString("en-IE")}/yr)${tier.savePercent != null ? ` · save ${tier.savePercent}%` : ""}`
-          : tier.setupNote}
+          ? `billed annually (€${fmt(plan.priceYearly!)}/yr)`
+          : plan.id === "enterprise"
+            ? plan.priceCadence
+            : ""}
       </div>
-      {/* Overage visibility (offer⇔works): paid plans never block at the
-          allowance — extra orders meter at €0.50/order. */}
-      {tier.isMonthly && tier.orderLimit != null && (
-        <div className="plk-overage-note">
-          {tier.orderLimit.toLocaleString("en-IE")} documents/mo included · then €
-          {OVERAGE_PER_ORDER_EUR.toFixed(2)}/document, never blocked
-        </div>
-      )}
+      {plan.orderLimit != null && <div className="plk-overage-note">{allowanceLine(plan)}</div>}
 
       <Link
-        href={tier.href}
-        className={emphasised ? "plk-btn plk-btn-blue" : "plk-btn plk-btn-secondary"}
+        href={plan.cta.href}
+        className={recommended ? "plk-btn plk-btn-blue" : "plk-btn plk-btn-secondary"}
       >
-        {tier.cta} <span aria-hidden>→</span>
+        {isMonthly ? `Choose ${plan.name}` : plan.cta.label} <span aria-hidden>→</span>
       </Link>
 
-      {/* Gates are minimum-plan, so every tier includes everything the tier below it does.
-          Saying so once is what lets a card list only its own differentiators without
-          reading as though it had LOST the ones it no longer repeats. */}
-      {tier.inherits && <p className="plk-inherits">{tier.inherits}</p>}
-
       <ul className="plk-feats">
-        {tier.features.map((feature) => (
+        {cardFeatures(plan).map((feature) => (
           <li key={feature}>
             <CheckIcon />
             <span>{feature}</span>
           </li>
         ))}
       </ul>
-
-      {/* The Pilot card carries two lines no other card needs. The first says nothing is sent
-          before you have looked at it — the trial's biggest objection, and true by default
-          (auto-deliver is off until switched on). It names email because that is the delivery
-          channel the card's own bullet sells. The second separates this self-service trial from
-          the longer supported pilot, which is applied for rather than signed up to. */}
-      {isPilot && (
-        <>
-          <p className="plk-card-note">
-            Review the supplier-ready result before anything is sent — download it yourself, or
-            email it to your supplier when you&apos;re ready.
-          </p>
-          <p className="plk-card-aside">
-            Need more time or hands-on help?{" "}
-            <Link href="/pilot" className="plk-card-aside-link">
-              Apply for a FREE supported pilot <span aria-hidden>→</span>
-            </Link>
-          </p>
-        </>
-      )}
     </article>
   );
 }
@@ -790,15 +473,6 @@ const PRICING_CSS = `
 
 /* Pricing grid + card (design .pricing-grid / .price-card) */
 .plk-pricing-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; align-items: start; }
-/* Primary row carries FOUR cards (Pilot / Growth / Operations / Enterprise) so
-   the cheapest paid step is above the fold at 1080p. The later @media rules
-   share its specificity and come after it in source, so the 2-col (≤1100px)
-   and 1-col (≤760px) collapses still win. */
-.plk-primary-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-/* [hidden] must beat the explicit display:grid above so the collapsed secondary
-   tier panel is truly removed from layout while staying in the DOM. */
-.plk-pricing-grid[hidden] { display: none; }
-.plk-secondary-grid { margin-top: 22px; }
 .plk-price-card {
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
   padding: 22px 18px; position: relative; display: flex; flex-direction: column;
@@ -823,20 +497,6 @@ const PRICING_CSS = `
 .plk-price-note { font-size: 12px; color: var(--ink-faint); min-height: 18px; }
 .plk-overage-note { font-size: 11.5px; color: var(--ink-muted); margin-top: 4px; line-height: 1.45; }
 
-/* See-all-tiers disclosure */
-.plk-disclosure { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 28px; }
-.plk-disclosure-btn {
-  display: inline-flex; align-items: center; gap: 8px;
-  height: 38px; padding: 0 18px; border-radius: var(--radius);
-  background: var(--surface); color: var(--brand-blue-deep);
-  border: 1px solid var(--border-strong);
-  font-size: 13px; font-weight: 600; cursor: pointer;
-  transition: background var(--duration-fast), border-color var(--duration-fast), color var(--duration-fast);
-}
-.plk-disclosure-btn:hover:not(:disabled) { background: var(--surface-2); border-color: var(--brand-blue); }
-.plk-disclosure-btn:disabled { opacity: 0.55; cursor: default; }
-.plk-disclosure-hint { font-size: 12.5px; color: var(--ink-muted); }
-
 /* Card CTA (design .btn / .btn-blue / .btn-secondary) */
 .plk-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 7px;
@@ -855,17 +515,10 @@ const PRICING_CSS = `
 .plk-btn-outline:hover { background: var(--navy-surface); }
 
 /* Feature list (design .price-feats) */
-.plk-inherits { font-size: 12px; font-weight: 600; color: var(--ink-muted); margin: 20px 0 0; line-height: 1.4; }
-.plk-inherits + .plk-feats { margin-top: 11px; }
 .plk-feats { list-style: none; padding: 0; margin: 20px 0 0; display: flex; flex-direction: column; gap: 11px; flex: 1; }
 .plk-feats li { display: flex; gap: 9px; align-items: flex-start; font-size: 13px; color: var(--ink); line-height: 1.4; }
 .plk-check { margin-top: 1px; flex-shrink: 0; }
 
-/* Pilot card extras: the review-first note and the supported-pilot route */
-.plk-card-note { font-size: 12.5px; line-height: 1.5; color: var(--ink-muted); margin: 18px 0 0; padding-top: 14px; border-top: 1px solid var(--border); }
-.plk-card-aside { font-size: 12.5px; line-height: 1.5; color: var(--ink-muted); margin: 10px 0 0; }
-.plk-card-aside-link, .plk-faq-link { color: var(--brand-blue-deep); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
-.plk-card-aside-link { display: inline-flex; align-items: center; gap: 4px; min-height: 24px; }
 
 .plk-fine { text-align: center; font-size: 12px; color: var(--ink-faint); line-height: 1.6; max-width: 880px; margin: 24px auto 0; }
 

@@ -1,113 +1,50 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { render, cleanup, fireEvent, within } from "@testing-library/react";
 import PricingPage from "./page";
-import { PLAN_BY_ID, recommendPlanByOrders } from "@/lib/plans";
-import { MAX_SELF_SERVE_SUPPLIERS, recommendPlan } from "./recommendPlan";
+import { DOCUMENT_PLANS, PLAN_BY_ID, PUBLIC_LADDER } from "@/lib/plans";
+import { DOCUMENT_SLIDER_MAX } from "./recommendPlan";
 
-// /pricing after the pilot-stage copy pass (2026-11-04). Each block pins one decision
-// so it cannot quietly revert:
-//   • no "Most popular" badge — nothing measures popularity;
-//   • the hero says what plans are priced on, not "nothing else";
-//   • the getting-started FAQ is present AND the billing FAQ survived it;
-//   • the recommender asks for suppliers as well as orders, and the supplier count
-//     really moves the answer;
-//   • the Pilot card routes to the supported pilot programme.
+// /pricing on the document ladder. Every expectation is read off plans.ts.
 
 afterEach(cleanup);
+
+const fmt = (n: number) => n.toLocaleString("en-IE");
 
 function renderPage() {
   const { container } = render(<PricingPage />);
   return { container, q: within(container) };
 }
 
-describe("/pricing pilot-stage copy", () => {
-  it("carries no 'Most popular' badge — not on Operations, not as the recommender's fallback", () => {
+describe("/pricing document ladder", () => {
+  it("renders one card per public plan with its price, document allowance and flow allowance", () => {
     const { container } = renderPage();
-    expect(container.textContent ?? "").not.toMatch(/most popular/i);
-    // The only badge left is the recommender's, on exactly one card.
-    expect(within(container).getAllByText("Recommended for you")).toHaveLength(1);
-  });
+    const cards = Array.from(container.querySelectorAll("article.plk-price-card"));
+    expect(cards.map((c) => c.querySelector(".plk-tier")!.textContent)).toEqual(PUBLIC_LADDER.map((p) => p.name));
 
-  it("leads with what plans are priced on, not 'nothing else'", () => {
-    const { q, container } = renderPage();
-    expect(q.getByRole("heading", { level: 1 }).textContent).toBe(
-      "Start FREE. Pay when the workflow proves useful.",
-    );
-    const body = container.textContent ?? "";
-    expect(body).not.toMatch(/Pay for orders processed, nothing else/i);
-    expect(body).toMatch(/documents you process each month and the suppliers you send orders to, with no per-seat pricing/);
-  });
-
-  it("adds the five getting-started questions and keeps every billing question", () => {
-    const { q } = renderPage();
-    const questions = [
-      "Do I need an ERP or integration to start?",
-      "Does my supplier need to take part?",
-      "Can I use a test or anonymised order?",
-      "Will ProcuLink send anything automatically during the Pilot?",
-      "What happens when my item code doesn't match the supplier's?",
-      // billing — must survive
-      "What counts as a document?",
-      "What happens after the Pilot?",
-      "Do you charge for failed documents?",
-      "What if I go over my monthly allowance?",
-      "Can I change plans later?",
-      "What happens if I cancel?",
-      "Where is my data stored?",
-    ];
-    for (const question of questions) {
-      expect(q.getByRole("button", { name: question }), question).toBeTruthy();
+    for (const plan of PUBLIC_LADDER.filter((p) => p.orderLimit != null)) {
+      const card = cards.find((c) => c.querySelector(".plk-tier")!.textContent === plan.name)!.textContent!;
+      expect(card, plan.id).toContain(`${fmt(plan.orderLimit!)} documents`);
+      expect(card, plan.id).toContain(plan.flowLimit == null ? "unlimited flows" : `${fmt(plan.flowLimit)} flows`);
+      if (plan.priceMonthly) expect(card, plan.id).toContain(`€${plan.priceMonthly}`);
+      if (plan.overageEur != null) expect(card, plan.id).toContain(`€${plan.overageEur.toFixed(2)} per extra document`);
     }
-  });
-
-  it("never promises PDF or Excel OUTPUT in the new answers", () => {
-    const { container } = renderPage();
+    // No legacy plan is sold, and the old order-era copy is gone.
     const body = container.textContent ?? "";
-    expect(body).not.toMatch(/download (?:a|the|your) (?:PDF|Excel)/i);
-    expect(body).not.toMatch(/(?:PDF|Excel) (?:output|file you send)/i);
+    expect(body).not.toMatch(/most popular|supplier-ready|See all tiers/i);
   });
 
-  it("says test uploads count toward the allowance — only the built-in sample is free", () => {
-    const { container } = renderPage();
-    expect(container.textContent ?? "").toMatch(
-      /count toward your document allowance — only the built-in sample order doesn't/,
-    );
-  });
-
-  it("asks for suppliers too, and the supplier count really changes the recommendation", () => {
+  it("recommends by documents a month: the cheapest plan that covers it, Enterprise above the largest", () => {
     const { q } = renderPage();
     const status = q.getByRole("status");
-    const suppliers = q.getByLabelText("Suppliers you send orders to") as HTMLInputElement;
-    expect(suppliers.max).toBe(String(MAX_SELF_SERVE_SUPPLIERS + 1));
+    const slider = q.getByLabelText("Documents per month") as HTMLInputElement;
+    expect(slider.max).toBe(String(DOCUMENT_SLIDER_MAX));
 
-    // Default: one supplier, so the answer is the volume answer.
-    const orders = Number((q.getByLabelText("Documents per month") as HTMLInputElement).value);
-    const byVolume = recommendPlanByOrders(orders);
-    expect(within(status).getByText(byVolume.name)).toBeTruthy();
-
-    // One supplier past the volume answer's allowance moves the recommendation up.
-    const tooMany = (byVolume.supplierLimit ?? 0) + 1;
-    fireEvent.change(suppliers, { target: { value: String(tooMany) } });
-    const forced = recommendPlan(orders, tooMany);
-    expect(forced.id).not.toBe(byVolume.id);
-    expect(within(status).getByText(forced.name)).toBeTruthy();
-    // …and says why, with numbers read off the ladder.
-    expect(status.textContent).toContain(
-      `${byVolume.name} covers your volume but includes ${byVolume.supplierLimit} suppliers.`,
-    );
-
-    // Past every self-serve allowance: Enterprise.
-    fireEvent.change(suppliers, { target: { value: String(MAX_SELF_SERVE_SUPPLIERS + 1) } });
+    for (const plan of DOCUMENT_PLANS) {
+      fireEvent.change(slider, { target: { value: String(plan.orderLimit) } });
+      expect(within(status).getByText(plan.name), plan.id).toBeTruthy();
+    }
+    fireEvent.change(slider, { target: { value: slider.max } });
     expect(within(status).getByText(PLAN_BY_ID.enterprise.name)).toBeTruthy();
     expect(within(status).getByRole("link").textContent).toMatch(/Contact sales/);
-  });
-
-  it("routes the Pilot card to the supported pilot programme", () => {
-    const { container } = renderPage();
-    const link = Array.from(container.querySelectorAll('a[href="/pilot"]')).find((a) =>
-      /Apply for a FREE supported pilot/.test(a.textContent ?? ""),
-    );
-    expect(link, "Pilot card link to /pilot").toBeTruthy();
-    expect(within(container).getByRole("link", { name: new RegExp(PLAN_BY_ID.pilot.cta.label) })).toBeTruthy();
   });
 });

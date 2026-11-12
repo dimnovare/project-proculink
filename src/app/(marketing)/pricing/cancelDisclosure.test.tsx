@@ -64,7 +64,8 @@ describe("/pricing cancellation disclosure", () => {
     const body = text(<PricingPage />);
 
     expect(body).not.toMatch(/read_only/);
-    expect(body).not.toMatch(/read-only/i);
+    // "read-only" is approved plain-language copy now (the trial-end FAQ answer says what it
+    // means), so only the internal token and the vaguer jargon stay banned.
     expect(body).not.toMatch(/frozen/i);
   });
 });

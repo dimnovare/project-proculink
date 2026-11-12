@@ -1,7 +1,7 @@
 import { pageMetadata } from "@/lib/seo";
 import Link from "next/link";
 import { LEGAL_ENTITY, PRODUCT_OPERATOR_NOTICE } from "@/lib/legal-entity";
-import { LEGACY_PAID_PLANS, OVERAGE_PER_ORDER_EUR, PLANS } from "@/lib/plans";
+import { DOCUMENT_PLANS, DOCUMENT_PLAN_IDS, LEGACY_PAID_PLANS, OVERAGE_PER_ORDER_EUR, PLAN_BY_ID } from "@/lib/plans";
 import { LegalPageLinks } from "@/components/marketing/LegalPageLinks";
 
 export const metadata = pageMetadata({
@@ -87,14 +87,14 @@ export default function TermsPage() {
       {/* Plan numbers come from src/lib/plans.ts (the shared frontend ladder,
           aligned with backend PlanConstants) so the Terms can never drift. */}
       <ul style={{ paddingLeft: 20, marginBottom: 14 }}>
-        {PLANS.filter((p) => !p.hidden || LEGACY_PAID_PLANS.some((l) => l.id === p.id)).map((p) => (
+        {[PLAN_BY_ID.pilot, ...DOCUMENT_PLANS, ...LEGACY_PAID_PLANS, PLAN_BY_ID.enterprise].map((p) => (
           <li key={p.id} style={S.li}>
             <strong>{p.name}</strong>:{" "}
             {p.id === "pilot"
               ? `14-day free trial — includes ${p.orderLimit} orders total, ${p.supplierLimit} supplier. On expiry, accounts become read-only. No Stripe card required.`
               : p.priceMonthly == null
                 ? "Custom pricing. Contact us."
-                : `€${p.priceMonthly.toLocaleString("en-IE")}/month — includes ${p.orderLimit?.toLocaleString("en-IE")} orders/month, ${p.supplierLimit} suppliers.`}
+                : `€${p.priceMonthly.toLocaleString("en-IE")}/month — includes ${p.orderLimit?.toLocaleString("en-IE")} ${DOCUMENT_PLAN_IDS.includes(p.id) ? "documents" : "orders"}/month, ${p.supplierLimit ?? (p.flowLimit == null ? "unlimited" : p.flowLimit)} ${p.supplierLimit != null ? "suppliers" : "flows"}.`}
           </li>
         ))}
       </ul>
