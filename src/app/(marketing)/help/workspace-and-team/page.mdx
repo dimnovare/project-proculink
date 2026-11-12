@@ -3,9 +3,48 @@ import { helpArticleMetadata } from "@/lib/seo";
 export const metadata = helpArticleMetadata({
   slug: "workspace-and-team",
   title: "Workspace, team and API keys — ProcuLink Help",
-  description: "Name your workspace, invite colleagues, and create the keys that let other systems use ProcuLink.",
+  description: "Name your workspace, see who has access and what each role can do, and create the keys that let other systems use ProcuLink.",
 });
 
 # Workspace, team and API keys
 
-Name your workspace, invite colleagues, and create the keys that let other systems use ProcuLink.
+Name your workspace, see who has access and what each role can do, and create the keys that let other systems use ProcuLink.
+
+## Your workspace
+
+Everything you set up lives in a workspace: its flows, documents, lookups, destinations and keys. If you belong to more than one workspace, switch between them from the workspace menu at the top left. Each one is separate.
+
+To rename a workspace, open **Settings**, go to **Workspace**, change **Workspace name** and select **Save changes**. The same page shows how many people have access.
+
+## Roles
+
+Each person is either an **Administrator** or a **Member**. Your role is shown under your name in the account menu.
+
+Members can do the daily work: upload and read documents, correct values, teach a value, send, create a flow and set its fields, manage lookups, and set up their own email notifications.
+
+Administrators can also change what a flow does and where it sends:
+
+- Switch a flow between **Review before delivery** and **Automatic delivery**.
+- Publish a flow, and restore an earlier version.
+- Add, change and remove outputs.
+- Set up how documents come in: the flow's email address, pickups, and the API webhook.
+- Add, change, test and remove destinations.
+- Create API keys.
+- Manage the plan and billing.
+
+A member who tries one of these sees "Only a workspace admin can change this."
+
+The workspace page does not add or remove people. Contact support to change who has access.
+
+## API keys
+
+A key lets another system send files to your flows and fetch results. See the [API reference](/help/api-reference).
+
+Open **Settings** and go to **API keys**.
+
+- Select **Create key**, name it after the system that will use it, and create it. Only an administrator can do this.
+- The key is shown once. Copy it and store it safely. We cannot show it again.
+- The list shows each key's name, its first characters, when it was created and when it was last used.
+- Select **Revoke** to stop a key. Any member can do this, so a leaked key can be stopped quickly. Anything that uses the key stops working.
+
+A key belongs to the workspace, not to a person, and it works for every flow in it. Use one key for each system, so you can revoke one without stopping the others.

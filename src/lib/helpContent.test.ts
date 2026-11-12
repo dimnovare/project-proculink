@@ -19,29 +19,22 @@ const words = (s: string) => s.split(/\s+/).filter(Boolean).length;
 const body = (path: string) =>
   readFileSync(path, "utf8").replace(/export const metadata = [\s\S]*?\n\}\);\n/, "").replace(/^import .*$/gm, "");
 
-// Each help-content task adds its own slugs; the last one flips this to every registered page.
-const WRITTEN = {
-  articles: [
-    "how-proculink-works", "documents-and-statuses", "what-we-read", "checks", "flows", "senders", // Task 6
-    "intake-channels", "outputs", "destinations", "destination-sign-in", "lookups", // Task 7
-  ],
-  guides: [
-    "set-up-your-first-flow", "check-and-send-a-document", "teach-a-value", "publish-a-flow-version", // Task 6
-    "receive-documents-by-email", "collect-from-a-mailbox", "collect-from-a-server", "collect-from-s3", "build-an-output", // Task 7
-    "build-an-output-from-a-sample", "build-an-output-from-documentation", "send-to-a-destination", "import-a-lookup",
-  ],
-};
+// Every registered page, derived from the two registries. The live client guides are the ones served under
+// /help/guides; admin runbooks are served elsewhere and are not help pages.
+const PAGES = [
+  ...HELP_ARTICLES.map((a) => ({ slug: a.slug, path: join(HELP_DIR, a.slug, "page.mdx"), stub: a })),
+  ...GUIDES.filter((g) => g.audience === "client" && g.status === "live").map((g) => ({
+    slug: g.slug, path: join(HELP_DIR, "guides", g.slug, "page.mdx"), stub: g,
+  })),
+];
 
 describe("help content", () => {
-  it("leaves no written page as a stub", () => {
-    const pages = [
-      ...WRITTEN.articles.map((slug) => ({ slug, path: join(HELP_DIR, slug, "page.mdx"), stub: HELP_ARTICLES.find((a) => a.slug === slug) })),
-      ...WRITTEN.guides.map((slug) => ({ slug, path: join(HELP_DIR, "guides", slug, "page.mdx"), stub: GUIDES.find((g) => g.slug === slug) })),
-    ];
-    for (const { slug, path, stub } of pages) {
-      expect(stub, `${slug} is not registered`).toBeDefined();
+  it("leaves no registered page as a stub", () => {
+    // Anti-vacuity: the walk must cover every page on disk, so a page nobody registered cannot hide.
+    expect(PAGES.length, "registered pages and mdx files on disk disagree").toBe(mdxFiles(HELP_DIR).length);
+    for (const { slug, path, stub } of PAGES) {
       // A stub is a title and a one-line lead; an article is several times that.
-      expect(words(body(path)), `${slug} is still a stub`).toBeGreaterThan(4 * words(`${stub!.title} ${stub!.blurb}`));
+      expect(words(body(path)), `${slug} is still a stub`).toBeGreaterThan(4 * words(`${stub.title} ${stub.blurb}`));
     }
   });
 

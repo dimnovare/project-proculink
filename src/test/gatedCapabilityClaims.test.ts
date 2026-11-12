@@ -363,7 +363,7 @@ describe("cancellation is disclosed where cancelling happens", () => {
     expect(howTo).toBeGreaterThan(-1);
     const section = article.slice(howTo);
 
-    expect(section, "the section must state the consequence").toMatch(/stops accepting new orders/i);
+    expect(section, "the section must state the consequence").toMatch(/stops accepting new documents/i);
     expect(section).toMatch(/redirect your suppliers/i);
     expect(section).toMatch(/readable and exportable|remain/i);
   });
@@ -1604,7 +1604,7 @@ describe("every pricing-card bullet is accounted for by something real", () => {
       wouldHaveFlagged.length,
       "the noisy widening must still be measurably noisy — if this drops to nothing the rationale " +
         "above is stale and the matcher question should be reopened",
-    ).toBeGreaterThan(5); // was 20 while the order-era help articles stood; restore it once the new articles are written
+    ).toBeGreaterThan(7); // measured 10 once the relaunch help was written; it was 20 while the order-era help stood, and those 31 articles carried the rest
 
     expect(UNGATED_BULLETS.length, "and the ban must have entries to read").toBeGreaterThan(5);
     expect(
@@ -2867,7 +2867,7 @@ describe("a gated capability is never presented with no tier at all", () => {
       expect(
         buyerFacingFiles().filter(({ file }) => !EXEMPT.some((e) => e.endsWith(file))).length,
         "the exemption must leave pages to scan",
-      ).toBeGreaterThan(20);
+      ).toBeGreaterThan(25); // measured 29: every help page is exempt, so this is the non-help corpus and no longer moves with help content
 
       const presenting = buyerFacingFiles().filter(({ lines }) => lines.some((_, i) => presents(lines, i)));
       const seen = presenting.map(({ file }) => file.replace(/\\/g, "/"));

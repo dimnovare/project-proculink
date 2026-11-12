@@ -117,6 +117,7 @@ function ApiCard({ flowId, intake }: { flowId: string; intake?: FlowIntake }) {
           Send a file as <code>file</code> in a multipart POST, with your key in the <code>X-ProcuLink-Key</code> header.
         </p>
         <Link href="/settings?tab=api" className="text-[13px] text-brand-blue underline">Create a key in Settings</Link>
+        <Link href="/help/api-reference" className="text-[13px] text-brand-blue underline">API reference</Link>
         <Field label="Web address to call when a document is read or sent (webhook)">
           <input className={INPUT} value={url} onChange={(e) => setUrl(e.target.value)} />
         </Field>

@@ -6,4 +6,88 @@ export const metadata = guideMetadata({
   description: "Post a file to a flow and fetch the result, or have it sent to you by webhook.",
 });
 
-Post a file to a flow and fetch the result, or have it sent to you by webhook.
+import { Step, Prereqs, IfThisFails, Outcome } from "@/components/help/guide";
+
+<Prereqs>
+- A flow, and a workspace admin account.
+- A tool that can send a multipart POST. The examples use `curl`.
+- For the webhook step, a web address on your side that can receive a POST from the internet.
+</Prereqs>
+
+<Step n={1} title="Create a key">
+
+Open **Settings**, go to **API keys** and select **Create key**. Give the key a name, such as "Invoice system", and select **Create key** again.
+
+<Outcome>
+A box shows the key once. Copy it, store it somewhere safe, then select **I've saved it**. We cannot show it again.
+</Outcome>
+
+<IfThisFails>
+If creating the key is refused, you are not a workspace admin. Ask an admin to create it.
+</IfThisFails>
+
+</Step>
+
+<Step n={2} title="Copy the flow's API address">
+
+Open the flow, go to the **Intake** tab and find the **API** card. Select **Copy** beside the address.
+
+<Outcome>
+You have an address that ends in `/documents`. Every call below goes to it.
+</Outcome>
+
+</Step>
+
+<Step n={3} title="Send a file">
+
+Post the file as a part named `file`, with your key in the `X-ProcuLink-Key` header. Add an `Idempotency-Key` so a retry never makes a second document.
+
+```
+curl -X POST "https://api.example.com/api/v1/flows/FLOW_ID/documents" \
+  -H "X-ProcuLink-Key: YOUR_KEY" \
+  -H "Idempotency-Key: march-invoice-0001" \
+  -F "file=@invoice.pdf"
+```
+
+<Outcome>
+The answer is `201` and a short summary. Keep its `id`. The document appears on the flow's **Documents** tab with the status **Received**.
+</Outcome>
+
+<IfThisFails>
+The answer names the problem in `error`. A `401` means the key is wrong or revoked. A `415` lists the file types the flow accepts. The full list is in the [API reference](/help/api-reference).
+</IfThisFails>
+
+</Step>
+
+<Step n={4} title="Fetch the result">
+
+Reading takes a short while. Ask for the document by its `id`.
+
+```
+curl "https://api.example.com/api/v1/documents/DOCUMENT_ID" \
+  -H "X-ProcuLink-Key: YOUR_KEY"
+```
+
+<Outcome>
+The answer holds the document's `status`, the values we read, any checks that flagged something, and what was sent. Ask again until `status` is `needs_review`, `ready`, `sent` or one of the failed statuses.
+</Outcome>
+
+</Step>
+
+<Step n={5} title="Optional: get told by webhook">
+
+Instead of asking again and again, let us call you. On the same **API** card, enter the web address in the webhook box. Enter a signing secret if you want to check that calls come from us. Select **Save**, then **Send a test**.
+
+<Outcome>
+Your address receives a `document.test` call, and the card says "The test went through." After that you receive a call when a document is read, fails to read, is sent or fails to send. Check the signature as shown in the [API reference](/help/api-reference).
+</Outcome>
+
+<IfThisFails>
+The card shows why the test failed, for example that the address answered with an error status, or could not be reached. Your address must answer `2xx` and be reachable from the internet.
+</IfThisFails>
+
+</Step>
+
+## Good to know
+
+A file you send by API counts as a document, the same as an upload. A call we refuse does not create a document.

@@ -9,3 +9,23 @@ export const metadata = helpArticleMetadata({
 # Old orders
 
 Where your earlier purchase orders went, and how to read and export them.
+
+## What happened to them
+
+ProcuLink used to be built around purchase orders. It now reads any kind of document through flows. The purchase orders you received before your workspace moved to flows are kept as **Old orders**. They are read-only. You can look at them and export them, but you cannot edit them or send them again.
+
+## Where to find them
+
+If your workspace has any, **Documents** shows an **Old orders** link. It opens the list. Each row shows the PO number, date, buyer, supplier, status, number of lines and total. The list shows 25 at a time. Use **Previous** and **Next** to move through it.
+
+Select a PO number to open one order. You see its details, its lines (line, item, quantity and unit price), and the output files we made for it. Select **Download** beside a file to save it.
+
+## Export them all
+
+Select **Download CSV** at the top of the list. You get one file, `old-orders.csv`, with every old order and these columns: PO number, Date, Buyer, Supplier, Status, Lines, Total and Currency. Excel opens it with names intact.
+
+## Nothing new arrives
+
+Once your workspace is on flows, new purchase orders are no longer accepted the old way. This covers uploads, emailed orders, mailbox, SFTP and S3 pickups, and the old order API, which answers `410` with `orders_retired`. To send documents in now, use a flow. See [Ways to send documents in](/help/intake-channels).
+
+Old orders are separate from your documents. They do not appear in the **Documents** list.

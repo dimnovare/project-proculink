@@ -148,9 +148,10 @@ describe("link crawl — nothing we ship points at a 404", () => {
     expect(files.length).toBeGreaterThan(30); // the crawl is actually reading the articles
 
     const entries = files.flatMap(linksIn);
-    // 50 while the order-era articles stood; the new pages are stubs until the help content tasks
-    // land, so only the two kept articles carry links. Raise it again once they are written.
-    expect(entries.length).toBeGreaterThan(5);
+    // The relaunch help set (18 articles, 14 guides) carries 118 links as measured when the last article was
+    // written; the order-era set carried over 50. Pinned at 100, so about one article in six can lose its links
+    // before the crawl is called vacuous.
+    expect(entries.length).toBeGreaterThan(100);
     await assertAllResolve(entries);
   });
 

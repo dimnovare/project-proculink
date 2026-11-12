@@ -442,3 +442,26 @@ describe("the statuses article teaches the labels the document screens render", 
     expect(taught, `the article never defines "${label}"`).toContain(label);
   });
 });
+
+describe("the troubleshooting article covers the statuses that stop a document, by their shipped labels", () => {
+  const article = read(ARTICLE_TROUBLESHOOTING);
+  const headings = [...article.matchAll(/^## (.+)$/gm)].map((m) => m[1]);
+  const bold = [...article.matchAll(/\*\*([^*\n]+)\*\*/g)].map((m) => m[1]);
+  const shipped = Object.values(DOCUMENT_STATUSES).map((s) => s.label);
+  const failing = Object.values(DOCUMENT_STATUSES).filter((s) => s.tone === "error").map((s) => s.label);
+
+  test("the walk really reads the article and the manifest", () => {
+    expect(headings.length).toBeGreaterThanOrEqual(5);
+    expect(failing.length).toBeGreaterThanOrEqual(2);
+  });
+
+  test.each(failing)("%s has its own section", (label) => {
+    expect(headings, `the article has no "## ${label}" section`).toContain(label);
+  });
+
+  test("a status named in bold is spelled the way the product spells it", () => {
+    const named = bold.filter((b) => shipped.some((label) => label.toLowerCase() === b.toLowerCase()));
+    expect(named.length, "the article names statuses in bold").toBeGreaterThanOrEqual(3);
+    for (const b of named) expect(shipped, `"${b}" is not a shipped status label`).toContain(b);
+  });
+});

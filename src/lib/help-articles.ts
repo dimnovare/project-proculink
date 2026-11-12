@@ -151,9 +151,9 @@ export const HELP_ARTICLES: HelpArticle[] = [
   {
     slug: "workspace-and-team",
     title: "Workspace, team and API keys",
-    blurb: "Name your workspace, invite colleagues, and create the keys that let other systems use ProcuLink.",
+    blurb: "Name your workspace, see who has access and what each role can do, and create the keys that let other systems use ProcuLink.",
     category: "Account",
-    keywords: ["workspace", "team", "invite", "members", "roles", "api key", "settings"],
+    keywords: ["workspace", "team", "members", "roles", "administrator", "api key", "settings"],
     readMin: 3,
   },
   {
