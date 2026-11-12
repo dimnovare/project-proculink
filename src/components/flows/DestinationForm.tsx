@@ -25,16 +25,22 @@ const CONFIG_FIELDS: Record<string, [label: string, kind: Kind]> = {
   replyTo: ["Reply-to address", "text"],
   subjectTemplate: ["Subject", "text"],
   bodyTemplate: ["Message", "text"],
+  bucket: ["Bucket", "text"],
+  prefix: ["Folder", "text"],
+  region: ["Region", "text"],
+  serviceUrl: ["Endpoint URL", "text"],
+  accessKeyId: ["Access key ID", "text"],
   // No attachmentFileName box: a flow send always names the attachment after the document.
 };
 
-const PROTOCOLS = { http: "Web address (API)", sftp: "SFTP", ftps: "FTPS", email: "Email" } as const;
+const PROTOCOLS = { http: "Web address (API)", sftp: "SFTP", ftps: "FTPS", email: "Email", s3: "S3 bucket" } as const;
 type Protocol = keyof typeof PROTOCOLS;
 const DEFAULTS: Record<Protocol, Record<string, unknown>> = {
   http: { method: "POST", timeoutSeconds: 30 },
   sftp: { port: 22, makeDirectories: true, overwriteExisting: true, timeoutSeconds: 30 },
   ftps: { port: 21, makeDirectories: true, overwriteExisting: true, timeoutSeconds: 30 },
   email: {},
+  s3: {},
 };
 
 type CredField = [key: string, label: string];
@@ -45,6 +51,7 @@ const HTTP_AUTH: Record<string, CredField[]> = {
   apikey: [["header", "Header name"], ["value", "Key"]],
   basic: LOGIN,
 };
+const S3_SECRET: CredField[] = [["secretKey", "Secret access key"]];
 const AUTH_LABEL = { bearer: "Bearer token", apikey: "API key", basic: "Username and password" };
 
 export const INPUT = "h-9 w-full rounded border border-border bg-surface px-2.5 text-[13px] text-ink";
@@ -68,12 +75,12 @@ export function DestinationForm({ destination, preset, onSaved, onCancel }: {
   const [problem, setProblem] = useState<string | null>(null);
 
   const credFields: CredField[] =
-    protocol === "http" ? HTTP_AUTH[auth] : protocol === "email" ? [] : protocol === "sftp" ? SFTP_LOGIN : LOGIN;
+    protocol === "http" ? HTTP_AUTH[auth] : protocol === "email" ? [] : protocol === "s3" ? S3_SECRET : protocol === "sftp" ? SFTP_LOGIN : LOGIN;
 
   const typed = Object.fromEntries(credFields.filter(([k]) => creds[k]?.trim()).map(([k]) => [k, creds[k]]));
   if (typed.privateKey) delete typed.password;
   // Saving replaces the stored login wholesale, so a half-filled one must never be sent.
-  const required = protocol === "http" ? credFields.map(([k]) => k) : typed.privateKey ? ["username", "privateKey"] : ["username", "password"];
+  const required = protocol === "http" || protocol === "s3" ? credFields.map(([k]) => k) : typed.privateKey ? ["username", "privateKey"] : ["username", "password"];
   const loginIncomplete = Object.keys(typed).length > 0 && required.some((k) => !typed[k]);
 
   const test = useMutation({ mutationFn: () => testDestination(current!.id) });
@@ -133,7 +140,8 @@ export function DestinationForm({ destination, preset, onSaved, onCancel }: {
               </label>
             );
           return (
-            <Field key={key} label={label}>
+            <div key={key} className="grid gap-1">
+            <Field label={label}>
               {kind === "method" ? (
                 <select className={INPUT} value={String(value ?? "POST")} onChange={(e) => setValue(key, e.target.value)}>
                   <option>POST</option>
@@ -144,12 +152,17 @@ export function DestinationForm({ destination, preset, onSaved, onCancel }: {
                   className={INPUT}
                   type={kind === "number" ? "number" : "text"}
                   value={String(value ?? "")}
+                  aria-describedby={key === "serviceUrl" ? "dest-service-url-help" : undefined}
                   onChange={(e) =>
                     setValue(key, kind === "number" && e.target.value !== "" ? Number(e.target.value) : e.target.value)
                   }
                 />
               )}
             </Field>
+            {key === "serviceUrl" && (
+              <span id="dest-service-url-help" className="text-[11px] text-ink-muted">Only for R2, MinIO or another S3-compatible service</span>
+            )}
+            </div>
           );
         })}
         {protocol === "http" && (

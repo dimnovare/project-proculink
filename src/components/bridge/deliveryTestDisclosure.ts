@@ -107,6 +107,10 @@ export const DELIVERY_TEST_DISCLOSURE: Record<DeliveryProtocol, DeliveryTestDisc
       "receives it and may keep a record of it.",
     caveat: null,
   },
+  s3: {
+    effect: "This writes a small sample file, not an order, named TEST_ followed by the file name, into the bucket you configured.",
+    caveat: null,
+  },
 };
 
 /**
