@@ -9,3 +9,35 @@ export const metadata = helpArticleMetadata({
 # Senders and what we learn from them
 
 How ProcuLink remembers where a sender puts each value, so the next document needs less checking.
+
+## What a sender is
+
+Different senders lay out their documents differently. One puts the total top right, another at the bottom. ProcuLink keeps track of who sent each document so that what it learns from one sender does not get mixed up with another.
+
+We work out the sender in this order:
+
+1. The sender's VAT number, if we can read it on the document.
+2. Otherwise the sender's company name.
+3. Otherwise, for a document that came by email, the sender's email domain.
+
+If we cannot tell who the sender is, what you teach applies to every document in the flow.
+
+## What we learn
+
+When you correct a value by pointing at it on the page, we save a hint for that field and that sender. The hint holds the place on the page, the words around it and the value you chose. See [Teach a value by pointing at the page](/help/guides/teach-a-value).
+
+The next time a document from the same sender arrives, we read it with those hints as clues about where to look. A hint is a clue, not a guarantee, so keep checking documents that matter. The aim is that the same sender's next document needs fewer corrections.
+
+A hint is kept for the field you taught. Teaching the same field again for the same sender replaces the old hint. A flow keeps its 200 newest hints.
+
+After you teach a value, a message says what we saved, for example that we will look there for that field next time a document from the sender arrives.
+
+## What we do not learn
+
+- **We do not change your fields.** Teaching a value into an existing field does not change the flow. Pointing at a value for a new field adds that field to your unpublished changes. Publish to read it on new documents.
+- **We do not learn from typing.** If you only type a corrected value, that document changes, but nothing is remembered. Point at the page to teach.
+- **Nothing is shared between flows.** What a flow learns stays in that flow.
+
+## Seeing it work
+
+A flow shows how many of its recent documents were sent without a correction. If that number grows after you teach values, the hints are working. See [Flows](/help/flows).

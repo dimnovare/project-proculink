@@ -9,3 +9,39 @@ export const metadata = helpArticleMetadata({
 # Checks
 
 The checks that run on every document, what they flag, and which ones hold a send.
+
+## How checks work
+
+After we read a document, we run a short list of checks. Checks do not change your values. They flag things worth a look.
+
+- If no check flags anything, the document is **Ready to send**.
+- If any check flags something, the document is **Needs review**, and each flag is shown in words beside the values.
+
+Checks are a heads-up. They never stop you sending. If you look at a flag and decide it is fine, send the document.
+
+## What we check
+
+- **A required value is missing.** You mark a field as **Required** in the flow's fields. If we cannot find it, the message says the value is required but was not found.
+- **A required value is not on the page.** For scans and photos, we flag a required value we could not find anywhere on the page.
+- **A required value was hard to read.** If we are less than 75% sure of a required value, we ask you to check it.
+- **A value is the wrong kind.** Each field has a type: text, number, amount, currency, date, IBAN, VAT number, email or code. A value that does not look like its type is flagged, for example a date that is not a date.
+- **We have seen this document before.** See below.
+- **The document was too long to read in full.** We read as much as we could.
+- **The fields have not been confirmed.** The flow's fields need to be confirmed first. See [Flows](/help/flows).
+
+## Duplicates
+
+We spot repeats in two ways, both within one flow.
+
+- **The same file.** If you upload the same file again, we do not read it. It waits in **Needs review** with a note that it was already uploaded. Press **Read it anyway** if you do want it.
+- **The same document number.** If a document has the same number as one that arrived earlier, it is flagged. The number is compared without spaces and without regard to capital letters. If we find no number, we compare the file itself.
+
+The first document is never marked as the duplicate of a later one.
+
+## The one check that holds a send
+
+A flow can send documents automatically once they are read. Even then, failed checks do not stop a send, with one exception: a document with a number we have already received always waits for you. Sending the same number twice on an unattended flow could post it twice, so we ask first.
+
+## Fixing a flag
+
+Change the value on the document, or point at the right place on the page. We run the checks again straight away. If you change the flow's fields and publish, documents still waiting for review are checked again too. See [Check and send a document](/help/guides/check-and-send-a-document).

@@ -6,4 +6,65 @@ export const metadata = guideMetadata({
   description: "Point at a value on the page so we find it in the same place next time.",
 });
 
-Point at a value on the page so we find it in the same place next time.
+import { Step, Prereqs, IfThisFails, Outcome } from "@/components/help/guide";
+
+<Prereqs>
+- A document you can still change: **Needs review**, **Ready to send** or **Couldn't send**. A document that is already **Sent** is locked.
+- A flow whose fields are saved. See [Flows](/help/flows).
+- A document whose original shows on screen: a PDF, a photo or scan, a CSV or Excel file, or a text, XML or JSON file. A Word file opens as a download, so you cannot point at it. Type the value instead.
+</Prereqs>
+
+<Step n={1} title="Open the document">
+
+Open the document that has a wrong or missing value. Keep **Original document** visible on the left.
+
+<Outcome>
+You can see the original beside **What we read**.
+</Outcome>
+
+</Step>
+
+<Step n={2} title="Choose the field">
+
+Under **What we read**, find **Point to a value**. Choose the field from the list. If the value belongs to a field the flow does not have yet, choose **A new field…** and type its name. Then select **Point to it**.
+
+<Outcome>
+A message above the original tells you what to do next.
+</Outcome>
+
+</Step>
+
+<Step n={3} title="Point at the value on the page">
+
+What you do depends on the file:
+
+- **PDF or photo.** Draw a box around the value, or click two corners of it.
+- **Spreadsheet.** Click the cell that holds the value.
+- **Text, XML or JSON.** Select the words, then choose **Use selected words**.
+
+No mouse? Press Tab until the page has focus. Move the box with the arrow keys, resize it with Shift and the arrow keys, then press Enter.
+
+To stop, select **Cancel** or press Escape.
+
+<Outcome>
+The field takes the value you pointed at, and its place on the page is highlighted.
+</Outcome>
+
+<IfThisFails>
+- **We couldn't find text there.** The box held no words. Type what the value says in the box that appears, and select **Save**.
+- **That spot isn't on this document.** Try again on the page.
+</IfThisFails>
+
+</Step>
+
+<Step n={4} title="Read the confirmation">
+
+A message says we saved it. If we know the sender, it names them: next time a document from that sender arrives, we look there for the field. If we do not know the sender, we look there in every document in this flow. See [Senders and what we learn from them](/help/senders).
+
+If you pointed at a value for a new field, the field is added to your unpublished changes. Publish the flow to read it on new documents. See [Publish and restore flow versions](/help/guides/publish-a-flow-version).
+
+<Outcome>
+This document has the right value, and the flow remembers where to look.
+</Outcome>
+
+</Step>

@@ -9,3 +9,34 @@ export const metadata = helpArticleMetadata({
 # How ProcuLink works
 
 What happens to a document from the moment it arrives to the moment it is sent on.
+
+## The path of a document
+
+Every document takes the same path through a flow. A flow is one setup for one kind of document: how documents arrive, which values to read, what to produce and where it goes.
+
+1. **It arrives.** You upload a file, forward it to the flow's email address, or let ProcuLink collect it from a mailbox, a server, an S3 bucket or the API. See [Ways to send documents in](/help/intake-channels).
+2. **We read it.** We read the values and tables on the page. The first document needs no template. See [Files we read](/help/what-we-read).
+3. **We check it.** A few checks flag a missing value, a value we could not read, or a document we have already seen. See [Checks](/help/checks).
+4. **You review it, or we do not ask.** By default every document waits for you (**Review before delivery**). You can switch a flow to **Automatic delivery** once you trust it. See [Flows](/help/flows).
+5. **We make the output.** Each output in the flow turns what we read into a file: CSV, JSON, XML, Excel, PDF, text or fixed-width. See [Output formats](/help/outputs).
+6. **We send it.** Each output goes to its destination: an email address, a web address, an SFTP or FTPS server, or a download. See [Destinations](/help/destinations).
+
+On a document's screen you can follow its progress through five steps: In, Read, Check, Transform and Send.
+
+## What you see on screen
+
+The original document stays on the left, and what we read sits beside it. Each value shows how sure we are. If a value is wrong, change it, or point at the right place on the page and we remember it for next time. See [Senders](/help/senders).
+
+The outputs and what has been sent are on the same screen. Nothing leaves ProcuLink until the document is sent, either by you or by a flow set to **Automatic delivery**.
+
+## The five things to know
+
+- **Document:** one file that came in, with everything we read from it.
+- **Flow:** the setup for one kind of document.
+- **Output:** a file we make from a document, in the format you choose.
+- **Destination:** where an output goes.
+- **Lookup:** an optional list that swaps one value for another, such as your code for a customer's code. See [Lookups](/help/lookups).
+
+## Where to go next
+
+Start with [Set up your first flow](/help/guides/set-up-your-first-flow). To see what each status means, read [Documents and their statuses](/help/documents-and-statuses).

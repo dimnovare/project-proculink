@@ -10,6 +10,8 @@ import PricingPage from "@/app/(marketing)/pricing/page";
 import { collectLayoutProblems, isEmittedFormat } from "@/components/bridge/outputTreeProblems";
 import { CONFORMANCE_PROFILES } from "@/lib/api-client";
 import { PREVIEW_FORMATS, type OutputNodeTemplate } from "@/lib/api/types";
+import { GUIDES } from "@/lib/guides";
+import { HELP_ARTICLES } from "@/lib/help-articles";
 import { MINIMUM_PLAN, planIncludesCapability } from "@/lib/gatedCapabilities";
 import {
   DELIVERY_METHODS,
@@ -2323,6 +2325,12 @@ describe("no buyer-facing copy claims records are immutable, because nothing enf
  * capability in the call.
  */
 describe("a gated capability is never presented with no tier at all", () => {
+  const helpPage = (...segments: string[]) => join(process.cwd(), "src/app/(marketing)/help", ...segments, "page.mdx");
+  const DOCUMENT_HELP_PAGES = [
+    ...HELP_ARTICLES.map((a) => helpPage(a.slug)),
+    ...GUIDES.filter((g) => g.audience === "client" && g.status === "live").map((g) => helpPage("guides", g.slug)),
+  ];
+
   /**
    * Two files are outside this scan, and both for a reason, not for convenience. The list is
    * asserted below so it cannot quietly grow.
@@ -2363,13 +2371,12 @@ describe("a gated capability is never presented with no tier at all", () => {
     // which the relaunch dropped. Bounded to the one page.
     join(process.cwd(), "src/app/(marketing)/security/page.tsx"),
     // ── added 2026-11-12 with the relaunch help structure ──────────────────────
-    // The three guides that set up a document intake channel (SFTP / FTP server, S3 bucket, file
-    // API with webhooks). Document plans include every intake channel (copy C14, C23; spec §12),
-    // so their titles name no tier; the guides replace the per-tier order-ladder guides that used
-    // to sit here. Bounded to these pages: add a page only with the same reason.
-    join(process.cwd(), "src/app/(marketing)/help/guides/collect-from-a-server/page.mdx"),
-    join(process.cwd(), "src/app/(marketing)/help/guides/collect-from-s3/page.mdx"),
-    join(process.cwd(), "src/app/(marketing)/help/guides/send-documents-by-api/page.mdx"),
+    // Every page in the new help registries. The document engine has no plan gates: there is no
+    // `HasFeatureAsync` anywhere in the document services and controllers, the Trial is limited only
+    // by quota, and document plans have every feature but SSO (copy C14, C23; spec §12). So a help
+    // page naming a channel names no tier, and none could be true. Derived from the registries, so a
+    // new page joins by being registered, and a page nobody registered is not exempt.
+    ...DOCUMENT_HELP_PAGES,
   ];
 
   /**
@@ -2654,8 +2661,10 @@ describe("a gated capability is never presented with no tier at all", () => {
       capability: "cxml" as const,
       label: "cXML output",
       presents: presentsCxmlOutput,
-      reaches: [
-      ],
+      // Deliberately empty since the relaunch: cXML output is not built in the document engine, so no page
+      // presents it and none may (see NEVER_CLAIM). The floor for this row is its `mustFlag` set, not the
+      // walk. The row stays because the mirror-coverage test below needs every gate row to be decided.
+      reaches: [],
       mustFlag: ["ProcuLink parses inbound cXML orders and emits cXML output."],
       mustAllow: ["choices are CSV, XLSX, JSON, XML (cXML Index or vendor XML), and CIF (Ariba 3.0)."],
     },
@@ -2776,8 +2785,8 @@ describe("a gated capability is never presented with no tier at all", () => {
       // a strictly line-scoped read calls the honest sentence an offender.
       presents: (lines: string[], i: number) =>
         SELLS_ORG_WIDE_AUDIT(lines[i]) && !ORDER_SCOPED_AUDIT.test(lines[i + 1] ?? ""),
-      reaches: [
-      ],
+      // The Operations card on /pricing is the one place that still presents the org-wide log.
+      reaches: ["/src/lib/plans.ts"],
       mustFlag: [
         // The footer, on every marketing page and on `/`, and the homepage og:description.
         "                format your supplier needs — with a full audit trail.",
@@ -2810,8 +2819,7 @@ describe("a gated capability is never presented with no tier at all", () => {
       capability: "customSupplierRules" as const,
       label: "per-supplier validation rules",
       presents: (lines: string[], i: number) => SELLS_CONFIGURABLE_SUPPLIER_RULES(lines[i]),
-      reaches: [
-      ],
+      reaches: ["/src/lib/plans.ts"],
       mustFlag: ['    title: "Per-supplier validation",', "        Block bad orders before they reach the supplier. Configurable rules per"],
       mustAllow: ["Field mapping + built-in order checks", "They are not validated against a live ERP sandbox"],
     },
@@ -2853,8 +2861,13 @@ describe("a gated capability is never presented with no tier at all", () => {
       // Growth-gated webhook claim in the same sentence.
       const discloses = disclosesFor(capability);
 
-      const files = buyerFacingFiles().filter(({ file }) => !EXEMPT.some((e) => e.endsWith(file)));
-      expect(files.length, "the corpus must really be reading files").toBeGreaterThan(40);
+      // The walk's whole corpus, exempt pages included: the help pages are exempt now, so counting only the
+      // scanned remainder would fail a floor that is about the walk, not about the exemption.
+      expect(buyerFacingFiles().length, "the corpus must really be reading files").toBeGreaterThan(40);
+      expect(
+        buyerFacingFiles().filter(({ file }) => !EXEMPT.some((e) => e.endsWith(file))).length,
+        "the exemption must leave pages to scan",
+      ).toBeGreaterThan(20);
 
       const presenting = buyerFacingFiles().filter(({ lines }) => lines.some((_, i) => presents(lines, i)));
       const seen = presenting.map(({ file }) => file.replace(/\\/g, "/"));
@@ -3051,8 +3064,12 @@ describe("a gated capability is never presented with no tier at all", () => {
     expect(discloses("- **Operations → Log** — a date-grouped audit trail.", "cxml"), "nav label only").toBe(false);
   });
 
-  it("exempts exactly ten files, and says why in code rather than in a comment", () => {
-    expect(EXEMPT.map((f) => f.replace(process.cwd(), "").replace(/\\/g, "/"))).toEqual([
+  it("exempts the hand-listed files plus every registered help page, and says why in code rather than in a comment", () => {
+    const relative = (f: string) => f.replace(process.cwd(), "").replace(/\\/g, "/");
+    const derived = new Set(DOCUMENT_HELP_PAGES);
+    // The derived set must really be there: an empty registry walk would exempt nothing and prove nothing.
+    expect(derived.size).toBeGreaterThanOrEqual(HELP_ARTICLES.length);
+    expect(EXEMPT.filter((f) => !derived.has(f)).map(relative)).toEqual([
       "/src/lib/plans.ts",
       "/src/app/(marketing)/changelog/page.tsx",
       "/src/app/(marketing)/privacy/page.tsx",
@@ -3060,10 +3077,8 @@ describe("a gated capability is never presented with no tier at all", () => {
       "/src/app/(home)/page.tsx",
       "/src/app/(marketing)/how-it-works/page.tsx",
       "/src/app/(marketing)/security/page.tsx",
-      "/src/app/(marketing)/help/guides/collect-from-a-server/page.mdx",
-      "/src/app/(marketing)/help/guides/collect-from-s3/page.mdx",
-      "/src/app/(marketing)/help/guides/send-documents-by-api/page.mdx",
     ]);
+    expect(EXEMPT.filter((f) => derived.has(f))).toEqual([...derived]);
     // Both must really exist; an exemption for a moved file is an exemption for nothing.
     for (const file of EXEMPT) expect(() => readFileSync(file, "utf8")).not.toThrow();
   });

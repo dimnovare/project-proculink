@@ -6,4 +6,75 @@ export const metadata = guideMetadata({
   description: "Compare what we read with the original, fix anything wrong, and send the document on.",
 });
 
-Compare what we read with the original, fix anything wrong, and send the document on.
+import { Step, Prereqs, IfThisFails, Outcome } from "@/components/help/guide";
+
+<Prereqs>
+- A flow with at least one document in it. See [Set up your first flow](/help/guides/set-up-your-first-flow).
+- At least one output on the flow. Without one, there is nothing to send.
+</Prereqs>
+
+<Step n={1} title="Open a document that needs you">
+
+Open **Documents** and choose the **Needs you** filter. Select a file name to open the document. For what each status means, see [Documents and their statuses](/help/documents-and-statuses).
+
+<Outcome>
+The document opens with the original on the left, **What we read** in the middle and **Outputs** on the right.
+</Outcome>
+
+</Step>
+
+<Step n={2} title="Compare what we read with the original">
+
+Each value has a small note under it. It shows how sure we are, and where on the original the value was found, such as a page number or a cell. Hover over a value, or move to it with the keyboard, and its place is highlighted on the original.
+
+A value we could not find on the page says **Not found on the page**. Look at those first.
+
+Any flagged check appears as a message, with a reminder that checks never stop you sending. See [Checks](/help/checks).
+
+If you need more room, select **Hide original**.
+
+<Outcome>
+You know which values are right and which need a change.
+</Outcome>
+
+</Step>
+
+<Step n={3} title="Fix what is wrong">
+
+Select a value, type the right one, and press Enter or click away to save it. In a table, you can change any cell, add a row with **Add row**, or remove one with **Remove row**. Each change is saved at once, and the checks run again.
+
+A value you have corrected shows full confidence. To fix a value by pointing at the page instead, so we find it next time, see [Teach a value by pointing at the page](/help/guides/teach-a-value).
+
+<Outcome>
+The flagged checks go away as you fix what they pointed at.
+</Outcome>
+
+</Step>
+
+<Step n={4} title="Look at the outputs">
+
+Under **Outputs**, each output shows its file type and where it goes. Select **Preview** to see the exact file that will be sent. If an output uses a lookup and a value had no match, the preview lists the values with no match and lets you add one.
+
+<Outcome>
+You have seen the file that will be sent.
+</Outcome>
+
+</Step>
+
+<Step n={5} title="Send it">
+
+Select **Send**. If a value is still saving, Send waits for it, so the file always carries what you see on screen.
+
+Under **Deliveries**, each output shows its progress: **Waiting**, **Sending**, **Delivered**, **Ready to download**, **Will retry** or **Couldn't deliver**. An output with **Download** next to it has a file you can save.
+
+<Outcome>
+The document's status changes to **Sent**.
+</Outcome>
+
+<IfThisFails>
+- **Couldn't send.** Read the message under the delivery, fix the cause (for example the destination's address or sign-in), and press **Send** again. Outputs that were already delivered are not sent again.
+- **No output is set to send this document.** Check the **Send when** condition on the flow's outputs.
+- **Couldn't read.** Press **Try again** if it is offered. See [Troubleshooting](/help/troubleshooting).
+</IfThisFails>
+
+</Step>

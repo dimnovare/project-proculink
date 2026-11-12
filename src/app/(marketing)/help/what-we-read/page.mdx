@@ -9,3 +9,43 @@ export const metadata = helpArticleMetadata({
 # Files we read
 
 The kinds of files ProcuLink reads, and what to expect from each.
+
+## Files every flow reads
+
+- **PDF files with text in them.** If you can select the words on the page, we can read it.
+- **CSV files.**
+- **Excel files (.xlsx).**
+
+## Scans and photos
+
+We also read pages that are only a picture: photos or scans saved as PNG or JPG, and PDFs that have no text in them. We read the first 10 pages. If a file is longer, a check tells you the document was too long to read in full.
+
+For a picture, each value we read shows where on the page it was found. A value we could not find on the page is marked **Not found on the page**. Check those with extra care.
+
+## Other files
+
+We read Word documents (.docx), plain text (.txt), XML files and JSON files. A flow's Upload area lists exactly the types it accepts.
+
+For a Word file, the original opens as a download instead of on screen. You can still correct values by typing them, but you cannot point at the page. See [Teach a value by pointing at the page](/help/guides/teach-a-value).
+
+## Limits
+
+- A file can be up to 10 MB.
+- A file that is password-protected or damaged cannot be opened. Remove the password, or ask the sender for a fresh copy.
+- A file with a type we do not read is refused when you upload it, with a message.
+
+How files count towards your plan is in the [billing FAQ](/help/billing-faq).
+
+## What to expect
+
+We read every value and table we find, whatever the layout. You then choose which of them the flow keeps. See [Flows](/help/flows). Each value shows how sure we are:
+
+- 90% or more is green.
+- 75% to 89% is amber.
+- Below 75% is red.
+
+A required value we are not sure about is flagged for review. See [Checks](/help/checks).
+
+## If a file does not read
+
+Open the document to see why. Some reasons can be fixed and tried again. Others, such as a damaged file, need a new file. See [Troubleshooting](/help/troubleshooting).

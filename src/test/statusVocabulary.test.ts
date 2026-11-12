@@ -6,6 +6,7 @@ import { PROBLEM_COPY, PROBLEM_STATUSES } from "@/components/bridge/problem/prob
 import { TILES } from "@/app/(app)/operations/health/healthTiles";
 import { recentStatusFromOrder } from "@/components/bridge/UploadWorkbench";
 import { deliveryNote } from "@/components/bridge/ExceptionDetail";
+import { DOCUMENT_STATUSES } from "@/lib/documentStatusManifest";
 import { ROOT } from "./appRoutes";
 import { stripComments, syntaxFor } from "./sourceScan";
 
@@ -126,6 +127,7 @@ const RETIRED_LABELS: Array<{ phrase: string; re: RegExp; wasAt: string; nowUse:
 
 const HELP = "src/app/(marketing)/help";
 const ARTICLE_TROUBLESHOOTING = `${HELP}/troubleshooting/page.mdx`;
+const ARTICLE_DOCUMENT_STATUSES = `${HELP}/documents-and-statuses/page.mdx`;
 
 const readRaw = (rel: string) => readFileSync(join(ROOT, rel), "utf8");
 
@@ -419,5 +421,24 @@ describe("the retired vocabulary is gone from every surface that renders words",
       });
     }
     expect(hits, `"${phrase}" is retired — use "${nowUse}":\n${hits.join("\n")}`).toEqual([]);
+  });
+});
+
+describe("the statuses article teaches the labels the document screens render", () => {
+  // The article defines each status as a bold term at the start of a list item. A bold word elsewhere
+  // (a button name, say) is not a definition, so only that shape is read.
+  const taught = [...read(ARTICLE_DOCUMENT_STATUSES).matchAll(/^- \*\*(.+?)\*\*/gm)].map((m) => m[1]);
+  const shipped = Object.values(DOCUMENT_STATUSES).map((s) => s.label);
+
+  test("the walk really reads the article", () => {
+    expect(taught.length).toBeGreaterThanOrEqual(shipped.length);
+  });
+
+  test.each(taught)("%s is a status the product renders", (label) => {
+    expect(shipped, `"${label}" is not in DOCUMENT_STATUSES`).toContain(label);
+  });
+
+  test.each(shipped)("%s is taught by the article", (label) => {
+    expect(taught, `the article never defines "${label}"`).toContain(label);
   });
 });

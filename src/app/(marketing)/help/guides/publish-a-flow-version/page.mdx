@@ -6,4 +6,75 @@ export const metadata = guideMetadata({
   description: "Change a flow, publish the new version, and restore an earlier one if you need to.",
 });
 
-Change a flow, publish the new version, and restore an earlier one if you need to.
+import { Step, Prereqs, IfThisFails, Outcome } from "@/components/help/guide";
+
+<Prereqs>
+- A workspace admin account. Publishing and restoring are for admins.
+- A flow you want to change. See [Flows](/help/flows) for what a version holds.
+</Prereqs>
+
+<Step n={1} title="Change the flow">
+
+Change the fields on the **Fields** tab, or add and edit outputs on the **Outputs** tab. Documents that are already running keep using the live version, so your changes do not disturb them.
+
+A bar at the top of the flow tells you where you stand:
+
+- Before the first publish: "Changes to this flow apply straight away until you publish it."
+- After: it says you have changes that aren't live yet, and which version new work still uses.
+
+<Outcome>
+The bar offers **Publish changes** and **Discard changes**.
+</Outcome>
+
+</Step>
+
+<Step n={2} title="Publish">
+
+Select **Publish changes**. The bar then says the version is live. New documents are read with it, and documents still waiting for review are checked again against it.
+
+<Outcome>
+A new version appears at the top of the **Versions** tab, marked **Live**.
+</Outcome>
+
+<IfThisFails>
+- **There are no changes to publish.** The flow already matches its live version.
+- **Someone else published this flow just now.** Reload to see the latest version, then make your change again if it is gone.
+</IfThisFails>
+
+</Step>
+
+<Step n={3} title="Discard changes you do not want">
+
+Select **Discard changes** and confirm. The flow goes back to the live version. This cannot be undone.
+
+<Outcome>
+The bar disappears, because nothing is waiting to be published.
+</Outcome>
+
+</Step>
+
+<Step n={4} title="Restore an earlier version">
+
+Open the **Versions** tab. Each version shows when it was published and by whom. Select **Restore** beside the one you want, and confirm.
+
+Restoring does not make it live. It replaces your unpublished changes with that version. Check the flow, then select **Publish changes** to make it live as a new version.
+
+<Outcome>
+A message says the version is back in your changes and tells you to publish it.
+</Outcome>
+
+<IfThisFails>
+A version cannot be restored if it sends to a destination, or uses a lookup, that has since been deleted. Change the flow by hand instead.
+</IfThisFails>
+
+</Step>
+
+<Step n={5} title="See which version a document used">
+
+Open any document. It says which version it was processed with.
+
+<Outcome>
+You can tell which setup produced a document.
+</Outcome>
+
+</Step>
