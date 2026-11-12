@@ -148,7 +148,7 @@ describe("a workspace the server has stopped is told so, on the control it block
 
     // The frozen string this replaces. It was the ONLY read-only sentence in the build,
     // so every blocked workspace — Growth, Operations, Distributor — would have read it.
-    expect(panel.queryByText(/Pilot has ended/i)).toBeNull();
+    expect(panel.queryByText(/trial has ended/i)).toBeNull();
   });
 
   it("names a lapsed trial as a lapsed trial", async () => {

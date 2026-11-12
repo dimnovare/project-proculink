@@ -108,6 +108,6 @@ describe("/pricing pilot-stage copy", () => {
       /Apply for a FREE supported pilot/.test(a.textContent ?? ""),
     );
     expect(link, "Pilot card link to /pilot").toBeTruthy();
-    expect(within(container).getByRole("link", { name: /Start your FREE Pilot/ })).toBeTruthy();
+    expect(within(container).getByRole("link", { name: new RegExp(PLAN_BY_ID.pilot.cta.label) })).toBeTruthy();
   });
 });

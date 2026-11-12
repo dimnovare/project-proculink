@@ -292,7 +292,7 @@ export function ROICalculator() {
       ? { label: "Contact sales →", href: plan.cta.href }
       : netPositive
         ? { label: `Start with ${plan.name} →`, href: "/sign-up" }
-        : { label: "Start with the free Pilot →", href: "/sign-up" };
+        : { label: `Start with the free ${PLAN_BY_ID.pilot.name} →`, href: "/sign-up" };
 
     return {
       manualCost,
@@ -594,7 +594,7 @@ export function ROICalculator() {
                         lineHeight: 1.1,
                       }}
                     >
-                      {calc.netPositive || calc.plan.isCustom ? calc.plan.name : "Pilot"}
+                      {calc.netPositive || calc.plan.isCustom ? calc.plan.name : PLAN_BY_ID.pilot.name}
                     </div>
                   </div>
                   <div style={{ fontSize: 13, color: "#C5D2E4", whiteSpace: "nowrap" }}>

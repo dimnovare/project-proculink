@@ -96,6 +96,8 @@ const PLAN_META = Object.fromEntries(
 ) as Record<BillingPlan, { label: string; price: string; sub: string; color: string; next?: BillingPlan }>;
 
 const CHECKOUT_PLANS: BillingPlan[] = CHECKOUT_PLAN_IDS;
+// Lowercase: it is read mid-sentence ("Your trial has ended.").
+const TRIAL_NAME = PLAN_BY_ID.pilot.name.toLowerCase();
 
 // Gradient usage bar matching canonical: var(--gradient-link-spine)
 function UsageBar({ used, limit, label }: { used: number; limit: number; label: string }) {
@@ -313,8 +315,8 @@ function LimitBanner({ status, documentLadder }: { status: BillingStatus; docume
   if (status.plan === "pilot" && status.isTrialExpired) {
     return (
       <div style={bannerStyle}>
-        <strong>Your Pilot has ended.</strong>
-        <span>You can still view previous orders and mappings, but new order processing is paused.</span>
+        <strong>Your {TRIAL_NAME} has ended.</strong>
+        <span>You can still view previous documents, but new processing is paused.</span>
       </div>
     );
   }
@@ -329,7 +331,7 @@ function LimitBanner({ status, documentLadder }: { status: BillingStatus; docume
   if (status.plan === "pilot" && status.isOrderLimitReached) {
     return (
       <div style={bannerStyle}>
-        <strong>You&apos;ve used all {status.orderLimit.toLocaleString(NUMBER_LOCALE)} Pilot documents.</strong>
+        <strong>You&apos;ve used all {status.orderLimit.toLocaleString(NUMBER_LOCALE)} {TRIAL_NAME} documents.</strong>
         <span>{upgradeSentence(status.plan, "continue processing new documents", documentLadder)}</span>
       </div>
     );
@@ -462,10 +464,12 @@ function PlanCard({ status, action }: { status: BillingStatus; action?: React.Re
   const isExpired = status.plan === "pilot" && status.isTrialExpired;
   const isPaused = isProcessingPaused(status);
   const displayLabel = isExpired
-    ? "Pilot ended · Processing paused"
+    ? `${meta.label} ended · Processing paused`
     : isPaused
       ? `${meta.label} · Processing paused`
-      : meta.label;
+      : status.plan === "pilot"
+        ? `${meta.label} · ${PLAN_BY_ID.pilot.priceCadence}`
+        : meta.label;
   // Expired pilot uses amber tint; an active plan uses the buyer-blue soft tint
   // (sampled var(--brand-blue-soft)) with a buyer-blue price — matches the design render.
   // --amber-text, not --amber: `accent` is the PRICE text below, and --amber on
@@ -689,7 +693,7 @@ export function BillingSection() {
             <UsageBar
               used={status.ordersThisMonth}
               limit={status.orderLimit}
-              label={isPilot ? "Documents (Pilot total)" : "Documents this month"}
+              label={isPilot ? `Documents (${TRIAL_NAME} total)` : "Documents this month"}
             />
             <UsageBar
               used={status.suppliersUsed}
@@ -708,7 +712,7 @@ export function BillingSection() {
             <strong style={{ color: "var(--ink)" }}>{documentLadder ? "Upgrade when this is ready for daily use." : "Upgrade when this is ready for daily orders."}</strong>{" "}
             {documentLadder
               ? "Every paid plan includes every channel, output and check. Plans differ by documents per month and number of flows."
-              : "Growth keeps the same workflow but raises your monthly document allowance, adds more suppliers, and keeps processing open after the Pilot window ends."}
+              : "Growth keeps the same workflow but raises your monthly document allowance, adds more suppliers, and keeps processing open after the {TRIAL_NAME} ends."}
           </div>
           <IntervalToggle value={checkoutInterval} onChange={setCheckoutInterval} disabled={checkoutMutation.isPending} />
           <button

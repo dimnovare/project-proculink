@@ -1796,7 +1796,7 @@ describe("every pricing-card bullet is accounted for by something real", () => {
  */
 describe("a dearer tier never appears to include less than a cheaper one", () => {
   /** The ladder as the pricing page renders it, cheapest first. */
-  const ladder = PLANS.filter((p) => !p.hidden);
+  const ladder = PLANS; // pilot + legacy + enterprise: the cards these guards were written against
 
   /** Which gated capabilities a tier's card communicates, inherited bullets included. */
   const communicates = (plan: Plan): string[] =>
@@ -3119,12 +3119,15 @@ describe("a gated capability is never presented with no tier at all", () => {
  * neighbours, cannot come back silently.
  */
 describe("the free tier is never described as sufficient for a flow it cannot finish", () => {
-  const FREE_TIER = PLANS[0].name; // "Pilot" — derived, so renaming the tier moves this with it.
+  const FREE_TIER = PLANS[0].name; // derived, so renaming the tier moves this with it.
+  // Help pages still say "Pilot" until the relaunch rewrites them; keyed to the new name alone the guard
+  // would go blind to the old one, so both are matched.
+  const FREE_TIER_RE = `(?:${FREE_TIER}|Pilot)`;
 
   const SUFFICIENCY = String.raw`(?:is enough|is all you need|covers everything|enough for all|does everything)`;
   const CLAIMS_PILOT_SUFFICES = new RegExp(
-    String.raw`\b${FREE_TIER}\b[^.\n]{0,60}?\b${SUFFICIENCY}\b` +
-      String.raw`|\b(?:everything|the whole|all of) (?:here|this|of it)[^.\n]{0,40}?\bon ${FREE_TIER}\b`,
+    String.raw`\b${FREE_TIER_RE}\b[^.\n]{0,60}?\b${SUFFICIENCY}\b` +
+      String.raw`|\b(?:everything|the whole|all of) (?:here|this|of it)[^.\n]{0,40}?\bon ${FREE_TIER_RE}\b`,
     "i",
   );
 

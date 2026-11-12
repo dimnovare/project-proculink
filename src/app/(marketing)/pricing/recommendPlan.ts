@@ -43,7 +43,7 @@ import {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Self-serve paid tiers, cheapest first — the tiers a visitor can buy without talking to us. */
-export const SELF_SERVE_TIERS: Plan[] = PLANS.filter((p) => p.isCheckout && !p.hidden);
+export const SELF_SERVE_TIERS: Plan[] = PLANS.filter((p) => p.isCheckout);
 
 /** The largest supplier allowance any self-serve tier includes. Above it, only Enterprise fits. */
 export const MAX_SELF_SERVE_SUPPLIERS: number = Math.max(

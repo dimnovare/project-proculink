@@ -5,7 +5,7 @@
 // is pinned by the other BillingSection.*.test.tsx files, which never report the engine on.
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, within, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, cleanup, within, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { BillingStatus } from "@/types/procurement";
 
@@ -28,6 +28,7 @@ vi.mock("@/hooks/useDocumentEngine", () => ({
 }));
 
 import { BillingSection } from "./BillingSection";
+import { PLAN_BY_ID } from "@/lib/plans";
 
 function billing(over: Partial<BillingStatus> = {}): BillingStatus {
   return {
@@ -110,5 +111,38 @@ describe("BillingSection on the document ladder", () => {
     const view = await renderWith(billing());
 
     expect((view.getByRole("button", { name: "Upgrade to Growth" }) as HTMLButtonElement).disabled).toBe(true);
+  });
+});
+
+describe("the trial is called by its plan name, never by its wire id", () => {
+  const trial = PLAN_BY_ID.pilot.name;
+  const trialWord = trial.toLowerCase();
+
+  it("reads the trial name in every trial state and says Pilot nowhere", async () => {
+    const states = [
+      { over: {}, expected: [`${trial} · ${PLAN_BY_ID.pilot.priceCadence}`, `Documents (${trialWord} total)`] },
+      {
+        over: { accountStatus: "trial_expired", isTrialExpired: true, canProcessOrders: false } as Partial<BillingStatus>,
+        expected: [`${trial} ended · Processing paused`, `Your ${trialWord} has ended.`],
+      },
+      {
+        over: { ordersThisMonth: 20, orderLimit: 20, isOrderLimitReached: true, atLimit: true } as Partial<BillingStatus>,
+        expected: [`You've used all 20 ${trialWord} documents.`],
+      },
+    ];
+    for (const { over, expected } of states) {
+      const view = await renderWith(billing(over));
+      const text = document.body.textContent ?? "";
+      expected.forEach((s) => expect(text, s).toContain(s));
+      expect(view.queryByText(/Pilot/)).toBeNull();
+      cleanup();
+    }
+  });
+
+  it("a Growth workspace still names Growth and its price", async () => {
+    const growth = PLAN_BY_ID.growth;
+    const view = await renderWith(billing({ plan: "growth", accountStatus: "active" }));
+    expect(view.getAllByText(growth.name).length).toBeGreaterThan(0);
+    expect(view.getByText(growth.billingPriceLabel)).toBeTruthy();
   });
 });

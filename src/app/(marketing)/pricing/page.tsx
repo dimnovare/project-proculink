@@ -9,6 +9,7 @@ import {
   PLAN_BY_ID,
   SETUP_FEE_NOTE,
   inheritanceLine,
+  LEGACY_PAID_PLANS,
   planEffectiveMonthlyCost,
   recommendPlanByOrders,
   VOLUME_SLIDER_MAX,
@@ -78,7 +79,9 @@ const SETUP_NOTE: Record<string, string> = {
   enterprise: "Custom onboarding",
 };
 
-const ALL_TIERS = PLANS.filter((p) => !p.hidden).map((p) => ({
+// Legacy plans stay on the page until plan 12b Task 2 swaps it to PUBLIC_LADDER.
+const ALL_TIERS_SRC = PLANS.filter((p) => !p.hidden || LEGACY_PAID_PLANS.some((l) => l.id === p.id));
+const ALL_TIERS = ALL_TIERS_SRC.map((p) => ({
   id: p.id,
   name: p.name,
   price: p.priceLabel,

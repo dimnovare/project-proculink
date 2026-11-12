@@ -40,6 +40,7 @@ import { PracticeOrderPrompt } from "./PracticeOrderPrompt";
 import { ACCEPTED_UPLOAD_FORMATS, hasAcceptedUploadExtension, isClearlyUnsupportedDragType, uploadFileKind } from "@/lib/upload-formats";
 import { serverReasonOrNull } from "@/lib/serverText";
 import { formatDate } from "@/lib/format-date";
+import { PLAN_BY_ID } from "@/lib/plans";
 
 // ── Format-detection chip: what to say when there is no score ────────────────
 //
@@ -1081,7 +1082,7 @@ export function UploadWorkbench() {
             }}
           >
             <p style={{ margin: 0, fontSize: 13.5, color: "#3D4A5C" }}>
-              On Pilot? Get a guided walkthrough with the team — on your own sample order.
+              On {PLAN_BY_ID.pilot.name}? Get a guided walkthrough with the team — on your own sample order.
             </p>
             <a
               href={BOOK_DEMO_URL}
@@ -1249,7 +1250,7 @@ export function UploadWorkbench() {
               className="px-5 py-2 text-[11.5px]"
               style={{ background: "#FAFBFD", borderBottom: "1px solid #EEF0F4", color: "#5E6779" }}
             >
-              Pilot ends {formatDate(billing.trialEndsAt)}.
+              {PLAN_BY_ID.pilot.name} ends {formatDate(billing.trialEndsAt)}.
             </div>
           )}
           {billingError && !billing && (

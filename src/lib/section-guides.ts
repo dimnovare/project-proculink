@@ -1,3 +1,5 @@
+import { PLAN_BY_ID } from "@/lib/plans";
+
 // section-guides — "what is this screen" registry + pure helpers.
 //
 // One entry per in-app sidebar screen. HelpSlideover (opened from the topbar
@@ -137,7 +139,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       { text: "See each {supplier}'s format, channel, and delivery mode" },
       { text: "Open a row to set up mapping, catalog, and delivery" },
       { text: "Jump to a {supplier}'s versioned connection once one exists" },
-      { text: "Plan limits apply — Pilot includes one {supplier}", href: "/settings?tab=billing" },
+      { text: `Plan limits apply — ${PLAN_BY_ID.pilot.name} includes one {supplier}`, href: "/settings?tab=billing" },
     ],
     firstStep: { text: "Click \"New {supplier}\" and enter a name — mapping, catalog, and delivery are configured afterwards on the detail page." },
     articleSlugs: ["managing-suppliers", "delivery-setup", "item-codes"],
