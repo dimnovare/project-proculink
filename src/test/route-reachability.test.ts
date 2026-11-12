@@ -494,11 +494,14 @@ export function collectLinkTargets(): LinkTarget[] {
   // 1 + 2 — the nav registries, read through their exports so launch-flag
   // filtering is respected. isAdmin: true because admins are real users and the
   // /admin route is genuinely reachable for them.
-  const nav = buildVisibleNav("Suppliers", true, true);
-  for (const section of nav.main) {
-    for (const item of section.items) targets.push({ path: item.href, kind: "nav", source: "<BridgeSidebar nav>" });
+  // Both variants: the legacy nav (engine off) and the new product nav (engine on).
+  const navs = [buildVisibleNav("Suppliers", true, false), buildVisibleNav("Suppliers", true, true)];
+  for (const nav of navs) {
+    for (const section of nav.main) {
+      for (const item of section.items) targets.push({ path: item.href, kind: "nav", source: "<BridgeSidebar nav>" });
+    }
   }
-  for (const item of nav.tail) targets.push({ path: item.href, kind: "nav", source: "<BridgeSidebar nav>" });
+  for (const item of navs[0].tail) targets.push({ path: item.href, kind: "nav", source: "<BridgeSidebar nav>" });
   targets.push({ path: PINNED_ACTION_HREF, kind: "nav", source: "<BridgeSidebar pinned action>" });
 
   // HUB_TABS goes through visibleHubTabs() — THE REGISTRY RULE, which this guard
@@ -1382,9 +1385,11 @@ describe("route reachability (plan rule R1 — no new surface without a consumer
     // invariant over whatever the registry currently holds, so re-introducing a
     // `match`-only entry cannot smuggle in a phantom target.
     const tabs = Object.values(HUB_TABS).flat();
+    // /documents is a match-only alias AND the engine nav's Documents item, so a real nav href is exempt.
+    const navHrefs = new Set(TARGETS.filter((t) => t.kind === "nav").map((t) => t.path));
     const hubMatchOnly = tabs
       .flatMap((t) => t.match ?? [])
-      .filter((m) => !tabs.some((t) => t.href === m));
+      .filter((m) => !tabs.some((t) => t.href === m) && !navHrefs.has(m));
     for (const m of hubMatchOnly) expect(paths.has(m)).toBe(false);
     expect(paths.has("/library/suppliers")).toBe(true); // a real tab href
   });

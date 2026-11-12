@@ -3,6 +3,7 @@ Allow: /
 Disallow: /bridge
 Disallow: /inbox
 Disallow: /documents
+Disallow: /archive
 Disallow: /upload
 Disallow: /drafts
 Disallow: /library
@@ -18,6 +19,7 @@ Allow: /
 Disallow: /bridge
 Disallow: /inbox
 Disallow: /documents
+Disallow: /archive
 Disallow: /upload
 Disallow: /drafts
 Disallow: /library
@@ -39,6 +41,7 @@ Allow: /
 Disallow: /bridge
 Disallow: /inbox
 Disallow: /documents
+Disallow: /archive
 Disallow: /upload
 Disallow: /drafts
 Disallow: /library

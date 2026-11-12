@@ -9,15 +9,16 @@ import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
  *  counts as stale, so without `refetchOnWindowFocus: false` a 403 would re-hit the server on every focus. */
 export const flowsQuery = {
   queryKey: ["flows"],
-  queryFn: listFlows,
+  queryFn: () => listFlows(),
   retry: (n: number, e: unknown) => refusalToken(e) !== "document_engine_not_enabled" && n < 2,
   staleTime: 300_000,
   refetchOnWindowFocus: false,
 } as const;
 
-/** "off" only on the server's explicit refusal; loading or any other failure is "unknown". */
+/** "off" only on the server's explicit refusal; data in hand is "on" even if a later refetch fails;
+ *  loading or any other failure with no data is "unknown". */
 export function useDocumentEngine(): "on" | "off" | "unknown" {
-  const { isSuccess, error } = useQuery({ ...flowsQuery, enabled: useTenantQueriesEnabled() });
-  if (isSuccess) return "on";
-  return refusalToken(error) === "document_engine_not_enabled" ? "off" : "unknown";
+  const { data, error } = useQuery({ ...flowsQuery, enabled: useTenantQueriesEnabled() });
+  if (refusalToken(error) === "document_engine_not_enabled") return "off";
+  return data ? "on" : "unknown";
 }

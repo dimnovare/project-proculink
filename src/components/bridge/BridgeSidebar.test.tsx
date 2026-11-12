@@ -437,3 +437,22 @@ describe("buildVisibleNav — gates", () => {
     expect(suppliers?.hub).toBe("suppliers");
   });
 });
+
+describe("buildVisibleNav — document engine", () => {
+  it("on: the five new-product items, in order", () => {
+    const items = buildVisibleNav("Suppliers", false, true).main[0].items;
+    expect(items.map((i) => [i.label, i.href])).toEqual([
+      ["Documents", "/documents"],
+      ["Flows", "/flows"],
+      ["Lookups", "/lookups"],
+      ["Activity", "/operations/log"],
+      ["Settings", "/settings"],
+    ]);
+    expect(items.some((i) => i.hub || i.badgeKey)).toBe(false);
+  });
+
+  it("off: today's list, without Flows or Lookups", () => {
+    const labels = buildVisibleNav("Suppliers", false, false).main[0].items.map((i) => i.label);
+    expect(labels).toEqual(["Documents", "Suppliers", "Activity", "Settings"]);
+  });
+});

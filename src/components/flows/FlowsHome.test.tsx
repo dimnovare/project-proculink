@@ -30,6 +30,17 @@ describe("FlowsHome", () => {
     expect(screen.queryByText("Set up your first flow")).toBeNull();
   });
 
+  it("no longer carries the recent-documents section", async () => {
+    listFlows.mockResolvedValue([]);
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <FlowsHome />
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByText("Set up your first flow")).toBeTruthy();
+    expect(screen.queryByRole("region", { name: "Recent documents" })).toBeNull();
+  });
+
   it("shows the Flows menu item only when the engine is on", () => {
     expect(hasFlows(false)).toBe(false);
     expect(hasFlows(true)).toBe(true);

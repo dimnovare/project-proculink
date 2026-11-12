@@ -533,7 +533,7 @@ function scanTerms() {
  * (Record<Key, string> maps such as HUB_LABELS).
  */
 const NOUN_REGISTRIES = [
-  { file: "src/components/bridge/BridgeSidebar.tsx", blocks: ["NAV_MAIN", "NAV_TAIL"] },
+  { file: "src/components/bridge/BridgeSidebar.tsx", blocks: ["NAV_MAIN", "ENGINE_NAV_MAIN", "NAV_TAIL"] },
   { file: "src/components/bridge/layout/HubTabs.tsx", blocks: ["HUB_TABS"] },
   { file: "src/components/bridge/layout/HubTabs.tsx", blocks: ["HUB_LABELS"], valueLabels: true },
   { file: "src/components/bridge/SupplierDockProfile.tsx", blocks: ["TABS"] },

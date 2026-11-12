@@ -51,6 +51,7 @@ vi.mock("@/lib/reload", () => ({ reloadPage: () => {} }));
 vi.mock("@/mocks/MSWProvider", () => ({
   MSWProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
+vi.mock("@/components/bridge/EngineRouteRedirect", () => ({ EngineRouteRedirect: () => null }));
 vi.mock("@/components/bridge/BridgeTopbar", () => ({
   BridgeTopbar: () => <div>topbar</div>,
 }));

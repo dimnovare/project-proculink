@@ -107,8 +107,9 @@ function redirects(): Redirect[] {
 /** `/orders/:id` → `/orders/sample-id`, so a redirect can be checked concretely. */
 const concrete = (p: string) => p.replace(/:[^/*]+\*?/g, "sample-id");
 
-const NAV = buildVisibleNav("Suppliers", true, true);
-const NAV_ITEMS = [...NAV.main.flatMap((s) => s.items), ...NAV.tail];
+// Both variants: the legacy nav (engine off) and the new product nav (engine on).
+const NAVS = [buildVisibleNav("Suppliers", true, false), buildVisibleNav("Suppliers", true, true)];
+const NAV_ITEMS = NAVS.flatMap((n) => [...n.main.flatMap((s) => s.items), ...n.tail]);
 const HUBS = Object.keys(HUB_TABS) as HubKey[];
 
 /** The nav's own reachability rule, applied to any pathname. */
@@ -139,7 +140,9 @@ describe("nav routes resolve — nothing 404s, nothing is stranded", () => {
   });
 
   it("reaches every page that exists on disk from the four-item nav", () => {
-    const unreachable = appRoutes().filter((r) => !reachableFromNav(r));
+    // /archive is linked from Documents (when old orders exist), not from the nav; route-reachability.test.ts
+    // pins that link.
+    const unreachable = appRoutes().filter((r) => !reachableFromNav(r) && !r.startsWith("/archive"));
     expect(unreachable, "every (app) route must be reachable from the nav").toEqual([]);
   });
 
@@ -158,6 +161,13 @@ describe("nav routes resolve — nothing 404s, nothing is stranded", () => {
       (href) => !pageExistsFor(href) && !redirected.has(href),
     );
     expect(dead, "a nav destination with no page and no redirect is a 404").toEqual([]);
+  });
+
+  it("never redirects away a path that has its own page", () => {
+    // Next applies redirects before routing, so a redirect on a path with a page hides that page.
+    // /documents kept a 308 to /inbox from the invoice work, and the new Documents page behind it was unreachable.
+    const shadowed = redirects().map((r) => r.source).filter((s) => pageExistsFor(concrete(s)));
+    expect(shadowed, "a redirect on a path that has a page makes the page unreachable").toEqual([]);
   });
 
   it("keeps every permanent redirect landing on a live page the new nav can reach", () => {

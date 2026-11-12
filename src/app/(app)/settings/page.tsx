@@ -31,6 +31,7 @@ import {
 } from "@/lib/api-client";
 import type { EmailSettings, UpdateEmailSettingsPayload, OrderDirection } from "@/types/procurement";
 import type { ApiKey, IntegrationSubscription } from "@/lib/api-client";
+import { useDocumentEngine } from "@/hooks/useDocumentEngine";
 import { useTabParamSync } from "@/lib/tab-param-sync";
 import { INTEGRATION_EVENT_LABELS } from "@/lib/integrationEventManifest";
 import { isOrgAdminRefusal, orgAdminMessage } from "@/lib/planGate";
@@ -63,6 +64,9 @@ const TABS: Array<{ id: SettingsTab; label: string; Icon: React.ElementType }> =
   { id: "connectors", label: "Notifications",              Icon: Plug       },
 ];
 
+// Legacy order intake: for orgs on the document engine, intake lives in flows.
+const ENGINE_HIDDEN_TABS: SettingsTab[] = ["email", "sftp", "s3"];
+
 // The plan label is DERIVED from the ladder in src/lib/plans.ts. This file used to keep
 // its own `PLAN_LABELS` map, and it listed five of the six tiers — Distributor, a live
 // self-serve tier with live Stripe prices, was missing. The lookup fell through to
@@ -85,6 +89,10 @@ export default function SettingsPage() {
   // must also switch tabs; manual tab clicks don't write the URL back, so the
   // sync fires only when the param VALUE itself changes.
   useTabParamSync<SettingsTab>(requestedTab, isSettingsTab, setTab);
+  // A hidden tab named by ?tab= renders Workspace; the URL is left as it is.
+  const engineOn = useDocumentEngine() === "on";
+  const tabs = engineOn ? TABS.filter((t) => !ENGINE_HIDDEN_TABS.includes(t.id)) : TABS;
+  const shownTab = tabs.some((t) => t.id === tab) ? tab : "org";
   const { organization } = useOrganization();
   const { data: billing, isError: billingFailed } = useQuery({ queryKey: ["billing-status"], queryFn: getBillingStatus, staleTime: 60_000 });
   const orgName   = organization?.name ?? "…";
@@ -106,8 +114,8 @@ export default function SettingsPage() {
           <nav
             className="settings-nav flex w-full overflow-x-auto gap-1 md:flex-col md:overflow-visible md:gap-1"
           >
-            {TABS.map((t) => {
-              const active = tab === t.id;
+            {tabs.map((t) => {
+              const active = shownTab === t.id;
               return (
                 <button
                   key={t.id}
@@ -134,13 +142,13 @@ export default function SettingsPage() {
 
           {/* Content */}
           <div style={{ minWidth: 0 }}>
-            {tab === "org"        && <OrgSection />}
-            {tab === "billing"    && <BillingSectionWrapper />}
-            {tab === "email"      && <EmailSettingsSection />}
-            {tab === "sftp"       && <SftpPullSettings />}
-            {tab === "s3"         && <S3PullSettings />}
-            {tab === "api"        && <ApiKeysSection />}
-            {tab === "connectors" && <ConnectorsSection />}
+            {shownTab === "org"        && <OrgSection />}
+            {shownTab === "billing"    && <BillingSectionWrapper />}
+            {shownTab === "email"      && <EmailSettingsSection />}
+            {shownTab === "sftp"       && <SftpPullSettings />}
+            {shownTab === "s3"         && <S3PullSettings />}
+            {shownTab === "api"        && <ApiKeysSection />}
+            {shownTab === "connectors" && <ConnectorsSection />}
           </div>
         </div>
 
@@ -1210,6 +1218,7 @@ function IngressEndpointRow({ slug }: { slug: string | undefined }) {
 // ── API Keys Section ──────────────────────────────────────────────────────
 
 function ApiKeysSection() {
+  const engineOn = useDocumentEngine() === "on";
   const qc = useQueryClient();
   const [newLabel, setNewLabel]   = useState("");
   const [newKey, setNewKey]       = useState<string | null>(null);
@@ -1296,10 +1305,10 @@ function ApiKeysSection() {
       <SettingsGroup title="API keys" sub="Authenticate the ProcuLink REST API. Each key is shown once at creation.">
 
         {/* Where to send orders — slug + endpoint + auth header */}
-        <IngressEndpointRow slug={orgSettings?.slug} />
+        {!engineOn && <IngressEndpointRow slug={orgSettings?.slug} />}
 
         {/* Where to email orders — the org's issued addresses (CF MX → Postmark → parse) */}
-        <InboundAddressSection />
+        {!engineOn && <InboundAddressSection />}
 
         {/* One-time API key reveal — a focus-trapped modal (Esc / ✕ / backdrop close).
             The secret is shown ONCE and cannot be retrieved again after dismissal. */}

@@ -15,6 +15,7 @@ import { useDialogA11y } from "@/hooks/useDialogA11y";
 import { useQueryClient } from "@tanstack/react-query";
 import { apiClient, updateOrgSettings, isApiMockMode } from "@/lib/api-client";
 import { capture } from "@/lib/analytics";
+import { ORDERS_RETIRED_MESSAGE, refusalToken } from "@/lib/documentRefusals";
 import { captureException } from "@/lib/sentry-context";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 import { invalidateOnboardingStatus } from "@/hooks/useOnboardingStatus";
@@ -527,7 +528,11 @@ export function OnboardingWizard({ onDismiss }: OnboardingWizardProps) {
       onDismiss();
       router.push(`/inbox/${encodeURIComponent(order.id)}`);
     } catch (e) {
-      setUploadError(e instanceof Error && e.message ? e.message : "Could not upload that file.");
+      setUploadError(
+        refusalToken(e) === "orders_retired"
+          ? ORDERS_RETIRED_MESSAGE
+          : e instanceof Error && e.message ? e.message : "Could not upload that file.",
+      );
       setUploading(false);
     }
   }

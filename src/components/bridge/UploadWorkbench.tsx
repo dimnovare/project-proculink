@@ -7,6 +7,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { ORDERS_RETIRED_MESSAGE, refusalToken } from "@/lib/documentRefusals";
 import { FileChip } from "./FileChip";
 import { Card } from "./layout/Card";
 import { PageHeader } from "./layout/PageHeader";
@@ -769,6 +770,8 @@ export function UploadWorkbench() {
         // 60000ms"), and /settings is the honest destination for exactly one
         // cause (a plan refusal) out of the several that land here.
         setUploadError(describeUploadFailure(error, selectedFile.name));
+        // Re-run the engine probe so /upload swaps to the flow picker.
+        if (refusalToken(error) === "orders_retired") void queryClient.invalidateQueries({ queryKey: ["flows"] });
       }
       setUploading(false);
       return;
@@ -934,6 +937,7 @@ export function UploadWorkbench() {
         // after 60000ms" in a list a purchasing coordinator reads. Same
         // classification, short form.
         const message = describeUploadFailure(error, file.name).title;
+        if (refusalToken(error) === "orders_retired") void queryClient.invalidateQueries({ queryKey: ["flows"] });
         setBatchResults((prev) => prev.map((r, idx) => (idx === i ? { ...r, status: "failed", error: message } : r)));
         // A per-file failure does NOT abort the rest — keep going so one bad file doesn't sink the batch.
       }
@@ -1764,12 +1768,14 @@ export function UploadWorkbench() {
                           {uploading ? "Sending…" : "Try again"}
                         </button>
                       )}
-                      <a
-                        href={ctaHref}
-                        style={{ fontWeight: 600, color: "#8A5310", textDecoration: "none", whiteSpace: "nowrap" }}
-                      >
-                        {uploadError.cta} →
-                      </a>
+                      {uploadError.cta && (
+                        <a
+                          href={ctaHref}
+                          style={{ fontWeight: 600, color: "#8A5310", textDecoration: "none", whiteSpace: "nowrap" }}
+                        >
+                          {uploadError.cta} →
+                        </a>
+                      )}
                     </span>
                   );
                 })()}
@@ -2372,6 +2378,11 @@ export function describeUploadFailure(error: unknown, fileName: string): UploadE
       cta: "Read the fixes",
       href: "/help/troubleshooting",
     };
+  }
+
+  // The engine is on for this workspace: the legacy upload is retired, and there is no guide to link.
+  if (refusalToken(error) === "orders_retired") {
+    return { code: "orders_retired", title: ORDERS_RETIRED_MESSAGE, message: "", cta: "" };
   }
 
   const failure = classifyApiFailure(error);

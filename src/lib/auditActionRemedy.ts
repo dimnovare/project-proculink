@@ -120,6 +120,12 @@ const REMEDY_BY_ACTION: Record<string, ActionRemedy> = {
       "Upgrade the plan, then ask the sender to resend. Emails are retried for about ten hours, so " +
       "an upgrade inside that window lands this order without a resend.",
   },
+  "inbound_email.rejected_orders_retired": {
+    reach: "before_send",
+    next:
+      "This workspace now receives documents through flows. Send the document to the flow's email address, " +
+      "or upload it. The email was not turned into an order.",
+  },
   "inbound_email.unrouted_no_supplier": {
     reach: "before_send",
     next: "Add the sending address to a supplier so future emails from it are routed automatically.",

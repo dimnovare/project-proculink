@@ -344,8 +344,8 @@ describe("auditActionManifest — coverage floors", () => {
     // +2 reachable from the invoice flow (`InvoiceSentAnyway`, `InvoiceDestinationChanged`).
     //
     // +9 reachable from flow documents (`document.*`, written via DocumentAudit.Add).
-    expect(AUDIT_ACTION_FACTS).toHaveLength(62);
-    expect(REACHABLE_AUDIT_ACTIONS).toHaveLength(57);
+    expect(AUDIT_ACTION_FACTS).toHaveLength(63);
+    expect(REACHABLE_AUDIT_ACTIONS).toHaveLength(58);
   });
 
   it("classifies a substantial number of them as failures", () => {

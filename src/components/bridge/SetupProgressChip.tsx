@@ -14,13 +14,16 @@
 
 import Link from "next/link";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
+import { useDocumentEngine } from "@/hooks/useDocumentEngine";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 import { buildChecklistSteps } from "./buildChecklistSteps";
 
 export function SetupProgressChip() {
   const status = useOnboardingStatus();
   const { labels } = useOrderDirection();
+  const engine = useDocumentEngine();
 
+  if (engine === "on") return null;
   if (!status.isSuccess || !status.data) return null;
 
   const model = buildChecklistSteps(

@@ -80,6 +80,9 @@ const field = (error: unknown, key: string): string | null => {
 };
 
 /** The server's machine token (`error`), or null when this isn't an API refusal. */
+/** Shown when the legacy upload is refused because this workspace receives documents through flows. */
+export const ORDERS_RETIRED_MESSAGE = "This workspace now receives documents through flows.";
+
 export const refusalToken = (error: unknown): string | null => errorField(body(error));
 
 export function documentRefusalMessage(error: unknown): string {

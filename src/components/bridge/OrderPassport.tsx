@@ -609,7 +609,7 @@ const OUTCOME_COLOR: Record<DeliveryAttemptOutcome, string> = {
  * (404 no such artifact for this order · 410 Gone blob purged per retention · 429 signed-URL
  * rate limit), so the copy does too.
  */
-function downloadFailureMessage(err: unknown): string {
+export function downloadFailureMessage(err: unknown): string {
   const status = err instanceof ApiHttpError ? err.status : 0;
   if (status === 410) return "That copy is gone — it was removed under your data-retention setting.";
   if (status === 404) return "We have no stored copy of that file for this order.";
