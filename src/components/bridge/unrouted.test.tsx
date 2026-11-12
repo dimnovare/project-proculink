@@ -34,7 +34,7 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
-import { mapStatus, STATUS_PRESENTATION } from "./InboxView";
+import { mapStatus, STATUS_PRESENTATION } from "@/lib/orderArchiveStatus";
 import { UnifiedStatusBadge, statusLabel, statusTone } from "./UnifiedStatusBadge";
 import { isRedeliverable } from "./inboxSend";
 

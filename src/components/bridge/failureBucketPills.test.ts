@@ -23,7 +23,8 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
-import { mapStatus, FAILED_BUCKET, STATUS_PRESENTATION, journeyStage } from "./InboxView";
+import { FAILED_BUCKET, journeyStage } from "./InboxView";
+import { mapStatus, STATUS_PRESENTATION } from "@/lib/orderArchiveStatus";
 
 describe("every status the Failed chip counts renders as the Failed pill", () => {
   it.each(FAILED_BUCKET)("%s maps to the failed pill, not the `new` fall-through", (status) => {

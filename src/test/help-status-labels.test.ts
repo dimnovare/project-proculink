@@ -63,13 +63,14 @@ function labelByStatus(src: string, name: string): Map<string, string> {
 }
 
 const INBOX = read("src", "components", "bridge", "InboxView.tsx");
+const STATUS_SRC = read("src", "lib", "orderArchiveStatus.ts");
 const BADGE = read("src", "components", "bridge", "UnifiedStatusBadge.tsx");
 const SEND = read("src", "components", "bridge", "inboxSend.ts");
 
 /** Every word a row's status pill can print — the collapsed set and the raw-status set. */
 const STATUS_LABEL_BY_RAW = labelByStatus(BADGE, "STATUS_META");
 const PRODUCT_STATUS_LABELS = new Set([
-  ...labelsIn(INBOX, "STATUS_PRESENTATION"),
+  ...labelsIn(STATUS_SRC, "STATUS_PRESENTATION"),
   ...STATUS_LABEL_BY_RAW.values(),
 ]);
 

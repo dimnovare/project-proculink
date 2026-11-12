@@ -109,7 +109,8 @@ vi.mock("@/hooks/useOrderDirection", async () => {
   };
 });
 
-import { InboxView, mapStatus, journeyStage, STATUS_PRESENTATION } from "./InboxView";
+import { InboxView, journeyStage } from "./InboxView";
+import { mapStatus, STATUS_PRESENTATION } from "@/lib/orderArchiveStatus";
 import { UploadWorkbench, recentStatusFromOrder } from "./UploadWorkbench";
 import { UNKNOWN_STAGE_CAPTION, pipelineCardLine } from "./pipelineIndicator";
 import { statusLabel } from "./UnifiedStatusBadge";

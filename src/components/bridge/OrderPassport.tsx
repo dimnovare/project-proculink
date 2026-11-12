@@ -17,6 +17,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/bridge/layout/Card";
 import { confidenceTone } from "@/components/bridge/ConfidenceChip";
 import { ApiHttpError, apiClient } from "@/lib/api-client";
+import { downloadFailureMessage } from "@/lib/orderArchiveStatus";
 import { PracticeChip } from "@/components/bridge/PracticeChip";
 import {
   attemptOutcomeIsUnknown,
@@ -601,22 +602,6 @@ const OUTCOME_COLOR: Record<DeliveryAttemptOutcome, string> = {
   unknown: "#B36D14",
   unrecognised: "#B36D14",
 };
-
-/**
- * One honest sentence per failure. This used to be a single line telling the retention story
- * ("the link may have expired, or the file may have been removed…") for EVERY failure — shown
- * verbatim for 404 and 429, where it is simply untrue. The endpoint distinguishes them
- * (404 no such artifact for this order · 410 Gone blob purged per retention · 429 signed-URL
- * rate limit), so the copy does too.
- */
-export function downloadFailureMessage(err: unknown): string {
-  const status = err instanceof ApiHttpError ? err.status : 0;
-  if (status === 410) return "That copy is gone — it was removed under your data-retention setting.";
-  if (status === 404) return "We have no stored copy of that file for this order.";
-  if (status === 429) return "Too many download requests just now. Wait a moment, then try again.";
-  if (status === 401 || status === 403) return "You do not have access to that file.";
-  return "Couldn't get that file just now. Please try again.";
-}
 
 /**
  * One delivery attempt, with the two things a disputed delivery actually needs: the exact

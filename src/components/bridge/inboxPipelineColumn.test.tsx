@@ -61,7 +61,8 @@ vi.mock("@/hooks/useOrderDirection", async () => {
   return { ...actual, useOrderDirection: () => ({ direction: "outbound", labels: actual.partyLabels("outbound") }) };
 });
 
-import { InboxView, mapStatus, journeyStage, STATUS_PRESENTATION } from "./InboxView";
+import { InboxView, journeyStage } from "./InboxView";
+import { mapStatus, STATUS_PRESENTATION } from "@/lib/orderArchiveStatus";
 import { journeyStageFor } from "./BridgeDashboard";
 import { PIPELINE_STAGE_NAMES, pipelineCaption, pipelineAccessibleName } from "./pipelineIndicator";
 import { statusLabel } from "./UnifiedStatusBadge";

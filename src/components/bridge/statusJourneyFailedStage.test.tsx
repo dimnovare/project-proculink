@@ -25,7 +25,8 @@ vi.mock("next/navigation", () => ({
 }));
 
 import { StatusJourney, FAILURE_JOURNEY_STAGE, failedStageFor } from "./StatusJourney";
-import { mapStatus, FAILED_BUCKET, journeyStage } from "./InboxView";
+import { FAILED_BUCKET, journeyStage } from "./InboxView";
+import { mapStatus } from "@/lib/orderArchiveStatus";
 import { journeyStageFor } from "./BridgeDashboard";
 
 afterEach(cleanup);

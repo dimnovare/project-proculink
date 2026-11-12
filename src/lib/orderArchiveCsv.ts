@@ -1,7 +1,7 @@
 import { apiClient } from "@/lib/api-client";
 import { pagePopulation } from "@/components/bridge/orderCountContract";
 import { csvCell } from "@/lib/csvCell";
-import { mapStatus, STATUS_PRESENTATION } from "@/components/bridge/InboxView";
+import { mapStatus, STATUS_PRESENTATION } from "@/lib/orderArchiveStatus";
 import type { OrderSummary } from "@/types/procurement";
 
 const HEADER = "PO number,Date,Buyer,Supplier,Status,Lines,Total,Currency";
