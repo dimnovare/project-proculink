@@ -6,4 +6,82 @@ export const metadata = guideMetadata({
   description: "Import a CSV file so a value on a document is replaced by the one your system uses.",
 });
 
-Import a CSV file so a value on a document is replaced by the one your system uses.
+import { Step, Prereqs, IfThisFails, Outcome } from "@/components/help/guide";
+
+<Prereqs>
+- A CSV file with two columns. Column 1 holds the value as it appears on your documents (**From**). Column 2 holds the value your receiving system wants (**To**). Other columns are ignored.
+- A flow with an output, to use the lookup in. See [Build an output](/help/guides/build-an-output).
+- Optional, for AI suggestions: a second CSV file with the values your system accepts, such as a product list.
+</Prereqs>
+
+<Step n={1} title="Create the lookup">
+
+Open **Lookups** in the navigation and select **New lookup**. Type a **Name**, up to 120 characters, and select **Create**.
+
+<Outcome>
+The new lookup opens on its own page.
+</Outcome>
+
+</Step>
+
+<Step n={2} title="Import the CSV">
+
+Under **Import CSV**, choose your file. Leave **The first row is headings** ticked if the first row is a heading, and untick it if the first row is data.
+
+Rows with an empty **From** are skipped. A row whose **From** is already in the lookup replaces the old row. We compare without capital letters and without spaces at the ends.
+
+<Outcome>
+A message says how many rows were imported, such as "Imported 12 rows: 10 new, 2 changed." The rows appear in the table. They are not saved yet.
+</Outcome>
+
+<IfThisFails>
+"We couldn't read that file." means the file is not a readable CSV. Open it in a spreadsheet program and save it again as CSV.
+</IfThisFails>
+
+</Step>
+
+<Step n={3} title="Check and save">
+
+Look through the table. You can change a cell, add a row with **Add row** or remove one with the cross.
+
+Select **Save**.
+
+<Outcome>
+A message says "Saved." The lookup is ready to use.
+</Outcome>
+
+<IfThisFails>
+The message says what is wrong. A lookup holds at most 20,000 rows. A value can be at most 200 characters. Every row needs a **From**, and each **From** can appear only once.
+</IfThisFails>
+
+</Step>
+
+<Step n={4} title="Use it in an output">
+
+Edit an output on the flow's **Outputs** tab. On the row you want to swap, choose the lookup in **Swap with lookup**. Then choose what to do with a value that is not in it: **Keep the value** or **Leave it blank**. Save the output.
+
+<Outcome>
+The output swaps the value. **Preview** it to see the result. Values the lookup did not find are listed under the preview.
+</Outcome>
+
+</Step>
+
+<Step n={5} title="Optional: let AI suggest matches">
+
+If **Values to choose from** appears on the lookup's page, you can add a list for AI to choose from. Under **Import list (CSV)**, choose a file. Column 1 is the value. The other columns are joined into a note that helps pick it. Select **Save**.
+
+Now, when you preview an output and a value was not found, **Suggest matches** appears under the preview. Each suggestion shows the value, what we propose, and the note from your list. Choose **Accept** to add the pair to the lookup, **Edit** to change the proposal first, or **Reject** to drop it. Nothing is added until you accept.
+
+<Outcome>
+Accepted pairs join the lookup, and the preview updates.
+</Outcome>
+
+<IfThisFails>
+If you do not see **Values to choose from**, AI suggestions are not switched on for your workspace. If suggestions are refused, your workspace may have used its monthly AI allowance. See [Lookups](/help/lookups).
+</IfThisFails>
+
+</Step>
+
+## Take the rows out again
+
+Select **Export CSV** on the lookup's page. Values that start with a character a spreadsheet could read as a formula, such as `=`, `+` or `@`, get an apostrophe in front in the export. The import removes it again.

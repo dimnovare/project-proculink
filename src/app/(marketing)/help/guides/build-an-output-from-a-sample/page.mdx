@@ -6,4 +6,63 @@ export const metadata = guideMetadata({
   description: "Upload a sample of the file your system expects and we propose the output to match.",
 });
 
-Upload a sample of the file your system expects and we propose the output to match.
+import { Step, Prereqs, IfThisFails, Outcome } from "@/components/help/guide";
+
+<Prereqs>
+- A flow whose fields are saved. See [Set up your first flow](/help/guides/set-up-your-first-flow).
+- A workspace admin account.
+- A sample of the file your receiving system expects: CSV, Excel, JSON or XML, up to 2 MB. The sample can have fake or empty values. We only use its names.
+</Prereqs>
+
+<Step n={1} title="Upload the sample">
+
+Open the flow, go to the **Outputs** tab, and select **Add an output**. Choose the **From a sample** tab. Drop your sample on the upload area, or choose it.
+
+<Outcome>
+We read the sample and open a **Check the values** form. Nothing is saved yet.
+</Outcome>
+
+<IfThisFails>
+The screen says why the sample was refused, for example "This file is too large.", "This file couldn't be opened. It may be password-protected or damaged." or "Confirm this flow's fields first." For an Excel file we read the first row as the headings. Fix the problem or try another file.
+</IfThisFails>
+
+</Step>
+
+<Step n={2} title="Check the proposed values">
+
+The output takes its file type from your sample, and its name from the sample's file name. You can change the name.
+
+Each name we found in the sample is listed with a **Value** list beside it. We fill in the list in two ways:
+
+- By name. If a name in the sample is the same as a field of your flow, we choose that field.
+- By AI. For the names that are left, AI proposes a field. These show an **AI** tag and a percentage.
+
+Anything we could not match says **Not set**. Open its list and choose a field. You can also correct any proposal we got wrong.
+
+<Outcome>
+Every row that should carry a value has the right field beside it.
+</Outcome>
+
+<IfThisFails>
+If AI is not available to your workspace, only the matches by name are filled in, and you choose the rest yourself. See [AI in ProcuLink](/help/ai-in-proculink).
+</IfThisFails>
+
+</Step>
+
+<Step n={3} title="Choose where it goes and create it">
+
+In **Send to**, keep **Download only**, or choose a destination. See [Send outputs to a destination](/help/guides/send-to-a-destination). Then select **Create**.
+
+Nothing is created until you select **Create**. To start again with another file, select **Choose a different file**.
+
+<Outcome>
+The output is saved, and its editor opens. There you can add a lookup swap, a fixed value or a send-when rule. See [Build an output](/help/guides/build-an-output).
+</Outcome>
+
+</Step>
+
+## What we send to AI
+
+For the names that need AI, we send the names found in your sample file and the keys, labels and types of your flow's fields. We do not send the values in your sample, or the values of any document.
+
+If your workspace keeps documents on our own servers, or has used its monthly AI allowance, no AI step runs.

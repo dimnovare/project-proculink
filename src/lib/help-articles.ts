@@ -127,7 +127,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
   {
     slug: "destination-sign-in",
     title: "Destination sign-in, keys and signing",
-    blurb: "How to give a destination the credentials, keys or signing secret it asks for.",
+    blurb: "How to give a destination the login, key or token it asks for.",
     category: "Outputs and destinations",
     keywords: ["sign in", "credentials", "oauth2", "token", "ssh key", "private key", "signing", "secret", "ppk"],
     readMin: 4,

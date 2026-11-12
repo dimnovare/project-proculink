@@ -9,3 +9,37 @@ export const metadata = helpArticleMetadata({
 # Ways to send documents in
 
 Every way a document can reach a flow: upload, email, mailbox, SFTP, FTP, S3 and API.
+
+Every plan has every way in. You set them up on the flow's **Intake** tab, and only a workspace admin can change them. Upload is the exception: it lives on the **Documents** tab.
+
+## Upload
+
+Choose a file, or drop it on the upload area on the flow's **Documents** tab. This is the quickest way to try a flow. See [Files we read](/help/what-we-read) for the file types and the 10 MB limit.
+
+## The flow's email address
+
+Every flow has its own email address, shown on the **Intake** tab. Anyone can forward or write to it. Each attached file we can read becomes a document in that flow. If a message has no file we can read, the text of the message becomes the document instead.
+
+You can switch the address off, or get a new one. The old address stops working at once. See [Receive documents by email](/help/guides/receive-documents-by-email).
+
+## Pickups
+
+A pickup collects files from a place you already use. It checks every five minutes and takes each new file once. There are three kinds:
+
+- **A mailbox.** We read unread messages in a folder of an IMAP mailbox. See [Collect documents from a mailbox](/help/guides/collect-from-a-mailbox).
+- **A server.** We collect files from a folder on an SFTP, FTPS or FTP server. See [Collect documents from an SFTP or FTP server](/help/guides/collect-from-a-server).
+- **An S3 bucket.** We collect objects from a bucket, or from one prefix in it. See [Collect documents from an S3 bucket](/help/guides/collect-from-s3).
+
+The files stay where they are. We never move or delete a file on your server or in your bucket. The one change we make is in a mailbox, where a message we have finished with is marked as read.
+
+## The API
+
+Your own system can post a file to the flow, using a key you create in **Settings**. You can also give the flow a web address to call when a document has been read or sent. See [Send documents by API](/help/guides/send-documents-by-api) and the [API reference](/help/api-reference).
+
+## What happens next
+
+Whichever way a document arrives, it is read in the same way and appears on the flow's **Documents** tab.
+
+If your plan cannot take more documents, the email address and the pickups pause, and the **Intake** tab says so. See the [billing FAQ](/help/billing-faq).
+
+A pickup ignores files of a type we do not read. A file over 10 MB is skipped, and the pickup tells you how many it skipped.

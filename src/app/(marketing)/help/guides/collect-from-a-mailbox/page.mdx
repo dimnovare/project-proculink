@@ -6,4 +6,76 @@ export const metadata = guideMetadata({
   description: "Let ProcuLink collect documents from a mailbox you already use.",
 });
 
-Let ProcuLink collect documents from a mailbox you already use.
+import { Step, Prereqs, IfThisFails, Outcome } from "@/components/help/guide";
+
+<Prereqs>
+- A flow, and a workspace admin account.
+- A mailbox you can reach over IMAP with an encrypted connection. You need its server name, its port (usually 993), your user name and your password. Some providers ask for an app password instead of your normal one.
+- The mailbox must be reachable from the internet. A server on a private network is refused.
+</Prereqs>
+
+<Step n={1} title="Add a pickup">
+
+Open the flow, go to the **Intake** tab, and find the **Pickups** card. Select **Add a pickup** and choose **Mailbox (IMAP)** in the **Type** list.
+
+<Outcome>
+The form shows the mailbox fields.
+</Outcome>
+
+</Step>
+
+<Step n={2} title="Fill in the mailbox">
+
+- **Server**, **Port** and **User name** come from your provider. The port is 993 unless you change it.
+- **Folder** is the folder to read. It starts as `INBOX`.
+- **Only from** is optional. Type one or more words or addresses, separated by commas. A message is taken if the sender's address contains any of them.
+- **Subject contains** is optional, and works the same way on the subject. If you fill in both, a message must pass both.
+- **Password** is the mailbox password. It is stored encrypted.
+
+Select **Save**.
+
+<Outcome>
+The pickup is saved. The **Test connection** button now works.
+</Outcome>
+
+<IfThisFails>
+If the form refuses to save, the message says what is missing. A server and a user name are required.
+</IfThisFails>
+
+</Step>
+
+<Step n={3} title="Test the connection">
+
+Select **Test connection**. It signs in and counts the files waiting, but does not take any of them.
+
+<Outcome>
+A message says "Connected." and how many files are waiting.
+</Outcome>
+
+<IfThisFails>
+The message names the server and the reason it gave, for example a wrong password. Change the detail, save, and test again. If you change the server or the user name, enter the password again.
+</IfThisFails>
+
+</Step>
+
+<Step n={4} title="Let it run">
+
+Leave **On** ticked. Every five minutes we look for unread messages in the folder that match your filters.
+
+- Each attached file we can read becomes a document.
+- If a matching message has no file we can read, its text becomes one document.
+- When a message is done, we mark it as read. A message that does not match your filters is left alone, still unread.
+
+We take up to 50 files at a time, and the rest on the next check. A file over 10 MB is skipped, and the pickup's last message says so.
+
+<Outcome>
+New documents appear on the flow's **Documents** tab. The pickup shows when it last ran and what it found, such as "Picked up 2 new file(s)."
+</Outcome>
+
+</Step>
+
+## Good to know
+
+We only read unread messages. If you open a message in your own mail program first, it is marked read and we skip it. Keep a folder just for documents, and point **Folder** at it, to avoid that.
+
+To stop collecting, untick **On**, or select **Remove**. Files already picked up stay in the flow.

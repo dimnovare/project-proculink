@@ -21,8 +21,15 @@ const body = (path: string) =>
 
 // Each help-content task adds its own slugs; the last one flips this to every registered page.
 const WRITTEN = {
-  articles: ["how-proculink-works", "documents-and-statuses", "what-we-read", "checks", "flows", "senders"],
-  guides: ["set-up-your-first-flow", "check-and-send-a-document", "teach-a-value", "publish-a-flow-version"],
+  articles: [
+    "how-proculink-works", "documents-and-statuses", "what-we-read", "checks", "flows", "senders", // Task 6
+    "intake-channels", "outputs", "destinations", "destination-sign-in", "lookups", // Task 7
+  ],
+  guides: [
+    "set-up-your-first-flow", "check-and-send-a-document", "teach-a-value", "publish-a-flow-version", // Task 6
+    "receive-documents-by-email", "collect-from-a-mailbox", "collect-from-a-server", "collect-from-s3", "build-an-output", // Task 7
+    "build-an-output-from-a-sample", "build-an-output-from-documentation", "send-to-a-destination", "import-a-lookup",
+  ],
 };
 
 describe("help content", () => {

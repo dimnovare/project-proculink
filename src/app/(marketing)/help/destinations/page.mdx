@@ -9,3 +9,47 @@ export const metadata = helpArticleMetadata({
 # Destinations
 
 Where a flow sends its output: email, a web address, an SFTP or FTPS server, or a download.
+
+A destination is a place an output goes. You set one up once and any output in your workspace can use it. Only a workspace admin can create one. You create a destination from an output: in the **Send to** list, choose **New destination…**. See [Send outputs to a destination](/help/guides/send-to-a-destination).
+
+## The kinds
+
+- **Download only.** Nothing is sent. The file is kept for you to download from the document. It shows as **Ready to download**.
+- **Email.** The output goes as an attachment to the addresses you list. You can add a reply-to address. The email comes from ProcuLink's sender address, and its subject shows the flow name and the file name.
+- **Web address (API).** We send the file to your URL with a POST or a PUT request. The file is the body of the request, with its own content type.
+- **SFTP.** We upload the file to a folder on your server.
+- **FTPS.** The same, over FTP with explicit TLS.
+
+A destination needs a name, and the details for its kind. Passwords, keys and tokens are kept encrypted. See [Destination sign-in, keys and signing](/help/destination-sign-in).
+
+## The file name
+
+Every file is named after the original document, then a dash and a short code, then the format's ending. The code makes each send a different file. For example, an invoice called `march.pdf` becomes something like `march-3f9a1c2e.csv`.
+
+## What "sent" means
+
+A delivery counts as **Delivered** when the destination accepted it:
+
+- **Web address.** The server answered with a success status (2xx). We do not read the answer, so a server that says yes and then refuses the file in its own system looks delivered to us.
+- **SFTP and FTPS.** The upload finished. We write the file under a temporary name and rename it when it is whole, so your system never sees half a file.
+- **Email.** Our email service accepted the message. We cannot see whether anyone opened it.
+
+A document is **Sent** when every one of its outputs is delivered or ready to download. See [Documents and statuses](/help/documents-and-statuses).
+
+## If a send fails
+
+We try again, up to three attempts in all. The second attempt comes about 30 minutes after the first, and the third about an hour after the second, each up to a fifth later. If the destination asks us to wait longer, we wait at least that long.
+
+While we wait, the delivery shows **Will retry** and the reason it failed. After the third failure it shows **Couldn't deliver** and the document shows **Couldn't send**. Fix the problem, then press **Send** on the document again. Outputs already delivered are not sent twice.
+
+Some failures are not tried again: the destination was deleted, its saved password cannot be read, or an earlier attempt may already have arrived. Check with the recipient before you send again in that last case.
+
+## Test a destination
+
+A test sends a small file named with `TEST_` at the start. An email subject starts with `[TEST]`, and a web request carries an `X-ProcuLink-Test` header. The new-flow guide offers **Send a test** right after you save a destination, and an output built from documentation needs a passing test before it can be created. Anywhere else the first real send is the test. See [Send outputs to a destination](/help/guides/send-to-a-destination).
+
+## Rules we apply
+
+- A web address must start with `https://`. Plain `http://` is accepted only for a server on your own computer.
+- We do not follow redirects. A redirect counts as a failure, and the message says so.
+- Addresses on a private network are refused.
