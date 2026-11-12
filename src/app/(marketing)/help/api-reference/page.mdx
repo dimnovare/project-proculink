@@ -10,7 +10,7 @@ export const metadata = helpArticleMetadata({
 
 Send a file to a flow over the API, fetch the result, and receive webhooks when a document changes.
 
-For a walk-through, see [Send documents by API](/help/guides/send-documents-by-api). The examples here use `api.example.com` and `hooks.example.com`. Your own API address is shown on the flow's **API** card, under the **Intake** tab.
+For a walk-through, see [Send documents by API](/help/guides/send-documents-by-api). The examples here use `api.example.com`. Your own API address is shown on the flow's **API** card, under the **Intake** tab.
 
 ## Keys
 
@@ -29,7 +29,7 @@ curl -X POST "https://api.example.com/api/v1/flows/FLOW_ID/documents" \
   -F "file=@invoice.pdf"
 ```
 
-`Idempotency-Key` is optional, up to 200 characters. Use it so a retry never creates a second document. If you send the same key to the same flow again, you get the first result back with status `200` and the header `Idempotent-Replay: true`. If the first call is still running, the answer is `409`. A call that was refused does not keep its key, so you can send it again.
+`Idempotency-Key` is optional, up to 200 characters. Use it so a retry never creates a second document. If you send the same key to the same flow again, you get the document's current summary back with status `200` and the header `Idempotent-Replay: true`. Its `status` may have moved on since the first answer. If the first call is still running, the answer is `409`. A call that was refused does not keep its key, so you can send it again.
 
 A new document is answered with `201`. The body is a summary. Reading happens afterwards, so `status` is `received`.
 
@@ -70,6 +70,8 @@ Use `id` to fetch the result. Do not rely on the `Location` header.
 | 429 | `processing_paused` | Processing is paused on this workspace, for example after a cancelled subscription. |
 | 429 | a sentence | You are sending too fast. |
 
+A request body that is too large overall is refused with `413`, and a body that is not `multipart/form-data` with `415`. Neither has an `error` token.
+
 The two plan refusals carry `plan`, `limit` and `upgradeUrl`. The speed refusal carries a `Retry-After` header and `retryAfterSeconds`. The limit is 60 files a minute for each key.
 
 ## Get a result
@@ -79,7 +81,7 @@ The two plan refusals carry `plan`, `limit` and `upgradeUrl`. The speed refusal 
 Answered with `200`. It has two parts.
 
 - `document` holds `summary` (as above, with the current `status`), `contentType`, `read`, `checks` and `senderLabel`.
-- `deliveries` lists what was sent, with `outputName`, `protocol`, `status`, `attempts`, `lastError`, `fileName` and `deliveredAt`.
+- `deliveries` lists what was sent, with `id`, `outputName`, `protocol`, `status`, `attempts`, `lastError`, `fileName` and `deliveredAt`.
 
 `read` has `kindLabel`, `truncated`, a list of `fields` and a list of `tables`. Each field has `key`, `label`, `value`, `type`, `meaning`, `confidence`, `location`, `notOnPage`, `listed` and `edited`. Confidence is a number from 0 to 1. `checks` lists only the checks that flagged something, each with `code`, `passed`, `fieldKey` and `message`.
 
@@ -147,5 +149,5 @@ import hmac
 # raw_body is bytes: the request body exactly as received.
 def is_valid(raw_body: bytes, header: str, secret: str) -> bool:
     expected = "sha256=" + hmac.new(secret.encode(), raw_body, hashlib.sha256).hexdigest()
-    return hmac.compare_digest(expected, header or "")
+    return hmac.compare_digest(expected.encode(), (header or "").encode())
 ```

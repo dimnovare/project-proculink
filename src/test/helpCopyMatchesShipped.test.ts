@@ -38,7 +38,14 @@ describe("the troubleshooting article quotes and names what the product shows", 
     // Anti-vacuity: the article quotes a dozen messages and bolds a dozen labels; an empty walk proves nothing.
     expect(quoted.length, "no quoted messages found").toBeGreaterThanOrEqual(10);
     expect(bold.length, "no bold labels found").toBeGreaterThanOrEqual(10);
-    const missing = [...quoted, ...bold].filter((text) => !SHIPPED.includes(text));
+    // Sentences match as substrings of the shipped copy. A bold label must be a whole string or whole JSX text
+    // there (`>Label<`, "Label", 'Label', `Label` or a line of its own), so a short label such as Send cannot
+    // survive a rename by matching a longer sentence.
+    const whole = (label: string) => {
+      const l = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      return new RegExp(`[>"'\`]\\s*${l}\\s*[<"'\`]|^\\s*${l}\\s*$`, "m").test(SHIPPED);
+    };
+    const missing = [...quoted.filter((q) => !SHIPPED.includes(q)), ...bold.filter((b) => !whole(b))];
     expect(missing, "in the article but not in the shipped copy").toEqual([]);
   });
 
