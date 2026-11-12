@@ -17,10 +17,11 @@ describe("landing page sells the document tool", () => {
 
     const body = (container.textContent ?? "").replace(/\s+/g, " ");
     expect(body).toContain(
-      `Free for 14 days · ${PLAN_BY_ID.pilot.orderLimit} documents · from €${PLAN_BY_ID.starter.priceMonthly} a month after`,
+      `Free for ${PLAN_BY_ID.pilot.priceCadence} · ${PLAN_BY_ID.pilot.orderLimit} documents · from €${PLAN_BY_ID.starter.priceMonthly} a month after`,
     );
     const cta = Array.from(container.querySelectorAll("a")).find((a) => a.textContent === "Start your free trial");
     expect(cta?.getAttribute("href")).toBe("/sign-up");
+    expect(body).toContain("Try it on your own documents");
   });
 
   it("no longer carries the ROI calculator or order-era copy", () => {

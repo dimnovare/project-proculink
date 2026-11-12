@@ -126,7 +126,7 @@ export default function RootPage() {
             ProcuLink reads the files you receive, shows what it read beside the original, and sends the data on in the format your system needs.
           </p>
           <p style={{ fontSize: 14, lineHeight: 1.6, color: NAVY_TEXT, maxWidth: 600, margin: "0 0 6px" }}>
-            Free for 14 days · {TRIAL.orderLimit} documents · from €{STARTER_PRICE} a month after
+            Free for {TRIAL.priceCadence} · {TRIAL.orderLimit} documents · from €{STARTER_PRICE} a month after
           </p>
           <p style={{ fontSize: 14, lineHeight: 1.6, color: NAVY_TEXT, maxWidth: 600, margin: "0 0 30px" }}>
             Scans and phone photos are read too.
