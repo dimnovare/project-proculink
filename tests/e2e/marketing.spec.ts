@@ -126,13 +126,11 @@ test.describe("Legal + trust pages", () => {
   const routes: Array<[string, RegExp]> = [
     ["/privacy",       /privacy policy/i],
     ["/terms",         /terms of service/i],
-    ["/security",      /built for orders/i],
+    ["/security",      /built for documents/i],
     ["/dpa",           /data processing addendum/i],
     ["/subprocessors", /^subprocessors$/i],
     ["/aup",           /acceptable use policy/i],
     ["/support",       /^support$/i],
-    ["/pilot",         /test ProcuLink on one repeat supplier/i],
-    ["/one-pager",     /stop retyping documents/i],
     ["/help",          /help/i],
   ];
 
@@ -151,7 +149,7 @@ test.describe("Legal entity", () => {
     // text, and the full "load" event (every dev-mode chunk/image) routinely
     // blew the 30s default under parallel worker load.
     test.setTimeout(60_000);
-    for (const route of ["/privacy", "/terms", "/dpa", "/one-pager"]) {
+    for (const route of ["/privacy", "/terms", "/dpa"]) {
       await page.goto(route, { waitUntil: "domcontentloaded" });
       const body = await page.locator("body").innerText();
       expect(body).not.toMatch(/estoria/i);

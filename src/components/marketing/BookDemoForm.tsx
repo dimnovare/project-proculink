@@ -48,7 +48,7 @@ export function BookDemoForm() {
     const body = [
       `Name:            ${name.trim()}`,
       `Company:         ${company.trim()}`,
-      `Orders in:       ${formats.trim() || "(not specified)"}`,
+      `Documents in:    ${formats.trim() || "(not specified)"}`,
       `Preferred times: ${times.trim() || "(not specified)"}`,
       ...(message.trim() ? ["", message.trim()] : []),
     ].join("\n");
@@ -111,7 +111,7 @@ export function BookDemoForm() {
   }
 
   return (
-    // /book-demo is framed as a 20-minute call about one of the visitor's orders or a pilot,
+    // /book-demo is framed as a 20-minute call about one of the visitor's documents,
     // not a generic demo — the form's own labels say the same thing as the page around it.
     <form onSubmit={onSubmit} style={S.wrap} aria-label="Request a 20-minute call">
       <div style={S.row}>
@@ -161,13 +161,13 @@ export function BookDemoForm() {
       </div>
 
       <div style={S.row}>
-        <label htmlFor="demo-formats" style={S.label}>What do you send or receive orders in?</label>
+        <label htmlFor="demo-formats" style={S.label}>What format are your documents in?</label>
         <input
           id="demo-formats"
           type="text"
           value={formats}
           onChange={(e) => setFormats(e.target.value)}
-          placeholder="e.g. PDFs by email, CSV exports, EDIFACT, cXML — whatever you have today"
+          placeholder="e.g. PDFs by email, CSV exports, Excel files — whatever you have today"
           style={S.input}
           maxLength={500}
         />
@@ -192,7 +192,7 @@ export function BookDemoForm() {
           id="demo-message"
           value={message}
           onChange={(e) => setMessage(e.target.value)}
-          placeholder="The order or workflow you'd like to look at, questions you want answered…"
+          placeholder="The document or workflow you'd like to look at, questions you want answered…"
           style={S.textarea}
           maxLength={4000}
         />

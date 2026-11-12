@@ -940,8 +940,6 @@ describe("the mirrored gate table is load-bearing, row by row", () => {
       "/src/app/(marketing)/help/managing-suppliers/page.mdx",
       "/src/app/(marketing)/help/ai-suggestions/page.mdx",
       "/src/app/(marketing)/help/exceptions-and-stuck-orders/page.mdx",
-      "/src/app/(marketing)/how-it-works/page.tsx",
-      "/src/app/(marketing)/security/page.tsx",
       "/src/lib/help-articles.ts",
       "/src/lib/plans.ts",
     ]) {
@@ -2361,6 +2359,15 @@ describe("a gated capability is never presented with no tier at all", () => {
     // C23; spec §12) — the per-plan channel tiers this scan enforces belong to the retired
     // order ladder. Bounded to the one page: its channel sentence is the only claim it makes.
     join(process.cwd(), "src/app/(home)/page.tsx"),
+    // ── added 2026-11-12 with the relaunch how-it-works page ───────────────────
+    // Same reason as `/`: document plans include every intake channel (copy C14, C23; spec §12),
+    // so its channel sentence names no tier. Bounded to the one page.
+    join(process.cwd(), "src/app/(marketing)/how-it-works/page.tsx"),
+    // `/security` lists the channels whose transport is encrypted (webhook, SFTP, FTPS, S3, IMAP,
+    // SMTP). It names them to describe TLS, not to sell them, and on document plans every channel
+    // is included, so there is no tier to name. It used to carry one only through the ERP clause,
+    // which the relaunch dropped. Bounded to the one page.
+    join(process.cwd(), "src/app/(marketing)/security/page.tsx"),
   ];
 
   /**
@@ -2650,8 +2657,6 @@ describe("a gated capability is never presented with no tier at all", () => {
         "/src/app/(marketing)/help/delivery-setup/page.mdx",
         "/src/app/(marketing)/help/output-templates/page.mdx",
         "/src/app/(marketing)/help/guides/set-up-supplier-delivery/page.mdx",
-        "/src/app/(marketing)/how-it-works/page.tsx",
-        "/src/app/(marketing)/one-pager/page.tsx",
       ],
       mustFlag: ["ProcuLink parses inbound cXML orders and emits cXML output."],
       mustAllow: ["choices are CSV, XLSX, JSON, XML (cXML Index or vendor XML), and CIF (Ariba 3.0)."],
@@ -2664,8 +2669,6 @@ describe("a gated capability is never presented with no tier at all", () => {
         "/src/lib/marketing/format-catalog.ts",
         "/src/app/(marketing)/help/erp-erply-and-directo/page.mdx",
         "/src/app/(marketing)/help/page.tsx",
-        "/src/app/(marketing)/how-it-works/page.tsx",
-        "/src/app/(marketing)/one-pager/page.tsx",
       ],
       mustFlag: ["- **Erply / Directo** — purpose-built ERP adapters for those tenants."],
       mustAllow: [
@@ -2682,8 +2685,6 @@ describe("a gated capability is never presented with no tier at all", () => {
         "/src/app/(marketing)/help/delivery-setup/page.mdx",
         "/src/app/(marketing)/help/oauth2-delivery-setup/page.mdx",
         "/src/app/(marketing)/help/page.tsx",
-        "/src/app/(marketing)/how-it-works/page.tsx",
-        "/src/app/(marketing)/one-pager/page.tsx",
       ],
       mustFlag: [
         // `/` at 5c209e0 — the D-F15 line, verbatim. The ERP half names Enterprise; the webhook
@@ -2712,7 +2713,6 @@ describe("a gated capability is never presented with no tier at all", () => {
         "/src/app/(marketing)/help/guides/poll-a-mailbox-over-imap/page.mdx",
         "/src/app/(marketing)/help/guides/receive-orders-by-email/page.mdx",
         "/src/app/(marketing)/help/page.tsx",
-        "/src/app/(marketing)/one-pager/page.tsx",
         "/src/lib/help-articles.ts",
       ],
       mustFlag: [
@@ -2739,7 +2739,6 @@ describe("a gated capability is never presented with no tier at all", () => {
         "/src/app/(marketing)/help/order-intake-options/page.mdx",
         "/src/app/(marketing)/help/guides/receive-orders-by-sftp/page.mdx",
         "/src/app/(marketing)/help/guides/upload-orders-manually/page.mdx",
-        "/src/app/(marketing)/how-it-works/page.tsx",
       ],
       mustFlag: [
         "- A system **exports files to a folder** → [pull order files from an SFTP",
@@ -2844,8 +2843,6 @@ describe("a gated capability is never presented with no tier at all", () => {
         "/src/app/(marketing)/help/managing-suppliers/page.mdx",
         "/src/app/(marketing)/help/ai-suggestions/page.mdx",
         "/src/app/(marketing)/help/exceptions-and-stuck-orders/page.mdx",
-        "/src/app/(marketing)/how-it-works/page.tsx",
-        "/src/app/(marketing)/security/page.tsx",
       ],
       mustFlag: ['    title: "Per-supplier validation",', "        Block bad orders before they reach the supplier. Configurable rules per"],
       mustAllow: ["Field mapping + built-in order checks", "They are not validated against a live ERP sandbox"],
@@ -3086,13 +3083,15 @@ describe("a gated capability is never presented with no tier at all", () => {
     expect(discloses("- **Operations → Log** — a date-grouped audit trail.", "cxml"), "nav label only").toBe(false);
   });
 
-  it("exempts exactly five files, and says why in code rather than in a comment", () => {
+  it("exempts exactly seven files, and says why in code rather than in a comment", () => {
     expect(EXEMPT.map((f) => f.replace(process.cwd(), "").replace(/\\/g, "/"))).toEqual([
       "/src/lib/plans.ts",
       "/src/app/(marketing)/changelog/page.tsx",
       "/src/app/(marketing)/privacy/page.tsx",
       "/src/app/(marketing)/dpa/page.tsx",
       "/src/app/(home)/page.tsx",
+      "/src/app/(marketing)/how-it-works/page.tsx",
+      "/src/app/(marketing)/security/page.tsx",
     ]);
     // Both must really exist; an exemption for a moved file is an exemption for nothing.
     for (const file of EXEMPT) expect(() => readFileSync(file, "utf8")).not.toThrow();

@@ -13,6 +13,8 @@ Disallow: /inbound
 Disallow: /admin
 Disallow: /settings
 Disallow: /onboarding
+Disallow: /flows
+Disallow: /lookups
 
 User-agent: Bingbot
 Allow: /
@@ -29,6 +31,8 @@ Disallow: /inbound
 Disallow: /admin
 Disallow: /settings
 Disallow: /onboarding
+Disallow: /flows
+Disallow: /lookups
 
 User-agent: Twitterbot
 Allow: /
@@ -51,5 +55,7 @@ Disallow: /inbound
 Disallow: /admin
 Disallow: /settings
 Disallow: /onboarding
+Disallow: /flows
+Disallow: /lookups
 
 Sitemap: https://proculink.eu/sitemap.xml

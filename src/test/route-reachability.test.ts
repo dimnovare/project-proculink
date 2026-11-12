@@ -152,12 +152,8 @@ export const KNOWN_DEEP_LINK_ONLY: Record<string, string> = {
   //    works"), so the page is reachable from inside this repo and the guard
   //    enforces the link instead of allowlisting the route.
 
-  // ── /one-pager was the third entry, parked as "wants either a real link or a
-  //    deletion decision". Founder decision 2026-07-30: link it. The marketing
-  //    footer's Product column carries it (src/app/(marketing)/layout.tsx), so
-  //    the page is now reachable on its own merits and the entry is gone —
-  //    see "/one-pager is reached by a real link" below, which is what stops
-  //    this from quietly reverting to an allowlist entry.
+  // ── /one-pager was the third entry; it was linked, then retired with the order-product
+  //    copy (plan 12b) — see src/lib/retired-routes.ts.
 };
 
 /**
@@ -1260,32 +1256,6 @@ describe("route reachability (plan rule R1 — no new surface without a consumer
       Object.keys(KNOWN_DEEP_LINK_ONLY),
       `${DEAD} is allowlisted as deep-link-only, but there is no page to deep link to`,
     ).not.toContain(DEAD);
-  });
-
-  it("/one-pager is reached by a real link, and no longer by the allowlist", () => {
-    // Founder decision, 2026-07-30: the print one-pager is real sales
-    // collateral with real content — the only thing wrong with it was that
-    // nothing linked to it. So it is linked instead of deleted, and its
-    // allowlist entry (which said, in as many words, "wants either a real link
-    // or a deletion decision") is gone. The escape hatch closing is the point:
-    // an allowlisted route is a route this guard has stopped guarding.
-    const onePager = ROUTES.filter((r) => r.route === "/one-pager");
-    expect(onePager, "/one-pager must still exist as a page").toHaveLength(1);
-    expect(Object.keys(KNOWN_DEEP_LINK_ONLY)).not.toContain("/one-pager");
-
-    // Cleared with the allowlist passed as EMPTY, so this cannot pass on the
-    // strength of the hatch it just gave up.
-    expect(findUnreachableRoutes(onePager, TARGETS, {}).map((u) => u.route)).toEqual([]);
-
-    // Exactly ONE inbound link, and it is the marketing footer — which renders
-    // under every marketing page, so a prospect reading /pricing or /customers
-    // has it in front of them. src/app/sitemap.ts also names the path, and is
-    // deliberately NOT counted here (see "a sitemap array is NOT navigation");
-    // if that ever changes, this assertion sees two sources and fails.
-    const rel = (f: string) => path.relative(ROOT, f).split(path.sep).join("/");
-    expect(TARGETS.filter((t) => t.path === "/one-pager").map((t) => rel(t.source))).toEqual([
-      "src/app/(marketing)/layout.tsx",
-    ]);
   });
 
   it("catches a synthetic unreachable route (proves the guard is not vacuous)", () => {

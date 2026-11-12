@@ -82,7 +82,7 @@ vi.mock("@/lib/reload", () => ({ reloadPage: () => {} }));
 // Re-worded deliberately for the item-code positioning (it was "No credit card. 20 orders
 // free for 14 days."): it now also names the supplier allowance, which is the Pilot limit a
 // new buyer meets first. The pair below still holds it byte-for-byte AND proves it moves.
-const SIGN_UP_SUB = "20 orders · 1 supplier · 14 days · no credit card";
+const SIGN_UP_SUB = "Free for 14 days · 20 documents · 2 flows · no credit card";
 // C32: derived from the pristine ladder, not typed — the shape is the contract, the numbers are plans.ts's.
 const pricingDescriptionFor = (starter: Plan) =>
   `Document processing from €${starter.priceMonthly} a month for ${starter.orderLimit!.toLocaleString("en-US")} documents. ` +
@@ -136,16 +136,16 @@ async function pricingDescription(): Promise<string> {
   return description as string;
 }
 
-describe("/sign-up sells the Pilot allowance the ladder declares", () => {
+describe("/sign-up sells the Trial allowance the ladder declares", () => {
   it("ships today's sentence, unchanged", async () => {
     expect(await signUpCopy()).toContain(SIGN_UP_SUB);
   });
 
   it("moves when the Pilot allowance moves", async () => {
-    h.ladder.pilot = { ...h.ladder.pilot, orderLimit: 500, supplierLimit: 3, priceCadence: "30 days" };
+    h.ladder.pilot = { ...h.ladder.pilot, orderLimit: 500, flowLimit: 3, priceCadence: "30 days" };
 
     const copy = await signUpCopy();
-    expect(copy).toContain("500 orders · 3 suppliers · 30 days · no credit card");
+    expect(copy).toContain("Free for 30 days · 500 documents · 3 flows · no credit card");
     expect(copy, "the typed sentence must be gone, not merely joined").not.toContain(SIGN_UP_SUB);
   });
 });

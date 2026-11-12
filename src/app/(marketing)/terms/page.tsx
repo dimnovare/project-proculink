@@ -33,7 +33,7 @@ export default function TermsPage() {
     <div style={S.page}>
       <h1 style={S.h1}>Terms of Service</h1>
       {/* FOUNDER DECISION: set this date to the day the page is published. */}
-      <p style={S.updated}>Last updated: 4 November 2026</p>
+      <p style={S.updated}>Last updated: 12 November 2026</p>
 
       <h2 style={S.h2}>1. Agreement</h2>
       <p style={S.p}>
@@ -104,7 +104,7 @@ export default function TermsPage() {
         the included volume are billed automatically at €{OVERAGE_PER_ORDER_EUR.toFixed(2)} per
         additional order at the end of the billing period, and the metered overage is capped so
         your monthly total never exceeds the list price of the cheapest higher self-serve plan
-        that covers your usage. The Pilot trial allowance is a hard limit (expired trials become
+        that covers your usage. The Trial allowance is a hard limit (expired trials become
         read-only) and does not accrue overage. The order allowance counts purchase orders;
         invoices uploaded while invoices are in early access do not count toward it.
       </p>

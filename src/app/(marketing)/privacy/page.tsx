@@ -30,7 +30,7 @@ export default function PrivacyPage() {
     <div style={S.page}>
       <h1 style={S.h1}>Privacy Policy</h1>
       {/* FOUNDER DECISION: set this date to the day the page is published. */}
-      <p style={S.updated}>Last updated: 4 November 2026</p>
+      <p style={S.updated}>Last updated: 12 November 2026</p>
 
       <h2 style={S.h2}>Who we are</h2>
       <p style={S.p}>
@@ -216,7 +216,7 @@ export default function PrivacyPage() {
       <h2 style={S.h2}>How long we keep data</h2>
       <ul style={{ paddingLeft: 20, marginBottom: 14 }}>
         <li style={S.li}><strong>Workspace data</strong> — the documents you send us, the data we extract from them, the output files we generate, and your suppliers, mappings and settings — is kept for as long as your account exists. There is no automatic age limit on it today.</li>
-        <li style={S.li}><strong>After a subscription ends or a Pilot expires</strong>, nothing is deleted automatically. Your workspace stays readable, so you can sign in and view or download what you have processed for as long as it exists. There is no fixed export window: it stays until you ask us to delete it — see &quot;Deleting your data&quot; below.</li>
+        <li style={S.li}><strong>After a subscription ends or a Trial expires</strong>, nothing is deleted automatically. Your workspace stays readable, so you can sign in and view or download what you have processed for as long as it exists. There is no fixed export window: it stays until you ask us to delete it — see &quot;Deleting your data&quot; below.</li>
         <li style={S.li}><strong>Activity records</strong> — each order&apos;s processing timeline, the record of delivery attempts once an order is finished, resolved review flags, and the workspace audit log — are deleted automatically once they are 180 days old.</li>
         <li style={S.li}><strong>The sender domain</strong> we note when an order is emailed to your ProcuLink address, used to suggest which supplier it belongs to, is cleared after 12 months. The order itself stays.</li>
         <li style={S.li}><strong>Your sign-in account</strong> is held by our authentication provider while your account exists, and is removed when you ask us to delete your account.</li>

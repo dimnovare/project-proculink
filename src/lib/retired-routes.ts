@@ -106,14 +106,36 @@ export const RETIRED_ROUTES: RetiredRoute[] = [
   },
   {
     source: "/customers",
-    destination: "/pilot",
+    destination: "/book-demo",
     deletedDir: "src/app/(marketing)/customers",
     why:
       "A references page with no references: it existed to say there were none yet. That was "
-      + "honest, but it made the absence the content. The Pilot Programme page took over the job "
-      + "a prospect came for — how to try ProcuLink on one repeat supplier, and how a named "
-      + "reference is agreed (only with the client's approval of wording and figures). When "
-      + "approved references exist, a Clients page replaces this redirect.",
+      + "honest, but it made the absence the content. The demo page took over the job "
+      + "a prospect came for. When approved references exist, a Clients page replaces this redirect.",
+  },
+  {
+    source: "/pilot",
+    destination: "/book-demo",
+    deletedDir: "src/app/(marketing)/pilot",
+    why:
+      "The supported-pilot application sold the order product. The relaunch retired it; "
+      + "a prospect who wants a conversation books a demo.",
+  },
+  {
+    source: "/watch",
+    destination: "/how-it-works",
+    deletedDir: "src/app/(marketing)/watch",
+    why:
+      "The walkthrough video shows the order product and cannot be re-shot yet. "
+      + "How it works carries the story until a new video exists.",
+  },
+  {
+    source: "/one-pager",
+    destination: "/",
+    deletedDir: "src/app/(marketing)/one-pager",
+    why:
+      "A print page describing the order product. The landing page is the one place "
+      + "that says what ProcuLink does.",
   },
 ];
 

@@ -4,23 +4,12 @@ import { AuthShell, AuthHeading, clerkAppearance } from "@/components/auth/AuthS
 import { ClerkAvailabilityGate } from "@/components/bridge/ClerkAvailabilityGate";
 import { PLAN_BY_ID } from "@/lib/plans";
 
-/* The trial allowance in the sub-heading is read off the ladder, not typed. It is the
-   first promise a new buyer reads, and it is made on a screen that no pricing change
-   would ever bring anyone back to — so a Pilot re-sized in plans.ts would have kept
-   selling the old number here. `priceCadence` is Pilot's price sub-label and, for the
-   trial tier, it IS the trial window ("14 days").
-
-   The line now names the supplier allowance too ("20 orders · 1 supplier · …"), because
-   the Pilot is pitched as a test of ONE repeat supplier and the supplier cap is the limit
-   a new buyer meets first. It keeps the trial window: the Pilot is not free forever, and a
-   sign-up line that dropped "14 days" would read as if it were. */
-const PILOT = PLAN_BY_ID.pilot;
-const PILOT_SUPPLIERS = PILOT.supplierLimit ?? 0;
-const PILOT_TRIAL_OFFER =
-  `${PILOT.orderLimit} orders · ${PILOT_SUPPLIERS} ${PILOT_SUPPLIERS === 1 ? "supplier" : "suppliers"} · ` +
-  `${PILOT.priceCadence} · no credit card`;
-const PILOT_TRIAL_DETAIL =
-  "Test one real, test or anonymised supplier workflow before deciding whether ProcuLink is right for you.";
+/* The trial allowance in the sub-heading is read off the ladder, not typed: it is the first
+   promise a new buyer reads, on a screen no pricing change would ever bring anyone back to.
+   `priceCadence` is the trial tier's window ("14 days"); `orderLimit` and `flowLimit` are its allowance (C8). */
+const TRIAL = PLAN_BY_ID.pilot;
+const TRIAL_OFFER = `Free for ${TRIAL.priceCadence} · ${TRIAL.orderLimit} documents · ${TRIAL.flowLimit} flows · no credit card`;
+const TRIAL_DETAIL = "Try it on your own documents";
 
 /* The shell, the brand panel and the Clerk appearance object live in
    @/components/auth/AuthSurface and are shared with /sign-in — which is how the
@@ -58,19 +47,18 @@ export default function SignUpPage() {
     // every marketing "Start for free" call to action does.
     <ClerkAvailabilityGate surface="auth">
       <AuthShell>
-        <AuthHeading title="Start your FREE Pilot" sub={PILOT_TRIAL_OFFER} detail={PILOT_TRIAL_DETAIL} />
+        <AuthHeading title="Start your free trial" sub={TRIAL_OFFER} detail={TRIAL_DETAIL} />
         <SignUp
           appearance={clerkAppearance}
           fallbackRedirectUrl="/onboarding/select-organization"
           signInFallbackRedirectUrl="/onboarding/select-organization"
         />
         <p style={{ fontSize: 13, lineHeight: 1.5, marginTop: 20, color: "var(--ink-muted)" }}>
-          Based on a repeat supplier and want more help?{" "}
           <Link
-            href="/pilot"
+            href="/book-demo"
             style={{ fontWeight: 600, color: "var(--brand-blue-deep)", textDecoration: "none" }}
           >
-            Apply for a FREE supported pilot →
+            Talk to us →
           </Link>
         </p>
       </AuthShell>

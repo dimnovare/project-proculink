@@ -165,6 +165,6 @@ describe("each route still says which one it is", () => {
     cleanup();
 
     render(<SignUpPage />);
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Start your FREE Pilot");
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Start your free trial");
   });
 });

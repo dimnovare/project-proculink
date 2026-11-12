@@ -2,12 +2,10 @@ import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { render, cleanup } from "@testing-library/react";
 import { readFileSync, readdirSync, statSync } from "fs";
 import { join } from "path";
-import OnePagerPage from "./one-pager/page";
 import { stripComments, syntaxFor } from "@/test/sourceScan";
 import DpaPage from "./dpa/page";
 import SubprocessorsPage from "./subprocessors/page";
 import SecurityPage from "./security/page";
-import PilotPage from "./pilot/page";
 import PrivacyPage from "./privacy/page";
 import PricingPage from "./pricing/page";
 import MarketingLayout from "./layout";
@@ -331,7 +329,7 @@ describe("EU residency claim", () => {
     // attaches the generated purchase order and sends it to the supplier
     // through the same US provider, which has no EU option to enable.
     const card = visibleText(residencyCard());
-    expect(card).toMatch(/purchase orders we email/i);
+    expect(card).toMatch(/data we email out/i);
     expect(card).toMatch(/passes through a US provider/i);
   });
 
@@ -396,9 +394,6 @@ const PUBLIC_PAGES: Array<[string, () => React.ReactElement]> = [
   ["/privacy", () => <PrivacyPage />],
   ["/dpa", () => <DpaPage />],
   ["/pricing", () => <PricingPage />],
-  // /customers 308s to /pilot (src/lib/retired-routes.ts); its slot here moved with it.
-  ["/pilot", () => <PilotPage />],
-  ["/one-pager", () => <OnePagerPage />],
   ["/ (home)", () => <HomePage />],
   ["marketing layout", () => <MarketingLayout>{null}</MarketingLayout>],
   ["/sign-in", () => <SignInPage />],
@@ -659,7 +654,7 @@ describe("the no-AI mode is described as what it is", () => {
 
   it("keeps the guarantee that is actually true and enforced", () => {
     const body = visibleText(aiCard());
-    expect(body).toMatch(/nothing about its orders reaches OpenAI/i);
+    expect(body).toMatch(/nothing about its documents reaches OpenAI/i);
     expect(body).toMatch(/on request/i);
   });
 
@@ -710,7 +705,6 @@ const NOT_IN_THE_TABLE: Record<string, string> = {
   "support": "contact routes only",
   "book-demo": "scheduling embed",
   "welcome": "post-checkout confirmation",
-  "watch": "video page",
   "help": "help index; the articles themselves are scanned as source below",
   "help/guides": "guide index; same",
 };
@@ -748,7 +742,7 @@ const MUST_BE_ALLOWED: Array<[string, string]> = [
   ["naming the US categories", "Some processing runs on named US subprocessors under standard contractual clauses — sign-in, AI extraction, payments, and email in both directions."],
   ["admitting the route is unknown", "The network path out to your supplier is chosen by our hosting provider and is not pinned to a region by us, so we cannot tell you today which country an outbound delivery leaves from."],
   ["a narrow storage statement", "Order storage is EU-region and encrypted with AES-GCM at rest."],
-  ["the no-AI guarantee", "We can also turn AI extraction off for an organisation entirely, so nothing about its orders reaches OpenAI."],
+  ["the no-AI guarantee", "We can also turn AI extraction off for an organisation entirely, so nothing about its documents reaches OpenAI."],
   // This one pins the sentence boundary itself. Widening the window to tolerate
   // abbreviations is only safe while a REAL full stop still ends it — otherwise
   // the guard quietly becomes "these words appear somewhere on the page", fires
@@ -895,115 +889,6 @@ describe("sign-in and sign-up trust line", () => {
       expect(link?.getAttribute("href")).toBe("/security");
     });
   }
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// /customers shipped two fabricated pilot profiles ("Mid-market wholesaler ·
-// ~120 POs/month", "Industrial distributor · ~500 POs/month") behind a
-// "Coming soon — anonymised pilot" badge. Production has no engagement that
-// matches either, so the anonymisation was concealing invention rather than an
-// identity. An anonymised-but-fabricated profile is the same defect as a named
-// fake one, so the fix is an empty page that says so — not a softer fiction.
-//
-// Quoting the two retired profiles was useless as a guard: "a mid-sized
-// wholesaler, roughly 120 purchase orders a month" restores both of them word
-// for word past every literal pin. What actually distinguishes the honest page
-// from the dishonest one is VOICE — the page is allowed to quote one invented
-// profile as the specimen it refuses to publish, and it does exactly that in
-// the "Why it is empty" panel. Outside quotation marks the page is speaking in
-// its own voice, and there it may not describe a customer we do not have.
-//
-// Two independent guards, because one is always beatable:
-//   • voice   — no archetype, volume or pilot language outside quotation marks;
-//   • arity   — at most ONE archetype anywhere, quoted or not. Two profiles
-//               need two archetypes, so the restored pair dies even if someone
-//               puts both of them inside quotes.
-//
-// ── 2026-11-04: the guard moved with the job, not with the URL ───────────────
-//
-// /customers is retired and 308s to /pilot (src/lib/retired-routes.ts). /pilot is
-// now the page a prospect lands on when they go looking for references, so it is
-// the page that must not invent one, and every rule above now runs against it.
-// Three of the original assertions had to change SHAPE on a page whose subject is
-// a pilot programme. Each change is stated so it reads as a decision, not a
-// loosening:
-//
-//   • "no pilot / design-partner / case-study language in the page's own voice"
-//     cannot hold on a page that describes the programme. What it protected was
-//     never the word — it was the claim that someone is IN a pilot. That claim is
-//     now banned directly: "our/current/existing pilots", "pilot customers",
-//     "trusted by", "N companies", outcome percentages.
-//   • the volume ban is narrowed to MONTHLY volumes — the shape of both fabricated
-//     profiles ("~120 POs/month", "roughly 120 purchase orders a month"). The page
-//     prints the self-service Pilot's own allowance, read off plans.ts; that is a
-//     plan fact, not a customer.
-//   • "states plainly that there are no public references yet" became "makes a
-//     named reference conditional on the client's approval". The advisor's
-//     direction was to stop making the absence the content; the honest half of
-//     that is that a reference is something agreed, never something asserted.
-//
-// Arity tightens rather than loosens: the old page quoted one specimen, this one
-// quotes none, so it may carry no archetype at all.
-
-// Built fresh on each use: a /g regex carries lastIndex between calls.
-const ARCHETYPE = "\\b(wholesaler|distributor|retailer|manufacturer|reseller|merchant)s?\\b";
-
-/** Drop quoted spans — a quotation is a specimen, not a claim. */
-const unquoted = (s: string) => s.replace(/[“"][^“”"]*[”"]/g, " ");
-
-describe("pilot programme page (replaces /customers) invents no customer", () => {
-  it("describes no customer in the page's own voice", () => {
-    const body = unquoted(text(<PilotPage />));
-    expect(body).not.toMatch(new RegExp(ARCHETYPE, "i"));
-    expect(body).not.toMatch(
-      /\b\d[\d,.]*\s*\+?\s*(purchase orders|orders|POs)\s*(?:a|per|\/)\s*month\b/i,
-    );
-    expect(body).not.toMatch(
-      /\b\d[\d,.]*\s*\+?\s*(companies|customers|clients|teams|businesses|organi[sz]ations)\b/i,
-    );
-  });
-
-  it("ships no customer profile at all, quoted or not", () => {
-    const body = text(<PilotPage />);
-    expect((body.match(new RegExp(ARCHETYPE, "gi")) ?? []).length).toBe(0);
-  });
-
-  it("claims no pilot, customer or result we cannot point at", () => {
-    const body = text(<PilotPage />);
-    const CLAIMS: RegExp[] = [
-      /we(?:'|&apos;|’)?re in early pilots/i,
-      /procurement teams using ProcuLink/i,
-      /\b(?:our|current|existing|recent|ongoing|previous) (?:pilots?|pilot (?:customers|clients|partners)|customers|clients|design partners)\b/i,
-      /\bpilot (?:customers|clients|partners) (?:have|are|say|report)/i,
-      /\b(?:trusted|used|loved|chosen) by\b/i,
-      /\bcustomers? (?:say|said|report(?:ed)?)\b/i,
-      /\d+\s?%/,
-    ];
-    for (const re of CLAIMS) {
-      expect(body.match(re)?.[0], `claim matched ${re}`).toBeUndefined();
-    }
-  });
-
-  it("makes a named reference conditional on the client's approval", () => {
-    const body = text(<PilotPage />);
-    expect(body).toMatch(/named reference/i);
-    expect(body).toMatch(/without your approval of the wording and figures/i);
-  });
-
-  it("offers checkable capability pages and the company's legal pages instead of social proof", () => {
-    const markup = html(<PilotPage />);
-    for (const href of ["/formats", "/security", "/privacy", "/dpa", "/subprocessors"]) {
-      expect(markup).toContain(`href="${href}"`);
-    }
-  });
-
-  it("does not ask for the supplier's name", () => {
-    const { container } = render(<PilotPage />);
-    const prompts = Array.from(container.querySelectorAll("label, legend")).map((l) => l.textContent ?? "");
-    // Anti-vacuity: the application form really rendered its questions.
-    expect(prompts.length).toBeGreaterThan(8);
-    expect(prompts.join(" | ")).not.toMatch(/supplier(?:'s|’s)? name|which supplier|name of (?:the|your) supplier/i);
-  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
