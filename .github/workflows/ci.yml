@@ -445,6 +445,12 @@ jobs:
         if: always()
         run: bun run test src/lib/sourceDocument.test.ts
 
+      # Does the help's claim that checks never stop a send, except a repeated number on an
+      # automatic flow, still match what SendDocumentJob decides?
+      - name: Diff the checks claim in the help against the backend automatic send
+        if: always()
+        run: bun run test src/lib/helpContent.test.ts
+
       # Tenth: does the Settings webhook event menu offer every event the backend will
       # deliver? The mirror this diffs (src/lib/integrationEventManifest.ts) exists because
       # the menu was a private three-entry map while `IntegrationEventTypes.Subscribable`

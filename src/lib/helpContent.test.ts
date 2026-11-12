@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from "fs";
+import { existsSync, readdirSync, readFileSync } from "fs";
 import { join } from "path";
 import { describe, expect, it } from "vitest";
 import { GUIDES } from "@/lib/guides";
@@ -47,5 +47,47 @@ describe("help content", () => {
       return NEVER_CLAIM.filter(({ pattern }) => pattern.test(text)).map(({ label }) => `${f}: ${label}`);
     });
     expect(hits).toEqual([]);
+  });
+});
+
+describe("never-claim destination patterns", () => {
+  const pattern = (label: string) => NEVER_CLAIM.find((n) => n.label === label)!.pattern;
+  const CASES: [label: string, text: string, hit: boolean][] = [
+    ["S3 destination", "Outputs go to S3", true],
+    ["S3 destination", "Send to SFTP, FTPS or S3", true],
+    ["S3 destination", "Send the output to an S3 bucket.", true],
+    ["S3 destination", "Collect documents from an S3 bucket", false],
+    ["S3 destination", "Send documents in by S3 pickup", false],
+    ["plain-FTP destination", "Deliver via FTP", true],
+    ["plain-FTP destination", "We deliver it to your FTP server.", true],
+    ["plain-FTP destination", "Upload a file to your FTP server and we collect it", false],
+    ["plain-FTP destination", "Send to an SFTP or FTPS server", false],
+    ["plain-FTP destination", "Destinations: email, an SFTP or FTPS server, or a download.", false],
+  ];
+  it.each(CASES)("%s: %s", (label, text, hit) => {
+    expect(pattern(label).test(text)).toBe(hit);
+  });
+});
+
+describe("the checks claim", () => {
+  const BACKEND = process.env.PROCULINK_BACKEND_PATH;
+  const job = BACKEND && join(BACKEND, "ProcuLink.Api/Jobs/SendDocumentJob.cs");
+
+  it("fails rather than skips when CI required the mirror", () => {
+    // CI checks the backend out, so there "no checkout" is a failure and not a reason to skip.
+    if (process.env.PROCULINK_REQUIRE_BACKEND_MIRROR === "1") expect(job && existsSync(job), "PROCULINK_REQUIRE_BACKEND_MIRROR=1 but no backend checkout").toBeTruthy();
+  });
+
+  // The articles say checks never stop you sending, and only a repeated document number holds an AUTOMATIC send.
+  // `SendDocumentJob.ShouldSend` is where that is decided, and the UI says the first half in `states.tsx`.
+  it.skipIf(!job || !existsSync(job))("matches the rule the automatic send and the UI really use", () => {
+    const send = readFileSync(job as string, "utf8");
+    const rule = send.slice(send.indexOf("ShouldSend(FlowDocument"));
+    const codes = [...rule.slice(0, rule.indexOf("public static")).matchAll(/DocumentChecks\.(\w+)/g)].map((m) => m[1]);
+    expect(codes, "ShouldSend must look at exactly one check: the duplicate number").toEqual(["Duplicate"]);
+    expect(readFileSync(join(process.cwd(), "src/components/flows/states.tsx"), "utf8")).toContain("they never stop you sending");
+    const article = readFileSync(join(HELP_DIR, "checks", "page.mdx"), "utf8");
+    expect(article).toContain("never stop you sending");
+    expect(article).toContain("always waits for you");
   });
 });
