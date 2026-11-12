@@ -11,7 +11,8 @@ import { preparePage, settle, errorBoundaryMarker, DEV_OVERLAY_SELECTORS } from 
  *
  * ── THE PLATFORM PROBLEM, SOLVED RATHER THAN NOTED ────────────────────────────
  *
- * CI is ubuntu-latest. The founder's machine is Windows 11. The same Chromium
+ * CI is ubuntu-24.04, pinned (Playwright 1.60 cannot run on 26.04). The
+ * founder's machine is Windows 11. The same Chromium
  * build renders text differently on the two: different font stacks behind the
  * webfont fallback, different rasterisers, different hinting. A baseline written
  * on Windows fails on Linux on the first pixel of the first glyph — reliably,

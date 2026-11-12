@@ -70,7 +70,7 @@ permissions:
 jobs:
   smoke:
     name: Signed-in screens against proculink.eu
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
       # Referenced by name. Never echoed, never written to an output, never
