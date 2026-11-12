@@ -9,10 +9,11 @@ import { INPUT } from "@/components/flows/DestinationForm";
 import { saveFlowFields } from "@/lib/api/documents";
 import type { Flow, FlowField, FlowFieldList } from "@/lib/api/documents";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
+import { FIELD_MEANINGS } from "@/lib/fieldMeanings";
 import { FIELD_TYPES } from "@/lib/flowFieldModel";
 
-function FieldRow({ field, on, onInclude, onChange }: {
-  field: FlowField; on: boolean; onInclude(on: boolean): void; onChange(field: FlowField): void;
+function FieldRow({ field, scope, on, onInclude, onChange }: {
+  field: FlowField; scope: "header" | "line"; on: boolean; onInclude(on: boolean): void; onChange(field: FlowField): void;
 }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -23,6 +24,14 @@ function FieldRow({ field, on, onInclude, onChange }: {
         onChange={(e) => onChange({ ...field, type: e.target.value })}>
         {!(field.type in FIELD_TYPES) && <option value={field.type}>{field.type}</option>}
         {Object.entries(FIELD_TYPES).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+      </select>
+      <select aria-label={`Meaning for ${field.label}`} className={`${INPUT} w-40`} value={field.meaning ?? ""} disabled={!on}
+        onChange={(e) => onChange({ ...field, meaning: e.target.value || null })}>
+        <option value="">None</option>
+        {field.meaning && FIELD_MEANINGS[field.meaning as keyof typeof FIELD_MEANINGS]?.scope !== scope && (
+          <option value={field.meaning}>{FIELD_MEANINGS[field.meaning as keyof typeof FIELD_MEANINGS]?.label ?? field.meaning}</option>
+        )}
+        {Object.entries(FIELD_MEANINGS).filter(([, m]) => m.scope === scope).map(([id, m]) => <option key={id} value={id}>{m.label}</option>)}
       </select>
       <label className="flex items-center gap-1.5 text-[12px] text-ink-muted">
         <input type="checkbox" className="size-4" checked={field.required} disabled={!on}
@@ -43,9 +52,12 @@ export function FieldListEditor({ flow, initial, initialOff, onSaved }: {
   const [problem, setProblem] = useState<string | null>(null);
   const toggle = (id: string, on: boolean) => setOff((s) => { const n = new Set(s); if (on) n.delete(id); else n.add(id); return n; });
 
-  const patchField = (i: number, f: FlowField) => setList({ ...list, fields: list.fields.map((x, j) => (j === i ? f : x)) });
+  // A meaning belongs to one field (for columns, one column per table): choosing it here clears it from the old holder.
+  const replace = (rows: FlowField[], i: number, f: FlowField) =>
+    rows.map((x, j) => (j === i ? f : f.meaning && f.meaning !== rows[i].meaning && x.meaning === f.meaning ? { ...x, meaning: null } : x));
+  const patchField = (i: number, f: FlowField) => setList({ ...list, fields: replace(list.fields, i, f) });
   const patchColumn = (t: number, i: number, f: FlowField) =>
-    setList({ ...list, tables: list.tables.map((x, j) => (j === t ? { ...x, columns: x.columns.map((c, k) => (k === i ? f : c)) } : x)) });
+    setList({ ...list, tables: list.tables.map((x, j) => (j === t ? { ...x, columns: replace(x.columns, i, f) } : x)) });
 
   /** Included rows only. A table with no included columns is left out: there is nothing to read into it. */
   const chosen = (): FlowFieldList => ({
@@ -82,7 +94,7 @@ export function FieldListEditor({ flow, initial, initialOff, onSaved }: {
         <p className="text-[12px] text-ink-muted">Every document in this flow is read into these fields. Untick what you don&apos;t need.</p>
         <div className="grid gap-2">
           {list.fields.map((f, i) => (
-            <FieldRow key={f.key} field={f} on={!off.has(f.key)} onInclude={(on) => toggle(f.key, on)} onChange={(x) => patchField(i, x)} />
+            <FieldRow key={f.key} field={f} scope="header" on={!off.has(f.key)} onInclude={(on) => toggle(f.key, on)} onChange={(x) => patchField(i, x)} />
           ))}
         </div>
         {list.tables.map((t, ti) => (
@@ -95,7 +107,7 @@ export function FieldListEditor({ flow, initial, initialOff, onSaved }: {
             </div>
             <div className="grid gap-2 pl-6">
               {t.columns.map((c, ci) => (
-                <FieldRow key={c.key} field={c} on={!off.has(t.key) && !off.has(`${t.key}/${c.key}`)}
+                <FieldRow key={c.key} field={c} scope="line" on={!off.has(t.key) && !off.has(`${t.key}/${c.key}`)}
                   onInclude={(on) => toggle(`${t.key}/${c.key}`, on)} onChange={(x) => patchColumn(ti, ci, x)} />
               ))}
             </div>

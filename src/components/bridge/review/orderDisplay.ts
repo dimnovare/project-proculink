@@ -167,6 +167,7 @@ export const PROTOCOL_LABEL: Record<DeliveryProtocol, string> = {
   smtp: "Email (SMTP)",
   erp_erply: "Erply ERP",
   erp_directo: "Directo ERP",
+  s3: "S3 bucket",
 };
 
 export function deliveryChannelLabel(protocol: string): string {

@@ -85,4 +85,26 @@ describe("DestinationForm", () => {
     expect(api.createDestination.mock.calls[0][0].credentials).toEqual({ username: "ops", privateKey: key });
     await waitFor(() => expect(box.value).toBe(""));
   });
+
+  it("takes an S3 bucket and posts exactly the bucket keys, with the secret as the credential", async () => {
+    api.createDestination.mockResolvedValue({ ...saved, id: "d3", protocol: "s3", config: {} });
+    const { container } = render(
+      <QueryClientProvider client={new QueryClient()}>
+        <DestinationForm onSaved={() => {}} onCancel={() => {}} />
+      </QueryClientProvider>,
+    );
+    const ui = within(container);
+    fireEvent.change(ui.getByLabelText("Send by"), { target: { value: "s3" } });
+    for (const [label, value] of [["Name", "Archive"], ["Bucket", "orders"], ["Folder", "out/"], ["Region", "auto"],
+      ["Endpoint URL", "https://r2.example.test"], ["Access key ID", "AKIA1"], ["Secret access key", "shh"]])
+      fireEvent.change(ui.getByLabelText(label), { target: { value } });
+    expect(ui.getByText(/Only for R2, MinIO/)).toBeTruthy();
+    fireEvent.click(ui.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(api.createDestination).toHaveBeenCalled());
+    expect(api.createDestination.mock.calls.at(-1)![0]).toEqual({
+      name: "Archive", protocol: "s3",
+      config: { bucket: "orders", prefix: "out/", region: "auto", serviceUrl: "https://r2.example.test", accessKeyId: "AKIA1" },
+      credentials: { secretKey: "shh" },
+    });
+  });
 });

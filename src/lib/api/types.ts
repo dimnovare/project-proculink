@@ -672,7 +672,7 @@ export const SCRIBAN_STARTER_TEMPLATE = `{
 
 // Supplier delivery configuration
 
-export type DeliveryProtocol = "manual" | "http" | "sftp" | "ftps" | "smtp" | "email" | "erp_erply" | "erp_directo";
+export type DeliveryProtocol = "manual" | "http" | "sftp" | "ftps" | "smtp" | "email" | "erp_erply" | "erp_directo" | "s3";
 
 export type OutputFormatId = "xml" | "csv" | "cxml" | "json" | "ubl" | "x12" | "pdf";
 
