@@ -40,7 +40,7 @@ export function StandardQuestions({ flow, needs, tableKey, name }: { flow: Flow;
             <select className={INPUT} value="" disabled={save.isPending}
               onChange={(e) => save.mutate({ key: e.target.value, meaning: q.need, line: q.line })}>
               <option value="">{`Choose a ${what}`}</option>
-              {(q.line ? table!.columns : flow.fields.fields).map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
+              {(q.line ? table!.columns : flow.fields.fields).filter((f) => !f.meaning || !needs.includes(f.meaning)).map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
             </select>
           </Field>
         );

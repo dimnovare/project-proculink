@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { OutputEditor } from "./OutputEditor";
 
@@ -106,7 +106,7 @@ describe("OutputEditor", () => {
     renderEditor({ ...output, standard: "x12-850", format: "txt", tableKey: "lines", template: {},
       needs: ["document_number", "issue_date", "currency", "line_quantity", "line_unit_price", "line_item_code"] }, { ...flow, fields });
     expect(screen.getByLabelText("Standard")).toHaveValue("ANSI X12 850");
-    expect(screen.getByLabelText("Which field is the issue date?")).toBeTruthy();
+    expect(within(screen.getByLabelText("Which field is the issue date?")).queryByRole("option", { name: "PO" })).toBeNull();
     expect(screen.queryByLabelText("Which field is the document number?")).toBeNull();
     expect(screen.queryByLabelText("File type")).toBeNull();
     expect(screen.queryByRole("textbox", { name: "Title" })).toBeNull();
