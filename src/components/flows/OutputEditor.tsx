@@ -16,6 +16,7 @@ import { defaultWidth, fromSimple, OP_LABEL, toSimple } from "@/lib/flowOutputMo
 import type { SimpleOutput, SimpleRow } from "@/lib/flowOutputModel";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { standardName } from "@/lib/standardOutputs";
+import { StandardQuestions } from "@/components/flows/StandardQuestions";
 
 export const FORMATS = { csv: "CSV", xlsx: "Excel", json: "JSON", xml: "XML", pdf: "PDF", txt: "Text", fixed: "Fixed-width text" };
 /** What an output makes: its standard's name, else its file type. Never decided from `template.format`. */
@@ -94,7 +95,7 @@ export function OutputEditor({ flow, output, previewDocumentId, hideDestination,
   const [tableKey, setTableKey] = useState<string | null>(output ? output.tableKey : (flow.fields.tables[0]?.key ?? null));
   const [destinationId, setDestinationId] = useState<string | null>(output?.destinationId ?? null);
   const [newDestination, setNewDestination] = useState(false);
-  const [rows, setRows] = useState<SimpleOutput | null>(output ? toSimple(output.template) : null);
+  const [rows, setRows] = useState<SimpleOutput | null>(output && !output.standard ? toSimple(output.template) : null);
   const [sendWhen, setSendWhen] = useState<SendWhen | null>(output?.sendWhen ?? null);
   const [layout, setLayout] = useState<OutputLayout>(output?.layout ?? {});
   const [problem, setProblem] = useState<string | null>(null);
@@ -102,8 +103,9 @@ export function OutputEditor({ flow, output, previewDocumentId, hideDestination,
   const destinations = useQuery({ queryKey: ["destinations"], queryFn: listDestinations, enabled: useTenantQueriesEnabled() });
   const lookups = useQuery({ queryKey: ["lookups"], queryFn: listLookups, enabled: useTenantQueriesEnabled() });
   const lookupList = lookups.data ?? (lookups.isError ? "failed" : "loading");
-  const external = !!current && !rows;
-  const formatted = format === "pdf" || format === "txt";
+  const standard = current?.standard;
+  const external = !!current && !rows && !standard;
+  const formatted = !standard && (format === "pdf" || format === "txt");
 
   const preview = useMutation({ mutationFn: () => previewOutput(previewDocumentId!, current!.id) });
   const logoInput = useRef<HTMLInputElement>(null);
@@ -167,12 +169,16 @@ export function OutputEditor({ flow, output, previewDocumentId, hideDestination,
         <Field label="Name">
           <input className={INPUT} maxLength={120} value={name} onChange={(e) => setName(e.target.value)} />
         </Field>
-        <Field label="File type">
-          <select className={INPUT} value={format} disabled={external} onChange={(e) => setFormat(e.target.value)}>
-            {!Object.hasOwn(FORMATS, format) && <option value={format}>{format}</option>}
-            {Object.entries(FORMATS).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
-          </select>
-        </Field>
+        {standard ? (
+          <Field label="Standard"><input className={INPUT} readOnly value={standardName(standard)} /></Field>
+        ) : (
+          <Field label="File type">
+            <select className={INPUT} value={format} disabled={external} onChange={(e) => setFormat(e.target.value)}>
+              {!Object.hasOwn(FORMATS, format) && <option value={format}>{format}</option>}
+              {Object.entries(FORMATS).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+            </select>
+          </Field>
+        )}
         {rows && format === "csv" && (
           <Field label="Separator">
             <select className={INPUT} value={rows.delimiter ?? ","} onChange={(e) => setRows({ ...rows, delimiter: e.target.value })}>
@@ -278,6 +284,7 @@ export function OutputEditor({ flow, output, previewDocumentId, hideDestination,
             )}
           </>
         )}
+        {standard && <StandardQuestions flow={flow} needs={current.needs ?? []} tableKey={tableKey} name={standardName(standard)} />}
         {problem && <StatusNotice tone="error">{problem}</StatusNotice>}
         <div className="flex flex-wrap gap-2">
           <Button type="submit" variant="primary" loading={save.isPending}>{current ? "Save" : "Create"}</Button>

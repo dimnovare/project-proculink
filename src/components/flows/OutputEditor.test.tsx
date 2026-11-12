@@ -6,7 +6,7 @@ import { OutputEditor } from "./OutputEditor";
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => true }));
 
 const api = vi.hoisted(() => ({
-  listDestinations: vi.fn(), listLookups: vi.fn(), updateOutput: vi.fn(), createOutput: vi.fn(), previewOutput: vi.fn(),
+  listDestinations: vi.fn(), listLookups: vi.fn(), updateOutput: vi.fn(), createOutput: vi.fn(), previewOutput: vi.fn(), saveFlowFields: vi.fn(),
 }));
 vi.mock("@/lib/api/documents", () => api);
 
@@ -25,10 +25,10 @@ beforeEach(() => {
   api.updateOutput.mockResolvedValue(output);
 });
 
-const renderEditor = (o: unknown = output) => {
+const renderEditor = (o: unknown = output, f: unknown = flow) => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(<QueryClientProvider client={client}>
-    <OutputEditor flow={flow as never} output={o as never} previewDocumentId="d" onSaved={() => {}} onCancel={() => {}} />
+    <OutputEditor flow={f as never} output={o as never} previewDocumentId="d" onSaved={() => {}} onCancel={() => {}} />
   </QueryClientProvider>);
   return client;
 };
@@ -97,5 +97,21 @@ describe("OutputEditor", () => {
     await screen.findByRole("option", { name: "Item codes" });
     fireEvent.click(screen.getByRole("button", { name: "Preview" }));
     expect(await screen.findByText("Not in “Item codes”: NUT-4.")).toBeTruthy();
+  });
+
+  it("a standard output asks only for what its flow lacks and saves the answer as a meaning", async () => {
+    const f = (key: string, meaning: string | null = null) => ({ key, label: key, type: "text", meaning, required: false });
+    const fields = { fields: [f("PO", "document_number"), f("Date")], tables: [{ key: "lines", label: "Lines", columns: [f("Qty", "line_quantity"), f("Code")] }] };
+    api.saveFlowFields.mockResolvedValue({ ...flow, fields });
+    renderEditor({ ...output, standard: "x12-850", format: "txt", tableKey: "lines", template: {},
+      needs: ["document_number", "issue_date", "currency", "line_quantity", "line_unit_price", "line_item_code"] }, { ...flow, fields });
+    expect(screen.getByLabelText("Standard")).toHaveValue("ANSI X12 850");
+    expect(screen.getByLabelText("Which field is the issue date?")).toBeTruthy();
+    expect(screen.queryByLabelText("Which field is the document number?")).toBeNull();
+    expect(screen.queryByLabelText("File type")).toBeNull();
+    expect(screen.queryByRole("textbox", { name: "Title" })).toBeNull();
+    fireEvent.change(screen.getByLabelText("Which column is the line item code?"), { target: { value: "Code" } });
+    await waitFor(() => expect(api.saveFlowFields).toHaveBeenCalled());
+    expect(api.saveFlowFields.mock.calls[0][1].tables[0].columns[1].meaning).toBe("line_item_code");
   });
 });
