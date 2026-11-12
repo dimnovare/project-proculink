@@ -19,6 +19,11 @@ describe("mock engine", () => {
     await expect(mockEngineFetch("/nope")).rejects.toThrow("no fixture for GET /nope");
   });
 
+  it("matches the numeric restore-version route", async () => {
+    const flow = await mockEngineFetch<Flow>(`/flows/${MOCK_ENGINE_IDS.flow}/versions/1/restore`, { method: "POST" });
+    expect(flow.id).toBe(MOCK_ENGINE_IDS.flow);
+  });
+
   it("is wired into the documents client in mock mode", async () => {
     const flows = await listFlows();
     expect(flows.map((f) => f.id)).toContain(MOCK_ENGINE_IDS.flow);

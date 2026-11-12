@@ -6,6 +6,8 @@
  * instead of an empty success. Only reachable when `isApiMockMode` (never true in production).
  */
 import { DOCUMENT_STATUSES } from "../documentStatusManifest";
+import { ApiHttpError } from "./core";
+import { mockSourceBytesForKey } from "./mockSourceDocument";
 import type {
   Destination, DocumentDelivery, DocumentDetail, DocumentSummary, Flow, FlowField, FlowIntake, FlowOutput,
   FlowVersion, Lookup, LookupSummary, NotificationSettings, OutputPreview, ReadCell, ReadResult,
@@ -73,12 +75,12 @@ const doc = (n: number, f: Flow, status: string, failedChecks = 0): DocumentSumm
 });
 const DOCS = [
   doc(1, flow1, STATUS.needs_review, 1),
-  doc(2, flow1, STATUS.ready),
+  { ...doc(2, flow1, STATUS.ready), fileName: "invoice-1002.pdf" }, // the one PDF: pdf.js e2e (document-pdf.spec.ts)
   doc(3, flow1, STATUS.sent),
   doc(4, flow2, STATUS.send_failed),
 ];
 const detail = (s: DocumentSummary): DocumentDetail => ({
-  summary: s, contentType: "text/csv", read, senderLabel: "Example Supplier Ltd",
+  summary: s, contentType: s.fileName.endsWith(".pdf") ? "application/pdf" : "text/csv", read, senderLabel: "Example Supplier Ltd",
   checks: s.failedChecks
     ? [{ code: "low_confidence", passed: false, fieldKey: "vat", message: "The VAT value was read with low confidence." }]
     : [{ code: "total_present", passed: true, fieldKey: "total", message: "Total found." }],
@@ -93,7 +95,7 @@ const DELIVERIES: Record<string, DocumentDelivery[]> = {
 };
 
 const destinations: Destination[] = [
-  { id: "dest-1", name: "Accounting inbox", protocol: "email", config: { to: "accounting@example.test" }, hasCredentials: false, createdAt: T },
+  { id: "dest-1", name: "Accounting inbox", protocol: "email", config: { toAddresses: "accounting@example.test" }, hasCredentials: false, createdAt: T },
   { id: "dest-2", name: "Accounting API", protocol: "http", config: { method: "POST", url: "https://api.example.test/invoices" }, hasCredentials: true, createdAt: T },
 ];
 const intakes: FlowIntake[] = [{
@@ -133,11 +135,14 @@ const TEST_OK = { success: true, message: null, responseCode: 200 };
 
 type Body = Record<string, unknown>;
 type Handler = (m: string[], q: URLSearchParams, body: Body) => unknown;
-const missing = (what: string, id: string): never => { throw new Error(`mock engine: no ${what} ${id}`); };
+// Same shape as the real backend's 404, so a screen takes its not-found path, not its network-failure one.
+const missing = (what: string, id: string): never => {
+  throw new ApiHttpError(`mock engine: no ${what} ${id}`, 404, { error: `${what}_not_found` });
+};
 const pick = <X extends { id: string }>(list: X[], id: string, what: string): X => list.find((x) => x.id === id) ?? missing(what, id);
 const echo = <X extends object>(base: X, body: Body): X => ({ ...base, ...body });
 const S = "([^/]+)";
-const re = (strings: TemplateStringsArray, ...rest: unknown[]) => new RegExp("^" + String.raw({ raw: strings }, ...rest) + "$");
+const re = (strings: TemplateStringsArray, ...rest: unknown[]) => new RegExp("^" + String.raw(strings, ...rest) + "$");
 
 const ROUTES: [method: string, pattern: RegExp, run: Handler][] = [
   ["GET", re`/flows`, () => FLOWS],
@@ -148,7 +153,7 @@ const ROUTES: [method: string, pattern: RegExp, run: Handler][] = [
   ["GET", re`/flows/${S}/versions`, (m) => (pick(FLOWS, m[1], "flow").publishedVersion ? versions : [])],
   ["POST", re`/flows/${S}/versions/\d+/restore`, (m) => pick(FLOWS, m[1], "flow")],
   ["PUT", re`/flows/${S}/fields`, (m, _q, b) => echo(pick(FLOWS, m[1], "flow"), { fields: b })],
-  ["POST", re`/flows/${S}/documents`, (m) => DOCS.find((d) => d.flowId === m[1]) ?? missing("flow", m[1])],
+  ["POST", re`/flows/${S}/documents`, (m) => ({ ...DOCS[0], flowId: pick(FLOWS, m[1], "flow").id, flowName: pick(FLOWS, m[1], "flow").name })],
   ["GET", re`/documents`, (_m, q) => {
     const take = Number(q.get("take")) || DOCS.length;
     return DOCS.filter((d) => (!q.get("flowId") || d.flowId === q.get("flowId")) && (!q.get("status") || d.status === q.get("status"))).slice(0, take);
@@ -194,9 +199,14 @@ const ROUTES: [method: string, pattern: RegExp, run: Handler][] = [
   ["DELETE", re`/lookups/${S}`, () => undefined],
 ];
 
-const BLOBS: [RegExp, () => string][] = [
-  [re`/documents/${S}/source`, () => CSV],
-  [re`/documents/${S}/deliveries/${S}/file`, () => preview.content],
+// The original is served by file name, like the real download: a `.pdf` document gets real PDF bytes,
+// so pdf.js renders it in the browser; everything else is the fixture CSV.
+const BLOBS: [RegExp, (m: string[]) => Blob][] = [
+  [re`/documents/${S}/source`, (m) => {
+    const name = pick(DOCS, m[1], "document").fileName;
+    return name.endsWith(".pdf") ? mockSourceBytesForKey(name)!.blob : new Blob([CSV], { type: "text/csv" });
+  }],
+  [re`/documents/${S}/deliveries/${S}/file`, () => new Blob([preview.content], { type: "text/csv" })],
 ];
 
 function bodyOf(init?: RequestInit): Body {
@@ -216,8 +226,9 @@ export async function mockEngineFetch<T>(path: string, init?: RequestInit, as: "
   if (as === "blob" && method === "GET") {
     for (const [pattern, run] of BLOBS) {
       const m = pattern.exec(pathname);
-      if (m) { pick(DOCS, m[1], "document"); return new Blob([run()], { type: "text/csv" }) as T; }
+      if (m) return run(m) as T;
     }
+    throw new Error(`mock engine: no file fixture for ${pathname}`);
   }
   for (const [verb, pattern, run] of ROUTES) {
     const m = verb === method ? pattern.exec(pathname) : null;

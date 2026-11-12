@@ -23,8 +23,8 @@ import { preparePage, settle, errorBoundaryMarker, DEV_OVERLAY_SELECTORS } from 
  *   • the app-shell mobile nav drawer — the only way to navigate below `md`
  * The LaneDrawer (dashboard System map) and delete-supplier confirmation cases were
  * removed with their legacy screens (plan 13a): neither is reachable once the document
- * engine is on, and no document-engine screen opens a modal dialog yet. Add a case here
- * when one does.
+ * engine is on. Engine screens DO open a modal (the useConfirm() AlertDialog, e.g. "Delete output"
+ * on a flow), but no case here scans it open yet: a known gap, add one.
  *
  * WHY THE SCAN IS SCOPED TO THE OVERLAY. `AxeBuilder.include()` narrows the scan to
  * the open layer's own subtree. Scanning the whole document instead would re-report
@@ -33,7 +33,7 @@ import { preparePage, settle, errorBoundaryMarker, DEV_OVERLAY_SELECTORS } from 
  * different question from "is this drawer accessible". A regression introduced in
  * the page behind an overlay belongs to that page's baseline, not to this file.
  *
- * WHAT THE FIRST RUN FOUND: nothing. All three overlays scan clean at WCAG 2.1
+ * WHAT THE FIRST RUN FOUND: nothing. The overlays this file covered scanned clean at WCAG 2.1
  * A/AA, and no product code was changed for this file. That is stated plainly
  * rather than dressed up, because the tempting alternative — inventing a fix to
  * justify the packet — is worse than a green scan. It is also not luck: both

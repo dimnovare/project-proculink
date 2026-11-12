@@ -62,8 +62,8 @@ import { sweepRoutes } from "./sweepRoutes";
  *
  * THE COST, STATED. A control that only appears AFTER another click — the field
  * inside a panel the panel-opening button reveals — is never pressed here. That
- * is a real coverage boundary, not an oversight, and closing it needs per-flow
- * specs (tests/e2e/error-recovery.spec.ts is the shape) rather than a sweep.
+ * is a real coverage boundary, not an oversight, and closing it needs
+ * per-flow specs rather than a sweep.
  */
 
 const OUT_DIR = join(process.cwd(), ".qa-sweep");

@@ -51,10 +51,10 @@ test.describe("no-hang regression — Documents list", () => {
     await page.goto("/documents", { waitUntil: "domcontentloaded" });
 
     // ── Assertion 1: chrome is rendered + interactive ─────────────────────
-    // The sidebar nav link "Flows" (route /flows) lives in BridgeSidebar.tsx and is
-    // server-rendered regardless of API state. If the page is frozen white,
+    // "Activity" (route /operations/log) is in BOTH navs (legacy and engine), so it renders
+    // whether or not the engine flag has resolved, which it cannot while /api/** is stalled. If the page is frozen white,
     // this assertion will fail because the React tree never mounted.
-    const flowsNav = page.getByRole("link", { name: /^flows$/i }).first();
+    const flowsNav = page.getByRole("link", { name: /^activity$/i }).first();
     await expect(flowsNav).toBeVisible({ timeout: 12_000 });
     expect(
       Date.now() - start,
@@ -62,10 +62,10 @@ test.describe("no-hang regression — Documents list", () => {
     ).toBeLessThan(15_000);
 
     // ── Assertion 2: page is not frozen — navigation works ────────────────
-    // Click the sidebar nav link to /flows. If the main React thread is
-    // blocked (e.g. by a synchronous render hung on an unresolved promise
+    // Click the sidebar nav link (/operations/log in the engine nav, a /bridge hub in the legacy one).
+    // If the main React thread is blocked (e.g. by a synchronous render hung on an unresolved promise
     // in some surprising way), the URL will not change in time.
     await flowsNav.click();
-    await expect(page).toHaveURL(/\/flows/, { timeout: 5_000 });
+    await expect(page).toHaveURL(/\/(operations\/log|bridge)/, { timeout: 5_000 });
   });
 });
