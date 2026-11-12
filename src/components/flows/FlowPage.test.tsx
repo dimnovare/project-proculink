@@ -90,6 +90,14 @@ describe("FlowPage", () => {
     await waitFor(() => expect((screen.getByRole("textbox", { name: "Label" }) as HTMLInputElement).value).toBe("Order no"));
   });
 
+  it("a standard output row names its standard and offers no Advanced view", async () => {
+    search.q = "tab=outputs";
+    api.listOutputs.mockResolvedValue([{ id: "o", flowId: "f", name: "To the buyer", format: "xml", standard: "cxml-1-2", tableKey: null, destinationId: null, createdAt: "", sendWhen: null }]);
+    renderPage();
+    expect(await screen.findByText(/^cXML · /)).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "Open in Advanced" })).toBeNull();
+  });
+
   it("shows the format copy when the server refuses the file type", async () => {
     api.uploadDocument.mockRejectedValue(new ApiHttpError("nope", 415, { error: "unsupported_format" }));
     renderPage();

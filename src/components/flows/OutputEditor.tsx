@@ -15,8 +15,12 @@ import { COPY, documentRefusalMessage } from "@/lib/documentRefusals";
 import { defaultWidth, fromSimple, OP_LABEL, toSimple } from "@/lib/flowOutputModel";
 import type { SimpleOutput, SimpleRow } from "@/lib/flowOutputModel";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
+import { standardName } from "@/lib/standardOutputs";
 
 export const FORMATS = { csv: "CSV", xlsx: "Excel", json: "JSON", xml: "XML", pdf: "PDF", txt: "Text", fixed: "Fixed-width text" };
+/** What an output makes: its standard's name, else its file type. Never decided from `template.format`. */
+export const outputTypeLabel = (o: { format: string; standard?: string | null }) =>
+  o.standard ? standardName(o.standard) : Object.hasOwn(FORMATS, o.format) ? FORMATS[o.format as keyof typeof FORMATS] : o.format;
 const SEPARATORS = [[",", "Comma"], [";", "Semicolon"], ["\t", "Tab"]];
 const LAYOUT_FIELDS = [["title", "Title", 120], ["header", "Text at the top", 500], ["footer", "Text at the bottom", 500]] as const;
 const FIXED = "\u0000fixed";
