@@ -25,9 +25,12 @@ function FieldRow({ field, scope, on, onInclude, onChange }: {
         {!(field.type in FIELD_TYPES) && <option value={field.type}>{field.type}</option>}
         {Object.entries(FIELD_TYPES).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
       </select>
-      <select aria-label="Meaning" className={`${INPUT} w-40`} value={field.meaning ?? ""} disabled={!on}
+      <select aria-label={`Meaning for ${field.label}`} className={`${INPUT} w-40`} value={field.meaning ?? ""} disabled={!on}
         onChange={(e) => onChange({ ...field, meaning: e.target.value || null })}>
         <option value="">None</option>
+        {field.meaning && FIELD_MEANINGS[field.meaning as keyof typeof FIELD_MEANINGS]?.scope !== scope && (
+          <option value={field.meaning}>{FIELD_MEANINGS[field.meaning as keyof typeof FIELD_MEANINGS]?.label ?? field.meaning}</option>
+        )}
         {Object.entries(FIELD_MEANINGS).filter(([, m]) => m.scope === scope).map(([id, m]) => <option key={id} value={id}>{m.label}</option>)}
       </select>
       <label className="flex items-center gap-1.5 text-[12px] text-ink-muted">
