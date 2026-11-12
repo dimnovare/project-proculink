@@ -270,6 +270,10 @@ export default defineConfig({
     timeout: 120_000,
     reuseExistingServer: !process.env.CI,
     env: {
+      // The sweep compiles ~50 routes x 3 widths in one `next dev`. Near the default heap
+      // limit Next restarts itself ("approaching the used memory threshold"), and the
+      // route requested during the restart fails with ERR_EMPTY_RESPONSE. Give it room.
+      NODE_OPTIONS: process.env.NODE_OPTIONS ?? "--max-old-space-size=6144",
       PROCULINK_QA_BYPASS_AUTH: "true",
       // Browser-visible twin of the backend bypass: lets the Next client enable
       // data queries without a Clerk session (see useQueriesEnabled / isQaBypass).
