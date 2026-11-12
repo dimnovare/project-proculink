@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Destination } from "@/lib/api/documents";
 import { DestinationForm } from "./DestinationForm";
@@ -51,5 +51,38 @@ describe("DestinationForm", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     expect(screen.getByText(/Fill in every login field/)).toBeTruthy();
     expect(api.updateDestination).not.toHaveBeenCalled();
+  });
+
+  it("offers an email subject and message but no attachment file name, which a flow send ignores", () => {
+    const { container } = render(
+      <QueryClientProvider client={new QueryClient()}>
+        <DestinationForm onSaved={() => {}} onCancel={() => {}} />
+      </QueryClientProvider>,
+    );
+    fireEvent.change(within(container).getByLabelText("Send by"), { target: { value: "email" } });
+    expect(within(container).getByLabelText("Subject")).toBeTruthy();
+    expect(within(container).getByLabelText("Message")).toBeTruthy();
+    expect(within(container).queryByLabelText(/attachment/i)).toBeNull();
+  });
+
+  it("takes an SFTP private key in a textarea that keeps its line breaks, and does not show it after saving", async () => {
+    const key = "-----BEGIN OPENSSH PRIVATE KEY-----\nAAAA\nBBBB\n-----END OPENSSH PRIVATE KEY-----\n";
+    api.createDestination.mockResolvedValue({ ...saved, id: "d2", protocol: "sftp", config: {} });
+    const { container } = render(
+      <QueryClientProvider client={new QueryClient()}>
+        <DestinationForm onSaved={() => {}} onCancel={() => {}} />
+      </QueryClientProvider>,
+    );
+    const ui = within(container);
+    fireEvent.change(ui.getByLabelText("Send by"), { target: { value: "sftp" } });
+    fireEvent.change(ui.getByLabelText("Name"), { target: { value: "Files" } });
+    fireEvent.change(ui.getByLabelText("Username"), { target: { value: "ops" } });
+    const box = ui.getByLabelText("Private key (instead of password)") as HTMLTextAreaElement;
+    expect(box.tagName).toBe("TEXTAREA");
+    fireEvent.change(box, { target: { value: key } });
+    fireEvent.click(ui.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(api.createDestination).toHaveBeenCalled());
+    expect(api.createDestination.mock.calls[0][0].credentials).toEqual({ username: "ops", privateKey: key });
+    await waitFor(() => expect(box.value).toBe(""));
   });
 });

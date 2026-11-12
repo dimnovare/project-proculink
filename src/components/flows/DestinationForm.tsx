@@ -25,7 +25,7 @@ const CONFIG_FIELDS: Record<string, [label: string, kind: Kind]> = {
   replyTo: ["Reply-to address", "text"],
   subjectTemplate: ["Subject", "text"],
   bodyTemplate: ["Message", "text"],
-  attachmentFileName: ["Attachment file name", "text"],
+  // No attachmentFileName box: a flow send always names the attachment after the document.
 };
 
 const PROTOCOLS = { http: "Web address (API)", sftp: "SFTP", ftps: "FTPS", email: "Email" } as const;
@@ -79,7 +79,8 @@ export function DestinationForm({ destination, preset, onSaved, onCancel }: {
   const test = useMutation({ mutationFn: () => testDestination(current!.id) });
   const save = useMutation({
     mutationFn: (body: DestinationRequest) => (current ? updateDestination(current.id, body) : createDestination(body)),
-    onSuccess: (d) => { setCurrent(d); setProblem(null); test.reset(); onSaved(d); },
+    // Clearing the typed login keeps the saved credentials write-only: they are never shown again.
+    onSuccess: (d) => { setCurrent(d); setCreds({}); setProblem(null); test.reset(); onSaved(d); },
     onError: (e) => setProblem(documentRefusalMessage(e)),
   });
 
@@ -158,18 +159,25 @@ export function DestinationForm({ destination, preset, onSaved, onCancel }: {
             </select>
           </Field>
         )}
-        {credFields.map(([key, label]) => (
-          <Field key={key} label={label}>
-            <input
-              className={INPUT}
-              type="password"
-              autoComplete="new-password"
-              value={creds[key] ?? ""}
-              placeholder={current?.hasCredentials ? "Leave blank to keep the saved one" : ""}
-              onChange={(e) => setCreds((c) => ({ ...c, [key]: e.target.value }))}
-            />
-          </Field>
-        ))}
+        {credFields.map(([key, label]) => {
+          const props = {
+            value: creds[key] ?? "",
+            placeholder: current?.hasCredentials ? "Leave blank to keep the saved one" : "",
+            onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+              setCreds((c) => ({ ...c, [key]: e.target.value })),
+          };
+          return (
+            <Field key={key} label={label}>
+              {key === "privateKey" ? (
+                // A key needs its line breaks, which a one-line input strips from a paste.
+                <textarea {...props} rows={4} spellCheck={false} autoComplete="off"
+                  className={INPUT.replace("h-9", "py-2 font-mono")} />
+              ) : (
+                <input {...props} className={INPUT} type="password" autoComplete="new-password" />
+              )}
+            </Field>
+          );
+        })}
         {protocol === "http" && <p className="text-[12px] text-ink-muted">Leave blank if the address needs no login.</p>}
         {current?.hasCredentials && credFields.length > 0 && <p className="text-[12px] text-ink-muted">Saved</p>}
         {problem && <StatusNotice tone="error">{problem}</StatusNotice>}
