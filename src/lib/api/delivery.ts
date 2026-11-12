@@ -1,8 +1,4 @@
-import type {
-  DeliveryConfig,
-  DeliveryTestResult,
-  UpsertDeliveryConfigRequest,
-} from "./types";
+import type { DeliveryConfig } from "./types";
 import {
   API_BASE_URL,
   ApiHttpError,
@@ -38,7 +34,7 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
     // and the QueryClient retried a PUT/DELETE that is refused by role and can never succeed,
     // while anything branching on `kind === "forbidden"` never fired. The constructor runs
     // `operatorSafeApiMessage`, which returns plain prose byte-for-byte, so the sentence is
-    // unchanged (pinned by delivery.retryPolicy.test.ts).
+    // unchanged.
     const admin = orgAdminRefusal(res.status, text);
     if (admin) throw new ApiHttpError(admin, res.status);
     // The line above carries the same reasoning for the org-admin 403; this is every OTHER status,
@@ -49,8 +45,7 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
     //
     // The string may not move: `DeliveryConfigEditor` renders it, and `PlanGateNotice` reads the
     // `<capability>_requires_<plan>` code back out of it. The constructor runs
-    // `operatorSafeApiMessage`, which returns plain prose byte-for-byte — pinned, not assumed, by
-    // delivery.httpFailureKind.test.ts. The body rides along on `.body` because `serverReason`
+    // `operatorSafeApiMessage`, which returns plain prose byte-for-byte. The body rides along on `.body` because `serverReason`
     // lifts only the `error` field out of a plan gate, dropping the `upgradeUrl` beside it — and it
     // rides as an OBJECT where it parses, because both readers of it prefer one. `retryAfterFrom`
     // reads `retryAfterSeconds` off the body, which is the ONLY carrier that survives cross-origin
@@ -82,24 +77,4 @@ export async function getDeliveryConfig(supplierId: string): Promise<DeliveryCon
     return null;
   }
   return apiFetch<DeliveryConfig | null>(`/suppliers/${supplierId}/delivery-config`);
-}
-
-export async function upsertDeliveryConfig(
-  supplierId: string,
-  config: UpsertDeliveryConfigRequest
-): Promise<DeliveryConfig> {
-  return apiFetch<DeliveryConfig>(`/suppliers/${supplierId}/delivery-config`, {
-    method: "PUT",
-    body: JSON.stringify(config),
-  });
-}
-
-export async function deleteDeliveryConfig(supplierId: string): Promise<void> {
-  return apiFetch<void>(`/suppliers/${supplierId}/delivery-config`, { method: "DELETE" });
-}
-
-export async function testFireDelivery(supplierId: string): Promise<DeliveryTestResult> {
-  return apiFetch<DeliveryTestResult>(`/suppliers/${supplierId}/delivery-config/test-fire`, {
-    method: "POST",
-  });
 }

@@ -1,13 +1,12 @@
 "use client";
 
-// The two read-only admin diagnostics that were curl-only:
+// The read-only admin diagnostic that was curl-only:
 //
 //   GET /api/admin/job-failures        recent Hangfire failures
-//   GET /api/admin/item-mapping-twins  learned mappings differing only in CASE
 //
 // COLLAPSED BY DEFAULT, AND THE QUERY IS GATED ON THAT. This is diagnostics, not a
-// dashboard: nobody opens /admin to look at the Hangfire queue, and a cross-org twin
-// scan walks every organisation server-side. Both panels cost nothing until asked.
+// dashboard: nobody opens /admin to look at the Hangfire queue. The panel costs
+// nothing until asked.
 //
 // THE HONESTY PROBLEM THAT SHAPES THE EMPTY STATE. AdminController.GetJobFailures
 // catches an unreachable Hangfire monitoring API and answers 200 with an EMPTY list
@@ -22,9 +21,7 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import {
   getAdminJobFailures,
-  getAdminItemMappingTwins,
   type AdminJobFailures,
-  type AdminItemMappingTwins,
 } from "@/lib/api-client";
 import { Card } from "@/components/bridge/layout/Card";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
@@ -189,91 +186,6 @@ export function JobFailuresPanel() {
                     {f.reason}
                   </div>
                 )}
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
-    </Disclosure>
-  );
-}
-
-// ── Case-variant item mapping twins ──────────────────────────────────────────
-
-export function ItemMappingTwinsPanel() {
-  const queryEnabled = useQueriesEnabled();
-  const [open, setOpen] = useState(false);
-
-  const q = useQuery<AdminItemMappingTwins>({
-    queryKey: ["admin-item-mapping-twins"],
-    queryFn: getAdminItemMappingTwins,
-    enabled: queryEnabled && open,
-    retry: false,
-    staleTime: 60_000,
-  });
-
-  return (
-    <Disclosure
-      testId="admin-item-mapping-twins"
-      title="Case-variant item mappings"
-      sub="Learned mappings whose buyer codes differ only in capitalisation. Read-only — this list can only shrink."
-      open={open}
-      onToggle={() => setOpen((v) => !v)}
-    >
-      {q.isError ? (
-        <StatusNotice
-          tone="error"
-          action={
-            <Button variant="secondary" size="sm" onClick={() => q.refetch()}>
-              Retry
-            </Button>
-          }
-        >
-          Could not read the item-mapping twins, so whether any exist is unknown.{" "}
-          {q.error instanceof Error ? q.error.message : "The API may be unavailable."}
-        </StatusNotice>
-      ) : q.data === undefined ? (
-        // NOT the empty state, and it MUST be checked before emptiness. The query is
-        // `enabled: queryEnabled && open`, and a DISABLED TanStack query is neither
-        // loading nor errored — `data` is just `undefined`. Testing `length === 0`
-        // first rendered the all-clear below during the window where Clerk had not
-        // loaded, without one request having been made. Absence of an answer is not
-        // an answer of absence.
-        <div className="text-[13px]" style={{ color: "var(--ink-muted)" }}>
-          {queryEnabled ? "Scanning every workspace…" : "Waiting for your session — nothing has been read yet."}
-        </div>
-      ) : q.data.groups.length === 0 ? (
-        <div
-          data-testid="admin-item-mapping-twins-empty"
-          className="rounded-[8px] px-3 py-2.5 text-[13px]"
-          style={{ background: "var(--surface-2)", color: "var(--ink-muted)" }}
-        >
-          No case-variant twins in any workspace.
-        </div>
-      ) : (
-        <>
-          <div className="mb-2 text-[12.5px]" style={{ color: "var(--ink-muted)" }}>
-            {q.data.note}
-          </div>
-          <ul className="flex flex-col gap-2" style={{ listStyle: "none", margin: 0, padding: 0 }}>
-            {q.data.groups.map((g) => (
-              <li
-                key={`${g.organisationId}:${g.supplierId}:${g.foldedCode}`}
-                className="rounded-[8px] px-3 py-2.5"
-                style={{ background: "var(--surface-2)" }}
-              >
-                <div className="text-[13px] font-semibold font-mono" style={{ color: "var(--ink)" }}>
-                  {g.foldedCode}
-                </div>
-                <div className="mt-1 text-[12.5px]" style={{ color: "var(--ink-muted)" }}>
-                  {g.rowCount} rows spelled{" "}
-                  <span className="font-mono" style={{ color: "var(--ink)" }}>
-                    {g.spellings.join(" · ")}
-                  </span>
-                </div>
-                <div className="mt-1 text-[11.5px] font-mono" style={{ color: "var(--ink-faint)" }}>
-                  org {g.organisationId} · supplier {g.supplierId}
-                </div>
               </li>
             ))}
           </ul>

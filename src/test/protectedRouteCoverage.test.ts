@@ -90,6 +90,7 @@ describe("the route walk is not vacuous", () => {
       "/inbox/[orderId]",
       "/settings",
       "/upload",
+      "/flows",
       "/operations/log",
       "/admin",
     ]) {
@@ -113,9 +114,11 @@ describe("every page under src/app/(app)/ is behind the edge guard", () => {
 
   // The original defect, verbatim, so the regression is pinned by name and not
   // only by the walk that would have caught it.
-  it("claims /connections and its detail page — the A-F1 finding", () => {
-    expect(isProtectedPath("/connections")).toBe(true);
-    expect(isProtectedPath("/connections/conn-123")).toBe(true);
+  // /connections no longer has a page, so it has no business in the matcher: Next runs the
+  // next.config redirect BEFORE middleware, so a signed-out visitor gets the 308 and then
+  // sign-in at /flows either way. What must stay true is that the old URL does not 404.
+  it("308s /connections to /flows — the A-F1 finding, now that the page is retired", () => {
+    expect(RETIRED_ROUTES.find((r) => r.source === "/connections")?.destination).toBe("/flows");
   });
 
   it("claims /inbound/invoices and /inbound/asns — the A-F1 finding", () => {
@@ -140,17 +143,12 @@ describe("no pattern outlives the surface it protected", () => {
   it.each([...PROTECTED_ROUTE_PATTERNS])(
     "%s corresponds to a live route under (app)",
     (pattern) => {
-      // "/library(.*)" -> "/library"; the prefix must own at least one real page, OR a retired
-      // route whose redirect still needs the edge guard: a deleted page keeps its prefix here
-      // so a signed-out visit to an old bookmark goes to sign-in, never to a workspace page.
+      // "/library(.*)" -> "/library"; the prefix must own at least one real page.
       const prefix = pattern.replace(/\(\.\*\)$/, "");
       const owned = APP_GROUP_ROUTES.filter(
         (r) => r === prefix || r.startsWith(`${prefix}/`),
       );
-      const redirected = RETIRED_ROUTES.filter(
-        (r) => r.source === prefix || r.source.startsWith(`${prefix}/`),
-      );
-      expect(owned.length + redirected.length).toBeGreaterThan(0);
+      expect(owned.length).toBeGreaterThan(0);
     },
   );
 });

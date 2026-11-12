@@ -55,7 +55,7 @@ export const RETIRED_ROUTES: RetiredRoute[] = [
     why:
       "The rule catalog was editable but inert: nothing in the parse, transform or "
       + "delivery path ever read those rules, and every rule reported 'Triggered 0 times'. "
-      + "The checks that actually run are each supplier's Validation rules tab.",
+      + "The checks that actually run are set on each flow.",
   },
   {
     source: "/library/rule-definitions",
@@ -63,7 +63,7 @@ export const RETIRED_ROUTES: RetiredRoute[] = [
     deletedDir: "src/app/(app)/library/rule-definitions",
     why:
       "A read-only list of rule shapes with no link into it from anywhere in the product. "
-      + "The same standards references are shown inline on the supplier Validation rules tab.",
+      + "The same standards references are shown inline where a flow's checks are set.",
   },
   {
     source: "/drafts",

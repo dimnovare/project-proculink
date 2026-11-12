@@ -14,10 +14,9 @@
 //     back to a regex over the serialised string. The object branch is the one it prefers.
 //
 // So these tests do not re-check what #204 already pins (status → kind, and the exact message
-// strings — see *.httpFailureKind.test.ts). They pin the carrier: same fix, every module.
+// strings — see src/lib/apiFailure tests). They pin the carrier: same fix, every module.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import type { UpsertDeliveryConfigRequest } from "./types";
 
 // delivery.ts reads isApiMockMode from api-client; stub it so the whole client is not pulled in.
 vi.mock("@/lib/api-client", () => ({ isApiMockMode: false }));
@@ -36,11 +35,11 @@ vi.mock("./core", async (importOriginal) => ({
 import { ApiHttpError } from "./core";
 import { classifyApiFailure } from "@/lib/apiFailure";
 import { planGateUpgradeUrl } from "@/lib/planGate";
-import { upsertDeliveryConfig } from "./delivery";
+import { getDeliveryConfig } from "./delivery";
 
 /** One entry per `apiFetch` helper. */
 const MODULES: Array<{ name: string; call: () => Promise<unknown> }> = [
-  { name: "delivery", call: () => upsertDeliveryConfig("sup-1", {} as UpsertDeliveryConfigRequest) },
+  { name: "delivery", call: () => getDeliveryConfig("sup-1") },
 ];
 
 const originalFetch = globalThis.fetch;

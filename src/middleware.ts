@@ -24,12 +24,8 @@ export const PROTECTED_ROUTE_PATTERNS = [
   "/flows(.*)",
   "/archive(.*)",
   "/lookups(.*)",
-  "/library(.*)",
   "/operations(.*)",
   "/settings(.*)",
-  // Versioned supplier connections — reachable from the Suppliers hub strip as
-  // "Supplier changes", and from the sidebar.
-  "/connections(.*)",
   // Inbound documents (invoices, shipping notices). Behind INBOUND_ENABLED in the
   // nav, but a launch flag hides a tab; it does not make a URL unroutable.
   "/inbound(.*)",
@@ -310,14 +306,14 @@ export const config = {
     //
     // This read `/((?!_next|.*\..*).*)` until 2026-08-21: it skipped the
     // middleware for ANY pathname containing a dot. Next dynamic segments accept
-    // dots, so `/inbox/an.order.id` and any dotted segment under a library or
-    // connections prefix all bypassed the guard and answered a signed-out
+    // dots, so `/inbox/an.order.id` and any dotted segment under a protected
+    // prefix all bypassed the guard and answered a signed-out
     // visitor with 200 and the workspace shell instead of a redirect to
     // /sign-in. Keep this list in sync with STATIC_ASSET_EXTENSIONS above.
     "/((?!_next|.*\\.(?:css|js|mjs|map|ico|png|jpg|jpeg|gif|svg|webp|avif|woff|woff2|ttf|otf|eot|xml|txt|webmanifest|csv|pdf|zip|mp4|webm)$).*)",
     // ...and every protected prefix unconditionally, so that an order id ending
     // in ".png" can never be read as an asset either. Keep in sync with
     // PROTECTED_ROUTE_PATTERNS above; the same test pins that correspondence.
-    "/(bridge|inbox|documents|upload|library|operations|settings|connections|inbound|admin)/:path*",
+    "/(bridge|inbox|documents|upload|operations|settings|inbound|admin)/:path*",
   ],
 };

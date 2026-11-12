@@ -2,12 +2,11 @@ import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, within, cleanup, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-// /admin — the two read-only diagnostics endpoints that were curl-only.
+// /admin — the read-only diagnostics endpoint that was curl-only.
 //
 //   GET /api/admin/job-failures        recent Hangfire failures
-//   GET /api/admin/item-mapping-twins  learned mappings differing only in CASE
 //
-// Both are DIAGNOSTICS, not a dashboard: they open collapsed and cost nothing until
+// It is DIAGNOSTICS, not a dashboard: they open collapsed and cost nothing until
 // someone asks for them (the query must not fire while the panel is shut).
 //
 // THE TRAP EACH ONE CARRIES, and why the assertions look the way they do:
@@ -17,9 +16,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 //     `{ totalFailed: 0, shown: 0, failures: [] }` — a 200 that is indistinguishable
 //     from a healthy worker. So "no failures" here must NOT be worded as proof the
 //     worker is fine, and a rejected FETCH must not land in the same empty state.
-//
-//   • item-mapping-twins is read-only by design; the panel must not offer a merge it
-//     cannot perform, and must carry the server's own note saying so.
 
 import AdminPage from "./page";
 import type { AdminOverview, AdminOrganisation } from "@/lib/api-client";
@@ -27,7 +23,6 @@ import type { AdminOverview, AdminOrganisation } from "@/lib/api-client";
 const getAdminOverview = vi.fn();
 const getAdminOrganisations = vi.fn();
 const getAdminJobFailures = vi.fn();
-const getAdminItemMappingTwins = vi.fn();
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
@@ -45,7 +40,6 @@ vi.mock("@/lib/api-client", async (importOriginal) => {
     getAdminOverview: (...a: unknown[]) => getAdminOverview(...a),
     getAdminOrganisations: (...a: unknown[]) => getAdminOrganisations(...a),
     getAdminJobFailures: (...a: unknown[]) => getAdminJobFailures(...a),
-    getAdminItemMappingTwins: (...a: unknown[]) => getAdminItemMappingTwins(...a),
   };
 });
 
@@ -54,7 +48,6 @@ afterEach(() => {
   getAdminOverview.mockReset();
   getAdminOrganisations.mockReset();
   getAdminJobFailures.mockReset();
-  getAdminItemMappingTwins.mockReset();
 });
 
 const OVERVIEW: AdminOverview = {
@@ -96,12 +89,12 @@ async function renderAdmin(): Promise<void> {
   await screen.findByText("Customers");
 }
 
-function panel(id: "admin-job-failures" | "admin-item-mapping-twins"): HTMLElement {
+function panel(id: "admin-job-failures"): HTMLElement {
   return screen.getByTestId(id);
 }
 
 /** Opens a collapsed diagnostics panel by its disclosure button. */
-function open(id: "admin-job-failures" | "admin-item-mapping-twins"): void {
+function open(id: "admin-job-failures"): void {
   const p = panel(id);
   fireEvent.click(within(p).getByRole("button", { expanded: false }));
 }
@@ -164,52 +157,5 @@ describe("admin — job failures", () => {
     expect(alert.getAttribute("data-notice-tone")).toBe("error");
     expect(within(p).getByRole("button", { name: /retry/i })).toBeTruthy();
     expect(within(p).queryByTestId("admin-job-failures-empty")).toBeNull();
-  });
-});
-
-describe("admin — case-variant item mapping twins", () => {
-  it("is collapsed by default and fetches nothing until opened", async () => {
-    await renderAdmin();
-    expect(within(panel("admin-item-mapping-twins")).getByRole("button", { expanded: false })).toBeTruthy();
-    expect(getAdminItemMappingTwins).not.toHaveBeenCalled();
-  });
-
-  it("lists each group's folded code and spellings, and repeats the server's read-only note", async () => {
-    await renderAdmin();
-    getAdminItemMappingTwins.mockResolvedValue({
-      totalGroups: 1,
-      note: "Read-only. Merging or deleting a twin changes a customer's item codes.",
-      groups: [
-        {
-          organisationId: "11111111-1111-1111-1111-111111111111",
-          supplierId: "22222222-2222-2222-2222-222222222222",
-          foldedCode: "blt-m8",
-          rowCount: 2,
-          spellings: ["BLT-M8", "blt-m8"],
-        },
-      ],
-    });
-
-    open("admin-item-mapping-twins");
-
-    const p = panel("admin-item-mapping-twins");
-    expect(await within(p).findByText("blt-m8")).toBeTruthy();
-    expect(within(p).getByText(/BLT-M8/)).toBeTruthy();
-    expect(within(p).getByText(/Read-only\./)).toBeTruthy();
-    // Read-only means read-only: no merge/delete control may appear here.
-    expect(within(p).queryByRole("button", { name: /merge|delete/i })).toBeNull();
-  });
-
-  it("renders a distinct, announced error — not 'no twins' — when the fetch fails", async () => {
-    await renderAdmin();
-    getAdminItemMappingTwins.mockRejectedValue(new Error("admin/item-mapping-twins: 500"));
-
-    open("admin-item-mapping-twins");
-
-    const p = panel("admin-item-mapping-twins");
-    const alert = await within(p).findByRole("alert");
-    expect(alert.getAttribute("data-notice-tone")).toBe("error");
-    expect(within(p).getByRole("button", { name: /retry/i })).toBeTruthy();
-    expect(within(p).queryByTestId("admin-item-mapping-twins-empty")).toBeNull();
   });
 });

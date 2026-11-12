@@ -257,20 +257,6 @@ const MOCK_ADMIN = {
       },
     ],
   } satisfies AdminJobFailures,
-
-  itemMappingTwins: {
-    totalGroups: 1,
-    note: "Read-only. Codes differing only in case are shown so they can be reconciled by hand.",
-    groups: [
-      {
-        organisationId: "org_example_1",
-        supplierId: "s1",
-        foldedCode: "hx-4410",
-        rowCount: 2,
-        spellings: ["HX-4410", "hx-4410"],
-      },
-    ],
-  } satisfies AdminItemMappingTwins,
 } as const;
 
 export async function getAdminOverview(): Promise<AdminOverview> {
@@ -425,22 +411,6 @@ export interface AdminJobFailures {
   failures: AdminJobFailure[];
 }
 
-/** One group of learned item mappings whose buyer codes differ only in case. */
-export interface AdminItemMappingTwinGroup {
-  organisationId: string;
-  supplierId: string;
-  foldedCode: string;
-  rowCount: number;
-  spellings: string[];
-}
-
-/** GET /api/admin/item-mapping-twins. `note` is the server's own read-only caveat. */
-export interface AdminItemMappingTwins {
-  totalGroups: number;
-  note: string;
-  groups: AdminItemMappingTwinGroup[];
-}
-
 /**
  * POST /api/admin/organisations/{id}/account-status.
  *
@@ -532,18 +502,6 @@ export async function getAdminJobFailures(count = 50): Promise<AdminJobFailures>
   );
   if (!res.ok) return adminError(res, "admin/job-failures");
   return res.json() as Promise<AdminJobFailures>;
-}
-
-/** Learned item mappings whose buyer codes differ only in case. Read-only. */
-export async function getAdminItemMappingTwins(): Promise<AdminItemMappingTwins> {
-  if (USE_MOCK) {
-    await delay(120); // see getBillingStatus above
-    return MOCK_ADMIN.itemMappingTwins;
-  }
-  const headers = await authHeader();
-  const res = await fetchWithTimeout(`${API_BASE_URL}/api/admin/item-mapping-twins`, { headers });
-  if (!res.ok) return adminError(res, "admin/item-mapping-twins");
-  return res.json() as Promise<AdminItemMappingTwins>;
 }
 
 /**

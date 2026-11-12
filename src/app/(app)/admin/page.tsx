@@ -44,7 +44,7 @@ import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { CreateInvoiceModal } from "./CreateInvoiceModal";
 import { AdjustLimitsModal } from "./AdjustLimitsModal";
 import { OrderFindPanel } from "./OrderFindPanel";
-import { JobFailuresPanel, ItemMappingTwinsPanel } from "./DiagnosticsPanels";
+import { JobFailuresPanel } from "./DiagnosticsPanels";
 import { UnfreezeOrgModal, RetentionModal, canUnfreeze } from "./OrgActionModals";
 import { EraseWorkspacePanel } from "./EraseWorkspacePanel";
 import { PageShell } from "@/components/bridge/layout/PageShell";
@@ -537,7 +537,6 @@ export default function AdminPage() {
           Diagnostics
         </h2>
         <JobFailuresPanel />
-        <ItemMappingTwinsPanel />
       </section>
 
       {showInvoice && (

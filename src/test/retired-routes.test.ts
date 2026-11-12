@@ -92,6 +92,13 @@ describe("retired routes", () => {
     });
   });
 
+  it("only the two retired detail pages that have no successor may drop their id", () => {
+    expect(RETIRED_ROUTES.filter((r) => r.segmentHasNoSuccessor).map((r) => r.source)).toEqual([
+      "/library/suppliers/:id",
+      "/connections/:connectionId",
+    ]);
+  });
+
   it("leaves no link to a retired path anywhere in the app", () => {
     const deadPaths = RETIRED_ROUTES.map((r) => normalizePath(r.source.split("/:")[0]));
     const offenders: string[] = [];
@@ -111,10 +118,7 @@ describe("retired routes", () => {
       const source = readFileSync(join(ROOT, file), "utf8");
       for (const dead of deadPaths) {
         // Quoted string only — a path inside a comment is documentation, not a link.
-        // The middleware's "/connections(.*)" form is NOT an offender: the edge guard keeps
-        // every redirected prefix so a signed-out visit goes to sign-in, and
-        // protectedRouteCoverage.test.ts holds that direction.
-        const quoted = new RegExp(`["'\`]${dead}[/"'\`?]`);
+        const quoted = new RegExp(`["'\`]${dead}(?:[/"'\`?]|\\(\\.\\*\\))`);
         if (quoted.test(source)) offenders.push(`${file} → ${dead}`);
       }
     }

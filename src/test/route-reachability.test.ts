@@ -952,6 +952,24 @@ describe("route reachability (plan rule R1 — no new surface without a consumer
     const routes = ROUTES.map((r) => r.route);
     expect(routes.length, "the route walk found nothing — every check below is vacuous").toBeGreaterThan(40);
 
+    // A DELETION NEEDS BOTH DIRECTIONS, exactly as a door does: "the worse copy is gone" and
+    // "the capability is gone" look identical to a `not.toContain`. So the surface that now
+    // owns the delivery channel is asserted reachable, and really present, first.
+    expect(routes, "/flows/[flowId] does not exist — the delivery channel has no home at all")
+      .toContain("/flows/[flowId]");
+    expect(
+      UNREACHABLE_UNEXCUSED.has("/flows/[flowId]"),
+      "/flows/[flowId] is stranded — deleting the worse copy moved the problem instead of solving it",
+    ).toBe(false);
+    expect(Object.keys(ACCOUNTED_FOR), "/flows/[flowId] must not need an excuse").not.toContain("/flows/[flowId]");
+    const outputEditor = fs.readFileSync(path.join(SRC_DIR, "components/flows/OutputEditor.tsx"), "utf8");
+    expect(outputEditor.length, "OutputEditor.tsx is empty — the probe below would pass vacuously")
+      .toBeGreaterThan(1000);
+    expect(
+      outputEditor,
+      "a flow's output editor no longer mounts the destination form — nothing configures delivery now",
+    ).toContain("<DestinationForm");
+
     // The redirect is the other half of "deleted, not 404'd".
     const retired = RETIRED_ROUTES.find((r) => r.source === DEAD);
     expect(retired, `${DEAD} was deleted with no redirect — an old bookmark 404s`).toBeDefined();
