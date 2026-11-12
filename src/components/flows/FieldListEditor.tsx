@@ -54,7 +54,7 @@ export function FieldListEditor({ flow, initial, initialOff, onSaved }: {
 
   // A meaning belongs to one field (for columns, one column per table): choosing it here clears it from the old holder.
   const replace = (rows: FlowField[], i: number, f: FlowField) =>
-    rows.map((x, j) => (j === i ? f : f.meaning && x.meaning === f.meaning ? { ...x, meaning: null } : x));
+    rows.map((x, j) => (j === i ? f : f.meaning && f.meaning !== rows[i].meaning && x.meaning === f.meaning ? { ...x, meaning: null } : x));
   const patchField = (i: number, f: FlowField) => setList({ ...list, fields: replace(list.fields, i, f) });
   const patchColumn = (t: number, i: number, f: FlowField) =>
     setList({ ...list, tables: list.tables.map((x, j) => (j === t ? { ...x, columns: replace(x.columns, i, f) } : x)) });
