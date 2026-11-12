@@ -20,6 +20,7 @@
  */
 import { readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { MOCK_ENGINE_IDS } from "../../src/lib/api/mockEngine";
 
 const APP_DIR = join(process.cwd(), "src", "app");
 
@@ -46,6 +47,14 @@ function listRoutes(dir: string = APP_DIR, route = ""): string[] {
  * the report — silently dropping it would shrink the sweep without saying so.
  */
 const DYNAMIC_FILL: Record<string, string | null> = {
+  "/flows/[flowId]": `/flows/${MOCK_ENGINE_IDS.flow}`,
+  "/flows/[flowId]/documents/[documentId]": `/flows/${MOCK_ENGINE_IDS.flow}/documents/${MOCK_ENGINE_IDS.document}`,
+  "/flows/[flowId]/outputs/[outputId]/advanced": `/flows/${MOCK_ENGINE_IDS.flow}/outputs/out-1/advanced`,
+  "/lookups/[lookupId]": `/lookups/${MOCK_ENGINE_IDS.lookup}`,
+  "/documents/[id]": `/documents/${MOCK_ENGINE_IDS.document}`,
+  // Legacy pages still on disk until 13b. Ids are the old mock-client ids, so the sweep reports
+  // the redirect target (EngineRouteRedirect moves them) rather than the legacy screen.
+  "/archive/[orderId]": "/archive/ord-002",
   "/inbox/[orderId]": "/inbox/ord-002",
   "/library/suppliers/[id]": "/library/suppliers/s1",
   // The mock client exposes no connection fixture, so there is no id that

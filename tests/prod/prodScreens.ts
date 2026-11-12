@@ -14,10 +14,11 @@ import { appPageTitle } from "../../src/lib/pageTitles";
  *
  * TWO SUBTRACTIONS, both deliberate:
  *
- *  • Dynamic routes (`/inbox/[orderId]`). Its concrete path in CORE_SCREENS is
- *    `/inbox/ord-002`, a MOCK-mode fixture id. Production has no such order, so
- *    visiting it would assert against a not-found screen. Reviewing a real order
- *    needs an order to exist first, which is Job 2's territory, not this one's.
+ *  • Dynamic routes (`/flows/[flowId]`, `/flows/[flowId]/documents/[documentId]`). Their
+ *    concrete paths in CORE_SCREENS use MOCK_ENGINE_IDS (`flow-1`, `doc-1`), which exist only
+ *    in mock mode. Production has no fixed id, so visiting them would assert against a
+ *    not-found screen. Reviewing a real document needs one to exist first, which is Job 2's
+ *    territory, not this one's.
  *  • Nothing else. If a screen is core enough for the axe baseline it is core
  *    enough to be verified in the environment customers use.
  */
@@ -35,8 +36,8 @@ export interface ProdScreen extends CoreScreen {
  * A filter that silently matches nothing produces an empty list, an empty list
  * produces zero tests, and zero failing tests is indistinguishable from a pass.
  * This number is the smallest count that still means "the sweep happened".
- * CORE_SCREENS has 8 `app` entries today, one of them dynamic, so 7 screens
- * survive the filter; 6 leaves room for one deliberate removal without leaving
+ * CORE_SCREENS has 8 `app` entries today, two of them dynamic, so 6 screens
+ * survive the filter; 6 leaves no room for one deliberate removal without leaving
  * room for the filter breaking outright.
  */
 export const MIN_PROD_SCREENS = 6;

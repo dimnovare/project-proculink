@@ -195,6 +195,9 @@ function bodyOf(init?: RequestInit): Body {
 }
 
 export async function mockEngineFetch<T>(path: string, init?: RequestInit, as: "json" | "blob" = "json"): Promise<T> {
+  // Same latency as the legacy mock client: an instant answer lands before a lazily hydrated screen
+  // mounts, so the engine flag reads "on" on the client while the server rendered "unknown".
+  await new Promise((resolve) => setTimeout(resolve, 120));
   const method = (init?.method ?? "GET").toUpperCase();
   const [pathname, query = ""] = path.split("?");
   if (as === "blob" && method === "GET") {

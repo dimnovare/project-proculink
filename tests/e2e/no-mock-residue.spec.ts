@@ -1,4 +1,5 @@
 import { test, expect, type Page, type Response } from "@playwright/test";
+import { MOCK_ENGINE_IDS } from "../../src/lib/api/mockEngine";
 
 /**
  * Group J2 mock-residue crawl test.
@@ -36,11 +37,12 @@ const BANNED_LITERALS = [
 ];
 
 const ROUTES = [
-  "/bridge",
+  "/documents",
   "/upload",
-  "/inbox",
-  "/library/suppliers",
-  "/library/mappings",
+  "/flows",
+  `/flows/${MOCK_ENGINE_IDS.flow}`,
+  `/flows/${MOCK_ENGINE_IDS.flow}/documents/${MOCK_ENGINE_IDS.document}`,
+  "/lookups",
   "/operations/log",
   "/settings",
 ];

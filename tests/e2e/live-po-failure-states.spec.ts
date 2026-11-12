@@ -110,25 +110,6 @@ test.describe("Live PO loop — failure-state guidance", () => {
   }
 });
 
-// ── Mock-mode parity subset (runs in CI / `bun run test:e2e`, no backend) ─────
-// The ?view= parameter must never break the order gates: an unknown order id
-// shows the not-found gate (not a crash, not a blank screen) in BOTH views.
-
-test.describe("Review failure gates — mock parity subset", () => {
-  test.skip(process.env.PLAYWRIGHT_LIVE === "1", "Mock subset requires mock mode");
-  test.setTimeout(60_000);
-
-  for (const view of VIEWS) {
-    test(`unknown order id shows the not-found gate [${view} view]`, async ({ page }) => {
-      await page.goto(`/inbox/does-not-exist?view=${view}`);
-      // WP-19 branched this gate per failure kind; matched by meaning so the
-      // next wording change does not read as a behaviour regression.
-      await expect(page.getByText(/can't find this order/i)).toBeVisible({ timeout: 20_000 });
-      await expect(page.getByRole("button", { name: /back to inbox/i })).toBeVisible();
-    });
-  }
-});
-
 async function createSupplier(
   request: import("@playwright/test").APIRequestContext,
   prefix: string,
