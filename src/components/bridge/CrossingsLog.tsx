@@ -512,7 +512,7 @@ function DesktopColHeader() {
 
 /** Own component so the engine probe runs only when the log is actually refused. */
 function LogGateNotice({ error }: { error: unknown }) {
-  return <PlanGateNotice error={error} capability="The full delivery log" documentEngine={useDocumentEngine() === "on"} />;
+  return <PlanGateNotice error={error} capability="The full delivery log" documentEngine={useDocumentEngine()} />;
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────

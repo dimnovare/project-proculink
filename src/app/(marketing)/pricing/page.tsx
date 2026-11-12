@@ -73,7 +73,7 @@ const FAQ: Array<[string, ReactNode]> = [
   // PO goes missing. Pinned by cancelDisclosure.test.tsx.
   [
     "What happens if I cancel?",
-    "If you cancel, ProcuLink stops accepting new documents when your subscription ends. Everything you have already processed remains readable and exportable — past documents, flows and outputs stay until you ask us to delete them, and activity records such as delivery attempts are removed after 180 days (see the Privacy Policy) — but nothing new comes in on any route: uploads, emailed documents, mailbox, SFTP, FTP and S3 pickups, and the file API all stop. Documents sent to you after that are not held and delivered later, so tell your senders before you cancel. Resubscribing turns processing back on immediately, with your setup untouched.",
+    "If you cancel, ProcuLink stops accepting new documents when your subscription ends. Everything you have already processed remains readable and exportable — past documents, flows and outputs stay until you ask us to delete them, and activity records such as delivery attempts are removed after 180 days (see the Privacy Policy) — but nothing new comes in on any route: uploads, emailed documents and the file API all stop, and mailbox, SFTP, FTP and S3 pickups pause and leave your files where they are. Uploads, emails and API calls sent after that are not held for later, so tell your senders before you cancel. Resubscribing turns processing back on immediately, with your setup untouched.",
   ],
   // STORED and PROCESSED are two different questions, and this answer used to give
   // one answer to both: "All order data is stored and processed in the EU". The
@@ -327,7 +327,7 @@ function FaqItem({ q, a }: { q: string; a: ReactNode }) {
   const [open, setOpen] = useState(false);
   // The open height is MEASURED from the answer, not hardcoded. The previous
   // `maxHeight: 240` silently clipped any answer taller than that -- at 390px the
-  // cancellation answer needs 246px, so its last line ("redirect your suppliers before
+  // cancellation answer needs 246px, so its last line ("tell your senders before
   // you cancel") was cut off, which is the one sentence that answer exists to deliver.
   // A pixel cap re-breaks on any copy, font, or viewport change and nothing would catch it.
   // The inner element keeps its natural height even while the wrapper is collapsed, so
@@ -360,7 +360,7 @@ function FaqItem({ q, a }: { q: string; a: ReactNode }) {
       </button>
       {/* Sizes to its CONTENT, not to a magic number. The previous `maxHeight: 240` silently
           clipped any answer taller than that — at 390px the cancellation answer needs 246px, so
-          the last line ("redirect your suppliers before you cancel") was cut off, which is the
+          the last line ("tell your senders before you cancel") was cut off, which is the
           single sentence that answer exists to deliver. A pixel cap also re-breaks on any font,
           copy, or viewport change, and nothing would catch it.
           `grid-template-rows: 0fr → 1fr` animates open exactly like a max-height transition but

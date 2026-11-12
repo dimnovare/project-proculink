@@ -32,8 +32,8 @@ export interface PlanGateNoticeProps {
   /** Plain noun for what was refused, e.g. "Bulk mapping import". Sentence-leading. */
   capability: string;
   className?: string;
-  /** The workspace runs on the document engine: name the document plan that unlocks it. */
-  documentEngine?: boolean;
+  /** Whether the workspace runs on the document engine (see planGateMessage). Defaults to "off". */
+  documentEngine?: "on" | "off" | "unknown";
 }
 
 /** True when this failure is a plan gate — call before choosing which banner to render. */

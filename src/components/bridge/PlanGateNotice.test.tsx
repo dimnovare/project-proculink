@@ -24,13 +24,19 @@ describe("PlanGateNotice", () => {
     expect(notice).toHaveTextContent(/Operations/);
   });
 
-  it("names the cheapest document plan on a document-engine workspace, the backend's tier otherwise", () => {
+  it("names a tier by engine state: document tier on, backend tier off, none while unknown; Enterprise stays", () => {
     const code = "advanced_audit_requires_operations";
-    const { unmount } = render(<PlanGateNotice error={code} capability="The full delivery log" documentEngine />);
-    expect(screen.getByRole("status")).toHaveTextContent(`from the ${DOCUMENT_PLANS[0].name} plan up`);
-    unmount();
-    render(<PlanGateNotice error={code} capability="The full delivery log" />);
-    expect(screen.getByRole("status")).toHaveTextContent("from the Operations plan up");
+    const cases = [
+      ["on", code, `from the ${DOCUMENT_PLANS[0].name} plan up`],
+      ["off", code, "from the Operations plan up"],
+      ["unknown", code, "Your current plan does not include this."],
+      ["on", "erp_delivery_requires_enterprise", "from the Enterprise plan up"],
+    ] as const;
+    for (const [engine, error, expected] of cases) {
+      const { unmount } = render(<PlanGateNotice error={error} capability="X" documentEngine={engine} />);
+      expect(screen.getByRole("status")).toHaveTextContent(expected);
+      unmount();
+    }
   });
 
   it("never shows the raw code", () => {

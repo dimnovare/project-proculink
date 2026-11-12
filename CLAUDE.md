@@ -629,7 +629,7 @@ blocking surface on a plan name; that check is what caused this.
   - `trial_expired` → `Your trial has ended.`
   - anything else, including a status this build does not know → `Order processing is paused on your account.`
 - Consequence (shared by every cause, and deliberately the same claims as the `/pricing`
-  cancellation disclosure): `New documents aren't being accepted — uploads, emailed documents, mailbox, SFTP, FTP and S3 pickups, and the file API all refuse, and nothing is held to deliver later, so tell your senders if this will take a while. Everything already processed stays readable and exportable.`
+  cancellation disclosure): `New documents aren't being accepted — uploads, emailed documents and the file API all refuse, and mailbox, SFTP, FTP and S3 pickups pause and leave your files where they are. Tell your senders if this will take a while. Everything already processed stays readable and exportable.`
 - Route back: `Manage in Stripe` (self-serve paid plans) / `Contact support` (Enterprise —
   a manual agreement has no portal). Only `past_due` and `read_only` may promise processing
   restarts by itself; a cancelled subscription needs a new one.

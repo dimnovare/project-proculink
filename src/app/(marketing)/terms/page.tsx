@@ -102,9 +102,11 @@ export default function TermsPage() {
         Paid plans include the monthly volume listed above as a soft allowance, not a hard cap:
         processing is never blocked when you exceed it. Documents above the included volume are
         billed automatically at the per-document rate listed for your plan above (€{OVERAGE_PER_ORDER_EUR.toFixed(2)}
-        per order on the earlier plans) at the end of the billing period, and the metered
+        per order or document on the earlier plans) at the end of the billing period, and the metered
         overage is capped so your monthly total never exceeds the list price of the cheapest
-        higher self-serve plan on the same ladder that covers your usage. The Trial allowance is
+        higher self-serve plan on the same ladder that covers your usage; above the top
+        self-serve plan&apos;s included volume on that ladder, you pay that plan&apos;s price plus its
+        rate for each extra document or order. The Trial allowance is
         a hard limit (expired trials become read-only) and does not accrue overage. A document
         counts once ProcuLink has read it. A file of up to 10 pages is one document; a longer
         file counts once for every 10 pages. Sample documents never count.

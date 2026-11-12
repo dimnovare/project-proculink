@@ -45,7 +45,7 @@ export const AUTH_VALUE_CLAIMS: { kind: FeatureKind; label: string }[] = [
   { kind: "file", label: "Use the order format you already have" },
   { kind: "check", label: "Review the result before anything is sent" },
   // "of your orders", not "of every order": the trust line renders straight after this row,
-  // and "every order … EU-region document storage" is read — by people and by the residency
+  // and "your orders … EU-region document storage" is read — by people and by the residency
   // guard in legalCommitments.test.tsx — as a promise that every order stays in the EU.
   { kind: "clock", label: "Keep a complete history of your orders" },
 ];

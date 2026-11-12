@@ -127,10 +127,8 @@ describe("a paid plan the server has stopped says so, loudly", () => {
     // The consequence is the part a customer cannot infer. Naming the channels is
     // what stops them assuming their POs are piling up somewhere safe.
     expect(text).toContain("New documents aren't being accepted");
-    expect(text).toMatch(/uploads, emailed documents, mailbox, SFTP, FTP and S3 pickups, and the file API/);
-    expect(text, "nothing is held for later — they must redirect suppliers").toMatch(
-      /nothing is held to deliver later/,
-    );
+    expect(text).toMatch(/uploads, emailed documents and the file API all refuse, and mailbox, SFTP, FTP and S3 pickups pause/);
+    expect(text, "pickups leave files in place — and senders must be told").toMatch(/leave your files where they are\. Tell your senders/);
     expect(text, "must not read as data loss").toMatch(/stays readable and exportable/);
 
     // The route back, next to the sentence that explains why they need it.

@@ -26,8 +26,10 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
-vi.mock("@/hooks/useDocumentEngine", () => ({ useDocumentEngine: () => "off" }));
+let engine: "on" | "off" | "unknown" = "off";
+vi.mock("@/hooks/useDocumentEngine", () => ({ useDocumentEngine: () => engine }));
 
+import { DOCUMENT_PLANS } from "@/lib/plans";
 import { CrossingsLog } from "./CrossingsLog";
 
 function renderLog() {
@@ -40,6 +42,7 @@ function renderLog() {
 }
 
 beforeEach(() => {
+  engine = "off";
   getAuditLog.mockReset();
 });
 
@@ -61,6 +64,16 @@ describe("CrossingsLog — plan-gated audit log", () => {
     // plan gate is role="status" (an explanation of an entitlement, not a fault),
     // the load failure is role="alert".
     expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("passes the engine state through: the document tier when on, no tier while unknown", async () => {
+    getAuditLog.mockRejectedValue(new Error(JSON.stringify({ error: "advanced_audit_requires_operations" })));
+    for (const [state, expected] of [["on", DOCUMENT_PLANS[0].name], ["unknown", "Your current plan does not include this."]] as const) {
+      engine = state;
+      const { unmount } = renderLog();
+      expect(await screen.findByRole("status")).toHaveTextContent(expected);
+      unmount();
+    }
   });
 
   it("still shows the load-failure panel for a failure that is not a plan gate", async () => {
