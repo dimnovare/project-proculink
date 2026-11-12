@@ -270,10 +270,11 @@ export default defineConfig({
     timeout: 120_000,
     reuseExistingServer: !process.env.CI,
     env: {
-      // The sweep compiles ~50 routes x 3 widths in one `next dev`. Near the default heap
-      // limit Next restarts itself ("approaching the used memory threshold"), and the
-      // route requested during the restart fails with ERR_EMPTY_RESPONSE. Give it room.
-      NODE_OPTIONS: process.env.NODE_OPTIONS ?? "--max-old-space-size=6144",
+      // The sweep compiles ~50 routes x 3 widths in one `next dev`. Next restarts itself at
+      // 80% of its heap ("approaching the used memory threshold") and the route requested
+      // during the restart fails with ERR_EMPTY_RESPONSE. Next's own default heap is 50% of
+      // RAM (8 GB on the 16 GB CI runner); CI gets 75%. Locally Next's default stands.
+      ...(process.env.CI && !process.env.NODE_OPTIONS ? { NODE_OPTIONS: "--max-old-space-size=12288" } : {}),
       PROCULINK_QA_BYPASS_AUTH: "true",
       // Browser-visible twin of the backend bypass: lets the Next client enable
       // data queries without a Clerk session (see useQueriesEnabled / isQaBypass).
