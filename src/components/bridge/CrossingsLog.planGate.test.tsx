@@ -14,6 +14,7 @@ const getAuditLog = vi.fn();
 
 vi.mock("@/lib/api-client", () => ({
   getAuditLog: (...a: unknown[]) => getAuditLog(...a),
+  getBillingStatus: () => Promise.resolve(billing),
   isApiMockMode: false,
 }));
 
@@ -27,6 +28,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 let engine: "on" | "off" | "unknown" = "off";
+let billing: { plan: string } | null = null;
 vi.mock("@/hooks/useDocumentEngine", () => ({ useDocumentEngine: () => engine }));
 
 import { DOCUMENT_PLANS } from "@/lib/plans";
@@ -43,6 +45,7 @@ function renderLog() {
 
 beforeEach(() => {
   engine = "off";
+  billing = null;
   getAuditLog.mockReset();
 });
 
@@ -66,10 +69,17 @@ describe("CrossingsLog — plan-gated audit log", () => {
     expect(screen.queryByRole("alert")).toBeNull();
   });
 
-  it("passes the engine state through: the document tier when on, no tier while unknown", async () => {
+  it("passes engine and plan through: Starter for a Trial on the engine, the backend tier for a legacy payer, no tier while unknown", async () => {
     getAuditLog.mockRejectedValue(new Error(JSON.stringify({ error: "advanced_audit_requires_operations" })));
-    for (const [state, expected] of [["on", DOCUMENT_PLANS[0].name], ["unknown", "Your current plan does not include this."]] as const) {
+    const generic = "Your current plan does not include this.";
+    for (const [state, plan, expected] of [
+      ["on", "pilot", DOCUMENT_PLANS[0].name],
+      ["on", "growth", "from the Operations plan up"],
+      ["on", null, generic],
+      ["unknown", "pilot", generic],
+    ] as const) {
       engine = state;
+      billing = plan ? { plan } : null;
       const { unmount } = renderLog();
       expect(await screen.findByRole("status")).toHaveTextContent(expected);
       unmount();

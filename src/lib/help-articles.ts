@@ -73,7 +73,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
     title: "Checks",
     blurb: "The checks that run on every document, what they flag, and which ones hold a send.",
     category: "Documents",
-    keywords: ["checks", "validation", "duplicate", "total", "missing value", "hold"],
+    keywords: ["checks", "validation", "duplicate", "missing value", "hold"],
     readMin: 3,
   },
   {

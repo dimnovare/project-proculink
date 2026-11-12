@@ -119,7 +119,7 @@ const POSTURE: Array<{ title: string; body: React.ReactNode; icon: React.ReactNo
   },
   {
     title: "Validation before delivery",
-    body: `Built-in checks run on every plan and cannot be switched off: we flag a total that does not add up or a value that is missing, and we hold a document we have already seen instead of sending it twice.`,
+    body: `Built-in checks run on every plan and cannot be switched off: we flag a value that is missing, in the wrong shape or hard to read, and we hold a document we have already seen instead of sending it twice.`,
     icon: <RulesIcon />,
   },
   {
@@ -169,7 +169,7 @@ const POSTURE: Array<{ title: string; body: React.ReactNode; icon: React.ReactNo
   // and not the capability whose production status we cannot check.
   {
     title: "Responsible AI",
-    body: "Mapping suggestions never auto-apply without a confidence score and source. Your data is never used to train third-party models. We can also turn AI extraction off for an organisation entirely, so nothing about its documents reaches OpenAI: the AI steps are switched off, our own parsers do the reading, and anything they cannot read is left for manual entry rather than sent out. We set that for you on request; it is not a self-serve setting, and it does not change where your files are stored.",
+    body: "Suggestions never apply themselves: you accept each one, and every value shows how sure we are. Your data is never used to train third-party models. We can also turn AI off for a workspace entirely, so nothing about its documents reaches OpenAI. Documents there cannot be read, because reading uses AI: they are stopped and marked as not read, never sent out. We set that for you on request; it is not a self-serve setting, and it does not change where your files are stored.",
     icon: <ZapIcon />,
   },
 ];

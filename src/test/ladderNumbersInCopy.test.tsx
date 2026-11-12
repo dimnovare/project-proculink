@@ -86,7 +86,7 @@ const SIGN_UP_SUB = "Free for 14 days · 20 documents · 2 flows · no credit ca
 // C32: derived from the pristine ladder, not typed — the shape is the contract, the numbers are plans.ts's.
 const pricingDescriptionFor = (starter: Plan) =>
   `Document processing from €${starter.priceMonthly} a month for ${starter.orderLimit!.toLocaleString("en-US")} documents. ` +
-  "Every feature on every plan. Free for 14 days.";
+  "Every channel, output and check on every plan. Free for 14 days.";
 
 let PRISTINE_LADDER: Record<string, Plan> = {};
 let PRISTINE_OVERAGE = 0;

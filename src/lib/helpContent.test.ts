@@ -63,6 +63,11 @@ describe("never-claim destination patterns", () => {
     ["plain-FTP destination", "Upload a file to your FTP server and we collect it", false],
     ["plain-FTP destination", "Send to an SFTP or FTPS server", false],
     ["plain-FTP destination", "Destinations: email, an SFTP or FTPS server, or a download.", false],
+    ["totals check", "We flag a total that doesn't add up", true],
+    ["totals check", "Checks the totals before it sends", true],
+    ["totals check", "A totals check runs on every plan", true],
+    ["totals check", "One puts the total top right, another at the bottom.", false],
+    ["totals check", "Add a field called Total and we find it.", false],
   ];
   it.each(CASES)("%s: %s", (label, text, hit) => {
     expect(pattern(label).test(text)).toBe(hit);

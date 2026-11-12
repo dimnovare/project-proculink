@@ -52,20 +52,24 @@ export function planGateRequiredPlan(message: string | null | undefined): string
  * the upsell can never send a customer to a tier more expensive than the one that unlocks
  * the feature — the exact failure WP-11 fixed on the server side.
  *
- * A document-engine workspace buys from the document ladder, and every document plan has every
- * gated feature, so a code naming a legacy self-serve tier is told the cheapest document plan
- * instead (/pricing no longer sells the legacy tier). Enterprise stays Enterprise. While the
- * engine state is "unknown" no tier is named at all: guessing either ladder could send a
- * workspace to a plan it cannot buy. Wording only: the code itself is unchanged.
+ * A document-engine workspace on the Trial buys from the document ladder, and every document plan
+ * has every gated feature, so a code naming a legacy self-serve tier is told the cheapest document
+ * plan instead (/pricing no longer sells the legacy tier). A legacy paid plan keeps the tier the
+ * backend named: Settings offers it, and moving down to Starter is refused. Enterprise stays
+ * Enterprise. While the engine state is "unknown", or the engine is on and the plan is not known
+ * yet, no tier is named at all: guessing could send a workspace to a plan it cannot buy.
+ * Wording only: the code itself is unchanged.
  */
 export function planGateMessage(
   message: string | null | undefined,
   documentEngine: "on" | "off" | "unknown" = "off",
+  planId?: string | null,
 ): string {
   const required = planGateRequiredPlan(message);
+  const legacyTier = LEGACY_PAID_PLANS.some((p) => p.name === required);
   const plan =
     documentEngine === "unknown" ? null
-    : documentEngine === "on" && LEGACY_PAID_PLANS.some((p) => p.name === required) ? DOCUMENT_PLANS[0].name
+    : documentEngine === "on" && legacyTier ? (planId === "pilot" ? DOCUMENT_PLANS[0].name : planId ? required : null)
     : required;
   return plan
     ? `This is included from the ${plan} plan up. Upgrade to turn it on.`

@@ -24,16 +24,19 @@ describe("PlanGateNotice", () => {
     expect(notice).toHaveTextContent(/Operations/);
   });
 
-  it("names a tier by engine state: document tier on, backend tier off, none while unknown; Enterprise stays", () => {
+  it("names a tier by engine state and plan: document tier for a Trial on the engine, backend tier for a legacy payer, none while unknown", () => {
     const code = "advanced_audit_requires_operations";
+    const generic = "Your current plan does not include this.";
     const cases = [
-      ["on", code, `from the ${DOCUMENT_PLANS[0].name} plan up`],
-      ["off", code, "from the Operations plan up"],
-      ["unknown", code, "Your current plan does not include this."],
-      ["on", "erp_delivery_requires_enterprise", "from the Enterprise plan up"],
+      ["on", "pilot", code, `from the ${DOCUMENT_PLANS[0].name} plan up`],
+      ["on", "growth", code, "from the Operations plan up"],
+      ["on", undefined, code, generic],
+      ["off", "pilot", code, "from the Operations plan up"],
+      ["unknown", "pilot", code, generic],
+      ["on", "pilot", "erp_delivery_requires_enterprise", "from the Enterprise plan up"],
     ] as const;
-    for (const [engine, error, expected] of cases) {
-      const { unmount } = render(<PlanGateNotice error={error} capability="X" documentEngine={engine} />);
+    for (const [engine, planId, error, expected] of cases) {
+      const { unmount } = render(<PlanGateNotice error={error} capability="X" documentEngine={engine} planId={planId} />);
       expect(screen.getByRole("status")).toHaveTextContent(expected);
       unmount();
     }

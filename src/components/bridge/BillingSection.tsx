@@ -180,7 +180,7 @@ export { pausedCauseCopy };
  * documents are queueing up somewhere will not tell their senders.
  */
 const PAUSED_CONSEQUENCE =
-  "New documents aren't being accepted — uploads, emailed documents and the file API all refuse, and mailbox, SFTP, FTP and S3 pickups pause and leave your files where they are. Tell your senders if this will take a while. Everything already processed stays readable and exportable.";
+  "New documents aren't being accepted — uploads, emailed documents and the file API all refuse, and mailbox, SFTP, FTP, FTPS and S3 pickups pause and leave your files where they are. Tell your senders if this will take a while. Everything already processed stays readable and exportable.";
 
 /**
  * The two conditions under which LimitBanner below prints Pilot's own paused copy.
@@ -897,7 +897,7 @@ export function BillingSection() {
           <div style={{ padding: "0 18px 14px" }}>
             <p style={{ margin: 0, fontSize: 11.5, color: "var(--ink-faint)", lineHeight: 1.55 }}>
               If you cancel in Stripe, new documents stop arriving once the subscription ends — uploads,
-              emailed documents and the file API all stop, and mailbox, SFTP, FTP and S3 pickups pause and
+              emailed documents and the file API all stop, and mailbox, SFTP, FTP, FTPS and S3 pickups pause and
               leave your files where they are, so tell your senders first. Everything already processed stays
               readable and exportable.
             </p>

@@ -11,7 +11,7 @@ import PricingPage from "./page";
 // ingress API, and browser uploads. Orders simply stop arriving. Today a customer
 // discovers that only when a supplier asks why their purchase order never came
 // through — the pricing page said nothing, and the FAQ's "Can I change plans later?"
-// answer ("up or down, any time") actively implies the opposite.
+// answer ("upgrade any time") actively implies the opposite.
 //
 // The other trust-commitment tests in this folder pin retracted promises so they
 // cannot come back. This one pins the reverse: a disclosure that must not quietly

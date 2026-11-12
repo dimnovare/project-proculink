@@ -2580,7 +2580,7 @@ describe("a gated capability is never presented with no tier at all", () => {
    * A sentence about what CEASES is not an offer.
    *
    * `/pricing` and `/help/billing-faq` both carry the cancellation disclosure CLAUDE.md §11.5
-   * mandates — "uploads, emailed documents, mailbox, SFTP, FTP and S3 pickups … all refuse" — which names
+   * mandates — "uploads, emailed documents, mailbox, SFTP, FTP, FTPS and S3 pickups … all refuse" — which names
    * every gated channel precisely because it is listing what a customer LOSES. Requiring a tier
    * beside each one would put four plan names inside a warning, and those two pages are the two
    * that state the ladder in full anyway.

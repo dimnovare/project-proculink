@@ -13,7 +13,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { getAuditLog, isApiMockMode, type AuditLogEntry } from "@/lib/api-client";
+import { getAuditLog, getBillingStatus, isApiMockMode, type AuditLogEntry } from "@/lib/api-client";
 import {
   AUDIT_ACTION_FACTS,
   auditActionFact,
@@ -510,9 +510,10 @@ function DesktopColHeader() {
   );
 }
 
-/** Own component so the engine probe runs only when the log is actually refused. */
+/** Own component so the engine and plan probes run only when the log is actually refused. */
 function LogGateNotice({ error }: { error: unknown }) {
-  return <PlanGateNotice error={error} capability="The full delivery log" documentEngine={useDocumentEngine()} />;
+  const { data: billing } = useQuery({ queryKey: ["billing-status"], queryFn: getBillingStatus, staleTime: 60_000, retry: false });
+  return <PlanGateNotice error={error} capability="The full delivery log" documentEngine={useDocumentEngine()} planId={billing?.plan} />;
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────

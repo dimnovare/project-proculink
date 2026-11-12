@@ -47,4 +47,9 @@ export const NEVER_CLAIM: readonly NeverClaim[] = [
   { label: "OneDrive", pattern: /\bonedrive\b/i },
   { label: "Dropbox", pattern: /\bdropbox\b/i },
   { label: "approval workflows", pattern: /\bapproval (?:workflow|flow|chain)s?\b/i },
+  // The seven document checks (`DocumentChecks.cs`) include no sum check. A field named "Total" is fine.
+  {
+    label: "totals check",
+    pattern: /\btotals?\s+(?:that\s+)?(?:doesn['’]?t|don['’]?t|does not|do not)\s+add\s+up\b|\btotals?\s+checks?\b|\bchecks?\s+(?:the\s+)?(?:totals?|sums?)\b/i,
+  },
 ];

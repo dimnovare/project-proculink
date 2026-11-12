@@ -137,6 +137,7 @@ export const ANNUAL_BILLING_ENABLED =
 // The trial's allowance, named once: orderLimit, flowLimit and the billing line below all read it.
 const TRIAL_DOCUMENTS = 20;
 const TRIAL_FLOWS = 2;
+export const TRIAL_DAYS = 14;
 
 export const PLANS: Plan[] = [
   {
@@ -146,7 +147,7 @@ export const PLANS: Plan[] = [
     priceMonthly: 0,
     priceYearly: null,
     priceLabel: "Free",
-    priceCadence: "14 days",
+    priceCadence: `${TRIAL_DAYS} days`,
     billingPriceLabel: "Free trial",
     billingSummary: `${TRIAL_DOCUMENTS} documents · ${TRIAL_FLOWS} flows`,
     orderLimit: TRIAL_DOCUMENTS,

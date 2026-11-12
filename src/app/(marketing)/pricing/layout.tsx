@@ -1,5 +1,5 @@
 import { pageMetadata } from "@/lib/seo";
-import { DOCUMENT_PLANS } from "@/lib/plans";
+import { DOCUMENT_PLANS, TRIAL_DAYS } from "@/lib/plans";
 
 // The two numbers this description quotes are DERIVED from the cheapest document plan, not
 // typed: metadata never renders on the page it describes, so a typed price is the copy nobody
@@ -12,7 +12,7 @@ const [STARTER] = DOCUMENT_PLANS;
 export const metadata = pageMetadata({
   path: "/pricing",
   title: "Pricing — ProcuLink",
-  description: `Document processing from €${STARTER.priceMonthly} a month for ${STARTER.orderLimit!.toLocaleString("en-US")} documents. Every feature on every plan. Free for 14 days.`,
+  description: `Document processing from €${STARTER.priceMonthly} a month for ${STARTER.orderLimit!.toLocaleString("en-US")} documents. Every channel, output and check on every plan. Free for ${TRIAL_DAYS} days.`,
 });
 
 export default function PricingLayout({ children }: { children: React.ReactNode }) {

@@ -35,7 +35,7 @@ const STEPS: Array<{ title: string; body: string }> = [
 
 const WHY: Array<{ title: string; body: string }> = [
   { title: "No templates", body: "A new sender's layout doesn't mean new setup. We read the first document as it arrives." },
-  { title: "Checks you can see", body: "We flag a total that doesn't add up or a value that's missing, and hold a document we've already seen instead of sending it twice." },
+  { title: "Checks you can see", body: "We flag a value that's missing, in the wrong shape or hard to read, and hold a document we've already seen instead of sending it twice." },
   { title: "One price list", body: `Every channel, output and check on every plan. You pay for documents, from €${STARTER_PRICE} a month.` },
 ];
 

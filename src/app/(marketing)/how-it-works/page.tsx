@@ -54,7 +54,7 @@ const WORKFLOW: Array<{ title: string; desc: string; color: string; bg: string; 
   },
   {
     title: "You check it",
-    desc: "The original stays on screen beside what we read. Fix a value that is wrong, or draw a box around it on the page so we find it in the same place next time. We flag a total that does not add up or a value that is missing, and we hold a document we have already seen instead of sending it twice.",
+    desc: "The original stays on screen beside what we read. Fix a value that is wrong, or draw a box around it on the page so we find it in the same place next time. We flag a value that is missing, in the wrong shape or hard to read, and we hold a document we have already seen instead of sending it twice.",
     color: AMBER,
     bg: AMBER_SOFT,
     icon: <CheckSquareIcon />,

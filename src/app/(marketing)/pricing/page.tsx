@@ -55,7 +55,7 @@ function cardFeatures(plan: Plan): string[] {
 const FAQ: Array<[string, ReactNode]> = [
   [
     `I'm on ${LEGACY_PLAN_NAMES}. What changes?`,
-    "Nothing until you change plan. You keep your current price and limits. When you change plan, you choose from the plans on this page.",
+    "Nothing until you change plan. You keep your current price and limits. To change plan, go to Settings → Plan & billing.",
   ],
   [
     "What happens when the trial ends?",
@@ -63,17 +63,17 @@ const FAQ: Array<[string, ReactNode]> = [
   ],
   [
     "Can I change plans later?",
-    "Yes — up or down, any time. We prorate the difference.",
+    "Yes. Upgrade any time in Settings → Plan & billing; we prorate the difference. To move to a smaller plan, contact us.",
   ],
   // Cancelling is the one plan change that stops orders arriving, and it used to be
-  // undisclosed: the answer above ("up or down, any time") reads as though cancelling
+  // undisclosed: the answer above ("upgrade any time") reads as though cancelling
   // is just another move along the ladder. It is not — every ingest path refuses once
   // the subscription ends, and nothing is queued for later, so a sender who keeps
   // emailing documents gets silence. Say so before the buyer pays, not after a
   // PO goes missing. Pinned by cancelDisclosure.test.tsx.
   [
     "What happens if I cancel?",
-    "If you cancel, ProcuLink stops accepting new documents when your subscription ends. Everything you have already processed remains readable and exportable — past documents, flows and outputs stay until you ask us to delete them, and activity records such as delivery attempts are removed after 180 days (see the Privacy Policy) — but nothing new comes in on any route: uploads, emailed documents and the file API all stop, and mailbox, SFTP, FTP and S3 pickups pause and leave your files where they are. Uploads, emails and API calls sent after that are not held for later, so tell your senders before you cancel. Resubscribing turns processing back on immediately, with your setup untouched.",
+    "If you cancel, ProcuLink stops accepting new documents when your subscription ends. Everything you have already processed remains readable and exportable — past documents, flows and outputs stay until you ask us to delete them, and activity records such as delivery attempts are removed after 180 days (see the Privacy Policy) — but nothing new comes in on any route: uploads, emailed documents and the file API all stop, and mailbox, SFTP, FTP, FTPS and S3 pickups pause and leave your files where they are. Uploads, emails and API calls sent after that are not held for later, so tell your senders before you cancel. Resubscribing turns processing back on immediately, with your setup untouched.",
   ],
   // STORED and PROCESSED are two different questions, and this answer used to give
   // one answer to both: "All order data is stored and processed in the EU". The
@@ -118,7 +118,7 @@ export default function PricingPage() {
             Pricing
           </span>
 
-          <h1 className="plk-h1">Pay for documents. Every feature is included.</h1>
+          <h1 className="plk-h1">Pay for documents. Every channel, output and check is included.</h1>
 
           <p className="plk-sub">
             Every plan has every way to send documents in, every output and every check. Plans
