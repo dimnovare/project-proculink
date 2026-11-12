@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Destination } from "@/lib/api/documents";
 import { DestinationForm } from "./DestinationForm";
@@ -51,5 +51,17 @@ describe("DestinationForm", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     expect(screen.getByText(/Fill in every login field/)).toBeTruthy();
     expect(api.updateDestination).not.toHaveBeenCalled();
+  });
+
+  it("offers an email subject and message but no attachment file name, which a flow send ignores", () => {
+    const { container } = render(
+      <QueryClientProvider client={new QueryClient()}>
+        <DestinationForm onSaved={() => {}} onCancel={() => {}} />
+      </QueryClientProvider>,
+    );
+    fireEvent.change(within(container).getByLabelText("Send by"), { target: { value: "email" } });
+    expect(within(container).getByLabelText("Subject")).toBeTruthy();
+    expect(within(container).getByLabelText("Message")).toBeTruthy();
+    expect(within(container).queryByLabelText(/attachment/i)).toBeNull();
   });
 });
