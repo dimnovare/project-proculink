@@ -57,4 +57,16 @@ describe("OutputBuilder", () => {
     expect(await screen.findByText("Edit output")).toBeTruthy();
     expect(api.createOutput).toHaveBeenCalledWith("f", expect.objectContaining({ name: "cXML", format: "", standard: "cxml-1-2" }));
   });
+
+  it("offers the Peppol standards only when the flag is on", () => {
+    const open = (f: unknown) => {
+      const r = render(<QueryClientProvider client={new QueryClient()}><OutputBuilder flow={f as never} onDone={() => {}} /></QueryClientProvider>);
+      fireEvent.click(screen.getByRole("tab", { name: "Standards" }));
+      return r;
+    };
+    open(flow).unmount();
+    expect(screen.queryByRole("button", { name: /Peppol/ })).toBeNull();
+    open({ ...flow, peppolOn: true });
+    expect(screen.getAllByRole("button", { name: /Use Peppol BIS Billing/ })).toHaveLength(2);
+  });
 });

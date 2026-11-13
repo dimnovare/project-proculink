@@ -12,7 +12,7 @@ import type { Flow, FlowOutput } from "@/lib/api/documents";
 import { COPY, documentRefusalMessage } from "@/lib/documentRefusals";
 import { nextTabIndex } from "@/lib/tabKeys";
 import { STANDARDS, type StandardSupport } from "@/lib/standards/catalog";
-import { STANDARD_OUTPUTS, WRITTEN_VERSION } from "@/lib/standardOutputs";
+import { FLAGGED, STANDARD_OUTPUTS, WRITTEN_VERSION } from "@/lib/standardOutputs";
 
 const ALL_TABS = [["own", "Build your own"], ["sample", "From a sample"], ["docs", "From documentation"], ["standards", "Standards"]] as const;
 const OFFERED = STANDARDS.filter((s) => (STANDARD_OUTPUTS as readonly string[]).includes(s.id));
@@ -64,7 +64,7 @@ export function OutputBuilder({ flow, previewDocumentId, onDone }: { flow: Flow;
           <div className="grid gap-3">
             <p className="text-[13px] text-ink-muted">Pick a standard file. We fill it in from what each of your fields means.</p>
             {standard.isError && <StatusNotice tone="error">{documentRefusalMessage(standard.error)}</StatusNotice>}
-            {OFFERED.map((s) => (
+            {OFFERED.filter((s) => !FLAGGED.has(s.id) || flow.peppolOn).map((s) => (
               <div key={s.id} className="flex items-center justify-between gap-2">
                 <span className="text-[13px] text-ink">{s.name} <span className="text-ink-muted">{WRITTEN_VERSION[s.id] ?? s.version}</span></span>
                 <Button size="sm" variant="secondary" aria-label={`Use ${s.name}`} disabled={standard.isPending}

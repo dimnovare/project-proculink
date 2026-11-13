@@ -18,6 +18,8 @@ export const FIELD_MEANINGS = {
   delivery_date: { label: "Delivery date", scope: "header" },
   sender_country: { label: "Sender country", scope: "header" },
   receiver_country: { label: "Receiver country", scope: "header" },
+  sender_endpoint_id: { label: "Sender Peppol ID", scope: "header" },
+  receiver_endpoint_id: { label: "Receiver Peppol ID", scope: "header" },
   line_description: { label: "Line description", scope: "line" },
   line_quantity: { label: "Line quantity", scope: "line" },
   line_unit: { label: "Line unit", scope: "line" },

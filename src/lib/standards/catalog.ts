@@ -164,6 +164,22 @@ export const STANDARDS: StandardSupport[] = [
     referenceUrl: "https://docs.peppol.eu/poacc/billing/3.0/",
   },
   {
+    id: "peppol-bis-billing-3-credit-note",
+    name: "Peppol BIS Billing (credit note)",
+    version: "3.0",
+    family: "xml",
+    // No parser reads a UBL CreditNote root, so nothing reads one in.
+    parse: "none",
+    // NOT `supported`: written only by the flow output writer, behind the per-org Peppol flag.
+    transform: "partial",
+    transport: "Peppol Access Point (AS4) — ProcuLink does not provide the transport",
+    conformance:
+      "Outbound: written by the flow standard output behind the per-org Peppol flag, and checked when a document is read and on " +
+      "demand against the official Peppol and EN 16931 rules by the validator sidecar — a rule check, " +
+      "not access-point acceptance. No credit note has been accepted by a live access point.",
+    referenceUrl: "https://docs.peppol.eu/poacc/billing/3.0/",
+  },
+  {
     id: "sap-idoc-orders05",
     name: "SAP IDoc ORDERS05",
     version: "ORDERS05 (basic type)",
