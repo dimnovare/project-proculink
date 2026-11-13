@@ -58,7 +58,7 @@ function restingModel() {
     tokenValueById: new Map(),
     canonicalValueByKey: new Map([["PoNumber", "PO-1"], ["Quantity", "3"]]),
     labelForCanonical: (k: string) => k,
-    signature: "sig", lastTouched: null, previewOrderId: "ord-1", outputFormat: null,
+    signature: "sig", lastTouched: null, outputFormat: null,
     readOnly: false,
     onSourceConnect: vi.fn(), onSourceDisconnect: vi.fn(), onTargetConnect: vi.fn(),
     onTargetDisconnect: vi.fn(), onSetFixedValue: vi.fn(), onAcceptSuggestion: vi.fn(),

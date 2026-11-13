@@ -60,34 +60,3 @@ export function shouldHonorFormat(
 ): boolean {
   return connectionFormat != null && selected !== connectionFormat;
 }
-
-/**
- * The honest info-note copy for the preview pane. Returns:
- *   • EXPLORATORY → "Preview as X · not the delivered format (the supplier receives Y)."
- *   • DEFAULT but the server swapped (a pinned connection differs from the toggle, no error/warning)
- *     → the calm "this connection delivers Y …" note.
- *   • otherwise null (no note — the toggle matches the delivered bytes, or a harder warning/error is
- *     already shown).
- *
- * `honored` = whether honorFormat was sent for this render. `selected` = the toggle. `delivered` =
- * the format the server reported rendering. `connectionFormat` = the known delivered format (for the
- * exploratory "supplier receives" naming; falls back to `delivered` if somehow unknown).
- * `hasHarderMessage` = an error/warning is already being shown (suppress the calm default note).
- */
-export function previewInfoNote(args: {
-  honored: boolean;
-  selected: OutputFormatId;
-  delivered: OutputFormatId;
-  connectionFormat: OutputFormatId | null;
-  hasHarderMessage: boolean;
-}): string | null {
-  const { honored, selected, delivered, connectionFormat, hasHarderMessage } = args;
-  if (honored) {
-    const supplierGets = (connectionFormat ?? delivered).toUpperCase();
-    return `Preview as ${selected.toUpperCase()} · not the delivered format (the supplier receives ${supplierGets}).`;
-  }
-  if (delivered !== selected && !hasHarderMessage) {
-    return `This connection delivers ${delivered.toUpperCase()} — the output format is set by the published revision, so the preview shows ${delivered.toUpperCase()} unless you explore another format.`;
-  }
-  return null;
-}

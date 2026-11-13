@@ -68,38 +68,12 @@ export interface OrderLine {
   unitPrice: number;
   confidence: number;
   needsReview: boolean;
-  aiSuggestion?: AiMappingSuggestion | null;
   /** Phase 4 enrichment — stated line amount as extracted from the source document. */
   lineAmount?: number | null;
   /** Phase 4 enrichment — per-line tax/VAT rate as a percentage. */
   taxRate?: number | null;
   /** Phase 4 enrichment — per-line delivery date, ISO "yyyy-MM-dd". */
   deliveryDate?: string | null;
-  /** Kind of evidence behind the suggestion; an exact "catalog" match is a fact and passes the ≥85% bulk accept without a score. */
-  aiSuggestionBasis?: "catalog" | "source_document" | "model" | null;
-}
-
-export interface AiMappingSuggestion {
-  supplierItemCode: string;
-  /**
-   * RAW model confidence (0–1) — never mutated by the V9 calibration layer.
-   * The durable decision history keeps recording this raw value so the
-   * empirical curve stays sound.
-   */
-  confidence: number;
-  reason: string;
-  provenance: string;
-  // ── V9 confidence calibration (display-only overlay; backend OrderLineDto →
-  // AiMappingSuggestionDto). All three are OPTIONAL so that an order fetched
-  // before V9 was deployed degrades gracefully to "not calibrated". The
-  // calibrated number is computed by the BACKEND from this org's accept/reject
-  // history — it is NEVER recomputed client-side.
-  /** Empirically-adjusted confidence (0–1). Equals `confidence` exactly when `isCalibrated` is false. */
-  calibratedConfidence?: number;
-  /** True only when a sufficiently-sampled empirical bucket backed the number; false during cold-start / thin buckets / AI off. */
-  isCalibrated?: boolean;
-  /** Truthful explanation, e.g. "calibrated from 23 of your past decisions" vs "model estimate — not enough history yet". */
-  calibrationBasis?: string;
 }
 
 export interface Artifact {
@@ -128,30 +102,6 @@ export interface Order {
   isSample?: boolean;
   /** Held for review: never auto-delivered; an explicit Send still works. */
   holdForReview?: boolean;
-  /** Human-readable error from the newest *Failed audit event; null for non-failed orders. */
-  errorMessage?: string | null;
-  /**
-   * WP-19. The machine-readable CAUSE of a delivery failure, from the newest
-   * attempt — `supplier_auth_rejected`, `supplier_endpoint_not_found`,
-   * `supplier_rate_limited`, and so on. `SupplierResponseClassification` on the
-   * backend is the only authority; this is carried, never re-derived.
-   *
-   * The backend has always known the difference between expired credentials, a
-   * moved endpoint and a rate limit — it writes a distinct sentence for each —
-   * but only the sentence crossed the wire, so the UI could only offer one
-   * generic "Try sending now" for all of them. Reading a cause out of English
-   * prose would be a mirror that drifts the first time the copy is edited.
-   *
-   * Optional and nullable on purpose: an older API, or a failure that predates
-   * the field, simply falls back to the generic copy.
-   */
-  failureCause?: string | null;
-  /**
-   * WP-19. Seconds the supplier's endpoint asked us to wait, from its
-   * `Retry-After`, when it sent one. Only a rate-limited failure carries one.
-   * Null means the supplier named no wait — never that there is none.
-   */
-  retryAfterSeconds?: number | null;
   // ── Phase 4 enrichment (header) ───────────────────────────────────────────
   /** Extracted document subtotal (before tax); null when not captured. */
   subTotal?: number | null;

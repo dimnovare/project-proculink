@@ -21,13 +21,11 @@ import type { OrderMappingOverride, OutputFormatId } from "@/lib/api/types";
 import { PREVIEW_FORMATS } from "@/lib/api/types";
 import { nextOutputFormat } from "./mapperCommands";
 import { splitForHighlight } from "./previewHighlightModel";
-import { shouldHonorFormat, previewInfoNote } from "./previewFormatModel";
+import { shouldHonorFormat } from "./previewFormatModel";
 import { previewBodyStyle } from "./previewBodyStyle";
 import type { MapperAdapter } from "./types";
 
 export interface MapperPreviewPaneProps {
-  /** The order to preview against (order variant: the order; connection variant: a sample). */
-  previewOrderId: string | null;
   /** The live draft override (preview re-runs when it changes). */
   override: OrderMappingOverride;
   /** The last field key the user touched — highlighted in the rendered output. */
@@ -65,7 +63,7 @@ export interface MapperPreviewPaneProps {
    * after the user finishes resolving — they no longer have to switch format tabs to refresh.
    */
   reviewSignal?: number;
-  /** The only data source; absent → the empty state. `previewOrderId` and the format toggle are not used. */
+  /** The only data source; absent → the empty state. The format toggle is not used. */
   preview?: MapperAdapter["preview"];
 }
 
@@ -88,18 +86,17 @@ export function formatFieldUnavailableNote(format: OutputFormatId): string {
   return `This field isn't part of ${format.toUpperCase()} output — it only applies to other formats.`;
 }
 
-export function MapperPreviewPane({ previewOrderId, override, lastTouched, supplierName, emptyHint, cycleFormatSignal, defaultFormat, hot, hotValue, onHotChange, reviewSignal, preview }: MapperPreviewPaneProps) {
+export function MapperPreviewPane({ override, lastTouched, supplierName, emptyHint, cycleFormatSignal, defaultFormat, hot, hotValue, onHotChange, reviewSignal, preview }: MapperPreviewPaneProps) {
   // Seed the toggle from the connection's REAL output format so a JSON supplier doesn't open
   // on a CSV mismatch. The backend (revision authority) may still swap to the pinned format —
   // deliveredFormat tracks what it actually rendered, and the header/copy/download follow that.
   const [format, setFormat] = useState<OutputFormatId>(defaultFormat ?? "csv");
-  // The format the SERVER actually rendered (res.format). Drives the header label, copy/download
-  // extension+mime, and the info note. In the DEFAULT (delivered-bytes) mode this is the connection's
+  // The format the SERVER actually rendered (res.format). Drives the header label and the
+  // copy/download extension+mime. In the DEFAULT (delivered-bytes) mode this is the connection's
   // real delivered format; in EXPLORATORY mode it equals the toggle.
   const [deliveredFormat, setDeliveredFormat] = useState<OutputFormatId>(defaultFormat ?? "csv");
   const [content, setContent] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const [info, setInfo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -139,7 +136,7 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
   // header/copy/download follow the real bytes. Genuine warnings/errors (e.g. "lines still need
   // review") pass through honestly as the warning, with content=null handled below.
   useEffect(() => {
-    if (!preview) { setContent(null); setErr(null); setInfo(null); setBusy(false); return; }
+    if (!preview) { setContent(null); setErr(null); setBusy(false); return; }
     let cancelled = false;
     setBusy(true);
     // Opt into exploratory rendering only when we KNOW a delivered format to diverge from.
@@ -166,15 +163,8 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
             setDeliveredFormat(delivered);
           }
         }
-        setInfo(previewInfoNote({
-          honored: honor,
-          selected: format,
-          delivered,
-          connectionFormat: known,
-          hasHarderMessage: hardMessage != null,
-        }));
       } catch (e) {
-        if (!cancelled) { setContent(null); setErr(e instanceof Error ? e.message : "Preview failed"); setInfo(null); }
+        if (!cancelled) { setContent(null); setErr(e instanceof Error ? e.message : "Preview failed"); }
       } finally {
         if (!cancelled) setBusy(false);
       }
@@ -183,7 +173,7 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
   // reviewSignal is bumped when line-review state changes (e.g. last unresolved line
   // resolved → status flips ready). Without it the pane stays on "Cannot transform:
   // lines still need review" until the user switches format tabs.
-  }, [preview, previewOrderId, override, format, connectionFormat, reviewSignal]);
+  }, [preview, override, format, connectionFormat, reviewSignal]);
 
   const onCopy = useCallback(async () => {
     if (!content) return;
@@ -313,7 +303,6 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
               merely implied by a missing badge. */}
           {content && !err && (
             <span
-              title={preview ? undefined : "ProcuLink built this document from your current mapping. It has not been checked against a standard."}
               style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "2px 8px", borderRadius: 999, background: "#F1F3F7", color: "#5E6779", fontSize: 10.5, fontWeight: 600 }}
             >
               <svg width="11" height="11" viewBox="0 0 16 16" fill="none" aria-hidden><path d="M9.2 2H4.5A1.5 1.5 0 0 0 3 3.5v9A1.5 1.5 0 0 0 4.5 14h7a1.5 1.5 0 0 0 1.5-1.5V6.3z" stroke="#5E6779" strokeWidth="1.6" strokeLinejoin="round" /></svg>
@@ -388,12 +377,6 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
         This is exactly what {supplierName ? supplierName : "the supplier"} receives.{!preview && " Switch formats to preview a different output type."} Producing this document is not a check — nothing here has been checked against a standard.
       </div>
 
-      {info && !preview && (
-        <div style={{ padding: "8px 12px", fontSize: 11, color: "#5E6779", background: "#EEF3FB", borderBottom: "1px solid #D5E3F6", lineHeight: 1.5 }}>
-          {info}
-        </div>
-      )}
-
       {err && (
         <div
           // --amber-text (#8A5310), not the one-off #9A6B00 this used to carry:
@@ -406,7 +389,7 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
         </div>
       )}
 
-      {!preview && !previewOrderId ? (
+      {!preview ? (
         <div style={{ padding: "16px 12px", fontSize: 11, color: "var(--ink-faint)", lineHeight: 1.5 }}>
           {emptyHint ?? "No sample order to preview yet — upload or pick a sample to see the delivered output."}
         </div>

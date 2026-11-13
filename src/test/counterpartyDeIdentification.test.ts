@@ -297,12 +297,13 @@ describe("counterparty de-identification", () => {
     // The floors that catch a sweep which reads every byte and examines none of
     // them. Both count via the same helpers the detector calls. 73 party values
     // measured 2026-11-13, after the order-screen tests and their fixtures went. 60 -> 54 the same
-    // day (plan 13b task 8b): the MSW mock data and the orphaned order tests went; 54 is today's count.
+    // day (plan 13b task 8b): the MSW mock data and the orphaned order tests went. 54 -> 50 in the
+    // 8b fix round: the problem-panel tests and their ctx fixtures went; 50 is today's count.
     expect(
       scan.scannedPartyValues,
       `only ${scan.scannedPartyValues} party-field values were extracted across the corpus — `
         + "the party detector matched (almost) nothing, so the sweep above proves nothing",
-    ).toBeGreaterThanOrEqual(54);
+    ).toBeGreaterThanOrEqual(50);
 
     // No cXML-identity floor any more: the delivery editors that were this tree's only
     // cXML identity fields went with the supplier screens (plan 13b), so the real tree

@@ -835,7 +835,6 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
 
   const previewNode = (
     <MapperPreviewPane
-      previewOrderId={model.previewOrderId}
       override={model.override}
       lastTouched={model.lastTouched}
       hot={previewHot}

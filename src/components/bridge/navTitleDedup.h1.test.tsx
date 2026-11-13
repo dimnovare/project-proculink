@@ -36,9 +36,7 @@ vi.mock("@/lib/api-client", () => ({
   isApiMockMode: false,
   apiClient: {
     getOrders: () => Promise.resolve({ items: orders, totalCount: orders.length, page: 1, pageSize: 100 }),
-    getSuppliers: () => Promise.resolve([]),
   },
-  listConnections: () => Promise.resolve([]),
   getAuditLog: () => Promise.resolve([]),
   getBillingStatus: () => Promise.resolve({ plan: "growth", canAddSupplier: true, supplierLimit: 5 }),
 }));

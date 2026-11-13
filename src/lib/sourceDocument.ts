@@ -2,15 +2,14 @@
 //
 // `GET /api/orders/{id}/source` (backend PR 189) streams the original upload. It answers with
 // bytes, or with one of four refusals that are ORDINARY STATES rather than errors. This module
-// owns three decisions and nothing else, so they can be tested without a network or a DOM:
+// owns two decisions and nothing else, so they can be tested without a network or a DOM:
 //
 //   1. What renderer a served document gets — from the SERVER'S `Content-Type`, never from a
 //      filename or a storage key. That direction is the whole point: `sourceTypeFromKey()` used
 //      to split a value on "." and switch on the extension, was handed an order id, and so
 //      returned `undefined` on every render without ever failing. A type derived from a name is
 //      a guess that reads as a fact.
-//   2. What the operator is told when there is no document to show.
-//   3. Which of the two "What we received" bodies the left column shows.
+//   2. Which of the two "What we received" bodies the left column shows.
 //
 // Order sources get their media type from a CLOSED allowlist on the server
 // (`ProcuLink.Core/Services/Detection/SourceDocumentMediaType.cs`); flow documents are typed
@@ -34,26 +33,6 @@ export interface SourceDocument {
   /** Parsed out of `Content-Disposition` when present. Display only — never a type source. */
   filename: string | null;
 }
-
-/**
- * Everything the review screen can learn about the source file, as one closed union.
- *
- * `none` and `purged` are NOT failures: a practice or sample order never had a file, and a
- * retained order may have had its blob removed on schedule while the order record, hashes and
- * audit trail stayed. Both get their own sentence rather than an error toast.
- */
-export type SourceDocumentState =
-  | { kind: "document"; document: SourceDocument }
-  /** 204 — no source file key, unreadable in storage, empty, or over the server's serve cap. */
-  | { kind: "none" }
-  /** 410 — the blob was purged under the org's data-retention policy. */
-  | { kind: "purged"; message: string }
-  /** 404 — unknown order, or another organisation's. Deliberately indistinguishable. */
-  | { kind: "missing" }
-  /** 429 — the shared document-download budget. */
-  | { kind: "throttled"; retryAfterSeconds: number | null }
-  /** Anything else, including a network failure. */
-  | { kind: "error" };
 
 /** `application/xml; charset=utf-8` → `application/xml`. Blank/absent → "". */
 export function normalizeContentType(raw: string | null | undefined): string {
@@ -86,64 +65,6 @@ export function sourceRenderFor(contentType: string): SourceDocumentRender {
       return "image";
     default:
       return "opaque";
-  }
-}
-
-/**
- * The short tag shown in the pane header (the existing `SourceTypeChip` vocabulary).
- *
- * `application/xml` covers cXML, UBL and plain XML, and `text/plain` covers EDIFACT and X12 —
- * the server collapses each pair on purpose, so this says only what the media type actually
- * establishes. Naming a specific dialect here would re-introduce the guess this replaced.
- * `null` → no chip, which is what an unrecognised type earns.
- */
-export function sourceFormatLabel(contentType: string): string | null {
-  switch (normalizeContentType(contentType)) {
-    case "application/pdf":
-      return "PDF";
-    case "text/csv":
-      return "CSV";
-    case XLSX_MEDIA_TYPE:
-      return "XLSX";
-    case "application/xml":
-      return "XML";
-    case "application/json":
-      return "JSON";
-    case DOCX_MEDIA_TYPE:
-      return "DOCX";
-    case "text/plain":
-      return "TEXT";
-    case "image/png":
-      return "PNG";
-    case "image/jpeg":
-      return "JPG";
-    default:
-      return null;
-  }
-}
-
-/**
- * What the operator reads when the document cannot be shown — plain procurement language, no
- * status codes, no jargon. `null` when a document IS available (nothing to explain).
- *
- * These strings are the packet's honest answer to "what if it cannot be rendered": the field
- * list the screen has always had, plus one line saying why the paper is not next to it.
- * `noun` names the document ("invoice" on the invoice screen); the order screens keep "order".
- */
-export function sourceUnavailableMessage(state: SourceDocumentState, noun = "order"): string | null {
-  switch (state.kind) {
-    case "document":
-      return null;
-    case "none":
-      return `No original document is stored for this ${noun}, so there is nothing to display. The values below are what we captured.`;
-    case "purged":
-      return state.message;
-    case "missing":
-      return `We could not find this ${noun}'s document. If you have just switched workspace, reopen the ${noun} from your inbox.`;
-    case "throttled":
-      return `Too many document requests just now. Wait a moment, then reload the ${noun}.`;
-    case "error":
-      return "We couldn't load the original document just now. The captured values below are unaffected.";
   }
 }
 

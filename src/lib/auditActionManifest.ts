@@ -244,7 +244,7 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     reachable: true,
     backendSite: "ProcuLink.Infrastructure/Services/Delivery/DeliveryBounceHandler.cs:107",
     reasonKeys: [],
-    note: "The mail provider reported an emailed delivery as bounced (InboundEmailController's bounce webhook → DeliveryBounceHandler). No reason key: `description` is the provider's own sentence and no live action declares one yet. The handler also flips a still-sending order to delivery_failed (`orderStatusChanged`).",
+    note: "The mail provider reported an emailed delivery as bounced (InboundEmailController's bounce webhook → DeliveryBounceHandler). No reason key: `description` is the provider's own sentence and no live action declares one yet. The handler also flips a still-sending order to delivery_failed (`orderStatusChanged`). Correlates only to order delivery attempts written before plan 13b; flow email deliveries do not produce this row (bounce rewrite parked, R4).",
   },
   {
     action: "destination.tested",

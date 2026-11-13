@@ -128,12 +128,6 @@ const mockOrders: Order[] = [
         unitPrice: 0.02,
         confidence: 0.0,
         needsReview: true,
-        aiSuggestion: {
-          supplierItemCode: "ES-RES-220R",
-          confidence: 0.84,
-          reason: "Buyer code and description match ElectroSupply resistor naming.",
-          provenance: "Buyer code/description evidence plus nearby supplier mapping pattern",
-        },
       },
       { id: "l-002-3", lineNumber: 3, buyerItemCode: "TB-LED-RED", supplierItemCode: "ES-LED-R5MM",   description: "LED Red 5mm",         quantity: 100, unit: "PCS", unitPrice: 0.15,  confidence: 1.0, needsReview: false },
       {
@@ -147,12 +141,6 @@ const mockOrders: Order[] = [
         unitPrice: 12.50,
         confidence: 0.0,
         needsReview: true,
-        aiSuggestion: {
-          supplierItemCode: "ES-WIRE-22BK-100",
-          confidence: 0.72,
-          reason: "Description indicates 22AWG black wire in a 100m length.",
-          provenance: "Buyer description evidence; no confirmed saved mapping",
-        },
       },
     ],
     artifacts: [],

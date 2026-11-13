@@ -77,7 +77,6 @@ function restingModel() {
     labelForCanonical: (k: string) => k,
     signature: "sig",
     lastTouched: null,
-    previewOrderId: "ord-1",
     outputFormat: null,
     readOnly: false,
     onSourceConnect: vi.fn(),
@@ -180,7 +179,6 @@ describe("MapperWorkbench — nothing loaded is UNKNOWN, not an accusation", () 
     model.hasIncomingSource = false;
     model.canonicalValueByKey = new Map();
     model.tokenValueById = new Map();
-    model.previewOrderId = null;
   });
 
   it("does not accuse the four required fields of having no source", () => {

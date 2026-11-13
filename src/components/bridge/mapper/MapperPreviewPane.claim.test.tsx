@@ -73,7 +73,6 @@ function renderPane(format: string) {
   preview.mockResolvedValue({ format, content: "PO-1,ACM-BLT,4\n", error: null });
   const { container, unmount } = render(
     <MapperPreviewPane
-      previewOrderId={null}
       preview={preview}
       override={{} as never}
       lastTouched={null}
@@ -182,8 +181,7 @@ describe("the live preview chip claims production, not validity (P0-5)", () => {
     });
     const { container } = render(
       <MapperPreviewPane
-        previewOrderId={null}
-      preview={preview}
+        preview={preview}
         override={{} as never}
         lastTouched={null}
         supplierName="Nordmark"

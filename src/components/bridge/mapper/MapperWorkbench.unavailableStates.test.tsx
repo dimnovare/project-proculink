@@ -68,7 +68,6 @@ function restingModel() {
     labelForCanonical: (k: string) => k,
     signature: "sig",
     lastTouched: null,
-    previewOrderId: "ord-1",
     outputFormat: null,
     readOnly: false,
     onSourceConnect: vi.fn(),

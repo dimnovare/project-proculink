@@ -149,8 +149,6 @@ export interface MapperModel {
   signature: string;
   /** The last field key the user touched (drives preview's just-touched highlight). */
   lastTouched: string | null;
-  /** The order id the live preview runs against (order: the order; connection: the sample). */
-  previewOrderId: string | null;
   /**
    * The connection's resolved output format (from the loaded revision), normalized to a valid
    * OutputFormatId, or null when unknown (order variant with no revision in scope). The preview
@@ -419,7 +417,6 @@ export function useMapperModel({
     labelForCanonical,
     signature,
     lastTouched,
-    previewOrderId: null,
     outputFormat: null,
     readOnly: !!readOnly,
     onSourceConnect,

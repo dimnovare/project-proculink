@@ -144,13 +144,6 @@ describe("what the raw message is still allowed to carry", () => {
     expect(err.message.replace(/^assign-supplier failed:\s*/i, "")).toBe("Supplier not found.");
   });
 
-  it("keeps the delivery-config sentence problemCopy branches on", () => {
-    // problemCopy.isDeliveryConfigMissing matches this shape; a reworded message breaks the panel's
-    // entire "add a delivery endpoint" arm.
-    const s = "Supplier delivery config is missing. Add a delivery endpoint before sending this order.";
-    expect(new ApiHttpError(s, 400).message).toBe(s);
-  });
-
   it("leaves status, body and retryAfterSeconds untouched", () => {
     const err = new ApiHttpError("Too many requests", 429, { retryAfterSeconds: 12 });
     expect(err.status).toBe(429);
@@ -163,9 +156,8 @@ describe("what the raw message is still allowed to carry", () => {
 
 describe("serverReason — the render-boundary helper for server-authored data fields", () => {
   // order.errorMessage / deadLetter.lastError / catalogSource.lastSyncError are NOT
-  // ApiHttpError.message. They are persisted fields that arrive on a 200, and logic elsewhere
-  // (problemCopy.isDeliveryConfigMissing) matches on the raw value — so they are cleaned where
-  // they become prose, never at the source.
+  // ApiHttpError.message. They are persisted fields that arrive on a 200, so they are cleaned
+  // where they become prose, never at the source.
 
   it("returns the readable text inside markup", () => {
     expect(serverReason(GATEWAY_502_HTML, "fallback")).toContain("502 Bad Gateway");

@@ -6,17 +6,8 @@ import {
   DOCX_MEDIA_TYPE,
   normalizeContentType,
   resolveIncomingView,
-  sourceFormatLabel,
   sourceRenderFor,
-  sourceUnavailableMessage,
-  type SourceDocumentState,
 } from "./sourceDocument";
-
-const blob = () => new Blob(["x"]);
-const served = (contentType: string): SourceDocumentState => ({
-  kind: "document",
-  document: { blob: blob(), contentType, filename: null },
-});
 
 describe("normalizeContentType", () => {
   it("drops parameters and case, because a charset must not change the branch taken", () => {
@@ -61,73 +52,6 @@ describe("sourceRenderFor", () => {
     );
     expect(kinds.size).toBeGreaterThanOrEqual(3);
     expect(kinds.has("opaque")).toBe(false);
-  });
-});
-
-describe("sourceFormatLabel", () => {
-  it("says only what the media type establishes", () => {
-    expect(sourceFormatLabel("application/pdf")).toBe("PDF");
-    expect(sourceFormatLabel("text/csv")).toBe("CSV");
-    expect(
-      sourceFormatLabel("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
-    ).toBe("XLSX");
-    // The server collapses cXML / UBL / XML onto one media type and EDIFACT / X12 onto
-    // another, so naming a dialect here would be re-inventing the guess this replaced.
-    expect(sourceFormatLabel("application/xml")).toBe("XML");
-    expect(sourceFormatLabel("text/plain")).toBe("TEXT");
-  });
-
-  it("an unrecognised type earns no chip rather than a made-up one", () => {
-    expect(sourceFormatLabel("application/octet-stream")).toBeNull();
-    expect(sourceFormatLabel("")).toBeNull();
-  });
-});
-
-// A purged-state sentence: the client-side fallback copy that went with the order-source fetch
-// (2026-11-13), kept here as a fixture.
-const PURGED =
-  "This file has been removed under your organisation's data-retention policy. The order record, content hashes and audit trail are kept.";
-
-describe("sourceUnavailableMessage", () => {
-  it("says nothing when a document is on screen", () => {
-    expect(sourceUnavailableMessage(served("application/pdf"))).toBeNull();
-  });
-
-  it("204 and 410 read as ordinary states, not as errors", () => {
-    const none = sourceUnavailableMessage({ kind: "none" })!;
-    expect(none).toContain("No original document is stored for this order");
-    expect(none.toLowerCase()).not.toContain("error");
-    expect(none.toLowerCase()).not.toContain("failed");
-
-    const purged = sourceUnavailableMessage({
-      kind: "purged",
-      message: PURGED,
-    })!;
-    expect(purged).toContain("data-retention policy");
-    expect(purged.toLowerCase()).not.toContain("error");
-  });
-
-  it("410 shows the server's own explanation when it arrives", () => {
-    const serverText = "This file has been purged per the organisation's data retention policy.";
-    expect(sourceUnavailableMessage({ kind: "purged", message: serverText })).toBe(serverText);
-  });
-
-  it("every refusal produces plain operator language — no status codes, no jargon", () => {
-    const states: SourceDocumentState[] = [
-      { kind: "none" },
-      { kind: "purged", message: PURGED },
-      { kind: "missing" },
-      { kind: "throttled", retryAfterSeconds: 30 },
-      { kind: "error" },
-    ];
-    for (const s of states) {
-      const msg = sourceUnavailableMessage(s);
-      expect(msg, `state ${s.kind} must have a sentence`).toBeTruthy();
-      expect(msg).not.toMatch(/\b(204|404|410|429|HTTP|blob|storage key)\b/i);
-      // CLAUDE.md §9: the purged bridge vocabulary is banned from anything a user reads.
-      expect(msg).not.toMatch(/\b(dock|crossing|lane|spine)\b/i);
-      expect(msg!.trim().endsWith(".")).toBe(true);
-    }
   });
 });
 
@@ -218,18 +142,14 @@ describe("the media-type map mirrors the C# that produces it", () => {
 
     for (const t of types) {
       const render = sourceRenderFor(t);
-      const label = sourceFormatLabel(t);
       if (t === "application/octet-stream") {
         // The deliberate "we could not identify these bytes" answer.
         expect(render).toBe("opaque");
-        expect(label).toBeNull();
       } else if (t === DOCX_MEDIA_TYPE) {
-        // Word is a download on purpose: a browser cannot render it, so it gets a chip only.
+        // Word is a download on purpose: a browser cannot render it.
         expect(render).toBe("opaque");
-        expect(label).toBe("DOCX");
       } else {
         expect(render, `${t} has no renderer`).not.toBe("opaque");
-        expect(label, `${t} has no chip label`).toBeTruthy();
       }
     }
   });
