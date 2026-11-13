@@ -19,33 +19,37 @@ export function StandardQuestions({ flow, needs, tableKey, name }: { flow: Flow;
         ? { ...flow.fields, tables: flow.fields.tables.map((t) => (t === table ? { ...t, columns: set(t.columns) } : t)) }
         : { ...flow.fields, fields: set(flow.fields.fields) });
     },
-    onSuccess: (saved) => qc.setQueryData(["flow", flow.id], saved),
+    onSuccess: (saved) => { qc.setQueryData(["flow", flow.id], saved); qc.invalidateQueries({ queryKey: ["flows"] }); },
   });
   const asks = needs
     .map((need) => {
       const m = FIELD_MEANINGS[need as keyof typeof FIELD_MEANINGS];
-      return { need, label: (m?.label ?? need).toLowerCase(), line: m?.scope === "line" };
+      const line = m?.scope === "line";
+      const list = (line ? table?.columns : flow.fields.fields) ?? [];
+      return { need, label: (m?.label ?? need).toLowerCase(), line, list, options: list.filter((f) => !f.meaning || !needs.includes(f.meaning)) };
     })
-    .filter((q) => !(q.line ? table?.columns : flow.fields.fields)?.some((f) => f.meaning === q.need));
-  if (!asks.length) return null;
+    .filter((q) => !q.list.some((f) => f.meaning === q.need));
+  // A question with nothing to choose is never shown: with no listed fields the backend reads meanings from the document itself.
+  const shown = asks.filter((q) => q.options.length);
+  const noTable = !table && asks.some((q) => q.line);
+  if (!shown.length && !noTable) return null;
 
   return (
     <div className="grid gap-2">
       <p className="text-[12px] font-medium text-ink-muted">To make this file, tell us:</p>
-      {asks.map((q) => {
-        if (q.line && !table) return null;
+      {shown.map((q) => {
         const what = q.line ? "column" : "field";
         return (
           <Field key={q.need} label={`Which ${what} is the ${q.label}?`}>
             <select className={INPUT} value="" disabled={save.isPending}
               onChange={(e) => save.mutate({ key: e.target.value, meaning: q.need, line: q.line })}>
               <option value="">{`Choose a ${what}`}</option>
-              {(q.line ? table!.columns : flow.fields.fields).filter((f) => !f.meaning || !needs.includes(f.meaning)).map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
+              {q.options.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
             </select>
           </Field>
         );
       })}
-      {!table && asks.some((q) => q.line) && <p className="text-[12px] text-ink-muted">{name} needs a table of lines.</p>}
+      {noTable && <p className="text-[12px] text-ink-muted">{name} needs a table of lines.</p>}
       {save.isError && <StatusNotice tone="error">{documentRefusalMessage(save.error)}</StatusNotice>}
     </div>
   );

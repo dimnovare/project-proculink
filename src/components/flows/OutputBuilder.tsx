@@ -12,7 +12,7 @@ import type { Flow, FlowOutput } from "@/lib/api/documents";
 import { COPY, documentRefusalMessage } from "@/lib/documentRefusals";
 import { nextTabIndex } from "@/lib/tabKeys";
 import { STANDARDS, type StandardSupport } from "@/lib/standards/catalog";
-import { STANDARD_OUTPUTS } from "@/lib/standardOutputs";
+import { STANDARD_OUTPUTS, WRITTEN_VERSION } from "@/lib/standardOutputs";
 
 const ALL_TABS = [["own", "Build your own"], ["sample", "From a sample"], ["docs", "From documentation"], ["standards", "Standards"]] as const;
 const OFFERED = STANDARDS.filter((s) => (STANDARD_OUTPUTS as readonly string[]).includes(s.id));
@@ -30,7 +30,7 @@ export function OutputBuilder({ flow, previewDocumentId, onDone }: { flow: Flow;
   const standard = useMutation({
     mutationFn: (s: StandardSupport) =>
       createOutput(flow.id, { name: s.name, format: "", standard: s.id, tableKey: flow.fields.tables[0]?.key ?? null, destinationId: null }),
-    onSuccess: (saved) => { qc.invalidateQueries({ queryKey: ["outputs", flow.id] }); setCreated(saved); },
+    onSuccess: (saved) => { qc.invalidateQueries({ queryKey: ["outputs", flow.id] }); qc.invalidateQueries({ queryKey: ["flow", flow.id] }); setCreated(saved); },
   });
 
   if (created)
@@ -66,7 +66,7 @@ export function OutputBuilder({ flow, previewDocumentId, onDone }: { flow: Flow;
             {standard.isError && <StatusNotice tone="error">{documentRefusalMessage(standard.error)}</StatusNotice>}
             {OFFERED.map((s) => (
               <div key={s.id} className="flex items-center justify-between gap-2">
-                <span className="text-[13px] text-ink">{s.name} <span className="text-ink-muted">{s.version}</span></span>
+                <span className="text-[13px] text-ink">{s.name} <span className="text-ink-muted">{WRITTEN_VERSION[s.id] ?? s.version}</span></span>
                 <Button size="sm" variant="secondary" aria-label={`Use ${s.name}`} disabled={standard.isPending}
                   loading={standard.isPending && standard.variables?.id === s.id} onClick={() => standard.mutate(s)}>Use</Button>
               </div>
