@@ -174,7 +174,7 @@ export const STANDARDS: StandardSupport[] = [
     transform: "partial",
     transport: "Peppol Access Point (AS4) — ProcuLink does not provide the transport",
     conformance:
-      "Outbound: written by the flow standard output behind the per-org Peppol flag, and checked on " +
+      "Outbound: written by the flow standard output behind the per-org Peppol flag, and checked when a document is read and on " +
       "demand against the official Peppol and EN 16931 rules by the validator sidecar — a rule check, " +
       "not access-point acceptance. No credit note has been accepted by a live access point.",
     referenceUrl: "https://docs.peppol.eu/poacc/billing/3.0/",

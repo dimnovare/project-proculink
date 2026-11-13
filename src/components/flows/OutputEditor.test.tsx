@@ -140,6 +140,20 @@ describe("OutputEditor", () => {
     expect(api.checkOutput).toHaveBeenCalledWith("f", output.id, "d");
   });
 
+  it("a check result is not shown for another document", async () => {
+    api.checkOutput.mockResolvedValue({ status: "passed", issues: [] });
+    const ui = (id: string) => (
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <OutputEditor flow={checkFlow as never} output={peppol as never} previewDocumentId={id} onSaved={() => {}} onCancel={() => {}} />
+      </QueryClientProvider>
+    );
+    const { rerender } = render(ui("d"));
+    fireEvent.click(screen.getByRole("button", { name: "Check against Peppol rules" }));
+    expect(await screen.findByText("Passes the Peppol BIS Billing 3.0 rules.")).toBeTruthy();
+    rerender(ui("d2"));
+    expect(screen.queryByText("Passes the Peppol BIS Billing 3.0 rules.")).toBeNull();
+  });
+
   it("an unavailable Peppol check says the checker could not be reached", async () => {
     api.checkOutput.mockResolvedValue({ status: "unavailable", issues: [] });
     renderEditor(peppol, checkFlow);

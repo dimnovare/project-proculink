@@ -108,7 +108,8 @@ export function OutputEditor({ flow, output, previewDocumentId, hideDestination,
   const formatted = !standard && (format === "pdf" || format === "txt");
 
   const preview = useMutation({ mutationFn: () => previewOutput(previewDocumentId!, current!.id) });
-  const check = useMutation({ mutationFn: () => checkOutput(flow.id, current!.id, previewDocumentId!) });
+  const check = useMutation({ mutationFn: (documentId: string) => checkOutput(flow.id, current!.id, documentId) });
+  const checkedHere = check.variables === previewDocumentId; // a result belongs to the document it was asked about
   const logoInput = useRef<HTMLInputElement>(null);
   const logo = useMutation({
     mutationFn: (file: File | null) => (file ? uploadOutputLogo(flow.id, current!.id, file) : deleteOutputLogo(flow.id, current!.id)),
@@ -295,13 +296,13 @@ export function OutputEditor({ flow, output, previewDocumentId, hideDestination,
             <Button type="button" variant="secondary" loading={preview.isPending} onClick={() => preview.mutate()}>Preview</Button>
           )}
           {previewDocumentId && current && standard && FLAGGED.has(standard) && flow.peppolOn && (
-            <Button type="button" variant="secondary" loading={check.isPending} onClick={() => check.mutate()}>Check against Peppol rules</Button>
+            <Button type="button" variant="secondary" loading={check.isPending} onClick={() => check.mutate(previewDocumentId)}>Check against Peppol rules</Button>
           )}
         </div>
-        {check.isError && <StatusNotice tone="error">{documentRefusalMessage(check.error)}</StatusNotice>}
-        {check.data?.status === "passed" && <StatusNotice tone="success">Passes the Peppol BIS Billing 3.0 rules.</StatusNotice>}
-        {check.data?.status === "unavailable" && <StatusNotice tone="warning">We couldn&apos;t reach the rule checker. Try again in a minute.</StatusNotice>}
-        {check.data?.status === "failed" && (
+        {checkedHere && check.isError && <StatusNotice tone="error">{documentRefusalMessage(check.error)}</StatusNotice>}
+        {checkedHere && check.data?.status === "passed" && <StatusNotice tone="success">Passes the Peppol BIS Billing 3.0 rules.</StatusNotice>}
+        {checkedHere && check.data?.status === "unavailable" && <StatusNotice tone="warning">We couldn&apos;t reach the rule checker. Try again in a minute.</StatusNotice>}
+        {checkedHere && check.data?.status === "failed" && (
           <StatusNotice tone="warning">
             Doesn&apos;t meet {check.data.issues.filter((i) => i.severity === "error").length} Peppol rule(s):
             <ul className="mt-1 list-disc pl-4">
