@@ -366,7 +366,11 @@ describe("auditActionManifest — coverage floors", () => {
     // -4 reachable when the order API was cut to a read-only archive (plan 13b, task 6b):
     // `DeliveryConfirmedManually`, `InvoiceSentAnyway`, `SupplierAssignedManually` and
     // `SupplierSuggestionAccepted` stay as `historical`.
-    expect(REACHABLE_AUDIT_ACTIONS).toHaveLength(35);
+    //
+    // -18 reachable when the order pipeline itself was deleted (plan 13b, task 7a): every action
+    // its ingest, resolution, transform, acceptance gate, replay and delivery service wrote stays
+    // as `historical`.
+    expect(REACHABLE_AUDIT_ACTIONS).toHaveLength(17);
   });
 
   it("classifies a substantial number of them as failures", () => {

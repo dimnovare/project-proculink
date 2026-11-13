@@ -107,26 +107,10 @@ export interface UserFacingSource {
  */
 export const USER_FACING_SOURCES: readonly UserFacingSource[] = [
   // ── Audit `error` / `lastError` payload writers ──────────────────────────────
-  {
-    file: "ProcuLink.Api/Services/Orders/OrderIngestionService.cs",
-    carrier: "OrderDto.ErrorMessage",
-    why: "Writes the ParseFailed audit event whose `error` key OrdersController.cs:529 reads (:913, :982, :1002).",
-  },
-  {
-    file: "ProcuLink.Api/Services/ParseFailureExplain.cs",
-    carrier: "OrderDto.ErrorMessage",
-    why: "Composes the sentence that becomes that ParseFailed `error` value — its entire purpose.",
-  },
-  {
-    file: "ProcuLink.Api/Services/Orders/OrderTransformService.cs",
-    carrier: "OrderDto.ErrorMessage",
-    why: "FailTransformAsync writes the TransformFailed audit `error` (:917, :1024); also composes its own wrapper sentences at :663, :699, :720.",
-  },
-  {
-    file: "ProcuLink.Infrastructure/Services/DeliveryService.cs",
-    carrier: "OrderDto.ErrorMessage",
-    why: "Writes DeliveryAttempt.ErrorMessage (:569, :888, :990, :1018), RejectionReason (:991, :1019) and the DeliveryDeadLettered `lastError` payload (:1795).",
-  },
+  // 2026-11-13, plan 13b task 7a: all four rows left — OrderIngestionService.cs,
+  // ParseFailureExplain.cs, OrderTransformService.cs and DeliveryService.cs were deleted with the
+  // order pipeline. Nothing writes a new ParseFailed / TransformFailed / DeliveryFailed /
+  // DeliveryDeadLettered event; archived rows keep the sentences they were written with.
 
   // ── Exceptions whose .Message becomes the TransformFailed `error` ───────────
   {
@@ -207,9 +191,11 @@ export const USER_FACING_SOURCES: readonly UserFacingSource[] = [
     why: "Returns the ERP connector's message as DeliveryResult.ErrorMessage (:73).",
   },
   {
+    // 2026-11-13, plan 13b task 7a: DeliveryService.cs (the delivery-failure use) was deleted; the
+    // sentence still reaches a screen as the archive download's 410 body.
     file: "ProcuLink.Core/Services/RetentionConstants.cs",
-    carrier: "OrderDto.ErrorMessage",
-    why: "BlobPurgedError (:17) is used verbatim as the delivery failure at DeliveryService.cs:161 and :1332.",
+    carrier: "ApiHttpError.message",
+    why: "BlobPurgedError (:17) is the archive download's 410 `error` (OrderQueryService.GetDownloadUrlAsync → OrdersController.cs:239).",
   },
 
   // ── Acceptance-gate sentences (become the transform `error`) ────────────────
@@ -218,11 +204,8 @@ export const USER_FACING_SOURCES: readonly UserFacingSource[] = [
     carrier: "OrderDto.ErrorMessage",
     why: "ForFail (:23) produces the (why, fix) sentence pairs the gate refuses with; they reach FailTransformAsync.",
   },
-  {
-    file: "ProcuLink.Core/Services/IAcceptanceGate.cs",
-    carrier: "OrderDto.ErrorMessage",
-    why: "AcceptanceGateMessage.Compose (:181) stitches those into the paragraph stored as the transform error.",
-  },
+  // 2026-11-13, plan 13b task 7a: IAcceptanceGate.cs (AcceptanceGateMessage.Compose) left — deleted
+  // with the order pipeline's acceptance gate.
 
   // ── Order exception messages, rendered raw ──────────────────────────────────
   {

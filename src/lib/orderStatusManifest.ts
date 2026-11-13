@@ -43,14 +43,15 @@
 //
 // PROVENANCE — backend repo ProcuLink @ main 7aa830a, read 2026-08-01:
 //   ProcuLink.Core/Constants/OrderStatusConstants.cs   the 16 status constants + FailureBucket
-//   ProcuLink.Core/Constants/OrderStatusMachine.cs     Transitions, DeclaredTerminal, and the
-//                                                      named per-operation guard sets
+//   ProcuLink.Core/Constants/OrderStatusMachine.cs     Transitions, DeclaredTerminal, ResolveHeldFrom
+//                                                      and the named per-operation guard sets —
+//                                                      DELETED 2026-11-13 with the order pipeline
+//                                                      (plan 13b). DECLARED_TERMINAL, RESOLVE_HELD_FROM
+//                                                      and OP_GUARDS went with it; ORDER_STATUS_FACTS
+//                                                      now mirrors the constants file alone.
 //   ProcuLink.Api/Controllers/OrdersController.cs      five endpoint admission guards — the
 //                                                      endpoints were deleted on 2026-11-13 (plan
-//                                                      13b: the order API is a read-only archive);
-//                                                      OP_GUARDS now cites the named sets in
-//                                                      OrderStatusMachine.cs, and assignSupplier's
-//                                                      inline literal went with its endpoint
+//                                                      13b: the order API is a read-only archive)
 
 /**
  * How the product treats a status, and therefore what the screens owe it.
@@ -76,7 +77,7 @@ export interface OrderStatusFact {
   bucket: StatusBucket;
   /**
    * False when no production writer can put an order in this status. The ONE
-   * member is `pending_parse`: OrderStatusMachine.cs:44-46 records that all four
+   * member is `pending_parse`: OrderStatusMachine.cs:44-46 recorded (until plan 13b deleted it, 2026-11-13) that all four
    * PurchaseOrderEntity construction sites override the C# default, so no order is
    * ever in it. Recorded rather than deleted — the constant exists, the API type
    * admits it, and a future writer would make it reachable without telling anyone.
@@ -87,7 +88,9 @@ export interface OrderStatusFact {
 }
 
 /**
- * Every key of OrderStatusMachine.Transitions, in the backend's declaration order.
+ * Every `public const string` in OrderStatusConstants.cs, in the backend's declaration order.
+ * (Until 2026-11-13 this mirrored the keys of OrderStatusMachine.Transitions; plan 13b deleted
+ * the machine with the order pipeline, and the constants it keyed on are what remain.)
  *
  * Sixteen. `src/types/procurement.ts`'s OrderStatus union has fifteen — it omits
  * `pending_parse` — and `src/test/backendMirror.test.ts` asserts that the only
@@ -163,105 +166,8 @@ export const PARKED_STATUSES: readonly string[] = statusesInBucket("parked");
  */
 export const PROBLEM_BUCKET_STATUSES: readonly string[] = [...FAILURE_STATUSES, ...PARKED_STATUSES];
 
-/**
- * OrderStatusMachine.DeclaredTerminal — terminal BY DECLARATION, never derived
- * from an empty edge set.
- *
- * That distinction is load-bearing and the C# doc explains why at length: deriving
- * terminality from "it has no successors" is how `rejected_by_supplier` became an
- * unintended dead end that no control in the product could move. `failed` is the
- * only member, and its exit is a NEW order row rather than a transition on this one.
- */
-export const DECLARED_TERMINAL: readonly string[] = ["failed"];
 
-/** The operations a problem panel or an ops table may offer. */
-export type OrderOp =
-  | "transformOrder"
-  | "retryDelivery"
-  | "redeliverOrder"
-  | "markDelivered";
 
-export interface OpGuard {
-  /** The statuses the ENDPOINT admits. Not the statuses a downstream claim accepts. */
-  allowedFrom: readonly string[];
-  /** The C# symbol this mirrors, or the literal when the backend has not named one. */
-  backendSymbol: string;
-  /** file:line of the guard in the backend repo, as read at the date in this file's header. */
-  backendSite: string;
-}
-
-/**
- * ENDPOINT ADMISSION GUARDS — what the API answers 2xx for.
- *
- * THE DISTINCTION THIS TABLE EXISTS TO HOLD: the backend has TWO kinds of status
- * set per operation, and they are not the same size.
- *
- *   • the ENDPOINT's admission guard — what a controller checks before answering
- *   • the WORKER's atomic claim set — what a job may pick the row up from
- *
- * A UI control is offered on the strength of the FIRST. Mirroring the second
- * over-admits, and over-admitting is the D2 defect verbatim: a button the backend
- * answers 400 to. That is exactly how `retryDelivery` came to claim
- * `ready_to_deliver`, which `ClaimableForRetryFrom` contains and the endpoint's
- * `RetryableFrom` does not.
- *
- * `delivery_held` appears in NONE of these: the release is automatic when billing
- * settles, and every send endpoint answers 400 while held.
- *
- * This table says what the backend ACCEPTS — never what the product chooses to
- * OFFER. Those were conflated once and the mirror drifted in both directions at
- * the same time; a mirror that lies in order to enforce a policy stops being able
- * to enforce anything. Product rules (for instance "a refused order is never
- * offered a retry, because re-sending the refused bytes cannot un-refuse them")
- * are asserted over PROBLEM_COPY, where they are true.
- */
-export const OP_GUARDS: Record<OrderOp, OpGuard> = {
-  transformOrder: {
-    allowedFrom: ["ready", "transform_failed", "rejected_by_supplier"],
-    backendSymbol: "OrderStatusMachine.TransformableFrom",
-    backendSite: "ProcuLink.Core/Constants/OrderStatusMachine.cs:751",
-  },
-  retryDelivery: {
-    // RetryableFrom, NOT ClaimableForRetryFrom. The claim set also contains
-    // `ready_to_deliver`; the endpoint does not, and answers 400 for it with a
-    // message built from this very set. `delivery_dead_letter` is refused one line
-    // earlier with its own sentence pointing at the ops path.
-    allowedFrom: ["delivery_failed"],
-    backendSymbol: "OrderStatusMachine.RetryableFrom",
-    backendSite: "ProcuLink.Core/Constants/OrderStatusMachine.cs:579",
-  },
-  redeliverOrder: {
-    allowedFrom: ["ready_to_deliver", "delivery_failed", "delivery_unconfirmed"],
-    backendSymbol: "OrderStatusMachine.RedeliverableFrom",
-    backendSite: "ProcuLink.Core/Constants/OrderStatusMachine.cs:486",
-  },
-  markDelivered: {
-    allowedFrom: ["delivery_unconfirmed"],
-    backendSymbol: "OrderStatusMachine.ManuallyDeliverableFrom",
-    backendSite: "ProcuLink.Core/Constants/OrderStatusMachine.cs:952",
-  },
-};
-
-/**
- * POST /resolve and POST /accept-ai-suggestions are a DENY-list, not an allow-list —
- * the only guard of this shape, which is why it is not in OP_GUARDS.
- *
- * A resolve is legal from every status EXCEPT these four, because both endpoints end
- * with the same unconditional recompute (`Status = Lines.Any(NeedsReview) ?
- * pending_review : ready`) and running it from one of these destroys something:
- *   unrouted     lifts the order out of the routing hold with SupplierId still null,
- *                and assign-supplier claims atomically on Status == Unrouted, so the
- *                order becomes permanently unroutable
- *   delivering   writes straight over a live dispatch claim
- *   parsing      overwrites an in-flight parse
- *   transforming overwrites an in-flight transform
- * Refused with 409 and a per-status sentence (OrderStatusMachine.ResolveHoldMessage).
- * `failed` is refused separately, one layer down, with a 400 — permanent, not a hold.
- *
- * This list was two entries (`unrouted`, `delivering`) in the client-side comment that
- * described it; the backend set has been four since WP-23 grew the parse/transform arms.
- */
-export const RESOLVE_HELD_FROM: readonly string[] = ["unrouted", "delivering", "parsing", "transforming"];
 
 /** Statuses where a hold-only resolve is accepted AND the hold is honoured (later retries ignore it). Frontend-only. */
 export const HOLDABLE_STATUSES: readonly string[] = ["pending_review", "ready", "ready_to_deliver"];
@@ -328,10 +234,4 @@ export function orderProblemState(status: string | null | undefined): OrderProbl
   const fact = statusFact(status);
   if (fact === null) return "unknown";
   return fact.bucket === "healthy" ? "clear" : "problem";
-}
-
-/** True when the backend's guard for `op` admits `status`. Unknown status → false. */
-export function opAllowsStatus(op: OrderOp, status: string | null | undefined): boolean {
-  if (!status) return false;
-  return OP_GUARDS[op].allowedFrom.includes(status);
 }

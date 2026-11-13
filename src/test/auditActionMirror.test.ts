@@ -37,9 +37,11 @@ import { ROOT } from "./appRoutes";
  * manifest's provenance header (ProcuLink @ main 5db0b05). There are no
  * `AuditEvents.AddRange` sites, so this list is the whole writer surface.
  *
- * `IAcceptanceGate.cs` holds the three `AcceptanceGateAudit` constants; the two
- * AuditController/OrdersController entries are read for the declared-but-unwritten
- * names, not for writers.
+ * The OrdersController entry is read for the declared-but-unwritten names, not for
+ * writers. (2026-11-13, plan 13b task 7a: AcceptanceGate.cs, IAcceptanceGate.cs,
+ * OrderIngestionService.cs, OrderResolutionService.cs, OrderTransformService.cs,
+ * ReplayService.cs and DeliveryService.cs left this list — deleted with the order
+ * pipeline; their eighteen actions are `historical` in the manifest.)
  */
 const WRITER_FILES = [
   "ProcuLink.Api/Controllers/AdminController.cs",
@@ -50,13 +52,6 @@ const WRITER_FILES = [
   "ProcuLink.Api/Services/Documents/DocumentSender.cs",
   "ProcuLink.Api/Controllers/OrdersController.cs",
   "ProcuLink.Api/Controllers/SettingsController.cs",
-  "ProcuLink.Api/Services/AcceptanceGate.cs",
-  "ProcuLink.Api/Services/Orders/OrderIngestionService.cs",
-  "ProcuLink.Api/Services/Orders/OrderResolutionService.cs",
-  "ProcuLink.Api/Services/Orders/OrderTransformService.cs",
-  "ProcuLink.Api/Services/ReplayService.cs",
-  "ProcuLink.Core/Services/IAcceptanceGate.cs",
-  "ProcuLink.Infrastructure/Services/DeliveryService.cs",
   "ProcuLink.Infrastructure/Services/Email/InboundEmailRouter.cs",
 ] as const;
 
@@ -667,7 +662,10 @@ describe("auditActionManifest mirrors the backend's audit vocabulary", () => {
     // pass by finding nothing.
     // 40 -> 30 on 2026-11-13: the order delivery sweeps and the ops requeue (nine actions) lost their
     // writers; those rows are `historical` in the manifest.
-    expect(backendActions.length).toBeGreaterThanOrEqual(30);
+    // 30 -> 17 the same day (plan 13b task 7a): the order pipeline's ingest, resolution, transform,
+    // acceptance gate, replay and delivery service were deleted, and their eighteen actions with them
+    // (17 today: 6 admin, 9 document, InvoiceDestinationChanged, inbound_email.rejected_orders_retired).
+    expect(backendActions.length).toBeGreaterThanOrEqual(17);
   });
 
   test.skipIf(!BACKEND)("NO backend audit action is unknown to the frontend", () => {
@@ -705,18 +703,11 @@ describe("auditActionManifest mirrors the backend's audit vocabulary", () => {
     ).toEqual([]);
   });
 
-  test.skipIf(!BACKEND)("the payload reader found a realistic number of sites (anti-vacuity)", () => {
-    const { payloadKeys } = scan();
-    // Must come before the key diff below. A reader that stopped matching would make
-    // that diff vacuous in the most dangerous direction: every declared key would be
-    // "not contradicted" because nothing was parsed at all, and the delivery log would
-    // go back to showing no reason with a green test suite over it.
-    // 20 -> 18 on 2026-11-13: plan 13b cut the order API to a read-only archive, and the
-    // payload sites in its deleted write endpoints went with it (18 today, both counts).
-    expect(payloadKeys.size).toBeGreaterThanOrEqual(18);
-    const withKeys = [...payloadKeys.values()].filter((s) => s.size > 0);
-    expect(withKeys.length).toBeGreaterThanOrEqual(18);
-  });
+  // 2026-11-13, plan 13b task 7a: "the payload reader found a realistic number of sites" was removed.
+  // Every payload site it counted (18) lived in the order pipeline's writers, which were deleted, and
+  // every action that declares reasonKeys is now `historical` — so the real tree holds no payload site
+  // for the diff below to read. The reader's own coverage is the fixture suite above; the two tests
+  // below still fail the day a live action declares a reason key the backend does not write.
 
   test.skipIf(!BACKEND)("every action whose reason key is declared was really parsed", () => {
     const { payloadKeys } = scan();
@@ -756,10 +747,25 @@ describe("auditActionManifest mirrors the backend's audit vocabulary", () => {
     expect(
       AUDIT_ACTION_FACTS.filter((f) => f.historical).map((f) => f.action).sort(),
     ).toEqual([
+      "AcceptanceBlocked",
+      "AcceptanceOverridden",
+      "AcceptanceOverrideUsed",
+      "AiSuggestionsBulkAccepted",
+      "ClassifiedAsInvoice",
+      "Created",
       "DeliveryConfirmedManually",
+      "DeliveryDeadLettered",
+      "DeliveryHeldForBilling",
+      "DeliveryHoldReleased",
       "DeliveryRequeuedByOperator",
       "DeliverySlaBreached",
+      "DeliveryUnconfirmed",
       "InvoiceSentAnyway",
+      "MarkedRejected",
+      "ParseFailed",
+      "Parsed",
+      "Reprocessed",
+      "Resolved",
       "StrandedFailedDeliveryRecovered",
       "StrandedReadyDeliveryRecovered",
       "StuckDeliveryDeadLettered",
@@ -768,7 +774,10 @@ describe("auditActionManifest mirrors the backend's audit vocabulary", () => {
       "StuckTimeout",
       "StuckTransformRecovered",
       "SupplierAssignedManually",
+      "SupplierSuggested",
       "SupplierSuggestionAccepted",
+      "TransformFailed",
+      "Transformed",
       "inbound_email.attachment_skipped_empty",
       "inbound_email.attachment_skipped_too_large",
       "inbound_email.attachment_skipped_undecodable",
@@ -792,7 +801,8 @@ describe("auditActionManifest mirrors the backend's audit vocabulary", () => {
     // "the parser found an action there": the three AcceptanceGateAudit rows cite
     // the file that DECLARES the constant (ProcuLink.Core/Services/IAcceptanceGate.cs),
     // which is the contract worth pointing at, while the writers are elsewhere.
-    // A rename still breaks this, which is the point.
+    // A rename still breaks this, which is the point. (Those three rows are `historical`
+    // since 2026-11-13: plan 13b deleted the gate and its constants with the order pipeline.)
     for (const fact of AUDIT_ACTION_FACTS) {
       if (fact.historical) continue; // no writer left to cite, pinned exactly by the test above
       const rel = fact.backendSite.split(":")[0].trim();

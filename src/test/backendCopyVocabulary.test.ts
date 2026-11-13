@@ -64,7 +64,8 @@ const REQUIRE_MIRROR = process.env.PROCULINK_REQUIRE_BACKEND_MIRROR === "1";
  * path without carrying copy. Listed rather than tolerated, because "this file yielded
  * nothing" is otherwise indistinguishable from "the reader broke on this file", and the
  * latter is precisely the silent hole this suite exists to close: if
- * DeliveryService.cs ever drops to zero sentences, that is a parse failure, not a cleanup.
+ * SupplierResponseClassification.cs ever drops to zero sentences, that is a parse failure, not a
+ * cleanup. (This named DeliveryService.cs until 2026-11-13, when plan 13b deleted it.)
  *
  * OrdersController.cs joined on 2026-11-13: plan 13b cut it to a read-only archive (list, get,
  * download), which deleted every 4xx sentence it wrote. It stays in the corpus because it still
@@ -87,7 +88,12 @@ const EXPECTED_SENTENCE_FREE: readonly string[] = [
  * land at or near zero, and every one of those would otherwise report "no violations" and
  * go green — the vacuous pass this repo has shipped more than once.
  */
-const MIN_SENTENCES = 150;
+//
+// 2026-11-13, plan 13b task 7a: 150 -> 100. Five corpus files (OrderIngestionService.cs,
+// ParseFailureExplain.cs, OrderTransformService.cs, DeliveryService.cs, IAcceptanceGate.cs) were
+// deleted with the order pipeline, and the live corpus fell to 133 sentences across 19 files.
+// 100 keeps the same "well below, far above zero" margin over the smaller corpus.
+const MIN_SENTENCES = 100;
 
 // ── Always-on: the vocabulary itself is real ─────────────────────────────────
 

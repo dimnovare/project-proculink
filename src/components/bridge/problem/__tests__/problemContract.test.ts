@@ -10,7 +10,7 @@ import {
   type ProblemCtx,
   type ProblemStatus,
 } from "../problemCopy";
-import { OP_ALLOWED_FROM, opIsAllowedFrom, type ProblemOp } from "../problemActions";
+import { opIsAllowedFrom } from "../problemActions";
 import { ROOT, listAppRoutes, matchesAny, normalizePath, isInternalPageLink } from "@/test/appRoutes";
 import { queryKeysOf, unconsumedParams } from "@/test/routeQueryParams";
 import { extractLinks, syntaxFor } from "@/test/linkExtract";
@@ -153,51 +153,8 @@ describe("no state offers a control the backend will reject", () => {
     }
   });
 
-  test("the guard mirror itself matches the backend's sets", () => {
-    // OrderStatusMachine.RedeliverableFrom = {delivery_failed, ready_to_deliver, delivery_unconfirmed}
-    expect([...OP_ALLOWED_FROM.redeliverOrder].sort()).toEqual(
-      ["delivery_failed", "delivery_unconfirmed", "ready_to_deliver"],
-    );
-    // OrderStatusMachine.TransformableFrom = {ready, transform_failed, rejected_by_supplier}.
-    // `rejected_by_supplier` really is in it — OrdersController claims on that set and
-    // answers 202 — and `pending_review` really is not. The mirror asserted the
-    // opposite of both for the life of the file, and this assertion is what let it:
-    // it used to enforce the PRODUCT rule ("we never offer a refused order a button")
-    // by writing a false BACKEND fact, which made the mirror unable to catch drift in
-    // either direction. The product rule is now asserted below, over PROBLEM_COPY.
-    expect([...OP_ALLOWED_FROM.transformOrder].sort()).toEqual(
-      ["ready", "rejected_by_supplier", "transform_failed"].sort(),
-    );
-    // OrderStatusMachine.RetryableFrom = {delivery_failed}. ONE status.
-    //
-    // This row read `["delivery_failed", "ready_to_deliver"]` and cited
-    // `ClaimableForRetryFrom`, and both halves of that were the same mistake: the
-    // backend keeps TWO sets per operation, and they are not the same size.
-    // `ClaimableForRetryFrom` is what the WORKER's atomic claim will pick a row up
-    // from; `RetryableFrom` is what the ENDPOINT admits, and it is the one a button
-    // is offered on the strength of. `POST /api/orders/{id}/retry-delivery` answers
-    // 400 for `ready_to_deliver` with a message built from `RetryableFrom` itself.
-    //
-    // So the mirror over-admitted, and this assertion — the one test whose whole
-    // job is catching mirror drift — pinned the over-admission as the contract.
-    // Same failure as the `transformOrder` row above, one line down, found the same
-    // way: by reading the C# rather than the comment beside the copy of it.
-    //
-    // The membership now comes from `src/lib/orderStatusManifest.ts`, which cites
-    // the symbol and file:line, and `src/test/backendMirror.test.ts` diffs it
-    // against the real C# whenever a backend checkout is reachable. These literals
-    // stay literal on purpose: their job is to make a change to what the product
-    // offers a deliberate edit here, not to re-derive what the manifest already says.
-    expect([...OP_ALLOWED_FROM.retryDelivery].sort()).toEqual(["delivery_failed"]);
-    // Dead-letter is NOT redeliverable — this is D2. (Its ops requeue rescue was deleted 2026-11-13.)
-    expect(OP_ALLOWED_FROM.redeliverOrder.has("delivery_dead_letter")).toBe(false);
-    // EXACT set for markDelivered as well, so it cannot grow silently.
-    expect([...OP_ALLOWED_FROM.markDelivered].sort()).toEqual(["delivery_unconfirmed"]);
-    // delivery_held: the release is automatic and every send endpoint 400s while held.
-    for (const op of Object.keys(OP_ALLOWED_FROM) as ProblemOp[]) {
-      expect(OP_ALLOWED_FROM[op].has("delivery_held")).toBe(false);
-    }
-  });
+  // 2026-11-13, plan 13b task 7a: "the guard mirror itself matches the backend's sets" was removed
+  // with OrderStatusMachine — there are no backend sets left to match (see OP_ALLOWED_FROM's note).
 
   // The product rule the mirror used to carry, stated where it is actually true:
   // over the copy table. A refused order can be re-built by the backend; rebuilding

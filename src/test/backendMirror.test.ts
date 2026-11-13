@@ -1,13 +1,7 @@
 import { afterAll, describe, test, expect } from "vitest";
 import { existsSync, readdirSync, readFileSync, statSync } from "fs";
 import { dirname, join, resolve } from "path";
-import {
-  DECLARED_TERMINAL,
-  FAILURE_STATUSES,
-  OP_GUARDS,
-  ORDER_STATUSES,
-  RESOLVE_HELD_FROM,
-} from "@/lib/orderStatusManifest";
+import { FAILURE_STATUSES, ORDER_STATUSES } from "@/lib/orderStatusManifest";
 import { ROOT } from "./appRoutes";
 import { DOCUMENT_STATUSES } from "@/lib/documentStatusManifest";
 import { FIELD_MEANINGS } from "@/lib/fieldMeanings";
@@ -15,16 +9,10 @@ import { FORMATS } from "@/components/flows/OutputEditor";
 import { PREVIEW_FORMATS } from "@/lib/api/types";
 import { STANDARDS } from "@/lib/standards/catalog";
 import { FLAGGED, STANDARD_OUTPUTS } from "@/lib/standardOutputs";
-import {
-  TRANSFORM_CAUSE_MATCHERS,
-  TRANSFORM_CAUSE_NAMES,
-  transformCauseNameFor,
-  type TransformCauseName,
-} from "@/components/bridge/problem/problemCopy";
 // The C# string-literal reader this file introduced now has a second consumer
 // (src/test/backendCopyVocabulary.test.ts), so it lives in one place rather than two.
 // Its own header explains why a `grep` cannot replace it.
-import { parseCsStringExpressions, stripCsComments } from "./csLiterals";
+import { stripCsComments } from "./csLiterals";
 import { MINIMUM_PLAN } from "@/lib/gatedCapabilities";
 import { OVERAGE_PER_ORDER_EUR, PLAN_BY_ID } from "@/lib/plans";
 
@@ -66,8 +54,10 @@ import { OVERAGE_PER_ORDER_EUR, PLAN_BY_ID } from "@/lib/plans";
 // ─────────────────────────────────────────────────────────────────────────────
 
 const CONSTANTS_REL = "ProcuLink.Core/Constants/OrderStatusConstants.cs";
-const MACHINE_REL = "ProcuLink.Core/Constants/OrderStatusMachine.cs";
-const TRANSFORM_SERVICE_REL = "ProcuLink.Api/Services/Orders/OrderTransformService.cs";
+// 2026-11-13, plan 13b task 7a: OrderStatusMachine.cs (MACHINE_REL) and OrderTransformService.cs
+// (TRANSFORM_SERVICE_REL) left this suite — both were deleted with the order pipeline, and with
+// them the Transitions / DeclaredTerminal / ResolveHeldFrom / OP_GUARDS diffs and the
+// transform-failure sentence mirror. The status list is now diffed against the constants alone.
 /**
  * THE list of outbound transforms the solution ships. `OutputTransformRegistry.All` is what both
  * hosts register (via `AddOutputTransforms()`) AND what `OutputTransformRegistry.Catalog` derives
@@ -106,8 +96,6 @@ const DOCUMENT_STATUS_REL = "ProcuLink.Core/Documents/DocumentStatus.cs";
  */
 const PARSED_FILES = [
   CONSTANTS_REL,
-  MACHINE_REL,
-  TRANSFORM_SERVICE_REL,
   TRANSFORM_REGISTRY_REL,
   OUTPUT_FORMAT_ENUM_REL,
   PROGRAM_REL,
@@ -130,7 +118,7 @@ function findBackendRoot(): string | null {
   let dir = resolve(ROOT);
   for (let i = 0; i < 8; i += 1) {
     const candidate = join(dirname(dir), "ProcuLink");
-    if (existsSync(join(candidate, CONSTANTS_REL)) && existsSync(join(candidate, MACHINE_REL))) {
+    if (existsSync(join(candidate, CONSTANTS_REL)) && existsSync(join(candidate, PLAN_CONSTANTS_REL))) {
       return candidate;
     }
     const up = dirname(dir);
@@ -199,16 +187,6 @@ export function mirrorGateFailure(input: {
 // and `afterAll` asserts the counter reached the number of comparisons this file
 // declares. A run that resolved a backend and compared nothing is a FAILURE.
 
-/**
- * The op guards, each against the symbol its own row names.
- *
- * Every row names a set now: `assignSupplier`, the one inline-literal guard this filter
- * existed to exclude, went with its endpoint in plan 13b (2026-11-13).
- *
- * Module scope rather than describe scope, because the vacuity floor at the bottom of
- * the file sizes itself from this list.
- */
-const NAMED_GUARDS = Object.entries(OP_GUARDS).filter(([, g]) => /^OrderStatusMachine\.\w+$/.test(g.backendSymbol));
 
 let comparisonsRun = 0;
 
@@ -265,13 +243,6 @@ export function parseNamedSet(cs: string, name: string): string[] | null {
     .filter((s) => s.length > 0 && /^\w+$/.test(s));
 }
 
-/** The keys of the `Transitions` dictionary: `[PendingParse] = Set(...)`. */
-export function parseTransitionKeys(cs: string): string[] {
-  const start = cs.indexOf("Transitions =");
-  if (start < 0) return [];
-  const region = cs.slice(start, cs.indexOf("public static IReadOnlyCollection<string> AllStatuses", start));
-  return [...region.matchAll(/^\s*\[(\w+)\]\s*=/gm)].map((m) => m[1]);
-}
 
 function resolveAll(identifiers: readonly string[], constants: Record<string, string>): string[] {
   return identifiers.map((id) => {
@@ -304,16 +275,6 @@ public static class OrderStatusConstants
   const FIXTURE_MACHINE = `
 public static class OrderStatusMachine
 {
-    public static readonly IReadOnlyDictionary<string, IReadOnlySet<string>> Transitions =
-        new Dictionary<string, IReadOnlySet<string>>(StringComparer.Ordinal)
-        {
-            [PendingParse]   = Set(Parsing),
-            // a comment between rows
-            [DeliveryFailed] = Set(Delivering, Ready),
-        };
-
-    public static IReadOnlyCollection<string> AllStatuses => (IReadOnlyCollection<string>)Transitions.Keys;
-
     /// <summary>Doc.</summary>
     public static readonly IReadOnlySet<string> RetryableFrom =
         Set(DeliveryFailed);
@@ -338,10 +299,6 @@ public static class OrderStatusMachine
     // The difference decides whether a missing symbol reads as "the backend
     // renamed it" or as "the backend admits nothing from anywhere".
     expect(parseNamedSet(FIXTURE_MACHINE, "NoSuchSetFrom")).toBeNull();
-  });
-
-  test("transition keys are read and stop at AllStatuses", () => {
-    expect(parseTransitionKeys(FIXTURE_MACHINE)).toEqual(["PendingParse", "DeliveryFailed"]);
   });
 
   test("an unresolvable identifier throws instead of being dropped", () => {
@@ -377,11 +334,11 @@ describe("the mirror gate decides correctly", () => {
     // missing file here is drift in the manifest's own citations.
     const failure = mirrorGateFailure({
       backendRoot: "/tmp/backend",
-      missing: [MACHINE_REL],
+      missing: [TRANSFORM_REGISTRY_REL],
       required: false,
     });
     expect(failure).not.toBeNull();
-    expect(failure).toContain(MACHINE_REL);
+    expect(failure).toContain(TRANSFORM_REGISTRY_REL);
   });
 
   test("a complete backend passes, required or not", () => {
@@ -392,8 +349,6 @@ describe("the mirror gate decides correctly", () => {
   test("missingParsedFiles reports every file the checkout lacks", () => {
     const present = new Set([join("/tmp/backend", CONSTANTS_REL)]);
     expect(missingParsedFiles("/tmp/backend", (p) => present.has(p))).toEqual([
-      MACHINE_REL,
-      TRANSFORM_SERVICE_REL,
       TRANSFORM_REGISTRY_REL,
       OUTPUT_FORMAT_ENUM_REL,
       PROGRAM_REL,
@@ -423,15 +378,17 @@ describe("the manifest matches the C# it claims to mirror", () => {
     expect(failure, failure ?? "").toBeNull();
   });
 
-  test.skipIf(!BACKEND)("every status the machine keys is in the manifest, and vice versa", () => {
+  // 2026-11-13, plan 13b: re-anchored from OrderStatusMachine.Transitions' keys onto the status
+  // constants themselves — the machine was deleted with the order pipeline.
+  test.skipIf(!BACKEND)("every status constant is in the manifest, and vice versa", () => {
     const constants = parseStatusConstants(readFileSync(join(BACKEND!, CONSTANTS_REL), "utf8"));
-    const keys = parseTransitionKeys(readFileSync(join(BACKEND!, MACHINE_REL), "utf8"));
-    expect(keys.length, "parsed no transition keys — the parser has drifted from the C#").toBeGreaterThan(10);
+    const values = Object.values(constants);
+    expect(values.length, "parsed no status constants — the parser has drifted from the C#").toBeGreaterThan(10);
     recordComparison(
-      "OrderStatusMachine.Transitions keys",
-      resolveAll(keys, constants),
+      "OrderStatusConstants status constants",
+      values,
       ORDER_STATUSES,
-      "ORDER_STATUSES drifted from the statuses the machine actually keys.",
+      "ORDER_STATUSES drifted from the statuses OrderStatusConstants declares.",
     );
   });
 
@@ -445,75 +402,6 @@ describe("the manifest matches the C# it claims to mirror", () => {
       FAILURE_STATUSES,
       "FAILURE_STATUSES drifted. The inbox collapses this set into one red pill and `?status=failed` expands it server-side.",
     );
-  });
-
-  test.skipIf(!BACKEND)("DeclaredTerminal matches", () => {
-    const constants = parseStatusConstants(readFileSync(join(BACKEND!, CONSTANTS_REL), "utf8"));
-    const members = parseNamedSet(readFileSync(join(BACKEND!, MACHINE_REL), "utf8"), "DeclaredTerminal");
-    expect(members, "DeclaredTerminal not found in OrderStatusMachine.cs").not.toBeNull();
-    recordComparison(
-      "OrderStatusMachine.DeclaredTerminal",
-      resolveAll(members!, constants),
-      DECLARED_TERMINAL,
-      "DECLARED_TERMINAL drifted. A status wrongly called terminal is one the product offers no way out of.",
-    );
-  });
-
-  test.skipIf(!BACKEND)("ResolveHeldFrom matches", () => {
-    const constants = parseStatusConstants(readFileSync(join(BACKEND!, CONSTANTS_REL), "utf8"));
-    const members = parseNamedSet(readFileSync(join(BACKEND!, MACHINE_REL), "utf8"), "ResolveHeldFrom");
-    expect(members, "ResolveHeldFrom not found in OrderStatusMachine.cs").not.toBeNull();
-    recordComparison(
-      "OrderStatusMachine.ResolveHeldFrom",
-      resolveAll(members!, constants),
-      RESOLVE_HELD_FROM,
-      "RESOLVE_HELD_FROM drifted. Every entry is a status where running the resolve recompute destroys something.",
-    );
-  });
-
-  // NAMED_GUARDS is built at module scope — see its doc comment there.
-  test("the guard walk is not empty", () => {
-    expect(NAMED_GUARDS.length).toBe(4);
-  });
-
-  test.skipIf(!BACKEND).each(NAMED_GUARDS)("%s mirrors its named C# set exactly", (op, guard) => {
-    const constants = parseStatusConstants(readFileSync(join(BACKEND!, CONSTANTS_REL), "utf8"));
-    const symbol = guard.backendSymbol.split(".")[1];
-    const members = parseNamedSet(readFileSync(join(BACKEND!, MACHINE_REL), "utf8"), symbol);
-    expect(members, `${op} cites ${guard.backendSymbol}, which is not in OrderStatusMachine.cs`).not.toBeNull();
-    recordComparison(
-      `${op} → ${guard.backendSymbol}`,
-      resolveAll(members!, constants),
-      guard.allowedFrom,
-      `${op} mirrors ${guard.backendSymbol}. Manifest says [${sorted(guard.allowedFrom)}]; the C# says otherwise. A control offered on a status the endpoint refuses can only answer 400.`,
-    );
-  });
-
-  test.skipIf(!BACKEND)("the file:line each guard cites still points at that guard's symbol", () => {
-    // The line number is documentation and will rot; the FILE must at least still
-    // reference the symbol, or the citation is sending the next reader nowhere.
-    //
-    // The symbol is taken from the LAST dotted identifier in `backendSymbol`, which
-    // is why the pattern is anchored rather than split-and-pop: `assignSupplier`'s
-    // entry is a sentence, not a symbol — "OrdersController.AssignSupplier inline
-    // literal (OrderStatusConstants.Unrouted)" — and popping on "." yields
-    // `Unrouted)` with the bracket attached. That happened to pass, because the C#
-    // really does contain `…Unrouted)` inside a call. A check that is right by
-    // accident on the one row it was written for is not a check.
-    const rows = Object.entries(OP_GUARDS);
-    expect(rows.length, "OP_GUARDS is empty, so this walk would check nothing").toBeGreaterThan(0);
-    for (const [op, guard] of rows) {
-      const [file] = guard.backendSite.split(":");
-      const path = join(BACKEND!, file);
-      expect(existsSync(path), `${op} cites ${file}, which does not exist`).toBe(true);
-      const identifiers = [...guard.backendSymbol.matchAll(/\b[A-Z]\w*\.([A-Z]\w*)\b/g)].map((m) => m[1]);
-      expect(identifiers.length, `${op}'s backendSymbol names no C# identifier: "${guard.backendSymbol}"`).toBeGreaterThan(0);
-      const cs = readFileSync(path, "utf8");
-      for (const symbol of identifiers) {
-        expect(cs, `${op} cites ${symbol}, which ${file} no longer mentions`).toContain(symbol);
-      }
-    }
-    comparisonsRun += 1;
   });
 });
 
@@ -563,152 +451,6 @@ export function parseAssignedStatusLiterals(cs: string, property: string): strin
   return [...cs.matchAll(new RegExp(`${property}\\s*=\\s*"([^"]*)"`, "g"))].map((m) => m[1]);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// The transform-failure MESSAGE mirror.
-//
-// `TRANSFORM_CAUSES` in src/components/bridge/problem/problemCopy.ts decides what
-// the order screen tells an operator to do, and it decides it by running six
-// hand-written regexes against an English sentence composed in another repo. There
-// is no machine-readable cause for a transform failure — `failureCause` is
-// populated for delivery only — so the prose IS the contract.
-//
-// Nothing pinned it. A backend reword did not break a build, did not fail a test
-// and did not show up on screen as an error: the matcher simply stopped matching,
-// the panel fell through to its unrecognised copy, and the operator lost the one
-// sentence that named the fix. That is the same shape as every other mirror in this
-// file — a comment citing a symbol in another language, checked by nobody.
-//
-// WHY A LITERAL READER AND NOT A `grep`. The five original sentences are written
-// four different ways in the C#: a `const string` split across two concatenated
-// literals, two `$"…{hole}…"` interpolations, a bare literal in a ternary branch,
-// and three wrapper messages that end in `: {ex.Message}`. A substring search would
-// need the same sentence typed here a second time — which is the defect this file
-// exists to catch, not a way to catch it. Reading the literals means the assertion
-// is "this pattern still matches something the service really writes", with the
-// sentence itself never retyped on this side.
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * How many sentences in OrderTransformService.cs each cause is allowed to claim.
- *
- * EXACT, not a floor. Zero means the backend reworded and the panel has silently
- * lost that cause's copy — the defect this section exists for. More than the
- * declared number means the pattern has widened onto a sentence it was not written
- * for, which is how an ordered first-match table starts eating its neighbours. A
- * genuinely new site is a number to change deliberately, with the copy re-read.
- */
-const TRANSFORM_CAUSE_SITES: Record<TransformCauseName, number> = {
-  // Three wrappers: the output tree, the pinned revision's mapping, the supplier's.
-  output_mapping_failed: 3,
-  unresolved_lines: 1,
-  preparation_failed: 1,
-  no_builder_for_format: 1,
-  rules_check_failed: 1,
-  rules_refused: 1,
-};
-
-describe("the transform-failure copy still matches the sentences the backend writes", () => {
-  test("the literal reader actually reads (so a green diff means something)", () => {
-    const fixture = [
-      "public class Svc",
-      "{",
-      "    // const string reason = \"a sentence that was reworded away\";",
-      "    /* \"and one in a block comment\" */",
-      "    public void Go()",
-      "    {",
-      "        const string reason =",
-      '            "Something went wrong, so it wasn\'t sent. "',
-      '          + "Try again in a moment.";',
-      '        var listed = $"Unresolved: {string.Join(", ", lines)}.";',
-      "        var ch = '\"';",
-      '        var picked = flag ? "the fallback sentence." : other;',
-      '        var esc = "a \\"quoted\\" word";',
-      "    }",
-      "}",
-    ].join("\n");
-
-    const found = parseCsStringExpressions(fixture);
-
-    // The two-part const reads as ONE sentence, which is the whole point: matched
-    // against either half alone, a pattern spanning the join would find nothing.
-    expect(found).toContain("Something went wrong, so it wasn't sent. Try again in a moment.");
-    // The interpolation hole is normalised, and the `", "` INSIDE it did not end
-    // the string early or leak in as a fragment.
-    expect(found).toContain("Unresolved: {}.");
-    expect(found).not.toContain(", ");
-    expect(found).toContain("the fallback sentence.");
-    expect(found).toContain('a "quoted" word');
-    // Comments are not sentences the service writes. A reader that collected them
-    // would confirm a message that no longer exists.
-    expect(found.join("\n")).not.toContain("reworded away");
-    expect(found.join("\n")).not.toContain("block comment");
-  });
-
-  test("the frontend table is itself non-vacuous", () => {
-    // Guards the walk below: an emptied matcher list claims nothing, and "nothing
-    // failed to match" is indistinguishable from "everything matched".
-    expect(TRANSFORM_CAUSE_MATCHERS).toHaveLength(6);
-    expect(sorted(TRANSFORM_CAUSE_MATCHERS.map((m) => m.cause))).toEqual(sorted(Object.keys(TRANSFORM_CAUSE_SITES)));
-    expect(sorted([...TRANSFORM_CAUSE_NAMES])).toEqual(sorted(Object.keys(TRANSFORM_CAUSE_SITES)));
-  });
-
-  test.skipIf(!BACKEND)("the service still writes sentences at all", () => {
-    const sentences = parseCsStringExpressions(readFileSync(join(BACKEND!, TRANSFORM_SERVICE_REL), "utf8"));
-    expect(
-      sentences.length,
-      "parsed OrderTransformService.cs and found almost no string literals — the reader or the file moved",
-    ).toBeGreaterThan(30);
-  });
-
-  test.skipIf(!BACKEND)("every cause matches the C# it was written against, and only that", () => {
-    const sentences = parseCsStringExpressions(readFileSync(join(BACKEND!, TRANSFORM_SERVICE_REL), "utf8"));
-    const claimed = new Map<string, string[]>();
-
-    for (const { cause, match } of TRANSFORM_CAUSE_MATCHERS) {
-      const hits = sentences.filter((s) => match.test(s));
-      claimed.set(cause, hits);
-      expect(
-        hits.length,
-        `${cause}: ${match} matches ${hits.length} sentence(s) in ${TRANSFORM_SERVICE_REL}, expected `
-          + `${TRANSFORM_CAUSE_SITES[cause as TransformCauseName]}. Zero means the backend reworded the message and `
-          + `the order screen quietly stopped naming this cause — an operator now gets the unrecognised copy `
-          + `instead of the fix. More than expected means the pattern widened onto a sentence it was not `
-          + `written for.\nMatched:\n  ${hits.join("\n  ")}`,
-      ).toBe(TRANSFORM_CAUSE_SITES[cause as TransformCauseName]);
-    }
-
-    // Disjoint against the REAL sentences, not against the fixtures. The table is
-    // ordered and first-match-wins, so a widened pattern does not fail on its own
-    // message — it silently eats whichever cause is declared after it.
-    for (const [cause, hits] of claimed) {
-      for (const [other, otherHits] of claimed) {
-        if (cause === other) continue;
-        const shared = hits.filter((h) => otherHits.includes(h));
-        expect(shared, `"${cause}" and "${other}" both claim:\n  ${shared.join("\n  ")}`).toEqual([]);
-      }
-    }
-    comparisonsRun += 1;
-  });
-
-  test.skipIf(!BACKEND)("the panel routes every matched sentence to that cause end to end", () => {
-    // The walk above proves each PATTERN still matches. This proves the LOOKUP the
-    // panel actually calls returns the right cause for the real sentence — the two
-    // differ the moment ordering changes, because `transformCauseNameFor` returns
-    // the first match and the walk above scores each pattern in isolation.
-    const sentences = parseCsStringExpressions(readFileSync(join(BACKEND!, TRANSFORM_SERVICE_REL), "utf8"));
-    let routed = 0;
-    for (const { cause, match } of TRANSFORM_CAUSE_MATCHERS) {
-      for (const sentence of sentences.filter((s) => match.test(s))) {
-        expect(transformCauseNameFor(sentence), `"${sentence}" routes to the wrong cause`).toBe(cause);
-        routed += 1;
-      }
-    }
-    expect(routed, "routed nothing — the sentences went missing between the two walks").toBe(
-      Object.values(TRANSFORM_CAUSE_SITES).reduce((a, b) => a + b, 0),
-    );
-    comparisonsRun += 1;
-  });
-});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Which formats ProcuLink can actually PRODUCE.
@@ -1512,11 +1254,11 @@ public static class PlanConstants
 // is the entire point: "the file was found but zero anchors were checked" is the exact
 // shape that let 12 skipped tests read as a pass for as long as they did.
 
+// 2026-11-13, plan 13b task 7a: 4 -> 2 (DeclaredTerminal and ResolveHeldFrom went with
+// OrderStatusMachine), and the op-guard rows (NAMED_GUARDS.length + the backendSite walk) and the
+// two transform-cause comparisons went with OP_GUARDS and OrderTransformService.
 const EXPECTED_COMPARISONS =
-  4 + // Transitions keys, FailureBucket, DeclaredTerminal, ResolveHeldFrom
-  NAMED_GUARDS.length + // one per op guard that names a C# symbol
-  1 + // the backendSite citation walk over every OP_GUARDS row
-  2 + // transform causes: the per-pattern site count, and the end-to-end routing walk
+  2 + // the status constants, FailureBucket
   3 + // output formats: the buildable set, the standards catalog, PREVIEW_FORMATS
   1 + // MINIMUM_PLAN against PlanConstants.MinimumPlan
   5 + // the ladder's numbers: Limits, MonthlyPriceEur, OveragePerOrderEur, FlowLimits, OverageRatesEur

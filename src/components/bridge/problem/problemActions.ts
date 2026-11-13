@@ -13,7 +13,6 @@
 // A control the backend will reject can no longer reach a screen without a red test.
 
 import { apiClient } from "@/lib/api-client";
-import { OP_GUARDS } from "@/lib/orderStatusManifest";
 
 export type ProblemOp =
   | "transformOrder"
@@ -55,11 +54,19 @@ export type ProblemOp =
  * over PROBLEM_COPY, where it belongs — a mirror that lies to enforce a policy
  * stops being able to enforce anything.
  */
+//
+// 2026-11-13, plan 13b: NO LONGER A MIRROR. These sets were derived from OP_GUARDS in
+// orderStatusManifest.ts, which mirrored OrderStatusMachine's endpoint guard sets. The
+// machine, OP_GUARDS and every order write endpoint were deleted with the order pipeline,
+// so the backend admits none of these ops from any status and nothing renders a post
+// action (the problem panel went with the order screens). The sets are the guards as they
+// last mirrored the backend, frozen so PROBLEM_COPY's dead post actions keep type-checking
+// until the frontend orphan sweep removes the post kind.
 export const OP_ALLOWED_FROM: Record<ProblemOp, ReadonlySet<string>> = {
-  transformOrder: new Set(OP_GUARDS.transformOrder.allowedFrom),
-  retryDelivery: new Set(OP_GUARDS.retryDelivery.allowedFrom),
-  redeliverOrder: new Set(OP_GUARDS.redeliverOrder.allowedFrom),
-  markDelivered: new Set(OP_GUARDS.markDelivered.allowedFrom),
+  transformOrder: new Set(["ready", "transform_failed", "rejected_by_supplier"]),
+  retryDelivery: new Set(["delivery_failed"]),
+  redeliverOrder: new Set(["ready_to_deliver", "delivery_failed", "delivery_unconfirmed"]),
+  markDelivered: new Set(["delivery_unconfirmed"]),
 };
 
 export function opIsAllowedFrom(op: ProblemOp, status: string): boolean {

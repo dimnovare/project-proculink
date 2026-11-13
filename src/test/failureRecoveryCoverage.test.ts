@@ -2,22 +2,16 @@ import { describe, test, expect } from "vitest";
 import { readFileSync } from "fs";
 import { join } from "path";
 import {
-  DECLARED_TERMINAL,
   FAILURE_STATUSES,
-  OP_GUARDS,
   ORDER_STATUSES,
   ORDER_STATUS_FACTS,
   PARKED_STATUSES,
   PROBLEM_BUCKET_STATUSES,
   REACHABLE_STATUSES,
-  RESOLVE_HELD_FROM,
-  opAllowsStatus,
   statusFact,
-  type OrderOp,
 } from "@/lib/orderStatusManifest";
 import { PROBLEM_COPY, problemFor, type ProblemCtx, type ProblemStatus } from "@/components/bridge/problem/problemCopy";
 import { ROOT, isInternalPageLink, listAppRoutes, matchesAny, normalizePath } from "./appRoutes";
-import { stripComments, syntaxFor } from "./sourceScan";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // WP-36 — every failure has an obvious action.
@@ -131,11 +125,9 @@ describe("the manifest is a partition, so 'every failure' can mean something", (
     );
   });
 
-  test("`failed` is the only status the product declares finished", () => {
-    // Declared, never derived. Deriving terminality from an empty edge set is how
-    // rejected_by_supplier became a dead end no control in the product could move.
-    expect(DECLARED_TERMINAL).toEqual(["failed"]);
-  });
+  // 2026-11-13, plan 13b task 7a: "`failed` is the only status the product declares finished" went
+  // with DECLARED_TERMINAL, which mirrored OrderStatusMachine.DeclaredTerminal (deleted with the order
+  // pipeline).
 
   test("only pending_parse is marked unreachable, and it is marked", () => {
     const unreachable = ORDER_STATUS_FACTS.filter((f) => !f.reachable).map((f) => f.status);
@@ -188,17 +180,8 @@ describe("what each stopped status offers is something that can succeed", () => 
     }
   });
 
-  test.each(PROBLEM_BUCKET_STATUSES)("%s: every POST it offers is admitted by the backend from this status", (status) => {
-    for (const [variant, over] of CTX_VARIANTS) {
-      for (const action of PROBLEM_COPY[status as ProblemStatus].actions(ctx(over))) {
-        if (action.kind !== "post") continue;
-        expect(
-          opAllowsStatus(action.op as OrderOp, status),
-          `${status} (${variant}) offers "${action.label}" → ${action.op}, but ${OP_GUARDS[action.op as OrderOp].backendSymbol} does not admit ${status}. That control can only answer 400.`,
-        ).toBe(true);
-      }
-    }
-  });
+  // 2026-11-13, plan 13b task 7a: "every POST it offers is admitted by the backend" went with
+  // OP_GUARDS — the endpoint guards it mirrored were deleted with OrderStatusMachine.
 
   test.each(PROBLEM_BUCKET_STATUSES)("%s: every link it offers lands on a page that exists", (status) => {
     for (const [variant, over] of CTX_VARIANTS) {
@@ -289,38 +272,11 @@ describe("the guard tables are one copy, not nine", () => {
    * import the manifest and still hard-code a set two lines later. It catches the
    * common case: someone adds a guard set by copying the C# again.
    */
-  // CommandPalette left this list on 2026-11-13: its order rows (the only status
-  // it read) went with the order screens, so it no longer names a status at all.
-  const MUST_DERIVE = [
-    "src/components/bridge/problem/problemActions.ts",
-  ];
-
-  test.each(MUST_DERIVE)("%s reads the status manifest instead of retyping it", (rel) => {
-    const code = stripComments(readFileSync(join(ROOT, rel), "utf8"), syntaxFor(rel));
-    expect(/from\s+["']@\/lib\/orderStatusManifest["']/.test(code)).toBe(true);
-  });
-
-  test("every op guard names the C# symbol and site it mirrors", () => {
-    for (const [op, guard] of Object.entries(OP_GUARDS)) {
-      expect(guard.allowedFrom.length, `${op} admits nothing`).toBeGreaterThan(0);
-      expect(guard.backendSymbol.length, `${op} cites no backend symbol`).toBeGreaterThan(0);
-      expect(guard.backendSite, `${op} cites no file:line`).toMatch(/^ProcuLink\.[A-Za-z.]+\/.+\.cs:\d+$/);
-      // A guard may only admit statuses the machine knows. A typo'd status here is
-      // a control that renders for nothing and hides for the real one.
-      for (const status of guard.allowedFrom) {
-        expect(ORDER_STATUSES, `${op} admits "${status}", which is not a status`).toContain(status);
-      }
-    }
-  });
-
-  test("delivery_held is admitted by no send endpoint", () => {
-    // The release is automatic when billing settles and every send endpoint answers
-    // 400 while held, so a control here would be theatre. Asserted rather than
-    // commented, because "we deliberately left it out" and "we forgot" look identical.
-    for (const [op, guard] of Object.entries(OP_GUARDS)) {
-      expect(guard.allowedFrom, `${op} claims to admit delivery_held`).not.toContain("delivery_held");
-    }
-  });
+  // 2026-11-13, plan 13b task 7a: MUST_DERIVE, "every op guard names the C# symbol and site it
+  // mirrors" and "delivery_held is admitted by no send endpoint" went with OP_GUARDS. Its last
+  // entry, problemActions.ts, no longer derives from the manifest because there is no backend
+  // guard left to derive (see the note on OP_ALLOWED_FROM); CommandPalette left the list earlier
+  // the same day when its order rows went with the order screens.
 
   /**
    * A recovery that names its destination in WORDS must name it in the words the
@@ -354,14 +310,6 @@ describe("the guard tables are one copy, not nine", () => {
     }
   });
 
-  test("the resolve deny-list and the terminal declaration do not overlap", () => {
-    // The backend pins the same thing (ResolveHeldFrom_AndDeclaredTerminal_AreDisjoint):
-    // a 409 hold is TEMPORARY and the 400 on a finished order is PERMANENT, so a
-    // status in both would make a retryable refusal indistinguishable from a dead end.
-    for (const status of RESOLVE_HELD_FROM) {
-      expect(DECLARED_TERMINAL).not.toContain(status);
-      expect(ORDER_STATUSES).toContain(status);
-    }
-    expect(RESOLVE_HELD_FROM).toHaveLength(4);
-  });
+  // 2026-11-13, plan 13b task 7a: "the resolve deny-list and the terminal declaration do not
+  // overlap" went with RESOLVE_HELD_FROM and DECLARED_TERMINAL (OrderStatusMachine, deleted).
 });
