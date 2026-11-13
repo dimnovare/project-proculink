@@ -2,7 +2,7 @@
 
 // MapperPreviewPane — the collapsible live OUTPUT preview (Task 10). It renders the
 // delivered document AS THE USER WIRES, reusing the shipped previewMappingOverride endpoint
-// with the SAME ~400ms debounce cadence as OutputMappingEditor's template-mode preview.
+// with a ~400ms debounce cadence.
 //
 //   • format toggle      — CSV / JSON / XML / cXML / UBL / X12 (PREVIEW_FORMATS); the
 //     backend renders all six.

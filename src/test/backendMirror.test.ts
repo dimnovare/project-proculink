@@ -1075,9 +1075,8 @@ describe("the formats we advertise as output are the formats a transform exists 
       tokens.filter((t) => !NOT_PREVIEWED.includes(t)),
       PREVIEW_FORMATS.map((f) => f.value),
       "PREVIEW_FORMATS in src/lib/api/types.ts is this app's mirror of the buildable formats, " +
-        "and outputTreeProblems.ts derives `isEmittedFormat` from it — which is what decides " +
-        "whether the output designer tells an author \"ProcuLink builds {format} itself\". A " +
-        "format offered here with no transform behind it gets that promise made about it. The " +
+        "and the mapper's live preview offers every one of them as a format to render. A " +
+        "format offered here with no transform behind it is a preview that cannot work. The " +
         "values are OutputFormatCatalog.Token spellings: OutputFormat.ToString().ToLowerInvariant().",
     );
   });

@@ -29,8 +29,6 @@ vi.mock("./MapperWireLayer", () => ({
 vi.mock("./IncomingPane", () => ({ IncomingPane: () => <div data-testid="incoming" /> }));
 vi.mock("./OutgoingPane", () => ({ OutgoingPane: () => <div data-testid="outgoing" /> }));
 vi.mock("./MapperPreviewPane", () => ({ MapperPreviewPane: () => <div data-testid="preview" /> }));
-vi.mock("../OutputStructureDesigner", () => ({ OutputStructureDesigner: () => null }));
-vi.mock("../OutputMappingEditor", () => ({ OutputMappingEditor: () => null }));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
@@ -100,10 +98,8 @@ function renderWorkbench() {
   return render(
     <QueryClientProvider client={qc}>
       <MapperWorkbench
-        variant="connection"
-        connectionId="conn-1"
-        revisionId="rev-1"
-        supplierId="sup-1"
+        variant="flow"
+        adapter={{ scope: "out-1", load: vi.fn(), save: vi.fn(), sourceFields: [] }}
         onDeliver={vi.fn()}
       />
     </QueryClientProvider>,
@@ -199,15 +195,5 @@ describe("MapperWorkbench — nothing loaded is UNKNOWN, not an accusation", () 
 
     for (const b of sendButtons()) expect(b).toBeDisabled();
     expect(document.body.textContent).toContain("Required fields not checked yet");
-  });
-
-  it("reports the required count as unknown rather than as zero", () => {
-    // The mobile summary printed a literal "0" under "Required without a source" — a measured
-    // number, from a measurement that never happened.
-    renderWorkbench();
-
-    const row = screen.getByTestId("mobile-summary-required");
-    expect(row.textContent).not.toContain("0");
-    expect(row.textContent).toContain("—");
   });
 });

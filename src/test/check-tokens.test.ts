@@ -367,7 +367,8 @@ describe("the scanned corpus", () => {
     // The debt is real and large; a ledger that collapsed to a handful of rows
     // would mean the scan narrowed, not that the tree got clean overnight.
     // 94 rows / 1,938 measured 2026-11-13, after the order screens went with
-    // 34 rows of their debt.
+    // 34 rows of their debt; 90 rows / 1,578 once the mapper kept only the flow
+    // variant the same day.
     expect(s.baselineRows).toBeGreaterThan(60);
     expect(s.baselineTotal).toBeGreaterThan(1_200);
 

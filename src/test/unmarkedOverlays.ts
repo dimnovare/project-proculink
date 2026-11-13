@@ -46,8 +46,8 @@ export interface ScannedFile {
  * Roles that make an overlay legible to assistive tech.
  *
  * `menu` and `listbox` are here beside the two dialog roles on purpose: an anchored
- * menu over a scrim is a real, correct pattern (OrgSwitcher, UserChipMenu and
- * OutputSourcePicker all use it), and demanding `role="dialog"` there would be
+ * menu over a scrim is a real, correct pattern (OrgSwitcher and UserChipMenu
+ * both use it), and demanding `role="dialog"` there would be
  * pushing a modal contract onto a layer the user can click straight past — the
  * keyboard trap WCAG 2.1.2 forbids, which `useDialogA11y` exists to avoid.
  */

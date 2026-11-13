@@ -28,8 +28,6 @@ vi.mock("./MapperWireLayer", () => ({
 vi.mock("./IncomingPane", () => ({ IncomingPane: () => <div data-testid="incoming" /> }));
 vi.mock("./OutgoingPane", () => ({ OutgoingPane: () => <div data-testid="outgoing" /> }));
 vi.mock("./MapperPreviewPane", () => ({ MapperPreviewPane: () => <div data-testid="preview" /> }));
-vi.mock("../OutputStructureDesigner", () => ({ OutputStructureDesigner: () => null }));
-vi.mock("../OutputMappingEditor", () => ({ OutputMappingEditor: () => null }));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
   useSearchParams: () => new URLSearchParams(),
@@ -96,7 +94,7 @@ function renderGrid() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={qc}>
-      <MapperWorkbench variant="order" orderId="ord-1" supplierId="sup-1" />
+      <MapperWorkbench variant="flow" adapter={{ scope: "out-1", load: vi.fn(), save: vi.fn(), sourceFields: [] }} />
     </QueryClientProvider>,
   );
   const outer = screen.getByTestId("mapper-desktop-grid");

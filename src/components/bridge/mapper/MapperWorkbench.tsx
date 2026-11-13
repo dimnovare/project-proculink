@@ -4,8 +4,8 @@
 //
 // The previous redesign failed in production. Root causes (now fixed):
 //   1. Incoming values came ONLY from getSourceTokens(orderId), which is [] for PDF/XLSX → an
-//      empty left pane + a false "arrived already-structured" message. → Values now come from
-//      the parsed Order DIRECTLY (useMapperModel.incomingOrder); tokens are optional extras.
+//      empty left pane + a false "arrived already-structured" message. → Values came from the
+//      parsed Order directly; since 2026-11-13 the only host is the flow, whose adapter supplies them.
 //   2. It was THREE physical columns (Incoming | value-less CanonicalLane | Outgoing) with the
 //      canonical dot far-left, so output wires crossed the canonical LABEL TEXT. → TRUE 2
 //      COLUMNS: Incoming | gutter | Outgoing. The canonical join is wire METADATA, not a column.
@@ -20,24 +20,22 @@
 //   6. The format toggle showed the server body verbatim. → the preview pane passes the chosen
 //      format and shows an honest "unavailable in {format}" rather than silently showing JSON.
 //
-// The save contract (sourceMap + output via buildOverrideDraft, inside useMapperModel) is
+// The save contract (sourceMap + output via adapter.save, inside useMapperModel) is
 // UNCHANGED — this only changes the VIEW + adds incoming values + the robust overlay.
+//
+// 2026-11-13: the order and connection variants went with the order screens; the flow's
+// Advanced view is the only host, so `variant` is always "flow".
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "../DSPrimitives";
 import { isPlanGate, PlanGateNotice } from "../PlanGateNotice";
-import { Card } from "../layout/Card";
 import { IncomingPane } from "./IncomingPane";
 import { OutgoingPane, type AutoFilledFields } from "./OutgoingPane";
 import { MapperPreviewPane } from "./MapperPreviewPane";
-import { OutputStructureDesigner } from "../OutputStructureDesigner";
-import { OutputMappingEditor } from "../OutputMappingEditor";
 import { useMapperWireLayer } from "./MapperWireLayer";
 import { useMapperModel } from "./useMapperModel";
 import type { MapperAdapter } from "./types";
-import type { IncomingOrderShape } from "./incomingFromOrder";
 import { MAPPER_EVENT, type MapperCommandEvent } from "./mapperCommands";
 import type { OutgoingStatusInput } from "./outgoingStatusModel";
 import { computeOutgoingStatus, computeOutgoingStatuses, needsAttentionStatus } from "./outgoingStatusModel";
@@ -117,10 +115,6 @@ export interface MapperToolbarState {
   /** Picker mode's wire-layer toggle. */
   showConnections: boolean;
   toggleConnections: () => void;
-  /** Opens the OutputStructureDesigner (closes the template editor first). */
-  openLayoutDesigner: () => void;
-  /** Opens the OutputMappingEditor template slideover (closes the designer first). */
-  openTemplateEditor: () => void;
   catalogHintCount: number;
   /** Jump to the first catalog-hinted line; null when there are no hints (disabled). */
   fillFromCatalog: (() => void) | null;
@@ -147,24 +141,13 @@ export interface MapperToolbarState {
 export type MapperIssuesVerdict = "clear" | "problem" | "unknown";
 
 export interface MapperWorkbenchProps {
-  variant: "order" | "connection" | "flow";
+  variant: "flow";
   /** Required for the flow variant: load / save / preview / sources come from it. */
-  adapter?: MapperAdapter;
+  adapter: MapperAdapter;
   /** Overrides the preview pane's empty hint. */
   emptyHint?: string;
-  orderId?: string;
-  connectionId?: string;
-  revisionId?: string;
-  supplierId?: string;
   /** The supplier/connection display name — drives the "what {name} receives" preview header. */
   supplierName?: string;
-  previewOrderId?: string | null;
-  initialOverride?: OrderMappingOverride | null;
-  /**
-   * The parsed Order the incoming column is built from (order variant). Passing this is what
-   * makes the left pane work for PDF/XLSX orders. SpineReview already has it.
-   */
-  order?: IncomingOrderShape | null;
   readOnly?: boolean;
   extractionFailed?: boolean;
   onDeliver?: () => void;
@@ -251,7 +234,7 @@ export interface MapperWorkbenchProps {
   attentionFirstOutput?: boolean;
   /**
    * The trust threshold (0..1) from AI calibration. Only consulted when
-   * `attentionFirstOutput` is on. Defaults to 0.85 (mappingListModel's default).
+   * `attentionFirstOutput` is on. Defaults to 0.85.
    */
   trustedThreshold?: number;
   /**
@@ -317,19 +300,9 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
     outgoingHeaderExtra, outgoingBodyOverride, receivedDocument,
   } = props;
   const pickerMode = mappingMode === "picker";
-  const scopeId = (variant === "flow" ? props.adapter?.scope : variant === "order" ? props.orderId : props.connectionId) ?? "";
+  const scopeId = props.adapter.scope;
 
-  const model = useMapperModel({
-    variant,
-    adapter: props.adapter,
-    scopeId,
-    revisionId: props.revisionId,
-    supplierId: props.supplierId,
-    previewOrderId: props.previewOrderId,
-    initialOverride: props.initialOverride,
-    incomingOrder: props.order ?? null,
-    readOnly,
-  });
+  const model = useMapperModel({ variant, adapter: props.adapter, scopeId, readOnly });
 
   // ── "✓ Saved" confirmation — display-only. When an auto-save (model.saving) settles
   //    with NO error, flash a calm "✓ Saved" for ~2s, then fade back to idle. This reads
@@ -369,10 +342,6 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
 
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<FieldFilter>("all");
-  const [showDesigner, setShowDesigner] = useState(false);
-  // The OutputMappingEditor slideover (template mode / explicit field rules) — the
-  // only surface where a whole-document output template is written. Order variant only.
-  const [showOutputEditor, setShowOutputEditor] = useState(false);
 
   // ── B1 orientation helper — a thin, dismissible one-line explainer of the
   //    Incoming | Output | Preview / "wires" / collapse-chevron model, for the
@@ -399,7 +368,6 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
   // Connections (wires) are ON by default so the order workbench opens on the signature
   // received→output wire view (handoff reference). The toggle still hides them for dense orders.
   const [showConnections, setShowConnections] = useState(true);
-  const qc = useQueryClient();
 
   // ── Deep-link: ?field=<key> selects + scrolls to a row ─────────────────────
   const router = useRouter();
@@ -498,23 +466,11 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
           trigger?.click();
           break;
         }
-        case "edit-output-template": {
-          // Per-order templates only — the connection editor has no order to render
-          // against, so its mapper leaves the event alone (harmless palette no-op).
-          // Close the designer first: Cmd+K stays reachable over the open designer
-          // (z 9999 > 100), and the designer would otherwise fully occlude the
-          // editor slideover (z 60) — a second modal mounted invisibly behind it.
-          if (variant === "order" && scopeId) {
-            setShowDesigner(false);
-            setShowOutputEditor(true);
-          }
-          break;
-        }
       }
     }
     window.addEventListener(MAPPER_EVENT, onCommand);
     return () => window.removeEventListener(MAPPER_EVENT, onCommand);
-  }, [readOnly, hoveredId, variant, scopeId]);
+  }, [readOnly, hoveredId]);
 
   // ── Source ids in render order (drives the wire engine's measure list + kb order) ──
   const sourceIds = useMemo(() => model.sourceFields.map((f) => f.id), [model.sourceFields]);
@@ -560,26 +516,13 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
     return null;
   }, [hoveredId, model.outputConnections, knownSourceIds, targetPathSet]);
 
-  // Canonical keys = the spine node ids (so a wired raw token is distinguishable from a re-point).
-  const knownCanonical = useMemo(
-    () => new Set(model.canonicalNodes.map((n) => n.id)),
-    [model.canonicalNodes],
-  );
-
-  // An incoming row dropped on an output. A canonical row (id is a canonical key) re-points the
-  // output's source; a raw token (id is a token id, NOT a canonical key) pins the output's value
-  // to the token's literal (lossless + keeps the output-only save contract).
+  // An incoming row dropped on an output re-points the output's source. (Pinning a raw token's
+  // literal as a fixed value was the order variant's, which went 2026-11-13.)
   const onWireConnect = useCallback((sourceId: string, outputPath: string) => {
-    if (variant === "flow" || knownCanonical.has(sourceId)) {
-      model.onTargetConnect(sourceId, outputPath);
-    } else {
-      const literal = model.tokenValueById.get(sourceId) ?? "";
-      const field = model.targetFields.find((f) => f.outputPath === outputPath);
-      model.onSetFixedValue(outputPath, literal || null, field?.scope ?? "header");
-    }
+    model.onTargetConnect(sourceId, outputPath);
     setSelectedId(outputPath);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [variant, knownCanonical, model.onTargetConnect, model.onSetFixedValue, model.tokenValueById, model.targetFields]);
+  }, [model.onTargetConnect]);
 
   // ── Collapse state for the incoming + preview panes (Order Workshop, Task 12a).
   //    `undefined` layout → never collapsed → today's full-width rendering. ──────
@@ -650,27 +593,6 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
   const gateUnknown = model.validationUnavailable || summary.requiredUnknown > 0;
   const canDeliver = !readOnly && blockingCount === 0 && summary.requiredUnmapped === 0 && !gateUnknown && !deliverDisabled;
 
-  // The one sentence the mobile block prints under a greyed-out Send. `readOnly` and
-  // `deliverDisabled` are the HOST's refusals and the host already explains those, so this
-  // only speaks for the gate's own. Ordered most-actionable last: an operator who can fix
-  // something should be told what, not told we couldn't check.
-  const sendBlockedReason = useMemo<string | null>(() => {
-    if (readOnly || deliverDisabled) return null;
-    if (model.validationUnavailable) {
-      return "We couldn’t run the field checks for this order, so we can’t confirm it’s ready to send. Reload to try again.";
-    }
-    if (summary.requiredUnknown > 0) {
-      return "This order’s values aren’t loaded yet, so we can’t confirm the required fields have a source.";
-    }
-    if (summary.requiredUnmapped > 0) {
-      const n = summary.requiredUnmapped;
-      return `${n} required ${n === 1 ? "field has" : "fields have"} no source. Map one, or set a fixed value, before sending.`;
-    }
-    if (blockingCount > 0) {
-      return `${blockingCount} ${blockingCount === 1 ? "issue needs" : "issues need"} resolving before this order can be sent.`;
-    }
-    return null;
-  }, [readOnly, deliverDisabled, model.validationUnavailable, summary.requiredUnknown, summary.requiredUnmapped, blockingCount]);
 
   // ── The RESOLVED VALUE of the hovered output field (founder bug: hover→preview
   //    highlight didn't visibly work). The preview highlights by string match, but the
@@ -786,12 +708,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
   // ── Re-hosted toolbar (Order Workshop chrome compression) ───────────────────
   // Stable versions of the toolbar's handlers, published to the host via
   // onToolbarState so it can render the SAME controls in its own status bar.
-  // The designer and the template editor are workbench-level portal modals over
-  // the same order override — opening one closes the other (independent flags
-  // would stack them; see the inline toolbar buttons below, which share these).
   const toggleConnections = useCallback(() => setShowConnections((v) => !v), []);
-  const openLayoutDesigner = useCallback(() => { setShowOutputEditor(false); setShowDesigner(true); }, []);
-  const openTemplateEditor = useCallback(() => { setShowDesigner(false); setShowOutputEditor(true); }, []);
   // The retired violet banner's "Dismiss all" — the SAME per-suggestion reject
   // loop it ran, relocated not reimplemented.
   const suggestionCount = readOnly ? 0 : model.suggestions.length;
@@ -815,8 +732,6 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
       aiUnavailable: model.aiUnavailable,
       showConnections,
       toggleConnections,
-      openLayoutDesigner,
-      openTemplateEditor,
       catalogHintCount,
       fillFromCatalog: catalogHintCount > 0 ? scrollToFirstCatalogHint : null,
     });
@@ -824,7 +739,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
     onToolbarState, summary.mappedCount, summary.total, summary.requiredUnmapped,
     summary.requiredUnknown, model.validationUnavailable,
     model.saving, justSaved, model.error, model.aiUnavailable, showConnections,
-    toggleConnections, openLayoutDesigner, openTemplateEditor, catalogHintCount,
+    toggleConnections, catalogHintCount,
     scrollToFirstCatalogHint, suggestionCount, dismissAllSuggestions,
   ]);
 
@@ -835,7 +750,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
   // ── The two value columns (shared by both layouts) ──────────────────────────
   const incomingNode = (
     <IncomingPane
-      flow={variant === "flow"}
+      flow
       fields={model.sourceFields}
       query={query}
       onQuery={setQuery}
@@ -890,7 +805,6 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
         </button>
       )}
     <OutgoingPane
-      variant={variant}
       targetFields={outgoingFields}
       outputConnections={model.outputConnections}
       fixedValues={model.fixedValues}
@@ -903,7 +817,6 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
       snapTarget={wire.hoverTarget}
       onDisconnect={model.onTargetDisconnect}
       onSetFixedValue={model.onSetFixedValue}
-      onAddField={variant === "flow" ? undefined : model.onAddField}
       canonicalOptions={model.canonicalNodes}
       badgeSlot={badgeSlot}
       manipulatorsOf={(field) => fieldManipulatorsOf(model.override, field.outputPath)}
@@ -913,7 +826,6 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
       onPickSource={(outputPath, sourceId) => onWireConnect(sourceId, outputPath)}
       outputFormat={previewDefaultFormat ?? model.outputFormat}
       autoFilledFields={autoFilledFields}
-      supplierName={supplierName}
       readOnly={readOnly}
       headerExtra={outgoingHeaderExtra}
       bodyOverride={outgoingBodyOverride}
@@ -934,48 +846,12 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
       supplierName={supplierName}
       reviewSignal={reviewSignal}
       preview={props.adapter?.preview}
-      emptyHint={
-        props.emptyHint ??
-        (variant === "connection"
-          ? "No sample order yet for this supplier — upload or receive one order to preview the live output of this mapping."
-          : undefined)
-      }
+      emptyHint={props.emptyHint}
     />
   );
 
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, minWidth: 0 }}>
-      {showDesigner && variant === "order" && scopeId && (
-        <OutputStructureDesigner
-          orderId={scopeId}
-          baseOverride={model.override}
-          initialTree={model.override.outputTree ?? null}
-          onClose={() => setShowDesigner(false)}
-          onSaved={() => {
-            setShowDesigner(false);
-            void qc.invalidateQueries({ queryKey: ["mapping-override", scopeId] });
-            void qc.invalidateQueries({ queryKey: ["order", scopeId] });
-            // This workbench reads the override under its OWN key (useMapperModel:
-            // ["mapper-override", variant, scopeId, …]) — without this the outgoing
-            // column + live preview keep rendering the pre-save mapping.
-            void qc.invalidateQueries({ queryKey: ["mapper-override", variant, scopeId] });
-          }}
-        />
-      )}
-      {/* The whole-document template escape hatch (+ explicit field-rule form). Portal
-          slideover — invalidates the shared override keys itself on save; onSaved busts
-          THIS workbench's own "mapper-override" cache (see the designer note above). */}
-      {showOutputEditor && variant === "order" && scopeId && (
-        <OutputMappingEditor
-          orderId={scopeId}
-          open
-          initialTemplateMode
-          onClose={() => setShowOutputEditor(false)}
-          onSaved={() => {
-            void qc.invalidateQueries({ queryKey: ["mapper-override", variant, scopeId] });
-          }}
-        />
-      )}
       {/* ── Issues slot (Order Workshop) no longer sits above the columns — it is
           now the "Issues" tab of the docked preview column (see PreviewColumnTabs
           in the desktop grid below). Absent for every non-workshop host. ─────── */}
@@ -985,25 +861,11 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
       {!hideToolbar && (
       <div className="hidden lg:flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          {/* Section label above the 3 columns (app.jsx Toolbar). The connection editor
-              says "MAP FIELDS"; the order variant says "MAP THIS ORDER · N to resolve"
-              (N = open issue count) so the mapper region is labelled and the operator
-              sees how many issues remain right above the columns. When there are no open
-              issues it reads the calm "all mapped" state via the summary chip beside it. */}
-          {variant !== "order" ? (
+          {/* Section label above the 3 columns (app.jsx Toolbar), with the summary chip
+              beside it. */}
             <span style={{ fontFamily: "var(--font-display, 'Bricolage Grotesque', Inter, sans-serif)", fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.02em", color: "var(--ink)" }}>
               Map fields
             </span>
-          ) : (
-            <span style={{ display: "inline-flex", alignItems: "baseline", gap: 6, fontFamily: "var(--font-display, 'Bricolage Grotesque', Inter, sans-serif)", fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.02em", color: "var(--ink)" }}>
-              Map this order
-              {issuesOpenCount > 0 && (
-                <span style={{ fontSize: 11.5, fontWeight: 700, textTransform: "none", letterSpacing: 0, color: issuesBlockingCount > 0 ? "#B43838" : "#8A5310" }}>
-                  · {issuesOpenCount} to resolve
-                </span>
-              )}
-            </span>
-          )}
           <MappedSummaryChip mapped={summary.mappedCount} total={summary.total} />
           {model.saving && <span style={{ fontSize: 10.5, color: "var(--ink-faint)" }}>Saving…</span>}
           {!model.saving && !model.error && justSaved && (
@@ -1021,10 +883,8 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
           )}
         </div>
         <div className="flex items-center gap-2">
-          {/* Picker mode's "Show connections" toggle stays INLINE for the connection
-              editor (its own most-used control); the order variant folds it into the
-              "More" menu below so the order toolbar reads clean. */}
-          {pickerMode && variant !== "order" && (
+          {/* Picker mode's "Show connections" toggle stays INLINE. */}
+          {pickerMode && (
             // Picker mode hides the drag-wires by default (you map via the inline source dropdown).
             // This toggle reveals the existing wire layer for anyone who wants the visual connections.
             <button
@@ -1078,60 +938,11 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
               Validation checks unavailable
             </span>
           )}
-          {/* ── Order variant: the secondary tools are surfaced INLINE (app.jsx Toolbar) —
-              "Hide connections · Customize output layout · Fill from catalog" — instead of
-              behind a "More ▾" dropdown, so the operator can reach them in one click. Each
-              keeps its EXACT original handler; nothing about wiring / activeIds /
-              showConnections changes — the controls only relocated out of the menu. ─── */}
-          {variant === "order" ? (
-            <>
-              {pickerMode && (
-                // Picker mode hides the drag-wires by default (you map via the inline source
-                // dropdown). This pill toggle reveals the existing wire layer.
-                <button
-                  type="button"
-                  onClick={() => setShowConnections((v) => !v)}
-                  aria-pressed={showConnections}
-                  title={showConnections ? "Hide the connection wires" : "Show the connection wires between received and output fields"}
-                  style={{
-                    display: "inline-flex", alignItems: "center", gap: 6, height: 30, fontSize: 11.5, fontWeight: 700,
-                    color: showConnections ? "#0F4FA8" : "#345470",
-                    background: showConnections ? "#EAF0F8" : "#FFFFFF",
-                    border: `1px solid ${showConnections ? "#1E66C9" : "#DCE0E8"}`,
-                    borderRadius: 7, padding: "0 11px", cursor: "pointer", whiteSpace: "nowrap",
-                  }}
-                >
-                  <span aria-hidden style={{ fontSize: 13, lineHeight: 1, color: showConnections ? "#1E66C9" : "#9AA8C0" }}>{showConnections ? "◉" : "○"}</span>
-                  {showConnections ? "Hide connections" : "Show connections"}
-                </button>
-              )}
-              {/* The designer and the template editor are both workbench-level portal
-                  modals over the same order override — opening one closes the other
-                  (independent flags would stack them, the higher-z designer fully
-                  occluding the editor slideover). */}
-              <ToolbarButton
-                label="Customize output layout"
-                title="Change how the output file is structured for this supplier — paste a supplier sample to start"
-                onClick={() => { setShowOutputEditor(false); setShowDesigner(true); }}
-              />
-              <ToolbarButton
-                label="Edit as template"
-                title="Write one template that renders this order's whole output document — for outputs the layout designer can't express (advanced)"
-                onClick={() => { setShowDesigner(false); setShowOutputEditor(true); }}
-              />
-              <ToolbarButton
-                label={catalogLabel}
-                title={catalogTitle}
-                onClick={catalogHintCount > 0 ? scrollToFirstCatalogHint : undefined}
-              />
-            </>
-          ) : (
             <ToolbarButton
               label={catalogLabel}
               title={catalogTitle}
               onClick={catalogHintCount > 0 ? scrollToFirstCatalogHint : undefined}
             />
-          )}
           {/* Standards check is NOT a toolbar button — it lives in the Details drawer
               (Standards-check tab), per the app.jsx reference + founder. */}
           {onSaveMappings && (
@@ -1159,33 +970,6 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
           that hide the toolbar would have swallowed it entirely. ────────────────────── */}
       {isPlanGate(model.error) && (
         <PlanGateNotice error={model.error} capability="This connection setup" className="mb-3" />
-      )}
-
-      {/* ── Saved-mapping load failure ────────────────────────────────────────
-          The one banner that is NOT gated on `hideToolbar` or on a breakpoint, because
-          the state it reports is destructive at every width and in every host.
-
-          When the override GET fails the model falls back to a blank document and this
-          screen is pixel-identical to an order nobody has mapped yet. The mutators are
-          refused while the flag is set (useMapperModel.apply), so without a sentence here
-          the operator would drag a wire, watch nothing happen, and have no way to tell a
-          refusal from a broken page. Says what is paused, why, and what to do. ───────── */}
-      {model.overrideUnavailable && variant !== "flow" && (
-        <div
-          role="alert"
-          data-testid="mapper-override-unavailable"
-          // Tokens, not the raw hex the neighbouring banners in this file still use:
-          // --danger on --danger-soft is the design system's own refusal pairing, and the
-          // design-token gate counts every literal added under src/.
-          style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 12, padding: "9px 12px", borderRadius: 8, background: "var(--danger-soft)", border: "1px solid var(--danger-border)", color: "var(--danger)", fontSize: 12, lineHeight: 1.45 }}
-        >
-          <span aria-hidden style={{ fontSize: 13, lineHeight: 1.2 }}>⚠</span>
-          <span>
-            We couldn&rsquo;t load the mapping saved for this {variant === "order" ? "order" : "supplier"}, so editing is
-            paused. Saving now would replace that mapping with a blank one. Nothing has been changed —
-            reload to try again.
-          </span>
-        </div>
       )}
 
       {/* ── AI suggestions banner ─────────────────────────────────────────
@@ -1251,29 +1035,6 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
           </button>
         </div>
       )}
-
-      {/* ── Mobile read-only summary ────────────────────────────────────── */}
-      {variant !== "flow" && <div className="lg:hidden">
-        <MapperMobileSummary
-          incomingCount={model.sourceFields.length}
-          outputCount={model.targetFields.length}
-          mapped={summary.mappedCount}
-          requiredUnmapped={summary.requiredUnmapped}
-          requiredUnknown={summary.requiredUnknown}
-        />
-        {onDeliver && (
-          <div className="mt-3">
-            <Button variant="primary" size="lg" className="w-full" disabled={!canDeliver} onClick={onDeliver}>
-              {deliverLabel ?? "Send to supplier"}
-            </Button>
-            {sendBlockedReason && (
-              <p role="note" style={{ marginTop: 8, fontSize: 12, lineHeight: 1.45, color: "var(--ink-muted)" }}>
-                {sendBlockedReason}
-              </p>
-            )}
-          </div>
-        )}
-      </div>}
 
       {extractionFailed && (
         <div
@@ -1667,47 +1428,6 @@ function CatalogBadge({ hint, onUse }: { hint: { catalogPrice?: number | null; c
       style={{ fontSize: 9, fontWeight: 700, color: "#5E3DB0", background: "#F4EFFC", border: "1px solid #E2D6F6", borderRadius: 4, padding: "1px 6px", cursor: "pointer" }}>
       Use {label}
     </button>
-  );
-}
-
-// ── Mobile read-only summary ─────────────────────────────────────────────────
-function MapperMobileSummary({
-  incomingCount, outputCount, mapped, requiredUnmapped, requiredUnknown,
-}: {
-  incomingCount: number; outputCount: number; mapped: number; requiredUnmapped: number; requiredUnknown: number;
-}) {
-  // This row printed a literal "0" — a measured number, from a count that was structurally
-  // incapable of leaving zero, above a Send button that read the same zero as permission. When
-  // the order's values aren't loaded there is no number to print, so it prints an em dash and
-  // says so, rather than rounding "we didn't look" down to "nothing is wrong".
-  const requiredValue = requiredUnknown > 0 ? "—" : `${requiredUnmapped}`;
-  const rows = [
-    { label: "Incoming fields", value: `${incomingCount}`, testId: undefined as string | undefined },
-    { label: "Output fields", value: `${outputCount}`, testId: undefined },
-    { label: "Mapped outputs", value: `${mapped} of ${outputCount}`, testId: undefined },
-    { label: "Required without a source", value: requiredValue, testId: "mobile-summary-required" },
-  ];
-  return (
-    <Card edge="bridge" flush>
-      <div style={{ padding: "10px 12px", borderBottom: "1px solid #EEF0F4", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--ink-faint)" }}>
-        Mapping summary
-      </div>
-      {rows.map((r) => (
-        <div key={r.label} data-testid={r.testId} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "11px 12px", borderBottom: "1px solid #F2F4F8", minHeight: 44 }}>
-          <span style={{ fontSize: 12, color: "#5E6779" }}>{r.label}</span>
-          <span style={{ fontSize: 13, fontWeight: 700, color: "#0B1A2F" }}>{r.value}</span>
-        </div>
-      ))}
-      {requiredUnknown > 0 && (
-        <div style={{ padding: "9px 12px", borderBottom: "1px solid var(--border-faint)", fontSize: 11.5, lineHeight: 1.45, color: "var(--ink-muted)" }}>
-          Required fields not checked yet — this order’s values aren’t loaded, so we can’t tell
-          whether they have a source.
-        </div>
-      )}
-      <div style={{ padding: "10px 12px", fontSize: 11, color: "var(--ink-faint)", lineHeight: 1.45 }}>
-        Open this order on a larger screen to drag fields into place. The mapping shown above is read-only here.
-      </div>
-    </Card>
   );
 }
 

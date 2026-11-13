@@ -103,24 +103,6 @@ export const DIALOG_REGISTRY: DialogEntry[] = [
     hadEscapeBefore: true,
   },
   {
-    file: "src/components/bridge/OutputMappingEditor.tsx",
-    name: "OutputMappingEditor",
-    dialogs: 1,
-    kind: "modal",
-    hadTrapBefore: false,
-    hadEscapeBefore: false,
-  },
-  {
-    file: "src/components/bridge/OutputStructureDesigner.tsx",
-    name: "OutputStructureDesigner",
-    dialogs: 1,
-    kind: "modal",
-    hadTrapBefore: false,
-    // The three `Escape` hits at 478b809 were inline field editors
-    // (`onKeyDown` on a rename input), never the dialog itself.
-    hadEscapeBefore: false,
-  },
-  {
     file: "src/components/marketing/MarketingNav.tsx",
     name: "marketing mobile menu",
     dialogs: 1,

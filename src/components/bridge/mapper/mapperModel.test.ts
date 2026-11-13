@@ -213,9 +213,9 @@ describe("withAddOutputField (order can add an output field — outgoing_empty f
 // WP-15 · the second half of S1 — this module had the SAME data-loss bug, and it
 // is the worse of the two.
 //
-// `expression` is only authorable from the template editor. `sourceToken` is
-// authorable TODAY from the output mapping editor (`OutputMappingEditor.tsx:192`),
-// and both screens edit the same mapping-override document for one order. So:
+// `expression` was only authorable from the template editor. `sourceToken` was
+// authorable from the output mapping editor (both went 2026-11-13 with the order
+// review), and both screens edited the same mapping-override document. So:
 // bind a column to a source token in one screen, add a Trim from the workbench
 // transform popover in the other, and the four-key literal dropped the token. The
 // rule then survived the `inert` check — it carries a manipulator — and the column

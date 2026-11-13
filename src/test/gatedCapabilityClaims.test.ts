@@ -3,9 +3,7 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { collectLayoutProblems, isEmittedFormat } from "@/components/bridge/outputTreeProblems";
 import { CONFORMANCE_PROFILES } from "@/lib/api-client";
-import { PREVIEW_FORMATS, type OutputNodeTemplate } from "@/lib/api/types";
 import { MINIMUM_PLAN } from "@/lib/gatedCapabilities";
 import {
   DELIVERY_METHODS,
@@ -3651,60 +3649,5 @@ describe("no surface offers a standard as an output format while nothing can pro
         'cannot emit. An "On request" badge does not soften that: /formats renders it as "we\'ll ' +
         'add it for your rollout":\n' + offenders.join("\n"),
     ).toEqual([]);
-  });
-
-  /**
-   * The output designer, pinned BEHAVIOURALLY.
-   *
-   * `collectLayoutProblems` composes its sentence from a template literal, so the source line
-   * carries no standard's name and the scan above cannot see it. Worse, the shipped sentence
-   * opened "EDIFACT can't be built from a layout" — a negation — so even the rendered string would
-   * have been excused. Calling the function is the only way to ask the real question.
-   *
-   * Both directions are asserted. Removing the reassurance from cXML would be its own defect:
-   * there the layout really is redundant and the order really does go out.
-   */
-  it("the designer promises a builder only for formats a transform can produce", () => {
-    const layout = (format: string): OutputNodeTemplate =>
-      ({ format, root: { name: "Order", nodeType: "object", children: [] } }) as unknown as OutputNodeTemplate;
-
-    const messageFor = (format: string): string => {
-      const problem = collectLayoutProblems(layout(format)).find((p) => p.kind === "format-not-renderable");
-      expect(problem, `${format} must still raise the not-renderable problem at all`).toBeDefined();
-      return problem!.message;
-    };
-
-    // The formats with a real transform keep the reassurance — it is true and it is useful.
-    for (const format of ["cXml", "ubl", "x12"]) {
-      expect(isEmittedFormat(format), `${format} has a registered transform`).toBe(true);
-      expect(messageFor(format), `${format} really is built by its own transform`).toMatch(/ProcuLink builds/i);
-    }
-
-    // EDIFACT does not, and the sentence must not say otherwise.
-    expect(isEmittedFormat("edifactorders"), "no EDIFACT ITransformService is registered").toBe(false);
-    const edifact = messageFor("edifactorders");
-    expect(
-      edifact,
-      "this told the author the order was in hand — 'ProcuLink builds EDIFACT itself' — while " +
-        "nothing can produce the document and the order dies at transform",
-    ).not.toMatch(/ProcuLink builds/i);
-    expect(edifact, "and it has to say what really happens instead").toMatch(/no transform that produces/i);
-    expect(edifact).toMatch(/fails at transform/i);
-  });
-
-  it("the emitted-format set is derived, so a seventh transform does not need this file edited", () => {
-    // `isEmittedFormat` reads PREVIEW_FORMATS — this app's mirror of the registered
-    // ITransformService implementations — plus the two backend enum SPELLINGS of formats already
-    // in it. If it ever answers false for something PREVIEW_FORMATS offers, the designer starts
-    // telling authors that a working format cannot be produced.
-    expect(PREVIEW_FORMATS.length, "anti-vacuity: the mirror must be populated").toBeGreaterThan(0);
-    for (const { value } of PREVIEW_FORMATS) {
-      expect(isEmittedFormat(value), `PREVIEW_FORMATS offers ${value}, so it must count as emitted`).toBe(true);
-    }
-    // The aliases, and the one enum member that is not an alias for anything.
-    expect(isEmittedFormat("ublorder"), "OutputFormat.UblOrder is the UBL transform").toBe(true);
-    expect(isEmittedFormat("x12_850"), "OutputFormat.X12_850 is the X12 transform").toBe(true);
-    expect(isEmittedFormat("edifactorders"), "OutputFormat.EdifactOrders has no transform behind it").toBe(false);
-    expect(isEmittedFormat(null)).toBe(false);
   });
 });

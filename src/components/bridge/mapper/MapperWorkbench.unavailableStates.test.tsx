@@ -3,8 +3,8 @@
 //   1. The saved mapping override failed to load. The model falls back to a blank document, so
 //      the screen is identical to an unmapped order and the first edit PUTs that blank over the
 //      real mapping. The refusal lives in useMapperModel (pinned by
-//      useMapperModel.overrideLoadFailure.test.tsx); this file pins the SENTENCE, because a
-//      mapper that silently ignores drags is its own defect.
+//      useMapperModel.overrideLoadFailure.test.tsx). The sentence this file pinned for it went
+//      2026-11-13 with the order variant — the flow host never rendered it.
 //   2. The catalog hint fetch failed. `catalogHintByLine` is empty either way, and the toolbar
 //      stated "No catalog hints for this order. Add a supplier catalog, or no lines differ from
 //      it." — telling the operator their lines match a catalog nobody managed to read.
@@ -27,8 +27,6 @@ vi.mock("./MapperWireLayer", () => ({
 vi.mock("./IncomingPane", () => ({ IncomingPane: () => <div data-testid="incoming" /> }));
 vi.mock("./OutgoingPane", () => ({ OutgoingPane: () => <div data-testid="outgoing" /> }));
 vi.mock("./MapperPreviewPane", () => ({ MapperPreviewPane: () => <div data-testid="preview" /> }));
-vi.mock("../OutputStructureDesigner", () => ({ OutputStructureDesigner: () => null }));
-vi.mock("../OutputMappingEditor", () => ({ OutputMappingEditor: () => null }));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
   useSearchParams: () => new URLSearchParams(),
@@ -86,12 +84,12 @@ function restingModel() {
   };
 }
 
-/** The order variant — the one an operator reaches from /inbox/[orderId]. */
+/** The flow variant — since 2026-11-13 the only one (the flow's Advanced view). */
 function renderWorkbench(props: Record<string, unknown> = {}) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
-      <MapperWorkbench variant="order" orderId="ord-1" supplierId="sup-1" {...props} />
+      <MapperWorkbench variant="flow" adapter={{ scope: "out-1", load: vi.fn(), save: vi.fn(), sourceFields: [] }} {...props} />
     </QueryClientProvider>,
   );
 }
@@ -102,53 +100,6 @@ beforeEach(() => {
 });
 
 afterEach(cleanup);
-
-/** Rendered text with JSX line-wrapping collapsed, so prose can be matched as written. */
-function flat(el: HTMLElement): string {
-  return (el.textContent ?? "").replace(/\s+/g, " ").trim();
-}
-
-describe("MapperWorkbench — the saved mapping could not be loaded", () => {
-  it("says so, rather than rendering as an order with no mapping", () => {
-    model.overrideUnavailable = true;
-
-    renderWorkbench();
-
-    // JSX line-wraps inside the sentence, so normalise before matching prose.
-    const text = flat(screen.getByTestId("mapper-override-unavailable"));
-    expect(text).toContain("couldn’t load the mapping saved for this order");
-    expect(text).toContain("editing is paused");
-  });
-
-  it("warns that saving would replace the saved mapping, and that nothing has changed yet", () => {
-    // The two facts an operator needs to decide what to do: the risk, and the reassurance that
-    // the refusal already happened. Without the second, a careful operator assumes the worst.
-    model.overrideUnavailable = true;
-
-    renderWorkbench();
-
-    const text = flat(screen.getByTestId("mapper-override-unavailable"));
-    expect(text).toContain("replace that mapping with a blank one");
-    expect(text).toContain("Nothing has been changed");
-  });
-
-  it("is an alert, not a decoration that a screen reader steps past", () => {
-    model.overrideUnavailable = true;
-
-    renderWorkbench();
-
-    expect(screen.getByTestId("mapper-override-unavailable").getAttribute("role")).toBe("alert");
-  });
-
-  it("does not render when the mapping loaded — including for an order with none saved", () => {
-    // Anti-vacuity. A 404 (no mapping saved yet) is the ordinary first-edit path and resolves to
-    // `null`, NOT to an error; a banner there would accuse the product of failing on every new
-    // order.
-    renderWorkbench();
-
-    expect(screen.queryByTestId("mapper-override-unavailable")).toBeNull();
-  });
-});
 
 describe("MapperWorkbench — the catalog hints could not be fetched", () => {
   /** The toolbar control that states the catalog verdict. */

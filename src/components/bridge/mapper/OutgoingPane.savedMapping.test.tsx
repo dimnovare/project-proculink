@@ -70,7 +70,6 @@ const SCORED_FIELD: SourceField = {
 
 function setup(incomingFields: SourceField[]) {
   const props: OutgoingPaneProps = {
-    variant: "order",
     targetFields: TARGETS,
     statusInput: STATUS_INPUT,
     mappingMode: "picker",
@@ -127,7 +126,6 @@ const VALUES_KNOWN_INPUT: OutgoingStatusInput = { ...STATUS_INPUT, valuesKnown: 
 
 function setupStrip(field: SourceField) {
   const props: OutgoingPaneProps = {
-    variant: "order",
     targetFields: REQUIRED_TARGETS,
     statusInput: VALUES_KNOWN_INPUT,
     mappingMode: "picker",

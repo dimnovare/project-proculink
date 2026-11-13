@@ -2,10 +2,10 @@
 //
 // The backend PUT replaces the WHOLE OrderMappingOverride — the invariant at the top of
 // useMapperModel.ts, written after a founder-reported data loss. The guard it describes
-// (buildOverrideDraft carrying customFields + sourceMap + template through unchanged) protects
+// (the pure mapperModel helpers carrying customFields + sourceMap + template through) protects
 // the SAVE path. Nothing protected the LOAD path:
 //
-//   getMappingOverride throws on any non-404 non-2xx  →  overrideQuery.data is undefined
+//   load throws on any non-404 non-2xx  →  overrideQuery.data is undefined
 //   →  `override = draft ?? overrideQuery.data ?? emptyOverride()`  →  a blank document
 //   →  the workbench renders exactly like an order nobody has mapped
 //   →  the first edit assembles a draft FROM THE BLANK and PUTs it over the real mapping.
@@ -14,6 +14,10 @@
 // the load had failed. These tests drive the real hook against a rejecting endpoint and assert
 // on the NETWORK — whether a PUT was issued — because "the flag is set" is not the property that
 // matters; "nothing was overwritten" is.
+//
+// 2026-11-13: re-anchored on the flow adapter — the order variant's getMappingOverride /
+// upsertMappingOverride path went with the order screens, and adapter.load / adapter.save are
+// the only load and save left. The property is the same: a failed load must not become a write.
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
@@ -21,27 +25,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import type { OrderMappingOverride } from "@/lib/api/types";
 
-const getMappingOverride = vi.fn();
-const upsertMappingOverride = vi.fn();
+const load = vi.fn();
+const save = vi.fn();
 
-vi.mock("@/lib/api-client", () => ({
-  getMappingOverride: (...a: unknown[]) => getMappingOverride(...a),
-  upsertMappingOverride: (...a: unknown[]) => upsertMappingOverride(...a),
-  getSourceTokens: vi.fn().mockResolvedValue([]),
-  getConnectionRevision: vi.fn().mockResolvedValue(null),
-  updateConnectionDraft: vi.fn().mockResolvedValue(undefined),
-  isApiMockMode: false,
-  isQaBypass: false,
-}));
 
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true, useTenantQueriesEnabled: () => true }));
-vi.mock("@/lib/api/canonical-fields", () => ({ getCanonicalFields: vi.fn().mockResolvedValue([]) }));
-vi.mock("@/lib/api/mapper-ai", () => ({
-  getMappingSuggestions: vi.fn().mockResolvedValue([]),
-  recordSuggestionDecision: vi.fn().mockResolvedValue(undefined),
-  getFieldValidation: vi.fn().mockResolvedValue([]),
-  getCatalogHints: vi.fn().mockResolvedValue([]),
-}));
 
 import { useMapperModel } from "./useMapperModel";
 
@@ -63,24 +51,28 @@ const SAVED: OrderMappingOverride = {
   sourceMap: { PoNumber: { sourceToken: "tok-po", manipulators: [] } },
 };
 
-/**
- * The host (OrderWorkshop) reads the same endpoint into `["mapping-override", orderId]` and
- * passes its `data` down as `initialOverride`. On a failed load that data is `undefined`, so
- * the prop is omitted — which is precisely why the hook's own query is the last line of defence.
- */
+// The flow adapter is the only load/save path left (the order and connection variants
+// went 2026-11-13), so these drive the hook through it.
+const adapter = {
+  scope: "out-1",
+  load: () => load() as Promise<OrderMappingOverride>,
+  save: (next: OrderMappingOverride) => save(next) as Promise<OrderMappingOverride>,
+  sourceFields: [],
+};
+
 function renderModel() {
-  return renderHook(() => useMapperModel({ variant: "order", scopeId: "ord-1" }), { wrapper });
+  return renderHook(() => useMapperModel({ variant: "flow", adapter, scopeId: "out-1" }), { wrapper });
 }
 
 beforeEach(() => {
-  getMappingOverride.mockReset();
-  upsertMappingOverride.mockReset();
-  upsertMappingOverride.mockResolvedValue({ customFields: [] });
+  load.mockReset();
+  save.mockReset();
+  save.mockResolvedValue({ customFields: [] });
 });
 
 describe("useMapperModel — the saved mapping could not be read", () => {
   it("reports the override as unavailable rather than as absent", async () => {
-    getMappingOverride.mockRejectedValue(new Error("500 Internal Server Error"));
+    load.mockRejectedValue(new Error("500 Internal Server Error"));
 
     const { result } = renderModel();
 
@@ -93,7 +85,7 @@ describe("useMapperModel — the saved mapping could not be read", () => {
   });
 
   it("refuses the edit instead of PUTting a blank document over the saved mapping", async () => {
-    getMappingOverride.mockRejectedValue(new Error("500 Internal Server Error"));
+    load.mockRejectedValue(new Error("500 Internal Server Error"));
 
     const { result } = renderModel();
     await waitFor(() => expect(result.current.overrideUnavailable).toBe(true));
@@ -104,13 +96,13 @@ describe("useMapperModel — the saved mapping could not be read", () => {
 
     // Give the mutation every chance to fire before asserting it did not.
     await new Promise((r) => setTimeout(r, 20));
-    expect(upsertMappingOverride).not.toHaveBeenCalled();
+    expect(save).not.toHaveBeenCalled();
   });
 
   it("refuses a fixed value and a source wire on the same footing", async () => {
     // Every mutator funnels through apply(); if one bypassed it the refusal would be partial,
     // and a partial refusal on a destructive write is no refusal at all.
-    getMappingOverride.mockRejectedValue(new Error("500 Internal Server Error"));
+    load.mockRejectedValue(new Error("500 Internal Server Error"));
 
     const { result } = renderModel();
     await waitFor(() => expect(result.current.overrideUnavailable).toBe(true));
@@ -119,13 +111,13 @@ describe("useMapperModel — the saved mapping could not be read", () => {
     act(() => { result.current.onSourceConnect("tok-9", "PoNumber"); });
 
     await new Promise((r) => setTimeout(r, 20));
-    expect(upsertMappingOverride).not.toHaveBeenCalled();
+    expect(save).not.toHaveBeenCalled();
   });
 });
 
 describe("useMapperModel — anti-vacuity: a mapper that saves nothing is a worse defect", () => {
   it("still saves when the override loaded, and carries the saved mapping through", async () => {
-    getMappingOverride.mockResolvedValue(SAVED);
+    load.mockResolvedValue(SAVED);
 
     const { result } = renderModel();
     await waitFor(() => expect(result.current.override.sourceMap).toEqual(SAVED.sourceMap));
@@ -133,24 +125,24 @@ describe("useMapperModel — anti-vacuity: a mapper that saves nothing is a wors
 
     act(() => { result.current.onTargetConnect("BuyerName", "BuyerName"); });
 
-    await waitFor(() => expect(upsertMappingOverride).toHaveBeenCalledTimes(1));
-    const [, doc] = upsertMappingOverride.mock.calls[0] as [string, OrderMappingOverride];
+    await waitFor(() => expect(save).toHaveBeenCalledTimes(1));
+    const [doc] = save.mock.calls[0] as [OrderMappingOverride];
     // The write is not merely issued — it still carries the earlier wiring, which is the
     // property the refusal above exists to protect.
     expect(doc.sourceMap?.PoNumber?.sourceToken).toBe("tok-po");
     expect(doc.output?.header?.BuyerName?.canonicalField).toBe("BuyerName");
   });
 
-  it("treats a 404 (no mapping saved yet) as absent, not as unavailable", async () => {
-    // getMappingOverride resolves null on 404. That is the ordinary first-edit path and it must
-    // stay fully editable — a refusal here would block every new order in the product.
-    getMappingOverride.mockResolvedValue(null);
+  it("treats an empty saved mapping as absent, not as unavailable", async () => {
+    // Nothing saved yet is the ordinary first-edit path and it must stay fully editable — a
+    // refusal here would block every new flow output in the product.
+    load.mockResolvedValue({ customFields: [] });
 
     const { result } = renderModel();
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.overrideUnavailable).toBe(false);
 
     act(() => { result.current.onTargetConnect("BuyerName", "BuyerName"); });
-    await waitFor(() => expect(upsertMappingOverride).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(save).toHaveBeenCalledTimes(1));
   });
 });

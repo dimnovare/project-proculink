@@ -28,8 +28,6 @@ vi.mock("./MapperWireLayer", () => ({
 vi.mock("./IncomingPane", () => ({ IncomingPane: () => <div data-testid="incoming" /> }));
 vi.mock("./OutgoingPane", () => ({ OutgoingPane: () => <div data-testid="outgoing" /> }));
 vi.mock("./MapperPreviewPane", () => ({ MapperPreviewPane: () => <div data-testid="preview" /> }));
-vi.mock("../OutputStructureDesigner", () => ({ OutputStructureDesigner: () => null }));
-vi.mock("../OutputMappingEditor", () => ({ OutputMappingEditor: () => null }));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
@@ -85,10 +83,8 @@ function renderWorkbench(props: { issuesOpenCount?: number; issuesVerdict?: Mapp
   return render(
     <QueryClientProvider client={qc}>
       <MapperWorkbench
-        variant="connection"
-        connectionId="conn-1"
-        revisionId="rev-1"
-        supplierId="sup-1"
+        variant="flow"
+        adapter={{ scope: "out-1", load: vi.fn(), save: vi.fn(), sourceFields: [] }}
         issuesSlot={<div data-testid="issues-slot" />}
         issuesOpenCount={props.issuesOpenCount ?? 0}
         issuesVerdict={props.issuesVerdict}

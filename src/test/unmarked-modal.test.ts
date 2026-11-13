@@ -140,7 +140,9 @@ describe("no full-viewport overlay in src/ hides from assistive tech", () => {
     expect(CORPUS.length).toBeGreaterThan(300);
     // 14 measured after plan 13b removed the supplier, mapping and connection screens (15 before).
     // 10 measured after the order screens went (2026-11-13) with four of their overlays.
-    expect(CORPUS.filter((f) => buildsFullViewportOverlay(f.source)).length).toBeGreaterThanOrEqual(10);
+    // 8 once the mapper kept only the flow variant the same day (OutputMappingEditor and
+    // OutputStructureDesigner went with theirs).
+    expect(CORPUS.filter((f) => buildsFullViewportOverlay(f.source)).length).toBeGreaterThanOrEqual(8);
   });
 
   it("every unmarked overlay is a known, named baseline entry", () => {

@@ -8,11 +8,11 @@
 // above the trigger when it would overflow the viewport bottom. So it always floats cleanly above
 // everything, never clipped, never overlapping a sibling row.
 //
-// It reuses the EXACT manipulator semantics shipped in OutputMappingEditor / FieldBadges: the
+// It reuses the EXACT manipulator semantics shipped in FieldBadges: the
 // canonical MANIPULATOR_TYPES list, per-type param inputs, add via a dropdown, remove via the pill
 // ✕. The chain is the field's `fieldManipulators` — the transforms applied to the resolved value
 // before the delivered document is rendered (Trim, Replace, DateFormat, Multiply, …). Edits flow
-// straight to model.onFieldManipulatorsChange → buildOverrideDraft, so the same persistence path +
+// straight to model.onFieldManipulatorsChange → adapter.save, so the same persistence path +
 // data-loss guard as everywhere else; the live preview re-renders.
 //
 // Dismissed on outside-click / Escape. A "live" editor — every change persists immediately (no Save
