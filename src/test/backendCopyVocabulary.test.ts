@@ -36,16 +36,26 @@ import { GLOSS, JARGON, METAPHOR, TIERS, termPattern } from "../../scripts/lib/v
 //   PROCULINK_BACKEND_PATH=/path/to/ProcuLink bun run test src/test/backendCopyVocabulary.test.ts
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** The backend checkout, or null. Same walk-up as the three sibling mirror suites. */
+/**
+ * The file that proves a directory is a ProcuLink checkout. Fixed and named, not "whichever corpus
+ * row sorts first": until 2026-11-13 it was `USER_FACING_SOURCES[0]`, and when plan 13b deleted
+ * that row's file the env path stopped matching and the scan silently read a sibling checkout.
+ */
+const PROBE = "ProcuLink.Transform/Output/TransformValidationException.cs";
+
+/**
+ * The backend checkout, or null. A set PROCULINK_BACKEND_PATH is authoritative: if it lacks the
+ * probe this returns null (so PROCULINK_REQUIRE_BACKEND_MIRROR=1 fails) and never walks up to a
+ * sibling. The walk-up runs only when the variable is unset.
+ */
 function findBackendRoot(): string | null {
-  const probe = USER_FACING_SOURCES[0].file;
   const fromEnv = process.env.PROCULINK_BACKEND_PATH;
-  if (fromEnv && existsSync(join(fromEnv, probe))) return fromEnv;
+  if (fromEnv) return existsSync(join(fromEnv, PROBE)) ? fromEnv : null;
 
   let dir = resolve(ROOT);
   for (let i = 0; i < 8; i += 1) {
     const candidate = join(dirname(dir), "ProcuLink");
-    if (existsSync(join(candidate, probe))) return candidate;
+    if (existsSync(join(candidate, PROBE))) return candidate;
     const up = dirname(dir);
     if (up === dir) break;
     dir = up;

@@ -38,11 +38,16 @@
 //
 // The vocabulary has no central constants class; it is scattered literals. The
 // enumeration below is every `AuditEvents.Add` site in production code (there are
-// no `AddRange` sites), which were these fifteen files (the six that held the ops requeue and the delivery sweeps were deleted on 2026-11-13, and OrdersController.cs lost its last writer the same day when the order API was cut to a read-only archive (plan 13b, 2026-11-13); their rows are `historical` below). Six more went the same day with the order pipeline itself (plan 13b, task 7a) — AcceptanceGate.cs, OrderIngestionService.cs, OrderResolutionService.cs, OrderTransformService.cs, ReplayService.cs and DeliveryService.cs — and their eighteen actions are `historical` too. What still writes:
+// no `AddRange` sites), which were the files below (the six that held the ops requeue and the delivery sweeps were deleted on 2026-11-13, and OrdersController.cs lost its last writer the same day when the order API was cut to a read-only archive (plan 13b, 2026-11-13); their rows are `historical` below). Six more went the same day with the order pipeline itself (plan 13b, task 7a) — AcceptanceGate.cs, OrderIngestionService.cs, OrderResolutionService.cs, OrderTransformService.cs, ReplayService.cs and DeliveryService.cs — and their eighteen actions are `historical` too. Writers this table mirrors (NOT a complete
+// list of everything that writes an audit row):
 //
 //   ProcuLink.Api/Controllers/AdminController.cs            admin.* via WriteAdminAuditAsync
 //   ProcuLink.Api/Controllers/SettingsController.cs         InvoiceDestinationChanged
 //   ProcuLink.Infrastructure/Services/Email/InboundEmailRouter.cs   inbound_email.* via WriteAuditAsync
+//
+// Known writers with NO row here, left to plan 13b Task 8 (2026-11-13):
+//   DeliveryBounceHandler.cs     DeliveryBounced
+//   FlowDestinationService.cs    destination.tested
 //
 // Flow documents (added with plan 10) write through `DocumentAudit.Add`, `AddAudit`
 // and one `Action =` initialiser, in these five files:

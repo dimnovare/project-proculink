@@ -743,6 +743,16 @@ describe("auditActionManifest mirrors the backend's audit vocabulary", () => {
     expect(wrong, `reasonKeys naming a payload key the backend does not write: ${wrong.join(" · ")}`).toEqual([]);
   });
 
+  // 2026-11-13, plan 13b task 7a: the two tests above walk an empty set on the real tree, and that
+  // is pinned as a fact, not left as a vacuous pass. When a live row declares reasonKeys, change
+  // this pin; the two tests then start biting.
+  test("no live action declares a reason key today", () => {
+    const liveWithReasonKeys = AUDIT_ACTION_FACTS.filter((f) => !f.historical && f.reasonKeys.length > 0).map(
+      (f) => f.action,
+    );
+    expect(liveWithReasonKeys).toEqual([]);
+  });
+
   test("the historical rows (writer deleted, archived rows still readable) are exactly these", () => {
     expect(
       AUDIT_ACTION_FACTS.filter((f) => f.historical).map((f) => f.action).sort(),

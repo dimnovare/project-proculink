@@ -11,7 +11,8 @@
 //
 //   src/test/statusVocabulary.test.ts        BACKEND_STATUSES (16)
 //   src/types/procurement.ts                 OrderStatus union (15 — pending_parse missing)
-//   src/components/bridge/problem/problemActions.ts   OP_ALLOWED_FROM (5 sets)
+//   src/components/bridge/problem/problemActions.ts   OP_ALLOWED_FROM (5 sets; 4 frozen literals
+//                                            since 2026-11-13, no longer derived or mirrored)
 //   src/components/bridge/orderCountContract.ts       FAILED_BUCKET (5)          ← derived
 //   src/components/bridge/inboxSend.ts       REDELIVERABLE_/BULK_SELECTABLE_/ROW_SENDABLE
 //   src/components/bridge/inboxUrlFilter.ts  INBOX_FILTERABLE_STATUSES (15)
@@ -119,7 +120,8 @@ export const ORDER_STATUS_FACTS: readonly OrderStatusFact[] = [
     status: "delivery_held",
     bucket: "parked",
     reachable: true,
-    note: "Billing paused the send. Released automatically when the org is back in good standing.",
+    // 2026-11-13, plan 13b: the automatic release was deleted with the order pipeline.
+    note: "Billing paused the send. Stays held: the archive never sends.",
   },
   { status: "delivering", bucket: "healthy", reachable: true, note: "The Worker holds the dispatch claim." },
   { status: "delivered", bucket: "healthy", reachable: true, note: "The supplier has it." },

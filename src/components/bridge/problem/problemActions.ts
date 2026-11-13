@@ -21,47 +21,19 @@ export type ProblemOp =
   | "markDelivered";
 
 /**
- * Raw backend statuses each op is accepted FROM — now DERIVED from
- * `src/lib/orderStatusManifest.ts` rather than retyped here.
+ * Raw backend statuses each op WAS accepted from: FROZEN LITERALS, NOT A MIRROR (2026-11-13,
+ * plan 13b).
  *
- * It was retyped here, and it was wrong. `retryDelivery` read
- * `{ready_to_deliver, delivery_failed}` and cited `ClaimableForRetryFrom` — which
- * is the WORKER's claim set, not the endpoint's admission guard. The endpoint is
- * guarded by `RetryableFrom`, which is `{delivery_failed}` alone, so the mirror
- * over-admitted `ready_to_deliver`: a control offered on the strength of that row
- * would have been the D2 defect again, a button the API answers 400 to. The one
- * test that existed to catch mirror drift compared this Set against a hand-typed
- * array in the test file, so it asserted the wrong membership as the contract and
- * both halves were wrong together and green.
+ * These sets used to be derived from OP_GUARDS in `src/lib/orderStatusManifest.ts`, which
+ * mirrored OrderStatusMachine's endpoint guard sets and was diffed against the C# by
+ * `src/test/backendMirror.test.ts`. The machine, OP_GUARDS and every order write endpoint were
+ * deleted with the order pipeline. The backend now admits none of these ops from any status, and
+ * nothing renders a post action, because the problem panel went with the order screens. The sets
+ * are the guards as they last mirrored the backend. They are frozen only so PROBLEM_COPY's dead
+ * post actions keep type-checking until the frontend orphan sweep removes the post kind.
  *
- * The manifest carries the C# symbol and file:line for every guard, and
- * `src/test/backendMirror.test.ts` diffs it against the real C# source whenever a
- * backend checkout is reachable. One copy, checkable, instead of five annotated ones.
- *
- * `delivery_held` appears in NONE of them: the release is automatic when billing
- * settles, and every send endpoint 400s while held.
- *
- * THIS TABLE SAYS WHAT THE BACKEND ACCEPTS — NOT WHAT WE CHOOSE TO OFFER.
- * The two were conflated here once already: it admitted `pending_review`, which
- * `TransformableFrom` excludes (the claim would miss and the endpoint answers 409),
- * and it omitted `rejected_by_supplier`, which `TransformableFrom` contains and
- * `OrdersController` answers 202 for.
- *
- * That a refused order can be re-built is deliberate backend design, and it is
- * still not something this UI offers: rebuilding the same order cannot un-refuse
- * it, so `PROBLEM_COPY.rejected_by_supplier` offers no post action at all and
- * routes the operator to a corrected order instead. That product rule is asserted
- * over PROBLEM_COPY, where it belongs — a mirror that lies to enforce a policy
- * stops being able to enforce anything.
+ * `delivery_held` is in none of them: every send endpoint refused while held.
  */
-//
-// 2026-11-13, plan 13b: NO LONGER A MIRROR. These sets were derived from OP_GUARDS in
-// orderStatusManifest.ts, which mirrored OrderStatusMachine's endpoint guard sets. The
-// machine, OP_GUARDS and every order write endpoint were deleted with the order pipeline,
-// so the backend admits none of these ops from any status and nothing renders a post
-// action (the problem panel went with the order screens). The sets are the guards as they
-// last mirrored the backend, frozen so PROBLEM_COPY's dead post actions keep type-checking
-// until the frontend orphan sweep removes the post kind.
 export const OP_ALLOWED_FROM: Record<ProblemOp, ReadonlySet<string>> = {
   transformOrder: new Set(["ready", "transform_failed", "rejected_by_supplier"]),
   retryDelivery: new Set(["delivery_failed"]),
