@@ -160,4 +160,11 @@ describe("OutputEditor", () => {
     fireEvent.click(screen.getByRole("button", { name: "Check against Peppol rules" }));
     expect(await screen.findByText("We couldn't reach the rule checker. Try again in a minute.")).toBeTruthy();
   });
+
+  it("a CII output checks against EN 16931 rules", async () => {
+    api.checkOutput.mockResolvedValue({ status: "passed", issues: [] });
+    renderEditor({ ...peppol, standard: "en16931-cii" }, checkFlow);
+    fireEvent.click(screen.getByRole("button", { name: "Check against EN 16931 rules" }));
+    expect(await screen.findByText("Passes the EN 16931 rules.")).toBeTruthy();
+  });
 });

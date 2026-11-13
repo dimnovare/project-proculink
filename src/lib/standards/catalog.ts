@@ -26,7 +26,8 @@
 //                         emits the profile identifiers but nothing verifies them; no Schematron exists here,
 //                         so BIS conformance is NOT checked and must not be advertised. API-only, no screen.
 //   SAP IDoc ORDERS05 ... parse supported · transform none     (IDocOrders05Parser registered; hand-rolled XML, no EdiFabric; INBOUND only — no IDoc output; live-verified on prod 2026-06-08)
-//   EDIFACT ORDERS ...... parse partial · transform planned     (EdifactOrderParser registered; EdiFabric library decision pending; NO output transformer)
+//   EDIFACT ORDERS ...... parse partial · transform partial     (EdifactOrderParser registered; EdiFabric library decision pending; outbound ORDERS D.96A written by the flow standard output, checked in tests only, placeholder interchange ids)
+//   EN 16931 CII ........ parse none · transform partial        (invoice + credit note, flow standard outputs behind the per-org flag; rule check by the validator sidecar, not network acceptance)
 //   ANSI X12 850 ........ parse supported · transform supported  (X12OrderParser / X12TransformService, registered; 004010/005010 header + line-item fidelity, output selectable per supplier)
 //   JSON / REST payload . parse partial · transform supported    (inline parse in OrderService; JsonTransformService registered)
 //   CSV (buyer template)  parse supported · transform supported  (CsvOrderParser / CsvTransformService, registered)
@@ -180,6 +181,34 @@ export const STANDARDS: StandardSupport[] = [
     referenceUrl: "https://docs.peppol.eu/poacc/billing/3.0/",
   },
   {
+    id: "en16931-cii",
+    name: "EN 16931 CII (invoice)",
+    version: "2017",
+    family: "xml",
+    parse: "none",
+    transform: "partial",
+    transport: "Peppol Access Point (AS4) or direct exchange — ProcuLink does not provide the transport",
+    conformance:
+      "Outbound: written by the flow standard output behind the per-org flag, and checked when a document is read and on " +
+      "demand against the EN 16931 rules by the validator sidecar — a rule check, not network acceptance. " +
+      "No document has been accepted by a trading partner.",
+    referenceUrl: "https://ec.europa.eu/digital-building-blocks/sites/spaces/DIGITAL/pages/467108974/Obtaining+a+copy+of+the+European+standard+on+eInvoicing",
+  },
+  {
+    id: "en16931-cii-credit-note",
+    name: "EN 16931 CII (credit note)",
+    version: "2017",
+    family: "xml",
+    parse: "none",
+    transform: "partial",
+    transport: "Peppol Access Point (AS4) or direct exchange — ProcuLink does not provide the transport",
+    conformance:
+      "Outbound: written by the flow standard output behind the per-org flag, and checked when a document is read and on " +
+      "demand against the EN 16931 rules by the validator sidecar — a rule check, not network acceptance. " +
+      "No document has been accepted by a trading partner.",
+    referenceUrl: "https://ec.europa.eu/digital-building-blocks/sites/spaces/DIGITAL/pages/467108974/Obtaining+a+copy+of+the+European+standard+on+eInvoicing",
+  },
+  {
     id: "sap-idoc-orders05",
     name: "SAP IDoc ORDERS05",
     version: "ORDERS05 (basic type)",
@@ -198,10 +227,13 @@ export const STANDARDS: StandardSupport[] = [
     version: "UN D.96A",
     family: "edi",
     parse: "partial",
-    transform: "planned",
+    transform: "partial",
     transport: "AS2 (partner-wrap) · SFTP · VAN",
     conformance:
-      "EdifactOrderParser reads UNA/UNB/ORDERS segments; full segment coverage pending the EdiFabric-vs-open-source library decision. No outbound transformer yet.",
+      "EdifactOrderParser reads UNA/UNB/ORDERS segments; full segment coverage pending the EdiFabric-vs-open-source library decision. " +
+      "Outbound: a flow writes ORDERS D.96A from its field meanings, and the in-repo EDIFACT profile checker verifies it in tests, not a network. " +
+      "The interchange sender and recipient ids are placeholders, as for X12. Item descriptions longer than EDIFACT's 35-character " +
+      "field (an..35) are sent as-is, not cut. No message has been accepted by a trading partner.",
     referenceUrl:
       "https://service.unece.org/trade/untdid/d96a/trmd/orders_c.htm",
   },

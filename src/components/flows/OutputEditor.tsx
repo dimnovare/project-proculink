@@ -15,7 +15,7 @@ import { COPY, documentRefusalMessage } from "@/lib/documentRefusals";
 import { defaultWidth, fromSimple, OP_LABEL, toSimple } from "@/lib/flowOutputModel";
 import type { SimpleOutput, SimpleRow } from "@/lib/flowOutputModel";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
-import { FLAGGED, standardName } from "@/lib/standardOutputs";
+import { FLAGGED, RULE_SETS, standardName } from "@/lib/standardOutputs";
 import { StandardQuestions } from "@/components/flows/StandardQuestions";
 
 export const FORMATS = { csv: "CSV", xlsx: "Excel", json: "JSON", xml: "XML", pdf: "PDF", txt: "Text", fixed: "Fixed-width text" };
@@ -296,15 +296,15 @@ export function OutputEditor({ flow, output, previewDocumentId, hideDestination,
             <Button type="button" variant="secondary" loading={preview.isPending} onClick={() => preview.mutate()}>Preview</Button>
           )}
           {previewDocumentId && current && standard && FLAGGED.has(standard) && flow.peppolOn && (
-            <Button type="button" variant="secondary" loading={check.isPending} onClick={() => check.mutate(previewDocumentId)}>Check against Peppol rules</Button>
+            <Button type="button" variant="secondary" loading={check.isPending} onClick={() => check.mutate(previewDocumentId)}>Check against {RULE_SETS[standard]?.short} rules</Button>
           )}
         </div>
         {checkedHere && check.isError && <StatusNotice tone="error">{documentRefusalMessage(check.error)}</StatusNotice>}
-        {checkedHere && check.data?.status === "passed" && <StatusNotice tone="success">Passes the Peppol BIS Billing 3.0 rules.</StatusNotice>}
+        {checkedHere && check.data?.status === "passed" && <StatusNotice tone="success">Passes the {RULE_SETS[standard ?? ""]?.long} rules.</StatusNotice>}
         {checkedHere && check.data?.status === "unavailable" && <StatusNotice tone="warning">We couldn&apos;t reach the rule checker. Try again in a minute.</StatusNotice>}
         {checkedHere && check.data?.status === "failed" && (
           <StatusNotice tone="warning">
-            Doesn&apos;t meet {check.data.issues.filter((i) => i.severity === "error").length} Peppol rule(s):
+            Doesn&apos;t meet {check.data.issues.filter((i) => i.severity === "error").length} {RULE_SETS[standard ?? ""]?.short} rule(s):
             <ul className="mt-1 list-disc pl-4">
               {[...check.data.issues].sort((a, b) => Number(b.severity === "error") - Number(a.severity === "error")).map((i, n) => (
                 <li key={n}>{i.ruleId} — {i.message}{i.severity === "error" ? "" : ` (${i.severity})`}</li>
