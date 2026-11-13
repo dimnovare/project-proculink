@@ -174,6 +174,19 @@ describe("OutputEditor", () => {
     expect(await screen.findByText("Passes the EN 16931 rules.")).toBeTruthy();
   });
 
+  it("a passed check lists its warnings", async () => {
+    api.checkOutput.mockResolvedValue({ status: "passed", issues: [
+      { ruleId: "BR-DE-19", severity: "warning", message: "IBAN check digits" },
+      { ruleId: "I-1", severity: "info", message: "note" }] });
+    const { container } = render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <OutputEditor flow={checkFlow as never} output={{ ...peppol, standard: "xrechnung-cii" } as never} previewDocumentId="d" onSaved={() => {}} onCancel={() => {}} />
+    </QueryClientProvider>);
+    fireEvent.click(within(container).getByRole("button", { name: "Check against XRechnung rules" }));
+    expect(await within(container).findByText(/Passes the XRechnung 3\.0 rules, with 1 warning\(s\):/)).toBeTruthy();
+    expect(within(container).getByText(/BR-DE-19/)).toBeTruthy();
+    expect(within(container).queryByText(/I-1/)).toBeNull();
+  });
+
   it("an XRechnung output checks against XRechnung rules", async () => {
     api.checkOutput.mockResolvedValue({ status: "passed", issues: [] });
     renderEditor({ ...peppol, standard: "xrechnung-cii" }, checkFlow);
