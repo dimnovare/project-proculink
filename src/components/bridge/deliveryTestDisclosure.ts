@@ -111,6 +111,14 @@ export const DELIVERY_TEST_DISCLOSURE: Record<DeliveryProtocol, DeliveryTestDisc
     effect: "This writes a small sample file, not an order, named TEST_ followed by the file name, into the bucket you configured.",
     caveat: null,
   },
+  google_drive: {
+    effect: "This writes a small sample file, not an order, named TEST_ followed by the file name, into the Google Drive folder you chose.",
+    caveat: null,
+  },
+  google_sheets: {
+    effect: "This checks that ProcuLink can open the spreadsheet and the tab you chose. It adds no rows and sends no order.",
+    caveat: null,
+  },
 };
 
 /**

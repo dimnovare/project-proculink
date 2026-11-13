@@ -102,6 +102,7 @@ export const OFF_HUB_TITLES: Record<string, string> = {
   "/lookups": "Lookups",
   "/lookups/[lookupId]": "Lookup",
   "/settings": "Settings",
+  "/settings/google-callback": "Google account",
   "/admin": "Admin",
   "/library/suppliers/[id]": "Supplier",
   "/documents/[id]": "Document",
