@@ -39,11 +39,12 @@
 // and the transform half of that, end to end:
 //
 //   TransformValidationException.cs:26/65/67   the sentence is the exception's Message
-//   OrderTransformService.cs:728               catch (… is TransformTemplateException or TransformValidationException)
-//   OrderTransformService.cs:746               FailTransformAsync(…, ex.Message, …)
-//   OrderTransformService.cs:917-921           BuildAuditEvent(…, "TransformFailed", new { error, stage })
-//   OrdersController.cs:515 → :529 → :2790     → OrderDto.ErrorMessage
-//   OrderProblemPanel.tsx:189 → :227-230 → :289-305   → the operator's screen
+//   DocumentOutputRenderer.cs:46               catch (… or TransformValidationException or …)
+//   DocumentOutputRenderer.cs:48               → ("output_invalid", ex.Message)
+//   DocumentsController.cs:311                 → 422 { error, output, detail }
+//
+// (2026-11-13, plan 13b task 8b: the order transform hop — OrderTransformService.cs and its
+// TransformTemplateException catch — went with the order pipeline; the above is what is left.)
 //
 // ─────────────────────────────────────────────────────────────────────────────
 // WHY A `grep` CANNOT DO THIS JOB
@@ -115,8 +116,8 @@ export const USER_FACING_SOURCES: readonly UserFacingSource[] = [
   // ── Exceptions whose .Message becomes the TransformFailed `error` ───────────
   {
     file: "ProcuLink.Transform/Output/TransformValidationException.cs",
-    carrier: "OrderDto.ErrorMessage",
-    why: "Its Message is caught at OrderTransformService.cs:728 and passed to FailTransformAsync at :746.",
+    carrier: "output_invalid 422 detail",
+    why: "Its Message is caught at DocumentOutputRenderer.cs:46, returned as the output_invalid detail (:48) and sent by DocumentsController.cs:311.",
   },
   // 2026-11-13, plan 13b task 8a: the ScribanTemplateTransformService.cs row left — the file (and
   // TransformTemplateException with it) was deleted as an orphan of the order pipeline.
@@ -135,8 +136,8 @@ export const USER_FACING_SOURCES: readonly UserFacingSource[] = [
   // rule resolution and CSV escaping, which write no sentence.
   {
     file: "ProcuLink.Transform/Output/OutputTemplateEmitter.cs",
-    carrier: "OrderDto.ErrorMessage",
-    why: "Throws TransformValidationException (:489).",
+    carrier: "output_invalid 422 detail",
+    why: "Throws ArgumentException (:55, :245, :248) and InvalidOperationException (:75, :190, :199, :484) sentences; DocumentOutputRenderer.cs:46 returns their Message as the output_invalid detail.",
   },
   {
     file: "ProcuLink.Transform/Output/XmlTransformService.cs",

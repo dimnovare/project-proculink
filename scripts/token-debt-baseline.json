@@ -33,7 +33,6 @@
   "src/components/bridge/BridgeLoader.tsx": 8,
   "src/components/bridge/BridgeSidebar.tsx": 41,
   "src/components/bridge/BridgeTopbar.tsx": 45,
-  "src/components/bridge/catalogSourceHelpers.ts": 7,
   "src/components/bridge/CommandPalette.tsx": 39,
   "src/components/bridge/ConfidenceChip.tsx": 10,
   "src/components/bridge/CrossingsLog.tsx": 5,
@@ -51,7 +50,6 @@
   "src/components/bridge/mapper/MapperWireLayer.tsx": 10,
   "src/components/bridge/mapper/MapperWorkbench.tsx": 128,
   "src/components/bridge/mapper/OutgoingPane.tsx": 133,
-  "src/components/bridge/mapper/ProvenanceBadge.tsx": 5,
   "src/components/bridge/mapper/SourcePickerChip.tsx": 30,
   "src/components/bridge/mapper/SourceTypeChip.tsx": 10,
   "src/components/bridge/mapper/TransformPopover.tsx": 19,
@@ -59,8 +57,6 @@
   "src/components/bridge/orderCountContract.ts": 3,
   "src/components/bridge/OrgSwitcher.tsx": 37,
   "src/components/bridge/PlanGateNotice.tsx": 4,
-  "src/components/bridge/problem/problemCopy.ts": 2,
-  "src/components/bridge/Skeletons.tsx": 23,
   "src/components/bridge/StatusJourney.tsx": 69,
   "src/components/bridge/UserChipMenu.tsx": 30,
   "src/components/bridge/WireTopology.tsx": 68,
@@ -84,9 +80,8 @@
   "src/lib/marketing/format-catalog.ts": 1,
   "src/lib/plans.ts": 11,
   "src/mdx-components.tsx": 25,
-  "src/mocks/MSWProvider.tsx": 5,
   "src/test/backendUserCopy.baseline.ts": 1,
   "src/test/csLiterals.ts": 1,
   "src/test/textColorScan.ts": 4,
-  "src/types/procurement.ts": 3
+  "src/types/procurement.ts": 2
 }

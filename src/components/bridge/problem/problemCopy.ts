@@ -19,9 +19,6 @@
 // The status is the ONLY input. There is deliberately no `title`/`message`/`tone`
 // prop anywhere downstream.
 
-import { pausedCauseCopy } from "@/lib/billingPause";
-import type { ProblemOp } from "./problemActions";
-
 export const PROBLEM_STATUSES = [
   "failed", // couldn't read the file
   "unrouted", // no supplier known
@@ -47,19 +44,6 @@ export type ProblemAction =
       href: string;
       variant: ProblemActionVariant;
     }
-  | {
-      kind: "post";
-      label: string;
-      pendingLabel: string;
-      op: ProblemOp;
-      variant: ProblemActionVariant;
-      /**
-       * Non-null renders the control VISIBLE but disabled, with this sentence
-       * beside it. Visible so the path stays discoverable; disabled so the click
-       * cannot fire a request that is guaranteed to fail.
-       */
-      disabledReason?: string | null;
-    }
   /** The §5 deliberate-friction strip. Never a one-click send. */
   | { kind: "resolver"; resolver: "unconfirmed" }
   /** An existing component owns this action (the supplier picker + its 409 handling). */
@@ -82,22 +66,6 @@ export interface ProblemCtx {
   failureCause: string | null;
   /** order.retryAfterSeconds — the supplier's own requested wait, when they named one. */
   retryAfterSeconds: number | null;
-  /**
-   * The server says this workspace cannot process orders (`canProcessOrders` is
-   * false): every recovery POST on this panel is refused before it runs.
-   *
-   * NOT a plan check, and it must never become one. This is true of a lapsed
-   * Pilot, a cancelled plan, and a paying customer whose card was declined alike —
-   * gating it on `plan === "pilot"` is the defect CLAUDE.md §11.5 records.
-   */
-  readOnly: boolean;
-  /**
-   * `billing/status.accountStatus` — WHY processing stopped, so the sentence beside
-   * a disabled control can name the cause instead of guessing one. Null when we have
-   * no billing answer, in which case `readOnly` is false too.
-   */
-  accountStatus: string | null;
-  atOrderLimit: boolean;
   /** The Hangfire Worker is down: nothing parses, transforms or delivers. */
   processingPaused: boolean;
 }
@@ -263,403 +231,12 @@ export function deliveryCauseFor(c: ProblemCtx): DeliveryCauseCopy | null {
   return DELIVERY_CAUSE[c.failureCause] ?? null;
 }
 
-/**
- * The reasons an order can land in `transform_failed`, and what each one changes.
- *
- * `transform_failed` used to mean one thing — a broken output template or a
- * mapping that would not apply — and the state's copy was written for exactly that.
- * BE #172 wrapped `OrderTransformService.TransformAsync` in a catch, so failures
- * that used to strand an order silently in `transforming` now land in this same
- * status, and the single-cause copy became false for most of them: it sent an
- * order with unconfirmed item codes to the supplier's delivery settings, and it
- * told every one of them "we won't try to build it again on our own" while the
- * Worker was already retrying. That original copy is now `output_mapping_failed`,
- * the first entry below — a cause like any other, reached only by the messages the
- * backend really writes for it.
- *
- * THE RETRY GROUND TRUTH, because it is what the old copy got wrong.
- * `TransformOrderJob.ExecuteAsync` carries
- * `[AutomaticRetry(Attempts = 3, DelaysInSeconds = { 10, 60, 300 })]`
- * (ProcuLink.Api/Jobs/TransformOrderJob.cs:47) and THROWS on every unsuccessful
- * result (:66-72) — not only on the unexpected ones. `ClaimableForTransformFrom`
- * contains `transform_failed` (ProcuLink.Core/Constants/OrderStatusMachine.cs:632),
- * so each retry really does re-claim the order and re-run the build. So the
- * backend retries EVERY cause below three times; what differs is whether a retry
- * can WORK. Two of them can heal (an unexpected fault, and a rules check that
- * could not be evaluated) — those are `wait`. The rest fail identically every
- * time, so they say the tries are happening AND that nothing changes until the
- * operator acts. Neither "we're on it" nor "nothing is happening" is true on its
- * own for this status.
- *
- * There is no machine-readable cause for a transform failure — `failureCause` is
- * populated for delivery only — so this matches on the message, exactly as
- * `isDeliveryConfigMissing` above does. Each entry names the backend site its
- * message is written at, so a reword is greppable from both ends.
- *
- * A HAND-WRITTEN PATTERN AGAINST ANOTHER REPO'S PROSE IS A MIRROR, and the mirror
- * used to be uncheckable: a reword on the backend simply stopped matching, and the
- * only thing that changed on screen was that the panel got vaguer. Every matcher
- * here is now diffed against the real C# by `src/test/backendMirror.test.ts`, which
- * parses OrderTransformService.cs and fails when a matcher claims no literal in it.
- *
- * The verbatim server message is rendered in its own block ABOVE these lines, so
- * nothing here paraphrases it — they say what to DO, not what happened.
- */
-type TransformCauseCopy = {
-  attribution: (c: ProblemCtx) => string;
-  /** What really runs on its own. Never null: the Worker retries every cause. */
-  automatic: string;
-  consequence: (c: ProblemCtx) => string;
-  helper: (c: ProblemCtx) => string | null;
-  /**
-   * REQUIRED, and it was optional until the base entry stopped being one of the
-   * causes. "Omit it and inherit the state's own controls" was safe while those
-   * controls were the output settings — `no_builder_for_format` did exactly that.
-   * The base is now written for a message we could not read, so an omission would
-   * inherit "Try building it again / Get help with this order": right for an
-   * unknown cause, wrong for every known one. Required means the next cause added
-   * has to answer the question instead of inheriting an answer to a different one.
-   */
-  actions: (c: ProblemCtx) => ProblemAction[];
-  tier: Tier;
-};
-
-export type TransformCauseName =
-  | "output_mapping_failed"
-  | "unresolved_lines"
-  | "preparation_failed"
-  | "no_builder_for_format"
-  | "rules_check_failed"
-  | "rules_refused";
-
-/**
- * Where a recovery lands. The supplier screens it used to open are gone (their URLs 308 to the
- * flow list), so every cause lands on the flow list rather than on a redirect.
- */
-function supplierTab(_c: ProblemCtx, _tab: string): string {
-  return "/flows";
-}
-
-/** The state's own rebuild control, so a cause can re-order it without retyping it. */
-function buildAgain(c: ProblemCtx, variant: ProblemActionVariant): ProblemAction {
-  return {
-    kind: "post",
-    variant,
-    label: "Try building it again",
-    pendingLabel: "Building…",
-    op: "transformOrder",
-    disabledReason: postGuard(c),
-  };
-}
-
-/**
- * Ordered, and first match wins. The six patterns are mutually exclusive today —
- * two of them share the closing sentence "Try sending it again in a moment." and
- * are told apart by their openings — and `__tests__/transformCause.test.ts` walks
- * every message against every matcher, both ways, to keep them so.
- */
-const TRANSFORM_CAUSES: ReadonlyArray<{
-  cause: TransformCauseName;
-  match: RegExp;
-  copy: TransformCauseCopy;
-}> = [
-  {
-    // The template / output-mapping failure this whole state was originally written
-    // for. It used to be the UNNAMED fallback — the copy sat on the base entry and
-    // every unrecognised message inherited it. It is named here so the base entry is
-    // free to say the one honest thing about a message we do not recognise.
-    //
-    // Three backend sites, one sentence shape. Each wraps the inner exception, so
-    // only the wrapper is matchable — the tail after ": " is the engine's own text:
-    //   "The output structure for this connection could not be rendered, so the
-    //    order was not delivered: {ex.Message}"
-    //     ProcuLink.Api/Services/Orders/OrderTransformService.cs:662-663
-    //   "The published output mapping for this connection could not be applied, so
-    //    the order was not delivered: {ex.Message}"
-    //     ProcuLink.Api/Services/Orders/OrderTransformService.cs:698-699
-    //   "The supplier's saved output mapping could not be applied, so the order was
-    //    not delivered: {ex.Message}"
-    //     ProcuLink.Api/Services/Orders/OrderTransformService.cs:719-720
-    //
-    // A template that failed to render deeper down (Scriban, the field validators)
-    // reaches `errorMessage` as its OWN raw sentence with no wrapper — those are
-    // unrecognised on purpose and get the base copy, because from here they are
-    // indistinguishable from a sentence a newer API wrote.
-    cause: "output_mapping_failed",
-    match: /could not be (?:rendered|applied), so the order was not delivered/i,
-    copy: {
-      attribution: (c) => `Your order is fine — the output we build for ${c.supplier} isn't.`,
-      // "We won't try to build it again on our own." stood here and was false:
-      // TransformOrderJob throws on any unsuccessful result and retries three times
-      // (TransformOrderJob.cs:47, :66-72), and transform_failed is re-claimable, so
-      // the tries really happen. What is true is that they cannot help — the same
-      // template and the same mapping produce the same failure — so the line says
-      // both halves instead of denying the first.
-      automatic: "We try again on our own a few times, but the same settings produce the same result each time.",
-      consequence: (c) =>
-        `${c.supplier} has not received this order — and every future order for them will stop in the same `
-        + `place until this is fixed.`,
-      // The primary points at the supplier's Delivery tab, NOT /library/templates. The
-      // spec named the templates page, but FE #47 retired it — and its stated reason is
-      // exactly why this CTA must not go there: "the output format lives on each
-      // supplier's delivery config, and the page's save posted a body the API never
-      // read. It described a control that did not exist." The templates URL still
-      // answers (a 308 to /library/suppliers, supplier id dropped), so a link crawl
-      // cannot see the problem: it resolves, it just resolves to a list instead of the
-      // one screen where `outputFormat` and the cXML credentials are actually editable.
-      actions: (c) => [
-        {
-          kind: "link",
-          variant: "primary",
-          label: "Open the output settings",
-          href: supplierTab(c, "delivery"),
-        },
-        buildAgain(c, "secondary"),
-      ],
-      helper: () =>
-        "If nothing has changed in those settings, building it again won't help — send us the message above instead.",
-      tier: "self",
-    },
-  },
-  {
-    // "Resolve all lines before transforming. Unresolved: 1, 3."
-    // ProcuLink.Api/Services/Orders/OrderTransformService.cs:196-201
-    cause: "unresolved_lines",
-    match: /resolve all lines before transforming/i,
-    copy: {
-      attribution: (c) =>
-        `Nothing is broken. Some lines still need the item code ${c.supplier} uses, and we don't guess at those.`,
-      automatic: "We try again on our own a few times, but a line with no item code stops it every time.",
-      consequence: (c) =>
-        `${c.supplier} has not received this order, and it stays here until every line has an item code.`,
-      // NOT the delivery settings. The codes are confirmed on this screen, or kept
-      // on the supplier's own item-code list — the output settings cannot fix a
-      // missing code, so leading with them sent the operator to the wrong screen.
-      actions: (c) => [
-        {
-          kind: "link",
-          variant: "primary",
-          label: "Open this supplier's item codes",
-          href: supplierTab(c, "mappings"),
-        },
-        buildAgain(c, "secondary"),
-      ],
-      helper: () =>
-        "The lines waiting for a code are flagged on this screen. Fill those in — or add the codes to this "
-        + "supplier's list so they match next time — then build it again.",
-      tier: "self",
-    },
-  },
-  {
-    // "Something went wrong preparing this order to send, so it wasn't sent. Try
-    // sending it again in a moment." — the broad catch.
-    // ProcuLink.Api/Services/Orders/OrderTransformService.cs:137-166
-    cause: "preparation_failed",
-    match: /something went wrong preparing this order to send/i,
-    copy: {
-      attribution: () =>
-        "Something went wrong at our end while getting this order ready. Your order and your settings are fine.",
-      // Word-for-word the delivery line, because it is the same promise: the tries
-      // are real, the schedule backs off, and no attempt number is ever invented.
-      automatic: "We're trying again automatically. Each try waits a little longer than the last.",
-      consequence: (c) =>
-        `${c.supplier} hasn't received this order yet. If the automatic tries run out, it stops here and waits for you.`,
-      actions: (c) => [buildAgain(c, "primary")],
-      // The panel already prints the "you don't have to do anything" line for every
-      // `wait` state — a second sentence saying it again is noise.
-      helper: () => null,
-      tier: "wait",
-    },
-  },
-  {
-    // "No transform service registered for format 'xml'."
-    // ProcuLink.Api/Services/Orders/OrderTransformService.cs:383-387
-    cause: "no_builder_for_format",
-    match: /no transform service registered for format/i,
-    copy: {
-      attribution: (c) =>
-        `Your order is fine. The file format saved for ${c.supplier} isn't one we can build.`,
-      automatic: "We try again on our own a few times, but the same format stops it every time.",
-      consequence: (c) =>
-        `${c.supplier} has not received this order — and every future order for them will stop in the same `
-        + `place until the format is changed.`,
-      // Named, not inherited. These were omitted while the state's own controls WERE
-      // the output settings; the base entry is now written for a message we could
-      // not read, and inheriting from it sent this cause — which is fixed in exactly
-      // one place — to "Get help with this order" instead.
-      actions: (c) => [
-        {
-          kind: "link",
-          variant: "primary",
-          label: "Open the output settings",
-          href: supplierTab(c, "delivery"),
-        },
-        buildAgain(c, "secondary"),
-      ],
-      helper: () =>
-        "Choose a format we can build in those settings — the message above names the one we were asked for.",
-      tier: "self",
-    },
-  },
-  {
-    // "This order couldn't be checked against the supplier's rules, so it wasn't
-    // sent. Try sending it again in a moment."
-    // ProcuLink.Api/Services/Orders/OrderTransformService.cs:559-583
-    cause: "rules_check_failed",
-    match: /couldn['’]?t be checked against the supplier['’]?s rules/i,
-    copy: {
-      attribution: (c) =>
-        `We couldn't check this order against ${c.supplier}'s rules just now, so we held it back. Nothing is `
-        + `wrong with the order.`,
-      automatic: "We're trying again automatically. Each try waits a little longer than the last.",
-      consequence: (c) =>
-        `${c.supplier} hasn't received this order yet. If the automatic tries run out, it stops here and waits for you.`,
-      actions: (c) => [buildAgain(c, "primary")],
-      helper: () => "If it keeps stopping here, send us the message above.",
-      tier: "wait",
-    },
-  },
-  {
-    // "This order wasn't sent because it doesn't meet what the supplier accepts."
-    // ProcuLink.Api/Services/Orders/OrderTransformService.cs:585-600
-    //
-    // ONLY the fallback sentence is matchable. When the supplier's profile carries
-    // its own reason, that sentence is what reaches `errorMessage` — it is written
-    // by whoever set the rule, so no pattern here can recognise it and it degrades
-    // to the generic copy below. That is a known limit, not an oversight: guessing
-    // from an arbitrary sentence would misroute the operator with confidence.
-    cause: "rules_refused",
-    match: /doesn['’]?t meet what the supplier accepts/i,
-    copy: {
-      attribution: (c) =>
-        `${c.supplier}'s rules turned this order down before we sent it. Nothing failed — it just doesn't `
-        + `match what they accept.`,
-      automatic: "We try again on our own a few times, but the same rules turn it down each time.",
-      consequence: (c) =>
-        `${c.supplier} has not received this order. It stays here until either the order or their rules change.`,
-      actions: (c) => [
-        {
-          kind: "link",
-          variant: "primary",
-          label: "Check this supplier's rules",
-          href: supplierTab(c, "acceptance"),
-        },
-        buildAgain(c, "secondary"),
-      ],
-      helper: () =>
-        "Correct what the rules flagged on this order, or change the rule if it no longer matches what they accept.",
-      tier: "self",
-    },
-  },
-];
-
-/**
- * Every cause the table names, in match order.
- *
- * Exported so a test can size itself from the registry instead of from its own
- * fixtures. `__tests__/transformCause.test.ts` drives fourteen loops off the keys
- * of its message record, and a record that lost a key would have made every one of
- * them iterate zero times and pass — so the fixtures are diffed against this.
- */
-export const TRANSFORM_CAUSE_NAMES: readonly TransformCauseName[] = TRANSFORM_CAUSES.map((e) => e.cause);
-
-/** The RegExp each cause matches on, keyed by cause. Read by the backend mirror. */
-export const TRANSFORM_CAUSE_MATCHERS: ReadonlyArray<{ cause: TransformCauseName; match: RegExp }> =
-  TRANSFORM_CAUSES.map((e) => ({ cause: e.cause, match: e.match }));
-
-/** The named cause of a transform failure, or null when nothing recognises it. */
-export function transformCauseNameFor(serverMessage: string | null | undefined): TransformCauseName | null {
-  if (!serverMessage) return null;
-  return TRANSFORM_CAUSES.find((entry) => entry.match.test(serverMessage))?.cause ?? null;
-}
-
-/**
- * The copy for a named transform cause, or null for any message we do not recognise.
- *
- * A `find` over an array rather than an index into an object literal: the delivery
- * table's `Object.hasOwn` guard exists because `failureCause` is an unvalidated
- * string off the wire that indexes `constructor` / `__proto__` / `toString` to
- * something truthy. The same hazard would apply here — `serverMessage` is just as
- * unvalidated — so this shape avoids it by construction.
- */
-export function transformCauseFor(c: ProblemCtx): TransformCauseCopy | null {
-  const cause = transformCauseNameFor(c.serverMessage);
-  return TRANSFORM_CAUSES.find((entry) => entry.cause === cause)?.copy ?? null;
-}
-
-/**
- * Layers the named causes over the state's own copy. Every field a cause does not
- * name falls through to the entry below — which is now written FOR the unrecognised
- * case rather than borrowed from one of the causes.
- *
- * It used to fall through to the template/mapping copy, on the reasoning that "an
- * unrecognised message reads exactly as it did before this table existed". That
- * reasoning holds only while `transform_failed` has one meaning, and BE #172 ended
- * that: the base copy names a cause ("the output we build for X isn't"), predicts a
- * recurrence ("every future order for them will stop in the same place"), and sends
- * the operator to the supplier's Delivery tab. Applied to a message we could not
- * read, all three are guesses stated as facts — and one of them is already wrong on
- * a message the backend writes today, `"Cannot transform: lines 2, 5 still need
- * review."` (TransformValidationException.cs), which is a line problem and not a
- * settings problem at all.
- */
-function withTransformCause(base: ProblemCopy): ProblemCopy {
-  return {
-    ...base,
-    attribution: (c) => transformCauseFor(c)?.attribution(c) ?? base.attribution(c),
-    consequence: (c) => transformCauseFor(c)?.consequence(c) ?? base.consequence(c),
-    helper: (c) => {
-      const cause = transformCauseFor(c);
-      return cause ? cause.helper(c) : base.helper?.(c) ?? null;
-    },
-    actions: (c) => transformCauseFor(c)?.actions(c) ?? base.actions(c),
-    tier: (c) => transformCauseFor(c)?.tier ?? base.tier(c),
-    automaticFor: (c) => {
-      const line = transformCauseFor(c)?.automatic ?? base.automatic ?? base.nothingAutomatic ?? "";
-      return c.processingPaused ? `${line} ${base.pausedNote}` : line;
-    },
-  };
-}
-
 const HELP = (c: ProblemCtx, status: ProblemStatus): ProblemAction => ({
   kind: "link",
   variant: "ghost",
   label: "Get help with this order",
   href: `/support?order=${encodeURIComponent(c.po)}&problem=${status}`,
 });
-
-/**
- * The half of the read-only reason that is true of every cause: the action is
- * blocked, and there is one screen where it gets unblocked. Written once because
- * the consequence really is identical across causes — it is `canProcessOrders`
- * that every path checks, not the particular status behind it.
- */
-const READ_ONLY_REASON_TAIL =
-  "Nothing can be sent or retried until processing is active again. See Settings → Billing.";
-
-/**
- * The sentence printed beside a disabled recovery control.
- *
- * It used to be one frozen string — "Your Pilot has ended. You can still view
- * previous orders, but new processing is paused." — which was wrong for most of
- * the workspaces that can reach it. Read-only is not a Pilot state: a cancelled
- * plan and a paying customer whose card was declined are refused by the same
- * server flag, and telling an Operations org its Pilot ended is a false statement
- * about their money on top of a blocked button.
- *
- * The cause half is `pausedCauseCopy`, the SAME map the billing screen prints, so
- * the two surfaces cannot disagree about why an account is paused. Its fallback arm
- * is what an unrecognised (or absent) status resolves to — it names the pause without
- * inventing a cause, which is the honest answer when we do not have one.
- */
-export function readOnlyReason(accountStatus: string | null): string {
-  return `${pausedCauseCopy(accountStatus ?? "").headline} ${READ_ONLY_REASON_TAIL}`;
-}
-
-/** Read-only plans refuse every POST server-side — say so instead of firing it. */
-function postGuard(c: ProblemCtx): string | null {
-  return c.readOnly ? readOnlyReason(c.accountStatus) : null;
-}
 
 function withAutomaticFor(
   copy: Omit<ProblemCopy, "automaticFor">,
@@ -734,11 +311,6 @@ export const PROBLEM_COPY: Record<ProblemStatus, ProblemCopy> = {
   // accepted entry status for `transforming`) and it holds NO output, so nothing
   // stale can ship.
   //
-  // What follows is the copy for a message NOTHING IN TRANSFORM_CAUSES RECOGNISED.
-  // Every recognised cause — including the template / output-mapping failure this
-  // state was originally written for — is named in the table above and overrides
-  // the fields that differ.
-  //
   // It says only the two things that are true of every failure that reaches this
   // status: the file was not built, and the order was not sent. It names no cause,
   // blames no screen, and its primary is the one control that presumes nothing —
@@ -750,7 +322,7 @@ export const PROBLEM_COPY: Record<ProblemStatus, ProblemCopy> = {
   // "Send us the message" is the honest second route, which is also why the tier is
   // `us` and not `self`: on the health page `self` means "you can fix this", and we
   // do not know that here.
-  transform_failed: withTransformCause(withAutomaticFor({
+  transform_failed: withAutomaticFor({
     tone: "danger",
     presentation: "banner",
     badge: "Couldn't build output",
@@ -770,7 +342,7 @@ export const PROBLEM_COPY: Record<ProblemStatus, ProblemCopy> = {
     nothingAutomatic: null,
     pausedNote: "Order processing is paused right now, so the next try starts once it restarts.",
     consequence: (c) => `${c.supplier} has not received this order, and it stays here until someone looks at it.`,
-    actions: (c) => [buildAgain(c, "primary"), HELP(c, "transform_failed")],
+    actions: (c) => [HELP(c, "transform_failed")],
     helper: () =>
       "If the message above points at something you can change, change it and build the file again. If it "
       + "doesn't, send it to us — we can see what happened on our side.",
@@ -782,7 +354,7 @@ export const PROBLEM_COPY: Record<ProblemStatus, ProblemCopy> = {
     // screen that cannot fix it. The row's job is to get the operator to the order;
     // the panel names the fix, or says that it cannot.
     rowAction: "See what stopped it",
-  })),
+  }),
 
   // 3.4 — the only `wait` state. NEVER renders "attempt N of M" or a countdown:
   // Order carries neither number, and an invented one is the difference between
@@ -811,60 +383,19 @@ export const PROBLEM_COPY: Record<ProblemStatus, ProblemCopy> = {
           ?? "If the automatic tries run out, this order stops and waits for you.",
     actions: (c) => {
       const configMissing = isDeliveryConfigMissing(c.serverMessage);
-      // A cause the operator has to fix: expired credentials, a refused account,
-      // a moved address. The retry stays VISIBLE (the path must not disappear)
-      // but stops being the primary, because clicking it cannot succeed until
-      // the settings change.
-      const settingsFirst = !configMissing && (deliveryCauseFor(c)?.settingsFirst ?? false);
-      const retry: ProblemAction = {
-        kind: "post",
-        // Retry is allowed at the plan's order limit: the meter counts at creation,
-        // so retrying an existing order consumes nothing new.
-        variant: configMissing || settingsFirst ? "secondary" : "primary",
-        label: "Try sending now",
-        pendingLabel: "Queued…",
-        op: "retryDelivery",
-        disabledReason: configMissing
-          ? "This will work once delivery is set up."
-          : postGuard(c),
-      };
       if (configMissing) {
-        return [
-          {
-            kind: "link",
-            variant: "primary",
-            label: "Set up delivery",
-            href: "/flows",
-          },
-          retry,
-        ];
+        return [{ kind: "link", variant: "primary", label: "Set up delivery", href: "/flows" }];
       }
-      if (settingsFirst) {
-        return [
-          {
-            kind: "link",
-            variant: "primary",
-            label: "Check the delivery settings",
-            href: "/flows",
-          },
-          retry,
-          {
-            kind: "link",
-            variant: "secondary",
-            label: "See every attempt",
-            href: `/operations/log?orderId=${c.orderId}`,
-          },
-        ];
+      const attempts: ProblemAction = {
+        kind: "link",
+        variant: "secondary",
+        label: "See every attempt",
+        href: `/operations/log?orderId=${c.orderId}`,
+      };
+      if (deliveryCauseFor(c)?.settingsFirst ?? false) {
+        return [{ kind: "link", variant: "primary", label: "Check the delivery settings", href: "/flows" }, attempts];
       }
-      return [
-        retry,
-        {
-          kind: "link",
-          variant: "secondary",
-          label: "See every attempt",
-          href: `/operations/log?orderId=${c.orderId}`,
-        },
-      ];
+      return [attempts];
     },
     helper: (c) =>
       isDeliveryConfigMissing(c.serverMessage)

@@ -19,7 +19,7 @@
 // fails the second.
 //
 // WHAT IS MOCKED, AND WHY IT DOES NOT DEFEAT THE POINT. The chrome components
-// (topbar, sidebar, workspace nudge) and the MSW provider are stubbed because
+// (topbar, sidebar, workspace nudge) are stubbed because
 // they drag in the whole data layer and are not what is under test. Two things
 // are deliberately NOT stubbed: <ClerkAvailabilityGate> itself, and the shell
 // `<div>`/`<main id="main-content">` — those are written inline in layout.tsx,
@@ -48,9 +48,6 @@ vi.mock("@/lib/api-client", () => ({
 vi.mock("@/lib/navigationClock", () => ({ msSinceNavigationStart: () => 0 }));
 vi.mock("@/lib/reload", () => ({ reloadPage: () => {} }));
 
-vi.mock("@/mocks/MSWProvider", () => ({
-  MSWProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-}));
 vi.mock("@/components/bridge/BridgeTopbar", () => ({
   BridgeTopbar: () => <div>topbar</div>,
 }));

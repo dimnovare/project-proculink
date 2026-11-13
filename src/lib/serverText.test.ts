@@ -214,39 +214,21 @@ describe("a real 502 from the API produces a clean message", () => {
     vi.restoreAllMocks();
   });
 
-  it("transformOrder: the HTML error page never reaches the thrown message", async () => {
-    // `apiClient.transformOrder` is the REAL implementation here: USE_MOCK requires
-    // NEXT_PUBLIC_USE_MOCK === "true", which the test env does not set. So this drives the exact
-    // line the production defect came through — api-client's `error ?? \`${fallback}: ${text}\``.
+  it("getDownloadUrl: the HTML error page never reaches the thrown message", async () => {
+    // `apiClient.getDownloadUrl` is the REAL implementation here: USE_MOCK requires
+    // NEXT_PUBLIC_USE_MOCK === "true", which the test env does not set. Its throw is the same
+    // shape the production defect came through — `\`${fallback}: ${text}\`` over the raw body.
+    // (Re-anchored 2026-11-13 from transformOrder, deleted with the order write path.)
     const { apiClient } = await import("@/lib/api-client");
 
     let thrown: unknown;
     try {
-      await apiClient.transformOrder("ord-1");
+      await apiClient.getDownloadUrl("ord-1", "art-1");
     } catch (e) {
       thrown = e;
     }
 
     expect(thrown).toBeInstanceOf(ApiHttpError);
-    const msg = (thrown as Error).message;
-    expectNoMarkup(msg);
-    expect(msg).toContain("502");
-  });
-
-  // The api layer does not throw ApiHttpError everywhere. Three `apiFetch` helpers throw a plain
-  // Error built the same way — `API error ${status}: ${await res.text()}` — which skips the
-  // constructor entirely. Their messages are rendered: delivery.ts feeds DeliveryConfigEditor's
-  // error block, mapping.ts feeds PoMappingEditor's "Couldn't save — …" line. Found by asking
-  // "what still reaches prose without passing the constructor?", not by reading the diff.
-
-  it("delivery.ts apiFetch: DeliveryConfigEditor's error block gets no markup", async () => {
-    const { getDeliveryConfig } = await import("@/lib/api/delivery");
-    let thrown: unknown;
-    try {
-      await getDeliveryConfig("sup-1");
-    } catch (e) {
-      thrown = e;
-    }
     const msg = (thrown as Error).message;
     expectNoMarkup(msg);
     expect(msg).toContain("502");

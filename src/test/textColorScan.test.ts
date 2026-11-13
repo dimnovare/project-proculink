@@ -147,7 +147,7 @@ describe("the scanner does not fire on the property names next door", () => {
 });
 
 const REPO = resolve(__dirname, "../..");
-const SKIP = new Set(["node_modules", ".next", "mocks"]);
+const SKIP = new Set(["node_modules", ".next"]);
 
 function walk(dir: string): string[] {
   const out: string[] = [];

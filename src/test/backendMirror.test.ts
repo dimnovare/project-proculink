@@ -615,8 +615,7 @@ function readBuildableFormats(backend: string): { services: string[]; tokens: st
     services.length,
     `${TRANSFORM_REGISTRY_REL} parsed to zero entries in OutputTransformRegistry.All. That is the ` +
       "parser failing, not the backend shipping no transforms — and an empty C# side would " +
-      "'confirm' whatever this side declares. The backend refuses this state too: " +
-      "OutputFormatCatalog throws at construction when the derived set is empty.",
+      "'confirm' whatever this side declares.",
   ).toBeGreaterThan(0);
 
   const tokens: string[] = [];
@@ -823,7 +822,7 @@ describe("the formats we advertise as output are the formats a transform exists 
       "PREVIEW_FORMATS in src/lib/api/types.ts is this app's mirror of the buildable formats, " +
         "and the mapper's live preview offers every one of them as a format to render. A " +
         "format offered here with no transform behind it is a preview that cannot work. The " +
-        "values are OutputFormatCatalog.Token spellings: OutputFormat.ToString().ToLowerInvariant().",
+        "values are OutputFormat member names lower-cased: OutputFormat.ToString().ToLowerInvariant().",
     );
   });
 });

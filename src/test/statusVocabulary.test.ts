@@ -110,7 +110,7 @@ function copyBearingFiles(): string[] {
     for (const entry of readdirSync(dir)) {
       const full = join(dir, entry);
       if (statSync(full).isDirectory()) {
-        if (entry === "mocks" || entry === "node_modules" || entry === "__snapshots__") continue;
+        if (entry === "node_modules" || entry === "__snapshots__") continue;
         walk(full);
         continue;
       }

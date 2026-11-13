@@ -53,6 +53,9 @@ const WRITER_FILES = [
   "ProcuLink.Api/Controllers/OrdersController.cs",
   "ProcuLink.Api/Controllers/SettingsController.cs",
   "ProcuLink.Infrastructure/Services/Email/InboundEmailRouter.cs",
+  // 2026-11-13, plan 13b task 8b: the two writers the manifest had no row for.
+  "ProcuLink.Infrastructure/Services/Delivery/DeliveryBounceHandler.cs",
+  "ProcuLink.Api/Services/Documents/FlowDestinationService.cs",
 ] as const;
 
 const PROBE_REL = "ProcuLink.Api/Controllers/AuditController.cs";

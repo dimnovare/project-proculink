@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { StatusJourney } from "@/components/bridge/StatusJourney";
 import { MobileListRow } from "@/components/bridge/layout/MobileListRow";
-import { relativeTime } from "@/components/bridge/catalogSourceHelpers";
+import { relativeTime } from "@/lib/relativeTime";
 import { documentStatus } from "@/lib/documentStatusManifest";
 import type { DocumentSummary } from "@/lib/api/documents";
 

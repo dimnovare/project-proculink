@@ -233,8 +233,9 @@ describe("no vacuous Playwright tests", () => {
     expect(source.length).toBeGreaterThan(10_000);
     // The declared-condition skip is present and is NOT reported — proof rule 1/2 ran.
     expect(source).toMatch(/test\.skip\(\s*(!?)process\.env\.PLAYWRIGHT_LIVE/);
-    // Real test blocks exist for rule 3 to walk.
-    expect(source.match(/^\s*test\s*\(\s*["'`]/gm)?.length ?? 0).toBeGreaterThan(50);
+    // Real test blocks exist for rule 3 to walk. 50 -> 46 on 2026-11-13 (plan 13b task 8b): the
+    // three live-* order specs went; 46 is today's count.
+    expect(source.match(/^\s*test\s*\(\s*["'`]/gm)?.length ?? 0).toBeGreaterThanOrEqual(46);
     // The swallowed-interaction rule has live input AND its discrimination is exercised: the real
     // specs do contain an empty .catch on a tolerated waiting call, which must be present and must
     // NOT be reported. (This used to assert the two known offenders were found — which stopped

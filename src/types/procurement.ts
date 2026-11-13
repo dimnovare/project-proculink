@@ -1,50 +1,3 @@
-// The acceptance-rule outcome vocabulary is owned by
-// src/lib/validationOutcomeManifest.ts. It is a UNION rather than a boolean because a
-// rule has three possible answers, the third being "I could not run" — see that file.
-import type { ValidationOutcome } from "@/lib/validationOutcomeManifest";
-
-export type { ValidationOutcome };
-
-// ── Core types ────────────────────────────────────────────────────────────
-
-export interface BuyerDto {
-  id: string;
-  name: string;
-  code: string;
-  orderCount: number;
-  lastOrderAge: string | null;
-  formats: string[];
-}
-
-export interface Supplier {
-  id: string;
-  name: string;
-  // ── Identity fields ───────────────────────────────────────────────────────
-  // The right-hand side of supplier auto-detect: what the numbers printed on an
-  // incoming document get compared against. Null until an org fills them in, and
-  // ALL optional so an org fetched from an older API degrades to "not set".
-  /** VAT / tax number, as registered. */
-  vatNumber?: string | null;
-  /** Company registration / registry code. */
-  registrationNumber?: string | null;
-  /** EDI routing id — GLN, ILN, Peppol participant id or scheme party code. */
-  ediCode?: string | null;
-  /** Email domain this supplier sends from, e.g. "acme.com". Normalised server-side. */
-  primaryDomain?: string | null;
-}
-
-/** Identity fields as the supplier create/update endpoints accept them. */
-export interface SupplierIdentityFields {
-  vatNumber?: string | null;
-  registrationNumber?: string | null;
-  ediCode?: string | null;
-  primaryDomain?: string | null;
-}
-
-export interface CreateSupplierPayload extends SupplierIdentityFields {
-  name: string;
-}
-
 // ── Order direction (per-org presentation setting) ──────────────────────────
 // ProcuLink's built-in model is OUTBOUND (the org is the BUYER sending POs out
 // to suppliers). Inbound orgs are the SUPPLIER receiving customer POs. The data
@@ -64,25 +17,6 @@ export interface OrgSettings {
   slug?: string;
   /** Supplier row every invoice is sent to; null = not set (invoices wait in Documents). */
   invoiceDestinationSupplierId?: string | null;
-}
-
-/**
- * Body for PUT /api/suppliers/{id}. Despite the name it updates supplier DETAILS,
- * not just the name.
- *
- * The identity fields are PATCH-STYLE server-side: an omitted/null field means
- * "leave it as it is", and an EMPTY STRING is the explicit "clear it". A caller
- * that means to clear one must send "" — sending null silently keeps the old value.
- */
-export interface RenameSupplierPayload extends SupplierIdentityFields {
-  name: string;
-}
-
-export interface UpsertSupplierProfilePayload {
-  outputFormat: string;
-  destinationType: string;
-  destinationConfig?: string | null;
-  acceptedFormats?: string[];
 }
 
 export type OrderStatus =
@@ -141,8 +75,6 @@ export interface OrderLine {
   taxRate?: number | null;
   /** Phase 4 enrichment — per-line delivery date, ISO "yyyy-MM-dd". */
   deliveryDate?: string | null;
-  /** How the supplier code was set: "saved_mapping" | "manual" | "ai"; null when unresolved or older than this field. */
-  resolvedVia?: string | null;
   /** Kind of evidence behind the suggestion; an exact "catalog" match is a fact and passes the ≥85% bulk accept without a score. */
   aiSuggestionBasis?: "catalog" | "source_document" | "model" | null;
 }
@@ -168,43 +100,6 @@ export interface AiMappingSuggestion {
   isCalibrated?: boolean;
   /** Truthful explanation, e.g. "calibrated from 23 of your past decisions" vs "model estimate — not enough history yet". */
   calibrationBasis?: string;
-}
-
-/**
- * One signal's contribution to a supplier suggestion's score (backend SupplierSignalDto).
- * `signal` is a stable slug: "identity" | "sender_domain" | "sender_domain_history" |
- * "layout_fingerprint" | "catalog_overlap" | "supplier_name".
- */
-export interface SupplierSignal {
-  signal: string;
-  /** How much this signal added to the score. Never negative. */
-  contribution: number;
-  /** The human-readable clause for this signal, already plain-language. */
-  detail: string;
-}
-
-/**
- * One ranked supplier candidate for an order that arrived without a supplier
- * (backend SupplierSuggestionDto, GET /api/orders/{id}).
- *
- * ADVISORY ONLY. The order is still `unrouted` and stays that way until a human
- * posts assign-supplier — nothing here has changed any routing.
- *
- * This is a HEURISTIC, not a model output: it is not AI-generated content and must
- * not be presented as such (no `ai` token, no "AI" tag).
- */
-export interface SupplierSuggestion {
-  /** The suggestion row's id. Pass back as `suggestionId` on assign-supplier so the acceptance is attributable. */
-  id: string;
-  supplierId: string;
-  supplierName: string;
-  /** 1-based; 1 is the best candidate. */
-  rank: number;
-  /** 0–0.99. Never 1.0 — a heuristic does not get to claim certainty. */
-  score: number;
-  /** One plain-language sentence naming the supplier and the evidence. */
-  reason: string;
-  signals: SupplierSignal[];
 }
 
 export interface Artifact {
@@ -303,13 +198,6 @@ export interface Order {
   sellerTaxId?: string | null;
   paymentIban?: string | null;
   paymentReference?: string | null;
-  /**
-   * Ranked supplier candidates for an order that arrived with no supplier, best
-   * first, at most three. Absent/empty for every routed order and for any unrouted
-   * order nothing pointed at. Only GET /api/orders/{id} carries these — the inbox
-   * list DTO does not.
-   */
-  supplierSuggestions?: SupplierSuggestion[] | null;
 }
 
 export interface OrderSummary {
@@ -343,16 +231,6 @@ export interface OrderSummary {
    * behaviour — never to a fabricated practice badge.
    */
   isSample?: boolean;
-}
-
-export interface ResolveResult {
-  order: Order;
-}
-
-export interface TransformResult {
-  artifactId: string;
-  format: string;
-  createdAt: string;
 }
 
 export interface DownloadUrl {
@@ -479,41 +357,4 @@ export interface GetOrdersParams {
   search?: string;
   dateFrom?: string;
   dateTo?: string;
-}
-
-export interface OrdersSummary {
-  /** Per-status counts over the METERED population — practice orders are excluded here too. */
-  byStatus: Partial<Record<OrderStatus, number>>;
-  /** Real orders only. This is the number billing invoices and every plan gate enforces. */
-  total: number;
-  /**
-   * The practice orders `total` left out. Printed beside `total` so a "0" can state what it
-   * excludes instead of silently contradicting a list that shows the row.
-   *
-   * Optional; absent means 0 (an API older than dimnovare/ProcuLink#173).
-   */
-  sampleTotal?: number;
-}
-
-// ── Acceptance profile (GET/POST /api/suppliers/{id}/acceptance-profile) ──────
-
-export interface AcceptanceRule {
-  id?: string;
-  scope: "order" | "line";
-  fieldPath: string;
-  operator: "equals" | "not_equals" | "contains" | "greater_than" | "less_than" | "required" | "max_length" | "in" | "min" | "max";
-  expectedValue?: string;
-  severity: "error" | "warning";
-  blockOnFail: boolean;
-}
-
-export interface AcceptanceProfile {
-  id: string;
-  supplierId: string;
-  versionNo: number;
-  status: "draft" | "active";
-  protocol?: string;
-  outputFormat?: string;
-  rules: AcceptanceRule[];
-  createdAt: string;
 }

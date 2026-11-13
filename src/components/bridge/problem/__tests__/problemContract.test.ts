@@ -10,7 +10,6 @@ import {
   type ProblemCtx,
   type ProblemStatus,
 } from "../problemCopy";
-import { opIsAllowedFrom } from "../problemActions";
 import { ROOT, listAppRoutes, matchesAny, normalizePath, isInternalPageLink } from "@/test/appRoutes";
 import { queryKeysOf, unconsumedParams } from "@/test/routeQueryParams";
 import { extractLinks, syntaxFor } from "@/test/linkExtract";
@@ -33,9 +32,6 @@ function ctx(over: Partial<ProblemCtx> = {}): ProblemCtx {
     serverMessage: null,
     failureCause: null,
     retryAfterSeconds: null,
-    readOnly: false,
-    accountStatus: null,
-    atOrderLimit: false,
     processingPaused: false,
     ...over,
   };
@@ -76,13 +72,6 @@ const CTX_VARIANTS: Array<readonly [string, ProblemCtx]> = [
   ["default", ctx()],
   ["supplier not known yet", ctx({ supplierId: null, supplier: "this supplier" })],
   ["delivery config missing", ctx({ serverMessage: "Supplier delivery config is missing." })],
-  ["read-only plan", ctx({ readOnly: true })],
-  // Read-only is NOT a Pilot state. A paying workspace whose card was declined is
-  // refused by the same server flag and reaches the same disabled controls, so the
-  // walk carries one of those too — the reason it prints differs, and a walk that
-  // only ever saw an unknown account status would never see that arm.
-  ["read-only plan, card declined", ctx({ readOnly: true, accountStatus: "past_due" })],
-  ["at the plan's order limit", ctx({ atOrderLimit: true })],
   ["order processing paused", ctx({ processingPaused: true })],
   // WP-19 — the named delivery causes. Each is its own arm of `delivery_failed`,
   // and the three `settingsFirst` ones re-order the action row, so a walk that
@@ -97,38 +86,6 @@ const CTX_VARIANTS: Array<readonly [string, ProblemCtx]> = [
   // An API that predates the field, and a cause this build has never heard of:
   // both must fall back to the generic copy rather than render a blank.
   ["a cause we do not recognise", ctx({ failureCause: "supplier_invented_by_the_future" })],
-  // The transform failures, which have no machine-readable cause and are told
-  // apart by their message (BE #172). Three of the five re-order or replace the
-  // action row, so without these variants the walks below never see the controls
-  // an operator gets for unconfirmed item codes or a supplier's own rules — the
-  // exact blind spot that let transform_failed ship a primary CTA to a retired
-  // page. Messages are verbatim; `transformCause.test.ts` owns the copy itself.
-  [
-    "lines still waiting for an item code",
-    ctx({ serverMessage: "Resolve all lines before transforming. Unresolved: 1, 3." }),
-  ],
-  [
-    "something unexpected went wrong building it",
-    ctx({
-      serverMessage:
-        "Something went wrong preparing this order to send, so it wasn't sent. Try sending it again in a moment.",
-    }),
-  ],
-  [
-    "no builder for the saved format",
-    ctx({ serverMessage: "No transform service registered for format 'xml'." }),
-  ],
-  [
-    "the supplier's rules could not be checked",
-    ctx({
-      serverMessage:
-        "This order couldn't be checked against the supplier's rules, so it wasn't sent. Try sending it again in a moment.",
-    }),
-  ],
-  [
-    "the supplier's rules refused it",
-    ctx({ serverMessage: "This order wasn't sent because it doesn't meet what the supplier accepts." }),
-  ],
 ];
 
 /** Every control the eight states can put on a screen, across every ctx variant. */
@@ -139,40 +96,6 @@ function everyAction(): Array<{ status: ProblemStatus; variant: string; action: 
     ),
   );
 }
-
-describe("no state offers a control the backend will reject", () => {
-  test.each(PROBLEM_STATUSES)("%s: every post action is allowed from this status", (status) => {
-    for (const [, variant] of CTX_VARIANTS) {
-      for (const a of PROBLEM_COPY[status].actions(variant)) {
-        if (a.kind !== "post") continue;
-        expect(
-          opIsAllowedFrom(a.op, status),
-          `${status} offers "${a.label}" → ${a.op}, which the backend rejects from ${status}`,
-        ).toBe(true);
-      }
-    }
-  });
-
-  // 2026-11-13, plan 13b task 7a: "the guard mirror itself matches the backend's sets" was removed
-  // with OrderStatusMachine — there are no backend sets left to match (see OP_ALLOWED_FROM's note).
-
-  // The product rule the mirror used to carry, stated where it is actually true:
-  // over the copy table. A refused order can be re-built by the backend; rebuilding
-  // it cannot un-refuse it, so this UI offers no button that tries. `failed` is the
-  // same — it holds no parsed order to act on. The old version of this claimed to
-  // check both and checked only one.
-  test.each(["rejected_by_supplier", "failed"] as const)(
-    "%s offers no post action — its way out is a new order, not a retry of this one",
-    (status) => {
-      const posts = CTX_VARIANTS.flatMap(([variant, c]) =>
-        PROBLEM_COPY[status].actions(c)
-          .filter((a) => a.kind === "post")
-          .map((a) => `[${variant}] ${(a as Extract<ProblemAction, { kind: "post" }>).label}`),
-      );
-      expect(posts, `${status} offers a post action: ${posts.join(", ")}`).toEqual([]);
-    },
-  );
-});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // The OTHER half of the same rule. The walk above validated `kind: "post"` and
@@ -385,32 +308,6 @@ describe("the config-missing cliff is still recognised", () => {
     expect(copy.tier(ctx({ serverMessage: "Supplier delivery config is missing." }))).toBe("self");
   });
 
-  test("and disables the retry rather than hiding it", () => {
-    const actions = PROBLEM_COPY.delivery_failed.actions(
-      ctx({ serverMessage: "Supplier delivery config is missing." }),
-    );
-    const retry = actions.find((a) => a.kind === "post" && a.op === "retryDelivery");
-    expect(retry).toBeTruthy();
-    expect(retry!.kind === "post" && retry!.disabledReason).toBeTruthy();
-  });
-});
-
-describe("read-only plans and the order limit never hide the explanation", () => {
-  test("a read-only plan disables posts but keeps every link live", () => {
-    for (const s of PROBLEM_STATUSES) {
-      const actions = PROBLEM_COPY[s].actions(ctx({ readOnly: true }));
-      for (const a of actions) {
-        if (a.kind === "post") expect(a.disabledReason, `${s}/${a.label}`).toBeTruthy();
-      }
-      expect(actions.length).toBeGreaterThan(0);
-    }
-  });
-
-  test("a retry is still allowed at the plan's order limit — it consumes nothing new", () => {
-    const actions = PROBLEM_COPY.delivery_failed.actions(ctx({ atOrderLimit: true }));
-    const retry = actions.find((a) => a.kind === "post" && a.op === "retryDelivery");
-    expect(retry!.kind === "post" && retry!.disabledReason).toBeFalsy();
-  });
 });
 
 describe("the Worker outage is reachable from the panel (D9)", () => {
@@ -432,9 +329,7 @@ describe("tiers", () => {
   // an operator to wait for support instead of pointing at the fix.
   const CANNOT_SAY: ProblemStatus[] = [
     "failed",
-    // ctx() carries no serverMessage, so transform_failed renders its unrecognised
-    // copy. It was `self` here, which meant every message the cause table could not
-    // read was answered with "your output settings are broken" and a link to them.
+    // It names no cause (its cause table went with the order write path, 2026-11-13).
     "transform_failed",
   ];
 
@@ -446,23 +341,4 @@ describe("tiers", () => {
     expect(tiers).not.toContain("us");
   });
 
-  test("transform_failed leaves `us` the moment it recognises the message", () => {
-    // The other direction: `us` is what an unread message earns, not the state's
-    // resting tier. Flatten every transform failure to "contact support" and this
-    // fails.
-    expect(PROBLEM_COPY.transform_failed.tier(ctx())).toBe("us");
-    expect(
-      PROBLEM_COPY.transform_failed.tier(
-        ctx({ serverMessage: "Resolve all lines before transforming. Unresolved: 1, 3." }),
-      ),
-    ).toBe("self");
-    expect(
-      PROBLEM_COPY.transform_failed.tier(
-        ctx({
-          serverMessage:
-            "Something went wrong preparing this order to send, so it wasn't sent. Try sending it again in a moment.",
-        }),
-      ),
-    ).toBe("wait");
-  });
 });

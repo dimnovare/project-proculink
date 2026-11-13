@@ -4,13 +4,11 @@ import { dirname, join, resolve } from "path";
 import {
   decodeSourceText,
   DOCX_MEDIA_TYPE,
-  filenameFromDisposition,
   normalizeContentType,
   resolveIncomingView,
   sourceFormatLabel,
   sourceRenderFor,
   sourceUnavailableMessage,
-  SOURCE_PURGED_FALLBACK_MESSAGE,
   type SourceDocumentState,
 } from "./sourceDocument";
 
@@ -85,22 +83,10 @@ describe("sourceFormatLabel", () => {
   });
 });
 
-describe("filenameFromDisposition", () => {
-  it("reads the quoted form", () => {
-    expect(filenameFromDisposition('inline; filename="PO-2026-0142.pdf"')).toBe("PO-2026-0142.pdf");
-  });
-
-  it("prefers the RFC 5987 form, which is the one that survives non-ASCII", () => {
-    expect(
-      filenameFromDisposition("attachment; filename=\"order.xlsx\"; filename*=UTF-8''bestellung-%C3%A4.xlsx"),
-    ).toBe("bestellung-ä.xlsx");
-  });
-
-  it("absent or unparseable yields null, never a fabricated name", () => {
-    expect(filenameFromDisposition(null)).toBeNull();
-    expect(filenameFromDisposition("inline")).toBeNull();
-  });
-});
+// A purged-state sentence: the client-side fallback copy that went with the order-source fetch
+// (2026-11-13), kept here as a fixture.
+const PURGED =
+  "This file has been removed under your organisation's data-retention policy. The order record, content hashes and audit trail are kept.";
 
 describe("sourceUnavailableMessage", () => {
   it("says nothing when a document is on screen", () => {
@@ -115,7 +101,7 @@ describe("sourceUnavailableMessage", () => {
 
     const purged = sourceUnavailableMessage({
       kind: "purged",
-      message: SOURCE_PURGED_FALLBACK_MESSAGE,
+      message: PURGED,
     })!;
     expect(purged).toContain("data-retention policy");
     expect(purged.toLowerCase()).not.toContain("error");
@@ -129,7 +115,7 @@ describe("sourceUnavailableMessage", () => {
   it("every refusal produces plain operator language — no status codes, no jargon", () => {
     const states: SourceDocumentState[] = [
       { kind: "none" },
-      { kind: "purged", message: SOURCE_PURGED_FALLBACK_MESSAGE },
+      { kind: "purged", message: PURGED },
       { kind: "missing" },
       { kind: "throttled", retryAfterSeconds: 30 },
       { kind: "error" },

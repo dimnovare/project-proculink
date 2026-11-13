@@ -122,24 +122,6 @@ export function sourceFormatLabel(contentType: string): string | null {
   }
 }
 
-/** The `filename="…"` / `filename*=UTF-8''…` value from a `Content-Disposition`, if any. */
-export function filenameFromDisposition(header: string | null | undefined): string | null {
-  if (!header) return null;
-  // RFC 5987 form wins when both are present — it is the one that survives non-ASCII.
-  const extended = /filename\*\s*=\s*UTF-8''([^;]+)/i.exec(header);
-  if (extended) {
-    try {
-      return decodeURIComponent(extended[1].trim()) || null;
-    } catch {
-      /* a malformed percent-escape is not worth failing a download over */
-    }
-  }
-  const quoted = /filename\s*=\s*"([^"]*)"/i.exec(header);
-  if (quoted) return quoted[1].trim() || null;
-  const bare = /filename\s*=\s*([^;]+)/i.exec(header);
-  return bare ? bare[1].trim() || null : null;
-}
-
 /**
  * What the operator reads when the document cannot be shown — plain procurement language, no
  * status codes, no jargon. `null` when a document IS available (nothing to explain).
@@ -164,14 +146,6 @@ export function sourceUnavailableMessage(state: SourceDocumentState, noun = "ord
       return "We couldn't load the original document just now. The captured values below are unaffected.";
   }
 }
-
-/**
- * The default 410 sentence, used when the server's own explanation does not come through (a
- * proxy ate the body, or the response was not JSON). The server sends the authoritative text —
- * `RetentionConstants.BlobPurgedError` — and we prefer it whenever it arrives.
- */
-export const SOURCE_PURGED_FALLBACK_MESSAGE =
-  "This file has been removed under your organisation's data-retention policy. The order record, content hashes and audit trail are kept.";
 
 export interface DecodedSourceText {
   text: string;

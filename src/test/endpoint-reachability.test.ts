@@ -771,7 +771,9 @@ describe("the frontend's call corpus", () => {
     // would drown the real finding in noise; a corpus missing one MODULE makes
     // its endpoints look uncalled silently, which is worse.
     // 100 -> 80 on 2026-11-13: plan 13b deleted the order API's client calls (94 today).
-    expect(CALLS.length, "the API call sweep found nothing").toBeGreaterThan(80);
+    // 80 -> 74 the same day (task 8b): the delivery-config, catalog-source and supplier client calls
+    // went with their endpoints. The floor is today's count.
+    expect(CALLS.length, "the API call sweep found nothing").toBeGreaterThanOrEqual(74);
     const stateChanging = CALLS.filter((c) => (STATE_CHANGING as readonly string[]).includes(c.method));
     expect(stateChanging.length).toBeGreaterThan(40);
 
@@ -781,7 +783,9 @@ describe("the frontend's call corpus", () => {
     // wrappers whose paths carry no marker at all.
     expect(files).toContain("src/lib/api-client.ts");
     expect(files).toContain("src/lib/api/billing.ts");
-    expect(files).toContain("src/lib/api/delivery.ts");
+    // Re-anchored 2026-11-13 from src/lib/api/delivery.ts (deleted, plan 13b): the one apiFetch
+    // wrapper left.
+    expect(files).toContain("src/lib/api/documents.ts");
 
     const keys = new Set(CALLS.map((c) => `${c.method} ${c.path}`));
     expect(keys).toContain("POST /api/flows/{}/documents");
@@ -826,7 +830,8 @@ describe("the frontend's call corpus", () => {
 
     // ANTI-VACUITY, both halves. A file-count floor alone would pass if the
     // fragment reader had been repointed at nothing, so pin what was EXTRACTED too.
-    expect(wrapperModules, "no apiFetch-wrapper module found — the sweep moved").toBeGreaterThanOrEqual(2);
+    // 2 -> 1 on 2026-11-13 (plan 13b task 8b): delivery.ts went; documents.ts is the one left.
+    expect(wrapperModules, "no apiFetch-wrapper module found — the sweep moved").toBeGreaterThanOrEqual(1);
     expect(backtickedFragments, "wrapper modules found, but no path read out of them").toBeGreaterThan(10);
 
     expect(

@@ -1,10 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { isPlanGateError, planGateUpgradeUrl } from "./planGate";
-import {
-  getAuditLog,
-  updateConnectionDraft,
-} from "./api-client";
-import type { ConnectionRevisionBundle } from "./api/types";
+import { getAuditLog } from "./api-client";
 
 // WP-11 follow-through, api layer.
 //
@@ -19,19 +15,6 @@ const GATE_BODY = JSON.stringify({
   error: "advanced_audit_requires_operations",
   upgradeUrl: "/settings?tab=billing",
 });
-
-const BUNDLE: ConnectionRevisionBundle = {
-  inputMappingJson: null,
-  outputMappingJson: null,
-  outputFormat: "cxml",
-  deliveryProtocol: "http",
-  deliveryConfigJson: null,
-  deliveryAutoDeliver: false,
-  acceptanceProfileId: null,
-  acceptanceVersionNo: null,
-  catalogMode: "live",
-  itemMappings: null,
-};
 
 function respondWith(body: string, status: number) {
   const fetchMock = vi.fn(async () => new Response(body, { status }));
@@ -58,19 +41,12 @@ describe("plan-gate 403s keep the backend's code and upgrade url", () => {
     expect(isPlanGateError((err as Error).message)).toBe(true);
   });
 
-  it("updateConnectionDraft — the draft bundle that selects a gated protocol/format", async () => {
-    respondWith(JSON.stringify({ error: "cxml_output_requires_operations", upgradeUrl: "/settings" }), 403);
-
-    const err = await updateConnectionDraft("conn-1", "rev-1", BUNDLE).catch((e: Error) => e);
-
-    expect(isPlanGateError((err as Error).message)).toBe(true);
-  });
-
   it("falls back to the status text when a failure has no body at all", async () => {
     respondWith("", 500);
 
-    const err = await updateConnectionDraft("conn-1", "rev-1", BUNDLE).catch((e: Error) => e);
+    // Re-anchored 2026-11-13 from updateConnectionDraft (deleted with /api/connections).
+    const err = await getAuditLog().catch((e: Error) => e);
 
-    expect((err as Error).message).toMatch(/update draft/i);
+    expect((err as Error).message).toBe("audit: 500");
   });
 });

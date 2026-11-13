@@ -229,16 +229,6 @@ describe("the render path is still what the corpus claims", () => {
     const src = read("src/components/bridge/problem/supplierReasonText.ts");
     expect(src).toContain("if (!looksLikeMarkupOrPayload(trimmed)) return clamp(trimmed);");
   });
-
-  test("the transform cause table augments the copy around the sentence, never replaces it", () => {
-    // `detail` is not a member of ProblemCopy, so `withTransformCause` cannot override it.
-    // Asserted on the source because that is where the invariant lives.
-    const copy = read("src/components/bridge/problem/problemCopy.ts");
-    const start = copy.indexOf("function withTransformCause");
-    expect(start, "withTransformCause is gone — re-derive whether the raw message still renders").toBeGreaterThan(0);
-    const body = copy.slice(start, copy.indexOf("\n}", start));
-    expect(body).not.toContain("detail");
-  });
 });
 
 // ── The mirror gate ──────────────────────────────────────────────────────────

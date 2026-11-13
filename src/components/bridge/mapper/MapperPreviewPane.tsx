@@ -17,7 +17,6 @@
 // to preview against we show the empty state (not an error) — offer⇔works.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { previewMappingOverride } from "@/lib/api-client";
 import type { OrderMappingOverride, OutputFormatId } from "@/lib/api/types";
 import { PREVIEW_FORMATS } from "@/lib/api/types";
 import { nextOutputFormat } from "./mapperCommands";
@@ -66,7 +65,7 @@ export interface MapperPreviewPaneProps {
    * after the user finishes resolving — they no longer have to switch format tabs to refresh.
    */
   reviewSignal?: number;
-  /** When given, runs instead of `previewMappingOverride`: `previewOrderId` and the format toggle are not used. */
+  /** The only data source; absent → the empty state. `previewOrderId` and the format toggle are not used. */
   preview?: MapperAdapter["preview"];
 }
 
@@ -140,7 +139,7 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
   // header/copy/download follow the real bytes. Genuine warnings/errors (e.g. "lines still need
   // review") pass through honestly as the warning, with content=null handled below.
   useEffect(() => {
-    if (!preview && !previewOrderId) { setContent(null); setErr(null); setInfo(null); setBusy(false); return; }
+    if (!preview) { setContent(null); setErr(null); setInfo(null); setBusy(false); return; }
     let cancelled = false;
     setBusy(true);
     // Opt into exploratory rendering only when we KNOW a delivered format to diverge from.
@@ -148,7 +147,7 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
     const honor = shouldHonorFormat(format, known);
     const t = setTimeout(async () => {
       try {
-        const res = preview ? await preview(override) : await previewMappingOverride(previewOrderId as string, override, format, honor);
+        const res = await preview(override);
         if (cancelled) return;
         const delivered = ((res.format ?? format) as string).toLowerCase() as OutputFormatId;
         const hardMessage = res.error ?? res.warning ?? null;

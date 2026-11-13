@@ -44,10 +44,8 @@
 //   ProcuLink.Api/Controllers/AdminController.cs            admin.* via WriteAdminAuditAsync
 //   ProcuLink.Api/Controllers/SettingsController.cs         InvoiceDestinationChanged
 //   ProcuLink.Infrastructure/Services/Email/InboundEmailRouter.cs   inbound_email.* via WriteAuditAsync
-//
-// Known writers with NO row here, left to plan 13b Task 8 (2026-11-13):
-//   DeliveryBounceHandler.cs     DeliveryBounced
-//   FlowDestinationService.cs    destination.tested
+//   ProcuLink.Infrastructure/Services/Delivery/DeliveryBounceHandler.cs   DeliveryBounced
+//   ProcuLink.Api/Services/Documents/FlowDestinationService.cs   destination.tested
 //
 // Flow documents (added with plan 10) write through `DocumentAudit.Add`, `AddAudit`
 // and one `Action =` initialiser, in these five files:
@@ -238,6 +236,24 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     backendSite: "ProcuLink.Api/Controllers/SettingsController.cs:77",
     reasonKeys: [],
     note: "Org-level audit row (admin only). Payload is `{ by, from, to }`: supplier ids. (Until 2026-11-13 it also carried `moved`, how many parked invoices moved; plan 13b deleted that re-route with the order pipeline.)",
+  },
+  {
+    action: "DeliveryBounced",
+    kind: "failed",
+    label: "Delivery bounced",
+    reachable: true,
+    backendSite: "ProcuLink.Infrastructure/Services/Delivery/DeliveryBounceHandler.cs:107",
+    reasonKeys: [],
+    note: "The mail provider reported an emailed delivery as bounced (InboundEmailController's bounce webhook → DeliveryBounceHandler). No reason key: `description` is the provider's own sentence and no live action declares one yet. The handler also flips a still-sending order to delivery_failed (`orderStatusChanged`).",
+  },
+  {
+    action: "destination.tested",
+    kind: "edited",
+    label: "Destination tested",
+    reachable: true,
+    backendSite: "ProcuLink.Api/Services/Documents/FlowDestinationService.cs:166",
+    reasonKeys: [],
+    note: "A test send to a flow destination. Payload is `{ success, responseCode }`: the outcome is in the payload, not the action, so the row claims neither — `edited` because it is neutral; `validated` would render a failed test as a success (isSuccessKind).",
   },
   {
     action: "SupplierSuggested",

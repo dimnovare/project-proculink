@@ -26,8 +26,9 @@ import { MapperPreviewPane } from "./MapperPreviewPane";
 // renders on.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const previewMappingOverride = vi.hoisted(() => vi.fn());
-vi.mock("@/lib/api-client", () => ({ previewMappingOverride }));
+// The flow adapter's preview — the pane's only data source since the order endpoint went
+// (2026-11-13).
+const preview = vi.fn();
 
 /** Words that assert an outcome the pane has no evidence for, in any casing. */
 const VERDICT_WORDS = [
@@ -69,10 +70,11 @@ const VERDICT_WORDS = [
  * is the thing that actually scopes.
  */
 function renderPane(format: string) {
-  previewMappingOverride.mockResolvedValue({ format, content: "PO-1,ACM-BLT,4\n", error: null });
+  preview.mockResolvedValue({ format, content: "PO-1,ACM-BLT,4\n", error: null });
   const { container, unmount } = render(
     <MapperPreviewPane
-      previewOrderId="ord-001"
+      previewOrderId={null}
+      preview={preview}
       override={{} as never}
       lastTouched={null}
       supplierName="Nordmark"
@@ -83,7 +85,7 @@ function renderPane(format: string) {
 
 beforeEach(() => {
   vi.useFakeTimers({ shouldAdvanceTime: true });
-  previewMappingOverride.mockReset();
+  preview.mockReset();
 });
 
 describe("the live preview chip claims production, not validity (P0-5)", () => {
@@ -114,7 +116,8 @@ describe("the live preview chip claims production, not validity (P0-5)", () => {
           // renders long before the preview resolves, so sweeping it immediately passes with
           // no chip on screen at all — the sweep went green with "Valid" restored. (2) Anchor
           // the chip structurally, by the fact that it is the only element in the strip
-          // carrying a `title`, never by the word it currently says. Querying it by label
+          // carrying an icon, never by the word it currently says. (It was its `title` until
+          // 2026-11-13; the chip has none on the flow path, the only one left.) Querying it by label
           // would make the whole sweep throw-and-skip the moment someone renamed it back,
           // which is the one case this test exists for.
           await pane.findByText(/PO-1,ACM-BLT/);
@@ -122,7 +125,7 @@ describe("the live preview chip claims production, not validity (P0-5)", () => {
           const header = heading.closest("div");
           expect(header, "the pane header must exist").not.toBeNull();
           expect(
-            header?.querySelector("[title]"),
+            header?.querySelector("svg"),
             `${value}: the chip must be inside the strip being swept`,
           ).not.toBeNull();
 
@@ -172,14 +175,15 @@ describe("the live preview chip claims production, not validity (P0-5)", () => {
   });
 
   it("claims nothing at all while the document is absent or the render failed", async () => {
-    previewMappingOverride.mockResolvedValue({
+    preview.mockResolvedValue({
       format: "csv",
       content: null,
       error: "Cannot transform: 2 lines still need review.",
     });
     const { container } = render(
       <MapperPreviewPane
-        previewOrderId="ord-001"
+        previewOrderId={null}
+      preview={preview}
         override={{} as never}
         lastTouched={null}
         supplierName="Nordmark"

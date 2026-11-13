@@ -276,7 +276,7 @@ describe("resolved token pairs clear their WCAG floor", () => {
 
 // ─── Part (b): the source, so a revert goes red ───────────────────────────────
 
-const SKIP_DIR = new Set(["node_modules", ".next", "mocks"]);
+const SKIP_DIR = new Set(["node_modules", ".next"]);
 
 function walk(dir: string): string[] {
   const out: string[] = [];

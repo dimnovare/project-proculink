@@ -32,9 +32,6 @@ function ctx(over: Partial<ProblemCtx> = {}): ProblemCtx {
     serverMessage: null,
     failureCause: null,
     retryAfterSeconds: null,
-    readOnly: false,
-    accountStatus: null,
-    atOrderLimit: false,
     processingPaused: false,
     ...over,
   };
@@ -45,7 +42,7 @@ const primary = (over: Partial<ProblemCtx> = {}) => actionsFor(over)[0];
 const labels = (over: Partial<ProblemCtx> = {}) => actionsFor(over).map((a) => label(a));
 
 function label(a: ProblemAction): string {
-  return a.kind === "link" || a.kind === "post" ? a.label : a.kind;
+  return a.kind === "link" ? a.label : a.kind;
 }
 
 describe("a failure the operator must fix leads with the fix", () => {
@@ -64,24 +61,16 @@ describe("a failure the operator must fix leads with the fix", () => {
     );
     expect((first as Extract<ProblemAction, { kind: "link" }>).variant).toBe("primary");
 
-    // The retry is still THERE — the path must not vanish — but demoted, because
-    // it cannot succeed until the settings change.
-    const retry = actionsFor(over).find((a) => a.kind === "post");
-    expect(retry).toBeTruthy();
-    expect(label(retry!)).toBe("Try sending now");
-    expect((retry as Extract<ProblemAction, { kind: "post" }>).variant).toBe("secondary");
-
     // And the panel says whose problem it is, in plain words.
     expect(PROBLEM_COPY.delivery_failed.attribution(ctx(over))).toContain(attributionFragment);
     // "This is yours to fix" — not "we're on it".
     expect(PROBLEM_COPY.delivery_failed.tier(ctx(over))).toBe("self");
   });
 
-  test("a cause nothing can be done about keeps the retry as the primary", () => {
+  test("a cause nothing can be done about is ours to wait on", () => {
     for (const cause of ["supplier_rate_limited", "supplier_timeout"]) {
       const over = { failureCause: cause };
-      expect(primary(over).kind).toBe("post");
-      expect((primary(over) as Extract<ProblemAction, { kind: "post" }>).variant).toBe("primary");
+      expect(labels(over)).toEqual(["See every attempt"]);
       // Genuinely ours: the backoff queue is already handling it.
       expect(PROBLEM_COPY.delivery_failed.tier(ctx(over))).toBe("wait");
     }
@@ -138,7 +127,7 @@ describe("an unknown or absent cause degrades to what shipped before", () => {
     expect(PROBLEM_COPY.delivery_failed.attribution(ctx())).toBe(
       "BoltWorks BV's system didn't accept the connection. There's nothing wrong with the order itself.",
     );
-    expect(labels()).toEqual(["Try sending now", "See every attempt"]);
+    expect(labels()).toEqual(["See every attempt"]);
     expect(PROBLEM_COPY.delivery_failed.tier(ctx())).toBe("wait");
   });
 
@@ -158,7 +147,7 @@ describe("an unknown or absent cause degrades to what shipped before", () => {
       expect(() => PROBLEM_COPY.delivery_failed.helper!(ctx(over))).not.toThrow();
       expect(() => PROBLEM_COPY.delivery_failed.actions(ctx(over))).not.toThrow();
       expect(() => PROBLEM_COPY.delivery_failed.tier(ctx(over))).not.toThrow();
-      expect(labels(over)).toEqual(["Try sending now", "See every attempt"]);
+      expect(labels(over)).toEqual(["See every attempt"]);
     },
   );
 
@@ -169,7 +158,7 @@ describe("an unknown or absent cause degrades to what shipped before", () => {
     expect(deliveryCauseFor(ctx(over))).toBeNull();
     expect(PROBLEM_COPY.delivery_failed.attribution(ctx(over)).length).toBeGreaterThan(20);
     expect(PROBLEM_COPY.delivery_failed.consequence(ctx(over)).length).toBeGreaterThan(20);
-    expect(labels(over)).toEqual(["Try sending now", "See every attempt"]);
+    expect(labels(over)).toEqual(["See every attempt"]);
   });
 
   test("the missing-delivery-config cliff still outranks any named cause", () => {
@@ -180,9 +169,5 @@ describe("an unknown or absent cause degrades to what shipped before", () => {
       failureCause: "supplier_auth_rejected",
     };
     expect(label(primary(over))).toBe("Set up delivery");
-    const retry = actionsFor(over).find((a) => a.kind === "post");
-    expect((retry as Extract<ProblemAction, { kind: "post" }>).disabledReason).toBe(
-      "This will work once delivery is set up.",
-    );
   });
 });

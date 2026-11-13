@@ -38,7 +38,7 @@ const COUNT_FIELD_RE = /\.(totalCount|sampleCount|sampleTotal)\b/g;
 // comment), and `sourceScan.test.ts` asserts this primitive is defined exactly once in the
 // repo — a local copy fails that test, which is how this import came to be here.
 
-const SKIP_DIRS = new Set(["__tests__", "test", "mocks", "node_modules"]);
+const SKIP_DIRS = new Set(["__tests__", "test", "node_modules"]);
 
 function productionSources(dir: string, acc: string[] = []): string[] {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -67,10 +67,11 @@ const rel = (p: string) => p.slice(process.cwd().length + 1).split(sep).join("/"
  */
 const DECLARED: Record<string, { reads: number; why: string }> = {
   "src/components/bridge/orderCountContract.ts": {
-    reads: 3,
+    // 3 -> 2 on 2026-11-13: summaryPopulation() (sampleTotal) went with GET /api/orders/summary.
+    reads: 2,
     why:
-      "The owner. pagePopulation() reads totalCount + sampleCount and summaryPopulation() " +
-      "reads sampleTotal; every screen consumes the result instead of the fields.",
+      "The owner. pagePopulation() reads totalCount + sampleCount; every screen consumes the " +
+      "result instead of the fields.",
   },
 };
 
@@ -97,8 +98,8 @@ describe("which population a count describes is declared, not assumed", () => {
     expect(
       undeclared,
       "These read `.totalCount` / `.sampleCount` / `.sampleTotal` directly, so they decide " +
-        "for themselves whether practice orders are counted. Use `pagePopulation` or " +
-        "`summaryPopulation` from src/components/bridge/orderCountContract.ts:\n" +
+        "for themselves whether practice orders are counted. Use `pagePopulation` " +
+        "from src/components/bridge/orderCountContract.ts:\n" +
         undeclared.map(([p, n]) => `  ${p} (${n})`).join("\n"),
     ).toEqual([]);
 

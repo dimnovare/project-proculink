@@ -54,22 +54,10 @@ const APP_ROUTES = listAppRoutes();
 const CTX_VARIANTS: ReadonlyArray<readonly [string, Partial<ProblemCtx>]> = [
   ["plain", {}],
   ["no supplier id", { supplierId: null }],
-  ["read-only plan", { readOnly: true }],
-  ["read-only plan, card declined", { readOnly: true, accountStatus: "past_due" }],
-  ["at order limit", { atOrderLimit: true }],
   ["processing paused", { processingPaused: true }],
   ["delivery config missing", { serverMessage: "Supplier delivery config is missing." }],
   ["named cause: auth", { failureCause: "supplier_auth_rejected" }],
   ["named cause: rate limit", { failureCause: "supplier_rate_limited", retryAfterSeconds: 120 }],
-  // A transform failure has no machine-readable cause, so its arms are selected by
-  // the message (BE #172). These two each replace the panel's primary control, so
-  // without them this walk checks a route no operator with unconfirmed item codes
-  // or a rules refusal is ever offered.
-  ["lines waiting for an item code", { serverMessage: "Resolve all lines before transforming. Unresolved: 1, 3." }],
-  [
-    "the supplier's rules refused it",
-    { serverMessage: "This order wasn't sent because it doesn't meet what the supplier accepts." },
-  ],
 ];
 
 function ctx(over: Partial<ProblemCtx> = {}): ProblemCtx {
@@ -81,9 +69,6 @@ function ctx(over: Partial<ProblemCtx> = {}): ProblemCtx {
     serverMessage: null,
     failureCause: null,
     retryAfterSeconds: null,
-    readOnly: false,
-    accountStatus: null,
-    atOrderLimit: false,
     processingPaused: false,
     ...over,
   };
@@ -206,12 +191,6 @@ describe("what each stopped status offers is something that can succeed", () => 
     expect(APP_ROUTES.length).toBeGreaterThan(40);
   });
 
-  test("the post walk is not vacuous", () => {
-    const posts = PROBLEM_BUCKET_STATUSES.flatMap((s) =>
-      CTX_VARIANTS.flatMap(([, over]) => PROBLEM_COPY[s as ProblemStatus].actions(ctx(over)).filter((a) => a.kind === "post")),
-    );
-    expect(posts.length).toBeGreaterThan(10);
-  });
 });
 
 describe("a status with nothing to click says so out loud", () => {
@@ -235,7 +214,6 @@ describe("a status with nothing to click says so out loud", () => {
 
   test.each(PROBLEM_BUCKET_STATUSES)("%s: a status offering no POST anywhere still routes somewhere", (status) => {
     const everyAction = CTX_VARIANTS.flatMap(([, over]) => PROBLEM_COPY[status as ProblemStatus].actions(ctx(over)));
-    if (everyAction.some((a) => a.kind === "post")) return; // has a real recovery — covered above
     // No POST at all, and for five of the eight that is correct rather than a gap:
     //   failed                 the exit is a NEW order row, not a transition on this one
     //   rejected_by_supplier   re-sending refused bytes cannot un-refuse them
@@ -250,16 +228,6 @@ describe("a status with nothing to click says so out loud", () => {
     ).toBe(true);
   });
 
-  test("the no-POST branch is reached (the check is not vacuous)", () => {
-    // Pinned as an exact set, so a status GAINING or LOSING its only post action is
-    // a deliberate edit here rather than a silent change of what the screen offers.
-    const withoutPosts = PROBLEM_BUCKET_STATUSES.filter(
-      (s) => !CTX_VARIANTS.flatMap(([, over]) => PROBLEM_COPY[s as ProblemStatus].actions(ctx(over))).some((a) => a.kind === "post"),
-    );
-    expect(withoutPosts.sort()).toEqual(
-      ["delivery_dead_letter", "delivery_held", "delivery_unconfirmed", "failed", "rejected_by_supplier", "unrouted"].sort(),
-    );
-  });
 });
 
 describe("the guard tables are one copy, not nine", () => {

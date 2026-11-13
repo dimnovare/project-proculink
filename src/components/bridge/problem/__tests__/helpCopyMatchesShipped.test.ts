@@ -1,7 +1,6 @@
 import { describe, test, expect } from "vitest";
 import { readFileSync } from "fs";
 import { join } from "path";
-import { PROBLEM_COPY } from "../problemCopy";
 import { ROOT } from "@/test/appRoutes";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -16,34 +15,11 @@ import { ROOT } from "@/test/appRoutes";
 // the first screen was already offering.
 //
 // These are source-text assertions over the .mdx — cheap, no MDX compile, no
-// providers. The load-bearing ones read their expected strings OUT of PROBLEM_COPY
-// rather than hard-coding them, so renaming a shipped button breaks the article's
-// test instead of quietly making the article wrong.
+// providers.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const ARTICLE = "src/app/(marketing)/help/exceptions-and-stuck-orders/page.mdx";
 const article = readFileSync(join(ROOT, ARTICLE), "utf8");
-
-/** The label of a shipped action, so the doc cannot drift from the button. */
-function actionLabel(status: keyof typeof PROBLEM_COPY, op: string): string {
-  const found = PROBLEM_COPY[status]
-    .actions({
-      supplier: "BoltWorks BV",
-      po: "PO 4091678643",
-      supplierId: "sup-1",
-      orderId: "ord-1",
-      serverMessage: null,
-      failureCause: null,
-      retryAfterSeconds: null,
-      readOnly: false,
-      accountStatus: null,
-      atOrderLimit: false,
-      processingPaused: false,
-    })
-    .find((a) => a.kind === "post" && a.op === op);
-  if (!found || found.kind !== "post") throw new Error(`${status} no longer offers ${op}`);
-  return found.label;
-}
 
 describe("the exceptions article describes the recovery we actually ship", () => {
   test("it no longer claims the order screen cannot requeue an out-of-retries order", () => {
