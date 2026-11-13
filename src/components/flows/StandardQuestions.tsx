@@ -26,7 +26,7 @@ export function StandardQuestions({ flow, needs, tableKey, name }: { flow: Flow;
       const m = FIELD_MEANINGS[need as keyof typeof FIELD_MEANINGS];
       const line = m?.scope === "line";
       const list = (line ? table?.columns : flow.fields.fields) ?? [];
-      return { need, label: (m?.label ?? need).replace(/^./, (c) => c.toLowerCase()), line, list, options: list.filter((f) => !f.meaning || !needs.includes(f.meaning)) };
+      return { need, label: (m?.label ?? need).replace(/^[A-Z](?=[a-z])/, (c) => c.toLowerCase()), line, list, options: list.filter((f) => !f.meaning || !needs.includes(f.meaning)) };
     })
     .filter((q) => !q.list.some((f) => f.meaning === q.need));
   // A question with nothing to choose is never shown: with no listed fields the backend reads meanings from the document itself.

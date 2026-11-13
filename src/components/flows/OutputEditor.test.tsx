@@ -118,6 +118,12 @@ describe("OutputEditor", () => {
     expect(api.saveFlowFields.mock.calls[0][1].tables[0].columns[1].meaning).toBe("line_item_code");
   });
 
+  it("a standard question keeps an acronym's capitals", () => {
+    renderEditor({ ...x12, needs: ["iban", "sender_endpoint_id"] }, { ...flow, fields: { fields: [f("Date")], tables: [lines] } });
+    expect(screen.getByLabelText("Which field is the IBAN?")).toBeTruthy();
+    expect(screen.getByLabelText("Which field is the sender Peppol ID?")).toBeTruthy();
+  });
+
   it("a standard output never asks a question nothing can answer", () => {
     // No listed fields: the backend reads meanings from the document itself, so only the table is asked about.
     renderEditor(x12, { ...flow, fields: { fields: [], tables: [lines] } });
