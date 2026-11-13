@@ -5,24 +5,27 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
-import { deleteLinkedAccount, getGooglePicker, listLinkedAccounts, startGoogleConnect } from "@/lib/api/linkedAccounts";
+import {
+  GOOGLE_CONNECT_CHANNEL, deleteLinkedAccount, getGooglePicker, listLinkedAccounts, startGoogleConnect,
+} from "@/lib/api/linkedAccounts";
 import { COPY, documentRefusalMessage } from "@/lib/documentRefusals";
 import { openGooglePicker } from "@/lib/googlePicker";
 import { Field, INPUT } from "./DestinationForm";
 
 const KEY = ["linked-accounts"];
-/** The callback page posts this to its opener once the account is saved (R9). */
-const CONNECTED = "proculink:google-connected";
 
 /** Shared by the form (are the Google kinds offered?) and the fields below. A failed list means "not available". */
 export const useLinkedAccounts = () =>
   useQuery({ queryKey: KEY, queryFn: listLinkedAccounts, enabled: useTenantQueriesEnabled(), retry: false });
 
-/** Opens the popup synchronously in the click, so a blocker allows it; without one, the whole page goes to Google. */
+/**
+ * Opens the popup synchronously in the click, so a blocker allows it. A popup needs no way back — the callback
+ * closes it — so only the full-page fallback sends `returnTo`.
+ */
 async function connect() {
   const popup = window.open("about:blank", "google-connect", "width=520,height=640");
   try {
-    const { authorizeUrl } = await startGoogleConnect(location.origin, location.pathname + location.search);
+    const { authorizeUrl } = await startGoogleConnect(location.origin, popup ? undefined : location.pathname + location.search);
     if (popup) popup.location.href = authorizeUrl;
     else location.assign(authorizeUrl);
   } catch (e) {
@@ -41,12 +44,13 @@ export function GoogleTargetFields({ protocol, config, onChange }: {
   const drive = protocol === "google_drive";
   const [idKey, nameKey] = drive ? ["folderId", "folderName"] : ["spreadsheetId", "spreadsheetName"];
 
+  // A BroadcastChannel, not window.opener: Google's sign-in pages can sever the opener (COOP).
   useEffect(() => {
-    const onMessage = (e: MessageEvent) => {
-      if (e.origin === location.origin && e.data?.type === CONNECTED) void qc.invalidateQueries({ queryKey: KEY });
+    const channel = new BroadcastChannel(GOOGLE_CONNECT_CHANNEL);
+    channel.onmessage = (e: MessageEvent) => {
+      if (e.data?.type === "connected") void qc.invalidateQueries({ queryKey: KEY });
     };
-    window.addEventListener("message", onMessage);
-    return () => window.removeEventListener("message", onMessage);
+    return () => channel.close();
   }, [qc]);
 
   const fail = (e: unknown) => setProblem(documentRefusalMessage(e));
@@ -69,24 +73,30 @@ export function GoogleTargetFields({ protocol, config, onChange }: {
 
   if (!linked.data) return null;
   const accounts = linked.data.accounts;
-  const account = accounts.find((a) => a.id === config.accountId) ?? accounts[0];
+  const saved = typeof config.accountId === "string" && config.accountId ? config.accountId : null;
+  // A saved account that is no longer connected is said so, never shown as another account's email.
+  const account = saved ? accounts.find((a) => a.id === saved) : accounts[0];
+  const lost = saved && !account && <StatusNotice tone="warning">{COPY.account_not_found}</StatusNotice>;
   const notice = problem && <StatusNotice tone="error">{problem}</StatusNotice>;
-  if (!account)
+  if (!accounts.length)
     return (
       <div className="grid gap-2">
+        {lost}
         <Button type="button" variant="secondary" onClick={start}>Connect a Google account</Button>
         {notice}
       </div>
     );
 
-  const reconnect = account.status === "reconnect";
-  const picked = typeof config[nameKey] === "string" && config[nameKey] ? String(config[nameKey]) : null;
+  const reconnect = account?.status === "reconnect";
+  const picked = account && typeof config[nameKey] === "string" && config[nameKey] ? String(config[nameKey]) : null;
   return (
     <div className="grid gap-3">
-      {accounts.length > 1 ? (
+      {lost}
+      {accounts.length > 1 || !account ? (
         <Field label="Google account">
-          <select className={INPUT} value={account.id}
+          <select className={INPUT} value={account?.id ?? ""}
             onChange={(e) => onChange({ accountId: e.target.value, [idKey]: "", [nameKey]: "" })}>
+            {!account && <option value="" disabled>Choose an account</option>}
             {accounts.map((a) => <option key={a.id} value={a.id}>{a.email}</option>)}
           </select>
         </Field>
@@ -100,9 +110,9 @@ export function GoogleTargetFields({ protocol, config, onChange }: {
       <div className="flex flex-wrap gap-2">
         {reconnect && <Button type="button" variant="primary" onClick={start}>Reconnect</Button>}
         <Button type="button" variant="ghost" onClick={start}>Connect another account</Button>
-        {!confirming && <Button type="button" variant="ghost" onClick={() => setConfirming(true)}>Disconnect</Button>}
+        {account && !confirming && <Button type="button" variant="ghost" onClick={() => setConfirming(true)}>Disconnect</Button>}
       </div>
-      {confirming && (
+      {account && confirming && (
         <StatusNotice tone="warning" action={
           <span className="flex gap-2">
             <Button type="button" variant="danger" size="sm" loading={disconnect.isPending}
@@ -114,13 +124,15 @@ export function GoogleTargetFields({ protocol, config, onChange }: {
           Google account&apos;s third-party access.
         </StatusNotice>
       )}
-      <div className="flex flex-wrap items-center gap-2">
-        <Button type="button" variant="secondary" disabled={reconnect} loading={pick.isPending}
-          onClick={() => { setProblem(null); pick.mutate(account.id); }}>
-          {drive ? "Choose folder" : "Choose spreadsheet"}
-        </Button>
-        {picked && <span className="text-[13px] text-ink">{picked}</span>}
-      </div>
+      {account && (
+        <div className="flex flex-wrap items-center gap-2">
+          <Button type="button" variant="secondary" disabled={reconnect} loading={pick.isPending}
+            onClick={() => { setProblem(null); pick.mutate(account.id); }}>
+            {drive ? "Choose folder" : "Choose spreadsheet"}
+          </Button>
+          {picked && <span className="text-[13px] text-ink">{picked}</span>}
+        </div>
+      )}
       {!drive && (
         <div className="grid gap-1">
           <Field label="Tab (optional)">

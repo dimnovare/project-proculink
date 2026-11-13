@@ -31,6 +31,9 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 
 const seg = (id: string) => encodeURIComponent(id);
 
+/** The callback page announces a saved account here; any open destination form refreshes its list (R9). */
+export const GOOGLE_CONNECT_CHANNEL = "proculink:google-connect";
+
 export const listLinkedAccounts = () => apiFetch<LinkedAccountList>(`/linked-accounts`);
 export const startGoogleConnect = (origin: string, returnTo?: string) =>
   apiFetch<GoogleStart>(`/linked-accounts/google/start`, { method: "POST", body: JSON.stringify({ origin, returnTo }) });

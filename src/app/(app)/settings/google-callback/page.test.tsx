@@ -11,7 +11,17 @@ vi.mock("next/navigation", () => ({
 }));
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => true }));
 const linked = vi.hoisted(() => ({ completeGoogleConnect: vi.fn() }));
-vi.mock("@/lib/api/linkedAccounts", () => linked);
+vi.mock("@/lib/api/linkedAccounts", async (original) => ({
+  ...(await original<typeof import("@/lib/api/linkedAccounts")>()),
+  completeGoogleConnect: linked.completeGoogleConnect,
+}));
+
+const posts: { name: string; data: unknown }[] = [];
+vi.stubGlobal("BroadcastChannel", class {
+  constructor(private name: string) {}
+  postMessage(data: unknown) { posts.push({ name: this.name, data }); }
+  close() {}
+});
 
 const mount = () => within(render(
   <StrictMode>
@@ -24,23 +34,29 @@ const mount = () => within(render(
 afterEach(() => {
   vi.restoreAllMocks();
   linked.completeGoogleConnect.mockReset();
-  Object.defineProperty(window, "opener", { value: null, configurable: true });
+  nav.replace.mockReset();
+  posts.length = 0;
 });
 
 describe("Google callback page", () => {
-  it("exchanges the code once under StrictMode's double mount, then tells the opener", async () => {
+  it("exchanges the code once under StrictMode's double mount, announces it, and closes the popup", async () => {
     nav.search = "?code=c1&state=s1";
-    const postMessage = vi.fn();
-    Object.defineProperty(window, "opener", { value: { postMessage }, configurable: true });
     const close = vi.spyOn(window, "close").mockImplementation(() => {});
-    linked.completeGoogleConnect.mockResolvedValue({ account: { id: "acc-1" }, returnTo: "/flows/f1" });
+    linked.completeGoogleConnect.mockResolvedValue({ account: { id: "acc-1" }, returnTo: null });
     const ui = mount();
     expect(await ui.findByText("Google account connected. You can close this window.")).toBeTruthy();
     expect(linked.completeGoogleConnect).toHaveBeenCalledTimes(1);
     expect(linked.completeGoogleConnect).toHaveBeenCalledWith("c1", "s1");
-    expect(postMessage).toHaveBeenCalledWith({ type: "proculink:google-connected" }, location.origin);
+    expect(posts).toEqual([{ name: "proculink:google-connect", data: { type: "connected" } }]);
     expect(close).toHaveBeenCalled();
     expect(nav.replace).not.toHaveBeenCalled();
+  });
+
+  it("never follows a returnTo a browser would read as another site", async () => {
+    nav.search = "?code=c2&state=s2";
+    linked.completeGoogleConnect.mockResolvedValue({ account: { id: "acc-1" }, returnTo: "/\t/evil.example" });
+    mount();
+    await waitFor(() => expect(nav.replace).toHaveBeenCalledWith("/flows"));
   });
 
   it("shows the not-granted copy and calls nothing when the user declined", async () => {

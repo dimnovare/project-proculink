@@ -5,7 +5,6 @@ import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { Card } from "@/components/bridge/layout/Card";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
-import { DELIVERY_TEST_DISCLOSURE } from "@/components/bridge/deliveryTestDisclosure";
 import { createDestination, testDestination, updateDestination } from "@/lib/api/documents";
 import type { Destination, DestinationRequest } from "@/lib/api/documents";
 import { MANAGED_CONFIG_KEYS } from "@/lib/deliveryConfigKeys";
@@ -218,7 +217,7 @@ export function DestinationForm({ destination, preset, onSaved, onCancel }: {
         <p className="text-[12px] text-ink-muted">
           A test sends the saved settings, so save your changes first. It is marked as a test: the file name starts
           with TEST_, an email subject starts with [TEST], and web requests carry a test header.
-          {protocol === "google_sheets" && ` ${DELIVERY_TEST_DISCLOSURE.google_sheets.effect}`}
+          {protocol === "google_sheets" && " This checks that ProcuLink can open the spreadsheet and the tab you chose. It adds no rows."}
         </p>
         {test.isError && <StatusNotice tone="error">{documentRefusalMessage(test.error)}</StatusNotice>}
         {result && (

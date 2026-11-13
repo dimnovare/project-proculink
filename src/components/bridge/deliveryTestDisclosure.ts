@@ -48,8 +48,12 @@ export interface DeliveryTestDisclosure {
  * Every protocol in the union, including `smtp`. `smtp` is retired from both pickers but is still
  * a member of `DeliveryProtocol` and still has saved configs in the wild, so it gets the real
  * sentence rather than a fallback — a retired channel that still sends is still sending.
+ *
+ * Except the two Google kinds (plan 9b, 2026-11-13): they are flow destinations only, the supplier
+ * editors that render this never offer them, so the lookup answers null for them as for any
+ * channel it has not been taught. The flow form words its own Google test.
  */
-export const DELIVERY_TEST_DISCLOSURE: Record<DeliveryProtocol, DeliveryTestDisclosure> = {
+export const DELIVERY_TEST_DISCLOSURE: Record<Exclude<DeliveryProtocol, "google_drive" | "google_sheets">, DeliveryTestDisclosure> = {
   manual: {
     effect:
       "There is nothing to test here. ProcuLink sends nothing for this supplier, so no test file and " +
@@ -111,14 +115,6 @@ export const DELIVERY_TEST_DISCLOSURE: Record<DeliveryProtocol, DeliveryTestDisc
     effect: "This writes a small sample file, not an order, named TEST_ followed by the file name, into the bucket you configured.",
     caveat: null,
   },
-  google_drive: {
-    effect: "This writes a small sample file, not an order, named TEST_ followed by the file name, into the Google Drive folder you chose.",
-    caveat: null,
-  },
-  google_sheets: {
-    effect: "This checks that ProcuLink can open the spreadsheet and the tab you chose. It adds no rows and sends no order.",
-    caveat: null,
-  },
 };
 
 /**
@@ -131,5 +127,5 @@ export const DELIVERY_TEST_DISCLOSURE: Record<DeliveryProtocol, DeliveryTestDisc
  * the operator is not told something untrue.
  */
 export function deliveryTestDisclosure(protocol: string): DeliveryTestDisclosure | null {
-  return DELIVERY_TEST_DISCLOSURE[protocol as DeliveryProtocol] ?? null;
+  return DELIVERY_TEST_DISCLOSURE[protocol as keyof typeof DELIVERY_TEST_DISCLOSURE] ?? null;
 }

@@ -11,6 +11,7 @@ const api = vi.hoisted(() => ({
 }));
 vi.mock("@/lib/api/documents", () => api);
 const linked = vi.hoisted(() => ({
+  GOOGLE_CONNECT_CHANNEL: "proculink:google-connect",
   listLinkedAccounts: vi.fn(),
   getGooglePicker: vi.fn(),
   startGoogleConnect: vi.fn(),
@@ -165,5 +166,20 @@ describe("DestinationForm", () => {
     fireEvent.change(ui.getByLabelText("Send by"), { target: { value: "google_sheets" } });
     expect(ui.getByRole("button", { name: "Reconnect" })).toBeTruthy();
     expect((ui.getByRole("button", { name: "Choose spreadsheet" }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("says a saved account is gone instead of showing another account as chosen", async () => {
+    linked.listLinkedAccounts.mockResolvedValue({ available: true, accounts: [account] });
+    const gone: Destination = { ...saved, protocol: "google_drive", hasCredentials: false,
+      config: { accountId: "acc-gone", folderId: "f0", folderName: "Old folder" } };
+    const ui = within(render(
+      <QueryClientProvider client={new QueryClient()}>
+        <DestinationForm destination={gone} onSaved={() => {}} onCancel={() => {}} />
+      </QueryClientProvider>,
+    ).container);
+    expect(await ui.findByText("That Google account is no longer connected.")).toBeTruthy();
+    expect((ui.getByLabelText("Google account") as HTMLSelectElement).value).toBe("");
+    expect(ui.queryByText("Old folder")).toBeNull();
+    expect(ui.queryByRole("button", { name: "Choose folder" })).toBeNull();
   });
 });

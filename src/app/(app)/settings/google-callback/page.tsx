@@ -1,8 +1,8 @@
 "use client";
 
-// Google redirects here after the consent screen (plan 9b, R9). The page finishes the exchange, then
-// tells the destination form that opened it, or — when the popup was blocked and the whole tab went
-// to Google — goes back to where the user started.
+// Google redirects here after the consent screen (plan 9b, R9). The page finishes the exchange and
+// announces it on a BroadcastChannel (Google's sign-in pages can sever window.opener), then closes the
+// popup — or, when the popup was blocked and the whole tab went to Google, goes back to `returnTo`.
 
 import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -10,8 +10,15 @@ import { useQuery } from "@tanstack/react-query";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
-import { completeGoogleConnect } from "@/lib/api/linkedAccounts";
+import { GOOGLE_CONNECT_CHANNEL, completeGoogleConnect } from "@/lib/api/linkedAccounts";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
+
+/**
+ * The same check as GoogleConnectService.Start: a same-site path with no control character (C#
+ * `char.IsControl` is `\p{Cc}`), else /flows. A URL parser drops tabs, so "/\t/host" means "//host".
+ */
+const safePath = (p: string) =>
+  p.startsWith("/") && !p.startsWith("//") && !p.startsWith("/\\") && !/\p{Cc}/u.test(p) ? p : "/flows";
 
 function GoogleCallback() {
   const params = useSearchParams();
@@ -26,10 +33,12 @@ function GoogleCallback() {
     queryKey: ["google-complete", state],
     queryFn: async () => {
       const result = await completeGoogleConnect(code!, state!);
-      if (window.opener) {
-        window.opener.postMessage({ type: "proculink:google-connected" }, location.origin);
-        window.close();
-      } else router.replace(result.returnTo ?? "/flows");
+      const channel = new BroadcastChannel(GOOGLE_CONNECT_CHANNEL);
+      channel.postMessage({ type: "connected" });
+      channel.close();
+      // No returnTo means a popup: close it (the copy below covers a refused close).
+      if (result.returnTo == null) window.close();
+      else router.replace(safePath(result.returnTo));
       return result;
     },
     enabled: granted && enabled,
