@@ -59,9 +59,9 @@ const CONSTANTS_REL = "ProcuLink.Core/Constants/OrderStatusConstants.cs";
 // them the Transitions / DeclaredTerminal / ResolveHeldFrom / OP_GUARDS diffs and the
 // transform-failure sentence mirror. The status list is now diffed against the constants alone.
 /**
- * THE list of outbound transforms the solution ships. `OutputTransformRegistry.All` is what both
- * hosts register (via `AddOutputTransforms()`) AND what `OutputTransformRegistry.Catalog` derives
- * the buildable-format allow-list from, so it is the one place a transform can be added or removed.
+ * THE list of outbound transforms the solution ships. `OutputTransformRegistry.All` is what the
+ * engine's standard outputs pick their writer from, so it is the one place a transform can be
+ * added or removed.
  */
 const TRANSFORM_REGISTRY_REL = "ProcuLink.Transform/Output/OutputTransformRegistry.cs";
 /** Where each registered transform's own `CanTransform` arm lives, keyed by class name. */
@@ -69,13 +69,15 @@ const TRANSFORM_OUTPUT_DIR = "ProcuLink.Transform/Output";
 /** Declares `enum OutputFormat` — the members, buildable and not, that `CanTransform` is asked about. */
 const OUTPUT_FORMAT_ENUM_REL = "ProcuLink.Core/Services/ITransformService.cs";
 /**
- * The API DI composition root. No longer read for individual `ITransformService` registrations —
- * BE #182 replaced those with a single `AddOutputTransforms()` — but still read to confirm the host
- * really delegates to the registry rather than hand-listing transforms beside it.
+ * The API DI composition root. Read to confirm no host hand-lists an `ITransformService`
+ * registration: the hosts register none (plan 13b dropped `AddOutputTransforms()`, which nothing
+ * resolved), so one appearing here would be a second transform list beside the registry.
  */
 const PROGRAM_REL = "ProcuLink.Api/Program.cs";
-/** The worker host. Registers the same transform layer; `TransformOrderJob` is where transform runs. */
+/** The worker host. Same check as the API host. */
 const WORKER_PROGRAM_REL = "ProcuLink.Worker/Program.cs";
+/** The one production reader of `OutputTransformRegistry.All` — what keeps the registry THE list. */
+const STANDARD_OUTPUTS_REL = "ProcuLink.Transform/Documents/StandardOutputs.cs";
 /**
  * Declares `PlanConstants.MinimumPlan` — the price list, in code. Which tier a gated
  * capability starts on is a COMMERCIAL decision, and `src/lib/gatedCapabilities.ts`
@@ -100,6 +102,7 @@ const PARSED_FILES = [
   OUTPUT_FORMAT_ENUM_REL,
   PROGRAM_REL,
   WORKER_PROGRAM_REL,
+  STANDARD_OUTPUTS_REL,
   PLAN_CONSTANTS_REL,
   DOCUMENT_STATUS_REL,
 ] as const;
@@ -353,6 +356,7 @@ describe("the mirror gate decides correctly", () => {
       OUTPUT_FORMAT_ENUM_REL,
       PROGRAM_REL,
       WORKER_PROGRAM_REL,
+      STANDARD_OUTPUTS_REL,
       PLAN_CONSTANTS_REL,
       DOCUMENT_STATUS_REL,
     ]);
@@ -707,23 +711,24 @@ describe("the formats we advertise as output are the formats a transform exists 
     ).toBeGreaterThan(0);
   });
 
-  test.skipIf(!BACKEND)("the hosts register the transform layer from the registry, not beside it", () => {
-    // The registry is only THE list while the hosts actually delegate to it. A host that went back
-    // to hand-listing `AddSingleton<ITransformService, …>` would put a transform into DI that
-    // `OutputTransformRegistry.Catalog` — and therefore this whole block — cannot see.
+  test.skipIf(!BACKEND)("the engine reads the transform layer from the registry, and no host lists it beside it", () => {
+    // 2026-11-13, plan 13b task 8a: re-anchored. This used to require `AddOutputTransforms()` in
+    // both hosts; that registration had no consumer and went. The registry is THE list while its
+    // one production reader iterates `OutputTransformRegistry.All` — so pin that reader, and keep
+    // the half that still means something: no host hand-lists a transform beside it.
+    const standardOutputs = stripCsComments(readFileSync(join(BACKEND!, STANDARD_OUTPUTS_REL), "utf8"));
+    expect(
+      standardOutputs,
+      `${STANDARD_OUTPUTS_REL} no longer reads OutputTransformRegistry.All. If the engine picks its ` +
+        "writer some other way now, this file's reader has to follow it — the buildable set below is " +
+        `derived from ${TRANSFORM_REGISTRY_REL} and would otherwise describe a list nothing uses.`,
+    ).toMatch(/\bOutputTransformRegistry\.All\b/);
     for (const rel of [PROGRAM_REL, WORKER_PROGRAM_REL]) {
       const cs = stripCsComments(readFileSync(join(BACKEND!, rel), "utf8"));
       expect(
-        cs,
-        `${rel} no longer calls AddOutputTransforms(). If the transform layer is registered some ` +
-          "other way now, this file's reader has to follow it — the buildable set below is derived " +
-          `from ${TRANSFORM_REGISTRY_REL} and would otherwise describe a list nothing uses.`,
-      ).toContain("AddOutputTransforms()");
-      expect(
         [...cs.matchAll(/Add(?:Singleton|Scoped|Transient)\s*<\s*ITransformService\s*[,>]/g)],
-        `${rel} hand-lists an ITransformService registration beside AddOutputTransforms(). A ` +
-          "transform registered there is invisible to OutputTransformRegistry.Catalog, so the " +
-          "backend's own write-path allow-list would refuse the format it can build.",
+        `${rel} hand-lists an ITransformService registration. A transform registered there is not ` +
+          `in ${TRANSFORM_REGISTRY_REL}, so the buildable set below cannot see it.`,
       ).toHaveLength(0);
     }
   });
