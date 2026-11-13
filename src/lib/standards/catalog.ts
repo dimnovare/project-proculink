@@ -207,6 +207,62 @@ export const STANDARDS: StandardSupport[] = [
     referenceUrl: "https://ec.europa.eu/digital-building-blocks/sites/spaces/DIGITAL/pages/467108974/Obtaining+a+copy+of+the+European+standard+on+eInvoicing",
   },
   {
+    id: "xrechnung-ubl",
+    name: "XRechnung UBL (invoice)",
+    version: "3.0",
+    family: "xml",
+    parse: "none",
+    transform: "partial",
+    transport: "Peppol Access Point (AS4) or direct exchange — ProcuLink does not provide the transport",
+    conformance:
+      "Outbound: written by the flow standard output behind the per-org flag, and checked when a document is read and on " +
+      "demand against the XRechnung rules by the validator sidecar — a rule check, not network acceptance. " +
+      "No document has been accepted by a trading partner.",
+    referenceUrl: "https://xeinkauf.de/xrechnung/",
+  },
+  {
+    id: "xrechnung-ubl-credit-note",
+    name: "XRechnung UBL (credit note)",
+    version: "3.0",
+    family: "xml",
+    parse: "none",
+    transform: "partial",
+    transport: "Peppol Access Point (AS4) or direct exchange — ProcuLink does not provide the transport",
+    conformance:
+      "Outbound: written by the flow standard output behind the per-org flag, and checked when a document is read and on " +
+      "demand against the XRechnung rules by the validator sidecar — a rule check, not network acceptance. " +
+      "No document has been accepted by a trading partner.",
+    referenceUrl: "https://xeinkauf.de/xrechnung/",
+  },
+  {
+    id: "xrechnung-cii",
+    name: "XRechnung CII (invoice)",
+    version: "3.0",
+    family: "xml",
+    parse: "none",
+    transform: "partial",
+    transport: "Peppol Access Point (AS4) or direct exchange — ProcuLink does not provide the transport",
+    conformance:
+      "Outbound: written by the flow standard output behind the per-org flag, and checked when a document is read and on " +
+      "demand against the XRechnung rules by the validator sidecar — a rule check, not network acceptance. " +
+      "No document has been accepted by a trading partner.",
+    referenceUrl: "https://xeinkauf.de/xrechnung/",
+  },
+  {
+    id: "xrechnung-cii-credit-note",
+    name: "XRechnung CII (credit note)",
+    version: "3.0",
+    family: "xml",
+    parse: "none",
+    transform: "partial",
+    transport: "Peppol Access Point (AS4) or direct exchange — ProcuLink does not provide the transport",
+    conformance:
+      "Outbound: written by the flow standard output behind the per-org flag, and checked when a document is read and on " +
+      "demand against the XRechnung rules by the validator sidecar — a rule check, not network acceptance. " +
+      "No document has been accepted by a trading partner.",
+    referenceUrl: "https://xeinkauf.de/xrechnung/",
+  },
+  {
     id: "sap-idoc-orders05",
     name: "SAP IDoc ORDERS05",
     version: "ORDERS05 (basic type)",
