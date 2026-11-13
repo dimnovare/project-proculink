@@ -153,11 +153,12 @@ describe("a row cannot sell a standard it does not measure", () => {
 
 describe("outbound status is derived from what we can emit", () => {
   it("reads a different level than the inbound one", () => {
-    // EDIFACT is the discriminator: `parse: partial`, `transform: planned`. Wire `transformStatus`
-    // back to `parse` and these two collapse to the same value.
-    expect(parseStatus("edifact-orders")).toBe("configurable");
-    expect(transformStatus("edifact-orders")).toBe("onRequest");
-    expect(parseStatus("edifact-orders")).not.toBe(transformStatus("edifact-orders"));
+    // Peppol BIS Order is the discriminator: `parse: partial`, `transform: planned`. Wire `transformStatus`
+    // back to `parse` and these two collapse to the same value. (EDIFACT ORDERS was the discriminator
+    // until 2026-11-13, when plan 8d made its transform "partial".)
+    expect(parseStatus("peppol-bis-order-3")).toBe("configurable");
+    expect(transformStatus("peppol-bis-order-3")).toBe("onRequest");
+    expect(parseStatus("peppol-bis-order-3")).not.toBe(transformStatus("peppol-bis-order-3"));
   });
 
   it("no output format is sold from a standard we cannot emit", () => {

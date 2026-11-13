@@ -6,7 +6,7 @@ import { Button } from "@/components/bridge/DSPrimitives";
 import { Card } from "@/components/bridge/layout/Card";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { DestinationForm, Field, INPUT } from "@/components/flows/DestinationForm";
-import { FORMATS } from "@/components/flows/OutputEditor";
+import { outputTypeLabel } from "@/components/flows/OutputEditor";
 import { createOutput, listDestinations, testOutput } from "@/lib/api/documents";
 import type { DraftCite, Flow, FlowOutput, OutputDraft } from "@/lib/api/documents";
 import { COPY, documentRefusalMessage } from "@/lib/documentRefusals";
@@ -80,7 +80,7 @@ export function DraftReview({ flow, draft, requireTest, previewDocumentId, onCre
         <Field label="Name">
           <input className={INPUT} maxLength={120} value={name} onChange={(e) => setName(e.target.value)} />
         </Field>
-        <p className="text-[13px] text-ink-muted">{Object.hasOwn(FORMATS, draft.format) ? FORMATS[draft.format as keyof typeof FORMATS] : draft.format}</p>
+        <p className="text-[13px] text-ink-muted">{outputTypeLabel(draft)}</p>
         <Cite cite={draft.formatCite} show={!!requireTest} />
         {leaves.map(({ path, node, inTable }) => {
           const draftLeaf = draft.leaves.find((l) => l.path === path);

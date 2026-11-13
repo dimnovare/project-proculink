@@ -8,15 +8,20 @@ import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { DestinationForm, Field, INPUT } from "@/components/flows/DestinationForm";
 import { LookupMisses } from "@/components/flows/LookupMisses";
 import { PdfDocumentView } from "@/components/bridge/document/PdfDocumentView";
-import { createOutput, deleteOutputLogo, listDestinations, listLookups, previewOutput, updateOutput, uploadOutputLogo } from "@/lib/api/documents";
+import { checkOutput, createOutput, deleteOutputLogo, listDestinations, listLookups, previewOutput, updateOutput, uploadOutputLogo } from "@/lib/api/documents";
 import type { Flow, FlowOutput, LookupSummary, OutputLayout, SendWhen, SendWhenOp } from "@/lib/api/documents";
 import { ApiHttpError } from "@/lib/api/core";
 import { COPY, documentRefusalMessage } from "@/lib/documentRefusals";
 import { defaultWidth, fromSimple, OP_LABEL, toSimple } from "@/lib/flowOutputModel";
 import type { SimpleOutput, SimpleRow } from "@/lib/flowOutputModel";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
+import { FLAGGED, RULE_SETS, standardName } from "@/lib/standardOutputs";
+import { StandardQuestions } from "@/components/flows/StandardQuestions";
 
 export const FORMATS = { csv: "CSV", xlsx: "Excel", json: "JSON", xml: "XML", pdf: "PDF", txt: "Text", fixed: "Fixed-width text" };
+/** What an output makes: its standard's name, else its file type. Never decided from `template.format`. */
+export const outputTypeLabel = (o: { format: string; standard?: string | null }) =>
+  o.standard ? standardName(o.standard) : Object.hasOwn(FORMATS, o.format) ? FORMATS[o.format as keyof typeof FORMATS] : o.format;
 const SEPARATORS = [[",", "Comma"], [";", "Semicolon"], ["\t", "Tab"]];
 const LAYOUT_FIELDS = [["title", "Title", 120], ["header", "Text at the top", 500], ["footer", "Text at the bottom", 500]] as const;
 const FIXED = "\u0000fixed";
@@ -90,7 +95,7 @@ export function OutputEditor({ flow, output, previewDocumentId, hideDestination,
   const [tableKey, setTableKey] = useState<string | null>(output ? output.tableKey : (flow.fields.tables[0]?.key ?? null));
   const [destinationId, setDestinationId] = useState<string | null>(output?.destinationId ?? null);
   const [newDestination, setNewDestination] = useState(false);
-  const [rows, setRows] = useState<SimpleOutput | null>(output ? toSimple(output.template) : null);
+  const [rows, setRows] = useState<SimpleOutput | null>(output && !output.standard ? toSimple(output.template) : null);
   const [sendWhen, setSendWhen] = useState<SendWhen | null>(output?.sendWhen ?? null);
   const [layout, setLayout] = useState<OutputLayout>(output?.layout ?? {});
   const [problem, setProblem] = useState<string | null>(null);
@@ -98,10 +103,13 @@ export function OutputEditor({ flow, output, previewDocumentId, hideDestination,
   const destinations = useQuery({ queryKey: ["destinations"], queryFn: listDestinations, enabled: useTenantQueriesEnabled() });
   const lookups = useQuery({ queryKey: ["lookups"], queryFn: listLookups, enabled: useTenantQueriesEnabled() });
   const lookupList = lookups.data ?? (lookups.isError ? "failed" : "loading");
-  const external = !!current && !rows;
-  const formatted = format === "pdf" || format === "txt";
+  const standard = current?.standard;
+  const external = !!current && !rows && !standard;
+  const formatted = !standard && (format === "pdf" || format === "txt");
 
   const preview = useMutation({ mutationFn: () => previewOutput(previewDocumentId!, current!.id) });
+  const check = useMutation({ mutationFn: (documentId: string) => checkOutput(flow.id, current!.id, documentId) });
+  const checkedHere = check.variables === previewDocumentId; // a result belongs to the document it was asked about
   const logoInput = useRef<HTMLInputElement>(null);
   const logo = useMutation({
     mutationFn: (file: File | null) => (file ? uploadOutputLogo(flow.id, current!.id, file) : deleteOutputLogo(flow.id, current!.id)),
@@ -129,6 +137,7 @@ export function OutputEditor({ flow, output, previewDocumentId, hideDestination,
       const created = !current;
       setProblem(null);
       preview.reset();
+      check.reset();
       setCurrent(saved);
       if (created) setRows(toSimple(saved.template));
       qc.invalidateQueries({ queryKey: ["outputs", flow.id] });
@@ -163,12 +172,16 @@ export function OutputEditor({ flow, output, previewDocumentId, hideDestination,
         <Field label="Name">
           <input className={INPUT} maxLength={120} value={name} onChange={(e) => setName(e.target.value)} />
         </Field>
-        <Field label="File type">
-          <select className={INPUT} value={format} disabled={external} onChange={(e) => setFormat(e.target.value)}>
-            {!Object.hasOwn(FORMATS, format) && <option value={format}>{format}</option>}
-            {Object.entries(FORMATS).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
-          </select>
-        </Field>
+        {standard ? (
+          <Field label="Standard"><input className={INPUT} readOnly value={standardName(standard)} /></Field>
+        ) : (
+          <Field label="File type">
+            <select className={INPUT} value={format} disabled={external} onChange={(e) => setFormat(e.target.value)}>
+              {!Object.hasOwn(FORMATS, format) && <option value={format}>{format}</option>}
+              {Object.entries(FORMATS).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+            </select>
+          </Field>
+        )}
         {rows && format === "csv" && (
           <Field label="Separator">
             <select className={INPUT} value={rows.delimiter ?? ","} onChange={(e) => setRows({ ...rows, delimiter: e.target.value })}>
@@ -274,6 +287,7 @@ export function OutputEditor({ flow, output, previewDocumentId, hideDestination,
             )}
           </>
         )}
+        {standard && <StandardQuestions flow={flow} needs={current.needs ?? []} tableKey={tableKey} name={standardName(standard)} />}
         {problem && <StatusNotice tone="error">{problem}</StatusNotice>}
         <div className="flex flex-wrap gap-2">
           <Button type="submit" variant="primary" loading={save.isPending}>{current ? "Save" : "Create"}</Button>
@@ -281,7 +295,23 @@ export function OutputEditor({ flow, output, previewDocumentId, hideDestination,
           {previewDocumentId && current && (
             <Button type="button" variant="secondary" loading={preview.isPending} onClick={() => preview.mutate()}>Preview</Button>
           )}
+          {previewDocumentId && current && standard && FLAGGED.has(standard) && flow.peppolOn && (
+            <Button type="button" variant="secondary" loading={check.isPending} onClick={() => check.mutate(previewDocumentId)}>Check against {RULE_SETS[standard]?.short} rules</Button>
+          )}
         </div>
+        {checkedHere && check.isError && <StatusNotice tone="error">{documentRefusalMessage(check.error)}</StatusNotice>}
+        {checkedHere && check.data?.status === "passed" && <StatusNotice tone="success">Passes the {RULE_SETS[standard ?? ""]?.long} rules.</StatusNotice>}
+        {checkedHere && check.data?.status === "unavailable" && <StatusNotice tone="warning">We couldn&apos;t reach the rule checker. Try again in a minute.</StatusNotice>}
+        {checkedHere && check.data?.status === "failed" && (
+          <StatusNotice tone="warning">
+            Doesn&apos;t meet {check.data.issues.filter((i) => i.severity === "error").length} {RULE_SETS[standard ?? ""]?.short} rule(s):
+            <ul className="mt-1 list-disc pl-4">
+              {[...check.data.issues].sort((a, b) => Number(b.severity === "error") - Number(a.severity === "error")).map((i, n) => (
+                <li key={n}>{i.ruleId} — {i.message}{i.severity === "error" ? "" : ` (${i.severity})`}</li>
+              ))}
+            </ul>
+          </StatusNotice>
+        )}
         {previewDocumentId && current && <p className="text-[12px] text-ink-muted">Preview shows the last saved version.</p>}
         {preview.isError && <StatusNotice tone="error">{documentRefusalMessage(preview.error)}</StatusNotice>}
         {previewDocumentId && current && preview.data?.lookupMisses?.length ? (

@@ -50,6 +50,7 @@ export const COPY: Record<string, string> = {
   moved_table_columns: "Columns that hold table values now come after the other columns.",
   docs_lead: "Upload the receiving system's import or API documentation: a PDF, a saved web page, OpenAPI or JSON Schema, XSD, or an example file.",
   docs_outputs_off: "Outputs from documentation aren't switched on for this workspace.",
+  peppol_off: "E-invoice outputs aren't switched on for this workspace.",
   ai_error: "We couldn't read the documentation. Try again.",
   destination_not_found: "This destination no longer exists.",
   truncated: "This documentation is long, so only its first part was read.",

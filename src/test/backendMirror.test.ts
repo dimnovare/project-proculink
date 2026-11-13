@@ -14,6 +14,7 @@ import { FIELD_MEANINGS } from "@/lib/fieldMeanings";
 import { FORMATS } from "@/components/flows/OutputEditor";
 import { PREVIEW_FORMATS } from "@/lib/api/types";
 import { STANDARDS } from "@/lib/standards/catalog";
+import { FLAGGED, STANDARD_OUTPUTS } from "@/lib/standardOutputs";
 import {
   TRANSFORM_CAUSE_MATCHERS,
   TRANSFORM_CAUSE_NAMES,
@@ -1520,7 +1521,8 @@ const EXPECTED_COMPARISONS =
   1 + // MINIMUM_PLAN against PlanConstants.MinimumPlan
   5 + // the ladder's numbers: Limits, MonthlyPriceEur, OveragePerOrderEur, FlowLimits, OverageRatesEur
   1 + // document statuses
-  1; // field meanings
+  1 + // field meanings
+  2; // standard outputs: the ids, and which are flagged
 
 afterAll(() => {
   if (!BACKEND) return; // the mirror gate already ruled on whether that was allowed
@@ -1566,5 +1568,21 @@ describe("field meanings mirror the backend", () => {
       Object.keys(FIELD_MEANINGS),
       "The field meaning vocabulary drifted from FieldMeanings.cs.",
     );
+  });
+});
+
+describe("standard outputs mirror the backend", () => {
+  test.skipIf(!BACKEND)("STANDARD_OUTPUTS equals StandardOutputs.All", () => {
+    const cs = stripCsComments(readFileSync(join(BACKEND!, "ProcuLink.Transform/Documents/StandardOutputs.cs"), "utf8"));
+    const ids = [...cs.matchAll(/new\("([a-z0-9-]+)"/g)].map((m) => m[1]);
+    expect(ids.length, "StandardOutputs.cs parsed to no standards, so this would prove nothing").toBeGreaterThan(0);
+    recordComparison("StandardOutputs.All", ids, STANDARD_OUTPUTS, "The standards a flow output can use drifted from StandardOutputs.cs.");
+    // The bool straight after the vesid string is Flagged.
+    const flagged = [...cs.matchAll(/new\("([a-z0-9-]+)"[^\n]*"[^"\n]*:[^"\n]*",\s*(true|false)/g)].filter((m) => m[2] === "true").map((m) => m[1]);
+    recordComparison("StandardOutputs.Flagged", flagged, [...FLAGGED], "The flagged standards drifted from StandardOutputs.cs.");
+  });
+
+  test("every standard output has a catalog entry", () => {
+    expect(STANDARD_OUTPUTS.filter((id) => !STANDARDS.some((s) => s.id === id))).toEqual([]);
   });
 });

@@ -15,7 +15,7 @@ import { documentRefusalMessage } from "@/lib/documentRefusals";
 import { documentStatus } from "@/lib/documentStatusManifest";
 import { saveBlob } from "@/lib/saveBlob";
 import { LookupMisses } from "./LookupMisses";
-import { FORMATS } from "./OutputEditor";
+import { outputTypeLabel } from "./OutputEditor";
 import { destinationName, Failed, Quiet } from "./states";
 
 // An unknown token shows as itself, never as a success word.
@@ -77,10 +77,10 @@ function OutputRow({ o, flowId, documentId, flowFields, destinations }: {
           <span className="text-[13px] font-medium text-ink">{o.name}</span>
           {o.sendWhen && <span className="text-[12px] text-ink-muted">{describeSendWhen(o.sendWhen, flowFields)}</span>}
         </span>
-        <span className="text-[12px] text-ink-muted">{Object.hasOwn(FORMATS, o.format) ? FORMATS[o.format as keyof typeof FORMATS] : o.format} · {destinationName(destinations, o.destinationId)}</span>
+        <span className="text-[12px] text-ink-muted">{outputTypeLabel(o)} · {destinationName(destinations, o.destinationId)}</span>
         <span className="flex gap-2">
           <Button size="sm" variant="secondary" loading={preview.isPending} onClick={() => preview.mutate()}>Preview</Button>
-          <Link href={`/flows/${flowId}/outputs/${o.id}/advanced?document=${documentId}`} className="inline-flex items-center rounded border border-border px-2.5 text-[12.5px] font-medium text-ink">Open in Advanced</Link>
+          {!o.standard && <Link href={`/flows/${flowId}/outputs/${o.id}/advanced?document=${documentId}`} className="inline-flex items-center rounded border border-border px-2.5 text-[12.5px] font-medium text-ink">Open in Advanced</Link>}
         </span>
       </div>
       {preview.isError && <StatusNotice tone="error">{documentRefusalMessage(preview.error)}</StatusNotice>}
