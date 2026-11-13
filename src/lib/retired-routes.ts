@@ -75,7 +75,7 @@ export const RETIRED_ROUTES: RetiredRoute[] = [
   },
   {
     source: "/operations/webhooks",
-    destination: "/settings",
+    destination: "/settings?tab=connectors",
     deletedDir: "src/app/(app)/operations/webhooks",
     why:
       "A second copy of the Settings Connectors tab that no user could open — zero inbound links "
