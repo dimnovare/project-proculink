@@ -88,6 +88,8 @@ export interface FlowOutput {
   id: string; flowId: string; name: string; format: string; tableKey: string | null; destinationId: string | null;
   template: OutputNodeTemplate; createdAt: string; sendWhen: SendWhen | null;
   layout?: OutputLayout | null; hasLogo?: boolean;
+  /** The standard this output follows (a catalog id), and the meanings it needs; null for a template output. */
+  standard?: string | null; needs?: string[] | null;
 }
 export type OutputLayout = { title?: string | null; header?: string | null; footer?: string | null };
 export type SendWhenOp = "is" | "is_not" | "contains";
@@ -105,6 +107,8 @@ export type Lookup = {
 export interface OutputRequest {
   name: string; format: string; tableKey?: string | null; destinationId?: string | null; template?: OutputNodeTemplate | null;
   sendWhen?: SendWhen | null; layout?: OutputLayout | null;
+  /** Create-only: the backend ignores it on update. */
+  standard?: string | null;
 }
 export type DraftCite = { where: string; quote: string };
 export type DraftLeaf = {
@@ -242,7 +246,7 @@ export function outputFromDocumentation(flowId: string, file: File): Promise<Out
   form.append("file", file);
   return apiFetch<OutputDraft>(`/flows/${seg(flowId)}/outputs/from-documentation`, { method: "POST", body: form }, 180_000);
 }
-export const testOutput = (documentId: string, body: { format: string; tableKey: string | null; destinationId: string; template: OutputNodeTemplate }) =>
+export const testOutput = (documentId: string, body: { format: string; tableKey: string | null; destinationId: string; template: OutputNodeTemplate; standard?: string | null }) =>
   apiFetch<DestinationTestResult>(`/documents/${seg(documentId)}/outputs/test`, { method: "POST", body: json(body) });
 export const deleteOutputLogo = (flowId: string, outputId: string) =>
   apiFetch<void>(`/flows/${seg(flowId)}/outputs/${seg(outputId)}/logo`, { method: "DELETE" });
