@@ -138,8 +138,8 @@ export default function StandardsPage() {
       {/* Progressive-disclosure "which format?" helper. Reference guidance about the
           standards themselves. The old version of this comment claimed "all five are real
           supported output formats, so this is honest orientation, not a capability claim" —
-          which was how the Peppol BIS bullet below stayed put. EDIFACT has no outbound
-          transformer and Peppol BIS conformance is not offered, so the bullets orient the
+          which was how the Peppol BIS bullet below stayed put. EDIFACT ORDERS is written
+          only by a flow standard output, never by a supplier's delivery config, so the bullets orient the
           reader toward a standard WITHOUT asserting we emit a conformant document in it.
           Collapsed by default so it never crowds the locked table layout. */}
       <details className="mb-3 group">
@@ -166,7 +166,7 @@ export default function StandardsPage() {
                 accept" — so it is an OUTPUT chooser, and every bullet in it reads as a format you
                 can pick. UBL already carried its caveat; EDIFACT carried none, while three of the
                 four options around it are formats we really emit. */}
-            <li><strong style={{ color: "var(--ink)" }}>EDIFACT</strong> — long-established European and global EDI (retail, automotive, logistics). ProcuLink reads EDIFACT <span style={{ fontFamily: "var(--font-mono)" }}>ORDERS</span> messages, but does not generate them, so it is not a format you can send a supplier today.</li>
+            <li><strong style={{ color: "var(--ink)" }}>EDIFACT</strong> — long-established European and global EDI (retail, automotive, logistics). ProcuLink reads EDIFACT <span style={{ fontFamily: "var(--font-mono)" }}>ORDERS</span> messages, and a flow can write ORDERS D.96A as a standard output; a supplier&rsquo;s delivery config cannot send it.</li>
             <li><strong style={{ color: "var(--ink)" }}>X12</strong> — North American EDI (ANSI ASC X12 850 purchase order).</li>
           </ul>
           <p className="mt-2.5" style={{ color: "var(--ink-faint)" }}>

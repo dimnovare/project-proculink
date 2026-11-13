@@ -23,8 +23,8 @@
 //   Peppol BIS Order 3.0  parse partial · transform PLANNED — a BIS Order file IS a UBL 2.1 Order, so it parses;
 //                         BIS-conformant OUTPUT does not exist and must not be advertised (see the row's conformance note)
 //   Peppol BIS Billing 3.0 (INVOICE, not an order) parse partial · transform partial — the generator
-//                         emits the profile identifiers but nothing verifies them; no Schematron exists here,
-//                         so BIS conformance is NOT checked and must not be advertised. API-only, no screen.
+//                         emits the profile identifiers; the rule check runs in the validator sidecar behind the
+//                         per-org flag (API + the flow Standards tab), not by network acceptance.
 //   SAP IDoc ORDERS05 ... parse supported · transform none     (IDocOrders05Parser registered; hand-rolled XML, no EdiFabric; INBOUND only — no IDoc output; live-verified on prod 2026-06-08)
 //   EDIFACT ORDERS ...... parse partial · transform partial     (EdifactOrderParser registered; EdiFabric library decision pending; outbound ORDERS D.96A written by the flow standard output, checked in tests only, placeholder interchange ids)
 //   EN 16931 CII ........ parse none · transform partial        (invoice + credit note, flow standard outputs behind the per-org flag; rule check by the validator sidecar, not network acceptance)
@@ -154,14 +154,13 @@ export const STANDARDS: StandardSupport[] = [
       "above the identifiers are NOT removed, because they are a substring of the Peppol document " +
       "type identifier used for SMP lookup and AS4 routing (POLICY 20), so a document without them " +
       "cannot be addressed rather than being merely undeclared; the same is true of orders, which " +
-      "is not why the order path dropped them. The official PEPPOL-EN16931-UBL Schematron is not " +
-      "run: there is no Schematron in either repo, and .NET cannot execute the XSLT 2.0 it compiles " +
-      "to without a new dependency. Covered are the mandatory business terms and arithmetic checks " +
+      "is not why the order path dropped them. The official Schematron runs only in the " +
+      "validator sidecar (on demand, behind the per-org flag), never in .NET. Covered by the in-process check are the mandatory business terms and arithmetic checks " +
       "in PeppolBisValidator; NOT covered are codelists, scheme-id correctness, allowances/charges, " +
       "payment means and mixed-rate VAT. No invoice has been accepted by a live access point. Treat " +
-      "the file as input to an access point's validator. The generator is reachable only through " +
-      "the API (GET /api/invoices/{id}/download?format=peppol and .../validate-peppol); no screen " +
-      "offers it.",
+      "the file as input to an access point's validator. The generator is reachable through " +
+      "the API (GET /api/invoices/{id}/download?format=peppol and .../validate-peppol) and, behind " +
+      "the per-org flag, as a flow standard output.",
     referenceUrl: "https://docs.peppol.eu/poacc/billing/3.0/",
   },
   {
