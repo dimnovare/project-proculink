@@ -39,7 +39,7 @@ export interface Flow {
   formatsOn?: boolean;
   /** Outputs can be proposed from the receiving system's documentation. Absent means off. */
   docsOutputsOn?: boolean;
-  /** E-invoice outputs that need the validator sidecar (Peppol BIS and EN 16931 CII) are offered. Absent means off. */
+  /** E-invoice outputs that need the validator sidecar (Peppol BIS, EN 16931 CII and XRechnung) are offered. Absent means off. */
   peppolOn?: boolean;
   /** The live version number; null means never published. Only the single-flow response carries these three. */
   publishedVersion?: number | null;
