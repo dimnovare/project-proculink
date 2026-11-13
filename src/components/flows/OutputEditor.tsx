@@ -9,7 +9,7 @@ import { DestinationForm, Field, INPUT } from "@/components/flows/DestinationFor
 import { LookupMisses } from "@/components/flows/LookupMisses";
 import { PdfDocumentView } from "@/components/bridge/document/PdfDocumentView";
 import { checkOutput, createOutput, deleteOutputLogo, listDestinations, listLookups, previewOutput, updateOutput, uploadOutputLogo } from "@/lib/api/documents";
-import type { Flow, FlowOutput, LookupSummary, OutputLayout, SendWhen, SendWhenOp } from "@/lib/api/documents";
+import type { Flow, FlowOutput, LookupSummary, OutputCheck, OutputLayout, SendWhen, SendWhenOp } from "@/lib/api/documents";
 import { ApiHttpError } from "@/lib/api/core";
 import { COPY, documentRefusalMessage } from "@/lib/documentRefusals";
 import { defaultWidth, fromSimple, OP_LABEL, toSimple } from "@/lib/flowOutputModel";
@@ -85,6 +85,16 @@ function RowList({ rows, fixed, options, lookups, onChange }: {
   );
 }
 
+function IssueList({ issues }: { issues: OutputCheck["issues"] }) {
+  return (
+    <ul className="mt-1 list-disc pl-4">
+      {[...issues].sort((a, b) => Number(b.severity === "error") - Number(a.severity === "error")).map((i, n) => (
+        <li key={n}>{i.ruleId} — {i.message}{i.severity === "error" ? "" : ` (${i.severity})`}</li>
+      ))}
+    </ul>
+  );
+}
+
 export function OutputEditor({ flow, output, previewDocumentId, hideDestination, onSaved, onCancel }: {
   flow: Flow; output?: FlowOutput; previewDocumentId?: string; hideDestination?: boolean; onSaved(): void; onCancel(): void;
 }) {
@@ -109,6 +119,7 @@ export function OutputEditor({ flow, output, previewDocumentId, hideDestination,
 
   const preview = useMutation({ mutationFn: () => previewOutput(previewDocumentId!, current!.id) });
   const check = useMutation({ mutationFn: (documentId: string) => checkOutput(flow.id, current!.id, documentId) });
+  const warnings = check.data?.issues.filter((i) => i.severity === "warning") ?? [];
   const checkedHere = check.variables === previewDocumentId; // a result belongs to the document it was asked about
   const logoInput = useRef<HTMLInputElement>(null);
   const logo = useMutation({
@@ -300,16 +311,17 @@ export function OutputEditor({ flow, output, previewDocumentId, hideDestination,
           )}
         </div>
         {checkedHere && check.isError && <StatusNotice tone="error">{documentRefusalMessage(check.error)}</StatusNotice>}
-        {checkedHere && check.data?.status === "passed" && <StatusNotice tone="success">Passes the {RULE_SETS[standard ?? ""]?.long} rules.</StatusNotice>}
+        {checkedHere && check.data?.status === "passed" && (warnings.length ? (
+          <StatusNotice tone="warning">
+            Passes the {RULE_SETS[standard ?? ""]?.long} rules, with {warnings.length} warning(s):
+            <IssueList issues={warnings} />
+          </StatusNotice>
+        ) : <StatusNotice tone="success">Passes the {RULE_SETS[standard ?? ""]?.long} rules.</StatusNotice>)}
         {checkedHere && check.data?.status === "unavailable" && <StatusNotice tone="warning">We couldn&apos;t reach the rule checker. Try again in a minute.</StatusNotice>}
         {checkedHere && check.data?.status === "failed" && (
           <StatusNotice tone="warning">
             Doesn&apos;t meet {check.data.issues.filter((i) => i.severity === "error").length} {RULE_SETS[standard ?? ""]?.short} rule(s):
-            <ul className="mt-1 list-disc pl-4">
-              {[...check.data.issues].sort((a, b) => Number(b.severity === "error") - Number(a.severity === "error")).map((i, n) => (
-                <li key={n}>{i.ruleId} — {i.message}{i.severity === "error" ? "" : ` (${i.severity})`}</li>
-              ))}
-            </ul>
+            <IssueList issues={check.data.issues} />
           </StatusNotice>
         )}
         {previewDocumentId && current && <p className="text-[12px] text-ink-muted">Preview shows the last saved version.</p>}
