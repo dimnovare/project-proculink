@@ -5,6 +5,7 @@
 // popup — or, when the popup was blocked and the whole tab went to Google, goes back to `returnTo`.
 
 import { Suspense } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { PageShell } from "@/components/bridge/layout/PageShell";
@@ -33,9 +34,11 @@ function GoogleCallback() {
     queryKey: ["google-complete", state],
     queryFn: async () => {
       const result = await completeGoogleConnect(code!, state!);
-      const channel = new BroadcastChannel(GOOGLE_CONNECT_CHANNEL);
-      channel.postMessage({ type: "connected" });
-      channel.close();
+      if (typeof BroadcastChannel !== "undefined") {
+        const channel = new BroadcastChannel(GOOGLE_CONNECT_CHANNEL);
+        channel.postMessage({ type: "connected" });
+        channel.close();
+      }
       // No returnTo means a popup: close it (the copy below covers a refused close).
       if (result.returnTo == null) window.close();
       else router.replace(safePath(result.returnTo));
@@ -57,6 +60,9 @@ function GoogleCallback() {
   return (
     <PageShell>
       <StatusNotice tone={tone}>{text}</StatusNotice>
+      {tone === "error" && (
+        <Link href="/flows" className="mt-3 inline-block text-[13px] underline">Back to flows</Link>
+      )}
     </PageShell>
   );
 }

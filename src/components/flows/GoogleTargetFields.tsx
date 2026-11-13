@@ -46,6 +46,7 @@ export function GoogleTargetFields({ protocol, config, onChange }: {
 
   // A BroadcastChannel, not window.opener: Google's sign-in pages can sever the opener (COOP).
   useEffect(() => {
+    if (typeof BroadcastChannel === "undefined") return;
     const channel = new BroadcastChannel(GOOGLE_CONNECT_CHANNEL);
     channel.onmessage = (e: MessageEvent) => {
       if (e.data?.type === "connected") void qc.invalidateQueries({ queryKey: KEY });
@@ -140,7 +141,7 @@ export function GoogleTargetFields({ protocol, config, onChange }: {
               onChange={(e) => onChange({ sheetName: e.target.value })} />
           </Field>
           <span id="dest-sheet-help" className="text-[11px] text-ink-muted">
-            Leave empty to add rows to the first tab. Use a CSV output — each send adds its rows to the end.
+            Leave empty to add rows to the first tab. Use a CSV output with a header row — each send adds its rows to the end.
           </span>
         </div>
       )}

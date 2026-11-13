@@ -63,6 +63,7 @@ describe("Google callback page", () => {
     nav.search = "?error=access_denied&state=s1";
     const ui = mount();
     expect(ui.getByText("Google access was not granted. Close this window and try again.")).toBeTruthy();
+    expect(ui.getByRole("link", { name: "Back to flows" }).getAttribute("href")).toBe("/flows");
     await new Promise((r) => setTimeout(r, 20));
     expect(linked.completeGoogleConnect).not.toHaveBeenCalled();
   });
