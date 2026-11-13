@@ -130,11 +130,9 @@ export const USER_FACING_SOURCES: readonly UserFacingSource[] = [
     carrier: "OrderDto.ErrorMessage",
     why: "Delimiter-contamination LineProblem.Message text (:102-105), same join.",
   },
-  {
-    file: "ProcuLink.Transform/Output/MappedTransformService.cs",
-    carrier: "OrderDto.ErrorMessage",
-    why: "Overflow LineProblem.Message text (:645) and two TransformValidationException throws (:622, :662).",
-  },
+  // 2026-11-13, plan 13b task 8a2: the MappedTransformService.cs row left — its order builder (the
+  // overflow LineProblem and both TransformValidationException throws) was deleted; what stays is
+  // rule resolution and CSV escaping, which write no sentence.
   {
     file: "ProcuLink.Transform/Output/OutputTemplateEmitter.cs",
     carrier: "OrderDto.ErrorMessage",
