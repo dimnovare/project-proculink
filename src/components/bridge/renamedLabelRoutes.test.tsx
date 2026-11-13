@@ -15,7 +15,7 @@ import { describe, it, expect, vi } from "vitest";
 import { readFileSync } from "fs";
 import { join } from "path";
 
-vi.mock("next/navigation", () => ({ usePathname: () => "/bridge" }));
+vi.mock("next/navigation", () => ({ usePathname: () => "/documents" }));
 vi.mock("@clerk/nextjs", () => ({
   useOrganization: () => ({ organization: null, membership: null }),
   useOrganizationList: () => ({ isLoaded: true, setActive: vi.fn(), userMemberships: { data: [] } }),
@@ -24,17 +24,12 @@ vi.mock("@clerk/nextjs", () => ({
 }));
 vi.mock("@tanstack/react-query", () => ({ useQuery: () => ({ data: undefined }) }));
 vi.mock("@/lib/api-client", () => ({
-  apiClient: { getOrdersSummary: vi.fn() },
   getBillingStatus: vi.fn(),
   checkAdminAccess: vi.fn(),
-}));
-vi.mock("@/hooks/useOrderDirection", () => ({
-  useOrderDirection: () => ({ labels: { counterpartyPlural: "Suppliers" } }),
 }));
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true, useTenantQueriesEnabled: () => true }));
 
 import { buildVisibleNav } from "./BridgeSidebar";
-import { HUB_TABS, HUB_LABELS, hubForPath, type HubKey } from "./layout/HubTabs";
 import { CRUMB_LABELS } from "./breadcrumb";
 
 const ROOT = join(__dirname, "..", "..", "..");
@@ -43,15 +38,16 @@ const read = (rel: string) => readFileSync(join(ROOT, rel), "utf8");
 describe("renamed sidebar labels keep their routes", () => {
   // WP-26 removed buildVisibleNav's launch-flag `opts`: with four items there is
   // nothing left to narrow, so the nav is no longer gated.
-  const nav = buildVisibleNav("Suppliers", true);
+  const nav = buildVisibleNav(true);
   const items = [...nav.main.flatMap((s) => s.items), ...nav.tail];
   const hrefFor = (label: string) => items.find((i) => i.label === label)?.href;
 
-  // "Overview" is no longer a sidebar item — WP-26 made it the Activity hub's
-  // first tab, and the "Activity" nav item inherits its /bridge href.
+  // Documents and Activity pointed at the order hubs (/inbox, /bridge) until the
+  // order screens went on 2026-11-13; both labels now open the document tool's
+  // pages, and the old URLs 308 (src/lib/retired-routes.ts).
   const rows: Array<[string, string, string]> = [
-    ["Documents", "/inbox", "§6.1 #2 Inbox → Documents"],
-    ["Activity", "/bridge", "§6.1 #8 Operations → Activity"],
+    ["Documents", "/documents", "§6.1 #2 Inbox → Documents"],
+    ["Activity", "/operations/log", "§6.1 #8 Operations → Activity"],
     ["Settings", "/settings", "§6.1 #32 unchanged"],
     ["Admin", "/admin", "§6.1 #30 unchanged"],
     ["Help & support", "/help", "§6.1 #31 unchanged"],
@@ -69,60 +65,9 @@ describe("renamed sidebar labels keep their routes", () => {
   });
 });
 
-describe("renamed hub tab labels keep their routes", () => {
-  const tabs = (Object.keys(HUB_TABS) as HubKey[]).flatMap((k) => HUB_TABS[k]);
-  const hrefFor = (label: string) => tabs.find((t) => t.label === label)?.href;
-
-  const rows: Array<[string, string, string]> = [
-    // §6.1 #25 and #26 (System status, Issues) are gone: /operations/health and
-    // /operations/exceptions were deleted 2026-11-13 and 308 to /operations/log.
-    ["Deliveries", "/operations/log", "§6.1 #27 Delivery log → Deliveries"],
-    // §6.1 #28 renamed Connectors → "Delivery channels". That tab is gone: the
-    // page behind it (/operations/connectors) was deleted on 2026-08-13, so a
-    // rename has nothing left to preserve — see the assertion below.
-  ];
-
-  for (const [label, href, why] of rows) {
-    it(`"${label}" → ${href}  (${why})`, () => expect(hrefFor(label)).toBe(href));
-  }
-
-  // FE #47 retired /library/rules and /library/templates behind permanent
-  // redirects, so the tabs WP-25 would have renamed no longer exist. A rename
-  // must not resurrect a retired destination.
-  it("offers no tab for a route FE #47 retired", () => {
-    for (const href of ["/library/rules", "/library/templates"]) {
-      expect(tabs.map((t) => t.href)).not.toContain(href);
-    }
-  });
-
-  // Same rule, later retirements: a renamed label must not keep a tab alive for
-  // a page that no longer exists. /operations/webhooks was deleted on 2026-08-08
-  // and /operations/connectors on 2026-08-13; both are permanent redirects now
-  // (src/lib/retired-routes.ts), and a redirect has no tab.
-  it("offers no tab for a route retired after the hub-label rename", () => {
-    for (const href of ["/operations/webhooks", "/operations/connectors", "/operations/exceptions", "/operations/health"]) {
-      expect(tabs.map((t) => t.href)).not.toContain(href);
-    }
-  });
-
-  it("every hub route still claims its hub (hubForPath is untouched)", () => {
-    for (const key of Object.keys(HUB_TABS) as HubKey[]) {
-      for (const t of HUB_TABS[key]) expect(hubForPath(t.href)).toBe(key);
-    }
-  });
-
-  it("the hub display names match the sidebar words they mirror", () => {
-    expect(HUB_LABELS.activity).toBe("Activity");
-  });
-});
-
 describe("renamed breadcrumb labels keep their route segments", () => {
   // The KEY is the URL segment. A rename may change the value, never the key.
   const rows: Array<[string, string]> = [
-    ["bridge", "Overview"],
-    ["inbox", HUB_LABELS.orders],
-    ["mappings", "Item codes"],
-    ["standards", "Format reference"],
     ["operations", "Activity"],
     ["log", "Deliveries"],
   ];

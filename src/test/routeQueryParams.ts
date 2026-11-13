@@ -63,48 +63,8 @@ export type ParamContract = {
  * or fail. That is deliberate: silence is how the four dead links above shipped.
  */
 export const ROUTE_QUERY_PARAMS: Record<string, readonly ParamContract[]> = {
-  "/inbox": [
-    {
-      param: "status",
-      readBy: "src/components/bridge/InboxView.tsx",
-      purpose: "Filters the queue. Every /operations/health tile deep-links through it.",
-    },
-    {
-      param: "sort",
-      readBy: "src/components/bridge/InboxView.tsx",
-      purpose: "`oldest` backs the Overdue tile, which has no age filter to offer.",
-    },
-    {
-      param: "page",
-      readBy: "src/components/bridge/InboxView.tsx",
-      purpose: "Pagination, so a filtered view is shareable at the page the operator is on.",
-    },
-  ],
-  "/inbox/[orderId]": [
-    {
-      param: "tab",
-      readBy: "src/components/bridge/workshop/OrderWorkshop.tsx",
-      purpose:
-        "Opens the details drawer on a named tab. `response` is how a refused order shows the supplier's reply.",
-    },
-    // `sample` was here and is deliberately gone. WP-27 made the practice framing
-    // server-driven — `order.isSample`, from PurchaseOrderEntity.IsSample — because
-    // the param only ever got appended by useSampleOrder, so a practice order opened
-    // from a bookmark, the back button, or an inbox row rendered as real work, and a
-    // real order with `?sample=1` pasted on rendered as practice.
-    //
-    // This registry caught the removal on the merge and asked the right question:
-    // "either the reader was removed (every link carrying it is now inert) or the
-    // contract names the wrong file." It was the former, and nothing appends the
-    // param any more — so the entry goes rather than the reader coming back.
-  ],
-  "/upload": [
-    {
-      param: "supplierId",
-      readBy: "src/components/bridge/UploadWorkbench.tsx",
-      purpose: "Pre-selects the supplier so a re-upload does not start from nothing.",
-    },
-  ],
+  // "/inbox", "/inbox/[orderId]" and "/upload"'s supplierId went with the order
+  // screens and their readers (InboxView, OrderWorkshop, UploadWorkbench), 2026-11-13.
   "/settings": [
     {
       param: "tab",

@@ -10,7 +10,6 @@ import {
   auditEventKind,
   isSuccessKind,
 } from "@/lib/auditActionManifest";
-import { STATUS_LABELS } from "./UnifiedStatusBadge";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // The delivery log labelled every failure a successful delivery.
@@ -391,27 +390,6 @@ describe("auditActionManifest — coverage floors", () => {
         expect(fact.backendSite, `${fact.action} has no backendSite`).toMatch(/ProcuLink\.[A-Za-z.]+\/.+:\d+|\.cs:\d+/);
       }
       expect(fact.label.length, `${fact.action} has no label`).toBeGreaterThan(0);
-    }
-  });
-
-  it("uses the repo's canonical status wording, not a parallel vocabulary", () => {
-    // src/test/statusVocabulary.test.ts bans the old phrasings outright ("Delivery
-    // failed" → "Couldn't send", "dead-letter" → "Out of retries"). Where an audit
-    // action names the same thing as an order status, it must say the same words —
-    // otherwise the log and the order screen describe one event two ways, which is
-    // how the retired vocabulary got a second life last time.
-    const expected: Record<string, string> = {
-      ParseFailed: STATUS_LABELS.failed,
-      TransformFailed: STATUS_LABELS.transform_failed,
-      DeliveryFailed: STATUS_LABELS.delivery_failed,
-      delivery_failed: STATUS_LABELS.delivery_failed,
-      DeliveryDeadLettered: STATUS_LABELS.delivery_dead_letter,
-      MarkedRejected: STATUS_LABELS.rejected_by_supplier,
-      DeliveryUnconfirmed: STATUS_LABELS.delivery_unconfirmed,
-      DeliveryHeldForBilling: STATUS_LABELS.delivery_held,
-    };
-    for (const [action, label] of Object.entries(expected)) {
-      expect(auditActionFact(action)?.label, `${action} should read "${label}"`).toBe(label);
     }
   });
 

@@ -103,28 +103,6 @@ export const DIALOG_REGISTRY: DialogEntry[] = [
     hadEscapeBefore: true,
   },
   {
-    file: "src/components/bridge/LaneDrawer.tsx",
-    name: "LaneDrawer",
-    dialogs: 1,
-    kind: "modal",
-    // It shipped as a scrimmed 400px panel of plain <div>s. The derived guard above
-    // could not see it, because that guard keys on the PRESENCE of an ARIA dialog
-    // marking — it catches an UNREGISTERED dialog, never an UNMARKED one.
-    // `src/test/unmarked-modal.test.ts` is the layer that closes that direction.
-    hadTrapBefore: false,
-    // A document-level `keydown` listener that closed on Escape from anywhere,
-    // including from inside a dialog opened on top of it.
-    hadEscapeBefore: true,
-  },
-  {
-    file: "src/components/bridge/OnboardingWizard.tsx",
-    name: "OnboardingWizard",
-    dialogs: 1,
-    kind: "modal",
-    hadTrapBefore: false,
-    hadEscapeBefore: false,
-  },
-  {
     file: "src/components/bridge/OutputMappingEditor.tsx",
     name: "OutputMappingEditor",
     dialogs: 1,
@@ -141,22 +119,6 @@ export const DIALOG_REGISTRY: DialogEntry[] = [
     // The three `Escape` hits at 478b809 were inline field editors
     // (`onKeyDown` on a rename input), never the dialog itself.
     hadEscapeBefore: false,
-  },
-  {
-    file: "src/components/bridge/review/ConfirmDialog.tsx",
-    name: "send ConfirmDialog",
-    dialogs: 1,
-    kind: "modal",
-    hadTrapBefore: true,
-    hadEscapeBefore: true,
-  },
-  {
-    file: "src/components/bridge/workshop/OrderDetailsDrawer.tsx",
-    name: "OrderDetailsDrawer",
-    dialogs: 1,
-    kind: "modal",
-    hadTrapBefore: true,
-    hadEscapeBefore: true,
   },
   {
     file: "src/components/marketing/MarketingNav.tsx",
@@ -228,12 +190,6 @@ export const DIALOG_GREP_FALSE_POSITIVES: { file: string; why: string }[] = [
       "The scanner for the OTHER direction (see unmarked-modal.test.ts). Its only dialog-role " +
       "mentions are the `ANNOUNCED_LAYER` regex and prose in the baseline rows describing which " +
       "markings a file is missing. It renders nothing.",
-  },
-  {
-    file: "src/components/bridge/InboxView.tsx",
-    why:
-      'Line 1026 is `document.querySelector(\'[role="dialog"], [aria-modal="true"]\')` — a guard that ' +
-      "suppresses a keyboard shortcut while some OTHER dialog is open. It renders no dialog of its own.",
   },
 ];
 

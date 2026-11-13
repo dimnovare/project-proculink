@@ -10,93 +10,34 @@ import {
   Lock, HelpCircle, Settings, ChevronsLeft, ChevronsRight, X,
   type LucideIcon,
 } from "lucide-react";
-import { apiClient, getBillingStatus, checkAdminAccess } from "@/lib/api-client";
+import { getBillingStatus, checkAdminAccess } from "@/lib/api-client";
 import { SIDEBAR_AUTO_COLLAPSE_EVENT } from "@/lib/sidebar-auto-collapse";
 import { planDisplayName } from "@/lib/plans";
-import { useDocumentEngine } from "@/hooks/useDocumentEngine";
-import { useOrderDirection } from "@/hooks/useOrderDirection";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { ProcuLinkMark } from "./DSPrimitives";
-import { hubForPath, visibleHubTabs, type HubKey } from "./layout/HubTabs";
 import { OrgSwitcher } from "./OrgSwitcher";
 import { UserChipMenu } from "./UserChipMenu";
 
-// ─── Nav structure (WP-26 / DESIGN-DB-1) ──────────────────────────────────────
+// ─── Nav structure ───────────────────────────────────────────────────────────
 //
-// Top-level items, one flat section, no group headers:
-//
-//   Orders    → /inbox              hub "orders"     · the shift
-//   Activity  → /bridge             hub "activity"   · the receipt
-//   Settings  → /settings                            · the workspace
-//
-// (The Suppliers item and its hub went with the supplier screens.)
-//
-// What this replaces: ten top-level words across four group headers (Dashboard ·
-// Inbox · Drafts · Inbound · Partners · Rules & formats · Operations ·
-// Integrations · Admin · Help · Settings). Three of them — Partners, Rules &
-// formats, Integrations — were containers with no meaning of their own, and the
-// "Monitor" group header existed only so it would stop colliding with the
-// "Operations" item beneath it. Only "Inbox" named something a user does.
-//
-// NO URL CHANGED. Each hub item links to its first VISIBLE tab route (derived
-// from HUB_TABS so the two can never drift) and lights up for ANY route in its
-// hub via hubForPath() — including the `hidden` entries that keep advanced
-// surfaces reachable without putting them on a strip. The Wire Topology
-// dashboard stays at /bridge as Activity ▸ Overview; the brand mark still links
-// there. Guarded by BridgeSidebar.test.tsx (reachability) and
-// navRoutesResolve.test.ts (nothing 404s).
+// One flat section, no group headers: Documents · Flows · Lookups · Activity ·
+// Settings. The order product's hubs (Orders → /inbox, Activity → /bridge) went
+// with its screens; both URLs 308 to their successors (src/lib/retired-routes.ts).
+// Guarded by BridgeSidebar.test.tsx (reachability) and navRoutesResolve.test.ts
+// (nothing 404s).
 
 export type SidebarNavItem = {
   label: string;
   href: string;
   icon: LucideIcon;
-  badgeKey?: "review";
   newTab?: boolean;
-  /** Hub items light up for any route in their hub (hubForPath). */
-  hub?: HubKey;
 };
 export type SidebarNavSection = { group?: string; items: SidebarNavItem[] };
-
-/**
- * What a nav item's count badge can be. THREE values, not two, and the third is
- * the whole point:
- *
- *   number     → a count we received and it is worth showing.
- *   undefined  → a count we received and it is zero. Render nothing.
- *   "unknown"  → `GET /api/orders/summary` failed and left no cached answer, so
- *                there is no count. Render the dash chip, never nothing.
- *
- * "unknown" exists because `reviewCount = summary?.byStatus?.pending_review ?? 0`
- * collapsed the third case into the second: a failed summary produced 0, 0
- * produced no badge, and no badge is exactly what a clean workspace looks like.
- * The sidebar drawer and the desktop topbar both read this type so the two
- * cannot answer the same failure differently.
- */
-export type NavBadge = number | "unknown" | undefined;
-
-/** Accessible name for the "count unavailable" chip. One string, both surfaces. */
-export const NAV_BADGE_UNKNOWN_LABEL = "Needs-review count unavailable";
 
 /** The pinned primary action at the top of the rail (not a nav item). */
 export const PINNED_ACTION_HREF = "/upload";
 
-/** A hub item's href: its first VISIBLE tab, never a hidden or pre-launch one. */
-const hubHome = (hub: HubKey) => visibleHubTabs(hub)[0].href;
-
 const NAV_MAIN: SidebarNavSection[] = [
-  {
-    // A few items need no group headers.
-    items: [
-      { label: "Documents", href: hubHome("orders"), icon: Inbox, badgeKey: "review", hub: "orders" },
-      { label: "Activity", href: hubHome("activity"), icon: Zap, hub: "activity" },
-      { label: "Settings", href: "/settings", icon: Settings },
-    ],
-  },
-];
-
-// The new product's navigation, for orgs on the document engine: no hubs and no
-// badge (the one "needs you" count lives on the Documents page).
-const ENGINE_NAV_MAIN: SidebarNavSection[] = [
   {
     items: [
       { label: "Documents", href: "/documents", icon: Inbox },
@@ -128,19 +69,15 @@ export interface VisibleNav {
 
 // The primary items are never gated by plan — a coordinator sees the same
 // words on day one and on day four hundred. The only nav-level gate left is the
-// admin allowlist; the old launch-flag narrowing is gone because there is
-// nothing left to narrow.
-//
-// `_counterpartyPlural` is unused since the Suppliers item (the only one it relabelled) went;
-// the parameter stays so the shell's callers change with the shell sweep, not with this cut.
-export function buildVisibleNav(_counterpartyPlural: string, isAdmin: boolean, documentEngine = false): VisibleNav {
+// admin allowlist.
+export function buildVisibleNav(isAdmin: boolean): VisibleNav {
   const filterItems = (items: SidebarNavItem[]) =>
     items
       // Hide the Admin link unless the server confirmed this user is on the
       // admin allowlist (UX only — the page + API re-gate server-side).
       .filter((item) => item.href !== "/admin" || isAdmin);
 
-  const main = (documentEngine ? ENGINE_NAV_MAIN : NAV_MAIN)
+  const main = NAV_MAIN
     .map((section) => ({ ...section, items: filterItems(section.items) }))
     // Drop any section left empty by the filters above.
     .filter((section) => section.items.length > 0);
@@ -148,22 +85,9 @@ export function buildVisibleNav(_counterpartyPlural: string, isAdmin: boolean, d
   return { main, tail: filterItems(NAV_TAIL) };
 }
 
-/**
- * Descriptive tooltip for a hub item — lists the tabs INSIDE the hub so a
- * first-time user knows what a hub contains before clicking. Derived from the
- * VISIBLE tabs (middot-joined) so it can never drift from the rendered strip and
- * never advertises a hidden surface. Returns undefined for non-hub items.
- */
-export function hubTooltip(item: SidebarNavItem): string | undefined {
-  if (!item.hub) return undefined;
-  return visibleHubTabs(item.hub).map((t) => t.label).join(" · ");
-}
-
-/** Active state: hub items light for ANY route in their hub; plain items by prefix. */
+/** Active state: an item lights for its own route and everything under it. */
 export function isItemActive(pathname: string, item: SidebarNavItem): boolean {
-  if (item.hub) return hubForPath(pathname) === item.hub;
   const path = item.href.split("?")[0];
-  if (path === "/bridge") return pathname === "/bridge";
   return pathname === path || pathname.startsWith(path + "/");
 }
 
@@ -204,8 +128,6 @@ export function BridgeSidebar({
   const [autoCollapsed, setAutoCollapsed] = useState(false);
   const { organization } = useOrganization();
   const queryEnabled = useTenantQueriesEnabled();
-  // Direction-aware nav: "Suppliers" → "Customers" in inbound mode (route unchanged).
-  const { labels } = useOrderDirection();
   // Admin-link visibility probe (UX hint only; the page + API re-gate server-side).
   const { data: adminAccess } = useQuery({
     queryKey: ["admin-access"],
@@ -215,11 +137,7 @@ export function BridgeSidebar({
     retry: false,
   });
   const isAdmin = adminAccess === true;
-  const documentEngine = useDocumentEngine() === "on";
-  const { main: NAV_VISIBLE, tail: TAIL_VISIBLE } = useMemo(
-    () => buildVisibleNav(labels.counterpartyPlural, isAdmin, documentEngine),
-    [labels.counterpartyPlural, isAdmin, documentEngine],
-  );
+  const { main: NAV_VISIBLE, tail: TAIL_VISIBLE } = useMemo(() => buildVisibleNav(isAdmin), [isAdmin]);
 
   // Live billing plan for the workspace card + switcher (active org only).
   const { data: billing, isError: billingFailed } = useQuery({
@@ -236,20 +154,6 @@ export function BridgeSidebar({
   // fails, none is.
   const planLabel = billing ? planDisplayName(billing.plan) : billingFailed ? "—" : "Loading…";
   const orgName = organization?.name ?? "Your workspace";
-
-  // Live "needs review" count → Inbox badge via summary endpoint (accurate regardless of volume).
-  const { data: ordersSummary, isError: summaryError } = useQuery({
-    queryKey: ["orders-summary"],
-    queryFn: () => apiClient.getOrdersSummary(),
-    enabled: queryEnabled,
-    staleTime: 30_000,
-  });
-  // See NavBadge above. A failed summary with no cached answer yields "unknown",
-  // not 0 — the `?? 0` default is what let a dead endpoint render a clean drawer.
-  const summaryUnknown = summaryError && ordersSummary === undefined;
-  const reviewCount = ordersSummary?.byStatus?.["pending_review"] ?? 0;
-  const badgeFor = (key?: "review"): NavBadge =>
-    key !== "review" ? undefined : summaryUnknown ? "unknown" : reviewCount > 0 ? reviewCount : undefined;
 
   useEffect(() => {
     if (!collapsible) return;
@@ -292,11 +196,8 @@ export function BridgeSidebar({
   const renderItem = (item: SidebarNavItem) => {
     const active = isItemActive(pathname, item);
     const Ico = item.icon;
-    const badge = badgeFor(item.badgeKey);
-    // Collapsed rail → the label (icons only). Expanded → an always-on tooltip
-    // listing a hub's tabs so a first-time user sees what's inside before
-    // clicking; plain items get no expanded tooltip (their label is visible).
-    const title = isCollapsed ? item.label : hubTooltip(item);
+    // Collapsed rail → the label (icons only); expanded items show their label.
+    const title = isCollapsed ? item.label : undefined;
     return (
       <Link
         key={item.href}
@@ -321,27 +222,6 @@ export function BridgeSidebar({
         )}
         <Ico size={16} strokeWidth={1.9} style={{ flexShrink: 0, color: active ? "#FFFFFF" : "#7C8DA6", opacity: active ? 1 : 0.82 }} />
         {!isCollapsed && <span className="flex-1 truncate">{item.label}</span>}
-        {!isCollapsed && badge === "unknown" && (
-          <span
-            className="flex items-center justify-center rounded-full text-[10.5px]"
-            style={{ minWidth: 18, height: 18, padding: "0 5px", background: "transparent", color: "var(--navy-text)", border: "1px solid var(--navy-muted)", fontFamily: "'JetBrains Mono',monospace", borderRadius: 999, fontWeight: 700 }}
-          >
-            <span aria-hidden>—</span>
-            <span className="sr-only">{NAV_BADGE_UNKNOWN_LABEL}</span>
-          </span>
-        )}
-        {!isCollapsed && typeof badge === "number" && (
-          <span className="flex items-center justify-center rounded-full text-[10.5px]" style={{ minWidth: 18, height: 18, padding: "0 5px", background: "#1E66C9", color: "#FFFFFF", fontFamily: "'JetBrains Mono',monospace", borderRadius: 999, fontWeight: 700 }}>{badge}</span>
-        )}
-        {isCollapsed && badge === "unknown" && (
-          <>
-            <span className="absolute rounded-full" style={{ top: 5, right: 12, width: 7, height: 7, background: "transparent", border: "1.5px solid var(--amber-text)" }} aria-hidden />
-            <span className="sr-only">{NAV_BADGE_UNKNOWN_LABEL}</span>
-          </>
-        )}
-        {isCollapsed && typeof badge === "number" && (
-          <span className="absolute rounded-full" style={{ top: 5, right: 12, width: 7, height: 7, background: "#1E66C9", border: "1.5px solid #0A1728" }} aria-hidden />
-        )}
       </Link>
     );
   };
@@ -456,7 +336,7 @@ export function BridgeSidebar({
         </div>
       )}
 
-      {/* ── Navigation (grouped hubs; flexible spacer pushes the tail down) ── */}
+      {/* ── Navigation (flexible spacer pushes the tail down) ── */}
       <nav aria-label="Workspace" className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "none", padding: "4px 0 12px" }}>
         {NAV_VISIBLE.map((section, si) => (
           <div key={si}>

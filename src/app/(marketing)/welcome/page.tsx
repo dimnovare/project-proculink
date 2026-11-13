@@ -70,7 +70,6 @@ const S = {
     marginTop: 8,
     minHeight: 44,
   },
-  skip: { display: "inline-flex", alignItems: "center", minHeight: 44, marginTop: 16, color: "var(--ink-faint)", fontSize: 13 },
 };
 
 /* Every step goes somewhere.
@@ -96,7 +95,7 @@ const STEPS: { n: number; t: string; d: string; href: string }[] = [
     n: 3,
     t: "Confirm field and item mapping",
     d: "Resolve anything we couldn't match automatically.",
-    href: "/inbox?status=review",
+    href: "/documents",
   },
   {
     // This page is what a brand-new — therefore Pilot — org sees, and it used to point at
@@ -169,13 +168,8 @@ function WelcomeBody() {
         ))}
       </div>
 
-      <Link href="/bridge" style={S.cta}>
+      <Link href="/documents" style={S.cta}>
         Open the dashboard
-      </Link>
-      {/* /bridge reads `onboard=skip` and dismisses the first-run wizard. This is
-          that parameter's only caller — renaming this link strands the branch. */}
-      <Link href="/bridge?onboard=skip" style={S.skip}>
-        Skip the wizard for now
       </Link>
     </div>
   );

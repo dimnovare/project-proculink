@@ -1,5 +1,4 @@
 import { getGuideBySlug } from "@/lib/guides";
-import { HUB_LABELS } from "./layout/HubTabs";
 
 // breadcrumb.ts — pure helpers for the topbar auto-breadcrumb.
 //
@@ -10,48 +9,26 @@ import { HUB_LABELS } from "./layout/HubTabs";
 //   • formatCrumbLabel(segment, index, segments, ctx) — the HUMAN-READABLE label
 //     for a segment. Static route segments use the LABELS map / title-case; a
 //     DYNAMIC detail segment (an id/uuid that has no static label) resolves to a
-//     real name from the loaded query cache (PO number, supplier name, connection
-//     name) when available, and otherwise falls back to a sensible noun + short
-//     id — NEVER a bare full UUID (the founder-reported bug).
+//     real name from the loaded query cache (flow, document, output, lookup name)
+//     when available, and otherwise falls back to a sensible noun + short id —
+//     NEVER a bare full UUID (the founder-reported bug).
 
 /**
  * Static segment → display label. Mirrors the nav vocabulary, so the words a
- * crumb prints are the words the sidebar and hub tabs print (HUB_TABS /
- * HUB_LABELS / NAV_MAIN). The KEYS are route segments — code — and never change;
- * only the labels do (WP-25 / DESIGN-DB-1 §6.1).
+ * crumb prints are the words the sidebar prints (NAV_MAIN). The KEYS are route
+ * segments — code — and never change; only the labels do (WP-25 / DESIGN-DB-1 §6.1).
+ * The order product's segments (bridge, inbox, library, connections) went with
+ * their screens; every one of those URLs 308s (src/lib/retired-routes.ts).
  */
 export const CRUMB_LABELS: Record<string, string> = {
-  bridge: "Overview",
-  inbox: HUB_LABELS.orders,
   upload: "Upload",
   flows: "Flows",
   outputs: "Outputs",
   advanced: "Advanced view",
   lookups: "Lookups",
   settings: "Settings",
-  library: "Library",
-  suppliers: "Suppliers",
-  buyers: "Buyers",
-  mappings: "Item codes",
-  // NOTE: `rules` and `templates` are absent on purpose. FE #47 retired
-  // /library/rules and /library/templates behind permanent redirects, so no
-  // crumb is ever rendered for them (see src/lib/retired-routes.ts).
-  standards: "Format reference",
   operations: "Activity",
   log: "Deliveries",
-  // NOTE: `connectors` is absent on purpose. /operations/connectors was deleted
-  // on 2026-08-13 (a read-only page nothing linked to, showing a channel type it
-  // had no data for) and now 308s to /library/suppliers, so no crumb is ever
-  // rendered for it — see src/lib/retired-routes.ts.
-  // The tab a user clicks to get here now reads "Supplier changes"
-  // (HubTabs.tsx, suppliers hub), so the crumb it lands under says the same
-  // word. The per-record child crumb below stays "Connection <id>": that names
-  // ONE record, exactly as "Order 008412" sits under "Orders".
-  connections: "Supplier changes",
-  // NOTE: `webhooks` is absent on purpose. /operations/webhooks was deleted on
-  // 2026-08-08 (a duplicate of Settings ▸ Connectors nobody could navigate to)
-  // and now 308s to /settings, so no crumb is ever rendered for
-  // it — see src/lib/retired-routes.ts.
   admin: "Admin",
   help: "Help",
 };
@@ -87,12 +64,6 @@ export function truncateLabel(label: string, max = 28): string {
 
 /** Resolved names available from the query cache, keyed by the dynamic segment. */
 export interface CrumbContext {
-  /** PO number for the active /inbox/[orderId]. */
-  orderPoNumber?: string | null;
-  /** Connection name for /connections/[connectionId]. */
-  connectionName?: string | null;
-  /** Supplier name for /library/suppliers/[id]. */
-  supplierName?: string | null;
   /** Flow name for /flows/[id]. */
   flowName?: string | null;
   /** File name for /flows/[id]/documents/[id]. */
@@ -138,21 +109,6 @@ export function formatCrumbLabel(
     if (parent === "outputs" && segments[0] === "flows") return ctx.outputName?.trim() || `Output ${shortId(segment)}`;
     if (parent === "lookups") return ctx.lookupName?.trim() || `Lookup ${shortId(segment)}`;
 
-    // /inbox/[orderId]
-    if (parent === "inbox" || parent === "documents") {
-      if (ctx.orderPoNumber && ctx.orderPoNumber.trim().length > 0) return ctx.orderPoNumber;
-      return `Order ${shortId(segment)}`;
-    }
-    // /connections/[connectionId]
-    if (parent === "connections") {
-      if (ctx.connectionName && ctx.connectionName.trim().length > 0) return ctx.connectionName;
-      return `Connection ${shortId(segment)}`;
-    }
-    // /library/suppliers/[id]
-    if (parent === "suppliers") {
-      if (ctx.supplierName && ctx.supplierName.trim().length > 0) return ctx.supplierName;
-      return `Supplier ${shortId(segment)}`;
-    }
     // Unknown dynamic segment — a sensible noun, never a bare UUID.
     return `Item ${shortId(segment)}`;
   }
@@ -175,11 +131,10 @@ export interface Crumb {
 
 /**
  * Top-level segments that name a NAV GROUP but have NO index route of their own —
- * "/library", "/operations" all 404 live. Their crumb is CONTEXT
- * (the hub the page belongs to), never a link.
+ * "/operations" 404s live. Its crumb is CONTEXT, never a link.
  * Nulling the href here keeps every breadcrumb off a dead 404 target.
  */
-const UNLINKED_GROUP_ROOTS: ReadonlySet<string> = new Set(["library", "operations"]);
+const UNLINKED_GROUP_ROOTS: ReadonlySet<string> = new Set(["operations"]);
 
 /**
  * True when a pathname's trail is a SINGLE crumb — the current page, which by
@@ -196,14 +151,14 @@ export function isLonePageCrumb(pathname: string): boolean {
 /**
  * Build the full ordered crumb trail for a pathname.
  * The last segment is the current page (no href); all earlier segments link,
- * EXCEPT group-root segments (library / operations) which have no
- * index route — those stay unlinked context crumbs so no crumb points at a 404.
+ * EXCEPT group-root segments (operations) which have no index route —
+ * those stay unlinked context crumbs so no crumb points at a 404.
  */
 export function buildCrumbTrail(pathname: string, ctx: CrumbContext = {}): Crumb[] {
   const segments = pathname.split("/").filter(Boolean);
   const trail = segments.map((segment, index) => {
     const isLast = index === segments.length - 1;
-    // A group-root at index 0 (e.g. "library") has no index route — never link it.
+    // A group-root at index 0 (e.g. "operations") has no index route — never link it.
     const isUnlinkedGroupRoot = index === 0 && UNLINKED_GROUP_ROOTS.has(segment);
     // /flows/[id]/documents has no page of its own.
     const isFlowDocuments = segments[0] === "flows" && (segment === "documents" || segment === "outputs" || segments[index - 1] === "outputs");
@@ -212,5 +167,10 @@ export function buildCrumbTrail(pathname: string, ctx: CrumbContext = {}): Crumb
       href: isLast || isUnlinkedGroupRoot || isFlowDocuments ? null : crumbHref(segments, index),
     };
   });
+  // A page-less group root under a real page is dropped: the primary nav item
+  // already names it ("Activity" over /operations/log), and an unlinked crumb
+  // repeating it is the "double navbar" defect. The order hubs' tab strip hid
+  // this until it went with the order screens (2026-11-13).
+  if (segments.length > 1 && UNLINKED_GROUP_ROOTS.has(segments[0])) return trail.slice(1);
   return trail;
 }

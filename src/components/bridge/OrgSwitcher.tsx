@@ -114,7 +114,7 @@ export function OrgSwitcher({ collapsed = false, compact = false, orgName, planL
   useEffect(() => {
     const id = activeOrg?.id ?? null;
     if (prevOrgId.current && id && prevOrgId.current !== id) {
-      window.location.assign("/bridge");
+      window.location.assign("/documents");
       return; // page is unloading — keep prev id so a re-render can't re-fire
     }
     prevOrgId.current = id;
@@ -253,7 +253,7 @@ export function OrgSwitcher({ collapsed = false, compact = false, orgName, planL
           role="menuitem"
           onClick={() => {
             setOpen(false);
-            clerk.openCreateOrganization({ afterCreateOrganizationUrl: "/bridge" });
+            clerk.openCreateOrganization({ afterCreateOrganizationUrl: "/documents" });
           }}
           className="flex w-full items-center gap-2 text-left"
           style={{ padding: "9px 12px", background: "#FFFFFF", border: "none", cursor: "pointer", fontSize: 12.5, fontWeight: 600, color: "#1E66C9" }}

@@ -52,10 +52,8 @@ const DYNAMIC_FILL: Record<string, string | null> = {
   "/flows/[flowId]/outputs/[outputId]/advanced": `/flows/${MOCK_ENGINE_IDS.flow}/outputs/${MOCK_ENGINE_IDS.output}/advanced`,
   "/lookups/[lookupId]": `/lookups/${MOCK_ENGINE_IDS.lookup}`,
   "/documents/[id]": `/documents/${MOCK_ENGINE_IDS.document}`,
-  // Legacy pages still on disk until 13b. Ids are the old mock-client ids, so the sweep reports
-  // the redirect target (EngineRouteRedirect moves them) rather than the legacy screen.
+  // The read-only archive of old orders. The id is an old mock-client order id.
   "/archive/[orderId]": "/archive/ord-002",
-  "/inbox/[orderId]": "/inbox/ord-002",
 };
 
 /**
@@ -85,7 +83,7 @@ export interface SweepRoute {
 }
 
 const APP_PREFIXES = [
-  "/admin", "/bridge", "/flows", "/inbox", "/lookups",
+  "/admin", "/flows", "/lookups",
   "/onboarding", "/operations", "/settings", "/upload", "/welcome",
 ];
 

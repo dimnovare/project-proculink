@@ -1274,7 +1274,7 @@ export default function RootPage() {
               </p>
             </div>
             {[
-              { h: "Product", links: [["How it works", "/how-it-works"], ["Pricing", "/pricing"], ["Security", "/security"], ["Open the dashboard", "/bridge"]] },
+              { h: "Product", links: [["How it works", "/how-it-works"], ["Pricing", "/pricing"], ["Security", "/security"], ["Open the dashboard", "/documents"]] },
               // "Customers" → "Pilot programme": /customers is being replaced by /pilot, which
               // carries the supported-pilot offer this page now links to twice.
               { h: "Company", links: [["Pilot programme", "/pilot"], ["Changelog", "/changelog"], ["Support", "/support"]] },

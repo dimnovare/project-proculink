@@ -23,25 +23,16 @@
 // layout is what we are trying NOT to fall back to, so it does not count as an
 // owner.
 //
-// The titles themselves are not free-form. Navigation labels are a closed
-// vocabulary (scripts/check-vocabulary.mjs --nouns), and a browser tab is
-// user-facing copy, so a tab title has to be the same word the nav already
-// teaches. src/lib/pageTitles.ts derives them from HUB_TABS for every route the
-// hub strip covers; the second describe block below is what stops a title from
-// drifting away from its tab label after a rename.
+// The titles themselves are not free-form: a browser tab is user-facing copy,
+// and every app route's title is written once, in src/lib/pageTitles.ts. A page
+// that hand-writes a literal for a route that registry names must agree with it.
+// (A second describe block used to pin that registry against the order
+// product's hub tabs; the hubs went with the order screens on 2026-11-13.)
 
 import { readdirSync, existsSync, readFileSync } from "fs";
 import { join, sep } from "path";
 import { describe, it, expect } from "vitest";
-import { HUB_TABS } from "@/components/bridge/layout/HubTabs";
-import {
-  appPageTitle,
-  APP_PAGE_TITLES,
-  HUB_TAB_TITLES,
-  OFF_HUB_TITLES,
-  TITLE_SUFFIX,
-  LABEL_PINNED_TO_A_DIFFERENT_TITLE,
-} from "@/lib/pageTitles";
+import { appPageTitle, APP_PAGE_TITLES, TITLE_SUFFIX } from "@/lib/pageTitles";
 
 const ROOT = process.cwd();
 const APP_DIR = join(ROOT, "src", "app", "(app)");
@@ -168,11 +159,12 @@ function resolveTitle(r: AppRoute): { title: string } | { problem: string } {
 
 describe("every authenticated route names itself in the browser tab", () => {
   // ANTI-VACUITY. A walk that silently matches nothing passes every assertion
-  // below it, and this repo has shipped exactly that failure before. 22 routes
-  // exist under (app) today; the floor is deliberately just under it so adding
-  // a route never has to touch this number, but deleting the corpus fails.
+  // below it, and this repo has shipped exactly that failure before. 18 routes
+  // exist under (app) since 2026-11-13 (the order screens /bridge, /inbox and
+  // /inbox/[orderId] went); the floor is deliberately just under it so adding a
+  // route never has to touch this number, but deleting the corpus fails.
   it("walks the whole (app) route tree", () => {
-    expect(ROUTES.length).toBeGreaterThanOrEqual(20);
+    expect(ROUTES.length).toBeGreaterThanOrEqual(16);
     expect(ROUTES.map((r) => r.route)).toContain("/settings");
     expect(ROUTES.map((r) => r.route)).toContain("/flows/[flowId]");
   });
@@ -206,62 +198,6 @@ describe("every authenticated route names itself in the browser tab", () => {
       const clash = titles.get(resolved.title);
       expect(clash, `${r.route} and ${clash} both title themselves "${resolved.title}"`).toBeUndefined();
       titles.set(resolved.title, r.route);
-    }
-  });
-});
-
-// THE MIRROR. src/lib/pageTitles.ts cannot import HUB_TABS — it is read from
-// `export const metadata`, which runs in the RSC layer, where a "use client"
-// module is a client-reference proxy and its constants read as empty (the build
-// error is quoted in that file's header). So the labels are copied, and these
-// tests are what makes the copy safe: they run in vitest, where "use client" is
-// inert and the real HUB_TABS is importable.
-//
-// Pinned in BOTH directions on purpose. One direction ("every mirrored entry
-// matches its label") lets a NEW tab ship with no title at all; the other
-// ("every hub href is mirrored") lets a DELETED tab leave a title behind. A
-// one-way mirror guard is how a duplicate list rots in the first place.
-describe("tab titles are the words the navigation teaches", () => {
-  const hubEntries = Object.entries(
-    Object.fromEntries(Object.values(HUB_TABS).flat().map((t) => [t.href, t.label])),
-  );
-
-  it("reads a non-empty hub registry", () => {
-    // 3 since 2026-11-13: Issues and System status went with their pages.
-    expect(hubEntries.length).toBeGreaterThanOrEqual(3);
-    expect(Object.keys(HUB_TAB_TITLES).length).toBe(hubEntries.length);
-  });
-
-  it.each(hubEntries)("%s is mirrored with its tab label", (href, label) => {
-    expect(
-      HUB_TAB_TITLES[href],
-      `HUB_TABS labels ${href} "${label}" — update HUB_TAB_TITLES in src/lib/pageTitles.ts to match`,
-    ).toBe(label);
-  });
-
-  it("mirrors no href the hub strip no longer has", () => {
-    const live = new Set(hubEntries.map(([href]) => href));
-    for (const href of Object.keys(HUB_TAB_TITLES)) {
-      expect(live.has(href), `HUB_TAB_TITLES still carries ${href}, which HUB_TABS dropped`).toBe(true);
-    }
-  });
-
-  it("pins a different title only for a route that really has a tab", () => {
-    const live = new Set(hubEntries.map(([href]) => href));
-    expect(Object.keys(LABEL_PINNED_TO_A_DIFFERENT_TITLE).length).toBeGreaterThan(0);
-    for (const [href, title] of Object.entries(LABEL_PINNED_TO_A_DIFFERENT_TITLE)) {
-      expect(live.has(href), `${href} is pinned away from a tab label it does not have`).toBe(true);
-      // A pin that agrees with the label is not a pin — it is a stale exception
-      // that would survive the next rename unnoticed.
-      expect(title, `${href} is pinned to the label it already has`).not.toBe(HUB_TAB_TITLES[href]);
-      expect(APP_PAGE_TITLES[href]).toBe(title);
-    }
-  });
-
-  it("hand-writes a title only for a route with no tab to derive one from", () => {
-    const live = new Set(hubEntries.map(([href]) => href));
-    for (const href of Object.keys(OFF_HUB_TITLES)) {
-      expect(live.has(href), `${href} has a hub tab — mirror its label instead of hand-writing one`).toBe(false);
     }
   });
 });

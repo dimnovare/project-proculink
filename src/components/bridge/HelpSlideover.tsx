@@ -5,7 +5,6 @@ import { useDialogA11y } from "@/hooks/useDialogA11y";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { capture } from "@/lib/analytics";
-import { useOrderDirection } from "@/hooks/useOrderDirection";
 import {
   POPULAR_ARTICLE_SLUGS,
   resolveArticles,
@@ -13,12 +12,7 @@ import {
 } from "@/lib/help-articles";
 import { buildHelpFuse, searchHelpArticles } from "@/lib/help-search";
 import { walkthroughConfigured } from "@/lib/walkthrough";
-import {
-  matchGuide,
-  resolveGuideText,
-  type GuidePartyLabels,
-  type SectionGuideEntry,
-} from "@/lib/section-guides";
+import { matchGuide, type SectionGuideEntry } from "@/lib/section-guides";
 
 interface Props {
   open:    boolean;
@@ -34,13 +28,11 @@ interface Props {
 
 interface SectionGuideBodyProps {
   guide: SectionGuideEntry;
-  labels: GuidePartyLabels;
   /** Called when a guide link is followed (the slideover closes itself). */
   onNavigate?: () => void;
 }
 
-function SectionGuideBody({ guide, labels, onNavigate }: SectionGuideBodyProps) {
-  const t = (s: string) => resolveGuideText(s, labels);
+function SectionGuideBody({ guide, onNavigate }: SectionGuideBodyProps) {
   const bodySize = 12;
 
   const linkStyle: React.CSSProperties = {
@@ -59,7 +51,7 @@ function SectionGuideBody({ guide, labels, onNavigate }: SectionGuideBodyProps) 
           color: "var(--ink-muted)",
         }}
       >
-        {t(guide.purpose)}
+        {guide.purpose}
       </p>
 
       <p
@@ -107,10 +99,10 @@ function SectionGuideBody({ guide, labels, onNavigate }: SectionGuideBodyProps) 
                 className="hover:underline"
                 style={linkStyle}
               >
-                {t(bullet.text)}
+                {bullet.text}
               </Link>
             ) : (
-              <span>{t(bullet.text)}</span>
+              <span>{bullet.text}</span>
             )}
           </li>
         ))}
@@ -137,10 +129,10 @@ function SectionGuideBody({ guide, labels, onNavigate }: SectionGuideBodyProps) 
             className="hover:underline"
             style={{ ...linkStyle, color: "var(--ink)", fontWeight: 600 }}
           >
-            {t(guide.firstStep.text)}
+            {guide.firstStep.text}
           </Link>
         ) : (
-          <span>{t(guide.firstStep.text)}</span>
+          <span>{guide.firstStep.text}</span>
         )}
       </div>
     </div>
@@ -229,7 +221,6 @@ function ArticleLinkRow({
 
 export function HelpSlideover({ open, onClose }: Props) {
   const pathname = usePathname();
-  const { labels } = useOrderDirection();
   const guide = matchGuide(pathname);
 
   const searchRef = useRef<HTMLInputElement>(null);
@@ -440,11 +431,10 @@ export function HelpSlideover({ open, onClose }: Props) {
                       lineHeight: 1.3,
                     }}
                   >
-                    {resolveGuideText(guide.title, labels)}
+                    {guide.title}
                   </h3>
                   <SectionGuideBody
                     guide={guide}
-                    labels={labels}
                     onNavigate={onClose}
                   />
                 </section>

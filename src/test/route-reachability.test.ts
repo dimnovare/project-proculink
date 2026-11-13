@@ -17,7 +17,7 @@
 //
 //   1. nav registry  — it is an href in the sidebar nav that buildVisibleNav
 //                      actually RENDERS, or the pinned primary action.
-//   2. hub tab       — it is the `href` of a tab in HUB_TABS.
+//   2. hub tab       — retired 2026-11-13: HUB_TABS went with the order screens.
 //   3. content registry — it is a help article (rendered by /help) or a LIVE
 //                      guide (rendered by GuideIndex), read through the export
 //                      that reproduces the render-time filter.
@@ -120,7 +120,6 @@ import {
   type SourceSyntax,
 } from "./sourceScan";
 import { buildVisibleNav, PINNED_ACTION_HREF } from "@/components/bridge/BridgeSidebar";
-import { HUB_TABS, visibleHubTabs, type HubKey } from "@/components/bridge/layout/HubTabs";
 import { HELP_ARTICLES } from "@/lib/help-articles";
 import { GUIDES, linkedGuides } from "@/lib/guides";
 import { RETIRED_ROUTES } from "@/lib/retired-routes";
@@ -147,9 +146,13 @@ export const KNOWN_DEEP_LINK_ONLY: Record<string, string> = {
   // ── /welcome was the "reachable, but the referrer is outside this repo"
   //    entry: the Stripe checkout success_url (StripeBillingService.cs) is
   //    still its main referrer and every paying customer still lands there.
-  //    2026-08-20: the OnboardingChecklist now links to it ("How ProcuLink
-  //    works"), so the page is reachable from inside this repo and the guard
-  //    enforces the link instead of allowlisting the route.
+  //    2026-08-20: the OnboardingChecklist linked to it ("How ProcuLink
+  //    works"), so the entry went. 2026-11-13: the checklist went with the
+  //    order dashboard, so the entry is back — the Stripe referrer never left.
+  "/welcome":
+    "Stripe checkout success_url and the in-place upgrade's returned URL "
+    + "(ProcuLink.Api/Services/StripeBillingService.cs:338, :382) land every paying "
+    + "customer here. Its in-repo link was the OnboardingChecklist, deleted 2026-11-13.",
 
   // ── /one-pager was the third entry, parked as "wants either a real link or a
   //    deletion decision". Founder decision 2026-07-30: link it. The marketing
@@ -259,7 +262,6 @@ const APP_DIR = path.join(SRC_DIR, "app");
 const REGISTRY_FILES = new Set(
   [
     path.join(SRC_DIR, "components", "bridge", "BridgeSidebar.tsx"),
-    path.join(SRC_DIR, "components", "bridge", "layout", "HubTabs.tsx"),
     path.join(SRC_DIR, "lib", "guides.ts"),
     path.join(SRC_DIR, "lib", "help-articles.ts"),
   ].map((p) => path.normalize(p)),
@@ -493,8 +495,8 @@ export function collectLinkTargets(): LinkTarget[] {
   // 1 + 2 — the nav registries, read through their exports so launch-flag
   // filtering is respected. isAdmin: true because admins are real users and the
   // /admin route is genuinely reachable for them.
-  // Both variants: the legacy nav (engine off) and the new product nav (engine on).
-  const navs = [buildVisibleNav("Suppliers", true, false), buildVisibleNav("Suppliers", true, true)];
+  // One nav since the order screens went (2026-11-13): the document tool's.
+  const navs = [buildVisibleNav(true)];
   for (const nav of navs) {
     for (const section of nav.main) {
       for (const item of section.items) targets.push({ path: item.href, kind: "nav", source: "<BridgeSidebar nav>" });
@@ -502,21 +504,6 @@ export function collectLinkTargets(): LinkTarget[] {
   }
   for (const item of navs[0].tail) targets.push({ path: item.href, kind: "nav", source: "<BridgeSidebar nav>" });
   targets.push({ path: PINNED_ACTION_HREF, kind: "nav", source: "<BridgeSidebar pinned action>" });
-
-  // HUB_TABS goes through visibleHubTabs() — THE REGISTRY RULE, which this guard
-  // was violating on its own registry. A `hidden: true` entry is "reachable, not
-  // switchable": it is stripped from the strip, from hubShowsTabs, from the
-  // sidebar item's href (hubHome) and from its tooltip, so its `href` renders
-  // nowhere and is a plan, not navigation — exactly the phantom-target shape the
-  // rule exists for. Four entries carry it (five until /connections earned a
-  // visible tab), and crediting them hid every route behind them.
-  //
-  // `hidden` is permanent, not a flag.
-  for (const hub of Object.keys(HUB_TABS) as HubKey[]) {
-    for (const tab of visibleHubTabs(hub)) {
-      targets.push({ path: tab.href, kind: "hub-tab", source: "<HubTabs via visibleHubTabs>" });
-    }
-  }
 
   // The help-centre index renders EVERY registry entry as a link, with a
   // computed href — `<Link href={`/help/${article.slug}`}>` at
@@ -789,7 +776,7 @@ describe("route reachability (plan rule R1 — no new surface without a consumer
   it("finds the app's page routes at all", () => {
     // Sanity floor: if the walker breaks, every later assertion passes vacuously.
     expect(ROUTES.length).toBeGreaterThan(80);
-    expect(ROUTES.map((r) => r.route)).toContain("/inbox/[orderId]");
+    expect(ROUTES.map((r) => r.route)).toContain("/archive/[orderId]");
     expect(TARGETS.length).toBeGreaterThan(50);
   });
 
@@ -797,8 +784,8 @@ describe("route reachability (plan rule R1 — no new surface without a consumer
     // Anti-vacuity for the cycle fix. If resolveSpecifier stopped resolving, every
     // subtree would collapse to one file, every component would read as chrome,
     // and the guard would silently return to crediting closed cycles.
-    const inbox = ROUTES.find((r) => r.route === "/inbox")!;
-    const subtree = moduleSubtree(inbox.file);
+    const documents = ROUTES.find((r) => r.route === "/documents")!;
+    const subtree = moduleSubtree(documents.file);
     expect(subtree.size, "a page's module subtree collapsed to its own file").toBeGreaterThan(10);
     expect(
       [...subtree].some((f) => f.includes(`${path.sep}components${path.sep}`)),
@@ -972,12 +959,6 @@ describe("route reachability (plan rule R1 — no new surface without a consumer
     // because there is nothing left to look through. Each corpus therefore
     // asserts its own size BEFORE it is searched.
     //
-    // The tab floor is 3 (one Orders tab, two Activity; was 4 until 2026-11-13, when Issues went
-    // with /operations/exceptions): the deleted entry was HIDDEN, so the rendered strip never counted it.
-    const rendered = (Object.keys(HUB_TABS) as HubKey[]).flatMap((hub) =>
-      visibleHubTabs(hub).map((t) => t.href),
-    );
-    expect(rendered.length, "no hub tab resolved — the sweep is vacuous").toBe(3);
 
     // Every non-test source file, read the way retired-routes.test.ts reads the
     // nav registries: a QUOTED path is a link, a path in a comment is
@@ -1002,15 +983,6 @@ describe("route reachability (plan rule R1 — no new surface without a consumer
         `delivery-config signal to render, and the founder deleted it. Delete the redirect ` +
         `in src/lib/retired-routes.ts in the same change if it is genuinely being rebuilt.`,
     ).toEqual([]);
-
-    // Gone from the chrome. Resolved through visibleHubTabs() — what the strip
-    // RENDERS — never Object.values(HUB_TABS), which is the blindness that let
-    // this route hide behind a `hidden: true` flag in the first place.
-    expect(rendered, `${DEAD} is on the rendered tab strip but has no page`).not.toContain(DEAD);
-    expect(
-      (Object.keys(HUB_TABS) as HubKey[]).flatMap((hub) => HUB_TABS[hub].map((t) => t.href)),
-      `${DEAD} is back in HUB_TABS — even hidden, it is a tab pointing at a deleted page`,
-    ).not.toContain(DEAD);
 
     // The ONLY place in src/ allowed to name it in quotes is the record of its
     // own retirement. Anything else is a link to a page that does not exist.
@@ -1074,10 +1046,6 @@ describe("route reachability (plan rule R1 — no new surface without a consumer
     // because there is nothing left to look through. Each corpus therefore
     // asserts its own size BEFORE it is searched, so a broken corpus fails RED
     // instead of reporting a clean bill of health.
-    const rendered = (Object.keys(HUB_TABS) as HubKey[]).flatMap((hub) =>
-      visibleHubTabs(hub).map((t) => t.href),
-    );
-    expect(rendered.length, "no hub tab resolved — the sweep is vacuous").toBe(3);
 
     // Every non-test source file, read the way retired-routes.test.ts reads the
     // nav registries: a QUOTED path is a link, a path in a comment is
@@ -1102,15 +1070,6 @@ describe("route reachability (plan rule R1 — no new surface without a consumer
         `founder deleted it. Delete the redirect in src/lib/retired-routes.ts in the same ` +
         `change if it is genuinely being rebuilt.`,
     ).toEqual([]);
-
-    // Gone from the chrome. Resolved through visibleHubTabs() — what the strip
-    // RENDERS — never Object.values(HUB_TABS), which is the blindness that let
-    // this route hide behind a `hidden: true` flag for weeks in the first place.
-    expect(rendered, `${DEAD} is on the rendered tab strip but has no page`).not.toContain(DEAD);
-    expect(
-      (Object.keys(HUB_TABS) as HubKey[]).flatMap((hub) => HUB_TABS[hub].map((t) => t.href)),
-      `${DEAD} is back in HUB_TABS — even hidden, it is a tab pointing at a deleted page`,
-    ).not.toContain(DEAD);
 
     // The ONLY place in src/ allowed to name it in quotes is the record of its
     // own retirement. Anything else is a link to a page that does not exist.
@@ -1249,20 +1208,9 @@ describe("route reachability (plan rule R1 — no new surface without a consumer
     // must actually BE read, or every route would look stranded and the guard
     // would flip from useful to noise.
     const paths = new Set(TARGETS.map((t) => t.path));
-    expect(paths.has("/inbox")).toBe(true);
+    expect(paths.has("/documents")).toBe(true);
     expect(paths.has(PINNED_ACTION_HREF)).toBe(true);
 
-    // HUB_TABS is credited for `href` and never for `match`. Asserted as an
-    // invariant over whatever the registry currently holds, so re-introducing a
-    // `match`-only entry cannot smuggle in a phantom target.
-    const tabs = Object.values(HUB_TABS).flat();
-    // /documents is a match-only alias AND the engine nav's Documents item, so a real nav href is exempt.
-    const navHrefs = new Set(TARGETS.filter((t) => t.kind === "nav").map((t) => t.path));
-    const hubMatchOnly = tabs
-      .flatMap((t) => t.match ?? [])
-      .filter((m) => !tabs.some((t) => t.href === m) && !navHrefs.has(m));
-    for (const m of hubMatchOnly) expect(paths.has(m)).toBe(false);
-    expect(paths.has("/library/suppliers")).toBe(true); // a real tab href
   });
 
   it("matches dynamic segments structurally, not by literal string", () => {
@@ -1341,7 +1289,7 @@ describe("route reachability (plan rule R1 — no new surface without a consumer
     // Real file, not a fixture: the admin page must now contribute targets.
     const adminPage = path.normalize(path.join(APP_DIR, "(app)", "admin", "page.tsx"));
     const fromAdmin = TARGETS.filter((t) => t.source === adminPage).map((t) => t.path);
-    expect(fromAdmin).toContain("/bridge");
+    expect(fromAdmin).toContain("/documents");
     expect(fromAdmin).toContain("/sign-in");
 
     // Still TIGHT. An object literal's `href:` is ONE value, not the whole

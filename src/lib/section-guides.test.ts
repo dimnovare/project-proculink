@@ -1,53 +1,22 @@
 import { describe, it, expect } from "vitest";
-import {
-  SECTION_GUIDES,
-  guideSeenKey,
-  matchGuide,
-  resolveGuideText,
-  type GuidePartyLabels,
-} from "@/lib/section-guides";
-
-// Mirrors partyLabels() in useOrderDirection (structural slice only, so the
-// test does not import the 'use client' hook module and its api-client deps).
-const OUTBOUND: GuidePartyLabels = {
-  counterpartyNoun: "Supplier",
-  counterpartyPlural: "Suppliers",
-};
-const INBOUND: GuidePartyLabels = {
-  counterpartyNoun: "Customer",
-  counterpartyPlural: "Customers",
-};
+import { SECTION_GUIDES, guideSeenKey, matchGuide } from "@/lib/section-guides";
 
 describe("matchGuide", () => {
   it("matches exact static routes", () => {
-    expect(matchGuide("/bridge")?.route).toBe("/bridge");
     expect(matchGuide("/settings")?.route).toBe("/settings");
     expect(matchGuide("/operations/log")?.route).toBe("/operations/log");
   });
 
   it("ignores trailing slashes and query/hash noise", () => {
-    expect(matchGuide("/inbox/")?.route).toBe("/inbox");
+    expect(matchGuide("/operations/log/")?.route).toBe("/operations/log");
     expect(matchGuide("/settings?tab=billing")?.route).toBe("/settings");
-    expect(matchGuide("/upload#zone")?.route).toBe("/upload");
-  });
-
-  it("matches dynamic segments against any single non-empty segment", () => {
-    expect(matchGuide("/inbox/3f2b1a90-0c4d-4e5f-9a1b-2c3d4e5f6a7b")?.route).toBe(
-      "/inbox/[orderId]",
-    );
-  });
-
-  it("disambiguates /inbox from /inbox/[orderId]", () => {
-    expect(matchGuide("/inbox")?.route).toBe("/inbox");
-    expect(matchGuide("/inbox")?.title).toBe("Inbox");
-    expect(matchGuide("/inbox/008412")?.route).toBe("/inbox/[orderId]");
-    expect(matchGuide("/inbox/008412")?.title).toBe("Order review");
+    expect(matchGuide("/settings#billing")?.route).toBe("/settings");
   });
 
   it("returns null when no entry matches", () => {
     expect(matchGuide("/")).toBeNull();
     expect(matchGuide("/admin")).toBeNull();
-    expect(matchGuide("/inbox/a/b")).toBeNull();
+    expect(matchGuide("/operations/log/a")).toBeNull();
     expect(matchGuide("/nonexistent")).toBeNull();
     expect(matchGuide("/library")).toBeNull();
   });
@@ -59,41 +28,10 @@ describe("matchGuide", () => {
   });
 });
 
-describe("resolveGuideText", () => {
-  it("resolves all four token casings (outbound)", () => {
-    expect(resolveGuideText("{supplier}", OUTBOUND)).toBe("supplier");
-    expect(resolveGuideText("{suppliers}", OUTBOUND)).toBe("suppliers");
-    expect(resolveGuideText("{Supplier}", OUTBOUND)).toBe("Supplier");
-    expect(resolveGuideText("{Suppliers}", OUTBOUND)).toBe("Suppliers");
-  });
-
-  it("resolves all four token casings (inbound → customer)", () => {
-    expect(resolveGuideText("{supplier}", INBOUND)).toBe("customer");
-    expect(resolveGuideText("{suppliers}", INBOUND)).toBe("customers");
-    expect(resolveGuideText("{Supplier}", INBOUND)).toBe("Customer");
-    expect(resolveGuideText("{Suppliers}", INBOUND)).toBe("Customers");
-  });
-
-  it("resolves mixed tokens inside a sentence", () => {
-    expect(
-      resolveGuideText(
-        "{Suppliers}: add a {supplier}, then track each {supplier}'s {suppliers}.",
-        INBOUND,
-      ),
-    ).toBe("Customers: add a customer, then track each customer's customers.");
-  });
-
-  it("leaves text without tokens unchanged", () => {
-    const plain = "Filter by Needs review, Ready to send, Delivered, or Failed";
-    expect(resolveGuideText(plain, OUTBOUND)).toBe(plain);
-    expect(resolveGuideText(plain, INBOUND)).toBe(plain);
-  });
-});
-
 describe("guideSeenKey", () => {
   it("builds the plk-prefixed key from the registry route", () => {
-    expect(guideSeenKey("/inbox")).toBe("plk-guide-seen:/inbox");
-    expect(guideSeenKey("/inbox/[orderId]")).toBe("plk-guide-seen:/inbox/[orderId]");
+    expect(guideSeenKey("/operations/log")).toBe("plk-guide-seen:/operations/log");
+    expect(guideSeenKey("/flows/[flowId]")).toBe("plk-guide-seen:/flows/[flowId]");
   });
 });
 
@@ -105,8 +43,10 @@ describe("SECTION_GUIDES registry shape", () => {
   // 10 since plan 13b removed the supplier, buyer, mapping, standards and connection
   // screens (seven guides) with their pages. 8 since the inbound invoice and shipping-notice
   // screens went too. 6 since the Issues and Pipeline health pages went (2026-11-13).
-  it("has 6 entries with unique routes", () => {
-    expect(SECTION_GUIDES).toHaveLength(6);
+  // 2 since the order screens went the same day: /bridge, /upload's order
+  // workbench, /inbox and /inbox/[orderId] took their four guides with them.
+  it("has 2 entries with unique routes", () => {
+    expect(SECTION_GUIDES).toHaveLength(2);
     const routes = SECTION_GUIDES.map((g) => g.route);
     expect(new Set(routes).size).toBe(routes.length);
   });
@@ -160,51 +100,13 @@ describe("SECTION_GUIDES registry shape", () => {
     }
   });
 
-  // The dashboard CSV bullet used to read "it covers your most recent 100
-  // orders". That 100 was a literal hand-copied from `pageSize: 100` in
-  // BridgeDashboard — a second copy of a number, in a file that cannot see the
-  // first one change. It was also simply wrong: the export writes the orders in
-  // the SELECTED time window, so with the window on "Today" the file can hold
-  // twelve rows. The exported CSV already states its own exact count on its
-  // first line, derived at write time; this sentence must not compete with it.
-  it("the dashboard CSV bullet promises no count of its own", () => {
-    const dashboard = SECTION_GUIDES.find((g) => g.route === "/bridge");
-    expect(dashboard, "/bridge guide").toBeDefined();
-
-    // ANTI-VACUITY FLOOR: the bullet still exists and still describes the
-    // export. Deleting it would pass every assertion below for free.
-    const csv = dashboard?.bullets.filter((b) => /\bCSV\b/.test(b.text)) ?? [];
-    expect(csv, "the CSV export bullet").toHaveLength(1);
-    expect(csv[0].text).toMatch(/export/i);
-
-    // No digits: any number here is a copy of a value this file cannot read.
-    expect(csv[0].text).not.toMatch(/\d/);
-    // …and it says what actually bounds the file, which is the window.
-    expect(csv[0].text).toMatch(/time window/i);
-  });
-
-  it("uses only the four known party tokens", () => {
-    const KNOWN = new Set(["supplier", "suppliers", "Supplier", "Suppliers"]);
-    for (const g of SECTION_GUIDES) {
-      const texts = [
-        g.title,
-        g.purpose,
-        g.firstStep.text,
-        ...g.bullets.map((b) => b.text),
-      ];
-      for (const text of texts) {
-        for (const m of text.matchAll(/\{([^}]+)\}/g)) {
-          expect(KNOWN.has(m[1]), `token {${m[1]}} on ${g.route}`).toBe(true);
-        }
-      }
-    }
-  });
-
-  it("resolves every entry's copy without leaving unreplaced tokens", () => {
+  // HelpSlideover renders guide copy verbatim since the party tokens went
+  // (2026-11-13), so a `{token}` left in the registry would reach the screen.
+  it("carries no unresolved {token} placeholders", () => {
     for (const g of SECTION_GUIDES) {
       const texts = [g.title, g.purpose, g.firstStep.text, ...g.bullets.map((b) => b.text)];
       for (const text of texts) {
-        expect(resolveGuideText(text, INBOUND)).not.toMatch(/\{[^}]+\}/);
+        expect(text).not.toMatch(/\{[^}]+\}/);
       }
     }
   });

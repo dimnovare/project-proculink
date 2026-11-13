@@ -62,7 +62,7 @@ export default function HelpIndex() {
   return (
     <div className="mx-auto px-5 pb-24 pt-10 sm:px-6 sm:pt-14" style={{ maxWidth: 980 }}>
       <Link
-        href="/bridge"
+        href="/documents"
         className="mb-5 inline-flex h-9 items-center gap-2 rounded-[7px] px-3 text-[13px] font-semibold"
         style={{
           border: "1px solid var(--border)",

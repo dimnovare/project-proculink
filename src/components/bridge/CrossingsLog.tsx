@@ -1334,10 +1334,10 @@ export function CrossingsLog() {
 
                               {/* Action buttons — canonical: View order / Retry delivery / Export entry */}
                               <div className="row gap-2 wrap" style={{ marginTop: 11 }}>
-                                {/* View order — secondary, navigates to /inbox/{id} */}
+                                {/* View order — secondary, navigates to /archive/{id} */}
                                 {(c.documentHref || !c.action?.startsWith("document.")) && <button
                                   className="btn btn-secondary sm"
-                                  onClick={() => router.push(c.documentHref ?? `/inbox/${c.crossingId}`)}
+                                  onClick={() => router.push(c.documentHref ?? `/archive/${c.crossingId}`)}
                                   style={isMobile ? { height: 36 } : undefined}
                                 >
                                   {/* eye icon */}
@@ -1360,7 +1360,7 @@ export function CrossingsLog() {
                                 {c.canonicalEvent === "failed" && (
                                   <button
                                     className="btn btn-secondary sm"
-                                    onClick={() => router.push(`/inbox/${c.crossingId}`)}
+                                    onClick={() => router.push(`/archive/${c.crossingId}`)}
                                     style={isMobile ? { height: 36 } : undefined}
                                   >
                                     {/* refresh icon */}

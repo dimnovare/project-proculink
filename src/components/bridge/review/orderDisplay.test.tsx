@@ -1,6 +1,4 @@
-import { describe, it, expect, afterEach } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
-import { ConfirmDialog } from "./ConfirmDialog";
+import { describe, it, expect } from "vitest";
 import {
   REPROCESSED_ARTIFACT_KEY_MARKER,
   deliverableArtifact,
@@ -8,7 +6,6 @@ import {
   orderDeliveryFormat,
   outputArtifactLabel,
 } from "./orderDisplay";
-import type { PartyLabels } from "@/hooks/useOrderDirection";
 import type { Artifact, Order } from "@/types/procurement";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -61,19 +58,6 @@ const DELIVERABLE = artifact({
 
 /** Newest-first, exactly as the API returns it. */
 const NEWEST_IS_A_PREVIEW: Artifact[] = [REPROCESSED_PREVIEW, DELIVERABLE];
-
-const LABELS: PartyLabels = {
-  counterpartyNoun: "Supplier",
-  counterpartyPlural: "Suppliers",
-  railHeader: "Supplier",
-  primaryCta: "Send to supplier",
-  primaryCtaProgress: "Sending…",
-  doneLabel: "Sent",
-  deliveredLabel: "Delivered",
-  unknownBuyer: "Unknown buyer",
-};
-
-afterEach(cleanup);
 
 describe("the deliverable artifact is not simply the newest one", () => {
   it("skips a newer re-processed preview", () => {
@@ -151,50 +135,5 @@ describe("deliveryFormatLabel — null in, null out", () => {
     expect(noArtifacts).toBeNull();
     const previewOnly = deliveryFormatLabel(orderDeliveryFormat({ artifacts: [REPROCESSED_PREVIEW] }));
     expect(previewOnly).toBeNull();
-  });
-});
-
-describe("the send confirmation names the format that will actually be delivered", () => {
-  const renderConfirm = (order: Pick<Order, "artifacts">) =>
-    render(
-      <ConfirmDialog
-        exceptionCount={0}
-        onConfirm={() => {}}
-        onCancel={() => {}}
-        supplierName="BoltWorks BV"
-        outputFormat={orderDeliveryFormat(order)}
-        grandTotal="EUR 1,200.00"
-        lineCount={4}
-        labels={LABELS}
-        failingRuleCount={0}
-      />,
-    );
-
-  it("shows the deliverable's format when a newer preview exists", () => {
-    // The defect, at the surface that matters: the operator is consenting to an
-    // irreversible send, and the sentence they read said JSON.
-    renderConfirm({ artifacts: NEWEST_IS_A_PREVIEW } as Pick<Order, "artifacts">);
-    expect(screen.getByText(/This will deliver the transformed CSV order/)).toBeTruthy();
-    const dialog = screen.getByRole("dialog");
-    expect(dialog.textContent).toContain("CSV");
-    expect(dialog.textContent).not.toContain("JSON");
-  });
-
-  it("says nothing about the format when there is no deliverable artifact", () => {
-    // Before this packet the chain fell through to outputArtifactType's hard-coded
-    // "XML", so the dialog stated a format for an order that had produced none.
-    renderConfirm({ artifacts: [REPROCESSED_PREVIEW] } as Pick<Order, "artifacts">);
-    const dialog = screen.getByRole("dialog");
-    expect(dialog.textContent).toContain("Not known yet");
-    expect(dialog.textContent).not.toContain("XML");
-    expect(dialog.textContent).not.toContain("JSON");
-    expect(screen.getByText(/This will deliver the transformed order/)).toBeTruthy();
-  });
-
-  it("still names a plain format when the order has one", () => {
-    // Anti-vacuity: if the dialog stopped printing formats altogether, both
-    // assertions above would pass for the wrong reason.
-    renderConfirm({ artifacts: [DELIVERABLE] } as Pick<Order, "artifacts">);
-    expect(screen.getByText(/This will deliver the transformed CSV order/)).toBeTruthy();
   });
 });

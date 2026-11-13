@@ -71,11 +71,11 @@ const nextConfig: NextConfig = {
       // Orphan legacy views (older `src/views/*`) — collapse them onto the
       // canonical Bridge-design routes so any bookmarked or typed old URL
       // ends up at the same place the sidebar links to.
-      { source: "/dashboard",        destination: "/bridge",            permanent: true },
+      { source: "/dashboard",        destination: "/documents",         permanent: true },
       { source: "/mappings",         destination: "/lookups",           permanent: true },
       { source: "/suppliers",        destination: "/flows",             permanent: true },
-      { source: "/orders",           destination: "/inbox",             permanent: true },
-      { source: "/orders/:id",       destination: "/inbox/:id",         permanent: true },
+      { source: "/orders",           destination: "/archive",           permanent: true },
+      { source: "/orders/:id",       destination: "/archive/:id",       permanent: true },
       // Help-article consolidation: delivery-config was deleted (it carried a
       // false claim about a test-fire gate); its true content was merged into
       // delivery-setup, which is now the single delivery article.

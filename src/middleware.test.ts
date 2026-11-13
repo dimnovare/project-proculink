@@ -317,7 +317,8 @@ describe("the dependency contract the retry redirect relies on", () => {
 // /library/suppliers/[id] and /connections/[connectionId] — were all reachable
 // signed out by putting a dot in the id. Measured against a local dev server:
 // `/inbox/008412` answered 307 to /sign-in, `/inbox/anything.with.a.dot`
-// answered 200 with the workspace shell. No tenant data crossed — every data
+// answered 200 with the workspace shell. (/inbox went with the order screens on
+// 2026-11-13; /archive/[orderId] is the dynamic order route these now use.) No tenant data crossed — every data
 // query is gated on useQueriesEnabled(), which is false without a session, and
 // the API is org-scoped — but the guard did not run, which is the finding.
 //
@@ -370,7 +371,7 @@ function listPublicFiles(dir: string, prefix = ""): string[] {
 
 const PUBLIC_FILES = listPublicFiles(join(ROOT, "public")).sort();
 
-/** "/inbox(.*)" -> "inbox". The prefix each protected pattern claims. */
+/** "/archive(.*)" -> "archive". The prefix each protected pattern claims. */
 const PROTECTED_PREFIXES = PROTECTED_ROUTE_PATTERNS.map((pattern) =>
   pattern.replace(/^\//, "").replace(/\(\.\*\)$/, ""),
 );
@@ -389,7 +390,7 @@ describe("the matcher inputs are not vacuous", () => {
 
   it("finds every protected prefix", () => {
     expect(PROTECTED_PREFIXES.length).toBeGreaterThanOrEqual(8);
-    expect(PROTECTED_PREFIXES).toContain("inbox");
+    expect(PROTECTED_PREFIXES).toContain("archive");
     expect(PROTECTED_PREFIXES.every((p) => /^[a-z]+$/.test(p))).toBe(true);
   });
 
@@ -409,8 +410,8 @@ describe("a dot in a protected path no longer skips the guard", () => {
   // The finding verbatim, on each of the three routes that actually has a
   // dynamic segment to put a dot in.
   it.each([
-    ["/inbox/anything.with.a.dot"],
-    ["/inbox/PO-2026-008412.v2"],
+    ["/archive/anything.with.a.dot"],
+    ["/archive/PO-2026-008412.v2"],
     ["/library/suppliers/a.b"],
     ["/connections/a.b"],
   ])("%s reaches the middleware", (pathname) => {
@@ -430,7 +431,7 @@ describe("a dot in a protected path no longer skips the guard", () => {
   it.each(STATIC_ASSET_EXTENSIONS)(
     "an order id ending in .%s still reaches the middleware",
     (extension) => {
-      expect(middlewareRunsFor(`/inbox/order.${extension}`)).toBe(true);
+      expect(middlewareRunsFor(`/archive/order.${extension}`)).toBe(true);
     },
   );
 
@@ -439,13 +440,13 @@ describe("a dot in a protected path no longer skips the guard", () => {
   });
 
   it("does not claim a route that merely starts with a protected prefix", () => {
-    // "/inboxes" is not "/inbox". Both reach the middleware, because every
+    // "/archives" is not "/archive". Both reach the middleware, because every
     // non-asset path does — that is the first pattern doing its job, and
     // isProtectedRoute decides from there. The discriminator has to be an
     // asset-shaped path, where only the second (protected-prefix) pattern can
-    // pull something through: "/inbox/x.png" must, "/inboxes.png" must not.
-    expect(middlewareRunsFor("/inbox/x.png")).toBe(true);
-    expect(middlewareRunsFor("/inboxes.png")).toBe(false);
+    // pull something through: "/archive/x.png" must, "/archives.png" must not.
+    expect(middlewareRunsFor("/archive/x.png")).toBe(true);
+    expect(middlewareRunsFor("/archives.png")).toBe(false);
   });
 });
 

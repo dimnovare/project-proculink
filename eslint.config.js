@@ -25,10 +25,6 @@ const VITEST_ASSERT_HELPERS = [
   "expectQualifiedFooter",
   // src/components/bridge/navTitleDedup.h1.test.tsx — asserts exactly one <h1> with the given text.
   "expectSingleH1",
-  // src/components/bridge/workshop/__tests__/gateContextHeader.test.tsx — asserts the workshop header.
-  "expectGateHeader",
-  // src/components/bridge/workshop/MobileTriage.test.tsx — asserts an element is not `white-space: nowrap`.
-  "assertWraps",
   // src/app/(marketing)/legalCommitments.test.tsx — asserts a claim is absent BOTH scoped to the
   // Responsible-AI card and across the whole page (two `expect(...).not.toMatch` calls). Added when
   // WP-10 (#83) landed two tests whose whole body is this helper; verified it really asserts.

@@ -81,7 +81,7 @@ const ORG_ID = "org_created_but_not_active";
 /** deriveWorkspaceName("Ada", …) — the name the auto-create really uses. */
 const WORKSPACE_NAME = "Ada's workspace";
 const FORM_MARKER = "create org form";
-const DEST = "/bridge?org_set=1";
+const DEST = "/documents?org_set=1";
 const CREATE_ERROR = "createOrganization exploded";
 const ACTIVATE_ERROR = "setActive exploded";
 

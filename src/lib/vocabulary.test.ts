@@ -305,16 +305,12 @@ describe("check-vocabulary.mjs scan", () => {
   });
 
   it("--nouns FAILS when a nav label teaches a tenth noun, and names it", () => {
-    mkdirSync(join(root, "src", "components", "bridge", "layout"), { recursive: true });
     write(
-      "src/components/bridge/layout/HubTabs.tsx",
+      "src/components/bridge/BridgeSidebar.tsx",
       [
-        "export const HUB_LABELS: Record<HubKey, string> = {",
-        '  partners: "Partners",',
-        "};",
-        "export const HUB_TABS: Record<HubKey, HubTab[]> = {",
-        '  partners: [{ label: "Suppliers", href: "/library/suppliers" }],',
-        "};",
+        "const NAV_MAIN: SidebarNavSection[] = [",
+        '  { group: "Partners", items: [{ label: "Suppliers", href: "/library/suppliers" }] },',
+        "];",
         "",
       ].join("\n"),
     );
@@ -329,8 +325,8 @@ describe("check-vocabulary.mjs scan", () => {
   it("--nouns FAILS LOUDLY if a policed registry is renamed or moved away", () => {
     const { code, out } = runGate(["--nouns"], root);
     expect(code).toBe(1);
-    // NOTE: in THIS fixture tree only HubTabs.tsx exists, so what fires here is
-    // `file-not-found` for the other four registry files — the `registry-moved` branch is
+    // NOTE: in THIS fixture tree only BridgeSidebar.tsx exists, so what fires here is
+    // `file-not-found` for the settings page — the `registry-moved` branch is
     // never reached. The alternation made that invisible. `blockBody anchoring` below is
     // where `registry-moved` is actually exercised, against a tree where every registry
     // file is present and the baseline run is GREEN.
@@ -496,42 +492,26 @@ describe("check-vocabulary.mjs — per-tier BLOCK exemption", () => {
 // scores zero, and the run prints OK — so every test here asserts a SPECIFIC exit code and
 // a SPECIFIC offence token, never just "it failed".
 //
-// The fixture tree carries ALL FOUR registry files with approved labels, so the baseline is
-// exit 0. That matters: in the suite above only HubTabs.tsx exists, so every run exits 1 on
+// The fixture tree carries BOTH registry files with approved labels, so the baseline is
+// exit 0. That matters: in the suite above only BridgeSidebar.tsx exists, so every run exits 1 on
 // `file-not-found` and an assertion of "exit 1" there would pass no matter what blockBody
 // did. A green baseline is what makes each mutation below attributable.
 describe("check-vocabulary.mjs — blockBody anchoring", () => {
   let root: string;
 
-  /** Every policed registry, with labels drawn from the approved vocabulary. 8 labels total. */
+  /** Every policed registry, with labels drawn from the approved vocabulary. 4 labels total. */
   const CLEAN: Record<string, string[]> = {
     "src/components/bridge/BridgeSidebar.tsx": [
       "const NAV_MAIN: SidebarNavSection[] = [",
       '  { group: "Orders", items: [{ label: "Suppliers" }] },',
       "];",
-      "const ENGINE_NAV_MAIN: SidebarNavSection[] = [",
-      '  { items: [{ label: "Orders" }] },',
-      "];",
       "const NAV_TAIL: SidebarNavItem[] = [",
       '  { label: "Workspace" },',
       "];",
     ],
-    "src/components/bridge/layout/HubTabs.tsx": [
-      "export const HUB_LABELS: Record<HubKey, string> = {",
-      '  orders: "Orders",',
-      "};",
-      "export const HUB_TABS: Record<HubKey, HubTab[]> = {",
-      '  orders: [{ label: "Orders" }],',
-      "};",
-    ],
     "src/app/(app)/settings/page.tsx": [
       "const TABS: Array<{ id: SettingsTab; label: string }> = [",
       '  { id: "billing", label: "Billing" },',
-      "];",
-    ],
-    "src/components/bridge/InboxView.tsx": [
-      "const FILTER_CHIPS: Array<{ label: string }> = [",
-      '  { label: "Issues" },',
       "];",
     ],
   };
@@ -564,7 +544,7 @@ describe("check-vocabulary.mjs — blockBody anchoring", () => {
     plant();
     const { code, out } = runGate(["--nouns"], root);
     expect(code).toBe(0);
-    expect(out).toContain("checked 8 navigation label(s)");
+    expect(out).toContain("checked 4 navigation label(s)");
   });
 
   /**
@@ -580,8 +560,8 @@ describe("check-vocabulary.mjs — blockBody anchoring", () => {
    */
   it("reads real label text out of the block, not masked whitespace", () => {
     plant({
-      "src/components/bridge/InboxView.tsx": [
-        "const FILTER_CHIPS: Array<{ label: string }> = [",
+      "src/app/(app)/settings/page.tsx": [
+        "const TABS: Array<{ id: SettingsTab; label: string }> = [",
         '  { label: "Partners" },',
         "];",
       ],
@@ -596,45 +576,45 @@ describe("check-vocabulary.mjs — blockBody anchoring", () => {
 
   it("a STRING LITERAL naming the declaration does not become the anchor", () => {
     plant({
-      "src/components/bridge/InboxView.tsx": [
-        'const DOC = "see const FILTER_CHIPS in this file";',
-        "const FILTER_CHIPS: Array<{ label: string }> = [",
+      "src/app/(app)/settings/page.tsx": [
+        'const DOC = "see const TABS in this file";',
+        "const TABS: Array<{ id: SettingsTab; label: string }> = [",
         '  { label: "Issues" },',
         "];",
       ],
     });
     const { code, out } = runGate(["--nouns"], root);
     expect(code).toBe(0);
-    // The real block was still read — all 9 labels, not 8.
-    expect(out).toContain("checked 8 navigation label(s)");
+    // The real block was still read — all 4 labels.
+    expect(out).toContain("checked 4 navigation label(s)");
   });
 
   it("a TEMPLATE LITERAL naming the declaration does not become the anchor", () => {
     plant({
-      "src/components/bridge/InboxView.tsx": [
-        "const DOC = `see const FILTER_CHIPS in this file`;",
-        "const FILTER_CHIPS: Array<{ label: string }> = [",
+      "src/app/(app)/settings/page.tsx": [
+        "const DOC = `see const TABS in this file`;",
+        "const TABS: Array<{ id: SettingsTab; label: string }> = [",
         '  { label: "Issues" },',
         "];",
       ],
     });
     const { code, out } = runGate(["--nouns"], root);
     expect(code).toBe(0);
-    expect(out).toContain("checked 8 navigation label(s)");
+    expect(out).toContain("checked 4 navigation label(s)");
   });
 
   it("a COMMENT naming the declaration does not become the anchor", () => {
     plant({
-      "src/components/bridge/InboxView.tsx": [
-        "// The vocabulary gate is pinned to const FILTER_CHIPS in this file.",
-        "const FILTER_CHIPS: Array<{ label: string }> = [",
+      "src/app/(app)/settings/page.tsx": [
+        "// The vocabulary gate is pinned to const TABS in this file.",
+        "const TABS: Array<{ id: SettingsTab; label: string }> = [",
         '  { label: "Issues" },',
         "];",
       ],
     });
     const { code, out } = runGate(["--nouns"], root);
     expect(code).toBe(0);
-    expect(out).toContain("checked 8 navigation label(s)");
+    expect(out).toContain("checked 4 navigation label(s)");
   });
 
   // ─── …and a decoy may not SUPPRESS the failure when the registry really is gone ───
@@ -645,8 +625,8 @@ describe("check-vocabulary.mjs — blockBody anchoring", () => {
 
   it("a STRING-LITERAL decoy does not hide a registry that was renamed away", () => {
     plant({
-      "src/components/bridge/InboxView.tsx": [
-        'const DOC = "see const FILTER_CHIPS in this file";',
+      "src/app/(app)/settings/page.tsx": [
+        'const DOC = "see const TABS in this file";',
         "const RENAMED_CHIPS: Array<{ label: string }> = [",
         '  { label: "Issues" },',
         "];",
@@ -654,14 +634,14 @@ describe("check-vocabulary.mjs — blockBody anchoring", () => {
     });
     const { code, out } = runGate(["--nouns"], root);
     expect(code).toBe(1);
-    expect(out).toMatch(/InboxView\.tsx.*→.*registry-moved/);
-    expect(out).toContain("InboxView.tsx");
+    expect(out).toMatch(/settings\/page\.tsx.*→.*registry-moved/);
+    expect(out).toContain("settings/page.tsx");
   });
 
   it("a TEMPLATE-LITERAL decoy does not hide a registry that was renamed away", () => {
     plant({
-      "src/components/bridge/InboxView.tsx": [
-        "const DOC = `see const FILTER_CHIPS in this file`;",
+      "src/app/(app)/settings/page.tsx": [
+        "const DOC = `see const TABS in this file`;",
         "const RENAMED_CHIPS: Array<{ label: string }> = [",
         '  { label: "Issues" },',
         "];",
@@ -669,13 +649,13 @@ describe("check-vocabulary.mjs — blockBody anchoring", () => {
     });
     const { code, out } = runGate(["--nouns"], root);
     expect(code).toBe(1);
-    expect(out).toMatch(/InboxView\.tsx.*→.*registry-moved/);
+    expect(out).toMatch(/settings\/page\.tsx.*→.*registry-moved/);
   });
 
   it("a COMMENT decoy does not hide a registry that was renamed away", () => {
     plant({
-      "src/components/bridge/InboxView.tsx": [
-        "// pinned to const FILTER_CHIPS — do not move",
+      "src/app/(app)/settings/page.tsx": [
+        "// pinned to const TABS — do not move",
         "const RENAMED_CHIPS: Array<{ label: string }> = [",
         '  { label: "Issues" },',
         "];",
@@ -683,7 +663,7 @@ describe("check-vocabulary.mjs — blockBody anchoring", () => {
     });
     const { code, out } = runGate(["--nouns"], root);
     expect(code).toBe(1);
-    expect(out).toMatch(/InboxView\.tsx.*→.*registry-moved/);
+    expect(out).toMatch(/settings\/page\.tsx.*→.*registry-moved/);
   });
 
   // ─── a JSX text node is neither comment nor literal, so masking cannot see it ───
@@ -694,22 +674,22 @@ describe("check-vocabulary.mjs — blockBody anchoring", () => {
 
   it("a JSX TEXT NODE naming the declaration does not become the anchor", () => {
     plant({
-      "src/components/bridge/InboxView.tsx": [
-        "export const Doc = () => <p>const FILTER_CHIPS lives in this file</p>;",
-        "const FILTER_CHIPS: Array<{ label: string }> = [",
+      "src/app/(app)/settings/page.tsx": [
+        "export const Doc = () => <p>const TABS lives in this file</p>;",
+        "const TABS: Array<{ id: SettingsTab; label: string }> = [",
         '  { label: "Issues" },',
         "];",
       ],
     });
     const { code, out } = runGate(["--nouns"], root);
     expect(code).toBe(0);
-    expect(out).toContain("checked 8 navigation label(s)");
+    expect(out).toContain("checked 4 navigation label(s)");
   });
 
   it("a JSX-TEXT decoy does not hide a registry that was renamed away", () => {
     plant({
-      "src/components/bridge/InboxView.tsx": [
-        "export const Doc = () => <p>const FILTER_CHIPS lives in this file</p>;",
+      "src/app/(app)/settings/page.tsx": [
+        "export const Doc = () => <p>const TABS lives in this file</p>;",
         "const RENAMED_CHIPS: Array<{ label: string }> = [",
         '  { label: "Issues" },',
         "];",
@@ -717,7 +697,7 @@ describe("check-vocabulary.mjs — blockBody anchoring", () => {
     });
     const { code, out } = runGate(["--nouns"], root);
     expect(code).toBe(1);
-    expect(out).toMatch(/InboxView\.tsx.*→.*registry-moved/);
+    expect(out).toMatch(/settings\/page\.tsx.*→.*registry-moved/);
   });
 
   /**
@@ -735,10 +715,10 @@ describe("check-vocabulary.mjs — blockBody anchoring", () => {
    */
   it("KNOWN GAP: a line-anchored declaration inside JSX <pre> text is still believed", () => {
     plant({
-      "src/components/bridge/InboxView.tsx": [
+      "src/app/(app)/settings/page.tsx": [
         "export const Doc = () => (",
         "  <pre>",
-        'const FILTER_CHIPS = [ label: "Orders" ]',
+        'const TABS = [ label: "Orders" ]',
         "  </pre>",
         ");",
         "const RENAMED_CHIPS: Array<{ label: string }> = [",
@@ -763,11 +743,11 @@ describe("check-vocabulary.mjs — blockBody anchoring", () => {
 
   it("an ALIASED registry is reported, not silently re-pointed at the next block", () => {
     plant({
-      "src/components/bridge/InboxView.tsx": [
+      "src/app/(app)/settings/page.tsx": [
         "const REAL_CHIPS = [",
         '  { label: "Partners" },',
         "];",
-        "const FILTER_CHIPS = REAL_CHIPS;",
+        "const TABS = REAL_CHIPS;",
         "const SOMETHING_ELSE = [",
         '  { label: "Orders" },',
         "];",
@@ -775,13 +755,13 @@ describe("check-vocabulary.mjs — blockBody anchoring", () => {
     });
     const { code, out } = runGate(["--nouns"], root);
     expect(code).toBe(1);
-    expect(out).toMatch(/InboxView\.tsx.*→.*not-a-literal/);
+    expect(out).toMatch(/settings\/page\.tsx.*→.*not-a-literal/);
   });
 
   it("a FACTORY-built registry is reported, not silently re-pointed at the next block", () => {
     plant({
-      "src/components/bridge/InboxView.tsx": [
-        "const FILTER_CHIPS = buildChips(STATUSES);",
+      "src/app/(app)/settings/page.tsx": [
+        "const TABS = buildChips(STATUSES);",
         "const SOMETHING_ELSE = [",
         '  { label: "Orders" },',
         "];",
@@ -789,22 +769,22 @@ describe("check-vocabulary.mjs — blockBody anchoring", () => {
     });
     const { code, out } = runGate(["--nouns"], root);
     expect(code).toBe(1);
-    expect(out).toMatch(/InboxView\.tsx.*→.*not-a-literal/);
+    expect(out).toMatch(/settings\/page\.tsx.*→.*not-a-literal/);
   });
 
   // `new Set([…])` is the one indirection a policed block really uses — FILLER in
   // vocabulary.ts — so it must keep working, or the gate cannot load its own vocabulary.
   it("still reads a `new Set([…])` declaration", () => {
     plant({
-      "src/components/bridge/InboxView.tsx": [
-        "const FILTER_CHIPS = new Set([",
+      "src/app/(app)/settings/page.tsx": [
+        "const TABS = new Set([",
         '  { label: "Orders" },',
         "]);",
       ],
     });
     const { code, out } = runGate(["--nouns"], root);
     expect(code).toBe(0);
-    expect(out).toContain("checked 8 navigation label(s)");
+    expect(out).toContain("checked 4 navigation label(s)");
   });
 
   // ─── labels are not always double-quoted ───
@@ -819,8 +799,8 @@ describe("check-vocabulary.mjs — blockBody anchoring", () => {
   ] as const) {
     it(`polices a ${style} label`, () => {
       plant({
-        "src/components/bridge/InboxView.tsx": [
-          "const FILTER_CHIPS: Array<{ label: string }> = [",
+        "src/app/(app)/settings/page.tsx": [
+          "const TABS: Array<{ id: SettingsTab; label: string }> = [",
           `  ${written}`,
           "];",
         ],
@@ -840,14 +820,14 @@ describe("check-vocabulary.mjs — blockBody anchoring", () => {
   // That rejection is the proof — an unparsed label produces no offence at all.
   it("still reads a double-quoted label containing an apostrophe", () => {
     plant({
-      "src/components/bridge/InboxView.tsx": [
-        "const FILTER_CHIPS: Array<{ label: string }> = [",
+      "src/app/(app)/settings/page.tsx": [
+        "const TABS: Array<{ id: SettingsTab; label: string }> = [",
         `  { label: "Supplier's orders" },`,
         "];",
       ],
     });
     const { code, out } = runGate(["--nouns"], root);
-    expect(out).toContain("checked 8 navigation label(s)");
+    expect(out).toContain("checked 4 navigation label(s)");
     expect(out).not.toContain("could not be read");
     expect(code).toBe(1);
     expect(out).toContain(`"Supplier's orders"`);
@@ -857,19 +837,19 @@ describe("check-vocabulary.mjs — blockBody anchoring", () => {
 
   it("a registry that parses but yields NO labels is an offence, not a silent zero", () => {
     plant({
-      "src/components/bridge/InboxView.tsx": ["const FILTER_CHIPS: Array<{ label: string }> = [];"],
+      "src/app/(app)/settings/page.tsx": ["const TABS: Array<{ id: SettingsTab; label: string }> = [];"],
     });
     const { code, out } = runGate(["--nouns"], root);
     expect(code).toBe(1);
-    expect(out).toMatch(/InboxView\.tsx.*→.*empty-registry/);
+    expect(out).toMatch(/settings\/page\.tsx.*→.*empty-registry/);
   });
 
   // ─── balancing over the masked copy ───
 
   it("a bracket inside a label does not truncate the block", () => {
     plant({
-      "src/components/bridge/InboxView.tsx": [
-        "const FILTER_CHIPS: Array<{ label: string }> = [",
+      "src/app/(app)/settings/page.tsx": [
+        "const TABS: Array<{ id: SettingsTab; label: string }> = [",
         '  { label: "Issues", hint: "use ] to close" },',
         '  { label: "Orders" },',
         "];",
@@ -877,9 +857,9 @@ describe("check-vocabulary.mjs — blockBody anchoring", () => {
     });
     const { code, out } = runGate(["--nouns"], root);
     expect(code).toBe(0);
-    // 9, not 8: the second chip is only reached if the `]` inside the literal did not
+    // 5, not 4: the second tab is only reached if the `]` inside the literal did not
     // decrement the depth counter and end the block early.
-    expect(out).toContain("checked 9 navigation label(s)");
+    expect(out).toContain("checked 5 navigation label(s)");
   });
 
   /**
@@ -891,8 +871,8 @@ describe("check-vocabulary.mjs — blockBody anchoring", () => {
    */
   it("reports a label that merely LOOKS like a parse code as a wording offence", () => {
     plant({
-      "src/components/bridge/InboxView.tsx": [
-        "const FILTER_CHIPS: Array<{ label: string }> = [",
+      "src/app/(app)/settings/page.tsx": [
+        "const TABS: Array<{ id: SettingsTab; label: string }> = [",
         '  { label: "Registry-moved" },',
         "];",
       ],
@@ -902,7 +882,7 @@ describe("check-vocabulary.mjs — blockBody anchoring", () => {
     expect(out).toContain("teach a word outside the vocabulary");
     expect(out).not.toContain("could not be read");
     // …and the block really was read, which is why this is a wording problem.
-    expect(out).toContain("checked 8 navigation label(s)");
+    expect(out).toContain("checked 4 navigation label(s)");
   });
 
   // ─── the real tree ───
@@ -920,11 +900,14 @@ describe("check-vocabulary.mjs — blockBody anchoring", () => {
     // cannot tell any of those from an ordinary IA change; measured, a `>= 35` floor let five
     // of the six deletions through. Update this number deliberately, with the registry entry.
     // 7 since plan 13b removed the supplier screens: SupplierDockProfile's TABS went with its file.
-    expect(out).toContain("across 7 registry block(s)");
+    // 3 since the order screens went (2026-11-13): HubTabs (HUB_TABS, HUB_LABELS), InboxView's
+    // FILTER_CHIPS and the order nav went with their files, and ENGINE_NAV_MAIN became NAV_MAIN.
+    expect(out).toContain("across 3 registry block(s)");
 
     // Labels stay a loose backstop on top of that, for a collapse the block count cannot see.
     const count = Number(/checked (\d+) navigation label/.exec(out)?.[1]);
     // 27 -> 25 on 2026-11-13: the Issues and System status tabs went with their pages.
-    expect(count).toBeGreaterThanOrEqual(25);
+    // 25 -> 11 the same day: the hub tabs, hub labels, inbox filter chips and order nav went.
+    expect(count).toBeGreaterThanOrEqual(11);
   });
 });

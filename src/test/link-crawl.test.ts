@@ -181,12 +181,11 @@ describe("link crawl — nothing we ship points at a 404", () => {
   });
 
   it("in-app navigation links only to live pages", async () => {
-    // Still called out separately from the src/ sweep above: these three files are what puts a path
+    // Still called out separately from the src/ sweep above: these two files are what puts a path
     // in front of a user on every screen, so a dead link in one of them is a different severity —
     // and a floor here catches a nav registry that silently stopped being parsed.
     const NAV_SOURCES = [
       "src/components/bridge/BridgeSidebar.tsx",
-      "src/components/bridge/layout/HubTabs.tsx",
       "src/components/bridge/CommandPalette.tsx",
     ];
     const entries = NAV_SOURCES.flatMap((file) => linksIn(join(ROOT, file)));

@@ -33,13 +33,11 @@ const APP_DIR = join(ROOT, "src", "app", "(app)");
 
 // Baseline of known non-conforming pages.
 // 2026-06-11: the full-migration pass moved every legacy page (or the layout
-// component it delegates to) onto PageShell. The single remaining entry is
-// deliberate: /inbox/[orderId] renders SpineReview, which owns a bespoke
-// full-bleed review layout (the "heart piece") and is excluded by design.
+// component it delegates to) onto PageShell. The single remaining entry was
+// /inbox/[orderId], whose bespoke full-bleed review layout was excluded by
+// design; it went with the order screens on 2026-11-13, so the list is empty.
 // New pages should NOT be added to this list.
-const BASELINE_NON_CONFORMING = new Set([
-  "src/app/(app)/inbox/[orderId]/page.tsx",
-]);
+const BASELINE_NON_CONFORMING = new Set([]);
 
 /** Recursively collect all page.tsx paths under a directory. */
 function findPages(dir) {

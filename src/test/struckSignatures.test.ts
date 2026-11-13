@@ -180,12 +180,8 @@ describe("kept signatures are still real", () => {
  * is nothing left telling a user which end of the screen is which.
  */
 describe("buyer/supplier orientation has a carrier", () => {
-  it("keeps a labelled direction column header in the queue", () => {
-    const direction = read("src/hooks/useOrderDirection.ts");
-    expect(direction).toContain("Buyer → Supplier");
-    expect(direction).toContain("Customer → You");
-  });
-
+  // The queue's labelled direction column (useOrderDirection) went with the order
+  // screens on 2026-11-13; the review-pane order and the colour tokens remain.
   it("orders the review panes incoming → outgoing → preview", () => {
     const wb = read("src/components/bridge/mapper/MapperWorkbench.tsx");
     const incoming = wb.indexOf("incomingNode");
@@ -202,9 +198,6 @@ describe("buyer/supplier orientation has a carrier", () => {
   });
 
   it("keeps buyer-blue and supplier-green as the direction colours", () => {
-    const direction = read("src/hooks/useOrderDirection.ts");
-    expect(direction.toLowerCase()).toContain("buyer");
-    expect(direction.toLowerCase()).toContain("supplier");
     // The semantics themselves, from the token definitions.
     const css = read(GLOBALS_CSS);
     expect(css).toContain("#1E66C9");

@@ -15,7 +15,7 @@ import { COPYRIGHT_NOTICE } from "@/lib/legal-entity";
 // now 308s to /pilot (src/lib/retired-routes.ts). When there are named, approved
 // references, this item becomes "Clients".
 const FOOTER_COLS: { h: string; links: [string, string][] }[] = [
-  { h: "Product", links: [["How it works", "/how-it-works"], ["Pricing", "/pricing"], ["Security", "/security"], ["One-page overview", "/one-pager"], ["Open the dashboard", "/bridge"]] },
+  { h: "Product", links: [["How it works", "/how-it-works"], ["Pricing", "/pricing"], ["Security", "/security"], ["One-page overview", "/one-pager"], ["Open the dashboard", "/documents"]] },
   { h: "Company", links: [["Pilot programme", "/pilot"], ["Book a 20-minute call", "/book-demo"], ["Changelog", "/changelog"], ["Help center", "/help"], ["Support", "/support"]] },
   { h: "Legal",   links: [["Privacy", "/privacy"], ["Terms", "/terms"], ["AUP", "/aup"], ["DPA", "/dpa"], ["Subprocessors", "/subprocessors"]] },
 ];

@@ -2,7 +2,6 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ApiHttpError } from "@/lib/api/core";
-import { buildVisibleNav } from "@/components/bridge/BridgeSidebar";
 import { FlowsHome } from "./FlowsHome";
 
 const listFlows = vi.fn();
@@ -12,11 +11,6 @@ vi.mock("@/lib/api/documents", () => ({
 }));
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => true }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
-
-const hasFlows = (documentEngine: boolean) =>
-  buildVisibleNav("Suppliers", true, documentEngine)
-    .main.flatMap((s) => s.items)
-    .some((i) => i.href === "/flows");
 
 describe("FlowsHome", () => {
   it("says flows are off on the engine refusal, with no first-flow prompt", async () => {
@@ -39,10 +33,5 @@ describe("FlowsHome", () => {
     );
     expect(await screen.findByText("Set up your first flow")).toBeTruthy();
     expect(screen.queryByRole("region", { name: "Recent documents" })).toBeNull();
-  });
-
-  it("shows the Flows menu item only when the engine is on", () => {
-    expect(hasFlows(false)).toBe(false);
-    expect(hasFlows(true)).toBe(true);
   });
 });

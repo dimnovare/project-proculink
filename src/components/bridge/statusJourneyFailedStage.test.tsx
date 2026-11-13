@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, afterEach } from "vitest";
 import { render, cleanup } from "@testing-library/react";
 
 // The red X must sit on the node that actually failed.
@@ -18,16 +18,8 @@ import { render, cleanup } from "@testing-library/react";
 //   `transform_failed`  → Transform (3)
 //   `delivery_failed`, `delivery_dead_letter`, `rejected_by_supplier` → Deliver (4)
 
-vi.mock("next/navigation", () => ({
-  usePathname: () => "/inbox",
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
-  useSearchParams: () => new URLSearchParams(),
-}));
-
 import { StatusJourney, FAILURE_JOURNEY_STAGE, failedStageFor } from "./StatusJourney";
-import { FAILED_BUCKET, journeyStage } from "./InboxView";
-import { mapStatus } from "@/lib/orderArchiveStatus";
-import { journeyStageFor } from "./BridgeDashboard";
+import { FAILURE_STATUSES } from "@/lib/orderStatusManifest";
 
 afterEach(cleanup);
 
@@ -48,60 +40,11 @@ describe("FAILURE_JOURNEY_STAGE — the stage each failure status points at", ()
     });
   });
 
-  it("covers exactly the FAILED_BUCKET — the two lists cannot drift", () => {
-    // FAILED_BUCKET mirrors the backend's OrderStatusConstants.FailureBucket;
-    // a sixth failure status added to one list without the other fails here.
-    expect(new Set(Object.keys(FAILURE_JOURNEY_STAGE))).toEqual(new Set(FAILED_BUCKET));
-  });
-});
-
-describe("journeyStage — the inbox Pipeline column's stage derivation", () => {
-  it("derives the failed node from the RAW status, not a hardcoded Validate", () => {
-    expect(journeyStage("failed", "delivery_failed")).toEqual({ failed: 4 });
-    expect(journeyStage("failed", "rejected_by_supplier")).toEqual({ failed: 4 });
-    expect(journeyStage("failed", "delivery_dead_letter")).toEqual({ failed: 4 });
-    expect(journeyStage("failed", "transform_failed")).toEqual({ failed: 3 });
-    expect(journeyStage("failed", "failed")).toEqual({ failed: 0 });
-  });
-
-  it("keeps the preset stage for non-failed statuses", () => {
-    expect(journeyStage("sent", "delivered")).toBe(4);
-    expect(journeyStage("new", "pending_parse")).toBe(0);
-    expect(journeyStage("review", "pending_review")).toBe(2);
-  });
-
-  it("never renders a bucket member as plain stage 0 — failed-at-Parse is an X, not 'New'", () => {
-    // `{ failed: 0 }` (parse failed, red X on Parse) must stay distinguishable
-    // from plain `0` ("New", nothing ran) — the original fall-through lie.
-    for (const status of FAILED_BUCKET) {
-      const stage = journeyStage(mapStatus(status), status);
-      expect(typeof stage).toBe("object");
-      expect(stage).not.toBe(0);
-    }
-  });
-});
-
-describe("journeyStageFor — the dashboard in-transit stepper", () => {
-  it("sends delivery_failed (and its stageLabel 'Failed') to the Deliver node", () => {
-    // stageLabel maps ONLY delivery_failed to the "Failed" label
-    // (BridgeDashboard stageLabel), so the label pins to Deliver too.
-    expect(journeyStageFor("delivery_failed")).toEqual({ failed: 4 });
-    expect(journeyStageFor("Failed")).toEqual({ failed: 4 });
-  });
-
-  it("covers every raw failure status, not just the one ACTIVE_STATUSES admits today", () => {
-    // An ACTIVE_STATUSES expansion must not fall through to `default: 0` (X at Parse).
-    expect(journeyStageFor("transform_failed")).toEqual({ failed: 3 });
-    expect(journeyStageFor("delivery_dead_letter")).toEqual({ failed: 4 });
-    expect(journeyStageFor("rejected_by_supplier")).toEqual({ failed: 4 });
-    expect(journeyStageFor("failed")).toEqual({ failed: 0 });
-  });
-
-  it("keeps the non-failed lanes", () => {
-    expect(journeyStageFor("parsing")).toBe(0);
-    expect(journeyStageFor("pending_review")).toBe(2);
-    expect(journeyStageFor("transforming")).toBe(3);
-    expect(journeyStageFor("delivering")).toBe(4);
+  it("covers exactly the failure bucket — the two lists cannot drift", () => {
+    // FAILURE_STATUSES mirrors the backend's OrderStatusConstants.FailureBucket
+    // (it was the inbox's FAILED_BUCKET until the inbox went, 2026-11-13); a
+    // sixth failure status added to one list without the other fails here.
+    expect(new Set(Object.keys(FAILURE_JOURNEY_STAGE))).toEqual(new Set(FAILURE_STATUSES));
   });
 });
 

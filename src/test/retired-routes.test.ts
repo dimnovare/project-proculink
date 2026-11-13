@@ -114,12 +114,11 @@ describe("retired routes", () => {
       .map((r) => normalizePath(r.source.split("/:")[0]));
     const offenders: string[] = [];
 
-    // The registries that put a path in front of a user: the sidebar, the hub
-    // tab bars, the command palette, the per-screen guides, and the middleware
-    // matcher. A retired route surviving in any of them is a visible dead end.
+    // The registries that put a path in front of a user: the sidebar, the
+    // command palette, the per-screen guides, and the middleware matcher (the
+    // hub tab bars went with the order screens, 2026-11-13). A retired route surviving in any of them is a visible dead end.
     const NAV_SOURCES = [
       "src/components/bridge/BridgeSidebar.tsx",
-      "src/components/bridge/layout/HubTabs.tsx",
       "src/components/bridge/CommandPalette.tsx",
       "src/lib/section-guides.ts",
       "src/middleware.ts",

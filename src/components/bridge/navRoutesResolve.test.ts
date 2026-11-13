@@ -23,7 +23,6 @@ import path from "node:path";
 // MDX and Sentry wrappers, and the redirect table is a plain literal.
 
 import { buildVisibleNav, PINNED_ACTION_HREF } from "./BridgeSidebar";
-import { HUB_TABS, hubForPath, type HubKey } from "./layout/HubTabs";
 
 const REPO_ROOT = path.resolve(__dirname, "../../..");
 const APP_DIR = path.join(REPO_ROOT, "src/app");
@@ -108,16 +107,14 @@ function redirects(): Redirect[] {
 const concrete = (p: string) => p.replace(/:[^/*]+\*?/g, "sample-id");
 
 // Both variants: the legacy nav (engine off) and the new product nav (engine on).
-const NAVS = [buildVisibleNav("Suppliers", true, false), buildVisibleNav("Suppliers", true, true)];
-const NAV_ITEMS = NAVS.flatMap((n) => [...n.main.flatMap((s) => s.items), ...n.tail]);
-const HUBS = Object.keys(HUB_TABS) as HubKey[];
+const NAV = buildVisibleNav(true);
+const NAV_ITEMS = [...NAV.main.flatMap((s) => s.items), ...NAV.tail];
 
 /** The nav's own reachability rule, applied to any pathname. */
 function reachableFromNav(route: string): boolean {
   const direct = NAV_ITEMS.some((i) => route === i.href || route.startsWith(i.href + "/"));
-  const viaHub = NAV_ITEMS.some((i) => i.hub && hubForPath(route) === i.hub);
   const viaPinned = route === PINNED_ACTION_HREF || route.startsWith(PINNED_ACTION_HREF + "/");
-  return direct || viaHub || viaPinned;
+  return direct || viaPinned;
 }
 
 describe("nav routes resolve — nothing 404s, nothing is stranded", () => {
@@ -134,7 +131,7 @@ describe("nav routes resolve — nothing 404s, nothing is stranded", () => {
     // the floor now has room for the deletions this repo actually ships. The
     // named routes below are what pins specific content.
     expect(routes.length).toBeGreaterThan(15);
-    expect(routes).toContain("/inbox");
+    expect(routes).toContain("/documents");
     expect(routes).toContain("/flows/sample-id");
     expect(routes).toContain("/operations/log");
   });
@@ -150,10 +147,6 @@ describe("nav routes resolve — nothing 404s, nothing is stranded", () => {
     const targets = [
       ...NAV_ITEMS.map((i) => i.href),
       PINNED_ACTION_HREF,
-      ...HUBS.flatMap((h) => HUB_TABS[h].map((t) => t.href)),
-      // `match` aliases are advertised as belonging to the hub, so they must
-      // resolve too — a stale alias silently lights a tab for a dead URL.
-      ...HUBS.flatMap((h) => HUB_TABS[h].flatMap((t) => t.match ?? [])),
     ];
     const redirected = new Set(redirects().filter((r) => r.permanent).map((r) => r.source));
     const dead = [...new Set(targets)].filter(
@@ -177,6 +170,9 @@ describe("nav routes resolve — nothing 404s, nothing is stranded", () => {
       expect(pageExistsFor(dest), `${r.source} → ${r.destination} must land on a real page`).toBe(true);
       // Help articles live outside the app shell; the nav reaches them via /help.
       if (dest.startsWith("/help")) continue;
+      // The old-order archive is linked from Documents, not from the nav — the same
+      // exemption the every-page walk above makes. /orders, /inbox and /drafts land here.
+      if (dest.startsWith("/archive")) continue;
       expect(
         reachableFromNav(dest),
         `${r.source} → ${r.destination} must land somewhere the nav can reach`,
@@ -189,15 +185,12 @@ describe("nav routes resolve — nothing 404s, nothing is stranded", () => {
     // These five URLs were the pre-Bridge views. The nav restructure re-points
     // what they land on, so each pairing is asserted explicitly rather than
     // only through the generic loop above.
-    expect(bySource["/dashboard"]?.destination).toBe("/bridge");
-    expect(bySource["/orders"]?.destination).toBe("/inbox");
-    expect(bySource["/orders/:id"]?.destination).toBe("/inbox/:id");
+    // The order screens they first landed on went on 2026-11-13, so the order
+    // views now land on the read-only archive and the dashboard on Documents.
+    expect(bySource["/dashboard"]?.destination).toBe("/documents");
+    expect(bySource["/orders"]?.destination).toBe("/archive");
+    expect(bySource["/orders/:id"]?.destination).toBe("/archive/:id");
     expect(bySource["/suppliers"]?.destination).toBe("/flows");
     expect(bySource["/mappings"]?.destination).toBe("/lookups");
-    // …and each destination is a tab in the hub the nav teaches (the two supplier
-    // destinations moved to the flow screens, which the engine nav reaches directly).
-    expect(hubForPath("/bridge")).toBe("activity");
-    expect(hubForPath("/inbox")).toBe("orders");
-    expect(hubForPath("/inbox/sample-id")).toBe("orders");
   });
 });

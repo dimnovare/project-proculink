@@ -247,9 +247,9 @@ export default function AdminPage() {
           {/* 401 → send the user through sign-in WITH a return path. Without
               redirect_url, an already-signed-in user bounces through Clerk's
               fallback (/onboarding/select-organization), whose default dest is
-              /bridge — i.e. "I went to /admin and landed on /bridge". */}
+              /documents — i.e. "I went to /admin and landed on /documents". */}
           <Link
-            href={accessError.status === 401 ? "/sign-in?redirect_url=%2Fadmin" : "/bridge"}
+            href={accessError.status === 401 ? "/sign-in?redirect_url=%2Fadmin" : "/documents"}
             className="mt-5 inline-flex items-center rounded-[8px] px-4 py-2 text-[13px] font-semibold"
             style={{ background: "var(--brand-blue)", color: "white", textDecoration: "none" }}
           >

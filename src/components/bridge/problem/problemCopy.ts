@@ -694,7 +694,9 @@ export const PROBLEM_COPY: Record<ProblemStatus, ProblemCopy> = {
         kind: "link",
         variant: "primary",
         label: "Upload this order again",
-        href: c.supplierId ? `/upload?supplierId=${c.supplierId}` : "/upload",
+        // No `supplierId`: the flow upload reads none (the order upload that
+        // pre-selected the supplier went 2026-11-13).
+        href: "/upload",
       },
       { kind: "link", variant: "secondary", label: "See which file types we can read", href: "/formats" },
       HELP(c, "failed"),
@@ -942,26 +944,22 @@ export const PROBLEM_COPY: Record<ProblemStatus, ProblemCopy> = {
         kind: "link",
         variant: "primary",
         label: "See their reply",
-        // `?tab=response`, not `?details=response`. The drawer this opens reads
-        // `?tab=` and accepts passport | conformance | response; NOTHING has ever
-        // read `details`. Because this panel is a banner already rendered at
-        // /inbox/{id}, the old href navigated the operator to the screen they
-        // were on and opened nothing — the button did literally nothing. Reading
-        // the parameter is only half of it: OrderWorkshop seeds the tab in a
-        // useState initialiser, which never re-runs on a same-route navigation,
-        // so it also had to start syncing the param while mounted.
-        href: `/inbox/${c.orderId}?tab=response`,
+        // The order review screen and its response drawer (`/inbox/{id}?tab=response`)
+        // went on 2026-11-13; an old order opens read-only in the archive, which is
+        // where the 308 from the old URL lands too.
+        href: `/archive/${c.orderId}`,
       },
       {
         kind: "link",
         variant: "secondary",
         label: "Start a corrected order",
-        // `supplierId` only. `from={orderId}` rode along here for provenance and
-        // no reader was ever written for it, so it promised a link between the
+        // No query. `from={orderId}` rode along here for provenance and no
+        // reader was ever written for it, so it promised a link between the
         // refused order and its replacement that nothing keeps. Dropped rather
         // than shipped inert — the record this panel promises is the refused
-        // order itself, which stays exactly where it is.
-        href: c.supplierId ? `/upload?supplierId=${c.supplierId}` : "/upload",
+        // order itself, which stays exactly where it is. `supplierId` followed
+        // on 2026-11-13: the flow upload that replaced the order upload reads none.
+        href: "/upload",
       },
     ],
     helper: () => "We'll keep this one as the record of what they refused.",

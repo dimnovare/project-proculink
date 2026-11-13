@@ -16,7 +16,6 @@
 import { render } from "@testing-library/react";
 import { describe, it, expect, afterEach } from "vitest";
 import { BridgeIllustration } from "./BridgeIllustration";
-import { WireTopology, type WireBuyer, type WireSupplier, type Wire } from "@/components/bridge/WireTopology";
 
 function setReducedMotion(reduced: boolean) {
   Object.defineProperty(window, "matchMedia", {
@@ -66,35 +65,5 @@ describe("BridgeIllustration — the marketing hero", () => {
     // The four wire paths carry ids wpath-0..3; losing them would mean the guard
     // removed the illustration rather than its animation.
     expect(container.querySelectorAll('path[id^="wpath-"]').length).toBe(4);
-  });
-});
-
-describe("WireTopology — the in-app mechanism this matches", () => {
-  const buyers: WireBuyer[] = [{ id: "b1", name: "Buyer One", code: "B1", volume: "12 ord" }];
-  const suppliers: WireSupplier[] = [
-    { id: "s1", name: "Supplier One", code: "S1", volume: "12 ord", health: 98 },
-  ];
-  const wires: Wire[] = [{ buyerId: "b1", supplierId: "s1", weight: 3, health: "ok" }];
-
-  it("renders travelling pulses by default", () => {
-    setReducedMotion(false);
-    const { container } = render(
-      <div style={{ width: 1400 }}>
-        <WireTopology buyers={buyers} suppliers={suppliers} wires={wires} />
-      </div>,
-    );
-    // The lane-list fallback renders below lg and has no SVG; when the canvas is
-    // rendered at all, its pulses must be present.
-    if (container.querySelector("svg")) expect(smilCount(container)).toBeGreaterThan(0);
-  });
-
-  it("renders no SMIL under reduce — the behaviour the hero now shares", () => {
-    setReducedMotion(true);
-    const { container } = render(
-      <div style={{ width: 1400 }}>
-        <WireTopology buyers={buyers} suppliers={suppliers} wires={wires} />
-      </div>,
-    );
-    expect(smilCount(container)).toBe(0);
   });
 });

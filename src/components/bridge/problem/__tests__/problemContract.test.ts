@@ -284,31 +284,6 @@ describe("no failure state points a control at a page that is gone", () => {
     }
   });
 
-  // The panel renders links of its own — the `us`-tier support link — which never pass
-  // through `actions()`. (The outage link on the paused-processing note went with
-  // /operations/health on 2026-11-13.) Read them out of the source so they are covered by the same rule.
-  test("the panel's own links resolve too", () => {
-    const files = [
-      "src/components/bridge/problem/OrderProblemPanel.tsx",
-      "src/components/bridge/problem/UnconfirmedResolver.tsx",
-    ];
-    const found: string[] = [];
-    const dead: string[] = [];
-    for (const rel of files) {
-      const full = join(ROOT, rel);
-      for (const href of extractLinks(readFileSync(full, "utf8"), syntaxFor(full))) {
-        if (!isInternalPageLink(href)) continue;
-        // A template literal is checkable when its PATH is static — "/support?order=${po}"
-        // resolves as "/support". Only an interpolated SEGMENT is unknowable here.
-        if (normalizePath(href).includes("${")) continue;
-        found.push(`${relative(ROOT, full).split("\\").join("/")} → ${href}`);
-        if (!resolvesToLivePage(href)) dead.push(`${rel} → ${href}`);
-      }
-    }
-    expect(found.length, "the extractor read no links out of the panel").toBeGreaterThanOrEqual(1);
-    expect(dead, `panel links that go nowhere:\n  ${dead.join("\n  ")}`).toEqual([]);
-  });
-
   // Proof the predicate discriminates. Without this the two walks above are one
   // over-permissive helper away from being green on anything at all.
   test("the check rejects a dead target and a retired one — it is not vacuously green", () => {
@@ -320,7 +295,7 @@ describe("no failure state points a control at a page that is gone", () => {
     // live, the parameter was read by nothing, and citing it here taught the next
     // reader that the pair had been checked. `resolvesToLivePage` answers a
     // narrower question than its use here implied; the query half is below.
-    expect(resolvesToLivePage("/inbox/ord-1?tab=response")).toBe(true);
+    expect(resolvesToLivePage("/archive/ord-1")).toBe(true);
     expect(resolvesToLivePage("/totally-dead-route-xyz")).toBe(false);
     // The exact link this test was written for: deleted by FE #47, still 308s.
     expect(resolvesToLivePage("/library/templates?supplierId=sup-1")).toBe(false);

@@ -24,8 +24,6 @@ vi.mock("next/navigation", () => ({
 
 import { mapStatus, STATUS_PRESENTATION } from "@/lib/orderArchiveStatus";
 import { StatusCell } from "./StatusJourney";
-import { UnifiedStatusBadge, statusLabel, statusTone } from "./UnifiedStatusBadge";
-import { isRedeliverable } from "./inboxSend";
 
 afterEach(cleanup);
 
@@ -48,9 +46,6 @@ describe("delivering — the raw status maps to a real display slot", () => {
 describe("delivering — the pill tells the truth", () => {
   it("is labelled 'Sending' — the same word the canonical badge uses", () => {
     expect(STATUS_PRESENTATION.sending.label).toBe("Sending");
-    // UnifiedStatusBadge STATUS_META is the canonical label vocabulary; the inbox
-    // must not invent a second word for the same state.
-    expect(STATUS_PRESENTATION.sending.label).toBe(statusLabel("delivering"));
   });
 
   it("sits at stage 4 (Deliver) — it got all the way there", () => {
@@ -58,37 +53,13 @@ describe("delivering — the pill tells the truth", () => {
     expect(STATUS_PRESENTATION.sending.stage).not.toBe(0);
   });
 
-  it("is the in-flight info tone, never a failure", () => {
-    expect(statusTone("delivering")).toBe("info");
-    expect(statusTone("delivering")).not.toBe("danger");
-  });
-
-  // NB: StatusCell has no production call sites — the inbox renders via StatusDotPill
-  // (mobile) and UnifiedStatusBadge (desktop). So this covers the StatusJourney pill
-  // wiring only; it does NOT prove the inbox renders. The STATUS_PRESENTATION and
-  // statusLabel assertions above are what pin the inbox's real paths.
+  // NB: StatusCell has no production call sites, so this covers the StatusJourney
+  // pill wiring only. The STATUS_PRESENTATION assertions above pin the archive's path.
   it("renders 'Sending' via StatusJourney's own pill", () => {
     render(<StatusCell status="sending" />);
     expect(screen.getByText("Sending")).toBeInTheDocument();
     expect(screen.queryByText("New")).not.toBeInTheDocument();
     expect(screen.queryByText("Delivered")).not.toBeInTheDocument();
     expect(screen.queryByText(/failed/i)).not.toBeInTheDocument();
-  });
-
-  it("renders 'Sending' in the canonical badge", () => {
-    render(<UnifiedStatusBadge status="delivering" />);
-    expect(screen.getByText("Sending")).toBeInTheDocument();
-  });
-});
-
-describe("delivering — the row offers no send action", () => {
-  it("is not redeliverable — OrderStatusMachine.RedeliverableFrom excludes it", () => {
-    // A bulk-send checkbox on a delivering row could only ever 400: the backend
-    // accepts redelivery from delivery_failed / ready_to_deliver alone. The row is
-    // already in flight; there is nothing to re-fire.
-    expect(isRedeliverable("delivering")).toBe(false);
-    // The two the backend DOES accept, so this assertion can't pass vacuously.
-    expect(isRedeliverable("ready_to_deliver")).toBe(true);
-    expect(isRedeliverable("delivery_failed")).toBe(true);
   });
 });

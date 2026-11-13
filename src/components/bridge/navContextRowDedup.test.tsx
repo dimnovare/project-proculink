@@ -14,15 +14,12 @@ import { render, cleanup, screen } from "@testing-library/react";
 // row is hidden (hamburger drawer), so the row is kept there — it carries the
 // only "where am I" label.
 //
-// WP-26: under the destination nav /bridge became a hub route, so its context row
-// carries a real tab strip instead of a dead crumb. The contract that must not
-// weaken is the one the founder actually reported, so it is asserted directly on
-// every hub route: at md+ the context row NEVER re-prints the word the active nav
-// item above it already shows. (A hub left with a single tab, Orders since the
-// Suppliers hub and the Buyers tab went, renders no strip: its row is the
-// mobile-only plain crumb.)
+// The order hubs' tab strips went with the order screens (2026-11-13). The
+// contract that must not weaken is the one the founder actually reported, so it
+// is asserted directly on every primary nav route: at md+ the context row NEVER
+// re-prints the word the active nav item above it already shows.
 
-let mockPath = "/bridge";
+let mockPath = "/documents";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => mockPath,
@@ -47,15 +44,11 @@ vi.mock("@/lib/api-client", () => ({
   getBillingStatus: vi.fn(),
 }));
 
-vi.mock("@/hooks/useOrderDirection", () => ({
-  useOrderDirection: () => ({ labels: { counterpartyPlural: "Suppliers" } }),
-}));
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true, useTenantQueriesEnabled: () => true }));
 
 // Collaborators that own their own chrome — outside this contract.
 vi.mock("./CommandPalette", () => ({ CommandPalette: () => null }));
 vi.mock("./HelpSlideover", () => ({ HelpSlideover: () => null }));
-vi.mock("./SetupProgressChip", () => ({ SetupProgressChip: () => null }));
 vi.mock("./OrgSwitcher", () => ({ OrgSwitcher: () => null }));
 vi.mock("./UserChipMenu", () => ({ UserChipMenu: () => null }));
 
@@ -63,7 +56,7 @@ import { BridgeTopbar } from "./BridgeTopbar";
 
 afterEach(() => {
   cleanup();
-  mockPath = "/bridge";
+  mockPath = "/documents";
 });
 
 /**
@@ -90,31 +83,6 @@ function activeNavLabel(): string | null {
 }
 
 describe("BridgeTopbar context row — no second navbar under the primary nav", () => {
-  it("keeps the row at md+ on Activity ▸ Overview, and it is a tab strip, not a dead crumb", () => {
-    render(<BridgeTopbar />);
-    const row = contextRow();
-    expect(row).not.toBeNull();
-    expect(hiddenAtDesktop(row!)).toBe(false);
-    // Real navigation: three siblings to switch to.
-    expect(row!.querySelector('nav[aria-label="Section"]')).not.toBeNull();
-    expect(screen.getByRole("link", { name: "Overview" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Deliveries" })).toBeTruthy();
-  });
-
-  it("names the page in the row for the < md band (no primary nav there)", () => {
-    render(<BridgeTopbar />);
-    // The hub strip renders on mobile too, and its active tab is the page name.
-    expect(screen.getByRole("link", { name: "Overview" })).toHaveAttribute("aria-current", "page");
-  });
-
-  it("hides the row at md+ on Orders: a lone tab is no strip, only the mobile crumb", () => {
-    mockPath = "/inbox";
-    render(<BridgeTopbar />);
-    const row = contextRow();
-    expect(hiddenAtDesktop(row!)).toBe(true);
-    expect(row!.querySelector('nav[aria-label="Section"]')).toBeNull();
-  });
-
   it("keeps the row at md+ when the trail has an ancestor crumb (Admin / Guides)", () => {
     mockPath = "/admin/guides";
     render(<BridgeTopbar />);
@@ -128,10 +96,7 @@ describe("BridgeTopbar context row — no second navbar under the primary nav", 
   // The defect the founder actually reported, asserted directly: whatever Row 1
   // highlights must not be printed again in the row beneath it.
   it("never re-prints the active nav item's own word in the context row", () => {
-    const PATHS = [
-      "/bridge", "/inbox",
-      "/operations/log",
-    ];
+    const PATHS = ["/documents", "/flows", "/lookups", "/operations/log", "/settings"];
     let asserted = 0;
     for (const path of PATHS) {
       cleanup();
@@ -140,9 +105,8 @@ describe("BridgeTopbar context row — no second navbar under the primary nav", 
       const active = activeNavLabel();
       expect(active, `${path} must light a primary nav item`).not.toBeNull();
       const row = contextRow();
-      // Every path above is a hub route or a hidden hub entry, so all five render a
-      // context row (a real tab strip at md+, except Orders, whose lone tab leaves only
-      // the mobile crumb). `if (!row) continue` used to stand here:
+      // Every path above renders a context row (at least the mobile-only crumb).
+      // `if (!row) continue` used to stand here:
       // a route that stopped rendering its row skipped the dead-crumb assertion entirely
       // and reported green, which is the same silence as the defect passing.
       expect(row, `${path} rendered no context row to check`).not.toBeNull();
@@ -159,16 +123,6 @@ describe("BridgeTopbar context row — no second navbar under the primary nav", 
       asserted++;
     }
     expect(asserted, "the path loop ran zero assertions").toBe(PATHS.length);
-  });
-
-  it("keeps the row at md+ on a hub route — the tab strip is real navigation", () => {
-    mockPath = "/operations/log";
-    render(<BridgeTopbar />);
-    const row = contextRow();
-    expect(row).not.toBeNull();
-    expect(hiddenAtDesktop(row!)).toBe(false);
-    // The hub strip offers siblings to switch to, so it is not a duplicate.
-    expect(document.querySelector('nav[aria-label="Section"]')).not.toBeNull();
   });
 
   it("keeps the row at md+ on a detail route (crumb trail is a real path)", () => {

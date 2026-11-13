@@ -16,11 +16,6 @@ import {
   type OrderOp,
 } from "@/lib/orderStatusManifest";
 import { PROBLEM_COPY, problemFor, type ProblemCtx, type ProblemStatus } from "@/components/bridge/problem/problemCopy";
-import { orderGlyphColor } from "@/components/bridge/CommandPalette";
-import { neededForOrder } from "@/components/bridge/BridgeDashboard";
-import { notifKindFor } from "@/components/bridge/BridgeTopbar";
-import { rowNextStep } from "@/components/bridge/rowNextStep";
-import { STATUS_LABELS } from "@/components/bridge/UnifiedStatusBadge";
 import { ROOT, isInternalPageLink, listAppRoutes, matchesAny, normalizePath } from "./appRoutes";
 import { stripComments, syntaxFor } from "./sourceScan";
 
@@ -284,124 +279,6 @@ describe("a status with nothing to click says so out loud", () => {
   });
 });
 
-describe("the other screens do not paint a stopped order as a healthy one", () => {
-  const SUCCESS_GREEN = "#2E8E3A";
-
-  test.each(PROBLEM_BUCKET_STATUSES)("%s: the command palette does not colour it as success", (status) => {
-    // The chain this replaced ended `return "#2E8E3A"` for everything it had not
-    // named, so a supplier-refused order read the same green as a delivered one in
-    // the palette an operator opens to find it.
-    expect(
-      orderGlyphColor(status as never),
-      `${status} paints the success colour in cmd-K`,
-    ).not.toBe(SUCCESS_GREEN);
-  });
-
-  test("a healthy status still does read as success (the check is not inverted)", () => {
-    expect(orderGlyphColor("delivered" as never)).toBe(SUCCESS_GREEN);
-    expect(orderGlyphColor("ready" as never)).toBe(SUCCESS_GREEN);
-  });
-
-  test.each(PROBLEM_BUCKET_STATUSES)("%s: the dashboard's 'Needs you' line names a next step, not the state", (status) => {
-    const line = neededForOrder({ status: status as never, unresolvedCount: 0 });
-    const label = STATUS_LABELS[status];
-    expect(line.startsWith(label), `${status}: "${line}" does not open with the registry label`).toBe(true);
-    expect(
-      line.length > label.length,
-      `${status} renders as the bare status name "${line}" in a section titled "Needs you" — it names the state instead of the next step`,
-    ).toBe(true);
-    // And the second half must be the SAME sentence the order screen and the inbox
-    // row use. This is the assertion that would have caught the dashboard telling
-    // an operator to "try sending again" while the order screen said the retry was
-    // already running and they need not act.
-    expect(line.toLowerCase()).toContain(PROBLEM_COPY[status as ProblemStatus].rowAction.toLowerCase());
-  });
-
-  test.each(PROBLEM_BUCKET_STATUSES)("%s: the inbox row names the next step, not a count", (status) => {
-    // `rowAction` is documented as "the inbox row's second line", its 22-character
-    // budget is pinned by a test that names this screen, the order screen renders
-    // it and the dashboard reads it — and the inbox, the surface it is named
-    // after, printed "12 lines" for every state until now.
-    const next = rowNextStep(status);
-    expect(next, `${status} rows print a line count where the next step belongs`).not.toBeNull();
-    // Repeated from the registry, never re-phrased here — which is what stops the
-    // row, the panel and the dashboard describing one stopped order three ways.
-    expect(next!.text).toBe(PROBLEM_COPY[status as ProblemStatus].rowAction);
-    // `--amber`, not `--amber-text`, is 3.65:1 on this background and fails AA at
-    // 11px. The distinction is invisible in review and measurable here.
-    expect(next!.color).toBe(
-      statusFact(status)?.bucket === "failure" ? "var(--danger)" : "var(--amber-text)",
-    );
-  });
-
-  test("a MOVING row keeps its count line", () => {
-    // Not inverted: on an order that is running, the line count IS the useful fact and
-    // there is no action to name. A next-step line on every row is noise, not help.
-    //
-    // `pending_review` used to be in this list, and that was the defect: it is not
-    // moving. Nothing in the system will advance it — it is waiting on a person, which
-    // is the one thing an inbox row exists to say. See the test below.
-    for (const status of ["parsing", "transforming", "ready", "delivering", "delivered"]) {
-      expect(rowNextStep(status), `${status} rows lost their count line`).toBeNull();
-    }
-  });
-
-  test("a row waiting on a person names what the person has to do, not how many lines it has", () => {
-    // The single most common exception state on the screen. It fell through the
-    // problem registry (correctly — nothing has FAILED) and out the other side into
-    // the count branch, so every "Needs review" row in the queue read "14 lines · 3 to
-    // review". A count is not a cause: "14 lines" is equally true of this order, a
-    // delivered one and one still parsing.
-    expect(rowNextStep("pending_review", 3)?.text).toBe("3 item codes to confirm");
-    expect(rowNextStep("pending_review", 1)?.text).toBe("1 item code to confirm");
-    // And it is the SAME sentence the dashboard's "Needs you" preview prints, because
-    // both read one module. This is the assertion that fails if either surface starts
-    // phrasing it locally again.
-    expect(rowNextStep("pending_review", 3)?.text).toBe(
-      neededForOrder({ status: "pending_review" as never, unresolvedCount: 3 }),
-    );
-    // An absent or zero count degrades to the generic line. It must NEVER print a
-    // number nothing supplied — the failure mode where an unfetched value renders as
-    // a confident claim.
-    expect(rowNextStep("pending_review", 0)?.text).toBe("Review before sending");
-    expect(rowNextStep("pending_review", null)?.text).toBe("Review before sending");
-    expect(rowNextStep("pending_review")?.text).toBe("Review before sending");
-    // Amber, not danger: nothing has failed. --amber-text, never --amber — the latter
-    // is 3.65:1 on this background and fails AA at 11-12px.
-    expect(rowNextStep("pending_review", 3)?.color).toBe("var(--amber-text)");
-  });
-
-  test.each(PROBLEM_BUCKET_STATUSES)("%s: the notification bell classifies it", (status) => {
-    // A stopped order that earns no `NotifKind` is dropped by the bell's filter
-    // entirely — not shown quietly, not shown greyed, absent. `unrouted` was, for
-    // as long as the bell existed, while two sibling parked states had already been
-    // rescued from exactly that with the reasoning written directly above it.
-    expect(
-      notifKindFor(status, 0),
-      `${status} earns no notification kind, so the bell drops the row and the operator is never told`,
-    ).not.toBeNull();
-    // And unresolved lines must not relabel a stopped order as "Needs review" —
-    // that names the wrong problem and hides the one that stopped it.
-    if (status !== "pending_review") {
-      expect(notifKindFor(status, 4), `${status} is masked by unresolvedCount`).not.toBe("review");
-    }
-  });
-
-  test("the bell still ignores an order that is simply moving", () => {
-    // Not inverted: a healthy in-flight order must NOT notify, or the bell becomes
-    // a feed of every order in the workspace and stops meaning anything.
-    for (const status of ["parsing", "transforming", "ready_to_deliver", "delivering"]) {
-      expect(notifKindFor(status, 0), `${status} notifies, but nothing is wrong with it`).toBeNull();
-    }
-  });
-
-  test("a healthy status keeps its own line rather than being forced into the shape", () => {
-    expect(neededForOrder({ status: "pending_review" as never, unresolvedCount: 3 })).toBe("3 item codes to confirm");
-    expect(neededForOrder({ status: "pending_review" as never, unresolvedCount: 0 })).toBe("Review before sending");
-    expect(neededForOrder({ status: "delivered" as never, unresolvedCount: 0 })).toBe(STATUS_LABELS.delivered);
-  });
-});
-
 describe("the guard tables are one copy, not nine", () => {
   /**
    * The structural half. Everything above checks behaviour for the statuses the
@@ -412,20 +289,15 @@ describe("the guard tables are one copy, not nine", () => {
    * import the manifest and still hard-code a set two lines later. It catches the
    * common case: someone adds a guard set by copying the C# again.
    */
+  // CommandPalette left this list on 2026-11-13: its order rows (the only status
+  // it read) went with the order screens, so it no longer names a status at all.
   const MUST_DERIVE = [
     "src/components/bridge/problem/problemActions.ts",
-    "src/components/bridge/CommandPalette.tsx",
   ];
 
   test.each(MUST_DERIVE)("%s reads the status manifest instead of retyping it", (rel) => {
     const code = stripComments(readFileSync(join(ROOT, rel), "utf8"), syntaxFor(rel));
     expect(/from\s+["']@\/lib\/orderStatusManifest["']/.test(code)).toBe(true);
-  });
-
-  test("the dashboard's action line reads the problem registry", () => {
-    const rel = "src/components/bridge/BridgeDashboard.tsx";
-    const code = stripComments(readFileSync(join(ROOT, rel), "utf8"), syntaxFor(rel));
-    expect(/problemFor\s*\(/.test(code)).toBe(true);
   });
 
   test("every op guard names the C# symbol and site it mirrors", () => {
@@ -479,22 +351,6 @@ describe("the guard tables are one copy, not nine", () => {
         entry,
         `the palette calls /operations/${segment} "${entry}" while the page itself calls it "${canonical}" — an operator searching the name they were told will not find it`,
       ).toBe(canonical);
-    }
-  });
-
-  test("the send-flow notice names pages that exist and that the palette can reach", () => {
-    // The other half: the words in the notice must BE those canonical names. A
-    // guard on the palette alone would pass while the notice invented a third name.
-    const notice = readFileSync(join(ROOT, "src/components/bridge/review/hooks/useSendFlow.ts"), "utf8");
-    const crumbs = readFileSync(join(ROOT, "src/components/bridge/breadcrumb.ts"), "utf8");
-    const body = notice.slice(notice.indexOf("function stillRunningNotice"));
-    expect(body.length, "stillRunningNotice is gone — this guard is checking nothing").toBeGreaterThan(200);
-    for (const segment of ["log"]) {
-      const canonical = new RegExp(`^\\s*${segment}:\\s*"([^"]+)"`, "m").exec(crumbs)?.[1] ?? "";
-      expect(
-        body.includes(canonical),
-        `the in-flight notice never names "${canonical}", so its next step is a page the operator has to guess at`,
-      ).toBe(true);
     }
   });
 

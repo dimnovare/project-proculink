@@ -1,9 +1,7 @@
 import { describe, test, expect } from "vitest";
 import { readdirSync, readFileSync, statSync } from "fs";
 import { join, relative } from "path";
-import { STATUS_LABELS } from "@/components/bridge/UnifiedStatusBadge";
 import { PROBLEM_COPY, PROBLEM_STATUSES } from "@/components/bridge/problem/problemCopy";
-import { recentStatusFromOrder } from "@/components/bridge/UploadWorkbench";
 import { ROOT } from "./appRoutes";
 import { stripComments, syntaxFor } from "./sourceScan";
 
@@ -36,6 +34,12 @@ import { stripComments, syntaxFor } from "./sourceScan";
 // The one place literals ARE written down is RETIRED_LABELS — the words that
 // must never come back. Those cannot be derived from anything, because their
 // defining property is that they are absent.
+//
+// 2026-11-13: STATUS_META went with UnifiedStatusBadge and the order screens
+// that rendered it, and so did every describe that read it (the label registry,
+// the problem panel's parity with it, the issues article, the status renderers
+// and the upload page's tone). What is left is the retired-vocabulary scan; its
+// `nowUse` hints are the last labels that registry held, written down.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -112,15 +116,15 @@ const EXCEPTION_STATUSES = [
  * regression from a fresh mistake.
  */
 const RETIRED_LABELS: Array<{ phrase: string; re: RegExp; wasAt: string; nowUse: string }> = [
-  { phrase: "Parse failed", re: /Parse failed/g, wasAt: "help/exceptions-and-stuck-orders", nowUse: STATUS_LABELS.failed },
-  { phrase: "Transform failed", re: /Transform failed/g, wasAt: "BridgeDashboard.neededFor + two help articles", nowUse: STATUS_LABELS.transform_failed },
-  { phrase: "Delivery failed", re: /Delivery failed/g, wasAt: "ExceptionDetail, BridgeTopbar, problemCopy, healthTiles", nowUse: STATUS_LABELS.delivery_failed },
-  { phrase: "Rejected by supplier", re: /Rejected by supplier/g, wasAt: "ExceptionDetail, OrderPassport, help/exceptions-and-stuck-orders", nowUse: STATUS_LABELS.rejected_by_supplier },
-  { phrase: "Output failed", re: /Output failed/g, wasAt: "problemCopy, healthTiles", nowUse: STATUS_LABELS.transform_failed },
-  { phrase: "Supplier refused it", re: /Supplier refused it/g, wasAt: "problemCopy, healthTiles", nowUse: STATUS_LABELS.rejected_by_supplier },
+  { phrase: "Parse failed", re: /Parse failed/g, wasAt: "help/exceptions-and-stuck-orders", nowUse: "Couldn't read file" },
+  { phrase: "Transform failed", re: /Transform failed/g, wasAt: "BridgeDashboard.neededFor + two help articles", nowUse: "Couldn't build output" },
+  { phrase: "Delivery failed", re: /Delivery failed/g, wasAt: "ExceptionDetail, BridgeTopbar, problemCopy, healthTiles", nowUse: "Couldn't send" },
+  { phrase: "Rejected by supplier", re: /Rejected by supplier/g, wasAt: "ExceptionDetail, OrderPassport, help/exceptions-and-stuck-orders", nowUse: "Supplier rejected" },
+  { phrase: "Output failed", re: /Output failed/g, wasAt: "problemCopy, healthTiles", nowUse: "Couldn't build output" },
+  { phrase: "Supplier refused it", re: /Supplier refused it/g, wasAt: "problemCopy, healthTiles", nowUse: "Supplier rejected" },
   // The near-miss: one article-word away from the registry, which is exactly the
   // kind of drift a reviewer reads straight past.
-  { phrase: "Couldn't read the file", re: /Couldn't read the file/g, wasAt: "problemCopy, healthTiles", nowUse: STATUS_LABELS.failed },
+  { phrase: "Couldn't read the file", re: /Couldn't read the file/g, wasAt: "problemCopy, healthTiles", nowUse: "Couldn't read file" },
   {
     // DESIGN-DB-1 §6.5 row 85. scripts/check-vocabulary.mjs already bans this
     // everywhere it can SEE — but it exempts the whole help centre and
@@ -136,7 +140,7 @@ const RETIRED_LABELS: Array<{ phrase: string; re: RegExp; wasAt: string; nowUse:
     phrase: "dead-letter (as a word, not as a route or cache key)",
     re: /(?<![\w/-])dead[- ]letter(ed|s)?(?![\w-])/gi,
     wasAt: "help articles, help-articles.ts search keywords, useOrderReview",
-    nowUse: STATUS_LABELS.delivery_dead_letter,
+    nowUse: "Out of retries",
   },
 ];
 
@@ -210,155 +214,6 @@ const OWNED_BY_HELP_COPY_PACKET = [
   // comment promised — which is why it is removed rather than silenced.
   "src/app/(marketing)/help/inbox-basics/page.mdx",
 ];
-
-describe("every status the API returns has a canonical frontend label", () => {
-  test.each(BACKEND_STATUSES)("%s is in STATUS_META", (status) => {
-    expect(
-      Object.prototype.hasOwnProperty.call(STATUS_LABELS, status),
-      `${status} falls through to humanize() and would ship its raw key`,
-    ).toBe(true);
-    expect(STATUS_LABELS[status].length).toBeGreaterThan(0);
-  });
-
-  test("no two failure states share a label", () => {
-    // The five failure statuses need five distinct names: the whole reason a
-    // second vocabulary was survivable is that "Delivery failed" was used for
-    // three of them at once, so an operator could not tell which had happened.
-    const labels = FAILURE_BUCKET.map((s) => STATUS_LABELS[s]);
-    expect(new Set(labels).size).toBe(FAILURE_BUCKET.length);
-  });
-
-  test("`ready` and `ready_to_deliver` stay distinct (DESIGN-DB-1 §6.4 rows 57-58)", () => {
-    expect(STATUS_LABELS.ready).not.toBe(STATUS_LABELS.ready_to_deliver);
-  });
-
-  /**
-   * Keys that are two spellings of ONE user-visible state. Call sites rewrite
-   * between them (operations/health/page.tsx mapped `rejected_by_supplier` to
-   * `rejected` for years, on a comment claiming STATUS_META lacked the first),
-   * so the two must resolve identically or such a rewrite silently changes what
-   * an operator reads.
-   */
-  test.each([
-    ["failed", "parse_failed"],
-    ["rejected_by_supplier", "rejected"],
-    ["delivered", "sent"],
-    ["ready_to_deliver", "transformed"],
-    ["parsing", "extracting"],
-    ["parsing", "normalizing"],
-    ["pending_review", "review"],
-    ["pending_review", "needs_review"],
-  ])("%s and %s are the same state and read the same", (a, b) => {
-    expect(STATUS_LABELS[a]).toBe(STATUS_LABELS[b]);
-  });
-});
-
-describe("the order screen's problem panel repeats the registry, never re-invents it", () => {
-  // problemCopy.ts documents `badge` as "The status pill's words. Mirrors
-  // UnifiedStatusBadge; never re-invented here." That sentence was false for
-  // four of the eight states, and nothing noticed, because a comment asserting
-  // something about the code beside it is not checked against that code. This
-  // is the assertion that makes it true.
-  test.each(PROBLEM_STATUSES)("%s badge equals the registry label", (status) => {
-    expect(PROBLEM_COPY[status].badge).toBe(STATUS_LABELS[status]);
-  });
-});
-
-describe("the issues article teaches the labels the product renders", () => {
-  /**
-   * SCOPE. This covers `exceptions-and-stuck-orders` ONLY.
-   *
-   * `dashboard-and-statuses` and `inbox-basics` belong to FE #75
-   * (`claude/help-status-copy`), which rewrites both and ships
-   * src/test/help-status-labels.test.ts to hold them. That test is the better
-   * one for those two files and this test deliberately does not duplicate it: it
-   * derives the inbox chip list and the bulk-send rule by scanning
-   * `InboxView.FILTER_CHIPS` and `inboxSend.BULK_SELECTABLE_STATUSES` at source,
-   * and it asserts the harder direction — every label an article TEACHES must be
-   * one the product prints, which catches an invented label as well as a stale
-   * one. Two tests for one invariant is how they drift apart.
-   *
-   * The division is by FILE, so there is exactly one owner per article:
-   *   #75  →  dashboard-and-statuses, inbox-basics
-   *   here →  exceptions-and-stuck-orders, and every RENDER site
-   */
-
-  /**
-   * `**Label**`, not a bare substring. An article that happens to contain the
-   * word "Delivered" inside a sentence has not TAUGHT the status; the article
-   * writes every status it defines as a bold term in a bullet, so requiring the
-   * bold is what separates "teaches it" from "mentions something that looks like
-   * it".
-   */
-  const teaches = (article: string, label: string) => article.includes(`**${label}**`);
-
-  test.each(EXCEPTION_STATUSES)(
-    "the issues article teaches %s by its shipped label",
-    (status) => {
-      expect(
-        teaches(read(ARTICLE_EXCEPTIONS), STATUS_LABELS[status]),
-        `${ARTICLE_EXCEPTIONS} never defines "**${STATUS_LABELS[status]}**"`,
-      ).toBe(true);
-    },
-  );
-});
-
-describe("the surfaces that name a status read the registry to do it", () => {
-  /**
-   * A phrase ban catches a REGRESSION to the old words. It cannot catch the
-   * INVENTION of new wrong ones — hard-coding `{"Draft"}` where
-   * `statusLabel(row.rawStatus)` used to be passes every check above, because
-   * "Draft" is a perfectly good label for a different thing. Found by mutating
-   * exactly that and watching the gate stay green.
-   *
-   * This is the structural half: a file that puts an order's state in front of a
-   * user has to get the words from the registry, not from a literal. It is a
-   * source-text check and therefore weaker than a render test — a file could
-   * keep one call and hard-code a second — so it is a floor, not a proof.
-   */
-  const STATUS_RENDERERS = [
-    "src/components/bridge/UploadWorkbench.tsx",
-    "src/components/bridge/BridgeTopbar.tsx",
-    "src/components/bridge/CommandPalette.tsx",
-    "src/components/bridge/BridgeDashboard.tsx",
-  ];
-
-  test.each(STATUS_RENDERERS)("%s names statuses via statusLabel/UnifiedStatusBadge", (rel) => {
-    const code = stripComments(read(rel), syntaxFor(rel));
-    expect(/statusLabel\s*\(|<UnifiedStatusBadge/.test(code)).toBe(true);
-  });
-
-  /**
-   * The tone an unrecognised status falls into, obtained by ASKING the function rather
-   * than by typing its name. The bucket was called `draft` and is now called `unknown`;
-   * a literal here would have gone quietly vacuous the moment it was renamed, which is
-   * the failure mode this whole file exists to avoid.
-   */
-  const UNKNOWN_TONE = recentStatusFromOrder("a_status_no_build_has_ever_shipped");
-
-  test("the unknown-status bucket is findable (guards against a vacuous negative below)", () => {
-    // Without this, a `recentStatusFromOrder` that answered every input with a real tone
-    // would make every assertion under it pass by comparing against nothing.
-    expect(UNKNOWN_TONE).toBeTruthy();
-    expect(recentStatusFromOrder("another_status_no_build_has_ever_shipped")).toBe(UNKNOWN_TONE);
-  });
-
-  test.each(BACKEND_STATUSES)(
-    "the upload page gives %s an honest tone instead of the unknown-status bucket",
-    (status) => {
-      // The fallback is for a status this list has never heard of. Five real ones landed
-      // in it — including a supplier REJECTION, which read as an unrecognised status on
-      // /upload while the inbox called it what it was.
-      expect(recentStatusFromOrder(status)).not.toBe(UNKNOWN_TONE);
-    },
-  );
-
-  test("every failure state reads as a failure on the upload page", () => {
-    for (const status of FAILURE_BUCKET) {
-      expect(recentStatusFromOrder(status), `${status} is not toned as a failure`).toBe("failed");
-    }
-  });
-});
 
 describe("the retired vocabulary is gone from every surface that renders words", () => {
   const files = copyBearingFiles();

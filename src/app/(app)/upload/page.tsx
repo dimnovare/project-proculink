@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { UploadEntry } from "@/components/flows/UploadToFlow";
+import { UploadToFlow } from "@/components/flows/UploadToFlow";
 import { appPageTitle } from "@/lib/pageTitles";
 
 export const metadata: Metadata = {
@@ -7,5 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function UploadPage() {
-  return <UploadEntry />;
+  return <UploadToFlow />;
 }

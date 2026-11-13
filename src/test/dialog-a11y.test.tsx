@@ -38,12 +38,12 @@ import {
 } from "./dialogRegistry";
 
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/bridge",
+  usePathname: () => "/settings",
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), prefetch: vi.fn(), back: vi.fn() }),
   useSearchParams: () => new URLSearchParams(),
 }));
 vi.mock("@/lib/analytics", () => ({ capture: vi.fn(), identify: vi.fn(), reset: vi.fn() }));
-// Several dialogs reach useOrderDirection -> useQueriesEnabled -> Clerk's useAuth.
+// Several dialogs reach useQueriesEnabled -> Clerk's useAuth.
 // Mocking the auth surface keeps the test about keyboard behaviour, not sessions.
 vi.mock("@clerk/nextjs", () => ({
   useAuth: () => ({ isLoaded: true, isSignedIn: true, orgId: "org_1", userId: "user_1" }),
@@ -148,10 +148,15 @@ describe("dialog registry is DERIVED from the source, not hand-maintained", () =
     // confirmation, the connection lifecycle confirmation and HistoryDrawer left the
     // registry with their files, taking four "no trap before" and two "no Escape before"
     // rows with them.
-    expect(DIALOG_REGISTRY.length).toBe(16);
-    expect(TOTAL_DIALOGS).toBe(16);
-    expect(DIALOG_REGISTRY.filter((d) => !d.hadTrapBefore).length).toBe(12);
-    expect(DIALOG_REGISTRY.filter((d) => !d.hadEscapeBefore).length).toBe(7);
+    //
+    // 12 since the order screens went (2026-11-13): LaneDrawer, OnboardingWizard, the
+    // send ConfirmDialog and OrderDetailsDrawer left with their files, taking two
+    // "no trap before" rows (LaneDrawer, OnboardingWizard) and one "no Escape before"
+    // row (OnboardingWizard) with them.
+    expect(DIALOG_REGISTRY.length).toBe(12);
+    expect(TOTAL_DIALOGS).toBe(12);
+    expect(DIALOG_REGISTRY.filter((d) => !d.hadTrapBefore).length).toBe(10);
+    expect(DIALOG_REGISTRY.filter((d) => !d.hadEscapeBefore).length).toBe(6);
   });
 });
 
@@ -207,15 +212,10 @@ describe("every modal dialog routes through the shared contract", () => {
 
 // ─── Layer 3: table-driven behaviour ──────────────────────────────────────────
 
-import { ConfirmDialog } from "@/components/bridge/review/ConfirmDialog";
 import { AdjustLimitsModal } from "@/app/(app)/admin/AdjustLimitsModal";
 import { CreateInvoiceModal } from "@/app/(app)/admin/CreateInvoiceModal";
 import { HelpSlideover } from "@/components/bridge/HelpSlideover";
-import { OrderDetailsDrawer } from "@/components/bridge/workshop/OrderDetailsDrawer";
-import { OnboardingWizard } from "@/components/bridge/OnboardingWizard";
-import { LaneDrawer } from "@/components/bridge/LaneDrawer";
 import type { AdminOrganisation } from "@/lib/api/billing";
-import type { PartyLabels } from "@/hooks/useOrderDirection";
 
 const ORG: AdminOrganisation = {
   id: "org_1",
@@ -232,17 +232,6 @@ const ORG: AdminOrganisation = {
   supplierCount: 1,
 };
 
-const LABELS: PartyLabels = {
-  counterpartyNoun: "Supplier",
-  counterpartyPlural: "Suppliers",
-  railHeader: "Supplier",
-  primaryCta: "Send to supplier",
-  primaryCtaProgress: "Sending…",
-  doneLabel: "Sent",
-  deliveredLabel: "Delivered",
-  unknownBuyer: "Unknown buyer",
-};
-
 /** One renderable dialog: `file` ties it back to the registry. */
 interface RenderableDialog {
   file: string;
@@ -250,22 +239,6 @@ interface RenderableDialog {
 }
 
 const RENDERABLE: RenderableDialog[] = [
-  {
-    file: "src/components/bridge/review/ConfirmDialog.tsx",
-    render: (onClose) => (
-      <ConfirmDialog
-        exceptionCount={0}
-        onConfirm={() => {}}
-        onCancel={onClose}
-        supplierName="Acme"
-        outputFormat="csv"
-        grandTotal="€ 100.00"
-        lineCount={2}
-        labels={LABELS}
-        failingRuleCount={0}
-      />
-    ),
-  },
   {
     file: "src/app/(app)/admin/AdjustLimitsModal.tsx",
     render: (onClose) => <AdjustLimitsModal org={ORG} onClose={onClose} onSaved={() => {}} />,
@@ -279,44 +252,6 @@ const RENDERABLE: RenderableDialog[] = [
   {
     file: "src/components/bridge/HelpSlideover.tsx",
     render: (onClose) => <HelpSlideover open onClose={onClose} />,
-  },
-  {
-    file: "src/components/bridge/workshop/OrderDetailsDrawer.tsx",
-    render: (onClose) => (
-      <OrderDetailsDrawer
-        open
-        onClose={onClose}
-        tab="passport"
-        onTab={() => {}}
-        orderId="ord_1"
-        poNumber="PO-1"
-        supplierName="Acme"
-        currency="EUR"
-        status="pending_review"
-        counterpartyNoun="supplier"
-      />
-    ),
-  },
-  {
-    file: "src/components/bridge/OnboardingWizard.tsx",
-    render: (onClose) => <OnboardingWizard onDismiss={onClose} />,
-  },
-  {
-    file: "src/components/bridge/LaneDrawer.tsx",
-    render: (onClose) => (
-      <LaneDrawer
-        lane={{
-          buyerName: "Heinrich Industries",
-          buyerCode: "HEI",
-          supplierName: "Acme Components",
-          supplierCode: "ACM",
-          health: "ok",
-          healthBasis: { complete: true, scanned: 12 },
-          volume: "12 ord",
-        }}
-        onClose={onClose}
-      />
-    ),
   },
 ];
 
@@ -367,7 +302,8 @@ describe("shared dialog behaviour, applied to every renderable modal", () => {
     }
     // Guard against the table quietly emptying out and every case below vanishing.
     // 7 since plan 13b removed three of the renderable rows with their screens (10 before).
-    expect(RENDERABLE.length).toBeGreaterThanOrEqual(7);
+    // 3 since the order screens went (2026-11-13) and took four more.
+    expect(RENDERABLE.length).toBeGreaterThanOrEqual(3);
   });
 
   it.each(RENDERABLE.map((r) => [r.file, r] as const))("%s — focus moves INTO the dialog", async (_f, entry) => {

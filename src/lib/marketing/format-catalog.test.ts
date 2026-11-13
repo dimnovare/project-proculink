@@ -332,7 +332,6 @@ describe("no user-facing copy claims Peppol BIS conformance", () => {
     join(process.cwd(), "src/lib/standards/catalog.ts"),
     join(process.cwd(), "src/lib/help-articles.ts"),
     join(process.cwd(), "src/lib/section-guides.ts"),
-    join(process.cwd(), "src/lib/upload-formats.ts"),
     join(process.cwd(), "src/lib/plans.ts"),
   ];
 

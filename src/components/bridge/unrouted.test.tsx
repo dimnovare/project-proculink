@@ -35,8 +35,6 @@ vi.mock("next/navigation", () => ({
 }));
 
 import { mapStatus, STATUS_PRESENTATION } from "@/lib/orderArchiveStatus";
-import { UnifiedStatusBadge, statusLabel, statusTone } from "./UnifiedStatusBadge";
-import { isRedeliverable } from "./inboxSend";
 
 afterEach(cleanup);
 
@@ -60,42 +58,10 @@ describe("unrouted — the pill says what the operator must do", () => {
     expect(STATUS_PRESENTATION.unrouted.label).toBe("Needs supplier");
   });
 
-  it("uses the same word as the canonical badge, so the two cannot drift", () => {
-    expect(STATUS_PRESENTATION.unrouted.label).toBe(statusLabel("unrouted"));
-    // The old humanize() fallback — proof STATUS_META gained a real entry.
-    expect(statusLabel("unrouted")).not.toBe("Unrouted");
-  });
-
-  it("is amber (needs a human), never neutral and never the failure tone", () => {
-    // Backend severity for the unrouted_order exception is "warning".
-    expect(statusTone("unrouted")).toBe("warning");
-    expect(statusTone("unrouted")).not.toBe("danger");
-    // Neutral is what the unknown-status fallback gave it — the desktop half of the
-    // contradiction, where the badge disagreed with the pipeline column.
-    expect(statusTone("unrouted")).not.toBe("neutral");
-  });
-
   it("sits at stage 1 — past Parse, parked before Normalize", () => {
     // Extraction finished; normalisation cannot start without a supplier to resolve
     // item codes against. Stage 0 would deny the parse ran at all.
     expect(STATUS_PRESENTATION.unrouted.stage).toBe(1);
     expect(STATUS_PRESENTATION.unrouted.stage).not.toBe(0);
-  });
-
-  it("renders the label on the desktop badge path", () => {
-    render(<UnifiedStatusBadge status="unrouted" />);
-    expect(screen.getByText("Needs supplier")).toBeInTheDocument();
-    expect(screen.queryByText("New")).not.toBeInTheDocument();
-    expect(screen.queryByText(/failed/i)).not.toBeInTheDocument();
-  });
-});
-
-describe("unrouted — the row offers no send action", () => {
-  it("is not redeliverable — RedeliverableFrom is {delivery_failed, ready_to_deliver}", () => {
-    // It has no supplier and no artifact; the action it needs is assign-supplier.
-    expect(isRedeliverable("unrouted")).toBe(false);
-    // The two the backend DOES accept, so this cannot pass vacuously.
-    expect(isRedeliverable("ready_to_deliver")).toBe(true);
-    expect(isRedeliverable("delivery_failed")).toBe(true);
   });
 });

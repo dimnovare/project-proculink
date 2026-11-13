@@ -10,9 +10,10 @@
 // CONTENT SOURCE (canonical — do not rewrite copy here):
 // ProcuLink repo: docs/superpowers/plans/2026-06-12-section-guides-content.md
 //
-// `{supplier}` / `{suppliers}` / `{Supplier}` / `{Suppliers}` tokens are
-// direction-aware party nouns resolved at render time via
-// useOrderDirection().labels (outbound → Supplier, inbound → Customer).
+// The /bridge, /upload, /inbox and /inbox/[orderId] guides went with the order
+// screens they described on 2026-11-13, and with them the direction-aware
+// `{supplier}` party tokens: the one survivor that used them, /operations/log,
+// now reads "supplier", which is what every outbound workspace rendered.
 
 export interface GuideLink {
   text: string;
@@ -35,81 +36,13 @@ export interface SectionGuideEntry {
   articleSlugs?: string[];
 }
 
-/** Minimal structural slice of PartyLabels — keeps this lib free of hook imports. */
-export interface GuidePartyLabels {
-  counterpartyNoun: string;
-  counterpartyPlural: string;
-}
-
 export const SECTION_GUIDES: SectionGuideEntry[] = [
-  {
-    route: "/bridge",
-    title: "Dashboard",
-    purpose: "A live view of your order flow, delivery results, and {supplier} health.",
-    bullets: [
-      { text: "Watch live order flow between you and your {suppliers}" },
-      { text: "Once orders arrive, filter stats by Today, 7d, 30d, or All" },
-      { text: "See open issues and jump straight to them", href: "/inbox" },
-      { text: "Track each {supplier}'s delivery health for the time window you pick" },
-      // No number here, deliberately. This sentence used to promise "your most
-      // recent 100 orders": a literal hand-copied from a `pageSize: 100` in
-      // BridgeDashboard, in a file that cannot see that value change, describing
-      // an export that actually writes the orders in the SELECTED time window —
-      // twelve rows on "Today". The exported file already states its own exact
-      // count on its first line, derived at write time. Let it do the counting.
-      { text: "Export the current view as CSV — it covers the orders in the time window you've selected, up to the most recent page" },
-    ],
-    firstStep: { text: "Complete the two-step setup wizard — choose your order direction and add your first {supplier} — then use \"Try a practice order\" in the checklist." },
-    articleSlugs: ["dashboard-and-statuses", "inbox-basics"],
-  },
-  {
-    route: "/upload",
-    title: "Upload an order",
-    purpose: "Upload one purchase-order file, pick its {supplier}, and start the review.",
-    bullets: [
-      { text: "Upload a CSV, Excel, PDF, XML, EDIFACT, or X12 file" },
-      { text: "See the detected format — and the PO number when one is found — before you upload" },
-      { text: "Choose which {supplier} the order is for — the buyer is detected from the document" },
-      { text: "Run a free sample order — it never counts toward your quota" },
-      { text: "Check your plan's order and {supplier} usage in the side panel" },
-    ],
-    firstStep: { text: "Click \"Try with a sample order\" — it needs no setup and is free." },
-    articleSlugs: ["order-intake-options", "csv-xlsx-field-guide", "troubleshooting"],
-  },
-  {
-    route: "/inbox",
-    title: "Inbox",
-    purpose: "Your work queue of every order, with status filters, search, and bulk send.",
-    bullets: [
-      { text: "Filter by Needs review, Queued to send, Delivered, or Failed" },
-      { text: "Search by PO number, buyer, or {supplier} name" },
-      { text: "Track orders from Ready to send through to Delivered" },
-      { text: "Select several orders and send them in one batch" },
-      { text: "Move with j/k or arrow keys; Enter opens an order" },
-    ],
-    firstStep: { text: "If your inbox is empty, start with a practice order or upload your first file.", href: "/upload" },
-    articleSlugs: ["inbox-basics", "dashboard-and-statuses", "item-codes"],
-  },
-  {
-    route: "/inbox/[orderId]",
-    title: "Order review",
-    purpose: "Review one order — fix item codes and header details — before sending it on.",
-    bullets: [
-      { text: "Accept AI code suggestions or enter {supplier} codes manually" },
-      { text: "Switch between “Fix issues” and “Map fields” at the top" },
-      { text: "Save field fixes as a reusable {supplier} mapping (desktop view)" },
-      { text: "Validate the output against cXML 1.2, UBL 2.1, or X12 850 profiles" },
-      { text: "Download or copy the output after the order is transformed" },
-    ],
-    firstStep: { text: "Resolve each flagged line — accept a suggestion or set a code — then use the send/confirm button (shortcut C)." },
-    articleSlugs: ["output-mapping-editor", "item-codes", "delivery-setup"],
-  },
   {
     route: "/operations/log",
     title: "Activity log",
     purpose: "A date-grouped audit trail of every order event in your workspace.",
     bullets: [
-      { text: "Filter by event type or search by PO, buyer, or {supplier}" },
+      { text: "Filter by event type or search by PO, buyer, or supplier" },
       { text: "Expand an entry to see details, errors, and field changes" },
       { text: "Jump to the order behind any event" },
       { text: "Export the current filtered view as CSV" },
@@ -147,8 +80,8 @@ const isDynamicSegment = (seg: string): boolean => seg.startsWith("[") && seg.en
 
 /**
  * Registry in match order: longest (most segments) first; among equal lengths,
- * static patterns before dynamic ones. This guarantees `/inbox/[orderId]` is
- * tried for `/inbox/<uuid>` while plain `/inbox` only matches `/inbox` exactly.
+ * static patterns before dynamic ones, so a static route is never shadowed by
+ * a `[param]` pattern of the same length.
  */
 const MATCH_ORDER: SectionGuideEntry[] = [...SECTION_GUIDES].sort((a, b) => {
   const sa = segmentsOf(a.route);
@@ -184,26 +117,11 @@ export function matchGuide(pathname: string | null | undefined): SectionGuideEnt
   return null;
 }
 
-// ─── Token resolution ────────────────────────────────────────────────────────
-
-/**
- * Resolve the direction-aware party tokens in guide copy.
- * `{Supplier}`/`{Suppliers}` keep the label's casing (it is capitalized);
- * `{supplier}`/`{suppliers}` are lower-cased. Text without tokens is unchanged.
- */
-export function resolveGuideText(text: string, labels: GuidePartyLabels): string {
-  return text
-    .replaceAll("{Suppliers}", labels.counterpartyPlural)
-    .replaceAll("{suppliers}", labels.counterpartyPlural.toLowerCase())
-    .replaceAll("{Supplier}", labels.counterpartyNoun)
-    .replaceAll("{supplier}", labels.counterpartyNoun.toLowerCase());
-}
-
 // ─── Seen state ──────────────────────────────────────────────────────────────
 
 /** localStorage key marking a route's guide as seen (set when the help
  *  slideover is opened on that route; drives the topbar "?" dot badge).
- *  Keyed by the registry ROUTE pattern (e.g. `/inbox/[orderId]`), so seeing
+ *  Keyed by the registry ROUTE pattern (e.g. `/operations/log`), so seeing
  *  it once covers all instances. */
 export function guideSeenKey(route: string): string {
   return `plk-guide-seen:${route}`;

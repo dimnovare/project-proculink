@@ -109,21 +109,6 @@ describe("which population a count describes is declared, not assumed", () => {
     }
   });
 
-  it("the two screens the audit named consume the shared derivation", () => {
-    // The registry alone would stay green if a screen hand-rolled the split from
-    // `items.filter(o => o.isSample)` instead — same defect, different spelling. Both
-    // screens must reach the one derivation by name.
-    for (const screen of ["BridgeDashboard.tsx", "InboxView.tsx"]) {
-      const source = readFileSync(join(SRC, "components", "bridge", screen), "utf8");
-      expect(source, `${screen} must derive its populations from orderCountContract`).toMatch(
-        /from "\.\/orderCountContract"/,
-      );
-      expect(source, `${screen} must call pagePopulation rather than splitting the counts itself`).toContain(
-        "pagePopulation(",
-      );
-    }
-  });
-
   it("reads the code, not the prose about the code", () => {
     // Pinned because it is what makes the scan honest rather than merely quiet: the files
     // this sweeps explain the defect in comments that name the very fields being banned,

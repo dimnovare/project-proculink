@@ -217,31 +217,9 @@ describe("the real tree — the amber family", () => {
    * `file:line` list has, and the reason the token gate's own baseline is a
    * counted ledger rather than a set of paths.
    */
-  const EXEMPT: Exemption[] = [
-    {
-      rel: "src/components/bridge/BridgeDashboard.tsx",
-      contains: `label: "Needs review",   value: countBlocked,   color: AMBER,`,
-      reason:
-        "a stat-row RECORD field. Its only consumer renders `background: s.color` " +
-        "on an 8×8px dot — never a glyph. The label beside it is #5E6779. " +
-        "RE-VERIFIED after WP-27 (#73) reworded this row: the stale-exemption check " +
-        "below is what caught the drift, and the field is still background-only.",
-    },
-    {
-      rel: "src/components/bridge/BridgeDashboard.tsx",
-      contains: `{ label: "Needs review",   value: countBlocked,   color: AMBER },`,
-      reason:
-        "a proportion-bar SEGMENT field, consumed as `background: s.color` on the " +
-        "bar and on the 8×8px legend square. Its `<b>` count is #0B1A2F.",
-    },
-    {
-      rel: "src/components/bridge/BridgeDashboard.tsx",
-      contains: `<AlertTriangle size={12} strokeWidth={2.25} style={{ color: AMBER, flexShrink: 0 }} aria-hidden />`,
-      reason:
-        "a lucide icon: `color` becomes the SVG currentColor STROKE, not text. It " +
-        "is aria-hidden and the sentence it decorates is #0B1A2F at 12px.",
-    },
-  ];
+  // Empty since 2026-11-13: all three sites were in BridgeDashboard, which went
+  // with the order screens. The load-bearing check below now pins zero.
+  const EXEMPT: Exemption[] = [];
 
   const exempted = (h: { rel: string; text: string }) =>
     EXEMPT.some((e) => e.rel === h.rel && h.text.includes(e.contains.trim()));
@@ -355,38 +333,9 @@ describe("the real tree — the green family", () => {
    */
   const EXEMPT: Exemption[] = [
     {
-      rel: "src/components/bridge/BridgeDashboard.tsx",
-      contains: `label: "Delivered",      value: countDelivered, color: GREEN,`,
-      reason:
-        "stat-row RECORD field, consumed as `background: s.color` on an 8×8px dot. " +
-        "RE-VERIFIED after WP-27 (#73) reworded this row and added a `queued` entry.",
-    },
-    {
-      rel: "src/components/bridge/BridgeDashboard.tsx",
-      contains: `{ label: "Delivered",      value: countDelivered, color: GREEN },`,
-      reason: "proportion-bar SEGMENT field, consumed as `background` on the bar and legend square.",
-    },
-    {
-      rel: "src/components/bridge/BridgeDashboard.tsx",
-      contains: `<CheckCircle2 size={22} strokeWidth={2} style={{ color: GREEN }} aria-hidden />`,
-      reason: "lucide icon — currentColor STROKE, aria-hidden, non-text 3:1 floor.",
-    },
-    {
       rel: "src/components/bridge/OrgSwitcher.tsx",
       contains: `<Check size={15} strokeWidth={2.4} style={{ color: "#2E8E3A", flexShrink: 0 }}`,
       reason: "lucide icon — currentColor STROKE, non-text 3:1 floor.",
-    },
-    {
-      rel: "src/components/bridge/OrderPassport.tsx",
-      contains: `fontSize: 9, fontWeight: 800, color: n.state === "current" ? s.ring : "#FFFFFF",`,
-      reason:
-        "the scanner's documented map-index blind spot showing up as a FALSE POSITIVE " +
-        "rather than a miss: it matched `s.ring` because STATE_STYLE binds a `ring` key " +
-        "to #2E8E3A, but this branch only reads `ring` when state is `current`, where " +
-        "ring is #1E66C9 on a #FFFFFF fill (5.5275:1). The genuinely tight pair here was " +
-        "the OTHER branch — white on `done.fill` at 4.1613:1 — and that fill is now " +
-        "--brand-green-btn #297F34, 5.0244:1. Left as an exemption rather than worked " +
-        "around, because the limitation is real and pretending otherwise is the bug.",
     },
   ];
 

@@ -6,7 +6,6 @@
 //   • every crumb except the current page links to its cumulative path.
 
 import { describe, it, expect } from "vitest";
-import { HUB_LABELS } from "./layout/HubTabs";
 import {
   formatCrumbLabel,
   crumbHref,
@@ -28,8 +27,8 @@ describe("looksLikeId", () => {
     expect(looksLikeId("008412abcd99")).toBe(true);
   });
   it("does not treat a known static segment as an id", () => {
-    expect(looksLikeId("inbox")).toBe(false);
-    expect(looksLikeId("suppliers")).toBe(false);
+    expect(looksLikeId("flows")).toBe(false);
+    expect(looksLikeId("lookups")).toBe(false);
   });
   it("does not treat a short slug as an id", () => {
     expect(looksLikeId("preview")).toBe(false);
@@ -69,9 +68,8 @@ describe("titleCaseSegment", () => {
 
 describe("formatCrumbLabel — static segments", () => {
   it("maps known segments to their vocabulary label", () => {
-    expect(formatCrumbLabel("inbox", 0, ["inbox"])).toBe(HUB_LABELS.orders);
-    expect(formatCrumbLabel("connections", 0, ["connections"])).toBe("Supplier changes");
-    expect(formatCrumbLabel("standards", 1, ["library", "standards"])).toBe("Format reference");
+    expect(formatCrumbLabel("operations", 0, ["operations"])).toBe("Activity");
+    expect(formatCrumbLabel("log", 1, ["operations", "log"])).toBe("Deliveries");
   });
 });
 
@@ -93,39 +91,13 @@ describe("formatCrumbLabel — guide slugs", () => {
   it("only claims the segment when /guides is its immediate parent", () => {
     // Same slug elsewhere in the tree keeps the generic id handling, which is
     // what produced "Item onboard" before the registry lookup was added.
-    expect(formatCrumbLabel("onboard-a-new-client", 1, ["inbox", "onboard-a-new-client"])).toBe(
-      "Order onboard",
+    expect(formatCrumbLabel("onboard-a-new-client", 1, ["flows", "onboard-a-new-client"])).toBe(
+      "Flow onboard",
     );
   });
 });
 
-describe("formatCrumbLabel — order detail (the reported bug)", () => {
-  const segs = ["inbox", UUID];
-  it("uses the PO number from context when available", () => {
-    expect(formatCrumbLabel(UUID, 1, segs, { orderPoNumber: "PO-2026-001" })).toBe("PO-2026-001");
-  });
-  it("falls back to 'Order' + short id — NEVER a bare UUID", () => {
-    const label = formatCrumbLabel(UUID, 1, segs, {});
-    expect(label).toBe("Order a8c18df7");
-    expect(label).not.toBe(UUID);
-    expect(label).not.toContain("dec8");
-  });
-  it("ignores an empty/whitespace PO and falls back", () => {
-    expect(formatCrumbLabel(UUID, 1, segs, { orderPoNumber: "  " })).toBe("Order a8c18df7");
-  });
-});
-
-describe("formatCrumbLabel — supplier + connection detail", () => {
-  it("supplier name from context, else noun + short id", () => {
-    const segs = ["library", "suppliers", UUID];
-    expect(formatCrumbLabel(UUID, 2, segs, { supplierName: "Acme Tools OÜ" })).toBe("Acme Tools OÜ");
-    expect(formatCrumbLabel(UUID, 2, segs, {})).toBe("Supplier a8c18df7");
-  });
-  it("connection name from context, else noun + short id", () => {
-    const segs = ["connections", UUID];
-    expect(formatCrumbLabel(UUID, 1, segs, { connectionName: "Directo XML v3" })).toBe("Directo XML v3");
-    expect(formatCrumbLabel(UUID, 1, segs, {})).toBe("Connection a8c18df7");
-  });
+describe("formatCrumbLabel — dynamic segments", () => {
   it("unknown dynamic parent gets a generic noun, never a raw UUID", () => {
     const segs = ["mystery", UUID];
     expect(formatCrumbLabel(UUID, 1, segs, {})).toBe("Item a8c18df7");
@@ -134,73 +106,27 @@ describe("formatCrumbLabel — supplier + connection detail", () => {
 
 describe("crumbHref", () => {
   it("builds a cumulative, root-anchored path", () => {
-    const segs = ["library", "suppliers", UUID];
-    expect(crumbHref(segs, 0)).toBe("/library");
-    expect(crumbHref(segs, 1)).toBe("/library/suppliers");
-    expect(crumbHref(segs, 2)).toBe(`/library/suppliers/${UUID}`);
+    const segs = ["lookups", UUID];
+    expect(crumbHref(segs, 0)).toBe("/lookups");
+    expect(crumbHref(segs, 1)).toBe(`/lookups/${UUID}`);
   });
 });
 
 describe("buildCrumbTrail", () => {
   it("links every crumb except the last (current page has no href)", () => {
-    const trail = buildCrumbTrail(`/inbox/${UUID}`, { orderPoNumber: "PO-2026-001" });
-    expect(trail).toHaveLength(2);
-    expect(trail[0]).toEqual({ label: HUB_LABELS.orders, href: "/inbox" });
-    expect(trail[1]).toEqual({ label: "PO-2026-001", href: null });
-  });
-
-  it("the inbox crumb is a working link back to /inbox", () => {
-    const trail = buildCrumbTrail(`/inbox/${UUID}`, {});
-    expect(trail[0].href).toBe("/inbox");
-    // current page never a bare UUID
-    expect(trail[1].href).toBeNull();
-    expect(trail[1].label).toBe("Order a8c18df7");
+    const trail = buildCrumbTrail(`/lookups/${UUID}`, { lookupName: "Item codes" });
+    expect(trail).toEqual([
+      { label: "Lookups", href: "/lookups" },
+      { label: "Item codes", href: null },
+    ]);
   });
 
   it("returns an empty trail for the root path", () => {
     expect(buildCrumbTrail("/", {})).toEqual([]);
   });
 
-  it("handles a three-level supplier detail trail (Library head is unlinked — /library 404s)", () => {
-    const trail = buildCrumbTrail(`/library/suppliers/${UUID}`, { supplierName: "Northwind" });
-    expect(trail.map((c) => c.label)).toEqual(["Library", "Suppliers", "Northwind"]);
-    // "/library" has no index route, so its crumb must NOT link (would 404).
-    expect(trail.map((c) => c.href)).toEqual([null, "/library/suppliers", null]);
-  });
-});
-
-describe("buildCrumbTrail — unlinked group-root heads (no index route → never a 404 link)", () => {
-  it("never links the /library group-root crumb", () => {
-    const trail = buildCrumbTrail("/library/suppliers", {});
-    expect(trail[0]).toEqual({ label: "Library", href: null });
-    expect(trail[1]).toEqual({ label: "Suppliers", href: null }); // current page
-  });
-
-  it("never links the /operations group-root crumb", () => {
-    const trail = buildCrumbTrail("/operations/log", {});
-    expect(trail[0]).toEqual({ label: "Activity", href: null });
-    expect(trail[1].label).toBe("Deliveries");
-  });
-
-  it("no crumb in a hub trail ever points at a group-root 404", () => {
-    for (const path of ["/library/suppliers", "/library/mappings", "/operations/log"]) {
-      const trail = buildCrumbTrail(path, {});
-      expect(trail.some((c) => c.href === "/library")).toBe(false);
-      expect(trail.some((c) => c.href === "/operations")).toBe(false);
-    }
-  });
-});
-
-describe("buildCrumbTrail — hub roots", () => {
-  it("leaves /inbox bare — matches the design captures", () => {
-    expect(buildCrumbTrail("/inbox", {})).toEqual([{ label: HUB_LABELS.orders, href: null }]);
-  });
-
-  it("leaves Library/Operations trails untouched (already two-level)", () => {
-    expect(buildCrumbTrail("/operations/log", {}).map((c) => c.label)).toEqual([
-      "Activity",
-      "Deliveries",
-    ]);
+  it("drops the page-less /operations group root (the nav already names it)", () => {
+    expect(buildCrumbTrail("/operations/log", {})).toEqual([{ label: "Deliveries", href: null }]);
   });
 });
 
@@ -209,16 +135,14 @@ describe("buildCrumbTrail — hub roots", () => {
 // visible — that row already names the page, so the crumb was a second navbar.
 describe("isLonePageCrumb", () => {
   it("is true for a top-level page (no ancestor to link to)", () => {
-    expect(isLonePageCrumb("/bridge")).toBe(true);
-    expect(isLonePageCrumb("/inbox")).toBe(true);
+    expect(isLonePageCrumb("/documents")).toBe(true);
     expect(isLonePageCrumb("/upload")).toBe(true);
+    expect(isLonePageCrumb("/operations/log")).toBe(true);
     expect(isLonePageCrumb("/settings")).toBe(true);
   });
 
   it("is false when the trail carries an ancestor crumb", () => {
-    expect(isLonePageCrumb("/library/suppliers")).toBe(false);
-    expect(isLonePageCrumb("/operations/log")).toBe(false);
-    expect(isLonePageCrumb("/inbox/a8c18df7-dec8-4a1b-9c2d-1f2e3a4b5c6d")).toBe(false);
+    expect(isLonePageCrumb("/lookups/a8c18df7-dec8-4a1b-9c2d-1f2e3a4b5c6d")).toBe(false);
   });
 
   it("is false for the root path (no trail at all)", () => {

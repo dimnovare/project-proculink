@@ -396,15 +396,9 @@ jobs:
         if: always()
         run: bun run test src/test/auditActionMirror.test.ts
 
-      # Sixth: is a delivery attempt's status still the same four-value vocabulary the
-      # delivery rows are read with? The frontend used to answer this with a substring
-      # match over an open string, which said "yes, delivered" for `undeliverable`.
+      # (The sixth step, the delivery-attempt status diff, went on 2026-11-13 with
+      # src/lib/deliveryAttemptManifest.ts: its one reader was the order screen's passport.)
       #
-      # Same position as the step above: named nowhere, so never run against a backend.
-      - name: Diff the delivery-attempt statuses against the backend C#
-        if: always()
-        run: bun run test src/test/deliveryAttemptMirror.test.ts
-
       # Seventh: can the order screen render every source-document media type the server can
       # send? An unknown type renders as opaque bytes, and a type the frontend claims but the
       # server cannot send is dead code that reads as coverage. This one already honoured

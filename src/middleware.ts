@@ -16,8 +16,6 @@ import { NextRequest, NextResponse } from "next/server";
  * Nothing enforced the correspondence, so nothing caught it. The guard does now.
  */
 export const PROTECTED_ROUTE_PATTERNS = [
-  "/bridge(.*)",
-  "/inbox(.*)",
   "/documents(.*)",
   "/upload(.*)",
   "/flows(.*)",
@@ -302,7 +300,7 @@ export const config = {
     //
     // This read `/((?!_next|.*\..*).*)` until 2026-08-21: it skipped the
     // middleware for ANY pathname containing a dot. Next dynamic segments accept
-    // dots, so `/inbox/an.order.id` and any dotted segment under a protected
+    // dots, so `/archive/an.order.id` and any dotted segment under a protected
     // prefix all bypassed the guard and answered a signed-out
     // visitor with 200 and the workspace shell instead of a redirect to
     // /sign-in. Keep this list in sync with STATIC_ASSET_EXTENSIONS above.
@@ -310,6 +308,8 @@ export const config = {
     // ...and every protected prefix unconditionally, so that an order id ending
     // in ".png" can never be read as an asset either. Keep in sync with
     // PROTECTED_ROUTE_PATTERNS above; the same test pins that correspondence.
-    "/(bridge|inbox|documents|upload|operations|settings|admin)/:path*",
+    // (flows, archive and lookups were missing until 2026-11-13: the test's
+    // dotted-id cases ran on /inbox, which was listed, so nothing noticed.)
+    "/(documents|upload|flows|archive|lookups|operations|settings|admin)/:path*",
   ],
 };

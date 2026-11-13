@@ -9,7 +9,6 @@ import { ConfirmProvider } from "@/components/ui/confirm";
 import { Toaster } from "@/components/ui/toaster";
 import { BridgeSidebar } from "@/components/bridge/BridgeSidebar";
 import { BridgeTopbar } from "@/components/bridge/BridgeTopbar";
-import { EngineRouteRedirect } from "@/components/bridge/EngineRouteRedirect";
 import { ErrorBoundary } from "@/components/bridge/ErrorBoundary";
 import { ClerkAvailabilityGate } from "@/components/bridge/ClerkAvailabilityGate";
 import { MSWProvider } from "@/mocks/MSWProvider";
@@ -159,7 +158,6 @@ export default function AppShellLayout({
     <QueryClientProvider client={queryClient}>
       <AutoActivateOrg />
       <StripOrgSetFlag />
-      <EngineRouteRedirect />
       <TooltipProvider>
        <ConfirmProvider>
         {/* WP-32 — sign-in is a hard dependency. If Clerk's hosted JS never

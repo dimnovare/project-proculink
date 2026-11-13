@@ -61,9 +61,7 @@ describe("the registry describes code that exists", () => {
 
 describe("the checker is not vacuously green", () => {
   test("a href whose parameter IS read reports nothing", () => {
-    expect(unconsumedParams("/inbox/ord-1?tab=response")).toEqual([]);
-    expect(unconsumedParams("/inbox?status=delivery_failed")).toEqual([]);
-    expect(unconsumedParams("/upload?supplierId=sup-1")).toEqual([]);
+    expect(unconsumedParams("/settings?tab=billing")).toEqual([]);
     // These three were inert on origin/main and were fixed by WRITING the reader
     // rather than by dropping the parameter, because the link's promise was worth
     // keeping: "See every attempt" should open one order's attempts, and an
@@ -77,14 +75,16 @@ describe("the checker is not vacuously green", () => {
     // `details` was a typo for the parameter the drawer really reads; `from`
     // promised a link between a refused order and its replacement that nothing
     // kept. Neither earned a reader, so both had to change at the link.
-    expect(unconsumedParams("/inbox/ord-1?details=response")).toEqual(["details"]);
-    expect(unconsumedParams("/upload?supplierId=sup-1&from=ord-1")).toEqual(["from"]);
+    // (The order routes went 2026-11-13; their successors read neither key, and
+    // the flow upload reads no `supplierId` either.)
+    expect(unconsumedParams("/archive/ord-1?details=response")).toEqual(["details"]);
+    expect(unconsumedParams("/upload?supplierId=sup-1&from=ord-1")).toEqual(["supplierId", "from"]);
   });
 
   test("an undeclared parameter on a REGISTERED route is caught too", () => {
     // The registry is not a per-route amnesty: a route that declares `status`
     // has not thereby declared everything else.
-    expect(unconsumedParams("/inbox?status=failed&somethingNew=1")).toEqual(["somethingNew"]);
+    expect(unconsumedParams("/operations/log?orderId=ord-1&somethingNew=1")).toEqual(["somethingNew"]);
     expect(unconsumedParams("/settings?tab=billing&highlight=plan")).toEqual(["highlight"]);
   });
 

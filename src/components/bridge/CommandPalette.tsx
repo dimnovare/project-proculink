@@ -1,24 +1,14 @@
 "use client";
 
-// CommandPalette — cmd+K fuzzy search across orders, suppliers, buyers, and
-// actions (that IS the whole index — keep the placeholder copy in sync).
-// Built on cmdk (already installed). Wired into BridgeTopbar.
+// CommandPalette — cmd+K filter over navigation actions and the Advanced
+// view's mapper commands (that IS the whole index — keep the placeholder copy
+// in sync). The order, supplier, buyer and sample-order groups went with the
+// order product on 2026-11-13. Wired into BridgeTopbar.
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useDialogA11y } from "@/hooks/useDialogA11y";
 import { useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
-import { apiClient, isApiMockMode } from "@/lib/api-client";
-import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
-import { statusFact } from "@/lib/orderStatusManifest";
 import { buildMapperCommands, dispatchMapper } from "./mapper/mapperCommands";
-import type {
-  OrderSummary,
-  OrderStatus,
-} from "@/types/procurement";
-import { statusLabel } from "./UnifiedStatusBadge";
-import { documentHref } from "@/lib/documentHref";
-import { Button } from "./DSPrimitives";
 
 // ─── Index ────────────────────────────────────────────────────────────────────
 
@@ -33,53 +23,8 @@ type CmdItem = {
   color?: string;
 };
 
-// The order glyph's colour is a HEALTH signal, so it is derived from the status
-// manifest's bucket — never from a hand-maintained if-chain. The chain this replaced
-// ended:
-//
-//     if (status === "delivered") return "#2E8E3A";
-//     return "#2E8E3A";
-//
-// Two arms, one colour. The `delivered` arm was therefore dead code, and — the part
-// that actually hurt — green was the FALLTHROUGH. `failed`, `transform_failed`,
-// `delivery_dead_letter`, `rejected_by_supplier`, `delivery_held`,
-// `delivery_unconfirmed` and `unrouted` — every one of them painted the same success
-// green as a delivered order, in cmd-K, which is the first surface an operator
-// reaches for. A broken order read as a finished one.
-//
-// Deriving from statusFact() means a status added to ORDER_STATUS_FACTS is coloured
-// the moment it is added. The chain had to be *remembered* on every status the
-// backend grew, and six statuses prove it was not.
-function orderColor(status: OrderStatus): string {
-  const fact = statusFact(status);
-  // Unknown status → neutral ink-muted, NOT green. An unrecognised status is exactly
-  // the case where this build understands the row least, and "I have never heard of
-  // this" must not be rendered as "this succeeded" — that is the same optimistic
-  // default that made the old chain lie. Matches isProblemBucketStatus()'s contract
-  // for unknowns: claim nothing rather than claim health.
-  if (!fact) return "#56627A";
-  // Deliberate exception to the bucket rule. `pending_review` is `healthy` in the
-  // manifest and correctly so — nothing broke, the review IS the workflow — but it is
-  // a human-action state and this palette has always amber'd it. Green here would say
-  // "nobody is needed", which is the opposite of true. Preserved on purpose.
-  if (status === "pending_review") return "#B36D14";
-  if (fact.bucket === "failure") return "#B43838"; // --danger
-  if (fact.bucket === "parked")  return "#B36D14"; // --amber
-  return "#2E8E3A";
-}
-
-/**
- * Exported for `src/test/failureRecoveryCoverage.test.ts`, which walks every status
- * the backend machine knows and asserts none of the stopped ones paints the success
- * colour here. That is not hypothetical: the chain this replaced ended
- * `if (status === "delivered") return "#2E8E3A"; return "#2E8E3A";` — two branches,
- * one colour — so a dead-lettered or supplier-refused order rendered the same green
- * as a delivered one in the palette an operator opens to find it.
- */
-export { orderColor as orderGlyphColor };
-
 // Each row paints item.color TWICE, at two different floors: as the chip's
-// 9.4%-alpha FILL (non-text, 3:1) and as the GLYPH inside it. The glyph (✓ ▶ ⊞)
+// 9.4%-alpha FILL (non-text, 3:1) and as the GLYPH inside it. The glyph (↑ ▤ ⚙)
 // carries meaning, so it is text and owes 4.5:1 — and #2E8E3A on its own tint is
 // only 3.7024:1 (#EBF4EC), or 3.3789:1 over the #F0F4FB active row (#DEEAE9).
 // So the glyph alone steps to green-deep: 5.7056:1 / 5.2071:1. item.color itself
@@ -97,25 +42,6 @@ export { orderColor as orderGlyphColor };
 //     kind of near-miss that only shows up if you measure the state the user is
 //     actually looking at when they arrow onto the row
 //     → --brand-blue-deep #0F4FA8: 6.8270:1 / 6.2143:1
-// These reached the glyph through `orderColor()`, a FUNCTION RETURN, which is
-// exactly the indirection src/test/textColorScan.ts documents that it cannot
-// follow. Found by measuring, not by the scanner.
-//
-// TWO MORE FILLS ARE REACHABLE SINCE orderColor() STARTED DERIVING FROM THE BUCKET,
-// so the "three families" above is no longer the whole set — five are. Both new ones
-// were measured the same way and both CLEAR 4.5:1 unmapped, which is why neither has
-// an entry here. Absence is a measurement, not an oversight:
-//   #B43838 (--danger, the failure bucket) → 5.1071:1 resting on its own tint
-//     (#F8ECEC), 4.6449:1 over the #F0F4FB active row (#EAE2E9). Passing, but by
-//     0.14 — if the active-row background is ever darkened, re-measure this first.
-//     Left unmapped deliberately: there is no darker danger token in globals.css
-//     (only --danger and --danger-soft), and inventing one would break the rule the
-//     three mappings above hold to — every replacement is an EXISTING token.
-//   #56627A (ink-muted, the unknown-status fallback) → 5.3791:1 resting (#EFF0F2),
-//     4.9067:1 active (#E2E6EF). Passing with room.
-// The amber row now carries the whole parked bucket — `unrouted`, `delivery_held`,
-// `delivery_unconfirmed` — alongside needs-review; same fill, same measurement,
-// wider reach.
 const GLYPH_TEXT_COLOR: Record<string, string> = {
   "#2E8E3A": "#1E6D29",
   "#B36D14": "#8A5310",
@@ -126,110 +52,16 @@ function glyphColor(fill: string): string {
   return GLYPH_TEXT_COLOR[fill] ?? fill;
 }
 
-/**
- * The group name order rows are filed under. A constant, not a repeated literal,
- * because the filter loop below has to recognise exactly the rows `buildIndex`
- * produced from the server's search response — and a typo'd second copy would
- * silently reinstate the client-side re-filter it exists to skip.
- */
-const ORDERS_GROUP = "Orders";
-
-/**
- * Shortest query that reaches the server search — ONE character.
- *
- * It was two, and the second character is where the bug lived. Below the
- * threshold `debouncedQ` is forced to "" and the order rows fall back to the six
- * most recent, so a one-character query searched six orders out of however many
- * the account holds and then rendered "No results for “x”" — a confident,
- * unqualified statement of absence over 6% of a 100-row page.
- *
- * The obvious objection to lowering it is cost: a request per keystroke. The
- * existing 200ms debounce already answers that. Every keystroke clears the
- * pending timer, so typing "PO-4711" fires ONE request when the typing stops,
- * exactly as it did at a threshold of two. Dropping to one adds a request in
- * precisely one situation — the user types a single character and pauses — which
- * is the situation that was broken. TanStack's 30s `staleTime` keyed on the term
- * absorbs the repeats after that.
- */
-const SERVER_SEARCH_MIN_CHARS = 1;
-
-/** How many recent orders the palette previews when it is NOT searching the server. */
-const RECENT_PREVIEW_LIMIT = 6;
-
-/**
- * What to say when nothing matched. Four different facts, four different
- * sentences — the point of the whole fix is that "no results" is a claim about
- * REACH as much as about matches, so a screen that has not finished searching,
- * or that only looked at six rows, must not borrow the sentence that means "we
- * searched everything and it is not there".
- *
- * `searchFailed` is the fourth, and it was missing while the other three were
- * being written. The search query's `isError` was never read, so a failed
- * `GET /api/orders?search=` left `searchPage` undefined forever: that made
- * `serverResultsCurrent` false, which made `searchPending` TRUE with no end
- * condition, and cmd-K sat on "Searching all orders…" indefinitely — no error,
- * no retry, no way to tell a dead endpoint from a slow one. It is tested FIRST
- * because a failed query is not a pending one.
- */
-export function noResultsMessage(args: {
-  query: string;
-  searchPending: boolean;
-  searchFailed: boolean;
-  serverSearchActive: boolean;
-  recentReach: number;
-}): string {
-  const { query, searchPending, searchFailed, serverSearchActive, recentReach } = args;
-  if (searchFailed) return `We couldn't search your orders for “${query}”. This isn't a result — try again.`;
-  if (searchPending) return "Searching all orders…";
-  if (!serverSearchActive && query) {
-    return recentReach === 1
-      ? "No match in the 1 most recent order shown here."
-      : `No match in the ${recentReach} most recent orders shown here.`;
-  }
-  return `No results for “${query}”`;
-}
-
-function buildIndex(
-  router: ReturnType<typeof useRouter>,
-  orders: OrderSummary[],
-): CmdItem[] {
-  // The palette lists orders by name and state, so the state has to be the SAME
-  // word the row and the badge use. This used to be a local six-case switch:
-  // `ready_to_deliver` read "Ready" (the inbox says "Queued to send"),
-  // `delivery_failed` read "Failed", `parsing` read "Parsing" (the product says
-  // "Extracting") — and every status the switch had not heard of fell through
-  // `default: return status`, so a search could turn up an order labelled
-  // "delivery_dead_letter". statusLabel() covers all of them and humanizes an
-  // unknown key instead of printing it raw.
-  const orderItems: CmdItem[] = orders.map((order) => ({
-    id: `o-${order.id}`,
-    group: ORDERS_GROUP,
-    icon: "↗",
-    label: order.poNumber,
-    sub: `${order.buyerName ?? "Unknown buyer"} → ${order.supplierName ?? "Unknown supplier"} · ${statusLabel(order.status)}`,
-    href: documentHref(order),
-    color: orderColor(order.status),
-  }));
-
+function buildIndex(router: ReturnType<typeof useRouter>): CmdItem[] {
   return [
-    ...orderItems,
     // ── Actions ────────────────────────────────────────
     { id: "a1",  group: "Actions", icon: "↑", label: "Upload document",      sub: "Open upload workbench",  action: () => router.push("/upload"),           color: "#0F4FA8" },
-    // "View order inbox" — the inbox holds orders in EVERY state, not just
-    // deliveries, so the old "View all deliveries" label over-claimed.
-    { id: "a2",  group: "Actions", icon: "⊞", label: "View order inbox",     sub: "Go to inbox",            action: () => router.push("/inbox"),            color: "#0F4FA8" },
     { id: "a9",  group: "Actions", icon: "▤", label: "Deliveries",           sub: "Every delivery attempt — the delivery log", action: () => router.push("/operations/log"),   color: "#0F4FA8" },
     { id: "a7",  group: "Actions", icon: "⚙", label: "Settings",             sub: "Workspace settings",     action: () => router.push("/settings"),         color: "#0F4FA8" },
-    // ── Onboarding entry points (task 9) ────────────────────
-    { id: "a10", group: "Actions", icon: "✓", label: "Getting started",      sub: "Open the setup checklist", action: () => router.push("/bridge"),          color: "#2E8E3A" },
-    // Navigates to /upload, where the sample CTA lives: the palette unmounts
-    // on selection, so hosting the useSampleOrder mutation here would lose its
-    // onSuccess navigation mid-flight (TanStack observer teardown).
-    { id: "a11", group: "Actions", icon: "▶", label: "Run a sample order",   sub: "Practice with an example order — opens Upload", action: () => router.push("/upload"), color: "#2E8E3A" },
     { id: "a12", group: "Actions", icon: "?", label: "Open help",            sub: "Help docs",              action: () => router.push("/help"),             color: "#0F4FA8" },
     // ── Mapper power commands (a13..a16) ────────────────────
     // These dispatch onto the window "plk:mapper" bus; the mounted MapperWorkbench
-    // (inbox order review / connection editor) listens and acts on its focused field.
+    // (a flow output's Advanced view) listens and acts on its focused field.
     // They show always (progressive disclosure — discoverable for anyone who needs them);
     // outside the mapper the dispatch is a harmless no-op (no listener attached).
     ...buildMapperCommands(dispatchMapper).map((c) => ({
@@ -247,7 +79,6 @@ function buildIndex(
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function CommandPalette({ onClose }: { onClose: () => void }) {
-  const tenantQueriesEnabled    = useTenantQueriesEnabled();
   const [q, setQ]               = useState("");
   const [activeIndex, setActive] = useState(0);
   const router                   = useRouter();
@@ -255,84 +86,14 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
   const activeRef                = useRef<HTMLButtonElement>(null);
   const paletteRef               = useRef<HTMLDivElement>(null);
 
-  // Debounce the user's query before firing a server search — avoids a request per keystroke.
-  // The term is TRIMMED before it is debounced, sent, or matched. The backend trims it too
-  // (`search.Trim()` in OrderQueryService), so an untrimmed client copy of the term filtered
-  // out rows the server had just matched: paste a PO number with a trailing space and the
-  // server returned the order while the client dropped it and reported no results.
   const normalizedQ = q.trim();
-  const [debouncedQ, setDebouncedQ] = useState("");
-  useEffect(() => {
-    const term = q.trim();
-    if (term.length < SERVER_SEARCH_MIN_CHARS) { setDebouncedQ(""); return; }
-    const t = setTimeout(() => setDebouncedQ(term), 200);
-    return () => clearTimeout(t);
-  }, [q]);
-
-  // This query had NO `enabled` at all, which made it the one observer of ["orders"]
-  // that could fetch regardless of whether a tenant was known. That matters more than
-  // it looks: TanStack Query starts a fetch if ANY observer of a key is enabled, so a
-  // single ungated observer re-opens the door for every gated one sharing the key —
-  // and ["orders"] is shared with BridgeDashboard and BridgeTopbar, both of which are
-  // gated precisely to keep tenant-scoped requests from outrunning the organisation
-  // claim on a new workspace's first load.
-  //
-  // The palette only mounts when it is opened, so this was not the observed cause;
-  // it is the same defect one keystroke away.
-  const { data: ordersPage } = useQuery({
-    queryKey: ["orders"],
-    queryFn: () => apiClient.getOrders({ pageSize: 100 }),
-    staleTime: 60_000,
-    enabled: tenantQueriesEnabled,
-  });
-
-  const {
-    data: searchPage,
-    isFetching: searchFetching,
-    isError: searchIsError,
-    refetch: refetchSearch,
-  } = useQuery({
-    queryKey: ["orders-search", debouncedQ],
-    queryFn: () => apiClient.getOrders({ search: debouncedQ, pageSize: 8 }),
-    staleTime: 30_000,
-    enabled: !isApiMockMode && debouncedQ.length >= SERVER_SEARCH_MIN_CHARS,
-  });
-  // When search term is active and server results are available, use them (all orders searchable).
-  // Otherwise fall back to the recent-orders preview (empty query, or mock mode).
-  const serverSearchActive = !isApiMockMode && normalizedQ.length >= SERVER_SEARCH_MIN_CHARS;
-  // The response answers THIS query only once the debounce has caught up AND the request has
-  // landed. Until then the palette knows nothing about the term the user is looking at, and
-  // `searchPage` is `undefined` (TanStack drops data when the key changes) — which read as
-  // zero rows and printed "No results" over a search that had not been made yet.
-  const serverResultsCurrent =
-    serverSearchActive && debouncedQ === normalizedQ && !searchFetching && searchPage !== undefined;
-  // The request answered with an error and left nothing behind. Without this the
-  // condition below can never become false, so "Searching all orders…" was a
-  // terminal state rather than a transient one.
-  const searchFailed =
-    serverSearchActive && debouncedQ === normalizedQ && !searchFetching && searchIsError && searchPage === undefined;
-  const searchPending = serverSearchActive && !serverResultsCurrent && !searchFailed;
-
-  const recentPreview = (ordersPage?.items ?? []).slice(0, RECENT_PREVIEW_LIMIT);
-  const orderResults: OrderSummary[] = serverSearchActive ? (searchPage?.items ?? []) : recentPreview;
-
-  const items = buildIndex(router, orderResults);
+  const items = buildIndex(router);
 
   // Build filtered groups + flat list for keyboard nav
   const groups: Record<string, CmdItem[]> = {};
   const sq = normalizedQ.toLowerCase();
   for (const item of items) {
-    // Order rows from the server search are ALREADY filtered — by Postgres, over PoNumber,
-    // Supplier.Name and BuyerName, which is the same information this loop reads out of
-    // `label` and `sub`. Running the substring test over them again can therefore only ever
-    // DISCARD a real match, never find one, and Postgres `ILIKE '%term%'` and JS
-    // `.includes()` disagree in ways the user cannot see: `%` and `_` in the term are
-    // wildcards to one and literals to the other, and case folding follows the DB collation
-    // rather than `toLowerCase()`. Every such disagreement surfaced as "No results" printed
-    // on top of a NON-EMPTY server response, which is the worst reading of all — the account
-    // holds the order, the API returned it, and the screen denies both.
-    const preFiltered = serverResultsCurrent && item.group === ORDERS_GROUP;
-    if (!preFiltered && sq && !item.label.toLowerCase().includes(sq) && !(item.sub ?? "").toLowerCase().includes(sq)) continue;
+    if (sq && !item.label.toLowerCase().includes(sq) && !(item.sub ?? "").toLowerCase().includes(sq)) continue;
     if (!groups[item.group]) groups[item.group] = [];
     groups[item.group].push(item);
   }
@@ -431,9 +192,9 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Search orders, suppliers, buyers, actions…"
+            placeholder="Search actions…"
             role="combobox"
-            aria-label="Search orders, suppliers, buyers, actions"
+            aria-label="Search actions"
             aria-autocomplete="list"
             aria-expanded={hasResults}
             aria-controls="cmd-listbox"
@@ -469,45 +230,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
           aria-label={hasResults ? "Results" : undefined}
           style={{ maxHeight: 420, overflowY: "auto" }}
         >
-          {/* Rendered whether or not anything else matched. Actions, suppliers and
-              buyers are matched client-side and are unaffected by a failed order
-              search, so on failure the palette can still be full of rows — which
-              is precisely when a silent failure is most misleading, because the
-              rows present look like the complete answer. */}
-          {searchFailed && (
-            <div
-              role="alert"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 12,
-                padding: "10px 16px",
-                background: "var(--danger-soft)",
-                borderBottom: "1px solid var(--danger-border)",
-                color: "var(--danger)",
-                fontSize: 12.5,
-              }}
-            >
-              <span>
-                {noResultsMessage({
-                  query: normalizedQ,
-                  searchPending,
-                  searchFailed,
-                  serverSearchActive,
-                  recentReach: recentPreview.length,
-                })}
-              </span>
-              <span style={{ flexShrink: 0 }}>
-                <Button variant="secondary" size="sm" onClick={() => { void refetchSearch(); }}>
-                  Try again
-                </Button>
-              </span>
-            </div>
-          )}
-          {/* The failure strip above already carries the sentence and the control,
-              so the empty block would only repeat it. */}
-          {!hasResults && searchFailed ? null : !hasResults ? (
+          {!hasResults ? (
             <div
               style={{
                 padding: "32px 16px",
@@ -516,13 +239,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
                 fontSize: 13,
               }}
             >
-              {noResultsMessage({
-                query: normalizedQ,
-                searchPending,
-                searchFailed,
-                serverSearchActive,
-                recentReach: recentPreview.length,
-              })}
+              {`No results for “${normalizedQ}”`}
             </div>
           ) : (
             Object.entries(groups).map(([group, groupItems]) => (

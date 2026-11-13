@@ -44,7 +44,7 @@ const APP_DIR = join(ROOT, "src", "app");
 
 /**
  * Turn a route pattern into one concrete URL the matcher can be asked about:
- * "/inbox/[orderId]" -> "/inbox/sample", "/sign-in/[[...sign-in]]" -> "/sign-in".
+ * "/archive/[orderId]" -> "/archive/sample", "/sign-in/[[...sign-in]]" -> "/sign-in".
  */
 function concretePath(pattern: string): string {
   const path = pattern
@@ -85,9 +85,9 @@ describe("the route walk is not vacuous", () => {
     // Sentinels, not a full list: a walk that silently stopped one directory short
     // (or resolved the wrong tree entirely) still clears a bare count.
     for (const route of [
-      "/bridge",
-      "/inbox",
-      "/inbox/[orderId]",
+      "/documents",
+      "/archive",
+      "/archive/[orderId]",
       "/settings",
       "/upload",
       "/flows",
@@ -119,6 +119,13 @@ describe("every page under src/app/(app)/ is behind the edge guard", () => {
   // sign-in at /flows either way. What must stay true is that the old URL does not 404.
   it("308s /connections to /flows — the A-F1 finding, now that the page is retired", () => {
     expect(RETIRED_ROUTES.find((r) => r.source === "/connections")?.destination).toBe("/flows");
+  });
+
+  // /bridge and /inbox left the matcher with their pages on 2026-11-13, for the same reason.
+  it("308s /bridge, /inbox and /inbox/:orderId to their successors now that the order screens are retired", () => {
+    expect(RETIRED_ROUTES.find((r) => r.source === "/bridge")?.destination).toBe("/documents");
+    expect(RETIRED_ROUTES.find((r) => r.source === "/inbox")?.destination).toBe("/archive");
+    expect(RETIRED_ROUTES.find((r) => r.source === "/inbox/:orderId")?.destination).toBe("/archive/:orderId");
   });
 
   it("308s /inbound/invoices and /inbound/asns to /documents — the A-F1 finding, now retired", () => {

@@ -67,11 +67,11 @@ export const RETIRED_ROUTES: RetiredRoute[] = [
   },
   {
     source: "/drafts",
-    destination: "/inbox",
+    destination: "/archive",
     deletedDir: "src/app/(app)/drafts",
     why:
       "A permanently empty list — orders cannot be saved as drafts, so nothing could "
-      + "ever appear here. Unsent orders live in the Inbox.",
+      + "ever appear here. Unsent orders lived in the Inbox, which is now the read-only archive.",
   },
   {
     source: "/operations/webhooks",
@@ -118,12 +118,37 @@ export const RETIRED_ROUTES: RetiredRoute[] = [
   },
   {
     source: "/upload/preview/:orderId",
-    destination: "/inbox/:orderId",
+    destination: "/archive/:orderId",
     deletedDir: "src/app/(app)/upload/preview",
     why:
       "Unreachable: uploading has routed straight to the order review screen since the "
-      + "review screen became a superset of this one. The order id is preserved so an old "
-      + "link opens the same order.",
+      + "review screen became a superset of this one, and that screen is gone too. The order "
+      + "id is preserved so an old link opens the same order in the read-only archive.",
+  },
+  {
+    source: "/bridge",
+    destination: "/documents",
+    deletedDir: "src/app/(app)/bridge",
+    why:
+      "The order dashboard counted orders, drew the buyer-to-supplier map and ran the "
+      + "onboarding checklist. Every workspace runs on the document tool now, and its home "
+      + "is Documents.",
+  },
+  {
+    source: "/inbox",
+    destination: "/archive",
+    deletedDir: "src/app/(app)/inbox",
+    why:
+      "The order queue. No new orders arrive on the order pipeline, so the orders it held "
+      + "are read-only history, listed in the archive.",
+  },
+  {
+    source: "/inbox/:orderId",
+    destination: "/archive/:orderId",
+    deletedDir: "src/app/(app)/inbox/[orderId]",
+    why:
+      "The order review screen fixed, mapped and sent one order. An old order can no longer "
+      + "be changed or sent, and the archive opens the same id read-only.",
   },
   {
     source: "/library/suppliers",

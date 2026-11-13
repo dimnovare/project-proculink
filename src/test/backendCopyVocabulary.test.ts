@@ -201,17 +201,6 @@ describe("the baseline is a real list", () => {
 describe("the render path is still what the corpus claims", () => {
   const read = (rel: string) => readFileSync(join(ROOT, rel), "utf8");
 
-  test("OrderProblemPanel still prints the server's own sentence", () => {
-    const panel = read("src/components/bridge/problem/OrderProblemPanel.tsx");
-    // The three candidates, the sanitiser, and the render of the result. If this stops
-    // being true the corpus is answering a question nobody is asking any more — which is a
-    // reason to re-scope the guard, not to let it keep passing.
-    expect(panel).toContain("serverMessage: order.errorMessage?.trim()");
-    expect(panel).toContain("[rejectionReason, attemptMessage, ctx.serverMessage]");
-    expect(panel).toContain(".map(supplierReasonText)");
-    expect(panel).toContain("{detail}");
-  });
-
   test("supplierReasonText returns a plain sentence UNCHANGED", () => {
     // The single most important fact behind this suite: the one function between the wire
     // and the DOM is a markup stripper, not a rewriter. If it ever started substituting

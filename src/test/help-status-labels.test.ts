@@ -54,130 +54,22 @@ function labelsIn(src: string, name: string): string[] {
   return [...blockBody(src, name).matchAll(/\blabel:\s*"([^"]+)"/g)].map((m) => m[1]);
 }
 
-/** `status: "…"` → `label: "…"` pairs, so a doc claim can be derived FROM A STATUS. */
-function labelByStatus(src: string, name: string): Map<string, string> {
-  const body = blockBody(src, name);
-  const out = new Map<string, string>();
-  for (const m of body.matchAll(/(\w+):\s*\{[^{}]*\blabel:\s*"([^"]+)"/g)) out.set(m[1], m[2]);
-  return out;
-}
-
-const INBOX = read("src", "components", "bridge", "InboxView.tsx");
+// 2026-11-13: the inbox (FILTER_CHIPS, the bulk bar) and the raw-status badge
+// (STATUS_META) went with the order screens, and so did the describes that compared
+// the two status articles against them. The archive's collapsed set is what renders.
 const STATUS_SRC = read("src", "lib", "orderArchiveStatus.ts");
-const BADGE = read("src", "components", "bridge", "UnifiedStatusBadge.tsx");
-const SEND = read("src", "components", "bridge", "inboxSend.ts");
 
-/** Every word a row's status pill can print — the collapsed set and the raw-status set. */
-const STATUS_LABEL_BY_RAW = labelByStatus(BADGE, "STATUS_META");
-const PRODUCT_STATUS_LABELS = new Set([
-  ...labelsIn(STATUS_SRC, "STATUS_PRESENTATION"),
-  ...STATUS_LABEL_BY_RAW.values(),
-]);
-
-/** The inbox filter chips, in the order the toolbar renders them. */
-const CHIP_LABELS = labelsIn(INBOX, "FILTER_CHIPS");
-
-/** Raw statuses the bulk bar may select — mirrors the backend's ClaimableForRetryFrom. */
-const BULK_SELECTABLE = [...blockBody(SEND, "BULK_SELECTABLE_STATUSES").matchAll(/"([^"]+)"/g)].map(
-  (m) => m[1],
-);
+/** Every word an archive row's status pill can print. */
+const PRODUCT_STATUS_LABELS = new Set(labelsIn(STATUS_SRC, "STATUS_PRESENTATION"));
 
 const DASHBOARD_MDX = read("src", "app", "(marketing)", "help", "dashboard-and-statuses", "page.mdx");
 const INBOX_MDX = read("src", "app", "(marketing)", "help", "inbox-basics", "page.mdx");
 const HELP_ARTICLES = read("src", "lib", "help-articles.ts");
 
-/** The first cell of every markdown table row, when that cell is a bolded label. */
-function tableLabels(mdx: string, afterHeading: string, untilHeading: string): string[] {
-  const start = mdx.indexOf(afterHeading);
-  expect(start, `heading "${afterHeading}" not found`).toBeGreaterThan(-1);
-  const rest = mdx.slice(start + afterHeading.length);
-  const endAt = rest.indexOf(untilHeading);
-  const section = endAt === -1 ? rest : rest.slice(0, endAt);
-  return [...section.matchAll(/^\|\s*\*\*([^*]+)\*\*\s*\|/gm)].map((m) => m[1].trim());
-}
-
 describe("the registries this guard reads are really there", () => {
   // A scan that silently returns nothing would make every assertion below vacuous.
-  it("finds a plausible number of product status labels and chips", () => {
+  it("finds a plausible number of product status labels", () => {
     expect(PRODUCT_STATUS_LABELS.size).toBeGreaterThanOrEqual(12);
-    expect(CHIP_LABELS.length).toBeGreaterThanOrEqual(5);
-    expect(CHIP_LABELS[0]).toBe("All orders");
-    expect(BULK_SELECTABLE).toContain("ready_to_deliver");
-  });
-});
-
-describe("help/dashboard-and-statuses names only statuses the product renders", () => {
-  const happy = tableLabels(DASHBOARD_MDX, "## The happy path", "## The failure states");
-  const failures = tableLabels(DASHBOARD_MDX, "## The failure states", "## Delivered");
-
-  it("every happy-path row is a label a status pill actually prints", () => {
-    expect(happy.length).toBeGreaterThan(5);
-    for (const label of happy) {
-      expect(PRODUCT_STATUS_LABELS.has(label), `"${label}" is taught but never rendered`).toBe(true);
-    }
-  });
-
-  it("every failure row is a label a status pill actually prints", () => {
-    expect(failures.length).toBeGreaterThan(4);
-    for (const label of failures) {
-      expect(PRODUCT_STATUS_LABELS.has(label), `"${label}" is taught but never rendered`).toBe(true);
-    }
-  });
-
-  it("teaches the ready ⇄ ready_to_deliver distinction the RIGHT way round", () => {
-    // The two labels the product loads with opposite meanings. `ready` = checks passed,
-    // NOTHING built (the human's turn); `ready_to_deliver` = output built, send pending
-    // (our turn). The article inverted them, so pin the derivation, not the sentence.
-    const readyLabel = STATUS_LABEL_BY_RAW.get("ready")!;
-    const queuedLabel = STATUS_LABEL_BY_RAW.get("ready_to_deliver")!;
-    expect(readyLabel).not.toBe(queuedLabel);
-    const readyRow = new RegExp(`^\\|\\s*\\*\\*${readyLabel}\\*\\*\\s*\\|(.*)$`, "m").exec(DASHBOARD_MDX);
-    const queuedRow = new RegExp(`^\\|\\s*\\*\\*${queuedLabel}\\*\\*\\s*\\|(.*)$`, "m").exec(DASHBOARD_MDX);
-    expect(readyRow, `no glossary row for "${readyLabel}"`).not.toBeNull();
-    expect(queuedRow, `no glossary row for "${queuedLabel}"`).not.toBeNull();
-    // The output file exists on ONE side of that line and not the other.
-    expect(readyRow![1]).not.toMatch(/output (file|document|artifact) exists/i);
-    expect(queuedRow![1]).toMatch(/output file exists/i);
-  });
-});
-
-describe("help/inbox-basics matches the queue it documents", () => {
-  it("the chip table lists exactly the chips the toolbar renders, in order", () => {
-    const documented = tableLabels(INBOX_MDX, "## The status filters", "## Finding an order");
-    expect(documented).toEqual(CHIP_LABELS);
-  });
-
-  it("the row status-pill list names only labels a pill prints", () => {
-    const listed = /Rows also carry a status pill of their own \(([^)]+)\)/.exec(INBOX_MDX);
-    expect(listed, "the status-pill sentence moved").not.toBeNull();
-    for (const label of listed![1].split(",").map((s) => s.trim())) {
-      expect(PRODUCT_STATUS_LABELS.has(label), `"${label}" is listed but never rendered`).toBe(true);
-    }
-  });
-
-  it("every 'where each status leads next' row is a real label", () => {
-    const rows = tableLabels(INBOX_MDX, "## Where each status leads next", "## An empty inbox");
-    expect(rows.length).toBeGreaterThan(3);
-    for (const label of rows) {
-      expect(PRODUCT_STATUS_LABELS.has(label), `"${label}" is taught but never rendered`).toBe(true);
-    }
-  });
-
-  it("the bulk-send rule names a bulk-selectable status, never `ready`", () => {
-    // Derived from BULK_SELECTABLE_STATUSES (= the backend's ClaimableForRetryFrom), so if
-    // the set ever widens the doc has to follow. `ready` is NOT in it: the bulk bar posts
-    // /redeliver, whose guard set does not contain `ready`, so telling an operator to
-    // "Select and Send selected" a Ready to send row instructs them to do something the
-    // checkbox refuses.
-    const para = /## Bulk send([\s\S]*?)## Where each status/.exec(INBOX_MDX)![1];
-    expect(BULK_SELECTABLE).not.toContain("ready");
-    expect(para).toContain(STATUS_LABEL_BY_RAW.get("ready_to_deliver"));
-    expect(para).not.toContain(STATUS_LABEL_BY_RAW.get("ready"));
-
-    const leads = /## Where each status leads next([\s\S]*?)## An empty inbox/.exec(INBOX_MDX)![1];
-    const readyRow = new RegExp(`\\*\\*${STATUS_LABEL_BY_RAW.get("ready")}\\*\\*\\s*\\|([^|]*)\\|`).exec(leads);
-    expect(readyRow, "no next-step row for the ready state").not.toBeNull();
-    expect(readyRow![1], "a `ready` row is not bulk-selectable").not.toMatch(/Send selected/);
   });
 });
 

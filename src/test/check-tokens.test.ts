@@ -366,8 +366,10 @@ describe("the scanned corpus", () => {
     const s = repoStats();
     // The debt is real and large; a ledger that collapsed to a handful of rows
     // would mean the scan narrowed, not that the tree got clean overnight.
-    expect(s.baselineRows).toBeGreaterThan(100);
-    expect(s.baselineTotal).toBeGreaterThan(3_000);
+    // 94 rows / 1,938 measured 2026-11-13, after the order screens went with
+    // 34 rows of their debt.
+    expect(s.baselineRows).toBeGreaterThan(60);
+    expect(s.baselineTotal).toBeGreaterThan(1_200);
 
     // The gate is green, so found debt and ledgered debt must agree exactly.
     // This is what ties the ledger below to a LIVE run rather than to a file
@@ -389,10 +391,10 @@ describe("the scanned corpus", () => {
       readFileSync(join(REPO, "scripts", "token-debt-baseline.json"), "utf8"),
     ) as Record<string, number>;
 
+    // /bridge, /inbox and the old /upload body went with the order screens
+    // (2026-11-13); the flow screens that replaced them carry no ledgered debt.
     for (const body of [
-      "src/components/bridge/BridgeDashboard.tsx", // /bridge      (wrapper: 10 lines)
-      "src/components/bridge/InboxView.tsx", // /inbox       (wrapper: 18 lines)
-      "src/components/bridge/UploadWorkbench.tsx", // /upload      (wrapper: 11 lines)
+      "src/components/bridge/CrossingsLog.tsx", // /operations/log (wrapper: 11 lines)
     ]) {
       expect(ledger[body], `${body} missing from the ledger`).toBeGreaterThan(0);
     }

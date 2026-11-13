@@ -8,8 +8,8 @@ import type { OrderSummary } from "@/types/procurement";
 // page name — pages stopped re-announcing it visually but MUST keep exactly one
 // h1 (sr-only) so heading hierarchy and getByRole("heading") queries survive.
 //
-// This file renders a representative slice of the audited pages end-to-end:
-// Overview, Orders, Deliveries and System status. The remaining audited pages
+// This file renders the Deliveries page end-to-end (Overview and Orders went
+// with the order screens on 2026-11-13). The remaining audited pages
 // (exceptions, connectors, webhooks, invoices, ASNs) run their h1 through the SAME
 // PageHeader `titleHidden` mechanism, whose contract — including the
 // kept-visible variant, which used to be demonstrated here by the now-retired
@@ -17,7 +17,7 @@ import type { OrderSummary } from "@/types/procurement";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
-  usePathname: () => "/bridge",
+  usePathname: () => "/operations/log",
   useSearchParams: () => new URLSearchParams(),
 }));
 
@@ -27,26 +27,6 @@ vi.mock("@clerk/nextjs", () => ({
 }));
 
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true, useTenantQueriesEnabled: () => true }));
-vi.mock("@/hooks/useSampleOrder", () => ({
-  useSampleOrder: () => ({ runSample: vi.fn(), isPending: false, error: null }),
-  usePracticeOrderEmail: () => "",
-}));
-vi.mock("@/hooks/useOrderDirection", () => ({
-  useOrderDirection: () => ({
-    direction: "outbound",
-    labels: {
-      counterpartyNoun: "Supplier",
-      counterpartyPlural: "Suppliers",
-      railHeader: "Buyer → Supplier",
-      primaryCta: "Send to supplier",
-      primaryCtaProgress: "Sending…",
-      doneLabel: "Sent to supplier",
-      deliveredLabel: "Delivered to supplier",
-      unknownBuyer: "Unknown buyer",
-    },
-  }),
-}));
-
 // One order list feeds every page under test; the dashboard cases swap it.
 // (Referenced only from inside the mock factory's functions, which run at query
 // time — vi.mock hoisting means no top-level value may be read at factory time.)
@@ -67,8 +47,6 @@ vi.mock("@/lib/api-client", () => ({
   getBillingStatus: () => Promise.resolve({ plan: "growth", canAddSupplier: true, supplierLimit: 5 }),
 }));
 
-import { BridgeDashboard } from "./BridgeDashboard";
-import { InboxView } from "./InboxView";
 import { CrossingsLog } from "./CrossingsLog";
 
 afterEach(() => {
@@ -85,23 +63,6 @@ function renderPage(ui: React.ReactElement) {
   );
 }
 
-function blockedOrder(): OrderSummary {
-  return {
-    id: "ord-1",
-    poNumber: "PO-1001",
-    supplierName: "Nordmark",
-    buyerName: "Heinrich Industries GmbH",
-    orderDate: "2026-07-01T09:00:00Z",
-    status: "pending_review" as OrderSummary["status"],
-    lineCount: 3,
-    unresolvedCount: 2,
-    totalValue: 1200,
-    currency: "EUR",
-    sourceFormat: "pdf",
-    createdAt: "2026-07-16T09:00:00Z",
-  };
-}
-
 /** Exactly one h1 whose text matches; sr-only unless `visible`. */
 function expectSingleH1(text: string, opts: { visible?: boolean } = {}) {
   const headings = screen.getAllByRole("heading", { level: 1 });
@@ -115,38 +76,8 @@ function expectSingleH1(text: string, opts: { visible?: boolean } = {}) {
 }
 
 describe("nav dedup — each audited page keeps exactly one h1", () => {
-  it("Overview: sr-only h1 + context line greeting", async () => {
-    renderPage(<BridgeDashboard />);
-    expectSingleH1("Overview");
-    // Context line greeting renders after mount (client-clock guard).
-    expect(await screen.findByText(/^Good (morning|afternoon|evening), Dim$/)).toBeInTheDocument();
-  });
-
-  it("Overview context line: 0 blockers reads All clear with no jump link", async () => {
-    renderPage(<BridgeDashboard />);
-    expect(await screen.findByText("All clear")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Jump to blockers/ })).not.toBeInTheDocument();
-    expect(screen.queryByText(/0 blockers/)).not.toBeInTheDocument();
-  });
-
-  it("Overview context line: a blocked order yields the count + jump link to #needs-you", async () => {
-    orders = [blockedOrder()];
-    renderPage(<BridgeDashboard />);
-    expect(await screen.findByText("1 blocker")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Jump to blockers/ })).toBeInTheDocument();
-    await waitFor(() => {
-      expect(document.getElementById("needs-you")).not.toBeNull();
-    });
-  });
-
-  it("Orders: sr-only h1", async () => {
-    renderPage(<InboxView />);
-    await waitFor(() => expectSingleH1("Orders"));
-  });
-
   it("Deliveries: sr-only h1", async () => {
     renderPage(<CrossingsLog />);
     await waitFor(() => expectSingleH1("Deliveries"));
   });
-
 });
