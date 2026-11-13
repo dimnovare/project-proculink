@@ -136,6 +136,7 @@ export function OutputEditor({ flow, output, previewDocumentId, hideDestination,
       const created = !current;
       setProblem(null);
       preview.reset();
+      check.reset();
       setCurrent(saved);
       if (created) setRows(toSimple(saved.template));
       qc.invalidateQueries({ queryKey: ["outputs", flow.id] });
@@ -293,7 +294,7 @@ export function OutputEditor({ flow, output, previewDocumentId, hideDestination,
           {previewDocumentId && current && (
             <Button type="button" variant="secondary" loading={preview.isPending} onClick={() => preview.mutate()}>Preview</Button>
           )}
-          {previewDocumentId && current && standard && FLAGGED.has(standard) && (
+          {previewDocumentId && current && standard && FLAGGED.has(standard) && flow.peppolOn && (
             <Button type="button" variant="secondary" loading={check.isPending} onClick={() => check.mutate()}>Check against Peppol rules</Button>
           )}
         </div>
@@ -302,7 +303,7 @@ export function OutputEditor({ flow, output, previewDocumentId, hideDestination,
         {check.data?.status === "unavailable" && <StatusNotice tone="warning">We couldn&apos;t reach the rule checker. Try again in a minute.</StatusNotice>}
         {check.data?.status === "failed" && (
           <StatusNotice tone="warning">
-            Doesn&apos;t meet {check.data.issues.filter((i) => i.severity === "error").length || check.data.issues.length} Peppol rule(s):
+            Doesn&apos;t meet {check.data.issues.filter((i) => i.severity === "error").length} Peppol rule(s):
             <ul className="mt-1 list-disc pl-4">
               {[...check.data.issues].sort((a, b) => Number(b.severity === "error") - Number(a.severity === "error")).map((i, n) => (
                 <li key={n}>{i.ruleId} — {i.message}{i.severity === "error" ? "" : ` (${i.severity})`}</li>

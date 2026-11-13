@@ -126,7 +126,7 @@ describe("OutputEditor", () => {
   });
 
   const peppol = { ...output, standard: "peppol-bis-billing-3", format: "xml", tableKey: "lines", template: {}, needs: [] };
-  const checkFlow = { ...flow, fields: { fields: [], tables: [lines] } };
+  const checkFlow = { ...flow, peppolOn: true, fields: { fields: [], tables: [lines] } };
 
   it("a failed Peppol check lists its rules, errors first", async () => {
     api.checkOutput.mockResolvedValue({ status: "failed", issues: [

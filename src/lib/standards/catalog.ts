@@ -165,31 +165,18 @@ export const STANDARDS: StandardSupport[] = [
   },
   {
     id: "peppol-bis-billing-3-credit-note",
-    name: "Peppol BIS Billing 3.0 credit note",
+    name: "Peppol BIS Billing (credit note)",
     version: "3.0",
     family: "xml",
-    // A BIS Billing file IS a UBL 2.1 Invoice, so it reads on the UBL invoice pipeline
-    // (UblInvoiceParser has no BIS-specific branch) — same argument as the order row.
-    parse: "partial",
-    // NOT `supported`. The generator is registered and emits a BIS-shaped document covering the
-    // business terms listed in PeppolBisInvoiceTransformService, but nothing validates the profile
-    // it declares, so the catalog's own rule at the top of this file applies: under-claim.
+    // No parser reads a UBL CreditNote root, so nothing reads one in.
+    parse: "none",
+    // NOT `supported`: written only by the flow output writer, behind the per-org Peppol flag.
     transform: "partial",
     transport: "Peppol Access Point (AS4) — ProcuLink does not provide the transport",
     conformance:
-      "Outbound: the generator emits cbc:CustomizationID and cbc:ProfileID, and ProcuLink does not " +
-      "verify them — the declaration is unverified, not a conformance result. Unlike the order row " +
-      "above the identifiers are NOT removed, because they are a substring of the Peppol document " +
-      "type identifier used for SMP lookup and AS4 routing (POLICY 20), so a document without them " +
-      "cannot be addressed rather than being merely undeclared; the same is true of orders, which " +
-      "is not why the order path dropped them. The official PEPPOL-EN16931-UBL Schematron is not " +
-      "run: there is no Schematron in either repo, and .NET cannot execute the XSLT 2.0 it compiles " +
-      "to without a new dependency. Covered are the mandatory business terms and arithmetic checks " +
-      "in PeppolBisValidator; NOT covered are codelists, scheme-id correctness, allowances/charges, " +
-      "payment means and mixed-rate VAT. No invoice has been accepted by a live access point. Treat " +
-      "the file as input to an access point's validator. The generator is reachable only through " +
-      "the API (GET /api/invoices/{id}/download?format=peppol and .../validate-peppol); no screen " +
-      "offers it.",
+      "Outbound: written by the flow standard output behind the per-org Peppol flag, and checked on " +
+      "demand against the official Peppol and EN 16931 rules by the validator sidecar — a rule check, " +
+      "not access-point acceptance. No credit note has been accepted by a live access point.",
     referenceUrl: "https://docs.peppol.eu/poacc/billing/3.0/",
   },
   {
