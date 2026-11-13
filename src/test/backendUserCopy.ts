@@ -199,13 +199,10 @@ export const USER_FACING_SOURCES: readonly UserFacingSource[] = [
   },
 
   // ── Acceptance-gate sentences (become the transform `error`) ────────────────
-  {
-    file: "ProcuLink.Api/Services/AcceptanceMessages.cs",
-    carrier: "OrderDto.ErrorMessage",
-    why: "ForFail (:23) produces the (why, fix) sentence pairs the gate refuses with; they reach FailTransformAsync.",
-  },
   // 2026-11-13, plan 13b task 7a: IAcceptanceGate.cs (AcceptanceGateMessage.Compose) left — deleted
   // with the order pipeline's acceptance gate.
+  // 2026-11-13, plan 13b task 7b: AcceptanceMessages.cs (ForFail) left — deleted with
+  // SupplierAcceptanceService, its only caller.
 
   // ── Order exception messages, rendered raw ──────────────────────────────────
   {
