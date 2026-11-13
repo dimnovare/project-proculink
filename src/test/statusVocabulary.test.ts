@@ -1,7 +1,6 @@
 import { describe, test, expect } from "vitest";
 import { readdirSync, readFileSync, statSync } from "fs";
 import { join, relative } from "path";
-import { PROBLEM_COPY, PROBLEM_STATUSES } from "@/components/bridge/problem/problemCopy";
 import { ROOT } from "./appRoutes";
 import { stripComments, syntaxFor } from "./sourceScan";
 
@@ -20,20 +19,17 @@ import { stripComments, syntaxFor } from "./sourceScan";
 // Nothing mechanical caught it, and nothing could have: copy asserting something
 // about behaviour is not type-checked against that behaviour. A help article can
 // teach a label the product has not used for months and every suite stays green.
-// This file is the missing type-check, done the only way prose can be checked —
-// by DERIVING the expected words from the one registry that owns them and
-// asserting every other surface repeats them.
+// This file was the missing type-check, done the only way prose can be checked —
+// by DERIVING the expected words from the one registry that owned them and
+// asserting every other surface repeated them.
 //
-// THE SOURCE OF TRUTH is STATUS_META in src/components/bridge/UnifiedStatusBadge.tsx,
-// re-exported here as STATUS_LABELS. It is the source of truth because
-// DESIGN-DB-1 §6.4 says what each label must be and STATUS_META is the only
-// place in the frontend that says the same thing. Every assertion below reads
-// STATUS_LABELS rather than repeating a label, so renaming a status in the
-// registry moves this gate with it instead of breaking it.
+// THE SOURCE OF TRUTH was STATUS_META in src/components/bridge/UnifiedStatusBadge.tsx,
+// because DESIGN-DB-1 §6.4 says what each label must be and STATUS_META was the
+// only place in the frontend that said the same thing. It is gone (see below).
 //
-// The one place literals ARE written down is RETIRED_LABELS — the words that
-// must never come back. Those cannot be derived from anything, because their
-// defining property is that they are absent.
+// What this file holds now is RETIRED_LABELS — the words that must never come
+// back. Those cannot be derived from anything, because their defining property
+// is that they are absent, so they are the one place literals are written down.
 //
 // 2026-11-13: STATUS_META went with UnifiedStatusBadge and the order screens
 // that rendered it, and so did every describe that read it (the label registry,
@@ -41,67 +37,6 @@ import { stripComments, syntaxFor } from "./sourceScan";
 // and the upload page's tone). What is left is the retired-vocabulary scan; its
 // `nowUse` hints are the last labels that registry held, written down.
 // ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Every status the API can put on an order, from
- * ProcuLink.Core/Constants/OrderStatusConstants.cs (backend repo).
- *
- * Hand-copied because it lives in another repo and another language — so it is
- * pinned as a LIST here and the first test asserts the frontend can label all of
- * them. A status added to the backend and not to STATUS_META falls through to
- * humanize() and ships the raw key with underscores swapped for spaces
- * ("Delivery dead letter"), which is how `unrouted` once rendered as a neutral
- * badge that disagreed with its own row.
- */
-const BACKEND_STATUSES = [
-  "pending_parse",
-  "parsing",
-  "unrouted",
-  "pending_review",
-  "ready",
-  "transforming",
-  "ready_to_deliver",
-  "delivery_held",
-  "delivering",
-  "delivered",
-  "delivery_failed",
-  "delivery_unconfirmed",
-  "delivery_dead_letter",
-  "transform_failed",
-  "rejected_by_supplier",
-  "failed",
-] as const;
-
-/**
- * OrderStatusConstants.FailureBucket — the five statuses the inbox collapses
- * into one red "Failed" pill. Every one of them is a state an operator has to
- * act on, so every one needs its own name everywhere the operator can land.
- */
-const FAILURE_BUCKET = [
-  "failed",
-  "transform_failed",
-  "delivery_failed",
-  "delivery_dead_letter",
-  "rejected_by_supplier",
-] as const;
-
-/**
- * The statuses OrderExceptionService.ProblemFor opens an exception for
- * (ProcuLink.Infrastructure/Services/OrderExceptionService.cs:31-61). These are
- * exactly the rows a user meets on /operations/exceptions, so the exceptions
- * article has to name all eight — the old article named six and silently
- * dropped the routing hold and the unknown-outcome park.
- */
-const EXCEPTION_STATUSES = [
-  "unrouted",
-  "pending_review",
-  "failed",
-  "transform_failed",
-  "delivery_failed",
-  "delivery_unconfirmed",
-  "rejected_by_supplier",
-  "delivery_dead_letter",
-] as const;
 
 /**
  * Labels the product used to ship and must never ship again.
@@ -145,9 +80,7 @@ const RETIRED_LABELS: Array<{ phrase: string; re: RegExp; wasAt: string; nowUse:
 ];
 
 const HELP = "src/app/(marketing)/help";
-const ARTICLE_STATUSES = `${HELP}/dashboard-and-statuses/page.mdx`;
 const ARTICLE_EXCEPTIONS = `${HELP}/exceptions-and-stuck-orders/page.mdx`;
-const ARTICLE_INBOX = `${HELP}/inbox-basics/page.mdx`;
 
 const readRaw = (rel: string) => readFileSync(join(ROOT, rel), "utf8");
 

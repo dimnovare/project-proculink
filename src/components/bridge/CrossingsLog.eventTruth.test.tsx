@@ -176,7 +176,7 @@ describe("CrossingsLog — a backend failure action renders as a failure", () =>
     // The button was gated on `c.event === "failed"`, and `event` was only ever set
     // from the map that no real failure action reached. On the live path it was
     // unreachable for exactly the rows that needed it.
-    getAuditLog.mockResolvedValue(apiPage([evt("DeliveryFailed")]));
+    getAuditLog.mockResolvedValue(apiPage([{ ...evt("DeliveryFailed"), documentId: "doc-1", flowId: "flow-1" }]));
 
     renderLog();
 
@@ -185,6 +185,20 @@ describe("CrossingsLog — a backend failure action renders as a failure", () =>
     ((row.closest('[role="button"]') ?? row.parentElement!) as HTMLElement).click();
 
     expect(await screen.findByRole("button", { name: /Open to resend/i })).toBeInTheDocument();
+  });
+
+  it("does not offer 'Open to resend' on an old order's failure — its archive page cannot resend", async () => {
+    // Since 2026-11-13 an order without a document opens read-only under /archive. A resend
+    // button that lands there promises an action the page does not have.
+    getAuditLog.mockResolvedValue(apiPage([evt("DeliveryFailed")]));
+
+    renderLog();
+
+    const row = await screen.findByText("PO-4711");
+    ((row.closest('[role="button"]') ?? row.parentElement!) as HTMLElement).click();
+
+    expect(await screen.findByRole("button", { name: /View order/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Open to resend/i })).toBeNull();
   });
 
   it("does not offer 'Open to resend' on a successful row", async () => {

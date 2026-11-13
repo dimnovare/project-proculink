@@ -425,6 +425,13 @@ describe("a dot in a protected path no longer skips the guard", () => {
     },
   );
 
+  // Every protected prefix, not just the one the next case happens to use: the
+  // matcher's second pattern names them one by one, and flows, archive and
+  // lookups were missing from it until 2026-11-13 with nothing to notice.
+  it.each(PROTECTED_PREFIXES)("/%s/x.png reaches the middleware", (prefix) => {
+    expect(middlewareRunsFor(`/${prefix}/x.png`)).toBe(true);
+  });
+
   // The narrowing is an extension list, so an id that ends in one would still
   // look like an asset to the first pattern. The second pattern is what covers
   // it; without that, this is where the hole would reopen.

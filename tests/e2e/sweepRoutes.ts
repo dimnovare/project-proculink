@@ -83,7 +83,7 @@ export interface SweepRoute {
 }
 
 const APP_PREFIXES = [
-  "/admin", "/flows", "/lookups",
+  "/admin", "/archive", "/documents", "/flows", "/lookups",
   "/onboarding", "/operations", "/settings", "/upload", "/welcome",
 ];
 

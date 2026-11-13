@@ -1348,19 +1348,21 @@ export function CrossingsLog() {
                                 </button>}
 
                                 {/* Open to resend — secondary, only for failed events. There is no
-                                    retry-from-here API; this navigates to the order, where the resend
+                                    retry-from-here API; this navigates to the document, where the resend
                                     action lives. Labelled honestly so it doesn't promise a retry it
-                                    can't perform (audit: dead "Retry delivery" control). */}
+                                    can't perform (audit: dead "Retry delivery" control). An old order
+                                    has no document, and its read-only /archive page cannot resend
+                                    (2026-11-13), so it gets no button rather than a dead end. */}
                                 {/* Gated on the manifest-derived kind, not the mock-only
                                     `event` field it used to read. `event` is never set on
                                     the live path, so this control could not render for a
                                     real failure at all — the screen's one recovery
                                     affordance was missing from exactly the rows that
                                     needed it. */}
-                                {c.canonicalEvent === "failed" && (
+                                {c.canonicalEvent === "failed" && c.documentHref && (
                                   <button
                                     className="btn btn-secondary sm"
-                                    onClick={() => router.push(`/archive/${c.crossingId}`)}
+                                    onClick={() => router.push(c.documentHref!)}
                                     style={isMobile ? { height: 36 } : undefined}
                                   >
                                     {/* refresh icon */}

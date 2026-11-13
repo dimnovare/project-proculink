@@ -153,18 +153,22 @@ test.describe("authenticated production", () => {
    * The session is genuinely OURS, and the client really hydrated.
    *
    * Every assertion above would also pass for a cached, signed-out, statically
-   * rendered shell. This one cannot: the dashboard greets by first name
-   * (DashboardContextLine), that name comes from the Clerk user this run created
-   * minutes ago, and it is printed by a client component after mount. Seeing it
-   * means a real production Clerk session hydrated in a real browser.
+   * rendered shell. This one cannot: the topbar's account chip (UserChipMenu)
+   * names itself after the Clerk user this run created minutes ago, and only a
+   * client component that has mounted with a loaded Clerk user renders that name
+   * — signed out, or before Clerk loads, it renders a nameless placeholder.
+   * Seeing it means a real production Clerk session hydrated in a real browser.
+   *
+   * This read the dashboard's greeting until 2026-11-13, when /bridge and its
+   * DashboardContextLine went with the order screens.
    */
-  test("the dashboard greets the disposable user by name", async ({ page }) => {
+  test("the account chip names the disposable user", async ({ page }) => {
     const state = readDisposableState();
 
-    await page.goto("/bridge");
-    await expect(page.getByText(state.firstName, { exact: false }).first()).toBeVisible({
-      timeout: 30_000,
-    });
+    await page.goto("/documents");
+    await expect(
+      page.getByRole("button", { name: new RegExp(`^Account: ${escapeRegExp(state.firstName)}\\b`) }),
+    ).toBeVisible({ timeout: 30_000 });
   });
 });
 
