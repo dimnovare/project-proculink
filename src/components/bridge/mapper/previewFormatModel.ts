@@ -20,7 +20,7 @@ import type { OutputFormatId } from "@/lib/api/types";
  * transformer — NOT by the OutputNode tree the visual mapper edits. For these, contact/addresses/
  * structure are filled AUTOMATICALLY from the extracted order; a manually ADDED or edited output
  * field in the mapper does NOT change the delivered bytes. Mirrors the backend truth
- * (OrderTransformService: treeIsFixedFormat = Format is CXml or X12; UBL is a structured override
+ * (the fixed-format transform: Format is CXml or X12; UBL is a structured override
  * where manually-added fields don't reliably land either). The flat formats (csv / json /
  * xml-via-OutputNode) DO honor the mapper and are intentionally excluded.
  */

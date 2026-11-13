@@ -359,7 +359,7 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     backendSite: "No writer: the order acceptance gate (AcceptanceGate) was deleted with the order pipeline (plan 13b, 2026-11-13); archived rows still carry this action.",
     reasonKeys: ["blockers"],
     note:
-      "Written at OrderTransformService.cs:475 and :495, OrdersController.cs:177, OpsController.cs:183. The gate " +
+      "Was written by the order transform, the orders controller and the ops controller (all deleted in plan 13b). The gate " +
       "refused a transform; the payload lists the blockers. The reason is the ARRAY, not `error`: one of the four " +
       "sites writes `error = \"acceptance_gate_unavailable\"` — a machine slug marking the arm where the gate " +
       "could not answer at all — and it ships `blockers = []` alongside. Listing `error` would print that slug to " +

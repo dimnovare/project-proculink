@@ -394,15 +394,10 @@ export const CANONICAL_LINE_FIELDS = ["LineNumber", "BuyerItemCode", "SupplierIt
 
 // ── WP-14: everything a custom output may bind ───────────────────────────────
 //
-// Mirror of `ProcuLink.Transform/Output/CanonicalRowFields.cs` (`Header` / `Line`) in the backend
-// repo — the keys `BuildHeaderRow` / `BuildLineRow` actually put in the row bag. Binding a name
-// that is not in that bag silently emits nothing, which is exactly how the old gap stayed
-// invisible: the picker offered 13 names, the backend exposed 21, and the entity carried 52.
-//
-// Two repos cannot share a compile-time constant, so the pair is guarded from both ends:
-// `canonicalFields.test.ts` here fails if this list drifts from the pinned expectation, and
-// `CanonicalRowFieldsCompletenessTests` there fails if an entity field is neither exposed nor
-// explicitly excluded with a written reason. Update both in the same change.
+// Once a mirror of the backend's canonical row bag (`CanonicalRowFields.cs`, deleted in plan 13b,
+// 2026-11-13). Binding a name that is not in the bag silently emitted nothing, which is how the
+// old gap stayed invisible. `canonicalFields.test.ts` now fails if this list drifts from its
+// pinned expectation; there is no backend half left.
 
 /** Header-scope canonical fields an output rule may bind. */
 export const BINDABLE_HEADER_FIELDS = [

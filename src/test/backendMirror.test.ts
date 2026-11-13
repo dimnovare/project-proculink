@@ -491,7 +491,7 @@ export function parseAssignedStatusLiterals(cs: string, property: string): strin
 // The class-name → format leg was never checked against C#: had that map said `previewFormat:
 // "ublorder"`, every assertion here would have stayed green while the frontend advertised a format
 // that dies at transform. Buildable is the fact the surfaces actually claim, so buildable is what
-// is mirrored now — derived the same way `OutputFormatCatalog` derives it, by reading each
+// is mirrored now — derived by reading each
 // registered transform's own `CanTransform` arm rather than trusting its class name.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -554,8 +554,7 @@ export function parseOutputFormatMembers(cs: string): string[] {
 }
 
 /**
- * The persisted token for an `OutputFormat` member — `OutputFormatCatalog.Token`, which is
- * `format.ToString().ToLowerInvariant()`. The one spelling the delivery-config and
+ * The persisted token for an `OutputFormat` member — `format.ToString().ToLowerInvariant()`. The one spelling the delivery-config and
  * connection-revision columns store, and the one `PREVIEW_FORMATS` uses.
  */
 function formatToken(member: string): string {
@@ -601,8 +600,7 @@ const BUILDABLE_FORMATS: Record<string, { catalogId: string | null }> = {
 };
 
 /**
- * The buildable format tokens, derived from the backend the way `OutputFormatCatalog` derives
- * them: take the registered transforms, ask each one's `CanTransform` arm which `OutputFormat` it
+ * The buildable format tokens, derived from the backend: take the registered transforms, ask each one's `CanTransform` arm which `OutputFormat` it
  * answers for, keep those.
  *
  * Every failure mode names WHICH read came back empty, because "the parser broke" and "the backend

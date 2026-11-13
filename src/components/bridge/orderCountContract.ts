@@ -5,8 +5,7 @@ import type { OrdersPage } from "@/types/procurement";
 
 // ─── Practice orders: shown in every list, counted by nothing ─────────────────
 //
-// THE SECOND WAY TWO NUMBERS DISAGREE. Everything above this line is about one label
-// being derived twice. This is about two labels derived over two different POPULATIONS,
+// WHY TWO NUMBERS DISAGREE. Two labels derived over two different POPULATIONS,
 // and it put a "0" on the dashboard next to a card reading "1 orders received" and a
 // table listing that order (v2 audit P0-5).
 //

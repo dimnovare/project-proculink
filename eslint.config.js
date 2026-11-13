@@ -39,9 +39,9 @@ const VITEST_ASSERT_HELPERS = [
 ];
 
 /**
- * The Playwright twin. `visitAndAssertHealthy` (tests/e2e/live-full-e2e.spec.ts) navigates,
- * asserts no error boundary, asserts an h1/landmark, and asserts the console error list is
- * empty — 15 route smoke tests spend their whole body in it.
+ * The Playwright twin. `visitAndAssertHealthy` navigates, asserts no error boundary, asserts an
+ * h1/landmark, and asserts the console error list is empty. (Its spec, live-full-e2e, was deleted
+ * in plan 13b; the name stays an assertion helper for any spec that defines it.)
  */
 const PLAYWRIGHT_ASSERT_HELPERS = ["expect", "visitAndAssertHealthy"];
 

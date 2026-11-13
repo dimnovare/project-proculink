@@ -13,11 +13,10 @@ export type OrderStage = FailedStage | { failed: FailedStage };
 export const STAGES = ["In", "Read", "Check", "Transform", "Send"] as const;
 
 // Which pipeline node each failure status points at — the backend producers, not a
-// FE guess: bare `failed` is the PARSE-terminal status (ParseOrderJob.cs:67-73 refuses
-// it as "Parse failed: … terminal status"; StuckOrderDetectionService.cs:193-195 writes
-// it only for a `parsing` strand, while a `transforming` strand recovers to `ready`,
-// never `failed`, :143-156; the transition table's own words are "Failed parse:
-// re-parse", OrderStatusTransitionObserver.cs:159). Keys mirror the backend's
+// FE guess: bare `failed` is the PARSE-terminal status (the parse job, deleted in plan 13b,
+// refused it as "Parse failed: … terminal status"; the stuck-order sweep wrote it only for
+// a `parsing` strand, while a `transforming` strand recovered to `ready`, never `failed`).
+// Keys mirror the backend's
 // OrderStatusConstants.FailureBucket — statusJourneyFailedStage.test.tsx pins this
 // map against InboxView's FAILED_BUCKET so the two cannot drift.
 export const FAILURE_JOURNEY_STAGE = {

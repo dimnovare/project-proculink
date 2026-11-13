@@ -1,6 +1,6 @@
 /**
  * Relative "X ago" rendering of a past timestamp. Returns null for a missing or
- * unparseable input. Mirrors the minute/hour/day buckets used elsewhere (Inbox).
+ * unparseable input. Mirrors the minute/hour/day buckets used elsewhere.
  */
 export function relativeTime(iso: string | null | undefined, now: number = Date.now()): string | null {
   if (!iso) return null;

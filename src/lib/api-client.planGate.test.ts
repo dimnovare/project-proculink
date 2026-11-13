@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { isPlanGateError, planGateUpgradeUrl } from "./planGate";
+import { isPlanGateError } from "./planGate";
 import { getAuditLog } from "./api-client";
 
 // WP-11 follow-through, api layer.
@@ -10,11 +10,6 @@ import { getAuditLog } from "./api-client";
 // never reached the UI and no amount of wiring in the component could have matched it.
 // The gate lives in the body; these tests pin that the body text (code AND upgradeUrl)
 // reaches the caller for the paths WP-11 newly gates.
-
-const GATE_BODY = JSON.stringify({
-  error: "advanced_audit_requires_operations",
-  upgradeUrl: "/settings?tab=billing",
-});
 
 function respondWith(body: string, status: number) {
   const fetchMock = vi.fn(async () => new Response(body, { status }));

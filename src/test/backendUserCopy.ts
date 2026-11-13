@@ -83,17 +83,22 @@ export interface UserFacingSource {
  *   OrderExceptionDto.Message    ExceptionDetail.tsx:160, rendered RAW
  *   a 4xx `error` body           ApiHttpError.message → OrderProblemPanel.tsx:233 → :344
  *
+ * (2026-11-13, plan 13b: OrderProblemPanel, ExceptionDetail, OrderDetailsDrawer and useOrderReview
+ * were deleted. No frontend component renders `OrderDto.ErrorMessage` or
+ * `OrderExceptionDto.Message` now; the rows below keep their carrier tags until a later packet
+ * decides what the read-only archive shows.)
+ *
  * WHAT IS DELIBERATELY NOT HERE, and why — silence would overstate the coverage:
  *
  *   • Any file whose only English is an ILogger message template. Those are excluded per
  *     LITERAL by `isOperatorSentence` rather than per file, because the same file usually
- *     holds both (DeliveryService.cs has 25 operator sentences and ~90 log lines).
+ *     holds both operator sentences and log lines.
  *   • `OrderLineDto.ReviewReason` (OrderIngestionService.ComposeReviewReason,
  *     DateParsing/NumberParsing.BuildAmbiguityReason). It reaches the review UI, but through
  *     a different screen with its own copy rules; widening to it is a deliberate second
  *     packet, not something to fold in silently.
- *   • `PassportTimelineEvent.Detail` (PassportService.cs:220) serialises the WHOLE audit
- *     payload as JSON text — including the `detail` key holding a raw `ex.Message`. That is
+ *   • `PassportTimelineEvent.Detail` (PassportService, deleted in plan 13b) serialised the WHOLE
+ *     audit payload as JSON text — including the `detail` key holding a raw `ex.Message`. That is
  *     an integrator surface showing a JSON blob, not operator prose, and holding a .NET
  *     exception message to a copy vocabulary would be a rule nothing can satisfy.
  *   • `GET /api/audit` returns payloads raw (AuditController.cs:78) but the frontend renders
@@ -159,7 +164,7 @@ export const USER_FACING_SOURCES: readonly UserFacingSource[] = [
   {
     file: "ProcuLink.Core/Services/Delivery/SupplierResponseClassification.cs",
     carrier: "OrderDto.ErrorMessage",
-    why: "NamedCauses (:177-209) is a table of literal operator sentences; DescribeFailure (:382) returns one and DeliveryService.cs:958 stores it on the attempt.",
+    why: "NamedCauses (:177-209) is a table of literal operator sentences; DescribeFailure (:382) returns one.",
   },
   {
     file: "ProcuLink.Infrastructure/Services/Dispatchers/HttpDeliveryDispatcher.cs",

@@ -67,8 +67,8 @@
 //   • A VERB SUPPLIED INDIRECTLY. The method is read as a literal in the call's
 //     own options object, so a verb held in a variable — or defaulted inside a
 //     wrapper — is not there to read and the call scores as GET. One level of
-//     PATH indirection IS followed: `basePath()` in src/lib/api/catalogSources.ts
-//     put three genuinely-called endpoints on the uncalled list until it was.
+//     PATH indirection IS followed: a `basePath()` helper (in catalogSources.ts, deleted in
+//     plan 13b) put three genuinely-called endpoints on the uncalled list until it was.
 //
 //     BOTH ARE PINNED AS FIXTURES in "WHAT THIS GUARD CANNOT SEE", because this
 //     suite is green and a green suite gets read as coverage. Writing them down
@@ -261,7 +261,7 @@ const METHOD_RE = /\bmethod\s*:\s*["'`](GET|POST|PUT|PATCH|DELETE)["'`]/i;
 /**
  * A helper whose whole job is to return an API path —
  * `function basePath(supplierId) { return `${API_BASE_URL}/api/suppliers/${supplierId}/catalog/source`; }`
- * (src/lib/api/catalogSources.ts:181). The path literal then sits nowhere near
+ * (as in catalogSources.ts, deleted in plan 13b). The path literal then sits nowhere near
  * the verb, so a forward window from it reads GET for a PUT, a DELETE and a POST.
  *
  * This is adversarial-refutation question one — "can an endpoint dodge the guard
@@ -598,9 +598,9 @@ describe("the parsers run everywhere, on fixtures", () => {
   });
 
   it("reads the bare fragments of a module that wraps its own apiFetch", () => {
-    // src/lib/api/delivery.ts, api/mapping.ts and api/connectors.ts each define
-    // `apiFetch(path)` prefixing `${API_BASE_URL}/api`, so their endpoint paths
-    // carry neither marker. Sweeping only the full template saw NONE of them.
+    // Several modules (delivery.ts, mapping.ts, connectors.ts, all deleted in plan 13b) each
+    // defined `apiFetch(path)` prefixing `${API_BASE_URL}/api`, so their endpoint paths
+    // carried neither marker. Sweeping only the full template saw NONE of them.
     const module =
       'async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {\n' +
       '  const res = await fetch(`${API_BASE_URL}/api${path}`, { ...init });\n}\n' +
@@ -612,7 +612,7 @@ describe("the parsers run everywhere, on fixtures", () => {
   });
 
   it("follows one level of path-helper indirection, so the verb is read at the call site", () => {
-    // src/lib/api/catalogSources.ts, in shape. The path lives in a helper and the
+    // catalogSources.ts (deleted in plan 13b), in shape. The path lives in a helper and the
     // verb lives at the call, so a forward window from the literal reads GET for
     // a PUT, a DELETE and a POST — three endpoints reported uncalled that are
     // called on every supplier catalog screen.

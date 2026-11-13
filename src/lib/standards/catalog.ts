@@ -495,7 +495,7 @@ export const FIELD_STANDARDS: CanonicalFieldStandards[] = [
 // FIELD_STANDARDS is a TRANSCRIPTION of the field table in standards-matrix.md, not a
 // projection of the canonical model. It carries the fields somebody researched paths for and
 // stops there. The model an output rule may bind is far larger — BINDABLE_HEADER_FIELDS +
-// BINDABLE_LINE_FIELDS, mirroring `ProcuLink.Transform/Output/CanonicalRowFields.cs` — and
+// BINDABLE_LINE_FIELDS — and
 // the gap includes `SupplierItemCode`, the resolved code the product exists to produce.
 //
 // DO NOT CLOSE THE GAP BY ADDING ROWS. A field's UBL / EDIFACT / X12 / cXML path is real

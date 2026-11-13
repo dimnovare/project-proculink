@@ -11,10 +11,10 @@ import { render, cleanup } from "@testing-library/react";
 // derivation for every member of the failure bucket.
 //
 // Stage-of-failure ground truth (backend producers, not FE guesses):
-//   `failed`            → Parse (0):    ParseOrderJob.cs:67-73 treats it as the
-//                         parse-terminal status; StuckOrderDetectionService.cs:193-195
-//                         writes it only for a `parsing` strand (a `transforming`
-//                         strand recovers to `ready`, never `failed`, :143-156).
+//   `failed`            → Parse (0):    the parse job (deleted in plan 13b) treated it as the
+//                         parse-terminal status; the stuck-order sweep wrote it only
+//                         for a `parsing` strand (a `transforming` strand recovered to
+//                         `ready`, never `failed`).
 //   `transform_failed`  → Transform (3)
 //   `delivery_failed`, `delivery_dead_letter`, `rejected_by_supplier` → Deliver (4)
 

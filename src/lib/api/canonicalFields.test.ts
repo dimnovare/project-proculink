@@ -14,12 +14,10 @@ import {
  * not be served, and nothing anywhere said why — a rule naming an absent key just resolves to
  * nothing.
  *
- * The lists below are the mirror of `ProcuLink.Transform/Output/CanonicalRowFields.cs`
- * (`Header` / `Line`) in the backend repo. They are pinned as literals ON PURPOSE: two repos
- * cannot share a compile-time constant, so the honest guard is a checked-in expectation that
- * fails the moment someone edits the picker list without editing this one. The backend half of
- * the pair is `CanonicalRowFieldsCompletenessTests`, which fails if an entity field is neither
- * exposed nor explicitly excluded. Together they mean neither side can silently narrow.
+ * The lists below used to mirror `CanonicalRowFields.cs` in the backend repo; that file and its
+ * completeness test were deleted in plan 13b. They are now a frontend-only change-detector,
+ * pinned as literals ON PURPOSE: a checked-in expectation that fails the moment someone edits
+ * the picker list without editing this one.
  */
 const BACKEND_HEADER_ROW_KEYS = [
   "PoNumber",

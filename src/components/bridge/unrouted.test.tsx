@@ -8,15 +8,10 @@ import { render, screen, cleanup } from "@testing-library/react";
 // reach `ready` — with no supplier there is nothing to resolve item codes against.
 // POST /orders/{id}/assign-supplier routes it and re-runs the parse.
 //
-// It is REACHABLE TODAY on the live parse path, which the first version of this fix got
-// wrong. Producers on backend main:
-//   OrderIngestionService.cs:857   `if (entity.SupplierId is null) newStatus = Unrouted`
-//   SftpIngressService.cs:~280     CreateUnroutedStubAsync — "Phase 1b routing: a missing
-//                                  (or stale/soft-deleted) default supplier no longer
-//                                  blocks the poll. Files are imported UNROUTED"
-//   S3IngressService.cs:344        same
-// plus OpsHealthService.cs:90 counts it (PendingRouting) and OrderExceptionService.cs:36
-// opens an `unrouted_order` exception for it, with PRECEDENCE over unresolved lines.
+// Since plan 13b (2026-11-13) nothing on the backend WRITES this status: the order ingest
+// producers (OrderIngestionService, SftpIngressService, S3IngressService) were deleted. Rows
+// written earlier remain in the read-only archive, and OrderExceptionService still opens an
+// `unrouted_order` exception for one, with PRECEDENCE over unresolved lines.
 //
 // Every assertion here exists because the inbox said something false about it. It fell
 // through mapStatus to `return "new"` — stage 0 — so the ONE order that requires a human

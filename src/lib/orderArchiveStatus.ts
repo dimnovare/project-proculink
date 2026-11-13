@@ -84,12 +84,10 @@ export function mapStatus(s: string): CrossingStatus {
   // "Extracting" while the desktop badge (which reads the raw status) printed
   // "Preparing output" — one order, two words, two screen sizes.
   if (s === "transforming") return "transforming";
-  // Extracted, but no supplier resolved — parked awaiting one, which is the operator's
-  // job (POST /orders/{id}/assign-supplier). Reachable on the LIVE parse path today
-  // (OrderIngestionService: `if (entity.SupplierId is null) newStatus = Unrouted`) and via
-  // SFTP/S3/IMAP ingress when an org's default supplier is unset or soft-deleted. Without
-  // this it fell through to "new" (stage 0), so the one order that REQUIRED the operator
-  // to act was the one rendered as needing nothing.
+  // Extracted, but no supplier resolved — parked awaiting one. Historical rows only: plan 13b
+  // (2026-11-13) deleted every writer of this status, but archived orders still carry it.
+  // Without this arm it fell through to "new" (stage 0), so the one order that REQUIRED the
+  // operator to act was the one rendered as needing nothing.
   if (s === "unrouted") return "unrouted";
   if (s === "ready_to_deliver") return "delivering";
   if (s === "ready") return "ready";
@@ -137,11 +135,10 @@ export function mapStatus(s: string): CrossingStatus {
   // Before adding a status to this arm, GREP THE PRODUCERS — do not trust a
   // doc-comment. Every bug this function has had came from believing one. The
   // `delivering` arm exists because a comment here swore no such status was persisted
-  // (DeliveryService writes it). The `unrouted` arm exists because the SECOND version of
-  // that same mistake was made in this very comment: it deferred unrouted as
-  // "unreachable until the content-routing ingest paths ship", echoing
-  // OrderStatusConstants' doc-comment, which is stale — Phase 1/1b shipped, the ingress
-  // code says so in its own comments, and OrderIngestionService parks live orders there.
+  // (the since-deleted delivery service wrote it). The `unrouted` arm exists because the SECOND
+  // version of that same mistake was made in this very comment: it deferred unrouted as
+  // "unreachable until the content-routing ingest paths ship", while the ingest code already
+  // parked live orders there.
   if (s === "pending_parse") return "new";
   // Anything still here is a status THIS BUILD CANNOT PLACE, and there is no honest
   // display bucket for it except one that says so. Two ways to arrive:
