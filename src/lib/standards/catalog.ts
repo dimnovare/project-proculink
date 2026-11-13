@@ -155,7 +155,7 @@ export const STANDARDS: StandardSupport[] = [
       "type identifier used for SMP lookup and AS4 routing (POLICY 20), so a document without them " +
       "cannot be addressed rather than being merely undeclared; the same is true of orders, which " +
       "is not why the order path dropped them. The official Schematron runs only in the " +
-      "validator sidecar (on demand, behind the per-org flag), never in .NET. Covered by the in-process check are the mandatory business terms and arithmetic checks " +
+      "validator sidecar (when a document is read and on demand, behind the per-org flag), never in .NET. Covered by the in-process check are the mandatory business terms and arithmetic checks " +
       "in PeppolBisValidator; NOT covered are codelists, scheme-id correctness, allowances/charges, " +
       "payment means and mixed-rate VAT. No invoice has been accepted by a live access point. Treat " +
       "the file as input to an access point's validator. The generator is reachable through " +
