@@ -118,11 +118,8 @@ export const USER_FACING_SOURCES: readonly UserFacingSource[] = [
     carrier: "OrderDto.ErrorMessage",
     why: "Its Message is caught at OrderTransformService.cs:728 and passed to FailTransformAsync at :746.",
   },
-  {
-    file: "ProcuLink.Transform/Output/ScribanTemplateTransformService.cs",
-    carrier: "OrderDto.ErrorMessage",
-    why: "Declares TransformTemplateException (:183) and throws it (:148); same catch at OrderTransformService.cs:728.",
-  },
+  // 2026-11-13, plan 13b task 8a: the ScribanTemplateTransformService.cs row left — the file (and
+  // TransformTemplateException with it) was deleted as an orphan of the order pipeline.
   {
     file: "ProcuLink.Transform/Output/OutputFieldValidator.cs",
     carrier: "OrderDto.ErrorMessage",
