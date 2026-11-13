@@ -235,7 +235,7 @@ export const USER_FACING_SOURCES: readonly UserFacingSource[] = [
   {
     file: "ProcuLink.Api/Controllers/OrdersController.cs",
     carrier: "ApiHttpError.message",
-    why: "Its 4xx `error` bodies become ApiHttpError.message, which OrderProblemPanel.tsx:233 renders at :344; it also derives OrderDto.ErrorMessage itself (:491-599).",
+    why: "Derives OrderDto.ErrorMessage itself (:491-599). Its 4xx `error` bodies went with the write actions in plan 13b (2026-11-13); it is listed as sentence-free.",
   },
 ];
 

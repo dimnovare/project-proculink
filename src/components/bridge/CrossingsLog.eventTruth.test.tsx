@@ -52,11 +52,9 @@ import { CrossingsLog, deliveredFilterLabel } from "./CrossingsLog";
  * The delivered-kind chip, addressed by the label the component DERIVES rather than
  * by a literal.
  *
- * It reads "Confirmed by hand" today, because `DeliveryConfirmedManually` is the only
- * reachable action in the `delivered` kind and the manifest says so — an automatic
- * successful send currently leaves no audit row at all. The day a writer for one
- * appears, the chip goes back to saying "Delivered" and this keeps pointing at the
- * same control instead of failing on a stale string.
+ * It reads "Delivered" today (the one reachable action in the `delivered` kind is
+ * `document.delivered`); deriving it keeps this pointing at the same control instead
+ * of failing on a stale string the day the label rule changes.
  */
 function deliveredChip(): HTMLElement {
   const label = deliveredFilterLabel(
@@ -364,7 +362,11 @@ describe("auditActionManifest — coverage floors", () => {
     //
     // -9 reachable when the order delivery sweeps and the ops requeue were deleted (plan 13b, task 5):
     // those rows stay as `historical` so archived audit rows still read.
-    expect(REACHABLE_AUDIT_ACTIONS).toHaveLength(39);
+    //
+    // -4 reachable when the order API was cut to a read-only archive (plan 13b, task 6b):
+    // `DeliveryConfirmedManually`, `InvoiceSentAnyway`, `SupplierAssignedManually` and
+    // `SupplierSuggestionAccepted` stay as `historical`.
+    expect(REACHABLE_AUDIT_ACTIONS).toHaveLength(35);
   });
 
   it("classifies a substantial number of them as failures", () => {

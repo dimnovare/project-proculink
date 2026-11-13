@@ -45,7 +45,12 @@
 //   ProcuLink.Core/Constants/OrderStatusConstants.cs   the 16 status constants + FailureBucket
 //   ProcuLink.Core/Constants/OrderStatusMachine.cs     Transitions, DeclaredTerminal, and the
 //                                                      named per-operation guard sets
-//   ProcuLink.Api/Controllers/OrdersController.cs      five endpoint admission guards
+//   ProcuLink.Api/Controllers/OrdersController.cs      five endpoint admission guards — the
+//                                                      endpoints were deleted on 2026-11-13 (plan
+//                                                      13b: the order API is a read-only archive);
+//                                                      OP_GUARDS now cites the named sets in
+//                                                      OrderStatusMachine.cs, and assignSupplier's
+//                                                      inline literal went with its endpoint
 
 /**
  * How the product treats a status, and therefore what the screens owe it.
@@ -174,8 +179,7 @@ export type OrderOp =
   | "transformOrder"
   | "retryDelivery"
   | "redeliverOrder"
-  | "markDelivered"
-  | "assignSupplier";
+  | "markDelivered";
 
 export interface OpGuard {
   /** The statuses the ENDPOINT admits. Not the statuses a downstream claim accepts. */
@@ -215,7 +219,7 @@ export const OP_GUARDS: Record<OrderOp, OpGuard> = {
   transformOrder: {
     allowedFrom: ["ready", "transform_failed", "rejected_by_supplier"],
     backendSymbol: "OrderStatusMachine.TransformableFrom",
-    backendSite: "ProcuLink.Api/Controllers/OrdersController.cs:1698",
+    backendSite: "ProcuLink.Core/Constants/OrderStatusMachine.cs:751",
   },
   retryDelivery: {
     // RetryableFrom, NOT ClaimableForRetryFrom. The claim set also contains
@@ -224,26 +228,17 @@ export const OP_GUARDS: Record<OrderOp, OpGuard> = {
     // earlier with its own sentence pointing at the ops path.
     allowedFrom: ["delivery_failed"],
     backendSymbol: "OrderStatusMachine.RetryableFrom",
-    backendSite: "ProcuLink.Api/Controllers/OrdersController.cs:2320",
+    backendSite: "ProcuLink.Core/Constants/OrderStatusMachine.cs:579",
   },
   redeliverOrder: {
     allowedFrom: ["ready_to_deliver", "delivery_failed", "delivery_unconfirmed"],
     backendSymbol: "OrderStatusMachine.RedeliverableFrom",
-    backendSite: "ProcuLink.Api/Controllers/OrdersController.cs:2092",
+    backendSite: "ProcuLink.Core/Constants/OrderStatusMachine.cs:486",
   },
   markDelivered: {
     allowedFrom: ["delivery_unconfirmed"],
     backendSymbol: "OrderStatusMachine.ManuallyDeliverableFrom",
-    backendSite: "ProcuLink.Api/Controllers/OrdersController.cs:2166",
-  },
-  assignSupplier: {
-    // The one guard the backend still writes as a bare literal rather than a named
-    // set — `o.Status == OrderStatusConstants.Unrouted` inside the atomic claim.
-    // Named as the literal it is: citing a symbol that does not exist is the same
-    // failure as citing the wrong one.
-    allowedFrom: ["unrouted"],
-    backendSymbol: "OrdersController.AssignSupplier inline literal (OrderStatusConstants.Unrouted)",
-    backendSite: "ProcuLink.Api/Controllers/OrdersController.cs:779",
+    backendSite: "ProcuLink.Core/Constants/OrderStatusMachine.cs:952",
   },
 };
 

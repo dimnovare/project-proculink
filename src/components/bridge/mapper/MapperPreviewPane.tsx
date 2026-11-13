@@ -13,9 +13,8 @@
 //   • inline error       — the endpoint returns HTTP 200 { ok:false, error } for template
 //     render failures; we surface it amber, never crash.
 //
-// For variant="connection" there is no single order to preview, so the host points the pane
-// at a sample/recent order via previewOrderId; when none exists we show the empty state
-// (not an error) — offer⇔works.
+// The only host is the flow variant, whose adapter supplies `preview`; when there is nothing
+// to preview against we show the empty state (not an error) — offer⇔works.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { previewMappingOverride } from "@/lib/api-client";

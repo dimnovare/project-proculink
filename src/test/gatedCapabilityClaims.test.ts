@@ -3,7 +3,6 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { CONFORMANCE_PROFILES } from "@/lib/api-client";
 import { MINIMUM_PLAN } from "@/lib/gatedCapabilities";
 import {
   DELIVERY_METHODS,
@@ -3296,28 +3295,6 @@ describe("no surface claims conformance to a standard ProcuLink does not emit", 
     ).toEqual([]);
   }, 30_000);
 
-  it("every conformance profile name cites only a standard ProcuLink emits", () => {
-    // `CONFORMANCE_PROFILES` is this app's mirror of the backend's ConformanceCheckBuilder names,
-    // and a profile NAME is the most load-bearing standards claim in the product: it renders under
-    // "Matches the standard" with a pass badge and goes into the downloadable report verbatim.
-    const entries = Object.entries(CONFORMANCE_PROFILES);
-    expect(entries.length, "anti-vacuity: there must be profiles to check").toBeGreaterThan(0);
-
-    for (const [format, { name }] of entries) {
-      expect(name, `the ${format} profile has no name`).not.toBe("");
-      for (const id of standardsNamed(name)) {
-        expect(
-          emittedStandards.has(id),
-          `the ${format} conformance profile is named "${name}", which cites the '${id}' standard — ` +
-            `but src/lib/standards/catalog.ts records its \`transform\` level as ` +
-            `'${STANDARDS.find((s) => s.id === id)?.transform}'. A profile name is what the panel ` +
-            `prints beside a green "Matches the standard" badge and what the downloadable report ` +
-            `puts on its Profile line, so it may only name a standard we really emit.`,
-        ).toBe(true);
-      }
-    }
-  });
-
   it("flags the claims that shipped, verbatim, so a green result means absence and not blindness", () => {
     // 1. The emitted-document constants — the backend line that put the URN into every order.
     expect(
@@ -3501,7 +3478,7 @@ describe("no surface offers a standard as an output format while nothing can pro
       "/src/app/(marketing)/", // /formats and the help tree
       "/src/app/(home)/", // `(home)` IS `/` and is a SIBLING of `(marketing)`, not a child
       "/src/app/(app)/", // the in-app standards matrix
-      "/src/components/bridge/", // the output designer
+      "/src/components/bridge/", // shared app components, the flow mapper among them
       "/src/lib/", // the content registries, which render outside any route walk
     ]) {
       expect(

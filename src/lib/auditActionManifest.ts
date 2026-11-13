@@ -38,10 +38,9 @@
 //
 // The vocabulary has no central constants class; it is scattered literals. The
 // enumeration below is every `AuditEvents.Add` site in production code (there are
-// no `AddRange` sites), which were these fifteen files (the six that held the ops requeue and the delivery sweeps were deleted on 2026-11-13; their rows are `historical` below):
+// no `AddRange` sites), which were these fifteen files (the six that held the ops requeue and the delivery sweeps were deleted on 2026-11-13, and OrdersController.cs lost its last writer the same day when the order API was cut to a read-only archive (plan 13b, 2026-11-13); their rows are `historical` below):
 //
 //   ProcuLink.Api/Controllers/AdminController.cs            admin.* via WriteAdminAuditAsync
-//   ProcuLink.Api/Controllers/OrdersController.cs
 //   ProcuLink.Api/Services/AcceptanceGate.cs                AcceptanceGateAudit.* consts
 //   ProcuLink.Api/Services/Orders/OrderIngestionService.cs
 //   ProcuLink.Api/Services/Orders/OrderResolutionService.cs
@@ -173,7 +172,7 @@ export interface AuditActionFact {
    *
    * ONLY `failed` AND `held` ROWS DECLARE A KEY. That is a scope decision, not an
    * oversight: several successes and recoveries do carry prose — `DeliveryConfirmedManually`
-   * and `DeliveryHoldReleased` both write a `detail` sentence — and none of it is
+   * (historical since plan 13b) and `DeliveryHoldReleased` both write a `detail` sentence — and none of it is
    * listed, because "why?" is the question a stopped order raises and a completed one
    * does not. It also makes "a success never gains a reason" structural rather than
    * incidental, which is what the guard asserts. A later packet that wants the
@@ -223,8 +222,9 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "InvoiceSentAnyway",
     kind: "edited",
     label: "Invoice sent anyway",
-    reachable: true,
-    backendSite: "ProcuLink.Api/Controllers/OrdersController.cs:714",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the order invoice \"send anyway\" endpoint was deleted when the order API was cut to a read-only archive (plan 13b, 2026-11-13); archived rows still carry this action.",
     reasonKeys: ["reason"],
     note: "An admin released an invoice held by its checks and typed why; `reason` is that free text.",
   },
@@ -363,17 +363,19 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "SupplierSuggestionAccepted",
     kind: "edited",
     label: "Supplier suggestion accepted",
-    reachable: true,
-    backendSite: "ProcuLink.Api/Controllers/OrdersController.cs:2908",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the order assign-supplier endpoint was deleted when the order API was cut to a read-only archive (plan 13b, 2026-11-13); archived rows still carry this action.",
     reasonKeys: [],
-    note: "The ternary at that site emits this or SupplierAssignedManually.",
+    note: "One ternary in that endpoint emitted this or SupplierAssignedManually.",
   },
   {
     action: "SupplierAssignedManually",
     kind: "edited",
     label: "Supplier assigned",
-    reachable: true,
-    backendSite: "ProcuLink.Api/Controllers/OrdersController.cs:2908",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the order assign-supplier endpoint was deleted when the order API was cut to a read-only archive (plan 13b, 2026-11-13); archived rows still carry this action.",
     reasonKeys: [],
     note: "The other arm of the same ternary — a person picked the supplier.",
   },
@@ -392,10 +394,11 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "DeliveryConfirmedManually",
     kind: "delivered",
     label: "Marked delivered by an operator",
-    reachable: true,
-    backendSite: "ProcuLink.Api/Controllers/OrdersController.cs:2241",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the order mark-delivered endpoint was deleted when the order API was cut to a read-only archive (plan 13b, 2026-11-13); archived rows still carry this action.",
     reasonKeys: [],
-    note: "The ONLY reachable action in the `delivered` kind. Nothing in the backend writes an automatic delivery-success audit row — see the `delivered` entry below.",
+    note: "A person marked an order delivered by hand. Since plan 13b the only reachable `delivered`-kind action is `document.delivered`.",
   },
   {
     action: "DeliveryRequeuedByOperator",
@@ -865,8 +868,8 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     reasonKeys: [],
     note:
       "NO WRITER EMITS THIS EITHER. The only reachable `delivered`-kind action is " +
-      "DeliveryConfirmedManually. Worth knowing before reading this screen: an automatic " +
-      "successful send currently leaves no audit row of its own.",
+      "`document.delivered`; `DeliveryConfirmedManually` lost its writer in plan 13b, and an " +
+      "automatic successful ORDER send never left an audit row of its own.",
   },
   {
     action: "status_changed",

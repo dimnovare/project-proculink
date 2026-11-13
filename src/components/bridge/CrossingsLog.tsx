@@ -330,24 +330,14 @@ const EV_CANON: Record<
 /**
  * What the `delivered` chip may honestly promise.
  *
- * A chip is a claim about what clicking it will show, and this one was the widest
- * claim on a page titled "Deliveries" — while being the narrowest filter on it. The
- * manifest states it plainly (`delivered` entry, `auditActionManifest.ts`): "an
- * automatic successful send currently leaves no audit row of its own", and
- * `DeliveryConfirmedManually` is the ONLY reachable action in the `delivered` kind.
- * So a workspace that had delivered hundreds of POs clicked "Delivered" and read
- * "Nothing in this workspace's log matches."
- *
- * DERIVED FROM THE MANIFEST, not retyped, so it self-corrects: the day a writer for
- * an automatic delivery-success row appears, `reachable` flips on a second
- * `delivered` action and the chip goes back to saying "Delivered" with no edit here.
- * Zero reachable actions means the chip can match nothing at all and is dropped
- * rather than shown as a dead control.
+ * DERIVED FROM THE MANIFEST, not retyped. It read "Confirmed by hand" while the only
+ * reachable `delivered` action was `DeliveryConfirmedManually`; that writer went with
+ * the order API in plan 13b, and the one left is `document.delivered` — an automatic
+ * send — so any reachable action earns "Delivered". Zero reachable actions means the
+ * chip can match nothing at all and is dropped rather than shown as a dead control.
  */
 export function deliveredFilterLabel(reachableDeliveredActionCount: number): string | null {
-  if (reachableDeliveredActionCount === 0) return null;
-  if (reachableDeliveredActionCount === 1) return "Confirmed by hand";
-  return "Delivered";
+  return reachableDeliveredActionCount === 0 ? null : "Delivered";
 }
 
 const REACHABLE_DELIVERED_ACTION_COUNT = AUDIT_ACTION_FACTS.filter(

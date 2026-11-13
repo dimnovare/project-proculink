@@ -201,10 +201,8 @@ export function mirrorGateFailure(input: {
 /**
  * The op guards, each against the symbol its own row names.
  *
- * `assignSupplier` is excluded and says so in the manifest: the backend still writes
- * that guard as a bare literal inside the atomic claim rather than as a named set, so
- * there is no symbol to read. It is the one row this diff cannot cover, and naming that
- * is better than pretending otherwise.
+ * Every row names a set now: `assignSupplier`, the one inline-literal guard this filter
+ * existed to exclude, went with its endpoint in plan 13b (2026-11-13).
  *
  * Module scope rather than describe scope, because the vacuity floor at the bottom of
  * the file sizes itself from this list.

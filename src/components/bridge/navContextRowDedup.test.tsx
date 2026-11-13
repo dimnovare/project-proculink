@@ -39,7 +39,7 @@ vi.mock("@tanstack/react-query", () => ({
 
 vi.mock("@/lib/api-client", () => ({
   isApiMockMode: false,
-  apiClient: { getOrders: vi.fn(), getOrdersSummary: vi.fn() },
+  apiClient: { getOrders: vi.fn() },
   checkAdminAccess: vi.fn(),
   getBillingStatus: vi.fn(),
 }));

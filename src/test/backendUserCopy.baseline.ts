@@ -3,7 +3,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // WHY A BASELINE RATHER THAN A RED BUILD
 //
-// These 19 violations are real and pre-existing: they are on operators' screens today, in
+// These 11 violations are real and pre-existing: they are on operators' screens today, in
 // this repo's own product, and none of them can be fixed from the frontend — the sentences
 // live in the backend repo. Leaving main red until someone lands a backend packet would
 // train everybody to stop reading CI, and a CI nobody reads masks the NEXT real failure.
@@ -64,65 +64,6 @@ export interface BaselineViolation {
 }
 
 export const KNOWN_BACKEND_COPY_VIOLATIONS: readonly BaselineViolation[] = [
-  // ── ProcuLink.Api/Controllers/OrdersController.cs ──────────────────────────
-  // 4xx `error` bodies → ApiHttpError.message → OrderProblemPanel.tsx:233 → :344.
-  {
-    file: "ProcuLink.Api/Controllers/OrdersController.cs",
-    lines: [2140],
-    tier: "jargon",
-    term: "artifact",
-    text: "No outbound artifact found. Transform the order before redelivering.",
-  },
-  {
-    file: "ProcuLink.Api/Controllers/OrdersController.cs",
-    lines: [2346],
-    tier: "jargon",
-    term: "dead-letter",
-    text: "Order is in dead-letter state — delivery retries are exhausted.",
-  },
-  {
-    file: "ProcuLink.Api/Controllers/OrdersController.cs",
-    lines: [2368],
-    tier: "jargon",
-    term: "artifact",
-    text: "No outbound artifact found. Transform the order before retrying delivery.",
-  },
-  {
-    file: "ProcuLink.Api/Controllers/OrdersController.cs",
-    lines: [2593],
-    tier: "jargon",
-    term: "conformance",
-    text: "This order is pinned to a connection revision that delivers '{}', which has no named standards profile. Conformance reports cover cxml, ubl, x12.",
-  },
-  {
-    file: "ProcuLink.Api/Controllers/OrdersController.cs",
-    lines: [2593],
-    tier: "jargon",
-    term: "revision",
-    text: "This order is pinned to a connection revision that delivers '{}', which has no named standards profile. Conformance reports cover cxml, ubl, x12.",
-  },
-  {
-    file: "ProcuLink.Api/Controllers/OrdersController.cs",
-    lines: [2595],
-    tier: "jargon",
-    term: "conformance",
-    text: "Conformance reports are available for the named standards formats: cxml, ubl, x12. Generic csv/json/xml templates have no named profile.",
-  },
-  {
-    file: "ProcuLink.Api/Controllers/OrdersController.cs",
-    lines: [2621],
-    tier: "jargon",
-    term: "conformance",
-    text: "The order cannot be transformed to a complete document yet, so it cannot be checked for conformance. Resolve the flagged lines first.",
-  },
-  {
-    file: "ProcuLink.Api/Controllers/OrdersController.cs",
-    lines: [2634],
-    tier: "jargon",
-    term: "conformance",
-    text: "The order's output template does not render, so there is no document to check for conformance. Fix the template first.",
-  },
-
   // ── ProcuLink.Core/Services/RetentionConstants.cs ──────────────────────────
   // Used verbatim as the delivery failure at DeliveryService.cs:161 and :1332.
   {

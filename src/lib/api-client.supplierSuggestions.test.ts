@@ -74,18 +74,6 @@ describe("mock mode — the unrouted fixture carries supplier suggestions", () =
     expect(order.supplierSuggestions ?? []).toHaveLength(0);
   });
 
-  it("accepting a suggestion routes the order and clears the candidates", async () => {
-    const before = (await apiClient.getOrderById("ord-004")) as Order;
-    const pick = (before.supplierSuggestions ?? [])[0];
-
-    const after = await apiClient.assignSupplier("ord-004", pick.supplierId, pick.id);
-
-    expect(after.supplierId).toBe(pick.supplierId);
-    expect(after.supplierName).toBe(pick.supplierName);
-    expect(after.status).toBe("parsing");
-    expect(after.supplierSuggestions ?? []).toHaveLength(0);
-  });
-
   it("carries the identity fields on mock suppliers, so the profile form has something to bind to", async () => {
     const suppliers: Supplier[] = await apiClient.getSuppliers();
     expect(suppliers.some((s) => s.primaryDomain)).toBe(true);

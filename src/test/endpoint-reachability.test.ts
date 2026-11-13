@@ -212,27 +212,14 @@ export const UNCALLED_PENDING_DECISION: Record<string, string> = {
   // wrapper was removed, and it recorded a decision nobody had made yet rather than pretending one
   // had. Now that the decision is made, the entry goes with it — a shrink, which these lists allow,
   // and never a caller re-added to clear it, which the entry explicitly forbade.
-  "POST /api/orders/{}/acceptance-gate/override":
-    "PENDING A DECISION, 2026-08-06 — named by the v2 audit. " +
-    "ProcuLink.Api/Controllers/OrderAcceptanceGateController.cs:74 documents it as the manual " +
-    "override for a blocked acceptance gate, and no screen offers it. Build the control or delete " +
-    "the endpoint; this entry is the open question, not an answer.",
+  //
+  // The acceptance-gate override, the supplier order confirmation (record + upload) and
+  // mark-rejected entries went with their endpoints on 2026-11-13: plan 13b cut the order API to a
+  // read-only archive, which deleted all four rather than deciding them.
   "POST /api/billing/pilot/request-extension":
     "PENDING A DECISION, 2026-08-06 — a Pilot whose trial has ended can ask for an extension, and " +
     "no surface asks. The expiry copy in src/lib/plans.ts offers only Upgrade, so either the " +
     "billing screen grows the ask or this endpoint goes.",
-  "POST /api/orders/{}/confirmation":
-    "PENDING A DECISION, 2026-08-06 — records a supplier order confirmation. " +
-    "ProcuLink.Api/Controllers/OrderConfirmationController.cs:45 is reachable only by an operator " +
-    "with a REST client. Decide whether the inbound-confirmation flow is a product surface.",
-  "POST /api/orders/{}/confirmation/upload":
-    "PENDING A DECISION, 2026-08-06 — the file half of the confirmation flow above, at " +
-    "ProcuLink.Api/Controllers/OrderConfirmationController.cs:88. It stands or falls with the same " +
-    "decision and is listed separately so neither is lost.",
-  "POST /api/orders/{}/mark-rejected":
-    "PENDING A DECISION, 2026-08-06 — marks an order rejected by the supplier. The review screen " +
-    "renders the resulting `rejected_by_supplier` status (src/lib/orderStatusManifest.ts) but " +
-    "offers no way to set it, so today the status can only arrive from a delivery response.",
 };
 
 /**
@@ -783,7 +770,8 @@ describe("the frontend's call corpus", () => {
     // ANTI-VACUITY. An empty corpus makes every endpoint look uncalled, which
     // would drown the real finding in noise; a corpus missing one MODULE makes
     // its endpoints look uncalled silently, which is worse.
-    expect(CALLS.length, "the API call sweep found nothing").toBeGreaterThan(100);
+    // 100 -> 80 on 2026-11-13: plan 13b deleted the order API's client calls (94 today).
+    expect(CALLS.length, "the API call sweep found nothing").toBeGreaterThan(80);
     const stateChanging = CALLS.filter((c) => (STATE_CHANGING as readonly string[]).includes(c.method));
     expect(stateChanging.length).toBeGreaterThan(40);
 
@@ -796,7 +784,7 @@ describe("the frontend's call corpus", () => {
     expect(files).toContain("src/lib/api/delivery.ts");
 
     const keys = new Set(CALLS.map((c) => `${c.method} ${c.path}`));
-    expect(keys).toContain("POST /api/orders/upload");
+    expect(keys).toContain("POST /api/flows/{}/documents");
     expect(keys).toContain("POST /api/billing/checkout");
   });
 
@@ -881,11 +869,13 @@ describe("every state-changing endpoint has a caller, or a written reason", () =
     // ANTI-VACUITY, the other side. A controller sweep that returns nothing —
     // or that silently loses the `[Route]` resolution — passes this guard for
     // every endpoint at once.
-    expect(ENDPOINTS.length, "the controller sweep found nothing").toBeGreaterThan(120);
+    // 120 -> 70 and 60 -> 40 on 2026-11-13: plan 13b cut the order API to a read-only archive
+    // (81 endpoints today, 50 of them state-changing).
+    expect(ENDPOINTS.length, "the controller sweep found nothing").toBeGreaterThan(70);
     const stateChanging = ENDPOINTS.filter((e) => (STATE_CHANGING as readonly string[]).includes(e.method));
-    expect(stateChanging.length).toBeGreaterThan(60);
+    expect(stateChanging.length).toBeGreaterThan(40);
     const keys = new Set(ENDPOINTS.map(endpointKey));
-    expect(keys).toContain("POST /api/orders/upload");
+    expect(keys).toContain("POST /api/flows/{}/documents");
     expect(keys).toContain("POST /api/billing/checkout");
     // Every path resolved against a class route — an unresolved one keeps the
     // controller's own prefix off the front.
@@ -954,8 +944,8 @@ describe("every state-changing endpoint has a caller, or a written reason", () =
   it.skipIf(!BACKEND)("the positive control: a known-called endpoint is NOT flagged", () => {
     // Without this, a matcher that flagged everything would look like a guard
     // finding real problems.
-    const upload = ENDPOINTS.filter((e) => endpointKey(e) === "POST /api/orders/upload");
-    expect(upload, "POST /api/orders/upload must still exist").toHaveLength(1);
+    const upload = ENDPOINTS.filter((e) => endpointKey(e) === "POST /api/flows/{}/documents");
+    expect(upload, "POST /api/flows/{}/documents must still exist").toHaveLength(1);
     expect(findUncalledEndpoints(upload, CALLS, {})).toEqual([]);
   });
 });

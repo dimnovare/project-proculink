@@ -711,9 +711,11 @@ describe("auditActionManifest mirrors the backend's audit vocabulary", () => {
     // that diff vacuous in the most dangerous direction: every declared key would be
     // "not contradicted" because nothing was parsed at all, and the delivery log would
     // go back to showing no reason with a green test suite over it.
-    expect(payloadKeys.size).toBeGreaterThanOrEqual(20);
+    // 20 -> 18 on 2026-11-13: plan 13b cut the order API to a read-only archive, and the
+    // payload sites in its deleted write endpoints went with it (18 today, both counts).
+    expect(payloadKeys.size).toBeGreaterThanOrEqual(18);
     const withKeys = [...payloadKeys.values()].filter((s) => s.size > 0);
-    expect(withKeys.length).toBeGreaterThanOrEqual(20);
+    expect(withKeys.length).toBeGreaterThanOrEqual(18);
   });
 
   test.skipIf(!BACKEND)("every action whose reason key is declared was really parsed", () => {
@@ -754,8 +756,10 @@ describe("auditActionManifest mirrors the backend's audit vocabulary", () => {
     expect(
       AUDIT_ACTION_FACTS.filter((f) => f.historical).map((f) => f.action).sort(),
     ).toEqual([
+      "DeliveryConfirmedManually",
       "DeliveryRequeuedByOperator",
       "DeliverySlaBreached",
+      "InvoiceSentAnyway",
       "StrandedFailedDeliveryRecovered",
       "StrandedReadyDeliveryRecovered",
       "StuckDeliveryDeadLettered",
@@ -763,6 +767,8 @@ describe("auditActionManifest mirrors the backend's audit vocabulary", () => {
       "StuckRequeued",
       "StuckTimeout",
       "StuckTransformRecovered",
+      "SupplierAssignedManually",
+      "SupplierSuggestionAccepted",
       "inbound_email.attachment_skipped_empty",
       "inbound_email.attachment_skipped_too_large",
       "inbound_email.attachment_skipped_undecodable",

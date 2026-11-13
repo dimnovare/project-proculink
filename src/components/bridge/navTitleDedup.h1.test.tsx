@@ -36,11 +36,7 @@ vi.mock("@/lib/api-client", () => ({
   isApiMockMode: false,
   apiClient: {
     getOrders: () => Promise.resolve({ items: orders, totalCount: orders.length, page: 1, pageSize: 100 }),
-    getOrdersSummary: () => Promise.resolve({ byStatus: {}, total: orders.length }),
     getSuppliers: () => Promise.resolve([]),
-    getDashboardTopology: () => Promise.resolve({ buyers: [], suppliers: [], wires: [] }),
-    // never settles — honest loading state
-    getOnboardingStatus: () => new Promise(() => {}),
   },
   listConnections: () => Promise.resolve([]),
   getAuditLog: () => Promise.resolve([]),

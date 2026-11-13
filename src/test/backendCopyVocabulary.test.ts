@@ -65,8 +65,13 @@ const REQUIRE_MIRROR = process.env.PROCULINK_REQUIRE_BACKEND_MIRROR === "1";
  * nothing" is otherwise indistinguishable from "the reader broke on this file", and the
  * latter is precisely the silent hole this suite exists to close: if
  * DeliveryService.cs ever drops to zero sentences, that is a parse failure, not a cleanup.
+ *
+ * OrdersController.cs joined on 2026-11-13: plan 13b cut it to a read-only archive (list, get,
+ * download), which deleted every 4xx sentence it wrote. It stays in the corpus because it still
+ * derives OrderDto.ErrorMessage — and a sentence that comes back fails here first.
  */
 const EXPECTED_SENTENCE_FREE: readonly string[] = [
+  "ProcuLink.Api/Controllers/OrdersController.cs",
   "ProcuLink.Transform/Output/XmlTransformService.cs",
   "ProcuLink.Transform/Output/JsonTransformService.cs",
   "ProcuLink.Transform/Output/CsvTransformService.cs",
