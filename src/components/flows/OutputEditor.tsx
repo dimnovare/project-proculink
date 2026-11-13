@@ -8,14 +8,14 @@ import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { DestinationForm, Field, INPUT } from "@/components/flows/DestinationForm";
 import { LookupMisses } from "@/components/flows/LookupMisses";
 import { PdfDocumentView } from "@/components/bridge/document/PdfDocumentView";
-import { createOutput, deleteOutputLogo, listDestinations, listLookups, previewOutput, updateOutput, uploadOutputLogo } from "@/lib/api/documents";
+import { checkOutput, createOutput, deleteOutputLogo, listDestinations, listLookups, previewOutput, updateOutput, uploadOutputLogo } from "@/lib/api/documents";
 import type { Flow, FlowOutput, LookupSummary, OutputLayout, SendWhen, SendWhenOp } from "@/lib/api/documents";
 import { ApiHttpError } from "@/lib/api/core";
 import { COPY, documentRefusalMessage } from "@/lib/documentRefusals";
 import { defaultWidth, fromSimple, OP_LABEL, toSimple } from "@/lib/flowOutputModel";
 import type { SimpleOutput, SimpleRow } from "@/lib/flowOutputModel";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
-import { standardName } from "@/lib/standardOutputs";
+import { FLAGGED, standardName } from "@/lib/standardOutputs";
 import { StandardQuestions } from "@/components/flows/StandardQuestions";
 
 export const FORMATS = { csv: "CSV", xlsx: "Excel", json: "JSON", xml: "XML", pdf: "PDF", txt: "Text", fixed: "Fixed-width text" };
@@ -108,6 +108,7 @@ export function OutputEditor({ flow, output, previewDocumentId, hideDestination,
   const formatted = !standard && (format === "pdf" || format === "txt");
 
   const preview = useMutation({ mutationFn: () => previewOutput(previewDocumentId!, current!.id) });
+  const check = useMutation({ mutationFn: () => checkOutput(flow.id, current!.id, previewDocumentId!) });
   const logoInput = useRef<HTMLInputElement>(null);
   const logo = useMutation({
     mutationFn: (file: File | null) => (file ? uploadOutputLogo(flow.id, current!.id, file) : deleteOutputLogo(flow.id, current!.id)),
@@ -292,7 +293,23 @@ export function OutputEditor({ flow, output, previewDocumentId, hideDestination,
           {previewDocumentId && current && (
             <Button type="button" variant="secondary" loading={preview.isPending} onClick={() => preview.mutate()}>Preview</Button>
           )}
+          {previewDocumentId && current && standard && FLAGGED.has(standard) && (
+            <Button type="button" variant="secondary" loading={check.isPending} onClick={() => check.mutate()}>Check against Peppol rules</Button>
+          )}
         </div>
+        {check.isError && <StatusNotice tone="error">{documentRefusalMessage(check.error)}</StatusNotice>}
+        {check.data?.status === "passed" && <StatusNotice tone="success">Passes the Peppol BIS Billing 3.0 rules.</StatusNotice>}
+        {check.data?.status === "unavailable" && <StatusNotice tone="warning">We couldn&apos;t reach the rule checker. Try again in a minute.</StatusNotice>}
+        {check.data?.status === "failed" && (
+          <StatusNotice tone="warning">
+            Doesn&apos;t meet {check.data.issues.filter((i) => i.severity === "error").length || check.data.issues.length} Peppol rule(s):
+            <ul className="mt-1 list-disc pl-4">
+              {[...check.data.issues].sort((a, b) => Number(b.severity === "error") - Number(a.severity === "error")).map((i, n) => (
+                <li key={n}>{i.ruleId} — {i.message}{i.severity === "error" ? "" : ` (${i.severity})`}</li>
+              ))}
+            </ul>
+          </StatusNotice>
+        )}
         {previewDocumentId && current && <p className="text-[12px] text-ink-muted">Preview shows the last saved version.</p>}
         {preview.isError && <StatusNotice tone="error">{documentRefusalMessage(preview.error)}</StatusNotice>}
         {previewDocumentId && current && preview.data?.lookupMisses?.length ? (

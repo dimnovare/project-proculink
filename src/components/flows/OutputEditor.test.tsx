@@ -6,7 +6,7 @@ import { OutputEditor } from "./OutputEditor";
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => true }));
 
 const api = vi.hoisted(() => ({
-  listDestinations: vi.fn(), listLookups: vi.fn(), updateOutput: vi.fn(), createOutput: vi.fn(), previewOutput: vi.fn(), saveFlowFields: vi.fn(),
+  listDestinations: vi.fn(), listLookups: vi.fn(), updateOutput: vi.fn(), createOutput: vi.fn(), previewOutput: vi.fn(), saveFlowFields: vi.fn(), checkOutput: vi.fn(),
 }));
 vi.mock("@/lib/api/documents", () => api);
 
@@ -123,5 +123,27 @@ describe("OutputEditor", () => {
     renderEditor(x12, { ...flow, fields: { fields: [], tables: [lines] } });
     expect(screen.getAllByText(/^Which (field|column) is/).map((e) => e.textContent))
       .toEqual(["Which column is the line unit price?", "Which column is the line item code?"]);
+  });
+
+  const peppol = { ...output, standard: "peppol-bis-billing-3", format: "xml", tableKey: "lines", template: {}, needs: [] };
+  const checkFlow = { ...flow, fields: { fields: [], tables: [lines] } };
+
+  it("a failed Peppol check lists its rules, errors first", async () => {
+    api.checkOutput.mockResolvedValue({ status: "failed", issues: [
+      { ruleId: "BR-CL-1", severity: "warning", message: "Odd code" },
+      { ruleId: "BR-02", severity: "error", message: "Missing number" }] });
+    renderEditor(peppol, checkFlow);
+    fireEvent.click(screen.getByRole("button", { name: "Check against Peppol rules" }));
+    expect(await screen.findByText(/Doesn't meet 1 Peppol rule\(s\):/)).toBeTruthy();
+    const items = screen.getAllByRole("listitem").map((e) => e.textContent);
+    expect(items.slice(-2)).toEqual(["BR-02 — Missing number", "BR-CL-1 — Odd code (warning)"]);
+    expect(api.checkOutput).toHaveBeenCalledWith("f", output.id, "d");
+  });
+
+  it("an unavailable Peppol check says the checker could not be reached", async () => {
+    api.checkOutput.mockResolvedValue({ status: "unavailable", issues: [] });
+    renderEditor(peppol, checkFlow);
+    fireEvent.click(screen.getByRole("button", { name: "Check against Peppol rules" }));
+    expect(await screen.findByText("We couldn't reach the rule checker. Try again in a minute.")).toBeTruthy();
   });
 });

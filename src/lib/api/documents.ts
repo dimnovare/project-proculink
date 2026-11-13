@@ -39,6 +39,8 @@ export interface Flow {
   formatsOn?: boolean;
   /** Outputs can be proposed from the receiving system's documentation. Absent means off. */
   docsOutputsOn?: boolean;
+  /** The Peppol invoice and credit note outputs, and their rule check, are offered. Absent means off. */
+  peppolOn?: boolean;
   /** The live version number; null means never published. Only the single-flow response carries these three. */
   publishedVersion?: number | null;
   hasChanges?: boolean;
@@ -230,6 +232,10 @@ export const previewOutput = (documentId: string, outputId: string, opts?: { pub
     method: "POST",
     ...(opts?.template ? { body: json({ template: opts.template }) } : {}),
   });
+
+export interface OutputCheck { status: "passed" | "failed" | "unavailable"; issues: { ruleId: string; severity: "error" | "warning" | "info"; message: string }[] }
+export const checkOutput = (flowId: string, outputId: string, documentId: string) =>
+  apiFetch<OutputCheck>(`/flows/${seg(flowId)}/outputs/${seg(outputId)}/check?documentId=${seg(documentId)}`, { method: "POST" });
 
 export function uploadOutputLogo(flowId: string, outputId: string, file: File): Promise<void> {
   const form = new FormData();
