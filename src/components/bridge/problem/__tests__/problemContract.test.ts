@@ -189,17 +189,9 @@ describe("no state offers a control the backend will reject", () => {
     // stay literal on purpose: their job is to make a change to what the product
     // offers a deliberate edit here, not to re-derive what the manifest already says.
     expect([...OP_ALLOWED_FROM.retryDelivery].sort()).toEqual(["delivery_failed"]);
-    // Dead-letter's rescue is the ops requeue, NOT redeliver — this is D2.
+    // Dead-letter is NOT redeliverable — this is D2. (Its ops requeue rescue was deleted 2026-11-13.)
     expect(OP_ALLOWED_FROM.redeliverOrder.has("delivery_dead_letter")).toBe(false);
-    // EXACT sets for the remaining two as well. An earlier version of this test
-    // asserted only `requeueDelivery.has("delivery_dead_letter")` and nothing at
-    // all for markDelivered, which left both free to grow silently: adding
-    // `rejected_by_supplier` and `pending_review` to requeueDelivery kept the
-    // whole file green. `OP_ALLOWED_FROM` has exactly two consumers, so nothing
-    // else was ever going to catch it.
-    expect([...OP_ALLOWED_FROM.requeueDelivery].sort()).toEqual(
-      ["delivery_dead_letter", "delivery_failed"],
-    );
+    // EXACT set for markDelivered as well, so it cannot grow silently.
     expect([...OP_ALLOWED_FROM.markDelivered].sort()).toEqual(["delivery_unconfirmed"]);
     // delivery_held: the release is automatic and every send endpoint 400s while held.
     for (const op of Object.keys(OP_ALLOWED_FROM) as ProblemOp[]) {
@@ -292,9 +284,9 @@ describe("no failure state points a control at a page that is gone", () => {
     }
   });
 
-  // The panel renders two links of its own — the `us`-tier support link and the
-  // outage link on the paused-processing note — which never pass through
-  // `actions()`. Read them out of the source so they are covered by the same rule.
+  // The panel renders links of its own — the `us`-tier support link — which never pass
+  // through `actions()`. (The outage link on the paused-processing note went with
+  // /operations/health on 2026-11-13.) Read them out of the source so they are covered by the same rule.
   test("the panel's own links resolve too", () => {
     const files = [
       "src/components/bridge/problem/OrderProblemPanel.tsx",
@@ -313,7 +305,7 @@ describe("no failure state points a control at a page that is gone", () => {
         if (!resolvesToLivePage(href)) dead.push(`${rel} → ${href}`);
       }
     }
-    expect(found.length, "the extractor read no links out of the panel").toBeGreaterThanOrEqual(2);
+    expect(found.length, "the extractor read no links out of the panel").toBeGreaterThanOrEqual(1);
     expect(dead, `panel links that go nowhere:\n  ${dead.join("\n  ")}`).toEqual([]);
   });
 

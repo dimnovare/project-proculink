@@ -8,7 +8,6 @@ const MOVES: Array<[RegExp, (m: RegExpMatchArray) => string | null]> = [
   [/^\/library\/mappings$/, () => "/lookups"],
   [/^\/library\/(suppliers(\/.*)?|buyers|standards)$/, () => "/flows"],
   [/^\/connections(\/.*)?$/, () => "/flows"],
-  [/^\/operations\/(exceptions|health)$/, () => "/operations/log"],
 ];
 
 export function engineRouteMove(pathname: string): string | null {

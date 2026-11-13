@@ -23,7 +23,6 @@ describe("matchGuide", () => {
     expect(matchGuide("/bridge")?.route).toBe("/bridge");
     expect(matchGuide("/settings")?.route).toBe("/settings");
     expect(matchGuide("/operations/log")?.route).toBe("/operations/log");
-    expect(matchGuide("/operations/exceptions")?.route).toBe("/operations/exceptions");
   });
 
   it("ignores trailing slashes and query/hash noise", () => {
@@ -105,9 +104,9 @@ describe("SECTION_GUIDES registry shape", () => {
   // linked to, whose guide described an overview the page could not produce.
   // 10 since plan 13b removed the supplier, buyer, mapping, standards and connection
   // screens (seven guides) with their pages. 8 since the inbound invoice and shipping-notice
-  // screens went too.
-  it("has 8 entries with unique routes", () => {
-    expect(SECTION_GUIDES).toHaveLength(8);
+  // screens went too. 6 since the Issues and Pipeline health pages went (2026-11-13).
+  it("has 6 entries with unique routes", () => {
+    expect(SECTION_GUIDES).toHaveLength(6);
     const routes = SECTION_GUIDES.map((g) => g.route);
     expect(new Set(routes).size).toBe(routes.length);
   });

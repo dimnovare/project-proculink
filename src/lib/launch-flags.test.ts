@@ -15,14 +15,14 @@ describe("LAUNCH_CORE_HREFS (STRUCT-1)", () => {
   });
 
   it("keeps the rest of the core launch surface", () => {
-    for (const href of ["/bridge", "/upload", "/inbox", "/operations/exceptions", "/operations/health", "/admin", "/settings", "/help"]) {
+    for (const href of ["/bridge", "/upload", "/inbox", "/admin", "/settings", "/help"]) {
       expect(LAUNCH_CORE_HREFS.has(href)).toBe(true);
     }
   });
 
   it("includes every announced hub's first-tab href so the hubs survive core mode", () => {
     for (const href of [
-      "/operations/health",
+      "/inbox", "/bridge",
     ]) {
       expect(LAUNCH_CORE_HREFS.has(href)).toBe(true);
     }

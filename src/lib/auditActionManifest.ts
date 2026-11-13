@@ -38,10 +38,9 @@
 //
 // The vocabulary has no central constants class; it is scattered literals. The
 // enumeration below is every `AuditEvents.Add` site in production code (there are
-// no `AddRange` sites), which is these fifteen files:
+// no `AddRange` sites), which were these fifteen files (the six that held the ops requeue and the delivery sweeps were deleted on 2026-11-13; their rows are `historical` below):
 //
 //   ProcuLink.Api/Controllers/AdminController.cs            admin.* via WriteAdminAuditAsync
-//   ProcuLink.Api/Controllers/OpsController.cs
 //   ProcuLink.Api/Controllers/OrdersController.cs
 //   ProcuLink.Api/Services/AcceptanceGate.cs                AcceptanceGateAudit.* consts
 //   ProcuLink.Api/Services/Orders/OrderIngestionService.cs
@@ -49,12 +48,7 @@
 //   ProcuLink.Api/Services/Orders/OrderTransformService.cs
 //   ProcuLink.Api/Services/ReplayService.cs
 //   ProcuLink.Infrastructure/Services/DeliveryService.cs
-//   ProcuLink.Infrastructure/Services/DeliverySlaService.cs
 //   ProcuLink.Infrastructure/Services/Email/InboundEmailRouter.cs   inbound_email.* via WriteAuditAsync
-//   ProcuLink.Infrastructure/Services/StrandedFailedDeliveryDetectionService.cs
-//   ProcuLink.Infrastructure/Services/StrandedReadyOrderDetectionService.cs
-//   ProcuLink.Infrastructure/Services/StuckDeliveryDetectionService.cs
-//   ProcuLink.Infrastructure/Services/StuckOrderDetectionService.cs
 //
 // Flow documents (added with plan 10) write through `DocumentAudit.Add`, `AddAudit`
 // and one `Action =` initialiser, in these five files:
@@ -407,8 +401,9 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "DeliveryRequeuedByOperator",
     kind: "recovered",
     label: "Requeued by an operator",
-    reachable: true,
-    backendSite: "ProcuLink.Api/Controllers/OpsController.cs:264",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the legacy order delivery sweeps and operations screens were deleted (2026-11-13); archived rows still carry this action.",
     reasonKeys: [],
     note: "A person put a delivery that was out of retries, or had failed, back on the queue.",
   },
@@ -462,8 +457,9 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "DeliverySlaBreached",
     kind: "failed",
     label: "Delivery SLA breached",
-    reachable: true,
-    backendSite: "ProcuLink.Infrastructure/Services/DeliverySlaService.cs:174",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the legacy order delivery sweeps and operations screens were deleted (2026-11-13); archived rows still carry this action.",
     reasonKeys: [],
     note:
       "The order did not reach the supplier inside its promised window. NO reason key on purpose: its payload's " +
@@ -477,8 +473,9 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "StrandedFailedDeliveryRecovered",
     kind: "recovered",
     label: "Stranded failed delivery recovered",
-    reachable: true,
-    backendSite: "ProcuLink.Infrastructure/Services/StrandedFailedDeliveryDetectionService.cs:131",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the legacy order delivery sweeps and operations screens were deleted (2026-11-13); archived rows still carry this action.",
     reasonKeys: [],
     note: "A failed delivery with no live retry was put back on the queue by the sweeper.",
   },
@@ -486,8 +483,9 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "StrandedReadyDeliveryRecovered",
     kind: "recovered",
     label: "Stranded delivery recovered",
-    reachable: true,
-    backendSite: "ProcuLink.Infrastructure/Services/StrandedReadyOrderDetectionService.cs:187",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the legacy order delivery sweeps and operations screens were deleted (2026-11-13); archived rows still carry this action.",
     reasonKeys: [],
     note: "A ready-to-deliver order that nothing had claimed was re-enqueued.",
   },
@@ -495,8 +493,9 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "StuckDeliveryRequeued",
     kind: "recovered",
     label: "Stalled delivery requeued",
-    reachable: true,
-    backendSite: "ProcuLink.Infrastructure/Services/StuckDeliveryDetectionService.cs:121",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the legacy order delivery sweeps and operations screens were deleted (2026-11-13); archived rows still carry this action.",
     reasonKeys: [],
     note: "A delivery claim outlived its lease and was handed back.",
   },
@@ -504,8 +503,9 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "StuckDeliveryDeadLettered",
     kind: "failed",
     label: "Out of retries after a stall",
-    reachable: true,
-    backendSite: "ProcuLink.Infrastructure/Services/StuckDeliveryDetectionService.cs:160",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the legacy order delivery sweeps and operations screens were deleted (2026-11-13); archived rows still carry this action.",
     reasonKeys: ["detail"],
     note:
       "The sweeper exhausted a stuck delivery's attempts rather than requeueing it again. `detail` is the " +
@@ -515,8 +515,9 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "StuckRequeued",
     kind: "recovered",
     label: "Stuck order requeued",
-    reachable: true,
-    backendSite: "ProcuLink.Infrastructure/Services/StuckOrderDetectionService.cs:134",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the legacy order delivery sweeps and operations screens were deleted (2026-11-13); archived rows still carry this action.",
     reasonKeys: [],
     note: "A parse/transform claim outlived its lease and was handed back.",
   },
@@ -524,8 +525,9 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "StuckTransformRecovered",
     kind: "recovered",
     label: "Stuck transform recovered",
-    reachable: true,
-    backendSite: "ProcuLink.Infrastructure/Services/StuckOrderDetectionService.cs:181",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the legacy order delivery sweeps and operations screens were deleted (2026-11-13); archived rows still carry this action.",
     reasonKeys: [],
     note: "A transform that had already produced its artifact was released from the stuck state.",
   },
@@ -533,8 +535,9 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "StuckTimeout",
     kind: "failed",
     label: "Timed out",
-    reachable: true,
-    backendSite: "ProcuLink.Infrastructure/Services/StuckOrderDetectionService.cs:218",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the legacy order delivery sweeps and operations screens were deleted (2026-11-13); archived rows still carry this action.",
     reasonKeys: ["detail"],
     note:
       "The order sat in an in-flight status past its ceiling and was failed rather than retried again. `detail` " +

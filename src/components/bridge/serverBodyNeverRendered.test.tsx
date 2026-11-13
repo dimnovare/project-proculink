@@ -16,7 +16,7 @@ import { PRODUCTION_404_ERROR_MESSAGE } from "@/components/bridge/problem/__test
  * `document.body.textContent`: what a person actually reads.
  *
  * These sites carry a different string from the one `ApiHttpError` now cleans at construction.
- * `order.errorMessage`, `deadLetterOrder.lastError` and `catalogSource.lastSyncError` arrive on a
+ * `order.errorMessage` and `catalogSource.lastSyncError` arrive on a
  * 200, as persisted fields, and the backend concatenates the supplier's response body after its own
  * sentence ("Response summary: …"). They stay raw in the data layer on purpose — production logic
  * reads them, e.g. `problemCopy.isDeliveryConfigMissing` matches
@@ -49,171 +49,12 @@ function expectNoMarkupOnScreen() {
   return shown;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Family 1 — /operations/health: deadLetterOrder.lastError, and the requeue
-// mutation's ApiHttpError.message.
-// ─────────────────────────────────────────────────────────────────────────────
-
-const HEALTH = {
-  parsingStuck: 0, deliveringStuck: 0, transformFailed: 0, deliveryFailed: 0,
-  deliveryDeadLetter: 1, rejectedBySupplier: 0, failed: 0, slaBreached: 0,
-  openExceptions: 0, pendingReview: 0, deliveryHeld: 0, stuckThresholdMinutes: 30,
-  totalProblemOrders: 1, workerHealthy: true, activeWorkers: 1,
-  lastWorkerHeartbeatUtc: "2026-08-06T09:00:00Z", secondsSinceWorkerHeartbeat: 4,
-};
-
-const opsApi = vi.hoisted(() => ({
-  getOpsHealth: vi.fn(),
-  getDeadLetterOrders: vi.fn(),
-  requeueDelivery: vi.fn(),
-}));
-
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
-  usePathname: () => "/operations/health",
+  usePathname: () => "/inbox/ord-1",
   useSearchParams: () => new URLSearchParams(),
 }));
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true, useTenantQueriesEnabled: () => true }));
-
-vi.mock("@/lib/api-client", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/api-client")>();
-  return {
-    ...actual,
-    getOpsHealth: (...a: unknown[]) => opsApi.getOpsHealth(...a),
-    getDeadLetterOrders: (...a: unknown[]) => opsApi.getDeadLetterOrders(...a),
-    requeueDelivery: (...a: unknown[]) => opsApi.requeueDelivery(...a),
-    apiClient: { ...actual.apiClient, getOrderById: vi.fn() },
-  };
-});
-
-import OperationsHealthPage from "@/app/(app)/operations/health/page";
-
-function renderPage() {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
-    <QueryClientProvider client={qc}>
-      <OperationsHealthPage />
-    </QueryClientProvider>,
-  );
-}
-
-beforeEach(() => {
-  opsApi.getOpsHealth.mockResolvedValue(HEALTH);
-  opsApi.getDeadLetterOrders.mockResolvedValue([]);
-  opsApi.requeueDelivery.mockReset();
-});
-afterEach(cleanup);
-
-describe("/operations/health — the dead-letter row's lastError", () => {
-  it("shows the reason without the supplier's markup", async () => {
-    opsApi.getDeadLetterOrders.mockResolvedValue([
-      {
-        orderId: "ord-dl-1",
-        poNumber: "PO-4091678643",
-        supplierName: "ProcuLink Sample Supplier",
-        status: "delivery_dead_letter",
-        deliveryAttempts: 3,
-        // NOT null. The fixture must carry the defect or this test proves nothing.
-        lastError: APPENDED_HTML,
-        lastResponseCode: 502,
-        lastAttemptAt: "2026-08-06T09:00:00Z",
-      },
-    ]);
-
-    renderPage();
-    await screen.findAllByText("PO-4091678643");
-
-    const shown = expectNoMarkupOnScreen();
-    // Anti-vacuity: the field really reached the screen, cleaned rather than dropped.
-    expect(shown).toContain("HTTP 502");
-  });
-
-  it("does not smuggle the markup through the cell's title tooltip", async () => {
-    // The desktop cell sets `title={o.lastError}` for the truncated text. A tooltip is prose the
-    // operator reads too, and it is invisible to `document.body.textContent`.
-    opsApi.getDeadLetterOrders.mockResolvedValue([
-      {
-        orderId: "ord-dl-2", poNumber: "PO-TOOLTIP", supplierName: "S",
-        status: "delivery_dead_letter", deliveryAttempts: 3,
-        lastError: APPENDED_HTML, lastResponseCode: 502,
-        lastAttemptAt: "2026-08-06T09:00:00Z",
-      },
-    ]);
-
-    renderPage();
-    await screen.findAllByText("PO-TOOLTIP");
-
-    const titles = Array.from(document.querySelectorAll("[title]"))
-      .map((n) => n.getAttribute("title") ?? "")
-      .join(" ");
-    expect(titles).not.toContain("<!DOCTYPE");
-    expect(titles).not.toContain("<html");
-    expect(titles).toContain("HTTP 502");
-  });
-});
-
-describe("/operations/health — a requeue that fails with a gateway page", () => {
-  it("puts the cleaned reason in the notice, not the page source", async () => {
-    const { ApiHttpError } = await import("@/lib/api/core");
-    opsApi.getDeadLetterOrders.mockResolvedValue([
-      {
-        orderId: "ord-dl-3", poNumber: "PO-REQUEUE", supplierName: "S",
-        status: "delivery_dead_letter", deliveryAttempts: 3,
-        lastError: "Connection timed out", lastResponseCode: null,
-        lastAttemptAt: "2026-08-06T09:00:00Z",
-      },
-    ]);
-    // Built exactly as api-client builds it — the prefix is client copy, the tail is the body.
-    opsApi.requeueDelivery.mockRejectedValue(
-      new ApiHttpError(`requeue-delivery failed: ${APPENDED_HTML}`, 502),
-    );
-
-    renderPage();
-    const buttons = await screen.findAllByRole("button", { name: /start sending again/i });
-    fireEvent.click(buttons[0]);
-
-    await waitFor(() => expect(document.body.textContent).toContain("requeue-delivery failed"));
-    const shown = expectNoMarkupOnScreen();
-    expect(shown).toContain("502");
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Family 2 — ExceptionDetail: order.errorMessage, standalone and via deliveryNote.
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe("ExceptionDetail — order.errorMessage", () => {
-  async function renderException(order: Partial<Order>) {
-    const { apiClient } = await import("@/lib/api-client");
-    (apiClient.getOrderById as ReturnType<typeof vi.fn>).mockResolvedValue({
-      id: "ord-1", poNumber: "PO-1", supplierId: "sup-1", supplierName: "S",
-      currency: "EUR", orderDate: "2026-08-01", lines: [], artifacts: [],
-      status: "delivery_failed",
-      ...order,
-    });
-    const { ExceptionDetail } = await import("@/components/bridge/ExceptionDetail");
-    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    render(
-      <QueryClientProvider client={qc}>
-        <ExceptionDetail
-          exc={{ id: "exc-1", orderId: "ord-1", code: "delivery_failed", stage: "deliver", message: "Delivery failed" } as never}
-        />
-      </QueryClientProvider>,
-    );
-  }
-
-  it("renders the reason block without markup", async () => {
-    await renderException({ status: "delivery_failed", errorMessage: APPENDED_HTML });
-    await waitFor(() => expect(document.body.textContent).toContain("HTTP 502"));
-    expectNoMarkupOnScreen();
-  });
-
-  it("cleans the delivery_unconfirmed note, which renders errorMessage as its whole sentence", async () => {
-    await renderException({ status: "delivery_unconfirmed", errorMessage: APPENDED_HTML });
-    await waitFor(() => expect(document.body.textContent).toContain("HTTP 502"));
-    expectNoMarkupOnScreen();
-  });
-});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Family 3 — OrderDetailsDrawer: the rejection block's errorMessage.

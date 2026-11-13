@@ -331,14 +331,6 @@ export function OrderProblemPanel({
           ))}
         </ul>
 
-        {paused && (
-          <p style={{ margin: 0, fontSize: 12.5 }}>
-            <Link href="/operations/health" className={FOCUS} style={{ color: "var(--brand-blue-deep)", fontWeight: 600 }}>
-              Check system health →
-            </Link>
-          </p>
-        )}
-
         {/* The recovery POST's own failure — the THIRD door, and the one that survives a
             careful reading of the two above. `api-client.ts` builds
             `error ?? \`${fallback}: ${responseText}\`` when the body is not JSON with an

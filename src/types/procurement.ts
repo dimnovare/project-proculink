@@ -1,8 +1,4 @@
-// The exception-state vocabulary is owned by src/lib/exceptionStateManifest.ts, which is
-// diffed against the real C# by src/test/backendMirror.test.ts. Re-exported here rather
-// than re-declared so there is one copy to keep true.
-import type { ExceptionStateName } from "@/lib/exceptionStateManifest";
-// Likewise the acceptance-rule outcome vocabulary, owned by
+// The acceptance-rule outcome vocabulary is owned by
 // src/lib/validationOutcomeManifest.ts. It is a UNION rather than a boolean because a
 // rule has three possible answers, the third being "I could not run" — see that file.
 import type { ValidationOutcome } from "@/lib/validationOutcomeManifest";
@@ -957,7 +953,6 @@ export interface OrderValidationResult {
 // optional here to keep both callers type-safe against the same interface.
 
 export type ExceptionSeverity = "info" | "warning" | "error" | "critical";
-export type ExceptionState = ExceptionStateName;
 
 export interface OrderException {
   id: string;
@@ -974,5 +969,5 @@ export interface OrderException {
   /** Machine-readable exception code. */
   code?: string | null;
   /** Lifecycle state — present on the all-orders dashboard endpoint. */
-  state?: ExceptionState | string | null;
+  state?: string | null;
 }

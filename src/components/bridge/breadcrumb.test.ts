@@ -177,13 +177,13 @@ describe("buildCrumbTrail — unlinked group-root heads (no index route → neve
   });
 
   it("never links the /operations group-root crumb", () => {
-    const trail = buildCrumbTrail("/operations/health", {});
+    const trail = buildCrumbTrail("/operations/log", {});
     expect(trail[0]).toEqual({ label: "Activity", href: null });
-    expect(trail[1].label).toBe("System status");
+    expect(trail[1].label).toBe("Deliveries");
   });
 
   it("no crumb in a hub trail ever points at a group-root 404", () => {
-    for (const path of ["/library/suppliers", "/library/mappings", "/operations/exceptions", "/operations/log"]) {
+    for (const path of ["/library/suppliers", "/library/mappings", "/operations/log"]) {
       const trail = buildCrumbTrail(path, {});
       expect(trail.some((c) => c.href === "/library")).toBe(false);
       expect(trail.some((c) => c.href === "/operations")).toBe(false);
@@ -197,9 +197,9 @@ describe("buildCrumbTrail — hub roots", () => {
   });
 
   it("leaves Library/Operations trails untouched (already two-level)", () => {
-    expect(buildCrumbTrail("/operations/exceptions", {}).map((c) => c.label)).toEqual([
+    expect(buildCrumbTrail("/operations/log", {}).map((c) => c.label)).toEqual([
       "Activity",
-      "Issues",
+      "Deliveries",
     ]);
   });
 });
@@ -217,7 +217,7 @@ describe("isLonePageCrumb", () => {
 
   it("is false when the trail carries an ancestor crumb", () => {
     expect(isLonePageCrumb("/library/suppliers")).toBe(false);
-    expect(isLonePageCrumb("/operations/exceptions")).toBe(false);
+    expect(isLonePageCrumb("/operations/log")).toBe(false);
     expect(isLonePageCrumb("/inbox/a8c18df7-dec8-4a1b-9c2d-1f2e3a4b5c6d")).toBe(false);
   });
 

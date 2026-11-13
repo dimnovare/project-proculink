@@ -48,7 +48,6 @@ const WRITER_FILES = [
   "ProcuLink.Api/Jobs/ReadDocumentJob.cs",
   "ProcuLink.Api/Services/Documents/DocumentIntakeService.cs",
   "ProcuLink.Api/Services/Documents/DocumentSender.cs",
-  "ProcuLink.Api/Controllers/OpsController.cs",
   "ProcuLink.Api/Controllers/OrdersController.cs",
   "ProcuLink.Api/Controllers/SettingsController.cs",
   "ProcuLink.Api/Services/AcceptanceGate.cs",
@@ -58,12 +57,7 @@ const WRITER_FILES = [
   "ProcuLink.Api/Services/ReplayService.cs",
   "ProcuLink.Core/Services/IAcceptanceGate.cs",
   "ProcuLink.Infrastructure/Services/DeliveryService.cs",
-  "ProcuLink.Infrastructure/Services/DeliverySlaService.cs",
   "ProcuLink.Infrastructure/Services/Email/InboundEmailRouter.cs",
-  "ProcuLink.Infrastructure/Services/StrandedFailedDeliveryDetectionService.cs",
-  "ProcuLink.Infrastructure/Services/StrandedReadyOrderDetectionService.cs",
-  "ProcuLink.Infrastructure/Services/StuckDeliveryDetectionService.cs",
-  "ProcuLink.Infrastructure/Services/StuckOrderDetectionService.cs",
 ] as const;
 
 const PROBE_REL = "ProcuLink.Api/Controllers/AuditController.cs";
@@ -671,7 +665,9 @@ describe("auditActionManifest mirrors the backend's audit vocabulary", () => {
     // 30 order/delivery actions + 6 admin + 6 inbound_email were enumerated by hand
     // at 5db0b05. A parser that silently stopped matching would make every diff below
     // pass by finding nothing.
-    expect(backendActions.length).toBeGreaterThanOrEqual(40);
+    // 40 -> 30 on 2026-11-13: the order delivery sweeps and the ops requeue (nine actions) lost their
+    // writers; those rows are `historical` in the manifest.
+    expect(backendActions.length).toBeGreaterThanOrEqual(30);
   });
 
   test.skipIf(!BACKEND)("NO backend audit action is unknown to the frontend", () => {
@@ -726,7 +722,9 @@ describe("auditActionManifest mirrors the backend's audit vocabulary", () => {
     // added in another, or passed through a helper. That is tolerable for actions this
     // manifest says nothing about, and NOT tolerable for one whose reason key it
     // asserts: an unparsed action would silently exempt itself from the diff below.
-    const unparsed = EXPLAINED_AUDIT_ACTIONS.filter((a) => !payloadKeys.has(a.toLowerCase())).sort();
+    // Historical rows have no writer left to parse; their archived payloads still carry the keys.
+    const historical = new Set(AUDIT_ACTION_FACTS.filter((f) => f.historical).map((f) => f.action));
+    const unparsed = EXPLAINED_AUDIT_ACTIONS.filter((a) => !historical.has(a) && !payloadKeys.has(a.toLowerCase())).sort();
     expect(
       unparsed,
       `these declare reasonKeys but no payload site was parsed for them: ${unparsed.join(", ")}`,
@@ -756,6 +754,15 @@ describe("auditActionManifest mirrors the backend's audit vocabulary", () => {
     expect(
       AUDIT_ACTION_FACTS.filter((f) => f.historical).map((f) => f.action).sort(),
     ).toEqual([
+      "DeliveryRequeuedByOperator",
+      "DeliverySlaBreached",
+      "StrandedFailedDeliveryRecovered",
+      "StrandedReadyDeliveryRecovered",
+      "StuckDeliveryDeadLettered",
+      "StuckDeliveryRequeued",
+      "StuckRequeued",
+      "StuckTimeout",
+      "StuckTransformRecovered",
       "inbound_email.attachment_skipped_empty",
       "inbound_email.attachment_skipped_too_large",
       "inbound_email.attachment_skipped_undecodable",

@@ -49,7 +49,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
     bullets: [
       { text: "Watch live order flow between you and your {suppliers}" },
       { text: "Once orders arrive, filter stats by Today, 7d, 30d, or All" },
-      { text: "See open issues and jump straight to them", href: "/operations/exceptions" },
+      { text: "See open issues and jump straight to them", href: "/inbox" },
       { text: "Track each {supplier}'s delivery health for the time window you pick" },
       // No number here, deliberately. This sentence used to promise "your most
       // recent 100 orders": a literal hand-copied from a `pageSize: 100` in
@@ -103,34 +103,6 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
     ],
     firstStep: { text: "Resolve each flagged line — accept a suggestion or set a code — then use the send/confirm button (shortcut C)." },
     articleSlugs: ["output-mapping-editor", "item-codes", "delivery-setup"],
-  },
-  {
-    route: "/operations/exceptions",
-    title: "Issues",
-    purpose: "Every order blocked on a human decision, in one workspace-wide list.",
-    bullets: [
-      { text: "Filter issues by Open, Resolved, or Ignored" },
-      { text: "Expand a row to see what's wrong, why, and how to fix it" },
-      { text: "Open the blocked order to fix the cause" },
-      { text: "Ignore issues you won't act on" },
-      { text: "Order issues can't be resolved from this list — fix the order instead" },
-    ],
-    firstStep: { text: "Nothing to do here until an order hits trouble — when an issue appears, expand it and use \"Open order to fix\"." },
-    articleSlugs: ["exceptions-and-stuck-orders", "troubleshooting"],
-  },
-  {
-    route: "/operations/health",
-    title: "Pipeline health",
-    purpose: "A live view of the worker and any orders stuck in a problem state.",
-    bullets: [
-      { text: "Check the worker banner — an offline worker stalls every upload" },
-      { text: "Most count tiles link straight to the affected orders", href: "/inbox" },
-      { text: "Requeue failed deliveries from the failed deliveries queue" },
-      { text: "Open issues for anything needing a decision", href: "/operations/exceptions" },
-      { text: "Counts refresh automatically every 45 seconds" },
-    ],
-    firstStep: { text: "Glance at the worker banner before your first upload — green means parsing will run." },
-    articleSlugs: ["exceptions-and-stuck-orders"],
   },
   {
     route: "/operations/log",

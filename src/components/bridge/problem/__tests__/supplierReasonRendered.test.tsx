@@ -230,17 +230,19 @@ describe("the sentence written for a person outranks the raw one", () => {
     // gateway 502 answers with an HTML page, useProblemAction does
     // `setError(err.message)`, and the panel renders it in its role="alert" block. Same defect,
     // different door, one click away from the one production found.
-    renderDeadLetter({ deliveryAttempts: [] });
+    // delivery_failed, not delivery_dead_letter: the dead-letter panel lost its recovery POST
+    // when the ops requeue endpoint was deleted (2026-11-13).
+    renderDeadLetter({ deliveryAttempts: [] }, { ...DEAD_LETTER, status: "delivery_failed" } as Order);
     await screen.findByTestId("order-problem-panel");
 
-    api.requeueDelivery.mockRejectedValue(
+    api.retryDelivery.mockRejectedValue(
       new Error(
         "We couldn't start sending this order: <!DOCTYPE html><html><head>" +
           "<title>502 Bad Gateway</title></head><body><center><h1>502 Bad Gateway</h1>" +
           "</center></body></html>",
       ),
     );
-    fireEvent.click(screen.getByRole("button", { name: /start sending again/i }));
+    fireEvent.click(screen.getByRole("button", { name: /try sending now/i }));
 
     const alert = await screen.findByRole("alert");
     expect(alert.textContent).not.toContain("<");
@@ -250,11 +252,13 @@ describe("the sentence written for a person outranks the raw one", () => {
   });
 
   it("leaves an ordinary failure message alone", async () => {
-    renderDeadLetter({ deliveryAttempts: [] });
+    // delivery_failed, not delivery_dead_letter: the dead-letter panel lost its recovery POST
+    // when the ops requeue endpoint was deleted (2026-11-13).
+    renderDeadLetter({ deliveryAttempts: [] }, { ...DEAD_LETTER, status: "delivery_failed" } as Order);
     await screen.findByTestId("order-problem-panel");
 
-    api.requeueDelivery.mockRejectedValue(new Error("That order is already being sent."));
-    fireEvent.click(screen.getByRole("button", { name: /start sending again/i }));
+    api.retryDelivery.mockRejectedValue(new Error("That order is already being sent."));
+    fireEvent.click(screen.getByRole("button", { name: /try sending now/i }));
 
     expect((await screen.findByRole("alert")).textContent).toBe("That order is already being sent.");
   });

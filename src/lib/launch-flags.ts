@@ -19,8 +19,7 @@ export const LAUNCH_CORE_ONLY =
  * hrefs that remain in the sidebar during the first launch.
  *
  * Includes the FIRST-TAB href of every announced hub so all four hubs the
- * sidebar promises survive the core filter and stay reachable on mobile
- * (Operations → /operations/health). The supplier
+ * sidebar promises survive the core filter and stay reachable on mobile. The supplier
  * and item-code hubs went with their screens — see src/lib/retired-routes.ts.
  * Sibling tabs inside each hub are reached via the HubTabs bar; their routes all
  * resolve directly.
@@ -29,8 +28,6 @@ export const LAUNCH_CORE_HREFS: ReadonlySet<string> = new Set([
   "/bridge",
   "/upload",
   "/inbox",
-  "/operations/exceptions",
-  "/operations/health",
   "/admin",
   "/settings",
   "/help",

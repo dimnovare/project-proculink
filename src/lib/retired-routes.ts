@@ -75,12 +75,30 @@ export const RETIRED_ROUTES: RetiredRoute[] = [
   },
   {
     source: "/operations/webhooks",
-    destination: "/settings?tab=connectors",
+    destination: "/settings",
     deletedDir: "src/app/(app)/operations/webhooks",
     why:
       "A second copy of the Settings Connectors tab that no user could open — zero inbound links "
       + "anywhere in src/. Both are gone: order-event webhooks belonged to the order pipeline, "
       + "and a flow has its own webhook.",
+  },
+  {
+    source: "/operations/exceptions",
+    destination: "/operations/log",
+    deletedDir: "src/app/(app)/operations/exceptions",
+    why:
+      "The issues list ran on the order pipeline: it listed order exceptions and let an operator "
+      + "resolve or ignore them. Every workspace has left that pipeline, and a document's problems "
+      + "are shown on the document itself. Deliveries is the nearest live operations page.",
+  },
+  {
+    source: "/operations/health",
+    destination: "/operations/log",
+    deletedDir: "src/app/(app)/operations/health",
+    why:
+      "The system-status page counted stuck and failed ORDERS and requeued the ones that ran out of retries. "
+      + "That pipeline is gone, and the endpoints behind the page with it. The operator is alerted "
+      + "when no worker is beating; Deliveries is the nearest live operations page.",
   },
   {
     source: "/operations/connectors",

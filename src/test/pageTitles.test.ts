@@ -227,7 +227,8 @@ describe("tab titles are the words the navigation teaches", () => {
   );
 
   it("reads a non-empty hub registry", () => {
-    expect(hubEntries.length).toBeGreaterThanOrEqual(5);
+    // 3 since 2026-11-13: Issues and System status went with their pages.
+    expect(hubEntries.length).toBeGreaterThanOrEqual(3);
     expect(Object.keys(HUB_TAB_TITLES).length).toBe(hubEntries.length);
   });
 

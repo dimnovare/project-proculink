@@ -125,36 +125,12 @@ describe("BridgeTopbar context row — no second navbar under the primary nav", 
     expect(screen.getByText("Admin")).toBeTruthy();
   });
 
-  // WP-26 used /drafts as the off-strip example; FE #47 retired that route, so
-  // the case is asserted on /operations/health — a hidden entry of the Activity
-  // hub, and the exact example BridgeTopbar's useHubRow comment describes.
-  it("keeps the row at md+ on an off-strip route, and names it (System status)", () => {
-    mockPath = "/operations/health";
-    render(<BridgeTopbar />);
-    const row = contextRow();
-    expect(row).not.toBeNull();
-    expect(hiddenAtDesktop(row!)).toBe(false);
-    // /operations/health is a hidden entry of the Activity hub: the strip lets
-    // the user leave, and a tail crumb says where they are. No tab is current.
-    const strip = row!.querySelector('nav[aria-label="Section"]')!;
-    expect(strip.querySelector('a[href="/bridge"]')).not.toBeNull();
-    expect(strip.querySelector('[aria-current="page"]')).toBeNull();
-    expect(screen.getAllByText("System status").length).toBeGreaterThan(0);
-    // "Activity" is the active nav item one row above — the row must not repeat
-    // it as an unlinked crumb. That container word is what the restructure
-    // retired from the context row.
-    const deadCrumbs = [...row!.querySelectorAll("span")]
-      .filter((el) => el.children.length === 0)
-      .map((el) => el.textContent?.trim());
-    expect(deadCrumbs).not.toContain("Activity");
-  });
-
   // The defect the founder actually reported, asserted directly: whatever Row 1
   // highlights must not be printed again in the row beneath it.
   it("never re-prints the active nav item's own word in the context row", () => {
     const PATHS = [
       "/bridge", "/inbox",
-      "/operations/log", "/operations/health", "/operations/exceptions",
+      "/operations/log",
     ];
     let asserted = 0;
     for (const path of PATHS) {

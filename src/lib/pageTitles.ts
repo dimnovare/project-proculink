@@ -43,8 +43,6 @@ export const HUB_TAB_TITLES: Record<string, string> = {
   // activity
   "/bridge": "Overview",
   "/operations/log": "Deliveries",
-  "/operations/exceptions": "Issues",
-  "/operations/health": "System status",
 };
 
 /**

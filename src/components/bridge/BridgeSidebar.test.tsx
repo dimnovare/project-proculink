@@ -125,20 +125,6 @@ describe("BridgeSidebar — the destinations", () => {
     expect(screen.queryByText("Admin")).toBeNull(); // non-admin probe (mocked undefined)
   });
 
-  it("lights the Activity hub item for a sibling tab route (/operations/exceptions)", () => {
-    mockPath = "/operations/exceptions";
-    render(<BridgeSidebar />);
-    expect(screen.getByRole("link", { name: /^Activity/i })).toHaveAttribute("aria-current", "page");
-    expect(screen.getByRole("link", { name: /^Documents/i })).not.toHaveAttribute("aria-current");
-  });
-
-  // WP-26 asserted this on /drafts; FE #47 retired that route, so the invariant
-  // is asserted on /operations/health — a hidden entry of the Activity hub.
-  it("lights the owning hub item for a hidden owned route (/operations/health)", () => {
-    mockPath = "/operations/health";
-    render(<BridgeSidebar />);
-    expect(screen.getByRole("link", { name: /^Activity/i })).toHaveAttribute("aria-current", "page");
-  });
 });
 
 describe("buildVisibleNav — three items, one flat section", () => {
@@ -206,7 +192,7 @@ describe("buildVisibleNav — three items, one flat section", () => {
     const items = allItems(buildVisibleNav("Suppliers", true));
     const LEGACY_ROUTES = [
       "/bridge", "/upload", "/inbox",
-      "/operations/health", "/operations/exceptions", "/operations/log",
+      "/operations/log",
       "/admin", "/settings", "/help",
       // Extended to the new tree's child routes — the four-item nav must keep
       // reaching them too, not just the top-level pages.
@@ -233,9 +219,10 @@ describe("buildVisibleNav — three items, one flat section", () => {
     // same reason /library/rules and /library/templates are absent below.
     // /operations/connectors is gone for the same reason: deleted 2026-08-13, so
     // the cross-hub check that used to sit under this loop went with it.
+    // /operations/exceptions and /operations/health are not here: deleted 2026-11-13, and a
+    // permanent redirect has no nav state (both 308 to /operations/log).
     for (const p of [
-      "/bridge", "/operations/log", "/operations/exceptions",
-      "/operations/health",
+      "/bridge", "/operations/log",
     ]) {
       expect(isItemActive(p, activity), `${p} lights Activity`).toBe(true);
     }
@@ -290,7 +277,7 @@ describe("hubTooltip — lists a hub's VISIBLE tabs (derived from HUB_TABS, can'
   );
   it("describes each hub with its visible tab labels", () => {
     expect(hubTooltip(byLabel["Documents"])).toBe("Orders");
-    expect(hubTooltip(byLabel["Activity"])).toBe("Overview · Deliveries · Issues");
+    expect(hubTooltip(byLabel["Activity"])).toBe("Overview · Deliveries");
   });
   // The regression this guards is "a hidden tab leaked into the hub tooltip". The old
   // shape asserted that inside `HUB_TABS[hub].filter((t) => t.hidden)` and nothing else —
@@ -306,7 +293,8 @@ describe("hubTooltip — lists a hub's VISIBLE tabs (derived from HUB_TABS, can'
     // "Notifications" (/operations/webhooks) is no longer here: the page was
     // DELETED, not unhidden. Removing it from this table is the deliberate half
     // of that change — leaving it would have failed on the comparison below.
-    activity: ["System status"],
+    // "System status" went with /operations/health on 2026-11-13; no hub has a hidden entry now.
+    activity: [],
   };
 
   it("still has hidden entries to hide — the flag is what makes the nav four words wide", () => {
@@ -320,22 +308,6 @@ describe("hubTooltip — lists a hub's VISIBLE tabs (derived from HUB_TABS, can'
     expect(Object.keys(EXPECTED_HIDDEN).sort()).toEqual([...HUBS].sort());
   });
 
-  it("never names a hidden entry (it is reachable, not switchable)", () => {
-    let asserted = 0;
-    for (const hub of HUBS) {
-      const item = Object.values(byLabel).find((i) => i.hub === hub)!;
-      const tip = hubTooltip(item)!;
-      expect(tip, `${hub} has no tooltip to check`).toBeTruthy();
-      for (const label of EXPECTED_HIDDEN[hub]) {
-        expect(tip, `${hub} tooltip must not name hidden "${label}"`).not.toContain(label);
-        asserted++;
-      }
-    }
-    // One hidden entry across the hubs left (the Suppliers hub took its hidden
-    // entry with it). If this drops to 0 the loop above proved nothing, whatever
-    // colour the run reported.
-    expect(asserted, "the hidden-entry loop ran zero assertions").toBe(1);
-  });
   it("returns undefined for non-hub items", () => {
     expect(hubTooltip(byLabel["Settings"])).toBeUndefined();
     expect(hubTooltip(byLabel["Admin"])).toBeUndefined();

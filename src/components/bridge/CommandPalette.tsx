@@ -218,17 +218,6 @@ function buildIndex(
     // "View order inbox" — the inbox holds orders in EVERY state, not just
     // deliveries, so the old "View all deliveries" label over-claimed.
     { id: "a2",  group: "Actions", icon: "⊞", label: "View order inbox",     sub: "Go to inbox",            action: () => router.push("/inbox"),            color: "#0F4FA8" },
-    { id: "a5",  group: "Actions", icon: "⚠", label: "Issues",           sub: "Open the issues list", action: () => router.push("/operations/exceptions"), color: "#8A5310" },
-    // These two labels are the NAV names, not palette-local ones, and that is
-    // load-bearing rather than tidiness. `useSendFlow`'s in-flight notice is plain
-    // text with no link slot, so it names its destination in words — "Open System
-    // status" / "the Deliveries page" — and the palette is how an operator turns
-    // words into a page. It said "System health" and "Delivery log", so searching
-    // the exact words the product had just told them to look for found nothing.
-    // The search matches `label` AND `sub` (see the filter below), so the older
-    // words stay findable in the sub-line rather than being deleted.
-    // Canonical source: breadcrumb.ts SEGMENT_LABELS + HubTabs.
-    { id: "a6",  group: "Actions", icon: "❤", label: "System status",        sub: "Is order processing running? Check system health", action: () => router.push("/operations/health"),     color: "#0F4FA8" },
     { id: "a9",  group: "Actions", icon: "▤", label: "Deliveries",           sub: "Every delivery attempt — the delivery log", action: () => router.push("/operations/log"),   color: "#0F4FA8" },
     { id: "a7",  group: "Actions", icon: "⚙", label: "Settings",             sub: "Workspace settings",     action: () => router.push("/settings"),         color: "#0F4FA8" },
     // ── Onboarding entry points (task 9) ────────────────────

@@ -634,9 +634,9 @@ export function BillingSection() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
       {/* First thing on the screen, because it is the reason nothing is working.
-          /operations/health links here labelled "Go to billing" under "Sending
-          resumes automatically once your billing is up to date" — this is the
-          sentence that link was promising. */}
+          This is the sentence the old system-status page's "Go to billing" link
+          used to promise ("Sending resumes automatically once your billing is up
+          to date"). */}
       <ProcessingPausedBanner
         status={status}
         onManage={() => portalMutation.mutate()}

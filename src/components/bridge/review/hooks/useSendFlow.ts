@@ -41,13 +41,12 @@ import { pollOrder, transformAndWait, SEND_POLL_WINDOW_MS } from "../transformFl
  *
  * The notice is rendered as PLAIN TEXT (OrderWorkshop pipes flowNotice straight
  * into a div and into the status bar's `notice` slot — there is no link slot), so
- * the destination is named in words the operator can navigate to: "System status"
- * is /operations/health and "Deliveries" is /operations/log, exactly as they read
- * in the nav.
+ * the destination is named in words the operator can navigate to: "Deliveries"
+ * is /operations/log, exactly as it reads in the nav.
  */
 function stillRunningNotice(processingPaused: boolean): string {
   if (processingPaused) {
-    return "Order processing is paused, so this order hasn't been sent yet. It's saved and waiting — nothing has been lost, and it goes out on its own as soon as processing restarts. Don't send it again. Open System status to see when processing is back.";
+    return "Order processing is paused, so this order hasn't been sent yet. It's saved and waiting — nothing has been lost, and it goes out on its own as soon as processing restarts. Don't send it again.";
   }
   const seconds = Math.round(SEND_POLL_WINDOW_MS / 1000);
   return `This order was accepted for sending but hasn't finished within ${seconds} seconds. Nothing has been lost — this page updates on its own when it's done. Don't send it again; the Deliveries page shows the latest attempt once it's made.`;
@@ -60,9 +59,7 @@ export function useSendFlow({ orderId, order, labels, refetchOrder }: {
   refetchOrder: () => Promise<unknown>;
 }) {
   // Is the background processor running? Read at the TOP LEVEL (rules of hooks —
-  // never inside confirmSend, which is where it is consumed) and off the shared
-  // ["ops-health"] query key, so this is the same cache entry /operations/health
-  // and OrderProblemPanel already poll: no extra network for the review screen.
+  // never inside confirmSend, which is where it is consumed).
   const { paused: processingPaused } = useProcessingStatus();
 
   const [flowNotice, setFlowNotice] = useState<string | null>(null);

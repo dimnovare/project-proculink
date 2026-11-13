@@ -6,7 +6,6 @@
 // without standing up a query client, a router and Clerk. The state it renders is the difference
 // between a calm wait and a silent outage, so it needs to be testable on its own.
 
-import Link from "next/link";
 import { BridgeLoader } from "../BridgeLoader";
 
 export function ParsingGate({ stalled }: { stalled: boolean }) {
@@ -30,13 +29,6 @@ export function ParsingGate({ stalled }: { stalled: boolean }) {
             <p className="text-[13px]" style={{ color: "#5E6779", marginTop: 7, lineHeight: 1.55 }}>
               This is taking longer than usual. Your order is still queued &mdash; nothing has been
               lost, and this page will update on its own if it completes.
-            </p>
-            <p className="text-[13px]" style={{ color: "#5E6779", marginTop: 7, lineHeight: 1.55 }}>
-              Processing may be paused.{" "}
-              <Link href="/operations/health" style={{ color: "#1E66C9", fontWeight: 600 }}>
-                Check system health
-              </Link>
-              .
             </p>
           </div>
         ) : (

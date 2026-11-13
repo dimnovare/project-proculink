@@ -67,10 +67,8 @@ export const HUB_TABS: Record<HubKey, HubTab[]> = {
   activity: [
     { label: "Overview", href: "/bridge" },
     { label: "Deliveries", href: "/operations/log" },
-    { label: "Issues", href: "/operations/exceptions" },
-    // Ambient, not a destination — surfaced by the health chip and a degraded
-    // banner on Activity.
-    { label: "System status", href: "/operations/health", hidden: true },
+    // "Issues" (/operations/exceptions) and "System status" (/operations/health) are GONE:
+    // order-pipeline operations screens, deleted 2026-11-13. Both URLs 308 to /operations/log.
     // "Notifications" (/operations/webhooks) used to sit here, hidden. It is
     // GONE, not unhidden: it was a duplicate of Settings ▸ Connectors that no
     // user could open, and the founder deleted it on 2026-08-08. Both screens

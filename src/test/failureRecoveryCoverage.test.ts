@@ -279,7 +279,7 @@ describe("a status with nothing to click says so out loud", () => {
       (s) => !CTX_VARIANTS.flatMap(([, over]) => PROBLEM_COPY[s as ProblemStatus].actions(ctx(over))).some((a) => a.kind === "post"),
     );
     expect(withoutPosts.sort()).toEqual(
-      ["delivery_held", "delivery_unconfirmed", "failed", "rejected_by_supplier", "unrouted"].sort(),
+      ["delivery_dead_letter", "delivery_held", "delivery_unconfirmed", "failed", "rejected_by_supplier", "unrouted"].sort(),
     );
   });
 });
@@ -415,26 +415,11 @@ describe("the guard tables are one copy, not nine", () => {
   const MUST_DERIVE = [
     "src/components/bridge/problem/problemActions.ts",
     "src/components/bridge/CommandPalette.tsx",
-    "src/app/(app)/operations/health/page.tsx",
   ];
 
   test.each(MUST_DERIVE)("%s reads the status manifest instead of retyping it", (rel) => {
     const code = stripComments(readFileSync(join(ROOT, rel), "utf8"), syntaxFor(rel));
     expect(/from\s+["']@\/lib\/orderStatusManifest["']/.test(code)).toBe(true);
-  });
-
-  test("the ops requeue control is gated on the requeue guard, by name", () => {
-    // The one control in this packet whose behaviour no render test reaches: it
-    // lives in a Next.js `page.tsx`, which may not carry arbitrary named exports,
-    // so the function cannot be imported and called. A structural check is
-    // therefore the floor available — but "imports the manifest" is too weak on
-    // its own (a file can import it and still hand-roll the guard two lines down),
-    // so this asserts the CALL, with its op argument. The behaviour behind that
-    // call is covered by the OP_GUARDS assertions above and by the C# diff in
-    // src/test/backendMirror.test.ts.
-    const rel = "src/app/(app)/operations/health/page.tsx";
-    const code = stripComments(readFileSync(join(ROOT, rel), "utf8"), syntaxFor(rel));
-    expect(/opAllowsStatus\(\s*["']requeueDelivery["']/.test(code)).toBe(true);
   });
 
   test("the dashboard's action line reads the problem registry", () => {
@@ -484,7 +469,7 @@ describe("the guard tables are one copy, not nine", () => {
     const crumbs = readFileSync(join(ROOT, "src/components/bridge/breadcrumb.ts"), "utf8");
     const palette = readFileSync(join(ROOT, "src/components/bridge/CommandPalette.tsx"), "utf8");
 
-    for (const segment of ["health", "log"]) {
+    for (const segment of ["log"]) {
       const canonical = new RegExp(`^\\s*${segment}:\\s*"([^"]+)"`, "m").exec(crumbs)?.[1];
       expect(canonical, `breadcrumb.ts has no label for the "${segment}" segment`).toBeTruthy();
       // The palette entry that routes to this page must carry that exact label.
@@ -504,7 +489,7 @@ describe("the guard tables are one copy, not nine", () => {
     const crumbs = readFileSync(join(ROOT, "src/components/bridge/breadcrumb.ts"), "utf8");
     const body = notice.slice(notice.indexOf("function stillRunningNotice"));
     expect(body.length, "stillRunningNotice is gone — this guard is checking nothing").toBeGreaterThan(200);
-    for (const segment of ["health", "log"]) {
+    for (const segment of ["log"]) {
       const canonical = new RegExp(`^\\s*${segment}:\\s*"([^"]+)"`, "m").exec(crumbs)?.[1] ?? "";
       expect(
         body.includes(canonical),

@@ -13,8 +13,8 @@
 // machine detail (a host, an address) that an operator or their IT can act on.
 // ClerkAvailabilityGate is its first caller.
 //
-// Visual: amber, not red. Red is reserved for terminal failures (see
-// operations/health's tone() and DeliveryPausedCard's "Amber, never red"). An
+// Visual: amber, not red. Red is reserved for terminal failures (the
+// operations health page's "Amber, never red" rule, deleted 2026-11-13, said the same). An
 // unreachable external script is recoverable and usually transient.
 // No new colour — every value is an existing token.
 

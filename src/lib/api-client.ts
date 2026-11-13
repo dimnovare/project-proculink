@@ -1889,9 +1889,6 @@ export const apiClient = {
   },
 };
 
-// ── Delivery reliability: dead-letter count (moved to src/lib/api/operations.ts) ──
-export { getDeadLetterCount } from "@/lib/api/operations";
-
 // ── Per-order mapping override (heart-piece-flex) ────────────────────────────
 // Default (no override) leaves the transform byte-identical; these power the
 // "Edit mapping manually" power-user editor + live preview.
@@ -2440,17 +2437,6 @@ async function realGetOrderExceptions(orderId: string): Promise<OrderException[]
 }
 export const validateOrder = USE_MOCK ? mockValidateOrder : realValidateOrder;
 export const getOrderExceptions = USE_MOCK ? mockGetOrderExceptions : realGetOrderExceptions;
-
-// ── Exceptions + ops/health (moved to src/lib/api/operations.ts) ──────────────
-export {
-  getExceptions,
-  resolveException,
-  ignoreException,
-  getOpsHealth,
-  getDeadLetterOrders,
-  requeueDelivery,
-} from "@/lib/api/operations";
-export type { OpsHealth, DeadLetterOrder } from "@/lib/api/operations";
 
 // ── Group V8 — standards conformance report (GET /api/orders/{id}/conformance) ──
 // Backend: ProcuLink.Api/Controllers/OrdersController.cs GetConformance. Read-only,

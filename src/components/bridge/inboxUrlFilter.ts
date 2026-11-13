@@ -2,15 +2,14 @@
 //
 // WHY THIS EXISTS: InboxView held `statusFilter` and `activeChip` in useState and
 // never read the query string. There is no `useSearchParams` anywhere in that
-// file. So every `?status=` link in the product — nine tiles on
-// /operations/health, the review-backlog card, the paused-delivery card, the
+// file. So every `?status=` link in the product — the tiles on the
+// old /operations/health page, the review-backlog card, the paused-delivery card, the
 // sidebar's own Inbox sub-items — landed on a completely unfiltered inbox. An
 // operator clicked "5 out of retries" and got all 300 orders in the account.
 //
 // The fix is DERIVATION, not "also reads on mount": two sources of truth for the
 // same filter is how those links died. These helpers are pure so the contract can
-// be tested without mounting a 1,800-line table, and so /operations/health can
-// assert its own hrefs against the very set this module accepts.
+// be tested without mounting a 1,800-line table.
 
 import type { SortingState } from "@tanstack/react-table";
 import type { OrderStatus } from "@/types/procurement";

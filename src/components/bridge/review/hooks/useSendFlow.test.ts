@@ -171,9 +171,6 @@ describe("WP-36 — a send that outlives its poll window is reported as in-fligh
     // duplicate dispatch that fires twice the moment processing resumes — this is
     // the one thing standing between a paused mid-flight order and a duplicate PO.
     expect(result.current.flowNotice).toMatch(/don't send it again/i);
-    // And it names somewhere to go. `setFlow` is string-only, so the destination
-    // is words: "System status" is what /operations/health is called in the nav.
-    expect(result.current.flowNotice).toMatch(/system status/i);
     expect(result.current.crossed).toBe(false);
   });
 

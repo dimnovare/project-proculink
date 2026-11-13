@@ -5,20 +5,19 @@
 // screen told the operator to click a Send button that called
 // POST /api/orders/{id}/redeliver — an endpoint whose guard set
 // (OrderStatusMachine.RedeliverableFrom) does not contain delivery_dead_letter,
-// so it answered 400 every time. The rescue path was the separate ops requeue,
-// reachable only from /operations/health.
+// so it answered 400 every time. The ops requeue that was its rescue path was deleted with the
+// order pipeline's operations screens (2026-11-13).
 //
 // So: an action names an `op`, the op names the statuses it is legal FROM, and a
 // test walks PROBLEM_COPY asserting every offered op is legal from its own state.
 // A control the backend will reject can no longer reach a screen without a red test.
 
-import { apiClient, requeueDelivery as requeueDeliveryApi } from "@/lib/api-client";
+import { apiClient } from "@/lib/api-client";
 import { OP_GUARDS } from "@/lib/orderStatusManifest";
 
 export type ProblemOp =
   | "transformOrder"
   | "retryDelivery"
-  | "requeueDelivery"
   | "redeliverOrder"
   | "markDelivered";
 
@@ -59,7 +58,6 @@ export type ProblemOp =
 export const OP_ALLOWED_FROM: Record<ProblemOp, ReadonlySet<string>> = {
   transformOrder: new Set(OP_GUARDS.transformOrder.allowedFrom),
   retryDelivery: new Set(OP_GUARDS.retryDelivery.allowedFrom),
-  requeueDelivery: new Set(OP_GUARDS.requeueDelivery.allowedFrom),
   redeliverOrder: new Set(OP_GUARDS.redeliverOrder.allowedFrom),
   markDelivered: new Set(OP_GUARDS.markDelivered.allowedFrom),
 };
@@ -72,7 +70,6 @@ export function opIsAllowedFrom(op: ProblemOp, status: string): boolean {
 export const PROBLEM_OP_CALL: Record<ProblemOp, (orderId: string) => Promise<unknown>> = {
   transformOrder: (orderId) => apiClient.transformOrder(orderId),
   retryDelivery: (orderId) => apiClient.retryDelivery(orderId),
-  requeueDelivery: (orderId) => requeueDeliveryApi(orderId),
   redeliverOrder: (orderId) => apiClient.redeliverOrder(orderId),
   markDelivered: (orderId) => apiClient.markDelivered(orderId),
 };
@@ -85,6 +82,5 @@ export const PROBLEM_OP_CALL: Record<ProblemOp, (orderId: string) => Promise<unk
  */
 export const OPS_WITH_CLAIM_WINDOW: ReadonlySet<ProblemOp> = new Set([
   "retryDelivery",
-  "requeueDelivery",
   "transformOrder",
 ]);

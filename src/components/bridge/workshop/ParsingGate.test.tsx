@@ -10,7 +10,6 @@ import { ParsingGate } from "./ParsingGate";
 // The honesty contract (G9), restored from the deleted MagicMappingPreview escalation:
 //   • it NEVER claims failure — the Worker may simply be catching up, and a false "failed" would
 //     make a user re-upload a document that is still in flight;
-//   • it names the one thing they can actually do (check system health);
 //   • polling continues unchanged — the screen must still auto-advance if the parse completes.
 
 describe("ParsingGate", () => {
@@ -21,7 +20,7 @@ describe("ParsingGate", () => {
     expect(screen.getByText(/reading your file/i)).toBeInTheDocument();
     // No escalation, and no link offered — there is nothing wrong to investigate yet.
     expect(screen.queryByTestId("order-parsing-stalled")).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /system health/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
   });
 
   it("escalates once the parse has been running too long, without claiming failure", () => {
@@ -31,10 +30,6 @@ describe("ParsingGate", () => {
     expect(screen.getByTestId("order-parsing")).toBeInTheDocument();
     const escalation = screen.getByTestId("order-parsing-stalled");
     expect(escalation).toBeInTheDocument();
-
-    // The one action a user can take, as a real link a click can follow.
-    const link = screen.getByRole("link", { name: /system health/i });
-    expect(link).toHaveAttribute("href", "/operations/health");
 
     // Honesty: it must NOT say the order failed, was rejected, or needs re-uploading.
     const text = escalation.textContent ?? "";

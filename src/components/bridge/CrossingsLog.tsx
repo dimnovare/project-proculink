@@ -823,8 +823,8 @@ export function CrossingsLog() {
           role="alert" — this card REPLACES the log, so it is the only thing on
           screen, and it shipped as a silent <div>: a screen-reader user who
           triggered a refetch got no announcement that the list had failed to
-          load, only a page that had stopped changing. Same semantics the sibling
-          ops error states use (operations/health/page.tsx, exceptions/page.tsx).
+          load, only a page that had stopped changing. Same semantics as the
+          other full-card error states.
           It is NOT a StatusNotice: those are one-line outcome banners for an
           action the operator just took, and this is a full-card empty-of-content
           state with its own layout. The tone vocabulary is shared; the chrome is

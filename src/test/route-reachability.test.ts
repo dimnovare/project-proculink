@@ -972,12 +972,12 @@ describe("route reachability (plan rule R1 — no new surface without a consumer
     // because there is nothing left to look through. Each corpus therefore
     // asserts its own size BEFORE it is searched.
     //
-    // The tab floor is 4 (one Orders tab, three Activity): the deleted entry
-    // was HIDDEN, so the rendered strip never counted it.
+    // The tab floor is 3 (one Orders tab, two Activity; was 4 until 2026-11-13, when Issues went
+    // with /operations/exceptions): the deleted entry was HIDDEN, so the rendered strip never counted it.
     const rendered = (Object.keys(HUB_TABS) as HubKey[]).flatMap((hub) =>
       visibleHubTabs(hub).map((t) => t.href),
     );
-    expect(rendered.length, "no hub tab resolved — the sweep is vacuous").toBe(4);
+    expect(rendered.length, "no hub tab resolved — the sweep is vacuous").toBe(3);
 
     // Every non-test source file, read the way retired-routes.test.ts reads the
     // nav registries: a QUOTED path is a link, a path in a comment is
@@ -1066,7 +1066,7 @@ describe("route reachability (plan rule R1 — no new surface without a consumer
     // land on the surface that took over, and on the TAB, not just the page.
     const retired = RETIRED_ROUTES.find((r) => r.source === DEAD);
     expect(retired, `${DEAD} was deleted with no redirect — an old bookmark 404s`).toBeDefined();
-    expect(retired!.destination).toBe("/settings?tab=connectors");
+    expect(retired!.destination).toBe("/settings");
 
     // ── ANTI-VACUITY FLOORS, BEFORE THE NEGATIVES ────────────────────────────
     // #126's ordering trap, verbatim and deliberately repeated: a sweep that
@@ -1077,7 +1077,7 @@ describe("route reachability (plan rule R1 — no new surface without a consumer
     const rendered = (Object.keys(HUB_TABS) as HubKey[]).flatMap((hub) =>
       visibleHubTabs(hub).map((t) => t.href),
     );
-    expect(rendered.length, "no hub tab resolved — the sweep is vacuous").toBe(4);
+    expect(rendered.length, "no hub tab resolved — the sweep is vacuous").toBe(3);
 
     // Every non-test source file, read the way retired-routes.test.ts reads the
     // nav registries: a QUOTED path is a link, a path in a comment is

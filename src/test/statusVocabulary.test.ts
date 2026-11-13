@@ -3,9 +3,7 @@ import { readdirSync, readFileSync, statSync } from "fs";
 import { join, relative } from "path";
 import { STATUS_LABELS } from "@/components/bridge/UnifiedStatusBadge";
 import { PROBLEM_COPY, PROBLEM_STATUSES } from "@/components/bridge/problem/problemCopy";
-import { TILES } from "@/app/(app)/operations/health/healthTiles";
 import { recentStatusFromOrder } from "@/components/bridge/UploadWorkbench";
-import { deliveryNote } from "@/components/bridge/ExceptionDetail";
 import { ROOT } from "./appRoutes";
 import { stripComments, syntaxFor } from "./sourceScan";
 
@@ -266,33 +264,6 @@ describe("the order screen's problem panel repeats the registry, never re-invent
   });
 });
 
-describe("a health tile names the same thing the inbox it opens will show", () => {
-  /**
-   * Two tiles legitimately do NOT name a status: they count orders STUCK in an
-   * in-progress one, which is a different fact from the status itself. An order
-   * that is merely "Extracting" is fine; one that has been extracting past the
-   * threshold is the problem the tile exists to surface.
-   */
-  const STUCKNESS_TILES = new Set(["parsingStuck", "deliveringStuck"]);
-
-  const statusTiles = TILES.map((t) => ({ ...t, status: /[?&]status=([a-z_]+)/.exec(t.href)?.[1] }))
-    .filter((t) => t.status && Object.prototype.hasOwnProperty.call(STATUS_LABELS, t.status))
-    .filter((t) => !STUCKNESS_TILES.has(t.key as string));
-
-  test("the derivation found the status tiles (guards against an empty each-loop)", () => {
-    // Without this, renaming `href` or the query parameter would empty the list
-    // above and every assertion below would pass by iterating nothing.
-    expect(statusTiles.length).toBeGreaterThanOrEqual(6);
-  });
-
-  test.each(statusTiles.map((t) => [t.status as string, t.label] as const))(
-    "the %s tile is labelled with the registry label",
-    (status, label) => {
-      expect(label).toBe(STATUS_LABELS[status]);
-    },
-  );
-});
-
 describe("the issues article teaches the labels the product renders", () => {
   /**
    * SCOPE. This covers `exceptions-and-stuck-orders` ONLY.
@@ -350,8 +321,6 @@ describe("the surfaces that name a status read the registry to do it", () => {
     "src/components/bridge/BridgeTopbar.tsx",
     "src/components/bridge/CommandPalette.tsx",
     "src/components/bridge/BridgeDashboard.tsx",
-    "src/components/bridge/ExceptionDetail.tsx",
-    "src/app/(app)/operations/health/page.tsx",
   ];
 
   test.each(STATUS_RENDERERS)("%s names statuses via statusLabel/UnifiedStatusBadge", (rel) => {
@@ -391,93 +360,6 @@ describe("the surfaces that name a status read the registry to do it", () => {
   });
 });
 
-describe("a sentence only promises a re-send when the product can re-send", () => {
-  /**
-   * The half a phrase ban cannot reach.
-   *
-   * Everything above checks WORDS. This checks a CLAIM, because the two fail
-   * differently: a retired word is a stale label, but a sentence saying "fix the
-   * cause and send it again" on a `rejected_by_supplier` order sends an operator
-   * hunting for a control that cannot exist. No delivery claim set admits that
-   * status — OrderStatusMachine is explicit that re-sending the refused bytes is
-   * deliberately not an exit — and `problemCopy` says so in its own copy
-   * ("Sending the same file again would be refused the same way") while offering
-   * "Start a corrected order" instead. The exceptions screen said the opposite.
-   *
-   * Found by mutation: reverting that one sentence left every other assertion in
-   * this file green, which is TRAP 25 in miniature. This closes THAT INSTANCE.
-   * It does not close the class — prose is still not type-checked against
-   * behaviour, and the only general defence is reading the merged copy.
-   */
-  const RESENDABLE = new Set([
-    // POST /redeliver — inboxSend.REDELIVERABLE_STATUSES, mirroring the backend's
-    // OrderStatusMachine.RedeliverableFrom.
-    "ready_to_deliver",
-    "delivery_failed",
-    "delivery_unconfirmed",
-    // Not redeliverable, but the order screen carries the ops requeue as
-    // "Start sending again" (problemCopy delivery_dead_letter), so a sentence
-    // pointing there is true.
-    "delivery_dead_letter",
-  ]);
-
-  /** An imperative promise to send THIS order again. Deliberately does not match
-   *  a DENIAL of one ("Sending the same file again would be refused"). */
-  const PROMISES_RESEND = /\b(send it again|send the order again|send this order again|re-?send|try sending)\b/i;
-
-  test.each(BACKEND_STATUSES.filter((s) => !RESENDABLE.has(s)))(
-    "the %s sentence does not tell the operator to send it again",
-    (status) => {
-      const { detail } = deliveryNote(status, null);
-      expect(
-        PROMISES_RESEND.test(detail),
-        `${status} cannot be re-sent, but its sentence promises it: "${detail}"`,
-      ).toBe(false);
-    },
-  );
-
-  test("the check is not vacuous — a re-sendable status is allowed to say it", () => {
-    expect(PROMISES_RESEND.test(deliveryNote("delivery_failed", null).detail)).toBe(true);
-  });
-
-  /**
-   * The other half of the same claim, and the reason it is here rather than in a
-   * comment: having said "you cannot re-send it", the sentence goes on to name
-   * what you CAN do — start a corrected order — and that is a promise about a
-   * control in `problemCopy`, in a different file, which another packet is
-   * editing right now.
-   *
-   * That edit will not conflict: it touches the `href` and leaves the label
-   * alone, so git auto-merges, TypeScript compiles, and nothing would notice if
-   * the action were renamed or dropped out from under this sentence. This is the
-   * notice.
-   */
-  test("the refused-order sentence names an action the order screen really offers", () => {
-    const offered = PROBLEM_COPY.rejected_by_supplier.actions({
-      supplier: "BoltWorks BV",
-      po: "PO 4091678643",
-      supplierId: "sup-1",
-      orderId: "ord-1",
-      serverMessage: null,
-      // WP-19 added these two to ProblemCtx. Null is the "no named cause" path,
-      // which is what a refused order carries — the cause slugs describe delivery
-      // failures, not a supplier's business rejection.
-      failureCause: null,
-      retryAfterSeconds: null,
-      readOnly: false,
-      accountStatus: null,
-      atOrderLimit: false,
-      processingPaused: false,
-    });
-    const corrected = offered.find((a) => a.kind === "link" && /corrected/i.test(a.label));
-    expect(
-      corrected,
-      "problemCopy no longer offers a 'corrected order' action — ExceptionDetail's sentence for a refused order promises one",
-    ).toBeTruthy();
-    expect(deliveryNote("rejected_by_supplier", null).detail).toMatch(/corrected/i);
-  });
-});
-
 describe("the retired vocabulary is gone from every surface that renders words", () => {
   const files = copyBearingFiles();
 
@@ -500,7 +382,6 @@ describe("the retired vocabulary is gone from every surface that renders words",
 
   test("the scan reaches the files it claims to (guards against an empty walk)", () => {
     expect(files.length).toBeGreaterThan(300);
-    expect(files).toContain("src/components/bridge/ExceptionDetail.tsx");
     expect(files).toContain(ARTICLE_EXCEPTIONS);
     expect(files).toContain("src/lib/help-articles.ts");
   });

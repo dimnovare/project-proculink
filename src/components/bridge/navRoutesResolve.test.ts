@@ -136,7 +136,7 @@ describe("nav routes resolve — nothing 404s, nothing is stranded", () => {
     expect(routes.length).toBeGreaterThan(15);
     expect(routes).toContain("/inbox");
     expect(routes).toContain("/flows/sample-id");
-    expect(routes).toContain("/operations/health");
+    expect(routes).toContain("/operations/log");
   });
 
   it("reaches every page that exists on disk from the four-item nav", () => {

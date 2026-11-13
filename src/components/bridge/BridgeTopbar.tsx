@@ -144,7 +144,7 @@ function useAutoCrumb(): ReactNode {
 // to a hub (hubForPath), row 2 swaps the breadcrumb TAIL for the hub's tab bar:
 //   /library/suppliers      → [Suppliers* | Item codes | Rules | Output layouts]
 //   /library/suppliers/[id] → [tabs] / Acme GmbH
-//   /operations/health      → [Overview | Deliveries | Issues] / System status
+//   /operations/log         → [Overview | Deliveries*]
 // Non-hub routes keep the plain breadcrumb untouched.
 //
 // WP-26: the row no longer leads with the hub's own name. The hub word is now a
@@ -176,7 +176,7 @@ function useHubRow(): HubRow | null {
   // path — its depth marks where the prefix ends and the detail tail begins.
   // HIDDEN entries are deliberately excluded: their page is not on the strip, so
   // no tab can be current, and the page reads as a detail page OF the hub —
-  // "[Overview | Deliveries | Issues] / System status" rather than a strip with
+  // "[Overview | Deliveries] / <page>" rather than a strip with
   // nothing active and the page unnamed.
   let owner = "";
   for (const t of visibleHubTabs(hub)) {

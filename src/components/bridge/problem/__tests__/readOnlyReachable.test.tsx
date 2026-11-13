@@ -12,7 +12,7 @@ import { pausedCauseCopy } from "@/lib/billingPause";
  * carried it, `postGuard()` branched on it and `READ_ONLY_REASON` was written for it — and
  * not one of the two production call sites (OrderWorkshop.tsx:1037, :1230) ever passed it.
  * So a workspace the server had already stopped saw the full-capability panel: a live
- * "Start sending again" whose POST could only come back refused, and no sentence anywhere
+ * "Try sending now" whose POST could only come back refused, and no sentence anywhere
  * saying why. The reason string was unreachable from the running app.
  *
  * These tests render the real panel against a real billing answer. They fail if the wiring
@@ -49,14 +49,15 @@ vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true, use
 import { OrderProblemPanel } from "../OrderProblemPanel";
 
 /**
- * Out of retries: it carries BOTH a recovery POST ("Start sending again") and a plain link
- * ("Check the delivery settings"), so one fixture proves the POST is blocked and the route
- * to the fix is not.
+ * Delivery failed: it carries BOTH a recovery POST ("Try sending now") and a plain link
+ * ("See every attempt"), so one fixture proves the POST is blocked and the route
+ * to the fix is not. (It was Out of retries until 2026-11-13, when that status lost its
+ * ops-requeue POST.)
  */
 const DEAD_LETTER = {
   id: "ord-ro-1",
   poNumber: "PO-77120",
-  status: "delivery_dead_letter",
+  status: "delivery_failed",
   supplierId: "sup-4",
   supplierName: "Nordmark",
   currency: "EUR",
@@ -66,7 +67,7 @@ const DEAD_LETTER = {
   errorMessage: null,
 } as unknown as Order;
 
-const RETRY_BUTTON = "Start sending again";
+const RETRY_BUTTON = "Try sending now";
 
 /** A full billing answer, so a test only has to state the field it is about. */
 function billing(over: Partial<BillingStatus> = {}): BillingStatus {
@@ -174,9 +175,9 @@ describe("a workspace the server has stopped is told so, on the control it block
     await panel.findByRole("button", { name: RETRY_BUTTON });
 
     // A read-only workspace can still READ and still navigate (CLAUDE.md §11.5).
-    expect(panel.getByRole("link", { name: "Check the delivery settings" })).toBeTruthy();
+    expect(panel.getByRole("link", { name: "See every attempt" })).toBeTruthy();
     // The state's own explanation is untouched by the block.
-    expect(panel.getByText(/We stopped trying to reach this supplier/)).toBeTruthy();
+    expect(panel.getByText(/We couldn't reach this supplier/)).toBeTruthy();
   });
 });
 

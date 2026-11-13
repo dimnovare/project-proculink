@@ -348,7 +348,10 @@ describe("auditActionManifest — coverage floors", () => {
     // -10 reachable when the legacy order email path was deleted (plan 13b): those
     // `inbound_email.*` rows stay as `historical` so archived audit rows still read.
     expect(AUDIT_ACTION_FACTS).toHaveLength(63);
-    expect(REACHABLE_AUDIT_ACTIONS).toHaveLength(48);
+    //
+    // -9 reachable when the order delivery sweeps and the ops requeue were deleted (plan 13b, task 5):
+    // those rows stay as `historical` so archived audit rows still read.
+    expect(REACHABLE_AUDIT_ACTIONS).toHaveLength(39);
   });
 
   it("classifies a substantial number of them as failures", () => {

@@ -45,8 +45,7 @@
 //   ProcuLink.Core/Constants/OrderStatusConstants.cs   the 16 status constants + FailureBucket
 //   ProcuLink.Core/Constants/OrderStatusMachine.cs     Transitions, DeclaredTerminal, and the
 //                                                      named per-operation guard sets
-//   ProcuLink.Api/Controllers/OrdersController.cs      six endpoint admission guards
-//   ProcuLink.Api/Controllers/OpsController.cs         the requeue admission guard
+//   ProcuLink.Api/Controllers/OrdersController.cs      five endpoint admission guards
 
 /**
  * How the product treats a status, and therefore what the screens owe it.
@@ -174,7 +173,6 @@ export const DECLARED_TERMINAL: readonly string[] = ["failed"];
 export type OrderOp =
   | "transformOrder"
   | "retryDelivery"
-  | "requeueDelivery"
   | "redeliverOrder"
   | "markDelivered"
   | "assignSupplier";
@@ -227,16 +225,6 @@ export const OP_GUARDS: Record<OrderOp, OpGuard> = {
     allowedFrom: ["delivery_failed"],
     backendSymbol: "OrderStatusMachine.RetryableFrom",
     backendSite: "ProcuLink.Api/Controllers/OrdersController.cs:2320",
-  },
-  requeueDelivery: {
-    // Named at last. This entry used to read "an inline status literal, not a named
-    // set — the sibling backend PR promotes it to OrderStatusMachine.RequeueableFrom",
-    // which was true when written and stopped being true when that PR landed. The
-    // set exists (OrderStatusMachine.cs:593) and the endpoint's refusal message is
-    // built from it, so the statuses it names cannot drift from the ones it admits.
-    allowedFrom: ["delivery_dead_letter", "delivery_failed"],
-    backendSymbol: "OrderStatusMachine.RequeueableFrom",
-    backendSite: "ProcuLink.Api/Controllers/OpsController.cs:155",
   },
   redeliverOrder: {
     allowedFrom: ["ready_to_deliver", "delivery_failed", "delivery_unconfirmed"],

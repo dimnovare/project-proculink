@@ -1523,7 +1523,7 @@ export function BridgeDashboard() {
               has settled; zero exceptions = no banner (honest zero-state). */}
           {showExceptionStrip && (
             <Link
-              href="/operations/exceptions"
+              href="/inbox"
               className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 rounded-[10px] px-4 py-3 no-underline transition-shadow hover:shadow-md"
               style={{ border: "1px solid #F0D39A", borderLeft: "3px solid #B36D14", background: "#FFF8EA" }}
             >
@@ -1614,7 +1614,7 @@ export function BridgeDashboard() {
 
                   {openExceptionsAll > 0 && (
                     <Link
-                      href="/operations/exceptions"
+                      href="/inbox"
                       className="ml-auto inline-flex items-center gap-1 rounded-[5px] px-2 py-0.5 text-[11.5px] font-semibold no-underline transition-opacity hover:opacity-80"
                       style={{ background: "#FAF1DD", color: "#8A5310" }}
                       title="Review issues"
@@ -1649,7 +1649,7 @@ export function BridgeDashboard() {
                   title="Needs you"
                   count={needsYouAll.length}
                   note="blocking — clear these to send"
-                  actionHref="/operations/exceptions"
+                  actionHref="/inbox"
                   actionLabel="Open inbox"
                 />
                 <div className="overflow-hidden rounded-card" style={{ background: "#FFFFFF", border: "1px solid #E5E8EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}>

@@ -314,14 +314,16 @@ describe("transform_failed — the recovery the backend already supports is reac
 // D2 — delivery_dead_letter
 // ─────────────────────────────────────────────────────────────────────────────
 describe("delivery_dead_letter — the button that used to 400 is gone", () => {
-  test("'Start sending again' calls the ops requeue, never redeliver (D2)", async () => {
+  test("offers no send control at all — redeliver is a 400 and the ops requeue is gone (D2)", () => {
     mockState.order = makeOrder({ status: "delivery_dead_letter" });
     renderWorkshop();
 
-    fireEvent.click(screen.getByRole("button", { name: /Start sending again/i }));
-    await waitFor(() => expect(api.requeueDelivery).toHaveBeenCalledWith("ord-1"));
-    // RedeliverableFrom excludes delivery_dead_letter — a redeliver here is a 400.
+    expect(screen.queryByRole("button", { name: /Start sending again/i })).toBeNull();
+    // Click EVERY control on the screen. RedeliverableFrom excludes delivery_dead_letter, so a
+    // redeliver here is a 400, and the ops requeue endpoint was deleted on 2026-11-13.
+    for (const b of Array.from(document.querySelectorAll("button"))) fireEvent.click(b);
     expect(api.redeliverOrder).not.toHaveBeenCalled();
+    expect(api.requeueDelivery).not.toHaveBeenCalled();
   });
 
   test("no screen text tells the operator to click a Send button", () => {

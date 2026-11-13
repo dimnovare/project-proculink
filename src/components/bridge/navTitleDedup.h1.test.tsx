@@ -65,15 +65,11 @@ vi.mock("@/lib/api-client", () => ({
   listConnections: () => Promise.resolve([]),
   getAuditLog: () => Promise.resolve([]),
   getBillingStatus: () => Promise.resolve({ plan: "growth", canAddSupplier: true, supplierLimit: 5 }),
-  getOpsHealth: () => new Promise(() => {}),
-  getDeadLetterOrders: () => Promise.resolve([]),
-  requeueDelivery: vi.fn(),
 }));
 
 import { BridgeDashboard } from "./BridgeDashboard";
 import { InboxView } from "./InboxView";
 import { CrossingsLog } from "./CrossingsLog";
-import OperationsHealthPage from "@/app/(app)/operations/health/page";
 
 afterEach(() => {
   cleanup();
@@ -151,11 +147,6 @@ describe("nav dedup — each audited page keeps exactly one h1", () => {
   it("Deliveries: sr-only h1", async () => {
     renderPage(<CrossingsLog />);
     await waitFor(() => expectSingleH1("Deliveries"));
-  });
-
-  it("System status: sr-only h1", () => {
-    renderPage(<OperationsHealthPage />);
-    expectSingleH1("System status");
   });
 
 });

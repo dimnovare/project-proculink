@@ -74,8 +74,8 @@ describe("renamed hub tab labels keep their routes", () => {
   const hrefFor = (label: string) => tabs.find((t) => t.label === label)?.href;
 
   const rows: Array<[string, string, string]> = [
-    ["System status", "/operations/health", "§6.1 #25 System health → System status"],
-    ["Issues", "/operations/exceptions", "§6.1 #26 Exceptions → Issues"],
+    // §6.1 #25 and #26 (System status, Issues) are gone: /operations/health and
+    // /operations/exceptions were deleted 2026-11-13 and 308 to /operations/log.
     ["Deliveries", "/operations/log", "§6.1 #27 Delivery log → Deliveries"],
     // §6.1 #28 renamed Connectors → "Delivery channels". That tab is gone: the
     // page behind it (/operations/connectors) was deleted on 2026-08-13, so a
@@ -100,7 +100,7 @@ describe("renamed hub tab labels keep their routes", () => {
   // and /operations/connectors on 2026-08-13; both are permanent redirects now
   // (src/lib/retired-routes.ts), and a redirect has no tab.
   it("offers no tab for a route retired after the hub-label rename", () => {
-    for (const href of ["/operations/webhooks", "/operations/connectors"]) {
+    for (const href of ["/operations/webhooks", "/operations/connectors", "/operations/exceptions", "/operations/health"]) {
       expect(tabs.map((t) => t.href)).not.toContain(href);
     }
   });
@@ -125,8 +125,6 @@ describe("renamed breadcrumb labels keep their route segments", () => {
     ["standards", "Format reference"],
     ["operations", "Activity"],
     ["log", "Deliveries"],
-    ["exceptions", "Issues"],
-    ["health", "System status"],
   ];
   for (const [segment, label] of rows) {
     it(`/${segment} → "${label}"`, () => expect(CRUMB_LABELS[segment]).toBe(label));

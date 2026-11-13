@@ -54,8 +54,6 @@ export const CRUMB_LABELS: Record<string, string> = {
   // it — see src/lib/retired-routes.ts.
   admin: "Admin",
   help: "Help",
-  exceptions: "Issues",
-  health: "System status",
 };
 
 /** Title-case an unmapped slug: "order-detail" → "Order Detail". */

@@ -879,9 +879,9 @@ export const PROBLEM_COPY: Record<ProblemStatus, ProblemCopy> = {
     rowAction: "Retrying automatically",
   }),
 
-  // 3.5 — D2's fix. Two changes from the shipped screen: the endpoint is the ops
-  // requeue (redeliver answers 400 from here), and the settings check is promoted
-  // ahead of a blind retry.
+  // 3.5 — D2's fix. Redeliver answers 400 from here, so no post action is offered: the
+  // ops requeue that used to carry it was deleted with the order operations screens
+  // (2026-11-13), and a dead-lettered order is read-only history. The settings check stays.
   delivery_dead_letter: withAutomaticFor({
     tone: "danger",
     presentation: "banner",
@@ -895,14 +895,6 @@ export const PROBLEM_COPY: Record<ProblemStatus, ProblemCopy> = {
     consequence: (c) =>
       `${c.supplier} does not have this order. It will sit here until someone sends it — nothing else is queued.`,
     actions: (c) => [
-      {
-        kind: "post",
-        variant: "primary",
-        label: "Start sending again",
-        pendingLabel: "Queued…",
-        op: "requeueDelivery",
-        disabledReason: postGuard(c),
-      },
       {
         kind: "link",
         variant: "secondary",
