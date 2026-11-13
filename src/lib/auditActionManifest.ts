@@ -56,6 +56,9 @@
 //   ProcuLink.Infrastructure/Services/StuckDeliveryDetectionService.cs
 //   ProcuLink.Infrastructure/Services/StuckOrderDetectionService.cs
 //
+// Linked accounts (plan 9b, 2026-11-13) write through a private `Audit(account, "…", userId)`
+// helper in ProcuLink.Api/Services/Google/GoogleConnectService.cs.
+//
 // Flow documents (added with plan 10) write through `DocumentAudit.Add`, `AddAudit`
 // and one `Action =` initialiser, in these five files:
 //
@@ -803,6 +806,26 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     backendSite: "ProcuLink.Api/Jobs/DeliverDocumentJob.cs:122",
     reasonKeys: [],
     note: "",
+  },
+
+  // ── Linked accounts (entity type LinkedAccount; payload {provider, by}, never the email) ─
+  {
+    action: "linked_account.connected",
+    kind: "edited",
+    label: "Google account connected",
+    reachable: true,
+    backendSite: "ProcuLink.Api/Services/Google/GoogleConnectService.cs:93",
+    reasonKeys: [],
+    note: "Also written when the same Google account is connected again, which renews its access.",
+  },
+  {
+    action: "linked_account.disconnected",
+    kind: "edited",
+    label: "Google account disconnected",
+    reachable: true,
+    backendSite: "ProcuLink.Api/Services/Google/GoogleConnectService.cs:114",
+    reasonKeys: [],
+    note: "ProcuLink's copy of the access is deleted; nothing is revoked at Google.",
   },
 
   // ── Declared but unwritten ──────────────────────────────────────────────────

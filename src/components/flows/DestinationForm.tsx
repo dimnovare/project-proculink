@@ -9,6 +9,7 @@ import { createDestination, testDestination, updateDestination } from "@/lib/api
 import type { Destination, DestinationRequest } from "@/lib/api/documents";
 import { MANAGED_CONFIG_KEYS } from "@/lib/deliveryConfigKeys";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
+import { GoogleTargetFields, useLinkedAccounts } from "./GoogleTargetFields";
 
 type Kind = "text" | "number" | "check" | "method";
 const CONFIG_FIELDS: Record<string, [label: string, kind: Kind]> = {
@@ -33,14 +34,20 @@ const CONFIG_FIELDS: Record<string, [label: string, kind: Kind]> = {
   // No attachmentFileName box: a flow send always names the attachment after the document.
 };
 
-const PROTOCOLS = { http: "Web address (API)", sftp: "SFTP", ftps: "FTPS", email: "Email", s3: "S3 bucket" } as const;
+const PROTOCOLS = {
+  http: "Web address (API)", sftp: "SFTP", ftps: "FTPS", email: "Email", s3: "S3 bucket",
+  google_drive: "Google Drive", google_sheets: "Google Sheets",
+} as const;
 type Protocol = keyof typeof PROTOCOLS;
+const isGoogle = (p: string): p is "google_drive" | "google_sheets" => p === "google_drive" || p === "google_sheets";
 const DEFAULTS: Record<Protocol, Record<string, unknown>> = {
   http: { method: "POST", timeoutSeconds: 30 },
   sftp: { port: 22, makeDirectories: true, overwriteExisting: true, timeoutSeconds: 30 },
   ftps: { port: 21, makeDirectories: true, overwriteExisting: true, timeoutSeconds: 30 },
   email: {},
   s3: {},
+  google_drive: {},
+  google_sheets: {},
 };
 
 type CredField = [key: string, label: string];
@@ -73,9 +80,11 @@ export function DestinationForm({ destination, preset, onSaved, onCancel }: {
   const [auth, setAuth] = useState(preset?.authType && Object.hasOwn(HTTP_AUTH, preset.authType) ? preset.authType : "bearer");
   const [creds, setCreds] = useState<Record<string, string>>({});
   const [problem, setProblem] = useState<string | null>(null);
+  // Google kinds are offered only when the server says so; a failed list counts as "not available".
+  const googleOn = useLinkedAccounts().data?.available === true;
 
   const credFields: CredField[] =
-    protocol === "http" ? HTTP_AUTH[auth] : protocol === "email" ? [] : protocol === "s3" ? S3_SECRET : protocol === "sftp" ? SFTP_LOGIN : LOGIN;
+    protocol === "http" ? HTTP_AUTH[auth] : protocol === "email" || isGoogle(protocol) ? [] : protocol === "s3" ? S3_SECRET : protocol === "sftp" ? SFTP_LOGIN : LOGIN;
 
   const typed = Object.fromEntries(credFields.filter(([k]) => creds[k]?.trim()).map(([k]) => [k, creds[k]]));
   if (typed.privateKey) delete typed.password;
@@ -126,7 +135,8 @@ export function DestinationForm({ destination, preset, onSaved, onCancel }: {
             }}
           >
             {!Object.hasOwn(PROTOCOLS, protocol) && <option value={protocol}>{protocol}</option>}
-            {Object.entries(PROTOCOLS).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+            {Object.entries(PROTOCOLS).filter(([id]) => googleOn || !isGoogle(id) || id === protocol)
+              .map(([id, label]) => <option key={id} value={id}>{label}</option>)}
           </select>
         </Field>
         {MANAGED_CONFIG_KEYS[protocol].filter((k) => k in CONFIG_FIELDS).map((key) => {
@@ -165,6 +175,9 @@ export function DestinationForm({ destination, preset, onSaved, onCancel }: {
             </div>
           );
         })}
+        {isGoogle(protocol) && (
+          <GoogleTargetFields protocol={protocol} config={config} onChange={(patch) => setConfig((c) => ({ ...c, ...patch }))} />
+        )}
         {protocol === "http" && (
           <Field label="Sign in with">
             <select className={INPUT} value={auth} onChange={(e) => { setAuth(e.target.value); setCreds({}); }}>
@@ -204,6 +217,7 @@ export function DestinationForm({ destination, preset, onSaved, onCancel }: {
         <p className="text-[12px] text-ink-muted">
           A test sends the saved settings, so save your changes first. It is marked as a test: the file name starts
           with TEST_, an email subject starts with [TEST], and web requests carry a test header.
+          {protocol === "google_sheets" && " This checks that ProcuLink can open the spreadsheet and the tab you chose. It adds no rows."}
         </p>
         {test.isError && <StatusNotice tone="error">{documentRefusalMessage(test.error)}</StatusNotice>}
         {result && (

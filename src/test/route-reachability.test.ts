@@ -158,6 +158,11 @@ export const KNOWN_DEEP_LINK_ONLY: Record<string, string> = {
   //    the page is now reachable on its own merits and the entry is gone —
   //    see "/one-pager is reached by a real link" below, which is what stops
   //    this from quietly reverting to an allowlist entry.
+
+  "/settings/google-callback":
+    "Google's OAuth consent screen is the only referrer: the backend builds the redirect URI as " +
+    "{origin}/settings/google-callback in ProcuLink.Api/Services/Google/GoogleConnectService.cs " +
+    "(plan 9b, 2026-11-13), and a link to it from inside the app would start a callback with no code to exchange.",
 };
 
 /**
