@@ -167,4 +167,11 @@ describe("OutputEditor", () => {
     fireEvent.click(screen.getByRole("button", { name: "Check against EN 16931 rules" }));
     expect(await screen.findByText("Passes the EN 16931 rules.")).toBeTruthy();
   });
+
+  it("an XRechnung output checks against XRechnung rules", async () => {
+    api.checkOutput.mockResolvedValue({ status: "passed", issues: [] });
+    renderEditor({ ...peppol, standard: "xrechnung-cii" }, checkFlow);
+    fireEvent.click(screen.getByRole("button", { name: "Check against XRechnung rules" }));
+    expect(await screen.findByText("Passes the XRechnung 3.0 rules.")).toBeTruthy();
+  });
 });
