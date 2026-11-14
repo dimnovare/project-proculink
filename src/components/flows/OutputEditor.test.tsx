@@ -7,6 +7,7 @@ vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => tru
 
 const api = vi.hoisted(() => ({
   listDestinations: vi.fn(), listLookups: vi.fn(), updateOutput: vi.fn(), createOutput: vi.fn(), previewOutput: vi.fn(), saveFlowFields: vi.fn(), checkOutput: vi.fn(),
+  createDestination: vi.fn(),
 }));
 vi.mock("@/lib/api/documents", () => api);
 
@@ -34,6 +35,18 @@ const renderEditor = (o: unknown = output, f: unknown = flow) => {
 };
 
 describe("OutputEditor", () => {
+  it("saving a new destination saves only the destination, not the output around it", async () => {
+    api.createDestination.mockResolvedValue({ id: "D1", name: "Drop", protocol: "http", config: {}, hasCredentials: false });
+    renderEditor();
+    fireEvent.change(screen.getByLabelText("Send to"), { target: { value: "\u0000new" } });
+    // A <form> inside the output's <form> submitted both (or reloaded the page under a password manager).
+    expect(document.querySelector("form form")).toBeNull();
+    fireEvent.change(screen.getAllByLabelText("Name")[1], { target: { value: "Drop" } });
+    fireEvent.click(screen.getAllByRole("button", { name: "Save" })[0]); // the destination's Save comes first
+    await waitFor(() => expect(api.createDestination).toHaveBeenCalled());
+    expect(api.updateOutput).not.toHaveBeenCalled();
+  });
+
   it("saves send-when and a lookup on a row", async () => {
     const client = renderEditor();
     const invalidate = vi.spyOn(client, "invalidateQueries");
