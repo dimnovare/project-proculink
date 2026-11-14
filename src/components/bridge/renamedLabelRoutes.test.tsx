@@ -30,7 +30,6 @@ vi.mock("@/lib/api-client", () => ({
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true, useTenantQueriesEnabled: () => true }));
 
 import { buildVisibleNav } from "./BridgeSidebar";
-import { CRUMB_LABELS } from "./breadcrumb";
 
 const ROOT = join(__dirname, "..", "..", "..");
 const read = (rel: string) => readFileSync(join(ROOT, rel), "utf8");
@@ -61,34 +60,6 @@ describe("renamed sidebar labels keep their routes", () => {
     const labels = items.map((i) => i.label);
     for (const retired of ["Dashboard", "Inbox", "Partners", "Operations"]) {
       expect(labels).not.toContain(retired);
-    }
-  });
-});
-
-describe("renamed breadcrumb labels keep their route segments", () => {
-  // The KEY is the URL segment. A rename may change the value, never the key.
-  const rows: Array<[string, string]> = [
-    ["operations", "Activity"],
-    ["log", "Deliveries"],
-  ];
-  for (const [segment, label] of rows) {
-    it(`/${segment} → "${label}"`, () => expect(CRUMB_LABELS[segment]).toBe(label));
-  }
-
-  // A crumb for a retired route can never render — /library/rules and
-  // /library/templates permanently redirect (src/lib/retired-routes.ts).
-  it("carries no label for a segment FE #47 retired", () => {
-    for (const segment of ["rules", "templates", "drafts"]) {
-      expect(CRUMB_LABELS[segment]).toBeUndefined();
-    }
-  });
-
-  // `connectors` had the §6.1 #28 label "Delivery channels" until 2026-08-13,
-  // when /operations/connectors was deleted. A crumb for a permanent redirect
-  // can never render, so the label went with the page.
-  it("carries no label for a segment retired after the rename", () => {
-    for (const segment of ["connectors", "webhooks"]) {
-      expect(CRUMB_LABELS[segment]).toBeUndefined();
     }
   });
 });

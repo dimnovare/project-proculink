@@ -1,17 +1,15 @@
 "use client";
 
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { HelpCircle, Lock, Menu, Search, Upload } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { ReactNode } from "react";
 import { checkAdminAccess, getBillingStatus, isApiMockMode } from "@/lib/api-client";
 import { guideSeenKey, matchGuide } from "@/lib/section-guides";
 import { planDisplayName } from "@/lib/plans";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { useOrganization } from "@clerk/nextjs";
-import { buildCrumbTrail, formatCrumbLabel, isLonePageCrumb, truncateLabel, type CrumbContext } from "./breadcrumb";
 import { CommandPalette } from "./CommandPalette";
 import { ProcuLinkMark } from "./DSPrimitives";
 import { HelpSlideover } from "./HelpSlideover";
@@ -20,102 +18,7 @@ import { UserChipMenu } from "./UserChipMenu";
 import { buildVisibleNav, isItemActive, PINNED_ACTION_HREF, type SidebarNavItem } from "./BridgeSidebar";
 
 interface BridgeTopbarProps {
-  crumb?: ReactNode;
   onMenuClick?: () => void;
-}
-
-/**
- * Resolve human names for dynamic path segments from the EXISTING query cache —
- * no new fetch. The detail pages already load these via useQuery, so we read
- * the cached entries by their stable keys (flow, document, output, lookup).
- */
-function useCrumbContext(segments: string[]): CrumbContext {
-  const qc = useQueryClient();
-  const ctx: CrumbContext = {};
-
-  // /flows/[id] and /flows/[id]/documents/[id] (the document carries its flow's name)
-  if (segments[0] === "flows" && segments[1]) {
-    const doc = segments[3] ? qc.getQueryData<{ summary?: { fileName?: string; flowName?: string } }>(["document", segments[3]])?.summary : undefined;
-    ctx.flowName = qc.getQueryData<{ name?: string }>(["flow", segments[1]])?.name ?? doc?.flowName ?? null;
-    ctx.documentName = doc?.fileName ?? null;
-    if (segments[2] === "outputs" && segments[3])
-      ctx.outputName = qc.getQueryData<{ id: string; name?: string }[]>(["outputs", segments[1]])?.find((o) => o.id === segments[3])?.name ?? null;
-  }
-
-  // /lookups/[id]
-  if (segments[0] === "lookups" && segments[1]) ctx.lookupName = qc.getQueryData<{ name?: string }>(["lookup", segments[1]])?.name ?? null;
-
-  return ctx;
-}
-
-/**
- * Derive the full breadcrumb trail from the current pathname. Every crumb except
- * the current page links to its cumulative path; dynamic detail segments resolve
- * to a readable label (flow / document / lookup name) from the query cache,
- * falling back to a noun + short id — never a bare full UUID.
- */
-function useAutoCrumb(): ReactNode {
-  const pathname = usePathname();
-  const segments = pathname.split("/").filter(Boolean);
-  const ctx = useCrumbContext(segments);
-
-  if (segments.length === 0) return null;
-
-  const trail = buildCrumbTrail(pathname, ctx);
-
-  return (
-    <nav aria-label="Breadcrumb" style={{ display: "flex", alignItems: "center", minWidth: 0 }}>
-      {trail.map((crumb, i) => {
-        const isLast = i === trail.length - 1;
-        const display = truncateLabel(crumb.label);
-        return (
-          <span key={`${crumb.href ?? "current"}-${i}`} style={{ display: "inline-flex", alignItems: "center", minWidth: 0 }}>
-            {i > 0 && <span aria-hidden style={{ color: "#3A547A", margin: "0 3px", flexShrink: 0 }}>/</span>}
-            {crumb.href ? (
-              <Link
-                href={crumb.href}
-                title={crumb.label}
-                className="tap-wide inline-block truncate transition-colors hover:underline"
-                style={{ color: "#7C8DA6", maxWidth: 220, minHeight: 24, lineHeight: "24px" }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "#C8D1E0"; }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "#7C8DA6"; }}
-              >
-                {display}
-              </Link>
-            ) : (
-              // Unlinked crumb: the CURRENT page (last) — or an unrouted group
-              // head like "Workbench", which is context, not the current page.
-              <span
-                aria-current={isLast ? "page" : undefined}
-                title={crumb.label}
-                className="truncate"
-                style={{ color: isLast ? "#C8D1E0" : "#7C8DA6", fontWeight: isLast ? 500 : 400, maxWidth: 260 }}
-              >
-                {display}
-              </span>
-            )}
-          </span>
-        );
-      })}
-    </nav>
-  );
-}
-
-/**
- * Compact page label for the mobile topbar — the LAST crumb segment as a plain
- * string, resolved through the SAME formatCrumbLabel rules as the desktop trail
- * (so a detail page shows its record's name, and never a raw id). Truncated for
- * the narrow mobile bar.
- */
-function useMobilePageLabel(): string | null {
-  const pathname = usePathname();
-  const segments = pathname.split("/").filter(Boolean);
-  const ctx = useCrumbContext(segments);
-
-  if (segments.length === 0) return null;
-
-  const lastIdx = segments.length - 1;
-  return truncateLabel(formatCrumbLabel(segments[lastIdx], lastIdx, segments, ctx), 32);
 }
 
 // ─── Desktop primary navigation (top navbar, md+) ───────────────────────────
@@ -209,20 +112,11 @@ function useWorkspaceCardData() {
   return { orgName, planLabel, activePlan: billing ? planLabel : null };
 }
 
-export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
+export function BridgeTopbar({ onMenuClick }: BridgeTopbarProps) {
   const pathname = usePathname();
   const { items: navItems, tail: navTail } = useTopNav();
   const { orgName, planLabel, activePlan } = useWorkspaceCardData();
   const adminItem = navTail.find((t) => t.href === "/admin");
-  const autoCrumb = useAutoCrumb();
-  const mobileLabel = useMobilePageLabel();
-  // Double-navbar guard (founder screenshot, 2026-07-24): on a top-level page
-  // like Dashboard the context row's whole content was a lone unlinked crumb
-  // repeating the nav item directly above it. It links nowhere, so it is pure
-  // duplication wherever the primary nav row shows (md+, `hidden md:flex`) —
-  // hide the row there. Below md that row is hidden and this is the ONLY label
-  // naming the page in the bar, so the row is kept.
-  const loneCrumbRow = !crumb && isLonePageCrumb(pathname);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   // Focus management: the slideover moves focus to its search input on open;
@@ -540,34 +434,6 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
           <TopNavLink key={item.href} item={item} active={isItemActive(pathname, item)} />
         ))}
       </nav>
-
-      {/* ── Row 3 · Context row ──────────────────────────────────────
-          The breadcrumb trail (desktop) / compact page label (mobile). Split
-          out below the utility row to give the v2 two-row rhythm. It shows the
-          navigation context — NOT a duplicate of the page's own H1 (pages render
-          their own heading), so the shell never double-titles. A faint top rule
-          separates the two rows. */}
-      <div
-        className={`flex items-center px-3 sm:px-5${loneCrumbRow ? " md:hidden" : ""}`}
-        style={{ height: 38, borderTop: "1px solid #14253D" }}
-      >
-        <div
-          className="hidden sm:flex min-w-0 items-center gap-2 text-[12.5px]"
-          style={{ color: "#C8D1E0" }}
-        >
-          {crumb ?? autoCrumb}
-        </div>
-        {/* Mobile: compact single-segment page title so the user always knows
-            where they are (the desktop breadcrumb is hidden below sm). */}
-        {mobileLabel && (
-          <span
-            className="sm:hidden min-w-0 truncate text-[13px] font-semibold"
-            style={{ color: "#FFFFFF" }}
-          >
-            {mobileLabel}
-          </span>
-        )}
-      </div>
 
       {/* Command Palette */}
       {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} />}

@@ -29,7 +29,7 @@
   "src/components/bridge/BillingSection.tsx": 8,
   "src/components/bridge/BridgeLoader.tsx": 8,
   "src/components/bridge/BridgeSidebar.tsx": 41,
-  "src/components/bridge/BridgeTopbar.tsx": 45,
+  "src/components/bridge/BridgeTopbar.tsx": 36,
   "src/components/bridge/CommandPalette.tsx": 39,
   "src/components/bridge/ConfidenceChip.tsx": 10,
   "src/components/bridge/CrossingsLog.tsx": 5,
