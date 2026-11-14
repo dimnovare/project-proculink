@@ -24,9 +24,12 @@ test.describe("app shell", () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/documents");
     await expect(page.getByTestId("tab-bar")).toBeVisible();
-    // <main> ends where the tab bar begins (1px tolerance).
-    const [m, t] = [(await page.locator("main").boundingBox())!, (await page.getByTestId("tab-bar").boundingBox())!];
-    expect(m.y + m.height).toBeLessThanOrEqual(t.y + 1);
+    // <main> ends where the tab bar begins (1px tolerance), at both phone widths.
+    for (const width of [390, 700]) {
+      await page.setViewportSize({ width, height: 844 });
+      const [m, t] = [(await page.locator("main").boundingBox())!, (await page.getByTestId("tab-bar").boundingBox())!];
+      expect(m.y + m.height, `width ${width}`).toBeLessThanOrEqual(t.y + 1);
+    }
     await page.goto(DOCUMENT_URL);
     await expect(page.getByRole("link", { name: "Back to Documents" })).toBeVisible();
     await expect(page.getByTestId("tab-bar")).toHaveCount(0);

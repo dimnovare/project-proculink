@@ -1056,7 +1056,7 @@ details[open] > summary [data-disclosure-chevron] {
   }
 }
 
-/* Phones: while the tab bar is on the page, this is its height. Fixed layers above it (cookie banner, action bar) add it to their bottom offset. */
+/* Phones: while the tab bar is on the page, this is its height (1px border + 4px padding + 50px targets + bottom inset). Fixed layers above it (cookie banner, action bar) add it to their bottom offset. */
 @media (max-width: 767.98px) {
-  :root:has(.plk-tabbar) { --plk-tabbar-h: calc(49px + max(8px, env(safe-area-inset-bottom))); }
+  :root:has(.plk-tabbar) { --plk-tabbar-h: calc(55px + max(8px, env(safe-area-inset-bottom))); }
 }

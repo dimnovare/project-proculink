@@ -25,7 +25,8 @@ export function needsYouBadge(docs: DocumentSummary[] | undefined, take: number)
   return docs.length >= take ? `${n}+` : String(n);
 }
 
-const TAB = "relative flex min-h-[50px] min-w-0 flex-col items-center justify-center gap-0.5 px-1 text-[12.5px] text-ink-muted";
+// "!" because the phone tap-floor rule in globals.css sets a 44px minimum with !important.
+const TAB = "relative flex !min-h-[50px] min-w-0 flex-col items-center justify-center gap-0.5 px-1 text-[12.5px] text-ink-muted";
 
 export function BottomTabBar({ onMore, moreOpen }: { onMore: () => void; moreOpen: boolean }) {
   const pathname = usePathname();
