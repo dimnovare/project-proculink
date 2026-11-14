@@ -241,7 +241,7 @@ describe("the pause is derived from the server's answer, not from a plan name", 
    * set read_only before its trial ends.)" — so it covers one direction and is blind to the
    * other: a Pilot org that is read_only AFTER its trial ended. That is not a corner case, it
    * is what every cancelled paying customer becomes. `HandleSubscriptionDeletedAsync` reverts
-   * the org to Pilot, and once the original 14 days have elapsed `isTrialExpired` reports true
+   * the org to Pilot, and once the trial window has elapsed `isTrialExpired` reports true
    * again, so `plan === "pilot" && isTrialExpired` claimed them for the Pilot banner and they
    * were told `Your ${PLAN_BY_ID.pilot.name.toLowerCase()} has ended.` — true months earlier, and not why processing stopped.
    *
@@ -256,7 +256,7 @@ describe("the pause is derived from the server's answer, not from a plan name", 
       billing({
         plan: "pilot",              // HandleSubscriptionDeletedAsync reverts to Pilot
         accountStatus: "read_only", // ...and records WHY, which is not a trial expiry
-        isTrialExpired: true,       // the original 14 days really did elapse, months ago
+        isTrialExpired: true,       // the original trial window really did elapse, months ago
         isOrderLimitReached: false,
         stripeCustomerId: "cus_live",
         stripeSubscriptionId: null,

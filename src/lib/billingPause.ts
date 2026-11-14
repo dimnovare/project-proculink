@@ -84,7 +84,7 @@ export function accountStatusLabel(accountStatus: string | null | undefined): st
  *
  * Exists because a cancelled paid workspace was being told **"Your Pilot has ended."**
  * Cancellation reverts the org to Pilot (`HandleSubscriptionDeletedAsync`), and any workspace
- * whose original 14 days have elapsed reports `isTrialExpired: true` again — so the Pilot
+ * whose trial window has elapsed reports `isTrialExpired: true` again — so the Pilot
  * limit banner, gated on `plan === "pilot" && isTrialExpired`, claimed nearly every cancelled
  * customer and hid the real reason. Their trial ending months ago is not why processing
  * stopped today.

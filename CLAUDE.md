@@ -538,7 +538,7 @@ Public ladder (`PUBLIC_LADDER` in `plans.ts`) — shown on `/pricing`:
 
 | Plan | Price | Documents | Flows |
 |---|---:|---:|---:|
-| Trial (wire id `pilot`) | Free for 14 days | 20 total during trial | 2 |
+| Trial (wire id `pilot`) | Free for 30 days | 20 total during trial | 2 |
 | Starter | €35/mo | 150/month | 5 |
 | Pro | €69/mo | 400/month | 20 |
 | Business | €149/mo | 1,500/month | 100 |
@@ -562,7 +562,7 @@ yearly prices are live, and the backend checkout maps it like any other paid pla
 
 Frontend must reflect:
 
-- Pilot is not free forever. It becomes view-only after 14 days or 20 orders.
+- Pilot is not free forever. It becomes view-only after 30 days or 20 orders.
 - A view-only Pilot can still read previous orders/mappings/outputs and billing,
   but cannot upload, transform, deliver, or add flows.
 - **Cancelling a paid plan has the same effect, and `/pricing` must say so.** Every ingest
@@ -618,7 +618,7 @@ null is a real branch, not a missing value: there is no upgrade to offer, so the
 say `Contact us to add more supplier flows.` with a `Contact support` route — never name a
 cheaper tier. Enterprise supplier counts are set by agreement (`supplierLimit: null`).
 
-- Trial active badge: `Trial · 14 days` (the plan is still the `pilot` wire id; its display name is `PLAN_BY_ID.pilot.name`)
+- Trial active badge: `Trial · 30 days` (the plan is still the `pilot` wire id; its display name is `PLAN_BY_ID.pilot.name`)
 - Trial expired badge: `Trial ended · Processing paused`
 - Trial expired banner: `Your trial has ended. You can still view previous documents, but new processing is paused.` + a CTA naming `PLANS.pilot.next` (on the document engine a Trial names Starter, `Upgrade to Starter`; legacy orders-era orgs name `PLANS.pilot.next`)
 - Document limit refusal: `You've reached your plan's document limit for this month.` (`documentRefusals.ts`; the order-era banner was `You've reached your plan's order limit. Upgrade to continue processing new orders this month.`)

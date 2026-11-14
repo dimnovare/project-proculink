@@ -1,4 +1,5 @@
 import { Step, Prereqs, IfThisFails, Outcome, GuideShot } from "@/components/help/guide";
+import { TRIAL_DAYS } from "@/lib/plans";
 
 <Prereqs>
 - An admin account: the email or Clerk user id must be in `Admin__Emails` / `Admin__UserIds` on the API.
@@ -47,6 +48,7 @@ you have promised anything.
 Use **Adjust limits** on the org's row. It gives you an order limit override, a supplier limit
 override, and the pilot window: extend by a number of days, set an explicit end date, or clear
 the override and fall back to the plan default.
+A trial never ends sooner than {TRIAL_DAYS} days after it started, so an end date before that changes nothing. To stop a trial sooner, set its order limit to 0.
 
 Reach for this when a client needs headroom during onboarding — a bulk import that would burn
 their monthly order allowance, or a few more suppliers than the plan includes while they get set
@@ -65,7 +67,7 @@ cap and is what this modal is for.
 
 <Step n={4} title="Bring a frozen Pilot workspace back">
 
-A Pilot goes read-only after 14 days or 20 orders. There is no button for reversing that yet — the
+A Pilot goes read-only after {TRIAL_DAYS} days or 20 orders. There is no button for reversing that yet — the
 API endpoint exists and the admin UI does not call it. Send the request directly:
 
 ```bash
@@ -84,7 +86,7 @@ It refuses in four situations, all with a 400, and all of them deliberate:
 - the org already has a live Stripe subscription
 
 Read the response body rather than assuming success. The trial-window arbiter runs immediately
-after the change, so an org whose 14 days have already elapsed is re-frozen in the same request.
+after the change, so an org whose {TRIAL_DAYS} days have already elapsed is re-frozen in the same request.
 You get `accountStatus` (the effective one), `revertedByTrialWindow: true`, and a note explaining
 why. Every call is written to the audit log as `admin.org.account_status_changed`.
 

@@ -1,4 +1,5 @@
 import { Step, Prereqs, IfThisFails, Outcome } from "@/components/help/guide";
+import { TRIAL_DAYS } from "@/lib/plans";
 
 <Prereqs>
 - An admin account: the email or Clerk user id must be in `Admin__Emails` / `Admin__UserIds` on the API. Your ordinary signed-in session is the admin credential — there is no separate admin token.
@@ -12,7 +13,7 @@ A workspace that has stopped processing orders is in one of two states, and they
 **different fixes**. Read the **Status** column on the org's row in the [admin dashboard](/admin)
 before touching anything:
 
-- **Trial expired** (`trial_expired`) — the Pilot's 14-day window elapsed or its 20-order
+- **Trial expired** (`trial_expired`) — the Pilot's {TRIAL_DAYS}-day window elapsed or its 20-order
   allowance is spent. **Do not use the account-status endpoint for this.** Use **Adjust limits /
   extend pilot** on the org's row: once the trial window is extended, the trial-window check
   reactivates the org on its own. The account-status endpoint will refuse a `trial_expired` org
