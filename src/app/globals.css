@@ -177,8 +177,9 @@
      See docs/design-system/11-unified-page-rules.md for the canonical page
      primitives (PageShell / PageHeader / Card / MobileListRow) that consume
      these. The main button is navy (it makes a change real); the Send
-     button is green; a bring-in button is blue. The page gutter ramps to 24px (sm) → 34px (lg) via the
-     PageShell component's responsive padding (px-4 sm:px-6 lg:px-[34px]). */
+     button is green; a bring-in button is blue. The page gutter ramps to
+     24px (sm) → 34px (lg) via the PageShell component's responsive padding
+     (px-4 sm:px-6 lg:px-[34px]). */
   --tap-min:          44px;     /* minimum interactive hit area on mobile */
   --container-narrow: 1040px;   /* page content max-width — forms / single-column */
   --container-wide:   1480px;   /* page content max-width — tables / dashboards */
@@ -571,8 +572,6 @@
 .pill-new .dot    { background: var(--ink-faint); }
 .pill-extracting  { background: var(--brand-blue-soft);   color: var(--brand-blue-deep); }
 .pill-extracting .dot { background: var(--brand-blue); }
-/* A value that needs a look: amber edge and wash on the control inside <Field look="…">. The sentence under it says why. */
-.plk-look :is(input, select, textarea) { border: 2px solid var(--amber); background: var(--amber-wash); }
 .pill-review      { background: var(--amber-soft);        color: var(--amber-text); }
 .pill-review .dot { background: var(--amber); }
 /* unrouted — extracted, but no supplier resolved, so it waits for one. Amber like
@@ -600,6 +599,8 @@
 .pill-sending .dot { background: var(--brand-blue); animation: pulse-dot 1.4s var(--ease-in-out) infinite; }
 .pill-failed      { background: var(--danger-soft);       color: var(--danger); }
 .pill-failed .dot { background: var(--danger); }
+/* A value that needs a look: amber edge and wash on the control inside <Field look="…">. The sentence under it says why. */
+.plk-look :is(input, select, textarea) { border: 2px solid var(--amber); background: var(--amber-wash); }
 @keyframes pulse-dot { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
 
 /* ── Source chips — REMOVED (WP-30) ────────────────────────────────────────

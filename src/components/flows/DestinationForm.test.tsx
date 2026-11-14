@@ -100,6 +100,8 @@ describe("DestinationForm", () => {
     fireEvent.change(ui.getByLabelText("Username"), { target: { value: "ops" } });
     const box = ui.getByLabelText("Private key (instead of password)") as HTMLTextAreaElement;
     expect(box.tagName).toBe("TEXTAREA");
+    expect(box).toHaveClass("font-mono");
+    expect(box).not.toHaveClass("h-10");
     fireEvent.change(box, { target: { value: key } });
     fireEvent.click(ui.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(api.createDestination).toHaveBeenCalled());

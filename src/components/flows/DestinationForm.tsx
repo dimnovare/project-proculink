@@ -61,11 +61,12 @@ const HTTP_AUTH: Record<string, CredField[]> = {
 const S3_SECRET: CredField[] = [["secretKey", "Secret access key"]];
 const AUTH_LABEL = { bearer: "Bearer token", apikey: "API key", basic: "Username and password" };
 
-export const INPUT = "h-10 w-full rounded-md border border-border-strong bg-surface px-3 text-[14px] text-ink";
+const INPUT_BASE = "w-full rounded-md border border-border-strong bg-surface px-3 text-[14px] font-medium text-ink";
+export const INPUT = `h-10 ${INPUT_BASE}`;
 /** `look`: the sentence under the control when a value needs a look; it also gives the control an amber edge. */
 export const Field = ({ label, look, children }: { label: string; look?: string; children: React.ReactNode }) => (
-  <label className={`block text-[13px] font-semibold text-ink-muted${look ? " plk-look" : ""}`}>
-    <span className="mb-1.5 block">{label}</span>
+  <label className={look ? "block plk-look" : "block"}>
+    <span className="mb-1.5 block text-[13px] font-semibold text-ink-muted">{label}</span>
     {children}
     {look && <span className="mt-1.5 block text-[12.5px] font-medium text-amber-text">{look}</span>}
   </label>
@@ -201,7 +202,7 @@ export function DestinationForm({ destination, preset, onSaved, onCancel }: {
               {key === "privateKey" ? (
                 // A key needs its line breaks, which a one-line input strips from a paste.
                 <textarea {...props} rows={4} spellCheck={false} autoComplete="off"
-                  className={INPUT.replace("h-9", "py-2 font-mono")} />
+                  className={`${INPUT_BASE} py-2 font-mono`} />
               ) : (
                 <input {...props} className={INPUT} type="password" autoComplete="new-password" />
               )}
