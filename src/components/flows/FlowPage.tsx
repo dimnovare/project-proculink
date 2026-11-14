@@ -207,7 +207,11 @@ export function FlowPage({ flowId }: { flowId: string }) {
 
   return (
     <PageShell variant="wide">
-      <PageHeader titleHidden title="Flow" />
+      <PageHeader
+        title={flow.data?.name ?? "Flow"}
+        sub={flow.data?.publishedVersion === null ? "Not published yet" : typeof flow.data?.publishedVersion === "number" ? `Live, version ${flow.data.publishedVersion}` : undefined}
+        back={{ href: "/flows", label: "Flows" }}
+      />
       {flow.isError ? (
         <Failed error={flow.error} retry={() => flow.refetch()} />
       ) : !flow.data ? (

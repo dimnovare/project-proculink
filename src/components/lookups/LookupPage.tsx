@@ -93,7 +93,7 @@ function LookupEditor({ lookup }: { lookup: Lookup }) {
   const refusal = save.error ?? remove.error;
   return (
     <PageShell variant="wide">
-      <PageHeader titleHidden title={lookup.name} />
+      <PageHeader title={lookup.name} sub="A table that swaps one value for another." back={{ href: "/lookups", label: "Lookups" }} />
       <div className="flex flex-col gap-3">
         <Card>
           <div className="flex flex-col gap-3">

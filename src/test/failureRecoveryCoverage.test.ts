@@ -10,6 +10,7 @@ import {
   REACHABLE_STATUSES,
 } from "@/lib/orderStatusManifest";
 import { ROOT } from "./appRoutes";
+import { APP_PAGE_TITLES } from "@/lib/pageTitles";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // WP-36 — every failure has an obvious action.
@@ -122,17 +123,16 @@ describe("the guard tables are one copy, not nine", () => {
    * two pages "System health" and "Delivery log", so searching the exact words the
    * product had just told them to look for returned nothing.
    *
-   * `breadcrumb.ts`'s segment labels are the source of truth — they are what the
-   * operator reads at the top of the page they land on, so a palette entry that
+   * The tab-title registry, `APP_PAGE_TITLES` in `src/lib/pageTitles.ts`, is the
+   * source of truth — it is the name the page gives itself, so a palette entry that
    * disagrees is wrong by definition.
    */
   test("a page a recovery notice names in words is findable by those words", () => {
-    const crumbs = readFileSync(join(ROOT, "src/components/bridge/breadcrumb.ts"), "utf8");
     const palette = readFileSync(join(ROOT, "src/components/bridge/CommandPalette.tsx"), "utf8");
 
     for (const segment of ["log"]) {
-      const canonical = new RegExp(`^\\s*${segment}:\\s*"([^"]+)"`, "m").exec(crumbs)?.[1];
-      expect(canonical, `breadcrumb.ts has no label for the "${segment}" segment`).toBeTruthy();
+      const canonical = APP_PAGE_TITLES[`/operations/${segment}`];
+      expect(canonical, `APP_PAGE_TITLES has no title for /operations/${segment}`).toBeTruthy();
       // The palette entry that routes to this page must carry that exact label.
       const entry = new RegExp(`label:\\s*"([^"]+)",[^\\n]*?/operations/${segment}"`).exec(palette)?.[1];
       expect(entry, `no command-palette entry routes to /operations/${segment}`).toBeTruthy();

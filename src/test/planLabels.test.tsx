@@ -120,6 +120,8 @@ async function renderSettingsHeaderFor(plan: string): Promise<string> {
     </QueryClientProvider>,
   );
   const heading = await screen.findByRole("heading", { name: "Settings", level: 1 });
+  // The helper line names only the workspace until the plan has loaded.
+  await screen.findByText(/, on the /);
   const sub = heading.parentElement?.querySelector("p");
   if (!sub) throw new Error("Settings header rendered no subtitle");
   return sub.textContent ?? "";
@@ -128,15 +130,15 @@ async function renderSettingsHeaderFor(plan: string): Promise<string> {
 describe("the Settings header, for a Distributor org", () => {
   it("names the plan instead of printing its id", async () => {
     const sub = await renderSettingsHeaderFor("distributor");
-    expect(sub, "the header printed the raw wire value").not.toContain("· distributor");
-    expect(sub).toBe("Acme Procurement · Distributor plan");
+    expect(sub, "the header printed the raw wire value").not.toMatch(/\bdistributor\b/);
+    expect(sub).toBe("Acme Procurement, on the Distributor plan");
   });
 
   it("still names the tiers that always worked", async () => {
     // Anti-vacuity for the assertion above: it would pass against a header that had stopped
     // showing a plan at all.
-    expect(await renderSettingsHeaderFor("growth")).toBe("Acme Procurement · Growth plan");
+    expect(await renderSettingsHeaderFor("growth")).toBe("Acme Procurement, on the Growth plan");
     cleanup();
-    expect(await renderSettingsHeaderFor("enterprise")).toBe("Acme Procurement · Enterprise plan");
+    expect(await renderSettingsHeaderFor("enterprise")).toBe("Acme Procurement, on the Enterprise plan");
   });
 });

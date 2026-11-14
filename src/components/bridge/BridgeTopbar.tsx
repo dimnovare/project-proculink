@@ -221,8 +221,7 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
   // repeating the nav item directly above it. It links nowhere, so it is pure
   // duplication wherever the primary nav row shows (md+, `hidden md:flex`) —
   // hide the row there. Below md that row is hidden and this is the ONLY label
-  // naming the page (these pages render their h1 sr-only via PageHeader
-  // `titleHidden`), so the row is kept.
+  // naming the page in the bar, so the row is kept.
   const loneCrumbRow = !crumb && isLonePageCrumb(pathname);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);

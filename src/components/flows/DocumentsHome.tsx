@@ -98,7 +98,7 @@ export function DocumentsHome() {
 
   return (
     <PageShell variant="wide">
-      <PageHeader titleHidden title="Documents" />
+      <PageHeader title="Documents" sub="Every document that has arrived, newest first." />
       {body}
     </PageShell>
   );

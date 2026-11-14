@@ -1,118 +1,61 @@
 import * as React from "react";
+import Link from "next/link";
+import { ChevronLeft } from "lucide-react";
 
 /* =====================================================================
    PageHeader — the ONE canonical page-title row.
 
-   Replaces inline <h1 style={...}> blocks. One display size, one
-   subtitle style, one optional right-aligned actions slot that wraps
-   below the title on mobile.
-
-   Source of truth: docs/design-system/11-unified-page-rules.md
-
-   Usage:
-     <PageHeader title="Suppliers" sub="Who you send orders to" actions={<Button …/>} />
+   Every page names itself: a visible title, one helper line saying what
+   the page is, and, when the page sits under another one, the way back
+   above the title. Optional actions sit on the right and wrap under the
+   title on phones.
 
    Server-component safe (no hooks / handlers).
    ===================================================================== */
 
 type PageHeaderProps = {
   title: string;
-  /** Subtitle line. Accepts inline JSX (status dots, counts) — rendered inside the canonical 13px muted paragraph. */
+  /** The one helper line under the title: what this page is. 15px. */
   sub?: React.ReactNode;
-  /** Right-aligned actions (buttons, filters). Wraps to a new line on mobile. */
+  /** The page this one sits under. Drawn above the title as a link with a left chevron and `label`; announced as "Back to {label}". */
+  back?: { href: string; label: string };
+  /** Right side, aligned to the bottom of the title block; wraps under it on phones. */
   actions?: React.ReactNode;
   className?: string;
-  /**
-   * Founder rule (2026-07): the active tab in the navy topbar IS the page
-   * name — a page never re-announces its own title below it. Pages whose title
-   * repeats their active topbar label (BridgeTopbar `TopNavLink` with
-   * aria-current) set this to keep the h1 for screen readers / heading queries
-   * while removing the visual title block. The sub + actions survive as a
-   * compact row.
-   */
-  titleHidden?: boolean;
 };
 
-export function PageHeader({ title, sub, actions, className, titleHidden }: PageHeaderProps) {
-  if (titleHidden) {
-    return (
-      <>
-        <h1 className="sr-only">{title}</h1>
-        {(sub || actions) && (
-          <div
-            className={[
-              "flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-6",
-              "mb-4 sm:mb-5",
-              className,
-            ]
-              .filter(Boolean)
-              .join(" ")}
-          >
-            {sub ? (
-              <p
-                className="min-w-0"
-                style={{ fontSize: 13, lineHeight: 1.45, color: "var(--ink-muted)", margin: 0 }}
-              >
-                {sub}
-              </p>
-            ) : (
-              // Left spacer so justify-between keeps a lone actions cluster right-aligned.
-              <span aria-hidden />
-            )}
-            {actions && (
-              <div className="flex items-center gap-2 flex-wrap sm:flex-shrink-0 sm:justify-end">
-                {actions}
-              </div>
-            )}
-          </div>
-        )}
-      </>
-    );
-  }
-
+export function PageHeader({ title, sub, back, actions, className }: PageHeaderProps) {
   return (
     <div
-      className={[
-        "flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-6",
-        "mb-5 sm:mb-6",
-        className,
-      ]
+      className={["mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-6", className]
         .filter(Boolean)
         .join(" ")}
     >
       <div className="min-w-0">
+        {back && (
+          <Link
+            href={back.href}
+            aria-label={`Back to ${back.label}`}
+            className="inline-flex min-h-[44px] items-center gap-1 text-[14px] font-semibold text-brand-blue sm:min-h-[40px]"
+          >
+            <ChevronLeft size={18} aria-hidden />
+            {back.label}
+          </Link>
+        )}
         <h1
-          className="text-[28px] sm:text-[30px]"
-          style={{
-            fontFamily:
-              "var(--font-display, 'Bricolage Grotesque', Inter, sans-serif)",
-            fontWeight: 600,
-            letterSpacing: "-0.02em",
-            lineHeight: 1.1,
-            margin: 0,
-            color: "var(--ink)",
-          }}
+          className="m-0 break-words font-display text-[26px] font-semibold leading-[1.1] tracking-[-0.015em] text-ink [overflow-wrap:anywhere] sm:text-[30px]"
         >
           {title}
         </h1>
         {sub && (
-          <p
-            style={{
-              fontSize: 13,
-              lineHeight: 1.45,
-              color: "var(--ink-muted)",
-              margin: "5px 0 0",
-            }}
-          >
+          <p className="mt-1.5 text-[15px] leading-[1.45]" style={{ color: "var(--ink-muted)" }}>
             {sub}
           </p>
         )}
       </div>
 
       {actions && (
-        <div className="flex items-center gap-2 flex-wrap sm:flex-shrink-0 sm:justify-end">
-          {actions}
-        </div>
+        <div className="flex flex-wrap items-center gap-2 sm:flex-shrink-0 sm:justify-end">{actions}</div>
       )}
     </div>
   );

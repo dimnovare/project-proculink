@@ -194,7 +194,7 @@ export function NewFlowGuide() {
 
   return (
     <PageShell>
-      <PageHeader titleHidden title="New flow" sub={`Step ${step} of 6`} />
+      <PageHeader title="New flow" sub={`Step ${step} of 6`} back={{ href: "/flows", label: "Flows" }} />
       {body}
     </PageShell>
   );

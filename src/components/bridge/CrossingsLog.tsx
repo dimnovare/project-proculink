@@ -6,7 +6,7 @@
 // (.work-inner / .fchip / .btn / .card / .eyebrow / .mono / .faint), the
 // canonical PageHeader for the title row, and the locked colour vars
 // (--brand-blue #1E66C9 = buyer/primary, --brand-green #2E8E3A = supplier).
-// User-visible copy is plain ("Delivery log"); component/type/file names are
+// User-visible copy is plain ("Activity"); component/type/file names are
 // unchanged.
 
 import { useState, useEffect } from "react";
@@ -678,12 +678,10 @@ export function CrossingsLog() {
 
   return (
     <PageShell variant="wide">
-      {/* Page header — titleHidden: the topbar hub tab "Delivery log" is the
-          page name (sr-only h1 kept); the descriptive subtitle is dropped, the
-          Export action stays. */}
+      {/* Page header — the visible title, one helper line, and the Export action. */}
       <PageHeader
-        titleHidden
-        title="Deliveries"
+        title="Activity"
+        sub="Everything that happened to your documents."
         actions={
           /* Export log button — canonical: secondary */
           <button

@@ -60,17 +60,15 @@ export default function SettingsPage() {
   // sync fires only when the param VALUE itself changes.
   useTabParamSync<SettingsTab>(requestedTab, isSettingsTab, setTab);
   const { organization } = useOrganization();
-  const { data: billing, isError: billingFailed } = useQuery({ queryKey: ["billing-status"], queryFn: getBillingStatus, staleTime: 60_000 });
+  const { data: billing } = useQuery({ queryKey: ["billing-status"], queryFn: getBillingStatus, staleTime: 60_000 });
   const orgName   = organization?.name ?? "…";
-  // On a failed billing read the header shows a neutral "—", not an eternal "…":
-  // the ellipsis is a loading claim, and a dead endpoint would leave it there for
-  // the rest of the page's life.
-  const planLabel = billing ? planDisplayName(billing.plan) : billingFailed ? "—" : "…";
+  // Until billing has loaded (or when it fails) the header names only the workspace.
+  const planLabel = billing && planDisplayName(billing.plan);
 
   return (
     <PageShell className="settings-shell">
         {/* Page header */}
-        <PageHeader title="Settings" sub={`${orgName} · ${planLabel}`} />
+        <PageHeader title="Settings" sub={billing ? `${orgName}, on the ${planLabel}` : orgName} />
 
         {/* Responsive grid as classes (1-col mobile / 200px nav + content ≥md) — the
             previous inline gridTemplateColumns forced the media query below to use
