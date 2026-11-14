@@ -53,7 +53,7 @@ const PLAN_DEFAULT_ORDER_LIMIT = PLAN_BY_ID.pilot.orderLimit;
 const TRIAL = PLAN_BY_ID.pilot.name.toLowerCase();
 
 /**
- * A Pilot workspace that has hit its order cap without its 14 days having elapsed.
+ * A Pilot workspace that has hit its order cap without its trial window having elapsed.
  *
  * `orderLimit` is the EFFECTIVE cap and is deliberately not the plan default: an org with
  * an admin grant is the only org whose two numbers differ, and therefore the only org that

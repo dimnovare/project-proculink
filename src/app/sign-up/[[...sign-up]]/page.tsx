@@ -6,7 +6,7 @@ import { PLAN_BY_ID } from "@/lib/plans";
 
 /* The trial allowance in the sub-heading is read off the ladder, not typed: it is the first
    promise a new buyer reads, on a screen no pricing change would ever bring anyone back to.
-   `priceCadence` is the trial tier's window ("14 days"); `orderLimit` and `flowLimit` are its allowance (C8). */
+   `priceCadence` is the trial tier's window ("30 days"); `orderLimit` and `flowLimit` are its allowance (C8). */
 const TRIAL = PLAN_BY_ID.pilot;
 const TRIAL_OFFER = `Free for ${TRIAL.priceCadence} · ${TRIAL.orderLimit} documents · ${TRIAL.flowLimit} flows · no credit card`;
 const TRIAL_DETAIL = "Try it on your own documents";
