@@ -65,8 +65,8 @@ export function FlowsHome() {
   return (
     <PageShell variant="wide">
       <PageHeader
-        titleHidden
         title="Flows"
+        sub="A flow is one kind of document and where its data goes."
         actions={engine === "on" ? <Button variant="primary" size="md" onClick={newFlow}>New flow</Button> : undefined}
       />
       {body}

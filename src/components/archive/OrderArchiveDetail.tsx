@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
@@ -28,7 +27,7 @@ export function OrderArchiveDetail({ orderId }: { orderId: string }) {
 
   return (
     <PageShell variant="wide">
-      <PageHeader title={o?.poNumber ?? "Old orders"} actions={<Link href="/archive">All old orders</Link>} />
+      <PageHeader title={o?.poNumber ?? "Old orders"} back={{ href: "/archive", label: "Old orders" }} />
       {q.isError ? <Failed error={q.error} retry={() => q.refetch()} /> : !o ? <Quiet>Loading…</Quiet> : (
         <>
           <Card>

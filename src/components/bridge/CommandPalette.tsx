@@ -56,7 +56,7 @@ function buildIndex(router: ReturnType<typeof useRouter>): CmdItem[] {
   return [
     // ── Actions ────────────────────────────────────────
     { id: "a1",  group: "Actions", icon: "↑", label: "Upload document",      sub: "Open upload workbench",  action: () => router.push("/upload"),           color: "#0F4FA8" },
-    { id: "a9",  group: "Actions", icon: "▤", label: "Deliveries",           sub: "Every delivery — the activity log", action: () => router.push("/operations/log"),   color: "#0F4FA8" },
+    { id: "a9",  group: "Actions", icon: "▤", label: "Activity",             sub: "Everything that happened to your documents", action: () => router.push("/operations/log"),   color: "#0F4FA8" },
     { id: "a7",  group: "Actions", icon: "⚙", label: "Settings",             sub: "Workspace settings",     action: () => router.push("/settings"),         color: "#0F4FA8" },
     { id: "a12", group: "Actions", icon: "?", label: "Open help",            sub: "Help docs",              action: () => router.push("/help"),             color: "#0F4FA8" },
     // ── Mapper power commands (a13..a14) ────────────────────

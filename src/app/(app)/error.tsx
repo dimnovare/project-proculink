@@ -32,8 +32,8 @@ export default function AppError({
     <div
       // Machine-readable marker that this route is showing an error, not content.
       // It exists because the comment at the top of this file is load-bearing: this
-      // boundary renders INSIDE (app)/layout.tsx, so the sidebar, topbar and
-      // breadcrumb are all still there and the response is still HTTP 200. A test
+      // boundary renders INSIDE (app)/layout.tsx, so the sidebar and topbar
+      // are still there and the response is still HTTP 200. A test
       // that checks "did the page return 2xx and render some text and some
       // controls" is satisfied by the shell alone — verified, /upload passed an axe
       // scan while its page component threw. src/test/errorBoundaryMarker.test.ts

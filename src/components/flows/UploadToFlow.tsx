@@ -52,7 +52,7 @@ export function UploadToFlow() {
 
   return (
     <PageShell variant="wide">
-      <PageHeader title="Upload a document" />
+      <PageHeader title="Upload a document" sub="Add files by hand. Anything sent by email or collected from a server arrives by itself." />
       {body}
     </PageShell>
   );

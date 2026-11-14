@@ -101,7 +101,7 @@ function renderLog() {
 }
 
 async function searchFor(term: string): Promise<void> {
-  const box = await screen.findByLabelText(/search the delivery log/i);
+  const box = await screen.findByLabelText(/search the activity/i);
   fireEvent.change(box, { target: { value: term } });
 }
 
@@ -226,7 +226,7 @@ describe("delivery log search — does not match what the operator cannot see", 
 describe("delivery log search — the control names its own reach", () => {
   it("the placeholder names more than PO", async () => {
     renderLog();
-    const box = await screen.findByLabelText(/search the delivery log/i);
+    const box = await screen.findByLabelText(/search the activity/i);
     const placeholder = box.getAttribute("placeholder") ?? "";
     // It said "Filter by PO…" while also matching buyer and supplier.
     expect(placeholder).not.toBe("Filter by PO…");

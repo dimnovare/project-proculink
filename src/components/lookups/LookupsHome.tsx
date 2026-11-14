@@ -92,9 +92,8 @@ export function LookupsHome() {
   return (
     <PageShell variant="wide">
       <PageHeader
-        titleHidden
         title="Lookups"
-        sub="Tables that swap one value for another, for example your item code for the code a recipient uses."
+        sub="Tables that swap one value for another, for example a supplier's item code for your own."
         actions={engine === "on" ? <Button variant="primary" size="md" onClick={startNew}>New lookup</Button> : undefined}
       />
       {body}

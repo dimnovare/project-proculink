@@ -939,7 +939,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
             />
           )}
           {onDeliver && (
-            <Button variant="primary" size="sm" disabled={!canDeliver} onClick={onDeliver}>
+            <Button variant="send" size="sm" disabled={!canDeliver} onClick={onDeliver}>
               {deliverLabel ?? "Send to supplier"}
             </Button>
           )}

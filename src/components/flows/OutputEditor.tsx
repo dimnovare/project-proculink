@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { Card } from "@/components/bridge/layout/Card";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
-import { DestinationForm, Field, INPUT } from "@/components/flows/DestinationForm";
+import { DestinationForm, Field, INPUT, INPUT_BASE } from "@/components/flows/DestinationForm";
 import { LookupMisses } from "@/components/flows/LookupMisses";
 import { PdfDocumentView } from "@/components/bridge/document/PdfDocumentView";
 import { checkOutput, createOutput, deleteOutputLogo, listDestinations, listLookups, previewOutput, updateOutput, uploadOutputLogo } from "@/lib/api/documents";
@@ -205,7 +205,7 @@ export function OutputEditor({ flow, output, previewDocumentId, hideDestination,
           <Field key={key} label={label}>
             {key === "title"
               ? <input className={INPUT} maxLength={max} value={layout.title ?? ""} onChange={(e) => setLayout({ ...layout, title: e.target.value })} />
-              : <textarea className={INPUT} rows={2} maxLength={max} value={layout[key] ?? ""} onChange={(e) => setLayout({ ...layout, [key]: e.target.value })} />}
+              : <textarea className={`${INPUT_BASE} py-2`} rows={2} maxLength={max} value={layout[key] ?? ""} onChange={(e) => setLayout({ ...layout, [key]: e.target.value })} />}
           </Field>
         ))}
         {format === "pdf" && (

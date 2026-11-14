@@ -6,7 +6,7 @@
 // (.work-inner / .fchip / .btn / .card / .eyebrow / .mono / .faint), the
 // canonical PageHeader for the title row, and the locked colour vars
 // (--brand-blue #1E66C9 = buyer/primary, --brand-green #2E8E3A = supplier).
-// User-visible copy is plain ("Delivery log"); component/type/file names are
+// User-visible copy is plain ("Activity"); component/type/file names are
 // unchanged.
 
 import { useState, useEffect } from "react";
@@ -678,12 +678,10 @@ export function CrossingsLog() {
 
   return (
     <PageShell variant="wide">
-      {/* Page header — titleHidden: the topbar hub tab "Delivery log" is the
-          page name (sr-only h1 kept); the descriptive subtitle is dropped, the
-          Export action stays. */}
+      {/* Page header — the visible title, one helper line, and the Export action. */}
       <PageHeader
-        titleHidden
-        title="Deliveries"
+        title="Activity"
+        sub="Everything that happened to your documents."
         actions={
           /* Export log button — canonical: secondary */
           <button
@@ -795,7 +793,7 @@ export function CrossingsLog() {
                does is the same class of defect as one that names more: either
                way the operator cannot predict the result. */
             placeholder="Search PO, supplier, event or message…"
-            aria-label="Search the delivery log"
+            aria-label="Search the activity"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             style={{ border: "none", background: "none", fontSize: 12.5, width: "100%", color: "var(--ink)", alignSelf: "stretch" }}
@@ -835,7 +833,7 @@ export function CrossingsLog() {
         <Card role="alert" pad="48px 24px" style={{ textAlign: "center" }}>
           <div style={{ fontSize: 28, color: "var(--danger)", marginBottom: 10 }} aria-hidden>⚠</div>
           <p style={{ fontSize: 13.5, fontWeight: 600, color: "var(--danger)", marginBottom: 6 }}>
-            We couldn&apos;t load the delivery log
+            We couldn&apos;t load your activity
           </p>
           <p style={{ fontSize: 13, color: "var(--ink-muted)", marginBottom: 16 }}>
             That is not the same as &ldquo;nothing happened&rdquo; — entries may be waiting here.
@@ -1413,7 +1411,7 @@ export function CrossingsLog() {
               must not disappear with the rows. */}
           {showPager && (
             <nav
-              aria-label="Delivery log pages"
+              aria-label="Activity pages"
               className="row between items-center wrap"
               style={{
                 gap: 10,

@@ -386,7 +386,7 @@ All Bridge-specific components live in `src/components/bridge/`.
 | `<StatusJourney>` | `bridge/StatusJourney.tsx` | 5-node mini-track: In · Read · Check · Transform · Send. Props: `stage` (0–4), `compact?`. |
 | `<MarkSystem>` | `bridge/MarkSystem.tsx` | System Identity mark SVG in 3 sizes. Props: `size`, `white?`. (Also exports a dead `RailPort` — see §2.) |
 | `<BridgeSidebar>` | `bridge/BridgeSidebar.tsx` | 220px navy sidebar — **mobile drawer only**. Desktop nav is in the topbar. |
-| `<BridgeTopbar>` | `bridge/BridgeTopbar.tsx` | 52px navy topbar: nav, breadcrumbs, cmd-K, avatar, link-spine. Props: `crumb`. |
+| `<BridgeTopbar>` | `bridge/BridgeTopbar.tsx` | 52px navy topbar: nav, search, help, account, link-spine. Props: `onMenuClick`. No breadcrumb row: pages carry their own title and back link. |
 | `<ConfidenceChip>` | `bridge/ConfidenceChip.tsx` | `pct%` badge — ≥90 green, 75–89 amber, <75 red. |
 
 **One signature ships as a CSS class, not a component.** This table used to give it
@@ -415,7 +415,7 @@ numbers moved to the table below.)
 
 ### Primitives (extend shadcn/ui, Bridge-styled)
 
-- `<Button>` — `bridge/DSPrimitives.tsx`. Variants: `primary` (navy bg) / `secondary` / `ghost` / `danger` / `ai` (violet). Never gradient.
+- `<Button>` — `bridge/DSPrimitives.tsx`. Variants: `primary` (navy: makes a change real) / `send` (green: sends a document) / `blue` (brings something in) / `secondary` / `ghost` (quiet) / `danger` / `ai` (violet). One filled button per screen. Never gradient.
 - `<AiSuggestion>` — `bridge/DSPrimitives.tsx`. Violet left-bar, "AI" tag, Accept / Edit / Reject. Confidence always visible.
 - `<CommandPalette>` — `bridge/CommandPalette.tsx`. cmd+K filter over navigation actions and the Advanced view's mapper commands. (The order, supplier, buyer and sample-order groups went with the order product, 2026-11-13.)
 - `<EmptyState>` — `bridge/EmptyState.tsx`. Illustration-free. Headline + sub + primary action.

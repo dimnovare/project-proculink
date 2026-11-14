@@ -77,6 +77,7 @@ export function OrderArchive() {
     <PageShell variant="wide">
       <PageHeader
         title="Old orders"
+        back={{ href: "/documents", label: "Documents" }}
         sub="Orders received before your workspace moved to flows. They are read-only."
         actions={<Button size="sm" variant="secondary" disabled={exp.isPending} onClick={() => exp.mutate()}>Download CSV</Button>}
       />

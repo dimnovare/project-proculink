@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
@@ -19,7 +18,7 @@ export function AdvancedView({ flowId, outputId, documentId }: { flowId: string;
   const qc = useQueryClient();
   const enabled = useTenantQueriesEnabled();
   const [incomingView, setIncomingView] = useState<IncomingView>("fields");
-  // The toolbar is hidden, so its save status is re-hosted beside "Back to flow".
+  // The toolbar is hidden, so its save status is re-hosted in the page header's actions.
   const [bar, setBar] = useState<MapperToolbarState | null>(null);
   const flow = useQuery({ queryKey: ["flow", flowId], queryFn: () => getFlow(flowId), enabled });
   const outputs = useQuery({ queryKey: ["outputs", flowId], queryFn: () => listOutputs(flowId), enabled });
@@ -51,14 +50,15 @@ export function AdvancedView({ flowId, outputId, documentId }: { flowId: string;
   return (
     <PageShell variant="wide">
       <PageHeader
-        titleHidden title={output?.name ?? "Advanced view"} sub="Advanced view"
+        title={output?.name ?? "Advanced view"}
+        sub="Advanced view. Map this output field by field."
+        back={{ href: `/flows/${flowId}`, label: flow.data?.name ?? "Flow" }}
         actions={
           <span className="inline-flex items-center gap-3 text-[12px]">
             {bar?.saving ? <span className="text-ink-faint">Saving…</span>
               : bar?.error ? <span role="alert" className="text-danger">{bar.error}</span>
               : bar?.justSaved ? <span role="status" className="text-brand-green-deep">✓ Saved</span>
               : null}
-            <Link href={`/flows/${flowId}`} className="text-[13px] text-brand-blue">Back to flow</Link>
           </span>
         }
       />

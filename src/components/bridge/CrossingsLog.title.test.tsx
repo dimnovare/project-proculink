@@ -4,16 +4,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ConfirmProvider } from "@/components/ui/confirm";
 import type { OrderSummary } from "@/types/procurement";
 
-// Nav dedup (founder-approved mock 3, 2026-07): the active topbar tab IS the
-// page name — pages stopped re-announcing it visually but MUST keep exactly one
-// h1 (sr-only) so heading hierarchy and getByRole("heading") queries survive.
-//
-// This file renders the Deliveries page end-to-end (Overview and Orders went
-// with the order screens on 2026-11-13). The remaining audited pages
-// (exceptions, connectors, webhooks, invoices, ASNs) run their h1 through the SAME
-// PageHeader `titleHidden` mechanism, whose contract — including the
-// kept-visible variant, which used to be demonstrated here by the now-retired
-// Drafts page — is pinned directly in layout/PageHeader.test.tsx.
+// The Activity page names itself. Since plan 14 every page shows a visible
+// title through PageHeader, so the page keeps exactly one h1 and it is not
+// visually hidden.
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
@@ -22,7 +15,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("@clerk/nextjs", () => ({
-  useUser: () => ({ user: { firstName: "Dim" }, isLoaded: true }),
+  useUser: () => ({ user: { firstName: "Alex" }, isLoaded: true }),
   useOrganization: () => ({ organization: null }),
 }));
 
@@ -57,21 +50,17 @@ function renderPage(ui: React.ReactElement) {
   );
 }
 
-/** Exactly one h1 whose text matches; sr-only unless `visible`. */
-function expectSingleH1(text: string, opts: { visible?: boolean } = {}) {
+/** Exactly one h1 whose text matches, and it is not visually hidden. */
+function expectSingleH1(text: string) {
   const headings = screen.getAllByRole("heading", { level: 1 });
   expect(headings).toHaveLength(1);
   expect(headings[0]).toHaveTextContent(text);
-  if (opts.visible) {
-    expect(headings[0]).not.toHaveClass("sr-only");
-  } else {
-    expect(headings[0]).toHaveClass("sr-only");
-  }
+  expect(headings[0]).not.toHaveClass("sr-only");
 }
 
-describe("nav dedup — each audited page keeps exactly one h1", () => {
-  it("Deliveries: sr-only h1", async () => {
+describe("the Activity page names itself", () => {
+  it("Activity: visible h1", async () => {
     renderPage(<CrossingsLog />);
-    await waitFor(() => expectSingleH1("Deliveries"));
+    await waitFor(() => expectSingleH1("Activity"));
   });
 });

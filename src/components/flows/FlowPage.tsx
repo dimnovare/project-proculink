@@ -57,7 +57,7 @@ function Header({ flow }: { flow: Flow }) {
     <Card>
       <div className="grid gap-3">
         <input
-          key={flow.name} aria-label="Flow name" maxLength={120} className={`${INPUT} font-medium`} defaultValue={flow.name}
+          key={flow.name} aria-label="Flow name" maxLength={120} className={INPUT} defaultValue={flow.name}
           onBlur={(e) => rename(e.target)} onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
         />
         <fieldset className="m-0 flex flex-wrap gap-4 border-0 p-0" disabled={update.isPending}>
@@ -207,7 +207,11 @@ export function FlowPage({ flowId }: { flowId: string }) {
 
   return (
     <PageShell variant="wide">
-      <PageHeader titleHidden title="Flow" />
+      <PageHeader
+        title={flow.data?.name ?? "Flow"}
+        sub={flow.data?.publishedVersion === null ? "Not published yet" : typeof flow.data?.publishedVersion === "number" ? `Live, version ${flow.data.publishedVersion}` : undefined}
+        back={{ href: "/flows", label: "Flows" }}
+      />
       {flow.isError ? (
         <Failed error={flow.error} retry={() => flow.refetch()} />
       ) : !flow.data ? (

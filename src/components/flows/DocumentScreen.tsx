@@ -177,8 +177,9 @@ export function DocumentScreen({ flowId, documentId }: { flowId: string; documen
   return (
     <PageShell variant="wide">
       <PageHeader
-        titleHidden title="Flow document"
-        actions={<Link href={`/flows/${summary?.flowId ?? flowId}`} className="text-[13px] text-brand-blue">Back to flow</Link>}
+        title={summary?.fileName ?? "Document"}
+        sub={summary && <Link href={`/flows/${summary.flowId}`} className="inline-flex min-h-[44px] items-center text-brand-blue sm:min-h-0">{summary.flowName}</Link>}
+        back={{ href: "/documents", label: "Documents" }}
       />
       {!doc.data || !summary || !status ? (
         doc.isError ? <Failed error={doc.error} retry={() => doc.refetch()} /> : <Quiet>Loading document…</Quiet>
@@ -187,7 +188,6 @@ export function DocumentScreen({ flowId, documentId }: { flowId: string; documen
           {doc.isError && <Failed error={doc.error} retry={() => doc.refetch()} />}
           <Card>
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <span className="text-[14px] font-medium text-ink">{summary.fileName}</span>
               <span className="flex items-center gap-2 text-[12.5px] text-ink-muted">
                 <StatusJourney stage={status.stage} compact />
                 {status.label}

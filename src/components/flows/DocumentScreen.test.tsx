@@ -44,6 +44,14 @@ const renderScreen = (qc = new QueryClient()) =>
   render(<QueryClientProvider client={qc}><DocumentScreen flowId="f" documentId="d" /></QueryClientProvider>);
 
 describe("DocumentScreen", () => {
+  it("names the page after the file, with the way back to Documents and a link to its flow", async () => {
+    renderScreen();
+    expect(screen.getByRole("heading", { level: 1, name: "Document" })).toBeInTheDocument(); // still loading
+    expect(await screen.findByRole("heading", { level: 1, name: "a.csv" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Back to Documents" })).toHaveAttribute("href", "/documents");
+    expect(screen.getByRole("link", { name: "Receipts" })).toHaveAttribute("href", "/flows/f");
+  });
+
   it("says how the document arrived, and prints an unknown source as it is", async () => {
     api.getDocument.mockResolvedValue(detail("INV-1", "email", "ap@example.test"));
     const first = renderScreen();

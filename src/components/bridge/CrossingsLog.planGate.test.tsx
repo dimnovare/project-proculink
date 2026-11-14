@@ -94,7 +94,7 @@ describe("CrossingsLog — plan-gated audit log", () => {
     // role="alert", not a silent <div>: this panel REPLACES the log, so a reader
     // who gets no announcement is left with a page that simply stopped changing.
     const panel = await screen.findByRole("alert");
-    expect(panel).toHaveTextContent(/couldn't load the delivery log/i);
+    expect(panel).toHaveTextContent(/couldn't load your activity/i);
     // The copy must not tell the operator to check their connection: the request
     // is equally likely to have been refused server-side (this one is a 500), and
     // that sentence sends someone to reset a router over a backend fault.

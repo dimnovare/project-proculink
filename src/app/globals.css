@@ -100,11 +100,15 @@
      TEXT so it stays readable; --amber itself stays for dots/borders/strokes
      (non-text, ≥3:1). Mirrors the --ink-faint a11y darkening. Founder-approved. */
   --amber-text:        #8A5310;
+  /* The fill of a value that needs a look. */
+  --amber-wash:        #FFFCF4;
   /* Amber legible on NAVY chrome. --amber-text is a dark amber tuned for light
      surfaces; on --navy-inset it collapses to 2.93:1, while this is 9.26:1.
      Same family as --brand-blue-bright / --brand-green-bright. */
   --amber-bright:      #E0B13A;
   --danger:            #B43838;
+  /* Red words on the soft red tint. */
+  --danger-text:       #A42F2F;
   --danger-soft:       #FAE6E6;
   /* The 1px edge of a danger-soft panel — the missing sibling of --ai-border.
      Its absence is why every red notice in the app hand-rolled its own edge:
@@ -172,9 +176,10 @@
   /* ── Unified page-layout tokens ────────────────────────────────────────────
      See docs/design-system/11-unified-page-rules.md for the canonical page
      primitives (PageShell / PageHeader / Card / MobileListRow) that consume
-     these. Primary in-app action color = var(--brand-green); neutral CTA =
-     var(--navy). The page gutter ramps to 24px (sm) → 34px (lg) via the
-     PageShell component's responsive padding (px-4 sm:px-6 lg:px-[34px]). */
+     these. The main button is navy (it makes a change real); the Send
+     button is green; a bring-in button is blue. The page gutter ramps to
+     24px (sm) → 34px (lg) via the PageShell component's responsive padding
+     (px-4 sm:px-6 lg:px-[34px]). */
   --tap-min:          44px;     /* minimum interactive hit area on mobile */
   --container-narrow: 1040px;   /* page content max-width — forms / single-column */
   --container-wide:   1480px;   /* page content max-width — tables / dashboards */
@@ -259,6 +264,9 @@
     @apply border-border;
     box-sizing: border-box;
   }
+
+  /* Ticks and chosen radio buttons are the bring-in blue, not the computer's accent colour. */
+  :root { accent-color: var(--brand-blue); }
 
   html {
     font-family: 'Inter', system-ui, sans-serif;
@@ -594,6 +602,8 @@
 .pill-sending .dot { background: var(--brand-blue); animation: pulse-dot 1.4s var(--ease-in-out) infinite; }
 .pill-failed      { background: var(--danger-soft);       color: var(--danger); }
 .pill-failed .dot { background: var(--danger); }
+/* A value that needs a look: amber edge and wash on the control inside <Field look="…">. The sentence under it says why. */
+.plk-look :is(input, select, textarea) { border: 2px solid var(--amber); background: var(--amber-wash); }
 @keyframes pulse-dot { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
 
 /* ── Source chips — REMOVED (WP-30) ────────────────────────────────────────
@@ -1041,18 +1051,6 @@ details[open] > summary [data-disclosure-chevron] {
      miss. A labelled control that already has text just gets a floor it clears. */
   a[aria-label],
   button[aria-label] {
-    min-width: var(--tap-min) !important;
-  }
-
-  /* Short text controls that want the WIDTH floor too, opted in by name.
-
-     The rule above is scoped to aria-labelled icon controls on purpose, and the
-     height floor does not help a control that is short rather than flat: the
-     topbar breadcrumb crumbs measure 37.6px and 41.3px wide by 44 tall on a
-     tablet. Widening every <button> and <a> instead would reach hundreds of
-     controls that are wide already and squeeze the dense ones that are not, so
-     the opt-in is a class rather than a broader selector. */
-  .tap-wide {
     min-width: var(--tap-min) !important;
   }
 }

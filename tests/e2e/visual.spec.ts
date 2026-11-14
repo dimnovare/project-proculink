@@ -189,15 +189,18 @@ test.describe("visual baselines", () => {
 
       // Anti-vacuity. `toHaveScreenshot` on a blank page is perfectly stable and
       // perfectly worthless; without this, a screen that silently stopped
-      // rendering would be baselined AS blank and then pass forever.
+      // rendering would be baselined AS blank and then pass forever. The floor keeps a
+      // blank or crashed page from becoming a baseline. Phones no longer repeat the page
+      // name in the top bar, and the shortest real page (/lookups on a phone) measured 196
+      // characters on 2026-11-14, so 150 sits well below real pages and well above an empty shell.
       const rendered = await page.evaluate(() => ({
         text: document.body.innerText.trim().length,
         height: document.body.scrollHeight,
       }));
       expect(
         rendered.text,
-        `${screen.path} rendered ${rendered.text} chars of text — too little to be a meaningful baseline`,
-      ).toBeGreaterThan(200);
+        `${screen.path} rendered ${rendered.text} chars of text — not above the 150-character floor, too little to be a meaningful baseline`,
+      ).toBeGreaterThan(150);
       expect(rendered.height, `${screen.path} has no height`).toBeGreaterThan(300);
 
       testInfo.annotations.push({
