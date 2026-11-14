@@ -677,10 +677,11 @@ running that test — never by reading a method name off a list.
 `BillingFeatureGateCoverageTests` is **not** that guard and cannot be: its `EnforcedBy` map is
 hand-typed free text asserted only by `ContainKey`, a live-keys check, and a member count, so
 deleting an enforcement call out of the method it names would leave every one of its tests green
-(no such call exists today: the one row left, `Sso`, refuses nothing). It is not dead, though — it pins the ladder table itself (each feature has a minimum
-plan, is off on the tier directly below that minimum, stays on for every tier above, and is off on
-Pilot) and fails the build when an enum member is added with no map entry.
-`BillingFeatureEnforcementTests` is the behavioural half: it pins `Sso` as presentation metadata, not a server refusal.
+(no such call exists today: the one row left, `Sso`, refuses nothing). It is not dead, though — it
+pins the ladder table itself (each feature has a minimum plan, is off on the tier directly below
+that minimum, stays on for every tier above, and is off on Pilot) and fails the build when an enum
+member is added with no map entry. `BillingFeatureEnforcementTests` is the behavioural half: it
+pins `Sso` as presentation metadata, not a server refusal.
 
 Do not add a bullet for a capability nothing enforces.
 

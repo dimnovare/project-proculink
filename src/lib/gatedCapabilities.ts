@@ -38,11 +38,6 @@ export const MINIMUM_PLAN = {
 
 export type GatedCapability = keyof typeof MINIMUM_PLAN;
 
-/** The plan id a capability starts on — `"enterprise"`. */
-export function minimumPlanId(capability: GatedCapability): PlanId {
-  return MINIMUM_PLAN[capability];
-}
-
 /** The plan's display name — `"Enterprise"`. Use this when writing prose around it. */
 export function minimumPlanName(capability: GatedCapability): string {
   return PLAN_BY_ID[MINIMUM_PLAN[capability]].name;
@@ -108,9 +103,4 @@ function sharedMinimumPlan(capabilities: readonly GatedCapability[]): PlanId {
  */
 export function requiresPlan(...capabilities: [GatedCapability, ...GatedCapability[]]): string {
   return `${PLAN_BY_ID[sharedMinimumPlan(capabilities)].name} plan and up`;
-}
-
-/** A whole sentence, for prose that needs one — `"Included from the Enterprise plan up."` */
-export function includedFromPlan(capability: GatedCapability): string {
-  return `Included from the ${minimumPlanName(capability)} plan up.`;
 }

@@ -1027,7 +1027,7 @@ describe("no buyer-facing copy claims records are immutable, because nothing enf
     // "Supersedes rather than erases" was the accurate description of OpsController.cs:251 and must
     // stay sayable — it is a statement about what requeue does, not a promise about forever.
     expect(offends("Requeueing supersedes earlier attempts rather than erasing them.")).toBe(false);
-    // A tier claim is the other block's business, not this one's.
+    // A tier claim is not a durability promise, so this block leaves it alone.
     expect(offends("The workspace-wide delivery log is included from the Operations plan up.")).toBe(false);
   });
 });
