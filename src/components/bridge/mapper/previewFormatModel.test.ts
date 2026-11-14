@@ -1,25 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
-  shouldHonorFormat,
   ignoresManualOutputFields,
   structuredFormatLabel,
 } from "./previewFormatModel";
-
-describe("shouldHonorFormat — exploratory opt-in decision", () => {
-  it("is false when the delivered format is unknown (no pin / no defaultFormat)", () => {
-    expect(shouldHonorFormat("csv", null)).toBe(false);
-    expect(shouldHonorFormat("json", null)).toBe(false);
-  });
-
-  it("is false when the toggle matches the connection's delivered format", () => {
-    expect(shouldHonorFormat("json", "json")).toBe(false);
-  });
-
-  it("is true only when the toggle differs from a KNOWN delivered format", () => {
-    expect(shouldHonorFormat("csv", "json")).toBe(true);
-    expect(shouldHonorFormat("xml", "json")).toBe(true);
-  });
-});
 
 describe("ignoresManualOutputFields — structured-standard gate for the outgoing notice", () => {
   it("is true for the structured-standard formats produced by a fixed transformer", () => {

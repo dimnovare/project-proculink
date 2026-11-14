@@ -438,7 +438,6 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
 
   // ── Command-palette power commands (plk:mapper event bus) ───────────────────
   const [focusSearchSignal, setFocusSearchSignal] = useState(0);
-  const [cycleFormatSignal, setCycleFormatSignal] = useState(0);
 
   useEffect(() => {
     function onCommand(ev: Event) {
@@ -447,9 +446,6 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
       switch (detail.kind) {
         case "jump-to-field":
           setFocusSearchSignal((n) => n + 1);
-          break;
-        case "switch-format":
-          setCycleFormatSignal((n) => n + 1);
           break;
         case "add-transform": {
           if (readOnly || !hoveredId) break;
@@ -840,7 +836,6 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
       hot={previewHot}
       hotValue={previewHotValue}
       onHotChange={setHoveredId}
-      cycleFormatSignal={cycleFormatSignal}
       defaultFormat={previewDefaultFormat ?? model.outputFormat}
       supplierName={supplierName}
       reviewSignal={reviewSignal}

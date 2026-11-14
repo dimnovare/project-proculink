@@ -573,7 +573,7 @@ const UNGATED_BULLETS: ReadonlyArray<{ matches: RegExp; why: string }> = [
   },
   {
     matches: /^Built-in order checks$/i,
-    why: "InvariantValidator + OutputFieldValidator run on every plan including Pilot",
+    why: "the built-in document checks (DocumentChecks) run on every plan including Pilot",
   },
   {
     matches: /^Per-order audit trail$/i,
@@ -718,7 +718,7 @@ const accountFor = (plan: Plan, bullet: string): Verdict => {
   // moment the bullet stops existing. Every one of those things was true and it was still the
   // hole. `/^Field mapping \+ validation$/i` matched a COMPOUND, so ONE hand-written reason —
   // "the field mapper and validation rules are ungated" — answered for TWO claims, and its second
-  // half contradicted the gate table (CustomSupplierRules is Enterprise, PlanConstants.cs:287).
+  // half contradicted the gate table (CustomSupplierRules was Enterprise; plan 13b deleted it).
   // The clause split below never ran, so `customSupplierRules` never got to see the word
   // "validation" at all.
   //
@@ -1001,8 +1001,8 @@ describe("every pricing-card bullet is accounted for by something real", () => {
  *
  * ── The defect ──────────────────────────────────────────────────────────────────
  *
- * Gates are MINIMUM-plan, so Integration and Distributor both include `Cxml`, `BulkMapping` and
- * `AdvancedAudit`. Their cards listed none of them. Integration named neither cXML nor bulk
+ * Gates are MINIMUM-plan, so Integration and Distributor both included `Cxml`, `BulkMapping` and
+ * `AdvancedAudit` (plan 13b deleted the first two gates). Their cards listed none of them. Integration named neither cXML nor bulk
  * mapping; Distributor named neither cXML nor advanced audit. Nothing on either card was false —
  * and a buyer comparing €399 to €999 to €1,499 saw the dearer tiers LOSE capabilities, which on a
  * comparison table is the same thing as a false claim, made about the cheaper tier's competitor.
@@ -1159,7 +1159,7 @@ describe("a dearer tier never appears to include less than a cheaper one", () =>
  * The line between an offence and an honest sentence is deliberate, and it is NOT "mentions the
  * log". Recording is universal and append-only on every plan, and so is reading ONE order's
  * history: `DocumentsController.History` is ungated on purpose, pinned as the IL scanner's negative
- * control (`Scanner_Control_DoesNotInventAGateWhereThereIsNone` in `BillingGateEnforcementIsRealTests`) and rendered at `OrderWorkshop.tsx:377`.
+ * control (`Scanner_Control_DoesNotInventAGateWhereThereIsNone` in `BillingGateEnforcementIsRealTests`) and rendered by `DocumentScreen.tsx`.
  * A sentence saying the log RECORDS something is true and stays. The offence is directing a reader
  * to OPEN or EXPORT the workspace-wide log without saying what it costs. Over-correcting the true
  * half into something timid gives away real sales value, so the controls pin that too.
@@ -1355,6 +1355,10 @@ describe("the workspace-wide delivery log is not offered below the tier that unl
  *     `PoPassportEvents` and `AuditEvents`.
  *   • `IDataRetentionService.cs:4-16` prunes those same three tables past a retention window.
  *
+ * 2026-11-14, plan 13b: `DeliveryService` and `OpsController` went with the order pipeline. The ban
+ * still stands on the engine: a `FlowDelivery` row is updated in place on every attempt, and
+ * `DataErasureService` still hard-deletes `AuditEvents` via `RemoveRange`.
+ *
  * No database-level immutability backs any of them. The repo's only immutability trigger is on
  * `supplier_connection_revisions`, a different table.
  *
@@ -1426,9 +1430,8 @@ describe("no buyer-facing copy claims records are immutable, because nothing enf
     expect(
       offenders,
       "these lines promise records are immutable or undeletable. Nothing enforces that: " +
-        "DeliveryService.cs:975-983 updates attempt rows in place, OpsController.cs:251 stamps " +
-        "them at requeue, and DataErasureService.cs:136-140 hard-deletes DeliveryAttempts, " +
-        "PoPassportEvents and AuditEvents via RemoveRange. Say what is recorded instead:\n" +
+        "a FlowDelivery row is updated in place on every attempt, and DataErasureService " +
+        "hard-deletes AuditEvents via RemoveRange. Say what is recorded instead:\n" +
         offenders.join("\n"),
     ).toEqual([]);
   });
@@ -1458,10 +1461,9 @@ describe("no buyer-facing copy claims records are immutable, because nothing enf
   });
 
   it("leaves the honest replacement alone", () => {
-    // What actually shipped. Every clause is checkable: the fields are on DeliveryAttempt.cs
-    // (Channel 11, Destination 12, AttemptedAt 25, ResponseCode 26, AttemptNumber 69,
-    // ArtifactSha256 94), OrdersController makes no HasFeatureAsync call, and the response-body
-    // clause is scoped to the channels whose CapturesSupplierResponseBody is true.
+    // What shipped before plan 13b. Every clause was checkable then: the fields were on
+    // DeliveryAttempt.cs, which plan 13b deleted with the order pipeline. It stays as a control
+    // because describing what is stored is still not a durability promise.
     expect(
       offends(
         "Every parse, edit, validation and delivery attempt is recorded. Each delivery attempt carries its timestamp, channel, endpoint, attempt number, response code, and the SHA-256 fingerprint of the bytes dispatched; on channels that return one — webhook, email API, ERP — a failed or rejected attempt also stores the supplier's response. A retry adds a new numbered attempt rather than replacing the previous one, and requeueing supersedes earlier attempts rather than erasing them. You can open any single order and read its complete history on every plan; the workspace-wide delivery log across all orders, with filtering and CSV export, is included from the Operations plan up.",
@@ -1472,7 +1474,7 @@ describe("no buyer-facing copy claims records are immutable, because nothing enf
       offends("Every attempt is recorded with its response code and a SHA-256 fingerprint of the bytes sent."),
       "/how-it-works, as replaced",
     ).toBe(false);
-    // "Supersedes rather than erases" is the accurate description of OpsController.cs:251 and must
+    // "Supersedes rather than erases" was the accurate description of OpsController.cs:251 and must
     // stay sayable — it is a statement about what requeue does, not a promise about forever.
     expect(offends("Requeueing supersedes earlier attempts rather than erasing them.")).toBe(false);
     // A tier claim is the other block's business, not this one's.
@@ -1843,8 +1845,8 @@ describe("a gated capability is never presented with no tier at all", () => {
  * guide, the one a new signup is pointed at. Step 5 of the same guide then asks the supplier
  * "An endpoint we post to, an SFTP folder, or an email address?" and "CSV, JSON, XML, cXML,
  * UBL/Peppol, or X12 850?", leading with the two answers Pilot cannot save: an HTTP endpoint is
- * `BillingFeature.WebhookDelivery` (Growth) and cXML output is `BillingFeature.Cxml`
- * (Operations). A Pilot workspace reaches **delivered** only over SFTP, FTPS or email, in any
+ * `BillingFeature.WebhookDelivery` (Growth) and cXML output was `BillingFeature.Cxml`
+ * (Operations); plan 13b deleted both gates. A Pilot workspace reaches **delivered** only over SFTP, FTPS or email, in any
  * format but cXML — which the guide never said.
  *
  * ── Why it is its own guard ─────────────────────────────────────────────────────
@@ -2124,6 +2126,10 @@ describe("no surface claims conformance to a standard ProcuLink does not emit", 
 // no `CanTransform` arm answers `OutputFormat.EdifactOrders`. An order reaching transform in that
 // format dies with `No transform service registered for format 'EdifactOrders'.` and is parked in
 // terminal `transform_failed`.
+//
+// 2026-11-14, plan 13b: the order pipeline this section cites (the `ITransformService`
+// registrations and `EdifactOrderParser` in `Program.cs`) was deleted, so the line numbers here and
+// below are history. The guard reads the catalog's `transform` column, not those registrations.
 //
 // ── What is NOT the defect, and must not become one ─────────────────────────────
 //

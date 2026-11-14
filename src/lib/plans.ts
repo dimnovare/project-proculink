@@ -69,8 +69,9 @@ export interface Plan {
    *
    * ── Why this exists ──────────────────────────────────────────────────────────
    *
-   * Gates are MINIMUM-plan, so Integration and Distributor both include `Cxml`, `BulkMapping`
-   * and `AdvancedAudit`. Their cards listed none of them: Integration named neither cXML nor
+   * Gates are MINIMUM-plan, so Integration and Distributor both include `AdvancedAudit` (and,
+   * until plan 13b deleted those two gates, `Cxml` and `BulkMapping`). Their cards listed none of
+   * them: Integration named neither cXML nor
    * bulk mapping, Distributor named neither cXML nor advanced audit. A buyer reading the page
    * left to right saw the €1,499 tier apparently LOSE capabilities the €399 tier has. The
    * bullets were not false — they were incomplete, which on a comparison table is the same
@@ -217,8 +218,8 @@ export const PLANS: Plan[] = [
       // in the product"). The bulk import/export lever is the Operations differentiator and
       // stays there.
       //
-      // Built-in order checks (InvariantValidator + OutputFieldValidator) run on every order on every
-      // plan, so that is the honest wording.
+      // The built-in checks (DocumentChecks in the backend) run on every document on every plan,
+      // so that is the honest wording.
       "Field mapping + built-in order checks",
       // Two audit surfaces, one per tier: the per-order trail (GET /api/documents/{id}/history,
       // `DocumentsController.History`) is ungated and on every plan; the org-wide delivery log
@@ -303,7 +304,7 @@ export const PLANS: Plan[] = [
     // The channels bullet and "Advanced audit trail" are now carried by
     // `inheritsFrom: "operations"`. Listing them again was not what made this card honest — what
     // made it DIShonest was listing those two and silently dropping cXML and bulk mapping, which
-    // Integration also includes (gates are minimum-plan). A buyer comparing €399 to €999 saw the
+    // Integration then also included (gates are minimum-plan; plan 13b deleted both gates). A buyer comparing €399 to €999 saw the
     // dearer tier lose two capabilities. Integration's real differentiators are volume,
     // suppliers, and onboarding; the two numbers sit on the fixed axis every card shares.
     features: [
@@ -339,9 +340,10 @@ export const PLANS: Plan[] = [
     blurb: "For distributors and resellers routing high order volume across many suppliers.",
     recommendationBlurb:
       "For distributors and resellers: up to 2,500 documents/month with 30 suppliers.",
-    // Channels and bulk mapping come from `inheritsFrom: "integration"`. This card used to list
-    // those two and omit cXML and advanced audit — both of which Distributor includes — so the
-    // €1,499 tier read as thinner than the €399 one.
+    // Channels come from `inheritsFrom: "integration"`. This card used to list them and bulk
+    // mapping, and omit cXML and advanced audit — all of which Distributor included — so the
+    // €1,499 tier read as thinner than the €399 one. Plan 13b deleted the cXML and bulk mapping
+    // gates; advanced audit is the one left.
     features: [
       "2,500 documents/month",
       "30 suppliers",

@@ -23,8 +23,10 @@
 //   src/components/bridge/StatusJourney.tsx  FAILURE_JOURNEY_STAGE (5)
 //   src/app/(app)/operations/health/healthTiles.ts    TILES
 //
-// (2026-11-13, plan 13b: of these nine, only statusVocabulary.test.ts, procurement.ts and
-// StatusJourney.tsx survive; the rest went with the order screens.)
+// (2026-11-13, plan 13b: of these nine, two copies survive — procurement.ts's OrderStatus
+// union and StatusJourney.tsx's FAILURE_JOURNEY_STAGE. statusVocabulary.test.ts and
+// orderCountContract.ts survive as files, but BACKEND_STATUSES and FAILED_BUCKET are gone;
+// the rest went with the order screens.)
 //
 // `← derived` marks a copy that has since been collapsed into this file. Those were not
 // collapsed as tidying: BridgeDashboard's FAILED_ set omitted `rejected_by_supplier`, so a

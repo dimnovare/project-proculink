@@ -517,9 +517,10 @@ export function CrossingsLog() {
 
   // The URL IS the order filter. `?orderId=` is READ from the query string on every
   // render and never copied into useState on mount: that is the same rule InboxView
-  // spells out for `?status=`, and for the same reason — a mirrored copy is a second
+  // spelled out for `?status=` (both it and the "See every attempt" link went with the
+  // order screens in plan 13b), and for the same reason — a mirrored copy is a second
   // source of truth that goes stale the first time the URL changes under a mounted
-  // view. A failed order's "See every attempt" links here with that param; until now
+  // view. A failed order's "See every attempt" linked here with that param; until then
   // nothing on this page read it, so the operator asking about ONE order landed on
   // the whole workspace's log with no hint that their question had been dropped.
   const params = useSearchParams();

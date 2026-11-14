@@ -68,11 +68,11 @@ const RETIRED_LABELS: Array<{ phrase: string; re: RegExp; wasAt: string; nowUse:
     // keys, so a bare `return "…the dead-letter queue…"` was invisible to it.
     // Both blind spots were occupied. This covers them.
     //
-    // The lookarounds keep API FACTS out: `/api/ops/dead-letter`,
-    // `queryKey: ["ops-dead-letter"]` and `dead-letter-count` are a route, a
-    // cache key and an endpoint — renaming them would break the client, and
-    // they are not words anybody reads. A `/`, `-` or word character on either
-    // side means the token is part of a path or identifier, not a sentence.
+    // The lookarounds keep identifiers out: an audit action such as
+    // `DeliveryDeadLettered`, or a route or cache key built from `dead-letter`,
+    // is not a word anybody reads, and renaming it would break the client. A
+    // `/`, `-` or word character on either side means the token is part of a
+    // path or identifier, not a sentence.
     phrase: "dead-letter (as a word, not as a route or cache key)",
     re: /(?<![\w/-])dead[- ]letter(ed|s)?(?![\w-])/gi,
     wasAt: "help articles, help-articles.ts search keywords, useOrderReview",
@@ -103,8 +103,9 @@ const read = (rel: string) => readRaw(rel).replace(/keywords:\s*\[[^\]]*\]/g, "k
 /**
  * Every source file that can put words in front of a user: the app, the
  * marketing site (help included), the components, and the top-level lib
- * registries. Tests, fixtures and mocks are excluded — a test may name a
- * retired label in order to assert it is gone, and this file does exactly that.
+ * registries. Test, spec and story files are excluded, and so is src/test/ —
+ * a test may name a retired label in order to assert it is gone, and this file
+ * does exactly that.
  */
 function copyBearingFiles(): string[] {
   const out: string[] = [];

@@ -4,12 +4,13 @@
 // delivered document AS THE USER WIRES, reusing the shipped previewMappingOverride endpoint
 // with a ~400ms debounce cadence.
 //
-//   • format toggle      — CSV / JSON / XML / cXML / UBL / X12 (PREVIEW_FORMATS); the
-//     backend renders all six.
+//   • format label       — the header names the format the server rendered (`res.format`).
+//     The flow decides the format, so the pane offers no toggle (removed 2026-11-14: the
+//     flow preview ignored it, so it changed nothing).
 //   • just-touched highlight — the model passes the last-edited field key; the matching
 //     token in the rendered text is highlighted so the user sees their edit land.
 //   • copy / download    — copy the preview to the clipboard or save it as a file (the
-//     extension follows the chosen format).
+//     extension follows the rendered format).
 //   • inline error       — the endpoint returns HTTP 200 { ok:false, error } for template
 //     render failures; we surface it amber, never crash.
 //
@@ -18,10 +19,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { OrderMappingOverride, OutputFormatId } from "@/lib/api/types";
-import { PREVIEW_FORMATS } from "@/lib/api/types";
-import { nextOutputFormat } from "./mapperCommands";
 import { splitForHighlight } from "./previewHighlightModel";
-import { shouldHonorFormat } from "./previewFormatModel";
 import { previewBodyStyle } from "./previewBodyStyle";
 import type { MapperAdapter } from "./types";
 
@@ -35,13 +33,8 @@ export interface MapperPreviewPaneProps {
   /** connection variant with no sample order → show the honest empty state, not an error. */
   emptyHint?: string;
   /**
-   * Bumped by the command palette "Switch output format" command — cycles the format
-   * through PREVIEW_FORMATS. A counter so each invocation advances once.
-   */
-  cycleFormatSignal?: number;
-  /**
-   * The connection's REAL output format (model.outputFormat). The toggle seeds from this so a
-   * JSON supplier doesn't default to a CSV mismatch. Null/undefined → CSV (legacy default).
+   * The connection's REAL output format (model.outputFormat). Seeds the header label until the
+   * server reports the format it rendered. Null/undefined → CSV (legacy default).
    */
   defaultFormat?: OutputFormatId | null;
   /** The hovered/active field id (cross-column highlight) — its matching output line lights green. */
@@ -60,10 +53,10 @@ export interface MapperPreviewPaneProps {
    * Bumped when the order's line-review state changes (e.g. the last unresolved line is
    * resolved and status flips to ready). Including this in the effect deps re-triggers the
    * preview fetch so the pane doesn't sit on "Cannot transform: lines still need review"
-   * after the user finishes resolving — they no longer have to switch format tabs to refresh.
+   * after the user finishes resolving.
    */
   reviewSignal?: number;
-  /** The only data source; absent → the empty state. The format toggle is not used. */
+  /** The only data source; absent → the empty state. */
   preview?: MapperAdapter["preview"];
 }
 
@@ -86,83 +79,31 @@ export function formatFieldUnavailableNote(format: OutputFormatId): string {
   return `This field isn't part of ${format.toUpperCase()} output — it only applies to other formats.`;
 }
 
-export function MapperPreviewPane({ override, lastTouched, supplierName, emptyHint, cycleFormatSignal, defaultFormat, hot, hotValue, onHotChange, reviewSignal, preview }: MapperPreviewPaneProps) {
-  // Seed the toggle from the connection's REAL output format so a JSON supplier doesn't open
-  // on a CSV mismatch. The backend (revision authority) may still swap to the pinned format —
-  // deliveredFormat tracks what it actually rendered, and the header/copy/download follow that.
-  const [format, setFormat] = useState<OutputFormatId>(defaultFormat ?? "csv");
-  // The format the SERVER actually rendered (res.format). Drives the header label and the
-  // copy/download extension+mime. In the DEFAULT (delivered-bytes) mode this is the connection's
-  // real delivered format; in EXPLORATORY mode it equals the toggle.
+export function MapperPreviewPane({ override, lastTouched, supplierName, emptyHint, defaultFormat, hot, hotValue, onHotChange, reviewSignal, preview }: MapperPreviewPaneProps) {
+  // The format the SERVER actually rendered (res.format), seeded from the connection's real
+  // output format. Drives the header label and the copy/download extension+mime.
   const [deliveredFormat, setDeliveredFormat] = useState<OutputFormatId>(defaultFormat ?? "csv");
   const [content, setContent] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  // The connection's REAL delivered format, learned authoritatively from a DEFAULT-mode (honorFormat
-  // off) server response. We seed it from defaultFormat and refine it the first time the server tells
-  // us what it actually delivers — so the exploratory label can honestly say "the supplier receives Y".
-  const connectionFormatRef = useRef<OutputFormatId | null>(defaultFormat ?? null);
-  // What the supplier actually receives, for the honest exploratory label. Kept in state so the label
-  // re-renders when we learn it. Null until we know (no pinned/delivered format to diverge from).
-  const [connectionFormat, setConnectionFormat] = useState<OutputFormatId | null>(defaultFormat ?? null);
-  // Has the user manually chosen a preview format (toggle / palette cycle)? Until they do, we snap the
-  // toggle to the connection's REAL delivered format once the server tells us what it is — so a JSON
-  // supplier doesn't sit on a highlighted CSV toggle just because the client-side guess defaulted to CSV.
-  const userPickedFormatRef = useRef(false);
-
-  // Command-palette "Switch output format" → advance through PREVIEW_FORMATS. Skip the
-  // initial mount (signal undefined/0) so the default CSV view isn't immediately bumped.
-  useEffect(() => {
-    if (!cycleFormatSignal) return;
-    userPickedFormatRef.current = true;
-    setFormat((f) => nextOutputFormat(f));
-  }, [cycleFormatSignal]);
-
-  // ~300ms debounce on (override, format) — fast enough to feel live as the user wires.
-  //
-  // TWO MODES:
-  //   • DEFAULT (delivered bytes) — the toggle is on the connection's real delivered format (or we
-  //     don't yet know it). honorFormat=false; the backend, under revision authority, renders exactly
-  //     the bytes the supplier receives. We capture the server's reported format as the authoritative
-  //     "connection delivered format" so the exploratory label can be honest.
-  //   • EXPLORATORY ("what would this look like as X") — the user picked a format different from the
-  //     connection's delivered one. honorFormat=true; the backend SKIPS the pinned-revision swap and
-  //     renders the requested format from the canonical order. Delivery is unaffected; we label it
-  //     clearly as "not the delivered format".
-  //
-  // We ALWAYS show what the server rendered and track the format it actually delivered, so the
-  // header/copy/download follow the real bytes. Genuine warnings/errors (e.g. "lines still need
-  // review") pass through honestly as the warning, with content=null handled below.
+  // ~300ms debounce on override — fast enough to feel live as the user wires. We show what the
+  // server rendered and track the format it reports, so the header/copy/download follow the real
+  // bytes. Genuine warnings/errors (e.g. "lines still need review") pass through honestly as the
+  // warning, with content=null handled below.
   useEffect(() => {
     if (!preview) { setContent(null); setErr(null); setBusy(false); return; }
     let cancelled = false;
     setBusy(true);
-    // Opt into exploratory rendering only when we KNOW a delivered format to diverge from.
-    const known = connectionFormatRef.current;
-    const honor = shouldHonorFormat(format, known);
     const t = setTimeout(async () => {
       try {
         const res = await preview(override);
         if (cancelled) return;
-        const delivered = ((res.format ?? format) as string).toLowerCase() as OutputFormatId;
-        const hardMessage = res.error ?? res.warning ?? null;
+        const delivered = ((res.format ?? defaultFormat ?? "csv") as string).toLowerCase() as OutputFormatId;
         setDeliveredFormat(delivered);
         setContent(res.content);
-        setErr(hardMessage);
-        // In DEFAULT mode the server's reported format IS the connection's real delivered format —
-        // learn it authoritatively so the exploratory label can name what the supplier receives.
-        if (!honor) {
-          connectionFormatRef.current = delivered;
-          setConnectionFormat(delivered);
-          // First time we learn the supplier's real delivered format, snap the toggle to it (unless the
-          // user has already picked a format to explore) so the highlighted toggle matches the bytes.
-          if (!userPickedFormatRef.current && delivered !== format) {
-            setFormat(delivered);
-            setDeliveredFormat(delivered);
-          }
-        }
+        setErr(res.error ?? res.warning ?? null);
       } catch (e) {
         if (!cancelled) { setContent(null); setErr(e instanceof Error ? e.message : "Preview failed"); }
       } finally {
@@ -172,8 +113,8 @@ export function MapperPreviewPane({ override, lastTouched, supplierName, emptyHi
     return () => { cancelled = true; clearTimeout(t); };
   // reviewSignal is bumped when line-review state changes (e.g. last unresolved line
   // resolved → status flips ready). Without it the pane stays on "Cannot transform:
-  // lines still need review" until the user switches format tabs.
-  }, [preview, override, format, connectionFormat, reviewSignal]);
+  // lines still need review" until the override changes.
+  }, [preview, override, defaultFormat, reviewSignal]);
 
   const onCopy = useCallback(async () => {
     if (!content) return;
@@ -189,7 +130,7 @@ export function MapperPreviewPane({ override, lastTouched, supplierName, emptyHi
   const onDownload = useCallback(() => {
     if (!content) return;
     // Use the format the server actually rendered (deliveredFormat) so the file extension+mime
-    // match the bytes — never label JSON bytes as .csv just because the toggle still reads CSV.
+    // match the bytes — never label JSON bytes as .csv.
     const blob = new Blob([content], { type: FORMAT_MIME[deliveredFormat] });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -312,35 +253,8 @@ export function MapperPreviewPane({ override, lastTouched, supplierName, emptyHi
           {lastTouched && <span style={{ fontSize: 10, color: "var(--ink-faint)" }}>edited {lastTouched}</span>}
         </div>
       </div>
-      {/* Format + actions bar (46px) — app.jsx §7.1: segmented control left, Copy/Download right. */}
+      {/* Actions bar (46px) — Copy/Download right. */}
       <div style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 8, height: 46, padding: "0 16px", borderBottom: "1px solid #E5E8EE" }}>
-        {!preview && <div style={{ display: "inline-flex", gap: 2, padding: 3, background: "#F1F3F7", borderRadius: 8 }}>
-          {PREVIEW_FORMATS.map((f) => {
-            const active = format === f.value;
-            return (
-              <button
-                key={f.value}
-                type="button"
-                onClick={() => { userPickedFormatRef.current = true; setFormat(f.value); }}
-                aria-pressed={active}
-                title={active ? `Delivered as ${f.label}` : `Preview as ${f.label}`}
-                style={{
-                  padding: "4px 9px", borderRadius: 6, cursor: "pointer",
-                  fontSize: 11, fontWeight: 600, border: "1px solid transparent",
-                  background: active ? "#1E6D29" : "transparent",
-                  // --ink-muted, not --ink-faint: the inactive buttons are transparent over
-                  // the segmented track's #F1F3F7 (= --surface-2), and #667085 on #F1F3F7 is
-                  // 4.4781:1 — a marginal AA fail at this 11px size. #5E6779 is 5.1199:1.
-                  // --ink-faint is fine on --bg (4.6439:1); it is the PAIRING with the raised
-                  // track that fails, not the token. Same resolution as settings/page.tsx.
-                  color: active ? "#FFFFFF" : "var(--ink-muted)",
-                }}
-              >
-                {f.label}
-              </button>
-            );
-          })}
-        </div>}
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12 }}>
           <button
             type="button"
@@ -363,9 +277,8 @@ export function MapperPreviewPane({ override, lastTouched, supplierName, emptyHi
         </div>
       </div>
 
-      {/* B4 format-toggle sub — one plain line explaining that this preview is the exact
-          delivered document, and that the format buttons above switch the previewed output
-          type. Calm + muted; sits directly under the segmented control it describes.
+      {/* B4 sub — one plain line explaining that this preview is the exact delivered
+          document. Calm + muted; sits directly under the actions bar.
 
           The third sentence is the other half of the "Generated" chip above: the chip states
           what happened, this states what did not. It is unconditional because it is true for
@@ -374,7 +287,7 @@ export function MapperPreviewPane({ override, lastTouched, supplierName, emptyHi
           the recurring defect in this repo is an absent answer rendering as the favourable one,
           and a missing badge is exactly that shape. */}
       <div style={{ flexShrink: 0, padding: "8px 16px", fontSize: 11, color: "#5E6779", background: "#FBFBFD", borderBottom: "1px solid #EEF0F4", lineHeight: 1.5 }}>
-        This is exactly what {supplierName ? supplierName : "the supplier"} receives.{!preview && " Switch formats to preview a different output type."} Producing this document is not a check — nothing here has been checked against a standard.
+        This is exactly what {supplierName ? supplierName : "the supplier"} receives. Producing this document is not a check — nothing here has been checked against a standard.
       </div>
 
       {err && (

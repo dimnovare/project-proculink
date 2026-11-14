@@ -18,7 +18,8 @@ export const STAGES = ["In", "Read", "Check", "Transform", "Send"] as const;
 // a `parsing` strand, while a `transforming` strand recovered to `ready`, never `failed`).
 // Keys mirror the backend's
 // OrderStatusConstants.FailureBucket — statusJourneyFailedStage.test.tsx pins this
-// map against InboxView's FAILED_BUCKET so the two cannot drift.
+// map against the manifest's failure bucket (FAILURE_STATUSES in orderStatusManifest.ts)
+// so the two cannot drift.
 export const FAILURE_JOURNEY_STAGE = {
   failed: 0,
   transform_failed: 3,
@@ -176,10 +177,9 @@ export function StatusJourney({ stage, compact = false, crossingRef }: StatusJou
 }
 
 // Status pill — semantic colors matching tokens.css .pill-* exactly.
-// NB: StatusCell below currently has NO production call sites (the inbox renders via
-// InboxView's StatusDotPill on mobile and UnifiedStatusBadge on desktop). STATUS_PILL is
-// therefore not the live pill source; keep it in step with InboxView's
-// STATUS_PRESENTATION and UnifiedStatusBadge's STATUS_META, which are.
+// NB: StatusCell below has NO production call sites, so STATUS_PILL is not a live pill
+// source. (Until 2026-11-13 it deferred to InboxView's and UnifiedStatusBadge's pill maps;
+// both went with the order screens in plan 13b.)
 // `held` covers the backend `delivery_held` billing hold. It needs its own member
 // because none of the others is honest for it: `review` says "Needs review" (the
 // order is clean), `delivering` pulses blue "Ready to send" (it is blocked), and

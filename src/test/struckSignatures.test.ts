@@ -226,25 +226,26 @@ describe("CLAUDE.md §2 describes what ships", () => {
 
   it("names what carries buyer/supplier orientation instead of the rails", () => {
     expect(claude).toContain("What carries buyer-left / supplier-right now");
-    // The three carriers, each named in the doc so a reader does not have to
-    // reverse-engineer the orientation from the code.
+    // The carriers, each named in the doc so a reader does not have to
+    // reverse-engineer the orientation from the code. The third, the queue's
+    // "Buyer → Supplier" column, went with the order screens on 2026-11-13, so
+    // the doc records it as gone rather than as a carrier.
     expect(claude).toContain("What we received");
     expect(claude).toContain("What we'll send");
-    expect(claude).toContain("Buyer → Supplier");
   });
 
   /**
    * §6 has three tables and only the FIRST is an offer:
    *
    *   ### Signature components                 ← offer: build with these
-   *   **…ship as CSS classes, not components** ← clarification: the thing is
+   *   **…ships as a CSS class, not a component** ← clarification: the thing is
    *                                              real, the component is not
    *   **Removed or never built…**              ← tombstones
    *
    * Both assertions below derive their window from these two boundary constants,
    * so neither can drift into reading a tombstone table as if it were the offer.
    */
-  const CSS_CLASS_HEADING = "**Two signatures ship as CSS classes, not components.**";
+  const CSS_CLASS_HEADING = "**One signature ships as a CSS class, not a component.**";
   const REMOVED_HEADING = "**Removed or never built — do not write code against these:**";
   const offeredSection = () => {
     const start = claude.indexOf("### Signature components");

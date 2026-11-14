@@ -622,10 +622,10 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     backendSite: "No writer: the legacy order email path was deleted; archived rows still carry this action.",
     reasonKeys: [],
     note:
-      "Hosted inbound email is BillingFeature.EmailIngestion, Growth and up, but the inbound address " +
-      "is minted for every org on every plan — so a Pilot can be sent mail it may not process. The " +
-      "refusal is transient: Postmark keeps re-delivering for ~10.5 hours, so an upgrade inside that " +
-      "window still lands the order.",
+      "Hosted inbound email was BillingFeature.EmailIngestion, Growth and up (the gate was deleted in " +
+      "plan 13b), but the inbound address was minted for every org on every plan — so a Pilot could be " +
+      "sent mail it could not process. The refusal was transient: Postmark kept re-delivering for " +
+      "~10.5 hours, so an upgrade inside that window still landed the order.",
   },
   {
     action: "inbound_email.rejected_order_limit",

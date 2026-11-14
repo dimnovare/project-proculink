@@ -123,7 +123,7 @@ and no guard could catch it because the fiction lived in a document, not in code
 | Signature | Built? | Where it renders |
 |---|---|---|
 | **1. Edge rails** — 4px buyer-blue left / supplier-green right, port markers | **NO — STRUCK 2026-08-13** | Nowhere. See below. |
-| **2. Wire Topology** — buyer ports left, supplier ports right, animated wires | **YES, demoted** | `/bridge`, as the **"System map" tab** — not the dashboard hero |
+| **2. Wire Topology** — buyer ports left, supplier ports right, animated wires | **NOT RENDERED since 2026-11-13** | Nowhere. It was the `/bridge` **"System map" tab**; `/bridge` went with the order screens in plan 13b and `bridge/WireTopology.tsx` survives with zero importers. |
 | **3. Canonical Spine review** — 3-column source · spine · output | **NO — DELETED 2026-08-13** | Nowhere. The shipped review is a different layout; see below. |
 | **4. Document Anatomy** — source document pane | **PARTLY** | `src/components/bridge/document/` renders the pane. The **per-zone confidence overlay does not exist** and needs backend provenance first. |
 | **5. Cross-section card edge** — 3px brand strip on a card edge | **YES, and now applied by rule** | `<Card>`, `src/components/bridge/layout/Card.tsx`. Five card paths converged into it 2026-08-13; the edge is semantic and its rule is in that file's header. |
@@ -149,12 +149,14 @@ at the window edge is not how anyone reads direction.
 ### What carries buyer-left / supplier-right now
 
 This matters more than the rails did, so it is stated explicitly rather than left
-implicit. Orientation is carried by **layout and labels**, in three places:
+implicit. Orientation is carried by **layout and colour**, in two places (a third, the
+queue's labelled column, went with the order screens — see 2 below):
 
-1. **Panel order on the review screen.** `/inbox/[orderId]` →
-   `src/components/bridge/workshop/OrderWorkshop.tsx` →
-   `src/components/bridge/mapper/MapperWorkbench.tsx` (`variant="order"`), a
-   two-level grid running left → right:
+1. **Panel order in the mapper.** `/flows/[flowId]/outputs/[outputId]/advanced` →
+   `src/components/flows/advanced/AdvancedView.tsx` →
+   `src/components/bridge/mapper/MapperWorkbench.tsx` (`variant="flow"`), a
+   two-level grid running left → right. (Until plan 13b, 2026-11-13, the host was the
+   order review, `/inbox/[orderId]` → `OrderWorkshop`.)
 
    | Position | Pane | Heading | Dot |
    |---|---|---|---|
@@ -163,19 +165,17 @@ implicit. Orientation is carried by **layout and labels**, in three places:
    | Right | `MapperPreviewPane` | **"Live preview"** — "exactly what {supplier} receives" | green `#2E8E3A` |
 
    Note it is **not** a symmetric blue-left / green-right pair: it is one buyer
-   column followed by two supplier columns. Below `lg`, `MobileTriage` stacks the
-   same three in the same order. **Source stays left of output. Do not reorder
-   these panes** — that ordering is the orientation.
+   column followed by two supplier columns. **Source stays left of output. Do not
+   reorder these panes** — that ordering is the orientation. (`MobileTriage`, which
+   stacked the same three below `lg`, went with the order workshop.)
 
-2. **A labelled direction column in the queue.** `src/components/bridge/InboxView.tsx`
-   (`id: "lane"`, the second column). Its header is literal text from
-   `src/hooks/useOrderDirection.ts` — `"Buyer → Supplier"` outbound,
-   `"Customer → You"` inbound — and the cell renders the buyer name in blue, a `→`
-   glyph, and the supplier name in green.
+2. **GONE 2026-11-13 — the labelled direction column in the queue.** It lived in
+   `InboxView.tsx` (`id: "lane"`), with its header text from `useOrderDirection.ts` —
+   `"Buyer → Supplier"` outbound, `"Customer → You"` inbound. Both files went with the
+   order screens in plan 13b; nothing has replaced the column.
 
 3. **Colour, unchanged.** Buyer / incoming = `#1E66C9`. Supplier / outgoing =
-   `#2E8E3A`. This holds in both directions; only the words change
-   (`src/hooks/useOrderDirection.ts`). Where the green sits on text it darkens to
+   `#2E8E3A`. Where the green sits on text it darkens to
    `#1E6D29` for contrast — that is a WCAG fix, not a different colour.
 
 ### 3. Canonical Spine review — DELETED
@@ -194,16 +194,17 @@ the right column is a live preview of the actual outgoing payload.
 the source document stays visible on the left during review.** Never hide the source
 behind a modal or a wizard step.
 
-### Supporting signatures — all of these are real
+### Supporting signatures — real unless marked
 
 - **Navy app chrome / light work area.** Chrome = `#0B1A2F`. Main content = `#F6F7FA`.
 - **Link-spine.** 2px blue→green gradient line across the bottom of the topbar
   (`bg-link-spine` / `--gradient-link-spine`). Distinct from the deleted canonical
   spine — this one ships.
-- **Status as a journey.** Order status = 5-node mini-track
+- **Status as a journey.** Document status = 5-node mini-track
   (In · Read · Check · Transform · Send), not a static pill.
-  `<StatusJourney>`.
-- **Monumental numbers.** KPIs in Bricolage Grotesque 600, tight letterspacing.
+  `<StatusJourney>`, rendered by `DocumentList` and `DocumentScreen`.
+- **Monumental numbers — GONE 2026-11-13.** KPIs in Bricolage Grotesque 600, tight
+  letterspacing; the `.monument` CSS went with its only consumer, the supplier screen (§6).
 - **System Identity mark.** SVG glyph: an arc with a blue circle on the left end and
   a green circle on the right. Same geometry in loading states and pipeline icons.
   (It no longer has rail markers or spine nodes to share geometry with.)
@@ -296,33 +297,30 @@ zero consumers and survives only as a reference value.
 └──────────────────────────────────────────────────────────────────────┘
 ┌─ Main content (bg #F6F7FA) ─────────────────────────────────────────┐
 │  No edge rails — struck 2026-08-13 (§2). Buyer/supplier orientation │
-│  is carried by pane order on the review screen and by the labelled  │
-│  "Buyer → Supplier" column in the queue.                            │
+│  is carried by pane order in the mapper (§2).                        │
 └──────────────────────────────────────────────────────────────────────┘
 
 BridgeSidebar (220px, navy) — MOBILE DRAWER ONLY
   Logo + wordmark · workspace switcher · nav groups · health footer
 ```
 
-**Sidebar nav groups + routes:**
-| Group | Item | Route |
-|---|---|---|
-| — | Bridge (dashboard) | `/bridge` |
-| Inbox | All | `/inbox` |
-| Inbox | New | `/inbox?status=new` |
-| Inbox | Needs review | `/inbox?status=review` |
-| Inbox | Failed | `/inbox?status=failed` |
-| Inbox | Ready to deliver | `/inbox?status=ready_to_deliver` |
-| Inbox | Sent | `/inbox?status=delivered` |
-| Workbench | Upload | `/upload` |
-| Workbench | Drafts | `/drafts` |
-| Library | Supplier docks | `/library/suppliers` |
-| Library | Buyer docks | `/library/buyers` |
-| Library | Mappings | `/library/mappings` |
-| Library | Rules | `/library/rules` |
-| Library | Output templates | `/library/templates` |
-| Operations | Delivery log | `/operations/log` |
-| — | Settings | `/settings` |
+**Nav items + routes** (`NAV_MAIN` / `NAV_TAIL` in `src/components/bridge/BridgeSidebar.tsx`;
+the topbar renders the same list via `buildVisibleNav`). There are no groups.
+| Item | Route |
+|---|---|
+| Upload (pinned action, `PINNED_ACTION_HREF`) | `/upload` |
+| Documents | `/documents` |
+| Flows | `/flows` |
+| Lookups | `/lookups` |
+| Activity | `/operations/log` |
+| Settings | `/settings` |
+| Admin (allowlisted users only) | `/admin` |
+| Help & support (new tab) | `/help` |
+
+> The order-pipeline nav (Bridge, the Inbox filters, Drafts, the Library pages) went with
+> the order screens in plan 13b (2026-11-13). Every one of those URLs 308s via
+> `src/lib/retired-routes.ts` — the order URLs to `/archive`, the rest to their engine
+> equivalent (`/documents`, `/flows`, `/lookups`).
 
 > `/operations/webhooks` was deleted (2026-08-08): a duplicate of Settings ▸
 > Connectors that nothing navigated to. The URL 308s to `/settings?tab=connectors`
@@ -332,7 +330,8 @@ BridgeSidebar (220px, navy) — MOBILE DRAWER ONLY
 > navigated to, whose rows were hardcoded to one channel type because
 > `GET /api/suppliers` carries no delivery-config signal. The suppliers list
 > prints each supplier's real channel and the supplier Delivery tab owns the
-> config. The URL 308s to `/library/suppliers` via `src/lib/retired-routes.ts`.
+> config. The URL 308s to `/settings` via `src/lib/retired-routes.ts` (it pointed at
+> `/library/suppliers` until plan 13b deleted that page).
 
 **Active nav item style:** 2px link-gradient strip on left, slightly raised navy surface (`navy.surface`), white text.
 
@@ -342,35 +341,36 @@ BridgeSidebar (220px, navy) — MOBILE DRAWER ONLY
 
 ```
 src/app/
+  (home)/page.tsx         # `/` — the public landing page
   (marketing)/            ← bgWarm background
-    page.tsx              # bridge hero / landing
-    pricing/page.tsx
-  (auth)/
-    sign-in/[[...sign-in]]/page.tsx
-    sign-up/[[...sign-up]]/page.tsx
+    pricing/page.tsx      # also formats, how-it-works, security, help/…
+  sign-in/[[...sign-in]]/page.tsx
+  sign-up/[[...sign-up]]/page.tsx
+  onboarding/select-organization/page.tsx
   (app)/
     layout.tsx            # BridgeSidebar + BridgeTopbar + children
-    bridge/page.tsx       # dashboard; Wire Topology is the "System map" tab
-    inbox/page.tsx        # TanStack Table queue view
-    inbox/[orderId]/page.tsx  # order review — OrderWorkshop → MapperWorkbench
-    upload/page.tsx
-    drafts/page.tsx
-    library/
-      suppliers/page.tsx
-      suppliers/[id]/page.tsx
-      buyers/page.tsx
-      mappings/page.tsx
-      rules/page.tsx
-      templates/page.tsx
-    operations/
-      log/page.tsx
-      connectors/page.tsx
-      webhooks/page.tsx
+    documents/page.tsx    # DocumentsHome — every document
+    flows/page.tsx
+    flows/new/page.tsx
+    flows/[flowId]/page.tsx                              # FlowPage
+    flows/[flowId]/documents/[documentId]/page.tsx       # DocumentScreen
+    flows/[flowId]/outputs/[outputId]/advanced/page.tsx  # AdvancedView → MapperWorkbench
+    lookups/page.tsx
+    lookups/[lookupId]/page.tsx
+    upload/page.tsx       # UploadToFlow
+    archive/page.tsx      # OrderArchive — read-only legacy orders
+    archive/[orderId]/page.tsx
+    operations/log/page.tsx   # Activity
     settings/page.tsx
-  page.tsx                # redirect: authed → /bridge, anon → /sign-in
+    settings/google-callback/page.tsx
+    admin/page.tsx        # plus admin/guides/…
 ```
 
-Middleware (`middleware.ts`) protects all `(app)` routes via Clerk.
+Middleware (`src/middleware.ts`) protects all `(app)` routes via Clerk.
+
+> Until plan 13b (2026-11-13) this tree also held `bridge/`, `inbox/`, `inbox/[orderId]/`,
+> `drafts/`, `library/*` and `operations/connectors|webhooks/`. They are gone; their URLs
+> 308 via `src/lib/retired-routes.ts`.
 
 ---
 
@@ -382,23 +382,23 @@ All Bridge-specific components live in `src/components/bridge/`.
 
 | Component | File | Description |
 |---|---|---|
-| `<WireTopology>` | `bridge/WireTopology.tsx` | SVG canvas: buyer ports left, supplier ports right, animated Bezier wires. Props: `buyers`, `suppliers`, `wires`. Renders in the `/bridge` **"System map" tab**, not as the dashboard hero. |
+| `<WireTopology>` | `bridge/WireTopology.tsx` | SVG canvas: buyer ports left, supplier ports right, animated Bezier wires. Props: `buyers`, `suppliers`, `wires`. **Zero importers since 2026-11-13** — it rendered in the `/bridge` "System map" tab, which plan 13b deleted. |
 | `<Card>` | `bridge/layout/Card.tsx` | **The one card.** 3px cross-section edge strip, applied by a semantic rule written in the file's header: `edge="blue"` buyer/incoming · `"green"` supplier/outgoing · `"bridge"` spans both · `"none"` neutral **or undeterminable** (the default, and the majority). Also `pad` / `radius` / `flush` / `as` for migrated geometry. Server-component safe. |
 | `<StatusJourney>` | `bridge/StatusJourney.tsx` | 5-node mini-track: In · Read · Check · Transform · Send. Props: `stage` (0–4), `compact?`. |
 | `<MarkSystem>` | `bridge/MarkSystem.tsx` | System Identity mark SVG in 3 sizes. Props: `size`, `white?`. (Also exports a dead `RailPort` — see §2.) |
 | `<BridgeSidebar>` | `bridge/BridgeSidebar.tsx` | 220px navy sidebar — **mobile drawer only**. Desktop nav is in the topbar. |
 | `<BridgeTopbar>` | `bridge/BridgeTopbar.tsx` | 52px navy topbar: nav, breadcrumbs, cmd-K, avatar, link-spine. Props: `crumb`. |
-| `<FileChip>` | `bridge/FileChip.tsx` | File format colored tag: PDF red / XLSX green / cXML violet / EDI amber / CSV slate / JSON gold. |
+| `<FileChip>` | `bridge/FileChip.tsx` | File format colored tag: PDF red / XLSX green / cXML violet / EDI amber / CSV slate / JSON gold. **No production importer since plan 13b** (2026-11-13). |
 | `<ConfidenceChip>` | `bridge/ConfidenceChip.tsx` | `pct%` badge — ≥90 green, 75–89 amber, <75 red. |
 
-**Two signatures ship as CSS classes, not components.** This table used to give both
-a component and a file path; neither file has ever existed. The thing itself is
-real — only the component was fiction.
+**One signature ships as a CSS class, not a component.** This table used to give it
+a component and a file path; that file has never existed. The thing itself is
+real — only the component was fiction. (It listed two until plan 13b; monumental
+numbers moved to the table below.)
 
 | Signature | How it actually ships |
 |---|---|
-| Link-spine | `.link-spine` in `globals.css`, applied by `bridge/BridgeTopbar.tsx`. Gradient: `--gradient-link-spine` / `bg-link-spine`, also used by `.xc-bridge` and two marketing pages. There is no `<LinkSpine>`. |
-| Monumental numbers | `.monument` + `.m-label` / `.m-value` / `.m-sub` in `globals.css`, applied by `bridge/SupplierDockProfile.tsx`. There is no `<MonumentNumber>`. |
+| Link-spine | `.link-spine` in `globals.css`, applied by `bridge/BridgeTopbar.tsx`. Gradient: `--gradient-link-spine` / `bg-link-spine`, also used by `layout/Card.tsx`, `BillingSection.tsx` and the help guide pages. There is no `<LinkSpine>`. |
 
 **Removed or never built — do not write code against these:**
 
@@ -408,7 +408,8 @@ real — only the component was fiction.
 | `<XCard>` | **FOLDED into `<Card>` 2026-08-13.** It had TWO importers, not the ~6 this table claimed, and both passed `color="amber"` — a tone, not a side — which is how the edge came to mean nothing. Its `.xcard`/`.xc-*` CSS had zero consumers and the `card-edge` Tailwind spacing token went to zero with it (the 3px is now `--card-edge`, consumed by `Card`). A **third** `XCard` was defined privately inside `UploadWorkbench.tsx`; it is gone too. |
 | shadcn `ui/card.tsx` | **DELETED 2026-08-13.** Zero importers and not a dependency of any other `ui/*` primitive. §14's "keep shadcn primitives" rule does not cover a card that competes with the one card. |
 | `<CanonicalSpine>` / `<SpineNode>` | **DELETED 2026-08-13** (§2). `bridge/CanonicalSpine.tsx` had zero importers. |
-| `<SpineReview>` | Deleted earlier, commit `3520ed4`. The order review is `workshop/OrderWorkshop.tsx` → `mapper/MapperWorkbench.tsx`. |
+| `<SpineReview>` | Deleted earlier, commit `3520ed4`. Its successor, `workshop/OrderWorkshop.tsx`, went with the order screens in plan 13b (2026-11-13); `mapper/MapperWorkbench.tsx` is now hosted by the flow's Advanced view. |
+| Monumental numbers (`.monument`) | **DELETED 2026-11-13** with its only consumer, `SupplierDockProfile.tsx` (plan 13b removed the supplier screens). There is no `<MonumentNumber>`. |
 | `<DocumentAnatomy>` | Never built. The document pane is `bridge/document/` (e.g. `PdfDocumentView.tsx`); the per-zone confidence overlay does not exist and needs backend provenance first. |
 | `<DataField>` | Never built. Zero references anywhere in `src/`. It was listed under Primitives below for months. |
 
@@ -416,11 +417,12 @@ real — only the component was fiction.
 
 - `<Button>` — `bridge/DSPrimitives.tsx`. Variants: `primary` (navy bg) / `secondary` / `ghost` / `danger` / `ai` (violet). Never gradient.
 - `<AiSuggestion>` — `bridge/DSPrimitives.tsx`. Violet left-bar, "AI" tag, Accept / Edit / Reject. Confidence always visible.
-- `<CommandPalette>` — `bridge/CommandPalette.tsx`. cmd+K, fuzzy across orders, suppliers, SKUs, named actions.
+- `<CommandPalette>` — `bridge/CommandPalette.tsx`. cmd+K filter over navigation actions and the Advanced view's mapper commands. (The order, supplier, buyer and sample-order groups went with the order product, 2026-11-13.)
 - `<EmptyState>` — `bridge/EmptyState.tsx`. Illustration-free. Headline + sub + primary action.
 
 > `<DataField>` was listed here and does not exist — see the removed table above.
-> Every path in §6 was re-verified against the tree on 2026-08-13. If you add a
+> Every path in §6 was re-verified against the tree on 2026-08-13 and again for plan 13b
+> on 2026-11-14. If you add a
 > component to these tables, `git ls-files` the path first.
 
 ---
@@ -572,7 +574,7 @@ Frontend must reflect:
 - The order limit is a **soft cap on paid plans**: going over never blocks, it accrues
   €0.50/order overage (`OVERAGE_PER_ORDER_EUR`), capped so a customer is never charged more
   than the cheapest tier covering their volume. Only Pilot's cap is hard.
-- Pricing, settings billing UI, upload 429 banners, and supplier-limit errors
+- Pricing, settings billing UI, upload 429 refusals, and flow-limit errors
   must use this model and copy.
 
 Plan-gate 403s carry `{ error: "<capability>_requires_<plan>", upgradeUrl }`. The plan
@@ -580,18 +582,23 @@ segment is derived server-side from the gate table, so **never match these codes
 literal** — use `isPlanGateError` / `planGateMessage` from `src/lib/planGate.ts`.
 
 **Quota 429s are a different, also-structured payload — do not confuse the two.** A refused
-upload or supplier-create answers `429` with `{ error, plan, limit, upgradeUrl }`, where
+upload or flow-create answers `429` with `{ error, plan, limit, upgradeUrl }`, where
 `error` is one of the machine tokens `pilot_expired` / `order_limit_reached` /
-`supplier_limit_reached`, `plan` is the org's tier, and `limit` is the **effective** cap
+`processing_paused` / `flow_limit_reached`, `plan` is the org's tier, and `limit` is the **effective** cap
 (`admin override ?? plan default`, `LimitCheckResult.Limit`). Match those codes **whole** —
 never by substring. The exception, and the only one, is the global rate limiter
 (`ProcuLink.Api/Program.cs`), which writes a prose sentence with no code in it
 (`"Rate limit exceeded. Please slow down and retry shortly."`); prose sniffing is legitimate
 there and nowhere else on this path.
 
-Which endpoint emits which code is load-bearing: `supplier_limit_reached` comes from
-`POST /api/suppliers` **only** (`SuppliersController.cs`). `POST /api/orders/upload` can
-answer `pilot_expired` or `order_limit_reached` and nothing else (`OrdersController.cs`).
+Which endpoint emits which code is load-bearing: `flow_limit_reached` comes from
+`POST /api/flows` **only** (`FlowsController.cs`). The two document intake endpoints,
+`POST /api/flows/{flowId}/documents` (`DocumentsController.cs`) and
+`POST /api/v1/flows/{flowId}/documents` (`FlowFilesController.cs`), answer `pilot_expired`,
+`order_limit_reached` or `processing_paused` and nothing else (both through `IntakeResults.cs`).
+The frontend's copy for each is in `src/lib/documentRefusals.ts`. Until plan 13b (2026-11-13)
+`supplier_limit_reached` came from `POST /api/suppliers` and the order codes from
+`POST /api/orders/upload`; both endpoints are gone, and nothing emits `supplier_limit_reached` now.
 
 Required billing copy — **the two banners below are DERIVED, not literals.** This list used
 to print `Your plan includes 1 supplier. Upgrade to Growth to add more supplier flows.` as
@@ -610,8 +617,8 @@ cheaper tier. Enterprise supplier counts are set by agreement (`supplierLimit: n
 - Trial active badge: `Trial · 14 days` (the plan is still the `pilot` wire id; its display name is `PLAN_BY_ID.pilot.name`)
 - Trial expired badge: `Trial ended · Processing paused`
 - Trial expired banner: `Your trial has ended. You can still view previous documents, but new processing is paused.` + a CTA naming `PLANS.pilot.next` (on the document engine a Trial names Starter, `Upgrade to Starter`; legacy orders-era orgs name `PLANS.pilot.next`)
-- Order limit banner: `You've reached your plan's order limit. Upgrade to continue processing new orders this month.`
-- Supplier limit banner: `Your plan includes {limit} supplier(s).` + `Upgrade to {next} to add more supplier flows.` — for a Pilot org that renders exactly the old sentence, which is why the hardcode survived this long. Pinned by `src/components/bridge/UploadWorkbench.supplierLimitCopy.test.tsx`.
+- Document limit refusal: `You've reached your plan's document limit for this month.` (`documentRefusals.ts`; the order-era banner was `You've reached your plan's order limit. Upgrade to continue processing new orders this month.`)
+- Supplier limit banner — **GONE with plan 13b (2026-11-13).** It read `Your plan includes {limit} supplier(s).` + `Upgrade to {next} to add more supplier flows.`, derived in `src/lib/limitRefusal.ts`; that derivation survives but nothing emits `supplier_limit_reached`, and `UploadWorkbench.tsx` and its copy test went with the order screens.
 
 **Paid-plan processing-paused banner (added 2026-08-14).** This list had nothing for the
 state that actually costs money: a paying customer whose card was declined. Every blocking
@@ -634,36 +641,34 @@ blocking surface on a plan name; that check is what caused this.
   a manual agreement has no portal). Only `past_due` and `read_only` may promise processing
   restarts by itself; a cancelled subscription needs a new one.
 
-Pricing cards — **do not hand-maintain this list.** The card feature bullets and CTAs live in
-`PLANS` in `src/lib/plans.ts`; the summary below drifted (it still described Integration as
-1,000 orders and claimed delivery/ingestion channels start at Integration when the backend
-gates them at Growth). Read `plans.ts`:
+Pricing cards — **do not hand-maintain a copy of them here.** The bullets and CTAs live in
+`PLANS` and `DOCUMENT_PLANS` in `src/lib/plans.ts`. This list drifted twice: first it described
+Integration as 1,000 orders and put channels at Integration, then — until plan 13b
+(2026-11-13) — it listed webhook delivery, email/SFTP/S3 ingestion, bulk mapping, cXML and ERP
+connectors on the legacy cards, behind gates that plan 13b deleted. Two rules survive, both
+enforced by `src/test/gatedCapabilityClaims.test.ts`:
 
-- Pilot: `Free for 14 days` — 20 orders, 1 supplier, CSV/XLSX/PDF/XML upload, manual review, supplier-ready export. CTA: `Start Pilot`.
-- Growth: `€149/month` — 150 orders/month, 5 suppliers, **webhook/API delivery and email · SFTP · S3 ingestion** (channels are decoupled from volume — every paid tier gets all of them), mapping + validation, **per-order audit trail**. CTA: `Upgrade to Growth`.
-  It is the **per-order** trail, not the org-wide delivery log. `GET /api/orders/{id}/audit` is
-  ungated on every plan (pinned as the IL scanner's negative control); the cross-order log at
-  `/operations/log` is `GET /api/audit`, gated on `BillingFeature.AdvancedAudit` = Operations. This
-  line said "audit log" until 2026-08-06, when a live Growth org followed it to `/operations/log`
-  and was refused. Enforced by `src/test/gatedCapabilityClaims.test.ts`.
-- Operations: `€399/month` — 500 orders/month, 10 suppliers, bulk mapping import, cXML support, advanced audit trail, priority support. CTA: `Upgrade to Operations`.
-- Integration: `€999/month` — 1,500 orders/month, 20 suppliers, all channels, advanced audit trail, assisted onboarding. CTA: `Upgrade to Integration`.
-- Distributor: `€1,499/month` — 2,500 orders/month, 30 suppliers, all channels, bulk mapping, priority onboarding, founder-led supplier setup. CTA: `Upgrade to Distributor`.
-- Enterprise: `Custom` — custom volume/suppliers, ERP connectors, dedicated onboarding, SLA, custom transformation rules. CTA: `Contact sales`.
-  SSO is **not** on this card and must not be added back until a Settings SSO surface exists —
-  `BillingFeature.Sso` refuses nothing and `ssoAvailable` has zero frontend consumers. The rule is
-  enforced, both directions, by `src/test/gatedCapabilityClaims.test.ts`.
+- The **per-document** trail is not the org-wide delivery log. `GET /api/documents/{id}/history`
+  (`DocumentsController.History`) is ungated on every plan and is the IL scanner's negative
+  control; the cross-document log at `/operations/log` is `GET /api/audit`, gated on
+  `BillingFeature.AdvancedAudit` — Operations and up on the legacy ladder, and included on every
+  document plan (`PlanConstants.PlanHasFeature`). A Growth card said "audit log" until
+  2026-08-06, when a live Growth org followed it to `/operations/log` and was refused.
+- SSO is **not** on the Enterprise card and must not be added back until a Settings SSO surface
+  exists — `BillingFeature.Sso` refuses nothing and `ssoAvailable` has zero frontend consumers.
 
 **Offer ⇔ works applies to the ladder itself:** a capability may only be listed on a tier if the
 backend really gates it there. `BillingFeature` + `PlanConstants.MinimumPlan` are the source of
-truth; the guard that keeps them honest is
+truth — since plan 13b (2026-11-13) `MinimumPlan` holds two rows, `AdvancedAudit` = Operations and
+presentation-only `Sso` = Enterprise; the guard that keeps them honest is
 `ProcuLink.Api.Tests/Architecture/BillingGateEnforcementIsRealTests.cs`, which reads **compiled IL**
 (via `BillingGateIlScanner`) and asserts per feature that the named production method provably
 reaches the gate primitive — `IBillingService.HasFeatureAsync`, or `PlanConstants.PlanHasFeature`
 for the single presentation-only case (SSO — Clerk *can* deliver it, but ProcuLink exposes no
 surface for it and no longer sells it; see the note on the Enterprise card above). It also walks the reverse
 direction, so a gate call in production that no tier declares fails the build, and it ships a
-negative control pinning `OrdersController.GetAudit` as deliberately ungated. Verify a gate by
+negative control pinning `DocumentsController.History` as deliberately ungated (it pinned
+`OrdersController.GetAudit` until plan 13b). Verify a gate by
 running that test — never by reading a method name off a list.
 
 `BillingFeatureGateCoverageTests` is **not** that guard and cannot be: its `EnforcedBy` map is
@@ -739,7 +744,8 @@ ConfidenceChip) is still an accurate reference for components that shipped.
 
 - Next.js 15 App Router migration ✅ complete
 - Bridge Layer app shell exists with `BridgeSidebar` + `BridgeTopbar`.
-- Canonical Bridge routes are `/bridge`, `/inbox`, `/inbox/[orderId]`, `/upload`, `/library/mappings`, `/library/suppliers`, `/operations/*`, and `/settings`.
+- Until plan 13b (2026-11-13) the canonical Bridge routes were `/bridge`, `/inbox`, `/inbox/[orderId]`, `/upload`, `/library/mappings`, `/library/suppliers`, `/operations/*`, and `/settings`. The current routes are in §5.
+- **Plan 13b removed the purchase-order pipeline (2026-11-13, both repos).** Gone: the order screens (`/bridge`, the `/inbox` queue, the `/inbox/[orderId]` review and its `OrderWorkshop`, `/upload/preview/[orderId]`, `/drafts`, every `/library/*` page, `/connections`, and `/operations/connectors`, `exceptions`, `health` and `webhooks`), the order API's write endpoints, and the eight billing gates whose only surfaces those were (`BulkMapping`, `Cxml`, `WebhookDelivery`, `EmailIngestion`, `ErpConnectors`, `CustomSupplierRules`, `SftpIngestion`, `S3Ingestion`). What is left is the document engine — `/documents`, `/flows` (a flow's documents and its Advanced view, which hosts `MapperWorkbench`), `/lookups`, `/upload` (`UploadToFlow`), `/operations/log`, `/settings` and `/admin` — plus a read-only order archive at `/archive`. The retired URLs 308 via `src/lib/retired-routes.ts`. `PlanConstants.MinimumPlan` holds two rows: `AdvancedAudit` = Operations and presentation-only `Sso` = Enterprise. Left behind with no production importer: `bridge/WireTopology.tsx`, `bridge/FileChip.tsx` and `StatusCell` in `bridge/StatusJourney.tsx`. The bullets below this one are dated history; most of the screens they name no longer exist.
 - Legacy compatibility routes such as `/dashboard`, `/orders`, `/orders/[id]`, `/suppliers`, and `/mappings` may still exist; do not use them as the product direction unless deliberately preserving redirects/compatibility.
 - Phase 4 Groups C-H ✅ implemented:
   - C/C2 billing and final Pilot/Growth/Operations/Integration/Enterprise plan ladder.
