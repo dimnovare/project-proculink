@@ -61,7 +61,7 @@ const HTTP_AUTH: Record<string, CredField[]> = {
 const S3_SECRET: CredField[] = [["secretKey", "Secret access key"]];
 const AUTH_LABEL = { bearer: "Bearer token", apikey: "API key", basic: "Username and password" };
 
-const INPUT_BASE = "w-full rounded-md border border-border-strong bg-surface px-3 text-[14px] font-medium text-ink";
+export const INPUT_BASE = "w-full rounded-md border border-border-strong bg-surface px-3 text-[14px] font-medium text-ink";
 export const INPUT = `h-10 ${INPUT_BASE}`;
 /** `look`: the sentence under the control when a value needs a look; it also gives the control an amber edge. */
 export const Field = ({ label, look, children }: { label: string; look?: string; children: React.ReactNode }) => (

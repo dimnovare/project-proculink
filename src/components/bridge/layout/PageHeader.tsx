@@ -36,10 +36,10 @@ export function PageHeader({ title, sub, back, actions, className }: PageHeaderP
           <Link
             href={back.href}
             aria-label={`Back to ${back.label}`}
-            className="inline-flex min-h-[44px] items-center gap-1 text-[14px] font-semibold text-brand-blue sm:min-h-[40px]"
+            className="inline-flex min-h-[44px] items-center gap-1 text-[14px] font-semibold text-brand-blue hover:underline sm:min-h-[40px]"
           >
             <ChevronLeft size={18} aria-hidden />
-            {back.label}
+            <span className="[overflow-wrap:anywhere]">{back.label}</span>
           </Link>
         )}
         <h1
@@ -48,7 +48,7 @@ export function PageHeader({ title, sub, back, actions, className }: PageHeaderP
           {title}
         </h1>
         {sub && (
-          <p className="mt-1.5 text-[15px] leading-[1.45]" style={{ color: "var(--ink-muted)" }}>
+          <p className="mt-1.5 text-[15px] leading-[1.45] text-ink-muted [overflow-wrap:anywhere]">
             {sub}
           </p>
         )}

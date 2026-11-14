@@ -9,6 +9,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { PageShell } from "@/components/bridge/layout/PageShell";
+import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { GOOGLE_CONNECT_CHANNEL, completeGoogleConnect } from "@/lib/api/linkedAccounts";
@@ -59,6 +60,7 @@ function GoogleCallback() {
         : (["working", "Connecting your Google account…"] as const);
   return (
     <PageShell>
+      <PageHeader title="Google account" />
       <StatusNotice tone={tone}>{text}</StatusNotice>
       {tone === "error" && (
         <Link href="/flows" className="mt-3 inline-block text-[13px] underline">Back to flows</Link>

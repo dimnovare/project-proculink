@@ -178,7 +178,7 @@ export function DocumentScreen({ flowId, documentId }: { flowId: string; documen
     <PageShell variant="wide">
       <PageHeader
         title={summary?.fileName ?? "Document"}
-        sub={summary && <Link href={`/flows/${summary.flowId}`} className="text-brand-blue">{summary.flowName}</Link>}
+        sub={summary && <Link href={`/flows/${summary.flowId}`} className="inline-flex min-h-[44px] items-center text-brand-blue sm:min-h-0">{summary.flowName}</Link>}
         back={{ href: "/documents", label: "Documents" }}
       />
       {!doc.data || !summary || !status ? (

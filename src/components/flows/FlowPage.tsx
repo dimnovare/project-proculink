@@ -57,7 +57,7 @@ function Header({ flow }: { flow: Flow }) {
     <Card>
       <div className="grid gap-3">
         <input
-          key={flow.name} aria-label="Flow name" maxLength={120} className={`${INPUT} font-medium`} defaultValue={flow.name}
+          key={flow.name} aria-label="Flow name" maxLength={120} className={INPUT} defaultValue={flow.name}
           onBlur={(e) => rename(e.target)} onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
         />
         <fieldset className="m-0 flex flex-wrap gap-4 border-0 p-0" disabled={update.isPending}>

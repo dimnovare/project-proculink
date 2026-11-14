@@ -265,6 +265,9 @@
     box-sizing: border-box;
   }
 
+  /* Ticks and chosen radio buttons are the bring-in blue, not the computer's accent colour. */
+  :root { accent-color: var(--brand-blue); }
+
   html {
     font-family: 'Inter', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;

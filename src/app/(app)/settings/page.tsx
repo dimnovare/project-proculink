@@ -68,7 +68,7 @@ export default function SettingsPage() {
   return (
     <PageShell className="settings-shell">
         {/* Page header */}
-        <PageHeader title="Settings" sub={billing ? `${orgName}, on the ${planLabel}` : orgName} />
+        <PageHeader title="Settings" sub={organization && (billing ? `${orgName}, on the ${planLabel}` : orgName)} />
 
         {/* Responsive grid as classes (1-col mobile / 200px nav + content ≥md) — the
             previous inline gridTemplateColumns forced the media query below to use
@@ -392,7 +392,7 @@ function OrgSection() {
   );
 }
 
-// Shared primary CTA — brand green (matches design "Save changes" / primary actions):
+// Shared primary CTA — navy, it makes a change real (matches design "Save changes"):
 // <Button variant="primary" size="lg"> from @/components/bridge/DSPrimitives.
 
 // Shared neutral secondary button — white, bordered (matches design "Manage" / "Change plan")

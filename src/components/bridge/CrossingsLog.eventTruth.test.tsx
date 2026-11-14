@@ -442,7 +442,7 @@ describe("CrossingsLog — the org's history past the first page", () => {
     renderLog();
 
     await screen.findByText("PO-4711");
-    const pager = screen.getByRole("navigation", { name: /Delivery log pages/i });
+    const pager = screen.getByRole("navigation", { name: /Activity pages/i });
     expect(within(pager).getByText(/page 1 of 13/i)).toBeInTheDocument();
     // Nothing older was reachable at all before: page 1 was hard-coded and there was
     // no page control anywhere in the file.
@@ -469,7 +469,7 @@ describe("CrossingsLog — the org's history past the first page", () => {
     renderLog();
 
     await screen.findByText("PO-4711");
-    expect(screen.queryByRole("navigation", { name: /Delivery log pages/i })).toBeNull();
+    expect(screen.queryByRole("navigation", { name: /Activity pages/i })).toBeNull();
   });
 
   it("keeps the pager on screen when the filter empties the page", async () => {
@@ -483,7 +483,7 @@ describe("CrossingsLog — the org's history past the first page", () => {
     screen.getByRole("button", { name: "Failed" }).click();
 
     expect(await screen.findByText(/No matching events on this page/i)).toBeInTheDocument();
-    expect(screen.getByRole("navigation", { name: /Delivery log pages/i })).toBeInTheDocument();
+    expect(screen.getByRole("navigation", { name: /Activity pages/i })).toBeInTheDocument();
   });
 });
 

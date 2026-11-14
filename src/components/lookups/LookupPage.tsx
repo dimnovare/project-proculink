@@ -178,8 +178,8 @@ function LookupEditor({ lookup }: { lookup: Lookup }) {
 export function LookupPage({ lookupId }: { lookupId: string }) {
   const lookup = useQuery({ queryKey: ["lookup", lookupId], queryFn: () => getLookup(lookupId), enabled: useTenantQueriesEnabled() });
   if (lookup.isError) {
-    return <PageShell variant="wide"><StatusNotice tone="error">{documentRefusalMessage(lookup.error)}</StatusNotice></PageShell>;
+    return <PageShell variant="wide"><PageHeader title="Lookup" back={{ href: "/lookups", label: "Lookups" }} /><StatusNotice tone="error">{documentRefusalMessage(lookup.error)}</StatusNotice></PageShell>;
   }
-  if (!lookup.data) return <PageShell variant="wide"><Quiet>Loading lookup…</Quiet></PageShell>;
+  if (!lookup.data) return <PageShell variant="wide"><PageHeader title="Lookup" back={{ href: "/lookups", label: "Lookups" }} /><Quiet>Loading lookup…</Quiet></PageShell>;
   return <LookupEditor lookup={lookup.data} />;
 }

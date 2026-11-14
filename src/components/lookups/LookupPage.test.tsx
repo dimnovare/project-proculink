@@ -16,6 +16,13 @@ vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => tru
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
 describe("LookupPage", () => {
+  it("names the page and offers the way back while the lookup loads", () => {
+    getLookup.mockReturnValue(new Promise(() => {}));
+    render(<QueryClientProvider client={new QueryClient()}><LookupPage lookupId="l1" /></QueryClientProvider>);
+    expect(screen.getByRole("heading", { level: 1, name: "Lookup" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Back to Lookups" }).getAttribute("href")).toBe("/lookups");
+  });
+
   it("import then Save sends the merged table, and an in-use delete explains why", async () => {
     getLookup.mockResolvedValue({ id: "l1", name: "Item codes", entries: [{ from: "BLT-10", to: "old" }], updatedAt: "" });
     updateLookup.mockResolvedValue({});
