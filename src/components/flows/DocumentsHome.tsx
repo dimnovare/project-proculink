@@ -8,9 +8,9 @@ import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import { Card } from "@/components/bridge/layout/Card";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { Button } from "@/components/bridge/DSPrimitives";
-import { flowsQuery, useDocumentEngine } from "@/hooks/useDocumentEngine";
+import { documentsQuery, flowsQuery, useDocumentEngine } from "@/hooks/useDocumentEngine";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
-import { listDocuments, type DocumentSummary } from "@/lib/api/documents";
+import type { DocumentSummary } from "@/lib/api/documents";
 import { apiClient } from "@/lib/api-client";
 import { pagePopulation } from "@/components/bridge/orderCountContract";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
@@ -36,8 +36,7 @@ export function DocumentsHome() {
   // Same key and options as useDocumentEngine, so the two share one request.
   const flows = useQuery({ ...flowsQuery, enabled: useTenantQueriesEnabled() });
   const docs = useQuery({
-    queryKey: ["documents", { take: 100 }],
-    queryFn: () => listDocuments({ take: 100 }),
+    ...documentsQuery,
     enabled: engine === "on",
     refetchInterval: (q) => (q.state.data?.some((d) => documentStatus(d.status, d.statusReason).tone === "working") ? 2000 : false),
   });

@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useOrganization } from "@clerk/nextjs";
 import { useQuery } from "@tanstack/react-query";
 import {
-  Upload, Inbox, Zap, Workflow, ArrowRightLeft,
+  Upload, FileText, Clock, Workflow, ArrowRightLeft,
   Lock, HelpCircle, Settings, ChevronsLeft, ChevronsRight, X,
   type LucideIcon,
 } from "lucide-react";
@@ -37,13 +37,16 @@ export type SidebarNavSection = { group?: string; items: SidebarNavItem[] };
 /** The pinned primary action at the top of the rail (not a nav item). */
 export const PINNED_ACTION_HREF = "/upload";
 
+/** The pages the phone tab bar carries. The navigation panel hides them on phones. */
+export const PHONE_TAB_HREFS: readonly string[] = ["/documents", "/flows", "/operations/log"];
+
 const NAV_MAIN: SidebarNavSection[] = [
   {
     items: [
-      { label: "Documents", href: "/documents", icon: Inbox },
+      { label: "Documents", href: "/documents", icon: FileText },
       { label: "Flows", href: "/flows", icon: Workflow },
       { label: "Lookups", href: "/lookups", icon: ArrowRightLeft },
-      { label: "Activity", href: "/operations/log", icon: Zap },
+      { label: "Activity", href: "/operations/log", icon: Clock },
       { label: "Settings", href: "/settings", icon: Settings },
     ],
   },

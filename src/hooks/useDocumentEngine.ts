@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { listFlows } from "@/lib/api/documents";
+import { listDocuments, listFlows } from "@/lib/api/documents";
 import { refusalToken } from "@/lib/documentRefusals";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 
@@ -13,6 +13,13 @@ export const flowsQuery = {
   retry: (n: number, e: unknown) => refusalToken(e) !== "document_engine_not_enabled" && n < 2,
   staleTime: 300_000,
   refetchOnWindowFocus: false,
+} as const;
+
+export const DOCUMENTS_TAKE = 100;
+/** One set of options for every reader of the newest documents, so they share a request. */
+export const documentsQuery = {
+  queryKey: ["documents", { take: DOCUMENTS_TAKE }],
+  queryFn: () => listDocuments({ take: DOCUMENTS_TAKE }),
 } as const;
 
 /** "off" only on the server's explicit refusal; data in hand is "on" even if a later refetch fails;
