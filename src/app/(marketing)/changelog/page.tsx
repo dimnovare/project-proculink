@@ -23,7 +23,7 @@ export const metadata = pageMetadata({
 const ENTRIES = [
   {
     version: "v2.0",
-    date: "12 November 2026",
+    date: "14 November 2026",
     items: [
       "ProcuLink now reads any document. Set up a flow, check what we read, and send it in the format you need. Your old orders stay readable under Old orders.",
     ],

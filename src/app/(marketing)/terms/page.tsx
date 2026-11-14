@@ -33,7 +33,7 @@ export default function TermsPage() {
     <div style={S.page}>
       <h1 style={S.h1}>Terms of Service</h1>
       {/* FOUNDER DECISION: set this date to the day the page is published. */}
-      <p style={S.updated}>Last updated: 12 November 2026</p>
+      <p style={S.updated}>Last updated: 14 November 2026</p>
 
       <h2 style={S.h2}>1. Agreement</h2>
       <p style={S.p}>

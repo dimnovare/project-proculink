@@ -30,7 +30,7 @@ export default function PrivacyPage() {
     <div style={S.page}>
       <h1 style={S.h1}>Privacy Policy</h1>
       {/* FOUNDER DECISION: set this date to the day the page is published. */}
-      <p style={S.updated}>Last updated: 12 November 2026</p>
+      <p style={S.updated}>Last updated: 14 November 2026</p>
 
       <h2 style={S.h2}>Who we are</h2>
       <p style={S.p}>
@@ -308,6 +308,25 @@ export default function PrivacyPage() {
         from an address on the account. We confirm the request with you in writing and complete
         it within 30 days of that confirmation. Billing and tax records are kept as described
         above, and so is a short record that the deletion took place.
+      </p>
+
+      <h2 style={S.h2}>Google accounts you connect</h2>
+      <p style={S.p}>
+        If a workspace admin connects a Google account so that a flow can send files to Google
+        Drive or add rows to Google Sheets:
+      </p>
+      <ul style={{ paddingLeft: 20, marginBottom: 14 }}>
+        <li style={S.li}><strong>What we access.</strong> The account&apos;s email address, and only the Drive folders, files and spreadsheets you choose in Google&apos;s file picker or that ProcuLink creates. We cannot see any other file in your Google Drive.</li>
+        <li style={S.li}><strong>How we use it.</strong> Only to deliver the documents your flows produce to the folder or spreadsheet you chose, and to show which account is connected. Before we add a file, we check whether ProcuLink already put a file with the same name in that folder, so a re-send replaces it instead of making a copy. Before we add rows, we read the spreadsheet&apos;s tab names and its first row, so a repeated header row is not added again.</li>
+        <li style={S.li}><strong>What we store.</strong> The account&apos;s email address and an encrypted token issued by Google that lets ProcuLink reach the items you chose. We do not keep copies of anything we read from your Google account.</li>
+        <li style={S.li}><strong>Sharing.</strong> We do not share data from your Google account with anyone. We do not use it for advertising, and we do not use it to train AI models.</li>
+        <li style={S.li}><strong>Removing access.</strong> Disconnect the account in ProcuLink, and we delete its token at once. You can also remove ProcuLink from your Google account&apos;s third-party access at any time. Deleting your workspace deletes the connection too.</li>
+      </ul>
+      <p style={S.p}>
+        ProcuLink&apos;s use and transfer to any other app of information received from Google APIs
+        will adhere to the{" "}
+        <a href="https://developers.google.com/terms/api-services-user-data-policy" style={{ color: "var(--brand-green-deep)", textDecoration: "underline" }}>Google API Services User Data Policy</a>,
+        including the Limited Use requirements.
       </p>
 
       <h2 style={S.h2}>Cookies</h2>
