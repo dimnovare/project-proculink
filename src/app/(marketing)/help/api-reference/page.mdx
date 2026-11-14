@@ -83,7 +83,7 @@ Answered with `200`. It has two parts.
 - `document` holds `summary` (as above, with the current `status`), `contentType`, `read`, `checks` and `senderLabel`.
 - `deliveries` lists what was sent, with `id`, `outputName`, `protocol`, `status`, `attempts`, `lastError`, `fileName` and `deliveredAt`.
 
-`read` has `kindLabel`, `truncated`, a list of `fields` and a list of `tables`. Each field has `key`, `label`, `value`, `type`, `meaning`, `confidence`, `location`, `notOnPage`, `listed` and `edited`. Confidence is a number from 0 to 1. `checks` lists only the checks that flagged something, each with `code`, `passed`, `fieldKey` and `message`.
+`read` has `kindLabel`, `truncated`, a list of `fields` and a list of `tables`. Each field has `key`, `label`, `value`, `type`, `meaning`, `confidence`, `location`, `notOnPage`, `listed` and `edited`. Confidence is a number from 0 to 1. An empty value has 0. `checks` lists only the checks that flagged something, each with `code`, `passed`, `fieldKey` and `message`.
 
 `status` is one of `received`, `reading`, `read_failed`, `needs_review`, `ready`, `sending`, `sent` or `send_failed`. See [Documents and their statuses](/help/documents-and-statuses). A delivery `status` is `queued`, `delivering`, `delivered`, `stored`, `failed` or `dead_letter`.
 
