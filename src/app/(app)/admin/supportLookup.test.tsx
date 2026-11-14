@@ -79,6 +79,10 @@ function org(over: Partial<AdminOrganisation> = {}): AdminOrganisation {
     lastOrderActivity: new Date("2026-08-20").toISOString(),
     orderVolume30d: 31,
     supplierCount: 4,
+    documentUnitsThisMonth: 0,
+    aiCallsThisMonth: 0,
+    aiTokensInThisMonth: 0,
+    aiTokensOutThisMonth: 0,
     ...over,
   };
 }

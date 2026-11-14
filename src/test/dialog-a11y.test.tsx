@@ -234,6 +234,10 @@ const ORG: AdminOrganisation = {
   lastOrderActivity: null,
   orderVolume30d: 0,
   supplierCount: 1,
+  documentUnitsThisMonth: 0,
+  aiCallsThisMonth: 0,
+  aiTokensInThisMonth: 0,
+  aiTokensOutThisMonth: 0,
 };
 
 /** One renderable dialog: `file` ties it back to the registry. */

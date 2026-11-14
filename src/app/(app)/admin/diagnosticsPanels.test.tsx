@@ -73,6 +73,10 @@ const ORG: AdminOrganisation = {
   lastOrderActivity: null,
   orderVolume30d: 0,
   supplierCount: 1,
+  documentUnitsThisMonth: 37,
+  aiCallsThisMonth: 4,
+  aiTokensInThisMonth: 5400,
+  aiTokensOutThisMonth: 3600,
 };
 
 async function renderAdmin(): Promise<void> {
@@ -98,6 +102,15 @@ function open(id: "admin-job-failures"): void {
   const p = panel(id);
   fireEvent.click(within(p).getByRole("button", { expanded: false }));
 }
+
+describe("admin — workspace table", () => {
+  it("shows documents read and AI tokens this month", async () => {
+    await renderAdmin();
+    const table = within(screen.getByRole("table"));
+    expect(table.getByText("37")).toBeTruthy();
+    expect(table.getByText("5,400 / 3,600")).toBeTruthy();
+  });
+});
 
 describe("admin — job failures", () => {
   it("is collapsed by default and fetches nothing until opened", async () => {
