@@ -15,7 +15,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("@clerk/nextjs", () => ({
-  useUser: () => ({ user: { firstName: "Dim" }, isLoaded: true }),
+  useUser: () => ({ user: { firstName: "Alex" }, isLoaded: true }),
   useOrganization: () => ({ organization: null }),
 }));
 
@@ -50,21 +50,17 @@ function renderPage(ui: React.ReactElement) {
   );
 }
 
-/** Exactly one h1 whose text matches; sr-only unless `visible`. */
-function expectSingleH1(text: string, opts: { visible?: boolean } = {}) {
+/** Exactly one h1 whose text matches, and it is not visually hidden. */
+function expectSingleH1(text: string) {
   const headings = screen.getAllByRole("heading", { level: 1 });
   expect(headings).toHaveLength(1);
   expect(headings[0]).toHaveTextContent(text);
-  if (opts.visible) {
-    expect(headings[0]).not.toHaveClass("sr-only");
-  } else {
-    expect(headings[0]).toHaveClass("sr-only");
-  }
+  expect(headings[0]).not.toHaveClass("sr-only");
 }
 
 describe("the Activity page names itself", () => {
   it("Activity: visible h1", async () => {
     renderPage(<CrossingsLog />);
-    await waitFor(() => expectSingleH1("Activity", { visible: true }));
+    await waitFor(() => expectSingleH1("Activity"));
   });
 });

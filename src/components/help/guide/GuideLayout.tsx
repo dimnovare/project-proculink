@@ -207,9 +207,8 @@ function GuideHeader({
   const isAdmin = guide.audience === "admin";
   return (
     <header style={{ maxWidth: 720 }}>
-      {/* Admin guides render inside the app shell, whose topbar already provides
-          a breadcrumb for the route. A second one would duplicate the landmark
-          and the navigation; the runbook index is reachable from the footer. */}
+      {/* Admin guides render inside the app shell, whose top bar has no
+          breadcrumb row; the way back from a guide is its footer link. */}
       {!isAdmin && (
         <nav
           aria-label="Breadcrumb"

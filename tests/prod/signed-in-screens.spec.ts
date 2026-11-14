@@ -122,9 +122,8 @@ test.describe("authenticated production", () => {
       await expect(page).toHaveTitle(screen.title);
 
       // 3. One heading, and a main region with something in it. The h1 is
-      //    matched by role rather than by text: several of these screens hide
-      //    their title visually (PageHeader `titleHidden`) because the topbar
-      //    already names the page, and on /library/suppliers the wording is
+      //    matched by role rather than by text: several titles come from data
+      //    (a flow, file or lookup name), and on /library/suppliers the wording is
       //    direction-dependent. The heading's EXISTENCE is the invariant; its
       //    wording is owned by the copy guards, not by this file.
       const heading = page.getByRole("heading", { level: 1 });

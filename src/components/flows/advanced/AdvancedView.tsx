@@ -18,7 +18,7 @@ export function AdvancedView({ flowId, outputId, documentId }: { flowId: string;
   const qc = useQueryClient();
   const enabled = useTenantQueriesEnabled();
   const [incomingView, setIncomingView] = useState<IncomingView>("fields");
-  // The toolbar is hidden, so its save status is re-hosted beside "Back to flow".
+  // The toolbar is hidden, so its save status is re-hosted in the page header's actions.
   const [bar, setBar] = useState<MapperToolbarState | null>(null);
   const flow = useQuery({ queryKey: ["flow", flowId], queryFn: () => getFlow(flowId), enabled });
   const outputs = useQuery({ queryKey: ["outputs", flowId], queryFn: () => listOutputs(flowId), enabled });
