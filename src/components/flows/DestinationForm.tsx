@@ -100,8 +100,7 @@ export function DestinationForm({ destination, preset, onSaved, onCancel }: {
     onError: (e) => setProblem(documentRefusalMessage(e)),
   });
 
-  function submit(e: React.FormEvent) {
-    e.preventDefault();
+  function submit() {
     if (!name.trim()) return setProblem("Give this destination a name.");
     if (loginIncomplete)
       return setProblem("Fill in every login field, or leave them all blank to keep the saved login.");
@@ -118,7 +117,10 @@ export function DestinationForm({ destination, preset, onSaved, onCancel }: {
 
   return (
     <Card edge="green" title={current ? "Edit destination" : "New destination"}>
-      <form onSubmit={submit} className="grid gap-3">
+      {/* Not a <form>: this sits inside the output and draft-review forms, and a nested form's Save
+          either submits the outer form too or, with a password manager installed, reloads the page. */}
+      <div className="grid gap-3"
+        onKeyDown={(e) => { if (e.key === "Enter" && e.target instanceof HTMLInputElement) { e.preventDefault(); submit(); } }}>
         <Field label="Name">
           <input className={INPUT} value={name} onChange={(e) => setName(e.target.value)} />
         </Field>
@@ -208,7 +210,7 @@ export function DestinationForm({ destination, preset, onSaved, onCancel }: {
         {current?.hasCredentials && credFields.length > 0 && <p className="text-[12px] text-ink-muted">Saved</p>}
         {problem && <StatusNotice tone="error">{problem}</StatusNotice>}
         <div className="flex flex-wrap gap-2">
-          <Button type="submit" variant="primary" loading={save.isPending}>Save</Button>
+          <Button type="button" variant="primary" loading={save.isPending} onClick={submit}>Save</Button>
           <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>
           <Button type="button" variant="secondary" disabled={!current} loading={test.isPending} onClick={() => test.mutate()}>
             Send a test
@@ -225,7 +227,7 @@ export function DestinationForm({ destination, preset, onSaved, onCancel }: {
             {result.message ?? (result.success ? "The test went through." : "The test failed.")}
           </StatusNotice>
         )}
-      </form>
+      </div>
     </Card>
   );
 }
