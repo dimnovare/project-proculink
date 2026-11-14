@@ -79,9 +79,9 @@ const ORG: AdminOrganisation = {
   aiTokensOutThisMonth: 3600,
 };
 
-async function renderAdmin(): Promise<void> {
+async function renderAdmin(org: AdminOrganisation = ORG): Promise<void> {
   getAdminOverview.mockResolvedValue(OVERVIEW);
-  getAdminOrganisations.mockResolvedValue([ORG]);
+  getAdminOrganisations.mockResolvedValue([org]);
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
@@ -109,6 +109,21 @@ describe("admin — workspace table", () => {
     const table = within(screen.getByRole("table"));
     expect(table.getByText("37")).toBeTruthy();
     expect(table.getByText("5,400 / 3,600")).toBeTruthy();
+  });
+});
+
+describe("admin — workspace table before the backend sends the figures", () => {
+  it("shows zeros while the backend does not send the figures yet", async () => {
+    await renderAdmin({
+      ...ORG,
+      documentUnitsThisMonth: undefined,
+      aiCallsThisMonth: undefined,
+      aiTokensInThisMonth: undefined,
+      aiTokensOutThisMonth: undefined,
+    } as unknown as AdminOrganisation);
+    const table = within(screen.getByRole("table"));
+    expect(table.getByText("0 / 0")).toBeTruthy();
+    expect(table.getByTitle("0 AI calls this month")).toBeTruthy();
   });
 });
 
