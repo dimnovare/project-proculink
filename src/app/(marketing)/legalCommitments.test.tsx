@@ -65,7 +65,15 @@ function visibleText(root: HTMLElement) {
     .forEach((el) => el.remove());
   const parts: string[] = [];
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-  for (let n = walker.nextNode(); n; n = walker.nextNode()) parts.push(n.textContent ?? "");
+  // A list item, card or paragraph ends a sentence: the shape guards read a window of text, and
+  // without a boundary two unrelated cards on /pricing read as one sentence.
+  let prevBlock: Element | null = null;
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+    const block = n.parentElement?.closest("li,article,p,h1,h2,h3,h4") ?? null;
+    if (parts.length && block !== prevBlock) parts.push(".");
+    prevBlock = block;
+    parts.push(n.textContent ?? "");
+  }
   return parts.join(" ").replace(/\s+/g, " ").trim();
 }
 

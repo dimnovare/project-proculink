@@ -12,11 +12,9 @@
 //
 // CLAUDE.md §11.5: *a capability may only be listed on a tier if the backend really gates it
 // there.* The corollary is easy to miss and shipped repeatedly — **a gated capability
-// presented with no tier at all reads as included on every plan.** cXML was sold as an
-// unconditional "Supported" on six surfaces while `BillingGateErrors.RequiredFeatures`
-// refused a Growth org's cXML delivery config with `cxml_output_requires_operations`; the
-// ERP connectors were listed beside SFTP and email as though they were an ordinary channel,
-// at a €2,500/mo gate.
+// presented with no tier at all reads as included on every plan.** The backend gate table is
+// now two rows (`AdvancedAudit`, `Sso`); every other capability formerly gated is open on
+// every plan, so copy must not name a tier for it.
 //
 // The obvious repair — type "Operations plan and up" into six help pages — creates six
 // places to forget when a gate moves, which is the defect one level up. So marketing and
@@ -33,15 +31,7 @@ import { DOCUMENT_PLAN_IDS, PLAN_BY_ID, PLANS, type PlanId } from "@/lib/plans";
  * type checker: a typo'd tier is a compile error, not a runtime lookup of `undefined`.
  */
 export const MINIMUM_PLAN = {
-  webhookDelivery: "growth",
-  emailIngestion: "growth",
-  sftpIngestion: "growth",
-  s3Ingestion: "growth",
-  bulkMapping: "operations",
-  cxml: "operations",
   advancedAudit: "operations",
-  erpConnectors: "enterprise",
-  customSupplierRules: "enterprise",
   // Clerk *can* deliver SSO and the flag exists, but ProcuLink exposes no Settings surface
   // for it, so it is deliberately unsold. See the note on the Enterprise card in plans.ts.
   sso: "enterprise",

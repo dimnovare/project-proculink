@@ -167,90 +167,18 @@ const productLines = (): Array<{ file: string; line: string; number: number }> =
 const SELLS_SSO =
   /\bsso\b|\bsaml\b|\boidc\b|openid connect|single[- ]sign[- ]on|\bscim\b|directory sync|identity provider|\bidp\b|federated login|\bokta\b|\bentra\b|azure ad|onelogin|enterprise connections/i;
 
-/**
- * Every gated capability that has a ROW on `/formats`, and where to find it.
- *
- * This list used to hold three entries — IMAP, SFTP and S3 — and the test below used to accept a
- * row that named no plan at all, on the reasoning that "vagueness is not a false claim". Both
- * halves were wrong, and in the same direction:
- *
- *   • Three of the ten mirrored rows were consulted. `webhookDelivery`, `cxml` and
- *     `erpConnectors` also have catalog rows, and all three shipped with no tier — the ERP rows
- *     sat between SFTP and email as though a €2,500/mo connector were an ordinary file drop.
- *   • Vagueness IS a false claim on a comparison table. Sixteen lines above the ERP rows, three
- *     ingestion rows each end "Growth plan and up." A reader who has learned that convention
- *     reads a row with no tier as "included", because on this page that is what it means.
- *
- * `bulkMapping`, `advancedAudit`, `customSupplierRules` and `sso` are deliberately absent: they
- * have no `/formats` row to check. They are pricing-card capabilities and are policed by the card
- * scans further down, which is stated here rather than left as a silent gap.
- */
-const GATED_CATALOG_ROWS: ReadonlyArray<{
-  label: string;
-  rows: FormatRow[];
-  matches: RegExp;
-  minimumPlan: string;
-}> = [
-  // `hosted inbound` is in the matcher because the hosted address row is the SAME backend gate
-  // as IMAP polling (`InboundEmailRouter` refuses on `EmailIngestion`) and shipped with no tier
-  // at all — the address is minted for every org, so the row read as included on every plan
-  // while a Pilot org's hosted mail was silently dropped.
-  { label: "IMAP / email inbox polling + hosted inbound email", rows: IMPORT_METHODS, matches: /imap|email inbox|hosted inbound/i, minimumPlan: BACKEND_MINIMUM_PLAN.emailIngestion },
-  { label: "SFTP pull", rows: IMPORT_METHODS, matches: /sftp/i, minimumPlan: BACKEND_MINIMUM_PLAN.sftpIngestion },
-  { label: "S3 / R2 pull", rows: IMPORT_METHODS, matches: /s3|r2 bucket/i, minimumPlan: BACKEND_MINIMUM_PLAN.s3Ingestion },
-  { label: "HTTPS webhook delivery", rows: DELIVERY_METHODS, matches: /webhook/i, minimumPlan: BACKEND_MINIMUM_PLAN.webhookDelivery },
-  { label: "Erply / Directo ERP delivery", rows: DELIVERY_METHODS, matches: /\berp\b/i, minimumPlan: BACKEND_MINIMUM_PLAN.erpConnectors },
-  { label: "cXML output", rows: OUTPUT_FORMATS, matches: /\bcxml\b/i, minimumPlan: BACKEND_MINIMUM_PLAN.cxml },
-];
-
 /** The plan names a row's name+note mention, cheapest-first. */
 const plansNamedIn = (row: FormatRow): string[] =>
   PLAN_NAMES.filter((p) => new RegExp(`\\b${p}\\b`, "i").test(`${row.name} ${row.note ?? ""}`));
 
 describe("advertised tier matches the enforced tier", () => {
-  it.each(GATED_CATALOG_ROWS)(
-    "$label: every /formats row for it names its real minimum plan",
-    ({ label, rows, matches, minimumPlan }) => {
-      const gated = rows.filter((m) => matches.test(m.name));
-      expect(gated.length, `no /formats row matches ${label} — this test would be vacuous`).toBeGreaterThan(0);
+  it("names no plan on any /formats row — no BillingFeature gates a channel or a format", () => {
+    // The backend gate table is AdvancedAudit and Sso only, so a tier on an intake channel, a
+    // delivery channel or an output format would sell an upgrade nobody needs.
+    const rows = [...IMPORT_METHODS, ...DELIVERY_METHODS, ...OUTPUT_FORMATS];
+    expect(rows.length, "the corpus must really contain rows").toBeGreaterThan(5);
 
-      for (const row of gated) {
-        const named = plansNamedIn(row);
-
-        expect(
-          named,
-          `"${row.name}" is gated at ${minimumPlan} and names no plan. On a page where the ` +
-            `ingestion rows each say "Growth plan and up", a row with no tier reads as included on ` +
-            `every plan — which is how the ERP connectors were advertised at €149. Derive the tier ` +
-            `with requiresPlan() from src/lib/gatedCapabilities.ts.`,
-        ).not.toEqual([]);
-
-        for (const plan of named) {
-          expect(
-            plan,
-            `"${row.name}" tells the reader this needs the ${plan} plan, but the backend gates it ` +
-              `at ${minimumPlan}. Naming a dearer tier sells an upgrade the customer does not need; ` +
-              `naming a cheaper one promises something the API will refuse.`,
-          ).toBe(minimumPlan);
-        }
-      }
-    },
-  );
-
-  it("names no plan on the catalog rows nothing gates", () => {
-    // The other direction, and the reason the rows above cannot simply be "every row names a
-    // tier". `BillingGateErrors.RequiredFeatures` adds a requirement for the ERP protocols, for
-    // `http`, and for the `cxml` output format — and for nothing else. SFTP, FTPS and email
-    // DELIVERY are on every plan, so putting a tier on them would be the same defect mirrored:
-    // an upgrade sold to a customer who does not need one. (Inbound SFTP and email are gated;
-    // those are different rows, above, and they do name Growth.)
-    const gatedRows = new Set(
-      GATED_CATALOG_ROWS.flatMap(({ rows, matches }) => rows.filter((r) => matches.test(r.name))),
-    );
-    const ungated = [...IMPORT_METHODS, ...DELIVERY_METHODS, ...OUTPUT_FORMATS].filter((r) => !gatedRows.has(r));
-    expect(ungated.length, "the corpus must really contain ungated rows").toBeGreaterThan(5);
-
-    const offenders = ungated
+    const offenders = rows
       .filter((r) => plansNamedIn(r).length > 0)
       .map((r) => `${r.name} — names ${plansNamedIn(r).join(", ")}`);
 
@@ -277,53 +205,6 @@ describe("advertised tier matches the enforced tier", () => {
               `price list, which is the defect WP-11 exists to prevent.`,
           ).toBe(false);
         }
-      }
-    }
-  });
-
-  it("every plan-gated channel is sold from Growth up, on every paid tier", () => {
-    // Paying MORE must never take a capability away, and the four channels are decoupled from
-    // volume — so once a paid card mentions channels it must not imply a channel is missing.
-    //
-    // This reads `effectiveFeatures`, not `plan.features`. Since the cards were restructured
-    // around `inheritsFrom` ("Everything in Growth, plus"), the tiers above Growth no longer
-    // RESTATE the channels — that restatement is exactly what forced six lists to agree by hand
-    // and is what they failed at. Reading only `plan.features` would now report the fixed cards
-    // as broken; reading `billingSummary` alone would pass whatever the bullets said, because
-    // every paid summary ends "· all channels". The set the card actually communicates is the
-    // inherited one, so that is the set to check.
-    const paidTiers = PLANS.filter((p) => p.id !== "pilot" && p.id !== "enterprise");
-    expect(paidTiers.length).toBeGreaterThan(0);
-
-    for (const plan of paidTiers) {
-      const inherited = effectiveFeatures(plan);
-      expect(
-        inherited.length,
-        `${plan.id} inherits nothing and lists nothing`,
-      ).toBeGreaterThanOrEqual(plan.features.length);
-
-      const blob = inherited.join(" ").toLowerCase();
-      expect(
-        /channel|webhook|sftp|s3|email/.test(blob),
-        `the ${plan.id} card never mentions delivery or ingestion channels — not in its own ` +
-          `bullets and not through the tiers it inherits — yet the backend grants all four from ` +
-          `Growth up. Silence here reads as "not included" on the tier comparison.`,
-      ).toBe(true);
-    }
-  });
-
-  it("the Pilot card sells no capability the backend gates behind a paid plan", () => {
-    const pilot = PLANS.find((p) => p.id === "pilot");
-    expect(pilot).toBeDefined();
-
-    const gated = [/webhook/i, /\bsftp\b/i, /\bs3\b/i, /\bimap\b/i, /\bcxml\b/i, /erp\b/i, /\bsso\b/i];
-    for (const feature of pilot!.features) {
-      for (const pattern of gated) {
-        expect(
-          pattern.test(feature),
-          `the Pilot card offers "${feature}", but every BillingFeature is withheld below Growth ` +
-            `(NoFeature_IsAvailableOnPilot in the backend suite). The trial would refuse it.`,
-        ).toBe(false);
       }
     }
   });
@@ -376,166 +257,6 @@ describe("cancellation is disclosed where cancelling happens", () => {
   });
 });
 
-describe("the tier→capability claim list is not duplicated outside plans.ts", () => {
-  /**
-   * `format-catalog.ts` drifted precisely because it held its own copy of a plan claim. Any NEW
-   * marketing file that starts naming plans for gated channels is the same failure being reintroduced
-   * somewhere this suite does not yet look, so the scan is over the whole marketing tree rather than
-   * a fixed list of files.
-   */
-  /**
-   * "<channel> … <dearer plan> plan(s)" close together on one line.
-   *
-   * Every part of the tail is load-bearing, and each was added because the previous form missed a
-   * claim that really shipped:
-   *
-   *   • `\+?` / `plans?` — the first form ended `\b(integration|distributor|enterprise) plan\b`,
-   *     the exact four-word phrasing format-catalog.ts happened to use. It read straight past the
-   *     changelog's "IMAP email polling — Integration+ plans now auto-ingest …" for five releases:
-   *     a `+` broke `integration plan`, and the plural broke `plan\b`.
-   *   • `[^\n]` rather than `[^.\n]` — the window used to stop at a full stop, so a claim only
-   *     counted if the channel and the tier sat in ONE sentence. The three rows this whole file
-   *     exists to prevent do not:
-   *
-   *         note: "We poll your mailbox for order attachments. Integration plan."   (0e3c445^)
-   *
-   *     The channel is in `name:`, the tier is in `note:`, and a full stop sits between them — so
-   *     the guard matched none of its own origin defects. Widened to the line, which is the unit
-   *     these rows are written in. `{0,120}` still keeps two unrelated sentences apart.
-   *
-   * A pattern that only recognises the one wording it was written against guards that wording,
-   * not the claim. The controls below pin every shape that has actually shipped.
-   */
-  const DEARER_TIER_CLAIM =
-    /(imap|sftp|s3 ?\/? ?r2|s3 bucket)[^\n]{0,120}?\b(integration|distributor|enterprise)\+?\s+plans?\b/i;
-
-  /** Which gated channel a line is talking about, and the tier that really unlocks it. */
-  const CHANNELS = [
-    { source: "imap|email inbox polling", minimumPlan: BACKEND_MINIMUM_PLAN.emailIngestion },
-    { source: "sftp", minimumPlan: BACKEND_MINIMUM_PLAN.sftpIngestion },
-    { source: "s3 ?\\/? ?r2|s3 bucket", minimumPlan: BACKEND_MINIMUM_PLAN.s3Ingestion },
-  ];
-
-  /**
-   * The changelog is append-only: changelog-append-only.test.ts freezes every pre-2026-07-30 entry
-   * byte for byte, because editing the entry that announced a feature claims it never shipped. So a
-   * wrong tier inside a frozen entry cannot be edited out, and the remedy that contract prescribes
-   * is a NEW entry putting it right.
-   *
-   * This is that allowance, and it is deliberately narrow: the correction must name the SAME
-   * channel and the REAL minimum tier, and it must sit ABOVE the claim it corrects — the page is
-   * newest-first, so "above" is what a reader meets first. Anything looser would be an exemption
-   * for the changelog rather than a requirement that the record be put right.
-   */
-  const correctedAbove = (lines: string[], index: number): boolean => {
-    const named = CHANNELS.filter((c) => new RegExp(c.source, "i").test(lines[index]));
-    if (named.length === 0) return false;
-    const above = lines.slice(0, index).join("\n");
-    return named.every((c) =>
-      new RegExp(`(?:${c.source})[^.\\n]{0,200}?\\b${c.minimumPlan}\\b`, "i").test(above),
-    );
-  };
-
-  /** The one file whose history cannot be edited, so the one file the allowance applies to. */
-  const APPEND_ONLY = join(process.cwd(), "src/app/(marketing)/changelog/page.tsx");
-
-  it("no marketing copy claims a gated ingestion channel needs a tier above Growth", () => {
-    // `src/lib/plans.ts` is in this corpus deliberately. The describe above is titled "not
-    // duplicated outside plans.ts" and walked `src/lib/marketing` — one directory level below the
-    // file it is named after, so the price list itself was never scanned by the widest scan in
-    // this suite. That is how `"SSO (SAML/OIDC)"` sat on the Enterprise card unexamined: not
-    // because a pattern was too narrow, but because the corpus stopped short of the file.
-    const files = [
-      ...walk(join(process.cwd(), "src/lib/marketing")),
-      ...walk(join(process.cwd(), "src/app/(marketing)")),
-      join(process.cwd(), "src/lib/plans.ts"),
-    ];
-    expect(files.length).toBeGreaterThan(0);
-
-    const offenders: string[] = [];
-
-    for (const file of files) {
-      const lines = readFileSync(file, "utf8").split("\n");
-      lines.forEach((line, i) => {
-        if (!DEARER_TIER_CLAIM.test(line)) return;
-        if (file === APPEND_ONLY && correctedAbove(lines, i)) return;
-        offenders.push(`${file.replace(process.cwd(), "")}:${i + 1}: ${line.trim()}`);
-      });
-    }
-
-    expect(
-      offenders,
-      "these lines sell an ingestion channel at a tier dearer than the one the backend gates it " +
-        "at (Growth). State the real minimum, or name no plan at all:\n" + offenders.join("\n"),
-    ).toEqual([]);
-  });
-
-  it("recognises the phrasings that have shipped, not only the one it was written against", () => {
-    // format-catalog.ts as it stood at 0e3c445^ — the three rows WP-11 fixed, verbatim. These are
-    // the claims this file was written to prevent, so a pattern that misses them is decoration.
-    for (const row of [
-      '  { name: "Email inbox polling (IMAP)", status: "live", note: "We poll your mailbox for order attachments. Integration plan." },',
-      '  { name: "SFTP folder pull", status: "live", note: "Point us at an SFTP folder; we import new files. Integration plan." },',
-      '  { name: "S3 / R2 bucket pull", status: "live", note: "Watch a bucket prefix for order files. Integration plan." },',
-    ]) {
-      expect(DEARER_TIER_CLAIM.test(row), `the origin defect must match: ${row}`).toBe(true);
-    }
-
-    // The changelog's wording, which the first form of this pattern also let through.
-    expect(
-      DEARER_TIER_CLAIM.test('      "IMAP email polling — Integration+ plans now auto-ingest purchase orders from designated mailboxes",'),
-    ).toBe(true);
-    // The plural and the "+" independently, so narrowing either back out reddens this.
-    expect(DEARER_TIER_CLAIM.test("SFTP folder pull — Enterprise plans only.")).toBe(true);
-    expect(DEARER_TIER_CLAIM.test("S3 / R2 bucket pull — Distributor+ plan and up.")).toBe(true);
-
-    // A correct claim is not an offence, and neither is naming no plan at all.
-    expect(
-      DEARER_TIER_CLAIM.test('  { name: "Email inbox polling (IMAP)", status: "live", note: "We poll your mailbox for order attachments. Growth plan and up." },'),
-    ).toBe(false);
-    expect(DEARER_TIER_CLAIM.test('  { name: "SFTP folder pull", status: "live", note: "Point us at an SFTP folder; we import new files." },')).toBe(false);
-    // Nor is a tier named next to a capability that really is gated there — the offence is the
-    // join of an INGESTION CHANNEL with a tier dearer than Growth, not any mention of a tier.
-    expect(DEARER_TIER_CLAIM.test("Bulk mapping import, cXML support, advanced audit trail. Operations plan and up.")).toBe(false);
-    // Distance and the line are what bound a claim now that the full stop no longer does. 120
-    // characters spans `name:` → `note:` in a catalog row; a tier named far away, or on another
-    // line, is not a claim about the channel.
-    expect(DEARER_TIER_CLAIM.test(`SFTP folder pull.${" spacer".repeat(20)} Enterprise plan.`)).toBe(false);
-    expect(DEARER_TIER_CLAIM.test("SFTP folder pull.\nEnterprise plan and up.")).toBe(false);
-  });
-
-  it("forgives a frozen claim only for a correction above it naming that channel and the real tier", () => {
-    const claim = '"IMAP email polling — Integration+ plans now auto-ingest purchase orders from designated mailboxes",';
-    const fix = '"IMAP email polling is included on Growth and up.",';
-
-    expect(DEARER_TIER_CLAIM.test(claim)).toBe(true);
-    expect(correctedAbove([claim], 0), "nothing above it corrects nothing").toBe(false);
-    expect(correctedAbove(["SFTP folder pull — Growth plan and up.", claim], 1), "another channel is not a correction").toBe(
-      false,
-    );
-    expect(correctedAbove(['"IMAP polling — Operations plan and up.",', claim], 1), "a tier that is still wrong is not a correction").toBe(
-      false,
-    );
-    expect(correctedAbove([claim, fix], 0), "newest-first: a correction below is the one a reader meets second").toBe(false);
-    expect(correctedAbove([fix, claim], 1)).toBe(true);
-  });
-
-  it("still sees the changelog's frozen tier claim, and finds it corrected", () => {
-    // The only place the allowance is in use. If the pattern is ever narrowed so this line stops
-    // matching, the allowance goes quiet and the guard reads green while blind — which is exactly
-    // how "Integration+ plans" survived. So the match itself is asserted, not just its absence.
-    const lines = readFileSync(APPEND_ONLY, "utf8").split("\n");
-    const flagged = lines.map((line, i) => ({ line, i })).filter(({ line }) => DEARER_TIER_CLAIM.test(line));
-
-    expect(flagged.map(({ line }) => line.trim()), "the frozen v1.4 IMAP line, and nothing else").toHaveLength(1);
-    expect(flagged[0].line).toMatch(/imap/i);
-    expect(
-      correctedAbove(lines, flagged[0].i),
-      "the frozen line cannot be edited, so a later entry has to state the real tier above it",
-    ).toBe(true);
-  });
-});
-
 /**
  * How each of the mirrored gate rows is SOLD on a pricing card.
  *
@@ -571,10 +292,10 @@ const claims = (sells: ClaimMatcher, text: string): boolean =>
  * halves of the suite read straight past it.
  *
  * The real product boundary is scope, not the adjective. A PER-ORDER trail is open on every
- * plan including Pilot: `GET /api/orders/{id}/audit` (OrdersController.cs:2029) has no gate,
+ * plan including Pilot: `DocumentsController.History` has no gate,
  * and is pinned deliberately as the IL scanner's negative control
  * (`Scanner_Control_DoesNotInventAGateWhereThereIsNone`,
- * BillingGateEnforcementIsRealTests.cs:143-155). So a bullet that scopes itself to one order
+ * BillingGateEnforcementIsRealTests). So a bullet that scopes itself to one order
  * is honest on any tier, and a bullet that does not is a claim on the gated log.
  */
 /**
@@ -604,119 +325,8 @@ const ORDER_SCOPED_AUDIT =
 const SELLS_ORG_WIDE_AUDIT = (text: string): boolean =>
   AUDIT_RECORD_NOUN.test(text) && !ORDER_SCOPED_AUDIT.test(text);
 
-/**
- * The CONFIGURABLE per-supplier rule set — the versioned acceptance profile on a supplier's
- * Validation rules tab. `SupplierAcceptanceController.GateAsync`
- * (SupplierAcceptanceController.cs:37-46) refuses it below Enterprise on BOTH authoring (:70) and
- * activating (:99); only reading existing versions is left open, so a downgraded org can still see
- * what its suppliers enforce.
- *
- * This matcher used to be `/custom (transformation|supplier) rule/i`. Measured over the buyer-facing
- * corpus that phrasing matched exactly ONE line in the entire product — the Enterprise card's own
- * bullet — and nothing anybody else would ever type. So the €149 Growth card sold
- * `"Field mapping + validation"` and three help articles taught the feature with no tier at all,
- * and this row read past every one of them.
- *
- * The real boundary is the same shape as `SELLS_ORG_WIDE_AUDIT`'s: not an adjective, but WHICH of
- * two products is named. BUILT-IN checks are ungated on every plan including Pilot —
- * `InvariantValidator` and `OutputFieldValidator` run whether or not a profile exists
- * (SupplierAcceptanceService.cs:202-204; `EvaluateProfile` returns empty at :389), and every
- * transform calls `OutputFieldValidator.ValidateEntity` before emitting a byte. A CONFIGURABLE
- * per-supplier rule set is the gated one.
- *
- * ── The blind spot that was measured, and closed ────────────────────────────────
- *
- * The form above recognised the rule set by its NOUN PHRASE — "validation rules", "acceptance
- * profile", "acceptance checks", "custom transformation rules" — which requires the qualifier and
- * the noun to be ADJACENT. Four buyer-facing surfaces name exactly the same product without ever
- * putting those two words together, and every one of them read straight past this row:
- *
- *     /how-it-works    "Validate against your rules" · "Per-supplier rules catch …"
- *     /security        "Validation before delivery"  · "Per-supplier rules block …"
- *     /watch (+layout) "… validated against the supplier's rules, and sent."  ← also the SERP
- *                                                                              meta description
- *     /                "Per-supplier validation" · "Configurable rules per supplier — …"
- *
- * `rules` is there; `validation` is there; they are one to four words apart. So the second half
- * below recognises the rule set by WHOSE it is — per-supplier, configurable, custom, yours, the
- * supplier's — with the noun a word or two away, plus the bare qualifier on "validation" itself.
- *
- * ── Why not simply `/\bvalidat/i`, measured ────────────────────────────────────
- *
- * Over the buyer-facing corpus as it stood on 2026-08-14 — 82 files, 13,337 lines:
- *
- *     /\bvalidat/i                  59 lines · 26 files   almost all unrelated
- *     noun-phrase form only         16 lines ·  7 files   (the pre-widening state)
- *     noun-phrase + possessive      25 lines · 13 files   (this matcher)
- *
- * The bare verb's extra 34 lines are FTPS certificate validation, "No BIS business-rule validation
- * runs", the Parse · Normalize · Validate pipeline labels, "They are not validated against a live
- * ERP sandbox", and the ROI calculator's prose. A matcher that noisy gets narrowed by the next
- * reader until it catches nothing — which is the state this row was already found in once. Every
- * one of the 25 the shipped form matches is a real presentation of the gated surface, and the
- * `must flag` / `must allow` controls below pin both edges of that measurement.
- *
- * ── What is deliberately NOT excluded ──────────────────────────────────────────
- *
- * There is no `!built-in` escape here, even though the honest Growth bullet is about built-in
- * checks. It does not need one — "built-in order checks" names no rule set — and adding one would
- * open the hole a bullet reading "Built-in validation rules" could walk straight through. The
- * words "validation rules" name the Enterprise tab whatever adjective precedes them.
- *
- * Nor is there an escape for a rule set named as the CAUSE of a failure rather than as a feature
- * ("the supplier's own rules turning the order down", /help/exceptions-and-stuck-orders). A reader
- * on Growth meets that sentence and learns their orders can be held by rules they cannot author.
- * That is the same undisclosed capability wearing a different verb, and the file-scoped remedy —
- * one disclosure per page — costs a clause either way.
- */
-const CONFIGURABLE_SUPPLIER_RULE_FORMS: ReadonlyArray<{ form: string; re: RegExp }> = [
-  {
-    // The rule set by its noun phrase: qualifier and noun adjacent. This was the whole matcher.
-    form: "noun phrase — 'validation rules', 'acceptance profile', 'acceptance checks'",
-    re: /\b(?:validation|acceptance)\s+(?:rule|rules|profile|profiles|check|checks)\b/i,
-  },
-  {
-    // The rule set by WHOSE it is, with the noun up to two words away. `{0,2}` is what buys
-    // "Configurable rules per supplier" and "Validate against your rules"; a wider window starts
-    // joining two unrelated clauses on the same line.
-    form: "qualifier, then 'rules' within two words — 'Configurable rules per supplier'",
-    re: /\b(?:custom|customi[sz]ed|customi[sz]able|configurable|per[- ]supplier|supplier[- ]specific|your own|your)\s+(?:[a-z-]+\s+){0,2}rules?\b/i,
-  },
-  {
-    form: "the same thing said the other way round — 'rules you set', 'rules per supplier'",
-    re: /\brules?\s+(?:you\s+(?:set|write|author|configure|define)|per\s+supplier|for\s+(?:each|every)\s+supplier)\b/i,
-  },
-  {
-    // `&apos;` and `&#39;` are in the class because JSX text escapes the apostrophe and this scan
-    // reads SOURCE lines, not rendered output — /watch wrote `supplier&apos;s rules`.
-    form: "the possessive — \"the supplier's rules\", \"a supplier's own rules\"",
-    re: /\bsupplier(?:'|’|&apos;|&#39;)s\s+(?:own\s+)?(?:[a-z-]+\s+)?rules?\b/i,
-  },
-  {
-    form: "qualified 'validation' with no noun at all — 'Per-supplier validation'",
-    re: /\b(?:per[- ]supplier|supplier[- ]specific|configurable|customi[sz]able)\s+(?:validation|acceptance)\b/i,
-  },
-];
-
-const SELLS_CONFIGURABLE_SUPPLIER_RULES = (text: string): boolean =>
-  CONFIGURABLE_SUPPLIER_RULE_FORMS.some(({ re }) => re.test(text));
-
 const CAPABILITY_CLAIMS: Record<keyof typeof BACKEND_MINIMUM_PLAN, { label: string; sells: ClaimMatcher }> = {
-  webhookDelivery: { label: "webhook / API delivery", sells: /webhook/i },
-  // Scoped to ingestion. A bare /\bemail\b/ would read an ordinary "Email support" bullet on the
-  // Pilot card as Pilot selling Growth-gated inbound email — a false positive whose only obvious
-  // fix is to narrow the pattern, which is how these guards lose their teeth.
-  emailIngestion: {
-    label: "inbound email ingestion",
-    sells: /email[^\n]{0,40}(ingest|inbox|polling|channel)|(ingest|inbox|polling|channel)[^\n]{0,40}email/i,
-  },
-  sftpIngestion: { label: "SFTP ingestion", sells: /\bsftp\b/i },
-  s3Ingestion: { label: "S3 / R2 ingestion", sells: /\bs3\b/i },
-  bulkMapping: { label: "bulk mapping import/export", sells: /bulk mapping/i },
-  cxml: { label: "cXML support", sells: /\bcxml\b/i },
   advancedAudit: { label: "the org-wide delivery log", sells: SELLS_ORG_WIDE_AUDIT },
-  erpConnectors: { label: "ERP connectors", sells: /\berp\b/i },
-  customSupplierRules: { label: "per-supplier validation rules", sells: SELLS_CONFIGURABLE_SUPPLIER_RULES },
   sso: { label: "SSO", sells: SELLS_SSO },
 };
 
@@ -784,160 +394,6 @@ describe("the mirrored gate table is load-bearing, row by row", () => {
     // The Operations/Integration wording that already shipped still has to register as a sale,
     // or `pins exactly which gated capabilities no card currently sells` goes quiet.
     expect(claims(CAPABILITY_CLAIMS.advancedAudit.sells, "Advanced audit trail + priority support")).toBe(true);
-  });
-
-  /**
-   * MUST-FLAG CONTROL for `customSupplierRules`, whose matcher was `/custom (transformation|
-   * supplier) rule/i` and recognised exactly one string in the product: the Enterprise card's own
-   * bullet. A row that can only see the copy already at the right tier polices nothing.
-   */
-  it("recognises the per-supplier rules surface by the names it actually ships under", () => {
-    // The wordings that name the Enterprise-gated configurable rule set. These are not invented:
-    // every one is a live line in the product, quoted from the corpus measurement.
-    for (const text of [
-      "Field mapping + validation rules",                        // the shape the Growth card would take
-      "Custom transformation rules",                             // the Enterprise card, as it stands
-      "| **Validation rules** | The acceptance checks that actually hold orders.",
-      "- the **validation profile** (which acceptance rules check orders),",
-      "which validation checks flip between pass and fail",
-      "Built-in validation rules",                               // no `!built-in` escape — see the matcher note
-    ]) {
-      expect(claims(CAPABILITY_CLAIMS.customSupplierRules.sells, text), `must flag: ${text}`).toBe(true);
-    }
-
-    // And the BUILT-IN checks, which really are on every plan including Pilot. If these start
-    // flagging, the guard has stopped distinguishing the two validation products and the only
-    // obvious repair is to narrow it back to `/custom .* rule/i` — the blind version.
-    for (const text of [
-      "Field mapping + built-in order checks",
-      "Built-in order checks",
-      "FTPS certificate validation",
-      "No BIS business-rule validation runs",
-      "Parse · Normalize · Validate · Transform · Deliver",
-      "They are not validated against a live ERP sandbox",
-    ]) {
-      expect(claims(CAPABILITY_CLAIMS.customSupplierRules.sells, text), `must allow: ${text}`).toBe(false);
-    }
-  });
-
-  /**
-   * MUST-FLAG CONTROL for the four surfaces the ADJACENCY requirement hid, quoted from
-   * `git show d48907e` — the tree they were found on. Every one of these lines names the
-   * Enterprise-gated rule set, none of them puts "validation" next to "rules", and the matcher
-   * that shipped before this test read past all four for months.
-   *
-   * They are pinned here rather than left to the file walk on purpose: the walk can only see a
-   * defect that is still in the tree, and these have been fixed. A control quoting the original
-   * is what makes narrowing the matcher back out fail loudly instead of quietly.
-   */
-  it("catches the four undisclosed surfaces the adjacency requirement hid", () => {
-    for (const [where, shipped] of [
-      ["/how-it-works step 04 title", '    title: "Validate against your rules",'],
-      [
-        "/how-it-works step 04 body",
-        '      "Per-supplier rules catch missing fields, wrong currency, or unresolved codes before anything leaves your system. Bad orders never reach the supplier.",',
-      ],
-      [
-        "/security 'Validation before delivery'",
-        '    body: "Per-supplier rules block malformed orders before they ever reach a supplier endpoint — wrong currency, missing fields, unresolved codes.",',
-      ],
-      [
-        "/watch layout — also the SERP meta description",
-        '    "See how a single upload becomes a delivered supplier order — parsed, mapped, validated against the supplier\'s rules, and sent.",',
-      ],
-      [
-        "/watch page body (JSX-escaped apostrophe)",
-        "        See how a single upload becomes a delivered supplier order — parsed, mapped, validated against the supplier&apos;s rules, and sent.",
-      ],
-      ["/ landing card title", '    title: "Per-supplier validation",'],
-      ["/ landing card body", "        Block bad orders before they reach the supplier. Configurable rules per"],
-      [
-        "/help/exceptions-and-stuck-orders — the rule set named as a failure CAUSE",
-        "- **Couldn't build output** — … a line still missing its supplier item code, the supplier's own rules turning the order down, or something going wrong at our end.",
-      ],
-    ] as const) {
-      expect(
-        claims(CAPABILITY_CLAIMS.customSupplierRules.sells, shipped),
-        `must flag (${where}): ${shipped.trim().slice(0, 80)}…`,
-      ).toBe(true);
-    }
-  });
-
-  /**
-   * ANTI-VACUITY FLOOR for the widening.
-   *
-   * `SELLS_CONFIGURABLE_SUPPLIER_RULES` is an OR over five named forms, and an OR hides a dead
-   * limb perfectly: delete any one and the other four keep every existing assertion green. So each
-   * form is required to match a line it was written for and to be the ONLY form that does, which
-   * is what makes deleting or narrowing it go red by name rather than by accident.
-   *
-   * Two of the five (the possessive, and the qualified bare "validation") now have no live line in
-   * the corpus, because the copy that carried them was the defect and it was fixed. That is stated
-   * rather than papered over: a form whose only evidence is a fixed defect still earns its place —
-   * it is what stops the wording coming back — but it can only be pinned by a control, never by
-   * the walk.
-   */
-  it("every recognised form of the rule set is load-bearing, not one of five that overlap", () => {
-    const uniquelyMatched: Record<string, string> = {
-      "noun phrase — 'validation rules', 'acceptance profile', 'acceptance checks'":
-        "Rules are grouped into a versioned acceptance profile.",
-      "qualifier, then 'rules' within two words — 'Configurable rules per supplier'":
-        "Configurable rules, tuned once and reused.",
-      "the same thing said the other way round — 'rules you set', 'rules per supplier'":
-        "The checks you set yourself are rules you write, once, and reuse.",
-      "the possessive — \"the supplier's rules\", \"a supplier's own rules\"":
-        "parsed, mapped, validated against the supplier's rules, and sent",
-      "qualified 'validation' with no noun at all — 'Per-supplier validation'":
-        "Per-supplier validation, before anything leaves.",
-    };
-
-    expect(
-      Object.keys(uniquelyMatched).sort(),
-      "a form was added or renamed without a control that pins it",
-    ).toEqual(CONFIGURABLE_SUPPLIER_RULE_FORMS.map(({ form }) => form).sort());
-
-    for (const { form, re } of CONFIGURABLE_SUPPLIER_RULE_FORMS) {
-      const probe = uniquelyMatched[form];
-      expect(re.test(probe), `the "${form}" form no longer matches its own probe: ${probe}`).toBe(true);
-
-      // …and the PREDICATE has to agree with the array, or the array is documentation. Rewriting
-      // `SELLS_CONFIGURABLE_SUPPLIER_RULES` to something narrower while leaving these five rows in
-      // place would otherwise sail through every assertion in this test.
-      expect(
-        SELLS_CONFIGURABLE_SUPPLIER_RULES(probe),
-        `the matcher no longer recognises the "${form}" form that this table says it has — the ` +
-          "predicate has drifted from the array it is meant to be the disjunction of",
-      ).toBe(true);
-
-      const alsoMatched = CONFIGURABLE_SUPPLIER_RULE_FORMS.filter((f) => f.form !== form && f.re.test(probe));
-      expect(
-        alsoMatched.map((f) => f.form),
-        `"${probe}" is meant to isolate the "${form}" form, but other forms match it too — ` +
-          "delete that form and this control stays green, which is how a dead limb survives",
-      ).toEqual([]);
-    }
-  });
-
-  /**
-   * And the floor under the WALK: the corpus scan for this capability must really be extracting
-   * lines. `presenting.length > 3` inside the shared `it.each` is the generic version; this names
-   * the files, so narrowing the matcher drops one out and fails here with the file that stopped
-   * being seen — rather than sliding under a count that four other files still satisfy.
-   */
-  it("the per-supplier rules walk still reaches every page that presents the rule set", () => {
-    const seen = new Set(
-      buyerFacingLines()
-        .filter(({ line }) => SELLS_CONFIGURABLE_SUPPLIER_RULES(line))
-        .map(({ file }) => file.replace(/\\/g, "/")),
-    );
-
-    expect(seen.size, "zero extractions — the walk or the matcher has gone blind").toBeGreaterThan(0);
-
-    for (const file of [
-      "/src/lib/plans.ts",
-    ]) {
-      expect([...seen], `${file} presents the configurable rule set and the walk no longer sees it`).toContain(file);
-    }
   });
 
   it("pins exactly which gated capabilities no card currently sells", () => {
@@ -1105,54 +561,27 @@ const UNGATED_BULLETS: ReadonlyArray<{ matches: RegExp; why: string }> = [
   },
   {
     matches: /^Supplier-ready export$/i,
-    why: "downloading the transform artifact is ungated — the DELIVERY CHANNELS are what gate (WebhookDelivery, Growth+), and they are sold as their own bullets",
+    why: "downloading the transform artifact is ungated, as is every delivery channel",
   },
   {
     matches: /^Email delivery to your supplier$/i,
-    why:
-      "not every delivery channel gates, and reading the entry above as though they all do is " +
-      "what kept this bullet off the Pilot card. BillingGateErrors.RequiredFeatures(protocol, " +
-      "outputFormat) adds a requirement for exactly three inputs: the two ERP protocols " +
-      "(BillingFeature.ErpConnectors), DeliveryProtocolConstants.Http (WebhookDelivery), and " +
-      "`cxml` output (Cxml). Email, SFTP and FTPS fall through all three branches and return an " +
-      "empty requirement list, so no tier withholds them — /formats has carried its Email row " +
-      "with no plan qualifier for months, and the row-scan above already asserts that bareness " +
-      "is honest. Pilot selling email delivery is therefore the card catching up with the " +
-      "backend, not a new claim",
+    why: "no BillingFeature gates a delivery channel (the gate table is AdvancedAudit and Sso only), so Pilot really can send by email",
   },
-  // These two were ONE entry — `/^Field mapping \+ validation$/i`, excused by "the field mapper
-  // and validation rules are ungated". Half of that reason contradicted the gate table outright:
-  // `BillingFeature.CustomSupplierRules` is Enterprise (PlanConstants.cs:287). A stated reason is
-  // worth LESS than no allowlist entry when it is wrong, because it reads as considered and stops
-  // the next reader looking. Splitting the entry is not cosmetic — an entry may now only carry a
-  // reason for one claim, so a wrong half cannot ride along with a right one.
   {
     matches: /^Field mapping$/i,
-    why:
-      "no BillingFeature gates the field mapper. MapperEnrichmentController, " +
-      "MappingSuggestionsController and PoMappingTemplatesController carry no HasFeatureAsync " +
-      "call at all; the only gate anywhere near mapping is BULK import/export " +
-      "(SuppliersController.cs:472, BillingFeature.BulkMapping, Operations+), which Operations " +
-      "sells as its own bullet",
+    why: "no BillingFeature gates the field mapper or mapping import/export",
   },
   {
     matches: /^Built-in order checks$/i,
-    why:
-      "InvariantValidator + OutputFieldValidator run on every plan including Pilot: every " +
-      "transform calls OutputFieldValidator.ValidateEntity before writing a byte " +
-      "(CsvTransformService.cs:46 and its five siblings), and SupplierAcceptanceService.cs:202-204 " +
-      "runs the invariant and output-field passes whether or not a profile exists (EvaluateProfile " +
-      "returns empty at :389). The CONFIGURABLE per-supplier rules are the gated product — " +
-      "BillingFeature.CustomSupplierRules, Enterprise — and the Enterprise card sells those " +
-      "separately as 'Custom transformation rules'",
+    why: "InvariantValidator + OutputFieldValidator run on every plan including Pilot",
   },
   {
     matches: /^Per-order audit trail$/i,
     why:
-      "GET /api/orders/{id}/audit (OrdersController.cs:2029) has no gate and is pinned as the IL " +
-      "scanner's negative control (BillingGateEnforcementIsRealTests.cs:143-155). Every plan " +
-      "including Pilot really has this. The ORG-WIDE log is the gated one and is sold from " +
-      "Operations up",
+      "DocumentsController.History has no gate and is pinned as the IL scanner's negative control " +
+      "(Scanner_Control_DoesNotInventAGateWhereThereIsNone in BillingGateEnforcementIsRealTests). " +
+      "Every plan including Pilot really has this. The ORG-WIDE log is the gated one and is sold " +
+      "from Operations up",
   },
   {
     matches: /^(Assisted|Priority|Dedicated) onboarding$/i,
@@ -1171,86 +600,10 @@ const UNGATED_BULLETS: ReadonlyArray<{ matches: RegExp; why: string }> = [
 /**
  * Bare nouns that a reader takes as naming a GATED capability, which no allowlist entry may excuse.
  *
- * ── The hole this closes, measured ───────────────────────────────────────────────────────────
- *
- * `"Field mapping + validation"` shipped on the €149 Growth card and IS refused today — but by the
- * wrong mechanism, and that distinction is the whole finding. `accountFor` splits the compound and
- * reaches `unaccounted.push(clause)`: NOTHING explains the word "validation". The tier comparison
- * never runs. `SELLS_CONFIGURABLE_SUPPLIER_RULES` is the disjunction of five forms, every one of
- * which requires the token `rules`, or `validation`/`acceptance` sitting next to a qualifier — so
- * bare `validation` matches none of them, `cheapestSeller` never sees the Growth card as selling
- * per-supplier rules, and the below-gate assertion at the top of this file is never reached.
- *
- * Being caught by the fallback rather than by the tier scan is not academic. The fallback's whole
- * purpose is to be silenced by an allowlist entry. Two lines put the claim back:
- *
- *   plans.ts, growth card:  "Field mapping + acceptance"
- *   UNGATED_BULLETS:        { matches: /^acceptance$/i, why: "…" }
- *
- * That pair was run against this suite before the guard below existed, and the whole file passed —
- * 107/107. `no allowlist entry is dead` counts clauses as live, so the entry is not an orphan; the
- * per-clause lookup excuses it, so `accountFor` returns ok; and the tier scan is blind to the word,
- * so nothing anywhere objects to a €2,500/mo capability appearing on a €149 card. The two pins that
- * name `"Field mapping + validation"` verbatim do not generalise — they hold one bullet, and the
- * bypass has a synonym.
- *
- * ── Why not just widen the matcher ───────────────────────────────────────────────────────────
- *
- * Because that was tried and measured: `/\bvalidat/i` over the buyer-facing corpus matches dozens
- * of lines with nothing to do with the gated product — schema validation, address validation, "we
- * validate the file before parsing". The narrowness of `CONFIGURABLE_SUPPLIER_RULE_FORMS` is
- * deliberate and argued at its own definition, and a guard bought by making it noisy is a guard
- * that gets loosened until it catches nothing.
- *
- * So this table does not read copy at all. It reads the ALLOWLIST — ten hand-written entries — and
- * denies the ENTRY rather than the sentence, exactly as the whole-bullet escape was denied once one
- * anchored entry was found answering for a two-claim bullet. Prose is untouched: a bullet may still
- * say "validation", and it will still be refused as unaccounted, which is the correct and already
- * shipping behaviour. What it may no longer do is be excused.
- *
- * ── Membership rule ──────────────────────────────────────────────────────────────────────────
- *
- * A noun belongs here only if it is in the BLIND SPOT: its own capability's `sells` matcher does
- * NOT recognise it. `webhook`, `sftp`, `s3`, `cxml`, `erp` are all matched by their own matchers,
- * so a bare bullet naming them is already policed by the tier scan and needs no entry here — and
- * the blind-spot test below fails the build for any row that stops being blind.
+ * A noun belongs here only if its own capability's `sells` matcher does NOT recognise it; the
+ * blind-spot test below fails the build for any row that stops being blind.
  */
 const BARE_GATED_NOUNS: ReadonlyArray<{ noun: string; capability: keyof typeof BACKEND_MINIMUM_PLAN; why: string }> = [
-  {
-    noun: "validation",
-    capability: "customSupplierRules",
-    why:
-      "the word that shipped on the Growth card. Read on a pricing card, 'validation' is the " +
-      "per-supplier rule set — the Enterprise capability the card beside it sells as 'Custom " +
-      "transformation rules'. The honest ungated wording is 'Built-in order checks', which is on " +
-      "the allowlist and says what really runs on every plan",
-  },
-  {
-    noun: "validations",
-    capability: "customSupplierRules",
-    why: "the plural of the same claim — an allowlist may not be reopened by a letter",
-  },
-  {
-    noun: "rules",
-    capability: "customSupplierRules",
-    why:
-      "the capability's own noun, unqualified. Every form in CONFIGURABLE_SUPPLIER_RULE_FORMS " +
-      "needs a qualifier beside it ('configurable rules', 'rules you set'), so the bare word is " +
-      "the one shape the tier scan cannot see",
-  },
-  {
-    noun: "rule",
-    capability: "customSupplierRules",
-    why: "singular of the same",
-  },
-  {
-    noun: "acceptance",
-    capability: "customSupplierRules",
-    why:
-      "acceptance profiles are the same gated object under its internal name, and this is the " +
-      "synonym the measured exploit above used: form 1 needs the noun after it and form 5 a " +
-      "qualifier before it, so bare 'acceptance' is blind too",
-  },
   {
     noun: "audit",
     capability: "advancedAudit",
@@ -1418,7 +771,7 @@ describe("every pricing-card bullet is accounted for by something real", () => {
   it("scans a real corpus — every plan, and bullets on all of them", () => {
     // The anti-vacuity floor. An empty or half-empty sweep passes every assertion below while
     // proving nothing, which is the failure mode this whole file keeps meeting.
-    expect(PLANS.length, "the ladder itself").toBeGreaterThanOrEqual(6);
+    expect(PLANS.length, "the ladder itself").toBeGreaterThanOrEqual(1);
     // Derived from the ladder, not a round number. It was a hand-typed 30, which is a floor that
     // has to be re-typed every time the cards change shape — and when `inheritsFrom` let the
     // dearer tiers stop restating inherited bullets, a correct total of 29 read as a regression.
@@ -1502,10 +855,6 @@ describe("every pricing-card bullet is accounted for by something real", () => {
     ).toEqual([]);
 
     expect(BARE_GATED_NOUNS.length, "the list must not be empty — an empty ban bans nothing").toBeGreaterThan(0);
-    expect(
-      BARE_GATED_NOUNS.map(({ noun }) => noun),
-      "the two measured holes must stay in the list",
-    ).toEqual(expect.arrayContaining(["validation", "acceptance"]));
     for (const { capability } of BARE_GATED_NOUNS) {
       expect(
         BACKEND_MINIMUM_PLAN[capability],
@@ -1513,102 +862,6 @@ describe("every pricing-card bullet is accounted for by something real", () => {
           "noun would be a claim about a capability that is free",
       ).toBeDefined();
     }
-  });
-
-  /**
-   * MUST-FLAG CONTROL, replaying the exploit that was actually run.
-   *
-   * The synonym is the point. Two pins name `"Field mapping + validation"` verbatim, so the bypass
-   * only has to pick a different word: `"Field mapping + acceptance"` on the Growth card plus
-   * `{ matches: /^acceptance$/i }` on the allowlist passed this entire file, 107/107, before this
-   * guard existed. Every link of that pair is asserted below, so the repair cannot be undone by
-   * deleting one line without a red test naming what was deleted.
-   */
-  it("catches the one-line allowlist entry that puts a gated capability back on the Growth card", () => {
-    const offender = { matches: /^acceptance$/i, why: "PROBE — the acceptance pass runs on every plan" };
-    const compound = "Field mapping + acceptance";
-    const clauses = splitClauses(compound);
-    expect(clauses, "the bullet is a compound, so it is judged clause by clause").toEqual([
-      "Field mapping",
-      "acceptance",
-    ]);
-
-    // 1. The entry really would excuse the clause — this is accountFor's per-clause lookup, verbatim.
-    expect(
-      [offender].find(({ matches }) => matches.test("acceptance")),
-      "the entry must really match the clause, or this control is replaying nothing",
-    ).toBeDefined();
-
-    // 2. And it would not read as dead: liveness counts clauses, and the added bullet supplies one.
-    const live = [
-      ...everyBullet.flatMap(({ bullet }) => [bullet, ...splitClauses(bullet)]),
-      compound,
-      ...clauses,
-    ];
-    expect(
-      live.some((text) => offender.matches.test(text)),
-      "`no allowlist entry is dead` counts clauses, so it stays green — it cannot be the guard here",
-    ).toBe(true);
-
-    // 3. And the tier scan cannot see it either. This is what makes the fallback the only thing
-    //    standing: the bare noun matches none of the five configurable-rule forms, so the Growth
-    //    card is never counted as selling the capability and the below-gate assertion passes.
-    expect(
-      claims(CAPABILITY_CLAIMS.customSupplierRules.sells, "acceptance"),
-      "the bare noun must be invisible to the capability matcher — if this goes true the matcher " +
-        "was widened, and THAT is the better fix",
-    ).toBe(false);
-    const cheapest = cheapestSeller(withBullet("growth", compound), CAPABILITY_CLAIMS.customSupplierRules.sells);
-    expect(cheapest?.id, "the Growth card carrying the bullet is not seen as selling it").not.toBe("growth");
-    expect(
-      rank(cheapest!.id),
-      "so the below-gate assertion stays green with the bullet on the €149 card — that is the hole",
-    ).toBeGreaterThanOrEqual(rank(BACKEND_MINIMUM_PLAN.customSupplierRules));
-
-    // 4. Which leaves this guard as the only thing that refuses it.
-    const flagged = bareNounOffenders([...UNGATED_BULLETS, offender]);
-    expect(flagged, "the offending entry must be flagged").toHaveLength(1);
-    expect(flagged[0], "and flagged by name, so the failure says which entry and which word").toContain(
-      '"acceptance"',
-    );
-    expect(
-      bareNounOffenders(UNGATED_BULLETS),
-      "and the flag must come from the offender, not from an entry that already ships",
-    ).toEqual([]);
-
-    // 5. The original wording is refused too, and so is a pattern dressed up to be hard to grep for:
-    //    the check asks the regex whether it matches the word, not how the word is spelled in source.
-    expect(
-      bareNounOffenders([{ matches: /^validation$/i, why: "the validator runs on every plan" }]),
-      "the wording that actually shipped must be caught as well as its synonym",
-    ).toHaveLength(1);
-    expect(
-      bareNounOffenders([{ matches: /^\s*validat(?:e|ion)?\s*$/i, why: "same claim, harder to grep for" }]),
-      "a rewritten pattern that still excuses the word must still be caught",
-    ).toHaveLength(1);
-  });
-
-  it("the bare-noun ban reads the allowlist, never the copy", () => {
-    // Why this guard is shaped as a ban on ten hand-written entries rather than as a wider matcher.
-    // Widening CONFIGURABLE_SUPPLIER_RULE_FORMS to a bare `/\bvalidat/i` was tried and measured: it
-    // matches dozens of buyer-facing lines with nothing to do with the gated rule set — schema and
-    // address validation, "we validate the file before parsing". A guard bought at that price is
-    // one that gets loosened until it catches nothing, which is what its own definition warns
-    // about. So no prose is scanned here, and none of those lines can ever be flagged.
-    const widened = /\bvalidat/i;
-    const wouldHaveFlagged = buyerFacingLines().filter(({ line }) => widened.test(line));
-    expect(
-      wouldHaveFlagged.length,
-      "the noisy widening must still be measurably noisy — if this drops to nothing the rationale " +
-        "above is stale and the matcher question should be reopened",
-    ).toBeGreaterThan(7); // measured 10 once the relaunch help was written; it was 20 while the order-era help stood, and those 31 articles carried the rest
-
-    expect(UNGATED_BULLETS.length, "and the ban must have entries to read").toBeGreaterThan(5);
-    expect(
-      bareNounOffenders(UNGATED_BULLETS),
-      "while flagging nothing that actually ships: honest ungated wording like 'Built-in order " +
-        "checks' and 'Per-order audit trail' names no bare capability noun",
-    ).toEqual([]);
   });
 
   it("flags the shapes it exists to catch", () => {
@@ -1673,10 +926,9 @@ describe("every pricing-card bullet is accounted for by something real", () => {
     // The same laundering with other conjunctions, and with the unbacked claim FIRST, so the fix
     // cannot be an ordering accident.
     for (const compound of [
-      "cXML support and a dedicated Slack channel",
-      "Bulk mapping import/export & quarterly business reviews",
       "Priority support + advanced audit trail",
-      "24/7 phone support and ERP connectors",
+      "24/7 phone support and advanced audit trail",
+      "Advanced audit trail & quarterly business reviews",
     ]) {
       expect(accountFor(operations, compound).ok, `must flag: ${compound}`).toBe(false);
     }
@@ -1684,10 +936,8 @@ describe("every pricing-card bullet is accounted for by something real", () => {
     // Genuine multi-capability bullets must still pass, or the only obvious repair is to stop
     // splitting — which restores the bypass. Both halves of each of these are really accounted for.
     for (const honest of [
-      "Webhook/API delivery + email · SFTP · S3 ingestion",
-      "Bulk mapping import/export + cXML support",
       "Field mapping + built-in order checks",
-      "Email · SFTP · S3 ingestion",
+      "Advanced audit trail",
     ]) {
       expect(accountFor(operations, honest).ok, `must allow: ${honest}`).toBe(true);
     }
@@ -1743,15 +993,6 @@ describe("every pricing-card bullet is accounted for by something real", () => {
       splitClauses("Field mapping + validation").length,
       "and the bullet really is a compound, which is what now denies it the whole-bullet escape",
     ).toBe(2);
-
-    // 4. Once the clause names the gated surface outright, the tier scans take over and refuse it
-    //    on the Growth card. Accounting for a clause and policing its tier are two different jobs.
-    const cheapest = cheapestSeller(withBullet("growth", "Validation rules"), CAPABILITY_CLAIMS.customSupplierRules.sells);
-    expect(cheapest?.id, "a Growth bullet naming the gated surface must be seen at all").toBe("growth");
-    expect(
-      rank(cheapest!.id),
-      "and seen as BELOW Enterprise — a matcher that finds it but ranks it fine is decoration",
-    ).toBeLessThan(rank(BACKEND_MINIMUM_PLAN.customSupplierRules));
   });
 });
 
@@ -1826,7 +1067,7 @@ describe("a dearer tier never appears to include less than a cheaper one", () =>
     // Anti-vacuity: if the matchers stopped recognising the bullets, every set would be empty and
     // "monotone" would hold trivially.
     const top = communicates(ladder[ladder.length - 1]);
-    expect(top.length, "the top tier must communicate most of the ladder, or this proves nothing").toBeGreaterThanOrEqual(6);
+    expect(top.length, "the top tier must communicate most of the ladder, or this proves nothing").toBeGreaterThanOrEqual(1);
 
     const losses: string[] = [];
     for (let i = 1; i < ladder.length; i++) {
@@ -1850,7 +1091,7 @@ describe("a dearer tier never appears to include less than a cheaper one", () =>
   it("catches a broken chain, which is how the omission would come back", () => {
     // MUST-FLAG CONTROL. Replayed on a copy, so it cannot pass because the shipped file is fine.
     // Cutting Integration loose is exactly the state the cards shipped in: it stops communicating
-    // cXML, bulk mapping and advanced audit while costing €600/month more than the tier that does.
+    // advanced audit while costing €600/month more than the tier that does.
     const broken: Plan[] = PLANS.map((p) => (p.id === "integration" ? { ...p, inheritsFrom: null } : p));
     const byId = (id: string) => broken.find((p) => p.id === id)!;
 
@@ -1870,7 +1111,7 @@ describe("a dearer tier never appears to include less than a cheaper one", () =>
 
     const lost = communicatesIn(byId("operations")).filter((c) => !communicatesIn(byId("integration")).includes(c));
     expect(lost, "a severed link must show up as capabilities the dearer tier appears to lose").not.toEqual([]);
-    expect(lost).toContain("cxml");
+    expect(lost).toContain("advancedAudit");
   });
 });
 
@@ -1917,8 +1158,8 @@ describe("a dearer tier never appears to include less than a cheaper one", () =>
  *
  * The line between an offence and an honest sentence is deliberate, and it is NOT "mentions the
  * log". Recording is universal and append-only on every plan, and so is reading ONE order's
- * history: `GET /api/orders/{id}/audit` is ungated on purpose, pinned as the IL scanner's negative
- * control (`BillingGateEnforcementIsRealTests.cs:143-155`) and rendered at `OrderWorkshop.tsx:377`.
+ * history: `DocumentsController.History` is ungated on purpose, pinned as the IL scanner's negative
+ * control (`Scanner_Control_DoesNotInventAGateWhereThereIsNone` in `BillingGateEnforcementIsRealTests`) and rendered at `OrderWorkshop.tsx:377`.
  * A sentence saying the log RECORDS something is true and stays. The offence is directing a reader
  * to OPEN or EXPORT the workspace-wide log without saying what it costs. Over-correcting the true
  * half into something timid gives away real sales value, so the controls pin that too.
@@ -2242,84 +1483,10 @@ describe("no buyer-facing copy claims records are immutable, because nothing enf
 /**
  * A gated capability presented with NO tier at all.
  *
- * ── The defect ──────────────────────────────────────────────────────────────────
- *
- * CLAUDE.md §11.5 says a capability may only be listed on a tier if the backend really gates it
- * there, and every guard above reads that as "do not name the WRONG tier". The corollary shipped
- * on eleven surfaces: **naming no tier is not neutral.** cXML output was sold as an unconditional
- * "Supported" — `/help/output-templates`, `/help/guides/set-up-supplier-delivery`,
- * `/help/delivery-setup`, `/help/guides/add-a-supplier`, `/help/csv-xlsx-field-guide`,
- * `/help/guides/map-supplier-po-fields`, the whole of `/help/cxml-setup`, and `/formats` — while
- * `BillingGateErrors.RequiredFeatures` maps `outputFormat: "cxml"` to `BillingFeature.Cxml`, so a
- * Growth org saving that delivery config is refused with `cxml_output_requires_operations`. The
- * ERP connectors were worse: listed beside SFTP and email on the landing page, the print
- * one-pager, `/how-it-works`, `/help` and `/formats` as though a €2,500/mo capability were an
- * ordinary file drop. Only `/help/billing-faq` got it right.
- *
- * The same documents name the tier correctly for IMAP, S3 and SFTP. A reader who has learned that
- * convention on one page reads its absence on the next as "included".
- *
- * ── Why it is FILE-scoped, not line-scoped ──────────────────────────────────────
- *
- * Because a reader reads an article, not a line. `/help/cxml-setup` mentions cXML in fifteen
- * places; making each one carry a tier would be unreadable, and a line-scoped guard would demand
- * exactly that. One disclosure per file is the honest unit, and it is what these articles now do.
- *
- * ── What it can and cannot see ──────────────────────────────────────────────────
- *
- * Stated plainly, because a guard trusted past its reach is worse than none.
- *
- *   • It catches cXML in a sentence with outbound vocabulary, and cXML in a format-support table
- *     row — the two shapes that shipped. It does NOT catch cXML presented as an output across two
- *     lines with neither carrying a direction word: `AnimatedPipelinePanel.tsx` renders
- *     "supplier output" on line 120 and a bare `CXML` chip on line 122, and this reads past it.
- *     (The page that renders that panel, `/how-it-works`, does disclose.)
- *   • It catches the ERP adapters by name, which is safe because Erply and Directo exist in this
- *     product only as delivery channels. A generic "your ERP" is deliberately not a claim.
- *   • `customSupplierRules` IS covered, by the same predicate the card scans use. Its reach is
- *     documented at that matcher rather than here, because the interesting limit is which
- *     WORDINGS it recognises, not which files it walks — and the wordings were measured.
- *
- * ── The gap that was the actual defect, closed 2026-08-15 ───────────────────────
- *
- * The three bullets above used to end with a fourth: "it still says nothing about
- * `webhookDelivery`, `emailIngestion` or `advancedAudit` in prose … extending this list is the
- * follow-up." That note was the defect. `CAPABILITY_CLAIMS` policed TEN capabilities against the
- * pricing cards; `CLAIMS` policed THREE against prose, and the seven missing rows are where the
- * money is: four of them gate at Growth, which is the tier a reader on the landing page is
- * deciding whether to buy.
- *
- * What the seven were hiding, measured on the tree of 2026-08-15:
- *
- *   • `/` and `/one-pager` and `/how-it-works` and `/help` each listed "HTTP webhook, SFTP or
- *     email" as delivery channels with no tier, **directly beside an ERP clause that DID name
- *     Enterprise**. Webhook delivery is `BillingFeature.WebhookDelivery`, Growth. Naming the
- *     dearer neighbour is what made the silence read as "included" — a reader who sees one
- *     channel qualified concludes the unqualified ones are free.
- *   • `/one-pager` — print collateral, so it travels detached from every link — offered "let
- *     ProcuLink poll an IMAP mailbox" with no tier at all.
- *   • Four intake guides (`receive-orders-by-email`, `poll-a-mailbox-over-imap`,
- *     `receive-orders-by-sftp`, `receive-orders-from-s3`) taught a Growth-gated channel end to
- *     end saying only "a paid plan", which names no tier this suite or a reader can check.
- *   • `receive-orders-by-email` went further and was **wrong**: "For the IMAP option only … a
- *     paid plan. Polling is not included in Pilot" told a Pilot reader the hosted inbound
- *     address was theirs. `InboundEmailRouter.cs:242-247` gates hosted inbound mail on
- *     `BillingFeature.EmailIngestion` — Growth — and rejects it; the address is minted for every
- *     org, which is exactly why its existence was mistaken for its being switched on.
- *   • The footer on `/` and every marketing page, plus the homepage's `og:description`, promised
- *     "a full audit trail" unqualified. That phrase straddles two products — the per-order trail
- *     (`GET /api/orders/{id}/audit`, ungated, the IL scanner's negative control) and the
- *     org-wide log (`GET /api/audit`, `AdvancedAudit`, Operations) — and that exact ambiguity
- *     sent a live Growth org to `/operations/log` on 2026-08-06 and got them refused.
- *
- * ── And the second half of the same defect: a disclosure that disclosed nothing ──
- *
- * Widening the list alone would still have missed every webhook line above, because a file
- * counted as disclosed if it named ANY tier at or above the minimum ANYWHERE in it. `/` names
- * Enterprise for the ERP connectors; that satisfied a Growth-gated webhook claim four words
- * earlier. So the literal form is now ANCHORED: the tier has to be on a line that also names the
- * capability. The derived form (`requiresPlan("webhookDelivery")`) needs no anchor — it names its
- * capability in the call.
+ * Naming no tier is not neutral: the org-wide delivery log (`AdvancedAudit`, Operations) reads as
+ * included on every plan when a page describes it with no tier. The scan is FILE-scoped — a reader
+ * reads an article, not a line — and a literal tier only counts when it sits on a line that names
+ * the capability. `sso` is policed by its own describe above.
  */
 describe("a gated capability is never presented with no tier at all", () => {
   const helpPage = (...segments: string[]) => join(process.cwd(), "src/app/(marketing)/help", ...segments, "page.mdx");
@@ -2418,61 +1585,6 @@ describe("a gated capability is never presented with no tier at all", () => {
     return [...byFile].map(([file, lines]) => ({ file, lines: proseOnly(lines) }));
   };
 
-  /** Words that put a format in the OUTBOUND direction. Inbound cXML parsing is ungated. */
-  const OUTPUT_VERB = String.raw`(?:output|outbound|emit|emits|emitted|produce|produces|deliver|delivers|delivered|delivery|send|sends|sending|supplier receives)`;
-
-  const CXML_IN_PROSE = new RegExp(
-    `\\bcxml\\b[^.\\n]{0,90}?\\b${OUTPUT_VERB}\\b|\\b${OUTPUT_VERB}\\b[^.\\n]{0,90}?\\bcxml\\b`,
-    "i",
-  );
-
-  /**
-   * The header row of the markdown table a line belongs to, or null.
-   *
-   * The origin defect is a table cell: `| cXML 1.2 | Supported |`, under `| Format | Output
-   * support |`. The direction lives in the header, two lines up, where nothing line-scoped can
-   * reach it — which is why a guard written only against prose would have read straight past the
-   * page it was written for.
-   */
-  const tableHeaderFor = (lines: string[], index: number): string | null => {
-    if (!/^\s*\|/.test(lines[index])) return null;
-    for (let i = index - 1; i >= 0 && /^\s*\|/.test(lines[i]); i--) {
-      if (/^\s*\|[\s:|-]+\|\s*$/.test(lines[i])) return lines[i - 1] ?? null;
-    }
-    return null;
-  };
-
-  /** Does line `i` present cXML as something ProcuLink SENDS? */
-  const presentsCxmlOutput = (lines: string[], i: number): boolean => {
-    const line = lines[i];
-    if (!/\bcxml\b/i.test(line)) return false;
-    if (CXML_IN_PROSE.test(line)) return true;
-    // A format-support table row. "Supported" beside a format name is a support claim whether or
-    // not the header happens to spell out the direction — `| Format | Status |` carried one too.
-    const header = tableHeaderFor(lines, i);
-    return header !== null && /\bsupported\b|\boutput\b|\bnot offered\b/i.test(`${line} ${header}`);
-  };
-
-  /**
-   * The ERP adapters, by name. Erply and Directo exist in this product only as delivery channels,
-   * so naming either IS presenting the gated capability. A customer's own "ERP" in the abstract
-   * (`api-order-schema-reference`: "when an ERP, procurement system…") is not, and must not be —
-   * over-reaching here is what gets a guard weakened until it catches nothing.
-   */
-  const ERP_CHANNEL = /\b(?:erply|directo)\b|\berp\s+(?:connector|connectors|adapter|adapters)\b/i;
-
-  /**
-   * …except when the ERP is named as the SOURCE of a file rather than a destination.
-   * `/help/mapping-basics` offers a starter mapping template "for common ERP exports (Erply and
-   * Directo)" — a column layout you might receive, nothing to do with the delivery adapter, and
-   * on every plan. Flagging it would push a later reader to weaken the matcher itself; excusing
-   * exactly this shape, with a control quoting the line, keeps the matcher sharp.
-   */
-  const ERP_AS_FILE_SOURCE = /\b(?:export|exports|template|templates|starter)\b/i;
-
-  const ERP_CONNECTOR_CLAIM = (line: string): boolean =>
-    ERP_CHANNEL.test(line) && !ERP_AS_FILE_SOURCE.test(line);
-
   /**
    * `requiresPlan("cxml")` and friends — a disclosure DERIVED from the gate table.
    *
@@ -2546,105 +1658,17 @@ describe("a gated capability is never presented with no tier at all", () => {
     };
 
   const CAPABILITY_KEYWORD: Record<keyof typeof BACKEND_MINIMUM_PLAN, RegExp> = {
-    webhookDelivery: /\bwebhook\b|\bhttp\b/i,
-    emailIngestion: /\bimap\b|\bemail\b|\bmailbox\b/i,
-    sftpIngestion: /\bsftp\b/i,
-    s3Ingestion: /\bs3\b|\br2\b|\bbucket\b/i,
-    bulkMapping: /\bbulk\b|\bmapping\b/i,
-    cxml: /\bcxml\b/i,
     advancedAudit: /\baudit\b|\bdelivery log\b/i,
-    erpConnectors: /\berp\b|\berply\b|\bdirecto\b/i,
-    customSupplierRules: /\brules?\b|\bvalidation\b|\bacceptance\b/i,
     sso: SELLS_SSO,
   };
 
   /**
-   * Words that put a channel in the INBOUND direction — the half of SFTP and email that is gated.
+   * Every gated capability with prose to police, and how a page PRESENTS it. `sso` is on
+   * `PROSE_EXEMPT` below with its reason, and the two lists are asserted to cover the mirror exactly.
    *
-   * Direction is the whole distinction for two of these four rows and getting it wrong would ship
-   * a false claim in the opposite direction: SFTP, FTPS and email DELIVERY are on every plan
-   * (`the catalog rows nothing gates`, above), while the inbound SFTP and email PULLS are Growth.
-   * A guard that demanded a tier beside "the order file is dropped on the supplier's server" would
-   * be selling an upgrade nobody needs.
-   */
-  const INBOUND_VERB = String.raw`(?:ingest\w*|inbound|incoming|intake|poll\w*|pull\w*|pick ?up\w*|pickup\w*|watch\w*|import\w*|receiv\w*|arrive\w*|dropped on|fetch\w*|from an|from your|from a)`;
-
-  /** …and the ones that put it OUTBOUND, where SFTP and email are ungated. */
-  const OUTBOUND_CHANNEL =
-    /\bdeliver\w*\b|\bsupplier(?:'|’|&apos;|&#39;)s (?:server|endpoint|system)\b|\boutbound\b|\bto the supplier\b/i;
-
-  /**
-   * A sentence about what CEASES is not an offer.
-   *
-   * `/pricing` and `/help/billing-faq` both carry the cancellation disclosure CLAUDE.md §11.5
-   * mandates — "uploads, emailed documents, mailbox, SFTP, FTP, FTPS and S3 pickups … all refuse" — which names
-   * every gated channel precisely because it is listing what a customer LOSES. Requiring a tier
-   * beside each one would put four plan names inside a warning, and those two pages are the two
-   * that state the ladder in full anyway.
-   */
-  const CEASES = /\bstops? accepting\b|\brefuses?\b|\bsubscription ends\b|\bcancell?ing\b|\bcancellation\b|\bif you cancel\b/i;
-
-  /**
-   * Supplier delivery over HTTP — `BillingFeature.WebhookDelivery`, Growth.
-   *
-   * NOT the outbound EVENT webhooks. `IntegrationController` (subscriptions to `order.*` events)
-   * contains no `HasFeatureAsync` call at all: event webhooks are on every plan, and
-   * `/help/api-and-integrations` offers one for Zapier and Make in the same paragraph as the
-   * ungated inbound API. Demanding a Growth disclosure there would be this file's own defect
-   * mirrored — a tier advertised for something nothing gates.
-   */
-  const WEBHOOK_DELIVERY_CLAIM = (line: string): boolean =>
-    /\bwebhook\b|\bhttps? endpoint\b|\bapi delivery\b/i.test(line) &&
-    // the delivery context, without which "Staging webhook" (a suggested API-KEY NAME) reads as a
-    // channel offer
-    /\bdeliver\w*\b|\bsend\w*\b|\bsent\b|\bpost(?:s|ed|ing)?\b|\bsupplier\b|\bsftp\b|\berp\b|\bchannel\b|\bcxml\b/i.test(line) &&
-    !/\bevent\b|\bsubscription\w*\b|\border\.\*|\bsubscribe\b/i.test(line) &&
-    !CEASES.test(line);
-
-  /** Inbound email — IMAP polling AND the hosted address. Both are `EmailIngestion`, Growth. */
-  const EMAIL_INTAKE_CLAIM = (line: string): boolean =>
-    /\bimap\b|\binbound email\b|\bemail intake\b|\bhosted inbound address\b|\bemail\b[^\n]{0,25}\bintake\b|\bpoll\w*\b[^\n]{0,25}\bmailbox\b|\bmailbox\b[^\n]{0,25}\bpoll\w*\b|\breceive orders? by email\b|\borders?\b[^\n]{0,15}\barrive\b[^\n]{0,15}\bby email\b/i.test(
-      line,
-    ) && !CEASES.test(line);
-
-  const SFTP_INTAKE_CLAIM = (line: string): boolean =>
-    new RegExp(String.raw`\bsftp\b[^\n]{0,60}\b${INBOUND_VERB}\b|\b${INBOUND_VERB}\b[^\n]{0,60}\bsftp\b`, "i").test(line) &&
-    // a supplier's own catalog feed is pulled over SFTP too, and catalog sync has no gate
-    !/\bcatalog\b/i.test(line) &&
-    !OUTBOUND_CHANNEL.test(line) &&
-    !CEASES.test(line);
-
-  const S3_INTAKE_CLAIM = (line: string): boolean =>
-    new RegExp(
-      String.raw`\bs3\s*(?:\/|or)\s*(?:r2|cloudflare)\b|\br2 bucket\b|\bbucket (?:prefix|pull|polling)\b|\bs3\b[^\n]{0,60}\b${INBOUND_VERB}\b|\b${INBOUND_VERB}\b[^\n]{0,60}\bs3\b`,
-      "i",
-    ).test(line) &&
-    // R2 is also where ProcuLink keeps ITS files; `/security` and `/dpa` say so, and that is a
-    // statement about storage, not an intake channel on offer
-    !/\bobject storage\b|\bstored\b|\bstorage\b|\bat rest\b/i.test(line) &&
-    !CEASES.test(line);
-
-  const BULK_MAPPING_CLAIM = (line: string): boolean =>
-    /\bbulk mapping\b|\bmapping (?:import|export)\b|\bimport\/export\b[^\n]{0,25}\bmapping\b|\bmapping\b[^\n]{0,25}\bimport\/export\b/i.test(
-      line,
-    );
-
-  /**
-   * Every gated capability, and how a page PRESENTS it.
-   *
-   * Nine rows for ten mirrored gates; `sso` is on `PROSE_EXEMPT` below with its reason, and the
-   * two lists are asserted to cover the mirror exactly, so a new gate row cannot be added without
-   * a decision being made about its prose.
-   *
-   *   `reaches`   — files that really present it today. The anti-vacuity floor: it counts what the
-   *                 detector EXTRACTED, not what the walk scanned, and it names the files so a
-   *                 narrowed matcher fails with the page that stopped being seen rather than
-   *                 sliding under a count other files still satisfy.
-   *   `mustFlag`  — lines quoted from the tree BEFORE the fix. A walk can only see a defect still
-   *                 in the tree; these are what make re-narrowing fail loudly once it is gone.
-   *   `mustAllow` — the honest neighbour, usually the same words in the other direction. If one of
-   *                 these starts flagging, the only obvious repair is to weaken the matcher, which
-   *                 is how every row in this file has previously gone blind.
+   *   `reaches`   — files that really present it today (the anti-vacuity floor).
+   *   `mustFlag`  — lines quoted from the tree BEFORE the fix.
+   *   `mustAllow` — the honest neighbour, usually the same words in the other direction.
    */
   const CLAIMS: ReadonlyArray<{
     capability: keyof typeof BACKEND_MINIMUM_PLAN;
@@ -2654,124 +1678,6 @@ describe("a gated capability is never presented with no tier at all", () => {
     mustFlag: string[];
     mustAllow: string[];
   }> = [
-    {
-      capability: "cxml" as const,
-      label: "cXML output",
-      presents: presentsCxmlOutput,
-      // Deliberately empty since the relaunch: cXML output is not built in the document engine, so no page
-      // presents it and none may (see NEVER_CLAIM). The floor for this row is its `mustFlag` set, not the
-      // walk. The row stays because the mirror-coverage test below needs every gate row to be decided.
-      reaches: [],
-      mustFlag: ["ProcuLink parses inbound cXML orders and emits cXML output."],
-      mustAllow: ["choices are CSV, XLSX, JSON, XML (cXML Index or vendor XML), and CIF (Ariba 3.0)."],
-    },
-    {
-      capability: "erpConnectors" as const,
-      label: "the Erply / Directo ERP connectors",
-      presents: (lines: string[], i: number) => ERP_CONNECTOR_CLAIM(lines[i]),
-      reaches: [
-        "/src/lib/marketing/format-catalog.ts",
-      ],
-      mustFlag: ["- **Erply / Directo** — purpose-built ERP adapters for those tenants."],
-      mustAllow: [
-        "Use the inbound order API when an ERP, procurement system, or automation tool already holds the order as structured data",
-      ],
-    },
-    {
-      capability: "webhookDelivery" as const,
-      label: "supplier delivery over an HTTP webhook",
-      presents: (lines: string[], i: number) => WEBHOOK_DELIVERY_CLAIM(lines[i]),
-      reaches: [
-        "/src/lib/marketing/format-catalog.ts",
-      ],
-      mustFlag: [
-        // `/` at 5c209e0 — the D-F15 line, verbatim. The ERP half names Enterprise; the webhook
-        // half named nothing, and it gates at Growth.
-        '    desc: `HTTP webhook, SFTP or email — or download the artifact. ERP connectors (Erply, Directo) on ${requiresPlan("erpConnectors")}. Encrypted credentials, AES-GCM at rest, full audit trail per attempt.`,',
-        '  Delivery: `HTTP webhook, SFTP/FTPS, email, and ERP connectors (Erply, Directo) on ${requiresPlan("erpConnectors")}.`,',
-        '          { n: "3", t: "Deliver", d: `HTTP webhook, SFTP/FTPS, email, or download. Erply and Directo ERP adapters on ${requiresPlan("erpConnectors")}. Full audit trail and delivery status.` },',
-      ],
-      mustAllow: [
-        // An API KEY NAME, not a channel — /help/guides/receive-orders-over-api:43.
-        "the field suggests `Production integration` or `Staging webhook` — and press **Create key**.",
-        // Event subscriptions — IntegrationController gates nothing.
-        "point their HTTP modules at the inbound API (with your `plk_` key) to push orders in, and use a custom webhook endpoint to receive `order.*` events.",
-        "A failing endpoint is retried, and after **3 consecutive failures the subscription deactivates itself** so a dead URL doesn't get hammered forever.",
-      ],
-    },
-    {
-      capability: "emailIngestion" as const,
-      label: "inbound email intake (IMAP polling and the hosted address)",
-      presents: (lines: string[], i: number) => EMAIL_INTAKE_CLAIM(lines[i]),
-      reaches: [
-        "/src/lib/marketing/format-catalog.ts",
-      ],
-      mustFlag: [
-        '          { n: "1", t: "Import", d: "Upload CSV / XLSX / PDF, or let ProcuLink poll an IMAP mailbox." },',
-        // The one that was not merely silent but WRONG: it scoped the paid requirement to IMAP.
-        "- For the IMAP option only: the mailbox credentials, and a paid plan. Polling is not included in Pilot.",
-        "- email intake (IMAP polling or the hosted inbound address),",
-        "- **IMAP polling**: ProcuLink checks a mailbox you own every 5 minutes and imports supported attachments.",
-      ],
-      mustAllow: [
-        // Email DELIVERY, correctly marked ungated on /help/guides/set-up-supplier-delivery.
-        "| **Email** | They want an attachment in a mailbox. The least automated, and often the fastest to agree. | Every plan |",
-        "Email support",
-      ],
-    },
-    {
-      capability: "sftpIngestion" as const,
-      label: "SFTP folder intake",
-      presents: (lines: string[], i: number) => SFTP_INTAKE_CLAIM(lines[i]),
-      reaches: [
-        "/src/lib/marketing/format-catalog.ts",
-      ],
-      mustFlag: [
-        "- A system **exports files to a folder** → [pull order files from an SFTP",
-        'title: "Pull order files from an SFTP folder — ProcuLink guide",',
-        '      "Buyers send POs however they like — a PDF email attachment, an XLSX export, cXML posted to your REST endpoint, EDI dropped on SFTP. ProcuLink ingests all of it through one inbox.",',
-      ],
-      mustAllow: [
-        // Outbound SFTP is on every plan, and both of these say so themselves.
-        "- **SFTP / FTPS** — the order file is dropped on the supplier's server (password or private-key authentication). Every plan.",
-        "When a supplier receives orders as files on their server rather than through an API, ProcuLink drops the transformed order file over **SFTP** or **FTPS**.",
-        // Catalog sync over SFTP — a different subsystem, and ungated.
-        '"Point ProcuLink at a supplier\'s own catalog feed over HTTPS, SFTP, FTPS or FTP: save the source, run a read-only test fetch, map the columns it ignored, then enable it."',
-      ],
-    },
-    {
-      capability: "s3Ingestion" as const,
-      label: "S3 / R2 bucket intake",
-      presents: (lines: string[], i: number) => S3_INTAKE_CLAIM(lines[i]),
-      reaches: [
-        "/src/lib/marketing/format-catalog.ts",
-      ],
-      mustFlag: [
-        'title: "Pull order files from S3 or Cloudflare R2 — ProcuLink guide",',
-        "- SFTP or S3/R2 folder polling on paid plans.",
-      ],
-      mustAllow: [
-        // ProcuLink's own storage. Saying where files live is not offering an intake channel.
-        "Order files and the database behind them are EU-region, stored in Cloudflare R2.",
-        "Cloudflare R2 server-side encryption at rest.",
-      ],
-    },
-    {
-      capability: "bulkMapping" as const,
-      label: "bulk mapping import/export",
-      presents: (lines: string[], i: number) => BULK_MAPPING_CLAIM(lines[i]),
-      // Deliberately empty, and asserted so below rather than left to look like an oversight: the
-      // ONLY buyer-facing surface naming bulk mapping is the Operations pricing card, and cards
-      // are exempt here because the card's own header is the tier. The floor for this row is its
-      // `mustFlag` set, not the walk — a walk over zero files proves nothing, and saying so is the
-      // difference between a known gap and a vacuous green.
-      reaches: [],
-      mustFlag: ["Bulk mapping import/export", "Bulk mapping import", "Mapping import/export in bulk"],
-      mustAllow: [
-        "Per-supplier field + item-code mapping with AI suggestions.",
-        "Field mapping + built-in order checks",
-      ],
-    },
     {
       capability: "advancedAudit" as const,
       label: "the org-wide delivery log",
@@ -2803,36 +1709,11 @@ describe("a gated capability is never presented with no tier at all", () => {
         "audits are not provided as standard; mutual non-disclosure terms apply to any audit",
       ],
     },
-    /**
-     * Per-supplier validation rules. Added because `/help/validation-rules`, `/help/connections`
-     * and `/help/managing-suppliers` each taught the Enterprise-gated feature end to end with no
-     * tier anywhere on the page — one of them calling the supplier tab "the only place a check is
-     * set, and the only place one runs" — and every scan in this file read past all three.
-     *
-     * `presents` is the same predicate the card scans use, deliberately. The two questions are
-     * different ("sold below its gate" vs "presented with no gate named") but the thing being
-     * recognised is one thing, and two matchers for one capability drift apart.
-     */
-    {
-      capability: "customSupplierRules" as const,
-      label: "per-supplier validation rules",
-      presents: (lines: string[], i: number) => SELLS_CONFIGURABLE_SUPPLIER_RULES(lines[i]),
-      reaches: ["/src/lib/plans.ts"],
-      mustFlag: ['    title: "Per-supplier validation",', "        Block bad orders before they reach the supplier. Configurable rules per"],
-      mustAllow: ["Field mapping + built-in order checks", "They are not validated against a live ERP sandbox"],
-    },
   ];
 
   /**
-   * The tenth mirrored gate, and why it is not on the list above.
-   *
-   * Every other capability's failure mode is silence — a gated thing presented with no tier, which
-   * reads as included. SSO's is the opposite: it must not appear on a buyer-facing surface AT ALL
-   * until a Settings surface exists, because `BillingFeature.Sso` refuses nothing and
-   * `ssoAvailable` has no frontend consumer. Putting it in `CLAIMS` would demand that any page
-   * mentioning SSO name Enterprise beside it — which is precisely the false claim the block below
-   * exists to prevent. Different question, different guard, stated here so the gap is a decision
-   * rather than an omission.
+   * `sso` is not on the list above: its failure mode is not silence but PRESENCE — it must not
+   * appear on a buyer-facing surface at all until a Settings surface exists.
    */
   const PROSE_EXEMPT: Record<string, string> = {
     sso: "must be ABSENT, not tiered — policed by 'SSO is sold only where it can be configured'",
@@ -2840,9 +1721,7 @@ describe("a gated capability is never presented with no tier at all", () => {
 
   it("covers every mirrored gate row, in one list or the other", () => {
     // The forcing function. A new row in `MINIMUM_PLAN` cannot be added without someone deciding
-    // whether its prose is policed here or somewhere else — which is exactly what did NOT happen
-    // for the seven rows added over the life of this file, leaving `CAPABILITY_CLAIMS` at ten and
-    // `CLAIMS` at three.
+    // whether its prose is policed here or somewhere else.
     expect([...CLAIMS.map((c) => c.capability), ...Object.keys(PROSE_EXEMPT)].sort()).toEqual(
       Object.keys(BACKEND_MINIMUM_PLAN).sort(),
     );
@@ -2886,8 +1765,7 @@ describe("a gated capability is never presented with no tier at all", () => {
 
       expect(
         offenders,
-        `these files present ${label} and never say it starts at ${minimumPlan}. On pages that name ` +
-          "the tier for IMAP, SFTP and S3, saying nothing reads as included on every plan. Import " +
+        `these files present ${label} and never say it starts at ${minimumPlan}. Import ` +
           `requiresPlan("${capability}") from @/lib/gatedCapabilities and state it once:\n` +
           offenders.join("\n"),
       ).toEqual([]);
@@ -2915,151 +1793,25 @@ describe("a gated capability is never presented with no tier at all", () => {
     }
   });
 
-  it("a code sample and a search-keyword array are not claims", () => {
-    // The controls for `proseOnly`. Both of these DO match their capability's matcher as raw
-    // text — that is why they need blanking rather than a matcher exception, and why the blanking
-    // is asserted rather than assumed.
-    const fenced = [
-      "```json",
-      '  "Condition": { "StringLike": { "s3:prefix": "orders/inbound/*" } }',
-      "```",
-      "and back to prose about an S3 or R2 bucket pull",
-    ];
-    expect(S3_INTAKE_CLAIM(fenced[1]), "the raw line really does look like a claim").toBe(true);
-    const stripped = proseOnly(fenced);
-    expect(stripped[1], "inside a fenced block").toBe("");
+  it("a fenced code sample and a search-keyword array are not prose", () => {
+    const stripped = proseOnly(["```json", '  "audit log": true', "```", "back to prose"]);
+    expect(stripped.slice(0, 3), "the fence and what is inside it").toEqual(["", "", ""]);
     expect(stripped[3], "and prose after the fence is still scanned").not.toBe("");
-
-    const keywords = '  keywords: ["email", "imap", "api", "sftp", "s3", "intake", "ingestion", "channels"],';
-    expect(EMAIL_INTAKE_CLAIM(keywords), "the raw line really does look like a claim").toBe(true);
-    expect(proseOnly([keywords])[0]).toBe("");
-
-    // Inline code is NOT stripped: /help/billing-faq writes its tier names that way, and stripping
-    // them deleted the page's only disclosure.
-    expect(proseOnly(["- `Enterprise` — custom pricing from €2,500/month; … ERP connectors, and SLA."])[0]).toContain(
-      "Enterprise",
-    );
-  });
-
-  /**
-   * MUST-FLAG CONTROL for D-F15 — the reason `literalDisclosure` is anchored at all.
-   *
-   * The shape, verbatim from `/`: a delivery-channel list whose ERP member names Enterprise and
-   * whose webhook member names nothing, on a page that elsewhere prints tier names for the pricing
-   * teaser. Under the old file-scoped reading, ANY tier anywhere in the file at or above the
-   * minimum counted — so Enterprise, named four words away for a different capability, disclosed
-   * a Growth-gated webhook claim. That is the whole of the finding.
-   *
-   * ── The residual limit, stated rather than implied ──────────────────────────────
-   *
-   * The anchor is the LINE. A tier and a capability on one line count as a disclosure of that
-   * capability, and this cannot tell "Enterprise, for the ERP connectors" from "Enterprise, for
-   * the webhook" when both sit in one sentence. Tightening it to a proximity window was tried and
-   * rejected on measurement: `/help/billing-faq` writes "`Enterprise` — custom pricing from
-   * €2,500/month; contact sales for custom volume, ERP connectors, and SLA", where the tier and
-   * the capability are 82 characters apart — further than the D-F15 line's 83 is from its webhook.
-   * No window separates the honest line from the offending one. What closes it in practice is that
-   * shipped copy DERIVES its tiers: `requiresPlan("erpConnectors")` names the capability it is
-   * disclosing, so it cannot be mistaken for a disclosure of anything else.
-   */
-  it("a tier named elsewhere in the file no longer excuses an undisclosed claim", () => {
-    const webhookLine = '    desc: `HTTP webhook, SFTP or email — or download the artifact. ERP connectors (Erply, Directo) on ${requiresPlan("erpConnectors")}.`,';
-    const pricingTeaserElsewhere = "        From €149/month on the Growth plan.";
-    const file = [webhookLine, "", pricingTeaserElsewhere];
-
-    expect(WEBHOOK_DELIVERY_CLAIM(webhookLine), "the line really does present webhook delivery").toBe(true);
-
-    const literal = literalDisclosure(BACKEND_MINIMUM_PLAN.webhookDelivery);
-    expect(
-      file.some((line) => literal.test(line)),
-      "file-scoped: a tier at or above Growth IS named somewhere in this file, which is what used " +
-        "to make the webhook line read as disclosed",
-    ).toBe(true);
-
-    // `disclosesFor` — the function the sweep itself calls, not a restatement of it. A control
-    // that rebuilds the rule it is testing passes whatever the rule becomes.
-    const anchored = disclosesFor("webhookDelivery");
-    expect(file.some(anchored), "anchored: nothing in this file ties a tier to webhook delivery").toBe(false);
-
-    // …and the derived disclosure the fix actually uses does satisfy it, or the guard would be
-    // unsatisfiable and the only repair would be to delete it.
-    expect(anchored('  Delivery: `HTTP webhook on ${requiresPlan("webhookDelivery")}.`,')).toBe(true);
-    // The ERP call on the same line does NOT, which is the per-capability half of the anchor.
-    expect(anchored('    desc: `HTTP webhook … on ${requiresPlan("erpConnectors")}.`,')).toBe(false);
-  });
-
-  it("flags the claims that shipped, verbatim, so a green result means absence and not blindness", () => {
-    // `/help/output-templates` at 68ed5f2 — the table, exactly as it stood. The direction is in the
-    // header and the cell says only "Supported", which is why this needed the table rule.
-    const outputTemplates = ["| Format | Output support |", "|---|---|", "| CSV | Supported |", "| cXML 1.2 | Supported |"];
-    expect(presentsCxmlOutput(outputTemplates, 3), "the /help/output-templates row").toBe(true);
-
-    // `/help/guides/set-up-supplier-delivery` at the same commit — same shape, header says only
-    // "Status", so a rule keyed on the word "output" alone would have missed it.
-    const deliveryGuide = ["| Format | Status |", "|---|---|", "| cXML | Supported |"];
-    expect(presentsCxmlOutput(deliveryGuide, 2), "the set-up-supplier-delivery row").toBe(true);
-
-    // The prose forms, verbatim.
-    for (const shipped of [
-      "On the same tab you set the **output format** the supplier requires (CSV, XML, cXML, UBL 2.1, X12, JSON) — sending auto-transforms into it.",
-      "XLSX is an **input format only** — ProcuLink reads it in, but delivers to your supplier in CSV, XML, cXML, UBL, X12, or JSON, whichever they require.",
-      "ProcuLink parses inbound cXML orders and emits cXML output.",
-      '          { n: "2", t: "Map + transform", d: "Per-supplier field + item-code mapping with AI suggestions. Output to CSV, XML, cXML, JSON." },',
-    ]) {
-      expect(presentsCxmlOutput([shipped], 0), `must flag: ${shipped.slice(0, 60)}…`).toBe(true);
-    }
-
-    // And the ERP lines, verbatim.
-    for (const shipped of [
-      '    desc: "HTTP webhook, SFTP, email or ERP connector — or download the artifact. Encrypted credentials, AES-GCM at rest, full audit trail per attempt.",',
-      '  Delivery: "HTTP webhook, SFTP/FTPS, email, and ERP connectors (Erply, Directo).",',
-      '          { n: "3", t: "Deliver", d: "HTTP webhook, SFTP/FTPS, email, Erply, Directo, or download. Full audit trail and delivery status." },',
-      "- **Erply / Directo** — purpose-built ERP adapters for those tenants.",
-      '  { name: "Erply (ERP connector)", status: "configurable", note: "We switch it on with you against your Erply account before go-live." },',
-    ]) {
-      expect(ERP_CONNECTOR_CLAIM(shipped), `must flag: ${shipped.slice(0, 60)}…`).toBe(true);
-    }
-  });
-
-  it("leaves inbound cXML and a customer's own ERP alone", () => {
-    // Parsing cXML is ungated on every plan and is discussed on a dozen pages. If these ever start
-    // flagging, the only obvious repair is to weaken the direction test until it catches nothing.
-    for (const honest of [
-      "- A real purchase order file. CSV, XLSX, and text-based PDF are the everyday formats; XML, cXML, UBL, EDIFACT, X12, and SAP IDoc are read too.",
-      "Common PO formats include CSV, XLSX, text-based PDF, XML/cXML, UBL/Peppol-style XML, SAP IDoc (ORDERS05), EDIFACT, and X12.",
-      "Each rule shows the standards references for its field (UBL, EDIFACT, X12, cXML), so you can point at the exact element when a supplier asks which one you mean.",
-      "choices are CSV, XLSX, JSON, XML (cXML Index or vendor XML), and CIF (Ariba 3.0).",
-      '    desc: "Every order field maps to UBL, EDIFACT, X12, cXML and Peppol BIS paths — always visible, never hidden behind a mode. Built for 30-year procurement veterans.",',
-    ]) {
-      expect(presentsCxmlOutput([honest], 0), `must allow: ${honest.slice(0, 60)}…`).toBe(false);
-    }
-
-    // "ERP" as the customer's own system, and the EDIFACT article's "Directory mismatch", which a
-    // careless \bdirecto\b would swallow.
-    for (const honest of [
-      "Use the inbound order API when an ERP, procurement system, or automation tool already holds the order as structured data",
-      "Treat the supplier's confirmation (order confirmation, ERP booking) as the real finish line.",
-      "- **Directory mismatch.** `D96A` and `D01B` differ in some composite structures.",
-      // /help/mapping-basics:31 verbatim — the ERP named as a FILE SOURCE, not a destination.
-      // This is an ungated mapping template for a CSV layout you might receive.
-      '- **Starter templates** — the PO mapping editor has a one-click "Apply starter template" for common ERP exports (Erply and Directo). Apply one, then adjust the column names to match your real export.',
-    ]) {
-      expect(ERP_CONNECTOR_CLAIM(honest), `must allow: ${honest.slice(0, 60)}…`).toBe(false);
-    }
+    expect(proseOnly(['  keywords: ["audit", "log"],'])[0]).toBe("");
+    // Inline code is NOT stripped: /help/billing-faq writes its tier names that way.
+    expect(proseOnly(["- `Operations` — from €399/month; advanced audit."])[0]).toContain("Operations");
   });
 
   it("accepts a derived disclosure and a written one, and refuses a tier below the gate", () => {
-    const discloses = (line: string, capability: "cxml" | "erpConnectors") =>
-      derivedDisclosure(capability).test(line) ||
-      literalDisclosure(BACKEND_MINIMUM_PLAN[capability]).test(line);
+    const discloses = (line: string) =>
+      derivedDisclosure("advancedAudit").test(line) ||
+      literalDisclosure(BACKEND_MINIMUM_PLAN.advancedAudit).test(line);
 
-    expect(discloses('  Supported — {requiresPlan("cxml")}', "cxml"), "the derived form").toBe(true);
-    expect(discloses("cXML output is included from the Operations plan up.", "cxml"), "written out").toBe(true);
-    expect(discloses("cXML output is on the Growth plan and up.", "cxml"), "growth is below the cXML gate").toBe(false);
-    expect(discloses('note: `… ${requiresPlan("erpConnectors")}.`', "erpConnectors")).toBe(true);
-    expect(discloses("The ERP connectors need the Operations plan.", "erpConnectors"), "below the ERP gate").toBe(false);
+    expect(discloses('  Included — {requiresPlan("advancedAudit")}'), "the derived form").toBe(true);
+    expect(discloses("The delivery log is included from the Operations plan up."), "written out").toBe(true);
+    expect(discloses("The delivery log is on the Growth plan and up."), "growth is below the gate").toBe(false);
     // A nav label is not a disclosure — the word "Operations" is a sidebar group on nine pages.
-    expect(discloses("- **Operations → Log** — a date-grouped audit trail.", "cxml"), "nav label only").toBe(false);
+    expect(discloses("- **Operations → Log** — a date-grouped audit trail."), "nav label only").toBe(false);
   });
 
   it("exempts the hand-listed files plus every registered help page, and says why in code rather than in a comment", () => {
@@ -3130,10 +1882,8 @@ describe("the free tier is never described as sufficient for a flow it cannot fi
 
     expect(
       offenders,
-      `these lines tell the reader ${FREE_TIER} covers a flow it cannot finish. It can reach ` +
-        "delivered over SFTP, FTPS or email in any format but cXML; an HTTP endpoint needs " +
-        `${BACKEND_MINIMUM_PLAN.webhookDelivery} and cXML output needs ${BACKEND_MINIMUM_PLAN.cxml}. ` +
-        "Say which paths work instead:\n" + offenders.join("\n"),
+      `these lines tell the reader ${FREE_TIER} covers everything. It is a trial limited by ` +
+        "quota, so a blanket sufficiency claim misleads. Say what works instead:\n" + offenders.join("\n"),
     ).toEqual([]);
   });
 

@@ -6,7 +6,6 @@ import { useSearchParams } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { capture } from "@/lib/analytics";
-import { requiresPlan } from "@/lib/gatedCapabilities";
 import { ProcuLinkMark } from "@/components/bridge/DSPrimitives";
 import { CheckoutReceipt } from "./checkoutReceipt";
 
@@ -98,13 +97,9 @@ const STEPS: { n: number; t: string; d: string; href: string }[] = [
     href: "/documents",
   },
   {
-    // This page is what a brand-new — therefore Pilot — org sees, and it used to point at
-    // the one channel Pilot cannot save: HTTP delivery gates at Growth
-    // (BillingFeature.WebhookDelivery). SFTP, FTPS and email are on every plan, so those
-    // are the honest first suggestions and the gated one names its tier.
     n: 4,
     t: "Send to your supplier",
-    d: `Configure SFTP, FTPS or email delivery, or download the formatted output. HTTP webhook delivery is ${requiresPlan("webhookDelivery")}.`,
+    d: "Configure SFTP, FTPS, email or HTTP webhook delivery, or download the formatted output.",
     href: "/library/suppliers",
   },
 ];
