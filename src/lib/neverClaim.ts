@@ -1,9 +1,12 @@
 /**
  * What public copy must never claim, because the document engine does not do it (plan 12b, Global Constraints):
- * standard outputs, ERP destinations, S3 or plain-FTP destinations, cloud-drive destinations, Peppol validation
+ * standard outputs, ERP destinations, plain-FTP destinations, cloud drives other than Google, Peppol validation
  * and approval workflows. Whole-word and case-insensitive.
  *
- * Intake over S3 or FTP is real and may be claimed, so the S3 and FTP patterns look for the store used as a
+ * S3 and Google Drive/Sheets delivery shipped (plans 9a, 9b) and were taken off this list on 2026-11-14.
+ * OneDrive and SharePoint are offered on request only, so they may appear in a sentence that says "on request".
+ *
+ * Intake over FTP is real and may be claimed, so the FTP pattern looks for the store used as a
  * DESTINATION, in three small shapes (see `asDestination`). `SFTP` and `FTPS` never match `FTP`: the word
  * boundary sits inside them.
  *
@@ -41,10 +44,8 @@ export const NEVER_CLAIM: readonly NeverClaim[] = [
   { label: "IDoc", pattern: /\bidoc\b/i },
   { label: "Erply", pattern: /\berply\b/i },
   { label: "Directo", pattern: /\bdirecto\b/i },
-  { label: "S3 destination", pattern: asDestination("s3") },
   { label: "plain-FTP destination", pattern: asDestination("ftp") },
-  { label: "Google Drive", pattern: /\bgoogle drive\b/i },
-  { label: "OneDrive", pattern: /\bonedrive\b/i },
+  { label: "OneDrive or SharePoint (except on request)", pattern: /\b(?:onedrive|sharepoint)\b(?![^.\n]*\bon request\b)/i },
   { label: "Dropbox", pattern: /\bdropbox\b/i },
   { label: "approval workflows", pattern: /\bapproval (?:workflow|flow|chain)s?\b/i },
   // The seven document checks (`DocumentChecks.cs`) include no sum check. A field named "Total" is fine.

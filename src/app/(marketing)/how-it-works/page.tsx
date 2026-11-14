@@ -61,7 +61,7 @@ const WORKFLOW: Array<{ title: string; desc: string; color: string; bg: string; 
   },
   {
     title: "We send it",
-    desc: "Choose CSV, JSON, XML, Excel, PDF, text or fixed-width, then send the result by email, to a web address, to an SFTP or FTPS server, or download it. Have your receiving system's documentation? Upload it and we propose the output for you to check.",
+    desc: "Choose CSV, JSON, XML, Excel, PDF, text or fixed-width, then send the result by email, to a web address, to an SFTP or FTPS server, an S3 bucket, Google Drive or Google Sheets, or download it. Microsoft OneDrive and SharePoint are available on request. Have your receiving system's documentation? Upload it and we propose the output for you to check.",
     color: GREEN,
     bg: GREEN_SOFT,
     icon: <SendIcon />,
