@@ -11,10 +11,6 @@ const barFits = (page: Page) =>
     inside: Math.max(...Array.from(row.children, (c) => c.getBoundingClientRect().right)) <= window.innerWidth + 0.5,
   }));
 
-/** Page-level sideways scroll in px, measured the way the control sweep measures it. */
-const sideways = (page: Page) =>
-  page.evaluate(() => Math.max(0, document.documentElement.scrollWidth - window.innerWidth));
-
 test.describe("app shell", () => {
   test.describe.configure({ timeout: 120_000 });
 
@@ -35,12 +31,21 @@ test.describe("app shell", () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/documents");
     await expect(page.getByTestId("tab-bar")).toBeVisible();
-    // <main> ends where the tab bar begins (1px tolerance), at both phone widths.
-    for (const width of [390, 700]) {
+    // <main> ends where the tab bar begins (1px tolerance), at each phone width.
+    for (const width of [360, 390, 700]) {
       await page.setViewportSize({ width, height: 844 });
       const [m, t] = [(await page.locator("main").boundingBox())!, (await page.getByTestId("tab-bar").boundingBox())!];
-      expect(m.y + m.height, `width ${width}`).toBeLessThanOrEqual(t.y + 1);
+      expect(Math.abs(m.y + m.height - t.y), `width ${width}`).toBeLessThanOrEqual(1);
       const bar = page.getByTestId("tab-bar");
+      const docsTab = bar.getByRole("link", { name: /^Documents/ });
+      expect(await docsTab.locator("span.truncate").evaluate((el) => el.scrollWidth <= el.clientWidth), `Documents label cut at ${width}`).toBe(true);
+      if (width === 390) {
+        // A long count grows to the right, away from the icon: at least half the 22px icon stays visible.
+        const badge = docsTab.locator("span.absolute");
+        await badge.evaluate((el) => { el.textContent = "100+"; });
+        const [b, i] = [(await badge.boundingBox())!, (await docsTab.locator("svg").boundingBox())!];
+        expect(b.x - i.x, "badge left edge against icon left edge").toBeGreaterThanOrEqual(11);
+      }
       const targets = [...["Documents", "Flows", "Activity"].map((n) => bar.getByRole("link", { name: new RegExp(`^${n}`) })), bar.getByRole("button", { name: "More" })];
       for (const target of targets) expect((await target.boundingBox())!.height, `tab target height at ${width}`).toBeGreaterThanOrEqual(50);
     }
@@ -62,8 +67,15 @@ test.describe("app shell", () => {
         expect(fit.inside, `every item inside the screen at ${width}, name ${name.length} long`).toBe(true);
       }
       expect(await page.getByTestId("workspace-name").evaluate((el) => el.scrollWidth > el.clientWidth), `long name is cut at ${width}`).toBe(true);
-      // The widths the sweep already holds at zero: the bar must not be what breaks them.
-      if ([390, 768, 1440].includes(width)) expect(await sideways(page), `sideways scroll at ${width}`).toBe(0);
+      if (width === 1280) {
+        // The current page's white line sits above the gradient strip, not under it.
+        const hit = await page.getByTestId("topbar-row").evaluate((row) => {
+          const link = row.querySelector('a[aria-current="page"]')!.getBoundingClientRect();
+          const el = document.elementFromPoint(link.left + link.width / 2, row.getBoundingClientRect().bottom - 1);
+          return !!el?.closest('a[aria-current="page"]') && !el?.classList.contains("link-spine");
+        });
+        expect(hit, "the current link, not the gradient line, is 1px above the row's bottom edge").toBe(true);
+      }
     }
   });
 

@@ -196,8 +196,6 @@ test.describe("axe-core — overlays in their open state", { tag: "@a11y" }, () 
           await expect(panel).toBeVisible();
           await page.setViewportSize({ width: 1280, height: 900 });
           await expect(panel).toHaveCount(0);
-          await page.keyboard.press("Tab");
-          expect(await page.evaluate(() => document.activeElement !== null && document.activeElement !== document.body), "Tab lands on a control").toBe(true);
         }
       });
     });

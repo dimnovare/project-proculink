@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { MoreHorizontal, Plus } from "lucide-react";
 import { buildVisibleNav, isItemActive, PHONE_TAB_HREFS, PINNED_ACTION_HREF, type SidebarNavItem } from "./BridgeSidebar";
 import { DOCUMENTS_TAKE, documentsQuery, useDocumentEngine } from "@/hooks/useDocumentEngine";
+import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import type { DocumentSummary } from "@/lib/api/documents";
 import { documentStatus } from "@/lib/documentStatusManifest";
 
@@ -26,12 +27,15 @@ export function needsYouBadge(docs: DocumentSummary[] | undefined, take: number)
 }
 
 // "!" because the phone tap-floor rule in globals.css sets a 44px minimum with !important.
-const TAB = "relative flex !min-h-[50px] min-w-0 flex-col items-center justify-center gap-0.5 px-1 text-[12.5px] text-ink-muted";
+// No side padding: "Documents" needs a full fifth of a 360px screen. The focus ring sits
+// inside the target so the screen edge cannot clip it on the first and last tab.
+const TAB = "relative flex !min-h-[50px] min-w-0 flex-col items-center justify-center gap-0.5 text-[12.5px] text-ink-muted focus-visible:[outline-offset:-3px]";
 
 export function BottomTabBar({ onMore, moreOpen }: { onMore: () => void; moreOpen: boolean }) {
   const pathname = usePathname();
   const engine = useDocumentEngine();
-  const docs = useQuery({ ...documentsQuery, enabled: engine === "on" });
+  const tenantReady = useTenantQueriesEnabled();
+  const docs = useQuery({ ...documentsQuery, enabled: tenantReady && engine === "on" });
   if (isFullScreenStep(pathname)) return null;
 
   const badge = needsYouBadge(docs.data, DOCUMENTS_TAKE);
@@ -50,7 +54,7 @@ export function BottomTabBar({ onMore, moreOpen }: { onMore: () => void; moreOpe
         key={href}
         href={href}
         aria-current={active ? "page" : undefined}
-        aria-label={count ? `${item.label}, ${count} need you` : undefined}
+        aria-label={count ? `${item.label}, ${count} ${count === "1" ? "needs" : "need"} you` : undefined}
         className={tab(active)}
       >
         <span className="relative inline-flex">
@@ -58,7 +62,7 @@ export function BottomTabBar({ onMore, moreOpen }: { onMore: () => void; moreOpe
           {count && (
             <span
               aria-hidden
-              className="absolute -right-2.5 -top-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-text px-1 text-[12.5px] font-bold leading-none text-white"
+              className="absolute left-4 -top-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-text px-1 text-[12.5px] font-bold leading-none text-white"
             >
               {count}
             </span>
@@ -81,7 +85,8 @@ export function BottomTabBar({ onMore, moreOpen }: { onMore: () => void; moreOpe
       <Link
         href={PINNED_ACTION_HREF}
         aria-label="Add a document"
-        className="mx-auto -mt-5 flex h-[52px] w-[52px] items-center justify-center rounded-full bg-brand-blue text-white ring-4 ring-surface"
+        aria-current={pathname === PINNED_ACTION_HREF ? "page" : undefined}
+        className="mx-auto -mt-5 flex h-[52px] w-[52px] self-start items-center justify-center rounded-full bg-brand-blue text-white ring-4 ring-surface focus-visible:rounded-full"
       >
         <Plus size={26} aria-hidden />
       </Link>

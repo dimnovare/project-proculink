@@ -1059,4 +1059,6 @@ details[open] > summary [data-disclosure-chevron] {
 /* Phones: while the tab bar is on the page, this is its height (1px border + 4px padding + 50px targets + bottom inset). Fixed layers above it (cookie banner, action bar) add it to their bottom offset. */
 @media (max-width: 767.98px) {
   :root:has(.plk-tabbar) { --plk-tabbar-h: calc(55px + max(8px, env(safe-area-inset-bottom))); }
+  /* No :has(): reserve the bar's height always (a full-screen step then shows a gap; accepted). */
+  @supports not selector(:has(*)) { :root { --plk-tabbar-h: calc(55px + max(8px, env(safe-area-inset-bottom))); } }
 }

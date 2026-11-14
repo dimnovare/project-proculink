@@ -119,7 +119,7 @@ export function BridgeTopbar({ onMenuClick, menuOpen }: BridgeTopbarProps) {
   }, []);
 
   return (
-    <header className="on-navy relative flex flex-shrink-0 flex-col bg-navy">
+    <header className="on-navy relative flex flex-shrink-0 flex-col bg-navy pb-0.5">
       {/* One row at every width. It fits because the five page links only show
           from 1024px (`lg`), "Upload" is one word, and the workspace switcher is
           the one item that gives way: it alone may shrink (its name is cut with an
@@ -127,7 +127,9 @@ export function BridgeTopbar({ onMenuClick, menuOpen }: BridgeTopbarProps) {
           a menu button at the end instead of the links; phones move between pages
           with the bottom tab bar. The row (height, and every item ending inside
           the screen, also with a 60-character workspace name) is measured at eight
-          widths by tests/e2e/shell.spec.ts. */}
+          widths by tests/e2e/shell.spec.ts. The header's 2px bottom padding is
+          where the gradient line sits, BELOW the row, so the current link's white
+          line stays visible above it. */}
       <div data-testid="topbar-row" className="flex h-[52px] items-center gap-2 px-3 sm:px-5 md:h-14 xl:gap-3">
         <Link href="/documents" aria-label="ProcuLink, go to Documents" className="flex shrink-0 items-center gap-2 text-white no-underline">
           <ProcuLinkMark size={24} mono />
@@ -146,7 +148,7 @@ export function BridgeTopbar({ onMenuClick, menuOpen }: BridgeTopbarProps) {
                 key={item.href}
                 href={item.href}
                 aria-current={active ? "page" : undefined}
-                className={`inline-flex items-center whitespace-nowrap border-b-2 px-2.5 text-[14.5px] no-underline transition-colors xl:px-3 ${active ? "border-white font-semibold text-white" : "border-transparent font-medium text-navy-text hover:text-white"}`}
+                className={`inline-flex items-center whitespace-nowrap border-y-2 border-t-transparent px-2.5 text-[14.5px] no-underline transition-colors xl:px-3 ${active ? "border-b-white font-semibold text-white" : "border-b-transparent font-medium text-navy-text hover:text-white"}`}
               >
                 {item.label}
               </Link>

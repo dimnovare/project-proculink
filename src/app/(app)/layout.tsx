@@ -108,7 +108,7 @@ export default function AppShellLayout({
   const openSidebar = useCallback(() => setSidebarOpen(true), []);
   const closeSidebar = useCallback(() => setSidebarOpen(false), []);
 
-  // Navigation panel (phone): Escape to close, body-scroll lock, focus move-in + trap,
+  // Navigation panel (tablet menu button, phone More): Escape to close, body-scroll lock, focus move-in + trap,
   // and focus restore to the trigger on close. This was one of six near-identical
   // hand-rolled copies; the behaviour now lives in useDialogA11y so a fix reaches
   // every dialog instead of one. The local `triggerRef` is gone — the hook reads
