@@ -61,11 +61,13 @@ const HTTP_AUTH: Record<string, CredField[]> = {
 const S3_SECRET: CredField[] = [["secretKey", "Secret access key"]];
 const AUTH_LABEL = { bearer: "Bearer token", apikey: "API key", basic: "Username and password" };
 
-export const INPUT = "h-9 w-full rounded border border-border bg-surface px-2.5 text-[13px] text-ink";
-export const Field = ({ label, children }: { label: string; children: React.ReactNode }) => (
-  <label className="block text-[12px] font-medium text-ink-muted">
-    <span className="mb-1 block">{label}</span>
+export const INPUT = "h-10 w-full rounded-md border border-border-strong bg-surface px-3 text-[14px] text-ink";
+/** `look`: the sentence under the control when a value needs a look; it also gives the control an amber edge. */
+export const Field = ({ label, look, children }: { label: string; look?: string; children: React.ReactNode }) => (
+  <label className={`block text-[13px] font-semibold text-ink-muted${look ? " plk-look" : ""}`}>
+    <span className="mb-1.5 block">{label}</span>
     {children}
+    {look && <span className="mt-1.5 block text-[12.5px] font-medium text-amber-text">{look}</span>}
   </label>
 );
 

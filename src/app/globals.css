@@ -571,6 +571,8 @@
 .pill-new .dot    { background: var(--ink-faint); }
 .pill-extracting  { background: var(--brand-blue-soft);   color: var(--brand-blue-deep); }
 .pill-extracting .dot { background: var(--brand-blue); }
+/* A value that needs a look: amber edge and wash on the control inside <Field look="…">. The sentence under it says why. */
+.plk-look :is(input, select, textarea) { border: 2px solid var(--amber); background: var(--amber-wash); }
 .pill-review      { background: var(--amber-soft);        color: var(--amber-text); }
 .pill-review .dot { background: var(--amber); }
 /* unrouted — extracted, but no supplier resolved, so it waits for one. Amber like
