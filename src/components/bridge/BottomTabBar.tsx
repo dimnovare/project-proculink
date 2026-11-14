@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { MoreHorizontal, Plus } from "lucide-react";
-import { buildVisibleNav, isItemActive, PHONE_TAB_HREFS, PINNED_ACTION_HREF } from "./BridgeSidebar";
+import { buildVisibleNav, isItemActive, PHONE_TAB_HREFS, PINNED_ACTION_HREF, type SidebarNavItem } from "./BridgeSidebar";
 import { DOCUMENTS_TAKE, documentsQuery, useDocumentEngine } from "@/hooks/useDocumentEngine";
 import type { DocumentSummary } from "@/lib/api/documents";
 import { documentStatus } from "@/lib/documentStatusManifest";
@@ -34,14 +34,16 @@ export function BottomTabBar({ onMore, moreOpen }: { onMore: () => void; moreOpe
   if (isFullScreenStep(pathname)) return null;
 
   const badge = needsYouBadge(docs.data, DOCUMENTS_TAKE);
-  const items = buildVisibleNav(false).main[0].items.filter((i) => PHONE_TAB_HREFS.includes(i.href));
+  const navItems = buildVisibleNav(false).main[0].items;
+  const [first, second, third] = PHONE_TAB_HREFS.flatMap((h) => navItems.filter((i) => i.href === h));
   const moreActive = MORE_ROOTS.some((r) => pathname === r || !!pathname?.startsWith(r + "/"));
   const tab = (active: boolean) => `${TAB} ${active ? "font-semibold text-ink" : "font-medium"}`;
-  const link = (href: string) => {
-    const item = items.find((i) => i.href === href)!;
+  const link = (item?: SidebarNavItem) => {
+    if (!item) return null;
+    const href = item.href;
     const active = !!pathname && isItemActive(pathname, item);
     const Icon = item.icon;
-    const count = href === "/documents" ? badge : null;
+    const count = href === first?.href ? badge : null;
     return (
       <Link
         key={href}
@@ -73,8 +75,8 @@ export function BottomTabBar({ onMore, moreOpen }: { onMore: () => void; moreOpe
       className="plk-tabbar fixed inset-x-0 bottom-0 z-drawer grid grid-cols-5 items-end border-t border-border bg-surface pt-1 md:hidden"
       style={{ paddingBottom: "max(8px, env(safe-area-inset-bottom))" }}
     >
-      {link("/documents")}
-      {link("/flows")}
+      {link(first)}
+      {link(second)}
       <Link
         href={PINNED_ACTION_HREF}
         aria-label="Add a document"
@@ -82,7 +84,7 @@ export function BottomTabBar({ onMore, moreOpen }: { onMore: () => void; moreOpe
       >
         <Plus size={26} aria-hidden />
       </Link>
-      {link("/operations/log")}
+      {link(third)}
       <button
         type="button"
         aria-haspopup="dialog"

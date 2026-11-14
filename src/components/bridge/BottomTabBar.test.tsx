@@ -29,6 +29,7 @@ describe("BottomTabBar", () => {
     expect(within(bar).getByRole("link", { name: "Add a document" })).toBeInTheDocument();
     const more = within(bar).getByRole("button", { name: "More" });
     expect(more).toHaveAttribute("aria-haspopup", "dialog");
+    expect(more).toHaveAttribute("aria-expanded", "false");
     fireEvent.click(more);
     expect(onMore).toHaveBeenCalledTimes(1);
   });
