@@ -168,9 +168,9 @@ describe("kept signatures are still real", () => {
 
   it("still ships the five-stage journey", () => {
     const journey = read("src/components/bridge/StatusJourney.tsx");
-    for (const stage of ["Parse", "Normalize", "Validate", "Transform", "Deliver"]) {
-      expect(journey, `stage ${stage} is part of the kept signature`).toContain(stage);
-    }
+    // The real STAGES literal (In · Read · Check · Transform · Send). The old Parse/Normalize/
+    // Validate/Deliver words only matched prose in comments, which this deletion removed.
+    expect(journey).toContain(`["In", "Read", "Check", "Transform", "Send"] as const`);
   });
 });
 

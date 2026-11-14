@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { cleanup } from "@testing-library/react";
 
 // `delivering` (the in-flight dispatch) — truthfulness guard.
 //
@@ -23,7 +23,6 @@ vi.mock("next/navigation", () => ({
 }));
 
 import { mapStatus, STATUS_PRESENTATION } from "@/lib/orderArchiveStatus";
-import { StatusCell } from "./StatusJourney";
 
 afterEach(cleanup);
 
@@ -51,15 +50,5 @@ describe("delivering — the pill tells the truth", () => {
   it("sits at stage 4 (Deliver) — it got all the way there", () => {
     expect(STATUS_PRESENTATION.sending.stage).toBe(4);
     expect(STATUS_PRESENTATION.sending.stage).not.toBe(0);
-  });
-
-  // NB: StatusCell has no production call sites, so this covers the StatusJourney
-  // pill wiring only. The STATUS_PRESENTATION assertions above pin the archive's path.
-  it("renders 'Sending' via StatusJourney's own pill", () => {
-    render(<StatusCell status="sending" />);
-    expect(screen.getByText("Sending")).toBeInTheDocument();
-    expect(screen.queryByText("New")).not.toBeInTheDocument();
-    expect(screen.queryByText("Delivered")).not.toBeInTheDocument();
-    expect(screen.queryByText(/failed/i)).not.toBeInTheDocument();
   });
 });

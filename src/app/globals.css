@@ -598,10 +598,8 @@
 
 /* ── Source chips — REMOVED (WP-30) ────────────────────────────────────────
    `.src-chip` + `.src-{FORMAT}` were a third copy of the format palette, drawn
-   only by a local SrcChip inside SupplierDockProfile.tsx. That component is now
-   a thin alias over <FileChip>, which carries the one palette. The visual spec
-   these rules defined (mono / 10.5px / 600 / uppercase / 0.02em / radius-sm)
-   moved onto FileChip so the call site renders unchanged.                     */
+   only by a local SrcChip. Removed with it; the format chip (FileChip) was
+   deleted in the plan 13b orphan sweep.                                       */
 
 /* ── Status journey ────────────────────────────────────────────────────── */
 .journey { display: flex; align-items: center; }

@@ -12,8 +12,7 @@ export const MAPPER_EVENT = "plk:mapper" as const;
 /** The kinds of action a palette command asks the mapper to perform. */
 export type MapperCommandKind =
   | "jump-to-field"          // focus the source-field search so the user can jump to any field
-  | "add-transform"          // open the manipulator dropdown on the focused output field
-  | "show-standards";        // open the standards-mapping popover for the focused field
+  | "add-transform";          // open the manipulator dropdown on the focused output field
 
 export interface MapperCommandEvent {
   kind: MapperCommandKind;

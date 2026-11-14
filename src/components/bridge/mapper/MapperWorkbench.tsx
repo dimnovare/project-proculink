@@ -452,16 +452,6 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
           targetEls.current[hoveredId]?.scrollIntoView?.({ block: "center", behavior: "smooth" });
           break;
         }
-        case "show-standards": {
-          if (!hoveredId) break;
-          // Resolve the ROW element (sourceRowEls), not the grip — see the ref-map split above.
-          const row = targetEls.current[hoveredId] ?? sourceRowEls.current[hoveredId];
-          const card = row?.closest<HTMLElement>("[data-mapper-row]") ?? row?.parentElement ?? null;
-          const trigger = card?.querySelector<HTMLButtonElement>('[aria-label^="Standards"], [aria-label*="standards"]');
-          card?.scrollIntoView?.({ block: "center", behavior: "smooth" });
-          trigger?.click();
-          break;
-        }
       }
     }
     window.addEventListener(MAPPER_EVENT, onCommand);

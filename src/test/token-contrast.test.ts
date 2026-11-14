@@ -64,7 +64,7 @@ const SRC = join(REPO, "src");
 
 // ─── WCAG 2.1 ─────────────────────────────────────────────────────────────────
 
-/** WCAG 2.1 relative luminance. Same maths as FileChip.test.tsx, stated here so
+/** WCAG 2.1 relative luminance. Stated here so
  *  this file has no dependency on a component's test. */
 function luminance(hex: string): number {
   const channel = (v: number) => {

@@ -123,7 +123,7 @@ and no guard could catch it because the fiction lived in a document, not in code
 | Signature | Built? | Where it renders |
 |---|---|---|
 | **1. Edge rails** — 4px buyer-blue left / supplier-green right, port markers | **NO — STRUCK 2026-08-13** | Nowhere. See below. |
-| **2. Wire Topology** — buyer ports left, supplier ports right, animated wires | **NOT RENDERED since 2026-11-13** | Nowhere. It was the `/bridge` **"System map" tab**; `/bridge` went with the order screens in plan 13b and `bridge/WireTopology.tsx` survives with zero importers. |
+| **2. Wire Topology** — buyer ports left, supplier ports right, animated wires | **DELETED 2026-11-14 (plan 13b)** | Nowhere. It was the `/bridge` "System map" tab; `/bridge` went with the order screens and the component was deleted in the orphan sweep. |
 | **3. Canonical Spine review** — 3-column source · spine · output | **NO — DELETED 2026-08-13** | Nowhere. The shipped review is a different layout; see below. |
 | **4. Document Anatomy** — source document pane | **PARTLY** | `src/components/bridge/document/` renders the pane. The **per-zone confidence overlay does not exist** and needs backend provenance first. |
 | **5. Cross-section card edge** — 3px brand strip on a card edge | **YES, and now applied by rule** | `<Card>`, `src/components/bridge/layout/Card.tsx`. Five card paths converged into it 2026-08-13; the edge is semantic and its rule is in that file's header. |
@@ -382,13 +382,11 @@ All Bridge-specific components live in `src/components/bridge/`.
 
 | Component | File | Description |
 |---|---|---|
-| `<WireTopology>` | `bridge/WireTopology.tsx` | SVG canvas: buyer ports left, supplier ports right, animated Bezier wires. Props: `buyers`, `suppliers`, `wires`. **Zero importers since 2026-11-13** — it rendered in the `/bridge` "System map" tab, which plan 13b deleted. |
 | `<Card>` | `bridge/layout/Card.tsx` | **The one card.** 3px cross-section edge strip, applied by a semantic rule written in the file's header: `edge="blue"` buyer/incoming · `"green"` supplier/outgoing · `"bridge"` spans both · `"none"` neutral **or undeterminable** (the default, and the majority). Also `pad` / `radius` / `flush` / `as` for migrated geometry. Server-component safe. |
 | `<StatusJourney>` | `bridge/StatusJourney.tsx` | 5-node mini-track: In · Read · Check · Transform · Send. Props: `stage` (0–4), `compact?`. |
 | `<MarkSystem>` | `bridge/MarkSystem.tsx` | System Identity mark SVG in 3 sizes. Props: `size`, `white?`. (Also exports a dead `RailPort` — see §2.) |
 | `<BridgeSidebar>` | `bridge/BridgeSidebar.tsx` | 220px navy sidebar — **mobile drawer only**. Desktop nav is in the topbar. |
 | `<BridgeTopbar>` | `bridge/BridgeTopbar.tsx` | 52px navy topbar: nav, breadcrumbs, cmd-K, avatar, link-spine. Props: `crumb`. |
-| `<FileChip>` | `bridge/FileChip.tsx` | File format colored tag: PDF red / XLSX green / cXML violet / EDI amber / CSV slate / JSON gold. **No production importer since plan 13b** (2026-11-13). |
 | `<ConfidenceChip>` | `bridge/ConfidenceChip.tsx` | `pct%` badge — ≥90 green, 75–89 amber, <75 red. |
 
 **One signature ships as a CSS class, not a component.** This table used to give it
@@ -404,6 +402,8 @@ numbers moved to the table below.)
 
 | Component | Status |
 |---|---|
+| `<WireTopology>` | **DELETED 2026-11-14** (plan 13b orphan sweep). Its only host, the `/bridge` System map tab, went with the order screens. |
+| `<FileChip>` | **DELETED 2026-11-14** (plan 13b orphan sweep). No production importer after the order screens went. |
 | `<EdgeRails>` | **STRUCK 2026-08-13** (§2). Never existed in `src/`; its CSS and tokens had zero consumers and were deleted. |
 | `<XCard>` | **FOLDED into `<Card>` 2026-08-13.** It had TWO importers, not the ~6 this table claimed, and both passed `color="amber"` — a tone, not a side — which is how the edge came to mean nothing. Its `.xcard`/`.xc-*` CSS had zero consumers and the `card-edge` Tailwind spacing token went to zero with it (the 3px is now `--card-edge`, consumed by `Card`). A **third** `XCard` was defined privately inside `UploadWorkbench.tsx`; it is gone too. |
 | shadcn `ui/card.tsx` | **DELETED 2026-08-13.** Zero importers and not a dependency of any other `ui/*` primitive. §14's "keep shadcn primitives" rule does not cover a card that competes with the one card. |
@@ -749,7 +749,7 @@ ConfidenceChip) is still an accurate reference for components that shipped.
 - Next.js 15 App Router migration ✅ complete
 - Bridge Layer app shell exists with `BridgeSidebar` + `BridgeTopbar`.
 - Until plan 13b (2026-11-13) the canonical Bridge routes were `/bridge`, `/inbox`, `/inbox/[orderId]`, `/upload`, `/library/mappings`, `/library/suppliers`, `/operations/*`, and `/settings`. The current routes are in §5.
-- **Plan 13b removed the purchase-order pipeline (2026-11-13, both repos).** Gone: the order screens (`/bridge`, the `/inbox` queue, the `/inbox/[orderId]` review and its `OrderWorkshop`, `/upload/preview/[orderId]`, `/drafts`, every `/library/*` page, `/connections`, and `/operations/connectors`, `exceptions`, `health` and `webhooks`), the order API's write endpoints, and the eight billing gates whose only surfaces those were (`BulkMapping`, `Cxml`, `WebhookDelivery`, `EmailIngestion`, `ErpConnectors`, `CustomSupplierRules`, `SftpIngestion`, `S3Ingestion`). What is left is the document engine — `/documents`, `/flows` (a flow's documents and its Advanced view, which hosts `MapperWorkbench`), `/lookups`, `/upload` (`UploadToFlow`), `/operations/log`, `/settings` and `/admin` — plus a read-only order archive at `/archive`. The retired URLs 308 via `src/lib/retired-routes.ts`. `PlanConstants.MinimumPlan` holds two rows: `AdvancedAudit` = Operations and presentation-only `Sso` = Enterprise. Left behind with no production importer: `bridge/WireTopology.tsx`, `bridge/FileChip.tsx` and `StatusCell` in `bridge/StatusJourney.tsx`. The bullets below this one are dated history; most of the screens they name no longer exist.
+- **Plan 13b removed the purchase-order pipeline (2026-11-13, both repos).** Gone: the order screens (`/bridge`, the `/inbox` queue, the `/inbox/[orderId]` review and its `OrderWorkshop`, `/upload/preview/[orderId]`, `/drafts`, every `/library/*` page, `/connections`, and `/operations/connectors`, `exceptions`, `health` and `webhooks`), the order API's write endpoints, and the eight billing gates whose only surfaces those were (`BulkMapping`, `Cxml`, `WebhookDelivery`, `EmailIngestion`, `ErpConnectors`, `CustomSupplierRules`, `SftpIngestion`, `S3Ingestion`). What is left is the document engine — `/documents`, `/flows` (a flow's documents and its Advanced view, which hosts `MapperWorkbench`), `/lookups`, `/upload` (`UploadToFlow`), `/operations/log`, `/settings` and `/admin` — plus a read-only order archive at `/archive`. The retired URLs 308 via `src/lib/retired-routes.ts`. `PlanConstants.MinimumPlan` holds two rows: `AdvancedAudit` = Operations and presentation-only `Sso` = Enterprise. The components this orphaned (`bridge/WireTopology.tsx`, `bridge/FileChip.tsx`, `StatusCell` in `bridge/StatusJourney.tsx`), the `supplier_limit_reached` arm of `limitRefusal.ts` and the `show-standards` mapper command were deleted in the orphan sweep (2026-11-14). The bullets below this one are dated history; most of the screens they name no longer exist.
 - Legacy compatibility routes such as `/dashboard`, `/orders`, `/orders/[id]`, `/suppliers`, and `/mappings` may still exist; do not use them as the product direction unless deliberately preserving redirects/compatibility.
 - Phase 4 Groups C-H ✅ implemented:
   - C/C2 billing and final Pilot/Growth/Operations/Integration/Enterprise plan ladder.
