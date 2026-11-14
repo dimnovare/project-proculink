@@ -67,8 +67,8 @@
 //   • A VERB SUPPLIED INDIRECTLY. The method is read as a literal in the call's
 //     own options object, so a verb held in a variable — or defaulted inside a
 //     wrapper — is not there to read and the call scores as GET. One level of
-//     PATH indirection IS followed: `basePath()` in src/lib/api/catalogSources.ts
-//     put three genuinely-called endpoints on the uncalled list until it was.
+//     PATH indirection IS followed: a `basePath()` helper (in catalogSources.ts, deleted in
+//     plan 13b) put three genuinely-called endpoints on the uncalled list until it was.
 //
 //     BOTH ARE PINNED AS FIXTURES in "WHAT THIS GUARD CANNOT SEE", because this
 //     suite is green and a green suite gets read as coverage. Writing them down
@@ -110,18 +110,6 @@ const SRC_DIR = path.join(ROOT, "src");
 // Keys are `METHOD /path/with/{} for every dynamic segment`.
 
 export const KNOWN_MACHINE_FACING: Record<string, string> = {
-  // ── Machine-to-machine ingress. Called by a customer's ERP or middleware over
-  //    an API key, never by this app.
-  "POST /api/ingress/{}/orders":
-    "Machine-to-machine PO ingress. IngressController carries " +
-    "[Authorize(AuthenticationSchemes = \"ApiKey\")], not Clerk, and the URL is printed for the " +
-    "customer to configure in SupplierDockProfile.tsx:1140 rather than called from here. " +
-    "src/types/procurement.ts:61 documents the same shape.",
-  "POST /api/ingress/{}/catalog/{}":
-    "Machine-to-machine catalog push, same API-key scheme as the order ingress above. The URL is " +
-    "rendered for the customer to paste into their system at SupplierDockProfile.tsx:1140; this " +
-    "app never posts to it.",
-
   "POST /api/v1/flows/{}/documents":
     "2026-11-07 — machine-to-machine file API. ProcuLink.Api/Controllers/FlowFilesController.cs carries " +
     "[Authorize(AuthenticationSchemes = \"ApiKey\")], not Clerk: the customer's own system calls it with an " +
@@ -181,16 +169,6 @@ export const KNOWN_MACHINE_FACING: Record<string, string> = {
     "can never mass-wipe an organisation. Deliberately has no frontend caller for the same reason " +
     "as the single-order erase above.",
 
-  // ── Reached by a computed final segment, which the matcher refuses to credit.
-  //    See "WHAT IT CANNOT SEE" above: the refusal is deliberate.
-  "POST /api/connections/{}/revisions/{}/publish":
-    "Called, but through a computed segment the matcher will not credit: api-client.ts builds " +
-    "`/api/connections/${connectionId}/revisions/${revisionId}/${action}` where action is the " +
-    "union \"publish\" | \"archive\". Crediting a computed segment against a literal one would let " +
-    "a single template mark a whole controller reachable.",
-  "POST /api/connections/{}/revisions/{}/archive":
-    "The other half of the same computed-segment call in src/lib/api-client.ts — see the publish " +
-    "entry directly above for why the matcher refuses to credit it structurally.",
 };
 
 /**
@@ -228,53 +206,20 @@ export const UNCALLED_PENDING_DECISION: Record<string, string> = {
   // posed was answered, not because it became inconvenient. Its own text set the terms: "What is
   // open is the backend's: license the format and implement it, or delete the stub." The stub was
   // deleted (ProcuLink #256, which also removed `GET /api/asns/{id}`), so there is no endpoint left
-  // to excuse. `GET /api/asns` survives and has a real caller in `getAsns`.
+  // to excuse. `GET /api/asns` went too, with the legacy ASN screens (plan 13b).
   //
   // This is the list doing exactly what it is for. The entry was added when the dead `uploadAsn`
   // wrapper was removed, and it recorded a decision nobody had made yet rather than pretending one
   // had. Now that the decision is made, the entry goes with it — a shrink, which these lists allow,
   // and never a caller re-added to clear it, which the entry explicitly forbade.
-  "POST /api/orders/{}/acceptance-gate/override":
-    "PENDING A DECISION, 2026-08-06 — named by the v2 audit. " +
-    "ProcuLink.Api/Controllers/OrderAcceptanceGateController.cs:74 documents it as the manual " +
-    "override for a blocked acceptance gate, and no screen offers it. Build the control or delete " +
-    "the endpoint; this entry is the open question, not an answer.",
-  "DELETE /api/suppliers/{}/po-mapping/output-tree":
-    "PENDING A DECISION, 2026-08-06 — named by the v2 audit. Its own docstring at " +
-    "ProcuLink.Api/Controllers/SuppliersController.cs:584 calls it \"the recovery door for a " +
-    "layout that cannot deliver this supplier's format\", and nothing in the mapper offers it. A " +
-    "door with no handle.",
+  //
+  // The acceptance-gate override, the supplier order confirmation (record + upload) and
+  // mark-rejected entries went with their endpoints on 2026-11-13: plan 13b cut the order API to a
+  // read-only archive, which deleted all four rather than deciding them.
   "POST /api/billing/pilot/request-extension":
     "PENDING A DECISION, 2026-08-06 — a Pilot whose trial has ended can ask for an extension, and " +
     "no surface asks. The expiry copy in src/lib/plans.ts offers only Upgrade, so either the " +
     "billing screen grows the ask or this endpoint goes.",
-  "POST /api/orders/{}/confirmation":
-    "PENDING A DECISION, 2026-08-06 — records a supplier order confirmation. " +
-    "ProcuLink.Api/Controllers/OrderConfirmationController.cs:45 is reachable only by an operator " +
-    "with a REST client. Decide whether the inbound-confirmation flow is a product surface.",
-  "POST /api/orders/{}/confirmation/upload":
-    "PENDING A DECISION, 2026-08-06 — the file half of the confirmation flow above, at " +
-    "ProcuLink.Api/Controllers/OrderConfirmationController.cs:88. It stands or falls with the same " +
-    "decision and is listed separately so neither is lost.",
-  "POST /api/orders/{}/mark-rejected":
-    "PENDING A DECISION, 2026-08-06 — marks an order rejected by the supplier. The review screen " +
-    "renders the resulting `rejected_by_supplier` status (src/lib/orderStatusManifest.ts) but " +
-    "offers no way to set it, so today the status can only arrive from a delivery response.",
-  "POST /api/schema/infer":
-    "PENDING A DECISION, 2026-08-06 — schema inference over an uploaded sample. No caller in " +
-    "src/lib/api-client.ts; the mapper's suggestion path uses the mapper-ai endpoints instead. " +
-    "Either the mapper adopts it or it is dead engine surface.",
-  "POST /api/schema/propose-mapping":
-    "PENDING A DECISION, 2026-08-06 — the second half of the inference pair above, and uncalled " +
-    "for the same reason. See ProcuLink.Api/Controllers/SchemaInferenceController.cs:96.",
-  "POST /api/suppliers/{}/po-mapping/test":
-    "PENDING A DECISION, 2026-08-06 — dry-runs a mapping against a sample without saving. " +
-    "src/lib/api/mapping.ts calls PUT and DELETE on /po-mapping and never /test, so the mapper's " +
-    "preview does not use it. Wire it into the preview or delete it.",
-  "POST /api/suppliers/{}/profiles":
-    "PENDING A DECISION, 2026-08-06 — upserts a supplier profile. src/lib/api-client.ts:1300 " +
-    "documents the route in a comment beside two GET callers and never posts to it, which is how " +
-    "a comment can look like a caller. Decide whether profiles are editable in-product.",
 };
 
 /**
@@ -316,7 +261,7 @@ const METHOD_RE = /\bmethod\s*:\s*["'`](GET|POST|PUT|PATCH|DELETE)["'`]/i;
 /**
  * A helper whose whole job is to return an API path —
  * `function basePath(supplierId) { return `${API_BASE_URL}/api/suppliers/${supplierId}/catalog/source`; }`
- * (src/lib/api/catalogSources.ts:181). The path literal then sits nowhere near
+ * (as in catalogSources.ts, deleted in plan 13b). The path literal then sits nowhere near
  * the verb, so a forward window from it reads GET for a PUT, a DELETE and a POST.
  *
  * This is adversarial-refutation question one — "can an endpoint dodge the guard
@@ -653,9 +598,9 @@ describe("the parsers run everywhere, on fixtures", () => {
   });
 
   it("reads the bare fragments of a module that wraps its own apiFetch", () => {
-    // src/lib/api/delivery.ts, api/mapping.ts and api/connectors.ts each define
-    // `apiFetch(path)` prefixing `${API_BASE_URL}/api`, so their endpoint paths
-    // carry neither marker. Sweeping only the full template saw NONE of them.
+    // Several modules (delivery.ts, mapping.ts, connectors.ts, all deleted in plan 13b) each
+    // defined `apiFetch(path)` prefixing `${API_BASE_URL}/api`, so their endpoint paths
+    // carried neither marker. Sweeping only the full template saw NONE of them.
     const module =
       'async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {\n' +
       '  const res = await fetch(`${API_BASE_URL}/api${path}`, { ...init });\n}\n' +
@@ -667,7 +612,7 @@ describe("the parsers run everywhere, on fixtures", () => {
   });
 
   it("follows one level of path-helper indirection, so the verb is read at the call site", () => {
-    // src/lib/api/catalogSources.ts, in shape. The path lives in a helper and the
+    // catalogSources.ts (deleted in plan 13b), in shape. The path lives in a helper and the
     // verb lives at the call, so a forward window from the literal reads GET for
     // a PUT, a DELETE and a POST — three endpoints reported uncalled that are
     // called on every supplier catalog screen.
@@ -825,7 +770,10 @@ describe("the frontend's call corpus", () => {
     // ANTI-VACUITY. An empty corpus makes every endpoint look uncalled, which
     // would drown the real finding in noise; a corpus missing one MODULE makes
     // its endpoints look uncalled silently, which is worse.
-    expect(CALLS.length, "the API call sweep found nothing").toBeGreaterThan(100);
+    // 100 -> 80 on 2026-11-13: plan 13b deleted the order API's client calls (94 today).
+    // 80 -> 74 the same day (task 8b): the delivery-config, catalog-source and supplier client calls
+    // went with their endpoints. The floor is today's count.
+    expect(CALLS.length, "the API call sweep found nothing").toBeGreaterThanOrEqual(74);
     const stateChanging = CALLS.filter((c) => (STATE_CHANGING as readonly string[]).includes(c.method));
     expect(stateChanging.length).toBeGreaterThan(40);
 
@@ -835,12 +783,13 @@ describe("the frontend's call corpus", () => {
     // wrappers whose paths carry no marker at all.
     expect(files).toContain("src/lib/api-client.ts");
     expect(files).toContain("src/lib/api/billing.ts");
-    expect(files).toContain("src/lib/api/delivery.ts");
+    // Re-anchored 2026-11-13 from src/lib/api/delivery.ts (deleted, plan 13b): the one apiFetch
+    // wrapper left.
+    expect(files).toContain("src/lib/api/documents.ts");
 
     const keys = new Set(CALLS.map((c) => `${c.method} ${c.path}`));
-    expect(keys).toContain("POST /api/orders/upload");
-    expect(keys).toContain("PUT /api/suppliers/{}/delivery-config");
-    expect(keys).toContain("DELETE /api/suppliers/{}/po-mapping");
+    expect(keys).toContain("POST /api/flows/{}/documents");
+    expect(keys).toContain("POST /api/billing/checkout");
   });
 
   // BARE_FRAGMENT_RE matches BACKTICKED path fragments only. In an apiFetch-wrapper
@@ -881,7 +830,8 @@ describe("the frontend's call corpus", () => {
 
     // ANTI-VACUITY, both halves. A file-count floor alone would pass if the
     // fragment reader had been repointed at nothing, so pin what was EXTRACTED too.
-    expect(wrapperModules, "no apiFetch-wrapper module found — the sweep moved").toBeGreaterThan(2);
+    // 2 -> 1 on 2026-11-13 (plan 13b task 8b): delivery.ts went; documents.ts is the one left.
+    expect(wrapperModules, "no apiFetch-wrapper module found — the sweep moved").toBeGreaterThanOrEqual(1);
     expect(backtickedFragments, "wrapper modules found, but no path read out of them").toBeGreaterThan(10);
 
     expect(
@@ -924,12 +874,14 @@ describe("every state-changing endpoint has a caller, or a written reason", () =
     // ANTI-VACUITY, the other side. A controller sweep that returns nothing —
     // or that silently loses the `[Route]` resolution — passes this guard for
     // every endpoint at once.
-    expect(ENDPOINTS.length, "the controller sweep found nothing").toBeGreaterThan(120);
+    // 120 -> 70 and 60 -> 40 on 2026-11-13: plan 13b cut the order API to a read-only archive
+    // (81 endpoints today, 50 of them state-changing).
+    expect(ENDPOINTS.length, "the controller sweep found nothing").toBeGreaterThan(70);
     const stateChanging = ENDPOINTS.filter((e) => (STATE_CHANGING as readonly string[]).includes(e.method));
-    expect(stateChanging.length).toBeGreaterThan(80);
+    expect(stateChanging.length).toBeGreaterThan(40);
     const keys = new Set(ENDPOINTS.map(endpointKey));
-    expect(keys).toContain("POST /api/orders/upload");
-    expect(keys).toContain("PUT /api/suppliers/{}/delivery-config");
+    expect(keys).toContain("POST /api/flows/{}/documents");
+    expect(keys).toContain("POST /api/billing/checkout");
     // Every path resolved against a class route — an unresolved one keeps the
     // controller's own prefix off the front.
     expect(ENDPOINTS.filter((e) => !e.path.startsWith("/api/") && e.path !== "/health")).toEqual([]);
@@ -997,8 +949,8 @@ describe("every state-changing endpoint has a caller, or a written reason", () =
   it.skipIf(!BACKEND)("the positive control: a known-called endpoint is NOT flagged", () => {
     // Without this, a matcher that flagged everything would look like a guard
     // finding real problems.
-    const upload = ENDPOINTS.filter((e) => endpointKey(e) === "POST /api/orders/upload");
-    expect(upload, "POST /api/orders/upload must still exist").toHaveLength(1);
+    const upload = ENDPOINTS.filter((e) => endpointKey(e) === "POST /api/flows/{}/documents");
+    expect(upload, "POST /api/flows/{}/documents must still exist").toHaveLength(1);
     expect(findUncalledEndpoints(upload, CALLS, {})).toEqual([]);
   });
 });

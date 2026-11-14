@@ -30,6 +30,12 @@ export interface RetiredRoute {
   deletedDir: string;
   /** Why it went away, in plain language. Surfaces in review, not in the UI. */
   why: string;
+  /**
+   * Set when the source's dynamic segment names something the destination has no
+   * counterpart for (a supplier id is not a flow id), so the redirect cannot carry it.
+   * The route test otherwise fails a redirect that drops a segment.
+   */
+  segmentHasNoSuccessor?: true;
 }
 
 // Help pages retired by the relaunch rewrite (plan 12b). The 46 order-era articles and
@@ -114,7 +120,7 @@ const RETIRED_HELP: RetiredRoute[] = [
 export const RETIRED_ROUTES: RetiredRoute[] = [
   {
     source: "/library/templates",
-    destination: "/library/suppliers",
+    destination: "/flows",
     deletedDir: "src/app/(app)/library/templates",
     why:
       "The output-templates page could not change what any supplier receives — "
@@ -123,44 +129,59 @@ export const RETIRED_ROUTES: RetiredRoute[] = [
   },
   {
     source: "/library/rules",
-    destination: "/library/suppliers",
+    destination: "/flows",
     deletedDir: "src/app/(app)/library/rules",
     why:
       "The rule catalog was editable but inert: nothing in the parse, transform or "
       + "delivery path ever read those rules, and every rule reported 'Triggered 0 times'. "
-      + "The checks that actually run are each supplier's Validation rules tab.",
+      + "The checks that actually run are set on each flow.",
   },
   {
     source: "/library/rule-definitions",
-    destination: "/library/suppliers",
+    destination: "/flows",
     deletedDir: "src/app/(app)/library/rule-definitions",
     why:
       "A read-only list of rule shapes with no link into it from anywhere in the product. "
-      + "The same standards references are shown inline on the supplier Validation rules tab.",
+      + "The same standards references are shown inline where a flow's checks are set.",
   },
   {
     source: "/drafts",
-    destination: "/inbox",
+    destination: "/archive",
     deletedDir: "src/app/(app)/drafts",
     why:
       "A permanently empty list — orders cannot be saved as drafts, so nothing could "
-      + "ever appear here. Unsent orders live in the Inbox.",
+      + "ever appear here. Unsent orders lived in the Inbox, which is now the read-only archive.",
   },
   {
     source: "/operations/webhooks",
     destination: "/settings?tab=connectors",
     deletedDir: "src/app/(app)/operations/webhooks",
     why:
-      "A second copy of Settings ▸ Connectors that no user could open — zero inbound links "
-      + "anywhere in src/, and its only registry entry was a `hidden: true` hub tab. Both screens "
-      + "called the same four endpoints (getIntegrations, createIntegration, toggleIntegration, "
-      + "deleteIntegration) under the same TanStack key, and this copy was the lossier one: it "
-      + "hardcoded platform:\"webhook\", a value Settings has no label for, so an endpoint created "
-      + "here rendered there as a raw string. Settings owns the data.",
+      "A second copy of the Settings Connectors tab that no user could open — zero inbound links "
+      + "anywhere in src/. Both are gone: order-event webhooks belonged to the order pipeline, "
+      + "and a flow has its own webhook.",
+  },
+  {
+    source: "/operations/exceptions",
+    destination: "/operations/log",
+    deletedDir: "src/app/(app)/operations/exceptions",
+    why:
+      "The issues list ran on the order pipeline: it listed order exceptions and let an operator "
+      + "resolve or ignore them. Every workspace has left that pipeline, and a document's problems "
+      + "are shown on the document itself. Deliveries is the nearest live operations page.",
+  },
+  {
+    source: "/operations/health",
+    destination: "/operations/log",
+    deletedDir: "src/app/(app)/operations/health",
+    why:
+      "The system-status page counted stuck and failed ORDERS and requeued the ones that ran out of retries. "
+      + "That pipeline is gone, and the endpoints behind the page with it. The operator is alerted "
+      + "when no worker is beating; Deliveries is the nearest live operations page.",
   },
   {
     source: "/operations/connectors",
-    destination: "/library/suppliers",
+    destination: "/settings",
     deletedDir: "src/app/(app)/operations/connectors",
     why:
       "A read-only page nothing linked to, describing a channel it could not see. Zero inbound "
@@ -176,12 +197,121 @@ export const RETIRED_ROUTES: RetiredRoute[] = [
   },
   {
     source: "/upload/preview/:orderId",
-    destination: "/inbox/:orderId",
+    destination: "/archive/:orderId",
     deletedDir: "src/app/(app)/upload/preview",
     why:
       "Unreachable: uploading has routed straight to the order review screen since the "
-      + "review screen became a superset of this one. The order id is preserved so an old "
-      + "link opens the same order.",
+      + "review screen became a superset of this one, and that screen is gone too. The order "
+      + "id is preserved so an old link opens the same order in the read-only archive.",
+  },
+  {
+    source: "/bridge",
+    destination: "/documents",
+    deletedDir: "src/app/(app)/bridge",
+    why:
+      "The order dashboard counted orders, drew the buyer-to-supplier map and ran the "
+      + "onboarding checklist. Every workspace runs on the document tool now, and its home "
+      + "is Documents.",
+  },
+  {
+    source: "/inbox",
+    destination: "/archive",
+    deletedDir: "src/app/(app)/inbox",
+    why:
+      "The order queue. No new orders arrive on the order pipeline, so the orders it held "
+      + "are read-only history, listed in the archive.",
+  },
+  {
+    source: "/inbox/:orderId",
+    destination: "/archive/:orderId",
+    deletedDir: "src/app/(app)/inbox/[orderId]",
+    why:
+      "The order review screen fixed, mapped and sent one order. An old order can no longer "
+      + "be changed or sent, and the archive opens the same id read-only.",
+  },
+  {
+    source: "/library/suppliers",
+    destination: "/flows",
+    deletedDir: "src/app/(app)/library/suppliers",
+    why:
+      "Every workspace runs on the document tool, where what a supplier used to carry "
+      + "(its output format and delivery channel) belongs to a flow and its destinations. "
+      + "The supplier list had no counterpart left to open.",
+  },
+  {
+    source: "/library/suppliers/:id",
+    destination: "/flows",
+    deletedDir: "src/app/(app)/library/suppliers/[id]",
+    segmentHasNoSuccessor: true,
+    why:
+      "A supplier's detail page (delivery, mapping, catalog, rules) went with the supplier "
+      + "list. A supplier id is not a flow id, so the link lands on the flow list.",
+  },
+  {
+    source: "/library/buyers",
+    destination: "/flows",
+    deletedDir: "src/app/(app)/library/buyers",
+    why:
+      "A directory of buyers that no parse, mapping or delivery step ever read, kept for "
+      + "orders that now live in the read-only archive.",
+  },
+  {
+    source: "/library/mappings",
+    destination: "/lookups",
+    deletedDir: "src/app/(app)/library/mappings",
+    why:
+      "Supplier item-code mappings are what lookups hold now: a table a flow reads to turn "
+      + "one code into another.",
+  },
+  {
+    source: "/library/standards",
+    destination: "/flows",
+    deletedDir: "src/app/(app)/library/standards",
+    why:
+      "The field reference was written for purchase-order fields. The document tool has no "
+      + "equivalent screen yet, so the link lands on the flow list.",
+  },
+  {
+    source: "/connections",
+    destination: "/flows",
+    deletedDir: "src/app/(app)/connections",
+    why:
+      "Versioned supplier connections were replaced by flow versions: publish, restore and "
+      + "the version history live on each flow.",
+  },
+  {
+    source: "/connections/:connectionId",
+    destination: "/flows",
+    deletedDir: "src/app/(app)/connections/[connectionId]",
+    segmentHasNoSuccessor: true,
+    why:
+      "A connection's revisions and replay panel went with the connections list. A connection "
+      + "id is not a flow id, so the link lands on the flow list.",
+  },
+  {
+    source: "/inbound/invoices",
+    destination: "/documents",
+    deletedDir: "src/app/(app)/inbound/invoices",
+    why:
+      "The legacy inbound invoice list ran on the order pipeline, which every workspace has left. "
+      + "Documents of every kind, invoices included, now arrive through a flow and are listed on Documents.",
+  },
+  {
+    source: "/inbound/asns",
+    destination: "/documents",
+    deletedDir: "src/app/(app)/inbound/asns",
+    why:
+      "A permanently empty list: shipping-notice intake was never built. "
+      + "Documents of every kind now arrive through a flow and are listed on Documents.",
+  },
+  {
+    source: "/documents/:id",
+    destination: "/archive/:id",
+    deletedDir: "src/app/(app)/documents/[id]",
+    why:
+      "The legacy invoice screen opened an invoice that was stored as an order row. Those rows "
+      + "are read-only history now, and the archive opens the same id. The Documents list at "
+      + "/documents is the engine's own page and is not affected.",
   },
   {
     source: "/customers",

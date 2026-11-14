@@ -111,8 +111,8 @@ export function signInHostFromPublishableKey(key: string | undefined): string | 
  * Where to send someone who cannot sign in. NEXT_PUBLIC_STATUS_URL is this
  * repo's existing status-page convention (see the marketing footer); when it is
  * unset, /support is a public marketing route whose contact form imports nothing
- * from Clerk, so it still works. /operations/health is deliberately NOT offered:
- * it gates on useQueriesEnabled itself, so it is a victim of this same bug.
+ * from Clerk, so it still works. No in-app page is offered:
+ * every one gates on useQueriesEnabled, so each is a victim of this same bug.
  */
 function helpDestination(): { href: string; label: string; external?: boolean } {
   const status = process.env.NEXT_PUBLIC_STATUS_URL;

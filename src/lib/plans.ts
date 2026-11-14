@@ -15,10 +15,7 @@
 // Per-order value stays MONOTONIC down the ladder (more volume → cheaper/order):
 //   Growth €0.99 · Operations €0.80 · Integration ~€0.67 · Distributor €0.60.
 //
-// Delivery/ingestion CHANNELS (Webhook/API delivery, email ingestion, SFTP, S3)
-// are available on ALL paid plans (Growth+) — the backend gates them at Growth.
-// The paid tiers differ on VOLUME and SUPPLIER COUNT, not on which channels
-// they unlock.
+// No delivery/ingestion channel is plan-gated; the paid tiers differ on VOLUME and SUPPLIER COUNT.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { BillingPlan } from "@/types/procurement";
@@ -72,8 +69,9 @@ export interface Plan {
    *
    * ── Why this exists ──────────────────────────────────────────────────────────
    *
-   * Gates are MINIMUM-plan, so Integration and Distributor both include `Cxml`, `BulkMapping`
-   * and `AdvancedAudit`. Their cards listed none of them: Integration named neither cXML nor
+   * Gates are MINIMUM-plan, so Integration and Distributor both include `AdvancedAudit` (and,
+   * until plan 13b deleted those two gates, `Cxml` and `BulkMapping`). Their cards listed none of
+   * them: Integration named neither cXML nor
    * bulk mapping, Distributor named neither cXML nor advanced audit. A buyer reading the page
    * left to right saw the €1,499 tier apparently LOSE capabilities the €399 tier has. The
    * bullets were not false — they were incomplete, which on a comparison table is the same
@@ -173,11 +171,8 @@ export const PLANS: Plan[] = [
       // job. It is the understating direction, which is why no guard caught it: every check in
       // gatedCapabilityClaims.test.ts hunts cards claiming MORE than the backend grants.
       //
-      // The backend is unambiguous. BillingGateErrors.RequiredFeatures(protocol, outputFormat)
-      // adds a requirement for exactly three things — ERP protocols (ErpConnectors), `http`
-      // (WebhookDelivery), and `cxml` output (Cxml). Email, SFTP and FTPS match none of them, so
-      // they carry no gate on any tier, Pilot included. /formats has said so for months; this
-      // card was the page a buyer actually reads before deciding.
+      // The backend gates no delivery channel: email, SFTP and FTPS are open on every tier, Pilot
+      // included. /formats says so; this card was the page a buyer actually reads before deciding.
       //
       // Email is the channel named here rather than the full ungated set, and that is a choice,
       // not an omission. SFTP and FTPS are equally ungated, but both need the supplier to hand
@@ -218,50 +213,17 @@ export const PLANS: Plan[] = [
     features: [
       "150 documents/month",
       "5 suppliers",
-      "Webhook/API delivery",
-      "Email · SFTP · S3 ingestion",
       // "Mapping library" named a surface that does not exist — WP-11 deleted the
       // BillingFeature of that name for exactly that reason ("no such surface exists anywhere
       // in the product"). The bulk import/export lever is the Operations differentiator and
       // stays there.
       //
-      // The repair for that then read "Field mapping + validation", and its second half was
-      // false at a €2,350/month distance. ProcuLink has TWO validation products and only one of
-      // them is on this tier:
-      //
-      //   • BUILT-IN checks — InvariantValidator plus OutputFieldValidator (required fields,
-      //     zero/negative unit price, zero/negative quantity, format-mandatory buyer item code,
-      //     delimiter contamination). Ungated on every plan, Pilot included: every transform
-      //     calls OutputFieldValidator.ValidateEntity before writing a byte
-      //     (CsvTransformService.cs:46, CxmlTransformService.cs:112, JsonTransformService.cs:38,
-      //     UblOrderTransformService.cs:103, X12TransformService.cs:108, XmlTransformService.cs:45),
-      //     and SupplierAcceptanceService.cs:202-204 runs the invariant and output-field passes
-      //     alongside the profile pass — EvaluateProfile returns empty when there is no profile
-      //     (:389), so these two still produce results with no profile at all.
-      //   • PER-SUPPLIER ACCEPTANCE RULES — the versioned acceptance profile on the supplier's
-      //     Validation rules tab. Gated on BillingFeature.CustomSupplierRules, whose minimum is
-      //     Enterprise (PlanConstants.cs:287), refused on BOTH authoring and activating
-      //     (SupplierAcceptanceController.cs:37-46, :70, :99). The Enterprise card sells it as
-      //     "Custom transformation rules"; only reading existing versions is left open, so a
-      //     downgraded org can still see what its suppliers enforce.
-      //
-      // "validation" on a €149 card points a reader straight at the tab named "Validation
-      // rules", which is the Enterprise one. The bullet now names the half Growth really has.
-      // Deleting it outright was the wrong repair in the other direction — the built-in checks
-      // are real, they run on every order, and under-claiming them is its own false statement.
+      // The built-in checks (DocumentChecks in the backend) run on every document on every plan,
+      // so that is the honest wording.
       "Field mapping + built-in order checks",
-      // "Audit log" was imprecise in the one direction that costs a customer money. ProcuLink has
-      // TWO audit surfaces and only one of them is on this tier:
-      //
-      //   • per-order trail — GET /api/orders/{id}/audit (OrdersController.cs:2029). No gate at
-      //     all; pinned deliberately as the IL scanner's negative control
-      //     (BillingGateEnforcementIsRealTests.cs:143-155). Every plan has it, Pilot included.
-      //   • org-wide delivery log — GET /api/audit (AuditController.cs:49), gated on
-      //     BillingFeature.AdvancedAudit, whose minimum is Operations (PlanConstants.cs:276).
-      //
-      // A live Growth org read this bullet, opened /operations/log on 2026-08-06 and was told
-      // "The full delivery log is not included in your plan" (CrossingsLog.tsx:606). The bullet
-      // now names the surface Growth actually gets; Operations keeps "Advanced audit trail".
+      // Two audit surfaces, one per tier: the per-order trail (GET /api/documents/{id}/history,
+      // `DocumentsController.History`) is ungated and on every plan; the org-wide delivery log
+      // (GET /api/audit) is gated on BillingFeature.AdvancedAudit, minimum Operations.
       "Per-order audit trail",
     ],
     inheritsFrom: "pilot",
@@ -293,10 +255,6 @@ export const PLANS: Plan[] = [
     blurb: "For order teams that need reliable daily processing.",
     recommendationBlurb:
       "Reliable daily processing for 150–500 documents a month with up to 10 suppliers, with every channel included.",
-    // "Webhook/API + email/SFTP/S3 channels" is gone because `inheritsFrom: "growth"` already
-    // says it — the channels gate at Growth and restating them here is what forced every card
-    // above to restate them too, and then to be judged on how many bullets it had.
-    //
     // "+ priority support" is gone because nothing delivers it. It is not a BillingFeature, and
     // BillingFeature.cs:20-21 records that `SlaOnboarding` was deleted for precisely this reason
     // — an SLA and named support are commitments fulfilled by people, and no code path can check
@@ -306,8 +264,6 @@ export const PLANS: Plan[] = [
     features: [
       "500 documents/month",
       "10 suppliers",
-      "Bulk mapping import/export",
-      "cXML support",
       "Advanced audit trail",
     ],
     inheritsFrom: "growth",
@@ -348,7 +304,7 @@ export const PLANS: Plan[] = [
     // The channels bullet and "Advanced audit trail" are now carried by
     // `inheritsFrom: "operations"`. Listing them again was not what made this card honest — what
     // made it DIShonest was listing those two and silently dropping cXML and bulk mapping, which
-    // Integration also includes (gates are minimum-plan). A buyer comparing €399 to €999 saw the
+    // Integration then also included (gates are minimum-plan; plan 13b deleted both gates). A buyer comparing €399 to €999 saw the
     // dearer tier lose two capabilities. Integration's real differentiators are volume,
     // suppliers, and onboarding; the two numbers sit on the fixed axis every card shares.
     features: [
@@ -384,9 +340,10 @@ export const PLANS: Plan[] = [
     blurb: "For distributors and resellers routing high order volume across many suppliers.",
     recommendationBlurb:
       "For distributors and resellers: up to 2,500 documents/month with 30 suppliers.",
-    // Channels and bulk mapping come from `inheritsFrom: "integration"`. This card used to list
-    // those two and omit cXML and advanced audit — both of which Distributor includes — so the
-    // €1,499 tier read as thinner than the €399 one.
+    // Channels come from `inheritsFrom: "integration"`. This card used to list them and bulk
+    // mapping, and omit cXML and advanced audit — all of which Distributor included — so the
+    // €1,499 tier read as thinner than the €399 one. Plan 13b deleted the cXML and bulk mapping
+    // gates; advanced audit is the one left.
     features: [
       "2,500 documents/month",
       "30 suppliers",
@@ -429,7 +386,6 @@ export const PLANS: Plan[] = [
     features: [
       "Custom volume",
       "Custom suppliers",
-      "ERP connectors",
       // SSO is deliberately NOT sold here, and the earlier note on this line had it backwards:
       // it reasoned that because `BillingFeature.Sso` is Enterprise-only, the card was the
       // surface that was wrong. The tier was never the problem. The problem is that nothing is
@@ -449,7 +405,6 @@ export const PLANS: Plan[] = [
       // the day it becomes true.
       "Dedicated onboarding",
       "SLA",
-      "Custom transformation rules",
     ],
     inheritsFrom: "distributor",
     cta: { label: "Contact sales", href: SALES },

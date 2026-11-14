@@ -9,8 +9,8 @@
  *
  * It is the wrong shape for "click every button". The app serves 40+ routes, and
  * the thirty that are not core are exactly the ones nobody looks at — admin
- * guides, legal pages, `/connections`, `/inbound/*`, `/welcome`. A control that
- * is broken on `/library/buyers` is broken for a real user whether or not the
+ * guides, legal pages, `/welcome`. A control that
+ * is broken on any of them is broken for a real user whether or not the
  * route made a curated list.
  *
  * DERIVED, NOT TYPED. The list is read off the App Router tree at run time, the
@@ -52,15 +52,8 @@ const DYNAMIC_FILL: Record<string, string | null> = {
   "/flows/[flowId]/outputs/[outputId]/advanced": `/flows/${MOCK_ENGINE_IDS.flow}/outputs/${MOCK_ENGINE_IDS.output}/advanced`,
   "/lookups/[lookupId]": `/lookups/${MOCK_ENGINE_IDS.lookup}`,
   "/documents/[id]": `/documents/${MOCK_ENGINE_IDS.document}`,
-  // Legacy pages still on disk until 13b. Ids are the old mock-client ids, so the sweep reports
-  // the redirect target (EngineRouteRedirect moves them) rather than the legacy screen.
+  // The read-only archive of old orders. The id is an old mock-client order id.
   "/archive/[orderId]": "/archive/ord-002",
-  "/inbox/[orderId]": "/inbox/ord-002",
-  "/library/suppliers/[id]": "/library/suppliers/s1",
-  // The mock client exposes no connection fixture, so there is no id that
-  // renders anything. Listed as null rather than omitted so the report says the
-  // route was skipped and why, rather than the route quietly not existing.
-  "/connections/[connectionId]": null,
 };
 
 /**
@@ -90,7 +83,7 @@ export interface SweepRoute {
 }
 
 const APP_PREFIXES = [
-  "/admin", "/bridge", "/connections", "/flows", "/inbound", "/inbox", "/library", "/lookups",
+  "/admin", "/archive", "/documents", "/flows", "/lookups",
   "/onboarding", "/operations", "/settings", "/upload", "/welcome",
 ];
 

@@ -52,11 +52,6 @@ const ROUTES = [
   "/operations/log",
   "/settings",
   "/admin",
-  // ── still on disk until 13b; compiled so the client-side redirect lands fast ──
-  "/bridge",
-  "/inbox",
-  "/library/suppliers",
-  "/library/mappings",
   "/sign-in",
 ];
 

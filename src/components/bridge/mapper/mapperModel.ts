@@ -8,7 +8,7 @@
 // the backend PUT replaces the WHOLE OrderMappingOverride document. Every helper here
 // returns a NEW override that carries ALL existing sub-documents through unchanged
 // (customFields + sourceMap + output + template). A connect on one side must never blank
-// the other. buildOverrideDraft (OutputMappingEditor) is the canonical assembler; these
+// the other. adapter.save (useMapperModel) persists the result; these
 // helpers produce the pieces it carries.
 
 import type {
@@ -230,7 +230,7 @@ export function withCatalogPrice(
  * pass-through rules, then add the new path. Each materialized/added rule is a pass-through
  * (canonicalField === its own outputPath) so the transform stays byte-identical for the
  * pre-existing fields and the new field renders as an unmapped target the user can then wire or
- * give a fixed value. Persists through buildOverrideDraft like every other mutation.
+ * give a fixed value. Persists through adapter.save like every other mutation.
  *
  * `currentPaths` is the set of paths the lane is currently showing (model.targetFields), used
  * only to seed the materialization when the override was previously empty. A no-op if the path

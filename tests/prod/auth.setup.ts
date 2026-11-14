@@ -20,7 +20,7 @@ import { settleInFlightRequests, watchForServerErrors } from "./serverErrorWatch
  * may not import a module that declares tests.
  *
  * THIS FILE IS ALSO A SCREEN TEST, WHETHER OR NOT IT WANTS TO BE. Redeeming the
- * ticket ends on /bridge, so this step performs the app's FIRST authenticated
+ * ticket ends on /documents, so this step performs the app's FIRST authenticated
  * page load for a freshly created organisation and fires every tenant-scoped
  * query on it. signed-in-screens.spec.ts guards exactly that with a fifth bar —
  * "no host of ours answered 5xx while this screen loaded" — and hardened it into
@@ -37,22 +37,22 @@ setup("sign in to production with a disposable Clerk identity", async ({ page, b
   const state = readDisposableState();
 
   // Armed before the first navigation, because the responses that matter arrive
-  // during the redirect chain and the /bridge landing — not after them.
+  // during the redirect chain and the /documents landing — not after them.
   const watch = watchForServerErrors(page, baseURL);
 
   // Navigating with `__clerk_ticket` is the redemption. Clerk resolves it before
   // the app's own middleware runs and sets __session / __client on the redirect.
   await page.goto(`/sign-in?__clerk_ticket=${encodeURIComponent(state.ticket)}`);
 
-  // The landing is /bridge, but not necessarily in one hop. A brand-new user has
+  // The landing is /documents, but not necessarily in one hop. A brand-new user has
   // no ACTIVE organisation on the edge session even though the membership
   // exists, so src/middleware.ts bounces once to /onboarding/select-organization,
   // which activates the org and forwards on with ?org_set=1. Waiting for the
   // destination rather than for a single redirect makes that hop invisible here
   // and keeps this setup honest if the gate's shape changes.
-  await page.waitForURL(/\/bridge(\?|$)/, { timeout: 90_000 });
+  await page.waitForURL(/\/documents(\?|$)/, { timeout: 90_000 });
 
-  // Being on /bridge is not the same as being signed in on /bridge: a signed-out
+  // Being on /documents is not the same as being signed in on /documents: a signed-out
   // request is redirected to /sign-in, so the assertion that matters is the
   // negative one. If Clerk silently failed, this is where it says so.
   await expect(page).not.toHaveURL(/\/sign-in/);
@@ -97,9 +97,9 @@ function signInServerErrorReport(failures: string[]): string {
     ...failures.map((failure) => `    ${failure}`),
     ``,
     `A 5xx during sign-in usually means TENANT-SCOPED QUERIES FIRED BEFORE THE`,
-    `ORGANISATION CLAIM WAS ATTACHED TO THE SESSION. This step lands on /bridge, which`,
+    `ORGANISATION CLAIM WAS ATTACHED TO THE SESSION. This step lands on /documents, which`,
     `is the app's first authenticated page load: a brand-new user has no active`,
-    `organisation on the edge session yet, so any dashboard query that goes out before`,
+    `organisation on the edge session yet, so any tenant query that goes out before`,
     `the claim arrives is answered UnauthorizedAccessException("Organisation not`,
     `resolved").`,
     ``,

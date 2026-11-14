@@ -77,6 +77,11 @@ describe("retired routes", () => {
       const destParams = retired.destination.match(/:[A-Za-z0-9_]+/g) ?? [];
       // Dropping the id would send someone who bookmarked one order to a list of
       // all of them, which reads as data loss even though nothing was lost.
+      if (retired.segmentHasNoSuccessor) {
+        expect(destParams, `${retired.source} says its segment has no successor but still carries one`)
+          .toEqual([]);
+        return;
+      }
       for (const param of sourceParams) {
         expect(destParams, `${retired.source} drops ${param} on the way to ${retired.destination}`)
           .toContain(param);
@@ -88,16 +93,33 @@ describe("retired routes", () => {
     });
   });
 
+  it("only the two retired detail pages that have no successor may drop their id", () => {
+    expect(RETIRED_ROUTES.filter((r) => r.segmentHasNoSuccessor).map((r) => r.source)).toEqual([
+      "/library/suppliers/:id",
+      "/connections/:connectionId",
+    ]);
+  });
+
   it("leaves no link to a retired path anywhere in the app", () => {
-    const deadPaths = RETIRED_ROUTES.map((r) => normalizePath(r.source.split("/:")[0]));
+    // A parameterised source (`/documents/:id`) whose base is a live page (`/documents` is the
+    // engine's list) cannot have its base searched for, so it is searched for its DETAIL shape
+    // (`"/documents/...`) instead of being skipped.
+    const isLiveBase = (r: (typeof RETIRED_ROUTES)[number]) =>
+      r.source.includes("/:") && matchesAny(normalizePath(r.source.split("/:")[0]), listAppRoutes());
+    expect(RETIRED_ROUTES.filter(isLiveBase).map((r) => r.source)).toEqual(["/documents/:id"]);
+    const deadPaths = RETIRED_ROUTES
+      .filter((r) => !isLiveBase(r))
+      .map((r) => normalizePath(r.source.split("/:")[0]));
+    const liveBaseDetailPaths = RETIRED_ROUTES
+      .filter(isLiveBase)
+      .map((r) => normalizePath(r.source.split("/:")[0]));
     const offenders: string[] = [];
 
-    // The registries that put a path in front of a user: the sidebar, the hub
-    // tab bars, the command palette, the per-screen guides, and the middleware
-    // matcher. A retired route surviving in any of them is a visible dead end.
+    // The registries that put a path in front of a user: the sidebar, the
+    // command palette, the per-screen guides, and the middleware matcher (the
+    // hub tab bars went with the order screens, 2026-11-13). A retired route surviving in any of them is a visible dead end.
     const NAV_SOURCES = [
       "src/components/bridge/BridgeSidebar.tsx",
-      "src/components/bridge/layout/HubTabs.tsx",
       "src/components/bridge/CommandPalette.tsx",
       "src/lib/section-guides.ts",
       "src/middleware.ts",
@@ -109,6 +131,9 @@ describe("retired routes", () => {
         // Quoted string only — a path inside a comment is documentation, not a link.
         const quoted = new RegExp(`["'\`]${dead}(?:[/"'\`?]|\\(\\.\\*\\))`);
         if (quoted.test(source)) offenders.push(`${file} → ${dead}`);
+      }
+      for (const base of liveBaseDetailPaths) {
+        if (new RegExp(`["'\`]${base}/`).test(source)) offenders.push(`${file} -> ${base}/<id>`);
       }
     }
 

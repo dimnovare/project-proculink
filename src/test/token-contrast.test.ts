@@ -64,7 +64,7 @@ const SRC = join(REPO, "src");
 
 // ─── WCAG 2.1 ─────────────────────────────────────────────────────────────────
 
-/** WCAG 2.1 relative luminance. Same maths as FileChip.test.tsx, stated here so
+/** WCAG 2.1 relative luminance. Stated here so
  *  this file has no dependency on a component's test. */
 function luminance(hex: string): number {
   const channel = (v: number) => {
@@ -276,7 +276,7 @@ describe("resolved token pairs clear their WCAG floor", () => {
 
 // ─── Part (b): the source, so a revert goes red ───────────────────────────────
 
-const SKIP_DIR = new Set(["node_modules", ".next", "mocks"]);
+const SKIP_DIR = new Set(["node_modules", ".next"]);
 
 function walk(dir: string): string[] {
   const out: string[] = [];
@@ -380,11 +380,6 @@ describe("the failing pairs cannot come back", () => {
 
 describe("the specific sites the refutation measured", () => {
   const read = (rel: string) => readFileSync(join(REPO, rel), "utf8");
-
-  it("settings' billing-gate notice uses the amber TEXT token", () => {
-    const src = read("src/app/(app)/settings/page.tsx");
-    expect(src).toContain(`background: "var(--amber-soft)", color: "var(--amber-text)"`);
-  });
 
   // A fourth site — the /operations/webhooks primary action — was measured here
   // until FE #130 deleted that page (a duplicate of Settings ▸ Connectors nobody

@@ -9,8 +9,7 @@ import { Button } from "@/components/bridge/DSPrimitives";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { formatMoney } from "@/components/bridge/mapper/fieldBadgesModel";
 import { Failed, Quiet } from "@/components/flows/states";
-import { downloadFailureMessage } from "@/components/bridge/OrderPassport";
-import { mapStatus, STATUS_PRESENTATION } from "@/components/bridge/InboxView";
+import { downloadFailureMessage, mapStatus, STATUS_PRESENTATION } from "@/lib/orderArchiveStatus";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { apiClient } from "@/lib/api-client";
 

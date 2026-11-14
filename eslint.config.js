@@ -25,10 +25,6 @@ const VITEST_ASSERT_HELPERS = [
   "expectQualifiedFooter",
   // src/components/bridge/navTitleDedup.h1.test.tsx — asserts exactly one <h1> with the given text.
   "expectSingleH1",
-  // src/components/bridge/workshop/__tests__/gateContextHeader.test.tsx — asserts the workshop header.
-  "expectGateHeader",
-  // src/components/bridge/workshop/MobileTriage.test.tsx — asserts an element is not `white-space: nowrap`.
-  "assertWraps",
   // src/app/(marketing)/legalCommitments.test.tsx — asserts a claim is absent BOTH scoped to the
   // Responsible-AI card and across the whole page (two `expect(...).not.toMatch` calls). Added when
   // WP-10 (#83) landed two tests whose whole body is this helper; verified it really asserts.
@@ -43,9 +39,9 @@ const VITEST_ASSERT_HELPERS = [
 ];
 
 /**
- * The Playwright twin. `visitAndAssertHealthy` (tests/e2e/live-full-e2e.spec.ts) navigates,
- * asserts no error boundary, asserts an h1/landmark, and asserts the console error list is
- * empty — 15 route smoke tests spend their whole body in it.
+ * The Playwright twin. `visitAndAssertHealthy` navigates, asserts no error boundary, asserts an
+ * h1/landmark, and asserts the console error list is empty. (Its spec, live-full-e2e, was deleted
+ * in plan 13b; the name stays an assertion helper for any spec that defines it.)
  */
 const PLAYWRIGHT_ASSERT_HELPERS = ["expect", "visitAndAssertHealthy"];
 

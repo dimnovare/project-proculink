@@ -39,11 +39,12 @@
 // and the transform half of that, end to end:
 //
 //   TransformValidationException.cs:26/65/67   the sentence is the exception's Message
-//   OrderTransformService.cs:728               catch (… is TransformTemplateException or TransformValidationException)
-//   OrderTransformService.cs:746               FailTransformAsync(…, ex.Message, …)
-//   OrderTransformService.cs:917-921           BuildAuditEvent(…, "TransformFailed", new { error, stage })
-//   OrdersController.cs:515 → :529 → :2790     → OrderDto.ErrorMessage
-//   OrderProblemPanel.tsx:189 → :227-230 → :289-305   → the operator's screen
+//   DocumentOutputRenderer.cs:46               catch (… or TransformValidationException or …)
+//   DocumentOutputRenderer.cs:48               → ("output_invalid", ex.Message)
+//   DocumentsController.cs:311                 → 422 { error, output, detail }
+//
+// (2026-11-13, plan 13b task 8b: the order transform hop — OrderTransformService.cs and its
+// TransformTemplateException catch — went with the order pipeline; the above is what is left.)
 //
 // ─────────────────────────────────────────────────────────────────────────────
 // WHY A `grep` CANNOT DO THIS JOB
@@ -82,17 +83,22 @@ export interface UserFacingSource {
  *   OrderExceptionDto.Message    ExceptionDetail.tsx:160, rendered RAW
  *   a 4xx `error` body           ApiHttpError.message → OrderProblemPanel.tsx:233 → :344
  *
+ * (2026-11-13, plan 13b: OrderProblemPanel, ExceptionDetail, OrderDetailsDrawer and useOrderReview
+ * were deleted. No frontend component renders `OrderDto.ErrorMessage` or
+ * `OrderExceptionDto.Message` now; the rows below keep their carrier tags until a later packet
+ * decides what the read-only archive shows.)
+ *
  * WHAT IS DELIBERATELY NOT HERE, and why — silence would overstate the coverage:
  *
  *   • Any file whose only English is an ILogger message template. Those are excluded per
  *     LITERAL by `isOperatorSentence` rather than per file, because the same file usually
- *     holds both (DeliveryService.cs has 25 operator sentences and ~90 log lines).
+ *     holds both operator sentences and log lines.
  *   • `OrderLineDto.ReviewReason` (OrderIngestionService.ComposeReviewReason,
  *     DateParsing/NumberParsing.BuildAmbiguityReason). It reaches the review UI, but through
  *     a different screen with its own copy rules; widening to it is a deliberate second
  *     packet, not something to fold in silently.
- *   • `PassportTimelineEvent.Detail` (PassportService.cs:220) serialises the WHOLE audit
- *     payload as JSON text — including the `detail` key holding a raw `ex.Message`. That is
+ *   • `PassportTimelineEvent.Detail` (PassportService, deleted in plan 13b) serialised the WHOLE
+ *     audit payload as JSON text — including the `detail` key holding a raw `ex.Message`. That is
  *     an integrator surface showing a JSON blob, not operator prose, and holding a .NET
  *     exception message to a copy vocabulary would be a rule nothing can satisfy.
  *   • `GET /api/audit` returns payloads raw (AuditController.cs:78) but the frontend renders
@@ -107,38 +113,19 @@ export interface UserFacingSource {
  */
 export const USER_FACING_SOURCES: readonly UserFacingSource[] = [
   // ── Audit `error` / `lastError` payload writers ──────────────────────────────
-  {
-    file: "ProcuLink.Api/Services/Orders/OrderIngestionService.cs",
-    carrier: "OrderDto.ErrorMessage",
-    why: "Writes the ParseFailed audit event whose `error` key OrdersController.cs:529 reads (:913, :982, :1002).",
-  },
-  {
-    file: "ProcuLink.Api/Services/ParseFailureExplain.cs",
-    carrier: "OrderDto.ErrorMessage",
-    why: "Composes the sentence that becomes that ParseFailed `error` value — its entire purpose.",
-  },
-  {
-    file: "ProcuLink.Api/Services/Orders/OrderTransformService.cs",
-    carrier: "OrderDto.ErrorMessage",
-    why: "FailTransformAsync writes the TransformFailed audit `error` (:917, :1024); also composes its own wrapper sentences at :663, :699, :720.",
-  },
-  {
-    file: "ProcuLink.Infrastructure/Services/DeliveryService.cs",
-    carrier: "OrderDto.ErrorMessage",
-    why: "Writes DeliveryAttempt.ErrorMessage (:569, :888, :990, :1018), RejectionReason (:991, :1019) and the DeliveryDeadLettered `lastError` payload (:1795).",
-  },
+  // 2026-11-13, plan 13b task 7a: all four rows left — OrderIngestionService.cs,
+  // ParseFailureExplain.cs, OrderTransformService.cs and DeliveryService.cs were deleted with the
+  // order pipeline. Nothing writes a new ParseFailed / TransformFailed / DeliveryFailed /
+  // DeliveryDeadLettered event; archived rows keep the sentences they were written with.
 
   // ── Exceptions whose .Message becomes the TransformFailed `error` ───────────
   {
     file: "ProcuLink.Transform/Output/TransformValidationException.cs",
-    carrier: "OrderDto.ErrorMessage",
-    why: "Its Message is caught at OrderTransformService.cs:728 and passed to FailTransformAsync at :746.",
+    carrier: "output_invalid 422 detail",
+    why: "Its Message is caught at DocumentOutputRenderer.cs:46, returned as the output_invalid detail (:48) and sent by DocumentsController.cs:311.",
   },
-  {
-    file: "ProcuLink.Transform/Output/ScribanTemplateTransformService.cs",
-    carrier: "OrderDto.ErrorMessage",
-    why: "Declares TransformTemplateException (:183) and throws it (:148); same catch at OrderTransformService.cs:728.",
-  },
+  // 2026-11-13, plan 13b task 8a: the ScribanTemplateTransformService.cs row left — the file (and
+  // TransformTemplateException with it) was deleted as an orphan of the order pipeline.
   {
     file: "ProcuLink.Transform/Output/OutputFieldValidator.cs",
     carrier: "OrderDto.ErrorMessage",
@@ -149,15 +136,13 @@ export const USER_FACING_SOURCES: readonly UserFacingSource[] = [
     carrier: "OrderDto.ErrorMessage",
     why: "Delimiter-contamination LineProblem.Message text (:102-105), same join.",
   },
-  {
-    file: "ProcuLink.Transform/Output/MappedTransformService.cs",
-    carrier: "OrderDto.ErrorMessage",
-    why: "Overflow LineProblem.Message text (:645) and two TransformValidationException throws (:622, :662).",
-  },
+  // 2026-11-13, plan 13b task 8a2: the MappedTransformService.cs row left — its order builder (the
+  // overflow LineProblem and both TransformValidationException throws) was deleted; what stays is
+  // rule resolution and CSV escaping, which write no sentence.
   {
     file: "ProcuLink.Transform/Output/OutputTemplateEmitter.cs",
-    carrier: "OrderDto.ErrorMessage",
-    why: "Throws TransformValidationException (:489).",
+    carrier: "output_invalid 422 detail",
+    why: "Throws ArgumentException (:55, :245, :248) and InvalidOperationException (:75, :190, :199, :484) sentences; DocumentOutputRenderer.cs:46 returns their Message as the output_invalid detail.",
   },
   {
     file: "ProcuLink.Transform/Output/XmlTransformService.cs",
@@ -179,7 +164,7 @@ export const USER_FACING_SOURCES: readonly UserFacingSource[] = [
   {
     file: "ProcuLink.Core/Services/Delivery/SupplierResponseClassification.cs",
     carrier: "OrderDto.ErrorMessage",
-    why: "NamedCauses (:177-209) is a table of literal operator sentences; DescribeFailure (:382) returns one and DeliveryService.cs:958 stores it on the attempt.",
+    why: "NamedCauses (:177-209) is a table of literal operator sentences; DescribeFailure (:382) returns one.",
   },
   {
     file: "ProcuLink.Infrastructure/Services/Dispatchers/HttpDeliveryDispatcher.cs",
@@ -207,22 +192,18 @@ export const USER_FACING_SOURCES: readonly UserFacingSource[] = [
     why: "Returns the ERP connector's message as DeliveryResult.ErrorMessage (:73).",
   },
   {
+    // 2026-11-13, plan 13b task 7a: DeliveryService.cs (the delivery-failure use) was deleted; the
+    // sentence still reaches a screen as the archive download's 410 body.
     file: "ProcuLink.Core/Services/RetentionConstants.cs",
-    carrier: "OrderDto.ErrorMessage",
-    why: "BlobPurgedError (:17) is used verbatim as the delivery failure at DeliveryService.cs:161 and :1332.",
+    carrier: "ApiHttpError.message",
+    why: "BlobPurgedError (:17) is the archive download's 410 `error` (OrderQueryService.GetDownloadUrlAsync → OrdersController.cs:239).",
   },
 
   // ── Acceptance-gate sentences (become the transform `error`) ────────────────
-  {
-    file: "ProcuLink.Api/Services/AcceptanceMessages.cs",
-    carrier: "OrderDto.ErrorMessage",
-    why: "ForFail (:23) produces the (why, fix) sentence pairs the gate refuses with; they reach FailTransformAsync.",
-  },
-  {
-    file: "ProcuLink.Core/Services/IAcceptanceGate.cs",
-    carrier: "OrderDto.ErrorMessage",
-    why: "AcceptanceGateMessage.Compose (:181) stitches those into the paragraph stored as the transform error.",
-  },
+  // 2026-11-13, plan 13b task 7a: IAcceptanceGate.cs (AcceptanceGateMessage.Compose) left — deleted
+  // with the order pipeline's acceptance gate.
+  // 2026-11-13, plan 13b task 7b: AcceptanceMessages.cs (ForFail) left — deleted with
+  // SupplierAcceptanceService, its only caller.
 
   // ── Order exception messages, rendered raw ──────────────────────────────────
   {
@@ -235,7 +216,7 @@ export const USER_FACING_SOURCES: readonly UserFacingSource[] = [
   {
     file: "ProcuLink.Api/Controllers/OrdersController.cs",
     carrier: "ApiHttpError.message",
-    why: "Its 4xx `error` bodies become ApiHttpError.message, which OrderProblemPanel.tsx:233 renders at :344; it also derives OrderDto.ErrorMessage itself (:491-599).",
+    why: "Derives OrderDto.ErrorMessage itself (:491-599). Its 4xx `error` bodies went with the write actions in plan 13b (2026-11-13); it is listed as sentence-free.",
   },
 ];
 

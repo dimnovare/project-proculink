@@ -8,7 +8,6 @@ import { PageHeader } from "./PageHeader";
 // pin the contract all of them rely on: exactly one h1, same text, sr-only.
 
 vi.mock("next/navigation", () => ({
-  // Non-hub path: HubEyebrow (used in the visible variant) renders nothing.
   usePathname: () => "/inbox",
 }));
 

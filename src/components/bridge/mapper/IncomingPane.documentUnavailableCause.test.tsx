@@ -31,7 +31,6 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { IncomingPane, type IncomingPaneProps } from "./IncomingPane";
-import { sourceUnavailableMessage } from "@/lib/sourceDocument";
 import type { MapperSourcePortProps } from "./MapperWireLayer";
 import type { SourceField } from "./types";
 
@@ -80,10 +79,15 @@ function mountWithout(notice: string | null) {
   return tab;
 }
 
-/** The two sentences the shipped model produces, read from the model itself. */
-const FETCH_FAILED = sourceUnavailableMessage({ kind: "error" })!;
-const GENUINELY_NONE = sourceUnavailableMessage({ kind: "none" })!;
-const THROTTLED = sourceUnavailableMessage({ kind: "throttled", retryAfterSeconds: 30 })!;
+/**
+ * `documentNotice` fixtures: the caller supplies the sentence (the flow adapter, through
+ * MapperWorkbench). Literals since 2026-11-13, when `sourceUnavailableMessage` went with the
+ * order-source fetch that produced them.
+ */
+const FETCH_FAILED = "We couldn't load the original document just now. The captured values below are unaffected.";
+const GENUINELY_NONE =
+  "No original document is stored for this order, so there is nothing to display. The values below are what we captured.";
+const THROTTLED = "Too many document requests just now. Wait a moment, then reload the order.";
 
 describe("the disabled Document tab says what the pane says", () => {
   it("does not claim 'no document is stored' when the FETCH failed", () => {

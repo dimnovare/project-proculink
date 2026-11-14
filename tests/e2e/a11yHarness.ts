@@ -69,7 +69,7 @@ export async function preparePage(page: Page, options: PreparePageOptions = {}):
   //
   // Playwright's own `animations: "disabled"` screenshot option freezes CSS
   // animations and transitions, and NOTHING ELSE. The two most-animated surfaces
-  // in this product — WireTopology's travelling dots and the marketing hero's
+  // in this product — the marketing hero's
   // pulses — are SVG SMIL (`<animateMotion repeatCount="indefinite">`), which CSS
   // cannot reach. They are removed from the DOM entirely by `useReducedMotion`,
   // and this is what triggers it. It also stops the `setInterval` driving

@@ -8,7 +8,7 @@ import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import { Card } from "@/components/bridge/layout/Card";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { Failed, Quiet } from "@/components/flows/states";
-import { mapStatus, STATUS_PRESENTATION } from "@/components/bridge/InboxView";
+import { mapStatus, STATUS_PRESENTATION } from "@/lib/orderArchiveStatus";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { apiClient } from "@/lib/api-client";
 import { saveBlob } from "@/lib/saveBlob";

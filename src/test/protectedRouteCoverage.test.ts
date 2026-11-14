@@ -36,6 +36,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { isProtectedPath, PROTECTED_ROUTE_PATTERNS } from "../middleware";
+import { RETIRED_ROUTES } from "@/lib/retired-routes";
 import { listAppRoutes, ROOT } from "./appRoutes";
 
 const APP_GROUP_DIR = join(ROOT, "src", "app", "(app)");
@@ -43,7 +44,7 @@ const APP_DIR = join(ROOT, "src", "app");
 
 /**
  * Turn a route pattern into one concrete URL the matcher can be asked about:
- * "/inbox/[orderId]" -> "/inbox/sample", "/sign-in/[[...sign-in]]" -> "/sign-in".
+ * "/archive/[orderId]" -> "/archive/sample", "/sign-in/[[...sign-in]]" -> "/sign-in".
  */
 function concretePath(pattern: string): string {
   const path = pattern
@@ -84,12 +85,12 @@ describe("the route walk is not vacuous", () => {
     // Sentinels, not a full list: a walk that silently stopped one directory short
     // (or resolved the wrong tree entirely) still clears a bare count.
     for (const route of [
-      "/bridge",
-      "/inbox",
-      "/inbox/[orderId]",
+      "/documents",
+      "/archive",
+      "/archive/[orderId]",
       "/settings",
       "/upload",
-      "/library/suppliers",
+      "/flows",
       "/operations/log",
       "/admin",
     ]) {
@@ -113,14 +114,24 @@ describe("every page under src/app/(app)/ is behind the edge guard", () => {
 
   // The original defect, verbatim, so the regression is pinned by name and not
   // only by the walk that would have caught it.
-  it("claims /connections and its detail page — the A-F1 finding", () => {
-    expect(isProtectedPath("/connections")).toBe(true);
-    expect(isProtectedPath("/connections/conn-123")).toBe(true);
+  // /connections no longer has a page, so it has no business in the matcher: Next runs the
+  // next.config redirect BEFORE middleware, so a signed-out visitor gets the 308 and then
+  // sign-in at /flows either way. What must stay true is that the old URL does not 404.
+  it("308s /connections to /flows — the A-F1 finding, now that the page is retired", () => {
+    expect(RETIRED_ROUTES.find((r) => r.source === "/connections")?.destination).toBe("/flows");
   });
 
-  it("claims /inbound/invoices and /inbound/asns — the A-F1 finding", () => {
-    expect(isProtectedPath("/inbound/invoices")).toBe(true);
-    expect(isProtectedPath("/inbound/asns")).toBe(true);
+  // /bridge and /inbox left the matcher with their pages on 2026-11-13, for the same reason.
+  it("308s /bridge, /inbox and /inbox/:orderId to their successors now that the order screens are retired", () => {
+    expect(RETIRED_ROUTES.find((r) => r.source === "/bridge")?.destination).toBe("/documents");
+    expect(RETIRED_ROUTES.find((r) => r.source === "/inbox")?.destination).toBe("/archive");
+    expect(RETIRED_ROUTES.find((r) => r.source === "/inbox/:orderId")?.destination).toBe("/archive/:orderId");
+  });
+
+  it("308s /inbound/invoices and /inbound/asns to /documents — the A-F1 finding, now retired", () => {
+    for (const source of ["/inbound/invoices", "/inbound/asns"]) {
+      expect(RETIRED_ROUTES.find((r) => r.source === source)?.destination).toBe("/documents");
+    }
   });
 });
 

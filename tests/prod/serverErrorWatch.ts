@@ -13,7 +13,7 @@ import { type Page } from "@playwright/test";
  * exist and cannot be made to exist.
  *
  * The setup project is also the one that runs FIRST, and the one that redeems the
- * sign-in ticket and lands on /bridge. That IS the app's first authenticated page
+ * sign-in ticket and lands on /documents. That IS the app's first authenticated page
  * load for a brand-new organisation, which is precisely where the 5xx cascade this
  * bar exists to catch fires. Four to five `UnauthorizedAccessException`
  * ("Organisation not resolved") responses were observed there on every run of

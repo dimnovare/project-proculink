@@ -5,26 +5,11 @@ import type { ReactNode } from "react";
 import type { OrderMappingOverride } from "@/lib/api/types";
 import type { MapperAdapter, SourceField } from "./types";
 
-const getSourceTokens = vi.fn().mockResolvedValue([]);
-const getMappingOverride = vi.fn().mockResolvedValue(null);
-const getMappingSuggestions = vi.fn().mockResolvedValue([]);
 vi.mock("@/lib/api-client", () => ({
-  getMappingOverride: (...a: unknown[]) => getMappingOverride(...a),
-  upsertMappingOverride: vi.fn(),
-  getSourceTokens: (...a: unknown[]) => getSourceTokens(...a),
-  getConnectionRevision: vi.fn(),
-  updateConnectionDraft: vi.fn(),
   isApiMockMode: false,
   isQaBypass: false,
 }));
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true, useTenantQueriesEnabled: () => true }));
-vi.mock("@/lib/api/canonical-fields", () => ({ getCanonicalFields: vi.fn().mockResolvedValue([]) }));
-vi.mock("@/lib/api/mapper-ai", () => ({
-  getMappingSuggestions: (...a: unknown[]) => getMappingSuggestions(...a),
-  recordSuggestionDecision: vi.fn().mockResolvedValue(undefined),
-  getFieldValidation: vi.fn().mockResolvedValue([]),
-  getCatalogHints: vi.fn().mockResolvedValue([]),
-}));
 
 import { useMapperModel } from "./useMapperModel";
 
@@ -55,9 +40,6 @@ describe("useMapperModel — flow variant", () => {
     await act(async () => { result.current.onTargetDisconnect("Out1"); });
     expect([result.current.targetFields.map((f) => f.outputPath), result.current.outputConnections["Out1"]]).toEqual([["Out1"], undefined]);
     expect(adapter.load).toHaveBeenCalled();
-    expect(getSourceTokens).not.toHaveBeenCalled();
-    expect(getMappingOverride).not.toHaveBeenCalled();
-    expect(getMappingSuggestions).not.toHaveBeenCalled();
   });
 
   it("saves through the adapter, shows what the server returned, and keeps a newer pending edit", async () => {

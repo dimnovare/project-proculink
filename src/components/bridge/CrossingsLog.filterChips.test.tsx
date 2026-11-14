@@ -74,26 +74,21 @@ beforeEach(() => getAuditLog.mockReset());
 afterEach(cleanup);
 
 describe("deliveredFilterLabel — derived from what the log can actually contain", () => {
-  it("one reachable delivered action means the chip is about that one action", () => {
-    expect(deliveredFilterLabel(1)).toBe("Confirmed by hand");
-  });
-
-  it("a second reachable delivered action restores the general claim", () => {
-    // The self-correcting half. When the backend starts recording automatic sends,
-    // "Delivered" becomes true again with no edit to this component.
-    expect(deliveredFilterLabel(2)).toBe("Delivered");
+  it("a reachable delivered action earns the general claim", () => {
+    // Since plan 13b the one reachable delivered action is an automatic document send.
+    expect(deliveredFilterLabel(1)).toBe("Delivered");
   });
 
   it("no reachable delivered action means no chip at all, not a dead one", () => {
     expect(deliveredFilterLabel(0)).toBeNull();
   });
 
-  it("CONTROL — the manifest has exactly two reachable delivered actions (one order, one document)", () => {
-    // Anti-vacuity for the whole rename: if this ever stops being 1, the rendered
-    // chip below changes with it and the assertion about the rendered label must be
-    // re-derived rather than left asserting a stale string.
+  it("CONTROL — the manifest has exactly one reachable delivered action, the document send", () => {
+    // Anti-vacuity: if this changes, the rendered chip below changes with it and the
+    // assertion about the rendered label must be re-derived rather than left stale.
+    // `DeliveryConfirmedManually` lost its writer with the order API (plan 13b).
     const reachable = AUDIT_ACTION_FACTS.filter((f) => f.kind === "delivered" && f.reachable);
-    expect(reachable.map((f) => f.action)).toEqual(["DeliveryConfirmedManually", "document.delivered"]);
+    expect(reachable.map((f) => f.action)).toEqual(["document.delivered"]);
   });
 });
 

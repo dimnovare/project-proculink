@@ -51,24 +51,23 @@ const DIVERGENT_INPUT_LABEL = 'aria-label="Fixed value"';
  */
 const SHARED_TEST_ID_VALUE = '"pick-fixed-value"';
 
-/** The three hosts that render a fixed-value input. */
+/**
+ * The hosts that render a fixed-value input. The output mapping editor and the output structure
+ * designer went 2026-11-13 with the order review, leaving one.
+ */
 const INPUT_HOSTS = [
   "src/components/bridge/mapper/OutgoingPane.tsx",
-  "src/components/bridge/OutputMappingEditor.tsx",
-  "src/components/bridge/OutputStructureDesigner.tsx",
 ] as const;
 
 /**
- * The controls that OPEN a fixed-value editor. Three entries, two of them shared components:
- * `OutputSourcePicker` is the picker both output editors render, so tagging it covers both.
+ * The controls that OPEN a fixed-value editor. (`OutputSourcePicker`, the picker both output
+ * editors rendered, went with them 2026-11-13.)
  */
 const ENTRY_CONTROLS = [
   // The row chip on the order review screen — "wires" mode, which is what /inbox/[orderId] ships.
   "src/components/bridge/mapper/OutgoingPane.tsx",
   // The same screen's "picker" mode reaches the editor through this footer entry instead.
   "src/components/bridge/mapper/SourcePickerChip.tsx",
-  // The output mapping editor and the output structure designer both render this one.
-  "src/components/bridge/OutputSourcePicker.tsx",
 ] as const;
 
 describe("the fixed-value input announces the same thing on every screen", () => {
@@ -86,7 +85,7 @@ describe("one locator reaches the fixed-value control on every screen", () => {
     expect(read(rel)).toContain(SHARED_TEST_ID_VALUE);
   });
 
-  it.each(["src/components/bridge/mapper/SourcePickerChip.tsx", "src/components/bridge/OutputSourcePicker.tsx"])(
+  it.each(["src/components/bridge/mapper/SourcePickerChip.tsx"])(
     "%s writes it as a real data-testid attribute",
     (rel) => {
       expect(read(rel)).toContain(`data-testid=${SHARED_TEST_ID_VALUE}`);

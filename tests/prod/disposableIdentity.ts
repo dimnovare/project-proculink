@@ -28,7 +28,7 @@ export interface DisposableState {
   orgId: string;
   orgName: string;
   email: string;
-  /** Unique per run, and printed by the dashboard greeting — see the spec. */
+  /** Unique per run, and printed by the topbar account chip — see the spec. */
   firstName: string;
   /** Single-use Clerk sign-in ticket. Redeemed once, by auth.setup.ts. */
   ticket: string;

@@ -44,7 +44,6 @@ const STATUS_INPUT: OutgoingStatusInput = {
 function typeFixedValue(field: TargetField, value: string) {
   const onSetFixedValue = vi.fn();
   const props: OutgoingPaneProps = {
-    variant: "order",
     targetFields: [field],
     statusInput: STATUS_INPUT,
     onSetFixedValue,
@@ -114,7 +113,6 @@ describe("OutgoingPane — anti-vacuity: a HEADER field must still land in the h
 /** Render the pane in picker mode for one field and open the source picker's dropdown. */
 function openPicker(onSetFixedValue?: OutgoingPaneProps["onSetFixedValue"]) {
   const props: OutgoingPaneProps = {
-    variant: "order",
     targetFields: [QUANTITY],
     statusInput: STATUS_INPUT,
     mappingMode: "picker",
@@ -160,7 +158,6 @@ describe("OutgoingPane — the shared fixed-value locator is on the wires-mode c
     // only knew the picker footer would find nothing on the screen operators actually use.
     const { container } = render(
       <OutgoingPane
-        variant="order"
         targetFields={[QUANTITY]}
         statusInput={STATUS_INPUT}
         onSetFixedValue={vi.fn()}

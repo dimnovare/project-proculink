@@ -53,7 +53,7 @@
  *   • src/app/(app)/admin/**        BOTH. Our own staff runbook, not customer copy.
  *   • (marketing)/{dpa,terms,privacy,aup,subprocessors}   BOTH. Legal text.
  *   • src/components/ui/**          BOTH. Vendored shadcn primitives.
- *   • **\/*.test.*, src/mocks/**, src/lib/standards/**    BOTH. Fixtures + fact tables.
+ *   • **\/*.test.*, src/lib/standards/**    BOTH. Fixtures + fact tables.
  *
  * FALSE-POSITIVE GUARDS (DESIGN-DB-1 §7.3 — a careless list turns CI red):
  *   • whole-word matching only (\b…\b). "AST" inside "P-ast- due" produced 51
@@ -178,7 +178,6 @@ const BLOCK_EXEMPT = [
   { path: /^src\/components\/ui\//, tiers: ["metaphor", "jargon"] },
   // Fact tables and fixtures.
   { path: /^src\/lib\/standards\//, tiers: ["metaphor", "jargon"] },
-  { path: /^src\/mocks\//, tiers: ["metaphor", "jargon"] },
   { path: /\.test\.(ts|tsx)$/, tiers: ["metaphor", "jargon"] },
   { path: /\.stories\.(ts|tsx)$/, tiers: ["metaphor", "jargon"] },
 ];
@@ -533,12 +532,8 @@ function scanTerms() {
  * (Record<Key, string> maps such as HUB_LABELS).
  */
 const NOUN_REGISTRIES = [
-  { file: "src/components/bridge/BridgeSidebar.tsx", blocks: ["NAV_MAIN", "ENGINE_NAV_MAIN", "NAV_TAIL"] },
-  { file: "src/components/bridge/layout/HubTabs.tsx", blocks: ["HUB_TABS"] },
-  { file: "src/components/bridge/layout/HubTabs.tsx", blocks: ["HUB_LABELS"], valueLabels: true },
-  { file: "src/components/bridge/SupplierDockProfile.tsx", blocks: ["TABS"] },
+  { file: "src/components/bridge/BridgeSidebar.tsx", blocks: ["NAV_MAIN", "NAV_TAIL"] },
   { file: "src/app/(app)/settings/page.tsx", blocks: ["TABS"] },
-  { file: "src/components/bridge/InboxView.tsx", blocks: ["FILTER_CHIPS"] },
 ];
 
 /**

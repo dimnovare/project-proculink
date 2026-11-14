@@ -37,9 +37,11 @@ import { ROOT } from "./appRoutes";
  * manifest's provenance header (ProcuLink @ main 5db0b05). There are no
  * `AuditEvents.AddRange` sites, so this list is the whole writer surface.
  *
- * `IAcceptanceGate.cs` holds the three `AcceptanceGateAudit` constants; the two
- * AuditController/OrdersController entries are read for the declared-but-unwritten
- * names, not for writers.
+ * The OrdersController entry is read for the declared-but-unwritten names, not for
+ * writers. (2026-11-13, plan 13b task 7a: AcceptanceGate.cs, IAcceptanceGate.cs,
+ * OrderIngestionService.cs, OrderResolutionService.cs, OrderTransformService.cs,
+ * ReplayService.cs and DeliveryService.cs left this list — deleted with the order
+ * pipeline; their eighteen actions are `historical` in the manifest.)
  */
 const WRITER_FILES = [
   "ProcuLink.Api/Controllers/AdminController.cs",
@@ -49,22 +51,12 @@ const WRITER_FILES = [
   "ProcuLink.Api/Services/Documents/DocumentIntakeService.cs",
   "ProcuLink.Api/Services/Documents/DocumentSender.cs",
   "ProcuLink.Api/Services/Google/GoogleConnectService.cs",
-  "ProcuLink.Api/Controllers/OpsController.cs",
   "ProcuLink.Api/Controllers/OrdersController.cs",
   "ProcuLink.Api/Controllers/SettingsController.cs",
-  "ProcuLink.Api/Services/AcceptanceGate.cs",
-  "ProcuLink.Api/Services/Orders/OrderIngestionService.cs",
-  "ProcuLink.Api/Services/Orders/OrderResolutionService.cs",
-  "ProcuLink.Api/Services/Orders/OrderTransformService.cs",
-  "ProcuLink.Api/Services/ReplayService.cs",
-  "ProcuLink.Core/Services/IAcceptanceGate.cs",
-  "ProcuLink.Infrastructure/Services/DeliveryService.cs",
-  "ProcuLink.Infrastructure/Services/DeliverySlaService.cs",
   "ProcuLink.Infrastructure/Services/Email/InboundEmailRouter.cs",
-  "ProcuLink.Infrastructure/Services/StrandedFailedDeliveryDetectionService.cs",
-  "ProcuLink.Infrastructure/Services/StrandedReadyOrderDetectionService.cs",
-  "ProcuLink.Infrastructure/Services/StuckDeliveryDetectionService.cs",
-  "ProcuLink.Infrastructure/Services/StuckOrderDetectionService.cs",
+  // 2026-11-13, plan 13b task 8b: the two writers the manifest had no row for.
+  "ProcuLink.Infrastructure/Services/Delivery/DeliveryBounceHandler.cs",
+  "ProcuLink.Api/Services/Documents/FlowDestinationService.cs",
 ] as const;
 
 const PROBE_REL = "ProcuLink.Api/Controllers/AuditController.cs";
@@ -676,7 +668,12 @@ describe("auditActionManifest mirrors the backend's audit vocabulary", () => {
     // 30 order/delivery actions + 6 admin + 6 inbound_email were enumerated by hand
     // at 5db0b05. A parser that silently stopped matching would make every diff below
     // pass by finding nothing.
-    expect(backendActions.length).toBeGreaterThanOrEqual(40);
+    // 40 -> 30 on 2026-11-13: the order delivery sweeps and the ops requeue (nine actions) lost their
+    // writers; those rows are `historical` in the manifest.
+    // 30 -> 17 the same day (plan 13b task 7a): the order pipeline's ingest, resolution, transform,
+    // acceptance gate, replay and delivery service were deleted, and their eighteen actions with them
+    // (17 today: 6 admin, 9 document, InvoiceDestinationChanged, inbound_email.rejected_orders_retired).
+    expect(backendActions.length).toBeGreaterThanOrEqual(17);
   });
 
   test.skipIf(!BACKEND)("NO backend audit action is unknown to the frontend", () => {
@@ -714,16 +711,11 @@ describe("auditActionManifest mirrors the backend's audit vocabulary", () => {
     ).toEqual([]);
   });
 
-  test.skipIf(!BACKEND)("the payload reader found a realistic number of sites (anti-vacuity)", () => {
-    const { payloadKeys } = scan();
-    // Must come before the key diff below. A reader that stopped matching would make
-    // that diff vacuous in the most dangerous direction: every declared key would be
-    // "not contradicted" because nothing was parsed at all, and the delivery log would
-    // go back to showing no reason with a green test suite over it.
-    expect(payloadKeys.size).toBeGreaterThanOrEqual(20);
-    const withKeys = [...payloadKeys.values()].filter((s) => s.size > 0);
-    expect(withKeys.length).toBeGreaterThanOrEqual(20);
-  });
+  // 2026-11-13, plan 13b task 7a: "the payload reader found a realistic number of sites" was removed.
+  // Every payload site it counted (18) lived in the order pipeline's writers, which were deleted, and
+  // every action that declares reasonKeys is now `historical` — so the real tree holds no payload site
+  // for the diff below to read. The reader's own coverage is the fixture suite above; the two tests
+  // below still fail the day a live action declares a reason key the backend does not write.
 
   test.skipIf(!BACKEND)("every action whose reason key is declared was really parsed", () => {
     const { payloadKeys } = scan();
@@ -731,7 +723,9 @@ describe("auditActionManifest mirrors the backend's audit vocabulary", () => {
     // added in another, or passed through a helper. That is tolerable for actions this
     // manifest says nothing about, and NOT tolerable for one whose reason key it
     // asserts: an unparsed action would silently exempt itself from the diff below.
-    const unparsed = EXPLAINED_AUDIT_ACTIONS.filter((a) => !payloadKeys.has(a.toLowerCase())).sort();
+    // Historical rows have no writer left to parse; their archived payloads still carry the keys.
+    const historical = new Set(AUDIT_ACTION_FACTS.filter((f) => f.historical).map((f) => f.action));
+    const unparsed = EXPLAINED_AUDIT_ACTIONS.filter((a) => !historical.has(a) && !payloadKeys.has(a.toLowerCase())).sort();
     expect(
       unparsed,
       `these declare reasonKeys but no payload site was parsed for them: ${unparsed.join(", ")}`,
@@ -757,6 +751,64 @@ describe("auditActionManifest mirrors the backend's audit vocabulary", () => {
     expect(wrong, `reasonKeys naming a payload key the backend does not write: ${wrong.join(" · ")}`).toEqual([]);
   });
 
+  // 2026-11-13, plan 13b task 7a: the two tests above walk an empty set on the real tree, and that
+  // is pinned as a fact, not left as a vacuous pass. When a live row declares reasonKeys, change
+  // this pin; the two tests then start biting.
+  test("no live action declares a reason key today", () => {
+    const liveWithReasonKeys = AUDIT_ACTION_FACTS.filter((f) => !f.historical && f.reasonKeys.length > 0).map(
+      (f) => f.action,
+    );
+    expect(liveWithReasonKeys).toEqual([]);
+  });
+
+  test("the historical rows (writer deleted, archived rows still readable) are exactly these", () => {
+    expect(
+      AUDIT_ACTION_FACTS.filter((f) => f.historical).map((f) => f.action).sort(),
+    ).toEqual([
+      "AcceptanceBlocked",
+      "AcceptanceOverridden",
+      "AcceptanceOverrideUsed",
+      "AiSuggestionsBulkAccepted",
+      "ClassifiedAsInvoice",
+      "Created",
+      "DeliveryConfirmedManually",
+      "DeliveryDeadLettered",
+      "DeliveryHeldForBilling",
+      "DeliveryHoldReleased",
+      "DeliveryRequeuedByOperator",
+      "DeliverySlaBreached",
+      "DeliveryUnconfirmed",
+      "InvoiceSentAnyway",
+      "MarkedRejected",
+      "ParseFailed",
+      "Parsed",
+      "Reprocessed",
+      "Resolved",
+      "StrandedFailedDeliveryRecovered",
+      "StrandedReadyDeliveryRecovered",
+      "StuckDeliveryDeadLettered",
+      "StuckDeliveryRequeued",
+      "StuckRequeued",
+      "StuckTimeout",
+      "StuckTransformRecovered",
+      "SupplierAssignedManually",
+      "SupplierSuggested",
+      "SupplierSuggestionAccepted",
+      "TransformFailed",
+      "Transformed",
+      "inbound_email.attachment_skipped_empty",
+      "inbound_email.attachment_skipped_too_large",
+      "inbound_email.attachment_skipped_unsupported",
+      "inbound_email.no_attachments",
+      "inbound_email.processed",
+      "inbound_email.rejected_order_limit",
+      "inbound_email.rejected_plan_gate",
+      "inbound_email.rejected_read_only",
+      "inbound_email.unrouted_no_supplier",
+    ]);
+    expect(AUDIT_ACTION_FACTS.filter((f) => f.historical).every((f) => !f.reachable)).toBe(true);
+  });
+
   test.skipIf(!BACKEND)("each row's backendSite names a file that really contains that action", () => {
     const { root } = scan();
     // The provenance is load-bearing — it is how the next person re-derives this
@@ -766,8 +818,10 @@ describe("auditActionManifest mirrors the backend's audit vocabulary", () => {
     // "the parser found an action there": the three AcceptanceGateAudit rows cite
     // the file that DECLARES the constant (ProcuLink.Core/Services/IAcceptanceGate.cs),
     // which is the contract worth pointing at, while the writers are elsewhere.
-    // A rename still breaks this, which is the point.
+    // A rename still breaks this, which is the point. (Those three rows are `historical`
+    // since 2026-11-13: plan 13b deleted the gate and its constants with the order pipeline.)
     for (const fact of AUDIT_ACTION_FACTS) {
+      if (fact.historical) continue; // no writer left to cite, pinned exactly by the test above
       const rel = fact.backendSite.split(":")[0].trim();
       const path = join(root, rel);
       expect(existsSync(path), `${fact.action} cites ${rel}, which does not exist`).toBe(true);

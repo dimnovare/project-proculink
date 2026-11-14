@@ -2,7 +2,7 @@
 //
 // WHY IT MOVED HERE. This reader was written for src/test/backendMirror.test.ts (#121), to
 // pin the frontend's transform-failure matchers against the sentences
-// `OrderTransformService.cs` really writes. It stayed inside that test file because it had
+// the order transform service really wrote (deleted in plan 13b). It stayed inside that test file because it had
 // one caller.
 //
 // It now has two. src/test/backendCopyVocabulary.test.ts needs the identical reader for a

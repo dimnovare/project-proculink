@@ -42,7 +42,6 @@ const STATUS_INPUT: OutgoingStatusInput = {
 function setup(extra: Partial<OutgoingPaneProps> = {}) {
   const onSelect = vi.fn();
   const props: OutgoingPaneProps = {
-    variant: "order",
     targetFields: [FIELD],
     statusInput: STATUS_INPUT,
     onSelect,
@@ -181,7 +180,7 @@ describe("OutgoingPane — anti-vacuity", () => {
 
     cleanup();
     const { container } = render(
-      <OutgoingPane variant="order" targetFields={[FIELD]} statusInput={STATUS_INPUT} />,
+      <OutgoingPane targetFields={[FIELD]} statusInput={STATUS_INPUT} />,
     );
     const inert = within(container).getByText("Quantity").closest("[data-mapper-row]") as HTMLElement;
     expect(inert.getAttribute("role")).toBeNull();

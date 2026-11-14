@@ -10,7 +10,6 @@ import {
   auditEventKind,
   isSuccessKind,
 } from "@/lib/auditActionManifest";
-import { STATUS_LABELS } from "./UnifiedStatusBadge";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // The delivery log labelled every failure a successful delivery.
@@ -53,11 +52,9 @@ import { CrossingsLog, deliveredFilterLabel } from "./CrossingsLog";
  * The delivered-kind chip, addressed by the label the component DERIVES rather than
  * by a literal.
  *
- * It reads "Confirmed by hand" today, because `DeliveryConfirmedManually` is the only
- * reachable action in the `delivered` kind and the manifest says so — an automatic
- * successful send currently leaves no audit row at all. The day a writer for one
- * appears, the chip goes back to saying "Delivered" and this keeps pointing at the
- * same control instead of failing on a stale string.
+ * It reads "Delivered" today (the one reachable action in the `delivered` kind is
+ * `document.delivered`); deriving it keeps this pointing at the same control instead
+ * of failing on a stale string the day the label rule changes.
  */
 function deliveredChip(): HTMLElement {
   const label = deliveredFilterLabel(
@@ -177,7 +174,7 @@ describe("CrossingsLog — a backend failure action renders as a failure", () =>
     // The button was gated on `c.event === "failed"`, and `event` was only ever set
     // from the map that no real failure action reached. On the live path it was
     // unreachable for exactly the rows that needed it.
-    getAuditLog.mockResolvedValue(apiPage([evt("DeliveryFailed")]));
+    getAuditLog.mockResolvedValue(apiPage([{ ...evt("DeliveryFailed"), documentId: "doc-1", flowId: "flow-1" }]));
 
     renderLog();
 
@@ -186,6 +183,20 @@ describe("CrossingsLog — a backend failure action renders as a failure", () =>
     ((row.closest('[role="button"]') ?? row.parentElement!) as HTMLElement).click();
 
     expect(await screen.findByRole("button", { name: /Open to resend/i })).toBeInTheDocument();
+  });
+
+  it("does not offer 'Open to resend' on an old order's failure — its archive page cannot resend", async () => {
+    // Since 2026-11-13 an order without a document opens read-only under /archive. A resend
+    // button that lands there promises an action the page does not have.
+    getAuditLog.mockResolvedValue(apiPage([evt("DeliveryFailed")]));
+
+    renderLog();
+
+    const row = await screen.findByText("PO-4711");
+    ((row.closest('[role="button"]') ?? row.parentElement!) as HTMLElement).click();
+
+    expect(await screen.findByRole("button", { name: /View order/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Open to resend/i })).toBeNull();
   });
 
   it("does not offer 'Open to resend' on a successful row", async () => {
@@ -345,10 +356,32 @@ describe("auditActionManifest — coverage floors", () => {
     //
     // +9 reachable from flow documents (`document.*`, written via DocumentAudit.Add).
     //
-    // +2 reachable from plan 9b, 2026-11-13 (`linked_account.connected` / `…disconnected`,
-    // GoogleConnectService.cs).
-    expect(AUDIT_ACTION_FACTS).toHaveLength(65);
-    expect(REACHABLE_AUDIT_ACTIONS).toHaveLength(60);
+    // -10 reachable when the legacy order email path was deleted (plan 13b): those
+    // `inbound_email.*` rows stay as `historical` so archived audit rows still read.
+    //
+    // +2 reachable (2026-11-13, plan 13b task 8b): `DeliveryBounced` and `destination.tested`,
+    // two writers the table had no row for.
+    //
+    // +2 (plan 9b, 2026-11-13): `linked_account.connected` / `…disconnected`, GoogleConnectService.cs.
+    expect(AUDIT_ACTION_FACTS).toHaveLength(67);
+    //
+    // -9 reachable when the order delivery sweeps and the ops requeue were deleted (plan 13b, task 5):
+    // those rows stay as `historical` so archived audit rows still read.
+    //
+    // -4 reachable when the order API was cut to a read-only archive (plan 13b, task 6b):
+    // `DeliveryConfirmedManually`, `InvoiceSentAnyway`, `SupplierAssignedManually` and
+    // `SupplierSuggestionAccepted` stay as `historical`.
+    //
+    // -18 reachable when the order pipeline itself was deleted (plan 13b, task 7a): every action
+    // its ingest, resolution, transform, acceptance gate, replay and delivery service wrote stays
+    // as `historical`.
+    //
+    // +2 reachable (plan 13b, task 8b): `DeliveryBounced` and `destination.tested`.
+    //
+    // +2 reachable (plan 9b): the two Google account actions.
+    //
+    // +1 reachable: `inbound_email.attachment_skipped_undecodable`, written again by the flow email path (backend PR 303).
+    expect(REACHABLE_AUDIT_ACTIONS).toHaveLength(22);
   });
 
   it("classifies a substantial number of them as failures", () => {
@@ -383,29 +416,11 @@ describe("auditActionManifest — coverage floors", () => {
 
   it("every row cites a backend site and names a kind", () => {
     for (const fact of AUDIT_ACTION_FACTS) {
-      expect(fact.backendSite, `${fact.action} has no backendSite`).toMatch(/ProcuLink\.[A-Za-z.]+\/.+:\d+|\.cs:\d+/);
+      // A historical row has no writer left to cite; its set is pinned in auditActionMirror.test.ts.
+      if (!fact.historical) {
+        expect(fact.backendSite, `${fact.action} has no backendSite`).toMatch(/ProcuLink\.[A-Za-z.]+\/.+:\d+|\.cs:\d+/);
+      }
       expect(fact.label.length, `${fact.action} has no label`).toBeGreaterThan(0);
-    }
-  });
-
-  it("uses the repo's canonical status wording, not a parallel vocabulary", () => {
-    // src/test/statusVocabulary.test.ts bans the old phrasings outright ("Delivery
-    // failed" → "Couldn't send", "dead-letter" → "Out of retries"). Where an audit
-    // action names the same thing as an order status, it must say the same words —
-    // otherwise the log and the order screen describe one event two ways, which is
-    // how the retired vocabulary got a second life last time.
-    const expected: Record<string, string> = {
-      ParseFailed: STATUS_LABELS.failed,
-      TransformFailed: STATUS_LABELS.transform_failed,
-      DeliveryFailed: STATUS_LABELS.delivery_failed,
-      delivery_failed: STATUS_LABELS.delivery_failed,
-      DeliveryDeadLettered: STATUS_LABELS.delivery_dead_letter,
-      MarkedRejected: STATUS_LABELS.rejected_by_supplier,
-      DeliveryUnconfirmed: STATUS_LABELS.delivery_unconfirmed,
-      DeliveryHeldForBilling: STATUS_LABELS.delivery_held,
-    };
-    for (const [action, label] of Object.entries(expected)) {
-      expect(auditActionFact(action)?.label, `${action} should read "${label}"`).toBe(label);
     }
   });
 

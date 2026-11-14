@@ -9,30 +9,20 @@ import { NextRequest, NextResponse } from "next/server";
  * or if a route outside `(app)` is claimed by it.
  *
  * It was a convention you had to remember until 2026-08-15, and it did not hold.
- * `/connections` and `/inbound/*` were both absent while `/connections` sat on a
+ * The connections page and `/inbound/*` were both absent while the connections page sat on a
  * VISIBLE nav tab (HubTabs.tsx, suppliers hub), so a signed-out visitor got the
  * app shell and a confident "No connections yet" — a disabled TanStack query
  * reports `isLoading === false`, so "never asked" renders as "nothing there".
  * Nothing enforced the correspondence, so nothing caught it. The guard does now.
  */
 export const PROTECTED_ROUTE_PATTERNS = [
-  "/bridge(.*)",
-  "/inbox(.*)",
-  // The Simple document screen (invoices) — /documents/[id].
   "/documents(.*)",
   "/upload(.*)",
   "/flows(.*)",
   "/archive(.*)",
   "/lookups(.*)",
-  "/library(.*)",
   "/operations(.*)",
   "/settings(.*)",
-  // Versioned supplier connections — reachable from the Suppliers hub strip as
-  // "Supplier changes", and from the sidebar.
-  "/connections(.*)",
-  // Inbound documents (invoices, shipping notices). Behind INBOUND_ENABLED in the
-  // nav, but a launch flag hides a tab; it does not make a URL unroutable.
-  "/inbound(.*)",
   // /admin requires sign-in at the edge; the real admin allowlist is enforced
   // server-side by /api/admin (403 for non-admins), surfaced as a clean page.
   "/admin(.*)",
@@ -310,14 +300,16 @@ export const config = {
     //
     // This read `/((?!_next|.*\..*).*)` until 2026-08-21: it skipped the
     // middleware for ANY pathname containing a dot. Next dynamic segments accept
-    // dots, so `/inbox/an.order.id`, `/library/suppliers/a.b` and
-    // `/connections/a.b` all bypassed the guard and answered a signed-out
+    // dots, so `/archive/an.order.id` and any dotted segment under a protected
+    // prefix all bypassed the guard and answered a signed-out
     // visitor with 200 and the workspace shell instead of a redirect to
     // /sign-in. Keep this list in sync with STATIC_ASSET_EXTENSIONS above.
     "/((?!_next|.*\\.(?:css|js|mjs|map|ico|png|jpg|jpeg|gif|svg|webp|avif|woff|woff2|ttf|otf|eot|xml|txt|webmanifest|csv|pdf|zip|mp4|webm)$).*)",
     // ...and every protected prefix unconditionally, so that an order id ending
     // in ".png" can never be read as an asset either. Keep in sync with
     // PROTECTED_ROUTE_PATTERNS above; the same test pins that correspondence.
-    "/(bridge|inbox|documents|upload|library|operations|settings|connections|inbound|admin)/:path*",
+    // (flows, archive and lookups were missing until 2026-11-13: the test's
+    // dotted-id cases ran on /inbox, which was listed, so nothing noticed.)
+    "/(documents|upload|flows|archive|lookups|operations|settings|admin)/:path*",
   ],
 };

@@ -23,14 +23,13 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 // is only reported once there is one. These tests pin that for all three read panels.
 
 import AdminPage from "./page";
-import { JobFailuresPanel, ItemMappingTwinsPanel } from "./DiagnosticsPanels";
+import { JobFailuresPanel } from "./DiagnosticsPanels";
 import type { AdminOverview } from "@/lib/api-client";
 
 const getAdminOverview = vi.fn();
 const getAdminOrganisations = vi.fn();
 const findAdminOrdersByPo = vi.fn();
 const getAdminJobFailures = vi.fn();
-const getAdminItemMappingTwins = vi.fn();
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
@@ -50,7 +49,6 @@ vi.mock("@/lib/api-client", async (importOriginal) => {
     getAdminOrganisations: (...a: unknown[]) => getAdminOrganisations(...a),
     findAdminOrdersByPo: (...a: unknown[]) => findAdminOrdersByPo(...a),
     getAdminJobFailures: (...a: unknown[]) => getAdminJobFailures(...a),
-    getAdminItemMappingTwins: (...a: unknown[]) => getAdminItemMappingTwins(...a),
   };
 });
 
@@ -60,7 +58,6 @@ afterEach(() => {
   getAdminOrganisations.mockReset();
   findAdminOrdersByPo.mockReset();
   getAdminJobFailures.mockReset();
-  getAdminItemMappingTwins.mockReset();
 });
 
 const OVERVIEW: AdminOverview = {
@@ -116,20 +113,5 @@ describe("admin — nothing reports an answer before it has asked", () => {
     expect(getAdminJobFailures).not.toHaveBeenCalled();
     expect(within(panel).queryByTestId("admin-job-failures-empty")).toBeNull();
     expect(within(panel).queryByText(/no failed jobs/i)).toBeNull();
-  });
-
-  it("the twins panel does not claim there are none while queries are disabled", () => {
-    render(
-      <QueryClientProvider client={client()}>
-        <ItemMappingTwinsPanel />
-      </QueryClientProvider>,
-    );
-
-    const panel = screen.getByTestId("admin-item-mapping-twins");
-    fireEvent.click(within(panel).getByRole("button", { expanded: false }));
-
-    expect(getAdminItemMappingTwins).not.toHaveBeenCalled();
-    expect(within(panel).queryByTestId("admin-item-mapping-twins-empty")).toBeNull();
-    expect(within(panel).queryByText(/no case-variant twins/i)).toBeNull();
   });
 });

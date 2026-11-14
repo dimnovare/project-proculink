@@ -194,7 +194,7 @@ export function buildContentSecurityPolicy(env: CspEnv): string {
       "https://docs.google.com",
       ...vercelToolbar,
     ]),
-    // MSW's mock service worker (dev) and Clerk's blob workers.
+    // The PDF.js worker (same-origin, bundled) and Clerk's blob workers.
     "worker-src": ["'self'", "blob:"],
     "manifest-src": ["'self'"],
   };

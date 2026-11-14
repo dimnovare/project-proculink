@@ -1,22 +1,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // limitRefusal — the quota 429s, turned into copy, in ONE place.
 //
-// WHY THIS IS A MODULE AND NOT A BLOCK INSIDE ONE SCREEN.
-//
-// This derivation used to live at the bottom of `UploadWorkbench.tsx`, and it carried a
-// carefully-written arm for `supplier_limit_reached` that the workbench could never reach.
-// The file said so itself:
-//
-//     `supplier_limit_reached` is emitted by exactly ONE endpoint — POST /api/suppliers,
-//     SuppliersController.cs:126 — which this screen never calls.
-//
-// The screen that DOES call it, `SupplierDockList`, had no derivation at all: its create
-// mutation lifted the `error` field straight out of the refusal and rendered it, so the
-// operator was shown the bare token `supplier_limit_reached` inside the add-supplier modal —
-// at the exact moment they are deciding whether to spend money. So the correct copy existed,
-// in a file where it was unreachable, while the reachable file printed a machine code.
-//
-// One derivation, imported by both. The plan ladder is read from `plans.ts`; no tier name and
+// One derivation of the quota 429 copy. The plan ladder is read from `plans.ts`; no tier name and
 // no allowance is ever typed into a sentence here.
 //
 // WHAT THE SERVER SENDS (CLAUDE.md §11.5, and the controllers named below):
@@ -24,8 +9,6 @@
 //   POST /api/orders/upload  →  429 { error: "pilot_expired" | "order_limit_reached",
 //                                     plan, limit, upgradeUrl }
 //                               ProcuLink.Api/Controllers/OrdersController.cs
-//   POST /api/suppliers      →  429 { error: "supplier_limit_reached", plan, limit, upgradeUrl }
-//                               ProcuLink.Api/Controllers/SuppliersController.cs
 //   the global rate limiter  →  429 { error: "Rate limit exceeded. Please slow down and
 //                                     retry shortly." }
 //                               ProcuLink.Api/Program.cs
@@ -43,7 +26,7 @@ import { isPlanGateError, planGateMessage, planGateUpgradeUrl } from "@/lib/plan
 import { PLAN_BY_ID, type PlanId } from "@/lib/plans";
 
 /** The codes the API emits as machine tokens. Matched whole — never by substring. */
-export const LIMIT_CODES = new Set(["pilot_expired", "order_limit_reached", "supplier_limit_reached"]);
+export const LIMIT_CODES = new Set(["pilot_expired", "order_limit_reached"]);
 
 /**
  * True when a string is one of the quota codes, exactly.
@@ -63,10 +46,8 @@ export interface LimitRefusal {
   /** The plan the server named, or null when it named none this build knows. */
   plan: PlanId | null;
   /**
-   * The EFFECTIVE limit the server enforced for the check that failed — `LimitCheckResult.Limit`,
-   * which is `admin override ?? plan default`. Preferred over the `plans.ts` default precisely
-   * because of that override: an org whose supplier cap was raised by an admin must not be shown
-   * the smaller number its tier ships with.
+   * The EFFECTIVE limit the server enforced for the check that failed (`admin override ?? plan
+   * default`), when it sent one.
    */
   limit: number | null;
   /** The raw `error` value, kept only so a plan-gate code can be turned into its sentence. */
@@ -169,29 +150,6 @@ export function limitRefusalCopy(refusal: LimitRefusal): LimitRefusalCopy {
       message: "You can still view previous documents, but new processing is paused.",
       cta: next ? `Upgrade to ${next.name}` : "See plans",
       href: next ? undefined : "/pricing",
-    };
-  }
-
-  if (code === "supplier_limit_reached") {
-    // The number the SERVER enforced first (it is the effective limit, admin override
-    // included); the plan default from plans.ts only as a fallback; and no number at all
-    // rather than an invented one when neither is known.
-    const allowance = refusal.limit ?? (plan ? PLAN_BY_ID[plan].supplierLimit : null);
-    const next = nextPlanUp(plan);
-    return {
-      code,
-      title:
-        allowance == null
-          ? "You've reached your plan's supplier limit."
-          : `Your plan includes ${allowance} ${allowance === 1 ? "supplier" : "suppliers"}.`,
-      // No tier above means no upgrade to offer. Enterprise supplier counts are set by
-      // agreement (plans.ts gives Enterprise `supplierLimit: null`), so the honest next
-      // step is a conversation, not a checkout.
-      message: next
-        ? `Upgrade to ${next.name} to add more supplier flows.`
-        : "Contact us to add more supplier flows.",
-      cta: next ? "Upgrade plan" : "Contact support",
-      href: next ? undefined : "/support",
     };
   }
 

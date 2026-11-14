@@ -4,9 +4,8 @@ import * as React from "react";
 /* =====================================================================
    Primitives — Button, Pill, AiSuggestion, ProcuLinkMark.
 
-   ConfidenceChip and the format chip moved out (WP-30) — see the note
-   further down. Their single implementations are ConfidenceChip.tsx and
-   FileChip.tsx.
+   ConfidenceChip moved out (WP-30) — see the note further down. Its single
+   implementation is ConfidenceChip.tsx.
 
    Status badges live in UnifiedStatusBadge (orders/exceptions) and
    RevisionStatusBadge (connection revisions) — not here.
@@ -128,9 +127,8 @@ export function Pill({
    here vs 85/65 in the mapper chip) and the format palette (SrcChip drew XLSX,
    API at 3.61:1 and EDI at 3.65:1, below the AA floor).
 
-   The single implementations now live at:
-     • ConfidenceChip → src/components/bridge/ConfidenceChip.tsx
-     • format chip    → src/components/bridge/FileChip.tsx                     */
+   ConfidenceChip's single implementation is src/components/bridge/ConfidenceChip.tsx.
+   The format chip (FileChip) was deleted in the plan 13b orphan sweep.      */
 
 /* -------- AiSuggestion -------- */
 type AiSuggestionProps = {

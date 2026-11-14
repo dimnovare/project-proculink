@@ -1,9 +1,8 @@
 // Settings writes that fail must say so — and the API-key revoke must say the key is still live.
 //
-// Three mutations on this screen had no error branch at all: the API-key revoke
-// (`revoke`), and the webhook `toggle` and `remove`. None declared `onError`, and none
-// of their `isError` flags was rendered anywhere, so every one of them failed in total
-// silence. The revoke is a security control: someone revoking a leaked credential got
+// The API-key revoke had no error branch at all: it declared no `onError` and its
+// `isError` flag was rendered nowhere, so it failed in total silence. The revoke is a
+// security control: someone revoking a leaked credential got
 // no protest and concluded the key was dead while it was still being accepted.
 //
 // These tests exercise the ERROR path specifically. A test that only proves the success
@@ -29,34 +28,20 @@ vi.mock("@clerk/nextjs", () => ({
   useOrganization: () => ({ organization: { name: "Test Org", membersCount: 1 } }),
 }));
 
-// The inbound-address panel renders inside the API-keys tab; keep it quiet and empty.
-vi.mock("@/lib/api/inboundEmail", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/api/inboundEmail")>();
-  return { ...actual, getInboundAddresses: vi.fn().mockResolvedValue([]) };
-});
-
 vi.mock("@/lib/api-client", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api-client")>();
   return {
     ...actual,
     getBillingStatus: vi.fn().mockResolvedValue({ plan: "growth", status: "active" }),
-    getOrgSettings: vi.fn().mockResolvedValue({ slug: "test-org", orderDirection: "outbound" }),
     getApiKeys: vi.fn().mockResolvedValue([]),
     revokeApiKey: vi.fn(),
-    getIntegrations: vi.fn().mockResolvedValue([]),
-    toggleIntegration: vi.fn(),
-    deleteIntegration: vi.fn(),
   };
 });
 
 import {
   getApiKeys,
   revokeApiKey,
-  getIntegrations,
-  toggleIntegration,
-  deleteIntegration,
   type ApiKey,
-  type IntegrationSubscription,
 } from "@/lib/api-client";
 import { ORG_ADMIN_ERROR_CODE, orgAdminMessage } from "@/lib/planGate";
 import SettingsPage from "./page";
@@ -71,18 +56,6 @@ const key = (over: Partial<ApiKey> = {}): ApiKey => ({
   createdAt: "2026-08-01T10:00:00Z",
   lastUsedAt: null,
   expiresAt: null,
-  ...over,
-});
-
-const sub = (over: Partial<IntegrationSubscription> = {}): IntegrationSubscription => ({
-  id: "sub-1",
-  platform: "zapier",
-  eventType: "order.created",
-  targetUrl: "https://hooks.zapier.com/hooks/catch/1/abc",
-  isActive: true,
-  failureCount: 0,
-  createdAt: "2026-08-01T10:00:00Z",
-  updatedAt: "2026-08-01T10:00:00Z",
   ...over,
 });
 
@@ -222,66 +195,3 @@ describe("Settings — a failed API-key revoke says the key is still live", () =
 });
 
 // ── Webhook toggle + delete ─────────────────────────────────────────────────
-
-describe("Settings — failed webhook toggle and delete name the state you are still in", () => {
-  it("a failed pause says the webhook is still active and still sending", async () => {
-    mockTab.value = "tab=connectors";
-    vi.mocked(getIntegrations).mockResolvedValue([sub({ isActive: true })]);
-    vi.mocked(toggleIntegration).mockRejectedValue(new Error("Network request failed"));
-    renderSettings();
-
-    const list = await screen.findByTestId("webhook-list");
-    fireEvent.click(within(list).getByRole("button", { name: /^pause$/i }));
-
-    const alert = await within(list).findByRole("alert");
-    expect(alert).toHaveTextContent(
-      /^Still active — this webhook was not paused\. Events are still being sent to this URL\./,
-    );
-    // The button label is server-driven, so it is unchanged — which is precisely why
-    // the line above has to exist.
-    expect(within(list).getByRole("button", { name: /^pause$/i })).toBeInTheDocument();
-  });
-
-  it("a failed resume says the webhook is still paused and still not sending", async () => {
-    mockTab.value = "tab=connectors";
-    vi.mocked(getIntegrations).mockResolvedValue([sub({ isActive: false })]);
-    vi.mocked(toggleIntegration).mockRejectedValue(new Error("Network request failed"));
-    renderSettings();
-
-    const list = await screen.findByTestId("webhook-list");
-    fireEvent.click(within(list).getByRole("button", { name: /^resume$/i }));
-
-    expect(await within(list).findByRole("alert")).toHaveTextContent(
-      /^Still paused — this webhook was not resumed\. Events are still not being sent to this URL\./,
-    );
-  });
-
-  it("a failed delete says the subscription is still there and still sending", async () => {
-    mockTab.value = "tab=connectors";
-    vi.mocked(getIntegrations).mockResolvedValue([sub({ isActive: true })]);
-    vi.mocked(deleteIntegration).mockRejectedValue(new Error("Network request failed"));
-    renderSettings();
-
-    const list = await screen.findByTestId("webhook-list");
-    fireEvent.click(within(list).getByRole("button", { name: /delete webhook subscription/i }));
-    fireEvent.click(within(list).getByRole("button", { name: /^delete$/i }));
-
-    expect(await within(list).findByRole("alert")).toHaveTextContent(
-      /^Still here — this webhook was not deleted, and events are still being sent to this URL\./,
-    );
-  });
-
-  it("negative control: a delete that succeeds shows no failure line", async () => {
-    mockTab.value = "tab=connectors";
-    vi.mocked(getIntegrations).mockResolvedValue([sub({ isActive: true })]);
-    vi.mocked(deleteIntegration).mockResolvedValue(undefined);
-    renderSettings();
-
-    const list = await screen.findByTestId("webhook-list");
-    fireEvent.click(within(list).getByRole("button", { name: /delete webhook subscription/i }));
-    fireEvent.click(within(list).getByRole("button", { name: /^delete$/i }));
-
-    await waitFor(() => expect(deleteIntegration).toHaveBeenCalledWith("sub-1"));
-    expect(within(list).queryByRole("alert")).not.toBeInTheDocument();
-  });
-});

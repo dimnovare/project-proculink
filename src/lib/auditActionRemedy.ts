@@ -157,6 +157,10 @@ const REMEDY_BY_ACTION: Record<string, ActionRemedy> = {
   },
 
   // ── Left the building, refused there ──────────────────────────────────────
+  DeliveryBounced: {
+    reach: "at_supplier",
+    next: "Check the supplier's email address — their mail server turned this message away.",
+  },
   MarkedRejected: {
     reach: "at_supplier",
     next:

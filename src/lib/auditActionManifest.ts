@@ -38,23 +38,14 @@
 //
 // The vocabulary has no central constants class; it is scattered literals. The
 // enumeration below is every `AuditEvents.Add` site in production code (there are
-// no `AddRange` sites), which is these fifteen files:
+// no `AddRange` sites), which were the files below (the six that held the ops requeue and the delivery sweeps were deleted on 2026-11-13, and OrdersController.cs lost its last writer the same day when the order API was cut to a read-only archive (plan 13b, 2026-11-13); their rows are `historical` below). Six more went the same day with the order pipeline itself (plan 13b, task 7a) — AcceptanceGate.cs, OrderIngestionService.cs, OrderResolutionService.cs, OrderTransformService.cs, ReplayService.cs and DeliveryService.cs — and their eighteen actions are `historical` too. Writers this table mirrors (NOT a complete
+// list of everything that writes an audit row):
 //
 //   ProcuLink.Api/Controllers/AdminController.cs            admin.* via WriteAdminAuditAsync
-//   ProcuLink.Api/Controllers/OpsController.cs
-//   ProcuLink.Api/Controllers/OrdersController.cs
-//   ProcuLink.Api/Services/AcceptanceGate.cs                AcceptanceGateAudit.* consts
-//   ProcuLink.Api/Services/Orders/OrderIngestionService.cs
-//   ProcuLink.Api/Services/Orders/OrderResolutionService.cs
-//   ProcuLink.Api/Services/Orders/OrderTransformService.cs
-//   ProcuLink.Api/Services/ReplayService.cs
-//   ProcuLink.Infrastructure/Services/DeliveryService.cs
-//   ProcuLink.Infrastructure/Services/DeliverySlaService.cs
+//   ProcuLink.Api/Controllers/SettingsController.cs         InvoiceDestinationChanged
 //   ProcuLink.Infrastructure/Services/Email/InboundEmailRouter.cs   inbound_email.* via WriteAuditAsync
-//   ProcuLink.Infrastructure/Services/StrandedFailedDeliveryDetectionService.cs
-//   ProcuLink.Infrastructure/Services/StrandedReadyOrderDetectionService.cs
-//   ProcuLink.Infrastructure/Services/StuckDeliveryDetectionService.cs
-//   ProcuLink.Infrastructure/Services/StuckOrderDetectionService.cs
+//   ProcuLink.Infrastructure/Services/Delivery/DeliveryBounceHandler.cs   DeliveryBounced
+//   ProcuLink.Api/Services/Documents/FlowDestinationService.cs   destination.tested
 //
 // Linked accounts (plan 9b, 2026-11-13) write through a private `Audit(account, "…", userId)`
 // helper in ProcuLink.Api/Services/Google/GoogleConnectService.cs.
@@ -139,6 +130,12 @@ export interface AuditActionFact {
    * anyone, and the frontend is already correct for it when that happens.
    */
   reachable: boolean;
+  /**
+   * True when a writer existed and was deleted with the legacy order pipeline. Archived audit rows
+   * still carry the action, so the label stays and the row still reads in plain words. The
+   * mirror test pins this set exactly, so a row cannot become "historical" without a decision.
+   */
+  historical?: boolean;
   /** file:line of a writer (or, for unreachable rows, of whatever still names it). */
   backendSite: string;
   /**
@@ -176,7 +173,7 @@ export interface AuditActionFact {
    *
    * ONLY `failed` AND `held` ROWS DECLARE A KEY. That is a scope decision, not an
    * oversight: several successes and recoveries do carry prose — `DeliveryConfirmedManually`
-   * and `DeliveryHoldReleased` both write a `detail` sentence — and none of it is
+   * (historical since plan 13b) and `DeliveryHoldReleased` both write a `detail` sentence — and none of it is
    * listed, because "why?" is the question a stopped order raises and a completed one
    * does not. It also makes "a success never gains a reason" structural rather than
    * incidental, which is what the guard asserts. A later packet that wants the
@@ -208,8 +205,9 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "Created",
     kind: "created",
     label: "Order created",
-    reachable: true,
-    backendSite: "ProcuLink.Api/Services/Orders/OrderIngestionService.cs:242",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the order pipeline's ingest (OrderIngestionService) was deleted with the order pipeline (plan 13b, 2026-11-13); archived rows still carry this action.",
     reasonKeys: [],
     note: "Also written at :374 and :644 for the split/derived order paths.",
   },
@@ -217,8 +215,9 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "ClassifiedAsInvoice",
     kind: "parsed",
     label: "Classified as an invoice",
-    reachable: true,
-    backendSite: "ProcuLink.Api/Services/Orders/OrderIngestionService.cs:656",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the order pipeline's ingest (OrderIngestionService) was deleted with the order pipeline (plan 13b, 2026-11-13); archived rows still carry this action.",
     reasonKeys: [],
     note: "The document was read and turned out not to be a purchase order. A routing outcome, not a break.",
   },
@@ -226,8 +225,9 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "InvoiceSentAnyway",
     kind: "edited",
     label: "Invoice sent anyway",
-    reachable: true,
-    backendSite: "ProcuLink.Api/Controllers/OrdersController.cs:714",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the order invoice \"send anyway\" endpoint was deleted when the order API was cut to a read-only archive (plan 13b, 2026-11-13); archived rows still carry this action.",
     reasonKeys: ["reason"],
     note: "An admin released an invoice held by its checks and typed why; `reason` is that free text.",
   },
@@ -236,16 +236,35 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     kind: "edited",
     label: "Invoice destination changed",
     reachable: true,
-    backendSite: "ProcuLink.Api/Controllers/SettingsController.cs:96",
+    backendSite: "ProcuLink.Api/Controllers/SettingsController.cs:77",
     reasonKeys: [],
-    note: "Org-level audit row (admin only). Payload is `{ by, from, to, moved }`: supplier ids, and how many parked invoices moved.",
+    note: "Org-level audit row (admin only). Payload is `{ by, from, to }`: supplier ids. (Until 2026-11-13 it also carried `moved`, how many parked invoices moved; plan 13b deleted that re-route with the order pipeline.)",
+  },
+  {
+    action: "DeliveryBounced",
+    kind: "failed",
+    label: "Delivery bounced",
+    reachable: true,
+    backendSite: "ProcuLink.Infrastructure/Services/Delivery/DeliveryBounceHandler.cs:107",
+    reasonKeys: [],
+    note: "The mail provider reported an emailed delivery as bounced (InboundEmailController's bounce webhook → DeliveryBounceHandler). No reason key: `description` is the provider's own sentence and no live action declares one yet. The handler also flips a still-sending order to delivery_failed (`orderStatusChanged`). Correlates only to order delivery attempts written before plan 13b; flow email deliveries do not produce this row (bounce rewrite parked, R4).",
+  },
+  {
+    action: "destination.tested",
+    kind: "edited",
+    label: "Destination tested",
+    reachable: true,
+    backendSite: "ProcuLink.Api/Services/Documents/FlowDestinationService.cs:166",
+    reasonKeys: [],
+    note: "A test send to a flow destination. Payload is `{ success, responseCode }`: the outcome is in the payload, not the action, so the row claims neither — `edited` because it is neutral; `validated` would render a failed test as a success (isSuccessKind).",
   },
   {
     action: "SupplierSuggested",
     kind: "edited",
     label: "Supplier suggested",
-    reachable: true,
-    backendSite: "ProcuLink.Api/Services/Orders/OrderIngestionService.cs:768",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the order pipeline's ingest (OrderIngestionService) was deleted with the order pipeline (plan 13b, 2026-11-13); archived rows still carry this action.",
     reasonKeys: [],
     note: "Detection proposed a supplier; nothing is committed until it is accepted.",
   },
@@ -253,8 +272,9 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "ParseFailed",
     kind: "failed",
     label: "Couldn't read file",
-    reachable: true,
-    backendSite: "ProcuLink.Api/Services/Orders/OrderIngestionService.cs:913",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the order pipeline's ingest (OrderIngestionService) was deleted with the order pipeline (plan 13b, 2026-11-13); archived rows still carry this action.",
     reasonKeys: ["error"],
     note:
       "Also :982 and :1002. Its payload carries `error`, which OrdersController.cs:498 surfaces on the order. " +
@@ -266,8 +286,9 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "Parsed",
     kind: "parsed",
     label: "Parsed",
-    reachable: true,
-    backendSite: "ProcuLink.Api/Services/Orders/OrderIngestionService.cs:1274",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the order pipeline's ingest (OrderIngestionService) was deleted with the order pipeline (plan 13b, 2026-11-13); archived rows still carry this action.",
     reasonKeys: [],
     note: "Also :1517.",
   },
@@ -277,8 +298,9 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "Resolved",
     kind: "edited",
     label: "Lines resolved",
-    reachable: true,
-    backendSite: "ProcuLink.Api/Services/Orders/OrderResolutionService.cs:245",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the order pipeline's line resolution (OrderResolutionService) was deleted with the order pipeline (plan 13b, 2026-11-13); archived rows still carry this action.",
     reasonKeys: [],
     note: "Supplier item codes were settled for the order's lines.",
   },
@@ -286,8 +308,9 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "MarkedRejected",
     kind: "failed",
     label: "Supplier rejected",
-    reachable: true,
-    backendSite: "ProcuLink.Api/Services/Orders/OrderResolutionService.cs:324",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the order pipeline's line resolution (OrderResolutionService) was deleted with the order pipeline (plan 13b, 2026-11-13); archived rows still carry this action.",
     reasonKeys: ["reason"],
     note:
       "The supplier read it and refused it — a failure the operator must act on, not a delivery. One of only " +
@@ -299,8 +322,9 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "AiSuggestionsBulkAccepted",
     kind: "edited",
     label: "AI suggestions accepted",
-    reachable: true,
-    backendSite: "ProcuLink.Api/Services/Orders/OrderResolutionService.cs:398",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the order pipeline's line resolution (OrderResolutionService) was deleted with the order pipeline (plan 13b, 2026-11-13); archived rows still carry this action.",
     reasonKeys: [],
     note: "A person accepted a batch of mapping suggestions.",
   },
@@ -310,8 +334,9 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "Transformed",
     kind: "validated",
     label: "Supplier file built",
-    reachable: true,
-    backendSite: "ProcuLink.Api/Services/Orders/OrderTransformService.cs:740",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the order pipeline's transform (OrderTransformService) was deleted with the order pipeline (plan 13b, 2026-11-13); archived rows still carry this action.",
     reasonKeys: [],
     note: "The output exists. NOT a delivery — nothing has been sent to the supplier yet.",
   },
@@ -319,8 +344,9 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "TransformFailed",
     kind: "failed",
     label: "Couldn't build output",
-    reachable: true,
-    backendSite: "ProcuLink.Api/Services/Orders/OrderTransformService.cs:790",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the order pipeline's transform (OrderTransformService) was deleted with the order pipeline (plan 13b, 2026-11-13); archived rows still carry this action.",
     reasonKeys: ["error"],
     note:
       "Payload carries `error`. Usually curated prose, but the template/validation arm passes `ex.Message` " +
@@ -331,11 +357,12 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "AcceptanceBlocked",
     kind: "failed",
     label: "Blocked by the supplier's rules",
-    reachable: true,
-    backendSite: "ProcuLink.Core/Services/IAcceptanceGate.cs:151 (AcceptanceGateAudit.BlockedAction)",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the order acceptance gate (AcceptanceGate) was deleted with the order pipeline (plan 13b, 2026-11-13); archived rows still carry this action.",
     reasonKeys: ["blockers"],
     note:
-      "Written at OrderTransformService.cs:475 and :495, OrdersController.cs:177, OpsController.cs:183. The gate " +
+      "Was written by the order transform, the orders controller and the ops controller (all deleted in plan 13b). The gate " +
       "refused a transform; the payload lists the blockers. The reason is the ARRAY, not `error`: one of the four " +
       "sites writes `error = \"acceptance_gate_unavailable\"` — a machine slug marking the arm where the gate " +
       "could not answer at all — and it ships `blockers = []` alongside. Listing `error` would print that slug to " +
@@ -346,8 +373,9 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "AcceptanceOverridden",
     kind: "edited",
     label: "Acceptance overridden",
-    reachable: true,
-    backendSite: "ProcuLink.Core/Services/IAcceptanceGate.cs:148 (AcceptanceGateAudit.OverriddenAction)",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the order acceptance gate (AcceptanceGate) was deleted with the order pipeline (plan 13b, 2026-11-13); archived rows still carry this action.",
     reasonKeys: [],
     note: "Written at AcceptanceGate.cs:103. An operator authorised sending an order the rules refuse.",
   },
@@ -355,8 +383,9 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "AcceptanceOverrideUsed",
     kind: "validated",
     label: "Sent under an override",
-    reachable: true,
-    backendSite: "ProcuLink.Core/Services/IAcceptanceGate.cs:154 (AcceptanceGateAudit.OverrideUsedAction)",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the order acceptance gate (AcceptanceGate) was deleted with the order pipeline (plan 13b, 2026-11-13); archived rows still carry this action.",
     reasonKeys: [],
     note: "Written at AcceptanceGate.cs:128. The transform proceeded only because a recorded override covered every blocker.",
   },
@@ -366,17 +395,19 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "SupplierSuggestionAccepted",
     kind: "edited",
     label: "Supplier suggestion accepted",
-    reachable: true,
-    backendSite: "ProcuLink.Api/Controllers/OrdersController.cs:2908",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the order assign-supplier endpoint was deleted when the order API was cut to a read-only archive (plan 13b, 2026-11-13); archived rows still carry this action.",
     reasonKeys: [],
-    note: "The ternary at that site emits this or SupplierAssignedManually.",
+    note: "One ternary in that endpoint emitted this or SupplierAssignedManually.",
   },
   {
     action: "SupplierAssignedManually",
     kind: "edited",
     label: "Supplier assigned",
-    reachable: true,
-    backendSite: "ProcuLink.Api/Controllers/OrdersController.cs:2908",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the order assign-supplier endpoint was deleted when the order API was cut to a read-only archive (plan 13b, 2026-11-13); archived rows still carry this action.",
     reasonKeys: [],
     note: "The other arm of the same ternary — a person picked the supplier.",
   },
@@ -384,8 +415,9 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "Reprocessed",
     kind: "edited",
     label: "Reprocessed under a new version",
-    reachable: true,
-    backendSite: "ProcuLink.Api/Services/ReplayService.cs:354",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the order replay (ReplayService) was deleted with the order pipeline (plan 13b, 2026-11-13); archived rows still carry this action.",
     reasonKeys: [],
     note: "An operator re-ran one order against a newer mapping/template revision.",
   },
@@ -395,17 +427,19 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "DeliveryConfirmedManually",
     kind: "delivered",
     label: "Marked delivered by an operator",
-    reachable: true,
-    backendSite: "ProcuLink.Api/Controllers/OrdersController.cs:2241",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the order mark-delivered endpoint was deleted when the order API was cut to a read-only archive (plan 13b, 2026-11-13); archived rows still carry this action.",
     reasonKeys: [],
-    note: "The ONLY reachable action in the `delivered` kind. Nothing in the backend writes an automatic delivery-success audit row — see the `delivered` entry below.",
+    note: "A person marked an order delivered by hand. Since plan 13b the only reachable `delivered`-kind action is `document.delivered`.",
   },
   {
     action: "DeliveryRequeuedByOperator",
     kind: "recovered",
     label: "Requeued by an operator",
-    reachable: true,
-    backendSite: "ProcuLink.Api/Controllers/OpsController.cs:264",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the legacy order delivery sweeps and operations screens were deleted (2026-11-13); archived rows still carry this action.",
     reasonKeys: [],
     note: "A person put a delivery that was out of retries, or had failed, back on the queue.",
   },
@@ -413,8 +447,9 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "DeliveryUnconfirmed",
     kind: "held",
     label: "Delivery unknown",
-    reachable: true,
-    backendSite: "ProcuLink.Infrastructure/Services/DeliveryService.cs:580",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the order delivery service (DeliveryService) was deleted with the order pipeline (plan 13b, 2026-11-13); archived rows still carry this action.",
     reasonKeys: ["detail"],
     note:
       "A send was attempted on a channel that cannot de-duplicate and the outcome was lost. Not a failure, not a " +
@@ -427,8 +462,9 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "DeliveryHeldForBilling",
     kind: "held",
     label: "Delivery paused",
-    reachable: true,
-    backendSite: "ProcuLink.Infrastructure/Services/DeliveryService.cs:1542",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the order delivery service (DeliveryService) was deleted with the order pipeline (plan 13b, 2026-11-13); archived rows still carry this action.",
     reasonKeys: ["detail"],
     note: "Nothing broke; the send is paused until the org is back in good standing. `detail` says what standing.",
   },
@@ -436,8 +472,9 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "DeliveryHoldReleased",
     kind: "recovered",
     label: "Billing hold released",
-    reachable: true,
-    backendSite: "ProcuLink.Infrastructure/Services/DeliveryService.cs:1756",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the order delivery service (DeliveryService) was deleted with the order pipeline (plan 13b, 2026-11-13); archived rows still carry this action.",
     reasonKeys: [],
     note: "The billing hold cleared automatically and the order can move again.",
   },
@@ -445,8 +482,9 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "DeliveryDeadLettered",
     kind: "failed",
     label: "Out of retries",
-    reachable: true,
-    backendSite: "ProcuLink.Infrastructure/Services/DeliveryService.cs:1789",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the order delivery service (DeliveryService) was deleted with the order pipeline (plan 13b, 2026-11-13); archived rows still carry this action.",
     reasonKeys: ["lastError"],
     note:
       "The automatic attempts are spent. Payload carries `lastError` (not `error`) — the reason a delivery gave " +
@@ -459,8 +497,9 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "DeliverySlaBreached",
     kind: "failed",
     label: "Delivery SLA breached",
-    reachable: true,
-    backendSite: "ProcuLink.Infrastructure/Services/DeliverySlaService.cs:174",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the legacy order delivery sweeps and operations screens were deleted (2026-11-13); archived rows still carry this action.",
     reasonKeys: [],
     note:
       "The order did not reach the supplier inside its promised window. NO reason key on purpose: its payload's " +
@@ -474,8 +513,9 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "StrandedFailedDeliveryRecovered",
     kind: "recovered",
     label: "Stranded failed delivery recovered",
-    reachable: true,
-    backendSite: "ProcuLink.Infrastructure/Services/StrandedFailedDeliveryDetectionService.cs:131",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the legacy order delivery sweeps and operations screens were deleted (2026-11-13); archived rows still carry this action.",
     reasonKeys: [],
     note: "A failed delivery with no live retry was put back on the queue by the sweeper.",
   },
@@ -483,8 +523,9 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "StrandedReadyDeliveryRecovered",
     kind: "recovered",
     label: "Stranded delivery recovered",
-    reachable: true,
-    backendSite: "ProcuLink.Infrastructure/Services/StrandedReadyOrderDetectionService.cs:187",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the legacy order delivery sweeps and operations screens were deleted (2026-11-13); archived rows still carry this action.",
     reasonKeys: [],
     note: "A ready-to-deliver order that nothing had claimed was re-enqueued.",
   },
@@ -492,8 +533,9 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "StuckDeliveryRequeued",
     kind: "recovered",
     label: "Stalled delivery requeued",
-    reachable: true,
-    backendSite: "ProcuLink.Infrastructure/Services/StuckDeliveryDetectionService.cs:121",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the legacy order delivery sweeps and operations screens were deleted (2026-11-13); archived rows still carry this action.",
     reasonKeys: [],
     note: "A delivery claim outlived its lease and was handed back.",
   },
@@ -501,8 +543,9 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "StuckDeliveryDeadLettered",
     kind: "failed",
     label: "Out of retries after a stall",
-    reachable: true,
-    backendSite: "ProcuLink.Infrastructure/Services/StuckDeliveryDetectionService.cs:160",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the legacy order delivery sweeps and operations screens were deleted (2026-11-13); archived rows still carry this action.",
     reasonKeys: ["detail"],
     note:
       "The sweeper exhausted a stuck delivery's attempts rather than requeueing it again. `detail` is the " +
@@ -512,8 +555,9 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "StuckRequeued",
     kind: "recovered",
     label: "Stuck order requeued",
-    reachable: true,
-    backendSite: "ProcuLink.Infrastructure/Services/StuckOrderDetectionService.cs:134",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the legacy order delivery sweeps and operations screens were deleted (2026-11-13); archived rows still carry this action.",
     reasonKeys: [],
     note: "A parse/transform claim outlived its lease and was handed back.",
   },
@@ -521,8 +565,9 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "StuckTransformRecovered",
     kind: "recovered",
     label: "Stuck transform recovered",
-    reachable: true,
-    backendSite: "ProcuLink.Infrastructure/Services/StuckOrderDetectionService.cs:181",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the legacy order delivery sweeps and operations screens were deleted (2026-11-13); archived rows still carry this action.",
     reasonKeys: [],
     note: "A transform that had already produced its artifact was released from the stuck state.",
   },
@@ -530,8 +575,9 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "StuckTimeout",
     kind: "failed",
     label: "Timed out",
-    reachable: true,
-    backendSite: "ProcuLink.Infrastructure/Services/StuckOrderDetectionService.cs:218",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the legacy order delivery sweeps and operations screens were deleted (2026-11-13); archived rows still carry this action.",
     reasonKeys: ["detail"],
     note:
       "The order sat in an in-flight status past its ceiling and was failed rather than retried again. `detail` " +
@@ -551,8 +597,9 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "inbound_email.processed",
     kind: "created",
     label: "Email ingested",
-    reachable: true,
-    backendSite: "ProcuLink.Infrastructure/Services/Email/InboundEmailRouter.cs:418",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the legacy order email path was deleted; archived rows still carry this action.",
     reasonKeys: [],
     note: "The only inbound_email.* action that is not a refusal.",
   },
@@ -560,8 +607,9 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "inbound_email.rejected_read_only",
     kind: "failed",
     label: "Email rejected — plan is read-only",
-    reachable: true,
-    backendSite: "ProcuLink.Infrastructure/Services/Email/InboundEmailRouter.cs:231",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the legacy order email path was deleted; archived rows still carry this action.",
     reasonKeys: [],
     note: "Nothing was queued for later; the order simply never arrived. §11.5's cancellation rule, seen from the log.",
   },
@@ -569,21 +617,23 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "inbound_email.rejected_plan_gate",
     kind: "failed",
     label: "Email rejected — plan does not include email intake",
-    reachable: true,
-    backendSite: "ProcuLink.Infrastructure/Services/Email/InboundEmailRouter.cs:252",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the legacy order email path was deleted; archived rows still carry this action.",
     reasonKeys: [],
     note:
-      "Hosted inbound email is BillingFeature.EmailIngestion, Growth and up, but the inbound address " +
-      "is minted for every org on every plan — so a Pilot can be sent mail it may not process. The " +
-      "refusal is transient: Postmark keeps re-delivering for ~10.5 hours, so an upgrade inside that " +
-      "window still lands the order.",
+      "Hosted inbound email was BillingFeature.EmailIngestion, Growth and up (the gate was deleted in " +
+      "plan 13b), but the inbound address was minted for every org on every plan — so a Pilot could be " +
+      "sent mail it could not process. The refusal was transient: Postmark kept re-delivering for " +
+      "~10.5 hours, so an upgrade inside that window still landed the order.",
   },
   {
     action: "inbound_email.rejected_order_limit",
     kind: "failed",
     label: "Email rejected — order allowance exhausted",
-    reachable: true,
-    backendSite: "ProcuLink.Infrastructure/Services/Email/InboundEmailRouter.cs:277",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the legacy order email path was deleted; archived rows still carry this action.",
     reasonKeys: [],
     note:
       "The same CheckOrderLimitAsync gate the upload and REST paths apply, so this is Pilot's hard " +
@@ -595,18 +645,19 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     kind: "failed",
     label: "Email rejected — this workspace now receives documents through flows",
     reachable: true,
-    backendSite: "ProcuLink.Infrastructure/Services/Email/InboundEmailRouter.cs:265",
+    backendSite: "ProcuLink.Infrastructure/Services/Email/InboundEmailRouter.cs:126",
     reasonKeys: [],
     note:
-      "A legacy order email reached a workspace on the document engine. The refusal is transient: the " +
-      "mail stays with the email provider for re-delivery and was not turned into an order.",
+      "Written by InboundEmailRouter.RouteAsync (the line number is the guard's format and will drift). A legacy order email reached a workspace on the document engine. The refusal is permanent: the " +
+      "provider is told to drop it and it was not turned into an order.",
   },
   {
     action: "inbound_email.unrouted_no_supplier",
     kind: "failed",
     label: "Email not routed — no matching supplier",
-    reachable: true,
-    backendSite: "ProcuLink.Infrastructure/Services/Email/InboundEmailRouter.cs:218",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the legacy order email path was deleted; archived rows still carry this action.",
     reasonKeys: [],
     note: "No order was created, so this is an ingestion failure rather than the `unrouted` order status.",
   },
@@ -614,8 +665,9 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "inbound_email.no_attachments",
     kind: "failed",
     label: "Email had no attachments",
-    reachable: true,
-    backendSite: "ProcuLink.Infrastructure/Services/Email/InboundEmailRouter.cs:229",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the legacy order email path was deleted; archived rows still carry this action.",
     reasonKeys: [],
     note: "Nothing to ingest.",
   },
@@ -623,8 +675,9 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "inbound_email.attachment_skipped_unsupported",
     kind: "failed",
     label: "Attachment skipped — unsupported type",
-    reachable: true,
-    backendSite: "ProcuLink.Infrastructure/Services/Email/InboundEmailRouter.cs:242",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the legacy order email path was deleted; archived rows still carry this action.",
     reasonKeys: [],
     note: "One attachment was dropped; the rest of the email may still have been processed.",
   },
@@ -638,8 +691,9 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "inbound_email.attachment_skipped_undecodable",
     kind: "failed",
     label: "Attachment skipped — could not be read",
+    // Reachable again: the flow email path writes it since backend PR 303.
     reachable: true,
-    backendSite: "ProcuLink.Infrastructure/Services/Email/InboundEmailRouter.cs:310",
+    backendSite: "ProcuLink.Infrastructure/Services/Email/InboundEmailRouter.cs:169",
     reasonKeys: [],
     note:
       "The sender attached something the decoder could not turn into bytes. Deliberately not a rejection: a " +
@@ -649,8 +703,9 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "inbound_email.attachment_skipped_empty",
     kind: "failed",
     label: "Attachment skipped — empty file",
-    reachable: true,
-    backendSite: "ProcuLink.Infrastructure/Services/Email/InboundEmailRouter.cs:324",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the legacy order email path was deleted; archived rows still carry this action.",
     reasonKeys: [],
     note:
       "Decoded cleanly to nothing — the sender really did attach an empty file. Distinct from " +
@@ -660,8 +715,9 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "inbound_email.attachment_skipped_too_large",
     kind: "failed",
     label: "Attachment skipped — too large",
-    reachable: true,
-    backendSite: "ProcuLink.Infrastructure/Services/Email/InboundEmailRouter.cs:264",
+    reachable: false,
+    historical: true,
+    backendSite: "No writer: the legacy order email path was deleted; archived rows still carry this action.",
     reasonKeys: [],
     note: "Over IngressLimits.MaxFileBytes.",
   },
@@ -869,8 +925,8 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     reasonKeys: [],
     note:
       "NO WRITER EMITS THIS EITHER. The only reachable `delivered`-kind action is " +
-      "DeliveryConfirmedManually. Worth knowing before reading this screen: an automatic " +
-      "successful send currently leaves no audit row of its own.",
+      "`document.delivered`; `DeliveryConfirmedManually` lost its writer in plan 13b, and an " +
+      "automatic successful ORDER send never left an audit row of its own.",
   },
   {
     action: "status_changed",

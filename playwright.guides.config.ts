@@ -3,14 +3,13 @@ import { defineConfig } from "@playwright/test";
 /**
  * Screenshot rig for the step-by-step guides.
  *
- * Modelled on playwright.demo.config.ts (the capture setup that is known to
- * work on the founder's machine): a mock-mode dev server with the auth bypass
+ * A mock-mode dev server with the auth bypass
  * on, one worker, srgb colour profile, scrollbars hidden.
  *
- * Differences from the demo rig: no video, a smaller viewport (guide images are
+ * No video, a smaller viewport (guide images are
  * rendered at ~720 CSS px in the prose column, so a 1180-wide capture at
  * deviceScaleFactor 2 is sharp without being enormous), and output goes to
- * public/guides/ as committed PNGs rather than to a gitignored scratch dir.
+ * public/guides/ as committed PNGs.
  *
  *   bun run guides:capture
  *

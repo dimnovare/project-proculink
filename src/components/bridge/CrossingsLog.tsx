@@ -331,24 +331,14 @@ const EV_CANON: Record<
 /**
  * What the `delivered` chip may honestly promise.
  *
- * A chip is a claim about what clicking it will show, and this one was the widest
- * claim on a page titled "Deliveries" — while being the narrowest filter on it. The
- * manifest states it plainly (`delivered` entry, `auditActionManifest.ts`): "an
- * automatic successful send currently leaves no audit row of its own", and
- * `DeliveryConfirmedManually` is the ONLY reachable action in the `delivered` kind.
- * So a workspace that had delivered hundreds of POs clicked "Delivered" and read
- * "Nothing in this workspace's log matches."
- *
- * DERIVED FROM THE MANIFEST, not retyped, so it self-corrects: the day a writer for
- * an automatic delivery-success row appears, `reachable` flips on a second
- * `delivered` action and the chip goes back to saying "Delivered" with no edit here.
- * Zero reachable actions means the chip can match nothing at all and is dropped
- * rather than shown as a dead control.
+ * DERIVED FROM THE MANIFEST, not retyped. It read "Confirmed by hand" while the only
+ * reachable `delivered` action was `DeliveryConfirmedManually`; that writer went with
+ * the order API in plan 13b, and the one left is `document.delivered` — an automatic
+ * send — so any reachable action earns "Delivered". Zero reachable actions means the
+ * chip can match nothing at all and is dropped rather than shown as a dead control.
  */
 export function deliveredFilterLabel(reachableDeliveredActionCount: number): string | null {
-  if (reachableDeliveredActionCount === 0) return null;
-  if (reachableDeliveredActionCount === 1) return "Confirmed by hand";
-  return "Delivered";
+  return reachableDeliveredActionCount === 0 ? null : "Delivered";
 }
 
 const REACHABLE_DELIVERED_ACTION_COUNT = AUDIT_ACTION_FACTS.filter(
@@ -527,9 +517,10 @@ export function CrossingsLog() {
 
   // The URL IS the order filter. `?orderId=` is READ from the query string on every
   // render and never copied into useState on mount: that is the same rule InboxView
-  // spells out for `?status=`, and for the same reason — a mirrored copy is a second
+  // spelled out for `?status=` (both it and the "See every attempt" link went with the
+  // order screens in plan 13b), and for the same reason — a mirrored copy is a second
   // source of truth that goes stale the first time the URL changes under a mounted
-  // view. A failed order's "See every attempt" links here with that param; until now
+  // view. A failed order's "See every attempt" linked here with that param; until then
   // nothing on this page read it, so the operator asking about ONE order landed on
   // the whole workspace's log with no hint that their question had been dropped.
   const params = useSearchParams();
@@ -830,8 +821,8 @@ export function CrossingsLog() {
           role="alert" — this card REPLACES the log, so it is the only thing on
           screen, and it shipped as a silent <div>: a screen-reader user who
           triggered a refetch got no announcement that the list had failed to
-          load, only a page that had stopped changing. Same semantics the sibling
-          ops error states use (operations/health/page.tsx, exceptions/page.tsx).
+          load, only a page that had stopped changing. Same semantics as the
+          other full-card error states.
           It is NOT a StatusNotice: those are one-line outcome banners for an
           action the operator just took, and this is a full-card empty-of-content
           state with its own layout. The tone vocabulary is shared; the chrome is
@@ -1341,10 +1332,10 @@ export function CrossingsLog() {
 
                               {/* Action buttons — canonical: View order / Retry delivery / Export entry */}
                               <div className="row gap-2 wrap" style={{ marginTop: 11 }}>
-                                {/* View order — secondary, navigates to /inbox/{id} */}
+                                {/* View order — secondary, navigates to /archive/{id} */}
                                 {(c.documentHref || !c.action?.startsWith("document.")) && <button
                                   className="btn btn-secondary sm"
-                                  onClick={() => router.push(c.documentHref ?? `/inbox/${c.crossingId}`)}
+                                  onClick={() => router.push(c.documentHref ?? `/archive/${c.crossingId}`)}
                                   style={isMobile ? { height: 36 } : undefined}
                                 >
                                   {/* eye icon */}
@@ -1355,19 +1346,21 @@ export function CrossingsLog() {
                                 </button>}
 
                                 {/* Open to resend — secondary, only for failed events. There is no
-                                    retry-from-here API; this navigates to the order, where the resend
+                                    retry-from-here API; this navigates to the document, where the resend
                                     action lives. Labelled honestly so it doesn't promise a retry it
-                                    can't perform (audit: dead "Retry delivery" control). */}
+                                    can't perform (audit: dead "Retry delivery" control). An old order
+                                    has no document, and its read-only /archive page cannot resend
+                                    (2026-11-13), so it gets no button rather than a dead end. */}
                                 {/* Gated on the manifest-derived kind, not the mock-only
                                     `event` field it used to read. `event` is never set on
                                     the live path, so this control could not render for a
                                     real failure at all — the screen's one recovery
                                     affordance was missing from exactly the rows that
                                     needed it. */}
-                                {c.canonicalEvent === "failed" && (
+                                {c.canonicalEvent === "failed" && c.documentHref && (
                                   <button
                                     className="btn btn-secondary sm"
-                                    onClick={() => router.push(`/inbox/${c.crossingId}`)}
+                                    onClick={() => router.push(c.documentHref!)}
                                     style={isMobile ? { height: 36 } : undefined}
                                   >
                                     {/* refresh icon */}

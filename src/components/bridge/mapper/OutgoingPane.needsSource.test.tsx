@@ -46,7 +46,6 @@ function statusInput(valuesKnown: boolean): OutgoingStatusInput {
 
 function setup(valuesKnown: boolean) {
   const props: OutgoingPaneProps = {
-    variant: "order",
     targetFields: [REQUIRED, OPTIONAL],
     statusInput: statusInput(valuesKnown),
     mappingMode: "picker",

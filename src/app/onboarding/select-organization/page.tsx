@@ -67,7 +67,7 @@ export default function SelectOrganizationPage() {
 function SelectOrganizationInner() {
   const router = useRouter();
   const params = useSearchParams();
-  const dest = params.get("redirect_url") || "/bridge";
+  const dest = params.get("redirect_url") || "/documents";
 
   const { isLoaded: authLoaded, isSignedIn } = useAuth();
   const { user } = useUser();

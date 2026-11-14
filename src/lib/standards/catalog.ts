@@ -22,14 +22,17 @@
 //   UBL 2.1 Order ....... parse supported · transform supported  (UblOrderParser / UblOrderTransformService, registered)
 //   Peppol BIS Order 3.0  parse partial · transform PLANNED — a BIS Order file IS a UBL 2.1 Order, so it parses;
 //                         BIS-conformant OUTPUT does not exist and must not be advertised (see the row's conformance note)
-//   Peppol BIS Billing 3.0 (INVOICE, not an order) parse partial · transform partial — the generator
+//   Peppol BIS Billing 3.0 (INVOICE, not an order) parse none · transform partial — no structural UBL
+//                         invoice reader (plan 13b deleted UblInvoiceParser) and no backend test that
+//                         its fields are read; an .xml file is read only as text by AI, behind the
+//                         per-org more-formats flag; the generator
 //                         emits the profile identifiers; the rule check runs in the validator sidecar behind the
 //                         per-org flag (API + the flow Standards tab), not by network acceptance.
 //   SAP IDoc ORDERS05 ... parse supported · transform none     (IDocOrders05Parser registered; hand-rolled XML, no EdiFabric; INBOUND only — no IDoc output; live-verified on prod 2026-06-08)
 //   EDIFACT ORDERS ...... parse partial · transform partial     (EdifactOrderParser registered; EdiFabric library decision pending; outbound ORDERS D.96A written by the flow standard output, checked in tests only, placeholder interchange ids)
 //   EN 16931 CII ........ parse none · transform partial        (invoice + credit note, flow standard outputs behind the per-org flag; rule check by the validator sidecar, not network acceptance)
 //   ANSI X12 850 ........ parse supported · transform supported  (X12OrderParser / X12TransformService, registered; 004010/005010 header + line-item fidelity, output selectable per supplier)
-//   JSON / REST payload . parse partial · transform supported    (inline parse in OrderService; JsonTransformService registered)
+//   JSON / REST payload . parse partial · transform supported    (read as document text behind the per-org more-formats flag; JsonTransformService registered)
 //   CSV (buyer template)  parse supported · transform supported  (CsvOrderParser / CsvTransformService, registered)
 //   XLSX (buyer template) parse supported · transform none       (XlsxOrderParser registered; no XLSX output)
 //   Text-based PDF ...... parse supported · transform none       (PdfPig text layer → AI structured extraction; PdfOrderParser regex is the no-key/offline fallback. Scanned/image-only PDFs use an AI vision fallback — every line flagged for review.)
@@ -133,17 +136,20 @@ export const STANDARDS: StandardSupport[] = [
   // standards claim while absent from this catalog is invisible to every guard that reads it.
   //
   // Direction note: `parse`/`transform` are defined at the top of this file against the canonical
-  // PO model, and an invoice is not a PO — it runs through InvoiceEntity, UblInvoiceParser and
-  // PeppolBisInvoiceTransformService. The levels below describe that pipeline.
+  // PO model, and an invoice is not a PO. The writer is PeppolBisInvoiceTransformService, reached
+  // as a flow standard output; plan 13b deleted the inbound half (UblInvoiceParser and the invoice
+  // pipeline). The levels below describe what is left.
   {
     id: "peppol-bis-billing-3",
     name: "Peppol BIS Billing (invoice)",
     version: "3.0",
     family: "xml",
-    // A BIS Billing file IS a UBL 2.1 Invoice, so it reads on the UBL invoice pipeline
-    // (UblInvoiceParser has no BIS-specific branch) — same argument as the order row.
-    parse: "partial",
-    // NOT `supported`. The generator is registered and emits a BIS-shaped document covering the
+    // `none`, not `partial` (2026-11-14). `partial` rested on UblInvoiceParser, which plan 13b
+    // deleted with the invoice pipeline. The engine reads an .xml file only as text for AI
+    // extraction, behind the per-org more-formats flag (DocumentFormats.More), and no backend test
+    // reads a Peppol UBL invoice into fields — so nothing shows it reads one in.
+    parse: "none",
+    // NOT `supported`. The generator is kept (Transform only) and emits a BIS-shaped document covering the
     // business terms listed in PeppolBisInvoiceTransformService, but nothing validates the profile
     // it declares, so the catalog's own rule at the top of this file applies: under-claim.
     transform: "partial",
@@ -158,9 +164,8 @@ export const STANDARDS: StandardSupport[] = [
       "validator sidecar (when a document is read and on demand, behind the per-org flag), never in .NET. Covered by the in-process check are the mandatory business terms and arithmetic checks " +
       "in PeppolBisValidator; NOT covered are codelists, scheme-id correctness, allowances/charges, " +
       "payment means and mixed-rate VAT. No invoice has been accepted by a live access point. Treat " +
-      "the file as input to an access point's validator. The generator is reachable through " +
-      "the API (GET /api/invoices/{id}/download?format=peppol and .../validate-peppol) and, behind " +
-      "the per-org flag, as a flow standard output.",
+      "the file as input to an access point's validator. The legacy invoice API endpoints were " +
+      "removed (plan 13b); the generator is reachable, behind the per-org flag, as a flow standard output.",
     referenceUrl: "https://docs.peppol.eu/poacc/billing/3.0/",
   },
   {
@@ -317,7 +322,7 @@ export const STANDARDS: StandardSupport[] = [
     // URL. There is no webhook a counterparty can post orders to.
     transport: "REST ingress endpoint (in); HTTPS POST delivery (out)",
     conformance:
-      "JsonTransformService emits the canonical JSON artifact. Inbound JSON is parsed inline in OrderService (no standalone parser class yet).",
+      "JsonTransformService emits the canonical JSON artifact. Inbound JSON is read as document text, like any other file, when the workspace has the extra formats switched on; there is no dedicated JSON parser.",
     referenceUrl: "https://www.json.org/",
   },
   {
@@ -496,7 +501,7 @@ export const FIELD_STANDARDS: CanonicalFieldStandards[] = [
 // FIELD_STANDARDS is a TRANSCRIPTION of the field table in standards-matrix.md, not a
 // projection of the canonical model. It carries the fields somebody researched paths for and
 // stops there. The model an output rule may bind is far larger — BINDABLE_HEADER_FIELDS +
-// BINDABLE_LINE_FIELDS, mirroring `ProcuLink.Transform/Output/CanonicalRowFields.cs` — and
+// BINDABLE_LINE_FIELDS — and
 // the gap includes `SupplierItemCode`, the resolved code the product exists to produce.
 //
 // DO NOT CLOSE THE GAP BY ADDING ROWS. A field's UBL / EDIFACT / X12 / cXML path is real

@@ -206,10 +206,11 @@ describe("a control that looks selected says it is selected", () => {
     // matching anything — a refactor to a shared <Chip>, a rename of `active` —
     // would leave `missing` empty and this guard silently dead.
     const { missing, announcing } = scan(files);
+    // 9 measured 2026-11-13, after the order screens and their filter chips went.
     expect(
       missing.length + announcing.length,
       "no button in the tree styles itself on an active flag any more — this guard is now scanning nothing",
-    ).toBeGreaterThan(15);
+    ).toBeGreaterThan(6);
   });
 
   it("no active-styled button is silent about its state", () => {

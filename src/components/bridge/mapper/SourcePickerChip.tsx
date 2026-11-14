@@ -6,7 +6,7 @@
 // (grouped, AI suggestion first + pre-filled with its confidence), plus "Fixed value…" and "Clear".
 //
 // Picking a source calls back to the host, which routes it through the EXISTING wire-connect
-// dispatch (onWireConnect → onTargetConnect / onSetFixedValue) — the save contract (buildOverrideDraft)
+// dispatch (onWireConnect → onTargetConnect / onSetFixedValue) — the save contract (adapter.save)
 // is untouched. No dragging. Fully keyboard-accessible: the trigger is a button, the panel is a
 // listbox-style menu, Escape closes, ArrowUp/Down move, Enter selects.
 

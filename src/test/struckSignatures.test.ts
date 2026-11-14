@@ -125,10 +125,11 @@ describe("kept signatures are still real", () => {
     expect(read("src/components/bridge/BridgeTopbar.tsx")).toContain('className="link-spine"');
   });
 
-  it("still ships the monument KPI treatment", () => {
-    // Same shape: real CSS, no <MonumentNumber> component.
-    expect(read(GLOBALS_CSS)).toContain(".monument");
-    expect(read("src/components/bridge/SupplierDockProfile.tsx")).toContain("monument");
+  // The monument KPI treatment is gone: its only consumer was SupplierDockProfile (plan 13b removed
+  // the supplier screens), so the `.monument` CSS went with it rather than staying as an unbuilt
+  // signature. Do not reinstate it as decoration; a KPI row that needs it brings its own consumer.
+  it("ships no .monument CSS without a consumer", () => {
+    expect(read(GLOBALS_CSS)).not.toContain(".monument");
   });
 
   it("still ships the cross-section card edge — from ONE card, not five", () => {
@@ -167,9 +168,9 @@ describe("kept signatures are still real", () => {
 
   it("still ships the five-stage journey", () => {
     const journey = read("src/components/bridge/StatusJourney.tsx");
-    for (const stage of ["Parse", "Normalize", "Validate", "Transform", "Deliver"]) {
-      expect(journey, `stage ${stage} is part of the kept signature`).toContain(stage);
-    }
+    // The real STAGES literal (In · Read · Check · Transform · Send). The old Parse/Normalize/
+    // Validate/Deliver words only matched prose in comments, which this deletion removed.
+    expect(journey).toContain(`["In", "Read", "Check", "Transform", "Send"] as const`);
   });
 });
 
@@ -179,12 +180,8 @@ describe("kept signatures are still real", () => {
  * is nothing left telling a user which end of the screen is which.
  */
 describe("buyer/supplier orientation has a carrier", () => {
-  it("keeps a labelled direction column header in the queue", () => {
-    const direction = read("src/hooks/useOrderDirection.ts");
-    expect(direction).toContain("Buyer → Supplier");
-    expect(direction).toContain("Customer → You");
-  });
-
+  // The queue's labelled direction column (useOrderDirection) went with the order
+  // screens on 2026-11-13; the review-pane order and the colour tokens remain.
   it("orders the review panes incoming → outgoing → preview", () => {
     const wb = read("src/components/bridge/mapper/MapperWorkbench.tsx");
     const incoming = wb.indexOf("incomingNode");
@@ -201,9 +198,6 @@ describe("buyer/supplier orientation has a carrier", () => {
   });
 
   it("keeps buyer-blue and supplier-green as the direction colours", () => {
-    const direction = read("src/hooks/useOrderDirection.ts");
-    expect(direction.toLowerCase()).toContain("buyer");
-    expect(direction.toLowerCase()).toContain("supplier");
     // The semantics themselves, from the token definitions.
     const css = read(GLOBALS_CSS);
     expect(css).toContain("#1E66C9");
@@ -232,25 +226,26 @@ describe("CLAUDE.md §2 describes what ships", () => {
 
   it("names what carries buyer/supplier orientation instead of the rails", () => {
     expect(claude).toContain("What carries buyer-left / supplier-right now");
-    // The three carriers, each named in the doc so a reader does not have to
-    // reverse-engineer the orientation from the code.
+    // The carriers, each named in the doc so a reader does not have to
+    // reverse-engineer the orientation from the code. The third, the queue's
+    // "Buyer → Supplier" column, went with the order screens on 2026-11-13, so
+    // the doc records it as gone rather than as a carrier.
     expect(claude).toContain("What we received");
     expect(claude).toContain("What we'll send");
-    expect(claude).toContain("Buyer → Supplier");
   });
 
   /**
    * §6 has three tables and only the FIRST is an offer:
    *
    *   ### Signature components                 ← offer: build with these
-   *   **…ship as CSS classes, not components** ← clarification: the thing is
+   *   **…ships as a CSS class, not a component** ← clarification: the thing is
    *                                              real, the component is not
    *   **Removed or never built…**              ← tombstones
    *
    * Both assertions below derive their window from these two boundary constants,
    * so neither can drift into reading a tombstone table as if it were the offer.
    */
-  const CSS_CLASS_HEADING = "**Two signatures ship as CSS classes, not components.**";
+  const CSS_CLASS_HEADING = "**One signature ships as a CSS class, not a component.**";
   const REMOVED_HEADING = "**Removed or never built — do not write code against these:**";
   const offeredSection = () => {
     const start = claude.indexOf("### Signature components");

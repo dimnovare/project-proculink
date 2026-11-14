@@ -2,7 +2,7 @@
 
 // useReducedMotion — the ONE reduced-motion signal.
 //
-// Extracted verbatim from WireTopology.tsx, where it was file-private. It is the
+// Extracted from the (since deleted) WireTopology canvas, where it was file-private. It is the
 // app's SMIL answer and the app's SMIL answer is CORRECT: `globals.css` neutralises
 // CSS animation-duration under `prefers-reduced-motion: reduce`, but SVG SMIL
 // (`<animate>`, `<animateMotion>`, `<animateTransform>`) is NOT CSS and no media
@@ -20,7 +20,7 @@ import { useEffect, useState } from "react";
  *
  * Starts `false` on the server and on first client paint (there is no way to read
  * a media query during SSR), then flips on the first effect. That is the same
- * one-frame behaviour WireTopology has always had; a SMIL element that mounts for
+ * one-frame behaviour it has always had; a SMIL element that mounts for
  * one frame and is then removed is not perceptible motion.
  */
 export function useReducedMotion(): boolean {

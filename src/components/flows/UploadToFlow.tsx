@@ -5,17 +5,12 @@ import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
-import { UploadWorkbench } from "@/components/bridge/UploadWorkbench";
-import { flowsQuery, useDocumentEngine } from "@/hooks/useDocumentEngine";
+import { flowsQuery } from "@/hooks/useDocumentEngine";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { Failed, FirstFlowEmpty, Quiet } from "./states";
 import { FlowUpload } from "./FlowUpload";
 
-/** Engine on: pick a flow, upload into it. Anything else (including a probe still loading): the legacy workbench. */
-export function UploadEntry() {
-  return useDocumentEngine() === "on" ? <UploadToFlow /> : <UploadWorkbench />;
-}
-
+/** Pick a flow, upload into it. */
 export function UploadToFlow() {
   const router = useRouter();
   const flows = useQuery({ ...flowsQuery, enabled: useTenantQueriesEnabled() });

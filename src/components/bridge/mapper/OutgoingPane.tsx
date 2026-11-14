@@ -50,7 +50,6 @@ import {
 // they read, the header count and the split can never disagree.
 
 export interface OutgoingPaneProps {
-  variant: "order" | "connection" | "flow";
   targetFields: TargetField[];
   /** outputPath → canonicalField (the canonical→output wire). */
   outputConnections?: Partial<Record<string, string>>;
@@ -132,11 +131,6 @@ export interface OutgoingPaneProps {
    * before the backend that supplies them is deployed). Flat formats ignore this entirely.
    */
   autoFilledFields?: AutoFilledFields | null;
-  /**
-   * The supplier/connection display name — drives the B3 plain-language sub-header
-   * ("The output the {supplier} receives…"). Falls back to "supplier" when absent.
-   */
-  supplierName?: string;
   readOnly?: boolean;
   /**
    * Extra control rendered at the right end of the pane header (the Order
@@ -176,7 +170,6 @@ export interface AutoFilledFields {
 }
 
 export function OutgoingPane({
-  variant,
   targetFields,
   outputConnections,
   fixedValues,
@@ -200,14 +193,10 @@ export function OutgoingPane({
   onPickSource,
   outputFormat,
   autoFilledFields,
-  supplierName,
   readOnly,
   headerExtra,
   bodyOverride,
 }: OutgoingPaneProps) {
-  const editable = variant === "connection" && !readOnly;
-  // B3 sub-header: plain-language framing of the output column + the * required marker.
-  const supplierLabel = supplierName?.trim() || "supplier";
   const pickerMode = mappingMode === "picker" && !readOnly && typeof onPickSource === "function";
   // Structured-standard formats (cXML / X12 / UBL) are produced by a dedicated FIXED transformer
   // that ignores manually-added output fields — contact/addresses/structure come automatically from
@@ -218,7 +207,9 @@ export function OutgoingPane({
   // an output field is allowed in BOTH variants — an order may need to inject a field the default
   // schema lacks (e.g. credentials). Gate "add" on a real onAddField handler + not-read-only, not
   // on the variant. Without this the order mapper could never add an output field at all.
-  const canRename = isRenameAffordanceShown(editable, onRenamePath);
+  // Renaming was the connection editor's (it went 2026-11-13 with the order and
+  // connection variants), so no host can offer it now.
+  const canRename = isRenameAffordanceShown(false, onRenamePath);
   // Adding an output field is meaningless for a structured-standard format (the fixed transformer
   // ignores it), so hide the control there — the notice below explains why — rather than offer a
   // dead action (offer⇔works). Flat formats keep the real combobox.
@@ -327,12 +318,6 @@ export function OutgoingPane({
         <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>{bodyOverride}</div>
       ) : (
       <>
-
-      {/* B3 sub-header — plain-language framing of the output column: what it is, how to
-          fill each field, and what the * marker means. Calm + muted, under the pane head. */}
-      {variant !== "flow" && <div style={{ flexShrink: 0, padding: "10px 18px 0", fontSize: 11.5, color: "var(--ink-faint)", lineHeight: 1.5 }}>
-        The output the {supplierLabel} receives. Map an incoming field to each one (drag from the left), or set a fixed value. Fields marked <span style={{ color: "#8A5310", fontWeight: 700 }}>*</span> are required.
-      </div>}
 
       {/* Structured-standard formats (cXML / X12 / UBL) are built by a fixed transformer that fills
           contact + addresses + structure automatically from the order — manual field edits here

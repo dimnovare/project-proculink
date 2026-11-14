@@ -21,7 +21,6 @@
 // derived from. See `standardRow`.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { requiresPlan } from "@/lib/gatedCapabilities";
 import { STANDARDS, type SupportLevel } from "@/lib/standards/catalog";
 
 // Honest by design: nothing is "live" (badge "Supported") unless it works in
@@ -147,20 +146,10 @@ export function standardRow(
 export const IMPORT_METHODS: FormatRow[] = [
   { name: "Manual upload (drag-and-drop / browse)", status: "live", note: "Drop a file straight into the app." },
   { name: "REST API", status: "live", note: "POST orders as JSON with an API key — Zapier, Make, or your own code." },
-  // The plan named here must be the plan the backend actually gates on. These three said
-  // "Integration plan" (€999) while EmailIngestion / SftpIngestion / S3Ingestion have gated at
-  // Growth (€149) ever since the channels were decoupled from volume — the same defect WP-11 fixed
-  // in the 403 codes, surviving on the public page a buyer reads before they ever see a 403.
-  // The tier is no longer typed here at all: it is derived from the mirrored gate table in
-  // src/lib/gatedCapabilities.ts, so re-tiering a channel is one edit and every surface follows.
-  { name: "Email inbox polling (IMAP)", status: "live", note: `We poll your mailbox for order attachments. ${requiresPlan("emailIngestion")}.` },
-  { name: "SFTP folder pull", status: "live", note: `Point us at an SFTP folder; we import new files. ${requiresPlan("sftpIngestion")}.` },
-  { name: "S3 / R2 bucket pull", status: "live", note: `Watch a bucket prefix for order files. ${requiresPlan("s3Ingestion")}.` },
-  // Hosted inbound mail is the SAME backend gate as IMAP polling (`EmailIngestion`) — the
-  // address is minted for every org, which is exactly why its existence keeps being mistaken
-  // for its being switched on. Its siblings above name their tier; a row with no tier on this
-  // page reads as included on every plan, so this one names it the same derived way.
-  { name: "Hosted inbound email address", status: "configurable", note: `Forward orders to your orders@… address; we set up the receiving domain. ${requiresPlan("emailIngestion")}.` },
+  { name: "Email inbox polling (IMAP)", status: "live", note: "We poll your mailbox for order attachments." },
+  { name: "SFTP folder pull", status: "live", note: "Point us at an SFTP folder; we import new files." },
+  { name: "S3 / R2 bucket pull", status: "live", note: "Watch a bucket prefix for order files." },
+  { name: "Hosted inbound email address", status: "configurable", note: "Forward orders to your orders@… address; we set up the receiving domain." },
   { name: "AS2 / PEPPOL network receive", status: "onRequest", note: "Through a certified access-point partner." },
 ];
 
@@ -195,28 +184,16 @@ export const IMPORT_FORMATS: FormatRow[] = [
 
 // ── How the finished order reaches each supplier (the "delivery channels" count) ─
 //
-// The three IMPORT_METHODS rows above named their tier; these did not, and the omission is the
-// same false claim in a quieter form — an unqualified row reads as included on every plan. Two
-// delivery channels are gated and now say so:
-//
-//   • HTTPS webhook  → BillingFeature.WebhookDelivery (Growth). BillingGateErrors.cs:72-73
-//     maps protocol `http` to it, so a Pilot org saving a webhook delivery config is refused
-//     with `webhook_delivery_requires_growth`.
-//   • Erply/Directo  → BillingFeature.ErpConnectors (Enterprise, from €2,500/mo).
-//     BillingGateErrors.cs:70-71. This was the worse one: the ERP rows sat between SFTP and
-//     email as though they were an ordinary file-drop channel.
-//
-// SFTP, FTPS, email and the access-point row are deliberately bare: `RequiredFeatures` adds no
-// requirement for those protocols, so they really are on every plan and naming a tier would be
-// the opposite error. SFTP *ingestion* is gated at Growth; SFTP *delivery* is not.
+// No delivery channel is plan-gated (the backend gate table is AdvancedAudit and Sso only),
+// so no row names a tier.
 export const DELIVERY_METHODS: FormatRow[] = [
-  { name: "HTTPS webhook (POST / PUT)", status: "live", note: `Auth: API key, bearer, basic, or OAuth2 fetch-token. ${requiresPlan("webhookDelivery")}.` },
+  { name: "HTTPS webhook (POST / PUT)", status: "live", note: "Auth: API key, bearer, basic, or OAuth2 fetch-token." },
   { name: "SFTP", status: "configurable", note: "Password or private-key. Configure it yourself; we verify it with you on a real folder before go-live." },
   { name: "FTPS", status: "configurable", note: "Explicit TLS. Configure it yourself; we verify it with you on a real folder before go-live." },
   { name: "Email (attachment)", status: "live", note: "The order is emailed as an attachment to the recipient addresses you enter — sent from ProcuLink over HTTPS. No mail server or credentials to set up." },
-  { name: "Erply (ERP connector)", status: "configurable", note: `We switch it on with you against your Erply account before go-live. ${requiresPlan("erpConnectors")}.` },
-  { name: "Directo (ERP connector)", status: "configurable", note: `We switch it on with you against your Directo account before go-live. ${requiresPlan("erpConnectors")}.` },
-  { name: "More ERP connectors", status: "onRequest", note: `Fortnox, Visma, e-conomic, Dynamics 365 BC, NetSuite, SAP… ${requiresPlan("erpConnectors")}.` },
+  { name: "Erply (ERP connector)", status: "configurable", note: "We switch it on with you against your Erply account before go-live." },
+  { name: "Directo (ERP connector)", status: "configurable", note: "We switch it on with you against your Directo account before go-live." },
+  { name: "More ERP connectors", status: "onRequest", note: "Fortnox, Visma, e-conomic, Dynamics 365 BC, NetSuite, SAP…" },
   { name: "AS2 / AS4 / PEPPOL access point", status: "onRequest", note: "Through a certified partner." },
 ];
 
@@ -246,11 +223,7 @@ export const DELIVERY_METHODS: FormatRow[] = [
 export const OUTPUT_FORMATS: FormatRow[] = [
   { name: "CSV", status: "live", note: "Configurable columns." },
   { name: "XML (generic)", status: "live", note: "" },
-  // cXML is the one OUTPUT format behind a gate: BillingGateErrors.cs:74-75 maps
-  // `outputFormat: "cxml"` to BillingFeature.Cxml (Operations), so a Growth org saving a cXML
-  // delivery config is refused with `cxml_output_requires_operations`. The badge is about
-  // whether the transformer exists; the note is about who may switch it on.
-  standardRow("cxml-1-2", "transform", "cXML 1.2", `${requiresPlan("cxml")}.`),
+  standardRow("cxml-1-2", "transform", "cXML 1.2", ""),
   // Was "UBL 2.1 / Peppol BIS", status hand-typed "live" — the single strongest Peppol
   // claim on the site, and the row that made /formats contradict the standards catalog.
   // We really do emit the OASIS UBL 2.1 Order document, so the row stays and the badge

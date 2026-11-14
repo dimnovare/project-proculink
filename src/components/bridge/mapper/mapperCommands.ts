@@ -1,13 +1,10 @@
 // mapperCommands — the decoupled bridge between the Command Palette (Cmd+K) and the
 // mounted ThreePaneMapper. The palette has no handle on the mapper's React tree, so power
-// commands ("Jump to field", "Add a transform", "Switch output format", "Show standards
-// mapping", "Add a custom canonical field") are delivered as a window-dispatched
-// CustomEvent("plk:mapper"). The mapper, wherever it is mounted (inbox order review or the
-// connection draft editor), listens for that event and acts on the field it currently has
-// selected/hovered. Keeping the command list + the cycle math here (pure, dispatch-injected)
-// means it is unit-testable without a DOM and the palette stays a thin caller.
-
-import { PREVIEW_FORMATS, type OutputFormatId } from "@/lib/api/types";
+// commands ("Jump to field", "Jump to a field's transform") are delivered as a
+// window-dispatched CustomEvent("plk:mapper"). The mapper, wherever it is mounted (since 2026-11-13 only the
+// flow's Advanced view), listens for that event and acts on the field it currently has
+// selected/hovered. Keeping the command list here (pure, dispatch-injected) means it is
+// unit-testable without a DOM and the palette stays a thin caller.
 
 /** The single window event channel the palette dispatches and the mapper listens for. */
 export const MAPPER_EVENT = "plk:mapper" as const;
@@ -15,10 +12,7 @@ export const MAPPER_EVENT = "plk:mapper" as const;
 /** The kinds of action a palette command asks the mapper to perform. */
 export type MapperCommandKind =
   | "jump-to-field"          // focus the source-field search so the user can jump to any field
-  | "add-transform"          // open the manipulator dropdown on the focused output field
-  | "switch-format"          // cycle the live-preview output format
-  | "show-standards"         // open the standards-mapping popover for the focused field
-  | "edit-output-template";  // open the output mapping editor in template mode (order variant only)
+  | "add-transform";          // open the manipulator dropdown on the focused output field
 
 export interface MapperCommandEvent {
   kind: MapperCommandKind;
@@ -36,20 +30,9 @@ export interface MapperCommand {
 }
 
 /**
- * The next output format in PREVIEW_FORMATS order, wrapping at the end. Pure — used by both
- * the palette "Switch output format" command and the preview pane's own cycle, so the order
- * is defined once. Unknown current value → the first format (defensive).
- */
-export function nextOutputFormat(current: OutputFormatId): OutputFormatId {
-  const idx = PREVIEW_FORMATS.findIndex((f) => f.value === current);
-  if (idx < 0) return PREVIEW_FORMATS[0].value;
-  return PREVIEW_FORMATS[(idx + 1) % PREVIEW_FORMATS.length].value;
-}
-
-/**
  * Build the mapper power commands. `dispatch` is injected so this is pure + testable; the live
  * caller passes a thin wrapper that emits a window CustomEvent (see dispatchMapper). ids
- * a13..a16 continue the CommandPalette's hardcoded action numbering (a1..a12). (The old
+ * a13..a14 continue the CommandPalette's hardcoded action numbering (a1..a12). (The old
  * "Add a custom field" command was dropped with the 2-column rebuild — the value-less
  * canonical spine column it targeted no longer exists; output fields are added from the
  * Outgoing pane's "+ Add output field" in the connection editor.)
@@ -74,11 +57,10 @@ export function buildMapperCommands(dispatch: (e: MapperCommandEvent) => void): 
   return [
     cmd("a13", "Jump to field",            "Search and focus a field in the mapper",   "⌖", "jump-to-field"),
     cmd("a14", "Jump to a field's transform", "Scroll to the focused output field",    "ƒ", "add-transform"),
-    cmd("a15", "Switch output format",     "Cycle the live-preview format",            "⇄", "switch-format"),
-    // Opens the OutputMappingEditor slideover in template mode — the Scriban escape
-    // hatch for outputs the layout designer can't express. Order review only; the
-    // connection editor has no per-order template, so its mapper ignores the event.
-    cmd("a16", "Edit output as a template", "Write one template that renders this order's whole output (advanced)", "{}", "edit-output-template"),
+    // a15 "Switch output format" went 2026-11-14: the flow preview ignores the format, so
+    // cycling it changed nothing.
+    // a16 "Edit output as a template" went 2026-11-13 with the order review's template
+    // editor, which was its only handler.
   ];
 }
 

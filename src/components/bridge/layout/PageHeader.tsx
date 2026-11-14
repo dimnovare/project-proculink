@@ -1,5 +1,4 @@
 import * as React from "react";
-import { HubEyebrow } from "./HubEyebrow";
 
 /* =====================================================================
    PageHeader — the ONE canonical page-title row.
@@ -26,13 +25,10 @@ type PageHeaderProps = {
   /**
    * Founder rule (2026-07): the active tab in the navy topbar IS the page
    * name — a page never re-announces its own title below it. Pages whose title
-   * repeats their active topbar label (primary nav row: BridgeTopbar
-   * `TopNavLink` with aria-current; hub routes: the HubTabs strip BridgeTopbar
-   * renders in its context row via useHubRow) set this to keep the h1 for
-   * screen readers / heading queries while removing the visual title block.
-   * The sub + actions survive as a compact row; the HubEyebrow is skipped
-   * because on every hub route the topbar context row already leads with the
-   * same hub label (BridgeTopbar useHubRow prefixes HUB_LABELS[hub]).
+   * repeats their active topbar label (BridgeTopbar `TopNavLink` with
+   * aria-current) set this to keep the h1 for screen readers / heading queries
+   * while removing the visual title block. The sub + actions survive as a
+   * compact row.
    */
   titleHidden?: boolean;
 };
@@ -85,10 +81,6 @@ export function PageHeader({ title, sub, actions, className, titleHidden }: Page
         .join(" ")}
     >
       <div className="min-w-0">
-        {/* Hub eyebrow — names the hub this page belongs to (derived from the
-            route inside HubEyebrow, so no page file changes). Renders nothing
-            on non-hub routes. */}
-        <HubEyebrow />
         <h1
           className="text-[28px] sm:text-[30px]"
           style={{

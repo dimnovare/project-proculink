@@ -36,16 +36,26 @@ import { GLOSS, JARGON, METAPHOR, TIERS, termPattern } from "../../scripts/lib/v
 //   PROCULINK_BACKEND_PATH=/path/to/ProcuLink bun run test src/test/backendCopyVocabulary.test.ts
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** The backend checkout, or null. Same walk-up as the three sibling mirror suites. */
+/**
+ * The file that proves a directory is a ProcuLink checkout. Fixed and named, not "whichever corpus
+ * row sorts first": until 2026-11-13 it was `USER_FACING_SOURCES[0]`, and when plan 13b deleted
+ * that row's file the env path stopped matching and the scan silently read a sibling checkout.
+ */
+const PROBE = "ProcuLink.Transform/Output/TransformValidationException.cs";
+
+/**
+ * The backend checkout, or null. A set PROCULINK_BACKEND_PATH is authoritative: if it lacks the
+ * probe this returns null (so PROCULINK_REQUIRE_BACKEND_MIRROR=1 fails) and never walks up to a
+ * sibling. The walk-up runs only when the variable is unset.
+ */
 function findBackendRoot(): string | null {
-  const probe = USER_FACING_SOURCES[0].file;
   const fromEnv = process.env.PROCULINK_BACKEND_PATH;
-  if (fromEnv && existsSync(join(fromEnv, probe))) return fromEnv;
+  if (fromEnv) return existsSync(join(fromEnv, PROBE)) ? fromEnv : null;
 
   let dir = resolve(ROOT);
   for (let i = 0; i < 8; i += 1) {
     const candidate = join(dirname(dir), "ProcuLink");
-    if (existsSync(join(candidate, probe))) return candidate;
+    if (existsSync(join(candidate, PROBE))) return candidate;
     const up = dirname(dir);
     if (up === dir) break;
     dir = up;
@@ -64,9 +74,15 @@ const REQUIRE_MIRROR = process.env.PROCULINK_REQUIRE_BACKEND_MIRROR === "1";
  * path without carrying copy. Listed rather than tolerated, because "this file yielded
  * nothing" is otherwise indistinguishable from "the reader broke on this file", and the
  * latter is precisely the silent hole this suite exists to close: if
- * DeliveryService.cs ever drops to zero sentences, that is a parse failure, not a cleanup.
+ * SupplierResponseClassification.cs ever drops to zero sentences, that is a parse failure, not a
+ * cleanup. (This named DeliveryService.cs until 2026-11-13, when plan 13b deleted it.)
+ *
+ * OrdersController.cs joined on 2026-11-13: plan 13b cut it to a read-only archive (list, get,
+ * download), which deleted every 4xx sentence it wrote. It stays in the corpus because it still
+ * derives OrderDto.ErrorMessage — and a sentence that comes back fails here first.
  */
 const EXPECTED_SENTENCE_FREE: readonly string[] = [
+  "ProcuLink.Api/Controllers/OrdersController.cs",
   "ProcuLink.Transform/Output/XmlTransformService.cs",
   "ProcuLink.Transform/Output/JsonTransformService.cs",
   "ProcuLink.Transform/Output/CsvTransformService.cs",
@@ -82,7 +98,12 @@ const EXPECTED_SENTENCE_FREE: readonly string[] = [
  * land at or near zero, and every one of those would otherwise report "no violations" and
  * go green — the vacuous pass this repo has shipped more than once.
  */
-const MIN_SENTENCES = 150;
+//
+// 2026-11-13, plan 13b task 7a: 150 -> 100. Five corpus files (OrderIngestionService.cs,
+// ParseFailureExplain.cs, OrderTransformService.cs, DeliveryService.cs, IAcceptanceGate.cs) were
+// deleted with the order pipeline, and the live corpus fell to 133 sentences across 19 files.
+// 100 keeps the same "well below, far above zero" margin over the smaller corpus.
+const MIN_SENTENCES = 100;
 
 // ── Always-on: the vocabulary itself is real ─────────────────────────────────
 
@@ -201,33 +222,12 @@ describe("the baseline is a real list", () => {
 describe("the render path is still what the corpus claims", () => {
   const read = (rel: string) => readFileSync(join(ROOT, rel), "utf8");
 
-  test("OrderProblemPanel still prints the server's own sentence", () => {
-    const panel = read("src/components/bridge/problem/OrderProblemPanel.tsx");
-    // The three candidates, the sanitiser, and the render of the result. If this stops
-    // being true the corpus is answering a question nobody is asking any more — which is a
-    // reason to re-scope the guard, not to let it keep passing.
-    expect(panel).toContain("serverMessage: order.errorMessage?.trim()");
-    expect(panel).toContain("[rejectionReason, attemptMessage, ctx.serverMessage]");
-    expect(panel).toContain(".map(supplierReasonText)");
-    expect(panel).toContain("{detail}");
-  });
-
   test("supplierReasonText returns a plain sentence UNCHANGED", () => {
     // The single most important fact behind this suite: the one function between the wire
     // and the DOM is a markup stripper, not a rewriter. If it ever started substituting
     // frontend copy for backend prose, this guard would be measuring nothing.
     const src = read("src/components/bridge/problem/supplierReasonText.ts");
     expect(src).toContain("if (!looksLikeMarkupOrPayload(trimmed)) return clamp(trimmed);");
-  });
-
-  test("the transform cause table augments the copy around the sentence, never replaces it", () => {
-    // `detail` is not a member of ProblemCopy, so `withTransformCause` cannot override it.
-    // Asserted on the source because that is where the invariant lives.
-    const copy = read("src/components/bridge/problem/problemCopy.ts");
-    const start = copy.indexOf("function withTransformCause");
-    expect(start, "withTransformCause is gone — re-derive whether the raw message still renders").toBeGreaterThan(0);
-    const body = copy.slice(start, copy.indexOf("\n}", start));
-    expect(body).not.toContain("detail");
   });
 });
 

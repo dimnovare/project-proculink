@@ -23,7 +23,7 @@
  * that text out from under it. Only the org-admin case rewrites anything.
  */
 
-import { ApiHttpError } from "./core";
+import { ApiHttpError, retryAfterFrom } from "./core";
 import { isOrgAdminError, orgAdminMessage } from "@/lib/planGate";
 
 /**
@@ -73,7 +73,7 @@ export async function readRefusal(res: Response, fallback: string): Promise<ApiH
   const code = errorField(body);
 
   const admin = orgAdminRefusal(res.status, code ?? text);
-  if (admin) return new ApiHttpError(admin, res.status, body);
+  if (admin) return new ApiHttpError(admin, res.status, body, retryAfterFrom(res, body));
 
-  return new ApiHttpError(code ?? fallback, res.status, body);
+  return new ApiHttpError(code ?? fallback, res.status, body, retryAfterFrom(res, body));
 }

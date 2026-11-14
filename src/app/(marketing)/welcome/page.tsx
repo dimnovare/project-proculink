@@ -6,7 +6,6 @@ import { useSearchParams } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { capture } from "@/lib/analytics";
-import { requiresPlan } from "@/lib/gatedCapabilities";
 import { ProcuLinkMark } from "@/components/bridge/DSPrimitives";
 import { CheckoutReceipt } from "./checkoutReceipt";
 
@@ -70,7 +69,6 @@ const S = {
     marginTop: 8,
     minHeight: 44,
   },
-  skip: { display: "inline-flex", alignItems: "center", minHeight: 44, marginTop: 16, color: "var(--ink-faint)", fontSize: 13 },
 };
 
 /* Every step goes somewhere.
@@ -96,16 +94,12 @@ const STEPS: { n: number; t: string; d: string; href: string }[] = [
     n: 3,
     t: "Confirm field and item mapping",
     d: "Resolve anything we couldn't match automatically.",
-    href: "/inbox?status=review",
+    href: "/documents",
   },
   {
-    // This page is what a brand-new — therefore Pilot — org sees, and it used to point at
-    // the one channel Pilot cannot save: HTTP delivery gates at Growth
-    // (BillingFeature.WebhookDelivery). SFTP, FTPS and email are on every plan, so those
-    // are the honest first suggestions and the gated one names its tier.
     n: 4,
     t: "Send to your supplier",
-    d: `Configure SFTP, FTPS or email delivery, or download the formatted output. HTTP webhook delivery is ${requiresPlan("webhookDelivery")}.`,
+    d: "Configure SFTP, FTPS, email or HTTP webhook delivery, or download the formatted output.",
     href: "/library/suppliers",
   },
 ];
@@ -169,13 +163,8 @@ function WelcomeBody() {
         ))}
       </div>
 
-      <Link href="/bridge" style={S.cta}>
+      <Link href="/documents" style={S.cta}>
         Open the dashboard
-      </Link>
-      {/* /bridge reads `onboard=skip` and dismisses the first-run wizard. This is
-          that parameter's only caller — renaming this link strands the branch. */}
-      <Link href="/bridge?onboard=skip" style={S.skip}>
-        Skip the wizard for now
       </Link>
     </div>
   );

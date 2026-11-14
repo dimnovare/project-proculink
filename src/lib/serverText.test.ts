@@ -144,13 +144,6 @@ describe("what the raw message is still allowed to carry", () => {
     expect(err.message.replace(/^assign-supplier failed:\s*/i, "")).toBe("Supplier not found.");
   });
 
-  it("keeps the delivery-config sentence problemCopy branches on", () => {
-    // problemCopy.isDeliveryConfigMissing matches this shape; a reworded message breaks the panel's
-    // entire "add a delivery endpoint" arm.
-    const s = "Supplier delivery config is missing. Add a delivery endpoint before sending this order.";
-    expect(new ApiHttpError(s, 400).message).toBe(s);
-  });
-
   it("leaves status, body and retryAfterSeconds untouched", () => {
     const err = new ApiHttpError("Too many requests", 429, { retryAfterSeconds: 12 });
     expect(err.status).toBe(429);
@@ -163,9 +156,8 @@ describe("what the raw message is still allowed to carry", () => {
 
 describe("serverReason — the render-boundary helper for server-authored data fields", () => {
   // order.errorMessage / deadLetter.lastError / catalogSource.lastSyncError are NOT
-  // ApiHttpError.message. They are persisted fields that arrive on a 200, and logic elsewhere
-  // (problemCopy.isDeliveryConfigMissing) matches on the raw value — so they are cleaned where
-  // they become prose, never at the source.
+  // ApiHttpError.message. They are persisted fields that arrive on a 200, so they are cleaned
+  // where they become prose, never at the source.
 
   it("returns the readable text inside markup", () => {
     expect(serverReason(GATEWAY_502_HTML, "fallback")).toContain("502 Bad Gateway");
@@ -214,52 +206,21 @@ describe("a real 502 from the API produces a clean message", () => {
     vi.restoreAllMocks();
   });
 
-  it("transformOrder: the HTML error page never reaches the thrown message", async () => {
-    // `apiClient.transformOrder` is the REAL implementation here: USE_MOCK requires
-    // NEXT_PUBLIC_USE_MOCK === "true", which the test env does not set. So this drives the exact
-    // line the production defect came through — api-client's `error ?? \`${fallback}: ${text}\``.
+  it("getDownloadUrl: the HTML error page never reaches the thrown message", async () => {
+    // `apiClient.getDownloadUrl` is the REAL implementation here: USE_MOCK requires
+    // NEXT_PUBLIC_USE_MOCK === "true", which the test env does not set. Its throw is the same
+    // shape the production defect came through — `\`${fallback}: ${text}\`` over the raw body.
+    // (Re-anchored 2026-11-13 from transformOrder, deleted with the order write path.)
     const { apiClient } = await import("@/lib/api-client");
 
     let thrown: unknown;
     try {
-      await apiClient.transformOrder("ord-1");
+      await apiClient.getDownloadUrl("ord-1", "art-1");
     } catch (e) {
       thrown = e;
     }
 
     expect(thrown).toBeInstanceOf(ApiHttpError);
-    const msg = (thrown as Error).message;
-    expectNoMarkup(msg);
-    expect(msg).toContain("502");
-  });
-
-  // The api layer does not throw ApiHttpError everywhere. Three `apiFetch` helpers throw a plain
-  // Error built the same way — `API error ${status}: ${await res.text()}` — which skips the
-  // constructor entirely. Their messages are rendered: delivery.ts feeds DeliveryConfigEditor's
-  // error block, mapping.ts feeds PoMappingEditor's "Couldn't save — …" line. Found by asking
-  // "what still reaches prose without passing the constructor?", not by reading the diff.
-
-  it("delivery.ts apiFetch: DeliveryConfigEditor's error block gets no markup", async () => {
-    const { getDeliveryConfig } = await import("@/lib/api/delivery");
-    let thrown: unknown;
-    try {
-      await getDeliveryConfig("sup-1");
-    } catch (e) {
-      thrown = e;
-    }
-    const msg = (thrown as Error).message;
-    expectNoMarkup(msg);
-    expect(msg).toContain("502");
-  });
-
-  it("mapping.ts apiFetch: PoMappingEditor's save error gets no markup", async () => {
-    const { deletePoMapping } = await import("@/lib/api/mapping");
-    let thrown: unknown;
-    try {
-      await deletePoMapping("sup-1");
-    } catch (e) {
-      thrown = e;
-    }
     const msg = (thrown as Error).message;
     expectNoMarkup(msg);
     expect(msg).toContain("502");

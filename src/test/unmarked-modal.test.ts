@@ -138,7 +138,11 @@ describe("no full-viewport overlay in src/ hides from assistive tech", () => {
     // A walk that silently stopped finding files would make every assertion below
     // pass. 19 overlay files were measured at 9fedca0.
     expect(CORPUS.length).toBeGreaterThan(300);
-    expect(CORPUS.filter((f) => buildsFullViewportOverlay(f.source)).length).toBeGreaterThanOrEqual(15);
+    // 14 measured after plan 13b removed the supplier, mapping and connection screens (15 before).
+    // 10 measured after the order screens went (2026-11-13) with four of their overlays.
+    // 8 once the mapper kept only the flow variant the same day (OutputMappingEditor and
+    // OutputStructureDesigner went with theirs).
+    expect(CORPUS.filter((f) => buildsFullViewportOverlay(f.source)).length).toBeGreaterThanOrEqual(8);
   });
 
   it("every unmarked overlay is a known, named baseline entry", () => {
@@ -161,14 +165,5 @@ describe("no full-viewport overlay in src/ hides from assistive tech", () => {
       "These files no longer build an unmarked overlay. Delete their baseline rows — a permanent " +
         "exemption is how the next instance gets waved through.",
     ).toEqual([]);
-  });
-
-  it("LaneDrawer is no longer among them", () => {
-    // The specific regression this packet fixed, pinned by name rather than left to
-    // the aggregate assertion above, which would also pass if the walk broke.
-    const lane = CORPUS.find((f) => f.file === "src/components/bridge/LaneDrawer.tsx");
-    expect(lane, "LaneDrawer.tsx is not in the corpus — the walk is wrong").toBeDefined();
-    expect(buildsFullViewportOverlay(lane!.source)).toBe(true);
-    expect(announcesALayer(lane!.source)).toBe(true);
   });
 });

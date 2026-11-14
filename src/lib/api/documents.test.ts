@@ -6,6 +6,7 @@ vi.mock("./core", async (importOriginal) => {
 });
 
 import { editDocumentValues, getDocument, getFlow, sendDocument, updateLookup, uploadDocument } from "./documents";
+import { ApiHttpError } from "./core";
 
 const fetchMock = vi.fn();
 const json = (body: unknown) => new Response(JSON.stringify(body), { status: 200 });
@@ -73,5 +74,18 @@ describe("documents api", () => {
     expect(String(url)).toMatch(/\/api\/lookups\/L1$/);
     expect(init.method).toBe("PUT");
     expect(init.body).toBe('{"name":"Item codes","entries":[{"from":"BLT-10","to":"A-7"}]}');
+  });
+
+  it("a 503 carries the Retry-After header's wait, which a ProblemDetails body does not", async () => {
+    // The new-org / transient-DB 503 sends the wait in the header only (exposed by CORS).
+    const problem = { type: "about:blank", title: "Service Unavailable", status: 503 };
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify(problem), { status: 503, headers: { "Retry-After": "2" } }),
+    );
+
+    const err = await getFlow("f1").catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(ApiHttpError);
+    expect((err as ApiHttpError).retryAfterSeconds).toBe(2);
   });
 });

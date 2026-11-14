@@ -23,7 +23,7 @@ import {
 
 const REPO_ROOT = join(__dirname, "..", "..");
 const SRC = join(REPO_ROOT, "src");
-const SKIP_DIRS = new Set(["node_modules", ".next", "test", "mocks", "__tests__"]);
+const SKIP_DIRS = new Set(["node_modules", ".next", "test", "__tests__"]);
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {

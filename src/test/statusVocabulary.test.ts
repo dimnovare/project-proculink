@@ -1,11 +1,6 @@
 import { describe, test, expect } from "vitest";
 import { readdirSync, readFileSync, statSync } from "fs";
 import { join, relative } from "path";
-import { STATUS_LABELS } from "@/components/bridge/UnifiedStatusBadge";
-import { PROBLEM_COPY, PROBLEM_STATUSES } from "@/components/bridge/problem/problemCopy";
-import { TILES } from "@/app/(app)/operations/health/healthTiles";
-import { recentStatusFromOrder } from "@/components/bridge/UploadWorkbench";
-import { deliveryNote } from "@/components/bridge/ExceptionDetail";
 import { DOCUMENT_STATUSES } from "@/lib/documentStatusManifest";
 import { ROOT } from "./appRoutes";
 import { stripComments, syntaxFor } from "./sourceScan";
@@ -25,64 +20,24 @@ import { stripComments, syntaxFor } from "./sourceScan";
 // Nothing mechanical caught it, and nothing could have: copy asserting something
 // about behaviour is not type-checked against that behaviour. A help article can
 // teach a label the product has not used for months and every suite stays green.
-// This file is the missing type-check, done the only way prose can be checked —
-// by DERIVING the expected words from the one registry that owns them and
-// asserting every other surface repeats them.
+// This file was the missing type-check, done the only way prose can be checked —
+// by DERIVING the expected words from the one registry that owned them and
+// asserting every other surface repeated them.
 //
-// THE SOURCE OF TRUTH is STATUS_META in src/components/bridge/UnifiedStatusBadge.tsx,
-// re-exported here as STATUS_LABELS. It is the source of truth because
-// DESIGN-DB-1 §6.4 says what each label must be and STATUS_META is the only
-// place in the frontend that says the same thing. Every assertion below reads
-// STATUS_LABELS rather than repeating a label, so renaming a status in the
-// registry moves this gate with it instead of breaking it.
+// THE SOURCE OF TRUTH was STATUS_META in src/components/bridge/UnifiedStatusBadge.tsx,
+// because DESIGN-DB-1 §6.4 says what each label must be and STATUS_META was the
+// only place in the frontend that said the same thing. It is gone (see below).
 //
-// The one place literals ARE written down is RETIRED_LABELS — the words that
-// must never come back. Those cannot be derived from anything, because their
-// defining property is that they are absent.
+// What this file holds now is RETIRED_LABELS — the words that must never come
+// back. Those cannot be derived from anything, because their defining property
+// is that they are absent, so they are the one place literals are written down.
+//
+// 2026-11-13: STATUS_META went with UnifiedStatusBadge and the order screens
+// that rendered it, and so did every describe that read it (the label registry,
+// the problem panel's parity with it, the issues article, the status renderers
+// and the upload page's tone). What is left is the retired-vocabulary scan; its
+// `nowUse` hints are the last labels that registry held, written down.
 // ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Every status the API can put on an order, from
- * ProcuLink.Core/Constants/OrderStatusConstants.cs (backend repo).
- *
- * Hand-copied because it lives in another repo and another language — so it is
- * pinned as a LIST here and the first test asserts the frontend can label all of
- * them. A status added to the backend and not to STATUS_META falls through to
- * humanize() and ships the raw key with underscores swapped for spaces
- * ("Delivery dead letter"), which is how `unrouted` once rendered as a neutral
- * badge that disagreed with its own row.
- */
-const BACKEND_STATUSES = [
-  "pending_parse",
-  "parsing",
-  "unrouted",
-  "pending_review",
-  "ready",
-  "transforming",
-  "ready_to_deliver",
-  "delivery_held",
-  "delivering",
-  "delivered",
-  "delivery_failed",
-  "delivery_unconfirmed",
-  "delivery_dead_letter",
-  "transform_failed",
-  "rejected_by_supplier",
-  "failed",
-] as const;
-
-/**
- * OrderStatusConstants.FailureBucket — the five statuses the inbox collapses
- * into one red "Failed" pill. Every one of them is a state an operator has to
- * act on, so every one needs its own name everywhere the operator can land.
- */
-const FAILURE_BUCKET = [
-  "failed",
-  "transform_failed",
-  "delivery_failed",
-  "delivery_dead_letter",
-  "rejected_by_supplier",
-] as const;
 
 /**
  * Labels the product used to ship and must never ship again.
@@ -97,15 +52,15 @@ const FAILURE_BUCKET = [
  * regression from a fresh mistake.
  */
 const RETIRED_LABELS: Array<{ phrase: string; re: RegExp; wasAt: string; nowUse: string }> = [
-  { phrase: "Parse failed", re: /Parse failed/g, wasAt: "help/exceptions-and-stuck-orders", nowUse: STATUS_LABELS.failed },
-  { phrase: "Transform failed", re: /Transform failed/g, wasAt: "BridgeDashboard.neededFor + two help articles", nowUse: STATUS_LABELS.transform_failed },
-  { phrase: "Delivery failed", re: /Delivery failed/g, wasAt: "ExceptionDetail, BridgeTopbar, problemCopy, healthTiles", nowUse: STATUS_LABELS.delivery_failed },
-  { phrase: "Rejected by supplier", re: /Rejected by supplier/g, wasAt: "ExceptionDetail, OrderPassport, help/exceptions-and-stuck-orders", nowUse: STATUS_LABELS.rejected_by_supplier },
-  { phrase: "Output failed", re: /Output failed/g, wasAt: "problemCopy, healthTiles", nowUse: STATUS_LABELS.transform_failed },
-  { phrase: "Supplier refused it", re: /Supplier refused it/g, wasAt: "problemCopy, healthTiles", nowUse: STATUS_LABELS.rejected_by_supplier },
+  { phrase: "Parse failed", re: /Parse failed/g, wasAt: "help/exceptions-and-stuck-orders", nowUse: "Couldn't read file" },
+  { phrase: "Transform failed", re: /Transform failed/g, wasAt: "BridgeDashboard.neededFor + two help articles", nowUse: "Couldn't build output" },
+  { phrase: "Delivery failed", re: /Delivery failed/g, wasAt: "ExceptionDetail, BridgeTopbar, problemCopy, healthTiles", nowUse: "Couldn't send" },
+  { phrase: "Rejected by supplier", re: /Rejected by supplier/g, wasAt: "ExceptionDetail, OrderPassport, help/exceptions-and-stuck-orders", nowUse: "Supplier rejected" },
+  { phrase: "Output failed", re: /Output failed/g, wasAt: "problemCopy, healthTiles", nowUse: "Couldn't build output" },
+  { phrase: "Supplier refused it", re: /Supplier refused it/g, wasAt: "problemCopy, healthTiles", nowUse: "Supplier rejected" },
   // The near-miss: one article-word away from the registry, which is exactly the
   // kind of drift a reviewer reads straight past.
-  { phrase: "Couldn't read the file", re: /Couldn't read the file/g, wasAt: "problemCopy, healthTiles", nowUse: STATUS_LABELS.failed },
+  { phrase: "Couldn't read the file", re: /Couldn't read the file/g, wasAt: "problemCopy, healthTiles", nowUse: "Couldn't read file" },
   {
     // DESIGN-DB-1 §6.5 row 85. scripts/check-vocabulary.mjs already bans this
     // everywhere it can SEE — but it exempts the whole help centre and
@@ -113,15 +68,15 @@ const RETIRED_LABELS: Array<{ phrase: string; re: RegExp; wasAt: string; nowUse:
     // keys, so a bare `return "…the dead-letter queue…"` was invisible to it.
     // Both blind spots were occupied. This covers them.
     //
-    // The lookarounds keep API FACTS out: `/api/ops/dead-letter`,
-    // `queryKey: ["ops-dead-letter"]` and `dead-letter-count` are a route, a
-    // cache key and an endpoint — renaming them would break the client, and
-    // they are not words anybody reads. A `/`, `-` or word character on either
-    // side means the token is part of a path or identifier, not a sentence.
+    // The lookarounds keep identifiers out: an audit action such as
+    // `DeliveryDeadLettered`, or a route or cache key built from `dead-letter`,
+    // is not a word anybody reads, and renaming it would break the client. A
+    // `/`, `-` or word character on either side means the token is part of a
+    // path or identifier, not a sentence.
     phrase: "dead-letter (as a word, not as a route or cache key)",
     re: /(?<![\w/-])dead[- ]letter(ed|s)?(?![\w-])/gi,
     wasAt: "help articles, help-articles.ts search keywords, useOrderReview",
-    nowUse: STATUS_LABELS.delivery_dead_letter,
+    nowUse: "Out of retries",
   },
 ];
 
@@ -148,8 +103,9 @@ const read = (rel: string) => readRaw(rel).replace(/keywords:\s*\[[^\]]*\]/g, "k
 /**
  * Every source file that can put words in front of a user: the app, the
  * marketing site (help included), the components, and the top-level lib
- * registries. Tests, fixtures and mocks are excluded — a test may name a
- * retired label in order to assert it is gone, and this file does exactly that.
+ * registries. Test, spec and story files are excluded, and so is src/test/ —
+ * a test may name a retired label in order to assert it is gone, and this file
+ * does exactly that.
  */
 function copyBearingFiles(): string[] {
   const out: string[] = [];
@@ -157,7 +113,7 @@ function copyBearingFiles(): string[] {
     for (const entry of readdirSync(dir)) {
       const full = join(dir, entry);
       if (statSync(full).isDirectory()) {
-        if (entry === "mocks" || entry === "node_modules" || entry === "__snapshots__") continue;
+        if (entry === "node_modules" || entry === "__snapshots__") continue;
         walk(full);
         continue;
       }
@@ -172,238 +128,11 @@ function copyBearingFiles(): string[] {
   return out.filter((f) => !f.startsWith("src/test/"));
 }
 
-describe("every status the API returns has a canonical frontend label", () => {
-  test.each(BACKEND_STATUSES)("%s is in STATUS_META", (status) => {
-    expect(
-      Object.prototype.hasOwnProperty.call(STATUS_LABELS, status),
-      `${status} falls through to humanize() and would ship its raw key`,
-    ).toBe(true);
-    expect(STATUS_LABELS[status].length).toBeGreaterThan(0);
-  });
-
-  test("no two failure states share a label", () => {
-    // The five failure statuses need five distinct names: the whole reason a
-    // second vocabulary was survivable is that "Delivery failed" was used for
-    // three of them at once, so an operator could not tell which had happened.
-    const labels = FAILURE_BUCKET.map((s) => STATUS_LABELS[s]);
-    expect(new Set(labels).size).toBe(FAILURE_BUCKET.length);
-  });
-
-  test("`ready` and `ready_to_deliver` stay distinct (DESIGN-DB-1 §6.4 rows 57-58)", () => {
-    expect(STATUS_LABELS.ready).not.toBe(STATUS_LABELS.ready_to_deliver);
-  });
-
-  /**
-   * Keys that are two spellings of ONE user-visible state. Call sites rewrite
-   * between them (operations/health/page.tsx mapped `rejected_by_supplier` to
-   * `rejected` for years, on a comment claiming STATUS_META lacked the first),
-   * so the two must resolve identically or such a rewrite silently changes what
-   * an operator reads.
-   */
-  test.each([
-    ["failed", "parse_failed"],
-    ["rejected_by_supplier", "rejected"],
-    ["delivered", "sent"],
-    ["ready_to_deliver", "transformed"],
-    ["parsing", "extracting"],
-    ["parsing", "normalizing"],
-    ["pending_review", "review"],
-    ["pending_review", "needs_review"],
-  ])("%s and %s are the same state and read the same", (a, b) => {
-    expect(STATUS_LABELS[a]).toBe(STATUS_LABELS[b]);
-  });
-});
-
-describe("the order screen's problem panel repeats the registry, never re-invents it", () => {
-  // problemCopy.ts documents `badge` as "The status pill's words. Mirrors
-  // UnifiedStatusBadge; never re-invented here." That sentence was false for
-  // four of the eight states, and nothing noticed, because a comment asserting
-  // something about the code beside it is not checked against that code. This
-  // is the assertion that makes it true.
-  test.each(PROBLEM_STATUSES)("%s badge equals the registry label", (status) => {
-    expect(PROBLEM_COPY[status].badge).toBe(STATUS_LABELS[status]);
-  });
-});
-
-describe("a health tile names the same thing the inbox it opens will show", () => {
-  /**
-   * Two tiles legitimately do NOT name a status: they count orders STUCK in an
-   * in-progress one, which is a different fact from the status itself. An order
-   * that is merely "Extracting" is fine; one that has been extracting past the
-   * threshold is the problem the tile exists to surface.
-   */
-  const STUCKNESS_TILES = new Set(["parsingStuck", "deliveringStuck"]);
-
-  const statusTiles = TILES.map((t) => ({ ...t, status: /[?&]status=([a-z_]+)/.exec(t.href)?.[1] }))
-    .filter((t) => t.status && Object.prototype.hasOwnProperty.call(STATUS_LABELS, t.status))
-    .filter((t) => !STUCKNESS_TILES.has(t.key as string));
-
-  test("the derivation found the status tiles (guards against an empty each-loop)", () => {
-    // Without this, renaming `href` or the query parameter would empty the list
-    // above and every assertion below would pass by iterating nothing.
-    expect(statusTiles.length).toBeGreaterThanOrEqual(6);
-  });
-
-  test.each(statusTiles.map((t) => [t.status as string, t.label] as const))(
-    "the %s tile is labelled with the registry label",
-    (status, label) => {
-      expect(label).toBe(STATUS_LABELS[status]);
-    },
-  );
-});
-
-describe("the surfaces that name a status read the registry to do it", () => {
-  /**
-   * A phrase ban catches a REGRESSION to the old words. It cannot catch the
-   * INVENTION of new wrong ones — hard-coding `{"Draft"}` where
-   * `statusLabel(row.rawStatus)` used to be passes every check above, because
-   * "Draft" is a perfectly good label for a different thing. Found by mutating
-   * exactly that and watching the gate stay green.
-   *
-   * This is the structural half: a file that puts an order's state in front of a
-   * user has to get the words from the registry, not from a literal. It is a
-   * source-text check and therefore weaker than a render test — a file could
-   * keep one call and hard-code a second — so it is a floor, not a proof.
-   */
-  const STATUS_RENDERERS = [
-    "src/components/bridge/UploadWorkbench.tsx",
-    "src/components/bridge/BridgeTopbar.tsx",
-    "src/components/bridge/CommandPalette.tsx",
-    "src/components/bridge/BridgeDashboard.tsx",
-    "src/components/bridge/ExceptionDetail.tsx",
-    "src/app/(app)/operations/health/page.tsx",
-  ];
-
-  test.each(STATUS_RENDERERS)("%s names statuses via statusLabel/UnifiedStatusBadge", (rel) => {
-    const code = stripComments(read(rel), syntaxFor(rel));
-    expect(/statusLabel\s*\(|<UnifiedStatusBadge/.test(code)).toBe(true);
-  });
-
-  /**
-   * The tone an unrecognised status falls into, obtained by ASKING the function rather
-   * than by typing its name. The bucket was called `draft` and is now called `unknown`;
-   * a literal here would have gone quietly vacuous the moment it was renamed, which is
-   * the failure mode this whole file exists to avoid.
-   */
-  const UNKNOWN_TONE = recentStatusFromOrder("a_status_no_build_has_ever_shipped");
-
-  test("the unknown-status bucket is findable (guards against a vacuous negative below)", () => {
-    // Without this, a `recentStatusFromOrder` that answered every input with a real tone
-    // would make every assertion under it pass by comparing against nothing.
-    expect(UNKNOWN_TONE).toBeTruthy();
-    expect(recentStatusFromOrder("another_status_no_build_has_ever_shipped")).toBe(UNKNOWN_TONE);
-  });
-
-  test.each(BACKEND_STATUSES)(
-    "the upload page gives %s an honest tone instead of the unknown-status bucket",
-    (status) => {
-      // The fallback is for a status this list has never heard of. Five real ones landed
-      // in it — including a supplier REJECTION, which read as an unrecognised status on
-      // /upload while the inbox called it what it was.
-      expect(recentStatusFromOrder(status)).not.toBe(UNKNOWN_TONE);
-    },
-  );
-
-  test("every failure state reads as a failure on the upload page", () => {
-    for (const status of FAILURE_BUCKET) {
-      expect(recentStatusFromOrder(status), `${status} is not toned as a failure`).toBe("failed");
-    }
-  });
-});
-
-describe("a sentence only promises a re-send when the product can re-send", () => {
-  /**
-   * The half a phrase ban cannot reach.
-   *
-   * Everything above checks WORDS. This checks a CLAIM, because the two fail
-   * differently: a retired word is a stale label, but a sentence saying "fix the
-   * cause and send it again" on a `rejected_by_supplier` order sends an operator
-   * hunting for a control that cannot exist. No delivery claim set admits that
-   * status — OrderStatusMachine is explicit that re-sending the refused bytes is
-   * deliberately not an exit — and `problemCopy` says so in its own copy
-   * ("Sending the same file again would be refused the same way") while offering
-   * "Start a corrected order" instead. The exceptions screen said the opposite.
-   *
-   * Found by mutation: reverting that one sentence left every other assertion in
-   * this file green, which is TRAP 25 in miniature. This closes THAT INSTANCE.
-   * It does not close the class — prose is still not type-checked against
-   * behaviour, and the only general defence is reading the merged copy.
-   */
-  const RESENDABLE = new Set([
-    // POST /redeliver — inboxSend.REDELIVERABLE_STATUSES, mirroring the backend's
-    // OrderStatusMachine.RedeliverableFrom.
-    "ready_to_deliver",
-    "delivery_failed",
-    "delivery_unconfirmed",
-    // Not redeliverable, but the order screen carries the ops requeue as
-    // "Start sending again" (problemCopy delivery_dead_letter), so a sentence
-    // pointing there is true.
-    "delivery_dead_letter",
-  ]);
-
-  /** An imperative promise to send THIS order again. Deliberately does not match
-   *  a DENIAL of one ("Sending the same file again would be refused"). */
-  const PROMISES_RESEND = /\b(send it again|send the order again|send this order again|re-?send|try sending)\b/i;
-
-  test.each(BACKEND_STATUSES.filter((s) => !RESENDABLE.has(s)))(
-    "the %s sentence does not tell the operator to send it again",
-    (status) => {
-      const { detail } = deliveryNote(status, null);
-      expect(
-        PROMISES_RESEND.test(detail),
-        `${status} cannot be re-sent, but its sentence promises it: "${detail}"`,
-      ).toBe(false);
-    },
-  );
-
-  test("the check is not vacuous — a re-sendable status is allowed to say it", () => {
-    expect(PROMISES_RESEND.test(deliveryNote("delivery_failed", null).detail)).toBe(true);
-  });
-
-  /**
-   * The other half of the same claim, and the reason it is here rather than in a
-   * comment: having said "you cannot re-send it", the sentence goes on to name
-   * what you CAN do — start a corrected order — and that is a promise about a
-   * control in `problemCopy`, in a different file, which another packet is
-   * editing right now.
-   *
-   * That edit will not conflict: it touches the `href` and leaves the label
-   * alone, so git auto-merges, TypeScript compiles, and nothing would notice if
-   * the action were renamed or dropped out from under this sentence. This is the
-   * notice.
-   */
-  test("the refused-order sentence names an action the order screen really offers", () => {
-    const offered = PROBLEM_COPY.rejected_by_supplier.actions({
-      supplier: "BoltWorks BV",
-      po: "PO 4091678643",
-      supplierId: "sup-1",
-      orderId: "ord-1",
-      serverMessage: null,
-      // WP-19 added these two to ProblemCtx. Null is the "no named cause" path,
-      // which is what a refused order carries — the cause slugs describe delivery
-      // failures, not a supplier's business rejection.
-      failureCause: null,
-      retryAfterSeconds: null,
-      readOnly: false,
-      accountStatus: null,
-      atOrderLimit: false,
-      processingPaused: false,
-    });
-    const corrected = offered.find((a) => a.kind === "link" && /corrected/i.test(a.label));
-    expect(
-      corrected,
-      "problemCopy no longer offers a 'corrected order' action — ExceptionDetail's sentence for a refused order promises one",
-    ).toBeTruthy();
-    expect(deliveryNote("rejected_by_supplier", null).detail).toMatch(/corrected/i);
-  });
-});
-
 describe("the retired vocabulary is gone from every surface that renders words", () => {
   const files = copyBearingFiles();
 
   test("the scan reaches the files it claims to (guards against an empty walk)", () => {
     expect(files.length).toBeGreaterThan(300);
-    expect(files).toContain("src/components/bridge/ExceptionDetail.tsx");
     expect(files).toContain(ARTICLE_TROUBLESHOOTING);
     expect(files).toContain("src/lib/help-articles.ts");
   });
