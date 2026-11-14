@@ -652,36 +652,36 @@ Integration as 1,000 orders and put channels at Integration, then — until plan
 connectors on the legacy cards, behind gates that plan 13b deleted. Two rules survive, both
 enforced by `src/test/gatedCapabilityClaims.test.ts`:
 
-- The **per-document** trail is not the org-wide delivery log. `GET /api/documents/{id}/history`
-  (`DocumentsController.History`) is ungated on every plan and is the IL scanner's negative
-  control; the cross-document log at `/operations/log` is `GET /api/audit`, gated on
-  `BillingFeature.AdvancedAudit` — Operations and up on the legacy ladder, and included on every
-  document plan (`PlanConstants.PlanHasFeature`). A Growth card said "audit log" until
-  2026-08-06, when a live Growth org followed it to `/operations/log` and was refused.
+- The workspace-wide activity list and a document's own history are **both open on every plan**,
+  the trial included (founder decision, 2026-11-14). `GET /api/audit` (`AuditController.GetAuditLog`,
+  `/operations/log`) and `GET /api/documents/{id}/history` (`DocumentsController.History`) are
+  ungated, so no card may sell either as a tier differentiator. The Operations card's "Advanced
+  audit trail" bullet went with the gate.
 - SSO is **not** on the Enterprise card and must not be added back until a Settings SSO surface
   exists — `BillingFeature.Sso` refuses nothing and `ssoAvailable` has zero frontend consumers.
 
 **Offer ⇔ works applies to the ladder itself:** a capability may only be listed on a tier if the
 backend really gates it there. `BillingFeature` + `PlanConstants.MinimumPlan` are the source of
-truth — since plan 13b (2026-11-13) `MinimumPlan` holds two rows, `AdvancedAudit` = Operations and
-presentation-only `Sso` = Enterprise; the guard that keeps them honest is
+truth — since plan 14 (2026-11-14) `MinimumPlan` holds one row, presentation-only `Sso` =
+Enterprise, so nothing is refused by plan on the server; the guard that keeps them honest is
 `ProcuLink.Api.Tests/Architecture/BillingGateEnforcementIsRealTests.cs`, which reads **compiled IL**
 (via `BillingGateIlScanner`) and asserts per feature that the named production method provably
 reaches the gate primitive — `IBillingService.HasFeatureAsync`, or `PlanConstants.PlanHasFeature`
 for the single presentation-only case (SSO — Clerk *can* deliver it, but ProcuLink exposes no
 surface for it and no longer sells it; see the note on the Enterprise card above). It also walks the reverse
 direction, so a gate call in production that no tier declares fails the build, and it ships a
-negative control pinning `DocumentsController.History` as deliberately ungated (it pinned
-`OrdersController.GetAudit` until plan 13b). Verify a gate by
+negative control pinning `DocumentsController.History` and `AuditController.GetAuditLog` as
+deliberately ungated (it pinned `OrdersController.GetAudit` until plan 13b). Verify a gate by
 running that test — never by reading a method name off a list.
 
 `BillingFeatureGateCoverageTests` is **not** that guard and cannot be: its `EnforcedBy` map is
 hand-typed free text asserted only by `ContainKey`, a live-keys check, and a member count, so
-deleting the `HasFeatureAsync` call out of `AuditController.GetAuditLog` leaves every one of its
-tests green. It is not dead, though — it pins the ladder table itself (each feature has a minimum
-plan, is off on the tier directly below that minimum, stays on for every tier above, and is off on
-Pilot) and fails the build when an enum member is added with no map entry.
-`BillingFeatureEnforcementTests` is the behavioural half: the named sites really refuse.
+deleting an enforcement call out of the method it names would leave every one of its tests green
+(no such call exists today: the one row left, `Sso`, refuses nothing). It is not dead, though — it
+pins the ladder table itself (each feature has a minimum plan, is off on the tier directly below
+that minimum, stays on for every tier above, and is off on Pilot) and fails the build when an enum
+member is added with no map entry. `BillingFeatureEnforcementTests` is the behavioural half: it
+pins `Sso` as presentation metadata, not a server refusal.
 
 Do not add a bullet for a capability nothing enforces.
 
@@ -749,7 +749,7 @@ ConfidenceChip) is still an accurate reference for components that shipped.
 - Next.js 15 App Router migration ✅ complete
 - Bridge Layer app shell exists with `BridgeSidebar` + `BridgeTopbar`.
 - Until plan 13b (2026-11-13) the canonical Bridge routes were `/bridge`, `/inbox`, `/inbox/[orderId]`, `/upload`, `/library/mappings`, `/library/suppliers`, `/operations/*`, and `/settings`. The current routes are in §5.
-- **Plan 13b removed the purchase-order pipeline (2026-11-13, both repos).** Gone: the order screens (`/bridge`, the `/inbox` queue, the `/inbox/[orderId]` review and its `OrderWorkshop`, `/upload/preview/[orderId]`, `/drafts`, every `/library/*` page, `/connections`, and `/operations/connectors`, `exceptions`, `health` and `webhooks`), the order API's write endpoints, and the eight billing gates whose only surfaces those were (`BulkMapping`, `Cxml`, `WebhookDelivery`, `EmailIngestion`, `ErpConnectors`, `CustomSupplierRules`, `SftpIngestion`, `S3Ingestion`). What is left is the document engine — `/documents`, `/flows` (a flow's documents and its Advanced view, which hosts `MapperWorkbench`), `/lookups`, `/upload` (`UploadToFlow`), `/operations/log`, `/settings` and `/admin` — plus a read-only order archive at `/archive`. The retired URLs 308 via `src/lib/retired-routes.ts`. `PlanConstants.MinimumPlan` holds two rows: `AdvancedAudit` = Operations and presentation-only `Sso` = Enterprise. The components this orphaned (`bridge/WireTopology.tsx`, `bridge/FileChip.tsx`, `StatusCell` in `bridge/StatusJourney.tsx`), the `supplier_limit_reached` arm of `limitRefusal.ts` and the `show-standards` mapper command were deleted in the orphan sweep (2026-11-14). The bullets below this one are dated history; most of the screens they name no longer exist.
+- **Plan 13b removed the purchase-order pipeline (2026-11-13, both repos).** Gone: the order screens (`/bridge`, the `/inbox` queue, the `/inbox/[orderId]` review and its `OrderWorkshop`, `/upload/preview/[orderId]`, `/drafts`, every `/library/*` page, `/connections`, and `/operations/connectors`, `exceptions`, `health` and `webhooks`), the order API's write endpoints, and the eight billing gates whose only surfaces those were (`BulkMapping`, `Cxml`, `WebhookDelivery`, `EmailIngestion`, `ErpConnectors`, `CustomSupplierRules`, `SftpIngestion`, `S3Ingestion`). What is left is the document engine — `/documents`, `/flows` (a flow's documents and its Advanced view, which hosts `MapperWorkbench`), `/lookups`, `/upload` (`UploadToFlow`), `/operations/log`, `/settings` and `/admin` — plus a read-only order archive at `/archive`. The retired URLs 308 via `src/lib/retired-routes.ts`. After it `PlanConstants.MinimumPlan` held two rows; plan 14 (2026-11-14) removed the advanced-audit one, leaving presentation-only `Sso` = Enterprise. The components this orphaned (`bridge/WireTopology.tsx`, `bridge/FileChip.tsx`, `StatusCell` in `bridge/StatusJourney.tsx`), the `supplier_limit_reached` arm of `limitRefusal.ts` and the `show-standards` mapper command were deleted in the orphan sweep (2026-11-14). The bullets below this one are dated history; most of the screens they name no longer exist.
 - Legacy compatibility routes such as `/dashboard`, `/orders`, `/orders/[id]`, `/suppliers`, and `/mappings` may still exist; do not use them as the product direction unless deliberately preserving redirects/compatibility.
 - Phase 4 Groups C-H ✅ implemented:
   - C/C2 billing and final Pilot/Growth/Operations/Integration/Enterprise plan ladder.

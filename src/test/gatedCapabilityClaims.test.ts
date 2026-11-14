@@ -7,8 +7,6 @@ import { describe, expect, it } from "vitest";
 
 import PricingPage from "@/app/(marketing)/pricing/page";
 
-import { GUIDES } from "@/lib/guides";
-import { HELP_ARTICLES } from "@/lib/help-articles";
 import { MINIMUM_PLAN, planIncludesCapability } from "@/lib/gatedCapabilities";
 import {
   DELIVERY_METHODS,
@@ -17,7 +15,7 @@ import {
   STANDARD_NAME_TOKENS,
   type FormatRow,
 } from "@/lib/marketing/format-catalog";
-import { PLANS, PUBLIC_LADDER, effectiveFeatures, inheritanceLine, type Plan } from "@/lib/plans";
+import { PLANS, PUBLIC_LADDER, inheritanceLine, type Plan } from "@/lib/plans";
 import { STANDARDS } from "@/lib/standards/catalog";
 
 /**
@@ -173,7 +171,7 @@ const plansNamedIn = (row: FormatRow): string[] =>
 
 describe("advertised tier matches the enforced tier", () => {
   it("names no plan on any /formats row — no BillingFeature gates a channel or a format", () => {
-    // The backend gate table is AdvancedAudit and Sso only, so a tier on an intake channel, a
+    // The backend gate table is Sso only, so a tier on an intake channel, a
     // delivery channel or an output format would sell an upgrade nobody needs.
     const rows = [...IMPORT_METHODS, ...DELIVERY_METHODS, ...OUTPUT_FORMATS];
     expect(rows.length, "the corpus must really contain rows").toBeGreaterThan(5);
@@ -193,7 +191,13 @@ describe("advertised tier matches the enforced tier", () => {
     // "Custom output templates" named the saved-template subsystem retired by BE #75, whose plan
     // flag (CustomTemplates) was deleted by BE #80. Nothing gates it, so nothing may sell it as a
     // tier differentiator — the output designer and per-order overrides are on every plan.
-    const retiredClaims = [/custom output template/i, /mapping library/i, /template library/i];
+    const retiredClaims = [
+      /custom output template/i,
+      /mapping library/i,
+      /template library/i,
+      // Plan 14 opened the workspace-wide log to every plan.
+      /advanced audit/i,
+    ];
 
     for (const plan of PLANS) {
       for (const feature of plan.features) {
@@ -271,62 +275,13 @@ describe("cancellation is disclosed where cancelling happens", () => {
  * nobody reads is prose wearing a test's clothes, which is precisely what it was written against.
  */
 
-/**
- * A matcher may be a pattern or a predicate. `advancedAudit` needs the predicate form because
- * what separates the gated capability from the ungated one is SCOPE, not a keyword — see its
- * note below.
- */
+/** A matcher may be a pattern or a predicate. */
 type ClaimMatcher = RegExp | ((text: string) => boolean);
 
 const claims = (sells: ClaimMatcher, text: string): boolean =>
   typeof sells === "function" ? sells(text) : sells.test(text);
 
-/**
- * The org-wide, cross-order delivery log — `GET /api/audit`, refused below Operations by
- * `AuditController.GetAuditLog` (AuditController.cs:49) with `advanced_audit_requires_operations`
- * and rendered as "The full delivery log is not included in your plan" (CrossingsLog.tsx:606).
- *
- * This matcher used to be `/advanced audit/i`, and that is exactly why a live Growth org was
- * shown that refusal on 2026-08-06 while the Growth card sold them "Audit log". The bullet
- * carried no tier word for the scans above to catch, and no "advanced" for this one — so both
- * halves of the suite read straight past it.
- *
- * The real product boundary is scope, not the adjective. A PER-ORDER trail is open on every
- * plan including Pilot: `DocumentsController.History` has no gate,
- * and is pinned deliberately as the IL scanner's negative control
- * (`Scanner_Control_DoesNotInventAGateWhereThereIsNone`,
- * BillingGateEnforcementIsRealTests). So a bullet that scopes itself to one order
- * is honest on any tier, and a bullet that does not is a claim on the gated log.
- */
-/**
- * The RECORD, not the verb, and not a customer's contractual audit right.
- *
- * A bare `\baudit\b` was fine while this row only ever read pricing-card bullets — a card does not
- * contain the sentence "you can audit what the model saw". Over the buyer-facing prose corpus it
- * was not: `/dpa` says "audits are not provided as standard; mutual non-disclosure terms apply to
- * any audit", which is a SOC-2-style inspection right and nothing to do with `AdvancedAudit`, and
- * `/help/ai-suggestions` uses the plain verb. Requiring the noun the product actually ships —
- * a log, a trail, a record, a history, entries — costs none of the card wordings below and drops
- * both false positives.
- */
-const AUDIT_RECORD_NOUN = /\baudit (?:log|logs|trail|trails|record|records|history|entries)\b|\bdelivery log\b/i;
-
-/**
- * Scoped to ONE order, so honest on every plan including Pilot.
- *
- * `per attempt` is in here because a delivery attempt belongs to exactly one order: the per-order
- * trail is what records the attempts, and `GET /api/orders/{id}/audit` is ungated. `behind every
- * order` / `on every order` are the phrasings the footer and the `og:description` were fixed with,
- * and pinning them is what stops the fix being reverted by a copy edit that reads better.
- */
-const ORDER_SCOPED_AUDIT =
-  /\bper[- ]order\b|\bsingle[- ]order\b|\border[- ]level\b|\bfor (?:each|any|that|this|a single) order\b|\b(?:behind|on|for|with|against) (?:every|each) (?:order|document)\b|\bper (?:delivery )?attempt\b/i;
-
-const SELLS_ORG_WIDE_AUDIT = (text: string): boolean =>
-  AUDIT_RECORD_NOUN.test(text) && !ORDER_SCOPED_AUDIT.test(text);
-
 const CAPABILITY_CLAIMS: Record<keyof typeof BACKEND_MINIMUM_PLAN, { label: string; sells: ClaimMatcher }> = {
-  advancedAudit: { label: "the org-wide delivery log", sells: SELLS_ORG_WIDE_AUDIT },
   sso: { label: "SSO", sells: SELLS_SSO },
 };
 
@@ -336,10 +291,6 @@ const cheapestSeller = (plans: Plan[], sells: ClaimMatcher): Plan | null => {
   if (selling.length === 0) return null;
   return selling.reduce((a, b) => (rank(a.id) <= rank(b.id) ? a : b));
 };
-
-/** `PLANS` with one extra bullet on one card — used to replay defects that really shipped. */
-const withBullet = (planId: string, bullet: string): Plan[] =>
-  PLANS.map((p) => (p.id === planId ? { ...p, features: [...p.features, bullet] } : p));
 
 describe("the mirrored gate table is load-bearing, row by row", () => {
   it("has a matcher for every mirrored row, and mirrors no row it cannot match", () => {
@@ -361,40 +312,6 @@ describe("the mirrored gate table is load-bearing, row by row", () => {
       ).toBeGreaterThanOrEqual(rank(minimumPlan));
     },
   );
-
-  /**
-   * MUST-FLAG CONTROL for the defect of 2026-08-06, quoted exactly as it shipped.
-   *
-   * `plans.ts:165` read `"Audit log"` on the Growth card while `/operations/log` refused a live
-   * Growth org outright. Every guard in this repo that has ever mattered was the one replaying
-   * its own origin defect, so the bullet is put back here — on a copy of `PLANS`, so the control
-   * cannot be satisfied by the shipped file happening to be correct — and the same
-   * `cheapestSeller` the real assertion uses has to place it below Operations.
-   */
-  it("catches the Growth 'Audit log' bullet that shipped, and lets the honest wording through", () => {
-    const cheapest = cheapestSeller(withBullet("growth", "Audit log"), CAPABILITY_CLAIMS.advancedAudit.sells);
-    expect(cheapest?.id, "the reintroduced defect must be seen at all").toBe("growth");
-    expect(
-      rank(cheapest!.id),
-      "and must be seen as BELOW Operations — a matcher that finds it but ranks it fine is decoration",
-    ).toBeLessThan(rank(BACKEND_MINIMUM_PLAN.advancedAudit));
-
-    // Wordings that are unambiguously the gated cross-order log, on a tier that cannot serve it.
-    for (const bullet of ["Audit log", "Full delivery log", "Delivery log export", "Audit trail"]) {
-      expect(claims(CAPABILITY_CLAIMS.advancedAudit.sells, bullet), `must flag: ${bullet}`).toBe(true);
-    }
-
-    // And the honest Growth capability, which really is open on every plan including Pilot.
-    // If these ever start flagging, the guard has stopped distinguishing the two products and
-    // the only obvious repair is to narrow it back to `/advanced audit/i` — the blind version.
-    for (const bullet of ["Per-order audit trail", "Per order audit trail", "Audit trail for each order"]) {
-      expect(claims(CAPABILITY_CLAIMS.advancedAudit.sells, bullet), `must allow: ${bullet}`).toBe(false);
-    }
-
-    // The Operations/Integration wording that already shipped still has to register as a sale,
-    // or `pins exactly which gated capabilities no card currently sells` goes quiet.
-    expect(claims(CAPABILITY_CLAIMS.advancedAudit.sells, "Advanced audit trail + priority support")).toBe(true);
-  });
 
   it("pins exactly which gated capabilities no card currently sells", () => {
     // The floor under the early return above. An unsold capability is legitimate — SSO is unsold
@@ -565,7 +482,7 @@ const UNGATED_BULLETS: ReadonlyArray<{ matches: RegExp; why: string }> = [
   },
   {
     matches: /^Email delivery to your supplier$/i,
-    why: "no BillingFeature gates a delivery channel (the gate table is AdvancedAudit and Sso only), so Pilot really can send by email",
+    why: "no BillingFeature gates a delivery channel (the gate table is Sso only), so Pilot really can send by email",
   },
   {
     matches: /^Field mapping$/i,
@@ -580,8 +497,7 @@ const UNGATED_BULLETS: ReadonlyArray<{ matches: RegExp; why: string }> = [
     why:
       "DocumentsController.History has no gate and is pinned as the IL scanner's negative control " +
       "(Scanner_Control_DoesNotInventAGateWhereThereIsNone in BillingGateEnforcementIsRealTests). " +
-      "Every plan including Pilot really has this. The ORG-WIDE log is the gated one and is sold " +
-      "from Operations up",
+      "Every plan including Pilot really has this",
   },
   {
     matches: /^(Assisted|Priority|Dedicated) onboarding$/i,
@@ -596,41 +512,6 @@ const UNGATED_BULLETS: ReadonlyArray<{ matches: RegExp; why: string }> = [
     why: "a contractual commitment in the Enterprise agreement, not a feature flag",
   },
 ];
-
-/**
- * Bare nouns that a reader takes as naming a GATED capability, which no allowlist entry may excuse.
- *
- * A noun belongs here only if its own capability's `sells` matcher does NOT recognise it; the
- * blind-spot test below fails the build for any row that stops being blind.
- */
-const BARE_GATED_NOUNS: ReadonlyArray<{ noun: string; capability: keyof typeof BACKEND_MINIMUM_PLAN; why: string }> = [
-  {
-    noun: "audit",
-    capability: "advancedAudit",
-    why:
-      "AUDIT_RECORD_NOUN deliberately requires the record noun ('audit log', 'audit trail') so " +
-      "that /dpa's inspection right and the plain verb are not false positives. That narrowness " +
-      "is right, and it leaves the bare noun — which on a pricing card is the org-wide log, " +
-      "Operations+ — with nothing watching it",
-  },
-];
-
-/**
- * Allowlist entries that would excuse a bare gated noun.
- *
- * Deliberately BEHAVIOURAL (`matches.test(noun)`) rather than textual. A check that read
- * `matches.source` looking for the literal `validation` would be walked around by
- * `/^validat(e|ion)?$/i` or `/^\s*validation\s*$/i`; asking the pattern whether it matches the word
- * cannot be.
- */
-const bareNounOffenders = (entries: ReadonlyArray<{ matches: RegExp; why: string }>): string[] =>
-  entries.flatMap(({ matches }) =>
-    BARE_GATED_NOUNS.filter(({ noun }) => matches.test(noun)).map(
-      ({ noun, capability }) =>
-        `/${matches.source}/ excuses the bare word "${noun}", which names BillingFeature.` +
-        `${capability} (gated at ${BACKEND_MINIMUM_PLAN[capability]})`,
-    ),
-  );
 
 /** Parsed shape of a quota bullet — "150 documents/month", "5 suppliers", "Custom volume". Documents ARE the order allowance. */
 const parseQuotaBullet = (
@@ -657,7 +538,7 @@ const parseQuotaBullet = (
  *
  * `accountFor` used to declare a bullet accounted for the moment ANY `CAPABILITY_CLAIMS` matcher
  * hit it. The Operations card read `"Advanced audit trail + priority support"`;
- * `advancedAudit.sells` matched on "Advanced audit trail", the whole bullet was marked explained,
+ * the advanced-audit matcher hit "Advanced audit trail", the whole bullet was marked explained,
  * and "priority support" never reached `UNGATED_BULLETS` — whose entries are anchored,
  * single-claim patterns like `/^(Assisted|Priority|Dedicated) onboarding$/i` and could not have
  * matched it anyway.
@@ -775,15 +656,13 @@ describe("every pricing-card bullet is accounted for by something real", () => {
     // Derived from the ladder, not a round number. It was a hand-typed 30, which is a floor that
     // has to be re-typed every time the cards change shape — and when `inheritsFrom` let the
     // dearer tiers stop restating inherited bullets, a correct total of 29 read as a regression.
-    // Every card owes two quota bullets (asserted below) plus at least one differentiator, so
-    // three per card is the same floor expressed as the rule it was standing in for.
+    // Every card owes two quota bullets (asserted below), so two per card is the same floor
+    // expressed as the rule it was standing in for. Not three: since plan 14 opened the workspace
+    // log to every plan, Operations differs from Growth by volume only.
     for (const plan of PLANS) {
-      expect(
-        plan.features.length,
-        `the ${plan.id} card must state both allowances and at least one differentiator`,
-      ).toBeGreaterThanOrEqual(3);
+      expect(plan.features.length, `the ${plan.id} card must state both allowances`).toBeGreaterThanOrEqual(2);
     }
-    expect(everyBullet.length, "bullets across all cards").toBeGreaterThanOrEqual(PLANS.length * 3);
+    expect(everyBullet.length, "bullets across all cards").toBeGreaterThanOrEqual(PLANS.length * 2);
   });
 
   it("no bullet on any card claims something nothing backs", () => {
@@ -823,59 +702,12 @@ describe("every pricing-card bullet is accounted for by something real", () => {
     ).toEqual([]);
   });
 
-  it("no allowlist entry excuses a bare capability noun", () => {
-    // The second form of the bypass the whole-bullet rule closed: one verdict answering for more
-    // than it read. There it was one entry covering two clauses; here it is one entry covering a
-    // word whose meaning on a pricing card is a gated capability. See BARE_GATED_NOUNS.
-    const offenders = bareNounOffenders(UNGATED_BULLETS);
-
-    expect(
-      offenders,
-      "an UNGATED_BULLETS entry excuses a word that names a gated capability. The allowlist is for " +
-        "things NOTHING gates; a bare capability noun is not one of them, and excusing it stops the " +
-        'clause ever reaching the tier scan. Either qualify the bullet into wording that is honestly ' +
-        'ungated ("Built-in order checks" rather than "validation"), or teach CAPABILITY_CLAIMS the ' +
-        "wording so the tier scans police it:\n" + offenders.join("\n"),
-    ).toEqual([]);
-  });
-
-  it("the bare nouns really are blind spots, not words the tier scan already sees", () => {
-    // Anti-vacuity, and the rule that stops this list growing into a second, worse matcher. A noun
-    // its own capability matcher recognises is ALREADY policed by `cheapestSeller`, so listing it
-    // here would be decoration — and would let this guard take credit for work done elsewhere.
-    const notBlind = BARE_GATED_NOUNS.filter(({ noun, capability }) =>
-      claims(CAPABILITY_CLAIMS[capability].sells, noun),
-    ).map(({ noun, capability }) => `"${noun}" is already matched by CAPABILITY_CLAIMS.${capability}.sells`);
-
-    expect(
-      notBlind,
-      "these nouns are visible to the tier scan, so they need no allowlist ban — remove them. If a " +
-        "matcher was widened to see one, that is the better fix and this row is now decoration:\n" +
-        notBlind.join("\n"),
-    ).toEqual([]);
-
-    expect(BARE_GATED_NOUNS.length, "the list must not be empty — an empty ban bans nothing").toBeGreaterThan(0);
-    for (const { capability } of BARE_GATED_NOUNS) {
-      expect(
-        BACKEND_MINIMUM_PLAN[capability],
-        `${capability} is not a row in the mirrored gate table, so nothing gates it and banning its ` +
-          "noun would be a claim about a capability that is free",
-      ).toBeDefined();
-    }
-  });
-
   it("flags the shapes it exists to catch", () => {
     const growth = PLANS.find((p) => p.id === "growth")!;
     const pilot = PLANS.find((p) => p.id === "pilot")!;
 
-    // 1. The origin defect. "Audit log" IS recognised here (it names the gated org-wide log), so
-    //    this sweep hands it to the tier scans — which is where it is refused. Accounting for it
-    //    and policing its tier are two different jobs; this asserts the handoff really happens.
-    const audit = accountFor(growth, "Audit log");
-    expect(audit.ok).toBe(true);
-    expect(audit.ok && audit.because).toMatch(/advancedAudit/);
-    expect(rank(cheapestSeller(withBullet("growth", "Audit log"), CAPABILITY_CLAIMS.advancedAudit.sells)!.id))
-      .toBeLessThan(rank(BACKEND_MINIMUM_PLAN.advancedAudit));
+    // 1. The origin defect. Every plan has the workspace log, so no card may sell it.
+    expect(accountFor(growth, "Audit log").ok).toBe(false);
 
     // 2. A capability bullet nothing grants and nothing excuses — the class this sweep adds.
     for (const invented of ["Dedicated account manager", "99.99% uptime guarantee", "Unlimited seats"]) {
@@ -896,51 +728,48 @@ describe("every pricing-card bullet is accounted for by something real", () => {
   });
 
   /**
-   * MUST-FLAG CONTROL for the compound-bullet bypass, quoted exactly as it shipped.
+   * MUST-FLAG CONTROL for the compound-bullet bypass.
    *
    * `plans.ts:210` read `"Advanced audit trail + priority support"` on the €399 Operations card.
+   * Plan 14 removed that gate, so the replay now hides the same unbacked claim behind the one
+   * capability matcher left, SSO, on the Enterprise card.
+   *
    * Priority support is not a `BillingFeature`; `BillingFeature.cs:20-21` records that
    * `SlaOnboarding` was deleted for exactly this reason — an SLA and named support are fulfilled
    * by people and no code path can check them — and the published commitment is undifferentiated
    * anyway: `/support` offers every plan, free Pilot included, the same "within one business day".
    *
-   * It survived because `advancedAudit.sells` matched "Advanced audit trail" and the whole bullet
-   * was then declared accounted for. This replays it on a COPY of `PLANS`, so the control cannot
-   * be satisfied by the shipped file happening to be correct.
+   * It survived because the advanced-audit matcher hit "Advanced audit trail" and the whole bullet
+   * was then declared accounted for.
    */
   it("catches an unbacked claim hiding in a compound bullet behind a backed one", () => {
-    const operations = PLANS.find((p) => p.id === "operations")!;
+    const enterprise = PLANS.find((p) => p.id === "enterprise")!;
 
-    const shipped = accountFor(operations, "Advanced audit trail + priority support");
-    expect(shipped.ok, "the bullet that shipped on the €399 card must be refused").toBe(false);
+    const shipped = accountFor(enterprise, "SSO + priority support");
+    expect(shipped.ok, "the compound must be refused").toBe(false);
     // `in` rather than `!shipped.ok &&`: this repo compiles with `strictNullChecks: false`, under
     // which the boolean discriminant does not narrow the union.
     expect(
       "problem" in shipped && shipped.problem,
-      "and refused for the RIGHT clause: a message naming the audit half would mean the split ran backwards",
+      "and refused for the RIGHT clause: a message naming the SSO half would mean the split ran backwards",
     ).toMatch(/priority support/i);
 
-    // The backed half on its own is still fine — the fix must not have been "ban the word audit".
-    expect(accountFor(operations, "Advanced audit trail").ok).toBe(true);
+    // The backed half on its own is still fine — the fix must not have been "ban the word SSO".
+    expect(accountFor(enterprise, "SSO").ok).toBe(true);
 
     // The same laundering with other conjunctions, and with the unbacked claim FIRST, so the fix
     // cannot be an ordering accident.
     for (const compound of [
-      "Priority support + advanced audit trail",
-      "24/7 phone support and advanced audit trail",
-      "Advanced audit trail & quarterly business reviews",
+      "Priority support + SSO",
+      "24/7 phone support and SAML SSO",
+      "SSO & quarterly business reviews",
     ]) {
-      expect(accountFor(operations, compound).ok, `must flag: ${compound}`).toBe(false);
+      expect(accountFor(enterprise, compound).ok, `must flag: ${compound}`).toBe(false);
     }
 
     // Genuine multi-capability bullets must still pass, or the only obvious repair is to stop
-    // splitting — which restores the bypass. Both halves of each of these are really accounted for.
-    for (const honest of [
-      "Field mapping + built-in order checks",
-      "Advanced audit trail",
-    ]) {
-      expect(accountFor(operations, honest).ok, `must allow: ${honest}`).toBe(true);
-    }
+    // splitting — which restores the bypass. Both halves of this one are really accounted for.
+    expect(accountFor(enterprise, "Field mapping + built-in order checks").ok).toBe(true);
   });
 
   /**
@@ -1002,7 +831,7 @@ describe("every pricing-card bullet is accounted for by something real", () => {
  * ── The defect ──────────────────────────────────────────────────────────────────
  *
  * Gates are MINIMUM-plan, so Integration and Distributor both included `Cxml`, `BulkMapping` and
- * `AdvancedAudit` (plan 13b deleted the first two gates). Their cards listed none of them. Integration named neither cXML nor bulk
+ * advanced audit (plan 13b deleted the first two gates, plan 14 the third). Their cards listed none of them. Integration named neither cXML nor bulk
  * mapping; Distributor named neither cXML nor advanced audit. Nothing on either card was false —
  * and a buyer comparing €399 to €999 to €1,499 saw the dearer tiers LOSE capabilities, which on a
  * comparison table is the same thing as a false claim, made about the cheaper tier's competitor.
@@ -1024,20 +853,11 @@ describe("every pricing-card bullet is accounted for by something real", () => {
  * hand-maintained lists agreeing.
  *
  * That makes the chain itself the thing worth guarding: break one `inheritsFrom` and the
- * capability set of every tier above it collapses. Both halves are asserted — the chain is a
- * chain, and the effective sets really are monotone — because the second alone would read as
- * near-tautological and the first alone would not notice a capability that never enters the
- * ladder at all.
+ * capability set of every tier above it collapses, so the chain is what is asserted.
  */
 describe("a dearer tier never appears to include less than a cheaper one", () => {
   /** The ladder as the pricing page renders it, cheapest first. */
   const ladder = PLANS; // pilot + legacy + enterprise: the cards these guards were written against
-
-  /** Which gated capabilities a tier's card communicates, inherited bullets included. */
-  const communicates = (plan: Plan): string[] =>
-    Object.entries(CAPABILITY_CLAIMS)
-      .filter(([, { sells }]) => effectiveFeatures(plan).some((f) => claims(sells, f)))
-      .map(([key]) => key);
 
   it("the visible ladder is the ranked ladder, and it is a chain", () => {
     expect(ladder.map((p) => p.id), "PLAN_NAMES is the rank order used by every comparison above").toEqual([
@@ -1061,276 +881,6 @@ describe("a dearer tier never appears to include less than a cheaper one", () =>
     for (let i = 1; i < ladder.length; i++) {
       expect(inheritanceLine(ladder[i])).toBe(`Everything in ${ladder[i - 1].name}, plus`);
     }
-  });
-
-  it("no tier communicates fewer gated capabilities than the tier below it", () => {
-    // Anti-vacuity: if the matchers stopped recognising the bullets, every set would be empty and
-    // "monotone" would hold trivially.
-    const top = communicates(ladder[ladder.length - 1]);
-    expect(top.length, "the top tier must communicate most of the ladder, or this proves nothing").toBeGreaterThanOrEqual(1);
-
-    const losses: string[] = [];
-    for (let i = 1; i < ladder.length; i++) {
-      const below = communicates(ladder[i - 1]);
-      const here = communicates(ladder[i]);
-      for (const capability of below) {
-        if (!here.includes(capability)) {
-          losses.push(
-            `the ${ladder[i].id} card (€${ladder[i].priceMonthly ?? "custom"}) does not communicate ` +
-              `${CAPABILITY_CLAIMS[capability as keyof typeof CAPABILITY_CLAIMS].label}, but the ` +
-              `cheaper ${ladder[i - 1].id} card does — and the gate is a MINIMUM, so ${ladder[i].id} ` +
-              "really includes it.",
-          );
-        }
-      }
-    }
-
-    expect(losses, losses.join("\n")).toEqual([]);
-  });
-
-  it("catches a broken chain, which is how the omission would come back", () => {
-    // MUST-FLAG CONTROL. Replayed on a copy, so it cannot pass because the shipped file is fine.
-    // Cutting Integration loose is exactly the state the cards shipped in: it stops communicating
-    // advanced audit while costing €600/month more than the tier that does.
-    const broken: Plan[] = PLANS.map((p) => (p.id === "integration" ? { ...p, inheritsFrom: null } : p));
-    const byId = (id: string) => broken.find((p) => p.id === id)!;
-
-    const chainOf = (plan: Plan): string[] => {
-      const out: string[] = [];
-      let cur: Plan | undefined = plan;
-      while (cur) {
-        out.unshift(...cur.features);
-        cur = cur.inheritsFrom == null ? undefined : byId(cur.inheritsFrom);
-      }
-      return out;
-    };
-    const communicatesIn = (plan: Plan): string[] =>
-      Object.entries(CAPABILITY_CLAIMS)
-        .filter(([, { sells }]) => chainOf(plan).some((f) => claims(sells, f)))
-        .map(([key]) => key);
-
-    const lost = communicatesIn(byId("operations")).filter((c) => !communicatesIn(byId("integration")).includes(c));
-    expect(lost, "a severed link must show up as capabilities the dearer tier appears to lose").not.toEqual([]);
-    expect(lost).toContain("advancedAudit");
-  });
-});
-
-/**
- * The workspace-wide delivery log, and the export of it.
- *
- * ── The defect ──────────────────────────────────────────────────────────────────
- *
- * `/security` shipped this, unqualified, to every reader:
- *
- *     "Export the full delivery log for any order at any time."
- *
- * Two failures, and the second is the worse one:
- *
- *   1. It named no tier. The workspace-wide log is `GET /api/audit`, gated on
- *      `BillingFeature.AdvancedAudit` -> Operations (`PlanConstants.cs:276`). A Growth or Pilot
- *      reader takes an unqualified sentence as included, and `/operations/log` then refuses them
- *      with `advanced_audit_requires_operations` (`CrossingsLog.tsx:413-416`).
- *   2. "for any order at any time" described a per-order export that does not exist as such. The
- *      only CSV export of audit data in the product is on that same Operations-gated page
- *      (`CrossingsLog.tsx:441`). It does honour the `?orderId=` filter, so an Operations customer
- *      can export one order's rows -- but only from the page it loaded, which the page itself
- *      discloses as partial (`windowPartial`). The claim was untrue on EVERY tier, not merely
- *      mis-tiered, which is why naming a tier alone would not have repaired it.
- *
- * This sat on the security page, which is what a buyer's compliance reviewer reads before signing.
- *
- * ── Why the guards already here could not see it ────────────────────────────────
- *
- * They compare a capability against a NAMED tier, so a claim naming no tier at all is invisible to
- * them; and the newest of them reaches `PLANS.features` only, while this claim lived in free
- * marketing prose. Hence a guard whose offence is the claim itself rather than a tier mismatch.
- *
- * ── What this guard can and cannot do ───────────────────────────────────────────
- *
- * Stated plainly, because a guard trusted past its reach is worse than none. It is LINE-SCOPED and
- * VOCABULARY-BOUND. It catches an offer to export or open the workspace-wide log that names no
- * tier, or names one below Operations. It does NOT catch a claim split across two lines, nor one
- * avoiding both the nouns and the verbs below -- "download your complete order history as a
- * spreadsheet" names neither. Its corpus is `buyerFacingLines()`, which does not reach the
- * `/sign-in` and `/sign-up` trust strips; those say "Full audit trail", which is true per order,
- * but a delivery-log claim added there would not be seen. Each arm below is pinned by a control
- * quoting copy that really shipped.
- *
- * The line between an offence and an honest sentence is deliberate, and it is NOT "mentions the
- * log". Recording is universal and append-only on every plan, and so is reading ONE order's
- * history: `DocumentsController.History` is ungated on purpose, pinned as the IL scanner's negative
- * control (`Scanner_Control_DoesNotInventAGateWhereThereIsNone` in `BillingGateEnforcementIsRealTests`) and rendered by `DocumentScreen.tsx`.
- * A sentence saying the log RECORDS something is true and stays. The offence is directing a reader
- * to OPEN or EXPORT the workspace-wide log without saying what it costs. Over-correcting the true
- * half into something timid gives away real sales value, so the controls pin that too.
- */
-describe("the workspace-wide delivery log is not offered below the tier that unlocks it", () => {
-  /** Nouns for a recorded trail, in the spellings marketing copy actually uses. */
-  const AUDIT_RECORD = String.raw`(?:delivery|audit|activity|event)\s+(?:log|trail|history)`;
-
-  /** The workspace-wide surface specifically -- the one that is gated. */
-  const LOG_SURFACE = /\b(?:delivery|audit|activity|event)\s+log\b/i;
-
-  /**
-   * Getting audit data OUT. No export of it exists on any tier below Operations, so this arm needs
-   * no tier comparison of its own -- any undisclosed export claim is wrong.
-   *
-   * `[^.\n]` is what bounds it, not a character count. The landing page carries
-   *
-   *     "... or download the artifact. Encrypted credentials, AES-GCM at rest, full audit trail
-   *      per attempt."
-   *
-   * where "download" and "audit trail" sit 70 characters apart in TWO sentences about two
-   * different things -- the transformed output file, and the recording. A width-bounded window
-   * flags that; a sentence-bounded one does not, and an export claim is written as one sentence.
-   */
-  const EXPORT_VERB = String.raw`(?:export|exports|exported|exporting|download|downloads|downloadable)`;
-  const EXPORTS_AUDIT_DATA = new RegExp(
-    `\\b${EXPORT_VERB}\\b[^.\\n]{0,60}?\\b${AUDIT_RECORD}\\b` +
-      `|\\b${AUDIT_RECORD}\\b[^.\\n]{0,60}?\\b${EXPORT_VERB}\\b`,
-    "i",
-  );
-
-  /**
-   * Writing the navigation path IS directing the reader there, so this arm needs no verb -- which
-   * matters, because the help bullet that shipped had none. Its imperative ("Where to watch
-   * statuses") was a heading away, where a line-scoped guard cannot reach.
-   */
-  const NAV_PATH_TO_THE_LOG = /\boperations\s*(?:→|->|›|»|>|\/)\s*log\b/i;
-
-  /**
-   * Verbs of ACCESS, not of RECORD. "records", "keeps", "captures", "retained" and "shows" are
-   * deliberately absent: they describe what the system does, which is true for everyone, and
-   * flagging them would push a later reader to narrow this pattern until it caught nothing.
-   */
-  const READS = /\b(?:open|opens|check|checks|go to|view|views|see|watch|browse|filter|search|read|reads)\b/i;
-
-  /**
-   * A tier disclosure, DERIVED from the mirrored gate row rather than typed -- if `AdvancedAudit`
-   * moves in `PlanConstants.cs`, the mirror above is the one edit and this follows it.
-   *
-   * It requires a plan WORD beside the tier name, which is the whole point: the offending bullet
-   * read "**Operations -> Log**", so any check for the bare string "operations" would have excused
-   * the exact line this guard exists to catch.
-   */
-  const MIN_PLAN = BACKEND_MINIMUM_PLAN.advancedAudit;
-  const DEAR_ENOUGH = PLAN_NAMES.slice(rank(MIN_PLAN)).join("|");
-  const DISCLOSES_TIER = new RegExp(
-    `\\b(?:${DEAR_ENOUGH})\\b[^\\n]{0,40}?\\b(?:plan|plans|tier|and up|or above|and above)\\b` +
-      `|\\b(?:plan|plans|tier)\\b[^\\n]{0,40}?\\b(?:${DEAR_ENOUGH})\\b`,
-    "i",
-  );
-
-  /** Does this line offer the gated log without saying what it costs? */
-  const offends = (line: string): boolean => {
-    const claims =
-      EXPORTS_AUDIT_DATA.test(line) ||
-      NAV_PATH_TO_THE_LOG.test(line) ||
-      (READS.test(line) && LOG_SURFACE.test(line));
-    return claims && !DISCLOSES_TIER.test(line);
-  };
-
-  it("no buyer-facing line offers the delivery log or its export without naming the tier", () => {
-    const lines = buyerFacingLines();
-
-    // Anti-vacuity. A corpus that silently emptied -- a renamed route group, a walk stopping one
-    // directory short -- would make every assertion below pass while reading nothing at all.
-    expect(lines.length, "the corpus must really be reading copy").toBeGreaterThan(1000);
-    expect(
-      lines.filter(({ file }) => /security[\\/]page\.tsx$/.test(file)).length,
-      "the security page is where the defect shipped; it has to be inside the corpus",
-    ).toBeGreaterThan(0);
-    expect(
-      lines.filter(({ file }) => file.endsWith(".mdx")).length,
-      "the help articles are MDX; a corpus that skips them misses half the surface",
-    ).toBeGreaterThan(0);
-
-    const offenders = lines
-      .filter(({ line }) => offends(line))
-      .map(({ file, number, line }) => `${file}:${number}: ${line.trim()}`);
-
-    expect(
-      offenders,
-      "these lines offer the workspace-wide delivery log, or an export of audit data, without " +
-        `saying it starts at ${MIN_PLAN}. GET /api/audit is gated on BillingFeature.AdvancedAudit ` +
-        "and /operations/log refuses anything cheaper. Name the tier, or describe the per-order " +
-        "history instead -- that one really is on every plan:\n" + offenders.join("\n"),
-    ).toEqual([]);
-  });
-
-  it("flags the claims that shipped, verbatim, so a green result means absence and not blindness", () => {
-    // `/security` as it stood at the commit before this one -- the exact source line, not a
-    // tidier paraphrase. A control rewritten to suit the pattern proves only that the pattern
-    // matches itself.
-    expect(
-      offends(
-        '    body: "Every parse, edit, validation and delivery attempt is recorded in an append-only audit log. Export the full delivery log for any order at any time.",',
-      ),
-      "the /security claim this guard exists for",
-    ).toBe(true);
-
-    // `/help/dashboard-and-statuses` at the same commit. It carries no verb at all, and the word
-    // "Operations" appears as a NAV LABEL -- both of which a looser guard reads as innocent.
-    expect(
-      offends("- **Operations → Log** — a date-grouped audit trail of every status change and event."),
-      "the help article's undisclosed destination",
-    ).toBe(true);
-
-    // Shapes that have not shipped here but are one edit away.
-    expect(offends("Download the full delivery log whenever you need it."), "download, not export").toBe(true);
-    expect(offends("Export your audit trail to CSV at any time."), "audit trail, not the word log").toBe(true);
-    expect(offends("Open the delivery log to see every event across your workspace."), "open, not export").toBe(true);
-    expect(offends("Head to Operations / Log for the whole history."), "the slash form of the nav path").toBe(true);
-  });
-
-  it("treats a tier below the gate as an offence too, and takes the gate from the mirror", () => {
-    // Naming SOME tier is not the bar; naming one that really unlocks it is.
-    expect(
-      offends("Export the full delivery log for any order — Growth plan and up."),
-      "growth is below the gate",
-    ).toBe(true);
-    expect(offends("Export the full delivery log for any order — Pilot plan.")).toBe(true);
-
-    // And the acceptance is pinned to the mirrored row, not to a literal. The tier directly below
-    // the minimum must not excuse a claim; the minimum and everything above it must.
-    const below = PLAN_NAMES[rank(MIN_PLAN) - 1];
-    expect(DISCLOSES_TIER.test(`${below} plan and up`), `${below} is one rung below ${MIN_PLAN}`).toBe(false);
-    for (const plan of PLAN_NAMES.slice(rank(MIN_PLAN))) {
-      expect(DISCLOSES_TIER.test(`included from the ${plan} plan up`), `${plan} is at or above the gate`).toBe(true);
-    }
-  });
-
-  it("leaves alone the sentences that are true on every plan", () => {
-    // Recording happens for everyone. Saying so is not selling the gated surface.
-    expect(offends("Audit log entries are retained for the life of the account."), "/privacy:124").toBe(false);
-    expect(
-      offends("The order shows **delivered**, and the delivery log records the attempt with the supplier's response."),
-      "review-an-order:143 -- a statement of record, not an instruction to open a gated page",
-    ).toBe(false);
-    expect(
-      offends("later be marked as rejected by the supplier, and the delivery log keeps both facts."),
-      "review-an-order:161 -- likewise",
-    ).toBe(false);
-    expect(
-      offends("Every attempt is logged in an append-only audit trail."),
-      "how-it-works:120",
-    ).toBe(false);
-    // Two sentences, two subjects: the artifact is downloadable per order, the audit trail is a
-    // separate statement of record. This is the line that made a width-bounded window wrong.
-    expect(
-      offends(
-        "HTTP webhook, SFTP, email or ERP connector — or download the artifact. Encrypted credentials, AES-GCM at rest, full audit trail per attempt.",
-      ),
-      "(home)/page.tsx:195 -- neither half is a delivery-log export claim",
-    ).toBe(false);
-    // The changelog is frozen byte-for-byte by changelog-append-only.test.ts, so a guard flagging
-    // it could not be satisfied at all. It is also true: the per-order history is ungated.
-    expect(offends('      "Audit log — full event history for every order",'), "the frozen v1.1 entry").toBe(false);
-    // The per-order trail, which every plan really does get, must stay sellable in plain words.
-    expect(
-      offends("Open the order to read its full audit trail — every attempt, on every plan."),
-      "per-order, ungated, and worth selling",
-    ).toBe(false);
   });
 });
 
@@ -1477,362 +1027,8 @@ describe("no buyer-facing copy claims records are immutable, because nothing enf
     // "Supersedes rather than erases" was the accurate description of OpsController.cs:251 and must
     // stay sayable — it is a statement about what requeue does, not a promise about forever.
     expect(offends("Requeueing supersedes earlier attempts rather than erasing them.")).toBe(false);
-    // A tier claim is the other block's business, not this one's.
+    // A tier claim is not a durability promise, so this block leaves it alone.
     expect(offends("The workspace-wide delivery log is included from the Operations plan up.")).toBe(false);
-  });
-});
-
-/**
- * A gated capability presented with NO tier at all.
- *
- * Naming no tier is not neutral: the org-wide delivery log (`AdvancedAudit`, Operations) reads as
- * included on every plan when a page describes it with no tier. The scan is FILE-scoped — a reader
- * reads an article, not a line — and a literal tier only counts when it sits on a line that names
- * the capability. `sso` is policed by its own describe above.
- */
-describe("a gated capability is never presented with no tier at all", () => {
-  const helpPage = (...segments: string[]) => join(process.cwd(), "src/app/(marketing)/help", ...segments, "page.mdx");
-  const DOCUMENT_HELP_PAGES = [
-    ...HELP_ARTICLES.map((a) => helpPage(a.slug)),
-    ...GUIDES.filter((g) => g.audience === "client" && g.status === "live").map((g) => helpPage("guides", g.slug)),
-  ];
-
-  /**
-   * Two files are outside this scan, and both for a reason, not for convenience. The list is
-   * asserted below so it cannot quietly grow.
-   *
-   *   • `plans.ts` — a bullet on a pricing card IS tiered: the card's own header is the tier.
-   *     The card scans police it far more precisely (`no card sells it below the tier the backend
-   *     gates it at`, and the monotonicity block above).
-   *   • the changelog — frozen byte for byte by `changelog-append-only.test.ts`, so an entry
-   *     cannot be edited to add a tier even if one wanted to. A dated release note records what
-   *     shipped that day; it is not the price list.
-   */
-  const EXEMPT = [
-    join(process.cwd(), "src/lib/plans.ts"),
-    join(process.cwd(), "src/app/(marketing)/changelog/page.tsx"),
-    // ── added 2026-08-15 with the seven new rows ──────────────────────────────
-    // `/privacy` and `/dpa` are data-processing disclosures. They name IMAP passwords, webhook
-    // URLs and audit-log retention because those are categories of data ProcuLink HOLDS, not
-    // capabilities it sells, and a GDPR record that answered "which plan is that on?" would be
-    // answering a question nobody reading it is asking. They carry no CTA and no price.
-    //
-    // This is the one exemption on the list that could be abused, so it is bounded by what these
-    // pages are rather than by convenience: a marketing claim moved into either of them to dodge
-    // this scan would be a claim on a page with no reader deciding whether to buy.
-    join(process.cwd(), "src/app/(marketing)/privacy/page.tsx"),
-    join(process.cwd(), "src/app/(marketing)/dpa/page.tsx"),
-    // ── added 2026-11-12 with the relaunch landing page ───────────────────────
-    // `/` describes the document product, where every plan has every intake channel (copy C14,
-    // C23; spec §12) — the per-plan channel tiers this scan enforces belong to the retired
-    // order ladder. Bounded to the one page: its channel sentence is the only claim it makes.
-    join(process.cwd(), "src/app/(home)/page.tsx"),
-    // ── added 2026-11-12 with the relaunch how-it-works page ───────────────────
-    // Same reason as `/`: document plans include every intake channel (copy C14, C23; spec §12),
-    // so its channel sentence names no tier. Bounded to the one page.
-    join(process.cwd(), "src/app/(marketing)/how-it-works/page.tsx"),
-    // `/security` lists the channels whose transport is encrypted (webhook, SFTP, FTPS, S3, IMAP,
-    // SMTP). It names them to describe TLS, not to sell them, and on document plans every channel
-    // is included, so there is no tier to name. It used to carry one only through the ERP clause,
-    // which the relaunch dropped. Bounded to the one page.
-    join(process.cwd(), "src/app/(marketing)/security/page.tsx"),
-    // ── added 2026-11-12 with the relaunch help structure ──────────────────────
-    // Every page in the new help registries. The document engine has no plan gates: there is no
-    // `HasFeatureAsync` anywhere in the document services and controllers, the Trial is limited only
-    // by quota, and document plans have every feature but SSO (copy C14, C23; spec §12). So a help
-    // page naming a channel names no tier, and none could be true. Derived from the registries, so a
-    // new page joins by being registered, and a page nobody registered is not exempt.
-    ...DOCUMENT_HELP_PAGES,
-  ];
-
-  /**
-   * Prose only — a code sample is not a claim, and a search-keyword array is not a sentence.
-   *
-   * Both were measured before being excluded, and both produced false positives that a later
-   * reader would have fixed by weakening a matcher:
-   *
-   *   • `receive-orders-from-s3` embeds an IAM policy whose `"s3:prefix"` condition is not an
-   *     offer of the S3 channel; `receive-orders-over-api` suggests naming an API key
-   *     `Staging webhook`, which is not an offer of webhook delivery.
-   *   • `help-articles.ts` carries a `keywords:` array per article for the search box. It lists
-   *     "sftp", "imap", "s3" as SEARCH TERMS. Nothing renders them as a sentence, and requiring a
-   *     tier next to a search term would put plan names in the search index.
-   *
-   * FENCED blocks only. Inline back-ticked text is left alone deliberately: MDX styles UI labels
-   * and tier names as code, and `/help/billing-faq` writes its whole plan ladder as
-   * `` `Enterprise` — custom pricing from €2,500/month ``. Stripping inline code deleted that
-   * page's only disclosure and reported the honest page as an offender.
-   */
-  const proseOnly = (lines: string[]): string[] => {
-    let fenced = false;
-    return lines.map((line) => {
-      if (/^\s*(?:```|~~~)/.test(line)) {
-        fenced = !fenced;
-        return "";
-      }
-      if (fenced) return "";
-      if (/^\s*keywords:\s*\[/.test(line)) return "";
-      return line;
-    });
-  };
-
-  /** Every buyer-facing file, with its scannable lines — the same corpus, grouped by file. */
-  const buyerFacingFiles = (): Array<{ file: string; lines: string[] }> => {
-    const byFile = new Map<string, string[]>();
-    for (const { file, line } of buyerFacingLines()) {
-      const list = byFile.get(file) ?? [];
-      list.push(line);
-      byFile.set(file, list);
-    }
-    return [...byFile].map(([file, lines]) => ({ file, lines: proseOnly(lines) }));
-  };
-
-  /**
-   * `requiresPlan("cxml")` and friends — a disclosure DERIVED from the gate table.
-   *
-   * The argument list is scanned rather than matched exactly, because `requiresPlan` is variadic:
-   * one clause discloses the whole group a sentence presents (`requiresPlan("emailIngestion",
-   * "sftpIngestion", "s3Ingestion")` → "Growth plan and up"). The helper refuses a group whose
-   * members do not share a tier, so a multi-argument call cannot launder a dear capability into a
-   * cheap clause — see `sharedMinimumPlan` in `src/lib/gatedCapabilities.ts`.
-   */
-  const derivedDisclosure = (capability: string) =>
-    new RegExp(
-      `\\b(?:requiresPlan|minimumPlanName|minimumPlanId|includedFromPlan)\\(\\s*[^)\\n]{0,200}["'\`]${capability}["'\`]`,
-    );
-
-  /**
-   * A tier named in words, at or above the real minimum, beside something that marks it as a PLAN
-   * NAME. Taken from the mirrored row rather than typed, so re-tiering a capability moves this
-   * with it.
-   *
-   * The qualifier is load-bearing in both directions. Without it, "Enterprise Resource Planning"
-   * would read as a disclosure and "**Operations → Log**" — a sidebar label on nine help pages —
-   * would excuse the very claims the block above exists to catch. With only `plan|tier`, it missed
-   * `/help/billing-faq`'s plan ladder, which names each tier against its price and never uses the
-   * word: "`Enterprise` — custom pricing from €2,500/month; … ERP connectors, and SLA." A price is
-   * as unambiguous a plan marker as the word "plan", so `€` is in the qualifier set.
-   */
-  const literalDisclosure = (minimumPlan: string) => {
-    const dearEnough = PLAN_NAMES.slice(rank(minimumPlan)).join("|");
-    // `\b` inside, so "Planning" in "Enterprise Resource Planning" is not a plan marker.
-    const planMarker = String.raw`(?:\b(?:plan|plans|tier|and up|or above|and above)\b|€)`;
-    return new RegExp(
-      `\\b(?:${dearEnough})\\b[^\\n]{0,40}?${planMarker}` + `|${planMarker}[^\\n]{0,40}?\\b(?:${dearEnough})\\b`,
-      "i",
-    );
-  };
-
-  /**
-   * What ANCHORS a literal tier to a capability — the second half of the 2026-08-15 fix.
-   *
-   * Disclosure stays FILE-scoped, for the reason in this block's header: a reader reads an
-   * article, not a line. But a tier named on a line about a DIFFERENT capability is not a
-   * disclosure of this one, and that distinction is what the whole webhook cluster turned on.
-   * `/` names Enterprise, correctly, for the ERP connectors; before this anchor that satisfied
-   * the Growth-gated webhook claim in the same sentence, and the landing page read as compliant
-   * while telling a Pilot reader that "HTTP webhook" was theirs.
-   *
-   * These are deliberately BROADER than the `presents` matchers. Their job is to recognise a line
-   * that is TALKING ABOUT the capability at all, so an honest disclosure written in a phrasing
-   * `presents` does not happen to match still counts. Too narrow here manufactures offenders;
-   * too broad only restores the old file-scoped behaviour for that one line.
-   */
-  /**
-   * Does this LINE disclose the tier for this capability? The one definition, used by the sweep
-   * and by its controls alike.
-   *
-   * It is a named function rather than a closure built inside the `it.each` because the first
-   * version was the closure, and a mutation run proved the anchor was untestable: un-anchoring the
-   * real rule left every assertion green, because the control that demonstrates the anchor had
-   * built its own private copy of it. That is the same "predicate has drifted from the array it is
-   * meant to be the disjunction of" hazard `CONFIGURABLE_SUPPLIER_RULE_FORMS` already carries a
-   * control for, and it hid a rule that could not fail.
-   */
-  const disclosesFor =
-    (capability: keyof typeof BACKEND_MINIMUM_PLAN) =>
-    (line: string): boolean => {
-      const literal = literalDisclosure(BACKEND_MINIMUM_PLAN[capability]);
-      return (
-        derivedDisclosure(capability).test(line) ||
-        (literal.test(line) && CAPABILITY_KEYWORD[capability].test(line))
-      );
-    };
-
-  const CAPABILITY_KEYWORD: Record<keyof typeof BACKEND_MINIMUM_PLAN, RegExp> = {
-    advancedAudit: /\baudit\b|\bdelivery log\b/i,
-    sso: SELLS_SSO,
-  };
-
-  /**
-   * Every gated capability with prose to police, and how a page PRESENTS it. `sso` is on
-   * `PROSE_EXEMPT` below with its reason, and the two lists are asserted to cover the mirror exactly.
-   *
-   *   `reaches`   — files that really present it today (the anti-vacuity floor).
-   *   `mustFlag`  — lines quoted from the tree BEFORE the fix.
-   *   `mustAllow` — the honest neighbour, usually the same words in the other direction.
-   */
-  const CLAIMS: ReadonlyArray<{
-    capability: keyof typeof BACKEND_MINIMUM_PLAN;
-    label: string;
-    presents: (lines: string[], i: number) => boolean;
-    reaches: string[];
-    mustFlag: string[];
-    mustAllow: string[];
-  }> = [
-    {
-      capability: "advancedAudit" as const,
-      label: "the org-wide delivery log",
-      // The SAME predicate the card scans use, plus one line of lookahead. Two matchers for one
-      // capability drift apart, so this row borrows `SELLS_ORG_WIDE_AUDIT` rather than restating
-      // it; the lookahead is here and not there because prose WRAPS and a card bullet does not —
-      // `/pricing` renders "a full audit trail per order" with the qualifier on the next line, and
-      // a strictly line-scoped read calls the honest sentence an offender.
-      presents: (lines: string[], i: number) =>
-        SELLS_ORG_WIDE_AUDIT(lines[i]) && !ORDER_SCOPED_AUDIT.test(lines[i + 1] ?? ""),
-      // The Operations card on /pricing is the one place that still presents the org-wide log.
-      reaches: ["/src/lib/plans.ts"],
-      mustFlag: [
-        // The footer, on every marketing page and on `/`, and the homepage og:description.
-        "                format your supplier needs — with a full audit trail.",
-        "Full audit trail and delivery status.",
-        // A guide sending a Pilot reader to a surface Operations unlocks.
-        "The order shows **delivered**, and the delivery log records the attempt with the supplier's response.",
-      ],
-      mustAllow: [
-        "format your supplier needs — with a full audit trail on every order.",
-        "sends them on in the format you need — with a full audit trail on every document.",
-        "with a full audit trail behind every order.",
-        "Encrypted credentials, AES-GCM at rest, full audit trail per attempt.",
-        "with each attempt's error and response code kept in the audit trail for that order.",
-        "Per-order audit trail",
-        // The verb, and a customer's contractual audit right — neither is the product.
-        "- `provenance` — the source data the model was given, so you can audit what it actually saw.",
-        "audits are not provided as standard; mutual non-disclosure terms apply to any audit",
-      ],
-    },
-  ];
-
-  /**
-   * `sso` is not on the list above: its failure mode is not silence but PRESENCE — it must not
-   * appear on a buyer-facing surface at all until a Settings surface exists.
-   */
-  const PROSE_EXEMPT: Record<string, string> = {
-    sso: "must be ABSENT, not tiered — policed by 'SSO is sold only where it can be configured'",
-  };
-
-  it("covers every mirrored gate row, in one list or the other", () => {
-    // The forcing function. A new row in `MINIMUM_PLAN` cannot be added without someone deciding
-    // whether its prose is policed here or somewhere else.
-    expect([...CLAIMS.map((c) => c.capability), ...Object.keys(PROSE_EXEMPT)].sort()).toEqual(
-      Object.keys(BACKEND_MINIMUM_PLAN).sort(),
-    );
-    // …and no capability may be in both, which would make the exemption unfalsifiable.
-    expect(CLAIMS.filter((c) => c.capability in PROSE_EXEMPT)).toEqual([]);
-  });
-
-  it.each(CLAIMS)(
-    "$label: every file presenting it names the tier somewhere",
-    ({ capability, label, presents, reaches }) => {
-      const minimumPlan = BACKEND_MINIMUM_PLAN[capability];
-      // A literal tier only discloses THIS capability when it sits on a line naming it. See
-      // CAPABILITY_KEYWORD: `/` named Enterprise for the ERP connectors and that was excusing a
-      // Growth-gated webhook claim in the same sentence.
-      const discloses = disclosesFor(capability);
-
-      // The walk's whole corpus, exempt pages included: the help pages are exempt now, so counting only the
-      // scanned remainder would fail a floor that is about the walk, not about the exemption.
-      expect(buyerFacingFiles().length, "the corpus must really be reading files").toBeGreaterThan(40);
-      expect(
-        buyerFacingFiles().filter(({ file }) => !EXEMPT.some((e) => e.endsWith(file))).length,
-        "the exemption must leave pages to scan",
-      ).toBeGreaterThan(25); // measured 29: every help page is exempt, so this is the non-help corpus and no longer moves with help content
-
-      const presenting = buyerFacingFiles().filter(({ lines }) => lines.some((_, i) => presents(lines, i)));
-      const seen = presenting.map(({ file }) => file.replace(/\\/g, "/"));
-
-      // ANTI-VACUITY FLOOR — extractions, not files scanned. `.every()` over an empty set is true,
-      // and a matcher that has gone blind produces exactly that empty set.
-      for (const file of reaches) {
-        expect([...seen], `${file} presents ${label} and the walk no longer sees it`).toContain(file);
-      }
-
-      const offenders = presenting
-        .filter(({ file }) => !EXEMPT.some((e) => e.endsWith(file)))
-        .filter(({ lines }) => !lines.some(discloses))
-        .map(({ file, lines }) => {
-          const i = lines.findIndex((_, n) => presents(lines, n));
-          return `${file}:${i + 1}: ${lines[i].trim()}`;
-        });
-
-      expect(
-        offenders,
-        `these files present ${label} and never say it starts at ${minimumPlan}. Import ` +
-          `requiresPlan("${capability}") from @/lib/gatedCapabilities and state it once:\n` +
-          offenders.join("\n"),
-      ).toEqual([]);
-    },
-  );
-
-  /**
-   * The floor under the floor: every row's matcher, fed the copy that really shipped.
-   *
-   * `reaches` can only pin a defect still in the tree, and the whole point of this packet was that
-   * the copy got fixed. These are the strings as they stood at 5c209e0, so re-narrowing a matcher
-   * after the fix fails by name instead of quietly.
-   */
-  it.each(CLAIMS)("$label: flags the wordings that shipped", ({ label, presents, mustFlag }) => {
-    expect(mustFlag.length, `${label} has no must-flag control — its matcher cannot fail`).toBeGreaterThan(0);
-    for (const shipped of mustFlag) {
-      expect(presents([shipped], 0), `must flag: ${shipped.trim().slice(0, 90)}…`).toBe(true);
-    }
-  });
-
-  it.each(CLAIMS)("$label: leaves the honest neighbour alone", ({ label, presents, mustAllow }) => {
-    expect(mustAllow.length, `${label} has no must-allow control — nothing stops it over-reaching`).toBeGreaterThan(0);
-    for (const honest of mustAllow) {
-      expect(presents([honest], 0), `must allow: ${honest.trim().slice(0, 90)}…`).toBe(false);
-    }
-  });
-
-  it("a fenced code sample and a search-keyword array are not prose", () => {
-    const stripped = proseOnly(["```json", '  "audit log": true', "```", "back to prose"]);
-    expect(stripped.slice(0, 3), "the fence and what is inside it").toEqual(["", "", ""]);
-    expect(stripped[3], "and prose after the fence is still scanned").not.toBe("");
-    expect(proseOnly(['  keywords: ["audit", "log"],'])[0]).toBe("");
-    // Inline code is NOT stripped: /help/billing-faq writes its tier names that way.
-    expect(proseOnly(["- `Operations` — from €399/month; advanced audit."])[0]).toContain("Operations");
-  });
-
-  it("accepts a derived disclosure and a written one, and refuses a tier below the gate", () => {
-    const discloses = (line: string) =>
-      derivedDisclosure("advancedAudit").test(line) ||
-      literalDisclosure(BACKEND_MINIMUM_PLAN.advancedAudit).test(line);
-
-    expect(discloses('  Included — {requiresPlan("advancedAudit")}'), "the derived form").toBe(true);
-    expect(discloses("The delivery log is included from the Operations plan up."), "written out").toBe(true);
-    expect(discloses("The delivery log is on the Growth plan and up."), "growth is below the gate").toBe(false);
-    // A nav label is not a disclosure — the word "Operations" is a sidebar group on nine pages.
-    expect(discloses("- **Operations → Log** — a date-grouped audit trail."), "nav label only").toBe(false);
-  });
-
-  it("exempts the hand-listed files plus every registered help page, and says why in code rather than in a comment", () => {
-    const relative = (f: string) => f.replace(process.cwd(), "").replace(/\\/g, "/");
-    const derived = new Set(DOCUMENT_HELP_PAGES);
-    // The derived set must really be there: an empty registry walk would exempt nothing and prove nothing.
-    expect(derived.size).toBeGreaterThanOrEqual(HELP_ARTICLES.length);
-    expect(EXEMPT.filter((f) => !derived.has(f)).map(relative)).toEqual([
-      "/src/lib/plans.ts",
-      "/src/app/(marketing)/changelog/page.tsx",
-      "/src/app/(marketing)/privacy/page.tsx",
-      "/src/app/(marketing)/dpa/page.tsx",
-      "/src/app/(home)/page.tsx",
-      "/src/app/(marketing)/how-it-works/page.tsx",
-      "/src/app/(marketing)/security/page.tsx",
-    ]);
-    expect(EXEMPT.filter((f) => derived.has(f))).toEqual([...derived]);
-    // Both must really exist; an exemption for a moved file is an exemption for nothing.
-    for (const file of EXEMPT) expect(() => readFileSync(file, "utf8")).not.toThrow();
   });
 });
 

@@ -69,9 +69,9 @@ export interface Plan {
    *
    * ── Why this exists ──────────────────────────────────────────────────────────
    *
-   * Gates are MINIMUM-plan, so Integration and Distributor both include `AdvancedAudit` (and,
-   * until plan 13b deleted those two gates, `Cxml` and `BulkMapping`). Their cards listed none of
-   * them: Integration named neither cXML nor
+   * Gates are MINIMUM-plan, so Integration and Distributor both included `Cxml`, `BulkMapping`
+   * and advanced audit (plan 13b deleted the first two gates, plan 14 the third). Their cards
+   * listed none of them: Integration named neither cXML nor
    * bulk mapping, Distributor named neither cXML nor advanced audit. A buyer reading the page
    * left to right saw the €1,499 tier apparently LOSE capabilities the €399 tier has. The
    * bullets were not false — they were incomplete, which on a comparison table is the same
@@ -221,9 +221,9 @@ export const PLANS: Plan[] = [
       // The built-in checks (DocumentChecks in the backend) run on every document on every plan,
       // so that is the honest wording.
       "Field mapping + built-in order checks",
-      // Two audit surfaces, one per tier: the per-order trail (GET /api/documents/{id}/history,
-      // `DocumentsController.History`) is ungated and on every plan; the org-wide delivery log
-      // (GET /api/audit) is gated on BillingFeature.AdvancedAudit, minimum Operations.
+      // Both audit surfaces are ungated and on every plan: the per-order trail
+      // (GET /api/documents/{id}/history, `DocumentsController.History`) and the workspace-wide
+      // activity list (GET /api/audit), which plan 14 opened to every plan.
       "Per-order audit trail",
     ],
     inheritsFrom: "pilot",
@@ -264,7 +264,6 @@ export const PLANS: Plan[] = [
     features: [
       "500 documents/month",
       "10 suppliers",
-      "Advanced audit trail",
     ],
     inheritsFrom: "growth",
     cta: { label: "Upgrade to Operations", href: SIGN_UP },
@@ -301,10 +300,11 @@ export const PLANS: Plan[] = [
     // list itself. Integration's real differentiators are volume, suppliers and onboarding; the
     // card now says only that.
     //
-    // The channels bullet and "Advanced audit trail" are now carried by
-    // `inheritsFrom: "operations"`. Listing them again was not what made this card honest — what
-    // made it DIShonest was listing those two and silently dropping cXML and bulk mapping, which
-    // Integration then also included (gates are minimum-plan; plan 13b deleted both gates). A buyer comparing €399 to €999 saw the
+    // The channels bullet is now carried by `inheritsFrom: "operations"` (the "Advanced audit
+    // trail" bullet went when plan 14 opened the workspace log to every plan). Listing them again
+    // was not what made this card honest — what made it DIShonest was listing those two and
+    // silently dropping cXML and bulk mapping, which Integration then also included (gates are
+    // minimum-plan; plan 13b deleted both gates). A buyer comparing €399 to €999 saw the
     // dearer tier lose two capabilities. Integration's real differentiators are volume,
     // suppliers, and onboarding; the two numbers sit on the fixed axis every card shares.
     features: [
@@ -343,7 +343,7 @@ export const PLANS: Plan[] = [
     // Channels come from `inheritsFrom: "integration"`. This card used to list them and bulk
     // mapping, and omit cXML and advanced audit — all of which Distributor included — so the
     // €1,499 tier read as thinner than the €399 one. Plan 13b deleted the cXML and bulk mapping
-    // gates; advanced audit is the one left.
+    // gates, and plan 14 the advanced audit gate.
     features: [
       "2,500 documents/month",
       "30 suppliers",

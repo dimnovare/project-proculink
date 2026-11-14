@@ -13,7 +13,7 @@
 // CLAUDE.md §11.5: *a capability may only be listed on a tier if the backend really gates it
 // there.* The corollary is easy to miss and shipped repeatedly — **a gated capability
 // presented with no tier at all reads as included on every plan.** The backend gate table is
-// now two rows (`AdvancedAudit`, `Sso`); every other capability formerly gated is open on
+// now one row, presentation-only `Sso`; every other capability formerly gated is open on
 // every plan, so copy must not name a tier for it.
 //
 // The obvious repair — type "Operations plan and up" into six help pages — creates six
@@ -31,7 +31,6 @@ import { DOCUMENT_PLAN_IDS, PLAN_BY_ID, PLANS, type PlanId } from "@/lib/plans";
  * type checker: a typo'd tier is a compile error, not a runtime lookup of `undefined`.
  */
 export const MINIMUM_PLAN = {
-  advancedAudit: "operations",
   // Clerk *can* deliver SSO and the flag exists, but ProcuLink exposes no Settings surface
   // for it, so it is deliberately unsold. See the note on the Enterprise card in plans.ts.
   sso: "enterprise",
@@ -39,12 +38,7 @@ export const MINIMUM_PLAN = {
 
 export type GatedCapability = keyof typeof MINIMUM_PLAN;
 
-/** The plan id a capability starts on — `"operations"`. */
-export function minimumPlanId(capability: GatedCapability): PlanId {
-  return MINIMUM_PLAN[capability];
-}
-
-/** The plan's display name — `"Operations"`. Use this when writing prose around it. */
+/** The plan's display name — `"Enterprise"`. Use this when writing prose around it. */
 export function minimumPlanName(capability: GatedCapability): string {
   return PLAN_BY_ID[MINIMUM_PLAN[capability]].name;
 }
@@ -98,7 +92,7 @@ function sharedMinimumPlan(capabilities: readonly GatedCapability[]): PlanId {
 
 /**
  * The standard disclosure clause used across `/formats` and the help articles —
- * `"Operations plan and up"`.
+ * `"Enterprise plan and up"`.
  *
  * One phrasing everywhere is deliberate. A reader who has met it once on `/formats` reads it
  * the same way in a help table, and `gatedCapabilityClaims.test.ts` can recognise a real
@@ -109,9 +103,4 @@ function sharedMinimumPlan(capabilities: readonly GatedCapability[]): PlanId {
  */
 export function requiresPlan(...capabilities: [GatedCapability, ...GatedCapability[]]): string {
   return `${PLAN_BY_ID[sharedMinimumPlan(capabilities)].name} plan and up`;
-}
-
-/** A whole sentence, for prose that needs one — `"Included from the Operations plan up."` */
-export function includedFromPlan(capability: GatedCapability): string {
-  return `Included from the ${minimumPlanName(capability)} plan up.`;
 }

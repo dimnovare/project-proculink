@@ -13,7 +13,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { getAuditLog, getBillingStatus, isApiMockMode, type AuditLogEntry } from "@/lib/api-client";
+import { getAuditLog, isApiMockMode, type AuditLogEntry } from "@/lib/api-client";
 import {
   AUDIT_ACTION_FACTS,
   auditActionFact,
@@ -25,8 +25,6 @@ import {
 } from "@/lib/auditActionManifest";
 import { REACH_SENTENCE, auditActionRemedy } from "@/lib/auditActionRemedy";
 import { EmptyState } from "./EmptyState";
-import { useDocumentEngine } from "@/hooks/useDocumentEngine";
-import { isPlanGate, PlanGateNotice } from "./PlanGateNotice";
 import { Card } from "./layout/Card";
 import { PageHeader } from "./layout/PageHeader";
 import { PageShell } from "./layout/PageShell";
@@ -500,12 +498,6 @@ function DesktopColHeader() {
   );
 }
 
-/** Own component so the engine and plan probes run only when the log is actually refused. */
-function LogGateNotice({ error }: { error: unknown }) {
-  const { data: billing } = useQuery({ queryKey: ["billing-status"], queryFn: getBillingStatus, staleTime: 60_000, retry: false });
-  return <PlanGateNotice error={error} capability="The full delivery log" documentEngine={useDocumentEngine()} planId={billing?.plan} />;
-}
-
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function CrossingsLog() {
@@ -555,7 +547,7 @@ export function CrossingsLog() {
     setPage(1);
   }, [orderFilter, filter, search]);
 
-  const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
+  const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ["audit", pageSize, page],
     queryFn:  () => getAuditLog(page, pageSize),
     enabled:  !isApiMockMode,
@@ -563,11 +555,6 @@ export function CrossingsLog() {
     // flash the skeleton and re-collapse every expanded row.
     placeholderData: keepPreviousData,
   });
-
-  // Below Operations the API refuses this page outright (403
-  // `advanced_audit_requires_operations`). That is not a network fault, so it must not read
-  // as one — and Retry could only 403 again.
-  const planGated = isError && isPlanGate(error);
 
   const ALL_ENTRIES: LogEntry[] = isApiMockMode
     ? MOCK_LOG
@@ -810,11 +797,6 @@ export function CrossingsLog() {
         </Card>
       )}
 
-      {/* Plan-gated state — an upgrade prompt, not a retry loop */}
-      {planGated && !isApiMockMode && (
-        <LogGateNotice error={error} />
-      )}
-
       {/* Error state.
           role="alert" — this card REPLACES the log, so it is the only thing on
           screen, and it shipped as a silent <div>: a screen-reader user who
@@ -829,7 +811,7 @@ export function CrossingsLog() {
           equally have been refused server-side, and "check your connection" sends
           someone to reset a router over a 500. It now says what is and is not
           true, the way the health page's dead-letter error does. */}
-      {isError && !planGated && !isApiMockMode && (
+      {isError && !isApiMockMode && (
         <Card role="alert" pad="48px 24px" style={{ textAlign: "center" }}>
           <div style={{ fontSize: 28, color: "var(--danger)", marginBottom: 10 }} aria-hidden>⚠</div>
           <p style={{ fontSize: 13.5, fontWeight: 600, color: "var(--danger)", marginBottom: 6 }}>
