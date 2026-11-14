@@ -415,7 +415,7 @@ numbers moved to the table below.)
 
 ### Primitives (extend shadcn/ui, Bridge-styled)
 
-- `<Button>` — `bridge/DSPrimitives.tsx`. Variants: `primary` (navy bg) / `secondary` / `ghost` / `danger` / `ai` (violet). Never gradient.
+- `<Button>` — `bridge/DSPrimitives.tsx`. Variants: `primary` (navy: makes a change real) / `send` (green: sends a document) / `blue` (brings something in) / `secondary` / `ghost` (quiet) / `danger` / `ai` (violet). One filled button per screen. Never gradient.
 - `<AiSuggestion>` — `bridge/DSPrimitives.tsx`. Violet left-bar, "AI" tag, Accept / Edit / Reject. Confidence always visible.
 - `<CommandPalette>` — `bridge/CommandPalette.tsx`. cmd+K filter over navigation actions and the Advanced view's mapper commands. (The order, supplier, buyer and sample-order groups went with the order product, 2026-11-13.)
 - `<EmptyState>` — `bridge/EmptyState.tsx`. Illustration-free. Headline + sub + primary action.

@@ -151,12 +151,14 @@ export default {
           // silently produced nothing while `var(--amber-text)` worked. #B36D14
           // on --amber-soft is 3.65:1 (fails AA text); #8A5310 is 5.62:1.
           text:    "#8A5310",
+          wash:    "#FFFCF4",
           // Amber for NAVY chrome — #8A5310 is only 2.93:1 on --navy-inset.
           bright:  "#E0B13A",   // 9.26:1 on --navy-inset
         },
         danger: {
           DEFAULT: "#B43838",
           soft:    "#FAE6E6",
+          text:    "#A42F2F",
         },
         ai: {
           DEFAULT: "#6F4FCE",   // ONLY for AI-generated content

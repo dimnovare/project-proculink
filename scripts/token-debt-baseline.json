@@ -34,7 +34,7 @@
   "src/components/bridge/ConfidenceChip.tsx": 10,
   "src/components/bridge/CrossingsLog.tsx": 5,
   "src/components/bridge/DependencyUnavailable.tsx": 7,
-  "src/components/bridge/DSPrimitives.tsx": 16,
+  "src/components/bridge/DSPrimitives.tsx": 9,
   "src/components/bridge/EmptyState.tsx": 5,
   "src/components/bridge/ErrorBoundary.tsx": 14,
   "src/components/bridge/HelpSlideover.tsx": 3,

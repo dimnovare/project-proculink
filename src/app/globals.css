@@ -100,11 +100,15 @@
      TEXT so it stays readable; --amber itself stays for dots/borders/strokes
      (non-text, ≥3:1). Mirrors the --ink-faint a11y darkening. Founder-approved. */
   --amber-text:        #8A5310;
+  /* The fill of a value that needs a look. */
+  --amber-wash:        #FFFCF4;
   /* Amber legible on NAVY chrome. --amber-text is a dark amber tuned for light
      surfaces; on --navy-inset it collapses to 2.93:1, while this is 9.26:1.
      Same family as --brand-blue-bright / --brand-green-bright. */
   --amber-bright:      #E0B13A;
   --danger:            #B43838;
+  /* Red words on the soft red tint. */
+  --danger-text:       #A42F2F;
   --danger-soft:       #FAE6E6;
   /* The 1px edge of a danger-soft panel — the missing sibling of --ai-border.
      Its absence is why every red notice in the app hand-rolled its own edge:
@@ -172,8 +176,8 @@
   /* ── Unified page-layout tokens ────────────────────────────────────────────
      See docs/design-system/11-unified-page-rules.md for the canonical page
      primitives (PageShell / PageHeader / Card / MobileListRow) that consume
-     these. Primary in-app action color = var(--brand-green); neutral CTA =
-     var(--navy). The page gutter ramps to 24px (sm) → 34px (lg) via the
+     these. The main button is navy (it makes a change real); the Send
+     button is green; a bring-in button is blue. The page gutter ramps to 24px (sm) → 34px (lg) via the
      PageShell component's responsive padding (px-4 sm:px-6 lg:px-[34px]). */
   --tap-min:          44px;     /* minimum interactive hit area on mobile */
   --container-narrow: 1040px;   /* page content max-width — forms / single-column */

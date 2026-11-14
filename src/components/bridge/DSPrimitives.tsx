@@ -12,7 +12,7 @@ import * as React from "react";
    ===================================================================== */
 
 /* -------- Button -------- */
-type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "ai" | "blue" | "green" | "send" | "navy";
+type ButtonVariant = "primary" | "send" | "blue" | "secondary" | "ghost" | "danger" | "ai";
 type ButtonSize = "sm" | "md" | "lg";
 
 type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -22,34 +22,27 @@ type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 const BUTTON_BASE =
-  "inline-flex items-center justify-center gap-2 rounded font-medium border whitespace-nowrap transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
+  "inline-flex items-center justify-center gap-2 rounded-md font-semibold border whitespace-nowrap transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
 
 const BUTTON_VARIANT: Record<ButtonVariant, string> = {
-  // In-app PRIMARY action color = brand-green. See
-  // docs/design-system/11-unified-page-rules.md. (Use variant="secondary" +
-  // bg-navy only for the rare neutral/navy CTA.) Solid fills under white text
-  // use brand-green-btn (#297F34, ≈4.6:1 AA) — #2E8E3A was 4.16:1 with white.
-  primary:   "bg-brand-green-btn text-white border-transparent hover:bg-brand-green-deep",
-  secondary: "bg-surface text-ink border-border hover:bg-surface-2 hover:border-border-strong",
+  // Navy makes a change real (save, create, publish); green sends a document;
+  // blue brings something in; ghost is the quiet button. Green fills use
+  // brand-green-btn (4.6:1 AA under white text).
+  primary:   "bg-navy text-white border-transparent hover:bg-navy-surface",
+  send:      "bg-brand-green-btn text-white border-transparent hover:bg-brand-green-deep",
+  blue:      "bg-brand-blue text-white border-transparent hover:bg-brand-blue-deep",
+  secondary: "bg-surface text-ink border-border-strong hover:bg-surface-2",
   ghost:     "bg-transparent text-ink-muted border-transparent hover:bg-surface-2 hover:text-ink",
   danger:    "bg-danger text-white border-transparent hover:opacity-90",
   ai:        "bg-ai text-white border-transparent hover:opacity-90",
-  // tokens.css .btn-blue / .btn-green — both now use the canonical brand-green (AA button fill)
-  blue:      "[background:#297F34] text-white border-transparent hover:[background:#1E6D29]",
-  green:     "[background:#297F34] text-white border-transparent hover:[background:#1E6D29]",
-  // Design-system v1 named variants: `send` = the green supplier CTA, `navy` = neutral dark CTA.
-  send:      "bg-brand-green-btn text-white border-transparent hover:bg-brand-green-deep",
-  navy:      "bg-navy text-white border-transparent hover:[background:#14253D]",
 };
 
 // Mobile-first hit area: every size is >=44px tall on small screens (--tap-min)
-// and shrinks to its dense desktop height at sm:. Visible desktop heights are
-// unchanged (sm 27 / md 32 / lg 38).
-const BUTTON_SIZE: Record<ButtonSize, string> = {
-  // tokens.css .btn.sm / .btn (default) / .btn.lg
-  sm: "h-[44px] sm:h-[27px] px-2.5 text-[12px]",
-  md: "h-[44px] sm:h-[32px] px-3   text-[12.5px]",
-  lg: "h-[44px] sm:h-[38px] px-4   text-[13.5px]",
+// and shrinks to its dense desktop height at sm:. Text is never under 12.5px.
+export const BUTTON_SIZE: Record<ButtonSize, string> = {
+  sm: "h-[44px] sm:h-8 px-3 text-[12.5px]",
+  md: "h-[44px] sm:h-10 px-3.5 text-[14px]",
+  lg: "h-[44px] px-[18px] text-[14px]",
 };
 
 export function Button({
@@ -83,19 +76,17 @@ const PILL_TONE: Record<PillTone, { bg: string; fg: string }> = {
   blue:    { bg: "var(--brand-blue-soft)",  fg: "var(--brand-blue-deep)" },
   green:   { bg: "var(--brand-green-soft)", fg: "var(--brand-green-deep)" },
   amber:   { bg: "var(--amber-soft)",       fg: "var(--amber-text)" },
-  danger:  { bg: "var(--danger-soft)",      fg: "var(--danger)" },
+  danger:  { bg: "var(--danger-soft)",      fg: "var(--danger-text)" },
   ai:      { bg: "var(--ai-soft)",          fg: "var(--ai)" },
 };
 
 export function Pill({
   tone = "neutral",
-  sm = false,
   icon,
   children,
   className,
 }: {
   tone?: PillTone;
-  sm?: boolean;
   icon?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
@@ -109,8 +100,9 @@ export function Pill({
       style={{
         background: t.bg,
         color: t.fg,
-        fontSize: sm ? 10.5 : 11.5,
-        padding: sm ? "1.5px 7px" : "2.5px 9px",
+        fontSize: 12.5,
+        padding: "2px 9px",
+        minHeight: 24,
         lineHeight: 1.3,
       }}
     >
