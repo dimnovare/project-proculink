@@ -65,11 +65,11 @@ function visibleText(root: HTMLElement) {
     .forEach((el) => el.remove());
   const parts: string[] = [];
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-  // A list item, card or paragraph ends a sentence: the shape guards read a window of text, and
-  // without a boundary two unrelated cards on /pricing read as one sentence.
+  // A list item or card ends a sentence; a heading or paragraph does not, because a promise can
+  // span them. Without a boundary, unrelated cards on /pricing read as one sentence.
   let prevBlock: Element | null = null;
   for (let n = walker.nextNode(); n; n = walker.nextNode()) {
-    const block = n.parentElement?.closest("li,article,p,h1,h2,h3,h4") ?? null;
+    const block = n.parentElement?.closest("li,article") ?? null;
     if (parts.length && block !== prevBlock) parts.push(".");
     prevBlock = block;
     parts.push(n.textContent ?? "");
@@ -1001,5 +1001,17 @@ describe("legal pages after the pilot review", () => {
     expect(body).toMatch(/nothing is deleted automatically/i);
     expect(body).not.toMatch(/life of the account/i);
     expect(body).not.toMatch(/files are removed once/i);
+  });
+});
+
+describe("visibleText sentence breaks", () => {
+  it("still catches a residency promise split across a heading and a paragraph", () => {
+    const body = text(
+      <section>
+        <h3>All order data</h3>
+        <p>stays in the EU</p>
+      </section>,
+    );
+    expect(body).toMatch(ABSOLUTE_RESIDENCY_PROMISE);
   });
 });
