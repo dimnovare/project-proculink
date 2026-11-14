@@ -1,8 +1,7 @@
 // mapperCommands — the decoupled bridge between the Command Palette (Cmd+K) and the
 // mounted ThreePaneMapper. The palette has no handle on the mapper's React tree, so power
-// commands ("Jump to field", "Add a transform", "Show standards mapping", "Add a custom
-// canonical field") are delivered as a window-dispatched
-// CustomEvent("plk:mapper"). The mapper, wherever it is mounted (since 2026-11-13 only the
+// commands ("Jump to field", "Jump to a field's transform") are delivered as a
+// window-dispatched CustomEvent("plk:mapper"). The mapper, wherever it is mounted (since 2026-11-13 only the
 // flow's Advanced view), listens for that event and acts on the field it currently has
 // selected/hovered. Keeping the command list here (pure, dispatch-injected) means it is
 // unit-testable without a DOM and the palette stays a thin caller.

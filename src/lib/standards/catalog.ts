@@ -22,8 +22,10 @@
 //   UBL 2.1 Order ....... parse supported · transform supported  (UblOrderParser / UblOrderTransformService, registered)
 //   Peppol BIS Order 3.0  parse partial · transform PLANNED — a BIS Order file IS a UBL 2.1 Order, so it parses;
 //                         BIS-conformant OUTPUT does not exist and must not be advertised (see the row's conformance note)
-//   Peppol BIS Billing 3.0 (INVOICE, not an order) parse none · transform partial — nothing reads a UBL
-//                         invoice into fields (plan 13b deleted UblInvoiceParser); the generator
+//   Peppol BIS Billing 3.0 (INVOICE, not an order) parse none · transform partial — no structural UBL
+//                         invoice reader (plan 13b deleted UblInvoiceParser) and no backend test that
+//                         its fields are read; an .xml file is read only as text by AI, behind the
+//                         per-org more-formats flag; the generator
 //                         emits the profile identifiers; the rule check runs in the validator sidecar behind the
 //                         per-org flag (API + the flow Standards tab), not by network acceptance.
 //   SAP IDoc ORDERS05 ... parse supported · transform none     (IDocOrders05Parser registered; hand-rolled XML, no EdiFabric; INBOUND only — no IDoc output; live-verified on prod 2026-06-08)

@@ -499,7 +499,7 @@ user-facing heading.
 | PDF rendering | `pdfjs-dist` — the order review screen's document view (`src/components/bridge/document/PdfDocumentView.tsx`). A JS renderer, not an iframe: `frame-src` in `src/lib/security/csp.ts` allows neither `blob:` nor the API origin, and widening it was considered and rejected. |
 | Spreadsheets | **No grid library.** CSV and XLSX are read in-browser by `src/lib/sheetPreview.ts` — `fflate` for the OOXML unzip, the platform `DOMParser` for the three XML parts — and laid out as a plain table. |
 | Syntax highlighting | **None.** The live output preview marks the just-changed line via `src/components/bridge/mapper/previewHighlightModel.ts`; the document view renders numbered monospace lines. |
-| Mock data | `USE_MOCK` in `src/lib/api/core.ts` — an in-memory fixture set in `src/lib/api-client.ts` (4 orders, `ord-001`…`ord-004`). MSW exists under `src/mocks/` but is a **separate, off-by-default** layer: it needs `NEXT_PUBLIC_MSW=true` and points at its own base URL. |
+| Mock data | `USE_MOCK` in `src/lib/api/core.ts` — an in-memory fixture set in `src/lib/api-client.ts` (5 orders, `ord-001`…`ord-005`). The separate, off-by-default MSW layer that lived under `src/mocks/` (`NEXT_PUBLIC_MSW=true`) is gone: `src/mocks/` has no tracked files and nothing in `src/` reads `NEXT_PUBLIC_MSW` (checked 2026-11-14). |
 | Package manager | **bun** (never npm install) |
 | Hosting | Vercel (frontend) + Railway (backend, .NET 8) |
 
@@ -564,7 +564,7 @@ Frontend must reflect:
 
 - Pilot is not free forever. It becomes view-only after 14 days or 20 orders.
 - A view-only Pilot can still read previous orders/mappings/outputs and billing,
-  but cannot upload, transform, deliver, or add suppliers.
+  but cannot upload, transform, deliver, or add flows.
 - **Cancelling a paid plan has the same effect, and `/pricing` must say so.** Every ingest
   path refuses once the subscription ends — uploads, inbound email, IMAP, SFTP, S3, and the
   REST ingress API — and nothing is queued for later, so orders simply stop arriving.
@@ -600,7 +600,11 @@ The frontend's copy for each is in `src/lib/documentRefusals.ts`. Until plan 13b
 `supplier_limit_reached` came from `POST /api/suppliers` and the order codes from
 `POST /api/orders/upload`; both endpoints are gone, and nothing emits `supplier_limit_reached` now.
 
-Required billing copy — **the two banners below are DERIVED, not literals.** This list used
+Required billing copy. (2026-11-14, plan 13b: the rest of this paragraph and the next
+describe the supplier-limit banner, which is gone — see its entry in the list below. The
+document-limit refusal in the list is a literal in `src/lib/documentRefusals.ts`; only the
+trial-expired CTA still names a tier. The rule still holds for any banner that names a tier
+or an allowance.) **A banner that names a tier or an allowance is DERIVED, not a literal.** This list used
 to print `Your plan includes 1 supplier. Upgrade to Growth to add more supplier flows.` as
 mandated copy, and `UploadWorkbench.tsx` shipped it hardcoded for every tier: a €1,499/mo
 Distributor org with 30 supplier flows was told it had one and should upgrade to the €149

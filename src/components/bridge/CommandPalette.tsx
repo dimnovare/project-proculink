@@ -56,10 +56,10 @@ function buildIndex(router: ReturnType<typeof useRouter>): CmdItem[] {
   return [
     // ── Actions ────────────────────────────────────────
     { id: "a1",  group: "Actions", icon: "↑", label: "Upload document",      sub: "Open upload workbench",  action: () => router.push("/upload"),           color: "#0F4FA8" },
-    { id: "a9",  group: "Actions", icon: "▤", label: "Deliveries",           sub: "Every delivery attempt — the delivery log", action: () => router.push("/operations/log"),   color: "#0F4FA8" },
+    { id: "a9",  group: "Actions", icon: "▤", label: "Deliveries",           sub: "Every delivery — the activity log", action: () => router.push("/operations/log"),   color: "#0F4FA8" },
     { id: "a7",  group: "Actions", icon: "⚙", label: "Settings",             sub: "Workspace settings",     action: () => router.push("/settings"),         color: "#0F4FA8" },
     { id: "a12", group: "Actions", icon: "?", label: "Open help",            sub: "Help docs",              action: () => router.push("/help"),             color: "#0F4FA8" },
-    // ── Mapper power commands (a13..a16) ────────────────────
+    // ── Mapper power commands (a13..a14) ────────────────────
     // These dispatch onto the window "plk:mapper" bus; the mounted MapperWorkbench
     // (a flow output's Advanced view) listens and acts on its focused field.
     // They show always (progressive disclosure — discoverable for anyone who needs them);
