@@ -189,22 +189,23 @@ export default defineConfig({
     // numbers and call the fix a failure.
     // ── Journey projects ──────────────────────────────────────────────────────
     //
-    // The scenario specs — first run to delivered, upload to workshop, error
-    // recovery, sample order — all ran at 1280 only. They are the new-client and
-    // new-supplier paths, i.e. the flows that decide whether a pilot customer
-    // gets anywhere, and they walk screens whose DOM forks by breakpoint.
+    // The scenario specs ran at 1280 only. They are the new-client paths, i.e. the
+    // flows that decide whether a pilot customer gets anywhere, and they walk
+    // screens whose DOM forks by breakpoint. Only error-recovery survives the
+    // move to the document screens (the legacy journeys were deleted with their
+    // screens); add a surviving journey spec to the testMatch below.
     //
-    // Scoped by testMatch to those four specs, so this is roughly a dozen tests
-    // per width, not the whole suite three more times.
+    // Scoped by testMatch, so this is a handful of tests per width, not the
+    // whole suite three more times.
     {
       name: "journey-mobile",
       use: { ...devices["Desktop Chrome"], viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true },
-      testMatch: /(first-run-to-delivered|upload-to-workshop|error-recovery|sample-order-happy-path)\.spec\.ts/,
+      testMatch: /error-recovery\.spec\.ts/,
     },
     {
       name: "journey-tablet",
       use: { ...devices["Desktop Chrome"], viewport: { width: 768, height: 1024 }, hasTouch: true },
-      testMatch: /(first-run-to-delivered|upload-to-workshop|error-recovery|sample-order-happy-path)\.spec\.ts/,
+      testMatch: /error-recovery\.spec\.ts/,
     },
 
     {
@@ -269,6 +270,11 @@ export default defineConfig({
     timeout: 120_000,
     reuseExistingServer: !process.env.CI,
     env: {
+      // The sweep compiles ~50 routes x 3 widths in one `next dev`. Next restarts itself at
+      // 80% of its heap ("approaching the used memory threshold") and the route requested
+      // during the restart fails with ERR_EMPTY_RESPONSE. Next's own default heap is 50% of
+      // RAM (8 GB on the 16 GB CI runner); CI gets 75%. Locally Next's default stands.
+      ...(process.env.CI && !process.env.NODE_OPTIONS ? { NODE_OPTIONS: "--max-old-space-size=12288" } : {}),
       PROCULINK_QA_BYPASS_AUTH: "true",
       // Browser-visible twin of the backend bypass: lets the Next client enable
       // data queries without a Clerk session (see useQueriesEnabled / isQaBypass).

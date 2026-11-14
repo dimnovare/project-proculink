@@ -15,11 +15,11 @@ import { documentRefusalMessage } from "@/lib/documentRefusals";
 import { documentStatus } from "@/lib/documentStatusManifest";
 import { saveBlob } from "@/lib/saveBlob";
 import { LookupMisses } from "./LookupMisses";
-import { FORMATS } from "./OutputEditor";
+import { outputTypeLabel } from "./OutputEditor";
 import { destinationName, Failed, Quiet } from "./states";
 
 // An unknown token shows as itself, never as a success word.
-const CHANNELS = new Map([["", "Download"], ["email", "Email"], ["http", "Web address"], ["sftp", "SFTP"], ["ftps", "FTPS"]]);
+const CHANNELS = new Map([["", "Download"], ["email", "Email"], ["http", "Web address"], ["sftp", "SFTP"], ["ftps", "FTPS"], ["s3", "S3 bucket"], ["google_drive", "Google Drive"], ["google_sheets", "Google Sheets"]]);
 const STATUSES = new Map([
   ["queued", "Waiting"], ["delivering", "Sending"], ["delivered", "Delivered"],
   ["stored", "Ready to download"], ["failed", "Will retry"], ["dead_letter", "Couldn't deliver"],
@@ -77,10 +77,10 @@ function OutputRow({ o, flowId, documentId, flowFields, destinations }: {
           <span className="text-[13px] font-medium text-ink">{o.name}</span>
           {o.sendWhen && <span className="text-[12px] text-ink-muted">{describeSendWhen(o.sendWhen, flowFields)}</span>}
         </span>
-        <span className="text-[12px] text-ink-muted">{Object.hasOwn(FORMATS, o.format) ? FORMATS[o.format as keyof typeof FORMATS] : o.format} · {destinationName(destinations, o.destinationId)}</span>
+        <span className="text-[12px] text-ink-muted">{outputTypeLabel(o)} · {destinationName(destinations, o.destinationId)}</span>
         <span className="flex gap-2">
           <Button size="sm" variant="secondary" loading={preview.isPending} onClick={() => preview.mutate()}>Preview</Button>
-          <Link href={`/flows/${flowId}/outputs/${o.id}/advanced?document=${documentId}`} className="inline-flex items-center rounded border border-border px-2.5 text-[12.5px] font-medium text-ink">Open in Advanced</Link>
+          {!o.standard && <Link href={`/flows/${flowId}/outputs/${o.id}/advanced?document=${documentId}`} className="inline-flex items-center rounded border border-border px-2.5 text-[12.5px] font-medium text-ink">Open in Advanced</Link>}
         </span>
       </div>
       {preview.isError && <StatusNotice tone="error">{documentRefusalMessage(preview.error)}</StatusNotice>}
@@ -114,7 +114,7 @@ export function DocumentOutputsPanel({ flowId, document: doc }: { flowId: string
 
   return (
     <Card edge="green" as="section" aria-labelledby="doc-outputs" className="min-w-0">
-      <div className="fixed inset-x-0 bottom-0 z-20 flex lg:mb-3 flex-wrap items-center justify-between gap-2 border-t border-border bg-surface p-3 lg:static lg:border-0 lg:bg-transparent lg:p-0">
+      <div data-testid="doc-send-bar" style={{ bottom: "var(--plk-bottom-inset, 0px)" }} className="fixed inset-x-0 z-20 flex lg:mb-3 flex-wrap items-center justify-between gap-2 border-t border-border bg-surface p-3 lg:static lg:border-0 lg:bg-transparent lg:p-0">
         <h2 id="doc-outputs" className="m-0 text-[13px] font-semibold text-ink">Outputs</h2>
         <Button variant="send" size="sm" className="min-h-11 lg:min-h-0" disabled={!canSend || saving} loading={send.isPending || saving} onClick={() => send.mutate()}>Send</Button>
         {send.isError && <div className="basis-full"><StatusNotice tone="error">{documentRefusalMessage(send.error)}</StatusNotice></div>}

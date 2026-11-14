@@ -477,7 +477,9 @@ jobs:
 
   test-e2e:
     name: Playwright e2e (mock mode)
-    runs-on: ubuntu-latest
+    # Pinned, not ubuntu-latest: latest became 26.04 on 2026-11-12, which Playwright
+    # does not support, and the visual baselines are rendered on 24.04.
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
       PROCULINK_QA_BYPASS_AUTH: 'true'
@@ -606,7 +608,7 @@ jobs:
   # (`--project=chromium`) never selects.
   test-a11y:
     name: Accessibility (axe-core + keyboard focus)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
       PROCULINK_QA_BYPASS_AUTH: 'true'
@@ -689,7 +691,7 @@ jobs:
   # pre-existing findings would be disabled within a week.
   test-responsive:
     name: Responsive sweep (390 / 768 / 1440)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
       PROCULINK_QA_BYPASS_AUTH: 'true'
@@ -744,7 +746,7 @@ jobs:
 
   test-visual:
     name: Visual regression (390 / 768 / 1440)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     env:
       PROCULINK_QA_BYPASS_AUTH: 'true'

@@ -155,6 +155,11 @@ export const KNOWN_DEEP_LINK_ONLY: Record<string, string> = {
 
   // ── /one-pager was the third entry; it was linked, then retired with the order-product
   //    copy (plan 12b) — see src/lib/retired-routes.ts.
+
+  "/settings/google-callback":
+    "Google's OAuth consent screen is the only referrer: the backend builds the redirect URI as " +
+    "{origin}/settings/google-callback in ProcuLink.Api/Services/Google/GoogleConnectService.cs " +
+    "(plan 9b, 2026-11-13), and a link to it from inside the app would start a callback with no code to exchange.",
 };
 
 /**

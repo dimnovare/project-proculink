@@ -105,6 +105,9 @@ const PROTOCOL_LABEL: Record<DeliveryProtocol, string> = {
   smtp: "Email (SMTP)",
   erp_erply: "Erply ERP",
   erp_directo: "Directo ERP",
+  s3: "S3 bucket",
+  google_drive: "Google Drive",
+  google_sheets: "Google Sheets",
 };
 
 // Connections offered in the New-supplier modal — the REAL protocols the delivery

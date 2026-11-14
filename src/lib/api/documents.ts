@@ -3,12 +3,13 @@
  *
  * Mirrors `ProcuLink.Api/Contracts/DocumentContracts.cs` and `ProcuLink.Core/Documents/*`
  * (camelCase JSON). Status and type values stay plain strings so a value from a newer backend is
- * never coerced. No mock fixtures yet: in mock mode every call throws.
+ * never coerced. In mock mode every call is served by `mockEngine.ts`.
  *
  * Paths are backticked on purpose so `src/test/endpoint-reachability.test.ts` can see them.
  */
 
 import { API_BASE_URL, authHeader, fetchWithTimeout, isApiMockMode } from "./core";
+import { mockEngineFetch } from "./mockEngine";
 import { readRefusal } from "./refusal";
 import type { OutputNodeTemplate } from "./types";
 
@@ -38,6 +39,8 @@ export interface Flow {
   formatsOn?: boolean;
   /** Outputs can be proposed from the receiving system's documentation. Absent means off. */
   docsOutputsOn?: boolean;
+  /** E-invoice outputs that need the validator sidecar (Peppol BIS, EN 16931 CII and XRechnung) are offered. Absent means off. */
+  peppolOn?: boolean;
   /** The live version number; null means never published. Only the single-flow response carries these three. */
   publishedVersion?: number | null;
   hasChanges?: boolean;
@@ -87,6 +90,8 @@ export interface FlowOutput {
   id: string; flowId: string; name: string; format: string; tableKey: string | null; destinationId: string | null;
   template: OutputNodeTemplate; createdAt: string; sendWhen: SendWhen | null;
   layout?: OutputLayout | null; hasLogo?: boolean;
+  /** The standard this output follows (a catalog id), and the meanings it needs; null for a template output. */
+  standard?: string | null; needs?: string[] | null;
 }
 export type OutputLayout = { title?: string | null; header?: string | null; footer?: string | null };
 export type SendWhenOp = "is" | "is_not" | "contains";
@@ -104,10 +109,12 @@ export type Lookup = {
 export interface OutputRequest {
   name: string; format: string; tableKey?: string | null; destinationId?: string | null; template?: OutputNodeTemplate | null;
   sendWhen?: SendWhen | null; layout?: OutputLayout | null;
+  /** Create-only: the backend ignores it on update. */
+  standard?: string | null;
 }
 export type DraftCite = { where: string; quote: string };
 export type DraftLeaf = {
-  path: string; fieldKey: string | null; by: "name" | "ai" | "docs" | null; confidence: number | null; required?: boolean; cite?: DraftCite | null;
+  path: string; fieldKey: string | null; by: "name" | "ai" | "meaning" | "docs" | null; confidence: number | null; required?: boolean; cite?: DraftCite | null;
 };
 export type OutputDraft = {
   name: string; format: string; tableKey: string | null; template: OutputNodeTemplate; leaves: DraftLeaf[]; notes: string[];
@@ -123,7 +130,7 @@ const UPLOAD_TIMEOUT_MS = 60_000;
 
 /** One request path for JSON, multipart and binary: a FormData body must not get a JSON content type. */
 async function apiFetch<T>(path: string, init?: RequestInit, timeoutMs?: number, as: "json" | "blob" = "json"): Promise<T> {
-  if (isApiMockMode) throw new Error("Flows are not available in mock mode yet.");
+  if (isApiMockMode) return mockEngineFetch<T>(path, init, as);
   const auth = await authHeader();
   const type = init?.body instanceof FormData ? {} : { "Content-Type": "application/json" };
   const res = await fetchWithTimeout(
@@ -226,6 +233,10 @@ export const previewOutput = (documentId: string, outputId: string, opts?: { pub
     ...(opts?.template ? { body: json({ template: opts.template }) } : {}),
   });
 
+export interface OutputCheck { status: "passed" | "failed" | "unavailable"; issues: { ruleId: string; severity: "error" | "warning" | "info"; message: string }[] }
+export const checkOutput = (flowId: string, outputId: string, documentId: string) =>
+  apiFetch<OutputCheck>(`/flows/${seg(flowId)}/outputs/${seg(outputId)}/check?documentId=${seg(documentId)}`, { method: "POST" });
+
 export function uploadOutputLogo(flowId: string, outputId: string, file: File): Promise<void> {
   const form = new FormData();
   form.append("file", file);
@@ -241,7 +252,7 @@ export function outputFromDocumentation(flowId: string, file: File): Promise<Out
   form.append("file", file);
   return apiFetch<OutputDraft>(`/flows/${seg(flowId)}/outputs/from-documentation`, { method: "POST", body: form }, 180_000);
 }
-export const testOutput = (documentId: string, body: { format: string; tableKey: string | null; destinationId: string; template: OutputNodeTemplate }) =>
+export const testOutput = (documentId: string, body: { format: string; tableKey: string | null; destinationId: string; template: OutputNodeTemplate; standard?: string | null }) =>
   apiFetch<DestinationTestResult>(`/documents/${seg(documentId)}/outputs/test`, { method: "POST", body: json(body) });
 export const deleteOutputLogo = (flowId: string, outputId: string) =>
   apiFetch<void>(`/flows/${seg(flowId)}/outputs/${seg(outputId)}/logo`, { method: "DELETE" });

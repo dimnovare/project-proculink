@@ -134,7 +134,7 @@ test.describe("Security headers", () => {
   });
 
   test("protected app routes get the same headers as marketing", async ({ page }) => {
-    const response = await page.goto("/bridge");
+    const response = await page.goto("/documents");
     const headers = response!.headers();
     expect(headers["content-security-policy"]).toContain("frame-ancestors 'self'");
     expect(headers["x-content-type-options"]).toBe("nosniff");
@@ -157,7 +157,7 @@ test.describe("No CSP violations", () => {
     });
   }
 
-  const appRoutes = ["/bridge", "/inbox", "/upload", "/settings", "/library/suppliers"];
+  const appRoutes = ["/documents", "/flows", "/upload", "/settings", "/lookups"];
 
   for (const route of appRoutes) {
     test(`app route ${route} renders with no policy violation`, async ({ page }) => {

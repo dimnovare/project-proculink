@@ -68,6 +68,7 @@ export function AdvancedView({ flowId, outputId, documentId }: { flowId: string;
       <div className="hidden lg:block">
         {failed ? <Failed error={failed.error} retry={() => failed.refetch()} />
           : missing ? <Quiet>This output no longer exists.</Quiet>
+          : output?.standard ? <Quiet>This output follows a standard, so there is nothing to map.</Quiet>
           : !adapter || !output ? <Quiet>Loading…</Quiet>
           : (
             <div data-testid="advanced-workbench">

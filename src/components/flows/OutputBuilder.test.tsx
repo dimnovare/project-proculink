@@ -48,4 +48,25 @@ describe("OutputBuilder", () => {
     expect(body.template.root.children[0].rule.canonicalField).toBe("ship_address");
     expect(body.template.root.children[0].rule.fixedValue).toBeUndefined();
   });
+
+  it("a standard is created at once and opens in the editor", async () => {
+    api.createOutput.mockResolvedValue({ id: "o", flowId: "f", name: "cXML", format: "xml", standard: "cxml-1-2", tableKey: null, destinationId: null, template, createdAt: "", sendWhen: null });
+    render(<QueryClientProvider client={new QueryClient()}><OutputBuilder flow={flow as never} onDone={() => {}} /></QueryClientProvider>);
+    fireEvent.click(screen.getByRole("tab", { name: "Standards" }));
+    fireEvent.click(screen.getByRole("button", { name: "Use cXML" }));
+    expect(await screen.findByText("Edit output")).toBeTruthy();
+    expect(api.createOutput).toHaveBeenCalledWith("f", expect.objectContaining({ name: "cXML", format: "", standard: "cxml-1-2" }));
+  });
+
+  it("offers the Peppol standards only when the flag is on", () => {
+    const open = (f: unknown) => {
+      const r = render(<QueryClientProvider client={new QueryClient()}><OutputBuilder flow={f as never} onDone={() => {}} /></QueryClientProvider>);
+      fireEvent.click(screen.getByRole("tab", { name: "Standards" }));
+      return r;
+    };
+    open(flow).unmount();
+    expect(screen.queryByRole("button", { name: /Peppol/ })).toBeNull();
+    open({ ...flow, peppolOn: true });
+    expect(screen.getAllByRole("button", { name: /Use Peppol BIS Billing/ })).toHaveLength(2);
+  });
 });

@@ -22,7 +22,7 @@
     "sweep:click": "playwright test --project=click-mobile --project=click-tablet --project=click-desktop",
     "sweep:report": "node scripts/sweep-report.mjs",
     "test:e2e:visual": "playwright test visual.spec.ts",
-    "test:e2e:visual:update": "playwright test visual.spec.ts --update-snapshots",
+    "test:e2e:visual:update": "playwright test visual.spec.ts --update-snapshots=all",
     "demo:capture": "playwright test --config=playwright.demo.config.ts",
     "guides:capture": "playwright test --config=playwright.guides.config.ts",
     "demo:vo": "node scripts/demo-video/generate-vo.mjs",

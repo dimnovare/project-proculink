@@ -6,7 +6,7 @@ import { Button } from "@/components/bridge/DSPrimitives";
 import { Card } from "@/components/bridge/layout/Card";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { DestinationForm, Field, INPUT } from "@/components/flows/DestinationForm";
-import { FORMATS } from "@/components/flows/OutputEditor";
+import { outputTypeLabel } from "@/components/flows/OutputEditor";
 import { createOutput, listDestinations, testOutput } from "@/lib/api/documents";
 import type { DraftCite, Flow, FlowOutput, OutputDraft } from "@/lib/api/documents";
 import { COPY, documentRefusalMessage } from "@/lib/documentRefusals";
@@ -80,7 +80,7 @@ export function DraftReview({ flow, draft, requireTest, previewDocumentId, onCre
         <Field label="Name">
           <input className={INPUT} maxLength={120} value={name} onChange={(e) => setName(e.target.value)} />
         </Field>
-        <p className="text-[13px] text-ink-muted">{Object.hasOwn(FORMATS, draft.format) ? FORMATS[draft.format as keyof typeof FORMATS] : draft.format}</p>
+        <p className="text-[13px] text-ink-muted">{outputTypeLabel(draft)}</p>
         <Cite cite={draft.formatCite} show={!!requireTest} />
         {leaves.map(({ path, node, inTable }) => {
           const draftLeaf = draft.leaves.find((l) => l.path === path);
@@ -95,6 +95,11 @@ export function DraftReview({ flow, draft, requireTest, previewDocumentId, onCre
               </select>
               {draftLeaf?.by === "ai" && draftLeaf.confidence != null && (
                 <span className="rounded bg-ai-soft px-1.5 text-[11px] text-ai">AI · {Math.round(draftLeaf.confidence * 100)}%</span>
+              )}
+              {draftLeaf?.by === "meaning" && (
+                <span className="rounded bg-surface2 px-1.5 text-[11px] text-ink-muted">
+                  Meaning{draftLeaf.confidence != null ? ` · ${Math.round(draftLeaf.confidence * 100)}%` : ""}
+                </span>
               )}
               {draftLeaf?.required && <span className="rounded bg-surface2 px-1.5 text-[11px] text-ink-muted">{COPY.required_tag}</span>}
               {fixed && (

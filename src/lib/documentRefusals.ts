@@ -50,6 +50,7 @@ export const COPY: Record<string, string> = {
   moved_table_columns: "Columns that hold table values now come after the other columns.",
   docs_lead: "Upload the receiving system's import or API documentation: a PDF, a saved web page, OpenAPI or JSON Schema, XSD, or an example file.",
   docs_outputs_off: "Outputs from documentation aren't switched on for this workspace.",
+  peppol_off: "E-invoice outputs aren't switched on for this workspace.",
   ai_error: "We couldn't read the documentation. Try again.",
   destination_not_found: "This destination no longer exists.",
   truncated: "This documentation is long, so only its first part was read.",
@@ -64,6 +65,14 @@ export const COPY: Record<string, string> = {
   publish_conflict: "Someone else published this flow just now. Reload to see the latest version.",
   version_references_missing: "This version sends to a destination or uses a lookup that has been deleted, so it can't be restored.",
   scanned_not_supported: "This looks like a scanned document, which can't be read yet.",
+  native_connectors_off: "Google destinations aren't switched on for this workspace yet.",
+  invalid_state: "That sign-in link expired. Start connecting again.",
+  google_scope_missing: "ProcuLink needs access to the files you choose. Connect again and leave the Google Drive box ticked.",
+  account_in_use: "A destination still sends to this account. Change that destination first.",
+  account_reconnect: "Google access was removed. Reconnect the Google account.",
+  account_not_found: "That Google account is no longer connected.",
+  invalid_origin: "Connect from the ProcuLink app address.",
+  google_unavailable: "Google didn't answer. Try again in a minute.",
 };
 
 /** Reasons a read can never succeed on a retry (`ReadDocumentJob`). A scan that failed before scans were switched on can be read now. */
@@ -93,7 +102,7 @@ export function documentRefusalMessage(error: unknown): string {
     const output = field(error, "output");
     return `The output${output ? ` "${output}"` : ""} couldn't be made${detail ? `: ${detail}` : "."}`;
   }
-  if (token === "invalid_destination" || token === "invalid_intake" || token === "invalid_fields" || token === "lookup_invalid") return detail ?? GENERIC;
+  if (token === "invalid_destination" || token === "url_required" || token === "url_not_absolute" || token === "url_scheme_not_allowed" || token === "credentials_in_url_not_allowed" || token === "url_requires_tls" || token === "invalid_intake" || token === "invalid_fields" || token === "lookup_invalid") return detail ?? GENERIC;
   if (token && LIMIT_CODES.has(token))
     return token === "pilot_expired" ? COPY.pilot_expired : COPY.order_limit_reached;
   if (error instanceof ApiHttpError && error.status === 413 && !token) return COPY.file_too_large;

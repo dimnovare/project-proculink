@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { OutputEditor } from "./OutputEditor";
 
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => true }));
 
 const api = vi.hoisted(() => ({
-  listDestinations: vi.fn(), listLookups: vi.fn(), updateOutput: vi.fn(), createOutput: vi.fn(), previewOutput: vi.fn(),
+  listDestinations: vi.fn(), listLookups: vi.fn(), updateOutput: vi.fn(), createOutput: vi.fn(), previewOutput: vi.fn(), saveFlowFields: vi.fn(), checkOutput: vi.fn(),
 }));
 vi.mock("@/lib/api/documents", () => api);
 
@@ -25,10 +25,10 @@ beforeEach(() => {
   api.updateOutput.mockResolvedValue(output);
 });
 
-const renderEditor = (o: unknown = output) => {
+const renderEditor = (o: unknown = output, f: unknown = flow) => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(<QueryClientProvider client={client}>
-    <OutputEditor flow={flow as never} output={o as never} previewDocumentId="d" onSaved={() => {}} onCancel={() => {}} />
+    <OutputEditor flow={f as never} output={o as never} previewDocumentId="d" onSaved={() => {}} onCancel={() => {}} />
   </QueryClientProvider>);
   return client;
 };
@@ -97,5 +97,100 @@ describe("OutputEditor", () => {
     await screen.findByRole("option", { name: "Item codes" });
     fireEvent.click(screen.getByRole("button", { name: "Preview" }));
     expect(await screen.findByText("Not in “Item codes”: NUT-4.")).toBeTruthy();
+  });
+
+  const f = (key: string, meaning: string | null = null) => ({ key, label: key, type: "text", meaning, required: false });
+  const lines = { key: "lines", label: "Lines", columns: [f("Qty", "line_quantity"), f("Code")] };
+  const x12 = { ...output, standard: "x12-850", format: "txt", tableKey: "lines", template: {},
+    needs: ["document_number", "issue_date", "currency", "line_quantity", "line_unit_price", "line_item_code"] };
+
+  it("a standard output asks only for what its flow lacks and saves the answer as a meaning", async () => {
+    const fields = { fields: [f("PO", "document_number"), f("Date")], tables: [lines] };
+    api.saveFlowFields.mockResolvedValue({ ...flow, fields });
+    renderEditor(x12, { ...flow, fields });
+    expect(screen.getByLabelText("Standard")).toHaveValue("ANSI X12 850");
+    expect(within(screen.getByLabelText("Which field is the issue date?")).queryByRole("option", { name: "PO" })).toBeNull();
+    expect(screen.queryByLabelText("Which field is the document number?")).toBeNull();
+    expect(screen.queryByLabelText("File type")).toBeNull();
+    expect(screen.queryByRole("textbox", { name: "Title" })).toBeNull();
+    fireEvent.change(screen.getByLabelText("Which column is the line item code?"), { target: { value: "Code" } });
+    await waitFor(() => expect(api.saveFlowFields).toHaveBeenCalled());
+    expect(api.saveFlowFields.mock.calls[0][1].tables[0].columns[1].meaning).toBe("line_item_code");
+  });
+
+  it("a standard question keeps an acronym's capitals", () => {
+    renderEditor({ ...x12, needs: ["iban", "sender_endpoint_id"] }, { ...flow, fields: { fields: [f("Date")], tables: [lines] } });
+    expect(screen.getByLabelText("Which field is the IBAN?")).toBeTruthy();
+    expect(screen.getByLabelText("Which field is the sender Peppol ID?")).toBeTruthy();
+  });
+
+  it("a standard output never asks a question nothing can answer", () => {
+    // No listed fields: the backend reads meanings from the document itself, so only the table is asked about.
+    renderEditor(x12, { ...flow, fields: { fields: [], tables: [lines] } });
+    expect(screen.getAllByText(/^Which (field|column) is/).map((e) => e.textContent))
+      .toEqual(["Which column is the line unit price?", "Which column is the line item code?"]);
+  });
+
+  const peppol = { ...output, standard: "peppol-bis-billing-3", format: "xml", tableKey: "lines", template: {}, needs: [] };
+  const checkFlow = { ...flow, peppolOn: true, fields: { fields: [], tables: [lines] } };
+
+  it("a failed Peppol check lists its rules, errors first", async () => {
+    api.checkOutput.mockResolvedValue({ status: "failed", issues: [
+      { ruleId: "BR-CL-1", severity: "warning", message: "Odd code" },
+      { ruleId: "BR-02", severity: "error", message: "Missing number" }] });
+    renderEditor(peppol, checkFlow);
+    fireEvent.click(screen.getByRole("button", { name: "Check against Peppol rules" }));
+    expect(await screen.findByText(/Doesn't meet 1 Peppol rule\(s\):/)).toBeTruthy();
+    const items = screen.getAllByRole("listitem").map((e) => e.textContent);
+    expect(items.slice(-2)).toEqual(["BR-02 — Missing number", "BR-CL-1 — Odd code (warning)"]);
+    expect(api.checkOutput).toHaveBeenCalledWith("f", output.id, "d");
+  });
+
+  it("a check result is not shown for another document", async () => {
+    api.checkOutput.mockResolvedValue({ status: "passed", issues: [] });
+    const ui = (id: string) => (
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <OutputEditor flow={checkFlow as never} output={peppol as never} previewDocumentId={id} onSaved={() => {}} onCancel={() => {}} />
+      </QueryClientProvider>
+    );
+    const { rerender } = render(ui("d"));
+    fireEvent.click(screen.getByRole("button", { name: "Check against Peppol rules" }));
+    expect(await screen.findByText("Passes the Peppol BIS Billing 3.0 rules.")).toBeTruthy();
+    rerender(ui("d2"));
+    expect(screen.queryByText("Passes the Peppol BIS Billing 3.0 rules.")).toBeNull();
+  });
+
+  it("an unavailable Peppol check says the checker could not be reached", async () => {
+    api.checkOutput.mockResolvedValue({ status: "unavailable", issues: [] });
+    renderEditor(peppol, checkFlow);
+    fireEvent.click(screen.getByRole("button", { name: "Check against Peppol rules" }));
+    expect(await screen.findByText("We couldn't reach the rule checker. Try again in a minute.")).toBeTruthy();
+  });
+
+  it("a CII output checks against EN 16931 rules", async () => {
+    api.checkOutput.mockResolvedValue({ status: "passed", issues: [] });
+    renderEditor({ ...peppol, standard: "en16931-cii" }, checkFlow);
+    fireEvent.click(screen.getByRole("button", { name: "Check against EN 16931 rules" }));
+    expect(await screen.findByText("Passes the EN 16931 rules.")).toBeTruthy();
+  });
+
+  it("a passed check lists its warnings", async () => {
+    api.checkOutput.mockResolvedValue({ status: "passed", issues: [
+      { ruleId: "BR-DE-19", severity: "warning", message: "IBAN check digits" },
+      { ruleId: "I-1", severity: "info", message: "note" }] });
+    const { container } = render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <OutputEditor flow={checkFlow as never} output={{ ...peppol, standard: "xrechnung-cii" } as never} previewDocumentId="d" onSaved={() => {}} onCancel={() => {}} />
+    </QueryClientProvider>);
+    fireEvent.click(within(container).getByRole("button", { name: "Check against XRechnung rules" }));
+    expect(await within(container).findByText(/Passes the XRechnung 3\.0 rules, with 1 warning\(s\):/)).toBeTruthy();
+    expect(within(container).getByText(/BR-DE-19/)).toBeTruthy();
+    expect(within(container).queryByText(/I-1/)).toBeNull();
+  });
+
+  it("an XRechnung output checks against XRechnung rules", async () => {
+    api.checkOutput.mockResolvedValue({ status: "passed", issues: [] });
+    renderEditor({ ...peppol, standard: "xrechnung-cii" }, checkFlow);
+    fireEvent.click(screen.getByRole("button", { name: "Check against XRechnung rules" }));
+    expect(await screen.findByText("Passes the XRechnung 3.0 rules.")).toBeTruthy();
   });
 });

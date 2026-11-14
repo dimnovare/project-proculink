@@ -344,8 +344,11 @@ describe("auditActionManifest — coverage floors", () => {
     // +2 reachable from the invoice flow (`InvoiceSentAnyway`, `InvoiceDestinationChanged`).
     //
     // +9 reachable from flow documents (`document.*`, written via DocumentAudit.Add).
-    expect(AUDIT_ACTION_FACTS).toHaveLength(63);
-    expect(REACHABLE_AUDIT_ACTIONS).toHaveLength(58);
+    //
+    // +2 reachable from plan 9b, 2026-11-13 (`linked_account.connected` / `…disconnected`,
+    // GoogleConnectService.cs).
+    expect(AUDIT_ACTION_FACTS).toHaveLength(65);
+    expect(REACHABLE_AUDIT_ACTIONS).toHaveLength(60);
   });
 
   it("classifies a substantial number of them as failures", () => {

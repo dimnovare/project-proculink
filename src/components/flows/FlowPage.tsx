@@ -29,7 +29,7 @@ import { FlowIntakePanel } from "./FlowIntakePanel";
 import { FlowVersionsPanel } from "./FlowVersionsPanel";
 import { FlowUpload } from "./FlowUpload";
 import { OutputBuilder } from "./OutputBuilder";
-import { FORMATS, OutputEditor } from "./OutputEditor";
+import { OutputEditor, outputTypeLabel } from "./OutputEditor";
 import { destinationName, Failed, Quiet } from "./states";
 
 const TABS = [["documents", "Documents"], ["fields", "Fields"], ["outputs", "Outputs"], ["intake", "Intake"], ["versions", "Versions"]] as const;
@@ -117,10 +117,10 @@ function Outputs({ flow, previewDocumentId }: { flow: Flow; previewDocumentId?: 
               <span className="text-[13.5px] font-medium">{o.name}</span>
               {describeSendWhen(o.sendWhen, flow.fields) && <span className="text-[12px] text-ink-muted">{describeSendWhen(o.sendWhen, flow.fields)}</span>}
             </span>
-            <span className="text-[12px] text-ink-muted">{Object.hasOwn(FORMATS, o.format) ? FORMATS[o.format as keyof typeof FORMATS] : o.format} · {destinationName(destinations, o.destinationId)}</span>
+            <span className="text-[12px] text-ink-muted">{outputTypeLabel(o)} · {destinationName(destinations, o.destinationId)}</span>
             <span className="flex gap-2">
               <Button size="sm" variant="secondary" onClick={() => setEditing(o)}>Edit</Button>
-              <Link href={`/flows/${flow.id}/outputs/${o.id}/advanced`} className="inline-flex items-center rounded border border-border px-2.5 text-[12.5px] font-medium text-ink">Open in Advanced</Link>
+              {!o.standard && <Link href={`/flows/${flow.id}/outputs/${o.id}/advanced`} className="inline-flex items-center rounded border border-border px-2.5 text-[12.5px] font-medium text-ink">Open in Advanced</Link>}
               <Button size="sm" variant="ghost" loading={remove.isPending && remove.variables === o.id} onClick={() => ask(o)}>Delete</Button>
             </span>
           </div>
