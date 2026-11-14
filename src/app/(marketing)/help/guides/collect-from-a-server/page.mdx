@@ -1,0 +1,79 @@
+import { guideMetadata } from "@/lib/seo";
+
+export const metadata = guideMetadata({
+  slug: "collect-from-a-server",
+  title: "Collect documents from an SFTP or FTP server — ProcuLink guide",
+  description: "Let ProcuLink collect new files from an SFTP or FTP server.",
+});
+
+import { Step, Prereqs, IfThisFails, Outcome } from "@/components/help/guide";
+
+<Prereqs>
+- A flow, and a workspace admin account.
+- A server that is reachable from the internet, with a folder where the files are placed. A server on a private network address is refused.
+- The server's address, its port, a user name and a password. Use SFTP if the server has it. Use FTPS if it does not. Plain FTP sends the password without encryption, and the form warns you about it.
+- The user only needs to list and read files in the folder. We never write to the server.
+</Prereqs>
+
+<Step n={1} title="Add a pickup">
+
+Open the flow, go to the **Intake** tab, and find the **Pickups** card. Select **Add a pickup**. In the **Type** list, choose **SFTP**, **FTPS** or **FTP**.
+
+<Outcome>
+The form shows the server fields.
+</Outcome>
+
+</Step>
+
+<Step n={2} title="Fill in the server">
+
+- **Server** is the host name, for example `files.example.com`.
+- **Port** starts as 22 for SFTP and 21 for FTPS and FTP.
+- **User name** and **Password** are the sign-in. The password is stored encrypted.
+- **Folder** is the folder to watch. It starts as `/`. We look only at the files in that folder, not in the folders inside it.
+
+Select **Save**.
+
+<Outcome>
+The pickup is saved. The **Test connection** button now works.
+</Outcome>
+
+</Step>
+
+<Step n={3} title="Test the connection">
+
+Select **Test connection**. It signs in and counts the readable files that are waiting, but takes none.
+
+For SFTP, the first time a run connects it learns the server's host key and saves it. After that we only connect to a server that shows the same key. If you change the server or the port, the saved key is forgotten and learned again.
+
+<Outcome>
+A message says "Connected." and how many files are waiting.
+</Outcome>
+
+<IfThisFails>
+The message names the server and the reason it gave. Read it for the cause, such as a wrong password or port. If the message says the server's identity changed, the server now shows a different host key from the saved one. Check with the server's owner first. If the change is expected, the only ways to accept the new key are to change the **Server** or the **Port** and save, which makes us learn the key again, or to contact us.
+</IfThisFails>
+
+</Step>
+
+<Step n={4} title="Let it run">
+
+Leave **On** ticked. Every five minutes we list the folder and take each file we have not seen before.
+
+- A file is taken once. If a file is replaced by a different one with the same name, so that its size or its modified time changes, it is taken again.
+- Files we do not read, by their ending, are ignored.
+- We take up to 50 files at a time, and the rest on the next check.
+- A file over 10 MB is skipped, and the pickup's last message says so.
+- Files stay where they are. We do not move, rename or delete them.
+
+<Outcome>
+New documents appear on the flow's **Documents** tab. The pickup shows when it last ran and what it found, such as "Picked up 3 new file(s)."
+</Outcome>
+
+</Step>
+
+## Good to know
+
+Files stay where they are, so clean the folder yourself when you want to. An unchanged file is never taken twice.
+
+To stop collecting, untick **On**, or select **Remove**.

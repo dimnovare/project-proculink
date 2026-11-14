@@ -74,13 +74,13 @@ const ROUTES = discoverMarketingRoutes();
 test.describe(`marketing pages at ${NARROW_WIDTH}px`, () => {
   test("the route list is real — discovery cannot silently find nothing", () => {
     // Floor, not an exact count: a new marketing page must not fail this test.
-    expect(ROUTES.length).toBeGreaterThanOrEqual(18);
+    // 16 measured after the relaunch retired /pilot, /customers, /watch and /one-pager (2026-11).
+    expect(ROUTES.length).toBeGreaterThanOrEqual(16);
     // The two that actually broke, pinned by name. If a refactor moves them out
     // of (marketing), this fails and someone re-points the discovery rather than
     // quietly losing the coverage.
     expect(ROUTES).toContain("/privacy");
     expect(ROUTES).toContain("/subprocessors");
-    expect(ROUTES).toContain("/one-pager");
     expect(ROUTES).toContain("/");
   });
 
@@ -129,40 +129,4 @@ test.describe(`marketing pages at ${NARROW_WIDTH}px`, () => {
       expect(measured.body, detail).toBeLessThanOrEqual(measured.inner);
     });
   }
-
-  /**
-   * The one break the page-level invariant above is blind to.
-   *
-   * /one-pager's "How it works" row is three `1fr` tracks — and `1fr` is
-   * `minmax(auto, 1fr)`, whose floor is min-content, not zero. At 375 the three
-   * cards needed 319px against the 303px content box print.css leaves, so the row
-   * overflowed ITS OWN container and spilled into the page's 36px padding. The
-   * document never scrolled (the widest box stopped at x=355 < 375), so
-   * `documentElement.scrollWidth <= innerWidth` passed while the layout was
-   * visibly broken. This measures the box that actually overflowed.
-   */
-  test("/one-pager's step row fits its own container", async ({ page }) => {
-    await page.setViewportSize({ width: NARROW_WIDTH, height: 812 });
-    await preparePage(page);
-    await page.goto("/one-pager");
-    await settle(page);
-
-    const row = page.getByTestId("one-pager-steps");
-    await expect(row).toBeVisible();
-
-    const box = await row.evaluate((el) => ({
-      scrollWidth: el.scrollWidth,
-      clientWidth: el.clientWidth,
-      columns: getComputedStyle(el).gridTemplateColumns,
-    }));
-
-    expect(
-      box.scrollWidth,
-      `/one-pager's step row overflows its container at ${NARROW_WIDTH}px: ` +
-        `scrollWidth=${box.scrollWidth} > clientWidth=${box.clientWidth}, ` +
-        `grid-template-columns="${box.columns}". Fixed track counts do not collapse — ` +
-        `use repeat(auto-fit, minmax(...)) so the row reflows on a phone.`,
-      // +1 absorbs sub-pixel track rounding.
-    ).toBeLessThanOrEqual(box.clientWidth + 1);
-  });
 });

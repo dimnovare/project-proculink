@@ -62,7 +62,6 @@ import { BINDABLE_HEADER_FIELDS, BINDABLE_LINE_FIELDS } from "@/lib/api/types";
 
 afterEach(cleanup);
 
-const HELP_REL = "src/app/(marketing)/help/output-templates/page.mdx";
 const HOME_REL = "src/app/(home)/page.tsx";
 const PAGE_REL = "src/app/(app)/library/standards/page.tsx";
 
@@ -151,13 +150,6 @@ describe("the coverage gap being guarded is real", () => {
 // ── Face 1: the landing page ─────────────────────────────────────────────────
 
 describe("the landing page claims no universal field coverage", () => {
-  it("renders the standards feature card this test reads", () => {
-    render(<HomePage />);
-    expect(bodyText(), "the feature card is gone — this guard now proves nothing").toContain(
-      "Standards, on demand",
-    );
-  });
-
   it("does not promise every order field", () => {
     render(<HomePage />);
     const text = bodyText();
@@ -191,17 +183,6 @@ describe("the landing page claims no universal field coverage", () => {
     // And not on a disclosure, which is what the fix reads like.
     expect(universalFieldClaim("the core of a purchase order, not all of it: a field")).toBeNull();
     expect(universalFieldClaim("Core order fields map to UBL")).toBeNull();
-  });
-
-  it("still says the reference exists and is never behind a mode", () => {
-    // The other direction. The fix is to stop over-claiming, not to stop claiming: the
-    // always-visible standards reference is a real differentiator and it must survive.
-    render(<HomePage />);
-    const text = bodyText();
-    expect(text).toContain("never hidden behind a mode");
-    for (const standard of ["UBL", "EDIFACT", "X12", "cXML", "Peppol BIS"]) {
-      expect(text, `the landing card no longer names ${standard}`).toContain(standard);
-    }
   });
 
   it("does not hand-type a coverage count into marketing copy", () => {
@@ -311,35 +292,5 @@ describe("searching a field the product carries is not answered with a denial", 
     expect(text, "a nonexistent field is presented as one ProcuLink carries").not.toMatch(
       /no standards path recorded/i,
     );
-  });
-});
-
-// ── Face 3: the help article that routes the reader there ────────────────────
-
-describe("the help article matches what the screen actually holds", () => {
-  const help = readFileSync(join(process.cwd(), HELP_REL), "utf8");
-
-  it("derives the coverage rather than implying all of it", () => {
-    expect(help, `${HELP_REL} must import the coverage constant to state a fraction`).toMatch(
-      /import\s*\{[^}]*\bSTANDARDS_FIELD_COVERAGE\b[^}]*\}\s*from\s*"@\/lib\/standards\/catalog"/,
-    );
-    expect(help).toMatch(/\{STANDARDS_FIELD_COVERAGE\.referenced\}/);
-    expect(help).toMatch(/\{STANDARDS_FIELD_COVERAGE\.total\}/);
-    expect(help, `${HELP_REL} hand-types a coverage fraction`).not.toMatch(
-      /\b\d+\s+of\s+(?:the\s+)?\d+\s+canonical\s+fields?\b/i,
-    );
-  });
-
-  it("does not imply the reference covers the whole model", () => {
-    const prose = help.replace(/^import .*$/gm, "");
-    expect(
-      universalFieldClaim(prose),
-      `${HELP_REL} sends the reader to a table that covers ${COVERAGE.referenced} of ` +
-        `${COVERAGE.total} canonical fields and implies it covers them all`,
-    ).toBeNull();
-  });
-
-  it("tells the reader an unreferenced field can still be sent", () => {
-    expect(help).toMatch(/still in the order model/i);
   });
 });

@@ -14,6 +14,7 @@ const getAuditLog = vi.fn();
 
 vi.mock("@/lib/api-client", () => ({
   getAuditLog: (...a: unknown[]) => getAuditLog(...a),
+  getBillingStatus: () => Promise.resolve(billing),
   isApiMockMode: false,
 }));
 
@@ -26,6 +27,11 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
+let engine: "on" | "off" | "unknown" = "off";
+let billing: { plan: string } | null = null;
+vi.mock("@/hooks/useDocumentEngine", () => ({ useDocumentEngine: () => engine }));
+
+import { DOCUMENT_PLANS } from "@/lib/plans";
 import { CrossingsLog } from "./CrossingsLog";
 
 function renderLog() {
@@ -38,6 +44,8 @@ function renderLog() {
 }
 
 beforeEach(() => {
+  engine = "off";
+  billing = null;
   getAuditLog.mockReset();
 });
 
@@ -59,6 +67,23 @@ describe("CrossingsLog — plan-gated audit log", () => {
     // plan gate is role="status" (an explanation of an entitlement, not a fault),
     // the load failure is role="alert".
     expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("passes engine and plan through: Starter for a Trial on the engine, the backend tier for a legacy payer, no tier while unknown", async () => {
+    getAuditLog.mockRejectedValue(new Error(JSON.stringify({ error: "advanced_audit_requires_operations" })));
+    const generic = "Your current plan does not include this.";
+    for (const [state, plan, expected] of [
+      ["on", "pilot", DOCUMENT_PLANS[0].name],
+      ["on", "growth", "from the Operations plan up"],
+      ["on", null, generic],
+      ["unknown", "pilot", generic],
+    ] as const) {
+      engine = state;
+      billing = plan ? { plan } : null;
+      const { unmount } = renderLog();
+      expect(await screen.findByRole("status")).toHaveTextContent(expected);
+      unmount();
+    }
   });
 
   it("still shows the load-failure panel for a failure that is not a plan gate", async () => {

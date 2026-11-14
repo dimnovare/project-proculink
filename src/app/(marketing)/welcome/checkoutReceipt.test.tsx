@@ -31,6 +31,7 @@ vi.mock("@/lib/api-client", () => ({
   getBillingStatus: () => api.getBillingStatus(),
 }));
 
+import { PLAN_BY_ID } from "@/lib/plans";
 import { CheckoutReceipt, welcomeReceiptState, CONFIRM_GRACE_MS } from "./checkoutReceipt";
 
 /** A live, paying workspace. Overrides carry each case's disagreement. */
@@ -261,7 +262,7 @@ describe("CheckoutReceipt — the claim is never made without the server", () =>
     });
 
     await waitFor(() => expect(block.dataset.receiptState).toBe("active"));
-    expect(block.textContent ?? "").toContain("You're on Pilot.");
+    expect(block.textContent ?? "").toContain(`You're on ${PLAN_BY_ID.pilot.name}.`);
     expect(block.textContent ?? "").not.toContain("Distributor");
   });
 

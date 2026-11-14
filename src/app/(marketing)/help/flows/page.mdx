@@ -1,0 +1,53 @@
+import { helpArticleMetadata } from "@/lib/seo";
+
+export const metadata = helpArticleMetadata({
+  slug: "flows",
+  title: "Flows: fields, automation and versions — ProcuLink Help",
+  description: "How a flow holds the fields to read, the output and the destination, and how to change it safely.",
+});
+
+# Flows: fields, automation and versions
+
+How a flow holds the fields to read, the output and the destination, and how to change it safely.
+
+## What a flow holds
+
+A flow is one setup for one kind of document. It holds:
+
+- **Fields.** The values and tables to read from every document, each with a label, a type and a **Required** tick.
+- **Intake.** How documents reach the flow. See [Ways to send documents in](/help/intake-channels).
+- **Outputs.** The files to make, each sent to a destination. An output can have a **Send when** condition, so one flow can send different documents to different places. See [Output formats](/help/outputs).
+- **Automation.** Whether documents wait for you or are sent on their own.
+
+The flow's page has five tabs: **Documents**, **Fields**, **Outputs**, **Intake** and **Versions**.
+
+## Fields
+
+The first time, upload one document like the ones you will receive. We read it and suggest the fields. Untick what you do not need, rename labels, set types and tick **Required** for values that must always be there. Then select **Save fields**.
+
+Every later document is read into these fields. If a document has something extra, it appears under **New fields we noticed**, with **Add to flow** beside it.
+
+## Automation
+
+Each flow is set to one of two modes:
+
+- **Review before delivery.** Every document waits for you. This is the default.
+- **Automatic delivery.** A document is sent as soon as it has been read. Failed checks do not stop it, except a repeated document number, which always waits. See [Checks](/help/checks).
+
+The flow shows how many recent documents were sent without a correction. Use it to decide when to switch to automatic. Only a workspace admin can change the mode.
+
+## Versions
+
+A flow can be published. Publishing saves its fields and outputs as a numbered version. New documents are read and sent with the live version, so you can change a flow without breaking what is running.
+
+While you have unpublished changes, a bar at the top of the flow says so. Before the first publish, changes apply straight away and the bar offers only **Publish**. After that, you can **Publish changes** or **Discard changes**.
+
+The **Versions** tab lists every version with the date and who published it. You can restore an earlier one. Restoring puts it back into your changes. It goes live only when you publish. Publishing and restoring are for workspace admins. See [Publish and restore flow versions](/help/guides/publish-a-flow-version).
+
+## The Advanced view
+
+Each output has an **Open in Advanced** link. It opens a wider workbench for finer control, and it needs a larger screen. Most flows never need it.
+
+## How many flows
+
+The number of flows depends on your plan. See [Pricing](/pricing).

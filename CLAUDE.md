@@ -532,14 +532,25 @@ If they disagree, the code is right.
 
 Plan ladder (verified against `plans.ts` + `PlanConstants.cs`, 2026-07-30):
 
+Public ladder (`PUBLIC_LADDER` in `plans.ts`) — shown on `/pricing`:
+
+| Plan | Price | Documents | Flows |
+|---|---:|---:|---:|
+| Trial (wire id `pilot`) | Free for 14 days | 20 total during trial | 2 |
+| Starter | €35/mo | 150/month | 5 |
+| Pro | €69/mo | 400/month | 20 |
+| Business | €149/mo | 1,500/month | 100 |
+| Scale | €399/mo | 5,000/month | unlimited |
+| Enterprise | Custom | Custom | Custom |
+
+Legacy plans — **existing payers only**, `hidden: true`, never offered publicly:
+
 | Plan | Price | Orders | Suppliers |
 |---|---:|---:|---:|
-| Pilot | Free for 14 days | 20 total during trial | 1 |
 | Growth | €149/mo | 150/month | 5 |
 | Operations | €399/mo | 500/month | 10 |
 | Integration | €999/mo | 1,500/month | 20 |
 | Distributor | €1,499/mo | 2,500/month | 30 |
-| Enterprise | Custom, from €2,500/mo | Custom | Custom |
 
 Integration is **1,500** orders, not 1,000: the limit was raised so €/order stays monotonic
 down the ladder (Operations €0.80 → Integration €0.67 → Distributor €0.60).
@@ -596,9 +607,9 @@ null is a real branch, not a missing value: there is no upgrade to offer, so the
 say `Contact us to add more supplier flows.` with a `Contact support` route — never name a
 cheaper tier. Enterprise supplier counts are set by agreement (`supplierLimit: null`).
 
-- Pilot active badge: `Pilot · 14-day trial`
-- Pilot expired badge: `Pilot ended · Processing paused`
-- Pilot expired banner: `Your Pilot has ended. You can still view previous orders, but new processing is paused.` + a CTA naming `PLANS.pilot.next` (today: `Upgrade to Growth`)
+- Trial active badge: `Trial · 14 days` (the plan is still the `pilot` wire id; its display name is `PLAN_BY_ID.pilot.name`)
+- Trial expired badge: `Trial ended · Processing paused`
+- Trial expired banner: `Your trial has ended. You can still view previous documents, but new processing is paused.` + a CTA naming `PLANS.pilot.next` (on the document engine a Trial names Starter, `Upgrade to Starter`; legacy orders-era orgs name `PLANS.pilot.next`)
 - Order limit banner: `You've reached your plan's order limit. Upgrade to continue processing new orders this month.`
 - Supplier limit banner: `Your plan includes {limit} supplier(s).` + `Upgrade to {next} to add more supplier flows.` — for a Pilot org that renders exactly the old sentence, which is why the hardcode survived this long. Pinned by `src/components/bridge/UploadWorkbench.supplierLimitCopy.test.tsx`.
 
@@ -610,7 +621,7 @@ raw account status printed at 11px in `--ink-faint`, while every ingest path ref
 banner is gated on **`!status.canProcessOrders`**, derived from the server. Never re-gate a
 blocking surface on a plan name; that check is what caused this.
 
-- Paused plan badge (non-Pilot): `<Plan> · Processing paused` (Pilot keeps `Pilot ended · Processing paused` above)
+- Paused plan badge (non-Pilot): `<Plan> · Processing paused` (the trial keeps `Trial ended · Processing paused` above)
 - Headline, by `accountStatus`:
   - `past_due` → `Your last payment didn't go through.`
   - `cancelled` → `Your subscription has ended.`
@@ -618,7 +629,7 @@ blocking surface on a plan name; that check is what caused this.
   - `trial_expired` → `Your trial has ended.`
   - anything else, including a status this build does not know → `Order processing is paused on your account.`
 - Consequence (shared by every cause, and deliberately the same claims as the `/pricing`
-  cancellation disclosure): `New orders aren't being accepted — uploads, emailed orders, SFTP and S3 pickups, and the REST API all refuse, and nothing is held to deliver later, so redirect your suppliers if this will take a while. Everything already processed stays readable and exportable.`
+  cancellation disclosure): `New documents aren't being accepted — uploads, emailed documents and the file API all refuse, and mailbox, SFTP, FTP, FTPS and S3 pickups pause and leave your files where they are. Tell your senders if this will take a while. Everything already processed stays readable and exportable.`
 - Route back: `Manage in Stripe` (self-serve paid plans) / `Contact support` (Enterprise —
   a manual agreement has no portal). Only `past_due` and `read_only` may promise processing
   restarts by itself; a cancelled subscription needs a new one.

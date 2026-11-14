@@ -1,0 +1,153 @@
+import { helpArticleMetadata } from "@/lib/seo";
+
+export const metadata = helpArticleMetadata({
+  slug: "api-reference",
+  title: "API reference: files, results and webhooks — ProcuLink Help",
+  description: "Send a file to a flow over the API, fetch the result, and receive webhooks when a document changes.",
+});
+
+# API reference: files, results and webhooks
+
+Send a file to a flow over the API, fetch the result, and receive webhooks when a document changes.
+
+For a walk-through, see [Send documents by API](/help/guides/send-documents-by-api). The examples here use `api.example.com`. Your own API address is shown on the flow's **API** card, under the **Intake** tab.
+
+## Keys
+
+Create a key in **Settings**, under **API keys**. Only a workspace admin can create one. Send it in the `X-ProcuLink-Key` header on every call. A key works for every flow in the workspace, not for one flow. A missing, unknown, revoked or expired key is answered with `401`.
+
+## Send a file
+
+`POST /api/v1/flows/{flowId}/documents`
+
+Send a `multipart/form-data` body with one part named `file`. The file can be up to 10 MB, and its type must be one the flow accepts.
+
+```
+curl -X POST "https://api.example.com/api/v1/flows/FLOW_ID/documents" \
+  -H "X-ProcuLink-Key: YOUR_KEY" \
+  -H "Idempotency-Key: march-invoice-0001" \
+  -F "file=@invoice.pdf"
+```
+
+`Idempotency-Key` is optional, up to 200 characters. Use it so a retry never creates a second document. If you send the same key to the same flow again, you get the document's current summary back with status `200` and the header `Idempotent-Replay: true`. Its `status` may have moved on since the first answer. If the first call is still running, the answer is `409`. A call that was refused does not keep its key, so you can send it again.
+
+A new document is answered with `201`. The body is a summary. Reading happens afterwards, so `status` is `received`.
+
+```
+{
+  "id": "11111111-1111-1111-1111-111111111111",
+  "flowId": "22222222-2222-2222-2222-222222222222",
+  "flowName": "Supplier invoices",
+  "fileName": "invoice.pdf",
+  "status": "received",
+  "statusReason": null,
+  "pageCount": 2,
+  "billingUnits": 1,
+  "failedChecks": 0,
+  "createdAt": "2026-03-01T09:30:00Z",
+  "source": "api",
+  "sourceRef": null,
+  "flowVersion": null
+}
+```
+
+Use `id` to fetch the result. Do not rely on the `Location` header.
+
+### Refusals
+
+| Status | `error` | When |
+|---|---|---|
+| 400 | `invalid_idempotency_key` | The key is longer than 200 characters. |
+| 400 | none | There is no `file` part. |
+| 401 | none | The key is missing, unknown, revoked or expired. |
+| 403 | `document_engine_not_enabled` | Flows are not switched on for this workspace. |
+| 404 | `flow_not_found` | The flow does not exist in this workspace. |
+| 409 | `request_in_progress` | The first call with this `Idempotency-Key` is still running. |
+| 413 | `file_too_large` | The file is over 10 MB. |
+| 415 | `unsupported_format` | The flow does not accept this file type. The body has an `accepted` list. |
+| 422 | `unreadable_file` | The file is empty, or could not be opened. |
+| 429 | `pilot_expired` | The trial has ended. |
+| 429 | `processing_paused` | Processing is paused on this workspace, for example after a cancelled subscription. |
+| 429 | a sentence | You are sending too fast. |
+
+A request body that is too large overall is refused with `413`, and a body that is not `multipart/form-data` with `415`. Neither has an `error` token.
+
+The two plan refusals carry `plan`, `limit` and `upgradeUrl`. The speed refusal carries a `Retry-After` header and `retryAfterSeconds`. The limit is 60 files a minute for each key.
+
+## Get a result
+
+`GET /api/v1/documents/{id}`
+
+Answered with `200`. It has two parts.
+
+- `document` holds `summary` (as above, with the current `status`), `contentType`, `read`, `checks` and `senderLabel`.
+- `deliveries` lists what was sent, with `id`, `outputName`, `protocol`, `status`, `attempts`, `lastError`, `fileName` and `deliveredAt`.
+
+`read` has `kindLabel`, `truncated`, a list of `fields` and a list of `tables`. Each field has `key`, `label`, `value`, `type`, `meaning`, `confidence`, `location`, `notOnPage`, `listed` and `edited`. Confidence is a number from 0 to 1. `checks` lists only the checks that flagged something, each with `code`, `passed`, `fieldKey` and `message`.
+
+`status` is one of `received`, `reading`, `read_failed`, `needs_review`, `ready`, `sending`, `sent` or `send_failed`. See [Documents and their statuses](/help/documents-and-statuses). A delivery `status` is `queued`, `delivering`, `delivered`, `stored`, `failed` or `dead_letter`.
+
+Refusals: `401`, `403` `document_engine_not_enabled`, and `404` `document_not_found`.
+
+## Webhooks
+
+On the flow's **API** card, enter a web address and optionally a signing secret, then select **Save**. Select **Send a test** to try it. The address must be reachable from the internet. A webhook belongs to the flow and covers its documents however they arrived.
+
+We send a `POST` with a JSON body. The events are:
+
+- `document.read` when reading is done.
+- `document.read_failed` when reading failed.
+- `document.sent` when every output was delivered, or is ready to download.
+- `document.send_failed` when a send ended in failure.
+- `document.test` when you select **Send a test**.
+
+```
+{
+  "id": "33333333-3333-3333-3333-333333333333",
+  "type": "document.sent",
+  "createdAt": "2026-03-01T09:31:12Z",
+  "document": {
+    "id": "11111111-1111-1111-1111-111111111111",
+    "flowId": "22222222-2222-2222-2222-222222222222",
+    "fileName": "invoice.pdf",
+    "status": "sent",
+    "statusReason": null,
+    "url": "/api/v1/documents/11111111-1111-1111-1111-111111111111"
+  }
+}
+```
+
+The headers are:
+
+- `X-ProcuLink-Event`: the event name.
+- `X-ProcuLink-Event-Id`: the same value as `id` in the body. It stays the same on every retry, so use it to drop duplicates.
+- `X-ProcuLink-Signature`: `sha256=` and the lowercase hex HMAC-SHA256 of the raw body, made with your signing secret. It is sent only when you saved a secret.
+- `X-ProcuLink-Test`: `true`, on a test only.
+
+Answer with any `2xx` status. Anything else, or no answer, counts as a failure. We try again 3 times, after 30 seconds, 2 minutes and 10 minutes. A test is sent once and not tried again.
+
+### Check the signature
+
+Compute the HMAC over the raw bytes you received, not over JSON you parsed and wrote out again. Compare in constant time. The body has no signed time, so use `createdAt` to refuse a call that is too old.
+
+```
+import crypto from "node:crypto";
+
+// rawBody is a Buffer: the request body exactly as received.
+function isValid(rawBody, header, secret) {
+  const expected = "sha256=" + crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
+  const a = Buffer.from(expected);
+  const b = Buffer.from(header ?? "");
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+```
+
+```
+import hashlib
+import hmac
+
+# raw_body is bytes: the request body exactly as received.
+def is_valid(raw_body: bytes, header: str, secret: str) -> bool:
+    expected = "sha256=" + hmac.new(secret.encode(), raw_body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected.encode(), (header or "").encode())
+```

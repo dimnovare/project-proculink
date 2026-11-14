@@ -13,7 +13,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { getAuditLog, isApiMockMode, type AuditLogEntry } from "@/lib/api-client";
+import { getAuditLog, getBillingStatus, isApiMockMode, type AuditLogEntry } from "@/lib/api-client";
 import {
   AUDIT_ACTION_FACTS,
   auditActionFact,
@@ -25,6 +25,7 @@ import {
 } from "@/lib/auditActionManifest";
 import { REACH_SENTENCE, auditActionRemedy } from "@/lib/auditActionRemedy";
 import { EmptyState } from "./EmptyState";
+import { useDocumentEngine } from "@/hooks/useDocumentEngine";
 import { isPlanGate, PlanGateNotice } from "./PlanGateNotice";
 import { Card } from "./layout/Card";
 import { PageHeader } from "./layout/PageHeader";
@@ -509,6 +510,12 @@ function DesktopColHeader() {
   );
 }
 
+/** Own component so the engine and plan probes run only when the log is actually refused. */
+function LogGateNotice({ error }: { error: unknown }) {
+  const { data: billing } = useQuery({ queryKey: ["billing-status"], queryFn: getBillingStatus, staleTime: 60_000, retry: false });
+  return <PlanGateNotice error={error} capability="The full delivery log" documentEngine={useDocumentEngine()} planId={billing?.plan} />;
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function CrossingsLog() {
@@ -816,7 +823,7 @@ export function CrossingsLog() {
 
       {/* Plan-gated state — an upgrade prompt, not a retry loop */}
       {planGated && !isApiMockMode && (
-        <PlanGateNotice error={error} capability="The full delivery log" />
+        <LogGateNotice error={error} />
       )}
 
       {/* Error state.

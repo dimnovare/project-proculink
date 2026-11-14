@@ -1,0 +1,99 @@
+import { guideMetadata } from "@/lib/seo";
+
+export const metadata = guideMetadata({
+  slug: "build-an-output",
+  title: "Build an output — ProcuLink guide",
+  description: "Choose the fields and format your receiving system expects.",
+});
+
+import { Step, Prereqs, IfThisFails, Outcome } from "@/components/help/guide";
+
+<Prereqs>
+- A flow whose fields are saved. See [Set up your first flow](/help/guides/set-up-your-first-flow).
+- A workspace admin account. Only admins add and change outputs.
+- To know what your receiving system expects: the file type, and the name it wants for each value.
+- Optional: a document already in the flow, so you can preview the file.
+</Prereqs>
+
+<Step n={1} title="Start a new output">
+
+Open the flow, go to the **Outputs** tab, and select **Add an output**. Stay on the **Build your own** tab.
+
+<Outcome>
+The **New output** form opens.
+</Outcome>
+
+</Step>
+
+<Step n={2} title="Name it and choose the file type">
+
+Type a **Name**, up to 120 characters. Then choose the **File type**: CSV, Excel, JSON, XML, PDF, Text or Fixed-width text. See [Output formats](/help/outputs).
+
+Depending on the type, more fields appear:
+
+- **CSV** has a **Separator**: comma, semicolon or tab.
+- **PDF** and **Text** have a **Title**, **Text at the top** and **Text at the bottom**. For PDF you can add a logo once the output is saved.
+- If the flow has a table, choose the **Table** to include, or **No table**.
+
+<Outcome>
+The form shows the options for your file type.
+</Outcome>
+
+</Step>
+
+<Step n={3} title="Choose where it goes">
+
+In **Send to**, keep **Download only** to collect the file from each document yourself. Or choose a destination you made before, or **New destination…** to make one now. See [Send outputs to a destination](/help/guides/send-to-a-destination).
+
+To send only some documents, set **Send when** to **Only when**, then choose a field, a condition and a value.
+
+<Outcome>
+The output knows where it goes and when.
+</Outcome>
+
+</Step>
+
+<Step n={4} title="Create it">
+
+Select **Create**. We start the output with one row for each field of the flow, and one for each column of the table, already filled in. The **Values** list appears below.
+
+<Outcome>
+The output is saved, and you can edit its rows.
+</Outcome>
+
+<IfThisFails>
+If the form says the name is missing, give the output a name. Other messages say what the server refused, such as a send-when value that is blank.
+</IfThisFails>
+
+</Step>
+
+<Step n={5} title="Shape the rows">
+
+Each row has these parts:
+
+- **Name in the file.** The column heading or the name the receiving system expects.
+- **Value.** A field of the document, or **Fixed value** with the text you type.
+- **Swap with lookup.** Optional. Replaces the value through a lookup. Then choose whether to keep the value or leave it blank if it is not in the lookup. See [Lookups](/help/lookups).
+- **Width.** Only for fixed-width text.
+
+Use **Up** and **Down** to change the order, **Remove** to drop a row and **Add a row** for a new one. Select **Save** when done.
+
+<Outcome>
+The output holds exactly the rows your receiving system expects, in the order it expects.
+</Outcome>
+
+</Step>
+
+<Step n={6} title="Preview it">
+
+If the flow has a document, select **Preview**. It shows the file made from the latest document, using the last saved version of the output.
+
+<Outcome>
+You see the file your receiving system would get. Values that a lookup did not find are listed under it.
+</Outcome>
+
+</Step>
+
+## Then publish
+
+Outputs take part in the flow's versions. Once the flow is published, a change to an output reaches new sends after you publish again. See [Publish and restore flow versions](/help/guides/publish-a-flow-version).

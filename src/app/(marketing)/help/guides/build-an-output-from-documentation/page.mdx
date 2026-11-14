@@ -1,0 +1,84 @@
+import { guideMetadata } from "@/lib/seo";
+
+export const metadata = guideMetadata({
+  slug: "build-an-output-from-documentation",
+  title: "Build an output from documentation — ProcuLink guide",
+  description: "Upload your receiving system's documentation and we propose the output for you to check.",
+});
+
+import { Step, Prereqs, IfThisFails, Outcome } from "@/components/help/guide";
+
+<Prereqs>
+- A flow whose fields are saved. See [Set up your first flow](/help/guides/set-up-your-first-flow).
+- A workspace admin account.
+- The import or API documentation of the system that will receive the output. It can be a PDF with text in it, a saved web page, an OpenAPI or JSON Schema file, an XSD file, or an example file (XML, JSON, YAML, text or CSV). It can be up to 10 MB.
+- Optional, to test a destination: a document already in the flow.
+</Prereqs>
+
+<Step n={1} title="Upload the documentation">
+
+Open the flow, go to the **Outputs** tab, and select **Add an output**. Choose the **From documentation** tab. Drop the documentation on the upload area, or choose it.
+
+<Outcome>
+We read the documentation, which can take a moment, and open a **Check the values** form. Nothing is saved yet.
+</Outcome>
+
+<IfThisFails>
+The screen says why. For example "We couldn't read the documentation. Try again.", or that this workspace has used its monthly AI allowance, or keeps documents on our own servers so nothing can be sent to AI. If you do not see the **From documentation** tab, this is not switched on for your workspace.
+</IfThisFails>
+
+</Step>
+
+<Step n={2} title="Check the format">
+
+We propose a file type: CSV, JSON, XML or fixed-width text. Under it, a line shows where the documentation says so, with the page of a PDF or the line of another file, and a short quote. If we could not find the place, the form says: "We couldn't find where the documentation says this."
+
+<Outcome>
+You know which file type is proposed, and you can see why.
+</Outcome>
+
+</Step>
+
+<Step n={3} title="Check every value">
+
+Each row of the proposed output shows the field of your flow that we chose for it, with the place in the documentation it came from. A row marked **Required** is one the documentation says must be present.
+
+Change any row with its **Value** list. For fixed-width text, check the width of each row too.
+
+If the documentation is long, we read only its first 150,000 characters, and the form says so. Check that nothing you need is missing. Parts of the proposal we could not use are left out, and the form says that too.
+
+<Outcome>
+Every row has the field you want, or **Not set** if it should carry no value.
+</Outcome>
+
+</Step>
+
+<Step n={4} title="Add a destination if the documentation names one">
+
+If the documentation says where to send the file, the form says "The documentation says to send to" and gives the address and the method. Select **Add this destination** to open the destination form with those details filled in. We never create it for you. You still enter the sign-in yourself. See [Destination sign-in, keys and signing](/help/destination-sign-in).
+
+Or choose **Download only**, or a destination you already have, in **Send to**.
+
+<Outcome>
+The output knows where it goes.
+</Outcome>
+
+</Step>
+
+<Step n={5} title="Send a test, then create">
+
+When the output goes to a destination, **Send a test** must pass before **Create** works. The test sends a real file made from a document in this flow, with `TEST_` at the start of its name. That file holds that document's values, so use a destination you trust. If the flow has no document yet, upload one first.
+
+Change anything in the form and the test must be sent again, because it only counts for exactly what you are about to create. A test that fails shows the destination's message.
+
+Select **Create**. Nothing is created until you do. To start again with other documentation, select **Choose a different file**.
+
+<Outcome>
+The output is saved, and its editor opens, where you can add lookups and send-when rules. See [Build an output](/help/guides/build-an-output).
+</Outcome>
+
+</Step>
+
+## What we send to AI
+
+The text of your documentation and the keys, labels and types of your flow's fields. No document or its values. The result is a proposal and is never applied by itself. See [AI in ProcuLink](/help/ai-in-proculink).

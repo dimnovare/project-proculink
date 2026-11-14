@@ -1,16 +1,15 @@
 import { pageMetadata } from "@/lib/seo";
 import Link from "next/link";
 import { SUBPROCESSORS } from "@/lib/subprocessors";
-import { requiresPlan } from "@/lib/gatedCapabilities";
 import { Card } from "@/components/bridge/layout/Card";
 
 export const metadata = pageMetadata({
   path: "/security",
   title: "Security & trust — ProcuLink",
   description:
-    "ProcuLink sits between your buyers and suppliers. How we protect that position — encryption, EU-region storage, a per-attempt delivery record, and responsible AI.",
+    "How ProcuLink protects the documents you send it and the data it sends on — encryption, EU-region storage, a per-attempt delivery record, and responsible AI.",
   ogDescription:
-    "Encryption, EU-region storage, a per-attempt delivery record, access control, and responsible AI — how ProcuLink protects the orders passing through it.",
+    "Encryption, EU-region storage, a per-attempt delivery record, access control, and responsible AI — how ProcuLink protects the documents passing through it.",
 });
 
 // ─── Palette (exact design tokens, sampled from tokens.css / globals.css) ──────
@@ -35,19 +34,8 @@ const BLUE = "#1E66C9"; // buyer-blue — primary CTA
 
 const POSTURE: Array<{ title: string; body: React.ReactNode; icon: React.ReactNode }> = [
   {
-    // Narrowed 2026-08-06 to exactly what is enforced. This card used to say "Encryption
-    // everywhere — AES-GCM at rest and TLS 1.2+ in transit", and the in-transit half was
-    // false: no delivery channel required TLS, so a Directo endpoint saved as http:// shipped
-    // the purchase order together with the user/password/key that authenticate it, in clear
-    // text. Requiring https:// on every URL-configured channel is what made most of this
-    // sentence true; the last two clauses are the part that is still not, and they stay named
-    // rather than rounded away. The at-rest half was always true
-    // (DeliveryEncryptionService.cs:43/69, no plaintext fallback).
     title: "Encryption in transit and at rest",
-    // The channel list has to be complete for the TLS claim to be true, and a compliance reviewer
-    // reads this page before signing — so the one channel in it that is not on every plan says so.
-    // The ERP connectors gate at Enterprise (BillingFeature.ErpConnectors); tier derived, not typed.
-    body: `Supplier delivery credentials are encrypted at rest with AES-256-GCM authenticated encryption and are never written to application logs. Every outbound channel configured by URL — webhook and HTTP delivery, the ERP connectors on ${requiresPlan("erpConnectors")}, catalog feeds and S3 ingestion — must use https://, and a plain http:// address is refused when you save it. SFTP is encrypted by construction, and FTPS negotiates explicit TLS. Two connection settings can still weaken that if you switch them on: skipping FTPS certificate validation, and turning SSL off for IMAP or SMTP.`,
+    body: `Delivery credentials are encrypted at rest with AES-256-GCM authenticated encryption and are never written to application logs. Every outbound channel configured by URL — webhook and HTTP delivery, and S3 ingestion — must use https://, and a plain http:// address is refused when you save it. SFTP is encrypted by construction, and FTPS negotiates explicit TLS. Two connection settings can still weaken that if you switch them on: skipping FTPS certificate validation, and turning SSL off for IMAP or SMTP.`,
     icon: <KeyIcon />,
   },
   {
@@ -60,12 +48,12 @@ const POSTURE: Array<{ title: string; body: React.ReactNode; icon: React.ReactNo
     title: "Where your data lives",
     body: (
       <>
-        Your order files, the database behind them, and the API all run in EU-region
+        Your files, the database behind them, and the API all run in EU-region
         infrastructure — Cloudflare R2, Neon, and Railway. Some processing runs on named US
         subprocessors under standard contractual clauses: sign-in, AI document extraction and
-        mapping suggestions, payments, and email in both directions — the orders your suppliers
-        email in, and the purchase orders we email out to them. If you deliver an order by
-        email, the order itself passes through a US provider. Each one is listed with its
+        mapping suggestions, payments, and email in both directions — the documents sent to your
+        flow's address, and the data we email out. If you deliver by
+        email, the output itself passes through a US provider. Each one is listed with its
         location and contract on{" "}
         <Link href="/subprocessors" style={{ color: GREEN_DEEP, textDecoration: "underline" }}>
           /subprocessors
@@ -126,40 +114,12 @@ const POSTURE: Array<{ title: string; body: React.ReactNode; icon: React.ReactNo
     //     `false` for SFTP (:74), FTPS (:63) and SMTP (:48) — there is no body to keep.
     //   • Nothing here says records are never deleted. Erasure and retention delete them, and that
     //     sentence would have been the same falsifiable-by-grep mistake as "append-only".
-    body: "Every parse, edit, validation and delivery attempt is recorded. Each delivery attempt carries its timestamp, channel, endpoint, attempt number, response code, and the SHA-256 fingerprint of the bytes dispatched; on channels that return one — webhook, email API, ERP — a failed or rejected attempt also stores the supplier's response. A retry adds a new numbered attempt rather than replacing the previous one, and requeueing supersedes earlier attempts rather than erasing them. You can open any single order and read its complete history on every plan; the workspace-wide delivery log across all orders, with filtering and CSV export, is included from the Operations plan up.",
+    body: "Every parse, edit, validation and delivery attempt is recorded. Each delivery attempt carries its timestamp, channel, endpoint, attempt number, response code, and the SHA-256 fingerprint of the bytes dispatched; on channels that return one — webhook, email API — a failed or rejected attempt also stores the receiver's response. A retry adds a new numbered attempt rather than replacing the previous one, and requeueing supersedes earlier attempts rather than erasing them. You can open any single document and read its complete history.",
     icon: <ClockIcon />,
   },
   {
     title: "Validation before delivery",
-    // This card said: "Per-supplier rules block malformed orders before they ever
-    // reach a supplier endpoint — wrong currency, missing fields, unresolved
-    // codes." Every clause of that is true of SOMETHING, which is what made it
-    // hard to see. It named one product and described two.
-    //
-    // The CONFIGURABLE per-supplier rule set — the versioned acceptance profile on
-    // a supplier's Validation rules tab — is gated at Enterprise:
-    // PlanConstants.cs:287 maps BillingFeature.CustomSupplierRules to Enterprise,
-    // and SupplierAcceptanceController.GateAsync (:36-46) refuses both authoring
-    // (:70) and activating (:99) with custom_supplier_rules_requires_enterprise.
-    // Reading versions you already hold is deliberately left open (:51-63), so a
-    // workspace that downgrades can still see what its suppliers enforce.
-    //
-    // The BUILT-IN checks are a different product and are on every plan including
-    // Pilot. SupplierAcceptanceService.cs:198-204 runs InvariantValidator and the
-    // output-field pass unconditionally — neither sits inside a `profile is not
-    // null` branch, and EvaluateProfile returns empty when there is none (:387-391).
-    //
-    // Of the three examples the old sentence gave, exactly one belonged to the
-    // gated product. Unresolved supplier item codes are built-in and hard-block
-    // (OutputFieldValidator.cs:69-71, throwing at :115-126 before a transform
-    // writes a byte). A missing PO number or currency is built-in
-    // (InvariantValidator.cs:37-51). "Wrong currency" is NOT: nothing built-in
-    // validates the currency VALUE — InvariantValidator.cs:47 is a
-    // !IsNullOrWhiteSpace presence test — so an allowed-list or equals check is
-    // the gated profile (RuleCatalog.cs:107,115). Naming no tier while listing all
-    // three sold the Enterprise product at every price on the page a compliance
-    // reviewer reads.
-    body: `Built-in checks run on every plan and cannot be switched off: an order needs a PO number and a currency, every line needs a quantity above zero and a unit price that is not negative, and immediately before an order is transformed it is held back rather than emitted if a line is still flagged for review or its supplier item code is unresolved. Checks of your own for a supplier — an accepted currency list, a required ship-to or incoterm, a value range — are a separate versioned acceptance profile: authoring a version and activating one are both ${requiresPlan("customSupplierRules")}, while reading the versions you already have is not gated, so a workspace that downgrades can still see what its suppliers enforce.`,
+    body: `Built-in checks run on every plan and cannot be switched off: we flag a value that is missing, in the wrong shape or hard to read, and we hold a document we have already seen instead of sending it twice.`,
     icon: <RulesIcon />,
   },
   {
@@ -209,7 +169,7 @@ const POSTURE: Array<{ title: string; body: React.ReactNode; icon: React.ReactNo
   // and not the capability whose production status we cannot check.
   {
     title: "Responsible AI",
-    body: "Mapping suggestions never auto-apply without a confidence score and source. Your data is never used to train third-party models. We can also turn AI extraction off for an organisation entirely, so nothing about its orders reaches OpenAI: the AI steps are switched off, our own parsers do the reading, and anything they cannot read is left for manual entry rather than sent out. We set that for you on request; it is not a self-serve setting, and it does not change where your files are stored.",
+    body: "Suggestions never apply themselves: you accept each one, and every value shows how sure we are. Your data is never used to train third-party models. We can also turn AI off for a workspace entirely, so nothing about its documents reaches OpenAI. Documents there cannot be read, because reading uses AI: they are stopped and marked as not read, never sent out. We set that for you on request; it is not a self-serve setting, and it does not change where your files are stored.",
     icon: <ZapIcon />,
   },
 ];
@@ -315,7 +275,7 @@ export default function SecurityPage() {
               textWrap: "balance",
             }}
           >
-            Built for orders you can&apos;t afford to get wrong
+            Built for documents you can&apos;t afford to get wrong
           </h1>
 
           <p
@@ -327,8 +287,8 @@ export default function SecurityPage() {
               margin: "18px auto 0",
             }}
           >
-            ProcuLink sits between your buyers and suppliers. We treat that position —
-            and your data — with the seriousness it deserves.
+            ProcuLink handles the documents your business runs on. We treat that
+            responsibility — and your data — with the seriousness it deserves.
           </p>
         </div>
       </header>

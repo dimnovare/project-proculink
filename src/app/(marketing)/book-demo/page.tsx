@@ -3,31 +3,24 @@ import { pageMetadata } from "@/lib/seo";
 import { BookDemoForm } from "@/components/marketing/BookDemoForm";
 import { Card } from "@/components/bridge/layout/Card";
 
-// /book-demo is a 20-minute call about ONE of the visitor's own orders, or about a supported
-// pilot — not a generic software demo. "Show us one workflow" is a promise we can keep on a
-// short call; "a demo" invites a feature tour nobody needs before they have seen their own
-// order come out supplier-ready. The route keeps its name: it is linked from the app and the
-// marketing site, and BOOK_DEMO_URL (src/lib/book-demo.ts) defaults to it.
+// /book-demo is a 20-minute call about ONE of the visitor's own documents. The route keeps its name:
+// it is linked from the app and the marketing site, and BOOK_DEMO_URL (src/lib/book-demo.ts) defaults to it.
 
 export const metadata = pageMetadata({
   path: "/book-demo",
   title: "Book a 20-minute call — ProcuLink",
   description:
-    "Show us one of your documents — a purchase order or a supplier invoice — or talk through a FREE supported pilot on a 20-minute call. We reply within 1 business day to find a time.",
+    "Show us one of your documents on a 20-minute call. We reply within 1 business day to find a time.",
 });
 
 const COVER: Array<[string, string]> = [
   [
     "One of your documents",
-    "Bring a PDF, Excel or CSV purchase order you send to a repeat supplier — or a test or anonymised one. We can run it through ProcuLink while we talk. Invoices are in early access: bring one and we'll talk through the pilot.",
+    "Bring a PDF, Excel or CSV file you handle by hand — or a test or anonymised one. We can run it through ProcuLink while we talk.",
   ],
   [
-    "Your item codes",
-    "Where your item numbers differ from the supplier's, we'll show how you confirm a match once and how it is reused on the next order.",
-  ],
-  [
-    "Whether a pilot fits",
-    "If one repeat supplier looks like a good test case, we'll talk through the supported pilot. No obligation either way.",
+    "Whether it fits",
+    "If a document you handle again and again looks like a good test case, we'll talk through how ProcuLink would handle it. No obligation either way.",
   ],
 ];
 
@@ -41,9 +34,9 @@ export default function BookDemoPage() {
       </span>
       <h1 className="plk-call-h1">Show us one of your documents</h1>
       <p className="plk-call-intro">
-        A short call to look at one document you handle by hand — a purchase order you send to a
-        repeat supplier, or a supplier invoice you retype — or to discuss a pilot. Tell us a little about how you order today and we&apos;ll reply within 1 business day
-        to find a time.
+        A short call to look at one document you handle by hand — a purchase order, an invoice,
+        a price list. Tell us a little about the documents you handle today and we&apos;ll reply
+        within 1 business day to find a time.
       </p>
 
       <Card style={{ marginBottom: 28 }}>
@@ -61,8 +54,8 @@ export default function BookDemoPage() {
 
       <p className="plk-call-aside">
         Already know you want to test it?{" "}
-        <Link href="/pilot" className="plk-call-link">
-          Apply for a FREE supported pilot <span aria-hidden>→</span>
+        <Link href="/sign-up" className="plk-call-link">
+          Start your free trial <span aria-hidden>→</span>
         </Link>
       </p>
     </div>

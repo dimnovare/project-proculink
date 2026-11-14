@@ -936,7 +936,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                     <p className="text-[11px]" style={{ color: "var(--ink-faint)" }}>
                       Leave blank for no DOCTYPE. Set the exact DTD URI your supplier&apos;s cXML requires.
                     </p>
-                    <HelpLink href="/help/cxml-setup" label="cXML setup guide" />
+                    <HelpLink href="/help/outputs" label="cXML setup guide" />
                   </div>
                 </div>
               )}
@@ -1027,7 +1027,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
 
               {/* ERP adapter help — only for the Erply / Directo ERP endpoints. */}
               {(protocol === "erp_erply" || protocol === "erp_directo") && (
-                <HelpLink href="/help/erp-erply-and-directo" label="ERP adapter guide" />
+                <HelpLink href="/help/destinations" label="ERP adapter guide" />
               )}
 
               {(protocol === "sftp" || protocol === "ftps") && (
@@ -1125,7 +1125,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                       cert. Leave OFF for servers with a public CA certificate.
                     </label>
                   )}
-                  <HelpLink href="/help/sftp-ftps-delivery-keys" label="SFTP key guide" />
+                  <HelpLink href="/help/destination-sign-in" label="SFTP key guide" />
                 </div>
               )}
 
@@ -1478,7 +1478,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                             </Field>
                           </div>
                         </details>
-                        <HelpLink href="/help/oauth2-delivery-setup" label="OAuth2 setup guide" />
+                        <HelpLink href="/help/destination-sign-in" label="OAuth2 setup guide" />
                       </div>
                     )}
 

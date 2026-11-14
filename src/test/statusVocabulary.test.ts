@@ -6,6 +6,7 @@ import { PROBLEM_COPY, PROBLEM_STATUSES } from "@/components/bridge/problem/prob
 import { TILES } from "@/app/(app)/operations/health/healthTiles";
 import { recentStatusFromOrder } from "@/components/bridge/UploadWorkbench";
 import { deliveryNote } from "@/components/bridge/ExceptionDetail";
+import { DOCUMENT_STATUSES } from "@/lib/documentStatusManifest";
 import { ROOT } from "./appRoutes";
 import { stripComments, syntaxFor } from "./sourceScan";
 
@@ -84,24 +85,6 @@ const FAILURE_BUCKET = [
 ] as const;
 
 /**
- * The statuses OrderExceptionService.ProblemFor opens an exception for
- * (ProcuLink.Infrastructure/Services/OrderExceptionService.cs:31-61). These are
- * exactly the rows a user meets on /operations/exceptions, so the exceptions
- * article has to name all eight — the old article named six and silently
- * dropped the routing hold and the unknown-outcome park.
- */
-const EXCEPTION_STATUSES = [
-  "unrouted",
-  "pending_review",
-  "failed",
-  "transform_failed",
-  "delivery_failed",
-  "delivery_unconfirmed",
-  "rejected_by_supplier",
-  "delivery_dead_letter",
-] as const;
-
-/**
  * Labels the product used to ship and must never ship again.
  *
  * The stage-name labels are matched CASE-SENSITIVELY and as whole title-case
@@ -143,9 +126,8 @@ const RETIRED_LABELS: Array<{ phrase: string; re: RegExp; wasAt: string; nowUse:
 ];
 
 const HELP = "src/app/(marketing)/help";
-const ARTICLE_STATUSES = `${HELP}/dashboard-and-statuses/page.mdx`;
-const ARTICLE_EXCEPTIONS = `${HELP}/exceptions-and-stuck-orders/page.mdx`;
-const ARTICLE_INBOX = `${HELP}/inbox-basics/page.mdx`;
+const ARTICLE_TROUBLESHOOTING = `${HELP}/troubleshooting/page.mdx`;
+const ARTICLE_DOCUMENT_STATUSES = `${HELP}/documents-and-statuses/page.mdx`;
 
 const readRaw = (rel: string) => readFileSync(join(ROOT, rel), "utf8");
 
@@ -187,31 +169,8 @@ function copyBearingFiles(): string[] {
   walk(join(ROOT, "src"));
   // This gate lists the retired words in order to ban them, and the shared
   // scanners it borrows are not copy either.
-  return out.filter((f) => !f.startsWith("src/test/") && !OWNED_BY_HELP_COPY_PACKET.includes(f));
+  return out.filter((f) => !f.startsWith("src/test/"));
 }
-
-/**
- * The two articles FE #75 (`claude/help-status-copy`) rewrites, deferred to it
- * rather than fixed twice.
- *
- * Both still carry a retired word on `main` — that is exactly what #75 is for —
- * and a second, competing rewrite of the same file is worth less than the
- * conflict it costs. So the scan skips them and this packet keeps the surfaces
- * #75 does not touch.
- *
- * DELIBERATELY NOT A SILENT SKIP. An exemption that outlives its reason is a
- * hole, and this one has an expiry nothing would otherwise notice. The test
- * below asserts each entry is STILL DIRTY, so the moment #75 lands and cleans a
- * file, that entry fails and has to be deleted — which puts the file back under
- * the scan in the same commit.
- */
-const OWNED_BY_HELP_COPY_PACKET = [
-  // dashboard-and-statuses/page.mdx was here and is now scanned normally: this IS
-  // the help-copy packet, so on this branch the file is already rewritten. The
-  // guard below caught its own exemption outliving its reason, exactly as its
-  // comment promised — which is why it is removed rather than silenced.
-  "src/app/(marketing)/help/inbox-basics/page.mdx",
-];
 
 describe("every status the API returns has a canonical frontend label", () => {
   test.each(BACKEND_STATUSES)("%s is in STATUS_META", (status) => {
@@ -289,45 +248,6 @@ describe("a health tile names the same thing the inbox it opens will show", () =
     "the %s tile is labelled with the registry label",
     (status, label) => {
       expect(label).toBe(STATUS_LABELS[status]);
-    },
-  );
-});
-
-describe("the issues article teaches the labels the product renders", () => {
-  /**
-   * SCOPE. This covers `exceptions-and-stuck-orders` ONLY.
-   *
-   * `dashboard-and-statuses` and `inbox-basics` belong to FE #75
-   * (`claude/help-status-copy`), which rewrites both and ships
-   * src/test/help-status-labels.test.ts to hold them. That test is the better
-   * one for those two files and this test deliberately does not duplicate it: it
-   * derives the inbox chip list and the bulk-send rule by scanning
-   * `InboxView.FILTER_CHIPS` and `inboxSend.BULK_SELECTABLE_STATUSES` at source,
-   * and it asserts the harder direction — every label an article TEACHES must be
-   * one the product prints, which catches an invented label as well as a stale
-   * one. Two tests for one invariant is how they drift apart.
-   *
-   * The division is by FILE, so there is exactly one owner per article:
-   *   #75  →  dashboard-and-statuses, inbox-basics
-   *   here →  exceptions-and-stuck-orders, and every RENDER site
-   */
-
-  /**
-   * `**Label**`, not a bare substring. An article that happens to contain the
-   * word "Delivered" inside a sentence has not TAUGHT the status; the article
-   * writes every status it defines as a bold term in a bullet, so requiring the
-   * bold is what separates "teaches it" from "mentions something that looks like
-   * it".
-   */
-  const teaches = (article: string, label: string) => article.includes(`**${label}**`);
-
-  test.each(EXCEPTION_STATUSES)(
-    "the issues article teaches %s by its shipped label",
-    (status) => {
-      expect(
-        teaches(read(ARTICLE_EXCEPTIONS), STATUS_LABELS[status]),
-        `${ARTICLE_EXCEPTIONS} never defines "**${STATUS_LABELS[status]}**"`,
-      ).toBe(true);
     },
   );
 });
@@ -481,27 +401,10 @@ describe("a sentence only promises a re-send when the product can re-send", () =
 describe("the retired vocabulary is gone from every surface that renders words", () => {
   const files = copyBearingFiles();
 
-  test.each(OWNED_BY_HELP_COPY_PACKET)(
-    "%s is still dirty, so deferring it to FE #75 is still the right call",
-    (rel) => {
-      // Fails the day #75 lands and cleans the file. That failure is the point:
-      // delete the entry, and the file rejoins the scan in the same commit.
-      const copy = stripComments(read(rel), syntaxFor(rel));
-      const still = RETIRED_LABELS.filter(({ re }) => {
-        re.lastIndex = 0;
-        return re.test(copy);
-      }).map((r) => r.phrase);
-      expect(
-        still,
-        `${rel} is clean — FE #75 has landed. Remove it from OWNED_BY_HELP_COPY_PACKET.`,
-      ).not.toEqual([]);
-    },
-  );
-
   test("the scan reaches the files it claims to (guards against an empty walk)", () => {
     expect(files.length).toBeGreaterThan(300);
     expect(files).toContain("src/components/bridge/ExceptionDetail.tsx");
-    expect(files).toContain(ARTICLE_EXCEPTIONS);
+    expect(files).toContain(ARTICLE_TROUBLESHOOTING);
     expect(files).toContain("src/lib/help-articles.ts");
   });
 
@@ -518,5 +421,47 @@ describe("the retired vocabulary is gone from every surface that renders words",
       });
     }
     expect(hits, `"${phrase}" is retired — use "${nowUse}":\n${hits.join("\n")}`).toEqual([]);
+  });
+});
+
+describe("the statuses article teaches the labels the document screens render", () => {
+  // The article defines each status as a bold term at the start of a list item. A bold word elsewhere
+  // (a button name, say) is not a definition, so only that shape is read.
+  const taught = [...read(ARTICLE_DOCUMENT_STATUSES).matchAll(/^- \*\*(.+?)\*\*/gm)].map((m) => m[1]);
+  const shipped = Object.values(DOCUMENT_STATUSES).map((s) => s.label);
+
+  test("the walk really reads the article", () => {
+    expect(taught.length).toBeGreaterThanOrEqual(shipped.length);
+  });
+
+  test.each(taught)("%s is a status the product renders", (label) => {
+    expect(shipped, `"${label}" is not in DOCUMENT_STATUSES`).toContain(label);
+  });
+
+  test.each(shipped)("%s is taught by the article", (label) => {
+    expect(taught, `the article never defines "${label}"`).toContain(label);
+  });
+});
+
+describe("the troubleshooting article covers the statuses that stop a document, by their shipped labels", () => {
+  const article = read(ARTICLE_TROUBLESHOOTING);
+  const headings = [...article.matchAll(/^## (.+)$/gm)].map((m) => m[1]);
+  const bold = [...article.matchAll(/\*\*([^*\n]+)\*\*/g)].map((m) => m[1]);
+  const shipped = Object.values(DOCUMENT_STATUSES).map((s) => s.label);
+  const failing = Object.values(DOCUMENT_STATUSES).filter((s) => s.tone === "error").map((s) => s.label);
+
+  test("the walk really reads the article and the manifest", () => {
+    expect(headings.length).toBeGreaterThanOrEqual(5);
+    expect(failing.length).toBeGreaterThanOrEqual(2);
+  });
+
+  test.each(failing)("%s has its own section", (label) => {
+    expect(headings, `the article has no "## ${label}" section`).toContain(label);
+  });
+
+  test("a status named in bold is spelled the way the product spells it", () => {
+    const named = bold.filter((b) => shipped.some((label) => label.toLowerCase() === b.toLowerCase()));
+    expect(named.length, "the article names statuses in bold").toBeGreaterThanOrEqual(3);
+    for (const b of named) expect(shipped, `"${b}" is not a shipped status label`).toContain(b);
   });
 });

@@ -1,0 +1,99 @@
+import { guideMetadata } from "@/lib/seo";
+
+export const metadata = guideMetadata({
+  slug: "set-up-your-first-flow",
+  title: "Set up your first flow — ProcuLink guide",
+  description: "Create a flow, add a document, check what we read, and choose where the output goes.",
+});
+
+import { Step, Prereqs, IfThisFails, Outcome } from "@/components/help/guide";
+
+<Prereqs>
+- A ProcuLink workspace you can sign in to.
+- One document like the ones you will receive. A real one is best, or a copy with the private details blanked out. It can be a PDF, a scan or photo, a CSV, an Excel file, a Word file, a text file, XML or JSON, up to 10 MB. See [Files we read](/help/what-we-read).
+- No output is delivered while you follow this guide, unless you choose to send a test in step 5.
+</Prereqs>
+
+<Step n={1} title="Name your flow">
+
+Open **Flows** and select **New flow**. Type a name that says what the flow is for, such as "Supplier invoices", and select **Next**. A name can have up to 120 characters.
+
+<Outcome>
+The flow exists, and the guide moves on to the upload.
+</Outcome>
+
+</Step>
+
+<Step n={2} title="Upload a sample">
+
+Choose a file, or drop it on the upload area. We read it straight away.
+
+<Outcome>
+A message says we are reading your document. It turns into a list of fields when we are done.
+</Outcome>
+
+<IfThisFails>
+If we could not read the file, the screen says why. Press **Try again** when it is offered, or upload a different file. See [Troubleshooting](/help/troubleshooting).
+</IfThisFails>
+
+</Step>
+
+<Step n={3} title="Choose the fields to read">
+
+We list every value and table we found. Untick the ones you do not need, correct a label if it is not the word you use, set the type, and tick **Required** for values that must always be present. Then select **Save fields**.
+
+Every later document in this flow is read into these fields. You can change them later from the flow's **Fields** tab.
+
+<Outcome>
+The fields are saved, and the guide moves on to the output.
+</Outcome>
+
+</Step>
+
+<Step n={4} title="Set up the output">
+
+An output is the file we make from each document. Choose a name and the file type your receiving system expects: CSV, Excel, JSON, XML, PDF, text or fixed-width text. Select **Preview** to see what the file will look like for your sample. When it looks right, select **Create**, or **Save** if the output already exists.
+
+To build an output with more control, see [Build an output](/help/guides/build-an-output).
+
+<Outcome>
+The output is saved, and the guide moves on to where it goes.
+</Outcome>
+
+</Step>
+
+<Step n={5} title="Choose where it goes">
+
+Under **Send to**, choose one of:
+
+- **Download only.** Nothing is sent. You download the file from the document.
+- A destination you have already added.
+- **New destination…**, to add one now.
+
+If you chose a destination, you can select **Send a test** to check that it accepts the file. Then select **Finish**. Finishing publishes the flow, so it starts processing new documents.
+
+Destinations are explained in [Destinations](/help/destinations).
+
+<Outcome>
+The flow is published, and the wizard moves to its last screen.
+</Outcome>
+
+<IfThisFails>
+If the test fails, the message says why. Fix the destination's details and test again. You can also pick **Download only** now and add a destination later.
+</IfThisFails>
+
+</Step>
+
+<Step n={6} title="Your flow is ready">
+
+The last wizard screen says your flow is ready and shows the flow's own email address. Select **Open the flow** or **Upload more documents**.
+
+<Outcome>
+The flow is published and ready for documents.
+</Outcome>
+
+</Step>
+
+## Then send in your first document
+
+Forward a document to the flow's email address, or upload one on the flow's **Documents** tab. When it has been read, open it and check it. See [Check and send a document](/help/guides/check-and-send-a-document).

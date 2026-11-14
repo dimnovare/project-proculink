@@ -1,36 +1,18 @@
 import { pageMetadata } from "@/lib/seo";
-import { CHECKOUT_PLAN_IDS, OVERAGE_PER_ORDER_EUR, PLAN_BY_ID } from "@/lib/plans";
+import { DOCUMENT_PLANS, TRIAL_DAYS } from "@/lib/plans";
 
-// The two ladder numbers this description quotes are DERIVED, not typed.
-//
-// They were typed, and that is the whole risk: metadata is the one piece of pricing
-// copy nobody looks at while repricing, because it never renders on the page. A
-// €149 that became €179 in plans.ts would have gone on telling Google and every
-// link preview the old entry price indefinitely, and the same for the overage rate
-// the /pricing body already derives. The rendered sentence is unchanged — this is
-// drift-proofing, not a correction.
-//
-// "from €X/mo" is the CHEAPEST self-serve tier, so it follows the ladder rather than
-// naming Growth by hand: if a cheaper paid tier is ever added below it, or Growth
-// stops being self-serve, this sentence moves with the change. Grouping is pinned to
-// en-US for the same reason `billingPriceLabelFor` in plans.ts pins it — the string
-// must not depend on the build machine's locale.
-const CHEAPEST_PAID_MONTHLY_EUR = Math.min(
-  ...CHECKOUT_PLAN_IDS.map((id) => PLAN_BY_ID[id].priceMonthly ?? Infinity),
-);
-const ENTRY_PRICE = `€${CHEAPEST_PAID_MONTHLY_EUR.toLocaleString("en-US")}/mo`;
-const OVERAGE_RATE = `€${OVERAGE_PER_ORDER_EUR.toFixed(2)}`;
+// The two numbers this description quotes are DERIVED from the cheapest document plan, not
+// typed: metadata never renders on the page it describes, so a typed price is the copy nobody
+// re-reads when the ladder moves. Grouping is pinned to en-US so the string does not depend on
+// the build machine's locale.
+const [STARTER] = DOCUMENT_PLANS;
 
-// The pricing page itself is a Client Component (interactive ROI calculator +
-// tier disclosure), so it cannot export `metadata`. This server-component
-// layout supplies the page-level SEO metadata + self-canonical for /pricing.
+// The pricing page itself is a Client Component, so it cannot export `metadata`. This
+// server-component layout supplies the page-level SEO metadata + self-canonical for /pricing.
 export const metadata = pageMetadata({
   path: "/pricing",
   title: "Pricing — ProcuLink",
-  description:
-    `Plans for document processing: a free 14-day pilot, self-serve paid tiers from ${ENTRY_PRICE}, and custom Enterprise. Going over never blocks — predictable ${OVERAGE_RATE} per-document overage above your plan.`,
-  ogDescription:
-    "Free pilot, self-serve paid tiers, and custom Enterprise for document processing. Tell us how many documents you process and how many suppliers you send orders to, and we'll point you at the right plan.",
+  description: `Document processing from €${STARTER.priceMonthly} a month for ${STARTER.orderLimit!.toLocaleString("en-US")} documents. Every channel, output and check on every plan. Free for ${TRIAL_DAYS} days.`,
 });
 
 export default function PricingLayout({ children }: { children: React.ReactNode }) {

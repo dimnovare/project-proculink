@@ -134,19 +134,25 @@ export const ANNUAL_BILLING_ENABLED =
   process.env.NEXT_PUBLIC_ANNUAL_BILLING_ENABLED !== "false";
 
 
+// The trial's allowance, named once: orderLimit, flowLimit and the billing line below all read it.
+const TRIAL_DOCUMENTS = 20;
+const TRIAL_FLOWS = 2;
+export const TRIAL_DAYS = 14;
+
 export const PLANS: Plan[] = [
   {
     id: "pilot",
-    name: "Pilot",
+    // The wire id stays "pilot" (the backend stores it); only the name a user reads is "Trial".
+    name: "Trial",
     priceMonthly: 0,
     priceYearly: null,
     priceLabel: "Free",
-    priceCadence: "14 days",
+    priceCadence: `${TRIAL_DAYS} days`,
     billingPriceLabel: "Free trial",
-    billingSummary: "Up to 20 documents · 1 supplier · 14 days",
-    orderLimit: 20,
+    billingSummary: `${TRIAL_DOCUMENTS} documents · ${TRIAL_FLOWS} flows`,
+    orderLimit: TRIAL_DOCUMENTS,
     supplierLimit: 1,
-    flowLimit: 2,
+    flowLimit: TRIAL_FLOWS,
     overageEur: null,
     orderLimitIsMonthly: false,
     // The PDF / Excel / CSV named here are INPUTS — upload formats every plan accepts. ProcuLink
@@ -183,7 +189,7 @@ export const PLANS: Plan[] = [
       "Email delivery to your supplier",
     ],
     inheritsFrom: null,
-    cta: { label: "Start your FREE Pilot", href: SIGN_UP },
+    cta: { label: "Start your free trial", href: SIGN_UP },
     // #8A5310, not the stale #C97A14 (which is not a token in globals.css and
     // measured 3.1094:1 as label text on its own tint). 5.7164:1.
     color: "#8A5310",
@@ -268,6 +274,7 @@ export const PLANS: Plan[] = [
     isCheckout: true,
     isCustom: false,
     next: "operations",
+    hidden: true,
   },
   {
     id: "operations",
@@ -312,6 +319,7 @@ export const PLANS: Plan[] = [
     isCheckout: true,
     isCustom: false,
     next: "integration",
+    hidden: true,
   },
   {
     id: "integration",
@@ -357,6 +365,7 @@ export const PLANS: Plan[] = [
     // Integration → Distributor completes the in-app upsell chain so a growing
     // org can self-serve up to the Distributor ICP tier before Enterprise.
     next: "distributor",
+    hidden: true,
   },
   {
     id: "distributor",
@@ -398,7 +407,7 @@ export const PLANS: Plan[] = [
     isCheckout: true,
     isCustom: false,
     next: null,
-    hidden: false,
+    hidden: true,
   },
   {
     id: "enterprise",
@@ -505,6 +514,19 @@ export const PLAN_BY_ID: Record<PlanId, Plan> = [...PLANS, ...DOCUMENT_PLANS].re
   {} as Record<PlanId, Plan>,
 );
 
+/** Plans kept for workspaces already paying on them; never offered publicly. */
+export const LEGACY_PAID_PLANS: readonly Plan[] = PLANS.filter((p) => p.isCheckout && !DOCUMENT_PLAN_IDS.includes(p.id));
+
+/** Every bullet a document plan card shares; the per-plan overage line is added by the card. */
+export const DOCUMENT_PLAN_FEATURES: readonly string[] = [
+  "Every intake channel: upload, email, mailbox, SFTP, FTP, S3 and API",
+  "Every output: CSV, JSON, XML, Excel, PDF, text and fixed-width",
+  "Unlimited users",
+];
+
+/** The one public ladder: the trial, the document plans, then Enterprise. */
+export const PUBLIC_LADDER: readonly Plan[] = [PLAN_BY_ID.pilot, ...DOCUMENT_PLANS, PLAN_BY_ID.enterprise];
+
 /**
  * Every plan id the ladder declares, longest-first.
  *
@@ -588,7 +610,7 @@ export function effectiveFeatures(plan: Plan): string[] {
 }
 
 /** Plan ids that go through self-serve Stripe Checkout (excludes Pilot, Enterprise, and hidden plans). */
-export const CHECKOUT_PLAN_IDS: PlanId[] = PLANS.filter((p) => p.isCheckout && !p.hidden).map((p) => p.id);
+export const CHECKOUT_PLAN_IDS: PlanId[] = PLANS.filter((p) => p.isCheckout).map((p) => p.id);
 
 /**
  * Derived annual savings for a plan, in whole percent (e.g. 17), comparing the
@@ -634,24 +656,6 @@ export function billingPriceLabelFor(
   if (billingInterval !== "yearly" || plan.priceYearly == null) return plan.billingPriceLabel;
   return `€${plan.priceYearly.toLocaleString("en-US")}/yr`;
 }
-
-/**
- * Setup / onboarding fee note. Self-serve plans include light setup at no extra
- * charge; the per-supplier onboarding fee applies only to Enterprise / complex
- * integrations and is arranged manually (never auto-charged through Stripe).
- *
- * The waiver is stated as a STANDING OFFER, not an existing arrangement: there
- * are no design partners yet (2026-07-30 production census — one org has ever
- * held an order, and it is the founder's own), so "waived for early design
- * partners" implied customers we do not have. Pinned by
- * src/app/(marketing)/legalCommitments.test.tsx; keep the same sentence in the
- * ROI calculator fine print.
- */
-export const SETUP_FEE_NOTE =
-  "Growth, Operations, Integration, and Distributor include light, self-serve setup at no extra cost. " +
-  "Hands-on, per-supplier onboarding (€500 per supplier for the first 3, then €150 each) applies only to " +
-  "Enterprise and other complex setups — arranged manually, never auto-charged, and we will waive it for " +
-  "the first design partners we take on.";
 
 /**
  * Per-order overage fee (EUR) on every order a paid self-serve plan processes

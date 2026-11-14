@@ -1,3 +1,5 @@
+import { PLAN_BY_ID } from "@/lib/plans";
+
 // section-guides — "what is this screen" registry + pure helpers.
 //
 // One entry per in-app sidebar screen. HelpSlideover (opened from the topbar
@@ -60,7 +62,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       { text: "Export the current view as CSV — it covers the orders in the time window you've selected, up to the most recent page" },
     ],
     firstStep: { text: "Complete the two-step setup wizard — choose your order direction and add your first {supplier} — then use \"Try a practice order\" in the checklist." },
-    articleSlugs: ["dashboard-and-statuses", "inbox-basics"],
+    articleSlugs: ["documents-and-statuses"],
   },
   {
     route: "/upload",
@@ -74,7 +76,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       { text: "Check your plan's order and {supplier} usage in the side panel" },
     ],
     firstStep: { text: "Click \"Try with a sample order\" — it needs no setup and is free." },
-    articleSlugs: ["order-intake-options", "csv-xlsx-field-guide", "troubleshooting"],
+    articleSlugs: ["intake-channels", "what-we-read", "troubleshooting"],
   },
   {
     route: "/inbox",
@@ -88,7 +90,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       { text: "Move with j/k or arrow keys; Enter opens an order" },
     ],
     firstStep: { text: "If your inbox is empty, start with a practice order or upload your first file.", href: "/upload" },
-    articleSlugs: ["inbox-basics", "dashboard-and-statuses", "item-codes"],
+    articleSlugs: ["documents-and-statuses", "lookups"],
   },
   {
     route: "/inbox/[orderId]",
@@ -102,7 +104,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       { text: "Download or copy the output after the order is transformed" },
     ],
     firstStep: { text: "Resolve each flagged line — accept a suggestion or set a code — then use the send/confirm button (shortcut C)." },
-    articleSlugs: ["output-mapping-editor", "item-codes", "delivery-setup"],
+    articleSlugs: ["outputs", "lookups", "destinations"],
   },
   {
     route: "/inbound/invoices",
@@ -115,7 +117,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       { text: "Download an invoice as CSV" },
     ],
     firstStep: { text: "Upload a UBL 2.1 XML invoice from a {supplier} — it parses automatically and appears in the list as pending review." },
-    articleSlugs: ["order-intake-options"],
+    articleSlugs: ["intake-channels"],
   },
   {
     route: "/inbound/asns",
@@ -137,10 +139,10 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       { text: "See each {supplier}'s format, channel, and delivery mode" },
       { text: "Open a row to set up mapping, catalog, and delivery" },
       { text: "Jump to a {supplier}'s versioned connection once one exists" },
-      { text: "Plan limits apply — Pilot includes one {supplier}", href: "/settings?tab=billing" },
+      { text: `Plan limits apply — ${PLAN_BY_ID.pilot.name} includes one {supplier}`, href: "/settings?tab=billing" },
     ],
     firstStep: { text: "Click \"New {supplier}\" and enter a name — mapping, catalog, and delivery are configured afterwards on the detail page." },
-    articleSlugs: ["managing-suppliers", "delivery-setup", "item-codes"],
+    articleSlugs: ["destinations", "lookups"],
   },
   {
     route: "/library/suppliers/[id]",
@@ -154,7 +156,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       { text: "Edits on these tabs apply immediately to live processing" },
     ],
     firstStep: { text: "Import the {supplier}'s item catalog or set up delivery first — PO mapping only works after a sample order is uploaded.", href: "?tab=catalog" },
-    articleSlugs: ["managing-suppliers", "delivery-setup", "catalog-csv-field-guide", "cxml-setup", "oauth2-delivery-setup", "sftp-ftps-delivery-keys", "erp-erply-and-directo", "item-codes", "mapping-basics"],
+    articleSlugs: ["destinations", "lookups", "outputs", "destination-sign-in"],
   },
   {
     route: "/library/buyers",
@@ -167,7 +169,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       { text: "Delete a buyer with the × on its row" },
     ],
     firstStep: { text: "Create one buyer, then upload a PO — formats and order history fill in from real orders." },
-    articleSlugs: ["inbound-mode"],
+    articleSlugs: ["how-proculink-works"],
   },
   {
     route: "/connections",
@@ -179,7 +181,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       { text: "Created automatically when you configure a {supplier}" },
     ],
     firstStep: { text: "Configure a {supplier}'s mapping, output, and delivery — it shows up here automatically.", href: "/library/suppliers" },
-    articleSlugs: ["connections"],
+    articleSlugs: ["flows"],
   },
   {
     route: "/connections/[connectionId]",
@@ -193,7 +195,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       { text: "Preview what the {supplier} receives, then make it live; older versions stay so you can restore one" },
     ],
     firstStep: { text: "Click “Edit mapping”, drag incoming fields across to the output, preview the result, then make it live." },
-    articleSlugs: ["connections", "output-mapping-editor", "mapping-basics"],
+    articleSlugs: ["flows", "outputs"],
   },
   {
     route: "/library/mappings",
@@ -207,7 +209,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       { text: "Filter by source: AI, Manual, Imported, or Inherited" },
     ],
     firstStep: { text: "Pick the {supplier} first, then import a CSV of your existing buyer-to-{supplier} code pairs." },
-    articleSlugs: ["mapping-basics", "output-mapping-editor", "item-codes"],
+    articleSlugs: ["outputs", "lookups"],
   },
   {
     route: "/library/standards",
@@ -220,7 +222,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       { text: "Request a format that's missing", href: "/support" },
     ],
     firstStep: { text: "Search a field like \"PO number\" or \"currency\" to read its exact reference in each standard." },
-    articleSlugs: ["output-templates", "ubl-and-peppol", "x12-850", "edifact-orders", "sap-idoc-orders05", "cxml-setup", "order-intake-options"],
+    articleSlugs: ["outputs", "what-we-read", "intake-channels"],
   },
   {
     route: "/operations/exceptions",
@@ -234,7 +236,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       { text: "Order issues can't be resolved from this list — fix the order instead" },
     ],
     firstStep: { text: "Nothing to do here until an order hits trouble — when an issue appears, expand it and use \"Open order to fix\"." },
-    articleSlugs: ["exceptions-and-stuck-orders", "troubleshooting"],
+    articleSlugs: ["troubleshooting"],
   },
   {
     route: "/operations/health",
@@ -248,7 +250,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       { text: "Counts refresh automatically every 45 seconds" },
     ],
     firstStep: { text: "Glance at the worker banner before your first upload — green means parsing will run." },
-    articleSlugs: ["exceptions-and-stuck-orders"],
+    articleSlugs: ["troubleshooting"],
   },
   {
     route: "/operations/log",
@@ -262,7 +264,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       { text: "Only the latest 50 events load — exports cover those" },
     ],
     firstStep: { text: "Once orders exist, filter by Failed and open the order to retry it from there." },
-    articleSlugs: ["dashboard-and-statuses", "delivery-setup"],
+    articleSlugs: ["documents-and-statuses", "destinations"],
   },
   // NOTE: /operations/connectors had a guide here until 2026-08-13, and the copy
   // went with the page because the page never delivered it: it promised "a
@@ -286,7 +288,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       { text: "Add webhooks — failure counts show here too", href: "/settings?tab=connectors" },
     ],
     firstStep: { text: "Set your order direction on the Organization tab first — it relabels the whole app.", href: "/settings?tab=org" },
-    articleSlugs: ["imap-provider-setup", "sftp-polling-setup", "s3-polling-setup", "api-order-schema-reference", "billing-faq", "api-and-integrations", "inbound-mode"],
+    articleSlugs: ["intake-channels", "api-reference", "billing-faq", "how-proculink-works"],
   },
 ];
 

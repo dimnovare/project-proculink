@@ -3,6 +3,7 @@ import { render, screen, cleanup, waitFor, fireEvent } from "@testing-library/re
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { BillingPlan, BillingStatus } from "@/types/procurement";
 import { accountStatusLabel } from "@/lib/billingPause";
+import { PLAN_BY_ID } from "@/lib/plans";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // THE DEFECT, exactly.
@@ -125,11 +126,9 @@ describe("a paid plan the server has stopped says so, loudly", () => {
     expect(text, "the cause must be named").toContain("Your last payment didn't go through.");
     // The consequence is the part a customer cannot infer. Naming the channels is
     // what stops them assuming their POs are piling up somewhere safe.
-    expect(text).toContain("New orders aren't being accepted");
-    expect(text).toMatch(/uploads, emailed orders, SFTP and S3 pickups, and the REST API/);
-    expect(text, "nothing is held for later — they must redirect suppliers").toMatch(
-      /nothing is held to deliver later/,
-    );
+    expect(text).toContain("New documents aren't being accepted");
+    expect(text).toMatch(/uploads, emailed documents and the file API all refuse, and mailbox, SFTP, FTP, FTPS and S3 pickups pause/);
+    expect(text, "pickups leave files in place — and senders must be told").toMatch(/leave your files where they are\. Tell your senders/);
     expect(text, "must not read as data loss").toMatch(/stays readable and exportable/);
 
     // The route back, next to the sentence that explains why they need it.
@@ -244,13 +243,13 @@ describe("the pause is derived from the server's answer, not from a plan name", 
    * is what every cancelled paying customer becomes. `HandleSubscriptionDeletedAsync` reverts
    * the org to Pilot, and once the original 14 days have elapsed `isTrialExpired` reports true
    * again, so `plan === "pilot" && isTrialExpired` claimed them for the Pilot banner and they
-   * were told "Your Pilot has ended." — true months earlier, and not why processing stopped.
+   * were told `Your ${PLAN_BY_ID.pilot.name.toLowerCase()} has ended.` — true months earlier, and not why processing stopped.
    *
    * The backend keeps the distinction deliberately and expects this client to honour it:
    * MarkPilotExpiredIfNeededAsync returns early on ReadOnly, commented "ReadOnly is a paid-plan
    * terminal state (e.g. cancelled) — not ours to flip here."
    */
-  const PILOT_BANNER_COPY = "Your Pilot has ended.";
+  const PILOT_BANNER_COPY = `Your ${PLAN_BY_ID.pilot.name.toLowerCase()} has ended.`;
 
   it("a cancelled paid workspace is told its SUBSCRIPTION ended, not its Pilot", async () => {
     await renderBilling(
@@ -299,10 +298,11 @@ describe("the pause is derived from the server's answer, not from a plan name", 
     await renderBilling(
       billing({ plan: "pilot", accountStatus: "trial_expired", isTrialExpired: true }),
     );
-    expect(pageText()).toContain("Your Pilot has ended.");
-    expect(pageText()).toContain("Pilot ended · Processing paused");
+    expect(pageText()).toContain(`Your ${PLAN_BY_ID.pilot.name.toLowerCase()} has ended.`);
+    expect(pageText()).toContain(`${PLAN_BY_ID.pilot.name} ended · Processing paused`);
     // The generic headline must NOT also fire — one pause, one banner.
-    expect(pageText()).not.toContain("Your trial has ended.");
+    // (the generic headline now reads the same sentence, so "one banner" means one occurrence)
+    expect(pageText().split("Your trial has ended.").length - 1).toBe(1);
   });
 
   it("NEGATIVE CONTROL: a healthy paid plan gets none of it", async () => {
@@ -313,7 +313,7 @@ describe("the pause is derived from the server's answer, not from a plan name", 
     );
     expect(screen.queryByRole("alert")).toBeNull();
     expect(pageText()).not.toMatch(/Processing paused/);
-    expect(pageText()).not.toMatch(/New orders aren't being accepted/);
+    expect(pageText()).not.toMatch(/New documents aren't being accepted/);
     // The raw status line is untouched on the healthy path — the committed
     // /settings visual baselines are captured against a healthy mock org.
     expect(pageText()).toContain("active");

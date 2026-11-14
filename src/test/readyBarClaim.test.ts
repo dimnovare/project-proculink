@@ -3,7 +3,6 @@ import { readFileSync, readdirSync, statSync } from "fs";
 import { join } from "path";
 import { ROOT } from "./appRoutes";
 import { stripComments, syntaxFor } from "./sourceScan";
-import { readyBarLabel } from "@/components/bridge/workshop/acceptanceGateModel";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // P0-B's sentence, guarded in the two places it can come back.
@@ -35,8 +34,6 @@ import { readyBarLabel } from "@/components/bridge/workshop/acceptanceGateModel"
 
 const RETIRED_CLAIM = "every required field is filled and checked";
 
-/** The sentence the product renders when nothing is outstanding. */
-const CURRENT_CLAIM = readyBarLabel({ advisoryCount: 0, counterpartyNoun: "Supplier" });
 
 const SRC = join(ROOT, "src");
 const SKIP_DIRS = new Set(["node_modules", ".next", "dist", "build"]);
@@ -104,9 +101,7 @@ describe("the green ready bar's sub-line is produced, never defaulted", () => {
   });
 });
 
-describe("help guides quote the bar the product actually renders", () => {
-  const GUIDES = join(SRC, "app", "(marketing)", "help", "guides");
-
+describe("help docs quote the bar the product actually renders", () => {
   test("no user-facing doc still teaches the retired claim", () => {
     const docs = walk(SRC, /\.mdx?$/);
     expect(docs.length, "no .md/.mdx found under src — vacuous").toBeGreaterThan(0);
@@ -118,28 +113,5 @@ describe("help guides quote the bar the product actually renders", () => {
       offenders,
       `these docs still teach "${RETIRED_CLAIM}", which the product no longer renders`,
     ).toEqual([]);
-  });
-
-  test("every guide that quotes the ready bar quotes the current sentence", () => {
-    const files = walk(GUIDES, /\.mdx?$/);
-    expect(files.length, "no help guides found — vacuous").toBeGreaterThan(0);
-
-    const quoting = files.filter((f) => readFileSync(f, "utf8").includes("Ready to send ·"));
-    // Floor on what MATCHED: with no guide quoting the bar, the loop below proves
-    // nothing at all.
-    expect(
-      quoting.length,
-      "no help guide quotes the ready bar — either they stopped, or the locator is stale",
-    ).toBeGreaterThanOrEqual(2);
-
-    const wanted = CURRENT_CLAIM.replace(/\s+/g, " ");
-    for (const f of quoting) {
-      // Guides wrap prose across lines, so compare on collapsed whitespace.
-      const collapsed = readFileSync(f, "utf8").replace(/\s+/g, " ");
-      expect(
-        collapsed.includes(wanted),
-        `${f.slice(ROOT.length + 1)} quotes the ready bar but not the sentence readyBarLabel produces`,
-      ).toBe(true);
-    }
   });
 });

@@ -730,7 +730,7 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
                   <Download size={13} /> Download CSV template
                 </button>
               </div>
-              <HelpLink href="/help/catalog-csv-field-guide" label="catalog CSV guide" />
+              <HelpLink href="/help/lookups" label="catalog CSV guide" />
 
               {/* ── Credentials: HTTP auth OR AES 2FA vendor creds OR file-server password ── */}
               {isVendorProtocol ? (

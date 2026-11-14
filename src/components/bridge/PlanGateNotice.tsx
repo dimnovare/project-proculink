@@ -32,6 +32,10 @@ export interface PlanGateNoticeProps {
   /** Plain noun for what was refused, e.g. "Bulk mapping import". Sentence-leading. */
   capability: string;
   className?: string;
+  /** Whether the workspace runs on the document engine (see planGateMessage). Defaults to "off". */
+  documentEngine?: "on" | "off" | "unknown";
+  /** The workspace's plan id, once known (see planGateMessage). */
+  planId?: string | null;
 }
 
 /** True when this failure is a plan gate — call before choosing which banner to render. */
@@ -43,7 +47,7 @@ export function isPlanGate(error: unknown): boolean {
  * Amber upsell banner. Renders NOTHING when the failure is not a plan gate, so a caller can
  * drop it in ahead of its normal error banner without duplicating the shape check.
  */
-export function PlanGateNotice({ error, capability, className }: PlanGateNoticeProps) {
+export function PlanGateNotice({ error, capability, className, documentEngine, planId }: PlanGateNoticeProps) {
   const message = messageOf(error);
   if (!isPlanGateError(message)) return null;
 
@@ -63,7 +67,7 @@ export function PlanGateNotice({ error, capability, className }: PlanGateNoticeP
         lineHeight: 1.5,
       }}
     >
-      {capability} is not included in your plan. {planGateMessage(message)}{" "}
+      {capability} is not included in your plan. {planGateMessage(message, documentEngine, planId)}{" "}
       <Link href={upgradeUrl} style={{ color: "inherit", fontWeight: 600, textDecoration: "underline", textUnderlineOffset: 2 }}>
         See plans →
       </Link>

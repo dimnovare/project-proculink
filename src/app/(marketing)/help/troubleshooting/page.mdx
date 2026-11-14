@@ -2,44 +2,57 @@ import { helpArticleMetadata } from "@/lib/seo";
 
 export const metadata = helpArticleMetadata({
   slug: "troubleshooting",
-  title: "Troubleshooting common parse errors — ProcuLink Help",
-  description: "Date format mismatches, missing columns, encoding issues — what to fix.",
+  title: "Troubleshooting — ProcuLink Help",
+  description: "What to do when a document cannot be read, a send fails, or a result looks wrong.",
 });
 
-# Troubleshooting common parse errors
+# Troubleshooting
 
-Five issues account for most parse failures. Each one is fixable in your mapping or the source file.
+What to do when a document cannot be read, a send fails, or a result looks wrong.
 
-> This article is the reference for parse failures. If you are getting a first order through end to end, follow [take your first order to supplier-ready](/help/guides/first-order-end-to-end).
+Open the document first. Its screen says what went wrong and offers the next step when there is one.
 
-## Missing required column
+## Couldn't read
 
-The file is missing one of the five required standard fields (`po_number`, `line_no`, `item_code`, `quantity`, `unit_price`). Fix by renaming the source column in your mapping, or by adding a `Concat` manipulator to build the standard field from two source columns.
+The message tells you why.
 
-## Ambiguous date format
+- "This file couldn't be opened. It may be password-protected or damaged." Remove the password or ask the sender for a fresh copy, then upload it again. **Try again** is not offered, because the same file would fail again.
+- "This workspace has used this month's AI allowance." Select **Try again** when your allowance starts again. See [How ProcuLink uses AI](/help/ai-in-proculink).
+- "This looks like a scanned document, which can't be read yet." Scans and photos are not switched on for your workspace. Ask for a file with text in it.
+- "This workspace keeps documents on our own servers, so they aren't sent to AI to be read." Contact support if that is not what you want.
+- "We couldn't read this document." Select **Try again**. If it fails again, send the file to support.
 
-A date column contains values like `03/04/2026` that could be either March 4th or April 3rd. ProcuLink will not guess. Attach a `DateFormat` manipulator that pins the input format explicitly, e.g. `dd/MM/yyyy`.
+See [Files we read](/help/what-we-read) for types and limits.
 
-## UTF-8 BOM and encoding
+## Stuck on Received or Reading
 
-CSV files exported from Excel sometimes include a UTF-8 byte-order mark, which makes the first header look like `ï»¿po_number`. Re-export from Excel as `CSV UTF-8 (Comma delimited) (.csv)`, or open the file in a text editor and remove the leading bytes.
+Reading takes seconds, or a few minutes for a long file. If a document is still on **Received** or **Reading** after 15 minutes, contact [support](/support) and say which file it is.
 
-## Scanned PDFs
+## Needs review
 
-ProcuLink reads text-based PDFs directly — the high-confidence primary path. Image-only scans (phone photos, photocopier output) have no text layer, so they fall back to AI vision extraction; because there is nothing to verify the numbers against, every line is flagged for review before delivery. For the most reliable result, ask the buyer for a text PDF. If a scan is too low-quality to read at all, it will fail — re-scan at a higher resolution or request a text PDF.
+A **Needs review** document is flagged on purpose. Read the flags beside the values. See [Checks](/help/checks). Some documents wait for another reason:
 
-## European decimal commas
+- "This file was already uploaded to this flow." Select **Read it anyway** if you want it read.
+- "No output is set to send this document. Check “Send when” on the flow's outputs." Every output has a **Send when** condition, and none matched.
+- "An output couldn't be made from this document. Check the flow's outputs." Open the flow's **Outputs** tab and check each one.
 
-Files that write `12,50` for twelve-and-a-half are handled automatically — semicolon-delimited CSVs are treated as European formatting, and Excel numbers are read as raw values rather than display text. If quantities or prices ever look off by 10× or 100× after a parse, don't send — flag it to support with the file attached.
+## Couldn't send
 
-## Supplier item code mismatch
+At least one output could not be delivered. Under **Deliveries**, each output has its own state. **Will retry** means we are trying again on our own. **Couldn't deliver** means we gave up, and the reason is printed under it. Fix the cause, then select **Send** again. Outputs already delivered are not sent twice. See [Destinations](/help/destinations).
 
-A line parses but its `item_code` does not match any SKU in the supplier mapping. Either add the SKU to the supplier mapping, or accept an AI suggestion on the Review screen when one is offered.
+If **Send** is refused, the message says why: "Add an output to this flow before sending.", "Confirm this flow's fields first." or "Processing is paused on this workspace." See [Plans and billing](/help/billing-faq).
 
-## Where failures queue up
+## A value looks wrong
 
-Every parse failure (and every later failure — transform, delivery, supplier rejection) opens an entry in **Activity → Issues**, so nothing fails silently. See [working the exceptions queue](/help/exceptions-and-stuck-orders) for how to triage that list and what to do when an order looks stuck rather than failed.
+Type the right value. To have us find it next time, point at it on the page instead. See [Teach a value by pointing at the page](/help/guides/teach-a-value). A value marked **Not found on the page** is one we could not locate. Check it against the original.
 
----
+## A document does not arrive
 
-Need help? Email [support@proculink.eu](mailto:support@proculink.eu) or see [PO field mapping basics](/help/mapping-basics).
+- If an upload is refused, the message says why: "This file type can't be read in this flow." or "This file is too large." The limit is 10 MB.
+- After the trial: "Your trial has ended, so new documents aren't being accepted." Choose a plan in **Settings**.
+- For email, a mailbox, a server or a bucket, open the flow's **Intake** tab and select **Test connection**. Each pickup shows when it last ran. See [Ways to send documents in](/help/intake-channels).
+- For the API, the answer names the problem. See the [API reference](/help/api-reference).
+
+## Only an admin can change this
+
+Some settings are for workspace admins: "Only a workspace admin can change this." See [Workspace, team and API keys](/help/workspace-and-team).

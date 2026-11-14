@@ -65,8 +65,9 @@
 // status flipped to "live", so today it IS a real page and a real link.) No
 // user-facing link ever pointed at the planned entry, and src/app/sitemap.ts
 // filters on `status === "live"`, so no crawler was offered it either. The
-// remaining planned example is /help/guides/set-up-your-workspace
-// (src/lib/guides.ts:74). A planned entry is NOT a user-facing dead link.
+// remaining planned example was /help/guides/set-up-your-workspace, which the
+// relaunch help rewrite replaced with set-up-your-first-flow, so no guide is
+// planned today. A planned entry is NOT a user-facing dead link.
 //
 // What they ARE is a phantom-target source: their hrefs sat in a file this
 // guard was scanning as raw text, so creating a page at either path would have
@@ -152,12 +153,8 @@ export const KNOWN_DEEP_LINK_ONLY: Record<string, string> = {
   //    works"), so the page is reachable from inside this repo and the guard
   //    enforces the link instead of allowlisting the route.
 
-  // ── /one-pager was the third entry, parked as "wants either a real link or a
-  //    deletion decision". Founder decision 2026-07-30: link it. The marketing
-  //    footer's Product column carries it (src/app/(marketing)/layout.tsx), so
-  //    the page is now reachable on its own merits and the entry is gone —
-  //    see "/one-pager is reached by a real link" below, which is what stops
-  //    this from quietly reverting to an allowlist entry.
+  // ── /one-pager was the third entry; it was linked, then retired with the order-product
+  //    copy (plan 12b) — see src/lib/retired-routes.ts.
 
   "/settings/google-callback":
     "Google's OAuth consent screen is the only referrer: the backend builds the redirect URI as " +
@@ -1267,32 +1264,6 @@ describe("route reachability (plan rule R1 — no new surface without a consumer
     ).not.toContain(DEAD);
   });
 
-  it("/one-pager is reached by a real link, and no longer by the allowlist", () => {
-    // Founder decision, 2026-07-30: the print one-pager is real sales
-    // collateral with real content — the only thing wrong with it was that
-    // nothing linked to it. So it is linked instead of deleted, and its
-    // allowlist entry (which said, in as many words, "wants either a real link
-    // or a deletion decision") is gone. The escape hatch closing is the point:
-    // an allowlisted route is a route this guard has stopped guarding.
-    const onePager = ROUTES.filter((r) => r.route === "/one-pager");
-    expect(onePager, "/one-pager must still exist as a page").toHaveLength(1);
-    expect(Object.keys(KNOWN_DEEP_LINK_ONLY)).not.toContain("/one-pager");
-
-    // Cleared with the allowlist passed as EMPTY, so this cannot pass on the
-    // strength of the hatch it just gave up.
-    expect(findUnreachableRoutes(onePager, TARGETS, {}).map((u) => u.route)).toEqual([]);
-
-    // Exactly ONE inbound link, and it is the marketing footer — which renders
-    // under every marketing page, so a prospect reading /pricing or /customers
-    // has it in front of them. src/app/sitemap.ts also names the path, and is
-    // deliberately NOT counted here (see "a sitemap array is NOT navigation");
-    // if that ever changes, this assertion sees two sources and fails.
-    const rel = (f: string) => path.relative(ROOT, f).split(path.sep).join("/");
-    expect(TARGETS.filter((t) => t.path === "/one-pager").map((t) => rel(t.source))).toEqual([
-      "src/app/(marketing)/layout.tsx",
-    ]);
-  });
-
   it("catches a synthetic unreachable route (proves the guard is not vacuous)", () => {
     // Not a real page — a fixture pushed through the same detection function, so
     // this test proves detection works without stranding a dead page in the app.
@@ -1493,19 +1464,19 @@ describe("route reachability (plan rule R1 — no new surface without a consumer
     // strength of a target no user can click.
     const paths = new Set(TARGETS.map((t) => t.path));
 
-    // Planned — phantom. Must NOT be credited.
-    expect(paths.has("/help/guides/set-up-your-workspace")).toBe(false);
+    // Planned — phantom. Must NOT be credited. No guide is planned at the moment (the last one,
+    // set-up-your-workspace, was replaced at the relaunch), so the planned control is vacuous
+    // until the next one is added; the live half below still pins the filter.
     // Live — genuinely rendered as a <Link>. MUST still be credited, or the
     // exclusion has simply blinded the guard instead of sharpening it.
     // (unfreeze-a-pilot-workspace was the second planned example here until its
     // runbook shipped and its status flipped to "live".)
     expect(paths.has("/admin/guides/unfreeze-a-pilot-workspace")).toBe(true);
     expect(paths.has("/admin/guides/onboard-a-new-client")).toBe(true);
-    expect(paths.has("/help/guides/first-order-end-to-end")).toBe(true);
+    expect(paths.has("/help/guides/set-up-your-first-flow")).toBe(true);
 
     // The registry must agree with what is asserted above, so this test cannot
     // rot into a tautology if a guide's status flips.
-    expect(GUIDES.find((g) => g.slug === "set-up-your-workspace")?.status).toBe("planned");
     expect(GUIDES.find((g) => g.slug === "unfreeze-a-pilot-workspace")?.status).toBe("live");
     expect(GUIDES.find((g) => g.slug === "onboard-a-new-client")?.status).toBe("live");
   });
@@ -1564,7 +1535,7 @@ describe("route reachability (plan rule R1 — no new surface without a consumer
     // free to rot unlinked.
     const routes = ROUTES.map((r) => r.route);
     expect(routes).toContain("/help/troubleshooting"); // page.mdx
-    expect(routes).toContain("/help/guides/first-order-end-to-end"); // page.mdx
+    expect(routes).toContain("/help/guides/set-up-your-first-flow"); // page.mdx
     expect(ROUTES.length).toBeGreaterThan(80);
     // Widening the filter without widening fileToRoute yields "/help/x/page.mdx".
     expect(routes.filter((r) => /page\.(tsx|mdx)$/.test(r))).toEqual([]);

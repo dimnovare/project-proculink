@@ -166,7 +166,7 @@ describe("the paused strip above the dropzone names the cause the server gave", 
     // and it must not have been churned by fixing the others.
     const note = await mountPaused(paused("pilot", "trial_expired", true));
 
-    expect(note.textContent).toContain("Your Pilot has ended.");
+    expect(note.textContent).toContain(`Your ${PLAN_BY_ID.pilot.name.toLowerCase()} has ended.`);
     expect(note.textContent).toContain(`Upgrade to ${PLAN_BY_ID.growth.name}`);
   });
 });
@@ -197,7 +197,7 @@ describe("pressing Upload on a paused workspace", () => {
     // ANTI-VACUITY: the derivation above must not have made every pause look the same.
     const pilot = pausedUploadBanner({ plan: "pilot", accountStatus: "trial_expired", isTrialExpired: true });
     expect(pilot.code).toBe("pilot_expired");
-    expect(pilot.title).toBe("Your Pilot has ended.");
+    expect(pilot.title).toBe(`Your ${PLAN_BY_ID.pilot.name.toLowerCase()} has ended.`);
     expect(pilot.cta).toBe(`Upgrade to ${PLAN_BY_ID.growth.name}`);
   });
 

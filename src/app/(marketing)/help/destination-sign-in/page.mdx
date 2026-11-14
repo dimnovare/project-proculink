@@ -1,0 +1,51 @@
+import { helpArticleMetadata } from "@/lib/seo";
+
+export const metadata = helpArticleMetadata({
+  slug: "destination-sign-in",
+  title: "Destination sign-in, keys and signing — ProcuLink Help",
+  description: "How to give a destination the login, key or token it asks for.",
+});
+
+# Destination sign-in, keys and signing
+
+How to give a destination the login, key or token it asks for.
+
+Most destinations need to know who we are before they accept a file. You enter the details once, when you create the destination. This page says what each kind accepts.
+
+## How we keep them
+
+Passwords, tokens, keys and passphrases are encrypted when you save them. After that, the screen never shows them again.
+
+A login is saved as a whole. If you fill in only some of its fields, the form asks you to fill in all of them or none.
+
+## Web address (API)
+
+Choose how the address wants you to sign in. Leave it blank if the address needs no login.
+
+- **Bearer token.** We send your token in the `Authorization` header.
+- **API key.** You give the name of the header and the key. We send that header with every request.
+- **Username and password.** We send them as basic sign-in.
+
+Do not put a login in the web address itself, and do not add it as an extra header. A web address with a user name and password in it is refused.
+
+## SFTP
+
+Sign in with a **username** and a **password**, or with a **private key** instead. Paste the whole key into the **Private key** box, including the `BEGIN` and `END` lines. Add the **Key passphrase** if the key has one. When you give a key, the password is not used.
+
+The first time we connect, we learn the server's host key and save it. From then on we only connect to a server that shows the same key. If the key changes, we refuse to connect and say so, because that can mean you are talking to a different server. If the change is expected, ask your server's owner to confirm it, then contact us: the saved key cannot be cleared from the screen.
+
+## FTPS
+
+Sign in with a **username** and **password**. The connection uses explicit TLS, and we check the server's certificate. If the server uses a self-signed or expired certificate, you can tick **Accept an untrusted certificate**. Use that only for a server you trust, because it lets us talk to a server we cannot verify.
+
+## Email
+
+An email destination has no sign-in. Add the addresses it goes to, and a reply-to address if you want one.
+
+## Signing
+
+We do not sign the files we send to a destination. The **Signing secret** on a flow's API card is a different thing: when it is saved, each call we make to your own web address carries an `X-ProcuLink-Signature` header, so your system can check the call came from us. See the [API reference](/help/api-reference).
+
+## Check it works
+
+If sign-in fails, the message says so. For tests, see [Destinations](/help/destinations).

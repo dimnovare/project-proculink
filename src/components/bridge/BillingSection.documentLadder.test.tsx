@@ -5,7 +5,7 @@
 // is pinned by the other BillingSection.*.test.tsx files, which never report the engine on.
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, within, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, cleanup, within, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { BillingStatus } from "@/types/procurement";
 
@@ -28,6 +28,8 @@ vi.mock("@/hooks/useDocumentEngine", () => ({
 }));
 
 import { BillingSection } from "./BillingSection";
+import { PLAN_BY_ID, nextPlanFor } from "@/lib/plans";
+import { limitRefusalCopy, readLimitRefusal } from "@/lib/limitRefusal";
 
 function billing(over: Partial<BillingStatus> = {}): BillingStatus {
   return {
@@ -110,5 +112,61 @@ describe("BillingSection on the document ladder", () => {
     const view = await renderWith(billing());
 
     expect((view.getByRole("button", { name: "Upgrade to Growth" }) as HTMLButtonElement).disabled).toBe(true);
+  });
+});
+
+describe("the trial is called by its plan name, never by its wire id", () => {
+  const trial = PLAN_BY_ID.pilot.name;
+  const trialWord = trial.toLowerCase();
+
+  it("reads the trial name in every trial state and says Pilot nowhere", async () => {
+    const states = [
+      { over: {}, expected: [`${trial} · ${PLAN_BY_ID.pilot.priceCadence}`, `Documents (${trialWord} total)`] },
+      {
+        over: { accountStatus: "trial_expired", isTrialExpired: true, canProcessOrders: false } as Partial<BillingStatus>,
+        expected: [`${trial} ended · Processing paused`, `Your ${trialWord} has ended.`],
+      },
+      {
+        over: { ordersThisMonth: 20, orderLimit: 20, isOrderLimitReached: true, atLimit: true } as Partial<BillingStatus>,
+        expected: [`You've used all 20 ${trialWord} documents.`],
+      },
+    ];
+    for (const { over, expected } of states) {
+      const view = await renderWith(billing(over));
+      const text = document.body.textContent ?? "";
+      expected.forEach((s) => expect(text, s).toContain(s));
+      expect(view.queryByText(/Pilot/)).toBeNull();
+      cleanup();
+    }
+  });
+
+  it("a Growth workspace still names Growth and its price", async () => {
+    const growth = PLAN_BY_ID.growth;
+    const view = await renderWith(billing({ plan: "growth", accountStatus: "active" }));
+    expect(view.getAllByText(growth.name).length).toBeGreaterThan(0);
+    expect(view.getByText(growth.billingPriceLabel)).toBeTruthy();
+  });
+});
+
+describe("trial copy details", () => {
+  it("the legacy-ladder upgrade sentence is plain prose with no stray template braces", async () => {
+    engine.state = "off";
+    const view = await renderWith(billing());
+    const sentence = view.getByText(/keeps processing open/).textContent ?? "";
+    expect(sentence).toContain("after your trial ends");
+    expect(sentence).not.toContain("{");
+  });
+
+  it("the allowance-used banner names the derived next plan", async () => {
+    const next = PLAN_BY_ID[nextPlanFor("pilot", true)!].name;
+    await renderWith(billing({ ordersThisMonth: 20, orderLimit: 20, isOrderLimitReached: true, atLimit: true }));
+    expect(document.body.textContent).toContain(`Upgrade to ${next}`);
+  });
+
+  it("limitRefusal's trial-ended title is C4's first sentence and never says Pilot", () => {
+    const copy = limitRefusalCopy(readLimitRefusal({ error: "pilot_expired", plan: "pilot" }));
+    expect(copy.title).toBe(`Your ${PLAN_BY_ID.pilot.name.toLowerCase()} has ended.`);
+    expect(copy.title).not.toMatch(/Pilot/);
+    expect(copy.cta).toBe(`Upgrade to ${PLAN_BY_ID[PLAN_BY_ID.pilot.next!].name}`);
   });
 });

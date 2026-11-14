@@ -26,28 +26,26 @@
 
 import { useEffect, useState } from "react";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
+import { STAGES } from "@/components/bridge/StatusJourney";
 
 // ── Design tokens (match tokens.css + page.tsx palette) ───────────────────────
 
 const NAVY = "#0B1A2F";
-const BLUE_NODE = "#2D7AE0";
 const RAIL = "#163052"; // inactive dot background
 const RAIL_BORDER = "#21385a"; // inactive dot border
-const GREEN_TEXT = "#2E8E3A";
-const BLUE_TEXT = "#1E66C9";
 
 // Per-stage gradient stops — buyer-blue early → supplier-green at Deliver
 // Matches design: "blue-blue early → mid → supplier-green at Deliver"
 const STAGE_NODE_COLORS = [
-  "#2D7AE0", // 0 Receive  — buyer-blue
-  "#2D7AE0", // 1 Parse    — buyer-blue
-  "#3f7fb8", // 2 Normalize — mid
-  "#3f7fb8", // 3 Validate  — mid
-  "#3f7fb8", // 4 Transform — mid
-  "#3FA84C", // 5 Deliver   — supplier-green
+  "#2D7AE0", // 0 In        — buyer-blue
+  "#2D7AE0", // 1 Read      — buyer-blue
+  "#3f7fb8", // 2 Check     — mid
+  "#3f7fb8", // 3 Transform — mid
+  "#3FA84C", // 4 Send      — supplier-green
 ];
 
-const PIPELINE = ["Receive", "Parse", "Normalize", "Validate", "Transform", "Deliver"];
+// The stage names the in-app status track shows — one source, not a retyped list.
+const PIPELINE = STAGES;
 
 // ── CSS for the pulse ring (static, injected once) ────────────────────────────
 
@@ -65,8 +63,8 @@ const PULSE_CSS = `
 .hiw-rail-fill {
   position: absolute;
   top: 7px;
-  left: 8.3333%;
-  right: 8.3333%;
+  left: 10%;
+  right: 10%;
   height: 2px;
   transform-origin: left center;
 }
@@ -108,20 +106,6 @@ export default function AnimatedPipelinePanel(_props: AnimatedPipelinePanelProps
     <>
       {/* Inject keyframe once */}
       <style>{PULSE_CSS}</style>
-
-      {/* ── Input → output badges ─────────────────────────────────────────── */}
-      <div className="hiw-io" style={{ marginBottom: 26 }}>
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 9 }}>
-          <ChipTag fg="#BC3F3F" bg="#FBEEEE">PDF</ChipTag>
-          <Arrow />
-          <MonoLabel style={{ color: BLUE_TEXT, fontWeight: 600 }}>buyer order</MonoLabel>
-        </span>
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 9 }}>
-          <MonoLabel style={{ color: GREEN_TEXT, fontWeight: 600 }}>supplier output</MonoLabel>
-          <Arrow />
-          <ChipTag fg="#6F4FCE" bg="#EEE7FB">CXML</ChipTag>
-        </span>
-      </div>
 
       {/* ── Stage rail ────────────────────────────────────────────────────── */}
       <div className="hiw-rail" style={{ position: "relative", marginBottom: 28 }}>
@@ -187,145 +171,6 @@ export default function AnimatedPipelinePanel(_props: AnimatedPipelinePanelProps
           );
         })}
       </div>
-
-      {/* ── Data cells — fade in as stages complete ────────────────────────── */}
-      <div className="hiw-cells">
-        <DataCell
-          label="PO Number"
-          value="PO-2026-008412"
-          valueColor="#5B9BE8"
-          visible={stage > 1}
-        />
-        <DataCell
-          label="Grand Total"
-          value="€71,240.00"
-          visible={stage > 2}
-        />
-        <DataCell
-          label="Ship To"
-          value="Dortmund, DE"
-          valueColor="#43C06B"
-          visible={stage > 3}
-        />
-      </div>
     </>
-  );
-}
-
-// ── Small helpers (inlined so this component is self-contained) ───────────────
-
-function ChipTag({
-  children,
-  fg,
-  bg,
-}: {
-  children: React.ReactNode;
-  fg: string;
-  bg: string;
-}) {
-  return (
-    <span
-      style={{
-        fontFamily: "'JetBrains Mono', ui-monospace, monospace",
-        fontSize: 11,
-        fontWeight: 700,
-        letterSpacing: "0.04em",
-        color: fg,
-        background: bg,
-        padding: "3px 8px",
-        borderRadius: 6,
-        boxShadow: "0 1px 0 rgba(0,0,0,0.04)",
-      }}
-    >
-      {children}
-    </span>
-  );
-}
-
-function MonoLabel({
-  children,
-  style,
-}: {
-  children: React.ReactNode;
-  style?: React.CSSProperties;
-}) {
-  return (
-    <span
-      style={{
-        fontFamily: "'JetBrains Mono', ui-monospace, monospace",
-        fontSize: 12.5,
-        color: "#9FB0C7",
-        ...style,
-      }}
-    >
-      {children}
-    </span>
-  );
-}
-
-function DataCell({
-  label,
-  value,
-  valueColor,
-  visible = true,
-}: {
-  label: string;
-  value: string;
-  valueColor?: string;
-  visible?: boolean;
-}) {
-  return (
-    <div
-      style={{
-        border: "1px solid rgba(255,255,255,0.08)",
-        background: "rgba(255,255,255,0.02)",
-        borderRadius: 10,
-        padding: "14px 16px",
-        opacity: visible ? 1 : 0.3,
-        transition: "opacity 400ms ease",
-      }}
-    >
-      <div
-        style={{
-          fontFamily: "'JetBrains Mono', ui-monospace, monospace",
-          fontSize: 10,
-          fontWeight: 600,
-          letterSpacing: "0.1em",
-          textTransform: "uppercase",
-          color: "#6C7C93",
-          marginBottom: 7,
-        }}
-      >
-        {label}
-      </div>
-      <div
-        style={{
-          fontFamily: "'JetBrains Mono', ui-monospace, monospace",
-          fontSize: 14,
-          fontWeight: 600,
-          color: valueColor ?? "#CBD6E6",
-        }}
-      >
-        {value}
-      </div>
-    </div>
-  );
-}
-
-function Arrow() {
-  return (
-    <svg
-      width="15"
-      height="15"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="#6880A0"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <line x1="5" y1="12" x2="19" y2="12" />
-      <polyline points="12 5 19 12 12 19" />
-    </svg>
   );
 }

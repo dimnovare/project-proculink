@@ -819,14 +819,14 @@ function EmailSettingsSection() {
             This address needs no setup — anything sent to it is imported automatically. Share it with
             the people who email you orders, or add a forwarding rule in your own mailbox. The IMAP
             polling below is only for reading a mailbox you already own.{" "}
-            <Link href="/help/order-intake-options" style={{ color: "inherit", fontWeight: 600, textDecoration: "underline" }}>
+            <Link href="/help/intake-channels" style={{ color: "inherit", fontWeight: 600, textDecoration: "underline" }}>
               See all order intake options
             </Link>.
           </p>
         ) : (
           <p style={{ fontSize: 12, color: "var(--ink-muted)", margin: "-6px 0 18px", lineHeight: 1.55 }}>
             The IMAP polling below is only for reading a mailbox you already own.{" "}
-            <Link href="/help/order-intake-options" style={{ color: "inherit", fontWeight: 600, textDecoration: "underline" }}>
+            <Link href="/help/intake-channels" style={{ color: "inherit", fontWeight: 600, textDecoration: "underline" }}>
               See all order intake options
             </Link>.
           </p>
