@@ -79,8 +79,9 @@ interface OrgSwitcherProps {
   /** Sidebar rail collapsed to the icon-only tile. Ignored when `compact`. */
   collapsed?: boolean;
   /**
-   * Top-navbar variant: a small inline chip (identity tile + name on lg+ +
-   * chevron) with no sidebar margins. The dropdown still opens downward and
+   * Top-bar variant: a 40px inline chip (identity tile + name, cut with an
+   * ellipsis at 220px, + chevron) with no sidebar margins. It is the one item in
+   * the bar that shrinks. The dropdown still opens downward and
    * lists the same real orgs. Mutually exclusive with the sidebar card look.
    */
   compact?: boolean;
@@ -134,16 +135,16 @@ export function OrgSwitcher({ collapsed = false, compact = false, orgName, planL
   // ── Static card (Clerk not configured — mock/QA shells): no menu, no
   //    fabricated workspaces (offer ⇔ works). Same visual as the live card. ──
   if (!clerkConfigured) {
-    // Top-navbar compact chip (no menu when Clerk is absent).
+    // Top-bar compact chip (no menu when Clerk is absent). Borderless: a static
+    // filled tile, not a card, and not a control.
     if (compact) {
       return (
         <div
           title={`${orgName} · ${planLabel}`}
-          className="flex items-center gap-2 rounded-[8px]"
-          style={{ background: "#14253D", border: "1px solid #1F3252", height: 34, padding: "0 9px" }}
+          className="flex h-10 min-w-0 max-w-full items-center gap-2 rounded-[8px] bg-navy-surface px-[10px]"
         >
           <IdentityTile initials={initials} size={22} />
-          <span className="hidden lg:block text-[12.5px] font-semibold text-white truncate" style={{ maxWidth: 140 }}>{orgName}</span>
+          <span data-testid="workspace-name" className="max-w-[220px] truncate text-[13.5px] font-semibold text-white">{orgName}</span>
         </div>
       );
     }
@@ -266,7 +267,7 @@ export function OrgSwitcher({ collapsed = false, compact = false, orgName, planL
       </div>
     );
 
-  // ── Compact top-navbar chip: identity tile + name (lg+) + chevron, no
+  // ── Compact top-bar chip: identity tile + name + chevron, no
   //    sidebar margins, same downward menu. ──
   if (compact) {
     return (
@@ -279,20 +280,10 @@ export function OrgSwitcher({ collapsed = false, compact = false, orgName, planL
           aria-expanded={open}
           aria-label={`Workspace: ${orgName}. Switch workspace`}
           title={`${orgName} · ${planLabel}`}
-          className="flex items-center gap-2 rounded-[8px]"
-          style={{
-            background: "#14253D",
-            border: "1px solid #1F3252",
-            height: 34,
-            padding: "0 9px",
-            cursor: "pointer",
-            transition: "border-color 140ms, background 140ms",
-          }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "#294063"; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "#1F3252"; }}
+          className="flex h-10 min-w-0 max-w-full items-center gap-2 rounded-[8px] border border-navy-border bg-navy-surface px-[9px] cursor-pointer transition-colors hover:border-navy-muted"
         >
           <IdentityTile initials={initials} size={22} />
-          <span className="hidden lg:block text-[12.5px] font-semibold text-white truncate" style={{ maxWidth: 140 }}>{orgName}</span>
+          <span data-testid="workspace-name" className="max-w-[220px] truncate text-[13.5px] font-semibold text-white">{orgName}</span>
           <ChevronDown
             size={14}
             strokeWidth={2}

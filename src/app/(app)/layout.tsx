@@ -167,9 +167,9 @@ export default function AppShellLayout({
             "Loading…" plan labels around a failure card is its own lie. */}
         <ClerkAvailabilityGate>
         {/* Bridge shell — full viewport, no scroll on the wrapper.
-            Desktop nav now lives in the top navbar (BridgeTopbar row 1); the
-            left sidebar was removed on md+. The navigation panel below still
-            reuses BridgeSidebar for the full navigation on < md. */}
+            Desktop nav lives in the top bar (BridgeTopbar, links from lg). The
+            navigation panel below reuses BridgeSidebar below lg: the tablet
+            menu button and the phone tab bar's More open it. */}
         <div className="flex h-dvh overflow-hidden" style={{ background: "#F6F7FA" }}>
           {/* First focusable element — jumps keyboard users past the topbar nav
               straight to the page content (WCAG 2.4.1). */}
@@ -181,7 +181,7 @@ export default function AppShellLayout({
               role="dialog"
               aria-modal="true"
               aria-label="Navigation"
-              className="fixed inset-0 z-50 md:hidden outline-none"
+              className="fixed inset-0 z-50 lg:hidden outline-none"
               style={{ background: "#0B1A2F" }}
             >
               <BridgeSidebar
