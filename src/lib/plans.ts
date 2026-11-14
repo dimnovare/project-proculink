@@ -5,7 +5,7 @@
 // never drift apart again.
 //
 // These MUST match the backend `PlanConstants`:
-//   Pilot       €0      · 20 orders (trial total) · 1 supplier  · 14-day trial
+//   Pilot       €0      · 20 orders (trial total) · 1 supplier  · 30-day trial
 //   Growth      €149/mo · 150 orders/month        · 5 suppliers
 //   Operations  €399/mo · 500 orders/month        · 10 suppliers
 //   Integration €999/mo · 1,500 orders/month      · 20 suppliers
@@ -135,7 +135,7 @@ export const ANNUAL_BILLING_ENABLED =
 // The trial's allowance, named once: orderLimit, flowLimit and the billing line below all read it.
 const TRIAL_DOCUMENTS = 20;
 const TRIAL_FLOWS = 2;
-export const TRIAL_DAYS = 14;
+export const TRIAL_DAYS = 30;
 
 export const PLANS: Plan[] = [
   {
@@ -157,7 +157,7 @@ export const PLANS: Plan[] = [
     // does not write PDF or Excel; "supplier-ready" output is XML, CSV, cXML, JSON, UBL or X12.
     blurb: "Test one repeat supplier using the PDF, Excel, CSV or other supported order files you already use.",
     recommendationBlurb:
-      "Free for 14 days. Process up to 20 documents with one supplier before you commit to a paid plan.",
+      `Free for ${TRIAL_DAYS} days. Process up to 20 documents with one supplier before you commit to a paid plan.`,
     features: [
       "20 documents total",
       "1 supplier",

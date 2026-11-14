@@ -14,7 +14,7 @@ import { FLAGGED, STANDARD_OUTPUTS } from "@/lib/standardOutputs";
 // Its own header explains why a `grep` cannot replace it.
 import { stripCsComments } from "./csLiterals";
 import { MINIMUM_PLAN } from "@/lib/gatedCapabilities";
-import { OVERAGE_PER_ORDER_EUR, PLAN_BY_ID } from "@/lib/plans";
+import { OVERAGE_PER_ORDER_EUR, PLAN_BY_ID, TRIAL_DAYS } from "@/lib/plans";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // The cross-repo mirror check.
@@ -1227,6 +1227,23 @@ public static class PlanConstants
     );
   });
 
+  test.skipIf(!BACKEND)("the trial length matches the C#", () => {
+    const cs = stripCsComments(readFileSync(join(BACKEND!, PLAN_CONSTANTS_REL), "utf8"));
+    const days = cs.match(/\bPilotDuration\s*=\s*TimeSpan\.FromDays\(\s*(\d+)\s*\)/)?.[1];
+    expect(
+      days,
+      `${PLAN_CONSTANTS_REL} no longer declares PilotDuration = TimeSpan.FromDays(n). src/lib/plans.ts ` +
+        "mirrors that length as TRIAL_DAYS, so the symbol moving is drift, not a reason to pass.",
+    ).toBeDefined();
+    recordComparison(
+      "PlanConstants.PilotDuration",
+      [`trialDays=${days}`],
+      [`trialDays=${TRIAL_DAYS}`],
+      "src/lib/plans.ts TRIAL_DAYS disagrees with PlanConstants.PilotDuration. The site, the sign-up screen " +
+        "and the Terms quote the frontend number; the backend decides when a trial really ends.",
+    );
+  });
+
   // A plan with no row means "no cap" / "no overage" on both sides (the frontend spells it
   // null), so the diff is over the rows present — and a row on one side only is drift.
   test.skipIf(!BACKEND).each([
@@ -1263,7 +1280,7 @@ const EXPECTED_COMPARISONS =
   2 + // the status constants, FailureBucket
   3 + // output formats: the buildable set, the standards catalog, PREVIEW_FORMATS
   1 + // MINIMUM_PLAN against PlanConstants.MinimumPlan
-  5 + // the ladder's numbers: Limits, MonthlyPriceEur, OveragePerOrderEur, FlowLimits, OverageRatesEur
+  6 + // the ladder's numbers: Limits, MonthlyPriceEur, OveragePerOrderEur, FlowLimits, OverageRatesEur, PilotDuration
   1 + // document statuses
   1 + // field meanings
   2; // standard outputs: the ids, and which are flagged
