@@ -58,7 +58,7 @@ test.describe("app shell", () => {
       for (const name of ["as loaded", "N".repeat(60)]) {
         if (name !== "as loaded") await page.getByTestId("workspace-name").evaluate((el, text) => { el.textContent = text; }, name);
         const fit = await barFits(page);
-        expect(fit.height, `row height at ${width}, name ${name.length} long`).toBeLessThanOrEqual(56);
+        expect(Math.abs(fit.height - (width < 768 ? 52 : 56)), `row height ${fit.height} at ${width}, name ${name.length} long`).toBeLessThanOrEqual(0.5);
         expect(fit.inside, `every item inside the screen at ${width}, name ${name.length} long`).toBe(true);
       }
       expect(await page.getByTestId("workspace-name").evaluate((el) => el.scrollWidth > el.clientWidth), `long name is cut at ${width}`).toBe(true);

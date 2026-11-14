@@ -19,6 +19,8 @@ import { buildVisibleNav, isItemActive, PINNED_ACTION_HREF } from "./BridgeSideb
 
 interface BridgeTopbarProps {
   onMenuClick?: () => void;
+  /** The navigation panel the menu button opens is open. */
+  menuOpen?: boolean;
 }
 
 // ─── Page links (top bar, lg+) ───────────────────────────────────────────────
@@ -75,7 +77,7 @@ function useWorkspaceCardData() {
 /** A 44px icon control on navy (WCAG 2.5.8 hit area). */
 const ICON_BUTTON = "flex size-11 shrink-0 items-center justify-center rounded-[6px] text-navy-text transition-colors hover:bg-navy-surface hover:text-white";
 
-export function BridgeTopbar({ onMenuClick }: BridgeTopbarProps) {
+export function BridgeTopbar({ onMenuClick, menuOpen }: BridgeTopbarProps) {
   const pathname = usePathname();
   const { items: navItems, tail: navTail } = useTopNav();
   const { orgName, planLabel, activePlan } = useWorkspaceCardData();
@@ -255,6 +257,8 @@ export function BridgeTopbar({ onMenuClick }: BridgeTopbarProps) {
           type="button"
           onClick={onMenuClick}
           aria-label="Open navigation"
+          aria-haspopup="dialog"
+          aria-expanded={!!menuOpen}
           className="hidden size-11 shrink-0 items-center justify-center rounded-[7px] border border-navy-border bg-navy-surface text-navy-text md:flex lg:hidden"
         >
           <Menu size={18} strokeWidth={2.2} aria-hidden />

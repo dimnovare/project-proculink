@@ -116,6 +116,18 @@ export default function AppShellLayout({
   // captures the same element and the restore is identical.
   useDialogA11y({ open: sidebarOpen, onClose: closeSidebar, panelRef: drawerRef });
 
+  // The panel is `lg:hidden`: once the window reaches 1024px (a tablet turned to
+  // landscape) the bar shows the links again, so close it rather than leave an
+  // invisible modal holding focus.
+  useEffect(() => {
+    if (!sidebarOpen) return;
+    const wide = window.matchMedia("(min-width: 1024px)");
+    if (wide.matches) return closeSidebar();
+    const onChange = (e: MediaQueryListEvent) => { if (e.matches) closeSidebar(); };
+    wide.addEventListener("change", onChange);
+    return () => wide.removeEventListener("change", onChange);
+  }, [sidebarOpen, closeSidebar]);
+
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -195,7 +207,7 @@ export default function AppShellLayout({
 
           {/* Right: topbar + scrollable main content */}
           <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
-            <BridgeTopbar onMenuClick={openSidebar} />
+            <BridgeTopbar onMenuClick={openSidebar} menuOpen={sidebarOpen} />
             <main id="main-content" tabIndex={-1} className="flex-1 overflow-auto outline-none mb-[var(--plk-tabbar-h)]">
               <WorkspaceNameNudge />
               <ErrorBoundary context="App">

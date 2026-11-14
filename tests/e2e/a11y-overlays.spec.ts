@@ -190,6 +190,15 @@ test.describe("axe-core — overlays in their open state", { tag: "@a11y" }, () 
         await page.keyboard.press("Escape");
         await expect(panel).toHaveCount(0);
         await expect(opener).toBeFocused();
+        if (o.name === "tablet") {
+          // Widened past 1024 (the links are back): the panel closes instead of trapping focus while invisible.
+          await opener.click();
+          await expect(panel).toBeVisible();
+          await page.setViewportSize({ width: 1280, height: 900 });
+          await expect(panel).toHaveCount(0);
+          await page.keyboard.press("Tab");
+          expect(await page.evaluate(() => document.activeElement !== null && document.activeElement !== document.body), "Tab lands on a control").toBe(true);
+        }
       });
     });
   }

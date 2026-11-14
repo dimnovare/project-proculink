@@ -33,6 +33,9 @@ describe("BridgeTopbar", () => {
     ]);
     expect(within(nav).getByRole("link", { name: "Flows" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("link", { name: "Upload a document" })).toHaveAttribute("href", "/upload");
+    const menu = screen.getByRole("button", { name: "Open navigation" });
+    expect(menu).toHaveAttribute("aria-haspopup", "dialog");
+    expect(menu).toHaveAttribute("aria-expanded", "false");
     expect(document.querySelector("header")!.querySelectorAll("nav")).toHaveLength(1);
   });
 });

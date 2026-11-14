@@ -366,7 +366,7 @@ All Bridge-specific components live in `src/components/bridge/`.
 | `<StatusJourney>` | `bridge/StatusJourney.tsx` | 5-node mini-track: In · Read · Check · Transform · Send. Props: `stage` (0–4), `compact?`. |
 | `<MarkSystem>` | `bridge/MarkSystem.tsx` | System Identity mark SVG in 3 sizes. Props: `size`, `white?`. (Also exports a dead `RailPort` — see §2.) |
 | `<BridgeSidebar>` | `bridge/BridgeSidebar.tsx` | The navigation panel's content: tablet menu and phone More. Not desktop chrome. |
-| `<BridgeTopbar>` | `bridge/BridgeTopbar.tsx` | One navy row: nav links from 1024px, menu button 768 to 1023, search, help, account, link-spine. Props: `onMenuClick`. |
+| `<BridgeTopbar>` | `bridge/BridgeTopbar.tsx` | One navy row: nav links from 1024px, menu button 768 to 1023, search, help, account, link-spine. Props: `onMenuClick`, `menuOpen`. |
 | `<BottomTabBar>` | `bridge/BottomTabBar.tsx` | Phone tab bar: Documents (needs-you count), Flows, Add, Activity, More. Props: `onMore`, `moreOpen`. |
 | `<ConfidenceChip>` | `bridge/ConfidenceChip.tsx` | `pct%` badge — ≥90 green, 75–89 amber, <75 red. |
 
