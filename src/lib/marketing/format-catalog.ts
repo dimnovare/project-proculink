@@ -184,7 +184,7 @@ export const IMPORT_FORMATS: FormatRow[] = [
 
 // ── How the finished order reaches each supplier (the "delivery channels" count) ─
 //
-// No delivery channel is plan-gated (the backend gate table is AdvancedAudit and Sso only),
+// No delivery channel is plan-gated (the backend gate table is Sso only),
 // so no row names a tier.
 export const DELIVERY_METHODS: FormatRow[] = [
   { name: "HTTPS webhook (POST / PUT)", status: "live", note: "Auth: API key, bearer, basic, or OAuth2 fetch-token." },

@@ -139,7 +139,6 @@ describe("the document ladder", () => {
   });
 
   it("a document plan has every capability except SSO, as PlanConstants.PlanHasFeature says", () => {
-    expect(planIncludesCapability("starter", "advancedAudit")).toBe(true);
     expect(planIncludesCapability("starter", "sso")).toBe(false);
   });
 });

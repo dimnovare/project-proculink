@@ -69,11 +69,10 @@ const POSTURE: Array<{ title: string; body: React.ReactNode; icon: React.ReactNo
   {
     title: "What we record for every delivery",
     // The second sentence used to read "Export the full delivery log for any order at any time."
-    // It named no tier — the workspace-wide log, GET /api/audit, is gated on
-    // BillingFeature.AdvancedAudit, minimum Operations — and it described a per-order export that
-    // did not exist. What every plan really gets is one document's history:
-    // GET /api/documents/{id}/history (DocumentsController.History) is ungated and is rendered by
-    // DocumentScreen.tsx.
+    // It described a per-order export that did not exist. What every plan really gets is one
+    // document's history, GET /api/documents/{id}/history (DocumentsController.History), rendered
+    // by DocumentScreen.tsx, and the workspace-wide log, GET /api/audit, which plan 14 opened to
+    // every plan. Neither is gated.
     //
     // "Append-only" was here before that and had to go: delivery records are updated in place, and
     // erasure (DataErasureService) and retention delete them. Nothing here says records are never
