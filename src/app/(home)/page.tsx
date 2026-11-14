@@ -30,7 +30,7 @@ const STEPS: Array<{ title: string; body: string }> = [
   { title: "Send it", body: "Upload a file, forward an email, or let us collect it from a mailbox, an SFTP or FTP server, an S3 bucket, or our API." },
   { title: "We read it", body: "We read every value and table on the first document. There's no template to build first." },
   { title: "You check it", body: "The original stays on screen beside what we read. Fix a value, or point at it on the page so we find it next time." },
-  { title: "We send it", body: "Choose CSV, JSON, XML, Excel, PDF, text or fixed-width, then send it by email, to a web address, to an SFTP or FTPS server, or download it." },
+  { title: "We send it", body: "Choose CSV, JSON, XML, Excel, PDF, text or fixed-width, then send it by email, to a web address, to an SFTP or FTPS server, an S3 bucket, Google Drive or Google Sheets, or download it. Microsoft OneDrive and SharePoint on request." },
 ];
 
 const WHY: Array<{ title: string; body: string }> = [
