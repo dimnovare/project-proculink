@@ -10,8 +10,8 @@ export const metadata = pageMetadata({
     "ProcuLink reads the files you receive, shows what it read beside the original, and sends the data on in the format your system needs.",
 });
 
-// What every workspace has today. Plain lists — nothing here is "on request" or "planned";
-// a capability that is not on for everyone does not appear (offer ⇔ works).
+// What every workspace has today (offer ⇔ works). The one exception is Microsoft OneDrive and
+// SharePoint, which the founder offers on request and which says so in its own line.
 const LISTS: Array<{ title: string; items: string[] }> = [
   {
     title: "Documents we read",
@@ -25,7 +25,8 @@ const LISTS: Array<{ title: string; items: string[] }> = [
     title: "Ways in and out",
     items: [
       "In: upload, a flow's own email address, a mailbox, SFTP, FTP, FTPS, an S3 bucket, our API",
-      "Out: email, a web address, SFTP, FTPS, download",
+      "Out: email, a web address, SFTP, FTPS, an S3 bucket, Google Drive, Google Sheets, download",
+      "Microsoft OneDrive and SharePoint: on request",
     ],
   },
 ];
