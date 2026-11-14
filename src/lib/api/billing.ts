@@ -147,6 +147,10 @@ export interface AdminOrganisation {
   lastOrderActivity: string | null;
   orderVolume30d: number;
   supplierCount: number;
+  documentUnitsThisMonth: number;
+  aiCallsThisMonth: number;
+  aiTokensInThisMonth: number;
+  aiTokensOutThisMonth: number;
 }
 
 export interface CreateAdminInvoiceLineItem {
@@ -214,6 +218,10 @@ const MOCK_ADMIN = {
       lastOrderActivity: "2026-08-25T14:11:00Z",
       orderVolume30d: 84,
       supplierCount: 3,
+      documentUnitsThisMonth: 84,
+      aiCallsThisMonth: 12,
+      aiTokensInThisMonth: 96000,
+      aiTokensOutThisMonth: 31000,
     },
     {
       id: "org_example_2",
@@ -228,6 +236,10 @@ const MOCK_ADMIN = {
       lastOrderActivity: null,
       orderVolume30d: 4,
       supplierCount: 1,
+      documentUnitsThisMonth: 4,
+      aiCallsThisMonth: 1,
+      aiTokensInThisMonth: 5400,
+      aiTokensOutThisMonth: 3600,
     },
   ] as AdminOrganisation[],
 

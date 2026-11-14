@@ -73,11 +73,15 @@ const ORG: AdminOrganisation = {
   lastOrderActivity: null,
   orderVolume30d: 0,
   supplierCount: 1,
+  documentUnitsThisMonth: 37,
+  aiCallsThisMonth: 4,
+  aiTokensInThisMonth: 5400,
+  aiTokensOutThisMonth: 3600,
 };
 
-async function renderAdmin(): Promise<void> {
+async function renderAdmin(org: AdminOrganisation = ORG): Promise<void> {
   getAdminOverview.mockResolvedValue(OVERVIEW);
-  getAdminOrganisations.mockResolvedValue([ORG]);
+  getAdminOrganisations.mockResolvedValue([org]);
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
@@ -98,6 +102,30 @@ function open(id: "admin-job-failures"): void {
   const p = panel(id);
   fireEvent.click(within(p).getByRole("button", { expanded: false }));
 }
+
+describe("admin — workspace table", () => {
+  it("shows documents read and AI tokens this month", async () => {
+    await renderAdmin();
+    const table = within(screen.getByRole("table"));
+    expect(table.getByText("37")).toBeTruthy();
+    expect(table.getByText("5,400 / 3,600")).toBeTruthy();
+  });
+});
+
+describe("admin — workspace table before the backend sends the figures", () => {
+  it("shows zeros while the backend does not send the figures yet", async () => {
+    await renderAdmin({
+      ...ORG,
+      documentUnitsThisMonth: undefined,
+      aiCallsThisMonth: undefined,
+      aiTokensInThisMonth: undefined,
+      aiTokensOutThisMonth: undefined,
+    } as unknown as AdminOrganisation);
+    const table = within(screen.getByRole("table"));
+    expect(table.getByText("0 / 0")).toBeTruthy();
+    expect(table.getByTitle("0 AI calls this month")).toBeTruthy();
+  });
+});
 
 describe("admin — job failures", () => {
   it("is collapsed by default and fetches nothing until opened", async () => {

@@ -150,6 +150,12 @@ function sortOrgs(rows: AdminOrganisation[], key: SortKey, dir: SortDir): AdminO
   });
 }
 
+/** "in / out" tokens; the fields are absent until the backend change is live. */
+function aiTokens(org: AdminOrganisation): string {
+  const n = (v?: number) => (v ?? 0).toLocaleString("en");
+  return `${n(org.aiTokensInThisMonth)} / ${n(org.aiTokensOutThisMonth)}`;
+}
+
 export default function AdminPage() {
   const queryEnabled = useQueriesEnabled();
 
@@ -391,8 +397,8 @@ export default function AdminPage() {
                     <SortableTh label="Plan" col="plan" {...{ sortKey, sortDir, toggleSort }} />
                     <SortableTh label="Status" col="accountStatus" {...{ sortKey, sortDir, toggleSort }} />
                     <SortableTh label="MRR" col="mrrContribution" align="right" {...{ sortKey, sortDir, toggleSort }} />
-                    <th style={{ ...th, textAlign: "right" }}>30d orders</th>
-                    <th style={{ ...th, textAlign: "right" }}>Suppliers</th>
+                    <th style={{ ...th, textAlign: "right" }}>Read this month</th>
+                    <th style={{ ...th, textAlign: "right" }}>AI tokens in / out</th>
                     <SortableTh label="Created" col="createdAt" {...{ sortKey, sortDir, toggleSort }} />
                     <SortableTh label="Last activity" col="lastOrderActivity" {...{ sortKey, sortDir, toggleSort }} />
                     <th style={{ ...th, textAlign: "right" }}>Stripe</th>
@@ -413,10 +419,13 @@ export default function AdminPage() {
                         {eurCents(org.mrrContribution)}
                       </td>
                       <td style={{ ...td, textAlign: "right", fontVariantNumeric: "tabular-nums", color: "var(--ink-muted)" }}>
-                        {org.orderVolume30d}
+                        {org.documentUnitsThisMonth ?? 0}
                       </td>
-                      <td style={{ ...td, textAlign: "right", fontVariantNumeric: "tabular-nums", color: "var(--ink-muted)" }}>
-                        {org.supplierCount}
+                      <td
+                        title={`${org.aiCallsThisMonth ?? 0} AI calls this month`}
+                        style={{ ...td, textAlign: "right", fontVariantNumeric: "tabular-nums", color: "var(--ink-muted)" }}
+                      >
+                        {aiTokens(org)}
                       </td>
                       <td style={{ ...td, color: "var(--ink-muted)", whiteSpace: "nowrap" }}>{shortDate(org.createdAt)}</td>
                       <td style={{ ...td, color: "var(--ink-muted)", whiteSpace: "nowrap" }}>{relativeTime(org.lastOrderActivity)}</td>
@@ -486,8 +495,8 @@ export default function AdminPage() {
                   <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 16px", fontSize: 12.5, color: "var(--ink-muted)" }}>
                     <span><PlanBadge plan={org.plan} /></span>
                     <span><strong style={{ color: "var(--ink)" }}>{eurCents(org.mrrContribution)}</strong> MRR</span>
-                    <span>{org.orderVolume30d} orders/30d</span>
-                    <span>{org.supplierCount} suppliers</span>
+                    <span>{org.documentUnitsThisMonth ?? 0} read this month</span>
+                    <span>{aiTokens(org)} AI tokens</span>
                   </div>
                   <div style={{ fontSize: 11.5, color: "var(--ink-faint)" }}>
                     Created {shortDate(org.createdAt)} · last activity {relativeTime(org.lastOrderActivity)}
