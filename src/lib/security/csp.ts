@@ -152,6 +152,8 @@ export function buildContentSecurityPolicy(env: CspEnv): string {
       clerk,
       // Clerk's bot-protection widget (Cloudflare Turnstile).
       "https://challenges.cloudflare.com",
+      // The Google Picker's loader (src/lib/googlePicker.ts) for Google destinations.
+      "https://apis.google.com",
       posthogAssets,
       ...vercelToolbar,
     ]),
@@ -188,8 +190,8 @@ export function buildContentSecurityPolicy(env: CspEnv): string {
     "frame-src": uniq([
       "'self'",
       "https://challenges.cloudflare.com",
-      // /watch embeds a Loom player when NEXT_PUBLIC_WALKTHROUGH_LOOM_URL is set.
-      "https://www.loom.com",
+      // The Google Picker renders in a docs.google.com frame.
+      "https://docs.google.com",
       ...vercelToolbar,
     ]),
     // MSW's mock service worker (dev) and Clerk's blob workers.

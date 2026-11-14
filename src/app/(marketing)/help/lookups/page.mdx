@@ -1,0 +1,53 @@
+import { helpArticleMetadata } from "@/lib/seo";
+
+export const metadata = helpArticleMetadata({
+  slug: "lookups",
+  title: "Lookups — ProcuLink Help",
+  description: "How a lookup list turns one value into another, such as your item code into a supplier's.",
+});
+
+# Lookups
+
+How a lookup list turns one value into another, such as your item code into a supplier's.
+
+A lookup is a table with two columns: **From** and **To**. When an output uses a lookup for a value, the value on the document is looked up in the **From** column, and the matching **To** is written instead. Use it for item codes, unit names, country names or anything else your receiving system spells differently.
+
+Lookups are shared across your workspace. Find them under **Lookups** in the navigation. Any output in any flow can use any lookup.
+
+## How a match works
+
+- We ignore spaces at the start and end of the value.
+- We ignore capital letters. `ab-100` finds `AB-100`.
+- The whole value must match. We do not match part of a value.
+- Each **From** can appear once in a lookup.
+
+## When a value is not in the lookup
+
+Each swap says what to do with a value it cannot find:
+
+- **Keep the value.** The original value goes into the output.
+- **Leave it blank.**
+
+Either way the output is still made. When you preview an output, the values that were not found are listed under it, so you can add them.
+
+## Fill a lookup
+
+- Add rows by hand on the lookup's page.
+- [Import a CSV file](/help/guides/import-a-lookup). Column 1 is **From** and column 2 is **To**. A row with a **From** you already have replaces the old row.
+- Press **Export CSV** to take the rows back out.
+
+A lookup holds up to 20,000 rows. A value can be up to 200 characters.
+
+## Let AI suggest matches
+
+When you preview an output and a value was not found, a **Suggest matches** button can appear. It does when your lookup also has a **list of values to choose from**, for example your supplier's product list.
+
+For each value that was missed, the suggestion shows what we propose, how sure we are when we can say, and the note from your list. You then choose:
+
+- **Accept** adds the pair to the lookup.
+- **Edit** lets you change the **To** value before it is added.
+- **Reject** drops the suggestion and adds nothing.
+
+Nothing is added until you press **Accept** or save an edit. Suggestions are never applied by themselves.
+
+To make a suggestion, we send the missed value, the other values on the same row of the document (up to 500 characters), and values from your list: the whole list when it has 40 values or fewer, otherwise the 8 closest to each missed value. We do this for up to 25 missed values at a time. It counts against your workspace's monthly AI allowance, and it does not work if your workspace keeps documents on our own servers. See [AI in ProcuLink](/help/ai-in-proculink).

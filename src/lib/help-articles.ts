@@ -1,14 +1,12 @@
-import { requiresPlan } from "@/lib/gatedCapabilities";
-
 export type HelpCategory =
   | "Getting started"
-  | "Connections"
-  | "Mapping"
-  | "Delivery"
-  | "Integrations"
-  | "AI"
-  | "Billing"
-  | "Troubleshooting";
+  | "Documents"
+  | "Flows"
+  | "Sending in"
+  | "Outputs and destinations"
+  | "Lookups"
+  | "Account"
+  | "API";
 
 export interface HelpArticle {
   slug: string;
@@ -31,324 +29,156 @@ export interface HelpArticle {
   videoPosterUrl?: string;
 }
 
-/** Public R2 base for the per-tool walkthrough videos (assets.proculink.eu). */
-const TOOL_VIDEO_BASE = "https://assets.proculink.eu/marketing/tools";
-
 /**
- * Registry array order = reading order (drives the prev/next article pager).
- * Learning path: Getting started → Connections → Mapping → Delivery →
- * Integrations → AI → Billing → Troubleshooting.
+ * Registry array order = reading order (drives the prev/next article pager), so
+ * it follows CATEGORY_ORDER. Every entry has a stub-or-written `page.mdx` under
+ * src/app/(marketing)/help/<slug>/ — src/lib/help-articles.test.ts pins that in
+ * both directions.
  */
 export const HELP_ARTICLES: HelpArticle[] = [
-  // ── Getting started ──────────────────────────────────────────────────────
-  // `first-upload` was retired when the step-by-step guides landed: it was a
-  // five-step procedure that /help/guides/first-order-end-to-end now carries in
-  // full. Its URL redirects there (next.config.ts) and its upload walkthrough
-  // video moved here, to the surviving article that describes manual upload.
   {
-    slug: "order-intake-options",
-    title: "Ways to send orders to ProcuLink",
-    blurb: "Manual upload, email, API, SFTP, and storage-folder options for getting POs into ProcuLink.",
+    slug: "how-proculink-works",
+    title: "How ProcuLink works",
+    blurb: "What happens to a document from the moment it arrives to the moment it is sent on.",
     category: "Getting started",
-    keywords: ["email", "imap", "api", "sftp", "s3", "intake", "ingestion", "channels", "idoc", "inbound email", "upload", "first upload", "csv", "xlsx", "pdf"],
-    readMin: 5,
-    videoUrl: `${TOOL_VIDEO_BASE}/upload.mp4`,
-    videoPosterUrl: `${TOOL_VIDEO_BASE}/upload-poster.jpg`,
-  },
-  {
-    slug: "inbound-mode",
-    title: "Receiving orders from your customers (inbound mode)",
-    blurb: "Flip your workspace from sending POs to suppliers to receiving POs from customers — labels change, the pipeline doesn't.",
-    category: "Getting started",
-    keywords: ["inbound", "customers", "direction", "receive orders", "relabel", "outbound"],
+    keywords: ["overview", "introduction", "flows", "documents", "senders", "outputs", "destinations"],
     readMin: 3,
   },
   {
-    slug: "dashboard-and-statuses",
-    title: "Order statuses from upload to delivered",
-    blurb: "What Extracting, Needs review, Ready to send, Queued to send, Sending, Delivered, and the failure states actually mean.",
+    slug: "ai-in-proculink",
+    title: "How ProcuLink uses AI",
+    blurb: "Where AI reads your documents and suggests values, and how you stay in control of what is sent.",
     category: "Getting started",
-    keywords: ["status", "queued to send", "ready to send", "needs review", "sending", "delivered", "rejected", "dead-letter", "lifecycle"],
-    readMin: 4,
-    videoUrl: `${TOOL_VIDEO_BASE}/dashboard.mp4`,
-    videoPosterUrl: `${TOOL_VIDEO_BASE}/dashboard-poster.jpg`,
-  },
-  {
-    slug: "inbox-basics",
-    title: "Working the Inbox",
-    blurb: "The order work queue: status filters, search, keyboard navigation, and bulk send.",
-    category: "Getting started",
-    keywords: ["inbox", "work queue", "bulk send", "send selected", "filters", "search", "keyboard", "j/k", "pagination", "queue"],
-    readMin: 5,
-    videoUrl: `${TOOL_VIDEO_BASE}/inbox.mp4`,
-    videoPosterUrl: `${TOOL_VIDEO_BASE}/inbox-poster.jpg`,
-  },
-  {
-    slug: "csv-xlsx-field-guide",
-    title: "CSV and XLSX field guide",
-    blurb: "Which columns a CSV or XLSX purchase order needs, what ProcuLink infers for you, and the encoding and decimal-separator rules that keep numbers exact.",
-    category: "Getting started",
-    keywords: ["csv", "xlsx", "excel", "columns", "headers", "encoding", "utf-8", "decimal separator", "delimiter", "purchase order upload"],
-    readMin: 4,
-    videoUrl: `${TOOL_VIDEO_BASE}/csv-xlsx-field-guide.mp4`,
-    videoPosterUrl: `${TOOL_VIDEO_BASE}/csv-xlsx-field-guide-poster.jpg`,
-  },
-  // ── Connections ──────────────────────────────────────────────────────────
-  {
-    slug: "connections",
-    title: "Supplier connections: draft, test, publish, roll back",
-    blurb: "Version a supplier's whole setup — mapping, rules, output, delivery — and change it safely with tests, replay, and rollback.",
-    category: "Connections",
-    keywords: ["connection", "revision", "draft", "publish", "test pack", "replay", "rollback", "version", "archive", "pinned"],
-    readMin: 6,
-    videoUrl: `${TOOL_VIDEO_BASE}/connections.mp4`,
-    videoPosterUrl: `${TOOL_VIDEO_BASE}/connections-poster.jpg`,
-  },
-  // ── Mapping ──────────────────────────────────────────────────────────────
-  {
-    slug: "managing-suppliers",
-    title: "Managing suppliers and their catalogs",
-    blurb: "The suppliers list, the seven-tab supplier profile, and the three ways to fill a catalog: file upload, scheduled pull, and API push.",
-    category: "Mapping",
-    keywords: ["suppliers", "customers", "supplier list", "catalog import", "catalog sync", "sftp", "ftps", "http api", "push", "automatic delivery", "review before delivery", "tabs", "profile"],
-    readMin: 6,
-    videoUrl: `${TOOL_VIDEO_BASE}/suppliers.mp4`,
-    videoPosterUrl: `${TOOL_VIDEO_BASE}/suppliers-poster.jpg`,
-  },
-  {
-    slug: "mapping-basics",
-    title: "PO field mapping basics",
-    blurb: "Map your CSV columns to the standard purchase-order fields ProcuLink expects.",
-    category: "Mapping",
-    keywords: ["mapping", "columns", "fields", "manipulators", "starter template", "scriban", "erply", "directo", "expression", "auto-map"],
-    readMin: 6,
-    videoUrl: `${TOOL_VIDEO_BASE}/po-mapping.mp4`,
-    videoPosterUrl: `${TOOL_VIDEO_BASE}/po-mapping-poster.jpg`,
-  },
-  {
-    slug: "item-codes",
-    title: "Supplier item codes, catalogs, and mappings",
-    blurb: "What supplier item codes are, how a catalog upload powers auto-matching, and how resolutions are remembered.",
-    category: "Mapping",
-    keywords: ["item codes", "catalog", "sku", "auto-match", "code mappings", "resolve", "catalog import", "barcode", "gtin", "ean"],
-    readMin: 5,
-    videoUrl: `${TOOL_VIDEO_BASE}/review.mp4`,
-    videoPosterUrl: `${TOOL_VIDEO_BASE}/review-poster.jpg`,
-  },
-  {
-    slug: "catalog-csv-field-guide",
-    title: "Supplier catalog CSV — field guide",
-    blurb: "Which columns a supplier catalog CSV needs (only code is required), how re-import upserts by code, and how to map a supplier's own headers or positional columns.",
-    category: "Mapping",
-    keywords: ["supplier catalog", "catalog csv", "code column", "column mapping", "upsert by code", "decimal separator", "encoding windows-1252", "barcode gtin", "column aliases", "catalog import"],
+    keywords: ["ai", "confidence", "suggestions", "privacy", "accept", "reject"],
     readMin: 4,
   },
   {
-    slug: "output-mapping-editor",
-    title: "Editing the output your supplier receives",
-    blurb: "Per-order output overrides: pick sources, chain manipulators, write custom expressions or a whole-document template, and preview live.",
-    category: "Mapping",
-    keywords: ["output mapping", "override", "scriban", "template", "manipulators", "preview", "custom field", "promote", "expression"],
-    readMin: 6,
-    videoUrl: `${TOOL_VIDEO_BASE}/output-mapping-editor.mp4`,
-    videoPosterUrl: `${TOOL_VIDEO_BASE}/output-mapping-editor-poster.jpg`,
-  },
-  {
-    slug: "validation-rules",
-    title: "Validation rules",
-    blurb: `Set the checks that run on a supplier's orders, and read the pass/fail results. Authoring and activating a supplier's own rules is ${requiresPlan("customSupplierRules")}; the built-in order checks run on every plan.`,
-    category: "Mapping",
-    keywords: ["validation", "rules", "severity", "acceptance", "operators", "required", "blocking"],
-    readMin: 4,
-    // No walkthrough video: the recorded one toured the org-wide rule catalog
-    // screen, which was retired because nothing ever read those rules. Linking
-    // a video of a page that no longer exists is the exact claim we removed.
-  },
-  // ── Delivery ─────────────────────────────────────────────────────────────
-  {
-    slug: "delivery-setup",
-    title: "Setting up delivery and test-fire",
-    blurb: "Choose a protocol, send a test payload, and what a successful test does — and doesn't — prove.",
-    category: "Delivery",
-    keywords: ["delivery", "test-fire", "http", "webhook", "sftp", "ftps", "smtp", "erply", "directo", "oauth2"],
-    readMin: 5,
-    videoUrl: `${TOOL_VIDEO_BASE}/delivery.mp4`,
-    videoPosterUrl: `${TOOL_VIDEO_BASE}/delivery-poster.jpg`,
-  },
-  {
-    slug: "output-templates",
-    title: "Output formats",
-    blurb: "Which output formats ProcuLink can actually send today, and how to get an exact custom shape.",
-    category: "Delivery",
-    keywords: ["templates", "output format", "csv", "xml", "cxml", "ubl", "x12", "json", "peppol", "edifact", "scriban"],
+    slug: "documents-and-statuses",
+    title: "Documents and their statuses",
+    blurb: "What each status on a document means, and what you can do from it.",
+    category: "Documents",
+    keywords: ["status", "documents", "reading", "needs review", "sent", "failed", "held"],
     readMin: 4,
   },
   {
-    slug: "cxml-setup",
-    title: "Setting up cXML delivery",
-    blurb: `Parse inbound cXML 1.2 orders on any plan and deliver cXML output on ${requiresPlan("cxml")}, with a walkthrough of the From / To / Sender credential fields and the write-only shared secret.`,
-    category: "Delivery",
-    keywords: ["cxml", "coupa", "ariba", "OrderRequest", "network id", "shared secret", "punchout", "supplier network", "credential domain", "sap"],
+    slug: "what-we-read",
+    title: "Files we read",
+    blurb: "The kinds of files ProcuLink reads, and what to expect from each.",
+    category: "Documents",
+    keywords: ["files", "formats", "pdf", "csv", "excel", "xlsx", "scan", "photo", "input"],
     readMin: 4,
-    videoUrl: `${TOOL_VIDEO_BASE}/cxml-setup.mp4`,
-    videoPosterUrl: `${TOOL_VIDEO_BASE}/cxml-setup-poster.jpg`,
   },
   {
-    slug: "oauth2-delivery-setup",
-    title: "OAuth2 client-credentials for HTTP delivery",
-    blurb: "Fill in the OAuth2 fetch-token fields (tokenUrl, clientId, clientSecret, scope, grantType, authStyle, requestStyle, tokenPath) so ProcuLink mints a fresh access token before each HTTP delivery.",
-    category: "Delivery",
-    keywords: ["oauth2", "client credentials", "access token", "token endpoint", "http delivery", "bearer", "authStyle", "tokenPath", "webhook auth"],
-    readMin: 4,
-    videoUrl: `${TOOL_VIDEO_BASE}/oauth2-delivery-setup.mp4`,
-    videoPosterUrl: `${TOOL_VIDEO_BASE}/oauth2-delivery-setup-poster.jpg`,
-  },
-  {
-    slug: "sftp-ftps-delivery-keys",
-    title: "SFTP and FTPS delivery keys and credentials",
-    blurb: "Password vs private-key auth for SFTP/FTPS delivery, converting PuTTY .ppk keys to OpenSSH, directory auto-create behaviour, the FTPS certificate toggle, and the leave-blank-to-keep secret rule.",
-    category: "Delivery",
-    keywords: ["sftp", "ftps", "private key", "openssh", "ppk", "puttygen", "certificate validation", "delivery credentials", "file delivery", "leave blank to keep"],
-    readMin: 5,
-    videoUrl: `${TOOL_VIDEO_BASE}/sftp-ftps-delivery-keys.mp4`,
-    videoPosterUrl: `${TOOL_VIDEO_BASE}/sftp-ftps-delivery-keys-poster.jpg`,
-  },
-  {
-    slug: "erp-erply-and-directo",
-    title: "Erply and Directo ERP delivery adapters",
-    blurb: `Configure the Erply (base URL + client code) and Directo (base URL + company + basic auth) delivery adapters on ${requiresPlan("erpConnectors")}, and understand they ship the generated order artifact into the ERP — validated by tests, not a live sandbox.`,
-    category: "Delivery",
-    keywords: ["erply", "directo", "erp adapter", "delivery channel", "client code", "company database", "basic auth", "order artifact", "field mapping", "test-fire"],
-    readMin: 5,
-  },
-  // ── Integrations ─────────────────────────────────────────────────────────
-  // `email-polling` was retired here: it described the same mailbox settings as
-  // `imap-provider-setup` at half the depth. Its unique content (five-minute
-  // cadence, which attachment types are ingested, failure alerting) was merged
-  // into that article, which also inherited its walkthrough video; the URL
-  // redirects there (next.config.ts).
-  {
-    slug: "api-and-integrations",
-    title: "API keys, inbound API, webhooks, and connectors",
-    blurb: "Create plk_ API keys, push orders in over REST, and get signed webhooks out when orders are created, delivered, or fail.",
-    category: "Integrations",
-    keywords: ["api key", "plk_", "webhook", "hmac", "signature", "ingress", "zapier", "make", "idempotency", "rest"],
-    readMin: 7,
-    videoUrl: `${TOOL_VIDEO_BASE}/settings-integrations.mp4`,
-    videoPosterUrl: `${TOOL_VIDEO_BASE}/settings-integrations-poster.jpg`,
-  },
-  {
-    slug: "api-order-schema-reference",
-    title: "Inbound order API — schema reference",
-    blurb: "The endpoint, X-ProcuLink-Key header, JSON order body, success response, and Zapier/Make setup for pushing structured purchase orders into ProcuLink.",
-    category: "Integrations",
-    keywords: ["inbound order api", "ingress endpoint", "X-ProcuLink-Key", "api key", "json order body", "zapier", "make webhooks", "idempotency key", "push order", "workspace slug"],
-    readMin: 4,
-    videoUrl: `${TOOL_VIDEO_BASE}/api-order-schema-reference.mp4`,
-    videoPosterUrl: `${TOOL_VIDEO_BASE}/api-order-schema-reference-poster.jpg`,
-  },
-  {
-    slug: "sftp-polling-setup",
-    title: "Polling an SFTP folder for order files",
-    blurb: `Set up ProcuLink to pull purchase-order files from an SFTP server on a schedule, and learn what fails silently when the path is wrong. Inbound SFTP polling is ${requiresPlan("sftpIngestion")}.`,
-    category: "Integrations",
-    keywords: ["sftp", "polling", "pull", "order files", "host", "port 22", "private key", "password", "folder path", "schedule"],
-    readMin: 3,
-    videoUrl: `${TOOL_VIDEO_BASE}/sftp-polling-setup.mp4`,
-    videoPosterUrl: `${TOOL_VIDEO_BASE}/sftp-polling-setup-poster.jpg`,
-  },
-  {
-    slug: "s3-polling-setup",
-    title: "Polling an S3 or R2 bucket for order files",
-    blurb: `Set up ProcuLink to pull purchase-order files from an S3-compatible bucket on a schedule, with a minimal read-only IAM policy. Bucket polling is ${requiresPlan("s3Ingestion")}.`,
-    category: "Integrations",
-    keywords: ["s3", "r2", "cloudflare", "bucket", "prefix", "region", "iam policy", "s3:ListBucket", "s3:GetObject", "access key", "polling"],
+    slug: "checks",
+    title: "Checks",
+    blurb: "The checks that run on every document, what they flag, and which ones hold a send.",
+    category: "Documents",
+    keywords: ["checks", "validation", "duplicate", "missing value", "hold"],
     readMin: 3,
   },
-  {
-    slug: "imap-provider-setup",
-    title: "Polling an existing mailbox with IMAP",
-    blurb: `Connect ProcuLink to a mailbox you already own so it imports order attachments, with per-provider host/port settings, app-password guidance, and the polling cadence. Email intake is ${requiresPlan("emailIngestion")}.`,
-    category: "Integrations",
-    keywords: ["imap", "email intake", "email polling", "mailbox", "attachments", "gmail", "office 365", "outlook", "proton bridge", "app password", "port 993", "tls", "growth"],
-    readMin: 5,
-    videoUrl: `${TOOL_VIDEO_BASE}/email-polling.mp4`,
-    videoPosterUrl: `${TOOL_VIDEO_BASE}/email-polling-poster.jpg`,
-  },
-  {
-    slug: "x12-850",
-    title: "ANSI X12 850 purchase orders",
-    blurb: "What an X12 850 purchase order is, its ISA/GS/ST envelope and key segments, and how ProcuLink parses inbound and emits outbound X12 850.",
-    category: "Integrations",
-    keywords: ["X12 850", "ANSI X12", "EDI", "purchase order", "ISA GS ST envelope", "BEG segment", "PO1 segment", "North American EDI", "004010", "005010"],
-    readMin: 4,
-  },
-  {
-    slug: "edifact-orders",
-    title: "EDIFACT ORDERS purchase orders",
-    blurb: "How ProcuLink reads inbound UN/EDIFACT ORDERS (D96A/D01B) messages, its envelope segments, and which related messages are not yet available.",
-    category: "Integrations",
-    keywords: ["EDIFACT", "ORDERS", "UN/EDIFACT", "D96A", "D01B", "UNB UNH BGM LIN", "purchase order", "EDI", "INVOIC coming soon", "DESADV coming soon"],
-    readMin: 4,
-  },
-  {
-    slug: "sap-idoc-orders05",
-    title: "SAP IDoc ORDERS05 purchase orders",
-    blurb: "What a SAP IDoc ORDERS05 is, its control record and E1EDK01/E1EDP01 segments, and how ProcuLink parses it inbound as XML.",
-    category: "Integrations",
-    keywords: ["SAP IDoc", "ORDERS05", "EDI_DC40", "E1EDK01", "E1EDP01", "purchase order", "SAP export", "XML", "inbound only", "mid-market SAP"],
-    readMin: 4,
-  },
-  {
-    slug: "ubl-and-peppol",
-    title: "UBL Order files, and what they mean for Peppol",
-    blurb: "Parse UBL 2.1 Order documents inbound and emit UBL 2.1 output — plus what ProcuLink does and does not do when a buyer asks for Peppol BIS Order 3.",
-    category: "Integrations",
-    keywords: ["UBL", "Peppol", "BIS Order 3", "OASIS", "e-procurement", "Order-2 namespace", "UBL invoice", "XML order", "Access Point"],
-    readMin: 3,
-  },
-  // ── AI ───────────────────────────────────────────────────────────────────
-  {
-    slug: "ai-suggestions",
-    title: "How AI mapping suggestions work",
-    blurb: "When OpenAI runs, what confidence means, how catalog grounding works, and what the monthly AI budget does.",
-    category: "AI",
-    keywords: ["ai", "openai", "confidence", "suggestions", "provenance", "catalog grounding", "token budget", "no-egress", "cap"],
-    readMin: 5,
-    videoUrl: `${TOOL_VIDEO_BASE}/ai-suggestions.mp4`,
-    videoPosterUrl: `${TOOL_VIDEO_BASE}/ai-suggestions-poster.jpg`,
-  },
-  // ── Billing ──────────────────────────────────────────────────────────────
-  {
-    slug: "billing-faq",
-    title: "Billing and plans FAQ",
-    blurb: "Pilot, Growth, Operations, Integration, Distributor, Enterprise — what's included and what happens at quota.",
-    category: "Billing",
-    keywords: ["billing", "plans", "quota", "overage", "soft cap", "429", "pilot", "upgrade", "read-only", "distributor", "cancel"],
-    readMin: 4,
-  },
-  // ── Troubleshooting ──────────────────────────────────────────────────────
   {
     slug: "troubleshooting",
-    title: "Troubleshooting common parse errors",
-    blurb: "Date format mismatches, missing columns, encoding issues — what to fix.",
-    category: "Troubleshooting",
-    keywords: ["parse error", "encoding", "bom", "date format", "missing columns", "scanned pdf", "comma decimal", "idoc"],
+    title: "Troubleshooting",
+    blurb: "What to do when a document cannot be read, a send fails, or a result looks wrong.",
+    category: "Documents",
+    keywords: ["troubleshooting", "error", "failed", "cannot read", "encoding", "retry"],
+    readMin: 4,
+  },
+  {
+    slug: "flows",
+    title: "Flows: fields, automation and versions",
+    blurb: "How a flow holds the fields to read, the output and the destination, and how to change it safely.",
+    category: "Flows",
+    keywords: ["flow", "fields", "automation", "versions", "publish", "restore", "advanced"],
+    readMin: 5,
+  },
+  {
+    slug: "senders",
+    title: "Senders and what we learn from them",
+    blurb: "How ProcuLink remembers where a sender puts each value, so the next document needs less checking.",
+    category: "Flows",
+    keywords: ["sender", "teach", "learn", "layout", "template"],
     readMin: 3,
   },
   {
-    slug: "exceptions-and-stuck-orders",
-    title: "Working the issues queue",
-    blurb: "What lands in Issues, what Resolve and Ignore really do, and how to send a failed delivery again.",
-    category: "Troubleshooting",
-    // Search aliases, never rendered (help-search.ts weights them at 0.15). The
-    // RETIRED words stay on purpose: someone who learned the old vocabulary, or
-    // who is reading a backend log, has to be able to find the article that
-    // explains what replaced it.
-    keywords: ["issues", "exceptions", "stuck", "dead-letter", "out of retries", "requeue", "ignore", "resolve", "worker", "health", "couldn't send", "delivery failed"],
+    slug: "intake-channels",
+    title: "Ways to send documents in",
+    blurb: "Every way a document can reach a flow: upload, email, mailbox, SFTP, FTP, S3 and API.",
+    category: "Sending in",
+    keywords: ["intake", "upload", "email", "imap", "mailbox", "sftp", "ftp", "s3", "api", "inbound"],
+    readMin: 4,
+  },
+  {
+    slug: "outputs",
+    title: "Output formats",
+    blurb: "The formats a flow can produce, and how each field gets its value.",
+    category: "Outputs and destinations",
+    keywords: ["output", "csv", "json", "xml", "excel", "xlsx", "pdf", "text", "fixed-width", "format"],
     readMin: 5,
-    videoUrl: `${TOOL_VIDEO_BASE}/exceptions.mp4`,
-    videoPosterUrl: `${TOOL_VIDEO_BASE}/exceptions-poster.jpg`,
+  },
+  {
+    slug: "destinations",
+    title: "Destinations",
+    blurb: "Where a flow sends its output: email, a web address, an SFTP or FTPS server, or a download.",
+    category: "Outputs and destinations",
+    keywords: ["destination", "email", "webhook", "http", "sftp", "ftps", "download", "delivery"],
+    readMin: 4,
+  },
+  {
+    slug: "destination-sign-in",
+    title: "Destination sign-in, keys and signing",
+    blurb: "How to give a destination the login, key or token it asks for.",
+    category: "Outputs and destinations",
+    keywords: ["sign in", "credentials", "oauth2", "token", "ssh key", "private key", "signing", "secret", "ppk"],
+    readMin: 4,
+  },
+  {
+    slug: "lookups",
+    title: "Lookups",
+    blurb: "How a lookup list turns one value into another, such as your item code into a supplier's.",
+    category: "Lookups",
+    keywords: ["lookup", "csv", "match", "item code", "translate", "list", "suggestions"],
+    readMin: 4,
+  },
+  {
+    slug: "activity-and-notifications",
+    title: "Activity and notifications",
+    blurb: "Where to see what happened to each document, and how ProcuLink tells you when something needs you.",
+    category: "Account",
+    keywords: ["activity", "audit", "history", "notifications", "alerts", "email"],
+    readMin: 3,
+  },
+  {
+    slug: "workspace-and-team",
+    title: "Workspace, team and API keys",
+    blurb: "Name your workspace, see who has access and what each role can do, and create the keys that let other systems use ProcuLink.",
+    category: "Account",
+    keywords: ["workspace", "team", "members", "roles", "administrator", "api key", "settings"],
+    readMin: 3,
+  },
+  {
+    slug: "billing-faq",
+    title: "Plans and billing",
+    blurb: "What each plan includes, what counts as a document, and what happens at the limit.",
+    category: "Account",
+    keywords: ["billing", "plans", "trial", "documents", "overage", "upgrade", "cancel", "invoice"],
+    readMin: 4,
+  },
+  {
+    slug: "old-orders",
+    title: "Old orders",
+    blurb: "Where your earlier purchase orders went, and how to read and export them.",
+    category: "Account",
+    keywords: ["orders", "old orders", "legacy", "archive", "export", "purchase orders"],
+    readMin: 2,
+  },
+  {
+    slug: "api-reference",
+    title: "API reference: files, results and webhooks",
+    blurb: "Send a file to a flow over the API, fetch the result, and receive webhooks when a document changes.",
+    category: "API",
+    keywords: ["api", "reference", "webhook", "signature", "hmac", "idempotency", "x-proculink-key", "rest", "events"],
+    readMin: 6,
   },
 ];
 
@@ -366,49 +196,46 @@ export type HelpIconName =
 /**
  * Per-category visual identity. Colours are pulled straight from the locked
  * Bridge Layer token set (`color` = solid accent, `soft` = tinted surface) so
- * the Help center never invents a palette of its own.
+ * the Help center never invents a palette of its own. Text colours are the DEEP
+ * member of each hue family so the 12px semibold eyebrow passes WCAG AA (4.5:1)
+ * on its pastel `soft` background.
  */
 export const CATEGORY_META: Record<
   HelpCategory,
   { color: string; soft: string; icon: HelpIconName }
 > = {
-  // Text colors are the DEEP member of each hue family so the 12px semibold
-  // eyebrow text passes WCAG AA (4.5:1) on its pastel `soft` background — the
-  // bright/mid variants (the retired emerald, #2E8E3A, #C97A14, #C53A3A)
-  // measured 1.9–3.9:1
-  // there (Lighthouse color-contrast). Fills/illustrations keep the brand mids.
-  "Getting started": { color: "#1E6D29", soft: "#DCFCE7", icon: "upload" },
-  Connections:       { color: "#0F4FA8", soft: "#E3EDFB", icon: "connections" },
-  Mapping:           { color: "#7A4D0B", soft: "#FAEFD6", icon: "map" },
-  Delivery:          { color: "#1E6D29", soft: "#E2F1E2", icon: "deliver" },
-  Integrations:      { color: "#56627A", soft: "#EFF2F7", icon: "integrations" },
-  AI:                { color: "#6F4FCE", soft: "#EEE7FB", icon: "ai" },
-  Billing:           { color: "#0F4FA8", soft: "#E3EDFB", icon: "billing" },
-  Troubleshooting:   { color: "#9E2B2B", soft: "#FBE3E3", icon: "wrench" },
+  "Getting started":          { color: "#1E6D29", soft: "#DCFCE7", icon: "upload" },
+  Documents:                  { color: "#7A4D0B", soft: "#FAEFD6", icon: "wrench" },
+  Flows:                      { color: "#0F4FA8", soft: "#E3EDFB", icon: "connections" },
+  "Sending in":               { color: "#56627A", soft: "#EFF2F7", icon: "integrations" },
+  "Outputs and destinations": { color: "#1E6D29", soft: "#E2F1E2", icon: "deliver" },
+  Lookups:                    { color: "#6F4FCE", soft: "#EEE7FB", icon: "map" },
+  Account:                    { color: "#0F4FA8", soft: "#E3EDFB", icon: "billing" },
+  API:                        { color: "#56627A", soft: "#EFF2F7", icon: "integrations" },
 };
 
 /** Category render order for filter chips — mirrors the learning path. */
 export const CATEGORY_ORDER: HelpCategory[] = [
   "Getting started",
-  "Connections",
-  "Mapping",
-  "Delivery",
-  "Integrations",
-  "AI",
-  "Billing",
-  "Troubleshooting",
+  "Documents",
+  "Flows",
+  "Sending in",
+  "Outputs and destinations",
+  "Lookups",
+  "Account",
+  "API",
 ];
 
 /**
  * Curated "popular" slugs — shown on the /help index and as the slideover's
- * no-guide fallback. May list slugs the content pass hasn't written yet;
- * `resolveArticles` silently skips those, so nothing dead ever renders.
+ * no-guide fallback. `resolveArticles` silently skips any slug without a
+ * published article, so nothing dead ever renders.
  */
 export const POPULAR_ARTICLE_SLUGS: string[] = [
-  "order-intake-options",
-  "connections",
-  "delivery-setup",
-  "output-mapping-editor",
+  "how-proculink-works",
+  "documents-and-statuses",
+  "intake-channels",
+  "outputs",
   "billing-faq",
 ];
 

@@ -356,7 +356,8 @@ describe("the scanned corpus", () => {
     // the real numbers so ordinary growth does not churn them, but far above what
     // the old src/app root could ever have reached (147 files INCLUDING tests).
     expect(s.tokenised).toBeGreaterThan(350);
-    expect(s.linesScanned).toBeGreaterThan(60_000);
+    // 60_000 -> 50_000 on 2026-11-14: plan 13b and the relaunch rewrite each deleted pages (56,630 lines after both).
+    expect(s.linesScanned).toBeGreaterThan(50_000);
 
     // Nothing was listed and then silently dropped before the rules ran.
     expect(s.tokenised).toBe(s.listed);

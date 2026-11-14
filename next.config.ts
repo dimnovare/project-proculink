@@ -48,10 +48,6 @@ const nextConfig: NextConfig = {
           clerkPublishableKey: process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
           posthogHost: process.env.NEXT_PUBLIC_POSTHOG_HOST,
           sentryDsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
-          mediaUrls: [
-            process.env.NEXT_PUBLIC_WALKTHROUGH_VIDEO_URL,
-            process.env.NEXT_PUBLIC_WALKTHROUGH_VIDEO_POSTER,
-          ],
           vercelEnv: process.env.VERCEL_ENV,
         }),
       },
@@ -76,18 +72,8 @@ const nextConfig: NextConfig = {
       { source: "/suppliers",        destination: "/flows",             permanent: true },
       { source: "/orders",           destination: "/archive",           permanent: true },
       { source: "/orders/:id",       destination: "/archive/:id",       permanent: true },
-      // Help-article consolidation: delivery-config was deleted (it carried a
-      // false claim about a test-fire gate); its true content was merged into
-      // delivery-setup, which is now the single delivery article.
-      { source: "/help/delivery-config", destination: "/help/delivery-setup", permanent: true },
-      // Retired when the step-by-step guides landed. Both articles were
-      // procedures that a guide now carries better, so the URLs point at the
-      // procedure rather than at a shorter duplicate of it:
-      //   first-upload  → the end-to-end guide it was a summary of.
-      //   email-polling → imap-provider-setup, which absorbed its unique
-      //                   content (cadence, ingested types, failure alerting).
-      { source: "/help/first-upload",  destination: "/help/guides/first-order-end-to-end", permanent: true },
-      { source: "/help/email-polling", destination: "/help/imap-provider-setup",           permanent: true },
+      // Help URLs retired by the relaunch rewrite live in src/lib/retired-routes.ts with the
+      // other retired routes (spread below).
       // Retired app screens. Each pairing (and the reason for it) lives in
       // src/lib/retired-routes.ts, which is also what the retirement gate reads —
       // so a deletion and its redirect cannot drift apart.

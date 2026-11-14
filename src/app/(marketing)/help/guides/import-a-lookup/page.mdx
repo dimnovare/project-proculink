@@ -1,0 +1,84 @@
+import { guideMetadata } from "@/lib/seo";
+
+export const metadata = guideMetadata({
+  slug: "import-a-lookup",
+  title: "Import a lookup from a CSV file — ProcuLink guide",
+  description: "Import a CSV file so a value on a document is replaced by the one your system uses.",
+});
+
+import { Step, Prereqs, IfThisFails, Outcome } from "@/components/help/guide";
+
+<Prereqs>
+- A CSV file with two columns. Column 1 holds the value as it appears on your documents (**From**). Column 2 holds the value your receiving system wants (**To**). Other columns are ignored.
+- A flow with an output, to use the lookup in. See [Build an output](/help/guides/build-an-output).
+</Prereqs>
+
+<Step n={1} title="Create the lookup">
+
+Open **Lookups** in the navigation and select **New lookup**. Type a **Name**, up to 120 characters, and select **Create**.
+
+<Outcome>
+The new lookup opens on its own page.
+</Outcome>
+
+</Step>
+
+<Step n={2} title="Import the CSV">
+
+Under **Import CSV**, choose your file. Leave **The first row is headings** ticked if the first row is a heading, and untick it if the first row is data.
+
+A row whose **From** is already in the lookup replaces the old row. Capital letters and spaces at the ends are ignored.
+
+<Outcome>
+A message says how many rows were imported, such as "Imported 12 rows: 10 new, 2 changed." The rows appear in the table. They are not saved yet.
+</Outcome>
+
+<IfThisFails>
+"We couldn't read that file." means it is not a readable CSV. Save it again as CSV.
+</IfThisFails>
+
+</Step>
+
+<Step n={3} title="Check and save">
+
+Look through the table, change anything needed, and select **Save**.
+
+<Outcome>
+A message says "Saved." The lookup is ready to use.
+</Outcome>
+
+<IfThisFails>
+The message says what is wrong. A lookup holds at most 20,000 rows. A value can be at most 200 characters. Every row needs a **From**, and each **From** can appear only once.
+</IfThisFails>
+
+</Step>
+
+<Step n={4} title="Use it in an output">
+
+Edit an output on the flow's **Outputs** tab. On the row you want to swap, choose the lookup in **Swap with lookup**. Then choose what to do with a value that is not in it: **Keep the value** or **Leave it blank**. Save the output.
+
+<Outcome>
+The output swaps the value. **Preview** it to see the result. Values the lookup did not find are listed under the preview.
+</Outcome>
+
+</Step>
+
+<Step n={5} title="Optional: let AI suggest matches">
+
+If **Values to choose from** appears on the lookup's page, choose a CSV file under **Import list (CSV)** and select **Save**. Column 1 is the value, and the other columns become a note that helps pick it.
+
+Then, when you preview an output and a value was not found, select **Suggest matches**. Nothing is added until you press **Accept**. See [Lookups](/help/lookups) for what is sent and how to accept, edit or reject.
+
+<Outcome>
+Accepted pairs join the lookup, and the preview updates.
+</Outcome>
+
+<IfThisFails>
+No **Values to choose from** means AI suggestions are not switched on for your workspace.
+</IfThisFails>
+
+</Step>
+
+## Take the rows out again
+
+Select **Export CSV** on the lookup's page.

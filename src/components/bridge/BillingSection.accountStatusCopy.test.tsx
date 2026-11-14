@@ -45,6 +45,7 @@
 // every "does not contain" claim for free.
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { PLAN_BY_ID } from "@/lib/plans";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, cleanup, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -156,7 +157,7 @@ describe("the plan card never reads a database word back to the customer", () =>
     await renderBilling(billing({ plan: "pilot", accountStatus: "trialing" }));
 
     // Floor first: the card really rendered its own content.
-    expect(planCard().textContent).toContain("Pilot");
+    expect(planCard().textContent).toContain(PLAN_BY_ID.pilot.name);
     // The old code rendered exactly this string. Stated as its own claim so the failure
     // message names the defect rather than a diff between two phrases.
     expect(statusLineText()).not.toBe("trialing");

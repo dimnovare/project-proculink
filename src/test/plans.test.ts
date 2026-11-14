@@ -143,3 +143,13 @@ describe("the document ladder", () => {
     expect(planIncludesCapability("starter", "sso")).toBe(false);
   });
 });
+
+describe("the public ladder (plan 12b)", () => {
+  it("is the trial, the document plans, then Enterprise; legacy paid plans are hidden", async () => {
+    const { PUBLIC_LADDER, DOCUMENT_PLAN_IDS, LEGACY_PAID_PLANS } = await import("@/lib/plans");
+    expect(PUBLIC_LADDER.map((p) => p.id)).toEqual(["pilot", ...DOCUMENT_PLAN_IDS, "enterprise"]);
+    expect(LEGACY_PAID_PLANS.length).toBeGreaterThan(0);
+    for (const p of LEGACY_PAID_PLANS) expect(p.hidden, p.id).toBe(true);
+    expect(PLAN_BY_ID.pilot.name).toBe("Trial");
+  });
+});

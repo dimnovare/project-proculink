@@ -11,7 +11,6 @@ import {
   type HelpArticle,
 } from "@/lib/help-articles";
 import { buildHelpFuse, searchHelpArticles } from "@/lib/help-search";
-import { walkthroughConfigured } from "@/lib/walkthrough";
 import { matchGuide, type SectionGuideEntry } from "@/lib/section-guides";
 
 interface Props {
@@ -236,7 +235,6 @@ export function HelpSlideover({ open, onClose }: Props) {
 
   const related = resolveArticles(guide?.articleSlugs, 3);
   const popular = resolveArticles(POPULAR_ARTICLE_SLUGS, 3);
-  const showWatch = walkthroughConfigured();
 
   useEffect(() => {
     if (open) capture("help_slideover_opened", { route: pathname });
@@ -472,35 +470,6 @@ export function HelpSlideover({ open, onClose }: Props) {
                     ))}
                   </div>
                 </section>
-              )}
-
-              {/* Walkthrough — rendered only when the video is configured. */}
-              {showWatch && (
-                <a
-                  href="/watch"
-                  target="_blank"
-                  rel="noopener"
-                  onClick={() => capture("help_watch_click", { surface: "slideover" })}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                    minHeight: "var(--tap-min)",
-                    padding: "10px 14px",
-                    marginBottom: 16,
-                    border: "1px solid var(--border)",
-                    borderRadius: 8,
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: "var(--ink)",
-                    textDecoration: "none",
-                    background: "var(--brand-green-soft)",
-                  }}
-                >
-                  <span aria-hidden style={{ color: "var(--brand-green-deep)" }}>▷</span>
-                  Watch the walkthrough
-                  <span aria-hidden style={{ marginLeft: "auto", color: "var(--ink-faint)", fontSize: 12 }}>↗</span>
-                </a>
               )}
             </>
           )}

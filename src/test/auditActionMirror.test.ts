@@ -50,6 +50,7 @@ const WRITER_FILES = [
   "ProcuLink.Api/Jobs/ReadDocumentJob.cs",
   "ProcuLink.Api/Services/Documents/DocumentIntakeService.cs",
   "ProcuLink.Api/Services/Documents/DocumentSender.cs",
+  "ProcuLink.Api/Services/Google/GoogleConnectService.cs",
   "ProcuLink.Api/Controllers/OrdersController.cs",
   "ProcuLink.Api/Controllers/SettingsController.cs",
   "ProcuLink.Infrastructure/Services/Email/InboundEmailRouter.cs",
@@ -190,6 +191,8 @@ export function parseAuditActions(src: string, consts: Map<string, string>): str
     for (const a of resolveActionExpr(m[1], consts)) found.add(a);
   }
   for (const m of src.matchAll(/\bAddAudit\(\s*[^,()]+,\s*"([^"]+)"/g)) found.add(m[1]);
+  // `Audit(account, "linked_account.connected", userId)` inside GoogleConnectService (plan 9b, 2026-11-13).
+  for (const m of src.matchAll(/\bAudit\(\s*[^,()]+,\s*"([^"]+)"/g)) found.add(m[1]);
 
   return [...found];
 }
@@ -409,6 +412,7 @@ public class Sample
         DocumentAudit.Add(db, doc, result.Success ? "document.delivered" : "document.delivery_failed",
             new { output = o }, null);
         AddAudit(doc, "document.read_failed", new { reason });
+        Audit(account, "linked_account.connected", userId);
         await WriteAdminAuditAsync(org.Id, org.Id, "Organisation", "admin.org.limits_changed", data, ct);
         await WriteAuditAsync(
             org.Id,
@@ -440,6 +444,7 @@ public class Sample
         "document.delivered", // DocumentAudit.Add ternary, both arms
         "document.delivery_failed",
         "document.read_failed", // AddAudit(doc, "…")
+        "linked_account.connected", // Audit(account, "…", userId)
       ]),
     );
   });
@@ -793,7 +798,6 @@ describe("auditActionManifest mirrors the backend's audit vocabulary", () => {
       "Transformed",
       "inbound_email.attachment_skipped_empty",
       "inbound_email.attachment_skipped_too_large",
-      "inbound_email.attachment_skipped_undecodable",
       "inbound_email.attachment_skipped_unsupported",
       "inbound_email.no_attachments",
       "inbound_email.processed",

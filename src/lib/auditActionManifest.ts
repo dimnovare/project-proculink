@@ -47,6 +47,9 @@
 //   ProcuLink.Infrastructure/Services/Delivery/DeliveryBounceHandler.cs   DeliveryBounced
 //   ProcuLink.Api/Services/Documents/FlowDestinationService.cs   destination.tested
 //
+// Linked accounts (plan 9b, 2026-11-13) write through a private `Audit(account, "…", userId)`
+// helper in ProcuLink.Api/Services/Google/GoogleConnectService.cs.
+//
 // Flow documents (added with plan 10) write through `DocumentAudit.Add`, `AddAudit`
 // and one `Action =` initialiser, in these five files:
 //
@@ -688,9 +691,9 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     action: "inbound_email.attachment_skipped_undecodable",
     kind: "failed",
     label: "Attachment skipped — could not be read",
-    reachable: false,
-    historical: true,
-    backendSite: "No writer: the legacy order email path was deleted; archived rows still carry this action.",
+    // Reachable again: the flow email path writes it since backend PR 303.
+    reachable: true,
+    backendSite: "ProcuLink.Infrastructure/Services/Email/InboundEmailRouter.cs:169",
     reasonKeys: [],
     note:
       "The sender attached something the decoder could not turn into bytes. Deliberately not a rejection: a " +
@@ -859,6 +862,26 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     backendSite: "ProcuLink.Api/Jobs/DeliverDocumentJob.cs:122",
     reasonKeys: [],
     note: "",
+  },
+
+  // ── Linked accounts (entity type LinkedAccount; payload {provider, by}, never the email) ─
+  {
+    action: "linked_account.connected",
+    kind: "edited",
+    label: "Google account connected",
+    reachable: true,
+    backendSite: "ProcuLink.Api/Services/Google/GoogleConnectService.cs:93",
+    reasonKeys: [],
+    note: "Also written when the same Google account is connected again, which renews its access.",
+  },
+  {
+    action: "linked_account.disconnected",
+    kind: "edited",
+    label: "Google account disconnected",
+    reachable: true,
+    backendSite: "ProcuLink.Api/Services/Google/GoogleConnectService.cs:114",
+    reasonKeys: [],
+    note: "ProcuLink's copy of the access is deleted; nothing is revoked at Google.",
   },
 
   // ── Declared but unwritten ──────────────────────────────────────────────────

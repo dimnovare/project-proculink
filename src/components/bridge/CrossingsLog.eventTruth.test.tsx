@@ -361,7 +361,9 @@ describe("auditActionManifest — coverage floors", () => {
     //
     // +2 reachable (2026-11-13, plan 13b task 8b): `DeliveryBounced` and `destination.tested`,
     // two writers the table had no row for.
-    expect(AUDIT_ACTION_FACTS).toHaveLength(65);
+    //
+    // +2 (plan 9b, 2026-11-13): `linked_account.connected` / `…disconnected`, GoogleConnectService.cs.
+    expect(AUDIT_ACTION_FACTS).toHaveLength(67);
     //
     // -9 reachable when the order delivery sweeps and the ops requeue were deleted (plan 13b, task 5):
     // those rows stay as `historical` so archived audit rows still read.
@@ -375,7 +377,11 @@ describe("auditActionManifest — coverage floors", () => {
     // as `historical`.
     //
     // +2 reachable (plan 13b, task 8b): `DeliveryBounced` and `destination.tested`.
-    expect(REACHABLE_AUDIT_ACTIONS).toHaveLength(19);
+    //
+    // +2 reachable (plan 9b): the two Google account actions.
+    //
+    // +1 reachable: `inbound_email.attachment_skipped_undecodable`, written again by the flow email path (backend PR 303).
+    expect(REACHABLE_AUDIT_ACTIONS).toHaveLength(22);
   });
 
   it("classifies a substantial number of them as failures", () => {

@@ -11,10 +11,7 @@ import {
   type HelpArticle,
   type HelpCategory,
 } from "@/lib/help-articles";
-import { requiresPlan } from "@/lib/gatedCapabilities";
 import { buildHelpFuse } from "@/lib/help-search";
-import { walkthroughConfigured } from "@/lib/walkthrough";
-import { capture } from "@/lib/analytics";
 import { HelpIcon } from "@/components/help/HelpIcon";
 import { Card } from "@/components/bridge/layout/Card";
 
@@ -22,18 +19,14 @@ type Filter = HelpCategory | "All";
 
 /** One-line description per category for the topic cards. Plain procurement copy. */
 const CATEGORY_BLURB: Record<HelpCategory, string> = {
-  "Getting started": "Get your first order parsed and on its way.",
-  Connections: "Versioned supplier connections — draft, test, publish, roll back.",
-  Mapping: "Connect buyer fields to supplier formats.",
-  // The ERP connectors gate at Enterprise; listing them next to the ungated channels with no
-  // qualifier reads as "included". Tier derived from the mirrored gate table, never typed.
-  // Webhook delivery is gated too — at Growth — and naming only the Enterprise one made the
-  // rest of the list read as free.
-  Delivery: `HTTP webhook on ${requiresPlan("webhookDelivery")}; SFTP/FTPS and email on every plan; ERP connectors (Erply, Directo) on ${requiresPlan("erpConnectors")}.`,
-  Integrations: `Email intake on ${requiresPlan("emailIngestion")}, plus API keys, outbound event webhooks, and connectors.`,
-  AI: "How mapping suggestions work and what confidence means.",
-  Billing: "Plans, quotas, and what happens at the limit.",
-  Troubleshooting: "Resolve failed deliveries and validation errors.",
+  "Getting started": "What ProcuLink does, and how it uses AI.",
+  Documents: "What we read, what each status means, and what to do when a document stops.",
+  Flows: "Fields, versions, and what we learn from each sender.",
+  "Sending in": "Upload, email, mailbox, SFTP, FTP, S3 and API.",
+  "Outputs and destinations": "Choose a format, then send it by email, to a web address, to an SFTP or FTPS server, or download it.",
+  Lookups: "Translate one value into another with a list you import.",
+  Account: "Your team, API keys, plan, activity and old orders.",
+  API: "Send files in and get results out, with signed webhooks.",
 };
 
 function articleCount(category: HelpCategory): number {
@@ -170,21 +163,6 @@ export default function HelpIndex() {
             Follow a step-by-step guide →
           </Link>
         </p>
-
-        {/* Walkthrough link — rendered only when the video is configured (offer⇔works). */}
-        {walkthroughConfigured() && (
-          <p className="mt-3 text-[13px]" style={{ color: "var(--ink-muted)" }}>
-            Prefer watching?{" "}
-            <Link
-              href="/watch"
-              onClick={() => capture("help_watch_click", { surface: "help_center" })}
-              className="font-semibold hover:underline"
-              style={{ color: "var(--brand-blue-deep)" }}
-            >
-              Watch the walkthrough →
-            </Link>
-          </p>
-        )}
       </header>
 
       {/* Search / filter results — shown only when actively searching or filtering */}

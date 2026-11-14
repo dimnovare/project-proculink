@@ -444,6 +444,6 @@ export const PREVIEW_FORMATS: ReadonlyArray<{ value: OutputFormatId; label: stri
 
 // Supplier delivery configuration
 
-export type DeliveryProtocol = "manual" | "http" | "sftp" | "ftps" | "smtp" | "email" | "erp_erply" | "erp_directo" | "s3";
+export type DeliveryProtocol = "manual" | "http" | "sftp" | "ftps" | "smtp" | "email" | "erp_erply" | "erp_directo" | "s3" | "google_drive" | "google_sheets";
 
 export type OutputFormatId = "xml" | "csv" | "cxml" | "json" | "ubl" | "x12" | "pdf";

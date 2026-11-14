@@ -34,6 +34,7 @@ export const APP_PAGE_TITLES: Record<string, string> = {
   "/lookups/[lookupId]": "Lookup",
   "/operations/log": "Deliveries",
   "/settings": "Settings",
+  "/settings/google-callback": "Google account",
   "/admin": "Admin",
 };
 

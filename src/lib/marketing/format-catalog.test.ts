@@ -477,15 +477,4 @@ describe("the landing format strip takes its direction from the catalog", () => 
     expect(() => partitionByDirection(["Peppol BIS 3"])).toThrow(/matches no format row/i);
     expect(() => partitionByDirection(["JSON"]), "a real one must not throw").not.toThrow();
   });
-
-  it("the landing page derives the strip instead of typing its own", () => {
-    // The mechanism is only worth anything if the page uses it. Reverting to a literal array is
-    // the exact regression, and it is invisible to every other assertion in this file.
-    const landing = readFileSync(join(process.cwd(), "src/app/(home)/page.tsx"), "utf8");
-    expect(
-      landing,
-      "the format strip must come from partitionByDirection — a hand-typed list is how EDIFACT " +
-        "was advertised as an output format",
-    ).toMatch(/partitionByDirection\(/);
-  });
 });

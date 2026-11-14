@@ -11,6 +11,7 @@ import { render, screen, cleanup } from "@testing-library/react";
 // feature is re-tiered server-side the copy follows it with no frontend change.
 
 import { PlanGateNotice } from "./PlanGateNotice";
+import { DOCUMENT_PLANS } from "@/lib/plans";
 
 afterEach(cleanup);
 
@@ -21,6 +22,24 @@ describe("PlanGateNotice", () => {
     const notice = screen.getByRole("status");
     expect(notice).toHaveTextContent(/cXML output/i);
     expect(notice).toHaveTextContent(/Operations/);
+  });
+
+  it("names a tier by engine state and plan: document tier for a Trial on the engine, backend tier for a legacy payer, none while unknown", () => {
+    const code = "advanced_audit_requires_operations";
+    const generic = "Your current plan does not include this.";
+    const cases = [
+      ["on", "pilot", code, `from the ${DOCUMENT_PLANS[0].name} plan up`],
+      ["on", "growth", code, "from the Operations plan up"],
+      ["on", undefined, code, generic],
+      ["off", "pilot", code, "from the Operations plan up"],
+      ["unknown", "pilot", code, generic],
+      ["on", "pilot", "erp_delivery_requires_enterprise", "from the Enterprise plan up"],
+    ] as const;
+    for (const [engine, planId, error, expected] of cases) {
+      const { unmount } = render(<PlanGateNotice error={error} capability="X" documentEngine={engine} planId={planId} />);
+      expect(screen.getByRole("status")).toHaveTextContent(expected);
+      unmount();
+    }
   });
 
   it("never shows the raw code", () => {

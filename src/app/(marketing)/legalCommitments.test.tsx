@@ -2,21 +2,19 @@ import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { render, cleanup } from "@testing-library/react";
 import { readFileSync, readdirSync, statSync } from "fs";
 import { join } from "path";
-import OnePagerPage from "./one-pager/page";
 import { stripComments, syntaxFor } from "@/test/sourceScan";
 import DpaPage from "./dpa/page";
 import SubprocessorsPage from "./subprocessors/page";
 import SecurityPage from "./security/page";
-import PilotPage from "./pilot/page";
 import PrivacyPage from "./privacy/page";
 import PricingPage from "./pricing/page";
+import BookDemoPage from "./book-demo/page";
 import MarketingLayout from "./layout";
 import HomePage from "@/app/(home)/page";
 import SignInPage from "@/app/sign-in/[[...sign-in]]/page";
 import SignUpPage from "@/app/sign-up/[[...sign-up]]/page";
 import { LEGAL_ENTITY } from "@/lib/legal-entity";
 import { SUBPROCESSORS_UPDATED } from "@/lib/subprocessors";
-import { SETUP_FEE_NOTE } from "@/lib/plans";
 
 // Trust-commitment audit (2026-07-24), same spirit as the J2 fabrication purge:
 // a legal page may only promise what a solo-founder operation actually does.
@@ -175,61 +173,8 @@ describe("subprocessor change notice", () => {
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Setup-fee waiver claim (2026-07-30) — same class as the two fabricated pilot
-// profiles purged from /customers.
-//
-// SETUP_FEE_NOTE closed with "waived for early design partners", which asserts
-// that early design partners EXIST and are receiving that waiver. A read-only
-// census of the production Neon database on 2026-07-30 says otherwise:
-//
-//   9 organisations; exactly ONE has ever held an order (25 orders, 35 delivery
-//   attempts, 30 suppliers, plan=growth, active Stripe subscription) — the
-//   founder's own operating org, slug personal-workspace-d3be. The other 8 are
-//   pre-launch shells created 2026-05-28…2026-06-03: 0 orders, 0 delivery
-//   attempts, no billing email, no Stripe subscription, all pilot/trialing.
-//
-// So there is no non-founder org that could have been waived. The fee, the
-// amounts and the "arranged manually" mechanics are all real and must stay
-// disclosed — only the tense of the waiver was false. It is now a standing
-// offer ("we will waive it for the first design partners we take on"), which
-// the founder can honour on the day someone takes it up.
-//
-// Phrased as "the retracted claim must not come back", because that is the
-// failure mode: copy drifting back toward implied customers we do not have.
-
-// Prettier wraps JSX text, so compare whitespace-normalised source. The source
-// reader itself is `read`, declared with the other helpers at the top of this
-// file — this suite used to carry a second, identical copy of it.
+// Prettier wraps JSX text, so compare whitespace-normalised source.
 const flat = (s: string) => s.replace(/\s+/g, " ");
-
-describe("setup-fee design-partner waiver", () => {
-  it("does not claim early design partners are already being waived", () => {
-    expect(SETUP_FEE_NOTE).not.toMatch(/waived for early design partners/i);
-    expect(SETUP_FEE_NOTE).not.toMatch(/early design partners/i);
-  });
-
-  it("states the waiver as an offer we can still honour", () => {
-    expect(SETUP_FEE_NOTE).toMatch(/we will waive it for the first design partners we take on/i);
-  });
-
-  it("keeps the fee, the amounts and the manual mechanics disclosed", () => {
-    expect(SETUP_FEE_NOTE).toContain("€500 per supplier for the first 3, then €150 each");
-    expect(SETUP_FEE_NOTE).toMatch(/arranged manually/i);
-    expect(SETUP_FEE_NOTE).toMatch(/never auto-charged/i);
-  });
-
-  it("keeps the note on the pricing page", () => {
-    expect(read("src/app/(marketing)/pricing/page.tsx")).toContain("{SETUP_FEE_NOTE}");
-  });
-
-  it("says the same thing in the ROI calculator fine print", () => {
-    const src = flat(read("src/components/marketing/ROICalculator.tsx"));
-    expect(src).not.toMatch(/waived for early design partners/i);
-    expect(src).not.toMatch(/early design partners/i);
-    expect(src).toMatch(/we will waive it for the first design partners we take on/i);
-  });
-});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Marketing truth audit (2026-07-30) — WP-10.
@@ -385,7 +330,7 @@ describe("EU residency claim", () => {
     // attaches the generated purchase order and sends it to the supplier
     // through the same US provider, which has no EU option to enable.
     const card = visibleText(residencyCard());
-    expect(card).toMatch(/purchase orders we email/i);
+    expect(card).toMatch(/data we email out/i);
     expect(card).toMatch(/passes through a US provider/i);
   });
 
@@ -405,15 +350,6 @@ describe("EU residency claim", () => {
     expect(residencyCard().querySelector('a[href="/subprocessors"]')).not.toBeNull();
   });
 
-  it("keeps the home-page residency stat linked to the explanation", () => {
-    const { container } = render(<HomePage />);
-    const stat = Array.from(container.querySelectorAll("a")).find((a) =>
-      /residency/i.test(a.textContent ?? ""),
-    );
-    expect(stat, 'the hero "Data residency" stat').toBeTruthy();
-    expect(stat?.getAttribute("href")).toBe("/security");
-  });
-
   it("links the home-page footer residency line to the explanation", () => {
     expectQualifiedFooter(<HomePage />);
   });
@@ -428,7 +364,7 @@ describe("EU residency claim", () => {
     // "…fully auditedEU data residency" has no word boundary before "EU" —
     // that is exactly how the sign-in page's copy of this line escaped.
     expect(body).not.toMatch(/EU data residency/i);
-    expect(body).toMatch(/EU-region order storage/);
+    expect(body).toMatch(/EU-region document storage/);
   });
 });
 
@@ -459,9 +395,6 @@ const PUBLIC_PAGES: Array<[string, () => React.ReactElement]> = [
   ["/privacy", () => <PrivacyPage />],
   ["/dpa", () => <DpaPage />],
   ["/pricing", () => <PricingPage />],
-  // /customers 308s to /pilot (src/lib/retired-routes.ts); its slot here moved with it.
-  ["/pilot", () => <PilotPage />],
-  ["/one-pager", () => <OnePagerPage />],
   ["/ (home)", () => <HomePage />],
   ["marketing layout", () => <MarketingLayout>{null}</MarketingLayout>],
   ["/sign-in", () => <SignInPage />],
@@ -722,7 +655,7 @@ describe("the no-AI mode is described as what it is", () => {
 
   it("keeps the guarantee that is actually true and enforced", () => {
     const body = visibleText(aiCard());
-    expect(body).toMatch(/nothing about its orders reaches OpenAI/i);
+    expect(body).toMatch(/nothing about its documents reaches OpenAI/i);
     expect(body).toMatch(/on request/i);
   });
 
@@ -773,7 +706,6 @@ const NOT_IN_THE_TABLE: Record<string, string> = {
   "support": "contact routes only",
   "book-demo": "scheduling embed",
   "welcome": "post-checkout confirmation",
-  "watch": "video page",
   "help": "help index; the articles themselves are scanned as source below",
   "help/guides": "guide index; same",
 };
@@ -810,8 +742,8 @@ const MUST_BE_ALLOWED: Array<[string, string]> = [
   ["disclosing a transfer out", "Where any sub-processor processes Controller personal data outside the EEA, the relevant Standard Contractual Clauses apply."],
   ["naming the US categories", "Some processing runs on named US subprocessors under standard contractual clauses — sign-in, AI extraction, payments, and email in both directions."],
   ["admitting the route is unknown", "The network path out to your supplier is chosen by our hosting provider and is not pinned to a region by us, so we cannot tell you today which country an outbound delivery leaves from."],
-  ["a narrow storage statement", "Order storage is EU-region and encrypted with AES-GCM at rest."],
-  ["the no-AI guarantee", "We can also turn AI extraction off for an organisation entirely, so nothing about its orders reaches OpenAI."],
+  ["a narrow storage statement", "Document storage is EU-region and encrypted with AES-GCM at rest."],
+  ["the no-AI guarantee", "We can also turn AI extraction off for an organisation entirely, so nothing about its documents reaches OpenAI."],
   // This one pins the sentence boundary itself. Widening the window to tolerate
   // abbreviations is only safe while a REAL full stop still ends it — otherwise
   // the guard quietly becomes "these words appear somewhere on the page", fires
@@ -909,9 +841,9 @@ function expectQualifiedFooter(ui: React.ReactElement) {
   expect(footer, "a <footer> to check").toBeTruthy();
   expect(visibleText(footer as HTMLElement)).not.toMatch(/EU data residency/i);
   const link = Array.from((footer as HTMLElement).querySelectorAll("a")).find(
-    (a) => (a.textContent ?? "").trim() === "EU-region order storage",
+    (a) => (a.textContent ?? "").trim() === "EU-region document storage",
   );
-  expect(link, 'the "EU-region order storage" link').toBeTruthy();
+  expect(link, 'the "EU-region document storage" link').toBeTruthy();
   expect(link?.getAttribute("href")).toBe("/security");
 }
 
@@ -952,13 +884,14 @@ describe("sign-in and sign-up trust line", () => {
     it(`qualifies the claim and links it on /${name}`, () => {
       const { container } = render(page());
       const link = Array.from(container.querySelectorAll("a")).find(
-        (a) => (a.textContent ?? "").trim() === "EU-region order storage",
+        (a) => (a.textContent ?? "").trim() === "EU-region document storage",
       );
-      expect(link, 'the "EU-region order storage" link').toBeTruthy();
+      expect(link, 'the "EU-region document storage" link').toBeTruthy();
       expect(link?.getAttribute("href")).toBe("/security");
     });
   }
 });
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // /customers shipped two fabricated pilot profiles ("Mid-market wholesaler ·
@@ -982,31 +915,10 @@ describe("sign-in and sign-up trust line", () => {
 //               need two archetypes, so the restored pair dies even if someone
 //               puts both of them inside quotes.
 //
-// ── 2026-11-04: the guard moved with the job, not with the URL ───────────────
-//
-// /customers is retired and 308s to /pilot (src/lib/retired-routes.ts). /pilot is
-// now the page a prospect lands on when they go looking for references, so it is
-// the page that must not invent one, and every rule above now runs against it.
-// Three of the original assertions had to change SHAPE on a page whose subject is
-// a pilot programme. Each change is stated so it reads as a decision, not a
-// loosening:
-//
-//   • "no pilot / design-partner / case-study language in the page's own voice"
-//     cannot hold on a page that describes the programme. What it protected was
-//     never the word — it was the claim that someone is IN a pilot. That claim is
-//     now banned directly: "our/current/existing pilots", "pilot customers",
-//     "trusted by", "N companies", outcome percentages.
-//   • the volume ban is narrowed to MONTHLY volumes — the shape of both fabricated
-//     profiles ("~120 POs/month", "roughly 120 purchase orders a month"). The page
-//     prints the self-service Pilot's own allowance, read off plans.ts; that is a
-//     plan fact, not a customer.
-//   • "states plainly that there are no public references yet" became "makes a
-//     named reference conditional on the client's approval". The advisor's
-//     direction was to stop making the absence the content; the honest half of
-//     that is that a reference is something agreed, never something asserted.
-//
-// Arity tightens rather than loosens: the old page quoted one specimen, this one
-// quotes none, so it may carry no archetype at all.
+// ── Plan 12b: the guard moved again. /customers 308'd to /pilot, and /pilot is retired too.
+// The pages that now sit where a prospect looks for proof are /book-demo and the landing
+// page, so every rule here runs against both. Assertions are unchanged; a page about the
+// product may still say "free trial", which none of the claim patterns below match.
 
 // Built fresh on each use: a /g regex carries lastIndex between calls.
 const ARCHETYPE = "\\b(wholesaler|distributor|retailer|manufacturer|reseller|merchant)s?\\b";
@@ -1014,9 +926,12 @@ const ARCHETYPE = "\\b(wholesaler|distributor|retailer|manufacturer|reseller|mer
 /** Drop quoted spans — a quotation is a specimen, not a claim. */
 const unquoted = (s: string) => s.replace(/[“"][^“”"]*[”"]/g, " ");
 
-describe("pilot programme page (replaces /customers) invents no customer", () => {
+describe.each([
+  ["/book-demo", () => <BookDemoPage />],
+  ["/ (home)", () => <HomePage />],
+])("%s invents no customer", (_name, page) => {
   it("describes no customer in the page's own voice", () => {
-    const body = unquoted(text(<PilotPage />));
+    const body = unquoted(text(page()));
     expect(body).not.toMatch(new RegExp(ARCHETYPE, "i"));
     expect(body).not.toMatch(
       /\b\d[\d,.]*\s*\+?\s*(purchase orders|orders|POs)\s*(?:a|per|\/)\s*month\b/i,
@@ -1027,12 +942,12 @@ describe("pilot programme page (replaces /customers) invents no customer", () =>
   });
 
   it("ships no customer profile at all, quoted or not", () => {
-    const body = text(<PilotPage />);
+    const body = text(page());
     expect((body.match(new RegExp(ARCHETYPE, "gi")) ?? []).length).toBe(0);
   });
 
   it("claims no pilot, customer or result we cannot point at", () => {
-    const body = text(<PilotPage />);
+    const body = text(page());
     const CLAIMS: RegExp[] = [
       /we(?:'|&apos;|’)?re in early pilots/i,
       /procurement teams using ProcuLink/i,
@@ -1045,27 +960,6 @@ describe("pilot programme page (replaces /customers) invents no customer", () =>
     for (const re of CLAIMS) {
       expect(body.match(re)?.[0], `claim matched ${re}`).toBeUndefined();
     }
-  });
-
-  it("makes a named reference conditional on the client's approval", () => {
-    const body = text(<PilotPage />);
-    expect(body).toMatch(/named reference/i);
-    expect(body).toMatch(/without your approval of the wording and figures/i);
-  });
-
-  it("offers checkable capability pages and the company's legal pages instead of social proof", () => {
-    const markup = html(<PilotPage />);
-    for (const href of ["/formats", "/security", "/privacy", "/dpa", "/subprocessors"]) {
-      expect(markup).toContain(`href="${href}"`);
-    }
-  });
-
-  it("does not ask for the supplier's name", () => {
-    const { container } = render(<PilotPage />);
-    const prompts = Array.from(container.querySelectorAll("label, legend")).map((l) => l.textContent ?? "");
-    // Anti-vacuity: the application form really rendered its questions.
-    expect(prompts.length).toBeGreaterThan(8);
-    expect(prompts.join(" | ")).not.toMatch(/supplier(?:'s|’s)? name|which supplier|name of (?:the|your) supplier/i);
   });
 });
 

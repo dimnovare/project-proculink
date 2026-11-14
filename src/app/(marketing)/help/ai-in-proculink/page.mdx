@@ -1,0 +1,48 @@
+import { helpArticleMetadata } from "@/lib/seo";
+
+export const metadata = helpArticleMetadata({
+  slug: "ai-in-proculink",
+  title: "How ProcuLink uses AI — ProcuLink Help",
+  description: "Where AI reads your documents and suggests values, and how you stay in control of what is sent.",
+});
+
+# How ProcuLink uses AI
+
+Where AI reads your documents and suggests values, and how you stay in control of what is sent.
+
+## Where AI is used
+
+AI is used in four places. In each, the data goes to OpenAI. OpenAI is one of our subprocessors, and it is based in the US. See [Subprocessors](/subprocessors).
+
+- **Reading a document.** We take the text out of the file ourselves. We then send that text to AI, with the file name, the fields your flow looks for, and a few hints from values you taught us. A hint is a short snippet from a document you checked: the words printed next to a value, and the value itself, each cut to 60 characters. We send at most the first 60,000 characters of text.
+- **Reading a scan or photo.** There is no text to take out, so we send the page images instead, up to 10 pages. Finding where a value sits on the page uses OCR software that runs inside ProcuLink. No page goes to a separate OCR service.
+- **Building an output from a sample or from documentation.** We send the names in your sample, or the text of your documentation, and the keys, labels and types of your flow's fields. We never send the values in your sample or in any document.
+- **Suggesting lookup matches.** We send a missed value, the other values on its row, and values from your list. See [Lookups](/help/lookups).
+
+Only reading and lookup suggestions send values from your documents. Checks, outputs and sending do not use AI.
+
+## How sure we are
+
+Each value shows a percentage. It is the reader's own estimate, not a measured score.
+
+- 90% or more is green.
+- 75% to 89% is amber.
+- Below 75% is red.
+
+A required value below 75% is flagged for review. See [Checks](/help/checks).
+
+## You stay in control
+
+- An output proposed from a sample or from documentation is a proposal. Nothing is applied until you review it and create the output.
+- A lookup suggestion shows **Accept**, **Edit** and **Reject**. Nothing is added to the lookup until you choose.
+- Values we read are shown beside the original, so you can correct each one.
+
+There is one thing to know. By default a flow is set to **Review before delivery**, so every document waits for you. If an admin switches a flow to **Automatic delivery**, a document is sent as soon as it is read, even if a check flagged something. The one exception is a repeated document number. Otherwise no one looks at the values first. See [Flows](/help/flows).
+
+## Limits
+
+AI use has a monthly allowance for each workspace. When it is used up, reading stops and the document says "This workspace has used this month's AI allowance." Try again later.
+
+## Keeping documents out of AI
+
+On request, we can set a workspace so that nothing is sent to AI. You cannot change this yourself. Documents there cannot be read with AI, and the document says "This workspace keeps documents on our own servers, so they aren't sent to AI to be read." See [Security](/security).

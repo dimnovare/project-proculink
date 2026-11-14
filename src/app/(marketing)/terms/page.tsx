@@ -1,7 +1,7 @@
 import { pageMetadata } from "@/lib/seo";
 import Link from "next/link";
 import { LEGAL_ENTITY, PRODUCT_OPERATOR_NOTICE } from "@/lib/legal-entity";
-import { OVERAGE_PER_ORDER_EUR, PLANS } from "@/lib/plans";
+import { DOCUMENT_PLANS, DOCUMENT_PLAN_IDS, LEGACY_PAID_PLANS, OVERAGE_PER_ORDER_EUR, PLAN_BY_ID, TRIAL_DAYS } from "@/lib/plans";
 import { LegalPageLinks } from "@/components/marketing/LegalPageLinks";
 
 export const metadata = pageMetadata({
@@ -33,7 +33,7 @@ export default function TermsPage() {
     <div style={S.page}>
       <h1 style={S.h1}>Terms of Service</h1>
       {/* FOUNDER DECISION: set this date to the day the page is published. */}
-      <p style={S.updated}>Last updated: 4 November 2026</p>
+      <p style={S.updated}>Last updated: 14 November 2026</p>
 
       <h2 style={S.h2}>1. Agreement</h2>
       <p style={S.p}>
@@ -87,26 +87,29 @@ export default function TermsPage() {
       {/* Plan numbers come from src/lib/plans.ts (the shared frontend ladder,
           aligned with backend PlanConstants) so the Terms can never drift. */}
       <ul style={{ paddingLeft: 20, marginBottom: 14 }}>
-        {PLANS.filter((p) => !p.hidden).map((p) => (
+        {[PLAN_BY_ID.pilot, ...DOCUMENT_PLANS, ...LEGACY_PAID_PLANS, PLAN_BY_ID.enterprise].map((p) => (
           <li key={p.id} style={S.li}>
             <strong>{p.name}</strong>:{" "}
             {p.id === "pilot"
-              ? `14-day free trial — includes ${p.orderLimit} orders total, ${p.supplierLimit} supplier. On expiry, accounts become read-only. No Stripe card required.`
+              ? `${TRIAL_DAYS}-day free trial — includes ${p.orderLimit} documents total, ${p.flowLimit} flows. On expiry, accounts become read-only. No Stripe card required.`
               : p.priceMonthly == null
                 ? "Custom pricing. Contact us."
-                : `€${p.priceMonthly.toLocaleString("en-IE")}/month — includes ${p.orderLimit?.toLocaleString("en-IE")} orders/month, ${p.supplierLimit} suppliers.`}
+                : `€${p.priceMonthly.toLocaleString("en-IE")}/month — includes ${p.orderLimit?.toLocaleString("en-IE")} ${DOCUMENT_PLAN_IDS.includes(p.id) ? "documents" : "orders"}/month, ${p.supplierLimit ?? (p.flowLimit == null ? "unlimited" : p.flowLimit)} ${p.supplierLimit != null ? "suppliers" : "flows"}${p.supplierLimit == null ? `, then €${p.overageEur?.toFixed(2)} per extra document` : ""}.`}
           </li>
         ))}
       </ul>
       <p style={S.p}>
-        Paid plans include the monthly order volume listed above as a soft allowance, not a
-        hard cap: order processing is never blocked when you exceed it. Orders processed above
-        the included volume are billed automatically at €{OVERAGE_PER_ORDER_EUR.toFixed(2)} per
-        additional order at the end of the billing period, and the metered overage is capped so
-        your monthly total never exceeds the list price of the cheapest higher self-serve plan
-        that covers your usage. The Pilot trial allowance is a hard limit (expired trials become
-        read-only) and does not accrue overage. The order allowance counts purchase orders;
-        invoices uploaded while invoices are in early access do not count toward it.
+        Paid plans include the monthly volume listed above as a soft allowance, not a hard cap:
+        processing is never blocked when you exceed it. Documents above the included volume are
+        billed automatically at the per-document rate listed for your plan above (€{OVERAGE_PER_ORDER_EUR.toFixed(2)}
+        per order or document on the earlier plans) at the end of the billing period, and the metered
+        overage is capped so your monthly total never exceeds the list price of the cheapest
+        higher self-serve plan on the same ladder that covers your usage; above the top
+        self-serve plan&apos;s included volume on that ladder, you pay that plan&apos;s price plus its
+        rate for each extra document or order. The Trial allowance is
+        a hard limit (expired trials become read-only) and does not accrue overage. A document
+        counts once ProcuLink has read it. A file of up to 10 pages is one document; a longer
+        file counts once for every 10 pages. Sample documents never count.
       </p>
       <p style={S.p}>
         Subscriptions are billed monthly or annually via Stripe. Refunds are covered in

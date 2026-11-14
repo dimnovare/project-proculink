@@ -4,6 +4,7 @@ import { join } from "path";
 
 import nextConfig from "../../next.config";
 import { RETIRED_ROUTES } from "@/lib/retired-routes";
+import sitemap from "@/app/sitemap";
 import { ROOT, listAppRoutes, matchesAny, normalizePath } from "./appRoutes";
 
 /**
@@ -137,5 +138,16 @@ describe("retired routes", () => {
     }
 
     expect(offenders, `retired paths still reachable:\n  ${offenders.join("\n  ")}`).toEqual([]);
+  });
+
+  it("keeps retired paths out of the sitemap and the core pages in it", () => {
+    const paths = sitemap().map((e) => new URL(e.url).pathname);
+    for (const r of RETIRED_ROUTES) expect(paths, r.source).not.toContain(r.source);
+    for (const p of ["/how-it-works", "/formats", "/pricing"]) expect(paths).toContain(p);
+  });
+
+  it("robots.txt keeps crawlers out of the flow screens", () => {
+    const robots = readFileSync(join(ROOT, "public/robots.txt"), "utf8");
+    for (const p of ["/flows", "/lookups"]) expect(robots).toContain(`Disallow: ${p}`);
   });
 });

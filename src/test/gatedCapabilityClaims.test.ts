@@ -1,9 +1,15 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
+import { render } from "@testing-library/react";
+import { createElement } from "react";
 import { describe, expect, it } from "vitest";
 
-import { MINIMUM_PLAN } from "@/lib/gatedCapabilities";
+import PricingPage from "@/app/(marketing)/pricing/page";
+
+import { GUIDES } from "@/lib/guides";
+import { HELP_ARTICLES } from "@/lib/help-articles";
+import { MINIMUM_PLAN, planIncludesCapability } from "@/lib/gatedCapabilities";
 import {
   DELIVERY_METHODS,
   IMPORT_METHODS,
@@ -11,7 +17,7 @@ import {
   STANDARD_NAME_TOKENS,
   type FormatRow,
 } from "@/lib/marketing/format-catalog";
-import { PLANS, effectiveFeatures, inheritanceLine, type Plan } from "@/lib/plans";
+import { PLANS, PUBLIC_LADDER, effectiveFeatures, inheritanceLine, type Plan } from "@/lib/plans";
 import { STANDARDS } from "@/lib/standards/catalog";
 
 /**
@@ -338,12 +344,12 @@ describe("cancellation is disclosed where cancelling happens", () => {
     expect(source).toMatch(/if you cancel/i);
     expect(source, "must name the channels that stop, not just say 'processing stops'").toMatch(/email/i);
     expect(source).toMatch(/sftp/i);
-    expect(source).toMatch(/rest api/i);
+    expect(source).toMatch(/file api/i);
     expect(source, "must say existing data survives, or it reads as data loss").toMatch(
       /stays readable|remain|still/i,
     );
-    expect(source, "must tell them to redirect suppliers — nothing is queued for later").toMatch(
-      /redirect your suppliers/i,
+    expect(source, "must tell them to warn their senders — nothing is queued for later").toMatch(
+      /tell your senders/i,
     );
   });
 
@@ -354,8 +360,8 @@ describe("cancellation is disclosed where cancelling happens", () => {
     expect(howTo).toBeGreaterThan(-1);
     const section = article.slice(howTo);
 
-    expect(section, "the section must state the consequence").toMatch(/stops accepting new orders/i);
-    expect(section).toMatch(/redirect your suppliers/i);
+    expect(section, "the section must state the consequence").toMatch(/stops accepting new documents/i);
+    expect(section).toMatch(/tell your senders/i);
     expect(section).toMatch(/readable and exportable|remain/i);
   });
 
@@ -593,7 +599,7 @@ const AUDIT_RECORD_NOUN = /\baudit (?:log|logs|trail|trails|record|records|histo
  * and pinning them is what stops the fix being reverted by a copy edit that reads better.
  */
 const ORDER_SCOPED_AUDIT =
-  /\bper[- ]order\b|\bsingle[- ]order\b|\border[- ]level\b|\bfor (?:each|any|that|this|a single) order\b|\b(?:behind|on|for|with|against) (?:every|each) order\b|\bper (?:delivery )?attempt\b/i;
+  /\bper[- ]order\b|\bsingle[- ]order\b|\border[- ]level\b|\bfor (?:each|any|that|this|a single) order\b|\b(?:behind|on|for|with|against) (?:every|each) (?:order|document)\b|\bper (?:delivery )?attempt\b/i;
 
 const SELLS_ORG_WIDE_AUDIT = (text: string): boolean =>
   AUDIT_RECORD_NOUN.test(text) && !ORDER_SCOPED_AUDIT.test(text);
@@ -928,15 +934,6 @@ describe("the mirrored gate table is load-bearing, row by row", () => {
     expect(seen.size, "zero extractions — the walk or the matcher has gone blind").toBeGreaterThan(0);
 
     for (const file of [
-      "/src/app/(marketing)/help/validation-rules/page.mdx",
-      "/src/app/(marketing)/help/connections/page.mdx",
-      "/src/app/(marketing)/help/managing-suppliers/page.mdx",
-      "/src/app/(marketing)/help/ai-suggestions/page.mdx",
-      "/src/app/(marketing)/help/exceptions-and-stuck-orders/page.mdx",
-      "/src/app/(marketing)/how-it-works/page.tsx",
-      "/src/app/(marketing)/security/page.tsx",
-      "/src/app/(home)/page.tsx",
-      "/src/lib/help-articles.ts",
       "/src/lib/plans.ts",
     ]) {
       expect([...seen], `${file} presents the configurable rule set and the walk no longer sees it`).toContain(file);
@@ -1604,7 +1601,7 @@ describe("every pricing-card bullet is accounted for by something real", () => {
       wouldHaveFlagged.length,
       "the noisy widening must still be measurably noisy — if this drops to nothing the rationale " +
         "above is stale and the matcher question should be reopened",
-    ).toBeGreaterThan(20);
+    ).toBeGreaterThan(7); // measured 10 once the relaunch help was written; it was 20 while the order-era help stood, and those 31 articles carried the rest
 
     expect(UNGATED_BULLETS.length, "and the ban must have entries to read").toBeGreaterThan(5);
     expect(
@@ -1793,7 +1790,7 @@ describe("every pricing-card bullet is accounted for by something real", () => {
  */
 describe("a dearer tier never appears to include less than a cheaper one", () => {
   /** The ladder as the pricing page renders it, cheapest first. */
-  const ladder = PLANS.filter((p) => !p.hidden);
+  const ladder = PLANS; // pilot + legacy + enterprise: the cards these guards were written against
 
   /** Which gated capabilities a tier's card communicates, inherited bullets included. */
   const communicates = (plan: Plan): string[] =>
@@ -2325,6 +2322,12 @@ describe("no buyer-facing copy claims records are immutable, because nothing enf
  * capability in the call.
  */
 describe("a gated capability is never presented with no tier at all", () => {
+  const helpPage = (...segments: string[]) => join(process.cwd(), "src/app/(marketing)/help", ...segments, "page.mdx");
+  const DOCUMENT_HELP_PAGES = [
+    ...HELP_ARTICLES.map((a) => helpPage(a.slug)),
+    ...GUIDES.filter((g) => g.audience === "client" && g.status === "live").map((g) => helpPage("guides", g.slug)),
+  ];
+
   /**
    * Two files are outside this scan, and both for a reason, not for convenience. The list is
    * asserted below so it cannot quietly grow.
@@ -2350,6 +2353,27 @@ describe("a gated capability is never presented with no tier at all", () => {
     // this scan would be a claim on a page with no reader deciding whether to buy.
     join(process.cwd(), "src/app/(marketing)/privacy/page.tsx"),
     join(process.cwd(), "src/app/(marketing)/dpa/page.tsx"),
+    // ── added 2026-11-12 with the relaunch landing page ───────────────────────
+    // `/` describes the document product, where every plan has every intake channel (copy C14,
+    // C23; spec §12) — the per-plan channel tiers this scan enforces belong to the retired
+    // order ladder. Bounded to the one page: its channel sentence is the only claim it makes.
+    join(process.cwd(), "src/app/(home)/page.tsx"),
+    // ── added 2026-11-12 with the relaunch how-it-works page ───────────────────
+    // Same reason as `/`: document plans include every intake channel (copy C14, C23; spec §12),
+    // so its channel sentence names no tier. Bounded to the one page.
+    join(process.cwd(), "src/app/(marketing)/how-it-works/page.tsx"),
+    // `/security` lists the channels whose transport is encrypted (webhook, SFTP, FTPS, S3, IMAP,
+    // SMTP). It names them to describe TLS, not to sell them, and on document plans every channel
+    // is included, so there is no tier to name. It used to carry one only through the ERP clause,
+    // which the relaunch dropped. Bounded to the one page.
+    join(process.cwd(), "src/app/(marketing)/security/page.tsx"),
+    // ── added 2026-11-12 with the relaunch help structure ──────────────────────
+    // Every page in the new help registries. The document engine has no plan gates: there is no
+    // `HasFeatureAsync` anywhere in the document services and controllers, the Trial is limited only
+    // by quota, and document plans have every feature but SSO (copy C14, C23; spec §12). So a help
+    // page naming a channel names no tier, and none could be true. Derived from the registries, so a
+    // new page joins by being registered, and a page nobody registered is not exempt.
+    ...DOCUMENT_HELP_PAGES,
   ];
 
   /**
@@ -2553,7 +2577,7 @@ describe("a gated capability is never presented with no tier at all", () => {
    * A sentence about what CEASES is not an offer.
    *
    * `/pricing` and `/help/billing-faq` both carry the cancellation disclosure CLAUDE.md §11.5
-   * mandates — "uploads, emailed orders, IMAP, SFTP and S3 pickups … all refuse" — which names
+   * mandates — "uploads, emailed documents, mailbox, SFTP, FTP, FTPS and S3 pickups … all refuse" — which names
    * every gated channel precisely because it is listing what a customer LOSES. Requiring a tier
    * beside each one would put four plan names inside a warning, and those two pages are the two
    * that state the ladder in full anyway.
@@ -2634,14 +2658,10 @@ describe("a gated capability is never presented with no tier at all", () => {
       capability: "cxml" as const,
       label: "cXML output",
       presents: presentsCxmlOutput,
-      reaches: [
-        "/src/app/(marketing)/help/cxml-setup/page.mdx",
-        "/src/app/(marketing)/help/delivery-setup/page.mdx",
-        "/src/app/(marketing)/help/output-templates/page.mdx",
-        "/src/app/(marketing)/help/guides/set-up-supplier-delivery/page.mdx",
-        "/src/app/(marketing)/how-it-works/page.tsx",
-        "/src/app/(marketing)/one-pager/page.tsx",
-      ],
+      // Deliberately empty since the relaunch: cXML output is not built in the document engine, so no page
+      // presents it and none may (see NEVER_CLAIM). The floor for this row is its `mustFlag` set, not the
+      // walk. The row stays because the mirror-coverage test below needs every gate row to be decided.
+      reaches: [],
       mustFlag: ["ProcuLink parses inbound cXML orders and emits cXML output."],
       mustAllow: ["choices are CSV, XLSX, JSON, XML (cXML Index or vendor XML), and CIF (Ariba 3.0)."],
     },
@@ -2651,11 +2671,6 @@ describe("a gated capability is never presented with no tier at all", () => {
       presents: (lines: string[], i: number) => ERP_CONNECTOR_CLAIM(lines[i]),
       reaches: [
         "/src/lib/marketing/format-catalog.ts",
-        "/src/app/(marketing)/help/erp-erply-and-directo/page.mdx",
-        "/src/app/(marketing)/help/page.tsx",
-        "/src/app/(marketing)/how-it-works/page.tsx",
-        "/src/app/(marketing)/one-pager/page.tsx",
-        "/src/app/(home)/page.tsx",
       ],
       mustFlag: ["- **Erply / Directo** — purpose-built ERP adapters for those tenants."],
       mustAllow: [
@@ -2668,13 +2683,6 @@ describe("a gated capability is never presented with no tier at all", () => {
       presents: (lines: string[], i: number) => WEBHOOK_DELIVERY_CLAIM(lines[i]),
       reaches: [
         "/src/lib/marketing/format-catalog.ts",
-        "/src/app/(marketing)/help/cxml-setup/page.mdx",
-        "/src/app/(marketing)/help/delivery-setup/page.mdx",
-        "/src/app/(marketing)/help/oauth2-delivery-setup/page.mdx",
-        "/src/app/(marketing)/help/page.tsx",
-        "/src/app/(marketing)/how-it-works/page.tsx",
-        "/src/app/(marketing)/one-pager/page.tsx",
-        "/src/app/(home)/page.tsx",
       ],
       mustFlag: [
         // `/` at 5c209e0 — the D-F15 line, verbatim. The ERP half names Enterprise; the webhook
@@ -2697,14 +2705,6 @@ describe("a gated capability is never presented with no tier at all", () => {
       presents: (lines: string[], i: number) => EMAIL_INTAKE_CLAIM(lines[i]),
       reaches: [
         "/src/lib/marketing/format-catalog.ts",
-        "/src/app/(marketing)/help/imap-provider-setup/page.mdx",
-        "/src/app/(marketing)/help/inbound-mode/page.mdx",
-        "/src/app/(marketing)/help/order-intake-options/page.mdx",
-        "/src/app/(marketing)/help/guides/poll-a-mailbox-over-imap/page.mdx",
-        "/src/app/(marketing)/help/guides/receive-orders-by-email/page.mdx",
-        "/src/app/(marketing)/help/page.tsx",
-        "/src/app/(marketing)/one-pager/page.tsx",
-        "/src/lib/help-articles.ts",
       ],
       mustFlag: [
         '          { n: "1", t: "Import", d: "Upload CSV / XLSX / PDF, or let ProcuLink poll an IMAP mailbox." },',
@@ -2725,12 +2725,6 @@ describe("a gated capability is never presented with no tier at all", () => {
       presents: (lines: string[], i: number) => SFTP_INTAKE_CLAIM(lines[i]),
       reaches: [
         "/src/lib/marketing/format-catalog.ts",
-        "/src/app/(marketing)/help/sftp-polling-setup/page.mdx",
-        "/src/app/(marketing)/help/inbound-mode/page.mdx",
-        "/src/app/(marketing)/help/order-intake-options/page.mdx",
-        "/src/app/(marketing)/help/guides/receive-orders-by-sftp/page.mdx",
-        "/src/app/(marketing)/help/guides/upload-orders-manually/page.mdx",
-        "/src/app/(marketing)/how-it-works/page.tsx",
       ],
       mustFlag: [
         "- A system **exports files to a folder** → [pull order files from an SFTP",
@@ -2751,11 +2745,6 @@ describe("a gated capability is never presented with no tier at all", () => {
       presents: (lines: string[], i: number) => S3_INTAKE_CLAIM(lines[i]),
       reaches: [
         "/src/lib/marketing/format-catalog.ts",
-        "/src/app/(marketing)/help/s3-polling-setup/page.mdx",
-        "/src/app/(marketing)/help/inbound-mode/page.mdx",
-        "/src/app/(marketing)/help/order-intake-options/page.mdx",
-        "/src/app/(marketing)/help/guides/receive-orders-from-s3/page.mdx",
-        "/src/app/(marketing)/help/guides/upload-orders-manually/page.mdx",
       ],
       mustFlag: [
         'title: "Pull order files from S3 or Cloudflare R2 — ProcuLink guide",',
@@ -2793,10 +2782,8 @@ describe("a gated capability is never presented with no tier at all", () => {
       // a strictly line-scoped read calls the honest sentence an offender.
       presents: (lines: string[], i: number) =>
         SELLS_ORG_WIDE_AUDIT(lines[i]) && !ORDER_SCOPED_AUDIT.test(lines[i + 1] ?? ""),
-      reaches: [
-        "/src/app/(marketing)/help/dashboard-and-statuses/page.mdx",
-        "/src/app/(marketing)/help/guides/set-up-supplier-delivery/page.mdx",
-      ],
+      // The Operations card on /pricing is the one place that still presents the org-wide log.
+      reaches: ["/src/lib/plans.ts"],
       mustFlag: [
         // The footer, on every marketing page and on `/`, and the homepage og:description.
         "                format your supplier needs — with a full audit trail.",
@@ -2806,6 +2793,7 @@ describe("a gated capability is never presented with no tier at all", () => {
       ],
       mustAllow: [
         "format your supplier needs — with a full audit trail on every order.",
+        "sends them on in the format you need — with a full audit trail on every document.",
         "with a full audit trail behind every order.",
         "Encrypted credentials, AES-GCM at rest, full audit trail per attempt.",
         "with each attempt's error and response code kept in the audit trail for that order.",
@@ -2829,16 +2817,7 @@ describe("a gated capability is never presented with no tier at all", () => {
       capability: "customSupplierRules" as const,
       label: "per-supplier validation rules",
       presents: (lines: string[], i: number) => SELLS_CONFIGURABLE_SUPPLIER_RULES(lines[i]),
-      reaches: [
-        "/src/app/(marketing)/help/validation-rules/page.mdx",
-        "/src/app/(marketing)/help/connections/page.mdx",
-        "/src/app/(marketing)/help/managing-suppliers/page.mdx",
-        "/src/app/(marketing)/help/ai-suggestions/page.mdx",
-        "/src/app/(marketing)/help/exceptions-and-stuck-orders/page.mdx",
-        "/src/app/(marketing)/how-it-works/page.tsx",
-        "/src/app/(marketing)/security/page.tsx",
-        "/src/app/(home)/page.tsx",
-      ],
+      reaches: ["/src/lib/plans.ts"],
       mustFlag: ['    title: "Per-supplier validation",', "        Block bad orders before they reach the supplier. Configurable rules per"],
       mustAllow: ["Field mapping + built-in order checks", "They are not validated against a live ERP sandbox"],
     },
@@ -2880,8 +2859,13 @@ describe("a gated capability is never presented with no tier at all", () => {
       // Growth-gated webhook claim in the same sentence.
       const discloses = disclosesFor(capability);
 
-      const files = buyerFacingFiles().filter(({ file }) => !EXEMPT.some((e) => e.endsWith(file)));
-      expect(files.length, "the corpus must really be reading files").toBeGreaterThan(40);
+      // The walk's whole corpus, exempt pages included: the help pages are exempt now, so counting only the
+      // scanned remainder would fail a floor that is about the walk, not about the exemption.
+      expect(buyerFacingFiles().length, "the corpus must really be reading files").toBeGreaterThan(40);
+      expect(
+        buyerFacingFiles().filter(({ file }) => !EXEMPT.some((e) => e.endsWith(file))).length,
+        "the exemption must leave pages to scan",
+      ).toBeGreaterThan(25); // measured 29: every help page is exempt, so this is the non-help corpus and no longer moves with help content
 
       const presenting = buyerFacingFiles().filter(({ lines }) => lines.some((_, i) => presents(lines, i)));
       const seen = presenting.map(({ file }) => file.replace(/\\/g, "/"));
@@ -3078,13 +3062,21 @@ describe("a gated capability is never presented with no tier at all", () => {
     expect(discloses("- **Operations → Log** — a date-grouped audit trail.", "cxml"), "nav label only").toBe(false);
   });
 
-  it("exempts exactly four files, and says why in code rather than in a comment", () => {
-    expect(EXEMPT.map((f) => f.replace(process.cwd(), "").replace(/\\/g, "/"))).toEqual([
+  it("exempts the hand-listed files plus every registered help page, and says why in code rather than in a comment", () => {
+    const relative = (f: string) => f.replace(process.cwd(), "").replace(/\\/g, "/");
+    const derived = new Set(DOCUMENT_HELP_PAGES);
+    // The derived set must really be there: an empty registry walk would exempt nothing and prove nothing.
+    expect(derived.size).toBeGreaterThanOrEqual(HELP_ARTICLES.length);
+    expect(EXEMPT.filter((f) => !derived.has(f)).map(relative)).toEqual([
       "/src/lib/plans.ts",
       "/src/app/(marketing)/changelog/page.tsx",
       "/src/app/(marketing)/privacy/page.tsx",
       "/src/app/(marketing)/dpa/page.tsx",
+      "/src/app/(home)/page.tsx",
+      "/src/app/(marketing)/how-it-works/page.tsx",
+      "/src/app/(marketing)/security/page.tsx",
     ]);
+    expect(EXEMPT.filter((f) => derived.has(f))).toEqual([...derived]);
     // Both must really exist; an exemption for a moved file is an exemption for nothing.
     for (const file of EXEMPT) expect(() => readFileSync(file, "utf8")).not.toThrow();
   });
@@ -3116,12 +3108,15 @@ describe("a gated capability is never presented with no tier at all", () => {
  * neighbours, cannot come back silently.
  */
 describe("the free tier is never described as sufficient for a flow it cannot finish", () => {
-  const FREE_TIER = PLANS[0].name; // "Pilot" — derived, so renaming the tier moves this with it.
+  const FREE_TIER = PLANS[0].name; // derived, so renaming the tier moves this with it.
+  // Help pages still say "Pilot" until the relaunch rewrites them; keyed to the new name alone the guard
+  // would go blind to the old one, so both are matched.
+  const FREE_TIER_RE = `(?:${FREE_TIER}|Pilot)`;
 
   const SUFFICIENCY = String.raw`(?:is enough|is all you need|covers everything|enough for all|does everything)`;
   const CLAIMS_PILOT_SUFFICES = new RegExp(
-    String.raw`\b${FREE_TIER}\b[^.\n]{0,60}?\b${SUFFICIENCY}\b` +
-      String.raw`|\b(?:everything|the whole|all of) (?:here|this|of it)[^.\n]{0,40}?\bon ${FREE_TIER}\b`,
+    String.raw`\b${FREE_TIER_RE}\b[^.\n]{0,60}?\b${SUFFICIENCY}\b` +
+      String.raw`|\b(?:everything|the whole|all of) (?:here|this|of it)[^.\n]{0,40}?\bon ${FREE_TIER_RE}\b`,
     "i",
   );
 
@@ -3626,5 +3621,28 @@ describe("no surface offers a standard as an output format while nothing can pro
         'cannot emit. An "On request" badge does not soften that: /formats renders it as "we\'ll ' +
         'add it for your rollout":\n' + offenders.join("\n"),
     ).toEqual([]);
+  });
+});
+
+describe("the /pricing cards, as rendered from PUBLIC_LADDER", () => {
+  it("every bullet a card sells is a capability the backend grants that plan", () => {
+    const { container } = render(createElement(PricingPage));
+    const cards = Array.from(container.querySelectorAll("article.plk-price-card"));
+    // Anti-vacuity: one card per public plan, and the document plans really carry bullets.
+    expect(cards).toHaveLength(PUBLIC_LADDER.length);
+
+    for (const card of cards) {
+      const name = card.querySelector(".plk-tier")!.textContent;
+      const plan = PUBLIC_LADDER.find((p) => p.name === name)!;
+      for (const li of Array.from(card.querySelectorAll("li"))) {
+        for (const [key, { label, sells }] of Object.entries(CAPABILITY_CLAIMS)) {
+          if (!claims(sells, li.textContent ?? "")) continue;
+          expect(
+            planIncludesCapability(plan.id, key as keyof typeof BACKEND_MINIMUM_PLAN),
+            `the ${plan.id} card sells ${label} ("${li.textContent}") but the backend does not grant it there`,
+          ).toBe(true);
+        }
+      }
+    }
   });
 });

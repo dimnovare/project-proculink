@@ -65,6 +65,14 @@ export const COPY: Record<string, string> = {
   publish_conflict: "Someone else published this flow just now. Reload to see the latest version.",
   version_references_missing: "This version sends to a destination or uses a lookup that has been deleted, so it can't be restored.",
   scanned_not_supported: "This looks like a scanned document, which can't be read yet.",
+  native_connectors_off: "Google destinations aren't switched on for this workspace yet.",
+  invalid_state: "That sign-in link expired. Start connecting again.",
+  google_scope_missing: "ProcuLink needs access to the files you choose. Connect again and leave the Google Drive box ticked.",
+  account_in_use: "A destination still sends to this account. Change that destination first.",
+  account_reconnect: "Google access was removed. Reconnect the Google account.",
+  account_not_found: "That Google account is no longer connected.",
+  invalid_origin: "Connect from the ProcuLink app address.",
+  google_unavailable: "Google didn't answer. Try again in a minute.",
 };
 
 /** Reasons a read can never succeed on a retry (`ReadDocumentJob`). A scan that failed before scans were switched on can be read now. */

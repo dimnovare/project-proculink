@@ -1,0 +1,63 @@
+import { guideMetadata } from "@/lib/seo";
+
+export const metadata = guideMetadata({
+  slug: "receive-documents-by-email",
+  title: "Receive documents by email — ProcuLink guide",
+  description: "Forward documents to the flow's own email address.",
+});
+
+import { Step, Prereqs, IfThisFails, Outcome } from "@/components/help/guide";
+
+<Prereqs>
+- A flow. See [Set up your first flow](/help/guides/set-up-your-first-flow).
+- A mailbox you can forward from, or a sender who can write to the address.
+</Prereqs>
+
+<Step n={1} title="Find the flow's address">
+
+Open the flow and go to the **Intake** tab. The **Email address** card shows the address. Select the copy button next to it.
+
+<Outcome>
+You have the flow's own address on your clipboard.
+</Outcome>
+
+</Step>
+
+<Step n={2} title="Send or forward a document to it">
+
+Write to the address, or forward a message that has the document attached. Each attached file we can read becomes its own document in the flow. A message with three readable files makes three documents.
+
+If a message has no file we can read, the text of the message becomes one document instead. See [Files we read](/help/what-we-read) for the types.
+
+To have documents arrive without anyone forwarding them, set a rule in your own mail program that forwards messages from a sender to this address.
+
+<Outcome>
+After a short wait, the document appears on the flow's **Documents** tab, and we read it.
+</Outcome>
+
+<IfThisFails>
+If nothing appears, check these in order:
+
+- The **On** box on the **Email address** card is ticked. When it is off, mail to the address is ignored.
+- The files are of a type we read. Other files are ignored. A message whose files we cannot read leaves a note on the card: "An email from … had no file we can read attached."
+- Each file is 10 MB or smaller.
+- Your plan has room. If it does not, the card says processing is paused. See the [billing FAQ](/help/billing-faq).
+</IfThisFails>
+
+</Step>
+
+<Step n={3} title="Keep the address private (optional)">
+
+Anyone who knows the address can send documents to it. If it spreads further than you want, select **Get a new address** and confirm. The old address stops working at once, so update any forwarding rule.
+
+<Outcome>
+Only the new address reaches the flow.
+</Outcome>
+
+</Step>
+
+## Good to know
+
+A message that is delivered to us twice makes the documents once. If you forward the same file again as a new message, we do not read it a second time: it waits in **Needs review**, and you can press **Read it anyway**. See [Checks](/help/checks).
+
+The sender's email address is kept with each document, and we use it to learn [senders](/help/senders).

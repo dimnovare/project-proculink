@@ -1,0 +1,79 @@
+import { guideMetadata } from "@/lib/seo";
+
+export const metadata = guideMetadata({
+  slug: "send-to-a-destination",
+  title: "Send outputs to a destination — ProcuLink guide",
+  description: "Send a flow's output by email, to a web address, to an SFTP or FTPS server, or as a download.",
+});
+
+import { Step, Prereqs, IfThisFails, Outcome } from "@/components/help/guide";
+
+<Prereqs>
+- A flow with an output, or one you are about to make. See [Build an output](/help/guides/build-an-output).
+- A workspace admin account.
+- The details of the place the file goes, including its sign-in.
+</Prereqs>
+
+<Step n={1} title="Open the destination form">
+
+Open the output's form: on the flow's **Outputs** tab, select **Add an output**, or **Edit** on an existing output. In the **Send to** list, choose **New destination…**.
+
+<Outcome>
+The **New destination** form opens under the list.
+</Outcome>
+
+</Step>
+
+<Step n={2} title="Name it and choose how it is sent">
+
+Type a **Name** that tells you where the file goes. Choose **Send by**:
+
+- **Web address (API).** Fill in the **Web address** (it must start with `https://`) and the **Request method**, POST or PUT.
+- **SFTP** or **FTPS.** Fill in the **Server**, the **Port** (22 for SFTP, 21 for FTPS) and the **Folder on the server**. SFTP can sign in with a password or a private key.
+- **Email.** Fill in **Send to** with one or more addresses, separated by commas. Add a **Reply-to address** if you want one. Add a **Subject** and a **Message** if you want your own. Left blank, ProcuLink uses a default subject (the flow name and the file name). A test send puts `[TEST]` in front of the subject. The attachment is always named after the document, and there is no box for its name.
+
+<Outcome>
+The form shows the boxes for the way you chose.
+</Outcome>
+
+</Step>
+
+<Step n={3} title="Add the sign-in and save">
+
+Fill in the sign-in the place asks for. What each kind accepts is in [Destination sign-in, keys and signing](/help/destination-sign-in). Email needs none. Select **Save**: the form closes and the destination is chosen in **Send to**.
+
+<Outcome>
+The destination exists. Its login is encrypted and never shown again.
+</Outcome>
+
+<IfThisFails>
+The message says why. A web address must start with `https://` and must not have a user name and password written into it. A login must be filled in completely or not at all.
+</IfThisFails>
+
+</Step>
+
+<Step n={4} title="Use it in an output and test it">
+
+Back in the output form, the new destination is already chosen in **Send to**. Select **Create** or **Save**. Once the flow is published, publish again so new sends use the change. See [Publish and restore flow versions](/help/guides/publish-a-flow-version).
+
+A test is offered only in the new-flow guide (right after you save a destination) and when you build an output from documentation. The new-flow test sends a small file marked `TEST_` that holds no document data. The documentation test sends the output made from a real document in the flow, so it holds that document's values. Anywhere else the first real send is the test, so start with a document you are happy to send. See [Destinations](/help/destinations).
+
+<Outcome>
+The output is tied to the destination.
+</Outcome>
+
+</Step>
+
+<Step n={5} title="Send a document and watch it">
+
+Open a document that is ready and select **Send** on the **Outputs** pane. Below the outputs, **Deliveries** lists each one with its state and number of attempts. A failed delivery shows **Will retry** and the reason, and ends as **Couldn't deliver** if it keeps failing. How retries work is in [Destinations](/help/destinations).
+
+<Outcome>
+Every delivery is **Delivered** and the document is **Sent**.
+</Outcome>
+
+<IfThisFails>
+Read the message beside the delivery, fix the cause, then press **Send** on the document again. Deliveries that already worked are not sent twice. See [Troubleshooting](/help/troubleshooting).
+</IfThisFails>
+
+</Step>

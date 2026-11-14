@@ -2,23 +2,7 @@ import { MarketingNav } from "@/components/marketing/MarketingNav";
 import { ProcuLinkMark } from "@/components/bridge/DSPrimitives";
 import { SkipToContent } from "@/components/a11y/SkipToContent";
 import { COPYRIGHT_NOTICE } from "@/lib/legal-entity";
-
-// "One-page overview" is /one-pager — the print-friendly summary of the whole
-// offer (what it does, how an order moves through it, the full plan ladder,
-// security, contact). It was published in sitemap.ts and linked from nowhere,
-// so the only people who ever saw it were the ones handed the URL. It belongs
-// in Product rather than on /pricing or /pilot because it is not about
-// either one on its own, and the footer puts it under both.
-//
-// "Pilot programme" replaced "Customers": the references page had nothing to show,
-// and an empty references page is not the content a prospect should land on. /customers
-// now 308s to /pilot (src/lib/retired-routes.ts). When there are named, approved
-// references, this item becomes "Clients".
-const FOOTER_COLS: { h: string; links: [string, string][] }[] = [
-  { h: "Product", links: [["How it works", "/how-it-works"], ["Pricing", "/pricing"], ["Security", "/security"], ["One-page overview", "/one-pager"], ["Open the dashboard", "/documents"]] },
-  { h: "Company", links: [["Pilot programme", "/pilot"], ["Book a 20-minute call", "/book-demo"], ["Changelog", "/changelog"], ["Help center", "/help"], ["Support", "/support"]] },
-  { h: "Legal",   links: [["Privacy", "/privacy"], ["Terms", "/terms"], ["AUP", "/aup"], ["DPA", "/dpa"], ["Subprocessors", "/subprocessors"]] },
-];
+import { FOOTER_COLS } from "@/components/marketing/footerColumns";
 
 export default function MarketingLayout({
   children,
@@ -47,7 +31,7 @@ export default function MarketingLayout({
               </a>
               <p style={{ fontSize: 13, lineHeight: 1.6, maxWidth: 300, marginTop: 14 }}>
                 The missing link between buyers and suppliers. ProcuLink reads your documents, checks
-                them and sends them on in the format you need — with a full audit trail on every order.
+                them and sends them on in the format you need — with a full audit trail on every document.
               </p>
             </div>
             {FOOTER_COLS.map((col) => (
@@ -76,7 +60,7 @@ export default function MarketingLayout({
           >
             <span>{COPYRIGHT_NOTICE}</span>
             <span className="flex items-center gap-3">
-              <a href="/security" className="inline-flex min-h-[44px] items-center" style={{ color: "inherit", textDecoration: "none" }}>EU-region order storage</a><span>·</span><span>AES-GCM at rest</span>
+              <a href="/security" className="inline-flex min-h-[44px] items-center" style={{ color: "inherit", textDecoration: "none" }}>EU-region document storage</a><span>·</span><span>AES-GCM at rest</span>
             </span>
           </div>
         </div>

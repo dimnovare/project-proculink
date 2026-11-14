@@ -166,7 +166,7 @@ describe("the Pilot limit banner reads its upgrade tier off the ladder", () => {
     expect(ladder.pilot.next, "the real ladder still points Pilot at Growth").toBe("growth");
     expect(pageText()).toContain("Upgrade to Growth to continue processing new documents.");
     // And the other half of the same sentence, which was already derived, is still derived.
-    expect(pageText()).toContain(`You've used all ${ladder.pilot.orderLimit} Pilot documents.`);
+    expect(pageText()).toContain(`You've used all ${ladder.pilot.orderLimit} ${ladder.pilot.name.toLowerCase()} documents.`);
   });
 });
 

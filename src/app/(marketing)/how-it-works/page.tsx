@@ -1,29 +1,20 @@
-import { requiresPlan } from "@/lib/gatedCapabilities";
 import { pageMetadata } from "@/lib/seo";
 import Link from "next/link";
-import { formatChipColors } from "@/components/bridge/FileChip";
+import { STAGES } from "@/components/bridge/StatusJourney";
 import AnimatedPipelinePanel from "./AnimatedPipelinePanel";
 
 export const metadata = pageMetadata({
   path: "/how-it-works",
   title: "How it works — ProcuLink",
   description:
-    "A document comes in. ProcuLink reads all of its data, checks it, transforms it into the format you need and sends it on the channel you choose. Purchase orders work today; invoices are in early access.",
+    "Read it. Check it. Transform it. Send it. ProcuLink reads the files you receive, shows what it read beside the original, and sends the data on in the format your system needs.",
   ogDescription:
-    "Read it, check it, transform it, send it. Purchase orders work today; invoices are in early access.",
+    "ProcuLink reads the files you receive, shows what it read beside the original, and sends the data on in the format your system needs.",
 });
 
 // ─── Palette — ALIASES for the design tokens, never copies of their values ────
-// The page follows a buyer → supplier topology:
-//   • buyer / process / primary-CTA elements use buyer-blue  (--brand-blue)
-//   • supplier-output / success elements use forest green    (--brand-green)
-//   • AI = violet (--ai), validation = amber (--amber-text, AA-darkened)
-//
-// These were hex copies "sampled pixel-exact from the design render". Sampling a
-// render is how a page ends up a generation behind the tokens: BLUE_SOFT still
-// held the previous generation's value, and the header comment above described
-// the green family by one of the three emerald greens that
-// 11-unified-page-rules.md explicitly BANS. Enforced by scripts/check-tokens.mjs.
+// Colour roles: primary CTA and early-stage elements use blue (--brand-blue), the last stage uses green
+// (--brand-green), AI = violet (--ai), validation = amber (--amber-text, AA-darkened).
 
 const NAVY = "var(--navy)";
 const INK = "var(--ink)";
@@ -31,198 +22,51 @@ const MUTE = "var(--ink-muted)";
 const HAIR = "var(--border)";
 const PANEL = "var(--bg)";
 
-const BLUE = "var(--brand-blue)"; // buyer-blue — CTA, early-stage chips, first pipeline node
+const BLUE = "var(--brand-blue)"; // CTA, early-stage chips, first pipeline node
 const BLUE_SOFT = "var(--brand-blue-soft)"; // pale blue chip / eyebrow background
-const VIOLET = "var(--ai)";
 const AMBER = "var(--amber-text)";
 // Supplier/output green. --brand-green on --brand-green-soft is 3.55:1 and fails
 // AA for the 11px pill text this page draws; --brand-green-deep is 5.57:1.
 const GREEN = "var(--brand-green-deep)";
 const GREEN_SOFT = "var(--brand-green-soft)";
 const AMBER_SOFT = "var(--amber-soft)";
-const VIOLET_SOFT = "var(--ai-soft)";
-const NEUTRAL_SOFT = "var(--surface-2)";
 
-// ─── The buyer-facing workflow ─────────────────────────────────────────────────
-// What a buyer DOES, in the order they do it. This comes first on the page; the pipeline
-// stages below are what ProcuLink does to each order, and they are for technical readers.
-//
-// Truth notes, because each step makes a promise:
-//   • Step 1 — a supplier really is created from a name alone (CreateSupplierPayload: `name`
-//     plus optional identity fields).
-//   • Steps 3 and 5 — a confirmed code pair is saved PER SUPPLIER and applied automatically to
-//     later orders to that supplier. The review screen DOES mark them: a line whose code came from a
-//     saved mapping carries a "From your saved item codes" chip and the status bar counts them
-//     ("n of total item codes filled from your saved item codes"; hidden at zero).
-//   • Step 4 — the downloadable result is the supplier-ready file (XML, CSV, cXML, JSON, UBL,
-//     X12), plus a PDF of the order. ProcuLink does not produce Excel output, so the step does not
-//     promise it.
-//   • Step 6 — automatic delivery is off until a person turns it on for a supplier. An order
-//     with an unresolved item code or a failed built-in check cannot be transformed, so it
-//     never reaches automatic delivery. A per-order "Hold this order for review"
-//     control exists on this branch; the step copy does not mention it.
+// ─── The four steps ────────────────────────────────────────────────────────────
+// Titles are Copy C14. The paragraphs are long-form, approved on the preview, and
+// claim only what every engine-on org has: text-layer PDF, CSV and Excel in, plus
+// the formats and scans switches (D1); the intake channels and output formats the
+// flow engine really offers; the visible check and the duplicate hold.
 
 const WORKFLOW: Array<{ title: string; desc: string; color: string; bg: string; icon: React.ReactNode }> = [
   {
-    title: "Choose a repeat supplier",
-    desc: "Add the supplier you want to test. A name is enough to start.",
-    color: BLUE,
-    bg: BLUE_SOFT,
-    icon: <SupplierIcon />,
-  },
-  {
-    title: "Upload the order you already create",
-    desc: "Use PDF, Excel, CSV or another supported input. No ERP integration is required to test the workflow.",
+    title: "Send it",
+    desc: "Upload a file, forward an email to the address your flow gives you, or let ProcuLink collect files from a mailbox, an SFTP, FTP or FTPS server, an S3 bucket, or our API. PDFs with a text layer, CSV and Excel files are read, and so are Word, text, XML and JSON files.",
     color: BLUE,
     bg: BLUE_SOFT,
     icon: <UploadIcon />,
   },
   {
-    title: "Confirm any supplier item codes that need attention",
-    desc: "If your code differs from the supplier's, confirm the match once. ProcuLink remembers it for later orders to that supplier.",
-    color: VIOLET,
-    bg: VIOLET_SOFT,
-    icon: <MatchIcon />,
-  },
-  {
-    title: "Review the supplier-ready output",
-    desc: "Check the result before anything is sent. Download it and send it yourself if you want to stay completely in control.",
-    color: AMBER,
-    bg: AMBER_SOFT,
-    icon: <CheckSquareIcon />,
-  },
-  {
-    title: "Run the next order from the same supplier",
-    desc: "Previously confirmed mappings can be reused automatically. This is where the repeated work should start to disappear.",
-    color: GREEN,
-    bg: GREEN_SOFT,
-    icon: <RepeatIcon />,
-  },
-  {
-    title: "Automate delivery when you are ready",
-    desc: "Once you trust the workflow, choose whether routine orders to that supplier should be delivered automatically. An order with an unresolved item code or a failed check is still held for review.",
-    color: GREEN,
-    bg: GREEN_SOFT,
-    icon: <SendIcon />,
-  },
-];
-
-// ─── The pipeline, for technical readers ───────────────────────────────────────
-
-type Pill = { label: string; fg: string; bg: string };
-
-/**
- * A format pill, coloured from the ONE format palette (src/components/bridge/
- * FileChip). These used to be a hand-written fourth copy of that palette, and it
- * had already drifted into an AA failure: XLSX and CSV were drawn in brand-green
- * on the old brand-green-soft = 3.55:1, under the 4.5:1 floor for the 11px text
- * they render at. The shared palette is >= 4.95:1 for every format.
- *
- * `label` is what the reader sees ("CXML"); `key` is the palette key when the
- * two differ in case.
- */
-function formatPill(label: string, key: string = label): Pill {
-  const { bg, color } = formatChipColors(key);
-  return { label, fg: color, bg };
-}
-
-const STEPS: Array<{
-  n: string;
-  title: string;
-  desc: string;
-  color: string;
-  bg: string;
-  icon: React.ReactNode;
-  pills?: Pill[];
-}> = [
-  {
-    n: "01",
-    title: "Receive in any format",
-    desc:
-      // "however they like" is the claim, and the automatic routes behind it are not free:
-      // inbound email, IMAP, SFTP and S3 pickups are all BillingFeature gates at Growth
-      // (PlanConstants.cs:283-285). Manual upload and the inbound API are the ones on every plan.
-      `Buyers send POs however they like — a PDF email attachment, an XLSX export, cXML posted to your REST endpoint, EDI dropped on SFTP. ProcuLink ingests all of it through one inbox. Upload and the inbound API are on every plan; email, IMAP, SFTP and S3 pickups are ${requiresPlan("emailIngestion", "sftpIngestion", "s3Ingestion")}.`,
-    color: BLUE,
-    bg: BLUE_SOFT,
-    icon: <UploadIcon />,
-    pills: [
-      formatPill("PDF"),
-      formatPill("XLSX"),
-      formatPill("CXML", "cXML"),
-      formatPill("EDI"),
-      formatPill("CSV"),
-    ],
-  },
-  {
-    n: "02",
-    title: "Read it into one standard order",
-    desc:
-      "Every order is parsed into one neutral structure — the canonical order. PO number, parties, line items, terms and totals each become a field with a confidence score and visible provenance.",
+    title: "We read it",
+    desc: "We read every value and every table on the first document, row by row. There is no template to build first, so a new sender with a new layout does not mean new setup. Scans and phone photos are read too.",
     color: BLUE,
     bg: BLUE_SOFT,
     icon: <LayersIcon />,
   },
   {
-    n: "03",
-    title: "Resolve issues with AI",
-    desc:
-      "When a buyer item code doesn't match the supplier catalog, an LLM proposes the right code with its reasoning and source. Your team confirms or rejects — nothing is auto-applied without confidence you can see.",
-    color: VIOLET,
-    bg: VIOLET_SOFT,
-    icon: <SparkIcon />,
-  },
-  {
-    n: "04",
-    title: "Validate before anything leaves",
-    desc:
-      // This step used to be titled "Validate against your rules" and read
-      // "Per-supplier rules catch missing fields, wrong currency, or unresolved
-      // codes". Two products are being conflated there, and only one of them is
-      // included:
-      //
-      //   • BUILT-IN checks run on every plan, Pilot included, with no profile
-      //     configured — InvariantValidator (PO number present, currency present,
-      //     quantity > 0, unit price not negative) and OutputFieldValidator (a
-      //     line still flagged for review, an unresolved supplier item code, a
-      //     buyer item code the format mandates, a negative price, a quantity of
-      //     zero or less), which throws before a transform writes a byte.
-      //     SupplierAcceptanceService.cs:202,204 runs both passes unconditionally.
-      //   • A CONFIGURABLE per-supplier rule set is the versioned acceptance
-      //     profile, and SupplierAcceptanceController.cs:70,99 refuses both
-      //     authoring and activating below Enterprise.
-      //
-      // Of the three examples the old sentence gave, unresolved codes are built-in
-      // and missing PO number / currency are built-in; only "wrong currency" —
-      // an allowed-list or an equals check on the VALUE — needs the gated profile
-      // (RuleCatalog.cs:107,115). Naming no tier while listing all three read as
-      // "every plan gets per-supplier rules".
-      `Built-in checks run on every plan and cannot be switched off: an order needs a PO number and a currency, every line needs a quantity above zero and a price that is not negative, and a line whose supplier item code is still unresolved holds the order back instead of being sent blind. Your own rules for a supplier — an accepted currency list, a required ship-to or incoterm, a value range — are a versioned acceptance profile, and authoring or activating one is ${requiresPlan("customSupplierRules")}.`,
+    title: "You check it",
+    desc: "The original stays on screen beside what we read. Fix a value that is wrong, or draw a box around it on the page so we find it in the same place next time. We flag a value that is missing, in the wrong shape or hard to read, and we hold a document we have already seen instead of sending it twice.",
     color: AMBER,
     bg: AMBER_SOFT,
     icon: <CheckSquareIcon />,
   },
   {
-    n: "05",
-    title: "Transform & deliver",
-    desc:
-      // "ERP connector" sat in this list as a peer of SFTP and email. It is not: the Erply and
-      // Directo adapters gate at Enterprise (BillingFeature.ErpConnectors), so an unqualified
-      // mention reads as included on every plan.
-      `The canonical order is transformed into the exact format the supplier requires and delivered over their channel — webhook on ${requiresPlan("webhookDelivery")}, SFTP or email on every plan, or an ERP connector on ${requiresPlan("erpConnectors")}. cXML output is ${requiresPlan("cxml")}; the other formats are on every plan. Every attempt is recorded with its response code and a SHA-256 fingerprint of the bytes sent.`,
+    title: "We send it",
+    desc: "Choose CSV, JSON, XML, Excel, PDF, text or fixed-width, then send the result by email, to a web address, to an SFTP or FTPS server, or download it. Have your receiving system's documentation? Upload it and we propose the output for you to check.",
     color: GREEN,
     bg: GREEN_SOFT,
     icon: <SendIcon />,
-    pills: [
-      formatPill("CXML", "cXML"),
-      formatPill("UBL"),
-      formatPill("CSV"),
-      formatPill("JSON"),
-    ],
   },
 ];
-
-// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function HowItWorksPage() {
   return (
@@ -263,11 +107,8 @@ export default function HowItWorksPage() {
             margin: "18px auto 0",
           }}
         >
-          A document comes in. ProcuLink reads all of its data, checks it,
-          transforms it into the format you need and sends it on the channel you
-          choose. Purchase orders work this way today. Invoices are in early
-          access —{" "}
-          <Link href="/pilot" style={{ color: "var(--surface)", textDecoration: "underline" }}>apply for the pilot</Link>.
+          ProcuLink reads the files you receive, shows what it read beside the
+          original, and sends the data on in the format your system needs.
         </p>
         <p
           className="hiw-hero-sub"
@@ -278,8 +119,7 @@ export default function HowItWorksPage() {
             margin: "12px auto 0",
           }}
         >
-          You can start with a real, test or anonymised order. Nothing needs to
-          be sent automatically while you evaluate it.
+          Scans and phone photos are read too.
         </p>
 
         <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap", marginTop: 32 }}>
@@ -299,7 +139,7 @@ export default function HowItWorksPage() {
               textDecoration: "none",
             }}
           >
-            Start your FREE Pilot
+            Start your free trial
             <ArrowRight />
           </Link>
           <a
@@ -321,7 +161,7 @@ export default function HowItWorksPage() {
         </div>
       </section>
 
-      {/* ── The workflow (light) — what a buyer does, first ─────────────── */}
+      {/* ── The four steps (light) ─────────────── */}
       <section className="hiw-steps" style={{ maxWidth: 860, margin: "0 auto" }} aria-labelledby="hiw-workflow-title">
         <div style={{ textAlign: "center" }}>
           <Eyebrow>The workflow</Eyebrow>
@@ -338,7 +178,7 @@ export default function HowItWorksPage() {
               lineHeight: 1.12,
             }}
           >
-            A purchase order in six steps, starting with one supplier
+            How it works
           </h2>
         </div>
         <ol style={{ listStyle: "none", padding: 0, margin: "28px 0 0" }}>
@@ -377,22 +217,8 @@ export default function HowItWorksPage() {
             lineHeight: 1.1,
           }}
         >
-          From any purchase order to a delivered supplier document
+          {STAGES.join(" · ")}
         </h2>
-
-        <p
-          className="hiw-hero-sub"
-          style={{
-            lineHeight: 1.6,
-            color: "var(--navy-faint)",
-            maxWidth: 560,
-            margin: "18px auto 0",
-          }}
-        >
-          Behind those six steps, every order goes through the same six stages:
-          receive, parse, normalize, validate, transform and deliver. Here&apos;s
-          exactly what happens when an order is sent to the supplier.
-        </p>
 
         {/* Terminal mock + pipeline */}
         <div
@@ -432,7 +258,7 @@ export default function HowItWorksPage() {
                 marginLeft: 6,
               }}
             >
-              order pipeline
+              pipeline
             </span>
           </div>
 
@@ -440,18 +266,6 @@ export default function HowItWorksPage() {
             <AnimatedPipelinePanel />
           </div>
         </div>
-      </section>
-
-      {/* ── Pipeline stages (light) ─────────────────────────────────────── */}
-      <section className="hiw-steps" style={{ maxWidth: 860, margin: "0 auto" }} aria-label="Pipeline stages">
-        {STEPS.map((step, i) => (
-          <div key={step.n}>
-            <StepRow {...step} />
-            {i < STEPS.length - 1 && (
-              <div style={{ height: 1, background: HAIR }} />
-            )}
-          </div>
-        ))}
       </section>
 
       {/* ── CTA band (light gray) ───────────────────────────────────────── */}
@@ -463,7 +277,6 @@ export default function HowItWorksPage() {
           textAlign: "center",
         }}
       >
-        <Eyebrow>See it live</Eyebrow>
         <h2
           className="hiw-cta-title"
           style={{
@@ -471,28 +284,16 @@ export default function HowItWorksPage() {
             fontWeight: 700,
             letterSpacing: "-0.03em",
             color: INK,
-            margin: "18px auto 0",
+            margin: "0 auto",
             maxWidth: 620,
             lineHeight: 1.1,
           }}
         >
-          Walk through a real delivery
+          Try it on your own documents
         </h2>
-        <p
-          className="hiw-cta-sub"
-          style={{
-            lineHeight: 1.65,
-            color: MUTE,
-            maxWidth: 470,
-            margin: "16px auto 0",
-          }}
-        >
-          Watch one purchase order go through: read, checked, transformed
-          and sent to the supplier.
-        </p>
         <div style={{ marginTop: 34, display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
           <Link
-            href="/watch"
+            href="/sign-up"
             className="hiw-cta-btn"
             style={{
               display: "inline-flex",
@@ -508,11 +309,11 @@ export default function HowItWorksPage() {
               boxShadow: "0 8px 22px -8px rgba(30,102,201,0.55)",
             }}
           >
-            Watch the walkthrough
+            Start your free trial
             <ArrowRight />
           </Link>
           <Link
-            href="/sign-up"
+            href="/book-demo"
             className="hiw-cta-btn"
             style={{
               display: "inline-flex",
@@ -525,7 +326,7 @@ export default function HowItWorksPage() {
               textDecoration: "none",
             }}
           >
-            Start your FREE Pilot
+            Talk to us
           </Link>
         </div>
       </section>
@@ -541,11 +342,9 @@ const responsiveCss = `
 .hiw-hero-sub { font-size: 17px; }
 
 /* Terminal — layout lives in classes (not inline) so the breakpoint can override it */
-.hiw-io { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
-.hiw-rail { display: grid; grid-template-columns: repeat(6, 1fr); align-items: start; }
-.hiw-rail-line { top: 7px; left: 8.3333%; right: 8.3333%; height: 2px; }
+.hiw-rail { display: grid; grid-template-columns: repeat(5, 1fr); align-items: start; }
+.hiw-rail-line { top: 7px; left: 10%; right: 10%; height: 2px; }
 .hiw-node { display: flex; flex-direction: column; align-items: center; gap: 12px; }
-.hiw-cells { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
 
 .hiw-section-title { font-size: clamp(28px, 4vw, 42px); }
 .hiw-steps { padding: 80px 24px 88px; }
@@ -566,15 +365,13 @@ const responsiveCss = `
   .hiw-term-bar { padding: 12px 16px; }
   .hiw-term-body { padding: 20px 16px 22px; }
   /* Input → output: stack the two halves vertically, full-width */
-  .hiw-io { flex-direction: column; align-items: flex-start; gap: 12px; }
-  /* Stage rail becomes a vertical list of labelled nodes */
+    /* Stage rail becomes a vertical list of labelled nodes */
   .hiw-rail { grid-template-columns: 1fr; }
   .hiw-node { flex-direction: row; align-items: center; gap: 12px; padding: 7px 0; }
   .hiw-node > span:last-child { font-size: 14px; }
   .hiw-rail-line { left: 6px; right: auto; top: 14px; bottom: 14px; width: 2px; height: auto; }
   /* Data cells stack to one column */
-  .hiw-cells { grid-template-columns: 1fr; gap: 10px; }
-
+  
   /* Steps: number sits inline above the content, tighter rhythm */
   .hiw-steps { padding: 44px 18px 48px; }
   .hiw-step-row { grid-template-columns: 1fr; gap: 6px; padding: 22px 0; }
@@ -600,7 +397,6 @@ function StepRow({
   color,
   bg,
   icon,
-  pills,
 }: {
   n: string;
   title: string;
@@ -608,7 +404,6 @@ function StepRow({
   color: string;
   bg: string;
   icon: React.ReactNode;
-  pills?: Pill[];
 }) {
   return (
     <div className="hiw-step-row">
@@ -672,27 +467,6 @@ function StepRow({
           {desc}
         </p>
 
-        {pills && (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginTop: 16 }}>
-            {pills.map((p) => (
-              <span
-                key={p.label}
-                style={{
-                  fontFamily: "'JetBrains Mono', ui-monospace, monospace",
-                  fontSize: 11,
-                  fontWeight: 600,
-                  letterSpacing: "0.04em",
-                  color: p.fg,
-                  background: p.bg,
-                  padding: "4px 8px",
-                  borderRadius: 6,
-                }}
-              >
-                {p.label}
-              </span>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   );
@@ -752,50 +526,12 @@ function UploadIcon() {
   );
 }
 
-function SupplierIcon() {
-  return (
-    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 21h18" />
-      <path d="M5 21V8l7-4 7 4v13" />
-      <path d="M9 21v-6h6v6" />
-    </svg>
-  );
-}
-
-function MatchIcon() {
-  return (
-    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.5 1.4" />
-      <path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.5-1.4" />
-    </svg>
-  );
-}
-
-function RepeatIcon() {
-  return (
-    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M17 2l4 4-4 4" />
-      <path d="M3 11V9a3 3 0 0 1 3-3h15" />
-      <path d="M7 22l-4-4 4-4" />
-      <path d="M21 13v2a3 3 0 0 1-3 3H3" />
-    </svg>
-  );
-}
-
 function LayersIcon() {
   return (
     <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <polygon points="12 2 2 7 12 12 22 7 12 2" />
       <polyline points="2 17 12 22 22 17" />
       <polyline points="2 12 12 17 22 12" />
-    </svg>
-  );
-}
-
-function SparkIcon() {
-  return (
-    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
     </svg>
   );
 }

@@ -7,7 +7,6 @@ import {
   SECTION_BLURB,
   getGuideByPath,
   getGuideBySlug,
-  guidesInSection,
   publicGuides,
 } from "./guides";
 import { HELP_ARTICLES } from "./help-articles";
@@ -87,11 +86,11 @@ describe("guide registry", () => {
   });
 
   it("resolves a pathname to a guide, with or without a trailing slash", () => {
-    expect(getGuideByPath("/help/guides/receive-orders-by-email")?.slug).toBe(
-      "receive-orders-by-email",
+    expect(getGuideByPath("/help/guides/receive-documents-by-email")?.slug).toBe(
+      "receive-documents-by-email",
     );
-    expect(getGuideByPath("/help/guides/receive-orders-by-email/")?.slug).toBe(
-      "receive-orders-by-email",
+    expect(getGuideByPath("/help/guides/receive-documents-by-email/")?.slug).toBe(
+      "receive-documents-by-email",
     );
     expect(getGuideByPath("/admin/guides/onboard-a-new-client")?.audience).toBe("admin");
     expect(getGuideByPath("/help/first-upload")).toBeUndefined();
@@ -104,17 +103,6 @@ describe("guide registry", () => {
     expect(getGuideBySlug("nope")).toBeUndefined();
   });
 
-  it("sorts live guides ahead of planned ones within a section", () => {
-    // "Get started" is the section that still holds one of each, so it is the
-    // one that can prove the ordering. A section where everything is written
-    // would pass this vacuously.
-    const started = guidesInSection("Get started");
-    expect(started[0].status).toBe("live");
-    const statuses = started.map((g) => g.status);
-    expect(statuses).toContain("planned");
-    expect(statuses.indexOf("planned")).toBeGreaterThan(statuses.lastIndexOf("live"));
-  });
-
   it("excludes admin guides from the public set", () => {
     expect(publicGuides().every((g) => g.audience === "client")).toBe(true);
     expect(publicGuides().map((g) => g.slug)).not.toContain("onboard-a-new-client");
@@ -124,11 +112,11 @@ describe("guide registry", () => {
 describe("guide metadata", () => {
   it("canonicalises to the registry href", () => {
     const meta = guideMetadata({
-      slug: "receive-orders-by-email",
+      slug: "receive-documents-by-email",
       title: "t",
       description: "d",
     });
-    expect(meta.alternates?.canonical).toBe("/help/guides/receive-orders-by-email");
+    expect(meta.alternates?.canonical).toBe("/help/guides/receive-documents-by-email");
     expect(meta.robots).toBeUndefined();
   });
 
@@ -137,13 +125,10 @@ describe("guide metadata", () => {
     expect(meta.robots).toEqual({ index: false, follow: false });
   });
 
-  it("refuses an unknown or planned slug", () => {
+  it("refuses an unknown slug", () => {
     expect(() => guideMetadata({ slug: "nope", title: "t", description: "d" })).toThrow(
       /No guide registered/,
     );
-    expect(() =>
-      guideMetadata({ slug: "set-up-your-workspace", title: "t", description: "d" }),
-    ).toThrow(/planned/);
   });
 });
 
@@ -159,6 +144,8 @@ describe("sitemap", () => {
 
   it("never lists an admin guide or a planned one", () => {
     expect(urls.some((u) => u.includes("/admin"))).toBe(false);
-    expect(urls).not.toContain("https://proculink.eu/help/guides/set-up-your-workspace");
+    for (const guide of GUIDES.filter((g) => g.status !== "live")) {
+      expect(urls).not.toContain(`https://proculink.eu${guide.href}`);
+    }
   });
 });

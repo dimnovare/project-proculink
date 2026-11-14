@@ -1,37 +1,62 @@
 import { helpArticleMetadata } from "@/lib/seo";
+import { DOCUMENT_PLANS, LEGACY_PAID_PLANS, PLAN_BY_ID } from "@/lib/plans";
 
 export const metadata = helpArticleMetadata({
   slug: "billing-faq",
-  title: "Billing and plans FAQ — ProcuLink Help",
-  description: "Pilot, Growth, Operations, Integration, Distributor, Enterprise — what's included and what happens at quota.",
+  title: "Plans and billing — ProcuLink Help",
+  description: "What each plan includes, what counts as a document, and what happens at the limit.",
 });
 
-# Billing and plans FAQ
+export const trial = PLAN_BY_ID.pilot;
+export const flows = (n) => (n === null ? "unlimited flows" : `${n} flows`);
 
-## Plan ladder
+# Plans and billing
 
-ProcuLink offers six plans sized to your supplier flow volume:
+What each plan includes, what counts as a document, and what happens at the limit.
 
-- `Pilot` — free for 14 days; 20 orders total during trial; 1 supplier.
-- `Growth` — €149/month; 150 orders/month; 5 suppliers.
-- `Operations` — €399/month; 500 orders/month; 10 suppliers.
-- `Integration` — €999/month; 1,500 orders/month; 20 suppliers.
-- `Distributor` — €1,499/month; 2,500 orders/month; 30 suppliers.
-- `Enterprise` — custom pricing from €2,500/month; contact sales for custom volume, ERP connectors, and SLA.
+## What counts as a document
 
-## What happens at quota
+A document is one file of up to 10 pages. A longer file counts once for every 10 pages.
 
-On a paid plan you are never blocked. If you go over your plan's monthly order allowance, extra orders still parse, validate, transform, and deliver normally — they are billed at €0.50 per order over the limit on your next invoice, and the dashboard shows a heads-up as you approach and pass the limit. Your allowance resets automatically on your billing anniversary. (Pilot is the exception: when the 14-day free trial ends, the account becomes read-only.)
+## The plans
 
-## When Pilot ends
+<ul>
+  <li><strong>{trial.name}</strong> is free for {trial.priceCadence}. You can process {trial.orderLimit} documents in total, in {flows(trial.flowLimit)}.</li>
+  {DOCUMENT_PLANS.map((p) => (
+    <li key={p.id}><strong>{p.name}</strong> costs {p.priceLabel} a month, or €{p.priceYearly} a year if you pay annually. It covers {p.orderLimit.toLocaleString("en-IE")} documents a month, in {flows(p.flowLimit)}. Each extra document costs €{p.overageEur.toFixed(2)}.</li>
+  ))}
+  <li><strong>{PLAN_BY_ID.enterprise.name}</strong> has a volume and a price agreed with you. <a href="/book-demo">Talk to us</a>.</li>
+</ul>
 
-After 14 days or 20 orders (whichever comes first), the `Pilot` workspace becomes read-only. You can still view previous orders, mappings, outputs, and billing history, but you cannot upload new files, transform documents, deliver to suppliers, or add suppliers until you upgrade to `Growth` or higher. Upgrading restores full access immediately — no data is lost.
+Every paid plan has every way to send documents in, every output and every check, and any number of users. Plans differ only by how many documents you process and how many flows you set up.
+
+## What happens at the limit
+
+On a paid plan you are never blocked for volume. Extra documents are still read and sent as normal. They are billed at your plan's price for an extra document, on your next invoice. Up to the volume of the largest plan, you are never charged more than the cheapest plan that would cover that month. **Settings** warns you as you near the limit and when you pass it. Your allowance starts again with each billing month.
+
+Flows are different. When you reach your plan's flow limit, you cannot add another flow until you change plan.
+
+## When the trial ends
+
+The trial ends after {trial.priceCadence} or {trial.orderLimit} documents, whichever comes first. Your workspace then becomes read-only. You can still open and export everything, but new documents aren't accepted until you choose a plan.
+
+To continue, open **Settings**, go to **Plan & billing** and choose a plan. Nothing you set up is lost.
+
+## Changing plan
+
+Only a workspace admin can change plan. In **Plan & billing**, choose **Change plan** to open Stripe, or use the upgrade button on the page. Choose **Monthly** or **Annual** first. On a paid plan, an upgrade asks you to confirm, charges the card on file today, and credits the unused part of your current plan.
+
+If you are on {LEGACY_PAID_PLANS.map((p) => p.name).join(", ")}, nothing changes until you change plan. You keep your current price and limits. When you change plan, you choose from the plans above.
+
+## If a payment fails
+
+If your card is declined, **Plan & billing** shows "Your last payment didn't go through." New documents are not accepted until the payment clears. Select **Manage in Stripe** to update your card.
 
 ## How to cancel
 
-Open `Settings → Billing → Manage subscription` to launch the Stripe Customer Portal. From there you can cancel your subscription, switch between `Growth`, `Operations`, `Integration`, and `Distributor`, update your card details, or download past invoices. `Enterprise` changes are handled directly through your account manager.
+Open **Settings**, go to **Plan & billing**, and select **Manage in Stripe**. In Stripe you can cancel, update your card or download invoices.
 
-**What cancelling does.** When the subscription ends, ProcuLink stops accepting new orders on every route — uploads, emailed orders, IMAP, SFTP and S3 pickups, and the REST API. Orders sent to you after that are not held and delivered later, so redirect your suppliers before you cancel. Everything already processed stays readable and exportable: past orders, suppliers and mappings remain until you ask us to delete them, and activity records such as delivery attempts are removed after 180 days ([Privacy Policy](/privacy)). Resubscribing turns processing back on immediately, with your setup untouched.
+**What cancelling does.** When the subscription ends, ProcuLink stops accepting new documents on every route: uploads, emailed documents and the file API stop, and mailbox, SFTP, FTP, FTPS and S3 pickups pause and leave your files where they are. Uploads, emails and API calls sent after that are not held for later, so tell your senders before you cancel. Everything already processed remains readable and exportable. Activity records such as delivery attempts are removed after 180 days ([Privacy Policy](/privacy)). Subscribing again turns processing back on at once, with your setup untouched.
 
 ---
 

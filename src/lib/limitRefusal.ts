@@ -165,8 +165,8 @@ export function limitRefusalCopy(refusal: LimitRefusal): LimitRefusalCopy {
     const next = nextPlanUp(plan ?? "pilot");
     return {
       code,
-      title: "Your Pilot has ended.",
-      message: "You can still view previous orders, but new processing is paused.",
+      title: `Your ${PLAN_BY_ID.pilot.name.toLowerCase()} has ended.`,
+      message: "You can still view previous documents, but new processing is paused.",
       cta: next ? `Upgrade to ${next.name}` : "See plans",
       href: next ? undefined : "/pricing",
     };

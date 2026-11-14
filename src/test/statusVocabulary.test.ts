@@ -1,6 +1,7 @@
 import { describe, test, expect } from "vitest";
 import { readdirSync, readFileSync, statSync } from "fs";
 import { join, relative } from "path";
+import { DOCUMENT_STATUSES } from "@/lib/documentStatusManifest";
 import { ROOT } from "./appRoutes";
 import { stripComments, syntaxFor } from "./sourceScan";
 
@@ -80,7 +81,8 @@ const RETIRED_LABELS: Array<{ phrase: string; re: RegExp; wasAt: string; nowUse:
 ];
 
 const HELP = "src/app/(marketing)/help";
-const ARTICLE_EXCEPTIONS = `${HELP}/exceptions-and-stuck-orders/page.mdx`;
+const ARTICLE_TROUBLESHOOTING = `${HELP}/troubleshooting/page.mdx`;
+const ARTICLE_DOCUMENT_STATUSES = `${HELP}/documents-and-statuses/page.mdx`;
 
 const readRaw = (rel: string) => readFileSync(join(ROOT, rel), "utf8");
 
@@ -122,55 +124,15 @@ function copyBearingFiles(): string[] {
   walk(join(ROOT, "src"));
   // This gate lists the retired words in order to ban them, and the shared
   // scanners it borrows are not copy either.
-  return out.filter((f) => !f.startsWith("src/test/") && !OWNED_BY_HELP_COPY_PACKET.includes(f));
+  return out.filter((f) => !f.startsWith("src/test/"));
 }
-
-/**
- * The two articles FE #75 (`claude/help-status-copy`) rewrites, deferred to it
- * rather than fixed twice.
- *
- * Both still carry a retired word on `main` — that is exactly what #75 is for —
- * and a second, competing rewrite of the same file is worth less than the
- * conflict it costs. So the scan skips them and this packet keeps the surfaces
- * #75 does not touch.
- *
- * DELIBERATELY NOT A SILENT SKIP. An exemption that outlives its reason is a
- * hole, and this one has an expiry nothing would otherwise notice. The test
- * below asserts each entry is STILL DIRTY, so the moment #75 lands and cleans a
- * file, that entry fails and has to be deleted — which puts the file back under
- * the scan in the same commit.
- */
-const OWNED_BY_HELP_COPY_PACKET = [
-  // dashboard-and-statuses/page.mdx was here and is now scanned normally: this IS
-  // the help-copy packet, so on this branch the file is already rewritten. The
-  // guard below caught its own exemption outliving its reason, exactly as its
-  // comment promised — which is why it is removed rather than silenced.
-  "src/app/(marketing)/help/inbox-basics/page.mdx",
-];
 
 describe("the retired vocabulary is gone from every surface that renders words", () => {
   const files = copyBearingFiles();
 
-  test.each(OWNED_BY_HELP_COPY_PACKET)(
-    "%s is still dirty, so deferring it to FE #75 is still the right call",
-    (rel) => {
-      // Fails the day #75 lands and cleans the file. That failure is the point:
-      // delete the entry, and the file rejoins the scan in the same commit.
-      const copy = stripComments(read(rel), syntaxFor(rel));
-      const still = RETIRED_LABELS.filter(({ re }) => {
-        re.lastIndex = 0;
-        return re.test(copy);
-      }).map((r) => r.phrase);
-      expect(
-        still,
-        `${rel} is clean — FE #75 has landed. Remove it from OWNED_BY_HELP_COPY_PACKET.`,
-      ).not.toEqual([]);
-    },
-  );
-
   test("the scan reaches the files it claims to (guards against an empty walk)", () => {
     expect(files.length).toBeGreaterThan(300);
-    expect(files).toContain(ARTICLE_EXCEPTIONS);
+    expect(files).toContain(ARTICLE_TROUBLESHOOTING);
     expect(files).toContain("src/lib/help-articles.ts");
   });
 
@@ -187,5 +149,47 @@ describe("the retired vocabulary is gone from every surface that renders words",
       });
     }
     expect(hits, `"${phrase}" is retired — use "${nowUse}":\n${hits.join("\n")}`).toEqual([]);
+  });
+});
+
+describe("the statuses article teaches the labels the document screens render", () => {
+  // The article defines each status as a bold term at the start of a list item. A bold word elsewhere
+  // (a button name, say) is not a definition, so only that shape is read.
+  const taught = [...read(ARTICLE_DOCUMENT_STATUSES).matchAll(/^- \*\*(.+?)\*\*/gm)].map((m) => m[1]);
+  const shipped = Object.values(DOCUMENT_STATUSES).map((s) => s.label);
+
+  test("the walk really reads the article", () => {
+    expect(taught.length).toBeGreaterThanOrEqual(shipped.length);
+  });
+
+  test.each(taught)("%s is a status the product renders", (label) => {
+    expect(shipped, `"${label}" is not in DOCUMENT_STATUSES`).toContain(label);
+  });
+
+  test.each(shipped)("%s is taught by the article", (label) => {
+    expect(taught, `the article never defines "${label}"`).toContain(label);
+  });
+});
+
+describe("the troubleshooting article covers the statuses that stop a document, by their shipped labels", () => {
+  const article = read(ARTICLE_TROUBLESHOOTING);
+  const headings = [...article.matchAll(/^## (.+)$/gm)].map((m) => m[1]);
+  const bold = [...article.matchAll(/\*\*([^*\n]+)\*\*/g)].map((m) => m[1]);
+  const shipped = Object.values(DOCUMENT_STATUSES).map((s) => s.label);
+  const failing = Object.values(DOCUMENT_STATUSES).filter((s) => s.tone === "error").map((s) => s.label);
+
+  test("the walk really reads the article and the manifest", () => {
+    expect(headings.length).toBeGreaterThanOrEqual(5);
+    expect(failing.length).toBeGreaterThanOrEqual(2);
+  });
+
+  test.each(failing)("%s has its own section", (label) => {
+    expect(headings, `the article has no "## ${label}" section`).toContain(label);
+  });
+
+  test("a status named in bold is spelled the way the product spells it", () => {
+    const named = bold.filter((b) => shipped.some((label) => label.toLowerCase() === b.toLowerCase()));
+    expect(named.length, "the article names statuses in bold").toBeGreaterThanOrEqual(3);
+    for (const b of named) expect(shipped, `"${b}" is not a shipped status label`).toContain(b);
   });
 });

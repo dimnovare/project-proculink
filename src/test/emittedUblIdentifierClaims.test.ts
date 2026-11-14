@@ -46,9 +46,6 @@ import { STANDARDS } from "@/lib/standards/catalog";
 describe("help copy may not claim the UBL emitter writes a profile identifier", () => {
   const PEPPOL_ORDER_ROW = STANDARDS.find((s) => s.id === "peppol-bis-order-3");
 
-  /** The identifiers the emitter does not write. */
-  const IDENTIFIER = /cbc:(CustomizationID|ProfileID)/i;
-
   /**
    * An emission verb followed by one of the identifiers, with NO negation in between.
    *
@@ -116,11 +113,10 @@ describe("help copy may not claim the UBL emitter writes a profile identifier", 
   });
 
   it("finds no such claim in any shipped help page", () => {
-    // Anti-vacuity floor, both halves: the corpus must really be read, and it must really contain
-    // the article whose sentence this guard exists for.
+    // Anti-vacuity floor: the corpus must really be read. The second half (the corpus must contain
+    // the article that discusses these identifiers) went with `ubl-and-peppol` at the relaunch;
+    // restore it when the new help names them.
     expect(HELP_PAGES.length, "the corpus must really be reading help pages").toBeGreaterThan(5);
-    const corpus = HELP_PAGES.map((f) => readFileSync(f, "utf8")).join("\n");
-    expect(IDENTIFIER.test(corpus), "the article discussing these identifiers must be in the corpus").toBe(true);
 
     const offenders: string[] = [];
     for (const file of HELP_PAGES) {

@@ -94,6 +94,7 @@ describe("buildContentSecurityPolicy", () => {
     expect(d["script-src"]).toContain("https://clerk.proculink.eu");
     expect(d["script-src"]).toContain("https://challenges.cloudflare.com");
     expect(d["script-src"]).toContain("https://eu-assets.i.posthog.com");
+    expect(d["script-src"]).toContain("https://apis.google.com");
 
     expect(d["connect-src"]).toContain("https://api.proculink.eu");
     expect(d["connect-src"]).toContain("https://clerk.proculink.eu");
@@ -107,6 +108,7 @@ describe("buildContentSecurityPolicy", () => {
     expect(d["img-src"]).toContain("https://img.clerk.com");
     expect(d["media-src"]).toContain("https://assets.proculink.eu");
     expect(d["frame-src"]).toContain("https://challenges.cloudflare.com");
+    expect(d["frame-src"]).toContain("https://docs.google.com");
   });
 
   it("locks down the directives that cannot break a working page", () => {

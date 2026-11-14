@@ -1,0 +1,44 @@
+import { helpArticleMetadata } from "@/lib/seo";
+
+export const metadata = helpArticleMetadata({
+  slug: "documents-and-statuses",
+  title: "Documents and their statuses — ProcuLink Help",
+  description: "What each status on a document means, and what you can do from it.",
+});
+
+# Documents and their statuses
+
+What each status on a document means, and what you can do from it.
+
+## Where to find your documents
+
+Open **Documents** to see everything that has arrived. Each row shows its progress through In, Read, Check, Transform and Send, and its status. The filters at the top are **All**, **Needs you**, **In progress**, **Sent** and **Couldn't send or read**. A flow's own page lists only that flow's documents.
+
+Select a file name to open the document. It shows the original, what we read, the outputs and what has been sent.
+
+## The statuses
+
+- **Received** — the file is in and we are about to read it. You do not need to do anything.
+- **Reading** — we are reading the values and tables. This usually takes a short while, and the screen updates by itself.
+- **Couldn't read** — we could not read the file. The document says why and, when trying again can help, offers **Try again**.
+- **Needs review** — we read it, and a check flagged something. Look at the flagged values, correct them if needed, then send.
+- **Ready to send** — we read it and no check flagged anything. It waits for you to send it, unless the flow sends automatically.
+- **Sending** — the outputs are being made and delivered. A failed delivery is tried again on its own before we give up.
+- **Sent** — every output was delivered, or is ready to download.
+- **Couldn't send** — at least one output could not be delivered. Fix the cause, then press **Send** again. Outputs that were already delivered are not sent twice.
+
+## Why a document can wait
+
+Some documents stop in **Needs review** for a reason that is not a failed check:
+
+- You already uploaded the same file to this flow. We do not read it. If you want it anyway, press **Read it anyway**.
+- No output is set to send this document. Check the **Send when** condition on the flow's outputs.
+- An output could not be made from this document. The message names the output.
+
+## When you can change a document
+
+You can edit values and send while a document is **Needs review**, **Ready to send** or **Couldn't send**. After it is **Sent**, its values are locked. A duplicate file is locked until you read it.
+
+## Emails about documents
+
+ProcuLink can email you when documents need review, or when one cannot be read or sent. See [Activity and notifications](/help/activity-and-notifications).

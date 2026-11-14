@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { render, cleanup } from "@testing-library/react";
+import { render, cleanup, within } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import PricingPage from "./page";
@@ -11,7 +11,7 @@ import PricingPage from "./page";
 // ingress API, and browser uploads. Orders simply stop arriving. Today a customer
 // discovers that only when a supplier asks why their purchase order never came
 // through — the pricing page said nothing, and the FAQ's "Can I change plans later?"
-// answer ("up or down, any time") actively implies the opposite.
+// answer ("upgrade any time") actively implies the opposite.
 //
 // The other trust-commitment tests in this folder pin retracted promises so they
 // cannot come back. This one pins the reverse: a disclosure that must not quietly
@@ -53,18 +53,24 @@ describe("/pricing cancellation disclosure", () => {
     expect(disclosure).toMatch(/still|keep|remain/i);
   });
 
-  it("tells the buyer to redirect suppliers, since nothing is queued for later", () => {
+  it("tells the buyer to tell their senders, since nothing is queued for later", () => {
     const body = text(<PricingPage />);
     const disclosure = body.slice(body.search(/If you cancel/i));
 
-    expect(disclosure).toMatch(/redirect|point .* elsewhere|before you cancel/i);
+    expect(disclosure).toMatch(/tell your senders before you cancel/i);
   });
 
   it("never leaks the internal status name or unexplained jargon", () => {
     const body = text(<PricingPage />);
 
     expect(body).not.toMatch(/read_only/);
-    expect(body).not.toMatch(/read-only/i);
+    // "read-only" is approved copy in the trial-end FAQ (C27), so it is banned only inside the
+    // cancel disclosure itself: the cancel FAQ item and the open fine-print line.
+    const { container } = render(<PricingPage />);
+    const faqItem = within(container).getByRole("button", { name: "What happens if I cancel?" }).closest(".plk-faq-item")!;
+    const finePrint = Array.from(container.querySelectorAll(".plk-fine")).find((e) => /Cancel any time/.test(e.textContent ?? ""))!;
+    expect(finePrint, "the open fine-print disclosure").toBeTruthy();
+    for (const el of [faqItem, finePrint]) expect(el.textContent).not.toMatch(/read-only/i);
     expect(body).not.toMatch(/frozen/i);
   });
 });
@@ -74,7 +80,7 @@ describe("FAQ answers are not clipped by a hardcoded height", () => {
   //
   // The accordion used `maxHeight: open ? 240 : 0` with `overflow: hidden`. Measured in a
   // real browser at 390px, the cancellation answer needs 264px — so its last line
-  // ("redirect your suppliers before you cancel. Resubscribing…") was invisible: the one
+  // ("tell your senders before you cancel. Resubscribing…") was invisible: the one
   // sentence that answer exists to deliver. Every other answer fitted, which is exactly why
   // nobody noticed, and a pixel cap re-breaks silently on any copy, font, or width change.
   //

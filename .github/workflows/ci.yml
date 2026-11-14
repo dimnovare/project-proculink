@@ -408,6 +408,12 @@ jobs:
         if: always()
         run: bun run test src/lib/sourceDocument.test.ts
 
+      # Does the help's claim that checks never stop a send, except a repeated number on an
+      # automatic flow, still match what SendDocumentJob decides?
+      - name: Diff the checks claim in the help against the backend automatic send
+        if: always()
+        run: bun run test src/lib/helpContent.test.ts
+
       # WHY THE LIST ABOVE IS NOT WHERE TO STOP THINKING.
       #
       # Every step in this job runs a suite whose cross-repo assertions are `skipIf(!BACKEND)`.

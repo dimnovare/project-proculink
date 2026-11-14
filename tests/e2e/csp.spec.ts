@@ -142,7 +142,7 @@ test.describe("Security headers", () => {
 });
 
 test.describe("No CSP violations", () => {
-  const publicRoutes = ["/", "/pricing", "/how-it-works", "/watch", "/support", "/privacy"];
+  const publicRoutes = ["/", "/pricing", "/how-it-works", "/support", "/privacy"];
 
   for (const route of publicRoutes) {
     test(`marketing route ${route} renders with no policy violation`, async ({ page }) => {

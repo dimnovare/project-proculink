@@ -12,9 +12,9 @@ export const metadata = pageMetadata({
   path: "/help",
   title: "Help center — ProcuLink",
   description:
-    "Guides for ProcuLink: first upload, per-supplier field and item-code mapping, output formats, delivery setup, exceptions, billing, and the REST API.",
+    "Help for ProcuLink: how it works, the files it reads, flows, ways to send documents in, outputs and destinations, lookups, billing, and the API.",
   ogDescription:
-    "Guides for uploading, mapping, transforming, and delivering purchase orders with ProcuLink.",
+    "Help for reading, checking and sending documents with ProcuLink.",
 });
 
 export default function HelpLayout({ children }: { children: React.ReactNode }) {

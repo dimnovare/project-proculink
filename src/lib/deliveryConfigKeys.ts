@@ -46,4 +46,6 @@ export const MANAGED_CONFIG_KEYS: Record<DeliveryProtocol, readonly string[]> = 
   erp_erply: ["url", "clientCode", "timeoutSeconds"],
   erp_directo: ["url", "database", "timeoutSeconds"],
   s3: ["bucket", "prefix", "region", "serviceUrl", "accessKeyId"],
+  google_drive: ["accountId", "folderId", "folderName"],
+  google_sheets: ["accountId", "spreadsheetId", "spreadsheetName", "sheetName"],
 };

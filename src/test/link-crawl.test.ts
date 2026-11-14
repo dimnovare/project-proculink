@@ -148,7 +148,10 @@ describe("link crawl — nothing we ship points at a 404", () => {
     expect(files.length).toBeGreaterThan(30); // the crawl is actually reading the articles
 
     const entries = files.flatMap(linksIn);
-    expect(entries.length).toBeGreaterThan(50);
+    // The relaunch help set (18 articles, 14 guides) carries 118 links as measured when the last article was
+    // written; the order-era set carried over 50. Pinned at 100, so about one article in six can lose its links
+    // before the crawl is called vacuous.
+    expect(entries.length).toBeGreaterThan(100);
     await assertAllResolve(entries);
   });
 
@@ -174,10 +177,6 @@ describe("link crawl — nothing we ship points at a 404", () => {
       if (!(await resolves(guide.href))) dead.push(`${guide.slug} → ${guide.href}`);
     }
     expect(dead, `live guides with no page:\n  ${dead.join("\n  ")}`).toEqual([]);
-
-    // …and the planned ones are still recorded as planned, so this test cannot quietly become
-    // vacuous by everything flipping to "live" or the field disappearing.
-    expect(GUIDES.some((g) => g.status === "planned")).toBe(true);
   });
 
   it("in-app navigation links only to live pages", async () => {

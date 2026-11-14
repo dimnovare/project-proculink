@@ -1,0 +1,52 @@
+import { helpArticleMetadata } from "@/lib/seo";
+
+export const metadata = helpArticleMetadata({
+  slug: "outputs",
+  title: "Output formats — ProcuLink Help",
+  description: "The formats a flow can produce, and how each field gets its value.",
+});
+
+# Output formats
+
+The formats a flow can produce, and how each field gets its value.
+
+An output is the file your receiving system gets. A flow can have several outputs. Each one has a format, a list of values, and a place it goes: a destination, or **Download only**. Every plan has every format. Only a workspace admin can add or change outputs.
+
+## The formats
+
+- **CSV.** Rows and columns. You choose the separator: comma, semicolon or tab.
+- **Excel.** The same rows and columns in an .xlsx file.
+- **JSON** and **XML.** The values sit under names you choose.
+- **PDF.** A page people can read. You can add a title, text at the top, text at the bottom, and a logo (PNG or JPG, up to 256 KB).
+- **Text.** A plain text file, with the same title and text options as PDF.
+- **Fixed-width text.** Every value gets a set width in characters, from 1 to 1000. The default is at least 40.
+
+## Where each value comes from
+
+Each row of an output has a name in the file and a source. The source is one of three things:
+
+- **A field of the document**, such as the document number or a date.
+- **A fixed value** that you type, the same on every document.
+- **A field swapped through a lookup.** The value on the document is replaced by the one your system uses. See [Lookups](/help/lookups).
+
+If the flow has a table, you can pick it, and its columns become the columns or rows of the file.
+
+## Send only some documents
+
+An output can be set to **Always** send, or **Only when** a field matches a condition. Use this to send one output per recipient. If a document matches no output, nothing is sent and the document waits for you.
+
+## Preview before you rely on it
+
+On the flow's **Outputs** tab, **Preview** shows the file as it would be made from the latest document. It shows the last saved version of the output, so save your changes first.
+
+## When changes take effect
+
+Before the first publish, changes to outputs apply straight away. After that, a document is sent with the published version of the flow, so a change to an output applies to new sends once you publish. See [Publish and restore flow versions](/help/guides/publish-a-flow-version).
+
+## Ways to make an output
+
+- [Build one yourself](/help/guides/build-an-output), row by row.
+- [Start from a sample file](/help/guides/build-an-output-from-a-sample) of what your system expects.
+- [Start from your system's documentation](/help/guides/build-an-output-from-documentation), and we propose the output for you to check.
+
+Then choose where it goes. See [Destinations](/help/destinations).

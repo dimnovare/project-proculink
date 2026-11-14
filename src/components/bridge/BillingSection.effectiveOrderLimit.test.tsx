@@ -50,6 +50,7 @@ import { BillingSection } from "./BillingSection";
 
 /** The ladder's own Pilot allowance — the number the banner used to quote unconditionally. */
 const PLAN_DEFAULT_ORDER_LIMIT = PLAN_BY_ID.pilot.orderLimit;
+const TRIAL = PLAN_BY_ID.pilot.name.toLowerCase();
 
 /**
  * A Pilot workspace that has hit its order cap without its 14 days having elapsed.
@@ -113,11 +114,11 @@ describe("the Pilot order-cap banner quotes the effective allowance", () => {
   it("states the granted cap, not the ladder's plan default", async () => {
     await renderBilling(billing());
 
-    expect(pageText()).toContain("You've used all 100 Pilot documents.");
+    expect(pageText()).toContain(`You've used all 100 ${TRIAL} documents.`);
     expect(
       pageText(),
       "the plan-default allowance must be gone, not merely joined by the effective one",
-    ).not.toContain(`You've used all ${PLAN_DEFAULT_ORDER_LIMIT} Pilot documents.`);
+    ).not.toContain(`You've used all ${PLAN_DEFAULT_ORDER_LIMIT} ${TRIAL} documents.`);
   });
 
   it("still reads correctly for a workspace with no override", async () => {
@@ -125,7 +126,7 @@ describe("the Pilot order-cap banner quotes the effective allowance", () => {
     // this half proves the fix did not simply move the sentence somewhere else.
     await renderBilling(billing({ ordersThisMonth: 20, orderLimit: 20 }));
 
-    expect(pageText()).toContain(`You've used all ${PLAN_DEFAULT_ORDER_LIMIT} Pilot documents.`);
+    expect(pageText()).toContain(`You've used all ${PLAN_DEFAULT_ORDER_LIMIT} ${TRIAL} documents.`);
   });
 
   it("names the upgrade tier the ladder points at, in the same sentence", async () => {

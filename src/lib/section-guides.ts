@@ -1,3 +1,5 @@
+import { PLAN_BY_ID } from "@/lib/plans";
+
 // section-guides — "what is this screen" registry + pure helpers.
 //
 // One entry per in-app sidebar screen. HelpSlideover (opened from the topbar
@@ -49,7 +51,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       { text: "Only the latest 50 events load — exports cover those" },
     ],
     firstStep: { text: "Once orders exist, filter by Failed and open the order to retry it from there." },
-    articleSlugs: ["dashboard-and-statuses", "delivery-setup"],
+    articleSlugs: ["documents-and-statuses", "destinations"],
   },
   // NOTE: /operations/connectors had a guide here until 2026-08-13, and the copy
   // went with the page because the page never delivered it: it promised "a
@@ -69,7 +71,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       { text: "Create API keys", href: "/settings?tab=api" },
     ],
     firstStep: { text: "Check your plan, usage, and upgrade options", href: "/settings?tab=billing" },
-    articleSlugs: ["billing-faq"],
+    articleSlugs: ["billing-faq", "api-reference"],
   },
 ];
 

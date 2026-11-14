@@ -26,7 +26,7 @@
 // invisible, and the mutation half would pass vacuously.
 
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from "vitest";
-import { render, cleanup, fireEvent } from "@testing-library/react";
+import { render, cleanup } from "@testing-library/react";
 import type { Plan, PlanId } from "@/lib/plans";
 
 const h = vi.hoisted(() => ({
@@ -51,6 +51,9 @@ vi.mock("@/lib/plans", async () => {
     PLAN_BY_ID: h.ladder,
     get PLANS() {
       return Object.values(h.ladder);
+    },
+    get DOCUMENT_PLANS() {
+      return actual.DOCUMENT_PLANS.map((p) => h.ladder[p.id]);
     },
     get OVERAGE_PER_ORDER_EUR() {
       return h.overage.value;
@@ -79,13 +82,11 @@ vi.mock("@/lib/reload", () => ({ reloadPage: () => {} }));
 // Re-worded deliberately for the item-code positioning (it was "No credit card. 20 orders
 // free for 14 days."): it now also names the supplier allowance, which is the Pilot limit a
 // new buyer meets first. The pair below still holds it byte-for-byte AND proves it moves.
-const SIGN_UP_SUB = "20 orders · 1 supplier · 14 days · no credit card";
-const ROI_FALLBACK =
-  "Start with the free 14-day Pilot — 20 documents, no card required — and upgrade once the savings are real.";
-const ROI_FINE_PRINT = "The Pilot tier is free for 14 days (20 documents) and does not require a card.";
-const PRICING_DESCRIPTION =
-  "Plans for document processing: a free 14-day pilot, self-serve paid tiers from €149/mo, " +
-  "and custom Enterprise. Going over never blocks — predictable €0.50 per-document overage above your plan.";
+const SIGN_UP_SUB = "Free for 14 days · 20 documents · 2 flows · no credit card";
+// C32: derived from the pristine ladder, not typed — the shape is the contract, the numbers are plans.ts's.
+const pricingDescriptionFor = (starter: Plan) =>
+  `Document processing from €${starter.priceMonthly} a month for ${starter.orderLimit!.toLocaleString("en-US")} documents. ` +
+  "Every channel, output and check on every plan. Free for 14 days.";
 
 let PRISTINE_LADDER: Record<string, Plan> = {};
 let PRISTINE_OVERAGE = 0;
@@ -127,25 +128,6 @@ async function signUpCopy(): Promise<string> {
   return copy;
 }
 
-/**
- * The ROI calculator with its last slider — "% of that work you expect ProcuLink to
- * remove" — dragged to 0. That zeroes the modelled saving, so the recommended plan
- * costs more than it saves and the panel switches from the plan's blurb to the Pilot
- * fallback sentence. It is the only way to reach that sentence, and reaching it is
- * the whole reason this helper drives a control instead of rendering and reading.
- */
-async function roiCopyWithNoSavings(): Promise<string> {
-  vi.resetModules();
-  const { ROICalculator } = await import("@/components/marketing/ROICalculator");
-  const { container } = render(<ROICalculator />);
-  const sliders = container.querySelectorAll<HTMLInputElement>('input[type="range"]');
-  expect(sliders.length, "the ROI calculator no longer renders the slider set this test drives").toBe(7);
-  fireEvent.change(sliders[sliders.length - 1], { target: { value: "0" } });
-  const copy = copyOf(container);
-  assertRendered(copy, "the ROI calculator");
-  return copy;
-}
-
 async function pricingDescription(): Promise<string> {
   vi.resetModules();
   const mod = await import("@/app/(marketing)/pricing/layout");
@@ -154,65 +136,33 @@ async function pricingDescription(): Promise<string> {
   return description as string;
 }
 
-describe("/sign-up sells the Pilot allowance the ladder declares", () => {
+describe("/sign-up sells the Trial allowance the ladder declares", () => {
   it("ships today's sentence, unchanged", async () => {
     expect(await signUpCopy()).toContain(SIGN_UP_SUB);
   });
 
   it("moves when the Pilot allowance moves", async () => {
-    h.ladder.pilot = { ...h.ladder.pilot, orderLimit: 500, supplierLimit: 3, priceCadence: "30 days" };
+    h.ladder.pilot = { ...h.ladder.pilot, orderLimit: 500, flowLimit: 3, priceCadence: "30 days" };
 
     const copy = await signUpCopy();
-    expect(copy).toContain("500 orders · 3 suppliers · 30 days · no credit card");
+    expect(copy).toContain("Free for 30 days · 500 documents · 3 flows · no credit card");
     expect(copy, "the typed sentence must be gone, not merely joined").not.toContain(SIGN_UP_SUB);
   });
 });
 
-describe("the ROI calculator's Pilot copy comes off the ladder", () => {
-  it("ships today's two sentences, unchanged", async () => {
-    const copy = await roiCopyWithNoSavings();
-    expect(copy).toContain(ROI_FALLBACK);
-    expect(copy).toContain(ROI_FINE_PRINT);
-  });
-
-  it("moves when the Pilot tier is renamed or re-sized", async () => {
-    h.ladder.pilot = { ...h.ladder.pilot, name: "Trial", orderLimit: 500, priceCadence: "30 days" };
-
-    const copy = await roiCopyWithNoSavings();
-    expect(copy).toContain("Start with the free 14-day Trial — 500 documents, no card required —");
-    expect(copy).toContain("The Trial tier is free for 30 days (500 documents) and does not require a card.");
-    expect(copy, "the typed sentence must be gone, not merely joined").not.toContain(ROI_FINE_PRINT);
-  });
-});
-
 describe("/pricing metadata quotes the ladder, not a remembered price", () => {
-  it("ships today's description, unchanged", async () => {
-    expect(await pricingDescription()).toBe(PRICING_DESCRIPTION);
+  it("ships the Starter price and allowance", async () => {
+    expect(await pricingDescription()).toBe(pricingDescriptionFor(PRISTINE_LADDER.starter));
   });
 
-  it("moves when the cheapest self-serve tier is repriced", async () => {
-    h.ladder.growth = { ...h.ladder.growth, priceMonthly: 179 };
+  it("moves when the Starter plan is repriced or re-sized", async () => {
+    h.ladder.starter = { ...h.ladder.starter, priceMonthly: 41, orderLimit: 175 };
 
     const description = await pricingDescription();
-    expect(description).toContain("self-serve paid tiers from €179/mo");
-    expect(description, "the typed price must be gone, not merely joined").not.toContain("from €149/mo");
-  });
-
-  it("follows the ladder rather than naming Growth, when a cheaper paid tier exists", async () => {
-    // Not hypothetical bookkeeping: "from €X" is a claim about the BOTTOM of the paid
-    // ladder, so it has to answer to whichever tier is cheapest, not to whichever tier
-    // was cheapest the day the sentence was written.
-    h.ladder.operations = { ...h.ladder.operations, priceMonthly: 99 };
-
-    expect(await pricingDescription()).toContain("self-serve paid tiers from €99/mo");
-  });
-
-  it("moves when the overage rate moves", async () => {
-    h.overage.value = 0.75;
-
-    const description = await pricingDescription();
-    expect(description).toContain("predictable €0.75 per-document overage");
-    expect(description, "the typed rate must be gone, not merely joined").not.toContain("€0.50 per-document");
+    expect(description).toBe(pricingDescriptionFor(h.ladder.starter));
+    expect(description, "the old price must be gone, not merely joined").not.toContain(
+      `€${PRISTINE_LADDER.starter.priceMonthly} a month`,
+    );
   });
 });
 
@@ -221,7 +171,7 @@ describe("/pricing metadata quotes the ladder, not a remembered price", () => {
 // write a key nothing reads and both halves of each pair would still pass.
 describe("the ladder this file re-points is the real one", () => {
   it("still has the plan ids the mutations target", () => {
-    for (const id of ["pilot", "growth", "operations"] satisfies PlanId[]) {
+    for (const id of ["pilot", "starter"] satisfies PlanId[]) {
       expect(Object.keys(PRISTINE_LADDER), `plans.ts no longer declares "${id}"`).toContain(id);
     }
   });
