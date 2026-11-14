@@ -22,11 +22,12 @@ export function locationText(l: SourceLocation | null): string | null {
   return `Cell ${spreadsheetColumnName(a.col - 1)}${a.row}`;
 }
 
-function Meta({ read }: { read: { confidence: number; location: SourceLocation | null; notOnPage: boolean } }) {
+function Meta({ read }: { read: { value: string | null; edited: boolean; confidence: number; location: SourceLocation | null; notOnPage: boolean } }) {
   const where = locationText(read.location);
+  const empty = !read.value?.trim();
   return (
     <span className="flex flex-wrap items-center gap-2 text-[11.5px] text-ink-muted">
-      {read.notOnPage ? "Not found on the page" : <ConfidenceChip value={read.confidence} sm />}
+      {read.notOnPage ? "Not found on the page" : empty ? null : read.edited ? "Edited" : <ConfidenceChip value={read.confidence} sm />}
       {where && <span>{where}</span>}
     </span>
   );

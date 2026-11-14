@@ -131,4 +131,25 @@ describe("DocumentScreen", () => {
     await waitFor(() => expect(api.saveFlowFields).toHaveBeenCalledWith("f", expect.objectContaining({ fields: [expect.objectContaining({ key: "po" }), expect.objectContaining({ key: "total" })] })));
     await waitFor(() => expect(screen.queryByText("New fields we noticed")).toBeNull());
   });
+
+  it("draws no confidence on an empty value and says Edited on one a person changed", async () => {
+    const base = detail("INV-7");
+    api.getDocument.mockResolvedValue({
+      ...base,
+      read: {
+        ...base.read,
+        fields: [
+          { ...field("INV-7"), edited: true, confidence: 1 },
+          { ...field(""), key: "iban", label: "IBAN", confidence: 1 },
+          { ...field("12.50"), key: "total", label: "Total", confidence: 0.92 },
+        ],
+      },
+    });
+    renderScreen();
+    await screen.findByLabelText("IBAN");
+    expect(screen.queryAllByText(/100%/)).toHaveLength(0); // neither the empty value nor the changed one shows a figure
+    // getAllBy: vitest has no Tailwind, so the phone and desktop trees both render
+    expect(screen.getAllByText("Edited").length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/92%/).length).toBeGreaterThan(0); // a value we read keeps its confidence
+  });
 });
