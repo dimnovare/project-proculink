@@ -210,7 +210,7 @@ export function BridgeSidebar({
         rel={item.newTab ? "noopener noreferrer" : undefined}
         title={title}
         aria-current={active ? "page" : undefined}
-        className={`flex items-center text-[13.5px] ${active ? "font-[600]" : "font-medium"} transition-colors duration-[130ms] relative ${isCollapsed ? "justify-center py-[9px] mx-[10px]" : `gap-[11px] px-[11px] ${fullWidth ? "py-[11px]" : "py-[8px]"} mx-3`} my-px rounded-[9px]`}
+        className={`${fullWidth && PHONE_TAB_HREFS.includes(item.href) ? "hidden md:flex" : "flex"} items-center text-[13.5px] ${active ? "font-[600]" : "font-medium"} transition-colors duration-[130ms] relative ${isCollapsed ? "justify-center py-[9px] mx-[10px]" : `gap-[11px] px-[11px] ${fullWidth ? "py-[11px]" : "py-[8px]"} mx-3`} my-px rounded-[9px]`}
         style={{ color: active ? "#FFFFFF" : "#C8D1E0", background: active ? "rgba(30,102,201,0.20)" : "transparent" }}
         onMouseEnter={(e) => { if (!active) { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.055)"; (e.currentTarget as HTMLElement).style.color = "#FFFFFF"; } }}
         onMouseLeave={(e) => { if (!active) { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "#C8D1E0"; } }}
@@ -313,7 +313,7 @@ export function BridgeSidebar({
           <Link
             href={PINNED_ACTION_HREF}
             onClick={onNavigate}
-            className="flex w-full items-center justify-center gap-2 text-[13px] font-semibold text-white"
+            className={`${fullWidth ? "hidden md:flex" : "flex"} w-full items-center justify-center gap-2 text-[13px] font-semibold text-white`}
             style={{ height: 38, borderRadius: 9, background: "#1E66C9", boxShadow: "0 1px 2px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.14)", transition: "background 140ms" }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#0F4FA8"; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "#1E66C9"; }}

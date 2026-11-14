@@ -14,6 +14,7 @@ import { ClerkAvailabilityGate } from "@/components/bridge/ClerkAvailabilityGate
 import { shouldRetryApiFailure, apiRetryDelayMs } from "@/lib/apiFailure";
 import { WorkspaceNameNudge } from "@/components/onboarding/WorkspaceNameNudge";
 import { SkipToContent } from "@/components/a11y/SkipToContent";
+import { BottomTabBar } from "@/components/bridge/BottomTabBar";
 
 /**
  * Auto-activates the user's first Clerk organization when they have one but
@@ -107,7 +108,7 @@ export default function AppShellLayout({
   const openSidebar = useCallback(() => setSidebarOpen(true), []);
   const closeSidebar = useCallback(() => setSidebarOpen(false), []);
 
-  // Mobile nav drawer: Escape to close, body-scroll lock, focus move-in + trap,
+  // Navigation panel (phone): Escape to close, body-scroll lock, focus move-in + trap,
   // and focus restore to the trigger on close. This was one of six near-identical
   // hand-rolled copies; the behaviour now lives in useDialogA11y so a fix reaches
   // every dialog instead of one. The local `triggerRef` is gone — the hook reads
@@ -167,7 +168,7 @@ export default function AppShellLayout({
         <ClerkAvailabilityGate>
         {/* Bridge shell — full viewport, no scroll on the wrapper.
             Desktop nav now lives in the top navbar (BridgeTopbar row 1); the
-            left sidebar was removed on md+. The mobile drawer below still
+            left sidebar was removed on md+. The navigation panel below still
             reuses BridgeSidebar for the full navigation on < md. */}
         <div className="flex h-dvh overflow-hidden" style={{ background: "#F6F7FA" }}>
           {/* First focusable element — jumps keyboard users past the topbar nav
@@ -195,12 +196,13 @@ export default function AppShellLayout({
           {/* Right: topbar + scrollable main content */}
           <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
             <BridgeTopbar onMenuClick={openSidebar} />
-            <main id="main-content" tabIndex={-1} className="flex-1 overflow-auto outline-none">
+            <main id="main-content" tabIndex={-1} className="flex-1 overflow-auto outline-none mb-[var(--plk-tabbar-h)]">
               <WorkspaceNameNudge />
               <ErrorBoundary context="App">
                 {children}
               </ErrorBoundary>
             </main>
+            <BottomTabBar onMore={openSidebar} moreOpen={sidebarOpen} />
           </div>
         </div>
         </ClerkAvailabilityGate>

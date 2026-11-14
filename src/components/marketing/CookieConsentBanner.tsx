@@ -69,7 +69,7 @@ export function CookieConsentBanner() {
       className="plk-cookie-banner flex flex-wrap items-center justify-between gap-2.5 p-3.5 sm:gap-4 sm:p-[18px_20px]"
       style={{
         position: "fixed",
-        bottom: 16,
+        bottom: "calc(16px + var(--plk-tabbar-h, 0px))",
         left: 16,
         right: 16,
         zIndex: 60,

@@ -18,4 +18,17 @@ test.describe("app shell", () => {
     // The page scrolls inside its own frame, so measure the title itself: a name that does not wrap overflows it.
     expect(await h1.evaluate((el) => el.scrollWidth <= el.clientWidth), "the long name must wrap inside the title").toBe(true);
   });
+
+  test("a full-screen step on a phone has no tab bar and shows the way back", async ({ page }) => {
+    await preparePage(page, { dismissCookieBanner: true });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/documents");
+    await expect(page.getByTestId("tab-bar")).toBeVisible();
+    // <main> ends where the tab bar begins (1px tolerance).
+    const [m, t] = [(await page.locator("main").boundingBox())!, (await page.getByTestId("tab-bar").boundingBox())!];
+    expect(m.y + m.height).toBeLessThanOrEqual(t.y + 1);
+    await page.goto(DOCUMENT_URL);
+    await expect(page.getByRole("link", { name: "Back to Documents" })).toBeVisible();
+    await expect(page.getByTestId("tab-bar")).toHaveCount(0);
+  });
 });
