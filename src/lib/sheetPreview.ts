@@ -329,6 +329,7 @@ function readSheetRows(xml: string, shared: string[], styleKinds: CellKind[], ma
   const sheetData = doc.getElementsByTagName("sheetData")[0];
   const rowEls = sheetData ? childrenNamed(sheetData, "row") : [];
   for (const rowEl of rowEls) {
+    if (!rowEl.firstElementChild) continue;   // a row kept only for its formatting holds no cell
     // Excel omits untouched rows: pad so index i is Excel row i + 1, as the backend's `cell:rNcM` counts.
     const r = Number(rowEl.getAttribute("r")) || rows.length + 1;
     // One row past the cap is kept so finalizeTable can tell the sheet was cut.

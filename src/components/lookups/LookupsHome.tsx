@@ -49,7 +49,6 @@ export function LookupsHome({ lookupId }: { lookupId?: string }) {
         undo: async () => {
           await deleteLookup(id);
           void qc.invalidateQueries({ queryKey: ["lookups"] });
-          qc.removeQueries({ queryKey: ["lookup", id] });
           router.push("/lookups");
           return `Import undone. ${name} was deleted.`;
         },

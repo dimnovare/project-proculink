@@ -60,29 +60,50 @@ export async function readTableFile(file: File): Promise<{ cells: string[][]; cu
   return { cells: csvCells(new TextDecoder("utf-8").decode(bytes)), cut: false };
 }
 
-/** A file's rows for a lookup; throws a `TableFileRefusal` when it is unreadable, too long or has no rows. */
-export async function lookupFileEntries(file: File): Promise<LookupEntry[]> {
-  const table = await readTableFile(file).catch((e) => {
+const readOrRefuse = (file: File) =>
+  readTableFile(file).catch((e) => {
     throw e instanceof TableFileRefusal ? e : new TableFileRefusal("We can read CSV files and Excel .xlsx files.");
   });
+const ROWS = LOOKUP_LIMITS.rows.toLocaleString("en");
+/** The server's sentence (LookupRules), said before anything is sent. */
+const refuseLong = (values: string[]) => {
+  if (values.some((v) => v.length > LOOKUP_LIMITS.valueLength))
+    throw new TableFileRefusal(`Values can be at most ${LOOKUP_LIMITS.valueLength} characters.`);
+};
+
+/** A file's rows for a lookup; throws a `TableFileRefusal` when it is unreadable, too long, has no rows or a value over the limit. */
+export async function lookupFileEntries(file: File): Promise<LookupEntry[]> {
+  const table = await readOrRefuse(file);
   const entries = lookupEntries(table.cells);
   if (table.cut || entries.length > LOOKUP_LIMITS.rows)
-    throw new TableFileRefusal("It has more than 20,000 rows, and a lookup holds at most 20,000.");
+    throw new TableFileRefusal(`It has more than ${ROWS} rows, and a lookup holds at most ${ROWS}.`);
   if (!entries.length) throw new TableFileRefusal("It has no rows with a value in the first column.");
+  refuseLong(entries.flatMap((e) => [e.from, e.to]));
   return entries;
+}
+
+/** A file's list to choose from (row 1 is headings), read as a table; throws a `TableFileRefusal` when it is unreadable,
+ *  has no values (so the stored list is left alone) or has a value over the limit. */
+export async function lookupFileCandidates(file: File): Promise<LookupCandidate[]> {
+  const list = candidatesFrom((await readOrRefuse(file)).cells.slice(1));
+  if (!list.length) throw new TableFileRefusal("This file has no values. The list was not changed.");
+  refuseLong(list.map((c) => c.value));
+  return list;
 }
 
 /** The file name without its last extension, trimmed and cut to 120 characters; "Imported table" when empty. */
 export const tableName = (fileName: string) =>
   fileName.replace(/\.[^.]*$/, "").trim().slice(0, LOOKUP_LIMITS.nameLength) || "Imported table";
 
+export const importCandidateCsv = (text: string, firstRowIsHeadings: boolean) => candidatesFrom(readRows(text, firstRowIsHeadings));
+
 /** Column 1 is the value; the other non-empty cells, joined, describe it. A later row with the same value replaces the earlier one in place. */
-export function importCandidateCsv(text: string, firstRowIsHeadings: boolean): LookupCandidate[] {
+function candidatesFrom(cells: string[][]): LookupCandidate[] {
   const out: LookupCandidate[] = [];
   const at = new Map<string, number>();
-  for (const [first = "", ...rest] of readRows(text, firstRowIsHeadings)) {
+  for (const [first = "", ...rest] of cells) {
     if (!first.trim()) continue;
-    const description = rest.map((c) => unprefix(c.trim())).filter(Boolean).join(" · ").slice(0, 500) || null;
+    const description = rest.map((c) => unprefix(c.trim())).filter(Boolean).join(" · ").slice(0, LOOKUP_LIMITS.descriptionLength) || null;
     const candidate = { value: unprefix(first.trim()), description };
     const i = at.get(key(candidate.value));
     if (i === undefined) at.set(key(candidate.value), out.push(candidate) - 1);

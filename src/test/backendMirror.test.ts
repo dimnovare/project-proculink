@@ -1359,8 +1359,8 @@ describe("standard outputs mirror the backend", () => {
 test.skipIf(!BACKEND)("the lookup limits the screen enforces, and the summary's usedBy, are the server's", () => {
   const cs = readFileSync(join(BACKEND!, "ProcuLink.Core/Documents/LookupEntry.cs"), "utf8");
   const n = (name: string) => Number(new RegExp(`${name}\\s*=\\s*([\\d_]+)`).exec(cs)?.[1].replace(/_/g, ""));
-  expect([n("MaxEntries"), n("MaxValueLength"), n("MaxNameLength")]).toEqual(
-    [LOOKUP_LIMITS.rows, LOOKUP_LIMITS.valueLength, LOOKUP_LIMITS.nameLength]);
+  expect([n("MaxEntries"), n("MaxValueLength"), n("MaxNameLength"), n("MaxDescriptionLength")]).toEqual(
+    [LOOKUP_LIMITS.rows, LOOKUP_LIMITS.valueLength, LOOKUP_LIMITS.nameLength, LOOKUP_LIMITS.descriptionLength]);
   const controller = readFileSync(join(BACKEND!, "ProcuLink.Api/Controllers/LookupsController.cs"), "utf8");
   const uses = readFileSync(join(BACKEND!, "ProcuLink.Api/Services/Documents/DocumentLookups.cs"), "utf8");
   expect(controller).toMatch(/record LookupSummaryDto\([^)]*IReadOnlyList<LookupUse> UsedBy\)/);

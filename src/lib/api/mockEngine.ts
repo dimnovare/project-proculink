@@ -176,12 +176,12 @@ const invalid = (detail: string): never => {
   throw new ApiHttpError(`mock engine: ${detail}`, 422, { error: "lookup_invalid", detail });
 };
 /** As LookupRules.Problem / CandidateProblem: the first refusal of a list of values, or none. */
-function checkValues(values: { value?: string; other?: string | null }[], tooMany: string, blank: string, suffix: string, otherMax: number, otherSentence: string) {
+function checkValues(values: { value?: string | null; other?: string | null }[], tooMany: string, blank: string, suffix: string, otherMax: number, otherSentence: string) {
   const { rows, valueLength } = LOOKUP_LIMITS;
   if (values.length > rows) invalid(tooMany);
   const seen = new Set<string>();
-  for (const { value = "", other } of values) {
-    if (!value.trim()) invalid(blank);
+  for (const { value, other } of values) {
+    if (!value?.trim()) invalid(blank);   // a null value too, as the server answers 422
     if (value.length > valueLength) invalid(`Values can be at most ${valueLength} characters.`);
     if ((other?.length ?? 0) > otherMax) invalid(otherSentence);
     const k = value.trim().toLowerCase();
@@ -199,7 +199,8 @@ function applyLookup(l: Lookup, b: Body): Lookup {
     "Every entry needs a value to look for.", "", V, `Values can be at most ${V} characters.`);
   const candidates = b.candidates as Partial<LookupCandidate>[] | undefined;
   if (candidates) checkValues(candidates.map((c) => ({ value: c?.value, other: c?.description })), `A lookup can list at most ${LOOKUP_LIMITS.rows} values to choose from.`,
-    "Each row in the list to choose from needs a value.", " in the list to choose from", 500, "Descriptions can be at most 500 characters.");
+    "Each row in the list to choose from needs a value.", " in the list to choose from",
+    LOOKUP_LIMITS.descriptionLength, `Descriptions can be at most ${LOOKUP_LIMITS.descriptionLength} characters.`);
   return {
     ...l, name, updatedAt: new Date().toISOString(),
     entries: entries.map((e) => ({ from: e.from!.trim(), to: e.to ?? "" })),
@@ -317,7 +318,8 @@ const ROUTES: [method: string, pattern: RegExp, run: Handler][] = [
     return storeLookup(made);
   })],
   ["GET", re`/lookups/${S}`, noQuery((m) => structuredClone(pick(LOOKUPS, m[1], "lookup")))],
-  ["PUT", re`/lookups/${S}`, noQuery((m, _q, b) => storeLookup(applyLookup(pick(LOOKUPS, m[1], "lookup"), b)))],
+  // As the server: the save answers its time with 7 fraction digits, a later GET the same moment with fewer.
+  ["PUT", re`/lookups/${S}`, noQuery((m, _q, b) => { const l = storeLookup(applyLookup(pick(LOOKUPS, m[1], "lookup"), b)); return { ...l, updatedAt: l.updatedAt.replace("Z", "0000Z") }; })],
   ["DELETE", re`/lookups/${S}`, noQuery((m) => {
     const l = pick(LOOKUPS, m[1], "lookup");
     if (usedBy(l.id).length) throw new ApiHttpError(`mock engine: lookup ${l.id} is in use`, 409, { error: "lookup_in_use" });

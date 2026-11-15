@@ -13,7 +13,7 @@ import { useAutosave } from "@/hooks/useAutosave";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { deleteLookup, getLookup, updateLookup, type Lookup, type LookupCandidate } from "@/lib/api/documents";
 import { documentRefusalMessage, refusalToken } from "@/lib/documentRefusals";
-import { exportLookupCsv, importCandidateCsv, lookupFileEntries } from "@/lib/lookupCsv";
+import { exportLookupCsv, lookupFileCandidates, lookupFileEntries } from "@/lib/lookupCsv";
 import { LOOKUP_LIMITS } from "@/lib/lookupLimits";
 import { usedByLine } from "@/lib/lookupUses";
 import { saveBlob } from "@/lib/saveBlob";
@@ -23,13 +23,8 @@ import { dropLookupNotice, importRefusal, showLookupNotice, takeRenameOnOpen } f
 type Doc = { name: string; rows: LookupRow[]; candidates: LookupCandidate[] };
 const docOf = (l: Lookup): Doc => ({ name: l.name, rows: toRows(l.entries), candidates: l.candidates ?? [] });
 
-const readText = (file: File) =>
-  new Promise<string>((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(String(r.result));
-    r.onerror = () => reject(r.error);
-    r.readAsText(file);
-  });
+/** A server time as a moment in milliseconds: the save answers with 7 fraction digits, a later read the same moment with 6. */
+const at = (time: string) => Date.parse(time.replace(/(\.\d{3})\d+/, "$1"));
 const TABLE_TYPES = ".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
 const PAD = "px-[18px] py-[14px]";
@@ -41,17 +36,17 @@ const TEXT_BUTTON = "min-h-[44px] text-[14px] font-semibold text-brand-blue disa
 function LookupEditor({ lookup, lookupId, usedBy }: { lookup: Lookup; lookupId: string; usedBy: string[] | undefined }) {
   const qc = useQueryClient();
   // The update times this screen loaded or produced; any other one is a change made elsewhere (R4).
-  const known = useRef(new Set([lookup.updatedAt]));
+  const known = useRef(new Set([at(lookup.updatedAt)]));
   const save = useMutation({
     mutationFn: (body: Parameters<typeof updateLookup>[1]) => updateLookup(lookupId, body),
     onSuccess: (answer) => {
-      known.current.add(answer.updatedAt);
+      known.current.add(at(answer.updatedAt));
       qc.setQueryData(["lookup", lookupId], answer);
       void qc.invalidateQueries({ queryKey: ["lookups"] });
       qc.removeQueries({ queryKey: ["lookup-suggestions"] });
     },
   });
-  // Once the lookup is deleted nothing is saved for it, not even a value sent on leaving.
+  // From the moment a delete starts nothing is saved for the lookup, not even a value sent on leaving; a refused delete clears it.
   const gone = useRef(false);
   const autosave = useAutosave((body: Parameters<typeof updateLookup>[1]) => (gone.current ? Promise.resolve() : save.mutateAsync(body)));
 
@@ -83,8 +78,8 @@ function LookupEditor({ lookup, lookupId, usedBy }: { lookup: Lookup; lookupId: 
 
   // R4: a newer table saved elsewhere replaces this one, but only while nothing typed here is unsaved.
   useEffect(() => {
-    if (known.current.has(lookup.updatedAt) || autosave.state !== "saved" || held.size) return;
-    known.current.add(lookup.updatedAt);
+    if (known.current.has(at(lookup.updatedAt)) || autosave.state !== "saved" || held.size) return;
+    known.current.add(at(lookup.updatedAt));
     const d = docOf(lookup);
     current.current = d;
     setDoc(d);
@@ -153,7 +148,7 @@ function LookupEditor({ lookup, lookupId, usedBy }: { lookup: Lookup; lookupId: 
     input.value = "";   // lets the same file be chosen again
     if (!file) return;
     try {
-      const list = importCandidateCsv(await readText(file), true);
+      const list = await lookupFileCandidates(file);
       edit({ candidates: list }, true);
       setListNote(`Imported ${list.length === 1 ? "1 value" : `${list.length} values`}.`);
     } catch (e) {
@@ -165,15 +160,18 @@ function LookupEditor({ lookup, lookupId, usedBy }: { lookup: Lookup; lookupId: 
   const [asking, setAsking] = useState(false);
   const remove = useMutation({
     mutationFn: () => deleteLookup(lookupId),
-    // The rows are about to go: a waiting save is dropped, not sent. If the delete fails, the table is sent after all.
-    onMutate: () => autosave.discard(),
-    onError: (_e, _v, dropped) => {
-      if (dropped) autosave.change(bodyOf(current.current), true);
+    // The rows are about to go: a waiting save is dropped, not sent, and nothing typed meanwhile is sent either.
+    // If the delete fails, what is on screen is saved after all.
+    onMutate: () => {
+      gone.current = true;
+      autosave.discard();
+    },
+    onError: () => {
+      gone.current = false;
+      autosave.change(bodyOf(current.current), true);
     },
     onSuccess: () => {
-      gone.current = true;
       void qc.invalidateQueries({ queryKey: ["lookups"] });
-      qc.removeQueries({ queryKey: ["lookup", lookupId] });
       router.push("/lookups");
     },
   });
@@ -355,7 +353,7 @@ function LookupEditor({ lookup, lookupId, usedBy }: { lookup: Lookup; lookupId: 
         <div className={`flex flex-wrap items-center justify-between gap-3 border-t border-border ${PAD}`}>
           <div className="flex flex-wrap items-center gap-3">
             <button type="button" className={TEXT_BUTTON} disabled={full} onClick={addRow}>Add a row</button>
-            {full && <span className="text-[13px] text-ink-muted">A lookup holds at most 20,000 rows.</span>}
+            {full && <span className="text-[13px] text-ink-muted">{`A lookup holds at most ${LOOKUP_LIMITS.rows.toLocaleString("en")} rows.`}</span>}
           </div>
           {view.total > 0 && (
             <div className="flex flex-wrap items-center gap-2">

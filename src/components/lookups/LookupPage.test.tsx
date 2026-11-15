@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, within, fireEvent, waitFor } from "@testing-library/react";
+import { act, render, screen, within, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ApiHttpError } from "@/lib/api/core";
 import { LookupPage } from "./LookupPage";
@@ -95,11 +95,14 @@ describe("LookupPage", () => {
     api.getLookup.mockResolvedValue(lookup([{ from: "A", to: "1" }]));
     api.deleteLookup.mockRejectedValue(new ApiHttpError("in use", 409, { error: "lookup_in_use" }));
     show();
-    fireEvent.click(await screen.findByRole("button", { name: "Delete lookup" }));
+    fireEvent.change(await screen.findByLabelText("To value for A"), { target: { value: "typed" } });
+    fireEvent.click(screen.getByRole("button", { name: "Delete lookup" }));
     expect(screen.getByText("Delete “Item codes”? This can't be undone.")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Delete lookup" }));
     expect(await screen.findByText("An output uses this lookup. Remove it from the output first.")).toBeTruthy();
     expect(api.deleteLookup).toHaveBeenCalledTimes(1);
+    // The delete was refused: what was typed is saved after all.
+    await waitFor(() => expect(api.updateLookup).toHaveBeenLastCalledWith("l1", { name: "Item codes", entries: [{ from: "A", to: "typed" }] }));
     fireEvent.click(screen.getByRole("button", { name: "Keep it" }));
     expect(screen.queryByText("Delete “Item codes”? This can't be undone.")).toBeNull();
   });
@@ -119,6 +122,35 @@ describe("LookupPage", () => {
     fireEvent.change(screen.getByLabelText("Import list (CSV)"), { target: { files: [new File(["Code,Name\nSUP-1,Pilsner bottle"], "list.csv", { type: "text/csv" })] } });
     await waitFor(() => expect(api.updateLookup).toHaveBeenLastCalledWith("l1", expect.objectContaining({ candidates: [{ value: "SUP-1", description: "Pilsner bottle" }] })));
     expect(await screen.findByText("Imported 1 value.")).toBeTruthy();
+  });
+
+  it("a list file with no values is refused in words and the stored list stays", async () => {
+    api.getLookup.mockResolvedValue(lookup([], { suggestionsOn: true, candidates: [{ value: "SUP-1", description: null }] }));
+    render(<QueryClientProvider client={new QueryClient()}><LookupNoticeBanner /><LookupPage lookupId="l1" usedBy={[]} /></QueryClientProvider>);
+    fireEvent.click(await screen.findByRole("button", { name: "Set up suggestions" }));
+    fireEvent.change(screen.getByLabelText("Import list (CSV)"), { target: { files: [new File(["Code,Name\n"], "list.csv", { type: "text/csv" })] } });
+    expect(await screen.findByText("Couldn't import list.csv. This file has no values. The list was not changed.")).toBeTruthy();
+    expect(api.updateLookup).not.toHaveBeenCalled();
+    expect(screen.getByText("1 value")).toBeTruthy();
+  });
+
+  it("its own save is not a change made elsewhere: the same moment written another way keeps the screen, a later one replaces the rows", async () => {
+    api.getLookup.mockResolvedValue(lookup([{ from: "KS-100", to: "A" }], { updatedAt: "2026-05-20T09:00:00.123456Z" }));
+    // The save answers with 7 fraction digits, a later read of the same moment with 6.
+    api.updateLookup.mockImplementation(async (_id, b) => lookup(b.entries, { updatedAt: "2026-05-20T09:30:00.1234567Z" }));
+    const { qc } = show();
+    const to = await screen.findByLabelText("To value for KS-100");
+    fireEvent.change(to, { target: { value: "NT-1" } });
+    fireEvent.blur(to);
+    expect(await screen.findByText("Saved, edits save as you type")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Add a row" }));
+    expect(document.activeElement).toBe(within(table()).getByLabelText("From value, row 2"));
+    // The query cache tells its observers on a timer: wait one turn so the screen has the new copy.
+    const answer = (l: ReturnType<typeof lookup>) => act(async () => { qc.setQueryData(["lookup", "l1"], l); await new Promise((r) => setTimeout(r, 0)); });
+    await answer(lookup([{ from: "KS-100", to: "NT-1" }], { updatedAt: "2026-05-20T09:30:00.123456Z" }));
+    expect(document.activeElement).toBe(within(table()).getByLabelText("From value, row 2"));     // the blank row stays, focused
+    await answer(lookup([{ from: "KS-100", to: "NT-1" }, { from: "KS-300", to: "B" }], { updatedAt: "2026-05-20T10:00:00.123456Z" }));
+    expect((within(table()).getByLabelText("From value, row 2") as HTMLInputElement).value).toBe("KS-300");
   });
 
   it("an old Excel file is refused in words before anything is read into rows, and nothing is sent", async () => {

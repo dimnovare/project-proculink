@@ -1170,6 +1170,16 @@ describe("route reachability (plan rule R1 — no new surface without a consumer
     expect(findUnreachableRoutes(routes, [{ path: "/lonely", kind: "link", source: "<other>" }])).toEqual([]);
   });
 
+  it("a link in a component that a reached page also renders reaches its target; one only the target renders does not", () => {
+    // The Lookups list is drawn on /lookups and on /lookups/[id]: its links show on the reached list page too.
+    const routes: EnumeratedRoute[] = [{ route: "/a", file: "<pages/a>" }, { route: "/a/[id]", file: "<pages/a-id>" }];
+    const links: LinkTarget[] = [{ path: "/a", kind: "nav", source: "<BridgeSidebar nav>" }, { path: `/a/${DYN}`, kind: "link", source: "<components/List>" }];
+    const shared = (r: EnumeratedRoute) => new Set([r.file, "<components/List>"]);
+    expect(findUnreachableRoutes(routes, links, {}, shared)).toEqual([]);
+    const onlyTarget = (r: EnumeratedRoute) => new Set(r.route === "/a" ? [r.file] : [r.file, "<components/List>"]);
+    expect(findUnreachableRoutes(routes, links, {}, onlyTarget).map((u) => u.route)).toEqual(["/a/[id]"]);
+  });
+
   it("reads the sidebar through what it renders, not through NAV_MAIN's text", () => {
     // What survives of the old "/drafts shape" test. It pinned two live
     // examples of a registry href that is never rendered as a link: /drafts

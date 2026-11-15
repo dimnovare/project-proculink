@@ -21,18 +21,21 @@ describe("lookup CSV", () => {
   });
 
   it("reads the first sheet of a workbook past the preview cap, and says when a file is too long", async () => {
-    const sheet = (n: number) => zipSync({
+    const sheet = (n: number, tail = "") => zipSync({
       "xl/workbook.xml": strToU8('<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Codes" sheetId="1" r:id="rId1"/></sheets></workbook>'),
       "xl/_rels/workbook.xml.rels": strToU8('<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>'),
       "xl/worksheets/sheet1.xml": strToU8('<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>' +
         Array.from({ length: n }, (_, i) => `<row r="${i + 1}"><c r="A${i + 1}" t="inlineStr"><is><t>K${i}</t></is></c><c r="B${i + 1}" t="inlineStr"><is><t>V${i}</t></is></c></row>`).join("") +
-        "</sheetData></worksheet>"),
+        tail + "</sheetData></worksheet>"),
     });
     const file = (bytes: Uint8Array, name: string) => new File([bytes], name);
     const read = await readTableFile(file(sheet(700), "codes.xlsx"));
     expect(read.cut).toBe(false);
     expect(lookupEntries(read.cells)).toHaveLength(699);
     expect((await readTableFile(file(sheet(20_003), "big.xlsx"))).cut).toBe(true);
+    // A row Excel keeps only for its formatting, far below the data, is not a row of the table.
+    const formatted = await readTableFile(file(sheet(300, '<row r="25000" s="1" customFormat="1"/>'), "formatted.xlsx"));
+    expect([formatted.cut, lookupEntries(formatted.cells).length]).toEqual([false, 299]);
     await expect(readTableFile(file(strToU8("PK\u0003\u0004junk"), "x.xlsx"))).rejects.toThrow();
     const csv = await readTableFile(new File(["From,To\nA,1\n"], "a.csv", { type: "text/csv" }));
     expect(csv).toEqual({ cells: [["From", "To"], ["A", "1"]], cut: false });
