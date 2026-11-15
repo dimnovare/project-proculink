@@ -93,6 +93,35 @@ const HISTORICAL_ENTRIES_V1_4_TO_V1_0 = `  {
     ],
   },`;
 
+/**
+ * The entries published after the v1.4-to-v1.0 run, verbatim as they stood on main when the
+ * redesign started. The same rule: never reworded, re-dated or removed; a new entry goes above.
+ */
+const PUBLISHED_SINCE_V1_5 = `    version: "v2.0",
+    date: "14 November 2026",
+    items: [
+      "ProcuLink now reads any document. Set up a flow, check what we read, and send it in the format you need. Your old orders stay readable under Old orders.",
+    ],
+  },
+  {
+    version: "v1.6",
+    date: "August 2026",
+    items: [
+      "Tier correction to the v1.4 note below — IMAP email polling, SFTP folder pull and S3/R2 bucket pull are all included on Growth (€149/month) and up, not on a dearer tier. Ingestion channels were decoupled from order volume, so every paid plan carries all three; the v1.4 wording named a tier €850/month above the real minimum. That note stays as written — an entry records what was published on its date — and the plan each channel really needs is the one shown on the formats and pricing pages.",
+    ],
+  },
+  {
+    version: "v1.5",
+    date: "July 2026",
+    items: [
+      "Output templates screen retired — saving a template silently discarded the body (the screen posted a field the API never read), and no transform ever consulted a stored template. The format a supplier receives is set on that supplier's delivery configuration, which is where it always came from.",
+      "Validation rules screen and the read-only rule catalog retired — they offered create, edit and delete over records that nothing in parsing, transformation or delivery ever evaluated; the drawer's own “Triggered 0 times” counter was accurate. The checks that do run are the per-supplier Validation rules tab, which is unchanged and shows the same standards references inline.",
+      "Drafts and Upload preview screens retired — orders cannot be saved as drafts, so Drafts could never hold one, and uploads go straight to the order review screen, which does everything the preview did and more.",
+      "Inbound webhook ingress withdrawn from the product copy — it read as a way to send us orders, but it could never be switched on: verifying an inbound POST needs a per-organisation signing secret, and nothing in the product could set one. Orders arrive by upload, by email, or by a POST to the REST endpoint. Outbound webhook subscriptions — we call your URL when an order is created, delivered or fails — are untouched and still live.",
+      "Every retired screen answers with a permanent redirect to the screen that does the job, so existing bookmarks, help links and search results keep working.",
+    ],
+  },`;
+
 const HISTORY_AT = src.indexOf(HISTORICAL_ENTRIES_V1_4_TO_V1_0);
 /** Everything above the frozen run — i.e. whatever has been appended since. */
 const appended = () => src.slice(0, HISTORY_AT);
@@ -149,5 +178,9 @@ describe("changelog is append-only", () => {
     // entries only because those bytes are frozen; nothing reads them.
     expect(src).not.toMatch(/v\d+\.\d+ — Latest/);
     expect(src).not.toContain("entry.latest");
+  });
+
+  it("the entries published since v1.5 stay as they were published", () => {
+    expect(src, "an entry published since v1.5 was edited, re-dated or removed").toContain(PUBLISHED_SINCE_V1_5);
   });
 });

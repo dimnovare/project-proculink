@@ -1,5 +1,7 @@
+import { ChevronRight } from "lucide-react";
 import { pageMetadata } from "@/lib/seo";
-import Link from "next/link";
+import { ClosingCta, SITE } from "@/components/marketing/sitePictures";
+import { SITE_PAGE } from "@/components/marketing/LegalPage";
 
 export const metadata = pageMetadata({
   path: "/changelog",
@@ -16,8 +18,8 @@ export const metadata = pageMetadata({
 // Editing the entry that announced a feature claims it never shipped.
 //
 // `latest: …` on the entries below is legacy and unread. Position decides:
-// index 0 is the newest, and both the hero badge and the card colours derive
-// from that, so appending an entry cannot leave the previous one badged Latest.
+// index 0 is the newest and the only one tagged Latest, so appending an entry
+// cannot leave the previous one badged Latest.
 // The old values stay because src/test/changelog-append-only.test.ts freezes
 // those entries byte for byte.
 const ENTRIES = [
@@ -98,196 +100,78 @@ const ENTRIES = [
   },
 ];
 
-/** ENTRIES is newest-first, so index 0 is the current release. */
-const isNewest = (i: number) => i === 0;
+
+type Entry = (typeof ENTRIES)[number];
+
+/** "January to November 2026", or "January 2026 to January 2027" across a year. */
+function earlierRange(entries: readonly Entry[]): string {
+  const monthYear = (d: string) => d.split(" ").slice(-2);
+  const [fromMonth, fromYear] = monthYear(entries[entries.length - 1].date);
+  const [toMonth, toYear] = monthYear(entries[0].date);
+  return fromYear === toYear ? `${fromMonth} to ${toMonth} ${toYear}` : `${fromMonth} ${fromYear} to ${toMonth} ${toYear}`;
+}
+
+function Items({ items, big }: { items: readonly string[]; big?: boolean }) {
+  return (
+    <ul className={`m-0 flex min-w-0 flex-[1_1_420px] list-disc flex-col gap-3 pl-6 ${big ? "text-[clamp(19px,1.1vw+14.5px,22px)] leading-[1.45]" : ""}`}>
+      {items.map((item, j) => (
+        <li key={j}>{item}</li>
+      ))}
+    </ul>
+  );
+}
 
 export default function ChangelogPage() {
+  // ENTRIES is newest-first, so index 0 is the current release.
+  const [newest, ...earlier] = ENTRIES;
   return (
-    <div style={{ background: "#FFFFFF" }}>
-      {/* Hero */}
-      <section
-        style={{
-          background: "#F6F7FA",
-          padding: "64px 32px 48px",
-          textAlign: "center",
-          borderBottom: "1px solid #E2E6EE",
-        }}
-      >
-        <div style={{ maxWidth: 680, margin: "0 auto" }}>
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 8,
-              border: "1px solid #D6DDE8",
-              borderRadius: 999,
-              padding: "5px 10px",
-              background: "#FFFFFF",
-              color: "#56627A",
-              fontSize: 12,
-              fontWeight: 700,
-              marginBottom: 20,
-            }}
-          >
-            <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#2E8E3A", display: "inline-block" }} />
-            {ENTRIES[0].version} — Latest
-          </div>
-          <h1
-            style={{
-              fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
-              fontSize: "clamp(32px, 5vw, 52px)",
-              fontWeight: 750,
-              color: "#0B1A2F",
-              marginBottom: 14,
-              lineHeight: 1.05,
-            }}
-          >
+    <div className={SITE_PAGE}>
+      <section aria-label="Page title" className="pb-12 pt-16">
+        <div className={`${SITE.wrap} flex flex-col gap-4`}>
+          <h1 className="m-0 font-display text-[clamp(38px,4.2vw,56px)] font-semibold leading-[1.04] tracking-[-0.02em]">
             Changelog
           </h1>
-          <p style={{ fontSize: 16, color: "#56627A", maxWidth: 460, margin: "0 auto", lineHeight: 1.6 }}>
-            What&apos;s new in ProcuLink — features, integrations, and platform improvements.
-          </p>
+          <p className={`${SITE.lead} max-w-[640px]`}>What&apos;s new in ProcuLink, newest first.</p>
         </div>
       </section>
 
-      {/* Entries */}
-      <section style={{ padding: "64px 32px 96px" }}>
-        <div style={{ maxWidth: 760, margin: "0 auto", display: "flex", flexDirection: "column", gap: 0 }}>
-          {ENTRIES.map((entry, i) => (
-            <article
-              key={entry.version}
-              style={{
-                display: "grid",
-                gridTemplateColumns: "clamp(100px, 20%, 140px) 1fr",
-                gap: "0 clamp(16px, 4vw, 40px)",
-                paddingBottom: 48,
-              }}
-            >
-              {/* Left — version label + timeline */}
-              <div style={{ paddingTop: 4, display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 6, position: "relative" }}>
-                <span
-                  style={{
-                    display: "inline-block",
-                    background: isNewest(i) ? "#297F34" : "#0B1A2F",
-                    color: "#FFFFFF",
-                    fontSize: 11,
-                    fontWeight: 800,
-                    letterSpacing: "0.06em",
-                    padding: "4px 10px",
-                    borderRadius: 5,
-                  }}
-                >
-                  {entry.version}
-                </span>
-                {isNewest(i) && (
-                  <span
-                    style={{
-                      display: "inline-block",
-                      background: "#E2F1E2",
-                      color: "#1E6D29",
-                      fontSize: 10,
-                      fontWeight: 700,
-                      padding: "2px 7px",
-                      borderRadius: 4,
-                    }}
-                  >
+      <section aria-label="Versions" className="border-b border-border bg-surface pb-24 pt-14">
+        <div className={SITE.wrap}>
+          <div className="max-w-[920px]">
+            <article className="flex flex-wrap gap-x-14 gap-y-4 pb-11 pt-2">
+              <div className="flex flex-[0_0_210px] flex-col items-start gap-2">
+                <div className="flex items-center gap-3">
+                  <h2 className="font-display text-[40px] font-semibold leading-none tracking-[-0.02em]">{newest.version}</h2>
+                  <span className="inline-flex h-[26px] items-center rounded-full bg-surface-2 px-2.5 text-[13px] font-semibold text-ink">
                     Latest
                   </span>
-                )}
-                <span style={{ fontSize: 12, color: "var(--ink-faint)", fontWeight: 500, marginTop: 2 }}>
-                  {entry.date}
-                </span>
-                {/* Timeline connector */}
-                {i < ENTRIES.length - 1 && (
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: 60,
-                      left: 19,
-                      width: 1,
-                      bottom: -48,
-                      background: "#E2E6EE",
-                    }}
-                  />
-                )}
+                </div>
+                <time className={`${SITE.soft} text-[16px]`}>{newest.date}</time>
               </div>
-
-              {/* Right — feature card */}
-              <div
-                style={{
-                  background: "#FFFFFF",
-                  border: "1px solid #E2E6EE",
-                  borderLeft: `3px solid ${isNewest(i) ? "#2E8E3A" : "#C6CDDA"}`,
-                  borderRadius: 8,
-                  padding: "20px 24px",
-                  boxShadow: "0 1px 4px rgba(11,26,47,0.05)",
-                }}
-              >
-                <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 12 }}>
-                  {entry.items.map((item, j) => (
-                    <li
-                      key={j}
-                      style={{ display: "flex", alignItems: "flex-start", gap: 10, fontSize: 14, color: "#2D3A4A", lineHeight: 1.6 }}
-                    >
-                      <span
-                        style={{ width: 6, height: 6, borderRadius: "50%", background: isNewest(i) ? "#2E8E3A" : "var(--ink-faint)", flexShrink: 0, marginTop: 8, display: "inline-block" }}
-                      />
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              <Items items={newest.items} big />
             </article>
-          ))}
-        </div>
 
-        {/* CTA */}
-        <div
-          style={{
-            maxWidth: 760,
-            margin: "0 auto",
-            marginTop: 24,
-            paddingTop: 40,
-            borderTop: "1px solid #E2E6EE",
-            textAlign: "center",
-          }}
-        >
-          <p style={{ fontSize: 14, color: "var(--ink-faint)", marginBottom: 20 }}>
-            Try it on your own documents
-          </p>
-          <Link
-            href="/sign-up"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              borderRadius: 8,
-              padding: "11px 28px",
-              fontSize: 14,
-              fontWeight: 700,
-              background: "#0B1A2F",
-              color: "#FFFFFF",
-              textDecoration: "none",
-            }}
-          >
-            Start your free trial
-          </Link>
-          <Link
-            href="/book-demo"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              marginLeft: 12,
-              padding: "11px 20px",
-              fontSize: 14,
-              fontWeight: 600,
-              color: "var(--brand-blue-deep)",
-              textDecoration: "none",
-            }}
-          >
-            Talk to us
-          </Link>
+            <details className="group border-y border-border">
+              <summary className="flex min-h-16 cursor-pointer list-none items-center gap-3 py-2 text-[18px] font-semibold [&::-webkit-details-marker]:hidden">
+                <ChevronRight aria-hidden="true" className="size-[18px] flex-none transition-transform group-open:rotate-90" strokeWidth={2.4} />
+                <span className="min-w-0 flex-1">{`Earlier versions (${earlierRange(earlier)})`}</span>
+                <span className={`${SITE.soft} flex-none text-[15px] font-medium`}>{`${earlier.length} versions`}</span>
+              </summary>
+              {earlier.map((entry) => (
+                <article key={entry.version} className="flex flex-wrap gap-x-14 gap-y-3 border-t border-border-faint py-6">
+                  <div className="flex flex-[0_0_210px] flex-col items-start gap-1">
+                    <h3 className="font-display text-[22px] font-semibold leading-none tracking-[-0.02em]">{entry.version}</h3>
+                    <time className={`${SITE.soft} text-[15px]`}>{entry.date}</time>
+                  </div>
+                  <Items items={entry.items} />
+                </article>
+              ))}
+            </details>
+          </div>
         </div>
       </section>
+
+      <ClosingCta />
     </div>
   );
 }
