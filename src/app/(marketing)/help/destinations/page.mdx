@@ -3,12 +3,12 @@ import { helpArticleMetadata } from "@/lib/seo";
 export const metadata = helpArticleMetadata({
   slug: "destinations",
   title: "Destinations — ProcuLink Help",
-  description: "Where a flow sends its output: email, a web address, an SFTP or FTPS server, or a download.",
+  description: "Where a flow sends its output: email, a web address, an SFTP or FTPS server, an S3 bucket, Google Drive, Google Sheets, or a download.",
 });
 
 # Destinations
 
-Where a flow sends its output: email, a web address, an SFTP or FTPS server, or a download.
+Where a flow sends its output: email, a web address, an SFTP or FTPS server, an S3 bucket, Google Drive, Google Sheets, or a download.
 
 A destination is a place an output goes. You set one up once and any output in your workspace can use it. Only a workspace admin can create one. You create a destination from an output: in the **Send to** list, choose **New destination…**. See [Send outputs to a destination](/help/guides/send-to-a-destination).
 
@@ -19,6 +19,9 @@ A destination is a place an output goes. You set one up once and any output in y
 - **Web address (API).** We send the file to your URL with a POST or a PUT request. The file is the body of the request, with its own content type.
 - **SFTP.** We upload the file to a folder on your server. You sign in with a password or a private key.
 - **FTPS.** The same, over FTP with explicit TLS.
+- **S3 bucket.** We put the file in a folder of your bucket, on Amazon S3 or a service that works like it.
+- **Google Drive.** The file goes to a folder you choose.
+- **Google Sheets.** Each send adds the rows of a CSV output to the end of a sheet.
 
 A destination needs a name, and the details for its kind. Passwords, keys and tokens are kept encrypted. See [Destination sign-in, keys and signing](/help/destination-sign-in).
 
@@ -46,7 +49,7 @@ Some failures are not tried again: the destination was deleted, its saved passwo
 
 ## Test a destination
 
-The new-flow guide offers **Send a test** right after you save a destination. It sends a small file marked `TEST_` that holds no document data. An email subject starts with `[TEST]`, and a web request carries an `X-ProcuLink-Test` header.
+When you set up a new flow, **Save and send a test** saves the destination and sends a small file marked `TEST_` that holds no document data. An email subject starts with `[TEST]`, and a web request carries an `X-ProcuLink-Test` header. A Google Sheets test adds no rows: it checks that we can open the spreadsheet and the tab you chose.
 
 An output built from documentation needs a passing test before it can be created. That test sends the output made from a real document in the flow, so it holds that document's values.
 

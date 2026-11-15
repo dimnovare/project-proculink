@@ -119,9 +119,9 @@ export const HELP_ARTICLES: HelpArticle[] = [
   {
     slug: "destinations",
     title: "Destinations",
-    blurb: "Where a flow sends its output: email, a web address, an SFTP or FTPS server, or a download.",
+    blurb: "Where a flow sends its output: email, a web address, an SFTP or FTPS server, an S3 bucket, Google Drive, Google Sheets, or a download.",
     category: "Outputs and destinations",
-    keywords: ["destination", "email", "webhook", "http", "sftp", "ftps", "download", "delivery"],
+    keywords: ["destination", "email", "webhook", "http", "sftp", "ftps", "s3", "google drive", "google sheets", "download", "delivery"],
     readMin: 4,
   },
   {
