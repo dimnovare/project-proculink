@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { Flow } from "@/lib/api/documents";
 import { FlowIntakePanel } from "./FlowIntakePanel";
 
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => true }));
@@ -22,7 +23,7 @@ beforeEach(() => {
 const mount = () =>
   render(
     <QueryClientProvider client={new QueryClient()}>
-      <FlowIntakePanel flowId="f1" />
+      <FlowIntakePanel flow={{ id: "f1" } as Flow} />
     </QueryClientProvider>,
   );
 
@@ -32,6 +33,8 @@ describe("FlowIntakePanel", () => {
     expect(await screen.findByText("tok123@in.example.test")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Copy email address" })).toBeTruthy();
     expect(screen.getByText(/\/api\/v1\/flows\/f1\/documents$/)).toBeTruthy();
+    const developers = screen.getByText("API address for this flow").closest("details")!;
+    expect(developers.querySelector(":scope > summary")!.textContent).toBe("For developers");
   });
 
   it("asks before replacing the address, then replaces it once", async () => {

@@ -36,7 +36,7 @@ export function StandardQuestions({ flow, needs, tableKey, name }: { flow: Flow;
 
   return (
     <div className="grid gap-2">
-      <p className="text-[12px] font-medium text-ink-muted">To make this file, tell us:</p>
+      <p className="text-[12.5px] font-medium text-ink-muted">To make this file, tell us:</p>
       {shown.map((q) => {
         const what = q.line ? "column" : "field";
         return (
@@ -49,7 +49,7 @@ export function StandardQuestions({ flow, needs, tableKey, name }: { flow: Flow;
           </Field>
         );
       })}
-      {noTable && <p className="text-[12px] text-ink-muted">{name} needs a table of lines.</p>}
+      {noTable && <p className="text-[12.5px] text-ink-muted">{name} needs a table of lines.</p>}
       {save.isError && <StatusNotice tone="error">{documentRefusalMessage(save.error)}</StatusNotice>}
     </div>
   );

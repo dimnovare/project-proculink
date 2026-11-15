@@ -86,8 +86,8 @@ export const HELP_ARTICLES: HelpArticle[] = [
   },
   {
     slug: "flows",
-    title: "Flows: fields, automation and versions",
-    blurb: "How a flow holds the fields to read, the output and the destination, and how to change it safely.",
+    title: "Flows: values, automation and versions",
+    blurb: "How a flow holds the values to read, the output and the destination, and how to change it safely.",
     category: "Flows",
     keywords: ["flow", "fields", "automation", "versions", "publish", "restore", "advanced"],
     readMin: 5,

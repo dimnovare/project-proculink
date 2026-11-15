@@ -1,0 +1,80 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { Flow, FlowFieldList } from "@/lib/api/documents";
+import { FlowDraftProvider } from "./flowDraft";
+import { FlowValues } from "./FlowValues";
+
+vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => true }));
+const api = vi.hoisted(() => ({ listDocuments: vi.fn(), getDocument: vi.fn(), saveFlowFields: vi.fn() }));
+vi.mock("@/lib/api/documents", () => api);
+
+const field = (key: string, label: string) => ({ key, label, type: "text", meaning: null, required: false });
+const fields: FlowFieldList = {
+  fields: [field("invoice_number", "Invoice number"), field("vat", "VAT"), field("due_date", "Due date")],
+  tables: [{ key: "lines", label: "Lines", columns: [field("item", "Item")] }],
+};
+const flow = {
+  id: "flow-1", name: "Supplier invoices", fieldsConfirmed: true, fields, documentCount: 1,
+  createdAt: "", automation: "review", publishedVersion: 1, hasChanges: false, noCorrectionStreak: null,
+} as Flow;
+
+const readField = (key: string, label: string, value: string) => ({
+  key, label, value, type: "text", meaning: null, confidence: 0.99, location: null, notOnPage: false, listed: true, edited: false,
+});
+const detail = {
+  summary: { id: "doc-1", flowId: "flow-1", fileName: "invoice-1001.csv", status: "needs_review", statusReason: null, createdAt: "2026-11-01T10:00:00Z" },
+  contentType: "text/csv", checks: [],
+  read: {
+    kindLabel: null, truncated: false,
+    fields: [readField("invoice_number", "Invoice number", "1001"), readField("vat", "VAT", "24.00")],
+    tables: [{ key: "lines", label: "Lines", listed: true, columns: [{ key: "item", label: "Item", type: "text", meaning: null }], rows: [] }],
+  },
+};
+
+const mount = (f: Flow) =>
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <FlowDraftProvider flowId={f.id}><FlowValues flow={f} /></FlowDraftProvider>
+    </QueryClientProvider>,
+  );
+
+beforeEach(() => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  api.listDocuments.mockResolvedValue([detail.summary]);
+  api.getDocument.mockResolvedValue(detail);
+  api.saveFlowFields.mockImplementation(async (_id: string, list: FlowFieldList) => ({ ...flow, fields: list }));
+});
+afterEach(() => { vi.useRealTimers(); vi.clearAllMocks(); });
+
+describe("FlowValues", () => {
+  it("a confirmed flow saves a change on its own; never published, it says Saved, not Draft saved", async () => {
+    mount({ ...flow, publishedVersion: null });
+    fireEvent.click(screen.getByRole("checkbox", { name: "Read VAT" }));
+    await act(async () => { await vi.advanceTimersByTimeAsync(800); });
+    await waitFor(() => expect(api.saveFlowFields).toHaveBeenCalledTimes(1));
+    const [id, list] = api.saveFlowFields.mock.calls[0] as [string, FlowFieldList];
+    expect(id).toBe("flow-1");
+    expect(list.fields.map((f) => f.key)).toEqual(["invoice_number", "due_date"]);
+    expect(await screen.findByText("Saved")).toBeTruthy();
+  });
+
+  it("an unconfirmed flow does not save until kept", async () => {
+    mount({ ...flow, fieldsConfirmed: false, fields: { fields: [], tables: [] } });
+    fireEvent.click(await screen.findByRole("checkbox", { name: "Read VAT" }));
+    await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+    expect(api.saveFlowFields).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Keep these values" }));
+    await waitFor(() => expect(api.saveFlowFields).toHaveBeenCalledTimes(1));
+    expect((api.saveFlowFields.mock.calls[0][1] as FlowFieldList).fields.map((f) => f.key)).toEqual(["invoice_number"]);
+  });
+
+  it("the example column names its file and says what is missing", async () => {
+    mount(flow);
+    expect(await screen.findByRole("columnheader", { name: "Example from invoice-1001.csv" })).toBeTruthy();
+    const row = (name: string) => screen.getByRole("textbox", { name: `Name for ${name}` }).closest("tr")!;
+    expect(row("Due date").textContent).toContain("Not found on this document");
+    expect(row("Invoice number").textContent).toContain("1001");
+    expect(row("Invoice number").textContent).not.toContain("Not found on this document");
+  });
+});

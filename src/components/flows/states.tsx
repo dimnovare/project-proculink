@@ -125,9 +125,6 @@ export const Failed = ({ error, retry, what, lead = "We couldn't load this." }: 
     </StatusNotice>
   );
 
-export const destinationName = (q: { data?: { id: string; name: string }[]; isError: boolean }, id: string | null) =>
-  !id ? "Download only" : q.data?.find((d) => d.id === id)?.name ?? (q.isError ? "Unknown destination" : "…");
-
 /** Failed checks are a heads-up; they never stop a send. */
 export function Checks({ checks }: { checks: DocumentCheck[] }) {
   const failed = checks.filter((c) => !c.passed);

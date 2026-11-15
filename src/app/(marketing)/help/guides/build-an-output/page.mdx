@@ -17,7 +17,7 @@ import { Step, Prereqs, IfThisFails, Outcome } from "@/components/help/guide";
 
 <Step n={1} title="Start a new output">
 
-Open the flow, go to the **Outputs** tab, and select **Add an output**. Stay on the **Build your own** tab.
+Open the flow, go to the **We send** step, and select **Add an output**. Stay on the **Build your own** tab.
 
 <Outcome>
 The **New output** form opens.
@@ -55,7 +55,7 @@ The output knows where it goes and when.
 
 <Step n={4} title="Create it">
 
-Select **Create**. We start the output with one row for each field of the flow, and one for each column of the table, already filled in. The **Values** list appears below.
+Select **Create**. We start the output with one row for each field of the flow, and one for each column of the table, already filled in. The new output opens on **We send**, under **Columns, in order**.
 
 <Outcome>
 The output is saved, and you can edit its rows.
@@ -71,12 +71,12 @@ If the form says the name is missing, give the output a name. Other messages say
 
 Each row has these parts:
 
-- **Name in the file.** The column heading or the name the receiving system expects.
+- **Column name.** The column heading or the name the receiving system expects.
 - **Value.** A field of the document, or **Fixed value** with the text you type.
-- **Swap with lookup.** Optional. Replaces the value through a lookup. Then choose whether to keep the value or leave it blank if it is not in the lookup. See [Lookups](/help/lookups).
+- **Lookups**, under **More options: when to send, separator, lookups**. Optional. Replaces the value through a lookup. Then choose whether to keep the value or leave it blank if it is not in the lookup. See [Lookups](/help/lookups).
 - **Width.** Only for fixed-width text.
 
-Use **Up** and **Down** to change the order, **Remove** to drop a row and **Add a row** for a new one. Select **Save** when done.
+Use **Up** and **Down** to change the order, **Remove** to drop a row and **Add a column** for a new one. Changes save as a draft; select **Publish changes** to make them live.
 
 <Outcome>
 The output holds exactly the rows your receiving system expects, in the order it expects.
@@ -86,7 +86,7 @@ The output holds exactly the rows your receiving system expects, in the order it
 
 <Step n={6} title="Preview it">
 
-If the flow has a document, select **Preview**. It shows the file made from the latest document, using the last saved version of the output.
+If the flow has a document, **What the file looks like** shows the file made from the latest document, with your draft changes.
 
 <Outcome>
 You see the file your receiving system would get. Values that a lookup did not find are listed under it.

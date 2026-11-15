@@ -1,251 +1,288 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { nextTabIndex } from "@/lib/tabKeys";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ChevronRight, Pencil } from "lucide-react";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import { Card } from "@/components/bridge/layout/Card";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { Button } from "@/components/bridge/DSPrimitives";
-import { useConfirm } from "@/components/ui/confirm";
 import { AppNotFound } from "@/components/bridge/AppNotFound";
 import { isNotFoundFailure } from "@/lib/apiFailure";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
-import {
-  deleteOutput, getDocument, getFlow, listDestinations, listDocuments, listOutputs, updateFlow,
-} from "@/lib/api/documents";
-import type { Flow, FlowOutput } from "@/lib/api/documents";
+import { getFlow, listDestinations, listIntakes, listOutputs, updateFlow } from "@/lib/api/documents";
+import type { Flow } from "@/lib/api/documents";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
-import { documentStatus } from "@/lib/documentStatusManifest";
 import { AUTOMATIC_DELIVERY_LABEL, REVIEW_BEFORE_DELIVERY_LABEL } from "@/lib/deliveryMode";
-import { fieldListFromRead, withReadExtras } from "@/lib/flowFieldModel";
-import { describeSendWhen } from "@/lib/flowOutputModel";
+import { and, waysInWords } from "@/lib/flowSentences";
+import { FLOW_STEPS, flowAddress, readFlowOutput, readFlowView, type FlowStep, type FlowView } from "@/lib/flowSteps";
+import { pageTotal } from "@/lib/pageTotal";
 import { INPUT } from "./DestinationForm";
-import { DocumentList } from "./DocumentList";
-import { FieldListEditor } from "./FieldListEditor";
-import { FlowChangesBar } from "./FlowChangesBar";
+import { FlowCheck } from "./FlowCheck";
+import { flowNeedsYouQuery, FlowDocuments, needsYouWords, StreakBand } from "./FlowDocuments";
 import { FlowIntakePanel } from "./FlowIntakePanel";
+import { FlowOutputs } from "./FlowOutputs";
+import { FlowValues, useLatestRead } from "./FlowValues";
+import { FlowDraftProvider, FlowLink, GoContext, leaveClick, useFlowDraft } from "./flowDraft";
 import { FlowVersionsPanel } from "./FlowVersionsPanel";
-import { FlowUpload } from "./FlowUpload";
-import { OutputBuilder } from "./OutputBuilder";
-import { OutputEditor, outputTypeLabel } from "./OutputEditor";
-import { destinationName, Failed, Quiet } from "./states";
+import { PublishBar } from "./PublishBar";
+import { Failed, Quiet } from "./states";
 
-const TABS = [["documents", "Documents"], ["fields", "Fields"], ["outputs", "Outputs"], ["intake", "Intake"], ["versions", "Versions"]] as const;
-type Tab = (typeof TABS)[number][0];
-const AUTOMATION = [["review", REVIEW_BEFORE_DELIVERY_LABEL], ["auto", AUTOMATIC_DELIVERY_LABEL]] as const;
+const STEP_IDS: readonly FlowView[] = FLOW_STEPS.map((s) => s.id);
+const isFlowStep = (v: FlowView): v is FlowStep => STEP_IDS.includes(v);
 
-function streakText(n: number) {
-  if (n === 0) return "The last document sent needed a correction.";
-  if (n === 1) return "The last document was sent without a correction.";
-  return `The last ${n > 200 ? "200+" : n} documents were sent without a correction.`;
+const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+/** Each step's line, only from answers in hand: a list still loading or failed gives no line. */
+function useStepSummaries(flow: Flow): Record<FlowStep, string | null> {
+  const enabled = useTenantQueriesEnabled();
+  const intakes = useQuery({ queryKey: ["intakes", flow.id], queryFn: () => listIntakes(flow.id), enabled });
+  const outputs = useQuery({ queryKey: ["outputs", flow.id], queryFn: () => listOutputs(flow.id), enabled });
+  const destinations = useQuery({ queryKey: ["destinations"], queryFn: listDestinations, enabled });
+
+  const ways = intakes.data && waysInWords(intakes.data.filter((i) => i.isEnabled).map((i) => i.kind));
+  const values = flow.fields.fields.length + flow.fields.tables.reduce((n, t) => n + t.columns.length, 0);
+  const tables = flow.fields.tables.length;
+  let send: string | null = null;
+  if (outputs.data?.length === 0) send = "No outputs yet";
+  else if (outputs.data?.length === 1) send = "1 output";
+  else if (outputs.data && destinations.data) {
+    const names = [...new Set(outputs.data.flatMap((o) => destinations.data.find((d) => d.id === o.destinationId)?.name ?? []))];
+    send = `${outputs.data.length} outputs${names.length ? `, to ${and(names)}` : ""}`;
+  }
+  return {
+    arrives: ways ? ways[0].toUpperCase() + ways.slice(1) : null,
+    read: values ? [count(values, "value", "values"), tables ? count(tables, "table", "tables") : ""].filter(Boolean).join(", ") : "No values yet",
+    check: flow.automation === "auto" ? AUTOMATIC_DELIVERY_LABEL : REVIEW_BEFORE_DELIVERY_LABEL,
+    send,
+  };
 }
 
-function Header({ flow }: { flow: Flow }) {
-  const qc = useQueryClient();
-  const update = useMutation({
-    mutationFn: (patch: { name?: string; automation?: "review" | "auto" }) => updateFlow(flow.id, patch),
-    onSuccess: (f) => { qc.setQueryData(["flow", flow.id], f); qc.invalidateQueries({ queryKey: ["flows"] }); },
-  });
-  const rename = (input: HTMLInputElement) => {
-    const name = input.value.trim();
-    if (!name) input.value = flow.name;
-    else if (name !== flow.name) update.mutate({ name });
-  };
+/** The step number: 1 and 2 bring in (blue), 3 needs you (amber), 4 sends (green). */
+const BADGE: Record<1 | 2 | 3 | 4, string> = {
+  1: "bg-brand-blue-soft text-brand-blue-deep", 2: "bg-brand-blue-soft text-brand-blue-deep",
+  3: "bg-amber-soft text-amber-text", 4: "bg-brand-green-soft text-brand-green-deep",
+};
+const Badge = ({ n, big }: { n: 1 | 2 | 3 | 4; big?: boolean }) => (
+  <span aria-hidden className={`inline-flex flex-none items-center justify-center rounded-full font-bold ${big ? "h-[30px] w-[30px] text-[14px]" : "h-6 w-6 text-[13px]"} ${BADGE[n]}`}>{n}</span>
+);
+const documentsSoFar = (n: number) => (n ? `${n} so far` : "None yet");
+
+function StepStrip({ flow, view, summaries }: { flow: Flow; view: FlowView; summaries: Record<FlowStep, string | null> }) {
+  const id = useId();
+  const side = (to: "documents" | "history", text: string, extra?: string) => (
+    <FlowLink
+      href={flowAddress(flow.id, to)} current={view === to}
+      className={`flex min-h-10 flex-1 items-center justify-between gap-2 rounded-md px-3 text-[14px] no-underline ${view === to ? "bg-surface-2 font-semibold text-ink" : "font-medium text-ink-muted hover:bg-surface-2"}`}
+    >
+      {text}
+      {extra && <span className="text-[12.5px] font-semibold text-ink-muted">{extra}</span>}
+    </FlowLink>
+  );
   return (
-    <Card>
-      <div className="grid gap-3">
-        <input
-          key={flow.name} aria-label="Flow name" maxLength={120} className={INPUT} defaultValue={flow.name}
-          onBlur={(e) => rename(e.target)} onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
-        />
-        <fieldset className="m-0 flex flex-wrap gap-4 border-0 p-0" disabled={update.isPending}>
-          <legend className="sr-only">When a document is ready</legend>
-          {AUTOMATION.map(([value, label]) => (
-            <label key={value} className="inline-flex cursor-pointer items-center gap-2 text-[13px]">
-              <input
-                type="radio" name="automation" checked={flow.automation === value}
-                onChange={() => update.mutate({ automation: value })}
-              />
-              {label}
-            </label>
+    <nav aria-label="Flow sections" className="hidden lg:block">
+      <Card flush className="flex flex-wrap min-[1040px]:flex-nowrap">
+        <ol className="m-0 flex min-w-0 flex-[1_1_100%] list-none p-0 min-[1040px]:flex-1">
+          {FLOW_STEPS.map((s) => (
+            <li key={s.id} className="flex min-w-0 flex-1 border-l border-border-faint first:border-l-0">
+              <FlowLink
+                href={flowAddress(flow.id, s.id)} current={view === s.id} label={s.title} describedBy={summaries[s.id] ? `${id}-${s.id}` : undefined}
+                className={`flex w-full flex-col gap-0.5 border-b-[3px] px-5 pb-[11px] pt-3.5 text-ink no-underline ${view === s.id ? "border-navy bg-surface-2" : "border-transparent hover:bg-surface-2"}`}
+              >
+                <span className="flex items-center gap-2 text-[15px] font-semibold"><Badge n={s.number} />{s.title}</span>
+                {summaries[s.id] && <span id={`${id}-${s.id}`} className="pl-8 text-[13px] text-ink-muted">{summaries[s.id]}</span>}
+              </FlowLink>
+            </li>
           ))}
-        </fieldset>
-        {typeof flow.noCorrectionStreak === "number" && <p className="m-0 text-[12.5px] text-ink-muted">{streakText(flow.noCorrectionStreak)}</p>}
-        <p className="m-0 text-[12.5px] text-ink-muted">Documents with a number we&apos;ve already received always wait for you.</p>
-        {update.isError && <StatusNotice tone="error">{documentRefusalMessage(update.error)}</StatusNotice>}
-      </div>
-    </Card>
+        </ol>
+        <div className="flex w-full gap-0.5 border-t border-border-faint p-2 min-[1040px]:w-[196px] min-[1040px]:flex-none min-[1040px]:flex-col min-[1040px]:justify-center min-[1040px]:border-l min-[1040px]:border-t-0">
+          {side("documents", "Documents", flow.documentCount ? String(flow.documentCount) : "None yet")}
+          {flow.publishedVersion !== undefined && side("history", "History")}
+        </div>
+      </Card>
+    </nav>
   );
 }
 
-function Outputs({ flow, previewDocumentId }: { flow: Flow; previewDocumentId?: string }) {
-  const qc = useQueryClient();
-  const confirm = useConfirm();
-  const enabled = useTenantQueriesEnabled();
-  const [editing, setEditing] = useState<FlowOutput | "new" | null>(null);
-  const outputs = useQuery({ queryKey: ["outputs", flow.id], queryFn: () => listOutputs(flow.id), enabled });
-  const destinations = useQuery({ queryKey: ["destinations"], queryFn: listDestinations, enabled });
-  const remove = useMutation({
-    mutationFn: (id: string) => deleteOutput(flow.id, id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["outputs", flow.id] }); qc.invalidateQueries({ queryKey: ["flow", flow.id] }); },
-  });
-  const ask = async (o: FlowOutput) => {
-    if (await confirm({ title: "Delete output", description: `Delete "${o.name}"? This cannot be undone.`, confirmLabel: "Delete", danger: true })) remove.mutate(o.id);
-  };
+const ROW = "flex min-h-16 items-center gap-3 py-2.5 pl-3.5 pr-2.5 text-ink no-underline";
+const Row = ({ href, title, line, lead, tag }: { href: string; title: string; line: string | null; lead?: React.ReactNode; tag?: React.ReactNode }) => (
+  <li className="border-t border-border-faint first:border-t-0">
+    <FlowLink href={href} className={ROW}>
+      {lead}
+      <span className="grid min-w-0 flex-1 gap-px">
+        <span className="text-[16px] font-semibold">{title}</span>
+        {line && <span className="text-[14px] text-ink-muted">{line}</span>}
+      </span>
+      {tag}
+      <ChevronRight size={18} aria-hidden className="flex-none text-ink-muted" />
+    </FlowLink>
+  </li>
+);
 
-  if (outputs.isError && !outputs.data) return <Failed error={outputs.error} retry={() => outputs.refetch()} />;
-  if (!outputs.data) return <Quiet>Loading outputs…</Quiet>;
-  if (editing === "new") return <OutputBuilder flow={flow} previewDocumentId={previewDocumentId} onDone={() => setEditing(null)} />;
-  if (editing)
-    return (
-      <OutputEditor
-        flow={flow} output={editing} previewDocumentId={previewDocumentId}
-        onSaved={() => setEditing(null)} onCancel={() => setEditing(null)}
-      />
-    );
+/** A phone with no step chosen: the four steps as rows, then Documents and History. */
+function PhoneOverview({ flow, summaries }: { flow: Flow; summaries: Record<FlowStep, string | null> }) {
+  const need = pageTotal(useQuery({ ...flowNeedsYouQuery(flow.id), enabled: useTenantQueriesEnabled() }).data);
   return (
-    <div className="grid gap-2">
-      {remove.isError && <StatusNotice tone="error">{documentRefusalMessage(remove.error)}</StatusNotice>}
-      {destinations.isError && <Failed error={destinations.error} retry={() => destinations.refetch()} />}
-      {outputs.data.length === 0 && <Quiet>No outputs yet.</Quiet>}
-      {outputs.data.map((o) => (
-        <Card key={o.id} dense>
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="grid">
-              <span className="text-[13.5px] font-medium">{o.name}</span>
-              {describeSendWhen(o.sendWhen, flow.fields) && <span className="text-[12px] text-ink-muted">{describeSendWhen(o.sendWhen, flow.fields)}</span>}
-            </span>
-            <span className="text-[12px] text-ink-muted">{outputTypeLabel(o)} · {destinationName(destinations, o.destinationId)}</span>
-            <span className="flex gap-2">
-              <Button size="sm" variant="secondary" onClick={() => setEditing(o)}>Edit</Button>
-              {!o.standard && <Link href={`/flows/${flow.id}/outputs/${o.id}/advanced`} className="inline-flex items-center rounded border border-border px-2.5 text-[12.5px] font-medium text-ink">Open in Advanced</Link>}
-              <Button size="sm" variant="ghost" loading={remove.isPending && remove.variables === o.id} onClick={() => ask(o)}>Delete</Button>
-            </span>
-          </div>
+    <div className="grid gap-4">
+      <nav aria-label="The four steps of this flow">
+        <Card flush>
+          <ul className="m-0 list-none p-0">
+            {FLOW_STEPS.map((s) => <Row key={s.id} href={flowAddress(flow.id, s.id)} title={s.title} line={summaries[s.id]} lead={<Badge n={s.number} big />} />)}
+          </ul>
         </Card>
-      ))}
-      <div><Button variant="primary" size="sm" onClick={() => setEditing("new")}>Add an output</Button></div>
+      </nav>
+      <nav aria-label="This flow's documents and history">
+        <Card flush>
+          <ul className="m-0 list-none p-0">
+            <Row
+              href={flowAddress(flow.id, "documents")} title="Documents" line={documentsSoFar(flow.documentCount)}
+              tag={need ? <span className="flex-none rounded-full bg-amber-soft px-2.5 py-0.5 text-[12.5px] font-semibold text-amber-text">{needsYouWords(need)}</span> : undefined}
+            />
+            {flow.publishedVersion !== undefined && <Row href={flowAddress(flow.id, "history")} title="History" line="Earlier versions of this flow" />}
+          </ul>
+        </Card>
+      </nav>
+    </div>
+  );
+}
+
+/** The name saves at once (it is not part of a draft). A refusal keeps what was typed and says why under it. */
+function RenameForm({ flow, onDone }: { flow: Flow; onDone: () => void }) {
+  const qc = useQueryClient();
+  const [name, setName] = useState(flow.name);
+  const input = useRef<HTMLInputElement>(null);
+  const sending = useRef(false);   // one request per change, however often Enter is pressed
+  useEffect(() => input.current?.focus(), []);
+  const save = useMutation({
+    mutationFn: (n: string) => updateFlow(flow.id, { name: n }),
+    onSuccess: (f) => { qc.setQueryData(["flow", flow.id], f); qc.invalidateQueries({ queryKey: ["flows"] }); onDone(); },
+    onSettled: () => { sending.current = false; },
+  });
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const n = name.trim();
+    if (sending.current || !n) return;
+    if (n === flow.name) return onDone();
+    sending.current = true;
+    save.mutate(n);
+  };
+  return (
+    <form onSubmit={submit} onKeyDown={(e) => { if (e.key === "Escape") onDone(); }} className="grid max-w-[480px] gap-2">
+      <label className="grid gap-1 text-[13px] font-medium text-ink">
+        Flow name
+        <input ref={input} className={INPUT} maxLength={120} value={name} onChange={(e) => setName(e.target.value)} />
+      </label>
+      {save.isError && <p role="alert" className="m-0 text-[12.5px] text-danger">{documentRefusalMessage(save.error)}</p>}
+      <span className="flex gap-2">
+        <Button type="submit" variant="secondary" loading={save.isPending}>Save</Button>
+        <Button type="button" variant="ghost" onClick={onDone}>Cancel</Button>
+      </span>
+    </form>
+  );
+}
+
+/** What the chosen view shows. The four steps are filled in by their own pieces; the publish bar sits under them. */
+/** We send previews and tests with the newest read document. */
+function SendStep({ flow, output }: { flow: Flow; output: string | null }) {
+  return <FlowOutputs flow={flow} outputId={output} previewDocumentId={useLatestRead(flow.id).latest?.id ?? null} />;
+}
+
+function ViewBody({ flow, view, output }: { flow: Flow; view: FlowView; output: string | null }) {
+  const { bump, revision } = useFlowDraft();
+  const [discarding, setDiscarding] = useState(false);
+  if (view === "history") return <FlowVersionsPanel flowId={flow.id} onRestored={bump} />;
+  if (!isFlowStep(view)) return <FlowDocuments flow={flow} />;
+  const step: Record<FlowStep, React.ReactNode> = {
+    arrives: <FlowIntakePanel flow={flow} />, read: <FlowValues flow={flow} />, check: <FlowCheck flow={flow} />,
+    send: <SendStep flow={flow} output={output} />,
+  };
+  return (
+    <div className="grid gap-4">
+      <fieldset key={revision} disabled={discarding} className="m-0 min-w-0 border-0 p-0">{step[view]}</fieldset>
+      <PublishBar flow={flow} onDiscarding={setDiscarding} />
+    </div>
+  );
+}
+
+function FlowFrame({ flowId }: { flowId: string }) {
+  const router = useRouter();
+  const params = useSearchParams();
+  const view = readFlowView(params);
+  const output = readFlowOutput(params);
+  const draft = useFlowDraft();
+  const flow = useQuery({ queryKey: ["flow", flowId], queryFn: () => getFlow(flowId), enabled: useTenantQueriesEnabled() });
+  const [renaming, setRenaming] = useState(false);
+  const { leave } = draft;
+  const go = useCallback((href: string, push?: boolean) => leave(() => (push ? router.push(href) : router.replace(href))), [leave, router]);
+
+  const f = flow.data;
+  const live = f?.publishedVersion;
+  if (flow.isError && !f && isNotFoundFailure(flow.error)) return <AppNotFound />;
+  return (
+    <GoContext.Provider value={go}>
+      <PageShell variant="wide">
+        <PageHeader
+          title={f?.name ?? "Flow"}
+          back={{ href: "/flows", label: "Flows", onClick: leaveClick(go, "/flows", true) }}
+          sub={live === null ? "Not published yet" : typeof live === "number" ? (
+            <span className="inline-flex items-center gap-2"><span aria-hidden className="h-2 w-2 rounded-full bg-brand-green" />{`Live, version ${live}`}</span>
+          ) : undefined}
+          titleAction={f && (
+            <button
+              type="button" aria-label="Rename this flow" aria-expanded={renaming} onClick={() => setRenaming((r) => !r)}
+              className="inline-flex h-11 w-11 flex-none items-center justify-center rounded-md text-ink-muted hover:bg-surface-2 hover:text-ink"
+            >
+              <Pencil size={18} aria-hidden />
+            </button>
+          )}
+        />
+        {flow.isError && !f ? (
+          <Failed error={flow.error} retry={() => flow.refetch()} />
+        ) : !f ? (
+          <Quiet>Loading flow…</Quiet>
+        ) : (
+          <FlowBody flow={f} view={view} output={output} renaming={renaming} onRenamed={() => setRenaming(false)} blocked={draft.stay} />
+        )}
+      </PageShell>
+    </GoContext.Provider>
+  );
+}
+
+function FlowBody({ flow, view, output, renaming, onRenamed, blocked }: { flow: Flow; view: FlowView | null; output: string | null; renaming: boolean; onRenamed: () => void; blocked: string | null }) {
+  const summaries = useStepSummaries(flow);
+  return (
+    <div className="grid gap-4">
+      {renaming && <RenameForm flow={flow} onDone={onRenamed} />}
+      <StepStrip flow={flow} view={view ?? "documents"} summaries={summaries} />
+      {view && (
+        <div className="lg:hidden">
+          <FlowLink href={flowAddress(flow.id, null)} className="inline-flex items-center gap-1 text-[14px] font-semibold text-brand-blue">All steps</FlowLink>
+        </div>
+      )}
+      {blocked && <StatusNotice tone="error">{blocked}</StatusNotice>}
+      {/* No step chosen: a desk shows Documents, a phone the overview (R14). */}
+      {!view && <div className="lg:hidden"><PhoneOverview flow={flow} summaries={summaries} /></div>}
+      {/* Under the phone's step cards, or above the desk's Documents: drawn once for both. */}
+      {(!view || view === "documents") && (
+        <>
+          {!flow.fieldsConfirmed && (
+            <StatusNotice
+              tone="warning"
+              action={<FlowLink href={flowAddress(flow.id, "read")} className="inline-flex items-center font-semibold text-ink underline">Go to We read</FlowLink>}
+            >
+              Choose what we read from every document, so each one is read the same way.
+            </StatusNotice>
+          )}
+          <StreakBand flow={flow} />
+        </>
+      )}
+      <div className={view ? undefined : "hidden lg:block"}><ViewBody flow={flow} view={view ?? "documents"} output={output} /></div>
     </div>
   );
 }
 
 export function FlowPage({ flowId }: { flowId: string }) {
-  const router = useRouter();
-  const params = useSearchParams();
-  const qc = useQueryClient();
-  const enabled = useTenantQueriesEnabled();
-  const asked = params.get("tab");
-  const tab: Tab = TABS.some(([t]) => t === asked) ? (asked as Tab) : "documents";
-
-  const flow = useQuery({ queryKey: ["flow", flowId], queryFn: () => getFlow(flowId), enabled });
-  const docs = useQuery({
-    queryKey: ["documents", { flowId }], queryFn: () => listDocuments({ flowId }), enabled,
-    refetchInterval: (q) => (q.state.data?.some((d) => documentStatus(d.status, d.statusReason).tone === "working") ? 2000 : false),
-  });
-  // Newest document the engine has finished reading, so Fields and Preview have something real to show.
-  const latest = [...(docs.data ?? [])]
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-    .find((d) => {
-      const s = documentStatus(d.status, d.statusReason).stage;
-      return (typeof s === "number" ? s : s.failed) >= 2;
-    });
-  const latestDoc = useQuery({
-    queryKey: ["document", latest?.id], queryFn: () => getDocument(latest!.id), enabled: enabled && !!latest && tab !== "documents", placeholderData: keepPreviousData,
-  });
-
-  // An older backend sends no publishedVersion and has no versions endpoints.
-  const tabs = TABS.filter(([t]) => t !== "versions" || flow.data?.publishedVersion !== undefined);
-  const go = (t: Tab) => router.replace(`/flows/${flowId}?tab=${t}`);
-  const onTabKey = (e: React.KeyboardEvent) => {
-    // From the focused tab, not the URL: a second press can land before the route commits.
-    const i = tabs.findIndex(([t]) => `flow-tab-${t}` === e.currentTarget.id);
-    const to = nextTabIndex(e.key, i, tabs.length);
-    if (to === undefined) return;
-    e.preventDefault();
-    const next = tabs[to][0];
-    go(next);
-    document.getElementById(`flow-tab-${next}`)?.focus();
-  };
-  const saved = (f: Flow) => qc.setQueryData(["flow", flowId], f);
-  // A flow the server does not know reads like any unknown address: trying again cannot help.
-  if (flow.isError && isNotFoundFailure(flow.error)) return <AppNotFound />;
-
-  let body;
-  if (tab === "documents") {
-    body = (
-      <div className="grid gap-4">
-        <FlowUpload flowId={flowId} onUploaded={() => Promise.all([["documents"], ["flows"]].map((queryKey) => qc.invalidateQueries({ queryKey })))} />
-        {docs.isError ? <Failed error={docs.error} retry={() => docs.refetch()} />
-          : !docs.data ? <Quiet>Loading documents…</Quiet>
-          : docs.data.length === 0 ? <Quiet>No documents yet.</Quiet>
-          : <Card flush><DocumentList documents={docs.data} showFlow={false} label="Documents in this flow" /></Card>}
-      </div>
-    );
-  } else if (tab === "intake") {
-    body = <FlowIntakePanel flowId={flowId} />;
-  } else if (tab === "versions") {
-    body = <FlowVersionsPanel flowId={flowId} />;
-  } else if (!flow.data) {
-    body = null;
-  } else if (tab === "outputs") {
-    body = <Outputs flow={flow.data} previewDocumentId={latest?.id} />;
-  } else if (flow.data.fieldsConfirmed) {
-    const { list, off } = withReadExtras(flow.data.fields, latestDoc.data?.read);
-    // Keyed on the saved fields too, so a discard or restore replaces the form instead of leaving the old edits in it.
-    body = <FieldListEditor key={`${latestDoc.data ? "read" : "none"}:${JSON.stringify(flow.data.fields)}`} flow={flow.data} initial={list} initialOff={off} onSaved={saved} />;
-  } else if (docs.isError) {
-    body = <Failed error={docs.error} retry={() => docs.refetch()} />;
-  } else if (!docs.data || (latest && latestDoc.isPending)) {
-    body = <Quiet>Loading…</Quiet>;
-  } else if (latestDoc.isError) {
-    body = <Failed error={latestDoc.error} retry={() => latestDoc.refetch()} />;
-  } else if (!latestDoc.data) {
-    body = <Quiet>Upload a document first</Quiet>;
-  } else {
-    body = <FieldListEditor flow={flow.data} initial={fieldListFromRead(latestDoc.data.read)} onSaved={saved} />;
-  }
-
-  return (
-    <PageShell variant="wide">
-      <PageHeader
-        title={flow.data?.name ?? "Flow"}
-        sub={flow.data?.publishedVersion === null ? "Not published yet" : typeof flow.data?.publishedVersion === "number" ? `Live, version ${flow.data.publishedVersion}` : undefined}
-        back={{ href: "/flows", label: "Flows" }}
-      />
-      {flow.isError ? (
-        <Failed error={flow.error} retry={() => flow.refetch()} />
-      ) : !flow.data ? (
-        <Quiet>Loading flow…</Quiet>
-      ) : (
-        <div className="grid gap-4">
-          <Header flow={flow.data} />
-          {!flow.data.fieldsConfirmed && (
-            <StatusNotice
-              tone="warning"
-              action={<Button variant="secondary" size="sm" onClick={() => go("fields")}>Go to fields</Button>}
-            >
-              Confirm this flow&apos;s fields so every document is read the same way
-            </StatusNotice>
-          )}
-          <FlowChangesBar flow={flow.data} />
-          <div role="tablist" aria-label="Flow sections" className="flex gap-1 overflow-x-auto border-b border-border">
-            {tabs.map(([t, label]) => (
-              <button
-                key={t} type="button" role="tab" id={`flow-tab-${t}`} aria-controls="flow-panel" aria-selected={t === tab}
-                tabIndex={t === tab ? 0 : -1} onKeyDown={onTabKey} onClick={() => go(t)}
-                className={`whitespace-nowrap px-3 py-2 text-[13px] ${t === tab ? "border-b-2 border-brand-blue font-semibold" : "text-ink-muted"}`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          <div role="tabpanel" id="flow-panel" aria-labelledby={`flow-tab-${tab}`}>{body}</div>
-        </div>
-      )}
-    </PageShell>
-  );
+  return <FlowDraftProvider flowId={flowId}><FlowFrame flowId={flowId} /></FlowDraftProvider>;
 }

@@ -16,10 +16,11 @@ export const flowsQuery = {
   refetchOnWindowFocus: false,
 } as const;
 
-/** How many documents have these statuses, and which is newest. One request, shared by every reader of the same key. */
-export const documentCountQuery = (statuses: readonly string[]) => ({
-  queryKey: ["documents", "count", statuses.join(","), ""] as const,
-  queryFn: () => listDocumentPage({ status: statuses, page: 1, pageSize: 1 }),
+/** How many documents have these statuses, and which is newest; in one flow when `flowId` is given. One request,
+ *  shared by every reader of the same key. A flow's key extends the workspace's, so refreshing one refreshes both. */
+export const documentCountQuery = (statuses: readonly string[], flowId?: string) => ({
+  queryKey: (flowId ? ["documents", "count", statuses.join(","), "", flowId] : ["documents", "count", statuses.join(","), ""]) as readonly string[],
+  queryFn: () => listDocumentPage({ status: statuses, ...(flowId ? { flowId } : {}), page: 1, pageSize: 1 }),
 });
 /** The needs-you number: the title line, its tab, "Review next" and the phone tab bar read this one request. */
 export const needsYouQuery = documentCountQuery(NEEDS_YOU_STATUSES);

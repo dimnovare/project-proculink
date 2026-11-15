@@ -15,28 +15,29 @@ import { Step, Prereqs, IfThisFails, Outcome } from "@/components/help/guide";
 
 <Step n={1} title="Change the flow">
 
-Change the fields on the **Fields** tab, or add and edit outputs on the **Outputs** tab. Documents that are already running keep using the live version, so your changes do not disturb them.
+Change the values on the **We read** step, or add and edit outputs on the **We send** step. Changes save as a draft as you make them. Documents that are already running keep using the live version, so your changes do not disturb them.
 
-A bar at the top of the flow tells you where you stand:
+A bar under the step tells you where you stand:
 
 - Before the first publish: "Changes to this flow apply straight away until you publish it."
-- After: it says you have changes that aren't live yet, and which version new work still uses.
+- After: it says your changes are saved as a draft, and which version new documents still use until you publish.
 
 <Outcome>
-The bar offers **Publish** before the first publish. After that it offers **Publish changes** and **Discard changes**.
+The bar offers **Publish** before the first publish. After that it offers **Publish changes** and **Discard**.
 </Outcome>
 
 </Step>
 
 <Step n={2} title="Publish">
 
-Select **Publish changes**. The bar then says the version is live. New documents are read with it, and documents still waiting for review are checked again against it.
+Select **Publish changes**. Any change still waiting is saved first. The bar then says the version is live. New documents are read with it, and documents still waiting for review are checked again against it.
 
 <Outcome>
-A new version appears at the top of the **Versions** tab, marked **Live**.
+A new version appears at the top of **History**, marked **Live**.
 </Outcome>
 
 <IfThisFails>
+- **A change couldn't be saved.** Nothing is published. The bar names the step with the change, with a link to it.
 - **There are no changes to publish.** The flow already matches its live version.
 - **Someone else published this flow just now.** Reload to see the latest version, then make your change again if it is gone.
 </IfThisFails>
@@ -45,17 +46,17 @@ A new version appears at the top of the **Versions** tab, marked **Live**.
 
 <Step n={3} title="Discard changes you do not want">
 
-Select **Discard changes** and confirm. The flow goes back to the live version. This cannot be undone.
+Select **Discard** and confirm. The flow goes back to the live version. This cannot be undone.
 
 <Outcome>
-The bar disappears, because nothing is waiting to be published.
+The bar says your changes were discarded and which version is live.
 </Outcome>
 
 </Step>
 
 <Step n={4} title="Restore an earlier version">
 
-Open the **Versions** tab. Each version shows when it was published and by whom. Select **Restore** beside the one you want, and confirm.
+Open the flow's **History**. Each version shows when it was published and by whom. Select **Restore** beside the one you want, and confirm.
 
 Restoring does not make it live. It replaces your unpublished changes with that version. Check the flow, then select **Publish changes** to make it live as a new version.
 

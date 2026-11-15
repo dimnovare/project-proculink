@@ -13,4 +13,13 @@ describe("PageHeader", () => {
     expect(back).toHaveAttribute("href", "/flows");
     expect(back.compareDocumentPosition(h1) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
+
+  it("draws a title action right after the title, and nothing extra without one", () => {
+    const { rerender } = render(<PageHeader title="Supplier invoices" />);
+    const plain = screen.getByRole("heading", { level: 1 });
+    expect(plain.nextElementSibling).toBeNull();
+    rerender(<PageHeader title="Supplier invoices" titleAction={<button type="button">Rename this flow</button>} />);
+    const h1 = screen.getByRole("heading", { level: 1, name: "Supplier invoices" });
+    expect(h1.nextElementSibling).toBe(screen.getByRole("button", { name: "Rename this flow" }));
+  });
 });
