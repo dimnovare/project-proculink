@@ -127,6 +127,20 @@ describe("DocumentsHome", () => {
     expect(screen.queryByTestId("action-bar")).toBeNull();
   });
 
+  it("uses different words for nothing needs you and for an empty filter", async () => {
+    search.q = "show=needs-you";
+    answers({ needs: 0, sent: 4 });
+    const first = mount();
+    expect(await screen.findByRole("heading", { name: "You're all caught up." })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Upload a document" })).toHaveAttribute("href", "/upload");
+    first.unmount();
+    search.q = "show=in-progress";
+    mount();
+    expect(await screen.findByRole("heading", { name: "Nothing is in progress right now." })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Show all documents" })).toHaveAttribute("href", "/documents?show=all");
+    expect(screen.queryByText("No documents here.")).toBeNull();
+  });
+
   it("says flows are off on the engine refusal", async () => {
     listFlows.mockRejectedValue(new ApiHttpError("no", 403, { error: "document_engine_not_enabled" }));
     mount();

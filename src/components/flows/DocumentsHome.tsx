@@ -22,7 +22,8 @@ import {
 } from "@/lib/documentTabs";
 import { nextTabIndex } from "@/lib/tabKeys";
 import { DocumentList } from "./DocumentList";
-import { FirstFlowEmpty, Quiet } from "./states";
+import { CaughtUp, EmptyFilter, FirstFlowEmpty, Quiet } from "./states";
+import { StoppedAlert } from "./StoppedAlert";
 
 const Retry = ({ onClick }: { onClick: () => void }) => (
   <Button variant="secondary" size="sm" onClick={onClick}>Retry</Button>
@@ -47,6 +48,13 @@ export function DocumentsHome() {
     // A fixed key, and the week's start worked out when asked: a page left open over Sunday night moves on by itself.
     queryKey: ["documents", "count", "sent", "this-week"],
     queryFn: () => listDocumentPage({ status: ["sent"], sentFrom: startOfWeek(new Date()).toISOString(), page: 1, pageSize: 1 }),
+    enabled: engine === "on",
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
+  });
+  const stopped = useQuery({
+    queryKey: ["documents", "stopped"],
+    queryFn: () => listDocumentPage({ status: ["send_failed"], page: 1, pageSize: 20 }),
     enabled: engine === "on",
     refetchInterval: 60_000,
     refetchOnWindowFocus: true,
@@ -89,7 +97,7 @@ export function DocumentsHome() {
   } else if (!tabDef || !docs.data) {
     panel = <Quiet>Loading documents…</Quiet>;
   } else if (docs.data.items.length === 0) {
-    panel = page === 1 ? <Quiet>No documents here.</Quiet> : (
+    panel = page === 1 ? (tabDef.id === "needs-you" ? <CaughtUp /> : <EmptyFilter tab={tabDef.id} />) : (
       <div className="flex flex-col items-start gap-2">
         <Quiet>There is nothing on this page.</Quiet>
         <Link href={documentsAddress(tabDef.id)} className={buttonClass("secondary", "sm")}>First page</Link>
@@ -115,6 +123,9 @@ export function DocumentsHome() {
             </div>
           </div>
         )}
+        {tabDef.id === "needs-you" && to >= totalCount && (
+          <p className="m-0 text-[14px] text-ink-muted">That is everything that needs you. Older documents are under Sent and All.</p>
+        )}
       </div>
     );
   }
@@ -135,6 +146,8 @@ export function DocumentsHome() {
   } else {
     body = (
       <div className="flex min-w-0 flex-col gap-3">
+        {/* A failed answer draws nothing, even over an older one: unknown is never drawn. */}
+        <StoppedAlert page={stopped.isError ? undefined : stopped.data} />
         <div role="tablist" aria-label="Show" className="flex overflow-x-auto border-b border-border">
           {DOCUMENT_TABS.map((t, i) => {
             const n = counts[i].data?.totalCount;
@@ -152,7 +165,9 @@ export function DocumentsHome() {
           })}
         </div>
         <div role="tabpanel" id="documents-panel" aria-labelledby={tab ? `documents-tab-${tab}` : undefined}>{panel}</div>
-        {pagePopulation(anyOldOrders.data).rows > 0 && <Link href="/archive" className="text-[13px]">Old orders</Link>}
+        {pagePopulation(anyOldOrders.data).rows > 0 && (
+          <p className="m-0 text-[13px] text-ink-muted">Looking for something older? Open <Link href="/archive">Old orders</Link>.</p>
+        )}
       </div>
     );
   }
