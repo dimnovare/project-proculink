@@ -44,7 +44,7 @@ export const OPEN_SEARCH_EVENT = "plk:open-search";
 const BLOCKED = '[role="dialog"], [role="alertdialog"], [aria-modal="true"]';
 
 function typedInto(el: Element): boolean {
-  return el.matches("input, textarea, select")
+  return el.matches("input:not([type=checkbox]):not([type=radio]):not([type=button]):not([type=submit]), textarea, select")
     || (el as HTMLElement).isContentEditable === true
     || !!el.closest('[contenteditable=""], [contenteditable="true"], [contenteditable="plaintext-only"]');
 }

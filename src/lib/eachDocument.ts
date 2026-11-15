@@ -61,16 +61,18 @@ const MAX_NAME = 180;
  * A zip entry like "../../x" would otherwise write outside the folder it is extracted into.
  */
 export function safeFileName(name: string): string {
-  let s = name.split(/[/\\]/).filter(Boolean).pop() ?? "";
+  let s = name.normalize("NFC").split(/[/\\]/).filter(Boolean).pop() ?? "";
+  // Control and Windows-forbidden characters, bidi controls (an "invoice<RLO>fdp.exe" spoof) and look-alike slashes.
   // eslint-disable-next-line no-control-regex
-  s = s.replace(/[\u0000-\u001f\u007f:<>"|?*]/g, "").replace(/^[.\s/\\]+/, "").replace(/[.\s]+$/, "");
-  if (!s) return "document";
+  s = s.replace(/[\u0000-\u001f\u007f:<>"|?*\u200e\u200f\u202a-\u202e\u2066-\u2069\uff0f\uff3c\u2215\u2044]/g, "").replace(/^[.\s/\\]+/, "");
   if (s.length > MAX_NAME) {
     const dot = s.lastIndexOf(".");
     const ext = dot > 0 && s.length - dot <= 16 ? s.slice(dot) : "";
     s = s.slice(0, MAX_NAME - ext.length) + ext;
   }
-  return /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\.|$)/i.test(s) ? `_${s}` : s;
+  s = s.replace(/[.\s]+$/, ""); // after the cut, so a cut name cannot end in a dot or a space again
+  if (!s) return "document";
+  return /^(con|prn|aux|nul|conin\$|conout\$|com[0-9\u00b9\u00b2\u00b3]|lpt[0-9\u00b9\u00b2\u00b3])\s*(\.|$)/i.test(s) ? `_${s}` : s;
 }
 
 /** "invoice.pdf" taken: "invoice (2).pdf", then "invoice (3).pdf". */

@@ -1,8 +1,9 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { useMutation, useMutationState, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
+import { useIsMutating, useMutation, useMutationState, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/bridge/DSPrimitives";
+import { noticeAria } from "@/components/bridge/layout/StatusNotice";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
 import { eachDocument, fetchOriginal, saveOriginals, sendOne, type Each } from "@/lib/eachDocument";
 import type { ListedDocument } from "./DocumentList";
@@ -18,12 +19,11 @@ export function sendLabel(selected: number, ready: number): string | null {
 }
 
 type Words = { verb: "sent" | "downloaded"; unit: "document" | "file" };
-type Result = { lines: React.ReactNode; ok: boolean; ids: string };
-
-const idsOf = (docs: readonly { id: string }[]) => docs.map((d) => d.id).sort().join(",");
+/** What the last run did. Held by the screen, so it outlives the bar (Done, Clear or a tab change during a run). */
+export type BarReport = { lines: React.ReactNode; ok: boolean };
 
 /** What a run did, in the words the bar prints. `went` is the success sentence for what was done. */
-function summary<R>(r: Each<ListedDocument, R>, w: Words, went: string): Pick<Result, "lines" | "ok"> {
+function summary<R>(r: Each<ListedDocument, R>, w: Words, went: string): BarReport {
   const ok = r.refused.length === 0 && !r.stopped;
   if (ok) return { ok, lines: went };
   const refusedOne = r.refused.length === 1 && r.refused[0];
@@ -53,9 +53,14 @@ const sentWords = (r: Each<ListedDocument, unknown>) =>
   : r.done.length === 1 ? `${r.done[0].item.fileName} is on its way.` : `${r.done.length} documents are on their way.`;
 const downloadedWords = (n: number, first?: string) => (n === 1 ? `${first} downloaded.` : `${n} files downloaded in documents.zip.`);
 
-export function SelectionBar({ selected, onSent, onClear }: {
+export function SelectionBar({ selected, sent, report, onReport, onSent, onClear }: {
   /** The ticked rows on screen, in list order. */
   selected: ListedDocument[];
+  /** Documents the screen has already sent: never sent again, even before the list refreshes. */
+  sent: ReadonlySet<string>;
+  /** The last run's result, or null; the screen clears it on the person's next action. */
+  report: BarReport | null;
+  onReport: (r: BarReport) => void;
   /** A document went: untick it at once. A download unticks nothing. */
   onSent: (id: string) => void;
   onClear: () => void;
@@ -63,7 +68,9 @@ export function SelectionBar({ selected, onSent, onClear }: {
   const qc = useQueryClient();
   // Held from the press itself, so a second press before the next render starts nothing.
   const busy = useRef(false);
-  const [result, setResult] = useState<Result | null>(null);
+  const live = useRef<HTMLDivElement>(null);
+  // A run belongs to the screen, not to this bar: any run still out (from a bar since closed) holds every bar.
+  const running = useIsMutating({ mutationKey: BULK_SEND_KEY }) > 0;
   // A row whose own Send is still out is not sent again from here.
   const rowSending = useMutationState({
     filters: { mutationKey: ["document-send"], status: "pending" },
@@ -71,56 +78,62 @@ export function SelectionBar({ selected, onSent, onClear }: {
   });
   const run = useMutation({
     mutationKey: BULK_SEND_KEY,
-    mutationFn: (job: () => Promise<Result>) => job(),
-    onSuccess: setResult,
-    onSettled: () => {
-      busy.current = false;
-      for (const key of ["documents", "activity"]) qc.invalidateQueries({ queryKey: [key] });
+    // Everything after the run is done inside it, so it still happens when the bar was closed meanwhile.
+    mutationFn: async (job: () => Promise<BarReport>) => {
+      try {
+        onReport(await job());
+      } finally {
+        busy.current = false;
+        for (const key of ["documents", "activity"]) qc.invalidateQueries({ queryKey: [key] });
+      }
     },
   });
-  const start = (job: () => Promise<Result>) => {
-    if (busy.current) return;
+  const start = (job: () => Promise<BarReport>) => {
+    if (busy.current || qc.isMutating({ mutationKey: BULK_SEND_KEY }) > 0) return;
     busy.current = true;
     run.mutate(job);
   };
-  const ready = selected.filter((d) => d.status === "ready" && !rowSending.includes(d.id));
+  // When the run took away the button that had focus (everything went), focus goes to the result, not the page.
+  useEffect(() => {
+    if (report && (!document.activeElement || document.activeElement === document.body)) live.current?.focus();
+  }, [report]);
+  const ready = selected.filter((d) => d.status === "ready" && !sent.has(d.id) && !rowSending.includes(d.id));
   const label = sendLabel(selected.length, ready.length);
   const n = selected.length;
-  const shown = result && result.ids === idsOf(selected) ? result : null;
-  if (n === 0 && !shown) return null;
+  if (n === 0 && !report && !running) return null;
 
   const pressSend = () => start(async () => {
     const r = await eachDocument(ready, sendOne, (d) => onSent(d.id));
-    const left = selected.filter((d) => !r.done.some((x) => x.item.id === d.id));
-    return { ...summary(r, { verb: "sent", unit: "document" }, sentWords(r)), ids: idsOf(left) };
+    return summary(r, { verb: "sent", unit: "document" }, sentWords(r));
   });
   const pressDownload = () => start(async () => {
     const r = await eachDocument(selected, fetchOriginal);
     try {
       await saveOriginals(r.done.map((x) => x.value));
     } catch (e) {
-      return { ok: false, lines: documentRefusalMessage(e), ids: idsOf(selected) };
+      return { ok: false, lines: documentRefusalMessage(e) };
     }
-    return { ...summary(r, { verb: "downloaded", unit: "file" }, downloadedWords(r.done.length, r.done[0]?.item.fileName)), ids: idsOf(selected) };
+    return summary(r, { verb: "downloaded", unit: "file" }, downloadedWords(r.done.length, r.done[0]?.item.fileName));
   });
 
   const outlined = "!border-navy-muted !text-white hover:!bg-navy-surface";
   return (
     <div role="region" aria-label={n === 1 ? "1 document selected" : `${n} documents selected`}
       className="sticky bottom-6 z-sticky mx-auto flex w-full max-w-[640px] flex-wrap items-center gap-3 rounded-card-lg bg-navy px-4 py-3 text-[14px] text-white max-sm:gap-2.5 max-sm:p-3">
-      {shown ? (
-        <div key="result" role={shown.ok ? "status" : "alert"} className="min-w-0 flex-1 basis-full sm:basis-auto">{shown.lines}</div>
-      ) : (
-        <p className="m-0 min-w-0 flex-1 font-semibold max-sm:basis-1/2">{`${n} selected`}</p>
-      )}
+      {/* Both live elements are there from the first draw, empty, so the result is spoken when it arrives. */}
+      <div ref={live} tabIndex={-1} className={`min-w-0 flex-1 outline-none ${report ? "basis-full sm:basis-auto" : "max-sm:basis-1/2"}`}>
+        {!report && n > 0 && <p className="m-0 font-semibold">{`${n} selected`}</p>}
+        <div {...noticeAria("success")}>{report?.ok && report.lines}</div>
+        <div {...noticeAria("error")}>{report && !report.ok && report.lines}</div>
+      </div>
       {n > 0 && (
         <>
           {label && (
-            <Button type="button" variant="send" loading={run.isPending} onClick={pressSend} className="max-sm:order-2 max-sm:flex-1 max-sm:basis-[40%]">
+            <Button type="button" variant="send" loading={running} onClick={pressSend} className="max-sm:order-2 max-sm:flex-1 max-sm:basis-[40%]">
               {label}
             </Button>
           )}
-          <Button type="button" variant="ghost" loading={run.isPending} onClick={pressDownload} className={`${outlined} max-sm:order-3 max-sm:flex-1 max-sm:basis-[40%]`}>
+          <Button type="button" variant="ghost" loading={running} onClick={pressDownload} className={`${outlined} max-sm:order-3 max-sm:flex-1 max-sm:basis-[40%]`}>
             {n === 1 ? "Download file" : "Download files"}
           </Button>
           <Button type="button" variant="ghost" onClick={onClear} className={`${outlined} max-sm:order-1`}>Clear</Button>

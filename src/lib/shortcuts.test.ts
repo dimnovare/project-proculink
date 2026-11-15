@@ -38,6 +38,10 @@ describe("shortcuts", () => {
     expect(press(input, { key: "?", code: "Slash", shiftKey: true })).toBeNull();
     expect(press(document.body, { key: "?", code: "Slash", shiftKey: true })).toBe("show-shortcuts");
     expect(press(add("select"), { key: "?", shiftKey: true })).toBeNull();
+    // A tick or a switch is not a box anyone types into: ? still opens and closes the list from one.
+    const tick = add("input");
+    tick.type = "checkbox";
+    expect(press(tick, { key: "?", code: "Slash", shiftKey: true })).toBe("show-shortcuts");
     const editable = add("div");
     editable.setAttribute("contenteditable", "true");
     expect(press(editable, { key: "?", shiftKey: true })).toBeNull();

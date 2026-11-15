@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -104,6 +105,29 @@ describe("CommandPalette", () => {
     await answer(1, page([]));
     expect(within(dialog.getByRole("group", { name: "Lookups" })).getByRole("option", { name: "Item codes" })).toHaveAccessibleDescription("1 row");
     expect(dialog.queryByRole("group", { name: /^Documents/ })).toBeNull();
+  });
+
+  it("gives focus back to what had it when it closes", async () => {
+    function Harness() {
+      const [on, setOn] = useState(false);
+      return (
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <button type="button" onClick={() => setOn(true)}>Open search</button>
+          {on && <CommandPalette onClose={() => setOn(false)} onShortcuts={onShortcuts} />}
+        </QueryClientProvider>
+      );
+    }
+    render(<Harness />);
+    const trigger = screen.getByRole("button", { name: "Open search" });
+    trigger.focus();
+    fireEvent.click(trigger);
+    await wait(50);
+    const box = within(screen.getByRole("dialog", { name: NAME })).getByRole("combobox", { name: "Search" });
+    expect(box).toHaveFocus();
+    fireEvent.keyDown(box, { key: "Escape" });
+    await wait(1);
+    expect(screen.queryByRole("dialog", { name: NAME })).toBeNull();
+    expect(trigger).toHaveFocus();
   });
 
   it("arrows move, Enter opens the highlighted result, and Ctrl K closes it", async () => {

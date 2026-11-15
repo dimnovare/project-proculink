@@ -220,6 +220,45 @@ describe("DocumentsHome", () => {
     expect(screen.getByRole("region", { name: "1 document selected" })).toBeInTheDocument();
   });
 
+  it("a run outlives its bar: leaving Select mode and coming back sends nothing twice, and its result is shown", async () => {
+    const three = [
+      { ...row(1), id: "doc-1", fileName: "invoice-1001.pdf", status: "needs_review", checks: [], failedChecks: 1 },
+      { ...row(2), id: "doc-2", fileName: "invoice-1002.pdf", status: "ready" },
+      { ...row(3), id: "doc-3", fileName: "invoice-1003.pdf", status: "ready" },
+    ];
+    answers({ needs: 3, rows: three });
+    const out: ((v: unknown) => void)[] = [];
+    sendDocument.mockImplementation(() => new Promise((ok) => out.push(ok)));
+    mount();
+    await screen.findAllByText("invoice-1001.pdf");
+    const table = () => within(within(screen.getByRole("tabpanel")).getByRole("table"));
+    const tickBoth = () => ["invoice-1002.pdf", "invoice-1003.pdf"].forEach((f) => fireEvent.click(table().getByRole("checkbox", { name: `Select ${f}` })));
+    const sendBoth = () => act(async () => {
+      fireEvent.click(within(screen.getByRole("region", { name: "2 documents selected" })).getByRole("button", { name: "Send both" }));
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Select" }));
+    tickBoth();
+    await sendBoth();
+    expect(sendDocument).toHaveBeenCalledTimes(1);
+    // Done while the run is out, Select again, tick the same rows (still listed as ready) and press Send: nothing more leaves.
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    fireEvent.click(screen.getByRole("button", { name: "Select" }));
+    tickBoth();
+    await sendBoth();
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    await act(async () => { out[0]([]); await new Promise((r) => setTimeout(r, 0)); });
+    await act(async () => { out[1]([]); await new Promise((r) => setTimeout(r, 0)); });
+    expect(sendDocument.mock.calls).toEqual([["doc-2"], ["doc-3"]]);
+    // Out of Select mode, the result is shown where the list's notices go.
+    expect(await within(screen.getByRole("tabpanel").parentElement!).findByText("2 documents are on their way.")).toBeInTheDocument();
+    // Back in Select mode, what this screen sent is never offered to send again, even before the list refreshes.
+    fireEvent.click(screen.getByRole("button", { name: "Select" }));
+    tickBoth();
+    const bar = within(screen.getByRole("region", { name: "2 documents selected" }));
+    expect(bar.queryByRole("button", { name: /^Send/ })).toBeNull();
+    expect(sendDocument).toHaveBeenCalledTimes(2);
+  });
+
   it("the footer offers search, and Old orders only when there are old orders", async () => {
     answers({ needs: 0, rows: [row(1)] });
     const spy = vi.spyOn(window, "dispatchEvent");

@@ -26,7 +26,7 @@ import { nextTabIndex } from "@/lib/tabKeys";
 import { useApple } from "@/hooks/useShortcut";
 import { keyWord, openSearch } from "@/lib/shortcuts";
 import { DocumentList, type ListSelection } from "./DocumentList";
-import { SelectionBar } from "./SelectionBar";
+import { SelectionBar, type BarReport } from "./SelectionBar";
 import { CaughtUp, EmptyFilter, FirstFlowEmpty, Quiet } from "./states";
 import { StoppedAlert } from "./StoppedAlert";
 
@@ -85,19 +85,29 @@ export function DocumentsHome() {
   // Select mode, and the ticks: they belong to one tab and page, and only rows on screen count (R17).
   const [selecting, setSelecting] = useState(false);
   const [picked, setPicked] = useState<{ at: string; ids: Set<string> }>({ at: "", ids: new Set() });
+  // The last bulk run's result lives here, not in the bar, so Done, Clear or a tab change during a run does not lose it;
+  // the person's next action clears it. What the screen sent is never sent again from a bar.
+  const [report, setReport] = useState<BarReport | null>(null);
+  const sent = useRef(new Set<string>()).current;
   const here = `${tab}:${page}`;
-  if (picked.at && picked.at !== here) setPicked({ at: "", ids: new Set() }); // a new tab or page clears them
+  const [seen, setSeen] = useState(here);
+  if (seen !== here) { // a new tab or page clears the ticks and the last result
+    setSeen(here);
+    setPicked({ at: "", ids: new Set() });
+    setReport(null);
+  }
   const rows = docs.data?.items ?? [];
   const ticked = picked.at === here ? rows.filter((d) => picked.ids.has(d.id)) : [];
-  const clear = () => setPicked({ at: "", ids: new Set() });
+  const pick = (ids: Set<string>) => { setPicked({ at: here, ids }); setReport(null); };
+  const clear = () => pick(new Set());
   const selection: ListSelection = {
     ids: new Set(ticked.map((d) => d.id)),
     toggle: (id) => {
       const ids = new Set(ticked.map((d) => d.id));
       if (!ids.delete(id)) ids.add(id);
-      setPicked({ at: here, ids });
+      pick(ids);
     },
-    all: (on) => setPicked({ at: here, ids: new Set(on ? rows.map((d) => d.id) : []) }),
+    all: (on) => pick(new Set(on ? rows.map((d) => d.id) : [])),
   };
   const go = (t: DocumentTab) => router.replace(documentsAddress(t));
   const onTabKey = (e: React.KeyboardEvent) => {
@@ -197,10 +207,13 @@ export function DocumentsHome() {
           )}
         </div>
         <div role="tabpanel" id="documents-panel" aria-labelledby={tab ? `documents-tab-${tab}` : undefined}>{panel}</div>
-        {selecting && (
-          <SelectionBar key={here} selected={ticked} onClear={clear}
-            onSent={(id) => setPicked((p) => ({ ...p, ids: new Set([...p.ids].filter((x) => x !== id)) }))} />
-        )}
+        {selecting ? (
+          <SelectionBar key={here} selected={ticked} sent={sent} report={report} onReport={setReport} onClear={clear}
+            onSent={(id) => {
+              sent.add(id);
+              setPicked((p) => ({ ...p, ids: new Set([...p.ids].filter((x) => x !== id)) }));
+            }} />
+        ) : report && <StatusNotice tone={report.ok ? "success" : "error"}>{report.lines}</StatusNotice>}
         <p className="m-0 text-[13px] text-ink-muted">
           Looking for something older?{" "}
           <button type="button" onClick={openSearch} className="inline-flex items-center font-medium text-brand-blue-deep underline">Search all documents</button>
@@ -228,7 +241,8 @@ export function DocumentsHome() {
   return (
     <Frame sub={documentsHelper(needTotal, pageTotal(week.data))} actions={reviewNext("review-next", " hidden md:inline-flex")}>
       {body}
-      {next && !ticked.length && <ActionBar>{reviewNext()}</ActionBar>}
+      {/* Not in Select mode: the selection bar and its result sit where this bar would cover them. */}
+      {next && !selecting && <ActionBar>{reviewNext()}</ActionBar>}
     </Frame>
   );
 }

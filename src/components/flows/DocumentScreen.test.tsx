@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor, within } from "@testing-library/rea
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ApiHttpError } from "@/lib/api/core";
 import { COPY } from "@/lib/documentRefusals";
+import { ariaOf } from "@/lib/shortcuts";
 import { DocumentScreen } from "./DocumentScreen";
 
 const replace = vi.hoisted(() => vi.fn());
@@ -314,7 +315,7 @@ describe("DocumentScreen", () => {
     renderScreen();
     const header = within(await screen.findByTestId("review-header-actions"));
     await waitFor(() => expect(header.getByText("2 of 3 that need you")).toBeInTheDocument());
-    expect(header.getByRole("button", { name: "Send and open next" })).toHaveAttribute("aria-keyshortcuts", "Control+Enter Meta+Enter");
+    expect(header.getByRole("button", { name: "Send and open next" })).toHaveAttribute("aria-keyshortcuts", ariaOf("send-and-next"));
     const box = screen.getByLabelText("Invoice number");
     fireEvent.change(box, { target: { value: "INV-2001" } });
     ctrlEnter(box);                                                              // no blur first

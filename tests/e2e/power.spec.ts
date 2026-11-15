@@ -114,7 +114,7 @@ test.describe("power tools", () => {
     await bar.getByRole("button", { name: "Send the ready one" }).click();
     const left = page.getByRole("region", { name: "1 document selected" });
     await expect(left.getByRole("status")).toHaveText("invoice-1002.pdf is on its way.");
-    await expect(left.getByRole("alert")).toHaveCount(0);                          // everything went: a status, not an alert
+    await expect(left.getByRole("alert")).toHaveText("");                          // everything went: a status, the alert stays empty
     await expect(table.getByRole("row", { name: /invoice-1002\.pdf/ })).toHaveCount(0);
     await expect(table.getByRole("row", { name: /invoice-1001\.csv/ })).toHaveCount(1);
 
@@ -149,6 +149,15 @@ test.describe("power tools", () => {
     // The footer's inline controls are tap targets too.
     expect((await box(page.getByRole("button", { name: "Search all documents" }))).height).toBeGreaterThanOrEqual(44);
     expect((await box(page.getByRole("link", { name: "Old orders" }))).height).toBeGreaterThanOrEqual(44);
+    // Everything ticked went: the result is drawn clear of the tab bar, with no Review next bar over it, and holds focus.
+    await one.getByRole("button", { name: "Send" }).click();
+    const result = page.getByRole("status").filter({ hasText: "invoice-1002.pdf is on its way." });
+    await expect(result).toBeVisible();
+    await expect(page.getByTestId("action-bar")).toHaveCount(0);
+    const r = await box(result);
+    expect(r.y, "the result is on screen").toBeGreaterThanOrEqual(0);
+    expect(t.y - (r.y + r.height), "the result sits clear above the tab bar").toBeGreaterThanOrEqual(23);
+    await expect(page.locator(":focus"), "focus moved to the result, not the page").toContainText("invoice-1002.pdf is on its way.");
   });
 
   test("Ctrl K finds a document by number and opens it; while the server is out it never shows the last answer", async ({ page }) => {

@@ -86,6 +86,7 @@ export function CommandPalette({ onClose, onShortcuts }: { onClose: () => void; 
   const router = useRouter();
   const apple = useApple();
   const panelRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const [text, setText] = useState("");
   const [active, setActive] = useState(0);
   const s = usePaletteSearch(text);
@@ -129,8 +130,9 @@ export function CommandPalette({ onClose, onShortcuts }: { onClose: () => void; 
   useEffect(() => {
     if (activeId) document.getElementById(activeId)?.scrollIntoView?.({ block: "nearest" });
   }, [activeId]);
-  // Escape, the Tab trap, focus back to what opened it, the scroll lock: the one dialog contract. The input focuses itself.
-  useDialogA11y({ open: true, onClose, panelRef, autoFocus: false });
+  // Escape, the Tab trap, focus back to what opened it, the scroll lock: the one dialog contract. It focuses the input after
+  // noting what had focus; an autoFocus on the input would run first, and focus would come back to nothing.
+  useDialogA11y({ open: true, onClose, panelRef, initialFocusRef: inputRef });
 
   const run = (o: Option) => {
     onClose();
@@ -162,7 +164,7 @@ export function CommandPalette({ onClose, onShortcuts }: { onClose: () => void; 
         <div className="flex items-center gap-3 border-b border-border px-4">
           <Search size={18} strokeWidth={1.9} aria-hidden className="shrink-0 text-ink-muted" />
           <input
-            autoFocus value={text} placeholder="Search by name or number"
+            ref={inputRef} value={text} placeholder="Search by name or number"
             onChange={(e) => { setText(e.target.value); setActive(0); }} onKeyDown={onKeyDown}
             role="combobox" aria-label="Search" aria-autocomplete="list" aria-expanded={options.length > 0}
             aria-controls="palette-listbox" aria-activedescendant={activeId}

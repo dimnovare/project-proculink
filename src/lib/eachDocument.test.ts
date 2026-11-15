@@ -84,9 +84,17 @@ describe("eachDocument", () => {
     const cases: [string, string][] = [
       ["../../evil.txt", "evil.txt"], ["..\\..\\evil.txt", "evil.txt"], ["/etc/passwd", "passwd"], ["C:\\Users\\x\\a.pdf", "a.pdf"],
       ["..", "document"], ["", "document"], [".hidden", "hidden"], ["a\u0000b.pdf", "ab.pdf"], ["CON.pdf", "_CON.pdf"],
+      ["COM0.pdf", "_COM0.pdf"], ["lpt\u00b9.txt", "_lpt\u00b9.txt"], ["CONIN$", "_CONIN$"], ["conout$.log", "_conout$.log"],
+      ["CON .pdf", "_CON .pdf"], ["a\uff0fb\uff3cc\u2215d.pdf", "abcd.pdf"], ["invoice\u202efdp.exe", "invoicefdp.exe"],
     ];
     for (const [name, safe] of cases) expect(safeFileName(name)).toBe(safe);
     expect(safeFileName(`${"x".repeat(300)}.pdf`)).toBe(`${"x".repeat(176)}.pdf`);
+    expect(safeFileName(`${"x".repeat(179)} ${"y".repeat(50)}`)).toBe("x".repeat(179)); // a cut name ends in neither a dot nor a space
+    // NFC and NFD spellings of one name are one name, so the second is made unique.
+    await saveOriginals([{ name: "re\u0301sume\u0301.pdf", blob: new Blob(["a"]) }, { name: "r\u00e9sum\u00e9.pdf", blob: new Blob(["b"]) }]);
+    expect(Object.keys(unzipSync(new Uint8Array(await (save.saveBlob.mock.calls[0][0] as Blob).arrayBuffer()))))
+      .toEqual(["r\u00e9sum\u00e9.pdf", "r\u00e9sum\u00e9 (2).pdf"]);
+    save.saveBlob.mockClear();
 
     await saveOriginals([{ name: "../a.pdf", blob: new Blob(["one"]) }, { name: "../a.pdf", blob: new Blob(["two"]) },
       { name: "..\\..\\C:\\evil.exe", blob: new Blob(["three"]) }]);
