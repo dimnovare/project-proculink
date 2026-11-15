@@ -11,6 +11,8 @@ import { Card } from "@/components/bridge/layout/Card";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { useConfirm } from "@/components/ui/confirm";
+import { AppNotFound } from "@/components/bridge/AppNotFound";
+import { isNotFoundFailure } from "@/lib/apiFailure";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import {
   deleteOutput, getDocument, getFlow, listDestinations, listDocuments, listOutputs, updateFlow,
@@ -169,6 +171,8 @@ export function FlowPage({ flowId }: { flowId: string }) {
     document.getElementById(`flow-tab-${next}`)?.focus();
   };
   const saved = (f: Flow) => qc.setQueryData(["flow", flowId], f);
+  // A flow the server does not know reads like any unknown address: trying again cannot help.
+  if (flow.isError && isNotFoundFailure(flow.error)) return <AppNotFound />;
 
   let body;
   if (tab === "documents") {

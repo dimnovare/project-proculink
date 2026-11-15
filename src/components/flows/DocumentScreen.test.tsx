@@ -104,6 +104,14 @@ describe("DocumentScreen", () => {
     expect(await screen.findByText("The original isn't available right now.")).toBeTruthy();
   });
 
+  it("sends a clearer copy of an unreadable document to its own flow", async () => {
+    const bad = detail("");
+    api.getDocument.mockResolvedValue({ ...bad, summary: { ...bad.summary, status: "read_failed", statusReason: "unreadable_file" }, read: { ...bad.read, fields: [] } });
+    renderScreen();
+    const link = await screen.findByRole("link", { name: "Upload a clearer copy" });
+    expect(link.getAttribute("href")).toBe("/flows/f?tab=documents");
+  });
+
   it("offers to read a duplicate file anyway", async () => {
     const dup = detail("");
     api.getDocument.mockResolvedValue({

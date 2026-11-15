@@ -115,7 +115,7 @@ export function pausedCauseCopy(accountStatus: string): {
       return {
         headline: "Your last payment didn't go through.",
         resume:
-          "Update your payment details in Stripe — processing restarts on its own once the payment clears, and any orders waiting on it go out then.",
+          "Update your payment details in Stripe. Processing restarts on its own once the payment clears.",
       };
     case "cancelled":
       return {

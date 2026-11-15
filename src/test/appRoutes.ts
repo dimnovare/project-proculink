@@ -6,7 +6,7 @@
 // rest — and turns the file tree into the set of URLs the site actually serves.
 // Both gates then answer one question with it: "does this link land somewhere?"
 
-import { readdirSync, existsSync } from "fs";
+import { readdirSync, existsSync, readFileSync } from "fs";
 import { join } from "path";
 
 // jsdom reports import.meta.url as an http URL, so resolve from the vitest cwd
@@ -17,6 +17,18 @@ const APP_DIR = join(ROOT, "src", "app");
 const PAGE_FILES = ["page.tsx", "page.mdx"];
 
 /**
+ * A page file whose default export only calls notFound() (the in-app not-found
+ * catch-alls, plan 14.11 R19). It serves no URL of its own: counting it as a
+ * route would make every address under its prefix "resolve", so a dead link or
+ * a shadowed redirect there would pass unseen.
+ */
+export const NOT_FOUND_ONLY = /export default function \w*\(\)\s*\{\s*notFound\(\);?\s*\}/;
+/** Comments stripped first, so a page that only quotes the catch-all in a comment still counts. */
+export const servesNothing = (pageFile: string): boolean =>
+  existsSync(pageFile) &&
+  NOT_FOUND_ONLY.test(readFileSync(pageFile, "utf8").replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, ""));
+
+/**
  * Every route the App Router serves, as a URL pattern:
  *   "/library/suppliers"      static
  *   "/inbox/[orderId]"        one dynamic segment
@@ -24,7 +36,7 @@ const PAGE_FILES = ["page.tsx", "page.mdx"];
  */
 export function listAppRoutes(dir: string = APP_DIR, route = ""): string[] {
   const found: string[] = [];
-  if (PAGE_FILES.some((f) => existsSync(join(dir, f)))) {
+  if (PAGE_FILES.some((f) => existsSync(join(dir, f)) && !servesNothing(join(dir, f)))) {
     found.push(route === "" ? "/" : route);
   }
   for (const entry of readdirSync(dir, { withFileTypes: true })) {

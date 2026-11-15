@@ -61,7 +61,7 @@ describe("FlowsHome", () => {
     loading.unmount();
     listFlows.mockRejectedValue(new ApiHttpError("down", 500, null));
     show();
-    expect(await screen.findByRole("button", { name: "Retry" }, { timeout: 10_000 })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "Try again" }, { timeout: 10_000 })).toBeTruthy();
     expect(welcome()).toBeNull();
   });
 
@@ -102,7 +102,7 @@ describe("FlowsHome", () => {
     await act(() => vi.advanceTimersByTimeAsync(70_000));
     expect(listFlows.mock.calls.length).toBeGreaterThan(1);
     expect(await rows("Supplier invoices")).toHaveLength(2);
-    expect(screen.queryByRole("button", { name: "Retry" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
   });
 
   it("one New flow, and the plan line only when known", async () => {

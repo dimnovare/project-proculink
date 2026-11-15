@@ -6,8 +6,8 @@ import { useOrganization, useOrganizationList } from "@clerk/nextjs";
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ConfirmProvider } from "@/components/ui/confirm";
-import { Toaster } from "@/components/ui/toaster";
 import { BridgeSidebar } from "@/components/bridge/BridgeSidebar";
+import { HelpPanel, HelpPanelProvider } from "@/components/bridge/HelpPanel";
 import { BridgeTopbar } from "@/components/bridge/BridgeTopbar";
 import { ErrorBoundary } from "@/components/bridge/ErrorBoundary";
 import { ClerkAvailabilityGate } from "@/components/bridge/ClerkAvailabilityGate";
@@ -209,21 +209,25 @@ export default function AppShellLayout({
           )}
 
           {/* Right: topbar + scrollable main content */}
+          <HelpPanelProvider>
           <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
             <BridgeTopbar onMenuClick={openSidebar} menuOpen={sidebarOpen} />
-            <main id="main-content" tabIndex={-1} className="flex-1 overflow-auto outline-none mb-[var(--plk-tabbar-h)]">
-              <WorkspaceNameNudge />
-              <ErrorBoundary context="App">
-                {children}
-              </ErrorBoundary>
-            </main>
+            <div className="relative flex min-h-0 flex-1">
+              <main id="main-content" tabIndex={-1} className="min-w-0 flex-1 overflow-auto outline-none mb-[var(--plk-tabbar-h)]">
+                <WorkspaceNameNudge />
+                <ErrorBoundary context="App">
+                  {children}
+                </ErrorBoundary>
+              </main>
+              <HelpPanel />
+            </div>
             <BottomTabBar onMore={openSidebar} moreOpen={sidebarOpen} />
           </div>
+          </HelpPanelProvider>
         </div>
         </UploadQueueProvider>
         </ClerkAvailabilityGate>
 
-        <Toaster />
        </ConfirmProvider>
       </TooltipProvider>
     </QueryClientProvider>

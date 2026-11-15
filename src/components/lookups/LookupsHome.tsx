@@ -14,7 +14,9 @@ import { Button, Pill } from "@/components/bridge/DSPrimitives";
 import { Failed, Quiet } from "@/components/flows/states";
 import { flowsQuery, useDocumentEngine } from "@/hooks/useDocumentEngine";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
-import { createLookup, deleteLookup, listLookups } from "@/lib/api/documents";
+import { createLookup, deleteLookup, getLookup, listLookups } from "@/lib/api/documents";
+import { AppNotFound } from "@/components/bridge/AppNotFound";
+import { isNotFoundFailure } from "@/lib/apiFailure";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
 import { usedByLine } from "@/lib/lookupUses";
 import { LookupPage } from "./LookupPage";
@@ -30,6 +32,8 @@ export function LookupsHome({ lookupId }: { lookupId?: string }) {
   // Same key and options as useDocumentEngine, so the two share one request.
   const flows = useQuery({ ...flowsQuery, enabled: useTenantQueriesEnabled() });
   const lookups = useQuery({ queryKey: ["lookups"], queryFn: listLookups, enabled: engine === "on" });
+  // The open lookup's own query (shared with its panel), read here so an unknown id is the not-found page.
+  const one = useQuery({ queryKey: ["lookup", lookupId], queryFn: () => getLookup(lookupId!), enabled: engine === "on" && !!lookupId });
   const { newIds } = useLookupStore();
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -103,6 +107,8 @@ export function LookupsHome({ lookupId }: { lookupId?: string }) {
       </>
     );
   }
+
+  if (lookupId && one.isError && isNotFoundFailure(one.error)) return <AppNotFound />;
 
   let body;
   if (engine === "off") {

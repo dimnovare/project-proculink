@@ -23,6 +23,7 @@ import path from "node:path";
 // MDX and Sentry wrappers, and the redirect table is a plain literal.
 
 import { buildVisibleNav, PINNED_ACTION_HREF } from "./BridgeSidebar";
+import { servesNothing } from "@/test/appRoutes";
 
 const REPO_ROOT = path.resolve(__dirname, "../../..");
 const APP_DIR = path.join(REPO_ROOT, "src/app");
@@ -51,7 +52,7 @@ function appRoutes(): string[] {
         walk(path.join(dir, name), [...segments, segment]);
         continue;
       }
-      if (PAGE_FILES.includes(entry.name)) routes.push("/" + segments.join("/"));
+      if (PAGE_FILES.includes(entry.name) && !servesNothing(path.join(dir, entry.name))) routes.push("/" + segments.join("/"));
     }
   };
   walk(path.join(APP_DIR, "(app)"), []);

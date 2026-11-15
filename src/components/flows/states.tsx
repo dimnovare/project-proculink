@@ -2,12 +2,15 @@
 
 import Link from "next/link";
 import type { UseMutationResult } from "@tanstack/react-query";
-import { Check } from "lucide-react";
+import { Check, TriangleAlert } from "lucide-react";
 import { Button, buttonClass } from "@/components/bridge/DSPrimitives";
 import { Card } from "@/components/bridge/layout/Card";
+import { EmptyState } from "@/components/bridge/EmptyState";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import type { DocumentCheck, DocumentSummary } from "@/lib/api/documents";
-import { canRetryRead, documentRefusalMessage, readFailureMessage } from "@/lib/documentRefusals";
+import { classifyApiFailure } from "@/lib/apiFailure";
+import { canRetryRead, COPY, documentRefusalMessage, readFailureMessage, refusalToken } from "@/lib/documentRefusals";
+import { LIMIT_CODES } from "@/lib/limitRefusal";
 import { documentsAddress, type DocumentTab } from "@/lib/documentTabs";
 
 /** Reasons the engine parks a document for review on its own, each worded in COPY. */
@@ -17,14 +20,35 @@ export const Quiet = ({ children }: { children: string }) => (
   <p role="status" className="m-0 text-[13px] text-ink-muted">{children}</p>
 );
 
+/** The board's bar widths, row by row. */
+const BAR_WIDTHS = [[72, 80, 58], [54, 66, 74], [64, 72, 46]];
+
+/** Still grey rows while a list loads. `label` is what a screen reader hears. `columns` draws the list's own headings. */
+export function LoadingRows({ label, columns, rows = 3 }: { label: string; columns?: string[]; rows?: number }) {
+  const cells = columns?.length || 3;
+  const grid = { gridTemplateColumns: `repeat(${cells}, minmax(0, 1fr))` };
+  return (
+    <Card flush role="status" aria-label={label}>
+      <span className="sr-only">{label}</span>
+      {columns && (
+        <div className="grid h-[42px] items-center gap-4 px-4 text-[13px] text-ink-muted" style={grid}>
+          {columns.map((c) => <span key={c}>{c}</span>)}
+        </div>
+      )}
+      {Array.from({ length: rows }, (_, r) => (
+        <div key={r} className={`grid h-[55px] items-center gap-4 px-4${columns || r > 0 ? " border-t border-border" : ""}`} style={grid}>
+          {Array.from({ length: cells }, (_, c) => (
+            <span key={c} aria-hidden="true" className="block h-3 rounded-[6px] bg-surface-2" style={{ width: `${BAR_WIDTHS[r % 3][c % 3]}%` }} />
+          ))}
+        </div>
+      ))}
+    </Card>
+  );
+}
+
 const Empty = ({ icon, title, line, action }: { icon?: React.ReactNode; title: string; line: string; action: React.ReactNode }) => (
   <Card>
-    <div className="flex flex-col items-center gap-2 py-6 text-center">
-      {icon}
-      <h2 className="m-0 text-[18px] font-semibold text-ink">{title}</h2>
-      <p className="m-0 text-[14px] text-ink-muted">{line}</p>
-      <div className="mt-2">{action}</div>
-    </div>
+    <EmptyState compact={false} icon={icon} title={title} sub={line} action={action} />
   </Card>
 );
 
@@ -53,11 +77,53 @@ export const EmptyFilter = ({ tab }: { tab: Exclude<DocumentTab, "needs-you"> })
   />
 );
 
-export const Failed = ({ error, retry }: { error: unknown; retry(): void }) => (
-  <StatusNotice tone="error" action={<Button variant="secondary" size="sm" onClick={retry}>Retry</Button>}>
-    {documentRefusalMessage(error)}
-  </StatusNotice>
-);
+/** The board's "couldn't load" panel. `page` makes the heading the page's h1 (error boundaries). */
+export function CouldNotLoad({ title, line, retry, page, extra }: {
+  title: string; line: string; retry?: () => void; page?: boolean; extra?: React.ReactNode;
+}) {
+  const Heading = page ? "h1" : "h2";
+  return (
+    <Card>
+      <div role="alert" className="flex flex-col items-center gap-2 px-6 py-7 text-center">
+        <TriangleAlert aria-hidden size={26} className="text-danger" />
+        <Heading className="m-0 text-[18px] font-semibold text-ink">{title}</Heading>
+        <p className="m-0 text-[14px] text-ink-muted">{line}</p>
+        {(retry || extra) && (
+          <div className="mt-2 flex flex-wrap items-center justify-center gap-3">
+            {retry && <Button variant="secondary" size="md" onClick={retry}>Try again</Button>}
+            {extra}
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+/** The server worded this refusal itself: a token we have words for, or a plan limit. */
+const serverWorded = (error: unknown) => {
+  const token = refusalToken(error);
+  return !!token && (Object.hasOwn(COPY, token) || LIMIT_CODES.has(token));
+};
+
+/** What to say about a failed read, in order: the server's words, no answer, anything else. */
+export function failedLine(error: unknown): string {
+  if (serverWorded(error)) return documentRefusalMessage(error);
+  const { kind } = classifyApiFailure(error);
+  if (kind === "unreachable" || kind === "server") return "Nothing is lost. Check your connection and try again.";
+  return documentRefusalMessage(error);
+}
+
+export const Failed = ({ error, retry, what, lead = "We couldn't load this." }: {
+  error: unknown; retry(): void; /** "your documents": draws the panel */ what?: string;
+  /** The notice's first sentence when the server gave none, for a failure that is not a load. */ lead?: string;
+}) =>
+  what ? (
+    <CouldNotLoad title={`We couldn't load ${what}.`} line={failedLine(error)} retry={retry} />
+  ) : (
+    <StatusNotice tone="error" action={<Button variant="secondary" size="sm" onClick={retry}>Try again</Button>}>
+      {serverWorded(error) ? failedLine(error) : `${lead} ${failedLine(error)}`}
+    </StatusNotice>
+  );
 
 export const destinationName = (q: { data?: { id: string; name: string }[]; isError: boolean }, id: string | null) =>
   !id ? "Download only" : q.data?.find((d) => d.id === id)?.name ?? (q.isError ? "Unknown destination" : "…");
@@ -75,8 +141,10 @@ export function Checks({ checks }: { checks: DocumentCheck[] }) {
 }
 
 /** Why a document has nothing to edit, and the way forward: a failed read, or a file we had already. */
-export function ReadProblem({ summary, nothingRead, retry, scansOn }: {
+export function ReadProblem({ summary, nothingRead, retry, scansOn, uploadHref }: {
   summary: DocumentSummary; nothingRead: boolean; scansOn?: boolean; retry: UseMutationResult<unknown, unknown, void>;
+  /** Where "Upload a clearer copy" goes: where this screen uploads to the document's flow. */
+  uploadHref: string;
 }) {
   if (AUTOMATIC_HOLDS.has(summary.statusReason ?? "")) return <StatusNotice tone="warning">{readFailureMessage(summary.statusReason)}</StatusNotice>;
   const duplicate = summary.statusReason === "duplicate_file" && nothingRead;
@@ -90,6 +158,14 @@ export function ReadProblem({ summary, nothingRead, retry, scansOn }: {
       >
         {duplicate ? "This file was already uploaded to this flow." : readFailureMessage(summary.statusReason)}
       </StatusNotice>
+      {summary.status === "read_failed" && (
+        <>
+          <p className="m-0 text-[13px] text-ink-muted">It hasn't been sent anywhere, and it doesn't count as a document on your plan.</p>
+          <div className="flex flex-wrap gap-2">
+            <Link href={uploadHref} className={buttonClass("secondary", "md")}>Upload a clearer copy</Link>
+          </div>
+        </>
+      )}
       {retry.isError && <StatusNotice tone="error">{documentRefusalMessage(retry.error)}</StatusNotice>}
     </div>
   );
