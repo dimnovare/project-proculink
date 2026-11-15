@@ -17,6 +17,7 @@ import { SkipToContent } from "@/components/a11y/SkipToContent";
 import { BottomTabBar } from "@/components/bridge/BottomTabBar";
 import { UploadQueueProvider } from "@/components/flows/UploadQueue";
 import { OfflineNotice } from "@/components/pwa/OfflineNotice";
+import { HeldUploads } from "@/components/pwa/HeldUploads";
 import { useDeviceOwner } from "@/hooks/useDeviceOwner";
 
 /**
@@ -219,6 +220,7 @@ export default function AppShellLayout({
             <div className="relative flex min-h-0 flex-1">
               <main id="main-content" tabIndex={-1} className="min-w-0 flex-1 overflow-auto outline-none mb-[var(--plk-tabbar-h)]">
                 <WorkspaceNameNudge />
+                <HeldUploads />
                 <ErrorBoundary context="App">
                   {children}
                 </ErrorBoundary>
