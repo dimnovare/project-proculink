@@ -107,6 +107,11 @@ test.describe("offline", () => {
     await expect(justUploaded(a, JPG.name)).toContainText("Waiting for connection");
     await expect.poll(() => heldRecords(a)).toBe(1);
     await a.close();
+    // The closed tab's lock is released a moment after it closes. The two tabs look only once,
+    // when the connection returns, so wait for the release first: on a slow runner the
+    // connection came back while the lock was still held, and neither tab took the file.
+    const heldLocks = () => tabs[0].evaluate(async () => ((await navigator.locks.query()).held ?? []).filter((l) => l.name?.startsWith("plk-held:")).length);
+    await expect.poll(heldLocks).toBe(0);
     await context.setOffline(false);
 
     const listed = async () => (await Promise.all(tabs.map((tab) => tab.getByText(JPG.name, { exact: true }).count()))).reduce((a, b) => a + b);
