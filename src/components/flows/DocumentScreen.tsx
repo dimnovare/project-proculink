@@ -13,6 +13,8 @@ import { SourceDocumentBody, scrollTo, type SourcePick } from "@/components/brid
 import { DOCX_MEDIA_TYPE, sourceRenderFor } from "@/lib/sourceDocument";
 import { useLgViewport } from "@/components/bridge/document/useSourceDocument";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
+import { useShortcut } from "@/hooks/useShortcut";
+import { ariaOf } from "@/lib/shortcuts";
 import { useDocumentEdits } from "@/hooks/useDocumentEdits";
 import { reviewQueueQuery } from "@/hooks/useDocumentEngine";
 import { reviewMarks } from "@/lib/reviewMarks";
@@ -323,6 +325,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
     m.mutate(undefined, { onError: () => { pressed.current = false; } });
   };
   const busy = send.isPending || skip.isPending || leaving;
+  useShortcut("send-and-next", () => press(send), !!status?.editable && !busy);
   const canSkip = !!status?.editable && !!nextNow;
   const located = !!marks?.places.length || !!doc.data?.read.fields.some((f) => f.location?.box || f.location?.address)
     || !!doc.data?.read.tables.some((t) => t.rows.some((r) => Object.values(r.cells).some((c) => c.location?.box || c.location?.address)));
@@ -356,7 +359,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
             {status.editable ? (
               <>
                 {canSkip && <Button variant="secondary" className="hidden md:inline-flex" disabled={busy} onClick={() => press(skip)}>Skip</Button>}
-                <Button variant="send" className="hidden md:inline-flex" disabled={busy} loading={send.isPending || leaving} onClick={() => press(send)}>Send and open next</Button>
+                <Button variant="send" className="hidden md:inline-flex" disabled={busy} loading={send.isPending || leaving} onClick={() => press(send)} aria-keyshortcuts={ariaOf("send-and-next")}>Send and open next</Button>
               </>
             ) : nextNow && <Link replace href={documentHref(nextNow)} className={`${buttonClass("send", "md")} hidden items-center md:inline-flex`}>Review next</Link>}
           </div>
@@ -420,7 +423,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
           {status.editable ? (
             <>
               {canSkip && <Button variant="secondary" className="!flex-none" disabled={busy} onClick={() => press(skip)}>Skip</Button>}
-              <Button variant="send" disabled={busy} loading={send.isPending || leaving} onClick={() => press(send)}>Send and open next</Button>
+              <Button variant="send" disabled={busy} loading={send.isPending || leaving} onClick={() => press(send)} aria-keyshortcuts={ariaOf("send-and-next")}>Send and open next</Button>
             </>
           ) : nextNow && <Link replace href={documentHref(nextNow)} className={`${buttonClass("send", "md")} inline-flex items-center`}>Review next</Link>}
         </ActionBar>

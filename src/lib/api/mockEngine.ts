@@ -99,8 +99,8 @@ const doc = (n: number, f: Flow, status: string, facts: Partial<DocumentRow> = {
 });
 /** Newest is `doc-7`. Three wait for review or sending (`doc-1`, `doc-2`, `doc-5`); two failed (`doc-4`, `doc-6`). */
 const ROWS: DocumentRow[] = [
-  doc(1, flow1, STATUS.needs_review, { failedChecks: 2, checks: ["low_confidence", "required_missing"], number: MOCK_DOCUMENT_NUMBER }),
-  doc(2, flow1, STATUS.ready, { fileName: "invoice-1002.pdf" }), // the one PDF: pdf.js e2e (document-pdf.spec.ts)
+  doc(1, flow1, STATUS.needs_review, { failedChecks: 2, checks: ["low_confidence", "required_missing"], number: MOCK_DOCUMENT_NUMBER, sender: "Example Supplier Ltd" }),
+  doc(2, flow1, STATUS.ready, { fileName: "invoice-1002.pdf", sender: "Example Supplier Ltd" }), // the one PDF: pdf.js e2e (document-pdf.spec.ts)
   doc(3, flow1, STATUS.sent, { sentAt: DOC_3_SENT_AT }),
   doc(4, flow2, STATUS.send_failed, {
     failedAt: "2026-05-24T09:10:00Z", stop: { destinationId: "dest-1", destination: "Accounting inbox", error: REFUSED },
@@ -379,7 +379,17 @@ const missing = (what: string, id: string): never => {
 };
 const pick = <X extends { id: string }>(list: X[], id: string, what: string): X => list.find((x) => x.id === id) ?? missing(what, id);
 const echo = <X extends object>(base: X, body: Body): X => ({ ...base, ...body });
-export const DOCUMENT_LIST_KEYS = ["flowId", "status", "take", "page", "pageSize", "sentFrom", "sentTo", "waitingOnDestination"];
+export const DOCUMENT_LIST_KEYS = ["flowId", "status", "take", "page", "pageSize", "sentFrom", "sentTo", "waitingOnDestination", "q"];
+/** DocumentSearch.MaxTermLength: a longer term is cut (src/test/backendMirror.test.ts). */
+export const SEARCH_TERM_MAX = 200;
+/** Like DocumentSearch.Matches (DocumentSearch.cs): trimmed, cut, blank is no filter; the file name contains the term in any
+ *  case, or the number does with whitespace removed and upper-cased (DocumentChecks.NormalizeNumber). Never the sender. */
+const searchMatch = (raw: string | null): ((d: DocumentRow) => boolean) => {
+  const term = raw?.trim().slice(0, SEARCH_TERM_MAX);
+  if (!term) return () => true;
+  const norm = (s: string) => s.replace(/\s/g, "").toUpperCase();
+  return (d) => d.fileName.toLowerCase().includes(term.toLowerCase()) || (d.number !== null && norm(d.number).includes(norm(term)));
+};
 /** An absent integer parameter is null; one the server could not bind is its 400. */
 const intParam = (q: URLSearchParams, key: string): number | null => {
   const v = q.get(key);
@@ -470,8 +480,9 @@ const ROUTES: [method: string, pattern: RegExp, run: Handler][] = [
     const dest = q.get("waitingOnDestination");
     const waiting = (d: DocumentRow) => dest === null
       || (d.status === STATUS.send_failed && d.stop?.destinationId === dest && !resent.has(d.id));
+    const found = searchMatch(q.get("q"));
     const rows = ROWS.map(live).filter((d) => (!q.get("flowId") || d.flowId === q.get("flowId"))
-      && (!statuses.length || statuses.includes(d.status)) && landed(d.sentAt) && waiting(d))
+      && (!statuses.length || statuses.includes(d.status)) && landed(d.sentAt) && waiting(d) && found(d))
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id));
     const clamp = (key: string) => Math.min(Math.max(intParam(q, key) ?? 50, 1), 200);
     const page = intParam(q, "page");

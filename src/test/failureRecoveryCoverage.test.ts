@@ -136,10 +136,11 @@ describe("the guard tables are one copy, not nine", () => {
       // The palette entry that routes to this page must carry that exact label.
       const entry = new RegExp(`label:\\s*"([^"]+)",[^\\n]*?/operations/${segment}"`).exec(palette)?.[1];
       expect(entry, `no command-palette entry routes to /operations/${segment}`).toBeTruthy();
+      // 2026-11-15 (plan 14.10 R8): the palette says "Open Activity" as the board draws it; the page's own title must be inside the label, so typing it finds the page.
       expect(
         entry,
         `the palette calls /operations/${segment} "${entry}" while the page itself calls it "${canonical}" — an operator searching the name they were told will not find it`,
-      ).toBe(canonical);
+      ).toContain(canonical);
     }
   });
 

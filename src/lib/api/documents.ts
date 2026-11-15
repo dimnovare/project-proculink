@@ -221,9 +221,10 @@ export function listDocuments(params: { flowId?: string; status?: string; take?:
 }
 
 /** One page, newest first. `status` is sent comma-joined. `page` is always sent: the server ignores `pageSize` without it.
- *  `sentFrom` is a UTC instant ending in `Z`, kept at or after. The server clamps `pageSize` to 200. */
+ *  `sentFrom` is a UTC instant ending in `Z`, kept at or after. The server clamps `pageSize` to 200.
+ *  `q` finds by file name or document number; the server trims it and a blank one is no filter, so leave it out. */
 export function listDocumentPage(params: {
-  status?: readonly string[]; flowId?: string; sentFrom?: string; waitingOnDestination?: string; page: number; pageSize: number;
+  status?: readonly string[]; flowId?: string; sentFrom?: string; waitingOnDestination?: string; q?: string; page: number; pageSize: number;
 }): Promise<DocumentPage> {
   const query = toQuery(params);
   return apiFetch<DocumentPage>(`/documents?${query}`);

@@ -2,16 +2,25 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { useMutation, useQueryClient, type UseMutationResult } from "@tanstack/react-query";
+import { useIsMutating, useMutation, useQueryClient, type UseMutationResult } from "@tanstack/react-query";
 import { StatusJourney } from "@/components/bridge/StatusJourney";
 import { Button, Pill, buttonClass } from "@/components/bridge/DSPrimitives";
 import { relativeTime } from "@/lib/relativeTime";
 import { documentStatus, WHOLE_DOCUMENT_CHECKS, type DocumentStatusRow } from "@/lib/documentStatusManifest";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
 import { sendDocument, type DocumentRow, type DocumentSummary } from "@/lib/api/documents";
+import { BULK_SEND_KEY } from "./SelectionBar";
 
 /** A document as a list knows it: a row of the paged list, or a bare summary (the flow page). */
 export type ListedDocument = DocumentSummary & Partial<Omit<DocumentRow, keyof DocumentSummary>>;
+
+/** Select mode: which rows on screen are ticked. */
+export interface ListSelection {
+  ids: ReadonlySet<string>;
+  toggle: (id: string) => void;
+  /** The header box: ticks every row on screen, or none. */
+  all: (on: boolean) => void;
+}
 
 type Tone = "amber" | "green" | "blue" | "danger";
 const STATUS_TONE: Record<DocumentStatusRow["tone"], Tone> = { working: "blue", warning: "amber", error: "danger", success: "green" };
@@ -38,6 +47,8 @@ const received = (d: ListedDocument) => relativeTime(d.createdAt) ?? "—";
 export function useRowSend(id: string, onSent: () => void): UseMutationResult<unknown, unknown, void> {
   const qc = useQueryClient();
   return useMutation({
+    // Keyed by document, so the selection bar leaves out a row whose own send is still out.
+    mutationKey: ["document-send", id],
     mutationFn: () => sendDocument(id),
     onSuccess: () => {
       onSent();
@@ -46,13 +57,24 @@ export function useRowSend(id: string, onSent: () => void): UseMutationResult<un
   });
 }
 
-function Row({ d, showFlow, sendable, columns, onSent }: {
-  d: ListedDocument; showFlow: boolean; sendable: boolean; columns: string; onSent: (d: ListedDocument) => void;
+/** A row's tick: a real checkbox in a 44px label, above the row link's overlay. */
+const Tick = ({ d, selection, className }: { d: ListedDocument; selection: ListSelection; className: string }) => (
+  <label className={`relative z-[1] flex shrink-0 items-center justify-center ${className}`}>
+    <input type="checkbox" aria-label={`Select ${d.fileName}`} checked={selection.ids.has(d.id)} onChange={() => selection.toggle(d.id)} className="h-5 w-5" />
+  </label>
+);
+
+function Row({ d, showFlow, sendable, columns, onSent, selection }: {
+  d: ListedDocument; showFlow: boolean; sendable: boolean; columns: string; onSent: (d: ListedDocument) => void; selection?: ListSelection;
 }) {
   const send = useRowSend(d.id, () => onSent({ ...d, status: "sending", statusReason: null }));
+  // While the selection bar is sending or downloading, a row's own Send waits.
+  const bulk = useIsMutating({ mutationKey: BULK_SEND_KEY }) > 0;
   const need = rowNeed(d);
+  const ticked = !!selection?.ids.has(d.id);
   return (
-    <div role="row" className="relative grid min-h-[64px] items-center gap-3 border-t border-border px-3 py-2 hover:bg-surface-2" style={{ gridTemplateColumns: columns }}>
+    <div role="row" className={`relative grid min-h-[64px] items-center gap-3 border-t border-border px-3 py-2 ${ticked ? "bg-brand-blue-soft" : "hover:bg-surface-2"}`} style={{ gridTemplateColumns: columns }}>
+      {selection && <div role="cell"><Tick d={d} selection={selection} className="h-11 w-11" /></div>}
       <div role="cell" className="min-w-0">
         <div className="flex min-w-0 items-center gap-2">
           <Link href={href(d)} className="min-w-0 truncate text-[14.5px] font-semibold text-ink after:absolute after:inset-0">{d.fileName}</Link>
@@ -68,8 +90,8 @@ function Row({ d, showFlow, sendable, columns, onSent }: {
       <div role="cell"><StatusJourney stage={documentStatus(d.status, d.statusReason).stage} compact /></div>
       <div role="cell" className="text-[13px] text-ink-muted">{received(d)}</div>
       <div role="cell" className="text-right">
-        {d.status === "ready" && sendable ? (
-          <Button variant="secondary" size="sm" aria-label={`Send ${d.fileName}`} loading={send.isPending} onClick={() => send.mutate()}
+        {d.status === "ready" && sendable && !selection ? (
+          <Button variant="secondary" size="sm" aria-label={`Send ${d.fileName}`} loading={send.isPending || bulk} onClick={() => send.mutate()}
             className="relative z-[1] !border-brand-green-deep !text-brand-green-deep">Send</Button>
         ) : d.status === "needs_review" ? (
           <span aria-hidden className={buttonClass("secondary", "sm")}>Review</span>
@@ -79,7 +101,7 @@ function Row({ d, showFlow, sendable, columns, onSent }: {
   );
 }
 
-export function DocumentList({ documents, showFlow, label, needHeading = "Status", sendable = false }: {
+export function DocumentList({ documents, showFlow, label, needHeading = "Status", sendable = false, selection }: {
   documents: ListedDocument[];
   showFlow: boolean;
   /** The list's accessible name. */
@@ -88,17 +110,30 @@ export function DocumentList({ documents, showFlow, label, needHeading = "Status
   needHeading?: string;
   /** Ready rows carry Send (table only). */
   sendable?: boolean;
+  /** Select mode: a checkbox before each row; the row's own Send is not drawn (the bar sends). */
+  selection?: ListSelection;
 }) {
   // What this list sent, drawn only while the incoming list still calls it ready; when the server stops listing it,
   // the row goes (R5). The caller resets it with a `key`.
   const [sent, setSent] = useState<Record<string, ListedDocument>>({});
   const drawn = documents.map((d) => (sent[d.id] && d.status === "ready" ? sent[d.id] : d)).sort((a, b) => b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id));
-  const columns = `minmax(0,2fr) ${showFlow ? "minmax(0,1fr) " : ""}minmax(0,1.4fr) 104px 96px 88px`;
+  const columns = `${selection ? "44px " : ""}minmax(0,2fr) ${showFlow ? "minmax(0,1fr) " : ""}minmax(0,1.4fr) 104px 96px 88px`;
 
   return (
     <>
       <div role="table" aria-label={label} className="hidden lg:block">
         <div role="row" className="grid gap-3 px-3 py-2 text-[12.5px] font-medium text-ink-muted" style={{ gridTemplateColumns: columns }}>
+          {selection && (
+            <div role="columnheader">
+              {drawn.length > 1 && (
+                <label className="flex h-11 w-11 items-center justify-center">
+                  <input type="checkbox" aria-label={`Select all ${drawn.length} documents`} className="h-5 w-5"
+                    checked={drawn.every((d) => selection.ids.has(d.id))} onChange={(e) => selection.all(e.target.checked)}
+                    ref={(el) => { if (el) el.indeterminate = drawn.some((d) => selection.ids.has(d.id)) && !drawn.every((d) => selection.ids.has(d.id)); }} />
+                </label>
+              )}
+            </div>
+          )}
           <div role="columnheader">Document</div>
           {showFlow && <div role="columnheader">Flow</div>}
           <div role="columnheader">{needHeading}</div>
@@ -107,16 +142,17 @@ export function DocumentList({ documents, showFlow, label, needHeading = "Status
           <div role="columnheader"><span className="sr-only">Action</span></div>
         </div>
         {drawn.map((d) => (
-          <Row key={d.id} d={d} showFlow={showFlow} sendable={sendable} columns={columns} onSent={(s) => setSent((m) => ({ ...m, [s.id]: s }))} />
+          <Row key={d.id} d={d} showFlow={showFlow} sendable={sendable} columns={columns} selection={selection} onSent={(s) => setSent((m) => ({ ...m, [s.id]: s }))} />
         ))}
       </div>
       <ul data-testid="documents-phone-list" aria-label={label} className="m-0 list-none p-0 lg:hidden">
         {drawn.map((d) => {
           const need = rowNeed(d);
           return (
-            <li key={d.id} className="border-t border-border first:border-t-0">
+            <li key={d.id} className={`border-t border-border first:border-t-0 ${selection ? "flex items-stretch" : ""} ${selection?.ids.has(d.id) ? "bg-brand-blue-soft" : ""}`}>
+              {selection && <Tick d={d} selection={selection} className="w-11 pl-2" />}
               {/* `!` beats the global phone rule, whose `min-height: 44px !important` would otherwise win. */}
-              <Link href={href(d)} className="flex !min-h-[92px] items-center gap-3 px-4 py-3 text-ink">
+              <Link href={href(d)} className="flex !min-h-[92px] min-w-0 flex-1 items-center gap-3 px-4 py-3 text-ink">
                 <div className="grid min-w-0 flex-1 gap-1">
                   <div className="flex min-w-0 items-baseline justify-between gap-3">
                     <span data-testid="document-name" className="min-w-0 truncate text-[16px] font-semibold">{d.fileName}</span>

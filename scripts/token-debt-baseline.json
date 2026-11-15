@@ -24,7 +24,6 @@
   "src/components/bridge/BridgeLoader.tsx": 8,
   "src/components/bridge/BridgeSidebar.tsx": 41,
   "src/components/bridge/BridgeTopbar.tsx": 4,
-  "src/components/bridge/CommandPalette.tsx": 39,
   "src/components/bridge/ConfidenceChip.tsx": 10,
   "src/components/bridge/DependencyUnavailable.tsx": 7,
   "src/components/bridge/DSPrimitives.tsx": 9,

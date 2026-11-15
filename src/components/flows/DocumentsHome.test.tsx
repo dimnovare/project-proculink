@@ -1,7 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { act, render, screen, fireEvent, within } from "@testing-library/react";
+import { act, render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ApiHttpError } from "@/lib/api/core";
+import { buttonClass } from "@/components/bridge/DSPrimitives";
+import { OPEN_SEARCH_EVENT } from "@/lib/shortcuts";
 import { DocumentsHome } from "./DocumentsHome";
 import { UploadQueueProvider } from "./UploadQueue";
 
@@ -13,10 +15,13 @@ vi.mock("next/navigation", () => ({
 }));
 const listFlows = vi.fn();
 const listDocumentPage = vi.hoisted(() => vi.fn());
-vi.mock("@/lib/api/documents", () => ({ listFlows: () => listFlows(), listDocumentPage }));
+const sendDocument = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/api/documents", () => ({ listFlows: () => listFlows(), listDocumentPage, sendDocument }));
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => true }));
 vi.mock("@clerk/nextjs", () => ({ useUser: () => ({ user: null, isLoaded: true }) }));
 vi.mock("@/lib/api/linkedAccounts", () => ({ listLinkedAccounts: () => Promise.resolve({ available: false, accounts: [] }) }));
+const getOrders = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/api-client", () => ({ apiClient: { getOrders } }));
 
 /** "pending" never settles: the request is still out. */
 type Count = number | Error | "pending";
@@ -59,6 +64,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   search.q = "";
   listFlows.mockResolvedValue([{ id: "f1", name: "Invoices" }]);
+  getOrders.mockResolvedValue({ items: [], totalCount: 0, page: 1, pageSize: 1, sampleCount: 0 });
 });
 
 describe("DocumentsHome", () => {
@@ -187,6 +193,108 @@ describe("DocumentsHome", () => {
     expect(client.getQueryState(["documents", "stopped"])?.status).toBe("error");
     expect(screen.getByText(/1 document couldn't be sent/)).toBeInTheDocument();
     expect(within(within(screen.getByRole("tabpanel")).getByRole("table")).getByText("doc-0.pdf")).toBeInTheDocument();
+  });
+
+  it("Select ticks only the rows on screen, Send sends only the ready ones once, and a new tab clears it", async () => {
+    const two = [
+      { ...row(1), id: "doc-1", fileName: "invoice-1001.pdf", status: "needs_review", checks: [], failedChecks: 1 },
+      { ...row(2), id: "doc-2", fileName: "invoice-1002.pdf", status: "ready" },
+    ];
+    answers({ needs: 2, rows: two });
+    sendDocument.mockResolvedValue([]);
+    const first = mount();
+    const table = () => within(within(screen.getByRole("tabpanel")).getByRole("table"));
+    await screen.findAllByText("invoice-1001.pdf");
+    expect(screen.queryAllByRole("checkbox")).toHaveLength(0);
+    fireEvent.click(screen.getByRole("button", { name: "Select" }));
+    expect(screen.getByRole("button", { name: "Done" })).toBeInTheDocument();
+    fireEvent.click(table().getByRole("checkbox", { name: "Select invoice-1001.pdf" }));
+    fireEvent.click(table().getByRole("checkbox", { name: "Select invoice-1002.pdf" }));
+    const bar = within(screen.getByRole("region", { name: "2 documents selected" }));
+    expect(bar.getByText("2 selected")).toBeInTheDocument();
+    // The bar's Send is the one filled button: the header's Review next turns secondary, the phone bar goes.
+    expect(screen.getByTestId("review-next").className).toContain(buttonClass("secondary", "lg"));
+    expect(screen.queryByTestId("action-bar")).toBeNull();
+    const send = bar.getByRole("button", { name: "Send the ready one" });
+    await act(async () => {
+      fireEvent.click(send);
+      fireEvent.click(send);
+    });
+    expect(await bar.findByRole("status")).toHaveTextContent("invoice-1002.pdf is on its way.");
+    expect(sendDocument).toHaveBeenCalledTimes(1);
+    expect(sendDocument).toHaveBeenCalledWith("doc-2");
+    expect(table().getByRole("checkbox", { name: "Select invoice-1002.pdf" })).not.toBeChecked();
+    search.q = "show=all";
+    first.again();
+    await waitFor(() => expect(table().getByText("invoice-1001.pdf")).toBeInTheDocument());
+    expect(screen.queryByRole("region", { name: /selected$/ })).toBeNull();
+    expect(table().getByRole("checkbox", { name: "Select invoice-1001.pdf" })).not.toBeChecked();
+    // A failed refresh keeps the rows and the ticks.
+    fireEvent.click(table().getByRole("checkbox", { name: "Select invoice-1001.pdf" }));
+    listDocumentPage.mockRejectedValue(new Error("down"));
+    await act(async () => {
+      await first.client.refetchQueries({ queryKey: ["documents", "page"] });
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    expect(first.client.getQueryState(["documents", "page", "all", 1])?.status).toBe("error");
+    expect(table().getByRole("checkbox", { name: "Select invoice-1001.pdf" })).toBeChecked();
+    expect(screen.getByRole("region", { name: "1 document selected" })).toBeInTheDocument();
+  });
+
+  it("a run outlives its bar: leaving Select mode and coming back sends nothing twice, and its result is shown", async () => {
+    const three = [
+      { ...row(1), id: "doc-1", fileName: "invoice-1001.pdf", status: "needs_review", checks: [], failedChecks: 1 },
+      { ...row(2), id: "doc-2", fileName: "invoice-1002.pdf", status: "ready" },
+      { ...row(3), id: "doc-3", fileName: "invoice-1003.pdf", status: "ready" },
+    ];
+    answers({ needs: 3, rows: three });
+    const out: ((v: unknown) => void)[] = [];
+    sendDocument.mockImplementation(() => new Promise((ok) => out.push(ok)));
+    mount();
+    await screen.findAllByText("invoice-1001.pdf");
+    const table = () => within(within(screen.getByRole("tabpanel")).getByRole("table"));
+    const tickBoth = () => ["invoice-1002.pdf", "invoice-1003.pdf"].forEach((f) => fireEvent.click(table().getByRole("checkbox", { name: `Select ${f}` })));
+    const sendBoth = () => act(async () => {
+      fireEvent.click(within(screen.getByRole("region", { name: "2 documents selected" })).getByRole("button", { name: "Send both" }));
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Select" }));
+    tickBoth();
+    await sendBoth();
+    expect(sendDocument).toHaveBeenCalledTimes(1);
+    // Done while the run is out, Select again, tick the same rows (still listed as ready) and press Send: nothing more leaves.
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    fireEvent.click(screen.getByRole("button", { name: "Select" }));
+    tickBoth();
+    await sendBoth();
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    await act(async () => { out[0]([]); await new Promise((r) => setTimeout(r, 0)); });
+    await act(async () => { out[1]([]); await new Promise((r) => setTimeout(r, 0)); });
+    expect(sendDocument.mock.calls).toEqual([["doc-2"], ["doc-3"]]);
+    // Out of Select mode, the result is shown where the list's notices go.
+    expect(await within(screen.getByRole("tabpanel").parentElement!).findByText("2 documents are on their way.")).toBeInTheDocument();
+    // Back in Select mode, what this screen sent is never offered to send again, even before the list refreshes.
+    fireEvent.click(screen.getByRole("button", { name: "Select" }));
+    tickBoth();
+    const bar = within(screen.getByRole("region", { name: "2 documents selected" }));
+    expect(bar.queryByRole("button", { name: /^Send/ })).toBeNull();
+    expect(sendDocument).toHaveBeenCalledTimes(2);
+  });
+
+  it("the footer offers search, and Old orders only when there are old orders", async () => {
+    answers({ needs: 0, rows: [row(1)] });
+    const spy = vi.spyOn(window, "dispatchEvent");
+    const first = mount();
+    const line = await screen.findByText(/^Looking for something older\?/);
+    expect(line).toHaveTextContent(/^Looking for something older\? Search all documents\.$/);
+    fireEvent.click(within(line).getByRole("button", { name: "Search all documents" }));
+    expect(spy.mock.calls.map(([e]) => e.type)).toContain(OPEN_SEARCH_EVENT);
+    expect(screen.getByText("Press Ctrl K to find any document, flow or lookup.")).toBeInTheDocument();
+    first.unmount();
+    spy.mockRestore();
+    getOrders.mockResolvedValue({ items: [{}], totalCount: 1, page: 1, pageSize: 1, sampleCount: 0 });
+    mount();
+    expect(await screen.findByText(/or open/)).toHaveTextContent(/^Looking for something older\? Search all documents or open Old orders\.$/);
+    expect(screen.getByRole("link", { name: "Old orders" })).toHaveAttribute("href", "/archive");
   });
 
   it("says flows are off on the engine refusal", async () => {
