@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   HELP_ARTICLES,
@@ -63,6 +63,12 @@ export default function HelpIndex() {
   const [q, setQ] = useState("");
   const [topic, setTopic] = useState<HelpCategory | null>(null);
   const fuse = useMemo(() => buildSiteHelpFuse(), []);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const resultsRef = useRef<HTMLHeadingElement>(null);
+  // A chosen topic replaces the topic buttons, so focus moves to the results it opened, never to the page.
+  useEffect(() => {
+    if (topic) resultsRef.current?.focus();
+  }, [topic]);
 
   const query = q.trim();
   const searching = query.length > 0 || topic !== null;
@@ -72,6 +78,7 @@ export default function HelpIndex() {
   const clear = () => {
     setQ("");
     setTopic(null);
+    searchRef.current?.focus();
   };
 
   return (
@@ -92,6 +99,7 @@ export default function HelpIndex() {
             <label className="mt-2 flex max-w-[560px] flex-col gap-2">
               <span className="font-semibold">Search articles and guides</span>
               <input
+                ref={searchRef}
                 type="search"
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
@@ -99,6 +107,10 @@ export default function HelpIndex() {
                 className="h-[52px] w-full min-w-0 rounded-[10px] border border-border-strong bg-surface px-4 text-[17px] text-ink"
               />
             </label>
+            {/* Always mounted, so the first count is announced too; the visible count is hidden from screen readers. */}
+            <p aria-live="polite" className="sr-only">
+              {searching ? plural(hits.length, "result") : ""}
+            </p>
           </div>
 
           <Card edge="none" as="section" aria-labelledby="help-stuck">
@@ -126,11 +138,11 @@ export default function HelpIndex() {
           {searching ? (
             <section aria-labelledby="help-results" className="flex flex-col gap-3">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <h2 id="help-results" className={H2}>
+                <h2 id="help-results" ref={resultsRef} tabIndex={-1} className={H2}>
                   {query ? "Search results" : topic}
                 </h2>
                 <span className="flex items-center gap-4">
-                  <span aria-live="polite" className={`${SITE.soft} text-[15px]`}>
+                  <span aria-hidden="true" className={`${SITE.soft} text-[15px]`}>
                     {plural(hits.length, "result")}
                   </span>
                   <button type="button" onClick={clear} className={`${LINK} min-h-[44px]`}>
@@ -161,7 +173,7 @@ export default function HelpIndex() {
                 <ol className="m-0 grid list-none gap-4 p-0 sm:grid-cols-3">
                   {START_HERE.map((slug) => getGuideBySlug(slug)!).map((g) => (
                     <Card key={g.slug} edge="none" as="li">
-                      <Link href={g.href} className={`${SITE.h3} text-brand-blue-deep underline underline-offset-4`}>
+                      <Link href={g.href} className={`${SITE.h3} inline-flex min-h-[44px] items-center text-brand-blue-deep underline underline-offset-4`}>
                         {g.title}
                       </Link>
                       <p className="m-0 mt-2 text-[15px]">{g.blurb}</p>

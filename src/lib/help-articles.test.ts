@@ -26,6 +26,9 @@ describe("HELP_ARTICLES registry shape", () => {
   it("every article has a category, a positive readMin, and keywords", () => {
     for (const a of HELP_ARTICLES) {
       expect(CATEGORY_ORDER, `category of ${a.slug}`).toContain(a.category);
+      // The article page prints this title and hides the body's own `# Title`; the in-app panel shows the body's.
+      const mdx = readFileSync(join(process.cwd(), "src", "app", "(marketing)", "help", a.slug, "page.mdx"), "utf8");
+      expect(mdx, `h1 of ${a.slug}`).toMatch(new RegExp(`^# ${a.title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\r?$`, "m"));
       expect(a.readMin, `readMin of ${a.slug}`).toBeGreaterThan(0);
       expect(a.keywords.length, `keywords of ${a.slug}`).toBeGreaterThan(0);
       for (const k of a.keywords) {

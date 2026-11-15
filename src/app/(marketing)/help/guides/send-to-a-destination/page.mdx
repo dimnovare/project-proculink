@@ -28,11 +28,11 @@ The **New destination** form opens under the list.
 
 Type a **Name** that tells you where the file goes. Choose **Send by**:
 
-- **Web address (API).** Fill in the **Web address** (it must start with `https://`) and the **Request method**, POST or PUT.
-- **SFTP** or **FTPS**. Fill in the **Server**, the **Port** (22 for SFTP, 21 for FTPS) and the **Folder on the server**. SFTP can sign in with a password or a private key.
+- **Web address (API).** Fill in the **Web address** (it must start with `https://`). The **Request method**, POST or PUT, is under **More options**.
+- **SFTP** or **FTPS**. Fill in the **Server** and the **Folder on the server**. The **Port** is under **More options**, already set to 22 for SFTP and 21 for FTPS. SFTP can sign in with a password or a private key.
 - **S3 bucket.** Fill in the **Bucket** and the **Folder**. It signs in with an **Access key ID** and a **Secret access key**. The **Region**, and for a service other than Amazon S3 the **Endpoint URL**, are under **More options**.
-- **Google Drive** or **Google Sheets**. Press **Connect a Google account**, then **Choose folder** or **Choose spreadsheet**. For Google Sheets use a CSV output with a header row: each send adds its rows to the end of the sheet, on the first tab unless you fill in **Tab (optional)**.
-- **Email.** Fill in **Send to** with one or more addresses, separated by commas. Add a **Reply-to address** if you want one. Add a **Subject** and a **Message** if you want your own. Left blank, ProcuLink uses a default subject (the flow name and the file name). A test send puts `[TEST]` in front of the subject. The attachment is always named after the document, and there is no box for its name.
+- **Google Drive** or **Google Sheets**. If no Google account is connected yet, press **Connect a Google account**. Then press **Choose folder** or **Choose spreadsheet**. For Google Sheets use a CSV output with a header row: each send adds its rows to the end of the sheet, on the first tab unless you fill in **Tab (optional)**.
+- **Email.** Fill in **Send to (separate addresses with commas)** with one or more addresses. Under **More options** you can add a **Reply-to address**, and a **Subject** and a **Message** of your own. Left blank, ProcuLink uses a default subject (the flow name and the file name). A test send puts `[TEST]` in front of the subject. The attachment is always named after the document, and there is no box for its name.
 
 <Outcome>
 The form shows the boxes for the way you chose.

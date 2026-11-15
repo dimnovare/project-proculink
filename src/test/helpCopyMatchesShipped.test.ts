@@ -68,11 +68,13 @@ describe("the troubleshooting article quotes and names what the product shows", 
  * really shows, so renaming a button in the app fails here instead of leaving a help sentence quietly false.
  *
  * The app copy is every non-test source file under src/components, src/lib and src/app/(app), with comments
- * stripped (a label must not survive a rename by matching its own old doc comment) and without help's own
- * files (a bold topic name would otherwise match its own registry title).
+ * stripped (a label must not survive a rename by matching its own old doc comment), without help's own files
+ * (a bold topic name would otherwise match its own registry title), and without the website's copy and the
+ * mock fixtures (a control renamed in the app must not survive by matching a marketing page or a fixture).
  *
- * The first bold span on a line or list item is a lead-in term (`- **FTPS.** The same...`), not a control,
- * and is skipped. Known limit: lower-case emphasis can match an attribute value (`**username**` matches
+ * A first bold span on a line or list item that ends with "." or ":" is a lead-in term (`- **FTPS.** The
+ * same...`), not a control, and is skipped. Line endings are normalised first, so a Windows checkout and CI walk
+ * the same text. Known limit: lower-case emphasis can match an attribute value (`**username**` matches
  * `autoComplete="username"`), so this proves a label exists somewhere in app source, not on the screen the
  * sentence describes.
  */
@@ -81,28 +83,29 @@ const HELP_PAGES = (readdirSync(HELP_DIR, { recursive: true }) as string[])
   .filter((f) => f.replace(/\\/g, "/").split("/").pop() === "page.mdx")
   .map((f) => join(HELP_DIR, f));
 
-const HELP_OWN = /^src\/(components\/help\/|lib\/(help-articles|guides|section-guides|help-search)\.ts$)/;
+const NOT_APP_COPY =
+  /^src\/(components\/(help|marketing)\/|lib\/marketing\/|lib\/api\/mock|lib\/(help-articles|guides|section-guides|help-search|api-client|book-demo|guide-shots\.generated)\.ts$)/;
 const stripComments = (src: string) =>
   src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:"'`])\/\/.*$/gm, "$1");
 const APP_COPY = [join("src", "components"), join("src", "lib"), join("src", "app", "(app)")]
   .flatMap((d) => (readdirSync(join(ROOT, d), { recursive: true }) as string[]).map((f) => join(d, f).replace(/\\/g, "/")))
-  .filter((f) => /\.tsx?$/.test(f) && !/\.(test|spec)\./.test(f) && !HELP_OWN.test(f))
+  .filter((f) => /\.tsx?$/.test(f) && !/\.(test|spec)\./.test(f) && !NOT_APP_COPY.test(f))
   .map((f) => stripComments(readFileSync(join(ROOT, f), "utf8")).replace(/&apos;/g, "'")) // JSX writes I&apos;ve
   .join("\n");
 
 const labelsIn = (mdx: string) =>
   mdx
-    .replace(/export const metadata[\s\S]*?\n};?\n/, "")
+    .replace(/\r\n/g, "\n")
     .replace(/```[\s\S]*?```/g, "")
     .split("\n")
     .flatMap((line) => {
       const l = line.replace(/`[^`]*`/g, "").replace(/^\s*(?:[-*]|\d+\.)\s+/, "");
-      const spans = [...l.matchAll(/\*\*([^*\n]+)\*\*/g)];
-      return (l.startsWith("**") ? spans.slice(1) : spans).map((m) => m[1].trim());
+      const spans = [...l.matchAll(/\*\*([^*\n]+)\*\*/g)].map((m) => m[1].trim());
+      return l.startsWith("**") && /[.:]$/.test(spans[0] ?? "") ? spans.slice(1) : spans;
     });
-
-// Measured on the unedited help text (2026-11-16): 430 bold labels, rounded down to a multiple of 50.
-const LABEL_FLOOR = 400;
+// Measured 2026-11-16 with the tightened lead-in rule: 488 labels checked (82 lead-ins skipped), the same with LF or CRLF;
+// rounded down to a multiple of 50.
+const LABEL_FLOOR = 450;
 
 describe("every public help page names only controls the app shows", () => {
   it("every bold label in a public help page is a label the app shows", () => {
@@ -115,6 +118,9 @@ describe("every public help page names only controls the app shows", () => {
         .map((l) => `${relative(ROOT, f).replace(/\\/g, "/")}: **${l}**`),
     );
     const total = HELP_PAGES.reduce((n, f) => n + labelsIn(readFileSync(f, "utf8")).length, 0);
+    // api-reference holds the longest code blocks: a strip that over-reaches there would silently empty it.
+    const api = HELP_PAGES.find((f) => f.replace(/\\/g, "/").endsWith("/api-reference/page.mdx"))!;
+    expect(labelsIn(readFileSync(api, "utf8")).length, "api-reference lost its bold labels").toBeGreaterThan(0);
     expect(total, "the walk found almost no bold labels").toBeGreaterThanOrEqual(LABEL_FLOOR);
     expect(misses, "a help page names a control the app does not show; fix the help sentence (or the label, if the app is wrong)").toEqual([]);
   });

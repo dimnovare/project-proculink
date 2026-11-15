@@ -12,8 +12,7 @@ import HelpArticleShell from "@/components/help/HelpArticleShellServer";
  *
  * Tailwind's Preflight strips heading sizes and margins, so each MDX element is
  * mapped to a styled tag; `wrapper` adds the article chrome. Colours are token
- * classes only: ink text, blue links, neutral borders. Body text is the public
- * pages' 17px.
+ * classes only: ink text, blue links, neutral borders. Body text inherits its size.
  */
 
 // Derive a stable text from heading children for anchor ids / deep links.
@@ -36,7 +35,8 @@ function slugify(node: ReactNode): string {
 const linkClass =
   "font-medium text-brand-blue-deep underline underline-offset-2 hover:text-ink rounded-[2px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2";
 
-const BODY_TEXT = "text-[17px] leading-[1.65] text-ink";
+// No size here: public pages get 17px from SITE_PAGE, the in-app help panel and admin runbooks keep their own.
+const BODY_TEXT = "leading-[1.65] text-ink";
 const HEADING = "font-display font-semibold text-ink scroll-mt-20";
 
 function MdxLink({
