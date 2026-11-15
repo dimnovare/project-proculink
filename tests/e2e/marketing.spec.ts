@@ -185,8 +185,8 @@ test("help index renders the browse-by-topic categories and popular articles", a
   // "N articles" count. The expected set is DERIVED from the help registry, never
   // re-typed, so retiring or adding a category cannot leave this test asserting the
   // previous help center.
-  const topicGrid = page.getByRole("heading", { level: 2, name: /browse help topics/i });
-  await expect(topicGrid).toBeAttached();
+  const topicGrid = page.getByRole("heading", { level: 2, name: /^browse by topic$/i });
+  await expect(topicGrid).toBeVisible();
 
   const categories = CATEGORY_ORDER.filter((c) => HELP_ARTICLES.some((a) => a.category === c));
   expect(categories.length).toBeGreaterThan(0);

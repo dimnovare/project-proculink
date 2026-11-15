@@ -4,368 +4,229 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
   HELP_ARTICLES,
-  CATEGORY_META,
   CATEGORY_ORDER,
   POPULAR_ARTICLE_SLUGS,
   resolveArticles,
-  type HelpArticle,
   type HelpCategory,
 } from "@/lib/help-articles";
-import { buildHelpFuse } from "@/lib/help-search";
-import { HelpIcon } from "@/components/help/HelpIcon";
+import { START_HERE, getGuideBySlug, liveClientGuides } from "@/lib/guides";
+import { articleHit, buildSiteHelpFuse, searchHelpArticles, type HelpHit } from "@/lib/help-search";
+import { DOCUMENT_STATUSES } from "@/lib/documentStatusManifest";
 import { Card } from "@/components/bridge/layout/Card";
+import { SITE, Tag } from "@/components/marketing/sitePictures";
+import { SITE_PAGE } from "@/components/marketing/LegalPage";
 
-type Filter = HelpCategory | "All";
-
-/** One-line description per category for the topic cards. Plain procurement copy. */
+/** One-line description per category for the topic rows. */
 const CATEGORY_BLURB: Record<HelpCategory, string> = {
   "Getting started": "What ProcuLink does, and how it uses AI.",
   Documents: "What we read, what each status means, and what to do when a document stops.",
-  Flows: "Fields, versions, and what we learn from each sender.",
+  Flows: "Values, versions, and what we learn from each sender.",
   "Sending in": "Upload, email, mailbox, SFTP, FTP, S3 and API.",
-  "Outputs and destinations": "Choose a format, then send it by email, to a web address, to an SFTP or FTPS server, or download it.",
+  "Outputs and destinations": "Choose a format, then send it by email, to a web address, to an SFTP or FTPS server, an S3 bucket, Google Drive or Google Sheets, or download it.",
   Lookups: "Translate one value into another with a list you import.",
   Account: "Your team, API keys, plan, activity and old orders.",
   API: "Send files in and get results out, with signed webhooks.",
 };
 
-function articleCount(category: HelpCategory): number {
-  return HELP_ARTICLES.filter((a) => a.category === category).length;
+/** The three statuses that stop a document, in the app's own words; what to do is ours. */
+const STUCK = [
+  ["needs_review", "Check the marked values, then send it."],
+  ["read_failed", "Try again if it is offered, or upload a clearer copy."],
+  ["send_failed", "Fix the destination, then send it again."],
+] as const;
+
+const H2 = "m-0 font-display text-[26px] font-semibold leading-[1.15] tracking-[-0.02em]";
+const LINK = "font-semibold text-brand-blue-deep underline underline-offset-4";
+const ROW = "flex min-h-[44px] flex-col justify-center gap-0.5 border-t border-border py-3 no-underline first:border-t-0";
+
+const articleCount = (category: HelpCategory) => HELP_ARTICLES.filter((a) => a.category === category).length;
+const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? "" : "s"}`;
+const meta = (hit: HelpHit) =>
+  hit.kind === "article"
+    ? `${hit.minutes} minute read`
+    : `Step-by-step guide${hit.minutes != null ? `, about ${hit.minutes} minutes` : ""}`;
+
+function HitRows({ hits }: { hits: HelpHit[] }) {
+  return (
+    <Card edge="none">
+      {hits.map((hit) => (
+        <Link key={hit.href} href={hit.href} className={ROW}>
+          <span className="font-semibold text-brand-blue-deep underline underline-offset-4">{hit.title}</span>
+          <span className="text-[15px] text-ink-muted">{meta(hit)}</span>
+        </Link>
+      ))}
+    </Card>
+  );
 }
 
 export default function HelpIndex() {
   const [q, setQ] = useState("");
-  const [active, setActive] = useState<Filter>("All");
+  const [topic, setTopic] = useState<HelpCategory | null>(null);
+  const fuse = useMemo(() => buildSiteHelpFuse(), []);
 
-  const fuse = useMemo(() => buildHelpFuse(), []);
-
-  const searching = q.trim().length > 0 || active !== "All";
-
-  const results = useMemo(() => {
-    let list: HelpArticle[] = q.trim() ? fuse.search(q).map((r) => r.item) : HELP_ARTICLES;
-    if (active !== "All") list = list.filter((a) => a.category === active);
-    return list;
-  }, [q, active, fuse]);
-
-  function reset() {
+  const query = q.trim();
+  const searching = query.length > 0 || topic !== null;
+  const hits = query
+    ? searchHelpArticles(fuse, query, 50)
+    : HELP_ARTICLES.filter((a) => a.category === topic).map(articleHit);
+  const clear = () => {
     setQ("");
-    setActive("All");
-  }
+    setTopic(null);
+  };
 
   return (
-    <div className="mx-auto px-5 pb-24 pt-10 sm:px-6 sm:pt-14" style={{ maxWidth: 980 }}>
-      <Link
-        href="/documents"
-        className="mb-5 inline-flex h-9 items-center gap-2 rounded-[7px] px-3 text-[13px] font-semibold"
-        style={{
-          border: "1px solid var(--border)",
-          background: "var(--surface)",
-          color: "var(--ink)",
-          textDecoration: "none",
-          boxShadow: "var(--shadow-card)",
-        }}
-      >
-        <span aria-hidden>←</span>
-        Back to dashboard
-      </Link>
-
-      {/* Centered hero */}
-      <header className="flex flex-col items-center text-center" style={{ padding: "10px 0 6px" }}>
-        {/* ProcuLink link-curve mark — buyer→supplier gradient, blue #1E66C9 → green #2E8E3A. */}
-        <svg
-          width="40"
-          height="40"
-          viewBox="0 0 40 40"
-          fill="none"
-          className="h-9 w-9 sm:h-10 sm:w-10"
-          aria-hidden="true"
-        >
-          <defs>
-            <linearGradient id="help-hero-mark" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor="#1E66C9" />
-              <stop offset="100%" stopColor="#2E8E3A" />
-            </linearGradient>
-          </defs>
-          <path
-            d="M8 10h14a10 10 0 0 1 10 10v0a10 10 0 0 1-10 10H8"
-            stroke="url(#help-hero-mark)"
-            strokeWidth="3.6"
-            strokeLinecap="round"
-            fill="none"
-          />
-          <circle cx="8" cy="10" r="2.5" fill="#1E66C9" />
-          <circle cx="8" cy="30" r="2.5" fill="#2E8E3A" />
-        </svg>
-
-        <h1
-          className="mt-3.5"
-          style={{
-            fontFamily: "var(--font-display)",
-            fontSize: 32,
-            fontWeight: 600,
-            letterSpacing: "-0.025em",
-            lineHeight: 1.1,
-            color: "var(--ink)",
-          }}
-        >
-          How can we help?
-        </h1>
-        <p className="mt-1.5 text-[14px]" style={{ color: "var(--ink-muted)" }}>
-          Search the docs, or browse by topic.
-        </p>
-
-        {/* Centered search — surface card with strong border, matching the design source. */}
-        <div
-          className="mt-4 flex w-full items-center gap-2.5"
-          style={{
-            maxWidth: 520,
-            background: "var(--surface)",
-            border: "1px solid var(--border-strong)",
-            borderRadius: "var(--radius-md)",
-            padding: "0 14px",
-            height: 46,
-            boxShadow: "var(--shadow-card)",
-          }}
-        >
-          <span className="pointer-events-none shrink-0" style={{ color: "var(--ink-faint)" }} aria-hidden="true">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="11" cy="11" r="7" />
-              <path d="M21 21l-4.3-4.3" />
-            </svg>
-          </span>
-          <input
-            type="search"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            onKeyDown={(e) => e.key === "Escape" && setQ("")}
-            placeholder="Search for articles, e.g. 'SFTP delivery'…"
-            aria-label="Search help articles"
-            className="h-full w-full min-w-0 border-none bg-transparent text-[14.5px] outline-none"
-            style={{ color: "var(--ink)" }}
-          />
-          <span
-            className="hidden shrink-0 font-mono text-[11px] sm:inline"
-            style={{ color: "var(--ink-faint)" }}
-            aria-live="polite"
-          >
-            {searching ? `${results.length} result${results.length === 1 ? "" : "s"}` : ""}
-          </span>
-        </div>
-
-        {/* Guides entry point — the "do this now" layer above the reference articles. */}
-        <p className="mt-3.5 text-[13px]" style={{ color: "var(--ink-muted)" }}>
-          Setting something up for the first time?{" "}
-          <Link
-            href="/help/guides"
-            className="font-semibold hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-blue)] focus-visible:ring-offset-2"
-            style={{ color: "var(--brand-blue-deep)" }}
-          >
-            Follow a step-by-step guide →
-          </Link>
-        </p>
-      </header>
-
-      {/* Search / filter results — shown only when actively searching or filtering */}
-      {searching ? (
-        <section className="mt-7">
-          <div className="mb-2.5 flex items-center justify-between">
-            <span
-              className="text-[11px] font-semibold uppercase"
-              style={{ color: "var(--ink-faint)", letterSpacing: "0.06em" }}
-            >
-              {active !== "All" ? active : "Search results"}
-            </span>
-            <button
-              type="button"
-              onClick={reset}
-              className="text-[12.5px] font-semibold transition-colors hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-blue)] focus-visible:ring-offset-2"
-              style={{ color: "var(--brand-blue-deep)" }}
-            >
-              Clear
-            </button>
-          </div>
-
-          {results.length === 0 ? (
-            <Card
-              flush
-              radius="var(--radius-md)"
-              className="flex flex-col items-center gap-3 px-6 py-14 text-center"
-            >
-              <p className="text-[14px] font-medium" style={{ color: "var(--ink)" }}>
-                No matching articles
-              </p>
-              <p className="text-[13px]" style={{ color: "var(--ink-faint)" }}>
-                Nothing for {q ? <>&ldquo;{q}&rdquo;</> : "that topic"}. Try a different term or browse topics below.
-              </p>
-              <button
-                type="button"
-                onClick={reset}
-                className="mt-1 rounded-[6px] px-4 py-2 text-[13px] font-semibold text-white transition-all hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-blue)] focus-visible:ring-offset-2"
-                style={{ background: "var(--ink)" }}
-              >
-                Reset
-              </button>
-            </Card>
-          ) : (
-            <Card flush radius="var(--radius-md)" className="overflow-hidden">
-              {results.map((article, i) => (
-                <ArticleRow key={article.slug} article={article} first={i === 0} />
-              ))}
-            </Card>
-          )}
-        </section>
-      ) : (
-        <>
-          {/* Topic cards — categories with no published article yet are hidden
-              (offer⇔works: a card that filters to nothing is a dead control).
-              They appear automatically as the content pass ships articles. */}
-          <h2 className="sr-only">Browse help topics</h2>
-          <div className="mt-8 grid gap-4 sm:mt-9 sm:grid-cols-2 lg:grid-cols-3">
-            {CATEGORY_ORDER.filter((category) => articleCount(category) > 0).map((category) => (
-              <TopicCard
-                key={category}
-                category={category}
-                count={articleCount(category)}
-                onSelect={() => setActive(category)}
+    <div className={SITE_PAGE}>
+      <section className="pb-12 pt-12 sm:pt-16">
+        <div className={`${SITE.wrap} grid items-start gap-10 min-[960px]:grid-cols-[minmax(0,1fr)_360px]`}>
+          <div className="flex min-w-0 flex-col gap-4">
+            <h1 className="m-0 font-display text-[clamp(38px,4.2vw,56px)] font-semibold leading-[1.04] tracking-[-0.02em]">
+              How can we help?
+            </h1>
+            <p className={`${SITE.soft} m-0 text-[19px]`}>
+              Search for what you are trying to do, follow a step-by-step guide, or{" "}
+              <a href="#ask" className={LINK}>
+                ask a person
+              </a>
+              .
+            </p>
+            <label className="mt-2 flex max-w-[560px] flex-col gap-2">
+              <span className="font-semibold">Search articles and guides</span>
+              <input
+                type="search"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                onKeyDown={(e) => e.key === "Escape" && setQ("")}
+                className="h-[52px] w-full min-w-0 rounded-[10px] border border-border-strong bg-surface px-4 text-[17px] text-ink"
               />
-            ))}
+            </label>
           </div>
 
-          {/* Popular articles */}
-          <section className="mt-9 sm:mt-11">
-            <span
-              className="block text-[11px] font-semibold uppercase"
-              style={{ color: "var(--ink-faint)", letterSpacing: "0.06em" }}
-            >
-              Popular articles
-            </span>
-            <Card flush radius="var(--radius-md)" className="mt-2.5 overflow-hidden">
-              {resolveArticles(POPULAR_ARTICLE_SLUGS, POPULAR_ARTICLE_SLUGS.length).map((article, i) => (
-                <ArticleRow key={article.slug} article={article} first={i === 0} />
+          <Card edge="none" as="section" aria-labelledby="help-stuck">
+            <h2 id="help-stuck" className="m-0 font-display text-[20px] font-semibold">
+              Is a document stuck?
+            </h2>
+            <p className={`${SITE.soft} mb-3 mt-1 text-[15px]`}>Find its status to see what to do.</p>
+            <ul className="m-0 flex list-none flex-col gap-3 p-0">
+              {STUCK.map(([key, todo]) => (
+                <li key={key} className="flex flex-col items-start gap-1">
+                  <Tag tone={DOCUMENT_STATUSES[key].tone === "error" ? "bad" : "need"}>{DOCUMENT_STATUSES[key].label}</Tag>
+                  <span className="text-[15px]">{todo}</span>
+                </li>
               ))}
-            </Card>
+            </ul>
+            <Link href="/help/documents-and-statuses" className={`${SITE.more} text-[15px]`}>
+              Documents and their statuses
+            </Link>
+          </Card>
+        </div>
+      </section>
+
+      <div className="bg-surface pb-24 pt-12">
+        <div className={`${SITE.wrap} flex flex-col gap-14`}>
+          {searching ? (
+            <section aria-labelledby="help-results" className="flex flex-col gap-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h2 id="help-results" className={H2}>
+                  {query ? "Search results" : topic}
+                </h2>
+                <span className="flex items-center gap-4">
+                  <span aria-live="polite" className={`${SITE.soft} text-[15px]`}>
+                    {plural(hits.length, "result")}
+                  </span>
+                  <button type="button" onClick={clear} className={`${LINK} min-h-[44px]`}>
+                    Clear
+                  </button>
+                </span>
+              </div>
+              {hits.length === 0 ? (
+                <Card edge="none">
+                  <p className="m-0 font-semibold">No matching articles or guides</p>
+                  <p className={`${SITE.soft} m-0 mt-1`}>
+                    Nothing for &ldquo;{query}&rdquo;. Try other words, or clear the search to browse by topic.
+                  </p>
+                </Card>
+              ) : (
+                <HitRows hits={hits} />
+              )}
+            </section>
+          ) : (
+            <>
+              <section aria-labelledby="help-start" className="flex flex-col gap-3">
+                <h2 id="help-start" className={H2}>
+                  Start here
+                </h2>
+                <p className={`${SITE.soft} m-0`}>
+                  New to ProcuLink? These three guides take one document from upload to a file that has been sent.
+                </p>
+                <ol className="m-0 grid list-none gap-4 p-0 sm:grid-cols-3">
+                  {START_HERE.map((slug) => getGuideBySlug(slug)!).map((g) => (
+                    <Card key={g.slug} edge="none" as="li">
+                      <Link href={g.href} className={`${SITE.h3} text-brand-blue-deep underline underline-offset-4`}>
+                        {g.title}
+                      </Link>
+                      <p className="m-0 mt-2 text-[15px]">{g.blurb}</p>
+                      {g.minutes != null && <p className={`${SITE.soft} m-0 mt-2 text-[15px]`}>About {g.minutes} minutes</p>}
+                    </Card>
+                  ))}
+                </ol>
+                <Link href="/help/guides" className={SITE.more}>
+                  All {liveClientGuides().length} step-by-step guides
+                </Link>
+              </section>
+
+              <section aria-labelledby="help-topics" className="flex flex-col gap-4">
+                <h2 id="help-topics" className={H2}>
+                  Browse by topic
+                </h2>
+                {/* Only topics with an article: a topic that filters to nothing is a dead control. Each is a
+                    <button> that filters this page in place; there is no topic page. */}
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {CATEGORY_ORDER.filter((c) => articleCount(c) > 0).map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setTopic(c)}
+                      className="flex flex-col items-start gap-1 rounded-[10px] border border-border bg-surface p-5 text-left hover:border-border-strong"
+                    >
+                      <h3 className="m-0 font-display text-[19px] font-semibold text-ink">{c}</h3>
+                      <span className={`${SITE.soft} text-[15px]`}>{plural(articleCount(c), "article")}</span>
+                      <span className="text-[15px] text-ink">{CATEGORY_BLURB[c]}</span>
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              <section aria-labelledby="help-popular" className="flex flex-col gap-3">
+                <h2 id="help-popular" className={H2}>
+                  Popular articles
+                </h2>
+                <HitRows hits={resolveArticles(POPULAR_ARTICLE_SLUGS, POPULAR_ARTICLE_SLUGS.length).map(articleHit)} />
+              </section>
+            </>
+          )}
+
+          <section id="ask" aria-labelledby="help-ask" className="flex scroll-mt-24 flex-col gap-2 border-t border-border pt-10">
+            <h2 id="help-ask" className={H2}>
+              Ask a person
+            </h2>
+            <p className="m-0">
+              Email{" "}
+              <a href="mailto:support@proculink.eu" className={LINK}>
+                support@proculink.eu
+              </a>{" "}
+              and tell us what you were trying to do.
+            </p>
+            <p className="m-0 flex flex-wrap gap-x-7">
+              <Link href="/support" className={SITE.more}>
+                Contact support
+              </Link>
+              <Link href="/support#report-a-bug" className={SITE.more}>
+                Report a problem
+              </Link>
+            </p>
           </section>
-        </>
-      )}
-
-      {/* Quiet support escape hatch — keeps the page ending clean, matching the design. */}
-      <p className="mt-9 text-center text-[13.5px]" style={{ color: "var(--ink-muted)" }}>
-        Can&rsquo;t find what you&rsquo;re looking for?{" "}
-        <Link
-          href="/support"
-          className="font-semibold transition-colors hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-blue)] focus-visible:ring-offset-2"
-          style={{ color: "var(--brand-blue-deep)" }}
-        >
-          Contact support →
-        </Link>
-      </p>
+        </div>
+      </div>
     </div>
-  );
-}
-
-/** A browse-by-topic card. Clicking filters the index to that category. */
-function TopicCard({
-  category,
-  count,
-  onSelect,
-}: {
-  category: HelpCategory;
-  count: number;
-  onSelect: () => void;
-}) {
-  const meta = CATEGORY_META[category];
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      className="group flex h-full flex-col p-4 text-left transition-all duration-150 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-blue)] focus-visible:ring-offset-2 motion-reduce:transform-none"
-      style={{
-        background: "var(--surface)",
-        border: "1px solid var(--border)",
-        borderRadius: "var(--radius-md)",
-        boxShadow: "var(--shadow-card)",
-      }}
-      onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--border-strong)")}
-      onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
-    >
-      {/* Uniform blue chip across all categories — matches the design source. */}
-      <span
-        className="flex items-center justify-center"
-        style={{
-          width: 34,
-          height: 34,
-          borderRadius: "var(--radius)",
-          background: "var(--brand-blue-soft)",
-          color: "var(--brand-blue-deep)",
-          marginBottom: 11,
-        }}
-        aria-hidden="true"
-      >
-        <HelpIcon name={meta.icon} size={17} />
-      </span>
-
-      <h3 className="text-[14px] font-semibold" style={{ color: "var(--ink)" }}>
-        {category}
-      </h3>
-
-      <p className="mt-[3px] text-[12px]" style={{ color: "var(--ink-muted)", lineHeight: 1.5 }}>
-        {CATEGORY_BLURB[category]}
-      </p>
-
-      <span className="mt-2 text-[11px]" style={{ color: "var(--ink-faint)" }}>
-        {count} {count === 1 ? "article" : "articles"}
-      </span>
-    </button>
-  );
-}
-
-/** A single article row in the popular / search-results list. */
-function ArticleRow({ article, first }: { article: HelpArticle; first: boolean }) {
-  const min = article.readMin;
-  return (
-    <Link
-      href={`/help/${article.slug}`}
-      className="group flex items-center justify-between gap-3 px-[18px] py-[13px] transition-colors hover:bg-[var(--surface-2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-blue)]"
-      style={first ? undefined : { borderTop: "1px solid var(--border)" }}
-    >
-      <span className="flex min-w-0 items-center gap-3">
-        <span className="flex shrink-0 items-center justify-center" style={{ color: "var(--ink-faint)" }} aria-hidden="true">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-            <path d="M14 2v6h6" />
-          </svg>
-        </span>
-
-        <span className="min-w-0">
-          <span className="block truncate text-[13.5px] font-medium" style={{ color: "var(--ink)" }}>
-            {article.title}
-          </span>
-          <span className="mt-0.5 flex items-center gap-1.5 text-[11.5px]" style={{ color: "var(--ink-faint)" }}>
-            <span>
-              {article.category}
-              {min ? <> · {min} min</> : null}
-            </span>
-            {article.videoUrl && (
-              <span
-                className="inline-flex items-center gap-1 rounded-[4px] px-1.5 py-px text-[10.5px] font-semibold"
-                style={{ color: "var(--brand-blue-deep)", background: "var(--brand-blue-soft)" }}
-              >
-                <span aria-hidden="true">▶</span> Video
-              </span>
-            )}
-          </span>
-        </span>
-      </span>
-
-      <span
-        className="shrink-0 transition-transform group-hover:translate-x-0.5 motion-reduce:transform-none"
-        style={{ color: "var(--ink-faint)" }}
-        aria-hidden="true"
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-          <path d="M9 6l6 6-6 6" />
-        </svg>
-      </span>
-    </Link>
   );
 }

@@ -34,10 +34,13 @@ export interface HelpHit {
   keywords: string[];
 }
 
+/** An article as a row of the help home. */
+export const articleHit = (a: HelpArticle): HelpHit => ({ kind: "article", title: a.title, blurb: a.blurb, href: `/help/${a.slug}`, minutes: a.readMin, keywords: a.keywords });
+
 /** The help home's index: articles and live public guides together. The panel keeps its article index. */
 export function buildSiteHelpFuse(): Fuse<HelpHit> {
   const hits: HelpHit[] = [
-    ...HELP_ARTICLES.map((a): HelpHit => ({ kind: "article", title: a.title, blurb: a.blurb, href: `/help/${a.slug}`, minutes: a.readMin, keywords: a.keywords })),
+    ...HELP_ARTICLES.map(articleHit),
     ...liveClientGuides().map((g): HelpHit => ({ kind: "guide", title: g.title, blurb: g.blurb, href: g.href, minutes: g.minutes, keywords: [] })),
   ];
   return new Fuse(hits, {
