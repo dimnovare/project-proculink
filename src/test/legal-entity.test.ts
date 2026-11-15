@@ -26,8 +26,8 @@ describe("legal entity identity", () => {
     );
     // The footer trust line: entity, registry code and registered city — what a procurement
     // buyer needs to look the company up without a founder page.
-    expect(COMPANY_TRUST_LINE).toBe("Diip Solutions OÜ · Registry code 17527757 · Tallinn, Estonia");
-    expect(COPYRIGHT_NOTICE).toBe("© 2026 Diip Solutions OÜ · Registry code 17527757 · Tallinn, Estonia");
+    expect(COMPANY_TRUST_LINE).toBe("Diip Solutions OÜ, registry code 17527757, Tallinn, Estonia");
+    expect(COPYRIGHT_NOTICE).toBe("© 2026 Diip Solutions OÜ, registry code 17527757, Tallinn, Estonia");
   });
 
   it("publishes the legal entity and product brand in Organization structured data", () => {

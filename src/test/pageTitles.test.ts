@@ -1,7 +1,7 @@
 // PAGE TITLE GUARD — every authenticated route names itself in the browser tab.
 //
 // A Next.js page with no `metadata` export inherits the ROOT layout's title, so
-// it renders as "ProcuLink — Connecting Procurement". That is correct for the
+// it renders as the site title (`SITE_TITLE`). That is correct for the
 // marketing home page and useless everywhere else: an operator working an order
 // with Settings, Suppliers and Deliveries open sees four identical tabs and has
 // to click each one to find out where they are. Found on production 2026-08-06:
@@ -33,12 +33,13 @@ import { readdirSync, existsSync, readFileSync } from "fs";
 import { join, sep } from "path";
 import { describe, it, expect } from "vitest";
 import { appPageTitle, APP_PAGE_TITLES, TITLE_SUFFIX } from "@/lib/pageTitles";
+import { SITE_TITLE } from "@/lib/seo";
 
 const ROOT = process.cwd();
 const APP_DIR = join(ROOT, "src", "app", "(app)");
 
 /** The root layout's title. Inheriting it IS the defect. */
-const GENERIC_TITLE = "ProcuLink — Connecting Procurement";
+const GENERIC_TITLE = SITE_TITLE;
 
 /** What Next.js treats as a page here — `pageExtensions` covers .mdx too. */
 const PAGE_FILES = ["page.tsx", "page.mdx"] as const;

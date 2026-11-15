@@ -43,9 +43,12 @@ test.describe("Book a 20-minute call — /book-demo", () => {
 
     // Required fields are bound label→input (htmlFor/id) — resolvable by
     // accessible name. Labels render as "Name *" etc., so anchor the regex.
-    await expect(page.getByLabel(/^name\b/i)).toBeVisible();
-    await expect(page.getByLabel(/work email/i)).toBeVisible();
-    await expect(page.getByLabel(/^company\b/i)).toBeVisible();
+    // Scoped to the form: the site footer has a link group named "Company",
+    // and getByLabel also matches an aria-label on a landmark.
+    const form = page.getByRole("form", { name: /request a 20-minute call/i });
+    await expect(form.getByLabel(/^name\b/i)).toBeVisible();
+    await expect(form.getByLabel(/work email/i)).toBeVisible();
+    await expect(form.getByLabel(/^company\b/i)).toBeVisible();
   });
 
   test("submit stays disabled until required fields are filled; success notice appears AND receives focus", async ({ page }) => {
@@ -90,8 +93,10 @@ test.describe("Marketing nav focus safety — /pricing", () => {
   test("'Sign in' keeps keyboard focus across the post-hydration window (no DOM swap)", async ({ page }) => {
     await page.goto("/pricing");
 
-    // Scope to the nav: the pricing page body has its own "Start free Pilot" CTA.
-    const nav = page.locator("nav").first();
+    // Scope to the header: the pricing page body has its own "Start free Pilot" CTA.
+    // Sign in and the filled action sit in the header beside the "Main" page
+    // links, not inside that nav (the nav is the five pages and hides below 900px).
+    const nav = page.getByRole("banner");
     const signIn = nav.getByRole("link", { name: "Sign in", exact: true });
     const startFree = nav.getByRole("link", { name: "Start free", exact: true });
     await expect(signIn).toBeVisible({ timeout: 15_000 });

@@ -192,9 +192,8 @@ function AuthBrandPanel() {
             margin: 0,
           }}
         >
-          The missing link between{" "}
-          <span style={{ color: "var(--brand-blue-bright)" }}>buyers</span> and{" "}
-          <span style={{ color: "var(--brand-green-bright)" }}>suppliers</span>.
+          <span style={{ color: "var(--brand-blue-bright)" }}>Any document in.</span>{" "}
+          <span style={{ color: "var(--brand-green-bright)" }}>Clean data out.</span>
         </h2>
 
         <div style={{ marginTop: 28, display: "flex", flexDirection: "column", gap: 14 }}>

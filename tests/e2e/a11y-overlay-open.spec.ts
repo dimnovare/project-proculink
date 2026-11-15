@@ -189,7 +189,7 @@ test.describe("the marketing mobile menu, scanned while it is open @a11y", () =>
     // inset-0` cover with a focus trap in it and unit tests would stay green.
     await preparePage(page);
 
-    for (const width of [768, 1440]) {
+    for (const width of [900, 1440]) {
       await page.setViewportSize({ width, height: 900 });
       await page.goto("/pricing");
       await settle(page, 300);
