@@ -126,7 +126,7 @@ function DestinationRow({ d, open, go, refresh, onDeleted }: {
   return (
     <li ref={item} className="border-b border-border last:border-b-0">
       <div className={`grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-1 px-4 py-3 xl:items-center ${COLUMNS}`}>
-        <span className="min-w-0 truncate text-[14.5px] font-semibold text-ink">{d.name}</span>
+        <span className="min-w-0 break-words text-[14.5px] font-semibold text-ink">{d.name}</span>
         <span className="min-w-0 break-words text-[13px] text-ink-muted">{destinationWhere(d)}</span>
         <span className="col-span-full text-[13px] text-ink xl:col-span-1">{uses !== undefined && usedByWords(uses)}</span>
         <span className={`col-span-full inline-flex items-center gap-1 text-[13px] xl:col-span-1 ${last ? TONE[last.tone] : ""}`}>
