@@ -59,4 +59,17 @@ describe("Settings › API keys", () => {
     expect(screen.getByLabelText("Name")).toHaveValue("Accounting system");
     expect(screen.queryByRole("dialog")).toBeNull();
   });
+
+  it("while a revoke confirm is open, Create key steps back to outlined, and is filled again when it closes", async () => {
+    api.getApiKeys.mockResolvedValue([key]);
+    mount();
+    const createKey = await screen.findByRole("button", { name: "Create key" });
+    const table = within(screen.getByTestId("api-keys-table"));
+    expect(createKey.className).toContain("bg-navy");
+    fireEvent.click(table.getByRole("button", { name: "Revoke" }));
+    const confirm = table.getByRole("group", { name: "Anything that uses this key stops working." });
+    expect(createKey.className).not.toContain("bg-navy");
+    fireEvent.click(within(confirm).getByRole("button", { name: "Cancel" }));
+    expect(createKey.className).toContain("bg-navy");
+  });
 });

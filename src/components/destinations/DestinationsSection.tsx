@@ -60,7 +60,8 @@ export function DestinationsSection() {
     );
 
   return (
-    <div className="grid gap-3">
+    // The board's width for the Destinations tab: 1,230px.
+    <div className="grid max-w-[1230px] gap-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="m-0 text-[14px] text-ink-muted">Every place your files can be sent. Change a login or send a test here at any time.</p>
         <Button type="button" variant="secondary" aria-expanded={open === "new"} onClick={() => go(open === "new" ? undefined : "new")}>

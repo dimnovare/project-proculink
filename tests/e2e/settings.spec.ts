@@ -130,6 +130,10 @@ test.describe("settings", () => {
     await page.goto("/settings?tab=destinations&open=dest-1");
     await expect(current).toHaveText("Destinations");
     await expect(page.getByRole("region", { name: "Edit Accounting inbox" })).toBeVisible();
+    // The board's width for the tab at 1440: 1,230px, not the page's full width.
+    const width = (await box(page.getByText("Every place your files can be sent.", { exact: false }).locator("xpath=../.."))).width;
+    test.info().annotations.push({ type: "destinations width at 1440", description: width.toFixed(0) });
+    expect(width).toBeLessThanOrEqual(1230);
   });
 
   test("Plan & billing says the mock's trial in the registry's words, lists its upgrades, and Annual changes the prices in place", async ({ page }) => {
@@ -211,7 +215,7 @@ test.describe("settings", () => {
     expect(await kept(first.raw) || await kept(second.raw)).toBe(false);
   });
 
-  test("revoking asks first and the row says Revoked (the filled buttons during the confirm are recorded for the ruling)", async ({ page }) => {
+  test("revoking asks first, the red Revoke is the one filled button while it asks, and the row says Revoked", async ({ page }) => {
     await preparePage(page, { dismissCookieBanner: true });
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.goto("/settings?tab=api");
@@ -227,10 +231,13 @@ test.describe("settings", () => {
     const filled = (await measure(page)).filled;
     test.info().annotations.push({ type: "filled during the revoke confirm", description: JSON.stringify(filled) });
     await page.screenshot({ path: ".qa-screenshots/settings-revoke-confirm-1440.png" });
-    expect(filled.map(([t]) => t)).toContain("Revoke");
+    expect(filled.map(([t]) => t)).toEqual(["Revoke"]);
     await confirm.getByRole("button", { name: "Revoke" }).click();
     await expect(table.getByText("Revoked")).toBeVisible();
     await expect(table.getByRole("button", { name: "Revoke" })).toHaveCount(0);
+    // Closed again, Create key is the filled one (after its colour transition).
+    await settle(page, 300);
+    expect((await measure(page)).filled.map(([t]) => t)).toEqual(["Create key"]);
   });
 
   // Each tab in the state with the most on screen, and the one filled button it may show.

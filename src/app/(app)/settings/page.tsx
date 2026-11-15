@@ -78,21 +78,24 @@ function SettingsScreen() {
 }
 
 // Inline two-button confirm, scoped to the row: renders the trigger; a press swaps it for the prompt and
-// "{confirmLabel} / Cancel".
+// "{confirmLabel} / Cancel". The owner holds `open`, so the rest of the screen can step back while it shows.
 function InlineConfirm({
+  open,
+  setOpen,
   onConfirm,
   trigger,
   confirmLabel = "Confirm",
   prompt,
   fullWidth = false,
 }: {
+  open: boolean;
+  setOpen: (open: boolean) => void;
   onConfirm: () => void;
   trigger: (open: () => void) => ReactNode;
   confirmLabel?: string;
   prompt?: string;
   fullWidth?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
   if (!open) return <>{trigger(() => setOpen(true))}</>;
   return (
     <div role="group" aria-label={prompt ?? "Confirm action"} className={`flex flex-wrap items-center justify-end gap-1.5 ${fullWidth ? "w-full" : ""}`}>
@@ -286,6 +289,9 @@ function ApiKeysSection() {
   const [newKey, setNewKey] = useState<string | null>(null);
   const [copy, setCopy] = useState<"copied" | "failed" | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  // The key whose revoke confirm is open: while it shows, its red Revoke is the one filled button.
+  const [confirming, setConfirming] = useState<string | null>(null);
+  const createVariant = confirming ? "secondary" : "primary";
 
   const list = useQuery<ApiKey[]>({ queryKey: ["api-keys"], queryFn: getApiKeys, retry: false });
   const keys = list.data;
@@ -334,6 +340,8 @@ function ApiKeysSection() {
   const lastUsed = (k: ApiKey) => (k.lastUsedAt === null ? "Never used" : formatDate(k.lastUsedAt));
   const revokeControl = (k: ApiKey, fullWidth: boolean) => (
     <InlineConfirm
+      open={confirming === k.id}
+      setOpen={(open) => setConfirming(open ? k.id : null)}
       onConfirm={() => { if (!revoke.isPending) revoke.mutate(k.id); }}
       confirmLabel="Revoke"
       prompt="Anything that uses this key stops working."
@@ -467,7 +475,7 @@ function ApiKeysSection() {
               className="h-10 w-full rounded-lg border border-border-strong bg-surface px-3 text-[14px] text-ink max-[639px]:text-[16px] sm:max-w-[420px]"
             />
             <div className="flex gap-2">
-              <Button type="submit" variant="primary" className="flex-1 sm:flex-none" loading={create.isPending} disabled={!newLabel.trim()}>
+              <Button type="submit" variant={createVariant} className="flex-1 sm:flex-none" loading={create.isPending} disabled={!newLabel.trim()}>
                 <Plus size={14} aria-hidden />
                 {create.isPending ? "Creating…" : "Create key"}
               </Button>
@@ -482,7 +490,7 @@ function ApiKeysSection() {
       ) : (
         keys && (
           <div>
-            <Button type="button" variant="primary" onClick={() => setShowCreate(true)}>
+            <Button type="button" variant={createVariant} onClick={() => setShowCreate(true)}>
               <Plus size={14} aria-hidden />
               Create key
             </Button>
