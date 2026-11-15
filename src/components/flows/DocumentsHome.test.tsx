@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, within } from "@testing-library/react";
+import { act, render, screen, fireEvent, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ApiHttpError } from "@/lib/api/core";
 import { DocumentsHome } from "./DocumentsHome";
@@ -49,7 +49,7 @@ const mount = () => {
     </QueryClientProvider>
   );
   const r = render(ui());
-  return { ...r, again: () => r.rerender(ui()) };
+  return { ...r, client, again: () => r.rerender(ui()) };
 };
 
 beforeEach(() => {
@@ -139,6 +139,30 @@ describe("DocumentsHome", () => {
     expect(await screen.findByRole("heading", { name: "Nothing is in progress right now." })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Show all documents" })).toHaveAttribute("href", "/documents?show=all");
     expect(screen.queryByText("No documents here.")).toBeNull();
+  });
+
+  it("keeps the stopped alert above the tabs through a failed refresh, and closes a whole needs-you list", async () => {
+    search.q = "show=needs-you";
+    answers({ needs: 1, rows: [{ ...row(0), status: "needs_review" }] });
+    const base = listDocumentPage.getMockImplementation()!;
+    const stoppedPage = page([{ ...row(9), status: "send_failed", failedAt: null, stop: null }], 1, 1, 20);
+    let asked = 0;
+    listDocumentPage.mockImplementation((q: { status?: string[]; pageSize: number }) =>
+      q.pageSize === 20 && q.status?.join(",") === "send_failed"
+        ? (asked++ === 0 ? Promise.resolve(stoppedPage) : Promise.reject(new Error("down")))
+        : base(q));
+    const { client } = mount();
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("1 document couldn't be sent");
+    expect(alert.compareDocumentPosition(screen.getByRole("tablist")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(await within(screen.getByRole("tabpanel")).findByText("That is everything that needs you. Older documents are under Sent and All.")).toBeInTheDocument();
+    // An answer in hand is still the best knowledge: a failed refresh does not read as "all is well".
+    await act(async () => {
+      await client.refetchQueries({ queryKey: ["documents", "stopped"] });
+      await new Promise((r) => setTimeout(r, 0)); // the query's batched notify lands on the next tick
+    });
+    expect(client.getQueryState(["documents", "stopped"])?.status).toBe("error");
+    expect(screen.getByText(/1 document couldn't be sent/)).toBeInTheDocument();
   });
 
   it("says flows are off on the engine refusal", async () => {

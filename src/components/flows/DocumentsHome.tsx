@@ -146,8 +146,7 @@ export function DocumentsHome() {
   } else {
     body = (
       <div className="flex min-w-0 flex-col gap-3">
-        {/* A failed answer draws nothing, even over an older one: unknown is never drawn. */}
-        <StoppedAlert page={stopped.isError ? undefined : stopped.data} />
+        <StoppedAlert page={stopped.data} />
         <div role="tablist" aria-label="Show" className="flex overflow-x-auto border-b border-border">
           {DOCUMENT_TABS.map((t, i) => {
             const n = counts[i].data?.totalCount;

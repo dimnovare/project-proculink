@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import type { DocumentPage, DocumentRow } from "@/lib/api/documents";
 import { StoppedAlert } from "./StoppedAlert";
 
@@ -20,8 +20,19 @@ describe("StoppedAlert", () => {
     const stop = { destinationId: "dest-1", destination: "Accounting server", error: "The server refused the login." };
     render(<StoppedAlert page={{ items: [stopped({ stop })], totalCount: 1, page: 1, pageSize: 20, sampleCount: 0 }} />);
     const alert = screen.getByRole("alert");
-    expect(alert).toHaveTextContent("1 document couldn't be sent. Sending to Accounting server stopped 12m ago: The server refused the login. The document is safe. Fix the destination, then send it again.");
+    // What the eye reads: the screen-reader-only time left out.
+    const seen = alert.cloneNode(true) as HTMLElement;
+    seen.querySelectorAll(".sr-only").forEach((e) => e.remove());
+    expect(seen).toHaveTextContent("1 document couldn't be sent. Sending to Accounting server stopped 12m ago: The server refused the login. The document is safe. Fix the destination, then send it again.");
+    // The live alert must not be re-announced each minute: the relative time is hidden, a fixed moment is read instead.
+    expect(within(alert).getByText("12m ago")).toHaveAttribute("aria-hidden", "true");
+    const at = new Date("2026-11-02T09:12:00Z").toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+    expect(alert.querySelector(".sr-only")).toHaveTextContent(`on ${at}`);
     expect(within(alert).getByRole("link", { name: "Fix the destination" })).toHaveAttribute("href", "/flows/f1?tab=outputs");
+    cleanup();
+    // A server sentence with no full stop gets one, and nothing else.
+    render(<StoppedAlert page={{ items: [stopped({ stop: { ...stop, error: "Refused" } })], totalCount: 1, page: 1, pageSize: 20, sampleCount: 0 }} />);
+    expect(screen.getByRole("alert")).toHaveTextContent(/: Refused\. The document is safe\./);
   });
 
   it("stays general when there is no single destination to name", () => {
@@ -30,6 +41,8 @@ describe("StoppedAlert", () => {
       { items: [stopped({ stop: a }), stopped({ id: "d2", stop: { ...a, destinationId: "dest-2" } })], totalCount: 2, page: 1, pageSize: 20, sampleCount: 0 },
       { items: [stopped({ stop: null }), stopped({ id: "d2", stop: { ...a, destination: null } })], totalCount: 2, page: 1, pageSize: 20, sampleCount: 0 },
       { items: [stopped({ stop: a }), stopped({ id: "d2", stop: a })], totalCount: 40, page: 1, pageSize: 20, sampleCount: 0 }, // more than were read
+      // One destination id, but no name left to give.
+      { items: [stopped({ stop: { ...a, destination: null } }), stopped({ id: "d2", stop: { ...a, destination: null } })], totalCount: 2, page: 1, pageSize: 20, sampleCount: 0 },
     ];
     for (const page of cases) {
       const { unmount } = render(<StoppedAlert page={page} />);
