@@ -1,5 +1,10 @@
-import { pageMetadata } from "@/lib/seo";
 import Link from "next/link";
+import { FileSpreadsheet, FileText, FolderCheck, Inbox, Ruler, type LucideIcon } from "lucide-react";
+import { ClosingCta, SITE } from "@/components/marketing/sitePictures";
+import { OUTPUT_ROWS, READ_ROWS, WAYS_IN_ROWS, WAYS_OUT_ROWS, type FormatRow } from "@/components/marketing/formatsRows";
+import { MAX_UPLOAD_BYTES } from "@/lib/fileKinds";
+import { DOCUMENT_UNIT_SENTENCE } from "@/lib/plans";
+import { pageMetadata } from "@/lib/seo";
 
 export const metadata = pageMetadata({
   path: "/formats",
@@ -10,73 +15,105 @@ export const metadata = pageMetadata({
     "ProcuLink reads the files you receive, shows what it read beside the original, and sends the data on in the format your system needs.",
 });
 
-// What every workspace has today (offer ⇔ works). The one exception is Microsoft OneDrive and
-// SharePoint, which the founder offers on request and which says so in its own line.
-const LISTS: Array<{ title: string; items: string[] }> = [
+// What every workspace has today (offer ⇔ works). The rows come from formatsRows.ts, which a test
+// ties to the app's own registries in both directions. The one thing offered only on request
+// (OneDrive and SharePoint) says so in its own line. Section heads carry a top rule by direction:
+// blue brings in, navy makes real, green sends.
+
+const LIMIT_ROWS: FormatRow[] = [
+  { name: "File size", note: `Up to ${MAX_UPLOAD_BYTES / (1024 * 1024)} MB a file.`, keys: [] },
+  { name: "What counts as a document", note: DOCUMENT_UNIT_SENTENCE, keys: [] },
+];
+
+const SECTIONS: Array<{ id: string; title: string; lead: string; rule: string; icon: LucideIcon; tone: string; rows: readonly FormatRow[]; note?: string }> = [
   {
-    title: "Documents we read",
-    items: ["PDF (with a text layer)", "CSV", "Excel", "Word", "Text", "XML", "JSON", "Scans and phone photos"],
+    id: "read", title: "Documents we read", icon: FileText, rule: "border-t-brand-blue", tone: "text-brand-blue", rows: READ_ROWS,
+    lead: "Send the file as it is. We read every value and table on it, and there is no template to build first.",
   },
   {
-    title: "Outputs",
-    items: ["CSV", "JSON", "XML", "Excel", "PDF", "Text", "Fixed-width"],
+    id: "outputs", title: "Outputs", icon: FileSpreadsheet, rule: "border-t-ink", tone: "text-ink", rows: OUTPUT_ROWS,
+    lead: "The file your system expects. You choose what goes in it and what each value is called.",
   },
   {
-    title: "Ways in and out",
-    items: [
-      "In: upload, a flow's own email address, a mailbox, SFTP, FTP, FTPS, an S3 bucket, our API",
-      "Out: email, a web address, SFTP, FTPS, an S3 bucket, Google Drive, Google Sheets, download",
-      "Microsoft OneDrive and SharePoint: on request",
-    ],
+    id: "ways-in", title: "Ways in", icon: Inbox, rule: "border-t-brand-blue", tone: "text-brand-blue", rows: WAYS_IN_ROWS,
+    lead: "How a document reaches a flow. The people who send you documents don't need to change anything.",
+    note: "Collection runs every five minutes, takes each file once, and leaves it where it is.",
+  },
+  {
+    id: "ways-out", title: "Ways out", icon: FolderCheck, rule: "border-t-brand-green", tone: "text-brand-green-deep", rows: WAYS_OUT_ROWS,
+    lead: "Where the finished file goes. One flow can send to several places at once.",
+    note: "Microsoft OneDrive and SharePoint: on request",
+  },
+  {
+    id: "limits", title: "Limits", icon: Ruler, rule: "border-t-ink", tone: "text-ink", rows: LIMIT_ROWS,
+    lead: "How big a file can be, and how files are counted.",
   },
 ];
 
-const INK = "#0B1A2F";
-const MUTED = "#56627A";
-const LINE = "#E2E6EE";
+const H2_SMALL = `${SITE.h2} !text-[clamp(27px,2.5vw,34px)]`;
 
 export default function FormatsPage() {
   return (
-    <main className="mx-auto max-w-[860px] px-5 py-12 sm:py-16">
-      <p className="text-[12px] font-semibold uppercase tracking-[0.08em]" style={{ color: "#6F4FCE" }}>Capabilities</p>
-      <h1 className="mt-2 text-[30px] font-semibold leading-tight sm:text-[36px]" style={{ color: INK, fontFamily: "'Bricolage Grotesque', Inter, sans-serif", letterSpacing: "-0.02em" }}>
-        Every format and method, in one place
-      </h1>
-      <p className="mt-3 text-[15px] leading-relaxed" style={{ color: MUTED }}>
-        ProcuLink reads the files you receive, shows what it read beside the original, and sends the
-        data on in the format your system needs. Scans and phone photos are read too.
-      </p>
+    <div className="bg-bgWarm text-[17px] leading-[1.55] text-ink">
+      <section aria-labelledby="formats-title" className="pb-20 pt-12 sm:pt-[72px]">
+        <div className={`${SITE.wrap} flex flex-wrap items-end gap-x-16 gap-y-10`}>
+          <div className="flex min-w-0 flex-[1_1_560px] flex-col gap-[26px]">
+            <h1 id="formats-title" className={SITE.h1}>Every format and method, in one place</h1>
+            <p className={`${SITE.lead} max-w-[680px]`}>
+              You don&apos;t need to know the technical format. If it reaches you as a PDF, a spreadsheet, a scan or an email attachment, start with that. The details are here for whoever needs them.
+            </p>
+          </div>
+          <nav aria-label="On this page" className="min-w-0 flex-[1_1_100%] min-[980px]:flex-[0_1_300px]">
+            <p className={`${SITE.soft} pb-2.5 text-[15px]`}>On this page</p>
+            <ul className="m-0 list-none border-t border-border p-0">
+              {SECTIONS.map((s) => (
+                <li key={s.id}>
+                  <a href={`#${s.id}`} className="flex min-h-[46px] items-center border-b border-border text-[16px] font-semibold text-ink no-underline hover:text-brand-blue-deep">
+                    {s.title}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        </div>
+      </section>
 
-      {LISTS.map((l) => (
-        <section key={l.title} className="mt-10">
-          <h2 className="text-[18px] font-semibold" style={{ color: INK, fontFamily: "'Bricolage Grotesque', Inter, sans-serif" }}>{l.title}</h2>
-          <ul className="mt-4 overflow-hidden rounded-[10px]" style={{ border: `1px solid ${LINE}` }}>
-            {l.items.map((item, i) => (
-              <li
-                key={item}
-                className="px-4 py-3 text-[13.5px]"
-                style={{ borderTop: i === 0 ? "none" : `1px solid ${LINE}`, background: "#FFFFFF", color: INK }}
-              >
-                {item}
-              </li>
-            ))}
-          </ul>
-        </section>
-      ))}
-
-      <div className="mt-12 rounded-[12px] px-6 py-7 text-center" style={{ background: "#0B1A2F" }}>
-        <h2 className="text-[20px] font-semibold" style={{ color: "#FFFFFF", fontFamily: "'Bricolage Grotesque', Inter, sans-serif" }}>
-          Try it on your own documents
-        </h2>
-        <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
-          <Link href="/sign-up" className="rounded-[7px] px-5 py-2.5 text-[14px] font-semibold" style={{ background: "#297F34", color: "#FFFFFF" }}>
-            Start your free trial
-          </Link>
-          <Link href="/book-demo" className="rounded-[7px] px-5 py-2.5 text-[14px] font-semibold" style={{ background: "transparent", color: "#FFFFFF", border: "1px solid #2B3F5E" }}>
-            Talk to us
-          </Link>
+      <div className={`${SITE.band} bg-surface`}>
+        <div className={`${SITE.wrap} flex flex-col gap-[clamp(56px,7vw,88px)]`}>
+          {SECTIONS.map(({ id, title, lead, rule, icon: Icon, tone, rows, note }) => (
+            <section key={id} id={id} aria-labelledby={`${id}-title`} className="flex scroll-mt-[90px] flex-wrap items-start gap-x-[72px] gap-y-7">
+              <div className={`flex min-w-0 flex-[1_1_280px] flex-col gap-3 border-t-[3px] pt-5 ${rule} min-[900px]:sticky min-[900px]:top-[90px]`}>
+                <Icon aria-hidden="true" className={`mb-1 size-9 ${tone}`} strokeWidth={1.6} />
+                <h2 id={`${id}-title`} className={H2_SMALL}>{title}</h2>
+                <p className={SITE.soft}>{lead}</p>
+              </div>
+              <div className="min-w-0 flex-[2.3_1_560px]">
+                <dl className="m-0 border-b border-border">
+                  {rows.map((r) => (
+                    <div key={r.name} className="flex flex-wrap gap-x-7 gap-y-0.5 border-t border-border py-4">
+                      <dt className="flex-[0_0_240px] font-semibold">{r.name}</dt>
+                      <dd className="m-0 flex-[1_1_260px] text-ink-muted">{r.note}</dd>
+                    </div>
+                  ))}
+                </dl>
+                {note && <p className={`${SITE.soft} pt-4 text-[15.5px]`}>{note}</p>}
+              </div>
+            </section>
+          ))}
         </div>
       </div>
-    </main>
+
+      <section aria-labelledby="yours-title" className="py-[72px]">
+        <div className={`${SITE.wrap} flex flex-wrap items-center gap-x-[72px] gap-y-4`}>
+          <h2 id="yours-title" className={`${H2_SMALL} flex-[1_1_280px]`}>Don&apos;t see yours?</h2>
+          <div className="flex min-w-0 flex-[2.3_1_560px] flex-col items-start gap-1.5">
+            <p className={SITE.lead}>Show us the file or the system on a short call and we&apos;ll tell you plainly whether it fits.</p>
+            <Link href="/book-demo" className={SITE.more}>Talk to us</Link>
+          </div>
+        </div>
+      </section>
+
+      <ClosingCta more={{ href: "/how-it-works", label: "See how it works" }} />
+    </div>
   );
 }
