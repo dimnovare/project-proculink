@@ -78,4 +78,15 @@ describe("TestOutcome", () => {
       api.listDocumentPage.mockClear();
     }
   });
+
+  it("Send it now stops at a refusal about the workspace, says what was sent and the reason once", async () => {
+    api.listDocumentPage.mockResolvedValue(page([row("doc-1", "a.pdf", null), row("doc-2", "b.pdf", null), row("doc-3", "c.pdf", null)]));
+    api.sendDocument.mockResolvedValueOnce([]).mockRejectedValueOnce(new ApiHttpError("limit", 429, { error: "order_limit_reached" }))
+      .mockResolvedValue([]);
+    render(<QueryClientProvider client={new QueryClient()}><TestOutcome destinationId="dest-1" protocol="sftp" result={{ success: true, message: null, responseCode: null }} error={null} at={at} place="form" /></QueryClientProvider>);
+    fireEvent.click(within(await screen.findByTestId("destination-waiting")).getByRole("button", { name: "Send it now" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("1 sent. You've reached your plan's document limit for this month.");
+    expect(screen.getAllByText(/document limit/)).toHaveLength(1);
+    expect(api.sendDocument.mock.calls).toEqual([["doc-1"], ["doc-2"]]);
+  });
 });

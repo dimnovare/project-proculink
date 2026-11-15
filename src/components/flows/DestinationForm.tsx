@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { Card } from "@/components/bridge/layout/Card";
@@ -125,8 +125,11 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, on
     // The list shows each destination's last send, and a test is one.
     onSettled: () => qc.invalidateQueries({ queryKey: ["destinations"] }),
   });
+  // Held from the press itself, so a second press before the next render saves nothing more.
+  const busy = useRef(false);
   const save = useMutation({
     mutationFn: (body: DestinationRequest) => (current ? updateDestination(current.id, body) : createDestination(body)),
+    onSettled: () => { busy.current = false; },
     // Clearing the typed login keeps the saved credentials write-only: they are never shown again.
     onSuccess: (d) => {
       setCurrent(d); setCreds({}); setProblem(null); setSaved(true); test.reset(); onSaved(d);
@@ -136,7 +139,7 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, on
   });
 
   function submit() {
-    if (save.isPending || test.isPending) return;
+    if (busy.current || save.isPending || test.isPending) return;
     if (!name.trim()) return setProblem("Give this destination a name.");
     if (loginIncomplete)
       return setProblem("Fill in every login field, or leave them all blank to keep the saved login.");
@@ -144,6 +147,7 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, on
     const kept = Object.fromEntries(
       Object.entries(config).filter(([k, v]) => v !== "" && (keys.includes(k) || !(k in CONFIG_FIELDS))),
     );
+    busy.current = true;
     save.mutate({ name: name.trim(), protocol, config: kept, credentials });
   }
 

@@ -209,8 +209,11 @@ describe("DestinationForm", () => {
     expect(ui.getByLabelText("Port")).toHaveValue(22);
     expect(ui.queryByRole("button", { name: "Save" })).toBeNull();
     expect(ui.queryByRole("button", { name: "Send a test" })).toBeNull();
-    fireEvent.click(ui.getByRole("button", { name: "Save and send a test" }));
+    const saveAndTest = ui.getByRole("button", { name: "Save and send a test" });
+    fireEvent.click(saveAndTest);
+    fireEvent.click(saveAndTest); // a second press in the same tick saves nothing more
     await waitFor(() => expect(api.testDestination).toHaveBeenCalledWith("d2"));
+    expect(api.updateDestination).toHaveBeenCalledTimes(1);
     expect(api.updateDestination).toHaveBeenCalledWith("d2", { name: "Accounting server", protocol: "sftp", config: sftp.config, credentials: null });
     expect(api.updateDestination.mock.invocationCallOrder[0]).toBeLessThan(api.testDestination.mock.invocationCallOrder[0]);
     expect(await ui.findByText(/^Test file arrived at \d\d:\d\d\.$/)).toBeInTheDocument();

@@ -6,18 +6,23 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
+import { ApiHttpError } from "@/lib/api/core";
 import { listDocumentPage, sendDocument } from "@/lib/api/documents";
 import type { DestinationTestResult, DocumentRow } from "@/lib/api/documents";
 import { sendMoment } from "@/lib/destinations";
-import { documentRefusalMessage } from "@/lib/documentRefusals";
+import { documentRefusalMessage, refusalToken } from "@/lib/documentRefusals";
 import { documentsAddress } from "@/lib/documentTabs";
 import { pageTotal } from "@/lib/pageTotal";
 import { serverReasonOrNull } from "@/lib/serverText";
 
-type Resent = { sent: string[]; refused: { fileName: string; error: unknown }[] };
+/** `stopped`: a refusal about the workspace, after which nothing more was asked. */
+type Resent = { sent: string[]; refused: { fileName: string; error: unknown }[]; stopped?: unknown };
 
 const GO_ON = { form: "Check the details above, save, and test again.", row: "Press Edit to check the details, then test again." };
 const sentence = (s: string) => (/[.!?]$/.test(s) ? s : `${s}.`);
+/** A plan, limit or access refusal, or paused processing (which Send answers 409): every next send would get the same. */
+const aboutWorkspace = (e: unknown) =>
+  (e instanceof ApiHttpError && [402, 403, 429].includes(e.status)) || refusalToken(e) === "processing_paused";
 
 /** One request per document, one after another. Never throws: each refusal is kept with its file. */
 async function sendEach(items: DocumentRow[]): Promise<Resent> {
@@ -27,6 +32,7 @@ async function sendEach(items: DocumentRow[]): Promise<Resent> {
       await sendDocument(d.id);
       out.sent.push(d.fileName);
     } catch (error) {
+      if (aboutWorkspace(error)) return { ...out, stopped: error };
       out.refused.push({ fileName: d.fileName, error });
     }
   }
@@ -105,7 +111,11 @@ export function TestOutcome({ destinationId, protocol, result, error, at, place 
           </Button>
         </div>
       )}
-      {done && (done.refused.length === 0 ? (
+      {done && ("stopped" in done ? (
+        <StatusNotice tone="error">
+          {`${done.sent.length ? `${done.sent.length} sent. ` : ""}${documentRefusalMessage(done.stopped)}`}
+        </StatusNotice>
+      ) : done.refused.length === 0 ? (
         <StatusNotice tone="success">
           {done.sent.length === 1 ? `${done.sent[0]} is on its way again.` : `${done.sent.length} documents are on their way again.`}
         </StatusNotice>
