@@ -21,6 +21,10 @@ export const DOCUMENT_STATUSES: Record<string, DocumentStatusRow> = {
   send_failed: { label: "Couldn't send", tone: "error", stage: { failed: 4 }, needsYou: true, editable: true },
 };
 
+/** Checks about the whole document; each fails at most once. Every other failed check is about a value.
+ *  Mirrors `ProcuLink.Core/Documents/DocumentChecks.cs` (pinned by backendMirror.test.ts). */
+export const WHOLE_DOCUMENT_CHECKS = ["fields_unconfirmed", "duplicate", "text_truncated"] as const;
+
 /** An unknown status is surfaced as needing attention, never shown as sent. */
 export function documentStatus(status: string, statusReason?: string | null): DocumentStatusRow {
   const row: DocumentStatusRow = Object.hasOwn(DOCUMENT_STATUSES, status)

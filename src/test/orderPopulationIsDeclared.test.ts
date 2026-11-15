@@ -59,7 +59,8 @@ const rel = (p: string) => p.slice(process.cwd().length + 1).split(sep).join("/"
 /**
  * Every production file allowed to read the raw count fields, and how many times.
  *
- * ONE ENTRY, deliberately. `orderCountContract.ts` owns the split; everything else asks it.
+ * TWO OWNERS, deliberately. `orderCountContract.ts` owns the orders split; `pageTotal.ts` owns a
+ * plain server page's total, which has no split; everything else asks one of them.
  * Adding a file here is a decision to derive the population a second time, and whoever
  * does it has to write down why — which is the whole point, because the v2 audit's P0-5
  * was two correct derivations of two different populations printed side by side with
@@ -72,6 +73,12 @@ const DECLARED: Record<string, { reads: number; why: string }> = {
     why:
       "The owner. pagePopulation() reads totalCount + sampleCount; every screen consumes the " +
       "result instead of the fields.",
+  },
+  "src/lib/pageTotal.ts": {
+    reads: 1,
+    why:
+      "A plain server page's own total: a documents page lists every row it counts (sampleCount " +
+      "is always 0 there), so there is no second population; orders still go through orderCountContract.ts.",
   },
 };
 

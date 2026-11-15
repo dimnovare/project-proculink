@@ -3,7 +3,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from "fs";
 import { dirname, join, resolve } from "path";
 import { FAILURE_STATUSES, ORDER_STATUSES } from "@/lib/orderStatusManifest";
 import { ROOT } from "./appRoutes";
-import { DOCUMENT_STATUSES } from "@/lib/documentStatusManifest";
+import { DOCUMENT_STATUSES, WHOLE_DOCUMENT_CHECKS } from "@/lib/documentStatusManifest";
 import { FIELD_MEANINGS } from "@/lib/fieldMeanings";
 import { FORMATS } from "@/components/flows/OutputEditor";
 import { PREVIEW_FORMATS } from "@/lib/api/types";
@@ -1314,6 +1314,13 @@ describe("document statuses mirror the backend", () => {
       Object.keys(DOCUMENT_STATUSES),
       "The document status vocabulary drifted from DocumentStatus.cs.",
     );
+  });
+
+  test.skipIf(!BACKEND)("the check codes the documents list reads exist in DocumentChecks", () => {
+    const cs = readFileSync(join(BACKEND!, "ProcuLink.Core/Documents/DocumentChecks.cs"), "utf8");
+    const backend = Object.values(parseStatusConstants(cs));
+    expect(backend.length, "DocumentChecks.cs parsed to no constants, so this would prove nothing").toBeGreaterThan(0);
+    expect(backend).toEqual(expect.arrayContaining([...WHOLE_DOCUMENT_CHECKS]));
   });
 });
 
