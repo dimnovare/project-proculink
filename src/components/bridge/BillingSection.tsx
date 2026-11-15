@@ -447,7 +447,7 @@ export function BillingSection() {
   // A failed refresh keeps what is drawn: the failure is shown only when there is nothing to draw.
   if (!status) {
     return (
-      <StatusNotice tone="error" action={<Button variant="secondary" size="sm" loading={isFetching} onClick={() => refetch()}>Retry</Button>}>
+      <StatusNotice tone="error" action={<Button variant="secondary" size="sm" loading={isFetching} onClick={() => refetch()}>Try again</Button>}>
         We couldn&apos;t load your plan. Your documents and flows are not affected.
       </StatusNotice>
     );

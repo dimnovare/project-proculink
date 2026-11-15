@@ -9,6 +9,8 @@ import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import { Card } from "@/components/bridge/layout/Card";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { Button } from "@/components/bridge/DSPrimitives";
+import { AppNotFound } from "@/components/bridge/AppNotFound";
+import { isNotFoundFailure } from "@/lib/apiFailure";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { getFlow, listDestinations, listIntakes, listOutputs, updateFlow } from "@/lib/api/documents";
 import type { Flow } from "@/lib/api/documents";
@@ -217,6 +219,7 @@ function FlowFrame({ flowId }: { flowId: string }) {
 
   const f = flow.data;
   const live = f?.publishedVersion;
+  if (flow.isError && !f && isNotFoundFailure(flow.error)) return <AppNotFound />;
   return (
     <GoContext.Provider value={go}>
       <PageShell variant="wide">

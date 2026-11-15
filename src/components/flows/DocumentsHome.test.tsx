@@ -78,7 +78,7 @@ describe("DocumentsHome", () => {
     loading.unmount();
     listFlows.mockRejectedValue(new ApiHttpError("down", 500, null));
     const failed = mount();
-    expect(await screen.findByRole("button", { name: "Retry" }, { timeout: 10_000 })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Try again" }, { timeout: 10_000 })).toBeInTheDocument();
     expect(welcome()).toBeNull();
     failed.unmount();
     listFlows.mockResolvedValue([]);

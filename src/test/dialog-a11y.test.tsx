@@ -160,9 +160,12 @@ describe("dialog registry is DERIVED from the source, not hand-maintained", () =
     //
     // 12 with the phone's Add sheet and its Check the photo step (plan 14.4): two NEW
     // dialogs, so, like OrgActionModals, each moves both "before" counts by one.
-    expect(DIALOG_REGISTRY.length).toBe(12);
-    expect(TOTAL_DIALOGS).toBe(12);
-    expect(DIALOG_REGISTRY.filter((d) => !d.hadTrapBefore).length).toBe(10);
+    //
+    // 11 once help became a panel beside the page (plan 14.11): the old help slide-over left with
+    // its file, taking one "no trap before" row with it (it already had Escape).
+    expect(DIALOG_REGISTRY.length).toBe(11);
+    expect(TOTAL_DIALOGS).toBe(11);
+    expect(DIALOG_REGISTRY.filter((d) => !d.hadTrapBefore).length).toBe(9);
     expect(DIALOG_REGISTRY.filter((d) => !d.hadEscapeBefore).length).toBe(6);
   });
 });
@@ -221,7 +224,7 @@ describe("every modal dialog routes through the shared contract", () => {
 
 import { AdjustLimitsModal } from "@/app/(app)/admin/AdjustLimitsModal";
 import { CreateInvoiceModal } from "@/app/(app)/admin/CreateInvoiceModal";
-import { HelpSlideover } from "@/components/bridge/HelpSlideover";
+import { UnfreezeOrgModal } from "@/app/(app)/admin/OrgActionModals";
 import type { AdminOrganisation } from "@/lib/api/billing";
 
 const ORG: AdminOrganisation = {
@@ -261,8 +264,9 @@ const RENDERABLE: RenderableDialog[] = [
     ),
   },
   {
-    file: "src/components/bridge/HelpSlideover.tsx",
-    render: (onClose) => <HelpSlideover open onClose={onClose} />,
+    // In for the old help slide-over (plan 14.11), so the table keeps three rows.
+    file: "src/app/(app)/admin/OrgActionModals.tsx",
+    render: (onClose) => <UnfreezeOrgModal org={ORG} onClose={onClose} onSaved={() => {}} />,
   },
 ];
 

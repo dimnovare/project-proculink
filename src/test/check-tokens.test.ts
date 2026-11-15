@@ -369,11 +369,15 @@ describe("the scanned corpus", () => {
     // would mean the scan narrowed, not that the tree got clean overnight.
     // 94 rows / 1,938 measured 2026-11-13, after the order screens went with
     // 34 rows of their debt; 90 rows / 1,578 once the mapper kept only the flow
-    // variant the same day; 68 rows / 1,127 on 2026-11-15, once Settings
-    // (plan 14.7b) and the public site's header and footer moved to token classes.
+    // variant the same day. 1_200 -> 1_000 on 2026-11-15: plan 14.11 cleaned the
+    // error panels, the empty state and the loaders (1,186 after its first task,
+    // 1,178 after its second). 1_000 -> 1_100 the same day: 1,170 after its help panel;
+    // 68 rows / 1,127 on main the same day, once Settings (plan 14.7b) and the public
+    // site's header and footer moved to token classes. 1_100 -> 1_050 at the merge of the
+    // two: both sides cleaned different files, 63 rows / 1,087 together.
     expect(s.baselineRows).toBeGreaterThan(60);
-    // 1_100 -> 1_000 on 2026-11-15: plan 14.10 redrew the search palette in tokens (its 39 went;
-    // 67 rows / 1,088 with Settings and the public site also moved).
+    // 1_100 -> 1_000 on 2026-11-15: plan 14.10 redrew the search palette in tokens (its 39 went);
+    // 62 rows / 1,048 once Settings, the public site and the shared states had also moved.
     expect(s.baselineTotal).toBeGreaterThan(1_000);
 
     // The gate is green, so found debt and ledgered debt must agree exactly.

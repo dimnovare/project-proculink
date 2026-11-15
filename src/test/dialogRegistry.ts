@@ -95,14 +95,6 @@ export const DIALOG_REGISTRY: DialogEntry[] = [
     hadEscapeBefore: true,
   },
   {
-    file: "src/components/bridge/HelpSlideover.tsx",
-    name: "HelpSlideover",
-    dialogs: 1,
-    kind: "modal",
-    hadTrapBefore: false,
-    hadEscapeBefore: true,
-  },
-  {
     file: "src/components/marketing/MarketingNav.tsx",
     name: "marketing mobile menu",
     dialogs: 1,

@@ -58,6 +58,20 @@ const strip = () => within(screen.getByRole("navigation", { name: "Flow sections
 const findStrip = async () => within(await screen.findByRole("navigation", { name: "Flow sections" }));
 
 describe("FlowPage", () => {
+  it("a flow the server does not know is the in-app not-found page; any other failure keeps Try again", async () => {
+    const quiet = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    api.getFlow.mockRejectedValue(new ApiHttpError("not found", 404, { error: "flow_not_found" }));
+    const view = render(<QueryClientProvider client={quiet}><FlowPage flowId="nope" /></QueryClientProvider>);
+    expect(await within(view.container).findByRole("heading", { level: 1, name: "We can't find that page" })).toBeTruthy();
+    expect(within(view.container).getByRole("button", { name: "Get help" })).toBeTruthy();
+    expect(within(view.container).queryByRole("button", { name: "Try again" })).toBeNull();
+    view.unmount();
+    api.getFlow.mockRejectedValue(new ApiHttpError("down", 503, null));
+    const down = render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><FlowPage flowId="f" /></QueryClientProvider>);
+    expect(await within(down.container).findByRole("button", { name: "Try again" })).toBeTruthy();
+    expect(within(down.container).queryByText("We can't find that page")).toBeNull();
+  });
+
   it("the strip marks the chosen step and an old tab name still works", async () => {
     search.q = "tab=fields";
     renderPage();

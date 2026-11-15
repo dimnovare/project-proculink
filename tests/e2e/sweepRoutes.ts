@@ -54,7 +54,11 @@ const DYNAMIC_FILL: Record<string, string | null> = {
   "/documents/[id]": `/documents/${MOCK_ENGINE_IDS.document}`,
   // The read-only archive of old orders. The id is an old mock-client order id.
   "/archive/[orderId]": "/archive/ord-002",
+  // The in-app page not found. Two segments: `/documents/<one>` is an old order link, redirected to Old orders.
+  "/documents/[...missing]": "/documents/not-a/page",
 };
+
+const SAME_NOT_FOUND = "The same in-app not-found page as /documents/[...missing], which is swept.";
 
 /**
  * Routes the sweep cannot meaningfully exercise. Each carries its reason — an
@@ -71,6 +75,9 @@ export const SKIPPED: Record<string, string> = {
     "banner. The sweep duly reported it as a screen with no <h1> and one control. Same " +
     "placeholder problem as /sign-in above: scanning it measures the placeholder and reports " +
     "it as coverage of the gate. Needs an authenticated harness, not a curated exclusion.",
+  ...Object.fromEntries(
+    ["/admin", "/archive", "/flows", "/lookups", "/operations", "/settings", "/upload"].map((p) => [`${p}/[...missing]`, SAME_NOT_FOUND]),
+  ),
 };
 
 export interface SweepRoute {

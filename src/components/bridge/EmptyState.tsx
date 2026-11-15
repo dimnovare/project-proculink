@@ -1,97 +1,40 @@
-"use client";
-
-// EmptyState — shared empty state component following Bridge Layer vocabulary.
-// Canonical shape: bare Mark (no box), hover opacity 0.7→1, Bricolage title, muted sub.
-// Matches primitives.jsx EmptyState exactly.
+// EmptyState — the one empty state: a heading, one line, at most one action.
 
 import React from "react";
-import { MarkSystem } from "./MarkSystem";
+import { Button, buttonClass } from "./DSPrimitives";
 
-interface EmptyStateProps {
+type ActionObject = { label: string; onClick: () => void; variant?: Parameters<typeof buttonClass>[0] };
+
+export interface EmptyStateProps {
   title: string;
   sub?: string;
-  action?: { label: string; onClick: () => void };
-  /** Deprecated: icon prop is accepted but ignored — Mark is always shown */
-  icon?: string;
+  /** Shown above the heading (the green tick on "You're all caught up."). Decorative. */
+  icon?: React.ReactNode;
+  /** One action: a ready-made link or button, or { label, onClick } drawn as a Button (navy unless `variant`). */
+  action?: React.ReactNode | ActionObject;
+  /** No minimum height (inside a smaller panel). */
   compact?: boolean;
 }
 
-export function EmptyState({ title, sub, action, compact = false }: EmptyStateProps) {
-  const [hover, setHover] = React.useState(false);
-  const markSize = compact ? 40 : 52;
+const isActionObject = (a: unknown): a is ActionObject =>
+  typeof a === "object" && a !== null && !React.isValidElement(a) && "onClick" in a;
 
+export function EmptyState({ title, sub, icon, action, compact = false }: EmptyStateProps) {
   return (
     <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        textAlign: "center",
-        padding: compact ? "32px 20px" : "56px 24px",
-      }}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
+      data-testid="empty-state"
+      className={`flex flex-col items-center justify-center gap-2 px-6 py-7 text-center${compact ? "" : " min-h-[208px]"}`}
     >
-      {/* Bare mark — no grey box; hover opacity 0.7→1 per primitives.jsx */}
-      <div
-        style={{
-          marginBottom: 16,
-          opacity: hover ? 1 : 0.7,
-          transition: "opacity 400ms",
-        }}
-      >
-        <MarkSystem size={markSize} />
-      </div>
-
-      {/* Title — Bricolage Grotesque, same as primitives.jsx */}
-      <div
-        style={{
-          fontFamily: "var(--font-display, 'Bricolage Grotesque', Inter, sans-serif)",
-          fontWeight: 600,
-          fontSize: compact ? 16 : 19,
-          letterSpacing: "-0.02em",
-          color: "var(--ink, #0B1A2F)",
-        }}
-      >
-        {title}
-      </div>
-
-      {sub && (
-        <div
-          style={{
-            fontSize: 13,
-            color: "var(--ink-muted, #5E6779)",
-            maxWidth: 360,
-            lineHeight: 1.6,
-            marginTop: 6,
-          }}
-        >
-          {sub}
-        </div>
-      )}
-
-      {action && (
-        <div style={{ marginTop: 18 }}>
-          <button
-            onClick={action.onClick}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              borderRadius: 6,
-              height: 32,
-              padding: "0 14px",
-              fontSize: 12.5,
-              fontWeight: 600,
-              background: "var(--navy, #0B1A2F)",
-              color: "#FFFFFF",
-              border: "none",
-              cursor: "pointer",
-              transition: "background 150ms",
-            }}
-          >
-            {action.label}
-          </button>
+      {icon}
+      <h2 className="m-0 text-[18px] font-semibold text-ink">{title}</h2>
+      {sub && <p className="m-0 text-[14px] text-ink-muted">{sub}</p>}
+      {action != null && (
+        <div className="mt-2">
+          {isActionObject(action) ? (
+            <Button variant={action.variant ?? "primary"} size="md" onClick={action.onClick}>{action.label}</Button>
+          ) : (
+            action
+          )}
         </div>
       )}
     </div>

@@ -6,7 +6,7 @@ import { LookupsHome } from "./LookupsHome";
 import { showLookupNotice } from "./lookupNotice";
 import { usedByLine } from "@/lib/lookupUses";
 
-const api = vi.hoisted(() => ({ listLookups: vi.fn(), createLookup: vi.fn(), deleteLookup: vi.fn() }));
+const api = vi.hoisted(() => ({ listLookups: vi.fn(), createLookup: vi.fn(), deleteLookup: vi.fn(), getLookup: vi.fn() }));
 const push = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/api/documents", () => api);
 vi.mock("./LookupPage", () => ({ LookupPage: ({ lookupId }: { lookupId: string }) => <p>panel {lookupId}</p> }));
@@ -15,11 +15,20 @@ vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => tru
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
 
 const show = (id?: string) => render(<QueryClientProvider client={new QueryClient()}><LookupsHome lookupId={id} /></QueryClientProvider>);
-beforeEach(() => { vi.clearAllMocks(); showLookupNotice(null); api.listLookups.mockResolvedValue([
+beforeEach(() => { vi.clearAllMocks(); showLookupNotice(null); api.getLookup.mockResolvedValue({ id: "a", name: "Item codes", entries: [] }); api.listLookups.mockResolvedValue([
   { id: "a", name: "Item codes", count: 1, updatedAt: "", hasCandidates: false, suggestionsOn: false },
   { id: "b", name: "Units", count: 2, updatedAt: "", hasCandidates: false, suggestionsOn: false }]); });
 
 describe("LookupsHome", () => {
+  it("a lookup the server does not know is the in-app not-found page, with no Try again", async () => {
+    api.getLookup.mockRejectedValue(new ApiHttpError("not found", 404, { error: "lookup_not_found" }));
+    const view = render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><LookupsHome lookupId="nope" /></QueryClientProvider>);
+    expect(await within(view.container).findByRole("heading", { level: 1, name: "We can't find that page" })).toBeTruthy();
+    expect(within(view.container).getByRole("button", { name: "Get help" })).toBeTruthy();
+    expect(within(view.container).queryByRole("button", { name: "Try again" })).toBeNull();
+    expect(within(view.container).queryByRole("navigation", { name: "All lookups" })).toBeNull();
+  });
+
   it("lists each lookup with its rows and what uses it, and says nothing about use before it knows", async () => {
     const view = show();
     const nav = await screen.findByRole("navigation", { name: "All lookups" });

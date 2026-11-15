@@ -8,7 +8,6 @@ vi.mock("@tanstack/react-query", () => ({ useQuery: () => ({ data: undefined }),
 vi.mock("@/lib/api-client", () => ({ isApiMockMode: false, checkAdminAccess: vi.fn(), getBillingStatus: vi.fn() }));
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true, useTenantQueriesEnabled: () => true }));
 vi.mock("./CommandPalette", () => ({ CommandPalette: () => <div data-testid="palette" /> }));
-vi.mock("./HelpSlideover", () => ({ HelpSlideover: () => null }));
 vi.mock("./OrgSwitcher", () => ({ OrgSwitcher: () => null }));
 vi.mock("./UserChipMenu", () => ({ UserChipMenu: () => null }));
 

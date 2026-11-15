@@ -101,7 +101,7 @@ export function CheckStep({ flow, docId, first }: { flow: Flow; docId: string | 
     return <Quiet>{`Reading ${summary.fileName}… This takes a few seconds.`}</Quiet>;
   const nothingRead = !read || read.fields.length + read.tables.length === 0;
   if (summary.status === "read_failed" || (summary.statusReason === "duplicate_file" && nothingRead))
-    return <div className="grid justify-items-start gap-3"><ReadProblem summary={summary} nothingRead={nothingRead} retry={retry} scansOn={flow.scansOn} />{another}</div>;
+    return <div className="grid justify-items-start gap-3"><ReadProblem summary={summary} nothingRead={nothingRead} retry={retry} scansOn={flow.scansOn} uploadHref={firstRunAddress({ step: "add", flow: flow.id })} />{another}</div>;
   if (nothingRead || !marks)
     return <div className="grid justify-items-start gap-3"><p className="m-0 text-[14px] text-ink">We couldn&apos;t find any values on this document.</p>{another}</div>;
 
