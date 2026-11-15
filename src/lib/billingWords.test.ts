@@ -6,7 +6,7 @@ const now = new Date(2026, 5, 1, 9, 30);
 const days = (n: number) => new Date(now.getTime() + n * 86_400_000).toISOString();
 const trial = PLAN_BY_ID.pilot.priceCadence;
 const starter = PLAN_BY_ID.starter;
-const use = (over: object) => ({ plan: "starter" as const, ordersThisMonth: 0, orderLimit: 150, overageOrders: 0, overageAmountEur: 0, ...over });
+const use = (over: object) => ({ plan: "starter" as const, ordersThisMonth: 0, orderLimit: starter.orderLimit!, overageOrders: 0, overageAmountEur: 0, nearLimit: false, ...over });
 
 describe("billing words", () => {
   it("prices a plan by the period billed, and a trial by the days left", () => {
@@ -25,14 +25,22 @@ describe("billing words", () => {
 
   it("words what is used and never prints a number it does not know", () => {
     expect(documentsUse(use({ plan: "pilot", ordersThisMonth: 5, orderLimit: 20 }))).toEqual({
-      label: "Documents in your trial", used: 5, limit: 20, sub: "15 left in your trial.", barLabel: "5 of 20 documents used in your trial",
+      label: "Documents in your trial", used: 5, limit: 20, sub: "15 left in your trial.", barLabel: "5 of 20 documents used in your trial", warn: false,
     });
+    // Near the limit the server says so, and the line says it in words with what is left.
+    expect(documentsUse(use({ ordersThisMonth: 130, nearLimit: true }))).toMatchObject({
+      sub: `Nearly at your limit: ${starter.orderLimit! - 130} left before extra documents start.`, warn: true,
+    });
+    expect(documentsUse(use({ plan: "pilot", ordersThisMonth: 17, orderLimit: 20, nearLimit: true })).sub).toBe("Nearly at your limit: 3 left in your trial.");
+    // A heavy month: the extras are documents above the allowance, not the capped billable count.
+    expect(documentsUse(use({ ordersThisMonth: 400, overageOrders: 141, overageAmountEur: 33.84, nearLimit: true })).sub)
+      .toBe(`${400 - starter.orderLimit!} extra so far this month, about €33.84 billed.`);
     expect(documentsUse(use({ plan: "pilot", ordersThisMonth: 20, orderLimit: 20 })).sub).toBe("None left in your trial.");
     expect(documentsUse(use({ ordersThisMonth: 112 }))).toMatchObject({
       label: "Documents this month", sub: "38 left before extra documents start.", barLabel: "112 of 150 documents used this month",
     });
     expect(documentsUse(use({ ordersThisMonth: 150 })).sub).toBe("None left before extra documents start.");
-    expect(documentsUse(use({ ordersThisMonth: 160, overageOrders: 10, overageAmountEur: 2.4 })).sub).toBe("10 extra so far this month, about €2.40.");
+    expect(documentsUse(use({ ordersThisMonth: 160, overageOrders: 10, overageAmountEur: 2.4 })).sub).toBe("10 extra so far this month, about €2.40 billed.");
     for (const over of [{ plan: "enterprise", orderLimit: 500 }, { orderLimit: 2_147_483_647 }]) {
       expect(documentsUse(use({ ordersThisMonth: 40, ...over }))).toMatchObject({ used: 40, limit: null, sub: null, barLabel: null });
     }
@@ -44,6 +52,8 @@ describe("billing words", () => {
       `€${starter.overageEur} for each extra document. You're never blocked.`,
       "A busy month never costs more than the larger plan that would have covered it.",
     ]);
+    // The top plan has no larger plan to cap a month at, so it does not promise one.
+    expect(extraLines("scale")).toEqual([`${euro(PLAN_BY_ID.scale.overageEur!)} for each extra document. You're never blocked.`]);
     expect([extraLines("pilot"), extraLines("enterprise")]).toEqual([null, null]);
   });
 
@@ -58,7 +68,7 @@ describe("billing words", () => {
     expect(ids(changePlanRows("growth", "on"))).toEqual([["growth", "current"], ["operations", "upgrade"]]);
     expect(ids(changePlanRows("distributor", "on"))).toEqual([["distributor", "current"]]);
     expect(changePlanRows("enterprise", "on")).toEqual([]);
-    expect(monthsFree(DOCUMENT_PLANS[0])).toBe(2);
+    expect(monthsFree(DOCUMENT_PLANS[0])).toBe(12 - DOCUMENT_PLANS[0].priceYearly! / DOCUMENT_PLANS[0].priceMonthly!);
     expect(monthsFree(PLAN_BY_ID.pilot)).toBeNull();
   });
 });

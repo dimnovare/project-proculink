@@ -156,6 +156,17 @@ describe("the plan card prints the price the workspace is actually charged", () 
     expect(card.queryByText(new RegExp(words(PLAN_BY_ID.growth.priceYearly!, "year")))).toBeNull();
   });
 
+  it("'Your plan' in Change plan is priced by the period the server bills, not by the toggle", async () => {
+    await renderBilling(billing({ plan: "growth", billingInterval: "yearly" }));
+    const period = within(screen.getByRole("radiogroup", { name: "Billing period" }));
+    expect(period.getByRole("radio", { name: "Monthly" }).getAttribute("aria-checked")).toBe("true");
+    const change = within(screen.getByRole("region", { name: "Change plan" }));
+    expect(change.getByText(words(PLAN_BY_ID.growth.priceYearly!, "year"))).toBeTruthy();
+    expect(change.queryByText(words(PLAN_BY_ID.growth.priceMonthly!, "month"))).toBeNull();
+    // The plan on offer still follows the toggle.
+    expect(change.getByText(words(PLAN_BY_ID.operations.priceMonthly!, "month"))).toBeTruthy();
+  });
+
   for (const id of ["operations", "integration", "distributor"] as BillingPlan[]) {
     it("an annual " + id + " workspace shows its yearly total", async () => {
       const plan = PLAN_BY_ID[id];

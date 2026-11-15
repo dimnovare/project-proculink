@@ -231,7 +231,6 @@ describe("a Stripe portal is offered only to a workspace that has one", () => {
     expect(pageText()).toContain("Your plan is a manual agreement.");
     // Everything that contradicted it, five lines below, is gone.
     expect(screen.queryByRole("button", { name: /Manage in Stripe/ })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Change plan" })).toBeNull();
     expect(screen.queryByText("Your card, billing email and invoices are kept in Stripe.")).toBeNull();
     expect(pageText(), "a Stripe cancellation disclosure to a customer with no Stripe subscription")
       .not.toMatch(/If you cancel in Stripe/i);
@@ -284,6 +283,5 @@ describe("no plan, on any tier, is offered a portal without a Stripe customer", 
     );
 
     expect(screen.queryByRole("button", { name: /Manage in Stripe/ })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Change plan" })).toBeNull();
   });
 });

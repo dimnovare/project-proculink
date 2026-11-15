@@ -34,24 +34,30 @@ export function planLine(s: Pick<BillingStatus, "plan" | "billingInterval" | "tr
   return `${words}, billed ${s.billingInterval === "yearly" ? "annually" : "monthly"}`;
 }
 
-export interface Use { label: string; used: number; limit: number | null; sub: string | null; barLabel: string | null }
+/** `warn`: the server says the workspace is near its limit, so the sentence is drawn in amber. */
+export interface Use { label: string; used: number; limit: number | null; sub: string | null; barLabel: string | null; warn?: boolean }
 
-/** Documents; `limit` null (no bar, no sub) for Enterprise or the unlimited sentinel (>= 2_000_000_000). */
+/**
+ * Documents; `limit` null (no bar, no sub) for Enterprise or the unlimited sentinel (>= 2_000_000_000).
+ * The extras are documents above the allowance, so they agree with the bar; the server's
+ * `overageOrders` is the billable count after the price cap and is never shown as a count.
+ */
 export function documentsUse(
-  s: Pick<BillingStatus, "plan" | "ordersThisMonth" | "orderLimit" | "overageOrders" | "overageAmountEur">,
+  s: Pick<BillingStatus, "plan" | "ordersThisMonth" | "orderLimit" | "overageAmountEur" | "nearLimit">,
 ): Use {
   const trial = s.plan === "pilot";
   const label = trial ? "Documents in your trial" : "Documents this month";
   const used = s.ordersThisMonth;
   if (s.plan === "enterprise" || s.orderLimit >= 2_000_000_000) return { label, used, limit: null, sub: null, barLabel: null };
   const left = Math.max(0, s.orderLimit - used);
+  const extras = Math.max(0, used - s.orderLimit);
   const where = trial ? "in your trial" : "this month";
-  const sub = trial
-    ? `${left ? count(left) : "None"} left in your trial.`
-    : s.overageOrders > 0
-      ? `${count(s.overageOrders)} extra so far this month, about ${euro(s.overageAmountEur)}.`
-      : `${left ? count(left) : "None"} left before extra documents start.`;
-  return { label, used, limit: s.orderLimit, sub, barLabel: `${count(used)} of ${count(s.orderLimit)} documents used ${where}` };
+  const until = trial ? "in your trial" : "before extra documents start";
+  const warn = s.nearLimit && left > 0;
+  const sub = !trial && extras > 0
+    ? `${count(extras)} extra so far this month${s.overageAmountEur > 0 ? `, about ${euro(s.overageAmountEur)} billed` : ""}.`
+    : `${warn ? "Nearly at your limit: " : ""}${left ? count(left) : "None"} left ${until}.`;
+  return { label, used, limit: s.orderLimit, sub, barLabel: `${count(used)} of ${count(s.orderLimit)} documents used ${where}`, warn };
 }
 
 export function flowsUse(used: number, flowLimit: number | null): Use {
@@ -88,12 +94,14 @@ export function monthsFree(plan: Plan): number | null {
   return plan.priceYearly && plan.priceMonthly ? Math.round(12 - plan.priceYearly / plan.priceMonthly) : null;
 }
 
-/** The two extra-document sentences for a plan with a rate; null for Trial and Enterprise. */
-export function extraLines(plan: BillingPlan): readonly [string, string] | null {
-  const rate = PLAN_BY_ID[plan]?.overageEur;
-  if (rate == null) return null;
-  return [
-    `${euro(rate)} for each extra document. You're never blocked.`,
-    "A busy month never costs more than the larger plan that would have covered it.",
-  ];
+/**
+ * The extra-document sentences for a plan with a rate; null for Trial and Enterprise. "You're never
+ * blocked." is left out while the server has paused processing, and the price-cap sentence is left
+ * out on the top plan, which has no larger plan to cap a month at.
+ */
+export function extraLines(plan: BillingPlan, paused = false): readonly [string, string?] | null {
+  const p = PLAN_BY_ID[plan];
+  if (p?.overageEur == null) return null;
+  const rate = `${euro(p.overageEur)} for each extra document.${paused ? "" : " You're never blocked."}`;
+  return p.next ? [rate, "A busy month never costs more than the larger plan that would have covered it."] : [rate];
 }

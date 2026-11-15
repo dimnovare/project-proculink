@@ -45,7 +45,7 @@
 // every "does not contain" claim for free.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { PLAN_BY_ID } from "@/lib/plans";
+import { PLAN_BY_ID, nextPlanFor } from "@/lib/plans";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, cleanup, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -230,8 +230,9 @@ describe("the plan card never reads a database word back to the customer", () =>
     await renderBilling(billing());
 
     expect(within(planCard()).getByRole("heading", { level: 2 }).textContent).toBe(PLAN_BY_ID.pilot.name);
-    expect(screen.getByRole("button", { name: /Upgrade to Growth/ })).toBeTruthy();
-    expect(within(planCard()).queryByRole("button", { name: /Upgrade to Growth/ })).toBeNull();
+    const upgrade = `Upgrade to ${PLAN_BY_ID[nextPlanFor("pilot", false)!].name}`;
+    expect(screen.getByRole("button", { name: upgrade })).toBeTruthy();
+    expect(within(planCard()).queryByRole("button", { name: upgrade })).toBeNull();
   });
 });
 

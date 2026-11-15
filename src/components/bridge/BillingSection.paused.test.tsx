@@ -102,6 +102,12 @@ function pageText(): string {
   return document.body.textContent ?? "";
 }
 
+/** The filled controls on the screen (buttons and button-styled links). */
+const filledNames = () =>
+  [...document.querySelectorAll(".bg-navy, .bg-brand-green-btn, .bg-brand-blue, .bg-danger")]
+    .filter((el) => el.matches("button, a"))
+    .map((el) => el.textContent);
+
 beforeEach(() => {
   Object.values(api).forEach((fn) => fn.mockReset());
   // Never resolves: onSuccess assigns window.location.href, which jsdom cannot do.
@@ -133,6 +139,9 @@ describe("a paid plan the server has stopped says so, loudly", () => {
 
     // The route back, next to the sentence that explains why they need it.
     expect(screen.getAllByRole("button", { name: "Manage in Stripe" }).length).toBeGreaterThan(0);
+    // Nothing under the banner says processing goes on, and the one filled control is the way back.
+    expect(text).not.toContain("You're never blocked.");
+    expect(filledNames()).toEqual(["Manage in Stripe"]);
   });
 
   it("is announced, not decoration", async () => {
@@ -314,6 +323,8 @@ describe("the pause is derived from the server's answer, not from a plan name", 
     expect(screen.queryByRole("alert")).toBeNull();
     expect(pageText()).not.toMatch(/Processing paused/);
     expect(pageText()).not.toMatch(/New documents aren't being accepted/);
+    // ...and the reassurance the paused screen withholds is drawn when processing runs.
+    expect(pageText()).toContain("You're never blocked.");
     // The raw status line is untouched on the healthy path — the committed
     // /settings visual baselines are captured against a healthy mock org.
     expect(pageText()).toContain("active");
@@ -373,6 +384,7 @@ describe("the route back is one that exists for this workspace", () => {
     const alert = screen.getByRole("alert");
     expect(alert.querySelector('a[href^="mailto:"]')).not.toBeNull();
     expect(alert.querySelector("button")).toBeNull();
+    expect(filledNames()).toEqual(["Contact support"]);
   });
 
   it("a paused Pilot is pointed at the plans below, not at a Stripe customer it never had", async () => {

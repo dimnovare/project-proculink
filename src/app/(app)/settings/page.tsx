@@ -148,7 +148,8 @@ function OrgSection() {
         <ul className="m-0 list-none border-b border-border p-0">
           {people.map((m) => {
             const u = m.publicUserData;
-            const name = [u?.firstName, u?.lastName].filter(Boolean).join(" ") || u?.identifier || "";
+            const fullName = [u?.firstName, u?.lastName].filter(Boolean).join(" ");
+            const name = fullName || u?.identifier || "";
             const role = membershipRoleLabel(m.role);
             return (
               <li key={m.id} className="flex items-center gap-3 border-t border-border py-3">
@@ -160,7 +161,8 @@ function OrgSection() {
                     {name}
                     {u?.userId === user?.id && <span className="font-normal text-ink-muted"> (you)</span>}
                   </p>
-                  {u?.identifier && <p className="m-0 text-[13px] text-ink-muted [overflow-wrap:anywhere]">{u.identifier}</p>}
+                  {/* With no name, the address is the name line; it is not printed twice. */}
+                  {fullName && u?.identifier && <p className="m-0 text-[13px] text-ink-muted [overflow-wrap:anywhere]">{u.identifier}</p>}
                 </div>
                 {role && <Pill tone="neutral">{role}</Pill>}
               </li>
@@ -172,7 +174,8 @@ function OrgSection() {
         )}
       </>
     );
-  const count = people && !memberships?.isLoading ? memberships!.count : null;
+  // Zero is not an answer: the person reading it has access, so an empty count is unknown.
+  const count = people && !memberships?.isLoading && memberships!.count > 0 ? memberships!.count : null;
 
   return (
     <div className="flex flex-wrap items-start gap-5">
@@ -253,7 +256,7 @@ function WorkspaceName({ organization }: { organization: Organization }) {
       : null;
 
   return (
-    <SettingsPanel id="s-name" title={<label htmlFor="ws-name">Workspace name</label>} side={save.isSuccess && <SavedMark />}>
+    <SettingsPanel id="s-name" title={<label htmlFor="ws-name">Workspace name</label>} side={save.isSuccess && value.trim() === sent.current && <SavedMark />}>
       <div className="flex max-w-[420px] flex-col gap-2">
         <input
           id="ws-name"

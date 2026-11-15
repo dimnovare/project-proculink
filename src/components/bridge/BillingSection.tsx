@@ -8,14 +8,14 @@ import {
 } from "@/lib/api-client";
 import { useRef, useState } from "react";
 import type { BillingPlan, BillingStatus } from "@/types/procurement";
-import { PLAN_BY_ID, CHECKOUT_PLAN_IDS, DOCUMENT_PLAN_IDS, ANNUAL_BILLING_ENABLED, nextPlanFor } from "@/lib/plans";
+import { PLAN_BY_ID, CHECKOUT_PLAN_IDS, DOCUMENT_PLAN_IDS, nextPlanFor } from "@/lib/plans";
 import { useDocumentEngine, flowsQuery } from "@/hooks/useDocumentEngine";
 import { isOrgAdminRefusal } from "@/lib/planGate";
 import { COPY } from "@/lib/documentRefusals";
 import { accountStatusLabel, pausedCauseCopy, namesSubscriptionCause } from "@/lib/billingPause";
 import { Card } from "@/components/bridge/layout/Card";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
-import { Button, Pill } from "@/components/bridge/DSPrimitives";
+import { Button, Pill, buttonClass } from "@/components/bridge/DSPrimitives";
 import { Quiet } from "@/components/flows/states";
 import { SettingsPanel } from "@/components/settings/SettingsPrimitives";
 import { isPlanGate, PlanGateNotice } from "@/components/bridge/PlanGateNotice";
@@ -194,17 +194,15 @@ function ProcessingPausedBanner({
       <strong>{headline}</strong>
       <span>{PAUSED_CONSEQUENCE}</span>
       <span>{resumeLine}</span>
+      {/* The way back is the one filled control on a paused screen. */}
       {route === "support" ? (
-        <a
-          href="mailto:sales@proculink.eu"
-          style={{ alignSelf: "flex-start", marginTop: 4, fontSize: 12.5, fontWeight: 700, color: "var(--danger)" }}
-        >
+        <a href="mailto:sales@proculink.eu" className={`${buttonClass("primary")} mt-1 self-start`}>
           Contact support
         </a>
       ) : route === "upgrade" ? null : (
-        <button type="button" onClick={onManage} disabled={managePending} style={pausedActionButton(managePending)}>
+        <Button variant="primary" className="mt-1 self-start" onClick={onManage} disabled={managePending}>
           {managePending ? "Opening..." : "Manage in Stripe"}
-        </button>
+        </Button>
       )}
       {/* The refusal belongs next to the control that was pressed — same rule as the
           "Manage in Stripe" button below. A member who is not an org admin cannot open the
@@ -339,17 +337,17 @@ function UseRow({ use }: { use: Use }) {
           <div className="h-full rounded bg-brand-blue" style={{ width: `${Math.min(100, (use.used / Math.max(1, use.limit)) * 100)}%` }} />
         </div>
       )}
-      {use.sub && <p className="m-0 text-[13px] text-ink-muted">{use.sub}</p>}
+      {use.sub && <p className={`m-0 text-[13px] ${use.warn ? "font-semibold text-amber-text" : "text-ink-muted"}`}>{use.sub}</p>}
     </div>
   );
 }
 
 /** Two short lines: a bold one and a muted one under it. */
-function Lines({ lead, sub }: { lead: string; sub: string }) {
+function Lines({ lead, sub }: { lead: string; sub?: string }) {
   return (
     <div className="flex flex-col gap-1">
       <p className="m-0 font-semibold">{lead}</p>
-      <p className="m-0 text-[13px] text-ink-muted">{sub}</p>
+      {sub && <p className="m-0 text-[13px] text-ink-muted">{sub}</p>}
     </div>
   );
 }
@@ -377,7 +375,7 @@ function PlanPanel({ status, flows }: { status: BillingStatus; flows: Use | null
         : name;
   const label = isPaused ? null : accountStatusLabel(status.accountStatus);
   const price = planLine(status, new Date());
-  const extra = extraLines(status.plan);
+  const extra = extraLines(status.plan, !status.canProcessOrders);
   const uses = flows ? [documentsUse(status), flows] : [documentsUse(status)];
 
   return (
@@ -388,8 +386,8 @@ function PlanPanel({ status, flows }: { status: BillingStatus; flows: Use | null
             <h2 id="b-plan" className="m-0 font-display text-[26px] font-semibold leading-[1.1] tracking-[-0.01em]">{heading}</h2>
             {label && (
               <Pill
-                tone={label === "Subscription active" ? "green" : "neutral"}
-                icon={label === "Subscription active" ? <Check aria-hidden size={13} strokeWidth={3} /> : undefined}
+                tone={status.accountStatus === "active" ? "green" : "neutral"}
+                icon={status.accountStatus === "active" ? <Check aria-hidden size={13} strokeWidth={3} /> : undefined}
                 data-testid="account-status-line"
               >
                 {label}
@@ -414,7 +412,7 @@ function PlanPanel({ status, flows }: { status: BillingStatus; flows: Use | null
 }
 
 export function BillingSection() {
-  const { data: status, isLoading, refetch } = useQuery<BillingStatus>({
+  const { data: status, isLoading, isFetching, refetch } = useQuery<BillingStatus>({
     queryKey: ["billing-status"],
     queryFn: getBillingStatus,
     staleTime: 60_000,
@@ -431,6 +429,7 @@ export function BillingSection() {
   // there is no Stripe page in between to confirm on — so it asks here first.
   const [confirming, setConfirming] = useState<BillingPlan | null>(null);
   const sending = useRef(false);
+  const opening = useRef(false);
 
   const checkoutMutation = useMutation({
     mutationFn: ({ plan, interval }: { plan: BillingPlan; interval: BillingInterval }) =>
@@ -448,7 +447,7 @@ export function BillingSection() {
   // A failed refresh keeps what is drawn: the failure is shown only when there is nothing to draw.
   if (!status) {
     return (
-      <StatusNotice tone="error" action={<Button variant="secondary" size="sm" onClick={() => refetch()}>Retry</Button>}>
+      <StatusNotice tone="error" action={<Button variant="secondary" size="sm" loading={isFetching} onClick={() => refetch()}>Retry</Button>}>
         We couldn&apos;t load your plan. Your documents and flows are not affected.
       </StatusNotice>
     );
@@ -459,9 +458,12 @@ export function BillingSection() {
   const isPaid       = [...CHECKOUT_PLAN_IDS, ...DOCUMENT_PLAN_IDS].includes(status.plan);
   const rows         = changePlanRows(status.plan, engine);
   const upgrades     = rows.filter((r) => r.state === "upgrade");
-  // The one filled button: the upgrade the ladder offers next. Every other upgrade is outlined.
-  const main         = nextPlanFor(status.plan, documentLadder);
-  const months       = upgrades.length ? monthsFree((upgrades.find((r) => r.plan.id === main) ?? upgrades[0]).plan) : null;
+  // A paid plan is sold only the next plan up, as on main; a trial is sold any plan on Stripe's page.
+  const offered      = nextPlanFor(status.plan, documentLadder);
+  // The one filled button: the upgrade on offer, unless processing is paused on a paid plan,
+  // where the way back to payment (in the banner) is the filled one.
+  const main         = isTrial || status.canProcessOrders ? offered : null;
+  const months       = upgrades.length ? monthsFree((upgrades.find((r) => r.plan.id === offered) ?? upgrades[0]).plan) : null;
   const top          = rows.at(-1)?.plan.orderLimit;
   /**
    * Whether the Stripe Billing Portal exists for THIS workspace.
@@ -482,10 +484,16 @@ export function BillingSection() {
     sending.current = true;
     checkoutMutation.mutate({ plan, interval: checkoutInterval }, { onSettled: () => { sending.current = false; } });
   };
+  const openPortal = () => {
+    if (opening.current) return;
+    opening.current = true;
+    portalMutation.mutate(undefined, { onSettled: () => { opening.current = false; } });
+  };
 
   const confirmPlan = confirming ? PLAN_BY_ID[confirming] : null;
   const confirmPrice = confirmPlan ? priceWords(confirmPlan, checkoutInterval) : null;
-  const showPeriod = upgrades.length > 0 && ANNUAL_BILLING_ENABLED;
+  // Main's conditions: a trial always, a paid plan when it has a next plan to buy.
+  const showPeriod = isTrial || (isPaid && offered != null);
   const showPay = hasStripePortal || isEnterprise || isPaid;
 
   return (
@@ -496,7 +504,7 @@ export function BillingSection() {
           to date"). */}
       <ProcessingPausedBanner
         status={status}
-        onManage={() => portalMutation.mutate()}
+        onManage={openPortal}
         managePending={portalMutation.isPending}
         manageError={portalMutation.isError ? portalMutation.error : null}
       />
@@ -526,17 +534,21 @@ export function BillingSection() {
                     {rows.map(({ plan, state }) => (
                       <div key={plan.id} className={ROW}>
                         <span className={`col-start-1 row-start-1 text-[15px] font-semibold ${CELL}`}>{plan.name}</span>
-                        <span className={`col-start-2 row-start-1 justify-self-end font-semibold ${CELL}`}>{priceWords(plan, checkoutInterval)}</span>
+                        {/* "Your plan" is priced by the period the server bills; the others by the toggle. */}
+                        <span className={`col-start-2 row-start-1 justify-self-end font-semibold ${CELL}`}>
+                          {priceWords(plan, state === "current" ? status.billingInterval ?? "monthly" : checkoutInterval)}
+                        </span>
                         <span className={`col-span-2 row-start-2 ${CELL}`}>{plan.orderLimit?.toLocaleString(NUMBER_LOCALE)} documents a month</span>
                         <span className={`col-start-1 row-start-3 ${CELL}`}>{plan.flowLimit == null ? "Unlimited flows" : `${plan.flowLimit.toLocaleString(NUMBER_LOCALE)} flows`}</span>
                         <span className={`col-start-2 row-start-3 justify-self-end ${CELL}`}>{plan.overageEur != null && `${euro(plan.overageEur)} each extra`}</span>
-                        {state !== "lower" && (
+                        {(state === "current" || (state === "upgrade" && (isTrial || plan.id === offered))) && (
                           <span className={`col-span-2 row-start-4 mt-2 min-[940px]:mt-0 ${CELL}`}>
                             {state === "current" ? (
                               <Pill tone="neutral">Your plan</Pill>
                             ) : (
                               <Button
-                                variant={plan.id === main ? "primary" : "secondary"}
+                                // While a confirm is open, its "Upgrade now" is the filled one.
+                                variant={plan.id === main && !confirming ? "primary" : "secondary"}
                                 className="w-full"
                                 disabled={checkoutMutation.isPending}
                                 // A trial confirms on Stripe's page; a paid plan's upgrade changes the live
@@ -558,7 +570,7 @@ export function BillingSection() {
                         Your card on file is charged today. A new billing period starts today, and the unused part of your current plan is credited on that charge.
                       </span>
                       <div className="flex flex-wrap gap-2">
-                        <Button variant="secondary" onClick={() => send(confirmPlan.id)} disabled={checkoutMutation.isPending}>
+                        <Button variant={main ? "primary" : "secondary"} autoFocus onClick={() => send(confirmPlan.id)} disabled={checkoutMutation.isPending}>
                           {checkoutMutation.isPending ? "Upgrading..." : "Upgrade now"}
                         </Button>
                         <Button variant="secondary" onClick={() => setConfirming(null)} disabled={checkoutMutation.isPending}>Cancel</Button>
@@ -568,7 +580,7 @@ export function BillingSection() {
                   {checkoutMutation.isError && <CheckoutFailure error={checkoutMutation.error} />}
                   {top != null && (
                     <p className="m-0 text-[13px] text-ink-muted">
-                      {!isTrial && "An upgrade starts straight away: a new billing period begins that day, and the unused part of your current plan is credited. "}
+                      {status.stripeSubscriptionId != null && "An upgrade starts straight away: a new billing period begins that day, and the unused part of your current plan is credited. "}
                       {isTrial ? "Need" : "Moving to a smaller plan, or need"} more than {top.toLocaleString(NUMBER_LOCALE)} documents a month?{" "}
                       <a href="mailto:sales@proculink.eu" className="font-semibold">Contact us</a>.
                     </p>
@@ -590,7 +602,7 @@ export function BillingSection() {
                 )}
                 {hasStripePortal ? (
                   <>
-                    <Button variant="secondary" className="self-start" onClick={() => portalMutation.mutate()} disabled={portalMutation.isPending}>
+                    <Button variant="secondary" className="self-start" onClick={openPortal} disabled={portalMutation.isPending}>
                       {portalMutation.isPending ? "Opening..." : "Manage in Stripe"}
                     </Button>
                     {portalMutation.isError && (
@@ -658,24 +670,3 @@ const ROW =
 /** Each cell takes its place in the stack, and its own column again from 940px. */
 const CELL = "min-w-0 min-[940px]:col-auto min-[940px]:row-auto min-[940px]:justify-self-auto";
 
-/**
- * The paused banner's route back. A helper rather than an inline object so the button
- * carries no `style={{ background: … }}` of its own — check-tokens' inline-button-bg
- * rule, which this file is already at its baseline for.
- */
-function pausedActionButton(disabled: boolean): React.CSSProperties {
-  return {
-    alignSelf: "flex-start",
-    marginTop: 4,
-    minHeight: 34,
-    padding: "0 14px",
-    borderRadius: 8,
-    border: "1px solid var(--danger)",
-    background: "var(--surface)",
-    color: "var(--danger)",
-    fontSize: 12.5,
-    fontWeight: 700,
-    cursor: disabled ? "not-allowed" : "pointer",
-    opacity: disabled ? 0.6 : 1,
-  };
-}

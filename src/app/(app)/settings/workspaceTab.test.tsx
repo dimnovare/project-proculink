@@ -29,6 +29,7 @@ vi.mock("@/lib/api-client", async (o) => ({
 }));
 
 import SettingsPage from "./page";
+import { PLAN_BY_ID } from "@/lib/plans";
 
 const mount = () =>
   render(
@@ -84,7 +85,7 @@ describe("Settings › Workspace", () => {
     fireEvent.click(within(people).getByRole("button", { name: "Invite or manage people" }));
     expect(clerk.open).toHaveBeenCalledTimes(1);
     const about = screen.getByRole("complementary", { name: "About this workspace" });
-    expect(await within(about).findByText("Starter")).toBeTruthy();
+    expect(await within(about).findByText(PLAN_BY_ID.starter.name)).toBeTruthy();
     expect(within(about).getByRole("link", { name: "See plan and billing" })).toHaveAttribute("href", "/settings?tab=billing");
     expect(within(about).getByRole("link", { name: "EU-region" })).toHaveAttribute("href", "/security");
   });
