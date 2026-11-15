@@ -63,10 +63,13 @@ export function useAutosave<T>(save: (value: T) => Promise<unknown>, delayMs = 8
   const flush = useCallback(() => {
     const e = s.current;
     if (!e.pending && !e.running) return Promise.resolve();
-    return new Promise<void>((resolve, reject) => {
+    const done = new Promise<void>((resolve, reject) => {
       (e.pending ? e.waiting : e.onTheWay).push({ resolve, reject });
       if (e.pending) { e.due = true; setState("saving"); run(); }
     });
+    // A caller that does not await still sees the failure in `state`; one that awaits gets the rejection.
+    done.catch(() => {});
+    return done;
   }, [run]);
 
   useEffect(() => {

@@ -8,7 +8,7 @@
  * instead of an empty success. Only reachable when `isApiMockMode` (never true in production).
  */
 import { DOCUMENT_STATUSES } from "../documentStatusManifest";
-import { LOOKUP_LIMITS } from "../lookupCsv";
+import { LOOKUP_LIMITS } from "../lookupLimits";
 import { ApiHttpError } from "./core";
 import { mockSourceBytesForKey } from "./mockSourceDocument";
 import type {

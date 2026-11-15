@@ -1,8 +1,9 @@
 import type { LookupCandidate, LookupEntry } from "@/lib/api/documents";
 import { detectDelimiter, parseCsvRows, parseXlsxWorkbook } from "@/lib/sheetPreview";
 
-/** Mirrors ProcuLink.Core/Documents/LookupEntry.cs LookupRules (pinned by backendMirror.test.ts). */
-export const LOOKUP_LIMITS = { rows: 20_000, valueLength: 200, nameLength: 120 } as const;
+import { LOOKUP_LIMITS } from "./lookupLimits";
+
+export { LOOKUP_LIMITS };
 
 const key = (from: string) => from.trim().toLowerCase();
 // A leading = + - @ tab or CR makes a spreadsheet read the cell as a formula: export prefixes one "'"
