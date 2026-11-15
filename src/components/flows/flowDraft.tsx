@@ -35,6 +35,7 @@ type Registry = {
 type Draft = {
   reg: React.MutableRefObject<Registry>;
   saved: () => void;
+  unblocked: () => void;
   flushAll: () => Promise<void>;
   discardAll: () => Promise<void>;
   /** Runs `then` once every waiting change is saved; a refused or blocked one keeps the person here and sets `stay`. */
@@ -60,6 +61,8 @@ export function FlowDraftProvider({ flowId, children }: { flowId: string; childr
   const bump = useCallback(() => { setStay(null); setRevision((n) => n + 1); }, []);
   // A saved draft changes the server's hasChanges, which only the flow itself carries.
   const saved = useCallback(() => { setStay(null); qc.invalidateQueries({ queryKey: ["flow", flowId] }); }, [qc, flowId]);
+  // An edit put back to what was already saved sends nothing, so no save clears the notice: the check passing does.
+  const unblocked = useCallback(() => setStay(null), []);
 
   const flushAll = useCallback(async () => {
     const r = reg.current;
@@ -93,7 +96,7 @@ export function FlowDraftProvider({ flowId, children }: { flowId: string; childr
     r.leftFailed.length = 0;
   }, []);
 
-  const value = useMemo(() => ({ reg, saved, flushAll, discardAll, leave, stay, revision, bump }), [saved, flushAll, discardAll, leave, stay, revision, bump]);
+  const value = useMemo(() => ({ reg, saved, unblocked, flushAll, discardAll, leave, stay, revision, bump }), [saved, unblocked, flushAll, discardAll, leave, stay, revision, bump]);
   return <DraftContext.Provider value={value}>{children}</DraftContext.Provider>;
 }
 
@@ -113,7 +116,7 @@ export const useOnFlowPage = () => useContext(DraftContext) !== null;
 
 /** One part of the draft, saved through the shared useAutosave and registered under `part` until it unmounts. */
 export function useDraftPart<T>(part: string, step: FlowStep, save: (value: T) => Promise<unknown>) {
-  const { reg, saved } = useDraft();
+  const { reg, saved, unblocked } = useDraft();
   const entry = useRef<Entry | null>(null);
   const tracked = useCallback((value: T) => {
     const r = reg.current;
@@ -139,7 +142,7 @@ export function useDraftPart<T>(part: string, step: FlowStep, save: (value: T) =
   const change = useCallback((value: T) => { setDroppedAt(null); setChanged(true); send(value); }, [send]);
   const flush = useCallback(() => { setDroppedAt(null); return sendNow(); }, [sendNow]);
   /** The reason a check stopped the edit on screen from being sent, or null once it can be. Publish and leaving refuse meanwhile. */
-  const block = useCallback((reason: string | null) => { blocked.current = reason; }, []);
+  const block = useCallback((reason: string | null) => { if (blocked.current && !reason) unblocked(); blocked.current = reason; }, [unblocked]);
 
   useEffect(() => {
     const r = reg.current;

@@ -91,8 +91,10 @@ export function PublishBar({ flow, onDiscarding }: { flow: Flow; onDiscarding?(o
   const shown = note && !(note.done && pending) ? note : null;
   if (!pending && !shown) return null;
   return (
-    // Card draws position: relative inline, so the sticky wrapper is its own element.
-    <section role="region" aria-label="Unpublished changes" className="sticky bottom-0 z-sticky">
+    // Card draws position: relative inline, so the sticky wrapper is its own element. On a phone it stops 24px up,
+    // clear of the tab bar's round Add button (it rises 20px, its ring 4px more); the same margin under it keeps the
+    // end of the step from sliding under it.
+    <section role="region" aria-label="Unpublished changes" className="sticky bottom-0 z-sticky max-md:bottom-6 max-md:mb-6">
       <Card dense className="flex flex-wrap items-center gap-3">
         <div aria-live="polite" className="grid min-w-0 flex-1 gap-1 text-[13px]">
           {pending && (

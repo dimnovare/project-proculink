@@ -124,7 +124,8 @@ export function GoogleTargetFields({ protocol, config, onChange }: {
       {account && confirming && (
         <StatusNotice tone="warning" action={
           <span className="flex gap-2">
-            <Button type="button" variant="danger" size="sm" loading={disconnect.isPending}
+            <Button type="button" variant={filled === "primary" ? "danger" : "secondary"} size="sm" loading={disconnect.isPending}
+              className={filled === "primary" ? undefined : "border-danger text-danger"}
               onClick={() => disconnect.mutate(account.id)}>Disconnect</Button>
             <Button type="button" variant="ghost" size="sm" onClick={() => setConfirming(false)}>Keep connected</Button>
           </span>

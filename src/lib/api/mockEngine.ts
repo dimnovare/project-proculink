@@ -569,6 +569,12 @@ export async function mockEngineFetch<T>(path: string, init?: RequestInit, as: "
   await new Promise((resolve) => setTimeout(resolve, MOCK_LATENCY_MS));
   const method = (init?.method ?? "GET").toUpperCase();
   const [pathname, query = ""] = path.split("?");
+  // Browser specs only (set by an init script): every call is logged, and an answer for "METHOD /path" replaces the fixture.
+  const spy = typeof window === "undefined" ? undefined : (window as { __mockEngine?: { calls: string[]; answer?: Record<string, { refuse?: [number, string] } | object> } }).__mockEngine;
+  spy?.calls.push(`${method} ${pathname}${typeof init?.body === "string" ? ` ${init.body}` : ""}`);
+  const given = spy?.answer?.[`${method} ${pathname}`] as { refuse?: [number, string] } | undefined;
+  if (given?.refuse) refuse(...given.refuse);
+  if (given) return structuredClone(given) as T;
   if (as === "blob" && method === "GET") {
     for (const [pattern, run] of BLOBS) {
       const m = pattern.exec(pathname);
