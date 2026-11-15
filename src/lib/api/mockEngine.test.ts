@@ -5,7 +5,7 @@ vi.mock("./core", async (importOriginal) => ({ ...(await importOriginal<typeof i
 import { listFlows } from "./documents";
 import { MOCK_ENGINE_IDS, mockEngineFetch, resetMockEngine } from "./mockEngine";
 import { pageTotal } from "../pageTotal";
-import type { ActivityResult, DocumentDelivery, DocumentDetail, DocumentPage, DocumentSummary, Flow, Lookup, LookupSummary } from "./documents";
+import type { ActivityResult, Destination, DocumentDelivery, DocumentDetail, DocumentPage, DocumentSummary, Flow, Lookup, LookupSummary } from "./documents";
 import type { ApiHttpError } from "./core";
 
 beforeEach(resetMockEngine);
@@ -70,6 +70,30 @@ describe("mock engine", () => {
     expect([doc.flowId, doc.fileName]).toEqual([MOCK_ENGINE_IDS.flow, "invoice-2250.pdf"]);
     expect(await mockEngineFetch<DocumentSummary>(route, { method: "POST" })).toEqual(doc);
     expect((await mockEngineFetch<DocumentSummary[]>("/documents")).length).toBe(before);
+  });
+
+  it("serves destinations like the server: by name, what uses each, the last send, refusals, and what waits on one", async () => {
+    const list = await mockEngineFetch<Destination[]>("/destinations");
+    expect(list.map((d) => d.name)).toEqual(["Accounting API", "Accounting inbox", "Accounting server"]);
+    expect(list.map((d) => [d.usedBy.length, d.lastSend?.kind ?? null, d.lastSend?.ok ?? null])).toEqual([[0, "test", true], [1, "document", false], [0, null, null]]);
+    const saved = await mockEngineFetch<Destination>("/destinations/dest-1", {
+      method: "PUT", body: JSON.stringify({ name: "Books", protocol: "email", config: { toAddresses: "books@example.test" }, credentials: { password: "x" } }),
+    });
+    expect(saved).not.toHaveProperty("credentials");
+    expect([saved.name, saved.usedBy.length, saved.hasCredentials]).toEqual(["Books", 1, true]);
+    await expect(mockEngineFetch("/destinations/dest-1", { method: "DELETE" })).rejects.toMatchObject({ status: 409, body: { error: "destination_in_use" } });
+    await expect(mockEngineFetch("/destinations/nope", { method: "DELETE" })).rejects.toMatchObject({ status: 404 });
+    expect(await mockEngineFetch("/destinations/dest-3/test", { method: "POST" })).toEqual({ success: false, message: "The server refused the login.", responseCode: null });
+    const waiting = (id: string) => mockEngineFetch<DocumentPage>(`/documents?waitingOnDestination=${id}&page=1&pageSize=50`);
+    expect([(await waiting("dest-1")).totalCount, (await waiting("dest-1")).items.map((d) => d.id), (await waiting("dest-2")).totalCount]).toEqual([1, ["doc-4"], 0]);
+    await mockEngineFetch("/documents/doc-4/send", { method: "POST" });
+    expect((await waiting("dest-1")).totalCount).toBe(0);
+    const made = await mockEngineFetch<Destination>("/destinations", {
+      method: "POST", body: JSON.stringify({ name: "Archive", protocol: "email", config: { toAddresses: "archive@example.test" }, credentials: null }),
+    });
+    expect(await mockEngineFetch(`/destinations/${made.id}/test`, { method: "POST" })).toMatchObject({ success: true });
+    await mockEngineFetch("/destinations/dest-3", { method: "DELETE" });
+    expect((await mockEngineFetch<Destination[]>("/destinations")).map((d) => d.name)).toEqual(["Accounting API", "Accounting inbox", "Archive"]);
   });
 
   it("is wired into the documents client in mock mode", async () => {

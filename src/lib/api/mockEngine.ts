@@ -217,12 +217,25 @@ function send(id: string): DocumentDelivery[] {
   const sentAt = new Date().toISOString();
   const deliveries = [delivery("delivered", 1, null, sentAt)];
   remembered.set(id, { ...was, status: STATUS.sent, sentAt, deliveries });
+  resent.add(id);
   return deliveries;
 }
 
+/** In name order, as the server lists them. */
 const destinations: Destination[] = [
-  { id: "dest-1", name: "Accounting inbox", protocol: "email", config: { toAddresses: "accounting@example.test" }, hasCredentials: false, createdAt: T },
-  { id: "dest-2", name: "Accounting API", protocol: "http", config: { method: "POST", url: "https://api.example.test/invoices" }, hasCredentials: true, createdAt: T },
+  {
+    id: "dest-2", name: "Accounting API", protocol: "http", config: { method: "POST", url: "https://api.example.test/invoices" }, hasCredentials: true,
+    createdAt: T, usedBy: [], lastSend: { kind: "test", at: "2026-06-01T08:02:00Z", ok: true },
+  },
+  {
+    id: "dest-1", name: "Accounting inbox", protocol: "email", config: { toAddresses: "accounting@example.test" }, hasCredentials: false, createdAt: T,
+    usedBy: [{ flowId: flow1.id, flowName: flow1.name, outputId: MOCK_ENGINE_IDS.output, outputName: "Invoice CSV" }],
+    lastSend: { kind: "document", at: "2026-05-24T09:10:00Z", ok: false },
+  },
+  {
+    id: "dest-3", name: "Accounting server", protocol: "sftp", hasCredentials: true, createdAt: T, usedBy: [], lastSend: null,
+    config: { host: "sftp.example.test", port: 22, remotePath: "/in/invoices", makeDirectories: true, overwriteExisting: true, timeoutSeconds: 30 },
+  },
 ];
 const intakes: FlowIntake[] = [{
   id: "intake-1", kind: "email", config: {}, hasCredentials: false, isEnabled: true, address: "invoices@in.example.test",
@@ -343,6 +356,15 @@ const storeLookup = (l: Lookup) => {
 };
 const notifications: NotificationSettings = { email: null, onReview: true, onFailure: true };
 const TEST_OK = { success: true, message: null, responseCode: 200 };
+const DESTINATION_TESTS: Record<string, typeof TEST_OK | { success: false; message: string; responseCode: null }> = {
+  "dest-1": TEST_OK, "dest-2": TEST_OK, "dest-3": { success: false, message: "The server refused the login.", responseCode: null },
+};
+/** What a write answers: the server's shape, never a `credentials` key back. */
+let created = 0;
+const destinationOf = (base: Destination, b: Body): Destination => ({
+  ...base, name: b.name as string, protocol: b.protocol as string, config: b.config as Record<string, unknown>,
+  hasCredentials: base.hasCredentials || !!b.credentials,
+});
 
 type Body = Record<string, unknown>;
 type Handler = (m: string[], q: URLSearchParams, body: Body) => unknown;
@@ -352,7 +374,7 @@ const missing = (what: string, id: string): never => {
 };
 const pick = <X extends { id: string }>(list: X[], id: string, what: string): X => list.find((x) => x.id === id) ?? missing(what, id);
 const echo = <X extends object>(base: X, body: Body): X => ({ ...base, ...body });
-const DOCUMENT_LIST_KEYS = ["flowId", "status", "take", "page", "pageSize", "sentFrom", "sentTo"];
+const DOCUMENT_LIST_KEYS = ["flowId", "status", "take", "page", "pageSize", "sentFrom", "sentTo", "waitingOnDestination"];
 /** An absent integer parameter is null; one the server could not bind is its 400. */
 const intParam = (q: URLSearchParams, key: string): number | null => {
   const v = q.get(key);
@@ -364,6 +386,8 @@ const S = "([^/]+)";
 const re = (strings: TemplateStringsArray, ...rest: unknown[]) => new RegExp("^" + String.raw(strings, ...rest) + "$");
 
 const samples: Record<string, DocumentSummary> = {};
+/** Documents sent again in this page load: they no longer wait on their destination. */
+const resent = new Set<string>();
 
 const ROUTES: [method: string, pattern: RegExp, run: Handler][] = [
   // Like the server's list: a summary per flow, and none of the single response's draft facts.
@@ -384,14 +408,19 @@ const ROUTES: [method: string, pattern: RegExp, run: Handler][] = [
   ["GET", re`/documents`, (_m, q) => {
     // Like DocumentsController.List: newest first; a missing or empty status list is no filter; sent rows
     // landed in [sentFrom, sentTo). A key it does not implement fails loudly rather than being ignored.
+    // `waitingOnDestination`: stopped at that destination; the mock's deliveries carry no destination, so the
+    // row's stop stands for its dead letter. A document sent again in this page load no longer waits.
     const unknown = [...q.keys()].find((k) => !DOCUMENT_LIST_KEYS.includes(k));
     if (unknown) throw new Error(`mock engine: GET /documents does not implement "${unknown}" yet`);
     const statuses = q.get("status")?.split(",").map((s) => s.trim()).filter(Boolean) ?? [];
     const [from, to] = [q.get("sentFrom"), q.get("sentTo")].map((t) => (t === null ? null : Date.parse(t)));
     const landed = (at: string | null) => (from === null && to === null)
       || (at !== null && (from === null || Date.parse(at) >= from) && (to === null || Date.parse(at) < to));
+    const dest = q.get("waitingOnDestination");
+    const waiting = (d: DocumentRow) => dest === null
+      || (d.status === STATUS.send_failed && d.stop?.destinationId === dest && !resent.has(d.id));
     const rows = ROWS.map(live).filter((d) => (!q.get("flowId") || d.flowId === q.get("flowId"))
-      && (!statuses.length || statuses.includes(d.status)) && landed(d.sentAt))
+      && (!statuses.length || statuses.includes(d.status)) && landed(d.sentAt) && waiting(d))
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id));
     const clamp = (key: string) => Math.min(Math.max(intParam(q, key) ?? 50, 1), 200);
     const page = intParam(q, "page");
@@ -415,11 +444,24 @@ const ROUTES: [method: string, pattern: RegExp, run: Handler][] = [
     pick(DOCS, m[1], "document"); pick(outputs, m[2], "output");
     return q.get("suggest") ? { suggestions: [] } : preview;
   }],
-  ["GET", re`/destinations`, () => destinations],
-  ["POST", re`/destinations`, (_m, _q, b) => echo(destinations[0], b)],
-  ["PUT", re`/destinations/${S}`, (m, _q, b) => echo(pick(destinations, m[1], "destination"), b)],
-  ["DELETE", re`/destinations/${S}`, () => undefined],
-  ["POST", re`/destinations/${S}/test`, () => TEST_OK],
+  // A fresh array each time, as from the server: a write since shows on the next fetch.
+  ["GET", re`/destinations`, () => destinations.map((d) => ({ ...d }))],
+  // A created one is listed (in name order) and can be tested; a deleted one leaves the list, as on the server.
+  ["POST", re`/destinations`, (_m, _q, b) => {
+    const made = destinationOf({ id: `dest-new-${++created}`, name: "", protocol: "", config: {}, hasCredentials: false, createdAt: T, usedBy: [], lastSend: null }, b);
+    destinations.push(made);
+    destinations.sort((x, y) => x.name.localeCompare(y.name));
+    DESTINATION_TESTS[made.id] = TEST_OK;
+    return made;
+  }],
+  ["PUT", re`/destinations/${S}`, (m, _q, b) => destinationOf(pick(destinations, m[1], "destination"), b)],
+  ["DELETE", re`/destinations/${S}`, (m) => {
+    const d = pick(destinations, m[1], "destination");
+    if (d.usedBy.length) throw new ApiHttpError("mock engine: destination in use", 409, { error: "destination_in_use" });
+    destinations.splice(destinations.indexOf(d), 1);
+    return undefined;
+  }],
+  ["POST", re`/destinations/${S}/test`, (m) => DESTINATION_TESTS[pick(destinations, m[1], "destination").id]],
   ["GET", re`/notification-settings`, () => notifications],
   ["PUT", re`/notification-settings`, (_m, _q, b) => echo(notifications, b)],
   ["GET", re`/flows/${S}/intakes`, (m) => intakesOf(m[1])],

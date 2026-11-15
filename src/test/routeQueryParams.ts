@@ -71,6 +71,11 @@ export const ROUTE_QUERY_PARAMS: Record<string, readonly ParamContract[]> = {
       readBy: "src/app/(app)/settings/page.tsx",
       purpose: "`billing` is the exit from a plan-paused order.",
     },
+    {
+      param: "open",
+      readBy: "src/lib/destinations.ts",
+      purpose: "Opens one destination in Settings › Destinations; `new` opens the form for a new one.",
+    },
   ],
   // "/operations/log"'s orderId went with the old delivery log, 2026-11-15. Activity's
   // `show` and `page` are written only by `activityAddress` and read through `getAll`,

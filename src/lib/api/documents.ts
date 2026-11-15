@@ -94,8 +94,15 @@ export interface EditValuesRequest {
   removeRows?: { table: string; row: number }[];
 }
 
+export interface DestinationUse { flowId: string; flowName: string; outputId: string; outputName: string }
+/** `kind` is "test" or "document"; kept a string so a newer value is never coerced. */
+export interface DestinationLastSend { kind: string; at: string; ok: boolean }
 export interface Destination {
   id: string; name: string; protocol: string; config: Record<string, unknown>; hasCredentials: boolean; createdAt: string;
+  /** One row per output that sends here, editable or live. */
+  usedBy: DestinationUse[];
+  /** Null when nothing was ever sent or tested here. */
+  lastSend: DestinationLastSend | null;
 }
 export interface DestinationRequest {
   name: string; protocol: string; config: Record<string, unknown>; credentials?: Record<string, unknown> | null;
@@ -216,7 +223,7 @@ export function listDocuments(params: { flowId?: string; status?: string; take?:
 /** One page, newest first. `status` is sent comma-joined. `page` is always sent: the server ignores `pageSize` without it.
  *  `sentFrom` is a UTC instant ending in `Z`, kept at or after. The server clamps `pageSize` to 200. */
 export function listDocumentPage(params: {
-  status?: readonly string[]; flowId?: string; sentFrom?: string; page: number; pageSize: number;
+  status?: readonly string[]; flowId?: string; sentFrom?: string; waitingOnDestination?: string; page: number; pageSize: number;
 }): Promise<DocumentPage> {
   const query = toQuery(params);
   return apiFetch<DocumentPage>(`/documents?${query}`);

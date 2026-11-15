@@ -1,5 +1,4 @@
 import { test, expect } from "@playwright/test";
-import { MOCK_ENGINE_IDS } from "../../src/lib/api/mockEngine";
 import { preparePage, settle } from "./a11yHarness";
 
 test.describe("documents", () => {
@@ -34,7 +33,7 @@ test.describe("documents", () => {
     const alert = page.getByRole("alert").filter({ hasText: "couldn't be sent" });
     await expect(alert).toContainText("1 document couldn't be sent. Sending to Accounting inbox stopped");
     await expect(alert).toContainText("The mailbox refused the message. The document is safe. Fix the destination, then send it again.");
-    await expect(alert.getByRole("link", { name: "Fix the destination" })).toHaveAttribute("href", `/flows/${MOCK_ENGINE_IDS.setupFlow}?tab=outputs`);
+    await expect(alert.getByRole("link", { name: "Fix the destination" })).toHaveAttribute("href", "/settings?tab=destinations&open=dest-1");
     const table = page.getByRole("table");
     await expect(table.getByRole("button", { name: /^Send / })).toHaveCount(1);              // only the ready row
     await table.getByRole("button", { name: "Send invoice-1002.pdf" }).click();

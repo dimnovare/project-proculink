@@ -9,6 +9,7 @@ import { readFailureMessage } from "@/lib/documentRefusals";
 import { serverReasonOrNull } from "@/lib/serverText";
 import { csvCell } from "@/lib/csvCell";
 import { CHANNELS } from "@/lib/channels";
+import { destinationsAddress } from "@/lib/destinations";
 
 export type ActivityTabKey = "all" | "sent" | "failed" | "changes";
 export const ACTIVITY_TABS: readonly { key: ActivityTabKey; label: string; actions: readonly string[] | undefined; emptyTitle: string; emptySub: string }[] = [
@@ -70,7 +71,7 @@ export const plainSentence = (s: ActivitySentence): string => `${s.before}${s.st
 
 export type ActivityTone = "blue" | "green" | "amber" | "danger" | "neutral";
 export interface ActivityFact { term: string; value: string; mono?: boolean; stopped?: 1 | 4 }
-export interface ActivityView { sentence: ActivitySentence; why: string | null; tag: { label: string; tone: ActivityTone }; facts: ActivityFact[]; canFix: boolean; canSendAgain: boolean }
+export interface ActivityView { sentence: ActivitySentence; why: string | null; tag: { label: string; tone: ActivityTone }; facts: ActivityFact[]; canFix: boolean; fixHref: string | null; canSendAgain: boolean }
 
 /** A payload value, or undefined when it is absent or null. */
 function field(payload: unknown, key: string): string | undefined {
@@ -196,6 +197,7 @@ export function activityView(e: ActivityEvent, ctx: { who: string; destinationNa
     sentence, why, tag,
     facts: facts.filter((f): f is ActivityFact => !!f.value),
     canFix: failedSend && !!destId && !!e.flowId,
+    fixHref: failedSend && destId ? fixDestinationHref(destId) : null,
     canSendAgain: failedSend && !!e.documentId,
   };
 }
@@ -215,7 +217,8 @@ export function activityDay(iso: string, now: Date): string {
   return `${lead}, ${date}`;
 }
 
-export const fixDestinationHref = (flowId: string): string => `/flows/${flowId}?tab=outputs`;
+/** Where a person goes to fix a stopped delivery: Settings › Destinations with that destination open. */
+export const fixDestinationHref = (destinationId: string): string => destinationsAddress(destinationId);
 
 export function activityCsv(events: readonly ActivityEvent[], members: Members, destinationName: (id: string) => string | null): string {
   const header = ["Date", "Time", "What happened", "Flow", "Who", "Result", "Details"];
