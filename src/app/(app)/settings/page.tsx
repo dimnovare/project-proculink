@@ -1,17 +1,21 @@
 "use client";
-import { Suspense, useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import { Suspense, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useOrganization } from "@clerk/nextjs";
+import { useClerk, useOrganization, useUser } from "@clerk/nextjs";
+import { isClerkAPIResponseError } from "@clerk/nextjs/errors";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { Card } from "@/components/bridge/layout/Card";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Copy, Key, Plus, Save } from "lucide-react";
+import { AlertTriangle, Copy, Key, Plus } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { BillingSection } from "@/components/bridge/BillingSection";
-import { SettingsPanel } from "@/components/settings/SettingsPrimitives";
-import { Button } from "@/components/bridge/DSPrimitives";
+import { SavedMark, SettingsPanel } from "@/components/settings/SettingsPrimitives";
+import { Button, Pill } from "@/components/bridge/DSPrimitives";
+import { membershipRoleLabel, nameInitials } from "@/components/bridge/UserChipMenu";
+import { Quiet } from "@/components/flows/states";
+import { COPY } from "@/lib/documentRefusals";
 import {
   getBillingStatus,
   getApiKeys,
@@ -21,7 +25,7 @@ import {
 import type { ApiKey } from "@/lib/api-client";
 import { readSettingsTab, settingsAddress, SETTINGS_TABS } from "@/lib/settingsTabs";
 import { isOrgAdminRefusal, orgAdminMessage } from "@/lib/planGate";
-import { planDisplayName } from "@/lib/plans";
+import { planDisplayName, planName } from "@/lib/plans";
 import { NotificationEmailSection } from "@/components/flows/NotificationEmailSection";
 import { DestinationsSection } from "@/components/destinations/DestinationsSection";
 import { formatDate } from "@/lib/format-date";
@@ -70,19 +74,6 @@ function SettingsScreen() {
       {tab === "billing"      && <BillingSection />}
       {tab === "api"          && <ApiKeysSection />}
     </PageShell>
-  );
-}
-
-// Row inside a settings group — canonical label/hint + right slot
-function SettingsRow({ label, hint, children }: { label: string; hint?: string; children?: ReactNode }) {
-  return (
-    <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "11px 0", borderTop: "1px solid var(--border)" }}>
-      <div style={{ minWidth: 0 }}>
-        <div style={{ fontSize: 13, fontWeight: 500, color: "var(--ink)" }}>{label}</div>
-        {hint && <div style={{ fontSize: 11.5, color: "var(--ink-faint)", marginTop: 2 }}>{hint}</div>}
-      </div>
-      {children}
-    </div>
   );
 }
 
@@ -173,113 +164,147 @@ function WriteFailure({ children, style }: { children: ReactNode; style?: CSSPro
   );
 }
 
-// ── Organization section ───────────────────────────────────────────────────
+// ── Workspace tab ──────────────────────────────────────────────────────────
 
+type Organization = NonNullable<ReturnType<typeof useOrganization>["organization"]>;
+
+/** Name, People and "Tell me when" on the left; the fixed facts on the right. Name and People wait for Clerk's organisation. */
 function OrgSection() {
-  const { organization } = useOrganization();
-  const orgName = organization?.name ?? "";
-  const [name, setName] = useState(orgName);
-  const [saving, setSaving] = useState(false);
-  const [feedback, setFeedback] = useState<{ text: string; kind: "ok" | "err" } | null>(null);
+  const { organization, memberships } = useOrganization({ memberships: { pageSize: 10 } });
+  const { user } = useUser();
+  const clerk = useClerk();
+  const { data: billing } = useQuery({ queryKey: ["billing-status"], queryFn: getBillingStatus, staleTime: 60_000 });
+  const people = memberships?.data;
+  const fact = "flex flex-col gap-0.5 border-t border-border py-3 first:border-t-0 first:pt-0";
 
-  // Keep the field in sync once Clerk hydrates the organization.
-  useEffect(() => { setName(orgName); }, [orgName]);
-
-  // Real member count from Clerk — never a hardcoded number.
-  const memberCount = organization?.membersCount;
-  const membersHint =
-    memberCount == null
-      ? "Loading members…"
-      : `${memberCount} ${memberCount === 1 ? "person has" : "people have"} access.`;
-
-  const trimmedName = name.trim();
-  // Disable Save when there's nothing to save (empty / unchanged) or in-flight.
-  const canSave = !!organization && !saving && trimmedName.length > 0 && trimmedName !== orgName;
-
-  async function handleSave() {
-    if (!organization) return;
-    const trimmed = name.trim();
-    if (!trimmed) { setFeedback({ text: "Workspace name can't be empty.", kind: "err" }); return; }
-    if (trimmed === orgName) { setFeedback({ text: "No changes to save.", kind: "ok" }); return; }
-    setSaving(true);
-    setFeedback(null);
-    try {
-      await organization.update({ name: trimmed });
-      // The user has now taken ownership of the name — retire the auto-name
-      // nudge so it never reappears for this (or any) workspace.
-      try { localStorage.removeItem("ws-autonamed"); } catch { /* storage may be blocked */ }
-      setFeedback({ text: "Workspace name updated.", kind: "ok" });
-    } catch (err) {
-      setFeedback({ text: (err as Error).message || "Could not save changes.", kind: "err" });
-    } finally {
-      setSaving(false);
-    }
-  }
+  let roster: ReactNode;
+  if (memberships?.isError && !people?.length) roster = <p className="m-0 text-[14px] text-ink-muted">We couldn&apos;t load the people in this workspace.</p>;
+  else if (!people || (memberships?.isLoading && !people.length)) roster = <Quiet>Loading people…</Quiet>;
+  else
+    roster = (
+      <>
+        <ul className="m-0 list-none border-b border-border p-0">
+          {people.map((m) => {
+            const u = m.publicUserData;
+            const name = [u?.firstName, u?.lastName].filter(Boolean).join(" ") || u?.identifier || "";
+            const role = membershipRoleLabel(m.role);
+            return (
+              <li key={m.id} className="flex items-center gap-3 border-t border-border py-3">
+                <span aria-hidden className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-surface-2 text-[12.5px] font-bold text-ink-muted">
+                  {nameInitials(name)}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="m-0 font-semibold text-ink">
+                    {name}
+                    {u?.userId === user?.id && <span className="font-normal text-ink-muted"> (you)</span>}
+                  </p>
+                  {u?.identifier && <p className="m-0 text-[13px] text-ink-muted [overflow-wrap:anywhere]">{u.identifier}</p>}
+                </div>
+                {role && <Pill tone="neutral">{role}</Pill>}
+              </li>
+            );
+          })}
+        </ul>
+        {(memberships?.count ?? 0) > people.length && (
+          <p className="m-0 text-[13px] text-ink-muted">{`${memberships!.count - people.length} more are listed under Invite or manage people.`}</p>
+        )}
+      </>
+    );
+  const count = people && !memberships?.isLoading ? memberships!.count : null;
 
   return (
-    <div className="flex flex-col gap-4">
-      <SettingsPanel id="s-org" title="Organization" sub="Your workspace identity across the product.">
-        <div style={{ marginBottom: 18 }}>
-          <label style={fieldLabelStyle}>Workspace name</label>
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            disabled={!organization}
-            aria-label="Workspace name"
-            style={{ ...inputStyle, maxWidth: 420 }}
-          />
-        </div>
-
-        {/* Members row — real count from Clerk. */}
-        <SettingsRow label="Members" hint={membersHint} />
-
-        {/* About this workspace — fixed (non-editable) facts grouped together so
-            they don't read as editable fields the user can change. Currency is
-            fixed to EUR and region to EU until org-level settings endpoints
-            exist; presenting them as a labelled info block (not input rows)
-            keeps the offer↔works honesty rule. */}
-        <div style={{ marginTop: 18, border: "1px solid var(--border)", borderRadius: 8, background: "var(--surface-2)", padding: "12px 14px" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 8 }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--ink)" }}>About this workspace</span>
-            <span style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase", color: "var(--ink-faint)", border: "1px solid var(--border)", borderRadius: 999, padding: "1px 8px", background: "var(--surface)" }}>
-              Fixed
-            </span>
-          </div>
-          <dl style={{ display: "grid", gap: 6, margin: 0 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, fontSize: 12.5 }}>
-              <dt style={{ color: "var(--ink-muted)" }}>Default currency</dt>
-              <dd style={{ margin: 0, fontWeight: 600, color: "var(--ink)" }}>EUR — Euro</dd>
+    <div className="flex flex-wrap items-start gap-5">
+      <div className="flex min-w-0 max-w-[800px] flex-[999_1_520px] flex-col gap-4">
+        {organization && <WorkspaceName organization={organization} />}
+        {organization && (
+          <SettingsPanel
+            id="s-people"
+            title="People"
+            sub={count === null ? undefined : count === 1 ? "1 person has access to this workspace." : `${count} people have access to this workspace.`}
+            side={<Button type="button" variant="secondary" onClick={() => clerk.openOrganizationProfile()}>Invite or manage people</Button>}
+          >
+            {roster}
+            <p className="m-0 text-[13px] text-ink-muted">Administrators can change workspace settings, billing and API keys.</p>
+          </SettingsPanel>
+        )}
+        <NotificationEmailSection />
+      </div>
+      <div className="flex min-w-0 max-w-[412px] flex-[1_1_280px] flex-col gap-4">
+        <SettingsPanel as="aside" id="s-about" title="About this workspace">
+          <dl className="m-0">
+            {billing && (
+              <div className={fact}>
+                <dt className="text-[13px] text-ink-muted">Plan</dt>
+                <dd className="m-0 flex flex-wrap items-center justify-between gap-x-3">
+                  <span className="font-semibold text-ink">{planName(billing.plan)}</span>
+                  <Link href={settingsAddress("billing")} className="inline-flex min-h-[40px] items-center font-semibold">See plan and billing</Link>
+                </dd>
+              </div>
+            )}
+            <div className={fact}>
+              <dt className="text-[13px] text-ink-muted">Default currency</dt>
+              <dd className="m-0 font-semibold text-ink">Euro (EUR)</dd>
             </div>
-            {/* This row said "Workspace region — EU", inside a block badged Fixed and
-                sitting next to a genuinely fixed fact (currency), which lent it the same
-                standing. There IS no per-workspace region: nothing configures one, nothing
-                stores one, and the claim it was really making — where order data lives —
-                is a whole-product claim with named US subprocessors on the other side of
-                it. Renamed to what it actually describes and linked to the page that
-                qualifies it, which is the same rule the marketing footers follow. */}
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, fontSize: 12.5 }}>
-              <dt style={{ color: "var(--ink-muted)" }}>Order storage</dt>
-              <dd style={{ margin: 0, fontWeight: 600, color: "var(--ink)" }}>
-                <Link href="/security" className="inline-flex min-h-[24px] items-center" style={{ color: "inherit" }}>EU-region</Link>
+            {/* Not a per-workspace region: nothing configures one. It names where documents are stored and links the page that qualifies it. */}
+            <div className={fact}>
+              <dt className="text-[13px] text-ink-muted">Document storage</dt>
+              <dd className="m-0">
+                <Link href="/security" className="inline-flex min-h-[40px] items-center font-semibold">EU-region</Link>
               </dd>
             </div>
           </dl>
-        </div>
-
-        <div style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          <Button variant="primary" size="lg" onClick={handleSave} disabled={!canSave}>
-            <Save size={14} strokeWidth={2} />
-            {saving ? "Saving…" : "Save changes"}
-          </Button>
-          {feedback && (
-            <span style={{ fontSize: 12.5, fontWeight: 500, color: feedback.kind === "ok" ? "var(--brand-green-deep)" : "var(--danger)" }}>
-              {feedback.text}
-            </span>
-          )}
-        </div>
-      </SettingsPanel>
-      <NotificationEmailSection />
+          <p className="m-0 text-[13px] text-ink-muted">Currency and storage are fixed for the workspace.</p>
+        </SettingsPanel>
+      </div>
     </div>
+  );
+}
+
+/** Saves when the box is left or on Enter: trimmed, once per new value, never while a save is out; a failure keeps what was typed. */
+function WorkspaceName({ organization }: { organization: Organization }) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const [empty, setEmpty] = useState(false);
+  const sent = useRef<string | null>(null);
+  // The request starts in the handler (one per change, decided right there); the mutation tracks its outcome.
+  const save = useMutation({
+    mutationFn: (request: Promise<unknown>) => request,
+    onSuccess: () => {
+      // The person has taken ownership of the name: retire the auto-name nudge.
+      try { localStorage.removeItem("ws-autonamed"); } catch { /* storage may be blocked */ }
+    },
+    onError: () => { sent.current = null; },
+  });
+  const value = draft ?? organization.name;
+
+  function commit() {
+    const name = value.trim();
+    setEmpty(!name);
+    if (!name || name === organization.name || name === sent.current || save.isPending) return;
+    sent.current = name;
+    save.mutate(organization.update({ name }));
+  }
+
+  const failure = empty
+    ? "Give the workspace a name."
+    : save.isError
+      ? isClerkAPIResponseError(save.error) && save.error.status === 403 ? COPY.requires_org_admin : "We couldn't save the name. Try again."
+      : null;
+
+  return (
+    <SettingsPanel id="s-name" title={<label htmlFor="ws-name">Workspace name</label>} side={save.isSuccess && <SavedMark />}>
+      <div className="flex max-w-[420px] flex-col gap-2">
+        <input
+          id="ws-name"
+          value={value}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => { if (e.key === "Enter") commit(); }}
+          className="h-10 w-full rounded-lg border border-border-strong bg-surface px-3 text-[14px] text-ink max-[639px]:text-[16px] max-[480px]:h-11"
+        />
+        <p className="m-0 text-[13px] text-ink-muted">Shown at the top of every screen. It saves when you leave the box.</p>
+        {failure && <p role="alert" className="m-0 text-[13px] text-danger-text">{failure}</p>}
+      </div>
+    </SettingsPanel>
   );
 }
 
@@ -304,17 +329,8 @@ const secondaryNeutralButton: CSSProperties = {
   whiteSpace: "nowrap",
 };
 
-const fieldLabelStyle: CSSProperties = {
-  fontSize: 12.5,
-  fontWeight: 600,
-  color: "var(--ink-muted)",
-  display: "block",
-};
-
 // WP-31: `minHeight` rather than `height` so the touch floors in globals.css
 // (44px hit area, 16px font) can clamp this up without fighting a fixed height.
-// The `.settings-shell` mobile font-size rule above predates the global floor and
-// is now redundant for widths ≤639px; it is kept because it also covers 640–767px.
 const inputStyle: CSSProperties = {
   width: "100%",
   minHeight: 40,

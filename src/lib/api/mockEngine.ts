@@ -255,7 +255,7 @@ const storeLookup = (l: Lookup) => {
   else LOOKUPS[i] = l;
   return structuredClone(l);
 };
-const notifications: NotificationSettings = { email: null, onReview: true, onFailure: true };
+const notifications: NotificationSettings = { email: "sam@example.test", onReview: true, onFailure: true };
 const TEST_OK = { success: true, message: null, responseCode: 200 };
 const DESTINATION_TESTS: Record<string, typeof TEST_OK | { success: false; message: string; responseCode: null }> = {
   "dest-1": TEST_OK, "dest-2": TEST_OK, "dest-3": { success: false, message: "The server refused the login.", responseCode: null },
