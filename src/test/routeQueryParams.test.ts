@@ -62,11 +62,10 @@ describe("the registry describes code that exists", () => {
 describe("the checker is not vacuously green", () => {
   test("a href whose parameter IS read reports nothing", () => {
     expect(unconsumedParams("/settings?tab=billing")).toEqual([]);
-    // These three were inert on origin/main and were fixed by WRITING the reader
+    // These were inert on origin/main and were fixed by WRITING the reader
     // rather than by dropping the parameter, because the link's promise was worth
-    // keeping: "See every attempt" should open one order's attempts, and an
-    // escalation should not make the operator retype what we already know.
-    expect(unconsumedParams("/operations/log?orderId=ord-1")).toEqual([]);
+    // keeping: an escalation should not make the operator retype what we already
+    // know. (The delivery log's `orderId` went with the old log, 2026-11-15.)
     expect(unconsumedParams("/support?order=PO%201&problem=failed")).toEqual([]);
   });
 
@@ -84,7 +83,7 @@ describe("the checker is not vacuously green", () => {
   test("an undeclared parameter on a REGISTERED route is caught too", () => {
     // The registry is not a per-route amnesty: a route that declares `status`
     // has not thereby declared everything else.
-    expect(unconsumedParams("/operations/log?orderId=ord-1&somethingNew=1")).toEqual(["somethingNew"]);
+    expect(unconsumedParams("/settings?tab=billing&somethingNew=1")).toEqual(["somethingNew"]);
     expect(unconsumedParams("/settings?tab=billing&highlight=plan")).toEqual(["highlight"]);
   });
 

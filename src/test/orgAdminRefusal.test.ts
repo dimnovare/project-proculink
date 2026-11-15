@@ -38,7 +38,7 @@ import { classifyApiFailure } from "@/lib/apiFailure";
 import { PLAN_BY_ID } from "@/lib/plans";
 
 import { createCheckoutSession, createPortalSession, getBillingStatus } from "@/lib/api/billing";
-import { createApiKey, getAuditLog } from "@/lib/api-client";
+import { createApiKey } from "@/lib/api-client";
 
 // ── The two bodies, exactly as the API sends them ────────────────────────────
 
@@ -233,12 +233,16 @@ describe("a plan-gate 403 keeps its own meaning and never says 'ask an administr
     const { planGateUpgradeUrl } = await import("@/lib/planGate");
     respondWith(PLAN_GATE_403, 403);
 
-    const err = await getAuditLog().then(
+    // Re-anchored 2026-11-15 from the old delivery log's audit call, which went with it and was
+    // the last site that put the whole body in the message. `readRefusal` keeps the body on
+    // `.body`, so this reads it the way PlanGateNotice does: body first, then the message.
+    const err = await createApiKey("qa").then(
       () => null,
       (e: unknown) => e,
     );
 
-    expect(planGateUpgradeUrl((err as Error).message)).toBe("/settings?tab=billing");
+    const { body, message } = err as { body?: unknown; message: string };
+    expect(planGateUpgradeUrl(body ?? message)).toBe("/settings?tab=billing");
   });
 });
 
