@@ -29,7 +29,7 @@ export function membershipRoleLabel(role: string | null | undefined): string | n
   return raw.replace(/[-_]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-function nameInitials(name: string): string {
+export function nameInitials(name: string): string {
   return (name.match(/\b\p{L}/gu) ?? []).slice(0, 2).join("").toUpperCase() || "?";
 }
 

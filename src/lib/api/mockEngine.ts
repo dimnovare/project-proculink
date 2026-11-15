@@ -359,7 +359,7 @@ const storeLookup = (l: Lookup) => {
   else LOOKUPS[i] = l;
   return structuredClone(l);
 };
-const notifications: NotificationSettings = { email: null, onReview: true, onFailure: true };
+const notifications: NotificationSettings = { email: "sam@example.test", onReview: true, onFailure: true };
 const TEST_OK = { success: true, message: null, responseCode: 200 };
 const DESTINATION_TESTS: Record<string, typeof TEST_OK | { success: false; message: string; responseCode: null }> = {
   "dest-1": TEST_OK, "dest-2": TEST_OK, "dest-3": { success: false, message: "The server refused the login.", responseCode: null },
@@ -505,14 +505,27 @@ const ROUTES: [method: string, pattern: RegExp, run: Handler][] = [
     DESTINATION_TESTS[made.id] = TEST_OK;
     return made;
   }],
-  ["PUT", re`/destinations/${S}`, (m, _q, b) => destinationOf(pick(destinations, m[1], "destination"), b)],
+  // A save is kept (a rename shows in the row on the next fetch, still in name order), as on the server.
+  ["PUT", re`/destinations/${S}`, (m, _q, b) => {
+    const i = destinations.indexOf(pick(destinations, m[1], "destination"));
+    destinations[i] = destinationOf(destinations[i], b);
+    const saved = destinations[i];
+    destinations.sort((x, y) => x.name.localeCompare(y.name));
+    return saved;
+  }],
   ["DELETE", re`/destinations/${S}`, (m) => {
     const d = pick(destinations, m[1], "destination");
     if (d.usedBy.length) throw new ApiHttpError("mock engine: destination in use", 409, { error: "destination_in_use" });
     destinations.splice(destinations.indexOf(d), 1);
     return undefined;
   }],
-  ["POST", re`/destinations/${S}/test`, (m) => DESTINATION_TESTS[pick(destinations, m[1], "destination").id]],
+  // A test moves the destination's "Last send", as the server records it.
+  ["POST", re`/destinations/${S}/test`, (m) => {
+    const d = pick(destinations, m[1], "destination");
+    const result = DESTINATION_TESTS[d.id];
+    d.lastSend = { kind: "test", at: new Date().toISOString(), ok: result.success };
+    return result;
+  }],
   ["GET", re`/notification-settings`, () => notifications],
   ["PUT", re`/notification-settings`, (_m, _q, b) => echo(notifications, b)],
   ["GET", re`/flows/${S}/intakes`, (m) => intakesOf(m[1])],

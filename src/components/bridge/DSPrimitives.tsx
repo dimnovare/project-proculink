@@ -90,15 +90,18 @@ export function Pill({
   icon,
   children,
   className,
+  "data-testid": testId,
 }: {
   tone?: PillTone;
   icon?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
+  "data-testid"?: string;
 }) {
   const t = PILL_TONE[tone];
   return (
     <span
+      data-testid={testId}
       className={["inline-flex items-center gap-1 rounded-full font-semibold whitespace-nowrap", className]
         .filter(Boolean)
         .join(" ")}

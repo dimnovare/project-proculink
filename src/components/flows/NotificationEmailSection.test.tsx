@@ -19,7 +19,7 @@ describe("NotificationEmailSection", () => {
     api.saveNotificationSettings.mockResolvedValue({ email: "a@b.test", onReview: false, onFailure: true });
     mount();
     expect(await screen.findByText("Emails go to a@b.test, at most one every 15 minutes.")).toBeTruthy();
-    expect(screen.getByRole("heading", { name: "Email me" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Tell me when" })).toBeTruthy();
     fireEvent.click(screen.getByLabelText("When a document can't be read or sent"));
     await waitFor(() => expect(api.saveNotificationSettings).toHaveBeenCalledWith({ onReview: false, onFailure: true }));
     expect(await screen.findByText("Saved")).toBeTruthy();
