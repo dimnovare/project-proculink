@@ -1,0 +1,296 @@
+"use client";
+
+import { useCallback, useId, useState } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { Button } from "@/components/bridge/DSPrimitives";
+import { Card } from "@/components/bridge/layout/Card";
+import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
+import { getDocument, listDocuments, saveFlowFields } from "@/lib/api/documents";
+import type { Flow, FlowField, FlowFieldList, ReadResult } from "@/lib/api/documents";
+import { documentRefusalMessage } from "@/lib/documentRefusals";
+import { documentStatus } from "@/lib/documentStatusManifest";
+import { FIELD_MEANINGS } from "@/lib/fieldMeanings";
+import { addReadExtra, FIELD_TYPES, fieldListFromRead, replaceField, withReadExtras } from "@/lib/flowFieldModel";
+import { Field, INPUT } from "./DestinationForm";
+import { DraftState, useDraftPart } from "./flowDraft";
+import { useFlowSaved } from "./PublishBar";
+import { Failed, Quiet } from "./states";
+
+/** The newest document of this flow the engine has finished reading, and what it read off it. */
+export function useLatestRead(flowId: string) {
+  const enabled = useTenantQueriesEnabled();
+  const docs = useQuery({
+    queryKey: ["documents", { flowId }], queryFn: () => listDocuments({ flowId }), enabled,
+    refetchInterval: (q) => (q.state.data?.some((d) => documentStatus(d.status, d.statusReason).tone === "working") ? 2000 : false),
+  });
+  const latest = [...(docs.data ?? [])]
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .find((d) => {
+      const s = documentStatus(d.status, d.statusReason).stage;
+      return (typeof s === "number" ? s : s.failed) >= 2;
+    });
+  const doc = useQuery({ queryKey: ["document", latest?.id], queryFn: () => getDocument(latest!.id), enabled: enabled && !!latest });
+  return { docs, latest, doc };
+}
+
+/** Every row on screen; `off` holds the unticked ones by "key" (a value or table) or "table/column". */
+type Rows = { list: FlowFieldList; off: Set<string> };
+
+/** Ticked rows only. A table with no ticked columns is left out: there is nothing to read into it. */
+const chosen = ({ list, off }: Rows): FlowFieldList => ({
+  fields: list.fields.filter((f) => !off.has(f.key)),
+  tables: list.tables
+    .filter((t) => !off.has(t.key))
+    .map((t) => ({ ...t, columns: t.columns.filter((c) => !off.has(`${t.key}/${c.key}`)) }))
+    .filter((t) => t.columns.length > 0),
+});
+const problemWith = (body: FlowFieldList) => {
+  const named = [...body.fields, ...body.tables.flatMap((t) => [t, ...t.columns])];
+  if (!named.length) return "Keep at least one value.";
+  return named.some((x) => !x.label.trim()) ? "Give every value a name." : null;
+};
+const toggled = (off: Set<string>, id: string, on: boolean) => { const n = new Set(off); if (on) n.delete(id); else n.add(id); return n; };
+
+const NOT_FOUND = "Not found on this document";
+const CELL = "px-2 py-1.5 align-middle";
+
+const Tick = ({ label, checked, disabled, onChange }: { label: string; checked: boolean; disabled?: boolean; onChange(on: boolean): void }) => (
+  <label className="inline-flex h-11 w-11 cursor-pointer items-center justify-center">
+    <input type="checkbox" aria-label={label} className="size-[18px]" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
+  </label>
+);
+
+function ValueRow({ field, scope, on, example, columns, indent, onInclude, onChange }: {
+  field: FlowField; scope: "header" | "line"; on: boolean; example: string | null | undefined; columns: number; indent?: boolean;
+  onInclude(on: boolean): void; onChange(field: FlowField): void;
+}) {
+  const id = useId();
+  const [open, setOpen] = useState(false);
+  const meaning = field.meaning ? FIELD_MEANINGS[field.meaning as keyof typeof FIELD_MEANINGS] : undefined;
+  return (
+    <>
+      <tr className="border-t border-border-faint">
+        <td className={CELL}><Tick label={`Read ${field.label}`} checked={on} onChange={onInclude} /></td>
+        <td className={`${CELL} ${indent ? "pl-6" : ""}`}>
+          <input
+            aria-label={`Name for ${field.label}`} className={`${INPUT} min-w-36`} value={field.label} disabled={!on}
+            onChange={(e) => onChange({ ...field, label: e.target.value })}
+          />
+        </td>
+        {example !== undefined && (
+          <td className={`${CELL} text-[13px] ${example ? "font-mono text-ink" : "text-ink-muted"}`}>{example ?? NOT_FOUND}</td>
+        )}
+        <td className={CELL}>
+          <Tick label={`${field.label} is required`} checked={field.required} disabled={!on} onChange={(required) => onChange({ ...field, required })} />
+        </td>
+        <td className={CELL}>
+          <Button size="sm" variant="ghost" aria-expanded={open} aria-controls={id} disabled={!on} onClick={() => setOpen((o) => !o)}>
+            {open ? "Hide details" : "Details"}
+          </Button>
+        </td>
+      </tr>
+      {open && (
+        <tr id={id}>
+          <td colSpan={columns} className="px-2 pb-3">
+            <div className="grid gap-3 rounded-md bg-surface-2 p-3 min-[720px]:grid-cols-2">
+              <Field label="Type">
+                <select className={INPUT} value={field.type} onChange={(e) => onChange({ ...field, type: e.target.value })}>
+                  {!(field.type in FIELD_TYPES) && <option value={field.type}>{field.type}</option>}
+                  {Object.entries(FIELD_TYPES).map(([k, label]) => <option key={k} value={k}>{label}</option>)}
+                </select>
+              </Field>
+              <Field label="Meaning">
+                <select className={INPUT} value={field.meaning ?? ""} onChange={(e) => onChange({ ...field, meaning: e.target.value || null })}>
+                  <option value="">None</option>
+                  {field.meaning && meaning?.scope !== scope && <option value={field.meaning}>{meaning?.label ?? field.meaning}</option>}
+                  {Object.entries(FIELD_MEANINGS).filter(([, m]) => m.scope === scope).map(([k, m]) => <option key={k} value={k}>{m.label}</option>)}
+                </select>
+              </Field>
+              <p className="m-0 text-[12.5px] text-ink-muted min-[720px]:col-span-2">
+                Type lets us mark a value that is in the wrong shape. Meaning tells a standard file which value this is. Most flows never need to change either.
+              </p>
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
+
+/** The value table, the tables as groups under it, and what the latest document has that the list lacks. */
+function ValueTable({ rows, edit, read, fileName }: { rows: Rows; edit(next: Rows): void; read?: ReadResult; fileName?: string }) {
+  const id = useId();
+  const { list, off } = rows;
+  const showExample = !!read && !!fileName;
+  const columns = showExample ? 5 : 4;
+  const fieldExample = (key: string) => {
+    if (!showExample) return undefined;
+    const f = read!.fields.find((x) => x.key === key);
+    return f && !f.notOnPage && f.value ? f.value : null;
+  };
+  const cellExample = (table: string, column: string) => {
+    if (!showExample) return undefined;
+    const c = read!.tables.find((t) => t.key === table)?.rows[0]?.cells[column];
+    return c && !c.notOnPage && c.value ? c.value : null;
+  };
+  const noticed = read ? withReadExtras(list, read) : null;
+  const extras = noticed
+    ? [
+        ...noticed.list.fields.filter((f) => noticed.off.has(f.key)).map((f) => ({ id: f.key, label: f.label, example: fieldExample(f.key) })),
+        ...noticed.list.tables.flatMap((t) => noticed.off.has(t.key)
+          ? [{ id: t.key, label: t.label, example: null }]
+          : t.columns.filter((c) => noticed.off.has(`${t.key}/${c.key}`)).map((c) => ({ id: `${t.key}/${c.key}`, label: `${t.label}: ${c.label}`, example: cellExample(t.key, c.key) }))),
+      ]
+    : [];
+
+  const setFields = (fields: FlowField[]) => edit({ list: { ...list, fields }, off });
+  const setTable = (ti: number, patch: (t: FlowFieldList["tables"][number]) => FlowFieldList["tables"][number]) =>
+    edit({ list: { ...list, tables: list.tables.map((t, j) => (j === ti ? patch(t) : t)) }, off });
+
+  return (
+    <div className="grid gap-4">
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse text-left text-[13px]">
+          <thead>
+            <tr className="text-[12.5px] font-semibold text-ink-muted">
+              <th scope="col" className={CELL}>Read</th>
+              <th scope="col" className={CELL}>Value</th>
+              {showExample && <th scope="col" className={CELL}>{`Example from ${fileName}`}</th>}
+              <th scope="col" className={CELL}>Required</th>
+              <th scope="col" className={CELL}>Details</th>
+            </tr>
+          </thead>
+          <tbody>
+            {list.fields.map((f, i) => (
+              <ValueRow
+                key={f.key} field={f} scope="header" on={!off.has(f.key)} example={fieldExample(f.key)} columns={columns}
+                onInclude={(on) => edit({ list, off: toggled(off, f.key, on) })} onChange={(x) => setFields(replaceField(list.fields, i, x))}
+              />
+            ))}
+          </tbody>
+          {list.tables.map((t, ti) => {
+            const tableOn = !off.has(t.key);
+            const readTable = read?.tables.find((x) => x.key === t.key);
+            return (
+              <tbody key={t.key}>
+                <tr className="border-t border-border">
+                  <td className={CELL}><Tick label={`Read the table ${t.label}`} checked={tableOn} onChange={(on) => edit({ list, off: toggled(off, t.key, on) })} /></td>
+                  <td className={CELL}>
+                    <input
+                      aria-label={`Name for ${t.label}`} className={`${INPUT} min-w-36 font-semibold`} value={t.label} disabled={!tableOn}
+                      onChange={(e) => setTable(ti, (x) => ({ ...x, label: e.target.value }))}
+                    />
+                  </td>
+                  <td colSpan={columns - 2} className={`${CELL} text-[13px] text-ink-muted`}>
+                    {readTable ? `A table. ${readTable.rows.length} rows in the latest document.` : "A table."}
+                  </td>
+                </tr>
+                {t.columns.map((c, ci) => (
+                  <ValueRow
+                    key={c.key} field={c} scope="line" indent on={tableOn && !off.has(`${t.key}/${c.key}`)} example={cellExample(t.key, c.key)} columns={columns}
+                    onInclude={(on) => edit({ list, off: toggled(off, `${t.key}/${c.key}`, on) })}
+                    onChange={(x) => setTable(ti, (tb) => ({ ...tb, columns: replaceField(tb.columns, ci, x) }))}
+                  />
+                ))}
+              </tbody>
+            );
+          })}
+        </table>
+      </div>
+      {extras.length > 0 && (
+        <section aria-labelledby={`${id}-noticed`} className="grid gap-2 border-t border-border pt-3">
+          <h3 id={`${id}-noticed`} className="m-0 text-[14px] font-semibold text-ink">New values we noticed</h3>
+          <p className="m-0 text-[13px] text-ink-muted">These were on the latest document. Add one to read it on every new document.</p>
+          <ul className="m-0 grid list-none gap-1 p-0">
+            {extras.map((x) => (
+              <li key={x.id} className="flex min-h-11 flex-wrap items-center gap-3">
+                <span className="text-[13.5px] font-medium text-ink">{x.label}</span>
+                {x.example && <span className="font-mono text-[13px] text-ink-muted">{x.example}</span>}
+                <Button size="sm" variant="secondary" aria-label={`Add ${x.label}`} onClick={() => edit({ list: addReadExtra(list, read!, x.id), off })}>Add</Button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </div>
+  );
+}
+
+function Frame({ draft, action, children }: { draft: boolean; action?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <Card>
+      <div className="grid gap-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="grid gap-0.5">
+            <h2 className="m-0 text-[16px] font-semibold text-ink">What we read from every document</h2>
+            <p className="m-0 text-[13px] text-ink-muted">Every document in this flow is read into these values. Untick what you don&apos;t need, or click a name to change it.</p>
+            <p className="m-0 text-[13px] text-ink-muted">
+              {draft ? "Required means we mark the value when it is missing. Changes save as a draft." : "Required means we mark the value when it is missing."}
+            </p>
+          </div>
+          {action}
+        </div>
+        {children}
+      </div>
+    </Card>
+  );
+}
+
+const Problem = ({ text }: { text: string | null }) => (text ? <p role="alert" className="m-0 text-[12.5px] text-danger">{text}</p> : null);
+
+/** A confirmed flow: every change is part of the draft, saved on its own. A list that could not be read is not sent. */
+function DraftValues({ flow, read, fileName }: { flow: Flow; read?: ReadResult; fileName?: string }) {
+  const save = useCallback((list: FlowFieldList) => saveFlowFields(flow.id, list), [flow.id]);
+  const part = useDraftPart("fields", "read", save);
+  const [rows, setRows] = useState<Rows>(() => ({ list: flow.fields, off: new Set() }));
+  const [problem, setProblem] = useState<string | null>(null);
+  const edit = (next: Rows) => {
+    setRows(next);
+    const body = chosen(next);
+    const p = problemWith(body);
+    setProblem(p);
+    if (!p) part.change(body);
+  };
+  return (
+    <Frame draft action={<DraftState part={part} />}>
+      <ValueTable rows={rows} edit={edit} read={read} fileName={fileName} />
+      <Problem text={problem} />
+    </Frame>
+  );
+}
+
+/** A flow not yet confirmed (R16): the values come from the latest document and stay here until kept, because
+ *  saving them confirms the flow and rechecks what is waiting. */
+function FirstValues({ flow, read, fileName }: { flow: Flow; read: ReadResult; fileName: string }) {
+  const saved = useFlowSaved(flow.id);
+  const [rows, setRows] = useState<Rows>(() => ({ list: fieldListFromRead(read), off: new Set() }));
+  const [problem, setProblem] = useState<string | null>(null);
+  const keep = useMutation({ mutationFn: (body: FlowFieldList) => saveFlowFields(flow.id, body), onSuccess: saved });
+  const press = () => {
+    if (keep.isPending) return;
+    const body = chosen(rows);
+    const p = problemWith(body);
+    setProblem(p);
+    if (!p) keep.mutate(body);
+  };
+  return (
+    <Frame draft={false}>
+      <p className="m-0 text-[13.5px] text-ink">{`These are the values we found on ${fileName}. Keep them to read every new document the same way.`}</p>
+      <ValueTable rows={rows} edit={setRows} read={read} fileName={fileName} />
+      <Problem text={problem ?? (keep.isError ? documentRefusalMessage(keep.error) : null)} />
+      <div><Button variant="primary" loading={keep.isPending} onClick={press}>Keep these values</Button></div>
+    </Frame>
+  );
+}
+
+/** The We read step. */
+export function FlowValues({ flow }: { flow: Flow }) {
+  const { docs, latest, doc } = useLatestRead(flow.id);
+  const fileName = doc.data?.summary.fileName;
+  if (flow.fieldsConfirmed) return <DraftValues flow={flow} read={doc.data?.read} fileName={fileName} />;
+  if (docs.isError && !docs.data) return <Failed error={docs.error} retry={() => docs.refetch()} />;
+  if (!docs.data || (latest && doc.isPending)) return <Quiet>Loading…</Quiet>;
+  if (doc.isError && !doc.data) return <Failed error={doc.error} retry={() => doc.refetch()} />;
+  if (!doc.data) return <Quiet>We list the values once the first document in this flow is read.</Quiet>;
+  return <FirstValues flow={flow} read={doc.data.read} fileName={doc.data.summary.fileName} />;
+}

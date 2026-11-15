@@ -38,6 +38,10 @@ export function addReadExtra(fields: FlowFieldList, read: ReadResult, id: string
   };
 }
 
+/** Row `i` becomes `f`. A meaning belongs to one field (for columns, one column per table): choosing it clears it from the old holder. */
+export const replaceField = (rows: FlowField[], i: number, f: FlowField) =>
+  rows.map((x, j) => (j === i ? f : f.meaning && f.meaning !== rows[i].meaning && x.meaning === f.meaning ? { ...x, meaning: null } : x));
+
 /** Field types the server accepts (`FieldTypes.All`), in words. */
 export const FIELD_TYPES: Record<string, string> = {
   text: "Text", number: "Number", money: "Amount", currency: "Currency", date: "Date",

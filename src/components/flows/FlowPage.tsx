@@ -22,6 +22,7 @@ import { INPUT } from "./DestinationForm";
 import { FlowCheck } from "./FlowCheck";
 import { flowNeedsYouQuery, FlowDocuments, needsYouWords, StreakBand } from "./FlowDocuments";
 import { FlowIntakePanel } from "./FlowIntakePanel";
+import { FlowValues } from "./FlowValues";
 import { DraftPartFailed, FlowDraftProvider, useFlowDraft } from "./flowDraft";
 import { FlowVersionsPanel } from "./FlowVersionsPanel";
 import { PublishBar } from "./PublishBar";
@@ -209,7 +210,7 @@ function ViewBody({ flow, view }: { flow: Flow; view: FlowView }) {
   if (view === "history") return <FlowVersionsPanel flowId={flow.id} onRestored={bump} />;
   if (!isFlowStep(view)) return <FlowDocuments flow={flow} />;
   const step: Record<FlowStep, React.ReactNode> = {
-    arrives: <FlowIntakePanel flow={flow} />, read: null, check: <FlowCheck flow={flow} />, send: null,
+    arrives: <FlowIntakePanel flow={flow} />, read: <FlowValues flow={flow} />, check: <FlowCheck flow={flow} />, send: null,
   };
   return (
     <div className="grid gap-4">

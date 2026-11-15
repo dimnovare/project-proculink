@@ -10,7 +10,7 @@ import { saveFlowFields } from "@/lib/api/documents";
 import type { Flow, FlowField, FlowFieldList } from "@/lib/api/documents";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
 import { FIELD_MEANINGS } from "@/lib/fieldMeanings";
-import { FIELD_TYPES } from "@/lib/flowFieldModel";
+import { FIELD_TYPES, replaceField } from "@/lib/flowFieldModel";
 
 function FieldRow({ field, scope, on, onInclude, onChange }: {
   field: FlowField; scope: "header" | "line"; on: boolean; onInclude(on: boolean): void; onChange(field: FlowField): void;
@@ -52,12 +52,9 @@ export function FieldListEditor({ flow, initial, initialOff, onSaved }: {
   const [problem, setProblem] = useState<string | null>(null);
   const toggle = (id: string, on: boolean) => setOff((s) => { const n = new Set(s); if (on) n.delete(id); else n.add(id); return n; });
 
-  // A meaning belongs to one field (for columns, one column per table): choosing it here clears it from the old holder.
-  const replace = (rows: FlowField[], i: number, f: FlowField) =>
-    rows.map((x, j) => (j === i ? f : f.meaning && f.meaning !== rows[i].meaning && x.meaning === f.meaning ? { ...x, meaning: null } : x));
-  const patchField = (i: number, f: FlowField) => setList({ ...list, fields: replace(list.fields, i, f) });
+  const patchField = (i: number, f: FlowField) => setList({ ...list, fields: replaceField(list.fields, i, f) });
   const patchColumn = (t: number, i: number, f: FlowField) =>
-    setList({ ...list, tables: list.tables.map((x, j) => (j === t ? { ...x, columns: replace(x.columns, i, f) } : x)) });
+    setList({ ...list, tables: list.tables.map((x, j) => (j === t ? { ...x, columns: replaceField(x.columns, i, f) } : x)) });
 
   /** Included rows only. A table with no included columns is left out: there is nothing to read into it. */
   const chosen = (): FlowFieldList => ({
