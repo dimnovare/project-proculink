@@ -208,7 +208,7 @@ test.describe("activity", () => {
       await page.evaluate(() => { for (const el of document.querySelectorAll("main, main *")) if (el.scrollHeight > el.clientHeight + 1) el.scrollTop = el.scrollHeight; });
       await page.waitForTimeout(200);
       const tabBar = await box(page.getByTestId("tab-bar"));
-      const add = await box(page.getByTestId("tab-bar").getByRole("link", { name: "Add a document" }));
+      const add = await box(page.getByTestId("tab-bar").getByRole("button", { name: "Add a document" }));
       const vh = await page.evaluate(() => window.innerHeight);
       const older = await box(pager(page).getByRole("link", { name: "Older" }));
       const last = await box(rows(page).last());
