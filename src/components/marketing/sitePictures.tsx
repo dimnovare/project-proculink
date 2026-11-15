@@ -271,17 +271,19 @@ export function ReviewPicture({ teach = false }: { teach?: boolean }) {
   );
 }
 
-export function ClosingCta() {
+export function ClosingCta({
+  title = "Try it on your own documents",
+  lead = "Upload one and see what comes back. It takes a few minutes, and nothing is sent on until you say so.",
+  more = { href: "/book-demo", label: "Talk to us" },
+}: { title?: string; lead?: string; more?: { href: string; label: string } } = {}) {
   return (
     <section aria-labelledby="closing-title" className="bg-surface py-20 sm:py-[104px]">
       <div className={`${SITE.wrap} flex flex-col items-start gap-6`}>
-        <h2 id="closing-title" className={`${SITE.h2} !text-[clamp(34px,4.4vw,60px)]`}>Try it on your own documents</h2>
-        <p className={`${SITE.lead} max-w-[620px]`}>
-          Upload one and see what comes back. It takes a few minutes, and nothing is sent on until you say so.
-        </p>
+        <h2 id="closing-title" className={`${SITE.h2} !text-[clamp(34px,4.4vw,60px)]`}>{title}</h2>
+        <p className={`${SITE.lead} max-w-[620px]`}>{lead}</p>
         <div className="flex w-full flex-col gap-x-7 gap-y-2.5 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
           <Link href="/sign-up" className={SITE.cta}>Start your free trial</Link>
-          <Link href="/book-demo" className={`${SITE.more} self-center sm:self-auto`}>Talk to us</Link>
+          <Link href={more.href} className={`${SITE.more} self-center sm:self-auto`}>{more.label}</Link>
         </div>
       </div>
     </section>

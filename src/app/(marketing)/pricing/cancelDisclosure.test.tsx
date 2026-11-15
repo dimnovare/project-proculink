@@ -67,8 +67,8 @@ describe("/pricing cancellation disclosure", () => {
     // "read-only" is approved copy in the trial-end FAQ (C27), so it is banned only inside the
     // cancel disclosure itself: the cancel FAQ item and the open fine-print line.
     const { container } = render(<PricingPage />);
-    const faqItem = within(container).getByRole("button", { name: "What happens if I cancel?" }).closest(".plk-faq-item")!;
-    const finePrint = Array.from(container.querySelectorAll(".plk-fine")).find((e) => /Cancel any time/.test(e.textContent ?? ""))!;
+    const faqItem = within(container).getByText("What happens if I cancel?").closest("details")!;
+    const finePrint = Array.from(within(container).getByTestId("pricing-fine-print").querySelectorAll("p")).find((e) => /Cancel any time/.test(e.textContent ?? ""))!;
     expect(finePrint, "the open fine-print disclosure").toBeTruthy();
     for (const el of [faqItem, finePrint]) expect(el.textContent).not.toMatch(/read-only/i);
     expect(body).not.toMatch(/frozen/i);
@@ -86,11 +86,12 @@ describe("FAQ answers are not clipped by a hardcoded height", () => {
   //
   // The panel now sizes to the measured content height. Verified in-browser at 390px and
   // 800px: every open panel's target max-height equals its content height exactly.
+  // An answer inside a native <details> has no height to cap: the browser lays it out.
 
   it("does not reintroduce a hardcoded pixel cap on the answer panel", () => {
     const src = readFileSync(join(__dirname, "page.tsx"), "utf8");
 
     expect(src).not.toMatch(/maxHeight:\s*open\s*\?\s*\d+/);
-    expect(src).toMatch(/answerRef\.current\?\.scrollHeight/);
+    expect(src).toMatch(/<details\b/);
   });
 });
