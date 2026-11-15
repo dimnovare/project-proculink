@@ -55,6 +55,21 @@ export interface DocumentSummary {
   /** The flow version this document was read with; null until read on a published flow. Absent on an older backend. */
   flowVersion?: number | null;
 }
+/** Where sending stopped. `destination` is null when it has no name left to give. */
+export interface DocumentStop { destinationId: string | null; destination: string | null; error: string | null }
+/** A row of the paged documents list: the summary plus what only the app shows. Only pages carry these. */
+export interface DocumentRow extends DocumentSummary {
+  number: string | null; sender: string | null; checks: string[];
+  /** Set only when sent: when its last output landed. */
+  sentAt: string | null;
+  /** Set only on `read_failed` and `send_failed`. */
+  failedAt: string | null;
+  /** Can be null on `send_failed` too. */
+  stop: DocumentStop | null;
+  isSample: boolean;
+}
+/** `sampleCount` is in the server's page envelope and is always 0 for documents. */
+export interface DocumentPage { items: DocumentRow[]; totalCount: number; page: number; pageSize: number; sampleCount: number }
 export interface DocumentCheck { code: string; passed: boolean; fieldKey: string | null; message: string }
 export interface DocumentDetail {
   summary: DocumentSummary; contentType: string; read: ReadResult; checks: DocumentCheck[];
@@ -171,10 +186,25 @@ export function uploadDocument(flowId: string, file: File): Promise<DocumentSumm
   return apiFetch<DocumentSummary>(`/flows/${seg(flowId)}/documents`, { method: "POST", body: form }, UPLOAD_TIMEOUT_MS);
 }
 
-export function listDocuments(params: { flowId?: string; status?: string; take?: number } = {}): Promise<DocumentSummary[]> {
+/** An undefined parameter is not sent; an array is sent comma-joined. */
+function toQuery(params: object): URLSearchParams {
   const query = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) if (value !== undefined) query.set(key, String(value));
+  return query;
+}
+
+export function listDocuments(params: { flowId?: string; status?: string; take?: number } = {}): Promise<DocumentSummary[]> {
+  const query = toQuery(params);
   return apiFetch<DocumentSummary[]>(`/documents?${query}`);
+}
+
+/** One page, newest first. `status` is sent comma-joined. `page` is always sent: the server ignores `pageSize` without it.
+ *  `sentFrom` is a UTC instant ending in `Z`, kept at or after. The server clamps `pageSize` to 200. */
+export function listDocumentPage(params: {
+  status?: readonly string[]; flowId?: string; sentFrom?: string; page: number; pageSize: number;
+}): Promise<DocumentPage> {
+  const query = toQuery(params);
+  return apiFetch<DocumentPage>(`/documents?${query}`);
 }
 
 export const getDocument = (id: string) => apiFetch<DocumentDetail>(`/documents/${seg(id)}`);
