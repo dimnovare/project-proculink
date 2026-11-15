@@ -1,0 +1,30 @@
+/** The flow page's four steps, the two views beside them, and the address that names one. */
+export type FlowStep = "arrives" | "read" | "check" | "send";
+export type FlowView = FlowStep | "documents" | "history";
+
+export const FLOW_STEPS: readonly { id: FlowStep; number: 1 | 2 | 3 | 4; title: string }[] = [
+  { id: "arrives", number: 1, title: "Arrives" },
+  { id: "read", number: 2, title: "We read" },
+  { id: "check", number: 3, title: "You check" },
+  { id: "send", number: 4, title: "We send" },
+];
+
+// The old tab names stay as aliases: other screens, help pages and bookmarks still link to them.
+const VIEWS = new Map<string, FlowView>([
+  ["arrives", "arrives"], ["read", "read"], ["check", "check"], ["send", "send"], ["documents", "documents"], ["history", "history"],
+  ["intake", "arrives"], ["fields", "read"], ["outputs", "send"], ["versions", "history"],
+]);
+
+/** The view the address asks for; null when it names none, or names one we do not know, or names more than one. */
+export function readFlowView(params: Pick<URLSearchParams, "getAll">): FlowView | null {
+  const tabs = params.getAll("tab");
+  return tabs.length === 1 ? VIEWS.get(tabs[0]) ?? null : null;
+}
+
+export function flowAddress(flowId: string, view: FlowView | null, extra?: { output?: string }): string {
+  const base = `/flows/${encodeURIComponent(flowId)}`;
+  if (!view) return base;
+  const q = new URLSearchParams({ tab: view });
+  if (extra?.output) q.set("output", extra.output);
+  return `${base}?${q}`;
+}
