@@ -1,18 +1,21 @@
 /**
  * mockEngine.ts — fixtures for the document engine in mock mode (`documents.ts` `apiFetch` seam).
  *
- * GETs serve fixed generic data. A write resolves with an echo and persists nothing, except for
- * lookups: they are the one stateful part, remembered for the life of the page, and their routes
- * refuse what the server refuses (LookupsController / LookupRules). An unknown
+ * GETs serve fixed generic data. A write resolves with an echo and persists nothing, except for two
+ * stateful parts, remembered for the life of the page: an upload, which is stored and read like the
+ * server would (`upload` below), a document's edits and sends (`remembered` below), and lookups, whose
+ * routes refuse what the server refuses (LookupsController / LookupRules). An unknown
  * path or method throws, so a screen calling an endpoint with no fixture shows its error state
  * instead of an empty success. Only reachable when `isApiMockMode` (never true in production).
  */
-import { DOCUMENT_STATUSES } from "../documentStatusManifest";
+import { DOCUMENT_STATUSES, documentStatus } from "../documentStatusManifest";
+import { acceptFor, fileRefusal } from "../fileKinds";
 import { LOOKUP_LIMITS } from "../lookupLimits";
 import { ApiHttpError } from "./core";
+import { REVIEW_CONFIDENCE } from "../reviewMarks";
 import { mockSourceBytesForKey } from "./mockSourceDocument";
 import type {
-  Destination, DocumentCheck, DocumentDelivery, DocumentDetail, DocumentRow, DocumentSummary, Flow, FlowField, FlowIntake, FlowOutput, FlowSummary,
+  Destination, DocumentCheck, DocumentDelivery, DocumentDetail, DocumentRow, DocumentSummary, EditValuesRequest, Flow, FlowField, FlowIntake, FlowOutput, FlowSummary,
   FlowVersion, Lookup, LookupCandidate, LookupEntry, LookupSummary, NotificationSettings, OutputPreview, ReadCell, ReadResult,
 } from "./documents";
 import type { OutputNode } from "./types";
@@ -44,11 +47,12 @@ const COLUMNS = [field("item_code", "Item code"), field("quantity", "Quantity", 
 const flow1: Flow = {
   id: MOCK_ENGINE_IDS.flow, name: "Supplier invoices", fieldsConfirmed: true, documentCount: 3, createdAt: T,
   automation: "review", fields: { fields: FIELDS, tables: [{ key: "lines", label: "Lines", columns: COLUMNS }] },
-  publishedVersion: 1, hasChanges: false, noCorrectionStreak: null,
+  publishedVersion: 1, hasChanges: false, noCorrectionStreak: null, scansOn: true, formatsOn: true,
 };
 const flow2: Flow = {
   id: MOCK_ENGINE_IDS.setupFlow, name: "Delivery notes", fieldsConfirmed: false, documentCount: 1, createdAt: T,
   automation: "auto", fields: { fields: [], tables: [] }, publishedVersion: null, hasChanges: false, noCorrectionStreak: null,
+  scansOn: true, formatsOn: true,
 };
 // Two more published flows: list screens need enough rows at phone width to clear
 // the visual suite's "too little text to be a baseline" floor (tests/e2e/visual.spec.ts).
@@ -75,6 +79,12 @@ const read: ReadResult = {
     rows: tableRows.map((row, r) => ({ cells: Object.fromEntries(COLUMNS.map((c, i) => [c.key, cell(row[i], r + 4, i + 1)])) })),
   }],
 };
+/** doc-1 is the board's document: its date was hard to read and its supplier was not found. */
+const DOC_1_READ: ReadResult = {
+  ...read,
+  fields: read.fields.map((f) => f.key === "date" ? { ...f, confidence: 0.72 }
+    : f.key === "supplier" ? { ...f, value: null, confidence: 0, location: null } : f),
+};
 
 const REFUSED = "The mailbox refused the message.";
 const DOC_3_SENT_AT = "2026-06-01T08:00:00Z"; // this week under the browser tests' frozen clock
@@ -88,7 +98,7 @@ const doc = (n: number, f: Flow, status: string, facts: Partial<DocumentRow> = {
 });
 /** Newest is `doc-7`. Three wait for review or sending (`doc-1`, `doc-2`, `doc-5`); two failed (`doc-4`, `doc-6`). */
 const ROWS: DocumentRow[] = [
-  doc(1, flow1, STATUS.needs_review, { failedChecks: 1, checks: ["low_confidence"], number: MOCK_DOCUMENT_NUMBER }),
+  doc(1, flow1, STATUS.needs_review, { failedChecks: 2, checks: ["low_confidence", "required_missing"], number: MOCK_DOCUMENT_NUMBER }),
   doc(2, flow1, STATUS.ready, { fileName: "invoice-1002.pdf" }), // the one PDF: pdf.js e2e (document-pdf.spec.ts)
   doc(3, flow1, STATUS.sent, { sentAt: DOC_3_SENT_AT }),
   doc(4, flow2, STATUS.send_failed, {
@@ -101,15 +111,21 @@ const ROWS: DocumentRow[] = [
 /** What the bare list and every other summary carry: a row without the facts only pages send. */
 const summaryOf = ({ number, sender, checks, sentAt, failedAt, stop, isSample, ...s }: DocumentRow): DocumentSummary => s;
 const DOCS = ROWS.map(summaryOf);
+const hardToRead = (key: string, label: string): DocumentCheck =>
+  ({ code: "low_confidence", passed: false, fieldKey: key, message: `${label} was hard to read. Please check it.` });
+const notFound = (key: string, label: string): DocumentCheck =>
+  ({ code: "required_missing", passed: false, fieldKey: key, message: `${label} is required but was not found.` });
 const FAILED_CHECKS: Record<string, DocumentCheck> = {
-  low_confidence: { code: "low_confidence", passed: false, fieldKey: "vat", message: "The VAT value was read with low confidence." },
+  low_confidence: hardToRead("date", "Date"),
+  required_missing: notFound("supplier", "Supplier"),
   duplicate: { code: "duplicate", passed: false, fieldKey: null, message: "A document with this number was already received." },
 };
-const detail = (s: DocumentSummary): DocumentDetail => {
-  const failed = pick(ROWS, s.id, "document").checks.map((c) => FAILED_CHECKS[c]);
+const detail = (id: string): DocumentDetail => {
+  const s = summaryOf(live(pick(ROWS, id, "document")));
+  const st = now(id);
   return {
-    summary: s, contentType: s.fileName.endsWith(".pdf") ? "application/pdf" : "text/csv", read, senderLabel: "Example Supplier Ltd",
-    checks: failed.length ? failed : [{ code: "total_present", passed: true, fieldKey: "total", message: "Total found." }],
+    summary: s, contentType: s.fileName.endsWith(".pdf") ? "application/pdf" : "text/csv", read: st.read, senderLabel: "Example Supplier Ltd",
+    checks: st.failed.length ? st.failed : [{ code: "total_present", passed: true, fieldKey: "total", message: "Total found." }],
   };
 };
 
@@ -121,6 +137,92 @@ const DELIVERIES: Record<string, DocumentDelivery[]> = {
   "doc-4": [delivery("dead_letter", 3, REFUSED, null)],
   "doc-7": [delivery("delivered", 1, null, DOC_7_SENT_AT)],
 };
+
+/** A document's edits and sends, kept for the page load and filled on first write from the fixtures. */
+interface Remembered { status: string; read: ReadResult; failed: DocumentCheck[]; sentAt: string | null; deliveries: DocumentDelivery[] | null }
+const remembered = new Map<string, Remembered>();
+const fixtureOf = (r: DocumentRow): Remembered => ({
+  status: r.status, read: r.id === MOCK_ENGINE_IDS.document ? DOC_1_READ : read, failed: r.checks.map((c) => FAILED_CHECKS[c]),
+  sentAt: r.sentAt, deliveries: DELIVERIES[r.id] ?? null,
+});
+const now = (id: string): Remembered => remembered.get(id) ?? fixtureOf(pick(ROWS, id, "document"));
+/** A row as it stands now: what the person changed or sent shows in every list and count. */
+const live = (r: DocumentRow): DocumentRow => {
+  const s = now(r.id);
+  return { ...r, status: s.status, sentAt: s.sentAt, checks: s.failed.map((c) => c.code), failedChecks: s.failed.length };
+};
+/** Unit tests only: forget remembered edits and sends. The browser forgets on reload. */
+export function resetMockEngine(): void {
+  remembered.clear();
+}
+const refuse = (status: number, error: string): never => {
+  throw new ApiHttpError(`mock engine: ${error}`, status, { error });
+};
+const EDIT_KEYS = ["fields", "cells", "addRowToTables", "removeRows"];
+
+/** Like DocumentsController.EditValues and ApplyEditsAsync: refuse, apply to a copy, re-check the flow's required fields. */
+function editValues(id: string, body: Body): DocumentDetail {
+  const unknown = Object.keys(body).find((k) => !EDIT_KEYS.includes(k));
+  if (unknown) throw new Error(`mock engine: unknown edit key "${unknown}" on PATCH /documents/{id}/values`);
+  const row = pick(ROWS, id, "document");
+  const was = now(id);
+  if (was.status === STATUS.sending || was.status === STATUS.sent) refuse(409, "document_sent");
+  if (!documentStatus(was.status, row.statusReason).editable) refuse(409, "not_editable");
+  const { fields = [], cells = [], addRowToTables = [], removeRows = [] } = body as EditValuesRequest;
+  if (fields.length + cells.length + addRowToTables.length + removeRows.length === 0) refuse(400, "no_changes");
+  const flow = pick(FLOWS, row.flowId, "flow");
+  const copy: ReadResult = structuredClone(was.read);
+  for (const e of fields) {
+    let f = copy.fields.find((x) => x.key === e.key);
+    if (!f) {
+      const ff = flow.fields.fields.find((x) => x.key === e.key) ?? refuse(400, "unknown_target");
+      f = { key: ff.key, label: ff.label, value: null, type: ff.type, meaning: ff.meaning, confidence: 0, location: null, notOnPage: false, listed: true, edited: false };
+      copy.fields.push(f);
+    }
+    Object.assign(f, { value: e.value, confidence: 1, edited: true, notOnPage: false });
+  }
+  const table = (key: string) => copy.tables.find((t) => t.key === key) ?? refuse(400, "unknown_target");
+  const inRange = (rows: unknown[], i: number) => (Number.isInteger(i) && i >= 0 && i < rows.length) || refuse(400, "unknown_target");
+  for (const e of cells) {
+    const t = table(e.table);
+    inRange(t.rows, e.row);
+    if (!t.columns.some((c) => c.key === e.column)) refuse(400, "unknown_target");
+    const old = t.rows[e.row].cells[e.column];
+    t.rows[e.row].cells[e.column] = { value: e.value, confidence: 1, location: old?.location ?? null, notOnPage: false, edited: true };
+  }
+  for (const key of addRowToTables) {
+    const t = table(key);
+    t.rows.push({ cells: Object.fromEntries(t.columns.map((c) => [c.key, { value: null, confidence: 1, location: null, notOnPage: false, edited: true }])) });
+  }
+  const removes = [...new Map(removeRows.map((r) => [`${r.table}:${r.row}`, r])).values()].sort((a, b) => b.row - a.row);
+  for (const r of removes) {
+    const t = table(r.table);
+    inRange(t.rows, r.row);
+    t.rows.splice(r.row, 1);
+  }
+  const failed = flow.fields.fields.filter((f) => f.required).flatMap((f) => {
+    const v = copy.fields.find((x) => x.key === f.key);
+    if (!v?.value?.trim()) return [notFound(f.key, f.label)];
+    return v.confidence < REVIEW_CONFIDENCE ? [hardToRead(f.key, f.label)] : [];
+  }).concat(was.failed.filter((c) => c.code === "duplicate"));
+  const status = was.status === STATUS.send_failed ? was.status : failed.length ? STATUS.needs_review : STATUS.ready;
+  remembered.set(id, { ...was, status, read: copy, failed });
+  return detail(id);
+}
+
+/** Like DocumentSender.SendAsync, except that it lands straight on sent with one delivered delivery (R23). */
+function send(id: string): DocumentDelivery[] {
+  const row = pick(ROWS, id, "document");
+  const was = now(id);
+  if (!documentStatus(was.status, row.statusReason).editable) refuse(409, "not_ready");
+  // A document whose delivery failed was sent once, so its flow had an output then: only one never sent can lack it.
+  if (was.status !== STATUS.send_failed && !outputs.some((o) => o.flowId === row.flowId)) refuse(409, "no_outputs");
+  const sentAt = new Date().toISOString();
+  const deliveries = [delivery("delivered", 1, null, sentAt)];
+  remembered.set(id, { ...was, status: STATUS.sent, sentAt, deliveries });
+  resent.add(id);
+  return deliveries;
+}
 
 /** In name order, as the server lists them. */
 const destinations: Destination[] = [
@@ -290,6 +392,44 @@ const samples: Record<string, DocumentSummary> = {};
 /** Documents sent again in this page load: they no longer wait on their destination. */
 const resent = new Set<string>();
 
+/** This page load's uploads: a second copy (same flow, name and size) is held; a first one reads 1.5 s later. */
+const uploaded = new Set<string>();
+const reads = new Map<string, { at: number; facts: Partial<DocumentRow> }>();
+let uploads = 0;
+/** Like `DocumentIntakeService.AcceptAsync`: the server's refusals in its order, then a stored row. */
+const upload = (flow: Flow, body: Body): DocumentSummary => {
+  const file = body.file;
+  if (!(file instanceof File)) throw new Error("mock engine: an upload without a file is not implemented");
+  const accept = acceptFor(flow);
+  const refusal = fileRefusal(file, accept);
+  if (refusal?.status === 415) throw new ApiHttpError(refusal.message, 415, { error: "unsupported_format", accepted: accept.replaceAll(".", "").split(",") });
+  if (refusal) throw refusal;
+  if (file.size === 0) throw new ApiHttpError("mock engine: empty file", 422, { error: "unreadable_file" });
+  const key = `${flow.id}/${file.name}/${file.size}`;
+  const held = uploaded.has(key);
+  uploaded.add(key);
+  const row = doc(0, flow, held ? STATUS.needs_review : STATUS.reading, {
+    id: `doc-up-${++uploads}`, fileName: file.name, createdAt: new Date().toISOString(),
+    ...(held && { statusReason: "duplicate_file", checks: ["duplicate"], failedChecks: 1 }),
+  });
+  if (!held) reads.set(row.id, {
+    at: Date.now() + 1500,
+    facts: file.name.toLowerCase().endsWith(".csv") ? { status: STATUS.ready } : { status: STATUS.needs_review, failedChecks: 1, checks: ["low_confidence"] },
+  });
+  ROWS.push(row);
+  DOCS.push(summaryOf(row));
+  return { ...summaryOf(row), status: held ? row.status : STATUS.received };
+};
+/** An uploaded row whose time has come takes its read status, in ROWS and DOCS both. Until then it answers as `reading`. */
+const settleReads = () => {
+  for (const [id, { at, facts }] of reads) {
+    if (Date.now() < at) continue;
+    const row = Object.assign(pick(ROWS, id, "document"), facts);
+    Object.assign(pick(DOCS, id, "document"), summaryOf(row));
+    reads.delete(id);
+  }
+};
+
 const ROUTES: [method: string, pattern: RegExp, run: Handler][] = [
   // Like the server's list: a summary per flow, and none of the single response's draft facts.
   ["GET", re`/flows`, () => FLOWS.map((f) => ({ ...f, hasChanges: false, noCorrectionStreak: null, summary: flowSummaryOf(f) }))],
@@ -300,13 +440,14 @@ const ROUTES: [method: string, pattern: RegExp, run: Handler][] = [
   ["GET", re`/flows/${S}/versions`, (m) => (pick(FLOWS, m[1], "flow").publishedVersion ? versions : [])],
   ["POST", re`/flows/${S}/versions/\d+/restore`, (m) => pick(FLOWS, m[1], "flow")],
   ["PUT", re`/flows/${S}/fields`, (m, _q, b) => echo(pick(FLOWS, m[1], "flow"), { fields: b })],
-  ["POST", re`/flows/${S}/documents`, (m) => ({ ...DOCS[0], flowId: pick(FLOWS, m[1], "flow").id, flowName: pick(FLOWS, m[1], "flow").name })],
+  ["POST", re`/flows/${S}/documents`, (m, _q, b) => upload(pick(FLOWS, m[1], "flow"), b)],
   ["POST", re`/flows/${S}/documents/sample`, (m) => {
     const flow = pick(FLOWS, m[1], "flow");
     // Kept out of DOCS: the document list and its counts stay what the fixtures say until a screen asks.
     return (samples[flow.id] ??= { ...DOCS[0], id: `doc-sample-${flow.id}`, flowId: flow.id, flowName: flow.name, fileName: "invoice-2250.pdf" });
   }],
   ["GET", re`/documents`, (_m, q) => {
+    settleReads();
     // Like DocumentsController.List: newest first; a missing or empty status list is no filter; sent rows
     // landed in [sentFrom, sentTo). A key it does not implement fails loudly rather than being ignored.
     // `waitingOnDestination`: stopped at that destination; the mock's deliveries carry no destination, so the
@@ -320,7 +461,7 @@ const ROUTES: [method: string, pattern: RegExp, run: Handler][] = [
     const dest = q.get("waitingOnDestination");
     const waiting = (d: DocumentRow) => dest === null
       || (d.status === STATUS.send_failed && d.stop?.destinationId === dest && !resent.has(d.id));
-    const rows = ROWS.filter((d) => (!q.get("flowId") || d.flowId === q.get("flowId"))
+    const rows = ROWS.map(live).filter((d) => (!q.get("flowId") || d.flowId === q.get("flowId"))
       && (!statuses.length || statuses.includes(d.status)) && landed(d.sentAt) && waiting(d))
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id));
     const clamp = (key: string) => Math.min(Math.max(intParam(q, key) ?? 50, 1), 200);
@@ -330,20 +471,16 @@ const ROUTES: [method: string, pattern: RegExp, run: Handler][] = [
     const pageSize = clamp("pageSize");
     return { items: rows.slice((page - 1) * pageSize, page * pageSize), totalCount: rows.length, page, pageSize, sampleCount: 0 };
   }],
-  ["GET", re`/documents/${S}`, (m) => detail(pick(DOCS, m[1], "document"))],
-  ["PATCH", re`/documents/${S}/values`, (m) => detail(pick(DOCS, m[1], "document"))],
-  ["POST", re`/documents/${S}/teach`, (m) => detail(pick(DOCS, m[1], "document"))],
+  ["GET", re`/documents/${S}`, (m) => (settleReads(), detail(m[1]))],
+  ["PATCH", re`/documents/${S}/values`, (m, _q, b) => editValues(m[1], b)],
+  ["POST", re`/documents/${S}/teach`, (m) => detail(m[1])],
   ["GET", re`/documents/${S}/history`, (m) => {
     pick(DOCS, m[1], "document");
     return [{ action: "received", at: "2026-05-20T09:00:00Z", userId: null, payload: null }, { action: "read", at: "2026-05-20T09:01:00Z", userId: null, payload: null }];
   }],
-  ["POST", re`/documents/${S}/retry-read`, (m) => pick(DOCS, m[1], "document")],
-  ["POST", re`/documents/${S}/send`, (m) => {
-    const id = pick(DOCS, m[1], "document").id;
-    resent.add(id);
-    return DELIVERIES[id] ?? [delivery("queued", 0, null, null)];
-  }],
-  ["GET", re`/documents/${S}/deliveries`, (m) => DELIVERIES[pick(DOCS, m[1], "document").id] ?? []],
+  ["POST", re`/documents/${S}/retry-read`, (m) => summaryOf(live(pick(ROWS, m[1], "document")))],
+  ["POST", re`/documents/${S}/send`, (m) => send(m[1])],
+  ["GET", re`/documents/${S}/deliveries`, (m) => now(m[1]).deliveries ?? []],
   ["POST", re`/documents/${S}/outputs/test`, () => TEST_OK],
   ["POST", re`/documents/${S}/outputs/${S}/preview`, (m, q) => {
     pick(DOCS, m[1], "document"); pick(outputs, m[2], "output");
@@ -423,6 +560,7 @@ const BLOBS: [RegExp, (m: string[]) => Blob][] = [
 ];
 
 function bodyOf(init?: RequestInit): Body {
+  if (init?.body instanceof FormData) return Object.fromEntries(init.body.entries());
   if (typeof init?.body !== "string") return {};
   try { return JSON.parse(init.body) as Body; } catch { return {}; }
 }
@@ -445,7 +583,7 @@ export async function mockEngineFetch<T>(path: string, init?: RequestInit, as: "
   }
   for (const [verb, pattern, run] of ROUTES) {
     const m = verb === method ? pattern.exec(pathname) : null;
-    if (m) return run(m, new URLSearchParams(query), bodyOf(init)) as T;
+    if (m) return structuredClone(run(m, new URLSearchParams(query), bodyOf(init))) as T; // a fresh copy per answer, as off the wire
   }
   throw new Error(`mock engine: no fixture for ${method} ${pathname}`);
 }

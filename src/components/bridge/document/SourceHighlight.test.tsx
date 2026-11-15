@@ -5,6 +5,8 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import type { DocumentDetail, SourceLocation } from "@/lib/api/documents";
 import { ReadValuesPanel } from "@/components/flows/ReadValuesPanel";
+import { useDocumentEdits } from "@/hooks/useDocumentEdits";
+import { reviewMarks } from "@/lib/reviewMarks";
 import { SourceDocumentBody } from "./SourceDocumentBody";
 import { PdfDocumentView } from "./PdfDocumentView";
 
@@ -42,11 +44,12 @@ function Screen({ file, loc = location }: { file?: { blob: Blob; contentType: st
       { key: "po", label: "PO number", value: "PO-1", type: "text", meaning: null, confidence: 0.9, location: loc, notOnPage: false, listed: true, edited: false },
     ] },
   } as unknown as DocumentDetail;
+  const edits = useDocumentEdits("d1");
   const document = file ?? { blob: new Blob(["x"], { type: "image/png" }), contentType: "image/png", filename: "photo.png" };
   return (
     <>
       <div data-testid="original"><SourceDocumentBody cacheKey="d" document={document} bounded={false} highlight={spot} /></div>
-      <div data-testid="values"><ReadValuesPanel detail={detail} editable onLocate={setSpot} /></div>
+      <div data-testid="values"><ReadValuesPanel detail={detail} editable edits={edits} marks={reviewMarks(detail, true)} onLocate={setSpot} /></div>
     </>
   );
 }
@@ -112,5 +115,24 @@ describe("highlight", () => {
     expect(cell.getAttribute("data-highlighted")).toBe("true");
     expect(cell.className).toContain("bg-brand-blue-soft");
     expect(original.getByText("Bolt").getAttribute("data-highlighted")).toBeNull();
+  });
+
+  it("draws amber marks on the original, only on the page that holds them", async () => {
+    const image = { blob: new Blob(["x"], { type: "image/png" }), contentType: "image/png", filename: "photo.png" };
+    const marks: SourceLocation[] = [{ page: 1, box, address: null }, { page: 2, box, address: null }];
+    render(wrap(<div data-testid="image"><SourceDocumentBody cacheKey="m-img" document={image} bounded={false} marks={marks} /></div>));
+    const imageView = screen.getByTestId("image");
+    await within(imageView).findByRole("img", { name: "photo.png" });
+
+    const sheet = ["Supplier,Currency", "Example Supplier Ltd,EUR"].join(NL);
+    const blob = new Blob([sheet], { type: "text/csv" });
+    blob.arrayBuffer = async () => new TextEncoder().encode(sheet).buffer as ArrayBuffer;
+    render(wrap(<div data-testid="sheet"><SourceDocumentBody cacheKey="m-csv" document={{ blob, contentType: "text/csv", filename: "a.csv" }} bounded={false} marks={[{ page: null, box: null, address: "cell:r2c1" }]} /></div>));
+    const sheetView = screen.getByTestId("sheet");
+    await within(sheetView).findByText("Example Supplier Ltd");
+
+    expect(within(imageView).getAllByTestId("source-mark")).toHaveLength(1);
+    expect(within(sheetView).getByRole("cell", { name: "Example Supplier Ltd" })).toHaveAttribute("data-marked");
+    expect(within(sheetView).getByRole("cell", { name: "EUR" })).not.toHaveAttribute("data-marked");
   });
 });

@@ -56,6 +56,7 @@ beforeEach(() => {
 
 const renderScreen = () => render(<QueryClientProvider client={qc}><DocumentScreen flowId="f" documentId="d" /></QueryClientProvider>);
 const choose = async (field: string) => {
+  fireEvent.click(await screen.findByRole("button", { name: "Something missing or in the wrong place?" }));
   fireEvent.change(await screen.findByLabelText("Field to point to"), { target: { value: field } });
 };
 

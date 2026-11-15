@@ -37,7 +37,10 @@ test.describe("documents", () => {
     const table = page.getByRole("table");
     await expect(table.getByRole("button", { name: /^Send / })).toHaveCount(1);              // only the ready row
     await table.getByRole("button", { name: "Send invoice-1002.pdf" }).click();
-    await expect(table.getByRole("row", { name: /invoice-1002\.pdf/ })).toContainText("Sending");
+    const sentRow = table.getByRole("row", { name: /invoice-1002\.pdf/ });
+    await expect(sentRow.filter({ hasText: "Sending" }).or(table.filter({ hasNot: sentRow }))).toHaveCount(1);   // Sending, or gone: the mock sends at once
+    await expect(page.getByRole("tab", { name: /Needs you/ })).toContainText("2");
+    await expect(sentRow).toHaveCount(0);
     await expect(table.getByRole("button", { name: /^Send / })).toHaveCount(0);
     await page.getByTestId("review-next").click();
     await expect(page).toHaveURL(new RegExp("/flows/flow-3/documents/doc-5$"));
@@ -72,7 +75,7 @@ test.describe("documents", () => {
     await expect(reviewNext).toHaveCount(1);
     await expect(page.getByTestId("review-next")).toBeVisible();
     // The round Add button bites into the bar's button by a few pixels, never enough to cover its label.
-    const add = tabBar.getByRole("link", { name: "Add a document" });
+    const add = tabBar.getByRole("button", { name: "Add a document" });
     for (const width of [390, 360]) {
       await page.setViewportSize({ width, height: 844 });
       const [a, b] = [await box(add), await box(next)];

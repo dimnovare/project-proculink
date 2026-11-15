@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, type UseMutationResult } from "@tanstack/react-query";
 import { StatusJourney } from "@/components/bridge/StatusJourney";
 import { Button, Pill, buttonClass } from "@/components/bridge/DSPrimitives";
 import { relativeTime } from "@/lib/relativeTime";
@@ -19,6 +19,7 @@ const WHOLE: readonly string[] = WHOLE_DOCUMENT_CHECKS;
 
 /** What a row asks of a person, in a few words, and its colour. */
 export function rowNeed(d: ListedDocument): { text: string; tone: Tone } {
+  if (d.statusReason === "duplicate_file") return { text: "Already uploaded to this flow", tone: "amber" };
   if (d.status === "ready") return { text: "Ready to send", tone: "green" };
   if (d.status === "needs_review" && d.checks) {
     if (d.checks.includes("duplicate")) return { text: "Same number as an earlier document", tone: "amber" };
@@ -32,17 +33,23 @@ export function rowNeed(d: ListedDocument): { text: string; tone: Tone } {
 const href = (d: ListedDocument) => `/flows/${d.flowId}/documents/${d.id}`;
 const received = (d: ListedDocument) => relativeTime(d.createdAt) ?? "—";
 
+/** Send a ready document from a list row. A second press while it is out does nothing (the button is busy);
+ *  on success onSent runs, then every documents list and the document's own queries refresh (the button stays busy until they have). */
+export function useRowSend(id: string, onSent: () => void): UseMutationResult<unknown, unknown, void> {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => sendDocument(id),
+    onSuccess: () => {
+      onSent();
+      return Promise.all([["documents"], ["document", id], ["deliveries", id], ["document-history", id]].map((queryKey) => qc.invalidateQueries({ queryKey })));
+    },
+  });
+}
+
 function Row({ d, showFlow, sendable, columns, onSent }: {
   d: ListedDocument; showFlow: boolean; sendable: boolean; columns: string; onSent: (d: ListedDocument) => void;
 }) {
-  const qc = useQueryClient();
-  const send = useMutation({
-    mutationFn: () => sendDocument(d.id),
-    onSuccess: () => {
-      onSent({ ...d, status: "sending", statusReason: null });
-      return Promise.all([["documents"], ["document", d.id], ["deliveries", d.id], ["document-history", d.id]].map((queryKey) => qc.invalidateQueries({ queryKey })));
-    },
-  });
+  const send = useRowSend(d.id, () => onSent({ ...d, status: "sending", statusReason: null }));
   const need = rowNeed(d);
   return (
     <div role="row" className="relative grid min-h-[64px] items-center gap-3 border-t border-border px-3 py-2 hover:bg-surface-2" style={{ gridTemplateColumns: columns }}>
@@ -82,13 +89,10 @@ export function DocumentList({ documents, showFlow, label, needHeading = "Status
   /** Ready rows carry Send (table only). */
   sendable?: boolean;
 }) {
-  // What this list sent, kept until the incoming list stops calling it ready. The caller resets it with a `key`.
+  // What this list sent, drawn only while the incoming list still calls it ready; when the server stops listing it,
+  // the row goes (R5). The caller resets it with a `key`.
   const [sent, setSent] = useState<Record<string, ListedDocument>>({});
-  const incoming = new Set(documents.map((d) => d.id));
-  const drawn = [
-    ...documents.map((d) => (sent[d.id] && d.status === "ready" ? sent[d.id] : d)),
-    ...Object.values(sent).filter((s) => !incoming.has(s.id)),
-  ].sort((a, b) => b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id));
+  const drawn = documents.map((d) => (sent[d.id] && d.status === "ready" ? sent[d.id] : d)).sort((a, b) => b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id));
   const columns = `minmax(0,2fr) ${showFlow ? "minmax(0,1fr) " : ""}minmax(0,1.4fr) 104px 96px 88px`;
 
   return (

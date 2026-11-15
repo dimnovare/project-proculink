@@ -157,10 +157,13 @@ describe("dialog registry is DERIVED from the source, not hand-maintained", () =
     // 10 once the mapper kept only the flow variant (2026-11-13): OutputMappingEditor and
     // OutputStructureDesigner left with their files, taking two "no trap before" and two
     // "no Escape before" rows with them.
-    expect(DIALOG_REGISTRY.length).toBe(10);
-    expect(TOTAL_DIALOGS).toBe(10);
-    expect(DIALOG_REGISTRY.filter((d) => !d.hadTrapBefore).length).toBe(8);
-    expect(DIALOG_REGISTRY.filter((d) => !d.hadEscapeBefore).length).toBe(4);
+    //
+    // 12 with the phone's Add sheet and its Check the photo step (plan 14.4): two NEW
+    // dialogs, so, like OrgActionModals, each moves both "before" counts by one.
+    expect(DIALOG_REGISTRY.length).toBe(12);
+    expect(TOTAL_DIALOGS).toBe(12);
+    expect(DIALOG_REGISTRY.filter((d) => !d.hadTrapBefore).length).toBe(10);
+    expect(DIALOG_REGISTRY.filter((d) => !d.hadEscapeBefore).length).toBe(6);
   });
 });
 
