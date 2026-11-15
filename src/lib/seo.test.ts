@@ -1,5 +1,33 @@
 import { describe, it, expect } from "vitest";
-import { pageMetadata, helpArticleMetadata, OG_IMAGE_PATH } from "./seo";
+import { metadata as homeMetadata } from "@/app/(home)/layout";
+import { metadata as rootMetadata } from "@/app/layout";
+import {
+  pageMetadata,
+  helpArticleMetadata,
+  OG_IMAGE,
+  OG_IMAGE_PATH,
+  SITE_DESCRIPTION,
+  SITE_TAGLINE,
+  SITE_TITLE,
+} from "./seo";
+
+describe("site title", () => {
+  it("names the site once: the tab title, the home page and the share image all carry the tagline", () => {
+    expect(SITE_TAGLINE).toBe("Any document in. Clean data out.");
+    expect(SITE_TITLE).toBe("ProcuLink — Any document in. Clean data out.");
+    expect(OG_IMAGE.alt).toBe(SITE_TITLE);
+    // The root layout's own metadata: every page inherits it, so it carries the
+    // share image and must not carry a canonical (each page would point at /).
+    expect(rootMetadata.title).toBe(SITE_TITLE);
+    expect(rootMetadata.openGraph?.images).toEqual([OG_IMAGE]);
+    expect(rootMetadata.twitter?.images).toEqual([OG_IMAGE_PATH]);
+    expect(rootMetadata.alternates?.canonical).toBeUndefined();
+    expect(homeMetadata.title).toBe(SITE_TITLE);
+    expect(homeMetadata.description).toBe(SITE_DESCRIPTION);
+    expect(homeMetadata.openGraph?.title).toBe(SITE_TITLE);
+    expect(JSON.stringify(homeMetadata)).not.toMatch(/connecting procurement/i);
+  });
+});
 
 describe("pageMetadata", () => {
   const meta = pageMetadata({

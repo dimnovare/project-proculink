@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, cleanup, waitFor } from "@testing-library/react";
+import { render, screen, cleanup, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { BillingStatus, BillingPlan } from "@/types/procurement";
 import type { Plan, PlanId } from "@/lib/plans";
@@ -115,7 +115,7 @@ async function renderBilling(status: BillingStatus) {
     </QueryClientProvider>,
   );
   await waitFor(() => expect(api.getBillingStatus).toHaveBeenCalled());
-  await screen.findByText("Current plan");
+  await screen.findByTestId("plan-card");
   return view;
 }
 
@@ -185,10 +185,10 @@ describe("the upgrade button prints the tier's NAME, not its wire value", () => 
       }),
     );
 
-    const button = screen.getByRole("button", { name: /Need more volume/ });
-    expect(button.textContent).toBe(`Need more volume? Upgrade to ${RENAMED_DISTRIBUTOR}.`);
+    const button = screen.getByRole("button", { name: /Upgrade to/ });
+    expect(button.textContent).toBe(`Upgrade to ${RENAMED_DISTRIBUTOR}`);
     // The exact string the old expression produced from the id `distributor`.
-    expect(button.textContent).not.toBe("Need more volume? Upgrade to Distributor.");
+    expect(button.textContent).not.toBe("Upgrade to Distributor");
   });
 
   it("ANTI-VACUITY: the button is really reached, and really points at the next tier", async () => {
@@ -206,8 +206,8 @@ describe("the upgrade button prints the tier's NAME, not its wire value", () => 
     );
 
     // Growth → Operations is not renamed, so this is the unpatched ladder answering.
-    expect(screen.getByRole("button", { name: /Need more volume/ }).textContent).toBe(
-      "Need more volume? Upgrade to Operations.",
+    expect(screen.getByRole("button", { name: /Upgrade to/ }).textContent).toBe(
+      "Upgrade to Operations",
     );
   });
 });
@@ -228,11 +228,10 @@ describe("a Stripe portal is offered only to a workspace that has one", () => {
     await renderBilling(enterprise({ stripeCustomerId: null, stripeSubscriptionId: null }));
 
     // The sentence that IS true stays.
-    expect(pageText()).toContain("Enterprise plans use a manual agreement.");
+    expect(pageText()).toContain("Your plan is a manual agreement.");
     // Everything that contradicted it, five lines below, is gone.
     expect(screen.queryByRole("button", { name: /Manage in Stripe/ })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Change plan" })).toBeNull();
-    expect(screen.queryByText("Payment method")).toBeNull();
+    expect(screen.queryByText("Your card, billing email and invoices are kept in Stripe.")).toBeNull();
     expect(pageText(), "a Stripe cancellation disclosure to a customer with no Stripe subscription")
       .not.toMatch(/If you cancel in Stripe/i);
   });
@@ -241,9 +240,8 @@ describe("a Stripe portal is offered only to a workspace that has one", () => {
     // Without this, hiding the card unconditionally — or breaking the render — would pass above.
     await renderBilling(enterprise({ stripeCustomerId: "cus_live", stripeSubscriptionId: "sub_live" }));
 
-    expect(screen.getByText("Payment method")).toBeTruthy();
+    expect(screen.getByText("Payment and invoices")).toBeTruthy();
     expect(screen.getAllByRole("button", { name: /Manage in Stripe/ }).length).toBeGreaterThan(0);
-    expect(screen.getByRole("button", { name: "Change plan" })).toBeTruthy();
     expect(pageText()).toMatch(/If you cancel in Stripe/i);
   });
 
@@ -260,8 +258,8 @@ describe("a Stripe portal is offered only to a workspace that has one", () => {
       }),
     );
 
-    expect(screen.queryByText("Payment method")).toBeNull();
-    expect(pageText()).toMatch(/isn't linked to a self-serve Stripe account/i);
+    expect(screen.queryByText("Your card, billing email and invoices are kept in Stripe.")).toBeNull();
+    expect(within(screen.getByRole("region", { name: "Payment and invoices" })).getByText(/isn't linked to a self-serve Stripe account/i)).toBeTruthy();
     expect(screen.getByRole("link", { name: "Contact support" })).toBeTruthy();
   });
 });
@@ -285,6 +283,5 @@ describe("no plan, on any tier, is offered a portal without a Stripe customer", 
     );
 
     expect(screen.queryByRole("button", { name: /Manage in Stripe/ })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Change plan" })).toBeNull();
   });
 });

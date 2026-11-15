@@ -395,6 +395,8 @@ export interface CreateApiKeyResponse extends ApiKey {
 }
 
 const _mockApiKeys: ApiKey[] = [];
+// Obviously fake (public repository): `example-not-a-real-key-1`, `-2`, ...; its prefix reads `example-`.
+let _mockKeyCount = 0;
 
 export async function getApiKeys(): Promise<ApiKey[]> {
   if (USE_MOCK) {
@@ -410,7 +412,7 @@ export async function getApiKeys(): Promise<ApiKey[]> {
 export async function createApiKey(label: string): Promise<CreateApiKeyResponse> {
   if (USE_MOCK) {
     await delay(500);
-    const rawKey = "plk_" + Math.random().toString(36).slice(2).padEnd(40, "0");
+    const rawKey = `example-not-a-real-key-${++_mockKeyCount}`;
     const key: ApiKey = {
       id: crypto.randomUUID(),
       label,

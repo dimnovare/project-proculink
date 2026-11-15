@@ -3,6 +3,7 @@ import { render, screen, cleanup, waitFor, within } from "@testing-library/react
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { BillingPlan, BillingStatus } from "@/types/procurement";
 import { PLAN_BY_ID, CHECKOUT_PLAN_IDS, billingPriceLabelFor } from "@/lib/plans";
+import { NUMBER_LOCALE } from "@/lib/format-number";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // THE DEFECT, exactly.
@@ -75,7 +76,7 @@ async function renderBilling(status: BillingStatus) {
     </QueryClientProvider>,
   );
   await waitFor(() => expect(api.getBillingStatus).toHaveBeenCalled());
-  await screen.findByText("Current plan");
+  await screen.findByTestId("plan-card");
   return view;
 }
 
@@ -132,27 +133,38 @@ describe("billingPriceLabelFor derives the price from the interval actually bill
 
 // jsdom applies no Tailwind, so breakpoint-specific subtrees BOTH mount. Every
 // assertion below is scoped to the plan card so it cannot pass against the wrong one.
+// The price line's words, derived from the ladder in the locale every number on the screen uses.
+const words = (n: number, per: "month" | "year") => `€${n.toLocaleString(NUMBER_LOCALE)} a ${per}`;
+
 describe("the plan card prints the price the workspace is actually charged", () => {
   it("an annual Growth workspace is not shown the monthly price", async () => {
     await renderBilling(billing({ plan: "growth", billingInterval: "yearly" }));
 
     const card = within(screen.getByTestId("plan-card"));
-    expect(card.getByText(yearlyLabel(PLAN_BY_ID.growth))).toBeTruthy();
+    expect(card.getByText(`${words(PLAN_BY_ID.growth.priceYearly!, "year")}, billed annually`)).toBeTruthy();
     expect(
-      card.queryByText(PLAN_BY_ID.growth.billingPriceLabel),
-      "€149/mo above 'Billed annually' reads as €1,788 a year",
+      card.queryByText(new RegExp(words(PLAN_BY_ID.growth.priceMonthly!, "month"))),
+      "€149 a month above 'billed annually' reads as €1,788 a year",
     ).toBeNull();
-    // The interval line stays — it is what makes the yearly figure legible.
-    expect(card.getByText("Billed annually")).toBeTruthy();
   });
 
   it("a monthly workspace is unchanged — the control that proves the test bites", async () => {
     await renderBilling(billing({ plan: "growth", billingInterval: "monthly" }));
 
     const card = within(screen.getByTestId("plan-card"));
-    expect(card.getByText(PLAN_BY_ID.growth.billingPriceLabel)).toBeTruthy();
-    expect(card.queryByText(yearlyLabel(PLAN_BY_ID.growth))).toBeNull();
-    expect(card.getByText("Billed monthly")).toBeTruthy();
+    expect(card.getByText(`${words(PLAN_BY_ID.growth.priceMonthly!, "month")}, billed monthly`)).toBeTruthy();
+    expect(card.queryByText(new RegExp(words(PLAN_BY_ID.growth.priceYearly!, "year")))).toBeNull();
+  });
+
+  it("'Your plan' in Change plan is priced by the period the server bills, not by the toggle", async () => {
+    await renderBilling(billing({ plan: "growth", billingInterval: "yearly" }));
+    const period = within(screen.getByRole("radiogroup", { name: "Billing period" }));
+    expect(period.getByRole("radio", { name: "Monthly" }).getAttribute("aria-checked")).toBe("true");
+    const change = within(screen.getByRole("region", { name: "Change plan" }));
+    expect(change.getByText(words(PLAN_BY_ID.growth.priceYearly!, "year"))).toBeTruthy();
+    expect(change.queryByText(words(PLAN_BY_ID.growth.priceMonthly!, "month"))).toBeNull();
+    // The plan on offer still follows the toggle.
+    expect(change.getByText(words(PLAN_BY_ID.operations.priceMonthly!, "month"))).toBeTruthy();
   });
 
   for (const id of ["operations", "integration", "distributor"] as BillingPlan[]) {
@@ -160,8 +172,8 @@ describe("the plan card prints the price the workspace is actually charged", () 
       const plan = PLAN_BY_ID[id];
       await renderBilling(billing({ plan: id, billingInterval: "yearly" }));
       const card = within(screen.getByTestId("plan-card"));
-      expect(card.getByText(yearlyLabel(plan))).toBeTruthy();
-      expect(card.queryByText(plan.billingPriceLabel)).toBeNull();
+      expect(card.getByText(`${words(plan.priceYearly!, "year")}, billed annually`)).toBeTruthy();
+      expect(card.queryByText(new RegExp(words(plan.priceMonthly!, "month")))).toBeNull();
     });
   }
 });

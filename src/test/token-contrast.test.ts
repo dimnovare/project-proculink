@@ -228,7 +228,7 @@ const PAIRS: Array<[string, string, string, number, string]> = [
     "var(--brand-green-bright)",
     "var(--navy)",
     4.5,
-    "the marketing 'Open the dashboard' link — --brand-green is 4.1948:1 on navy, and " +
+    "green words on navy, such as the sign-in panel's 'Clean data out.' — --brand-green is 4.1948:1 on navy, and " +
       "going DEEPER makes it worse: --brand-green-deep is 1.99:1. Dark surfaces need the " +
       "bright step, which is the opposite move from every other row here.",
   ],
@@ -382,12 +382,11 @@ describe("the specific sites the refutation measured", () => {
   const read = (rel: string) => readFileSync(join(REPO, rel), "utf8");
 
   // A fourth site — the /operations/webhooks primary action — was measured here
-  // until FE #130 deleted that page (a duplicate of Settings ▸ Connectors nobody
-  // could navigate to). --brand-green-btn is still guarded by the Copy button
-  // below, so removing the dead site leaves no token unmeasured.
-  it("the settings API-key Copy button rests on the AA button green", () => {
-    const src = read("src/app/(app)/settings/page.tsx");
-    expect(src).toContain(`background: "var(--brand-green-btn)", color: "#FFFFFF"`);
+  // until FE #130 deleted that page. The settings API-key Copy button carried the
+  // AA button green after that, until plan 14.7b made it an outlined button. The
+  // green now has one source, the `send` variant of <Button>, so it is measured there.
+  it("the AA button green under white text is the Button primitive's send variant", () => {
+    expect(read("src/components/bridge/DSPrimitives.tsx")).toContain("bg-brand-green-btn text-white");
   });
 
   it("both admin modals draw the error row on the danger TOKENS", () => {
@@ -404,7 +403,7 @@ describe("the specific sites the refutation measured", () => {
     }
   });
 
-  it("the how-it-works eyebrow dot uses the navy-legible blue", () => {
+  it("the how-it-works pipeline dots use the navy-legible blue", () => {
     const src = read("src/app/(marketing)/how-it-works/page.tsx");
     // WP-30 aliased BLUE_NODE onto --brand-blue, which is 2.89:1 on the dark
     // pill. --brand-blue-bright exists for exactly this and is 6.28:1.

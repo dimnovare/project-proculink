@@ -6,14 +6,11 @@
 // the e2e path lists. Each row below is (new label → route it must still open),
 // taken from DESIGN-DB-1 §6.1–§6.3.
 //
-// The nav/hub tables are asserted against the real exported registries. The
-// page-level TABS array is module-private, so it is asserted against source
-// text — the same cheap house pattern changelog-append-only.test.ts uses, and
-// enough to catch a label/id pair drifting apart.
+// The nav/hub tables and the Settings tabs are asserted against the real exported
+// registries (`SETTINGS_TABS` and its reader live in src/lib/settingsTabs.ts).
 
 import { describe, it, expect, vi } from "vitest";
-import { readFileSync } from "fs";
-import { join } from "path";
+import { readSettingsTab, SETTINGS_TABS } from "@/lib/settingsTabs";
 
 vi.mock("next/navigation", () => ({ usePathname: () => "/documents" }));
 vi.mock("@clerk/nextjs", () => ({
@@ -30,9 +27,6 @@ vi.mock("@/lib/api-client", () => ({
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true, useTenantQueriesEnabled: () => true }));
 
 import { buildVisibleNav } from "./BridgeSidebar";
-
-const ROOT = join(__dirname, "..", "..", "..");
-const read = (rel: string) => readFileSync(join(ROOT, rel), "utf8");
 
 describe("renamed sidebar labels keep their routes", () => {
   // WP-26 removed buildVisibleNav's launch-flag `opts`: with four items there is
@@ -65,22 +59,19 @@ describe("renamed sidebar labels keep their routes", () => {
 });
 
 describe("renamed settings tabs keep their ?tab= ids", () => {
-  const src = read("src/app/(app)/settings/page.tsx");
   const rows: Array<[string, string]> = [
     ["org", "Workspace"],
     ["destinations", "Destinations"],
     ["billing", "Plan & billing"],
     ["api", "API keys"],
-    ["connectors", "Notifications"],
   ];
   for (const [id, label] of rows) {
-    it(`?tab=${id} → "${label.replace(/\\/g, "")}"`, () => {
-      expect(src).toMatch(new RegExp(`id:\\s*"${id}",\\s*label:\\s*"${label}"`));
+    it(`?tab=${id} → "${label}"`, () => {
+      expect(SETTINGS_TABS.find((t) => t.id === id)?.label).toBe(label);
+      expect(readSettingsTab(new URLSearchParams(`tab=${id}`))).toBe(id);
     });
   }
-  it("keeps the SettingsTab union unchanged so old deep links still validate", () => {
-    expect(src).toContain(
-      'type SettingsTab = "org" | "destinations" | "billing" | "api" | "connectors"',
-    );
+  it("an old ?tab=connectors link (the retired Notifications tab) still lands, on Workspace where its settings live", () => {
+    expect(readSettingsTab(new URLSearchParams("tab=connectors"))).toBe("org");
   });
 });

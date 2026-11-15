@@ -533,7 +533,7 @@ function scanTerms() {
  */
 const NOUN_REGISTRIES = [
   { file: "src/components/bridge/BridgeSidebar.tsx", blocks: ["NAV_MAIN", "NAV_TAIL"] },
-  { file: "src/app/(app)/settings/page.tsx", blocks: ["TABS"] },
+  { file: "src/lib/settingsTabs.ts", blocks: ["SETTINGS_TABS"] },
 ];
 
 /**
