@@ -16,6 +16,7 @@ import { deleteDestination, listDestinations, testDestination } from "@/lib/api/
 import type { Destination } from "@/lib/api/documents";
 import { destinationsAddress, destinationWhere, lastSendWords, readDestinationsAddress, usedByWords } from "@/lib/destinations";
 import { documentRefusalMessage, refusalToken } from "@/lib/documentRefusals";
+import { GoogleAccounts } from "./GoogleAccounts";
 import { TestOutcome } from "./TestOutcome";
 
 /** Name, where, used by, last send, the buttons. Below xl a row stacks: name and where left, buttons right, the rest under. */
@@ -76,6 +77,7 @@ export function DestinationsSection() {
         )}
         {rows}
       </Card>
+      <GoogleAccounts destinations={list.data} />
     </div>
   );
 }
