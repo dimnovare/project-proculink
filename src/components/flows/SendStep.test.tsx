@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ApiHttpError } from "@/lib/api/core";
 import type { Destination, DocumentRow, Flow, FlowOutput } from "@/lib/api/documents";
 import { COPY, documentRefusalMessage } from "@/lib/documentRefusals";
+import { documentStatus } from "@/lib/documentStatusManifest";
 import { readiness, SendStep } from "./SendStep";
 
 const api = vi.hoisted(() => ({
@@ -192,6 +193,21 @@ describe("SendStep", () => {
     expect(await screen.findByText(COPY.document_not_found)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Start again" })).toHaveAttribute("href", "/flows/new");
     expect(screen.queryByRole("region", { name: "Finish" })).toBeNull();
+  });
+
+  it("offers no send for a document that could not be read or is already sent: its status, then Finish", async () => {
+    api.listOutputs.mockResolvedValue([csvOutput]);
+    api.listDestinations.mockResolvedValue([savedSftp]);
+    for (const status of ["read_failed", "sent"] as const) {
+      api.getDocument.mockResolvedValue({ summary: { ...row, status }, contentType: "application/pdf", read: null, checks: [], senderLabel: null });
+      const { container, unmount } = render(<SendStep flow={confirmed} docId="d-1" first />, { wrapper: freshWrapper() });
+      const finish = await screen.findByRole("region", { name: "Finish" });
+      expect(await within(finish).findByText(`invoice.pdf: ${documentStatus(status).label}.`)).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("radio", { name: /^Already set up/ }));
+      expect(within(finish).queryByRole("button", { name: /^(Send |Make the file|Finish without)/ })).toBeNull();
+      expect(filled(container).map((b) => b.textContent)).toEqual(["Finish"]);
+      unmount();
+    }
   });
 
   it("sends once on a double press, through the saved destination, keeping the output's stored template", async () => {

@@ -15,6 +15,7 @@ import {
 } from "@/lib/api/documents";
 import { AUTOMATIC_DELIVERY_LABEL, REVIEW_BEFORE_DELIVERY_LABEL } from "@/lib/deliveryMode";
 import { COPY, documentRefusalMessage, refusalToken } from "@/lib/documentRefusals";
+import { documentStatus } from "@/lib/documentStatusManifest";
 import { LIMIT_CODES } from "@/lib/limitRefusal";
 import { saveBlob } from "@/lib/saveBlob";
 import { nextTabIndex } from "@/lib/tabKeys";
@@ -106,14 +107,17 @@ export function SendStep({ flow, docId, first }: { flow: Flow; docId: string | n
   };
   const tile = choice.kind === "new" ? TILES.find((t) => t.tile === choice.tile)! : null;
 
-  const read = doc.data?.read;
+  // A document we could not read answers an empty read: it found nothing, so the finished steps claim no values.
+  const read = doc.data?.read && doc.data.read.fields.length + doc.data.read.tables.length > 0 ? doc.data.read : undefined;
   const fileName = run.row?.fileName ?? doc.data?.summary.fileName ?? "";
   const kept = read ? read.fields.filter((f) => flow.fields.fields.some((k) => k.key === f.key)).length : 0;
   const passed = !!saved && tested?.destinationId === saved.id && tested.ok;
   const listed = choice.kind === "existing" ? destinations.data?.find((d) => d.id === choice.destinationId) : undefined;
   // Ready only when known (I4): the output is there, and a saved destination is one the list still names.
   const known = !!output && (choice.kind !== "existing" || !!listed);
-  const state = known ? readiness(choice, passed ? tested : null, run.isSample) : "unknown";
+  // A document that cannot be sent (it could not be read, or it is already sent) is said in its status's words and only finished.
+  const status = doc.data && documentStatus(doc.data.summary.status, doc.data.summary.statusReason);
+  const state = !known ? "unknown" : status && !status.editable && run.isSample === false ? "closed" : readiness(choice, passed ? tested : null, run.isSample);
   // What Finish attaches: null is Download; a destination only when it was set up before or passed its test now;
   // undefined leaves the output as it is (a new destination not saved, or saved but not passed).
   const going: Destination | undefined = choice.kind === "existing" ? listed : passed ? saved! : undefined;
@@ -256,13 +260,14 @@ export function SendStep({ flow, docId, first }: { flow: Flow; docId: string | n
         <p className="m-0 text-[14px] text-ink">
           {state === "sample" ? "This is our sample invoice, so we never send it. Download its CSV file to see what your documents will become, then add one of your own."
             : state === "unknown" ? "Finish now and send your document later from Documents."
+            : state === "closed" ? `${fileName}: ${status!.label}.`
             : state === "download" ? "Your document is ready. You download it as a CSV file."
             : state === "ready" ? `Your document is ready. It goes to ${going!.name} as a CSV file.`
             : "Send a test first to check the settings. Or finish now and send your document later from Documents."}
         </p>
         {(later || unused) && <p className="m-0 text-[14px] text-ink">{later || unused}</p>}
         <div className="flex flex-wrap items-center gap-4">
-          {state === "sample" || state === "unknown" ? (
+          {state === "sample" || state === "unknown" || state === "closed" ? (
             <Button variant="primary" disabled={busy} loading={finish.isPending} onClick={() => press(finish)}>Finish</Button>
           ) : (
             <Button variant={state === "not-ready" ? "secondary" : "send"} disabled={busy || state === "not-ready"} loading={send.isPending} onClick={() => press(send)}>
@@ -270,7 +275,7 @@ export function SendStep({ flow, docId, first }: { flow: Flow; docId: string | n
             </Button>
           )}
           {state === "sample" && <button type="button" className={LINK_BUTTON} disabled={busy} onClick={() => press(sample)}>Download the sample&apos;s CSV file</button>}
-          {state !== "sample" && state !== "unknown" && (
+          {state !== "sample" && state !== "unknown" && state !== "closed" && (
             <button type="button" className={LINK_BUTTON} disabled={busy} onClick={() => press(finish)}>
               {state === "download" ? "Finish without downloading" : "Finish without sending"}
             </button>
