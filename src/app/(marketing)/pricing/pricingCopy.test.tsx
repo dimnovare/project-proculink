@@ -20,7 +20,7 @@ describe("/pricing", () => {
     expect(html).toContain(`${pilot.orderLimit} documents, ${pilot.flowLimit} flows, no credit card.`);
     expect(PLAN_BY_ID.enterprise.priceCadence.replace(/\D/g, "")).toBe(String(ENTERPRISE_FLOOR_EUR));
     expect(html).toContain(`From €${ENTERPRISE_FLOOR_EUR.toLocaleString("en-GB")} a month.`);
-    expect(html).not.toMatch(/→|·|Recommended plan|plk-price-card|per extra document/);
+    expect(html).not.toMatch(/→|·|Recommended plan|plk-price-card|per extra document|most popular|supplier-ready|See all tiers|Custom suppliers|ERP connectors/i);
   });
 
   it("asks nine questions in the board's order, the first open, with the trial and mode words from the code", () => {
@@ -38,7 +38,8 @@ describe("/pricing", () => {
       expect.stringMatching(/^I.m on .+\. What changes\?$/),
     ]);
     expect(items.map((d) => d.open)).toEqual([true, false, false, false, false, false, false, false, false]);
-    expect(items[2].textContent).toContain(`one of your ${PLAN_BY_ID.pilot.orderLimit} trial documents`);
+    expect(items[2].textContent).toContain(`it counts towards your ${PLAN_BY_ID.pilot.orderLimit} trial documents.`);
+    expect(items[2].textContent).not.toMatch(/\bone of your\b/);
     expect(items[3].textContent).toContain(REVIEW_BEFORE_DELIVERY_LABEL);
     expect(items[3].textContent).toContain(AUTOMATIC_DELIVERY_LABEL);
     expect(items[5].textContent).toContain("we prorate the difference");

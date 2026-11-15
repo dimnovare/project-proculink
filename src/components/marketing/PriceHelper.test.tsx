@@ -1,6 +1,7 @@
 import { fireEvent, render, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { DOCUMENT_PLANS, yearlyMonthlyEquivalent } from "@/lib/plans";
+import { euro } from "@/lib/billingWords";
+import { DOCUMENT_PLANS } from "@/lib/plans";
 import { PRICE_STOPS, PriceHelper } from "./PriceHelper";
 
 const fmt = (n: number) => n.toLocaleString("en-GB");
@@ -48,10 +49,11 @@ describe("PriceHelper", () => {
     expect(annual).toHaveAttribute("aria-pressed", "true");
     for (const p of DOCUMENT_PLANS) {
       const text = column(p.id).textContent!;
-      expect(text, p.id).toContain(`€${yearlyMonthlyEquivalent(p)}a month`);
+      // The exact monthly equivalent, never rounded down: "€29.17", "€57.50".
+      expect(text, p.id).toContain(`${euro(p.priceYearly! / 12)}a month`);
       expect(text, p.id).toContain(`Billed once a year, €${fmt(p.priceYearly!)}`);
       expect(text, p.id).not.toContain("Or €");
     }
-    expect(said()).toBe("About 200 a month: Starter is cheapest, about €41 with extra documents.From about 270 a month, Pro costs less.");
+    expect(said()).toBe("About 200 a month: Starter is cheapest, about €41.17 with extra documents.From about 270 a month, Pro costs less.");
   });
 });

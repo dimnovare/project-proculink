@@ -9,7 +9,6 @@ import {
   DOCUMENT_PLANS,
   PLAN_BY_ID,
   cheapestDocumentPlan,
-  yearlyMonthlyEquivalent,
   type BillingPeriod,
 } from "@/lib/plans";
 import { SITE, Tag } from "./sitePictures";
@@ -130,7 +129,7 @@ export function PriceHelper({ heading }: { heading?: ReactNode }) {
                 <h3 className={`${SITE.h3} min-[1100px]:row-start-2 min-[1100px]:mt-2.5`}>{plan.name}</h3>
                 <p className="whitespace-nowrap text-right min-[1100px]:row-start-3 min-[1100px]:mt-3.5 min-[1100px]:flex min-[1100px]:items-baseline min-[1100px]:text-left">
                   <span className="font-display text-[28px] font-semibold leading-none tracking-[-0.02em] min-[1100px]:text-[clamp(38px,3.2vw,44px)]">
-                    {euro(yearly ? yearlyMonthlyEquivalent(plan)! : plan.priceMonthly!)}
+                    {euro(yearly ? plan.priceYearly! / 12 : plan.priceMonthly!)}
                   </span>
                   <span className={`${SITE.soft} ml-2 text-[15px] min-[1100px]:text-[17px]`}>a month</span>
                 </p>

@@ -421,8 +421,9 @@ export const PLANS: Plan[] = [
  * legacy ladder above. Mirrors the document rows of `PlanConstants` (Limits, MonthlyPriceEur,
  * FlowLimits, OverageRatesEur), diffed by `backendMirror.test.ts`. Every one of them has every
  * channel, output and check (`PlanHasFeature`: all but SSO); they differ by documents per month
- * and flows. Annual is 10 × monthly. Deliberately NOT in `PLANS`, so no public page or
- * card-walking test sees them; the accent is Growth's, already contrast-checked as button text.
+ * and flows. Annual is 10 × monthly. Kept out of `PLANS`, which holds the legacy ladder; /pricing renders
+ * them from here and `gatedCapabilityClaims` walks them through `data-plans`. The accent is Growth's,
+ * already contrast-checked as button text.
  */
 export const DOCUMENT_PLANS: Plan[] = (
   [
@@ -472,7 +473,7 @@ export const PLAN_BY_ID: Record<PlanId, Plan> = [...PLANS, ...DOCUMENT_PLANS].re
 /** Plans kept for workspaces already paying on them; never offered publicly. */
 export const LEGACY_PAID_PLANS: readonly Plan[] = PLANS.filter((p) => p.isCheckout && !DOCUMENT_PLAN_IDS.includes(p.id));
 
-/** Every bullet a document plan card shares; the per-plan overage line is added by the card. */
+/** Every bullet the document plans share, shown once on /pricing under "On every paid plan". */
 export const DOCUMENT_PLAN_FEATURES: readonly string[] = [
   "Every way in: upload, email, mailbox, SFTP, FTP, S3 and API",
   "Every output: CSV, JSON, XML, Excel, PDF, text and fixed-width",
@@ -638,6 +639,7 @@ export interface CheapestAnswer {
   /** Always a `DOCUMENT_PLANS` entry, never Enterprise. */
   plan: Plan;
   fits: boolean;
+  /** One month at this volume, in euros with any cents: an annual price is never rounded down. */
   euros: number;
   /** The plan that wins next, from about which volume (nearest 10), and whether it only ties. null on the top plan. */
   next: { plan: Plan; from: number; same: boolean } | null;
@@ -649,13 +651,14 @@ function winner(documents: number, period: BillingPeriod): Plan {
     documentPlanMonth(p, documents, period).compared <= documentPlanMonth(best, documents, period).compared ? p : best);
 }
 
-/** Every volume up to twice the top allowance at which the winner changes, found once per period. */
+/** Every volume up to the top allowance at which the winner changes, found once per period. Above it the top plan
+ *  always wins (every plan is billed as the top plan there, so a tie goes to it), so there is nothing more to find. */
 const crossings = new Map<BillingPeriod, number[]>();
 function crossingsFor(period: BillingPeriod): number[] {
   let found = crossings.get(period);
   if (!found) {
     found = [];
-    for (let n = 2, last = winner(1, period); n <= 2 * DOCUMENT_PLANS[DOCUMENT_PLANS.length - 1].orderLimit!; n++) {
+    for (let n = 2, last = winner(1, period); n <= DOCUMENT_PLANS[DOCUMENT_PLANS.length - 1].orderLimit!; n++) {
       const w = winner(n, period);
       if (w !== last) found.push(n);
       last = w;
@@ -673,7 +676,7 @@ export function cheapestDocumentPlan(documents: number, period: BillingPeriod): 
   return {
     plan,
     fits: documents <= plan.orderLimit!,
-    euros: Math.round(documentPlanMonth(plan, documents, period).billed / 1200),
+    euros: documentPlanMonth(plan, documents, period).billed / 1200,
     next: next && {
       plan: next,
       from: Math.round(at! / 10) * 10,
@@ -693,7 +696,7 @@ export function cheapestDocumentPlan(documents: number, period: BillingPeriod): 
  * all four self-serve tiers.
  *
  * Annual returns the YEARLY total rather than a monthly-equivalent
- * (see `yearlyMonthlyEquivalent`, which the /pricing comparison still wants) because
+ * (see `yearlyMonthlyEquivalent`, a whole-euro monthly figure) because
  * this card's job is to be reconcilable against the Stripe invoice, and the invoice is
  * one annual charge. Grouping is pinned to en-US so the rendered string does not depend
  * on the reader's machine locale — "€1,488" is the same shape `priceLabel` already uses.
@@ -717,8 +720,8 @@ export function billingPriceLabelFor(
  */
 export const OVERAGE_PER_ORDER_EUR = 0.5;
 
-/** Enterprise "from" price floor (EUR/month) — used only as a recommendation
- *  threshold; Enterprise itself is custom / contact-sales. */
+/** Enterprise "from" price floor (EUR/month): printed on /pricing's Enterprise row and used as the
+ *  legacy recommender's threshold; Enterprise itself is custom / contact-sales. */
 export const ENTERPRISE_FLOOR_EUR = 2500;
 
 export interface EffectiveCost {

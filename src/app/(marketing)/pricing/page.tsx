@@ -50,7 +50,7 @@ const FAQ: Array<[string, ReactNode]> = [
   ],
   [
     "Can I try it with a test or anonymised document?",
-    `Yes. Use a test file, or blank out anything sensitive first. It is read like any other document, and it counts as one of your ${TRIAL.orderLimit} trial documents.`,
+    `Yes. Use a test file, or blank out anything sensitive first. It is read like any other document, and it counts towards your ${TRIAL.orderLimit} trial documents.`,
   ],
   [
     "Will anything be sent automatically during the trial?",
@@ -170,7 +170,7 @@ export default function PricingPage() {
           <div className="flex flex-[1_1_300px] flex-col gap-4">
             <h2 id="questions-title" className={SITE.h2}>Questions, answered</h2>
             <p className={SITE.soft}>
-              Something else on your mind? <Link href="/book-demo" className="font-semibold">Talk to us</Link>
+              Something else on your mind? <Link href="/book-demo" className={LINK}>Talk to us</Link>
             </p>
           </div>
           <div className="min-w-0 flex-[2.2_1_560px] border-t border-border">

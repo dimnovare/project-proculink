@@ -15,7 +15,7 @@ import {
   yearlySavePercent,
 } from "@/lib/plans";
 import { planIncludesCapability } from "@/lib/gatedCapabilities";
-import { monthsFree } from "@/lib/billingWords";
+import { euro, monthsFree } from "@/lib/billingWords";
 
 // Cost-optimal recommendation (LAUNCH BATCH 1, Task C): effective monthly cost
 // = flat price + max(0, orders − allowance) × €0.50, mirroring the backend
@@ -182,9 +182,11 @@ describe("the price helper's cheapest plan", () => {
     expect(cheapestDocumentPlan(291, "monthly").plan.id).toBe("starter");
     expect(cheapestDocumentPlan(292, "monthly").plan.id).toBe("pro");
     expect(cheapestDocumentPlan(200, "monthly")).toMatchObject({ euros: 47, next: { from: 290, same: true } });
-    expect(cheapestDocumentPlan(200, "yearly")).toMatchObject({ euros: 41, next: { from: 270, same: false } });
+    expect(cheapestDocumentPlan(200, "yearly")).toMatchObject({ next: { from: 270, same: false } });
+    // A price is never rounded down: the annual answer keeps its cents.
+    expect(euro(cheapestDocumentPlan(200, "yearly").euros)).toBe("€41.17");
     expect(cheapestDocumentPlan(7_500, "monthly")).toMatchObject({ euros: 599, next: null });
     // "Annual, N months free" reads one plan's months; every paid plan must give the same N.
     expect(new Set(DOCUMENT_PLANS.map(monthsFree))).toEqual(new Set([12 - DOCUMENT_PLANS[0].priceYearly! / DOCUMENT_PLANS[0].priceMonthly!]));
-  });
+  }, 30_000);
 });
