@@ -1,8 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within, act } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ApiHttpError } from "@/lib/api/core";
+import type { Flow, FlowField } from "@/lib/api/documents";
 import { FlowPage } from "./FlowPage";
+import { useDraftPart } from "./flowDraft";
 
 const replace = vi.hoisted(() => vi.fn());
 const search = vi.hoisted(() => ({ q: "" }));
@@ -13,97 +15,84 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => true }));
 
 const api = vi.hoisted(() => ({
-  getFlow: vi.fn(), updateFlow: vi.fn(), listDocuments: vi.fn(), uploadDocument: vi.fn(), getDocument: vi.fn(),
-  listOutputs: vi.fn(), deleteOutput: vi.fn(), listDestinations: vi.fn(),
-  publishFlow: vi.fn(), restoreFlowVersion: vi.fn(), listFlowVersions: vi.fn(),
+  getFlow: vi.fn(), updateFlow: vi.fn(), listIntakes: vi.fn(), listOutputs: vi.fn(), listDestinations: vi.fn(),
+  listDocumentPage: vi.fn(), publishFlow: vi.fn(), restoreFlowVersion: vi.fn(), listFlowVersions: vi.fn(),
 }));
 vi.mock("@/lib/api/documents", () => api);
 
+// History stands in for a step with a draft part: the frame must flush it before it lets the person leave.
+const part = vi.hoisted(() => ({ save: vi.fn(), change: null as null | ((v: string) => void) }));
+vi.mock("./FlowVersionsPanel", () => ({
+  FlowVersionsPanel: function Panel() {
+    part.change = useDraftPart("values", "read", part.save).change;
+    return <p>Earlier versions</p>;
+  },
+}));
+
+const field = (key: string): FlowField => ({ key, label: key, type: "text", meaning: null, required: true });
 const flow = {
-  id: "f", name: "Receipts", fieldsConfirmed: true, publishedVersion: null, fields: { fields: [], tables: [] },
-  documentCount: 0, createdAt: "", automation: "review",
-};
-const DUPLICATE = "Documents with a number we've already received always wait for you.";
+  id: "flow-1", name: "Supplier invoices", fieldsConfirmed: true, documentCount: 3, createdAt: "", automation: "review",
+  fields: { fields: ["a", "b", "c", "d", "e", "f"].map(field), tables: [{ key: "lines", label: "Lines", columns: ["x", "y", "z"].map(field) }] },
+  publishedVersion: 1, hasChanges: false, noCorrectionStreak: null,
+} as Flow;
 
 beforeEach(() => {
   vi.clearAllMocks();
   search.q = "";
   api.getFlow.mockResolvedValue(flow);
-  api.listDocuments.mockResolvedValue([]);
+  api.listIntakes.mockResolvedValue([]);
   api.listOutputs.mockResolvedValue([]);
   api.listDestinations.mockResolvedValue([]);
+  api.listDocumentPage.mockResolvedValue({ items: [], totalCount: 0, page: 1, pageSize: 10, sampleCount: 0 });
+  api.listFlowVersions.mockResolvedValue([]);
 });
 
-const renderPage = () =>
-  render(<QueryClientProvider client={new QueryClient()}><FlowPage flowId="f" /></QueryClientProvider>);
+const renderPage = () => render(<QueryClientProvider client={new QueryClient()}><FlowPage flowId="flow-1" /></QueryClientProvider>);
+const strip = () => within(screen.getByRole("navigation", { name: "Flow sections" }));
+const findStrip = async () => within(await screen.findByRole("navigation", { name: "Flow sections" }));
 
 describe("FlowPage", () => {
-  it("switching to automatic sends the new setting and keeps the duplicate rule visible", async () => {
-    api.updateFlow.mockResolvedValue({ ...flow, automation: "auto" });
+  it("the strip marks the chosen step and an old tab name still works", async () => {
+    search.q = "tab=fields";
     renderPage();
-    fireEvent.click(await screen.findByRole("radio", { name: "Automatic delivery" }));
-    await waitFor(() => expect(api.updateFlow).toHaveBeenCalledWith("f", { automation: "auto" }));
-    expect(screen.getByText(DUPLICATE)).toBeTruthy();
-    await waitFor(() => expect((screen.getByRole("radio", { name: "Automatic delivery" }) as HTMLInputElement).checked).toBe(true));
+    const read = (await findStrip()).getByRole("link", { name: "We read" });
+    expect(read).toHaveAttribute("aria-current", "page");
+    expect(read).toHaveAccessibleDescription("9 values, 1 table");
+    expect(within(strip().getByRole("link", { name: /^Documents/ })).getByText("3")).toBeTruthy();
+    expect(strip().getAllByRole("link").filter((l) => l.getAttribute("aria-current") === "page")).toEqual([read]);
   });
 
-  it.each([[12, "The last 12 documents were sent without a correction."], [201, "The last 200+ documents were sent without a correction."]])(
-    "shows the no-correction streak %i beside the automation choice", async (n, text) => {
-      api.getFlow.mockResolvedValue({ ...flow, noCorrectionStreak: n });
+  it.each([["fields", "We read"], ["outputs", "We send"], ["intake", "Arrives"], ["versions", /^History/], ["documents", /^Documents/]] as const)(
+    "the old tab name %s lands on %s", async (tab, name) => {
+      search.q = `tab=${tab}`;
       renderPage();
-      expect(await screen.findByText(text)).toBeTruthy();
+      expect((await findStrip()).getByRole("link", { name })).toHaveAttribute("aria-current", "page");
     });
 
-  it("shows no streak text while the streak is absent", async () => {
+  it("a refused change keeps the person on the step", async () => {
+    search.q = "tab=history";
+    part.save.mockRejectedValue(new ApiHttpError("forbidden", 403, { error: "requires_org_admin" }));
     renderPage();
-    await screen.findByRole("radio", { name: "Automatic delivery" });
-    expect(screen.queryByText(/without a correction|needed a correction/)).toBeNull();
+    await screen.findByText("Earlier versions");
+    act(() => part.change!("Invoice no"));
+    fireEvent.click(strip().getByRole("link", { name: "We send" }));
+    expect(await screen.findByText(/^A change couldn't be saved, so you are still on this step\./)).toHaveTextContent(
+      "A change couldn't be saved, so you are still on this step. Only a workspace admin can change this.",
+    );
+    expect(replace).not.toHaveBeenCalled();
   });
 
-  it("tabs are wired for screen readers and move with the arrow, Home and End keys", async () => {
+  it("rename", async () => {
+    api.updateFlow.mockImplementation(async (_id: string, patch: { name: string }) => ({ ...flow, ...patch }));
     renderPage();
-    const tabs = await screen.findAllByRole("tab");
-    const panel = screen.getByRole("tabpanel");
-    expect(tabs.map((t) => t.tabIndex)).toEqual([0, -1, -1, -1, -1]);
-    expect(panel.getAttribute("aria-labelledby")).toBe(tabs[0].id);
-    tabs.forEach((t) => expect(document.getElementById(t.getAttribute("aria-controls")!)).toBe(panel));
-    const press = (key: string, expectedTab: string, i: number) => {
-      fireEvent.keyDown(tabs[0], { key });
-      expect(replace).toHaveBeenLastCalledWith("/flows/f?tab=" + expectedTab);
-      expect(document.activeElement).toBe(tabs[i]);
-    };
-    press("ArrowRight", "fields", 1);
-    press("ArrowLeft", "versions", 4);
-    press("End", "versions", 4);
-    press("Home", "documents", 0);
-  });
-
-  it("the fields form shows the server's fields again after a discard or restore", async () => {
-    search.q = "tab=fields";
-    const field = { key: "number", label: "Number", type: "code", meaning: null, required: false };
-    api.getFlow.mockResolvedValue({ ...flow, publishedVersion: 1, fields: { fields: [field], tables: [] } });
-    const qc = new QueryClient();
-    render(<QueryClientProvider client={qc}><FlowPage flowId="f" /></QueryClientProvider>);
-    fireEvent.change(await screen.findByRole("textbox", { name: "Label" }), { target: { value: "Edited" } });
-    // What a discard or restore does with the flow the server sends back.
-    act(() => { qc.setQueryData(["flow", "f"], { ...flow, publishedVersion: 1, fields: { fields: [{ ...field, label: "Order no" }], tables: [] } }); });
-    await waitFor(() => expect((screen.getByRole("textbox", { name: "Label" }) as HTMLInputElement).value).toBe("Order no"));
-  });
-
-  it("a standard output row names its standard and offers no Advanced view", async () => {
-    search.q = "tab=outputs";
-    api.listOutputs.mockResolvedValue([{ id: "o", flowId: "f", name: "To the buyer", format: "xml", standard: "cxml-1-2", tableKey: null, destinationId: null, createdAt: "", sendWhen: null }]);
-    renderPage();
-    expect(await screen.findByText(/^cXML · /)).toBeTruthy();
-    expect(screen.queryByRole("link", { name: "Open in Advanced" })).toBeNull();
-  });
-
-  it("shows the format copy when the server refuses the file type", async () => {
-    api.uploadDocument.mockRejectedValue(new ApiHttpError("nope", 415, { error: "unsupported_format" }));
-    renderPage();
-    await screen.findByDisplayValue("Receipts");
-    const input = screen.getByLabelText("Choose a file", { selector: "input" });
-    fireEvent.change(input, { target: { files: [new File(["x"], "a.pdf", { type: "application/pdf" })] } });
-    expect((await screen.findByRole("alert")).textContent).toBe("This file type can't be read in this flow.");
+    fireEvent.click(await screen.findByRole("button", { name: "Rename this flow" }));
+    const input = screen.getByRole("textbox", { name: "Flow name" });
+    fireEvent.change(input, { target: { value: "Supplier bills" } });
+    fireEvent.submit(input);
+    fireEvent.submit(input);
+    expect(await screen.findByRole("heading", { level: 1, name: "Supplier bills" })).toBeTruthy();
+    expect(api.updateFlow).toHaveBeenCalledTimes(1);
+    expect(api.updateFlow).toHaveBeenCalledWith("flow-1", { name: "Supplier bills" });
+    await waitFor(() => expect(screen.queryByRole("textbox", { name: "Flow name" })).toBeNull());
   });
 });

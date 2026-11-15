@@ -16,9 +16,9 @@ const VIEWS = new Map<string, FlowView>([
 ]);
 
 /** The view the address asks for; null when it names none, or names one we do not know, or names more than one. */
-export function readFlowView(params: Pick<URLSearchParams, "getAll">): FlowView | null {
-  const tabs = params.getAll("tab");
-  return tabs.length === 1 ? VIEWS.get(tabs[0]) ?? null : null;
+export function readFlowView(params: Pick<URLSearchParams, "get" | "getAll">): FlowView | null {
+  const tab = params.get("tab");
+  return tab !== null && params.getAll("tab").length === 1 ? VIEWS.get(tab) ?? null : null;
 }
 
 export function flowAddress(flowId: string, view: FlowView | null, extra?: { output?: string }): string {

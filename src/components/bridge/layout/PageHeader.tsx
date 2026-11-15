@@ -21,10 +21,19 @@ type PageHeaderProps = {
   back?: { href: string; label: string };
   /** Right side, aligned to the bottom of the title block; wraps under it on phones. */
   actions?: React.ReactNode;
+  /** A small control drawn right after the title, on its line (e.g. a rename pen). Absent: the title renders as before. */
+  titleAction?: React.ReactNode;
   className?: string;
 };
 
-export function PageHeader({ title, sub, back, actions, className }: PageHeaderProps) {
+export function PageHeader({ title, sub, back, actions, titleAction, className }: PageHeaderProps) {
+  const h1 = (
+    <h1
+      className="m-0 break-words font-display text-[26px] font-semibold leading-[1.1] tracking-[-0.015em] text-ink [overflow-wrap:anywhere] sm:text-[30px]"
+    >
+      {title}
+    </h1>
+  );
   return (
     <div
       className={["mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-6", className]
@@ -42,11 +51,7 @@ export function PageHeader({ title, sub, back, actions, className }: PageHeaderP
             <span className="[overflow-wrap:anywhere]">{back.label}</span>
           </Link>
         )}
-        <h1
-          className="m-0 break-words font-display text-[26px] font-semibold leading-[1.1] tracking-[-0.015em] text-ink [overflow-wrap:anywhere] sm:text-[30px]"
-        >
-          {title}
-        </h1>
+        {titleAction ? <div className="flex min-w-0 items-center gap-1">{h1}{titleAction}</div> : h1}
         {sub && (
           <p className="mt-1.5 text-[15px] leading-[1.45] text-ink-muted [overflow-wrap:anywhere]">
             {sub}

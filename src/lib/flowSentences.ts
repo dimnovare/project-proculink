@@ -6,7 +6,7 @@ export const WAY_IN_WORDS: Record<string, string> = {
 };
 
 /** "a, b and c". */
-const and = (words: readonly string[]) => (words.length < 2 ? words.join("") : `${words.slice(0, -1).join(", ")} and ${words.at(-1)}`);
+export const and = (words: readonly string[]) => (words.length < 2 ? words.join("") : `${words.slice(0, -1).join(", ")} and ${words.at(-1)}`);
 
 /** Each way once, in WAY_IN_WORDS order, upload always last. An unknown kind is skipped. */
 export function waysInWords(kinds: readonly string[]): string {

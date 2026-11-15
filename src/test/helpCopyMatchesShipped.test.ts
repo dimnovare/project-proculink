@@ -24,6 +24,7 @@ const SHIPPED = [
   ...readdirSync(FLOWS).filter((f) => f.endsWith(".tsx") && !/\.test\./.test(f)).map((f) => join(FLOWS, f)),
   join(ROOT, "src", "lib", "documentRefusals.ts"),
   join(ROOT, "src", "lib", "documentStatusManifest.ts"),
+  join(ROOT, "src", "lib", "flowSteps.ts"),   // the flow page's step names
   join(ROOT, "src", "components", "bridge", "BridgeSidebar.tsx"),
 ]
   .map((f) => readFileSync(f, "utf8"))
