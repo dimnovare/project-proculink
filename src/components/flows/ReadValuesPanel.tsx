@@ -240,7 +240,7 @@ export function ReadValuesPanel({ detail, editable, edits, marks, onLocate, flow
         <legend className="sr-only">Read values</legend>
         {marked.map(fieldRow)}
         {marked.length > 0 && (rest.length > 0 || tables.length > 0) && (
-          <h3 className="m-0 text-[13px] font-semibold text-ink">{marks.allClear ? "Read clearly" : "The rest"}</h3>
+          <h3 className="m-0 text-[13px] font-semibold text-ink">{marks.allClear && ![...marks.looks.keys()].some((k) => k.startsWith("cell:")) ? "Read clearly" : "The rest"}</h3>
         )}
         {rest.map(fieldRow)}
         {tables.map((t) => <TableValues key={t.key} table={t} marks={marks} edits={edits} onLocate={onLocate} />)}

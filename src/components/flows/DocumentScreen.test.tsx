@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ApiHttpError } from "@/lib/api/core";
+import { COPY } from "@/lib/documentRefusals";
 import { DocumentScreen } from "./DocumentScreen";
 
 const replace = vi.hoisted(() => vi.fn());
@@ -238,5 +239,42 @@ describe("DocumentScreen", () => {
     expect(tabs.getByRole("tab", { name: "Original" })).toHaveAttribute("aria-selected", "true");
     expect(await within(screen.getByRole("tabpanel", { name: "Original" })).findByText(/supplier/)).toBeInTheDocument(); // the pointing help names the field
     expect(api.fetchDocumentSource).toHaveBeenCalledTimes(1);
+  });
+  it("a save the server rate-limits keeps what was typed, never reads as saved, and Try again sends it", async () => {
+    api.editDocumentValues
+      .mockRejectedValueOnce(new ApiHttpError("slow", 429, { error: "Rate limit exceeded. Please slow down and retry shortly." }))
+      .mockResolvedValueOnce(detail("INV-2"));
+    renderScreen();
+    const input = await screen.findByLabelText("Invoice number");
+    fireEvent.change(input, { target: { value: "INV-2" } });
+    fireEvent.blur(input);
+    const read = within(screen.getByRole("tabpanel", { name: "What we read" }));
+    expect(await read.findByText("Not saved yet")).toBeInTheDocument();
+    expect(input).toHaveValue("INV-2");
+    fireEvent.click(read.getByRole("button", { name: "Try again" }));
+    await waitFor(() => expect(api.editDocumentValues).toHaveBeenCalledTimes(2));
+    expect(api.editDocumentValues).toHaveBeenLastCalledWith("d", { fields: [{ key: "invoice_no", value: "INV-2" }] });
+    expect(await read.findByText("Saves as you type")).toBeInTheDocument();
+  });
+
+  it("a waiting save that is refused sends nothing and says so where Send was pressed", async () => {
+    api.editDocumentValues.mockRejectedValue(new ApiHttpError("no", 409, { error: "document_sent" }));
+    renderScreen();
+    const header = within(await screen.findByTestId("review-header-actions"));
+    fireEvent.change(screen.getByLabelText("Invoice number"), { target: { value: "INV-2" } });
+    fireEvent.click(header.getByRole("button", { name: "Send and open next" }));
+    expect(await screen.findByTestId("review-refusal")).toHaveTextContent(COPY.document_sent);
+    expect(api.sendDocument).not.toHaveBeenCalled();
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("after a send whose queue refresh failed, the person lands on Needs you", async () => {
+    api.sendDocument.mockResolvedValue([]);
+    renderScreen(new QueryClient({ defaultOptions: { queries: { retry: false } } }));
+    const header = within(await screen.findByTestId("review-header-actions"));
+    await header.findByText("2 of 3 that need you");
+    api.listDocumentPage.mockRejectedValue(new Error("offline"));
+    fireEvent.click(header.getByRole("button", { name: "Send and open next" }));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/documents?show=needs-you"));
   });
 });

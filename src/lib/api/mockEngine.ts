@@ -8,6 +8,7 @@
  */
 import { DOCUMENT_STATUSES, documentStatus } from "../documentStatusManifest";
 import { ApiHttpError } from "./core";
+import { REVIEW_CONFIDENCE } from "../reviewMarks";
 import { mockSourceBytesForKey } from "./mockSourceDocument";
 import type {
   Destination, DocumentCheck, DocumentDelivery, DocumentDetail, DocumentRow, DocumentSummary, EditValuesRequest, Flow, FlowField, FlowIntake, FlowOutput,
@@ -195,7 +196,7 @@ function editValues(id: string, body: Body): DocumentDetail {
   const failed = flow.fields.fields.filter((f) => f.required).flatMap((f) => {
     const v = copy.fields.find((x) => x.key === f.key);
     if (!v?.value?.trim()) return [notFound(f.key, f.label)];
-    return v.confidence < 0.75 ? [hardToRead(f.key, f.label)] : [];
+    return v.confidence < REVIEW_CONFIDENCE ? [hardToRead(f.key, f.label)] : [];
   }).concat(was.failed.filter((c) => c.code === "duplicate"));
   const status = was.status === STATUS.send_failed ? was.status : failed.length ? STATUS.needs_review : STATUS.ready;
   remembered.set(id, { ...was, status, read: copy, failed });

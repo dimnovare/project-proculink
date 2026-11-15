@@ -68,4 +68,12 @@ describe("DocumentOutputsPanel", () => {
     expect(panel.queryByRole("heading", { name: "Deliveries" })).toBeNull();
     expect(panel.queryByRole("button", { name: /^Send/ })).toBeNull();
   });
+  it("lists a stored delivery with its line and Download", async () => {
+    api.listDeliveries.mockResolvedValue([{ id: "x", outputName: "Totals", protocol: "", status: "stored", attempts: 0, lastError: null, fileName: "totals.csv", deliveredAt: null }]);
+    const panel = within(renderPanel().container);
+    expect(await panel.findByRole("heading", { name: "Deliveries" })).toBeInTheDocument();
+    expect(panel.getByText("Download, Ready to download")).toBeInTheDocument();
+    expect(panel.getByRole("button", { name: "Download" })).toBeInTheDocument();
+    expect(panel.queryByText(/Nothing has been sent/)).toBeNull();
+  });
 });

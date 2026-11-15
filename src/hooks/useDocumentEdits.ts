@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { ApiHttpError } from "@/lib/api/core";
 import { editDocumentValues, type EditValuesRequest } from "@/lib/api/documents";
 import { documentRefusalMessage, refusalToken } from "@/lib/documentRefusals";
 import { editKey, type EditTarget } from "@/lib/reviewMarks";
@@ -52,6 +53,8 @@ export function useDocumentEdits(documentId: string): DocumentEdits {
   const apply = useCallback(async (req: EditValuesRequest) => {
     try {
       const answer = await editDocumentValues(documentId, req);
+      // A refetch that started before the answer must not write the old value back over it.
+      await qc.cancelQueries({ queryKey: ["document", documentId] });
       qc.setQueryData(["document", documentId], answer);
       qc.invalidateQueries({ queryKey: ["document-history", documentId] });
       // A saved value can change a list row: its number, sender, checks or status.
@@ -65,12 +68,14 @@ export function useDocumentEdits(documentId: string): DocumentEdits {
       show();
       setRefusal(null);
     } catch (e) {
-      if (refusalToken(e) === null) throw e;
+      // A 429 (rate limit or quota) is about the moment, not the value: it fails, and what was typed stays.
+      if (refusalToken(e) === null || (e instanceof ApiHttpError && e.status === 429)) throw e;
       refused.current = e;
       drafts.current.clear();
       show();
       setRefusal(documentRefusalMessage(e));
       qc.invalidateQueries({ queryKey: ["document", documentId] });
+      qc.invalidateQueries({ queryKey: ["documents"] });
     }
   }, [documentId, qc, show]);
 

@@ -247,7 +247,9 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
     },
     onSuccess: async (before) => {
       await Promise.all([["documents"], ["document", documentId], ["deliveries", documentId], ["document-history", documentId]].map((queryKey) => qc.invalidateQueries({ queryKey })));
-      const next = pickNext(before, qc.getQueryData<DocumentPage>(reviewQueueQuery.queryKey)?.items, documentId);
+      // R2: a refresh that failed tells us nothing, so the person goes to Needs you rather than to a guess.
+      const refreshFailed = qc.getQueryState(reviewQueueQuery.queryKey)?.status === "error";
+      const next = refreshFailed ? null : pickNext(before, qc.getQueryData<DocumentPage>(reviewQueueQuery.queryKey)?.items, documentId);
       router.replace(next ? documentHref(next) : documentsAddress("needs-you"));
     },
     onError: (e) => { if (e !== UNSAVED && refusalToken(e) !== null) qc.invalidateQueries({ queryKey: ["document", documentId] }); },
@@ -303,7 +305,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
         )}
       />
       {refused && (
-        <div ref={scrollTo} className="mb-4">
+        <div ref={scrollTo} data-testid="review-refusal" className="mb-4">
           <StatusNotice tone="error">{refused === UNSAVED ? UNSAVED_TEXT : documentRefusalMessage(refused)}</StatusNotice>
         </div>
       )}
