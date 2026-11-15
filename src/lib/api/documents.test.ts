@@ -78,6 +78,14 @@ describe("documents api", () => {
     });
   });
 
+  it("sends the search term with the page, and nothing for it when it is not given", async () => {
+    fetchMock.mockImplementation(async () => json({ items: [], totalCount: 0, page: 1, pageSize: 5 }));
+    await listDocumentPage({ q: "INV-1", page: 1, pageSize: 5 });
+    expect(new URL(String(fetchMock.mock.calls[0][0])).search).toBe("?q=INV-1&page=1&pageSize=5");
+    await listDocumentPage({ page: 1, pageSize: 5 });
+    expect(new URL(String(fetchMock.mock.calls[1][0])).searchParams.has("q")).toBe(false);
+  });
+
   it("encodes path segments and refuses dot segments", async () => {
     fetchMock.mockResolvedValue(json({}));
     await getFlow("a/b");
