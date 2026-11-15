@@ -101,7 +101,7 @@ export function UserChipMenu({ collapsed, onNavigate, placement = "up" }: UserCh
     return (
       <div
         className={`flex items-center flex-shrink-0 ${collapsed ? "justify-center" : "gap-2.5"}`}
-        style={{ borderTop: "1px solid #1F3252", padding: collapsed ? "10px 0" : "10px 14px" }}
+        style={placement === "down" ? undefined : { borderTop: "1px solid #1F3252", padding: collapsed ? "10px 0" : "10px 14px" }}
         title={clerkConfigured ? undefined : "Clerk is not configured"}
       >
         <AvatarCircle initials={clerkConfigured ? "…" : "MK"} />
@@ -153,8 +153,8 @@ export function UserChipMenu({ collapsed, onNavigate, placement = "up" }: UserCh
         className={`flex w-full items-center flex-shrink-0 ${collapsed ? "justify-center" : "gap-2.5"}`}
         style={{
           border: "none",
-          borderTop: "1px solid #1F3252",
-          padding: collapsed ? "10px 0" : "10px 14px",
+          borderTop: placement === "down" ? undefined : "1px solid #1F3252",
+          padding: placement === "down" ? 0 : collapsed ? "10px 0" : "10px 14px",
           background: open ? "rgba(255,255,255,0.05)" : "transparent",
           borderRadius: 0,
           cursor: "pointer",

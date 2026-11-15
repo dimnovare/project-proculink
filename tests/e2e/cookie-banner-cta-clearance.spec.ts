@@ -80,6 +80,20 @@ test.describe("cookie banner never covers a bottom-anchored primary action", () 
     expect(geom.topmostIsBar).toBe(true);
   });
 
+  test("mobile 390 — the tab bar clears the banner", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/documents");
+    const banner = page.getByRole("dialog", { name: /cookie consent/i });
+    await expect(banner).toBeVisible({ timeout: 15_000 });
+    const bar = page.getByTestId("tab-bar");
+    await expect(bar).toBeVisible();
+    const [b, t] = [(await banner.boundingBox())!, (await bar.boundingBox())!];
+    expect(b.y + b.height).toBeLessThanOrEqual(t.y);
+    const flows = (await bar.getByRole("link", { name: "Flows" }).boundingBox())!;
+    const hit = await page.evaluate(([x, y]) => !!document.elementFromPoint(x, y)?.closest('[data-testid="tab-bar"]'), [flows.x + flows.width / 2, flows.y + flows.height / 2]);
+    expect(hit).toBe(true);
+  });
+
   test("desktop — PageShell reserves scroll room so page-bottom content clears the banner", async ({ page }) => {
     test.setTimeout(90_000);
     await page.setViewportSize({ width: 1280, height: 800 });

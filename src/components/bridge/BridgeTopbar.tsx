@@ -15,61 +15,23 @@ import { ProcuLinkMark } from "./DSPrimitives";
 import { HelpSlideover } from "./HelpSlideover";
 import { OrgSwitcher } from "./OrgSwitcher";
 import { UserChipMenu } from "./UserChipMenu";
-import { buildVisibleNav, isItemActive, PINNED_ACTION_HREF, type SidebarNavItem } from "./BridgeSidebar";
+import { buildVisibleNav, isItemActive, PINNED_ACTION_HREF } from "./BridgeSidebar";
 
 interface BridgeTopbarProps {
   onMenuClick?: () => void;
+  /** The navigation panel the menu button opens is open. */
+  menuOpen?: boolean;
 }
 
-// ─── Desktop primary navigation (top navbar, md+) ───────────────────────────
-// The sidebar was removed on desktop; its primary nav now renders here as a
-// horizontal link row. Structure, gating and active-state are REUSED wholesale
-// from BridgeSidebar (buildVisibleNav / isItemActive) so the two can never
-// drift — this row is the sidebar's nav, re-laid-out horizontally.
-
-/** One horizontal nav link. Active = white + 2px blue underline; inactive =
- *  #C8D1E0 → white on hover. Mirrors the sidebar's semantics, not its chrome. */
-function TopNavLink({
-  item,
-  active,
-  onNavigate,
-}: {
-  item: SidebarNavItem;
-  active: boolean;
-  onNavigate?: () => void;
-}) {
-  return (
-    <Link
-      href={item.href}
-      onClick={onNavigate}
-      target={item.newTab ? "_blank" : undefined}
-      rel={item.newTab ? "noopener noreferrer" : undefined}
-      aria-current={active ? "page" : undefined}
-      className="relative inline-flex items-center gap-1.5 whitespace-nowrap transition-colors"
-      style={{
-        height: "100%",
-        padding: "0 10px",
-        fontSize: 13,
-        fontWeight: active ? 600 : 500,
-        color: active ? "#FFFFFF" : "#C8D1E0",
-        borderBottom: active ? "2px solid #1E66C9" : "2px solid transparent",
-        textDecoration: "none",
-      }}
-      onMouseEnter={(e) => { if (!active) (e.currentTarget as HTMLElement).style.color = "#FFFFFF"; }}
-      onMouseLeave={(e) => { if (!active) (e.currentTarget as HTMLElement).style.color = "#C8D1E0"; }}
-    >
-      {item.label}
-    </Link>
-  );
-}
+// ─── Page links (top bar, lg+) ───────────────────────────────────────────────
+// Structure, gating and active state are REUSED from BridgeSidebar
+// (buildVisibleNav / isItemActive) so the bar and the navigation panel can
+// never drift.
 
 /**
- * The horizontal primary nav for md+. Reuses buildVisibleNav (admin gating) and
- * isItemActive. Groups are flattened to a single horizontal row (group headers
- * belong to the vertical rail, not a top bar).
- * Overflows scroll horizontally at the md→lg band so links never wrap or clip.
- * Returns the admin-gated `tail` items so the caller can place them in the
- * right cluster (Admin) / profile menu (Settings) without re-deriving the gate.
+ * The page links for the top bar. Groups are flattened to one ordered list.
+ * Returns the admin-gated `tail` items so the caller can place Admin in the
+ * right cluster without re-deriving the gate.
  */
 function useTopNav() {
   const pathname = usePathname();
@@ -112,7 +74,10 @@ function useWorkspaceCardData() {
   return { orgName, planLabel, activePlan: billing ? planLabel : null };
 }
 
-export function BridgeTopbar({ onMenuClick }: BridgeTopbarProps) {
+/** A 44px icon control on navy (WCAG 2.5.8 hit area). */
+const ICON_BUTTON = "flex size-11 shrink-0 items-center justify-center rounded-[6px] text-navy-text transition-colors hover:bg-navy-surface hover:text-white";
+
+export function BridgeTopbar({ onMenuClick, menuOpen }: BridgeTopbarProps) {
   const pathname = usePathname();
   const { items: navItems, tail: navTail } = useTopNav();
   const { orgName, planLabel, activePlan } = useWorkspaceCardData();
@@ -154,76 +119,47 @@ export function BridgeTopbar({ onMenuClick }: BridgeTopbarProps) {
   }, []);
 
   return (
-    <header
-      className="on-navy flex-shrink-0 relative flex flex-col"
-      style={{ background: "#0B1A2F" }}
-    >
-      {/* ── Row 1 · Primary nav bar ──────────────────────────────────
-          The desktop sidebar was removed; its primary navigation lives here.
-          LEFT   = mobile hamburger · ProcuLink brand (→ /documents) · compact
-                   OrgSwitcher.
-          CENTER = the primary nav as horizontal links (md+), built from the
-                   SAME buildVisibleNav/isItemActive the sidebar used; scrolls
-                   horizontally at the md→lg band so links never wrap or clip.
-          RIGHT  = Upload document · demo chip · ⌘K search ·
-                   Admin (admin-gated) · Help · account chip.
-          Mobile (< md) collapses to hamburger + brand + the compact control
-          cluster; the full nav is reached through the drawer (onMenuClick). */}
-      {/* `md:gap-2 lg:gap-3` — 768 is the tightest width this row ever has, and the
-          only one where it overflowed. It is the breakpoint at which BOTH the
-          workspace switcher (`hidden md:block`) and the cmd-K search
-          (`hidden md:flex`) appear, so everything is on screen at the narrowest
-          width that shows everything. Every child is `flex-shrink-0`, so the
-          surplus went to the last item: the Help button's 44px hit area was
-          clipped 2px past the right edge on the (since deleted) order review and
-          supplier screens. Measured by the control sweep at 768.
-
-          Narrowing the gap for that band only recovers far more than the 2px and
-          leaves 390 and 1440 untouched. The alternative — letting the workspace
-          switcher shrink — would truncate a workspace name to save a gap, which
-          is the worse trade. */}
-      <div className="flex items-center gap-2 sm:gap-3 md:gap-2 lg:gap-3 px-3 sm:px-5" style={{ height: 52 }}>
-        {/* Mobile menu — opens the BridgeSidebar drawer (full nav on < md). */}
-        <button
-          type="button"
-          onClick={onMenuClick}
-          className="flex h-11 w-11 items-center justify-center rounded-[7px] md:hidden flex-shrink-0"
-          style={{
-            background: "#14253D",
-            border: "1px solid #1F3252",
-            color: "#C8D1E0",
-          }}
-          aria-label="Open navigation"
-        >
-          <Menu size={18} strokeWidth={2.2} />
-        </button>
-
-        {/* Brand mark → Documents. */}
-        <Link
-          href="/documents"
-          aria-label="ProcuLink — go to dashboard"
-          className="flex items-center gap-2 flex-shrink-0"
-          style={{ color: "#FFFFFF", textDecoration: "none" }}
-        >
+    <header className="on-navy relative flex flex-shrink-0 flex-col bg-navy pb-0.5">
+      {/* One row at every width. It fits because the five page links only show
+          from 1024px (`lg`), "Upload" is one word, and the workspace switcher is
+          the one item that gives way: it alone may shrink (its name is cut with an
+          ellipsis, at most 220px); everything else is `shrink-0`. 768 to 1023 puts
+          a menu button at the end instead of the links; phones move between pages
+          with the bottom tab bar. The row (height, and every item ending inside
+          the screen, also with a 60-character workspace name) is measured at eight
+          widths by tests/e2e/shell.spec.ts. The header's 2px bottom padding is
+          where the gradient line sits, BELOW the row, so the current link's white
+          line stays visible above it. */}
+      <div data-testid="topbar-row" className="flex h-[52px] items-center gap-2 px-3 sm:px-5 md:h-14 xl:gap-3">
+        <Link href="/documents" aria-label="ProcuLink, go to Documents" className="flex shrink-0 items-center gap-2 text-white no-underline">
           <ProcuLinkMark size={24} mono />
-          <span
-            className="hidden sm:inline"
-            style={{ fontFamily: "'Bricolage Grotesque', Inter, system-ui, sans-serif", fontSize: 16, fontWeight: 700, letterSpacing: "-0.015em" }}
-          >
-            ProcuLink
-          </span>
+          <span className="hidden font-display text-[16px] font-bold tracking-[-0.015em] md:inline">ProcuLink</span>
         </Link>
 
-        {/* Compact workspace switcher (opens a downward menu of real orgs). */}
-        <div className="hidden md:block flex-shrink-0">
+        <div className="min-w-0">
           <OrgSwitcher compact orgName={orgName} planLabel={planLabel} activePlan={activePlan} />
         </div>
+
+        <nav aria-label="Main" data-testid="topbar-nav" className="hidden shrink-0 self-stretch lg:flex">
+          {navItems.map((item) => {
+            const active = isItemActive(pathname, item);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                aria-current={active ? "page" : undefined}
+                className={`inline-flex items-center whitespace-nowrap border-y-2 border-t-transparent px-2.5 text-[14.5px] no-underline transition-colors xl:px-3 ${active ? "border-b-white font-semibold text-white" : "border-b-transparent font-medium text-navy-text hover:text-white"}`}
+              >
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
 
         {/* Demo-mode badge — gated on the SAME isApiMockMode flag the data layer
             uses, so the badge and the actual mock-data mode can never diverge.
             Full pill from sm up; a compact dot-only pill on mobile. `ml-auto`
-            starts the right control cluster (also nudges controls right on
-            mobile where the nav is hidden). */}
+            starts the right control cluster. */}
         {isApiMockMode ? (
           <span
             className="ml-auto inline-flex items-center flex-shrink-0"
@@ -255,62 +191,24 @@ export function BridgeTopbar({ onMenuClick }: BridgeTopbarProps) {
             <span className="sm:hidden">Demo</span>
           </span>
         ) : (
-          // Anchor the right cluster to the row's end even when the demo badge
-          // is absent (keeps the nav left-of-center and controls flush right).
+          // Anchor the right cluster to the row's end even when the demo badge is absent.
           <span className="ml-auto" aria-hidden />
         )}
 
-        {/* Upload document — pinned primary create action (reuses the sidebar's
-            PINNED_ACTION_HREF). Blue = buyer/source action per the semantic law.
-            md+ shows the labelled button; mobile keeps it in the drawer. */}
+        {/* Upload — the pinned create action (the sidebar's PINNED_ACTION_HREF).
+            Blue = buyer/source action. Phones reach it through the tab bar's Add. */}
         <Link
           href={PINNED_ACTION_HREF}
-          className="hidden md:flex items-center justify-center gap-2 flex-shrink-0 text-white"
-          style={{ height: 34, padding: "0 13px", borderRadius: 8, background: "#1E66C9", fontSize: 13, fontWeight: 600, boxShadow: "0 1px 2px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.14)", textDecoration: "none", transition: "background 140ms" }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#0F4FA8"; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "#1E66C9"; }}
+          aria-label="Upload a document"
+          className="hidden h-10 shrink-0 items-center justify-center gap-2 rounded-[8px] bg-brand-blue px-[13px] text-[13px] font-semibold text-white no-underline transition-colors hover:bg-brand-blue-deep md:inline-flex"
         >
-          <Upload size={15} strokeWidth={2} />
-          <span>Upload document</span>
+          <Upload size={15} strokeWidth={2} aria-hidden />
+          <span>Upload</span>
         </Link>
 
-        {/* Search — icon-only trigger for the ⌘K command palette (sm+). Icon-only
-            in the top nav so the primary nav keeps the row's width; the palette is
-            the real search. Kept a title with the ⌘K hint. */}
-        <button
-          type="button"
-          aria-label="Search (⌘K)"
-          title="Search — ⌘K"
-          onClick={() => setPaletteOpen(true)}
-          className="hidden sm:flex items-center justify-center flex-shrink-0"
-          style={{ minWidth: "var(--tap-min)", minHeight: "var(--tap-min)", background: "transparent", border: "none", padding: 0, cursor: "pointer" }}
-        >
-          {/* Visible 32x32 chip inside a 44x44 hit area (WCAG 2.5.8). */}
-          <span
-            className="flex items-center justify-center rounded-[6px]"
-            style={{ width: 32, height: 32, background: "transparent", border: "1px solid transparent", color: "#C8D1E0", transition: "background 150ms, color 150ms" }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#14253D"; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
-          >
-            <Search size={17} strokeWidth={1.9} />
-          </span>
-        </button>
-
-        {/* Mobile search — icon-only trigger for the command palette. */}
-        <button
-          type="button"
-          aria-label="Search"
-          onClick={() => setPaletteOpen(true)}
-          className="flex sm:hidden items-center justify-center flex-shrink-0"
-          style={{ minWidth: "var(--tap-min)", minHeight: "var(--tap-min)", background: "transparent", border: "none", padding: 0, cursor: "pointer" }}
-        >
-          {/* 32x32 chip inside a 44x44 hit area (WCAG 2.5.8). */}
-          <span
-            className="flex items-center justify-center rounded-[6px]"
-            style={{ width: 32, height: 32, background: "transparent", border: "1px solid transparent", color: "#C8D1E0" }}
-          >
-            <Search size={17} strokeWidth={1.9} />
-          </span>
+        {/* Search — the one trigger for the command palette (Ctrl/Cmd K). */}
+        <button type="button" aria-label="Search" title="Search, Ctrl K" onClick={() => setPaletteOpen(true)} className={ICON_BUTTON}>
+          <Search size={17} strokeWidth={1.9} aria-hidden />
         </button>
 
         {/* Admin — folded in from the sidebar TAIL. Admin-gated by
@@ -318,35 +216,13 @@ export function BridgeTopbar({ onMenuClick }: BridgeTopbarProps) {
             for non-admins); the page + every /api/admin endpoint re-gate
             server-side, so this link never leaks access. */}
         {adminItem && (
-          <Link
-            href={adminItem.href}
-            aria-label="Admin"
-            title="Admin"
-            className="hidden md:flex items-center justify-center relative flex-shrink-0"
-            style={{
-              minWidth: "var(--tap-min)",
-              minHeight: "var(--tap-min)",
-              background: "transparent",
-              border: "none",
-              color: "#C8D1E0",
-              textDecoration: "none",
-            }}
-          >
-            {/* 32x32 chip inside a 44x44 hit area (WCAG 2.5.8). */}
-            <span
-              className="flex items-center justify-center rounded-[6px]"
-              style={{ width: 32, height: 32, background: "transparent", border: "1px solid transparent", transition: "background 150ms, color 150ms" }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#14253D"; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
-            >
-              <Lock size={16} strokeWidth={1.9} />
-            </span>
+          <Link href={adminItem.href} aria-label="Admin" title="Admin" className={`${ICON_BUTTON} max-md:hidden`}>
+            <Lock size={16} strokeWidth={1.9} aria-hidden />
           </Link>
         )}
 
         {/* Help — dot badge while the current route's guide is unseen. Opens the
-            help slideover (which itself links to /help + articles), so the
-            sidebar TAIL's "Help & support" destination stays reachable. */}
+            help slideover (which itself links to /help + articles). */}
         <button
           ref={helpBtnRef}
           type="button"
@@ -362,78 +238,34 @@ export function BridgeTopbar({ onMenuClick }: BridgeTopbarProps) {
             setGuideUnseen(false);
             setHelpOpen(true);
           }}
-          className="hidden sm:flex items-center justify-center flex-shrink-0"
-          style={{
-            minWidth: "var(--tap-min)",
-            minHeight: "var(--tap-min)",
-            background: "transparent",
-            border: "none",
-            padding: 0,
-            cursor: "pointer",
-          }}
+          className={`${ICON_BUTTON} relative`}
           title="Help"
         >
-          {/* 32x32 chip inside a 44x44 hit area (WCAG 2.5.8); the unseen-guide dot
-              rides the visible chip, not the larger hit area. */}
-          <span
-            className="flex items-center justify-center rounded-[6px] relative"
-            style={{ width: 32, height: 32, background: "transparent", border: "1px solid transparent", color: "#C8D1E0", transition: "background 150ms, color 150ms" }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#14253D"; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
-          >
-            <HelpCircle size={17} strokeWidth={1.9} />
-            {guideUnseen && (
-              <span
-                aria-hidden
-                style={{
-                  position: "absolute",
-                  top: 4,
-                  right: 4,
-                  width: 8,
-                  height: 8,
-                  borderRadius: "50%",
-                  background: "#B36D14",
-                  border: "1.5px solid #0B1A2F",
-                }}
-              />
-            )}
-          </span>
+          <HelpCircle size={17} strokeWidth={1.9} aria-hidden />
+          {guideUnseen && (
+            <span aria-hidden className="absolute right-2 top-2 size-2 rounded-full border-[1.5px] border-navy bg-amber" />
+          )}
         </button>
 
-        {/* Account chip — real name/role, Profile · Settings · Sign out (Settings
-            folded in from the sidebar TAIL). Compact avatar-only trigger; the
-            menu opens downward from the top navbar. */}
-        <div className="flex-shrink-0">
+        {/* Account chip — real name/role, Profile · Settings · Sign out. Phones
+            reach Settings through the tab bar's More. */}
+        <div className="hidden shrink-0 md:block">
           <UserChipMenu collapsed placement="down" />
         </div>
-      </div>
 
-      {/* ── Row 2 · Primary nav ──────────────────────────────────────
-          DO NOT re-inline this into the utility row above. That arrangement was
-          tried and rejected: the top-level sections need their own row so they
-          ALL stay visible at any desktop width, and the row above is already
-          carrying the org switcher, Upload, and the account cluster. WP-26 cut
-          the nav to four words, which shortens the row but does not free the
-          ~540px the inline version wanted — the utility cluster is what fills
-          it. md+ only; mobile uses the hamburger drawer. A right-edge fade cues
-          horizontal scroll on the rare narrow-desktop overflow. */}
-      <nav
-        aria-label="Primary"
-        className="hidden md:flex items-stretch px-3 sm:px-5"
-        style={{
-          height: 42,
-          borderTop: "1px solid #14253D",
-          overflowX: "auto",
-          overflowY: "hidden",
-          scrollbarWidth: "none",
-          WebkitMaskImage: "linear-gradient(to right, #000 calc(100% - 20px), transparent)",
-          maskImage: "linear-gradient(to right, #000 calc(100% - 20px), transparent)",
-        }}
-      >
-        {navItems.map((item) => (
-          <TopNavLink key={item.href} item={item} active={isItemActive(pathname, item)} />
-        ))}
-      </nav>
+        {/* Tablets (768 to 1023): the page links do not fit, so the last item
+            opens the navigation panel instead. */}
+        <button
+          type="button"
+          onClick={onMenuClick}
+          aria-label="Open navigation"
+          aria-haspopup="dialog"
+          aria-expanded={!!menuOpen}
+          className="hidden size-11 shrink-0 items-center justify-center rounded-[7px] border border-navy-border bg-navy-surface text-navy-text md:flex lg:hidden"
+        >
+          <Menu size={18} strokeWidth={2.2} aria-hidden />
+        </button>
+      </div>
 
       {/* Command Palette */}
       {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} />}

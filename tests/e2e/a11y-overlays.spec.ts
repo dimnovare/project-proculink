@@ -164,31 +164,40 @@ test.describe("axe-core — overlays in their open state", { tag: "@a11y" }, () 
   test.describe.configure({ timeout: 120_000 });
 
   /**
-   * The app-shell mobile drawer (`src/app/(app)/layout.tsx`, rendering
-   * `BridgeSidebar` full-width). It is `md:hidden`, so it needs a narrow viewport:
-   * at the suite's default 1280 the trigger is display:none and every click below
-   * would time out — which is the honest failure, not a silent skip.
+   * The app-shell navigation panel (`src/app/(app)/layout.tsx`, rendering
+   * `BridgeSidebar` full-width). It is `lg:hidden`, so it needs a narrow viewport;
+   * on a phone the tab bar's "More" button opens it, on a tablet the top bar's menu button.
    */
-  test.describe("mobile nav drawer", () => {
-    test.use({ viewport: { width: 390, height: 844 } });
-
-    test("the open mobile nav drawer has no WCAG A/AA violations", async ({ page }, testInfo) => {
-      await preparePage(page);
-      await openScreen(page, "/documents");
-
-      const drawer = page.locator('[role="dialog"][aria-label="Navigation"]');
-      await expect(drawer, "the drawer was already open before it was opened").toHaveCount(0);
-
-      await page.getByRole("button", { name: "Open navigation" }).click();
-      await page.waitForTimeout(400);
-
-      await scanOpenOverlay(
-        page,
-        drawer,
-        '[role="dialog"][aria-label="Navigation"]',
-        "mobile-nav-drawer",
-        testInfo,
-      );
+  const OPENERS = [
+    { name: "phone", viewport: { width: 390, height: 844 }, opener: "More" },
+    { name: "tablet", viewport: { width: 820, height: 1180 }, opener: "Open navigation" },
+  ] as const;
+  for (const o of OPENERS) {
+    test.describe(`navigation panel, ${o.name}`, () => {
+      test.use({ viewport: o.viewport });
+      test("opens clean, shows only what the bar does not, and gives focus back", async ({ page }, testInfo) => {
+        await preparePage(page);
+        await openScreen(page, "/documents");
+        const panel = page.locator('[role="dialog"][aria-label="Navigation"]');
+        await expect(panel).toHaveCount(0);
+        const opener = page.getByRole("button", { name: o.opener, exact: true });
+        await opener.click();
+        await page.waitForTimeout(400);
+        await scanOpenOverlay(page, panel, '[role="dialog"][aria-label="Navigation"]', `navigation-panel-${o.name}`, testInfo);
+        await expect(panel.getByRole("link", { name: "Lookups" })).toBeVisible();
+        if (o.name === "phone") await expect(panel.getByRole("link", { name: /^Documents/ })).toBeHidden();
+        if (o.name === "tablet") await expect(panel.getByRole("link", { name: /^Documents/ })).toBeVisible();
+        await page.keyboard.press("Escape");
+        await expect(panel).toHaveCount(0);
+        await expect(opener).toBeFocused();
+        if (o.name === "tablet") {
+          // Widened past 1024 (the links are back): the panel closes instead of trapping focus while invisible.
+          await opener.click();
+          await expect(panel).toBeVisible();
+          await page.setViewportSize({ width: 1280, height: 900 });
+          await expect(panel).toHaveCount(0);
+        }
+      });
     });
-  });
+  }
 });

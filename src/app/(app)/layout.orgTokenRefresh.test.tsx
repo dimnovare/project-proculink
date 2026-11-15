@@ -60,6 +60,7 @@ vi.mock("@/lib/api-client", () => ({
 vi.mock("@/lib/navigationClock", () => ({ msSinceNavigationStart: () => 0 }));
 vi.mock("@/lib/reload", () => ({ reloadPage: () => {} }));
 vi.mock("@/components/bridge/BridgeTopbar", () => ({ BridgeTopbar: () => <div>topbar</div> }));
+vi.mock("@/components/bridge/BottomTabBar", () => ({ BottomTabBar: () => null }));
 vi.mock("@/components/bridge/BridgeSidebar", () => ({ BridgeSidebar: () => <div>sidebar</div> }));
 vi.mock("@/components/onboarding/WorkspaceNameNudge", () => ({ WorkspaceNameNudge: () => null }));
 

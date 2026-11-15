@@ -1,0 +1,52 @@
+import { describe, it, expect, vi } from "vitest";
+import { render, screen, within, fireEvent } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { ReactElement } from "react";
+import type { DocumentSummary } from "@/lib/api/documents";
+import { BottomTabBar, isFullScreenStep, needsYouBadge } from "./BottomTabBar";
+
+let mockPath: string | null = "/documents";
+vi.mock("next/navigation", () => ({ usePathname: () => mockPath, useRouter: () => ({ push: vi.fn() }) }));
+vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => true }));
+vi.mock("@/lib/api-client", () => ({ getBillingStatus: vi.fn(), checkAdminAccess: vi.fn() }));
+vi.mock("@/lib/api/documents", () => ({
+  listFlows: () => Promise.resolve([{ id: "f-1", name: "Flow" }]),
+  listDocuments: () => Promise.resolve([]),
+}));
+
+const doc = (status: string) => ({ id: "d", status, statusReason: null }) as DocumentSummary;
+const renderBar = (ui: ReactElement) =>
+  render(<QueryClientProvider client={new QueryClient()}>{ui}</QueryClientProvider>);
+
+describe("BottomTabBar", () => {
+  it("offers Documents, Flows, Add a document, Activity and More, and marks where you are", () => {
+    mockPath = "/flows/f-1";
+    const onMore = vi.fn();
+    renderBar(<BottomTabBar onMore={onMore} moreOpen={false} />);
+    const bar = screen.getByRole("navigation", { name: "Main" });
+    expect(within(bar).getAllByRole("link").map((a) => a.getAttribute("href"))).toEqual(["/documents", "/flows", "/upload", "/operations/log"]);
+    expect(within(bar).getByRole("link", { name: "Flows" })).toHaveAttribute("aria-current", "page");
+    expect(within(bar).getByRole("link", { name: "Add a document" })).toBeInTheDocument();
+    const more = within(bar).getByRole("button", { name: "More" });
+    expect(more).toHaveAttribute("aria-haspopup", "dialog");
+    expect(more).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(more);
+    expect(onMore).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows the needs-you count only when it is known", () => {
+    expect(needsYouBadge(undefined, 100)).toBeNull();
+    expect(needsYouBadge([], 100)).toBeNull();
+    expect(needsYouBadge([doc("sent"), doc("reading")], 100)).toBeNull();
+    expect(needsYouBadge([doc("needs_review"), doc("sent"), doc("send_failed")], 100)).toBe("2");
+    expect(needsYouBadge(Array.from({ length: 100 }, () => doc("ready")), 100)).toBe("100+");
+  });
+
+  it("steps aside on full-screen steps", () => {
+    for (const p of ["/flows/new", "/flows/f-1/documents/d-1", "/flows/f-1/outputs/o-1/advanced"]) expect(isFullScreenStep(p)).toBe(true);
+    for (const p of ["/documents", "/flows", "/flows/f-1", "/lookups/l-1", "/settings", null]) expect(isFullScreenStep(p)).toBe(false);
+    mockPath = "/flows/f-1/documents/d-1";
+    const { container } = renderBar(<BottomTabBar onMore={() => {}} moreOpen={false} />);
+    expect(container).toBeEmptyDOMElement();
+  });
+});

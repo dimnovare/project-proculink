@@ -14,6 +14,7 @@ import { ClerkAvailabilityGate } from "@/components/bridge/ClerkAvailabilityGate
 import { shouldRetryApiFailure, apiRetryDelayMs } from "@/lib/apiFailure";
 import { WorkspaceNameNudge } from "@/components/onboarding/WorkspaceNameNudge";
 import { SkipToContent } from "@/components/a11y/SkipToContent";
+import { BottomTabBar } from "@/components/bridge/BottomTabBar";
 
 /**
  * Auto-activates the user's first Clerk organization when they have one but
@@ -107,13 +108,25 @@ export default function AppShellLayout({
   const openSidebar = useCallback(() => setSidebarOpen(true), []);
   const closeSidebar = useCallback(() => setSidebarOpen(false), []);
 
-  // Mobile nav drawer: Escape to close, body-scroll lock, focus move-in + trap,
+  // Navigation panel (tablet menu button, phone More): Escape to close, body-scroll lock, focus move-in + trap,
   // and focus restore to the trigger on close. This was one of six near-identical
   // hand-rolled copies; the behaviour now lives in useDialogA11y so a fix reaches
   // every dialog instead of one. The local `triggerRef` is gone — the hook reads
   // `document.activeElement` in the same commit `openSidebar` used to, so it
   // captures the same element and the restore is identical.
   useDialogA11y({ open: sidebarOpen, onClose: closeSidebar, panelRef: drawerRef });
+
+  // The panel is `lg:hidden`: once the window reaches 1024px (a tablet turned to
+  // landscape) the bar shows the links again, so close it rather than leave an
+  // invisible modal holding focus.
+  useEffect(() => {
+    if (!sidebarOpen) return;
+    const wide = window.matchMedia("(min-width: 1024px)");
+    if (wide.matches) return closeSidebar();
+    const onChange = (e: MediaQueryListEvent) => { if (e.matches) closeSidebar(); };
+    wide.addEventListener("change", onChange);
+    return () => wide.removeEventListener("change", onChange);
+  }, [sidebarOpen, closeSidebar]);
 
   const [queryClient] = useState(
     () =>
@@ -166,9 +179,9 @@ export default function AppShellLayout({
             "Loading…" plan labels around a failure card is its own lie. */}
         <ClerkAvailabilityGate>
         {/* Bridge shell — full viewport, no scroll on the wrapper.
-            Desktop nav now lives in the top navbar (BridgeTopbar row 1); the
-            left sidebar was removed on md+. The mobile drawer below still
-            reuses BridgeSidebar for the full navigation on < md. */}
+            Desktop nav lives in the top bar (BridgeTopbar, links from lg). The
+            navigation panel below reuses BridgeSidebar below lg: the tablet
+            menu button and the phone tab bar's More open it. */}
         <div className="flex h-dvh overflow-hidden" style={{ background: "#F6F7FA" }}>
           {/* First focusable element — jumps keyboard users past the topbar nav
               straight to the page content (WCAG 2.4.1). */}
@@ -180,7 +193,7 @@ export default function AppShellLayout({
               role="dialog"
               aria-modal="true"
               aria-label="Navigation"
-              className="fixed inset-0 z-50 md:hidden outline-none"
+              className="fixed inset-0 z-50 lg:hidden outline-none"
               style={{ background: "#0B1A2F" }}
             >
               <BridgeSidebar
@@ -194,13 +207,14 @@ export default function AppShellLayout({
 
           {/* Right: topbar + scrollable main content */}
           <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
-            <BridgeTopbar onMenuClick={openSidebar} />
-            <main id="main-content" tabIndex={-1} className="flex-1 overflow-auto outline-none">
+            <BridgeTopbar onMenuClick={openSidebar} menuOpen={sidebarOpen} />
+            <main id="main-content" tabIndex={-1} className="flex-1 overflow-auto outline-none mb-[var(--plk-tabbar-h)]">
               <WorkspaceNameNudge />
               <ErrorBoundary context="App">
                 {children}
               </ErrorBoundary>
             </main>
+            <BottomTabBar onMore={openSidebar} moreOpen={sidebarOpen} />
           </div>
         </div>
         </ClerkAvailabilityGate>

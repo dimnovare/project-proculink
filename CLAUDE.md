@@ -284,38 +284,18 @@ Tailwind class names for these keys are kebab-case: `bg-brand-blue-soft`, not `b
 
 ## 4. App shell architecture
 
-**Desktop navigation lives in the TOPBAR, not a sidebar.** The 220px navy sidebar
-this section used to describe as permanent desktop chrome renders only in the
-**mobile drawer**. The move was deliberate: the topbar buys back horizontal room
-that the dense order table needs. The `sidebar: 220px` Tailwind spacing token has
-zero consumers and survives only as a reference value.
+**One navy row on top; how you move between pages depends on the width.**
 
-```
-┌─ BridgeTopbar (52px, navy) ─────────────────────────────────────────┐
-│ Logo + workspace switcher | nav | cmd-K | notif + help + avatar     │
-│ [2px link-spine gradient at bottom edge]                            │
-└──────────────────────────────────────────────────────────────────────┘
-┌─ Main content (bg #F6F7FA) ─────────────────────────────────────────┐
-│  No edge rails — struck 2026-08-13 (§2). Buyer/supplier orientation │
-│  is carried by pane order in the mapper (§2).                        │
-└──────────────────────────────────────────────────────────────────────┘
+| Width | Top bar (navy, 2px blue-to-green line under it) | Moving between pages |
+|---|---|---|
+| 1024px and up | mark and wordmark, workspace switcher, Documents / Flows / Lookups / Activity / Settings, Upload (blue), search, help, account | the links in the bar |
+| 768 to 1023px | the same without the links, plus a menu button | the menu button opens the navigation panel |
+| under 768px | mark, workspace switcher, search, help | bottom tab bar: Documents (with the needs-you count), Flows, round blue Add, Activity, More. More opens the navigation panel |
 
-BridgeSidebar (220px, navy) — MOBILE DRAWER ONLY
-  Logo + wordmark · workspace switcher · nav groups · health footer
-```
-
-**Nav items + routes** (`NAV_MAIN` / `NAV_TAIL` in `src/components/bridge/BridgeSidebar.tsx`;
-the topbar renders the same list via `buildVisibleNav`). There are no groups.
-| Item | Route |
-|---|---|
-| Upload (pinned action, `PINNED_ACTION_HREF`) | `/upload` |
-| Documents | `/documents` |
-| Flows | `/flows` |
-| Lookups | `/lookups` |
-| Activity | `/operations/log` |
-| Settings | `/settings` |
-| Admin (allowlisted users only) | `/admin` |
-| Help & support (new tab) | `/help` |
+- `BridgeTopbar` is the bar: 56px, 52px on phones. There is no breadcrumb row. Every page shows its own title, one helper line and, when it sits under another page, a back link (`PageHeader` `title` / `sub` / `back`).
+- `BottomTabBar` sits under `<main>` on phones and steps aside on full-screen steps (a document, the new-flow guide, the Advanced view): `isFullScreenStep()`.
+- `BridgeSidebar` renders only inside the navigation panel (the layout's dialog): the tablet menu and the phone "More". It is not desktop chrome.
+- The nav registry is `NAV_MAIN` in `BridgeSidebar.tsx`: Documents `/documents`, Flows `/flows`, Lookups `/lookups`, Activity `/operations/log`, Settings `/settings`; Upload `/upload` is the pinned action.
 
 > The order-pipeline nav (Bridge, the Inbox filters, Drafts, the Library pages) went with
 > the order screens in plan 13b (2026-11-13). Every one of those URLs 308s via
@@ -385,8 +365,9 @@ All Bridge-specific components live in `src/components/bridge/`.
 | `<Card>` | `bridge/layout/Card.tsx` | **The one card.** 3px cross-section edge strip, applied by a semantic rule written in the file's header: `edge="blue"` buyer/incoming · `"green"` supplier/outgoing · `"bridge"` spans both · `"none"` neutral **or undeterminable** (the default, and the majority). Also `pad` / `radius` / `flush` / `as` for migrated geometry. Server-component safe. |
 | `<StatusJourney>` | `bridge/StatusJourney.tsx` | 5-node mini-track: In · Read · Check · Transform · Send. Props: `stage` (0–4), `compact?`. |
 | `<MarkSystem>` | `bridge/MarkSystem.tsx` | System Identity mark SVG in 3 sizes. Props: `size`, `white?`. (Also exports a dead `RailPort` — see §2.) |
-| `<BridgeSidebar>` | `bridge/BridgeSidebar.tsx` | 220px navy sidebar — **mobile drawer only**. Desktop nav is in the topbar. |
-| `<BridgeTopbar>` | `bridge/BridgeTopbar.tsx` | 52px navy topbar: nav, search, help, account, link-spine. Props: `onMenuClick`. No breadcrumb row: pages carry their own title and back link. |
+| `<BridgeSidebar>` | `bridge/BridgeSidebar.tsx` | The navigation panel's content: tablet menu and phone More. Not desktop chrome. |
+| `<BridgeTopbar>` | `bridge/BridgeTopbar.tsx` | One navy row: nav links from 1024px, menu button 768 to 1023, search, help, account, link-spine. Props: `onMenuClick`, `menuOpen`. |
+| `<BottomTabBar>` | `bridge/BottomTabBar.tsx` | Phone tab bar: Documents (needs-you count), Flows, Add, Activity, More. Props: `onMore`, `moreOpen`. |
 | `<ConfidenceChip>` | `bridge/ConfidenceChip.tsx` | `pct%` badge — ≥90 green, 75–89 amber, <75 red. |
 
 **One signature ships as a CSS class, not a component.** This table used to give it
