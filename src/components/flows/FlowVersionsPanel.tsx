@@ -10,17 +10,18 @@ import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { listFlowVersions, restoreFlowVersion } from "@/lib/api/documents";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
 import { formatDate } from "@/lib/format-date";
-import { useFlowSaved } from "./FlowChangesBar";
+import { useFlowSaved } from "./PublishBar";
 import { Failed, Quiet } from "./states";
 
-export function FlowVersionsPanel({ flowId }: { flowId: string }) {
+/** `onRestored` runs after a restore has replaced the draft, so the page can reset its editors. */
+export function FlowVersionsPanel({ flowId, onRestored }: { flowId: string; onRestored?: () => void }) {
   const confirm = useConfirm();
   const saved = useFlowSaved(flowId);
   const [restored, setRestored] = useState<number | null>(null);
   const versions = useQuery({ queryKey: ["flow-versions", flowId], queryFn: () => listFlowVersions(flowId), enabled: useTenantQueriesEnabled() });
   const restore = useMutation({
     mutationFn: (n: number) => restoreFlowVersion(flowId, n),
-    onSuccess: (f, n) => { setRestored(n); saved(f); },
+    onSuccess: (f, n) => { setRestored(n); saved(f); onRestored?.(); },
   });
   const ask = async (n: number) => {
     if (await confirm({

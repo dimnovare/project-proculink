@@ -24,12 +24,13 @@ import { describeSendWhen } from "@/lib/flowOutputModel";
 import { INPUT } from "./DestinationForm";
 import { DocumentList } from "./DocumentList";
 import { FieldListEditor } from "./FieldListEditor";
-import { FlowChangesBar } from "./FlowChangesBar";
+import { FlowDraftProvider } from "./flowDraft";
 import { FlowIntakePanel } from "./FlowIntakePanel";
 import { FlowVersionsPanel } from "./FlowVersionsPanel";
 import { FlowUpload } from "./FlowUpload";
 import { OutputBuilder } from "./OutputBuilder";
 import { OutputEditor, outputTypeLabel } from "./OutputEditor";
+import { PublishBar } from "./PublishBar";
 import { destinationName, Failed, Quiet } from "./states";
 
 const TABS = [["documents", "Documents"], ["fields", "Fields"], ["outputs", "Outputs"], ["intake", "Intake"], ["versions", "Versions"]] as const;
@@ -206,6 +207,7 @@ export function FlowPage({ flowId }: { flowId: string }) {
   }
 
   return (
+    <FlowDraftProvider flowId={flowId}>
     <PageShell variant="wide">
       <PageHeader
         title={flow.data?.name ?? "Flow"}
@@ -227,7 +229,6 @@ export function FlowPage({ flowId }: { flowId: string }) {
               Confirm this flow&apos;s fields so every document is read the same way
             </StatusNotice>
           )}
-          <FlowChangesBar flow={flow.data} />
           <div role="tablist" aria-label="Flow sections" className="flex gap-1 overflow-x-auto border-b border-border">
             {tabs.map(([t, label]) => (
               <button
@@ -240,8 +241,10 @@ export function FlowPage({ flowId }: { flowId: string }) {
             ))}
           </div>
           <div role="tabpanel" id="flow-panel" aria-labelledby={`flow-tab-${tab}`}>{body}</div>
+          {tab !== "documents" && tab !== "versions" && <PublishBar flow={flow.data} />}
         </div>
       )}
     </PageShell>
+    </FlowDraftProvider>
   );
 }
