@@ -5,7 +5,7 @@ vi.mock("./core", async (importOriginal) => {
   return { ...actual, authHeader: async () => ({}), API_BASE_URL: "http://api.test", isApiMockMode: false };
 });
 
-import { createSampleDocument, editDocumentValues, getDocument, getFlow, listDocumentPage, sendDocument, updateLookup, uploadDocument } from "./documents";
+import { createSampleDocument, editDocumentValues, getDocument, getFlow, listActivity, listDocumentPage, sendDocument, updateLookup, uploadDocument } from "./documents";
 import { ApiHttpError } from "./core";
 
 const fetchMock = vi.fn();
@@ -109,5 +109,17 @@ describe("documents api", () => {
 
     expect(err).toBeInstanceOf(ApiHttpError);
     expect((err as ApiHttpError).retryAfterSeconds).toBe(2);
+  });
+
+  it("listActivity sends the server's parameters", async () => {
+    const body = { events: [], total: 0, page: 2, pageSize: 50 };
+    fetchMock.mockResolvedValue(json(body));
+
+    const out = await listActivity({ page: 2, pageSize: 50, actions: ["document.delivered", "flow.published"], q: "inv 1" });
+
+    expect(String(fetchMock.mock.calls[0][0])).toBe(
+      "http://api.test/api/audit?page=2&pageSize=50&actions=document.delivered&actions=flow.published&q=inv+1",
+    );
+    expect(out).toEqual(body);
   });
 });

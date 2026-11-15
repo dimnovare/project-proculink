@@ -11,11 +11,12 @@ import { PLAN_BY_ID } from "@/lib/plans";
 //
 // CONTENT SOURCE (canonical — do not rewrite copy here):
 // ProcuLink repo: docs/superpowers/plans/2026-06-12-section-guides-content.md
+// /operations/log: canonical here since 2026-11-15 (the Activity rewrite); that doc is stale for it.
 //
 // The /bridge, /upload, /inbox and /inbox/[orderId] guides went with the order
 // screens they described on 2026-11-13, and with them the direction-aware
-// `{supplier}` party tokens: the one survivor that used them, /operations/log,
-// now reads "supplier", which is what every outbound workspace rendered.
+// `{supplier}` party tokens. The /operations/log guide was rewritten for the
+// Activity page on 2026-11-15.
 
 export interface GuideLink {
   text: string;
@@ -41,17 +42,15 @@ export interface SectionGuideEntry {
 export const SECTION_GUIDES: SectionGuideEntry[] = [
   {
     route: "/operations/log",
-    title: "Activity log",
-    purpose: "A date-grouped audit trail of every order event in your workspace.",
+    title: "Activity",
+    purpose: "Everything that happened to your documents, newest first.",
     bullets: [
-      { text: "Filter by event type or search by PO, buyer, or supplier" },
-      { text: "Expand an entry to see details, errors, and field changes" },
-      { text: "Jump to the order behind any event" },
-      { text: "Export the current filtered view as CSV" },
-      { text: "Only the latest 50 events load — exports cover those" },
+      { text: "Use the tabs to see everything, what was sent, what couldn't be sent, or changes" },
+      { text: "Search by file name or document number, and export the tab you are on as CSV" },
+      { text: "Open a row to see where a send stopped, then fix the destination or send it again" },
     ],
-    firstStep: { text: "Once orders exist, filter by Failed and open the order to retry it from there." },
-    articleSlugs: ["documents-and-statuses", "destinations"],
+    firstStep: { text: "Choose Couldn't send and open a row to see why a document didn't go out." },
+    articleSlugs: ["activity-and-notifications", "destinations"],
   },
   // NOTE: /operations/connectors had a guide here until 2026-08-13, and the copy
   // went with the page because the page never delivered it: it promised "a

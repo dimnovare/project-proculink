@@ -637,7 +637,9 @@ enforced by `src/test/gatedCapabilityClaims.test.ts`:
   the trial included (founder decision, 2026-11-14). `GET /api/audit` (`AuditController.GetAuditLog`,
   `/operations/log`) and `GET /api/documents/{id}/history` (`DocumentsController.History`) are
   ungated, so no card may sell either as a tier differentiator. The Operations card's "Advanced
-  audit trail" bullet went with the gate.
+  audit trail" bullet went with the gate. 2026-11-15: the cross-order activity list (`GET /api/audit`)
+  has been open on every plan since plan 14 (`PlanConstants.cs`: AdvancedAudit deleted), and
+  `/operations/log` is now the Activity page (plan 14.9), which reads it.
 - SSO is **not** on the Enterprise card and must not be added back until a Settings SSO surface
   exists — `BillingFeature.Sso` refuses nothing and `ssoAvailable` has zero frontend consumers.
 

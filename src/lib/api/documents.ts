@@ -45,6 +45,13 @@ export interface Flow {
   publishedVersion?: number | null;
   hasChanges?: boolean;
   noCorrectionStreak?: number | null;
+  /** Only the list response carries it; single responses answer null. Absent on an older backend. */
+  summary?: FlowSummary | null;
+}
+export interface FlowSummaryOutput { name: string; format: string; standard: string | null; destination: string | null }
+export interface FlowSummary {
+  needsYou: number; couldNotSend: number; couldNotRead: number; lastDocumentAt: string | null;
+  waysIn: string[]; outputs: FlowSummaryOutput[];
 }
 export interface FlowVersion { versionNo: number; publishedAt: string; publishedBy: string | null; live: boolean }
 
@@ -115,8 +122,10 @@ export type LookupEntry = { from: string; to: string };
 export type LookupMiss = { lookupId: string; value: string };
 export type LookupCandidate = { value: string; description: string | null };
 export type LookupSuggestion = { lookupId: string; value: string; to: string; confidence: number | null; description: string | null };
+/** `usedBy` is absent from an older server: not known, so nothing about use is printed. */
 export type LookupSummary = {
   id: string; name: string; count: number; updatedAt: string; hasCandidates: boolean; suggestionsOn: boolean;
+  usedBy?: { flowId: string; flowName: string }[];
 };
 export type Lookup = {
   id: string; name: string; entries: LookupEntry[]; updatedAt: string; candidates: LookupCandidate[]; suggestionsOn: boolean;
@@ -295,7 +304,8 @@ export const deleteOutputLogo = (flowId: string, outputId: string) =>
 
 export const listLookups = () => apiFetch<LookupSummary[]>(`/lookups`);
 export const getLookup = (id: string) => apiFetch<Lookup>(`/lookups/${seg(id)}`);
-export const createLookup = (name: string) => apiFetch<Lookup>(`/lookups`, { method: "POST", body: json({ name }) });
+export const createLookup = (name: string, entries: LookupEntry[] = []) =>
+  apiFetch<Lookup>(`/lookups`, { method: "POST", body: json({ name, entries }) });
 export const updateLookup = (id: string, body: { name: string; entries: LookupEntry[]; candidates?: LookupCandidate[] }) =>
   apiFetch<Lookup>(`/lookups/${seg(id)}`, { method: "PUT", body: json(body) });
 /** Sends no `candidates`, so the stored list is kept. */
@@ -313,3 +323,24 @@ export const sendDocument = (id: string) => apiFetch<DocumentDelivery[]>(`/docum
 export const listDeliveries = (id: string) => apiFetch<DocumentDelivery[]>(`/documents/${seg(id)}/deliveries`);
 export const downloadDeliveryFile = (id: string, deliveryId: string) =>
   apiFetch<Blob>(`/documents/${seg(id)}/deliveries/${seg(deliveryId)}/file`, undefined, UPLOAD_TIMEOUT_MS, "blob");
+
+/** One row of `GET /api/audit` (`AuditController.GetAuditLog`); only the fields the Activity page reads. */
+export interface ActivityEvent {
+  id: string; ts: string; action: string;
+  documentId: string | null; flowId: string | null;
+  documentName: string | null; flowName: string | null;
+  source: string | null; actorId: string | null;
+  /** When the send behind a delivery row started; null on every other row. */
+  startedAt: string | null; poNumber: string | null;
+  payload: unknown;
+}
+export interface ActivityResult { events: ActivityEvent[]; total: number; page: number; pageSize: number }
+export interface ActivityQuery { page: number; pageSize: number; actions?: readonly string[]; q?: string; flowId?: string; from?: string; to?: string }
+
+/** Each action is its own `actions` key; an empty text, flow or date is not sent. */
+export function listActivity({ page, pageSize, actions = [], q, flowId, from, to }: ActivityQuery): Promise<ActivityResult> {
+  const query = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+  for (const a of actions) query.append("actions", a);
+  for (const [k, v] of [["q", q], ["flowId", flowId], ["from", from], ["to", to]] as const) if (v) query.append(k, v);
+  return apiFetch<ActivityResult>(`/audit?${query}`);
+}

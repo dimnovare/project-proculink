@@ -21,6 +21,7 @@ import { documentStatus } from "@/lib/documentStatusManifest";
 import {
   DOCUMENT_TABS, DOCUMENTS_PAGE_SIZE, documentsAddress, documentsHelper, readDocumentsAddress, startOfWeek, type DocumentTab,
 } from "@/lib/documentTabs";
+import { intoStrip } from "@/lib/intoStrip";
 import { nextTabIndex } from "@/lib/tabKeys";
 import { DocumentList } from "./DocumentList";
 import { CaughtUp, EmptyFilter, FirstFlowEmpty, Quiet } from "./states";
@@ -29,16 +30,6 @@ import { StoppedAlert } from "./StoppedAlert";
 const Retry = ({ onClick }: { onClick: () => void }) => (
   <Button variant="secondary" size="sm" onClick={onClick}>Retry</Button>
 );
-
-/** Brings the selected tab inside its strip on a narrow screen. Sideways only, so a refresh never moves the page. */
-function intoStrip(el: HTMLElement | null) {
-  const strip = el?.parentElement;
-  if (!el || !strip) return;
-  const tab = el.getBoundingClientRect();
-  const box = strip.getBoundingClientRect();
-  if (tab.left < box.left) strip.scrollLeft -= box.left - tab.left;
-  else if (tab.right > box.right) strip.scrollLeft += tab.right - box.right;
-}
 
 export function DocumentsHome() {
   const engine = useDocumentEngine();
