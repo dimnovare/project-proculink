@@ -216,7 +216,7 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, on
   const body = (
     // Not a <form>: this sits inside the output and draft-review forms, and a nested form's Save
     // either submits the outer form too or, with a password manager installed, reloads the page.
-    <div className={inline ? "grid max-w-[840px] grid-cols-[repeat(auto-fit,minmax(min(240px,100%),1fr))] gap-3" : "grid gap-3"}
+    <div className={inline ? "grid min-w-0 max-w-[840px] grid-cols-[repeat(auto-fit,minmax(min(240px,100%),1fr))] gap-3" : "grid gap-3"}
       onKeyDown={(e) => { if (e.key === "Enter" && e.target instanceof HTMLInputElement) { e.preventDefault(); submit(); } }}>
       <Field label="Name">
         <input className={INPUT} value={name} onChange={(e) => setName(e.target.value)} />
