@@ -6,7 +6,8 @@ import { useSearchParams } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { capture } from "@/lib/analytics";
-import { ProcuLinkMark } from "@/components/bridge/DSPrimitives";
+import { INK_CTA, SITE_PAGE } from "@/components/marketing/LegalPage";
+import { SITE } from "@/components/marketing/sitePictures";
 import { CheckoutReceipt } from "./checkoutReceipt";
 
 /* This page has TWO referrers and both are load-bearing:
@@ -14,7 +15,7 @@ import { CheckoutReceipt } from "./checkoutReceipt";
      (success_url is built in the backend, not in this repo), which is why the
      receipt block below is conditional and why the route is noindex and absent
      from the sitemap.
-   - It is also the first-order guide for a new workspace.
+   - It is also the first-run guide for a new workspace.
    Do not delete it, and do not remove the `upgraded` branch.
 
    ⚠ `upgraded` is a HINT, never the claim. The receipt reads the plan and the
@@ -22,113 +23,15 @@ import { CheckoutReceipt } from "./checkoutReceipt";
    what this page used to assert from the URL alone and why that was a truth
    defect rather than a cosmetic one. */
 
-const S = {
-  page: { maxWidth: 680, margin: "0 auto", padding: "72px 32px 80px", textAlign: "center" as const },
-  h1: {
-    fontFamily: "var(--font-display)",
-    fontSize: "clamp(30px, 4vw, 44px)",
-    fontWeight: 700,
-    letterSpacing: "-0.025em",
-    color: "var(--ink)",
-    margin: "0 0 12px",
-  },
-  sub: { fontSize: 16, color: "var(--ink-muted)", lineHeight: 1.6, margin: "0 0 36px" },
-  card: {
-    background: "var(--surface)",
-    border: "1px solid var(--border)",
-    borderRadius: 12,
-    padding: 28,
-    textAlign: "left" as const,
-    boxShadow: "var(--shadow-card)",
-    marginBottom: 16,
-  },
-  stepNum: {
-    width: 28,
-    height: 28,
-    borderRadius: "50%",
-    background: "var(--navy)",
-    color: "var(--surface)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontWeight: 700,
-    fontSize: 13,
-    flexShrink: 0,
-  },
-  stepTitle: { fontSize: 14.5, fontWeight: 600, color: "var(--ink)", margin: 0 },
-  stepDesc: { fontSize: 13, color: "var(--ink-muted)", margin: "4px 0 0", lineHeight: 1.55 },
-  cta: {
-    display: "inline-block",
-    background: "var(--navy)",
-    color: "var(--surface)",
-    textDecoration: "none",
-    padding: "12px 22px",
-    borderRadius: 8,
-    fontWeight: 600,
-    fontSize: 14,
-    marginTop: 8,
-    minHeight: 44,
-  },
-};
-
-/* Every step goes somewhere.
-
-   These four were plain <div>s — a printed list a new customer read and then had
-   to translate into navigation on their own, on the page they land on straight
-   from paying. The steps and the destinations always existed; only the link did
-   not. Each row is now the whole tap target, at the 44px floor. */
-const STEPS: { n: number; t: string; d: string; href: string }[] = [
-  {
-    n: 1,
-    t: "Add your first supplier",
-    d: "Tell us the name of one supplier you currently send orders to.",
-    href: "/library/suppliers",
-  },
-  {
-    n: 2,
-    t: "Upload a purchase order",
-    d: "CSV, XLSX, or PDF. We parse the lines for you.",
-    href: "/upload",
-  },
-  {
-    n: 3,
-    t: "Confirm field and item mapping",
-    d: "Resolve anything we couldn't match automatically.",
-    href: "/documents",
-  },
-  {
-    n: 4,
-    t: "Send to your supplier",
-    d: "Configure SFTP, FTPS, email or HTTP webhook delivery, or download the formatted output.",
-    href: "/library/suppliers",
-  },
+/* What happens next. Text, not links: the one action on this page is "Open ProcuLink". */
+const STEPS: [string, string][] = [
+  ["Drop your first document", "A PDF, a spreadsheet, a scan or a photo. A test or anonymised one is fine."],
+  ["Check what we read", "The original stays on screen beside it. Fix anything that's wrong."],
+  [
+    "Choose where it goes",
+    "Download the file, or send it by email, to a server or to Google Drive. Nothing is sent until you say so.",
+  ],
 ];
-
-function StepRow({ step, last }: { step: (typeof STEPS)[number]; last: boolean }) {
-  return (
-    <Link
-      href={step.href}
-      style={{
-        display: "flex",
-        gap: 14,
-        padding: "12px 0",
-        borderBottom: last ? "none" : "1px solid var(--border-faint)",
-        alignItems: "flex-start",
-        textDecoration: "none",
-        minHeight: 44,
-      }}
-    >
-      <div style={S.stepNum}>{step.n}</div>
-      <div style={{ flex: 1 }}>
-        <p style={S.stepTitle}>{step.t}</p>
-        <p style={S.stepDesc}>{step.d}</p>
-      </div>
-      <span aria-hidden style={{ color: "var(--ink-faint)", fontSize: 15, lineHeight: "20px", flexShrink: 0 }}>
-        →
-      </span>
-    </Link>
-  );
-}
 
 function WelcomeBody() {
   const { user, isLoaded } = useUser();
@@ -140,32 +43,54 @@ function WelcomeBody() {
     capture("welcome_viewed", { upgraded: upgraded ?? "" });
   }, [isLoaded, upgraded]);
 
+  const firstName = user?.firstName;
+
   return (
-    <div style={S.page}>
-      {/* The page carried no mark of the product the customer had just paid for. */}
-      <div style={{ display: "flex", justifyContent: "center", marginBottom: 20 }}>
-        <ProcuLinkMark size={32} />
-      </div>
+    <div className={SITE_PAGE}>
+      <section aria-label="Welcome" className="pb-24 pt-[72px]">
+        <div className={`${SITE.wrap} grid grid-cols-1 items-start gap-x-[72px] gap-y-12 min-[900px]:grid-cols-2`}>
+          <div className="flex min-w-0 flex-col items-start gap-6">
+            <h1 className="m-0 font-display text-[clamp(36px,4.2vw,56px)] font-semibold leading-[1.04] tracking-[-0.02em] [text-wrap:balance]">
+              {`Welcome to ProcuLink${firstName ? `, ${firstName}` : ""}.`}
+            </h1>
+            <div className="w-full empty:hidden">
+              <CheckoutReceipt expectedPlan={upgraded} />
+            </div>
+            <Link href="/documents" className={`${INK_CTA} w-full sm:w-auto`}>
+              Open ProcuLink
+            </Link>
+            <p className={SITE.soft}>
+              Your first document takes a few minutes. Prefer to follow along?{" "}
+              <Link
+                href="/help/guides/set-up-your-first-flow"
+                className="font-semibold text-brand-blue-deep underline underline-offset-[5px]"
+              >
+                Read the step-by-step guide
+              </Link>
+            </p>
+          </div>
 
-      <h1 style={S.h1}>Welcome to ProcuLink{user?.firstName ? `, ${user.firstName}` : ""}.</h1>
-      <p style={S.sub}>
-        ProcuLink reads your documents, checks them and sends them on in the format you need. Purchase orders work today. Here&apos;s how to get to your first delivered order.
-      </p>
+          <div className="flex min-w-0 flex-col gap-4">
+            <h2 className="font-display text-[26px] font-semibold leading-[1.2] tracking-[-0.015em]">What happens next</h2>
+            <ol className="m-0 list-none border-b border-border p-0">
+              {STEPS.map(([title, detail], i) => (
+                <li key={title} className="flex flex-col gap-1.5 border-t border-border py-5">
+                  <span className="text-[14px] font-semibold text-ink-muted">{`Step ${i + 1}`}</span>
+                  <h3 className={SITE.h3}>{title}</h3>
+                  <p className={SITE.soft}>{detail}</p>
+                </li>
+              ))}
+            </ol>
+          </div>
 
-      <CheckoutReceipt
-        expectedPlan={upgraded}
-        email={user?.primaryEmailAddress?.emailAddress ?? null}
-      />
-
-      <div style={S.card}>
-        {STEPS.map((s, i) => (
-          <StepRow key={s.n} step={s} last={i === STEPS.length - 1} />
-        ))}
-      </div>
-
-      <Link href="/documents" style={S.cta}>
-        Open the dashboard
-      </Link>
+          <p className={`${SITE.soft} min-[900px]:col-span-2`}>
+            Need a hand?{" "}
+            <a href="mailto:support@proculink.eu" className="font-semibold text-brand-blue-deep underline underline-offset-[5px]">
+              support@proculink.eu
+            </a>
+          </p>
+        </div>
+      </section>
     </div>
   );
 }

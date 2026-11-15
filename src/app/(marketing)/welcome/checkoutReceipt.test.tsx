@@ -31,7 +31,7 @@ vi.mock("@/lib/api-client", () => ({
   getBillingStatus: () => api.getBillingStatus(),
 }));
 
-import { PLAN_BY_ID } from "@/lib/plans";
+import { PLAN_BY_ID, TRIAL_DAYS } from "@/lib/plans";
 import { CheckoutReceipt, welcomeReceiptState, CONFIRM_GRACE_MS } from "./checkoutReceipt";
 
 /** A live, paying workspace. Overrides carry each case's disagreement. */
@@ -65,7 +65,7 @@ function renderReceipt(expectedPlan: string | null) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
-      <CheckoutReceipt expectedPlan={expectedPlan} email="ops@buyer.example" />
+      <CheckoutReceipt expectedPlan={expectedPlan} />
     </QueryClientProvider>,
   );
 }
@@ -80,7 +80,7 @@ async function receiptText(): Promise<string> {
 }
 
 /** The one sentence that must never appear without a server response backing it. */
-const ACTIVE_CLAIM = "Your subscription is active";
+const ACTIVE_CLAIM = "You're on";
 
 beforeEach(() => {
   api.getBillingStatus.mockReset();
@@ -216,7 +216,7 @@ describe("CheckoutReceipt — the claim is never made without the server", () =>
     expect(text).not.toContain("You're on");
     expect(text).toContain("Order processing is paused on your account.");
     // The route back is offered, because a paused customer needs one.
-    expect(within(block).getByRole("link", { name: /Settings → Billing/ })).toBeTruthy();
+    expect(within(block).getByRole("link", { name: "Plan & billing" })).toBeTruthy();
   });
 
   it("CONTROL: an active subscription still gets its confirmation", async () => {
@@ -228,9 +228,8 @@ describe("CheckoutReceipt — the claim is never made without the server", () =>
     await waitFor(() => expect(block.dataset.receiptState).toBe("active"));
 
     const text = block.textContent ?? "";
-    expect(text).toContain("You're on Operations.");
-    expect(text).toContain(ACTIVE_CLAIM);
-    expect(text).toContain("ops@buyer.example");
+    expect(text).toContain(`You're on Operations: ${(150).toLocaleString("en-GB")} documents a month.`);
+    expect(text).toContain("Your workspace is ready.");
   });
 
   it("does NOT print a plan the URL asked for and the server does not hold", async () => {
@@ -262,7 +261,9 @@ describe("CheckoutReceipt — the claim is never made without the server", () =>
     });
 
     await waitFor(() => expect(block.dataset.receiptState).toBe("active"));
-    expect(block.textContent ?? "").toContain(`You're on ${PLAN_BY_ID.pilot.name}.`);
+    expect(block.textContent ?? "").toContain(
+      `You're on the free trial: 150 documents, ${PLAN_BY_ID.pilot.flowLimit} flows, ${TRIAL_DAYS} days.`,
+    );
     expect(block.textContent ?? "").not.toContain("Distributor");
   });
 
@@ -293,6 +294,48 @@ describe("CheckoutReceipt — the claim is never made without the server", () =>
     expect(text).not.toContain(ACTIVE_CLAIM);
     expect(text).not.toContain("Distributor");
     expect(text).toContain("We couldn't confirm your subscription here.");
+  });
+
+  it("never says the workspace is ready or names a plan before the server answers active", async () => {
+    const cases: [string, () => unknown, string, boolean][] = [
+      ["still loading", () => api.getBillingStatus.mockReturnValue(new Promise(() => {})), "operations", true],
+      ["call failed", () => api.getBillingStatus.mockRejectedValue(new Error("401 Unauthorized")), "operations", true],
+      [
+        "paused",
+        () =>
+          api.getBillingStatus.mockResolvedValue(
+            billing({ plan: "operations", canProcessOrders: false, accountStatus: "past_due" }),
+          ),
+        "operations",
+        false, // the paused sentence names the server's plan on purpose
+      ],
+      ["webhook race", () => api.getBillingStatus.mockResolvedValue(billing({ plan: "pilot", accountStatus: "trialing" })), "operations", true],
+    ];
+    for (const [name, arrange, hint, checkPlan] of cases) {
+      api.getBillingStatus.mockReset();
+      arrange();
+      const { unmount } = renderReceipt(hint);
+      const block = await screen.findByTestId("checkout-receipt");
+      await waitFor(() => expect(api.getBillingStatus).toHaveBeenCalled());
+      await new Promise((r) => setTimeout(r, 30));
+      expect(within(block).queryByText("Your workspace is ready."), name).toBeNull();
+      expect(block.textContent ?? "", name).not.toContain("You're on");
+      if (checkPlan) expect(block.textContent ?? "", name).not.toContain("Operations");
+      unmount();
+    }
+
+    // CONTROL: the server answers active on a document plan.
+    api.getBillingStatus.mockReset();
+    api.getBillingStatus.mockResolvedValue(billing({ plan: "starter", orderLimit: 150 }));
+    renderReceipt("starter");
+    const block = await screen.findByTestId("checkout-receipt");
+    await waitFor(() => expect(block.dataset.receiptState).toBe("active"));
+    expect(block.textContent ?? "").toContain(
+      `You're on ${PLAN_BY_ID.starter.name}: 150 documents a month, ${PLAN_BY_ID.starter.flowLimit} flows.`,
+    );
+    expect(within(block).getByRole("link", { name: "Plan & billing" }).getAttribute("href")).toBe(
+      "/settings?tab=billing",
+    );
   });
 
   it("renders nothing at all, and reads no billing status, without the `upgraded` hint", async () => {
