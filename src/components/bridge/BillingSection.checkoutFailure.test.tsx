@@ -31,6 +31,7 @@ import { render, screen, cleanup, waitFor, fireEvent } from "@testing-library/re
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { BillingStatus } from "@/types/procurement";
 import { orgAdminMessage } from "@/lib/planGate";
+import { COPY } from "@/lib/documentRefusals";
 
 const api = {
   getBillingStatus: vi.fn(),
@@ -147,7 +148,7 @@ describe("A-F8d — a refused checkout never shows a status line or an internal 
     await refuseCheckoutWith(orgAdminMessage());
 
     const line = await screen.findByTestId("checkout-error");
-    expect(line.textContent).toBe(orgAdminMessage());
+    expect(line.textContent).toBe(COPY.requires_org_admin);
     expect(pageText()).not.toContain("Could not start checkout");
     expect(pageText()).not.toContain("not included in your plan");
   });
@@ -186,7 +187,7 @@ describe("a paid plan's upgrade charges the card on file, so it asks first", () 
       </QueryClientProvider>,
     );
 
-    fireEvent.click(await screen.findByRole("button", { name: /Need more volume\? Upgrade to Operations/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "Upgrade to Operations" }));
     const confirm = screen.getByRole("group", { name: "Confirm upgrade to Operations" });
     expect(confirm.textContent).toContain("Your card on file is charged today.");
     expect(api.createCheckoutSession).not.toHaveBeenCalled();

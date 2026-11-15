@@ -1,5 +1,5 @@
 import type { BillingPlan, BillingStatus } from "@/types/procurement";
-import { PLAN_BY_ID, type Plan } from "@/lib/plans";
+import { CHECKOUT_PLAN_IDS, DOCUMENT_PLAN_IDS, DOCUMENT_PLANS, PLAN_BY_ID, type Plan } from "@/lib/plans";
 import { NUMBER_LOCALE } from "@/lib/format-number";
 
 /**
@@ -59,6 +59,33 @@ export function flowsUse(used: number, flowLimit: number | null): Use {
   const room = flowLimit - used;
   const sub = room > 0 ? `Room for ${count(room)} more flow${room === 1 ? "" : "s"}.` : "No room for more flows on this plan.";
   return { label: "Flows", used, limit: flowLimit, sub, barLabel: `${count(used)} of ${count(flowLimit)} flows used` };
+}
+
+export interface PlanRow { plan: Plan; state: "current" | "upgrade" | "lower" }
+
+/**
+ * R10. What "Change plan" lists: a document plan sees the document plans; a trial sees them with
+ * the engine on, the legacy self-serve plans with it off, and nothing until it answers; a legacy
+ * paid plan sees itself and the one its `next` points at; Enterprise sees nothing. The trial is
+ * never a row. State is by position on the list, so a cheaper plan is never an upgrade.
+ */
+export function changePlanRows(current: BillingPlan, engine: "on" | "off" | "unknown"): PlanRow[] {
+  const next = PLAN_BY_ID[current]?.next;
+  const plans =
+    current === "pilot"
+      ? engine === "on" ? DOCUMENT_PLANS : engine === "off" ? CHECKOUT_PLAN_IDS.map((id) => PLAN_BY_ID[id]) : []
+      : DOCUMENT_PLAN_IDS.includes(current)
+        ? DOCUMENT_PLANS
+        : current === "enterprise" || !PLAN_BY_ID[current]
+          ? []
+          : [PLAN_BY_ID[current], ...(next ? [PLAN_BY_ID[next]] : [])];
+  const at = plans.findIndex((p) => p.id === current);
+  return plans.map((plan, i) => ({ plan, state: i === at ? "current" : i > at ? "upgrade" : "lower" }));
+}
+
+/** Whole months an annual price saves on this plan, or null when it has no annual price. */
+export function monthsFree(plan: Plan): number | null {
+  return plan.priceYearly && plan.priceMonthly ? Math.round(12 - plan.priceYearly / plan.priceMonthly) : null;
 }
 
 /** The two extra-document sentences for a plan with a rate; null for Trial and Enterprise. */

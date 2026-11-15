@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { PLAN_BY_ID } from "@/lib/plans";
-import { documentsUse, euro, extraLines, flowsUse, planLine, priceWords } from "./billingWords";
+import { CHECKOUT_PLAN_IDS, DOCUMENT_PLANS, PLAN_BY_ID } from "@/lib/plans";
+import { changePlanRows, documentsUse, euro, extraLines, flowsUse, monthsFree, planLine, priceWords } from "./billingWords";
 
 const now = new Date(2026, 5, 1, 9, 30);
 const days = (n: number) => new Date(now.getTime() + n * 86_400_000).toISOString();
@@ -45,5 +45,20 @@ describe("billing words", () => {
       "A busy month never costs more than the larger plan that would have covered it.",
     ]);
     expect([extraLines("pilot"), extraLines("enterprise")]).toEqual([null, null]);
+  });
+
+  const ids = (rows: ReturnType<typeof changePlanRows>) => rows.map((r) => [r.plan.id, r.state]);
+
+  it("offers only the plans above the current one, and nothing while the engine is unknown", () => {
+    expect(ids(changePlanRows("pilot", "on"))).toEqual(DOCUMENT_PLANS.map((p) => [p.id, "upgrade"]));
+    expect(ids(changePlanRows("pilot", "off"))).toEqual(CHECKOUT_PLAN_IDS.map((id) => [id, "upgrade"]));
+    expect(changePlanRows("pilot", "unknown")).toEqual([]);
+    expect(ids(changePlanRows("pro", "unknown"))).toEqual([["starter", "lower"], ["pro", "current"], ["business", "upgrade"], ["scale", "upgrade"]]);
+    expect(ids(changePlanRows("scale", "on")).filter(([, s]) => s === "upgrade")).toEqual([]);
+    expect(ids(changePlanRows("growth", "on"))).toEqual([["growth", "current"], ["operations", "upgrade"]]);
+    expect(ids(changePlanRows("distributor", "on"))).toEqual([["distributor", "current"]]);
+    expect(changePlanRows("enterprise", "on")).toEqual([]);
+    expect(monthsFree(DOCUMENT_PLANS[0])).toBe(2);
+    expect(monthsFree(PLAN_BY_ID.pilot)).toBeNull();
   });
 });

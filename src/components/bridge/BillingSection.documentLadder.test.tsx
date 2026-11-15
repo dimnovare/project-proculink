@@ -79,8 +79,8 @@ describe("BillingSection on the document ladder", () => {
   it("a trial with the engine is offered the document ladder", async () => {
     const view = await renderWith(billing());
 
-    expect(view.getByText("Upgrade when this is ready for daily use.")).toBeTruthy();
-    for (const name of ["Pro", "Business", "Scale"]) expect(view.getByRole("button", { name })).toBeTruthy();
+    expect(view.getByText(/Plans differ only by documents a month and flows\./)).toBeTruthy();
+    for (const name of ["Pro", "Business", "Scale"]) expect(view.getByRole("button", { name: `Upgrade to ${name}` })).toBeTruthy();
     expect(view.queryByRole("button", { name: "Upgrade to Growth" })).toBeNull();
 
     fireEvent.click(view.getByRole("button", { name: "Upgrade to Starter" }));
@@ -98,7 +98,7 @@ describe("BillingSection on the document ladder", () => {
     expect(line).toContain(`€${PLAN_BY_ID.starter.overageEur}`);
     expect(line).not.toContain("€0.50");
     // A paid document plan changes its live subscription, so its next plan is on offer again.
-    expect(view.getByRole("button", { name: /Need more volume\? Upgrade to Pro/ })).toBeTruthy();
+    expect(view.getByRole("button", { name: "Upgrade to Pro" })).toBeTruthy();
 
     const growth = await renderWith(
       billing({ plan: "growth", accountStatus: "active", ordersThisMonth: 160, orderLimit: 150, overageOrders: 10, overageAmountEur: 5, atLimit: true }),
@@ -110,7 +110,28 @@ describe("BillingSection on the document ladder", () => {
     engine.state = "unknown";
     const view = await renderWith(billing());
 
-    expect((view.getByRole("button", { name: "Upgrade to Growth" }) as HTMLButtonElement).disabled).toBe(true);
+    expect(within(view.getByRole("region", { name: "Change plan" })).getByText("Loading plans…")).toBeTruthy();
+    expect(view.queryAllByRole("button", { name: /Upgrade to/ })).toEqual([]);
+  });
+
+  it("a Starter workspace with Stripe: one filled button, for Pro; a paid upgrade asks first; the period reaches checkout", async () => {
+    const view = await renderWith(billing({ plan: "starter", accountStatus: "active", orderLimit: 150, stripeCustomerId: "cus_example" }));
+    const change = view.getByRole("region", { name: "Change plan" });
+    expect(within(change).getByText("Your plan")).toBeTruthy();
+    expect(within(change).getAllByRole("button").map((b) => b.textContent)).toEqual(["Upgrade to Pro", "Upgrade to Business", "Upgrade to Scale"]);
+    const filled = document.querySelectorAll("button.bg-navy, button.bg-brand-green-btn, button.bg-brand-blue");
+    expect([...filled].map((b) => b.textContent)).toEqual(["Upgrade to Pro"]);
+    fireEvent.click(within(view.getByRole("radiogroup", { name: "Billing period" })).getByRole("radio", { name: "Annual" }));
+    expect(within(change).getByText(`€${PLAN_BY_ID.pro.priceYearly!.toLocaleString("en-IE")} a year`)).toBeTruthy();
+    fireEvent.click(within(change).getByRole("button", { name: "Upgrade to Pro" }));
+    expect(api.createCheckoutSession).not.toHaveBeenCalled();
+    const confirm = view.getByRole("group", { name: "Confirm upgrade to Pro" });
+    fireEvent.click(within(confirm).getByRole("button", { name: "Upgrade now" }));
+    fireEvent.click(within(confirm).getByRole("button", { name: /Upgrad/ }));
+    await waitFor(() => expect(api.createCheckoutSession).toHaveBeenCalledTimes(1));
+    expect(api.createCheckoutSession).toHaveBeenCalledWith("pro", "yearly");
+    expect(view.getByRole("region", { name: "Payment and invoices" })).toHaveTextContent("Your card, billing email and invoices are kept in Stripe.");
+    expect(view.getByRole("region", { name: "If you cancel" })).toHaveTextContent("so tell your senders first.");
   });
 });
 
@@ -148,14 +169,6 @@ describe("the trial is called by its plan name, never by its wire id", () => {
 });
 
 describe("trial copy details", () => {
-  it("the legacy-ladder upgrade sentence is plain prose with no stray template braces", async () => {
-    engine.state = "off";
-    const view = await renderWith(billing());
-    const sentence = view.getByText(/keeps processing open/).textContent ?? "";
-    expect(sentence).toContain("after your trial ends");
-    expect(sentence).not.toContain("{");
-  });
-
   it("the allowance-used banner names the derived next plan", async () => {
     const next = PLAN_BY_ID[nextPlanFor("pilot", true)!].name;
     await renderWith(billing({ ordersThisMonth: 20, orderLimit: 20, isOrderLimitReached: true, atLimit: true }));
