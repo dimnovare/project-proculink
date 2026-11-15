@@ -17,6 +17,7 @@ import type { ActivityEvent } from "@/lib/api/documents";
 import { stripCsComments } from "./csLiterals";
 import { MINIMUM_PLAN } from "@/lib/gatedCapabilities";
 import { OVERAGE_PER_ORDER_EUR, PLAN_BY_ID, TRIAL_DAYS } from "@/lib/plans";
+import { FILE_KINDS, MAX_UPLOAD_BYTES } from "@/lib/fileKinds";
 import { REVIEW_CONFIDENCE } from "@/lib/reviewMarks";
 import { LOOKUP_LIMITS } from "@/lib/lookupCsv";
 
@@ -1387,6 +1388,23 @@ describe("standard outputs mirror the backend", () => {
 
   test("every standard output has a catalog entry", () => {
     expect(STANDARD_OUTPUTS.filter((id) => !STANDARDS.some((s) => s.id === id))).toEqual([]);
+  });
+});
+
+describe("file kinds mirror the backend", () => {
+  test.skipIf(!BACKEND)("the file kinds the upload offers are the ones DocumentFormats accepts", () => {
+    const cs = stripCsComments(readFileSync(join(BACKEND!, "ProcuLink.Core/Documents/DocumentFormats.cs"), "utf8"));
+    const lists = Object.fromEntries([...cs.matchAll(/string\[\]\s+(\w+)\s*=\s*\[([^\]]*)\]/g)]
+      .map(([, name, items]) => [name, [...items.matchAll(/"([^"]+)"/g)].map((m) => m[1])]));
+    expect(Object.keys(lists), "DocumentFormats.cs parsed to no lists, so this would prove nothing").toEqual(["Base", "Images", "More"]);
+    expect([lists.Base, lists.Images, lists.More]).toEqual([[...FILE_KINDS.base], [...FILE_KINDS.photos], [...FILE_KINDS.more]]);
+  });
+
+  test.skipIf(!BACKEND)("the upload size limit is IngressLimits.MaxFileBytes", () => {
+    const cs = stripCsComments(readFileSync(join(BACKEND!, "ProcuLink.Core/Services/Ingress/IngressLimits.cs"), "utf8"));
+    const m = cs.match(/const\s+long\s+MaxFileBytes\s*=\s*(\d+)L\s*\*\s*(\d+)\s*\*\s*(\d+)\s*;/);
+    expect(m, "MaxFileBytes is no longer written as a product of three numbers").not.toBeNull();
+    expect(Number(m![1]) * Number(m![2]) * Number(m![3])).toBe(MAX_UPLOAD_BYTES);
   });
 });
 
