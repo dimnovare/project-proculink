@@ -68,6 +68,7 @@ describe("renamed settings tabs keep their ?tab= ids", () => {
   const src = read("src/app/(app)/settings/page.tsx");
   const rows: Array<[string, string]> = [
     ["org", "Workspace"],
+    ["destinations", "Destinations"],
     ["billing", "Plan & billing"],
     ["api", "API keys"],
     ["connectors", "Notifications"],
@@ -79,7 +80,7 @@ describe("renamed settings tabs keep their ?tab= ids", () => {
   }
   it("keeps the SettingsTab union unchanged so old deep links still validate", () => {
     expect(src).toContain(
-      'type SettingsTab = "org" | "billing" | "api" | "connectors"',
+      'type SettingsTab = "org" | "destinations" | "billing" | "api" | "connectors"',
     );
   });
 });

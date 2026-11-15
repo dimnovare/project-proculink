@@ -22,7 +22,7 @@ export const useLinkedAccounts = () =>
  * Opens the popup synchronously in the click, so a blocker allows it. A popup needs no way back — the callback
  * closes it — so only the full-page fallback sends `returnTo`.
  */
-async function connect() {
+export async function connectGoogle(): Promise<void> {
   const popup = window.open("about:blank", "google-connect", "width=520,height=640");
   try {
     const { authorizeUrl } = await startGoogleConnect(location.origin, popup ? undefined : location.pathname + location.search);
@@ -32,6 +32,20 @@ async function connect() {
     popup?.close();
     throw e;
   }
+}
+
+/** Refreshes the account list when the callback page says an account was saved. */
+export function useGoogleConnectRefresh(): void {
+  const qc = useQueryClient();
+  // A BroadcastChannel, not window.opener: Google's sign-in pages can sever the opener (COOP).
+  useEffect(() => {
+    if (typeof BroadcastChannel === "undefined") return;
+    const channel = new BroadcastChannel(GOOGLE_CONNECT_CHANNEL);
+    channel.onmessage = (e: MessageEvent) => {
+      if (e.data?.type === "connected") void qc.invalidateQueries({ queryKey: KEY });
+    };
+    return () => channel.close();
+  }, [qc]);
 }
 
 export function GoogleTargetFields({ protocol, config, onChange }: {
@@ -44,18 +58,10 @@ export function GoogleTargetFields({ protocol, config, onChange }: {
   const drive = protocol === "google_drive";
   const [idKey, nameKey] = drive ? ["folderId", "folderName"] : ["spreadsheetId", "spreadsheetName"];
 
-  // A BroadcastChannel, not window.opener: Google's sign-in pages can sever the opener (COOP).
-  useEffect(() => {
-    if (typeof BroadcastChannel === "undefined") return;
-    const channel = new BroadcastChannel(GOOGLE_CONNECT_CHANNEL);
-    channel.onmessage = (e: MessageEvent) => {
-      if (e.data?.type === "connected") void qc.invalidateQueries({ queryKey: KEY });
-    };
-    return () => channel.close();
-  }, [qc]);
+  useGoogleConnectRefresh();
 
   const fail = (e: unknown) => setProblem(documentRefusalMessage(e));
-  const start = () => { setProblem(null); connect().catch(fail); };
+  const start = () => { setProblem(null); connectGoogle().catch(fail); };
   const pick = useMutation({
     mutationFn: async (accountId: string) =>
       openGooglePicker({ kind: drive ? "folder" : "spreadsheet", ...(await getGooglePicker(accountId)) }),
@@ -140,7 +146,7 @@ export function GoogleTargetFields({ protocol, config, onChange }: {
             <input className={INPUT} value={String(config.sheetName ?? "")} aria-describedby="dest-sheet-help"
               onChange={(e) => onChange({ sheetName: e.target.value })} />
           </Field>
-          <span id="dest-sheet-help" className="text-[11px] text-ink-muted">
+          <span id="dest-sheet-help" className="text-[13px] text-ink-muted">
             Leave empty to add rows to the first tab. Use a CSV output with a header row — each send adds its rows to the end.
           </span>
         </div>
