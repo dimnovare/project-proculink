@@ -108,11 +108,21 @@ describe("DocumentsHome", () => {
     expect(await screen.findByText("3 need you. 24 were sent this week.")).toBeInTheDocument();
     expect(screen.getByTestId("review-next")).toHaveAttribute("href", "/flows/f1/documents/d-new");
     expect(screen.getByTestId("review-next")).toHaveTextContent(/^Review next\s*3$/);
-    expect(within(screen.getByTestId("action-bar")).getByRole("link", { name: /^Review next/ })).toHaveAttribute("href", "/flows/f1/documents/d-new");
+    expect(screen.getByTestId("review-next")).toHaveAccessibleName("Review next, 3 need you");
+    expect(within(screen.getByTestId("action-bar")).getByRole("link", { name: "Review next, 3 need you" })).toHaveAttribute("href", "/flows/f1/documents/d-new");
     first.unmount();
     answers({ needs: 0, week: 0 });
-    mount();
+    const second = mount();
     expect(await screen.findByText("Nothing needs you.")).toBeInTheDocument();
+    expect(screen.queryByTestId("review-next")).toBeNull();
+    expect(screen.queryByTestId("action-bar")).toBeNull();
+    second.unmount();
+    // While the needs-you answer is out, the plain line stays: an unknown number is not "Nothing".
+    answers({ needs: "pending" });
+    mount();
+    await screen.findByRole("tablist");
+    expect(screen.getByText("Every document that has arrived, newest first.")).toBeInTheDocument();
+    expect(screen.queryByText("Nothing needs you.")).toBeNull();
     expect(screen.queryByTestId("review-next")).toBeNull();
     expect(screen.queryByTestId("action-bar")).toBeNull();
   });

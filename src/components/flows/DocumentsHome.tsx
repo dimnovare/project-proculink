@@ -44,7 +44,9 @@ export function DocumentsHome() {
     })),
   });
   const week = useQuery({
-    ...documentCountQuery(["sent"], startOfWeek(new Date()).toISOString()),
+    // A fixed key, and the week's start worked out when asked: a page left open over Sunday night moves on by itself.
+    queryKey: ["documents", "count", "sent", "this-week"],
+    queryFn: () => listDocumentPage({ status: ["sent"], sentFrom: startOfWeek(new Date()).toISOString(), page: 1, pageSize: 1 }),
     enabled: engine === "on",
     refetchInterval: 60_000,
     refetchOnWindowFocus: true,
@@ -158,7 +160,10 @@ export function DocumentsHome() {
   const needs = counts[0].data;
   const next = needs && needs.totalCount > 0 ? needs.items[0] : undefined;
   const reviewNext = (testId?: string, only = "") => next && (
-    <Link href={`/flows/${next.flowId}/documents/${next.id}`} data-testid={testId} className={`${buttonClass("send", "lg")}${only}`}>
+    <Link
+      href={`/flows/${next.flowId}/documents/${next.id}`} data-testid={testId} className={`${buttonClass("send", "lg")}${only}`}
+      aria-label={`Review next, ${needs?.totalCount} ${needs?.totalCount === 1 ? "needs" : "need"} you`}
+    >
       Review next
       <span className="rounded-full bg-navy/30 px-2 text-[12.5px]">{needs?.totalCount}</span>
     </Link>
