@@ -1,7 +1,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { listDocuments, listFlows } from "@/lib/api/documents";
+import { listDocumentPage, listFlows } from "@/lib/api/documents";
+import { NEEDS_YOU_STATUSES } from "@/lib/documentTabs";
 import { refusalToken } from "@/lib/documentRefusals";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 
@@ -15,12 +16,13 @@ export const flowsQuery = {
   refetchOnWindowFocus: false,
 } as const;
 
-export const DOCUMENTS_TAKE = 100;
-/** One set of options for every reader of the newest documents, so they share a request. */
-export const documentsQuery = {
-  queryKey: ["documents", { take: DOCUMENTS_TAKE }],
-  queryFn: () => listDocuments({ take: DOCUMENTS_TAKE }),
-} as const;
+/** How many documents have these statuses, and which is newest. One request, shared by every reader of the same key. */
+export const documentCountQuery = (statuses: readonly string[]) => ({
+  queryKey: ["documents", "count", statuses.join(","), ""] as const,
+  queryFn: () => listDocumentPage({ status: statuses, page: 1, pageSize: 1 }),
+});
+/** The needs-you number: the title line, its tab, "Review next" and the phone tab bar read this one request. */
+export const needsYouQuery = documentCountQuery(NEEDS_YOU_STATUSES);
 
 /** "off" only on the server's explicit refusal; data in hand is "on" even if a later refetch fails;
  *  loading or any other failure with no data is "unknown". */

@@ -53,8 +53,10 @@ export function StatusJourney({ stage, compact = false, crossingRef }: StatusJou
 
   if (compact) {
     // tokens.css .journey.compact .jn { width:11px; height:11px }
+    const at: number = failedAt ?? numericStage;
+    const where = `${at + 1} of 5: ${STAGES[at].toLowerCase()}`;
     return (
-      <div className="flex items-center">
+      <div role="img" aria-label={failedAt === null ? `Stage ${where}` : `Stopped at stage ${where}`} className="flex items-center">
         {STAGES.map((_, i) => {
           const done   = numericStage > i;
           const active = numericStage === i;

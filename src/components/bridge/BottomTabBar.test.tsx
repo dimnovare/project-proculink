@@ -2,19 +2,18 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, within, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import type { DocumentSummary } from "@/lib/api/documents";
 import { BottomTabBar, isFullScreenStep, needsYouBadge } from "./BottomTabBar";
 
 let mockPath: string | null = "/documents";
+const needsTotal = vi.hoisted(() => ({ n: 3 }));
 vi.mock("next/navigation", () => ({ usePathname: () => mockPath, useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => true }));
 vi.mock("@/lib/api-client", () => ({ getBillingStatus: vi.fn(), checkAdminAccess: vi.fn() }));
 vi.mock("@/lib/api/documents", () => ({
   listFlows: () => Promise.resolve([{ id: "f-1", name: "Flow" }]),
-  listDocuments: () => Promise.resolve([]),
+  listDocumentPage: () => Promise.resolve({ items: [], totalCount: needsTotal.n, page: 1, pageSize: 1 }),
 }));
 
-const doc = (status: string) => ({ id: "d", status, statusReason: null }) as DocumentSummary;
 const renderBar = (ui: ReactElement) =>
   render(<QueryClientProvider client={new QueryClient()}>{ui}</QueryClientProvider>);
 
@@ -34,12 +33,21 @@ describe("BottomTabBar", () => {
     expect(onMore).toHaveBeenCalledTimes(1);
   });
 
-  it("shows the needs-you count only when it is known", () => {
-    expect(needsYouBadge(undefined, 100)).toBeNull();
-    expect(needsYouBadge([], 100)).toBeNull();
-    expect(needsYouBadge([doc("sent"), doc("reading")], 100)).toBeNull();
-    expect(needsYouBadge([doc("needs_review"), doc("sent"), doc("send_failed")], 100)).toBe("2");
-    expect(needsYouBadge(Array.from({ length: 100 }, () => doc("ready")), 100)).toBe("100+");
+  it("shows the needs-you count only when it is known", async () => {
+    expect([needsYouBadge(undefined), needsYouBadge(0), needsYouBadge(1), needsYouBadge(99), needsYouBadge(120)]).toEqual([null, null, "1", "99", "99+"]);
+    mockPath = "/flows";
+    renderBar(<BottomTabBar onMore={() => {}} moreOpen={false} />);
+    const bar = within(screen.getByRole("navigation", { name: "Main" }));
+    expect(await bar.findByRole("link", { name: "Documents, 3 need you" })).toHaveAttribute("href", "/documents");
+    expect(bar.getByRole("link", { name: "Flows" })).toBeInTheDocument(); // the count is on Documents only
+    for (const [n, name, shown] of [[1, "Documents, 1 needs you", "1"], [120, "Documents, 120 need you", "99+"]] as const) {
+      needsTotal.n = n;
+      const r = renderBar(<BottomTabBar onMore={() => {}} moreOpen={false} />);
+      const link = await within(r.container).findByRole("link", { name });
+      expect(link).toHaveTextContent(new RegExp(`^${shown.replace("+", "\\+")}Documents$`));
+      r.unmount();
+    }
+    needsTotal.n = 3;
   });
 
   it("steps aside on full-screen steps", () => {
