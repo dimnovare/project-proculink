@@ -40,6 +40,7 @@ describe("documentRefusalMessage", () => {
 describe("scan read failures", () => {
   it("a no-egress read failure has its own copy and no retry", () => {
     expect(readFailureMessage("no_egress")).toBe("This workspace keeps documents on our own servers, so they aren't sent to AI to be read.");
+    expect(readFailureMessage("ai_error")).toBe("We couldn't read this document."); // not the sentence about an output's documentation
     expect(canRetryRead("no_egress")).toBe(false);
     expect(canRetryRead("usage_cap")).toBe(true);
     expect(canRetryRead("scanned_not_supported", { scansOn: true })).toBe(true);
