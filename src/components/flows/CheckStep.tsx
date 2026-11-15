@@ -11,7 +11,7 @@ import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { useDocumentEdits } from "@/hooks/useDocumentEdits";
 import { capture } from "@/lib/analytics";
 import { ApiHttpError } from "@/lib/api/core";
-import { createOutput, getDocument, listOutputs, retryDocumentRead, saveFlowFields, updateFlow, type Flow } from "@/lib/api/documents";
+import { createOutput, getDocument, listDocumentPage, listOutputs, retryDocumentRead, saveFlowFields, updateFlow, type Flow } from "@/lib/api/documents";
 import { COPY, documentRefusalMessage } from "@/lib/documentRefusals";
 import { documentStatus } from "@/lib/documentStatusManifest";
 import { firstRunAddress, foundSummary, PROVISIONAL_FLOW_NAME, suggestFlowName, tableSummary } from "@/lib/firstRun";
@@ -27,6 +27,17 @@ export const notFound = (e: unknown) => e instanceof ApiHttpError && e.status ==
 export const Gone = ({ text }: { text: string }) => (
   <StatusNotice tone="error" action={<Link href={firstRunAddress({})} className={buttonClass("secondary", "sm")}>Start again</Link>}>{text}</StatusNotice>
 );
+
+/** Where the document of this run is: its row on the flow's first page (for `isSample`), else unknown. */
+export function useRunDocument(flowId: string, docId: string | null) {
+  const page = useQuery({
+    queryKey: ["documents", "first-run", flowId], enabled: useTenantQueriesEnabled() && !!flowId,
+    queryFn: () => listDocumentPage({ flowId, page: 1, pageSize: 20 }),
+  });
+  const id = docId ?? page.data?.items[0]?.id ?? null;
+  const row = page.data?.items.find((r) => r.id === id);
+  return { row, isSample: row ? row.isSample : null, docId: id, isLoading: page.isLoading, error: page.error };
+}
 
 const PANES = [{ id: "original", title: "Original" }, { id: "read", title: "Here's what we found" }] as const;
 const WAY_ON = "inline-flex min-h-[44px] items-center text-[14px] font-semibold text-brand-blue sm:min-h-0";

@@ -53,4 +53,19 @@ describe("FirstRun", () => {
     expect(await within(again).findByText(COPY.flow_not_found)).toBeInTheDocument();
     expect(within(again).getByRole("link", { name: "Start again" })).toHaveAttribute("href", "/flows/new");
   });
+
+  it("draws no empty heading while the page loads or after a failed load", async () => {
+    const empty = (c: HTMLElement) => within(c).queryAllByRole("heading").filter((h) => !h.textContent?.trim());
+    api.listFlows.mockReturnValue(new Promise(() => {}));
+    setSearch("");
+    const loading = render(<FirstRun />, { wrapper: freshWrapper() });
+    expect(await within(loading.container).findByText("Loading flows…")).toBeInTheDocument();
+    expect(within(loading.container).getByRole("link", { name: "Back to Flows" })).toBeInTheDocument();
+    expect(empty(loading.container)).toEqual([]);
+    loading.unmount();
+    api.listFlows.mockRejectedValue(new ApiHttpError("down", 500, null));
+    const failed = render(<FirstRun />, { wrapper: freshWrapper() }).container;
+    expect(await within(failed).findByRole("button", { name: "Retry" })).toBeInTheDocument();
+    expect(empty(failed)).toEqual([]);
+  });
 });
