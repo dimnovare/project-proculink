@@ -60,7 +60,7 @@ function SettingsScreen() {
               type="button"
               aria-current={on ? "page" : undefined}
               onClick={() => router.replace(settingsAddress(t.id), { scroll: false })}
-              className={`h-11 shrink-0 whitespace-nowrap border-b-2 px-3.5 text-[14px] max-[480px]:flex-1 max-[480px]:px-1.5 max-[480px]:text-[13.5px] ${
+              className={`h-11 shrink-0 whitespace-nowrap border-b-2 px-3.5 text-[14px] max-[480px]:flex-1 max-[480px]:px-0.5 max-[480px]:text-[13.5px] ${
                 on ? "border-brand-blue font-semibold text-ink" : "border-transparent font-medium text-ink-muted hover:text-ink"
               }`}
             >
