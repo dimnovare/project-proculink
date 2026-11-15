@@ -186,6 +186,10 @@ export function uploadDocument(flowId: string, file: File): Promise<DocumentSumm
   return apiFetch<DocumentSummary>(`/flows/${seg(flowId)}/documents`, { method: "POST", body: form }, UPLOAD_TIMEOUT_MS);
 }
 
+/** The built-in sample invoice as a document of this flow. Read like an upload, never counted. One per flow: asking again returns the same document. */
+export const createSampleDocument = (flowId: string) =>
+  apiFetch<DocumentSummary>(`/flows/${seg(flowId)}/documents/sample`, { method: "POST" }, UPLOAD_TIMEOUT_MS);
+
 /** An undefined parameter or an empty array is not sent; an array is sent comma-joined. */
 function toQuery(params: object): URLSearchParams {
   const query = new URLSearchParams();

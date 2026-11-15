@@ -5,7 +5,7 @@ vi.mock("./core", async (importOriginal) => {
   return { ...actual, authHeader: async () => ({}), API_BASE_URL: "http://api.test", isApiMockMode: false };
 });
 
-import { editDocumentValues, getDocument, getFlow, listDocumentPage, sendDocument, updateLookup, uploadDocument } from "./documents";
+import { createSampleDocument, editDocumentValues, getDocument, getFlow, listDocumentPage, sendDocument, updateLookup, uploadDocument } from "./documents";
 import { ApiHttpError } from "./core";
 
 const fetchMock = vi.fn();
@@ -30,6 +30,18 @@ describe("documents api", () => {
     expect(init.body).toBeInstanceOf(FormData);
     expect((init.body as FormData).get("file")).toBeInstanceOf(File);
     expect(Object.keys(init.headers ?? {}).map((h) => h.toLowerCase())).not.toContain("content-type");
+  });
+
+  it("createSampleDocument posts to the flow's sample path with no body", async () => {
+    fetchMock.mockResolvedValue(json({ id: "d1", fileName: "invoice-2250.pdf" }));
+
+    const out = await createSampleDocument("f1");
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toMatch(/\/api\/flows\/f1\/documents\/sample$/);
+    expect(init.method).toBe("POST");
+    expect(init.body).toBeUndefined();
+    expect(out.fileName).toBe("invoice-2250.pdf");
   });
 
   it("editDocumentValues PATCHes the edit body and returns the detail", async () => {

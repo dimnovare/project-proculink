@@ -863,6 +863,15 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     reasonKeys: [],
     note: "",
   },
+  {
+    action: "flow.published",
+    kind: "edited",
+    label: "Version published",
+    reachable: true,
+    backendSite: "ProcuLink.Api/Services/Documents/FlowVersions.cs:49",
+    reasonKeys: [],
+    note: "A flow version was published (entity type Flow; payload { version, flow, by }). The list gives the row the flow's id and name.",
+  },
 
   // ── Linked accounts (entity type LinkedAccount; payload {provider, by}, never the email) ─
   {

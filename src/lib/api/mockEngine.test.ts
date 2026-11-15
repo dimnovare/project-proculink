@@ -39,6 +39,15 @@ describe("mock engine", () => {
     expect(flow.id).toBe(MOCK_ENGINE_IDS.flow);
   });
 
+  it("answers the sample route for a flow, the same document each time, outside the list", async () => {
+    const before = (await mockEngineFetch<DocumentSummary[]>("/documents")).length;
+    const route = `/flows/${MOCK_ENGINE_IDS.flow}/documents/sample`;
+    const doc = await mockEngineFetch<DocumentSummary>(route, { method: "POST" });
+    expect([doc.flowId, doc.fileName]).toEqual([MOCK_ENGINE_IDS.flow, "invoice-2250.pdf"]);
+    expect(await mockEngineFetch<DocumentSummary>(route, { method: "POST" })).toEqual(doc);
+    expect((await mockEngineFetch<DocumentSummary[]>("/documents")).length).toBe(before);
+  });
+
   it("is wired into the documents client in mock mode", async () => {
     const flows = await listFlows();
     expect(flows.map((f) => f.id)).toContain(MOCK_ENGINE_IDS.flow);

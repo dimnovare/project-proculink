@@ -175,6 +175,8 @@ const intParam = (q: URLSearchParams, key: string): number | null => {
 const S = "([^/]+)";
 const re = (strings: TemplateStringsArray, ...rest: unknown[]) => new RegExp("^" + String.raw(strings, ...rest) + "$");
 
+const samples: Record<string, DocumentSummary> = {};
+
 const ROUTES: [method: string, pattern: RegExp, run: Handler][] = [
   ["GET", re`/flows`, () => FLOWS],
   ["POST", re`/flows`, (_m, _q, b) => echo({ ...flow2, id: "flow-new" }, b)],
@@ -185,6 +187,11 @@ const ROUTES: [method: string, pattern: RegExp, run: Handler][] = [
   ["POST", re`/flows/${S}/versions/\d+/restore`, (m) => pick(FLOWS, m[1], "flow")],
   ["PUT", re`/flows/${S}/fields`, (m, _q, b) => echo(pick(FLOWS, m[1], "flow"), { fields: b })],
   ["POST", re`/flows/${S}/documents`, (m) => ({ ...DOCS[0], flowId: pick(FLOWS, m[1], "flow").id, flowName: pick(FLOWS, m[1], "flow").name })],
+  ["POST", re`/flows/${S}/documents/sample`, (m) => {
+    const flow = pick(FLOWS, m[1], "flow");
+    // Kept out of DOCS: the document list and its counts stay what the fixtures say until a screen asks.
+    return (samples[flow.id] ??= { ...DOCS[0], id: `doc-sample-${flow.id}`, flowId: flow.id, flowName: flow.name, fileName: "invoice-2250.pdf" });
+  }],
   ["GET", re`/documents`, (_m, q) => {
     // Like DocumentsController.List: newest first; a missing or empty status list is no filter; sent rows
     // landed in [sentFrom, sentTo). A key it does not implement fails loudly rather than being ignored.
