@@ -72,15 +72,9 @@ export const ROUTE_QUERY_PARAMS: Record<string, readonly ParamContract[]> = {
       purpose: "`billing` is the exit from a plan-paused order.",
     },
   ],
-  "/operations/log": [
-    {
-      param: "orderId",
-      readBy: "src/components/bridge/CrossingsLog.tsx",
-      purpose:
-        "Narrows the delivery log to one order. Until a reader existed, the failed-order "
-        + "control labelled 'See every attempt' opened the whole workspace's log.",
-    },
-  ],
+  // "/operations/log"'s orderId went with the old delivery log, 2026-11-15. Activity's
+  // `show` and `page` are written only by `activityAddress` and read through `getAll`,
+  // so they carry no contract here.
   "/support": [
     {
       param: "order",

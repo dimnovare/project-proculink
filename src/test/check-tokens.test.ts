@@ -386,22 +386,13 @@ describe("the scanned corpus", () => {
   });
 
   it("ledgers the screen bodies the old src/app root could not see", () => {
-    // Named, not counted. A floor on totals still passes if the scan reads 451
-    // wrappers and helpers and no screens, so these are the specific files the
-    // src/app root missed by construction — each one the body behind a ~10-line
-    // page.tsx. Counts are asserted as ">0" rather than pinned: the ledger owns
-    // the exact numbers, this owns the fact that the files are IN it.
     const ledger = JSON.parse(
       readFileSync(join(REPO, "scripts", "token-debt-baseline.json"), "utf8"),
     ) as Record<string, number>;
 
-    // /bridge, /inbox and the old /upload body went with the order screens
-    // (2026-11-13); the flow screens that replaced them carry no ledgered debt.
-    for (const body of [
-      "src/components/bridge/CrossingsLog.tsx", // /operations/log (wrapper: 11 lines)
-    ]) {
-      expect(ledger[body], `${body} missing from the ledger`).toBeGreaterThan(0);
-    }
+    // The named screen bodies went: /bridge, /inbox and the old /upload body with the
+    // order screens (2026-11-13), the old /operations/log body with the delivery log
+    // (2026-11-15). The screens that replaced them carry no ledgered debt.
 
     // Most of the debt is in the region the gate used to be blind to. If a future
     // edit narrows the root back toward src/app, this is the assertion that goes

@@ -1,11 +1,16 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
-import { CrossingsLog } from "@/components/bridge/CrossingsLog";
+import { ActivityLoading, ActivityPage } from "@/components/activity/ActivityPage";
 import { appPageTitle } from "@/lib/pageTitles";
 
 export const metadata: Metadata = {
   title: appPageTitle("/operations/log"),
 };
 
-export default function CrossingsLogPage() {
-  return <CrossingsLog />;
+export default function ActivityLogPage() {
+  return (
+    <Suspense fallback={<ActivityLoading />}>
+      <ActivityPage />
+    </Suspense>
+  );
 }

@@ -13,13 +13,12 @@ import type { DocumentDelivery, DocumentDetail, Flow, FlowOutput } from "@/lib/a
 import { describeSendWhen } from "@/lib/flowOutputModel";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
 import { documentStatus } from "@/lib/documentStatusManifest";
+import { CHANNELS } from "@/lib/channels";
 import { saveBlob } from "@/lib/saveBlob";
 import { LookupMisses } from "./LookupMisses";
 import { outputTypeLabel } from "./OutputEditor";
 import { destinationName, Failed, Quiet } from "./states";
 
-// An unknown token shows as itself, never as a success word.
-const CHANNELS = new Map([["", "Download"], ["email", "Email"], ["http", "Web address"], ["sftp", "SFTP"], ["ftps", "FTPS"], ["s3", "S3 bucket"], ["google_drive", "Google Drive"], ["google_sheets", "Google Sheets"]]);
 const STATUSES = new Map([
   ["queued", "Waiting"], ["delivering", "Sending"], ["delivered", "Delivered"],
   ["stored", "Ready to download"], ["failed", "Will retry"], ["dead_letter", "Couldn't deliver"],
