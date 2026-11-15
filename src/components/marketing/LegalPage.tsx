@@ -38,6 +38,17 @@ export function LegalH2({ children }: { children: string }) {
   );
 }
 
+/** The page frame of the small site pages: warm paper, 17px text. */
+export const SITE_PAGE = "bg-bgWarm text-[17px] leading-[1.55] text-ink";
+
+/** The navy button that makes a request real, sized like SITE.cta (the green one sends). */
+export const INK_CTA =
+  "inline-flex h-[52px] items-center justify-center gap-2 rounded-[10px] bg-navy px-[26px] text-[17px] font-semibold text-white no-underline hover:bg-navy-surface hover:text-white disabled:cursor-not-allowed disabled:opacity-60";
+
+/** The outlined button beside it. */
+export const GHOST_CTA =
+  "inline-flex h-[52px] items-center justify-center rounded-[10px] border border-border-strong px-6 text-[17px] font-semibold text-ink no-underline hover:border-ink hover:text-ink";
+
 const BODY =
   "min-w-0 max-w-[72ch] text-[17px] leading-[1.65] [&_a]:text-brand-blue-deep [&_a]:underline [&_h3]:mb-2 [&_h3]:mt-6 [&_h3]:font-display [&_h3]:text-[20px] [&_h3]:font-semibold [&_li]:mb-2 [&_p]:mb-4 [&_strong]:font-semibold [&_table]:mb-5 [&_table]:w-full [&_table]:border-collapse [&_table]:text-[15.5px] [&_table]:leading-[1.4] [&_td:first-child]:font-semibold [&_td]:border-b [&_td]:border-border-faint [&_td]:px-4 [&_td]:py-3 [&_td]:align-top [&_th]:border-b [&_th]:border-border [&_th]:bg-bg [&_th]:px-4 [&_th]:py-3 [&_th]:text-left [&_th]:font-semibold [&_ul]:mb-4 [&_ul]:list-disc [&_ul]:pl-6";
 
@@ -62,7 +73,7 @@ export function LegalPage({
   );
 
   return (
-    <>
+    <div className={SITE_PAGE}>
       <section className="pb-7 pt-12 sm:pt-16">
         <div className={`${SITE.wrap} flex flex-col gap-4`}>
           <nav aria-label="Related legal pages">
@@ -128,6 +139,6 @@ export function LegalPage({
           </div>
         </div>
       </section>
-    </>
+    </div>
   );
 }
