@@ -7,9 +7,11 @@
 import Link from "next/link";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { Card } from "@/components/bridge/layout/Card";
-import { buttonClass } from "@/components/bridge/DSPrimitives";
+import { Button, buttonClass } from "@/components/bridge/DSPrimitives";
+import { useHelpPanel } from "@/components/bridge/HelpPanel";
 
 export function AppNotFound() {
+  const help = useHelpPanel();
   return (
     <PageShell>
       <Card as="section" flush aria-labelledby="app-not-found-title" style={{ maxWidth: 560, margin: "0 auto" }}>
@@ -24,8 +26,7 @@ export function AppNotFound() {
           </p>
           <div className="mt-4 flex flex-wrap justify-center gap-2.5">
             <Link href="/documents" className={buttonClass("primary", "lg")}>Go to Documents</Link>
-            {/* Until the help panel can be opened from a page (plan 14.11 Task 4), help opens in a new tab. */}
-            <Link href="/help" target="_blank" rel="noopener" className={buttonClass("secondary", "lg")}>Get help</Link>
+            <Button variant="secondary" size="lg" onClick={help.show}>Get help</Button>
           </div>
           <p className="m-0 mt-3 text-[13px] text-ink-muted">Error 404</p>
         </div>

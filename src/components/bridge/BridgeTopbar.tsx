@@ -4,18 +4,14 @@ import { useQuery } from "@tanstack/react-query";
 import { HelpCircle, Lock, Menu, Search, Upload } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { checkAdminAccess, getBillingStatus, isApiMockMode } from "@/lib/api-client";
-import { matchGuide } from "@/lib/section-guides";
-
-/** The unseen-guide dot's storage key; it goes with the dot (plan 14.11, R4). */
-const guideSeenKey = (route: string) => `plk-guide-seen:${route}`;
 import { planDisplayName } from "@/lib/plans";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { useOrganization } from "@clerk/nextjs";
 import { CommandPalette } from "./CommandPalette";
 import { ProcuLinkMark } from "./DSPrimitives";
-import { HelpSlideover } from "./HelpSlideover";
+import { useHelpPanel } from "./HelpPanel";
 import { OrgSwitcher } from "./OrgSwitcher";
 import { UserChipMenu } from "./UserChipMenu";
 import { buildVisibleNav, isItemActive, PINNED_ACTION_HREF } from "./BridgeSidebar";
@@ -86,28 +82,7 @@ export function BridgeTopbar({ onMenuClick, menuOpen }: BridgeTopbarProps) {
   const { orgName, planLabel, activePlan } = useWorkspaceCardData();
   const adminItem = navTail.find((t) => t.href === "/admin");
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const [helpOpen, setHelpOpen] = useState(false);
-  // Focus management: the slideover moves focus to its search input on open;
-  // closing must hand focus back to the "?" trigger.
-  const helpBtnRef = useRef<HTMLButtonElement>(null);
-
-  // Unseen-guide dot on the "?" button — discovery cue now that guide content
-  // lives only in the help slideover. SSR-safe: state starts false (badge
-  // renders nothing) and is computed after mount; opening the slideover is the
-  // only "seen" trigger (sets guideSeenKey for the current route).
-  const guideRoute = matchGuide(pathname)?.route ?? null;
-  const [guideUnseen, setGuideUnseen] = useState(false);
-  useEffect(() => {
-    if (!guideRoute) {
-      setGuideUnseen(false);
-      return;
-    }
-    try {
-      setGuideUnseen(window.localStorage.getItem(guideSeenKey(guideRoute)) === null);
-    } catch {
-      setGuideUnseen(false); // storage blocked — can't remember "seen", never badge
-    }
-  }, [guideRoute]);
+  const help = useHelpPanel();
 
   // Global cmd+K listener
   useEffect(() => {
@@ -224,30 +199,17 @@ export function BridgeTopbar({ onMenuClick, menuOpen }: BridgeTopbarProps) {
           </Link>
         )}
 
-        {/* Help — dot badge while the current route's guide is unseen. Opens the
-            help slideover (which itself links to /help + articles). */}
+        {/* Help — opens the help panel beside the page. */}
         <button
-          ref={helpBtnRef}
           type="button"
-          aria-label={guideUnseen ? "Help — guide available for this screen" : "Help"}
-          onClick={() => {
-            if (guideRoute) {
-              try {
-                window.localStorage.setItem(guideSeenKey(guideRoute), new Date().toISOString());
-              } catch {
-                // storage blocked — the slideover still opens
-              }
-            }
-            setGuideUnseen(false);
-            setHelpOpen(true);
-          }}
-          className={`${ICON_BUTTON} relative`}
+          aria-label="Help"
+          aria-expanded={help.open}
+          aria-controls="help-panel"
+          onClick={help.toggle}
+          className={ICON_BUTTON}
           title="Help"
         >
           <HelpCircle size={17} strokeWidth={1.9} aria-hidden />
-          {guideUnseen && (
-            <span aria-hidden className="absolute right-2 top-2 size-2 rounded-full border-[1.5px] border-navy bg-amber" />
-          )}
         </button>
 
         {/* Account chip — real name/role, Profile · Settings · Sign out. Phones
@@ -272,15 +234,6 @@ export function BridgeTopbar({ onMenuClick, menuOpen }: BridgeTopbarProps) {
 
       {/* Command Palette */}
       {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} />}
-
-      {/* Help slide-over */}
-      <HelpSlideover
-        open={helpOpen}
-        onClose={() => {
-          setHelpOpen(false);
-          helpBtnRef.current?.focus();
-        }}
-      />
 
       {/* Bottom edge — 2px blue→green gradient (matches design --gradient-link-spine) */}
       <div

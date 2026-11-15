@@ -32,7 +32,6 @@
   "src/components/bridge/ConfidenceChip.tsx": 10,
   "src/components/bridge/DependencyUnavailable.tsx": 7,
   "src/components/bridge/DSPrimitives.tsx": 9,
-  "src/components/bridge/HelpSlideover.tsx": 3,
   "src/components/bridge/mapper/GhostWire.tsx": 13,
   "src/components/bridge/mapper/ghostWireModel.ts": 10,
   "src/components/bridge/mapper/IncomingPane.tsx": 43,
