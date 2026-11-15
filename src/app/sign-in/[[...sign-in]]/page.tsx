@@ -1,5 +1,6 @@
+import Link from "next/link";
 import { SignIn } from "@clerk/nextjs";
-import { AuthShell, AuthHeading, clerkAppearance } from "@/components/auth/AuthSurface";
+import { AuthShell, AuthHeading, AUTH_FOOT, AUTH_LINK, clerkAppearance } from "@/components/auth/AuthSurface";
 import { ClerkAvailabilityGate } from "@/components/bridge/ClerkAvailabilityGate";
 
 /* The shell, the brand panel and the Clerk appearance object live in
@@ -10,7 +11,7 @@ import { ClerkAvailabilityGate } from "@/components/bridge/ClerkAvailabilityGate
 export default function SignInPage() {
   if (!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) {
     return (
-      <AuthShell>
+      <AuthShell variant="sign-in">
         <h1 className="text-xl font-semibold text-foreground">Sign-in is not configured</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           Add the Clerk environment variables in Vercel to enable authentication.
@@ -21,7 +22,7 @@ export default function SignInPage() {
 
   if (!process.env.CLERK_SECRET_KEY) {
     return (
-      <AuthShell>
+      <AuthShell variant="sign-in">
         <h1 className="text-xl font-semibold text-foreground">Server auth is not configured</h1>
         <p className="mt-2 max-w-md text-sm text-muted-foreground">
           Add CLERK_SECRET_KEY in Vercel for Production and Preview, then redeploy.
@@ -38,13 +39,19 @@ export default function SignInPage() {
     // above an empty box: no form, no spinner, no error, forever. The gate
     // bounds the wait and replaces the page with an explanation instead.
     <ClerkAvailabilityGate surface="auth">
-      <AuthShell>
+      <AuthShell variant="sign-in">
         <AuthHeading title="Welcome back" sub="Sign in to your ProcuLink workspace." />
         <SignIn
           appearance={clerkAppearance}
           fallbackRedirectUrl="/onboarding/select-organization"
           signUpFallbackRedirectUrl="/onboarding/select-organization"
         />
+        <p className={AUTH_FOOT}>
+          Can&apos;t get in?{" "}
+          <Link href="/support" className={AUTH_LINK}>
+            Contact support
+          </Link>
+        </p>
       </AuthShell>
     </ClerkAvailabilityGate>
   );

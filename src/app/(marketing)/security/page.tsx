@@ -1,7 +1,11 @@
 import { pageMetadata } from "@/lib/seo";
 import Link from "next/link";
 import { SUBPROCESSORS } from "@/lib/subprocessors";
+import { Eye, History, KeyRound, ListChecks, Lock, MapPin } from "lucide-react";
 import { Card } from "@/components/bridge/layout/Card";
+import { TableScroller } from "@/components/marketing/TableScroller";
+import { SITE } from "@/components/marketing/sitePictures";
+import { GHOST_CTA, INK_CTA, SITE_PAGE } from "@/components/marketing/LegalPage";
 
 export const metadata = pageMetadata({
   path: "/security",
@@ -12,31 +16,13 @@ export const metadata = pageMetadata({
     "Encryption, EU-region storage, a record of every delivery, access control, and responsible AI — how ProcuLink protects the documents passing through it.",
 });
 
-// ─── Palette (exact design tokens, sampled from tokens.css / globals.css) ──────
-// Security uses a green-accent topology over the canonical navy chrome:
-//   • supplier / trust accents use brand-green        (#2E8E3A family)
-//   • the primary CTA ("Request security docs") is buyer-blue (#1E66C9)
-// These match the --brand-* CSS variables already in globals.css — do NOT
-// reintroduce the retired bright emerald (banned repo-wide; see
-// src/test/token-contrast.test.ts).
-const NAVY = "#0B1A2F";
-const INK = "#0B1A2F";
-const MUTE = "#56627A";
-const HAIR = "#E2E6EE";
-const PANEL = "#F6F7FA";
-
-const GREEN = "#2E8E3A"; // brand green — card top edge + eyebrow dot
-const GREEN_DEEP = "#1E6D29"; // brand green deep — icon glyph stroke
-const GREEN_SOFT = "#E2F1E2"; // brand green soft — mint icon tile
-const BLUE = "#1E66C9"; // buyer-blue — primary CTA
-
 // ─── Security posture (the six feature cards) ──────────────────────────────────
 
 const POSTURE: Array<{ title: string; body: React.ReactNode; icon: React.ReactNode }> = [
   {
     title: "Encryption in transit and at rest",
     body: `Delivery credentials are encrypted at rest with AES-256-GCM authenticated encryption and are never written to application logs. Every outbound channel configured by URL — webhook and HTTP delivery, and S3 ingestion — must use https://, and a plain http:// address is refused when you save it. SFTP is encrypted by construction, and FTPS negotiates explicit TLS. Two connection settings can still weaken that if you switch them on: skipping FTPS certificate validation, and turning SSL off for IMAP or SMTP.`,
-    icon: <KeyIcon />,
+    icon: <Lock />,
   },
   {
     // Two facts, kept apart on purpose. WHERE DATA IS STORED is one question;
@@ -55,7 +41,7 @@ const POSTURE: Array<{ title: string; body: React.ReactNode; icon: React.ReactNo
         flow's address, and the data we email out. If you deliver by
         email, the output itself passes through a US provider. Each one is listed with its
         location and contract on{" "}
-        <Link href="/subprocessors" style={{ color: GREEN_DEEP, textDecoration: "underline" }}>
+        <Link href="/subprocessors">
           /subprocessors
         </Link>
         . Where your data is stored and the route it travels are two different questions: the
@@ -64,7 +50,7 @@ const POSTURE: Array<{ title: string; body: React.ReactNode; icon: React.ReactNo
         from.
       </>
     ),
-    icon: <BuildingIcon />,
+    icon: <MapPin />,
   },
   {
     title: "What we record for every delivery",
@@ -85,12 +71,12 @@ const POSTURE: Array<{ title: string; body: React.ReactNode; icon: React.ReactNo
     // writes a document.delivered / document.delivery_failed history row carrying the channel,
     // response code and error. The body says only that.
     body: "Every read, edit and delivery is recorded. Each delivery keeps its channel, how many attempts it took, the last response code and, when it fails, the error. You can open any single document and read its complete history.",
-    icon: <ClockIcon />,
+    icon: <History />,
   },
   {
     title: "Validation before delivery",
     body: `Built-in checks run on every plan and cannot be switched off: we flag a value that is missing, in the wrong shape or hard to read, and we hold a document we have already seen instead of sending it twice.`,
-    icon: <RulesIcon />,
+    icon: <ListChecks />,
   },
   {
     title: "Access control",
@@ -100,7 +86,7 @@ const POSTURE: Array<{ title: string; body: React.ReactNode; icon: React.ReactNo
     // plans.ts on the Enterprise card), and role-based access is on no plan's feature list either,
     // so /security was the only surface asserting it. Neither comes back without a screen behind it.
     body: "Org-scoped data isolation on every query, scoped API keys you can revoke instantly, and short-lived sessions by default.",
-    icon: <UserIcon />,
+    icon: <KeyRound />,
   },
   // The no-AI mode is REAL and the old sentence oversold it in three separate ways.
   //
@@ -140,7 +126,7 @@ const POSTURE: Array<{ title: string; body: React.ReactNode; icon: React.ReactNo
   {
     title: "Responsible AI",
     body: "Suggestions never apply themselves: you accept each one, and every value shows how sure we are. Your data is never used to train third-party models. We can also turn AI off for a workspace entirely, so nothing about its documents reaches OpenAI. Documents there cannot be read, because reading uses AI: they are stopped and marked as not read, never sent out. We set that for you on request; it is not a self-serve setting, and it does not change where your files are stored.",
-    icon: <ZapIcon />,
+    icon: <Eye />,
   },
 ];
 
@@ -176,349 +162,132 @@ const COMPLIANCE_ROWS: Array<[string, string]> = [
   ["ISO 27001", "On our roadmap"],
 ];
 
-// Rendered from the single-source subprocessor list (src/lib/subprocessors.ts)
-// so this card can never diverge from /subprocessors and /privacy.
-const SUBPROCESSOR_ROWS: Array<[string, string]> = SUBPROCESSORS.map((s) => [s.name, s.purpose]);
+// Where each section of this page starts, for "On this page".
+const SECTIONS: Array<[id: string, label: string]> = [
+  ["posture", "How your documents are protected"],
+  ["compliance", "Compliance"],
+  ["subprocessors", "Subprocessors"],
+];
 
 // ─── Page ───────────────────────────────────────────────────────────────────────
 
 export default function SecurityPage() {
   return (
-    <div style={{ background: "#FFFFFF", color: INK }}>
-      <style>{css}</style>
-
-      {/* ── Hero (navy) ─────────────────────────────────────────────────── */}
-      <header
-        className="sec-hero"
-        style={{
-          position: "relative",
-          overflow: "hidden",
-          background: NAVY,
-          color: "#FFFFFF",
-          textAlign: "center",
-        }}
-      >
-        {/* Radial brand bloom — blue lift behind the headline + green corner glow */}
-        <div
-          aria-hidden
-          style={{
-            position: "absolute",
-            inset: 0,
-            pointerEvents: "none",
-            background:
-              "radial-gradient(800px 420px at 50% -8%, rgba(30,102,201,0.22), transparent 60%), radial-gradient(620px 380px at 84% 18%, rgba(46,142,58,0.16), transparent 60%)",
-          }}
-        />
-        <div className="sec-hero-inner" style={{ position: "relative" }}>
-          <span
-            className="sec-eyebrow"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 7,
-              height: 28,
-              padding: "0 13px",
-              borderRadius: 14,
-              background: "rgba(255,255,255,0.04)",
-              border: "1px solid #1B2D49",
-              fontSize: 11,
-              fontWeight: 600,
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-              color: "#9DB2CE",
-            }}
-          >
-            <span style={{ width: 6, height: 6, borderRadius: "50%", background: GREEN }} />
-            Security &amp; trust
-          </span>
-
-          <h1
-            className="sec-h1"
-            style={{
-              fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
-              fontWeight: 700,
-              letterSpacing: "-0.035em",
-              lineHeight: 1.04,
-              color: "#FFFFFF",
-              margin: "20px auto 0",
-              maxWidth: "16ch",
-              textWrap: "balance",
-            }}
-          >
-            Built for documents you can&apos;t afford to get wrong
-          </h1>
-
-          <p
-            className="sec-hero-sub"
-            style={{
-              color: "#9DB2CE",
-              lineHeight: 1.6,
-              maxWidth: "56ch",
-              margin: "18px auto 0",
-            }}
-          >
-            ProcuLink handles the documents your business runs on. We treat that
-            responsibility — and your data — with the seriousness it deserves.
+    <div className={SITE_PAGE}>
+      <section className="pb-20 pt-[72px]">
+        <div className={`${SITE.wrap} flex flex-col gap-[26px]`}>
+          <h1 className={`${SITE.h1} max-w-[980px]`}>Built for documents you can&apos;t afford to get wrong</h1>
+          <p className={`${SITE.lead} max-w-[700px]`}>
+            ProcuLink handles the documents your business runs on. We treat that responsibility, and
+            your data, with the seriousness it deserves.
           </p>
-        </div>
-      </header>
-
-      {/* ── Security posture — 6 cards, 3-up grid, green top edge ────────── */}
-      <section className="sec-section" style={{ background: "#FFFFFF" }}>
-        <div className="sec-wrap">
-          <div className="sec-feature-grid">
-            {POSTURE.map((p) => (
-              <article key={p.title} className="sec-card">
-                <div
-                  className="sec-feature-icon"
-                  style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: 10,
-                    background: GREEN_SOFT,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    marginBottom: 16,
-                  }}
-                >
-                  {p.icon}
-                </div>
-                <h2
-                  style={{
-                    fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
-                    fontSize: 17,
-                    fontWeight: 600,
-                    letterSpacing: "-0.01em",
-                    color: INK,
-                    margin: "0 0 8px",
-                  }}
-                >
-                  {p.title}
-                </h2>
-                <p style={{ color: MUTE, fontSize: 13.5, lineHeight: 1.6, margin: 0 }}>{p.body}</p>
-              </article>
+          <nav aria-label="On this page" className="flex flex-wrap items-center gap-x-7">
+            <span className={`${SITE.soft} inline-flex min-h-[44px] items-center text-[15px]`}>On this page</span>
+            {SECTIONS.map(([id, label]) => (
+              <a key={id} href={`#${id}`} className={SITE.more}>
+                {label}
+              </a>
             ))}
-          </div>
+          </nav>
         </div>
       </section>
 
-      {/* ── Compliance + Subprocessors — two-column list cards ──────────── */}
-      <section
-        className="sec-section sec-tint"
-        style={{ background: PANEL, borderTop: `1px solid ${HAIR}` }}
-      >
-        <div className="sec-wrap sec-two-col">
-          <div>
-            <h2 className="sec-col-title">Compliance</h2>
-            <ListCard rows={COMPLIANCE_ROWS} />
-          </div>
-          <div>
-            <h2 className="sec-col-title">Subprocessors</h2>
-            <ListCard rows={SUBPROCESSOR_ROWS} />
-            <p style={{ fontSize: 12.5, color: MUTE, margin: "12px 2px 0" }}>
-              Full list with locations, contracts, and change notifications:{" "}
-              <Link href="/subprocessors" style={{ color: GREEN_DEEP, textDecoration: "underline" }}>
-                /subprocessors
-              </Link>
+      <section id="posture" aria-labelledby="posture-title" className={`${SITE.band} scroll-mt-24 bg-surface`}>
+        <div className={`${SITE.wrap} flex flex-col gap-8`}>
+          <h2 id="posture-title" className={SITE.h2}>
+            How your documents are protected
+          </h2>
+          <ul className="m-0 grid list-none grid-cols-[repeat(auto-fit,minmax(min(460px,100%),1fr))] gap-x-[72px] border-b border-border p-0">
+            {POSTURE.map((p) => (
+              <li key={p.title} className="border-t border-border">
+                <article className="grid grid-cols-[24px_minmax(0,1fr)] items-start gap-x-4 gap-y-2 py-8">
+                  <span aria-hidden="true" className="mt-px text-ink">
+                    {p.icon}
+                  </span>
+                  <h3 className={SITE.h3}>{p.title}</h3>
+                  <p className="col-span-2 text-[16px] leading-[1.6] text-ink-muted sm:col-span-1 sm:col-start-2 [&_a]:text-brand-blue-deep [&_a]:underline">
+                    {p.body}
+                  </p>
+                </article>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      <div className={SITE.band}>
+        <div className={`${SITE.wrap} flex flex-wrap items-start gap-x-[72px] gap-y-14`}>
+          <section id="compliance" className="flex min-w-0 flex-[1_1_320px] scroll-mt-24 flex-col items-start gap-[22px]">
+            <h2 className={SITE.h2}>Compliance</h2>
+            <Card className="w-full">
+              <dl className="m-0">
+                {COMPLIANCE_ROWS.map(([label, note]) => (
+                  <div key={label} className="flex flex-wrap gap-x-6 gap-y-0.5 border-t border-border-faint py-4 first:border-t-0 first:pt-0 last:pb-0">
+                    <dt className="w-[110px] shrink-0 font-semibold">{label}</dt>
+                    <dd className="m-0 min-w-0 flex-[1_1_200px] text-ink-muted">{note}</dd>
+                  </div>
+                ))}
+              </dl>
+            </Card>
+            <Link href="/dpa" className={SITE.more}>
+              Read the data processing addendum
+            </Link>
+          </section>
+
+          <section id="subprocessors" className="flex min-w-0 flex-[1.7_1_520px] scroll-mt-24 flex-col items-start gap-[22px]">
+            <h2 className={SITE.h2}>Subprocessors</h2>
+            {/* The full purpose and location of each row, as on /subprocessors: a legal list
+                never gets a second, shorter wording. The table scrolls inside its box on a
+                phone; the page itself never does. */}
+            <Card flush className="w-full">
+              <TableScroller label="Subprocessors">
+                <table className="w-full min-w-[560px] border-collapse text-[15.5px] leading-[1.4]">
+                  <thead>
+                    <tr>
+                      {["Company", "What it does for us", "Where"].map((h) => (
+                        <th key={h} scope="col" className="border-b border-border px-[18px] py-[13px] text-left text-[14px] font-semibold text-ink-muted">
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="[&>tr+tr>td]:border-t [&>tr+tr>td]:border-border-faint">
+                    {SUBPROCESSORS.map((s) => (
+                      <tr key={s.name}>
+                        <td className="whitespace-nowrap px-[18px] py-[13px] align-top font-semibold">{s.name}</td>
+                        <td className="px-[18px] py-[13px] align-top">{s.purpose}</td>
+                        <td className="px-[18px] py-[13px] align-top text-ink-muted">{s.location}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </TableScroller>
+            </Card>
+            <Link href="/subprocessors" className={SITE.more}>
+              Full list with locations, contracts, and change notifications
+            </Link>
+          </section>
+        </div>
+      </div>
+
+      <section className={`${SITE.band} border-t border-border`}>
+        <div className={`${SITE.wrap} flex flex-wrap items-center gap-x-16 gap-y-8`}>
+          <div className="flex flex-[1_1_460px] flex-col gap-4">
+            <h2 className={SITE.h2}>Need our security package?</h2>
+            <p className={SITE.lead}>
+              We&apos;ll share our DPA, security overview, and architecture documentation under NDA.
             </p>
           </div>
-        </div>
-      </section>
-
-      {/* ── Navy CTA band ───────────────────────────────────────────────── */}
-      <section className="sec-section sec-navy" style={{ background: NAVY, textAlign: "center" }}>
-        <div className="sec-wrap sec-narrow">
-          <h2
-            className="sec-cta-title"
-            style={{
-              fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
-              fontWeight: 600,
-              letterSpacing: "-0.03em",
-              lineHeight: 1.1,
-              color: "#FFFFFF",
-              margin: 0,
-            }}
-          >
-            Need our security package?
-          </h2>
-          <p
-            className="sec-cta-sub"
-            style={{ color: "#9DB2CE", lineHeight: 1.6, margin: "14px auto 0", maxWidth: 480 }}
-          >
-            We&apos;ll share our DPA, security overview, and architecture
-            documentation under NDA.
-          </p>
-          <div className="sec-cta-actions">
-            <a
-              href="mailto:security@proculink.eu?subject=Security%20package%20request"
-              className="sec-btn sec-btn-blue"
-              style={{ background: BLUE, color: "#FFFFFF" }}
-            >
-              Request security docs <ArrowRight />
+          <div className="flex flex-wrap gap-3 [&>*]:flex-auto">
+            <a href="mailto:security@proculink.eu?subject=Security%20package%20request" className={INK_CTA}>
+              Request security docs
             </a>
-            <Link
-              href="/sign-up"
-              className="sec-btn sec-btn-secondary"
-              style={{ background: "transparent", color: "#FFFFFF", border: "1px solid #1B2D49" }}
-            >
+            <Link href="/sign-up" className={GHOST_CTA}>
               Start free
             </Link>
           </div>
         </div>
       </section>
     </div>
-  );
-}
-
-// ─── List card (Compliance / Subprocessors) ────────────────────────────────────
-
-function ListCard({ rows }: { rows: Array<[string, string]> }) {
-  return (
-    <Card flush radius={12} style={{ overflow: "hidden" }}>
-      {rows.map(([label, note], i) => (
-        <div
-          key={label}
-          className="sec-list-row"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 14,
-            padding: "14px 18px",
-            borderTop: i === 0 ? "none" : "1px solid #EDF0F5",
-          }}
-        >
-          <span style={{ fontSize: 13.5, fontWeight: 600, color: INK, letterSpacing: "-0.01em", flexShrink: 0 }}>
-            {label}
-          </span>
-          <span style={{ fontSize: 12.5, color: MUTE, textAlign: "right", minWidth: 0 }}>{note}</span>
-        </div>
-      ))}
-    </Card>
-  );
-}
-
-// ─── Scoped layout + responsive CSS (keeps this a Server Component) ─────────────
-
-const css = `
-.sec-wrap { max-width: 1180px; margin: 0 auto; padding: 0 32px; }
-.sec-wrap.sec-narrow { max-width: 920px; }
-.sec-section { padding: 84px 0; }
-
-.sec-hero-inner { padding: 64px 32px 56px; }
-.sec-h1 { font-size: clamp(34px, 5vw, 52px); }
-.sec-hero-sub { font-size: clamp(15px, 1.6vw, 18px); }
-
-.sec-feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
-.sec-card {
-  background: #FFFFFF;
-  border: 1px solid #E2E6EE;
-  border-top: 3px solid ${GREEN};
-  border-radius: 14px;
-  padding: 24px;
-  box-shadow: 0 1px 3px rgba(11,26,47,0.04);
-  transition: transform 0.18s ease, box-shadow 0.18s ease;
-}
-.sec-card:hover { transform: translateY(-3px); box-shadow: 0 18px 40px -18px rgba(11,26,47,0.22); }
-
-.sec-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
-.sec-col-title {
-  font-family: 'Bricolage Grotesque', Inter, sans-serif;
-  font-size: 24px; font-weight: 600; letter-spacing: -0.02em;
-  color: ${INK}; margin: 0 0 16px;
-}
-
-.sec-cta-title { font-size: clamp(28px, 3.6vw, 40px); }
-.sec-cta-sub { font-size: 16px; }
-.sec-cta-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 26px; }
-.sec-btn {
-  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  height: 46px; padding: 0 24px; border-radius: 8px;
-  font-size: 14.5px; font-weight: 600; text-decoration: none;
-  transition: filter 0.12s ease, background 0.12s ease;
-}
-.sec-btn-blue:hover { filter: brightness(1.06); }
-.sec-btn-secondary:hover { background: rgba(255,255,255,0.06) !important; }
-
-@media (max-width: 920px) {
-  .sec-feature-grid { grid-template-columns: 1fr; }
-  .sec-two-col { grid-template-columns: 1fr; gap: 20px; }
-}
-@media (max-width: 560px) {
-  .sec-wrap { padding: 0 18px; }
-  .sec-section { padding: 56px 0; }
-  .sec-hero-inner { padding: 44px 18px 48px; }
-  .sec-h1 { font-size: 30px; }
-  .sec-hero-sub { font-size: 15px; }
-  .sec-col-title { font-size: 21px; }
-  .sec-cta-actions { flex-direction: column; gap: 10px; }
-  .sec-cta-actions .sec-btn { width: 100%; }
-}
-`;
-
-// ─── Icons (inline SVG, green-deep stroke to match the design source) ───────────
-
-function KeyIcon() {
-  return (
-    <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke={GREEN_DEEP} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="7.5" cy="15.5" r="4.5" />
-      <path d="M10.5 12.5 20 3" />
-      <path d="m17 6 3 3" />
-      <path d="m14 9 2.5 2.5" />
-    </svg>
-  );
-}
-
-function BuildingIcon() {
-  return (
-    <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke={GREEN_DEEP} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="4" y="3" width="16" height="18" rx="1.5" />
-      <path d="M9 8h.01M15 8h.01M9 12h.01M15 12h.01M9 16h.01M15 16h.01" />
-    </svg>
-  );
-}
-
-function ClockIcon() {
-  return (
-    <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke={GREEN_DEEP} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="9" />
-      <path d="M12 7v5l3.5 3.5" />
-    </svg>
-  );
-}
-
-function RulesIcon() {
-  return (
-    <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke={GREEN_DEEP} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3.5" y="3.5" width="17" height="17" rx="3" />
-      <path d="m7.5 12.2 3 3 6-6.4" />
-    </svg>
-  );
-}
-
-function UserIcon() {
-  return (
-    <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke={GREEN_DEEP} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="8" r="4" />
-      <path d="M4 20.5c0-4 3.6-7 8-7s8 3 8 7" />
-    </svg>
-  );
-}
-
-function ZapIcon() {
-  return (
-    <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke={GREEN_DEEP} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <polygon points="13 2 4 14 11 14 10 22 20 9 13 9 13 2" />
-    </svg>
-  );
-}
-
-function ArrowRight() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="5" y1="12" x2="19" y2="12" />
-      <polyline points="12 5 19 12 12 19" />
-    </svg>
   );
 }

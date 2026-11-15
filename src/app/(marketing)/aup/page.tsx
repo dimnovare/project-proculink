@@ -1,6 +1,6 @@
 import { pageMetadata } from "@/lib/seo";
 import Link from "next/link";
-import { LegalPageLinks } from "@/components/marketing/LegalPageLinks";
+import { LegalH2, LegalPage } from "@/components/marketing/LegalPage";
 
 export const metadata = pageMetadata({
   path: "/aup",
@@ -9,31 +9,18 @@ export const metadata = pageMetadata({
     "What ProcuLink may and may not be used for: permitted use, prohibited use, how to report abuse, and how the policy is enforced.",
 });
 
-const S = {
-  page:    { maxWidth: 720, margin: "0 auto", padding: "56px 32px 80px" },
-  h1:      { fontFamily: "'Bricolage Grotesque', Inter, sans-serif", fontSize: "clamp(28px, 4vw, 40px)", fontWeight: 700, letterSpacing: "-0.025em", color: "#0B1A2F", marginBottom: 8 },
-  updated: { fontSize: 13, color: "var(--ink-faint)", marginBottom: 40 },
-  intro:   { fontSize: 15.5, lineHeight: 1.7, color: "#56627A", marginBottom: 40 },
-  h2:      { fontFamily: "'Bricolage Grotesque', Inter, sans-serif", fontSize: 20, fontWeight: 600, color: "#0B1A2F", margin: "40px 0 12px", letterSpacing: "-0.015em" },
-  p:       { fontSize: 14.5, lineHeight: 1.75, color: "#3D4A5C", marginBottom: 14 },
-  li:      { fontSize: 14.5, lineHeight: 1.75, color: "#3D4A5C", marginBottom: 6 },
-};
-
 export default function AupPage() {
   return (
-    <div style={S.page}>
-      <h1 style={S.h1}>Acceptable Use Policy</h1>
-      {/* FOUNDER DECISION: set the effective month when this version is published. */}
-      <p style={S.updated}>Effective: November 2026 · Version 1.1</p>
-
-      <p style={S.intro}>
+    // FOUNDER DECISION: set the effective month when this version is published.
+    <LegalPage title="Acceptable Use Policy" updated="Effective: November 2026 · Version 1.1" path="/aup">
+      <p>
         This Acceptable Use Policy supplements the{" "}
-        <Link href="/terms" style={{ color: "#1E6D29", textDecoration: "underline" }}>Terms of Service</Link> and applies to
+        <Link href="/terms">Terms of Service</Link> and applies to
         all use of the ProcuLink platform.
       </p>
 
-      <h2 style={S.h2}>Permitted use</h2>
-      <p style={S.p}>
+      <LegalH2>Permitted use</LegalH2>
+      <p>
         ProcuLink may be used by businesses and organisations, for business purposes only, to
         automate legitimate procurement workflows around business documents: receiving,
         parsing, mapping, validating, transforming, and delivering purchase orders to suppliers
@@ -41,41 +28,33 @@ export default function AupPage() {
         converting invoices.
       </p>
 
-      <h2 style={S.h2}>Prohibited use</h2>
-      <p style={S.p}>You must not use ProcuLink to:</p>
-      <ul style={{ paddingLeft: 20, marginBottom: 14 }}>
-        <li style={S.li}>Process orders or invoices for goods or services that are illegal in the supplier&apos;s or buyer&apos;s jurisdiction.</li>
-        <li style={S.li}>Upload malware, exploits, or files crafted to attack ProcuLink, suppliers, or other tenants.</li>
-        <li style={S.li}>Attempt to bypass authentication, organisation isolation, or rate limits.</li>
-        <li style={S.li}>Reverse engineer, decompile, or extract proprietary algorithms or models.</li>
-        <li style={S.li}>Send unsolicited bulk messages or use delivery destinations to spam recipients.</li>
-        <li style={S.li}>Process the personal data of natural persons unrelated to procurement or invoicing (for example, marketing email lists).</li>
-        <li style={S.li}>Share account credentials, sublicense access, or resell the Service without a written agreement.</li>
-        <li style={S.li}>Operate workloads that materially degrade Service availability for other customers.</li>
+      <LegalH2>Prohibited use</LegalH2>
+      <p>You must not use ProcuLink to:</p>
+      <ul>
+        <li>Process orders or invoices for goods or services that are illegal in the supplier&apos;s or buyer&apos;s jurisdiction.</li>
+        <li>Upload malware, exploits, or files crafted to attack ProcuLink, suppliers, or other tenants.</li>
+        <li>Attempt to bypass authentication, organisation isolation, or rate limits.</li>
+        <li>Reverse engineer, decompile, or extract proprietary algorithms or models.</li>
+        <li>Send unsolicited bulk messages or use delivery destinations to spam recipients.</li>
+        <li>Process the personal data of natural persons unrelated to procurement or invoicing (for example, marketing email lists).</li>
+        <li>Share account credentials, sublicense access, or resell the Service without a written agreement.</li>
+        <li>Operate workloads that materially degrade Service availability for other customers.</li>
       </ul>
 
-      <h2 style={S.h2}>Reporting abuse</h2>
-      <p style={S.p}>
+      <LegalH2>Reporting abuse</LegalH2>
+      <p>
         To report abuse of the ProcuLink platform, email{" "}
-        <a href="mailto:abuse@proculink.eu" style={{ color: "#1E6D29", textDecoration: "underline" }}>abuse@proculink.eu</a>.
+        <a href="mailto:abuse@proculink.eu">abuse@proculink.eu</a>.
         Include the affected organisation, supplier, or delivery destination, and a description
         of the issue. We will respond within 2 business days.
       </p>
 
-      <h2 style={S.h2}>Enforcement</h2>
-      <p style={S.p}>
+      <LegalH2>Enforcement</LegalH2>
+      <p>
         We may suspend or terminate access for violations of this policy, with or without
         notice depending on severity. Where suspension is preventive (for example, an active
         attack), we will document and notify the responsible account contact promptly.
       </p>
-
-      <LegalPageLinks
-        links={[
-          ["Terms of Service", "/terms"],
-          ["Privacy Policy", "/privacy"],
-          ["Security", "/security"],
-        ]}
-      />
-    </div>
+    </LegalPage>
   );
 }

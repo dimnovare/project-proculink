@@ -429,7 +429,10 @@ jobs:
     # Pinned, not ubuntu-latest: latest became 26.04 on 2026-11-12, which Playwright
     # does not support, and the visual baselines are rendered on 24.04.
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    # 15 -> 25 on 2026-11-15: the suite itself now runs about 14.5 minutes on the runner
+    # (325 tests), so with install and browser setup the job hit the old limit and was
+    # cancelled with every test so far green.
+    timeout-minutes: 25
     env:
       PROCULINK_QA_BYPASS_AUTH: 'true'
 

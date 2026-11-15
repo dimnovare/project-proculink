@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { pageMetadata } from "@/lib/seo";
+import { PLAN_BY_ID } from "@/lib/plans";
 import { BookDemoForm } from "@/components/marketing/BookDemoForm";
-import { Card } from "@/components/bridge/layout/Card";
+import { SITE_PAGE } from "@/components/marketing/LegalPage";
+import { SITE } from "@/components/marketing/sitePictures";
 
 // /book-demo is a 20-minute call about ONE of the visitor's own documents. The route keeps its name:
 // it is linked from the app and the marketing site, and BOOK_DEMO_URL (src/lib/book-demo.ts) defaults to it.
@@ -16,7 +18,7 @@ export const metadata = pageMetadata({
 const COVER: Array<[string, string]> = [
   [
     "One of your documents",
-    "Bring a PDF, Excel or CSV file you handle by hand — or a test or anonymised one. We can run it through ProcuLink while we talk.",
+    "Bring a PDF, Excel or CSV file you handle by hand, or a test or anonymised one. We can run it through ProcuLink while we talk.",
   ],
   [
     "Whether it fits",
@@ -24,63 +26,61 @@ const COVER: Array<[string, string]> = [
   ],
 ];
 
+const TRIAL = PLAN_BY_ID.pilot;
+
 export default function BookDemoPage() {
   return (
-    <div className="plk-call">
-      <style>{CALL_CSS}</style>
-      <span className="plk-call-badge">
-        <span className="plk-call-badge-dot" aria-hidden />
-        20-minute call
-      </span>
-      <h1 className="plk-call-h1">Show us one of your documents</h1>
-      <p className="plk-call-intro">
-        A short call to look at one document you handle by hand — a purchase order, an invoice,
-        a price list. Tell us a little about the documents you handle today and we&apos;ll reply
-        within 1 business day to find a time.
-      </p>
+    <div className={SITE_PAGE}>
+      <section className="pb-[88px] pt-[72px]">
+        {/* Two columns from 860px: the intro and what we'll cover on the left, the form on
+            the right, the trial aside under the intro. One column below, in that order. */}
+        <div className={`${SITE.wrap} grid grid-cols-1 items-start gap-x-[72px] gap-y-10 min-[860px]:grid-cols-2`}>
+          <div className="flex min-w-0 flex-col gap-8">
+            <div className="flex flex-col gap-6">
+              <h1 className="m-0 font-display text-[clamp(38px,4.4vw,60px)] font-semibold leading-[1.02] tracking-[-0.02em] [text-wrap:balance]">
+                Show us one of your documents
+              </h1>
+              <p className={SITE.lead}>
+                A 20-minute call to look at one document you handle by hand: a purchase order, an invoice, a
+                price list. Tell us a little about the documents you handle today and we&apos;ll reply within 1
+                business day to find a time.
+              </p>
+            </div>
+            <div className="flex flex-col gap-4">
+              <h2 className="font-display text-[26px] font-semibold leading-[1.2] tracking-[-0.015em]">What we&apos;ll cover</h2>
+              <ul className="m-0 list-none border-b border-border p-0">
+                {COVER.map(([title, detail]) => (
+                  <li key={title} className="flex flex-col gap-1.5 border-t border-border py-5">
+                    <h3 className={SITE.h3}>{title}</h3>
+                    <p className={SITE.soft}>{detail}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
 
-      <Card style={{ marginBottom: 28 }}>
-        <h2 className="plk-call-h2">What we&apos;ll cover</h2>
-        <ul className="plk-call-list">
-          {COVER.map(([title, detail]) => (
-            <li key={title}>
-              <strong>{title}</strong> — {detail}
-            </li>
-          ))}
-        </ul>
-      </Card>
+          <div className="min-w-0 min-[860px]:row-span-2">
+            <BookDemoForm />
+          </div>
 
-      <BookDemoForm />
-
-      <p className="plk-call-aside">
-        Already know you want to test it?{" "}
-        <Link href="/sign-up" className="plk-call-link">
-          Start your free trial <span aria-hidden>→</span>
-        </Link>
-      </p>
+          <div className="flex min-w-0 flex-col gap-0.5 min-[860px]:self-end">
+            <p className="font-display text-[22px] font-semibold leading-[1.25] tracking-[-0.01em]">
+              Already know you want to test it?
+            </p>
+            <div className="flex flex-wrap items-center gap-x-6">
+              <Link
+                href="/sign-up"
+                className="inline-flex min-h-[44px] items-center font-semibold text-brand-blue-deep underline underline-offset-[5px]"
+              >
+                Start your free trial
+              </Link>
+              <p className={`${SITE.soft} text-[15.5px]`}>
+                {`Free for ${TRIAL.priceCadence}, ${TRIAL.orderLimit} documents, no credit card.`}
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
-
-// Tokens only. This page used to carry 7 raw hex literals; the design-token ledger
-// (scripts/token-debt-baseline.json) loses its row for this file with this change.
-const CALL_CSS = `
-.plk-call { max-width: 720px; margin: 0 auto; padding: 56px 32px 80px; }
-.plk-call-badge {
-  display: inline-flex; align-items: center; gap: 7px; height: 26px; padding: 0 12px; border-radius: 13px;
-  background: var(--brand-blue-soft); color: var(--brand-blue-deep);
-  font-size: 11px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; margin-bottom: 16px;
-}
-.plk-call-badge-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--brand-blue); display: inline-block; }
-.plk-call-h1 { font-family: var(--font-display); font-size: clamp(28px, 4vw, 40px); font-weight: 700; letter-spacing: -0.025em; color: var(--ink); margin: 0 0 10px; }
-.plk-call-intro { font-size: 15.5px; line-height: 1.7; color: var(--ink-muted); margin: 0 0 28px; max-width: 560px; }
-.plk-call-h2 { font-family: var(--font-display); font-size: 15px; font-weight: 600; color: var(--ink); margin: 0 0 10px; }
-.plk-call-list { padding-left: 20px; margin: 0; }
-.plk-call-list li { font-size: 14px; line-height: 1.7; color: var(--ink-muted); margin-bottom: 6px; }
-.plk-call-list li strong { color: var(--ink); }
-.plk-call-aside { font-size: 14px; color: var(--ink-muted); margin: 18px 0 0; }
-.plk-call-link { display: inline-flex; align-items: center; gap: 4px; min-height: 44px; color: var(--brand-blue-deep); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
-@media (max-width: 640px) {
-  .plk-call { padding: 44px 16px 64px; }
-}
-`;

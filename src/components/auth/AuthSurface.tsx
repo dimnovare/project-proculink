@@ -27,60 +27,51 @@
  * — see the note on that object.
  * ──────────────────────────────────────────────────────────────────────────── */
 
+import Link from "next/link";
 import { ProcuLinkMark } from "@/components/bridge/DSPrimitives";
+import { CsvFile } from "@/components/marketing/sitePictures";
+import { SITE_TAGLINE } from "@/lib/seo";
 
 type FeatureKind = "file" | "check" | "clock";
+type Tone = "onNavy" | "onLight";
 
 /* The three value claims, shown on the desktop brand panel AND the mobile stack.
    Exported so a test can read them off this module instead of retyping them.
 
-   They used to sell speed and AI ("Orders out in minutes, fully audited"; "AI-assisted
-   mapping with visible confidence"). The first sign-up a buyer makes is a decision about
-   risk, not throughput, so the claims now answer the three questions that decide it: will
-   my own files work, will anything be sent without me, and will I have a record. Each one
-   is true on every plan, Pilot included — upload takes PDF, Excel and CSV; nothing is sent
-   until a person sends it unless automatic delivery is switched on for a supplier; and the
-   per-order history is ungated. */
+   The first sign-up a buyer makes is a decision about risk, not throughput, so the
+   claims answer the three questions that decide it: will my own files work, will
+   anything be sent without me, and will I have a record. Each one is true on every
+   plan, the trial included. */
 export const AUTH_VALUE_CLAIMS: { kind: FeatureKind; label: string }[] = [
-  { kind: "file", label: "Use the order format you already have" },
+  { kind: "file", label: "Use the documents you already get" },
   { kind: "check", label: "Review the result before anything is sent" },
-  // "of your orders", not "of every order": the trust line renders straight after this row,
-  // and "your orders … EU-region document storage" is read — by people and by the residency
-  // guard in legalCommitments.test.tsx — as a promise that every order stays in the EU.
-  { kind: "clock", label: "Keep a complete history of your orders" },
+  { kind: "clock", label: "Keep a complete history of every document" },
 ];
-const FEATURES = AUTH_VALUE_CLAIMS;
 
 /** The qualified storage line, shown on both the desktop panel and the mobile stack. */
-function TrustLine({ tone }: { tone: "onNavy" | "onLight" }) {
+function TrustLine({ tone }: { tone: Tone }) {
   return (
-    <div
-      className="relative"
-      style={{ color: tone === "onNavy" ? "var(--navy-muted)" : "var(--ink-faint)", fontSize: 12 }}
-    >
+    <p className={`m-0 text-[13px] ${tone === "onNavy" ? "text-navy-muted" : "text-ink-faint"}`}>
       {/* Same qualified line as the marketing footers, and linked for the same
           reason: "EU data residency" on its own promises more than the stack
           delivers (sign-in, AI extraction, payments and email all run on named US
           subprocessors). Storage is the part that is true, and /security carries
           the rest of the answer. */}
-      <a href="/security" style={{ color: "inherit", textDecoration: "none" }}>
+      <Link href="/security" className="text-inherit underline underline-offset-2">
         EU-region document storage
-      </a>
-      {" · AES-GCM at rest · Full audit trail"}
-    </div>
+      </Link>
+      , AES-GCM at rest.
+    </p>
   );
 }
 
-/** Lucide-style line icons, matching the design's Icon set (file / checkCircle / clock). */
+/** Lucide-style line icons (file / checkCircle / clock), tinted by the parent. */
 function FeatureIcon({ kind }: { kind: FeatureKind }) {
   const common = {
     width: 15,
     height: 15,
     viewBox: "0 0 24 24",
     fill: "none",
-    // `currentColor` rather than a literal: the tint is set by the parent, which
-    // reads --brand-blue-bright. The value used to be inlined here, which is how
-    // a token that already existed for this exact job went unused.
     stroke: "currentColor",
     strokeWidth: 1.75,
     strokeLinecap: "round" as const,
@@ -111,162 +102,97 @@ function FeatureIcon({ kind }: { kind: FeatureKind }) {
   );
 }
 
-function FeatureRow({
-  kind,
-  label,
-  tone,
-}: {
-  kind: FeatureKind;
-  label: string;
-  tone: "onNavy" | "onLight";
-}) {
+function Claims({ tone }: { tone: Tone }) {
   return (
-    <div
-      className="flex items-center"
-      style={{ gap: 12, color: tone === "onNavy" ? "var(--navy-text)" : "var(--ink-muted)", fontSize: 13.5 }}
-    >
-      <span
-        aria-hidden
-        className="flex shrink-0 items-center justify-center"
-        style={{
-          width: 30,
-          height: 30,
-          borderRadius: 8,
-          background: tone === "onNavy" ? "var(--navy-surface)" : "var(--surface-2)",
-          color: "var(--brand-blue-bright)",
-        }}
-      >
-        <FeatureIcon kind={kind} />
-      </span>
-      {label}
-    </div>
+    <ul className={`m-0 flex list-none flex-col gap-3.5 p-0 text-[15px] ${tone === "onNavy" ? "text-navy-text" : "text-ink-muted"}`}>
+      {AUTH_VALUE_CLAIMS.map((f) => (
+        <li key={f.label} className="flex items-center gap-3">
+          <span
+            aria-hidden="true"
+            className={`flex size-[30px] shrink-0 items-center justify-center rounded-lg text-brand-blue-bright ${tone === "onNavy" ? "bg-navy-surface" : "bg-surface-2"}`}
+          >
+            <FeatureIcon kind={f.kind} />
+          </span>
+          {f.label}
+        </li>
+      ))}
+    </ul>
   );
 }
 
-/** Left navy panel — value prop + trust line. Desktop only; the same content is
- *  re-expressed under the form below lg by <AuthValueStack>. */
+/** Left navy panel: tagline, claims, an example of what comes out, the trust line.
+ *  Desktop only; the claims and trust line are re-expressed under the form below lg
+ *  by <AuthValueStack>. */
 function AuthBrandPanel() {
   return (
-    <aside
-      className="relative hidden flex-col overflow-hidden lg:flex"
-      style={{ background: "var(--navy)", color: "var(--surface)", padding: 48 }}
-    >
-      {/* Dual radial accent glow — the navy-family tokens the marketing hero
-          already draws its glow from. */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background:
-            "radial-gradient(600px 400px at 30% 20%, var(--navy-glow), transparent 60%), radial-gradient(500px 360px at 80% 80%, var(--navy-raised), transparent 60%)",
-        }}
-      />
-
-      {/* Wordmark */}
-      <a
-        href="/"
-        className="relative inline-flex items-center"
-        style={{
-          gap: 9,
-          color: "var(--surface)",
-          fontWeight: 700,
-          fontSize: 17,
-          textDecoration: "none",
-        }}
-      >
+    <aside className="hidden flex-col gap-10 bg-navy p-12 text-surface lg:flex">
+      <Link href="/" className="inline-flex items-center gap-2.5 text-[17px] font-bold text-surface no-underline">
         <ProcuLinkMark size={24} mono />
         ProcuLink
-      </a>
-
-      {/* Bottom content */}
-      <div className="relative" style={{ marginTop: "auto" }}>
-        <h2
-          style={{
-            fontFamily: "var(--font-display)",
-            fontSize: 30,
-            fontWeight: 600,
-            letterSpacing: "-0.03em",
-            lineHeight: 1.15,
-            color: "var(--surface)",
-            maxWidth: "14ch",
-            margin: 0,
-          }}
-        >
-          <span style={{ color: "var(--brand-blue-bright)" }}>Any document in.</span>{" "}
-          <span style={{ color: "var(--brand-green-bright)" }}>Clean data out.</span>
+      </Link>
+      <div className="mt-auto flex max-w-[440px] flex-col gap-8">
+        <h2 className="m-0 max-w-[14ch] font-display text-[34px] font-semibold leading-[1.12] tracking-[-0.02em] text-surface">
+          {SITE_TAGLINE}
         </h2>
-
-        <div style={{ marginTop: 28, display: "flex", flexDirection: "column", gap: 14 }}>
-          {FEATURES.map((f) => (
-            <FeatureRow key={f.label} kind={f.kind} label={f.label} tone="onNavy" />
-          ))}
+        <Claims tone="onNavy" />
+        <div aria-hidden="true" className="text-ink">
+          <CsvFile />
         </div>
-
-        <div style={{ marginTop: 32 }}>
-          <TrustLine tone="onNavy" />
-        </div>
+        <TrustLine tone="onNavy" />
       </div>
     </aside>
   );
 }
 
 /* The same three claims and the same trust line, for viewports where the navy
-   panel does not render.
-
-   Below lg the panel is `hidden`, and it used to take the headline, all three
-   feature rows and the storage/audit line with it — so a buyer signing up on a
-   phone got a bare form and no statement of what the product does or where their
-   orders are held. That is the device most first taps arrive on.
-
-   It sits BELOW the form on purpose. Moving it above would push the thing the
-   user came to do off the first screen, which trades one defect for a worse one. */
+   panel does not render. It sits BELOW the form on purpose: above it, it would push
+   the thing the user came to do off the first screen. */
 function AuthValueStack() {
   return (
-    <div className="mt-10 w-full max-w-[380px] lg:hidden">
-      <div
-        style={{ borderTop: "1px solid var(--border)", paddingTop: 22, display: "flex", flexDirection: "column", gap: 14 }}
-      >
-        {FEATURES.map((f) => (
-          <FeatureRow key={f.label} kind={f.kind} label={f.label} tone="onLight" />
-        ))}
-        <div style={{ marginTop: 6 }}>
-          <TrustLine tone="onLight" />
-        </div>
-      </div>
+    <div className="mt-10 flex w-full max-w-[380px] flex-col gap-4 border-t border-border pt-6 lg:hidden">
+      <Claims tone="onLight" />
+      <TrustLine tone="onLight" />
     </div>
   );
 }
 
-export function AuthShell({ children }: { children: React.ReactNode }) {
+/** The small lines under the Clerk form, and their links. */
+export const AUTH_FOOT = "mt-5 text-[14px] leading-[1.5] text-ink-muted";
+export const AUTH_LINK = "font-semibold text-brand-blue-deep underline underline-offset-2";
+
+/** `variant` marks which page this is, so the shared Clerk appearance can colour the
+ *  primary button per page (navy to sign in, green to start a trial) from ONE object. */
+export function AuthShell({
+  children,
+  variant = "sign-in",
+}: {
+  children: React.ReactNode;
+  variant?: "sign-in" | "sign-up";
+}) {
   return (
-    <main
-      className="grid min-h-screen grid-cols-1 lg:grid-cols-2"
-      style={{ background: "var(--bg)" }}
-    >
+    <main data-auth={variant} className="group min-h-screen bg-bg lg:grid lg:grid-cols-2">
       <AuthBrandPanel />
-      {/* .auth-main — center the form vertically + horizontally, 48px pad on desktop */}
-      <section className="flex min-h-screen flex-col items-center justify-center px-6 py-12 sm:px-8 lg:p-12">
-        {/* Mobile-only wordmark — the brand panel is hidden below lg */}
-        <div className="mb-8 flex w-full max-w-[380px] items-center gap-2.5 lg:hidden">
-          <ProcuLinkMark size={24} />
-          <span
-            className="text-[16px] font-semibold tracking-tight"
-            style={{ color: "var(--ink)" }}
-          >
+      <div className="flex min-h-screen flex-col">
+        {/* Below lg the panel is hidden, so the brand rides a navy bar instead. */}
+        <div className="lg:hidden">
+          <div className="flex h-16 items-center gap-2.5 bg-navy px-6 text-[16px] font-semibold text-surface">
+            <ProcuLinkMark size={24} mono />
             ProcuLink
-          </span>
+          </div>
+          <div aria-hidden="true" className="h-0.5 bg-link-spine" />
         </div>
-        {/* .auth-form — max-width 380 */}
-        <div className="w-full max-w-[380px]">{children}</div>
-        <AuthValueStack />
-      </section>
+        <section className="flex flex-1 flex-col items-center justify-center px-6 py-12 sm:px-8 lg:p-12">
+          <div className="w-full max-w-[380px]">{children}</div>
+          <AuthValueStack />
+        </section>
+      </div>
     </main>
   );
 }
 
-/** The page heading + sub-line (+ an optional second line). The only copy that
+/** The page heading + sub-line. The only copy that
  *  legitimately differs per route. */
-export function AuthHeading({ title, sub, detail }: { title: string; sub: string; detail?: string }) {
+export function AuthHeading({ title, sub }: { title: string; sub: string }) {
   return (
     <div className="mb-6">
       <h1
@@ -282,9 +208,6 @@ export function AuthHeading({ title, sub, detail }: { title: string; sub: string
         {title}
       </h1>
       <p style={{ fontSize: 13.5, marginTop: 6, color: "var(--ink-muted)" }}>{sub}</p>
-      {detail && (
-        <p style={{ fontSize: 13.5, lineHeight: 1.5, marginTop: 8, color: "var(--ink-muted)" }}>{detail}</p>
-      )}
     </div>
   );
 }
@@ -341,9 +264,10 @@ export const clerkAppearance = {
     formFieldLabel: "text-[11.5px] font-semibold text-[color:var(--ink-muted)] mb-1.5",
     formFieldInput:
       "h-[42px] rounded-[6px] border border-[color:var(--border-strong)] bg-[color:var(--surface)] px-3 text-[14px] text-[color:var(--ink)] placeholder:text-[color:var(--ink-faint)] focus:border-[color:var(--brand-blue)] focus:ring-[3px] focus:ring-[color:var(--brand-blue-soft)] shadow-none transition-colors",
-    // Primary CTA → .btn-blue
+    // Primary CTA: navy to sign in, green to start a trial. One object for both
+    // pages; the page is told apart by the `data-auth` mark AuthShell sets.
     formButtonPrimary:
-      "h-11 rounded-[6px] bg-[color:var(--brand-blue)] text-[color:var(--surface)] text-[14px] font-medium hover:bg-[color:var(--brand-blue-deep)] active:translate-y-[0.5px] shadow-none normal-case transition-colors mt-3",
+      "h-12 rounded-[6px] bg-navy text-surface text-[16px] font-semibold hover:bg-navy-surface group-data-[auth=sign-up]:bg-brand-green-btn group-data-[auth=sign-up]:hover:bg-brand-green-deep active:translate-y-[0.5px] shadow-none normal-case transition-colors mt-3",
     // "Forgot?" action link → a.link (brand-blue-deep)
     formFieldAction: "text-[11.5px] font-medium text-[color:var(--brand-blue-deep)] hover:underline",
     identityPreviewEditButton: "text-[color:var(--brand-blue-deep)]",
