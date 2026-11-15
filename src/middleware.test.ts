@@ -369,7 +369,13 @@ function listPublicFiles(dir: string, prefix = ""): string[] {
   return found;
 }
 
-const PUBLIC_FILES = listPublicFiles(join(ROOT, "public")).sort();
+/** The app icons are drawn by route handlers, not files in public/, but must skip the middleware the same way. */
+const ICON_ROUTES = [
+  ...(JSON.parse(readFileSync(join(ROOT, "public", "site.webmanifest"), "utf8")) as { icons: { src: string }[] }).icons.map((i) => i.src),
+  "/apple-touch-icon.png",
+];
+
+const PUBLIC_FILES = [...new Set([...listPublicFiles(join(ROOT, "public")), ...ICON_ROUTES])].sort();
 
 /** "/archive(.*)" -> "archive". The prefix each protected pattern claims. */
 const PROTECTED_PREFIXES = PROTECTED_ROUTE_PATTERNS.map((pattern) =>

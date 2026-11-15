@@ -28,6 +28,9 @@ import "./globals.css";
 
 export const viewport: Viewport = {
   themeColor: "#0B1A2F",
+  // The installed window has no browser chrome: draw under the notch and let the
+  // env(safe-area-inset-*) paddings keep content clear of it.
+  viewportFit: "cover",
 };
 
 export const metadata: Metadata = {
@@ -45,7 +48,7 @@ export const metadata: Metadata = {
     shortcut: "/favicon.ico",
   },
   manifest: "/site.webmanifest",
-  appleWebApp: { title: "ProcuLink" },
+  appleWebApp: { capable: true, title: "ProcuLink", statusBarStyle: "default" },
   other: {
     "msapplication-TileColor": "#0B1A2F",
     "msapplication-config": "/browserconfig.xml",

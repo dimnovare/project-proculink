@@ -279,6 +279,9 @@
   body {
     @apply bg-bg text-ink;
     min-height: 100dvh;
+    /* The installed window (viewport-fit=cover) draws edge to edge; keep content off a landscape notch. */
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
   }
 
   /* Scrollbars */

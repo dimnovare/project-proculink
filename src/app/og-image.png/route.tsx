@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ImageResponse } from "next/og";
 import { cssToken } from "@/lib/cssTokens";
+import { Mark } from "@/lib/pwa/appIcon";
 
 // The share image, drawn at build time from the design tokens. Satori cannot
 // resolve `var()`, so every colour is read out of globals.css by name, and
@@ -25,23 +26,7 @@ export async function GET(): Promise<Response> {
       <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", background: t("navy") }}>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-between", padding: 72 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-            <svg width={56} height={56} viewBox="0 0 40 40" fill="none">
-              <defs>
-                <linearGradient id="arc" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0%" stopColor={blueBright} />
-                  <stop offset="100%" stopColor={greenBright} />
-                </linearGradient>
-              </defs>
-              <path
-                d="M8 10h14a10 10 0 0 1 10 10v0a10 10 0 0 1-10 10H8"
-                stroke="url(#arc)"
-                strokeWidth="3.6"
-                strokeLinecap="round"
-                fill="none"
-              />
-              <circle cx="8" cy="10" r="2.5" fill={blueBright} />
-              <circle cx="8" cy="30" r="2.5" fill={greenBright} />
-            </svg>
+            <Mark size={56} blue={blueBright} green={greenBright} />
             <div style={{ fontFamily: "Bricolage Grotesque", fontSize: 44, color: t("surface") }}>ProcuLink</div>
           </div>
           <div
