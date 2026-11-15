@@ -38,6 +38,13 @@ const ENTRIES = [
       "Review saves your changes as you type, marks what needs you in amber, and opens the next document when you send.",
       "Upload takes several files at once and shows where each one is.",
       "Destinations: test one before you use it, and send a waiting document again with Send it now.",
+      "A flow's page follows the document: Arrives, We read, You check, We send. Changes are a draft until you publish them.",
+      "A new workspace starts from a file: add one, see what was read, then choose where it goes.",
+      "Search: press Ctrl K to find a document by its name or number.",
+      "Documents: select several and send or download them together.",
+      "Settings is one page with tabs for the workspace, destinations, plan and billing, and API keys.",
+      "Help opens beside your work, with the tasks for the screen you are on.",
+      "Pricing: choose how many documents you process a month and see which plan costs least.",
     ],
   },
   {
