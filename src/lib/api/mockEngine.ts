@@ -1,17 +1,21 @@
 /**
  * mockEngine.ts — fixtures for the document engine in mock mode (`documents.ts` `apiFetch` seam).
  *
- * GETs serve fixed generic data. A write resolves with an echo and persists nothing. An unknown
+ * GETs serve fixed generic data. A write resolves with an echo and persists nothing, except for
+ * lookups: they are the one stateful part, remembered for the life of the page, and their routes
+ * refuse what the server refuses (LookupsController / LookupRules). An unknown
  * path or method throws, so a screen calling an endpoint with no fixture shows its error state
  * instead of an empty success. Only reachable when `isApiMockMode` (never true in production).
  */
 import { DOCUMENT_STATUSES } from "../documentStatusManifest";
+import { LOOKUP_LIMITS } from "../lookupCsv";
 import { ApiHttpError } from "./core";
 import { mockSourceBytesForKey } from "./mockSourceDocument";
 import type {
   Destination, DocumentDelivery, DocumentDetail, DocumentSummary, Flow, FlowField, FlowIntake, FlowOutput,
-  FlowVersion, Lookup, LookupSummary, NotificationSettings, OutputPreview, ReadCell, ReadResult,
+  FlowVersion, Lookup, LookupCandidate, LookupEntry, LookupSummary, NotificationSettings, OutputPreview, ReadCell, ReadResult,
 } from "./documents";
+import type { OutputNode } from "./types";
 
 export const MOCK_ENGINE_IDS = { flow: "flow-1", setupFlow: "flow-2", document: "doc-1", lookup: "lookup-1", output: "out-1" } as const;
 /** The document number every fixture read carries — specs assert against this, never a literal. */
@@ -110,7 +114,7 @@ const outputs: FlowOutput[] = [{
       name: "row", nodeType: "object",
       children: [
         { name: "Invoice", nodeType: "field", rule: { outputPath: "Invoice", sourceToken: "invoice_no", fieldManipulators: [] } },
-        { name: "Item", nodeType: "field", rule: { outputPath: "Item", sourceToken: "item_code", fieldManipulators: [] } },
+        { name: "Item", nodeType: "field", rule: { outputPath: "Item", sourceToken: "item_code", fieldManipulators: [{ type: "Lookup", params: [MOCK_ENGINE_IDS.lookup, "keep"] }] } },
       ],
     },
   },
@@ -120,16 +124,77 @@ const preview: OutputPreview = {
   content: `Invoice,Item\n${MOCK_DOCUMENT_NUMBER},A-100\n${MOCK_DOCUMENT_NUMBER},B-200\n${MOCK_DOCUMENT_NUMBER},C-300\n`,
 };
 
-const lookup: Lookup = {
-  id: MOCK_ENGINE_IDS.lookup, name: "Item codes", updatedAt: T, candidates: [], suggestionsOn: false,
-  entries: [{ from: "A-100", to: "SKU-1" }, { from: "B-200", to: "SKU-2" }, { from: "C-300", to: "SKU-3" }],
-};
+// suggestionsOn is one workspace switch on the server, so every lookup carries the same value.
+const lookup = (id: string, name: string, pairs: string[][]): Lookup => ({
+  id, name, updatedAt: T, candidates: [], suggestionsOn: true, entries: pairs.map(([from, to]) => ({ from, to })),
+});
 const LOOKUPS: Lookup[] = [
-  lookup,
-  { ...lookup, id: "lookup-2", name: "Units of measure", entries: [{ from: "PCS", to: "EA" }, { from: "KGM", to: "KG" }] },
-  { ...lookup, id: "lookup-3", name: "Country codes", entries: [{ from: "Estonia", to: "EE" }, { from: "Finland", to: "FI" }] },
+  lookup("lookup-3", "Country codes", [["Estonia", "EE"], ["Finland", "FI"], ["Latvia", "LV"], ["Lithuania", "LT"]]),
+  lookup(MOCK_ENGINE_IDS.lookup, "Item codes", [
+    ["A-100", "SKU-1"], ["B-200", "SKU-2"], ["C-300", "SKU-3"],
+    ...Array.from({ length: 117 }, (_, i) => [`ITEM-${1004 + i}`, `SKU-${4 + i}`]),
+  ]),
+  lookup("lookup-4", "Pallet types", []),
+  lookup("lookup-2", "Units of measure", [["PCS", "EA"], ["KGM", "KG"]]),
 ];
-const summary = (l: Lookup): LookupSummary => ({ id: l.id, name: l.name, count: l.entries.length, updatedAt: T, hasCandidates: false, suggestionsOn: false });
+let lookupsMade = 0;
+const byName = <X extends { name: string }>(a: X, b: X) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
+const lookupSteps = (n: OutputNode | null | undefined): string[] =>
+  n ? [...(n.rule?.fieldManipulators ?? []).filter((s) => s.type === "Lookup").map((s) => s.params[0]), ...(n.children ?? []).flatMap(lookupSteps)] : [];
+/** As DocumentLookups.UsesAsync: each flow whose outputs have a Lookup step naming it, once, by flow name. */
+const usedBy = (id: string) => FLOWS
+  .filter((f) => outputs.some((o) => o.flowId === f.id && lookupSteps(o.template?.root).includes(id)))
+  .sort(byName).map((f) => ({ flowId: f.id, flowName: f.name }));
+const summary = (l: Lookup): LookupSummary => ({
+  id: l.id, name: l.name, count: l.entries.length, updatedAt: l.updatedAt, hasCandidates: l.candidates.length > 0,
+  suggestionsOn: l.suggestionsOn, usedBy: usedBy(l.id),
+});
+const invalid = (detail: string): never => {
+  throw new ApiHttpError(`mock engine: ${detail}`, 422, { error: "lookup_invalid", detail });
+};
+/** As LookupRules.Problem / CandidateProblem: the first refusal of a list of values, or none. */
+function checkValues(values: { value?: string; other?: string | null }[], tooMany: string, blank: string, suffix: string, otherMax: number, otherSentence: string) {
+  const { rows, valueLength } = LOOKUP_LIMITS;
+  if (values.length > rows) invalid(tooMany);
+  const seen = new Set<string>();
+  for (const { value = "", other } of values) {
+    if (!value.trim()) invalid(blank);
+    if (value.length > valueLength) invalid(`Values can be at most ${valueLength} characters.`);
+    if ((other?.length ?? 0) > otherMax) invalid(otherSentence);
+    const k = value.trim().toLowerCase();
+    if (seen.has(k)) invalid(`'${value.trim()}' appears more than once${suffix}.`);
+    seen.add(k);
+  }
+}
+/** As LookupsController.Apply: refuses a malformed body, otherwise the stored lookup. */
+function applyLookup(l: Lookup, b: Body): Lookup {
+  const name = typeof b.name === "string" ? b.name.trim() : "";
+  if (name.length < 1 || name.length > LOOKUP_LIMITS.nameLength) invalid(`The name must be 1 to ${LOOKUP_LIMITS.nameLength} characters.`);
+  const entries = (b.entries ?? []) as Partial<LookupEntry>[];
+  const V = LOOKUP_LIMITS.valueLength;
+  checkValues(entries.map((e) => ({ value: e?.from, other: e?.to })), `A lookup holds at most ${LOOKUP_LIMITS.rows} entries.`,
+    "Every entry needs a value to look for.", "", V, `Values can be at most ${V} characters.`);
+  const candidates = b.candidates as Partial<LookupCandidate>[] | undefined;
+  if (candidates) checkValues(candidates.map((c) => ({ value: c?.value, other: c?.description })), `A lookup can list at most ${LOOKUP_LIMITS.rows} values to choose from.`,
+    "Each row in the list to choose from needs a value.", " in the list to choose from", 500, "Descriptions can be at most 500 characters.");
+  return {
+    ...l, name, updatedAt: new Date().toISOString(),
+    entries: entries.map((e) => ({ from: e.from!.trim(), to: e.to ?? "" })),
+    candidates: candidates ? candidates.map((c) => ({ value: c.value!.trim(), description: c.description?.trim() || null })) : l.candidates,
+  };
+}
+// Every /lookups route on the server takes no query; a screen sending one has a bug the mock must not hide.
+const noQuery = (run: Handler): Handler => (m, q, b) => {
+  if ([...q.keys()].length) throw new Error("mock engine: /lookups takes no parameters");
+  return run(m, q, b);
+};
+/** Stores `l` in place of the lookup with its id, or as a new one; answers a copy, as JSON off the wire would be. */
+const storeLookup = (l: Lookup) => {
+  const i = LOOKUPS.findIndex((x) => x.id === l.id);
+  if (i < 0) LOOKUPS.push(l);
+  else LOOKUPS[i] = l;
+  return structuredClone(l);
+};
 const notifications: NotificationSettings = { email: null, onReview: true, onFailure: true };
 const TEST_OK = { success: true, message: null, responseCode: 200 };
 
@@ -199,11 +264,20 @@ const ROUTES: [method: string, pattern: RegExp, run: Handler][] = [
   ["DELETE", re`/flows/${S}/outputs/${S}`, () => undefined],
   ["PUT", re`/flows/${S}/outputs/${S}/logo`, () => undefined],
   ["DELETE", re`/flows/${S}/outputs/${S}/logo`, () => undefined],
-  ["GET", re`/lookups`, () => LOOKUPS.map(summary)],
-  ["POST", re`/lookups`, (_m, _q, b) => echo({ ...lookup, id: "lookup-new", entries: [] }, b)],
-  ["GET", re`/lookups/${S}`, (m) => pick(LOOKUPS, m[1], "lookup")],
-  ["PUT", re`/lookups/${S}`, (m, _q, b) => echo(pick(LOOKUPS, m[1], "lookup"), b)],
-  ["DELETE", re`/lookups/${S}`, () => undefined],
+  ["GET", re`/lookups`, noQuery(() => [...LOOKUPS].sort(byName).map(summary))],
+  ["POST", re`/lookups`, noQuery((_m, _q, b) => {
+    const made = applyLookup(lookup(`lookup-new-${lookupsMade + 1}`, "", []), b);
+    lookupsMade++;
+    return storeLookup(made);
+  })],
+  ["GET", re`/lookups/${S}`, noQuery((m) => structuredClone(pick(LOOKUPS, m[1], "lookup")))],
+  ["PUT", re`/lookups/${S}`, noQuery((m, _q, b) => storeLookup(applyLookup(pick(LOOKUPS, m[1], "lookup"), b)))],
+  ["DELETE", re`/lookups/${S}`, noQuery((m) => {
+    const l = pick(LOOKUPS, m[1], "lookup");
+    if (usedBy(l.id).length) throw new ApiHttpError(`mock engine: lookup ${l.id} is in use`, 409, { error: "lookup_in_use" });
+    LOOKUPS.splice(LOOKUPS.indexOf(l), 1);
+    return undefined;
+  })],
 ];
 
 // The original is served by file name, like the real download: a `.pdf` document gets real PDF bytes,
