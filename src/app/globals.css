@@ -489,20 +489,6 @@
    Transition is set on the base element; the browser animates the change.
    ──────────────────────────────────────────────────────────────────────────── */
 
-/* Ghost button — transparent/surface bg, bordered, muted text */
-.btn-ghost {
-  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease !important;
-}
-.btn-ghost:hover:not(:disabled) {
-  background: #F1F3F7 !important;
-  border-color: #CBD0DA !important;
-  color: #0B1A2F !important;
-}
-.btn-ghost:active:not(:disabled) {
-  background: #E5E8EF !important;
-  transform: scale(0.987);
-}
-
 /* Primary button — navy CTA */
 .btn-primary {
   transition: background 0.12s ease, box-shadow 0.12s ease !important;
@@ -740,26 +726,6 @@
   text-transform: uppercase;
   color: var(--ink-faint);
 }
-.fchip-row { min-width: 0; }
-.fchip {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 30px;
-  padding: 0 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--ink-muted);
-  font-size: 12px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-.fchip.active {
-  border-color: color-mix(in srgb, var(--brand-green) 35%, var(--border));
-  background: var(--brand-green-soft);
-  color: var(--brand-green-deep);
-}
 .btn {
   display: inline-flex;
   align-items: center;
@@ -782,26 +748,9 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
-.skel {
-  border-radius: var(--radius-sm);
-  background: linear-gradient(90deg, #edf0f5, #f7f8fb, #edf0f5);
-  background-size: 220% 100%;
-  animation: skel-shimmer 1.4s ease-in-out infinite;
-}
-@keyframes skel-shimmer {
-  0% { background-position: 100% 0; }
-  100% { background-position: 0 0; }
-}
 @media (max-width: 640px) {
   .work-inner { padding: 20px 16px 28px; }
   .page-head { flex-direction: column; align-items: stretch; gap: 12px; }
-  .fchip-row {
-    overflow-x: auto;
-    flex-wrap: nowrap;
-    padding-bottom: 2px;
-    scrollbar-width: none;
-  }
-  .fchip-row::-webkit-scrollbar { display: none; }
 }
 
 /* Hide the scrollbar on horizontal-scroll rows (status filter tabs, etc.)

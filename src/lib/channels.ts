@@ -1,0 +1,2 @@
+/** The word for each delivery channel token. An unknown token shows as itself, never as a success word. */
+export const CHANNELS = new Map([["", "Download"], ["email", "Email"], ["http", "Web address"], ["sftp", "SFTP"], ["ftps", "FTPS"], ["s3", "S3 bucket"], ["google_drive", "Google Drive"], ["google_sheets", "Google Sheets"]]);

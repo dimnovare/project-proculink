@@ -9,6 +9,7 @@ import { FORMATS } from "@/components/flows/OutputEditor";
 import { PREVIEW_FORMATS } from "@/lib/api/types";
 import { STANDARDS } from "@/lib/standards/catalog";
 import { FLAGGED, STANDARD_OUTPUTS } from "@/lib/standardOutputs";
+import type { ActivityEvent } from "@/lib/api/documents";
 // The C# string-literal reader this file introduced now has a second consumer
 // (src/test/backendCopyVocabulary.test.ts), so it lives in one place rather than two.
 // Its own header explains why a `grep` cannot replace it.
@@ -1321,6 +1322,23 @@ describe("document statuses mirror the backend", () => {
     const backend = Object.values(parseStatusConstants(cs));
     expect(backend.length, "DocumentChecks.cs parsed to no constants, so this would prove nothing").toBeGreaterThan(0);
     expect(backend).toEqual(expect.arrayContaining([...WHOLE_DOCUMENT_CHECKS]));
+  });
+});
+
+describe("the Activity row mirrors the audit route", () => {
+  // Bound to the client type at typecheck: a key added to or removed from ActivityEvent fails here first.
+  const ACTIVITY_KEYS = {
+    id: true, ts: true, action: true, documentId: true, flowId: true, documentName: true, flowName: true,
+    source: true, actorId: true, startedAt: true, poNumber: true, payload: true,
+  } satisfies Record<keyof ActivityEvent, true>;
+
+  // No contract record exists: GetAuditLog answers an anonymous `return new { … }` per row, so its member names are read.
+  test.skipIf(!BACKEND)("every ActivityEvent field is a member of AuditController's row projection", () => {
+    const cs = stripCsComments(readFileSync(join(BACKEND!, "ProcuLink.Api/Controllers/AuditController.cs"), "utf8"));
+    const block = /return new\s*\{([^{}]*)\};\s*\}\)\.ToList\(\);/.exec(cs)?.[1] ?? "";
+    const members = block.split(",").map((m) => /^\s*(\w+)/.exec(m)?.[1]).filter((m): m is string => !!m);
+    expect(members.length, "the row projection parsed to almost nothing, so this would prove nothing").toBeGreaterThan(10);
+    expect(members).toEqual(expect.arrayContaining(Object.keys(ACTIVITY_KEYS)));
   });
 });
 

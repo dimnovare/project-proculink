@@ -18,47 +18,12 @@ import {
   delay,
   ApiHttpError,
 } from "./api/core";
-import { isPlanGateError } from "./planGate";
 import { readRefusal } from "./api/refusal";
 import { serverReason } from "./serverText";
 
 // Re-export the shared primitives so every existing `@/lib/api-client` import
 // (incl. ApiHttpError, isApiMockMode) keeps working unchanged.
 export { ApiHttpError, isApiMockMode };
-
-/**
- * A plan-gate 403 carries its whole meaning in the BODY — `{ error:
- * "<capability>_requires_<plan>", upgradeUrl }` — while the status line says nothing. Calls
- * that summarise a failure as `\`audit: ${res.status}\`` or `res.statusText` therefore threw
- * the gate away before any UI could react to it.
- *
- * Returns the raw body VERBATIM (not just the code) when it is a plan gate, so both the code
- * and the upgradeUrl survive on the Error message — several catch sites keep nothing but that
- * string. Any other failure returns null and keeps its existing message.
- *
- * Consumes the response body, so call it at most once per response.
- */
-async function planGateBodyText(res: Response): Promise<string | null> {
-  if (res.status !== 403) return null;
-  try {
-    return planGateText(res.status, await res.text());
-  } catch {
-    return null;
-  }
-}
-
-/**
- * The same test, for a caller that has already read the body and cannot read it twice.
- *
- * A 403 now has TWO possible meanings — this one, and `requires_org_admin` (see
- * `src/lib/api/refusal.ts`) — so any site that reads the body once must ask both questions of
- * the same string rather than letting whichever it asks first swallow the other.
- */
-function planGateText(status: number, raw: string): string | null {
-  if (status !== 403) return null;
-  const trimmed = raw.trim();
-  return isPlanGateError(trimmed) ? trimmed : null;
-}
 
 // ─── Support contact ───
 // Placed near the top of api-client.ts so the support form chip doesn't
@@ -359,54 +324,6 @@ export const apiClient = {
   getOrderById:           USE_MOCK ? mockGetOrderById          : realGetOrderById,
   getDownloadUrl:         USE_MOCK ? mockGetDownloadUrl        : realGetDownloadUrl,
 };
-
-// ── Audit log ──────────────────────────────────────────────────────────────
-
-export interface AuditLogEntry {
-  id: string;
-  ts: string;
-  orderId: string | null;
-  poNumber: string | null;
-  buyerName: string | null;
-  supplierName: string | null;
-  format: string | null;
-  action: string;
-  actorType: "user" | "system" | "ai";
-  actorName: string;
-  actorInitials: string;
-  message: string;
-  payload: unknown;
-  /** Set together for FlowDocument events; null once the document is deleted. */
-  documentId?: string | null;
-  flowId?: string | null;
-  documentName?: string | null;
-}
-
-export interface AuditLogPage {
-  events: AuditLogEntry[];
-  total: number;
-  page: number;
-  pageSize: number;
-}
-
-export async function getAuditLog(page = 1, pageSize = 50): Promise<AuditLogPage> {
-  if (USE_MOCK) {
-    await delay(120); // mock reads simulate latency — see getBillingStatus in api/billing.ts
-    return {
-      events: [
-        { id: "e1", ts: new Date(Date.now() - 2*60000).toISOString(), orderId: "demo-001", poNumber: "PO-DEMO-001", buyerName: "Heinrich Industries", supplierName: "Acme Components", format: "PDF", action: "flagged", actorType: "ai", actorName: "Extraction engine", actorInitials: "AI", message: "3 validation errors flagged", payload: null },
-        { id: "e2", ts: new Date(Date.now() - 14*60000).toISOString(), orderId: "nrd9981", poNumber: "PO-NRD-9981", buyerName: "Nordmark Logistics", supplierName: "BoltWorks BV", format: "cXML", action: "created", actorType: "system", actorName: "System", actorInitials: "SY", message: "Order created from upload", payload: null },
-      ],
-      total: 2,
-      page: 1,
-      pageSize: 50,
-    };
-  }
-  const headers = await authHeader();
-  const res = await fetchWithTimeout(`${API_BASE_URL}/api/audit?page=${page}&pageSize=${pageSize}`, { headers });
-  if (!res.ok) throw new ApiHttpError((await planGateBodyText(res)) ?? `audit: ${res.status}`, res.status);
-  return res.json();
-}
 
 // ── Validation rules + output templates: retired 2026-07-30 ────────────────
 //

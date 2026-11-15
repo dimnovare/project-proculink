@@ -85,7 +85,7 @@ import { serverReasonOrNull } from "@/lib/serverText";
  *  parsed     the source document was read
  *  validated  a pipeline stage completed cleanly
  *  edited     data on the order changed (by a person, or by the mapping engine)
- *  delivered  the supplier has it. GREEN, and reserved — see isSuccessKind
+ *  delivered  the supplier has it. GREEN, and reserved
  *  failed     something broke and someone has to act
  *  held       nothing broke, but the order stopped and only a person or a billing
  *             settlement restarts it. The same distinction OrderStatusFact draws
@@ -256,7 +256,7 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     reachable: true,
     backendSite: "ProcuLink.Api/Services/Documents/FlowDestinationService.cs:166",
     reasonKeys: [],
-    note: "A test send to a flow destination. Payload is `{ success, responseCode }`: the outcome is in the payload, not the action, so the row claims neither — `edited` because it is neutral; `validated` would render a failed test as a success (isSuccessKind).",
+    note: "A test send to a flow destination. Payload is `{ success, responseCode }`: the outcome is in the payload, not the action, so the row claims neither — `edited` because it is neutral; `validated` would render a failed test as a success.",
   },
   {
     action: "SupplierSuggested",
@@ -965,16 +965,6 @@ export const REACHABLE_AUDIT_ACTIONS: readonly string[] = AUDIT_ACTION_FACTS.fil
   (f) => f.action,
 );
 
-/**
- * The actions the "Failed" chip claims.
- *
- * Derived from the `kind` column rather than retyped, so the chip and the row
- * rendering cannot disagree — which is the state the old two-map indirection was in.
- */
-export const FAILURE_AUDIT_ACTIONS: readonly string[] = AUDIT_ACTION_FACTS.filter((f) => f.kind === "failed").map(
-  (f) => f.action,
-);
-
 const FACT_BY_ACTION = new Map(AUDIT_ACTION_FACTS.map((f) => [f.action.toLowerCase(), f] as const));
 
 /**
@@ -1015,16 +1005,6 @@ export function auditActionLabel(action: string | null | undefined): string {
   if (fact) return fact.label;
   const raw = (action ?? "").trim();
   return raw.length > 0 ? raw : "Unrecognised event";
-}
-
-/**
- * True only for kinds that may render as a completed success (green).
- *
- * Deliberately a tiny allow-list rather than `kind !== "failed"`: a deny-list is how
- * `unknown` came to read as a delivery in the first place.
- */
-export function isSuccessKind(kind: AuditEventKind): boolean {
-  return kind === "delivered" || kind === "validated";
 }
 
 /** The actions that declare a reason key — the ones a reader can explain at all. */
