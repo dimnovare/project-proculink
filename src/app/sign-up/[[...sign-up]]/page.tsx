@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { SignUp } from "@clerk/nextjs";
-import { AuthShell, AuthHeading, clerkAppearance } from "@/components/auth/AuthSurface";
+import { AuthShell, AuthHeading, AUTH_FOOT, AUTH_LINK, clerkAppearance } from "@/components/auth/AuthSurface";
 import { ClerkAvailabilityGate } from "@/components/bridge/ClerkAvailabilityGate";
 import { PLAN_BY_ID } from "@/lib/plans";
 
@@ -9,7 +9,6 @@ import { PLAN_BY_ID } from "@/lib/plans";
    `priceCadence` is the trial tier's window ("30 days"); `orderLimit` and `flowLimit` are its allowance (C8). */
 const TRIAL = PLAN_BY_ID.pilot;
 const TRIAL_OFFER = `Free for ${TRIAL.priceCadence} · ${TRIAL.orderLimit} documents · ${TRIAL.flowLimit} flows · no credit card`;
-const TRIAL_DETAIL = "Try it on your own documents";
 
 /* The shell, the brand panel and the Clerk appearance object live in
    @/components/auth/AuthSurface and are shared with /sign-in — which is how the
@@ -20,7 +19,7 @@ const TRIAL_DETAIL = "Try it on your own documents";
 export default function SignUpPage() {
   if (!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) {
     return (
-      <AuthShell>
+      <AuthShell variant="sign-up">
         <h1 className="text-xl font-semibold text-foreground">Sign-up is not configured</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           Add the Clerk environment variables in Vercel to enable authentication.
@@ -31,7 +30,7 @@ export default function SignUpPage() {
 
   if (!process.env.CLERK_SECRET_KEY) {
     return (
-      <AuthShell>
+      <AuthShell variant="sign-up">
         <h1 className="text-xl font-semibold text-foreground">Server auth is not configured</h1>
         <p className="mt-2 max-w-md text-sm text-muted-foreground">
           Add CLERK_SECRET_KEY in Vercel for Production and Preview, then redeploy.
@@ -46,19 +45,28 @@ export default function SignUpPage() {
     // without the hosted script. Middleware does not route anyone here, but
     // every marketing "Start for free" call to action does.
     <ClerkAvailabilityGate surface="auth">
-      <AuthShell>
-        <AuthHeading title="Start your free trial" sub={TRIAL_OFFER} detail={TRIAL_DETAIL} />
+      <AuthShell variant="sign-up">
+        <AuthHeading title="Start your free trial" sub={TRIAL_OFFER} />
         <SignUp
           appearance={clerkAppearance}
           fallbackRedirectUrl="/onboarding/select-organization"
           signInFallbackRedirectUrl="/onboarding/select-organization"
         />
-        <p style={{ fontSize: 13, lineHeight: 1.5, marginTop: 20, color: "var(--ink-muted)" }}>
-          <Link
-            href="/book-demo"
-            style={{ fontWeight: 600, color: "var(--brand-blue-deep)", textDecoration: "none" }}
-          >
-            Talk to us →
+        <p className={AUTH_FOOT}>
+          By creating an account you agree to the{" "}
+          <Link href="/terms" className={AUTH_LINK}>
+            Terms
+          </Link>{" "}
+          and the{" "}
+          <Link href="/privacy" className={AUTH_LINK}>
+            Privacy policy
+          </Link>
+          .
+        </p>
+        <p className="mt-2 text-[14px] leading-[1.5] text-ink-muted">
+          Rather talk first?{" "}
+          <Link href="/book-demo" className={AUTH_LINK}>
+            Talk to us
           </Link>
         </p>
       </AuthShell>
