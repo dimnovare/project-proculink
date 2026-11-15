@@ -273,7 +273,8 @@
     font-family: 'Inter', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    font-variant-numeric: tabular-nums;
+    /* No page-wide tabular figures: in Inter they also widen the hyphen, so "read-only" was drawn
+       as "read - only" in every sentence. Add the `tabular-nums` class where digits must line up. */
   }
 
   body {
