@@ -146,6 +146,8 @@ const outputs: FlowOutput[] = [{
 // Download-only: no destination, so the flow list says "You download …".
 outputs.push({
   ...outputs[0], id: "out-2", flowId: flow4.id, name: "Remittance sheet", format: "xlsx", destinationId: null,
+  // Its own columns, with no lookup step: what uses a lookup stays the one flow whose output swaps a value.
+  template: { format: "csv", root: { name: "row", nodeType: "object", children: [outputs[0].template.root.children![0]] } },
 });
 const intakesOf = (flowId: string) => (flowId === flow1.id ? intakes : []);
 const outputsOf = (flowId: string) => outputs.filter((o) => o.flowId === flowId);
