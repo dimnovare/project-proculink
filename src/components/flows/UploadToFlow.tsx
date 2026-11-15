@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
+import { Camera, Plus } from "lucide-react";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import { Card } from "@/components/bridge/layout/Card";
@@ -24,6 +24,7 @@ import { PLAN_BY_ID } from "@/lib/plans";
 import type { BillingStatus } from "@/types/procurement";
 import { rowNeed, useRowSend, type ListedDocument } from "./DocumentList";
 import { FlowChoice } from "./FlowChoice";
+import { PhotoCheck, useCamera } from "./PhotoCheck";
 import { canRetryUpload, STOP_CODES, uploadRefusalMessage, useUploadQueue, type UploadItem } from "./UploadQueue";
 import { Failed, FirstFlowEmpty, Quiet } from "./states";
 
@@ -127,6 +128,8 @@ export function UploadToFlow() {
   const [sent, setSent] = useState<ReadonlySet<string>>(new Set());
   const [over, setOver] = useState(false);
   const input = useRef<HTMLInputElement>(null);
+  const [photo, setPhoto] = useState<File | null>(null);
+  const camera = useCamera(setPhoto, "camera-input");
   const done = items.filter((i) => i.state === "done");
   const uploaded = useQuery({
     queryKey: JUST_UPLOADED,
@@ -192,8 +195,16 @@ export function UploadToFlow() {
               </h2>
               <p className="m-0 max-w-[460px] text-[14.5px] text-ink-muted">{kindsLine(flow)}</p>
               <div className="flex flex-col gap-2.5 self-stretch sm:self-center">
-                <Button variant="blue" size="lg" className="!h-12 w-full px-6 text-[15px] sm:w-auto" onClick={() => input.current?.click()}>Choose files</Button>
+                {flow.scansOn && (
+                  <Button variant="blue" size="lg" className="!h-12 w-full px-6 text-[15px] sm:hidden" onClick={camera.open}>
+                    <Camera size={18} aria-hidden />Take a photo
+                  </Button>
+                )}
+                {/* Outlined below 640px when Take a photo is the filled one: one filled button per width. */}
+                <Button variant="blue" size="lg" onClick={() => input.current?.click()}
+                  className={`!h-12 w-full px-6 text-[15px] sm:w-auto ${flow.scansOn ? "max-sm:border-border-strong max-sm:bg-surface max-sm:text-ink max-sm:hover:bg-surface-2" : ""}`}>Choose files</Button>
               </div>
+              {camera.input}
               <input
                 ref={input} type="file" multiple accept={acceptFor(flow)} className="hidden" data-testid="upload-files-input" aria-label="Choose files"
                 onChange={(e) => { pick(e.target.files); e.target.value = ""; }}
@@ -221,6 +232,12 @@ export function UploadToFlow() {
             <UsageLine billing={billing.data} />
           </div>
         </div>
+        {photo && (
+          <PhotoCheck
+            file={photo} flows={list} flowId={flow.id} lastUsedId={lastId} onFlow={setPicked}
+            onBack={() => setPhoto(null)} onRetake={camera.open} onUse={() => { add([photo], flow); setPhoto(null); }}
+          />
+        )}
       </div>
     );
   }

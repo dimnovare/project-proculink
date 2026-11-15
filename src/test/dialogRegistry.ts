@@ -115,6 +115,22 @@ export const DIALOG_REGISTRY: DialogEntry[] = [
     hadTrapBefore: false,
     hadEscapeBefore: false,
   },
+  {
+    file: "src/components/flows/AddSheet.tsx",
+    name: "phone Add sheet",
+    dialogs: 1,
+    kind: "modal",
+    hadTrapBefore: false,
+    hadEscapeBefore: false,
+  },
+  {
+    file: "src/components/flows/PhotoCheck.tsx",
+    name: "Check the photo",
+    dialogs: 1,
+    kind: "modal",
+    hadTrapBefore: false,
+    hadEscapeBefore: false,
+  },
 
   // ── Anchored popovers — Escape + restore, NO Tab trap ──────────────────────
   {
