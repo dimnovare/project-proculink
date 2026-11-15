@@ -151,6 +151,14 @@ describe("the site header", () => {
     expect(isCurrentSection(null, "/help")).toBe(false);
   });
 
+  it("fits at 320px: the word beside the logo gives way below 370px but stays its name, and the action never wraps", () => {
+    const { container } = render(<MarketingNav />);
+    const banner = within(container).getByRole("banner");
+    const home = banner.querySelector('a[href="/"]');
+    expect(home?.querySelector("span.max-\\[369px\\]\\:sr-only")?.textContent?.trim()).toBe("ProcuLink");
+    expect(within(banner).getByRole("link", { name: "Start free" }).className).toContain("whitespace-nowrap");
+  });
+
   it("a signed-in visitor is offered Open ProcuLink in the same link, and Sign in leaves the reading order", async () => {
     clerkState.isSignedIn = true;
     // A fresh module, so the lazy probe has not loaded yet: earlier tests in this

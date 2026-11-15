@@ -28,11 +28,11 @@ const STEPS = [
 
 const TECH = [
   ["An address and an API for every flow", "Email a flow, post a file to it, fetch the result, or have us call your web address when a document is read or sent."],
-  ["Pickups that leave files where they are", "We check a mailbox, an SFTP, FTPS or FTP server, or an S3 bucket every five minutes. Each file is picked up once."],
+  ["Pickups every five minutes", "We check a mailbox, an SFTP, FTPS or FTP server, or an S3 bucket every five minutes. Each file is picked up once, and files on a server or in a bucket stay where they are."],
   ["Outputs from your documentation", "Upload your receiving system's documentation or a sample file and we propose the output for you to check."],
   ["Lookups", "Swap a value on the document for the one your system uses, from a list you import."],
   ["Versions you can go back to", "Changes to a flow go live when you publish them, and any earlier version can be restored."],
-  ["A record of every delivery", "Each delivery keeps its channel, how many attempts it took, the response code and, when it fails, the error."],
+  ["A record of every delivery", "Each delivery keeps when it went, its channel, how many attempts it took, the destination's answer where it gives one and, when it fails, the error."],
 ] as const;
 
 const TRUST_LINKS = [
@@ -48,7 +48,6 @@ const API_EXAMPLE = `curl -X POST \\
   -F "file=@invoice.pdf"`;
 
 const TWO = "grid items-center gap-x-20 gap-y-12 [grid-template-columns:repeat(auto-fit,minmax(min(440px,100%),1fr))]";
-const ON_NAVY_LINK = "inline-flex min-h-[44px] items-center font-semibold text-white underline underline-offset-[5px]";
 
 export default function RootPage() {
   return (
@@ -61,7 +60,7 @@ export default function RootPage() {
           <div className={`${SITE.wrap} flex flex-col gap-14`}>
             <div className="flex flex-wrap items-end gap-x-16 gap-y-10">
               <div className="flex min-w-0 flex-[1_1_560px] flex-col gap-[26px]">
-                <h1 className="m-0 font-display text-[clamp(42px,5.6vw,76px)] font-semibold leading-[.98] tracking-[-0.03em] [text-wrap:balance]">
+                <h1 className={SITE.h1}>
                   <span className="text-brand-blue">Any document in.</span>{" "}
                   <span className="block text-brand-green-deep">Clean data out.</span>
                 </h1>
@@ -198,8 +197,8 @@ export default function RootPage() {
               ))}
             </div>
             <div className="flex flex-wrap gap-x-7 gap-y-2">
-              <Link href="/help/api-reference" className={ON_NAVY_LINK}>API reference</Link>
-              <Link href="/security" className={ON_NAVY_LINK}>Security</Link>
+              <Link href="/help/api-reference" className={SITE.onNavyLink}>API reference</Link>
+              <Link href="/security" className={SITE.onNavyLink}>Security</Link>
             </div>
           </div>
         </section>

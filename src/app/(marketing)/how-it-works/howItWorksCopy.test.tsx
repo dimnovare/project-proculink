@@ -21,8 +21,9 @@ describe("How it works", () => {
     const second = page.getByRole("region", { name: "What happens with the second document" });
     expect(second.textContent).toContain(`Every flow starts in ${REVIEW_BEFORE_DELIVERY_LABEL}.`);
     expect(second.textContent).toContain(`switch that flow to ${AUTOMATIC_DELIVERY_LABEL}.`);
-    expect(container.textContent).toContain("the response code");
-    expect(container.textContent).not.toMatch(/the last response|cXML|UBL|Peppol|X12/);
+    expect(container.textContent).toContain("the destination's answer where it gives one");
+    expect(container.textContent).toContain("the flow's own address, shown on the flow");
+    expect(container.textContent).not.toMatch(/response code|inbound\.proculink|cXML|UBL|Peppol|X12/);
     expect(container.querySelectorAll("style")).toHaveLength(0); // no moving picture on this page
   });
 });

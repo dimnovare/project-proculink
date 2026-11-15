@@ -41,9 +41,10 @@ import { preparePage, settle, errorBoundaryMarker, DEV_OVERLAY_SELECTORS } from 
  *     ActivityPage, BillingSection). Against fixtures dated Jan 2024 those
  *     strings change daily. `preparePage({ freezeClock: true })` pins them.
  *  2. MOTION. Playwright's `animations: "disabled"` freezes CSS animations and
- *     nothing else; the wire-topology dots and the marketing hero pulses are SVG
- *     SMIL, which CSS cannot reach. `prefers-reduced-motion: reduce` removes them
- *     from the DOM via `useReducedMotion`. Both are applied.
+ *     nothing else; the wire-topology dots are SVG SMIL, which CSS cannot reach.
+ *     `prefers-reduced-motion: reduce` removes them from the DOM via
+ *     `useReducedMotion`, and also switches off the Home example's CSS
+ *     animation. Both are applied.
  *  3. RANDOMNESS. `ui/sidebar.tsx` sizes skeleton bars with `Math.random()`.
  *     Seeded PRNG installed before any page script runs.
  *  4. HOST RENDERING. Colour profile, scrollbar width, LCD subpixel text and font

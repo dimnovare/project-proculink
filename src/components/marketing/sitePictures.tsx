@@ -15,6 +15,8 @@ export const SITE = {
   more: "inline-flex min-h-[44px] items-center font-semibold text-ink underline decoration-border-strong underline-offset-[5px] hover:text-brand-blue-deep",
   h3: "font-display text-[20px] font-semibold leading-[1.25] tracking-[-0.01em]",
   cta: "inline-flex h-[52px] items-center justify-center rounded-[10px] bg-brand-green-btn px-[26px] text-[17px] font-semibold text-white no-underline hover:bg-brand-green-deep hover:text-white",
+  h1: "m-0 font-display text-[clamp(42px,5.6vw,76px)] font-semibold leading-[.98] tracking-[-0.03em] [text-wrap:balance]",
+  onNavyLink: "inline-flex min-h-[44px] items-center font-semibold text-white underline underline-offset-[5px]",
 } as const;
 
 export const EXAMPLE_INVOICE = {
@@ -34,7 +36,21 @@ export const EXAMPLE_INVOICE = {
   totalPlain: "1240.00",
 } as const;
 
-const KV = "flex items-center gap-3 border-t border-border-faint px-4 py-[11px] first:border-t-0";
+/** The Review screen's own sentence for a value it is unsure of (src/lib/reviewMarks.ts, at 72%). */
+export const LOOK_SENTENCE = "Check this one. We are 72% sure of it.";
+
+/** A value drawn the way the Review screen marks one to check: label, amber-edged value, the sentence under it. */
+export function LookValue({ label, value, sentenceClass = "" }: { label: string; value: string; sentenceClass?: string }) {
+  return (
+    <div className="flex flex-col items-start gap-1">
+      <p className={`${SITE.soft} text-[12.5px]`}>{label}</p>
+      <p className="rounded-md border-2 border-amber bg-amber-wash px-2.5 py-1 font-semibold">{value}</p>
+      <p className={`text-[12.5px] font-semibold text-amber-text ${sentenceClass}`}>{LOOK_SENTENCE}</p>
+    </div>
+  );
+}
+
+const KV ="flex items-center gap-3 border-t border-border-faint px-4 py-[11px] first:border-t-0";
 
 export function Ticks({ items, label, className = "" }: { items: readonly string[]; label?: string; className?: string }) {
   return (
@@ -235,10 +251,7 @@ export function ReviewPicture({ teach = false }: { teach?: boolean }) {
                 <p className="font-semibold">{EXAMPLE_INVOICE.supplier}</p>
               </div>
             )}
-            <div className="rounded-lg border-2 border-amber bg-amber-wash px-2.5 py-2">
-              <p className="text-[12.5px] font-semibold text-amber-text">Total, check this one</p>
-              <p className="font-semibold">{EXAMPLE_INVOICE.totalPlain}</p>
-            </div>
+            <LookValue label="Total" value={EXAMPLE_INVOICE.totalPlain} />
             {teach && <p className="text-[13.5px] font-semibold text-brand-blue-deep">Point to it</p>}
           </div>
         </div>

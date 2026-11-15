@@ -38,19 +38,11 @@ function IntakePicture() {
             <p className={`${SITE.soft} text-[14px]`}>Drag a file in, or choose one.</p>
           </div>
         </div>
-        <div className="border-t border-border-faint px-5 py-4">
-          <div className="flex items-start gap-3">
-            <Mail className={ICON} />
-            <div className="min-w-0 flex-1">
-              <p className="font-semibold">Email</p>
-              <p className={`${SITE.soft} text-[14px]`}>Forward or send to your flow&apos;s own address.</p>
-            </div>
-          </div>
-          <div className="ml-8 mt-3 flex max-w-[340px] overflow-hidden rounded-lg border border-border-strong max-[699px]:ml-0 max-[699px]:max-w-none">
-            <span className="min-w-0 flex-1 truncate bg-brand-blue-soft px-2.5 py-2 font-mono text-[12.5px] text-brand-blue-deep">
-              your-flow@inbound.proculink.eu
-            </span>
-            <span className="inline-flex shrink-0 items-center border-l border-border-strong px-3 text-[13px] font-semibold">Copy</span>
+        <div className={ROW}>
+          <Mail className={ICON} />
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold">Email</p>
+            <p className={`${SITE.soft} text-[14px]`}>Forward or send to the flow&apos;s own address, shown on the flow.</p>
           </div>
         </div>
         <div className={ROW}>
@@ -58,7 +50,7 @@ function IntakePicture() {
           <div className="min-w-0 flex-1">
             <p className="font-semibold">Collect</p>
             <p className={`${SITE.soft} text-[14px]`}>
-              From a mailbox, a server or a bucket. We check every five minutes and leave your files where they are.
+              From a mailbox, a server or a bucket. We check every five minutes, and files on your server or in your bucket stay where they are.
             </p>
           </div>
         </div>
@@ -166,10 +158,14 @@ const PIPELINE: Record<(typeof STAGES)[number], { dot: string; body: string }> =
   Read: { dot: "border-[var(--brand-blue-bright)]", body: "Every value and table is read, with where on the page it was found and how sure we are." },
   Check: { dot: "border-[var(--amber-bright)]", body: "Built-in checks mark a value that is missing, in the wrong shape or hard to read. A repeated document number is held." },
   Transform: { dot: "border-[var(--brand-green-bright)]", body: "Each output file is built from the read values, with your column names and any lookups applied." },
-  Send: { dot: "border-[var(--brand-green-bright)]", body: "The file goes to each destination. Each delivery keeps its attempts, the response code and, when it fails, the error." },
+  Send: { dot: "border-[var(--brand-green-bright)]", body: "The file goes to each destination. Each delivery keeps its attempts, the destination's answer where it gives one and, when it fails, the error." },
 };
 
-const ON_NAVY_LINK = "inline-flex min-h-[44px] items-center font-semibold text-white underline underline-offset-[5px]";
+// Below 360px "Transform it." at 42px is about as wide as the column, so the
+// pairs are only held together where there is room for them.
+const NOWRAP = "min-[360px]:whitespace-nowrap";
+// Clears the sticky header when a step or the pipeline is jumped to.
+const JUMP = "scroll-mt-20";
 
 export default function HowItWorksPage() {
   return (
@@ -177,12 +173,12 @@ export default function HowItWorksPage() {
       <section aria-label="Introduction" className="pb-16 pt-12 sm:pb-[88px] sm:pt-[72px]">
         <div className={`${SITE.wrap} flex flex-wrap items-end gap-x-16 gap-y-10`}>
           <div className="flex min-w-0 flex-[1_1_560px] flex-col gap-[26px]">
-            <h1 className="m-0 font-display text-[clamp(42px,5.6vw,76px)] font-semibold leading-[.98] tracking-[-0.03em] [text-wrap:balance]">
+            <h1 className={SITE.h1}>
               <span className="text-brand-blue">
-                <span className="whitespace-nowrap">Read it.</span> <span className="whitespace-nowrap">Check it.</span>
+                <span className={NOWRAP}>Read it.</span> <span className={NOWRAP}>Check it.</span>
               </span>{" "}
               <span className="block text-brand-green-deep">
-                <span className="whitespace-nowrap">Transform it.</span> <span className="whitespace-nowrap">Send it.</span>
+                <span className={NOWRAP}>Transform it.</span> <span className={NOWRAP}>Send it.</span>
               </span>
             </h1>
             <p className={`${SITE.lead} max-w-[640px]`}>{LEAD}</p>
@@ -214,7 +210,7 @@ export default function HowItWorksPage() {
               <li
                 key={s.title}
                 id={`step-${i + 1}`}
-                className="relative min-[700px]:pl-[clamp(56px,6.4vw,84px)] min-[700px]:last:after:absolute min-[700px]:last:after:bottom-0 min-[700px]:last:after:left-[17px] min-[700px]:last:after:top-6 min-[700px]:last:after:w-1.5 min-[700px]:last:after:bg-surface min-[700px]:last:after:content-['']"
+                className="relative scroll-mt-20 min-[700px]:pl-[clamp(56px,6.4vw,84px)] min-[700px]:last:after:absolute min-[700px]:last:after:bottom-0 min-[700px]:last:after:left-[17px] min-[700px]:last:after:top-6 min-[700px]:last:after:w-1.5 min-[700px]:last:after:bg-surface min-[700px]:last:after:content-['']"
               >
                 <span
                   aria-hidden="true"
@@ -256,7 +252,7 @@ export default function HowItWorksPage() {
         </div>
       </section>
 
-      <section id="pipeline" aria-label="The pipeline, for technical readers" className={`${SITE.band} on-navy bg-navy text-navy-text`}>
+      <section id="pipeline" aria-label="The pipeline, for technical readers" className={`${SITE.band} ${JUMP} on-navy bg-navy text-navy-text`}>
         <div className={`${SITE.wrap} flex flex-col gap-12`}>
           <div className="flex max-w-[720px] flex-col gap-[18px]">
             <h2 className={`${SITE.h2} text-white`}>For technical readers: the pipeline.</h2>
@@ -287,9 +283,9 @@ export default function HowItWorksPage() {
             </ol>
           </div>
           <div className="flex flex-wrap gap-x-7 gap-y-2">
-            <Link href="/help/api-reference" className={ON_NAVY_LINK}>API reference</Link>
-            <Link href="/formats" className={ON_NAVY_LINK}>Every format and method</Link>
-            <Link href="/security" className={ON_NAVY_LINK}>Security</Link>
+            <Link href="/help/api-reference" className={SITE.onNavyLink}>API reference</Link>
+            <Link href="/formats" className={SITE.onNavyLink}>Every format and method</Link>
+            <Link href="/security" className={SITE.onNavyLink}>Security</Link>
           </div>
         </div>
       </section>

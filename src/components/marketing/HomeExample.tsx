@@ -1,20 +1,19 @@
 import { Check } from "lucide-react";
 import { Card } from "@/components/bridge/layout/Card";
-import { CsvFile, EXAMPLE_INVOICE, InvoiceSheet, SITE, Tag } from "./sitePictures";
+import { CsvFile, EXAMPLE_INVOICE, InvoiceSheet, LookValue, SITE } from "./sitePictures";
 
 // Home's example, the one picture on the site that moves by itself. Pure CSS,
 // once, 4.4 seconds. The static styles ARE the finished picture; each keyframe
 // only says where an element comes FROM, and only opacity and transform move,
 // so nothing shifts layout. With reduced motion every animation is off and the
-// visitor sees exactly the picture the animation ends on.
+// visitor sees exactly the picture the animation ends on, the Total still
+// marked to check the way the Review screen marks it.
 const CSS = `
 .plk-ex-hl{transform-origin:left center}
-.plk-ex-need{opacity:0}
 .plk-ex-track{opacity:0}
 @keyframes plk-ex-grow{from{transform:scaleX(0)}}
 @keyframes plk-ex-rise{from{opacity:0;transform:translateY(6px)}}
 @keyframes plk-ex-pop{from{opacity:0;transform:scale(.6)}}
-@keyframes plk-ex-flash{0%{opacity:0}20%,70%{opacity:1}100%{opacity:0}}
 @keyframes plk-ex-run{0%{opacity:1;transform:translateX(-100%)}90%{opacity:1;transform:none}100%{opacity:0;transform:none}}
 .plk-ex .plk-ex-hl{animation:plk-ex-grow .4s ease-out 1 both}
 .plk-ex .plk-ex-hl-1{animation-delay:.2s}
@@ -28,8 +27,7 @@ const CSS = `
 .plk-ex .plk-ex-val-3{animation-delay:1.3s}
 .plk-ex .plk-ex-val-4{animation-delay:1.45s}
 .plk-ex .plk-ex-val-5{animation-delay:1.6s}
-.plk-ex .plk-ex-need{animation:plk-ex-flash 1.2s linear 1.8s 1 both}
-.plk-ex .plk-ex-ok{animation:plk-ex-pop .4s ease-out 2.6s 1 both}
+.plk-ex .plk-ex-need{animation:plk-ex-rise .6s ease-out 1.8s 1 both}
 .plk-ex .plk-ex-line{animation:plk-ex-rise .5s ease-out 1 both}
 .plk-ex .plk-ex-line:nth-child(1){animation-delay:2.8s}
 .plk-ex .plk-ex-line:nth-child(2){animation-delay:2.9s}
@@ -39,7 +37,7 @@ const CSS = `
 .plk-ex .plk-ex-sent-1{animation-delay:3.6s}
 .plk-ex .plk-ex-sent-2{animation-delay:3.9s}
 .plk-ex .plk-ex-track{animation:plk-ex-run 4.2s ease-in-out .2s 1 both}
-@media (prefers-reduced-motion: reduce){.plk-ex,.plk-ex *{animation:none!important}.plk-ex-need{display:none}}
+@media (prefers-reduced-motion: reduce){.plk-ex,.plk-ex *{animation:none!important}}
 `;
 
 const VALUES = [
@@ -49,10 +47,6 @@ const VALUES = [
   ["Total", EXAMPLE_INVOICE.totalPlain],
   ["Lines", "3 rows, 5 columns"],
 ] as const;
-
-const tick = (extra = "") => (
-  <Check aria-hidden="true" className={`size-[18px] shrink-0 text-brand-green-deep ${extra}`} strokeWidth={2.5} />
-);
 
 function StageHead({ dot, children }: { dot: string; children: React.ReactNode }) {
   return (
@@ -88,17 +82,16 @@ export function HomeExample() {
           <Card flush className="text-[14.5px]">
             {VALUES.map(([label, value], i) => (
               <div key={label} className={`plk-ex-val plk-ex-val-${i + 1} flex items-center gap-3 border-t border-border-faint px-4 py-[11px] first:border-t-0`}>
-                <div className="min-w-0 flex-1">
-                  <p className={`${SITE.soft} text-[12.5px]`}>{label}</p>
-                  <p className="font-semibold">{value}</p>
-                </div>
                 {label === "Total" ? (
-                  <span className="relative inline-flex min-w-[130px] justify-end">
-                    <Tag tone="need" className="plk-ex-need absolute right-0 top-1/2 -mt-[13px]">Check this one</Tag>
-                    {tick("plk-ex-ok")}
-                  </span>
+                  <LookValue label={label} value={value} sentenceClass="plk-ex-need" />
                 ) : (
-                  tick()
+                  <>
+                    <div className="min-w-0 flex-1">
+                      <p className={`${SITE.soft} text-[12.5px]`}>{label}</p>
+                      <p className="font-semibold">{value}</p>
+                    </div>
+                    <Check aria-hidden="true" className="size-[18px] shrink-0 text-brand-green-deep" strokeWidth={2.5} />
+                  </>
                 )}
               </div>
             ))}

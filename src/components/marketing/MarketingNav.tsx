@@ -36,7 +36,7 @@ export function isCurrentSection(pathname: string | null, href: string): boolean
 
 const WIDE = "(min-width: 900px)";
 const FILLED =
-  "inline-flex h-11 min-w-[9.5rem] items-center justify-center rounded-lg bg-brand-green-btn px-4 text-[15px] font-semibold text-white hover:bg-brand-green-deep";
+  "inline-flex h-11 min-w-[9.5rem] items-center justify-center whitespace-nowrap rounded-lg bg-brand-green-btn px-4 text-[15px] font-semibold text-white hover:bg-brand-green-deep";
 
 export function MarketingNav() {
   const pathname = usePathname();
@@ -44,6 +44,8 @@ export function MarketingNav() {
   const [open, setOpen] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const mainNavRef = useRef<HTMLElement>(null);
+  const widened = useRef(false);
   const closeMenu = useCallback(() => setOpen(false), []);
 
   // The sheet is navigation by content but an opaque `fixed inset-0` layer by
@@ -54,15 +56,28 @@ export function MarketingNav() {
   useEffect(() => {
     if (!open || typeof window.matchMedia !== "function") return;
     const mq = window.matchMedia(WIDE);
-    if (mq.matches) {
+    const widen = () => {
+      widened.current = true;
       setOpen(false);
+    };
+    if (mq.matches) {
+      widen();
       return;
     }
     const onChange = (e: MediaQueryListEvent) => {
-      if (e.matches) setOpen(false);
+      if (e.matches) widen();
     };
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);
+  }, [open]);
+
+  // Closing on widen hands focus back to the Menu button, which the wide header
+  // hides, so focus would fall to the page. This runs after the dialog hook has
+  // restored focus and moves it to the first page link instead.
+  useEffect(() => {
+    if (open || !widened.current) return;
+    widened.current = false;
+    mainNavRef.current?.querySelector<HTMLElement>("a")?.focus();
   }, [open]);
 
   const action = signedIn
@@ -76,12 +91,13 @@ export function MarketingNav() {
           <span className="inline-flex [&>svg]:size-[26px] min-[900px]:[&>svg]:size-7">
             <ProcuLinkMark size={28} />
           </span>
-          <span className="font-display text-[19px] font-bold tracking-[-0.02em] text-white min-[900px]:text-[20px]">
+          {/* Below 370px the word gives way so the header fits at 320px; it stays the link's name. */}
+          <span className="font-display text-[19px] font-bold tracking-[-0.02em] text-white max-[369px]:sr-only min-[900px]:text-[20px]">
             ProcuLink
           </span>
         </Link>
 
-        <nav aria-label="Main" className="ml-4 hidden items-center min-[900px]:flex">
+        <nav ref={mainNavRef} aria-label="Main" className="ml-4 hidden items-center min-[900px]:flex">
           {SITE_LINKS.map(([label, href]) => {
             const current = isCurrentSection(pathname, href);
             return (

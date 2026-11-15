@@ -14,12 +14,12 @@ export function SiteFooter() {
       <div className="mx-auto flex max-w-[1208px] flex-col gap-10 px-6 pb-7 pt-14">
         <div className="grid gap-x-10 gap-y-8 [grid-template-columns:repeat(auto-fit,minmax(min(190px,100%),1fr))]">
           <div className="flex max-w-[420px] flex-col gap-3.5 sm:col-span-2">
-            <div className="flex items-center gap-2.5 font-display text-[20px] font-bold tracking-[-0.02em] text-white">
+            <Link href="/" className="flex min-h-[44px] items-center gap-2.5 self-start font-display text-[20px] font-bold tracking-[-0.02em] text-white no-underline">
               <span aria-hidden="true" className="inline-flex">
                 <ProcuLinkMark size={26} mono />
               </span>
               ProcuLink
-            </div>
+            </Link>
             <p className="m-0">
               {`${SITE_TAGLINE} ProcuLink reads your documents, lets you check them and sends them on in the format you need, with a record of every delivery.`}
             </p>
