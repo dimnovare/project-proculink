@@ -14,8 +14,8 @@ Where AI reads your documents and suggests values, and how you stay in control o
 
 AI is used in four places. In each, the data goes to OpenAI. OpenAI is one of our subprocessors, and it is based in the US. See [Subprocessors](/subprocessors).
 
-- **Reading a document.** We take the text out of the file ourselves. We then send that text to AI, with the file name, the fields your flow looks for, and a few hints from values you taught us. A hint is a short snippet from a document you checked: the words printed next to a value, and the value itself, each cut to 60 characters. We send at most the first 60,000 characters of text.
-- **Reading a scan or photo.** There is no text to take out, so we send the page images instead, up to 10 pages. Finding where a value sits on the page uses OCR software that runs inside ProcuLink. No page goes to a separate OCR service.
+- **Reading a document.** We take the text out of the file ourselves. We then send that text to AI, with the file name, the fields your flow looks for, and a few hints from values you taught us. A hint is a short snippet from a document you checked: the words printed next to a value, and the value itself, each cut to 60 characters. A PDF longer than 10 pages is sent ten pages at a time, up to 100 pages, and each part carries at most 60,000 characters. For any other file we send at most the first 60,000 characters.
+- **Reading a scan or photo.** There is no text to take out, so we send the page images instead, ten pages at a time, up to 100 pages. Finding where a value sits on the page uses OCR software that runs inside ProcuLink. No page goes to a separate OCR service.
 - **Building an output from a sample or from documentation.** We send the names in your sample, or the text of your documentation, and the keys, labels and types of your flow's fields. We never send the values in your sample or in any document.
 - **Suggesting lookup matches.** We send a missed value, the other values on its row, and values from your list. See [Lookups](/help/lookups).
 
@@ -41,7 +41,7 @@ There is one thing to know. By default a flow is set to **Review before delivery
 
 ## Limits
 
-AI use has a monthly allowance for each workspace. When it is used up, reading stops and the document says "This workspace has used this month's AI allowance." Try again later.
+AI use has a monthly allowance for each workspace. It grows with the documents you process, so ordinary use does not reach it. If it is used up, reading stops and the document says "This workspace has used this month's AI allowance." Try again later.
 
 ## Keeping documents out of AI
 

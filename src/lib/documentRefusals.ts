@@ -79,8 +79,9 @@ export const COPY: Record<string, string> = {
 const PERMANENT_READ_FAILURES = new Set(["unreadable_file", "scanned_not_supported", "no_egress"]);
 export const canRetryRead = (reason: string | null, { scansOn }: { scansOn?: boolean } = {}) =>
   !PERMANENT_READ_FAILURES.has(reason ?? "") || (reason === "scanned_not_supported" && !!scansOn);
+/** `ai_error` in COPY is the sentence for an output's documentation; a document whose read failed that way gets the plain line. */
 export const readFailureMessage = (reason: string | null) =>
-  (reason && Object.hasOwn(COPY, reason) && COPY[reason]) || "We couldn't read this document.";
+  (reason && reason !== "ai_error" && Object.hasOwn(COPY, reason) && COPY[reason]) || "We couldn't read this document.";
 
 const body = (error: unknown) => (error instanceof ApiHttpError ? error.body : null);
 const field = (error: unknown, key: string): string | null => {
