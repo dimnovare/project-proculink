@@ -40,7 +40,7 @@ export function StoppedAlert({ page }: { page: DocumentPage | undefined }) {
           : " The documents are safe. Fix the destination, then send them again."}
       </>
     );
-    link = <Link href={fixDestinationHref(rows[0].flowId)} className="inline-flex items-center font-semibold underline">Fix the destination</Link>;
+    link = <Link href={fixDestinationHref(first.destinationId)} className="inline-flex items-center font-semibold underline">Fix the destination</Link>;
   } else {
     detail = one
       ? "The document is safe. Open it to see what happened, then send it again."

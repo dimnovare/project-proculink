@@ -89,13 +89,10 @@ export function DocumentList({ documents, showFlow, label, needHeading = "Status
   /** Ready rows carry Send (table only). */
   sendable?: boolean;
 }) {
-  // What this list sent, kept until the incoming list stops calling it ready. The caller resets it with a `key`.
+  // What this list sent, drawn only while the incoming list still calls it ready; when the server stops listing it,
+  // the row goes (R5). The caller resets it with a `key`.
   const [sent, setSent] = useState<Record<string, ListedDocument>>({});
-  const incoming = new Set(documents.map((d) => d.id));
-  const drawn = [
-    ...documents.map((d) => (sent[d.id] && d.status === "ready" ? sent[d.id] : d)),
-    ...Object.values(sent).filter((s) => !incoming.has(s.id)),
-  ].sort((a, b) => b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id));
+  const drawn = documents.map((d) => (sent[d.id] && d.status === "ready" ? sent[d.id] : d)).sort((a, b) => b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id));
   const columns = `minmax(0,2fr) ${showFlow ? "minmax(0,1fr) " : ""}minmax(0,1.4fr) 104px 96px 88px`;
 
   return (

@@ -18,6 +18,7 @@ import { stripCsComments } from "./csLiterals";
 import { MINIMUM_PLAN } from "@/lib/gatedCapabilities";
 import { OVERAGE_PER_ORDER_EUR, PLAN_BY_ID, TRIAL_DAYS } from "@/lib/plans";
 import { FILE_KINDS, MAX_UPLOAD_BYTES } from "@/lib/fileKinds";
+import { REVIEW_CONFIDENCE } from "@/lib/reviewMarks";
 import { LOOKUP_LIMITS } from "@/lib/lookupCsv";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1332,6 +1333,13 @@ describe("document statuses mirror the backend", () => {
     const backend = Object.values(parseStatusConstants(cs));
     expect(backend.length, "DocumentChecks.cs parsed to no constants, so this would prove nothing").toBeGreaterThan(0);
     expect(backend).toEqual(expect.arrayContaining([...WHOLE_DOCUMENT_CHECKS]));
+  });
+
+  test.skipIf(!BACKEND)("the review threshold the screen marks by is the backend's", () => {
+    const cs = readFileSync(join(BACKEND!, "ProcuLink.Core/Documents/DocumentChecks.cs"), "utf8");
+    const m = /const double ReviewConfidence = ([\d.]+);/.exec(cs);
+    expect(m, "ReviewConfidence not found in DocumentChecks.cs, so this would prove nothing").not.toBeNull();
+    expect(Number(m![1])).toBe(REVIEW_CONFIDENCE);
   });
 });
 

@@ -32,13 +32,13 @@ test.describe("cookie banner never covers a bottom-anchored primary action", () 
     const banner = page.getByRole("dialog", { name: /cookie consent/i });
     await expect(banner).toBeVisible({ timeout: 15_000 });
 
-    const sendBar = page.getByTestId("doc-send-bar");
+    const sendBar = page.getByTestId("action-bar");
     await expect(sendBar).toBeVisible({ timeout: 20_000 });
 
     // Worst case: scroll the triage list to its maximum, where an unlifted bar
     // would rest at the very bottom of the viewport, under the banner.
     await page.evaluate(() => {
-      let el = document.querySelector('[data-testid="doc-send-bar"]')?.parentElement ?? null;
+      let el = document.querySelector('[data-testid="action-bar"]')?.parentElement ?? null;
       while (el) {
         const oy = getComputedStyle(el).overflowY;
         if ((oy === "auto" || oy === "scroll") && el.scrollHeight > el.clientHeight) {
@@ -58,7 +58,7 @@ test.describe("cookie banner never covers a bottom-anchored primary action", () 
       const bannerRect = document
         .querySelector('[role="dialog"][aria-label="Cookie consent"]')!
         .getBoundingClientRect();
-      const bar = document.querySelector('[data-testid="doc-send-bar"]')!;
+      const bar = document.querySelector('[data-testid="action-bar"]')!;
       const r = bar.getBoundingClientRect();
       const hit = document.elementFromPoint(
         Math.round(r.left + r.width / 2),
