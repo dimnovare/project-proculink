@@ -19,7 +19,7 @@ export interface UploadItem {
   key: string; file: File; flowId: string; flowName: string; state: UploadState;
   /** The server's answer, once accepted. */ document?: DocumentSummary;
   /** Why it was refused. */ error?: unknown;
-  /** Kept on this device while offline: its record goes when the server answers, or on Remove. */ wasHeld?: boolean;
+  /** Was kept on this device while offline: listed on every screen until it has gone up or is removed. */ wasHeld?: boolean;
 }
 export type UploadFlow = Pick<Flow, "id" | "name" | "scansOn" | "formatsOn">;
 
@@ -68,35 +68,47 @@ export function UploadQueueProvider({ children, owner = null, store: given }: { 
   const chain = useRef<Promise<void>>(Promise.resolve());
   // A refusal about the workspace: new files are refused with it, at no request, while it holds.
   const stopped = useRef<{ error: unknown; at: number } | null>(null);
-  // Held files this tab owns: the Web Lock's release, and who the file belongs to.
-  const claims = useRef(new Map<string, { release: () => void; owner: DeviceOwner }>());
+  // Who each item was chosen for (bound when chosen, R9), and which items still have a copy on this device.
+  const bound = useRef(new Map<string, DeviceOwner>());
+  const kept = useRef(new Set<string>());
+  // The Web Locks this tab holds on kept files.
+  const claims = useRef(new Map<string, () => void>());
 
   const update = (change: (list: readonly UploadItem[]) => readonly UploadItem[]) => setItems((live.current = change(live.current)));
   const patch = (key: string, p: Partial<UploadItem>) => update((list) => list.map((i) => (i.key === key ? { ...i, ...p } : i)));
+  const drop = (key: string) => update((list) => list.filter((i) => i.key !== key));
   const release = (key: string) => {
-    claims.current.get(key)?.release();
+    claims.current.get(key)?.();
     claims.current.delete(key);
   };
-  /** A server answered: the device copy goes first, then the lock. */
+  /** Takes this file's lock unless this tab has it; false when another tab owns it. */
+  const own = async (key: string) => {
+    if (claims.current.has(key)) return true;
+    const r = await store?.claim(key).catch(() => null);
+    if (r) claims.current.set(key, r);
+    return !!r;
+  };
+  /** A server answered (or Remove): the device copy goes first, then the lock. */
   const forget = async (key: string) => {
+    kept.current.delete(key);
     await store?.remove(key).catch(() => {});
     release(key);
   };
 
   /** Keeps the file on this device, or refuses it in words. Never kept only in memory. */
-  const hold = async ({ key, file, flowId, flowName, wasHeld }: UploadItem) => {
-    const who = ownerNow.current;
+  const hold = async ({ key, file, flowId, flowName }: UploadItem) => {
+    const who = bound.current.get(key);
     try {
       if (!store || !who) throw new HeldRefusal("held_unavailable");
-      if (!wasHeld) {
+      if (!kept.current.has(key)) {
+        // Exact within a tab (the chain holds one file at a time); two tabs offline at once can each pass at the edge.
         const limit = canHoldMore(await store.all().catch(() => { throw new HeldRefusal("held_unavailable"); }), file);
         if (limit) throw limit;
         await store.put({ key, ...who, flowId, flowName, file, heldAt: new Date().toISOString() }).catch(() => { throw new HeldRefusal("held_no_room"); });
+        kept.current.add(key);
       }
-      if (!claims.current.has(key)) {
-        const r = await store.claim(key);
-        if (r) claims.current.set(key, { release: r, owner: who });
-      }
+      // Another tab took it between the write and the lock: that tab shows and sends it.
+      if (!(await own(key))) return drop(key);
       patch(key, { state: "held", wasHeld: true, error: undefined });
     } catch (e) {
       patch(key, { state: "refused", error: e instanceof HeldRefusal ? e : new HeldRefusal("held_unavailable") });
@@ -109,25 +121,22 @@ export function UploadQueueProvider({ children, owner = null, store: given }: { 
       const item = live.current.find((i) => i.key === key);
       if (item?.state !== "waiting") return;
       if (!isOnline()) return hold(item);
-      if (item.wasHeld) {
-        // Sent only by the tab that owns it, and only under the person and workspace it was chosen for.
-        if (!claims.current.has(key) && store && ownerNow.current) {
-          const r = await store.claim(key);
-          if (r) claims.current.set(key, { release: r, owner: ownerNow.current });
-        }
-        if (!sameOwner(claims.current.get(key)?.owner, ownerNow.current)) return patch(key, { state: "held" });
+      if (kept.current.has(key)) {
+        // A copy on this device is sent only by the tab that owns it, and only under the person and workspace it was chosen for.
+        if (!sameOwner(bound.current.get(key), ownerNow.current)) return patch(key, { state: "held" });
+        if (!(await own(key))) return drop(key);
       }
       patch(key, { state: "uploading" });
       try {
         const document = await upload.mutateAsync({ flowId: item.flowId, file: item.file });
-        if (item.wasHeld) await forget(key);
+        if (kept.current.has(key)) await forget(key);
         patch(key, { state: "done", document });
         stopped.current = null;
         void qc.invalidateQueries({ queryKey: ["documents"] });
         void qc.invalidateQueries({ queryKey: ["flows"] });
       } catch (error) {
         if (!(error instanceof ApiHttpError) && !isOnline()) return hold({ ...item, state: "waiting" });
-        if (item.wasHeld && error instanceof ApiHttpError) await forget(key);
+        if (kept.current.has(key) && error instanceof ApiHttpError) await forget(key);
         const stop = STOP_CODES.has(refusalToken(error) ?? "");
         if (stop) stopped.current = { error, at: Date.now() };
         update((list) => list.map((i) => (i.key === key || (stop && i.state === "waiting") ? { ...i, state: "refused", error } : i)));
@@ -142,11 +151,14 @@ export function UploadQueueProvider({ children, owner = null, store: given }: { 
   const sync = async () => {
     const who = ownerNow.current;
     if (!store || !who) return;
-    // Held items of another person or workspace (a switch in this tab) leave the list; their files stay on the device.
+    // After a workspace switch in this tab, every item chosen for another owner leaves the list (unless it is
+    // going up right now); a copy on this device stays there for its own workspace.
     for (const i of live.current) {
-      if (i.state === "held" && !sameOwner(claims.current.get(i.key)?.owner, who)) {
+      const chosenFor = bound.current.get(i.key);
+      if (chosenFor && !sameOwner(chosenFor, who) && i.state !== "uploading") {
         release(i.key);
-        update((list) => list.filter((x) => x.key !== i.key));
+        kept.current.delete(i.key);
+        drop(i.key);
       }
     }
     const records = await store.all().catch(() => []);
@@ -156,9 +168,9 @@ export function UploadQueueProvider({ children, owner = null, store: given }: { 
         continue;
       }
       if (r.orgId !== who.orgId || live.current.some((i) => i.key === r.key)) continue;
-      const claimed = await store.claim(r.key);
-      if (!claimed) continue; // another tab owns it
-      claims.current.set(r.key, { release: claimed, owner: who });
+      if (!(await own(r.key))) continue; // another tab owns it
+      bound.current.set(r.key, { userId: r.userId, orgId: r.orgId });
+      kept.current.add(r.key);
       update((list) => [{ key: r.key, file: r.file, flowId: r.flowId, flowName: r.flowName, state: "held" as const, wasHeld: true }, ...list]);
     }
     if (!isOnline()) return;
@@ -196,6 +208,7 @@ export function UploadQueueProvider({ children, owner = null, store: given }: { 
       // A stable key: a held file's record carries it, ready for an idempotency header.
       return { key: crypto.randomUUID(), file, flowId: flow.id, flowName: flow.name, state: error ? "refused" : "waiting", ...(error ? { error } : {}) };
     });
+    if (ownerNow.current) for (const i of added) bound.current.set(i.key, ownerNow.current);
     update((list) => [...added].reverse().concat(list));
     added.filter((i) => i.state === "waiting").forEach(enqueue);
     return added.map((i) => i.key);
@@ -211,8 +224,8 @@ export function UploadQueueProvider({ children, owner = null, store: given }: { 
   const remove = (key: string) => {
     const item = live.current.find((i) => i.key === key);
     if (item?.state !== "held" && item?.state !== "refused") return;
-    update((list) => list.filter((i) => i.key !== key));
-    if (item.wasHeld) void forget(key);
+    drop(key);
+    if (kept.current.has(key)) void forget(key);
   };
 
   return <QueueContext.Provider value={{ items, add, retry, remove }}>{children}</QueueContext.Provider>;

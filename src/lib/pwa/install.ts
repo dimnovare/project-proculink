@@ -77,21 +77,29 @@ export function useInstallState(): InstallState {
   return useSyncExternalStore(subscribe, snapshot, () => "unknown");
 }
 
-/** Shows the stashed prompt. A refusal is remembered on this device. Null when the browser offered nothing. */
+/**
+ * Shows the stashed prompt. A refusal is remembered on this device. Null when the browser
+ * offered nothing or the prompt failed; the panel is redrawn either way (the offer is used up).
+ */
 export async function promptInstall(): Promise<"accepted" | "dismissed" | null> {
   const event = stashed;
   if (!event) return null;
   stashed = null;
-  await event.prompt();
-  const { outcome } = await event.userChoice;
-  if (outcome === "dismissed") {
-    dismissed = true;
-    try {
-      localStorage.setItem(INSTALL_DISMISSED_KEY, "1");
-    } catch {
-      // Storage may be blocked; the refusal is still kept for this visit.
+  try {
+    await event.prompt();
+    const { outcome } = await event.userChoice;
+    if (outcome === "dismissed") {
+      dismissed = true;
+      try {
+        localStorage.setItem(INSTALL_DISMISSED_KEY, "1");
+      } catch {
+        // Storage may be blocked; the refusal is still kept for this visit.
+      }
     }
+    return outcome;
+  } catch {
+    return null;
+  } finally {
+    notify();
   }
-  notify();
-  return outcome;
 }

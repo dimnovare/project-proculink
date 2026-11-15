@@ -144,9 +144,10 @@ export function UserChipMenu({ collapsed, onNavigate, placement = "up" }: UserCh
   const closeMenu = () => setOpen(false);
 
   // Files added while offline must not stay on a device nobody is signed in to: ask, then remove them.
+  // Neither step can hold the sign-out up for more than about two seconds (heldUploads.ts).
   const signOut = async () => {
     closeMenu();
-    const n = await heldCount();
+    const n = await heldCount(user.id);
     if (n > 0) {
       const ok = await confirm({
         title: "Sign out?",

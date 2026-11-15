@@ -1,10 +1,20 @@
 "use client";
 
+import { useRef } from "react";
 import { usePathname } from "next/navigation";
 import { FileText } from "lucide-react";
 import { Button, Pill } from "@/components/bridge/DSPrimitives";
 import { Card } from "@/components/bridge/layout/Card";
 import { canRetryUpload, uploadRefusalMessage, useUploadQueue } from "@/components/flows/UploadQueue";
+
+/**
+ * After Remove the row is gone from under the focused button: focus moves to `target` (the
+ * list or its heading) once the removal has drawn, or to the page's main region when the
+ * whole list went with it — never back to the top of the document.
+ */
+export function focusAfterRemove(target: HTMLElement | null) {
+  requestAnimationFrame(() => (target?.isConnected ? target : document.getElementById("main-content"))?.focus());
+}
 
 /**
  * Files added while offline, at the top of every app screen but Upload (which lists
@@ -13,10 +23,11 @@ import { canRetryUpload, uploadRefusalMessage, useUploadQueue } from "@/componen
 export function HeldUploads() {
   const path = usePathname();
   const { items, retry, remove } = useUploadQueue();
+  const strip = useRef<HTMLElement>(null);
   const waiting = items.filter((i) => i.wasHeld && i.state !== "done");
   if (path === "/upload" || waiting.length === 0) return null;
   return (
-    <section aria-label="Files waiting to upload" data-testid="held-uploads" className="flex flex-col gap-2 px-4 pt-4 md:px-6">
+    <section ref={strip} tabIndex={-1} aria-label="Files waiting to upload" data-testid="held-uploads" className="flex flex-col gap-2 px-4 pt-4 outline-none md:px-6">
       {waiting.map((item) => {
         const name = item.file.name;
         return (
@@ -40,7 +51,7 @@ export function HeldUploads() {
                 <Button variant="secondary" size="sm" aria-label={`Try ${name} again`} onClick={() => retry(item.key)}>Try again</Button>
               )}
               {(item.state === "held" || item.state === "refused") && (
-                <Button variant="secondary" size="sm" aria-label={`Remove ${name}`} onClick={() => remove(item.key)}>Remove</Button>
+                <Button variant="secondary" size="sm" aria-label={`Remove ${name}`} onClick={() => { remove(item.key); focusAfterRemove(strip.current); }}>Remove</Button>
               )}
             </div>
           </Card>

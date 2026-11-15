@@ -170,4 +170,16 @@ describe("upload queue", () => {
     expect(store.map.size).toBe(0);
     expect(store.remove.mock.invocationCallOrder[0]).toBeLessThan(store.released("k-1"));
   });
+
+  it("a held file the server could not take right now goes up on Try again", async () => {
+    const store = fakeStore([record("k-1", { userId: "u-alex", orgId: "o-1", name: "scan.jpg" })]);
+    uploadDocument.mockRejectedValueOnce(new ApiHttpError("unavailable", 503, null)).mockResolvedValueOnce(summary("d1", "scan.jpg"));
+    const { result } = mount({ store });
+    await waitFor(() => expect(result.current.items[0]?.state).toBe("refused"));
+    expect(store.map.size).toBe(0);                    // any server answer takes it off the device
+    expect(canRetryUpload(result.current.items[0].error)).toBe(true);
+    act(() => result.current.retry("k-1"));
+    await waitFor(() => expect(result.current.items[0].state).toBe("done"));
+    expect(uploadDocument).toHaveBeenCalledTimes(2);
+  });
 });

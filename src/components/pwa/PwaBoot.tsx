@@ -10,8 +10,8 @@ export function PwaBoot(): null {
   useEffect(() => {
     void syncWorker(
       workerWanted({ NODE_ENV: process.env.NODE_ENV, NEXT_PUBLIC_PWA_WORKER: process.env.NEXT_PUBLIC_PWA_WORKER }),
-      typeof navigator === "undefined" ? undefined : navigator.serviceWorker,
-      globalThis.caches,
+      () => navigator.serviceWorker,
+      () => globalThis.caches,
     );
   }, []);
   return null;

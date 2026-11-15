@@ -52,7 +52,12 @@ let instance: HeldStore | null | undefined;
 /** The device store, or null when this browser has no IndexedDB or Web Locks. One instance per page. */
 export function heldStore(): HeldStore | null {
   if (instance !== undefined) return instance;
-  if (typeof indexedDB === "undefined" || typeof navigator === "undefined" || !navigator.locks) return (instance = null);
+  // Read inside a guard: a browser that blocks site data can throw from the getters themselves.
+  try {
+    if (typeof indexedDB === "undefined" || typeof navigator === "undefined" || !navigator.locks) return (instance = null);
+  } catch {
+    return (instance = null);
+  }
 
   let opening: Promise<IDBDatabase> | undefined;
   const open = () =>
@@ -85,12 +90,16 @@ export function heldStore(): HeldStore | null {
     claim: async (key) => {
       let release = () => {};
       const taken = await new Promise<boolean>((resolve) => {
-        navigator.locks
-          .request(`plk-held:${key}`, { ifAvailable: true }, (lock) => {
-            resolve(lock !== null);
-            return lock ? new Promise<void>((r) => (release = r)) : null;
-          })
-          .catch(() => resolve(false));
+        try {
+          navigator.locks
+            .request(`plk-held:${key}`, { ifAvailable: true }, (lock) => {
+              resolve(lock !== null);
+              return lock ? new Promise<void>((r) => (release = r)) : null;
+            })
+            .catch(() => resolve(false));
+        } catch {
+          resolve(false);
+        }
       });
       if (!taken) return null;
       const still = await run("readonly", (s) => s.get(key)).catch(() => undefined);
@@ -103,12 +112,23 @@ export function heldStore(): HeldStore | null {
   });
 }
 
-/** For sign-out: how many files this device holds (0 without a store or when it cannot be read). */
-export async function heldCount(): Promise<number> {
-  return (await heldStore()?.all().catch(() => []))?.length ?? 0;
+/** Sign-out never waits on a store that does not answer: after about two seconds it goes on with `fallback`. */
+const SIGN_OUT_WAIT_MS = 2000;
+async function soon<T>(work: () => Promise<T> | undefined, fallback: T): Promise<T> {
+  const answer = Promise.resolve().then(work).then((v) => v ?? fallback, () => fallback);
+  return Promise.race([answer, new Promise<T>((r) => setTimeout(() => r(fallback), SIGN_OUT_WAIT_MS))]);
 }
 
-/** For sign-out: removes every held file on this device. A store that cannot be reached leaves nothing to remove. */
-export async function clearHeldUploads(): Promise<void> {
-  await heldStore()?.clear().catch(() => {});
+/** For sign-out: how many of this person's files the device holds (0 without a store, or when it cannot be read in time). */
+export function heldCount(userId: string): Promise<number> {
+  return soon(async () => (await heldStore()?.all())?.filter((r) => r.userId === userId).length, 0);
+}
+
+/**
+ * For sign-out: removes every held file on this device, whoever chose it. A store that
+ * fails or does not answer in time does not block signing out: another person's files are
+ * deleted on that person's next start (R9).
+ */
+export function clearHeldUploads(): Promise<void> {
+  return soon(async () => void (await heldStore()?.clear()), undefined);
 }

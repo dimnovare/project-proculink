@@ -5,13 +5,13 @@ import { UserChipMenu } from "./UserChipMenu";
 
 const signOut = vi.fn(async () => {});
 vi.mock("@clerk/nextjs", () => ({
-  useUser: () => ({ user: { fullName: "Alex Example", primaryEmailAddress: { emailAddress: "alex@example.test" } } }),
+  useUser: () => ({ user: { id: "user_alex", fullName: "Alex Example", primaryEmailAddress: { emailAddress: "alex@example.test" } } }),
   useOrganization: () => ({ membership: null }),
   useClerk: () => ({ signOut, openUserProfile: vi.fn() }),
 }));
 
 const { heldCount, clearHeldUploads } = vi.hoisted(() => ({
-  heldCount: vi.fn<() => Promise<number>>(),
+  heldCount: vi.fn<(userId: string) => Promise<number>>(),
   clearHeldUploads: vi.fn(async () => {}),
 }));
 vi.mock("@/lib/pwa/heldUploads", () => ({ heldCount, clearHeldUploads }));
@@ -29,6 +29,7 @@ it("asks before signing out with held files, then removes them; with none it sig
   render(<ConfirmProvider><UserChipMenu collapsed placement="down" /></ConfirmProvider>);
   pressSignOut();
   let dialog = await screen.findByRole("alertdialog");
+  expect(heldCount).toHaveBeenCalledWith("user_alex");                // only this person's files are counted
   expect(within(dialog).getByText("Sign out?")).toBeInTheDocument();
   expect(within(dialog).getByText("2 files you added while offline haven't gone up yet. Signing out removes them from this device.")).toBeInTheDocument();
   fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));

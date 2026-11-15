@@ -29,6 +29,7 @@ import { canRetryUpload, STOP_CODES, uploadRefusalMessage, useUploadQueue, type 
 import { firstRunOf } from "@/lib/firstRun";
 import { Failed, Quiet } from "./states";
 import { Welcome } from "./Welcome";
+import { focusAfterRemove } from "@/components/pwa/HeldUploads";
 
 /** How many of the newest documents are matched against this visit's uploads (R4). */
 export const UPLOADED_LOOKBACK = 100;
@@ -137,6 +138,7 @@ export function UploadToFlow() {
   const [sent, setSent] = useState<ReadonlySet<string>>(new Set());
   const [over, setOver] = useState(false);
   const input = useRef<HTMLInputElement>(null);
+  const listHeading = useRef<HTMLHeadingElement>(null);
   const [photo, setPhoto] = useState<File | null>(null);
   const camera = useCamera(setPhoto, "camera-input");
   const done = items.filter((i) => i.state === "done");
@@ -230,7 +232,7 @@ export function UploadToFlow() {
             {n > 0 && (
               <Card flush as="section" aria-label="Just uploaded">
                 <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-3 sm:px-[18px]">
-                  <h2 className="m-0 text-[16px] font-semibold text-ink">Just uploaded</h2>
+                  <h2 ref={listHeading} tabIndex={-1} className="m-0 text-[16px] font-semibold text-ink outline-none">Just uploaded</h2>
                   <span className="text-[13px] text-ink-muted">
                     {flowIds.size === 1 ? `${n === 1 ? "1 file" : `${n} files`} to ${items[0].flowName}` : `${n} files`}
                   </span>
@@ -239,7 +241,7 @@ export function UploadToFlow() {
                   {items.map((i) => (
                     <UploadedRow
                       key={i.key} item={i} listed={seen(i, uploaded.data)} sent={!!i.document && sent.has(i.document.id)}
-                      onSent={() => setSent((s) => new Set(s).add(i.document!.id))} retry={() => retry(i.key)} remove={() => remove(i.key)}
+                      onSent={() => setSent((s) => new Set(s).add(i.document!.id))} retry={() => retry(i.key)} remove={() => { remove(i.key); focusAfterRemove(listHeading.current); }}
                     />
                   ))}
                 </ul>
