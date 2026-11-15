@@ -47,7 +47,7 @@ function WelcomeBody() {
 
   return (
     <div className={SITE_PAGE}>
-      <section aria-label="Welcome" className="pb-24 pt-[72px]">
+      <section className="pb-24 pt-[72px]">
         <div className={`${SITE.wrap} grid grid-cols-1 items-start gap-x-[72px] gap-y-12 min-[900px]:grid-cols-2`}>
           <div className="flex min-w-0 flex-col items-start gap-6">
             <h1 className="m-0 font-display text-[clamp(36px,4.2vw,56px)] font-semibold leading-[1.04] tracking-[-0.02em] [text-wrap:balance]">

@@ -174,7 +174,7 @@ const SECTIONS: Array<[id: string, label: string]> = [
 export default function SecurityPage() {
   return (
     <div className={SITE_PAGE}>
-      <section aria-label="Introduction" className="pb-20 pt-[72px]">
+      <section className="pb-20 pt-[72px]">
         <div className={`${SITE.wrap} flex flex-col gap-[26px]`}>
           <h1 className={`${SITE.h1} max-w-[980px]`}>Built for documents you can&apos;t afford to get wrong</h1>
           <p className={`${SITE.lead} max-w-[700px]`}>

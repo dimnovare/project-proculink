@@ -190,9 +190,9 @@ export function AuthShell({
   );
 }
 
-/** The page heading + sub-line (+ an optional second line). The only copy that
+/** The page heading + sub-line. The only copy that
  *  legitimately differs per route. */
-export function AuthHeading({ title, sub, detail }: { title: string; sub: string; detail?: string }) {
+export function AuthHeading({ title, sub }: { title: string; sub: string }) {
   return (
     <div className="mb-6">
       <h1
@@ -208,9 +208,6 @@ export function AuthHeading({ title, sub, detail }: { title: string; sub: string
         {title}
       </h1>
       <p style={{ fontSize: 13.5, marginTop: 6, color: "var(--ink-muted)" }}>{sub}</p>
-      {detail && (
-        <p style={{ fontSize: 13.5, lineHeight: 1.5, marginTop: 8, color: "var(--ink-muted)" }}>{detail}</p>
-      )}
     </div>
   );
 }

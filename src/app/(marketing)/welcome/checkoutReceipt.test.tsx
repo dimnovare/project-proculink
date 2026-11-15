@@ -297,9 +297,10 @@ describe("CheckoutReceipt — the claim is never made without the server", () =>
   });
 
   it("never says the workspace is ready or names a plan before the server answers active", async () => {
-    const cases: [string, () => unknown, string, boolean][] = [
-      ["still loading", () => api.getBillingStatus.mockReturnValue(new Promise(() => {})), "operations", true],
-      ["call failed", () => api.getBillingStatus.mockRejectedValue(new Error("401 Unauthorized")), "operations", true],
+    // [name, arrange, hint, check the plan name, the state the block must reach first]
+    const cases: [string, () => unknown, string, boolean, string][] = [
+      ["still loading", () => api.getBillingStatus.mockReturnValue(new Promise(() => {})), "operations", true, "confirming"],
+      ["call failed", () => api.getBillingStatus.mockRejectedValue(new Error("401 Unauthorized")), "operations", true, "unconfirmed"],
       [
         "paused",
         () =>
@@ -308,16 +309,18 @@ describe("CheckoutReceipt — the claim is never made without the server", () =>
           ),
         "operations",
         false, // the paused sentence names the server's plan on purpose
+        "paused",
       ],
-      ["webhook race", () => api.getBillingStatus.mockResolvedValue(billing({ plan: "pilot", accountStatus: "trialing" })), "operations", true],
+      ["webhook race", () => api.getBillingStatus.mockResolvedValue(billing({ plan: "pilot", accountStatus: "trialing" })), "operations", true, "confirming"],
     ];
-    for (const [name, arrange, hint, checkPlan] of cases) {
+    for (const [name, arrange, hint, checkPlan, reached] of cases) {
       api.getBillingStatus.mockReset();
       arrange();
       const { unmount } = renderReceipt(hint);
       const block = await screen.findByTestId("checkout-receipt");
       await waitFor(() => expect(api.getBillingStatus).toHaveBeenCalled());
-      await new Promise((r) => setTimeout(r, 30));
+      // The component retries once (~1s) before a failed call reads as failed.
+      await waitFor(() => expect(block.dataset.receiptState, name).toBe(reached), { timeout: 3000 });
       expect(within(block).queryByText("Your workspace is ready."), name).toBeNull();
       expect(block.textContent ?? "", name).not.toContain("You're on");
       if (checkPlan) expect(block.textContent ?? "", name).not.toContain("Operations");
@@ -336,6 +339,14 @@ describe("CheckoutReceipt — the claim is never made without the server", () =>
     expect(within(block).getByRole("link", { name: "Plan & billing" }).getAttribute("href")).toBe(
       "/settings?tab=billing",
     );
+    cleanup();
+
+    // Enterprise's default limit is a sentinel: name the plan, print no allowance.
+    api.getBillingStatus.mockResolvedValue(billing({ plan: "enterprise", orderLimit: 2_147_483_647 }));
+    renderReceipt("enterprise");
+    const ent = await screen.findByTestId("checkout-receipt");
+    await waitFor(() => expect(ent.dataset.receiptState).toBe("active"));
+    expect(ent.textContent ?? "").toContain(`You're on ${PLAN_BY_ID.enterprise.name}.See your plan under`);
   });
 
   it("renders nothing at all, and reads no billing status, without the `upgraded` hint", async () => {

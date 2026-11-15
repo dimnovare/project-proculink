@@ -36,7 +36,7 @@ const MAIL = "font-semibold text-brand-blue-deep underline";
 export default function SupportPage() {
   return (
     <div className={SITE_PAGE}>
-      <section aria-label="Page title" className="pb-12 pt-16">
+      <section className="pb-12 pt-16">
         <div className={`${SITE.wrap} flex flex-col gap-4`}>
           <h1 className="m-0 font-display text-[clamp(38px,4.2vw,56px)] font-semibold leading-[1.04] tracking-[-0.02em]">
             Support
@@ -47,7 +47,7 @@ export default function SupportPage() {
         </div>
       </section>
 
-      <section aria-label="Contact us" className="bg-surface pb-[88px] pt-16">
+      <section className="bg-surface pb-[88px] pt-16">
         {/* One column below 860px: the address and hours first, then the form, then what
             to include. `contents` lets the aside's two blocks take their own places. */}
         <div className={`${SITE.wrap} flex flex-col gap-10 min-[860px]:flex-row min-[860px]:items-start min-[860px]:gap-x-[88px]`}>
@@ -107,7 +107,7 @@ export default function SupportPage() {
         </div>
       </section>
 
-      <section aria-label="Other ways to get help" className="bg-surface pb-[104px] pt-[88px]">
+      <section className="bg-surface pb-[104px] pt-[88px]">
         <div className={`${SITE.wrap} grid grid-cols-[repeat(auto-fit,minmax(min(300px,100%),1fr))] items-start gap-x-14 gap-y-10`}>
           <div className={BLOCK}>
             <h2 className={SITE.h3}>Find it yourself</h2>

@@ -137,11 +137,9 @@ function receiptLines(status: BillingStatus): { title: string; note: string } {
     };
   }
   // Enterprise, or a plan this build does not know: Stripe does not sell it, so no
-  // change-or-cancel promise.
-  return {
-    title: `You're on ${planName(plan)}: ${n(status.orderLimit)} documents a month.`,
-    note: "See your plan under",
-  };
+  // change-or-cancel promise, and no number: Enterprise's default limit is a
+  // sentinel (int.MaxValue), not what the agreement says.
+  return { title: `You're on ${planName(plan)}.`, note: "See your plan under" };
 }
 
 const ICON = "mt-0.5 size-6 shrink-0";

@@ -25,7 +25,7 @@ export default function NotFound() {
       <SkipToContent />
       <MarketingNav />
       <main id="main-content" tabIndex={-1} className={`${SITE_PAGE} outline-none`}>
-        <section aria-label="Page not found" className="pb-32 pt-[104px]">
+        <section className="pb-32 pt-[104px]">
           <div className={`${SITE.wrap} flex flex-wrap items-center gap-x-24 gap-y-16`}>
             <div className="flex min-w-0 flex-[1_1_480px] flex-col items-start gap-6">
               <h1 className="m-0 font-display text-[clamp(40px,4.8vw,66px)] font-semibold leading-[1.02] tracking-[-0.02em] [text-wrap:balance]">

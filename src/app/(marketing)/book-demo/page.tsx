@@ -31,7 +31,7 @@ const TRIAL = PLAN_BY_ID.pilot;
 export default function BookDemoPage() {
   return (
     <div className={SITE_PAGE}>
-      <section aria-label="Request a call" className="pb-[88px] pt-[72px]">
+      <section className="pb-[88px] pt-[72px]">
         {/* Two columns from 860px: the intro and what we'll cover on the left, the form on
             the right, the trial aside under the intro. One column below, in that order. */}
         <div className={`${SITE.wrap} grid grid-cols-1 items-start gap-x-[72px] gap-y-10 min-[860px]:grid-cols-2`}>

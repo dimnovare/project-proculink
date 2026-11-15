@@ -209,8 +209,8 @@ export function BookDemoForm() {
           <button type="submit" disabled={!canSubmit} className={`${INK_CTA} w-full`}>
             {state.status === "submitting" ? "Sending…" : "Request a call"}
           </button>
-          <p className="text-center text-[15px] text-ink-muted">We reply within 1 business day.</p>
           {state.status === "error" && <p role="alert" className={FORM.bad}>{state.message}</p>}
+          <p className="text-center text-[15px] text-ink-muted">We reply within 1 business day.</p>
         </div>
       </form>
     </Card>

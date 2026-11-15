@@ -36,6 +36,7 @@ const ENTRIES = [
       "The free trial now lasts 30 days.",
       "A long PDF is read ten pages at a time, up to 100 pages.",
       "Review saves your changes as you type, marks what needs you in amber, and opens the next document when you send.",
+      "Upload takes several files at once and shows where each one is.",
       "Destinations: test one before you use it, and send a waiting document again with Send it now.",
     ],
   },
@@ -142,7 +143,7 @@ export default function ChangelogPage() {
   const [newest, ...earlier] = ENTRIES;
   return (
     <div className={SITE_PAGE}>
-      <section aria-label="Page title" className="pb-12 pt-16">
+      <section className="pb-12 pt-16">
         <div className={`${SITE.wrap} flex flex-col gap-4`}>
           <h1 className="m-0 font-display text-[clamp(38px,4.2vw,56px)] font-semibold leading-[1.04] tracking-[-0.02em]">
             Changelog
@@ -151,7 +152,7 @@ export default function ChangelogPage() {
         </div>
       </section>
 
-      <section aria-label="Versions" className="border-b border-border bg-surface pb-24 pt-14">
+      <section className="border-b border-border bg-surface pb-24 pt-14">
         <div className={SITE.wrap}>
           <div className="max-w-[920px]">
             <article className="flex flex-wrap gap-x-14 gap-y-4 pb-11 pt-2">
@@ -169,7 +170,7 @@ export default function ChangelogPage() {
 
             <details className="group border-y border-border">
               <summary className="flex min-h-16 cursor-pointer list-none items-center gap-3 py-2 text-[18px] font-semibold [&::-webkit-details-marker]:hidden">
-                <ChevronRight aria-hidden="true" className="size-[18px] flex-none transition-transform group-open:rotate-90" strokeWidth={2.4} />
+                <ChevronRight aria-hidden="true" className="size-[18px] flex-none group-open:rotate-90" strokeWidth={2.4} />
                 <span className="min-w-0 flex-1">{`Earlier versions (${earlierRange(earlier)})`}</span>
                 <span className={`${SITE.soft} flex-none text-[15px] font-medium`}>{`${earlier.length} versions`}</span>
               </summary>
