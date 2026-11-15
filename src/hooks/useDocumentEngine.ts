@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { listDocumentPage, listDocuments, listFlows } from "@/lib/api/documents";
+import { listDocumentPage, listFlows } from "@/lib/api/documents";
 import { NEEDS_YOU_STATUSES } from "@/lib/documentTabs";
 import { refusalToken } from "@/lib/documentRefusals";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
@@ -14,13 +14,6 @@ export const flowsQuery = {
   retry: (n: number, e: unknown) => refusalToken(e) !== "document_engine_not_enabled" && n < 2,
   staleTime: 300_000,
   refetchOnWindowFocus: false,
-} as const;
-
-export const DOCUMENTS_TAKE = 100;
-/** One set of options for every reader of the newest documents, so they share a request. */
-export const documentsQuery = {
-  queryKey: ["documents", { take: DOCUMENTS_TAKE }],
-  queryFn: () => listDocuments({ take: DOCUMENTS_TAKE }),
 } as const;
 
 /** How many documents have these statuses, and which is newest. One request, shared by every reader of the same key. */

@@ -8,6 +8,7 @@ import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import { Card } from "@/components/bridge/layout/Card";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
+import { ActionBar } from "@/components/bridge/layout/ActionBar";
 import { Button, buttonClass } from "@/components/bridge/DSPrimitives";
 import { documentCountQuery, flowsQuery, needsYouQuery, useDocumentEngine } from "@/hooks/useDocumentEngine";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
@@ -16,7 +17,9 @@ import { apiClient } from "@/lib/api-client";
 import { pagePopulation } from "@/components/bridge/orderCountContract";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
 import { documentStatus } from "@/lib/documentStatusManifest";
-import { DOCUMENT_TABS, DOCUMENTS_PAGE_SIZE, documentsAddress, readDocumentsAddress, type DocumentTab } from "@/lib/documentTabs";
+import {
+  DOCUMENT_TABS, DOCUMENTS_PAGE_SIZE, documentsAddress, documentsHelper, readDocumentsAddress, startOfWeek, type DocumentTab,
+} from "@/lib/documentTabs";
 import { nextTabIndex } from "@/lib/tabKeys";
 import { DocumentList } from "./DocumentList";
 import { FirstFlowEmpty, Quiet } from "./states";
@@ -39,6 +42,12 @@ export function DocumentsHome() {
       refetchInterval: 60_000,
       refetchOnWindowFocus: true,
     })),
+  });
+  const week = useQuery({
+    ...documentCountQuery(["sent"], startOfWeek(new Date()).toISOString()),
+    enabled: engine === "on",
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
   });
   // With no tab in the address, the default is decided once per visit from the first known needs-you number.
   const latched = useRef<DocumentTab | null>(null);
@@ -146,12 +155,25 @@ export function DocumentsHome() {
     );
   }
 
-  return <Frame>{body}</Frame>;
+  const needs = counts[0].data;
+  const next = needs && needs.totalCount > 0 ? needs.items[0] : undefined;
+  const reviewNext = (testId?: string, only = "") => next && (
+    <Link href={`/flows/${next.flowId}/documents/${next.id}`} data-testid={testId} className={`${buttonClass("send", "lg")}${only}`}>
+      Review next
+      <span className="rounded-full bg-navy/30 px-2 text-[12.5px]">{needs?.totalCount}</span>
+    </Link>
+  );
+  return (
+    <Frame sub={documentsHelper(needs?.totalCount, week.data?.totalCount)} actions={reviewNext("review-next", " hidden md:inline-flex")}>
+      {body}
+      {next && <ActionBar>{reviewNext()}</ActionBar>}
+    </Frame>
+  );
 }
 
-const Frame = ({ children }: { children: React.ReactNode }) => (
+const Frame = ({ children, sub, actions }: { children: React.ReactNode; sub?: string | null; actions?: React.ReactNode }) => (
   <PageShell variant="wide">
-    <PageHeader title="Documents" sub="Every document that has arrived, newest first." />
+    <PageHeader title="Documents" sub={sub ?? "Every document that has arrived, newest first."} actions={actions} />
     {children}
   </PageShell>
 );

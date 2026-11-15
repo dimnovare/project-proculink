@@ -17,7 +17,7 @@ vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => tru
 
 /** "pending" never settles: the request is still out. */
 type Count = number | Error | "pending";
-type Counts = { needs?: Count; working?: Count; sent?: Count; failed?: Count };
+type Counts = { needs?: Count; working?: Count; sent?: Count; failed?: Count; /** a count that carries `sentFrom` */ week?: Count };
 const COUNTED: Record<string, keyof Counts> = {
   "needs_review,ready": "needs", "received,reading,sending": "working", sent: "sent", "read_failed,send_failed": "failed",
 };
@@ -27,14 +27,15 @@ const row = (i: number) => ({
 });
 const page = (items: unknown[], totalCount: number, p: number, pageSize: number) => ({ items, totalCount, page: p, pageSize, sampleCount: 0 });
 
-/** A `pageSize: 1` call is a count, a `pageSize: 50` call is the listed page; anything else is an empty page. */
+/** A `pageSize: 1` call is a count, a `pageSize: 50` call is the listed page; anything else is an empty page.
+ *  The needs-you count's one row is `rows[0]`. */
 function answers(counts: Counts & { rows?: unknown[] }) {
-  listDocumentPage.mockImplementation((q: { status?: string[]; page: number; pageSize: number }) => {
-    const key = COUNTED[q.status?.join(",") ?? ""];
+  listDocumentPage.mockImplementation((q: { status?: string[]; sentFrom?: string; page: number; pageSize: number }) => {
+    const key = q.sentFrom ? "week" : COUNTED[q.status?.join(",") ?? ""];
     const n = (key ? counts[key] : undefined) ?? 0;
     if (n === "pending") return new Promise(() => {});
     if (n instanceof Error) return Promise.reject(n);
-    if (q.pageSize === 1) return Promise.resolve(page([], n, 1, 1));
+    if (q.pageSize === 1) return Promise.resolve(page(key === "needs" ? (counts.rows ?? []).slice(0, 1) : [], n, 1, 1));
     if (q.pageSize === 50) return Promise.resolve(page(counts.rows ?? Array.from({ length: Math.min(n, 50) }, (_, i) => row(i)), n, q.page, 50));
     return Promise.resolve(page([], 0, q.page, q.pageSize));
   });
@@ -99,6 +100,21 @@ describe("DocumentsHome", () => {
     mount();
     expect(await screen.findByText("There is nothing on this page.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "First page" })).toHaveAttribute("href", "/documents?show=sent");
+  });
+
+  it("says what is known under the title, and Review next opens the newest document that needs you", async () => {
+    answers({ needs: 3, week: 24, rows: [{ ...row(0), id: "d-new", flowId: "f1" }] });
+    const first = mount();
+    expect(await screen.findByText("3 need you. 24 were sent this week.")).toBeInTheDocument();
+    expect(screen.getByTestId("review-next")).toHaveAttribute("href", "/flows/f1/documents/d-new");
+    expect(screen.getByTestId("review-next")).toHaveTextContent(/^Review next\s*3$/);
+    expect(within(screen.getByTestId("action-bar")).getByRole("link", { name: /^Review next/ })).toHaveAttribute("href", "/flows/f1/documents/d-new");
+    first.unmount();
+    answers({ needs: 0, week: 0 });
+    mount();
+    expect(await screen.findByText("Nothing needs you.")).toBeInTheDocument();
+    expect(screen.queryByTestId("review-next")).toBeNull();
+    expect(screen.queryByTestId("action-bar")).toBeNull();
   });
 
   it("says flows are off on the engine refusal", async () => {

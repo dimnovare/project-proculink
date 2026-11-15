@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { DOCUMENT_TABS, documentsAddress, readDocumentsAddress } from "./documentTabs";
+import { DOCUMENT_TABS, documentsAddress, documentsHelper, readDocumentsAddress, startOfWeek } from "./documentTabs";
 
 describe("documentTabs", () => {
   it("derives each tab's statuses from the status table and reads only an address it understands", () => {
@@ -21,5 +21,16 @@ describe("documentTabs", () => {
     expect(read("page=999999999").page).toBe(999999999); // the largest page read; the server answers it with an empty page
     expect([documentsAddress("sent"), documentsAddress("sent", 1), documentsAddress("all", 2)])
       .toEqual(["/documents?show=sent", "/documents?show=sent", "/documents?show=all&page=2"]);
+  });
+
+  it("starts the week on Monday and words only what is known", () => {
+    expect(startOfWeek(new Date(2026, 5, 3, 15, 30))).toEqual(new Date(2026, 5, 1)); // a Wednesday
+    expect(startOfWeek(new Date(2026, 5, 7, 23, 59))).toEqual(new Date(2026, 5, 1)); // Sunday night still belongs to it
+    expect(startOfWeek(new Date(2026, 5, 1, 0, 0))).toEqual(new Date(2026, 5, 1)); // Monday midnight is the start
+    expect(documentsHelper(3, 24)).toBe("3 need you. 24 were sent this week.");
+    expect(documentsHelper(1, 1)).toBe("1 needs you. 1 was sent this week.");
+    expect(documentsHelper(0, 0)).toBe("Nothing needs you.");
+    expect(documentsHelper(2, undefined)).toBe("2 need you.");
+    expect(documentsHelper(undefined, 24)).toBeNull();
   });
 });

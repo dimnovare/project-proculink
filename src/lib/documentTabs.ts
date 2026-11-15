@@ -37,3 +37,16 @@ export function readDocumentsAddress(params: { getAll(name: string): string[] })
 
 /** "/documents?show=sent", and "&page=2" only above the first page. */
 export const documentsAddress = (tab: DocumentTab, page = 1) => `/documents?show=${tab}${page > 1 ? `&page=${page}` : ""}`;
+
+/** Monday 00:00 of `now`'s week, in the local time zone. */
+export function startOfWeek(now: Date): Date {
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7));
+}
+
+/** The line under the title. null while the needs-you number is unknown (the caller keeps the plain line). */
+export function documentsHelper(needsYou: number | undefined, sentThisWeek: number | undefined): string | null {
+  if (needsYou === undefined) return null;
+  const needs = needsYou === 0 ? "Nothing needs you." : `${needsYou} ${needsYou === 1 ? "needs" : "need"} you.`;
+  if (!sentThisWeek) return needs;
+  return `${needs} ${sentThisWeek} ${sentThisWeek === 1 ? "was" : "were"} sent this week.`;
+}
