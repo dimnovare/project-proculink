@@ -12,7 +12,7 @@ import { LOOKUP_LIMITS } from "../lookupCsv";
 import { ApiHttpError } from "./core";
 import { mockSourceBytesForKey } from "./mockSourceDocument";
 import type {
-  Destination, DocumentDelivery, DocumentDetail, DocumentSummary, Flow, FlowField, FlowIntake, FlowOutput,
+  Destination, DocumentCheck, DocumentDelivery, DocumentDetail, DocumentRow, DocumentSummary, Flow, FlowField, FlowIntake, FlowOutput,
   FlowVersion, Lookup, LookupCandidate, LookupEntry, LookupSummary, NotificationSettings, OutputPreview, ReadCell, ReadResult,
 } from "./documents";
 import type { OutputNode } from "./types";
@@ -49,10 +49,13 @@ const flow2: Flow = {
   id: MOCK_ENGINE_IDS.setupFlow, name: "Delivery notes", fieldsConfirmed: false, documentCount: 1, createdAt: T,
   automation: "auto", fields: { fields: [], tables: [] }, publishedVersion: null, hasChanges: false, noCorrectionStreak: null,
 };
-// Two more published flows with no documents: list screens need enough rows at phone width to clear
+// Two more published flows: list screens need enough rows at phone width to clear
 // the visual suite's "too little text to be a baseline" floor (tests/e2e/visual.spec.ts).
-const quietFlow = (id: string, name: string, automation: Flow["automation"]): Flow => ({ ...flow1, id, name, automation, documentCount: 0 });
-const FLOWS = [flow1, flow2, quietFlow("flow-3", "Purchase orders", "review"), quietFlow("flow-4", "Remittance advices", "auto")];
+const quietFlow = (id: string, name: string, automation: Flow["automation"], documentCount: number): Flow =>
+  ({ ...flow1, id, name, automation, documentCount });
+const flow3 = quietFlow("flow-3", "Purchase orders", "review", 2);
+const flow4 = quietFlow("flow-4", "Remittance advices", "auto", 1);
+const FLOWS = [flow1, flow2, flow3, flow4];
 const versions: FlowVersion[] = [{ versionNo: 1, publishedAt: T, publishedBy: null, live: true }];
 
 const cell = (value: string, r: number, c: number): ReadCell => ({
@@ -72,30 +75,50 @@ const read: ReadResult = {
   }],
 };
 
-const doc = (n: number, f: Flow, status: string, failedChecks = 0): DocumentSummary => ({
+const REFUSED = "The mailbox refused the message.";
+const DOC_3_SENT_AT = "2026-06-01T08:00:00Z"; // this week under the browser tests' frozen clock
+const DOC_7_SENT_AT = "2026-05-27T09:05:00Z";
+const doc = (n: number, f: Flow, status: string, facts: Partial<DocumentRow> = {}): DocumentRow => ({
   id: `doc-${n}`, flowId: f.id, flowName: f.name, fileName: `invoice-${1000 + n}.csv`, status, statusReason: null, pageCount: null,
-  billingUnits: 1, failedChecks, createdAt: `2026-05-2${n}T09:00:00Z`, source: "upload", sourceRef: null,
+  billingUnits: 1, failedChecks: 0, createdAt: `2026-05-2${n}T09:00:00Z`, source: "upload", sourceRef: null,
   flowVersion: f.publishedVersion ?? null,
+  number: null, sender: null, checks: [], sentAt: null, failedAt: null, stop: null, isSample: false,
+  ...facts,
 });
-const DOCS = [
-  doc(1, flow1, STATUS.needs_review, 1),
-  { ...doc(2, flow1, STATUS.ready), fileName: "invoice-1002.pdf" }, // the one PDF: pdf.js e2e (document-pdf.spec.ts)
-  doc(3, flow1, STATUS.sent),
-  doc(4, flow2, STATUS.send_failed),
+/** Newest is `doc-7`. Three wait for review or sending (`doc-1`, `doc-2`, `doc-5`); two failed (`doc-4`, `doc-6`). */
+const ROWS: DocumentRow[] = [
+  doc(1, flow1, STATUS.needs_review, { failedChecks: 1, checks: ["low_confidence"], number: MOCK_DOCUMENT_NUMBER }),
+  doc(2, flow1, STATUS.ready, { fileName: "invoice-1002.pdf" }), // the one PDF: pdf.js e2e (document-pdf.spec.ts)
+  doc(3, flow1, STATUS.sent, { sentAt: DOC_3_SENT_AT }),
+  doc(4, flow2, STATUS.send_failed, {
+    failedAt: "2026-05-24T09:10:00Z", stop: { destinationId: "dest-1", destination: "Accounting inbox", error: REFUSED },
+  }),
+  doc(5, flow3, STATUS.needs_review, { failedChecks: 1, checks: ["duplicate"] }),
+  doc(6, flow4, STATUS.read_failed, { statusReason: "unreadable_file", failedAt: "2026-05-26T09:02:00Z" }),
+  doc(7, flow3, STATUS.sent, { isSample: true, sentAt: DOC_7_SENT_AT }),
 ];
-const detail = (s: DocumentSummary): DocumentDetail => ({
-  summary: s, contentType: s.fileName.endsWith(".pdf") ? "application/pdf" : "text/csv", read, senderLabel: "Example Supplier Ltd",
-  checks: s.failedChecks
-    ? [{ code: "low_confidence", passed: false, fieldKey: "vat", message: "The VAT value was read with low confidence." }]
-    : [{ code: "total_present", passed: true, fieldKey: "total", message: "Total found." }],
-});
+/** What the bare list and every other summary carry: a row without the facts only pages send. */
+const summaryOf = ({ number, sender, checks, sentAt, failedAt, stop, isSample, ...s }: DocumentRow): DocumentSummary => s;
+const DOCS = ROWS.map(summaryOf);
+const FAILED_CHECKS: Record<string, DocumentCheck> = {
+  low_confidence: { code: "low_confidence", passed: false, fieldKey: "vat", message: "The VAT value was read with low confidence." },
+  duplicate: { code: "duplicate", passed: false, fieldKey: null, message: "A document with this number was already received." },
+};
+const detail = (s: DocumentSummary): DocumentDetail => {
+  const failed = pick(ROWS, s.id, "document").checks.map((c) => FAILED_CHECKS[c]);
+  return {
+    summary: s, contentType: s.fileName.endsWith(".pdf") ? "application/pdf" : "text/csv", read, senderLabel: "Example Supplier Ltd",
+    checks: failed.length ? failed : [{ code: "total_present", passed: true, fieldKey: "total", message: "Total found." }],
+  };
+};
 
 const delivery = (status: string, attempts: number, lastError: string | null, deliveredAt: string | null): DocumentDelivery => ({
   id: "dlv-1", outputName: "Invoice CSV", protocol: "email", status, attempts, lastError, fileName: "invoice.csv", deliveredAt,
 });
 const DELIVERIES: Record<string, DocumentDelivery[]> = {
-  "doc-3": [delivery("delivered", 1, null, "2026-05-23T09:05:00Z")],
-  "doc-4": [delivery("dead_letter", 3, "The mailbox refused the message.", null)],
+  "doc-3": [delivery("delivered", 1, null, DOC_3_SENT_AT)],
+  "doc-4": [delivery("dead_letter", 3, REFUSED, null)],
+  "doc-7": [delivery("delivered", 1, null, DOC_7_SENT_AT)],
 };
 
 const destinations: Destination[] = [
@@ -206,6 +229,14 @@ const missing = (what: string, id: string): never => {
 };
 const pick = <X extends { id: string }>(list: X[], id: string, what: string): X => list.find((x) => x.id === id) ?? missing(what, id);
 const echo = <X extends object>(base: X, body: Body): X => ({ ...base, ...body });
+const DOCUMENT_LIST_KEYS = ["flowId", "status", "take", "page", "pageSize", "sentFrom", "sentTo"];
+/** An absent integer parameter is null; one the server could not bind is its 400. */
+const intParam = (q: URLSearchParams, key: string): number | null => {
+  const v = q.get(key);
+  if (v === null) return null;
+  if (!/^-?\d+$/.test(v)) throw new ApiHttpError(`mock engine: ${key} is not a number`, 400, null);
+  return Number(v);
+};
 const S = "([^/]+)";
 const re = (strings: TemplateStringsArray, ...rest: unknown[]) => new RegExp("^" + String.raw(strings, ...rest) + "$");
 
@@ -227,8 +258,23 @@ const ROUTES: [method: string, pattern: RegExp, run: Handler][] = [
     return (samples[flow.id] ??= { ...DOCS[0], id: `doc-sample-${flow.id}`, flowId: flow.id, flowName: flow.name, fileName: "invoice-2250.pdf" });
   }],
   ["GET", re`/documents`, (_m, q) => {
-    const take = Number(q.get("take")) || DOCS.length;
-    return DOCS.filter((d) => (!q.get("flowId") || d.flowId === q.get("flowId")) && (!q.get("status") || d.status === q.get("status"))).slice(0, take);
+    // Like DocumentsController.List: newest first; a missing or empty status list is no filter; sent rows
+    // landed in [sentFrom, sentTo). A key it does not implement fails loudly rather than being ignored.
+    const unknown = [...q.keys()].find((k) => !DOCUMENT_LIST_KEYS.includes(k));
+    if (unknown) throw new Error(`mock engine: GET /documents does not implement "${unknown}" yet`);
+    const statuses = q.get("status")?.split(",").map((s) => s.trim()).filter(Boolean) ?? [];
+    const [from, to] = [q.get("sentFrom"), q.get("sentTo")].map((t) => (t === null ? null : Date.parse(t)));
+    const landed = (at: string | null) => (from === null && to === null)
+      || (at !== null && (from === null || Date.parse(at) >= from) && (to === null || Date.parse(at) < to));
+    const rows = ROWS.filter((d) => (!q.get("flowId") || d.flowId === q.get("flowId"))
+      && (!statuses.length || statuses.includes(d.status)) && landed(d.sentAt))
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id));
+    const clamp = (key: string) => Math.min(Math.max(intParam(q, key) ?? 50, 1), 200);
+    const page = intParam(q, "page");
+    if (page === null) return rows.slice(0, clamp("take")).map(summaryOf);
+    if (page < 1) throw new ApiHttpError(`mock engine: page ${page}`, 400, null);
+    const pageSize = clamp("pageSize");
+    return { items: rows.slice((page - 1) * pageSize, page * pageSize), totalCount: rows.length, page, pageSize, sampleCount: 0 };
   }],
   ["GET", re`/documents/${S}`, (m) => detail(pick(DOCS, m[1], "document"))],
   ["PATCH", re`/documents/${S}/values`, (m) => detail(pick(DOCS, m[1], "document"))],
