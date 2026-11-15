@@ -184,7 +184,7 @@ export default function RootPage() {
                 </p>
               </div>
               <figure aria-label="Example: send a file to a flow over the API" className="m-0 min-w-0 flex-[1_1_420px]">
-                <pre className="m-0 overflow-x-auto rounded-xl bg-navy-surface px-[22px] py-5 font-mono text-[13px] leading-[1.7] text-navy-text">
+                <pre tabIndex={0} className="m-0 overflow-x-auto rounded-xl bg-navy-surface px-[22px] py-5 font-mono text-[13px] leading-[1.7] text-navy-text">
                   {API_EXAMPLE}
                 </pre>
               </figure>

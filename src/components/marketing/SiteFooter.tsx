@@ -46,7 +46,7 @@ export function SiteFooter() {
         <div className="flex flex-wrap justify-between gap-3 border-t border-navy-border pt-5 text-[13.5px] text-navy-faint">
           <span>{COPYRIGHT_NOTICE}</span>
           <span>
-            <Link href="/security" className="text-navy-text underline">EU-region document storage</Link>, AES-GCM at rest
+            <Link href="/security" className="inline-flex items-center text-navy-text underline">EU-region document storage</Link>, AES-GCM at rest
           </span>
         </div>
       </div>
