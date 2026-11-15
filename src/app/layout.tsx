@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import { AnalyticsBoot } from "@/components/analytics/AnalyticsBoot";
 import { CookieConsentBanner } from "@/components/marketing/CookieConsentBanner";
+import { PwaBoot } from "@/components/pwa/PwaBoot";
 import { ORGANIZATION_STRUCTURED_DATA } from "@/lib/legal-entity";
 import { SITE_DESCRIPTION, SITE_TITLE, socialMetadata } from "@/lib/seo";
 // Self-hosted fonts (OFL, via @fontsource) — replaces the render-blocking
@@ -27,6 +28,9 @@ import "./globals.css";
 
 export const viewport: Viewport = {
   themeColor: "#0B1A2F",
+  // The installed window has no browser chrome: draw under the notch and let the
+  // env(safe-area-inset-*) paddings keep content clear of it.
+  viewportFit: "cover",
 };
 
 export const metadata: Metadata = {
@@ -44,7 +48,7 @@ export const metadata: Metadata = {
     shortcut: "/favicon.ico",
   },
   manifest: "/site.webmanifest",
-  appleWebApp: { title: "ProcuLink" },
+  appleWebApp: { capable: true, title: "ProcuLink", statusBarStyle: "default" },
   other: {
     "msapplication-TileColor": "#0B1A2F",
     "msapplication-config": "/browserconfig.xml",
@@ -112,6 +116,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <AnalyticsBoot />
         </ClerkProvider>
         <CookieConsentBanner />
+        <PwaBoot />
       </body>
     </html>
   );

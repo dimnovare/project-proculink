@@ -1,15 +1,17 @@
 {
+  "id": "/",
   "name": "ProcuLink",
   "short_name": "ProcuLink",
-  "description": "Connecting procurement — the missing link between buyers and suppliers.",
-  "id": "/",
-  "start_url": "/",
+  "description": "ProcuLink reads the invoices, orders and other documents you receive, shows you what it read beside the original, and sends the data on in the format your system needs.",
+  "lang": "en",
+  "start_url": "/documents",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#0B1A2F",
   "theme_color": "#0B1A2F",
   "icons": [
     { "src": "/android-chrome-192x192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "/android-chrome-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "/maskable-icon-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    { "src": "/android-chrome-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }

@@ -175,3 +175,9 @@ describe("mock engine", () => {
     expect(admin.payload).not.toHaveProperty("by");
   });
 });
+
+it("answers nothing while the browser is offline, as the network would", async () => {
+  const onLine = vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
+  await expect(mockEngineFetch("/documents")).rejects.toThrow(new TypeError("Failed to fetch"));
+  onLine.mockRestore();
+});

@@ -9,11 +9,12 @@ import { useDialogA11y } from "@/hooks/useDialogA11y";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { acceptFor, PHOTO_ACCEPT } from "@/lib/fileKinds";
 import { chooseFlow, readLastFlow } from "@/lib/lastFlow";
+import { isOnline } from "@/lib/pwa/online";
 import { FlowChoice } from "./FlowChoice";
 import { PhotoCheck, useCamera } from "./PhotoCheck";
 import { useUploadQueue } from "./UploadQueue";
 
-/** The phone's "Add a document" sheet. Mounted only while open. A pick goes into the upload queue, then the sheet closes and /upload opens (R9). */
+/** The phone's "Add a document" sheet. Mounted only while open. A pick goes into the upload queue, then the sheet closes and, online, /upload opens (R9). */
 export function AddSheet({ onClose }: { onClose(): void }) {
   const router = useRouter();
   const { add } = useUploadQueue();
@@ -36,7 +37,8 @@ export function AddSheet({ onClose }: { onClose(): void }) {
     if (files.length === 0) return;
     add(files, flow);
     onClose();
-    router.push("/upload");
+    // Offline, /upload would load the offline page; the file shows in the strip on this screen instead.
+    if (isOnline()) router.push("/upload");
   };
   const fromInput = (e: React.ChangeEvent<HTMLInputElement>) => { pick([...(e.target.files ?? [])]); e.target.value = ""; };
   const isLast = flow.id === lastId;

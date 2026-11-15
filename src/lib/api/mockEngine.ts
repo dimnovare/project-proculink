@@ -600,6 +600,8 @@ export async function mockEngineFetch<T>(path: string, init?: RequestInit, as: "
   // Same latency as the legacy mock client: an instant answer lands before a lazily hydrated screen
   // mounts, so the engine flag reads "on" on the client while the server rendered "unknown".
   await new Promise((resolve) => setTimeout(resolve, MOCK_LATENCY_MS));
+  // The mock runs in the browser, so offline it would still "work"; it fails as the network would.
+  if (typeof navigator !== "undefined" && navigator.onLine === false) throw new TypeError("Failed to fetch");
   const method = (init?.method ?? "GET").toUpperCase();
   const [pathname, query = ""] = path.split("?");
   // Browser specs only (set by an init script): every call is logged, and an answer for "METHOD /path" replaces the fixture.

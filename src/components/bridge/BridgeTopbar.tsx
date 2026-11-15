@@ -99,7 +99,7 @@ export function BridgeTopbar({ onMenuClick, menuOpen }: BridgeTopbarProps) {
   }, []);
 
   return (
-    <header className="on-navy relative flex flex-shrink-0 flex-col bg-navy pb-0.5">
+    <header className="on-navy relative flex flex-shrink-0 flex-col bg-navy pb-0.5 pt-[env(safe-area-inset-top)]">
       {/* One row at every width. It fits because the five page links only show
           from 1024px (`lg`), "Upload" is one word, and the workspace switcher is
           the one item that gives way: it alone may shrink (its name is cut with an
