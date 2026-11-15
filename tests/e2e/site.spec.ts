@@ -10,7 +10,7 @@ import { preparePage } from "./a11yHarness";
  * Tailwind and no layout, so none of it can live in vitest.
  */
 
-const WIDTHS = [1440, 1024, 900, 899, 768, 390, 360] as const;
+const WIDTHS = [1440, 1024, 900, 899, 768, 390, 360, 320] as const;
 
 const smallestFont = (page: Page, scope = "body") =>
   page.evaluate((sel) => {
@@ -105,7 +105,17 @@ test.describe("public site", () => {
     expect(names.every((n) => n === "none"), "nothing in the example animates under reduced motion").toBe(true);
     await expect(ex.getByText("Sent", { exact: true })).toHaveCount(2);
     for (const sent of await ex.getByText("Sent", { exact: true }).all()) expect(await sent.evaluate((el) => getComputedStyle(el).opacity)).toBe("1");
-    expect(await ex.getByText("Check this one").evaluate((el) => getComputedStyle(el).display)).toBe("none");
+    const look = ex.getByText("Check this one. We are 72% sure of it.", { exact: true });
+    await expect(look, "the Total is marked to check under reduced motion").toBeVisible();
+    expect(await look.evaluate((el) => getComputedStyle(el).opacity)).toBe("1");
+    // What a reduced-motion visitor sees, element by element: the picture the animation must end on.
+    const picture = () => ex.evaluate((root) => [root, ...root.querySelectorAll("*")].map((el) => {
+      const s = getComputedStyle(el);
+      // A finished `both` animation holds its end value as an identity matrix, which draws exactly like `none`.
+      const t = s.transform === "none" || new DOMMatrix(s.transform).isIdentity ? "none" : s.transform;
+      return `${s.opacity}|${t}`;
+    }));
+    const still = await picture();
 
     await page.emulateMedia({ reducedMotion: "no-preference" });
     await page.addInitScript(() => {
@@ -133,6 +143,11 @@ test.describe("public site", () => {
       return { iterations: t.iterations, end: Number(t.endTime), start: Number(a.startTime) + Number(a.effect!.getTiming().delay) };
     }));
     expect(timings.length).toBeGreaterThan(0);
+    const moved = await ex.evaluate((root) => [...new Set(root.getAnimations({ subtree: true }).flatMap((a) =>
+      (a.effect as KeyframeEffect).getKeyframes().flatMap((k) => Object.keys(k))))]
+      .filter((p) => !["offset", "computedOffset", "easing", "composite"].includes(p)));
+    expect(moved.length, "the keyframes were read").toBeGreaterThan(0);
+    expect(moved.filter((p) => p !== "opacity" && p !== "transform"), "the example animates only opacity and transform").toEqual([]);
     for (const t of timings) { expect(t.iterations).toBe(1); expect(t.end).toBeLessThanOrEqual(5000); }
     console.log(`[site] example animations: ${timings.length}, longest ends at ${Math.max(...timings.map((t) => t.end))}ms`);
     expect(await page.getByRole("heading", { level: 1 }).evaluate((h) => h.getAnimations({ subtree: true }).length)).toBe(0);
@@ -151,6 +166,9 @@ test.describe("public site", () => {
     console.log(`[site] layout shift over the first 6s with motion on: ${cls}`);
     expect(cls, "no layout shift").toBe(0);
     for (const sent of await ex.getByText("Sent", { exact: true }).all()) expect(await sent.evaluate((el) => getComputedStyle(el).opacity)).toBe("1");
+    await expect(look, "the Total is still marked to check in the final frame").toBeVisible();
+    expect(await look.evaluate((el) => getComputedStyle(el).opacity)).toBe("1");
+    expect(await picture(), "the final frame is the reduced-motion picture").toEqual(still);
   });
 
   test("the header: links from 900px, a sheet below it, and nothing under 12.5px or 44px on a phone", async ({ page }) => {
@@ -233,6 +251,45 @@ test.describe("public site", () => {
           await (path === "/how-it-works" ? how.toHaveAttribute("aria-current", "page") : how.not.toHaveAttribute("aria-current", "page"));
         }
       }
+    }
+  });
+
+  test("at 320px the header fits one row: Menu and the filled link inside, whole and 44px tall", async ({ page }) => {
+    await preparePage(page, { dismissCookieBanner: true });
+    const header = page.getByRole("banner");
+    await page.setViewportSize({ width: 320, height: 700 });
+    for (const path of ["/", "/how-it-works", "/pricing"]) {
+      await page.goto(path);
+      const at = `${path} at 320`;
+      expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth),
+        `the page scrolls sideways on ${at}`).toBeLessThanOrEqual(0);
+      expect(await pastTheEdges(page), `past the viewport edge on ${at}`).toEqual([]);
+      const row = await headerRow(page);
+      expect(row.broken, `header text off its one row on ${at}`).toEqual([]);
+      expect(row.header, `header height on ${at}`).toBe(62);
+      const filled = header.getByRole("link", { name: "Start free" });
+      const menu = header.getByRole("button", { name: "Menu", exact: true });
+      const [f, m] = [(await filled.boundingBox())!, (await menu.boundingBox())!];
+      for (const [name, b] of [["filled link", f], ["Menu", m]] as const) {
+        expect(b.x, `${name} left edge on ${at}`).toBeGreaterThanOrEqual(0);
+        expect(b.x + b.width, `${name} right edge on ${at}`).toBeLessThanOrEqual(320);
+        expect(b.height, `${name} height on ${at}`).toBeGreaterThanOrEqual(44);
+      }
+      expect(f.x + f.width, `the filled link clears Menu on ${at}`).toBeLessThanOrEqual(m.x);
+      // The label is whole: one line, and inside its own box (not clipped by it).
+      const label = await filled.evaluate((a) => {
+        const range = document.createRange();
+        range.selectNodeContents(a);
+        const lines = [...range.getClientRects()].filter((r) => r.width > 0);
+        const box = a.getBoundingClientRect();
+        return { lines: lines.length, left: Math.min(...lines.map((r) => r.left)) - box.left, right: box.right - Math.max(...lines.map((r) => r.right)), overflow: a.scrollWidth - a.clientWidth };
+      });
+      console.log(`[site] ${at}: header ${row.header}px, filled link ${f.x}..${f.x + f.width} (${f.width}x${f.height}), Menu ${m.x}..${m.x + m.width} (${m.height}), label lines ${label.lines}, label inset ${label.left.toFixed(1)}/${label.right.toFixed(1)}`);
+      expect(label.lines, `the filled link's label wraps on ${at}`).toBe(1);
+      expect(Math.min(label.left, label.right), `the filled link's label is cut on ${at}`).toBeGreaterThanOrEqual(0);
+      expect(label.overflow, `the filled link's label overflows on ${at}`).toBeLessThanOrEqual(0);
+      // The wordmark is for screen readers only here; the logo link keeps its name.
+      await expect(header.getByRole("link", { name: /ProcuLink/ }).first(), `logo link named on ${at}`).toBeVisible();
     }
   });
 
