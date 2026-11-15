@@ -30,6 +30,16 @@ const Retry = ({ onClick }: { onClick: () => void }) => (
   <Button variant="secondary" size="sm" onClick={onClick}>Retry</Button>
 );
 
+/** Brings the selected tab inside its strip on a narrow screen. Sideways only, so a refresh never moves the page. */
+function intoStrip(el: HTMLElement | null) {
+  const strip = el?.parentElement;
+  if (!el || !strip) return;
+  const tab = el.getBoundingClientRect();
+  const box = strip.getBoundingClientRect();
+  if (tab.left < box.left) strip.scrollLeft -= box.left - tab.left;
+  else if (tab.right > box.right) strip.scrollLeft += tab.right - box.right;
+}
+
 export function DocumentsHome() {
   const engine = useDocumentEngine();
   const router = useRouter();
@@ -157,6 +167,7 @@ export function DocumentsHome() {
               <button
                 key={t.id} type="button" role="tab" id={`documents-tab-${t.id}`} aria-controls="documents-panel" aria-selected={selected}
                 tabIndex={selected || (!tab && i === 0) ? 0 : -1} onKeyDown={onTabKey} onClick={() => go(t.id)}
+                ref={selected ? (el) => intoStrip(el) : undefined}
                 className={`flex h-11 shrink-0 items-center gap-1.5 whitespace-nowrap px-3 text-[13px] ${selected ? "border-b-2 border-brand-blue font-semibold text-ink" : "text-ink-muted"}`}
               >
                 {t.label}

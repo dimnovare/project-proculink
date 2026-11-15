@@ -105,6 +105,14 @@ test.describe("documents", () => {
     expect(Math.abs((await spacer()) - (await box(bar)).height)).toBeLessThanOrEqual(1);
     // The alert's way on is a real tap target on a phone, not a 15px line of text.
     expect((await box(page.getByRole("link", { name: "Fix the destination" }))).height).toBeGreaterThanOrEqual(44);
+    // Opened on a filter far along the strip, that tab is brought inside it (the numbers arrive after the first paint).
+    await page.goto("/documents?show=failed");
+    await settle(page);
+    await expect.poll(async () => {
+      const tab = await box(page.getByRole("tab", { selected: true }));
+      const strip = await box(page.getByRole("tablist"));
+      return tab.x + tab.width - (strip.x + strip.width);
+    }).toBeLessThanOrEqual(1);
     // A phone row opens its document.
     await page.getByTestId("documents-phone-list").getByRole("link").first().click();
     await expect(page).toHaveURL(/\/flows\/[^/]+\/documents\/[^/]+$/);
