@@ -350,7 +350,10 @@ test.describe("page not found inside the app", () => {
     await expect(page.getByRole("heading", { level: 1, name: "Settings" })).toBeVisible();
     const bare = await page.goto("/operations");
     expect(bare?.status()).toBe(404);
-    await expect(page.locator(MAIN)).toHaveCount(0);
+    // The website's 404 now has the site frame and its own main, so it is told from the app's
+    // not-found page by its words, not by a missing main.
+    await expect(page.getByRole("heading", { level: 1, name: "This page took a wrong turn." })).toBeVisible();
+    await expect(page.getByText("We can't find that page")).toHaveCount(0);
     console.log(`/operations: ${bare?.status()}, title "${await page.title()}", h1 "${await page.locator("h1").first().textContent()}"`);
   });
 
