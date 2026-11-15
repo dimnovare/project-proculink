@@ -52,4 +52,24 @@ describe("mock engine", () => {
     const flows = await listFlows();
     expect(flows.map((f) => f.id)).toContain(MOCK_ENGINE_IDS.flow);
   });
+
+  it("answers an upload like the server: a new document that is then read, a held second copy, and the server's refusals", async () => {
+    const post = (name: string, content: BlobPart[] = ["x"]) => {
+      const body = new FormData();
+      body.append("file", new File(content, name));
+      return mockEngineFetch<DocumentSummary>(`/flows/${MOCK_ENGINE_IDS.flow}/documents`, { method: "POST", body });
+    };
+    const doc = await post("invoice-2292.csv");
+    expect(doc).toMatchObject({ fileName: "invoice-2292.csv", flowId: MOCK_ENGINE_IDS.flow, flowName: "Supplier invoices", status: "received", source: "upload" });
+    expect("checks" in doc).toBe(false);
+    expect((await mockEngineFetch<DocumentPage>("/documents?page=1&pageSize=1")).items[0]).toMatchObject({ id: doc.id, status: "reading" });
+    expect(await post("invoice-2292.csv")).toMatchObject({ status: "needs_review", statusReason: "duplicate_file" });
+    await expect(post("notes.zip")).rejects.toMatchObject({ status: 415, body: { error: "unsupported_format" } });
+    await expect(post("empty.pdf", [])).rejects.toMatchObject({ status: 422, body: { error: "unreadable_file" } });
+    await expect(post("big.pdf", [new Uint8Array(10 * 1024 * 1024 + 1)])).rejects.toMatchObject({ status: 413, body: { error: "file_too_large" } });
+    await new Promise((r) => setTimeout(r, 1600));
+    const read = (await mockEngineFetch<DocumentPage>("/documents?page=1&pageSize=20")).items.find((d) => d.id === doc.id);
+    expect(read?.status).toBe("ready");
+    expect((await mockEngineFetch<Flow[]>("/flows")).every((f) => f.scansOn && f.formatsOn)).toBe(true);
+  });
 });

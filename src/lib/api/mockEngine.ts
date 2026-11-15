@@ -1,11 +1,13 @@
 /**
  * mockEngine.ts — fixtures for the document engine in mock mode (`documents.ts` `apiFetch` seam).
  *
- * GETs serve fixed generic data. A write resolves with an echo and persists nothing. An unknown
+ * GETs serve fixed generic data. A write resolves with an echo and persists nothing, except an
+ * upload, which is stored and read like the server would (`upload` below). An unknown
  * path or method throws, so a screen calling an endpoint with no fixture shows its error state
  * instead of an empty success. Only reachable when `isApiMockMode` (never true in production).
  */
 import { DOCUMENT_STATUSES } from "../documentStatusManifest";
+import { acceptFor, fileRefusal } from "../fileKinds";
 import { ApiHttpError } from "./core";
 import { mockSourceBytesForKey } from "./mockSourceDocument";
 import type {
@@ -39,11 +41,12 @@ const COLUMNS = [field("item_code", "Item code"), field("quantity", "Quantity", 
 const flow1: Flow = {
   id: MOCK_ENGINE_IDS.flow, name: "Supplier invoices", fieldsConfirmed: true, documentCount: 3, createdAt: T,
   automation: "review", fields: { fields: FIELDS, tables: [{ key: "lines", label: "Lines", columns: COLUMNS }] },
-  publishedVersion: 1, hasChanges: false, noCorrectionStreak: null,
+  publishedVersion: 1, hasChanges: false, noCorrectionStreak: null, scansOn: true, formatsOn: true,
 };
 const flow2: Flow = {
   id: MOCK_ENGINE_IDS.setupFlow, name: "Delivery notes", fieldsConfirmed: false, documentCount: 1, createdAt: T,
   automation: "auto", fields: { fields: [], tables: [] }, publishedVersion: null, hasChanges: false, noCorrectionStreak: null,
+  scansOn: true, formatsOn: true,
 };
 // Two more published flows: list screens need enough rows at phone width to clear
 // the visual suite's "too little text to be a baseline" floor (tests/e2e/visual.spec.ts).
@@ -177,6 +180,44 @@ const re = (strings: TemplateStringsArray, ...rest: unknown[]) => new RegExp("^"
 
 const samples: Record<string, DocumentSummary> = {};
 
+/** This page load's uploads: a second copy (same flow, name and size) is held; a first one reads 1.5 s later. */
+const uploaded = new Set<string>();
+const reads = new Map<string, { at: number; facts: Partial<DocumentRow> }>();
+let uploads = 0;
+/** Like `DocumentIntakeService.AcceptAsync`: the server's refusals in its order, then a stored row. */
+const upload = (flow: Flow, body: Body): DocumentSummary => {
+  const file = body.file;
+  if (!(file instanceof File)) throw new Error("mock engine: an upload without a file is not implemented");
+  const accept = acceptFor(flow);
+  const refusal = fileRefusal(file, accept);
+  if (refusal?.status === 415) throw new ApiHttpError(refusal.message, 415, { error: "unsupported_format", accepted: accept.replaceAll(".", "").split(",") });
+  if (refusal) throw refusal;
+  if (file.size === 0) throw new ApiHttpError("mock engine: empty file", 422, { error: "unreadable_file" });
+  const key = `${flow.id}/${file.name}/${file.size}`;
+  const held = uploaded.has(key);
+  uploaded.add(key);
+  const row = doc(0, flow, held ? STATUS.needs_review : STATUS.reading, {
+    id: `doc-up-${++uploads}`, fileName: file.name, createdAt: new Date().toISOString(),
+    ...(held && { statusReason: "duplicate_file", checks: ["duplicate"], failedChecks: 1 }),
+  });
+  if (!held) reads.set(row.id, {
+    at: Date.now() + 1500,
+    facts: file.name.toLowerCase().endsWith(".csv") ? { status: STATUS.ready } : { status: STATUS.needs_review, failedChecks: 1, checks: ["low_confidence"] },
+  });
+  ROWS.push(row);
+  DOCS.push(summaryOf(row));
+  return { ...summaryOf(row), status: held ? row.status : STATUS.received };
+};
+/** An uploaded row whose time has come takes its read status, in ROWS and DOCS both. Until then it answers as `reading`. */
+const settleReads = () => {
+  for (const [id, { at, facts }] of reads) {
+    if (Date.now() < at) continue;
+    const row = Object.assign(pick(ROWS, id, "document"), facts);
+    Object.assign(pick(DOCS, id, "document"), summaryOf(row));
+    reads.delete(id);
+  }
+};
+
 const ROUTES: [method: string, pattern: RegExp, run: Handler][] = [
   ["GET", re`/flows`, () => FLOWS],
   ["POST", re`/flows`, (_m, _q, b) => echo({ ...flow2, id: "flow-new" }, b)],
@@ -186,13 +227,14 @@ const ROUTES: [method: string, pattern: RegExp, run: Handler][] = [
   ["GET", re`/flows/${S}/versions`, (m) => (pick(FLOWS, m[1], "flow").publishedVersion ? versions : [])],
   ["POST", re`/flows/${S}/versions/\d+/restore`, (m) => pick(FLOWS, m[1], "flow")],
   ["PUT", re`/flows/${S}/fields`, (m, _q, b) => echo(pick(FLOWS, m[1], "flow"), { fields: b })],
-  ["POST", re`/flows/${S}/documents`, (m) => ({ ...DOCS[0], flowId: pick(FLOWS, m[1], "flow").id, flowName: pick(FLOWS, m[1], "flow").name })],
+  ["POST", re`/flows/${S}/documents`, (m, _q, b) => upload(pick(FLOWS, m[1], "flow"), b)],
   ["POST", re`/flows/${S}/documents/sample`, (m) => {
     const flow = pick(FLOWS, m[1], "flow");
     // Kept out of DOCS: the document list and its counts stay what the fixtures say until a screen asks.
     return (samples[flow.id] ??= { ...DOCS[0], id: `doc-sample-${flow.id}`, flowId: flow.id, flowName: flow.name, fileName: "invoice-2250.pdf" });
   }],
   ["GET", re`/documents`, (_m, q) => {
+    settleReads();
     // Like DocumentsController.List: newest first; a missing or empty status list is no filter; sent rows
     // landed in [sentFrom, sentTo). A key it does not implement fails loudly rather than being ignored.
     const unknown = [...q.keys()].find((k) => !DOCUMENT_LIST_KEYS.includes(k));
@@ -211,7 +253,7 @@ const ROUTES: [method: string, pattern: RegExp, run: Handler][] = [
     const pageSize = clamp("pageSize");
     return { items: rows.slice((page - 1) * pageSize, page * pageSize), totalCount: rows.length, page, pageSize, sampleCount: 0 };
   }],
-  ["GET", re`/documents/${S}`, (m) => detail(pick(DOCS, m[1], "document"))],
+  ["GET", re`/documents/${S}`, (m) => (settleReads(), detail(pick(DOCS, m[1], "document")))],
   ["PATCH", re`/documents/${S}/values`, (m) => detail(pick(DOCS, m[1], "document"))],
   ["POST", re`/documents/${S}/teach`, (m) => detail(pick(DOCS, m[1], "document"))],
   ["GET", re`/documents/${S}/history`, (m) => {
@@ -263,6 +305,7 @@ const BLOBS: [RegExp, (m: string[]) => Blob][] = [
 ];
 
 function bodyOf(init?: RequestInit): Body {
+  if (init?.body instanceof FormData) return Object.fromEntries(init.body.entries());
   if (typeof init?.body !== "string") return {};
   try { return JSON.parse(init.body) as Body; } catch { return {}; }
 }
