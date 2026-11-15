@@ -68,12 +68,12 @@ export async function preparePage(page: Page, options: PreparePageOptions = {}):
   // `prefers-reduced-motion: reduce` is doing more work here than it looks.
   //
   // Playwright's own `animations: "disabled"` screenshot option freezes CSS
-  // animations and transitions, and NOTHING ELSE. The two most-animated surfaces
-  // in this product — the marketing hero's
-  // pulses — are SVG SMIL (`<animateMotion repeatCount="indefinite">`), which CSS
+  // animations and transitions, and NOTHING ELSE. The app's wire-topology
+  // pulses are SVG SMIL (`<animateMotion repeatCount="indefinite">`), which CSS
   // cannot reach. They are removed from the DOM entirely by `useReducedMotion`,
-  // and this is what triggers it. It also stops the `setInterval` driving
-  // AnimatedPipelinePanel, which no screenshot option can touch either.
+  // and this is what triggers it. It also switches off the Home example's CSS
+  // animation (its own `prefers-reduced-motion` rule), so the page shows the
+  // finished picture from the first frame.
   await page.emulateMedia({ reducedMotion: "reduce" });
 
   if (options.dismissCookieBanner) {

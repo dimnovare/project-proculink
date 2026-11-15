@@ -1,564 +1,296 @@
-import { pageMetadata } from "@/lib/seo";
 import Link from "next/link";
+import { Code2, Folder, Mail, Upload } from "lucide-react";
+import { Card } from "@/components/bridge/layout/Card";
 import { STAGES } from "@/components/bridge/StatusJourney";
-import AnimatedPipelinePanel from "./AnimatedPipelinePanel";
+import {
+  ClosingCta,
+  CsvFile,
+  InvoiceSheet,
+  ReviewPicture,
+  SecondDocumentPicture,
+  SITE,
+  Ticks,
+} from "@/components/marketing/sitePictures";
+import { AUTOMATIC_DELIVERY_LABEL, REVIEW_BEFORE_DELIVERY_LABEL } from "@/lib/deliveryMode";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata = pageMetadata({
-  path: "/how-it-works",
-  title: "How it works — ProcuLink",
-  description:
-    "Read it. Check it. Transform it. Send it. ProcuLink reads the files you receive, shows what it read beside the original, and sends the data on in the format your system needs.",
-  ogDescription:
-    "ProcuLink reads the files you receive, shows what it read beside the original, and sends the data on in the format your system needs.",
-});
+const LEAD =
+  "ProcuLink reads the files you receive, shows what it read beside the original, and sends the data on in the format your system needs. Scans and phone photos are read too.";
 
-// ─── Palette — ALIASES for the design tokens, never copies of their values ────
-// Colour roles: primary CTA and early-stage elements use blue (--brand-blue), the last stage uses green
-// (--brand-green), AI = violet (--ai), validation = amber (--amber-text, AA-darkened).
+export const metadata = pageMetadata({ path: "/how-it-works", title: "How it works — ProcuLink", description: LEAD });
 
-const NAVY = "var(--navy)";
-const INK = "var(--ink)";
-const MUTE = "var(--ink-muted)";
-const HAIR = "var(--border)";
-const PANEL = "var(--bg)";
+const ICON = "mt-0.5 size-5 shrink-0 text-brand-blue";
+const ROW = "flex items-start gap-3 border-t border-border-faint px-5 py-4";
 
-const BLUE = "var(--brand-blue)"; // CTA, early-stage chips, first pipeline node
-const BLUE_SOFT = "var(--brand-blue-soft)"; // pale blue chip / eyebrow background
-const AMBER = "var(--amber-text)";
-// Supplier/output green. --brand-green on --brand-green-soft is 3.55:1 and fails
-// AA for the 11px pill text this page draws; --brand-green-deep is 5.57:1.
-const GREEN = "var(--brand-green-deep)";
-const GREEN_SOFT = "var(--brand-green-soft)";
-const AMBER_SOFT = "var(--amber-soft)";
+function IntakePicture() {
+  return (
+    <Card
+      flush
+      role="img"
+      aria-label="Four ways to send a document in: upload, the flow's own email address, collection from a mailbox or server, and the API."
+      className="overflow-hidden text-[15px]"
+    >
+      <div aria-hidden="true">
+        <div className="p-4">
+          <div className="flex flex-col items-center gap-0.5 rounded-xl border-2 border-dashed border-navy-pale px-4 py-5 text-center">
+            <Upload className="mb-1.5 size-6 text-brand-blue" />
+            <p className="font-semibold">Upload</p>
+            <p className={`${SITE.soft} text-[14px]`}>Drag a file in, or choose one.</p>
+          </div>
+        </div>
+        <div className={ROW}>
+          <Mail className={ICON} />
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold">Email</p>
+            <p className={`${SITE.soft} text-[14px]`}>Forward or send to the flow&apos;s own address, shown on the flow.</p>
+          </div>
+        </div>
+        <div className={ROW}>
+          <Folder className={ICON} />
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold">Collect</p>
+            <p className={`${SITE.soft} text-[14px]`}>
+              From a mailbox, a server or a bucket. We check every five minutes, and files on your server or in your bucket stay where they are.
+            </p>
+          </div>
+        </div>
+        <div className={ROW}>
+          <Code2 className={ICON} />
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold">API</p>
+            <p className={`${SITE.soft} text-[14px]`}>Your own system posts a file to the flow.</p>
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+}
 
-// ─── The four steps ────────────────────────────────────────────────────────────
-// Titles are Copy C14. The paragraphs are long-form, approved on the preview, and
-// claim only what every engine-on org has: text-layer PDF, CSV and Excel in, plus
-// the formats and scans switches (D1); the intake channels and output formats the
-// flow engine really offers; the visible check and the duplicate hold.
+function ReadPicture() {
+  return (
+    <div
+      role="img"
+      aria-label="An invoice with each value we read marked on the page, and a photographed delivery note behind it."
+      className="relative pb-2.5 pt-[62px]"
+    >
+      <div aria-hidden="true">
+        <div className="absolute right-0 top-1 flex h-[70%] w-[58%] rotate-3 flex-col items-end gap-[9px] rounded-[5px] bg-bgWarm px-[18px] py-3.5 shadow-[0_1px_2px_color-mix(in_srgb,var(--navy)_10%,transparent),0_18px_40px_-18px_color-mix(in_srgb,var(--navy)_28%,transparent)]">
+          <p className={`${SITE.soft} text-[12.5px]`}>Delivery note, phone photo</p>
+          <div className="h-1.5 w-[62%] rounded-[3px] bg-border" />
+          <div className="h-1.5 w-[44%] rounded-[3px] bg-border" />
+        </div>
+        <InvoiceSheet marked className="relative w-[88%] -rotate-[1.5deg]" />
+      </div>
+    </div>
+  );
+}
 
-const WORKFLOW: Array<{ title: string; desc: string; color: string; bg: string; icon: React.ReactNode }> = [
+const CHIPS = ["CSV", "Excel", "JSON", "XML", "PDF", "Text", "Fixed-width"];
+
+function SendPicture() {
+  return (
+    <div className="min-w-0">
+      <div role="img" aria-label="A CSV file built from the invoice, sent to an accounting server and to Google Sheets.">
+        <div aria-hidden="true">
+          <CsvFile
+            sent
+            head={
+              <div className="flex flex-wrap gap-1.5 border-b border-border-faint px-4 py-3.5">
+                {CHIPS.map((c, i) => (
+                  <span
+                    key={c}
+                    className={`inline-flex h-7 items-center rounded-md border px-2.5 text-[13px] font-semibold ${
+                      i === 0 ? "border-navy bg-navy text-white" : "border-border-strong bg-surface text-ink-muted"
+                    }`}
+                  >
+                    {c}
+                  </span>
+                ))}
+              </div>
+            }
+          />
+        </div>
+      </div>
+      <p className={`${SITE.soft} pt-3 text-[14.5px]`}>
+        Have your receiving system&apos;s documentation? Upload it and we propose the output for you to check.
+      </p>
+    </div>
+  );
+}
+
+const STEPS = [
   {
     title: "Send it",
-    desc: "Upload a file, forward an email to the address your flow gives you, or let ProcuLink collect files from a mailbox, an SFTP, FTP or FTPS server, an S3 bucket, or our API. PDFs with a text layer, CSV and Excel files are read, and so are Word, text, XML and JSON files.",
-    color: BLUE,
-    bg: BLUE_SOFT,
-    icon: <UploadIcon />,
+    node: "border-brand-blue",
+    lead: "Upload a file, forward an email to the address your flow gives you, or let ProcuLink collect files for you.",
+    detail:
+      "We can collect from a mailbox, an SFTP, FTP or FTPS server, an S3 bucket, or our API. PDFs with a text layer, CSV and Excel files are read, and so are Word, text, XML and JSON files.",
+    picture: <IntakePicture />,
   },
   {
     title: "We read it",
-    desc: "We read every value and every table on the first document, row by row. There is no template to build first, so a new sender with a new layout does not mean new setup. Scans and phone photos are read too.",
-    color: BLUE,
-    bg: BLUE_SOFT,
-    icon: <LayersIcon />,
+    node: "border-brand-blue",
+    lead: "We read every value and every table on the first document, row by row.",
+    detail:
+      "There is no template to build first, so a new sender with a new layout does not mean new setup. Scans and phone photos are read too.",
+    picture: <ReadPicture />,
   },
   {
     title: "You check it",
-    desc: "The original stays on screen beside what we read. Fix a value that is wrong, or draw a box around it on the page so we find it in the same place next time. We flag a value that is missing, in the wrong shape or hard to read, and we hold a document we have already seen instead of sending it twice.",
-    color: AMBER,
-    bg: AMBER_SOFT,
-    icon: <CheckSquareIcon />,
+    node: "border-amber",
+    lead: "The original stays on screen beside what we read. Fix a value that is wrong, or draw a box around it on the page so we find it in the same place next time.",
+    detail:
+      "We flag a value that is missing, in the wrong shape or hard to read, and we hold a document we have already seen instead of sending it twice.",
+    picture: <ReviewPicture teach />,
   },
   {
     title: "We send it",
-    desc: "Choose CSV, JSON, XML, Excel, PDF, text or fixed-width, then send the result by email, to a web address, to an SFTP or FTPS server, an S3 bucket, Google Drive or Google Sheets, or download it. Microsoft OneDrive and SharePoint are available on request. Have your receiving system's documentation? Upload it and we propose the output for you to check.",
-    color: GREEN,
-    bg: GREEN_SOFT,
-    icon: <SendIcon />,
+    node: "border-brand-green",
+    lead: "Choose CSV, JSON, XML, Excel, PDF, text or fixed-width, then send the result where it needs to go.",
+    detail:
+      "Send it by email, to a web address, to an SFTP or FTPS server, an S3 bucket, Google Drive or Google Sheets, or download it. Microsoft OneDrive and SharePoint are available on request.",
+    picture: <SendPicture />,
   },
 ];
 
+const PIPELINE: Record<(typeof STAGES)[number], { dot: string; body: string }> = {
+  In: { dot: "border-[var(--brand-blue-bright)]", body: "A file arrives by upload, email, a pickup or the API, and becomes a document in its flow." },
+  Read: { dot: "border-[var(--brand-blue-bright)]", body: "Every value and table is read, with where on the page it was found and how sure we are." },
+  Check: { dot: "border-[var(--amber-bright)]", body: "Built-in checks mark a value that is missing, in the wrong shape or hard to read. A repeated document number is held." },
+  Transform: { dot: "border-[var(--brand-green-bright)]", body: "Each output file is built from the read values, with your column names and any lookups applied." },
+  Send: { dot: "border-[var(--brand-green-bright)]", body: "The file goes to each destination. Each delivery keeps its attempts, the destination's answer where it gives one and, when it fails, the error." },
+};
+
+// Below 360px "Transform it." at 42px is about as wide as the column, so the
+// pairs are only held together where there is room for them.
+const NOWRAP = "min-[360px]:whitespace-nowrap";
+// Clears the sticky header when a step or the pipeline is jumped to.
+const JUMP = "scroll-mt-20";
+
 export default function HowItWorksPage() {
   return (
-    <div style={{ background: "var(--surface)" }}>
-      <style>{responsiveCss}</style>
-
-      {/* ── Hero (dark) ─────────────────────────────────────────────────── */}
-      <section
-        className="hiw-hero"
-        style={{
-          background: `radial-gradient(105% 120% at 50% -8%, var(--navy-glow) 0%, ${NAVY} 58%)`,
-          textAlign: "center",
-        }}
-      >
-        <Eyebrow dark>How it works</Eyebrow>
-
-        <h1
-          className="hiw-h1"
-          style={{
-            fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
-            fontWeight: 700,
-            letterSpacing: "-0.035em",
-            color: "var(--surface)",
-            margin: "20px auto 0",
-            maxWidth: 720,
-            lineHeight: 1.08,
-          }}
-        >
-          Read it. Check it. Transform it. Send it.
-        </h1>
-
-        <p
-          className="hiw-hero-sub"
-          style={{
-            lineHeight: 1.6,
-            color: "var(--navy-faint)",
-            maxWidth: 600,
-            margin: "18px auto 0",
-          }}
-        >
-          ProcuLink reads the files you receive, shows what it read beside the
-          original, and sends the data on in the format your system needs.
-        </p>
-        <p
-          className="hiw-hero-sub"
-          style={{
-            lineHeight: 1.6,
-            color: "var(--navy-faint)",
-            maxWidth: 600,
-            margin: "12px auto 0",
-          }}
-        >
-          Scans and phone photos are read too.
-        </p>
-
-        <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap", marginTop: 32 }}>
-          <Link
-            href="/sign-up"
-            className="hiw-cta-btn"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 9,
-              borderRadius: 9,
-              padding: "13px 26px",
-              fontSize: 14.5,
-              fontWeight: 600,
-              background: BLUE,
-              color: "var(--surface)",
-              textDecoration: "none",
-            }}
-          >
-            Start your free trial
-            <ArrowRight />
-          </Link>
-          <a
-            href="#pipeline"
-            className="hiw-cta-btn"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              borderRadius: 9,
-              padding: "13px 22px",
-              fontSize: 14.5,
-              fontWeight: 600,
-              color: "var(--navy-pale)",
-              textDecoration: "none",
-            }}
-          >
-            For technical readers: the pipeline ↓
-          </a>
-        </div>
-      </section>
-
-      {/* ── The four steps (light) ─────────────── */}
-      <section className="hiw-steps" style={{ maxWidth: 860, margin: "0 auto" }} aria-labelledby="hiw-workflow-title">
-        <div style={{ textAlign: "center" }}>
-          <Eyebrow>The workflow</Eyebrow>
-          <h2
-            id="hiw-workflow-title"
-            className="hiw-section-title"
-            style={{
-              fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
-              fontWeight: 700,
-              letterSpacing: "-0.03em",
-              color: INK,
-              margin: "16px auto 0",
-              maxWidth: 620,
-              lineHeight: 1.12,
-            }}
-          >
-            How it works
-          </h2>
-        </div>
-        <ol style={{ listStyle: "none", padding: 0, margin: "28px 0 0" }}>
-          {WORKFLOW.map((step, i) => (
-            <li key={step.title}>
-              <StepRow n={String(i + 1).padStart(2, "0")} {...step} />
-              {i < WORKFLOW.length - 1 && <div style={{ height: 1, background: HAIR }} />}
-            </li>
-          ))}
-        </ol>
-      </section>
-
-      {/* ── The pipeline (dark) — for technical readers ─────────────────── */}
-      <section
-        id="pipeline"
-        className="hiw-hero"
-        style={{
-          background: `radial-gradient(105% 120% at 50% -8%, var(--navy-glow) 0%, ${NAVY} 58%)`,
-          textAlign: "center",
-          scrollMarginTop: 70,
-        }}
-        aria-labelledby="hiw-pipeline-title"
-      >
-        <Eyebrow dark>For technical readers</Eyebrow>
-
-        <h2
-          id="hiw-pipeline-title"
-          className="hiw-section-title"
-          style={{
-            fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
-            fontWeight: 700,
-            letterSpacing: "-0.03em",
-            color: "var(--surface)",
-            margin: "20px auto 0",
-            maxWidth: 680,
-            lineHeight: 1.1,
-          }}
-        >
-          {STAGES.join(" · ")}
-        </h2>
-
-        {/* Terminal mock + pipeline */}
-        <div
-          className="hiw-terminal"
-          style={{
-            maxWidth: 1116,
-            margin: "44px auto 0",
-            background: "rgba(255,255,255,0.025)",
-            border: "1px solid rgba(255,255,255,0.09)",
-            borderRadius: 16,
-            boxShadow: "0 24px 60px -24px rgba(0,0,0,0.55)",
-            overflow: "hidden",
-            textAlign: "left",
-          }}
-        >
-          {/* Title bar */}
-          <div
-            className="hiw-term-bar"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              padding: "14px 20px",
-              borderBottom: "1px solid rgba(255,255,255,0.07)",
-            }}
-          >
-            <span style={{ display: "inline-flex", gap: 7 }}>
-              <Dot c="var(--dot-red)" />
-              <Dot c="var(--dot-amber)" />
-              <Dot c="var(--dot-green)" />
-            </span>
-            <span
-              style={{
-                fontFamily: "'JetBrains Mono', ui-monospace, monospace",
-                fontSize: 12.5,
-                color: "var(--navy-muted)",
-                marginLeft: 6,
-              }}
-            >
-              pipeline
-            </span>
+    <div className="bg-bgWarm text-[17px] leading-[1.55] text-ink">
+      <section aria-label="Introduction" className="pb-16 pt-12 sm:pb-[88px] sm:pt-[72px]">
+        <div className={`${SITE.wrap} flex flex-wrap items-end gap-x-16 gap-y-10`}>
+          <div className="flex min-w-0 flex-[1_1_560px] flex-col gap-[26px]">
+            <h1 className={SITE.h1}>
+              <span className="text-brand-blue">
+                <span className={NOWRAP}>Read it.</span> <span className={NOWRAP}>Check it.</span>
+              </span>{" "}
+              <span className="block text-brand-green-deep">
+                <span className={NOWRAP}>Transform it.</span> <span className={NOWRAP}>Send it.</span>
+              </span>
+            </h1>
+            <p className={`${SITE.lead} max-w-[640px]`}>{LEAD}</p>
+            <div className="flex flex-col gap-x-7 gap-y-2.5 sm:flex-row sm:flex-wrap sm:items-center">
+              <Link href="/sign-up" className={SITE.cta}>Start your free trial</Link>
+              <a href="#pipeline" className={`${SITE.more} self-center sm:self-auto`}>For technical readers: the pipeline</a>
+            </div>
           </div>
+          <ol
+            aria-label="The four steps"
+            className="m-0 min-w-0 flex-[0_1_300px] list-none border-t border-border-strong p-0 text-[16px] max-[980px]:flex-[1_1_100%]"
+          >
+            {STEPS.map((s, i) => (
+              <li key={s.title}>
+                <a href={`#step-${i + 1}`} className="flex min-h-[50px] items-center gap-3.5 border-b border-border-strong font-semibold text-ink no-underline">
+                  <span className={`w-3.5 font-display ${SITE.soft}`}>{i + 1}</span>
+                  {s.title}
+                </a>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
 
-          <div className="hiw-term-body" style={{ padding: "28px 28px 30px" }}>
-            <AnimatedPipelinePanel />
+      <section aria-label="The four steps in detail" className={`${SITE.band} bg-surface`}>
+        <div className={SITE.wrap}>
+          <ol className="relative m-0 flex list-none flex-col gap-16 p-0 min-[700px]:gap-24 min-[700px]:before:absolute min-[700px]:before:bottom-6 min-[700px]:before:left-[19px] min-[700px]:before:top-6 min-[700px]:before:w-0.5 min-[700px]:before:bg-[linear-gradient(var(--brand-blue),var(--brand-green))] min-[700px]:before:content-['']">
+            {STEPS.map((s, i) => (
+              <li
+                key={s.title}
+                id={`step-${i + 1}`}
+                className="relative scroll-mt-20 min-[700px]:pl-[clamp(56px,6.4vw,84px)] min-[700px]:last:after:absolute min-[700px]:last:after:bottom-0 min-[700px]:last:after:left-[17px] min-[700px]:last:after:top-6 min-[700px]:last:after:w-1.5 min-[700px]:last:after:bg-surface min-[700px]:last:after:content-['']"
+              >
+                <span
+                  aria-hidden="true"
+                  className={`absolute left-0 z-[1] flex size-9 items-center justify-center rounded-full border-2 bg-surface font-display text-[16px] font-semibold max-[699px]:-top-0.5 min-[700px]:top-[calc(clamp(30px,3.3vw,44px)*.54-20px)] min-[700px]:size-10 min-[700px]:text-[18px] ${s.node}`}
+                >
+                  {i + 1}
+                </span>
+                <div className="grid items-start gap-x-16 gap-y-8 [grid-template-columns:repeat(auto-fit,minmax(min(400px,100%),1fr))]">
+                  <div className="flex min-w-0 flex-col gap-4">
+                    <h2 className={`${SITE.h2} max-[699px]:min-h-8 max-[699px]:pl-12`}>{s.title}</h2>
+                    <p className={SITE.lead}>{s.lead}</p>
+                    <p className={`${SITE.soft} text-[16px]`}>{s.detail}</p>
+                  </div>
+                  {s.picture}
+                </div>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
+      <section aria-label="What happens with the second document" className={SITE.band}>
+        <div className={`${SITE.wrap} grid items-center gap-x-20 gap-y-12 [grid-template-columns:repeat(auto-fit,minmax(min(440px,100%),1fr))]`}>
+          <SecondDocumentPicture />
+          <div className="flex flex-col gap-5">
+            <h2 className={SITE.h2}>The second document is easier.</h2>
+            <p className={SITE.lead}>
+              We remember where each sender puts each value, so the next document from them needs less checking.
+            </p>
+            <Ticks
+              items={[
+                `Every flow starts in ${REVIEW_BEFORE_DELIVERY_LABEL}. Each document waits for you, and nothing goes out until you press Send.`,
+                "The flow tells you how many documents in a row went out without a correction.",
+                `When you trust it, switch that flow to ${AUTOMATIC_DELIVERY_LABEL}. You can switch back at any time.`,
+                "A document with a number we have already received always waits for you, so nothing is sent twice.",
+              ]}
+            />
           </div>
         </div>
       </section>
 
-      {/* ── CTA band (light gray) ───────────────────────────────────────── */}
-      <section
-        className="hiw-cta"
-        style={{
-          background: PANEL,
-          borderTop: `1px solid ${HAIR}`,
-          textAlign: "center",
-        }}
-      >
-        <h2
-          className="hiw-cta-title"
-          style={{
-            fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
-            fontWeight: 700,
-            letterSpacing: "-0.03em",
-            color: INK,
-            margin: "0 auto",
-            maxWidth: 620,
-            lineHeight: 1.1,
-          }}
-        >
-          Try it on your own documents
-        </h2>
-        <div style={{ marginTop: 34, display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
-          <Link
-            href="/sign-up"
-            className="hiw-cta-btn"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 9,
-              borderRadius: 9,
-              padding: "13px 26px",
-              fontSize: 14.5,
-              fontWeight: 600,
-              background: BLUE,
-              color: "var(--surface)",
-              textDecoration: "none",
-              boxShadow: "0 8px 22px -8px rgba(30,102,201,0.55)",
-            }}
-          >
-            Start your free trial
-            <ArrowRight />
-          </Link>
-          <Link
-            href="/book-demo"
-            className="hiw-cta-btn"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              borderRadius: 9,
-              padding: "13px 26px",
-              fontSize: 14.5,
-              fontWeight: 600,
-              color: "var(--brand-blue-deep)",
-              textDecoration: "none",
-            }}
-          >
-            Talk to us
-          </Link>
+      <section id="pipeline" aria-label="The pipeline, for technical readers" className={`${SITE.band} ${JUMP} on-navy bg-navy text-navy-text`}>
+        <div className={`${SITE.wrap} flex flex-col gap-12`}>
+          <div className="flex max-w-[720px] flex-col gap-[18px]">
+            <h2 className={`${SITE.h2} text-white`}>For technical readers: the pipeline.</h2>
+            <p className="text-[20px] leading-[1.5] text-navy-text">
+              Every document goes through the same five stages. What happened at each one is kept on the document, so you
+              can open it later and read its history.
+            </p>
+          </div>
+          <div className="relative">
+            <div
+              aria-hidden="true"
+              className="absolute inset-x-0 top-1.5 hidden h-0.5 rounded-[1px] bg-[linear-gradient(90deg,var(--brand-blue-bright),var(--brand-green-bright))] min-[1060px]:block"
+            />
+            <ol className="relative m-0 grid list-none gap-x-6 p-0 min-[1060px]:grid-cols-5 min-[1060px]:gap-y-9">
+              {STAGES.map((stage) => (
+                <li
+                  key={stage}
+                  className="relative flex flex-col gap-2 pb-7 pl-8 before:absolute before:-bottom-0.5 before:left-1.5 before:top-6 before:w-0.5 before:rounded-[1px] before:bg-navy-border before:content-[''] last:pb-0 last:before:hidden min-[1060px]:p-0 min-[1060px]:before:hidden"
+                >
+                  <span
+                    aria-hidden="true"
+                    className={`absolute left-0 top-1.5 size-3.5 rounded-full border-[3px] bg-navy min-[1060px]:static min-[1060px]:mb-2.5 ${PIPELINE[stage].dot}`}
+                  />
+                  <h3 className={`${SITE.h3} text-white`}>{stage}</h3>
+                  <p className="text-[15.5px]">{PIPELINE[stage].body}</p>
+                </li>
+              ))}
+            </ol>
+          </div>
+          <div className="flex flex-wrap gap-x-7 gap-y-2">
+            <Link href="/help/api-reference" className={SITE.onNavyLink}>API reference</Link>
+            <Link href="/formats" className={SITE.onNavyLink}>Every format and method</Link>
+            <Link href="/security" className={SITE.onNavyLink}>Security</Link>
+          </div>
         </div>
       </section>
+
+      <ClosingCta />
     </div>
-  );
-}
-
-// ─── Responsive CSS (scoped via hiw- classes; keeps this a Server Component) ────
-
-const responsiveCss = `
-.hiw-hero { padding: 84px 24px 96px; }
-.hiw-h1 { font-size: clamp(34px, 5.2vw, 56px); }
-.hiw-hero-sub { font-size: 17px; }
-
-/* Terminal — layout lives in classes (not inline) so the breakpoint can override it */
-.hiw-rail { display: grid; grid-template-columns: repeat(5, 1fr); align-items: start; }
-.hiw-rail-line { top: 7px; left: 10%; right: 10%; height: 2px; }
-.hiw-node { display: flex; flex-direction: column; align-items: center; gap: 12px; }
-
-.hiw-section-title { font-size: clamp(28px, 4vw, 42px); }
-.hiw-steps { padding: 80px 24px 88px; }
-.hiw-step-row { display: grid; grid-template-columns: 72px 1fr; gap: 24px; padding: 28px 0; }
-.hiw-step-num { font-size: 40px; padding-top: 4px; }
-.hiw-step-title { font-size: clamp(20px, 2.6vw, 25px); }
-.hiw-step-desc { font-size: 15.5px; }
-.hiw-cta { padding: 84px 24px 92px; }
-.hiw-cta-title { font-size: clamp(28px, 4vw, 42px); }
-.hiw-cta-sub { font-size: 16px; }
-
-@media (max-width: 640px) {
-  .hiw-hero { padding: 56px 18px 60px; }
-  .hiw-h1 { font-size: 30px; max-width: 100%; }
-  .hiw-section-title { font-size: 26px; max-width: 100%; }
-  .hiw-hero-sub { font-size: 15px; }
-  .hiw-terminal { margin-top: 32px; border-radius: 13px; }
-  .hiw-term-bar { padding: 12px 16px; }
-  .hiw-term-body { padding: 20px 16px 22px; }
-  /* Input → output: stack the two halves vertically, full-width */
-    /* Stage rail becomes a vertical list of labelled nodes */
-  .hiw-rail { grid-template-columns: 1fr; }
-  .hiw-node { flex-direction: row; align-items: center; gap: 12px; padding: 7px 0; }
-  .hiw-node > span:last-child { font-size: 14px; }
-  .hiw-rail-line { left: 6px; right: auto; top: 14px; bottom: 14px; width: 2px; height: auto; }
-  /* Data cells stack to one column */
-  
-  /* Steps: number sits inline above the content, tighter rhythm */
-  .hiw-steps { padding: 44px 18px 48px; }
-  .hiw-step-row { grid-template-columns: 1fr; gap: 6px; padding: 22px 0; }
-  .hiw-step-num { font-size: 26px; padding-top: 0; }
-  .hiw-step-head { gap: 11px; margin-bottom: 11px; }
-  .hiw-step-title { font-size: 20px; }
-  .hiw-step-desc { font-size: 14px; }
-
-  .hiw-cta { padding: 52px 18px 56px; }
-  .hiw-cta-title { font-size: 26px; }
-  .hiw-cta-sub { font-size: 14px; }
-  .hiw-cta-btn { padding: 13px 24px; }
-}
-`;
-
-// ─── Small presentational helpers ──────────────────────────────────────────────
-
-/** One numbered row — shared by the buyer workflow and the pipeline stages. */
-function StepRow({
-  n,
-  title,
-  desc,
-  color,
-  bg,
-  icon,
-}: {
-  n: string;
-  title: string;
-  desc: string;
-  color: string;
-  bg: string;
-  icon: React.ReactNode;
-}) {
-  return (
-    <div className="hiw-step-row">
-      {/* Big number */}
-      <div
-        aria-hidden
-        className="hiw-step-num"
-        style={{
-          fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
-          fontWeight: 700,
-          lineHeight: 1,
-          color: "var(--ink-faint)",
-          letterSpacing: "-0.02em",
-        }}
-      >
-        {n}
-      </div>
-
-      {/* Content */}
-      <div>
-        <div className="hiw-step-head" style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 14 }}>
-          <span
-            style={{
-              width: 38,
-              height: 38,
-              borderRadius: 11,
-              background: bg,
-              color,
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flexShrink: 0,
-            }}
-          >
-            {icon}
-          </span>
-          <h3
-            className="hiw-step-title"
-            style={{
-              fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
-              fontWeight: 700,
-              letterSpacing: "-0.02em",
-              color: INK,
-              lineHeight: 1.15,
-              margin: 0,
-            }}
-          >
-            {title}
-          </h3>
-        </div>
-
-        <p
-          className="hiw-step-desc"
-          style={{
-            lineHeight: 1.7,
-            color: MUTE,
-            maxWidth: 560,
-            margin: 0,
-          }}
-        >
-          {desc}
-        </p>
-
-      </div>
-    </div>
-  );
-}
-
-function Eyebrow({ children, dark = false }: { children: React.ReactNode; dark?: boolean }) {
-  return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 7,
-        fontSize: 11.5,
-        fontWeight: 700,
-        letterSpacing: "0.14em",
-        textTransform: "uppercase",
-        color: dark ? "var(--navy-pale)" : BLUE,
-        background: dark ? "rgba(30,102,201,0.10)" : BLUE_SOFT,
-        border: dark ? "1px solid rgba(30,102,201,0.30)" : "1px solid var(--navy-pale-line)",
-        borderRadius: 999,
-        padding: "5px 12px",
-      }}
-    >
-      <span
-        style={{
-          width: 5,
-          height: 5,
-          borderRadius: "50%",
-          // NOT --brand-blue on the dark pill. A brighter one-off blue lived
-          // here at 478b809 *because* --brand-blue is too dark on navy;
-          // aliasing it onto --brand-blue was a REGRESSION, 3.7794:1 ->
-          // 2.8880:1 over the composited pill background, under WCAG 1.4.11's
-          // 3:1 floor. --brand-blue-bright exists for exactly this: 6.2832:1.
-          // (Hex values omitted on purpose — this gate scans comments.)
-          background: dark ? "var(--brand-blue-bright)" : BLUE,
-          display: "inline-block",
-        }}
-      />
-      {children}
-    </span>
-  );
-}
-
-function Dot({ c }: { c: string }) {
-  return <span style={{ width: 11, height: 11, borderRadius: "50%", background: c, display: "inline-block" }} />;
-}
-
-// ─── Icons (inline, stroke = currentColor) ─────────────────────────────────────
-
-function UploadIcon() {
-  return (
-    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-      <polyline points="17 8 12 3 7 8" />
-      <line x1="12" y1="3" x2="12" y2="15" />
-    </svg>
-  );
-}
-
-function LayersIcon() {
-  return (
-    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polygon points="12 2 2 7 12 12 22 7 12 2" />
-      <polyline points="2 17 12 22 22 17" />
-      <polyline points="2 12 12 17 22 12" />
-    </svg>
-  );
-}
-
-function CheckSquareIcon() {
-  return (
-    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="9 11 12 14 22 4" />
-      <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-    </svg>
-  );
-}
-
-function SendIcon() {
-  return (
-    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="22" y1="2" x2="11" y2="13" />
-      <polygon points="22 2 15 22 11 13 2 9 22 2" />
-    </svg>
-  );
-}
-
-function ArrowRight() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="5" y1="12" x2="19" y2="12" />
-      <polyline points="12 5 19 12 12 19" />
-    </svg>
   );
 }

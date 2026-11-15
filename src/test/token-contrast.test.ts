@@ -228,7 +228,7 @@ const PAIRS: Array<[string, string, string, number, string]> = [
     "var(--brand-green-bright)",
     "var(--navy)",
     4.5,
-    "the marketing 'Open the dashboard' link — --brand-green is 4.1948:1 on navy, and " +
+    "green words on navy, such as the sign-in panel's 'Clean data out.' — --brand-green is 4.1948:1 on navy, and " +
       "going DEEPER makes it worse: --brand-green-deep is 1.99:1. Dark surfaces need the " +
       "bright step, which is the opposite move from every other row here.",
   ],
@@ -404,7 +404,7 @@ describe("the specific sites the refutation measured", () => {
     }
   });
 
-  it("the how-it-works eyebrow dot uses the navy-legible blue", () => {
+  it("the how-it-works pipeline dots use the navy-legible blue", () => {
     const src = read("src/app/(marketing)/how-it-works/page.tsx");
     // WP-30 aliased BLUE_NODE onto --brand-blue, which is 2.89:1 on the dark
     // pill. --brand-blue-bright exists for exactly this and is 6.28:1.

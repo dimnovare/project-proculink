@@ -1,7 +1,7 @@
-// The public footer's link groups, shared by the home page and the marketing layout
-// so the two footers cannot drift apart.
-export const FOOTER_COLS: { h: string; links: [string, string][] }[] = [
+// The public footer's link groups (SiteFooter). Kept as [label, path] tuples: the route
+// reachability guard reads them as the only links to /changelog, /aup and /dpa.
+export const FOOTER_COLS: { h: "Product" | "Help" | "Company"; links: [string, string][] }[] = [
   { h: "Product", links: [["How it works", "/how-it-works"], ["Formats", "/formats"], ["Pricing", "/pricing"], ["Security", "/security"], ["Changelog", "/changelog"]] },
-  { h: "Help", links: [["Help centre", "/help"], ["Guides", "/help/guides"], ["Support", "/support"]] },
-  { h: "Company", links: [["Talk to us", "/book-demo"], ["Privacy", "/privacy"], ["Terms", "/terms"], ["AUP", "/aup"], ["DPA", "/dpa"], ["Subprocessors", "/subprocessors"]] },
+  { h: "Help", links: [["Help centre", "/help"], ["Step-by-step guides", "/help/guides"], ["Support", "/support"], ["Talk to us", "/book-demo"]] },
+  { h: "Company", links: [["Privacy", "/privacy"], ["Terms", "/terms"], ["Acceptable use", "/aup"], ["Data processing addendum", "/dpa"], ["Subprocessors", "/subprocessors"]] },
 ];

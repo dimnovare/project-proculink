@@ -25,12 +25,47 @@ import { GUIDES } from "./guides";
 export const SITE_URL = "https://proculink.eu";
 export const OG_IMAGE_PATH = "/og-image.png";
 
-const OG_IMAGE = {
+export const SITE_TAGLINE = "Any document in. Clean data out.";
+export const SITE_TITLE = `ProcuLink — ${SITE_TAGLINE}`;
+export const SITE_DESCRIPTION =
+  "ProcuLink reads the invoices, orders and other documents you receive, shows you what it read beside the original, and sends the data on in the format your system needs.";
+
+export const OG_IMAGE = {
   url: OG_IMAGE_PATH,
   width: 1200,
   height: 630,
-  alt: "ProcuLink — connecting procurement",
+  alt: SITE_TITLE,
 };
+
+/** Open Graph and Twitter fields for one page. No canonical: that is `pageMetadata`'s job (the root layout must not set one). */
+export function socialMetadata({
+  title,
+  description,
+  path,
+  type = "website",
+}: {
+  title: string;
+  description: string;
+  path?: string;
+  type?: "website" | "article";
+}): Pick<Metadata, "openGraph" | "twitter"> {
+  return {
+    openGraph: {
+      type,
+      title,
+      description,
+      ...(path ? { url: path } : {}),
+      siteName: "ProcuLink",
+      images: [OG_IMAGE],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [OG_IMAGE_PATH],
+    },
+  };
+}
 
 export interface PageSeo {
   /** Route path, rooted and without a trailing slash: "/pricing". */
@@ -62,28 +97,12 @@ export function pageMetadata({
     throw new Error(`SEO path must be rooted and trailing-slash-free: "${path}"`);
   }
 
-  const socialTitle = ogTitle ?? title;
-  const socialDescription = ogDescription ?? description;
-
   return {
     title,
     description,
     alternates: { canonical: path },
     ...(noindex ? { robots: { index: false, follow: false } } : {}),
-    openGraph: {
-      type,
-      title: socialTitle,
-      description: socialDescription,
-      url: path,
-      siteName: "ProcuLink",
-      images: [OG_IMAGE],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: socialTitle,
-      description: socialDescription,
-      images: [OG_IMAGE_PATH],
-    },
+    ...socialMetadata({ title: ogTitle ?? title, description: ogDescription ?? description, path, type }),
   };
 }
 

@@ -1,118 +1,150 @@
 "use client";
 
-// Marketing nav — canonical navy bar: white wordmark, white links
-// (How it works / Pricing / Security), blue "Get started free" CTA.
+// The public site's one header: logo, the five pages (from 900px), Sign in and
+// the filled action, and below 900px a menu sheet.
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Menu, X } from "lucide-react";
 import { ProcuLinkMark } from "@/components/bridge/DSPrimitives";
-import { MarketingAuthLinks } from "@/components/marketing/MarketingAuthLinks";
 import { useDialogA11y } from "@/hooks/useDialogA11y";
 
-// Clerk UI (UserButton + useUser) is the single heaviest dependency of the
-// marketing pages (~140 kB chunk). It's code-split out of the first-load JS
-// (ssr:false → fetched async after hydration, off the critical path). FOCUS
-// SAFETY: the loading state is null and the static <MarketingAuthLinks /> is
-// rendered as a persistent SIBLING below — the dynamic module renders nothing
-// until a signed-in session is confirmed (then reports via onSignedInChange
-// and we unmount the static links). A signed-out keyboard user focused on
-// "Sign in"/"Start free" never has their DOM node swapped out from under them.
+// Clerk is the heaviest dependency of the public pages (~140 kB). The probe is
+// code-split (ssr: false), renders nothing, and only reports a signed-in
+// session. The links below are rendered signed-out by the server and change
+// their words in place when the probe reports, so nothing jumps and no focused
+// node is replaced. With no publishable key nothing from Clerk loads at all.
 const MarketingClerkLinks = dynamic(
   () => import("@/components/marketing/MarketingClerkLinks").then((m) => m.MarketingClerkLinks),
   { ssr: false, loading: () => null },
 );
 
-const LINKS = [
-  { label: "How it works", href: "/how-it-works" },
-  { label: "Formats",      href: "/formats"      },
-  { label: "Pricing",      href: "/pricing"      },
-  { label: "Security",     href: "/security"     },
-];
+export const SITE_LINKS = [
+  ["How it works", "/how-it-works"],
+  ["Formats", "/formats"],
+  ["Pricing", "/pricing"],
+  ["Security", "/security"],
+  ["Help", "/help"],
+] as const satisfies readonly (readonly [label: string, href: string])[];
+
+/** True when the visitor is on `href` or below it ("/help/flows" is under "/help"; "/helpful" is not). */
+export function isCurrentSection(pathname: string | null, href: string): boolean {
+  return pathname != null && (pathname === href || pathname.startsWith(`${href}/`));
+}
+
+const WIDE = "(min-width: 900px)";
+const FILLED =
+  "inline-flex h-11 min-w-[9.5rem] items-center justify-center whitespace-nowrap rounded-lg bg-brand-green-btn px-4 text-[15px] font-semibold text-white hover:bg-brand-green-deep";
 
 export function MarketingNav() {
   const pathname = usePathname();
   const clerkEnabled = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
   const [open, setOpen] = useState(false);
-  // True once the lazily-loaded Clerk module confirms a signed-in session —
-  // only then do the static signed-out links yield to the dashboard cluster.
   const [signedIn, setSignedIn] = useState(false);
-
   const menuRef = useRef<HTMLDivElement>(null);
+  const mainNavRef = useRef<HTMLElement>(null);
+  const widened = useRef(false);
   const closeMenu = useCallback(() => setOpen(false), []);
 
-  // The mobile menu is NAVIGATION, but it is served as an opaque `fixed inset-0`
-  // sheet: nothing behind it is visible or clickable while it is up. That is a
-  // modal by behaviour, so it is marked as one — the same treatment the app
-  // shell's mobile drawer gets (`src/app/(app)/layout.tsx`), and for the same
-  // reason. A labelled <nav> alone would announce a region but leave the page
-  // behind it exposed to AT while it is visually covered.
-  //
-  // Before this, the sheet had no role, no aria-modal, no Escape and no focus
-  // restore: a keyboard user who opened it was dropped into an unannounced layer
-  // with no way back to the hamburger except tabbing blind for the ✕.
+  // The sheet is navigation by content but an opaque `fixed inset-0` layer by
+  // behaviour, so it is a modal: trap, Escape, focus back to the Menu button.
   useDialogA11y({ open, onClose: closeMenu, panelRef: menuRef });
 
+  // A sheet left open while the window widens past 900px closes. jsdom has no matchMedia.
+  useEffect(() => {
+    if (!open || typeof window.matchMedia !== "function") return;
+    const mq = window.matchMedia(WIDE);
+    const widen = () => {
+      widened.current = true;
+      setOpen(false);
+    };
+    if (mq.matches) {
+      widen();
+      return;
+    }
+    const onChange = (e: MediaQueryListEvent) => {
+      if (e.matches) widen();
+    };
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, [open]);
+
+  // Closing on widen hands focus back to the Menu button, which the wide header
+  // hides, so focus would fall to the page. This runs after the dialog hook has
+  // restored focus and moves it to the first page link instead.
+  useEffect(() => {
+    if (open || !widened.current) return;
+    widened.current = false;
+    mainNavRef.current?.querySelector<HTMLElement>("a")?.focus();
+  }, [open]);
+
+  const action = signedIn
+    ? { label: "Open ProcuLink", href: "/documents" }
+    : { label: "Start free", href: "/sign-up" };
+
   return (
-    <nav
-      className="on-navy sticky top-0 z-40 w-full"
-      style={{ background: "#0B1A2F", borderBottom: "1px solid #1B2D49" }}
-    >
-      <div className="flex items-center gap-3 px-4 sm:gap-6 sm:px-8" style={{ height: 58 }}>
-        {/* Logo */}
-        <Link href="/" className="flex min-w-0 items-center gap-2.5">
-          <ProcuLinkMark size={26} />
-          <span
-            style={{
-              fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
-              fontSize: 18, fontWeight: 700, color: "#FFFFFF", letterSpacing: "-0.02em",
-            }}
-          >
+    <header className="on-navy sticky top-0 z-40 bg-navy">
+      <div className="mx-auto flex h-[60px] max-w-[1208px] items-center gap-2 px-[clamp(14px,2vw,24px)] min-[900px]:h-16">
+        <Link href="/" className="flex min-w-0 shrink-0 items-center gap-2.5">
+          <span className="inline-flex [&>svg]:size-[26px] min-[900px]:[&>svg]:size-7">
+            <ProcuLinkMark size={28} />
+          </span>
+          {/* Below 370px the word gives way so the header fits at 320px; it stays the link's name. */}
+          <span className="font-display text-[19px] font-bold tracking-[-0.02em] text-white max-[369px]:sr-only min-[900px]:text-[20px]">
             ProcuLink
           </span>
         </Link>
 
-        {/* Links */}
-        <div className="ml-2 hidden items-center gap-1 sm:ml-4 sm:flex">
-          {LINKS.map(({ label, href }) => {
-            const active = pathname === href;
+        <nav ref={mainNavRef} aria-label="Main" className="ml-4 hidden items-center min-[900px]:flex">
+          {SITE_LINKS.map(([label, href]) => {
+            const current = isCurrentSection(pathname, href);
             return (
               <Link
                 key={href}
                 href={href}
-                aria-current={active ? "page" : undefined}
-                className={`px-3 py-1.5 rounded-[5px] text-[13.5px] font-medium transition-colors ${
-                  active ? "text-white" : "text-[#9DB2CE] hover:text-white"
+                aria-current={current ? "page" : undefined}
+                className={`inline-flex h-11 items-center px-3 text-[15px] ${
+                  current ? "font-semibold text-white" : "font-medium text-navy-text hover:text-white"
                 }`}
               >
                 {label}
               </Link>
             );
           })}
+        </nav>
+
+        <div className="ml-auto flex items-center gap-1.5">
+          {/* Signed in, "Sign in" keeps its box (so nothing moves) but leaves the reading and tab order. */}
+          <Link
+            href="/sign-in"
+            aria-hidden={signedIn || undefined}
+            tabIndex={signedIn ? -1 : undefined}
+            className={`hidden h-11 items-center px-3 text-[15px] font-medium text-navy-text hover:text-white min-[900px]:inline-flex ${
+              signedIn ? "invisible" : ""
+            }`}
+          >
+            Sign in
+          </Link>
+          <Link href={action.href} className={FILLED}>
+            {action.label}
+          </Link>
+          {clerkEnabled && <MarketingClerkLinks onSignedInChange={setSignedIn} />}
+          <button
+            type="button"
+            onClick={() => setOpen((o) => !o)}
+            aria-label="Menu"
+            aria-expanded={open}
+            aria-controls="marketing-mobile-menu"
+            className="inline-flex h-11 w-11 items-center justify-center text-white min-[900px]:hidden"
+          >
+            <Menu aria-hidden="true" className="size-6" />
+          </button>
         </div>
-
-        <div className="min-w-2 flex-1" />
-
-        {/* Static signed-out links persist (focus-safe); the dynamic Clerk
-            module renders null until signed-in is confirmed, then swaps in. */}
-        {!signedIn && <MarketingAuthLinks />}
-        {clerkEnabled && <MarketingClerkLinks onSignedInChange={setSignedIn} />}
-
-        {/* Mobile burger */}
-        <button
-          onClick={() => setOpen((o) => !o)}
-          aria-label="Menu"
-          aria-expanded={open}
-          aria-controls="marketing-mobile-menu"
-          className="sm:hidden flex items-center justify-center text-[20px]"
-          style={{ width: 44, height: 44, color: "#FFFFFF", background: "transparent", border: 0 }}
-        >
-          {open ? "✕" : "☰"}
-        </button>
       </div>
+      <div aria-hidden="true" className="h-0.5 bg-link-spine" />
 
-      {/* Mobile menu — fixed full-screen overlay so hero is fully covered */}
       {open && (
         <div
           id="marketing-mobile-menu"
@@ -121,77 +153,55 @@ export function MarketingNav() {
           role="dialog"
           aria-modal="true"
           aria-label="Menu"
-          className="fixed inset-0 z-50 flex flex-col outline-none sm:hidden"
-          style={{ background: "#0B1A2F" }}
+          className="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-navy outline-none min-[900px]:hidden"
         >
-          {/* Top bar row: logo + close button */}
-          <div
-            className="flex items-center justify-between px-4"
-            style={{ height: 58, borderBottom: "1px solid #1B2D49" }}
-          >
-            <Link href="/" onClick={() => setOpen(false)} className="flex items-center gap-2.5">
-              <ProcuLinkMark size={24} />
-              <span
-                style={{
-                  fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
-                  fontSize: 18, fontWeight: 700, color: "#FFFFFF", letterSpacing: "-0.02em",
-                }}
-              >
-                ProcuLink
-              </span>
+          <div className="flex h-[60px] shrink-0 items-center justify-between border-b border-navy-line px-[clamp(14px,2vw,24px)]">
+            <Link href="/" onClick={closeMenu} className="flex items-center gap-2.5">
+              <ProcuLinkMark size={26} />
+              <span className="font-display text-[19px] font-bold tracking-[-0.02em] text-white">ProcuLink</span>
             </Link>
             <button
-              onClick={() => setOpen(false)}
+              type="button"
+              onClick={closeMenu}
               aria-label="Close menu"
-              style={{ width: 44, height: 44, color: "#FFFFFF", background: "transparent", border: 0 }}
-              className="flex items-center justify-center text-xl"
+              className="inline-flex h-11 w-11 items-center justify-center text-white"
             >
-              ✕
+              <X aria-hidden="true" className="size-6" />
             </button>
           </div>
 
-          {/* Nav links — a landmark inside the sheet, so the content is still
-              reachable as navigation once AT is inside the modal layer. */}
-          <nav aria-label="Mobile" className="flex flex-col px-4 pt-4 gap-1">
-            {LINKS.map(({ label, href }) => (
+          <nav aria-label="Mobile" className="flex flex-col gap-1 px-4 pt-4">
+            {SITE_LINKS.map(([label, href]) => {
+              const current = isCurrentSection(pathname, href);
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  onClick={closeMenu}
+                  aria-current={current ? "page" : undefined}
+                  className={`flex min-h-12 items-center border-b border-navy-line px-3 text-[17px] ${
+                    current ? "font-semibold text-white" : "font-medium text-navy-text"
+                  }`}
+                >
+                  {label}
+                </Link>
+              );
+            })}
+            {!signedIn && (
               <Link
-                key={href}
-                href={href}
-                onClick={() => setOpen(false)}
-                className="rounded-[7px] px-3 py-4 text-[16px] font-medium"
-                style={{ color: "#C5D2E4", borderBottom: "1px solid #1B2D49" }}
+                href="/sign-in"
+                onClick={closeMenu}
+                className="flex min-h-12 items-center border-b border-navy-line px-3 text-[17px] font-medium text-navy-text"
               >
-                {label}
+                Sign in
               </Link>
-            ))}
-            <Link
-              href="/sign-in"
-              onClick={() => setOpen(false)}
-              className="rounded-[7px] px-3 py-4 text-[16px] font-medium"
-              style={{ color: "#C5D2E4", borderBottom: "1px solid #1B2D49" }}
-            >
-              Sign in
+            )}
+            <Link href={action.href} onClick={closeMenu} className={`${FILLED} mt-5 !min-h-12 w-full`}>
+              {action.label}
             </Link>
           </nav>
-
-          {/* CTA */}
-          <div className="px-4 pt-6">
-            <Link
-              href="/sign-up"
-              onClick={() => setOpen(false)}
-              className="flex items-center justify-center rounded-[6px] py-3 text-[15px] font-semibold w-full"
-              style={{ background: "#297F34", color: "#FFFFFF" }}
-            >
-              Start free
-            </Link>
-          </div>
         </div>
       )}
-    </nav>
+    </header>
   );
 }
-
-// MarketingClerkLinks (signed-in links + UserButton) lives in its own module —
-// see the next/dynamic import at the top of this file. MarketingAuthLinks
-// (signed-out links) was extracted to ./MarketingAuthLinks so both this nav and
-// the lazy Clerk module can share it without a circular import.
