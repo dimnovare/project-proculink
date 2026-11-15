@@ -376,7 +376,9 @@ describe("the scanned corpus", () => {
     // site's header and footer moved to token classes. 1_100 -> 1_050 at the merge of the
     // two: both sides cleaned different files, 63 rows / 1,087 together.
     expect(s.baselineRows).toBeGreaterThan(60);
-    expect(s.baselineTotal).toBeGreaterThan(1_050);
+    // 1_100 -> 1_000 on 2026-11-15: plan 14.10 redrew the search palette in tokens (its 39 went);
+    // 62 rows / 1,048 once Settings, the public site and the shared states had also moved.
+    expect(s.baselineTotal).toBeGreaterThan(1_000);
 
     // The gate is green, so found debt and ledgered debt must agree exactly.
     // This is what ties the ledger below to a LIVE run rather than to a file

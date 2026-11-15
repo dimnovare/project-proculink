@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen, cleanup, within } from "@testing-library/react";
+import { render, screen, cleanup, within, fireEvent, waitFor } from "@testing-library/react";
 
 let mockPath = "/documents";
 vi.mock("next/navigation", () => ({ usePathname: () => mockPath, useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }) }));
@@ -7,13 +7,14 @@ vi.mock("@clerk/nextjs", () => ({ useOrganization: () => ({ organization: { id: 
 vi.mock("@tanstack/react-query", () => ({ useQuery: () => ({ data: undefined }), useQueryClient: () => ({ getQueryData: () => undefined }) }));
 vi.mock("@/lib/api-client", () => ({ isApiMockMode: false, checkAdminAccess: vi.fn(), getBillingStatus: vi.fn() }));
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true, useTenantQueriesEnabled: () => true }));
-vi.mock("./CommandPalette", () => ({ CommandPalette: () => null }));
+vi.mock("./CommandPalette", () => ({ CommandPalette: () => <div data-testid="palette" /> }));
 vi.mock("./OrgSwitcher", () => ({ OrgSwitcher: () => null }));
 vi.mock("./UserChipMenu", () => ({ UserChipMenu: () => null }));
 
 import { BridgeTopbar } from "./BridgeTopbar";
+import { setSingleKeys } from "@/lib/shortcuts";
 
-afterEach(() => { cleanup(); mockPath = "/documents"; });
+afterEach(() => { cleanup(); mockPath = "/documents"; localStorage.clear(); });
 
 describe("BridgeTopbar", () => {
   it("draws no breadcrumb and no page-name row: the page's own title says where you are", () => {
@@ -36,5 +37,30 @@ describe("BridgeTopbar", () => {
     expect(menu).toHaveAttribute("aria-haspopup", "dialog");
     expect(menu).toHaveAttribute("aria-expanded", "false");
     expect(document.querySelector("header")!.querySelectorAll("nav")).toHaveLength(1);
+  });
+
+  it("? opens the shortcuts list and Escape closes it with focus back; typed in a field, or with its switch off, it does nothing", async () => {
+    render(<BridgeTopbar />);
+    const search = screen.getByRole("button", { name: "Search" });
+    search.focus();
+    fireEvent.keyDown(search, { key: "?", shiftKey: true });
+    const region = screen.getByRole("region", { name: "Keyboard shortcuts" });
+    await waitFor(() => expect(within(region).getByRole("button", { name: "Close keyboard shortcuts" })).toHaveFocus());
+    fireEvent.keyDown(document.activeElement as HTMLElement, { key: "Escape" });
+    expect(screen.queryByRole("region", { name: "Keyboard shortcuts" })).toBeNull();
+    expect(search).toHaveFocus();
+
+    const box = document.body.appendChild(document.createElement("input"));
+    fireEvent.keyDown(box, { key: "?", shiftKey: true });
+    expect(screen.queryByRole("region", { name: "Keyboard shortcuts" })).toBeNull();
+    box.remove();
+
+    setSingleKeys(false);
+    fireEvent.keyDown(document.body, { key: "?", shiftKey: true });
+    expect(screen.queryByRole("region", { name: "Keyboard shortcuts" })).toBeNull();
+
+    expect(screen.queryByTestId("palette")).toBeNull();
+    fireEvent.keyDown(document.body, { key: "k", code: "KeyK", ctrlKey: true });
+    expect(screen.getByTestId("palette")).toBeInTheDocument();
   });
 });

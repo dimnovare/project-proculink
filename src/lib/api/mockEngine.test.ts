@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("./core", async (importOriginal) => ({ ...(await importOriginal<typeof import("./core")>()), isApiMockMode: true }));
 
 import { listFlows } from "./documents";
-import { MOCK_ENGINE_IDS, mockEngineFetch, resetMockEngine } from "./mockEngine";
+import { MOCK_DOCUMENT_NUMBER, MOCK_ENGINE_IDS, mockEngineFetch, resetMockEngine } from "./mockEngine";
 import { pageTotal } from "../pageTotal";
 import type { ActivityResult, Destination, DocumentDelivery, DocumentDetail, DocumentPage, DocumentSummary, Flow, Lookup, LookupSummary } from "./documents";
 import type { ApiHttpError } from "./core";
@@ -31,7 +31,18 @@ describe("mock engine", () => {
     const bare = await mockEngineFetch<DocumentSummary[]>("/documents");
     expect(bare.some((d) => "checks" in d || "stop" in d)).toBe(false);
     expect((await mockEngineFetch<DocumentPage>("/documents?status=&page=1&pageSize=20")).totalCount).toBe(7);
-    await expect(mockEngineFetch("/documents?q=x")).rejects.toThrow('does not implement "q"');
+    await expect(mockEngineFetch("/documents?zzz=x")).rejects.toThrow('does not implement "zzz"');
+  });
+
+  it("searches documents by file name or number like the server, and counts the matches", async () => {
+    const search = (q: string) => mockEngineFetch<DocumentPage>(`/documents?q=${encodeURIComponent(q)}&page=1&pageSize=5`);
+    const byName = await search("INVOICE-1002");
+    expect([byName.items.map((d) => d.id), byName.totalCount]).toEqual([["doc-2"], 1]);
+    const spaced = MOCK_DOCUMENT_NUMBER.toLowerCase().replace("-", " -");         // "inv -1001": spaces and case ignored, matched on the number only
+    expect((await search(spaced)).items.map((d) => d.id)).toEqual(["doc-1"]);
+    const blank = await search("  ");
+    expect([blank.totalCount, blank.items.map((d) => d.id)]).toEqual([7, ["doc-7", "doc-6", "doc-5", "doc-4", "doc-3"]]);
+    expect(await search("nothing-like-this")).toMatchObject({ items: [], totalCount: 0 });
   });
 
   it("remembers edits and sends for the page load, re-checks, and refuses like the server", async () => {
