@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PageShell } from "@/components/bridge/layout/PageShell";
@@ -12,6 +12,8 @@ import { SourceDocumentBody, scrollTo, type SourcePick } from "@/components/brid
 import { DOCX_MEDIA_TYPE, sourceRenderFor } from "@/lib/sourceDocument";
 import { useLgViewport } from "@/components/bridge/document/useSourceDocument";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
+import { useDocumentEdits } from "@/hooks/useDocumentEdits";
+import { reviewMarks } from "@/lib/reviewMarks";
 import { fetchDocumentSource, getDocument, getFlow, getDocumentHistory, retryDocumentRead, teachDocument } from "@/lib/api/documents";
 import { formatDateTime } from "@/lib/format-date";
 import { documentRefusalMessage, refusalToken } from "@/lib/documentRefusals";
@@ -51,20 +53,25 @@ const SOURCES = new Map([
   ["sftp", "SFTP"], ["ftp", "FTP"], ["ftps", "FTPS"], ["s3", "S3"],
 ]);
 
-function History({ documentId }: { documentId: string }) {
+/** A toggle "History"; open, the entries, the first one the flow version the document was read with when known. */
+function History({ documentId, version }: { documentId: string; version: number | null | undefined }) {
   const enabled = useTenantQueriesEnabled();
+  const [open, setOpen] = useState(false);
   const history = useQuery({ queryKey: ["document-history", documentId], queryFn: () => getDocumentHistory(documentId), enabled });
   return (
-    <details className="text-[12.5px]">
-      <summary className="cursor-pointer font-medium text-ink">History</summary>
-      {history.isError ? <p className="m-0 mt-2 text-ink-muted">{documentRefusalMessage(history.error)}</p> : (
-        <ul className="m-0 mt-2 grid list-none gap-1 p-0 text-ink-muted">
-          {!history.data ? <li>Loading…</li> : history.data.length === 0 ? <li>No changes yet.</li> : history.data.map((h, i) => (
-            <li key={i}>{formatDateTime(h.at)} · {actionWords(h.action)}</li>
-          ))}
-        </ul>
-      )}
-    </details>
+    <div className="grid justify-items-end gap-2 text-[12.5px]">
+      <Button size="sm" variant="ghost" aria-expanded={open} aria-controls="document-history" onClick={() => setOpen((o) => !o)}>History</Button>
+      <div id="document-history" hidden={!open} className="justify-self-stretch">
+        {history.isError ? <p className="m-0 text-ink-muted">{documentRefusalMessage(history.error)}</p> : (
+          <ul className="m-0 grid list-none gap-1 p-0 text-ink-muted">
+            {typeof version === "number" && <li>Processed with version {version}</li>}
+            {!history.data ? <li>Loading…</li> : history.data.length === 0 ? <li>No changes yet.</li> : history.data.map((h, i) => (
+              <li key={i}>{actionWords(h.action)}, {formatDateTime(h.at)}</li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -121,6 +128,7 @@ export function DocumentScreen({ flowId, documentId }: { flowId: string; documen
   const enabled = useTenantQueriesEnabled();
   const [showOriginal, setShowOriginal] = useState(true);
   const [spot, setSpot] = useState<SourceLocation | null>(null);
+  const edits = useDocumentEdits(documentId);
   const doc = useQuery({
     queryKey: ["document", documentId], enabled,
     queryFn: async () => {
@@ -173,6 +181,9 @@ export function DocumentScreen({ flowId, documentId }: { flowId: string; documen
   const originalKind = summary ? sourceRenderFor(typeOf(summary.fileName)) : "opaque";
   const canTeach = !!status?.editable && !!flow.data?.fieldsConfirmed && originalKind !== "opaque";
   const nothingRead = !doc.data || doc.data.read.fields.length + doc.data.read.tables.length === 0;
+  const editable = !!status?.editable;
+  const marks = useMemo(() => (doc.data ? reviewMarks(doc.data, editable) : null), [doc.data, editable]);
+  const history = <History documentId={documentId} version={summary?.flowVersion} />;
 
   return (
     <PageShell variant="wide">
@@ -196,7 +207,6 @@ export function DocumentScreen({ flowId, documentId }: { flowId: string; documen
                 {showOriginal ? "Hide original" : "Show original"}
               </Button>
             </div>
-            {typeof summary.flowVersion === "number" && <p className="m-0 mt-1 text-[12.5px] text-ink-muted">Processed with version {summary.flowVersion}</p>}
             {summary.source && (
               <p className="m-0 mt-1 text-[12.5px] text-ink-muted">
                 Arrived by {SOURCES.get(summary.source) ?? summary.source}{summary.sourceRef ? ` from ${summary.sourceRef}` : ""}
@@ -216,7 +226,7 @@ export function DocumentScreen({ flowId, documentId }: { flowId: string; documen
                 <h2 id="doc-original" className="px-4 pb-2 pt-3.5 text-[13px] font-semibold text-ink">Original document</h2>
                 {teach && <TeachBanner key={teachMutation.submittedAt} label={teach.label} render={originalKind} mutation={teachMutation} onCancel={cancelTeach} onSave={(value) => teachMutation.mutate({ ...teachMutation.variables, value })} />}
                 <Original
-                  documentId={documentId} fileName={summary.fileName} highlight={spot}
+                  documentId={documentId} fileName={summary.fileName} highlight={spot} marks={marks?.places}
                   onPick={teach && !teachMutation.isPending ? (pick) => teachMutation.mutate({ label: teach.label, ...(teach.key ? { key: teach.key } : { newLabel: teach.newLabel }), ...pick }) : undefined}
                 />
               </Card>
@@ -224,19 +234,19 @@ export function DocumentScreen({ flowId, documentId }: { flowId: string; documen
             <Card as="section" aria-labelledby="doc-read" className="min-w-0">
               <h2 id="doc-read" className="mb-3 text-[13px] font-semibold text-ink">What we read</h2>
               {taught && <div ref={scrollTo} className="mb-3"><StatusNotice tone="success">{taught}</StatusNotice></div>}
-              {nothingRead ? (
+              {nothingRead || !marks ? (
                 <div className="grid gap-3">
                   <Quiet>
                     {summary.status === "sending" ? "Sending…" : status.tone === "working" ? "Reading the document…" : "Nothing was read from this document."}
                   </Quiet>
                   {summary.statusReason !== "duplicate_file" && <Checks checks={doc.data.checks} />}
+                  <div className="mt-1">{history}</div>
                 </div>
               ) : (
-                <ReadValuesPanel detail={doc.data} editable={status.editable} onLocate={setSpot} flow={flow.data}
+                <ReadValuesPanel detail={doc.data} editable={status.editable} edits={edits} marks={marks} history={history} onLocate={setSpot} flow={flow.data}
                   onTeach={canTeach ? (t) => { setTeach(t); setTaught(null); setShowOriginal(true); teachMutation.reset(); } : undefined}
                 />
               )}
-              <div className="mt-4"><History documentId={documentId} /></div>
             </Card>
             <div className="min-w-0"><DocumentOutputsPanel flowId={summary.flowId} document={doc.data} /></div>
           </div>

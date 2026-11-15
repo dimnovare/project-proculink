@@ -5,6 +5,8 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import type { DocumentDetail, SourceLocation } from "@/lib/api/documents";
 import { ReadValuesPanel } from "@/components/flows/ReadValuesPanel";
+import { useDocumentEdits } from "@/hooks/useDocumentEdits";
+import { reviewMarks } from "@/lib/reviewMarks";
 import { SourceDocumentBody } from "./SourceDocumentBody";
 import { PdfDocumentView } from "./PdfDocumentView";
 
@@ -42,11 +44,12 @@ function Screen({ file, loc = location }: { file?: { blob: Blob; contentType: st
       { key: "po", label: "PO number", value: "PO-1", type: "text", meaning: null, confidence: 0.9, location: loc, notOnPage: false, listed: true, edited: false },
     ] },
   } as unknown as DocumentDetail;
+  const edits = useDocumentEdits("d1");
   const document = file ?? { blob: new Blob(["x"], { type: "image/png" }), contentType: "image/png", filename: "photo.png" };
   return (
     <>
       <div data-testid="original"><SourceDocumentBody cacheKey="d" document={document} bounded={false} highlight={spot} /></div>
-      <div data-testid="values"><ReadValuesPanel detail={detail} editable onLocate={setSpot} /></div>
+      <div data-testid="values"><ReadValuesPanel detail={detail} editable edits={edits} marks={reviewMarks(detail, true)} onLocate={setSpot} /></div>
     </>
   );
 }

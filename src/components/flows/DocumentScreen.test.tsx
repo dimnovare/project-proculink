@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ApiHttpError } from "@/lib/api/core";
 import { DocumentScreen } from "./DocumentScreen";
@@ -28,6 +28,15 @@ const detail = (value: string, source = "upload", sourceRef: string | null = nul
   read: { kindLabel: null, fields: [field(value)], tables: [], truncated: false },
   checks: [],
 });
+
+type Value = [key: string, value: string | null, confidence: number, edited: boolean];
+const withValues = (values: Value[], checks: unknown[] = []) => {
+  const d = detail("");
+  return {
+    ...d, checks,
+    read: { ...d.read, fields: values.map(([key, value, confidence, edited]) => ({ ...field(""), key, label: key, value, confidence, edited })) },
+  };
+};
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -125,6 +134,7 @@ describe("DocumentScreen", () => {
     api.getFlow.mockResolvedValue(flow);
     api.saveFlowFields.mockResolvedValue({ ...flow, fields: { fields: [own, { ...own, key: "total", label: "total" }], tables: [] } });
     renderScreen();
+    fireEvent.click(await screen.findByRole("button", { name: "Something missing or in the wrong place?" }));
     expect(await screen.findByText("New fields we noticed")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Add to flow: po" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Add to flow: total" }));
@@ -132,24 +142,18 @@ describe("DocumentScreen", () => {
     await waitFor(() => expect(screen.queryByText("New fields we noticed")).toBeNull());
   });
 
-  it("draws no confidence on an empty value and says Edited on one a person changed", async () => {
-    const base = detail("INV-7");
-    api.getDocument.mockResolvedValue({
-      ...base,
-      read: {
-        ...base.read,
-        fields: [
-          { ...field("INV-7"), edited: true, confidence: 1 },
-          { ...field(""), key: "iban", label: "IBAN", confidence: 1 },
-          { ...field("12.50"), key: "total", label: "Total", confidence: 0.92 },
-        ],
-      },
-    });
+  it("marks a value that needs a look first and says why", async () => {
+    api.getDocument.mockResolvedValue(withValues([
+      ["invoice_no", "INV-1", 0.97, false], ["supplier", null, 0, false], ["total", "12.00", 1, true],
+    ], [{ code: "required_missing", passed: false, fieldKey: "supplier", message: "Supplier is required but was not found." }]));
     renderScreen();
-    await screen.findByLabelText("IBAN");
-    expect(screen.queryAllByText(/100%/)).toHaveLength(0); // neither the empty value nor the changed one shows a figure
-    // getAllBy: vitest has no Tailwind, so the phone and desktop trees both render
-    expect(screen.getAllByText("Edited").length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/92%/).length).toBeGreaterThan(0); // a value we read keeps its confidence
+    const read = within(await screen.findByRole("region", { name: "What we read" }));
+    expect(read.getByText("1 value needs a look. The rest were read clearly.")).toBeInTheDocument();
+    const boxes = read.getAllByRole("textbox");
+    expect(boxes[0]).toHaveAccessibleName("supplier");                                       // marked first
+    expect(boxes[0]).toHaveAccessibleDescription("Not found on the page. Type it.");
+    expect(read.getByRole("heading", { name: "Read clearly" })).toBeInTheDocument();
+    expect(read.getByText("Edited")).toBeInTheDocument();
+    expect(read.queryByText(/%/)).toBeNull();                                                 // no percentage on a value read clearly
   });
 });
