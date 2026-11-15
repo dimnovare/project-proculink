@@ -21,6 +21,11 @@ export function readFlowView(params: Pick<URLSearchParams, "get" | "getAll">): F
   return tab !== null && params.getAll("tab").length === 1 ? VIEWS.get(tab) ?? null : null;
 }
 
+/** The output We send opens; null when the address names none, or more than one. An unknown id is the screen's to settle. */
+export function readFlowOutput(params: Pick<URLSearchParams, "get" | "getAll">): string | null {
+  return params.getAll("output").length === 1 ? params.get("output") : null;
+}
+
 export function flowAddress(flowId: string, view: FlowView | null, extra?: { output?: string }): string {
   const base = `/flows/${encodeURIComponent(flowId)}`;
   if (!view) return base;

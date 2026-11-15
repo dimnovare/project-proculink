@@ -206,4 +206,11 @@ describe("OutputEditor", () => {
     fireEvent.click(screen.getByRole("button", { name: "Check against XRechnung rules" }));
     expect(await screen.findByText("Passes the XRechnung 3.0 rules.")).toBeTruthy();
   });
+
+  it("the default mode is still a form with Save and Cancel", () => {
+    renderEditor();
+    expect(screen.getByRole("button", { name: "Save" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Send a test" })).toBeNull();
+  });
 });

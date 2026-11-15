@@ -17,7 +17,7 @@ vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => tru
 const api = vi.hoisted(() => ({
   getFlow: vi.fn(), updateFlow: vi.fn(), listIntakes: vi.fn(), listOutputs: vi.fn(), listDestinations: vi.fn(),
   listDocumentPage: vi.fn(), publishFlow: vi.fn(), restoreFlowVersion: vi.fn(), listFlowVersions: vi.fn(),
-  flowApiEndpoint: (id: string) => `/api/v1/flows/${id}/documents`,
+  flowApiEndpoint: (id: string) => `/api/v1/flows/${id}/documents`, listLookups: vi.fn(async () => []),
 }));
 vi.mock("@/lib/api/documents", () => api);
 vi.mock("./UploadQueue", () => ({ useUploadQueue: () => ({ items: [], add: vi.fn(), retry: vi.fn() }) }));
@@ -82,6 +82,25 @@ describe("FlowPage", () => {
       "A change couldn't be saved, so you are still on this step. Only a workspace admin can change this.",
     );
     expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("on every step the publish bar holds the one filled button", async () => {
+    const filled = /(^|\s)(bg-navy|bg-brand-green-btn|bg-brand-blue|bg-danger|bg-ai)(\s|$)/;
+    api.getFlow.mockResolvedValue({ ...flow, hasChanges: true });
+    api.listOutputs.mockResolvedValue([{
+      id: "out-1", flowId: "flow-1", name: "Invoice CSV", format: "csv", tableKey: null, destinationId: null, createdAt: "", sendWhen: null,
+      template: { format: "csv", root: { name: "document", nodeType: "object", children: [] } },
+    }]);
+    for (const step of ["arrives", "read", "check", "send"]) {
+      search.q = `tab=${step}`;
+      const { unmount } = renderPage();
+      await screen.findByRole("button", { name: "Publish changes" });
+      if (step === "send") await screen.findByRole("region", { name: "Edit the output Invoice CSV" });
+      if (step === "arrives") await screen.findByRole("button", { name: "Add a pickup" });
+      const fills = [...document.body.querySelectorAll("button, a")].filter((b) => filled.test(b.className));
+      expect(fills.map((b) => b.textContent), step).toEqual(["Publish changes"]);
+      unmount();
+    }
   });
 
   it("rename", async () => {

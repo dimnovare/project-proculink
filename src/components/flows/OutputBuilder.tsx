@@ -20,17 +20,19 @@ const SAMPLE_BYTES = 2 * 1024 * 1024;
 const DOCS_BYTES = 10 * 1024 * 1024;
 
 /** The ways to make an output: by hand, from a sample or documentation of the file the receiving system expects, or as a standard file. */
-export function OutputBuilder({ flow, previewDocumentId, onDone }: { flow: Flow; previewDocumentId?: string; onDone(): void }) {
+/** `onCreated`: called with each output made here; without it the builder opens the new output's editor itself. */
+export function OutputBuilder({ flow, previewDocumentId, onDone, onCreated }: { flow: Flow; previewDocumentId?: string; onDone(): void; onCreated?(output: FlowOutput): void }) {
   const TABS = ALL_TABS.filter(([t]) => t !== "docs" || flow.docsOutputsOn);
   const [tab, setTab] = useState<(typeof ALL_TABS)[number][0]>("own");
   const [created, setCreated] = useState<FlowOutput | null>(null);
+  const made = (o: FlowOutput) => (onCreated ? onCreated(o) : setCreated(o));
   const sample = useMutation({ mutationFn: (file: File) => outputFromSample(flow.id, file) });
   const docs = useMutation({ mutationFn: (file: File) => outputFromDocumentation(flow.id, file) });
   const qc = useQueryClient();
   const standard = useMutation({
     mutationFn: (s: StandardSupport) =>
       createOutput(flow.id, { name: s.name, format: "", standard: s.id, tableKey: flow.fields.tables[0]?.key ?? null, destinationId: null }),
-    onSuccess: (saved) => { qc.invalidateQueries({ queryKey: ["outputs", flow.id] }); qc.invalidateQueries({ queryKey: ["flow", flow.id] }); setCreated(saved); },
+    onSuccess: (saved) => { qc.invalidateQueries({ queryKey: ["outputs", flow.id] }); qc.invalidateQueries({ queryKey: ["flow", flow.id] }); made(saved); },
   });
 
   if (created)
@@ -59,7 +61,7 @@ export function OutputBuilder({ flow, previewDocumentId, onDone }: { flow: Flow;
       </div>
       <div role="tabpanel" id="output-panel" aria-labelledby={`output-tab-${tab}`}>
         {tab === "own" ? (
-          <OutputEditor flow={flow} previewDocumentId={previewDocumentId} onSaved={onDone} onCancel={onDone} />
+          <OutputEditor flow={flow} previewDocumentId={previewDocumentId} onCreated={onCreated} onSaved={onDone} onCancel={onDone} />
         ) : tab === "standards" ? (
           <div className="grid gap-3">
             <p className="text-[13px] text-ink-muted">Pick a standard file. We fill it in from what each of your fields means.</p>
@@ -74,7 +76,7 @@ export function OutputBuilder({ flow, previewDocumentId, onDone }: { flow: Flow;
           </div>
         ) : tab === "docs" ? (
           docs.data ? (
-            <DraftReview flow={flow} draft={docs.data} requireTest previewDocumentId={previewDocumentId} onCreated={setCreated} onRestart={docs.reset} />
+            <DraftReview flow={flow} draft={docs.data} requireTest previewDocumentId={previewDocumentId} onCreated={made} onRestart={docs.reset} />
           ) : (
             <div className="grid gap-3">
               <p className="text-[13px] text-ink-muted">{COPY.docs_lead}</p>
@@ -86,7 +88,7 @@ export function OutputBuilder({ flow, previewDocumentId, onDone }: { flow: Flow;
             </div>
           )
         ) : sample.data ? (
-          <DraftReview flow={flow} draft={sample.data} previewDocumentId={previewDocumentId} onCreated={setCreated} onRestart={sample.reset} />
+          <DraftReview flow={flow} draft={sample.data} previewDocumentId={previewDocumentId} onCreated={made} onRestart={sample.reset} />
         ) : (
           <div className="grid gap-3">
             <p className="text-[13px] text-ink-muted">Upload an example of the file the receiving system expects: CSV, Excel, JSON or XML.</p>

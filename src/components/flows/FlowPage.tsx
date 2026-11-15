@@ -1,7 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useId, useRef, useState } from "react";
-import Link from "next/link";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronRight, Pencil } from "lucide-react";
@@ -16,43 +15,21 @@ import type { Flow } from "@/lib/api/documents";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
 import { AUTOMATIC_DELIVERY_LABEL, REVIEW_BEFORE_DELIVERY_LABEL } from "@/lib/deliveryMode";
 import { and, waysInWords } from "@/lib/flowSentences";
-import { FLOW_STEPS, flowAddress, readFlowView, type FlowStep, type FlowView } from "@/lib/flowSteps";
+import { FLOW_STEPS, flowAddress, readFlowOutput, readFlowView, type FlowStep, type FlowView } from "@/lib/flowSteps";
 import { pageTotal } from "@/lib/pageTotal";
 import { INPUT } from "./DestinationForm";
 import { FlowCheck } from "./FlowCheck";
 import { flowNeedsYouQuery, FlowDocuments, needsYouWords, StreakBand } from "./FlowDocuments";
 import { FlowIntakePanel } from "./FlowIntakePanel";
-import { FlowValues } from "./FlowValues";
-import { DraftPartFailed, FlowDraftProvider, useFlowDraft } from "./flowDraft";
+import { FlowOutputs } from "./FlowOutputs";
+import { FlowValues, useLatestRead } from "./FlowValues";
+import { DraftPartFailed, FlowDraftProvider, FlowLink, GoContext, useFlowDraft } from "./flowDraft";
 import { FlowVersionsPanel } from "./FlowVersionsPanel";
 import { PublishBar } from "./PublishBar";
 import { Failed, Quiet } from "./states";
 
 const STEP_IDS: readonly FlowView[] = FLOW_STEPS.map((s) => s.id);
 export const isFlowStep = (v: FlowView): v is FlowStep => STEP_IDS.includes(v);
-
-/** Leaves the current view after every waiting draft change is saved; a refused one keeps the person where they are. */
-const GoContext = createContext<((href: string) => void) | null>(null);
-
-/** A link inside the flow page. A plain click saves what is waiting first and replaces the address; a click with a
- *  modifier (new tab, new window) keeps the browser's own behaviour. */
-export function FlowLink({ href, className, current, label, describedBy, children }: {
-  href: string; className?: string; current?: boolean; label?: string; describedBy?: string; children: React.ReactNode;
-}) {
-  const go = useContext(GoContext);
-  return (
-    <Link
-      href={href} replace className={className} aria-current={current ? "page" : undefined} aria-label={label} aria-describedby={describedBy}
-      onClick={(e) => {
-        if (!go || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-        e.preventDefault();
-        go(href);
-      }}
-    >
-      {children}
-    </Link>
-  );
-}
 
 const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
@@ -205,12 +182,18 @@ function RenameForm({ flow, onDone }: { flow: Flow; onDone: () => void }) {
 }
 
 /** What the chosen view shows. The four steps are filled in by their own pieces; the publish bar sits under them. */
-function ViewBody({ flow, view }: { flow: Flow; view: FlowView }) {
+/** We send previews and tests with the newest read document. */
+function SendStep({ flow, output }: { flow: Flow; output: string | null }) {
+  return <FlowOutputs flow={flow} outputId={output} previewDocumentId={useLatestRead(flow.id).latest?.id ?? null} />;
+}
+
+function ViewBody({ flow, view, output }: { flow: Flow; view: FlowView; output: string | null }) {
   const { bump, revision } = useFlowDraft();
   if (view === "history") return <FlowVersionsPanel flowId={flow.id} onRestored={bump} />;
   if (!isFlowStep(view)) return <FlowDocuments flow={flow} />;
   const step: Record<FlowStep, React.ReactNode> = {
-    arrives: <FlowIntakePanel flow={flow} />, read: <FlowValues flow={flow} />, check: <FlowCheck flow={flow} />, send: null,
+    arrives: <FlowIntakePanel flow={flow} />, read: <FlowValues flow={flow} />, check: <FlowCheck flow={flow} />,
+    send: <SendStep flow={flow} output={output} />,
   };
   return (
     <div className="grid gap-4">
@@ -222,18 +205,20 @@ function ViewBody({ flow, view }: { flow: Flow; view: FlowView }) {
 
 function FlowFrame({ flowId }: { flowId: string }) {
   const router = useRouter();
-  const view = readFlowView(useSearchParams());
+  const params = useSearchParams();
+  const view = readFlowView(params);
+  const output = readFlowOutput(params);
   const draft = useFlowDraft();
   const flow = useQuery({ queryKey: ["flow", flowId], queryFn: () => getFlow(flowId), enabled: useTenantQueriesEnabled() });
   const [renaming, setRenaming] = useState(false);
   const [blocked, setBlocked] = useState<string | null>(null);
   const leaving = useRef(false);
 
-  const go = useCallback((href: string) => {
+  const go = useCallback((href: string, push?: boolean) => {
     if (leaving.current) return;
     leaving.current = true;
     draft.flushAll().then(
-      () => { setBlocked(null); router.replace(href); },
+      () => { setBlocked(null); if (push) router.push(href); else router.replace(href); },
       (e: unknown) => setBlocked(`A change couldn't be saved, so you are still on this step. ${documentRefusalMessage(e instanceof DraftPartFailed ? e.error : e)}`),
     ).finally(() => { leaving.current = false; });
   }, [draft, router]);
@@ -263,14 +248,14 @@ function FlowFrame({ flowId }: { flowId: string }) {
         ) : !f ? (
           <Quiet>Loading flow…</Quiet>
         ) : (
-          <FlowBody flow={f} view={view} renaming={renaming} onRenamed={() => setRenaming(false)} blocked={blocked} />
+          <FlowBody flow={f} view={view} output={output} renaming={renaming} onRenamed={() => setRenaming(false)} blocked={blocked} />
         )}
       </PageShell>
     </GoContext.Provider>
   );
 }
 
-function FlowBody({ flow, view, renaming, onRenamed, blocked }: { flow: Flow; view: FlowView | null; renaming: boolean; onRenamed: () => void; blocked: string | null }) {
+function FlowBody({ flow, view, output, renaming, onRenamed, blocked }: { flow: Flow; view: FlowView | null; output: string | null; renaming: boolean; onRenamed: () => void; blocked: string | null }) {
   const summaries = useStepSummaries(flow);
   return (
     <div className="grid gap-4">
@@ -298,7 +283,7 @@ function FlowBody({ flow, view, renaming, onRenamed, blocked }: { flow: Flow; vi
           <StreakBand flow={flow} />
         </>
       )}
-      <div className={view ? undefined : "hidden lg:block"}><ViewBody flow={flow} view={view ?? "documents"} /></div>
+      <div className={view ? undefined : "hidden lg:block"}><ViewBody flow={flow} view={view ?? "documents"} output={output} /></div>
     </div>
   );
 }

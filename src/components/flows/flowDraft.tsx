@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { useAutosave, type SaveState } from "@/hooks/useAutosave";
@@ -117,6 +118,30 @@ export function useDraftPart<T>(part: string, step: FlowStep, save: (value: T) =
 
   const state: SaveState = droppedAt !== null && auto.state === droppedAt ? "saved" : auto.state;
   return { state, error: auto.error, changed, change, flush, discard: drop };
+}
+
+/** Leaves the current view after every waiting draft change is saved; a refused one keeps the person where they are.
+ *  `push` leaves the flow page (a new history entry); a view switch replaces the address. */
+export const GoContext = createContext<((href: string, push?: boolean) => void) | null>(null);
+
+/** A link inside the flow page. A plain click saves what is waiting first; a click with a modifier (new tab, new
+ *  window) keeps the browser's own behaviour. */
+export function FlowLink({ href, push, className, current, label, describedBy, children }: {
+  href: string; push?: boolean; className?: string; current?: boolean; label?: string; describedBy?: string; children: React.ReactNode;
+}) {
+  const go = useContext(GoContext);
+  return (
+    <Link
+      href={href} replace={!push} className={className} aria-current={current ? "page" : undefined} aria-label={label} aria-describedby={describedBy}
+      onClick={(e) => {
+        if (!go || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+        e.preventDefault();
+        go(href, push);
+      }}
+    >
+      {children}
+    </Link>
+  );
 }
 
 /** What DraftState reads from a part: any useDraftPart<T>, whatever its T. */

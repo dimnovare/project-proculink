@@ -83,6 +83,11 @@ export const ROUTE_QUERY_PARAMS: Record<string, readonly ParamContract[]> = {
       readBy: "src/lib/flowSteps.ts",
       purpose: "Opens one step (arrives, read, check, send) or Documents or History; the old tab names (fields, outputs, intake, versions) still land on theirs.",
     },
+    {
+      param: "output",
+      readBy: "src/lib/flowSteps.ts",
+      purpose: "Opens one output on We send; an unknown id opens the first output.",
+    },
   ],
   // "/operations/log"'s orderId went with the old delivery log, 2026-11-15. Activity's
   // `show` and `page` are written only by `activityAddress` and read through `getAll`,
