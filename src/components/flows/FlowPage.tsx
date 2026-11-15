@@ -178,7 +178,7 @@ export function FlowPage({ flowId }: { flowId: string }) {
         {docs.isError ? <Failed error={docs.error} retry={() => docs.refetch()} />
           : !docs.data ? <Quiet>Loading documents…</Quiet>
           : docs.data.length === 0 ? <Quiet>No documents yet.</Quiet>
-          : <Card flush><DocumentList documents={docs.data} showFlow={false} /></Card>}
+          : <Card flush><DocumentList documents={docs.data} showFlow={false} label="Documents in this flow" /></Card>}
       </div>
     );
   } else if (tab === "intake") {

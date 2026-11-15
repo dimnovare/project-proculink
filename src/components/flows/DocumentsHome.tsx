@@ -87,7 +87,7 @@ export function DocumentsHome() {
           <Quiet>No documents here.</Quiet>
         ) : (
           <Card flush>
-            <DocumentList documents={shown} showFlow />
+            <DocumentList documents={shown} showFlow label="Recent documents" />
           </Card>
         )}
         {pagePopulation(anyOldOrders.data).rows > 0 && <Link href="/archive" className="text-[13px]">Old orders</Link>}

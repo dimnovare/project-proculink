@@ -12,8 +12,8 @@ import * as React from "react";
    ===================================================================== */
 
 /* -------- Button -------- */
-type ButtonVariant = "primary" | "send" | "blue" | "secondary" | "ghost" | "danger" | "ai";
-type ButtonSize = "sm" | "md" | "lg";
+export type ButtonVariant = "primary" | "send" | "blue" | "secondary" | "ghost" | "danger" | "ai";
+export type ButtonSize = "sm" | "md" | "lg";
 
 type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: ButtonVariant;
@@ -45,6 +45,11 @@ export const BUTTON_SIZE: Record<ButtonSize, string> = {
   lg: "h-[44px] px-[18px] text-[14px]",
 };
 
+/** The classes of a <Button>, for a link or a label drawn as one. */
+export function buttonClass(variant: ButtonVariant = "secondary", size: ButtonSize = "md"): string {
+  return [BUTTON_BASE, BUTTON_VARIANT[variant], BUTTON_SIZE[size]].join(" ");
+}
+
 export function Button({
   variant = "secondary",
   size = "md",
@@ -56,7 +61,7 @@ export function Button({
   return (
     <button
       {...rest}
-      className={[BUTTON_BASE, BUTTON_VARIANT[variant], BUTTON_SIZE[size], className].filter(Boolean).join(" ")}
+      className={[buttonClass(variant, size), className].filter(Boolean).join(" ")}
       disabled={rest.disabled || loading}
     >
       {loading && <span className="w-3 h-3 rounded-full border-2 border-current border-t-transparent animate-spin"/>}
