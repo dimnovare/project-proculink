@@ -51,7 +51,7 @@ export function CheckStep({ flow, docId, first }: { flow: Flow; docId: string | 
   const id = docId ?? "";
   const edits = useDocumentEdits(id);
   const [tab, setTab] = useState<string>("read");
-  const [dropped, setDropped] = useState<ReadonlySet<string>>(new Set());
+  const [unticked, setDropped] = useState<ReadonlySet<string> | null>(null);
   const doc = useQuery({
     queryKey: ["document", id], queryFn: () => getDocument(id), enabled: enabled && !!docId,
     refetchInterval: (q) => (["received", "reading"].includes(q.state.data?.summary.status ?? "") ? 2000 : false),
@@ -62,6 +62,12 @@ export function CheckStep({ flow, docId, first }: { flow: Flow; docId: string | 
   const shownName = name ?? (flow.name === PROVISIONAL_FLOW_NAME ? suggestFlowName(read?.kindLabel) ?? flow.name : flow.name);
   const status = doc.data && documentStatus(doc.data.summary.status, doc.data.summary.statusReason);
   const editable = !!status?.editable;
+  // Back on a confirmed flow, what was unticked stays unticked: the keys of the read that the saved fields lack.
+  const dropped = useMemo(() => {
+    if (unticked) return unticked;
+    const saved = new Set([...flow.fields.fields, ...flow.fields.tables].map((f) => f.key));
+    return new Set(flow.fieldsConfirmed && read ? [...read.fields, ...read.tables].map((f) => f.key).filter((k) => !saved.has(k)) : []);
+  }, [unticked, flow, read]);
   const marks = useMemo(() => (doc.data?.read ? reviewMarks(doc.data, editable) : null), [doc.data, editable]);
 
   // R14, in order and each only when needed; a second press while one runs does nothing.
@@ -103,7 +109,7 @@ export function CheckStep({ flow, docId, first }: { flow: Flow; docId: string | 
     <label className="inline-flex min-h-[44px] items-center sm:min-h-0">
       <input
         type="checkbox" aria-label={`Keep ${label}`} className="h-5 w-5" checked={!dropped.has(key)}
-        onChange={() => setDropped((d) => { const n = new Set(d); if (!n.delete(key)) n.add(key); return n; })}
+        onChange={() => setDropped(() => { const n = new Set(dropped); if (!n.delete(key)) n.add(key); return n; })}
       />
     </label>
   );

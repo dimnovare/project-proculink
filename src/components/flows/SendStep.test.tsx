@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ApiHttpError } from "@/lib/api/core";
 import type { Destination, DocumentRow, Flow, FlowOutput } from "@/lib/api/documents";
-import { COPY } from "@/lib/documentRefusals";
+import { COPY, documentRefusalMessage } from "@/lib/documentRefusals";
 import { readiness, SendStep } from "./SendStep";
 
 const api = vi.hoisted(() => ({
@@ -112,5 +112,74 @@ describe("SendStep", () => {
     await waitFor(() => expect(router.push).toHaveBeenCalledWith(`/flows/${confirmed.id}`));
     expect(api.sendDocument).not.toHaveBeenCalled();
     expect(analytics.capture).toHaveBeenCalledWith("wizard_step_completed", { step: 3, step_name: "send", first: true });
+  });
+
+  it("says where later documents go, by the flow's delivery choice", async () => {
+    api.listOutputs.mockResolvedValue([{ ...csvOutput, destinationId: "dest-1" }]);
+    api.listDestinations.mockResolvedValue([savedSftp]);
+    api.updateFlow.mockReturnValue(new Promise(() => {}));
+    render(<SendStep flow={confirmed} docId="d-1" first />, { wrapper: freshWrapper() });
+    const finish = await screen.findByRole("region", { name: "Finish" });
+    expect(await within(finish).findByText("From now on, documents in this flow go to Books server. Each one waits for you to check it first.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("radio", { name: /^Automatic delivery/ }));
+    expect(await within(finish).findByText("From now on, documents in this flow go to Books server. They are sent as soon as they are read.")).toBeInTheDocument();
+  });
+
+  it("never attaches a new destination that did not pass its test", async () => {
+    api.listOutputs.mockResolvedValue([csvOutput]);
+    api.listDestinations.mockResolvedValue([]);
+    api.createDestination.mockResolvedValue({ ...savedSftp, id: "dest-9", name: "Invoices server" });
+    api.testDestination.mockResolvedValue({ success: false, message: "Login refused.", responseCode: null });
+    api.publishFlow.mockResolvedValue(confirmed);
+    render(<SendStep flow={confirmed} docId="d-1" first />, { wrapper: freshWrapper() });
+    const finish = await screen.findByRole("region", { name: "Finish" });
+    fireEvent.click(await screen.findByRole("radio", { name: /^SFTP or FTPS/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Save and send a test" }));
+    await waitFor(() => expect(api.testDestination).toHaveBeenCalledWith("dest-9"));
+    expect(await within(finish).findByText("Invoices server did not pass its test, so it is saved but not used yet. You can fix it on the flow page.")).toBeInTheDocument();
+    expect(within(finish).queryByText(/^From now on/)).toBeNull();
+    fireEvent.click(within(finish).getByRole("button", { name: "Finish without sending" }));
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith(`/flows/${confirmed.id}`));
+    expect(api.updateOutput).not.toHaveBeenCalled();
+    expect(api.sendDocument).not.toHaveBeenCalled();
+  });
+
+  it("a passed test stops counting once the tested settings change", async () => {
+    api.listOutputs.mockResolvedValue([csvOutput]);
+    api.listDestinations.mockResolvedValue([]);
+    api.createDestination.mockResolvedValue({ ...savedSftp, id: "dest-9", name: "Invoices server" });
+    api.testDestination.mockResolvedValue({ success: true, message: null, responseCode: null });
+    render(<SendStep flow={confirmed} docId="d-1" first />, { wrapper: freshWrapper() });
+    const finish = await screen.findByRole("region", { name: "Finish" });
+    fireEvent.click(await screen.findByRole("radio", { name: /^SFTP or FTPS/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Save and send a test" }));
+    await waitFor(() => expect(within(finish).getByRole("button", { name: "Send invoice.pdf now" })).toBeEnabled());
+    fireEvent.change(screen.getByLabelText("Server"), { target: { value: "other.example.test" } });
+    expect(within(finish).getByRole("button", { name: "Send invoice.pdf now" })).toBeDisabled();
+    expect(within(finish).queryByText(/^From now on/)).toBeNull();
+  });
+
+  it("is never ready while the outputs could not be loaded, and offers to try again", async () => {
+    const down = new ApiHttpError("down", 500, null);
+    api.listOutputs.mockRejectedValueOnce(down).mockResolvedValue([csvOutput]);
+    api.listDestinations.mockResolvedValue([]);
+    render(<SendStep flow={confirmed} docId="d-1" first />, { wrapper: freshWrapper() });
+    const finish = await screen.findByRole("region", { name: "Finish" });
+    expect(await within(finish).findByText(documentRefusalMessage(down))).toBeInTheDocument();
+    expect(within(finish).queryByText(/is ready/)).toBeNull();
+    expect(within(finish).queryByRole("button", { name: /^(Make the file|Send )/ })).toBeNull();
+    fireEvent.click(within(finish).getByRole("button", { name: "Try again" }));
+    expect(await within(finish).findByText("Your document is ready. You download it as a CSV file.")).toBeInTheDocument();
+  });
+
+  it("a document that no longer exists says so, with the way back, and offers no finish", async () => {
+    api.listOutputs.mockResolvedValue([csvOutput]);
+    api.listDestinations.mockResolvedValue([]);
+    api.listDocumentPage.mockResolvedValue({ items: [], totalCount: 0, page: 1, pageSize: 20, sampleCount: 0 });
+    api.getDocument.mockRejectedValue(new ApiHttpError("x", 404, { error: "document_not_found" }));
+    render(<SendStep flow={confirmed} docId="d-gone" first />, { wrapper: freshWrapper() });
+    expect(await screen.findByText(COPY.document_not_found)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Start again" })).toHaveAttribute("href", "/flows/new");
+    expect(screen.queryByRole("region", { name: "Finish" })).toBeNull();
   });
 });

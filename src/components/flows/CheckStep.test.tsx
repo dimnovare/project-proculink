@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { DocumentDetail, DocumentRow, Flow, FlowField, FlowOutput, ReadField } from "@/lib/api/documents";
 import { readFailureMessage } from "@/lib/documentRefusals";
+import { fieldListFromRead } from "@/lib/flowFieldModel";
 import { CheckStep } from "./CheckStep";
 
 const api = vi.hoisted(() => ({
@@ -95,5 +96,22 @@ describe("CheckStep", () => {
     render(<CheckStep flow={unconfirmed} docId="d-1" first />, { wrapper: freshWrapper() });
     expect(await screen.findByText("We couldn't find any values on this document.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Looks right, next" })).toBeNull();
+  });
+
+  it("going back to the check keeps what was unticked", async () => {
+    const all = fieldListFromRead(sampleDetail.read);
+    const saved: Flow = { ...unconfirmed, name: "Invoices", fieldsConfirmed: true, fields: { ...all, fields: all.fields.filter((f) => f.key !== "bill_to") } };
+    api.getDocument.mockResolvedValue(sampleDetail);
+    api.listDocumentPage.mockResolvedValue({ items: [row], totalCount: 1, page: 1, pageSize: 20, sampleCount: 0 });
+    api.listOutputs.mockResolvedValue([csvOutput]);
+    api.saveFlowFields.mockResolvedValue(saved);
+    render(<CheckStep flow={saved} docId="d-1" first />, { wrapper: freshWrapper() });
+    expect(await screen.findByRole("checkbox", { name: "Keep Bill to" })).not.toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Keep Total" })).toBeChecked();
+    fireEvent.click(screen.getByRole("button", { name: "Looks right, next" }));
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith("/flows/new?step=send&flow=f-1&doc=d-1"));
+    expect(api.saveFlowFields.mock.calls[0][1].fields.map((f: FlowField) => f.key)).not.toContain("bill_to");
+    expect(api.updateFlow).not.toHaveBeenCalled();
+    expect(api.createOutput).not.toHaveBeenCalled();
   });
 });

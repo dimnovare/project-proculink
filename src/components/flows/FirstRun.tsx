@@ -32,6 +32,13 @@ function Bare({ children }: { children: React.ReactNode }) {
   );
 }
 
+const SetUp = ({ flowId }: { flowId: string }) => (
+  <div className="grid justify-items-start gap-2">
+    <p className="m-0 text-[14px] text-ink">This flow is set up.</p>
+    <Link href={`/flows/${flowId}`} className="inline-flex min-h-[44px] items-center text-[14px] font-semibold text-brand-blue sm:min-h-0">Open the flow</Link>
+  </div>
+);
+
 /** The Suspense fallback (R24): PageShell, the "Flows" back link, a title-height placeholder, "Loading…". */
 export const FirstRunLoading = () => <Bare><Quiet>Loading…</Quiet></Bare>;
 
@@ -59,13 +66,15 @@ export function StepFrame({ step, sub, first, children }: { step: 2 | 3; sub: st
 export function FirstRun() {
   const address = readFirstRunAddress(useSearchParams());
   const enabled = useTenantQueriesEnabled();
-  const flowId = address.step === "add" ? "" : address.flow!;
+  const flowId = address.flow ?? "";
   const flows = useQuery({ queryKey: ["flows"], queryFn: listFlows, enabled });
   const flow = useQuery({ queryKey: ["flow", flowId], queryFn: () => getFlow(flowId), enabled: enabled && !!flowId });
   const run = useRunDocument(flowId, address.doc);
 
   if (!flows.data) return <Bare>{flows.isError ? <Failed error={flows.error} retry={() => flows.refetch()} /> : <Quiet>Loading flows…</Quiet>}</Bare>;
-  if (!flowId) return <Welcome flows={flows.data} flowId={address.flow} />;
+  // A finished flow is set up: no step runs on it again, so Back after Finish cannot re-arm a send or rewrite its fields.
+  if (flow.data && flow.data.publishedVersion != null) return <Bare><SetUp flowId={flow.data.id} /></Bare>;
+  if (address.step === "add") return flowId && flow.isLoading ? <Bare><Quiet>Loading…</Quiet></Bare> : <Welcome flows={flows.data} flowId={address.flow} />;
   if (!flow.data) {
     if (notFound(flow.error)) return <Bare><Gone text={COPY.flow_not_found} /></Bare>;
     return <Bare>{flow.isError ? <Failed error={flow.error} retry={() => flow.refetch()} /> : <Quiet>Loading…</Quiet>}</Bare>;

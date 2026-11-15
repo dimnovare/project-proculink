@@ -14,12 +14,12 @@ import {
   type Destination, type Flow,
 } from "@/lib/api/documents";
 import { AUTOMATIC_DELIVERY_LABEL, REVIEW_BEFORE_DELIVERY_LABEL } from "@/lib/deliveryMode";
-import { documentRefusalMessage, refusalToken } from "@/lib/documentRefusals";
+import { COPY, documentRefusalMessage, refusalToken } from "@/lib/documentRefusals";
 import { LIMIT_CODES } from "@/lib/limitRefusal";
 import { saveBlob } from "@/lib/saveBlob";
 import { destinationNameFor, firstRunAddress, foundSummary, keepsSummary } from "@/lib/firstRun";
 import { DestinationForm, Field, INPUT } from "./DestinationForm";
-import { useRunDocument } from "./CheckStep";
+import { Gone, notFound, useRunDocument } from "./CheckStep";
 import { useLinkedAccounts } from "./GoogleTargetFields";
 import { Failed } from "./states";
 
@@ -44,9 +44,9 @@ const LINK_BUTTON = `${WAY_ON} underline disabled:opacity-50`;
 type Tested = { destinationId: string; ok: boolean };
 /** R20. `tested` is the last `onTested` outcome for the destination the new form saved. Our sample is never sent, and a
  *  document not known to be ours or the sample can only be finished: unknown is never ready. */
-export function readiness(choice: SendChoice, tested: Tested | null, isSample: boolean | null): "sample" | "unknown" | "download" | "ready" | "not-ready" {
+export function readiness(choice: SendChoice, tested: Tested | null, isSample: boolean | null | undefined): "sample" | "unknown" | "download" | "ready" | "not-ready" {
   if (isSample === true) return "sample";
-  if (isSample === null) return "unknown";
+  if (isSample !== false) return "unknown";
   if (choice.kind === "download") return "download";
   return (choice.kind === "existing" ? !!choice.destinationId : !!tested?.ok) ? "ready" : "not-ready";
 }
@@ -105,10 +105,15 @@ export function SendStep({ flow, docId, first }: { flow: Flow; docId: string | n
   const read = doc.data?.read;
   const fileName = run.row?.fileName ?? doc.data?.summary.fileName ?? "";
   const kept = read ? read.fields.filter((f) => flow.fields.fields.some((k) => k.key === f.key)).length : 0;
-  const state = readiness(choice, tested && tested.destinationId === saved?.id ? tested : null, run.isSample);
-  // Where the output goes once the person presses: null is Download, and a new form not saved yet keeps it there.
-  const target = choice.kind === "existing" ? choice.destinationId : choice.kind === "new" ? saved?.id ?? null : null;
-  const going = choice.kind === "existing" ? destinations.data?.find((d) => d.id === target)?.name : saved?.name;
+  const passed = !!saved && tested?.destinationId === saved.id && tested.ok;
+  const listed = choice.kind === "existing" ? destinations.data?.find((d) => d.id === choice.destinationId) : undefined;
+  // Ready only when known (I4): the output is there, and a saved destination is one the list still names.
+  const known = !!output && (choice.kind !== "existing" || !!listed);
+  const state = known ? readiness(choice, passed ? tested : null, run.isSample) : "unknown";
+  // What Finish attaches: null is Download; a destination only when it was set up before or passed its test now;
+  // undefined leaves the output as it is (a new destination not saved, or saved but not passed).
+  const going: Destination | undefined = choice.kind === "existing" ? listed : passed ? saved! : undefined;
+  const target: string | null | undefined = choice.kind === "download" ? null : going?.id;
 
   const mode = useMutation({
     mutationFn: (automation: "review" | "auto") => updateFlow(flow.id, { automation }),
@@ -118,7 +123,7 @@ export function SendStep({ flow, docId, first }: { flow: Flow; docId: string | n
 
   /** R18, R19: link the chosen destination, then publish ("nothing to publish" is done). */
   const prepare = async () => {
-    if (output && output.destinationId !== target) {
+    if (output && target !== undefined && output.destinationId !== target) {
       const { name, format, tableKey, template, sendWhen, layout } = output;
       await updateOutput(flow.id, output.id, { name, format, tableKey, template, sendWhen, layout, destinationId: target });
     }
@@ -159,6 +164,10 @@ export function SendStep({ flow, docId, first }: { flow: Flow; docId: string | n
     m.mutate();
   };
   const busy = send.isPending || finish.isPending || sample.isPending || !output;
+  const later = going && `From now on, documents in this flow go to ${going.name}.${automation === "auto" ? " They are sent as soon as they are read." : " Each one waits for you to check it first."}`;
+  const unused = choice.kind === "new" && saved && !passed
+    ? `${saved.name} did not pass its test, so it is saved but not used yet. You can fix it on the flow page.` : null;
+  if (notFound(doc.error)) return <Gone text={COPY.document_not_found} />;
   const refused = send.error ?? finish.error ?? sample.error;
   const sendLabel = `Send ${fileName} now`;
 
@@ -205,7 +214,7 @@ export function SendStep({ flow, docId, first }: { flow: Flow; docId: string | n
         )}
         {tile && (
           <DestinationForm
-            key={tile.tile} inline testAfterSave onSaved={setSaved} onCancel={() => pick({ kind: "download" })}
+            key={tile.tile} inline testAfterSave onSaved={(d) => { setSaved(d); setTested(null); }} onCancel={() => pick({ kind: "download" })}
             chosen={{ protocols: tile.protocols, name: destinationNameFor(tile.protocols[0], flow.name), onTested: setTested }}
           />
         )}
@@ -224,13 +233,19 @@ export function SendStep({ flow, docId, first }: { flow: Flow; docId: string | n
       </fieldset>
 
       <section aria-label="Finish" className="sticky bottom-0 grid gap-2 border-t border-border bg-bg py-3">
+        {outputs.isError && !outputs.data ? (
+          <StatusNotice tone="error" action={<Button size="sm" variant="secondary" onClick={() => outputs.refetch()}>Try again</Button>}>
+            {documentRefusalMessage(outputs.error)}
+          </StatusNotice>
+        ) : !outputs.data || run.isLoading ? <p role="status" className="m-0 text-[13px] text-ink-muted">Loading…</p> : <>
         <p className="m-0 text-[14px] text-ink">
           {state === "sample" ? "This is our sample invoice, so we never send it. Download its CSV file to see what your documents will become, then add one of your own."
             : state === "unknown" ? "Finish now and send your document later from Documents."
             : state === "download" ? "Your document is ready. You download it as a CSV file."
-            : state === "ready" ? `Your document is ready. It goes to ${going ?? "your destination"} as a CSV file.`
+            : state === "ready" ? `Your document is ready. It goes to ${going!.name} as a CSV file.`
             : "Send a test first to check the settings. Or finish now and send your document later from Documents."}
         </p>
+        {(later || unused) && <p className="m-0 text-[14px] text-ink">{later || unused}</p>}
         <div className="flex flex-wrap items-center gap-4">
           {state === "sample" || state === "unknown" ? (
             <Button variant="primary" disabled={busy} loading={finish.isPending} onClick={() => press(finish)}>Finish</Button>
@@ -247,6 +262,7 @@ export function SendStep({ flow, docId, first }: { flow: Flow; docId: string | n
           )}
         </div>
         {!!refused && <Refusal error={refused} />}
+        </>}
       </section>
     </div>
   );

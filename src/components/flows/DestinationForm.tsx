@@ -173,7 +173,9 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, ch
     save.mutate({ name: name.trim(), protocol, config: kept, credentials });
   }
 
-  const setValue = (key: string, value: unknown) => setConfig((c) => ({ ...c, [key]: value }));
+  // A passed test belongs to the settings it tested: any edit after a save un-tests it until it is saved and tested again.
+  const edited = () => { if (chosen && current) { chosen.onTested({ destinationId: current.id, ok: false }); setSaved(false); } };
+  const setValue = (key: string, value: unknown) => { edited(); setConfig((c) => ({ ...c, [key]: value })); };
   const configField = (key: string) => {
     const [label, kind] = CONFIG_FIELDS[key];
     const value = config[key];
@@ -214,8 +216,10 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, ch
     const props = {
       value: creds[key] ?? "",
       placeholder: current?.hasCredentials ? "Leave blank to keep the saved one" : "",
-      onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
-        setCreds((c) => ({ ...c, [key]: e.target.value })),
+      onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        edited();
+        setCreds((c) => ({ ...c, [key]: e.target.value }));
+      },
     };
     return (
       <Field key={key} label={current?.hasCredentials && SECRETS.has(key) ? `New ${label.charAt(0).toLowerCase()}${label.slice(1)}` : label}>
@@ -264,11 +268,11 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, ch
       )}
       {fields.filter((k) => !FOLDED.has(k)).map(configField)}
       {isGoogle(protocol) && (
-        <GoogleTargetFields protocol={protocol} config={config} onChange={(patch) => setConfig((c) => ({ ...c, ...patch }))} />
+        <GoogleTargetFields protocol={protocol} config={config} onChange={(patch) => { edited(); setConfig((c) => ({ ...c, ...patch })); }} />
       )}
       {protocol === "http" && (
         <Field label="Sign in with">
-          <select className={INPUT} value={auth} onChange={(e) => { setAuth(e.target.value); setCreds({}); }}>
+          <select className={INPUT} value={auth} onChange={(e) => { edited(); setAuth(e.target.value); setCreds({}); }}>
             {Object.entries(AUTH_LABEL).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
           </select>
         </Field>

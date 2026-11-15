@@ -82,4 +82,14 @@ describe("Welcome", () => {
     expect(within(drop).getByRole("button", { name: "Take a photo" }).className).toMatch(/\bsm:hidden\b/);
     expect(within(drop).getByRole("button", { name: "Choose a file" }).className).toMatch(/\bbg-brand-blue\b/);
   });
+
+  it("on /flows/new another file stays in the run's flow, even once its fields are saved", async () => {
+    const saved: Flow = { ...emptyFlow, id: "f-1", name: "Invoices", fieldsConfirmed: true, documentCount: 1 };
+    api.uploadDocument.mockResolvedValue({ ...summary, id: "d-2", flowId: "f-1" });
+    const main = render(<Welcome flows={[saved]} flowId="f-1" />, { wrapper }).container;
+    choose(main, new File(["x"], "po.pdf", { type: "application/pdf" }));
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith("/flows/new?step=check&flow=f-1&doc=d-2"));
+    expect(api.createFlow).not.toHaveBeenCalled();
+    expect(api.uploadDocument.mock.calls[0][0]).toBe("f-1");
+  });
 });

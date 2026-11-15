@@ -68,4 +68,16 @@ describe("FirstRun", () => {
     expect(await within(failed).findByRole("button", { name: "Retry" })).toBeInTheDocument();
     expect(empty(failed)).toEqual([]);
   });
+
+  it("never runs a step on a flow that is already set up", async () => {
+    const finished = { ...unconfirmed, fieldsConfirmed: true, publishedVersion: 1 };
+    api.listFlows.mockResolvedValue([finished]);
+    api.getFlow.mockResolvedValue(finished);
+    setSearch("step=send&flow=f-1&doc=d-1");
+    const main = render(<FirstRun />, { wrapper: freshWrapper() }).container;
+    expect(await within(main).findByText("This flow is set up.")).toBeInTheDocument();
+    expect(within(main).getByRole("link", { name: "Open the flow" })).toHaveAttribute("href", "/flows/f-1");
+    expect(within(main).queryByText("Where should the file go?")).toBeNull();
+    expect(within(main).queryByText("Here's what we found")).toBeNull();
+  });
 });

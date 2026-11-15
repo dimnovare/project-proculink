@@ -55,9 +55,10 @@ export function Welcome({ flows, flowId }: { flows: readonly Flow[]; flowId?: st
   const google = useLinkedAccounts();
   const onFirstRun = flowId !== undefined;
   const run = firstRunOf(flows);
-  // R4: the address's unconfirmed flow, else the one a refused start left, else none yet.
+  // R4: the address's flow, else the one a refused start left, else none yet.
   const made = useRef<Flow | null>(null);
-  const known = flows.find((f) => f.id === flowId && !f.fieldsConfirmed) ?? (run.state === "new" ? run.flow : null) ?? made.current;
+  // The run keeps the address's flow until it is finished (FirstRun never draws a finished one), so another file never makes a second flow.
+  const known = flows.find((f) => f.id === flowId) ?? (run.state === "new" ? run.flow : null) ?? made.current;
   const first = isFirstFlow(flows, known?.id ?? null);
   const [key, setKey] = useState<string | null>(null);
   const [photo, setPhoto] = useState<File | null>(null);
