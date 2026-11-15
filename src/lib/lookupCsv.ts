@@ -52,6 +52,21 @@ export async function readTableFile(file: File): Promise<{ cells: string[][]; cu
   return { cells: csvCells(new TextDecoder("utf-8").decode(bytes)), cut: false };
 }
 
+/** A file we read and will not use, with the reason in words. */
+export class TableFileRefusal extends Error {}
+
+/** A file's rows for a lookup; throws a `TableFileRefusal` when it is unreadable, too long or has no rows. */
+export async function lookupFileEntries(file: File): Promise<LookupEntry[]> {
+  const table = await readTableFile(file).catch(() => {
+    throw new TableFileRefusal("We can read CSV files and Excel .xlsx files.");
+  });
+  const entries = lookupEntries(table.cells);
+  if (table.cut || entries.length > LOOKUP_LIMITS.rows)
+    throw new TableFileRefusal("It has more than 20,000 rows, and a lookup holds at most 20,000.");
+  if (!entries.length) throw new TableFileRefusal("It has no rows with a value in the first column.");
+  return entries;
+}
+
 /** The file name without its last extension, trimmed and cut to 120 characters; "Imported table" when empty. */
 export const tableName = (fileName: string) =>
   fileName.replace(/\.[^.]*$/, "").trim().slice(0, LOOKUP_LIMITS.nameLength) || "Imported table";

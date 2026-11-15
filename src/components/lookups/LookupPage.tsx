@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Pencil, X } from "lucide-react";
 import { Card } from "@/components/bridge/layout/Card";
@@ -10,15 +11,26 @@ import { INPUT } from "@/components/flows/DestinationForm";
 import { Quiet } from "@/components/flows/states";
 import { useAutosave } from "@/hooks/useAutosave";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
-import { getLookup, updateLookup, type Lookup, type LookupCandidate } from "@/lib/api/documents";
+import { deleteLookup, getLookup, updateLookup, type Lookup, type LookupCandidate } from "@/lib/api/documents";
 import { documentRefusalMessage, refusalToken } from "@/lib/documentRefusals";
+import { exportLookupCsv, importCandidateCsv, lookupFileEntries } from "@/lib/lookupCsv";
 import { LOOKUP_LIMITS } from "@/lib/lookupLimits";
 import { usedByLine } from "@/lib/lookupUses";
+import { saveBlob } from "@/lib/saveBlob";
 import { ROWS_PER_PAGE, rowsLine, rowsPage, savable, toRows, type LookupRow } from "./lookupRowsModel";
-import { showLookupNotice, takeRenameOnOpen } from "./lookupNotice";
+import { dropLookupNotice, importRefusal, showLookupNotice, takeRenameOnOpen } from "./lookupNotice";
 
 type Doc = { name: string; rows: LookupRow[]; candidates: LookupCandidate[] };
 const docOf = (l: Lookup): Doc => ({ name: l.name, rows: toRows(l.entries), candidates: l.candidates ?? [] });
+
+const readText = (file: File) =>
+  new Promise<string>((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result));
+    r.onerror = () => reject(r.error);
+    r.readAsText(file);
+  });
+const TABLE_TYPES = ".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
 const PAD = "px-[18px] py-[14px]";
 const CELL =
@@ -50,7 +62,9 @@ function LookupEditor({ lookup, lookupId, usedBy }: { lookup: Lookup; lookupId: 
   const [focusKey, setFocusKey] = useState<number | null>(null);
 
   const { held } = useMemo(() => savable(doc.rows), [doc.rows]);
-  const bodyOf = (d: Doc) => ({ name: d.name, entries: savable(d.rows).entries, ...(lookup.suggestionsOn ? { candidates: d.candidates } : {}) });
+  // The workspace switch as the panel opened: a save's answer never takes the section away mid-edit.
+  const [suggestionsOn] = useState(lookup.suggestionsOn);
+  const bodyOf = (d: Doc) => ({ name: d.name, entries: savable(d.rows).entries, ...(suggestionsOn ? { candidates: d.candidates } : {}) });
   const put = (next: Partial<Doc>) => {
     const d = { ...current.current, ...next };
     current.current = d;
@@ -104,6 +118,60 @@ function LookupEditor({ lookup, lookupId, usedBy }: { lookup: Lookup; lookupId: 
     setPage(Math.ceil((rows.length + 1) / ROWS_PER_PAGE));
     setFocusKey(key);
   };
+
+  const fileInput = useRef<HTMLInputElement>(null);
+  const replace = useMutation({
+    mutationFn: lookupFileEntries,
+    onError: (e, file) => showLookupNotice({ ...importRefusal(file, e), owner: lookupId }),
+    onSuccess: (entries, file) => {
+      const before = current.current.rows;
+      const m = before.length;
+      edit({ rows: toRows(entries) }, true);
+      setTerm("");
+      setPage(1);
+      showLookupNotice({
+        tone: "success",
+        owner: lookupId,
+        text: `${file.name} imported. ${entries.length === 1 ? "1 row replaces" : `${entries.length} rows replace`} ${m === 1 ? "the 1 that was here" : `the ${m} that were here`}.`,
+        // R3: the previous rows come back on screen at once and are saved through the same queue.
+        undo: async () => {
+          autosave.change(bodyOf(put({ rows: before })), true);
+          await autosave.flush();
+          return m === 1 ? "Import undone. The 1 row from before is back." : `Import undone. The ${m} rows from before are back.`;
+        },
+      });
+    },
+  });
+  useEffect(() => () => dropLookupNotice(lookupId), [lookupId]);
+
+  const [setup, setSetup] = useState(false);
+  const [listNote, setListNote] = useState<string | null>(null);
+  const onListFile = async (input: HTMLInputElement) => {
+    const file = input.files?.[0];
+    input.value = "";   // lets the same file be chosen again
+    if (!file) return;
+    try {
+      const list = importCandidateCsv(await readText(file), true);
+      edit({ candidates: list }, true);
+      setListNote(`Imported ${list.length === 1 ? "1 value" : `${list.length} values`}.`);
+    } catch (e) {
+      showLookupNotice({ ...importRefusal(file, e), owner: lookupId });
+    }
+  };
+
+  const router = useRouter();
+  const [asking, setAsking] = useState(false);
+  const remove = useMutation({
+    mutationFn: () => deleteLookup(lookupId),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["lookups"] });
+      qc.removeQueries({ queryKey: ["lookup", lookupId] });
+      router.push("/lookups");
+    },
+  });
+  const refused = remove.error
+    ? [documentRefusalMessage(remove.error), refusalToken(remove.error) === "lookup_in_use" && usedBy?.length ? usedByLine(usedBy) : null].filter(Boolean).join(" ")
+    : null;
 
   const searching = term.trim() !== "";
   const view = rowsPage(doc.rows, term, page);
@@ -178,6 +246,25 @@ function LookupEditor({ lookup, lookupId, usedBy }: { lookup: Lookup; lookupId: 
             onChange={(e) => {
               setTerm(e.target.value);
               setPage(1);
+            }}
+          />
+          <Button variant="secondary" loading={replace.isPending} onClick={() => fileInput.current?.click()}>Replace from a file</Button>
+          <Button
+            variant="secondary"
+            onClick={() => saveBlob(new Blob([exportLookupCsv(savable(doc.rows).entries)], { type: "text/csv" }), `${doc.name}.csv`)}
+          >
+            Export CSV
+          </Button>
+          <input
+            ref={fileInput}
+            type="file"
+            hidden
+            data-testid="replace-table-input"
+            accept={TABLE_TYPES}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              e.target.value = "";
+              if (file) replace.mutate(file);
             }}
           />
         </div>
@@ -268,6 +355,70 @@ function LookupEditor({ lookup, lookupId, usedBy }: { lookup: Lookup; lookupId: 
               {view.page > 1 && <Button variant="secondary" size="sm" onClick={() => setPage(view.page - 1)}>Previous</Button>}
               {view.page < view.pages && <Button variant="secondary" size="sm" onClick={() => setPage(view.page + 1)}>Next</Button>}
             </div>
+          )}
+        </div>
+
+        {suggestionsOn && (
+          <div className={`flex flex-col items-start gap-2 border-t border-border ${PAD}`}>
+            <p className="m-0 text-[13px] text-ink-muted">
+              For a value that isn&apos;t in this lookup, AI can suggest a match from a list of your own codes. You accept each one.
+            </p>
+            <button type="button" aria-expanded={setup} aria-controls="lookup-suggestions" className={TEXT_BUTTON} onClick={() => setSetup(!setup)}>
+              Set up suggestions
+            </button>
+            {setup && (
+              <div id="lookup-suggestions" className="flex flex-col gap-2">
+                <h3 className="m-0 text-[13px] font-semibold text-ink">Values to choose from</h3>
+                <p className="m-0 text-[13px] text-ink-muted">
+                  AI suggestions only pick from this list — for example, your supplier&apos;s product list. Column 1 is the value; any other columns describe it.
+                </p>
+                <div className="flex flex-wrap items-center gap-3 text-[13px]">
+                  <span className="text-ink-muted">
+                    {doc.candidates.length === 0 ? "No list yet." : doc.candidates.length === 1 ? "1 value" : `${doc.candidates.length} values`}
+                  </span>
+                  <label className="font-medium text-ink">
+                    <span className="mr-2">Import list (CSV)</span>
+                    <input type="file" data-testid="candidate-list-input" accept=".csv,text/csv" onChange={(e) => onListFile(e.target)} />
+                  </label>
+                  {doc.candidates.length > 0 && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => {
+                        setListNote(null);
+                        edit({ candidates: [] }, true);
+                      }}
+                    >
+                      Clear list
+                    </Button>
+                  )}
+                </div>
+                {listNote && <p role="status" className="m-0 text-[13px] text-ink-muted">{listNote}</p>}
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className={`flex flex-wrap items-center justify-end gap-3 border-t border-border ${PAD}`}>
+          {asking ? (
+            <>
+              <p className="m-0 text-[14px] text-ink">{`Delete “${doc.name}”? This can't be undone.`}</p>
+              <Button variant="secondary" className="text-danger-text" disabled={remove.isPending} onClick={() => remove.mutate()}>Delete lookup</Button>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  remove.reset();
+                  setAsking(false);
+                }}
+              >
+                Keep it
+              </Button>
+              {refused && <p role="alert" className="m-0 w-full text-right text-[13px] text-danger-text">{refused}</p>}
+            </>
+          ) : (
+            <button type="button" className="min-h-[44px] text-[14px] font-semibold text-danger-text" onClick={() => setAsking(true)}>
+              Delete lookup
+            </button>
           )}
         </div>
       </section>

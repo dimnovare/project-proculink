@@ -4,6 +4,7 @@ import { useState, useSyncExternalStore } from "react";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
+import { TableFileRefusal } from "@/lib/lookupCsv";
 
 // One store for the Lookups screen, kept in the module so it outlives a route change between
 // /lookups and /lookups/[id] (each route mounts its own LookupsHome). It lives for the page's life.
@@ -30,6 +31,17 @@ const subscribe = (l: () => void) => {
 const snapshot = () => store;
 
 export const showLookupNotice = (notice: LookupNotice | null) => set({ notice });
+
+/** Clears the notice when `owner`'s panel owns it (the panel is closing). */
+export const dropLookupNotice = (owner: string) => {
+  if (store.notice?.owner === owner) set({ notice: null });
+};
+
+/** "Couldn't import {file}. {reason}": the file's own refusal, or the server's sentence. */
+export const importRefusal = (file: File, e: unknown): LookupNotice => ({
+  tone: "error",
+  text: `Couldn't import ${file.name}. ${e instanceof TableFileRefusal ? e.message : documentRefusalMessage(e)}`,
+});
 
 export const markNewLookup = (id: string, opts?: { rename?: boolean }) =>
   set({ newIds: new Set(store.newIds).add(id), renameOnOpen: opts?.rename ? id : store.renameOnOpen });

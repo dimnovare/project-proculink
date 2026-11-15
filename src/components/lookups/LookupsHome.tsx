@@ -16,13 +16,10 @@ import { flowsQuery, useDocumentEngine } from "@/hooks/useDocumentEngine";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { createLookup, deleteLookup, listLookups } from "@/lib/api/documents";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
-import { LOOKUP_LIMITS, lookupEntries, readTableFile, tableName } from "@/lib/lookupCsv";
+import { lookupFileEntries, tableName } from "@/lib/lookupCsv";
 import { usedByLine } from "@/lib/lookupUses";
 import { LookupPage } from "./LookupPage";
-import { LookupNoticeBanner, markNewLookup, showLookupNotice, useLookupStore } from "./lookupNotice";
-
-/** A file we read and will not send, with the reason in words. */
-class Unimportable extends Error {}
+import { importRefusal, LookupNoticeBanner, markNewLookup, showLookupNotice, useLookupStore } from "./lookupNotice";
 
 const rows = (n: number) => (n === 1 ? "1 row" : `${n} rows`);
 const PAD = "px-[18px] py-[14px]";
@@ -39,17 +36,10 @@ export function LookupsHome({ lookupId }: { lookupId?: string }) {
 
   const importTable = useMutation({
     mutationFn: async (file: File) => {
-      const table = await readTableFile(file).catch(() => {
-        throw new Unimportable("We can read CSV files and Excel .xlsx files.");
-      });
-      const entries = lookupEntries(table.cells);
-      if (table.cut || entries.length > LOOKUP_LIMITS.rows)
-        throw new Unimportable("It has more than 20,000 rows, and a lookup holds at most 20,000.");
-      if (!entries.length) throw new Unimportable("It has no rows with a value in the first column.");
+      const entries = await lookupFileEntries(file);
       return { lookup: await createLookup(tableName(file.name), entries), count: entries.length };
     },
-    onError: (e, file) =>
-      showLookupNotice({ tone: "error", text: `Couldn't import ${file.name}. ${e instanceof Unimportable ? e.message : documentRefusalMessage(e)}` }),
+    onError: (e, file) => showLookupNotice(importRefusal(file, e)),
     onSuccess: ({ lookup: { id, name }, count }, file) => {
       markNewLookup(id);
       void qc.invalidateQueries({ queryKey: ["lookups"] });

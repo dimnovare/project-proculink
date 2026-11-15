@@ -1,7 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, within, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ApiHttpError } from "@/lib/api/core";
 import { LookupPage } from "./LookupPage";
+import { LookupNoticeBanner, showLookupNotice } from "./lookupNotice";
 
 const api = vi.hoisted(() => ({ getLookup: vi.fn(), updateLookup: vi.fn(), deleteLookup: vi.fn() }));
 vi.mock("@/lib/api/documents", () => api);
@@ -12,7 +14,7 @@ const lookup = (entries: { from: string; to: string }[], extra = {}) =>
   ({ id: "l1", name: "Item codes", entries, updatedAt: "2026-05-20T09:00:00Z", candidates: [], suggestionsOn: false, ...extra });
 const show = (qc = new QueryClient()) => ({ qc, ...render(<QueryClientProvider client={qc}><LookupPage lookupId="l1" usedBy={[]} /></QueryClientProvider>) });
 const table = () => screen.getByRole("table", { name: "Rows of Item codes" });
-beforeEach(() => { vi.clearAllMocks(); api.updateLookup.mockImplementation(async (_id, b) => ({ ...lookup(b.entries), name: b.name, updatedAt: new Date().toISOString() })); });
+beforeEach(() => { vi.clearAllMocks(); showLookupNotice(null); api.updateLookup.mockImplementation(async (_id, b) => ({ ...lookup(b.entries), name: b.name, updatedAt: new Date().toISOString() })); });
 
 describe("LookupPage", () => {
   it("a change saves the whole table, and a row the server would refuse is held back and says why", async () => {
@@ -70,5 +72,52 @@ describe("LookupPage", () => {
     expect(sent.filter((e: { to: string }, i: number) => e.to !== `V${i}`)).toEqual([{ from: "K77", to: "V77-new" }]);
     fireEvent.change(screen.getByLabelText("Search rows"), { target: { value: "zzz" } });
     expect(screen.getByText("No rows match “zzz”.")).toBeTruthy();
+  });
+
+  it("Replace from a file swaps every row at once, and Undo saves the previous rows again", async () => {
+    api.getLookup.mockResolvedValue(lookup([{ from: "A", to: "1" }, { from: "B", to: "2" }, { from: "C", to: "3" }]));
+    render(<QueryClientProvider client={new QueryClient()}><LookupNoticeBanner /><LookupPage lookupId="l1" usedBy={[]} /></QueryClientProvider>);
+    const file = new File(["From,To\nX,9\nY,8\n"], "codes.csv", { type: "text/csv" });
+    fireEvent.change(await screen.findByTestId("replace-table-input"), { target: { files: [file] } });
+    await waitFor(() => expect(api.updateLookup).toHaveBeenLastCalledWith("l1", { name: "Item codes", entries: [{ from: "X", to: "9" }, { from: "Y", to: "8" }] }));
+    const notice = await screen.findByText("codes.csv imported. 2 rows replace the 3 that were here.");
+    api.updateLookup.mockRejectedValueOnce(new Error("network"));
+    fireEvent.click(within(notice.closest("[data-notice-tone]") as HTMLElement).getByRole("button", { name: "Undo" }));
+    expect(await screen.findByText(/^Couldn't undo\./)).toBeTruthy();
+    expect(within(table()).getByLabelText("To value for A")).toBeTruthy();              // the previous rows are on screen
+    expect(screen.getByText("Couldn't save. Your changes are kept on this page.")).toBeTruthy();
+    fireEvent.click(within(screen.getByText(/^Couldn't undo\./).closest("[data-notice-tone]") as HTMLElement).getByRole("button", { name: "Undo" }));
+    expect(await screen.findByText("Import undone. The 3 rows from before are back.")).toBeTruthy();
+    expect(api.updateLookup.mock.lastCall![1].entries.map((e: { from: string }) => e.from)).toEqual(["A", "B", "C"]);
+  });
+
+  it("Delete asks first, and a lookup in use says why and stays", async () => {
+    api.getLookup.mockResolvedValue(lookup([{ from: "A", to: "1" }]));
+    api.deleteLookup.mockRejectedValue(new ApiHttpError("in use", 409, { error: "lookup_in_use" }));
+    show();
+    fireEvent.click(await screen.findByRole("button", { name: "Delete lookup" }));
+    expect(screen.getByText("Delete “Item codes”? This can't be undone.")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Delete lookup" }));
+    expect(await screen.findByText("An output uses this lookup. Remove it from the output first.")).toBeTruthy();
+    expect(api.deleteLookup).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole("button", { name: "Keep it" }));
+    expect(screen.queryByText("Delete “Item codes”? This can't be undone.")).toBeNull();
+  });
+
+  it("shows suggestions only when they are switched on, behind Set up suggestions, and saves the list by itself", async () => {
+    api.getLookup.mockResolvedValue(lookup([], { suggestionsOn: false }));
+    const off = show();
+    await screen.findByText("No rows yet. Add a row, or replace from a file.");
+    expect(screen.queryByRole("button", { name: "Set up suggestions" })).toBeNull();
+    off.unmount();
+    api.getLookup.mockResolvedValue(lookup([], { suggestionsOn: true }));
+    show();
+    const open = await screen.findByRole("button", { name: "Set up suggestions" });
+    expect(open.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(open);
+    expect(screen.getByText("No list yet.")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Import list (CSV)"), { target: { files: [new File(["Code,Name\nSUP-1,Pilsner bottle"], "list.csv", { type: "text/csv" })] } });
+    await waitFor(() => expect(api.updateLookup).toHaveBeenLastCalledWith("l1", expect.objectContaining({ candidates: [{ value: "SUP-1", description: "Pilsner bottle" }] })));
+    expect(await screen.findByText("Imported 1 value.")).toBeTruthy();
   });
 });
