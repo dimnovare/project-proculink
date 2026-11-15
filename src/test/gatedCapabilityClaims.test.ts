@@ -15,7 +15,7 @@ import {
   STANDARD_NAME_TOKENS,
   type FormatRow,
 } from "@/lib/marketing/format-catalog";
-import { PLANS, PUBLIC_LADDER, inheritanceLine, type Plan } from "@/lib/plans";
+import { PLANS, PUBLIC_LADDER, inheritanceLine, type Plan, type PlanId } from "@/lib/plans";
 import { STANDARDS } from "@/lib/standards/catalog";
 
 /**
@@ -1579,20 +1579,23 @@ describe("no surface offers a standard as an output format while nothing can pro
 describe("the /pricing cards, as rendered from PUBLIC_LADDER", () => {
   it("every bullet a card sells is a capability the backend grants that plan", () => {
     const { container } = render(createElement(PricingPage));
-    const cards = Array.from(container.querySelectorAll("article.plk-price-card"));
-    // Anti-vacuity: one card per public plan, and the document plans really carry bullets.
-    expect(cards).toHaveLength(PUBLIC_LADDER.length);
+    // Each plan block names, in data-plans, every plan its text is sold on; a bullet shared by the
+    // four paid plans is written once and checked against all four.
+    const blocks = Array.from(container.querySelectorAll("[data-plans]"));
+    // Anti-vacuity: every public plan is named by some block, and the bullets really render.
+    expect(new Set(blocks.flatMap((b) => b.getAttribute("data-plans")!.split(" ")))).toEqual(new Set(PUBLIC_LADDER.map((p) => p.id)));
+    expect(blocks.some((b) => b.querySelector("li"))).toBe(true);
 
-    for (const card of cards) {
-      const name = card.querySelector(".plk-tier")!.textContent;
-      const plan = PUBLIC_LADDER.find((p) => p.name === name)!;
-      for (const li of Array.from(card.querySelectorAll("li"))) {
-        for (const [key, { label, sells }] of Object.entries(CAPABILITY_CLAIMS)) {
-          if (!claims(sells, li.textContent ?? "")) continue;
-          expect(
-            planIncludesCapability(plan.id, key as keyof typeof BACKEND_MINIMUM_PLAN),
-            `the ${plan.id} card sells ${label} ("${li.textContent}") but the backend does not grant it there`,
-          ).toBe(true);
+    for (const block of blocks) {
+      for (const id of block.getAttribute("data-plans")!.split(" ")) {
+        for (const li of Array.from(block.querySelectorAll("li"))) {
+          for (const [key, { label, sells }] of Object.entries(CAPABILITY_CLAIMS)) {
+            if (!claims(sells, li.textContent ?? "")) continue;
+            expect(
+              planIncludesCapability(id as PlanId, key as keyof typeof BACKEND_MINIMUM_PLAN),
+              `the ${id} plan is sold ${label} ("${li.textContent}") but the backend does not grant it there`,
+            ).toBe(true);
+          }
         }
       }
     }
