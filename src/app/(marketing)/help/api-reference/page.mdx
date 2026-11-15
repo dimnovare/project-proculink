@@ -10,7 +10,7 @@ export const metadata = helpArticleMetadata({
 
 Send a file to a flow over the API, fetch the result, and receive webhooks when a document changes.
 
-For a walk-through, see [Send documents by API](/help/guides/send-documents-by-api). The examples here use `api.example.com`. Your own API address is shown on the flow's **API** card, under the **Intake** tab.
+For a walk-through, see [Send documents by API](/help/guides/send-documents-by-api). The examples here use `api.example.com`. Your own API address is shown on the flow's **Arrives** step, under **For developers**.
 
 ## Keys
 
@@ -91,7 +91,7 @@ Refusals: `401`, `403` `document_engine_not_enabled`, and `404` `document_not_fo
 
 ## Webhooks
 
-On the flow's **API** card, enter a web address and optionally a signing secret, then select **Save**. Select **Send a test** to try it. The address must be reachable from the internet. A webhook belongs to the flow and covers its documents however they arrived.
+On the flow's **Arrives** step, open **For developers**, enter a web address and optionally a signing secret, then select **Save and send a test**. The address must be reachable from the internet. A webhook belongs to the flow and covers its documents however they arrived.
 
 We send a `POST` with a JSON body. The events are:
 
@@ -99,7 +99,7 @@ We send a `POST` with a JSON body. The events are:
 - `document.read_failed` when reading failed.
 - `document.sent` when every output was delivered, or is ready to download.
 - `document.send_failed` when a send ended in failure.
-- `document.test` when you select **Send a test**.
+- `document.test` when you select **Save and send a test** with a web address filled in.
 
 ```
 {
