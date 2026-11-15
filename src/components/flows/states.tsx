@@ -30,6 +30,7 @@ export function LoadingRows({ label, columns, rows = 3 }: { label: string; colum
   const grid = { gridTemplateColumns: `repeat(${cells}, minmax(0, 1fr))` };
   return (
     <Card flush role="status" aria-label={label}>
+      <span className="sr-only">{label}</span>
       {columns && (
         <div className="grid h-[42px] items-center gap-4 px-4 text-[13px] text-ink-muted" style={grid}>
           {columns.map((c) => <span key={c}>{c}</span>)}
@@ -127,12 +128,15 @@ export function failedLine(error: unknown): string {
   return documentRefusalMessage(error);
 }
 
-export const Failed = ({ error, retry, what }: { error: unknown; retry(): void; /** "your documents": draws the panel */ what?: string }) =>
+export const Failed = ({ error, retry, what, lead = "We couldn't load this." }: {
+  error: unknown; retry(): void; /** "your documents": draws the panel */ what?: string;
+  /** The notice's first sentence when the server gave none, for a failure that is not a load. */ lead?: string;
+}) =>
   what ? (
     <CouldNotLoad title={`We couldn't load ${what}.`} line={failedLine(error)} retry={retry} />
   ) : (
     <StatusNotice tone="error" action={<Button variant="secondary" size="sm" onClick={retry}>Try again</Button>}>
-      {serverWorded(error) ? failedLine(error) : `We couldn't load this. ${failedLine(error)}`}
+      {serverWorded(error) ? failedLine(error) : `${lead} ${failedLine(error)}`}
     </StatusNotice>
   );
 
@@ -152,8 +156,10 @@ export function Checks({ checks }: { checks: DocumentCheck[] }) {
 }
 
 /** Why a document has nothing to edit, and the way forward: a failed read, or a file we had already. */
-export function ReadProblem({ summary, nothingRead, retry, scansOn }: {
+export function ReadProblem({ summary, nothingRead, retry, scansOn, uploadHref }: {
   summary: DocumentSummary; nothingRead: boolean; scansOn?: boolean; retry: UseMutationResult<unknown, unknown, void>;
+  /** Where "Upload a clearer copy" goes: where this screen uploads to the document's flow. */
+  uploadHref: string;
 }) {
   if (AUTOMATIC_HOLDS.has(summary.statusReason ?? "")) return <StatusNotice tone="warning">{readFailureMessage(summary.statusReason)}</StatusNotice>;
   const duplicate = summary.statusReason === "duplicate_file" && nothingRead;
@@ -171,7 +177,7 @@ export function ReadProblem({ summary, nothingRead, retry, scansOn }: {
         <>
           <p className="m-0 text-[13px] text-ink-muted">It hasn't been sent anywhere, and it doesn't count as a document on your plan.</p>
           <div className="flex flex-wrap gap-2">
-            <Link href="/upload" className={buttonClass("secondary", "md")}>Upload a clearer copy</Link>
+            <Link href={uploadHref} className={buttonClass("secondary", "md")}>Upload a clearer copy</Link>
           </div>
         </>
       )}

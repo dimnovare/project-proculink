@@ -97,6 +97,14 @@ describe("NewFlowGuide", () => {
     expect(api.createFlow).not.toHaveBeenCalled();
   });
 
+  it("sends a clearer copy of an unreadable example back to the guide's upload step", async () => {
+    url.set("flow=f&doc=d&step=3");
+    api.getDocument.mockResolvedValue({ summary: { ...summary("read_failed"), statusReason: "unreadable_file" }, contentType: "text/csv", read: { ...read, fields: [] }, checks: [] });
+    renderGuide();
+    const link = await screen.findByRole("link", { name: "Upload a clearer copy" });
+    expect(link.getAttribute("href")).toBe("/flows/new?flow=f&step=2");
+  });
+
   it("saves the destination with the stored template", async () => {
     url.set("flow=f&doc=d&step=5");
     const template = { root: { name: "document", nodeType: "object", children: [{ name: "kept", nodeType: "value" }] } };

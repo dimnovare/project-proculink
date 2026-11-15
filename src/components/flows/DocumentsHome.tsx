@@ -28,7 +28,7 @@ import { CaughtUp, EmptyFilter, FirstFlowEmpty, Quiet } from "./states";
 import { StoppedAlert } from "./StoppedAlert";
 
 const Retry = ({ onClick }: { onClick: () => void }) => (
-  <Button variant="secondary" size="sm" onClick={onClick}>Retry</Button>
+  <Button variant="secondary" size="sm" onClick={onClick}>Try again</Button>
 );
 
 export function DocumentsHome() {

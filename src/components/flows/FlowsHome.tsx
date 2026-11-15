@@ -15,7 +15,7 @@ import { deliveryModeLabel } from "@/lib/deliveryMode";
 import { FirstFlowEmpty, Quiet } from "./states";
 
 const Retry = ({ onClick }: { onClick: () => void }) => (
-  <Button variant="secondary" size="sm" onClick={onClick}>Retry</Button>
+  <Button variant="secondary" size="sm" onClick={onClick}>Try again</Button>
 );
 
 export function FlowsHome() {

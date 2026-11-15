@@ -203,7 +203,7 @@ export function DocumentScreen({ flowId, documentId }: { flowId: string; documen
               </p>
             )}
             <div className="mt-3">
-              <ReadProblem summary={summary} nothingRead={nothingRead} retry={retry} scansOn={flow.data?.scansOn} />
+              <ReadProblem summary={summary} nothingRead={nothingRead} retry={retry} scansOn={flow.data?.scansOn} uploadHref={`/flows/${summary.flowId}?tab=documents`} />
             </div>
           </Card>
           <div

@@ -4,11 +4,12 @@ import { Failed, LoadingRows, ReadProblem } from "./states";
 import { COPY } from "@/lib/documentRefusals";
 import { ApiHttpError } from "@/lib/api/core";
 import { EmptyState } from "@/components/bridge/EmptyState";
+import { buttonClass } from "@/components/bridge/DSPrimitives";
 
 describe("ReadProblem", () => {
   it("says why a held document is waiting when no output matches", () => {
     const summary = { id: "d", status: "needs_review", statusReason: "no_output_matches" };
-    const { container } = render(<ReadProblem summary={summary as never} nothingRead={false} retry={{} as never} />);
+    const { container } = render(<ReadProblem summary={summary as never} nothingRead={false} retry={{} as never} uploadHref="/flows/f?tab=documents" />);
     expect(within(container).getByText(COPY.no_output_matches)).toBeTruthy();
   });
 });
@@ -23,7 +24,8 @@ describe("Failed and EmptyState", () => {
       return { text, button: !!button };
     };
     expect(box(new ApiHttpError("x", 404, { error: "document_not_found" })).text).toBe(COPY.document_not_found + "Try again");
-    expect(box(new ApiHttpError("x", 403, { error: "pilot_expired" })).text).toBe(COPY.pilot_expired + "Try again");
+    expect(box(new ApiHttpError("x", 429, { error: "pilot_expired" })).text).toBe(COPY.pilot_expired + "Try again");
+    expect(box(new ApiHttpError("x", 503, { error: "processing_paused" })).text).toBe(COPY.processing_paused + "Try again");
     expect(box(new TypeError("Failed to fetch")).text).toBe("We couldn't load this. Nothing is lost. Check your connection and try again.Try again");
     expect(box(new ApiHttpError("x", 502, null)).text).toBe("We couldn't load this. Nothing is lost. Check your connection and try again.Try again");
     expect(box(new ApiHttpError("x", 400, { error: "a_token_we_have_no_words_for" })).text).toBe("We couldn't load this. Something went wrong. Try again.Try again");
@@ -58,11 +60,11 @@ describe("LoadingRows and a document we couldn't read", () => {
 
   it("a document we couldn't read says it was not sent or counted, and offers a clearer copy", () => {
     const summary = { id: "d", status: "read_failed", statusReason: "unreadable_file" };
-    const { container } = render(<ReadProblem summary={summary as never} nothingRead retry={{ isPending: false, isError: false, mutate() {} } as never} />);
+    const { container } = render(<ReadProblem summary={summary as never} nothingRead retry={{ isPending: false, isError: false, mutate() {} } as never} uploadHref="/flows/f?tab=documents" />);
     expect(within(container).getByText(COPY.unreadable_file)).toBeTruthy();
     expect(within(container).getByText("It hasn't been sent anywhere, and it doesn't count as a document on your plan.")).toBeTruthy();
     const link = within(container).getByRole("link", { name: "Upload a clearer copy" });
-    expect(link.getAttribute("href")).toBe("/upload");
-    expect(link.className).not.toContain("bg-brand-blue"); // outlined (R14)
+    expect(link.getAttribute("href")).toBe("/flows/f?tab=documents");
+    expect(link.className).toBe(buttonClass("secondary", "md")); // outlined (R14)
   });
 });
