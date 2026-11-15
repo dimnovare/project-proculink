@@ -23,7 +23,7 @@ export interface DocumentEdits {
   refusal: string | null;
   /** A row change is on its way. */
   busy: boolean;
-  /** Resolves when everything typed is saved; rejects when it could not be. */
+  /** Resolves when everything typed is saved; rejects when it could not be, or with the server's refusal of it. */
   flush(): Promise<void>;
 }
 
@@ -45,6 +45,7 @@ export function useDocumentEdits(documentId: string): DocumentEdits {
   const drafts = useRef(new Map<string, Draft>());
   const [shown, setShown] = useState<Record<string, string>>({});
   const [refusal, setRefusal] = useState<string | null>(null);
+  const refused = useRef<unknown>(null);
   const show = useCallback(() => setShown(Object.fromEntries([...drafts.current].map(([k, d]) => [k, d.value]))), []);
 
   /** Sends one request. A refusal resolves (the values can no longer change); any other failure rejects. */
@@ -65,6 +66,7 @@ export function useDocumentEdits(documentId: string): DocumentEdits {
       setRefusal(null);
     } catch (e) {
       if (refusalToken(e) === null) throw e;
+      refused.current = e;
       drafts.current.clear();
       show();
       setRefusal(documentRefusalMessage(e));
@@ -88,5 +90,12 @@ export function useDocumentEdits(documentId: string): DocumentEdits {
     try { await rowChange.mutateAsync(req); } catch (e) { setRefusal(documentRefusalMessage(e)); }
   }, [flush, rowChange]);
 
-  return { drafts: shown, type, commit, rows, state, error, refusal, busy: rowChange.isPending, flush };
+  /** A refused save resolves inside the hook (the values can no longer change), but a caller waiting to send must not go on. */
+  const flushed = useCallback(async () => {
+    refused.current = null;
+    await flush();
+    if (refused.current !== null) throw refused.current;
+  }, [flush]);
+
+  return { drafts: shown, type, commit, rows, state, error, refusal, busy: rowChange.isPending, flush: flushed };
 }

@@ -1,29 +1,34 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import { Card } from "@/components/bridge/layout/Card";
-import { StatusJourney } from "@/components/bridge/StatusJourney";
-import { Button } from "@/components/bridge/DSPrimitives";
+import { Button, Pill, buttonClass } from "@/components/bridge/DSPrimitives";
 import { SourceDocumentBody, scrollTo, type SourcePick } from "@/components/bridge/document/SourceDocumentBody";
 import { DOCX_MEDIA_TYPE, sourceRenderFor } from "@/lib/sourceDocument";
 import { useLgViewport } from "@/components/bridge/document/useSourceDocument";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { useDocumentEdits } from "@/hooks/useDocumentEdits";
+import { reviewQueueQuery } from "@/hooks/useDocumentEngine";
 import { reviewMarks } from "@/lib/reviewMarks";
-import { fetchDocumentSource, getDocument, getFlow, getDocumentHistory, retryDocumentRead, teachDocument } from "@/lib/api/documents";
+import { documentHref, pickNext, positionText, queuePosition } from "@/lib/reviewQueue";
+import { documentsAddress } from "@/lib/documentTabs";
+import { relativeTime } from "@/lib/relativeTime";
+import { fetchDocumentSource, getDocument, getFlow, getDocumentHistory, retryDocumentRead, sendDocument, teachDocument } from "@/lib/api/documents";
 import { formatDateTime } from "@/lib/format-date";
 import { documentRefusalMessage, refusalToken } from "@/lib/documentRefusals";
 import { documentStatus } from "@/lib/documentStatusManifest";
-import type { DocumentDetail, Flow, SourceLocation, TeachRequest } from "@/lib/api/documents";
+import type { DocumentDetail, DocumentPage, Flow, SourceLocation, TeachRequest } from "@/lib/api/documents";
 import { DocumentOutputsPanel } from "./DocumentOutputsPanel";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { INPUT } from "./DestinationForm";
 import { ADDED_TO_CHANGES, ReadValuesPanel, type Teach } from "./ReadValuesPanel";
 import { Checks, Failed, Quiet, ReadProblem } from "./states";
+import { rowNeed } from "./DocumentList";
 
 // The file's own extension decides the viewer. The server's content type is not trusted for this.
 const TYPES: Record<string, string> = {
@@ -123,10 +128,19 @@ export function Original({ documentId, fileName, highlight, marks, onPick }: { d
   return <SourceDocumentBody cacheKey={documentId} document={{ blob: source.data, contentType: type, filename: fileName }} bounded={isLg} highlight={highlight} marks={marks} onPick={onPick} />;
 }
 
-export function DocumentScreen({ flowId, documentId }: { flowId: string; documentId: string }) {
+/** A change typed on this document could not be saved, so nothing was sent. */
+const UNSAVED = new Error("unsaved");
+const UNSAVED_TEXT = "Nothing was sent: your last change isn't saved yet.";
+
+/** The route's component: everything below is keyed by the document, so nothing carries over to the next one. */
+export function DocumentScreen(p: { flowId: string; documentId: string }) {
+  return <Review key={p.documentId} {...p} />;
+}
+
+function Review({ flowId, documentId }: { flowId: string; documentId: string }) {
   const qc = useQueryClient();
+  const router = useRouter();
   const enabled = useTenantQueriesEnabled();
-  const [showOriginal, setShowOriginal] = useState(true);
   const [spot, setSpot] = useState<SourceLocation | null>(null);
   const edits = useDocumentEdits(documentId);
   const doc = useQuery({
@@ -185,43 +199,84 @@ export function DocumentScreen({ flowId, documentId }: { flowId: string; documen
   const marks = useMemo(() => (doc.data ? reviewMarks(doc.data, editable) : null), [doc.data, editable]);
   const history = <History documentId={documentId} version={summary?.flowVersion} />;
 
+  const queue = useQuery({ ...reviewQueueQuery, enabled, staleTime: 60_000, refetchOnWindowFocus: true });
+  const position = positionText(queuePosition(queue.data, documentId));
+  const nextNow = pickNext(queue.data?.items, undefined, documentId);
+  const saved = () => edits.flush().catch((e: unknown) => { throw refusalToken(e) === null ? UNSAVED : e; });
+  const send = useMutation({
+    mutationFn: async () => {
+      const before = qc.getQueryData<DocumentPage>(reviewQueueQuery.queryKey)?.items;
+      await saved();
+      await sendDocument(documentId);
+      return before;
+    },
+    onSuccess: async (before) => {
+      await Promise.all([["documents"], ["document", documentId], ["deliveries", documentId], ["document-history", documentId]].map((queryKey) => qc.invalidateQueries({ queryKey })));
+      const next = pickNext(before, qc.getQueryData<DocumentPage>(reviewQueueQuery.queryKey)?.items, documentId);
+      router.replace(next ? documentHref(next) : documentsAddress("needs-you"));
+    },
+    onError: (e) => { if (e !== UNSAVED && refusalToken(e) !== null) qc.invalidateQueries({ queryKey: ["document", documentId] }); },
+  });
+  const skip = useMutation({
+    mutationFn: async () => { await saved(); if (nextNow) router.replace(documentHref(nextNow)); },
+  });
+  // A second press before the first one re-renders does nothing.
+  const pressed = useRef(false);
+  const press = (m: typeof send | typeof skip) => {
+    if (pressed.current) return;
+    pressed.current = true;
+    m.mutate(undefined, { onSettled: () => { pressed.current = false; } });
+  };
+  const busy = send.isPending || skip.isPending;
+  const refused = send.error ?? skip.error;
+  const failedCodes = doc.data?.checks.filter((c) => !c.passed).map((c) => c.code) ?? [];
+  const tag = marks && marks.count > 0
+    ? { text: marks.count === 1 ? "1 value to check" : `${marks.count} values to check`, tone: "amber" as const }
+    : summary && rowNeed({ ...summary, checks: failedCodes, failedChecks: 0 });
+  const ago = relativeTime(summary?.createdAt);
+  const arrived = summary && [
+    summary.source ? `, arrived by ${SOURCES.get(summary.source) ?? summary.source}` : "",
+    summary.sourceRef ? ` from ${summary.sourceRef}` : "",
+    ago ? ` ${ago}` : "",
+  ].join("");
+
   return (
     <PageShell variant="wide">
       <PageHeader
         title={summary?.fileName ?? "Document"}
-        sub={summary && <Link href={`/flows/${summary.flowId}`} className="inline-flex min-h-[44px] items-center text-brand-blue sm:min-h-0">{summary.flowName}</Link>}
+        sub={summary && (
+          <span data-testid="review-sub">
+            <Link href={`/flows/${summary.flowId}`} className="inline-flex min-h-[44px] items-center text-brand-blue sm:min-h-0">{summary.flowName}</Link>
+            {arrived}
+          </span>
+        )}
         back={{ href: "/documents", label: "Documents" }}
+        actions={status && tag && (
+          <div data-testid="review-header-actions" className="flex flex-wrap items-center gap-2">
+            <Pill tone={tag.tone}>{tag.text}</Pill>
+            {position && <span className="text-[12.5px] text-ink-muted">{position}</span>}
+            {status.editable ? (
+              <>
+                {nextNow && <Button variant="secondary" className="hidden md:inline-flex" disabled={busy} onClick={() => press(skip)}>Skip</Button>}
+                <Button variant="send" className="hidden md:inline-flex" disabled={busy} loading={send.isPending} onClick={() => press(send)}>Send and open next</Button>
+              </>
+            ) : nextNow && <Link href={documentHref(nextNow)} className={`${buttonClass("send", "md")} inline-flex items-center`}>Review next</Link>}
+          </div>
+        )}
       />
+      {refused && (
+        <div ref={scrollTo} className="mb-4">
+          <StatusNotice tone="error">{refused === UNSAVED ? UNSAVED_TEXT : documentRefusalMessage(refused)}</StatusNotice>
+        </div>
+      )}
       {!doc.data || !summary || !status ? (
         doc.isError ? <Failed error={doc.error} retry={() => doc.refetch()} /> : <Quiet>Loading document…</Quiet>
       ) : (
         <div className="grid gap-4">
           {doc.isError && <Failed error={doc.error} retry={() => doc.refetch()} />}
-          <Card>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <span className="flex items-center gap-2 text-[12.5px] text-ink-muted">
-                <StatusJourney stage={status.stage} compact />
-                {status.label}
-              </span>
-              <Button variant="ghost" size="sm" aria-expanded={showOriginal} onClick={() => setShowOriginal((s) => !s)}>
-                {showOriginal ? "Hide original" : "Show original"}
-              </Button>
-            </div>
-            {summary.source && (
-              <p className="m-0 mt-1 text-[12.5px] text-ink-muted">
-                Arrived by {SOURCES.get(summary.source) ?? summary.source}{summary.sourceRef ? ` from ${summary.sourceRef}` : ""}
-              </p>
-            )}
-            <div className="mt-3">
-              <ReadProblem summary={summary} nothingRead={nothingRead} retry={retry} scansOn={flow.data?.scansOn} />
-            </div>
-          </Card>
-          <div
-            className={`grid items-start gap-4 pb-24 lg:pb-0 ${
-              showOriginal ? "lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_minmax(0,0.85fr)]" : "lg:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)]"
-            }`}
-          >
-            <div hidden={!showOriginal} className="min-w-0 lg:sticky lg:top-0 lg:h-[calc(100vh-150px)]">
+          <ReadProblem summary={summary} nothingRead={nothingRead} retry={retry} scansOn={flow.data?.scansOn} />
+          <div className="grid items-start gap-4 pb-24 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_minmax(0,0.85fr)] lg:pb-0">
+            <div className="min-w-0 lg:sticky lg:top-0 lg:h-[calc(100vh-150px)]">
               <Card edge="blue" flush as="section" aria-labelledby="doc-original" className="flex h-full flex-col">
                 <h2 id="doc-original" className="px-4 pb-2 pt-3.5 text-[13px] font-semibold text-ink">Original document</h2>
                 {teach && <TeachBanner key={teachMutation.submittedAt} label={teach.label} render={originalKind} mutation={teachMutation} onCancel={cancelTeach} onSave={(value) => teachMutation.mutate({ ...teachMutation.variables, value })} />}
@@ -244,7 +299,7 @@ export function DocumentScreen({ flowId, documentId }: { flowId: string; documen
                 </div>
               ) : (
                 <ReadValuesPanel detail={doc.data} editable={status.editable} edits={edits} marks={marks} history={history} onLocate={setSpot} flow={flow.data}
-                  onTeach={canTeach ? (t) => { setTeach(t); setTaught(null); setShowOriginal(true); teachMutation.reset(); } : undefined}
+                  onTeach={canTeach ? (t) => { setTeach(t); setTaught(null); teachMutation.reset(); } : undefined}
                 />
               )}
             </Card>

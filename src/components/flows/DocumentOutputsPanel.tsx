@@ -1,18 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useIsMutating, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { Card } from "@/components/bridge/layout/Card";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import {
-  downloadDeliveryFile, getFlow, listDeliveries, listDestinations, listOutputs, previewOutput, sendDocument,
+  downloadDeliveryFile, getFlow, listDeliveries, listDestinations, listOutputs, previewOutput,
 } from "@/lib/api/documents";
 import type { DocumentDelivery, DocumentDetail, Flow, FlowOutput } from "@/lib/api/documents";
 import { describeSendWhen } from "@/lib/flowOutputModel";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
-import { documentStatus } from "@/lib/documentStatusManifest";
 import { saveBlob } from "@/lib/saveBlob";
 import { LookupMisses } from "./LookupMisses";
 import { outputTypeLabel } from "./OutputEditor";
@@ -98,27 +97,15 @@ function OutputRow({ o, flowId, documentId, flowFields, destinations }: {
 }
 
 export function DocumentOutputsPanel({ flowId, document: doc }: { flowId: string; document: DocumentDetail }) {
-  const qc = useQueryClient();
   const enabled = useTenantQueriesEnabled();
   const documentId = doc.summary.id;
   const outputs = useQuery({ queryKey: ["outputs", flowId, "published"], queryFn: () => listOutputs(flowId, { published: true }), enabled });
   const destinations = useQuery({ queryKey: ["destinations"], queryFn: listDestinations, enabled });
   const flow = useQuery({ queryKey: ["flow", flowId], queryFn: () => getFlow(flowId), enabled });
-  const send = useMutation({
-    mutationFn: () => sendDocument(documentId),
-    onSuccess: () => Promise.all([["documents"], ["document", documentId], ["deliveries", documentId], ["document-history", documentId]].map((queryKey) => qc.invalidateQueries({ queryKey }))),
-  });
-  // Send waits for a value edit that is still saving, so the file always carries what the screen shows.
-  const saving = useIsMutating({ mutationKey: ["edit-values", documentId] }) > 0;
-  const canSend = documentStatus(doc.summary.status, doc.summary.statusReason).editable;
 
   return (
     <Card edge="green" as="section" aria-labelledby="doc-outputs" className="min-w-0">
-      <div data-testid="doc-send-bar" style={{ bottom: "var(--plk-bottom-inset, 0px)" }} className="fixed inset-x-0 z-20 flex lg:mb-3 flex-wrap items-center justify-between gap-2 border-t border-border bg-surface p-3 lg:static lg:border-0 lg:bg-transparent lg:p-0">
-        <h2 id="doc-outputs" className="m-0 text-[13px] font-semibold text-ink">Outputs</h2>
-        <Button variant="send" size="sm" className="min-h-11 lg:min-h-0" disabled={!canSend || saving} loading={send.isPending || saving} onClick={() => send.mutate()}>Send</Button>
-        {send.isError && <div className="basis-full"><StatusNotice tone="error">{documentRefusalMessage(send.error)}</StatusNotice></div>}
-      </div>
+      <h2 id="doc-outputs" className="m-0 mb-3 text-[13px] font-semibold text-ink">Outputs</h2>
       <div className="grid gap-3">
         {destinations.isError && <Failed error={destinations.error} retry={() => destinations.refetch()} />}
         {outputs.isError && !outputs.data ? <Failed error={outputs.error} retry={() => outputs.refetch()} />
