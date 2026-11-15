@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ApiHttpError } from "@/lib/api/core";
 import { FlowPage } from "./FlowPage";
@@ -38,6 +38,20 @@ const renderPage = () =>
   render(<QueryClientProvider client={new QueryClient()}><FlowPage flowId="f" /></QueryClientProvider>);
 
 describe("FlowPage", () => {
+  it("a flow the server does not know is the in-app not-found page; any other failure keeps Try again", async () => {
+    const quiet = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    api.getFlow.mockRejectedValue(new ApiHttpError("not found", 404, { error: "flow_not_found" }));
+    const view = render(<QueryClientProvider client={quiet}><FlowPage flowId="nope" /></QueryClientProvider>);
+    expect(await within(view.container).findByRole("heading", { level: 1, name: "We can't find that page" })).toBeTruthy();
+    expect(within(view.container).getByRole("button", { name: "Get help" })).toBeTruthy();
+    expect(within(view.container).queryByRole("button", { name: "Try again" })).toBeNull();
+    view.unmount();
+    api.getFlow.mockRejectedValue(new ApiHttpError("down", 503, null));
+    const down = render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><FlowPage flowId="f" /></QueryClientProvider>);
+    expect(await within(down.container).findByRole("button", { name: "Try again" })).toBeTruthy();
+    expect(within(down.container).queryByText("We can't find that page")).toBeNull();
+  });
+
   it("switching to automatic sends the new setting and keeps the duplicate rule visible", async () => {
     api.updateFlow.mockResolvedValue({ ...flow, automation: "auto" });
     renderPage();

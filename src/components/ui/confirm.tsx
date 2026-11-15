@@ -52,8 +52,12 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
   // button click (which settles) and the subsequent Radix onOpenChange(false)
   // don't double-resolve.
   const resolver = useRef<((value: boolean) => void) | null>(null);
+  // The confirm is opened by code, not by a Radix trigger, so it cannot know where focus
+  // was: remember it, and give it back when the confirm closes.
+  const returnTo = useRef<HTMLElement | null>(null);
 
   const confirm = useCallback<ConfirmFn>((next) => {
+    returnTo.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setOpts(next);
     setOpen(true);
     return new Promise<boolean>((resolve) => {
@@ -71,7 +75,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
     <ConfirmContext.Provider value={confirm}>
       {children}
       <AlertDialog open={open} onOpenChange={(next) => { if (!next) settle(false); }}>
-        <AlertDialogContent>
+        <AlertDialogContent onCloseAutoFocus={(e) => { e.preventDefault(); returnTo.current?.focus(); }}>
           <AlertDialogHeader>
             <AlertDialogTitle>{opts.title}</AlertDialogTitle>
             {opts.description != null && (

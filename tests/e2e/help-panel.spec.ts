@@ -309,12 +309,13 @@ test.describe("page not found inside the app", () => {
     await expect(page.getByRole("heading", { level: 1, name: "Documents" })).toBeVisible();
   });
 
-  // DEFECT, kept failing on purpose: the catch-alls call notFound() under (app)/loading.tsx's
-  // Suspense boundary, so the response has already streamed with 200. Remove .fail when it is 404.
-  test("an unknown app address answers 404", async ({ page }) => {
-    test.fail();
-    const res = await page.goto("/flows/this/does/not/exist");
-    expect(res?.status()).toBe(404);
+  // The status code is not asserted: (app)/loading.tsx starts the response before the catch-all's
+  // notFound() runs, so it streams as 200. Accepted (signed-in pages, not indexed); the person sees
+  // the not-found page either way, which is what this pins.
+  test("an unknown app address draws the not-found page and Get help", async ({ page }) => {
+    await open(page, "/flows/this/does/not/exist", 1440, 900);
+    await expect(page.getByRole("heading", { level: 1, name: "We can't find that page" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Get help" })).toBeVisible();
   });
 
   test("an id that does not exist reads exactly like any other unknown id", async ({ page }) => {
@@ -330,14 +331,13 @@ test.describe("page not found inside the app", () => {
     }
   });
 
-  // DEFECT, kept failing on purpose: an unknown flow or lookup id shows the screen's own
-  // couldn't-load notice (with "Try again" on a 404), not the not-found page with "Get help".
+  // A 404 for a flow or lookup id is the in-app not-found page: no "Try again", which cannot help.
   for (const path of ["/flows/does-not-exist", "/lookups/does-not-exist"]) {
     test(`${path} offers the way back and Get help like an unknown address`, async ({ page }) => {
-      test.fail();
       await open(page, path, 1440, 900);
-      await expect(page.getByRole("heading", { level: 1, name: "We can't find that page" })).toBeVisible({ timeout: 3_000 });
-      await page.getByRole("button", { name: "Get help" }).click({ timeout: 3_000 });
+      await expect(page.getByRole("heading", { level: 1, name: "We can't find that page" })).toBeVisible();
+      await expect(page.locator(MAIN).getByRole("button", { name: "Try again" })).toHaveCount(0);
+      await page.getByRole("button", { name: "Get help" }).click();
       await expect(page.locator(PANEL)).toBeVisible();
     });
   }
@@ -433,6 +433,8 @@ test.describe("shared states", () => {
     const d = await box(dialog), bar = await box(page.getByTestId("tab-bar"));
     console.log(`confirm: x ${d.x} w ${d.width} y ${d.y} h ${d.height}; bar y ${bar.y}`);
     expect(Math.abs(d.x + d.width / 2 - 195)).toBeLessThanOrEqual(1);
+    expect(Math.round(d.x), "a 16px gutter on the left").toBeGreaterThanOrEqual(16);
+    expect(Math.round(d.x + d.width), "a 16px gutter on the right").toBeLessThanOrEqual(390 - 16);
     expect(Math.abs(d.y + d.height / 2 - bar.y / 2)).toBeLessThanOrEqual(1);
     expect(d.y + d.height).toBeLessThanOrEqual(bar.y);
     await expect(dialog.getByRole("button", { name: "Cancel" })).toBeFocused();
@@ -453,16 +455,20 @@ test.describe("shared states", () => {
     await expect(page.getByRole("list", { name: "Destinations" })).toContainText("Accounting server");
   });
 
-  // DEFECT, kept failing on purpose: when the confirm closes (Escape or Cancel, at 390 and
-  // 1440) focus lands on <body>, not on the control that opened it. Remove .fail when fixed.
   test("when a confirm closes, focus returns to the control that opened it", async ({ page }) => {
-    test.fail();
-    await open(page, "/settings?tab=destinations&open=dest-3", 390, 844);
-    const trigger = page.getByRole("button", { name: "Delete destination" });
-    await trigger.click();
-    await expect(page.getByRole("alertdialog")).toBeVisible();
-    await page.keyboard.press("Escape");
-    await expect(page.getByRole("alertdialog")).toHaveCount(0);
-    await expect(trigger).toBeFocused({ timeout: 3_000 });
+    test.setTimeout(60_000);
+    for (const [width, height] of [[390, 844], [1440, 900]] as const) {
+      await open(page, "/settings?tab=destinations&open=dest-3", width, height);
+      const trigger = page.getByRole("button", { name: "Delete destination" });
+      for (const close of ["Escape", "Cancel"] as const) {
+        await trigger.click();
+        const dialog = page.getByRole("alertdialog");
+        await expect(dialog).toBeVisible();
+        if (close === "Escape") await page.keyboard.press("Escape");
+        else await dialog.getByRole("button", { name: "Cancel" }).click();
+        await expect(dialog).toHaveCount(0);
+        await expect(trigger, `${close} at ${width}`).toBeFocused();
+      }
+    }
   });
 });

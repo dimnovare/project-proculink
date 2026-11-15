@@ -175,6 +175,9 @@ export function classifyApiFailure(err: unknown): ApiFailure {
  * caught it. Keep that test; the predicate alone cannot tell you which way the
  * library counts.
  */
+/** The server answered 404: the thing does not exist here (or is not this workspace's, which reads the same). */
+export const isNotFoundFailure = (err: unknown): boolean => classifyApiFailure(err).kind === "not_found";
+
 export function shouldRetryApiFailure(failureCount: number, err: unknown): boolean {
   const f = classifyApiFailure(err);
   return f.retryable && failureCount < f.maxRetries;
