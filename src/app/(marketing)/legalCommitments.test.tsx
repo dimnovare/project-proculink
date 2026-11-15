@@ -808,7 +808,7 @@ describe("in-app and help surfaces make the same claim as the legal pages", () =
     // read as a configured guarantee to a paying customer.
     const src = code("src/app/(app)/settings/page.tsx");
     expect(src).not.toMatch(/Workspace region/i);
-    expect(src).toMatch(/Order storage/);
+    expect(src).toMatch(/Document storage/);
   });
 
   it("keeps the in-app storage claim one click from the page that qualifies it", () => {

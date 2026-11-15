@@ -13,6 +13,8 @@ import { SourceDocumentBody, scrollTo, type SourcePick } from "@/components/brid
 import { DOCX_MEDIA_TYPE, sourceRenderFor } from "@/lib/sourceDocument";
 import { useLgViewport } from "@/components/bridge/document/useSourceDocument";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
+import { useShortcut } from "@/hooks/useShortcut";
+import { ariaOf } from "@/lib/shortcuts";
 import { useDocumentEdits } from "@/hooks/useDocumentEdits";
 import { reviewQueueQuery } from "@/hooks/useDocumentEngine";
 import { reviewMarks } from "@/lib/reviewMarks";
@@ -163,6 +165,32 @@ export function Pane({ id, title, dot, aside, hidden, children }: {
   );
 }
 
+/** The pane tabs below lg (R15): one pane at a time, arrow keys move between them. Used by 14.5's check step too. */
+export function PaneTabs({ panes, active, onSelect }: {
+  panes: readonly { id: PaneId; title: string }[]; active: string; onSelect(id: string): void;
+}) {
+  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  return (
+    <div role="tablist" aria-label="Parts of this document" className="flex gap-1 border-b border-border lg:hidden">
+      {panes.map((pane, i) => (
+        <button
+          key={pane.id} ref={(el) => { tabRefs.current[i] = el; }} type="button" role="tab" id={`review-tab-${pane.id}`}
+          aria-controls={`review-pane-${pane.id}`} aria-selected={active === pane.id} tabIndex={active === pane.id ? 0 : -1}
+          className={`-mb-px min-h-[44px] border-b-2 px-3 text-[13px] font-semibold ${active === pane.id ? "border-navy text-ink" : "border-transparent text-ink-muted"}`}
+          onClick={() => onSelect(pane.id)}
+          onKeyDown={(e) => {
+            const to = nextTabIndex(e.key, i, panes.length);
+            if (to === undefined) return;
+            e.preventDefault();
+            onSelect(panes[to].id);
+            tabRefs.current[to]?.focus();
+          }}
+        >{pane.title}</button>
+      ))}
+    </div>
+  );
+}
+
 /** A change typed on this document could not be saved, so nothing was sent. */
 const UNSAVED = new Error("unsaved");
 const UNSAVED_TEXT = "Nothing was sent: your last change isn't saved yet.";
@@ -197,7 +225,6 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
   const isLg = useLgViewport();
   const [leaving, setLeaving] = useState(false);
   const [tab, setTab] = useState<PaneId>("read");
-  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [spot, setSpot] = useState<SourceLocation | null>(null);
   const edits = useDocumentEdits(documentId);
   const doc = useQuery({
@@ -298,6 +325,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
     m.mutate(undefined, { onError: () => { pressed.current = false; } });
   };
   const busy = send.isPending || skip.isPending || leaving;
+  useShortcut("send-and-next", () => press(send), !!status?.editable && !busy);
   const canSkip = !!status?.editable && !!nextNow;
   const located = !!marks?.places.length || !!doc.data?.read.fields.some((f) => f.location?.box || f.location?.address)
     || !!doc.data?.read.tables.some((t) => t.rows.some((r) => Object.values(r.cells).some((c) => c.location?.box || c.location?.address)));
@@ -331,7 +359,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
             {status.editable ? (
               <>
                 {canSkip && <Button variant="secondary" className="hidden md:inline-flex" disabled={busy} onClick={() => press(skip)}>Skip</Button>}
-                <Button variant="send" className="hidden md:inline-flex" disabled={busy} loading={send.isPending || leaving} onClick={() => press(send)}>Send and open next</Button>
+                <Button variant="send" className="hidden md:inline-flex" disabled={busy} loading={send.isPending || leaving} onClick={() => press(send)} aria-keyshortcuts={ariaOf("send-and-next")}>Send and open next</Button>
               </>
             ) : nextNow && <Link replace href={documentHref(nextNow)} className={`${buttonClass("send", "md")} hidden items-center md:inline-flex`}>Review next</Link>}
           </div>
@@ -353,23 +381,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
         <div className="grid gap-4">
           {doc.isError && <Failed error={doc.error} retry={() => doc.refetch()} />}
           <ReadProblem summary={summary} nothingRead={nothingRead} retry={retry} scansOn={flow.data?.scansOn} />
-          <div role="tablist" aria-label="Parts of this document" className="flex gap-1 border-b border-border lg:hidden">
-            {PANES.map((pane, i) => (
-              <button
-                key={pane.id} ref={(el) => { tabRefs.current[i] = el; }} type="button" role="tab" id={`review-tab-${pane.id}`}
-                aria-controls={`review-pane-${pane.id}`} aria-selected={tab === pane.id} tabIndex={tab === pane.id ? 0 : -1}
-                className={`-mb-px min-h-[44px] border-b-2 px-3 text-[13px] font-semibold ${tab === pane.id ? "border-navy text-ink" : "border-transparent text-ink-muted"}`}
-                onClick={() => setTab(pane.id)}
-                onKeyDown={(e) => {
-                  const to = nextTabIndex(e.key, i, PANES.length);
-                  if (to === undefined) return;
-                  e.preventDefault();
-                  setTab(PANES[to].id);
-                  tabRefs.current[to]?.focus();
-                }}
-              >{pane.title}</button>
-            ))}
-          </div>
+          <PaneTabs panes={PANES} active={tab} onSelect={(id) => setTab(id as PaneId)} />
           <div className="grid items-start gap-4 lg:grid-cols-3">
             <Pane id="original" title="Original" dot="blue" hidden={tab !== "original"}>
               {located && <p className="m-0 hidden px-4 pb-2 text-[12.5px] text-ink-muted lg:block">Click a value on the right to see where it came from.</p>}
@@ -411,7 +423,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
           {status.editable ? (
             <>
               {canSkip && <Button variant="secondary" className="!flex-none" disabled={busy} onClick={() => press(skip)}>Skip</Button>}
-              <Button variant="send" disabled={busy} loading={send.isPending || leaving} onClick={() => press(send)}>Send and open next</Button>
+              <Button variant="send" disabled={busy} loading={send.isPending || leaving} onClick={() => press(send)} aria-keyshortcuts={ariaOf("send-and-next")}>Send and open next</Button>
             </>
           ) : nextNow && <Link replace href={documentHref(nextNow)} className={`${buttonClass("send", "md")} inline-flex items-center`}>Review next</Link>}
         </ActionBar>

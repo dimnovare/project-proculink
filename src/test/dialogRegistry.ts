@@ -189,6 +189,12 @@ export const DIALOG_GREP_FALSE_POSITIVES: { file: string; why: string }[] = [
       "mentions are the `ANNOUNCED_LAYER` regex and prose in the baseline rows describing which " +
       "markings a file is missing. It renders nothing.",
   },
+  {
+    file: "src/lib/shortcuts.ts",
+    why:
+      "The keyboard shortcut matcher. Its only dialog-role mentions are the selectors that keep " +
+      "a shortcut from firing inside, or while there is, an open dialog (plan 14.10 R9). It renders nothing.",
+  },
 ];
 
 export const MODAL_DIALOGS = DIALOG_REGISTRY.filter((d) => d.kind === "modal");

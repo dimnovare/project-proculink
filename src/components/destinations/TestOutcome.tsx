@@ -6,38 +6,17 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
-import { ApiHttpError } from "@/lib/api/core";
-import { listDocumentPage, sendDocument } from "@/lib/api/documents";
+import { listDocumentPage } from "@/lib/api/documents";
 import type { DestinationTestResult, DocumentRow } from "@/lib/api/documents";
 import { sendMoment } from "@/lib/destinations";
-import { documentRefusalMessage, refusalToken } from "@/lib/documentRefusals";
+import { documentRefusalMessage } from "@/lib/documentRefusals";
+import { eachDocument, sendOne, type Each } from "@/lib/eachDocument";
 import { documentsAddress } from "@/lib/documentTabs";
 import { pageTotal } from "@/lib/pageTotal";
 import { serverReasonOrNull } from "@/lib/serverText";
 
-/** `stopped`: a refusal about the workspace, after which nothing more was asked. */
-type Resent = { sent: string[]; refused: { fileName: string; error: unknown }[]; stopped?: unknown };
-
 const GO_ON = { form: "Check the details above, save, and test again.", row: "Press Edit to check the details, then test again." };
 const sentence = (s: string) => (/[.!?]$/.test(s) ? s : `${s}.`);
-/** A plan, limit or access refusal, or paused processing (which Send answers 409): every next send would get the same. */
-const aboutWorkspace = (e: unknown) =>
-  (e instanceof ApiHttpError && [402, 403, 429].includes(e.status)) || refusalToken(e) === "processing_paused";
-
-/** One request per document, one after another. Never throws: each refusal is kept with its file. */
-async function sendEach(items: DocumentRow[]): Promise<Resent> {
-  const out: Resent = { sent: [], refused: [] };
-  for (const d of items) {
-    try {
-      await sendDocument(d.id);
-      out.sent.push(d.fileName);
-    } catch (error) {
-      if (aboutWorkspace(error)) return { ...out, stopped: error };
-      out.refused.push({ fileName: d.fileName, error });
-    }
-  }
-  return out;
-}
 
 /** A test's result where it was pressed, and, after a pass, the documents that were waiting with "Send it now". */
 export function TestOutcome({ destinationId, protocol, result, error, at, place, offerResend = true }: {
@@ -64,7 +43,7 @@ export function TestOutcome({ destinationId, protocol, result, error, at, place,
   // When the last run ended: a list fetched before then (even mid-run) may name documents already on their way.
   const [ranAt, setRanAt] = useState(0);
   const send = useMutation({
-    mutationFn: (run: Promise<Resent>) => run,
+    mutationFn: (run: Promise<Each<DocumentRow, unknown>>) => run,
     onSettled: () => {
       busy.current = false;
       setRanAt(Date.now());
@@ -89,7 +68,7 @@ export function TestOutcome({ destinationId, protocol, result, error, at, place,
   const latest = items.reduce<string | null>((m, d) => (d.failedAt && (!m || Date.parse(d.failedAt) > Date.parse(m)) ? d.failedAt : m), null);
   const when = latest && sendMoment(latest, new Date());
   const done = send.data;
-  const tried = done ? done.sent.length + done.refused.length : 0;
+  const tried = done ? done.done.length + done.refused.length : 0;
   return (
     <div className="grid gap-2">
       <StatusNotice tone="success">
@@ -111,7 +90,7 @@ export function TestOutcome({ destinationId, protocol, result, error, at, place,
             onClick={() => {
               if (busy.current) return;
               busy.current = true;
-              send.mutate(sendEach(items));
+              send.mutate(eachDocument(items, sendOne));
             }}>
             Send it now
           </Button>
@@ -121,16 +100,16 @@ export function TestOutcome({ destinationId, protocol, result, error, at, place,
         <StatusNotice tone="error" action={
           <Link href={documentsAddress("failed")} className="inline-flex items-center font-semibold underline">Show what couldn&apos;t be sent</Link>
         }>
-          {`${tried === 1 ? done.refused[0].fileName : `${done.refused.length} of ${tried}`} couldn't be sent again: ${documentRefusalMessage(done.refused[0].error)}`}
+          {`${tried === 1 ? done.refused[0].item.fileName : `${done.refused.length} of ${tried}`} couldn't be sent again: ${documentRefusalMessage(done.refused[0].error)}`}
         </StatusNotice>
       )}
-      {done && ("stopped" in done ? (
+      {done && (done.stopped ? (
         <StatusNotice tone="error">
-          {`${done.sent.length ? `${done.sent.length} sent. ` : ""}${documentRefusalMessage(done.stopped)}`}
+          {`${done.done.length ? `${done.done.length} sent. ` : ""}${documentRefusalMessage(done.stopped.error)}`}
         </StatusNotice>
       ) : done.refused.length === 0 && (
         <StatusNotice tone="success">
-          {done.sent.length === 1 ? `${done.sent[0]} is on its way again.` : `${done.sent.length} documents are on their way again.`}
+          {done.done.length === 1 ? `${done.done[0].item.fileName} is on its way again.` : `${done.done.length} documents are on their way again.`}
         </StatusNotice>
       ))}
     </div>

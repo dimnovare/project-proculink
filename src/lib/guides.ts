@@ -72,11 +72,11 @@ export const GUIDES: Guide[] = [
     slug: "set-up-your-first-flow",
     href: "/help/guides/set-up-your-first-flow",
     title: "Set up your first flow",
-    blurb: "Create a flow, add a document, check what we read, and choose where the output goes.",
+    blurb: "Add a document or our sample, check what we read, and choose where the file goes.",
     section: "Get started",
     audience: "client",
     status: "live",
-    minutes: 15,
+    minutes: 5,
     related: ["how-proculink-works", "flows", "documents-and-statuses"],
   },
   {

@@ -1,12 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import type { UseMutationResult } from "@tanstack/react-query";
 import { Check } from "lucide-react";
 import { Button, buttonClass } from "@/components/bridge/DSPrimitives";
 import { Card } from "@/components/bridge/layout/Card";
-import { EmptyState } from "@/components/bridge/EmptyState";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import type { DocumentCheck, DocumentSummary } from "@/lib/api/documents";
 import { canRetryRead, documentRefusalMessage, readFailureMessage } from "@/lib/documentRefusals";
@@ -18,20 +16,6 @@ const AUTOMATIC_HOLDS = new Set(["no_output_matches", "output_invalid"]);
 export const Quiet = ({ children }: { children: string }) => (
   <p role="status" className="m-0 text-[13px] text-ink-muted">{children}</p>
 );
-
-export function FirstFlowEmpty() {
-  const router = useRouter();
-  return (
-    <Card>
-      <EmptyState
-        compact
-        title="Set up your first flow"
-        sub="A flow tells us what to read from your documents and where to send it."
-        action={{ label: "New flow", onClick: () => router.push("/flows/new") }}
-      />
-    </Card>
-  );
-}
 
 const Empty = ({ icon, title, line, action }: { icon?: React.ReactNode; title: string; line: string; action: React.ReactNode }) => (
   <Card>

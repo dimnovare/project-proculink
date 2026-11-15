@@ -34,7 +34,7 @@ export function uploadRefusalMessage(error: unknown): string {
     : documentRefusalMessage(error);
 }
 
-type Queue = { items: readonly UploadItem[]; add(files: readonly File[], flow: UploadFlow): void; retry(key: string): void };
+type Queue = { items: readonly UploadItem[]; add(files: readonly File[], flow: UploadFlow): readonly string[]; retry(key: string): void };
 const QueueContext = createContext<Queue | null>(null);
 
 /** This visit's uploads, shared by every screen. Mounted once, in the app layout. */
@@ -87,6 +87,7 @@ export function UploadQueueProvider({ children }: { children: React.ReactNode })
     });
     update((list) => [...added].reverse().concat(list));
     added.filter((i) => i.state === "waiting").forEach(enqueue);
+    return added.map((i) => i.key);
   };
 
   const retry = (key: string) => {
@@ -99,7 +100,7 @@ export function UploadQueueProvider({ children }: { children: React.ReactNode })
   return <QueueContext.Provider value={{ items, add, retry }}>{children}</QueueContext.Provider>;
 }
 
-/** Items newest first. Throws outside the provider. */
+/** Items newest first; `add` answers the new items' keys. Throws outside the provider. */
 export function useUploadQueue(): Queue {
   const queue = useContext(QueueContext);
   if (!queue) throw new Error("useUploadQueue is used outside UploadQueueProvider");

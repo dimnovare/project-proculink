@@ -20,6 +20,7 @@ import { OVERAGE_PER_ORDER_EUR, PLAN_BY_ID, TRIAL_DAYS } from "@/lib/plans";
 import { FILE_KINDS, MAX_UPLOAD_BYTES } from "@/lib/fileKinds";
 import { REVIEW_CONFIDENCE } from "@/lib/reviewMarks";
 import { LOOKUP_LIMITS } from "@/lib/lookupCsv";
+import { SEARCH_TERM_MAX } from "@/lib/api/mockEngine";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // The cross-repo mirror check.
@@ -1417,4 +1418,13 @@ test.skipIf(!BACKEND)("the lookup limits the screen enforces, and the summary's 
   const uses = readFileSync(join(BACKEND!, "ProcuLink.Api/Services/Documents/DocumentLookups.cs"), "utf8");
   expect(controller).toMatch(/record LookupSummaryDto\([^)]*IReadOnlyList<LookupUse> UsedBy\)/);
   expect(uses).toMatch(/record LookupUse\(Guid FlowId, string FlowName\)/);
+});
+
+test.skipIf(!BACKEND)("the mock cuts a search term where DocumentSearch does, and normalises a number as DocumentChecks does", () => {
+  const search = parseIntConstants(readFileSync(join(BACKEND!, "ProcuLink.Api/Services/Documents/DocumentSearch.cs"), "utf8"));
+  expect(search.MaxTermLength, "MaxTermLength not found in DocumentSearch.cs, so this would prove nothing").toBeDefined();
+  expect(SEARCH_TERM_MAX).toBe(search.MaxTermLength);
+  const checks = stripCsComments(readFileSync(join(BACKEND!, "ProcuLink.Core/Documents/DocumentChecks.cs"), "utf8"));
+  // The mock's normalising (whitespace out, upper case) is this one line; a change to it here is a change to the mock.
+  expect(checks).toMatch(/NormalizeNumber\(string value\) => string\.Concat\(value\.Where\(c => !char\.IsWhiteSpace\(c\)\)\)\.ToUpperInvariant\(\);/);
 });

@@ -45,7 +45,7 @@
 // every "does not contain" claim for free.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { PLAN_BY_ID } from "@/lib/plans";
+import { PLAN_BY_ID, nextPlanFor } from "@/lib/plans";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, cleanup, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -113,7 +113,7 @@ async function renderBilling(status: BillingStatus) {
     </QueryClientProvider>,
   );
   await waitFor(() => expect(api.getBillingStatus).toHaveBeenCalled());
-  await screen.findByText("Current plan");
+  await screen.findByTestId("plan-card");
 }
 
 /**
@@ -224,13 +224,15 @@ describe("the plan card never reads a database word back to the customer", () =>
   });
 
   it("the_scoping_bites", async () => {
-    // Proof that the card scope is a real narrowing. The page elsewhere carries "Current
-    // plan"; the card must not answer for it, or every claim above is really being made
-    // against the whole document.
+    // Proof that the card scope is a real narrowing. The page elsewhere carries the upgrade
+    // button; the card must not answer for it, or every claim above is really being made
+    // against the whole document. The card's own heading is the plan's name.
     await renderBilling(billing());
 
-    expect(document.body.textContent).toContain("Current plan");
-    expect(within(planCard()).queryByText("Current plan")).toBeNull();
+    expect(within(planCard()).getByRole("heading", { level: 2 }).textContent).toBe(PLAN_BY_ID.pilot.name);
+    const upgrade = `Upgrade to ${PLAN_BY_ID[nextPlanFor("pilot", false)!].name}`;
+    expect(screen.getByRole("button", { name: upgrade })).toBeTruthy();
+    expect(within(planCard()).queryByRole("button", { name: upgrade })).toBeNull();
   });
 });
 

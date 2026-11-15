@@ -23,6 +23,7 @@ export const COPY: Record<string, string> = {
   intake_exists: "This flow already has API settings.",
   intake_required: "A flow's email address can be switched off, not removed.",
   document_not_found: "This document or flow no longer exists.",
+  missing_original: "The original isn't available right now.",
   flow_not_found: "This document or flow no longer exists.",
   not_retryable: "This document can't be read again.",
   invalid_name: "Use a name of 120 characters or fewer.",

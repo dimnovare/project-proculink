@@ -94,7 +94,7 @@ async function renderBilling(status: BillingStatus) {
     </QueryClientProvider>,
   );
   await waitFor(() => expect(api.getBillingStatus).toHaveBeenCalled());
-  await screen.findByText("Current plan");
+  await screen.findByTestId("plan-card");
 }
 
 /** Rendered copy, whitespace collapsed, so a sentence split across nodes still matches. */

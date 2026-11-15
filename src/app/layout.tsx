@@ -3,6 +3,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { AnalyticsBoot } from "@/components/analytics/AnalyticsBoot";
 import { CookieConsentBanner } from "@/components/marketing/CookieConsentBanner";
 import { ORGANIZATION_STRUCTURED_DATA } from "@/lib/legal-entity";
+import { SITE_DESCRIPTION, SITE_TITLE, socialMetadata } from "@/lib/seo";
 // Self-hosted fonts (OFL, via @fontsource) — replaces the render-blocking
 // cross-origin Google Fonts stylesheet. Each package's @font-face registers
 // under the exact literal family name ('Inter', 'JetBrains Mono',
@@ -30,9 +31,8 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://proculink.eu"),
-  title: "ProcuLink — Connecting Procurement",
-  description:
-    "ProcuLink reads the files you receive, shows what it read beside the original, and sends the data on in the format your system needs.",
+  title: SITE_TITLE,
+  description: SITE_DESCRIPTION,
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" },
@@ -49,20 +49,7 @@ export const metadata: Metadata = {
     "msapplication-TileColor": "#0B1A2F",
     "msapplication-config": "/browserconfig.xml",
   },
-  openGraph: {
-    type: "website",
-    title: "ProcuLink — Connecting Procurement",
-    description:
-      "ProcuLink reads the files you receive, shows what it read beside the original, and sends the data on in the format your system needs.",
-    images: [{ url: "/og-image.png", width: 1200, height: 630 }],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "ProcuLink — Connecting Procurement",
-    description:
-      "ProcuLink reads the files you receive, shows what it read beside the original, and sends the data on in the format your system needs.",
-    images: ["/og-image.png"],
-  },
+  ...socialMetadata({ title: SITE_TITLE, description: SITE_DESCRIPTION }),
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

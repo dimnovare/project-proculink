@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor, within } from "@testing-library/rea
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ApiHttpError } from "@/lib/api/core";
 import { COPY } from "@/lib/documentRefusals";
+import { ariaOf } from "@/lib/shortcuts";
 import { DocumentScreen } from "./DocumentScreen";
 
 const replace = vi.hoisted(() => vi.fn());
@@ -304,4 +305,53 @@ describe("DocumentScreen", () => {
     expect(bar.getByRole("link", { name: "Review next" })).toHaveAttribute("href", "/flows/f/documents/c");
     expect(screen.queryByRole("button", { name: /^(Skip|Send and open next)$/ })).toBeNull();
   });
+
+  const ctrlEnter = (on: Element, repeat = false) => fireEvent.keyDown(on, { key: "Enter", code: "Enter", ctrlKey: true, repeat });
+
+  it("Ctrl+Enter in a value box saves what was typed, then sends and opens the next", async () => {
+    const order: string[] = [];
+    api.editDocumentValues.mockImplementation(() => new Promise((ok) => setTimeout(() => { order.push("saved"); ok(detail("INV-2001")); }, 10)));
+    api.sendDocument.mockImplementation(async () => { order.push("send"); return []; });
+    renderScreen();
+    const header = within(await screen.findByTestId("review-header-actions"));
+    await waitFor(() => expect(header.getByText("2 of 3 that need you")).toBeInTheDocument());
+    expect(header.getByRole("button", { name: "Send and open next" })).toHaveAttribute("aria-keyshortcuts", ariaOf("send-and-next"));
+    const box = screen.getByLabelText("Invoice number");
+    fireEvent.change(box, { target: { value: "INV-2001" } });
+    ctrlEnter(box);                                                              // no blur first
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/flows/f/documents/c"));
+    expect(api.editDocumentValues.mock.calls).toEqual([["d", { fields: [{ key: "invoice_no", value: "INV-2001" }] }]]);
+    expect(order).toEqual(["saved", "send"]);                                    // sent only after the save came back
+  });
+
+  it("holding Ctrl+Enter, or pressing it again while it sends, sends once", async () => {
+    let done = (_: unknown) => {};
+    api.sendDocument.mockImplementation(() => new Promise((ok) => { done = ok; }));
+    renderScreen();
+    const header = within(await screen.findByTestId("review-header-actions"));
+    await waitFor(() => expect(header.getByText("2 of 3 that need you")).toBeInTheDocument());
+    const box = screen.getByLabelText("Invoice number");
+    ctrlEnter(box);
+    ctrlEnter(box, true);
+    ctrlEnter(box, true);
+    ctrlEnter(box);                                                              // released and pressed again
+    await waitFor(() => expect(api.sendDocument).toHaveBeenCalledTimes(1));
+    ctrlEnter(box);
+    done([]);
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/flows/f/documents/c"));
+    expect(api.sendDocument).toHaveBeenCalledTimes(1);
+  });
+
+  it("on a document that can no longer be sent, Ctrl+Enter does nothing", async () => {
+    const sent = detail("INV-1");
+    api.getDocument.mockResolvedValue({ ...sent, summary: { ...sent.summary, status: "sent" } });
+    renderScreen();
+    const header = within(await screen.findByTestId("review-header-actions"));
+    await waitFor(() => expect(header.getByRole("link", { name: "Review next" })).toBeInTheDocument());
+    ctrlEnter(document.body);
+    await new Promise((r) => setTimeout(r, 20));
+    expect(api.sendDocument).not.toHaveBeenCalled();
+    expect(replace).not.toHaveBeenCalled();
+  });
 });
+

@@ -26,7 +26,9 @@ import { rowNeed, useRowSend, type ListedDocument } from "./DocumentList";
 import { FlowChoice } from "./FlowChoice";
 import { PhotoCheck, useCamera } from "./PhotoCheck";
 import { canRetryUpload, STOP_CODES, uploadRefusalMessage, useUploadQueue, type UploadItem } from "./UploadQueue";
-import { Failed, FirstFlowEmpty, Quiet } from "./states";
+import { firstRunOf } from "@/lib/firstRun";
+import { Failed, Quiet } from "./states";
+import { Welcome } from "./Welcome";
 
 /** How many of the newest documents are matched against this visit's uploads (R4). */
 export const UPLOADED_LOOKBACK = 100;
@@ -52,7 +54,7 @@ function pausedBy(items: readonly UploadItem[], billing: BillingStatus | undefin
   return { code, body: { error: code, plan: billing.plan } };
 }
 
-function PausedNotice({ code, body }: { code: string; body: unknown }) {
+export function PausedNotice({ code, body }: { code: string; body: unknown }) {
   if (LIMIT_CODES.has(code)) {
     const copy = limitRefusalCopy(readLimitRefusal(body));
     return (
@@ -153,6 +155,8 @@ export function UploadToFlow() {
 
   const list = flows.data ?? [];
   const flow = list.find((f) => f.id === picked) ?? chooseFlow(list, lastId)?.flow;
+  // Only an answered list can say the workspace is new: loading or failed draws its own state below.
+  if (flows.data && firstRunOf(flows.data).state === "new") return <Welcome flows={flows.data} />;
 
   let body;
   if (flows.isError && !flows.data) {
@@ -160,7 +164,7 @@ export function UploadToFlow() {
   } else if (!flows.data) {
     body = <Quiet>Loading flows…</Quiet>;
   } else if (!flow) {
-    body = <FirstFlowEmpty />;
+    body = <Quiet>Loading flows…</Quiet>;
   } else {
     const paused = pausedBy(items, billing.data);
     const flowIds = new Set(items.map((i) => i.flowId));

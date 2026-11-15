@@ -20,6 +20,7 @@ import type {
 } from "./documents";
 import type { OutputNode } from "./types";
 import { mockAuditPage } from "./mockAudit";
+import { MOCK_SAMPLE_FILE, MOCK_STATE_KEY, mockWorkspaceOn, workspaceFetch } from "./mockWorkspace";
 
 export const MOCK_ENGINE_IDS = { flow: "flow-1", setupFlow: "flow-2", document: "doc-1", lookup: "lookup-1", output: "out-1" } as const;
 /** The document number every fixture read carries — specs assert against this, never a literal. */
@@ -99,8 +100,8 @@ const doc = (n: number, f: Flow, status: string, facts: Partial<DocumentRow> = {
 });
 /** Newest is `doc-7`. Three wait for review or sending (`doc-1`, `doc-2`, `doc-5`); two failed (`doc-4`, `doc-6`). */
 const ROWS: DocumentRow[] = [
-  doc(1, flow1, STATUS.needs_review, { failedChecks: 2, checks: ["low_confidence", "required_missing"], number: MOCK_DOCUMENT_NUMBER }),
-  doc(2, flow1, STATUS.ready, { fileName: "invoice-1002.pdf" }), // the one PDF: pdf.js e2e (document-pdf.spec.ts)
+  doc(1, flow1, STATUS.needs_review, { failedChecks: 2, checks: ["low_confidence", "required_missing"], number: MOCK_DOCUMENT_NUMBER, sender: "Example Supplier Ltd" }),
+  doc(2, flow1, STATUS.ready, { fileName: "invoice-1002.pdf", sender: "Example Supplier Ltd" }), // the one PDF: pdf.js e2e (document-pdf.spec.ts)
   doc(3, flow1, STATUS.sent, { sentAt: DOC_3_SENT_AT }),
   doc(4, flow2, STATUS.send_failed, {
     failedAt: "2026-05-24T09:10:00Z", stop: { destinationId: "dest-1", destination: "Accounting inbox", error: REFUSED },
@@ -155,6 +156,7 @@ const live = (r: DocumentRow): DocumentRow => {
 /** Unit tests only: forget remembered edits and sends. The browser forgets on reload. */
 export function resetMockEngine(): void {
   remembered.clear();
+  try { sessionStorage.removeItem(MOCK_STATE_KEY); } catch { /* no store: nothing kept */ }
 }
 const refuse = (status: number, error: string): never => {
   throw new ApiHttpError(`mock engine: ${error}`, status, { error });
@@ -358,7 +360,7 @@ const storeLookup = (l: Lookup) => {
   else LOOKUPS[i] = l;
   return structuredClone(l);
 };
-const notifications: NotificationSettings = { email: null, onReview: true, onFailure: true };
+const notifications: NotificationSettings = { email: "sam@example.test", onReview: true, onFailure: true };
 const TEST_OK = { success: true, message: null, responseCode: 200 };
 const DESTINATION_TESTS: Record<string, typeof TEST_OK | { success: false; message: string; responseCode: null }> = {
   "dest-1": TEST_OK, "dest-2": TEST_OK, "dest-3": { success: false, message: "The server refused the login.", responseCode: null },
@@ -378,7 +380,17 @@ const missing = (what: string, id: string): never => {
 };
 const pick = <X extends { id: string }>(list: X[], id: string, what: string): X => list.find((x) => x.id === id) ?? missing(what, id);
 const echo = <X extends object>(base: X, body: Body): X => ({ ...base, ...body });
-const DOCUMENT_LIST_KEYS = ["flowId", "status", "take", "page", "pageSize", "sentFrom", "sentTo", "waitingOnDestination"];
+export const DOCUMENT_LIST_KEYS = ["flowId", "status", "take", "page", "pageSize", "sentFrom", "sentTo", "waitingOnDestination", "q"];
+/** DocumentSearch.MaxTermLength: a longer term is cut (src/test/backendMirror.test.ts). */
+export const SEARCH_TERM_MAX = 200;
+/** Like DocumentSearch.Matches (DocumentSearch.cs): trimmed, cut, blank is no filter; the file name contains the term in any
+ *  case, or the number does with whitespace removed and upper-cased (DocumentChecks.NormalizeNumber). Never the sender. */
+const searchMatch = (raw: string | null): ((d: DocumentRow) => boolean) => {
+  const term = raw?.trim().slice(0, SEARCH_TERM_MAX);
+  if (!term) return () => true;
+  const norm = (s: string) => s.replace(/\s/g, "").toUpperCase();
+  return (d) => d.fileName.toLowerCase().includes(term.toLowerCase()) || (d.number !== null && norm(d.number).includes(norm(term)));
+};
 /** An absent integer parameter is null; one the server could not bind is its 400. */
 const intParam = (q: URLSearchParams, key: string): number | null => {
   const v = q.get(key);
@@ -451,8 +463,15 @@ const ROUTES: [method: string, pattern: RegExp, run: Handler][] = [
   ["POST", re`/flows/${S}/documents`, (m, _q, b) => upload(pick(FLOWS, m[1], "flow"), b)],
   ["POST", re`/flows/${S}/documents/sample`, (m) => {
     const flow = pick(FLOWS, m[1], "flow");
-    // Kept out of DOCS: the document list and its counts stay what the fixtures say until a screen asks.
-    return (samples[flow.id] ??= { ...DOCS[0], id: `doc-sample-${flow.id}`, flowId: flow.id, flowName: flow.name, fileName: "invoice-2250.pdf" });
+    // One per flow, as the server: made once, then listed as a sample and counted on its flow.
+    if (!samples[flow.id]) {
+      const row = doc(0, flow, STATUS.needs_review, { id: `doc-sample-${flow.id}`, fileName: MOCK_SAMPLE_FILE, isSample: true });
+      ROWS.push(row);
+      DOCS.push(summaryOf(row));
+      flow.documentCount++;
+      samples[flow.id] = summaryOf(row);
+    }
+    return samples[flow.id];
   }],
   ["GET", re`/documents`, (_m, q) => {
     settleReads();
@@ -469,8 +488,9 @@ const ROUTES: [method: string, pattern: RegExp, run: Handler][] = [
     const dest = q.get("waitingOnDestination");
     const waiting = (d: DocumentRow) => dest === null
       || (d.status === STATUS.send_failed && d.stop?.destinationId === dest && !resent.has(d.id));
+    const found = searchMatch(q.get("q"));
     const rows = ROWS.map(live).filter((d) => (!q.get("flowId") || d.flowId === q.get("flowId"))
-      && (!statuses.length || statuses.includes(d.status)) && landed(d.sentAt) && waiting(d))
+      && (!statuses.length || statuses.includes(d.status)) && landed(d.sentAt) && waiting(d) && found(d))
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id));
     const clamp = (key: string) => Math.min(Math.max(intParam(q, key) ?? 50, 1), 200);
     const page = intParam(q, "page");
@@ -504,14 +524,27 @@ const ROUTES: [method: string, pattern: RegExp, run: Handler][] = [
     DESTINATION_TESTS[made.id] = TEST_OK;
     return made;
   }],
-  ["PUT", re`/destinations/${S}`, (m, _q, b) => destinationOf(pick(destinations, m[1], "destination"), b)],
+  // A save is kept (a rename shows in the row on the next fetch, still in name order), as on the server.
+  ["PUT", re`/destinations/${S}`, (m, _q, b) => {
+    const i = destinations.indexOf(pick(destinations, m[1], "destination"));
+    destinations[i] = destinationOf(destinations[i], b);
+    const saved = destinations[i];
+    destinations.sort((x, y) => x.name.localeCompare(y.name));
+    return saved;
+  }],
   ["DELETE", re`/destinations/${S}`, (m) => {
     const d = pick(destinations, m[1], "destination");
     if (d.usedBy.length) throw new ApiHttpError("mock engine: destination in use", 409, { error: "destination_in_use" });
     destinations.splice(destinations.indexOf(d), 1);
     return undefined;
   }],
-  ["POST", re`/destinations/${S}/test`, (m) => DESTINATION_TESTS[pick(destinations, m[1], "destination").id]],
+  // A test moves the destination's "Last send", as the server records it.
+  ["POST", re`/destinations/${S}/test`, (m) => {
+    const d = pick(destinations, m[1], "destination");
+    const result = DESTINATION_TESTS[d.id];
+    d.lastSend = { kind: "test", at: new Date().toISOString(), ok: result.success };
+    return result;
+  }],
   ["GET", re`/notification-settings`, () => notifications],
   ["PUT", re`/notification-settings`, (_m, _q, b) => echo(notifications, b)],
   ["GET", re`/flows/${S}/intakes`, (m) => intakesOf(m[1])],
@@ -575,6 +608,10 @@ export async function mockEngineFetch<T>(path: string, init?: RequestInit, as: "
   const given = spy?.answer?.[`${method} ${pathname}`] as { refuse?: [number, string] } | undefined;
   if (given?.refuse) refuse(...given.refuse);
   if (given) return structuredClone(given) as T;
+  if (mockWorkspaceOn()) {
+    const owned = workspaceFetch(method, pathname, new URLSearchParams(query), bodyOf(init));
+    if (owned) return owned.answer as T;
+  }
   if (as === "blob" && method === "GET") {
     for (const [pattern, run] of BLOBS) {
       const m = pattern.exec(pathname);
