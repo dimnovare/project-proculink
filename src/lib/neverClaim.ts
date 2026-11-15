@@ -41,6 +41,7 @@ export const NEVER_CLAIM: readonly NeverClaim[] = [
   { label: "Peppol (output or validation)", pattern: /\bpeppol\b/i },
   { label: "X12", pattern: /\bx12\b/i },
   { label: "EDIFACT", pattern: /\bedifact\b/i },
+  { label: "XRechnung or EN 16931", pattern: /\bxrechnung\b|\ben\s?16931\b/i },
   { label: "IDoc", pattern: /\bidoc\b/i },
   { label: "Erply", pattern: /\berply\b/i },
   { label: "Directo", pattern: /\bdirecto\b/i },
