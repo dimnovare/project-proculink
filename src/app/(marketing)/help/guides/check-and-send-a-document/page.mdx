@@ -18,20 +18,18 @@ import { Step, Prereqs, IfThisFails, Outcome } from "@/components/help/guide";
 Open **Documents** and choose the **Needs you** filter. Select a file name to open the document. For what each status means, see [Documents and their statuses](/help/documents-and-statuses).
 
 <Outcome>
-The document opens with the original on the left, **What we read** in the middle and **Outputs** on the right.
+The document opens with **Original** on the left, **What we read** in the middle and **What we'll send** on the right. On a phone or a small screen, one of them shows at a time: choose **Original**, **What we read** or **What we'll send** above them.
 </Outcome>
 
 </Step>
 
 <Step n={2} title="Compare what we read with the original">
 
-Each value has a small note under it. It shows how sure we are, and where on the original the value was found, such as a page number or a cell. Hover over a value, or move to it with the keyboard, and its place is highlighted on the original.
+The values that need a look come first. A value we are not sure about is marked in amber and says how sure we are. Other values do not show a percentage. Under each value, a small note says where on the original it was found, such as a page number or a cell. Hover over a value, or move to it with the keyboard, and its place is highlighted on the original.
 
 A value we could not find on the page says **Not found on the page**. Look at those first.
 
-Any flagged check appears as a message, with a reminder that checks never stop you sending. See [Checks](/help/checks).
-
-If you need more room, select **Hide original**.
+A check about one value is shown in amber under that value. Other checks are listed under the values, with a reminder that checks never stop you sending. See [Checks](/help/checks).
 
 <Outcome>
 You know which values are right and which need a change.
@@ -41,7 +39,9 @@ You know which values are right and which need a change.
 
 <Step n={3} title="Fix what is wrong">
 
-Select a value, type the right one, and press Enter or click away to save it. In a table, you can change any cell, add a row with **Add row**, or remove one with **Remove row**. Each change is saved at once, and the checks run again.
+Select a value and type the right one. Changes save as you type: a moment after you stop typing, or at once when you press Enter or click away. There is no Save button. Beside **What we read** it says **Saves as you type**, **Saving…** or **Not saved yet**. In a table, you can change any cell, add a row with **Add row**, or remove one with **Remove row**. Each saved change runs the checks again.
+
+There is no undo. Every saved change is listed under **History**. If a change can't be saved, the screen says **Not saved yet** and offers **Try again**.
 
 A value you have corrected is marked Edited. To fix a value by pointing at the page instead, so we find it next time, see [Teach a value by pointing at the page](/help/guides/teach-a-value).
 
@@ -53,7 +53,7 @@ The flagged checks go away as you fix what they pointed at.
 
 <Step n={4} title="Look at the outputs">
 
-Under **Outputs**, each output shows its file type and where it goes. Select **Preview** to see the exact file that will be sent. If an output uses a lookup and a value had no match, the preview lists the values with no match and lets you add one.
+Under **What we'll send**, each output shows its file type and where it goes. Select **Preview** to see the exact file that will be sent. If an output uses a lookup and a value had no match, the preview lists the values with no match and lets you add one.
 
 <Outcome>
 You have seen the file that will be sent.
@@ -63,16 +63,19 @@ You have seen the file that will be sent.
 
 <Step n={5} title="Send it">
 
-Select **Send**. If a value is still saving, Send waits for it, so the file always carries what you see on screen.
+Select **Send and open next**. If a change is still saving, it waits for it, and the next document that needs you opens. A value marked in amber does not stop you sending.
 
-Under **Deliveries**, each output shows its progress: **Waiting**, **Sending**, **Delivered**, **Ready to download**, **Will retry** or **Couldn't deliver**. An output with **Download** next to it has a file you can save.
+**Skip** leaves a document for later and opens the next one. When nothing else needs you, Documents says so.
+
+To follow a document you sent, open it again from **Documents**. Under **What we'll send**, **Deliveries** shows each output's progress: **Waiting**, **Sending**, **Delivered**, **Ready to download**, **Will retry** or **Couldn't deliver**. An output with **Download** next to it has a file you can save.
 
 <Outcome>
-With a destination, the document shows **Sending** first and becomes **Sent** once every delivery has finished. An output that is download-only counts as done at once.
+The next document that needs you is open, or Documents says nothing else needs you. With a destination, the one you sent shows **Sending** first and becomes **Sent** once every delivery has finished. An output that is download-only counts as done at once.
 </Outcome>
 
 <IfThisFails>
-- **Couldn't send.** Read the message under the delivery, fix the cause (for example the destination's address or sign-in), and press **Send** again. Outputs that were already delivered are not sent again.
+- **Couldn't send.** Read the message under the delivery, fix the cause (for example the destination's address or sign-in), and press **Send and open next** again. Outputs that were already delivered are not sent again.
+- **Nothing was sent: your last change isn't saved yet.** Select **Try again** beside **Not saved yet**, then send again.
 - **No output is set to send this document.** Check the **Send when** condition on the flow's outputs.
 - **Couldn't read.** Press **Try again** if it is offered. See [Troubleshooting](/help/troubleshooting).
 </IfThisFails>

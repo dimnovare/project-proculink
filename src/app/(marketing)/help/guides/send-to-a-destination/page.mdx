@@ -56,7 +56,7 @@ The message says why. A web address must start with `https://` and must not have
 
 Back in the output form, the new destination is already chosen in **Send to**. Select **Create** or **Save**. Once the flow is published, publish again so new sends use the change. See [Publish and restore flow versions](/help/guides/publish-a-flow-version).
 
-A test is offered only in the new-flow guide (right after you save a destination) and when you build an output from documentation. The new-flow test sends a small file marked `TEST_` that holds no document data. The documentation test sends the output made from a real document in the flow, so it holds that document's values. Anywhere else the first real send is the test, so start with a document you are happy to send. See [Destinations](/help/destinations).
+You can test a destination at any time under **Settings**, then **Destinations**. A test is also offered in the new-flow guide (right after you save a destination) and when you build an output from documentation. The new-flow test sends a small file marked `TEST_` that holds no document data. The documentation test sends the output made from a real document in the flow, so it holds that document's values. See [Destinations](/help/destinations).
 
 <Outcome>
 The output is tied to the destination.
@@ -66,14 +66,14 @@ The output is tied to the destination.
 
 <Step n={5} title="Send a document and watch it">
 
-Open a document that is ready and select **Send** on the **Outputs** pane. Below the outputs, **Deliveries** lists each one with its state and number of attempts. A failed delivery shows **Will retry** and the reason, and ends as **Couldn't deliver** if it keeps failing. How retries work is in [Destinations](/help/destinations).
+Open a document that is ready and select **Send and open next**. The next document that needs you opens. To watch the one you sent, open it again from **Documents**: under **What we'll send**, **Deliveries** lists each output with its state and number of attempts. A failed delivery shows **Will retry** and the reason, and ends as **Couldn't deliver** if it keeps failing. How retries work is in [Destinations](/help/destinations).
 
 <Outcome>
 Every delivery is **Delivered** and the document is **Sent**.
 </Outcome>
 
 <IfThisFails>
-Read the message beside the delivery, fix the cause, then press **Send** on the document again. Deliveries that already worked are not sent twice. See [Troubleshooting](/help/troubleshooting).
+Read the message beside the delivery, fix the cause, then press **Send and open next** on the document again. Deliveries that already worked are not sent twice. See [Troubleshooting](/help/troubleshooting).
 </IfThisFails>
 
 </Step>

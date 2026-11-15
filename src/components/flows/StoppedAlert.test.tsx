@@ -28,7 +28,7 @@ describe("StoppedAlert", () => {
     expect(within(alert).getByText("12m ago")).toHaveAttribute("aria-hidden", "true");
     const at = new Date("2026-11-02T09:12:00Z").toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
     expect(alert.querySelector(".sr-only")).toHaveTextContent(`on ${at}`);
-    expect(within(alert).getByRole("link", { name: "Fix the destination" })).toHaveAttribute("href", "/flows/f1?tab=outputs");
+    expect(within(alert).getByRole("link", { name: "Fix the destination" })).toHaveAttribute("href", "/settings?tab=destinations&open=dest-1");
     cleanup();
     // A server sentence with no full stop gets one, and nothing else.
     render(<StoppedAlert page={{ items: [stopped({ stop: { ...stop, error: "Refused" } })], totalCount: 1, page: 1, pageSize: 20, sampleCount: 0 }} />);

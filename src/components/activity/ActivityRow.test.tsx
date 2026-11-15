@@ -46,7 +46,7 @@ describe("ActivityRow", () => {
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ["documents"] });
     const fix = screen.getAllByRole("link", { name: "Fix the destination" });
     expect(fix).toHaveLength(1);
-    expect(fix[0]).toHaveAttribute("href", "/flows/flow-2?tab=outputs");
+    expect(fix[0]).toHaveAttribute("href", "/settings?tab=destinations&open=dest-1");
   });
 
   it("a refusal stays beside the button", async () => {

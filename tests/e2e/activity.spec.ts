@@ -55,7 +55,7 @@ test.describe("activity", () => {
     await expect(detail).toContainText("3, the last at 08:06. We stopped there.");
     const fix = detail.getByRole("link", { name: "Fix the destination" });
     await expect(fix).toHaveCount(1);
-    await expect(fix).toHaveAttribute("href", `/flows/${MOCK_ENGINE_IDS.setupFlow}?tab=outputs`);
+    await expect(fix).toHaveAttribute("href", "/settings?tab=destinations&open=dest-1");
     await expect(row.getByRole("button", { name: "Hide details" })).toHaveAttribute("aria-expanded", "true");
 
     // Send again says what happened, once, beside the button. (The mock engine answers in the page, with no
@@ -66,7 +66,7 @@ test.describe("activity", () => {
 
     // The way on lands on a real screen, and Back returns to the same tab.
     await fix.click();
-    await expect(page).toHaveURL(new RegExp(`/flows/${MOCK_ENGINE_IDS.setupFlow}\\?tab=outputs$`));
+    await expect(page).toHaveURL(/\/settings\?tab=destinations&open=dest-1$/);
     await expect(page.getByText(/could not be found|404/i)).toHaveCount(0);
     await page.goBack();
     await expect(page).toHaveURL(/\/operations\/log\?show=failed$/);
@@ -208,7 +208,7 @@ test.describe("activity", () => {
       await page.evaluate(() => { for (const el of document.querySelectorAll("main, main *")) if (el.scrollHeight > el.clientHeight + 1) el.scrollTop = el.scrollHeight; });
       await page.waitForTimeout(200);
       const tabBar = await box(page.getByTestId("tab-bar"));
-      const add = await box(page.getByTestId("tab-bar").getByRole("link", { name: "Add a document" }));
+      const add = await box(page.getByTestId("tab-bar").getByRole("button", { name: "Add a document" }));
       const vh = await page.evaluate(() => window.innerHeight);
       const older = await box(pager(page).getByRole("link", { name: "Older" }));
       const last = await box(rows(page).last());

@@ -7,7 +7,7 @@ import { Button, Pill, buttonClass } from "@/components/bridge/DSPrimitives";
 import { StatusJourney } from "@/components/bridge/StatusJourney";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { sendDocument, type ActivityEvent } from "@/lib/api/documents";
-import { activityTime, fixDestinationHref, type ActivityView } from "@/lib/activityRows";
+import { activityTime, type ActivityView } from "@/lib/activityRows";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
 
 /** The row's columns, shared with the page's column header: time · what · flow · who · result · chevron, and on a phone time · what · chevron. */
@@ -73,7 +73,7 @@ export function ActivityRow({ event: e, view, who, open, onToggle }: {
           {send.isSuccess && <StatusNotice tone="success">Sending again. A new row shows the result.</StatusNotice>}
           {send.isError && <StatusNotice tone="error">{documentRefusalMessage(send.error)}</StatusNotice>}
           <div className="flex flex-wrap gap-2.5 empty:hidden">
-            {view.canFix && e.flowId && <Link href={fixDestinationHref(e.flowId)} className={buttonClass("primary")}>Fix the destination</Link>}
+            {view.canFix && view.fixHref && <Link href={view.fixHref} className={buttonClass("primary")}>Fix the destination</Link>}
             {view.canSendAgain && (
               <Button disabled={send.isPending} onClick={() => qc.isMutating({ mutationKey: sending }) || send.mutate()} className="!border-brand-green-deep !text-brand-green-deep">Send again</Button>
             )}

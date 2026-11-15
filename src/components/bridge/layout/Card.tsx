@@ -100,6 +100,8 @@ type CardProps = {
       — background, border, borderRadius, boxShadow — are owned by Card. */
   style?: React.CSSProperties;
   role?: string;
+  /** A tab panel with no focusable first child takes focus (tabs pattern). */
+  tabIndex?: number;
   id?: string;
   "aria-label"?: string;
   "aria-labelledby"?: string;

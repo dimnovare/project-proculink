@@ -5,6 +5,7 @@ import { FAILURE_STATUSES, ORDER_STATUSES } from "@/lib/orderStatusManifest";
 import { ROOT } from "./appRoutes";
 import { DOCUMENT_STATUSES, WHOLE_DOCUMENT_CHECKS } from "@/lib/documentStatusManifest";
 import { FIELD_MEANINGS } from "@/lib/fieldMeanings";
+import { WAY_IN_WORDS } from "@/lib/flowSentences";
 import { FORMATS } from "@/components/flows/OutputEditor";
 import { PREVIEW_FORMATS } from "@/lib/api/types";
 import { STANDARDS } from "@/lib/standards/catalog";
@@ -16,6 +17,9 @@ import type { ActivityEvent } from "@/lib/api/documents";
 import { stripCsComments } from "./csLiterals";
 import { MINIMUM_PLAN } from "@/lib/gatedCapabilities";
 import { OVERAGE_PER_ORDER_EUR, PLAN_BY_ID, TRIAL_DAYS } from "@/lib/plans";
+import { FILE_KINDS, MAX_UPLOAD_BYTES } from "@/lib/fileKinds";
+import { REVIEW_CONFIDENCE } from "@/lib/reviewMarks";
+import { LOOKUP_LIMITS } from "@/lib/lookupCsv";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // The cross-repo mirror check.
@@ -1317,11 +1321,25 @@ describe("document statuses mirror the backend", () => {
     );
   });
 
+  test.skipIf(!BACKEND)("WAY_IN_WORDS keys equal IntakeKind's constants", () => {
+    const cs = readFileSync(join(BACKEND!, "ProcuLink.Core/Documents/IntakeKind.cs"), "utf8");
+    const backend = Object.values(parseStatusConstants(cs));
+    expect(backend.length, "IntakeKind.cs parsed to no constants, so this would prove nothing").toBeGreaterThan(0);
+    expect([...backend].sort()).toEqual(Object.keys(WAY_IN_WORDS).sort());
+  });
+
   test.skipIf(!BACKEND)("the check codes the documents list reads exist in DocumentChecks", () => {
     const cs = readFileSync(join(BACKEND!, "ProcuLink.Core/Documents/DocumentChecks.cs"), "utf8");
     const backend = Object.values(parseStatusConstants(cs));
     expect(backend.length, "DocumentChecks.cs parsed to no constants, so this would prove nothing").toBeGreaterThan(0);
     expect(backend).toEqual(expect.arrayContaining([...WHOLE_DOCUMENT_CHECKS]));
+  });
+
+  test.skipIf(!BACKEND)("the review threshold the screen marks by is the backend's", () => {
+    const cs = readFileSync(join(BACKEND!, "ProcuLink.Core/Documents/DocumentChecks.cs"), "utf8");
+    const m = /const double ReviewConfidence = ([\d.]+);/.exec(cs);
+    expect(m, "ReviewConfidence not found in DocumentChecks.cs, so this would prove nothing").not.toBeNull();
+    expect(Number(m![1])).toBe(REVIEW_CONFIDENCE);
   });
 });
 
@@ -1371,4 +1389,32 @@ describe("standard outputs mirror the backend", () => {
   test("every standard output has a catalog entry", () => {
     expect(STANDARD_OUTPUTS.filter((id) => !STANDARDS.some((s) => s.id === id))).toEqual([]);
   });
+});
+
+describe("file kinds mirror the backend", () => {
+  test.skipIf(!BACKEND)("the file kinds the upload offers are the ones DocumentFormats accepts", () => {
+    const cs = stripCsComments(readFileSync(join(BACKEND!, "ProcuLink.Core/Documents/DocumentFormats.cs"), "utf8"));
+    const lists = Object.fromEntries([...cs.matchAll(/string\[\]\s+(\w+)\s*=\s*\[([^\]]*)\]/g)]
+      .map(([, name, items]) => [name, [...items.matchAll(/"([^"]+)"/g)].map((m) => m[1])]));
+    expect(Object.keys(lists), "DocumentFormats.cs parsed to no lists, so this would prove nothing").toEqual(["Base", "Images", "More"]);
+    expect([lists.Base, lists.Images, lists.More]).toEqual([[...FILE_KINDS.base], [...FILE_KINDS.photos], [...FILE_KINDS.more]]);
+  });
+
+  test.skipIf(!BACKEND)("the upload size limit is IngressLimits.MaxFileBytes", () => {
+    const cs = stripCsComments(readFileSync(join(BACKEND!, "ProcuLink.Core/Services/Ingress/IngressLimits.cs"), "utf8"));
+    const m = cs.match(/const\s+long\s+MaxFileBytes\s*=\s*(\d+)L\s*\*\s*(\d+)\s*\*\s*(\d+)\s*;/);
+    expect(m, "MaxFileBytes is no longer written as a product of three numbers").not.toBeNull();
+    expect(Number(m![1]) * Number(m![2]) * Number(m![3])).toBe(MAX_UPLOAD_BYTES);
+  });
+});
+
+test.skipIf(!BACKEND)("the lookup limits the screen enforces, and the summary's usedBy, are the server's", () => {
+  const cs = readFileSync(join(BACKEND!, "ProcuLink.Core/Documents/LookupEntry.cs"), "utf8");
+  const n = (name: string) => Number(new RegExp(`${name}\\s*=\\s*([\\d_]+)`).exec(cs)?.[1].replace(/_/g, ""));
+  expect([n("MaxEntries"), n("MaxValueLength"), n("MaxNameLength"), n("MaxDescriptionLength")]).toEqual(
+    [LOOKUP_LIMITS.rows, LOOKUP_LIMITS.valueLength, LOOKUP_LIMITS.nameLength, LOOKUP_LIMITS.descriptionLength]);
+  const controller = readFileSync(join(BACKEND!, "ProcuLink.Api/Controllers/LookupsController.cs"), "utf8");
+  const uses = readFileSync(join(BACKEND!, "ProcuLink.Api/Services/Documents/DocumentLookups.cs"), "utf8");
+  expect(controller).toMatch(/record LookupSummaryDto\([^)]*IReadOnlyList<LookupUse> UsedBy\)/);
+  expect(uses).toMatch(/record LookupUse\(Guid FlowId, string FlowName\)/);
 });

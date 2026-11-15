@@ -686,10 +686,13 @@ export function findUnreachableRoutes(
   }
 
   const reachable = new Set<string>();
-  const isLive = (source: string): boolean => {
+  // A source live for `route`: chrome, or rendered by ANOTHER route already reached. A file that
+  // `route` shares with a reached page (the Lookups list, drawn on /lookups and on /lookups/[id])
+  // shows its links on that page too; a file only `route` renders is a self-link and does not count.
+  const isLiveFor = (source: string, route: string): boolean => {
     const claimedBy = owners.get(source);
     if (claimedBy === undefined) return true; // chrome / registry / fixture referrer
-    return claimedBy.some((route) => reachable.has(route));
+    return claimedBy.some((r) => r !== route && reachable.has(r));
   };
 
   let changed = true;
@@ -702,13 +705,11 @@ export function findUnreachableRoutes(
         changed = true;
         continue;
       }
-      const mine = own.get(route)!;
       const hit = targets.some(
         (t) =>
           // A page linking to itself — or to a sibling out of its own render
           // tree — does not make itself reachable.
-          !mine.has(t.source) &&
-          isLive(t.source) &&
+          isLiveFor(t.source, route) &&
           (targetSatisfiesRoute(route, t.path) ||
             (acceptsDescendants === true && targetIsUnder(route, t.path))),
       );
@@ -1169,6 +1170,16 @@ describe("route reachability (plan rule R1 — no new surface without a consumer
     // A link from ANY other file does reach it — the exclusion is about the
     // source, not about the path.
     expect(findUnreachableRoutes(routes, [{ path: "/lonely", kind: "link", source: "<other>" }])).toEqual([]);
+  });
+
+  it("a link in a component that a reached page also renders reaches its target; one only the target renders does not", () => {
+    // The Lookups list is drawn on /lookups and on /lookups/[id]: its links show on the reached list page too.
+    const routes: EnumeratedRoute[] = [{ route: "/a", file: "<pages/a>" }, { route: "/a/[id]", file: "<pages/a-id>" }];
+    const links: LinkTarget[] = [{ path: "/a", kind: "nav", source: "<BridgeSidebar nav>" }, { path: `/a/${DYN}`, kind: "link", source: "<components/List>" }];
+    const shared = (r: EnumeratedRoute) => new Set([r.file, "<components/List>"]);
+    expect(findUnreachableRoutes(routes, links, {}, shared)).toEqual([]);
+    const onlyTarget = (r: EnumeratedRoute) => new Set(r.route === "/a" ? [r.file] : [r.file, "<components/List>"]);
+    expect(findUnreachableRoutes(routes, links, {}, onlyTarget).map((u) => u.route)).toEqual(["/a/[id]"]);
   });
 
   it("reads the sidebar through what it renders, not through NAV_MAIN's text", () => {
