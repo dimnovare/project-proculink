@@ -10,9 +10,8 @@ import { useConfirm } from "@/components/ui/confirm";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { deleteOutput, getDocument, listDestinations, listOutputs } from "@/lib/api/documents";
 import type { Flow, FlowOutput } from "@/lib/api/documents";
-import { documentRefusalMessage } from "@/lib/documentRefusals";
 import { flowAddress } from "@/lib/flowSteps";
-import { FlowLink, GoContext, useFlowDraft } from "./flowDraft";
+import { draftReason, FlowLink, GoContext, useFlowDraft } from "./flowDraft";
 import { OutputBuilder } from "./OutputBuilder";
 import { OutputEditor, outputTypeLabel } from "./OutputEditor";
 import { Failed, Quiet } from "./states";
@@ -32,7 +31,7 @@ export function FlowOutputs({ flow, outputId, previewDocumentId }: { flow: Flow;
   const enabled = useTenantQueriesEnabled();
   const router = useRouter();
   const go = useContext(GoContext);
-  const { flushAll } = useFlowDraft();
+  const { flushAll, leave } = useFlowDraft();
   const [adding, setAdding] = useState(false);
   const deleting = useRef(false);
   const outputs = useQuery({ queryKey: ["outputs", flow.id], queryFn: () => listOutputs(flow.id), enabled });
@@ -90,7 +89,7 @@ export function FlowOutputs({ flow, outputId, previewDocumentId }: { flow: Flow;
         <div className="p-3">
           <Button
             variant="secondary" className="w-full border-dashed border-brand-blue text-brand-blue" aria-expanded={adding}
-            onClick={() => setAdding(true)}
+            onClick={() => leave(() => setAdding(true))}
           >
             Add an output
           </Button>
@@ -100,13 +99,13 @@ export function FlowOutputs({ flow, outputId, previewDocumentId }: { flow: Flow;
       {adding ? (
         <OutputBuilder flow={flow} previewDocumentId={preview} onDone={() => setAdding(false)} onCreated={open} />
       ) : chosen ? (
-        <Card as="section" edge="green" aria-label={`Edit the output ${chosen.name}`}>
+        <Card as="section" aria-label={`Edit the output ${chosen.name}`}>
           <div className="grid gap-4">
             <OutputEditor
               key={chosen.id} mode="draft" flow={flow} output={chosen} previewDocumentId={preview} previewFile={source.data?.summary.fileName}
               onSaved={() => {}} onCancel={() => {}}
             />
-            {remove.isError && <StatusNotice tone="error">{documentRefusalMessage(remove.error)}</StatusNotice>}
+            {remove.isError && <StatusNotice tone="error">{draftReason(remove.error)}</StatusNotice>}
             <div className="flex flex-wrap items-center gap-2 border-t border-border-faint pt-3">
               <Button variant="ghost" loading={remove.isPending} onClick={() => ask(chosen)}>Delete this output</Button>
               {!chosen.standard && (

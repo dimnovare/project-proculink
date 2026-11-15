@@ -249,10 +249,11 @@ function DraftValues({ flow, read, fileName }: { flow: Flow; read?: ReadResult; 
     const body = chosen(next);
     const p = problemWith(body);
     setProblem(p);
+    part.block(p);
     if (!p) part.change(body);
   };
   return (
-    <Frame draft action={<DraftState part={part} />}>
+    <Frame draft={flow.publishedVersion != null} action={<DraftState part={part} flow={flow} />}>
       <ValueTable rows={rows} edit={edit} read={read} fileName={fileName} />
       <Problem text={problem} />
     </Frame>

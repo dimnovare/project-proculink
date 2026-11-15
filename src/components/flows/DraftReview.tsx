@@ -12,12 +12,13 @@ import type { DraftCite, Flow, FlowOutput, OutputDraft } from "@/lib/api/documen
 import { COPY, documentRefusalMessage } from "@/lib/documentRefusals";
 import { bindLeaf, defaultWidth, leafPaths, setLeafWidth } from "@/lib/flowOutputModel";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
+import { useOnFlowPage } from "./flowDraft";
 
 const NEW_DESTINATION = "\u0000new";
 /** A value or the format, with the place in the documentation it came from. `show` says a missing cite is worth saying so. */
 const Cite = ({ cite, show }: { cite?: DraftCite | null; show: boolean }) =>
   cite || show ? (
-    <p className="w-full text-[12px] text-ink-muted">
+    <p className="w-full text-[12.5px] text-ink-muted">
       {cite ? `From the documentation, ${cite.where}: “${cite.quote}”` : COPY.no_cite}
     </p>
   ) : null;
@@ -28,6 +29,7 @@ export function DraftReview({ flow, draft, requireTest, previewDocumentId, onCre
   onCreated(saved: FlowOutput): void; onRestart(): void;
 }) {
   const qc = useQueryClient();
+  const filled = useOnFlowPage() ? "secondary" : "primary";
   const [name, setName] = useState(draft.name);
   const [template, setTemplate] = useState(draft.template);
   const [problem, setProblem] = useState<string | null>(null);
@@ -94,14 +96,14 @@ export function DraftReview({ flow, draft, requireTest, previewDocumentId, onCre
                 {options.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
               </select>
               {draftLeaf?.by === "ai" && draftLeaf.confidence != null && (
-                <span className="rounded bg-ai-soft px-1.5 text-[11px] text-ai">AI · {Math.round(draftLeaf.confidence * 100)}%</span>
+                <span className="rounded bg-ai-soft px-1.5 text-[12.5px] text-ai">AI · {Math.round(draftLeaf.confidence * 100)}%</span>
               )}
               {draftLeaf?.by === "meaning" && (
-                <span className="rounded bg-surface2 px-1.5 text-[11px] text-ink-muted">
+                <span className="rounded bg-surface2 px-1.5 text-[12.5px] text-ink-muted">
                   Meaning{draftLeaf.confidence != null ? ` · ${Math.round(draftLeaf.confidence * 100)}%` : ""}
                 </span>
               )}
-              {draftLeaf?.required && <span className="rounded bg-surface2 px-1.5 text-[11px] text-ink-muted">{COPY.required_tag}</span>}
+              {draftLeaf?.required && <span className="rounded bg-surface2 px-1.5 text-[12.5px] text-ink-muted">{COPY.required_tag}</span>}
               {fixed && (
                 <input type="number" min={1} max={1000} aria-label={`Width of ${node.name}`} className={`${INPUT} w-24`}
                   value={node.rule?.width ?? defaultWidth(node.name)}
@@ -111,7 +113,7 @@ export function DraftReview({ flow, draft, requireTest, previewDocumentId, onCre
             </div>
           );
         })}
-        {[...noteKeys].filter((n) => Object.hasOwn(COPY, n)).map((n) => <p key={n} className="text-[12px] text-ink-muted">{COPY[n]}</p>)}
+        {[...noteKeys].filter((n) => Object.hasOwn(COPY, n)).map((n) => <p key={n} className="text-[12.5px] text-ink-muted">{COPY[n]}</p>)}
         <Field label="Send to">
           <select className={INPUT} value={adding === "new" ? NEW_DESTINATION : (destinationId ?? "")}
             onChange={(e) => {
@@ -124,7 +126,7 @@ export function DraftReview({ flow, draft, requireTest, previewDocumentId, onCre
           </select>
         </Field>
         {draft.destination && (
-          <div className="flex flex-wrap items-center gap-2 text-[12px] text-ink-muted">
+          <div className="flex flex-wrap items-center gap-2 text-[12.5px] text-ink-muted">
             <span>{COPY.proposed_destination.replace("{url}", draft.destination.url).replace("{method}", draft.destination.method)}</span>
             <Button type="button" variant="secondary" onClick={() => setAdding("proposed")}>Add this destination</Button>
             <Cite cite={draft.destination.cite} show={!!requireTest} />
@@ -141,7 +143,7 @@ export function DraftReview({ flow, draft, requireTest, previewDocumentId, onCre
           />
         )}
         {gated && (
-          <div className="grid gap-2 text-[12px] text-ink-muted">
+          <div className="grid gap-2 text-[12.5px] text-ink-muted">
             <p>{COPY.test_gate.replace("{destination}", destinations.data?.find((d) => d.id === destinationId)?.name ?? "")}</p>
             {previewDocumentId ? (
               <div className="flex flex-wrap items-center gap-2">
@@ -156,7 +158,7 @@ export function DraftReview({ flow, draft, requireTest, previewDocumentId, onCre
         )}
         {problem && <StatusNotice tone="error">{problem}</StatusNotice>}
         <div className="flex flex-wrap gap-2">
-          <Button type="submit" variant="primary" loading={create.isPending} disabled={!!adding || draft.leaves.length === 0 || (gated && (!previewDocumentId || !tested || test.isPending))}>Create</Button>
+          <Button type="submit" variant={filled} loading={create.isPending} disabled={!!adding || draft.leaves.length === 0 || (gated && (!previewDocumentId || !tested || test.isPending))}>Create</Button>
           <Button type="button" variant="ghost" onClick={onRestart}>Choose a different file</Button>
         </div>
       </form>

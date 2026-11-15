@@ -15,7 +15,16 @@ export class DraftPartFailed extends Error {
   }
 }
 
-type Entry = { step: FlowStep; flush: () => Promise<void>; drop: () => void };
+/** An edit a part would not send: a check in the browser stopped it. The message is the part's own reason. */
+export class DraftBlocked extends Error {}
+
+/** Why a draft part could not be saved, in the words the person reads. */
+export const draftReason = (e: unknown) => {
+  const x = e instanceof DraftPartFailed ? e.error : e;
+  return x instanceof DraftBlocked ? x.message : documentRefusalMessage(x);
+};
+
+type Entry = { step: FlowStep; flush: () => Promise<void>; drop: () => void; blocked: () => string | null };
 type Registry = {
   parts: Map<string, Entry>;
   /** Every save on its way, a part's that has already left too. */
@@ -28,6 +37,10 @@ type Draft = {
   saved: () => void;
   flushAll: () => Promise<void>;
   discardAll: () => Promise<void>;
+  /** Runs `then` once every waiting change is saved; a refused or blocked one keeps the person here and sets `stay`. */
+  leave: (then: () => void) => void;
+  /** Why the person is still on this step, until the next successful save or step change. */
+  stay: string | null;
   revision: number;
   bump: () => void;
 };
@@ -43,9 +56,10 @@ export function FlowDraftProvider({ flowId, children }: { flowId: string; childr
   const qc = useQueryClient();
   const reg = useRef<Registry>({ parts: new Map(), saving: new Set(), leftFailed: [] });
   const [revision, setRevision] = useState(0);
-  const bump = useCallback(() => setRevision((n) => n + 1), []);
+  const [stay, setStay] = useState<string | null>(null);
+  const bump = useCallback(() => { setStay(null); setRevision((n) => n + 1); }, []);
   // A saved draft changes the server's hasChanges, which only the flow itself carries.
-  const saved = useCallback(() => { qc.invalidateQueries({ queryKey: ["flow", flowId] }); }, [qc, flowId]);
+  const saved = useCallback(() => { setStay(null); qc.invalidateQueries({ queryKey: ["flow", flowId] }); }, [qc, flowId]);
 
   const flushAll = useCallback(async () => {
     const r = reg.current;
@@ -56,7 +70,20 @@ export function FlowDraftProvider({ flowId, children }: { flowId: string; childr
     if (i >= 0) throw new DraftPartFailed(parts[i][0], parts[i][1].step, (results[i] as PromiseRejectedResult).reason);
     const left = r.leftFailed.splice(0)[0];
     if (left) throw left;
+    // An edit a check stopped was never sent: publishing or leaving now would drop what is on screen.
+    const blocked = [...r.parts].find(([, p]) => p.blocked());
+    if (blocked) throw new DraftPartFailed(blocked[0], blocked[1].step, new DraftBlocked(blocked[1].blocked()!));
   }, []);
+
+  const leaving = useRef(false);
+  const leave = useCallback((then: () => void) => {
+    if (leaving.current) return;
+    leaving.current = true;
+    flushAll().then(
+      () => { setStay(null); then(); },
+      (e: unknown) => setStay(`A change couldn't be saved, so you are still on this step. ${draftReason(e)}`),
+    ).finally(() => { leaving.current = false; });
+  }, [flushAll]);
 
   const discardAll = useCallback(async () => {
     const r = reg.current;
@@ -66,7 +93,7 @@ export function FlowDraftProvider({ flowId, children }: { flowId: string; childr
     r.leftFailed.length = 0;
   }, []);
 
-  const value = useMemo(() => ({ reg, saved, flushAll, discardAll, revision, bump }), [saved, flushAll, discardAll, revision, bump]);
+  const value = useMemo(() => ({ reg, saved, flushAll, discardAll, leave, stay, revision, bump }), [saved, flushAll, discardAll, leave, stay, revision, bump]);
   return <DraftContext.Provider value={value}>{children}</DraftContext.Provider>;
 }
 
@@ -77,9 +104,12 @@ function useDraft() {
 }
 
 export function useFlowDraft() {
-  const { flushAll, discardAll, revision, bump } = useDraft();
-  return { flushAll, discardAll, revision, bump };
+  const { flushAll, discardAll, leave, stay, revision, bump } = useDraft();
+  return { flushAll, discardAll, leave, stay, revision, bump };
 }
+
+/** True inside the flow page, where the publish bar is the one filled button and every other action is outlined. */
+export const useOnFlowPage = () => useContext(DraftContext) !== null;
 
 /** One part of the draft, saved through the shared useAutosave and registered under `part` until it unmounts. */
 export function useDraftPart<T>(part: string, step: FlowStep, save: (value: T) => Promise<unknown>) {
@@ -103,22 +133,32 @@ export function useDraftPart<T>(part: string, step: FlowStep, save: (value: T) =
   const now = useRef(auto.state);
   now.current = auto.state;
   const { change: send, flush: sendNow, discard: dropValue } = auto;
+  const blocked = useRef<string | null>(null);
 
-  const drop = useCallback(() => { dropValue(); setDroppedAt(now.current); setChanged(false); }, [dropValue]);
+  const drop = useCallback(() => { blocked.current = null; dropValue(); setDroppedAt(now.current); setChanged(false); }, [dropValue]);
   const change = useCallback((value: T) => { setDroppedAt(null); setChanged(true); send(value); }, [send]);
   const flush = useCallback(() => { setDroppedAt(null); return sendNow(); }, [sendNow]);
+  /** The reason a check stopped the edit on screen from being sent, or null once it can be. Publish and leaving refuse meanwhile. */
+  const block = useCallback((reason: string | null) => { blocked.current = reason; }, []);
 
   useEffect(() => {
     const r = reg.current;
-    const me: Entry = { step, flush: sendNow, drop };
+    const me: Entry = { step, flush: sendNow, drop, blocked: () => blocked.current };
     entry.current = me;
     r.parts.set(part, me);
     return () => { if (r.parts.get(part) === me) r.parts.delete(part); };
   }, [reg, part, step, sendNow, drop]);
 
   const state: SaveState = droppedAt !== null && auto.state === droppedAt ? "saved" : auto.state;
-  return { state, error: auto.error, changed, change, flush, discard: drop };
+  return { state, error: auto.error, changed, change, flush, discard: drop, block };
 }
+
+/** A click that leaves through `go` (saving what is waiting first); a click with a modifier keeps the browser's own behaviour. */
+export const leaveClick = (go: ((href: string, push?: boolean) => void) | null, href: string, push?: boolean) => (e: React.MouseEvent) => {
+  if (!go || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+  e.preventDefault();
+  go(href, push);
+};
 
 /** Leaves the current view after every waiting draft change is saved; a refused one keeps the person where they are.
  *  `push` leaves the flow page (a new history entry); a view switch replaces the address. */
@@ -133,11 +173,7 @@ export function FlowLink({ href, push, className, current, label, describedBy, c
   return (
     <Link
       href={href} replace={!push} className={className} aria-current={current ? "page" : undefined} aria-label={label} aria-describedby={describedBy}
-      onClick={(e) => {
-        if (!go || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-        e.preventDefault();
-        go(href, push);
-      }}
+      onClick={leaveClick(go, href, push)}
     >
       {children}
     </Link>
@@ -147,11 +183,13 @@ export function FlowLink({ href, push, className, current, label, describedBy, c
 /** What DraftState reads from a part: any useDraftPart<T>, whatever its T. */
 export type DraftPart = Omit<ReturnType<typeof useDraftPart>, "change">;
 
-/** What a draft part's last change came to: "Saving…", "Draft saved", or the refusal with a way on. */
-export function DraftState({ part }: { part: DraftPart }) {
+/** What a draft part's last change came to: "Saving…", "Draft saved", or the refusal with a way on. On a flow never
+ *  published (`flow.publishedVersion` not a number) a change applies at once, so it says "Saved". */
+export function DraftState({ part, flow }: { part: DraftPart; flow: { publishedVersion?: number | null } }) {
   const { bump } = useFlowDraft();
   const failed = part.state === "failed";
-  const text = part.state === "saving" ? "Saving…" : failed ? documentRefusalMessage(part.error) : part.changed ? "Draft saved" : "";
+  const done = flow.publishedVersion != null ? "Draft saved" : "Saved";
+  const text = part.state === "saving" ? "Saving…" : failed ? documentRefusalMessage(part.error) : part.changed ? done : "";
   return (
     <div className="flex flex-wrap items-center gap-2 text-[12.5px]">
       <span aria-live="polite" className={failed ? "text-danger" : "text-ink-muted"}>{text}</span>

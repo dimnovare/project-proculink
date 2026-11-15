@@ -11,6 +11,7 @@ import {
 import { COPY, documentRefusalMessage } from "@/lib/documentRefusals";
 import { openGooglePicker } from "@/lib/googlePicker";
 import { Field, INPUT } from "./DestinationForm";
+import { useOnFlowPage } from "./flowDraft";
 
 const KEY = ["linked-accounts"];
 
@@ -52,6 +53,7 @@ export function GoogleTargetFields({ protocol, config, onChange }: {
   protocol: "google_drive" | "google_sheets"; config: Record<string, unknown>; onChange(patch: Record<string, unknown>): void;
 }) {
   const qc = useQueryClient();
+  const filled = useOnFlowPage() ? "secondary" : "primary";
   const linked = useLinkedAccounts();
   const [problem, setProblem] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
@@ -108,14 +110,14 @@ export function GoogleTargetFields({ protocol, config, onChange }: {
           </select>
         </Field>
       ) : (
-        <div className="text-[12px]">
+        <div className="text-[12.5px]">
           <span className="mb-1 block font-medium text-ink-muted">Google account</span>
           <span className="text-ink">{account.email}</span>
         </div>
       )}
       {reconnect && <StatusNotice tone="warning">{COPY.account_reconnect}</StatusNotice>}
       <div className="flex flex-wrap gap-2">
-        {reconnect && <Button type="button" variant="primary" onClick={start}>Reconnect</Button>}
+        {reconnect && <Button type="button" variant={filled} onClick={start}>Reconnect</Button>}
         <Button type="button" variant="ghost" onClick={start}>Connect another account</Button>
         {account && !confirming && <Button type="button" variant="ghost" onClick={() => setConfirming(true)}>Disconnect</Button>}
       </div>

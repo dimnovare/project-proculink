@@ -42,10 +42,10 @@ export function FlowVersionsPanel({ flowId, onRestored }: { flowId: string; onRe
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="grid">
                   <span className="text-[13.5px] font-medium">{`Version ${v.versionNo}`}</span>
-                  <span className="text-[12px] text-ink-muted">{`Published ${formatDate(v.publishedAt)}${v.publishedBy ? ` by ${v.publishedBy}` : ""}`}</span>
+                  <span className="text-[12.5px] text-ink-muted">{`Published ${formatDate(v.publishedAt)}${v.publishedBy ? ` by ${v.publishedBy}` : ""}`}</span>
                 </span>
                 {v.live ? (
-                  <span className="rounded bg-brand-green-soft px-2 py-0.5 text-[12px] font-medium">Live</span>
+                  <span className="rounded bg-brand-green-soft px-2 py-0.5 text-[12.5px] font-medium">Live</span>
                 ) : (
                   <Button size="sm" variant="secondary" loading={restore.isPending && restore.variables === v.versionNo} onClick={() => ask(v.versionNo)}>Restore</Button>
                 )}

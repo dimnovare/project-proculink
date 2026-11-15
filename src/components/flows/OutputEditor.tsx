@@ -12,7 +12,7 @@ import { checkOutput, createOutput, deleteOutputLogo, listDestinations, listLook
 import type { Flow, FlowOutput, LookupSummary, OutputCheck, OutputLayout, OutputRequest, SendWhen, SendWhenOp } from "@/lib/api/documents";
 import { TestOutcome } from "@/components/destinations/TestOutcome";
 import { destinationsAddress, destinationWhere } from "@/lib/destinations";
-import { DraftState, FlowLink, useDraftPart } from "./flowDraft";
+import { DraftState, FlowLink, useDraftPart, useOnFlowPage } from "./flowDraft";
 import { ApiHttpError } from "@/lib/api/core";
 import { COPY, documentRefusalMessage } from "@/lib/documentRefusals";
 import { defaultWidth, fromSimple, OP_LABEL, toSimple } from "@/lib/flowOutputModel";
@@ -144,6 +144,7 @@ function DraftOutputEditor(props: EditorProps & { output: FlowOutput }) {
 function Editor({ flow, output, previewDocumentId, previewFile, hideDestination, onCreated, onSaved, onCancel, draft }: EditorProps & { draft?: Draft }) {
   const qc = useQueryClient();
   const enabled = useTenantQueriesEnabled();
+  const onFlowPage = useOnFlowPage();
   const [current, setCurrent] = useState(output);
   const [name, setName] = useState(output?.name ?? "");
   const [format, setFormat] = useState(output?.format ?? "csv");
@@ -206,7 +207,7 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
   };
   const problemNow = !name.trim() ? "Give this output a name."
     : sendWhen && !sendWhen.value.trim() ? COPY.send_when
-    : [...(rows?.fields ?? []), ...(rows?.table?.columns ?? [])].some((r) => !r.name.trim()) ? "Give every row a name."
+    : [...(rows?.fields ?? []), ...(rows?.table?.columns ?? [])].some((r) => !r.name.trim()) ? (draft ? "Give every column a name." : "Give every row a name.")
     : null;
 
   const save = useMutation({
@@ -230,13 +231,15 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
   const payload = draft && current ? JSON.stringify(bodyOf()) : null;
   const sentPayload = useRef(payload);
   const change = draft?.part.change;
+  const block = draft?.part.block;
   useEffect(() => {
-    if (!change || payload === null) return;
+    if (!change || !block || payload === null) return;
     setProblem(problemNow);
+    block(problemNow);
     if (problemNow || payload === sentPayload.current) return;
     sentPayload.current = payload;
     change(JSON.parse(payload) as OutputRequest);
-  }, [change, payload, problemNow]);
+  }, [change, block, payload, problemNow]);
 
   const table = flow.fields.tables.find((t) => t.key === rows?.table?.key);
   const fieldOptions = flow.fields.fields.map((f) => ({ key: f.key, label: f.label }));
@@ -286,7 +289,7 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
   ));
   const logoField = format === "pdf" && (
     <Field label="Logo">
-      {!current ? <p className="text-[12px] text-ink-muted">Save the output first, then add a logo.</p>
+      {!current ? <p className="text-[12.5px] text-ink-muted">Save the output first, then add a logo.</p>
         : current.hasLogo ? <Button type="button" variant="secondary" loading={logo.isPending} onClick={() => logo.mutate(null)}>Remove logo</Button>
         : (
           <>
@@ -299,7 +302,7 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
                 if (file.size > 262_144) setProblem(COPY.invalid_logo);
                 else logo.mutate(file);
               }} />
-            <p className="text-[12px] text-ink-muted">PNG or JPG, up to 256 KB.</p>
+            <p className="text-[12.5px] text-ink-muted">PNG or JPG, up to 256 KB.</p>
           </>
         )}
     </Field>
@@ -356,11 +359,11 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
             onChange={(e) => setSendWhen({ ...sendWhen, value: e.target.value })} />
         </div>
       )}
-      <p className="text-[12px] text-ink-muted">Send this output only for some documents, for example one output per recipient.</p>
+      <p className="text-[12.5px] text-ink-muted">Send this output only for some documents, for example one output per recipient.</p>
     </>
   );
   const externalNote = external && (
-    <p className="text-[12px] text-ink-muted">
+    <p className="text-[12.5px] text-ink-muted">
       This output was set up outside this editor. You can change its name and destination here.
     </p>
   );
@@ -395,7 +398,7 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
       ) : null}
       {pdfBlob && current ? <PdfDocumentView cacheKey={`output-preview-${current.id}-${draft ? draft.saves : preview.submittedAt}`} blob={pdfBlob} bounded regionLabel="Preview" />
       : shown && (
-        <pre className="max-h-72 overflow-auto rounded border border-border bg-surface2 p-2.5 font-mono text-[12px] text-ink">
+        <pre className="max-h-72 overflow-auto rounded border border-border bg-surface-2 p-2.5 font-mono text-[12.5px] text-ink">
           {shown.content}
         </pre>
       )}
@@ -406,12 +409,14 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
     const destination = destinations.data?.find((d) => d.id === destinationId);
     const tested = destinations.data?.find((d) => d.id === test.variables?.destinationId);
     const reason = !destinationId ? "Choose where to send it first." : test.isPending ? "Sending a test…" : problemNow;
+    // "Send it now" resends with the live version, not this draft: it is not offered while the two differ.
+    const unpublished = flow.publishedVersion != null && !!flow.hasChanges;
     const sectionTitle = "m-0 text-[14px] font-semibold text-ink";
     return (
       <div className="grid gap-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="m-0 text-[16px] font-semibold text-ink">{name.trim() || current.name}</h2>
-          <DraftState part={draft.part} />
+          <DraftState part={draft.part} flow={flow} />
         </div>
         {nameField}
         {typeField}
@@ -473,14 +478,14 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
               {(test.data || test.isError) && test.variables?.destinationId && (
                 <TestOutcome
                   destinationId={test.variables.destinationId} protocol={tested?.protocol ?? ""} result={test.data ?? null}
-                  error={test.isError ? test.error : null} at={testAt} place="form"
+                  error={test.isError ? test.error : null} at={testAt} place="form" offerResend={!unpublished}
                 />
               )}
             </div>
           )}
         </section>
         <details className="rounded-md border border-border px-3 py-2">
-          <summary className="flex min-h-10 cursor-pointer items-center text-[14px] font-semibold text-ink">More options: when to send, separator, lookups</summary>
+          <summary className="flex min-h-11 cursor-pointer items-center text-[14px] font-semibold text-ink">More options: when to send, separator, lookups</summary>
           <div className="grid gap-3 pb-2 pt-2">
             {sendWhenFields}
             {separatorField}
@@ -527,11 +532,11 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
         {externalNote}
         {rows && (
           <>
-            <p className="text-[12px] font-medium text-ink-muted">Values</p>
+            <p className="text-[12.5px] font-medium text-ink-muted">Values</p>
             <RowList fixed={format === "fixed"} rows={rows.fields} options={fieldOptions} lookups={lookupList} onChange={(fields) => setRows({ ...rows, fields })} />
             {rows.table && (
               <>
-                <p className="text-[12px] font-medium text-ink-muted">{table?.label ?? "Table"} columns</p>
+                <p className="text-[12.5px] font-medium text-ink-muted">{table?.label ?? "Table"} columns</p>
                 <RowList fixed={format === "fixed"} rows={rows.table.columns} options={columnOptions} lookups={lookupList}
                   onChange={(columns) => setRows({ ...rows, table: { key: rows.table!.key, columns } })} />
               </>
@@ -541,7 +546,7 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
         {standardQuestions}
         {problemNotice}
         <div className="flex flex-wrap gap-2">
-          <Button type="submit" variant="primary" loading={save.isPending}>{current ? "Save" : "Create"}</Button>
+          <Button type="submit" variant={onFlowPage ? "secondary" : "primary"} loading={save.isPending}>{current ? "Save" : "Create"}</Button>
           <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>
           {previewDocumentId && current && (
             <Button type="button" variant="secondary" loading={preview.isPending} onClick={() => preview.mutate()}>Preview</Button>
@@ -549,7 +554,7 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
           {checkButton}
         </div>
         {checkResult}
-        {previewDocumentId && current && <p className="text-[12px] text-ink-muted">Preview shows the last saved version.</p>}
+        {previewDocumentId && current && <p className="text-[12.5px] text-ink-muted">Preview shows the last saved version.</p>}
         {preview.isError && <StatusNotice tone="error">{documentRefusalMessage(preview.error)}</StatusNotice>}
         {previewBody}
       </form>

@@ -18,7 +18,7 @@ type PageHeaderProps = {
   /** The one helper line under the title: what this page is. 15px. */
   sub?: React.ReactNode;
   /** The page this one sits under. Drawn above the title as a link with a left chevron and `label`; announced as "Back to {label}". */
-  back?: { href: string; label: string };
+  back?: { href: string; label: string; /** A client page's own click, e.g. to save what is waiting before leaving. */ onClick?: React.MouseEventHandler<HTMLAnchorElement> };
   /** Right side, aligned to the bottom of the title block; wraps under it on phones. */
   actions?: React.ReactNode;
   /** A small control drawn right after the title, on its line (e.g. a rename pen). Absent: the title renders as before. */
@@ -44,6 +44,7 @@ export function PageHeader({ title, sub, back, actions, titleAction, className }
         {back && (
           <Link
             href={back.href}
+            onClick={back.onClick}
             aria-label={`Back to ${back.label}`}
             className="inline-flex min-h-[44px] items-center gap-1 text-[14px] font-semibold text-brand-blue hover:underline sm:min-h-[40px]"
           >

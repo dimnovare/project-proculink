@@ -40,7 +40,7 @@ async function sendEach(items: DocumentRow[]): Promise<Resent> {
 }
 
 /** A test's result where it was pressed, and, after a pass, the documents that were waiting with "Send it now". */
-export function TestOutcome({ destinationId, protocol, result, error, at, place }: {
+export function TestOutcome({ destinationId, protocol, result, error, at, place, offerResend = true }: {
   destinationId: string;
   protocol: string;
   /** The answer, or null while there is none. */
@@ -50,12 +50,14 @@ export function TestOutcome({ destinationId, protocol, result, error, at, place 
   /** When the test was pressed (epoch ms). */
   at: number;
   place: "form" | "row";
+  /** False: no "Send it now", e.g. after a test of a flow's draft, which a resend would not use. */
+  offerResend?: boolean;
 }) {
   const qc = useQueryClient();
   const waiting = useQuery({
     queryKey: ["documents", "waiting", destinationId, at],
     queryFn: () => listDocumentPage({ waitingOnDestination: destinationId, page: 1, pageSize: 50 }),
-    enabled: useTenantQueriesEnabled() && !!result?.success,
+    enabled: useTenantQueriesEnabled() && !!result?.success && offerResend,
   });
   // Held from the press itself, so a second press before the next render sends nothing.
   const busy = useRef(false);
@@ -97,7 +99,7 @@ export function TestOutcome({ destinationId, protocol, result, error, at, place 
         {reason && <> <span>{reason}</span></>}
       </StatusNotice>
       {/* After a run, only a list fetched since it ended is offered. During the run the band stays, its button loading. */}
-      {n > 0 && (send.isPending || waiting.dataUpdatedAt > ranAt) && (
+      {offerResend && n > 0 && (send.isPending || waiting.dataUpdatedAt > ranAt) && (
         <div data-testid="destination-waiting"
           className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-amber-soft px-3 py-2.5 text-[13px] text-amber-text">
           <p className="m-0">

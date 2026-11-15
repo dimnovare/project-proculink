@@ -15,8 +15,9 @@ const flow = {
 } as Flow;
 
 let change: (v: string) => void;
+let block: (reason: string | null) => void;
 function Values({ save }: { save: (v: string) => Promise<unknown> }) {
-  change = useDraftPart("values", "read", save).change;
+  ({ change, block } = useDraftPart("values", "read", save));
   return null;
 }
 /** The bar reads the flow from the cache, as the page does, so a publish's answer reaches it. */
@@ -59,6 +60,22 @@ describe("PublishBar", () => {
     expect(bar().getByRole("link", { name: "Go to We read" })).toHaveAttribute("href", "/flows/flow-1?tab=read");
     await waitFor(() => expect(bar().getByRole("button", { name: "Publish changes" })).toBeEnabled());
     expect(api.publishFlow).not.toHaveBeenCalled();
+  });
+
+  it("an edit a check stopped blocks publish with its step and reason, until the check passes", async () => {
+    api.publishFlow.mockResolvedValue({ ...flow, publishedVersion: 2, hasChanges: false });
+    render(page(flow));
+    act(() => block("Give every value a name."));
+    fireEvent.click(bar().getByRole("button", { name: "Publish changes" }));
+    expect(await bar().findByText("A change on We read couldn't be saved, so nothing was published.")).toBeTruthy();
+    expect(bar().getByText("Give every value a name.")).toBeTruthy();
+    expect(bar().getByRole("link", { name: "Go to We read" })).toBeTruthy();
+    expect(api.publishFlow).not.toHaveBeenCalled();
+    act(() => block(null));
+    await waitFor(() => expect(bar().getByRole("button", { name: "Publish changes" })).toBeEnabled());
+    fireEvent.click(bar().getByRole("button", { name: "Publish changes" }));
+    expect(await bar().findByText("Version 2 is live.")).toBeTruthy();
+    expect(api.publishFlow).toHaveBeenCalledTimes(1);
   });
 
   it("the bar is not drawn while the flow is unconfirmed, and on an unpublished flow it offers Publish", () => {

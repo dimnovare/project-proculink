@@ -135,7 +135,7 @@ function ApiCard({ flowId, intake }: { flowId: string; intake?: FlowIntake }) {
             placeholder={intake?.hasCredentials ? "Leave blank to keep the saved one" : ""}
           />
         </Field>
-        <div><Button type="submit" variant="secondary" loading={run.isPending || test.isPending}>Save and send a test</Button></div>
+        <div><Button type="submit" variant="secondary" loading={run.isPending || test.isPending}>{url.trim() ? "Save and send a test" : "Save"}</Button></div>
         <Refused run={run} />
         {test.isError && <StatusNotice tone="error">{documentRefusalMessage(test.error)}</StatusNotice>}
         {test.data && (
@@ -170,7 +170,7 @@ function PickupsCard({ flowId, pickups }: { flowId: string; pickups: FlowIntake[
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-[13.5px] font-medium">
                   {Object.hasOwn(PICKUP_KINDS, i.kind) ? PICKUP_KINDS[i.kind as keyof typeof PICKUP_KINDS] : i.kind}
-                  {typeof where === "string" && <span className="ml-2 font-mono text-[12px] text-ink-muted">{where}</span>}
+                  {typeof where === "string" && <span className="ml-2 font-mono text-[12.5px] text-ink-muted">{where}</span>}
                 </span>
                 <span className="flex flex-wrap items-center gap-2">
                   <OnOff intake={i} flowId={flowId} run={run} />
@@ -203,7 +203,7 @@ export function FlowIntakePanel({ flow }: { flow: Flow }) {
         {email && <EmailCard flowId={flow.id} intake={email} />}
         <PickupsCard flowId={flow.id} pickups={intakes.data.filter((i) => i.kind !== "email" && i.kind !== "api")} />
         <details>
-          <summary className="inline-flex min-h-10 cursor-pointer items-center text-[14px] font-semibold text-ink">For developers</summary>
+          <summary className="inline-flex min-h-11 cursor-pointer items-center text-[14px] font-semibold text-ink">For developers</summary>
           <div className="mt-2 grid gap-3">
             <p className="m-0 text-[13px] text-ink-muted">Send documents from another system, and be told when one is read or sent.</p>
             <ApiCard flowId={flow.id} intake={api} />
@@ -218,7 +218,7 @@ export function FlowIntakePanel({ flow }: { flow: Flow }) {
         <h2 id={`arrives-${flow.id}`} className="m-0 text-[16px] font-semibold text-ink">How documents arrive</h2>
         <p className="m-0 text-[13px] text-ink-muted">Three ways in. Use one, or all of them.</p>
       </div>
-      <Card edge="blue" title="Upload" sub="Always on. Nothing to set up.">
+      <Card title="Upload" sub="Always on. Nothing to set up.">
         <p className="m-0 text-[13px] text-ink-muted">Drop a file on this flow&apos;s Documents page, or press Upload in the top bar.</p>
         <p className="m-0 mt-1 text-[13px] text-ink-muted">{kindsLine(flow)}</p>
       </Card>

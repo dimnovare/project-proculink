@@ -24,12 +24,13 @@ const invoiceCsv = {
   template: { format: "csv", root: { name: "document", nodeType: "object", children: [leaf("Invoice", "invoice_number"), leaf("Item", "item")] } },
 };
 
-const mount = () =>
+const mount = (f: Flow = flow) =>
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <FlowDraftProvider flowId="flow-1"><FlowOutputs flow={flow} outputId="out-1" previewDocumentId="doc-1" /></FlowDraftProvider>
+      <FlowDraftProvider flowId="flow-1"><FlowOutputs flow={f} outputId="out-1" previewDocumentId="doc-1" /></FlowDraftProvider>
     </QueryClientProvider>,
   );
+const waitingOne = { items: [{ id: "doc-9", fileName: "invoice-0999.pdf", failedAt: null }], totalCount: 1, page: 1, pageSize: 50, sampleCount: 0 };
 
 beforeEach(() => {
   vi.useFakeTimers({ shouldAdvanceTime: true });
@@ -53,15 +54,26 @@ describe("FlowOutputs", () => {
     const [flowId, id, body] = api.updateOutput.mock.calls[0];
     expect([flowId, id]).toEqual(["flow-1", "out-1"]);
     expect(body.template.root.children[1].name).toBe("Code");
-    expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
-  });
+    expect(screen.queryByRole("button", { name: "Save" })).toBeNull();  });
 
-  it("send a test shows where it was pressed", async () => {
+  it("send a test shows where it was pressed, and with nothing unpublished offers what was waiting", async () => {
+    api.listDocumentPage.mockResolvedValue(waitingOne);
     mount();
     const region = await screen.findByRole("region", { name: "Edit the output Invoice CSV" });
     fireEvent.click(await within(region).findByRole("button", { name: "Send a test" }));
     await waitFor(() => expect(api.testOutput).toHaveBeenCalledTimes(1));
     expect(api.testOutput).toHaveBeenCalledWith("doc-1", expect.objectContaining({ destinationId: "dest-1", format: "csv" }));
     expect(await within(region).findByText(/Test file arrived/)).toBeTruthy();
+    expect(await within(region).findByRole("button", { name: "Send it now" })).toBeTruthy();
+  });
+
+  it("after a test of unpublished changes, nothing waiting is offered to send", async () => {
+    api.listDocumentPage.mockResolvedValue(waitingOne);
+    mount({ ...flow, hasChanges: true });
+    const region = await screen.findByRole("region", { name: "Edit the output Invoice CSV" });
+    fireEvent.click(await within(region).findByRole("button", { name: "Send a test" }));
+    expect(await within(region).findByText(/Test file arrived/)).toBeTruthy();
+    expect(within(region).queryByRole("button", { name: "Send it now" })).toBeNull();
+    expect(api.listDocumentPage).not.toHaveBeenCalled();
   });
 });

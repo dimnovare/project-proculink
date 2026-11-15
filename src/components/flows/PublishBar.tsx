@@ -10,7 +10,7 @@ import { publishFlow, restoreFlowVersion } from "@/lib/api/documents";
 import type { Flow } from "@/lib/api/documents";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
 import { FLOW_STEPS, flowAddress, type FlowStep } from "@/lib/flowSteps";
-import { DraftPartFailed, useFlowDraft } from "./flowDraft";
+import { DraftPartFailed, draftReason, useFlowDraft } from "./flowDraft";
 
 /** Stores a publish or restore result and refreshes everything it can change. */
 export const useFlowSaved = (flowId: string) => {
@@ -21,12 +21,12 @@ export const useFlowSaved = (flowId: string) => {
   };
 };
 
-type Note = { text: string; done: boolean; step?: FlowStep };
+type Note = { text: string; done: boolean; step?: FlowStep; reason?: string };
 const stepTitle = (step: FlowStep) => FLOW_STEPS.find((s) => s.id === step)!.title;
 
 /** The one bar that makes a flow's draft real: it saves every waiting change first, and a part that could not be
  *  saved stops the publish. Drawn only when the server says there is something to publish, or while it reports a result. */
-export function PublishBar({ flow }: { flow: Flow }) {
+export function PublishBar({ flow, onDiscarding }: { flow: Flow; onDiscarding?(on: boolean): void }) {
   const qc = useQueryClient();
   const confirm = useConfirm();
   const draft = useFlowDraft();
@@ -47,11 +47,13 @@ export function PublishBar({ flow }: { flow: Flow }) {
     try {
       if (ask && !(await ask())) return;
       setRunning(kind);
+      // While a discard runs the step's editors take no typing: a keystroke would bring the discarded edits back.
+      if (kind === "discard") onDiscarding?.(true);
       setNote(null);
       setNote({ text: await work(), done: true });
     } catch (e) {
       if (e instanceof DraftPartFailed) {
-        setNote({ text: `A change on ${stepTitle(e.step)} couldn't be saved, so nothing was published.`, done: false, step: e.step });
+        setNote({ text: `A change on ${stepTitle(e.step)} couldn't be saved, so nothing was published.`, done: false, step: e.step, reason: draftReason(e) });
       } else {
         setNote({ text: documentRefusalMessage(e), done: false });
         qc.invalidateQueries({ queryKey: flowKey });   // e.g. nothing to publish, or someone else published first
@@ -60,6 +62,7 @@ export function PublishBar({ flow }: { flow: Flow }) {
     } finally {
       busy.current = false;
       setRunning(null);
+      onDiscarding?.(false);
     }
   };
 
@@ -102,6 +105,7 @@ export function PublishBar({ flow }: { flow: Flow }) {
           {shown && (
             <p className={`m-0 ${shown.done ? "text-ink" : "text-danger"}`}>
               {shown.text}
+              {shown.reason && <> <span>{shown.reason}</span></>}
               {shown.step && (
                 <>
                   {" "}

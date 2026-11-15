@@ -7,10 +7,11 @@ import { FlowPage } from "./FlowPage";
 import { useDraftPart } from "./flowDraft";
 
 const replace = vi.hoisted(() => vi.fn());
+const push = vi.hoisted(() => vi.fn());
 const search = vi.hoisted(() => ({ q: "" }));
 vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(search.q),
-  useRouter: () => ({ replace, push: vi.fn() }),
+  useRouter: () => ({ replace, push }),
 }));
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => true }));
 
@@ -82,6 +83,18 @@ describe("FlowPage", () => {
       "A change couldn't be saved, so you are still on this step. Only a workspace admin can change this.",
     );
     expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("the Flows back link saves what is waiting before it leaves", async () => {
+    search.q = "tab=history";
+    const log: string[] = [];
+    part.save.mockImplementation(async (v: string) => { log.push(`save ${v}`); });
+    push.mockImplementation((href: string) => log.push(`push ${href}`));
+    renderPage();
+    await screen.findByText("Earlier versions");
+    act(() => part.change!("Invoice no"));
+    fireEvent.click(screen.getByRole("link", { name: "Back to Flows" }));
+    await waitFor(() => expect(log).toEqual(["save Invoice no", "push /flows"]));
   });
 
   it("on every step the publish bar holds the one filled button", async () => {

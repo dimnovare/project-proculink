@@ -23,13 +23,13 @@ import { flowNeedsYouQuery, FlowDocuments, needsYouWords, StreakBand } from "./F
 import { FlowIntakePanel } from "./FlowIntakePanel";
 import { FlowOutputs } from "./FlowOutputs";
 import { FlowValues, useLatestRead } from "./FlowValues";
-import { DraftPartFailed, FlowDraftProvider, FlowLink, GoContext, useFlowDraft } from "./flowDraft";
+import { FlowDraftProvider, FlowLink, GoContext, leaveClick, useFlowDraft } from "./flowDraft";
 import { FlowVersionsPanel } from "./FlowVersionsPanel";
 import { PublishBar } from "./PublishBar";
 import { Failed, Quiet } from "./states";
 
 const STEP_IDS: readonly FlowView[] = FLOW_STEPS.map((s) => s.id);
-export const isFlowStep = (v: FlowView): v is FlowStep => STEP_IDS.includes(v);
+const isFlowStep = (v: FlowView): v is FlowStep => STEP_IDS.includes(v);
 
 const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
@@ -189,6 +189,7 @@ function SendStep({ flow, output }: { flow: Flow; output: string | null }) {
 
 function ViewBody({ flow, view, output }: { flow: Flow; view: FlowView; output: string | null }) {
   const { bump, revision } = useFlowDraft();
+  const [discarding, setDiscarding] = useState(false);
   if (view === "history") return <FlowVersionsPanel flowId={flow.id} onRestored={bump} />;
   if (!isFlowStep(view)) return <FlowDocuments flow={flow} />;
   const step: Record<FlowStep, React.ReactNode> = {
@@ -197,8 +198,8 @@ function ViewBody({ flow, view, output }: { flow: Flow; view: FlowView; output: 
   };
   return (
     <div className="grid gap-4">
-      <div key={revision}>{step[view]}</div>
-      <PublishBar flow={flow} />
+      <fieldset key={revision} disabled={discarding} className="m-0 min-w-0 border-0 p-0">{step[view]}</fieldset>
+      <PublishBar flow={flow} onDiscarding={setDiscarding} />
     </div>
   );
 }
@@ -211,17 +212,8 @@ function FlowFrame({ flowId }: { flowId: string }) {
   const draft = useFlowDraft();
   const flow = useQuery({ queryKey: ["flow", flowId], queryFn: () => getFlow(flowId), enabled: useTenantQueriesEnabled() });
   const [renaming, setRenaming] = useState(false);
-  const [blocked, setBlocked] = useState<string | null>(null);
-  const leaving = useRef(false);
-
-  const go = useCallback((href: string, push?: boolean) => {
-    if (leaving.current) return;
-    leaving.current = true;
-    draft.flushAll().then(
-      () => { setBlocked(null); if (push) router.push(href); else router.replace(href); },
-      (e: unknown) => setBlocked(`A change couldn't be saved, so you are still on this step. ${documentRefusalMessage(e instanceof DraftPartFailed ? e.error : e)}`),
-    ).finally(() => { leaving.current = false; });
-  }, [draft, router]);
+  const { leave } = draft;
+  const go = useCallback((href: string, push?: boolean) => leave(() => (push ? router.push(href) : router.replace(href))), [leave, router]);
 
   const f = flow.data;
   const live = f?.publishedVersion;
@@ -230,14 +222,14 @@ function FlowFrame({ flowId }: { flowId: string }) {
       <PageShell variant="wide">
         <PageHeader
           title={f?.name ?? "Flow"}
-          back={{ href: "/flows", label: "Flows" }}
+          back={{ href: "/flows", label: "Flows", onClick: leaveClick(go, "/flows", true) }}
           sub={live === null ? "Not published yet" : typeof live === "number" ? (
             <span className="inline-flex items-center gap-2"><span aria-hidden className="h-2 w-2 rounded-full bg-brand-green" />{`Live, version ${live}`}</span>
           ) : undefined}
           titleAction={f && (
             <button
               type="button" aria-label="Rename this flow" aria-expanded={renaming} onClick={() => setRenaming((r) => !r)}
-              className="inline-flex h-10 w-10 flex-none items-center justify-center rounded-md text-ink-muted hover:bg-surface-2 hover:text-ink"
+              className="inline-flex h-11 w-11 flex-none items-center justify-center rounded-md text-ink-muted hover:bg-surface-2 hover:text-ink"
             >
               <Pencil size={18} aria-hidden />
             </button>
@@ -248,7 +240,7 @@ function FlowFrame({ flowId }: { flowId: string }) {
         ) : !f ? (
           <Quiet>Loading flow…</Quiet>
         ) : (
-          <FlowBody flow={f} view={view} output={output} renaming={renaming} onRenamed={() => setRenaming(false)} blocked={blocked} />
+          <FlowBody flow={f} view={view} output={output} renaming={renaming} onRenamed={() => setRenaming(false)} blocked={draft.stay} />
         )}
       </PageShell>
     </GoContext.Provider>

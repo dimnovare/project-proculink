@@ -10,6 +10,7 @@ import { createDestination, testDestination, updateDestination } from "@/lib/api
 import type { Destination, DestinationRequest } from "@/lib/api/documents";
 import { MANAGED_CONFIG_KEYS } from "@/lib/deliveryConfigKeys";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
+import { useOnFlowPage } from "./flowDraft";
 import { GoogleTargetFields, useLinkedAccounts } from "./GoogleTargetFields";
 
 type Kind = "text" | "number" | "check" | "method";
@@ -111,6 +112,7 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, on
   onSaved(d: Destination): void; onCancel(): void;
 }) {
   const qc = useQueryClient();
+  const filled = useOnFlowPage() ? "secondary" : "primary";
   const [current, setCurrent] = useState(destination);
   const [name, setName] = useState(destination?.name ?? "");
   const [protocol, setProtocol] = useState<Protocol>((destination?.protocol as Protocol) ?? "http");
@@ -280,9 +282,9 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, on
       {problem && <StatusNotice tone="error" className="col-span-full">{problem}</StatusNotice>}
       <div className="col-span-full flex flex-wrap gap-2">
         {testAfterSave ? (
-          <Button type="button" variant="primary" loading={save.isPending || test.isPending} onClick={submit}>Save and send a test</Button>
+          <Button type="button" variant={filled} loading={save.isPending || test.isPending} onClick={submit}>Save and send a test</Button>
         ) : (
-          <Button type="button" variant="primary" loading={save.isPending} onClick={submit}>Save</Button>
+          <Button type="button" variant={filled} loading={save.isPending} onClick={submit}>Save</Button>
         )}
         <Button type="button" variant="ghost" onClick={onCancel}>{saved ? "Close" : "Cancel"}</Button>
         {!testAfterSave && (
