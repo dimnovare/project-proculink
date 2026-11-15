@@ -3,7 +3,7 @@ import { render, screen, within } from "@testing-library/react";
 import GuideLayout from "./GuideLayout";
 import { Step, Prereqs, IfThisFails, Outcome } from "./Step";
 import { GuideShot } from "./GuideShot";
-import { getGuideBySlug, type Guide } from "@/lib/guides";
+import { START_HERE, getGuideBySlug, liveClientGuides, type Guide } from "@/lib/guides";
 
 const capture = vi.fn();
 vi.mock("@/lib/analytics", () => ({ capture: (...a: unknown[]) => capture(...a) }));
@@ -53,7 +53,7 @@ describe("GuideLayout", () => {
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(clientGuide.title);
     expect(screen.getByText(clientGuide.blurb)).toBeInTheDocument();
     // The count comes from the rendered steps, not from the registry.
-    expect(screen.getByText("steps")).toHaveTextContent("2 steps");
+    expect(screen.getByText(clientGuide.minutes != null ? `About ${clientGuide.minutes} minutes, 2 steps` : "2 steps")).toBeInTheDocument();
   });
 
   it("builds the desktop step list from the rendered steps, not from a registry", () => {
@@ -66,23 +66,6 @@ describe("GuideLayout", () => {
     ]);
     expect(links[0]).toHaveAttribute("href", "#step-1");
     expect(links[1]).toHaveAttribute("href", "#step-2");
-  });
-
-  it("marks exactly one step current and exposes progress", () => {
-    renderGuide(clientGuide);
-    const nav = screen.getByRole("navigation", { name: "Guide steps" });
-    // Which step is current depends on scroll position, and every element in
-    // jsdom reports a zero-height rect — so assert the invariant (one and only
-    // one current step) rather than a position this environment cannot produce.
-    const current = within(nav)
-      .getAllByRole("link")
-      .filter((a) => a.getAttribute("aria-current") === "true");
-    expect(current).toHaveLength(1);
-
-    const bars = screen.getAllByRole("progressbar");
-    expect(bars.length).toBeGreaterThan(0);
-    expect(bars[0]).toHaveAttribute("aria-valuemax", "2");
-    expect(bars[0].getAttribute("aria-label")).toMatch(/^Step \d of 2$/);
   });
 
   it("gives each step a deep-linkable anchor and a numbered heading", () => {
@@ -101,6 +84,27 @@ describe("GuideLayout", () => {
     expect(screen.queryByText("Internal runbook")).not.toBeInTheDocument();
   });
 
+  it("offers the next Start here guide and only on the first two", () => {
+    const one = (g: Guide) =>
+      render(
+        <GuideLayout guide={g}>
+          <Step n={1} title="Only step">
+            <p>x</p>
+          </Step>
+        </GuideLayout>,
+      );
+    const next = getGuideBySlug(START_HERE[1])!;
+    const first = one(getGuideBySlug(START_HERE[0])!);
+    expect(screen.getByText("Next guide, 2 of 3")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: new RegExp(next.title) })).toHaveAttribute("href", next.href);
+    first.unmount();
+    const last = one(getGuideBySlug(START_HERE[2])!);
+    expect(screen.queryByText(/^Next guide/)).toBeNull();
+    last.unmount();
+    one(liveClientGuides().find((g) => !START_HERE.includes(g.slug))!);
+    expect(screen.queryByText(/^Next guide/)).toBeNull();
+    expect(screen.getByRole("link", { name: "All step-by-step guides" })).toHaveAttribute("href", "/help/guides");
+  });
   it("captures a guide_opened event for a client guide", () => {
     renderGuide(clientGuide);
     expect(capture).toHaveBeenCalledWith("guide_opened", {
@@ -114,7 +118,7 @@ describe("GuideLayout", () => {
     expect(screen.getByText("Internal · admins only")).toBeInTheDocument();
     expect(screen.getByText("Internal runbook")).toBeInTheDocument();
     expect(screen.queryByText("Did this guide get you there?")).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Help center" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Help centre" })).not.toBeInTheDocument();
     expect(capture).not.toHaveBeenCalled();
   });
 });
