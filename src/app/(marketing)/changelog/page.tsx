@@ -24,6 +24,22 @@ export const metadata = pageMetadata({
 // those entries byte for byte.
 const ENTRIES = [
   {
+    version: "v2.1",
+    date: "15 November 2026",
+    items: [
+      "A new look across the app and the website.",
+      "On a phone, the main pages sit in a bar at the bottom of the screen, with a round button to add a document.",
+      "Documents opens on what needs you, and Review next takes you to the next one.",
+      "Activity: one page for everything that happened to your documents.",
+      "Flows: each flow says in one sentence what it does, what needs you and its last document.",
+      "Lookups: import a CSV or Excel file, change values in place, and every change saves as you type, with Undo.",
+      "The free trial now lasts 30 days.",
+      "A long PDF is read ten pages at a time, up to 100 pages.",
+      "Review saves your changes as you type, marks what needs you in amber, and opens the next document when you send.",
+      "Destinations: test one before you use it, and send a waiting document again with Send it now.",
+    ],
+  },
+  {
     version: "v2.0",
     date: "14 November 2026",
     items: [
