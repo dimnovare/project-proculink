@@ -60,17 +60,19 @@ export interface SourceDocumentBodyProps {
   bounded: boolean;
   /** Where the value being pointed at sits on the original (flows only). */
   highlight?: SourceLocation | null;
+  /** Where the values that need a look sit on the original (flows only). */
+  marks?: readonly SourceLocation[];
   /** Set to switch on pointing at the original; called with the spot picked. */
   onPick?(p: SourcePick): void;
 }
 
-export function SourceDocumentBody({ cacheKey, document: doc, bounded, highlight, onPick }: SourceDocumentBodyProps) {
+export function SourceDocumentBody({ cacheKey, document: doc, bounded, highlight, marks, onPick }: SourceDocumentBodyProps) {
   const render = sourceRenderFor(doc.contentType);
 
   if (render === "pdf") {
     return (
       <Shell bounded={bounded}>
-        <PdfDocumentView cacheKey={cacheKey} blob={doc.blob} bounded={bounded} highlight={highlight} onPick={onPick} />
+        <PdfDocumentView cacheKey={cacheKey} blob={doc.blob} bounded={bounded} highlight={highlight} marks={marks} onPick={onPick} />
         <DownloadRow document={doc} cacheKey={cacheKey} />
       </Shell>
     );
@@ -78,7 +80,7 @@ export function SourceDocumentBody({ cacheKey, document: doc, bounded, highlight
   if (render === "sheet") {
     return (
       <Shell bounded={bounded}>
-        <SheetView cacheKey={cacheKey} document={doc} bounded={bounded} highlight={highlight} onPick={onPick} />
+        <SheetView cacheKey={cacheKey} document={doc} bounded={bounded} highlight={highlight} marks={marks} onPick={onPick} />
         <DownloadRow document={doc} cacheKey={cacheKey} />
       </Shell>
     );
@@ -87,7 +89,7 @@ export function SourceDocumentBody({ cacheKey, document: doc, bounded, highlight
     return (
       <Shell bounded={bounded}>
         <div className={bounded ? "min-h-0 flex-1 overflow-auto" : "overflow-auto"}>
-          <ImageDocumentView blob={doc.blob} contentType={doc.contentType} filename={doc.filename ?? "Original document"} highlight={highlight} onPick={onPick} />
+          <ImageDocumentView blob={doc.blob} contentType={doc.contentType} filename={doc.filename ?? "Original document"} highlight={highlight} marks={marks} onPick={onPick} />
         </div>
         <DownloadRow document={doc} cacheKey={cacheKey} />
       </Shell>
@@ -96,7 +98,7 @@ export function SourceDocumentBody({ cacheKey, document: doc, bounded, highlight
   if (render === "text") {
     return (
       <Shell bounded={bounded}>
-        <TextView cacheKey={cacheKey} document={doc} bounded={bounded} highlight={highlight} onPick={onPick} />
+        <TextView cacheKey={cacheKey} document={doc} bounded={bounded} highlight={highlight} marks={marks} onPick={onPick} />
         <DownloadRow document={doc} cacheKey={cacheKey} />
       </Shell>
     );
@@ -119,12 +121,14 @@ function SheetView({
   document: doc,
   bounded,
   highlight,
+  marks,
   onPick,
 }: {
   cacheKey: string;
   document: SourceDocument;
   bounded: boolean;
   highlight?: SourceLocation | null;
+  marks?: readonly SourceLocation[];
   onPick?(p: SourcePick): void;
 }) {
   const [sheetIndex, setSheetIndex] = useState(0);
@@ -210,16 +214,17 @@ function SheetView({
           " focus-visible:[outline-offset:-2px]"
         }
       >
-        <SheetGrid bounded={bounded} table={table} highlight={sel === 0 ? highlight : null} onPick={sel === 0 ? onPick : undefined} />
+        <SheetGrid bounded={bounded} table={table} highlight={sel === 0 ? highlight : null} marks={sel === 0 ? marks : undefined} onPick={sel === 0 ? onPick : undefined} />
       </div>
       <TruncationNote table={table} omitted={data.omittedSheetNames} />
     </div>
   );
 }
 
-function SheetGrid({ bounded, table, highlight, onPick }: { bounded: boolean; table: SheetTable; highlight?: SourceLocation | null; onPick?(p: SourcePick): void }) {
+function SheetGrid({ bounded, table, highlight, marks, onPick }: { bounded: boolean; table: SheetTable; highlight?: SourceLocation | null; marks?: readonly SourceLocation[]; onPick?(p: SourcePick): void }) {
   const spot = parseAddress(highlight?.address);
   const cell = spot?.kind === "cell" ? spot : null;
+  const marked = new Set(marks?.map((m) => m.address));
   const width = table.rows.reduce((m, r) => Math.max(m, r.length), 0);
   const columnLabels = useMemo(
     () => Array.from({ length: width }, (_, i) => spreadsheetColumnName(i)),
@@ -275,12 +280,14 @@ function SheetGrid({ bounded, table, highlight, onPick }: { bounded: boolean; ta
             </td>
             {columnLabels.map((label, c) => {
               const hit = cell?.row === r + 1 && cell.col === c + 1;
+              const flag = marked.has(`cell:r${r + 1}c${c + 1}`);
               const text = row[c] ?? "";
               return (
                 <td
                   key={label}
                   {...(hit && { "data-highlighted": "true", ref: bounded ? scrollTo : undefined })}
-                  className={`whitespace-pre border border-border px-2 py-1 align-top text-ink ${hit ? "bg-brand-blue-soft" : "bg-surface"}`}
+                  {...(flag && { "data-marked": "true" })}
+                  className={`whitespace-pre border border-border px-2 py-1 align-top text-ink ${hit ? "bg-brand-blue-soft" : flag ? "bg-amber-soft" : "bg-surface"}`}
                 >
                   {onPick && text ? (
                     <button
@@ -327,15 +334,18 @@ function TextView({
   document: doc,
   bounded,
   highlight,
+  marks,
   onPick,
 }: {
   cacheKey: string;
   document: SourceDocument;
   bounded: boolean;
   highlight?: SourceLocation | null;
+  marks?: readonly SourceLocation[];
   onPick?(p: SourcePick): void;
 }) {
   const spot = parseAddress(highlight?.address);
+  const markedLines = new Set(marks?.map((m) => parseAddress(m.address)).flatMap((a) => (a?.kind === "line" ? [a.n] : [])));
   const [noSelection, setNoSelection] = useState(false);
   const { data, isLoading, isError } = useQuery({
     queryKey: ["source-document-text", cacheKey],
@@ -404,12 +414,14 @@ function TextView({
         >
           {data.lines.map((line, i) => {
             const hit = spot?.kind === "line" && spot.n === i + 1;
+            const flag = markedLines.has(i + 1);
             return (
               <li
                 key={i}
                 data-line={i + 1}
                 {...(hit && { "data-highlighted": "true", ref: bounded ? scrollTo : undefined })}
-                className={`flex gap-2 px-2 ${hit ? "bg-brand-blue-soft" : "hover:bg-surface-2"}`}
+                {...(flag && { "data-marked": "true" })}
+                className={`flex gap-2 px-2 ${hit ? "bg-brand-blue-soft" : flag ? "bg-amber-soft" : "hover:bg-surface-2"}`}
               >
                 <span className="w-9 flex-shrink-0 select-none text-right text-[10px] text-ink-faint">
                   {i + 1}

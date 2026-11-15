@@ -63,14 +63,29 @@ const AUTH_LABEL = { bearer: "Bearer token", apikey: "API key", basic: "Username
 
 export const INPUT_BASE = "w-full rounded-md border border-border-strong bg-surface px-3 text-[14px] font-medium text-ink";
 export const INPUT = `h-10 ${INPUT_BASE}`;
-/** `look`: the sentence under the control when a value needs a look; it also gives the control an amber edge. */
-export const Field = ({ label, look, children }: { label: string; look?: string; children: React.ReactNode }) => (
-  <label className={look ? "block plk-look" : "block"}>
-    <span className="mb-1.5 block text-[13px] font-semibold text-ink-muted">{label}</span>
-    {children}
-    {look && <span className="mt-1.5 block text-[12.5px] font-medium text-amber-text">{look}</span>}
-  </label>
-);
+// Imported here, beside the one component that uses them, so this change stays one hunk.
+import { cloneElement, useId } from "react";
+/**
+ * `look`: the sentence under the control when a value needs a look; it also gives the control an amber edge.
+ * It sits outside the label and describes the control, so a screen reader names the box by its label alone (R22).
+ * `hideLabel`: the label is for screen readers only (a table cell).
+ */
+export const Field = ({ label, look, hideLabel, children }: { label: string; look?: React.ReactNode; hideLabel?: boolean; children: React.ReactElement<{ "aria-describedby"?: string }> }) => {
+  const id = useId();
+  const field = (
+    <label className="block">
+      <span className={hideLabel ? "sr-only" : "mb-1.5 block text-[13px] font-semibold text-ink-muted"}>{label}</span>
+      {look ? cloneElement(children, { "aria-describedby": [children.props["aria-describedby"], id].filter(Boolean).join(" ") }) : children}
+    </label>
+  );
+  if (!look) return field;
+  return (
+    <div className="plk-look">
+      {field}
+      <p id={id} className="mt-1.5 text-[12.5px] font-medium text-amber-text">{look}</p>
+    </div>
+  );
+};
 
 export function DestinationForm({ destination, preset, onSaved, onCancel }: {
   destination?: Destination; /** Seeds a new web-address destination. */ preset?: { url: string; method?: string; authType?: string }; onSaved(d: Destination): void; onCancel(): void;

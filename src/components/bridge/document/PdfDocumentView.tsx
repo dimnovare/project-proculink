@@ -47,13 +47,15 @@ export interface PdfDocumentViewProps {
   bounded: boolean;
   /** A pointed-at value: its page is shown and its box drawn. */
   highlight?: SourceLocation | null;
+  /** Values that need a look: drawn on the page that holds them, when it is showing. */
+  marks?: readonly SourceLocation[];
   /** Set to let the person draw a box on the page. */
   onPick?(p: SourcePick): void;
   /** Accessible name of the scrolling page area. */
   regionLabel?: string;
 }
 
-export function PdfDocumentView({ cacheKey, blob, bounded, highlight, onPick, regionLabel = "Original document" }: PdfDocumentViewProps) {
+export function PdfDocumentView({ cacheKey, blob, bounded, highlight, marks, onPick, regionLabel = "Original document" }: PdfDocumentViewProps) {
   const [page, setPage] = useState(1);
   // Turn to a newly pointed-at page (adjusting state during render, not an effect).
   const [seenPage, setSeenPage] = useState(highlight?.page);
@@ -96,7 +98,7 @@ export function PdfDocumentView({ cacheKey, blob, bounded, highlight, onPick, re
           <PagerButton disabled={current <= 1} onClick={() => setPage(current - 1)} label="Previous page">
             ‹
           </PagerButton>
-          <span className="font-mono text-[11px] text-ink-muted" aria-live="polite">
+          <span className="font-mono text-[12.5px] text-ink-muted" aria-live="polite">
             Page {current} of {pageCount}
           </span>
           <PagerButton
@@ -119,7 +121,7 @@ export function PdfDocumentView({ cacheKey, blob, bounded, highlight, onPick, re
             : "overflow-x-auto bg-surface-2 p-3") + " focus-visible:[outline-offset:-2px]"
         }
       >
-        <PdfPageCanvas doc={data} pageNumber={current} box={highlight?.page === current ? highlight.box : null} onPick={onPick} />
+        <PdfPageCanvas doc={data} pageNumber={current} box={highlight?.page === current ? highlight.box : null} marks={marks?.flatMap((m) => (m.page === current && m.box ? [m.box] : []))} onPick={onPick} />
       </div>
     </div>
   );
@@ -132,7 +134,7 @@ export function PdfDocumentView({ cacheKey, blob, bounded, highlight, onPick, re
  * from TanStack Query above. Rasterising to a canvas is imperative DOM work with a cancellation
  * handle, which is exactly what an effect is for.
  */
-function PdfPageCanvas({ doc, pageNumber, box, onPick }: { doc: PDFDocumentProxy; pageNumber: number; box: Box | null; onPick?(p: SourcePick): void }) {
+function PdfPageCanvas({ doc, pageNumber, box, marks, onPick }: { doc: PDFDocumentProxy; pageNumber: number; box: Box | null; marks?: Box[]; onPick?(p: SourcePick): void }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   // Fit to the full-width row, never to the shrink-to-fit highlight wrapper around the canvas.
   const rowRef = useRef<HTMLDivElement | null>(null);
@@ -195,6 +197,7 @@ function PdfPageCanvas({ doc, pageNumber, box, onPick }: { doc: PDFDocumentProxy
             aria-label={`Page ${pageNumber} of the received document`}
             className="block max-w-full border border-border bg-surface"
           />
+          {marks?.map((m, i) => <SourceHighlight key={i} box={m} tone="look" />)}
           {box && <SourceHighlight box={box} />}
           {onPick && <RegionPicker page={pageNumber} onBox={(b) => onPick({ page: pageNumber, box: b })} />}
         </div>

@@ -105,7 +105,7 @@ function TeachBanner({ label, render, mutation, onSave, onCancel }: {
   );
 }
 
-export function Original({ documentId, fileName, highlight, onPick }: { documentId: string; fileName: string; highlight?: SourceLocation | null; onPick?(p: SourcePick): void }) {
+export function Original({ documentId, fileName, highlight, marks, onPick }: { documentId: string; fileName: string; highlight?: SourceLocation | null; marks?: readonly SourceLocation[]; onPick?(p: SourcePick): void }) {
   const isLg = useLgViewport();
   const enabled = useTenantQueriesEnabled();
   const source = useQuery({ queryKey: ["document-source", documentId], queryFn: () => fetchDocumentSource(documentId), enabled });
@@ -113,7 +113,7 @@ export function Original({ documentId, fileName, highlight, onPick }: { document
   if (source.isPending) return <p className="px-4 pb-4 text-[12.5px] text-ink-muted">Opening the document…</p>;
   if (source.isError || source.data.size === 0)
     return <p className="px-4 pb-4 text-[12.5px] text-ink-muted">The original isn&apos;t available right now.</p>;
-  return <SourceDocumentBody cacheKey={documentId} document={{ blob: source.data, contentType: type, filename: fileName }} bounded={isLg} highlight={highlight} onPick={onPick} />;
+  return <SourceDocumentBody cacheKey={documentId} document={{ blob: source.data, contentType: type, filename: fileName }} bounded={isLg} highlight={highlight} marks={marks} onPick={onPick} />;
 }
 
 export function DocumentScreen({ flowId, documentId }: { flowId: string; documentId: string }) {
