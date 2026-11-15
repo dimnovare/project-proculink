@@ -184,9 +184,10 @@ describe("the edge means something because it is not everywhere", () => {
     ).toBeLessThan(0.5);
   });
 
-  it("all three side values are actually used — the rule is not blue-only in practice", () => {
+  it("blue and green are each actually used — the rule is not blue-only in practice; bridge is allowed but not required", () => {
     const used = new Set(ALL_TAGS.map((t) => edgeOf(t.tag)));
-    for (const edge of ["blue", "green", "bridge"]) {
+    // 2026-11-15: the last bridge card went with the old delivery log.
+    for (const edge of ["blue", "green"]) {
       expect(used.has(edge), `no card in the tree claims edge="${edge}"`).toBe(true);
     }
   });

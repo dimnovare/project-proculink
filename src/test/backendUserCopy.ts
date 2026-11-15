@@ -101,10 +101,9 @@ export interface UserFacingSource {
  *     audit payload as JSON text — including the `detail` key holding a raw `ex.Message`. That is
  *     an integrator surface showing a JSON blob, not operator prose, and holding a .NET
  *     exception message to a copy vocabulary would be a rule nothing can satisfy.
- *   • `GET /api/audit` returns payloads raw (AuditController.cs:78) but the frontend renders
- *     none of it as visible text: `/operations/log` maps backend actions through
- *     `auditActionLabel` and its `c.message` appears only in the search haystack and the CSV
- *     export (CrossingsLog.tsx:556, :1153).
+ *   • `GET /api/audit` returns payloads raw (AuditController.cs:78). `/operations/log` (Activity,
+ *     2026-11-15) writes its own sentences from the action, never reads `message`, and shows
+ *     payload prose only through `serverReasonOrNull`, which falls back to its own words.
  *   • Every OTHER controller's 4xx bodies. They reach `ApiHttpError.message` and do render,
  *     so they are the obvious next widening — but the panel this finding is about is fed by
  *     OrdersController, and a corpus is only useful if the list it produces is reviewable.
