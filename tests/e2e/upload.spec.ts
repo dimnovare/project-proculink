@@ -12,9 +12,9 @@ test.describe("upload", () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("/upload");
     const flows = page.getByRole("group", { name: "Which flow is this for?" });
-    await flows.getByRole("radio", { name: /^Purchase orders/ }).check();
+    await flows.getByRole("radio", { name: /^Remittance advices/ }).check();
     const zone = page.getByRole("region", { name: "Add files" });
-    await expect(zone).toContainText("They go to Purchase orders.");
+    await expect(zone).toContainText("They go to Remittance advices.");
     await expect(page.getByRole("button", { name: "Take a photo" })).toBeHidden();
     await page.getByTestId("upload-files-input").setInputFiles([
       { name: "invoice-2292.csv", mimeType: "text/csv", buffer: Buffer.from("a,b\n1,2") },
@@ -23,27 +23,27 @@ test.describe("upload", () => {
       pdf("empty.pdf", ""),
     ]);
     const panel = page.getByRole("region", { name: "Just uploaded" });
-    await expect(panel).toContainText("4 files to Purchase orders");
+    await expect(panel).toContainText("4 files to Remittance advices");
     const row = (name: string) => panel.getByRole("listitem").filter({ hasText: name });
     await expect(row("notes.zip")).toContainText("This file type can't be read in this flow.");
     await expect(row("empty.pdf")).toContainText("This file couldn't be opened. It may be password-protected or damaged.");
     await expect(row("invoice-2293.pdf")).toContainText("1 value to check", { timeout: 15_000 });
     await expect(row("invoice-2292.csv")).toContainText("Ready to send", { timeout: 15_000 });
     await row("invoice-2292.csv").getByRole("button", { name: "Send invoice-2292.csv" }).click();
-    await expect(row("invoice-2292.csv")).toContainText("Sending");
+    await expect(row("invoice-2292.csv")).toContainText(/Sending|Sent/);   // the mock lands on sent at once
     await expect(row("invoice-2292.csv").getByRole("button")).toHaveCount(0);
     await zone.evaluate((el) => {                                    // the same file dropped again
       const dt = new DataTransfer();
       dt.items.add(new File(["%PDF-1.4"], "invoice-2293.pdf", { type: "application/pdf" }));
       el.dispatchEvent(new DragEvent("drop", { dataTransfer: dt, bubbles: true, cancelable: true }));
     });
-    await expect(panel).toContainText("5 files to Purchase orders");
+    await expect(panel).toContainText("5 files to Remittance advices");
     await expect(row("invoice-2293.pdf").first()).toContainText("Already uploaded to this flow");
     await row("invoice-2293.pdf").last().getByRole("link", { name: "invoice-2293.pdf" }).click();
-    await expect(page).toHaveURL(/\/flows\/flow-3\/documents\/[^/]+$/);
+    await expect(page).toHaveURL(/\/flows\/flow-4\/documents\/[^/]+$/);
     await page.goBack();
-    await expect(flows.getByRole("radio", { name: /^Purchase orders\s*Last used/ })).toBeChecked();
-    await expect(panel).toContainText("5 files to Purchase orders");   // the queue outlives the screen
+    await expect(flows.getByRole("radio", { name: /^Remittance advices\s*Last used/ })).toBeChecked();
+    await expect(panel).toContainText("5 files to Remittance advices");   // the queue outlives the screen
   });
 
   test("on a phone, Add sends a file and a checked photo, and the tab bar counts what they need", async ({ page }) => {
