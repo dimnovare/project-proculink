@@ -287,6 +287,19 @@ export function publicGuides(): Guide[] {
   return GUIDES.filter((g) => g.audience === "client");
 }
 
+/** The help home's "Start here": one document from upload to a sent file, in order. */
+export const START_HERE: readonly string[] = ["set-up-your-first-flow", "check-and-send-a-document", "send-to-a-destination"];
+
+/** Live public guides, in registry order: what the help home lists and searches. */
+export function liveClientGuides(): Guide[] {
+  return publicGuides().filter((g) => g.status === "live");
+}
+
+/** The live guides that name this article as their reference. */
+export function guidesForArticle(slug: string): Guide[] {
+  return liveClientGuides().filter((g) => g.related?.includes(slug));
+}
+
 /**
  * The guides this registry is actually rendered as a LINK for.
  *

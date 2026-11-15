@@ -7,7 +7,10 @@ import {
   SECTION_BLURB,
   getGuideByPath,
   getGuideBySlug,
+  guidesForArticle,
+  liveClientGuides,
   publicGuides,
+  START_HERE,
 } from "./guides";
 import { HELP_ARTICLES } from "./help-articles";
 import { guideMetadata } from "./seo";
@@ -155,6 +158,20 @@ describe("sitemap", () => {
     expect(urls.some((u) => u.includes("/admin"))).toBe(false);
     for (const guide of GUIDES.filter((g) => g.status !== "live")) {
       expect(urls).not.toContain(`https://proculink.eu${guide.href}`);
+    }
+  });
+});
+
+describe("Start here and an article's guides", () => {
+  it("Start here is three live public guides, and every related article knows its guides", () => {
+    expect(START_HERE).toHaveLength(3);
+    for (const s of START_HERE) {
+      const g = getGuideBySlug(s);
+      expect(g?.audience, s).toBe("client");
+      expect(g?.status, s).toBe("live");
+    }
+    for (const g of liveClientGuides()) {
+      for (const slug of g.related ?? []) expect(guidesForArticle(slug)).toContain(g);
     }
   });
 });

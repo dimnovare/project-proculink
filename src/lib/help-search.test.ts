@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { buildHelpFuse, searchHelpArticles } from "@/lib/help-search";
+import { buildHelpFuse, buildSiteHelpFuse, searchHelpArticles } from "@/lib/help-search";
+import { liveClientGuides } from "@/lib/guides";
 
 describe("help search (shared Fuse index)", () => {
   const fuse = buildHelpFuse();
@@ -32,5 +33,13 @@ describe("help search (shared Fuse index)", () => {
 
   it("returns [] for gibberish", () => {
     expect(searchHelpArticles(fuse, "xqzvwk")).toEqual([]);
+  });
+});
+
+describe("help search over articles and guides", () => {
+  it("finds every live guide by its own title", () => {
+    const fuse = buildSiteHelpFuse();
+    for (const g of liveClientGuides()) expect(searchHelpArticles(fuse, g.title, 6)[0]?.href, g.title).toBe(g.href);
+    expect(searchHelpArticles(fuse, "imap", 6)[0]?.href).toBe("/help/intake-channels");
   });
 });
