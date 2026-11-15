@@ -43,6 +43,8 @@ const freshWrapper = () => {
   return ({ children }: { children: React.ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 };
 const wrapper = freshWrapper();
+/** Filled buttons (navy, green or blue) in the whole step: the house rule allows exactly one. */
+const filled = (c: HTMLElement) => within(c).queryAllByRole("button").filter((b) => /\b(bg-navy|bg-brand-green-btn|bg-brand-blue)\b/.test(b.className));
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -78,12 +80,14 @@ describe("SendStep", () => {
     api.listOutputs.mockResolvedValue([csvOutput]);
     api.listDestinations.mockResolvedValue([]);
     api.listDocumentPage.mockResolvedValue({ items: [{ ...row, isSample: false, fileName: "po-1.pdf" }], totalCount: 1, page: 1, pageSize: 20, sampleCount: 0 });
-    render(<SendStep flow={confirmed} docId="d-1" first />, { wrapper: freshWrapper() });
+    const { container, unmount } = render(<SendStep flow={confirmed} docId="d-1" first />, { wrapper: freshWrapper() });
     const finish = await screen.findByRole("region", { name: "Finish" });
     expect(await within(finish).findByText("Your document is ready. You download it as a CSV file.")).toBeInTheDocument();
+    expect(filled(container).map((b) => b.textContent)).toEqual(["Make the file and download it"]);
     fireEvent.click(within(screen.getByRole("radiogroup", { name: "Where should the file go?" })).getByRole("radio", { name: /^SFTP or FTPS/ }));
     const send = within(finish).getByRole("button", { name: "Send po-1.pdf now" });
     expect(send).toBeDisabled();
+    expect(filled(container).map((b) => b.textContent)).toEqual(["Save and send a test"]);   // the form's button is the one
     expect(within(finish).getByText("Send a test first to check the settings. Or finish now and send your document later from Documents.")).toBeInTheDocument();
     expect(readiness({ kind: "new", tile: "server" }, null, false)).toBe("not-ready");
     expect(readiness({ kind: "new", tile: "server" }, { destinationId: "x", ok: false }, false)).toBe("not-ready");
@@ -91,6 +95,13 @@ describe("SendStep", () => {
     expect(readiness({ kind: "existing", destinationId: null }, null, false)).toBe("not-ready");
     expect(readiness({ kind: "download" }, null, null)).toBe("unknown");
     expect(readiness({ kind: "download" }, null, true)).toBe("sample");
+    unmount();
+    // Our sample with a destination form open: Finish is the one filled button, the form's is outlined.
+    api.listDocumentPage.mockResolvedValue({ items: [{ ...row, isSample: true }], totalCount: 1, page: 1, pageSize: 20, sampleCount: 1 });
+    const sample = render(<SendStep flow={confirmed} docId="d-1" first />, { wrapper: freshWrapper() }).container;
+    fireEvent.click(await within(sample).findByRole("radio", { name: /^SFTP or FTPS/ }));
+    await within(sample).findByText(/^This is our sample invoice/);
+    expect(filled(sample).map((b) => b.textContent)).toEqual(["Finish"]);
   });
 
   it("never sends our sample, and says so; a refused finish says why and how to go on", async () => {
@@ -181,5 +192,27 @@ describe("SendStep", () => {
     expect(await screen.findByText(COPY.document_not_found)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Start again" })).toHaveAttribute("href", "/flows/new");
     expect(screen.queryByRole("region", { name: "Finish" })).toBeNull();
+  });
+
+  it("sends once on a double press, through the saved destination, keeping the output's stored template", async () => {
+    api.listOutputs.mockResolvedValue([csvOutput]);
+    api.listDestinations.mockResolvedValue([savedSftp]);
+    api.updateOutput.mockResolvedValue({ ...csvOutput, destinationId: "dest-1" });
+    api.publishFlow.mockResolvedValue(confirmed);
+    api.sendDocument.mockResolvedValue([{ id: "dl-1", outputName: "CSV file", protocol: "sftp", status: "queued", attempts: 0, lastError: null, fileName: null, deliveredAt: null }]);
+    render(<SendStep flow={confirmed} docId="d-1" first />, { wrapper: freshWrapper() });
+    const finish = await screen.findByRole("region", { name: "Finish" });
+    fireEvent.click(await screen.findByRole("radio", { name: /^Already set up/ }));
+    expect(await within(finish).findByText("Your document is ready. It goes to Books server as a CSV file.")).toBeInTheDocument();
+    const send = within(finish).getByRole("button", { name: "Send invoice.pdf now" });
+    fireEvent.click(send);
+    fireEvent.click(send);
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith(`/flows/${confirmed.id}`));
+    expect(api.sendDocument).toHaveBeenCalledTimes(1);
+    expect(api.sendDocument).toHaveBeenCalledWith("d-1");
+    expect(api.updateOutput).toHaveBeenCalledWith("f-1", "o-1", {
+      name: "CSV file", format: "csv", tableKey: null, template: csvOutput.template, sendWhen: null, layout: undefined, destinationId: "dest-1",
+    });
+    expect(blob.saveBlob).not.toHaveBeenCalled();
   });
 });

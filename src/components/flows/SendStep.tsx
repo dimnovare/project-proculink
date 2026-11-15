@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, type KeyboardEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -17,6 +17,7 @@ import { AUTOMATIC_DELIVERY_LABEL, REVIEW_BEFORE_DELIVERY_LABEL } from "@/lib/de
 import { COPY, documentRefusalMessage, refusalToken } from "@/lib/documentRefusals";
 import { LIMIT_CODES } from "@/lib/limitRefusal";
 import { saveBlob } from "@/lib/saveBlob";
+import { nextTabIndex } from "@/lib/tabKeys";
 import { destinationNameFor, firstRunAddress, foundSummary, keepsSummary } from "@/lib/firstRun";
 import { DestinationForm, Field, INPUT } from "./DestinationForm";
 import { Gone, notFound, useRunDocument } from "./CheckStep";
@@ -67,10 +68,13 @@ const MODES = [
   ["auto", AUTOMATIC_DELIVERY_LABEL, "It is sent as soon as it is read. A document we couldn't read, or one with a number we've already received, still waits for you."],
 ] as const;
 
-function Tile({ id, title, sub, checked, onPick }: { id: string; title: string; sub: string; checked: boolean; onPick(): void }) {
+/** One radio of the group: only the checked one is a tab stop, and the arrow keys move and pick (the radiogroup pattern). */
+function Tile({ id, title, sub, checked, stop, onPick, onKeyDown }: {
+  id: string; title: string; sub: string; checked: boolean; stop: boolean; onPick(): void; onKeyDown(e: KeyboardEvent<HTMLButtonElement>): void;
+}) {
   return (
     <button
-      type="button" role="radio" aria-checked={checked} data-testid={`send-tile-${id}`} onClick={onPick}
+      type="button" role="radio" aria-checked={checked} tabIndex={stop ? 0 : -1} data-testid={`send-tile-${id}`} onClick={onPick} onKeyDown={onKeyDown}
       className={`grid min-h-[44px] content-start gap-0.5 rounded-card border px-3 py-2.5 text-left ${checked ? "border-navy bg-surface-2" : "border-border bg-surface"}`}
     >
       <span className="text-[14px] font-semibold text-ink">{title}</span>
@@ -147,6 +151,8 @@ export function SendStep({ flow, docId, first }: { flow: Flow; docId: string | n
       if (stored) saveBlob(await downloadDeliveryFile(id, stored.id), stored.fileName ?? "document.csv");
     },
     onSuccess: done, onError: settle,
+    // A send that went out but whose file then failed to download still changed the document.
+    onSettled: () => qc.invalidateQueries({ queryKey: ["documents"] }),
   });
   const finish = useMutation({ mutationFn: prepare, onSuccess: done, onError: settle });
   const sample = useMutation({
@@ -167,6 +173,15 @@ export function SendStep({ flow, docId, first }: { flow: Flow; docId: string | n
   const later = going && `From now on, documents in this flow go to ${going.name}.${automation === "auto" ? " They are sent as soon as they are read." : " Each one waits for you to check it first."}`;
   const unused = choice.kind === "new" && saved && !passed
     ? `${saved.name} did not pass its test, so it is saved but not used yet. You can fix it on the flow page.` : null;
+  const group = useRef<HTMLDivElement>(null);
+  const options = [
+    { id: "download", title: "Download", sub: "No setup needed", checked: choice.kind === "download", pick: () => pick({ kind: "download" }) },
+    ...TILES.filter((t) => google || !t.google).map((t) => ({ id: t.tile, title: t.title, sub: t.sub, checked: tile?.tile === t.tile, pick: () => pick({ kind: "new", tile: t.tile }) })),
+    ...(destinations.data?.length ? [{
+      id: "existing", title: "Already set up", sub: "A destination you saved before", checked: choice.kind === "existing",
+      pick: () => pick({ kind: "existing", destinationId: choice.kind === "existing" ? choice.destinationId : destinations.data[0].id }),
+    }] : []),
+  ];
   if (notFound(doc.error)) return <Gone text={COPY.document_not_found} />;
   const refused = send.error ?? finish.error ?? sample.error;
   const sendLabel = `Send ${fileName} now`;
@@ -190,19 +205,19 @@ export function SendStep({ flow, docId, first }: { flow: Flow; docId: string | n
 
       <section aria-labelledby="send-where" className="grid gap-3">
         <h2 id="send-where" className="m-0 text-[18px] font-semibold text-ink">Where should the file go?</h2>
-        <div role="radiogroup" aria-labelledby="send-where" className="grid grid-cols-[repeat(auto-fill,minmax(min(200px,100%),1fr))] gap-2">
-          <Tile id="download" title="Download" sub="No setup needed" checked={choice.kind === "download"} onPick={() => pick({ kind: "download" })} />
-          {TILES.filter((t) => google || !t.google).map((t) => (
-            <Tile key={t.tile} id={t.tile} title={t.title} sub={t.sub} checked={tile?.tile === t.tile} onPick={() => pick({ kind: "new", tile: t.tile })} />
+        <div ref={group} role="radiogroup" aria-labelledby="send-where" className="grid grid-cols-[repeat(auto-fill,minmax(min(200px,100%),1fr))] gap-2">
+          {options.map((o, i) => (
+            <Tile key={o.id} id={o.id} title={o.title} sub={o.sub} checked={o.checked} stop={o.checked || (i === 0 && !options.some((x) => x.checked))} onPick={o.pick} onKeyDown={(e) => {
+              const to = nextTabIndex(e.key, i, options.length);
+              if (to === undefined) return;
+              e.preventDefault();
+              options[to].pick();
+              group.current?.querySelectorAll<HTMLButtonElement>("[role=radio]")[to]?.focus();
+            }} />
           ))}
-          {destinations.isError ? <Failed error={destinations.error} retry={() => destinations.refetch()} />
-            : !!destinations.data?.length && (
-              <Tile
-                id="existing" title="Already set up" sub="A destination you saved before" checked={choice.kind === "existing"}
-                onPick={() => pick({ kind: "existing", destinationId: choice.kind === "existing" ? choice.destinationId : destinations.data[0].id })}
-              />
-            )}
         </div>
+        {/* Rows stay through a failed refresh: only a list that never answered is replaced. */}
+        {destinations.isError && !destinations.data && <Failed error={destinations.error} retry={() => destinations.refetch()} />}
         {choice.kind === "existing" && !!destinations.data?.length && (
           <div className="max-w-[420px]">
             <Field label="Destination">
@@ -215,7 +230,7 @@ export function SendStep({ flow, docId, first }: { flow: Flow; docId: string | n
         {tile && (
           <DestinationForm
             key={tile.tile} inline testAfterSave onSaved={(d) => { setSaved(d); setTested(null); }} onCancel={() => pick({ kind: "download" })}
-            chosen={{ protocols: tile.protocols, name: destinationNameFor(tile.protocols[0], flow.name), onTested: setTested }}
+            chosen={{ protocols: tile.protocols, name: destinationNameFor(tile.protocols[0], flow.name), onTested: setTested, outlined: state !== "not-ready" }}
           />
         )}
       </section>

@@ -44,13 +44,16 @@ describe("Welcome", () => {
     api.createFlow.mockResolvedValue({ ...emptyFlow, id: "f-new" });
     api.uploadDocument.mockRejectedValueOnce(unreadable).mockResolvedValueOnce({ ...summary, id: "d-1", flowId: "f-new" });
     // PageShell draws no <main> (the app layout does): the render's container stands for it.
-    const main = render(<Welcome flows={[]} />, { wrapper }).container;
+    const main = render(<Welcome flows={[]} flowId={null} />, { wrapper }).container;
     expect(within(main).getByRole("heading", { level: 1 })).toHaveTextContent("Welcome, Alex. Let's read your first document.");
     choose(main, new File(["x"], "po.pdf", { type: "application/pdf" }));
     expect(await within(main).findByText(`${uploadRefusalMessage(unreadable)} Choose another file.`)).toBeInTheDocument();
     choose(main, new File(["x"], "po.pdf", { type: "application/pdf" }));
     await waitFor(() => expect(router.push).toHaveBeenCalledWith("/flows/new?step=check&flow=f-new&doc=d-1"));
     expect(api.createFlow).toHaveBeenCalledTimes(1);
+    // On /flows/new the made flow is in the address before its file goes up, so a reload keeps the run's flow.
+    expect(router.replace).toHaveBeenCalledWith("/flows/new?flow=f-new");
+    expect(router.replace.mock.invocationCallOrder[0]).toBeLessThan(api.uploadDocument.mock.invocationCallOrder[0]);
     // A file the screen can already refuse never reaches the server.
     choose(main, new File(["x"], "notes.docx"));
     expect(within(main).getByText(COPY.unsupported_format)).toBeInTheDocument();

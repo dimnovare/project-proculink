@@ -106,7 +106,7 @@ export function CheckStep({ flow, docId, first }: { flow: Flow; docId: string | 
     return <div className="grid justify-items-start gap-3"><p className="m-0 text-[14px] text-ink">We couldn&apos;t find any values on this document.</p>{another}</div>;
 
   const keep = (key: string, label: string) => (
-    <label className="inline-flex min-h-[44px] items-center sm:min-h-0">
+    <label className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center sm:min-h-0 sm:min-w-0">
       <input
         type="checkbox" aria-label={`Keep ${label}`} className="h-5 w-5" checked={!dropped.has(key)}
         onChange={() => setDropped(() => { const n = new Set(dropped); if (!n.delete(key)) n.add(key); return n; })}
@@ -163,7 +163,7 @@ export function CheckStep({ flow, docId, first }: { flow: Flow; docId: string | 
         </Pane>
       </div>
       <div className="sticky bottom-0 grid gap-2 border-t border-border bg-bg py-3">
-        {next.isError && <StatusNotice tone="error">{documentRefusalMessage(next.error)}</StatusNotice>}
+        {next.isError && !edits.refusal && <StatusNotice tone="error">{documentRefusalMessage(next.error)}</StatusNotice>}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="m-0 text-[13px] text-ink-muted">You&apos;ll get a spreadsheet file (CSV) with these columns. You can change this later.</p>
           <div className="flex flex-wrap items-center gap-4">

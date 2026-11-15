@@ -109,8 +109,8 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, ch
   /** No card: the fields sit in the panel's grid. */ inline?: boolean;
   /** One "Save and send a test" instead of "Save" and "Send a test". */ testAfterSave?: boolean;
   /** First run (14.5): the protocols it may save ("Send by" hidden for one), the name it saves under instead of a Name box,
-   *  and each finished test of the saved destination. After a save its button is outlined. */
-  chosen?: { protocols: readonly string[]; name: string; onTested(outcome: { destinationId: string; ok: boolean }): void };
+   *  and each finished test of the saved destination. After a save, or with `outlined` (the step's own button is filled), its button is outlined. */
+  chosen?: { protocols: readonly string[]; name: string; onTested(outcome: { destinationId: string; ok: boolean }): void; outlined?: boolean };
   onSaved(d: Destination): void; onCancel(): void;
 }) {
   const qc = useQueryClient();
@@ -292,7 +292,7 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, ch
       {problem && <StatusNotice tone="error" className="col-span-full">{problem}</StatusNotice>}
       <div className="col-span-full flex flex-wrap gap-2">
         {testAfterSave ? (
-          <Button type="button" variant={chosen && saved ? "secondary" : "primary"} loading={save.isPending || test.isPending} onClick={submit}>Save and send a test</Button>
+          <Button type="button" variant={chosen && (saved || chosen.outlined) ? "secondary" : "primary"} loading={save.isPending || test.isPending} onClick={submit}>Save and send a test</Button>
         ) : (
           <Button type="button" variant="primary" loading={save.isPending} onClick={submit}>Save</Button>
         )}

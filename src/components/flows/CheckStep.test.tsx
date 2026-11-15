@@ -2,9 +2,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { DocumentDetail, DocumentRow, Flow, FlowField, FlowOutput, ReadField } from "@/lib/api/documents";
-import { readFailureMessage } from "@/lib/documentRefusals";
+import { documentRefusalMessage, readFailureMessage } from "@/lib/documentRefusals";
 import { fieldListFromRead } from "@/lib/flowFieldModel";
 import { CheckStep } from "./CheckStep";
+import { needsWords } from "./ReadValuesPanel";
 
 const api = vi.hoisted(() => ({
   getDocument: vi.fn(), listDocumentPage: vi.fn(), retryDocumentRead: vi.fn(), editDocumentValues: vi.fn(), fetchDocumentSource: vi.fn(),
@@ -70,11 +71,19 @@ describe("CheckStep", () => {
     expect(within(found).getByText("9 values and 1 table")).toBeInTheDocument();
     expect(within(found).getByLabelText("Flow name")).toHaveValue("Invoices");
     expect(within(screen.getByTestId("check-value-reference")).getByText(/Check this one\. We are 62% sure of it\./)).toBeInTheDocument();
-    expect(within(found).getByText("1 value needs a look.")).toBeInTheDocument();
+    expect(within(found).getByText(needsWords(1))).toBeInTheDocument();
     expect(within(screen.getByTestId("check-table-lines")).getByText("3 rows, 5 columns (Code, Item, Qty, Price, Amount)")).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Original" })).toBeInTheDocument();
     fireEvent.click(within(screen.getByTestId("check-value-bill_to")).getByRole("checkbox", { name: "Keep Bill to" }));
     const next = screen.getByRole("button", { name: "Looks right, next" });
+    // A value typed but not saved stops Next where it was pressed; the next press saves it and goes on.
+    const down = new Error("network down");
+    api.editDocumentValues.mockRejectedValueOnce(down).mockResolvedValue(sampleDetail);
+    fireEvent.change(within(screen.getByTestId("check-value-total")).getByLabelText("Total"), { target: { value: "1300.00" } });
+    fireEvent.click(next);
+    expect(await screen.findByText(documentRefusalMessage(down))).toBeInTheDocument();
+    expect(router.push).not.toHaveBeenCalled();
+    expect(api.saveFlowFields).not.toHaveBeenCalled();
     fireEvent.click(next);
     fireEvent.click(next);
     await waitFor(() => expect(router.push).toHaveBeenCalledWith("/flows/new?step=send&flow=f-1&doc=d-1"));
