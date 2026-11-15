@@ -95,6 +95,7 @@ describe("DestinationsSection", () => {
     rerender(section());
     const second = await screen.findByRole("region", { name: "Edit Accounting server" });
     expect(screen.queryByRole("region", { name: "Edit Accounting inbox" })).toBeNull();
+    expect(within(second).getByLabelText("Name")).toHaveFocus(); // the pressed Edit is gone: focus goes into the panel
     api.deleteDestination.mockRejectedValueOnce(new ApiHttpError("in use", 409, { error: "destination_in_use" }));
     fireEvent.click(within(second).getByRole("button", { name: "Delete destination" }));
     fireEvent.click(await screen.findByRole("button", { name: "Delete" }));
@@ -106,6 +107,19 @@ describe("DestinationsSection", () => {
     expect(await screen.findByText("Accounting server was deleted.")).toBeInTheDocument();
     expect(api.deleteDestination).toHaveBeenLastCalledWith("dest-3");
     expect(replace).toHaveBeenLastCalledWith("/settings?tab=destinations", { scroll: false });
+  });
+
+  it("a destination sent without what uses it or its last send says neither and offers no delete; an explicit null is never sent", async () => {
+    // An older server's row: no usedBy and no lastSend keys at all.
+    const older = { id: "dest-5", name: "Old server", protocol: "sftp", config: { host: "old.example.test" }, hasCredentials: false, createdAt: "2026-05-01T00:00:00Z" } as unknown as Destination;
+    api.listDestinations.mockResolvedValue([older, server]);
+    search.q = "tab=destinations&open=dest-5";
+    renderSection();
+    const panel = await screen.findByRole("region", { name: "Edit Old server" });
+    const rows = within(screen.getByRole("list", { name: "Destinations" })).getAllByRole("listitem");
+    expect(rows[0]).not.toHaveTextContent(/Not used|output|Never sent|Last used/);
+    expect(rows[1]).toHaveTextContent(/Not used.*Never sent/);
+    expect(within(panel).queryByRole("button", { name: "Delete destination" })).toBeNull();
   });
 
   it("a member's press and an address that names nothing are said in words", async () => {

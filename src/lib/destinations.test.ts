@@ -21,7 +21,7 @@ describe("destination words", () => {
       "SFTP, sftp.example.test, folder /in/invoices",
       "FTPS, ftp.example.test",
       "Email to ap@example.test, books@example.test",
-      "Web address, erp.example.test/documents",
+      "Web address, erp.example.test",
       "Web address",
       "S3 bucket, invoices, folder in/",
       "Google Drive, folder Invoices 2026",

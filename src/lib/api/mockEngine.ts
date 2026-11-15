@@ -171,6 +171,7 @@ const DESTINATION_TESTS: Record<string, typeof TEST_OK | { success: false; messa
   "dest-1": TEST_OK, "dest-2": TEST_OK, "dest-3": { success: false, message: "The server refused the login.", responseCode: null },
 };
 /** What a write answers: the server's shape, never a `credentials` key back. */
+let created = 0;
 const destinationOf = (base: Destination, b: Body): Destination => ({
   ...base, name: b.name as string, protocol: b.protocol as string, config: b.config as Record<string, unknown>,
   hasCredentials: base.hasCredentials || !!b.credentials,
@@ -258,11 +259,19 @@ const ROUTES: [method: string, pattern: RegExp, run: Handler][] = [
     return q.get("suggest") ? { suggestions: [] } : preview;
   }],
   ["GET", re`/destinations`, () => destinations],
-  ["POST", re`/destinations`, (_m, _q, b) =>
-    destinationOf({ id: "dest-new", name: "", protocol: "", config: {}, hasCredentials: false, createdAt: T, usedBy: [], lastSend: null }, b)],
+  // A created one is listed (in name order) and can be tested; a deleted one leaves the list, as on the server.
+  ["POST", re`/destinations`, (_m, _q, b) => {
+    const made = destinationOf({ id: `dest-new-${++created}`, name: "", protocol: "", config: {}, hasCredentials: false, createdAt: T, usedBy: [], lastSend: null }, b);
+    destinations.push(made);
+    destinations.sort((x, y) => x.name.localeCompare(y.name));
+    DESTINATION_TESTS[made.id] = TEST_OK;
+    return made;
+  }],
   ["PUT", re`/destinations/${S}`, (m, _q, b) => destinationOf(pick(destinations, m[1], "destination"), b)],
   ["DELETE", re`/destinations/${S}`, (m) => {
-    if (pick(destinations, m[1], "destination").usedBy.length) throw new ApiHttpError("mock engine: destination in use", 409, { error: "destination_in_use" });
+    const d = pick(destinations, m[1], "destination");
+    if (d.usedBy.length) throw new ApiHttpError("mock engine: destination in use", 409, { error: "destination_in_use" });
+    destinations.splice(destinations.indexOf(d), 1);
     return undefined;
   }],
   ["POST", re`/destinations/${S}/test`, (m) => DESTINATION_TESTS[pick(destinations, m[1], "destination").id]],

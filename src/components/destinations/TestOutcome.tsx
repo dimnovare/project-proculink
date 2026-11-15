@@ -93,7 +93,8 @@ export function TestOutcome({ destinationId, protocol, result, error, at, place 
           : `Test file arrived${moment ? ` ${moment}` : ""}.`}
         {reason && <> <span>{reason}</span></>}
       </StatusNotice>
-      {n > 0 && (
+      {/* After a run, only a list fetched since it began is offered: the old one names documents already on their way. */}
+      {n > 0 && (!send.submittedAt || send.isPending || waiting.dataUpdatedAt > send.submittedAt) && (
         <div data-testid="destination-waiting"
           className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-amber-soft px-3 py-2.5 text-[13px] text-amber-text">
           <p className="m-0">
@@ -111,19 +112,20 @@ export function TestOutcome({ destinationId, protocol, result, error, at, place 
           </Button>
         </div>
       )}
-      {done && ("stopped" in done ? (
-        <StatusNotice tone="error">
-          {`${done.sent.length ? `${done.sent.length} sent. ` : ""}${documentRefusalMessage(done.stopped)}`}
-        </StatusNotice>
-      ) : done.refused.length === 0 ? (
-        <StatusNotice tone="success">
-          {done.sent.length === 1 ? `${done.sent[0]} is on its way again.` : `${done.sent.length} documents are on their way again.`}
-        </StatusNotice>
-      ) : (
+      {done && done.refused.length > 0 && (
         <StatusNotice tone="error" action={
           <Link href={documentsAddress("failed")} className="inline-flex items-center font-semibold underline">Show what couldn&apos;t be sent</Link>
         }>
           {`${tried === 1 ? done.refused[0].fileName : `${done.refused.length} of ${tried}`} couldn't be sent again: ${documentRefusalMessage(done.refused[0].error)}`}
+        </StatusNotice>
+      )}
+      {done && ("stopped" in done ? (
+        <StatusNotice tone="error">
+          {`${done.sent.length ? `${done.sent.length} sent. ` : ""}${documentRefusalMessage(done.stopped)}`}
+        </StatusNotice>
+      ) : done.refused.length === 0 && (
+        <StatusNotice tone="success">
+          {done.sent.length === 1 ? `${done.sent[0]} is on its way again.` : `${done.sent.length} documents are on their way again.`}
         </StatusNotice>
       ))}
     </div>

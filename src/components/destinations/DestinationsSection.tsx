@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -98,8 +98,19 @@ function DestinationRow({ d, open, go, refresh, onDeleted }: {
     // An output saved since the list loaded: ask again, so its name appears.
     onError: (e) => { if (refusalToken(e) === "destination_in_use") refresh(); },
   });
-  const last = lastSendWords(d.lastSend, new Date());
-  const uses = d.usedBy.length;
+  // An older server may send neither key: absent says nothing; only an explicit null is "Never sent".
+  const last = d.lastSend === undefined ? null : lastSendWords(d.lastSend, new Date());
+  const uses: number | undefined = d.usedBy?.length;
+  // Focus follows the panel: into its first field on opening, back to this row's Edit when it closes.
+  const item = useRef<HTMLLIElement>(null);
+  const wasOpen = useRef(open);
+  useEffect(() => {
+    const el = item.current;
+    if (open && !wasOpen.current) el?.querySelector<HTMLElement>("[role=region] input, [role=region] select, [role=region] textarea")?.focus();
+    if (!open && wasOpen.current && (!document.activeElement || document.activeElement === document.body))
+      el?.querySelector<HTMLElement>("[data-row-edit]")?.focus();
+    wasOpen.current = open;
+  }, [open]);
 
   async function remove() {
     const yes = await confirm({
@@ -109,14 +120,14 @@ function DestinationRow({ d, open, go, refresh, onDeleted }: {
   }
 
   return (
-    <li className="border-b border-border last:border-b-0">
+    <li ref={item} className="border-b border-border last:border-b-0">
       <div className={`grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-1 px-4 py-3 xl:items-center ${COLUMNS}`}>
         <span className="min-w-0 truncate text-[14.5px] font-semibold text-ink">{d.name}</span>
         <span className="min-w-0 break-words text-[13px] text-ink-muted">{destinationWhere(d)}</span>
-        <span className="col-span-full text-[13px] text-ink xl:col-span-1">{usedByWords(uses)}</span>
-        <span className={`col-span-full inline-flex items-center gap-1 text-[13px] xl:col-span-1 ${TONE[last.tone]}`}>
-          {last.tone === "ok" && <Check aria-hidden size={14} />}
-          {last.text}
+        <span className="col-span-full text-[13px] text-ink xl:col-span-1">{uses !== undefined && usedByWords(uses)}</span>
+        <span className={`col-span-full inline-flex items-center gap-1 text-[13px] xl:col-span-1 ${last ? TONE[last.tone] : ""}`}>
+          {last?.tone === "ok" && <Check aria-hidden size={14} />}
+          {last?.text}
         </span>
         <span className="col-start-2 row-span-2 row-start-1 flex items-start justify-end gap-2 xl:col-start-5 xl:row-span-1 xl:items-center">
           {open ? (
@@ -125,7 +136,7 @@ function DestinationRow({ d, open, go, refresh, onDeleted }: {
             <>
               <Button type="button" variant="secondary" size="sm" aria-label={`Test ${d.name}`} loading={test.isPending}
                 onClick={() => { if (busy.current) return; busy.current = true; test.mutate(); }}>Test</Button>
-              <Button type="button" variant="secondary" size="sm" aria-label={`Edit ${d.name}`} aria-expanded={false}
+              <Button type="button" variant="secondary" size="sm" aria-label={`Edit ${d.name}`} aria-expanded={open} data-row-edit
                 onClick={() => go(d.id)}>Edit</Button>
             </>
           )}
@@ -134,7 +145,7 @@ function DestinationRow({ d, open, go, refresh, onDeleted }: {
       {open ? (
         <div role="region" aria-label={`Edit ${d.name}`} className="grid gap-3 border-t border-border bg-bg p-4">
           <DestinationForm destination={d} inline testAfterSave onSaved={refresh} onCancel={() => go()} />
-          {uses > 0 ? (
+          {uses === undefined ? null : uses > 0 ? (
             <div className="grid gap-1 text-[13px] text-ink-muted">
               <p className="m-0">
                 {uses === 1 ? "One output uses this destination, so it can't be deleted." : `${uses} outputs use this destination, so it can't be deleted.`}

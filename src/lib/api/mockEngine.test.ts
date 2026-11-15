@@ -64,6 +64,12 @@ describe("mock engine", () => {
     expect([(await waiting("dest-1")).totalCount, (await waiting("dest-1")).items.map((d) => d.id), (await waiting("dest-2")).totalCount]).toEqual([1, ["doc-4"], 0]);
     await mockEngineFetch("/documents/doc-4/send", { method: "POST" });
     expect((await waiting("dest-1")).totalCount).toBe(0);
+    const made = await mockEngineFetch<Destination>("/destinations", {
+      method: "POST", body: JSON.stringify({ name: "Archive", protocol: "email", config: { toAddresses: "archive@example.test" }, credentials: null }),
+    });
+    expect(await mockEngineFetch(`/destinations/${made.id}/test`, { method: "POST" })).toMatchObject({ success: true });
+    await mockEngineFetch("/destinations/dest-3", { method: "DELETE" });
+    expect((await mockEngineFetch<Destination[]>("/destinations")).map((d) => d.name)).toEqual(["Accounting API", "Accounting inbox", "Archive"]);
   });
 
   it("is wired into the documents client in mock mode", async () => {

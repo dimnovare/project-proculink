@@ -59,8 +59,8 @@ export default function SettingsPage() {
   const requestedTab = searchParams?.get("tab");
   const [tab, setTab] = useState<SettingsTab>(isSettingsTab(requestedTab) ? requestedTab : "org");
   // ?tab= changes while MOUNTED (e.g. help-slideover guide links on /settings)
-  // must also switch tabs; manual tab clicks don't write the URL back, so the
-  // sync fires only when the param VALUE itself changes.
+  // must also switch tabs. A tab press writes the URL itself; the sync covers
+  // changes from elsewhere and fires only when the param VALUE itself changes.
   useTabParamSync<SettingsTab>(requestedTab, isSettingsTab, setTab);
   const { organization } = useOrganization();
   const { data: billing } = useQuery({ queryKey: ["billing-status"], queryFn: getBillingStatus, staleTime: 60_000 });

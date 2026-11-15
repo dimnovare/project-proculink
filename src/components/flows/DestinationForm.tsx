@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { Card } from "@/components/bridge/layout/Card";
@@ -106,6 +106,7 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, on
   const [creds, setCreds] = useState<Record<string, string>>({});
   const [problem, setProblem] = useState<string | null>(null);
   const [more, setMore] = useState(false);
+  const hintId = useId();
   const [saved, setSaved] = useState(false);
   // Google kinds are offered only when the server says so; a failed list counts as "not available".
   const googleOn = useLinkedAccounts().data?.available === true;
@@ -144,9 +145,10 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, on
     if (loginIncomplete)
       return setProblem("Fill in every login field, or leave them all blank to keep the saved login.");
     const credentials = Object.keys(typed).length ? (protocol === "http" ? { type: auth, ...typed } : typed) : null;
-    const kept = Object.fromEntries(
-      Object.entries(config).filter(([k, v]) => v !== "" && (keys.includes(k) || !(k in CONFIG_FIELDS))),
-    );
+    // A kind this build does not know: the form owns none of its keys, so they go back as they were read.
+    const kept = Object.hasOwn(PROTOCOLS, protocol)
+      ? Object.fromEntries(Object.entries(config).filter(([k, v]) => v !== "" && (keys.includes(k) || !(k in CONFIG_FIELDS))))
+      : config;
     busy.current = true;
     save.mutate({ name: name.trim(), protocol, config: kept, credentials });
   }
@@ -255,9 +257,9 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, on
         <p className="col-span-full text-[13px] text-ink-muted">A login is saved. Leave the login boxes blank to keep it.</p>
       )}
       {folded.length > 0 && (
-        <button type="button" aria-expanded={more} onClick={() => setMore((m) => !m)}
+        <button type="button" aria-expanded={more} aria-label="More options" aria-describedby={hintId} onClick={() => setMore((m) => !m)}
           className="col-span-full inline-flex items-center gap-2 justify-self-start text-[13px] font-semibold text-ink">
-          More options <span className="font-normal text-ink-muted">{FOLD_HINT[protocol]}</span>
+          More options <span id={hintId} className="font-normal text-ink-muted">{FOLD_HINT[protocol]}</span>
         </button>
       )}
       {more && folded}

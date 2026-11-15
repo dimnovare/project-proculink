@@ -2,8 +2,8 @@
  * destinations.ts — the words a destination is shown with, and the Settings › Destinations address.
  *
  * "Where" is built only from the config keys named below. A destination's config is free-form, so
- * a secret typed under any other key must never be read back; a URL loses its scheme, user part,
- * query and fragment. A kind this build does not know prints its own protocol word.
+ * a secret typed under any other key must never be read back. A URL keeps only its host: a webhook
+ * address often carries its secret in the path. A kind this build does not know prints its protocol word.
  */
 import type { Destination, DestinationLastSend } from "./api/documents";
 import { DATE_LOCALE } from "./format-date";
@@ -15,7 +15,7 @@ const folder = (v: unknown) => (text(v) ? `folder ${text(v)}` : null);
 function webAddress(v: unknown): string | null {
   try {
     const u = new URL(text(v) ?? "");
-    return u.host + u.pathname.replace(/\/+$/, "");
+    return u.host || null;
   } catch {
     return null;
   }
