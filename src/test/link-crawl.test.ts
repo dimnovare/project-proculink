@@ -199,9 +199,9 @@ describe("link crawl — nothing we ship points at a 404", () => {
       if (!matchesAny(guide.route.replace(/\[[^\]]+\]/g, "probe"), APP_ROUTES)) {
         dead.push(`route ${guide.route}`);
       }
-      for (const link of [...guide.bullets, guide.firstStep]) {
-        if (link.href && isInternalPageLink(link.href) && !(await resolves(link.href))) {
-          dead.push(`${guide.route} bullet → ${link.href}`);
+      for (const task of guide.tasks) {
+        if (isInternalPageLink(task.href) && !(await resolves(task.href))) {
+          dead.push(`${guide.route} task → ${task.href}`);
         }
       }
     }

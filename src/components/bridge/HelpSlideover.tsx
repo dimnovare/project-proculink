@@ -44,17 +44,6 @@ function SectionGuideBody({ guide, onNavigate }: SectionGuideBodyProps) {
     <div>
       <p
         style={{
-          margin: 0,
-          fontSize: bodySize + 0.5,
-          lineHeight: 1.5,
-          color: "var(--ink-muted)",
-        }}
-      >
-        {guide.purpose}
-      </p>
-
-      <p
-        style={{
           margin: "10px 0 5px",
           fontSize: 11,
           fontWeight: 600,
@@ -67,7 +56,7 @@ function SectionGuideBody({ guide, onNavigate }: SectionGuideBodyProps) {
       </p>
 
       <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
-        {guide.bullets.map((bullet, i) => (
+        {guide.tasks.map((task, i) => (
           <li
             key={i}
             style={{
@@ -91,18 +80,14 @@ function SectionGuideBody({ guide, onNavigate }: SectionGuideBodyProps) {
                 flexShrink: 0,
               }}
             />
-            {bullet.href ? (
-              <Link
-                href={bullet.href}
-                onClick={onNavigate}
-                className="hover:underline"
-                style={linkStyle}
-              >
-                {bullet.text}
-              </Link>
-            ) : (
-              <span>{bullet.text}</span>
-            )}
+            <Link
+              href={task.href}
+              onClick={onNavigate}
+              className="hover:underline"
+              style={linkStyle}
+            >
+              {task.title}
+            </Link>
           </li>
         ))}
       </ul>
@@ -121,18 +106,7 @@ function SectionGuideBody({ guide, onNavigate }: SectionGuideBodyProps) {
         <span style={{ fontWeight: 700, color: "var(--brand-green-deep)" }}>
           Start here:
         </span>{" "}
-        {guide.firstStep.href ? (
-          <Link
-            href={guide.firstStep.href}
-            onClick={onNavigate}
-            className="hover:underline"
-            style={{ ...linkStyle, color: "var(--ink)", fontWeight: 600 }}
-          >
-            {guide.firstStep.text}
-          </Link>
-        ) : (
-          <span>{guide.firstStep.text}</span>
-        )}
+        <span>{guide.startHere}</span>
       </div>
     </div>
   );
@@ -233,7 +207,6 @@ export function HelpSlideover({ open, onClose }: Props) {
   );
   const searching = debounced.trim().length > 0;
 
-  const related = resolveArticles(guide?.articleSlugs, 3);
   const popular = resolveArticles(POPULAR_ARTICLE_SLUGS, 3);
 
   useEffect(() => {
@@ -429,7 +402,7 @@ export function HelpSlideover({ open, onClose }: Props) {
                       lineHeight: 1.3,
                     }}
                   >
-                    {guide.title}
+                    {guide.screen}
                   </h3>
                   <SectionGuideBody
                     guide={guide}
@@ -455,22 +428,6 @@ export function HelpSlideover({ open, onClose }: Props) {
                 </section>
               )}
 
-              {/* "Related reading" — up to 3 registry-driven article rows. */}
-              {guide && related.length > 0 && (
-                <section style={cardStyle}>
-                  <p style={sectionLabelStyle}>Related reading</p>
-                  <div style={{ marginTop: 4 }}>
-                    {related.map((a) => (
-                      <ArticleLinkRow
-                        key={a.slug}
-                        article={a}
-                        surface="slideover_related"
-                        route={pathname}
-                      />
-                    ))}
-                  </div>
-                </section>
-              )}
             </>
           )}
         </div>

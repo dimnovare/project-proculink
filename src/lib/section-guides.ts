@@ -1,78 +1,156 @@
-import { PLAN_BY_ID } from "@/lib/plans";
+// section-guides — the help for each app screen, and the pages that have none.
+//
+// One entry per app screen, keyed by its App Router pattern. The help panel
+// matches the current pathname against this registry and shows "On this
+// screen", the screen's name, three tasks (each opens a help page) and a
+// "Start here" line. Every page under src/app/(app) is either here or in
+// NO_SCREEN_HELP; src/lib/section-guides.test.ts walks the route tree to keep
+// it that way.
+//
+// Every sentence must be true on main when it ships: never describe a screen's
+// behaviour before it is live.
 
-// section-guides — "what is this screen" registry + pure helpers.
-//
-// One entry per in-app sidebar screen. HelpSlideover (opened from the topbar
-// "?" button) is the ONLY home for guide content: it matches the current
-// pathname against this registry and renders the entry in its "This screen"
-// section. The topbar "?" button shows a small dot badge while the current
-// route's guide is unseen (guideSeenKey absent); opening the slideover marks
-// the route seen.
-//
-// CONTENT SOURCE (canonical — do not rewrite copy here):
-// ProcuLink repo: docs/superpowers/plans/2026-06-12-section-guides-content.md
-// /operations/log: canonical here since 2026-11-15 (the Activity rewrite); that doc is stale for it.
-//
-// The /bridge, /upload, /inbox and /inbox/[orderId] guides went with the order
-// screens they described on 2026-11-13, and with them the direction-aware
-// `{supplier}` party tokens. The /operations/log guide was rewritten for the
-// Activity page on 2026-11-15.
-
-export interface GuideLink {
-  text: string;
-  href?: string;
+export interface HelpTask {
+  title: string;
+  line: string;
+  /** "/help/<slug>" or "/help/guides/<slug>" */
+  href: string;
 }
 
 export interface SectionGuideEntry {
+  /** App Router pattern, e.g. "/flows/[flowId]". */
   route: string;
-  title: string;
-  purpose: string;
-  bullets: GuideLink[];
-  firstStep: GuideLink;
-  /**
-   * Related help-center article slugs for this screen ("Related reading" in
-   * the help slideover; first 3 shown). Slugs are resolved against
-   * HELP_ARTICLES and SILENTLY SKIPPED when no article exists yet — so this
-   * list may reference articles the content pass hasn't written; they light
-   * up as they ship, and nothing dead ever renders.
-   */
-  articleSlugs?: string[];
+  /** Shown after "On this screen". */
+  screen: string;
+  tasks: [HelpTask, HelpTask, HelpTask];
+  startHere: string;
 }
+
+const SET_UP_FIRST_FLOW = "/help/guides/set-up-your-first-flow";
+const FILES_WE_READ: HelpTask = { title: "Files we read", line: "The kinds of files we read, and what to expect from each.", href: "/help/what-we-read" };
+const BUILD_AN_OUTPUT: HelpTask = { title: "Build an output", line: "The file we make from each document, and its columns.", href: "/help/guides/build-an-output" };
+const IMPORT_A_LOOKUP: HelpTask = { title: "Import a lookup", line: "Make one from a table you already have.", href: "/help/guides/import-a-lookup" };
+const USE_A_LOOKUP: HelpTask = { title: "Use a lookup in an output", line: "Swap a column's value for the one the lookup gives.", href: "/help/lookups" };
+const EMAIL_WHEN_NEEDED: HelpTask = { title: "Get an email when something needs you", line: "Choose who is told, and about what.", href: "/help/activity-and-notifications" };
 
 export const SECTION_GUIDES: SectionGuideEntry[] = [
   {
-    route: "/operations/log",
-    title: "Activity",
-    purpose: "Everything that happened to your documents, newest first.",
-    bullets: [
-      { text: "Use the tabs to see everything, what was sent, what couldn't be sent, or changes" },
-      { text: "Search by file name or document number, and export the tab you are on as CSV" },
-      { text: "Open a row to see where a send stopped, then fix the destination or send it again" },
+    route: "/documents",
+    screen: "Documents",
+    tasks: [
+      { title: "What \"Needs you\" means", line: "The documents waiting for you to check or send them.", href: "/help/documents-and-statuses" },
+      { title: "Review and send a document", line: "Open one, check the marked values, then send it.", href: "/help/guides/check-and-send-a-document" },
+      { title: "Find an older document", line: "Look under Sent or All.", href: "/help/documents-and-statuses" },
     ],
-    firstStep: { text: "Choose Couldn't send and open a row to see why a document didn't go out." },
-    articleSlugs: ["activity-and-notifications", "destinations"],
+    startHere: "Press Review next. It opens the first document that needs you.",
   },
-  // NOTE: /operations/connectors had a guide here until 2026-08-13, and the copy
-  // went with the page because the page never delivered it: it promised "a
-  // read-only overview of each supplier's delivery channel", while every live
-  // row was hardcoded to one channel type. The overview it described is the
-  // suppliers list, and test firing belongs to the supplier Delivery tab. The
-  // route 308s to /settings.
-  // NOTE: /operations/webhooks had a guide here until 2026-08-08. The page was a
-  // duplicate of the Settings Connectors tab that no user could navigate to, so it was
-  // deleted and now 308s to /settings.
+  {
+    route: "/flows/[flowId]/documents/[documentId]",
+    screen: "A document",
+    tasks: [
+      { title: "Check and send a document", line: "Change any value that is wrong, then send it.", href: "/help/guides/check-and-send-a-document" },
+      { title: "Teach a value we missed", line: "Point at it on the page, and we read it there next time.", href: "/help/guides/teach-a-value" },
+      { title: "What each status means", line: "From Received to Sent, and what you can do at each.", href: "/help/documents-and-statuses" },
+    ],
+    startHere: "Compare what we read with the original, then send it.",
+  },
+  {
+    route: "/upload",
+    screen: "Upload",
+    tasks: [
+      { title: "Ways to send documents in", line: "Upload, email, or a pickup from a server.", href: "/help/intake-channels" },
+      FILES_WE_READ,
+      { title: "Set up your first flow", line: "Tell us what to read and where to send it.", href: SET_UP_FIRST_FLOW },
+    ],
+    startHere: "Choose the flow the document is for, then drop the file.",
+  },
+  {
+    route: "/flows",
+    screen: "Flows",
+    tasks: [
+      { title: "What a flow is", line: "What it reads, what it checks and where it sends.", href: "/help/flows" },
+      { title: "Set up your first flow", line: "Tell us what to read and where to send it.", href: SET_UP_FIRST_FLOW },
+      { title: "Receive documents by email", line: "Every flow has its own address to send documents to.", href: "/help/guides/receive-documents-by-email" },
+    ],
+    startHere: "Open a flow to see what it reads and where it sends.",
+  },
+  {
+    route: "/flows/new",
+    screen: "New flow",
+    tasks: [
+      { title: "Set up your first flow", line: "Step by step, from an example document to the first send.", href: SET_UP_FIRST_FLOW },
+      FILES_WE_READ,
+      BUILD_AN_OUTPUT,
+    ],
+    startHere: "Start with an example of the document this flow will receive.",
+  },
+  {
+    route: "/flows/[flowId]",
+    screen: "A flow",
+    tasks: [
+      { title: "Publish your changes", line: "Publish a new version, or go back to an earlier one.", href: "/help/guides/publish-a-flow-version" },
+      BUILD_AN_OUTPUT,
+      { title: "Send outputs to a destination", line: "Choose where each output goes, and send a test.", href: "/help/guides/send-to-a-destination" },
+    ],
+    startHere: "Changes you make here are a draft until you publish them.",
+  },
+  {
+    route: "/lookups",
+    screen: "Lookups",
+    tasks: [
+      { title: "What a lookup does", line: "It turns one value into another as a document is sent.", href: "/help/lookups" },
+      IMPORT_A_LOOKUP,
+      USE_A_LOOKUP,
+    ],
+    startHere: "Make a lookup from a table you already have, then use it in an output.",
+  },
+  {
+    route: "/lookups/[lookupId]",
+    screen: "A lookup",
+    tasks: [
+      { title: "Change a lookup's rows", line: "Each row has a From value and what it becomes.", href: "/help/lookups" },
+      IMPORT_A_LOOKUP,
+      USE_A_LOOKUP,
+    ],
+    startHere: "Each row turns one value into another when a document is sent.",
+  },
+  {
+    route: "/operations/log",
+    screen: "Activity",
+    tasks: [
+      { title: "What Activity shows", line: "Everything that happened to your documents, newest first.", href: "/help/activity-and-notifications" },
+      { title: "When a document couldn't be sent", line: "See where it stopped, fix the destination, then send it again.", href: "/help/destinations" },
+      EMAIL_WHEN_NEEDED,
+    ],
+    startHere: "Open a row to see where a document was sent and what the destination answered.",
+  },
   {
     route: "/settings",
-    title: "Settings",
-    purpose: "Workspace name, billing, notifications and API keys.",
-    bullets: [
-      { text: "Check your plan, usage, and upgrade options", href: "/settings?tab=billing" },
-      { text: "Create API keys", href: "/settings?tab=api" },
+    screen: "Settings",
+    tasks: [
+      { title: "Plans and billing", line: "Your plan, what you have used, and how to change it.", href: "/help/billing-faq" },
+      { title: "Create an API key", line: "For sending documents from your own systems.", href: "/help/workspace-and-team" },
+      EMAIL_WHEN_NEEDED,
     ],
-    firstStep: { text: "Check your plan, usage, and upgrade options", href: "/settings?tab=billing" },
-    articleSlugs: ["billing-faq", "api-reference"],
+    startHere: "Use the tabs at the top to move between the parts of Settings.",
   },
 ];
+
+const OLD_ORDERS = "Read-only history of the old order screens.";
+const FOUNDER_ONLY = "Founder-only.";
+
+/** App pages with no help of their own, and why. */
+export const NO_SCREEN_HELP: Record<string, string> = {
+  "/archive": OLD_ORDERS,
+  "/archive/[orderId]": OLD_ORDERS,
+  "/settings/google-callback": "Returns from Google and moves on by itself.",
+  "/flows/[flowId]/outputs/[outputId]/advanced": "The field-by-field view for professionals; search and popular articles still show.",
+  "/admin": FOUNDER_ONLY,
+  "/admin/guides": FOUNDER_ONLY,
+  "/admin/guides/erase-order-data": FOUNDER_ONLY,
+  "/admin/guides/onboard-a-new-client": FOUNDER_ONLY,
+  "/admin/guides/unfreeze-a-pilot-workspace": FOUNDER_ONLY,
+};
 
 // ─── Matching ────────────────────────────────────────────────────────────────
 
@@ -116,14 +194,4 @@ export function matchGuide(pathname: string | null | undefined): SectionGuideEnt
     if (matches) return entry;
   }
   return null;
-}
-
-// ─── Seen state ──────────────────────────────────────────────────────────────
-
-/** localStorage key marking a route's guide as seen (set when the help
- *  slideover is opened on that route; drives the topbar "?" dot badge).
- *  Keyed by the registry ROUTE pattern (e.g. `/operations/log`), so seeing
- *  it once covers all instances. */
-export function guideSeenKey(route: string): string {
-  return `plk-guide-seen:${route}`;
 }

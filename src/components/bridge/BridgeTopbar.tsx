@@ -6,7 +6,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { checkAdminAccess, getBillingStatus, isApiMockMode } from "@/lib/api-client";
-import { guideSeenKey, matchGuide } from "@/lib/section-guides";
+import { matchGuide } from "@/lib/section-guides";
+
+/** The unseen-guide dot's storage key; it goes with the dot (plan 14.11, R4). */
+const guideSeenKey = (route: string) => `plk-guide-seen:${route}`;
 import { planDisplayName } from "@/lib/plans";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { useOrganization } from "@clerk/nextjs";
