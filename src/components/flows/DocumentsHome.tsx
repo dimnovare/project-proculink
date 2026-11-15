@@ -146,10 +146,15 @@ export function DocumentsHome() {
     );
   }
 
-  return (
-    <PageShell variant="wide">
-      <PageHeader title="Documents" sub="Every document that has arrived, newest first." />
-      {body}
-    </PageShell>
-  );
+  return <Frame>{body}</Frame>;
 }
+
+const Frame = ({ children }: { children: React.ReactNode }) => (
+  <PageShell variant="wide">
+    <PageHeader title="Documents" sub="Every document that has arrived, newest first." />
+    {children}
+  </PageShell>
+);
+
+/** What the screen draws before its first answer; the route's Suspense fallback, so the first paint does not shift. */
+export const DocumentsLoading = () => <Frame><Quiet>Loading flows…</Quiet></Frame>;

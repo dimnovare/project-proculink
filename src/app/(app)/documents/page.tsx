@@ -1,11 +1,11 @@
 "use client";
 
 import { Suspense } from "react";
-import { DocumentsHome } from "@/components/flows/DocumentsHome";
+import { DocumentsHome, DocumentsLoading } from "@/components/flows/DocumentsHome";
 
 export default function DocumentsPage() {
   return (
-    <Suspense>
+    <Suspense fallback={<DocumentsLoading />}>
       <DocumentsHome />
     </Suspense>
   );

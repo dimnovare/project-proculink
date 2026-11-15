@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ApiHttpError } from "@/lib/api/core";
 import { DocumentsHome } from "./DocumentsHome";
@@ -15,7 +15,8 @@ const listDocumentPage = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/api/documents", () => ({ listFlows: () => listFlows(), listDocumentPage }));
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => true }));
 
-type Count = number | Error;
+/** "pending" never settles: the request is still out. */
+type Count = number | Error | "pending";
 type Counts = { needs?: Count; working?: Count; sent?: Count; failed?: Count };
 const COUNTED: Record<string, keyof Counts> = {
   "needs_review,ready": "needs", "received,reading,sending": "working", sent: "sent", "read_failed,send_failed": "failed",
@@ -30,7 +31,8 @@ const page = (items: unknown[], totalCount: number, p: number, pageSize: number)
 function answers(counts: Counts & { rows?: unknown[] }) {
   listDocumentPage.mockImplementation((q: { status?: string[]; page: number; pageSize: number }) => {
     const key = COUNTED[q.status?.join(",") ?? ""];
-    const n = (key && counts[key]) ?? 0;
+    const n = (key ? counts[key] : undefined) ?? 0;
+    if (n === "pending") return new Promise(() => {});
     if (n instanceof Error) return Promise.reject(n);
     if (q.pageSize === 1) return Promise.resolve(page([], n, 1, 1));
     if (q.pageSize === 50) return Promise.resolve(page(counts.rows ?? Array.from({ length: Math.min(n, 50) }, (_, i) => row(i)), n, q.page, 50));
@@ -57,15 +59,22 @@ beforeEach(() => {
 
 describe("DocumentsHome", () => {
   it("opens on Needs you when something needs you and on All when nothing does, and a tab press writes the address", async () => {
-    answers({ needs: 3 });
+    answers({ needs: 3, working: "pending" });
     const first = mount();
     expect(await screen.findByRole("tab", { name: "Needs you 3" })).toHaveAttribute("aria-selected", "true");
     expect(listDocumentPage).toHaveBeenCalledWith(expect.objectContaining({ status: ["needs_review", "ready"], page: 1, pageSize: 50 }));
+    // getAll: jsdom has no Tailwind, so the table and the phone list both render each row.
+    expect((await within(screen.getByRole("tabpanel")).findAllByText("doc-0.pdf")).length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("tab", { name: /^Sent/ }));
     expect(replace).toHaveBeenLastCalledWith("/documents?show=sent");
-    search.q = "show=sent"; // the address changes under the screen (Back, Forward, a link): the tab follows it, not the latch
+    // The address changes under the screen (Back, Forward, a link): the tab follows it, not the latch,
+    // and while its page is out the panel holds none of the previous tab's rows.
+    search.q = "show=in-progress";
     first.again();
-    expect(screen.getByRole("tab", { name: /^Sent/ })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "In progress" })).toHaveAttribute("aria-selected", "true");
+    const panel = within(screen.getByRole("tabpanel"));
+    expect(panel.getByText("Loading documents…")).toBeInTheDocument();
+    expect(panel.queryAllByText("doc-0.pdf")).toHaveLength(0);
     first.unmount();
     search.q = "";
     answers({ needs: 0 });
@@ -75,11 +84,12 @@ describe("DocumentsHome", () => {
 
   it("prints a count only once it is known, pages a long list, and says when a page is past the end", async () => {
     search.q = "show=sent";
-    answers({ sent: 120, failed: new Error("down") });
+    answers({ sent: 120, failed: new Error("down"), needs: "pending" });
     const first = mount();
     expect(await screen.findByRole("tab", { name: "Sent 120" })).toHaveAttribute("aria-selected", "true");
     expect(await screen.findByRole("tab", { name: "In progress 0" })).toBeInTheDocument(); // a known zero
     expect(screen.getByRole("tab", { name: "Couldn't send or read" })).toBeInTheDocument(); // unknown: no number, not 0
+    expect(screen.getByRole("tab", { name: "Needs you" })).toBeInTheDocument(); // still out: no number, not 0
     expect(await screen.findByText("Documents 1 to 50 of 120")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Next" })).toHaveAttribute("href", "/documents?show=sent&page=2");
     expect(screen.queryByRole("link", { name: "Previous" })).toBeNull();
