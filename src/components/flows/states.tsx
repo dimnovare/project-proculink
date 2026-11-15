@@ -3,13 +3,15 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { UseMutationResult } from "@tanstack/react-query";
-import { Check } from "lucide-react";
+import { Check, TriangleAlert } from "lucide-react";
 import { Button, buttonClass } from "@/components/bridge/DSPrimitives";
 import { Card } from "@/components/bridge/layout/Card";
 import { EmptyState } from "@/components/bridge/EmptyState";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import type { DocumentCheck, DocumentSummary } from "@/lib/api/documents";
-import { canRetryRead, documentRefusalMessage, readFailureMessage } from "@/lib/documentRefusals";
+import { classifyApiFailure } from "@/lib/apiFailure";
+import { canRetryRead, COPY, documentRefusalMessage, readFailureMessage, refusalToken } from "@/lib/documentRefusals";
+import { LIMIT_CODES } from "@/lib/limitRefusal";
 import { documentsAddress, type DocumentTab } from "@/lib/documentTabs";
 
 /** Reasons the engine parks a document for review on its own, each worded in COPY. */
@@ -35,12 +37,7 @@ export function FirstFlowEmpty() {
 
 const Empty = ({ icon, title, line, action }: { icon?: React.ReactNode; title: string; line: string; action: React.ReactNode }) => (
   <Card>
-    <div className="flex flex-col items-center gap-2 py-6 text-center">
-      {icon}
-      <h2 className="m-0 text-[18px] font-semibold text-ink">{title}</h2>
-      <p className="m-0 text-[14px] text-ink-muted">{line}</p>
-      <div className="mt-2">{action}</div>
-    </div>
+    <EmptyState compact={false} icon={icon} title={title} sub={line} action={action} />
   </Card>
 );
 
@@ -69,11 +66,50 @@ export const EmptyFilter = ({ tab }: { tab: Exclude<DocumentTab, "needs-you"> })
   />
 );
 
-export const Failed = ({ error, retry }: { error: unknown; retry(): void }) => (
-  <StatusNotice tone="error" action={<Button variant="secondary" size="sm" onClick={retry}>Retry</Button>}>
-    {documentRefusalMessage(error)}
-  </StatusNotice>
-);
+/** The board's "couldn't load" panel. `page` makes the heading the page's h1 (error boundaries). */
+export function CouldNotLoad({ title, line, retry, page, extra }: {
+  title: string; line: string; retry?: () => void; page?: boolean; extra?: React.ReactNode;
+}) {
+  const Heading = page ? "h1" : "h2";
+  return (
+    <Card>
+      <div role="alert" className="flex flex-col items-center gap-2 px-6 py-7 text-center">
+        <TriangleAlert aria-hidden size={26} className="text-danger" />
+        <Heading className="m-0 text-[18px] font-semibold text-ink">{title}</Heading>
+        <p className="m-0 text-[14px] text-ink-muted">{line}</p>
+        {(retry || extra) && (
+          <div className="mt-2 flex flex-wrap items-center justify-center gap-3">
+            {retry && <Button variant="secondary" size="md" onClick={retry}>Try again</Button>}
+            {extra}
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+/** The server worded this refusal itself: a token we have words for, or a plan limit. */
+const serverWorded = (error: unknown) => {
+  const token = refusalToken(error);
+  return !!token && (Object.hasOwn(COPY, token) || LIMIT_CODES.has(token));
+};
+
+/** What to say about a failed read, in order: the server's words, no answer, anything else. */
+export function failedLine(error: unknown): string {
+  if (serverWorded(error)) return documentRefusalMessage(error);
+  const { kind } = classifyApiFailure(error);
+  if (kind === "unreachable" || kind === "server") return "Nothing is lost. Check your connection and try again.";
+  return documentRefusalMessage(error);
+}
+
+export const Failed = ({ error, retry, what }: { error: unknown; retry(): void; /** "your documents": draws the panel */ what?: string }) =>
+  what ? (
+    <CouldNotLoad title={`We couldn't load ${what}.`} line={failedLine(error)} retry={retry} />
+  ) : (
+    <StatusNotice tone="error" action={<Button variant="secondary" size="sm" onClick={retry}>Try again</Button>}>
+      {serverWorded(error) ? failedLine(error) : `We couldn't load this. ${failedLine(error)}`}
+    </StatusNotice>
+  );
 
 export const destinationName = (q: { data?: { id: string; name: string }[]; isError: boolean }, id: string | null) =>
   !id ? "Download only" : q.data?.find((d) => d.id === id)?.name ?? (q.isError ? "Unknown destination" : "…");
