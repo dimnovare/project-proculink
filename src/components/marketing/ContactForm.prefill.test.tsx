@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, cleanup, fireEvent } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, within } from "@testing-library/react";
 
 // WP-24 — /support?order=&problem=.
 //
@@ -29,7 +29,7 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => searchParams,
 }));
 
-import { ContactForm } from "./ContactForm";
+import { ContactFormFromAddress } from "./ContactForm";
 import { PROBLEM_COPY } from "@/components/bridge/problem/problemCopy";
 
 function subjectField() {
@@ -47,7 +47,7 @@ describe("ContactForm — prefilled from ?order= and ?problem=", () => {
   it("names the order and describes the problem in plain words", () => {
     searchParams = new URLSearchParams("order=PO-4711&problem=failed");
 
-    render(<ContactForm />);
+    render(<ContactFormFromAddress />);
 
     // The badge is READ from PROBLEM_COPY, not retyped. A parallel packet renamed
     // it ("Couldn't read the file" → "Couldn't read file") and this test was the
@@ -60,7 +60,7 @@ describe("ContactForm — prefilled from ?order= and ?problem=", () => {
   it("never puts the raw status key in front of the customer", () => {
     searchParams = new URLSearchParams("order=PO-4711&problem=delivery_dead_letter");
 
-    render(<ContactForm />);
+    render(<ContactFormFromAddress />);
 
     expect(subjectField().value).toBe("Order PO-4711 — Out of retries");
     expect(subjectField().value).not.toMatch(/delivery_dead_letter|_/);
@@ -69,7 +69,7 @@ describe("ContactForm — prefilled from ?order= and ?problem=", () => {
   it("leaves every prefilled field editable", () => {
     searchParams = new URLSearchParams("order=PO-4711&problem=failed");
 
-    render(<ContactForm />);
+    render(<ContactFormFromAddress />);
 
     // The state round-trip alone is not proof: fireEvent.change dispatches straight
     // at the element and happily "types" into a readOnly input, so a readOnly subject
@@ -85,7 +85,7 @@ describe("ContactForm — prefilled from ?order= and ?problem=", () => {
   it("does not prefill the message, so the form still refuses to send empty", () => {
     searchParams = new URLSearchParams("order=PO-4711&problem=failed");
 
-    render(<ContactForm />);
+    render(<ContactFormFromAddress />);
 
     expect((screen.getByRole("textbox", { name: /Message/i }) as HTMLTextAreaElement).value).toBe("");
     expect(screen.getByRole("button", { name: /Send message/i })).toBeDisabled();
@@ -94,7 +94,7 @@ describe("ContactForm — prefilled from ?order= and ?problem=", () => {
 
 describe("ContactForm — missing or unrecognised params fall back to a blank form", () => {
   it("renders an empty subject when there are no params at all", () => {
-    render(<ContactForm />);
+    render(<ContactFormFromAddress />);
 
     expect(subjectField().value).toBe("");
   });
@@ -102,7 +102,7 @@ describe("ContactForm — missing or unrecognised params fall back to a blank fo
   it("drops a status it does not recognise instead of echoing it", () => {
     searchParams = new URLSearchParams("order=PO-4711&problem=banana");
 
-    render(<ContactForm />);
+    render(<ContactFormFromAddress />);
 
     expect(subjectField().value).toBe("Order PO-4711");
     expect(subjectField().value).not.toMatch(/banana/i);
@@ -111,7 +111,7 @@ describe("ContactForm — missing or unrecognised params fall back to a blank fo
   it("never writes 'Order undefined' when the order is missing", () => {
     searchParams = new URLSearchParams("problem=failed");
 
-    render(<ContactForm />);
+    render(<ContactFormFromAddress />);
 
     expect(subjectField().value).toBe(PROBLEM_COPY.failed.badge);
     expect(subjectField().value).not.toMatch(/undefined|Order Order/i);
@@ -122,8 +122,40 @@ describe("ContactForm — missing or unrecognised params fall back to a blank fo
     // verbatim — "Order Order — …" is not a subject anyone should have to edit.
     searchParams = new URLSearchParams("order=Order&problem=failed");
 
-    render(<ContactForm />);
+    render(<ContactFormFromAddress />);
 
     expect(subjectField().value).toBe(PROBLEM_COPY.failed.badge);
+  });
+});
+
+describe("ContactForm — sending", () => {
+  function fill() {
+    fireEvent.change(screen.getByRole("textbox", { name: /Message/i }), { target: { value: "The export stopped" } });
+    fireEvent.change(screen.getByRole("textbox", { name: /Your email/i }), { target: { value: "sam@example.test" } });
+    return screen.getByRole("form", { name: "Contact support" });
+  }
+
+  it("sends one request however often Send is pressed, and says where to write when it fails", async () => {
+    submitSupportRequest.mockReturnValueOnce(new Promise(() => {}));
+    const { unmount } = render(<ContactFormFromAddress />);
+    const form = fill();
+    fireEvent.submit(form);
+    fireEvent.submit(form);
+    expect(submitSupportRequest).toHaveBeenCalledTimes(1);
+    const busy = within(form).getByRole("button", { name: "Sending…" });
+    expect(busy).toBeDisabled();
+    unmount();
+
+    submitSupportRequest.mockRejectedValueOnce(new Error("submitSupportRequest failed: 500"));
+    render(<ContactFormFromAddress />);
+    const again = fill();
+    fireEvent.submit(again);
+    expect(await within(again).findByRole("alert")).toHaveTextContent("support@proculink.eu");
+  });
+
+  it("refuses to send without an address", () => {
+    render(<ContactFormFromAddress />);
+    fireEvent.change(screen.getByRole("textbox", { name: /Message/i }), { target: { value: "The export stopped" } });
+    expect(screen.getByRole("button", { name: /Send message/i })).toBeDisabled();
   });
 });

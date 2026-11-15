@@ -5,23 +5,36 @@ import { apiClient } from "@/lib/api-client";
 import { capture } from "@/lib/analytics";
 import { friendlySubmitError } from "@/lib/friendly-submit-error";
 import { captureException } from "@/lib/sentry-context";
+import { Card } from "@/components/bridge/layout/Card";
+import { FORM } from "@/components/marketing/ContactForm";
+import { INK_CTA } from "@/components/marketing/LegalPage";
 
-// Same visual grammar as ContactForm (src/components/marketing/ContactForm.tsx)
-// so the two marketing forms stay in lockstep.
-const S = {
-  wrap:     { background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 12, padding: "22px 22px 24px" },
-  row:      { display: "grid", gap: 6, marginBottom: 14 },
-  label:    { fontSize: 12.5, fontWeight: 600, color: "#0B1A2F", letterSpacing: "0.02em" },
-  input:    { width: "100%", height: 38, padding: "0 12px", border: "1px solid #C6CDDA", borderRadius: 6, fontSize: 13.5, color: "#0B1A2F", background: "#FFFFFF", boxSizing: "border-box" as const },
-  textarea: { width: "100%", minHeight: 96, padding: "10px 12px", border: "1px solid #C6CDDA", borderRadius: 6, fontSize: 13.5, color: "#0B1A2F", background: "#FFFFFF", boxSizing: "border-box" as const, lineHeight: 1.5, fontFamily: "Inter, sans-serif", resize: "vertical" as const },
-  hint:     { fontSize: 12, color: "var(--ink-faint)" },
-  actions:  { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginTop: 18, flexWrap: "wrap" as const },
-  submit:   { background: "#0B1A2F", color: "#FFFFFF", border: "none", borderRadius: 6, padding: "10px 18px", fontSize: 13.5, fontWeight: 600, cursor: "pointer" },
-  submitDisabled: { background: "var(--ink-faint)", color: "#FFFFFF", border: "none", borderRadius: 6, padding: "10px 18px", fontSize: 13.5, fontWeight: 600, cursor: "not-allowed" },
-  notice:   { padding: "10px 14px", borderRadius: 6, fontSize: 13, lineHeight: 1.5, marginTop: 14, border: "1px solid transparent" },
-  success:  { background: "#EAF3EA", borderColor: "#9FC8A4", color: "#22622A" },
-  error:    { background: "#FBECEC", borderColor: "#E0A3A3", color: "#8A2A2A" },
-};
+// Same visual grammar as ContactForm (FORM), so the two marketing forms stay in lockstep.
+
+function Field({
+  id,
+  label,
+  optional,
+  hint,
+  children,
+}: {
+  id: string;
+  label: string;
+  optional?: boolean;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={FORM.row}>
+      <label htmlFor={id} className={FORM.label}>
+        {label}
+        {optional && <> <span className={FORM.opt}>(optional)</span></>}
+      </label>
+      {children}
+      {hint && <p id={`${id}-hint`} className={FORM.hint}>{hint}</p>}
+    </div>
+  );
+}
 
 export function BookDemoForm() {
   const [name, setName]         = useState("");
@@ -40,6 +53,7 @@ export function BookDemoForm() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    // A second press while one request is out sends nothing.
     if (!canSubmit) return;
     setState({ status: "submitting" });
 
@@ -93,127 +107,112 @@ export function BookDemoForm() {
 
   if (state.status === "success") {
     return (
-      <div style={S.wrap} aria-label="Call request sent">
-        <div
-          ref={successRef}
-          tabIndex={-1}
-          role="status"
-          style={{ ...S.notice, ...S.success, marginTop: 0, outline: "none" }}
-        >
+      <Card aria-label="Call request sent">
+        <div ref={successRef} tabIndex={-1} role="status" className={`${FORM.ok} outline-none`}>
           <strong>Request received.</strong> {state.message}
         </div>
-        <p style={{ ...S.hint, marginTop: 12, marginBottom: 0 }}>
+        <p className={`${FORM.hint} mt-3`}>
           Want to add anything in the meantime? Email{" "}
-          <a href="mailto:hello@proculink.eu" style={{ color: "#1E6D29", textDecoration: "underline" }}>hello@proculink.eu</a>.
+          <a href="mailto:hello@proculink.eu" className="text-brand-blue-deep underline">hello@proculink.eu</a>.
         </p>
-      </div>
+      </Card>
     );
   }
 
   return (
     // /book-demo is framed as a 20-minute call about one of the visitor's documents,
     // not a generic demo — the form's own labels say the same thing as the page around it.
-    <form onSubmit={onSubmit} style={S.wrap} aria-label="Request a 20-minute call">
-      <div style={S.row}>
-        <label htmlFor="demo-name" style={S.label}>Name <span style={{ color: "#8A2A2A" }}>*</span></label>
-        <input
-          id="demo-name"
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Your name"
-          style={S.input}
-          required
-          maxLength={200}
-          autoComplete="name"
-        />
-      </div>
+    <Card>
+      <form onSubmit={onSubmit} aria-label="Request a 20-minute call" className="flex flex-col gap-5">
+        <h2 className="font-display text-[26px] font-semibold leading-[1.2] tracking-[-0.015em]">Request a call</h2>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(min(200px,100%),1fr))] gap-x-4 gap-y-5">
+          <Field id="demo-name" label="Name">
+            <input
+              id="demo-name"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className={FORM.field}
+              required
+              maxLength={200}
+              autoComplete="name"
+            />
+          </Field>
+          <Field id="demo-email" label="Work email" hint="We use this only to reply and schedule the call.">
+            <input
+              id="demo-email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className={FORM.field}
+              required
+              maxLength={320}
+              autoComplete="email"
+              aria-describedby="demo-email-hint"
+            />
+          </Field>
+        </div>
 
-      <div style={S.row}>
-        <label htmlFor="demo-email" style={S.label}>Work email <span style={{ color: "#8A2A2A" }}>*</span></label>
-        <input
-          id="demo-email"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="you@company.com"
-          style={S.input}
-          required
-          maxLength={320}
-          autoComplete="email"
-        />
-        <p style={{ ...S.hint, margin: 0 }}>We use this only to reply and schedule the call.</p>
-      </div>
+        <Field id="demo-company" label="Company">
+          <input
+            id="demo-company"
+            type="text"
+            value={company}
+            onChange={(e) => setCompany(e.target.value)}
+            className={FORM.field}
+            required
+            maxLength={200}
+            autoComplete="organization"
+          />
+        </Field>
 
-      <div style={S.row}>
-        <label htmlFor="demo-company" style={S.label}>Company <span style={{ color: "#8A2A2A" }}>*</span></label>
-        <input
-          id="demo-company"
-          type="text"
-          value={company}
-          onChange={(e) => setCompany(e.target.value)}
-          placeholder="Company name"
-          style={S.input}
-          required
-          maxLength={200}
-          autoComplete="organization"
-        />
-      </div>
-
-      <div style={S.row}>
-        <label htmlFor="demo-formats" style={S.label}>What format are your documents in?</label>
-        <input
+        <Field
           id="demo-formats"
-          type="text"
-          value={formats}
-          onChange={(e) => setFormats(e.target.value)}
-          placeholder="e.g. PDFs by email, CSV exports, Excel files — whatever you have today"
-          style={S.input}
-          maxLength={500}
-        />
-      </div>
-
-      <div style={S.row}>
-        <label htmlFor="demo-times" style={S.label}>Preferred times</label>
-        <input
-          id="demo-times"
-          type="text"
-          value={times}
-          onChange={(e) => setTimes(e.target.value)}
-          placeholder="e.g. weekday mornings, CET"
-          style={S.input}
-          maxLength={300}
-        />
-      </div>
-
-      <div style={S.row}>
-        <label htmlFor="demo-message" style={S.label}>Anything else? <span style={S.hint}>(optional)</span></label>
-        <textarea
-          id="demo-message"
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          placeholder="The document or workflow you'd like to look at, questions you want answered…"
-          style={S.textarea}
-          maxLength={4000}
-        />
-      </div>
-
-      <div style={S.actions}>
-        <p style={{ fontSize: 12.5, color: "var(--ink-faint)", margin: 0 }}>
-          Prefer email? <a href="mailto:hello@proculink.eu?subject=ProcuLink%20call" style={{ color: "#1E6D29", textDecoration: "underline" }}>hello@proculink.eu</a>
-        </p>
-        <button
-          type="submit"
-          disabled={!canSubmit}
-          style={canSubmit ? S.submit : S.submitDisabled}
+          label="What format are your documents in?"
+          optional
+          hint="For example: PDF invoices, Excel price lists, scans."
         >
-          {state.status === "submitting" ? "Sending…" : "Request a call"}
-        </button>
-      </div>
+          <input
+            id="demo-formats"
+            type="text"
+            value={formats}
+            onChange={(e) => setFormats(e.target.value)}
+            className={FORM.field}
+            maxLength={500}
+            aria-describedby="demo-formats-hint"
+          />
+        </Field>
 
-      {state.status === "error" && (
-        <div role="alert" style={{ ...S.notice, ...S.error }}>{state.message}</div>
-      )}
-    </form>
+        <Field id="demo-times" label="Preferred times" optional hint="For example: Tuesday or Thursday afternoon, EET.">
+          <input
+            id="demo-times"
+            type="text"
+            value={times}
+            onChange={(e) => setTimes(e.target.value)}
+            className={FORM.field}
+            maxLength={300}
+            aria-describedby="demo-times-hint"
+          />
+        </Field>
+
+        <Field id="demo-message" label="Anything else?" optional>
+          <textarea
+            id="demo-message"
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            className={`${FORM.area} !min-h-[116px]`}
+            maxLength={4000}
+          />
+        </Field>
+
+        <div className="flex flex-col gap-3 pt-1">
+          <button type="submit" disabled={!canSubmit} className={`${INK_CTA} w-full`}>
+            {state.status === "submitting" ? "Sending…" : "Request a call"}
+          </button>
+          <p className="text-center text-[15px] text-ink-muted">We reply within 1 business day.</p>
+          {state.status === "error" && <p role="alert" className={FORM.bad}>{state.message}</p>}
+        </div>
+      </form>
+    </Card>
   );
 }

@@ -6,6 +6,7 @@ import { apiClient } from "@/lib/api-client";
 import { friendlySubmitError } from "@/lib/friendly-submit-error";
 import { captureException } from "@/lib/sentry-context";
 import { PROBLEM_COPY, isProblemStatus } from "@/components/bridge/problem/problemCopy";
+import { INK_CTA } from "@/components/marketing/LegalPage";
 
 type Category = "general" | "bug" | "billing" | "security";
 
@@ -37,48 +38,41 @@ export function supportSubjectFor(
 
 const CATEGORIES: { value: Category; label: string }[] = [
   { value: "general",  label: "General question" },
-  { value: "bug",      label: "Bug report" },
+  { value: "bug",      label: "Something isn't working" },
   { value: "billing",  label: "Billing" },
   { value: "security", label: "Security" },
 ];
 
-const S = {
-  wrap:     { background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 12, padding: "22px 22px 24px", marginTop: 32 },
-  legend:   { fontFamily: "'Bricolage Grotesque', Inter, sans-serif", fontSize: 18, fontWeight: 600, color: "#0B1A2F", margin: "0 0 4px" },
-  lead:     { fontSize: 13.5, color: "#56627A", margin: "0 0 18px", lineHeight: 1.5 },
-  row:      { display: "grid", gap: 6, marginBottom: 14 },
-  label:    { fontSize: 12.5, fontWeight: 600, color: "#0B1A2F", letterSpacing: "0.02em" },
-  input:    { width: "100%", height: 38, padding: "0 12px", border: "1px solid #C6CDDA", borderRadius: 6, fontSize: 13.5, color: "#0B1A2F", background: "#FFFFFF", boxSizing: "border-box" as const },
-  select:   { width: "100%", height: 38, padding: "0 12px", border: "1px solid #C6CDDA", borderRadius: 6, fontSize: 13.5, color: "#0B1A2F", background: "#FFFFFF", boxSizing: "border-box" as const },
-  textarea: { width: "100%", minHeight: 140, padding: "10px 12px", border: "1px solid #C6CDDA", borderRadius: 6, fontSize: 13.5, color: "#0B1A2F", background: "#FFFFFF", boxSizing: "border-box" as const, lineHeight: 1.5, fontFamily: "Inter, sans-serif", resize: "vertical" as const },
-  hint:     { fontSize: 12, color: "var(--ink-faint)", marginTop: 4 },
-  actions:  { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginTop: 18, flexWrap: "wrap" as const },
-  submit:   { background: "#0B1A2F", color: "#FFFFFF", border: "none", borderRadius: 6, padding: "10px 18px", fontSize: 13.5, fontWeight: 600, cursor: "pointer" },
-  submitDisabled: { background: "var(--ink-faint)", color: "#FFFFFF", border: "none", borderRadius: 6, padding: "10px 18px", fontSize: 13.5, fontWeight: 600, cursor: "not-allowed" },
-  notice:   { padding: "10px 14px", borderRadius: 6, fontSize: 13, lineHeight: 1.5, marginTop: 14, border: "1px solid transparent" },
-  success:  { background: "#EAF3EA", borderColor: "#9FC8A4", color: "#22622A" },
-  error:    { background: "#FBECEC", borderColor: "#E0A3A3", color: "#8A2A2A" },
-};
+/** The site's form grammar, shared with BookDemoForm: 48px fields, 16px text, 15.5px labels. */
+export const FORM = {
+  row: "flex min-w-0 flex-col gap-2",
+  label: "text-[15.5px] font-semibold text-ink",
+  opt: "font-normal text-ink-muted",
+  field:
+    "h-12 w-full rounded-[10px] border border-border-strong bg-surface px-3.5 text-[16px] text-ink focus:border-brand-blue focus:outline-none focus:ring-2 focus:ring-brand-blue-soft",
+  area: "min-h-[150px] w-full resize-y rounded-[10px] border border-border-strong bg-surface px-3.5 py-3 text-[16px] leading-[1.5] text-ink focus:border-brand-blue focus:outline-none focus:ring-2 focus:ring-brand-blue-soft",
+  hint: "text-[14.5px] text-ink-muted",
+  ok: "text-[15.5px] font-semibold text-brand-green-deep",
+  bad: "text-[15.5px] font-semibold text-danger",
+} as const;
 
-export function ContactForm() {
+/** The form, opened on `initialSubject`. Paints the same frame before and after the address is read. */
+export function ContactForm({ initialSubject }: { initialSubject: string }) {
   const pathname = usePathname() ?? "(unknown)";
-  const params   = useSearchParams();
   const [category, setCategory] = useState<Category>("general");
-  // Seeded from the URL, then owned by the field. This is a lazy useState initializer
-  // on purpose and is NOT the mirrored-filter mistake: a prefilled input the user can
+  // Seeded from the URL, then owned by the field: a prefilled input the user can
   // edit needs local state by definition, and re-deriving it per render would undo
   // their typing. The URL is the opening value here, not the source of truth.
-  const [subject, setSubject]   = useState(() =>
-    supportSubjectFor(params.get("order"), params.get("problem")),
-  );
+  const [subject, setSubject]   = useState(initialSubject);
   const [message, setMessage]   = useState("");
   const [email, setEmail]       = useState("");
   const [state, setState]       = useState<{ status: "idle" | "submitting" | "success" | "error"; message?: string }>({ status: "idle" });
 
-  const canSubmit = state.status !== "submitting" && message.trim().length > 0;
+  const canSubmit = state.status !== "submitting" && message.trim() !== "" && email.trim() !== "";
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    // A second press while one request is out sends nothing.
     if (!canSubmit) return;
     setState({ status: "submitting" });
     try {
@@ -113,20 +107,16 @@ export function ContactForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} style={S.wrap} aria-label="Contact support">
-      <p style={S.legend}>Or write to us directly</p>
-      <p style={S.lead}>
-        Fill in the form below and we&apos;ll reply within one business day. Anonymous submissions
-        are fine — just include an email so we can write back.
-      </p>
+    <form onSubmit={onSubmit} aria-label="Contact support" className="flex flex-col gap-[22px]">
+      <h2 className="font-display text-[30px] font-semibold leading-[1.1] tracking-[-0.02em]">Write to us</h2>
 
-      <div style={S.row}>
-        <label htmlFor="contact-category" style={S.label}>Category</label>
+      <div className={FORM.row}>
+        <label htmlFor="contact-category" className={FORM.label}>What is it about?</label>
         <select
           id="contact-category"
           value={category}
           onChange={(e) => setCategory(e.target.value as Category)}
-          style={S.select}
+          className={FORM.field}
         >
           {CATEGORIES.map((c) => (
             <option key={c.value} value={c.value}>{c.label}</option>
@@ -134,65 +124,62 @@ export function ContactForm() {
         </select>
       </div>
 
-      <div style={S.row}>
-        <label htmlFor="contact-subject" style={S.label}>Subject</label>
+      <div className={FORM.row}>
+        <label htmlFor="contact-subject" className={FORM.label}>
+          Subject <span className={FORM.opt}>(optional)</span>
+        </label>
         <input
           id="contact-subject"
           type="text"
           value={subject}
           onChange={(e) => setSubject(e.target.value)}
-          placeholder="One-line summary"
-          style={S.input}
+          className={FORM.field}
           maxLength={200}
         />
       </div>
 
-      <div style={S.row}>
-        <label htmlFor="contact-message" style={S.label}>Message <span style={{ color: "#8A2A2A" }}>*</span></label>
+      <div className={FORM.row}>
+        <label htmlFor="contact-message" className={FORM.label}>Message</label>
         <textarea
           id="contact-message"
           value={message}
           onChange={(e) => setMessage(e.target.value)}
-          placeholder="What can we help with? Steps to reproduce, screenshot links, anything that helps us respond faster."
-          style={S.textarea}
+          className={FORM.area}
           required
           maxLength={4000}
+          aria-describedby="contact-message-hint"
         />
+        <p id="contact-message-hint" className={FORM.hint}>The more detail you give, the faster we can help.</p>
       </div>
 
-      <div style={S.row}>
-        <label htmlFor="contact-email" style={S.label}>Email <span style={S.hint}>(required if you&apos;re not signed in)</span></label>
+      <div className={FORM.row}>
+        <label htmlFor="contact-email" className={FORM.label}>Your email</label>
         <input
           id="contact-email"
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="you@company.com"
-          style={S.input}
+          className={FORM.field}
+          required
           autoComplete="email"
+          aria-describedby="contact-email-hint"
         />
-        <p style={S.hint}>We use this only to reply to your request.</p>
+        <p id="contact-email-hint" className={FORM.hint}>We use this only to reply to your request.</p>
       </div>
 
-      <div style={S.actions}>
-        <p style={{ fontSize: 12.5, color: "var(--ink-faint)", margin: 0 }}>
-          Prefer email? <a href="mailto:support@proculink.eu" style={{ color: "#1E6D29", textDecoration: "underline" }}>support@proculink.eu</a>
-        </p>
-        <button
-          type="submit"
-          disabled={!canSubmit}
-          style={canSubmit ? S.submit : S.submitDisabled}
-        >
+      <div className="flex flex-col items-stretch gap-3 sm:items-start">
+        <button type="submit" disabled={!canSubmit} className={INK_CTA}>
           {state.status === "submitting" ? "Sending…" : "Send message"}
         </button>
+        {state.status === "success" && <p role="status" className={FORM.ok}>{state.message}</p>}
+        {state.status === "error" && <p role="alert" className={FORM.bad}>{state.message}</p>}
       </div>
-
-      {state.status === "success" && (
-        <div role="status" style={{ ...S.notice, ...S.success }}>{state.message}</div>
-      )}
-      {state.status === "error" && (
-        <div role="alert" style={{ ...S.notice, ...S.error }}>{state.message}</div>
-      )}
     </form>
   );
+}
+
+/** The form opened on what a "Get help with this order" link carries in its address. */
+export function ContactFormFromAddress() {
+  const params = useSearchParams();
+  return <ContactForm initialSubject={supportSubjectFor(params.get("order"), params.get("problem"))} />;
 }
