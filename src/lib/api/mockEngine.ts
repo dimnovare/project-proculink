@@ -164,6 +164,14 @@ const missing = (what: string, id: string): never => {
 };
 const pick = <X extends { id: string }>(list: X[], id: string, what: string): X => list.find((x) => x.id === id) ?? missing(what, id);
 const echo = <X extends object>(base: X, body: Body): X => ({ ...base, ...body });
+const DOCUMENT_LIST_KEYS = ["flowId", "status", "take", "page", "pageSize", "sentFrom", "sentTo"];
+/** An absent integer parameter is null; one the server could not bind is its 400. */
+const intParam = (q: URLSearchParams, key: string): number | null => {
+  const v = q.get(key);
+  if (v === null) return null;
+  if (!/^-?\d+$/.test(v)) throw new ApiHttpError(`mock engine: ${key} is not a number`, 400, null);
+  return Number(v);
+};
 const S = "([^/]+)";
 const re = (strings: TemplateStringsArray, ...rest: unknown[]) => new RegExp("^" + String.raw(strings, ...rest) + "$");
 
@@ -178,16 +186,23 @@ const ROUTES: [method: string, pattern: RegExp, run: Handler][] = [
   ["PUT", re`/flows/${S}/fields`, (m, _q, b) => echo(pick(FLOWS, m[1], "flow"), { fields: b })],
   ["POST", re`/flows/${S}/documents`, (m) => ({ ...DOCS[0], flowId: pick(FLOWS, m[1], "flow").id, flowName: pick(FLOWS, m[1], "flow").name })],
   ["GET", re`/documents`, (_m, q) => {
-    // Like DocumentsController.List: a comma list of statuses; sentFrom keeps sent rows landed at or after it.
-    const statuses = q.get("status")?.split(",").map((s) => s.trim()).filter(Boolean);
-    const from = q.get("sentFrom");
-    const rows = ROWS.filter((d) => (!q.get("flowId") || d.flowId === q.get("flowId")) && (!statuses || statuses.includes(d.status))
-      && (!from || (!!d.sentAt && Date.parse(d.sentAt) >= Date.parse(from))));
-    if (!q.has("page")) return rows.map(summaryOf).slice(0, Number(q.get("take")) || DOCS.length);
-    const pageSize = Math.min(Math.max(Number(q.get("pageSize")) || 50, 1), 200);
-    const page = Math.max(Number(q.get("page")) || 1, 1);
-    const sorted = [...rows].sort((a, b) => b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id));
-    return { items: sorted.slice((page - 1) * pageSize, page * pageSize), totalCount: sorted.length, page, pageSize, sampleCount: 0 };
+    // Like DocumentsController.List: newest first; a missing or empty status list is no filter; sent rows
+    // landed in [sentFrom, sentTo). A key it does not implement fails loudly rather than being ignored.
+    const unknown = [...q.keys()].find((k) => !DOCUMENT_LIST_KEYS.includes(k));
+    if (unknown) throw new Error(`mock engine: GET /documents does not implement "${unknown}" yet`);
+    const statuses = q.get("status")?.split(",").map((s) => s.trim()).filter(Boolean) ?? [];
+    const [from, to] = [q.get("sentFrom"), q.get("sentTo")].map((t) => (t === null ? null : Date.parse(t)));
+    const landed = (at: string | null) => (from === null && to === null)
+      || (at !== null && (from === null || Date.parse(at) >= from) && (to === null || Date.parse(at) < to));
+    const rows = ROWS.filter((d) => (!q.get("flowId") || d.flowId === q.get("flowId"))
+      && (!statuses.length || statuses.includes(d.status)) && landed(d.sentAt))
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id));
+    const clamp = (key: string) => Math.min(Math.max(intParam(q, key) ?? 50, 1), 200);
+    const page = intParam(q, "page");
+    if (page === null) return rows.slice(0, clamp("take")).map(summaryOf);
+    if (page < 1) throw new ApiHttpError(`mock engine: page ${page}`, 400, null);
+    const pageSize = clamp("pageSize");
+    return { items: rows.slice((page - 1) * pageSize, page * pageSize), totalCount: rows.length, page, pageSize, sampleCount: 0 };
   }],
   ["GET", re`/documents/${S}`, (m) => detail(pick(DOCS, m[1], "document"))],
   ["PATCH", re`/documents/${S}/values`, (m) => detail(pick(DOCS, m[1], "document"))],

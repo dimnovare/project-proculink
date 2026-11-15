@@ -186,10 +186,12 @@ export function uploadDocument(flowId: string, file: File): Promise<DocumentSumm
   return apiFetch<DocumentSummary>(`/flows/${seg(flowId)}/documents`, { method: "POST", body: form }, UPLOAD_TIMEOUT_MS);
 }
 
-/** An undefined parameter is not sent; an array is sent comma-joined. */
+/** An undefined parameter or an empty array is not sent; an array is sent comma-joined. */
 function toQuery(params: object): URLSearchParams {
   const query = new URLSearchParams();
-  for (const [key, value] of Object.entries(params)) if (value !== undefined) query.set(key, String(value));
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && !(Array.isArray(value) && value.length === 0)) query.set(key, String(value));
+  }
   return query;
 }
 

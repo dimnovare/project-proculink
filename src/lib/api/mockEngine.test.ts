@@ -26,6 +26,8 @@ describe("mock engine", () => {
     expect(stopped.items[0].stop).toEqual({ destinationId: "dest-1", destination: "Accounting inbox", error: "The mailbox refused the message." });
     const bare = await mockEngineFetch<DocumentSummary[]>("/documents");
     expect(bare.some((d) => "checks" in d || "stop" in d)).toBe(false);
+    expect((await mockEngineFetch<DocumentPage>("/documents?status=&page=1&pageSize=20")).totalCount).toBe(7);
+    await expect(mockEngineFetch("/documents?q=x")).rejects.toThrow('does not implement "q"');
   });
 
   it("rejects a path with no fixture instead of returning an empty success", async () => {
