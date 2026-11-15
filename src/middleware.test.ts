@@ -635,3 +635,14 @@ describe("the module wires that decision to the guard it replaces", () => {
     expect((await guarded("/pricing")).headers.get("location")).toBeNull();
   });
 });
+
+describe("an address that does not exist", () => {
+  it("under a protected prefix still sends a signed-out visitor to sign in", async () => {
+    for (const path of ["/documents/nothing-here", "/flows/f-1/extra/deep", "/settings/unknown", "/admin/x"]) {
+      const res = await run(documentRequest(path), SIGNED_OUT);
+      expect(res?.status, path).toBe(307);
+      const to = new URL(res!.headers.get("location")!);
+      expect([to.pathname, to.searchParams.get("redirect_url")]).toEqual(["/sign-in", path]);
+    }
+  });
+});

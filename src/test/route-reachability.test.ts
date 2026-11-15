@@ -124,6 +124,7 @@ import { buildVisibleNav, PINNED_ACTION_HREF } from "@/components/bridge/BridgeS
 import { HELP_ARTICLES } from "@/lib/help-articles";
 import { GUIDES, linkedGuides } from "@/lib/guides";
 import { RETIRED_ROUTES } from "@/lib/retired-routes";
+import { servesNothing } from "./appRoutes";
 
 // ─── Allowlist ────────────────────────────────────────────────────────────────
 //
@@ -360,6 +361,7 @@ export interface EnumeratedRoute {
 export function enumerateRoutes(): EnumeratedRoute[] {
   return walk(APP_DIR)
     .filter((f) => PAGE_FILE_RE.test(path.basename(f)))
+    .filter((f) => !servesNothing(f))
     .map((file) => ({ file, segments: path.relative(APP_DIR, file).split(path.sep) }))
     .filter(({ segments }) => !segments.some(isInterceptingSegment))
     .map(({ file, segments }) => ({

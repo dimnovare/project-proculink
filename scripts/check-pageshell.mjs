@@ -68,11 +68,14 @@ function resolveImport(spec, fromDir) {
 /**
  * A page conforms when it references PageShell itself, or — thin-wrapper
  * pattern — when one of the component files it imports directly references
- * PageShell (one level deep only; no transitive walk).
+ * PageShell (one level deep only; no transitive walk), or when its default
+ * export only calls notFound().
  */
 function usesPageShell(filePath) {
   const content = readFileSync(filePath, "utf8");
   if (content.includes("PageShell")) return true;
+  // A not-found catch-all renders nothing of its own; the page it throws to uses PageShell.
+  if (/export default function \w*\(\)\s*\{\s*notFound\(\);?\s*\}/.test(content)) return true;
   const fromDir = join(filePath, "..");
   const importSpecs = [...content.matchAll(/from\s+["']([^"']+)["']/g)].map((m) => m[1]);
   for (const spec of importSpecs) {

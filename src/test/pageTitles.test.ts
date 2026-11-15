@@ -33,6 +33,7 @@ import { readdirSync, existsSync, readFileSync } from "fs";
 import { join, sep } from "path";
 import { describe, it, expect } from "vitest";
 import { appPageTitle, APP_PAGE_TITLES, TITLE_SUFFIX } from "@/lib/pageTitles";
+import { servesNothing } from "./appRoutes";
 
 const ROOT = process.cwd();
 const APP_DIR = join(ROOT, "src", "app", "(app)");
@@ -57,7 +58,7 @@ interface AppRoute {
  */
 function listAppGroupRoutes(dir: string = APP_DIR, route = ""): AppRoute[] {
   const found: AppRoute[] = [];
-  if (PAGE_FILES.some((f) => existsSync(join(dir, f)))) {
+  if (PAGE_FILES.some((f) => existsSync(join(dir, f)) && !servesNothing(join(dir, f)))) {
     found.push({ route: route === "" ? "/" : route, dir });
   }
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
