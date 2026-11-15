@@ -102,6 +102,8 @@ test.describe("documents", () => {
     // Polled: the first read can land before the style pass that drops the tab bar's height token.
     await expect.poll(async () => { const b = await box(bar); return Math.abs(b.y + b.height - 844); }).toBeLessThanOrEqual(1);
     expect(Math.abs((await spacer()) - (await box(bar)).height)).toBeLessThanOrEqual(1);
+    // The alert's way on is a real tap target on a phone, not a 15px line of text.
+    expect((await box(page.getByRole("link", { name: "Fix the destination" }))).height).toBeGreaterThanOrEqual(44);
     // A phone row opens its document.
     await page.getByTestId("documents-phone-list").getByRole("link").first().click();
     await expect(page).toHaveURL(/\/flows\/[^/]+\/documents\/[^/]+$/);

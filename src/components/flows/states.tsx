@@ -65,7 +65,7 @@ const EMPTY: Record<Exclude<DocumentTab, "needs-you">, { title: string; line: st
 export const EmptyFilter = ({ tab }: { tab: Exclude<DocumentTab, "needs-you"> }) => (
   <Empty
     {...EMPTY[tab]}
-    action={tab === "all" ? upload : <Link href={documentsAddress("all")} className="text-[14px] font-semibold">Show all documents</Link>}
+    action={tab === "all" ? upload : <Link href={documentsAddress("all")} className="inline-flex items-center text-[14px] font-semibold">Show all documents</Link>}
   />
 );
 

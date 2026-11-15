@@ -39,12 +39,12 @@ export function StoppedAlert({ page }: { page: DocumentPage | undefined }) {
           : " The documents are safe. Fix the destination, then send them again."}
       </>
     );
-    link = <Link href={destinationFixHref(rows[0])} className="font-semibold underline">Fix the destination</Link>;
+    link = <Link href={destinationFixHref(rows[0])} className="inline-flex items-center font-semibold underline">Fix the destination</Link>;
   } else {
     detail = one
       ? "The document is safe. Open it to see what happened, then send it again."
       : "The documents are safe. Open them to see what happened, then send them again.";
-    link = <Link href={documentsAddress("failed")} className="font-semibold underline">Show what couldn&apos;t be sent</Link>;
+    link = <Link href={documentsAddress("failed")} className="inline-flex items-center font-semibold underline">Show what couldn&apos;t be sent</Link>;
   }
   return (
     <StatusNotice tone="error" action={link}>
