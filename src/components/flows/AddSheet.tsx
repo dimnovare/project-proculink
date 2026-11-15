@@ -7,13 +7,11 @@ import { Camera, ChevronRight, FileText, Image as ImageIcon, X } from "lucide-re
 import { flowsQuery } from "@/hooks/useDocumentEngine";
 import { useDialogA11y } from "@/hooks/useDialogA11y";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
-import { acceptFor } from "@/lib/fileKinds";
+import { acceptFor, PHOTO_ACCEPT } from "@/lib/fileKinds";
 import { chooseFlow, readLastFlow } from "@/lib/lastFlow";
 import { FlowChoice } from "./FlowChoice";
 import { PhotoCheck, useCamera } from "./PhotoCheck";
 import { useUploadQueue } from "./UploadQueue";
-
-const PHOTOS = "image/jpeg,image/png";
 
 /** The phone's "Add a document" sheet. Mounted only while open. A pick goes into the upload queue, then the sheet closes and /upload opens (R9). */
 export function AddSheet({ onClose }: { onClose(): void }) {
@@ -51,12 +49,12 @@ export function AddSheet({ onClose }: { onClose(): void }) {
   return (
     <>
       <input ref={fileInput} type="file" multiple accept={acceptFor(flow)} className="hidden" data-testid="sheet-file-input" onChange={fromInput} />
-      <input ref={photosInput} type="file" multiple accept={PHOTOS} className="hidden" data-testid="sheet-photos-input" onChange={fromInput} />
+      <input ref={photosInput} type="file" multiple accept={PHOTO_ACCEPT} className="hidden" data-testid="sheet-photos-input" onChange={fromInput} />
       {camera.input}
       {photo ? (
         <PhotoCheck
           file={photo} flows={list} flowId={flow.id} lastUsedId={lastId} onFlow={setFlowId}
-          onBack={() => setPhoto(null)} onRetake={camera.open} onUse={() => pick([photo])}
+          onBack={() => setPhoto(null)} onRetake={() => { setPhoto(null); camera.open(); }} onUse={() => pick([photo])}
         />
       ) : (
         <>
@@ -91,7 +89,7 @@ export function AddSheet({ onClose }: { onClose(): void }) {
             </button>
             {choosing && (
               <div className="mt-3 max-h-[40vh] overflow-auto">
-                <FlowChoice compact flows={list} value={flow.id} lastUsedId={lastId} onChange={(id) => { setFlowId(id); setChoosing(false); }} />
+                <FlowChoice compact flows={list} value={flow.id} lastUsedId={lastId} onChange={setFlowId} onDone={() => setChoosing(false)} />
               </div>
             )}
           </section>

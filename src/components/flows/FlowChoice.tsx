@@ -1,6 +1,6 @@
 "use client";
 
-import { useId } from "react";
+import { useId, useRef } from "react";
 import { Pill } from "@/components/bridge/DSPrimitives";
 import type { Flow } from "@/lib/api/documents";
 
@@ -11,19 +11,26 @@ export function deliveryLine(flow: Pick<Flow, "automation">): string {
     : "Review before delivery: you check each document before it is sent.";
 }
 
-/** The flows as radio rows under "Which flow is this for?". `compact` drops the delivery line (the phone sheet and the photo step). */
-export function FlowChoice({ flows, value, lastUsedId, onChange, compact = false }: {
-  flows: readonly Flow[]; value: string; lastUsedId: string | null; onChange(id: string): void; compact?: boolean;
+/** The flows as radio rows under "Which flow is this for?". `compact` drops the delivery line (the phone sheet and the photo step).
+ *  `onDone` runs after a choice by pointer, Space or Enter, never after an arrow key, so a keyboard can move through the rows. */
+export function FlowChoice({ flows, value, lastUsedId, onChange, onDone, compact = false }: {
+  flows: readonly Flow[]; value: string; lastUsedId: string | null; onChange(id: string): void; onDone?(): void; compact?: boolean;
 }) {
   const name = useId();
+  // Radios change on arrow keys; the change lands between keydown and keyup.
+  const arrow = useRef(false);
   return (
-    <fieldset className="m-0 grid min-w-0 gap-2 border-0 p-0">
+    <fieldset
+      className="m-0 grid min-w-0 gap-2 border-0 p-0"
+      onKeyDown={(e) => { arrow.current = e.key.startsWith("Arrow"); if (e.key === "Enter" && onDone) { e.preventDefault(); onDone(); } }}
+      onKeyUp={() => { arrow.current = false; }}
+    >
       <legend className="mb-3 p-0 text-[16px] font-semibold text-ink">Which flow is this for?</legend>
       {flows.map((flow) => {
         const chosen = flow.id === value;
         return (
           <label key={flow.id} className={`flex cursor-pointer items-start gap-3 rounded-[10px] ${chosen ? "border-2 border-brand-blue bg-brand-blue-soft p-[13px]" : "border border-border-strong bg-surface p-3.5"}`}>
-            <input type="radio" name={name} checked={chosen} onChange={() => onChange(flow.id)} className="mt-0.5 h-[18px] w-[18px] shrink-0 accent-brand-blue" />
+            <input type="radio" name={name} checked={chosen} onChange={() => { onChange(flow.id); if (!arrow.current) onDone?.(); }} className="mt-0.5 h-[18px] w-[18px] shrink-0 accent-brand-blue" />
             <span className="grid min-w-0 gap-0.5">
               <span className="flex min-w-0 flex-wrap items-center gap-2">
                 <span className="min-w-0 text-[14.5px] font-semibold text-ink">{flow.name}</span>

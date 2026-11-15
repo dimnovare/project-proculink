@@ -5,6 +5,7 @@ import { ChevronLeft } from "lucide-react";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { useDialogA11y } from "@/hooks/useDialogA11y";
 import type { Flow } from "@/lib/api/documents";
+import { PHOTO_ACCEPT } from "@/lib/fileKinds";
 import { FlowChoice } from "./FlowChoice";
 
 const two = (n: number) => String(n).padStart(2, "0");
@@ -16,17 +17,17 @@ export function photoName(at: Date, type: string): string {
   return `photo-${day}-${time}.${type === "image/png" ? "png" : "jpg"}`;
 }
 
-/** A hidden camera input (accept "image/jpeg,image/png", capture "environment"). Call open() inside a press.
- *  The photo is renamed with photoName before onPhoto. */
+/** A hidden camera input (accept PHOTO_ACCEPT, capture "environment"). Call open() inside a press.
+ *  A JPEG or PNG is renamed with photoName before onPhoto; any other type keeps its own name, so the queue refuses it in words. */
 export function useCamera(onPhoto: (file: File) => void, testId: string) {
   const ref = useRef<HTMLInputElement>(null);
   const input = (
     <input
-      ref={ref} type="file" accept="image/jpeg,image/png" capture="environment" className="hidden" data-testid={testId}
+      ref={ref} type="file" accept={PHOTO_ACCEPT} capture="environment" className="hidden" data-testid={testId}
       onChange={(e) => {
         const shot = e.target.files?.[0];
         e.target.value = "";
-        if (shot) onPhoto(new File([shot], photoName(new Date(), shot.type), { type: shot.type }));
+        if (shot) onPhoto(PHOTO_ACCEPT.split(",").includes(shot.type) ? new File([shot], photoName(new Date(), shot.type), { type: shot.type }) : shot);
       }}
     />
   );
@@ -72,7 +73,7 @@ export function PhotoCheck({ file, flows, flowId, lastUsedId, onFlow, onBack, on
       </div>
       {changing && (
         <div className="max-h-[40vh] overflow-auto bg-surface px-4 pb-3">
-          <FlowChoice compact flows={flows} value={flowId} lastUsedId={lastUsedId} onChange={(id) => { onFlow(id); setChanging(false); }} />
+          <FlowChoice compact flows={flows} value={flowId} lastUsedId={lastUsedId} onChange={onFlow} onDone={() => setChanging(false)} />
         </div>
       )}
       <div className="flex gap-2.5 border-t border-border bg-surface px-4 pt-2.5" style={{ paddingBottom: "max(26px, env(safe-area-inset-bottom))" }}>

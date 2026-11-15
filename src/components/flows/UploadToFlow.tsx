@@ -13,7 +13,7 @@ import { flowsQuery } from "@/hooks/useDocumentEngine";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { getBillingStatus } from "@/lib/api-client";
 import { ApiHttpError } from "@/lib/api/core";
-import { listDocumentPage, type DocumentPage, type DocumentSummary, type Flow } from "@/lib/api/documents";
+import { listDocumentPage, type DocumentRow, type DocumentSummary, type Flow } from "@/lib/api/documents";
 import { COPY, documentRefusalMessage, refusalToken } from "@/lib/documentRefusals";
 import { documentStatus } from "@/lib/documentStatusManifest";
 import { acceptFor, MAX_UPLOAD_BYTES } from "@/lib/fileKinds";
@@ -37,9 +37,11 @@ const kindsLine = (f: Flow) =>
   `Each file becomes its own document. ${f.formatsOn ? "PDF, Word, Excel, CSV, text, XML or JSON" : "PDF, Excel or CSV"}${f.scansOn ? ", or photos of paper documents" : ""}. Up to ${MAX_UPLOAD_BYTES / 1024 / 1024} MB each.`;
 
 const working = (d: { status: string; statusReason: string | null }) => documentStatus(d.status, d.statusReason).tone === "working";
-/** A done item's document as last seen: its row on the page, else what its upload answered. */
-const seen = (i: UploadItem, page: DocumentPage | undefined): DocumentSummary | undefined =>
-  i.document && (page?.items.find((r) => r.id === i.document!.id) ?? i.document);
+/** The newest page, and every row seen on a page this visit (a file that falls off the page keeps its last known status). */
+type Uploaded = { items: DocumentRow[]; seen: Record<string, DocumentRow> };
+/** A done item's document as last seen: its row on a page, else what its upload answered. */
+const seen = (i: UploadItem, data: Uploaded | undefined): DocumentSummary | undefined =>
+  i.document && (data?.seen[i.document.id] ?? i.document);
 
 /** The one notice when uploads are refused by the plan or processing is paused: from the newest refusal that stops the queue, else the billing status. */
 function pausedBy(items: readonly UploadItem[], billing: BillingStatus | undefined): { code: string; body: unknown } | null {
@@ -134,14 +136,19 @@ export function UploadToFlow() {
   const uploaded = useQuery({
     queryKey: JUST_UPLOADED,
     queryFn: async () => {
-      const before = qc.getQueryData<DocumentPage>(JUST_UPLOADED);
-      const page = await listDocumentPage({ page: 1, pageSize: UPLOADED_LOOKBACK });
+      const before = qc.getQueryData<Uploaded>(JUST_UPLOADED);
+      const { items } = await listDocumentPage({ page: 1, pageSize: UPLOADED_LOOKBACK });
+      const next: Uploaded = { items, seen: { ...before?.seen, ...Object.fromEntries(items.map((r) => [r.id, r])) } };
       // The counts change when reading ends, not at the upload: refresh them then (R5).
-      if (done.some((i) => working(seen(i, before)!) && !working(seen(i, page)!))) void qc.invalidateQueries({ queryKey: ["documents", "count"] });
-      return page;
+      if (done.some((i) => working(seen(i, before)!) && !working(seen(i, next)!))) void qc.invalidateQueries({ queryKey: ["documents", "count"] });
+      return next;
     },
     enabled: tenant && done.length > 0,
-    refetchInterval: (q) => (done.some((i) => working(seen(i, q.state.data)!)) ? 2000 : false),
+    // Once a page is in, only files found on it keep the polling going: one off the newest page is not asked for again.
+    refetchInterval: (q) => {
+      const page = q.state.data?.items;
+      return done.some((i) => { const d = page ? page.find((r) => r.id === i.document!.id) : i.document; return !!d && working(d); }) ? 2000 : false;
+    },
   });
 
   const list = flows.data ?? [];
@@ -235,7 +242,7 @@ export function UploadToFlow() {
         {photo && (
           <PhotoCheck
             file={photo} flows={list} flowId={flow.id} lastUsedId={lastId} onFlow={setPicked}
-            onBack={() => setPhoto(null)} onRetake={camera.open} onUse={() => { add([photo], flow); setPhoto(null); }}
+            onBack={() => setPhoto(null)} onRetake={() => { setPhoto(null); camera.open(); }} onUse={() => { add([photo], flow); setPhoto(null); }}
           />
         )}
       </div>

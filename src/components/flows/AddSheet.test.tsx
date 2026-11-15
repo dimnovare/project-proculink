@@ -86,6 +86,10 @@ describe("AddSheet", () => {
     check = within(screen.getByRole("dialog", { name: "Check the photo" }));
     fireEvent.click(check.getByRole("button", { name: "Retake" }));
     expect(click).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole("dialog", { name: "Check the photo" })).toBeNull();   // the photo is discarded at once
+    expect(screen.getByRole("dialog", { name: "Add a document" })).toBeInTheDocument();
+    shoot();
+    check = within(screen.getByRole("dialog", { name: "Check the photo" }));
     const use = check.getByRole("button", { name: "Use this photo" });
     fireEvent.click(use);
     fireEvent.click(use);

@@ -9,6 +9,7 @@ import { documentRefusalMessage, refusalToken } from "@/lib/documentRefusals";
 import { acceptFor, fileRefusal } from "@/lib/fileKinds";
 import { rememberFlow } from "@/lib/lastFlow";
 import { LIMIT_CODES } from "@/lib/limitRefusal";
+import type { BillingStatus } from "@/types/procurement";
 
 export type UploadState = "waiting" | "uploading" | "done" | "refused";
 export interface UploadItem {
@@ -45,6 +46,8 @@ export function UploadQueueProvider({ children }: { children: React.ReactNode })
   const live = useRef<readonly UploadItem[]>([]);
   const chain = useRef<Promise<void>>(Promise.resolve());
   const counter = useRef(0);
+  // A refusal about the workspace: new files are refused with it, at no request, while it holds.
+  const stopped = useRef<{ error: unknown; at: number } | null>(null);
 
   const update = (change: (list: readonly UploadItem[]) => readonly UploadItem[]) => setItems((live.current = change(live.current)));
   const patch = (key: string, p: Partial<UploadItem>) => update((list) => list.map((i) => (i.key === key ? { ...i, ...p } : i)));
@@ -56,21 +59,31 @@ export function UploadQueueProvider({ children }: { children: React.ReactNode })
       patch(key, { state: "uploading" });
       try {
         patch(key, { state: "done", document: await upload.mutateAsync({ flowId, file }) });
+        stopped.current = null;
         void qc.invalidateQueries({ queryKey: ["documents"] });
         void qc.invalidateQueries({ queryKey: ["flows"] });
       } catch (error) {
         const stop = STOP_CODES.has(refusalToken(error) ?? "");
+        if (stop) stopped.current = { error, at: Date.now() };
         update((list) => list.map((i) => (i.key === key || (stop && i.state === "waiting") ? { ...i, state: "refused", error } : i)));
       }
     });
   };
 
+  /** The stop refusal still in force: until an upload succeeds, or a billing status fetched after it says processing may go on. */
+  const stopError = () => {
+    const billing = qc.getQueryState<BillingStatus>(["billing-status"]);
+    if (stopped.current && billing?.data?.canProcessOrders && billing.dataUpdatedAt > stopped.current.at) stopped.current = null;
+    return stopped.current?.error;
+  };
+
   const add = (files: readonly File[], flow: UploadFlow) => {
     rememberFlow(flow.id);
     const accept = acceptFor(flow);
+    const stop = stopError();
     const added = files.map((file): UploadItem => {
-      const error = fileRefusal(file, accept);
-      return { key: `upload-${++counter.current}`, file, flowId: flow.id, flowName: flow.name, state: error ? "refused" : "waiting", ...(error && { error }) };
+      const error = fileRefusal(file, accept) ?? stop;
+      return { key: `upload-${++counter.current}`, file, flowId: flow.id, flowName: flow.name, state: error ? "refused" : "waiting", ...(error ? { error } : {}) };
     });
     update((list) => [...added].reverse().concat(list));
     added.filter((i) => i.state === "waiting").forEach(enqueue);

@@ -53,22 +53,28 @@ describe("upload queue", () => {
   it("after a plan refusal the files still waiting are not sent; a passing problem can be tried again, once", async () => {
     uploadDocument
       .mockRejectedValueOnce(new ApiHttpError("slow", 429, { error: "Rate limit exceeded. Please slow down and retry shortly." }))
+      .mockRejectedValueOnce(new ApiHttpError("too large", 413, { error: "file_too_large" }))
+      .mockResolvedValueOnce(summary("d-e", "e.pdf"))
       .mockRejectedValueOnce(new ApiHttpError("ended", 429, { error: "pilot_expired", plan: "pilot", limit: 20, upgradeUrl: "/settings" }));
     const { result } = mount();
     const item = (name: string) => result.current.items.find((i) => i.file.name === name)!;
-    act(() => result.current.add([file("a.pdf")], FLOW));
-    await waitFor(() => expect(item("a.pdf").state).toBe("refused"));
+    act(() => result.current.add([file("a.pdf"), file("d.pdf"), file("e.pdf")], FLOW));
+    await waitFor(() => expect(item("e.pdf").state).toBe("done"));        // a refusal about one file leaves the others going
+    expect(uploadRefusalMessage(item("d.pdf").error)).toBe("This file is too large.");
     expect(uploadRefusalMessage(item("a.pdf").error)).toBe("Too many files at once. Wait a minute, then try this one again.");
     expect(canRetryUpload(item("a.pdf").error)).toBe(true);
     act(() => result.current.add([file("b.pdf"), file("c.pdf")], FLOW));
     await waitFor(() => expect(item("c.pdf").state).toBe("refused"));
-    expect(uploadDocument).toHaveBeenCalledTimes(2);                        // c.pdf cost no request
+    expect(uploadDocument).toHaveBeenCalledTimes(4);                        // c.pdf cost no request
     expect(refusalToken(item("c.pdf").error)).toBe("pilot_expired");
     expect(canRetryUpload(item("b.pdf").error)).toBe(false);
+    act(() => result.current.add([file("f.pdf")], FLOW));
+    expect(refusalToken(item("f.pdf").error)).toBe("pilot_expired");       // after a stop, a new file costs no request either
+    expect(uploadDocument).toHaveBeenCalledTimes(4);
     uploadDocument.mockResolvedValue(summary("d-a", "a.pdf"));
     act(() => { result.current.retry(item("a.pdf").key); result.current.retry(item("a.pdf").key); });
     await waitFor(() => expect(item("a.pdf").state).toBe("done"));
-    expect(uploadDocument).toHaveBeenCalledTimes(3);
+    expect(uploadDocument).toHaveBeenCalledTimes(5);
     act(() => result.current.retry(item("b.pdf").key));
     expect(item("b.pdf").state).toBe("refused");
   });

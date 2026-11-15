@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, within, fireEvent, waitFor } from "@testing-library/react";
+import { act, render, screen, within, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { UploadQueueProvider } from "@/components/flows/UploadQueue";
@@ -56,8 +56,10 @@ describe("BottomTabBar", () => {
   it("Add opens the sheet when there is a flow, and goes to Upload when there is none", async () => {
     mockPath = "/documents";
     flowList.items = [];
+    listFlowsCalls.n = 0;
     const r = renderBar(<BottomTabBar onMore={() => {}} moreOpen={false} />);
-    await waitFor(() => expect(listFlowsCalls.n).toBeGreaterThan(0));
+    await waitFor(() => expect(listFlowsCalls.n).toBe(1));
+    await act(async () => {});                                             // the empty answer is applied before the check
     expect(within(r.container).getByRole("link", { name: "Add a document" })).toHaveAttribute("href", "/upload");
     r.unmount();
     flowList.items = [{ id: "f-1", name: "Supplier invoices", automation: "review", scansOn: true }];

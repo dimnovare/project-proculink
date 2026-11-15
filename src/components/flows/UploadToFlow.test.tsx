@@ -86,18 +86,19 @@ describe("UploadToFlow", () => {
 
   it("shows each file's status where it was dropped, from one list request, and stops asking when nothing is being read", async () => {
     api.listFlows.mockResolvedValue([flow("f1", "Supplier invoices", "review")]);
-    api.uploadDocument.mockImplementation((_f: string, f: File) => Promise.resolve(summary(f.name === "a.pdf" ? "d1" : "d2", f.name)));
+    api.uploadDocument.mockImplementation((_f: string, f: File) => Promise.resolve(summary(({ "a.pdf": "d1", "b.csv": "d2" } as Record<string, string>)[f.name] ?? "d3", f.name)));
     let read = false;
     api.listDocumentPage.mockImplementation(async () => ({ page: 1, pageSize: 100, totalCount: 2, sampleCount: 0, items: read
       ? [row("d2", "b.csv", { status: "ready" }), row("d1", "a.pdf", { status: "needs_review", failedChecks: 1, checks: ["low_confidence"] })]
-      : [row("d2", "b.csv", { status: "reading" }), row("d1", "a.pdf", { status: "reading" })] }));
+      : [row("d3", "c.pdf", { status: "sent" }), row("d2", "b.csv", { status: "reading" }), row("d1", "a.pdf", { status: "reading" })] }));
     mount();
     await screen.findByRole("region", { name: "Add files" });
-    drop([new File(["x"], "a.pdf"), new File(["y"], "b.csv")]);
+    drop([new File(["x"], "a.pdf"), new File(["y"], "b.csv"), new File(["z"], "c.pdf")]);
     const panel = within(await screen.findByRole("region", { name: "Just uploaded" }));
-    expect(panel.getByText("2 files to Supplier invoices")).toBeInTheDocument();
+    expect(panel.getByText("3 files to Supplier invoices")).toBeInTheDocument();
     const item = (name: string) => within(panel.getByText(name).closest("li")!);
     await waitFor(() => expect(item("a.pdf").getByText("Reading")).toBeInTheDocument());
+    await waitFor(() => expect(item("c.pdf").getByText("Sent")).toBeInTheDocument());
     read = true;
     await waitFor(() => expect(item("b.csv").getByRole("button", { name: "Send b.csv" })).toBeInTheDocument(), { timeout: 5000 });
     expect(item("a.pdf").getByText("1 value to check")).toBeInTheDocument();
@@ -106,6 +107,7 @@ describe("UploadToFlow", () => {
     const asked = api.listDocumentPage.mock.calls.length;
     await new Promise((r) => setTimeout(r, 2500));
     expect(api.listDocumentPage).toHaveBeenCalledTimes(asked);        // nothing is being read: no more requests
+    expect(item("c.pdf").getByText("Sent")).toBeInTheDocument();       // off the page now: its last known status, never Received again
   });
 
   it("says when uploads are refused by the plan, with a way on, and how much of the allowance is used", async () => {

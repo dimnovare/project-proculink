@@ -7,7 +7,10 @@ export const FILE_KINDS = {
   more: ["docx", "txt", "xml", "cxml", "json", "edi", "x12"],
 } as const;
 
-export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // IngressLimits.MaxFileBytes
+/** The photo pickers' accept list: the types of FILE_KINDS.photos, so a phone converts its own format to JPEG (R12). */
+export const PHOTO_ACCEPT = "image/jpeg,image/png";
+
+export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // IngressLimits.MaxFileBytes (pinned by backendMirror.test.ts)
 
 const dotted = (kinds: readonly string[]) => kinds.map((k) => `.${k}`);
 

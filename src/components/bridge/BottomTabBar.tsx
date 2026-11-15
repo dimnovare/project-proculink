@@ -90,7 +90,8 @@ export function BottomTabBar({ onMore, moreOpen }: { onMore: () => void; moreOpe
         {link(second)}
         {/* With a flow the round Add opens the sheet; with none (or not known yet) it stays the link to Upload (R15). */}
         {engine === "on" && !!flows.data?.length ? (
-          <button type="button" aria-label="Add a document" aria-haspopup="dialog" aria-expanded={adding} onClick={() => setAdding(true)} className={addClass}>
+          <button type="button" aria-label="Add a document" aria-haspopup="dialog" aria-expanded={adding} onClick={() => setAdding(true)}
+            aria-current={pathname === PINNED_ACTION_HREF ? "page" : undefined} className={addClass}>
             <Plus size={26} aria-hidden />
           </button>
         ) : (
