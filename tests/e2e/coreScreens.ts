@@ -70,7 +70,7 @@ export const CORE_SCREENS: readonly CoreScreen[] = [
     pattern: "/pricing",
     path: "/pricing",
     auth: "public",
-    why: "Where the plan ladder is stated. Six plan cards, the densest comparison surface.",
+    why: "Where the plan ladder is stated: the Trial, four plans side by side and the volume helper.",
   },
   {
     id: "documents",
