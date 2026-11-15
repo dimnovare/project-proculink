@@ -85,7 +85,7 @@ export function Checks({ checks }: { checks: DocumentCheck[] }) {
   return (
     <div className="grid gap-2">
       {failed.map((c, i) => <StatusNotice key={`${c.code}-${i}`} tone="warning">{c.message}</StatusNotice>)}
-      <p className="m-0 text-[12px] text-ink-muted">Checks are a heads-up; they never stop you sending.</p>
+      <p className="m-0 text-[12.5px] text-ink-muted">Checks are a heads-up; they never stop you sending.</p>
     </div>
   );
 }

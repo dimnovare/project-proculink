@@ -60,17 +60,19 @@ export interface SourceDocumentBodyProps {
   bounded: boolean;
   /** Where the value being pointed at sits on the original (flows only). */
   highlight?: SourceLocation | null;
+  /** Where the values that need a look sit on the original (flows only). */
+  marks?: readonly SourceLocation[];
   /** Set to switch on pointing at the original; called with the spot picked. */
   onPick?(p: SourcePick): void;
 }
 
-export function SourceDocumentBody({ cacheKey, document: doc, bounded, highlight, onPick }: SourceDocumentBodyProps) {
+export function SourceDocumentBody({ cacheKey, document: doc, bounded, highlight, marks, onPick }: SourceDocumentBodyProps) {
   const render = sourceRenderFor(doc.contentType);
 
   if (render === "pdf") {
     return (
       <Shell bounded={bounded}>
-        <PdfDocumentView cacheKey={cacheKey} blob={doc.blob} bounded={bounded} highlight={highlight} onPick={onPick} />
+        <PdfDocumentView cacheKey={cacheKey} blob={doc.blob} bounded={bounded} highlight={highlight} marks={marks} onPick={onPick} />
         <DownloadRow document={doc} cacheKey={cacheKey} />
       </Shell>
     );
@@ -78,7 +80,7 @@ export function SourceDocumentBody({ cacheKey, document: doc, bounded, highlight
   if (render === "sheet") {
     return (
       <Shell bounded={bounded}>
-        <SheetView cacheKey={cacheKey} document={doc} bounded={bounded} highlight={highlight} onPick={onPick} />
+        <SheetView cacheKey={cacheKey} document={doc} bounded={bounded} highlight={highlight} marks={marks} onPick={onPick} />
         <DownloadRow document={doc} cacheKey={cacheKey} />
       </Shell>
     );
@@ -87,7 +89,7 @@ export function SourceDocumentBody({ cacheKey, document: doc, bounded, highlight
     return (
       <Shell bounded={bounded}>
         <div className={bounded ? "min-h-0 flex-1 overflow-auto" : "overflow-auto"}>
-          <ImageDocumentView blob={doc.blob} contentType={doc.contentType} filename={doc.filename ?? "Original document"} highlight={highlight} onPick={onPick} />
+          <ImageDocumentView blob={doc.blob} contentType={doc.contentType} filename={doc.filename ?? "Original document"} highlight={highlight} marks={marks} onPick={onPick} />
         </div>
         <DownloadRow document={doc} cacheKey={cacheKey} />
       </Shell>
@@ -96,7 +98,7 @@ export function SourceDocumentBody({ cacheKey, document: doc, bounded, highlight
   if (render === "text") {
     return (
       <Shell bounded={bounded}>
-        <TextView cacheKey={cacheKey} document={doc} bounded={bounded} highlight={highlight} onPick={onPick} />
+        <TextView cacheKey={cacheKey} document={doc} bounded={bounded} highlight={highlight} marks={marks} onPick={onPick} />
         <DownloadRow document={doc} cacheKey={cacheKey} />
       </Shell>
     );
@@ -119,12 +121,14 @@ function SheetView({
   document: doc,
   bounded,
   highlight,
+  marks,
   onPick,
 }: {
   cacheKey: string;
   document: SourceDocument;
   bounded: boolean;
   highlight?: SourceLocation | null;
+  marks?: readonly SourceLocation[];
   onPick?(p: SourcePick): void;
 }) {
   const [sheetIndex, setSheetIndex] = useState(0);
@@ -184,8 +188,8 @@ function SheetView({
               onClick={() => setSheetIndex(i)}
               className={
                 i === sel
-                  ? "flex-shrink-0 rounded border border-brand-blue px-2 py-0.5 text-[11px] font-semibold text-brand-blue-deep"
-                  : "flex-shrink-0 rounded border border-border px-2 py-0.5 text-[11px] text-ink-muted"
+                  ? "flex-shrink-0 rounded border border-brand-blue px-2 py-0.5 text-[12.5px] font-semibold text-brand-blue-deep"
+                  : "flex-shrink-0 rounded border border-border px-2 py-0.5 text-[12.5px] text-ink-muted"
               }
             >
               {t.name}
@@ -210,16 +214,17 @@ function SheetView({
           " focus-visible:[outline-offset:-2px]"
         }
       >
-        <SheetGrid bounded={bounded} table={table} highlight={sel === 0 ? highlight : null} onPick={sel === 0 ? onPick : undefined} />
+        <SheetGrid bounded={bounded} table={table} highlight={sel === 0 ? highlight : null} marks={sel === 0 ? marks : undefined} onPick={sel === 0 ? onPick : undefined} />
       </div>
       <TruncationNote table={table} omitted={data.omittedSheetNames} />
     </div>
   );
 }
 
-function SheetGrid({ bounded, table, highlight, onPick }: { bounded: boolean; table: SheetTable; highlight?: SourceLocation | null; onPick?(p: SourcePick): void }) {
+function SheetGrid({ bounded, table, highlight, marks, onPick }: { bounded: boolean; table: SheetTable; highlight?: SourceLocation | null; marks?: readonly SourceLocation[]; onPick?(p: SourcePick): void }) {
   const spot = parseAddress(highlight?.address);
   const cell = spot?.kind === "cell" ? spot : null;
+  const marked = new Set(marks?.map((m) => m.address));
   const width = table.rows.reduce((m, r) => Math.max(m, r.length), 0);
   const columnLabels = useMemo(
     () => Array.from({ length: width }, (_, i) => spreadsheetColumnName(i)),
@@ -251,16 +256,16 @@ function SheetGrid({ bounded, table, highlight, onPick }: { bounded: boolean; ta
   }
 
   return (
-    <table className="w-full border-collapse font-mono text-[11px]" data-testid="source-document-sheet">
+    <table className="w-full border-collapse font-mono text-[12.5px]" data-testid="source-document-sheet">
       <thead>
         <tr>
-          <th className="sticky left-0 z-10 border border-border bg-surface-2 px-2 py-1 text-right text-[10px] font-semibold text-ink-faint">
+          <th className="sticky left-0 z-10 border border-border bg-surface-2 px-2 py-1 text-right text-[12.5px] font-semibold text-ink-faint">
             #
           </th>
           {columnLabels.map((label) => (
             <th
               key={label}
-              className="border border-border bg-surface-2 px-2 py-1 text-left text-[10px] font-semibold text-ink-faint"
+              className="border border-border bg-surface-2 px-2 py-1 text-left text-[12.5px] font-semibold text-ink-faint"
             >
               {label}
             </th>
@@ -270,17 +275,19 @@ function SheetGrid({ bounded, table, highlight, onPick }: { bounded: boolean; ta
       <tbody>
         {table.rows.map((row, r) => (
           <tr key={r}>
-            <td className="sticky left-0 z-10 border border-border bg-surface-2 px-2 py-1 text-right text-[10px] text-ink-faint">
+            <td className="sticky left-0 z-10 border border-border bg-surface-2 px-2 py-1 text-right text-[12.5px] text-ink-faint">
               {r + 1}
             </td>
             {columnLabels.map((label, c) => {
               const hit = cell?.row === r + 1 && cell.col === c + 1;
+              const flag = marked.has(`cell:r${r + 1}c${c + 1}`);
               const text = row[c] ?? "";
               return (
                 <td
                   key={label}
                   {...(hit && { "data-highlighted": "true", ref: bounded ? scrollTo : undefined })}
-                  className={`whitespace-pre border border-border px-2 py-1 align-top text-ink ${hit ? "bg-brand-blue-soft" : "bg-surface"}`}
+                  {...(flag && { "data-marked": "true" })}
+                  className={`whitespace-pre border border-border px-2 py-1 align-top text-ink ${hit ? "bg-brand-blue-soft" : flag ? "bg-amber-soft" : "bg-surface"}`}
                 >
                   {onPick && text ? (
                     <button
@@ -311,7 +318,7 @@ function TruncationNote({ table, omitted }: { table: SheetTable; omitted: string
   if (omitted.length) parts.push(`${omitted.length} more sheet${omitted.length === 1 ? "" : "s"} not shown`);
   if (parts.length === 0) return null;
   return (
-    <p className="flex-shrink-0 border-t border-border px-3 py-1.5 text-[10.5px] text-ink-faint">
+    <p className="flex-shrink-0 border-t border-border px-3 py-1.5 text-[12.5px] text-ink-faint">
       {parts.join(" · ")}. Download the file to see all of it.
     </p>
   );
@@ -327,15 +334,18 @@ function TextView({
   document: doc,
   bounded,
   highlight,
+  marks,
   onPick,
 }: {
   cacheKey: string;
   document: SourceDocument;
   bounded: boolean;
   highlight?: SourceLocation | null;
+  marks?: readonly SourceLocation[];
   onPick?(p: SourcePick): void;
 }) {
   const spot = parseAddress(highlight?.address);
+  const markedLines = new Set(marks?.map((m) => parseAddress(m.address)).flatMap((a) => (a?.kind === "line" ? [a.n] : [])));
   const [noSelection, setNoSelection] = useState(false);
   const { data, isLoading, isError } = useQuery({
     queryKey: ["source-document-text", cacheKey],
@@ -364,7 +374,7 @@ function TextView({
   return (
     <div className={bounded ? "flex min-h-0 flex-1 flex-col" : "flex flex-col"}>
       {data.fellBackToLatin && (
-        <p className="flex-shrink-0 border-b border-border bg-amber-soft px-3 py-1.5 text-[10.5px] text-amber-text">
+        <p className="flex-shrink-0 border-b border-border bg-amber-soft px-3 py-1.5 text-[12.5px] text-amber-text">
           This file didn&rsquo;t declare a character set and isn&rsquo;t valid UTF-8, so it is
           shown as Windows-1252. Accented characters may differ from the sender&rsquo;s copy.
         </p>
@@ -381,12 +391,12 @@ function TextView({
               setNoSelection(!ok);
               if (ok) onPick({ address: `line:${line.getAttribute("data-line")}`, value });
             }}
-            className="rounded border border-border px-2 py-0.5 text-[11px] text-ink-muted hover:border-border-strong"
+            className="rounded border border-border px-2 py-0.5 text-[12.5px] text-ink-muted hover:border-border-strong"
           >
             Use selected words
           </button>
           {noSelection && (
-            <span role="status" className="text-[10.5px] text-ink-faint">
+            <span role="status" className="text-[12.5px] text-ink-faint">
               Select words on one line first.
             </span>
           )}
@@ -399,19 +409,21 @@ function TextView({
         className={bounded ? "min-h-0 flex-1 overflow-auto focus-visible:[outline-offset:-2px]" : ""}
       >
         <ol
-          className="m-0 list-none p-0 font-mono text-[11px] leading-[1.55]"
+          className="m-0 list-none p-0 font-mono text-[12.5px] leading-[1.55]"
           data-testid="source-document-text"
         >
           {data.lines.map((line, i) => {
             const hit = spot?.kind === "line" && spot.n === i + 1;
+            const flag = markedLines.has(i + 1);
             return (
               <li
                 key={i}
                 data-line={i + 1}
                 {...(hit && { "data-highlighted": "true", ref: bounded ? scrollTo : undefined })}
-                className={`flex gap-2 px-2 ${hit ? "bg-brand-blue-soft" : "hover:bg-surface-2"}`}
+                {...(flag && { "data-marked": "true" })}
+                className={`flex gap-2 px-2 ${hit ? "bg-brand-blue-soft" : flag ? "bg-amber-soft" : "hover:bg-surface-2"}`}
               >
-                <span className="w-9 flex-shrink-0 select-none text-right text-[10px] text-ink-faint">
+                <span className="w-9 flex-shrink-0 select-none text-right text-[12.5px] text-ink-faint">
                   {i + 1}
                 </span>
                 <span className="min-w-0 flex-1 whitespace-pre-wrap break-words text-ink">{line}</span>
@@ -421,7 +433,7 @@ function TextView({
         </ol>
       </div>
       {data.truncated && (
-        <p className="flex-shrink-0 border-t border-border px-3 py-1.5 text-[10.5px] text-ink-faint">
+        <p className="flex-shrink-0 border-t border-border px-3 py-1.5 text-[12.5px] text-ink-faint">
           Showing the first {MAX_TEXT_LINES} lines. Download the file to see all of it.
         </p>
       )}
@@ -442,7 +454,7 @@ function Shell({ bounded, children }: { bounded: boolean; children: React.ReactN
 }
 
 function Message({ children }: { children: React.ReactNode }) {
-  return <p className="px-4 py-3 text-[11.5px] leading-relaxed text-ink-faint">{children}</p>;
+  return <p className="px-4 py-3 text-[12.5px] leading-relaxed text-ink-faint">{children}</p>;
 }
 
 function DownloadRow({ document: doc, cacheKey }: { document: SourceDocument; cacheKey: string }) {
@@ -460,18 +472,18 @@ function DownloadRow({ document: doc, cacheKey }: { document: SourceDocument; ca
 
   return (
     <div className="flex flex-shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-t border-border px-3 py-1.5">
-      <span className="min-w-0 flex-1 truncate font-mono text-[10.5px] text-ink-faint" title={name}>
+      <span className="min-w-0 flex-1 truncate font-mono text-[12.5px] text-ink-faint" title={name}>
         {name}
       </span>
       <button
         type="button"
         onClick={onDownload}
-        className="flex-shrink-0 rounded border border-border px-2 py-0.5 text-[11px] text-ink-muted hover:border-border-strong"
+        className="flex-shrink-0 rounded border border-border px-2 py-0.5 text-[12.5px] text-ink-muted hover:border-border-strong"
       >
         Download
       </button>
       {failed && (
-        <span role="status" className="text-[10.5px] text-danger">
+        <span role="status" className="text-[12.5px] text-danger">
           Couldn&rsquo;t start the download.
         </span>
       )}

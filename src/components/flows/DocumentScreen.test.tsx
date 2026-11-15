@@ -1,10 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ApiHttpError } from "@/lib/api/core";
+import { COPY } from "@/lib/documentRefusals";
 import { DocumentScreen } from "./DocumentScreen";
 
-vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn(), push: vi.fn() }) }));
+const replace = vi.hoisted(() => vi.fn());
+vi.mock("next/navigation", () => ({ useRouter: () => ({ replace, push: vi.fn() }) }));
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => true }));
 
 const api = vi.hoisted(() => ({
@@ -12,6 +14,7 @@ const api = vi.hoisted(() => ({
   retryDocumentRead: vi.fn(), fetchDocumentSource: vi.fn(),
   getFlow: vi.fn(), saveFlowFields: vi.fn(),
   listOutputs: vi.fn(), listDestinations: vi.fn(), listDeliveries: vi.fn(),
+  sendDocument: vi.fn(), listDocumentPage: vi.fn(),
 }));
 vi.mock("@/lib/api/documents", () => api);
 
@@ -29,6 +32,15 @@ const detail = (value: string, source = "upload", sourceRef: string | null = nul
   checks: [],
 });
 
+type Value = [key: string, value: string | null, confidence: number, edited: boolean];
+const withValues = (values: Value[], checks: unknown[] = [], contentType = "text/csv", fileName = "a.csv") => {
+  const d = detail("");
+  return {
+    ...d, checks, contentType, summary: { ...d.summary, fileName },
+    read: { ...d.read, fields: values.map(([key, value, confidence, edited]) => ({ ...field(""), key, label: key, value, confidence, edited })) },
+  };
+};
+
 beforeEach(() => {
   vi.clearAllMocks();
   api.getDocument.mockResolvedValue(detail("INV-1"));
@@ -38,6 +50,7 @@ beforeEach(() => {
   api.listDestinations.mockResolvedValue([]);
   api.listDeliveries.mockResolvedValue([]);
   api.fetchDocumentSource.mockRejectedValue(new Error("no source"));
+  api.listDocumentPage.mockResolvedValue({ items: ["a", "d", "c"].map((id) => ({ id, flowId: "f" })), totalCount: 3, page: 1, pageSize: 50 });
 });
 
 const renderScreen = (qc = new QueryClient()) =>
@@ -55,11 +68,11 @@ describe("DocumentScreen", () => {
   it("says how the document arrived, and prints an unknown source as it is", async () => {
     api.getDocument.mockResolvedValue(detail("INV-1", "email", "ap@example.test"));
     const first = renderScreen();
-    expect(await screen.findByText("Arrived by email from ap@example.test")).toBeTruthy();
+    expect(await screen.findByTestId("review-sub")).toHaveTextContent(/^Receipts, arrived by email from ap@example\.test$/);
     first.unmount();
     api.getDocument.mockResolvedValue(detail("INV-1", "carrier-pigeon"));
     renderScreen();
-    expect(await screen.findByText("Arrived by carrier-pigeon")).toBeTruthy();
+    expect(await screen.findByTestId("review-sub")).toHaveTextContent(/^Receipts, arrived by carrier-pigeon$/);
   });
 
   it("saves an edited field and shows the value the server returns", async () => {
@@ -86,6 +99,7 @@ describe("DocumentScreen", () => {
   it("says the original is unavailable when the file is empty", async () => {
     api.fetchDocumentSource.mockResolvedValue(new Blob([]));
     renderScreen();
+    fireEvent.click(within(await screen.findByRole("tablist", { name: "Parts of this document" })).getByRole("tab", { name: "Original" }));
     expect(await screen.findByText("The original isn't available right now.")).toBeTruthy();
   });
 
@@ -125,6 +139,7 @@ describe("DocumentScreen", () => {
     api.getFlow.mockResolvedValue(flow);
     api.saveFlowFields.mockResolvedValue({ ...flow, fields: { fields: [own, { ...own, key: "total", label: "total" }], tables: [] } });
     renderScreen();
+    fireEvent.click(await screen.findByRole("button", { name: "Something missing or in the wrong place?" }));
     expect(await screen.findByText("New fields we noticed")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Add to flow: po" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Add to flow: total" }));
@@ -132,24 +147,161 @@ describe("DocumentScreen", () => {
     await waitFor(() => expect(screen.queryByText("New fields we noticed")).toBeNull());
   });
 
-  it("draws no confidence on an empty value and says Edited on one a person changed", async () => {
-    const base = detail("INV-7");
-    api.getDocument.mockResolvedValue({
-      ...base,
-      read: {
-        ...base.read,
-        fields: [
-          { ...field("INV-7"), edited: true, confidence: 1 },
-          { ...field(""), key: "iban", label: "IBAN", confidence: 1 },
-          { ...field("12.50"), key: "total", label: "Total", confidence: 0.92 },
-        ],
-      },
-    });
+  it("marks a value that needs a look first and says why", async () => {
+    api.getDocument.mockResolvedValue(withValues([
+      ["invoice_no", "INV-1", 0.97, false], ["supplier", null, 0, false], ["total", "12.00", 1, true],
+    ], [{ code: "required_missing", passed: false, fieldKey: "supplier", message: "Supplier is required but was not found." }]));
     renderScreen();
-    await screen.findByLabelText("IBAN");
-    expect(screen.queryAllByText(/100%/)).toHaveLength(0); // neither the empty value nor the changed one shows a figure
-    // getAllBy: vitest has no Tailwind, so the phone and desktop trees both render
-    expect(screen.getAllByText("Edited").length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/92%/).length).toBeGreaterThan(0); // a value we read keeps its confidence
+    const read = within(await screen.findByRole("tabpanel", { name: "What we read" }));
+    expect(read.getByText("1 value needs a look. The rest were read clearly.")).toBeInTheDocument();
+    const boxes = read.getAllByRole("textbox");
+    expect(boxes[0]).toHaveAccessibleName("supplier");                                       // marked first
+    expect(boxes[0]).toHaveAccessibleDescription("Not found on the page. Type it.");
+    expect(read.getByRole("heading", { name: "Read clearly" })).toBeInTheDocument();
+    expect(read.getByText("Edited")).toBeInTheDocument();
+    expect(read.queryByText(/%/)).toBeNull();                                                 // no percentage on a value read clearly
+  });
+  it("Send and open next saves first, sends once, and opens the next document", async () => {
+    const order: string[] = [];
+    api.editDocumentValues.mockImplementation(async () => { order.push("save"); return detail("INV-2"); });
+    api.sendDocument.mockImplementation(async () => { order.push("send"); invalidate.mockClear(); return []; });
+    const qc = new QueryClient();
+    const invalidate = vi.spyOn(qc, "invalidateQueries");
+    renderScreen(qc);
+    const header = within(await screen.findByTestId("review-header-actions"));
+    expect(header.getByText("2 of 3 that need you")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Invoice number"), { target: { value: "INV-2" } });
+    const send = header.getByRole("button", { name: "Send and open next" });
+    fireEvent.click(send);
+    fireEvent.click(send);                                                     // pressed twice
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/flows/f/documents/c"));
+    expect(order).toEqual(["save", "send"]);
+    expect(api.sendDocument.mock.calls).toEqual([["d"]]);
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["documents"] });
+  });
+
+  it("a refused send is said under the header and nothing moves; the last one goes back to Documents", async () => {
+    api.sendDocument.mockRejectedValueOnce(new ApiHttpError("no", 409, { error: "no_outputs" }));
+    renderScreen();
+    const header = within(await screen.findByTestId("review-header-actions"));
+    fireEvent.click(header.getByRole("button", { name: "Send and open next" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Add an output to this flow before sending.");
+    expect(within(screen.getByTestId("review-refusal")).getByRole("link", { name: "Open the flow's outputs" })).toHaveAttribute("href", "/flows/f?tab=outputs");
+    expect(replace).not.toHaveBeenCalled();
+    expect(header.getByRole("button", { name: "Send and open next" })).toBeEnabled();
+    api.listDocumentPage.mockResolvedValue({ items: [], totalCount: 0, page: 1, pageSize: 50 });   // after this send, nothing needs you
+    api.sendDocument.mockResolvedValueOnce([]);
+    fireEvent.click(header.getByRole("button", { name: "Send and open next" }));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/documents?show=needs-you"));
+  });
+
+  it("sends nothing while the last change is not saved", async () => {
+    api.editDocumentValues.mockRejectedValue(new Error("offline"));
+    renderScreen();
+    const header = within(await screen.findByTestId("review-header-actions"));
+    fireEvent.change(screen.getByLabelText("Invoice number"), { target: { value: "INV-2" } });
+    fireEvent.click(header.getByRole("button", { name: "Send and open next" }));
+    expect(await screen.findByText("Nothing was sent: your last change isn't saved yet.")).toBeInTheDocument();
+    expect(api.sendDocument).not.toHaveBeenCalled();
+    expect(replace).not.toHaveBeenCalled();
+    const tabs = within(screen.getByRole("tablist", { name: "Parts of this document" }));
+    fireEvent.click(tabs.getByRole("tab", { name: "What we'll send" }));
+    fireEvent.click(within(screen.getByTestId("review-refusal")).getByRole("button", { name: "Show what we read" }));
+    expect(tabs.getByRole("tab", { name: "What we read" })).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("Skip saves what was typed once and the next document starts clean", async () => {
+    api.getDocument.mockImplementation(async (id: string) => {
+      const d = detail(id === "d" ? "INV-1" : "INV-9");
+      return { ...d, summary: { ...d.summary, id } };
+    });
+    api.editDocumentValues.mockResolvedValue(detail("INV-2"));
+    const qc = new QueryClient();
+    const view = render(<QueryClientProvider client={qc}><DocumentScreen flowId="f" documentId="d" /></QueryClientProvider>);
+    const header = within(await screen.findByTestId("review-header-actions"));
+    fireEvent.change(screen.getByLabelText("Invoice number"), { target: { value: "INV-2" } });
+    fireEvent.click(header.getByRole("button", { name: "Skip" }));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/flows/f/documents/c"));
+    view.rerender(<QueryClientProvider client={qc}><DocumentScreen flowId="f" documentId="c" /></QueryClientProvider>);
+    expect(await screen.findByDisplayValue("INV-9")).toBeInTheDocument();
+    expect(api.editDocumentValues.mock.calls).toEqual([["d", { fields: [{ key: "invoice_no", value: "INV-2" }] }]]);
+    // Leaving without Skip (a link, Back) while a value waits: it goes out once, for its own document.
+    fireEvent.change(screen.getByLabelText("Invoice number"), { target: { value: "INV-10" } });
+    view.rerender(<QueryClientProvider client={qc}><DocumentScreen flowId="f" documentId="d" /></QueryClientProvider>);
+    await waitFor(() => expect(api.editDocumentValues).toHaveBeenCalledTimes(2));
+    expect(api.editDocumentValues).toHaveBeenLastCalledWith("c", { fields: [{ key: "invoice_no", value: "INV-10" }] });
+    expect(screen.queryByDisplayValue("INV-10")).toBeNull();
+  });
+  it("on a narrow screen one pane shows at a time, and pointing switches to the original", async () => {
+    api.getFlow.mockResolvedValue({ id: "f", fieldsConfirmed: true, fields: { fields: [], tables: [] } });
+    api.getDocument.mockResolvedValue(withValues([["supplier", null, 0, false]],
+      [{ code: "required_missing", passed: false, fieldKey: "supplier", message: "" }], "application/pdf", "a.pdf"));
+    renderScreen();
+    const tabs = within(await screen.findByRole("tablist", { name: "Parts of this document" }));
+    expect(tabs.getByRole("tab", { name: "What we read" })).toHaveAttribute("aria-selected", "true");
+    expect(api.fetchDocumentSource).not.toHaveBeenCalled();                    // the original is not mounted while hidden
+    fireEvent.click(screen.getByRole("link", { name: "point to it on the original" }));
+    expect(tabs.getByRole("tab", { name: "Original" })).toHaveAttribute("aria-selected", "true");
+    expect(await within(screen.getByRole("tabpanel", { name: "Original" })).findByText(/supplier/)).toBeInTheDocument(); // the pointing help names the field
+    expect(api.fetchDocumentSource).toHaveBeenCalledTimes(1);
+  });
+  it("a save the server rate-limits keeps what was typed, never reads as saved, and Try again sends it", async () => {
+    api.editDocumentValues
+      .mockRejectedValueOnce(new ApiHttpError("slow", 429, { error: "Rate limit exceeded. Please slow down and retry shortly." }))
+      .mockResolvedValueOnce(detail("INV-2"));
+    renderScreen();
+    const input = await screen.findByLabelText("Invoice number");
+    fireEvent.change(input, { target: { value: "INV-2" } });
+    fireEvent.blur(input);
+    const read = within(screen.getByRole("tabpanel", { name: "What we read" }));
+    expect(await read.findByText("Not saved yet")).toBeInTheDocument();
+    expect(input).toHaveValue("INV-2");
+    fireEvent.click(read.getByRole("button", { name: "Try again" }));
+    await waitFor(() => expect(api.editDocumentValues).toHaveBeenCalledTimes(2));
+    expect(api.editDocumentValues).toHaveBeenLastCalledWith("d", { fields: [{ key: "invoice_no", value: "INV-2" }] });
+    expect(await read.findByText("Saves as you type")).toBeInTheDocument();
+  });
+
+  it("a waiting save that is refused sends nothing and says so where Send was pressed", async () => {
+    api.editDocumentValues.mockRejectedValue(new ApiHttpError("no", 409, { error: "document_sent" }));
+    renderScreen();
+    const header = within(await screen.findByTestId("review-header-actions"));
+    fireEvent.change(screen.getByLabelText("Invoice number"), { target: { value: "INV-2" } });
+    fireEvent.click(header.getByRole("button", { name: "Send and open next" }));
+    expect(await screen.findByTestId("review-refusal")).toHaveTextContent(COPY.document_sent);
+    expect(api.sendDocument).not.toHaveBeenCalled();
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("after a send whose queue refresh failed, the person lands on Needs you", async () => {
+    api.sendDocument.mockResolvedValue([]);
+    renderScreen(new QueryClient({ defaultOptions: { queries: { retry: false } } }));
+    const header = within(await screen.findByTestId("review-header-actions"));
+    await header.findByText("2 of 3 that need you");
+    api.listDocumentPage.mockRejectedValue(new Error("offline"));
+    fireEvent.click(header.getByRole("button", { name: "Send and open next" }));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/documents?show=needs-you"));
+  });
+  it("a paused workspace is said with the way to Plan & billing, and the person stays on the document", async () => {
+    api.sendDocument.mockRejectedValue(new ApiHttpError("paused", 429, { error: "processing_paused" }));
+    renderScreen();
+    const header = within(await screen.findByTestId("review-header-actions"));
+    fireEvent.click(header.getByRole("button", { name: "Send and open next" }));
+    const notice = within(await screen.findByTestId("review-refusal"));
+    expect(notice.getByText(COPY.processing_paused)).toBeInTheDocument();
+    expect(notice.getByRole("link", { name: "Open Plan & billing" })).toHaveAttribute("href", "/settings?tab=billing");
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("a document that can no longer be sent offers Review next once per width, and no Skip or Send (R18)", async () => {
+    const sent = detail("INV-1");
+    api.getDocument.mockResolvedValue({ ...sent, summary: { ...sent.summary, status: "sent" } });
+    renderScreen();
+    const header = within(await screen.findByTestId("review-header-actions"));
+    const bar = within(await screen.findByTestId("action-bar"));
+    await waitFor(() => expect(header.getByRole("link", { name: "Review next" })).toHaveAttribute("href", "/flows/f/documents/c"));
+    expect(header.getByRole("link", { name: "Review next" })).toHaveClass("hidden", "md:inline-flex");   // the bar draws it on a phone
+    expect(bar.getByRole("link", { name: "Review next" })).toHaveAttribute("href", "/flows/f/documents/c");
+    expect(screen.queryByRole("button", { name: /^(Skip|Send and open next)$/ })).toBeNull();
   });
 });
