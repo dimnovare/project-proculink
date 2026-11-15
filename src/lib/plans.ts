@@ -474,7 +474,7 @@ export const LEGACY_PAID_PLANS: readonly Plan[] = PLANS.filter((p) => p.isChecko
 
 /** Every bullet a document plan card shares; the per-plan overage line is added by the card. */
 export const DOCUMENT_PLAN_FEATURES: readonly string[] = [
-  "Every intake channel: upload, email, mailbox, SFTP, FTP, S3 and API",
+  "Every way in: upload, email, mailbox, SFTP, FTP, S3 and API",
   "Every output: CSV, JSON, XML, Excel, PDF, text and fixed-width",
   "Unlimited users",
 ];
@@ -585,6 +585,103 @@ export function yearlyMonthlyEquivalent(plan: Plan): number | null {
   return Math.round(plan.priceYearly / 12);
 }
 
+/** `ReadLimits.PagesPerUnit` and `ReadLimits.MaxUnits`, diffed by `backendMirror.test.ts`. */
+export const PAGES_PER_DOCUMENT = 10;
+export const MAX_DOCUMENTS_PER_FILE = 10;
+/** What one document is, said once for /pricing and /formats. */
+export const DOCUMENT_UNIT_SENTENCE =
+  `A document is one file of up to ${PAGES_PER_DOCUMENT} pages. Longer files count once for every ${PAGES_PER_DOCUMENT} pages, ` +
+  `and we read up to ${PAGES_PER_DOCUMENT * MAX_DOCUMENTS_PER_FILE} pages of a file.`;
+
+export type BillingPeriod = "monthly" | "yearly";
+
+const cents = (eur: number) => Math.round(eur * 100);
+
+/** The capped extra, in cents, and the plan's rate in cents: `BestPriceOverageOrders` before its floor. */
+function documentOverage(plan: Plan, limit: number, used: number): { extra: number; rate: number } {
+  const rate = cents(plan.overageEur ?? 0);
+  const over = Math.max(0, used - limit);
+  if (!DOCUMENT_PLANS.includes(plan) || over === 0) return { extra: 0, rate };
+  const flat = cents(plan.priceMonthly!);
+  const top = DOCUMENT_PLANS[DOCUMENT_PLANS.length - 1];
+  const total =
+    used <= top.orderLimit!
+      ? Math.min(flat + over * rate, Math.min(...DOCUMENT_PLANS.filter((t) => t.orderLimit! >= used).map((t) => cents(t.priceMonthly!))))
+      : limit >= top.orderLimit!
+        ? flat + (used - limit) * rate
+        : cents(top.priceMonthly!) + (used - top.orderLimit!) * cents(top.overageEur!);
+  return { extra: Math.max(0, total - flat), rate };
+}
+
+/**
+ * `PlanConstants.BestPriceOverageOrders`, case for case, for a document plan (0 for any other):
+ * extra documents are capped at the cheapest covering plan's monthly price, priced as the top plan
+ * above its allowance, and floored to whole documents. Integer cents, so no float error.
+ */
+export function bestPriceOverageUnits(plan: Plan, limit: number, used: number): number {
+  const { extra, rate } = documentOverage(plan, limit, used);
+  return extra && Math.floor(extra / rate);
+}
+
+/**
+ * One month on `plan` at `documents`, in twelfths of a cent, so a yearly price divides exactly.
+ * `billed` is what the backend charges (extras floored); `compared` is the capped total before the
+ * floor. On yearly billing the extras are still capped against the monthly price, as the backend does.
+ */
+export function documentPlanMonth(plan: Plan, documents: number, period: BillingPeriod): { billed: number; compared: number } {
+  const flat = period === "yearly" ? plan.priceYearly! * 100 : plan.priceMonthly! * 1200;
+  const { extra, rate } = documentOverage(plan, plan.orderLimit!, documents);
+  return { billed: flat + bestPriceOverageUnits(plan, plan.orderLimit!, documents) * rate * 12, compared: flat + extra * 12 };
+}
+
+export interface CheapestAnswer {
+  /** Always a `DOCUMENT_PLANS` entry, never Enterprise. */
+  plan: Plan;
+  fits: boolean;
+  euros: number;
+  /** The plan that wins next, from about which volume (nearest 10), and whether it only ties. null on the top plan. */
+  next: { plan: Plan; from: number; same: boolean } | null;
+}
+
+/** Lowest `compared`; a tie goes to the larger plan, which covers the month for the same money. */
+function winner(documents: number, period: BillingPeriod): Plan {
+  return DOCUMENT_PLANS.reduce((best, p) =>
+    documentPlanMonth(p, documents, period).compared <= documentPlanMonth(best, documents, period).compared ? p : best);
+}
+
+/** Every volume up to twice the top allowance at which the winner changes, found once per period. */
+const crossings = new Map<BillingPeriod, number[]>();
+function crossingsFor(period: BillingPeriod): number[] {
+  let found = crossings.get(period);
+  if (!found) {
+    found = [];
+    for (let n = 2, last = winner(1, period); n <= 2 * DOCUMENT_PLANS[DOCUMENT_PLANS.length - 1].orderLimit!; n++) {
+      const w = winner(n, period);
+      if (w !== last) found.push(n);
+      last = w;
+    }
+    crossings.set(period, found);
+  }
+  return found;
+}
+
+/** The plan that costs least at `documents` a month (a whole number from 1), and when that changes. */
+export function cheapestDocumentPlan(documents: number, period: BillingPeriod): CheapestAnswer {
+  const plan = winner(documents, period);
+  const at = plan === DOCUMENT_PLANS[DOCUMENT_PLANS.length - 1] ? undefined : crossingsFor(period).find((n) => n > documents);
+  const next = at === undefined ? null : winner(at, period);
+  return {
+    plan,
+    fits: documents <= plan.orderLimit!,
+    euros: Math.round(documentPlanMonth(plan, documents, period).billed / 1200),
+    next: next && {
+      plan: next,
+      from: Math.round(at! / 10) * 10,
+      same: documentPlanMonth(next, at!, period).compared === documentPlanMonth(plan, at!, period).compared,
+    },
+  };
+}
+
 /**
  * The price to print on the IN-APP billing card, for the interval the workspace's
  * subscription is actually on.
@@ -622,7 +719,7 @@ export const OVERAGE_PER_ORDER_EUR = 0.5;
 
 /** Enterprise "from" price floor (EUR/month) — used only as a recommendation
  *  threshold; Enterprise itself is custom / contact-sales. */
-const ENTERPRISE_FLOOR_EUR = 2500;
+export const ENTERPRISE_FLOOR_EUR = 2500;
 
 export interface EffectiveCost {
   /** Flat list price + overage, EUR/month. */
