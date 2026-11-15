@@ -1,13 +1,13 @@
 "use client";
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useOrganization } from "@clerk/nextjs";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { Card } from "@/components/bridge/layout/Card";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Building, Copy, Euro, Key, Plug, Plus, Save } from "lucide-react";
+import { AlertTriangle, Building, Copy, Euro, Key, Plug, Plus, Save, Send } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { BillingSection } from "@/components/bridge/BillingSection";
 import { SettingsGroup } from "@/components/settings/SettingsPrimitives";
@@ -23,9 +23,10 @@ import { useTabParamSync } from "@/lib/tab-param-sync";
 import { isOrgAdminRefusal, orgAdminMessage } from "@/lib/planGate";
 import { planDisplayName } from "@/lib/plans";
 import { NotificationEmailSection } from "@/components/flows/NotificationEmailSection";
+import { DestinationsSection } from "@/components/destinations/DestinationsSection";
 import { formatDate } from "@/lib/format-date";
 
-type SettingsTab = "org" | "billing" | "api" | "connectors";
+type SettingsTab = "org" | "destinations" | "billing" | "api" | "connectors";
 
 // The tab IDs are code. Only the words are user-facing:
 //   org           → "Workspace"
@@ -33,6 +34,7 @@ type SettingsTab = "org" | "billing" | "api" | "connectors";
 //   connectors    → "Notifications" (id kept so old ?tab=connectors links still land)
 const TABS: Array<{ id: SettingsTab; label: string; Icon: React.ElementType }> = [
   { id: "org",           label: "Workspace",      Icon: Building },
+  { id: "destinations",  label: "Destinations",   Icon: Send     },
   { id: "billing",       label: "Plan & billing", Icon: Euro     },
   { id: "api",           label: "API keys",       Icon: Key      },
   { id: "connectors",    label: "Notifications",  Icon: Plug     },
@@ -53,6 +55,7 @@ export default function SettingsPage() {
   // Initial tab honours a `?tab=` deep-link (e.g. the onboarding completion
   // card's "Create an API key" → ?tab=api). Validated against the SettingsTab union; falls back to "org".
   const searchParams = useSearchParams();
+  const router = useRouter();
   const requestedTab = searchParams?.get("tab");
   const [tab, setTab] = useState<SettingsTab>(isSettingsTab(requestedTab) ? requestedTab : "org");
   // ?tab= changes while MOUNTED (e.g. help-slideover guide links on /settings)
@@ -83,7 +86,7 @@ export default function SettingsPage() {
               return (
                 <button
                   key={t.id}
-                  onClick={() => setTab(t.id)}
+                  onClick={() => { setTab(t.id); router.replace(`/settings?tab=${t.id}`, { scroll: false }); }}
                   className="settings-nav-item flex shrink-0 items-center gap-[10px] rounded-[6px] py-[9px] pr-3 text-left text-[13px] transition-colors md:w-full"
                   style={{
                     paddingLeft: 12,
@@ -107,6 +110,7 @@ export default function SettingsPage() {
           {/* Content */}
           <div style={{ minWidth: 0 }}>
             {tab === "org"           && <OrgSection />}
+            {tab === "destinations"  && <DestinationsSection />}
             {tab === "billing"       && <BillingSectionWrapper />}
             {tab === "api"           && <ApiKeysSection />}
             {tab === "connectors" && <NotificationEmailSection />}

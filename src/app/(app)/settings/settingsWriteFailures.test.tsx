@@ -20,6 +20,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(mockTab.value),
   usePathname: () => "/settings",
+  useRouter: () => ({ replace: vi.fn() }),
 }));
 
 vi.mock("@/components/flows/NotificationEmailSection", () => ({ NotificationEmailSection: () => null }));
