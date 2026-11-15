@@ -5,6 +5,7 @@ import { ApiHttpError } from "@/lib/api/core";
 import { buttonClass } from "@/components/bridge/DSPrimitives";
 import { OPEN_SEARCH_EVENT } from "@/lib/shortcuts";
 import { DocumentsHome } from "./DocumentsHome";
+import { UploadQueueProvider } from "./UploadQueue";
 
 const replace = vi.hoisted(() => vi.fn());
 const search = vi.hoisted(() => ({ q: "" }));
@@ -17,6 +18,8 @@ const listDocumentPage = vi.hoisted(() => vi.fn());
 const sendDocument = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/api/documents", () => ({ listFlows: () => listFlows(), listDocumentPage, sendDocument }));
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => true }));
+vi.mock("@clerk/nextjs", () => ({ useUser: () => ({ user: null, isLoaded: true }) }));
+vi.mock("@/lib/api/linkedAccounts", () => ({ listLinkedAccounts: () => Promise.resolve({ available: false, accounts: [] }) }));
 const getOrders = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/api-client", () => ({ apiClient: { getOrders } }));
 
@@ -50,7 +53,7 @@ const mount = () => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const ui = () => (
     <QueryClientProvider client={client}>
-      <DocumentsHome />
+      <UploadQueueProvider><DocumentsHome /></UploadQueueProvider>
     </QueryClientProvider>
   );
   const r = render(ui());
@@ -65,6 +68,24 @@ beforeEach(() => {
 });
 
 describe("DocumentsHome", () => {
+  it("draws the welcome only once the flows answered that the workspace is new", async () => {
+    const welcome = () => screen.queryByRole("heading", { level: 1, name: /Let's read your first document/ });
+    answers({});
+    listFlows.mockReturnValue(new Promise(() => {}));
+    const loading = mount();
+    expect(await screen.findByText("Loading flows…")).toBeInTheDocument();
+    expect(welcome()).toBeNull();
+    loading.unmount();
+    listFlows.mockRejectedValue(new ApiHttpError("down", 500, null));
+    const failed = mount();
+    expect(await screen.findByRole("button", { name: "Retry" }, { timeout: 10_000 })).toBeInTheDocument();
+    expect(welcome()).toBeNull();
+    failed.unmount();
+    listFlows.mockResolvedValue([]);
+    mount();
+    expect(await screen.findByRole("heading", { level: 1, name: "Welcome. Let's read your first document." })).toBeInTheDocument();
+  });
+
   it("opens on Needs you when something needs you and on All when nothing does, and a tab press writes the address", async () => {
     answers({ needs: 3, working: "pending" });
     const first = mount();

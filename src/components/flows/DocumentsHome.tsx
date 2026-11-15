@@ -27,8 +27,10 @@ import { useApple } from "@/hooks/useShortcut";
 import { keyWord, openSearch } from "@/lib/shortcuts";
 import { DocumentList, type ListSelection } from "./DocumentList";
 import { SelectionBar, type BarReport } from "./SelectionBar";
-import { CaughtUp, EmptyFilter, FirstFlowEmpty, Quiet } from "./states";
+import { firstRunOf } from "@/lib/firstRun";
+import { CaughtUp, EmptyFilter, Quiet } from "./states";
 import { StoppedAlert } from "./StoppedAlert";
+import { Welcome } from "./Welcome";
 
 const Retry = ({ onClick }: { onClick: () => void }) => (
   <Button variant="secondary" size="sm" onClick={onClick}>Retry</Button>
@@ -163,6 +165,9 @@ export function DocumentsHome() {
     );
   }
 
+  // Only an answered list can say the workspace is new: loading or failed draws its own state below.
+  if (engine !== "off" && flows.data && firstRunOf(flows.data).state === "new") return <Welcome flows={flows.data} />;
+
   let body;
   if (engine === "off") {
     body = <StatusNotice tone="warning">{documentRefusalMessage(flows.error)}</StatusNotice>;
@@ -174,8 +179,6 @@ export function DocumentsHome() {
     );
   } else if (engine === "unknown" || !flows.data) {
     body = <Quiet>Loading flows…</Quiet>;
-  } else if (flows.data.length === 0) {
-    body = <FirstFlowEmpty />;
   } else {
     body = (
       <div className="flex min-w-0 flex-col gap-3">

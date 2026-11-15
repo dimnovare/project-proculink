@@ -104,18 +104,22 @@ export const Field = ({ label, look, hideLabel, children }: { label: string; loo
   );
 };
 
-export function DestinationForm({ destination, preset, inline, testAfterSave, onSaved, onCancel }: {
+export function DestinationForm({ destination, preset, inline, testAfterSave, chosen, onSaved, onCancel }: {
   destination?: Destination; /** Seeds a new web-address destination. */ preset?: { url: string; method?: string; authType?: string };
   /** No card: the fields sit in the panel's grid. */ inline?: boolean;
   /** One "Save and send a test" instead of "Save" and "Send a test". */ testAfterSave?: boolean;
+  /** First run (14.5): the protocols it may save ("Send by" hidden for one), the name it saves under instead of a Name box,
+   *  and each finished test of the saved destination. After a save, or with `outlined` (the step's own button is filled), its button is outlined. */
+  chosen?: { protocols: readonly string[]; name: string; onTested(outcome: { destinationId: string; ok: boolean }): void; outlined?: boolean };
   onSaved(d: Destination): void; onCancel(): void;
 }) {
   const qc = useQueryClient();
   const [current, setCurrent] = useState(destination);
-  const [name, setName] = useState(destination?.name ?? "");
-  const [protocol, setProtocol] = useState<Protocol>((destination?.protocol as Protocol) ?? "http");
+  const [name, setName] = useState(destination?.name ?? chosen?.name ?? "");
+  const first = (chosen?.protocols[0] ?? "http") as Protocol;
+  const [protocol, setProtocol] = useState<Protocol>((destination?.protocol as Protocol) ?? first);
   const [config, setConfig] = useState<Record<string, unknown>>(
-    destination?.config ?? { ...DEFAULTS.http, ...(preset && { url: preset.url, ...(preset.method && { method: preset.method.toUpperCase() }) }) });
+    destination?.config ?? { ...DEFAULTS[first], ...(preset && { url: preset.url, ...(preset.method && { method: preset.method.toUpperCase() }) }) });
   const [auth, setAuth] = useState(preset?.authType && Object.hasOwn(HTTP_AUTH, preset.authType) ? preset.authType : "bearer");
   const [creds, setCreds] = useState<Record<string, string>>({});
   const [problem, setProblem] = useState<string | null>(null);
@@ -137,6 +141,8 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, on
 
   const test = useMutation({
     mutationFn: (id: string) => testDestination(id),
+    onSuccess: (r, id) => chosen?.onTested({ destinationId: id, ok: r.success }),
+    onError: (_e, id) => chosen?.onTested({ destinationId: id, ok: false }),
     // The list shows each destination's last send, and a test is one.
     onSettled: () => qc.invalidateQueries({ queryKey: ["destinations"] }),
   });
@@ -167,7 +173,9 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, on
     save.mutate({ name: name.trim(), protocol, config: kept, credentials });
   }
 
-  const setValue = (key: string, value: unknown) => setConfig((c) => ({ ...c, [key]: value }));
+  // A passed test belongs to the settings it tested: any edit after a save un-tests it until it is saved and tested again.
+  const edited = () => { if (chosen && current) { chosen.onTested({ destinationId: current.id, ok: false }); setSaved(false); } };
+  const setValue = (key: string, value: unknown) => { edited(); setConfig((c) => ({ ...c, [key]: value })); };
   const configField = (key: string) => {
     const [label, kind] = CONFIG_FIELDS[key];
     const value = config[key];
@@ -208,8 +216,10 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, on
     const props = {
       value: creds[key] ?? "",
       placeholder: current?.hasCredentials ? "Leave blank to keep the saved one" : "",
-      onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
-        setCreds((c) => ({ ...c, [key]: e.target.value })),
+      onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        edited();
+        setCreds((c) => ({ ...c, [key]: e.target.value }));
+      },
     };
     return (
       <Field key={key} label={current?.hasCredentials && SECRETS.has(key) ? `New ${label.charAt(0).toLowerCase()}${label.slice(1)}` : label}>
@@ -232,10 +242,12 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, on
     // either submits the outer form too or, with a password manager installed, reloads the page.
     <div className={inline ? "grid min-w-0 max-w-[840px] grid-cols-[repeat(auto-fit,minmax(min(240px,100%),1fr))] gap-3" : "grid gap-3"}
       onKeyDown={(e) => { if (e.key === "Enter" && e.target instanceof HTMLInputElement) { e.preventDefault(); submit(); } }}>
-      <Field label="Name">
-        <input className={INPUT} value={name} onChange={(e) => setName(e.target.value)} />
-      </Field>
-      {!destination && (
+      {chosen ? <p className="col-span-full m-0 text-[14px] text-ink">We&apos;ll save this destination as {chosen.name}.</p> : (
+        <Field label="Name">
+          <input className={INPUT} value={name} onChange={(e) => setName(e.target.value)} />
+        </Field>
+      )}
+      {!destination && (chosen?.protocols.length ?? 2) > 1 && (
         <Field label="Send by">
           <select
             className={INPUT}
@@ -249,18 +261,18 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, on
             }}
           >
             {!Object.hasOwn(PROTOCOLS, protocol) && <option value={protocol}>{protocol}</option>}
-            {Object.entries(PROTOCOLS).filter(([id]) => googleOn || !isGoogle(id) || id === protocol)
+            {Object.entries(PROTOCOLS).filter(([id]) => (chosen ? chosen.protocols.includes(id) : googleOn || !isGoogle(id) || id === protocol))
               .map(([id, label]) => <option key={id} value={id}>{label}</option>)}
           </select>
         </Field>
       )}
       {fields.filter((k) => !FOLDED.has(k)).map(configField)}
       {isGoogle(protocol) && (
-        <GoogleTargetFields protocol={protocol} config={config} onChange={(patch) => setConfig((c) => ({ ...c, ...patch }))} />
+        <GoogleTargetFields protocol={protocol} config={config} onChange={(patch) => { edited(); setConfig((c) => ({ ...c, ...patch })); }} />
       )}
       {protocol === "http" && (
         <Field label="Sign in with">
-          <select className={INPUT} value={auth} onChange={(e) => { setAuth(e.target.value); setCreds({}); }}>
+          <select className={INPUT} value={auth} onChange={(e) => { edited(); setAuth(e.target.value); setCreds({}); }}>
             {Object.entries(AUTH_LABEL).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
           </select>
         </Field>
@@ -280,7 +292,7 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, on
       {problem && <StatusNotice tone="error" className="col-span-full">{problem}</StatusNotice>}
       <div className="col-span-full flex flex-wrap gap-2">
         {testAfterSave ? (
-          <Button type="button" variant="primary" loading={save.isPending || test.isPending} onClick={submit}>Save and send a test</Button>
+          <Button type="button" variant={chosen && (saved || chosen.outlined) ? "secondary" : "primary"} loading={save.isPending || test.isPending} onClick={submit}>Save and send a test</Button>
         ) : (
           <Button type="button" variant="primary" loading={save.isPending} onClick={submit}>Save</Button>
         )}

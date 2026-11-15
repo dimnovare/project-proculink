@@ -219,4 +219,33 @@ describe("DestinationForm", () => {
     expect(await ui.findByText(/^Test file arrived at \d\d:\d\d\.$/)).toBeInTheDocument();
     expect(ui.getByRole("button", { name: "Close" })).toBeInTheDocument();
   });
+
+  it("a chosen form names the destination for the person and reports its test", async () => {
+    const made: Destination = {
+      id: "dest-9", name: "Invoices server", protocol: "sftp", hasCredentials: true, createdAt: "2026-11-15T09:00:00Z", usedBy: [], lastSend: null,
+      config: { host: "sftp.example.test" },
+    };
+    api.createDestination.mockClear().mockResolvedValue(made);
+    api.testDestination.mockClear().mockResolvedValue({ success: true, message: null, responseCode: null });
+    const onTested = vi.fn();
+    // The form is not a <form> (it sits inside other forms): the render's container stands for it.
+    const form = within(render(
+      <QueryClientProvider client={new QueryClient()}>
+        <DestinationForm inline testAfterSave chosen={{ protocols: ["sftp", "ftps"], name: "Invoices server", onTested }} onSaved={vi.fn()} onCancel={vi.fn()} />
+      </QueryClientProvider>,
+    ).container);
+    expect(form.queryByRole("textbox", { name: "Name" })).toBeNull();
+    expect(form.getByText("We'll save this destination as Invoices server.")).toBeInTheDocument();
+    expect(within(form.getByRole("combobox", { name: "Send by" })).getAllByRole("option").map((o) => o.getAttribute("value")))
+      .toEqual(["sftp", "ftps"]);
+    fireEvent.change(form.getByLabelText("Server"), { target: { value: "sftp.example.test" } });
+    fireEvent.change(form.getByLabelText("Username"), { target: { value: "robot" } });
+    fireEvent.change(form.getByLabelText("Password"), { target: { value: "pw" } });
+    fireEvent.click(form.getByRole("button", { name: "Save and send a test" }));
+    await waitFor(() => expect(onTested).toHaveBeenCalledWith({ destinationId: "dest-9", ok: true }));
+    expect(api.createDestination.mock.calls[0][0]).toMatchObject({ name: "Invoices server", protocol: "sftp" });
+    expect(form.getByLabelText("New password")).toHaveValue("");          // a saved secret is never shown back
+    // Outlined after the save, so the step's own button is the one filled button.
+    expect(form.getByRole("button", { name: "Save and send a test" }).className).toMatch(/\bbg-surface\b/);
+  });
 });

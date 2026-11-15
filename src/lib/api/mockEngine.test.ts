@@ -74,13 +74,13 @@ describe("mock engine", () => {
     expect(flow.id).toBe(MOCK_ENGINE_IDS.flow);
   });
 
-  it("answers the sample route for a flow, the same document each time, outside the list", async () => {
-    const before = (await mockEngineFetch<DocumentSummary[]>("/documents")).length;
+  it("answers the sample route for a flow, the same document each time, and lists it as a sample", async () => {
     const route = `/flows/${MOCK_ENGINE_IDS.flow}/documents/sample`;
-    const doc = await mockEngineFetch<DocumentSummary>(route, { method: "POST" });
-    expect([doc.flowId, doc.fileName]).toEqual([MOCK_ENGINE_IDS.flow, "invoice-2250.pdf"]);
-    expect(await mockEngineFetch<DocumentSummary>(route, { method: "POST" })).toEqual(doc);
-    expect((await mockEngineFetch<DocumentSummary[]>("/documents")).length).toBe(before);
+    const a = await mockEngineFetch<DocumentSummary>(route, { method: "POST" });
+    const b = await mockEngineFetch<DocumentSummary>(route, { method: "POST" });
+    expect(b.id).toBe(a.id);
+    const page = await mockEngineFetch<DocumentPage>(`/documents?flowId=${MOCK_ENGINE_IDS.flow}&page=1&pageSize=50`);
+    expect(page.items.filter((r) => r.id === a.id).map((r) => r.isSample)).toEqual([true]);
   });
 
   it("serves destinations like the server: by name, what uses each, the last send, refusals, and what waits on one", async () => {
