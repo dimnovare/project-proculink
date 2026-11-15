@@ -3,8 +3,10 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { AlertCircle, CheckCircle2, Clock } from "lucide-react";
+import { Card } from "@/components/bridge/layout/Card";
 import { getBillingStatus } from "@/lib/api-client";
-import { planName } from "@/lib/plans";
+import { PLAN_BY_ID, TRIAL_DAYS, planName } from "@/lib/plans";
 import type { BillingPlan, BillingStatus } from "@/types/procurement";
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -104,42 +106,45 @@ export function welcomeReceiptState(input: {
   return { kind: "confirming" };
 }
 
-const S = {
-  card: {
-    background: "var(--surface)",
-    border: "1px solid var(--border)",
-    borderRadius: 12,
-    padding: 28,
-    textAlign: "left" as const,
-    boxShadow: "var(--shadow-card)",
-    marginBottom: 16,
-  },
-  h2: {
-    fontFamily: "var(--font-display)",
-    fontSize: 18,
-    fontWeight: 600,
-    color: "var(--ink)",
-    margin: "0 0 6px",
-    textAlign: "left" as const,
-  },
-  body: {
-    fontSize: 13.5,
-    color: "var(--ink-muted)",
-    lineHeight: 1.55,
-    margin: 0,
-    textAlign: "left" as const,
-  },
-  link: { color: "var(--brand-green-deep)", textDecoration: "underline" },
-};
-
-/** Billing is the route back from every arm below, so the link is written once. */
+/** Billing is the route back from every arm below, so the link is written once. Its
+ *  words are the Settings tab's label. */
 function BillingLink() {
   return (
-    <Link href="/settings?tab=billing" style={S.link}>
-      Settings → Billing
+    <Link href="/settings?tab=billing" className="font-semibold text-brand-blue-deep underline underline-offset-2">
+      Plan &amp; billing
     </Link>
   );
 }
+
+const n = (x: number) => x.toLocaleString("en-GB");
+
+/** The two lines of an `active` receipt. Every number is the server's (`orderLimit` is the
+ *  effective limit) or the plan table's; nothing comes from the address. */
+function receiptLines(status: BillingStatus): { title: string; note: string } {
+  const plan = status.plan;
+  if (plan === "pilot") {
+    return {
+      title: `You're on the free trial: ${n(status.orderLimit)} documents, ${PLAN_BY_ID.pilot.flowLimit} flows, ${TRIAL_DAYS} days.`,
+      note: "Choose a plan any time under",
+    };
+  }
+  const known = PLAN_BY_ID[plan];
+  if (known?.isCheckout) {
+    const flows = typeof known.flowLimit === "number" ? `, ${known.flowLimit} flows` : "";
+    return {
+      title: `You're on ${planName(plan)}: ${n(status.orderLimit)} documents a month${flows}.`,
+      note: "Change or cancel any time under",
+    };
+  }
+  // Enterprise, or a plan this build does not know: Stripe does not sell it, so no
+  // change-or-cancel promise, and no number: Enterprise's default limit is a
+  // sentinel (int.MaxValue), not what the agreement says.
+  return { title: `You're on ${planName(plan)}.`, note: "See your plan under" };
+}
+
+const ICON = "mt-0.5 size-6 shrink-0";
+const HEAD = "m-0 font-display text-[20px] font-semibold leading-[1.3] text-ink";
+const BODY = "m-0 text-[16px] leading-[1.55] text-ink-muted";
 
 /**
  * The receipt block on `/welcome`.
@@ -147,13 +152,7 @@ function BillingLink() {
  * Renders nothing without an `upgraded` hint, and never asserts an active
  * subscription without a server response that says so.
  */
-export function CheckoutReceipt({
-  expectedPlan,
-  email,
-}: {
-  expectedPlan: string | null;
-  email: string | null;
-}) {
+export function CheckoutReceipt({ expectedPlan }: { expectedPlan: string | null }) {
   const enabled = Boolean((expectedPlan ?? "").trim());
   const [settled, setSettled] = useState(false);
 
@@ -189,60 +188,60 @@ export function CheckoutReceipt({
   const state = welcomeReceiptState({ expectedPlan, status: data, isError, settled });
   if (state.kind === "none") return null;
 
-  const edge =
-    state.kind === "active"
-      ? "var(--brand-green)"
-      : state.kind === "confirming"
-        ? "var(--border-strong)"
-        : "var(--amber)";
+  // `active` is only reachable with a server answer, so `data` is defined there.
+  const active = state.kind === "active" && data ? receiptLines(data) : null;
 
   return (
-    <div
-      data-testid="checkout-receipt"
-      data-receipt-state={state.kind}
-      aria-live="polite"
-      style={{ ...S.card, borderLeft: `3px solid ${edge}` }}
-    >
-      {state.kind === "confirming" && (
-        <>
-          <h2 style={S.h2}>Confirming your subscription…</h2>
-          <p style={S.body}>
-            We&apos;re checking your billing status with our servers. This can take a few seconds
-            after checkout. Your plan and receipt are always in <BillingLink />.
-          </p>
-        </>
+    <Card data-testid="checkout-receipt" data-receipt-state={state.kind} aria-live="polite" className="flex gap-4">
+      {state.kind === "active" ? (
+        <CheckCircle2 aria-hidden="true" className={`${ICON} text-brand-green-deep`} />
+      ) : state.kind === "confirming" ? (
+        <Clock aria-hidden="true" className={`${ICON} text-ink-faint`} />
+      ) : (
+        <AlertCircle aria-hidden="true" className={`${ICON} text-amber-text`} />
       )}
+      <div className="flex min-w-0 flex-col gap-1.5">
+        {state.kind === "confirming" && (
+          <>
+            <h2 className={HEAD}>Confirming your subscription…</h2>
+            <p className={BODY}>
+              We&apos;re checking your billing status with our servers. This can take a few seconds
+              after checkout. Your plan and receipt are always in <BillingLink />.
+            </p>
+          </>
+        )}
 
-      {state.kind === "unconfirmed" && (
-        <>
-          <h2 style={S.h2}>We couldn&apos;t confirm your subscription here.</h2>
-          <p style={S.body}>
-            This page couldn&apos;t read your billing status, which on its own doesn&apos;t mean
-            anything went wrong with the payment. Open <BillingLink /> to see the plan on your
-            workspace, and contact support if it isn&apos;t what you expect.
-          </p>
-        </>
-      )}
+        {state.kind === "unconfirmed" && (
+          <>
+            <h2 className={HEAD}>We couldn&apos;t confirm your subscription here.</h2>
+            <p className={BODY}>
+              This page couldn&apos;t read your billing status, which on its own doesn&apos;t mean
+              anything went wrong with the payment. Open <BillingLink /> to see the plan on your
+              workspace, and contact support if it isn&apos;t what you expect.
+            </p>
+          </>
+        )}
 
-      {state.kind === "paused" && (
-        <>
-          <h2 style={S.h2}>Order processing is paused on your account.</h2>
-          <p style={S.body}>
-            Your workspace is on {planName(state.plan)}, but new orders aren&apos;t being accepted
-            yet. Open <BillingLink /> to check your subscription.
-          </p>
-        </>
-      )}
+        {state.kind === "paused" && (
+          <>
+            <h2 className={HEAD}>Order processing is paused on your account.</h2>
+            <p className={BODY}>
+              Your workspace is on {planName(state.plan)}, but new orders aren&apos;t being accepted
+              yet. Open <BillingLink /> to check your subscription.
+            </p>
+          </>
+        )}
 
-      {state.kind === "active" && (
-        <>
-          <h2 style={S.h2}>You&apos;re on {planName(state.plan)}.</h2>
-          <p style={S.body}>
-            Your subscription is active. Your billing portal is in <BillingLink />. Receipt was
-            emailed to {email ?? "your inbox"}.
-          </p>
-        </>
-      )}
-    </div>
+        {active && (
+          <>
+            <p className={HEAD}>Your workspace is ready.</p>
+            <p className="m-0 text-[16px] leading-[1.55] text-ink">{active.title}</p>
+            <p className={BODY}>
+              {active.note} <BillingLink />.
+            </p>
+          </>
+        )}
+      </div>
+    </Card>
   );
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { render, cleanup } from "@testing-library/react";
+import { render, cleanup, screen, within } from "@testing-library/react";
 
 // /security — the Compliance table asserted a legal conclusion it had nothing behind.
 //
@@ -27,6 +27,7 @@ import { render, cleanup } from "@testing-library/react";
 // still hedged, and the GDPR row is pinned as still naming GDPR.
 
 import SecurityPage from "./page";
+import { SUBPROCESSORS } from "@/lib/subprocessors";
 
 /** Legal conclusions this page may not assert about itself without an artifact behind it. */
 const VERDICT_WORD =
@@ -47,25 +48,18 @@ afterEach(cleanup);
 /**
  * The Compliance card's rows, read off the DOM.
  *
- * Located by the column heading rather than by a nth-child index: `ListCard` renders the
- * Subprocessors column with the identical `.sec-list-row` markup, and a positional selector
- * would silently start reading the wrong card the day the columns are reordered.
+ * Located by the section's heading rather than by a nth-child index, so a positional
+ * selector cannot silently start reading the Subprocessors section the day the sections
+ * are reordered.
  */
 function complianceRows(): Array<{ label: string; note: string }> {
   render(<SecurityPage />);
-  const heading = Array.from(document.querySelectorAll("h2.sec-col-title")).find(
-    (h) => (h.textContent ?? "").trim().toLowerCase() === "compliance",
-  );
-  if (!heading?.parentElement) throw new Error("/security has no Compliance column");
-  return Array.from(heading.parentElement.querySelectorAll<HTMLElement>(".sec-list-row")).map(
-    (row) => {
-      const spans = row.querySelectorAll("span");
-      return {
-        label: (spans[0]?.textContent ?? "").trim(),
-        note: (spans[1]?.textContent ?? "").trim(),
-      };
-    },
-  );
+  const section = screen.queryByRole("heading", { level: 2, name: "Compliance" })?.closest("section");
+  if (!section) throw new Error("/security has no Compliance column");
+  return Array.from(section.querySelectorAll<HTMLElement>("dl > div")).map((row) => ({
+    label: (row.querySelector("dt")?.textContent ?? "").trim(),
+    note: (row.querySelector("dd")?.textContent ?? "").trim(),
+  }));
 }
 
 function rowFor(label: string): { label: string; note: string } {
@@ -132,5 +126,15 @@ describe("the rows that were already honest keep their wording", () => {
       expect(row.note.length, `the ${row.label} row lost its text`).toBeGreaterThan(4);
       expect(row.note, `the ${row.label} row asserts a verdict`).not.toMatch(VERDICT_WORD);
     }
+  });
+});
+
+describe("the subprocessor table", () => {
+  it("lists every subprocessor with where it runs", () => {
+    render(<SecurityPage />);
+    const rows = within(screen.getByRole("table")).getAllByRole("row");
+    expect(rows.length).toBe(SUBPROCESSORS.length + 1);
+    const cells = rows.slice(1).map((r) => within(r).getAllByRole("cell").map((c) => c.textContent));
+    expect(cells).toEqual(SUBPROCESSORS.map((s) => [s.name, s.purpose, s.location]));
   });
 });

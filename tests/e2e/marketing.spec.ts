@@ -69,9 +69,10 @@ test.describe("Support contact form", () => {
       await route.fulfill({ status: 200, body: JSON.stringify({ ok: true }), contentType: "application/json" });
     });
 
-    await form.getByLabel(/category/i).selectOption("bug");
+    await form.getByLabel(/what is it about/i).selectOption("bug");
     await form.getByLabel(/subject/i).fill("Playwright smoke");
     await form.getByLabel(/message/i).fill("This is a Playwright smoke test for the support contact form.");
+    await form.getByLabel(/your email/i).fill("sam@example.test");
 
     await form.getByRole("button", { name: /send|submit/i }).click();
 
@@ -107,6 +108,7 @@ test.describe("Support contact form", () => {
         category: "bug",
         subject: "Playwright smoke",
         message: expect.stringContaining("Playwright smoke test"),
+        userEmail: "sam@example.test",
         route: "/support",
       }),
     );
@@ -119,6 +121,7 @@ test.describe("Support contact form", () => {
 
     const form = page.getByRole("form", { name: /contact support/i });
     await form.getByLabel(/message/i).fill("Trigger an error");
+    await form.getByLabel(/your email/i).fill("sam@example.test");
     await form.getByRole("button", { name: /send|submit/i }).click();
 
     // The form catches the error and renders a notice. We don't assert on the

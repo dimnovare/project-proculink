@@ -30,16 +30,23 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 
-const captured: { signIn?: unknown; signUp?: unknown } = {};
+const captured: {
+  signIn?: unknown;
+  signUp?: unknown;
+  signInProps?: Record<string, unknown>;
+  signUpProps?: Record<string, unknown>;
+} = {};
 
 vi.mock("@clerk/nextjs", () => ({
   useAuth: () => ({ isLoaded: true, isSignedIn: false }),
   SignIn: (props: { appearance?: unknown }) => {
     captured.signIn = props.appearance;
+    captured.signInProps = props;
     return <div>clerk sign-in form</div>;
   },
   SignUp: (props: { appearance?: unknown }) => {
     captured.signUp = props.appearance;
+    captured.signUpProps = props;
     return <div>clerk sign-up form</div>;
   },
 }));
@@ -102,6 +109,8 @@ floor();
 beforeEach(() => {
   captured.signIn = undefined;
   captured.signUp = undefined;
+  captured.signInProps = undefined;
+  captured.signUpProps = undefined;
   vi.stubEnv("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", "pk_live_Y2xlcmsucHJvY3VsaW5rLmV1JA==");
   vi.stubEnv("CLERK_SECRET_KEY", "sk_live_not-a-real-key");
 });
@@ -166,5 +175,26 @@ describe("each route still says which one it is", () => {
 
     render(<SignUpPage />);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Start your free trial");
+  });
+
+  // Mirrors the redirect props on both pages and the route that receives them,
+  // src/app/onboarding/select-organization. Typed once so a restyle cannot move it.
+  const KEPT_REDIRECT = "/onboarding/select-organization";
+
+  it("passes the same redirects as before, and marks which page it is", () => {
+    const signIn = render(<SignInPage />);
+    expect(captured.signInProps).toMatchObject({
+      fallbackRedirectUrl: KEPT_REDIRECT,
+      signUpFallbackRedirectUrl: KEPT_REDIRECT,
+    });
+    expect(signIn.container.querySelector("[data-auth]")?.getAttribute("data-auth")).toBe("sign-in");
+    cleanup();
+
+    const signUp = render(<SignUpPage />);
+    expect(captured.signUpProps).toMatchObject({
+      fallbackRedirectUrl: KEPT_REDIRECT,
+      signInFallbackRedirectUrl: KEPT_REDIRECT,
+    });
+    expect(signUp.container.querySelector("[data-auth]")?.getAttribute("data-auth")).toBe("sign-up");
   });
 });
