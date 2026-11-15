@@ -59,6 +59,14 @@ function chordKey(e: KeyboardEvent): string {
   return k;
 }
 
+/** Whether this press is the chord of a registered `Mod` shortcut (modifier and key only: no field or dialog rules).
+ *  The palette closes itself with it (R11), from inside its own dialog, where matchShortcut stays silent. */
+export function isChord(e: KeyboardEvent, id: ShortcutId, apple: boolean): boolean {
+  const s = SHORTCUTS.find((x) => x.id === id);
+  if (s?.keys[0] !== "Mod" || e.altKey || e.shiftKey || e.repeat) return false;
+  return (apple ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey) && chordKey(e) === s.keys[1].toLowerCase();
+}
+
 /** The registered shortcut this key press is, or null. Rules in R9 and R10. */
 export function matchShortcut(e: KeyboardEvent, apple: boolean): ShortcutId | null {
   if (e.defaultPrevented || e.isComposing || e.keyCode === 229 || e.repeat || e.altKey || e.getModifierState?.("AltGraph")) return null;
@@ -66,12 +74,10 @@ export function matchShortcut(e: KeyboardEvent, apple: boolean): ShortcutId | nu
   if (target?.closest(BLOCKED)) return null;
   // A modal open anywhere owns the keyboard, wherever the focus happens to be.
   if (typeof document !== "undefined" && document.querySelector('[aria-modal="true"], [role="alertdialog"]')) return null;
-  const mod = apple ? e.metaKey : e.ctrlKey;
-  const other = apple ? e.ctrlKey : e.metaKey;
   for (const s of SHORTCUTS) {
     if (s.native) continue;
     if (s.keys[0] === "Mod") {
-      if (mod && !other && !e.shiftKey && chordKey(e) === s.keys[1].toLowerCase()) return s.id;
+      if (isChord(e, s.id, apple)) return s.id;
     } else if (!e.ctrlKey && !e.metaKey && e.key === s.keys[0] && !(target && typedInto(target))) {
       return s.id;
     }

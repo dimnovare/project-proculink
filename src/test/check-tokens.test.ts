@@ -371,7 +371,8 @@ describe("the scanned corpus", () => {
     // 34 rows of their debt; 90 rows / 1,578 once the mapper kept only the flow
     // variant the same day.
     expect(s.baselineRows).toBeGreaterThan(60);
-    expect(s.baselineTotal).toBeGreaterThan(1_200);
+    // 1_200 -> 1_000 on 2026-11-15: plan 14.10 redrew the search palette in tokens (its 39 went; 76 rows / 1,171 after).
+    expect(s.baselineTotal).toBeGreaterThan(1_000);
 
     // The gate is green, so found debt and ledgered debt must agree exactly.
     // This is what ties the ledger below to a LIVE run rather than to a file

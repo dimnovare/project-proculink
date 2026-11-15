@@ -270,7 +270,7 @@ export function BridgeTopbar({ onMenuClick, menuOpen }: BridgeTopbarProps) {
       </div>
 
       {/* Command Palette */}
-      {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} />}
+      {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} onShortcuts={() => { setPaletteOpen(false); setKeysOpen(true); }} />}
       {keysOpen && <ShortcutsSheet onClose={() => setKeysOpen(false)} />}
 
       {/* Help slide-over */}

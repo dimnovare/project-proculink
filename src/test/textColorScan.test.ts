@@ -305,20 +305,6 @@ describe("the real tree — the green family", () => {
   const IN_SCOPE = SOURCES.filter((s) => SWEPT(s.rel));
 
   /**
-   * CommandPalette is exempt at FILE level, and the thing that makes that safe is
-   * asserted separately below rather than asserted here.
-   *
-   * Every `color` in it is a `CmdItem` FILL: it is painted as `${item.color}18`,
-   * a 9.4%-alpha chip tint (non-text, 3:1), and the glyph on top of it goes
-   * through `glyphColor()`, which maps each fill to its AA-legible text sibling.
-   * Four separate `contains` entries would be four copies of one fact, and a list
-   * that repeats itself is a list nobody re-reads. The file-level exemption is
-   * paired with a test that the MAPPING IS STILL WIRED — if `glyphColor` is
-   * removed from the glyph, the exemption stops being true and the suite says so.
-   */
-  const allow = (rel: string) => rel === "src/components/bridge/CommandPalette.tsx";
-
-  /**
    * Same blind spot as the amber list, and the same shape of entry: a `color:`
    * that is really an icon stroke or a fill.
    *
@@ -339,21 +325,6 @@ describe("the real tree — the green family", () => {
     },
   ];
 
-  /** The assertion that earns CommandPalette its file-level exemption. */
-  it("CommandPalette still routes the glyph through glyphColor", () => {
-    const src = SOURCES.find((s) => s.rel === "src/components/bridge/CommandPalette.tsx");
-    expect(src, "CommandPalette.tsx not found — the exemption above is now blind").toBeDefined();
-    // The chip fill stays on the raw value; the GLYPH must not.
-    expect(src!.text).toContain("background: `${item.color ?? \"#2E8E3A\"}18`");
-    expect(src!.text).toContain('color: glyphColor(item.color ?? "#2E8E3A"),');
-    // And the map must cover all three families the palette actually paints —
-    // green was the one the sweep was scoped to, amber was 3.6662:1 and blue
-    // 4.4231:1 on the active row.
-    for (const pair of ['"#2E8E3A": "#1E6D29"', '"#B36D14": "#8A5310"', '"#1E66C9": "#0F4FA8"']) {
-      expect(src!.text, `glyphColor no longer maps ${pair}`).toContain(pair);
-    }
-  });
-
   const exempted = (h: { rel: string; text: string }) =>
     EXEMPT.some((e) => e.rel === h.rel && h.text.includes(e.contains.trim()));
 
@@ -372,7 +343,7 @@ describe("the real tree — the green family", () => {
   });
 
   it("has no text use of --brand-green in the swept region", () => {
-    const found = scanTextColorUses(IN_SCOPE, GREEN, allow).filter((h) => !exempted(h));
+    const found = scanTextColorUses(IN_SCOPE, GREEN).filter((h) => !exempted(h));
     expect(
       found.map((h) => `${h.rel}:${h.line}  [${h.spelling}]  ${h.text}`),
       "use --brand-green-deep (#1E6D29, 6.4128:1 on white). --brand-green is\n" +
@@ -382,7 +353,7 @@ describe("the real tree — the green family", () => {
   });
 
   it("the exemptions are load-bearing — each one really is being forgiven", () => {
-    const raw = scanTextColorUses(IN_SCOPE, GREEN, allow);
+    const raw = scanTextColorUses(IN_SCOPE, GREEN);
     expect(raw.every((h) => exempted(h))).toBe(true);
     expect(raw.length).toBe(EXEMPT.length);
   });
