@@ -40,7 +40,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
     tasks: [
       { title: "What \"Needs you\" means", line: "The documents waiting for you to check or send them.", href: "/help/documents-and-statuses" },
       { title: "Review and send a document", line: "Open one, check the marked values, then send it.", href: "/help/guides/check-and-send-a-document" },
-      { title: "Find an older document", line: "Look under Sent or All.", href: "/help/documents-and-statuses" },
+      { title: "Find an older document", line: "Look under Sent or All, or search by name or number.", href: "/help/documents-and-statuses" },
     ],
     startHere: "Press Review next. It opens the first document that needs you.",
   },
