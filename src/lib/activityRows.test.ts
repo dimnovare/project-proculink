@@ -25,6 +25,7 @@ describe("activityRows", () => {
       [ev({ action: "document.received", source: "upload", actorId: null }), members, "A workspace member"],
       [ev({ action: "document.sent", actorId: null }), members, "Automatic"],
       [ev({ action: "document.delivered", documentId: null, documentName: null, source: null }), members, "Not recorded"],
+      [ev({ action: "document.delivery_failed", actorId: null, startedAt: null }), members, "Not recorded"],
       [ev({ action: "admin.org.limits_changed", documentId: null, flowId: null, documentName: null, source: null }), members, "System"],
     ];
     for (const [e, m, who] of cases) expect(activityWho(e, m), e.action).toBe(who);
@@ -55,12 +56,23 @@ describe("activityRows", () => {
     const last = new Date(2026, 5, 1, 9, 12).toISOString();
     const full = view(ev({
       action: "document.delivery_failed", ts: last, actorId: "user_member_a", startedAt: last,
-      payload: { destination: "Accounting inbox", destinationId: "dest-1", protocol: "email", error: "The mailbox refused the message.", responseCode: "550", attempts: 3, output: "Invoice CSV", file: "invoice-1003.csv", version: 2 },
+      payload: { destination: "Accounting inbox", destinationId: "dest-1", protocol: "email", error: "The mailbox refused the message.", responseCode: 550, attempts: 3, output: "Invoice CSV", file: "invoice-1003.csv", version: 2 },
     }));
     expect(full.facts).toContainEqual({ term: "Attempts", value: "3, the last at 09:12. We stopped there." });
     expect(full.facts).toContainEqual({ term: "Destination", value: "Accounting inbox, Email" });
     expect(full.facts).toContainEqual({ term: "Where it stopped", value: "At Send, stage 5 of 5", stopped: 4 });
     expect(full.tag).toEqual({ label: "Couldn't send", tone: "danger" });
+    expect(full.why).toBe("The mailbox refused the message. Fix the destination, then send it again.");
+    expect(full.canFix).toBe(true);
+
+    const edit = (target: string, old: string | null, now: string | null) => view(ev({ action: "document.value_edited", payload: { target, old, new: now } }));
+    const changed = edit("field:invoice_number", "INV-1", "INV-2");
+    expect(plainSentence(changed.sentence)).toBe("A value on invoice-1003.csv was changed");
+    expect(changed.facts).toContainEqual({ term: "Value", value: "invoice number" });
+    expect(edit("cell:lines[2].unit_price", "4.50", "4.75").facts).toContainEqual({ term: "Value", value: "unit price, line 3" });
+    const added = edit("row:lines[2]", null, "row");
+    expect(plainSentence(added.sentence)).toBe("A line on invoice-1003.csv was added");
+    expect(added.facts).toEqual([]);
   });
 
   test("server text is sanitised, and unknown is never green", () => {

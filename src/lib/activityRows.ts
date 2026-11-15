@@ -8,7 +8,7 @@ import { AUDIT_ACTION_FACTS, auditActionLabel, auditEventKind, auditEventReason 
 import { readFailureMessage } from "@/lib/documentRefusals";
 import { serverReasonOrNull } from "@/lib/serverText";
 import { csvCell } from "@/lib/csvCell";
-import { CHANNELS } from "@/components/flows/DocumentOutputsPanel";
+import { CHANNELS } from "@/lib/channels";
 
 export type ActivityTabKey = "all" | "sent" | "failed" | "changes";
 export const ACTIVITY_TABS: readonly { key: ActivityTabKey; label: string; actions: readonly string[] | undefined; emptyTitle: string; emptySub: string }[] = [
@@ -16,7 +16,10 @@ export const ACTIVITY_TABS: readonly { key: ActivityTabKey; label: string; actio
   { key: "sent", label: "Sent", actions: ["document.delivered"], emptyTitle: "Nothing has been sent yet.", emptySub: "Documents show here once they have been sent." },
   { key: "failed", label: "Couldn't send", actions: ["document.delivery_failed"], emptyTitle: "Nothing has failed to send.", emptySub: "Documents we couldn't send show here, with the reason." },
   {
-    key: "changes", label: "Changes", actions: AUDIT_ACTION_FACTS.filter((f) => f.reachable && f.kind === "edited").map((f) => f.action),
+    key: "changes", label: "Changes",
+    // A destination test and the platform's own admin rows are not changes a person made here; they stay under All.
+    actions: AUDIT_ACTION_FACTS.filter((f) => f.reachable && f.kind === "edited" && f.action !== "destination.tested" && !f.action.startsWith("admin."))
+      .map((f) => f.action),
     emptyTitle: "No changes yet.", emptySub: "Edited values, published versions and settings changes show here.",
   },
 ];
@@ -58,6 +61,7 @@ export function activityWho(e: ActivityEvent, members: Members): string {
   if (e.actorId) return members.get(e.actorId) ?? "A workspace member";
   if (!e.action.startsWith("document.")) return "System";
   if (!e.documentId) return "Not recorded";
+  if ((e.action === "document.delivered" || e.action === "document.delivery_failed") && !e.startedAt) return "Not recorded";
   return UPLOAD_CREDITED.has(e.action) && e.source === "upload" ? "A workspace member" : "Automatic";
 }
 
@@ -74,6 +78,15 @@ function field(payload: unknown, key: string): string | undefined {
   const v = (payload as Record<string, unknown>)[key];
   if (v === undefined || v === null) return undefined;
   return Array.isArray(v) ? v.join(", ") : String(v);
+}
+
+/** The server's edit target in words: `field:invoice_number` → "invoice number", `cell:lines[2].unit_price` → "unit price, line 3"; anything else is left out. */
+function targetLabel(target: string): string | undefined {
+  const words = (s: string) => s.replaceAll("_", " ");
+  const f = /^field:(.+)$/.exec(target);
+  if (f) return words(f[1]);
+  const c = /^cell:[^[\]]+\[(\d+)\]\.(.+)$/.exec(target);
+  return c ? `${words(c[2])}, line ${Number(c[1]) + 1}` : undefined;
 }
 
 const RECEIVED = new Map([
@@ -125,13 +138,23 @@ export function activityView(e: ActivityEvent, ctx: { who: string; destinationNa
       sentence = fileSentence("Started reading ", " again");
       tag = { label: "Read again", tone: "blue" };
       break;
-    case "document.value_edited":
-    case "document.value_taught":
-      sentence = fileSentence("A value on ", e.action === "document.value_edited" ? " was changed" : " was taught");
+    case "document.value_edited": {
+      const target = p("target") ?? "";
+      const line = target.startsWith("row:") ? (p("new") === "row" ? " was added" : p("old") === "row" ? " was removed" : null) : null;
+      sentence = fileSentence(line ? "A line on " : "A value on ", line ?? " was changed");
       tag = { label: "Change", tone: "neutral" };
-      fact("Value", p("target") ?? p("key"));
-      fact("Was", p("old"));
-      fact("Now", p("new"));
+      const value = targetLabel(target);
+      if (value) {
+        fact("Value", value);
+        fact("Was", p("old"));
+        fact("Now", p("new"));
+      }
+      break;
+    }
+    case "document.value_taught":
+      sentence = fileSentence("A value on ", " was taught");
+      tag = { label: "Change", tone: "neutral" };
+      fact("Value", p("key"));
       break;
     case "document.sent":
       sentence = fileSentence("Started sending ", "");

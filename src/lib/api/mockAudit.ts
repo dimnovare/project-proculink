@@ -19,20 +19,20 @@ const doc = (id: string, ts: string, action: string, payload: Payload = null) =>
 // 1 June (before the browser suites' frozen clock, 09:30Z)
 doc("doc-4", "2026-06-01T08:00:00Z", "received", { source: "upload" });
 doc("doc-4", "2026-06-01T08:01:00Z", "read", { status: "ready" });
-doc("doc-4", "2026-06-01T08:05:00Z", "sent", { by: A, mode: "person" });
+doc("doc-4", "2026-06-01T08:05:00Z", "sent", { by: A, mode: "person", outputs: ["Invoice CSV"] });
 doc("doc-4", "2026-06-01T08:06:00Z", "delivery_failed", {
   destination: "Accounting inbox", destinationId: "dest-1", protocol: "email", error: "The mailbox refused the message.",
-  responseCode: "550", attempts: 3, output: "Invoice CSV", file: "invoice-1004.csv",
+  responseCode: 550, attempts: 3, output: "Invoice CSV", file: "invoice-1004.csv",
 });
 doc("doc-1", "2026-06-01T07:00:00Z", "received", { by: B, source: "upload" });
 doc("doc-1", "2026-06-01T07:01:00Z", "read", { status: "needs_review" });
-doc("doc-1", "2026-06-01T07:30:00Z", "value_edited", { by: B, field: "vat" });
+doc("doc-1", "2026-06-01T07:30:00Z", "value_edited", { by: B, target: "field:vat", old: "20", new: "21" });
 add("2026-06-01T06:00:00Z", "LinkedAccount", "account-1", "linked_account.connected", { provider: "google", by: A });
 // 31 May
 add("2026-05-31T10:00:00Z", "Flow", "flow-1", "flow.published", { version: 1, flow: "Supplier invoices" });
 doc("doc-3", "2026-05-31T11:00:00Z", "received", { source: "upload" });
 doc("doc-3", "2026-05-31T11:01:00Z", "read", { status: "ready" });
-doc("doc-3", "2026-05-31T11:02:00Z", "sent", { mode: "automatic" });
+doc("doc-3", "2026-05-31T11:02:00Z", "sent", { mode: "automatic", outputs: ["Invoice CSV"] });
 doc("doc-3", "2026-05-31T11:03:00Z", "delivered", {
   destination: "Accounting API", destinationId: "dest-2", protocol: "http", attempts: 1, output: "Invoice CSV", file: "invoice-1003.csv", version: 1,
 });
@@ -46,8 +46,12 @@ doc("doc-2", "2026-05-28T09:11:00Z", "read", { status: "ready" });
 doc("doc-3", "2026-05-20T09:05:00Z", "delivered", { protocol: "email", output: "Invoice CSV" });
 add("2026-05-20T08:00:00Z", "Order", "order-1", "Created", null, "PO-1001");
 add("2026-05-20T10:00:00Z", "Organisation", "org-1", "InvoiceDestinationChanged", { by: A, from: null, to: "dest-1" });
-// 10 May: enough rows for a second page
-for (let i = 0; i < 40; i++) doc("doc-1", `2026-05-10T09:${String(i).padStart(2, "0")}:00Z`, "value_edited", { by: A, field: "total" });
+// 10 May: enough rows for a second page, with every edit shape the server writes (a cell, a line added, a field)
+const filler = (i: number): Payload =>
+  i === 0 ? { by: A, target: "cell:lines[0].unit_price", old: "4.50", new: "4.75" }
+    : i === 1 ? { by: A, target: "row:lines[2]", old: null, new: "row" }
+      : { by: A, target: "field:total", old: "100.00", new: "110.00" };
+for (let i = 0; i < 40; i++) doc("doc-1", `2026-05-10T09:${String(i).padStart(2, "0")}:00Z`, "value_edited", filler(i));
 
 const ROWS: Row[] = spec.map((r, i) => ({ ...r, id: `evt-${String(i + 1).padStart(3, "0")}` }));
 

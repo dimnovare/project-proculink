@@ -719,6 +719,7 @@ describe("auditActionManifest mirrors the backend's audit vocabulary", () => {
     // The server's `actions` filter is a case-sensitive IN, so a tab spelled in another case lists nothing.
     const tabActions = ACTIVITY_TABS.flatMap((t) => t.actions ?? []);
     expect(tabActions.length).toBeGreaterThan(0);
+    expect(tabActions.filter((a) => a === "destination.tested" || a.startsWith("admin."))).toEqual([]);
     const misspelt = tabActions.filter((a) => !backendActions.includes(a)).sort();
     expect(misspelt, `activity tab actions the backend never writes in this exact case: ${misspelt.join(", ")}`).toEqual([]);
   });
