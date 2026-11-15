@@ -1,21 +1,24 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, within, fireEvent } from "@testing-library/react";
+import { act, render, screen, within, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactElement } from "react";
+import { UploadQueueProvider } from "@/components/flows/UploadQueue";
 import { BottomTabBar, isFullScreenStep, needsYouBadge } from "./BottomTabBar";
 
 let mockPath: string | null = "/documents";
 const needsTotal = vi.hoisted(() => ({ n: 3 }));
+const flowList = vi.hoisted(() => ({ items: [{ id: "f-1", name: "Flow" }] as object[] }));
+const listFlowsCalls = vi.hoisted(() => ({ n: 0 }));
 vi.mock("next/navigation", () => ({ usePathname: () => mockPath, useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => true }));
 vi.mock("@/lib/api-client", () => ({ getBillingStatus: vi.fn(), checkAdminAccess: vi.fn() }));
 vi.mock("@/lib/api/documents", () => ({
-  listFlows: () => Promise.resolve([{ id: "f-1", name: "Flow" }]),
+  listFlows: () => { listFlowsCalls.n++; return Promise.resolve(flowList.items); },
   listDocumentPage: () => Promise.resolve({ items: [], totalCount: needsTotal.n, page: 1, pageSize: 1 }),
 }));
 
 const renderBar = (ui: ReactElement) =>
-  render(<QueryClientProvider client={new QueryClient()}>{ui}</QueryClientProvider>);
+  render(<QueryClientProvider client={new QueryClient()}><UploadQueueProvider>{ui}</UploadQueueProvider></QueryClientProvider>);
 
 describe("BottomTabBar", () => {
   it("offers Documents, Flows, Add a document, Activity and More, and marks where you are", () => {
@@ -48,6 +51,25 @@ describe("BottomTabBar", () => {
       r.unmount();
     }
     needsTotal.n = 3;
+  });
+
+  it("Add opens the sheet when there is a flow, and goes to Upload when there is none", async () => {
+    mockPath = "/documents";
+    flowList.items = [];
+    listFlowsCalls.n = 0;
+    const r = renderBar(<BottomTabBar onMore={() => {}} moreOpen={false} />);
+    await waitFor(() => expect(listFlowsCalls.n).toBe(1));
+    await act(async () => {});                                             // the empty answer is applied before the check
+    expect(within(r.container).getByRole("link", { name: "Add a document" })).toHaveAttribute("href", "/upload");
+    r.unmount();
+    flowList.items = [{ id: "f-1", name: "Supplier invoices", automation: "review", scansOn: true }];
+    renderBar(<BottomTabBar onMore={() => {}} moreOpen={false} />);
+    const add = await within(screen.getByRole("navigation", { name: "Main" })).findByRole("button", { name: "Add a document" });
+    expect(add).toHaveAttribute("aria-haspopup", "dialog");
+    fireEvent.click(add);
+    expect(await screen.findByRole("dialog", { name: "Add a document" })).toBeInTheDocument();
+    expect(add).toHaveAttribute("aria-expanded", "true");
+    flowList.items = [{ id: "f-1", name: "Flow" }];
   });
 
   it("steps aside on full-screen steps", () => {

@@ -1,11 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { MoreHorizontal, Plus } from "lucide-react";
 import { buildVisibleNav, isItemActive, PHONE_TAB_HREFS, PINNED_ACTION_HREF, type SidebarNavItem } from "./BridgeSidebar";
-import { needsYouQuery, useDocumentEngine } from "@/hooks/useDocumentEngine";
+import { AddSheet } from "@/components/flows/AddSheet";
+import { flowsQuery, needsYouQuery, useDocumentEngine } from "@/hooks/useDocumentEngine";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { pageTotal } from "@/lib/pageTotal";
 
@@ -34,6 +36,8 @@ export function BottomTabBar({ onMore, moreOpen }: { onMore: () => void; moreOpe
   const tenantReady = useTenantQueriesEnabled();
   // The same request and refresh as the Documents screen's needs-you number.
   const needsYou = useQuery({ ...needsYouQuery, enabled: tenantReady && engine === "on", refetchInterval: 60_000, refetchOnWindowFocus: true });
+  const flows = useQuery({ ...flowsQuery, enabled: tenantReady });
+  const [adding, setAdding] = useState(false);
   if (isFullScreenStep(pathname)) return null;
 
   const total = pageTotal(needsYou.data);
@@ -72,34 +76,47 @@ export function BottomTabBar({ onMore, moreOpen }: { onMore: () => void; moreOpe
     );
   };
 
+  const addClass = "mx-auto -mt-5 flex h-[52px] w-[52px] self-start items-center justify-center rounded-full bg-brand-blue text-white ring-4 ring-surface focus-visible:rounded-full";
+
   return (
-    <nav
-      aria-label="Main"
-      data-testid="tab-bar"
-      className="plk-tabbar fixed inset-x-0 bottom-0 z-drawer grid grid-cols-5 items-end border-t border-border bg-surface pt-1 md:hidden"
-      style={{ paddingBottom: "max(8px, env(safe-area-inset-bottom))" }}
-    >
-      {link(first)}
-      {link(second)}
-      <Link
-        href={PINNED_ACTION_HREF}
-        aria-label="Add a document"
-        aria-current={pathname === PINNED_ACTION_HREF ? "page" : undefined}
-        className="mx-auto -mt-5 flex h-[52px] w-[52px] self-start items-center justify-center rounded-full bg-brand-blue text-white ring-4 ring-surface focus-visible:rounded-full"
+    <>
+      <nav
+        aria-label="Main"
+        data-testid="tab-bar"
+        className="plk-tabbar fixed inset-x-0 bottom-0 z-drawer grid grid-cols-5 items-end border-t border-border bg-surface pt-1 md:hidden"
+        style={{ paddingBottom: "max(8px, env(safe-area-inset-bottom))" }}
       >
-        <Plus size={26} aria-hidden />
-      </Link>
-      {link(third)}
-      <button
-        type="button"
-        aria-haspopup="dialog"
-        aria-expanded={moreOpen}
-        onClick={onMore}
-        className={tab(moreActive)}
-      >
-        <MoreHorizontal size={22} aria-hidden />
-        <span>More</span>
-      </button>
-    </nav>
+        {link(first)}
+        {link(second)}
+        {/* With a flow the round Add opens the sheet; with none (or not known yet) it stays the link to Upload (R15). */}
+        {engine === "on" && !!flows.data?.length ? (
+          <button type="button" aria-label="Add a document" aria-haspopup="dialog" aria-expanded={adding} onClick={() => setAdding(true)}
+            aria-current={pathname === PINNED_ACTION_HREF ? "page" : undefined} className={addClass}>
+            <Plus size={26} aria-hidden />
+          </button>
+        ) : (
+          <Link
+            href={PINNED_ACTION_HREF}
+            aria-label="Add a document"
+            aria-current={pathname === PINNED_ACTION_HREF ? "page" : undefined}
+            className={addClass}
+          >
+            <Plus size={26} aria-hidden />
+          </Link>
+        )}
+        {link(third)}
+        <button
+          type="button"
+          aria-haspopup="dialog"
+          aria-expanded={moreOpen}
+          onClick={onMore}
+          className={tab(moreActive)}
+        >
+          <MoreHorizontal size={22} aria-hidden />
+          <span>More</span>
+        </button>
+      </nav>
+      {adding && <AddSheet onClose={() => setAdding(false)} />}
+    </>
   );
 }
