@@ -3,9 +3,9 @@
 import { Fragment, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useOrganization } from "@clerk/nextjs";
-import { Search } from "lucide-react";
+import { Download, Search } from "lucide-react";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import { Card } from "@/components/bridge/layout/Card";
@@ -15,14 +15,17 @@ import { Button, buttonClass } from "@/components/bridge/DSPrimitives";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { listActivity, listDestinations, type ActivityEvent } from "@/lib/api/documents";
 import {
-  ACTIVITY_PAGE_SIZE, ACTIVITY_TABS, activityAddress, activityDay, activityView, activityWho, memberNames, readActivityAddress, type ActivityTabKey,
+  ACTIVITY_PAGE_SIZE, ACTIVITY_TABS, activityAddress, activityCsv, activityDay, activityView, activityWho, memberNames, readActivityAddress, type ActivityTabKey,
 } from "@/lib/activityRows";
 import { intoStrip } from "@/lib/intoStrip";
+import { saveBlob } from "@/lib/saveBlob";
 import { nextTabIndex } from "@/lib/tabKeys";
 import { ACTIVITY_GRID, ActivityRow } from "./ActivityRow";
 
 const Quiet = ({ children }: { children: string }) => <p role="status" className="m-0 text-[13px] text-ink-muted">{children}</p>;
 const count = (n: number) => n.toLocaleString("en-GB");
+const EXPORT_CAP = 2000;
+const EXPORT_KEY = ["activity-export"];
 /** A delivery row that names its destination only by id. */
 const unnamed = (e: ActivityEvent) => {
   const p = e.payload as { destinationId?: unknown; destination?: unknown } | null;
@@ -63,8 +66,30 @@ export function ActivityPage() {
   });
   const destinationName = (id: string) => destinations.data?.find((d) => d.id === id)?.name ?? null;
 
+  // Walks the tab and search in pages of 200, newest first, up to EXPORT_CAP events.
+  const qc = useQueryClient();
+  const exporting = useMutation({
+    mutationKey: EXPORT_KEY,
+    mutationFn: async () => {
+      const events: ActivityEvent[] = [];
+      let total = EXPORT_CAP;
+      for (let p = 1; events.length < Math.min(total, EXPORT_CAP); p++) {
+        const r = await listActivity({ page: p, pageSize: 200, actions: tabDef.actions, q: term });
+        total = r.total;
+        if (r.events.length === 0) break;
+        events.push(...r.events);
+      }
+      const kept = events.slice(0, EXPORT_CAP);
+      const names = kept.some(unnamed) ? await qc.ensureQueryData({ queryKey: ["destinations"], queryFn: listDestinations }) : [];
+      const name = (id: string) => names.find((d) => d.id === id)?.name ?? null;
+      saveBlob(new Blob([activityCsv(kept, members, name)], { type: "text/csv" }), `activity-${new Date().toLocaleDateString("en-CA")}.csv`);
+      return { kept: kept.length, total };
+    },
+  });
+
   const go = (t: ActivityTabKey) => {
     setOpenId(null);
+    exporting.reset();
     router.replace(activityAddress(t));
   };
   const onTabKey = (e: React.KeyboardEvent) => {
@@ -154,8 +179,17 @@ export function ActivityPage() {
   }
 
   return (
-    <Frame>
+    <Frame actions={
+      <Button disabled={!enabled || exporting.isPending} onClick={() => qc.isMutating({ mutationKey: EXPORT_KEY }) || exporting.mutate()}>
+        <Download size={16} aria-hidden />Export
+      </Button>
+    }>
       <div className="flex min-w-0 flex-col gap-3">
+        {exporting.isPending && <StatusNotice tone="working">Preparing the file…</StatusNotice>}
+        {exporting.isError && <StatusNotice tone="error">We couldn&apos;t prepare the file. Try again.</StatusNotice>}
+        {exporting.data && exporting.data.total > exporting.data.kept && (
+          <StatusNotice tone="warning">The file has the newest {count(exporting.data.kept)} of {count(exporting.data.total)} events.</StatusNotice>
+        )}
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border">
           <div role="tablist" aria-label="Show" className="flex min-w-0 flex-[1_1_360px] gap-1 overflow-x-auto">
             {ACTIVITY_TABS.map((t) => {
@@ -186,12 +220,12 @@ export function ActivityPage() {
   );
 }
 
-const Frame = ({ children }: { children: React.ReactNode }) => (
+const Frame = ({ children, actions }: { children: React.ReactNode; actions?: React.ReactNode }) => (
   <PageShell variant="wide">
-    <PageHeader title="Activity" sub="Everything that happened to your documents." />
+    <PageHeader title="Activity" sub="Everything that happened to your documents." actions={actions} />
     {children}
   </PageShell>
 );
 
 /** The route's Suspense fallback: the page frame and the in-page loading line, so the first paint does not shift. */
-export const ActivityLoading = () => <Frame><Quiet>Loading activity…</Quiet></Frame>;
+export const ActivityLoading = () => <Frame actions={<Button disabled><Download size={16} aria-hidden />Export</Button>}><Quiet>Loading activity…</Quiet></Frame>;

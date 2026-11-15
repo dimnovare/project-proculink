@@ -9,6 +9,8 @@ const search = vi.hoisted(() => ({ q: "" }));
 vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams(search.q), useRouter: () => router }));
 const { listActivity } = vi.hoisted(() => ({ listActivity: vi.fn() }));
 vi.mock("@/lib/api/documents", () => ({ listActivity, listDestinations: vi.fn(), sendDocument: vi.fn() }));
+const { saveBlob } = vi.hoisted(() => ({ saveBlob: vi.fn() }));
+vi.mock("@/lib/saveBlob", () => ({ saveBlob }));
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => true }));
 vi.mock("@clerk/nextjs", () => ({
   useOrganization: () => ({
@@ -108,5 +110,27 @@ describe("ActivityPage", () => {
     const pages = within(screen.getByRole("navigation", { name: "Activity pages" }));
     expect(pages.getByRole("link", { name: "Newer" })).toHaveAttribute("href", "/operations/log");
     expect(pages.queryByRole("link", { name: "Older" })).toBeNull();
+  });
+
+  it("Export walks the current tab and says when it stops early", async () => {
+    search.q = "show=sent";
+    listActivity.mockImplementation((q: { page: number; pageSize: number }) => Promise.resolve({
+      events: Array.from({ length: q.pageSize }, (_, i) => ev(`${q.page}-${i}`, "2026-06-01T08:00:00Z", { action: "document.delivered" })),
+      total: 2500, page: q.page, pageSize: q.pageSize,
+    }));
+    mount();
+    await panel().findAllByTestId("activity-row");
+
+    fireEvent.click(screen.getByRole("button", { name: "Export" }));
+    expect(await screen.findByText("The file has the newest 2,000 of 2,500 events.")).toBeInTheDocument();
+
+    const walks = listActivity.mock.calls.map(([q]) => q).filter((q) => q.pageSize === 200);
+    expect(walks).toHaveLength(10);
+    walks.forEach((q, i) => expect(q).toEqual(expect.objectContaining({ actions: ["document.delivered"], pageSize: 200, page: i + 1 })));
+    expect(saveBlob).toHaveBeenCalledTimes(1);
+    const [blob, name] = saveBlob.mock.calls[0] as [Blob, string];
+    expect(name).toMatch(/^activity-\d{4}-\d{2}-\d{2}\.csv$/);
+    const csv = await new Promise<string>((done) => { const r = new FileReader(); r.onload = () => done(r.result as string); r.readAsText(blob); });
+    expect(csv.split("\r\n")[0]).toBe('"Date","Time","What happened","Flow","Who","Result","Details"');
   });
 });
