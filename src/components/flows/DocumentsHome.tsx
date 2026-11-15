@@ -10,7 +10,7 @@ import { Card } from "@/components/bridge/layout/Card";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { ActionBar } from "@/components/bridge/layout/ActionBar";
 import { Button, buttonClass } from "@/components/bridge/DSPrimitives";
-import { documentCountQuery, flowsQuery, needsYouQuery, useDocumentEngine } from "@/hooks/useDocumentEngine";
+import { documentCountQuery, documentsPageQuery, flowsQuery, needsYouQuery, useDocumentEngine } from "@/hooks/useDocumentEngine";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { listDocumentPage } from "@/lib/api/documents";
 import { apiClient } from "@/lib/api-client";
@@ -78,8 +78,7 @@ export function DocumentsHome() {
   const tab = asked ?? latched.current;
   const tabDef = DOCUMENT_TABS.find((t) => t.id === tab);
   const docs = useQuery({
-    queryKey: ["documents", "page", tab, page],
-    queryFn: () => listDocumentPage({ status: tabDef?.statuses ?? undefined, page, pageSize: DOCUMENTS_PAGE_SIZE }),
+    ...documentsPageQuery(tab as DocumentTab, page), // the tab is known whenever this is enabled
     enabled: engine === "on" && !!tabDef,
     refetchInterval: (q) => (q.state.data?.items.some((d) => documentStatus(d.status, d.statusReason).tone === "working") ? 2000 : 15_000),
   });
