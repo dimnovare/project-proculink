@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQueries, useQuery } from "@tanstack/react-query";
@@ -23,7 +23,10 @@ import {
 } from "@/lib/documentTabs";
 import { intoStrip } from "@/lib/intoStrip";
 import { nextTabIndex } from "@/lib/tabKeys";
-import { DocumentList } from "./DocumentList";
+import { useApple } from "@/hooks/useShortcut";
+import { keyWord, openSearch } from "@/lib/shortcuts";
+import { DocumentList, type ListSelection } from "./DocumentList";
+import { SelectionBar, type BarReport } from "./SelectionBar";
 import { CaughtUp, EmptyFilter, FirstFlowEmpty, Quiet } from "./states";
 import { StoppedAlert } from "./StoppedAlert";
 
@@ -78,6 +81,34 @@ export function DocumentsHome() {
     queryFn: () => apiClient.getOrders({ page: 1, pageSize: 1 }),
     enabled: useTenantQueriesEnabled(),
   });
+  const apple = useApple();
+  // Select mode, and the ticks: they belong to one tab and page, and only rows on screen count (R17).
+  const [selecting, setSelecting] = useState(false);
+  const [picked, setPicked] = useState<{ at: string; ids: Set<string> }>({ at: "", ids: new Set() });
+  // The last bulk run's result lives here, not in the bar, so Done, Clear or a tab change during a run does not lose it;
+  // the person's next action clears it. What the screen sent is never sent again from a bar.
+  const [report, setReport] = useState<BarReport | null>(null);
+  const sent = useRef(new Set<string>()).current;
+  const here = `${tab}:${page}`;
+  const [seen, setSeen] = useState(here);
+  if (seen !== here) { // a new tab or page clears the ticks and the last result
+    setSeen(here);
+    setPicked({ at: "", ids: new Set() });
+    setReport(null);
+  }
+  const rows = docs.data?.items ?? [];
+  const ticked = picked.at === here ? rows.filter((d) => picked.ids.has(d.id)) : [];
+  const pick = (ids: Set<string>) => { setPicked({ at: here, ids }); setReport(null); };
+  const clear = () => pick(new Set());
+  const selection: ListSelection = {
+    ids: new Set(ticked.map((d) => d.id)),
+    toggle: (id) => {
+      const ids = new Set(ticked.map((d) => d.id));
+      if (!ids.delete(id)) ids.add(id);
+      pick(ids);
+    },
+    all: (on) => pick(new Set(on ? rows.map((d) => d.id) : [])),
+  };
   const go = (t: DocumentTab) => router.replace(documentsAddress(t));
   const onTabKey = (e: React.KeyboardEvent) => {
     // From the focused tab, not the address: a second press can land before the route commits.
@@ -113,7 +144,7 @@ export function DocumentsHome() {
       <div className="flex flex-col gap-3">
         <Card flush>
           <DocumentList key={`${tabDef.id}:${page}`} documents={items} showFlow sendable label={`Documents: ${tabDef.label}`}
-            needHeading={tabDef.id === "needs-you" ? "What's needed" : "Status"} />
+            needHeading={tabDef.id === "needs-you" ? "What's needed" : "Status"} selection={selecting ? selection : undefined} />
         </Card>
         {/* Edge-aligned, with room below: on phones the round Add button rises over the page's centre. */}
         {totalCount > DOCUMENTS_PAGE_SIZE && (
@@ -149,27 +180,46 @@ export function DocumentsHome() {
     body = (
       <div className="flex min-w-0 flex-col gap-3">
         <StoppedAlert page={stopped.data} />
-        <div role="tablist" aria-label="Show" className="flex overflow-x-auto border-b border-border">
-          {DOCUMENT_TABS.map((t, i) => {
-            const n = pageTotal(counts[i].data);
-            const selected = t.id === tab;
-            return (
-              <button
-                key={t.id} type="button" role="tab" id={`documents-tab-${t.id}`} aria-controls="documents-panel" aria-selected={selected}
-                tabIndex={selected || (!tab && i === 0) ? 0 : -1} onKeyDown={onTabKey} onClick={() => go(t.id)}
-                ref={selected ? (el) => intoStrip(el) : undefined}
-                className={`flex h-11 shrink-0 items-center gap-1.5 whitespace-nowrap px-3 text-[13px] ${selected ? "border-b-2 border-brand-blue font-semibold text-ink" : "text-ink-muted"}`}
-              >
-                {t.label}
-                {n !== undefined && <>{" "}<span>{n}</span></>}
-              </button>
-            );
-          })}
+        <div className="flex items-center gap-2 border-b border-border">
+          <div role="tablist" aria-label="Show" className="flex min-w-0 flex-1 overflow-x-auto">
+            {DOCUMENT_TABS.map((t, i) => {
+              const n = pageTotal(counts[i].data);
+              const selected = t.id === tab;
+              return (
+                <button
+                  key={t.id} type="button" role="tab" id={`documents-tab-${t.id}`} aria-controls="documents-panel" aria-selected={selected}
+                  tabIndex={selected || (!tab && i === 0) ? 0 : -1} onKeyDown={onTabKey} onClick={() => go(t.id)}
+                  ref={selected ? (el) => intoStrip(el) : undefined}
+                  className={`flex h-11 shrink-0 items-center gap-1.5 whitespace-nowrap px-3 text-[13px] ${selected ? "border-b-2 border-brand-blue font-semibold text-ink" : "text-ink-muted"}`}
+                >
+                  {t.label}
+                  {n !== undefined && <>{" "}<span>{n}</span></>}
+                </button>
+              );
+            })}
+          </div>
+          {(rows.length > 0 || selecting) && (
+            <Button type="button" variant="ghost" size="sm" className="shrink-0"
+              title={selecting ? "Stop ticking documents" : "Tick several documents to send or download them together"}
+              onClick={() => { setSelecting(!selecting); clear(); }}>
+              {selecting ? "Done" : "Select"}
+            </Button>
+          )}
         </div>
         <div role="tabpanel" id="documents-panel" aria-labelledby={tab ? `documents-tab-${tab}` : undefined}>{panel}</div>
-        {pagePopulation(anyOldOrders.data).rows > 0 && (
-          <p className="m-0 text-[13px] text-ink-muted">Looking for something older? Open <Link href="/archive">Old orders</Link>.</p>
-        )}
+        {selecting ? (
+          <SelectionBar key={here} selected={ticked} sent={sent} report={report} onReport={setReport} onClear={clear}
+            onSent={(id) => {
+              sent.add(id);
+              setPicked((p) => ({ ...p, ids: new Set([...p.ids].filter((x) => x !== id)) }));
+            }} />
+        ) : report && <StatusNotice tone={report.ok ? "success" : "error"}>{report.lines}</StatusNotice>}
+        <p className="m-0 text-[13px] text-ink-muted">
+          Looking for something older?{" "}
+          <button type="button" onClick={openSearch} className="inline-flex items-center font-medium text-brand-blue-deep underline">Search all documents</button>
+          {pagePopulation(anyOldOrders.data).rows > 0 && <> or open <Link href="/archive" className="inline-flex items-center font-medium text-brand-blue-deep underline">Old orders</Link></>}.
+        </p>
+        <p className="m-0 hidden text-[13px] text-ink-muted md:block">{`Press ${keyWord("Mod", apple)} K to find any document, flow or lookup.`}</p>
       </div>
     );
   }
@@ -177,9 +227,11 @@ export function DocumentsHome() {
   const needs = counts[0].data;
   const needTotal = pageTotal(needs);
   const next = needs && (needTotal ?? 0) > 0 ? needs.items[0] : undefined;
+  // While rows are ticked the selection bar's Send is the one filled button (R23).
   const reviewNext = (testId?: string, only = "") => next && (
     <Link
-      href={`/flows/${next.flowId}/documents/${next.id}`} data-testid={testId} className={`${buttonClass("send", "lg")}${only}`}
+      href={`/flows/${next.flowId}/documents/${next.id}`} data-testid={testId}
+      className={`${buttonClass(ticked.length ? "secondary" : "send", "lg")}${only}`}
       aria-label={`Review next, ${needTotal} ${needTotal === 1 ? "needs" : "need"} you`}
     >
       Review next
@@ -189,7 +241,8 @@ export function DocumentsHome() {
   return (
     <Frame sub={documentsHelper(needTotal, pageTotal(week.data))} actions={reviewNext("review-next", " hidden md:inline-flex")}>
       {body}
-      {next && <ActionBar>{reviewNext()}</ActionBar>}
+      {/* Not in Select mode: the selection bar and its result sit where this bar would cover them. */}
+      {next && !selecting && <ActionBar>{reviewNext()}</ActionBar>}
     </Frame>
   );
 }
