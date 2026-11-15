@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import { AnalyticsBoot } from "@/components/analytics/AnalyticsBoot";
 import { CookieConsentBanner } from "@/components/marketing/CookieConsentBanner";
+import { PwaBoot } from "@/components/pwa/PwaBoot";
 import { ORGANIZATION_STRUCTURED_DATA } from "@/lib/legal-entity";
 import { SITE_DESCRIPTION, SITE_TITLE, socialMetadata } from "@/lib/seo";
 // Self-hosted fonts (OFL, via @fontsource) — replaces the render-blocking
@@ -112,6 +113,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <AnalyticsBoot />
         </ClerkProvider>
         <CookieConsentBanner />
+        <PwaBoot />
       </body>
     </html>
   );

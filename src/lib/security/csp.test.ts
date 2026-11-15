@@ -117,6 +117,9 @@ describe("buildContentSecurityPolicy", () => {
     expect(d["base-uri"]).toEqual(["'self'"]);
     expect(d["frame-ancestors"]).toEqual(["'self'"]);
     expect(d["default-src"]).toEqual(["'self'"]);
+    // The service worker and the manifest are same-origin files (spec section 8).
+    expect(d["worker-src"]).toEqual(["'self'", "blob:"]);
+    expect(d["manifest-src"]).toEqual(["'self'"]);
   });
 
   it("never allows eval in a production build", () => {
