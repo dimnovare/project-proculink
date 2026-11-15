@@ -684,10 +684,13 @@ export function findUnreachableRoutes(
   }
 
   const reachable = new Set<string>();
-  const isLive = (source: string): boolean => {
+  // A source live for `route`: chrome, or rendered by ANOTHER route already reached. A file that
+  // `route` shares with a reached page (the Lookups list, drawn on /lookups and on /lookups/[id])
+  // shows its links on that page too; a file only `route` renders is a self-link and does not count.
+  const isLiveFor = (source: string, route: string): boolean => {
     const claimedBy = owners.get(source);
     if (claimedBy === undefined) return true; // chrome / registry / fixture referrer
-    return claimedBy.some((route) => reachable.has(route));
+    return claimedBy.some((r) => r !== route && reachable.has(r));
   };
 
   let changed = true;
@@ -700,13 +703,11 @@ export function findUnreachableRoutes(
         changed = true;
         continue;
       }
-      const mine = own.get(route)!;
       const hit = targets.some(
         (t) =>
           // A page linking to itself — or to a sibling out of its own render
           // tree — does not make itself reachable.
-          !mine.has(t.source) &&
-          isLive(t.source) &&
+          isLiveFor(t.source, route) &&
           (targetSatisfiesRoute(route, t.path) ||
             (acceptsDescendants === true && targetIsUnder(route, t.path))),
       );
