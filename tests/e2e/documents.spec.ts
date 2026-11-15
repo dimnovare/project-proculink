@@ -1,5 +1,4 @@
 import { test, expect } from "@playwright/test";
-import { MOCK_ENGINE_IDS } from "../../src/lib/api/mockEngine";
 import { preparePage, settle } from "./a11yHarness";
 
 test.describe("documents", () => {
@@ -34,11 +33,14 @@ test.describe("documents", () => {
     const alert = page.getByRole("alert").filter({ hasText: "couldn't be sent" });
     await expect(alert).toContainText("1 document couldn't be sent. Sending to Accounting inbox stopped");
     await expect(alert).toContainText("The mailbox refused the message. The document is safe. Fix the destination, then send it again.");
-    await expect(alert.getByRole("link", { name: "Fix the destination" })).toHaveAttribute("href", `/flows/${MOCK_ENGINE_IDS.setupFlow}?tab=outputs`);
+    await expect(alert.getByRole("link", { name: "Fix the destination" })).toHaveAttribute("href", "/settings?tab=destinations&open=dest-1");
     const table = page.getByRole("table");
     await expect(table.getByRole("button", { name: /^Send / })).toHaveCount(1);              // only the ready row
     await table.getByRole("button", { name: "Send invoice-1002.pdf" }).click();
-    await expect(table.getByRole("row", { name: /invoice-1002\.pdf/ })).toContainText("Sending");
+    const sentRow = table.getByRole("row", { name: /invoice-1002\.pdf/ });
+    await expect(sentRow.filter({ hasText: "Sending" }).or(table.filter({ hasNot: sentRow }))).toHaveCount(1);   // Sending, or gone: the mock sends at once
+    await expect(page.getByRole("tab", { name: /Needs you/ })).toContainText("2");
+    await expect(sentRow).toHaveCount(0);
     await expect(table.getByRole("button", { name: /^Send / })).toHaveCount(0);
     await page.getByTestId("review-next").click();
     await expect(page).toHaveURL(new RegExp("/flows/flow-3/documents/doc-5$"));

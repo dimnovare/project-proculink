@@ -45,6 +45,13 @@ export interface Flow {
   publishedVersion?: number | null;
   hasChanges?: boolean;
   noCorrectionStreak?: number | null;
+  /** Only the list response carries it; single responses answer null. Absent on an older backend. */
+  summary?: FlowSummary | null;
+}
+export interface FlowSummaryOutput { name: string; format: string; standard: string | null; destination: string | null }
+export interface FlowSummary {
+  needsYou: number; couldNotSend: number; couldNotRead: number; lastDocumentAt: string | null;
+  waysIn: string[]; outputs: FlowSummaryOutput[];
 }
 export interface FlowVersion { versionNo: number; publishedAt: string; publishedBy: string | null; live: boolean }
 
@@ -87,8 +94,15 @@ export interface EditValuesRequest {
   removeRows?: { table: string; row: number }[];
 }
 
+export interface DestinationUse { flowId: string; flowName: string; outputId: string; outputName: string }
+/** `kind` is "test" or "document"; kept a string so a newer value is never coerced. */
+export interface DestinationLastSend { kind: string; at: string; ok: boolean }
 export interface Destination {
   id: string; name: string; protocol: string; config: Record<string, unknown>; hasCredentials: boolean; createdAt: string;
+  /** One row per output that sends here, editable or live. */
+  usedBy: DestinationUse[];
+  /** Null when nothing was ever sent or tested here. */
+  lastSend: DestinationLastSend | null;
 }
 export interface DestinationRequest {
   name: string; protocol: string; config: Record<string, unknown>; credentials?: Record<string, unknown> | null;
@@ -115,8 +129,10 @@ export type LookupEntry = { from: string; to: string };
 export type LookupMiss = { lookupId: string; value: string };
 export type LookupCandidate = { value: string; description: string | null };
 export type LookupSuggestion = { lookupId: string; value: string; to: string; confidence: number | null; description: string | null };
+/** `usedBy` is absent from an older server: not known, so nothing about use is printed. */
 export type LookupSummary = {
   id: string; name: string; count: number; updatedAt: string; hasCandidates: boolean; suggestionsOn: boolean;
+  usedBy?: { flowId: string; flowName: string }[];
 };
 export type Lookup = {
   id: string; name: string; entries: LookupEntry[]; updatedAt: string; candidates: LookupCandidate[]; suggestionsOn: boolean;
@@ -207,7 +223,7 @@ export function listDocuments(params: { flowId?: string; status?: string; take?:
 /** One page, newest first. `status` is sent comma-joined. `page` is always sent: the server ignores `pageSize` without it.
  *  `sentFrom` is a UTC instant ending in `Z`, kept at or after. The server clamps `pageSize` to 200. */
 export function listDocumentPage(params: {
-  status?: readonly string[]; flowId?: string; sentFrom?: string; page: number; pageSize: number;
+  status?: readonly string[]; flowId?: string; sentFrom?: string; waitingOnDestination?: string; page: number; pageSize: number;
 }): Promise<DocumentPage> {
   const query = toQuery(params);
   return apiFetch<DocumentPage>(`/documents?${query}`);
@@ -295,7 +311,8 @@ export const deleteOutputLogo = (flowId: string, outputId: string) =>
 
 export const listLookups = () => apiFetch<LookupSummary[]>(`/lookups`);
 export const getLookup = (id: string) => apiFetch<Lookup>(`/lookups/${seg(id)}`);
-export const createLookup = (name: string) => apiFetch<Lookup>(`/lookups`, { method: "POST", body: json({ name }) });
+export const createLookup = (name: string, entries: LookupEntry[] = []) =>
+  apiFetch<Lookup>(`/lookups`, { method: "POST", body: json({ name, entries }) });
 export const updateLookup = (id: string, body: { name: string; entries: LookupEntry[]; candidates?: LookupCandidate[] }) =>
   apiFetch<Lookup>(`/lookups/${seg(id)}`, { method: "PUT", body: json(body) });
 /** Sends no `candidates`, so the stored list is kept. */

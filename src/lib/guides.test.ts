@@ -1,4 +1,4 @@
-import { existsSync } from "fs";
+import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 import { describe, it, expect } from "vitest";
 import {
@@ -106,6 +106,15 @@ describe("guide registry", () => {
   it("excludes admin guides from the public set", () => {
     expect(publicGuides().every((g) => g.audience === "client")).toBe(true);
     expect(publicGuides().map((g) => g.slug)).not.toContain("onboard-a-new-client");
+  });
+
+  it("the lookup guide and article describe Import a table, not the old Save button", () => {
+    const read = (p: string) => readFileSync(join(process.cwd(), "src/app/(marketing)/help", p, "page.mdx"), "utf8");
+    for (const text of [read("guides/import-a-lookup"), read("lookups")]) {
+      expect(text).toContain("**Import a table**");
+      expect(text).not.toMatch(/Import CSV\*\*|The first row is headings|select \*\*Save\*\*/);
+    }
+    expect(GUIDES.find((g) => g.slug === "import-a-lookup")!.title).toBe("Import a lookup from a CSV or Excel file");
   });
 });
 

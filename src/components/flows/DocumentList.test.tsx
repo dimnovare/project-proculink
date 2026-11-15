@@ -57,6 +57,8 @@ describe("DocumentList", () => {
     const sentRow = table.getByRole("row", { name: /PO-48213\.pdf/ });
     expect(sentRow).toHaveTextContent("Couldn't send");
     expect(sentRow).not.toHaveTextContent("Sending");
+    rerender(<QueryClientProvider client={qc}><DocumentList label="Documents: Needs you" showFlow sendable documents={[row({ id: "b" })]} /></QueryClientProvider>);
+    expect(table.queryByRole("row", { name: /PO-48213\.pdf/ })).toBeNull();   // the server stopped listing it: the row goes
   });
 
   it("a refused send says why on the row and keeps Send", async () => {
