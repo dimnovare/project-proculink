@@ -112,7 +112,9 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
       // slim scrollbar (globals.css) so a clipped-but-scrollable sample reads as
       // "scroll for more" rather than "cut off" — the wide format samples (EDI/
       // XML/JSON) overflow 390px on mobile and touch scrollbars otherwise hide.
-      <pre className="help-scroll my-5 overflow-x-auto rounded-[8px] border border-border bg-bg px-4 py-3.5 font-mono text-[14px] leading-[1.6] text-ink [&_code]:border-0 [&_code]:bg-transparent [&_code]:p-0">
+      // tabIndex: a box that scrolls must be reachable by keyboard (axe scrollable-region-focusable);
+      // the code inside keeps the block's 14px instead of shrinking to inline code's 0.86em.
+      <pre tabIndex={0} className="help-scroll my-5 overflow-x-auto rounded-[8px] border border-border bg-bg px-4 py-3.5 font-mono text-[14px] leading-[1.6] text-ink [&_code]:border-0 [&_code]:bg-transparent [&_code]:p-0 [&_code]:text-[1em]">
         {children}
       </pre>
     ),
@@ -128,7 +130,7 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
     hr: () => <hr className="my-8 h-px border-0 bg-border" />,
 
     table: ({ children }) => (
-      <div className="my-5 overflow-x-auto">
+      <div tabIndex={0} className="my-5 overflow-x-auto">
         <table className="w-full border-collapse text-[15.5px] leading-[1.45]">{children}</table>
       </div>
     ),
