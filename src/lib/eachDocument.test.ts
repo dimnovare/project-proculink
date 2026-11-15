@@ -82,7 +82,7 @@ describe("eachDocument", () => {
 
   it("a document's name cannot leave the archive's folder", async () => {
     const cases: [string, string][] = [
-      ["../../evil.txt", "evil.txt"], ["..\\..\\evil.txt", "evil.txt"], ["/etc/passwd", "passwd"], ["C:\\Users\\x\\a.pdf", "a.pdf"],
+      ["../../evil.txt", "evil.txt"], ["..\\..\\evil.txt", "evil.txt"], ["/etc/passwd", "passwd"], ["D:\\scans\\x\\a.pdf", "a.pdf"],
       ["..", "document"], ["", "document"], [".hidden", "hidden"], ["a\u0000b.pdf", "ab.pdf"], ["CON.pdf", "_CON.pdf"],
       ["COM0.pdf", "_COM0.pdf"], ["lpt\u00b9.txt", "_lpt\u00b9.txt"], ["CONIN$", "_CONIN$"], ["conout$.log", "_conout$.log"],
       ["CON .pdf", "_CON .pdf"], ["a\uff0fb\uff3cc\u2215d.pdf", "abcd.pdf"], ["invoice\u202efdp.exe", "invoicefdp.exe"],
