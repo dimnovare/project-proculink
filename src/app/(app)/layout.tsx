@@ -16,6 +16,7 @@ import { WorkspaceNameNudge } from "@/components/onboarding/WorkspaceNameNudge";
 import { SkipToContent } from "@/components/a11y/SkipToContent";
 import { BottomTabBar } from "@/components/bridge/BottomTabBar";
 import { UploadQueueProvider } from "@/components/flows/UploadQueue";
+import { OfflineNotice } from "@/components/pwa/OfflineNotice";
 
 /**
  * Auto-activates the user's first Clerk organization when they have one but
@@ -212,6 +213,7 @@ export default function AppShellLayout({
           <HelpPanelProvider>
           <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
             <BridgeTopbar onMenuClick={openSidebar} menuOpen={sidebarOpen} />
+            <OfflineNotice />
             <div className="relative flex min-h-0 flex-1">
               <main id="main-content" tabIndex={-1} className="min-w-0 flex-1 overflow-auto outline-none mb-[var(--plk-tabbar-h)]">
                 <WorkspaceNameNudge />
