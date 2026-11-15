@@ -38,7 +38,7 @@ import { preparePage, settle, errorBoundaryMarker, DEV_OVERLAY_SELECTORS } from 
  *
  *  1. THE CLOCK. A dozen components render "{n}m ago" against `Date.now()`
  *     (InboxView, BridgeTopbar, BridgeDashboard, DashboardContextLine,
- *     CrossingsLog, BillingSection). Against fixtures dated Jan 2024 those
+ *     ActivityPage, BillingSection). Against fixtures dated Jan 2024 those
  *     strings change daily. `preparePage({ freezeClock: true })` pins them.
  *  2. MOTION. Playwright's `animations: "disabled"` freezes CSS animations and
  *     nothing else; the wire-topology dots and the marketing hero pulses are SVG

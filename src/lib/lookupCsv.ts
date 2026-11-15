@@ -1,46 +1,105 @@
 import type { LookupCandidate, LookupEntry } from "@/lib/api/documents";
-import { detectDelimiter, parseCsvRows } from "@/lib/sheetPreview";
+import { detectDelimiter, parseCsvRows, parseXlsxWorkbook } from "@/lib/sheetPreview";
+
+import { exportLookupCsv, FORMULA, TableFileRefusal } from "./lookupCsvLeaf";
+import { LOOKUP_LIMITS } from "./lookupLimits";
+
+// The Lookups screens load this module (and with it the spreadsheet reader) only when a file is chosen.
+export { exportLookupCsv, LOOKUP_LIMITS, TableFileRefusal };
 
 const key = (from: string) => from.trim().toLowerCase();
-// A leading = + - @ tab or CR makes a spreadsheet read the cell as a formula: export prefixes one "'"
-// (also before quotes already there, so "'=x" survives), import strips exactly one.
-const FORMULA = /^'*[=+@\t\r-]/;
 const unprefix = (v: string) => (v[0] === "'" && FORMULA.test(v.slice(1)) ? v.slice(1) : v);
 
-const readRows = (text: string, firstRowIsHeadings: boolean) => {
+/** CSV text to cells: byte-order mark dropped, delimiter detected, no row cap. */
+export function csvCells(text: string): string[][] {
   const body = text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
-  return parseCsvRows(body, detectDelimiter(body), Infinity).slice(firstRowIsHeadings ? 1 : 0);
-};
+  return parseCsvRows(body, detectDelimiter(body), Infinity);
+}
 
-/** Columns 1 and 2 are From and To. A later row with the same From replaces the earlier entry in place. */
-export function importLookupCsv(text: string, existing: LookupEntry[], firstRowIsHeadings: boolean) {
-  const entries = existing.map((e) => ({ ...e }));
-  const at = new Map(entries.map((e, i) => [key(e.from), i]));
-  let added = 0;
-  let changed = 0;
-  const rows = readRows(text, firstRowIsHeadings);
-  for (const [from = "", to = ""] of rows) {
+const readRows = (text: string, firstRowIsHeadings: boolean) => csvCells(text).slice(firstRowIsHeadings ? 1 : 0);
+
+/** Row 1 is headings and is skipped. Column 1 is From, column 2 is To, both trimmed and with one formula
+ *  guard quote removed. A row with no From is skipped. A later row whose From matches an earlier one
+ *  (spaces at the ends and capital letters ignored) replaces it in place. */
+export function lookupEntries(cells: string[][]): LookupEntry[] {
+  const entries: LookupEntry[] = [];
+  const at = new Map<string, number>();
+  for (const [from = "", to = ""] of cells.slice(1)) {
     if (!from.trim()) continue;
     const entry = { from: unprefix(from.trim()), to: unprefix(to.trim()) };
     const i = at.get(key(entry.from));
-    if (i === undefined) {
-      at.set(key(entry.from), entries.push(entry) - 1);
-      added++;
-    } else {
-      entries[i] = entry;
-      changed++;
-    }
+    if (i === undefined) at.set(key(entry.from), entries.push(entry) - 1);
+    else entries[i] = entry;
   }
-  return { entries, added, changed };
+  return entries;
 }
 
+const OLD_OFFICE = [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1];
+
+/** A zip header (bytes 50 4B 03 04) is read as a workbook, first sheet, capped at LOOKUP_LIMITS.rows + 2 rows;
+ *  `cut` is true when the sheet had more rows than that. Throws when a workbook cannot be read. An old Office
+ *  file (.xls, bytes D0 CF 11 E0 A1 B1 1A E1) or one with a NUL byte in its first 1,024 bytes is binary and is
+ *  refused with a `TableFileRefusal`; anything else is read as UTF-8 text. */
+export async function readTableFile(file: File): Promise<{ cells: string[][]; cut: boolean }> {
+  const bytes = await new Promise<Uint8Array>((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(new Uint8Array(r.result as ArrayBuffer));
+    r.onerror = () => reject(r.error);
+    r.readAsArrayBuffer(file);
+  });
+  if (bytes[0] === 0x50 && bytes[1] === 0x4b && bytes[2] === 0x03 && bytes[3] === 0x04) {
+    const sheet = parseXlsxWorkbook(bytes, LOOKUP_LIMITS.rows + 2).tables[0];
+    return { cells: sheet?.rows ?? [], cut: sheet?.truncatedRows ?? false };
+  }
+  if (OLD_OFFICE.every((b, i) => bytes[i] === b) || bytes.subarray(0, 1024).includes(0))
+    throw new TableFileRefusal("This file can't be read as a table. Save it as .xlsx or CSV and try again.");
+  return { cells: csvCells(new TextDecoder("utf-8").decode(bytes)), cut: false };
+}
+
+const readOrRefuse = (file: File) =>
+  readTableFile(file).catch((e) => {
+    throw e instanceof TableFileRefusal ? e : new TableFileRefusal("We can read CSV files and Excel .xlsx files.");
+  });
+const ROWS = LOOKUP_LIMITS.rows.toLocaleString("en");
+/** The server's sentence (LookupRules), said before anything is sent. */
+const refuseLong = (values: string[]) => {
+  if (values.some((v) => v.length > LOOKUP_LIMITS.valueLength))
+    throw new TableFileRefusal(`Values can be at most ${LOOKUP_LIMITS.valueLength} characters.`);
+};
+
+/** A file's rows for a lookup; throws a `TableFileRefusal` when it is unreadable, too long, has no rows or a value over the limit. */
+export async function lookupFileEntries(file: File): Promise<LookupEntry[]> {
+  const table = await readOrRefuse(file);
+  const entries = lookupEntries(table.cells);
+  if (table.cut || entries.length > LOOKUP_LIMITS.rows)
+    throw new TableFileRefusal(`It has more than ${ROWS} rows, and a lookup holds at most ${ROWS}.`);
+  if (!entries.length) throw new TableFileRefusal("It has no rows with a value in the first column.");
+  refuseLong(entries.flatMap((e) => [e.from, e.to]));
+  return entries;
+}
+
+/** A file's list to choose from (row 1 is headings), read as a table; throws a `TableFileRefusal` when it is unreadable,
+ *  has no values (so the stored list is left alone) or has a value over the limit. */
+export async function lookupFileCandidates(file: File): Promise<LookupCandidate[]> {
+  const list = candidatesFrom((await readOrRefuse(file)).cells.slice(1));
+  if (!list.length) throw new TableFileRefusal("This file has no values. The list was not changed.");
+  refuseLong(list.map((c) => c.value));
+  return list;
+}
+
+/** The file name without its last extension, trimmed and cut to 120 characters; "Imported table" when empty. */
+export const tableName = (fileName: string) =>
+  fileName.replace(/\.[^.]*$/, "").trim().slice(0, LOOKUP_LIMITS.nameLength) || "Imported table";
+
+export const importCandidateCsv = (text: string, firstRowIsHeadings: boolean) => candidatesFrom(readRows(text, firstRowIsHeadings));
+
 /** Column 1 is the value; the other non-empty cells, joined, describe it. A later row with the same value replaces the earlier one in place. */
-export function importCandidateCsv(text: string, firstRowIsHeadings: boolean): LookupCandidate[] {
+function candidatesFrom(cells: string[][]): LookupCandidate[] {
   const out: LookupCandidate[] = [];
   const at = new Map<string, number>();
-  for (const [first = "", ...rest] of readRows(text, firstRowIsHeadings)) {
+  for (const [first = "", ...rest] of cells) {
     if (!first.trim()) continue;
-    const description = rest.map((c) => unprefix(c.trim())).filter(Boolean).join(" · ").slice(0, 500) || null;
+    const description = rest.map((c) => unprefix(c.trim())).filter(Boolean).join(" · ").slice(0, LOOKUP_LIMITS.descriptionLength) || null;
     const candidate = { value: unprefix(first.trim()), description };
     const i = at.get(key(candidate.value));
     if (i === undefined) at.set(key(candidate.value), out.push(candidate) - 1);
@@ -48,12 +107,3 @@ export function importCandidateCsv(text: string, firstRowIsHeadings: boolean): L
   }
   return out;
 }
-
-// Quote anything the importer's delimiter detection could mistake for a separator, too.
-const cell = (raw: string) => {
-  const v = FORMULA.test(raw) ? `'${raw}` : raw;
-  return /[",;|\t\r\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
-};
-
-export const exportLookupCsv = (entries: LookupEntry[]) =>
-  ["From,To", ...entries.map((e) => `${cell(e.from)},${cell(e.to)}`)].join("\n") + "\n";

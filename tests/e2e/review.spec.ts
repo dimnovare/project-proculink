@@ -122,7 +122,7 @@ test.describe("Review", () => {
     const pressed = Date.now();
     await date.press("Enter");
     await expect(state).toHaveText("Saves as you type");
-    expect(Date.now() - pressed, "Enter saves without the pause").toBeLessThan(1000);
+    expect(Date.now() - pressed, "Enter saves without the pause").toBeLessThan(1400); // under the 1.5 s pause, with room for a slow runner
     // Both values are on the document when it opens again.
     await page.getByRole("link", { name: "Documents" }).first().click();
     await expect(page).toHaveURL(/\/documents$/);

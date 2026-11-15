@@ -176,8 +176,8 @@ function parseXml(xml: string): Document | null {
 /** Direct children of `parent` with the given tag — the `a > b` combinator, portably. */
 function childrenNamed(parent: Element | Document, tag: string): Element[] {
   const out: Element[] = [];
-  const kids = (parent as Element).children ?? [];
-  for (const el of Array.from(kids)) if (el.tagName === tag) out.push(el);
+  // A sibling walk, not `children`: jsdom's live collection makes that quadratic (20,000 rows took a minute).
+  for (let el = (parent as Element).firstElementChild; el; el = el.nextElementSibling) if (el.tagName === tag) out.push(el);
   return out;
 }
 
@@ -321,7 +321,7 @@ function readSheetPlan(files: Record<string, Uint8Array>): { name: string; path:
   return plan;
 }
 
-function readSheetRows(xml: string, shared: string[], styleKinds: CellKind[]): string[][] {
+function readSheetRows(xml: string, shared: string[], styleKinds: CellKind[], maxRows: number): string[][] {
   const doc = parseXml(xml);
   if (!doc) return [];
   const rows: string[][] = [];
@@ -329,10 +329,12 @@ function readSheetRows(xml: string, shared: string[], styleKinds: CellKind[]): s
   const sheetData = doc.getElementsByTagName("sheetData")[0];
   const rowEls = sheetData ? childrenNamed(sheetData, "row") : [];
   for (const rowEl of rowEls) {
+    if (!rowEl.firstElementChild) continue;   // a row kept only for its formatting holds no cell
     // Excel omits untouched rows: pad so index i is Excel row i + 1, as the backend's `cell:rNcM` counts.
     const r = Number(rowEl.getAttribute("r")) || rows.length + 1;
-    while (rows.length < r - 1 && rows.length < MAX_PREVIEW_ROWS) rows.push([]);
-    if (rows.length >= MAX_PREVIEW_ROWS) break;
+    // One row past the cap is kept so finalizeTable can tell the sheet was cut.
+    while (rows.length < r - 1 && rows.length <= maxRows) rows.push([]);
+    if (rows.length > maxRows) break;
     const cells: string[] = [];
     for (const c of childrenNamed(rowEl, "c")) {
       const ref = c.getAttribute("r") ?? "";
@@ -374,9 +376,9 @@ function readCell(c: Element, shared: string[], styleKinds: CellKind[]): string 
 }
 
 /** Pad ragged rows, apply the column cap, and report what was cut. */
-function finalizeTable(name: string, all: string[][]): SheetTable {
-  const truncatedRows = all.length > MAX_PREVIEW_ROWS;
-  const rows = all.slice(0, MAX_PREVIEW_ROWS);
+function finalizeTable(name: string, all: string[][], maxRows = MAX_PREVIEW_ROWS): SheetTable {
+  const truncatedRows = all.length > maxRows;
+  const rows = all.slice(0, maxRows);
   const widest = rows.reduce((m, r) => Math.max(m, r.length), 0);
   const truncatedCols = widest > MAX_PREVIEW_COLS;
   const width = Math.min(widest, MAX_PREVIEW_COLS);
@@ -397,7 +399,7 @@ function finalizeTable(name: string, all: string[][]): SheetTable {
  * zip — the caller turns that into the honest "we can't display this one" state rather than
  * pretending the sheet is empty.
  */
-export function parseXlsxWorkbook(bytes: Uint8Array): SheetWorkbook {
+export function parseXlsxWorkbook(bytes: Uint8Array, maxRows = MAX_PREVIEW_ROWS): SheetWorkbook {
   const files = unzipSync(bytes);
   const shared = readSharedStrings(decodePart(files, "xl/sharedStrings.xml"));
   const styleKinds = readStyleKinds(decodePart(files, "xl/styles.xml"));
@@ -406,7 +408,7 @@ export function parseXlsxWorkbook(bytes: Uint8Array): SheetWorkbook {
   const tables: SheetTable[] = [];
   for (const { name, path } of plan.slice(0, MAX_PREVIEW_SHEETS)) {
     const xml = decodePart(files, path);
-    tables.push(finalizeTable(name, xml ? readSheetRows(xml, shared, styleKinds) : []));
+    tables.push(finalizeTable(name, xml ? readSheetRows(xml, shared, styleKinds, maxRows) : [], maxRows));
   }
   return {
     tables,

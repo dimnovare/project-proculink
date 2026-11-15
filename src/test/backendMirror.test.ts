@@ -5,10 +5,12 @@ import { FAILURE_STATUSES, ORDER_STATUSES } from "@/lib/orderStatusManifest";
 import { ROOT } from "./appRoutes";
 import { DOCUMENT_STATUSES, WHOLE_DOCUMENT_CHECKS } from "@/lib/documentStatusManifest";
 import { FIELD_MEANINGS } from "@/lib/fieldMeanings";
+import { WAY_IN_WORDS } from "@/lib/flowSentences";
 import { FORMATS } from "@/components/flows/OutputEditor";
 import { PREVIEW_FORMATS } from "@/lib/api/types";
 import { STANDARDS } from "@/lib/standards/catalog";
 import { FLAGGED, STANDARD_OUTPUTS } from "@/lib/standardOutputs";
+import type { ActivityEvent } from "@/lib/api/documents";
 // The C# string-literal reader this file introduced now has a second consumer
 // (src/test/backendCopyVocabulary.test.ts), so it lives in one place rather than two.
 // Its own header explains why a `grep` cannot replace it.
@@ -16,6 +18,7 @@ import { stripCsComments } from "./csLiterals";
 import { MINIMUM_PLAN } from "@/lib/gatedCapabilities";
 import { OVERAGE_PER_ORDER_EUR, PLAN_BY_ID, TRIAL_DAYS } from "@/lib/plans";
 import { REVIEW_CONFIDENCE } from "@/lib/reviewMarks";
+import { LOOKUP_LIMITS } from "@/lib/lookupCsv";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // The cross-repo mirror check.
@@ -1317,6 +1320,13 @@ describe("document statuses mirror the backend", () => {
     );
   });
 
+  test.skipIf(!BACKEND)("WAY_IN_WORDS keys equal IntakeKind's constants", () => {
+    const cs = readFileSync(join(BACKEND!, "ProcuLink.Core/Documents/IntakeKind.cs"), "utf8");
+    const backend = Object.values(parseStatusConstants(cs));
+    expect(backend.length, "IntakeKind.cs parsed to no constants, so this would prove nothing").toBeGreaterThan(0);
+    expect([...backend].sort()).toEqual(Object.keys(WAY_IN_WORDS).sort());
+  });
+
   test.skipIf(!BACKEND)("the check codes the documents list reads exist in DocumentChecks", () => {
     const cs = readFileSync(join(BACKEND!, "ProcuLink.Core/Documents/DocumentChecks.cs"), "utf8");
     const backend = Object.values(parseStatusConstants(cs));
@@ -1329,6 +1339,23 @@ describe("document statuses mirror the backend", () => {
     const m = /const double ReviewConfidence = ([\d.]+);/.exec(cs);
     expect(m, "ReviewConfidence not found in DocumentChecks.cs, so this would prove nothing").not.toBeNull();
     expect(Number(m![1])).toBe(REVIEW_CONFIDENCE);
+  });
+});
+
+describe("the Activity row mirrors the audit route", () => {
+  // Bound to the client type at typecheck: a key added to or removed from ActivityEvent fails here first.
+  const ACTIVITY_KEYS = {
+    id: true, ts: true, action: true, documentId: true, flowId: true, documentName: true, flowName: true,
+    source: true, actorId: true, startedAt: true, poNumber: true, payload: true,
+  } satisfies Record<keyof ActivityEvent, true>;
+
+  // No contract record exists: GetAuditLog answers an anonymous `return new { … }` per row, so its member names are read.
+  test.skipIf(!BACKEND)("every ActivityEvent field is a member of AuditController's row projection", () => {
+    const cs = stripCsComments(readFileSync(join(BACKEND!, "ProcuLink.Api/Controllers/AuditController.cs"), "utf8"));
+    const block = /return new\s*\{([^{}]*)\};\s*\}\)\.ToList\(\);/.exec(cs)?.[1] ?? "";
+    const members = block.split(",").map((m) => /^\s*(\w+)/.exec(m)?.[1]).filter((m): m is string => !!m);
+    expect(members.length, "the row projection parsed to almost nothing, so this would prove nothing").toBeGreaterThan(10);
+    expect(members).toEqual(expect.arrayContaining(Object.keys(ACTIVITY_KEYS)));
   });
 });
 
@@ -1361,4 +1388,15 @@ describe("standard outputs mirror the backend", () => {
   test("every standard output has a catalog entry", () => {
     expect(STANDARD_OUTPUTS.filter((id) => !STANDARDS.some((s) => s.id === id))).toEqual([]);
   });
+});
+
+test.skipIf(!BACKEND)("the lookup limits the screen enforces, and the summary's usedBy, are the server's", () => {
+  const cs = readFileSync(join(BACKEND!, "ProcuLink.Core/Documents/LookupEntry.cs"), "utf8");
+  const n = (name: string) => Number(new RegExp(`${name}\\s*=\\s*([\\d_]+)`).exec(cs)?.[1].replace(/_/g, ""));
+  expect([n("MaxEntries"), n("MaxValueLength"), n("MaxNameLength"), n("MaxDescriptionLength")]).toEqual(
+    [LOOKUP_LIMITS.rows, LOOKUP_LIMITS.valueLength, LOOKUP_LIMITS.nameLength, LOOKUP_LIMITS.descriptionLength]);
+  const controller = readFileSync(join(BACKEND!, "ProcuLink.Api/Controllers/LookupsController.cs"), "utf8");
+  const uses = readFileSync(join(BACKEND!, "ProcuLink.Api/Services/Documents/DocumentLookups.cs"), "utf8");
+  expect(controller).toMatch(/record LookupSummaryDto\([^)]*IReadOnlyList<LookupUse> UsedBy\)/);
+  expect(uses).toMatch(/record LookupUse\(Guid FlowId, string FlowName\)/);
 });

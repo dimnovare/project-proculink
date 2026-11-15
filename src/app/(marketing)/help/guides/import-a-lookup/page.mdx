@@ -2,58 +2,46 @@ import { guideMetadata } from "@/lib/seo";
 
 export const metadata = guideMetadata({
   slug: "import-a-lookup",
-  title: "Import a lookup from a CSV file — ProcuLink guide",
-  description: "Import a CSV file so a value on a document is replaced by the one your system uses.",
+  title: "Import a lookup from a CSV or Excel file — ProcuLink guide",
+  description: "Import a CSV or Excel file so a value on a document is replaced by the one your system uses.",
 });
 
 import { Step, Prereqs, IfThisFails, Outcome } from "@/components/help/guide";
 
 <Prereqs>
-- A CSV file with two columns. Column 1 holds the value as it appears on your documents (**From**). Column 2 holds the value your receiving system wants (**To**). Other columns are ignored.
+- A CSV or Excel (.xlsx) file with headings in the first row and two columns. Column 1 holds the value as it appears on your documents (**From**). Column 2 holds the value your receiving system wants (**To**). Other columns are ignored.
 - A flow with an output, to use the lookup in. See [Build an output](/help/guides/build-an-output).
 </Prereqs>
 
-<Step n={1} title="Create the lookup">
+<Step n={1} title="Import the table">
 
-Open **Lookups** in the navigation and select **New lookup**. Type a **Name**, up to 120 characters, and select **Create**.
-
-<Outcome>
-The new lookup opens on its own page.
-</Outcome>
-
-</Step>
-
-<Step n={2} title="Import the CSV">
-
-Under **Import CSV**, choose your file. Leave **The first row is headings** ticked if the first row is a heading, and untick it if the first row is data.
-
-A row whose **From** is already in the lookup replaces the old row. Capital letters and spaces at the ends are ignored.
+Open **Lookups** in the navigation and select **Import a table**. Choose your file.
 
 <Outcome>
-A message says how many rows were imported, such as "Imported 12 rows: 10 new, 2 changed." The rows appear in the table. They are not saved yet.
+The rows are saved at once as a new lookup, named after the file, and it opens. A message says how many rows were saved. **Undo** in that message takes the import back.
 </Outcome>
 
 <IfThisFails>
-"We couldn't read that file." means it is not a readable CSV. Save it again as CSV.
+A message starting "Couldn't import" says why: we read CSV files and Excel .xlsx files, a lookup holds at most 20,000 rows, and a value can be at most 200 characters.
 </IfThisFails>
 
 </Step>
 
-<Step n={3} title="Check and save">
+<Step n={2} title="Check the rows">
 
-Look through the table, change anything needed, and select **Save**.
+Look through the rows and change anything needed. Changes save as you type. A row with the same **From** as one above it, or with a **To** and no **From**, says so and is not saved until you fix it.
 
 <Outcome>
-A message says "Saved." The lookup is ready to use.
+Beside the name it says "Saved, edits save as you type".
 </Outcome>
 
 <IfThisFails>
-The message says what is wrong. A lookup holds at most 20,000 rows. A value can be at most 200 characters. Every row needs a **From**, and each **From** can appear only once.
+"Couldn't save" keeps what you typed. Select **Try again**.
 </IfThisFails>
 
 </Step>
 
-<Step n={4} title="Use it in an output">
+<Step n={3} title="Use it in an output">
 
 Edit an output on the flow's **Outputs** tab. On the row you want to swap, choose the lookup in **Swap with lookup**. Then choose what to do with a value that is not in it: **Keep the value** or **Leave it blank**. Save the output.
 
@@ -63,9 +51,9 @@ The output swaps the value. **Preview** it to see the result. Values the lookup 
 
 </Step>
 
-<Step n={5} title="Optional: let AI suggest matches">
+<Step n={4} title="Optional: let AI suggest matches">
 
-If **Values to choose from** appears on the lookup's page, choose a CSV file under **Import list (CSV)** and select **Save**. Column 1 is the value, and the other columns become a note that helps pick it.
+If **Set up suggestions** appears on the lookup's page, select it and choose a CSV file, with headings in the first row, under **Import list (CSV)**. It saves by itself. Column 1 is the value, and the other columns become a note that helps pick it.
 
 Then, when you preview an output and a value was not found, select **Suggest matches**. Nothing is added until you press **Accept**. See [Lookups](/help/lookups) for what is sent and how to accept, edit or reject.
 
@@ -74,7 +62,7 @@ Accepted pairs join the lookup, and the preview updates.
 </Outcome>
 
 <IfThisFails>
-No **Values to choose from** means AI suggestions are not switched on for your workspace.
+No **Set up suggestions** means AI suggestions are not switched on for your workspace.
 </IfThisFails>
 
 </Step>
