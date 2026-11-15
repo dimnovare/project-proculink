@@ -57,6 +57,8 @@ const WRITER_FILES = [
   // 2026-11-13, plan 13b task 8b: the two writers the manifest had no row for.
   "ProcuLink.Infrastructure/Services/Delivery/DeliveryBounceHandler.cs",
   "ProcuLink.Api/Services/Documents/FlowDestinationService.cs",
+  // 2026-11-14, plan 14.D2: the flow-version publish writer.
+  "ProcuLink.Api/Services/Documents/FlowVersions.cs",
 ] as const;
 
 const PROBE_REL = "ProcuLink.Api/Controllers/AuditController.cs";
