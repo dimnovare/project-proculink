@@ -6,6 +6,7 @@ import type { Flow, FlowSummary } from "@/lib/api/documents";
 import { deliveryModeLabel } from "@/lib/deliveryMode";
 import { PLAN_BY_ID, planName } from "@/lib/plans";
 import { FlowsHome } from "./FlowsHome";
+import { UploadQueueProvider } from "./UploadQueue";
 
 const listFlows = vi.fn();
 const getBillingStatus = vi.fn();
@@ -13,6 +14,8 @@ vi.mock("@/lib/api/documents", () => ({ listFlows: () => listFlows() }));
 vi.mock("@/lib/api/billing", () => ({ getBillingStatus: () => getBillingStatus() }));
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => true }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock("@clerk/nextjs", () => ({ useUser: () => ({ user: null, isLoaded: true }) }));
+vi.mock("@/lib/api/linkedAccounts", () => ({ listLinkedAccounts: () => Promise.resolve({ available: false, accounts: [] }) }));
 
 const flow = (id: string, name: string, documentCount: number, summary?: FlowSummary | null): Flow => ({
   id, name, documentCount, summary, fieldsConfirmed: true, createdAt: "2026-05-20T09:00:00Z", automation: "review", fields: { fields: [], tables: [] },
@@ -26,7 +29,8 @@ const invoices = flow("flow-1", "Supplier invoices", 3, summary({
 }));
 const SENTENCE = "Reads documents from email and upload. Sends Invoice CSV to Accounting inbox.";
 
-const show = () => render(<QueryClientProvider client={new QueryClient()}><FlowsHome /></QueryClientProvider>);
+const show = () => render(<QueryClientProvider client={new QueryClient()}><UploadQueueProvider><FlowsHome /></UploadQueueProvider></QueryClientProvider>);
+const welcome = () => screen.queryByRole("heading", { level: 1, name: /Let's read your first document/ });
 /** The row link of `name` in both breakpoint trees: jsdom draws both. */
 const rows = async (name: string) => {
   await screen.findAllByRole("link", { name });
@@ -45,7 +49,20 @@ describe("FlowsHome", () => {
     getBillingStatus.mockRejectedValue(new Error("down"));
     show();
     expect(await screen.findByText("Flows aren't switched on for this workspace yet.")).toBeTruthy();
-    expect(screen.queryByText("Set up your first flow")).toBeNull();
+    expect(welcome()).toBeNull();
+  });
+
+  it("draws the welcome only once the flows answered that the workspace is new", async () => {
+    listFlows.mockReturnValue(new Promise(() => {}));
+    getBillingStatus.mockRejectedValue(new Error("down"));
+    const loading = show();
+    expect(await screen.findByText("Loading flows…")).toBeTruthy();
+    expect(welcome()).toBeNull();
+    loading.unmount();
+    listFlows.mockRejectedValue(new ApiHttpError("down", 500, null));
+    show();
+    expect(await screen.findByRole("button", { name: "Retry" }, { timeout: 10_000 })).toBeTruthy();
+    expect(welcome()).toBeNull();
   });
 
   it("a row without a summary says nothing it does not know", async () => {
@@ -92,9 +109,10 @@ describe("FlowsHome", () => {
     listFlows.mockResolvedValue([]);
     getBillingStatus.mockRejectedValue(new Error("down"));
     const empty = show();
-    expect(await screen.findByText("Set up your first flow")).toBeTruthy();
+    expect(await screen.findByRole("heading", { level: 1, name: /Let's read your first document/ })).toBeTruthy();
+    // The welcome is the page: no header "New flow" beside its one filled button.
     const named = [...screen.queryAllByRole("button", { name: "New flow" }), ...screen.queryAllByRole("link", { name: "New flow" })];
-    expect(named).toHaveLength(1);
+    expect(named).toHaveLength(0);
     empty.unmount();
 
     listFlows.mockResolvedValue([invoices]);

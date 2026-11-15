@@ -65,13 +65,16 @@ export function PhotoCheck({ file, flows, flowId, lastUsedId, onFlow, onBack, on
         {url && <img src={url} alt="The photo you took" className="min-h-0 max-h-full max-w-full rounded-[8px] object-contain" />}
         <p className="m-0 max-w-[300px] text-center text-[14.5px] text-navy-text">Make sure the whole page is in the picture and the text is sharp.</p>
       </div>
-      <div className="flex min-h-[56px] items-center gap-2 bg-surface pl-4 pr-1.5">
-        <span className="text-[14px] text-ink-muted">Goes to</span>
-        <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-ink">{flow?.name}</span>
-        <button type="button" aria-label="Change the flow this photo goes to" aria-expanded={changing} onClick={() => setChanging((c) => !c)}
-          className="min-h-[44px] px-2.5 text-[14px] font-semibold text-brand-blue">Change</button>
-      </div>
-      {changing && (
+      {/* R26: with no flow found there is no name to print and nothing to change to. */}
+      {flow && (
+        <div className="flex min-h-[56px] items-center gap-2 bg-surface pl-4 pr-1.5">
+          <span className="text-[14px] text-ink-muted">Goes to</span>
+          <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-ink">{flow.name}</span>
+          <button type="button" aria-label="Change the flow this photo goes to" aria-expanded={changing} onClick={() => setChanging((c) => !c)}
+            className="min-h-[44px] px-2.5 text-[14px] font-semibold text-brand-blue">Change</button>
+        </div>
+      )}
+      {flow && changing && (
         <div className="max-h-[40vh] overflow-auto bg-surface px-4 pb-3">
           <FlowChoice compact flows={flows} value={flowId} lastUsedId={lastUsedId} onChange={onFlow} onDone={() => setChanging(false)} />
         </div>

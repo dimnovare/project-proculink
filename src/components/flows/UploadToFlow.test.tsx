@@ -19,7 +19,9 @@ const billing = vi.hoisted(() => ({ getBillingStatus: vi.fn<() => Promise<Billin
 vi.mock("@/lib/api/documents", () => api);
 vi.mock("@/lib/api-client", () => billing);
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => true }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }), usePathname: () => "/upload" }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn() }), usePathname: () => "/upload" }));
+vi.mock("@clerk/nextjs", () => ({ useUser: () => ({ user: null, isLoaded: true }) }));
+vi.mock("@/lib/api/linkedAccounts", () => ({ listLinkedAccounts: () => Promise.resolve({ available: false, accounts: [] }) }));
 
 const mount = () =>
   render(
@@ -76,11 +78,22 @@ describe("UploadToFlow", () => {
     expect(again.queryByText("Last used")).toBeNull();
   });
 
-  it("with no flows, offers the first-flow prompt and no select", async () => {
+  it("with no flows, welcomes and shows no select; while the flows are unknown, never the welcome", async () => {
+    const welcome = () => screen.queryByRole("heading", { level: 1, name: /Let's read your first document/ });
+    api.listFlows.mockReturnValue(new Promise(() => {}));
+    const loading = mount();
+    expect(await screen.findByText("Loading flows…")).toBeTruthy();
+    expect(welcome()).toBeNull();
+    loading.unmount();
+    api.listFlows.mockRejectedValue(new ApiHttpError("down", 500, null));
+    const failed = mount();
+    expect(await screen.findByRole("button", { name: "Retry" }, { timeout: 10_000 })).toBeTruthy();
+    expect(welcome()).toBeNull();
+    failed.unmount();
     api.listFlows.mockResolvedValue([]);
     mount();
-    expect(await screen.findByText("Set up your first flow")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "New flow" })).toBeTruthy();
+    expect(await screen.findByRole("heading", { level: 1, name: /Let's read your first document/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Choose a file" })).toBeTruthy();
     expect(screen.queryByRole("group", { name: "Which flow is this for?" })).toBeNull();
   });
 

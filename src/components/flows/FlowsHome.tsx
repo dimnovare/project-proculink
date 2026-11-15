@@ -17,7 +17,9 @@ import { deliveryModeLabel } from "@/lib/deliveryMode";
 import { doesLine } from "@/lib/flowSentences";
 import { PLAN_BY_ID, planName, type PlanId } from "@/lib/plans";
 import { relativeTime } from "@/lib/relativeTime";
-import { FirstFlowEmpty, Quiet } from "./states";
+import { firstRunOf } from "@/lib/firstRun";
+import { Quiet } from "./states";
+import { Welcome } from "./Welcome";
 
 const COLUMNS = "minmax(0,2.4fr) minmax(0,1.2fr) minmax(0,1.4fr) 88px 120px 16px";
 const HEADS = ["Flow", "When a document is ready", "Needs you", "Documents", "Last document"];
@@ -128,9 +130,12 @@ export function FlowsHome() {
   const plan = billing.data?.plan;
   const limit = plan ? PLAN_BY_ID[plan as PlanId]?.flowLimit : null;
 
+  // Only an answered list can say the workspace is new: loading or failed draws its own state below.
+  if (flows.data && firstRunOf(flows.data).state === "new") return <Welcome flows={flows.data} />;
+
   let body;
   if (flows.data) {
-    body = flows.data.length === 0 ? <FirstFlowEmpty /> : (
+    body = (
       <div className="flex flex-col gap-3">
         <Card flush as="section" aria-labelledby="flows-heading">
           <h2 id="flows-heading" className="m-0 px-4 pb-2 pt-3.5 text-[14px] font-semibold text-ink">Your flows</h2>
