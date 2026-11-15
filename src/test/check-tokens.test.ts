@@ -369,9 +369,10 @@ describe("the scanned corpus", () => {
     // would mean the scan narrowed, not that the tree got clean overnight.
     // 94 rows / 1,938 measured 2026-11-13, after the order screens went with
     // 34 rows of their debt; 90 rows / 1,578 once the mapper kept only the flow
-    // variant the same day.
+    // variant the same day; 75 rows / 1,189 on 2026-11-15, after Settings
+    // (plan 14.7b) moved to token classes.
     expect(s.baselineRows).toBeGreaterThan(60);
-    expect(s.baselineTotal).toBeGreaterThan(1_200);
+    expect(s.baselineTotal).toBeGreaterThan(1_100);
 
     // The gate is green, so found debt and ledgered debt must agree exactly.
     // This is what ties the ledger below to a LIVE run rather than to a file

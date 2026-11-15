@@ -44,7 +44,8 @@ import {
   revokeApiKey,
   type ApiKey,
 } from "@/lib/api-client";
-import { ORG_ADMIN_ERROR_CODE, orgAdminMessage } from "@/lib/planGate";
+import { ORG_ADMIN_ERROR_CODE } from "@/lib/planGate";
+import { COPY } from "@/lib/documentRefusals";
 import SettingsPage from "./page";
 
 const mockTab = { value: "tab=api" };
@@ -52,7 +53,7 @@ const mockTab = { value: "tab=api" };
 const key = (over: Partial<ApiKey> = {}): ApiKey => ({
   id: "key-1",
   label: "Production integration",
-  keyPrefix: "pk_live_abc",
+  keyPrefix: "example-",
   isActive: true,
   createdAt: "2026-08-01T10:00:00Z",
   lastUsedAt: null,
@@ -177,7 +178,7 @@ describe("Settings — a failed API-key revoke says the key is still live", () =
 
     const alert = await within(table).findByRole("alert");
     expect(alert).toHaveTextContent(/^Still active — do not assume this key is revoked\./);
-    expect(alert).toHaveTextContent(orgAdminMessage());
+    expect(alert).toHaveTextContent(COPY.requires_org_admin);
     expect(alert).not.toHaveTextContent(/try again in a moment/);
   });
 
