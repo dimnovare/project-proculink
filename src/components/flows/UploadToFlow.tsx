@@ -201,7 +201,7 @@ export function UploadToFlow() {
                 <span className="sm:hidden">Add one file or several at once</span>
               </h2>
               <p className="m-0 max-w-[460px] text-[14.5px] text-ink-muted">{kindsLine(flow)}</p>
-              <div className="flex flex-col gap-2.5 self-stretch sm:self-center">
+              <div className="flex flex-col gap-2.5 justify-self-stretch sm:justify-self-center">
                 {flow.scansOn && (
                   <Button variant="blue" size="lg" className="!h-12 w-full px-6 text-[15px] sm:hidden" onClick={camera.open}>
                     <Camera size={18} aria-hidden />Take a photo
