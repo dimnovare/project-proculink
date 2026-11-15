@@ -12,6 +12,7 @@ import type {
   Destination, DocumentDelivery, DocumentDetail, DocumentSummary, Flow, FlowField, FlowIntake, FlowOutput,
   FlowVersion, Lookup, LookupSummary, NotificationSettings, OutputPreview, ReadCell, ReadResult,
 } from "./documents";
+import { mockAuditPage } from "./mockAudit";
 
 export const MOCK_ENGINE_IDS = { flow: "flow-1", setupFlow: "flow-2", document: "doc-1", lookup: "lookup-1", output: "out-1" } as const;
 /** The document number every fixture read carries — specs assert against this, never a literal. */
@@ -204,6 +205,7 @@ const ROUTES: [method: string, pattern: RegExp, run: Handler][] = [
   ["GET", re`/lookups/${S}`, (m) => pick(LOOKUPS, m[1], "lookup")],
   ["PUT", re`/lookups/${S}`, (m, _q, b) => echo(pick(LOOKUPS, m[1], "lookup"), b)],
   ["DELETE", re`/lookups/${S}`, () => undefined],
+  ["GET", re`/audit`, (_m, q) => mockAuditPage(q, { docs: DOCS, numbers: { [MOCK_ENGINE_IDS.document]: MOCK_DOCUMENT_NUMBER } })],
 ];
 
 // The original is served by file name, like the real download: a `.pdf` document gets real PDF bytes,
