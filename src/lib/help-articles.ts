@@ -182,38 +182,6 @@ export const HELP_ARTICLES: HelpArticle[] = [
   },
 ];
 
-/** Icon keys are rendered by `<HelpIcon name=… />` — one cohesive line-icon set. */
-export type HelpIconName =
-  | "upload"
-  | "connections"
-  | "map"
-  | "deliver"
-  | "ai"
-  | "billing"
-  | "integrations"
-  | "wrench";
-
-/**
- * Per-category visual identity. Colours are pulled straight from the locked
- * Bridge Layer token set (`color` = solid accent, `soft` = tinted surface) so
- * the Help center never invents a palette of its own. Text colours are the DEEP
- * member of each hue family so the 12px semibold eyebrow passes WCAG AA (4.5:1)
- * on its pastel `soft` background.
- */
-export const CATEGORY_META: Record<
-  HelpCategory,
-  { color: string; soft: string; icon: HelpIconName }
-> = {
-  "Getting started":          { color: "#1E6D29", soft: "#DCFCE7", icon: "upload" },
-  Documents:                  { color: "#7A4D0B", soft: "#FAEFD6", icon: "wrench" },
-  Flows:                      { color: "#0F4FA8", soft: "#E3EDFB", icon: "connections" },
-  "Sending in":               { color: "#56627A", soft: "#EFF2F7", icon: "integrations" },
-  "Outputs and destinations": { color: "#1E6D29", soft: "#E2F1E2", icon: "deliver" },
-  Lookups:                    { color: "#6F4FCE", soft: "#EEE7FB", icon: "map" },
-  Account:                    { color: "#0F4FA8", soft: "#E3EDFB", icon: "billing" },
-  API:                        { color: "#56627A", soft: "#EFF2F7", icon: "integrations" },
-};
-
 /** Category render order for filter chips — mirrors the learning path. */
 export const CATEGORY_ORDER: HelpCategory[] = [
   "Getting started",

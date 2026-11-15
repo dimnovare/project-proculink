@@ -8,22 +8,13 @@ import Link from "next/link";
 import HelpArticleShell from "@/components/help/HelpArticleShellServer";
 
 /**
- * MDX renderer for the Help center articles (the only `.mdx` pages in the app).
+ * MDX renderer for the Help centre articles (the only `.mdx` pages in the app).
  *
- * Previously this returned `{ ...components }` with no overrides, so every MDX
- * element rendered as a bare tag. Combined with Tailwind's Preflight base reset
- * — which strips heading font-size/weight/margins — articles collapsed to flat,
- * flush-left, single-size text. Mapping each element to a Bridge Layer–styled
- * component restores real typography; `wrapper` adds the article chrome.
- *
- * Tokens are inlined (rather than relying on @tailwindcss/typography, which is
- * not registered as a Tailwind plugin) so styling stays self-contained and
- * matches the locked navy/blue/green + Bricolage/Inter system exactly.
+ * Tailwind's Preflight strips heading sizes and margins, so each MDX element is
+ * mapped to a styled tag; `wrapper` adds the article chrome. Colours are token
+ * classes only: ink text, blue links, neutral borders. Body text is the public
+ * pages' 17px.
  */
-
-const INK = "#0B1A2F";
-const BODY = "#3C4860";
-const DISPLAY = "'Bricolage Grotesque', Inter, sans-serif";
 
 // Derive a stable text from heading children for anchor ids / deep links.
 function textOf(node: ReactNode): string {
@@ -42,13 +33,11 @@ function slugify(node: ReactNode): string {
     .replace(/(^-|-$)/g, "");
 }
 
-// The hover DEEPENS to --brand-blue-deep instead of stepping out to #2E8E3A, which
-// was 4.1613:1 on the article's #FFFFFF (3.7890:1 inside a #DCFCE7 blockquote) — a
-// link that passed AA until you pointed at it. #0F4FA8 is 7.7659:1 on #FFFFFF,
-// 7.0711:1 on #DCFCE7 and 7.2494:1 on the #F6F7FA table header, and it is already
-// the help centre's hover colour (HelpArticleShell breadcrumb + prev/next cards).
 const linkClass =
-  "font-medium underline underline-offset-2 transition-colors text-[#1E6D29] hover:text-[#0F4FA8] rounded-[2px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-green-deep focus-visible:ring-offset-2";
+  "font-medium text-brand-blue-deep underline underline-offset-2 hover:text-ink rounded-[2px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2";
+
+const BODY_TEXT = "text-[17px] leading-[1.65] text-ink";
+const HEADING = "font-display font-semibold text-ink scroll-mt-20";
 
 function MdxLink({
   href = "",
@@ -83,127 +72,37 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
     wrapper: HelpArticleShell,
 
     h1: ({ children }) => (
-      <h1
-        style={{
-          fontFamily: DISPLAY,
-          fontSize: "clamp(28px, 4.5vw, 36px)",
-          fontWeight: 700,
-          letterSpacing: "-0.025em",
-          lineHeight: 1.15,
-          color: INK,
-          margin: "0 0 16px",
-          scrollMarginTop: 80,
-        }}
-      >
-        {children}
-      </h1>
+      <h1 className={`${HEADING} m-0 mb-4 text-[clamp(30px,4.5vw,40px)] leading-[1.1] tracking-[-0.02em]`}>{children}</h1>
     ),
 
     h2: ({ children }) => (
-      <h2
-        id={slugify(children)}
-        style={{
-          fontFamily: DISPLAY,
-          fontSize: 22,
-          fontWeight: 600,
-          letterSpacing: "-0.02em",
-          lineHeight: 1.3,
-          color: INK,
-          margin: "36px 0 10px",
-          scrollMarginTop: 80,
-        }}
-      >
+      <h2 id={slugify(children)} className={`${HEADING} mb-3 mt-10 text-[26px] leading-[1.2] tracking-[-0.02em]`}>
         {children}
       </h2>
     ),
 
     h3: ({ children }) => (
-      <h3
-        id={slugify(children)}
-        style={{
-          fontFamily: DISPLAY,
-          fontSize: 17,
-          fontWeight: 600,
-          letterSpacing: "-0.015em",
-          lineHeight: 1.35,
-          color: INK,
-          margin: "28px 0 8px",
-          scrollMarginTop: 80,
-        }}
-      >
+      <h3 id={slugify(children)} className={`${HEADING} mb-2 mt-7 text-[20px] leading-[1.3]`}>
         {children}
       </h3>
     ),
 
-    h4: ({ children }) => (
-      <h4
-        style={{
-          fontFamily: DISPLAY,
-          fontSize: 15,
-          fontWeight: 600,
-          color: INK,
-          margin: "22px 0 6px",
-        }}
-      >
-        {children}
-      </h4>
-    ),
+    h4: ({ children }) => <h4 className={`${HEADING} mb-1.5 mt-5 text-[17px]`}>{children}</h4>,
 
-    p: ({ children }) => (
-      <p style={{ fontSize: 15, lineHeight: 1.72, color: BODY, margin: "14px 0" }}>
-        {children}
-      </p>
-    ),
+    p: ({ children }) => <p className={`${BODY_TEXT} my-4`}>{children}</p>,
 
     a: MdxLink,
 
-    ul: ({ children }) => (
-      <ul
-        className="marker:text-brand-green-deep"
-        style={{
-          margin: "14px 0",
-          paddingLeft: 22,
-          listStyleType: "disc",
-          fontSize: 15,
-          lineHeight: 1.72,
-          color: BODY,
-        }}
-      >
-        {children}
-      </ul>
-    ),
+    ul: ({ children }) => <ul className={`${BODY_TEXT} my-4 list-disc pl-6 marker:text-ink-muted`}>{children}</ul>,
 
     ol: ({ children }) => (
-      <ol
-        className="marker:text-brand-green-deep marker:font-semibold"
-        style={{
-          margin: "14px 0",
-          paddingLeft: 22,
-          listStyleType: "decimal",
-          fontSize: 15,
-          lineHeight: 1.72,
-          color: BODY,
-        }}
-      >
-        {children}
-      </ol>
+      <ol className={`${BODY_TEXT} my-4 list-decimal pl-6 marker:font-semibold marker:text-ink-muted`}>{children}</ol>
     ),
 
-    li: ({ children }) => <li style={{ margin: "6px 0" }}>{children}</li>,
+    li: ({ children }) => <li className="my-1.5">{children}</li>,
 
     code: ({ children }) => (
-      <code
-        style={{
-          fontFamily: "'JetBrains Mono', ui-monospace, monospace",
-          fontSize: "0.86em",
-          fontWeight: 500,
-          background: "#EFF2F7",
-          color: "#0F4FA8",
-          padding: "2px 6px",
-          borderRadius: 5,
-          border: "1px solid #E4E8F0",
-        }}
-      >
+      <code className="rounded-[5px] border border-border bg-surface-2 px-1.5 py-0.5 font-mono text-[0.86em] font-medium text-ink">
         {children}
       </code>
     ),
@@ -213,94 +112,35 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
       // slim scrollbar (globals.css) so a clipped-but-scrollable sample reads as
       // "scroll for more" rather than "cut off" — the wide format samples (EDI/
       // XML/JSON) overflow 390px on mobile and touch scrollbars otherwise hide.
-      <pre
-        className="help-scroll"
-        style={{
-          background: "#F6F8FB",
-          border: "1px solid #E2E6EE",
-          borderRadius: 8,
-          padding: "14px 16px",
-          overflowX: "auto",
-          margin: "18px 0",
-          fontSize: 13,
-          lineHeight: 1.6,
-          fontFamily: "'JetBrains Mono', ui-monospace, monospace",
-          color: INK,
-        }}
-      >
+      <pre className="help-scroll my-5 overflow-x-auto rounded-[8px] border border-border bg-bg px-4 py-3.5 font-mono text-[14px] leading-[1.6] text-ink [&_code]:border-0 [&_code]:bg-transparent [&_code]:p-0">
         {children}
       </pre>
     ),
 
     blockquote: ({ children }) => (
-      <blockquote
-        style={{
-          margin: "18px 0",
-          padding: "12px 16px",
-          background: "#DCFCE7",
-          // #1E6D29, not the retired emerald: that was 2.0698:1 on this fill,
-          // under WCAG 1.4.11's 3:1 non-text floor for a meaningful edge. 5.8391:1.
-          borderLeft: "3px solid #1E6D29",
-          borderRadius: "0 8px 8px 0",
-          color: "#2E3B52",
-          fontSize: 14,
-        }}
-      >
-        {children}
-      </blockquote>
+      <blockquote className="my-5 border-l-2 border-border-strong py-1 pl-4 text-ink-muted">{children}</blockquote>
     ),
 
-    strong: ({ children }) => (
-      <strong style={{ fontWeight: 600, color: INK }}>{children}</strong>
-    ),
+    strong: ({ children }) => <strong className="font-semibold text-ink">{children}</strong>,
 
-    em: ({ children }) => <em style={{ fontStyle: "italic" }}>{children}</em>,
+    em: ({ children }) => <em className="italic">{children}</em>,
 
-    hr: () => (
-      <hr style={{ border: "none", height: 1, background: "#E2E6EE", margin: "32px 0" }} />
-    ),
+    hr: () => <hr className="my-8 h-px border-0 bg-border" />,
 
     table: ({ children }) => (
-      <div style={{ overflowX: "auto", margin: "18px 0" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-          {children}
-        </table>
+      <div className="my-5 overflow-x-auto">
+        <table className="w-full border-collapse text-[15.5px] leading-[1.45]">{children}</table>
       </div>
     ),
 
     th: ({ children }) => (
-      <th
-        style={{
-          textAlign: "left",
-          padding: "8px 12px",
-          background: "#F6F7FA",
-          borderBottom: "1px solid #E2E6EE",
-          color: INK,
-          fontWeight: 600,
-        }}
-      >
-        {children}
-      </th>
+      <th className="border-b border-border bg-bg px-3 py-2 text-left font-semibold text-ink">{children}</th>
     ),
 
-    td: ({ children }) => (
-      <td style={{ padding: "8px 12px", borderBottom: "1px solid #EEF0F4", color: BODY }}>
-        {children}
-      </td>
-    ),
+    td: ({ children }) => <td className="border-b border-border px-3 py-2 align-top text-ink">{children}</td>,
 
     img: (props) => (
-      <img
-        {...props}
-        alt={props.alt ?? ""}
-        style={{
-          maxWidth: "100%",
-          height: "auto",
-          borderRadius: 8,
-          border: "1px solid #E2E6EE",
-          margin: "18px 0",
-        }}
-      />
+      <img {...props} alt={props.alt ?? ""} className="my-5 h-auto max-w-full rounded-[8px] border border-border" />
     ),
   };
 }

@@ -411,8 +411,10 @@ describe("the specific sites the refutation measured", () => {
     expect(src).not.toMatch(/const BLUE_NODE\b/);
   });
 
-  it("the help-article shell rings in a token green, not an arbitrary hex", () => {
+  it("the help-article shell rings in a token colour, not an arbitrary hex", () => {
     const src = read("src/components/help/HelpArticleShell.tsx");
-    expect(src).toContain("focus-visible:ring-brand-green-deep");
+    // Since the site restyle (2026-11) the shell draws no ring of its own: the global :focus-visible
+    // outline (--brand-blue, globals.css) applies, so no file-local ring can carry a retired colour.
+    expect(src).not.toMatch(/focus-visible:ring-|ring-\[#/);
   });
 });
