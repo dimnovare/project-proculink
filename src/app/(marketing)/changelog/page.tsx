@@ -45,6 +45,7 @@ const ENTRIES = [
       "Settings is one page with tabs for the workspace, destinations, plan and billing, and API keys.",
       "Help opens beside your work, with the tasks for the screen you are on.",
       "Pricing: choose how many documents you process a month and see which plan costs least.",
+      "ProcuLink can be installed like an app from Settings. It says when you are offline, and a file you add offline waits until the connection is back.",
     ],
   },
   {
