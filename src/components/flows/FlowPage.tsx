@@ -19,7 +19,9 @@ import { and, waysInWords } from "@/lib/flowSentences";
 import { FLOW_STEPS, flowAddress, readFlowView, type FlowStep, type FlowView } from "@/lib/flowSteps";
 import { pageTotal } from "@/lib/pageTotal";
 import { INPUT } from "./DestinationForm";
+import { FlowCheck } from "./FlowCheck";
 import { flowNeedsYouQuery, FlowDocuments, needsYouWords, StreakBand } from "./FlowDocuments";
+import { FlowIntakePanel } from "./FlowIntakePanel";
 import { DraftPartFailed, FlowDraftProvider, useFlowDraft } from "./flowDraft";
 import { FlowVersionsPanel } from "./FlowVersionsPanel";
 import { PublishBar } from "./PublishBar";
@@ -206,7 +208,9 @@ function ViewBody({ flow, view }: { flow: Flow; view: FlowView }) {
   const { bump, revision } = useFlowDraft();
   if (view === "history") return <FlowVersionsPanel flowId={flow.id} onRestored={bump} />;
   if (!isFlowStep(view)) return <FlowDocuments flow={flow} />;
-  const step: Record<FlowStep, React.ReactNode> = { arrives: null, read: null, check: null, send: null };
+  const step: Record<FlowStep, React.ReactNode> = {
+    arrives: <FlowIntakePanel flow={flow} />, read: null, check: <FlowCheck flow={flow} />, send: null,
+  };
   return (
     <div className="grid gap-4">
       <div key={revision}>{step[view]}</div>

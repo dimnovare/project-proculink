@@ -15,18 +15,13 @@ import { documentsAddress, NEEDS_YOU_STATUSES } from "@/lib/documentTabs";
 import { acceptFor, kindsLine, MAX_UPLOAD_BYTES } from "@/lib/fileKinds";
 import { pageTotal } from "@/lib/pageTotal";
 import { DocumentList } from "./DocumentList";
+import { streakText } from "./FlowCheck";
 import { FileDrop } from "./FileDrop";
 import { useFlowSaved } from "./PublishBar";
 import { useUploadQueue } from "./UploadQueue";
 import { Failed, Quiet } from "./states";
 
 const NEWEST = 10;
-
-export function streakText(n: number) {
-  if (n === 0) return "The last document sent needed a correction.";
-  if (n === 1) return "The last document was sent without a correction.";
-  return `The last ${n > 200 ? "200+" : n} documents were sent without a correction.`;
-}
 
 /** The count of this flow's documents that need a person, and the newest of them; one request for every reader. */
 export const flowNeedsYouQuery = (flowId: string) => documentCountQuery(NEEDS_YOU_STATUSES, flowId);

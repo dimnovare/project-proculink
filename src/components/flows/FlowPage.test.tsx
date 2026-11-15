@@ -17,6 +17,7 @@ vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => tru
 const api = vi.hoisted(() => ({
   getFlow: vi.fn(), updateFlow: vi.fn(), listIntakes: vi.fn(), listOutputs: vi.fn(), listDestinations: vi.fn(),
   listDocumentPage: vi.fn(), publishFlow: vi.fn(), restoreFlowVersion: vi.fn(), listFlowVersions: vi.fn(),
+  flowApiEndpoint: (id: string) => `/api/v1/flows/${id}/documents`,
 }));
 vi.mock("@/lib/api/documents", () => api);
 vi.mock("./UploadQueue", () => ({ useUploadQueue: () => ({ items: [], add: vi.fn(), retry: vi.fn() }) }));

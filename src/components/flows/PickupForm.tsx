@@ -104,7 +104,7 @@ export function PickupForm({ flowId, intake, onDone }: { flowId: string; intake?
         <p className="m-0 text-[12px] text-ink-muted">Each file is picked up once. A file that changes is picked up again. Files stay where they are. We check every five minutes.</p>
         {save.isError && <StatusNotice tone="error">{documentRefusalMessage(save.error)}</StatusNotice>}
         <div className="flex flex-wrap gap-2">
-          <Button type="submit" variant="primary" disabled={!isKind(kind)} loading={save.isPending}>Save</Button>
+          <Button type="submit" variant="secondary" disabled={!isKind(kind)} loading={save.isPending}>Save</Button>
           <Button type="button" variant="secondary" disabled={!current} loading={test.isPending} onClick={() => test.mutate()}>
             Test connection
           </Button>

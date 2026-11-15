@@ -70,4 +70,9 @@ describe("PublishBar", () => {
     expect(bar().getByRole("button", { name: "Publish" })).toBeTruthy();
     expect(bar().queryByRole("button", { name: "Discard" })).toBeNull();
   });
+
+  it("an older backend with no version info gets no bar", () => {
+    render(page({ ...flow, publishedVersion: undefined }));
+    expect(screen.queryByRole("region", { name: "Unpublished changes" })).toBeNull();
+  });
 });
