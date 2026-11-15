@@ -374,11 +374,14 @@ describe("the scanned corpus", () => {
     // 1,178 after its second). 1_000 -> 1_100 the same day: 1,170 after its help panel;
     // 68 rows / 1,127 on main the same day, once Settings (plan 14.7b) and the public
     // site's header and footer moved to token classes. 1_100 -> 1_050 at the merge of the
-    // two: both sides cleaned different files, 63 rows / 1,087 together.
-    expect(s.baselineRows).toBeGreaterThan(60);
+    // two: both sides cleaned different files, 63 rows / 1,087 together. 60 -> 35 on
+    // 2026-11-15: plan 14.25 moved the legal pages, Security, Support, the forms, the
+    // changelog and the page not found to token classes (about eleven rows).
+    expect(s.baselineRows).toBeGreaterThan(35);
     // 1_100 -> 1_000 on 2026-11-15: plan 14.10 redrew the search palette in tokens (its 39 went);
     // 62 rows / 1,048 once Settings, the public site and the shared states had also moved.
-    expect(s.baselineTotal).toBeGreaterThan(1_000);
+    // 1_000 -> 700 the same day: plan 14.25's small site pages (about 190 values).
+    expect(s.baselineTotal).toBeGreaterThan(700);
 
     // The gate is green, so found debt and ledgered debt must agree exactly.
     // This is what ties the ledger below to a LIVE run rather than to a file
