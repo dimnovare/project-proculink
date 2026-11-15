@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { unzipSync } from "fflate";
 import { ApiHttpError } from "@/lib/api/core";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
-import { eachDocument, fetchOriginal, MissingOriginal, saveOriginals } from "./eachDocument";
+import { eachDocument, fetchOriginal, MissingOriginal, safeFileName, saveOriginals } from "./eachDocument";
 
 const api = vi.hoisted(() => ({ sendDocument: vi.fn(), fetchDocumentSource: vi.fn() }));
 vi.mock("@/lib/api/documents", () => api);
@@ -78,5 +78,24 @@ describe("eachDocument", () => {
     const [zip, name] = save.saveBlob.mock.calls[0] as [Blob, string];
     expect(name).toBe("documents.zip");
     expect(Object.keys(unzipSync(new Uint8Array(await zip.arrayBuffer())))).toEqual(["invoice.pdf", "invoice (2).pdf"]);
+  });
+
+  it("a document's name cannot leave the archive's folder", async () => {
+    const cases: [string, string][] = [
+      ["../../evil.txt", "evil.txt"], ["..\\..\\evil.txt", "evil.txt"], ["/etc/passwd", "passwd"], ["C:\\Users\\x\\a.pdf", "a.pdf"],
+      ["..", "document"], ["", "document"], [".hidden", "hidden"], ["a\u0000b.pdf", "ab.pdf"], ["CON.pdf", "_CON.pdf"],
+    ];
+    for (const [name, safe] of cases) expect(safeFileName(name)).toBe(safe);
+    expect(safeFileName(`${"x".repeat(300)}.pdf`)).toBe(`${"x".repeat(176)}.pdf`);
+
+    await saveOriginals([{ name: "../a.pdf", blob: new Blob(["one"]) }, { name: "../a.pdf", blob: new Blob(["two"]) },
+      { name: "..\\..\\C:\\evil.exe", blob: new Blob(["three"]) }]);
+    const names = Object.keys(unzipSync(new Uint8Array(await (save.saveBlob.mock.calls[0][0] as Blob).arrayBuffer())));
+    expect(names).toEqual(["a.pdf", "a (2).pdf", "evil.exe"]);
+    for (const n of names) expect(n).not.toMatch(/[/\\]|\.\./);
+
+    save.saveBlob.mockClear();
+    await saveOriginals([{ name: "../../evil.txt", blob: new Blob(["one"]) }]);
+    expect(save.saveBlob.mock.calls[0][1]).toBe("evil.txt");
   });
 });

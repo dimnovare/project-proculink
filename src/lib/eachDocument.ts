@@ -54,6 +54,25 @@ export async function fetchOriginal(d: { id: string; fileName: string }): Promis
   return { name: d.fileName, blob };
 }
 
+const MAX_NAME = 180;
+/**
+ * A file name someone else chose (an upload, an email attachment), made safe to save or put in a zip:
+ * the base name only, no control or Windows-forbidden characters, no leading dots, never a device name.
+ * A zip entry like "../../x" would otherwise write outside the folder it is extracted into.
+ */
+export function safeFileName(name: string): string {
+  let s = name.split(/[/\\]/).filter(Boolean).pop() ?? "";
+  // eslint-disable-next-line no-control-regex
+  s = s.replace(/[\u0000-\u001f\u007f:<>"|?*]/g, "").replace(/^[.\s/\\]+/, "").replace(/[.\s]+$/, "");
+  if (!s) return "document";
+  if (s.length > MAX_NAME) {
+    const dot = s.lastIndexOf(".");
+    const ext = dot > 0 && s.length - dot <= 16 ? s.slice(dot) : "";
+    s = s.slice(0, MAX_NAME - ext.length) + ext;
+  }
+  return /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\.|$)/i.test(s) ? `_${s}` : s;
+}
+
 /** "invoice.pdf" taken: "invoice (2).pdf", then "invoice (3).pdf". */
 function unique(name: string, taken: Set<string>): string {
   const dot = name.lastIndexOf(".");
@@ -67,9 +86,9 @@ function unique(name: string, taken: Set<string>): string {
 /** Saves one file under its name, or several in documents.zip with unique names. */
 export async function saveOriginals(files: readonly { name: string; blob: Blob }[]): Promise<void> {
   if (files.length === 0) return;
-  if (files.length === 1) return saveBlob(files[0].blob, files[0].name);
+  if (files.length === 1) return saveBlob(files[0].blob, safeFileName(files[0].name));
   const taken = new Set<string>();
   const entries: Record<string, Uint8Array> = {};
-  for (const f of files) entries[unique(f.name, taken)] = new Uint8Array(await f.blob.arrayBuffer());
+  for (const f of files) entries[unique(safeFileName(f.name), taken)] = new Uint8Array(await f.blob.arrayBuffer());
   saveBlob(new Blob([zipSync(entries)], { type: "application/zip" }), "documents.zip");
 }
