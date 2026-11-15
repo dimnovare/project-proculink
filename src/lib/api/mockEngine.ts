@@ -6,7 +6,6 @@
  * instead of an empty success. Only reachable when `isApiMockMode` (never true in production).
  */
 import { DOCUMENT_STATUSES } from "../documentStatusManifest";
-import { NEEDS_YOU_STATUSES } from "../documentTabs";
 import { ApiHttpError } from "./core";
 import { mockSourceBytesForKey } from "./mockSourceDocument";
 import type {
@@ -150,7 +149,8 @@ const flowSummaryOf = (f: Flow): FlowSummary => {
   const rows = ROWS.filter((d) => d.flowId === f.id);
   const count = (statuses: readonly string[]) => rows.filter((d) => statuses.includes(d.status)).length;
   return {
-    needsYou: count(NEEDS_YOU_STATUSES), couldNotSend: count([STATUS.send_failed]), couldNotRead: count([STATUS.read_failed]),
+    // The pair the server counts (FlowSummaries), named from the status constants, not from the screen's tabs.
+    needsYou: count([STATUS.needs_review, STATUS.ready]), couldNotSend: count([STATUS.send_failed]), couldNotRead: count([STATUS.read_failed]),
     lastDocumentAt: rows.map((d) => d.createdAt).sort().at(-1) ?? null,
     waysIn: intakesOf(f.id).filter((i) => i.isEnabled).map((i) => i.kind),
     outputs: outputsOf(f.id).map((o) => ({

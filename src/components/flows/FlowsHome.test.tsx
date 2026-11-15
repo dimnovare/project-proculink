@@ -3,6 +3,8 @@ import { act, render, screen, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ApiHttpError } from "@/lib/api/core";
 import type { Flow, FlowSummary } from "@/lib/api/documents";
+import { deliveryModeLabel } from "@/lib/deliveryMode";
+import { PLAN_BY_ID, planName } from "@/lib/plans";
 import { FlowsHome } from "./FlowsHome";
 
 const listFlows = vi.fn();
@@ -56,11 +58,14 @@ describe("FlowsHome", () => {
       expect(row.getByText(SENTENCE)).toBeTruthy();
       expect(row.queryByText(/couldn't be sent/)).toBeNull();
     }
+    expect(within(screen.getByTestId("flows-table")).getByRole("link", { name: "Supplier invoices" }))
+      .toHaveAccessibleDescription(expect.stringContaining("1 needs you"));
     const [desk, phone] = await rows("Delivery notes");
     for (const row of [desk, phone]) {
-      for (const unknown of [/Reads documents/, /needs? you/, /Nothing waiting/, /Last one/, /No documents yet/]) {
+      for (const unknown of [/Reads documents/, /needs? you/, /couldn't be/, /Nothing waiting/, /Last one/, /No documents yet/]) {
         expect(row.queryByText(unknown)).toBeNull();
       }
+      expect(row.getByText(deliveryModeLabel(false))).toBeTruthy();
     }
     expect(desk.getByText("4")).toBeTruthy();
     expect(phone.getByText("4 documents")).toBeTruthy();
@@ -95,9 +100,19 @@ describe("FlowsHome", () => {
     listFlows.mockResolvedValue([invoices]);
     getBillingStatus.mockResolvedValue({ plan: "pilot" });
     const known = show();
-    expect(await screen.findByText(/^\d+ of \d+ flows on /)).toBeTruthy();
-    expect(screen.getByRole("link", { name: "See plans" }).getAttribute("href")).toBe("/settings?tab=billing");
+    const seePlans = await screen.findByRole("link", { name: "See plans" });
+    expect(seePlans.getAttribute("href")).toBe("/settings?tab=billing");
+    expect(seePlans.closest("p")?.textContent).toBe(`1 of ${PLAN_BY_ID.pilot.flowLimit} flows on ${planName("pilot")}. Need more? See plans`);
     known.unmount();
+
+    const unlimited = Object.values(PLAN_BY_ID).find((p) => p.flowLimit === null)!;
+    getBillingStatus.mockResolvedValue({ plan: unlimited.id });
+    const open = show();
+    await rows("Supplier invoices");
+    await act(() => Promise.resolve());
+    expect(getBillingStatus).toHaveBeenCalled();
+    expect(screen.queryByText(/flows on/)).toBeNull();
+    open.unmount();
 
     getBillingStatus.mockRejectedValue(new Error("down"));
     show();

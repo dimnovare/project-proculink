@@ -40,15 +40,23 @@ function Needs({ f }: { f: Flow }) {
   return tags.length ? <div className="flex flex-wrap gap-2">{tags}</div> : <span className="text-[13px] text-ink-muted">Nothing waiting</span>;
 }
 
-/** The last document's time, "No documents yet", or null without a summary. */
-const last = (f: Flow) => (f.summary ? relativeTime(f.summary.lastDocumentAt) ?? "No documents yet" : null);
+/** The last document's time, "No documents yet" for a known none, or null when unknown (no summary, or a time we cannot read). */
+function last(f: Flow): { text: string; time: boolean } | null {
+  if (!f.summary) return null;
+  if (f.summary.lastDocumentAt === null) return { text: "No documents yet", time: false };
+  const when = relativeTime(f.summary.lastDocumentAt);
+  return when ? { text: when, time: true } : null;
+}
 
-function Name({ f }: { f: Flow }) {
+/** The link keeps the flow name as its name; the sentence (`{p}-line`) and the rest (`{p}-more`) describe it. */
+const describedBy = (f: Flow, p: string) => (doesLine(f) ? `${p}-line ${p}-more` : `${p}-more`);
+
+function Name({ f, p }: { f: Flow; p: string }) {
   const line = doesLine(f);
   return (
     <div className="grid min-w-0 gap-0.5">
       <span className="text-[15px] font-semibold text-ink">{f.name}</span>
-      {line && <span className="text-[13px] text-ink-muted">{line}</span>}
+      {line && <span id={`${p}-line`} className="text-[13px] text-ink-muted">{line}</span>}
     </div>
   );
 }
@@ -62,15 +70,18 @@ function FlowRows({ flows }: { flows: Flow[] }) {
         </div>
         <ul className="m-0 list-none p-0">
           {flows.map((f) => {
-            const lastOne = last(f);
+            const p = `flow-${f.id}-desk`;
             return (
               <li key={f.id} className="border-t border-border">
-                <Link href={`/flows/${f.id}`} aria-label={f.name} className="grid items-center gap-3 px-4 py-3 text-ink hover:bg-surface-2" style={{ gridTemplateColumns: COLUMNS }}>
-                  <Name f={f} />
-                  <span className="text-[13px] text-ink-muted">{deliveryModeLabel(f.automation === "auto")}</span>
-                  <Needs f={f} />
-                  <span className="text-[13px] text-ink">{f.documentCount || "None yet"}</span>
-                  <span className="text-[13px] text-ink-muted">{lastOne}</span>
+                <Link href={`/flows/${f.id}`} aria-label={f.name} aria-describedby={describedBy(f, p)}
+                  className="grid items-center gap-3 px-4 py-3 text-ink hover:bg-surface-2" style={{ gridTemplateColumns: COLUMNS }}>
+                  <Name f={f} p={p} />
+                  <div id={`${p}-more`} className="contents">
+                    <span className="text-[13px] text-ink-muted">{deliveryModeLabel(f.automation === "auto")}</span>
+                    <Needs f={f} />
+                    <span className="text-[13px] text-ink">{f.documentCount || "None yet"}</span>
+                    <span className="text-[13px] text-ink-muted">{last(f)?.text}</span>
+                  </div>
                   <Chevron />
                 </Link>
               </li>
@@ -81,16 +92,19 @@ function FlowRows({ flows }: { flows: Flow[] }) {
       <ul data-testid="flows-phone-list" className="m-0 list-none p-0 lg:hidden">
         {flows.map((f) => {
           const lastOne = last(f);
+          const p = `flow-${f.id}-phone`;
           return (
             <li key={f.id} className="border-t border-border first:border-t-0">
-              <Link href={`/flows/${f.id}`} aria-label={f.name} className="flex items-center gap-3 px-4 py-3 text-ink">
+              <Link href={`/flows/${f.id}`} aria-label={f.name} aria-describedby={describedBy(f, p)} className="flex items-center gap-3 px-4 py-3 text-ink">
                 <div className="grid min-w-0 flex-1 gap-1.5">
-                  <Name f={f} />
-                  <span className="text-[13px] text-ink-muted">{deliveryModeLabel(f.automation === "auto")}</span>
-                  <Needs f={f} />
-                  <div className="flex flex-wrap gap-x-3 text-[13px] text-ink-muted">
-                    <span>{f.documentCount ? `${f.documentCount} ${f.documentCount === 1 ? "document" : "documents"}` : "None yet"}</span>
-                    {lastOne && <span>{f.summary?.lastDocumentAt ? `Last one ${lastOne}` : lastOne}</span>}
+                  <Name f={f} p={p} />
+                  <div id={`${p}-more`} className="contents">
+                    <span className="text-[13px] text-ink-muted">{deliveryModeLabel(f.automation === "auto")}</span>
+                    <Needs f={f} />
+                    <div className="flex flex-wrap gap-x-3 text-[13px] text-ink-muted">
+                      <span>{f.documentCount ? `${f.documentCount} ${f.documentCount === 1 ? "document" : "documents"}` : "None yet"}</span>
+                      {lastOne && <span>{lastOne.time ? `Last one ${lastOne.text}` : lastOne.text}</span>}
+                    </div>
                   </div>
                 </div>
                 <Chevron />
@@ -125,7 +139,7 @@ export function FlowsHome() {
         {plan && typeof limit === "number" && (
           <p className="m-0 text-[13px] text-ink-muted">
             {`${flows.data.length} of ${limit} flows on ${planName(plan)}. Need more? `}
-            <Link href="/settings?tab=billing" className="inline-flex items-center font-semibold">See plans</Link>
+            <Link href="/settings?tab=billing" className="inline-flex items-center font-semibold underline">See plans</Link>
           </p>
         )}
       </div>
