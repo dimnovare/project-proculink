@@ -1,0 +1,121 @@
+"use client";
+
+import { useRef } from "react";
+import Link from "next/link";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Button } from "@/components/bridge/DSPrimitives";
+import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
+import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
+import { listDocumentPage, sendDocument } from "@/lib/api/documents";
+import type { DestinationTestResult, DocumentRow } from "@/lib/api/documents";
+import { sendMoment } from "@/lib/destinations";
+import { documentRefusalMessage } from "@/lib/documentRefusals";
+import { documentsAddress } from "@/lib/documentTabs";
+import { pageTotal } from "@/lib/pageTotal";
+import { serverReasonOrNull } from "@/lib/serverText";
+
+type Resent = { sent: string[]; refused: { fileName: string; error: unknown }[] };
+
+const GO_ON = { form: "Check the details above, save, and test again.", row: "Press Edit to check the details, then test again." };
+const sentence = (s: string) => (/[.!?]$/.test(s) ? s : `${s}.`);
+
+/** One request per document, one after another. Never throws: each refusal is kept with its file. */
+async function sendEach(items: DocumentRow[]): Promise<Resent> {
+  const out: Resent = { sent: [], refused: [] };
+  for (const d of items) {
+    try {
+      await sendDocument(d.id);
+      out.sent.push(d.fileName);
+    } catch (error) {
+      out.refused.push({ fileName: d.fileName, error });
+    }
+  }
+  return out;
+}
+
+/** A test's result where it was pressed, and, after a pass, the documents that were waiting with "Send it now". */
+export function TestOutcome({ destinationId, protocol, result, error, at, place }: {
+  destinationId: string;
+  protocol: string;
+  /** The answer, or null while there is none. */
+  result: DestinationTestResult | null;
+  /** A refused or failed request. */
+  error: unknown;
+  /** When the test was pressed (epoch ms). */
+  at: number;
+  place: "form" | "row";
+}) {
+  const qc = useQueryClient();
+  const waiting = useQuery({
+    queryKey: ["documents", "waiting", destinationId, at],
+    queryFn: () => listDocumentPage({ waitingOnDestination: destinationId, page: 1, pageSize: 50 }),
+    enabled: useTenantQueriesEnabled() && !!result?.success,
+  });
+  // Held from the press itself, so a second press before the next render sends nothing.
+  const busy = useRef(false);
+  const send = useMutation({
+    mutationFn: (run: Promise<Resent>) => run,
+    onSettled: () => {
+      busy.current = false;
+      for (const key of ["documents", "destinations", "activity"]) qc.invalidateQueries({ queryKey: [key] });
+    },
+  });
+
+  if (!result && !error) return null;
+  if (!result) return <StatusNotice tone="error">{documentRefusalMessage(error)}</StatusNotice>;
+
+  const reason = serverReasonOrNull(result.message);
+  const moment = sendMoment(new Date(at).toISOString(), new Date());
+  if (!result.success)
+    return (
+      <StatusNotice tone="error">
+        {reason ? <>The test didn&apos;t arrive: <span>{sentence(reason)}</span></> : "The test didn't arrive."} {GO_ON[place]}
+      </StatusNotice>
+    );
+
+  const n = pageTotal(waiting.data) ?? 0;
+  const items = waiting.data?.items ?? [];
+  const latest = items.reduce<string | null>((m, d) => (d.failedAt && (!m || Date.parse(d.failedAt) > Date.parse(m)) ? d.failedAt : m), null);
+  const when = latest && sendMoment(latest, new Date());
+  const done = send.data;
+  const tried = done ? done.sent.length + done.refused.length : 0;
+  return (
+    <div className="grid gap-2">
+      <StatusNotice tone="success">
+        {protocol === "google_sheets"
+          ? `We could open the spreadsheet and the tab${moment ? ` ${moment}` : ""}. No rows were added.`
+          : `Test file arrived${moment ? ` ${moment}` : ""}.`}
+        {reason && <> <span>{reason}</span></>}
+      </StatusNotice>
+      {n > 0 && (
+        <div data-testid="destination-waiting"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-amber-soft px-3 py-2.5 text-[13px] text-amber-text">
+          <p className="m-0">
+            <strong>{n === 1 ? "1 document was waiting for this destination." : `${n} documents were waiting for this destination.`}</strong>{" "}
+            {`${n === 1 && items[0] ? items[0].fileName : "The latest"} couldn't be sent${when ? ` ${when}` : ""}. We stopped trying.`}
+          </p>
+          <Button type="button" variant="secondary" size="sm" loading={send.isPending}
+            className="!border-brand-green-deep !text-brand-green-deep"
+            onClick={() => {
+              if (busy.current) return;
+              busy.current = true;
+              send.mutate(sendEach(items));
+            }}>
+            Send it now
+          </Button>
+        </div>
+      )}
+      {done && (done.refused.length === 0 ? (
+        <StatusNotice tone="success">
+          {done.sent.length === 1 ? `${done.sent[0]} is on its way again.` : `${done.sent.length} documents are on their way again.`}
+        </StatusNotice>
+      ) : (
+        <StatusNotice tone="error" action={
+          <Link href={documentsAddress("failed")} className="inline-flex items-center font-semibold underline">Show what couldn&apos;t be sent</Link>
+        }>
+          {`${tried === 1 ? done.refused[0].fileName : `${done.refused.length} of ${tried}`} couldn't be sent again: ${documentRefusalMessage(done.refused[0].error)}`}
+        </StatusNotice>
+      ))}
+    </div>
+  );
+}

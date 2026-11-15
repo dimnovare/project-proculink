@@ -8,8 +8,11 @@ const api = vi.hoisted(() => ({
   createDestination: vi.fn(),
   updateDestination: vi.fn(),
   testDestination: vi.fn(),
+  listDocumentPage: vi.fn(),
+  sendDocument: vi.fn(),
 }));
 vi.mock("@/lib/api/documents", () => api);
+api.listDocumentPage.mockResolvedValue({ items: [], totalCount: 0, page: 1, pageSize: 50, sampleCount: 0 });
 const linked = vi.hoisted(() => ({
   GOOGLE_CONNECT_CHANNEL: "proculink:google-connect",
   listLinkedAccounts: vi.fn(),
@@ -47,7 +50,7 @@ describe("DestinationForm", () => {
         <DestinationForm destination={saved} onSaved={onSaved} onCancel={() => {}} />
       </QueryClientProvider>,
     );
-    expect(screen.getByText("Saved")).toBeTruthy();
+    expect(screen.getByText("A login is saved. Leave the login boxes blank to keep it.")).toBeTruthy();
     const name = screen.getByLabelText("Name");
     fireEvent.change(name, { target: { value: "Books" } });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
@@ -81,6 +84,7 @@ describe("DestinationForm", () => {
       </QueryClientProvider>,
     );
     fireEvent.change(within(container).getByLabelText("Send by"), { target: { value: "email" } });
+    fireEvent.click(within(container).getByRole("button", { name: /^More options/ }));
     expect(within(container).getByLabelText("Subject")).toBeTruthy();
     expect(within(container).getByLabelText("Message")).toBeTruthy();
     expect(within(container).queryByLabelText(/attachment/i)).toBeNull();
@@ -98,6 +102,7 @@ describe("DestinationForm", () => {
     fireEvent.change(ui.getByLabelText("Send by"), { target: { value: "sftp" } });
     fireEvent.change(ui.getByLabelText("Name"), { target: { value: "Files" } });
     fireEvent.change(ui.getByLabelText("Username"), { target: { value: "ops" } });
+    fireEvent.click(ui.getByRole("button", { name: /^More options/ }));
     const box = ui.getByLabelText("Private key (instead of password)") as HTMLTextAreaElement;
     expect(box.tagName).toBe("TEXTAREA");
     expect(box).toHaveClass("font-mono");
@@ -118,6 +123,7 @@ describe("DestinationForm", () => {
     );
     const ui = within(container);
     fireEvent.change(ui.getByLabelText("Send by"), { target: { value: "s3" } });
+    fireEvent.click(ui.getByRole("button", { name: /^More options/ }));
     for (const [label, value] of [["Name", "Archive"], ["Bucket", "orders"], ["Folder", "out/"], ["Region", "auto"],
       ["Endpoint URL", "https://r2.example.test"], ["Access key ID", "AKIA1"], ["Secret access key", "shh"]])
       fireEvent.change(ui.getByLabelText(label), { target: { value } });
@@ -183,5 +189,31 @@ describe("DestinationForm", () => {
     expect((ui.getByLabelText("Google account") as HTMLSelectElement).value).toBe("");
     expect(ui.queryByText("Old folder")).toBeNull();
     expect(ui.queryByRole("button", { name: "Choose folder" })).toBeNull();
+  });
+
+  it("Save and send a test saves, then tests, keeps the login write-only, and folds what is rarely changed", async () => {
+    const sftp: Destination = {
+      id: "d2", name: "Accounting server", protocol: "sftp", hasCredentials: true, createdAt: "2026-11-01T00:00:00Z", usedBy: [], lastSend: null,
+      config: { host: "sftp.example.test", port: 22, remotePath: "/in/invoices", makeDirectories: true, overwriteExisting: true, timeoutSeconds: 30, hostKeyFingerprints: ["SHA256:example"] },
+    };
+    api.updateDestination.mockClear().mockResolvedValue(sftp);
+    api.testDestination.mockClear().mockResolvedValue({ success: true, message: null, responseCode: null });
+    const ui = within(render(
+      <QueryClientProvider client={new QueryClient()}><DestinationForm destination={sftp} inline testAfterSave onSaved={() => {}} onCancel={() => {}} /></QueryClientProvider>,
+    ).container);
+    expect(ui.queryByLabelText("Send by")).toBeNull();
+    expect(ui.queryByLabelText("Port")).toBeNull();
+    expect(ui.getByLabelText("Username")).toHaveValue("");
+    expect(ui.getByLabelText("New password")).toHaveAttribute("placeholder", "Leave blank to keep the saved one");
+    fireEvent.click(ui.getByRole("button", { name: /^More options/ }));
+    expect(ui.getByLabelText("Port")).toHaveValue(22);
+    expect(ui.queryByRole("button", { name: "Save" })).toBeNull();
+    expect(ui.queryByRole("button", { name: "Send a test" })).toBeNull();
+    fireEvent.click(ui.getByRole("button", { name: "Save and send a test" }));
+    await waitFor(() => expect(api.testDestination).toHaveBeenCalledWith("d2"));
+    expect(api.updateDestination).toHaveBeenCalledWith("d2", { name: "Accounting server", protocol: "sftp", config: sftp.config, credentials: null });
+    expect(api.updateDestination.mock.invocationCallOrder[0]).toBeLessThan(api.testDestination.mock.invocationCallOrder[0]);
+    expect(await ui.findByText(/^Test file arrived at \d\d:\d\d\.$/)).toBeInTheDocument();
+    expect(ui.getByRole("button", { name: "Close" })).toBeInTheDocument();
   });
 });
