@@ -17,6 +17,7 @@ import { SkipToContent } from "@/components/a11y/SkipToContent";
 import { BottomTabBar } from "@/components/bridge/BottomTabBar";
 import { UploadQueueProvider } from "@/components/flows/UploadQueue";
 import { OfflineNotice } from "@/components/pwa/OfflineNotice";
+import { useDeviceOwner } from "@/hooks/useDeviceOwner";
 
 /**
  * Auto-activates the user's first Clerk organization when they have one but
@@ -106,6 +107,7 @@ export default function AppShellLayout({
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const drawerRef = useRef<HTMLDivElement>(null);
+  const owner = useDeviceOwner();
 
   const openSidebar = useCallback(() => setSidebarOpen(true), []);
   const closeSidebar = useCallback(() => setSidebarOpen(false), []);
@@ -185,7 +187,7 @@ export default function AppShellLayout({
             navigation panel below reuses BridgeSidebar below lg: the tablet
             menu button and the phone tab bar's More open it.
             The upload queue wraps it so files keep going up across screens. */}
-        <UploadQueueProvider>
+        <UploadQueueProvider owner={owner}>
         <div className="flex h-dvh overflow-hidden" style={{ background: "#F6F7FA" }}>
           {/* First focusable element — jumps keyboard users past the topbar nav
               straight to the page content (WCAG 2.4.1). */}
