@@ -14,7 +14,7 @@ import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { deleteLookup, getLookup, updateLookup, type Lookup, type LookupCandidate, type LookupEntry } from "@/lib/api/documents";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
 import { saveBlob } from "@/lib/saveBlob";
-import { exportLookupCsv, importCandidateCsv, importLookupCsv } from "@/lib/lookupCsv";
+import { csvCells, exportLookupCsv, importCandidateCsv, lookupEntries } from "@/lib/lookupCsv";
 
 const readText = (file: File) =>
   new Promise<string>((resolve, reject) => {
@@ -67,9 +67,18 @@ function LookupEditor({ lookup }: { lookup: Lookup }) {
     input.value = ""; // lets the same file be chosen again
     if (!file) return;
     try {
-      const r = importLookupCsv(await readText(file), entries, headings);
-      setEntries(r.entries);
-      setNote({ tone: "success", text: `Imported ${r.added + r.changed} ${r.added + r.changed === 1 ? "row" : "rows"}: ${r.added} new, ${r.changed} changed.` });
+      // Intermediate (deleted in Task 6): today's merge, the file's rows over the table, the later winning.
+      const cells = csvCells(await readText(file));
+      const merged = entries.map((e) => ({ ...e }));
+      const rows = lookupEntries(headings ? cells : [[], ...cells]);
+      for (const e of rows) {
+        const i = merged.findIndex((m) => m.from.trim().toLowerCase() === e.from.toLowerCase());
+        if (i < 0) merged.push(e);
+        else merged[i] = e;
+      }
+      const added = merged.length - entries.length;
+      setEntries(merged);
+      setNote({ tone: "success", text: `Imported ${rows.length} ${rows.length === 1 ? "row" : "rows"}: ${added} new, ${rows.length - added} changed.` });
     } catch {
       setNote({ tone: "error", text: "We couldn't read that file." });
     }

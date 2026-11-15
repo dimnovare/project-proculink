@@ -100,8 +100,10 @@ export type LookupEntry = { from: string; to: string };
 export type LookupMiss = { lookupId: string; value: string };
 export type LookupCandidate = { value: string; description: string | null };
 export type LookupSuggestion = { lookupId: string; value: string; to: string; confidence: number | null; description: string | null };
+/** `usedBy` is absent from an older server: not known, so nothing about use is printed. */
 export type LookupSummary = {
   id: string; name: string; count: number; updatedAt: string; hasCandidates: boolean; suggestionsOn: boolean;
+  usedBy?: { flowId: string; flowName: string }[];
 };
 export type Lookup = {
   id: string; name: string; entries: LookupEntry[]; updatedAt: string; candidates: LookupCandidate[]; suggestionsOn: boolean;
@@ -263,7 +265,8 @@ export const deleteOutputLogo = (flowId: string, outputId: string) =>
 
 export const listLookups = () => apiFetch<LookupSummary[]>(`/lookups`);
 export const getLookup = (id: string) => apiFetch<Lookup>(`/lookups/${seg(id)}`);
-export const createLookup = (name: string) => apiFetch<Lookup>(`/lookups`, { method: "POST", body: json({ name }) });
+export const createLookup = (name: string, entries: LookupEntry[] = []) =>
+  apiFetch<Lookup>(`/lookups`, { method: "POST", body: json({ name, entries }) });
 export const updateLookup = (id: string, body: { name: string; entries: LookupEntry[]; candidates?: LookupCandidate[] }) =>
   apiFetch<Lookup>(`/lookups/${seg(id)}`, { method: "PUT", body: json(body) });
 /** Sends no `candidates`, so the stored list is kept. */

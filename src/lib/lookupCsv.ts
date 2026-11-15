@@ -1,5 +1,8 @@
 import type { LookupCandidate, LookupEntry } from "@/lib/api/documents";
-import { detectDelimiter, parseCsvRows } from "@/lib/sheetPreview";
+import { detectDelimiter, parseCsvRows, parseXlsxWorkbook } from "@/lib/sheetPreview";
+
+/** Mirrors ProcuLink.Core/Documents/LookupEntry.cs LookupRules (pinned by backendMirror.test.ts). */
+export const LOOKUP_LIMITS = { rows: 20_000, valueLength: 200, nameLength: 120 } as const;
 
 const key = (from: string) => from.trim().toLowerCase();
 // A leading = + - @ tab or CR makes a spreadsheet read the cell as a formula: export prefixes one "'"
@@ -7,32 +10,50 @@ const key = (from: string) => from.trim().toLowerCase();
 const FORMULA = /^'*[=+@\t\r-]/;
 const unprefix = (v: string) => (v[0] === "'" && FORMULA.test(v.slice(1)) ? v.slice(1) : v);
 
-const readRows = (text: string, firstRowIsHeadings: boolean) => {
+/** CSV text to cells: byte-order mark dropped, delimiter detected, no row cap. */
+export function csvCells(text: string): string[][] {
   const body = text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
-  return parseCsvRows(body, detectDelimiter(body), Infinity).slice(firstRowIsHeadings ? 1 : 0);
-};
+  return parseCsvRows(body, detectDelimiter(body), Infinity);
+}
 
-/** Columns 1 and 2 are From and To. A later row with the same From replaces the earlier entry in place. */
-export function importLookupCsv(text: string, existing: LookupEntry[], firstRowIsHeadings: boolean) {
-  const entries = existing.map((e) => ({ ...e }));
-  const at = new Map(entries.map((e, i) => [key(e.from), i]));
-  let added = 0;
-  let changed = 0;
-  const rows = readRows(text, firstRowIsHeadings);
-  for (const [from = "", to = ""] of rows) {
+const readRows = (text: string, firstRowIsHeadings: boolean) => csvCells(text).slice(firstRowIsHeadings ? 1 : 0);
+
+/** Row 1 is headings and is skipped. Column 1 is From, column 2 is To, both trimmed and with one formula
+ *  guard quote removed. A row with no From is skipped. A later row whose From matches an earlier one
+ *  (spaces at the ends and capital letters ignored) replaces it in place. */
+export function lookupEntries(cells: string[][]): LookupEntry[] {
+  const entries: LookupEntry[] = [];
+  const at = new Map<string, number>();
+  for (const [from = "", to = ""] of cells.slice(1)) {
     if (!from.trim()) continue;
     const entry = { from: unprefix(from.trim()), to: unprefix(to.trim()) };
     const i = at.get(key(entry.from));
-    if (i === undefined) {
-      at.set(key(entry.from), entries.push(entry) - 1);
-      added++;
-    } else {
-      entries[i] = entry;
-      changed++;
-    }
+    if (i === undefined) at.set(key(entry.from), entries.push(entry) - 1);
+    else entries[i] = entry;
   }
-  return { entries, added, changed };
+  return entries;
 }
+
+/** A zip header (bytes 50 4B 03 04) is read as a workbook, first sheet, capped at LOOKUP_LIMITS.rows + 2 rows;
+ *  anything else as UTF-8 text. `cut` is true when the sheet had more rows than that. Throws when a
+ *  workbook cannot be read. */
+export async function readTableFile(file: File): Promise<{ cells: string[][]; cut: boolean }> {
+  const bytes = await new Promise<Uint8Array>((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(new Uint8Array(r.result as ArrayBuffer));
+    r.onerror = () => reject(r.error);
+    r.readAsArrayBuffer(file);
+  });
+  if (bytes[0] === 0x50 && bytes[1] === 0x4b && bytes[2] === 0x03 && bytes[3] === 0x04) {
+    const sheet = parseXlsxWorkbook(bytes, LOOKUP_LIMITS.rows + 2).tables[0];
+    return { cells: sheet?.rows ?? [], cut: sheet?.truncatedRows ?? false };
+  }
+  return { cells: csvCells(new TextDecoder("utf-8").decode(bytes)), cut: false };
+}
+
+/** The file name without its last extension, trimmed and cut to 120 characters; "Imported table" when empty. */
+export const tableName = (fileName: string) =>
+  fileName.replace(/\.[^.]*$/, "").trim().slice(0, LOOKUP_LIMITS.nameLength) || "Imported table";
 
 /** Column 1 is the value; the other non-empty cells, joined, describe it. A later row with the same value replaces the earlier one in place. */
 export function importCandidateCsv(text: string, firstRowIsHeadings: boolean): LookupCandidate[] {
