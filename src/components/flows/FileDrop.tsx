@@ -3,8 +3,8 @@
 import { useRef, useState } from "react";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
-import { ApiHttpError } from "@/lib/api/core";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
+import { fileRefusal } from "@/lib/fileKinds";
 
 /** A drop zone with a hidden file input. Refuses the wrong type or an oversize file before `onFile`; `error` is the caller's own refusal to show. */
 export function FileDrop({ accept, maxBytes, prompt, busyLabel, busy, error, onFile }: {
@@ -16,9 +16,8 @@ export function FileDrop({ accept, maxBytes, prompt, busyLabel, busy, error, onF
 
   function pick(file: File | undefined) {
     if (!file || busy) return;
-    if (!accept.split(",").some((ext) => file.name.toLowerCase().endsWith(ext)))
-      return setProblem(documentRefusalMessage(new ApiHttpError("unsupported", 415, { error: "unsupported_format" })));
-    if (file.size > maxBytes) return setProblem(documentRefusalMessage(new ApiHttpError("too large", 413, { error: "file_too_large" })));
+    const refusal = fileRefusal(file, accept, maxBytes);
+    if (refusal) return setProblem(documentRefusalMessage(refusal));
     setProblem(null);
     onFile(file);
   }

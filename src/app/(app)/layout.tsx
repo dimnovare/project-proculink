@@ -15,6 +15,7 @@ import { shouldRetryApiFailure, apiRetryDelayMs } from "@/lib/apiFailure";
 import { WorkspaceNameNudge } from "@/components/onboarding/WorkspaceNameNudge";
 import { SkipToContent } from "@/components/a11y/SkipToContent";
 import { BottomTabBar } from "@/components/bridge/BottomTabBar";
+import { UploadQueueProvider } from "@/components/flows/UploadQueue";
 
 /**
  * Auto-activates the user's first Clerk organization when they have one but
@@ -181,7 +182,9 @@ export default function AppShellLayout({
         {/* Bridge shell — full viewport, no scroll on the wrapper.
             Desktop nav lives in the top bar (BridgeTopbar, links from lg). The
             navigation panel below reuses BridgeSidebar below lg: the tablet
-            menu button and the phone tab bar's More open it. */}
+            menu button and the phone tab bar's More open it.
+            The upload queue wraps it so files keep going up across screens. */}
+        <UploadQueueProvider>
         <div className="flex h-dvh overflow-hidden" style={{ background: "#F6F7FA" }}>
           {/* First focusable element — jumps keyboard users past the topbar nav
               straight to the page content (WCAG 2.4.1). */}
@@ -217,6 +220,7 @@ export default function AppShellLayout({
             <BottomTabBar onMore={openSidebar} moreOpen={sidebarOpen} />
           </div>
         </div>
+        </UploadQueueProvider>
         </ClerkAvailabilityGate>
 
         <Toaster />

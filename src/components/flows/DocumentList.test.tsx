@@ -33,6 +33,7 @@ describe("DocumentList", () => {
     expect(rowNeed(row({ failedChecks: 2, checks: ["low_confidence", "required_missing"] }))).toEqual({ text: "2 values to check", tone: "amber" });
     expect(rowNeed(row({ failedChecks: 1, checks: ["type_invalid"] })).text).toBe("1 value to check");
     expect(rowNeed(row({ failedChecks: 3, checks: ["low_confidence", "duplicate"] })).text).toBe("Same number as an earlier document");
+    expect(rowNeed(row({ statusReason: "duplicate_file", failedChecks: 1, checks: ["duplicate"] }))).toEqual({ text: "Already uploaded to this flow", tone: "amber" });
     expect(rowNeed(row({ failedChecks: 1, checks: ["text_truncated"] })).text).toBe("Needs review");
     expect(rowNeed(row({ status: "read_failed" }))).toEqual({ text: "Couldn't read", tone: "danger" });
     expect(rowNeed(row({ status: "reading" }))).toEqual({ text: "Reading", tone: "blue" });
