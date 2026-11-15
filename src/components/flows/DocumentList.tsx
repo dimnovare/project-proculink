@@ -56,7 +56,7 @@ function Row({ d, showFlow, sendable, columns, onSent }: {
       {showFlow && <div role="cell" className="min-w-0 truncate text-[13px] text-ink-muted">{d.flowName}</div>}
       <div role="cell" aria-live="polite" className="min-w-0">
         <Pill tone={need.tone}>{need.text}</Pill>
-        {send.isError && <p role="alert" className="m-0 mt-1 text-[12.5px] text-danger-text">{documentRefusalMessage(send.error)}</p>}
+        {send.isError && d.status === "ready" && <p role="alert" className="m-0 mt-1 text-[12.5px] text-danger-text">{documentRefusalMessage(send.error)}</p>}
       </div>
       <div role="cell"><StatusJourney stage={documentStatus(d.status, d.statusReason).stage} compact /></div>
       <div role="cell" className="text-[13px] text-ink-muted">{received(d)}</div>

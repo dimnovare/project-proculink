@@ -14,14 +14,15 @@ const row = (over: Partial<DocumentRow> = {}): DocumentRow => ({
   number: null, sender: null, checks: [], sentAt: null, failedAt: null, stop: null, isSample: false, ...over,
 });
 
+const tree = (qc: QueryClient, status = "ready") => (
+  <QueryClientProvider client={qc}>
+    <DocumentList label="Documents: Needs you" showFlow sendable
+      documents={[row({ id: "a", fileName: "PO-48213.pdf", status }), row({ id: "b" })]} />
+  </QueryClientProvider>
+);
 const renderList = (qc = new QueryClient()) => {
-  render(
-    <QueryClientProvider client={qc}>
-      <DocumentList label="Documents: Needs you" showFlow sendable
-        documents={[row({ id: "a", fileName: "PO-48213.pdf", status: "ready" }), row({ id: "b" })]} />
-    </QueryClientProvider>,
-  );
-  return within(screen.getByRole("table", { name: "Documents: Needs you" }));
+  const { rerender } = render(tree(qc));
+  return { table: within(screen.getByRole("table", { name: "Documents: Needs you" })), rerender };
 };
 
 beforeEach(() => vi.clearAllMocks());
@@ -45,18 +46,22 @@ describe("DocumentList", () => {
     sendDocument.mockResolvedValue([]);
     const qc = new QueryClient();
     const invalidate = vi.spyOn(qc, "invalidateQueries");
-    const table = renderList(qc);
+    const { table, rerender } = renderList(qc);
     expect(table.getAllByRole("button")).toHaveLength(1);
     fireEvent.click(table.getByRole("button", { name: "Send PO-48213.pdf" }));
     await waitFor(() => expect(table.getByRole("row", { name: /PO-48213\.pdf/ })).toHaveTextContent("Sending"));
     expect(sendDocument.mock.calls).toEqual([["a"]]);
     expect(table.queryByRole("button")).toBeNull();
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ["documents"] });
+    rerender(tree(qc, "send_failed")); // the server's state replaces the row's own "Sending"
+    const sentRow = table.getByRole("row", { name: /PO-48213\.pdf/ });
+    expect(sentRow).toHaveTextContent("Couldn't send");
+    expect(sentRow).not.toHaveTextContent("Sending");
   });
 
   it("a refused send says why on the row and keeps Send", async () => {
     sendDocument.mockRejectedValue(new ApiHttpError("no", 409, { error: "not_ready" }));
-    const table = renderList();
+    const { table } = renderList();
     fireEvent.click(table.getByRole("button", { name: "Send PO-48213.pdf" }));
     expect(await table.findByRole("alert")).toHaveTextContent("This document can't be sent right now. Reload to see its latest state.");
     expect(table.getByRole("button", { name: "Send PO-48213.pdf" })).toBeEnabled();
