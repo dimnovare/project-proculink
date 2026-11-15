@@ -186,7 +186,7 @@ function PdfPageCanvas({ doc, pageNumber, box, marks, onPick }: { doc: PDFDocume
   return (
     <div ref={rowRef} className="flex justify-center">
       {failed ? (
-        <p className="px-3 py-4 text-[11.5px] leading-relaxed text-ink-faint">
+        <p className="px-3 py-4 text-[12.5px] leading-relaxed text-ink-faint">
           This page couldn&rsquo;t be drawn. Download the file to read it.
         </p>
       ) : (
@@ -231,5 +231,5 @@ function PagerButton({
 }
 
 function DocumentMessage({ children }: { children: React.ReactNode }) {
-  return <p className="px-4 py-4 text-[11.5px] leading-relaxed text-ink-faint">{children}</p>;
+  return <p className="px-4 py-4 text-[12.5px] leading-relaxed text-ink-faint">{children}</p>;
 }

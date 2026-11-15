@@ -32,10 +32,10 @@ const detail = (value: string, source = "upload", sourceRef: string | null = nul
 });
 
 type Value = [key: string, value: string | null, confidence: number, edited: boolean];
-const withValues = (values: Value[], checks: unknown[] = []) => {
+const withValues = (values: Value[], checks: unknown[] = [], contentType = "text/csv", fileName = "a.csv") => {
   const d = detail("");
   return {
-    ...d, checks,
+    ...d, checks, contentType, summary: { ...d.summary, fileName },
     read: { ...d.read, fields: values.map(([key, value, confidence, edited]) => ({ ...field(""), key, label: key, value, confidence, edited })) },
   };
 };
@@ -98,6 +98,7 @@ describe("DocumentScreen", () => {
   it("says the original is unavailable when the file is empty", async () => {
     api.fetchDocumentSource.mockResolvedValue(new Blob([]));
     renderScreen();
+    fireEvent.click(within(await screen.findByRole("tablist", { name: "Parts of this document" })).getByRole("tab", { name: "Original" }));
     expect(await screen.findByText("The original isn't available right now.")).toBeTruthy();
   });
 
@@ -150,7 +151,7 @@ describe("DocumentScreen", () => {
       ["invoice_no", "INV-1", 0.97, false], ["supplier", null, 0, false], ["total", "12.00", 1, true],
     ], [{ code: "required_missing", passed: false, fieldKey: "supplier", message: "Supplier is required but was not found." }]));
     renderScreen();
-    const read = within(await screen.findByRole("region", { name: "What we read" }));
+    const read = within(await screen.findByRole("tabpanel", { name: "What we read" }));
     expect(read.getByText("1 value needs a look. The rest were read clearly.")).toBeInTheDocument();
     const boxes = read.getAllByRole("textbox");
     expect(boxes[0]).toHaveAccessibleName("supplier");                                       // marked first
@@ -224,5 +225,18 @@ describe("DocumentScreen", () => {
     await waitFor(() => expect(api.editDocumentValues).toHaveBeenCalledTimes(2));
     expect(api.editDocumentValues).toHaveBeenLastCalledWith("c", { fields: [{ key: "invoice_no", value: "INV-10" }] });
     expect(screen.queryByDisplayValue("INV-10")).toBeNull();
+  });
+  it("on a narrow screen one pane shows at a time, and pointing switches to the original", async () => {
+    api.getFlow.mockResolvedValue({ id: "f", fieldsConfirmed: true, fields: { fields: [], tables: [] } });
+    api.getDocument.mockResolvedValue(withValues([["supplier", null, 0, false]],
+      [{ code: "required_missing", passed: false, fieldKey: "supplier", message: "" }], "application/pdf", "a.pdf"));
+    renderScreen();
+    const tabs = within(await screen.findByRole("tablist", { name: "Parts of this document" }));
+    expect(tabs.getByRole("tab", { name: "What we read" })).toHaveAttribute("aria-selected", "true");
+    expect(api.fetchDocumentSource).not.toHaveBeenCalled();                    // the original is not mounted while hidden
+    fireEvent.click(screen.getByRole("link", { name: "point to it on the original" }));
+    expect(tabs.getByRole("tab", { name: "Original" })).toHaveAttribute("aria-selected", "true");
+    expect(await within(screen.getByRole("tabpanel", { name: "Original" })).findByText(/supplier/)).toBeInTheDocument(); // the pointing help names the field
+    expect(api.fetchDocumentSource).toHaveBeenCalledTimes(1);
   });
 });

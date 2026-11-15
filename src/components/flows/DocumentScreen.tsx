@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
+import { ActionBar } from "@/components/bridge/layout/ActionBar";
 import { Card } from "@/components/bridge/layout/Card";
 import { Button, Pill, buttonClass } from "@/components/bridge/DSPrimitives";
 import { SourceDocumentBody, scrollTo, type SourcePick } from "@/components/bridge/document/SourceDocumentBody";
@@ -18,6 +19,7 @@ import { reviewMarks } from "@/lib/reviewMarks";
 import { documentHref, pickNext, positionText, queuePosition } from "@/lib/reviewQueue";
 import { documentsAddress } from "@/lib/documentTabs";
 import { relativeTime } from "@/lib/relativeTime";
+import { nextTabIndex } from "@/lib/tabKeys";
 import { fetchDocumentSource, getDocument, getFlow, getDocumentHistory, retryDocumentRead, sendDocument, teachDocument } from "@/lib/api/documents";
 import { formatDateTime } from "@/lib/format-date";
 import { documentRefusalMessage, refusalToken } from "@/lib/documentRefusals";
@@ -26,7 +28,7 @@ import type { DocumentDetail, DocumentPage, Flow, SourceLocation, TeachRequest }
 import { DocumentOutputsPanel } from "./DocumentOutputsPanel";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { INPUT } from "./DestinationForm";
-import { ADDED_TO_CHANGES, ReadValuesPanel, type Teach } from "./ReadValuesPanel";
+import { ADDED_TO_CHANGES, ReadValuesPanel, SAVE_WORDS, type Teach } from "./ReadValuesPanel";
 import { Checks, Failed, Quiet, ReadProblem } from "./states";
 import { rowNeed } from "./DocumentList";
 
@@ -128,6 +130,36 @@ export function Original({ documentId, fileName, highlight, marks, onPick }: { d
   return <SourceDocumentBody cacheKey={documentId} document={{ blob: source.data, contentType: type, filename: fileName }} bounded={isLg} highlight={highlight} marks={marks} onPick={onPick} />;
 }
 
+type PaneId = "original" | "read" | "send";
+const PANES: readonly { id: PaneId; title: string }[] = [
+  { id: "original", title: "Original" }, { id: "read", title: "What we read" }, { id: "send", title: "What we'll send" },
+];
+const DOTS = { blue: "bg-brand-blue", navy: "bg-navy", green: "bg-brand-green" } as const;
+
+/** One of the three panes. Used by 14.5's first run too (R24). Below lg it is the panel of its tab (R15). */
+export function Pane({ id, title, dot, aside, hidden, children }: {
+  id: PaneId; title: string; dot: keyof typeof DOTS; aside?: ReactNode; hidden?: boolean; children: ReactNode;
+}) {
+  const isLg = useLgViewport();
+  const original = id === "original";
+  return (
+    <Card
+      flush as="section" id={`review-pane-${id}`} role={isLg ? undefined : "tabpanel"}
+      aria-labelledby={isLg ? `review-heading-${id}` : `review-tab-${id}`}
+      className={`min-w-0 ${hidden ? "max-lg:hidden" : ""} ${original ? "flex flex-col lg:sticky lg:top-0 lg:h-[calc(100vh-150px)]" : ""}`}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2 px-4 pb-2 pt-3.5">
+        <h2 id={`review-heading-${id}`} className="m-0 flex items-center gap-2 text-[13px] font-semibold text-ink">
+          <span aria-hidden className={`h-2 w-2 rounded-full ${DOTS[dot]}`} />
+          {title}
+        </h2>
+        {aside}
+      </div>
+      {original ? children : <div className="px-4 pb-4">{children}</div>}
+    </Card>
+  );
+}
+
 /** A change typed on this document could not be saved, so nothing was sent. */
 const UNSAVED = new Error("unsaved");
 const UNSAVED_TEXT = "Nothing was sent: your last change isn't saved yet.";
@@ -141,6 +173,9 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
   const qc = useQueryClient();
   const router = useRouter();
   const enabled = useTenantQueriesEnabled();
+  const isLg = useLgViewport();
+  const [tab, setTab] = useState<PaneId>("read");
+  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [spot, setSpot] = useState<SourceLocation | null>(null);
   const edits = useDocumentEdits(documentId);
   const doc = useQuery({
@@ -228,6 +263,9 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
     m.mutate(undefined, { onSettled: () => { pressed.current = false; } });
   };
   const busy = send.isPending || skip.isPending;
+  const canSkip = !!status?.editable && !!nextNow;
+  const located = !!marks?.places.length || !!doc.data?.read.fields.some((f) => f.location?.box || f.location?.address)
+    || !!doc.data?.read.tables.some((t) => t.rows.some((r) => Object.values(r.cells).some((c) => c.location?.box || c.location?.address)));
   const refused = send.error ?? skip.error;
   const failedCodes = doc.data?.checks.filter((c) => !c.passed).map((c) => c.code) ?? [];
   const tag = marks && marks.count > 0
@@ -257,7 +295,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
             {position && <span className="text-[12.5px] text-ink-muted">{position}</span>}
             {status.editable ? (
               <>
-                {nextNow && <Button variant="secondary" className="hidden md:inline-flex" disabled={busy} onClick={() => press(skip)}>Skip</Button>}
+                {canSkip && <Button variant="secondary" className="hidden md:inline-flex" disabled={busy} onClick={() => press(skip)}>Skip</Button>}
                 <Button variant="send" className="hidden md:inline-flex" disabled={busy} loading={send.isPending} onClick={() => press(send)}>Send and open next</Button>
               </>
             ) : nextNow && <Link href={documentHref(nextNow)} className={`${buttonClass("send", "md")} inline-flex items-center`}>Review next</Link>}
@@ -275,19 +313,38 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
         <div className="grid gap-4">
           {doc.isError && <Failed error={doc.error} retry={() => doc.refetch()} />}
           <ReadProblem summary={summary} nothingRead={nothingRead} retry={retry} scansOn={flow.data?.scansOn} />
-          <div className="grid items-start gap-4 pb-24 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_minmax(0,0.85fr)] lg:pb-0">
-            <div className="min-w-0 lg:sticky lg:top-0 lg:h-[calc(100vh-150px)]">
-              <Card edge="blue" flush as="section" aria-labelledby="doc-original" className="flex h-full flex-col">
-                <h2 id="doc-original" className="px-4 pb-2 pt-3.5 text-[13px] font-semibold text-ink">Original document</h2>
-                {teach && <TeachBanner key={teachMutation.submittedAt} label={teach.label} render={originalKind} mutation={teachMutation} onCancel={cancelTeach} onSave={(value) => teachMutation.mutate({ ...teachMutation.variables, value })} />}
+          <div role="tablist" aria-label="Parts of this document" className="flex gap-1 border-b border-border lg:hidden">
+            {PANES.map((pane, i) => (
+              <button
+                key={pane.id} ref={(el) => { tabRefs.current[i] = el; }} type="button" role="tab" id={`review-tab-${pane.id}`}
+                aria-controls={`review-pane-${pane.id}`} aria-selected={tab === pane.id} tabIndex={tab === pane.id ? 0 : -1}
+                className={`-mb-px min-h-[44px] border-b-2 px-3 text-[13px] font-semibold ${tab === pane.id ? "border-navy text-ink" : "border-transparent text-ink-muted"}`}
+                onClick={() => setTab(pane.id)}
+                onKeyDown={(e) => {
+                  const to = nextTabIndex(e.key, i, PANES.length);
+                  if (to === undefined) return;
+                  e.preventDefault();
+                  setTab(PANES[to].id);
+                  tabRefs.current[to]?.focus();
+                }}
+              >{pane.title}</button>
+            ))}
+          </div>
+          <div className="grid items-start gap-4 lg:grid-cols-3">
+            <Pane id="original" title="Original" dot="blue" hidden={tab !== "original"}>
+              {located && <p className="m-0 hidden px-4 pb-2 text-[12.5px] text-ink-muted lg:block">Click a value on the right to see where it came from.</p>}
+              {teach && <TeachBanner key={teachMutation.submittedAt} label={teach.label} render={originalKind} mutation={teachMutation} onCancel={cancelTeach} onSave={(value) => teachMutation.mutate({ ...teachMutation.variables, value })} />}
+              {(isLg || tab === "original") && (
                 <Original
                   documentId={documentId} fileName={summary.fileName} highlight={spot} marks={marks?.places}
                   onPick={teach && !teachMutation.isPending ? (pick) => teachMutation.mutate({ label: teach.label, ...(teach.key ? { key: teach.key } : { newLabel: teach.newLabel }), ...pick }) : undefined}
                 />
-              </Card>
-            </div>
-            <Card as="section" aria-labelledby="doc-read" className="min-w-0">
-              <h2 id="doc-read" className="mb-3 text-[13px] font-semibold text-ink">What we read</h2>
+              )}
+            </Pane>
+            <Pane
+              id="read" title="What we read" dot="navy" hidden={tab !== "read"}
+              aside={editable && <span data-testid="save-state" aria-live="polite" className="text-[12.5px] text-ink-muted">{SAVE_WORDS[edits.state]}</span>}
+            >
               {taught && <div ref={scrollTo} className="mb-3"><StatusNotice tone="success">{taught}</StatusNotice></div>}
               {nothingRead || !marks ? (
                 <div className="grid gap-3">
@@ -299,13 +356,25 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
                 </div>
               ) : (
                 <ReadValuesPanel detail={doc.data} editable={status.editable} edits={edits} marks={marks} history={history} onLocate={setSpot} flow={flow.data}
-                  onTeach={canTeach ? (t) => { setTeach(t); setTaught(null); teachMutation.reset(); } : undefined}
+                  onTeach={canTeach ? (t) => { setTeach(t); setTaught(null); setTab("original"); teachMutation.reset(); } : undefined}
                 />
               )}
-            </Card>
-            <div className="min-w-0"><DocumentOutputsPanel flowId={summary.flowId} document={doc.data} /></div>
+            </Pane>
+            <Pane id="send" title="What we'll send" dot="green" hidden={tab !== "send"}>
+              <DocumentOutputsPanel flowId={summary.flowId} document={doc.data} />
+            </Pane>
           </div>
         </div>
+      )}
+      {status && (status.editable || nextNow) && (
+        <ActionBar>
+          {status.editable ? (
+            <>
+              {canSkip && <Button variant="secondary" className="!flex-none" disabled={busy} onClick={() => press(skip)}>Skip</Button>}
+              <Button variant="send" disabled={busy} loading={send.isPending} onClick={() => press(send)}>Send and open next</Button>
+            </>
+          ) : nextNow && <Link href={documentHref(nextNow)} className={`${buttonClass("send", "md")} inline-flex items-center`}>Review next</Link>}
+        </ActionBar>
       )}
     </PageShell>
   );

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { DocumentOutputsPanel } from "./DocumentOutputsPanel";
 
@@ -52,4 +52,20 @@ describe("DocumentOutputsPanel", () => {
     expect(api.previewOutput).toHaveBeenCalledWith("d", "o", { published: true });
   });
 
+  it("says what each output makes and where it goes, and that nothing has been sent yet", async () => {
+    api.listDeliveries.mockResolvedValue([]);
+    api.listDestinations.mockResolvedValue([{ id: "dest-a", name: "Accounting inbox" }]);
+    api.listOutputs.mockResolvedValue([
+      { id: "o", flowId: "f", name: "Totals", format: "csv", destinationId: "dest-a", sendWhen: null, template: {} },
+      { id: "p", flowId: "f", name: "Copy", format: "pdf", destinationId: null, sendWhen: null, template: {} },
+    ]);
+    const { container } = renderPanel();
+    const panel = within(container);
+    expect(await panel.findByText("CSV to Accounting inbox")).toBeInTheDocument();
+    expect(panel.getByText("PDF, download only")).toBeInTheDocument();
+    expect(panel.getByText("Nothing has been sent yet. Both go out when you send this document.")).toBeInTheDocument();
+    expect(panel.getByRole("link", { name: "Add an output" })).toHaveAttribute("href", "/flows/f?tab=outputs");
+    expect(panel.queryByRole("heading", { name: "Deliveries" })).toBeNull();
+    expect(panel.queryByRole("button", { name: /^Send/ })).toBeNull();
+  });
 });

@@ -128,7 +128,8 @@ function TeachPicker({ flow, onTeach }: { flow: Flow; onTeach(t: Teach): void })
   );
 }
 
-const SAVE_WORDS = { saved: "Saves as you type", saving: "Saving…", failed: "Not saved yet" } as const;
+/** The save state, drawn beside the "What we read" heading. */
+export const SAVE_WORDS = { saved: "Saves as you type", saving: "Saving…", failed: "Not saved yet" } as const;
 const needs = (n: number) => `${n} value${n === 1 ? " needs" : "s need"} a look.`;
 const toCheck = (n: number) => `${n} value${n === 1 ? "" : "s"} to check`;
 const rowsText = (n: number) => `${n} row${n === 1 ? "" : "s"}`;
@@ -228,7 +229,6 @@ export function ReadValuesPanel({ detail, editable, edits, marks, onLocate, flow
 
   return (
     <div className="grid gap-4">
-      {editable && <span data-testid="save-state" aria-live="polite" className="text-[12.5px] text-ink-muted">{SAVE_WORDS[edits.state]}</span>}
       {edits.state === "failed" && (
         <StatusNotice tone="error" action={<Button size="sm" variant="secondary" onClick={edits.commit}>Try again</Button>}>
           Not saved yet. {documentRefusalMessage(edits.error)}
