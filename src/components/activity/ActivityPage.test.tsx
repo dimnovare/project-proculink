@@ -65,9 +65,22 @@ describe("ActivityPage", () => {
     expect(await panel().findByText("Loading activity…")).toBeInTheDocument();
     expect(panel().queryAllByTestId("activity-row")).toHaveLength(0);
 
+    // A search typed on page 2 waits 300ms, then lands on page 1: the server is asked once, for page 1.
     answer([ev("1", "2026-06-01T08:00:00Z", { actorId: "user_member_a" }), ev("2", "2026-05-31T15:00:00Z")]);
-    await typeSearch("inv");
-    expect(listActivity).toHaveBeenCalledWith(expect.objectContaining({ q: "inv", actions: ["document.delivered"], page: 1 }));
+    search.q = "show=sent&page=2";
+    again();
+    const replaced = router.replace.mock.calls.length;
+    fireEvent.change(screen.getByLabelText("Search activity"), { target: { value: "inv" } });
+    await act(() => vi.advanceTimersByTimeAsync(200)); // under the pause (the fake clock also follows real time)
+    expect(listActivity).not.toHaveBeenCalledWith(expect.objectContaining({ q: "inv" }));
+    expect(router.replace).toHaveBeenCalledTimes(replaced);
+    await act(() => vi.advanceTimersByTimeAsync(100));
+    expect(router.replace.mock.calls.slice(replaced)).toEqual([["/operations/log?show=sent"]]);
+    search.q = "show=sent";
+    again();
+    await act(() => vi.advanceTimersByTimeAsync(300));
+    const asked = listActivity.mock.calls.map(([q]) => q).filter((q) => q.q === "inv");
+    expect(asked).toEqual([expect.objectContaining({ q: "inv", actions: ["document.delivered"], page: 1 })]);
     const rows = await panel().findAllByTestId("activity-row");
     expect(panel().getAllByRole("heading", { level: 2 }).map((h) => h.textContent)).toEqual(["Today, 1 June", "Yesterday, 31 May"]);
     expect(within(rows[0]).getByText("Alex Example")).toBeInTheDocument();
@@ -132,5 +145,28 @@ describe("ActivityPage", () => {
     expect(name).toMatch(/^activity-\d{4}-\d{2}-\d{2}\.csv$/);
     const csv = await new Promise<string>((done) => { const r = new FileReader(); r.onload = () => done(r.result as string); r.readAsText(blob); });
     expect(csv.split("\r\n")[0]).toBe('"Date","Time","What happened","Flow","Who","Result","Details"');
+
+    listActivity.mockRejectedValue(new Error("offline"));
+    fireEvent.click(screen.getByRole("button", { name: "Export" }));
+    expect(await screen.findByText("We couldn't prepare the file. Try again.")).toBeInTheDocument();
+    expect(saveBlob).toHaveBeenCalledTimes(1);
+  });
+
+  it("a tab change during Export drops the old tab's file", async () => {
+    let finish!: (v: unknown) => void;
+    listActivity.mockImplementation((q: { page: number; pageSize: number }) => q.pageSize === 200
+      ? new Promise((r) => { finish = r; })
+      : Promise.resolve({ events: [ev("1", "2026-06-01T08:00:00Z")], total: 1, page: q.page, pageSize: q.pageSize }));
+    const { again } = mount();
+    await panel().findAllByTestId("activity-row");
+    fireEvent.click(screen.getByRole("button", { name: "Export" }));
+    await waitFor(() => expect(listActivity).toHaveBeenCalledWith(expect.objectContaining({ pageSize: 200 })));
+
+    fireEvent.click(screen.getByRole("tab", { name: "Couldn't send" }));
+    search.q = "show=failed";
+    again();
+    await act(async () => finish({ events: [ev("1", "2026-06-01T08:00:00Z")], total: 1, page: 1, pageSize: 200 }));
+    await act(() => vi.advanceTimersByTimeAsync(100));
+    expect(saveBlob).not.toHaveBeenCalled();
   });
 });

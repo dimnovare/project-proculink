@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -43,14 +43,14 @@ export function ActivityPage() {
   const { memberships } = useOrganization({ memberships: { pageSize: 100 } });
   const members = memberNames(memberships?.data);
 
-  // A new search lands on the first page of the tab, after a pause in typing.
+  // A new search lands on the first page of the tab, after a pause in typing. Off page 1 the address moves first and
+  // the effect runs again there, so the server is never asked for the old page under the new term.
   useEffect(() => {
     const next = text.trim();
     if (next === term) return;
     const t = setTimeout(() => {
-      setTerm(next);
-      setOpenId(null);
       if (page > 1) router.replace(activityAddress(tab));
+      else { setTerm(next); setOpenId(null); }
     }, 300);
     return () => clearTimeout(t);
   }, [text, term, tab, page, router]);
@@ -67,13 +67,16 @@ export function ActivityPage() {
   const destinationName = (id: string) => destinations.data?.find((d) => d.id === id)?.name ?? null;
 
   // Walks the tab and search in pages of 200, newest first, up to EXPORT_CAP events.
+  // A tab press bumps `exportRun`: a walk started on another tab stops and hands over no file.
   const qc = useQueryClient();
+  const exportRun = useRef(0);
   const exporting = useMutation({
     mutationKey: EXPORT_KEY,
     mutationFn: async () => {
+      const run = exportRun.current;
       const events: ActivityEvent[] = [];
       let total = EXPORT_CAP;
-      for (let p = 1; events.length < Math.min(total, EXPORT_CAP); p++) {
+      for (let p = 1; run === exportRun.current && events.length < Math.min(total, EXPORT_CAP); p++) {
         const r = await listActivity({ page: p, pageSize: 200, actions: tabDef.actions, q: term });
         total = r.total;
         if (r.events.length === 0) break;
@@ -82,6 +85,7 @@ export function ActivityPage() {
       const kept = events.slice(0, EXPORT_CAP);
       const names = kept.some(unnamed) ? await qc.ensureQueryData({ queryKey: ["destinations"], queryFn: listDestinations }) : [];
       const name = (id: string) => names.find((d) => d.id === id)?.name ?? null;
+      if (run !== exportRun.current) return null;
       saveBlob(new Blob([activityCsv(kept, members, name)], { type: "text/csv" }), `activity-${new Date().toLocaleDateString("en-CA")}.csv`);
       return { kept: kept.length, total };
     },
@@ -89,6 +93,7 @@ export function ActivityPage() {
 
   const go = (t: ActivityTabKey) => {
     setOpenId(null);
+    exportRun.current++;
     exporting.reset();
     router.replace(activityAddress(t));
   };

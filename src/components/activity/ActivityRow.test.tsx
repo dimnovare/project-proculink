@@ -43,6 +43,7 @@ describe("ActivityRow", () => {
     resolve([]);
     expect(await screen.findByText("Sending again. A new row shows the result.")).toBeInTheDocument();
     await waitFor(() => expect(invalidate).toHaveBeenCalledWith({ queryKey: ["activity"] }));
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["documents"] });
     const fix = screen.getAllByRole("link", { name: "Fix the destination" });
     expect(fix).toHaveLength(1);
     expect(fix[0]).toHaveAttribute("href", "/flows/flow-2?tab=outputs");

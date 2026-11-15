@@ -42,6 +42,7 @@ doc("doc-2", "2026-05-28T09:00:00Z", "received", { source: "upload" });
 doc("doc-2", "2026-05-28T09:01:00Z", "read_failed", { reason: "ai_error" });
 doc("doc-2", "2026-05-28T09:10:00Z", "retry_read", { by: B });
 doc("doc-2", "2026-05-28T09:11:00Z", "read", { status: "ready" });
+// The dates are arranged for paging and day groups, not as one document's history (counts pinned in three test files).
 // 20 May: rows from before today's payload fields existed
 doc("doc-3", "2026-05-20T09:05:00Z", "delivered", { protocol: "email", output: "Invoice CSV" });
 add("2026-05-20T08:00:00Z", "Order", "order-1", "Created", null, "PO-1001");

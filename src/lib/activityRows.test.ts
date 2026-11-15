@@ -73,6 +73,7 @@ describe("activityRows", () => {
     const added = edit("row:lines[2]", null, "row");
     expect(plainSentence(added.sentence)).toBe("A line on invoice-1003.csv was added");
     expect(added.facts).toEqual([]);
+    expect(view(ev({ action: "document.value_taught", payload: { key: "invoice_number" } })).facts).toContainEqual({ term: "Value", value: "invoice number" });
   });
 
   test("server text is sanitised, and unknown is never green", () => {

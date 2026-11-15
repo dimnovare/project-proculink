@@ -80,9 +80,10 @@ function field(payload: unknown, key: string): string | undefined {
   return Array.isArray(v) ? v.join(", ") : String(v);
 }
 
+/** A server field key in words: `invoice_number` → "invoice number". */
+const words = (s: string) => s.replaceAll("_", " ");
 /** The server's edit target in words: `field:invoice_number` → "invoice number", `cell:lines[2].unit_price` → "unit price, line 3"; anything else is left out. */
 function targetLabel(target: string): string | undefined {
-  const words = (s: string) => s.replaceAll("_", " ");
   const f = /^field:(.+)$/.exec(target);
   if (f) return words(f[1]);
   const c = /^cell:[^[\]]+\[(\d+)\]\.(.+)$/.exec(target);
@@ -151,11 +152,13 @@ export function activityView(e: ActivityEvent, ctx: { who: string; destinationNa
       }
       break;
     }
-    case "document.value_taught":
+    case "document.value_taught": {
       sentence = fileSentence("A value on ", " was taught");
       tag = { label: "Change", tone: "neutral" };
-      fact("Value", p("key"));
+      const key = p("key");
+      fact("Value", key && words(key));
       break;
+    }
     case "document.sent":
       sentence = fileSentence("Started sending ", "");
       tag = { label: "Sending", tone: "neutral" };

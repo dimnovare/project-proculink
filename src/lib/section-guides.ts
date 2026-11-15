@@ -11,6 +11,7 @@ import { PLAN_BY_ID } from "@/lib/plans";
 //
 // CONTENT SOURCE (canonical — do not rewrite copy here):
 // ProcuLink repo: docs/superpowers/plans/2026-06-12-section-guides-content.md
+// /operations/log: canonical here since 2026-11-15 (the Activity rewrite); that doc is stale for it.
 //
 // The /bridge, /upload, /inbox and /inbox/[orderId] guides went with the order
 // screens they described on 2026-11-13, and with them the direction-aware
