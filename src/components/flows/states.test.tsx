@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { fireEvent, render, within } from "@testing-library/react";
-import { Failed, ReadProblem } from "./states";
+import { Failed, LoadingRows, ReadProblem } from "./states";
 import { COPY } from "@/lib/documentRefusals";
 import { ApiHttpError } from "@/lib/api/core";
 import { EmptyState } from "@/components/bridge/EmptyState";
@@ -44,5 +44,25 @@ describe("Failed and EmptyState", () => {
     fireEvent.click(button);
     expect(onClick).toHaveBeenCalledTimes(1);
     expect(empty.querySelector("svg")).toBeNull(); // the brand mark is gone
+  });
+});
+
+describe("LoadingRows and a document we couldn't read", () => {
+  it("loading is a still list of rows a screen reader hears as one status", () => {
+    const { container } = render(<LoadingRows label="Loading documents" columns={["Document", "Flow", "What's needed"]} />);
+    const status = within(container).getByRole("status", { name: "Loading documents" });
+    expect(within(status).getByText("What's needed")).toBeTruthy();
+    expect(status.querySelectorAll("[aria-hidden='true']").length).toBeGreaterThanOrEqual(3);
+    expect(status.outerHTML).not.toMatch(/animate-/);
+  });
+
+  it("a document we couldn't read says it was not sent or counted, and offers a clearer copy", () => {
+    const summary = { id: "d", status: "read_failed", statusReason: "unreadable_file" };
+    const { container } = render(<ReadProblem summary={summary as never} nothingRead retry={{ isPending: false, isError: false, mutate() {} } as never} />);
+    expect(within(container).getByText(COPY.unreadable_file)).toBeTruthy();
+    expect(within(container).getByText("It hasn't been sent anywhere, and it doesn't count as a document on your plan.")).toBeTruthy();
+    const link = within(container).getByRole("link", { name: "Upload a clearer copy" });
+    expect(link.getAttribute("href")).toBe("/upload");
+    expect(link.className).not.toContain("bg-brand-blue"); // outlined (R14)
   });
 });

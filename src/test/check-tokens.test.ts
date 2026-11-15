@@ -370,7 +370,8 @@ describe("the scanned corpus", () => {
     // 94 rows / 1,938 measured 2026-11-13, after the order screens went with
     // 34 rows of their debt; 90 rows / 1,578 once the mapper kept only the flow
     // variant the same day. 1_200 -> 1_000 on 2026-11-15: plan 14.11 cleaned the
-    // error panels, the empty state and the loaders (1,186 after its first task).
+    // error panels, the empty state and the loaders (1,186 after its first task,
+    // 1,178 after its second).
     expect(s.baselineRows).toBeGreaterThan(60);
     expect(s.baselineTotal).toBeGreaterThan(1_000);
 

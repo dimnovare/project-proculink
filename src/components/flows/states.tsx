@@ -21,6 +21,31 @@ export const Quiet = ({ children }: { children: string }) => (
   <p role="status" className="m-0 text-[13px] text-ink-muted">{children}</p>
 );
 
+/** The board's bar widths, row by row. */
+const BAR_WIDTHS = [[72, 80, 58], [54, 66, 74], [64, 72, 46]];
+
+/** Still grey rows while a list loads. `label` is what a screen reader hears. `columns` draws the list's own headings. */
+export function LoadingRows({ label, columns, rows = 3 }: { label: string; columns?: string[]; rows?: number }) {
+  const cells = columns?.length || 3;
+  const grid = { gridTemplateColumns: `repeat(${cells}, minmax(0, 1fr))` };
+  return (
+    <Card flush role="status" aria-label={label}>
+      {columns && (
+        <div className="grid h-[42px] items-center gap-4 px-4 text-[13px] text-ink-muted" style={grid}>
+          {columns.map((c) => <span key={c}>{c}</span>)}
+        </div>
+      )}
+      {Array.from({ length: rows }, (_, r) => (
+        <div key={r} className={`grid h-[55px] items-center gap-4 px-4${columns || r > 0 ? " border-t border-border" : ""}`} style={grid}>
+          {Array.from({ length: cells }, (_, c) => (
+            <span key={c} aria-hidden="true" className="block h-3 rounded-[6px] bg-surface-2" style={{ width: `${BAR_WIDTHS[r % 3][c % 3]}%` }} />
+          ))}
+        </div>
+      ))}
+    </Card>
+  );
+}
+
 export function FirstFlowEmpty() {
   const router = useRouter();
   return (
@@ -142,6 +167,14 @@ export function ReadProblem({ summary, nothingRead, retry, scansOn }: {
       >
         {duplicate ? "This file was already uploaded to this flow." : readFailureMessage(summary.statusReason)}
       </StatusNotice>
+      {summary.status === "read_failed" && (
+        <>
+          <p className="m-0 text-[13px] text-ink-muted">It hasn't been sent anywhere, and it doesn't count as a document on your plan.</p>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/upload" className={buttonClass("secondary", "md")}>Upload a clearer copy</Link>
+          </div>
+        </>
+      )}
       {retry.isError && <StatusNotice tone="error">{documentRefusalMessage(retry.error)}</StatusNotice>}
     </div>
   );
