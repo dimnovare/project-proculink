@@ -20,6 +20,7 @@ import type {
 } from "./documents";
 import type { OutputNode } from "./types";
 import { mockAuditPage } from "./mockAudit";
+import { MOCK_SAMPLE_FILE, MOCK_STATE_KEY, mockWorkspaceOn, workspaceFetch } from "./mockWorkspace";
 
 export const MOCK_ENGINE_IDS = { flow: "flow-1", setupFlow: "flow-2", document: "doc-1", lookup: "lookup-1", output: "out-1" } as const;
 /** The document number every fixture read carries — specs assert against this, never a literal. */
@@ -154,6 +155,7 @@ const live = (r: DocumentRow): DocumentRow => {
 /** Unit tests only: forget remembered edits and sends. The browser forgets on reload. */
 export function resetMockEngine(): void {
   remembered.clear();
+  try { sessionStorage.removeItem(MOCK_STATE_KEY); } catch { /* no store: nothing kept */ }
 }
 const refuse = (status: number, error: string): never => {
   throw new ApiHttpError(`mock engine: ${error}`, status, { error });
@@ -377,7 +379,7 @@ const missing = (what: string, id: string): never => {
 };
 const pick = <X extends { id: string }>(list: X[], id: string, what: string): X => list.find((x) => x.id === id) ?? missing(what, id);
 const echo = <X extends object>(base: X, body: Body): X => ({ ...base, ...body });
-const DOCUMENT_LIST_KEYS = ["flowId", "status", "take", "page", "pageSize", "sentFrom", "sentTo", "waitingOnDestination", "q"];
+export const DOCUMENT_LIST_KEYS = ["flowId", "status", "take", "page", "pageSize", "sentFrom", "sentTo", "waitingOnDestination", "q"];
 /** DocumentSearch.MaxTermLength: a longer term is cut (src/test/backendMirror.test.ts). */
 export const SEARCH_TERM_MAX = 200;
 /** Like DocumentSearch.Matches (DocumentSearch.cs): trimmed, cut, blank is no filter; the file name contains the term in any
@@ -453,8 +455,15 @@ const ROUTES: [method: string, pattern: RegExp, run: Handler][] = [
   ["POST", re`/flows/${S}/documents`, (m, _q, b) => upload(pick(FLOWS, m[1], "flow"), b)],
   ["POST", re`/flows/${S}/documents/sample`, (m) => {
     const flow = pick(FLOWS, m[1], "flow");
-    // Kept out of DOCS: the document list and its counts stay what the fixtures say until a screen asks.
-    return (samples[flow.id] ??= { ...DOCS[0], id: `doc-sample-${flow.id}`, flowId: flow.id, flowName: flow.name, fileName: "invoice-2250.pdf" });
+    // One per flow, as the server: made once, then listed as a sample and counted on its flow.
+    if (!samples[flow.id]) {
+      const row = doc(0, flow, STATUS.needs_review, { id: `doc-sample-${flow.id}`, fileName: MOCK_SAMPLE_FILE, isSample: true });
+      ROWS.push(row);
+      DOCS.push(summaryOf(row));
+      flow.documentCount++;
+      samples[flow.id] = summaryOf(row);
+    }
+    return samples[flow.id];
   }],
   ["GET", re`/documents`, (_m, q) => {
     settleReads();
@@ -585,6 +594,10 @@ export async function mockEngineFetch<T>(path: string, init?: RequestInit, as: "
   await new Promise((resolve) => setTimeout(resolve, MOCK_LATENCY_MS));
   const method = (init?.method ?? "GET").toUpperCase();
   const [pathname, query = ""] = path.split("?");
+  if (mockWorkspaceOn()) {
+    const owned = workspaceFetch(method, pathname, new URLSearchParams(query), bodyOf(init));
+    if (owned) return owned.answer as T;
+  }
   if (as === "blob" && method === "GET") {
     for (const [pattern, run] of BLOBS) {
       const m = pattern.exec(pathname);

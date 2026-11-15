@@ -38,7 +38,7 @@ function Meta({ read }: { read: { edited: boolean; location: SourceLocation | nu
 }
 
 /** Shows what is being typed over the server's value; saves on a pause, on Enter and on leaving the box. */
-function ValueInput({ target, value, edits, ...aria }: { target: EditTarget; value: string | null; edits: DocumentEdits; "aria-describedby"?: string }) {
+export function ValueInput({ target, value, edits, ...aria }: { target: EditTarget; value: string | null; edits: DocumentEdits; "aria-describedby"?: string }) {
   return (
     <input
       {...aria} className={INPUT} value={edits.drafts[editKey(target)] ?? value ?? ""}
@@ -130,7 +130,7 @@ function TeachPicker({ flow, onTeach }: { flow: Flow; onTeach(t: Teach): void })
 
 /** The save state, drawn beside the "What we read" heading. */
 export const SAVE_WORDS = { saved: "Saves as you type", saving: "Saving…", failed: "Not saved yet" } as const;
-const needs = (n: number) => `${n} value${n === 1 ? " needs" : "s need"} a look.`;
+export const needsWords = (n: number) => `${n} value${n === 1 ? " needs" : "s need"} a look.`;
 const toCheck = (n: number) => `${n} value${n === 1 ? "" : "s"} to check`;
 const rowsText = (n: number) => `${n} row${n === 1 ? "" : "s"}`;
 
@@ -212,7 +212,7 @@ export function ReadValuesPanel({ detail, editable, edits, marks, onLocate, flow
   const rest = fields.filter((f) => !marks.looks.has(editKey({ field: f.key })));
   const intro = !editable ? null
     : marks.count === 0 ? (marks.allClear ? "Everything was read clearly." : null)
-    : `${needs(marks.count)}${marks.allClear ? " The rest were read clearly." : ""}`;
+    : `${needsWords(marks.count)}${marks.allClear ? " The rest were read clearly." : ""}`;
   const hasMore = !!flow && (flow.fieldsConfirmed || !!onTeach);
 
   const fieldRow = (f: (typeof fields)[number]) => {
