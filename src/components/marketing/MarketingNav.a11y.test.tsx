@@ -16,8 +16,8 @@
 // (the file is off the unmarked-overlay baseline and stays off).
 
 import { render, screen, act, fireEvent, within } from "@testing-library/react";
-import { describe, it, expect, vi } from "vitest";
-import { MarketingNav } from "@/components/marketing/MarketingNav";
+import { afterEach, describe, it, expect, vi } from "vitest";
+import { isCurrentSection, MarketingNav } from "@/components/marketing/MarketingNav";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/pricing",
@@ -32,11 +32,14 @@ vi.mock("next/navigation", () => ({
 // and WHEN the dynamic import resolves relative to these assertions is timing, not
 // something the test controls — so the same file passed locally with the key set
 // and still threw on the runner. Mocking the auth surface removes both variables:
-// signed-out is the marketing default, and it holds either way.
+// signed-out is the marketing default, and it holds either way. The state is
+// mutable so one test can sign in; every other test runs signed out.
+const clerkState = vi.hoisted(() => ({ isSignedIn: false }));
 vi.mock("@clerk/nextjs", () => ({
-  useUser: () => ({ isLoaded: true, isSignedIn: false, user: null }),
+  useUser: () => ({ isLoaded: true, isSignedIn: clerkState.isSignedIn }),
   UserButton: () => null,
 }));
+afterEach(() => { clerkState.isSignedIn = false; });
 
 // Pin the riskier of the two configurations ON. Without a key the nav skips the
 // lazy Clerk module entirely, so a local run would exercise the easy branch and
@@ -132,5 +135,35 @@ describe("marketing mobile menu announces itself and gives the keyboard a way ba
     expect(document.activeElement, "Shift+Tab from the first stop must wrap to the last").toBe(
       stops[stops.length - 1],
     );
+  });
+});
+
+describe("the site header", () => {
+  it("lists the five pages and marks the one you are on", () => {
+    const { container } = render(<MarketingNav />);
+    const main = within(container).getByRole("navigation", { name: "Main" });
+    expect(within(main).getAllByRole("link").map((a) => a.textContent)).toEqual(["How it works", "Formats", "Pricing", "Security", "Help"]);
+    expect(within(main).getByRole("link", { name: "Pricing" })).toHaveAttribute("aria-current", "page"); // usePathname is mocked to "/pricing"
+    expect(within(main).getByRole("link", { name: "Help" })).not.toHaveAttribute("aria-current");
+    expect(isCurrentSection("/help/flows", "/help")).toBe(true);
+    expect(isCurrentSection("/help", "/help")).toBe(true);
+    expect(isCurrentSection("/helpful", "/help")).toBe(false);
+    expect(isCurrentSection(null, "/help")).toBe(false);
+  });
+
+  it("a signed-in visitor is offered Open ProcuLink in the same link, and Sign in leaves the reading order", async () => {
+    clerkState.isSignedIn = true;
+    // A fresh module, so the lazy probe has not loaded yet: earlier tests in this
+    // file already resolved it, and a resolved probe reports inside render()'s act.
+    vi.resetModules();
+    const { MarketingNav: FreshNav } = await import("@/components/marketing/MarketingNav");
+    const { container } = render(<FreshNav />);
+    const banner = within(container).getByRole("banner");
+    const start = within(banner).getByRole("link", { name: "Start free" }); // first paint: the signed-out links, as the server renders them
+    const open = await within(banner).findByRole("link", { name: "Open ProcuLink" });
+    expect(open).toBe(start); // the same node: nothing is swapped, focus is kept
+    expect(open).toHaveAttribute("href", "/documents");
+    expect(within(banner).queryByRole("link", { name: "Sign in" })).toBeNull();
+    expect(container.querySelector('a[href="/sign-in"]')).not.toBeNull(); // still in the DOM, so its box holds the row still
   });
 });
