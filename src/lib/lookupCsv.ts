@@ -1,14 +1,13 @@
 import type { LookupCandidate, LookupEntry } from "@/lib/api/documents";
 import { detectDelimiter, parseCsvRows, parseXlsxWorkbook } from "@/lib/sheetPreview";
 
+import { exportLookupCsv, FORMULA, TableFileRefusal } from "./lookupCsvLeaf";
 import { LOOKUP_LIMITS } from "./lookupLimits";
 
-export { LOOKUP_LIMITS };
+// The Lookups screens load this module (and with it the spreadsheet reader) only when a file is chosen.
+export { exportLookupCsv, LOOKUP_LIMITS, TableFileRefusal };
 
 const key = (from: string) => from.trim().toLowerCase();
-// A leading = + - @ tab or CR makes a spreadsheet read the cell as a formula: export prefixes one "'"
-// (also before quotes already there, so "'=x" survives), import strips exactly one.
-const FORMULA = /^'*[=+@\t\r-]/;
 const unprefix = (v: string) => (v[0] === "'" && FORMULA.test(v.slice(1)) ? v.slice(1) : v);
 
 /** CSV text to cells: byte-order mark dropped, delimiter detected, no row cap. */
@@ -34,9 +33,6 @@ export function lookupEntries(cells: string[][]): LookupEntry[] {
   }
   return entries;
 }
-
-/** A file we read and will not use, with the reason in words. */
-export class TableFileRefusal extends Error {}
 
 const OLD_OFFICE = [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1];
 
@@ -111,12 +107,3 @@ function candidatesFrom(cells: string[][]): LookupCandidate[] {
   }
   return out;
 }
-
-// Quote anything the importer's delimiter detection could mistake for a separator, too.
-const cell = (raw: string) => {
-  const v = FORMULA.test(raw) ? `'${raw}` : raw;
-  return /[",;|\t\r\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
-};
-
-export const exportLookupCsv = (entries: LookupEntry[]) =>
-  ["From,To", ...entries.map((e) => `${cell(e.from)},${cell(e.to)}`)].join("\n") + "\n";

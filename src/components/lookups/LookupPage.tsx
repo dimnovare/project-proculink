@@ -13,7 +13,7 @@ import { useAutosave } from "@/hooks/useAutosave";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { deleteLookup, getLookup, updateLookup, type Lookup, type LookupCandidate } from "@/lib/api/documents";
 import { documentRefusalMessage, refusalToken } from "@/lib/documentRefusals";
-import { exportLookupCsv, lookupFileCandidates, lookupFileEntries } from "@/lib/lookupCsv";
+import { exportLookupCsv } from "@/lib/lookupCsvLeaf";
 import { LOOKUP_LIMITS } from "@/lib/lookupLimits";
 import { usedByLine } from "@/lib/lookupUses";
 import { saveBlob } from "@/lib/saveBlob";
@@ -118,7 +118,8 @@ function LookupEditor({ lookup, lookupId, usedBy }: { lookup: Lookup; lookupId: 
 
   const fileInput = useRef<HTMLInputElement>(null);
   const replace = useMutation({
-    mutationFn: lookupFileEntries,
+    // The spreadsheet reader loads when a file is chosen, not with the page.
+    mutationFn: async (file: File) => (await import("@/lib/lookupCsv")).lookupFileEntries(file),
     onError: (e, file) => showLookupNotice({ ...importRefusal(file, e), owner: lookupId }),
     onSuccess: (entries, file) => {
       const before = current.current.rows;
@@ -148,7 +149,7 @@ function LookupEditor({ lookup, lookupId, usedBy }: { lookup: Lookup; lookupId: 
     input.value = "";   // lets the same file be chosen again
     if (!file) return;
     try {
-      const list = await lookupFileCandidates(file);
+      const list = await (await import("@/lib/lookupCsv")).lookupFileCandidates(file);
       edit({ candidates: list }, true);
       setListNote(`Imported ${list.length === 1 ? "1 value" : `${list.length} values`}.`);
     } catch (e) {

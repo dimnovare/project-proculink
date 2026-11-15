@@ -4,7 +4,7 @@ import { useState, useSyncExternalStore } from "react";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
-import { TableFileRefusal } from "@/lib/lookupCsv";
+import { TableFileRefusal } from "@/lib/lookupCsvLeaf";
 
 // One store for the Lookups screen, kept in the module so it outlives a route change between
 // /lookups and /lookups/[id] (each route mounts its own LookupsHome). It lives for the page's life.

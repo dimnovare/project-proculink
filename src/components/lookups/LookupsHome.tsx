@@ -16,7 +16,6 @@ import { flowsQuery, useDocumentEngine } from "@/hooks/useDocumentEngine";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { createLookup, deleteLookup, listLookups } from "@/lib/api/documents";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
-import { lookupFileEntries, tableName } from "@/lib/lookupCsv";
 import { usedByLine } from "@/lib/lookupUses";
 import { LookupPage } from "./LookupPage";
 import { importRefusal, LookupNoticeBanner, markNewLookup, showLookupNotice, useLookupStore } from "./lookupNotice";
@@ -36,6 +35,7 @@ export function LookupsHome({ lookupId }: { lookupId?: string }) {
 
   const importTable = useMutation({
     mutationFn: async (file: File) => {
+      const { lookupFileEntries, tableName } = await import("@/lib/lookupCsv");   // the spreadsheet reader loads now
       const entries = await lookupFileEntries(file);
       return { lookup: await createLookup(tableName(file.name), entries), count: entries.length };
     },
