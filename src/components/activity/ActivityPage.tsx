@@ -210,7 +210,7 @@ export function ActivityPage() {
               );
             })}
           </div>
-          <div className="relative mb-1.5 w-full sm:w-auto sm:flex-[0_1_300px]">
+          <div className="relative mb-1.5 w-full sm:w-auto sm:flex-[0_1_360px]">
             <label className="sr-only" htmlFor="activity-search">Search activity</label>
             <Search size={16} aria-hidden className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted" />
             <input
