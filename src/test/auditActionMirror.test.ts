@@ -7,6 +7,7 @@ import {
   REACHABLE_AUDIT_ACTIONS,
   auditActionFact,
 } from "@/lib/auditActionManifest";
+import { ACTIVITY_TABS } from "@/lib/activityRows";
 import { ROOT } from "./appRoutes";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -711,6 +712,15 @@ describe("auditActionManifest mirrors the backend's audit vocabulary", () => {
       unexpected,
       `these are marked unreachable but a writer now emits them: ${unexpected.join(", ")}`,
     ).toEqual([]);
+  });
+
+  test.skipIf(!BACKEND)("activity tab actions are spelled as the backend writes them", () => {
+    const { backendActions } = scan();
+    // The server's `actions` filter is a case-sensitive IN, so a tab spelled in another case lists nothing.
+    const tabActions = ACTIVITY_TABS.flatMap((t) => t.actions ?? []);
+    expect(tabActions.length).toBeGreaterThan(0);
+    const misspelt = tabActions.filter((a) => !backendActions.includes(a)).sort();
+    expect(misspelt, `activity tab actions the backend never writes in this exact case: ${misspelt.join(", ")}`).toEqual([]);
   });
 
   // 2026-11-13, plan 13b task 7a: "the payload reader found a realistic number of sites" was removed.
