@@ -214,8 +214,8 @@ export const GUIDES: Guide[] = [
   {
     slug: "import-a-lookup",
     href: "/help/guides/import-a-lookup",
-    title: "Import a lookup from a CSV file",
-    blurb: "Import a CSV file so a value on a document is replaced by the one your system uses.",
+    title: "Import a lookup from a CSV or Excel file",
+    blurb: "Import a CSV or Excel file so a value on a document is replaced by the one your system uses.",
     section: "Lookups",
     audience: "client",
     status: "live",
