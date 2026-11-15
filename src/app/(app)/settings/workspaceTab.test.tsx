@@ -1,0 +1,92 @@
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { render, screen, fireEvent, within, cleanup } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
+type Org = { name: string; membersCount: number; update: ReturnType<typeof vi.fn> };
+const clerk = vi.hoisted(() => ({ org: undefined as Org | undefined, open: vi.fn() }));
+const MEMBERS = [
+  { id: "m1", role: "org:admin", publicUserData: { userId: "user_a", firstName: "Alex", lastName: "Example", identifier: "alex@example.test" } },
+  { id: "m2", role: "org:member", publicUserData: { userId: "user_s", firstName: "Sam", lastName: "Sample", identifier: "sam@example.test" } },
+];
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams("tab=org"),
+  useRouter: () => ({ replace: vi.fn() }),
+  usePathname: () => "/settings",
+}));
+vi.mock("@clerk/nextjs", () => ({
+  useOrganization: () => ({
+    organization: clerk.org,
+    memberships: clerk.org ? { data: MEMBERS, count: 2, isLoading: false, isError: false } : undefined,
+  }),
+  useUser: () => ({ user: { id: "user_a" } }),
+  useClerk: () => ({ openOrganizationProfile: clerk.open }),
+}));
+vi.mock("@clerk/nextjs/errors", () => ({ isClerkAPIResponseError: (e: unknown) => typeof (e as { status?: unknown })?.status === "number" }));
+vi.mock("@/components/flows/NotificationEmailSection", () => ({ NotificationEmailSection: () => null }));
+vi.mock("@/lib/api-client", async (o) => ({
+  ...(await o<typeof import("@/lib/api-client")>()),
+  getBillingStatus: vi.fn().mockResolvedValue({ plan: "starter", accountStatus: "active" }),
+}));
+
+import SettingsPage from "./page";
+import { PLAN_BY_ID } from "@/lib/plans";
+
+const mount = () =>
+  render(
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
+      <SettingsPage />
+    </QueryClientProvider>,
+  );
+
+afterEach(() => { cleanup(); clerk.org = undefined; vi.clearAllMocks(); });
+
+describe("Settings › Workspace", () => {
+  it("the name saves once when the box is left with a new name, and a refusal keeps what was typed", async () => {
+    let finish!: () => void;
+    const update = vi.fn()
+      .mockImplementationOnce(() => new Promise<void>((r) => { finish = r; }))
+      .mockRejectedValueOnce({ status: 403 });
+    clerk.org = { name: "Supplier desk", membersCount: 2, update };
+    mount();
+    const box = screen.getByRole("textbox", { name: "Workspace name" });
+    fireEvent.blur(box);
+    fireEvent.change(box, { target: { value: "   " } });
+    fireEvent.blur(box);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Give the workspace a name.");
+    fireEvent.change(box, { target: { value: "  Accounting desk " } });
+    fireEvent.blur(box);
+    fireEvent.blur(box);
+    expect(update).toHaveBeenCalledTimes(1);
+    expect(update).toHaveBeenCalledWith({ name: "Accounting desk" });
+    finish();
+    expect(await within(screen.getByRole("region", { name: "Workspace name" })).findByText("Saved")).toBeTruthy();
+    fireEvent.change(box, { target: { value: "Desk two" } });
+    fireEvent.blur(box);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Only a workspace admin can change this.");
+    expect(box).toHaveValue("Desk two");
+  });
+
+  it("People lists who has access from Clerk, and nothing about people is said while the workspace is unknown", async () => {
+    mount();
+    expect(screen.queryByRole("region", { name: "People" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Workspace name" })).toBeNull();
+    expect(screen.queryByText(/have access|has access|Loading/)).toBeNull();
+    cleanup();
+    clerk.org = { name: "Supplier desk", membersCount: 2, update: vi.fn() };
+    mount();
+    const people = screen.getByRole("region", { name: "People" });
+    expect(people).toHaveTextContent("2 people have access to this workspace.");
+    const [alex, sam] = within(people).getAllByRole("listitem");
+    expect(alex).toHaveTextContent(/Alex Example\s*\(you\)/);
+    expect(alex).toHaveTextContent(/alex@example\.test/);
+    expect(within(alex).getByText("Administrator")).toBeTruthy();
+    expect(sam).not.toHaveTextContent("(you)");
+    expect(within(sam).getByText("Member")).toBeTruthy();
+    fireEvent.click(within(people).getByRole("button", { name: "Invite or manage people" }));
+    expect(clerk.open).toHaveBeenCalledTimes(1);
+    const about = screen.getByRole("complementary", { name: "About this workspace" });
+    expect(await within(about).findByText(PLAN_BY_ID.starter.name)).toBeTruthy();
+    expect(within(about).getByRole("link", { name: "See plan and billing" })).toHaveAttribute("href", "/settings?tab=billing");
+    expect(within(about).getByRole("link", { name: "EU-region" })).toHaveAttribute("href", "/security");
+  });
+});

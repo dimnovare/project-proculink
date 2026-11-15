@@ -382,12 +382,11 @@ describe("the specific sites the refutation measured", () => {
   const read = (rel: string) => readFileSync(join(REPO, rel), "utf8");
 
   // A fourth site — the /operations/webhooks primary action — was measured here
-  // until FE #130 deleted that page (a duplicate of Settings ▸ Connectors nobody
-  // could navigate to). --brand-green-btn is still guarded by the Copy button
-  // below, so removing the dead site leaves no token unmeasured.
-  it("the settings API-key Copy button rests on the AA button green", () => {
-    const src = read("src/app/(app)/settings/page.tsx");
-    expect(src).toContain(`background: "var(--brand-green-btn)", color: "#FFFFFF"`);
+  // until FE #130 deleted that page. The settings API-key Copy button carried the
+  // AA button green after that, until plan 14.7b made it an outlined button. The
+  // green now has one source, the `send` variant of <Button>, so it is measured there.
+  it("the AA button green under white text is the Button primitive's send variant", () => {
+    expect(read("src/components/bridge/DSPrimitives.tsx")).toContain("bg-brand-green-btn text-white");
   });
 
   it("both admin modals draw the error row on the danger TOKENS", () => {
