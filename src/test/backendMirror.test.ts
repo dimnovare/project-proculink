@@ -5,6 +5,7 @@ import { FAILURE_STATUSES, ORDER_STATUSES } from "@/lib/orderStatusManifest";
 import { ROOT } from "./appRoutes";
 import { DOCUMENT_STATUSES, WHOLE_DOCUMENT_CHECKS } from "@/lib/documentStatusManifest";
 import { FIELD_MEANINGS } from "@/lib/fieldMeanings";
+import { WAY_IN_WORDS } from "@/lib/flowSentences";
 import { FORMATS } from "@/components/flows/OutputEditor";
 import { PREVIEW_FORMATS } from "@/lib/api/types";
 import { STANDARDS } from "@/lib/standards/catalog";
@@ -1315,6 +1316,13 @@ describe("document statuses mirror the backend", () => {
       Object.keys(DOCUMENT_STATUSES),
       "The document status vocabulary drifted from DocumentStatus.cs.",
     );
+  });
+
+  test.skipIf(!BACKEND)("WAY_IN_WORDS keys equal IntakeKind's constants", () => {
+    const cs = readFileSync(join(BACKEND!, "ProcuLink.Core/Documents/IntakeKind.cs"), "utf8");
+    const backend = Object.values(parseStatusConstants(cs));
+    expect(backend.length, "IntakeKind.cs parsed to no constants, so this would prove nothing").toBeGreaterThan(0);
+    expect([...backend].sort()).toEqual(Object.keys(WAY_IN_WORDS).sort());
   });
 
   test.skipIf(!BACKEND)("the check codes the documents list reads exist in DocumentChecks", () => {
