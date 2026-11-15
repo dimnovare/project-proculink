@@ -17,7 +17,9 @@ import { documentRefusalMessage } from "@/lib/documentRefusals";
 import { AUTOMATIC_DELIVERY_LABEL, REVIEW_BEFORE_DELIVERY_LABEL } from "@/lib/deliveryMode";
 import { and, waysInWords } from "@/lib/flowSentences";
 import { FLOW_STEPS, flowAddress, readFlowView, type FlowStep, type FlowView } from "@/lib/flowSteps";
+import { pageTotal } from "@/lib/pageTotal";
 import { INPUT } from "./DestinationForm";
+import { flowNeedsYouQuery, FlowDocuments, needsYouWords, StreakBand } from "./FlowDocuments";
 import { DraftPartFailed, FlowDraftProvider, useFlowDraft } from "./flowDraft";
 import { FlowVersionsPanel } from "./FlowVersionsPanel";
 import { PublishBar } from "./PublishBar";
@@ -139,6 +141,7 @@ const Row = ({ href, title, line, lead, tag }: { href: string; title: string; li
 
 /** A phone with no step chosen: the four steps as rows, then Documents and History. */
 function PhoneOverview({ flow, summaries }: { flow: Flow; summaries: Record<FlowStep, string | null> }) {
+  const need = pageTotal(useQuery({ ...flowNeedsYouQuery(flow.id), enabled: useTenantQueriesEnabled() }).data);
   return (
     <div className="grid gap-4">
       <nav aria-label="The four steps of this flow">
@@ -151,7 +154,10 @@ function PhoneOverview({ flow, summaries }: { flow: Flow; summaries: Record<Flow
       <nav aria-label="This flow's documents and history">
         <Card flush>
           <ul className="m-0 list-none p-0">
-            <Row href={flowAddress(flow.id, "documents")} title="Documents" line={documentsSoFar(flow.documentCount)} />
+            <Row
+              href={flowAddress(flow.id, "documents")} title="Documents" line={documentsSoFar(flow.documentCount)}
+              tag={need ? <span className="flex-none rounded-full bg-amber-soft px-2.5 py-0.5 text-[12.5px] font-semibold text-amber-text">{needsYouWords(need)}</span> : undefined}
+            />
             {flow.publishedVersion !== undefined && <Row href={flowAddress(flow.id, "history")} title="History" line="Earlier versions of this flow" />}
           </ul>
         </Card>
@@ -199,7 +205,7 @@ function RenameForm({ flow, onDone }: { flow: Flow; onDone: () => void }) {
 function ViewBody({ flow, view }: { flow: Flow; view: FlowView }) {
   const { bump, revision } = useFlowDraft();
   if (view === "history") return <FlowVersionsPanel flowId={flow.id} onRestored={bump} />;
-  if (!isFlowStep(view)) return null;   // documents
+  if (!isFlowStep(view)) return <FlowDocuments flow={flow} />;
   const step: Record<FlowStep, React.ReactNode> = { arrives: null, read: null, check: null, send: null };
   return (
     <div className="grid gap-4">
@@ -273,6 +279,20 @@ function FlowBody({ flow, view, renaming, onRenamed, blocked }: { flow: Flow; vi
       {blocked && <StatusNotice tone="error">{blocked}</StatusNotice>}
       {/* No step chosen: a desk shows Documents, a phone the overview (R14). */}
       {!view && <div className="lg:hidden"><PhoneOverview flow={flow} summaries={summaries} /></div>}
+      {/* Under the phone's step cards, or above the desk's Documents: drawn once for both. */}
+      {(!view || view === "documents") && (
+        <>
+          {!flow.fieldsConfirmed && (
+            <StatusNotice
+              tone="warning"
+              action={<FlowLink href={flowAddress(flow.id, "read")} className="inline-flex items-center font-semibold text-ink underline">Go to We read</FlowLink>}
+            >
+              Choose what we read from every document, so each one is read the same way.
+            </StatusNotice>
+          )}
+          <StreakBand flow={flow} />
+        </>
+      )}
       <div className={view ? undefined : "hidden lg:block"}><ViewBody flow={flow} view={view ?? "documents"} /></div>
     </div>
   );
