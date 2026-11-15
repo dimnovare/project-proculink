@@ -90,7 +90,7 @@ async function refuseCheckoutWith(message: string, status: BillingStatus = billi
       <BillingSection />
     </QueryClientProvider>,
   );
-  await screen.findByText("Current plan");
+  await screen.findByTestId("plan-card");
   fireEvent.click(await screen.findByRole("button", { name: /Upgrade to Growth/i }));
   await waitFor(() => expect(api.createCheckoutSession).toHaveBeenCalled());
 }
@@ -164,7 +164,7 @@ describe("A-F8d — a refused checkout never shows a status line or an internal 
         <BillingSection />
       </QueryClientProvider>,
     );
-    await screen.findByText("Current plan");
+    await screen.findByTestId("plan-card");
     fireEvent.click(await screen.findByRole("button", { name: /Upgrade to Growth/i }));
     await waitFor(() => expect(api.createCheckoutSession).toHaveBeenCalled());
 

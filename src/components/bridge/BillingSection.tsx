@@ -15,8 +15,13 @@ import { isOrgAdminRefusal, orgAdminMessage } from "@/lib/planGate";
 import { BOOK_DEMO_URL, BOOK_DEMO_LINK_ATTRS } from "@/lib/book-demo";
 import { accountStatusLabel, pausedCauseCopy, namesSubscriptionCause } from "@/lib/billingPause";
 import { Card } from "@/components/bridge/layout/Card";
+import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
+import { Button, Pill } from "@/components/bridge/DSPrimitives";
+import { Quiet } from "@/components/flows/states";
 import { isPlanGate, PlanGateNotice } from "@/components/bridge/PlanGateNotice";
 import { NUMBER_LOCALE } from "@/lib/format-number";
+import { documentsUse, extraLines, flowsUse, planLine, type Use } from "@/lib/billingWords";
+import { Check } from "lucide-react";
 
 type BillingInterval = "monthly" | "yearly";
 
@@ -91,54 +96,13 @@ const ANNUAL_SAVE_PERCENT = yearlySavePercent(PLAN_BY_ID.growth);
 const PLAN_META = Object.fromEntries(
   Object.values(PLAN_BY_ID).map((p) => [
     p.id,
-    { label: p.name, price: p.billingPriceLabel, sub: p.billingSummary, color: p.color, next: p.next ?? undefined },
+    { label: p.name, color: p.color },
   ]),
-) as Record<BillingPlan, { label: string; price: string; sub: string; color: string; next?: BillingPlan }>;
+) as Record<BillingPlan, { label: string; color: string }>;
 
 const CHECKOUT_PLANS: BillingPlan[] = CHECKOUT_PLAN_IDS;
 // Lowercase: it is read mid-sentence ("Your trial has ended.").
 const TRIAL_NAME = PLAN_BY_ID.pilot.name.toLowerCase();
-
-// Gradient usage bar matching canonical: var(--gradient-link-spine)
-function UsageBar({ used, limit, label }: { used: number; limit: number; label: string }) {
-  const unlimited = limit >= 2_000_000_000;
-  const pct = unlimited || limit === 0 ? 0 : Math.min(100, (used / limit) * 100);
-  const atLimit  = !unlimited && pct >= 100;
-  const warning  = !unlimited && pct >= 80 && pct < 100;
-
-  // Default fill is the canonical buyer→supplier link gradient (buyer-blue → brand
-  // green), driven straight from the design token so it never drifts from the render.
-  const barStyle: React.CSSProperties = unlimited
-    ? { background: "var(--gradient-link-spine)" }
-    : atLimit
-    ? { background: "var(--danger)" }
-    : warning
-    ? { background: "linear-gradient(90deg, var(--brand-blue), var(--amber))" }
-    : { background: "var(--gradient-link-spine)" };
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
-        <span style={{ fontSize: 12.5, color: "var(--ink-muted)" }}>{label}</span>
-        <span style={{ fontSize: 12.5, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: atLimit ? "var(--danger)" : "var(--ink)" }}>
-          {used.toLocaleString(NUMBER_LOCALE)} / {unlimited ? "Custom" : limit.toLocaleString(NUMBER_LOCALE)}
-        </span>
-      </div>
-      <div style={{ height: 8, borderRadius: 4, background: "var(--surface-2)", overflow: "hidden" }}>
-        <div style={{ width: unlimited ? "100%" : `${pct}%`, height: "100%", borderRadius: 4, ...barStyle }} />
-      </div>
-    </div>
-  );
-}
-
-function TrialCountdown({ endsAt }: { endsAt: string }) {
-  const days = Math.max(0, Math.ceil((new Date(endsAt).getTime() - Date.now()) / 86_400_000));
-  return (
-    <span style={{ fontSize: 11.5, color: days <= 3 ? "var(--amber-text)" : "var(--ink-muted)" }}>
-      Trial: {days} day{days === 1 ? "" : "s"} left
-    </span>
-  );
-}
 
 /**
  * True when the SERVER says this workspace cannot process orders.
@@ -288,7 +252,7 @@ function upgradeSentence(plan: BillingPlan, outcome: string, documentLadder: boo
 
 // Blocking banner — ONLY for Pilot, whose trial/limit really does pause
 // processing (Pilot becomes read-only). A PAID plan's over-limit state is
-// non-blocking and handled by OverageNotice below — but a paid plan IS blocked
+// non-blocking and said in the plan panel's documents line — but a paid plan IS blocked
 // by a non-processing account status (past_due / read_only / cancelled), which is
 // ProcessingPausedBanner above. This comment used to read "Paid plans are NEVER
 // blocked", which contradicted StripeBillingService's own comment and left a
@@ -340,55 +304,6 @@ function LimitBanner({ status, documentLadder }: { status: BillingStatus; docume
   return null;
 }
 
-// Non-blocking usage notice for PAID plans. Paid orders always process; this
-// only flags that the customer is approaching the cap (heads-up) or is over it
-// (overage billing). It never tells a paid customer that processing is paused.
-function OverageNotice({ status }: { status: BillingStatus }) {
-  // Pilot is handled by LimitBanner (it genuinely blocks); skip here.
-  if (status.plan === "pilot") return null;
-  // Enterprise has custom/no hard cap — no overage messaging.
-  if (status.plan === "enterprise") return null;
-  // The plan's own rate (€0.50 legacy, €0.24 Starter, …). A plan with none has no rate to state.
-  const rate = PLAN_BY_ID[status.plan]?.overageEur;
-  if (rate == null) return null;
-  const euro = (n: number) => n.toLocaleString("en-IE", { style: "currency", currency: "EUR", maximumFractionDigits: 2 });
-
-  // Over the cap → honest overage line.
-  if (status.atLimit || status.overageOrders > 0) {
-    return (
-      <div style={infoNoticeStyle}>
-        <strong style={{ color: "var(--brand-blue-deep)" }}>You&apos;re over your monthly document allowance.</strong>
-        <span>
-          Extra documents still process and bill at {euro(rate)} each —{" "}
-          <strong>{status.overageOrders.toLocaleString(NUMBER_LOCALE)}</strong> this period (≈{" "}
-          <strong>{euro(status.overageAmountEur)}</strong>{" "}
-          <span style={{ color: "var(--ink-faint)", fontWeight: 400 }}>estimate</span>). Upgrade for more
-          included volume if this keeps up.
-        </span>
-        <span style={{ fontSize: 11.5, color: "var(--ink-faint)" }}>
-          A running estimate — your Stripe invoice for the period is the final amount.
-        </span>
-      </div>
-    );
-  }
-
-  // Approaching the cap (≥80%) → gentle heads-up.
-  if (status.nearLimit) {
-    return (
-      <div style={warnNoticeStyle}>
-        <strong style={{ color: "var(--amber-text)" }}>You&apos;re approaching your monthly document limit.</strong>
-        <span>
-          You&apos;ve used {status.ordersThisMonth.toLocaleString(NUMBER_LOCALE)} of{" "}
-          {status.orderLimit.toLocaleString(NUMBER_LOCALE)} documents. Documents keep processing past the limit and any
-          extras bill at {euro(rate)} each.
-        </span>
-      </div>
-    );
-  }
-
-  return null;
-}
-
 const bannerStyle: React.CSSProperties = {
   borderRadius: 10,
   padding: "14px 18px",
@@ -422,134 +337,98 @@ const pausedBannerStyle: React.CSSProperties = {
   color: "var(--danger)",
 };
 
-// Gentle amber heads-up (approaching cap) — softer than the blocking bannerStyle.
-const warnNoticeStyle: React.CSSProperties = {
-  borderRadius: 10,
-  padding: "13px 16px",
-  background: "var(--surface)",
-  border: "1px solid var(--border)",
-  borderLeft: "3px solid var(--amber)",
-  display: "flex",
-  flexDirection: "column",
-  gap: 4,
-  fontSize: 12.5,
-  lineHeight: 1.55,
-  color: "var(--ink-muted)",
-};
-
-// Neutral blue info (over cap → overage billing) — informational, not a warning.
-const infoNoticeStyle: React.CSSProperties = {
-  borderRadius: 10,
-  padding: "13px 16px",
-  background: "var(--surface)",
-  border: "1px solid var(--border)",
-  borderLeft: "3px solid var(--brand-blue)",
-  display: "flex",
-  flexDirection: "column",
-  gap: 4,
-  fontSize: 12.5,
-  lineHeight: 1.55,
-  color: "var(--ink-muted)",
-};
-
-// Large highlighted plan block — buyer-blue soft tint with a buyer-blue price,
-// per the design render (the buyer side of the buyer→supplier bridge).
-function PlanCard({ status, action }: { status: BillingStatus; action?: React.ReactNode }) {
-  const meta = PLAN_META[status.plan];
-  // The card's tint, label and status line are driven by the SERVER's canProcessOrders,
-  // not by the plan name. `isExpired` is kept as a narrower flag for the one string
-  // CLAUDE.md §11.5 pins verbatim; every other paused workspace — including a paid plan
-  // whose payment failed, which this card used to render as perfectly healthy — now
-  // carries the same "· Processing paused" suffix.
-  const isExpired = status.plan === "pilot" && status.isTrialExpired;
-  const isPaused = isProcessingPaused(status);
-  const displayLabel = isExpired
-    ? `${meta.label} ended · Processing paused`
-    : isPaused
-      ? `${meta.label} · Processing paused`
-      : status.plan === "pilot"
-        ? `${meta.label} · ${PLAN_BY_ID.pilot.priceCadence}`
-        : meta.label;
-  // Expired pilot uses amber tint; an active plan uses the buyer-blue soft tint
-  // (sampled var(--brand-blue-soft)) with a buyer-blue price — matches the design render.
-  // --amber-text, not --amber: `accent` is the PRICE text below, and --amber on
-  // --amber-soft is 3.6547:1. It clears the 3:1 large-text floor at 24px/700 by
-  // a hair, but the token is documented as non-text only. 5.6206:1.
-  // Human phrase for the account status, or null when this build has no phrase for it.
-  const statusLabel = accountStatusLabel(status.accountStatus);
-  const accent = isPaused ? "var(--amber-text)" : "var(--brand-blue)";
-  const softBg = isPaused ? "var(--amber-soft)" : "var(--brand-blue-soft)";
-  const borderCol = isPaused ? "#F0D8A8" : "var(--brand-blue-soft-2)";
-
+//** One use (documents or flows): the label, "{used} of {limit}", an 8px blue bar and its sentence. */
+function UseRow({ use }: { use: Use }) {
   return (
-    <div data-testid="plan-card" style={{
-      borderRadius: 10,
-      background: softBg,
-      border: `1px solid ${borderCol}`,
-      padding: "16px 18px",
-      display: "flex",
-      alignItems: "flex-start",
-      justifyContent: "space-between",
-      gap: 16,
-      flexWrap: "wrap",
-    }}>
-      <div>
-        <div style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", fontSize: 19, fontWeight: 600, letterSpacing: "-0.02em", color: "var(--ink)" }}>
-          {displayLabel}
-        </div>
-        <div style={{ fontSize: 12.5, color: "var(--ink-muted)", marginTop: 4 }}>{meta.sub}</div>
+    <div className="flex min-w-0 flex-col gap-2">
+      <div className="flex justify-between gap-3">
+        <span className="font-semibold">{use.label}</span>
+        <span>
+          <strong className="font-semibold">{use.used.toLocaleString(NUMBER_LOCALE)}</strong>
+          {use.limit != null && <> of {use.limit.toLocaleString(NUMBER_LOCALE)}</>}
+        </span>
       </div>
-      <div style={{ textAlign: "right", flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
-        {/* The MONTHLY label is not the price an annual workspace pays. `meta.price` is
-            `billingPriceLabel`, which is monthly-only, so this printed "€149/mo" above a
-            "Billed annually" line on a €1,488/yr subscription — ×12 overstating the real
-            charge by exactly the annual discount. Derived per-interval from the ladder. */}
-        <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 24, fontWeight: 700, color: accent, lineHeight: 1 }}>
-          {PLAN_BY_ID[status.plan]
-            ? billingPriceLabelFor(PLAN_BY_ID[status.plan], status.billingInterval)
-            : meta.price}
+      {use.limit != null && use.barLabel && (
+        <div role="img" aria-label={use.barLabel} className="h-2 overflow-hidden rounded bg-surface-2">
+          <div className="h-full rounded bg-brand-blue" style={{ width: `${Math.min(100, (use.used / Math.max(1, use.limit)) * 100)}%` }} />
         </div>
-        {/* Payment interval — from billing-status billingInterval (server-derived
-            from the Stripe price id). Hidden when null/absent (no subscription). */}
-        {(status.billingInterval === "monthly" || status.billingInterval === "yearly") && (
-          <div style={{ fontSize: 11.5, fontWeight: 600, color: "var(--ink-muted)" }}>
-            {status.billingInterval === "yearly" ? "Billed annually" : "Billed monthly"}
-          </div>
-        )}
-        {action}
-        {status.plan === "pilot" && !isExpired && status.trialEndsAt && (
-          <div>
-            <TrialCountdown endsAt={status.trialEndsAt} />
-          </div>
-        )}
-        {/*
-          Hidden while paused — the banner above says it in words instead.
-
-          This line USED to print the raw account status with its underscores swapped
-          for spaces. That was written as a repair for the paused case only, and the
-          paused case was never the common one: a healthy workspace has `trialing` or
-          `active`, so hiding the line while paused left the raw token as the NORMAL
-          rendering. Live production, 2026-08-18, a Pilot workspace: the settings
-          billing tab read the word `trialing` back to the customer.
-
-          `accountStatusLabel` is the derivation, and it returns null for a value this
-          build does not know — so a status added server-side first renders nothing
-          rather than either the token or a reassuring guess. Same rule that guards the
-          cancellation disclosure (gatedCapabilityClaims: "never leaks the internal
-          status name"), now applied to the state line that sits above it.
-        */}
-        {!isPaused && statusLabel && (
-          <div data-testid="account-status-line" style={{ fontSize: 11, color: "var(--ink-faint)" }}>
-            {statusLabel}
-          </div>
-        )}
-      </div>
+      )}
+      {use.sub && <p className="m-0 text-[13px] text-ink-muted">{use.sub}</p>}
     </div>
   );
 }
 
+/** Two short lines: a bold one and a muted one under it. */
+function Lines({ lead, sub }: { lead: string; sub: string }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <p className="m-0 font-semibold">{lead}</p>
+      <p className="m-0 text-[13px] text-ink-muted">{sub}</p>
+    </div>
+  );
+}
+
+const USE_GRID = "grid grid-cols-[repeat(auto-fit,minmax(min(280px,100%),1fr))] gap-x-10";
+
+/**
+ * The plan panel: the plan's name as the heading, the account phrase beside it while processing,
+ * the price line, what is used in words, the extra-document rate and how documents are counted.
+ *
+ * The heading and the tag are driven by the SERVER's `canProcessOrders`, never by the plan name.
+ * `isExpired` is kept only for the one label CLAUDE.md §11.5 pins verbatim; every other paused
+ * workspace, including a paid plan whose payment failed, carries "· Processing paused".
+ * `accountStatusLabel` returns null for a status this build does not know, so an unknown status
+ * draws no tag rather than the raw token or a reassuring guess.
+ */
+function PlanPanel({ status, flows }: { status: BillingStatus; flows: Use | null }) {
+  const name = PLAN_BY_ID[status.plan].name;
+  const isPaused = isProcessingPaused(status);
+  const heading =
+    status.plan === "pilot" && status.isTrialExpired
+      ? `${name} ended · Processing paused`
+      : isPaused
+        ? `${name} · Processing paused`
+        : name;
+  const label = isPaused ? null : accountStatusLabel(status.accountStatus);
+  const price = planLine(status, new Date());
+  const extra = extraLines(status.plan);
+  const uses = flows ? [documentsUse(status), flows] : [documentsUse(status)];
+
+  return (
+    <Card as="section" flush radius={12} aria-labelledby="b-plan" data-testid="plan-card">
+      <div className="flex flex-col gap-5 p-6 text-[14px] text-ink max-[560px]:px-4 max-[560px]:py-5">
+        <div className="flex flex-col gap-1.5">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+            <h2 id="b-plan" className="m-0 font-display text-[26px] font-semibold leading-[1.1] tracking-[-0.01em]">{heading}</h2>
+            {label && (
+              <Pill
+                tone={label === "Subscription active" ? "green" : "neutral"}
+                icon={label === "Subscription active" ? <Check aria-hidden size={13} strokeWidth={3} /> : undefined}
+                data-testid="account-status-line"
+              >
+                {label}
+              </Pill>
+            )}
+          </div>
+          {price && <p className="m-0 text-[15px] text-ink-muted">{price}</p>}
+        </div>
+        <div className={`${USE_GRID} gap-y-5`}>
+          {uses.map((u) => <UseRow key={u.label} use={u} />)}
+        </div>
+        <div className={`${USE_GRID} gap-y-4 border-t border-border pt-4`}>
+          {extra && <Lines lead={extra[0]} sub={extra[1]} />}
+          <Lines
+            lead="A document counts once it has been read."
+            sub={`One we couldn't read is not counted.${status.stripeCustomerId != null ? " This is a running count: your Stripe invoice is the final amount." : ""}`}
+          />
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 export function BillingSection() {
-  const { data: status, isLoading, error, refetch, isFetching } = useQuery<BillingStatus>({
+  const { data: status, isLoading, refetch } = useQuery<BillingStatus>({
     queryKey: ["billing-status"],
     queryFn: getBillingStatus,
     staleTime: 60_000,
@@ -577,33 +456,14 @@ export function BillingSection() {
     onSuccess: (url) => { window.location.href = url; },
   });
 
-  if (isLoading) {
-    return (
-      <Card pad={22} radius={12}>
-        <div style={{ height: 18, width: 190, background: "var(--border)", borderRadius: 4, marginBottom: 18 }} />
-        <div style={{ display: "grid", gap: 10 }}>
-          <div style={{ height: 10, width: "100%", background: "var(--surface-2)", borderRadius: 99 }} />
-          <div style={{ height: 10, width: "72%", background: "var(--surface-2)", borderRadius: 99 }} />
-        </div>
-      </Card>
-    );
-  }
+  if (isLoading) return <Quiet>Loading your plan…</Quiet>;
 
-  if (error || !status) {
+  // A failed refresh keeps what is drawn: the failure is shown only when there is nothing to draw.
+  if (!status) {
     return (
-      <div style={{ border: "1px solid var(--danger-soft)", borderLeft: "3px solid var(--danger)", borderRadius: 12, background: "var(--surface)", padding: 22, boxShadow: "var(--shadow-card)" }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: "var(--ink)", marginBottom: 4 }}>Billing is temporarily unavailable</div>
-        <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.55, color: "var(--ink-muted)" }}>
-          We could not reach the billing service. Your workspace data is still available; plan changes and usage limits need the API connection.
-        </p>
-        <button
-          onClick={() => refetch()}
-          disabled={isFetching}
-          style={{ marginTop: 14, borderRadius: 6, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--ink)", height: 32, padding: "0 12px", fontSize: 12, fontWeight: 700, cursor: isFetching ? "not-allowed" : "pointer" }}
-        >
-          {isFetching ? "Checking..." : "Retry"}
-        </button>
-      </div>
+      <StatusNotice tone="error" action={<Button variant="secondary" size="sm" onClick={() => refetch()}>Retry</Button>}>
+        We couldn&apos;t load your plan. Your documents and flows are not affected.
+      </StatusNotice>
     );
   }
 
@@ -611,7 +471,6 @@ export function BillingSection() {
   const isEnterprise = status.plan === "enterprise";
   const isPaid       = [...CHECKOUT_PLANS, ...DOCUMENT_PLAN_IDS].includes(status.plan);
   const nextPlan     = nextPlanFor(status.plan, documentLadder);
-  const flowLimit    = PLAN_BY_ID[status.plan].flowLimit;
   // The Pilot upgrade block's ladder: the document plans with the engine, else today's legacy one.
   const ladder       = documentLadder ? DOCUMENT_PLAN_IDS : CHECKOUT_PLANS;
   // The legacy ladder is on sale only on an explicit "off"; until the engine answers, neither is.
@@ -648,62 +507,10 @@ export function BillingSection() {
         manageError={portalMutation.isError ? portalMutation.error : null}
       />
       <LimitBanner status={status} documentLadder={documentLadder} />
-      <OverageNotice status={status} />
-
-      {/* ── Current plan card (large highlighted block) ── */}
-      <Card flush radius="var(--radius-md)">
-        {/* Card header */}
-        <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--border)" }}>
-          <div style={{ fontWeight: 600, fontSize: 14.5, letterSpacing: "-0.01em", color: "var(--ink)" }}>Current plan</div>
-        </div>
-        <div style={{ padding: "16px 18px", display: "flex", flexDirection: "column", gap: 16 }}>
-          <PlanCard
-            status={status}
-            action={hasStripePortal ? (
-              <button
-                onClick={() => portalMutation.mutate()}
-                disabled={portalMutation.isPending}
-                style={{
-                  height: 32, padding: "0 14px", border: "1px solid var(--border-strong)",
-                  borderRadius: 8, background: "var(--surface)", color: "var(--ink)",
-                  fontSize: 12.5, fontWeight: 600,
-                  cursor: portalMutation.isPending ? "not-allowed" : "pointer",
-                  opacity: portalMutation.isPending ? 0.6 : 1, whiteSpace: "nowrap",
-                }}
-              >
-                {portalMutation.isPending ? "Opening..." : "Change plan"}
-              </button>
-            ) : undefined}
-          />
-
-          {/*
-            "Change plan" opens the same portal as "Manage in Stripe" further down the page, but
-            that card's error line is in a different card and was never visible from here — so a
-            refusal on THIS button produced no feedback at all, just a button that stopped
-            spinning. Same copy, next to the control that was pressed.
-          */}
-          {portalMutation.isError && (
-            <p role="status" style={{ margin: 0, fontSize: 12, color: "var(--danger)", lineHeight: 1.5 }}>
-              {portalErrorCopy(portalMutation.error)}
-            </p>
-          )}
-
-          {/* Usage bars */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 10, opacity: status.canProcessOrders || isEnterprise ? 1 : 0.58 }}>
-            <UsageBar
-              used={status.ordersThisMonth}
-              limit={status.orderLimit}
-              label={isPilot ? `Documents (${TRIAL_NAME} total)` : "Documents this month"}
-            />
-            <UsageBar
-              used={status.suppliersUsed}
-              limit={status.supplierLimit}
-              label="Suppliers"
-            />
-            {documentLadder && flows && flowLimit != null && <UsageBar used={flows.length} limit={flowLimit} label="Flows" />}
-          </div>
-        </div>
-      </Card>
+      <PlanPanel
+        status={status}
+        flows={documentLadder && flows ? flowsUse(flows.length, PLAN_BY_ID[status.plan].flowLimit) : null}
+      />
 
       {/* ── Upgrade / change plan actions ── */}
       {isPilot && (

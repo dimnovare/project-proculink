@@ -65,7 +65,7 @@ async function renderWith(status: BillingStatus) {
       <BillingSection />
     </QueryClientProvider>,
   );
-  await within(container).findByText("Current plan");
+  await within(container).findByTestId("plan-card");
   return within(container);
 }
 
@@ -86,25 +86,24 @@ describe("BillingSection on the document ladder", () => {
     fireEvent.click(view.getByRole("button", { name: "Upgrade to Starter" }));
     await waitFor(() => expect(api.createCheckoutSession).toHaveBeenCalledWith("starter", "monthly"));
 
-    const flows = (await view.findByText("Flows")).parentElement!;
-    expect(within(flows).getByText("1 / 2")).toBeTruthy();
+    expect(await view.findByRole("img", { name: `1 of ${PLAN_BY_ID.pilot.flowLimit} flows used` })).toBeTruthy();
   });
 
-  it("a Starter plan's overage notice states its own rate", async () => {
+  it("a Starter plan's extra-document line states its own rate", async () => {
     const view = await renderWith(
       billing({ plan: "starter", accountStatus: "active", ordersThisMonth: 160, orderLimit: 150, overageOrders: 10, overageAmountEur: 2.4, atLimit: true }),
     );
 
-    const notice = view.getByText("You're over your monthly document allowance.").parentElement!;
-    expect(notice.textContent).toContain("€0.24");
-    expect(notice.textContent).not.toContain("€0.50");
+    const line = view.getByText(/for each extra document/).textContent!;
+    expect(line).toContain(`€${PLAN_BY_ID.starter.overageEur}`);
+    expect(line).not.toContain("€0.50");
     // A paid document plan changes its live subscription, so its next plan is on offer again.
     expect(view.getByRole("button", { name: /Need more volume\? Upgrade to Pro/ })).toBeTruthy();
 
     const growth = await renderWith(
       billing({ plan: "growth", accountStatus: "active", ordersThisMonth: 160, orderLimit: 150, overageOrders: 10, overageAmountEur: 5, atLimit: true }),
     );
-    expect(growth.getByText("You're over your monthly document allowance.").parentElement!.textContent).toContain("€0.50");
+    expect(growth.getByText(/for each extra document/).textContent).toContain(`€${PLAN_BY_ID.growth.overageEur!.toFixed(2)}`);
   });
 
   it("a trial whose engine is unknown is sold neither ladder", async () => {
@@ -121,7 +120,7 @@ describe("the trial is called by its plan name, never by its wire id", () => {
 
   it("reads the trial name in every trial state and says Pilot nowhere", async () => {
     const states = [
-      { over: {}, expected: [`${trial} · ${PLAN_BY_ID.pilot.priceCadence}`, `Documents (${trialWord} total)`] },
+      { over: {}, expected: [trial, `Documents in your ${trialWord}`] },
       {
         over: { accountStatus: "trial_expired", isTrialExpired: true, canProcessOrders: false } as Partial<BillingStatus>,
         expected: [`${trial} ended · Processing paused`, `Your ${trialWord} has ended.`],
@@ -144,7 +143,7 @@ describe("the trial is called by its plan name, never by its wire id", () => {
     const growth = PLAN_BY_ID.growth;
     const view = await renderWith(billing({ plan: "growth", accountStatus: "active" }));
     expect(view.getAllByText(growth.name).length).toBeGreaterThan(0);
-    expect(view.getByText(growth.billingPriceLabel)).toBeTruthy();
+    expect(view.getByText(`€${growth.priceMonthly} a month, billed monthly`)).toBeTruthy();
   });
 });
 

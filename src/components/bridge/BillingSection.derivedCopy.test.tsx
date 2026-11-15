@@ -115,7 +115,7 @@ async function renderBilling(status: BillingStatus) {
     </QueryClientProvider>,
   );
   await waitFor(() => expect(api.getBillingStatus).toHaveBeenCalled());
-  await screen.findByText("Current plan");
+  await screen.findByTestId("plan-card");
   return view;
 }
 
@@ -243,7 +243,6 @@ describe("a Stripe portal is offered only to a workspace that has one", () => {
 
     expect(screen.getByText("Payment method")).toBeTruthy();
     expect(screen.getAllByRole("button", { name: /Manage in Stripe/ }).length).toBeGreaterThan(0);
-    expect(screen.getByRole("button", { name: "Change plan" })).toBeTruthy();
     expect(pageText()).toMatch(/If you cancel in Stripe/i);
   });
 
