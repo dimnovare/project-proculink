@@ -61,6 +61,8 @@ describe("mock engine", () => {
     await expect(mockEngineFetch("/destinations/dest-1", { method: "DELETE" })).rejects.toMatchObject({ status: 409, body: { error: "destination_in_use" } });
     await expect(mockEngineFetch("/destinations/nope", { method: "DELETE" })).rejects.toMatchObject({ status: 404 });
     expect(await mockEngineFetch("/destinations/dest-3/test", { method: "POST" })).toEqual({ success: false, message: "The server refused the login.", responseCode: null });
+    expect((await mockEngineFetch<Destination[]>("/destinations")).map((d) => [d.name, d.lastSend?.kind ?? null, d.lastSend?.ok ?? null]))
+      .toEqual([["Accounting API", "test", true], ["Accounting server", "test", false], ["Books", "document", false]]);
     const waiting = (id: string) => mockEngineFetch<DocumentPage>(`/documents?waitingOnDestination=${id}&page=1&pageSize=50`);
     expect([(await waiting("dest-1")).totalCount, (await waiting("dest-1")).items.map((d) => d.id), (await waiting("dest-2")).totalCount]).toEqual([1, ["doc-4"], 0]);
     await mockEngineFetch("/documents/doc-4/send", { method: "POST" });
@@ -70,7 +72,7 @@ describe("mock engine", () => {
     });
     expect(await mockEngineFetch(`/destinations/${made.id}/test`, { method: "POST" })).toMatchObject({ success: true });
     await mockEngineFetch("/destinations/dest-3", { method: "DELETE" });
-    expect((await mockEngineFetch<Destination[]>("/destinations")).map((d) => d.name)).toEqual(["Accounting API", "Accounting inbox", "Archive"]);
+    expect((await mockEngineFetch<Destination[]>("/destinations")).map((d) => d.name)).toEqual(["Accounting API", "Archive", "Books"]);
   });
 
   it("is wired into the documents client in mock mode", async () => {

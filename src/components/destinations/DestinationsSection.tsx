@@ -19,8 +19,8 @@ import { documentRefusalMessage, refusalToken } from "@/lib/documentRefusals";
 import { GoogleAccounts } from "./GoogleAccounts";
 import { TestOutcome } from "./TestOutcome";
 
-/** Name, where, used by, last send, the buttons. Below xl a row stacks: name and where left, buttons right, the rest under. */
-const COLUMNS = "xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1.6fr)_minmax(0,0.7fr)_minmax(0,1fr)_9rem]";
+/** Name, where, used by, last send, the buttons. Below lg a row stacks: name and where left, buttons right, the rest under. */
+const COLUMNS = "lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1.6fr)_minmax(0,0.7fr)_minmax(0,1fr)_9rem]";
 const TONE = { ok: "text-brand-green-deep", failed: "text-danger-text", never: "text-ink-muted" };
 
 /** Settings › Destinations: every destination, tested and edited in place; one deleted only when nothing uses it. */
@@ -47,7 +47,7 @@ export function DestinationsSection() {
   else
     rows = (
       <>
-        <div aria-hidden className={`hidden gap-x-4 border-b border-border px-4 py-2 text-[12.5px] font-semibold text-ink-muted xl:grid ${COLUMNS}`}>
+        <div aria-hidden className={`hidden gap-x-4 border-b border-border px-4 py-2 text-[12.5px] font-semibold text-ink-muted lg:grid ${COLUMNS}`}>
           <span>Name</span><span>Where</span><span>Used by</span><span>Last send</span><span />
         </div>
         <ul aria-label="Destinations" className="m-0 list-none p-0">
@@ -125,15 +125,15 @@ function DestinationRow({ d, open, go, refresh, onDeleted }: {
 
   return (
     <li ref={item} className="border-b border-border last:border-b-0">
-      <div className={`grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-1 px-4 py-3 xl:items-center ${COLUMNS}`}>
+      <div className={`grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-1 px-4 py-3 lg:items-center ${COLUMNS}`}>
         <span className="min-w-0 break-words text-[14.5px] font-semibold text-ink">{d.name}</span>
         <span className="min-w-0 break-words text-[13px] text-ink-muted">{destinationWhere(d)}</span>
-        <span className="col-span-full text-[13px] text-ink xl:col-span-1">{uses !== undefined && usedByWords(uses)}</span>
-        <span className={`col-span-full inline-flex items-center gap-1 text-[13px] xl:col-span-1 ${last ? TONE[last.tone] : ""}`}>
+        <span className="col-span-full text-[13px] text-ink lg:col-span-1">{uses !== undefined && usedByWords(uses)}</span>
+        <span className={`col-span-full inline-flex items-center gap-1 text-[13px] lg:col-span-1 ${last ? TONE[last.tone] : ""}`}>
           {last?.tone === "ok" && <Check aria-hidden size={14} />}
           {last?.text}
         </span>
-        <span className="col-start-2 row-span-2 row-start-1 flex items-start justify-end gap-2 xl:col-start-5 xl:row-span-1 xl:items-center">
+        <span className="col-start-2 row-span-2 row-start-1 flex items-start justify-end gap-2 lg:col-start-5 lg:row-span-1 lg:items-center">
           {open ? (
             <span className="text-[13px] font-semibold text-ink-muted">Editing</span>
           ) : (

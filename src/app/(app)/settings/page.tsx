@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import { Suspense, useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useOrganization } from "@clerk/nextjs";
@@ -7,10 +7,10 @@ import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { Card } from "@/components/bridge/layout/Card";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Building, Copy, Euro, Key, Plug, Plus, Save, Send } from "lucide-react";
+import { AlertTriangle, Copy, Key, Plus, Save } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { BillingSection } from "@/components/bridge/BillingSection";
-import { SettingsGroup } from "@/components/settings/SettingsPrimitives";
+import { SettingsPanel } from "@/components/settings/SettingsPrimitives";
 import { Button } from "@/components/bridge/DSPrimitives";
 import {
   getBillingStatus,
@@ -19,49 +19,25 @@ import {
   revokeApiKey,
 } from "@/lib/api-client";
 import type { ApiKey } from "@/lib/api-client";
-import { useTabParamSync } from "@/lib/tab-param-sync";
+import { readSettingsTab, settingsAddress, SETTINGS_TABS } from "@/lib/settingsTabs";
 import { isOrgAdminRefusal, orgAdminMessage } from "@/lib/planGate";
 import { planDisplayName } from "@/lib/plans";
 import { NotificationEmailSection } from "@/components/flows/NotificationEmailSection";
 import { DestinationsSection } from "@/components/destinations/DestinationsSection";
 import { formatDate } from "@/lib/format-date";
 
-type SettingsTab = "org" | "destinations" | "billing" | "api" | "connectors";
-
-// The tab IDs are code. Only the words are user-facing:
-//   org           → "Workspace"
-//   billing       → "Plan & billing"
-//   connectors    → "Notifications" (id kept so old ?tab=connectors links still land)
-const TABS: Array<{ id: SettingsTab; label: string; Icon: React.ElementType }> = [
-  { id: "org",           label: "Workspace",      Icon: Building },
-  { id: "destinations",  label: "Destinations",   Icon: Send     },
-  { id: "billing",       label: "Plan & billing", Icon: Euro     },
-  { id: "api",           label: "API keys",       Icon: Key      },
-  { id: "connectors",    label: "Notifications",  Icon: Plug     },
-];
-
-// The plan label is DERIVED from the ladder in src/lib/plans.ts. This file used to keep
-// its own `PLAN_LABELS` map, and it listed five of the six tiers — Distributor, a live
-// self-serve tier with live Stripe prices, was missing. The lookup fell through to
-// `?? billing.plan`, so a customer paying €1,499/month read `Acme · distributor` in their
-// own Settings header. A hand-kept copy of a list that lives somewhere else will miss the
-// next tier the same way; there is nothing to miss now.
-
-// Module-scope so useTabParamSync's effect deps stay referentially stable.
-const isSettingsTab = (v: string | null | undefined): v is SettingsTab =>
-  v != null && TABS.some((t) => t.id === v);
-
 export default function SettingsPage() {
-  // Initial tab honours a `?tab=` deep-link (e.g. the onboarding completion
-  // card's "Create an API key" → ?tab=api). Validated against the SettingsTab union; falls back to "org".
-  const searchParams = useSearchParams();
+  return (
+    <Suspense fallback={<PageShell variant="wide"><PageHeader title="Settings" /></PageShell>}>
+      <SettingsScreen />
+    </Suspense>
+  );
+}
+
+function SettingsScreen() {
+  // The tab is the address: one known id, else Workspace. A press replaces the address with that tab alone.
+  const tab = readSettingsTab(useSearchParams());
   const router = useRouter();
-  const requestedTab = searchParams?.get("tab");
-  const [tab, setTab] = useState<SettingsTab>(isSettingsTab(requestedTab) ? requestedTab : "org");
-  // ?tab= changes while MOUNTED (e.g. help-slideover guide links on /settings)
-  // must also switch tabs. A tab press writes the URL itself; the sync covers
-  // changes from elsewhere and fires only when the param VALUE itself changes.
-  useTabParamSync<SettingsTab>(requestedTab, isSettingsTab, setTab);
   const { organization } = useOrganization();
   const { data: billing } = useQuery({ queryKey: ["billing-status"], queryFn: getBillingStatus, staleTime: 60_000 });
   const orgName   = organization?.name ?? "…";
@@ -69,122 +45,33 @@ export default function SettingsPage() {
   const planLabel = billing && planDisplayName(billing.plan);
 
   return (
-    <PageShell className="settings-shell">
-        {/* Page header */}
-        <PageHeader title="Settings" sub={organization && (billing ? `${orgName}, on the ${planLabel}` : orgName)} />
-
-        {/* Responsive grid as classes (1-col mobile / 200px nav + content ≥md) — the
-            previous inline gridTemplateColumns forced the media query below to use
-            !important to win over it. */}
-        <div className="settings-grid grid grid-cols-1 items-start gap-4 md:gap-7 md:[grid-template-columns:200px_minmax(0,1fr)]">
-          {/* Left nav — active = white card + buyer-blue left accent bar + blue icon */}
-          <nav
-            className="settings-nav flex w-full overflow-x-auto gap-1 md:flex-col md:overflow-visible md:gap-1"
-          >
-            {TABS.map((t) => {
-              const active = tab === t.id;
-              return (
-                <button
-                  key={t.id}
-                  onClick={() => { setTab(t.id); router.replace(`/settings?tab=${t.id}`, { scroll: false }); }}
-                  className="settings-nav-item flex shrink-0 items-center gap-[10px] rounded-[6px] py-[9px] pr-3 text-left text-[13px] transition-colors md:w-full"
-                  style={{
-                    paddingLeft: 12,
-                    color:      active ? "var(--ink)" : "var(--ink-muted)",
-                    background: active ? "var(--surface)" : "transparent",
-                    fontWeight: active ? 600 : 500,
-                    border:      active ? "1px solid var(--border)" : "1px solid transparent",
-                    borderLeft: `2px solid ${active ? "var(--brand-blue)" : "transparent"}`,
-                    boxShadow:  active ? "var(--shadow-card)" : "none",
-                    cursor: "pointer",
-                  }}
-                  aria-current={active ? "page" : undefined}
-                >
-                  <t.Icon size={16} color={active ? "var(--brand-blue)" : "var(--ink-faint)"} strokeWidth={1.75} />
-                  <span>{t.label}</span>
-                </button>
-              );
-            })}
-          </nav>
-
-          {/* Content */}
-          <div style={{ minWidth: 0 }}>
-            {tab === "org"           && <OrgSection />}
-            {tab === "destinations"  && <DestinationsSection />}
-            {tab === "billing"       && <BillingSectionWrapper />}
-            {tab === "api"           && <ApiKeysSection />}
-            {tab === "connectors" && <NotificationEmailSection />}
-          </div>
-        </div>
-
-      <style>{`
-        .settings-nav-item:not([aria-current="page"]):hover {
-          background: var(--surface-2);
-          color: var(--ink);
-        }
-        @media (max-width: 767px) {
-          /* Mobile uses a compact command grid instead of a horizontal scroller:
-             every settings area is visible at once, which is faster for thumb use. */
-          .settings-nav {
-            display: grid !important;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            background: var(--surface-2);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 5px;
-            gap: 4px;
-            overflow: visible !important;
-          }
-          /* Comfortable tap targets + readable label sizing on mobile. */
-          .settings-nav-item {
-            min-height: 40px;
-            font-size: 13px;
-            justify-content: center;
-            padding-left: 10px !important;
-            padding-right: 10px !important;
-            border-left-width: 1px !important;
-            text-align: center;
-          }
-          .settings-nav-item:last-child:nth-child(odd) {
-            grid-column: 1 / -1;
-          }
-          .settings-nav-item svg {
-            flex-shrink: 0;
-          }
-          .settings-nav-item span {
-            min-width: 0;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-          }
-          .settings-shell input,
-          .settings-shell select,
-          .settings-shell textarea {
-            font-size: 16px !important;
-          }
-          /* Platform connector rows stack so the action goes full-width. */
-          .connector-row {
-            flex-wrap: wrap;
-            align-items: flex-start !important;
-          }
-          .connector-action {
-            width: 100%;
-            justify-content: center;
-            min-height: 40px;
-          }
-          .imap-connection-grid {
-            grid-template-columns: 1fr !important;
-          }
-        }
-      `}</style>
+    <PageShell variant="wide">
+      <PageHeader title="Settings" sub={organization && (billing ? `${orgName}, on the ${planLabel}` : orgName)} />
+      <nav aria-label="Settings sections" className="mb-5 flex gap-1 overflow-x-auto shadow-[inset_0_-1px_0_var(--border)]">
+        {SETTINGS_TABS.map((t) => {
+          const on = tab === t.id;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              aria-current={on ? "page" : undefined}
+              onClick={() => router.replace(settingsAddress(t.id), { scroll: false })}
+              className={`h-11 shrink-0 whitespace-nowrap border-b-2 px-3.5 text-[14px] max-[480px]:flex-1 max-[480px]:px-1.5 max-[480px]:text-[13.5px] ${
+                on ? "border-brand-blue font-semibold text-ink" : "border-transparent font-medium text-ink-muted hover:text-ink"
+              }`}
+            >
+              {t.label}
+            </button>
+          );
+        })}
+      </nav>
+      {tab === "org"          && <OrgSection />}
+      {tab === "destinations" && <DestinationsSection />}
+      {tab === "billing"      && <BillingSection />}
+      {tab === "api"          && <ApiKeysSection />}
     </PageShell>
   );
 }
-
-// ── Settings group card — canonical section framing ────────────────────────
-
-// SettingsGroup lives in @/components/settings/SettingsPrimitives
-// (shared; a Next page module may not export non-default symbols).
 
 // Row inside a settings group — canonical label/hint + right slot
 function SettingsRow({ label, hint, children }: { label: string; hint?: string; children?: ReactNode }) {
@@ -330,8 +217,8 @@ function OrgSection() {
   }
 
   return (
-    <div>
-      <SettingsGroup title="Organization" sub="Your workspace identity across the product.">
+    <div className="flex flex-col gap-4">
+      <SettingsPanel id="s-org" title="Organization" sub="Your workspace identity across the product.">
         <div style={{ marginBottom: 18 }}>
           <label style={fieldLabelStyle}>Workspace name</label>
           <input
@@ -390,8 +277,8 @@ function OrgSection() {
             </span>
           )}
         </div>
-      </SettingsGroup>
-
+      </SettingsPanel>
+      <NotificationEmailSection />
     </div>
   );
 }
@@ -416,16 +303,6 @@ const secondaryNeutralButton: CSSProperties = {
   flexShrink: 0,
   whiteSpace: "nowrap",
 };
-
-// ── Billing wrapper ────────────────────────────────────────────────────────
-
-function BillingSectionWrapper() {
-  return (
-    <div>
-      <BillingSection />
-    </div>
-  );
-}
 
 const fieldLabelStyle: CSSProperties = {
   fontSize: 12.5,
@@ -526,7 +403,7 @@ function ApiKeysSection() {
     <div>
       {/* "REST API", not "REST + webhook API": a key authenticates orders coming
           IN. Outbound webhooks are signed by us and need no key from you. */}
-      <SettingsGroup title="API keys" sub="Authenticate the ProcuLink REST API. Each key is shown once at creation.">
+      <SettingsPanel id="s-api" title="API keys" sub="Authenticate the ProcuLink REST API. Each key is shown once at creation.">
 
         {/* One-time API key reveal — a focus-trapped modal (Esc / ✕ / backdrop close).
             The secret is shown ONCE and cannot be retrieved again after dismissal. */}
@@ -742,7 +619,7 @@ function ApiKeysSection() {
             </button>
           </div>
         )}
-      </SettingsGroup>
+      </SettingsPanel>
     </div>
   );
 }
