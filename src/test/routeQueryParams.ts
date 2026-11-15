@@ -71,6 +71,11 @@ export const ROUTE_QUERY_PARAMS: Record<string, readonly ParamContract[]> = {
       readBy: "src/app/(app)/settings/page.tsx",
       purpose: "`billing` is the exit from a plan-paused order.",
     },
+    {
+      param: "open",
+      readBy: "src/lib/destinations.ts",
+      purpose: "Opens one destination in Settings › Destinations; `new` opens the form for a new one.",
+    },
   ],
   "/operations/log": [
     {

@@ -33,7 +33,7 @@ const kinds = (ui: ReturnType<typeof newForm>) =>
   Array.from((ui.getByLabelText("Send by") as HTMLSelectElement).options).map((o) => o.textContent);
 
 const saved: Destination = {
-  id: "d1", name: "Accounting", protocol: "http", hasCredentials: true, createdAt: "2026-11-01T00:00:00Z",
+  id: "d1", name: "Accounting", protocol: "http", hasCredentials: true, createdAt: "2026-11-01T00:00:00Z", usedBy: [], lastSend: null,
   config: { url: "https://example.test/in", method: "POST", timeoutSeconds: 30, headers: { "X-Org": "a" } },
 };
 
