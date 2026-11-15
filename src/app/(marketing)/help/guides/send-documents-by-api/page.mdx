@@ -30,7 +30,7 @@ If creating the key is refused, you are not a workspace admin. Ask an admin to c
 
 <Step n={2} title="Copy the flow's API address">
 
-Open the flow, go to the **Intake** tab and find the **API** card. Select **Copy** beside the address.
+Open the flow, go to the **Arrives** step and open **For developers**. Select **Copy** beside the address.
 
 <Outcome>
 You have an address that ends in `/documents`. Every call below goes to it.
@@ -76,7 +76,7 @@ The answer holds the document's `status`, the values we read, any checks that fl
 
 <Step n={5} title="Optional: get told by webhook">
 
-Instead of asking again and again, let us call you. On the same **API** card, enter the web address in the webhook box. Enter a signing secret if you want to check that calls come from us. Select **Save**, then **Send a test**.
+Instead of asking again and again, let us call you. Under **For developers**, enter it in **Web address to call when a document is read or sent**. Enter a signing secret if you want to check that calls come from us. Select **Save and send a test**.
 
 <Outcome>
 Your address receives a `document.test` call, and the card says "The test went through." After that you receive a call when a document is read, fails to read, is sent or fails to send. Check the signature as shown in the [API reference](/help/api-reference).

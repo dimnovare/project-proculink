@@ -44,6 +44,11 @@ const SURFACES: Surface[] = [
     why: "the root boundary — replaces the document, so nothing else can be asked about the page",
   },
   {
+    file: "src/components/bridge/AppNotFound.tsx",
+    marker: "not-found",
+    why: "the in-app not-found page — renders inside the layout for an unknown app address, so the shell stays",
+  },
+  {
     file: "src/components/bridge/ErrorBoundary.tsx",
     marker: "component",
     why: "the nested component boundary — replaces one region while the rest of the screen renders normally",

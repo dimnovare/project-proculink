@@ -65,7 +65,7 @@ describe("FirstRun", () => {
     loading.unmount();
     api.listFlows.mockRejectedValue(new ApiHttpError("down", 500, null));
     const failed = render(<FirstRun />, { wrapper: freshWrapper() }).container;
-    expect(await within(failed).findByRole("button", { name: "Retry" })).toBeInTheDocument();
+    expect(await within(failed).findByRole("button", { name: "Try again" })).toBeInTheDocument();
     expect(empty(failed)).toEqual([]);
   });
 

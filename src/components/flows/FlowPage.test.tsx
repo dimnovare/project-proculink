@@ -1,109 +1,164 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within, act } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { buttonClass } from "@/components/bridge/DSPrimitives";
 import { ApiHttpError } from "@/lib/api/core";
+import type { Flow, FlowField } from "@/lib/api/documents";
 import { FlowPage } from "./FlowPage";
+import { useDraftPart } from "./flowDraft";
 
 const replace = vi.hoisted(() => vi.fn());
+const push = vi.hoisted(() => vi.fn());
 const search = vi.hoisted(() => ({ q: "" }));
 vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(search.q),
-  useRouter: () => ({ replace, push: vi.fn() }),
+  useRouter: () => ({ replace, push }),
 }));
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => true }));
 
 const api = vi.hoisted(() => ({
-  getFlow: vi.fn(), updateFlow: vi.fn(), listDocuments: vi.fn(), uploadDocument: vi.fn(), getDocument: vi.fn(),
-  listOutputs: vi.fn(), deleteOutput: vi.fn(), listDestinations: vi.fn(),
-  publishFlow: vi.fn(), restoreFlowVersion: vi.fn(), listFlowVersions: vi.fn(),
+  getFlow: vi.fn(), updateFlow: vi.fn(), listIntakes: vi.fn(), listOutputs: vi.fn(), listDestinations: vi.fn(),
+  listDocumentPage: vi.fn(), publishFlow: vi.fn(), restoreFlowVersion: vi.fn(), listFlowVersions: vi.fn(),
+  flowApiEndpoint: (id: string) => `/api/v1/flows/${id}/documents`, listLookups: vi.fn(async () => []),
+  listDocuments: vi.fn(), getDocument: vi.fn(), previewOutput: vi.fn(), testOutput: vi.fn(),
 }));
 vi.mock("@/lib/api/documents", () => api);
+vi.mock("./UploadQueue", () => ({ useUploadQueue: () => ({ items: [], add: vi.fn(), retry: vi.fn() }) }));
 
+// History stands in for a step with a draft part: the frame must flush it before it lets the person leave.
+const part = vi.hoisted(() => ({ save: vi.fn(), change: null as null | ((v: string) => void) }));
+vi.mock("./FlowVersionsPanel", () => ({
+  FlowVersionsPanel: function Panel() {
+    part.change = useDraftPart("values", "read", part.save).change;
+    return <p>Earlier versions</p>;
+  },
+}));
+
+const field = (key: string): FlowField => ({ key, label: key, type: "text", meaning: null, required: true });
 const flow = {
-  id: "f", name: "Receipts", fieldsConfirmed: true, publishedVersion: null, fields: { fields: [], tables: [] },
-  documentCount: 0, createdAt: "", automation: "review",
-};
-const DUPLICATE = "Documents with a number we've already received always wait for you.";
+  id: "flow-1", name: "Supplier invoices", fieldsConfirmed: true, documentCount: 3, createdAt: "", automation: "review",
+  fields: { fields: ["a", "b", "c", "d", "e", "f"].map(field), tables: [{ key: "lines", label: "Lines", columns: ["x", "y", "z"].map(field) }] },
+  publishedVersion: 1, hasChanges: false, noCorrectionStreak: null,
+} as Flow;
 
 beforeEach(() => {
   vi.clearAllMocks();
   search.q = "";
   api.getFlow.mockResolvedValue(flow);
-  api.listDocuments.mockResolvedValue([]);
+  api.listIntakes.mockResolvedValue([]);
   api.listOutputs.mockResolvedValue([]);
   api.listDestinations.mockResolvedValue([]);
+  api.listDocumentPage.mockResolvedValue({ items: [], totalCount: 0, page: 1, pageSize: 10, sampleCount: 0 });
+  api.listFlowVersions.mockResolvedValue([]);
+  api.listDocuments.mockResolvedValue([]);
 });
 
-const renderPage = () =>
-  render(<QueryClientProvider client={new QueryClient()}><FlowPage flowId="f" /></QueryClientProvider>);
+const renderPage = () => render(<QueryClientProvider client={new QueryClient()}><FlowPage flowId="flow-1" /></QueryClientProvider>);
+const strip = () => within(screen.getByRole("navigation", { name: "Flow sections" }));
+const findStrip = async () => within(await screen.findByRole("navigation", { name: "Flow sections" }));
 
 describe("FlowPage", () => {
-  it("switching to automatic sends the new setting and keeps the duplicate rule visible", async () => {
-    api.updateFlow.mockResolvedValue({ ...flow, automation: "auto" });
-    renderPage();
-    fireEvent.click(await screen.findByRole("radio", { name: "Automatic delivery" }));
-    await waitFor(() => expect(api.updateFlow).toHaveBeenCalledWith("f", { automation: "auto" }));
-    expect(screen.getByText(DUPLICATE)).toBeTruthy();
-    await waitFor(() => expect((screen.getByRole("radio", { name: "Automatic delivery" }) as HTMLInputElement).checked).toBe(true));
+  it("a flow the server does not know is the in-app not-found page; any other failure keeps Try again", async () => {
+    const quiet = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    api.getFlow.mockRejectedValue(new ApiHttpError("not found", 404, { error: "flow_not_found" }));
+    const view = render(<QueryClientProvider client={quiet}><FlowPage flowId="nope" /></QueryClientProvider>);
+    expect(await within(view.container).findByRole("heading", { level: 1, name: "We can't find that page" })).toBeTruthy();
+    expect(within(view.container).getByRole("button", { name: "Get help" })).toBeTruthy();
+    expect(within(view.container).queryByRole("button", { name: "Try again" })).toBeNull();
+    view.unmount();
+    api.getFlow.mockRejectedValue(new ApiHttpError("down", 503, null));
+    const down = render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><FlowPage flowId="f" /></QueryClientProvider>);
+    expect(await within(down.container).findByRole("button", { name: "Try again" })).toBeTruthy();
+    expect(within(down.container).queryByText("We can't find that page")).toBeNull();
   });
 
-  it.each([[12, "The last 12 documents were sent without a correction."], [201, "The last 200+ documents were sent without a correction."]])(
-    "shows the no-correction streak %i beside the automation choice", async (n, text) => {
-      api.getFlow.mockResolvedValue({ ...flow, noCorrectionStreak: n });
+  it("the strip marks the chosen step and an old tab name still works", async () => {
+    search.q = "tab=fields";
+    renderPage();
+    const read = (await findStrip()).getByRole("link", { name: "We read" });
+    expect(read).toHaveAttribute("aria-current", "page");
+    expect(read).toHaveAccessibleDescription("9 values, 1 table");
+    expect(within(strip().getByRole("link", { name: /^Documents/ })).getByText("3")).toBeTruthy();
+    expect(strip().getAllByRole("link").filter((l) => l.getAttribute("aria-current") === "page")).toEqual([read]);
+  });
+
+  it.each([["fields", "We read"], ["outputs", "We send"], ["intake", "Arrives"], ["versions", /^History/], ["documents", /^Documents/]] as const)(
+    "the old tab name %s lands on %s", async (tab, name) => {
+      search.q = `tab=${tab}`;
       renderPage();
-      expect(await screen.findByText(text)).toBeTruthy();
+      expect((await findStrip()).getByRole("link", { name })).toHaveAttribute("aria-current", "page");
     });
 
-  it("shows no streak text while the streak is absent", async () => {
+  it("a refused change keeps the person on the step", async () => {
+    search.q = "tab=history";
+    part.save.mockRejectedValue(new ApiHttpError("forbidden", 403, { error: "requires_org_admin" }));
     renderPage();
-    await screen.findByRole("radio", { name: "Automatic delivery" });
-    expect(screen.queryByText(/without a correction|needed a correction/)).toBeNull();
+    await screen.findByText("Earlier versions");
+    act(() => part.change!("Invoice no"));
+    fireEvent.click(strip().getByRole("link", { name: "We send" }));
+    expect(await screen.findByText(/^A change couldn't be saved, so you are still on this step\./)).toHaveTextContent(
+      "A change couldn't be saved, so you are still on this step. Only a workspace admin can change this.",
+    );
+    expect(replace).not.toHaveBeenCalled();
   });
 
-  it("tabs are wired for screen readers and move with the arrow, Home and End keys", async () => {
+  it("the Flows back link saves what is waiting before it leaves", async () => {
+    search.q = "tab=history";
+    const log: string[] = [];
+    part.save.mockImplementation(async (v: string) => { log.push(`save ${v}`); });
+    push.mockImplementation((href: string) => log.push(`push ${href}`));
     renderPage();
-    const tabs = await screen.findAllByRole("tab");
-    const panel = screen.getByRole("tabpanel");
-    expect(tabs.map((t) => t.tabIndex)).toEqual([0, -1, -1, -1, -1]);
-    expect(panel.getAttribute("aria-labelledby")).toBe(tabs[0].id);
-    tabs.forEach((t) => expect(document.getElementById(t.getAttribute("aria-controls")!)).toBe(panel));
-    const press = (key: string, expectedTab: string, i: number) => {
-      fireEvent.keyDown(tabs[0], { key });
-      expect(replace).toHaveBeenLastCalledWith("/flows/f?tab=" + expectedTab);
-      expect(document.activeElement).toBe(tabs[i]);
-    };
-    press("ArrowRight", "fields", 1);
-    press("ArrowLeft", "versions", 4);
-    press("End", "versions", 4);
-    press("Home", "documents", 0);
+    await screen.findByText("Earlier versions");
+    act(() => part.change!("Invoice no"));
+    fireEvent.click(screen.getByRole("link", { name: "Back to Flows" }));
+    await waitFor(() => expect(log).toEqual(["save Invoice no", "push /flows"]));
   });
 
-  it("the fields form shows the server's fields again after a discard or restore", async () => {
-    search.q = "tab=fields";
-    const field = { key: "number", label: "Number", type: "code", meaning: null, required: false };
-    api.getFlow.mockResolvedValue({ ...flow, publishedVersion: 1, fields: { fields: [field], tables: [] } });
-    const qc = new QueryClient();
-    render(<QueryClientProvider client={qc}><FlowPage flowId="f" /></QueryClientProvider>);
-    fireEvent.change(await screen.findByRole("textbox", { name: "Label" }), { target: { value: "Edited" } });
-    // What a discard or restore does with the flow the server sends back.
-    act(() => { qc.setQueryData(["flow", "f"], { ...flow, publishedVersion: 1, fields: { fields: [{ ...field, label: "Order no" }], tables: [] } }); });
-    await waitFor(() => expect((screen.getByRole("textbox", { name: "Label" }) as HTMLInputElement).value).toBe("Order no"));
+  it("on every step the publish bar holds the one filled button", async () => {
+    // A filled button is any variant drawn with white text, read from the Button's own classes.
+    const fill = new Set((["primary", "send", "blue", "secondary", "ghost", "danger", "ai"] as const)
+      .map((v) => buttonClass(v).split(" ")).filter((c) => c.includes("text-white")).map((c) => c.find((x) => x.startsWith("bg-"))!));
+    const filled = (el: Element) => el.className.split(/\s+/).some((c) => fill.has(c));
+    api.getFlow.mockResolvedValue({ ...flow, hasChanges: true });
+    api.listOutputs.mockResolvedValue([{
+      id: "out-1", flowId: "flow-1", name: "Invoice CSV", format: "csv", tableKey: null, destinationId: "dest-1", createdAt: "", sendWhen: null,
+      template: { format: "csv", root: { name: "document", nodeType: "object", children: [] } },
+    }]);
+    api.listDestinations.mockResolvedValue([{ id: "dest-1", name: "Accounting server", protocol: "sftp", config: { host: "sftp.example.test" }, hasCredentials: true }]);
+    // We send previews and tests with this document, so the walk sees the preview and the test's result too.
+    const summary = { id: "doc-1", flowId: "flow-1", fileName: "invoice-1001.csv", status: "needs_review", statusReason: null, createdAt: "2026-11-01T10:00:00Z" };
+    api.listDocuments.mockResolvedValue([summary]);
+    api.getDocument.mockResolvedValue({ summary, contentType: "text/csv", checks: [], read: { kindLabel: null, truncated: false, fields: [], tables: [] } });
+    api.previewOutput.mockResolvedValue({ contentType: "text/csv", fileName: "invoice-1001.csv", content: "Invoice\n1001", lookupMisses: [] });
+    api.testOutput.mockResolvedValue({ success: true, message: null });
+    for (const step of ["arrives", "read", "check", "send"]) {
+      search.q = `tab=${step}`;
+      const { unmount } = renderPage();
+      await screen.findByRole("button", { name: "Publish changes" });
+      if (step === "send") {
+        const editor = within(await screen.findByRole("region", { name: "Edit the output Invoice CSV" }));
+        await editor.findByText("Invoice 1001");
+        fireEvent.click(await editor.findByRole("button", { name: "Send a test" }));
+        await editor.findByText(/Test file arrived/);
+      }
+      if (step === "arrives") await screen.findByRole("button", { name: "Add a pickup" });
+      const fills = [...document.body.querySelectorAll("button, a")].filter(filled);
+      expect(fills.map((b) => b.textContent), step).toEqual(["Publish changes"]);
+      unmount();
+    }
   });
 
-  it("a standard output row names its standard and offers no Advanced view", async () => {
-    search.q = "tab=outputs";
-    api.listOutputs.mockResolvedValue([{ id: "o", flowId: "f", name: "To the buyer", format: "xml", standard: "cxml-1-2", tableKey: null, destinationId: null, createdAt: "", sendWhen: null }]);
+  it("rename", async () => {
+    api.updateFlow.mockImplementation(async (_id: string, patch: { name: string }) => ({ ...flow, ...patch }));
     renderPage();
-    expect(await screen.findByText(/^cXML · /)).toBeTruthy();
-    expect(screen.queryByRole("link", { name: "Open in Advanced" })).toBeNull();
-  });
-
-  it("shows the format copy when the server refuses the file type", async () => {
-    api.uploadDocument.mockRejectedValue(new ApiHttpError("nope", 415, { error: "unsupported_format" }));
-    renderPage();
-    await screen.findByDisplayValue("Receipts");
-    const input = screen.getByLabelText("Choose a file", { selector: "input" });
-    fireEvent.change(input, { target: { files: [new File(["x"], "a.pdf", { type: "application/pdf" })] } });
-    expect((await screen.findByRole("alert")).textContent).toBe("This file type can't be read in this flow.");
+    fireEvent.click(await screen.findByRole("button", { name: "Rename this flow" }));
+    const input = screen.getByRole("textbox", { name: "Flow name" });
+    fireEvent.change(input, { target: { value: "Supplier bills" } });
+    fireEvent.submit(input);
+    fireEvent.submit(input);
+    expect(await screen.findByRole("heading", { level: 1, name: "Supplier bills" })).toBeTruthy();
+    expect(api.updateFlow).toHaveBeenCalledTimes(1);
+    expect(api.updateFlow).toHaveBeenCalledWith("flow-1", { name: "Supplier bills" });
+    await waitFor(() => expect(screen.queryByRole("textbox", { name: "Flow name" })).toBeNull());
   });
 });

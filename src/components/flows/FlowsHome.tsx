@@ -153,7 +153,7 @@ export function FlowsHome() {
     body = <StatusNotice tone="warning">{documentRefusalMessage(flows.error)}</StatusNotice>;
   } else if (flows.isError) {
     body = (
-      <StatusNotice tone="error" action={<Button variant="secondary" size="sm" onClick={() => flows.refetch()}>Retry</Button>}>
+      <StatusNotice tone="error" action={<Button variant="secondary" size="sm" onClick={() => flows.refetch()}>Try again</Button>}>
         {documentRefusalMessage(flows.error)}
       </StatusNotice>
     );

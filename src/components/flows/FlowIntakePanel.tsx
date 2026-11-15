@@ -12,8 +12,9 @@ import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import {
   createIntake, deleteIntake, flowApiEndpoint, listIntakes, newIntakeAddress, testIntake, updateIntake,
 } from "@/lib/api/documents";
-import type { FlowIntake, IntakeRequest } from "@/lib/api/documents";
+import type { Flow, FlowIntake, IntakeRequest } from "@/lib/api/documents";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
+import { kindsLine } from "@/lib/fileKinds";
 import { Field, INPUT } from "./DestinationForm";
 import { PICKUP_KINDS, PickupForm } from "./PickupForm";
 import { Failed, Quiet } from "./states";
@@ -61,10 +62,10 @@ function EmailCard({ flowId, intake }: { flowId: string; intake: FlowIntake }) {
       run.mutate(() => newIntakeAddress(flowId, intake.id));
   };
   return (
-    <Card edge="blue" title="Email address">
+    <Card edge="blue" title="Email">
       <div className="grid gap-3">
         <p className="m-0 text-[13px] text-ink-muted">
-          Forward or send documents here. Each attached file we can read becomes a document in this flow.
+          Forward or send documents to this address. Each attached file we can read becomes a document in this flow.
         </p>
         {intake.address ? (
           <div className="flex flex-wrap items-center gap-2">
@@ -101,14 +102,21 @@ function ApiCard({ flowId, intake }: { flowId: string; intake?: FlowIntake }) {
   const endpoint = flowApiEndpoint(flowId);
   const [url, setUrl] = useState(String(intake?.config.webhookUrl ?? ""));
   const [secret, setSecret] = useState("");
-  const test = useMutation({ mutationFn: () => testIntake(flowId, intake!.id) });
+  const test = useMutation({ mutationFn: (id: string) => testIntake(flowId, id) });
+  // Saves, then sends a test to the web address when one is set (a test call carries no document).
   const save = () => {
-    const req: IntakeRequest = { kind: "api", config: { webhookUrl: url.trim() }, credentials: secret ? { webhookSecret: secret } : null };
-    run.mutate(async () => { await (intake ? updateIntake(flowId, intake.id, req) : createIntake(flowId, req)); setSecret(""); test.reset(); });
+    const hook = url.trim();
+    const req: IntakeRequest = { kind: "api", config: { webhookUrl: hook }, credentials: secret ? { webhookSecret: secret } : null };
+    test.reset();
+    run.mutate(async () => {
+      const saved = await (intake ? updateIntake(flowId, intake.id, req) : createIntake(flowId, req));
+      setSecret("");
+      if (hook) test.mutate(saved.id);
+    });
   };
   return (
-    <Card edge="blue" title="API">
-      <form onSubmit={(e) => { e.preventDefault(); save(); }} className="grid gap-3">
+    <Card edge="blue" title="API address for this flow">
+      <form onSubmit={(e) => { e.preventDefault(); if (!run.isPending && !test.isPending) save(); }} className="grid gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <span className="break-all font-mono text-[13px]">{endpoint}</span>
           <CopyButton text={endpoint} label="Copy API address" />
@@ -118,7 +126,7 @@ function ApiCard({ flowId, intake }: { flowId: string; intake?: FlowIntake }) {
         </p>
         <Link href="/settings?tab=api" className="text-[13px] text-brand-blue underline">Create a key in Settings</Link>
         <Link href="/help/api-reference" className="text-[13px] text-brand-blue underline">API reference</Link>
-        <Field label="Web address to call when a document is read or sent (webhook)">
+        <Field label="Web address to call when a document is read or sent">
           <input className={INPUT} value={url} onChange={(e) => setUrl(e.target.value)} />
         </Field>
         <Field label="Signing secret">
@@ -127,10 +135,7 @@ function ApiCard({ flowId, intake }: { flowId: string; intake?: FlowIntake }) {
             placeholder={intake?.hasCredentials ? "Leave blank to keep the saved one" : ""}
           />
         </Field>
-        <div className="flex flex-wrap gap-2">
-          <Button type="submit" variant="primary" loading={run.isPending}>Save</Button>
-          <Button type="button" variant="secondary" disabled={!intake} loading={test.isPending} onClick={() => test.mutate()}>Send a test</Button>
-        </div>
+        <div><Button type="submit" variant="secondary" loading={run.isPending || test.isPending}>{url.trim() ? "Save and send a test" : "Save"}</Button></div>
         <Refused run={run} />
         {test.isError && <StatusNotice tone="error">{documentRefusalMessage(test.error)}</StatusNotice>}
         {test.data && (
@@ -154,9 +159,9 @@ function PickupsCard({ flowId, pickups }: { flowId: string; pickups: FlowIntake[
   if (editing)
     return <PickupForm key={editing === "new" ? "new" : editing.id} flowId={flowId} intake={editing === "new" ? undefined : editing} onDone={() => setEditing(null)} />;
   return (
-    <Card edge="blue" title="Pickups">
+    <Card edge="blue" title="Pick up from a mailbox or server">
       <div className="grid gap-3">
-        <p className="m-0 text-[13px] text-ink-muted">Pick up documents from a folder on a server, a mailbox or an S3 bucket.</p>
+        <p className="m-0 text-[13px] text-ink-muted">We collect new files from a mailbox, a server or an S3 bucket you already use, so nobody has to forward them.</p>
         {pickups.length === 0 && <Quiet>No pickups yet.</Quiet>}
         {pickups.map((i) => {
           const where = i.config.host ?? i.config.bucket;
@@ -165,7 +170,7 @@ function PickupsCard({ flowId, pickups }: { flowId: string; pickups: FlowIntake[
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-[13.5px] font-medium">
                   {Object.hasOwn(PICKUP_KINDS, i.kind) ? PICKUP_KINDS[i.kind as keyof typeof PICKUP_KINDS] : i.kind}
-                  {typeof where === "string" && <span className="ml-2 font-mono text-[12px] text-ink-muted">{where}</span>}
+                  {typeof where === "string" && <span className="ml-2 font-mono text-[12.5px] text-ink-muted">{where}</span>}
                 </span>
                 <span className="flex flex-wrap items-center gap-2">
                   <OnOff intake={i} flowId={flowId} run={run} />
@@ -178,23 +183,46 @@ function PickupsCard({ flowId, pickups }: { flowId: string; pickups: FlowIntake[
           );
         })}
         <Refused run={run} />
-        <div><Button variant="primary" size="sm" onClick={() => setEditing("new")}>Add a pickup</Button></div>
+        <div><Button variant="secondary" size="sm" onClick={() => setEditing("new")}>Add a pickup</Button></div>
       </div>
     </Card>
   );
 }
 
-export function FlowIntakePanel({ flowId }: { flowId: string }) {
-  const intakes = useIntakes(flowId);
-  if (intakes.isError && !intakes.data) return <Failed error={intakes.error} retry={() => intakes.refetch()} />;
-  if (!intakes.data) return <Quiet>Loading…</Quiet>;
-  const email = intakes.data.find((i) => i.kind === "email");
-  const api = intakes.data.find((i) => i.kind === "api");
+/** The Arrives step: upload, email, pickups, and the API folded away for developers. Every button here is outlined:
+ *  the publish bar under the step holds the one filled button. */
+export function FlowIntakePanel({ flow }: { flow: Flow }) {
+  const intakes = useIntakes(flow.id);
+  const body = () => {
+    if (intakes.isError && !intakes.data) return <Failed error={intakes.error} retry={() => intakes.refetch()} />;
+    if (!intakes.data) return <Quiet>Loading…</Quiet>;
+    const email = intakes.data.find((i) => i.kind === "email");
+    const api = intakes.data.find((i) => i.kind === "api");
+    return (
+      <>
+        {email && <EmailCard flowId={flow.id} intake={email} />}
+        <PickupsCard flowId={flow.id} pickups={intakes.data.filter((i) => i.kind !== "email" && i.kind !== "api")} />
+        <details>
+          <summary className="inline-flex min-h-11 cursor-pointer items-center text-[14px] font-semibold text-ink">For developers</summary>
+          <div className="mt-2 grid gap-3">
+            <p className="m-0 text-[13px] text-ink-muted">Send documents from another system, and be told when one is read or sent.</p>
+            <ApiCard flowId={flow.id} intake={api} />
+          </div>
+        </details>
+      </>
+    );
+  };
   return (
-    <div className="grid gap-4">
-      {email && <EmailCard flowId={flowId} intake={email} />}
-      <ApiCard key={api?.id} flowId={flowId} intake={api} />
-      <PickupsCard flowId={flowId} pickups={intakes.data.filter((i) => i.kind !== "email" && i.kind !== "api")} />
-    </div>
+    <section aria-labelledby={`arrives-${flow.id}`} className="grid gap-4">
+      <div className="grid gap-0.5">
+        <h2 id={`arrives-${flow.id}`} className="m-0 text-[16px] font-semibold text-ink">How documents arrive</h2>
+        <p className="m-0 text-[13px] text-ink-muted">Three ways in. Use one, or all of them.</p>
+      </div>
+      <Card title="Upload" sub="Always on. Nothing to set up.">
+        <p className="m-0 text-[13px] text-ink-muted">Drop a file on this flow&apos;s Documents page, or press Upload in the top bar.</p>
+        <p className="m-0 mt-1 text-[13px] text-ink-muted">{kindsLine(flow)}</p>
+      </Card>
+      {body()}
+    </section>
   );
 }

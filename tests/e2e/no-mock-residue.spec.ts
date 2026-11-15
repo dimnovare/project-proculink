@@ -98,7 +98,7 @@ async function expectRouteRendered(page: Page, response: Response | null, route:
     text,
     `${route} rendered an error or not-found boundary instead of the page`,
   ).not.toMatch(
-    /Something went wrong on this screen|An unexpected error interrupted ProcuLink|An unexpected error occurred while rendering this screen|This page took a wrong turn/i,
+    /We couldn't load this page|We can't find that page|An unexpected error interrupted ProcuLink|This page took a wrong turn/i,
   );
 }
 

@@ -87,7 +87,7 @@ describe("UploadToFlow", () => {
     loading.unmount();
     api.listFlows.mockRejectedValue(new ApiHttpError("down", 500, null));
     const failed = mount();
-    expect(await screen.findByRole("button", { name: "Retry" }, { timeout: 10_000 })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "Try again" }, { timeout: 10_000 })).toBeTruthy();
     expect(welcome()).toBeNull();
     failed.unmount();
     api.listFlows.mockResolvedValue([]);

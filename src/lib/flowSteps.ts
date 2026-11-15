@@ -1,0 +1,35 @@
+/** The flow page's four steps, the two views beside them, and the address that names one. */
+export type FlowStep = "arrives" | "read" | "check" | "send";
+export type FlowView = FlowStep | "documents" | "history";
+
+export const FLOW_STEPS: readonly { id: FlowStep; number: 1 | 2 | 3 | 4; title: string }[] = [
+  { id: "arrives", number: 1, title: "Arrives" },
+  { id: "read", number: 2, title: "We read" },
+  { id: "check", number: 3, title: "You check" },
+  { id: "send", number: 4, title: "We send" },
+];
+
+// The old tab names stay as aliases: other screens, help pages and bookmarks still link to them.
+const VIEWS = new Map<string, FlowView>([
+  ["arrives", "arrives"], ["read", "read"], ["check", "check"], ["send", "send"], ["documents", "documents"], ["history", "history"],
+  ["intake", "arrives"], ["fields", "read"], ["outputs", "send"], ["versions", "history"],
+]);
+
+/** The view the address asks for; null when it names none, or names one we do not know, or names more than one. */
+export function readFlowView(params: Pick<URLSearchParams, "get" | "getAll">): FlowView | null {
+  const tab = params.get("tab");
+  return tab !== null && params.getAll("tab").length === 1 ? VIEWS.get(tab) ?? null : null;
+}
+
+/** The output We send opens; null when the address names none, or more than one. An unknown id is the screen's to settle. */
+export function readFlowOutput(params: Pick<URLSearchParams, "get" | "getAll">): string | null {
+  return params.getAll("output").length === 1 ? params.get("output") : null;
+}
+
+export function flowAddress(flowId: string, view: FlowView | null, extra?: { output?: string }): string {
+  const base = `/flows/${encodeURIComponent(flowId)}`;
+  if (!view) return base;
+  const q = new URLSearchParams({ tab: view });
+  if (extra?.output) q.set("output", extra.output);
+  return `${base}?${q}`;
+}

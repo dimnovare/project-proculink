@@ -380,7 +380,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
       ) : (
         <div className="grid gap-4">
           {doc.isError && <Failed error={doc.error} retry={() => doc.refetch()} />}
-          <ReadProblem summary={summary} nothingRead={nothingRead} retry={retry} scansOn={flow.data?.scansOn} />
+          <ReadProblem summary={summary} nothingRead={nothingRead} retry={retry} scansOn={flow.data?.scansOn} uploadHref={`/flows/${summary.flowId}?tab=documents`} />
           <PaneTabs panes={PANES} active={tab} onSelect={(id) => setTab(id as PaneId)} />
           <div className="grid items-start gap-4 lg:grid-cols-3">
             <Pane id="original" title="Original" dot="blue" hidden={tab !== "original"}>

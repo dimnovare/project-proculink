@@ -81,7 +81,7 @@ export function OrderArchive() {
         sub="Orders received before your workspace moved to flows. They are read-only."
         actions={<Button size="sm" variant="secondary" disabled={exp.isPending} onClick={() => exp.mutate()}>Download CSV</Button>}
       />
-      {exp.isError && <Failed error={exp.error} retry={() => exp.mutate()} />}
+      {exp.isError && <Failed error={exp.error} retry={() => exp.mutate()} lead="We couldn't make the CSV file." />}
       {body}
     </PageShell>
   );

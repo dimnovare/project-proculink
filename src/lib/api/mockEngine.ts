@@ -48,7 +48,8 @@ const COLUMNS = [field("item_code", "Item code"), field("quantity", "Quantity", 
 const flow1: Flow = {
   id: MOCK_ENGINE_IDS.flow, name: "Supplier invoices", fieldsConfirmed: true, documentCount: 3, createdAt: T,
   automation: "review", fields: { fields: FIELDS, tables: [{ key: "lines", label: "Lines", columns: COLUMNS }] },
-  publishedVersion: 1, hasChanges: false, noCorrectionStreak: null, scansOn: true, formatsOn: true,
+  // A draft waiting to be published, and a run of documents sent without a correction (the flow page shows both).
+  publishedVersion: 1, hasChanges: true, noCorrectionStreak: 8, scansOn: true, formatsOn: true,
 };
 const flow2: Flow = {
   id: MOCK_ENGINE_IDS.setupFlow, name: "Delivery notes", fieldsConfirmed: false, documentCount: 1, createdAt: T,
@@ -58,7 +59,7 @@ const flow2: Flow = {
 // Two more published flows: list screens need enough rows at phone width to clear
 // the visual suite's "too little text to be a baseline" floor (tests/e2e/visual.spec.ts).
 const quietFlow = (id: string, name: string, automation: Flow["automation"], documentCount: number): Flow =>
-  ({ ...flow1, id, name, automation, documentCount });
+  ({ ...flow1, id, name, automation, documentCount, hasChanges: false, noCorrectionStreak: null });
 const flow3 = quietFlow("flow-3", "Purchase orders", "review", 2);
 const flow4 = quietFlow("flow-4", "Remittance advices", "auto", 1);
 const FLOWS = [flow1, flow2, flow3, flow4];
@@ -448,9 +449,16 @@ const ROUTES: [method: string, pattern: RegExp, run: Handler][] = [
   ["POST", re`/flows`, (_m, _q, b) => echo({ ...flow2, id: "flow-new" }, b)],
   ["GET", re`/flows/${S}`, (m) => ({ ...pick(FLOWS, m[1], "flow"), summary: null })],
   ["PATCH", re`/flows/${S}`, (m, _q, b) => echo(pick(FLOWS, m[1], "flow"), b)],
-  ["POST", re`/flows/${S}/publish`, (m) => pick(FLOWS, m[1], "flow")],
+  ["POST", re`/flows/${S}/publish`, (m) => {
+    const flow = pick(FLOWS, m[1], "flow");
+    if (flow.publishedVersion != null && !flow.hasChanges) refuse(409, "nothing_to_publish");   // as FlowVersions.PublishAsync
+    return { ...flow, publishedVersion: (flow.publishedVersion ?? 0) + 1, hasChanges: false };
+  }],
   ["GET", re`/flows/${S}/versions`, (m) => (pick(FLOWS, m[1], "flow").publishedVersion ? versions : [])],
-  ["POST", re`/flows/${S}/versions/\d+/restore`, (m) => pick(FLOWS, m[1], "flow")],
+  ["POST", re`/flows/${S}/versions/(\d+)/restore`, (m) => {
+    const flow = pick(FLOWS, m[1], "flow");
+    return { ...flow, hasChanges: Number(m[2]) !== flow.publishedVersion };
+  }],
   ["PUT", re`/flows/${S}/fields`, (m, _q, b) => echo(pick(FLOWS, m[1], "flow"), { fields: b })],
   ["POST", re`/flows/${S}/documents`, (m, _q, b) => upload(pick(FLOWS, m[1], "flow"), b)],
   ["POST", re`/flows/${S}/documents/sample`, (m) => {
@@ -594,6 +602,12 @@ export async function mockEngineFetch<T>(path: string, init?: RequestInit, as: "
   await new Promise((resolve) => setTimeout(resolve, MOCK_LATENCY_MS));
   const method = (init?.method ?? "GET").toUpperCase();
   const [pathname, query = ""] = path.split("?");
+  // Browser specs only (set by an init script): every call is logged, and an answer for "METHOD /path" replaces the fixture.
+  const spy = typeof window === "undefined" ? undefined : (window as { __mockEngine?: { calls: string[]; answer?: Record<string, { refuse?: [number, string] } | object> } }).__mockEngine;
+  spy?.calls.push(`${method} ${pathname}${typeof init?.body === "string" ? ` ${init.body}` : ""}`);
+  const given = spy?.answer?.[`${method} ${pathname}`] as { refuse?: [number, string] } | undefined;
+  if (given?.refuse) refuse(...given.refuse);
+  if (given) return structuredClone(given) as T;
   if (mockWorkspaceOn()) {
     const owned = workspaceFetch(method, pathname, new URLSearchParams(query), bodyOf(init));
     if (owned) return owned.answer as T;
