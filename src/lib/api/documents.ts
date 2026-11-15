@@ -45,6 +45,13 @@ export interface Flow {
   publishedVersion?: number | null;
   hasChanges?: boolean;
   noCorrectionStreak?: number | null;
+  /** Only the list response carries it; single responses answer null. Absent on an older backend. */
+  summary?: FlowSummary | null;
+}
+export interface FlowSummaryOutput { name: string; format: string; standard: string | null; destination: string | null }
+export interface FlowSummary {
+  needsYou: number; couldNotSend: number; couldNotRead: number; lastDocumentAt: string | null;
+  waysIn: string[]; outputs: FlowSummaryOutput[];
 }
 export interface FlowVersion { versionNo: number; publishedAt: string; publishedBy: string | null; live: boolean }
 

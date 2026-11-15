@@ -6,10 +6,11 @@
  * instead of an empty success. Only reachable when `isApiMockMode` (never true in production).
  */
 import { DOCUMENT_STATUSES } from "../documentStatusManifest";
+import { NEEDS_YOU_STATUSES } from "../documentTabs";
 import { ApiHttpError } from "./core";
 import { mockSourceBytesForKey } from "./mockSourceDocument";
 import type {
-  Destination, DocumentCheck, DocumentDelivery, DocumentDetail, DocumentRow, DocumentSummary, Flow, FlowField, FlowIntake, FlowOutput,
+  Destination, DocumentCheck, DocumentDelivery, DocumentDetail, DocumentRow, DocumentSummary, Flow, FlowField, FlowIntake, FlowOutput, FlowSummary,
   FlowVersion, Lookup, LookupSummary, NotificationSettings, OutputPreview, ReadCell, ReadResult,
 } from "./documents";
 
@@ -138,6 +139,26 @@ const outputs: FlowOutput[] = [{
     },
   },
 }];
+// Download-only: no destination, so the flow list says "You download …".
+outputs.push({
+  ...outputs[0], id: "out-2", flowId: flow4.id, name: "Remittance sheet", format: "xlsx", destinationId: null,
+});
+const intakesOf = (flowId: string) => (flowId === flow1.id ? intakes : []);
+const outputsOf = (flowId: string) => outputs.filter((o) => o.flowId === flowId);
+/** What the list carries per flow, derived from the fixtures above, never typed. */
+const flowSummaryOf = (f: Flow): FlowSummary => {
+  const rows = ROWS.filter((d) => d.flowId === f.id);
+  const count = (statuses: readonly string[]) => rows.filter((d) => statuses.includes(d.status)).length;
+  return {
+    needsYou: count(NEEDS_YOU_STATUSES), couldNotSend: count([STATUS.send_failed]), couldNotRead: count([STATUS.read_failed]),
+    lastDocumentAt: rows.map((d) => d.createdAt).sort().at(-1) ?? null,
+    waysIn: intakesOf(f.id).filter((i) => i.isEnabled).map((i) => i.kind),
+    outputs: outputsOf(f.id).map((o) => ({
+      name: o.name, format: o.format, standard: o.standard ?? null,
+      destination: destinations.find((d) => d.id === o.destinationId)?.name ?? null,
+    })),
+  };
+};
 const preview: OutputPreview = {
   contentType: "text/csv", fileName: "invoice.csv", lookupMisses: [],
   content: `Invoice,Item\n${MOCK_DOCUMENT_NUMBER},A-100\n${MOCK_DOCUMENT_NUMBER},B-200\n${MOCK_DOCUMENT_NUMBER},C-300\n`,
@@ -178,9 +199,10 @@ const re = (strings: TemplateStringsArray, ...rest: unknown[]) => new RegExp("^"
 const samples: Record<string, DocumentSummary> = {};
 
 const ROUTES: [method: string, pattern: RegExp, run: Handler][] = [
-  ["GET", re`/flows`, () => FLOWS],
+  // Like the server's list: a summary per flow, and none of the single response's draft facts.
+  ["GET", re`/flows`, () => FLOWS.map((f) => ({ ...f, hasChanges: false, noCorrectionStreak: null, summary: flowSummaryOf(f) }))],
   ["POST", re`/flows`, (_m, _q, b) => echo({ ...flow2, id: "flow-new" }, b)],
-  ["GET", re`/flows/${S}`, (m) => pick(FLOWS, m[1], "flow")],
+  ["GET", re`/flows/${S}`, (m) => ({ ...pick(FLOWS, m[1], "flow"), summary: null })],
   ["PATCH", re`/flows/${S}`, (m, _q, b) => echo(pick(FLOWS, m[1], "flow"), b)],
   ["POST", re`/flows/${S}/publish`, (m) => pick(FLOWS, m[1], "flow")],
   ["GET", re`/flows/${S}/versions`, (m) => (pick(FLOWS, m[1], "flow").publishedVersion ? versions : [])],
@@ -233,13 +255,13 @@ const ROUTES: [method: string, pattern: RegExp, run: Handler][] = [
   ["POST", re`/destinations/${S}/test`, () => TEST_OK],
   ["GET", re`/notification-settings`, () => notifications],
   ["PUT", re`/notification-settings`, (_m, _q, b) => echo(notifications, b)],
-  ["GET", re`/flows/${S}/intakes`, (m) => (m[1] === flow1.id ? intakes : [])],
+  ["GET", re`/flows/${S}/intakes`, (m) => intakesOf(m[1])],
   ["POST", re`/flows/${S}/intakes`, (_m, _q, b) => echo(intakes[0], b)],
   ["PUT", re`/flows/${S}/intakes/${S}`, (_m, _q, b) => echo(intakes[0], b)],
   ["DELETE", re`/flows/${S}/intakes/${S}`, () => undefined],
   ["POST", re`/flows/${S}/intakes/${S}/new-address`, () => intakes[0]],
   ["POST", re`/flows/${S}/intakes/${S}/test`, () => TEST_OK],
-  ["GET", re`/flows/${S}/outputs`, (m) => (m[1] === flow1.id ? outputs : [])],
+  ["GET", re`/flows/${S}/outputs`, (m) => outputsOf(m[1])],
   ["POST", re`/flows/${S}/outputs`, (_m, _q, b) => echo(outputs[0], b)],
   ["PUT", re`/flows/${S}/outputs/${S}`, (m, _q, b) => echo(pick(outputs, m[2], "output"), b)],
   ["DELETE", re`/flows/${S}/outputs/${S}`, () => undefined],
