@@ -6,6 +6,8 @@ import type { DocumentPage, DocumentRow, DocumentSummary, Flow } from "@/lib/api
 import type { BillingStatus } from "@/types/procurement";
 import { LAST_FLOW_KEY } from "@/lib/lastFlow";
 import { PLAN_BY_ID } from "@/lib/plans";
+import type { ComponentProps } from "react";
+import type { HeldRecord } from "@/lib/pwa/heldUploads";
 import { UploadQueueProvider } from "./UploadQueue";
 import { UploadToFlow } from "./UploadToFlow";
 
@@ -23,10 +25,10 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: 
 vi.mock("@clerk/nextjs", () => ({ useUser: () => ({ user: null, isLoaded: true }) }));
 vi.mock("@/lib/api/linkedAccounts", () => ({ listLinkedAccounts: () => Promise.resolve({ available: false, accounts: [] }) }));
 
-const mount = () =>
+const mount = (queue: Omit<ComponentProps<typeof UploadQueueProvider>, "children"> = {}) =>
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <UploadQueueProvider><UploadToFlow /></UploadQueueProvider>
+      <UploadQueueProvider {...queue}><UploadToFlow /></UploadQueueProvider>
     </QueryClientProvider>,
   );
 
@@ -149,5 +151,28 @@ describe("UploadToFlow", () => {
     mount();
     await screen.findByRole("region", { name: "Add files" });
     expect(screen.queryByText(/documents used/)).toBeNull();            // unknown: no number
+  });
+
+  it("a held row says it is waiting and can be removed", async () => {
+    api.listFlows.mockResolvedValue([flow("f1", "Supplier invoices", "review")]);
+    const kept = new Map<string, HeldRecord>();
+    const store = {
+      all: async () => [...kept.values()], put: async (r: HeldRecord) => void kept.set(r.key, r),
+      remove: async (key: string) => void kept.delete(key), clear: async () => kept.clear(), claim: async () => () => {},
+    };
+    const onLine = vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
+    mount({ owner: { userId: "u-alex", orgId: "o-1" }, store });
+    await screen.findByRole("region", { name: "Add files" });
+    drop([new File(["x"], "delivery-note-78.jpg")]);
+    const panel = within(await screen.findByRole("region", { name: "Just uploaded" }));
+    expect(await panel.findByText("Waiting for connection")).toBeInTheDocument();
+    expect(panel.getByText("It uploads when you're back online.")).toBeInTheDocument();
+    expect(panel.queryByText("Uploaded")).toBeNull();
+    expect(kept.size).toBe(1);
+    fireEvent.click(panel.getByRole("button", { name: "Remove delivery-note-78.jpg" }));
+    await waitFor(() => expect(screen.queryByRole("region", { name: "Just uploaded" })).toBeNull());
+    await waitFor(() => expect(kept.size).toBe(0));
+    expect(api.uploadDocument).not.toHaveBeenCalled();
+    onLine.mockRestore();
   });
 });

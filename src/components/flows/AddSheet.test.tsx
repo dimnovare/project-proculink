@@ -98,4 +98,16 @@ describe("AddSheet", () => {
     expect(push).toHaveBeenCalledWith("/upload");
     expect(photoName(new Date(2026, 10, 15, 9, 3, 7), "image/png")).toBe("photo-20261115-090307.png");
   });
+
+  it("offline, choosing a file closes the sheet without leaving the page", async () => {
+    api.listFlows.mockResolvedValue([flow("f1", "Supplier invoices")]);
+    const onLine = vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
+    const onClose = vi.fn();
+    mount(<AddSheet onClose={onClose} />);
+    await screen.findByRole("dialog", { name: "Add a document" });
+    fireEvent.change(screen.getByTestId("sheet-file-input"), { target: { files: [new File(["x"], "a.pdf")] } });
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(push).not.toHaveBeenCalled();
+    onLine.mockRestore();
+  });
 });

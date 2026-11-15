@@ -29,6 +29,7 @@ import { canRetryUpload, STOP_CODES, uploadRefusalMessage, useUploadQueue, type 
 import { firstRunOf } from "@/lib/firstRun";
 import { Failed, Quiet } from "./states";
 import { Welcome } from "./Welcome";
+import { focusAfterRemove } from "@/components/pwa/HeldUploads";
 
 /** How many of the newest documents are matched against this visit's uploads (R4). */
 export const UPLOADED_LOOKBACK = 100;
@@ -85,8 +86,8 @@ function UsageLine({ billing }: { billing: BillingStatus | undefined }) {
 
 const NAME = "min-w-0 truncate text-[14.5px] font-semibold text-ink";
 
-function UploadedRow({ item, listed, sent, onSent, retry }: {
-  item: UploadItem; listed: DocumentSummary | undefined; sent: boolean; onSent(): void; retry(): void;
+function UploadedRow({ item, listed, sent, onSent, retry, remove }: {
+  item: UploadItem; listed: DocumentSummary | undefined; sent: boolean; onSent(): void; retry(): void; remove(): void;
 }) {
   const name = item.file.name;
   // A row this screen sent says Sending while the list still calls it ready, as DocumentList does.
@@ -100,11 +101,12 @@ function UploadedRow({ item, listed, sent, onSent, retry }: {
         : <span className={NAME}>{name}</span>}
       <span>
         {item.state === "waiting" ? <Pill>Waiting</Pill>
+          : item.state === "held" ? <Pill tone="amber">Waiting for connection</Pill>
           : item.state === "uploading" ? <Pill tone="blue">Uploading</Pill>
           : item.state === "refused" ? <Pill tone="danger">Not uploaded</Pill>
           : need && <Pill tone={need.tone}>{need.text}</Pill>}
       </span>
-      <span className="col-span-full justify-self-start sm:col-span-1 sm:justify-self-end">
+      <span className="col-span-full flex flex-wrap gap-2 justify-self-start sm:col-span-1 sm:justify-end sm:justify-self-end">
         {doc?.status === "ready" ? (
           <Button variant="secondary" size="sm" aria-label={`Send ${name}`} loading={send.isPending} onClick={() => send.mutate()}
             className="relative z-[1] !border-brand-green-deep !text-brand-green-deep">Send</Button>
@@ -113,7 +115,11 @@ function UploadedRow({ item, listed, sent, onSent, retry }: {
         ) : item.state === "refused" && canRetryUpload(item.error) ? (
           <Button variant="secondary" size="sm" aria-label={`Try ${name} again`} onClick={retry} className="relative z-[1]">Try again</Button>
         ) : null}
+        {(item.state === "held" || item.state === "refused") && (
+          <Button variant="secondary" size="sm" aria-label={`Remove ${name}`} onClick={remove} className="relative z-[1]">Remove</Button>
+        )}
       </span>
+      {item.state === "held" && <p className="col-span-full m-0 text-[13px] text-ink-muted">It uploads when you&apos;re back online.</p>}
       {item.state === "refused" && <p className="col-span-full m-0 text-[13px] text-danger-text">{uploadRefusalMessage(item.error)}</p>}
       {send.isError && doc?.status === "ready" && <p role="alert" className="col-span-full m-0 text-[13px] text-danger-text">{documentRefusalMessage(send.error)}</p>}
     </li>
@@ -124,7 +130,7 @@ function UploadedRow({ item, listed, sent, onSent, retry }: {
 export function UploadToFlow() {
   const qc = useQueryClient();
   const tenant = useTenantQueriesEnabled();
-  const { items, add, retry } = useUploadQueue();
+  const { items, add, retry, remove } = useUploadQueue();
   const flows = useQuery({ ...flowsQuery, enabled: tenant });
   const billing = useQuery({ queryKey: ["billing-status"], queryFn: getBillingStatus, staleTime: 60_000, enabled: tenant });
   const [lastId] = useState(readLastFlow);
@@ -132,6 +138,7 @@ export function UploadToFlow() {
   const [sent, setSent] = useState<ReadonlySet<string>>(new Set());
   const [over, setOver] = useState(false);
   const input = useRef<HTMLInputElement>(null);
+  const listHeading = useRef<HTMLHeadingElement>(null);
   const [photo, setPhoto] = useState<File | null>(null);
   const camera = useCamera(setPhoto, "camera-input");
   const done = items.filter((i) => i.state === "done");
@@ -225,7 +232,7 @@ export function UploadToFlow() {
             {n > 0 && (
               <Card flush as="section" aria-label="Just uploaded">
                 <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-3 sm:px-[18px]">
-                  <h2 className="m-0 text-[16px] font-semibold text-ink">Just uploaded</h2>
+                  <h2 ref={listHeading} tabIndex={-1} className="m-0 text-[16px] font-semibold text-ink outline-none">Just uploaded</h2>
                   <span className="text-[13px] text-ink-muted">
                     {flowIds.size === 1 ? `${n === 1 ? "1 file" : `${n} files`} to ${items[0].flowName}` : `${n} files`}
                   </span>
@@ -234,7 +241,7 @@ export function UploadToFlow() {
                   {items.map((i) => (
                     <UploadedRow
                       key={i.key} item={i} listed={seen(i, uploaded.data)} sent={!!i.document && sent.has(i.document.id)}
-                      onSent={() => setSent((s) => new Set(s).add(i.document!.id))} retry={() => retry(i.key)}
+                      onSent={() => setSent((s) => new Set(s).add(i.document!.id))} retry={() => retry(i.key)} remove={() => { remove(i.key); focusAfterRemove(listHeading.current); }}
                     />
                   ))}
                 </ul>

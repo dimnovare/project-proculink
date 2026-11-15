@@ -18,6 +18,8 @@ import Link from "next/link";
 import { useRef, useState } from "react";
 import { useClerk, useOrganization, useUser } from "@clerk/nextjs";
 import { MoreHorizontal } from "lucide-react";
+import { useConfirm } from "@/components/ui/confirm";
+import { clearHeldUploads, heldCount } from "@/lib/pwa/heldUploads";
 import { useMenuDismiss } from "./OrgSwitcher";
 
 /** "org:admin" → "Administrator"; "org:member" → "Member"; else title-case. */
@@ -76,6 +78,7 @@ export function UserChipMenu({ collapsed, onNavigate, placement = "up" }: UserCh
   const { user } = useUser();
   const { membership } = useOrganization();
   const clerk = useClerk();
+  const confirm = useConfirm();
 
   const [open, setOpen] = useState(false);
   // "up" placement anchors by the menu's bottom edge (grows upward from the
@@ -139,6 +142,26 @@ export function UserChipMenu({ collapsed, onNavigate, placement = "up" }: UserCh
   };
 
   const closeMenu = () => setOpen(false);
+
+  // Files added while offline must not stay on a device nobody is signed in to: ask, then remove them.
+  // Neither step can hold the sign-out up for more than about two seconds (heldUploads.ts).
+  const signOut = async () => {
+    closeMenu();
+    const n = await heldCount(user.id);
+    if (n > 0) {
+      const ok = await confirm({
+        title: "Sign out?",
+        description: n === 1
+          ? "1 file you added while offline hasn't gone up yet. Signing out removes it from this device."
+          : `${n} files you added while offline haven't gone up yet. Signing out removes them from this device.`,
+        confirmLabel: "Sign out",
+        danger: true,
+      });
+      if (!ok) return;
+    }
+    await clearHeldUploads();
+    void clerk.signOut({ redirectUrl: "/" });
+  };
 
   return (
     <>
@@ -238,10 +261,7 @@ export function UserChipMenu({ collapsed, onNavigate, placement = "up" }: UserCh
               type="button"
               role="menuitem"
               style={{ ...ITEM_STYLE, color: "#B43838", fontWeight: 600 }}
-              onClick={() => {
-                closeMenu();
-                void clerk.signOut({ redirectUrl: "/" });
-              }}
+              onClick={() => void signOut()}
               onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#FBF1F1"; }}
               onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "#FFFFFF"; }}
             >

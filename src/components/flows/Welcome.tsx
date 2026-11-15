@@ -135,6 +135,8 @@ export function Welcome({ flows, flowId }: { flows: readonly Flow[]; flowId?: st
             )}
             {camera.input}
             {!!fileError && <Refusal error={fileError} again="Choose another file." />}
+            {/* Added offline: it waits on the device, and this step moves on once it has gone up. */}
+            {item?.state === "held" && <p className="m-0 text-[13px] text-ink-muted">It uploads when you&apos;re back online.</p>}
           </section>
           <section data-testid="welcome-sample" aria-label="Our sample invoice" className="grid justify-items-start gap-1">
             <p className="m-0 flex flex-wrap items-center gap-x-2 text-[14px] text-ink">
