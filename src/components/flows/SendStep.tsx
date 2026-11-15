@@ -1,11 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Button } from "@/components/bridge/DSPrimitives";
 import { Card } from "@/components/bridge/layout/Card";
+import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
-import { getDocument, listDestinations, listOutputs, type Destination, type Flow } from "@/lib/api/documents";
+import { capture } from "@/lib/analytics";
+import {
+  downloadDeliveryFile, getDocument, listDestinations, listOutputs, previewOutput, publishFlow, sendDocument, updateFlow, updateOutput,
+  type Destination, type Flow,
+} from "@/lib/api/documents";
+import { AUTOMATIC_DELIVERY_LABEL, REVIEW_BEFORE_DELIVERY_LABEL } from "@/lib/deliveryMode";
+import { documentRefusalMessage, refusalToken } from "@/lib/documentRefusals";
+import { LIMIT_CODES } from "@/lib/limitRefusal";
+import { saveBlob } from "@/lib/saveBlob";
 import { destinationNameFor, firstRunAddress, foundSummary, keepsSummary } from "@/lib/firstRun";
 import { DestinationForm, Field, INPUT } from "./DestinationForm";
 import { useRunDocument } from "./CheckStep";
@@ -28,6 +39,33 @@ const TILES: readonly { tile: NewTile; title: string; sub: string; protocols: re
   { tile: "http", title: "Web address", sub: "Posted to another system", protocols: ["http"] },
 ];
 const WAY_ON = "inline-flex min-h-[44px] items-center text-[14px] font-semibold text-brand-blue sm:min-h-0";
+const LINK_BUTTON = `${WAY_ON} underline disabled:opacity-50`;
+
+type Tested = { destinationId: string; ok: boolean };
+/** R20. `tested` is the last `onTested` outcome for the destination the new form saved. Our sample is never sent, and a
+ *  document not known to be ours or the sample can only be finished: unknown is never ready. */
+export function readiness(choice: SendChoice, tested: Tested | null, isSample: boolean | null): "sample" | "unknown" | "download" | "ready" | "not-ready" {
+  if (isSample === true) return "sample";
+  if (isSample === null) return "unknown";
+  if (choice.kind === "download") return "download";
+  return (choice.kind === "existing" ? !!choice.destinationId : !!tested?.ok) ? "ready" : "not-ready";
+}
+
+/** A refusal in the server's words, under the control that was pressed; the plan's codes with their way on. */
+function Refusal({ error }: { error: unknown }) {
+  const code = refusalToken(error) ?? "";
+  const billing = code === "processing_paused" || LIMIT_CODES.has(code);
+  return (
+    <StatusNotice tone="error" action={billing && <Link href="/settings?tab=billing" className="inline-flex items-center text-[12.5px] font-semibold text-brand-blue">Open Plan &amp; billing</Link>}>
+      {documentRefusalMessage(error)}
+    </StatusNotice>
+  );
+}
+
+const MODES = [
+  ["review", REVIEW_BEFORE_DELIVERY_LABEL, "It waits in Documents, under Needs you, until you press Send."],
+  ["auto", AUTOMATIC_DELIVERY_LABEL, "It is sent as soon as it is read. A document we couldn't read, or one with a number we've already received, still waits for you."],
+] as const;
 
 function Tile({ id, title, sub, checked, onPick }: { id: string; title: string; sub: string; checked: boolean; onPick(): void }) {
   return (
@@ -42,7 +80,9 @@ function Tile({ id, title, sub, checked, onPick }: { id: string; title: string; 
 }
 
 /** Step 3 of first run: where the file goes, from the kinds the server supports. */
-export function SendStep({ flow, docId, first: _first }: { flow: Flow; docId: string | null; first: boolean }) {
+export function SendStep({ flow, docId, first }: { flow: Flow; docId: string | null; first: boolean }) {
+  const qc = useQueryClient();
+  const router = useRouter();
   const enabled = useTenantQueriesEnabled();
   const run = useRunDocument(flow.id, docId);
   const id = run.docId ?? "";
@@ -52,16 +92,75 @@ export function SendStep({ flow, docId, first: _first }: { flow: Flow; docId: st
   const doc = useQuery({ queryKey: ["document", id], queryFn: () => getDocument(id), enabled: enabled && !!id });
   const output = outputs.data?.[0];
   const [picked, setPicked] = useState<SendChoice | null>(null);
-  const [_saved, setSaved] = useState<Destination | null>(null);
-  const [_tested, setTested] = useState<{ destinationId: string; ok: boolean } | null>(null);
+  const [saved, setSaved] = useState<Destination | null>(null);
+  const [tested, setTested] = useState<Tested | null>(null);
   // R18: the output's saved destination, else Download.
   const choice: SendChoice = picked ?? (output?.destinationId ? { kind: "existing", destinationId: output.destinationId } : { kind: "download" });
-  const pick = (c: SendChoice) => { setPicked(c); setSaved(null); setTested(null); };
+  const pick = (c: SendChoice) => {
+    if (JSON.stringify(c) === JSON.stringify(choice)) return; // the same tile again keeps its form
+    setPicked(c); setSaved(null); setTested(null);
+  };
   const tile = choice.kind === "new" ? TILES.find((t) => t.tile === choice.tile)! : null;
 
   const read = doc.data?.read;
   const fileName = run.row?.fileName ?? doc.data?.summary.fileName ?? "";
   const kept = read ? read.fields.filter((f) => flow.fields.fields.some((k) => k.key === f.key)).length : 0;
+  const state = readiness(choice, tested && tested.destinationId === saved?.id ? tested : null, run.isSample);
+  // Where the output goes once the person presses: null is Download, and a new form not saved yet keeps it there.
+  const target = choice.kind === "existing" ? choice.destinationId : choice.kind === "new" ? saved?.id ?? null : null;
+  const going = choice.kind === "existing" ? destinations.data?.find((d) => d.id === target)?.name : saved?.name;
+
+  const mode = useMutation({
+    mutationFn: (automation: "review" | "auto") => updateFlow(flow.id, { automation }),
+    onSuccess: (f) => { qc.setQueryData(["flow", flow.id], f); void qc.invalidateQueries({ queryKey: ["flows"] }); },
+  });
+  const automation = mode.isPending ? mode.variables : flow.automation;
+
+  /** R18, R19: link the chosen destination, then publish ("nothing to publish" is done). */
+  const prepare = async () => {
+    if (output && output.destinationId !== target) {
+      const { name, format, tableKey, template, sendWhen, layout } = output;
+      await updateOutput(flow.id, output.id, { name, format, tableKey, template, sendWhen, layout, destinationId: target });
+    }
+    await publishFlow(flow.id).catch((e: unknown) => { if (refusalToken(e) !== "nothing_to_publish") throw e; });
+  };
+  const done = () => {
+    for (const queryKey of [["documents"], ["flows"], ["flow", flow.id], ["outputs", flow.id]]) void qc.invalidateQueries({ queryKey });
+    capture("wizard_step_completed", { step: 3, step_name: "send", first });
+    router.push(`/flows/${flow.id}`);
+  };
+  // One press at a time: a second press before the next render does nothing; a refusal gives the buttons back.
+  const pressed = useRef(false);
+  const settle = () => { pressed.current = false; };
+  const send = useMutation({
+    mutationFn: async () => {
+      // Only a document known not to be our sample is ever sent (R19).
+      if (run.isSample !== false || (state !== "ready" && state !== "download")) throw new Error("Not ready to send.");
+      await prepare();
+      const deliveries = await sendDocument(id);
+      const stored = choice.kind === "download" ? deliveries.find((d) => d.status === "stored") : undefined;
+      if (stored) saveBlob(await downloadDeliveryFile(id, stored.id), stored.fileName ?? "document.csv");
+    },
+    onSuccess: done, onError: settle,
+  });
+  const finish = useMutation({ mutationFn: prepare, onSuccess: done, onError: settle });
+  const sample = useMutation({
+    mutationFn: async () => {
+      const p = await previewOutput(id, output!.id);
+      const body = p.base64 ? Uint8Array.from(atob(p.base64), (c) => c.charCodeAt(0)) : p.content;
+      saveBlob(new Blob([body], { type: p.contentType }), p.fileName);
+    },
+    onSettled: settle,
+  });
+  const press = (m: typeof send | typeof finish | typeof sample) => {
+    if (pressed.current) return;
+    pressed.current = true;
+    for (const x of [send, finish, sample]) x.reset();
+    m.mutate();
+  };
+  const busy = send.isPending || finish.isPending || sample.isPending || !output;
+  const refused = send.error ?? finish.error ?? sample.error;
+  const sendLabel = `Send ${fileName} now`;
 
   return (
     <div className="grid gap-6">
@@ -110,6 +209,44 @@ export function SendStep({ flow, docId, first: _first }: { flow: Flow; docId: st
             chosen={{ protocols: tile.protocols, name: destinationNameFor(tile.protocols[0], flow.name), onTested: setTested }}
           />
         )}
+      </section>
+
+      <fieldset className="m-0 grid min-w-0 gap-2 border-0 p-0" disabled={mode.isPending}>
+        <legend className="mb-1 text-[14px] font-semibold text-ink">When a new document is read</legend>
+        {MODES.map(([value, label, line]) => (
+          <label key={value} className="flex min-h-[44px] items-start gap-2 text-[14px] text-ink">
+            <input type="radio" name="first-run-mode" className="mt-1 h-4 w-4" checked={automation === value} onChange={() => mode.mutate(value)} />
+            <span className="grid gap-0.5"><span className="font-semibold">{label}</span><span className="text-[13px] text-ink-muted">{line}</span></span>
+          </label>
+        ))}
+        <p className="m-0 text-[13px] text-ink-muted">You can change this later.</p>
+        {mode.isError && <StatusNotice tone="error">{documentRefusalMessage(mode.error)}</StatusNotice>}
+      </fieldset>
+
+      <section aria-label="Finish" className="sticky bottom-0 grid gap-2 border-t border-border bg-bg py-3">
+        <p className="m-0 text-[14px] text-ink">
+          {state === "sample" ? "This is our sample invoice, so we never send it. Download its CSV file to see what your documents will become, then add one of your own."
+            : state === "unknown" ? "Finish now and send your document later from Documents."
+            : state === "download" ? "Your document is ready. You download it as a CSV file."
+            : state === "ready" ? `Your document is ready. It goes to ${going ?? "your destination"} as a CSV file.`
+            : "Send a test first to check the settings. Or finish now and send your document later from Documents."}
+        </p>
+        <div className="flex flex-wrap items-center gap-4">
+          {state === "sample" || state === "unknown" ? (
+            <Button variant="primary" disabled={busy} loading={finish.isPending} onClick={() => press(finish)}>Finish</Button>
+          ) : (
+            <Button variant={state === "not-ready" ? "secondary" : "send"} disabled={busy || state === "not-ready"} loading={send.isPending} onClick={() => press(send)}>
+              {state === "download" ? "Make the file and download it" : sendLabel}
+            </Button>
+          )}
+          {state === "sample" && <button type="button" className={LINK_BUTTON} disabled={busy} onClick={() => press(sample)}>Download the sample&apos;s CSV file</button>}
+          {state !== "sample" && state !== "unknown" && (
+            <button type="button" className={LINK_BUTTON} disabled={busy} onClick={() => press(finish)}>
+              {state === "download" ? "Finish without downloading" : "Finish without sending"}
+            </button>
+          )}
+        </div>
+        {!!refused && <Refusal error={refused} />}
       </section>
     </div>
   );

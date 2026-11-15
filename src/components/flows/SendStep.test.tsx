@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ApiHttpError } from "@/lib/api/core";
 import type { Destination, DocumentRow, Flow, FlowOutput } from "@/lib/api/documents";
-import { SendStep } from "./SendStep";
+import { COPY } from "@/lib/documentRefusals";
+import { readiness, SendStep } from "./SendStep";
 
 const api = vi.hoisted(() => ({
   listDestinations: vi.fn(), listOutputs: vi.fn(), getDocument: vi.fn(), listDocumentPage: vi.fn(), updateFlow: vi.fn(), updateOutput: vi.fn(),
@@ -70,5 +72,45 @@ describe("SendStep", () => {
     expect(within(again).getByRole("radio", { name: /^Google Drive/ })).toBeInTheDocument();
     expect(within(again).getByRole("radio", { name: /^Google Sheets/ })).toBeInTheDocument();
     expect(await within(again).findByRole("radio", { name: /^Already set up/ })).toBeInTheDocument();
+  });
+
+  it("fills one button, and only when the choice is ready", async () => {
+    api.listOutputs.mockResolvedValue([csvOutput]);
+    api.listDestinations.mockResolvedValue([]);
+    api.listDocumentPage.mockResolvedValue({ items: [{ ...row, isSample: false, fileName: "po-1.pdf" }], totalCount: 1, page: 1, pageSize: 20, sampleCount: 0 });
+    render(<SendStep flow={confirmed} docId="d-1" first />, { wrapper: freshWrapper() });
+    const finish = await screen.findByRole("region", { name: "Finish" });
+    expect(await within(finish).findByText("Your document is ready. You download it as a CSV file.")).toBeInTheDocument();
+    fireEvent.click(within(screen.getByRole("radiogroup", { name: "Where should the file go?" })).getByRole("radio", { name: /^SFTP or FTPS/ }));
+    const send = within(finish).getByRole("button", { name: "Send po-1.pdf now" });
+    expect(send).toBeDisabled();
+    expect(within(finish).getByText("Send a test first to check the settings. Or finish now and send your document later from Documents.")).toBeInTheDocument();
+    expect(readiness({ kind: "new", tile: "server" }, null, false)).toBe("not-ready");
+    expect(readiness({ kind: "new", tile: "server" }, { destinationId: "x", ok: false }, false)).toBe("not-ready");
+    expect(readiness({ kind: "new", tile: "server" }, { destinationId: "x", ok: true }, false)).toBe("ready");
+    expect(readiness({ kind: "existing", destinationId: null }, null, false)).toBe("not-ready");
+    expect(readiness({ kind: "download" }, null, null)).toBe("unknown");
+    expect(readiness({ kind: "download" }, null, true)).toBe("sample");
+  });
+
+  it("never sends our sample, and says so; a refused finish says why and how to go on", async () => {
+    api.listOutputs.mockResolvedValue([csvOutput]);
+    api.listDestinations.mockResolvedValue([savedSftp]);
+    api.listDocumentPage.mockResolvedValue({ items: [{ ...row, id: "d-s", isSample: true }], totalCount: 1, page: 1, pageSize: 20, sampleCount: 1 });
+    api.previewOutput.mockResolvedValue({ contentType: "text/csv", fileName: "invoice-2250.csv", content: "a,b\n", lookupMisses: [] });
+    api.publishFlow.mockRejectedValueOnce(new ApiHttpError("x", 429, { error: "processing_paused" })).mockResolvedValueOnce(confirmed);
+    render(<SendStep flow={confirmed} docId="d-s" first />, { wrapper: freshWrapper() });
+    const finish = await screen.findByRole("region", { name: "Finish" });
+    expect(await within(finish).findByText(/^This is our sample invoice, so we never send it\./)).toBeInTheDocument();
+    fireEvent.click(within(finish).getByRole("button", { name: "Download the sample's CSV file" }));
+    await waitFor(() => expect(blob.saveBlob).toHaveBeenCalledWith(expect.any(Blob), "invoice-2250.csv"));
+    expect(router.push).not.toHaveBeenCalled();
+    fireEvent.click(within(finish).getByRole("button", { name: "Finish" }));
+    expect(await within(finish).findByText(COPY.processing_paused)).toBeInTheDocument();
+    expect(within(finish).getByRole("link", { name: "Open Plan & billing" })).toHaveAttribute("href", "/settings?tab=billing");
+    fireEvent.click(within(finish).getByRole("button", { name: "Finish" }));
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith(`/flows/${confirmed.id}`));
+    expect(api.sendDocument).not.toHaveBeenCalled();
+    expect(analytics.capture).toHaveBeenCalledWith("wizard_step_completed", { step: 3, step_name: "send", first: true });
   });
 });
