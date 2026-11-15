@@ -35,9 +35,15 @@ export function lookupEntries(cells: string[][]): LookupEntry[] {
   return entries;
 }
 
+/** A file we read and will not use, with the reason in words. */
+export class TableFileRefusal extends Error {}
+
+const OLD_OFFICE = [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1];
+
 /** A zip header (bytes 50 4B 03 04) is read as a workbook, first sheet, capped at LOOKUP_LIMITS.rows + 2 rows;
- *  anything else as UTF-8 text. `cut` is true when the sheet had more rows than that. Throws when a
- *  workbook cannot be read. */
+ *  `cut` is true when the sheet had more rows than that. Throws when a workbook cannot be read. An old Office
+ *  file (.xls, bytes D0 CF 11 E0 A1 B1 1A E1) or one with a NUL byte in its first 1,024 bytes is binary and is
+ *  refused with a `TableFileRefusal`; anything else is read as UTF-8 text. */
 export async function readTableFile(file: File): Promise<{ cells: string[][]; cut: boolean }> {
   const bytes = await new Promise<Uint8Array>((resolve, reject) => {
     const r = new FileReader();
@@ -49,16 +55,15 @@ export async function readTableFile(file: File): Promise<{ cells: string[][]; cu
     const sheet = parseXlsxWorkbook(bytes, LOOKUP_LIMITS.rows + 2).tables[0];
     return { cells: sheet?.rows ?? [], cut: sheet?.truncatedRows ?? false };
   }
+  if (OLD_OFFICE.every((b, i) => bytes[i] === b) || bytes.subarray(0, 1024).includes(0))
+    throw new TableFileRefusal("This file can't be read as a table. Save it as .xlsx or CSV and try again.");
   return { cells: csvCells(new TextDecoder("utf-8").decode(bytes)), cut: false };
 }
 
-/** A file we read and will not use, with the reason in words. */
-export class TableFileRefusal extends Error {}
-
 /** A file's rows for a lookup; throws a `TableFileRefusal` when it is unreadable, too long or has no rows. */
 export async function lookupFileEntries(file: File): Promise<LookupEntry[]> {
-  const table = await readTableFile(file).catch(() => {
-    throw new TableFileRefusal("We can read CSV files and Excel .xlsx files.");
+  const table = await readTableFile(file).catch((e) => {
+    throw e instanceof TableFileRefusal ? e : new TableFileRefusal("We can read CSV files and Excel .xlsx files.");
   });
   const entries = lookupEntries(table.cells);
   if (table.cut || entries.length > LOOKUP_LIMITS.rows)

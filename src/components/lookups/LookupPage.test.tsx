@@ -120,4 +120,26 @@ describe("LookupPage", () => {
     await waitFor(() => expect(api.updateLookup).toHaveBeenLastCalledWith("l1", expect.objectContaining({ candidates: [{ value: "SUP-1", description: "Pilsner bottle" }] })));
     expect(await screen.findByText("Imported 1 value.")).toBeTruthy();
   });
+
+  it("an old Excel file is refused in words before anything is read into rows, and nothing is sent", async () => {
+    api.getLookup.mockResolvedValue(lookup([{ from: "A", to: "1" }]));
+    render(<QueryClientProvider client={new QueryClient()}><LookupNoticeBanner /><LookupPage lookupId="l1" usedBy={[]} /></QueryClientProvider>);
+    const old = new File([new Uint8Array([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]), "\nX,9\n"], "codes.xls");
+    fireEvent.change(await screen.findByTestId("replace-table-input"), { target: { files: [old] } });
+    expect(await screen.findByText("Couldn't import codes.xls. This file can't be read as a table. Save it as .xlsx or CSV and try again.")).toBeTruthy();
+    expect(api.updateLookup).not.toHaveBeenCalled();
+  });
+
+  it("a lookup that was deleted sends no late save", async () => {
+    api.getLookup.mockResolvedValue(lookup([{ from: "A", to: "1" }]));
+    api.deleteLookup.mockResolvedValue(undefined);
+    const { unmount } = show();
+    fireEvent.change(await screen.findByLabelText("To value for A"), { target: { value: "typed" } });
+    fireEvent.click(screen.getByRole("button", { name: "Delete lookup" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete lookup" }));
+    await waitFor(() => expect(api.deleteLookup).toHaveBeenCalledTimes(1));
+    unmount();                                                   // the page goes back to the list
+    await new Promise((r) => setTimeout(r, 0));
+    expect([api.updateLookup.mock.calls.length, api.deleteLookup.mock.calls.length]).toEqual([0, 1]);
+  });
 });

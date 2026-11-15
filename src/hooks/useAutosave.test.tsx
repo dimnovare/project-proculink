@@ -35,4 +35,18 @@ describe("useAutosave", () => {
     expect(save.mock.calls.map((c) => c[0])).toEqual(["x", "x"]);
     expect([result.current.state, result.current.error]).toEqual(["saved", null]);
   });
+
+  it("leaving with a save on its way and a newer value waiting sends both, in order, each once", async () => {
+    vi.useFakeTimers();
+    const calls: { v: string; d: ReturnType<typeof deferred> }[] = [];
+    const save = (v: string) => { const d = deferred(); calls.push({ v, d }); return d.p; };
+    const { result, unmount } = renderHook(() => useAutosave(save));
+    act(() => { result.current.change("a", true); result.current.change("b"); });
+    unmount();
+    expect(calls.map((c) => c.v)).toEqual(["a"]);
+    await act(async () => calls[0].d.resolve());
+    expect(calls.map((c) => c.v)).toEqual(["a", "b"]);                   // the newer value follows, once
+    await act(async () => { calls[1].d.resolve(); vi.advanceTimersByTime(1000); });
+    expect(calls.map((c) => c.v)).toEqual(["a", "b"]);
+  });
 });

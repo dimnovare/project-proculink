@@ -51,7 +51,9 @@ function LookupEditor({ lookup, lookupId, usedBy }: { lookup: Lookup; lookupId: 
       qc.removeQueries({ queryKey: ["lookup-suggestions"] });
     },
   });
-  const autosave = useAutosave(save.mutateAsync);
+  // Once the lookup is deleted nothing is saved for it, not even a value sent on leaving.
+  const gone = useRef(false);
+  const autosave = useAutosave((body: Parameters<typeof updateLookup>[1]) => (gone.current ? Promise.resolve() : save.mutateAsync(body)));
 
   const [doc, setDoc] = useState(() => docOf(lookup));
   const current = useRef(doc);
@@ -163,7 +165,13 @@ function LookupEditor({ lookup, lookupId, usedBy }: { lookup: Lookup; lookupId: 
   const [asking, setAsking] = useState(false);
   const remove = useMutation({
     mutationFn: () => deleteLookup(lookupId),
+    // The rows are about to go: a waiting save is dropped, not sent. If the delete fails, the table is sent after all.
+    onMutate: () => autosave.discard(),
+    onError: (_e, _v, dropped) => {
+      if (dropped) autosave.change(bodyOf(current.current), true);
+    },
     onSuccess: () => {
+      gone.current = true;
       void qc.invalidateQueries({ queryKey: ["lookups"] });
       qc.removeQueries({ queryKey: ["lookup", lookupId] });
       router.push("/lookups");

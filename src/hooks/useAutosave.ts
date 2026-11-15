@@ -72,6 +72,20 @@ export function useAutosave<T>(save: (value: T) => Promise<unknown>, delayMs = 8
     return done;
   }, [run]);
 
+  /** Drops the waiting value and its timer without sending it; its `flush()` waiters resolve. A save on its way
+   *  is not stopped. `state` is left as it is: a caller that still needs the dropped value sends it again with
+   *  `change`. Returns whether a value was dropped. */
+  const discard = useCallback(() => {
+    const e = s.current;
+    clearTimeout(e.timer);
+    e.timer = undefined;
+    const dropped = e.pending !== null;
+    e.pending = null;
+    e.due = false;
+    e.waiting.splice(0).forEach((w) => w.resolve());
+    return dropped;
+  }, []);
+
   useEffect(() => {
     if (state === "saved") return;
     const ask = (ev: BeforeUnloadEvent) => { ev.preventDefault(); ev.returnValue = ""; };
@@ -90,5 +104,5 @@ export function useAutosave<T>(save: (value: T) => Promise<unknown>, delayMs = 8
     };
   }, [run]);
 
-  return { state, error, change, flush };
+  return { state, error, change, flush, discard };
 }
