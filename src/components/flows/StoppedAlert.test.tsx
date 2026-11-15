@@ -33,6 +33,11 @@ describe("StoppedAlert", () => {
     // A server sentence with no full stop gets one, and nothing else.
     render(<StoppedAlert page={{ items: [stopped({ stop: { ...stop, error: "Refused" } })], totalCount: 1, page: 1, pageSize: 20, sampleCount: 0 }} />);
     expect(screen.getByRole("alert")).toHaveTextContent(/: Refused\. The document is safe\./);
+    cleanup();
+    // The time is the latest stop, not the first row's.
+    const two = [stopped({ stop }), stopped({ id: "d2", stop, failedAt: "2026-11-02T09:20:00Z" })];
+    render(<StoppedAlert page={{ items: two, totalCount: 2, page: 1, pageSize: 20, sampleCount: 0 }} />);
+    expect(within(screen.getByRole("alert")).getByText("4m ago")).toBeInTheDocument();
   });
 
   it("stays general when there is no single destination to name", () => {

@@ -17,9 +17,9 @@ export const flowsQuery = {
 } as const;
 
 /** How many documents have these statuses, and which is newest. One request, shared by every reader of the same key. */
-export const documentCountQuery = (statuses: readonly string[], sentFrom?: string) => ({
-  queryKey: ["documents", "count", statuses.join(","), sentFrom ?? ""] as const,
-  queryFn: () => listDocumentPage({ status: statuses, sentFrom, page: 1, pageSize: 1 }),
+export const documentCountQuery = (statuses: readonly string[]) => ({
+  queryKey: ["documents", "count", statuses.join(","), ""] as const,
+  queryFn: () => listDocumentPage({ status: statuses, page: 1, pageSize: 1 }),
 });
 /** The needs-you number: the title line, its tab, "Review next" and the phone tab bar read this one request. */
 export const needsYouQuery = documentCountQuery(NEEDS_YOU_STATUSES);

@@ -7,6 +7,7 @@ import { MoreHorizontal, Plus } from "lucide-react";
 import { buildVisibleNav, isItemActive, PHONE_TAB_HREFS, PINNED_ACTION_HREF, type SidebarNavItem } from "./BridgeSidebar";
 import { needsYouQuery, useDocumentEngine } from "@/hooks/useDocumentEngine";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
+import { pageTotal } from "@/lib/pageTotal";
 
 const MORE_ROOTS = ["/lookups", "/settings", "/admin", "/archive"];
 const FULL_SCREEN = [/^\/flows\/new$/, /^\/flows\/[^/]+\/documents\/[^/]+$/, /^\/flows\/[^/]+\/outputs\/[^/]+\/advanced$/];
@@ -35,7 +36,7 @@ export function BottomTabBar({ onMore, moreOpen }: { onMore: () => void; moreOpe
   const needsYou = useQuery({ ...needsYouQuery, enabled: tenantReady && engine === "on", refetchInterval: 60_000, refetchOnWindowFocus: true });
   if (isFullScreenStep(pathname)) return null;
 
-  const total = needsYou.data?.totalCount;
+  const total = pageTotal(needsYou.data);
   const badge = needsYouBadge(total);
   const navItems = buildVisibleNav(false).main[0].items;
   const [first, second, third] = PHONE_TAB_HREFS.flatMap((h) => navItems.filter((i) => i.href === h));

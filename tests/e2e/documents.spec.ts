@@ -92,7 +92,8 @@ test.describe("documents", () => {
     const name = page.getByTestId("document-name").first();
     await name.evaluate((el) => { el.textContent = "N".repeat(120) + ".pdf"; });
     expect(await name.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
-    expect(await page.evaluate(() => Math.max(0, document.documentElement.scrollWidth - window.innerWidth))).toBe(0);
+    // Measured on the scroll containers (main and the page shell inside it): the app shell is h-dvh overflow-hidden, so the document never scrolls.
+    expect(await page.locator("#main-content").evaluate((el) => Math.max(...[el, ...el.children].map((e) => e.scrollWidth - e.clientWidth)))).toBeLessThanOrEqual(1);
     // Without the tab bar (as on a full-screen step) the bar drops to the screen's edge and its spacer follows.
     // The bar is hidden and un-classed, not removed: React still owns the node.
     await page.setViewportSize({ width: 390, height: 844 });

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import type { DocumentPage, DocumentRow } from "@/lib/api/documents";
 import { documentsAddress } from "@/lib/documentTabs";
+import { pageTotal } from "@/lib/pageTotal";
 import { DATE_LOCALE } from "@/lib/format-date";
 import { relativeTime } from "@/lib/relativeTime";
 import { serverReasonOrNull } from "@/lib/serverText";
@@ -15,8 +16,9 @@ const stoppedOn =(iso: string) =>
 
 /** One alert for every document whose sending stopped. Nothing when there are none or the answer is not in. */
 export function StoppedAlert({ page }: { page: DocumentPage | undefined }) {
-  if (!page || page.totalCount === 0) return null;
-  const { items: rows, totalCount: n } = page;
+  const n = pageTotal(page);
+  if (!page || !n) return null;
+  const rows = page.items;
   const one = n === 1;
   const first = rows[0]?.stop;
   // Named only when every stopped document was read and all stopped at the same, still-named destination.
@@ -25,7 +27,8 @@ export function StoppedAlert({ page }: { page: DocumentPage | undefined }) {
   let detail: React.ReactNode;
   let link: React.ReactNode;
   if (named) {
-    const at = rows[0].failedAt;
+    // The latest stop across the rows.
+    const at = rows.reduce<string | null>((m, r) => (r.failedAt && (!m || Date.parse(r.failedAt) > Date.parse(m)) ? r.failedAt : m), null);
     const when = relativeTime(at);
     const error = serverReasonOrNull(first.error);
     detail = (

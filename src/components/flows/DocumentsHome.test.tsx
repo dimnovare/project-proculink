@@ -147,10 +147,11 @@ describe("DocumentsHome", () => {
     const base = listDocumentPage.getMockImplementation()!;
     const stoppedPage = page([{ ...row(9), status: "send_failed", failedAt: null, stop: null }], 1, 1, 20);
     let asked = 0;
+    let listed = 0;
     listDocumentPage.mockImplementation((q: { status?: string[]; pageSize: number }) =>
       q.pageSize === 20 && q.status?.join(",") === "send_failed"
         ? (asked++ === 0 ? Promise.resolve(stoppedPage) : Promise.reject(new Error("down")))
-        : base(q));
+        : q.pageSize === 50 && listed++ > 0 ? Promise.reject(new Error("down")) : base(q));
     const { client } = mount();
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent("1 document couldn't be sent");
@@ -159,10 +160,12 @@ describe("DocumentsHome", () => {
     // An answer in hand is still the best knowledge: a failed refresh does not read as "all is well".
     await act(async () => {
       await client.refetchQueries({ queryKey: ["documents", "stopped"] });
+      await client.refetchQueries({ queryKey: ["documents", "page"] });
       await new Promise((r) => setTimeout(r, 0)); // the query's batched notify lands on the next tick
     });
     expect(client.getQueryState(["documents", "stopped"])?.status).toBe("error");
     expect(screen.getByText(/1 document couldn't be sent/)).toBeInTheDocument();
+    expect(within(within(screen.getByRole("tabpanel")).getByRole("table")).getByText("doc-0.pdf")).toBeInTheDocument();
   });
 
   it("says flows are off on the engine refusal", async () => {

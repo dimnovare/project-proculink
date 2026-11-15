@@ -12,8 +12,8 @@ import * as React from "react";
    ===================================================================== */
 
 /* -------- Button -------- */
-export type ButtonVariant = "primary" | "send" | "blue" | "secondary" | "ghost" | "danger" | "ai";
-export type ButtonSize = "sm" | "md" | "lg";
+type ButtonVariant = "primary" | "send" | "blue" | "secondary" | "ghost" | "danger" | "ai";
+type ButtonSize = "sm" | "md" | "lg";
 
 type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: ButtonVariant;

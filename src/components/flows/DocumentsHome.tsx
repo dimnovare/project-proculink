@@ -15,6 +15,7 @@ import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { listDocumentPage } from "@/lib/api/documents";
 import { apiClient } from "@/lib/api-client";
 import { pagePopulation } from "@/components/bridge/orderCountContract";
+import { pageTotal } from "@/lib/pageTotal";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
 import { documentStatus } from "@/lib/documentStatusManifest";
 import {
@@ -62,7 +63,7 @@ export function DocumentsHome() {
   // With no tab in the address, the default is decided once per visit from the first known needs-you number.
   const latched = useRef<DocumentTab | null>(null);
   if (!latched.current && (counts[0].data || counts[0].isError)) {
-    latched.current = (counts[0].data?.totalCount ?? 0) > 0 ? "needs-you" : "all";
+    latched.current = (pageTotal(counts[0].data) ?? 0) > 0 ? "needs-you" : "all";
   }
   const tab = asked ?? latched.current;
   const tabDef = DOCUMENT_TABS.find((t) => t.id === tab);
@@ -88,7 +89,7 @@ export function DocumentsHome() {
   };
 
   let panel;
-  if (docs.isError) {
+  if (docs.isError && !docs.data) {
     panel = (
       <StatusNotice tone="error" action={<Retry onClick={() => docs.refetch()} />}>
         {documentRefusalMessage(docs.error)}
@@ -104,7 +105,8 @@ export function DocumentsHome() {
       </div>
     );
   } else {
-    const { items, totalCount } = docs.data;
+    const { items } = docs.data;
+    const totalCount = pageTotal(docs.data) ?? 0;
     const from = (page - 1) * DOCUMENTS_PAGE_SIZE + 1;
     const to = from + items.length - 1;
     panel = (
@@ -149,7 +151,7 @@ export function DocumentsHome() {
         <StoppedAlert page={stopped.data} />
         <div role="tablist" aria-label="Show" className="flex overflow-x-auto border-b border-border">
           {DOCUMENT_TABS.map((t, i) => {
-            const n = counts[i].data?.totalCount;
+            const n = pageTotal(counts[i].data);
             const selected = t.id === tab;
             return (
               <button
@@ -172,18 +174,19 @@ export function DocumentsHome() {
   }
 
   const needs = counts[0].data;
-  const next = needs && needs.totalCount > 0 ? needs.items[0] : undefined;
+  const needTotal = pageTotal(needs);
+  const next = needs && (needTotal ?? 0) > 0 ? needs.items[0] : undefined;
   const reviewNext = (testId?: string, only = "") => next && (
     <Link
       href={`/flows/${next.flowId}/documents/${next.id}`} data-testid={testId} className={`${buttonClass("send", "lg")}${only}`}
-      aria-label={`Review next, ${needs?.totalCount} ${needs?.totalCount === 1 ? "needs" : "need"} you`}
+      aria-label={`Review next, ${needTotal} ${needTotal === 1 ? "needs" : "need"} you`}
     >
       Review next
-      <span className="rounded-full bg-navy/30 px-2 text-[12.5px]">{needs?.totalCount}</span>
+      <span className="rounded-full bg-navy/30 px-2 text-[12.5px]">{needTotal}</span>
     </Link>
   );
   return (
-    <Frame sub={documentsHelper(needs?.totalCount, week.data?.totalCount)} actions={reviewNext("review-next", " hidden md:inline-flex")}>
+    <Frame sub={documentsHelper(needTotal, pageTotal(week.data))} actions={reviewNext("review-next", " hidden md:inline-flex")}>
       {body}
       {next && <ActionBar>{reviewNext()}</ActionBar>}
     </Frame>
