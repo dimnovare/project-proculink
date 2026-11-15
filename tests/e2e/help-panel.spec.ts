@@ -232,7 +232,7 @@ test.describe("help panel", () => {
     ],
     "/flows": [{ role: "link", name: /^Supplier invoices$/ }, { role: "button", name: /^New flow$/ }],
     "/settings": [
-      { role: "button", name: /^Plan & billing$/ }, { role: "button", name: /^API keys$/ }, { role: "button", name: /^Notifications$/ },
+      { role: "button", name: /^Plan & billing$/ }, { role: "button", name: /^API keys$/ }, { role: "button", name: /^Workspace$/ },
     ],
     "/upload": [
       { role: "radio", name: /Supplier invoices/ }, { role: "button", name: /^Choose files$/ },
@@ -250,7 +250,8 @@ test.describe("help panel", () => {
       for (const t of guide.tasks) await expect(region.getByRole("link", { name: new RegExp(`^${t.title.replace(/[.*+?^${}()|[\]\\"]/g, "\\$&")}`) })).toBeVisible();
       const main = page.locator(MAIN);
       for (const c of controls) await expect(main.getByRole(c.role, { name: c.name }).first(), `${path} has no ${c.role} ${c.name}`).toBeVisible();
-      expect(await filledButtons(page), "one filled button with the panel open").toHaveLength(1);
+      // Settings opens on Workspace, which saves as you type and has no filled button (plan 14.7b).
+      expect(await filledButtons(page), "the screen's filled buttons with the panel open").toHaveLength(path === "/settings" ? 0 : 1);
     });
   }
 
