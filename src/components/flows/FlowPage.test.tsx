@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor, within, act } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { buttonClass } from "@/components/bridge/DSPrimitives";
 import { ApiHttpError } from "@/lib/api/core";
 import type { Flow, FlowField } from "@/lib/api/documents";
 import { FlowPage } from "./FlowPage";
@@ -19,6 +20,7 @@ const api = vi.hoisted(() => ({
   getFlow: vi.fn(), updateFlow: vi.fn(), listIntakes: vi.fn(), listOutputs: vi.fn(), listDestinations: vi.fn(),
   listDocumentPage: vi.fn(), publishFlow: vi.fn(), restoreFlowVersion: vi.fn(), listFlowVersions: vi.fn(),
   flowApiEndpoint: (id: string) => `/api/v1/flows/${id}/documents`, listLookups: vi.fn(async () => []),
+  listDocuments: vi.fn(), getDocument: vi.fn(), previewOutput: vi.fn(), testOutput: vi.fn(),
 }));
 vi.mock("@/lib/api/documents", () => api);
 vi.mock("./UploadQueue", () => ({ useUploadQueue: () => ({ items: [], add: vi.fn(), retry: vi.fn() }) }));
@@ -48,6 +50,7 @@ beforeEach(() => {
   api.listDestinations.mockResolvedValue([]);
   api.listDocumentPage.mockResolvedValue({ items: [], totalCount: 0, page: 1, pageSize: 10, sampleCount: 0 });
   api.listFlowVersions.mockResolvedValue([]);
+  api.listDocuments.mockResolvedValue([]);
 });
 
 const renderPage = () => render(<QueryClientProvider client={new QueryClient()}><FlowPage flowId="flow-1" /></QueryClientProvider>);
@@ -98,19 +101,34 @@ describe("FlowPage", () => {
   });
 
   it("on every step the publish bar holds the one filled button", async () => {
-    const filled = /(^|\s)(bg-navy|bg-brand-green-btn|bg-brand-blue|bg-danger|bg-ai)(\s|$)/;
+    // A filled button is any variant drawn with white text, read from the Button's own classes.
+    const fill = new Set((["primary", "send", "blue", "secondary", "ghost", "danger", "ai"] as const)
+      .map((v) => buttonClass(v).split(" ")).filter((c) => c.includes("text-white")).map((c) => c.find((x) => x.startsWith("bg-"))!));
+    const filled = (el: Element) => el.className.split(/\s+/).some((c) => fill.has(c));
     api.getFlow.mockResolvedValue({ ...flow, hasChanges: true });
     api.listOutputs.mockResolvedValue([{
-      id: "out-1", flowId: "flow-1", name: "Invoice CSV", format: "csv", tableKey: null, destinationId: null, createdAt: "", sendWhen: null,
+      id: "out-1", flowId: "flow-1", name: "Invoice CSV", format: "csv", tableKey: null, destinationId: "dest-1", createdAt: "", sendWhen: null,
       template: { format: "csv", root: { name: "document", nodeType: "object", children: [] } },
     }]);
+    api.listDestinations.mockResolvedValue([{ id: "dest-1", name: "Accounting server", protocol: "sftp", config: { host: "sftp.example.test" }, hasCredentials: true }]);
+    // We send previews and tests with this document, so the walk sees the preview and the test's result too.
+    const summary = { id: "doc-1", flowId: "flow-1", fileName: "invoice-1001.csv", status: "needs_review", statusReason: null, createdAt: "2026-11-01T10:00:00Z" };
+    api.listDocuments.mockResolvedValue([summary]);
+    api.getDocument.mockResolvedValue({ summary, contentType: "text/csv", checks: [], read: { kindLabel: null, truncated: false, fields: [], tables: [] } });
+    api.previewOutput.mockResolvedValue({ contentType: "text/csv", fileName: "invoice-1001.csv", content: "Invoice\n1001", lookupMisses: [] });
+    api.testOutput.mockResolvedValue({ success: true, message: null });
     for (const step of ["arrives", "read", "check", "send"]) {
       search.q = `tab=${step}`;
       const { unmount } = renderPage();
       await screen.findByRole("button", { name: "Publish changes" });
-      if (step === "send") await screen.findByRole("region", { name: "Edit the output Invoice CSV" });
+      if (step === "send") {
+        const editor = within(await screen.findByRole("region", { name: "Edit the output Invoice CSV" }));
+        await editor.findByText("Invoice 1001");
+        fireEvent.click(await editor.findByRole("button", { name: "Send a test" }));
+        await editor.findByText(/Test file arrived/);
+      }
       if (step === "arrives") await screen.findByRole("button", { name: "Add a pickup" });
-      const fills = [...document.body.querySelectorAll("button, a")].filter((b) => filled.test(b.className));
+      const fills = [...document.body.querySelectorAll("button, a")].filter(filled);
       expect(fills.map((b) => b.textContent), step).toEqual(["Publish changes"]);
       unmount();
     }

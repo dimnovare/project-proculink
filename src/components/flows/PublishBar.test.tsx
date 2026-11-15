@@ -1,13 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { useState } from "react";
 import { act, render, screen, fireEvent, waitFor, within } from "@testing-library/react";
-import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiHttpError } from "@/lib/api/core";
 import type { Flow } from "@/lib/api/documents";
-import { FlowDraftProvider, useDraftPart } from "./flowDraft";
+import { FlowDraftProvider, useDraftPart, useFlowDraft } from "./flowDraft";
+import { FlowVersionsPanel } from "./FlowVersionsPanel";
 import { PublishBar } from "./PublishBar";
 
-const api = vi.hoisted(() => ({ publishFlow: vi.fn(), restoreFlowVersion: vi.fn() }));
+const api = vi.hoisted(() => ({ publishFlow: vi.fn(), restoreFlowVersion: vi.fn(), listFlowVersions: vi.fn() }));
 vi.mock("@/lib/api/documents", () => api);
+vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => true }));
 
 const flow = {
   id: "flow-1", name: "Supplier invoices", fieldsConfirmed: true, fields: { fields: [], tables: [] }, documentCount: 3,
@@ -20,19 +23,39 @@ function Values({ save }: { save: (v: string) => Promise<unknown> }) {
   ({ change, block } = useDraftPart("values", "read", save));
   return null;
 }
+/** What a refetch of the flow answers; a discard or restore changes it, as the server would. */
+let server: Flow;
 /** The bar reads the flow from the cache, as the page does, so a publish's answer reaches it. */
 function Bar({ initial }: { initial: Flow }) {
-  const f = useQuery({ queryKey: ["flow", initial.id], queryFn: () => Promise.resolve(initial), initialData: initial, staleTime: Infinity });
+  const f = useQuery({ queryKey: ["flow", initial.id], queryFn: () => Promise.resolve(server), initialData: initial, staleTime: Infinity });
   return <PublishBar flow={f.data} />;
 }
-const page = (f: Flow, save: (v: string) => Promise<unknown> = () => Promise.resolve()) => (
+/** An editor as the page keys it: on the draft's revision, starting from the flow the cache holds. */
+function NameInput() {
+  const qc = useQueryClient();
+  const [v, setV] = useState(() => qc.getQueryData<Flow>(["flow", "flow-1"])!.name);
+  return <input aria-label="Name" value={v} onChange={(e) => { setV(e.target.value); change(e.target.value); }} />;
+}
+function Editors() {
+  const { revision, bump } = useFlowDraft();
+  return <><NameInput key={revision} /><FlowVersionsPanel flowId="flow-1" onRestored={bump} /></>;
+}
+const page = (f: Flow, save: (v: string) => Promise<unknown> = () => Promise.resolve(), editors?: boolean) => (
   <QueryClientProvider client={new QueryClient()}>
-    <FlowDraftProvider flowId={f.id}><Values save={save} /><Bar initial={f} /></FlowDraftProvider>
+    <FlowDraftProvider flowId={f.id}><Values save={save} /><Bar initial={f} />{editors && <Editors />}</FlowDraftProvider>
   </QueryClientProvider>
 );
 const bar = () => within(screen.getByRole("region", { name: "Unpublished changes" }));
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  server = flow;
+  vi.stubGlobal("confirm", vi.fn(() => true));
+  api.listFlowVersions.mockResolvedValue([
+    { versionNo: 1, publishedAt: "2026-11-01T10:00:00Z", publishedBy: null, live: true },
+    { versionNo: 0, publishedAt: "2026-10-01T10:00:00Z", publishedBy: null, live: false },
+  ]);
+});
 
 describe("PublishBar", () => {
   it("publish saves the waiting change first, and a second press sends no second request", async () => {
@@ -76,6 +99,29 @@ describe("PublishBar", () => {
     fireEvent.click(bar().getByRole("button", { name: "Publish changes" }));
     expect(await bar().findByText("Version 2 is live.")).toBeTruthy();
     expect(api.publishFlow).toHaveBeenCalledTimes(1);
+  });
+
+  it("Discard asks, restores the published version, never sends what was typed, and the editors show the server's state", async () => {
+    const save = vi.fn().mockResolvedValue(undefined);
+    api.restoreFlowVersion.mockImplementation(async () => (server = { ...flow, hasChanges: false }));
+    render(page(flow, save, true));
+    fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: "Supplier bills" } });
+    fireEvent.click(bar().getByRole("button", { name: "Discard" }));
+    expect(await screen.findByText("Changes discarded. Version 1 is live.")).toBeTruthy();
+    expect(vi.mocked(window.confirm).mock.calls[0][0]).toContain("The flow goes back to version 1. This can't be undone.");
+    expect(api.restoreFlowVersion).toHaveBeenCalledWith("flow-1", 1);
+    expect(screen.getByRole("textbox", { name: "Name" })).toHaveValue("Supplier invoices");
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  it("a restore of an earlier version puts the editors on it, in place of what was typed", async () => {
+    const save = vi.fn().mockResolvedValue(undefined);
+    api.restoreFlowVersion.mockResolvedValue({ ...flow, name: "Older invoices" });
+    render(page(flow, save, true));
+    fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: "Supplier bills" } });
+    fireEvent.click(within((await screen.findByText("Version 0")).closest("li")!).getByRole("button", { name: "Restore" }));
+    await waitFor(() => expect(screen.getByRole("textbox", { name: "Name" })).toHaveValue("Older invoices"));
+    expect(api.restoreFlowVersion).toHaveBeenCalledWith("flow-1", 0);
   });
 
   it("the bar is not drawn while the flow is unconfirmed, and on an unpublished flow it offers Publish", () => {

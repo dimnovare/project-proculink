@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { act, render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { DocumentRow, Flow } from "@/lib/api/documents";
 import { FlowDocuments, StreakBand } from "./FlowDocuments";
@@ -27,8 +27,9 @@ beforeEach(() => {
 
 describe("FlowDocuments", () => {
   it("newest ten of this flow and the total through pageTotal", async () => {
+    let countRefused: Promise<never> | undefined;
     api.listDocumentPage.mockImplementation(async (p: { status?: string[] }) => {
-      if (p.status) throw new Error("offline");
+      if (p.status) return (countRefused = Promise.reject(new Error("offline")));
       return { items: Array.from({ length: 10 }, (_, i) => row(i)), totalCount: 128, page: 1, pageSize: 10, sampleCount: 0 };
     });
     mount(<FlowDocuments flow={flow} />);
@@ -36,6 +37,8 @@ describe("FlowDocuments", () => {
     expect(screen.getByRole("link", { name: "All documents" })).toHaveAttribute("href", "/documents?show=all");
     expect(api.listDocumentPage).toHaveBeenCalledWith({ flowId: "flow-1", page: 1, pageSize: 10 });
     await waitFor(() => expect(api.listDocumentPage).toHaveBeenCalledWith(expect.objectContaining({ flowId: "flow-1", status: expect.any(Array) })));
+    // The count has failed, not merely been asked: what follows is the failed state, not the loading one.
+    await act(async () => { await countRefused!.catch(() => {}); });
     expect(screen.getByText("Newest first.")).toBeTruthy();
     expect(screen.queryByText(/needs you|need you/)).toBeNull();
     expect(screen.queryByRole("link", { name: /Review next/ })).toBeNull();
