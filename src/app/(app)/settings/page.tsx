@@ -28,6 +28,7 @@ import { isOrgAdminRefusal } from "@/lib/planGate";
 import { planDisplayName, planName } from "@/lib/plans";
 import { NotificationEmailSection } from "@/components/flows/NotificationEmailSection";
 import { DestinationsSection } from "@/components/destinations/DestinationsSection";
+import { InstallPanel } from "@/components/pwa/InstallPanel";
 import { formatDate } from "@/lib/format-date";
 
 export default function SettingsPage() {
@@ -223,6 +224,7 @@ function OrgSection() {
           </dl>
           <p className="m-0 text-[13px] text-ink-muted">Currency and storage are fixed for the workspace.</p>
         </SettingsPanel>
+        <InstallPanel />
       </div>
     </div>
   );
