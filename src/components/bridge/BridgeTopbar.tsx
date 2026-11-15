@@ -9,11 +9,14 @@ import { checkAdminAccess, getBillingStatus, isApiMockMode } from "@/lib/api-cli
 import { guideSeenKey, matchGuide } from "@/lib/section-guides";
 import { planDisplayName } from "@/lib/plans";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
+import { useApple, useShortcut } from "@/hooks/useShortcut";
+import { OPEN_SEARCH_EVENT, ariaOf, keyWord } from "@/lib/shortcuts";
 import { useOrganization } from "@clerk/nextjs";
 import { CommandPalette } from "./CommandPalette";
 import { ProcuLinkMark } from "./DSPrimitives";
 import { HelpSlideover } from "./HelpSlideover";
 import { OrgSwitcher } from "./OrgSwitcher";
+import { ShortcutsSheet } from "./ShortcutsSheet";
 import { UserChipMenu } from "./UserChipMenu";
 import { buildVisibleNav, isItemActive, PINNED_ACTION_HREF } from "./BridgeSidebar";
 
@@ -83,6 +86,7 @@ export function BridgeTopbar({ onMenuClick, menuOpen }: BridgeTopbarProps) {
   const { orgName, planLabel, activePlan } = useWorkspaceCardData();
   const adminItem = navTail.find((t) => t.href === "/admin");
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [keysOpen, setKeysOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   // Focus management: the slideover moves focus to its search input on open;
   // closing must hand focus back to the "?" trigger.
@@ -106,16 +110,14 @@ export function BridgeTopbar({ onMenuClick, menuOpen }: BridgeTopbarProps) {
     }
   }, [guideRoute]);
 
-  // Global cmd+K listener
+  // Ctrl/Cmd K and ? (src/lib/shortcuts.ts); a page opens search through openSearch().
+  const apple = useApple();
+  useShortcut("search", () => setPaletteOpen(true));
+  useShortcut("show-shortcuts", () => setKeysOpen((v) => !v));
   useEffect(() => {
-    function down(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-        e.preventDefault();
-        setPaletteOpen((v) => !v);
-      }
-    }
-    document.addEventListener("keydown", down);
-    return () => document.removeEventListener("keydown", down);
+    const open = () => setPaletteOpen(true);
+    window.addEventListener(OPEN_SEARCH_EVENT, open);
+    return () => window.removeEventListener(OPEN_SEARCH_EVENT, open);
   }, []);
 
   return (
@@ -207,7 +209,7 @@ export function BridgeTopbar({ onMenuClick, menuOpen }: BridgeTopbarProps) {
         </Link>
 
         {/* Search — the one trigger for the command palette (Ctrl/Cmd K). */}
-        <button type="button" aria-label="Search" title="Search, Ctrl K" onClick={() => setPaletteOpen(true)} className={ICON_BUTTON}>
+        <button type="button" aria-label="Search" aria-keyshortcuts={ariaOf("search")} title={`Search, ${keyWord("Mod", apple)} K`} onClick={() => setPaletteOpen(true)} className={ICON_BUTTON}>
           <Search size={17} strokeWidth={1.9} aria-hidden />
         </button>
 
@@ -269,6 +271,7 @@ export function BridgeTopbar({ onMenuClick, menuOpen }: BridgeTopbarProps) {
 
       {/* Command Palette */}
       {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} />}
+      {keysOpen && <ShortcutsSheet onClose={() => setKeysOpen(false)} />}
 
       {/* Help slide-over */}
       <HelpSlideover
