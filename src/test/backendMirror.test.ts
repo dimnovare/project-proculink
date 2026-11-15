@@ -1,6 +1,7 @@
 import { afterAll, describe, test, expect } from "vitest";
 import { existsSync, readdirSync, readFileSync, statSync } from "fs";
 import { dirname, join, resolve } from "path";
+import { createHash } from "node:crypto";
 import { FAILURE_STATUSES, ORDER_STATUSES } from "@/lib/orderStatusManifest";
 import { ROOT } from "./appRoutes";
 import { DOCUMENT_STATUSES, WHOLE_DOCUMENT_CHECKS } from "@/lib/documentStatusManifest";
@@ -16,7 +17,7 @@ import type { ActivityEvent } from "@/lib/api/documents";
 // Its own header explains why a `grep` cannot replace it.
 import { stripCsComments } from "./csLiterals";
 import { MINIMUM_PLAN } from "@/lib/gatedCapabilities";
-import { OVERAGE_PER_ORDER_EUR, PLAN_BY_ID, TRIAL_DAYS } from "@/lib/plans";
+import { DOCUMENT_UNIT_SENTENCE, MAX_DOCUMENTS_PER_FILE, OVERAGE_PER_ORDER_EUR, PAGES_PER_DOCUMENT, PLAN_BY_ID, TRIAL_DAYS, bestPriceOverageUnits, type PlanId } from "@/lib/plans";
 import { FILE_KINDS, MAX_UPLOAD_BYTES } from "@/lib/fileKinds";
 import { REVIEW_CONFIDENCE } from "@/lib/reviewMarks";
 import { LOOKUP_LIMITS } from "@/lib/lookupCsv";
@@ -1427,4 +1428,46 @@ test.skipIf(!BACKEND)("the mock cuts a search term where DocumentSearch does, an
   const checks = stripCsComments(readFileSync(join(BACKEND!, "ProcuLink.Core/Documents/DocumentChecks.cs"), "utf8"));
   // The mock's normalising (whitespace out, upper case) is this one line; a change to it here is a change to the mock.
   expect(checks).toMatch(/NormalizeNumber\(string value\) => string\.Concat\(value\.Where\(c => !char\.IsWhiteSpace\(c\)\)\)\.ToUpperInvariant\(\);/);
+});
+
+describe("the price helper mirrors the backend", () => {
+  /** The brace-matched body of the C# method whose signature starts at `start`. */
+  const methodBody = (cs: string, start: number): string => {
+    const open = cs.indexOf("{", start);
+    for (let i = open, depth = 0; i < cs.length; i++) {
+      depth += cs[i] === "{" ? 1 : cs[i] === "}" ? -1 : 0;
+      if (depth === 0) return cs.slice(open, i + 1);
+    }
+    return "";
+  };
+  /** DocumentLadderTests' exact cases, in both shapes: a direct `.Should().Be(c)` and `var x = …; … x.Should().Be(c)`. */
+  const backendOverageVectors = (cs: string, plans: Record<string, string>) => {
+    const n = (s: string) => Number(s.replace(/_/g, ""));
+    const call = String.raw`PlanConstants\.BestPriceOverageOrders\(PlanConstants\.(\w+),\s*([\d_]+),\s*([\d_]+)\)`;
+    const direct = [...cs.matchAll(new RegExp(`${call}\\.Should\\(\\)\\.Be\\(([\\d_]+)\\)`, "g"))].map((m) => m.slice(1));
+    const named = [...cs.matchAll(new RegExp(`var\\s+(\\w+)\\s*=\\s*${call};[^}]*?\\b\\1\\.Should\\(\\)\\.Be\\(([\\d_]+)\\)`, "g"))].map((m) => m.slice(2));
+    return [...direct, ...named].map(([plan, limit, used, expected]) => ({ plan: plans[plan], limit: n(limit), used: n(used), expected: n(expected) }));
+  };
+
+  test.skipIf(!BACKEND)("BestPriceOverageOrders is the computation mirrored here, and the backend's own cases give the same answer", () => {
+    const cs = stripCsComments(readFileSync(join(BACKEND!, "ProcuLink.Core/Constants/PlanConstants.cs"), "utf8"));
+    const start = cs.indexOf("public static int BestPriceOverageOrders(");
+    expect(start, "BestPriceOverageOrders is gone; re-read it and re-mirror bestPriceOverageUnits").toBeGreaterThan(-1);
+    const body = methodBody(cs, start).replace(/\s+/g, " ");
+    expect(createHash("sha256").update(body).digest("hex"),
+      "BestPriceOverageOrders changed since backend 222cf369: re-read it, update bestPriceOverageUnits in src/lib/plans.ts, then this hash").toBe("032f528dc2c2e18247a3730b65a412ffab3c78251bd403f50692d239b7ca538a");
+
+    const tests = readFileSync(join(BACKEND!, "ProcuLink.Api.Tests/Constants/DocumentLadderTests.cs"), "utf8");
+    const vectors = backendOverageVectors(tests, parseStatusConstants(cs));
+    expect(vectors.length, "DocumentLadderTests parsed to fewer than 3 cases, so this would prove little").toBeGreaterThanOrEqual(3);
+    for (const { plan, limit, used, expected } of vectors)
+      expect(bestPriceOverageUnits(PLAN_BY_ID[plan as PlanId], limit, used), `${plan} ${limit} ${used}`).toBe(expected);
+  });
+
+  test.skipIf(!BACKEND)("a document is the backend's ten pages, up to its ten units", () => {
+    const cs = stripCsComments(readFileSync(join(BACKEND!, "ProcuLink.Core/Documents/ReadLimits.cs"), "utf8"));
+    const constant = (name: string) => Number(cs.match(new RegExp(`const\\s+int\\s+${name}\\s*=\\s*(\\d+)\\s*;`))?.[1]);
+    expect([constant("PagesPerUnit"), constant("MaxUnits")]).toEqual([PAGES_PER_DOCUMENT, MAX_DOCUMENTS_PER_FILE]);
+    expect(DOCUMENT_UNIT_SENTENCE).toContain(`${PAGES_PER_DOCUMENT * MAX_DOCUMENTS_PER_FILE} pages`);
+  });
 });

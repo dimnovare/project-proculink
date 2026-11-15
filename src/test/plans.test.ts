@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   CHECKOUT_PLAN_IDS,
+  DOCUMENT_PLANS,
   OVERAGE_PER_ORDER_EUR,
+  type Plan,
+  cheapestDocumentPlan,
+  documentPlanMonth,
   PLAN_BY_ID,
   PLANS,
   nextPlanFor,
@@ -11,6 +15,7 @@ import {
   yearlySavePercent,
 } from "@/lib/plans";
 import { planIncludesCapability } from "@/lib/gatedCapabilities";
+import { euro, monthsFree } from "@/lib/billingWords";
 
 // Cost-optimal recommendation (LAUNCH BATCH 1, Task C): effective monthly cost
 // = flat price + max(0, orders − allowance) × €0.50, mirroring the backend
@@ -151,4 +156,37 @@ describe("the public ladder (plan 12b)", () => {
     for (const p of LEGACY_PAID_PLANS) expect(p.hidden, p.id).toBe(true);
     expect(PLAN_BY_ID.pilot.name).toBe("Trial");
   });
+});
+
+describe("the price helper's cheapest plan", () => {
+  it("never names a plan that costs more than another, at any volume or billing period", () => {
+    for (const period of ["monthly", "yearly"] as const) {
+      let checked = 0;
+      for (let n = 1; n <= 10_000; n++) {
+        const { plan, fits, next } = cheapestDocumentPlan(n, period);
+        const cost = (p: Plan) => documentPlanMonth(p, n, period);
+        expect(plan.isCustom, `${period} ${n}`).toBe(false);
+        for (const other of DOCUMENT_PLANS) {
+          expect(cost(plan).compared, `${period} ${n}: ${plan.id} vs ${other.id}`).toBeLessThanOrEqual(cost(other).compared);
+          // floored bills may differ by less than one extra document of the plan compared against (R2)
+          expect(cost(plan).billed - cost(other).billed, `${period} ${n}: billed ${plan.id} vs ${other.id}`).toBeLessThan(other.overageEur! * 100 * 12);
+          if (other.orderLimit! >= n) expect(cost(plan).billed, `${period} ${n}: never above a plan that covers it`).toBeLessThanOrEqual(cost(other).billed);
+        }
+        expect(fits).toBe(n <= plan.orderLimit!);
+        if (next) expect(DOCUMENT_PLANS.indexOf(next.plan)).toBeGreaterThan(DOCUMENT_PLANS.indexOf(plan));
+        checked++;
+      }
+      expect(checked).toBe(10_000);
+    }
+    // The capped case named in Review Focus 1, and a tie going to the larger plan.
+    expect(cheapestDocumentPlan(291, "monthly").plan.id).toBe("starter");
+    expect(cheapestDocumentPlan(292, "monthly").plan.id).toBe("pro");
+    expect(cheapestDocumentPlan(200, "monthly")).toMatchObject({ euros: 47, next: { from: 290, same: true } });
+    expect(cheapestDocumentPlan(200, "yearly")).toMatchObject({ next: { from: 270, same: false } });
+    // A price is never rounded down: the annual answer keeps its cents.
+    expect(euro(cheapestDocumentPlan(200, "yearly").euros)).toBe("€41.17");
+    expect(cheapestDocumentPlan(7_500, "monthly")).toMatchObject({ euros: 599, next: null });
+    // "Annual, N months free" reads one plan's months; every paid plan must give the same N.
+    expect(new Set(DOCUMENT_PLANS.map(monthsFree))).toEqual(new Set([12 - DOCUMENT_PLANS[0].priceYearly! / DOCUMENT_PLANS[0].priceMonthly!]));
+  }, 30_000);
 });
