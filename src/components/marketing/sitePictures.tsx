@@ -120,9 +120,11 @@ const CSV_LINES = [
   ...EXAMPLE_INVOICE.lines.map((l) => `${EXAMPLE_INVOICE.number},${EXAMPLE_INVOICE.date},${l.code},${l.qty},${l.price}`),
 ];
 
-export function CsvFile({ sent = false }: { sent?: boolean }) {
+/** `head` is drawn inside the card above the file (How it works puts the output chips there). */
+export function CsvFile({ sent = false, head }: { sent?: boolean; head?: React.ReactNode }) {
   return (
     <Card flush className="overflow-hidden">
+      {head}
       <div className="flex items-center gap-2.5 bg-brand-green-soft px-4 py-3 text-[14px] font-semibold text-brand-green-deep">
         <FileText aria-hidden="true" className="size-[18px] shrink-0" />
         invoice-{EXAMPLE_INVOICE.number}.csv

@@ -94,7 +94,7 @@ const APPROVED_PARTY_TOKENS: ReadonlySet<string> = new Set([
   "pharma", "steel", "steelworks", "supplies", "tools", "trading", "transit", "tyre", "it",
   // Legal-form suffixes. A suffix says nothing about whether the name in front
   // of it belongs to anybody, so these are allowed on their own merits.
-  "ag", "bv", "co", "gmbh", "inc", "oy", "oü",
+  "ag", "bv", "co", "gmbh", "inc", "ltd", "oy", "oü",
   // Short code fragments from item-code and id values that the party-field net
   // also catches (e.g. "ACM-BR-55", "HX-4410", "sup-1"). Not party names.
   "acm", "br", "fl", "hx", "nt", "pl", "sup", "s", "b",

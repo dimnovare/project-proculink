@@ -404,7 +404,7 @@ describe("the specific sites the refutation measured", () => {
     }
   });
 
-  it("the how-it-works eyebrow dot uses the navy-legible blue", () => {
+  it("the how-it-works pipeline dots use the navy-legible blue", () => {
     const src = read("src/app/(marketing)/how-it-works/page.tsx");
     // WP-30 aliased BLUE_NODE onto --brand-blue, which is 2.89:1 on the dark
     // pill. --brand-blue-bright exists for exactly this and is 6.28:1.
