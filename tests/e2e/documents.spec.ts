@@ -73,7 +73,7 @@ test.describe("documents", () => {
     await expect(reviewNext).toHaveCount(1);
     await expect(page.getByTestId("review-next")).toBeVisible();
     // The round Add button bites into the bar's button by a few pixels, never enough to cover its label.
-    const add = tabBar.getByRole("link", { name: "Add a document" });
+    const add = tabBar.getByRole("button", { name: "Add a document" });
     for (const width of [390, 360]) {
       await page.setViewportSize({ width, height: 844 });
       const [a, b] = [await box(add), await box(next)];

@@ -180,7 +180,7 @@ export function UploadToFlow() {
               data-testid="upload-drop"
               className={`grid justify-items-center gap-3 rounded-2xl border-2 border-dashed px-6 pb-7 pt-8 text-center ${over ? "border-brand-blue" : "border-border-strong"}`}
               onDragOver={(e) => { e.preventDefault(); setOver(true); }}
-              onDragLeave={() => setOver(false)}
+              onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOver(false); }}
               onDrop={(e) => { e.preventDefault(); setOver(false); pick(e.dataTransfer.files); }}
             >
               <span aria-hidden className="relative flex h-[92px] items-end justify-center">

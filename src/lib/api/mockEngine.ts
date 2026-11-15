@@ -328,7 +328,7 @@ export async function mockEngineFetch<T>(path: string, init?: RequestInit, as: "
   }
   for (const [verb, pattern, run] of ROUTES) {
     const m = verb === method ? pattern.exec(pathname) : null;
-    if (m) return run(m, new URLSearchParams(query), bodyOf(init)) as T;
+    if (m) return structuredClone(run(m, new URLSearchParams(query), bodyOf(init))) as T; // a fresh copy per answer, as off the wire
   }
   throw new Error(`mock engine: no fixture for ${method} ${pathname}`);
 }
