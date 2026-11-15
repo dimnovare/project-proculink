@@ -130,7 +130,7 @@ export function DocumentOutputsPanel({ flowId, document: doc }: { flowId: string
         )}
       {list && (list.length > 0 ? (
         <p className="m-0 text-[12.5px] text-ink-muted">
-          Want another file from this document? <Link href={addLink} className="text-brand-blue">Add an output</Link>
+          Want another file from this document? <Link href={addLink} className="text-brand-blue underline">Add an output</Link>
         </p>
       ) : <Link href={addLink} className="inline-flex items-center text-[13px] text-brand-blue">Add an output to this flow</Link>)}
       {!!deliveries.data?.length && <Deliveries documentId={documentId} deliveries={deliveries.data} />}

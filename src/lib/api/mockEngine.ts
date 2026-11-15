@@ -212,7 +212,8 @@ function send(id: string): DocumentDelivery[] {
   const row = pick(ROWS, id, "document");
   const was = now(id);
   if (!documentStatus(was.status, row.statusReason).editable) refuse(409, "not_ready");
-  if (!outputs.some((o) => o.flowId === row.flowId)) refuse(409, "no_outputs");
+  // A document whose delivery failed was sent once, so its flow had an output then: only one never sent can lack it.
+  if (was.status !== STATUS.send_failed && !outputs.some((o) => o.flowId === row.flowId)) refuse(409, "no_outputs");
   const sentAt = new Date().toISOString();
   const deliveries = [delivery("delivered", 1, null, sentAt)];
   remembered.set(id, { ...was, status: STATUS.sent, sentAt, deliveries });
