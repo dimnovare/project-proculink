@@ -16,19 +16,20 @@ Open a document and select **History** on its screen. It lists each change with 
 
 ## Activity, for the whole workspace
 
-**Activity** in the menu lists what happened to every document in your workspace, newest first. Each row is one event:
+**Activity** in the menu lists what happened to every document in your workspace, newest first, grouped by day. Each row is one event, such as a document that arrived, was read, had a value changed, or was sent.
 
-- **Document received**
-- **Document read**
-- **Couldn't read**
-- **Read again**
-- **Value changed**
-- **Value taught**
-- **Sent**
-- **Delivered**
-- **Couldn't send**
+Four tabs choose what you see:
 
-You can filter by kind of event, search, and page back through older events. **Export log** downloads what is on screen as a CSV file.
+- **All**: every event.
+- **Sent**: documents that were sent.
+- **Couldn't send**: documents we couldn't send, with the reason.
+- **Changes**: edited values, published versions and settings changes.
+
+Search looks at file names and document numbers. **Newer** and **Older** page through the list.
+
+Open a row to see more. For a send that failed, it shows where the send stopped, the destination, how many attempts were made and the server's reply. **Fix the destination** opens the flow's outputs, where its destination is set, and **Send again** tries once more. A new row shows the result.
+
+**Export** downloads the tab you are on, with your search, as a CSV file. It holds up to the newest 2,000 events, and says so when there were more.
 
 ### Who can open it
 

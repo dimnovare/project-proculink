@@ -1,14 +1,12 @@
 import Link from "next/link";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
-import type { DocumentPage, DocumentRow } from "@/lib/api/documents";
+import type { DocumentPage } from "@/lib/api/documents";
+import { fixDestinationHref } from "@/lib/activityRows";
 import { documentsAddress } from "@/lib/documentTabs";
 import { pageTotal } from "@/lib/pageTotal";
 import { DATE_LOCALE } from "@/lib/format-date";
 import { relativeTime } from "@/lib/relativeTime";
 import { serverReasonOrNull } from "@/lib/serverText";
-
-/** Where a person goes to fix a stopped delivery. The flow's outputs, until Settings › Destinations exists (14.7). */
-export const destinationFixHref = (row: Pick<DocumentRow, "flowId">) => `/flows/${row.flowId}?tab=outputs`;
 
 /** "on 2 Nov, 09:12" in the viewer's zone. `formatDateTime` adds the year, so not reused. */
 const stoppedOn =(iso: string) =>
@@ -42,7 +40,7 @@ export function StoppedAlert({ page }: { page: DocumentPage | undefined }) {
           : " The documents are safe. Fix the destination, then send them again."}
       </>
     );
-    link = <Link href={destinationFixHref(rows[0])} className="inline-flex items-center font-semibold underline">Fix the destination</Link>;
+    link = <Link href={fixDestinationHref(rows[0].flowId)} className="inline-flex items-center font-semibold underline">Fix the destination</Link>;
   } else {
     detail = one
       ? "The document is safe. Open it to see what happened, then send it again."
