@@ -84,8 +84,13 @@ describe("DestinationsSection", () => {
   it("Edit opens in place from the address; outputs that use one are named and it can't be deleted; an unused one is deleted after asking", async () => {
     api.listDestinations.mockResolvedValue([inbox, server]);
     search.q = "tab=destinations&open=dest-1";
+    const scroll = vi.spyOn(Element.prototype, "scrollIntoView");
     const { rerender } = renderSection();
     const panel = await screen.findByRole("region", { name: "Edit Accounting inbox" });
+    // Arriving from "Fix the destination": the open panel is brought into view once and its first field focused.
+    rerender(section());
+    expect([scroll.mock.contexts, within(panel).getByLabelText("Name") === document.activeElement]).toEqual([[panel], true]);
+    scroll.mockRestore();
     expect(panel).toHaveTextContent("One output uses this destination, so it can't be deleted.");
     expect(within(panel).getByRole("link", { name: "Invoice CSV in Supplier invoices" })).toHaveAttribute("href", "/flows/flow-1?tab=outputs");
     expect(within(panel).queryByRole("button", { name: "Delete destination" })).toBeNull();

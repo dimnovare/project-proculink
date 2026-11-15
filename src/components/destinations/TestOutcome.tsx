@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/bridge/DSPrimitives";
@@ -59,10 +59,13 @@ export function TestOutcome({ destinationId, protocol, result, error, at, place 
   });
   // Held from the press itself, so a second press before the next render sends nothing.
   const busy = useRef(false);
+  // When the last run ended: a list fetched before then (even mid-run) may name documents already on their way.
+  const [ranAt, setRanAt] = useState(0);
   const send = useMutation({
     mutationFn: (run: Promise<Resent>) => run,
     onSettled: () => {
       busy.current = false;
+      setRanAt(Date.now());
       for (const key of ["documents", "destinations", "activity"]) qc.invalidateQueries({ queryKey: [key] });
     },
   });
@@ -93,8 +96,8 @@ export function TestOutcome({ destinationId, protocol, result, error, at, place 
           : `Test file arrived${moment ? ` ${moment}` : ""}.`}
         {reason && <> <span>{reason}</span></>}
       </StatusNotice>
-      {/* After a run, only a list fetched since it began is offered: the old one names documents already on their way. */}
-      {n > 0 && (!send.submittedAt || send.isPending || waiting.dataUpdatedAt > send.submittedAt) && (
+      {/* After a run, only a list fetched since it ended is offered. During the run the band stays, its button loading. */}
+      {n > 0 && (send.isPending || waiting.dataUpdatedAt > ranAt) && (
         <div data-testid="destination-waiting"
           className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-amber-soft px-3 py-2.5 text-[13px] text-amber-text">
           <p className="m-0">

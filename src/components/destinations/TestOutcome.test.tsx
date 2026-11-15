@@ -31,7 +31,7 @@ describe("TestOutcome", () => {
     api.listDocumentPage.mockResolvedValue(page([row("doc-4", "invoice-2290.pdf", new Date(2026, 5, 1, 9, 12).toISOString())]));
     let release!: () => void;
     api.sendDocument.mockImplementation(() => new Promise((r) => { release = () => r([]); }));
-    const qc = new QueryClient();
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const invalidate = vi.spyOn(qc, "invalidateQueries");
     render(<QueryClientProvider client={qc}><TestOutcome destinationId="dest-1" protocol="sftp" result={{ success: true, message: null, responseCode: null }} error={null} at={at} place="form" /></QueryClientProvider>);
     expect(screen.getByRole("status")).toHaveTextContent("Test file arrived at 14:05.");
@@ -44,10 +44,21 @@ describe("TestOutcome", () => {
     fireEvent.click(now);
     expect(api.sendDocument).toHaveBeenCalledTimes(1);
     expect(api.sendDocument).toHaveBeenCalledWith("doc-4");
+    // A list fetched while the run is still going (a refocus, say) still names what is being sent.
+    const waitingKey = { queryKey: ["documents", "waiting"] };
+    vi.setSystemTime(new Date(2026, 5, 1, 15, 1));
+    await act(() => qc.refetchQueries(waitingKey));
+    api.listDocumentPage.mockRejectedValue(new Error("offline")); // and the refetch after the run fails
+    vi.setSystemTime(new Date(2026, 5, 1, 15, 2));
     release();
     expect(await screen.findByText("invoice-2290.pdf is on its way again.")).toBeInTheDocument();
-    // The list that was sent is not offered again: only one fetched since the run began.
+    await act(() => new Promise((r) => setTimeout(r, 0)));
+    // Only a list fetched after the run ended is offered: not the old one, not the mid-run one.
     expect(screen.queryByRole("button", { name: "Send it now" })).toBeNull();
+    api.listDocumentPage.mockResolvedValue(page([row("doc-4", "invoice-2290.pdf", null)]));
+    vi.setSystemTime(new Date(2026, 5, 1, 15, 3));
+    await act(() => qc.refetchQueries(waitingKey));
+    expect(await screen.findByRole("button", { name: "Send it now" })).toBeInTheDocument();
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ["documents"] });
     cleanup();
     api.listDocumentPage.mockResolvedValue(page([row("doc-4", "invoice-2290.pdf", null), row("doc-8", "invoice-2291.pdf", null)]));
@@ -99,5 +110,13 @@ describe("TestOutcome", () => {
     expect(api.sendDocument.mock.calls).toEqual([["doc-1"], ["doc-2"], ["doc-3"]]);
     // A document refused on its own before the stop is still said for itself.
     expect(own).toHaveTextContent("1 of 2 couldn't be sent again: This document can't be sent right now.");
+    cleanup();
+    // Paused processing is answered 409, not 429: its machine code stops the run all the same.
+    api.sendDocument.mockReset().mockResolvedValueOnce([]).mockRejectedValueOnce(new ApiHttpError("paused", 409, { error: "processing_paused" }))
+      .mockResolvedValue([]);
+    render(<QueryClientProvider client={new QueryClient()}><TestOutcome destinationId="dest-1" protocol="sftp" result={{ success: true, message: null, responseCode: null }} error={null} at={at} place="form" /></QueryClientProvider>);
+    fireEvent.click(within(await screen.findByTestId("destination-waiting")).getByRole("button", { name: "Send it now" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("1 sent. Processing is paused on this workspace.");
+    expect(api.sendDocument.mock.calls).toEqual([["doc-1"], ["doc-2"]]);
   });
 });

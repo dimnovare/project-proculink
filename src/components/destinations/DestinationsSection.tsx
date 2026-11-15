@@ -101,12 +101,16 @@ function DestinationRow({ d, open, go, refresh, onDeleted }: {
   // An older server may send neither key: absent says nothing; only an explicit null is "Never sent".
   const last = d.lastSend === undefined ? null : lastSendWords(d.lastSend, new Date());
   const uses: number | undefined = d.usedBy?.length;
-  // Focus follows the panel: into its first field on opening, back to this row's Edit when it closes.
+  // Focus follows the panel: into its first field on opening (also on arriving from an address, so the panel is
+  // brought into view once), back to this row's Edit when it closes.
   const item = useRef<HTMLLIElement>(null);
-  const wasOpen = useRef(open);
+  const wasOpen = useRef(false);
   useEffect(() => {
     const el = item.current;
-    if (open && !wasOpen.current) el?.querySelector<HTMLElement>("[role=region] input, [role=region] select, [role=region] textarea")?.focus();
+    if (open && !wasOpen.current) {
+      el?.querySelector("[role=region]")?.scrollIntoView({ block: "nearest" });
+      el?.querySelector<HTMLElement>("[role=region] input, [role=region] select, [role=region] textarea")?.focus({ preventScroll: true });
+    }
     if (!open && wasOpen.current && (!document.activeElement || document.activeElement === document.body))
       el?.querySelector<HTMLElement>("[data-row-edit]")?.focus();
     wasOpen.current = open;

@@ -258,7 +258,8 @@ const ROUTES: [method: string, pattern: RegExp, run: Handler][] = [
     pick(DOCS, m[1], "document"); pick(outputs, m[2], "output");
     return q.get("suggest") ? { suggestions: [] } : preview;
   }],
-  ["GET", re`/destinations`, () => destinations],
+  // A fresh array each time, as from the server: a write since shows on the next fetch.
+  ["GET", re`/destinations`, () => destinations.map((d) => ({ ...d }))],
   // A created one is listed (in name order) and can be tested; a deleted one leaves the list, as on the server.
   ["POST", re`/destinations`, (_m, _q, b) => {
     const made = destinationOf({ id: `dest-new-${++created}`, name: "", protocol: "", config: {}, hasCredentials: false, createdAt: T, usedBy: [], lastSend: null }, b);

@@ -10,7 +10,7 @@ import { connectGoogle, useGoogleConnectRefresh, useLinkedAccounts } from "@/com
 import { useConfirm } from "@/components/ui/confirm";
 import type { Destination } from "@/lib/api/documents";
 import { deleteLinkedAccount } from "@/lib/api/linkedAccounts";
-import { documentRefusalMessage } from "@/lib/documentRefusals";
+import { documentRefusalMessage, refusalToken } from "@/lib/documentRefusals";
 
 const LINK = "inline-flex items-center text-[13px] font-semibold text-ink underline";
 
@@ -34,7 +34,11 @@ export function GoogleAccounts({ destinations }: { destinations: Destination[] |
   const disconnect = useMutation({
     mutationFn: deleteLinkedAccount,
     onSuccess: () => qc.invalidateQueries({ queryKey: ["linked-accounts"] }),
-    onError: (e, at) => setProblem({ at, text: documentRefusalMessage(e) }),
+    onError: (e, at) => {
+      setProblem({ at, text: documentRefusalMessage(e) });
+      // A destination saved since the list loaded: ask again, so the use line names it.
+      if (refusalToken(e) === "account_in_use") void qc.invalidateQueries({ queryKey: ["destinations"] });
+    },
   });
 
   if (!linked.data?.available) return null;
@@ -73,9 +77,10 @@ export function GoogleAccounts({ destinations }: { destinations: Destination[] |
                         {names.length ? `Used by ${joinNames(names)}` : "Not used by a destination yet."}
                       </span>
                     )}
+                    {/* A status this build does not know gets no tag: unknown is never "Connected". */}
                     {a.status === "reconnect" ? (
                       <Pill tone="amber">Reconnect needed</Pill>
-                    ) : (
+                    ) : a.status === "active" && (
                       <Pill tone="green" icon={<Check aria-hidden size={13} />}>Connected</Pill>
                     )}
                     <span className="ml-auto flex gap-4">
