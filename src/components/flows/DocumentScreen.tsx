@@ -22,7 +22,10 @@ import { relativeTime } from "@/lib/relativeTime";
 import { nextTabIndex } from "@/lib/tabKeys";
 import { fetchDocumentSource, getDocument, getFlow, getDocumentHistory, retryDocumentRead, sendDocument, teachDocument } from "@/lib/api/documents";
 import { formatDateTime } from "@/lib/format-date";
-import { documentRefusalMessage, refusalToken } from "@/lib/documentRefusals";
+import { COPY, documentRefusalMessage, refusalToken } from "@/lib/documentRefusals";
+import { LIMIT_CODES } from "@/lib/limitRefusal";
+import { isPlanGateError } from "@/lib/planGate";
+import { ApiHttpError } from "@/lib/api/core";
 import { documentStatus } from "@/lib/documentStatusManifest";
 import type { DocumentDetail, DocumentPage, Flow, SourceLocation, TeachRequest } from "@/lib/api/documents";
 import { DocumentOutputsPanel } from "./DocumentOutputsPanel";
@@ -144,7 +147,7 @@ export function Pane({ id, title, dot, aside, hidden, children }: {
   const original = id === "original";
   return (
     <Card
-      flush as="section" id={`review-pane-${id}`} role={isLg ? undefined : "tabpanel"}
+      flush as="section" id={`review-pane-${id}`} role={isLg ? undefined : "tabpanel"} tabIndex={isLg ? undefined : 0}
       aria-labelledby={isLg ? `review-heading-${id}` : `review-tab-${id}`}
       className={`min-w-0 ${hidden ? "max-lg:hidden" : ""} ${original ? "flex flex-col lg:sticky lg:top-0 lg:h-[calc(100vh-150px)]" : ""}`}
     >
@@ -164,6 +167,24 @@ export function Pane({ id, title, dot, aside, hidden, children }: {
 const UNSAVED = new Error("unsaved");
 const UNSAVED_TEXT = "Nothing was sent: your last change isn't saved yet.";
 
+const WAY_ON = "inline-flex items-center text-[12.5px] font-semibold text-brand-blue";
+
+/** A refused send in words, read by machine code only (never message text), with the way on when there is one. */
+function sendRefusal(e: unknown, flowId: string): { text: string; wayOn: ReactNode } {
+  const t = refusalToken(e);
+  if (t === "processing_paused" || (t && (LIMIT_CODES.has(t) || isPlanGateError(t))))
+    return { text: documentRefusalMessage(e), wayOn: <Link href="/settings?tab=billing" className={WAY_ON}>Open Plan &amp; billing</Link> };
+  if (t === "no_outputs" || t === "no_output_matches")
+    return { text: documentRefusalMessage(e), wayOn: <Link href={`/flows/${flowId}?tab=outputs`} className={WAY_ON}>Open the flow&apos;s outputs</Link> };
+  if (rateLimited(e)) return { text: "Couldn't send just now. Try again in a moment.", wayOn: null };
+  return { text: documentRefusalMessage(e), wayOn: null };
+}
+/** The global rate limiter's 429: no code, a sentence. Every coded 429 is in `COPY` or is a plan gate. */
+const rateLimited = (e: unknown) => {
+  const t = refusalToken(e);
+  return e instanceof ApiHttpError && e.status === 429 && !(t && (Object.hasOwn(COPY, t) || isPlanGateError(t)));
+};
+
 /** The route's component: everything below is keyed by the document, so nothing carries over to the next one. */
 export function DocumentScreen(p: { flowId: string; documentId: string }) {
   return <Review key={p.documentId} {...p} />;
@@ -174,6 +195,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
   const router = useRouter();
   const enabled = useTenantQueriesEnabled();
   const isLg = useLgViewport();
+  const [leaving, setLeaving] = useState(false);
   const [tab, setTab] = useState<PaneId>("read");
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [spot, setSpot] = useState<SourceLocation | null>(null);
@@ -246,25 +268,36 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
       return before;
     },
     onSuccess: async (before) => {
-      await Promise.all([["documents"], ["document", documentId], ["deliveries", documentId], ["document-history", documentId]].map((queryKey) => qc.invalidateQueries({ queryKey })));
+      setLeaving(true);
+      // The document itself is not refetched: the screen is leaving, and drawing it as sent first is what R4 rules out.
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["document", documentId], refetchType: "none" }),
+        ...[["documents"], ["deliveries", documentId], ["document-history", documentId]].map((queryKey) => qc.invalidateQueries({ queryKey })),
+      ]);
       // R2: a refresh that failed tells us nothing, so the person goes to Needs you rather than to a guess.
       const refreshFailed = qc.getQueryState(reviewQueueQuery.queryKey)?.status === "error";
       const next = refreshFailed ? null : pickNext(before, qc.getQueryData<DocumentPage>(reviewQueueQuery.queryKey)?.items, documentId);
       router.replace(next ? documentHref(next) : documentsAddress("needs-you"));
     },
-    onError: (e) => { if (e !== UNSAVED && refusalToken(e) !== null) qc.invalidateQueries({ queryKey: ["document", documentId] }); },
+    onError: (e) => {
+      // A refusal may mean the document moved under us: it and the lists are refreshed. A rate limit leaves it ready.
+      if (e === UNSAVED || refusalToken(e) === null || rateLimited(e)) return;
+      for (const queryKey of [["document", documentId], ["documents"]]) qc.invalidateQueries({ queryKey });
+    },
   });
   const skip = useMutation({
-    mutationFn: async () => { await saved(); if (nextNow) router.replace(documentHref(nextNow)); },
+    mutationFn: async () => { await saved(); if (nextNow) { setLeaving(true); router.replace(documentHref(nextNow)); } },
   });
-  // A second press before the first one re-renders does nothing.
+  // A second press before the first one re-renders does nothing; after a success the screen is leaving, so none does.
   const pressed = useRef(false);
   const press = (m: typeof send | typeof skip) => {
     if (pressed.current) return;
     pressed.current = true;
-    m.mutate(undefined, { onSettled: () => { pressed.current = false; } });
+    send.reset();
+    skip.reset();   // the notice says the newest press, never an older one
+    m.mutate(undefined, { onError: () => { pressed.current = false; } });
   };
-  const busy = send.isPending || skip.isPending;
+  const busy = send.isPending || skip.isPending || leaving;
   const canSkip = !!status?.editable && !!nextNow;
   const located = !!marks?.places.length || !!doc.data?.read.fields.some((f) => f.location?.box || f.location?.address)
     || !!doc.data?.read.tables.some((t) => t.rows.some((r) => Object.values(r.cells).some((c) => c.location?.box || c.location?.address)));
@@ -298,15 +331,20 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
             {status.editable ? (
               <>
                 {canSkip && <Button variant="secondary" className="hidden md:inline-flex" disabled={busy} onClick={() => press(skip)}>Skip</Button>}
-                <Button variant="send" className="hidden md:inline-flex" disabled={busy} loading={send.isPending} onClick={() => press(send)}>Send and open next</Button>
+                <Button variant="send" className="hidden md:inline-flex" disabled={busy} loading={send.isPending || leaving} onClick={() => press(send)}>Send and open next</Button>
               </>
-            ) : nextNow && <Link href={documentHref(nextNow)} className={`${buttonClass("send", "md")} inline-flex items-center`}>Review next</Link>}
+            ) : nextNow && <Link replace href={documentHref(nextNow)} className={`${buttonClass("send", "md")} hidden items-center md:inline-flex`}>Review next</Link>}
           </div>
         )}
       />
       {refused && (
         <div ref={scrollTo} data-testid="review-refusal" className="mb-4">
-          <StatusNotice tone="error">{refused === UNSAVED ? UNSAVED_TEXT : documentRefusalMessage(refused)}</StatusNotice>
+          {refused === UNSAVED ? (
+            <StatusNotice tone="error" action={!isLg && tab !== "read" && <Button size="sm" variant="secondary" onClick={() => setTab("read")}>Show what we read</Button>}>{UNSAVED_TEXT}</StatusNotice>
+          ) : (() => {
+            const r = sendRefusal(refused, summary?.flowId ?? flowId);
+            return <StatusNotice tone="error" action={r.wayOn}>{r.text}</StatusNotice>;
+          })()}
         </div>
       )}
       {!doc.data || !summary || !status ? (
@@ -373,9 +411,9 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
           {status.editable ? (
             <>
               {canSkip && <Button variant="secondary" className="!flex-none" disabled={busy} onClick={() => press(skip)}>Skip</Button>}
-              <Button variant="send" disabled={busy} loading={send.isPending} onClick={() => press(send)}>Send and open next</Button>
+              <Button variant="send" disabled={busy} loading={send.isPending || leaving} onClick={() => press(send)}>Send and open next</Button>
             </>
-          ) : nextNow && <Link href={documentHref(nextNow)} className={`${buttonClass("send", "md")} inline-flex items-center`}>Review next</Link>}
+          ) : nextNow && <Link replace href={documentHref(nextNow)} className={`${buttonClass("send", "md")} inline-flex items-center`}>Review next</Link>}
         </ActionBar>
       )}
     </PageShell>

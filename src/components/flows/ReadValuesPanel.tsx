@@ -74,12 +74,12 @@ function NewFields({ flow, read, docId }: { flow: Flow; read: DocumentDetail["re
   if (!extras.length && !unpublished) return null;
   return (
     <section className="grid gap-2">
-      {extras.length > 0 && <h3 className="m-0 text-[12px] font-semibold text-ink">New fields we noticed</h3>}
+      {extras.length > 0 && <h3 className="m-0 text-[12.5px] font-semibold text-ink">New fields we noticed</h3>}
       {unpublished && <StatusNotice tone="success">{ADDED_TO_CHANGES}</StatusNotice>}
       {add.isError && <StatusNotice tone="error">{documentRefusalMessage(add.error)}</StatusNotice>}
       <ul className="m-0 grid list-none gap-1 p-0">
         {extras.map(([id, label]) => (
-          <li key={id} className="flex items-center justify-between gap-2 text-[12px] text-ink">
+          <li key={id} className="flex items-center justify-between gap-2 text-[12.5px] text-ink">
             {label}
             <Button size="sm" variant="secondary" disabled={add.isPending} aria-label={`Add to flow: ${label}`} onClick={() => add.mutate(id)}>Add to flow</Button>
           </li>
@@ -108,13 +108,13 @@ function TeachPicker({ flow, onTeach }: { flow: Flow; onTeach(t: Teach): void })
   const newLabel = name.trim();
   return (
     <section className="grid gap-2">
-      <h3 className="m-0 text-[12px] font-semibold text-ink">Point to a value</h3>
+      <h3 className="m-0 text-[12.5px] font-semibold text-ink">Point to a value</h3>
       <select aria-label="Field to point to" className={INPUT} value={key} onChange={(e) => setKey(e.target.value)}>
         {fields.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
         <option value="">A new field…</option>
       </select>
       {!field && (
-        <label className="grid gap-1 text-[12px] font-medium text-ink">
+        <label className="grid gap-1 text-[12.5px] font-medium text-ink">
           New field name
           <input className={INPUT} value={name} onChange={(e) => setName(e.target.value)} />
         </label>

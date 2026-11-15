@@ -76,4 +76,12 @@ describe("DocumentOutputsPanel", () => {
     expect(panel.getByRole("button", { name: "Download" })).toBeInTheDocument();
     expect(panel.queryByText(/Nothing has been sent/)).toBeNull();
   });
+
+  it("does not promise a send on a document that can no longer be sent", async () => {
+    api.listDeliveries.mockResolvedValue([]);
+    const panel = within(render(<QueryClientProvider client={new QueryClient()}>
+      <DocumentOutputsPanel flowId="f" document={{ ...detail, summary: { ...detail.summary, status: "read_failed" } } as never} />
+    </QueryClientProvider>).container);
+    expect(await panel.findByText("Nothing has been sent yet.")).toBeInTheDocument();
+  });
 });

@@ -11,6 +11,7 @@ import {
 import type { DocumentDelivery, DocumentDetail, Flow, FlowOutput } from "@/lib/api/documents";
 import { describeSendWhen } from "@/lib/flowOutputModel";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
+import { documentStatus } from "@/lib/documentStatusManifest";
 import { saveBlob } from "@/lib/saveBlob";
 import { LookupMisses } from "./LookupMisses";
 import { outputTypeLabel } from "./OutputEditor";
@@ -125,7 +126,7 @@ export function DocumentOutputsPanel({ flowId, document: doc }: { flowId: string
         : !deliveries.data ? <Quiet>Loading deliveries…</Quiet>
         : deliveries.data.length === 0 && (
           <p className="m-0 text-[12.5px] text-ink-muted">
-            Nothing has been sent yet.{list?.length && !list.some((o) => o.sendWhen) ? ` ${goOut(list.length)}` : ""}
+            Nothing has been sent yet.{list?.length && !list.some((o) => o.sendWhen) && documentStatus(doc.summary.status, doc.summary.statusReason).editable ? ` ${goOut(list.length)}` : ""}
           </p>
         )}
       {list && (list.length > 0 ? (
