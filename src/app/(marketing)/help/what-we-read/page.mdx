@@ -18,9 +18,13 @@ The kinds of files ProcuLink reads, and what to expect from each.
 
 ## Scans and photos
 
-We also read pages that are only a picture: photos or scans saved as PNG or JPG, and PDFs that have no text in them. We read the first 10 pages. If a file is longer, a check tells you the document was too long to read in full.
+We also read pages that are only a picture: photos or scans saved as PNG or JPG, and PDFs that have no text in them.
 
 For a picture, each value we read shows where on the page it was found. A value we could not find on the page is marked **Not found on the page**. Check those with extra care.
+
+## Long files
+
+We read a long PDF ten pages at a time, up to 100 pages. Pages after the first 100 are not read and do not count. A check tells you the document was too long to read in full.
 
 ## Other files
 
