@@ -371,9 +371,9 @@ describe("the scanned corpus", () => {
     // 34 rows of their debt; 90 rows / 1,578 once the mapper kept only the flow
     // variant the same day. 1_200 -> 1_000 on 2026-11-15: plan 14.11 cleaned the
     // error panels, the empty state and the loaders (1,186 after its first task,
-    // 1,178 after its second).
+    // 1,178 after its second). 1_000 -> 1_100 the same day: 1,170 after its help panel.
     expect(s.baselineRows).toBeGreaterThan(60);
-    expect(s.baselineTotal).toBeGreaterThan(1_000);
+    expect(s.baselineTotal).toBeGreaterThan(1_100);
 
     // The gate is green, so found debt and ledgered debt must agree exactly.
     // This is what ties the ledger below to a LIVE run rather than to a file

@@ -31,7 +31,7 @@ const FILES_WE_READ: HelpTask = { title: "Files we read", line: "The kinds of fi
 const BUILD_AN_OUTPUT: HelpTask = { title: "Build an output", line: "The file we make from each document, and its columns.", href: "/help/guides/build-an-output" };
 const IMPORT_A_LOOKUP: HelpTask = { title: "Import a lookup", line: "Make one from a table you already have.", href: "/help/guides/import-a-lookup" };
 const USE_A_LOOKUP: HelpTask = { title: "Use a lookup in an output", line: "Swap a column's value for the one the lookup gives.", href: "/help/lookups" };
-const EMAIL_WHEN_NEEDED: HelpTask = { title: "Get an email when something needs you", line: "Choose who is told, and about what.", href: "/help/activity-and-notifications" };
+const EMAIL_WHEN_NEEDED: HelpTask = { title: "Get an email when something needs you", line: "Choose what you are emailed about.", href: "/help/activity-and-notifications" };
 
 export const SECTION_GUIDES: SectionGuideEntry[] = [
   {

@@ -516,7 +516,7 @@ function ApiKeysSection() {
           disabled={isFetching}
           style={{ marginTop: 14, height: 32, borderRadius: 6, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--ink)", fontSize: 12, fontWeight: 600, padding: "0 12px", cursor: isFetching ? "not-allowed" : "pointer" }}
         >
-          {isFetching ? "Checking..." : "Retry"}
+          {isFetching ? "Checking..." : "Try again"}
         </button>
       </div>
     );

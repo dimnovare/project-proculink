@@ -16,6 +16,7 @@ import { useDialogA11y } from "@/hooks/useDialogA11y";
 import { capture } from "@/lib/analytics";
 import { POPULAR_ARTICLE_SLUGS, resolveArticles, type HelpArticle } from "@/lib/help-articles";
 import { buildHelpFuse, searchHelpArticles } from "@/lib/help-search";
+import { getGuideBySlug } from "@/lib/guides";
 import { matchGuide } from "@/lib/section-guides";
 
 export interface HelpPanelControl { open: boolean; show(): void; close(): void; toggle(): void }
@@ -41,7 +42,7 @@ type Page = ComponentType<{ components?: Record<string, unknown> }>;
 const pages = new Map<string, Page>();
 const pageFor = (href: string) => {
   let page = pages.get(href);
-  if (!page) pages.set(href, (page = lazy(() => loadHelpPage(href))));
+  if (!page) pages.set(href, (page = lazy(() => loadHelpPage(href).catch((e) => { pages.delete(href); throw e; }))));
   return page;
 };
 
@@ -57,6 +58,7 @@ const PANEL_MDX = {
 const NEW_TAB = { target: "_blank", rel: "noopener" } as const;
 const FOOT_LINK = "inline-flex items-center min-h-11 text-[13.5px] font-semibold text-brand-blue";
 const H3 = "m-0 text-[14.5px] font-semibold text-ink";
+const GUIDE = "/help/guides/";
 
 /** The panel itself; renders nothing while closed. */
 export function HelpPanel() {
@@ -64,11 +66,15 @@ export function HelpPanel() {
   const pathname = usePathname();
   const panelRef = useRef<HTMLElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
-  useDialogA11y({ open, onClose: close, panelRef, modal: false, initialFocusRef: searchRef });
+  // The panel stays open while the person works in the page, so it must not take the
+  // page's Escape (cancel teach mode, discard a rename): it closes on Escape only inside.
+  useDialogA11y({ open, onClose: close, panelRef, modal: false, initialFocusRef: searchRef, closeOnEscape: false });
 
+  const route = useRef(pathname);
+  route.current = pathname;
   useEffect(() => {
-    if (open) capture("help_slideover_opened", { route: pathname });
-  }, [open, pathname]);
+    if (open) capture("help_slideover_opened", { route: route.current });
+  }, [open]);
 
   if (!open) return null;
   return (
@@ -76,7 +82,8 @@ export function HelpPanel() {
       ref={panelRef}
       id="help-panel"
       aria-label="Help"
-      className="absolute inset-x-0 bottom-[var(--plk-tabbar-h)] z-drawer max-h-[75dvh] rounded-t-[16px] border-t md:inset-x-auto md:right-0 md:inset-y-0 md:max-h-none md:w-[420px] md:rounded-none md:border-t-0 md:border-l min-[1440px]:static min-[1440px]:shrink-0 flex flex-col border-border bg-surface"
+      onKeyDown={(e) => { if (e.key === "Escape") close(); }}
+      className="absolute inset-x-0 bottom-[calc(var(--plk-tabbar-h)+var(--plk-bottom-inset,0px))] z-drawer max-h-[75dvh] rounded-t-[16px] border-t md:inset-x-auto md:right-0 md:inset-y-0 md:max-h-none md:w-[420px] md:rounded-none md:border-t-0 md:border-l min-[1440px]:static min-[1440px]:shrink-0 flex flex-col border-border bg-surface"
     >
       <div className="flex items-center justify-between gap-3 border-b border-border px-6 py-3">
         <h2 className="m-0 font-display text-[22px] font-semibold text-ink">Help</h2>
@@ -127,6 +134,7 @@ function Body({ pathname, searchRef }: { pathname: string | null; searchRef: Rea
     return (
       <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-4">
         <Button variant="ghost" onClick={() => setArticle(null)} className="self-start">Back to help</Button>
+        {article.startsWith(GUIDE) && <h3 className="m-0 font-display text-[18px] font-semibold text-ink">{getGuideBySlug(article.slice(GUIDE.length))?.title}</h3>}
         <ErrorBoundary
           context="HelpPanel"
           fallback={() => (
@@ -156,7 +164,7 @@ function Body({ pathname, searchRef }: { pathname: string | null; searchRef: Rea
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="For example: needs you"
-          className="h-10 rounded-card-sm border border-border-strong bg-surface px-3 text-[14px] text-ink"
+          className="h-10 max-sm:h-11 rounded-card-sm border border-border-strong bg-surface px-3 text-[14px] text-ink"
         />
       </div>
       {searching ? (
@@ -203,7 +211,7 @@ function Body({ pathname, searchRef }: { pathname: string | null; searchRef: Rea
 function ArticleRow({ article, onClick, showCategory }: { article: HelpArticle; onClick: React.MouseEventHandler<HTMLAnchorElement>; showCategory?: boolean }) {
   return (
     <a href={`/help/${article.slug}`} onClick={onClick} className="flex min-h-11 flex-col justify-center py-1.5">
-      {showCategory && <span className="text-[12.5px] text-ink-faint">{article.category}</span>}
+      {showCategory && <span className="text-[12.5px] text-ink-muted">{article.category}</span>}
       <span className="text-[14.5px] font-semibold text-ink">{article.title}</span>
       <span className="text-[13px] text-ink-muted">{article.readMin} minute read</span>
     </a>

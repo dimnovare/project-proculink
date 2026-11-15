@@ -14,8 +14,9 @@ const shell = (page = <Opener />) => render(<HelpPanelProvider><main>{page}</mai
 beforeEach(() => { nav.path = "/documents"; pages.load.mockReset(); });
 
 describe("HelpPanel", () => {
-  it("opens beside the page without covering it; Escape closes it and focus goes back to what opened it", async () => {
-    const { container } = shell();
+  it("opens beside the page; Escape on the page stays the page's, Escape inside closes it and focus goes back", async () => {
+    const onPageEscape = vi.fn();
+    const { container } = shell(<><Opener /><input aria-label="Lookup name" onKeyDown={(e) => { if (e.key === "Escape") onPageEscape(); }} /></>);
     const opener = within(container).getByRole("button", { name: "Help" });
     opener.focus();
     fireEvent.click(opener);
@@ -26,7 +27,10 @@ describe("HelpPanel", () => {
     // The hook moves focus on the next animation frame.
     await waitFor(() => expect(document.activeElement).toBe(within(panel).getByLabelText("Search help articles")));
     expect(opener.getAttribute("aria-expanded")).toBe("true");
-    fireEvent.keyDown(document, { key: "Escape" });
+    fireEvent.keyDown(within(container).getByLabelText("Lookup name"), { key: "Escape" });
+    expect(onPageEscape).toHaveBeenCalledTimes(1);
+    expect(within(container).getByRole("complementary", { name: "Help" })).toBeTruthy();
+    fireEvent.keyDown(within(panel).getByLabelText("Search help articles"), { key: "Escape" });
     expect(within(container).queryByRole("complementary", { name: "Help" })).toBeNull();
     expect(document.activeElement).toBe(opener);
   });
@@ -53,6 +57,8 @@ describe("HelpPanel", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     fireEvent.click(within(within(panel).getByRole("region", { name: "Help for this screen" })).getAllByRole("link")[1]);
     expect(await within(panel).findByText("We couldn't open this article.")).toBeTruthy();
+    // A guide has no heading of its own: the panel names it from the guide registry.
+    expect(within(panel).getByRole("heading", { name: "Check and send a document" })).toBeTruthy();
     expect(within(panel).getByRole("link", { name: "Open it in the help centre" }).getAttribute("href")).toBe("/help/guides/check-and-send-a-document");
   });
 

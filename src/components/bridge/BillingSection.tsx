@@ -601,7 +601,7 @@ export function BillingSection() {
           disabled={isFetching}
           style={{ marginTop: 14, borderRadius: 6, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--ink)", height: 32, padding: "0 12px", fontSize: 12, fontWeight: 700, cursor: isFetching ? "not-allowed" : "pointer" }}
         >
-          {isFetching ? "Checking..." : "Retry"}
+          {isFetching ? "Checking..." : "Try again"}
         </button>
       </div>
     );

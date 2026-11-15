@@ -75,7 +75,9 @@ function usesPageShell(filePath) {
   const content = readFileSync(filePath, "utf8");
   if (content.includes("PageShell")) return true;
   // A not-found catch-all renders nothing of its own; the page it throws to uses PageShell.
-  if (/export default function \w*\(\)\s*\{\s*notFound\(\);?\s*\}/.test(content)) return true;
+  // Comments stripped first, so a page that only quotes the catch-all in a comment still counts.
+  const code = content.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "");
+  if (/export default function \w*\(\)\s*\{\s*notFound\(\);?\s*\}/.test(code)) return true;
   const fromDir = join(filePath, "..");
   const importSpecs = [...content.matchAll(/from\s+["']([^"']+)["']/g)].map((m) => m[1]);
   for (const spec of importSpecs) {

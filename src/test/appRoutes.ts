@@ -23,8 +23,10 @@ const PAGE_FILES = ["page.tsx", "page.mdx"];
  * a shadowed redirect there would pass unseen.
  */
 export const NOT_FOUND_ONLY = /export default function \w*\(\)\s*\{\s*notFound\(\);?\s*\}/;
+/** Comments stripped first, so a page that only quotes the catch-all in a comment still counts. */
 export const servesNothing = (pageFile: string): boolean =>
-  existsSync(pageFile) && NOT_FOUND_ONLY.test(readFileSync(pageFile, "utf8"));
+  existsSync(pageFile) &&
+  NOT_FOUND_ONLY.test(readFileSync(pageFile, "utf8").replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, ""));
 
 /**
  * Every route the App Router serves, as a URL pattern:

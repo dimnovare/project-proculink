@@ -26,6 +26,8 @@ async function openHelp(page: Page) {
   await helpControl(page).click();
   await expect(page.locator(PANEL)).toBeVisible();
   await expect(helpControl(page)).toHaveAttribute("aria-expanded", "true");
+  // Focus lands in the search, so Escape (taken only from inside the panel) reaches it.
+  await expect(page.locator(PANEL).getByLabel("Search help articles")).toBeFocused();
 }
 
 /** The element painted at a control's centre is that control (or inside it): nothing covers it. */
@@ -281,6 +283,8 @@ test.describe("page not found inside the app", () => {
       await expect(page.locator(PANEL)).toBeVisible();
       await expect(helpControl(page)).toHaveAttribute("aria-expanded", "true");
       expect(await filledButtons(page), "one filled button with the panel open").toEqual(["Go to Documents"]);
+      // The panel takes Escape only from inside itself; opening it puts focus in its search.
+      await expect(page.locator(PANEL).getByLabel("Search help articles")).toBeFocused();
       await page.keyboard.press("Escape");
       await expect(page.locator(PANEL)).toHaveCount(0);
       await expect(getHelp).toBeFocused();
