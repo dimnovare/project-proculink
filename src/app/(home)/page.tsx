@@ -1,9 +1,7 @@
 import Link from "next/link";
 import { Card } from "@/components/bridge/layout/Card";
-import { ProcuLinkMark } from "@/components/bridge/DSPrimitives";
 import { MarketingNav } from "@/components/marketing/MarketingNav";
-import { FOOTER_COLS } from "@/components/marketing/footerColumns";
-import { COPYRIGHT_NOTICE } from "@/lib/legal-entity";
+import { SiteFooter } from "@/components/marketing/SiteFooter";
 import { PLAN_BY_ID } from "@/lib/plans";
 
 // Brand tokens: ALIASES for the CSS custom properties in globals.css, never copies of
@@ -16,7 +14,6 @@ const NAVY = "var(--navy)";
 const NAVY_SURFACE = "var(--navy-surface)";
 const NAVY_BORDER = "var(--navy-border)";
 const NAVY_TEXT = "var(--navy-text)";
-const NAVY_FAINT = "var(--navy-faint)";
 const INK = "var(--ink)";
 const INK_MUTED = "var(--ink-muted)";
 const SURFACE = "var(--surface)";
@@ -205,42 +202,7 @@ export default function RootPage() {
 
       </main>
 
-      {/* Multi-column navy footer */}
-      <footer style={{ background: NAVY, color: NAVY_FAINT }}>
-        <div className="mx-auto max-w-[1100px] px-6 sm:px-8" style={{ padding: "48px 24px 0" }}>
-          <div className="grid gap-10 grid-cols-2 sm:grid-cols-[1.6fr_repeat(3,1fr)]">
-            <div>
-              <Link href="/" className="inline-flex items-center gap-2.5" style={{ textDecoration: "none" }}>
-                <ProcuLinkMark size={24} mono />
-                <span style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", color: SURFACE, fontWeight: 700, fontSize: 17 }}>ProcuLink</span>
-              </Link>
-              <p style={{ fontSize: 13, lineHeight: 1.6, maxWidth: 300, marginTop: 14 }}>
-                The missing link between buyers and suppliers. ProcuLink reads your documents, checks
-                them and sends them on in the format you need — with a full audit trail on every document.
-              </p>
-            </div>
-            {FOOTER_COLS.map((col) => (
-              <div key={col.h}>
-                <h3 style={{ color: SURFACE, fontSize: 12.5, fontWeight: 600, marginBottom: 12 }}>{col.h}</h3>
-                {/* ≥44px-tall flex rows so each footer link is a full touch target
-                    (WCAG 2.5.8); row height replaces the container gap. */}
-                <div className="flex flex-col">
-                  {col.links.map(([label, href]) => (
-                    <a key={label} href={href} className="flex items-center min-h-[44px]" style={{ color: NAVY_FAINT, fontSize: 13, textDecoration: "none" }}>{label}</a>
-                  ))}
-                  {col.h === "Company" && process.env.NEXT_PUBLIC_STATUS_URL && (
-                    <a href={process.env.NEXT_PUBLIC_STATUS_URL} target="_blank" rel="noopener noreferrer" className="flex items-center min-h-[44px]" style={{ color: NAVY_FAINT, fontSize: 13, textDecoration: "none" }}>Status</a>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-3 mt-12" style={{ borderTop: "1px solid var(--navy-line)", padding: "18px 0 28px", fontSize: 12 }}>
-            <span>{COPYRIGHT_NOTICE}</span>
-            <span className="flex items-center gap-3"><Link href="/security" style={{ color: "inherit", textDecoration: "none" }}>EU-region document storage</Link><span>·</span><span>AES-GCM at rest</span></span>
-          </div>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }
