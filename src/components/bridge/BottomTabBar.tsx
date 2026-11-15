@@ -5,10 +5,9 @@ import { usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { MoreHorizontal, Plus } from "lucide-react";
 import { buildVisibleNav, isItemActive, PHONE_TAB_HREFS, PINNED_ACTION_HREF, type SidebarNavItem } from "./BridgeSidebar";
-import { DOCUMENTS_TAKE, documentsQuery, useDocumentEngine } from "@/hooks/useDocumentEngine";
+import { needsYouQuery, useDocumentEngine } from "@/hooks/useDocumentEngine";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
-import type { DocumentSummary } from "@/lib/api/documents";
-import { documentStatus } from "@/lib/documentStatusManifest";
+import { pageTotal } from "@/lib/pageTotal";
 
 const MORE_ROOTS = ["/lookups", "/settings", "/admin", "/archive"];
 const FULL_SCREEN = [/^\/flows\/new$/, /^\/flows\/[^/]+\/documents\/[^/]+$/, /^\/flows\/[^/]+\/outputs\/[^/]+\/advanced$/];
@@ -19,11 +18,9 @@ export function isFullScreenStep(pathname: string | null): boolean {
 }
 
 /** What the Documents tab shows by its icon. null = show nothing (none need you, or it is not known). */
-export function needsYouBadge(docs: DocumentSummary[] | undefined, take: number): string | null {
-  if (!docs) return null;
-  const n = docs.filter((d) => documentStatus(d.status, d.statusReason).needsYou).length;
-  if (n === 0) return null;
-  return docs.length >= take ? `${n}+` : String(n);
+export function needsYouBadge(total: number | undefined): string | null {
+  if (!total) return null;
+  return total > 99 ? "99+" : String(total);
 }
 
 // "!" because the phone tap-floor rule in globals.css sets a 44px minimum with !important.
@@ -35,10 +32,12 @@ export function BottomTabBar({ onMore, moreOpen }: { onMore: () => void; moreOpe
   const pathname = usePathname();
   const engine = useDocumentEngine();
   const tenantReady = useTenantQueriesEnabled();
-  const docs = useQuery({ ...documentsQuery, enabled: tenantReady && engine === "on" });
+  // The same request and refresh as the Documents screen's needs-you number.
+  const needsYou = useQuery({ ...needsYouQuery, enabled: tenantReady && engine === "on", refetchInterval: 60_000, refetchOnWindowFocus: true });
   if (isFullScreenStep(pathname)) return null;
 
-  const badge = needsYouBadge(docs.data, DOCUMENTS_TAKE);
+  const total = pageTotal(needsYou.data);
+  const badge = needsYouBadge(total);
   const navItems = buildVisibleNav(false).main[0].items;
   const [first, second, third] = PHONE_TAB_HREFS.flatMap((h) => navItems.filter((i) => i.href === h));
   const moreActive = MORE_ROOTS.some((r) => pathname === r || !!pathname?.startsWith(r + "/"));
@@ -48,13 +47,13 @@ export function BottomTabBar({ onMore, moreOpen }: { onMore: () => void; moreOpe
     const href = item.href;
     const active = !!pathname && isItemActive(pathname, item);
     const Icon = item.icon;
-    const count = href === first?.href ? badge : null;
+    const count = href === PHONE_TAB_HREFS[0] ? badge : null;
     return (
       <Link
         key={href}
         href={href}
         aria-current={active ? "page" : undefined}
-        aria-label={count ? `${item.label}, ${count} ${count === "1" ? "needs" : "need"} you` : undefined}
+        aria-label={count ? `${item.label}, ${total} ${total === 1 ? "needs" : "need"} you` : undefined}
         className={tab(active)}
       >
         <span className="relative inline-flex">

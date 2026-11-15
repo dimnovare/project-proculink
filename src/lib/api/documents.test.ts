@@ -5,7 +5,7 @@ vi.mock("./core", async (importOriginal) => {
   return { ...actual, authHeader: async () => ({}), API_BASE_URL: "http://api.test", isApiMockMode: false };
 });
 
-import { createSampleDocument, editDocumentValues, getDocument, getFlow, listActivity, sendDocument, updateLookup, uploadDocument } from "./documents";
+import { createSampleDocument, editDocumentValues, getDocument, getFlow, listActivity, listDocumentPage, sendDocument, updateLookup, uploadDocument } from "./documents";
 import { ApiHttpError } from "./core";
 
 const fetchMock = vi.fn();
@@ -66,6 +66,16 @@ describe("documents api", () => {
     const [url, init] = fetchMock.mock.calls[0];
     expect(String(url)).toMatch(/\/api\/documents\/d1\/send$/);
     expect(init.method).toBe("POST");
+  });
+
+  it("listDocumentPage asks for one page with a comma-joined status list", async () => {
+    fetchMock.mockResolvedValue(json({ items: [], totalCount: 0, page: 2, pageSize: 50 }));
+    await listDocumentPage({ status: ["needs_review", "ready"], sentFrom: "2026-06-01T00:00:00.000Z", page: 2, pageSize: 50 });
+    const url = new URL(String(fetchMock.mock.calls[0][0]));
+    expect(url.pathname).toBe("/api/documents");
+    expect(Object.fromEntries(url.searchParams)).toEqual({
+      status: "needs_review,ready", sentFrom: "2026-06-01T00:00:00.000Z", page: "2", pageSize: "50",
+    });
   });
 
   it("encodes path segments and refuses dot segments", async () => {

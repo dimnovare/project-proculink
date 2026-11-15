@@ -105,7 +105,7 @@ export function DocumentOutputsPanel({ flowId, document: doc }: { flowId: string
   const flow = useQuery({ queryKey: ["flow", flowId], queryFn: () => getFlow(flowId), enabled });
   const send = useMutation({
     mutationFn: () => sendDocument(documentId),
-    onSuccess: () => Promise.all(["document", "deliveries", "document-history"].map((k) => qc.invalidateQueries({ queryKey: [k, documentId] }))),
+    onSuccess: () => Promise.all([["documents"], ["document", documentId], ["deliveries", documentId], ["document-history", documentId]].map((queryKey) => qc.invalidateQueries({ queryKey }))),
   });
   // Send waits for a value edit that is still saving, so the file always carries what the screen shows.
   const saving = useIsMutating({ mutationKey: ["edit-values", documentId] }) > 0;
