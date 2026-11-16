@@ -277,6 +277,10 @@ export default function SecurityPage() {
             <p className={SITE.lead}>
               We&apos;ll share our DPA, security overview, and architecture documentation under NDA.
             </p>
+            <p className="m-0 text-[15px] text-ink-muted">
+              Found a security problem? Write to{" "}
+              <a href="mailto:security@proculink.eu" className="text-brand-blue underline">security@proculink.eu</a>.
+            </p>
           </div>
           <div className="flex flex-wrap gap-3 [&>*]:flex-auto">
             <a href="mailto:security@proculink.eu?subject=Security%20package%20request" className={INK_CTA}>

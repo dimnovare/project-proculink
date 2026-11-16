@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import { X } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
@@ -12,7 +13,7 @@ import { addReadExtra, withReadExtras } from "@/lib/flowFieldModel";
 import { editKey, type EditTarget, type Look, type ReviewMarks } from "@/lib/reviewMarks";
 import { parseAddress, spreadsheetColumnName } from "@/lib/sourceAddress";
 import type { DocumentEdits } from "@/hooks/useDocumentEdits";
-import { Field, INPUT } from "./DestinationForm";
+import { Field, ICON_BUTTON, INPUT } from "./DestinationForm";
 import { Checks } from "./states";
 
 /** "Page 2", "Paragraph 2", "Line 7", or the sheet cell as a spreadsheet writes it (`cell:r2c3` becomes "Cell C2"). */
@@ -25,8 +26,9 @@ export function locationText(l: SourceLocation | null): string | null {
 }
 
 /** Where a value came from and what happened to it, in words. Never a percentage (R10). */
-function Meta({ read }: { read: { edited: boolean; location: SourceLocation | null; notOnPage?: boolean } }) {
-  const where = locationText(read.location);
+function Meta({ read, inTable }: { read: { edited: boolean; location: SourceLocation | null; notOnPage?: boolean }; inTable?: boolean }) {
+  // In a table the place is shown on the original when the cell is pointed at; a line under every cell only makes rows tall.
+  const where = inTable ? null : locationText(read.location);
   if (!read.notOnPage && !read.edited && !where) return null;
   return (
     <span className="flex flex-wrap items-center gap-2 text-[12.5px] text-ink-muted">
@@ -38,10 +40,10 @@ function Meta({ read }: { read: { edited: boolean; location: SourceLocation | nu
 }
 
 /** Shows what is being typed over the server's value; saves on a pause, on Enter and on leaving the box. */
-export function ValueInput({ target, value, edits, ...aria }: { target: EditTarget; value: string | null; edits: DocumentEdits; "aria-describedby"?: string }) {
+export function ValueInput({ target, value, edits, className = "", ...rest }: { target: EditTarget; value: string | null; edits: DocumentEdits; className?: string; size?: number; "aria-describedby"?: string }) {
   return (
     <input
-      {...aria} className={INPUT} value={edits.drafts[editKey(target)] ?? value ?? ""}
+      {...rest} className={`${INPUT} ${className}`} value={edits.drafts[editKey(target)] ?? value ?? ""}
       onChange={(e) => edits.type(target, e.target.value)}
       onBlur={edits.commit}
       onKeyDown={(e) => e.key === "Enter" && edits.commit()}
@@ -147,12 +149,24 @@ function lookText(look: Look | undefined, teach: (() => void) | undefined): Reac
 
 type Table = DocumentDetail["read"]["tables"][number];
 
+/** Values side by side, as many as fit the pane; one column on a phone. */
+const VALUE_GRID = "grid items-start gap-4 [grid-template-columns:repeat(auto-fill,minmax(min(220px,100%),1fr))]";
+const NUMBER = /^[-+]?[\d\s.,]+$/;
+
+/** A column is as wide as the longest thing in it (4 to 28 characters), and right-aligned when every value is a number. */
+export function columnShape(t: Pick<Table, "rows">, key: string, label: string): { size: number; numeric: boolean } {
+  const values = t.rows.map((r) => r.cells[key]?.value ?? "").filter(Boolean);
+  const longest = Math.max(label.length, ...values.map((v) => v.length));
+  return { size: Math.min(28, Math.max(4, longest)), numeric: values.length > 0 && values.every((v) => NUMBER.test(v)) };
+}
+
 /** From `lg` a heading; below it a button that opens the table, open at first when a cell needs a look. */
 function TableValues({ table: t, marks, edits, onLocate }: { table: Table; marks: ReviewMarks; edits: DocumentEdits; onLocate?(l: SourceLocation | null): void }) {
   const isLg = useLgViewport();
   const marked = t.rows.reduce((n, row, r) => n + Object.keys(row.cells).filter((c) => marks.looks.has(editKey({ table: t.key, row: r, column: c }))).length, 0);
   const [open, setOpen] = useState(marked > 0);
   const id = `table-${t.key}`;
+  const shapes = new Map(t.columns.map((c) => [c.key, columnShape(t, c.key, c.label)]));
   return (
     <div className="grid min-w-0 gap-2">
       {isLg ? <h3 className="m-0 text-[13px] font-semibold text-ink">{t.label}, {rowsText(t.rows.length)}</h3> : (
@@ -166,8 +180,8 @@ function TableValues({ table: t, marks, edits, onLocate }: { table: Table; marks
           <table className="w-full text-[12.5px]">
             <thead>
               <tr className="text-left text-[12.5px] text-ink-muted">
-                {t.columns.map((c) => <th key={c.key} className="py-1.5 pr-2 font-semibold">{c.label}</th>)}
-                <th className="sticky right-0 bg-surface py-1.5"><span className="sr-only">Row actions</span></th>
+                {t.columns.map((c) => <th key={c.key} className={`py-1.5 pr-2 font-semibold ${shapes.get(c.key)!.numeric ? "text-right" : ""}`}>{c.label}</th>)}
+                <th className="sticky right-0 w-10 bg-surface py-1.5"><span className="sr-only">Row actions</span></th>
               </tr>
             </thead>
             <tbody>
@@ -176,19 +190,20 @@ function TableValues({ table: t, marks, edits, onLocate }: { table: Table; marks
                   {t.columns.map((c) => {
                     const cell = row.cells[c.key];
                     const target = { table: t.key, row: r, column: c.key };
+                    const shape = shapes.get(c.key)!;
                     return (
-                      <td key={c.key} className="min-w-[8rem] py-1 pr-2" {...pointAt(onLocate, cell?.location ?? null)}>
+                      <td key={c.key} className="py-1 pr-2" style={{ minWidth: `calc(${shape.size}ch + 1.75rem)` }} {...pointAt(onLocate, cell?.location ?? null)}>
                         <Field hideLabel label={`${t.label} row ${r + 1} ${c.label}`} look={marks.looks.get(editKey(target))?.text}>
-                          <ValueInput target={target} value={cell?.value ?? null} edits={edits} />
+                          <ValueInput target={target} value={cell?.value ?? null} edits={edits} size={shape.size} className={shape.numeric ? "text-right tabular-nums" : ""} />
                         </Field>
-                        {cell && <Meta read={cell} />}
+                        {cell && <Meta read={cell} inTable />}
                       </td>
                     );
                   })}
-                  <td className="sticky right-0 bg-surface py-1">
-                    <Button size="sm" variant="ghost" onClick={() => edits.rows({ removeRows: [{ table: t.key, row: r }] })}>
-                      Remove row <span className="sr-only">{r + 1} of {t.label}</span>
-                    </Button>
+                  <td className="sticky right-0 w-10 bg-surface py-1">
+                    <button type="button" className={ICON_BUTTON} aria-label={`Remove row ${r + 1} of ${t.label}`} onClick={() => edits.rows({ removeRows: [{ table: t.key, row: r }] })}>
+                      <X size={16} aria-hidden />
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -238,11 +253,11 @@ export function ReadValuesPanel({ detail, editable, edits, marks, onLocate, flow
       {intro && <p className="m-0 text-[13px] text-ink">{intro}</p>}
       <fieldset className="m-0 grid min-w-0 gap-4 border-0 p-0" disabled={!editable || edits.busy}>
         <legend className="sr-only">Read values</legend>
-        {marked.map(fieldRow)}
+        {marked.length > 0 && <div className={VALUE_GRID}>{marked.map(fieldRow)}</div>}
         {marked.length > 0 && (rest.length > 0 || tables.length > 0) && (
           <h3 className="m-0 text-[13px] font-semibold text-ink">{marks.allClear && ![...marks.looks.keys()].some((k) => k.startsWith("cell:")) ? "Read clearly" : "The rest"}</h3>
         )}
-        {rest.map(fieldRow)}
+        {rest.length > 0 && <div className={VALUE_GRID}>{rest.map(fieldRow)}</div>}
         {tables.map((t) => <TableValues key={t.key} table={t} marks={marks} edits={edits} onLocate={onLocate} />)}
       </fieldset>
       <Checks checks={marks.unattached} />

@@ -342,7 +342,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
   ].join("");
 
   return (
-    <PageShell variant="wide">
+    <PageShell variant="full">
       <PageHeader
         title={summary?.fileName ?? "Document"}
         sub={summary && (
@@ -382,7 +382,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
           {doc.isError && <Failed error={doc.error} retry={() => doc.refetch()} />}
           <ReadProblem summary={summary} nothingRead={nothingRead} retry={retry} scansOn={flow.data?.scansOn} uploadHref={`/flows/${summary.flowId}?tab=documents`} />
           <PaneTabs panes={PANES} active={tab} onSelect={(id) => setTab(id as PaneId)} />
-          <div className="grid items-start gap-4 lg:grid-cols-3">
+          <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
             <Pane id="original" title="Original" dot="blue" hidden={tab !== "original"}>
               {located && <p className="m-0 hidden px-4 pb-2 text-[12.5px] text-ink-muted lg:block">Click a value on the right to see where it came from.</p>}
               {teach && <TeachBanner key={teachMutation.submittedAt} label={teach.label} render={originalKind} mutation={teachMutation} onCancel={cancelTeach} onSave={(value) => teachMutation.mutate({ ...teachMutation.variables, value })} />}
@@ -393,6 +393,8 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
                 />
               )}
             </Pane>
+            {/* From lg the values sit above the outputs, so both get the width a table needs. */}
+            <div className="grid min-w-0 gap-4 max-lg:contents">
             <Pane
               id="read" title="What we read" dot="navy" hidden={tab !== "read"}
               aside={editable && <span data-testid="save-state" aria-live="polite" className="text-[12.5px] text-ink-muted">{SAVE_WORDS[edits.state]}</span>}
@@ -415,6 +417,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
             <Pane id="send" title="What we'll send" dot="green" hidden={tab !== "send"}>
               <DocumentOutputsPanel flowId={summary.flowId} document={doc.data} />
             </Pane>
+            </div>
           </div>
         </div>
       )}

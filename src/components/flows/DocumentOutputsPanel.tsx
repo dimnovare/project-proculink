@@ -70,7 +70,7 @@ function OutputRow({ o, flowId, documentId, flowFields, destinations }: {
 }) {
   const preview = useMutation({ mutationFn: () => previewOutput(documentId, o.id, { published: true }) });
   return (
-    <div className="grid gap-1.5">
+    <div className={`grid min-w-0 content-start gap-1.5 rounded-md border border-border p-3 ${preview.data || preview.isError ? "col-span-full" : ""}`}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="grid">
           <span className="text-[13px] font-medium text-ink">{o.name}</span>
@@ -118,9 +118,13 @@ export function DocumentOutputsPanel({ flowId, document: doc }: { flowId: string
       {destinations.isError && <Failed error={destinations.error} retry={() => destinations.refetch()} />}
       {outputs.isError && !list ? <Failed error={outputs.error} retry={() => outputs.refetch()} />
         : !list ? <Quiet>Loading outputs…</Quiet>
-        : list.map((o) => (
-          <OutputRow key={o.id} o={o} flowId={flowId} documentId={documentId} flowFields={flow.data?.fields} destinations={destinations.data} />
-        ))}
+        : list.length > 0 && (
+          <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(min(340px,100%),1fr))]">
+            {list.map((o) => (
+              <OutputRow key={o.id} o={o} flowId={flowId} documentId={documentId} flowFields={flow.data?.fields} destinations={destinations.data} />
+            ))}
+          </div>
+        )}
       {deliveries.isError && !deliveries.data ? <Failed error={deliveries.error} retry={() => deliveries.refetch()} />
         : !deliveries.data ? <Quiet>Loading deliveries…</Quiet>
         : deliveries.data.length === 0 && (

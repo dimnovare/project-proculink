@@ -12,20 +12,20 @@ import * as React from "react";
    Usage:
      <PageShell>            // narrow (forms, single-column) — 1040px
      <PageShell variant="wide">  // tables / dashboards — 1480px
+     <PageShell variant="full">  // a document beside its values — 1760px
 
    Server-component safe (no hooks / handlers).
    ===================================================================== */
 
 type PageShellProps = {
   /** Content max-width. 'narrow' = forms/single-column, 'wide' = tables/dashboards. */
-  variant?: "narrow" | "wide";
+  variant?: "narrow" | "wide" | "full";
   children: React.ReactNode;
   className?: string;
 };
 
 export function PageShell({ variant = "narrow", children, className }: PageShellProps) {
-  const maxWidth =
-    variant === "wide" ? "var(--container-wide)" : "var(--container-narrow)";
+  const maxWidth = `var(--container-${variant})`;
 
   return (
     <div
