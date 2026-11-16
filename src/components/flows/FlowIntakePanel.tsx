@@ -35,10 +35,11 @@ type Run = ReturnType<typeof useRun>;
 const Refused = ({ run }: { run: Run }) =>
   run.isError ? <StatusNotice tone="error">{documentRefusalMessage(run.error)}</StatusNotice> : null;
 
-/** Only the two statuses the worker writes get a tone; anything else is printed plain. */
+/** Only the two statuses the worker writes get a tone; anything else is printed plain. A toned run needs the person. */
+const runTone = (i: FlowIntake) => (i.lastStatus === "paused" ? "warning" : i.lastStatus === "failed" ? "error" : null);
 function LastRun({ intake }: { intake: FlowIntake }) {
   if (!intake.lastMessage) return null;
-  const tone = intake.lastStatus === "paused" ? "warning" : intake.lastStatus === "failed" ? "error" : null;
+  const tone = runTone(intake);
   return tone ? <StatusNotice tone={tone}>{intake.lastMessage}</StatusNotice>
     : <p className="m-0 text-[12.5px] text-ink-muted">{intake.lastMessage}</p>;
 }
@@ -220,7 +221,7 @@ export function FlowIntakePanel({ flow }: { flow: Flow }) {
     return (
       <>
         {email && workspace && (
-          <details>
+          <details open={runTone(email) !== null}>
             <summary className={SUMMARY}>
               <ChevronRight size={16} aria-hidden data-disclosure-chevron />
               <span className="grid">

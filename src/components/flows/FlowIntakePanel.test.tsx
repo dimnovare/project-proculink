@@ -75,6 +75,24 @@ describe("FlowIntakePanel", () => {
     expect(screen.getByText("tok123@in.example.test").closest("details")).toBeNull();
   });
 
+  it("a paused address opens its own fold; the inbox's own flow is led by its Email card", async () => {
+    api.getInbox.mockResolvedValue({ ...inbox, address: "documents@in.example.test" });
+    api.listIntakes.mockResolvedValue([{ ...email, lastStatus: "paused", lastMessage: "Processing is paused for this workspace." }]);
+    const first = mount();
+    const note = await screen.findByText("Processing is paused for this workspace.");
+    expect(note.closest("details")!.hasAttribute("open")).toBe(true);
+    first.unmount();
+
+    api.getInbox.mockResolvedValue({ ...inbox, flowId: "f1", address: "documents@in.example.test" });
+    api.listIntakes.mockResolvedValue([email]);
+    const second = mount();
+    const own = await screen.findByText("tok123@in.example.test");
+    await waitFor(() => expect(second.client.getQueryState(["inbox"])?.status).toBe("success"));
+    expect(screen.queryByText(/Send any document to/)).toBeNull();
+    expect(own.closest("details")).toBeNull();
+    expect(screen.getByText("Email")).toBeTruthy();
+  });
+
   it("with no workspace address the flow's own address leads, open; with none of its own it offers one without a warning", async () => {
     api.getInbox.mockRejectedValue(new Error("down"));
     const first = mount();
