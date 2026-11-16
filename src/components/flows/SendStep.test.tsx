@@ -55,26 +55,45 @@ beforeEach(() => {
 });
 
 describe("SendStep", () => {
-  it("offers exactly the kinds the server supports", async () => {
+  it("offers exactly the kinds the server supports: the common places first, the server kinds one press away", async () => {
     api.listDestinations.mockResolvedValue([]);
     api.listOutputs.mockResolvedValue([csvOutput]);
     linked.mockReturnValue({ data: undefined, isError: true });        // not known: no Google
     const { unmount } = render(<SendStep flow={confirmed} docId="d-1" first />, { wrapper });
     const group = await screen.findByRole("radiogroup", { name: "Where should the file go?" });
-    const names = () => within(group).getAllByRole("radio").map((r) => r.getAttribute("aria-label") ?? r.textContent);
-    expect(names()).toEqual([
-      expect.stringMatching(/^Download/), expect.stringMatching(/^Email/), expect.stringMatching(/^SFTP or FTPS/),
-      expect.stringMatching(/^S3 bucket/), expect.stringMatching(/^Web address/),
-    ]);
+    const ids = (g: HTMLElement) => within(g).getAllByRole("radio").map((r) => r.getAttribute("data-testid"));
+    expect(ids(group)).toEqual(["send-tile-download", "send-tile-email"]);
     expect(within(group).getByRole("radio", { name: /^Download/ })).toBeChecked();
+    const more = screen.getByRole("button", { name: /^A server or another system/ });
+    expect(more).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(more);
+    expect(more).toHaveAttribute("aria-expanded", "true");
+    expect(ids(group)).toEqual(["send-tile-download", "send-tile-email", "send-tile-server", "send-tile-s3", "send-tile-http"]);
     unmount();
     linked.mockReturnValue({ data: { available: true, accounts: [] } });
     api.listDestinations.mockResolvedValue([savedSftp]);
     render(<SendStep flow={confirmed} docId="d-1" first />, { wrapper: freshWrapper() });
     const again = await screen.findByRole("radiogroup", { name: "Where should the file go?" });
-    expect(within(again).getByRole("radio", { name: /^Google Drive/ })).toBeInTheDocument();
-    expect(within(again).getByRole("radio", { name: /^Google Sheets/ })).toBeInTheDocument();
-    expect(await within(again).findByRole("radio", { name: /^Already set up/ })).toBeInTheDocument();
+    expect(await within(again).findByRole("radio", { name: /^Already set up A place you saved before/ })).toBeInTheDocument();
+    expect(ids(again)).toEqual(["send-tile-download", "send-tile-email", "send-tile-google_drive", "send-tile-google_sheets", "send-tile-existing"]);
+  });
+
+  it("with Download, Finish is the one filled button and makes the file without a browser download", async () => {
+    api.listOutputs.mockResolvedValue([csvOutput]);
+    api.listDestinations.mockResolvedValue([]);
+    api.publishFlow.mockResolvedValue(confirmed);
+    api.sendDocument.mockResolvedValue([{ id: "dl-1", outputName: "CSV file", protocol: "download", status: "stored", attempts: 0, lastError: null, fileName: "invoice.csv", deliveredAt: null }]);
+    const { container } = render(<SendStep flow={confirmed} docId="d-1" first />, { wrapper: freshWrapper() });
+    const finish = await screen.findByRole("region", { name: "Finish" });
+    expect(screen.getByText("Nothing to set up. Each file waits in Documents, ready to download.")).toBeInTheDocument();
+    expect(await within(finish).findByText("Your first file is ready. You will find it in Documents, ready to download.")).toBeInTheDocument();
+    expect(within(finish).queryByText(/Finish without/)).toBeNull();
+    expect(filled(container).map((b) => b.textContent)).toEqual(["Finish"]);
+    fireEvent.click(within(finish).getByRole("button", { name: "Finish" }));
+    fireEvent.click(within(finish).getByRole("button", { name: "Finish" }));
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith(`/flows/${confirmed.id}`));
+    expect(api.sendDocument).toHaveBeenCalledTimes(1);
+    expect(blob.saveBlob).not.toHaveBeenCalled();
   });
 
   it("fills one button, and only when the choice is ready", async () => {
@@ -83,8 +102,8 @@ describe("SendStep", () => {
     api.listDocumentPage.mockResolvedValue({ items: [{ ...row, isSample: false, fileName: "po-1.pdf" }], totalCount: 1, page: 1, pageSize: 20, sampleCount: 0 });
     const { container, unmount } = render(<SendStep flow={confirmed} docId="d-1" first />, { wrapper: freshWrapper() });
     const finish = await screen.findByRole("region", { name: "Finish" });
-    expect(await within(finish).findByText("Your document is ready. You download it as a CSV file.")).toBeInTheDocument();
-    expect(filled(container).map((b) => b.textContent)).toEqual(["Make the file and download it"]);
+    expect(await within(finish).findByText("Your first file is ready. You will find it in Documents, ready to download.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /^A server or another system/ }));
     fireEvent.click(within(screen.getByRole("radiogroup", { name: "Where should the file go?" })).getByRole("radio", { name: /^SFTP or FTPS/ }));
     const send = within(finish).getByRole("button", { name: "Send po-1.pdf now" });
     expect(send).toBeDisabled();
@@ -100,6 +119,7 @@ describe("SendStep", () => {
     // Our sample with a destination form open: Finish is the one filled button, the form's is outlined.
     api.listDocumentPage.mockResolvedValue({ items: [{ ...row, isSample: true }], totalCount: 1, page: 1, pageSize: 20, sampleCount: 1 });
     const sample = render(<SendStep flow={confirmed} docId="d-1" first />, { wrapper: freshWrapper() }).container;
+    fireEvent.click(await within(sample).findByRole("button", { name: /^A server or another system/ }));
     fireEvent.click(await within(sample).findByRole("radio", { name: /^SFTP or FTPS/ }));
     await within(sample).findByText(/^This is our sample invoice/);
     expect(filled(sample).map((b) => b.textContent)).toEqual(["Finish"]);
@@ -145,7 +165,8 @@ describe("SendStep", () => {
     api.publishFlow.mockResolvedValue(confirmed);
     render(<SendStep flow={confirmed} docId="d-1" first />, { wrapper: freshWrapper() });
     const finish = await screen.findByRole("region", { name: "Finish" });
-    fireEvent.click(await screen.findByRole("radio", { name: /^SFTP or FTPS/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /^A server or another system/ }));
+    fireEvent.click(screen.getByRole("radio", { name: /^SFTP or FTPS/ }));
     fireEvent.click(screen.getByRole("button", { name: "Save and send a test" }));
     await waitFor(() => expect(api.testDestination).toHaveBeenCalledWith("dest-9"));
     expect(await within(finish).findByText("Invoices server did not pass its test, so it is saved but not used yet. You can fix it on the flow page.")).toBeInTheDocument();
@@ -163,7 +184,8 @@ describe("SendStep", () => {
     api.testDestination.mockResolvedValue({ success: true, message: null, responseCode: null });
     render(<SendStep flow={confirmed} docId="d-1" first />, { wrapper: freshWrapper() });
     const finish = await screen.findByRole("region", { name: "Finish" });
-    fireEvent.click(await screen.findByRole("radio", { name: /^SFTP or FTPS/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /^A server or another system/ }));
+    fireEvent.click(screen.getByRole("radio", { name: /^SFTP or FTPS/ }));
     fireEvent.click(screen.getByRole("button", { name: "Save and send a test" }));
     await waitFor(() => expect(within(finish).getByRole("button", { name: "Send invoice.pdf now" })).toBeEnabled());
     fireEvent.change(screen.getByLabelText("Server"), { target: { value: "other.example.test" } });
@@ -179,9 +201,9 @@ describe("SendStep", () => {
     const finish = await screen.findByRole("region", { name: "Finish" });
     expect(await within(finish).findByText(documentRefusalMessage(down))).toBeInTheDocument();
     expect(within(finish).queryByText(/is ready/)).toBeNull();
-    expect(within(finish).queryByRole("button", { name: /^(Make the file|Send )/ })).toBeNull();
+    expect(within(finish).queryByRole("button", { name: /^(Finish|Send )/ })).toBeNull();
     fireEvent.click(within(finish).getByRole("button", { name: "Try again" }));
-    expect(await within(finish).findByText("Your document is ready. You download it as a CSV file.")).toBeInTheDocument();
+    expect(await within(finish).findByText("Your first file is ready. You will find it in Documents, ready to download.")).toBeInTheDocument();
   });
 
   it("a document that no longer exists says so, with the way back, and offers no finish", async () => {
@@ -204,7 +226,7 @@ describe("SendStep", () => {
       const finish = await screen.findByRole("region", { name: "Finish" });
       expect(await within(finish).findByText(`invoice.pdf: ${documentStatus(status).label}.`)).toBeInTheDocument();
       fireEvent.click(screen.getByRole("radio", { name: /^Already set up/ }));
-      expect(within(finish).queryByRole("button", { name: /^(Send |Make the file|Finish without)/ })).toBeNull();
+      expect(within(finish).queryByRole("button", { name: /^(Send |Finish without)/ })).toBeNull();
       expect(filled(container).map((b) => b.textContent)).toEqual(["Finish"]);
       unmount();
     }

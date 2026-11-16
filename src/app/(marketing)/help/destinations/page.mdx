@@ -16,12 +16,15 @@ A destination is a place a file goes. You set one up once and any file in your w
 
 - **Download only.** Nothing is sent. The file is kept for you to download from the document. It shows as **Ready to download**.
 - **Email.** The file goes as an attachment to the addresses you list. You can add a reply-to address. The email comes from ProcuLink's sender address. It uses the **Subject** and **Message** you enter. Left blank, ProcuLink uses a default subject (the flow name and the file name) and a short message. A test send puts `[TEST]` in front of the subject. The attachment is named after the document.
-- **Web address (API).** We send the file to your URL with a POST or a PUT request. The file is the body of the request, with its own content type.
+- **Google Drive.** The file goes to a folder you choose.
+- **Google Sheets.** Each send adds the rows of a CSV file to the end of a sheet.
+
+The kinds below are grouped under **A server or another system**:
+
 - **SFTP.** We upload the file to a folder on your server. You sign in with a password or a private key.
 - **FTPS.** The same, over FTP with explicit TLS.
 - **S3 bucket.** We put the file in a folder of your bucket, on Amazon S3 or a service that works like it.
-- **Google Drive.** The file goes to a folder you choose.
-- **Google Sheets.** Each send adds the rows of a CSV file to the end of a sheet.
+- **Web address (API).** We send the file to your URL with a POST or a PUT request. The file is the body of the request, with its own content type.
 
 A destination needs a name, and the details for its kind. Passwords, keys and tokens are kept encrypted. See [Destination sign-in, keys and signing](/help/destination-sign-in).
 
