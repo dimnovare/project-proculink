@@ -82,6 +82,8 @@ export interface DocumentRow extends DocumentSummary {
 /** The workspace's inbox: where a document added without a flow lands, and the one email address that leads there. */
 export interface Inbox { flowId: string; address: string | null; intakeId: string | null; scansOn?: boolean; formatsOn?: boolean }
 export interface SetUpResult { flowId: string; flowName: string; document: DocumentSummary }
+/** A flow that already holds documents of a document's kind. */
+export interface SortFlow { id: string; name: string }
 /** `sampleCount` is in the server's page envelope and is always 0 for documents. */
 export interface DocumentPage { items: DocumentRow[]; totalCount: number; page: number; pageSize: number; sampleCount: number }
 export interface DocumentCheck { code: string; passed: boolean; fieldKey: string | null; message: string }
@@ -234,7 +236,7 @@ export const setUpDocument = (id: string, name?: string) =>
 export const downloadDocument = (id: string, format: "xlsx" | "csv") =>
   apiFetch<Blob>(`/documents/${seg(id)}/download`, { method: "POST", body: json({ format }) }, UPLOAD_TIMEOUT_MS, "blob");
 /** The flows that hold documents of this document's kind (empty when none do). */
-export const getSortFlows = (id: string) => apiFetch<{ id: string; name: string }[]>(`/documents/${seg(id)}/sort-flows`);
+export const getSortFlows = (id: string) => apiFetch<SortFlow[]>(`/documents/${seg(id)}/sort-flows`);
 
 /** An undefined parameter or an empty array is not sent; an array is sent comma-joined. */
 function toQuery(params: object): URLSearchParams {
