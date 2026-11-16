@@ -73,13 +73,21 @@ describe("OutputBuilder", () => {
     expect(names).toEqual(["Invoice number", "Item", "Quantity"]);
   });
 
-  it("a set layout is one press away, with a way back", () => {
+  it("a set layout is one press away, with a way back that keeps what was chosen", () => {
     renderBuilder({ flow: { ...invoiceFlow, docsOutputsOn: false } });
     expect(screen.queryByRole("button", { name: "From documentation" })).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Match a sample file" }));
+    fireEvent.change(screen.getByRole("combobox", { name: "File type" }), { target: { value: "xlsx" } });
+    expect(screen.getByRole("textbox", { name: "Name" })).toHaveProperty("value", "Supplier invoices Excel");
+    expect(screen.getByText("An Excel file with every value we read. Untick what you don't need.")).toBeTruthy();
+    fireEvent.click(screen.getByRole("checkbox", { name: "Put Due date in the file" }));
+    const link = screen.getByRole("button", { name: "Match a sample file" });
+    fireEvent.click(link);
+    expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Match a sample file" }));
     expect(screen.getByText("Upload an example of the file the receiving system expects: CSV, Excel, JSON or XML.")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Make another file" }));
-    expect(screen.getByText(/^In the file \(/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Back to Make another file" }));
+    expect(document.activeElement?.textContent).toBe("Match a sample file");
+    expect(screen.getByRole("combobox", { name: "File type" })).toHaveProperty("value", "xlsx");
+    expect(screen.getByText("In the file (3)")).toBeTruthy();
   });
 
   it("a sample becomes a reviewed file", async () => {

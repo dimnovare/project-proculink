@@ -17,7 +17,8 @@ import { defaultWidth, fromSimple } from "@/lib/flowOutputModel";
 import { STANDARDS, type StandardSupport } from "@/lib/standards/catalog";
 import { STANDARD_OUTPUTS, kindGroup, standardFamilies } from "@/lib/standardOutputs";
 import { and } from "@/lib/flowSentences";
-import { useOnFlowPage } from "./flowDraft";
+import { flowAddress } from "@/lib/flowSteps";
+import { FlowLink, useOnFlowPage } from "./flowDraft";
 import { barPending } from "./PublishBar";
 
 type Way = "quick" | "sample" | "docs" | "standards";
@@ -51,14 +52,32 @@ type Props = {
   kind: string | null;
   /** The flow has no file yet: the panel says "Make a file", as the button that opened it does. */
   first?: boolean;
+  /** The names of the flow's files, so the prefilled name is not one of them. */
+  names?: readonly string[];
 };
 
+const NAME_MAX = 120;
+const TICK = "Tick at least one value.";
+/** "{flow name} {type}", then " 2", " 3"… while taken; the flow's name is cut so the whole name fits the box. */
+function prefilledName(flowName: string, type: string, taken: readonly string[] = []) {
+  for (let n = 1; ; n++) {
+    const tail = ` ${type}${n > 1 ? ` ${n}` : ""}`;
+    const name = `${flowName.slice(0, NAME_MAX - tail.length).trimEnd()}${tail}`;
+    if (!taken.includes(name)) return name;
+  }
+}
+
+/** What the person chose in the ready panel; kept while they look at another way. `name` is null until they type one. */
+type Pick = { name: string | null; format: string; off: Set<string> };
+
 /** A CSV of every value we read, ticked; one press makes it (R7). */
-function QuickFile({ flow, title, onDone, onCreated, refresh }: Props & { title: string; refresh(): void }) {
+function QuickFile({ flow, title, onDone, made, names, pick, setPick }: Props & {
+  title: string; made(saved: FlowOutput): void; pick: Pick; setPick(p: Pick): void;
+}) {
   const onFlowPage = useOnFlowPage();
-  const [name, setName] = useState(`${flow.name} CSV`);
-  const [format, setFormat] = useState("csv");
-  const [off, setOff] = useState<Set<string>>(() => new Set());
+  const { format, off } = pick;
+  const type = FORMATS[format as keyof typeof FORMATS] ?? format;
+  const name = pick.name ?? prefilledName(flow.name, type, names);
   const [problem, setProblem] = useState<string | null>(null);
   const table = flow.fields.tables[0];
   const values = [
@@ -77,31 +96,48 @@ function QuickFile({ flow, title, onDone, onCreated, refresh }: Props & { title:
         template: fromSimple({ fields, table: tableKey ? { key: tableKey, columns } : null }, format),
       });
     },
-    onSuccess: (saved) => { refresh(); onCreated(saved); },
+    onSuccess: made,
+    onError: () => { sent.current = false; },
   });
+  // One request per press, even when a second press lands before the button has turned busy.
+  const sent = useRef(false);
   const press = () => {
-    const why = !name.trim() ? "Give this file a name." : !values.some((v) => ticked(v.id)) ? "Tick at least one value." : null;
+    if (sent.current) return;
+    const why = !name.trim() ? "Give this file a name." : !values.some((v) => ticked(v.id)) ? TICK : null;
     setProblem(why);
-    if (!why) create.mutate();
+    if (!why) { sent.current = true; create.mutate(); }
   };
-  const flip = (id: string) => setOff((s) => { const n = new Set(s); if (!n.delete(id)) n.add(id); return n; });
+  const flip = (id: string) => {
+    const n = new Set(off);
+    if (!n.delete(id)) n.add(id);
+    setPick({ ...pick, off: n });
+    if (problem === TICK) setProblem(null);
+  };
+  const line = `${/^[AEIOX]/.test(type) ? "An" : "A"} ${type} file with every value we read. Untick what you don't need.`;
 
   return (
     <Card edge="green">
       <div className="grid gap-3">
         <div className="grid gap-0.5">
           <h2 className="m-0 text-[16px] font-semibold text-ink">{title}</h2>
-          <p className="m-0 text-[14px] text-ink-muted">A CSV file with every value we read. Untick what you don&apos;t need.</p>
+          <p className="m-0 text-[14px] text-ink-muted">{line}</p>
         </div>
-        <Field label="Name"><input className={INPUT} maxLength={120} value={name} onChange={(e) => setName(e.target.value)} /></Field>
+        <Field label="Name">
+          <input className={INPUT} maxLength={NAME_MAX} value={name} onChange={(e) => setPick({ ...pick, name: e.target.value })} />
+        </Field>
         <Field label="File type">
-          <select className={INPUT} value={format} onChange={(e) => setFormat(e.target.value)}>
+          <select className={INPUT} value={format} onChange={(e) => setPick({ ...pick, format: e.target.value })}>
             {Object.entries(FORMATS).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
           </select>
         </Field>
         <section className="grid gap-1">
           <h3 className="m-0 text-[14px] font-semibold text-ink">In the file ({values.filter((v) => ticked(v.id)).length})</h3>
-          {values.length === 0 ? <p className="m-0 text-[14px] text-ink-muted">No values yet</p> : (
+          {values.length === 0 ? (
+            <p className="m-0 text-[14px] text-ink-muted">
+              We list the values here once this flow has read a document.{" "}
+              <FlowLink href={flowAddress(flow.id, "documents")} className={LINK}>Go to Documents</FlowLink>
+            </p>
+          ) : (
             <ul className="m-0 grid list-none gap-0 p-0 sm:grid-cols-2">
               {values.map((v) => (
                 <li key={v.id}>
@@ -113,13 +149,21 @@ function QuickFile({ flow, title, onDone, onCreated, refresh }: Props & { title:
               ))}
             </ul>
           )}
+          {flow.fields.tables.length > 1 && (
+            <p className="m-0 text-[14px] text-ink-muted">
+              Rows come from the table {table.label}. You can choose another table after the file is made.
+            </p>
+          )}
         </section>
         {(problem || create.isError) && <StatusNotice tone="error">{problem ?? documentRefusalMessage(create.error)}</StatusNotice>}
         <div className="flex flex-wrap gap-2">
-          <Button variant={onFlowPage && barPending(flow) ? "secondary" : "primary"} loading={create.isPending} disabled={create.isSuccess} onClick={press}>
+          <Button
+            variant={onFlowPage && barPending(flow) ? "secondary" : "primary"} loading={create.isPending}
+            disabled={create.isSuccess || values.length === 0} onClick={press}
+          >
             Create
           </Button>
-          <Button variant="ghost" onClick={onDone}>Cancel</Button>
+          <Button variant="ghost" disabled={create.isPending} onClick={onDone}>Cancel</Button>
         </div>
       </div>
     </Card>
@@ -130,16 +174,37 @@ function QuickFile({ flow, title, onDone, onCreated, refresh }: Props & { title:
 export function OutputBuilder(props: Props) {
   const { flow, previewDocumentId, onCreated, first } = props;
   const [way, setWay] = useState<Way>("quick");
+  const [pick, setPick] = useState<Pick>(() => ({ name: null, format: "csv", off: new Set() }));
   const title = first ? "Make a file" : "Make another file";
   const sample = useMutation({ mutationFn: (file: File) => outputFromSample(flow.id, file) });
   const docs = useMutation({ mutationFn: (file: File) => outputFromDocumentation(flow.id, file) });
   const qc = useQueryClient();
-  const refresh = () => { qc.invalidateQueries({ queryKey: ["outputs", flow.id] }); qc.invalidateQueries({ queryKey: ["flow", flow.id] }); };
+  // Every way ends here: the saved file goes into the list before the list is asked for again, then it opens.
+  const made = (saved: FlowOutput) => {
+    qc.setQueryData<FlowOutput[]>(["outputs", flow.id], (l) => l && [...l.filter((o) => o.id !== saved.id), saved]);
+    qc.invalidateQueries({ queryKey: ["outputs", flow.id] });
+    qc.invalidateQueries({ queryKey: ["flow", flow.id] });
+    onCreated(saved);
+  };
   const standard = useMutation({
     mutationFn: (s: StandardSupport) =>
       createOutput(flow.id, { name: s.name, format: "", standard: s.id, tableKey: flow.fields.tables[0]?.key ?? null, destinationId: null }),
-    onSuccess: (saved) => { refresh(); onCreated(saved); },
+    onSuccess: made,
   });
+  // Switching ways: the opened panel's heading takes focus; going back returns it to the link that opened the panel.
+  const heading = useRef<HTMLHeadingElement>(null);
+  const links = useRef<Partial<Record<Way, HTMLButtonElement | null>>>({});
+  const from = useRef<{ way: Way; moved: boolean }>({ way: "quick", moved: false });
+  const go = (w: Way) => { from.current = { way: w === "quick" ? from.current.way : w, moved: true }; setWay(w); };
+  useEffect(() => {
+    if (!from.current.moved) return;
+    from.current.moved = false;
+    (way === "quick" ? links.current[from.current.way] : heading.current)?.focus();
+  }, [way]);
+  const opener = (w: Way, label: string) => (
+    <button type="button" className={LINK} ref={(el) => { links.current[w] = el; }} onClick={() => go(w)}>{label}</button>
+  );
+  const panelTitle = (text: string) => <h2 ref={heading} tabIndex={-1} className="m-0 text-[16px] font-semibold text-ink">{text}</h2>;
 
   // A standard format (R9, R10): one row per family, the group that fits this flow's documents first, the rest folded.
   const fams = standardFamilies(flow.peppolOn);
@@ -166,23 +231,23 @@ export function OutputBuilder(props: Props) {
   if (way === "quick")
     return (
       <div className="grid gap-3">
-        <QuickFile {...props} title={title} refresh={refresh} />
+        <QuickFile {...props} title={title} made={made} pick={pick} setPick={setPick} />
         <div className="flex flex-wrap items-center gap-x-4 px-1">
           <span className="text-[14px] text-ink-muted">Need a set layout?</span>
-          <button type="button" className={LINK} onClick={() => setWay("sample")}>Match a sample file</button>
-          {flow.docsOutputsOn && <button type="button" className={LINK} onClick={() => setWay("docs")}>From documentation</button>}
-          <button type="button" className={LINK} onClick={() => setWay("standards")}>A standard format</button>
+          {opener("sample", "Match a sample file")}
+          {flow.docsOutputsOn && opener("docs", "From documentation")}
+          {opener("standards", "A standard format")}
         </div>
       </div>
     );
 
   return (
     <div className="grid gap-3">
-      <div><button type="button" className={LINK} onClick={() => setWay("quick")}>{title}</button></div>
+      <div><button type="button" className={LINK} aria-label={`Back to ${title}`} onClick={() => go("quick")}>{title}</button></div>
       {way === "standards" ? (
         <div className="grid gap-3">
           <div className="grid gap-0.5">
-            <h2 className="m-0 text-[16px] font-semibold text-ink">A standard format</h2>
+            {panelTitle("A standard format")}
             <p className="m-0 text-[14px] text-ink-muted">We fill it in from what we read. Choose the one your receiver asked for.</p>
           </div>
           {standard.isError && <StatusNotice tone="error">{documentRefusalMessage(standard.error)}</StatusNotice>}
@@ -207,10 +272,14 @@ export function OutputBuilder(props: Props) {
         </div>
       ) : way === "docs" ? (
         docs.data ? (
-          <DraftReview flow={flow} draft={docs.data} requireTest previewDocumentId={previewDocumentId} onCreated={onCreated} onRestart={docs.reset} />
+          <>
+            {panelTitle("From documentation")}
+            <DraftReview flow={flow} draft={docs.data} requireTest previewDocumentId={previewDocumentId} onCreated={made} onRestart={docs.reset} />
+          </>
         ) : (
           <div className="grid gap-3">
-            <p className="text-[13px] text-ink-muted">{COPY.docs_lead}</p>
+            {panelTitle("From documentation")}
+            <p className="m-0 text-[14px] text-ink-muted">{COPY.docs_lead}</p>
             <FileDrop
               accept=".pdf,.html,.htm,.json,.yaml,.yml,.xsd,.xml,.txt,.csv" maxBytes={DOCS_BYTES} prompt="Drop the documentation here, or choose a file."
               busyLabel="Reading the documentation…" busy={docs.isPending} error={docs.isError ? documentRefusalMessage(docs.error) : null}
@@ -219,10 +288,14 @@ export function OutputBuilder(props: Props) {
           </div>
         )
       ) : sample.data ? (
-        <DraftReview flow={flow} draft={sample.data} previewDocumentId={previewDocumentId} onCreated={onCreated} onRestart={sample.reset} />
+        <>
+          {panelTitle("Match a sample file")}
+          <DraftReview flow={flow} draft={sample.data} previewDocumentId={previewDocumentId} onCreated={made} onRestart={sample.reset} />
+        </>
       ) : (
         <div className="grid gap-3">
-          <p className="text-[13px] text-ink-muted">Upload an example of the file the receiving system expects: CSV, Excel, JSON or XML.</p>
+          {panelTitle("Match a sample file")}
+          <p className="m-0 text-[14px] text-ink-muted">Upload an example of the file the receiving system expects: CSV, Excel, JSON or XML.</p>
           <FileDrop
             accept=".csv,.xlsx,.json,.xml" maxBytes={SAMPLE_BYTES} prompt="Drop a sample here, or choose a file."
             busyLabel="Reading the sample…" busy={sample.isPending} error={sample.isError ? documentRefusalMessage(sample.error) : null}

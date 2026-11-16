@@ -1,6 +1,6 @@
 "use client";
 
-import { useContext, useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, buttonClass } from "@/components/bridge/DSPrimitives";
@@ -44,8 +44,11 @@ const plain = (_: string, v: unknown) => {
     ...(Array.isArray(fieldManipulators) && fieldManipulators.length ? { fieldManipulators } : {}),
   };
 };
-const settingOf = (k: string, v: unknown) =>
-  JSON.stringify(k === "layout" && !Object.values(v ?? {}).some(Boolean) ? null : v ?? null, plain);
+/** A layout value left empty is no value: typing a letter and deleting it is not a change. */
+const settingOf = (k: string, v: unknown) => {
+  const l = k === "layout" && v ? Object.fromEntries(Object.entries(v).filter(([, x]) => x !== "")) : v;
+  return JSON.stringify(k === "layout" && !Object.values(l ?? {}).some(Boolean) ? null : l ?? null, plain);
+};
 export const changesLine = (n: number | "new" | null) =>
   n === "new" ? "Not in use yet" : !n ? null : n === 1 ? "1 change not in use yet" : `${n} changes not in use yet`;
 
@@ -58,6 +61,10 @@ export function FlowOutputs({ flow, outputId, previewDocumentId }: { flow: Flow;
   const go = useContext(GoContext);
   const { flushAll, leave } = useFlowDraft();
   const [adding, setAdding] = useState(false);
+  // The file just made is shown at once, while the address still says what it said when it was made.
+  const [made, setMade] = useState<{ id: string; from: string | null } | null>(null);
+  const editor = useRef<HTMLDivElement>(null);
+  useEffect(() => { if (made) editor.current?.querySelector("h2")?.focus(); }, [made]);
   const deleting = useRef(false);
   const outputs = useQuery({ queryKey: ["outputs", flow.id], queryFn: () => listOutputs(flow.id), enabled });
   // The live setup's files, only while there is one with changes: the count is drawn from both lists in hand, never guessed.
@@ -76,7 +83,8 @@ export function FlowOutputs({ flow, outputId, previewDocumentId }: { flow: Flow;
 
   if (outputs.isError && !outputs.data) return <Failed error={outputs.error} retry={() => outputs.refetch()} />;
   if (!outputs.data) return <Quiet>Loading files…</Quiet>;
-  const chosen = outputs.data.find((o) => o.id === outputId) ?? outputs.data[0];
+  const wanted = made && made.from === outputId ? made.id : outputId;
+  const chosen = outputs.data.find((o) => o.id === wanted) ?? outputs.data[0];
   // Both lists answered and neither is being fetched again: a count from an older answer is never drawn.
   const counting = typeof flow.publishedVersion === "number" && !!flow.hasChanges
     && outputs.isSuccess && !outputs.isFetching && live.isSuccess && !live.isFetching;
@@ -144,11 +152,12 @@ export function FlowOutputs({ flow, outputId, previewDocumentId }: { flow: Flow;
       {adding ? (
         <OutputBuilder
           flow={flow} previewDocumentId={preview} kind={source.data?.read?.kindLabel ?? null} first={outputs.data.length === 0}
-          onDone={() => setAdding(false)} onCreated={open}
+          names={outputs.data.map((o) => o.name)} onDone={() => setAdding(false)}
+          onCreated={(o) => { setMade({ id: o.id, from: outputId }); open(o); }}
         />
       ) : chosen ? (
         <Card as="section" aria-label={`Edit the file ${chosen.name}`}>
-          <div className="grid gap-4">
+          <div ref={editor} className="grid gap-4">
             <OutputEditor
               key={chosen.id} mode="draft" flow={flow} output={chosen} previewDocumentId={preview} previewFile={source.data?.summary.fileName}
               onSaved={() => {}} onCancel={() => {}}

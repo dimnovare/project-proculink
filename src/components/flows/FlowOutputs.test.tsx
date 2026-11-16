@@ -9,7 +9,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn(), push: 
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => true }));
 const api = vi.hoisted(() => ({
   listOutputs: vi.fn(), listDestinations: vi.fn(), listLookups: vi.fn(), updateOutput: vi.fn(), deleteOutput: vi.fn(),
-  previewOutput: vi.fn(), testOutput: vi.fn(), listDocumentPage: vi.fn(),
+  previewOutput: vi.fn(), testOutput: vi.fn(), listDocumentPage: vi.fn(), createOutput: vi.fn(),
 }));
 vi.mock("@/lib/api/documents", () => api);
 
@@ -102,6 +102,7 @@ describe("FlowOutputs", () => {
     const resaved = { ...invoiceCsv, layout: {}, template: { ...invoiceCsv.template, root: { ...invoiceCsv.template.root,
       children: invoiceCsv.template.root.children.map((c) => ({ ...c, rule: { outputPath: c.rule.outputPath, canonicalField: c.rule.canonicalField, width: 40 } })) } } };
     expect(changesNotInUse(resaved as never, [{ ...invoiceCsv, layout: null } as never])).toBe(0);
+    expect(changesNotInUse({ ...invoiceCsv, layout: { title: "Old", footer: "" } } as never, [{ ...invoiceCsv, layout: { title: "Old" } } as never])).toBe(0);
     const live = { ...invoiceCsv, name: "Invoices" };
     let again!: (l: unknown[]) => void;
     let calls = 0;
@@ -119,5 +120,19 @@ describe("FlowOutputs", () => {
     await waitFor(() => expect(within(list).queryByText(/not in use yet/i)).toBeNull());
     await act(async () => { again([invoiceCsv]); });
     expect(within(list).queryByText(/not in use yet/i)).toBeNull();
+  });
+
+  it("the file just made is the one shown, while the list is still being fetched again", async () => {
+    const made = { ...invoiceCsv, id: "out-2", name: "Supplier invoices CSV", destinationId: null };
+    api.createOutput.mockResolvedValue(made);
+    mount();
+    await screen.findByRole("region", { name: "Edit the file Invoice CSV" });
+    api.listOutputs.mockImplementation(() => new Promise(() => {}));
+    fireEvent.click(screen.getByRole("button", { name: "Make another file" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Create" }));
+    const region = await screen.findByRole("region", { name: "Edit the file Supplier invoices CSV" });
+    expect(document.activeElement).toBe(within(region).getByRole("heading", { name: "Supplier invoices CSV" }));
+    expect(screen.getAllByRole("link").filter((l) => l.getAttribute("aria-current") === "page").map((l) => l.textContent)).toEqual(["Supplier invoices CSVCSV, you download it"]);
+    expect(screen.queryByText("No file yet.")).toBeNull();
   });
 });

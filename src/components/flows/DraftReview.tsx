@@ -62,10 +62,8 @@ export function DraftReview({ flow, draft, requireTest, previewDocumentId, onCre
     mutationFn: () => {
       return createOutput(flow.id, { name: name.trim(), format: draft.format, tableKey: draft.tableKey, destinationId, template: sent });
     },
-    onSuccess: (saved) => {
-      qc.invalidateQueries({ queryKey: ["outputs", flow.id] });
-      onCreated(saved);
-    },
+    // The caller puts the saved file into the list before it asks for the list again (OutputBuilder).
+    onSuccess: (saved) => onCreated(saved),
     onError: (e) => setProblem(documentRefusalMessage(e)),
   });
 

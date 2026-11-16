@@ -471,7 +471,7 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
       <div className="grid gap-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-1">
-            <h2 className="m-0 min-w-0 break-words text-[16px] font-semibold text-ink">{name.trim() || current.name}</h2>
+            <h2 tabIndex={-1} className="m-0 min-w-0 break-words text-[16px] font-semibold text-ink">{name.trim() || current.name}</h2>
             <button
               type="button" aria-label="Rename this file" aria-expanded={renameShown} onClick={() => setRenaming(!renameShown)}
               className="inline-flex h-11 w-11 flex-none items-center justify-center rounded-md text-ink-muted hover:bg-surface-2 hover:text-ink"
