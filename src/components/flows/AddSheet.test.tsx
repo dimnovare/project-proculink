@@ -99,6 +99,16 @@ describe("AddSheet", () => {
     expect(photoName(new Date(2026, 10, 15, 9, 3, 7), "image/png")).toBe("photo-20261115-090307.png");
   });
 
+  it("in a workspace still on its first run, a file goes to that first flow, not to the workspace", async () => {
+    api.listFlows.mockResolvedValue([flow("f1", "New flow", { fieldsConfirmed: false })]);
+    api.uploadDocument.mockResolvedValue(summary("d1", "a.pdf"));
+    mount(<AddSheet onClose={() => {}} />);
+    await screen.findByRole("dialog", { name: "Add a document" });
+    fireEvent.change(screen.getByTestId("sheet-file-input"), { target: { files: [new File(["x"], "a.pdf")] } });
+    await waitFor(() => expect(api.uploadDocument).toHaveBeenCalledWith("f1", expect.objectContaining({ name: "a.pdf" })));
+    expect(api.addDocument).not.toHaveBeenCalled();
+  });
+
   it("offline, choosing a file closes the sheet without leaving the page", async () => {
     api.listFlows.mockResolvedValue([flow("f1", "Supplier invoices")]);
     const onLine = vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);

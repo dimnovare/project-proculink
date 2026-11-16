@@ -453,7 +453,8 @@ const flowsHolding = (kind: string | null | undefined) =>
 
 /** This page load's uploads: a second copy (same flow, name and size; for the inbox, any flow) is held; a first one reads 1.5 s later. */
 const uploaded = new Set<string>();
-const reads = new Map<string, { at: number; facts: Partial<DocumentRow> }>();
+/** What a read finds is worked out when it settles, as the server sorts at the end of the read (a set-up made meanwhile counts). */
+const reads = new Map<string, { at: number; facts: () => Partial<DocumentRow> }>();
 let uploads = 0;
 /** Like `DocumentIntakeService.AcceptAsync`: the server's refusals in its order, then a stored row. */
 const upload = (flow: Flow, body: Body): DocumentSummary => {
@@ -465,13 +466,17 @@ const upload = (flow: Flow, body: Body): DocumentSummary => {
   if (refusal) throw refusal;
   if (file.size === 0) throw new ApiHttpError("mock engine: empty file", 422, { error: "unreadable_file" });
   const key = `${flow.id}/${file.name}/${file.size}`;
-  const held = flow === INBOX ? [...uploaded].some((k) => k.endsWith(`/${file.name}/${file.size}`)) : uploaded.has(key);
+  // Held when this flow already has the file, or when the workspace does (an earlier upload of the same name and size, or a
+  // stored document of the same name in any flow). The sentence says which.
+  const kept = (d: DocumentRow) => d.fileName === file.name && !d.isSample;
+  const inFlow = flow !== INBOX && (uploaded.has(key) || ROWS.some((d) => kept(d) && d.flowId === flow.id));
+  const held = inFlow || [...uploaded].some((k) => k.endsWith(`/${file.name}/${file.size}`)) || ROWS.some(kept);
   uploaded.add(key);
   const row = doc(0, flow, held ? STATUS.needs_review : STATUS.reading, {
     id: `doc-up-${++uploads}`, fileName: file.name, createdAt: new Date().toISOString(),
-    ...(held && { statusReason: "duplicate_file", checks: [flow === INBOX ? "in_workspace" : "duplicate"], failedChecks: 1, kind: null, sender: null }),
+    ...(held && { statusReason: "duplicate_file", checks: [inFlow ? "duplicate_file" : "in_workspace"], failedChecks: 1, kind: null, sender: null }),
   });
-  if (!held) reads.set(row.id, { at: Date.now() + 1500, facts: flow === INBOX ? sortFacts(file.name) : { kind: KINDS[flow.id] ?? null, sender: "Example Supplier Ltd", ...readFacts(file.name) } });
+  if (!held) reads.set(row.id, { at: Date.now() + 1500, facts: () => flow === INBOX ? sortFacts(file.name) : { kind: KINDS[flow.id] ?? null, sender: "Example Supplier Ltd", ...readFacts(file.name) } });
   ROWS.push(row);
   DOCS.push(summaryOf(row));
   return { ...summaryOf(row), status: held ? row.status : STATUS.received };
@@ -503,9 +508,10 @@ const setRow = (id: string, facts: Partial<DocumentRow>, keep = false): Document
 };
 /** A row whose read time has come takes its read facts. Until then it answers as `reading` (or `received`, after a move). */
 const settleReads = () => {
-  for (const [id, { at, facts }] of reads) {
+  for (const [id, { at, facts: read }] of reads) {
     if (Date.now() < at) continue;
     const from = pick(ROWS, id, "document").flowId;
+    const facts = read();
     const row = setRow(id, facts);
     if (facts.flowId) log(id, "document.sorted", { fromFlowId: from, flowId: row.flowId, flow: row.flowName, certain: row.statusReason !== "check_sort", duplicateFile: false, newFlow: false }, null);
     reads.delete(id);
@@ -527,7 +533,7 @@ const place = (row: DocumentRow, to: Flow, newFlow: boolean) => {
   log(row.id, "document.moved", { fromFlowId: row.flowId, flowId: to.id, flow: to.name, certain: true, duplicateFile, newFlow });
   const hold = duplicateFile ? { status: STATUS.needs_review, statusReason: "duplicate_file", checks: ["duplicate_file"], failedChecks: 1 } : null;
   setRow(row.id, { flowId: to.id, flowName: to.name, inInbox: false, ...(hold ?? { status: STATUS.received, statusReason: null, checks: [], failedChecks: 0 }) });
-  if (!hold) reads.set(row.id, { at: Date.now() + 1500, facts: readFacts(row.fileName) });
+  if (!hold) reads.set(row.id, { at: Date.now() + 1500, facts: () => readFacts(row.fileName) });
   remember(row);
   follow(row, to);
   return summaryOf(live(row));
@@ -536,7 +542,7 @@ const place = (row: DocumentRow, to: Flow, newFlow: boolean) => {
 const follow = (row: DocumentRow, to: Flow) => {
   for (const d of ROWS.filter((x) => x.id !== row.id && x.flowId === INBOX.id && !!row.kind && x.kind === row.kind && (x.statusReason === "new_kind" || x.statusReason === "choose_flow"))) {
     log(d.id, "document.sorted", { fromFlowId: INBOX.id, flowId: to.id, flow: to.name, certain: false, duplicateFile: false, newFlow: false }, null);
-    setRow(d.id, { flowId: to.id, flowName: to.name, inInbox: false, statusReason: "check_sort", checks: [], failedChecks: 0 });
+    setRow(d.id, { flowId: to.id, flowName: to.name, inInbox: false, statusReason: "check_sort", checks: [], failedChecks: 0 }, true); // a person's edits go with it
   }
 };
 /** Like InboxController.Move: refusals in its order; the flow it is already in confirms the sort. */

@@ -130,16 +130,19 @@ describe("upload queue", () => {
     const store = fakeStore();
     onLine.mockReturnValue(false);
     const { result } = mount({ store });
-    act(() => { result.current.add([file("delivery-note-78.jpg")], FLOW); });
-    await waitFor(() => expect(result.current.items[0].state).toBe("held"));
+    act(() => { result.current.add([file("delivery-note-78.jpg")], FLOW); result.current.add([file("statement-0412.pdf")], INBOX_TARGET({})); });
+    await waitFor(() => expect(result.current.items.every((i) => i.state === "held")).toBe(true));
     expect(uploadDocument).not.toHaveBeenCalled();
-    expect([...store.map.values()]).toMatchObject([{ userId: "u-alex", orgId: "o-1", flowId: FLOW.id, flowName: FLOW.name }]);
+    expect([...store.map.values()]).toMatchObject([{ userId: "u-alex", orgId: "o-1", flowId: FLOW.id, flowName: FLOW.name }, { flowId: "" }]);
     uploadDocument.mockResolvedValue(summary("d1", "delivery-note-78.jpg"));
+    addDocument.mockResolvedValue(summary("d2", "statement-0412.pdf"));
     onLine.mockReturnValue(true);
     act(() => { window.dispatchEvent(new Event("online")); window.dispatchEvent(new Event("online")); });
-    await waitFor(() => expect(result.current.items[0].state).toBe("done"));
+    await waitFor(() => expect(result.current.items.every((i) => i.state === "done")).toBe(true));
     expect(uploadDocument).toHaveBeenCalledTimes(1);
     expect(uploadDocument).toHaveBeenCalledWith(FLOW.id, expect.any(File));
+    // A file held from Add documents (no flow) goes to the workspace.
+    expect(addDocument.mock.calls.map(([f]) => f.name)).toEqual(["statement-0412.pdf"]);
     expect(store.map.size).toBe(0);
     // no store on this browser: refused in words, never held in memory
     const { result: r2 } = mount({ store: null });

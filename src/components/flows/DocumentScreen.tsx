@@ -422,7 +422,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
   const failedCodes = doc.data?.checks.filter((c) => !c.passed).map((c) => c.code) ?? [];
   const tag = marks && marks.count > 0
     ? { text: marks.count === 1 ? "1 value to check" : `${marks.count} values to check`, tone: "amber" as const }
-    : summary && rowNeed({ ...summary, checks: failedCodes, failedChecks: 0 });
+    : summary && rowNeed({ ...summary, inInbox: here, checks: failedCodes, failedChecks: 0 });
   const ago = relativeTime(summary?.createdAt);
   const by = summary?.source ? `by ${SOURCES.get(summary.source) ?? summary.source}` : "";
   const when = `${summary?.sourceRef ? ` from ${summary.sourceRef}` : ""}${ago ? ` ${ago}` : ""}`;

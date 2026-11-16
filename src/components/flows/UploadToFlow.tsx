@@ -122,7 +122,8 @@ function UploadedRow({ item, listed, inbox, sent, onSent, retry, remove }: {
         {doc?.status === "ready" && sorted ? (
           <Button variant="secondary" size="sm" aria-label={`Send ${name}`} loading={send.isPending} onClick={() => send.mutate()}
             className="relative z-[1] !border-brand-green-deep !text-brand-green-deep">Send</Button>
-        ) : doc?.status === "needs_review" ? (
+        ) : doc?.status === "needs_review" || doc?.status === "ready" ? (
+          // A ready row not known to be in a flow has nothing to send from here: it opens.
           <span aria-hidden className={buttonClass("secondary", "sm")}>{sorted ? "Review" : "Open"}</span>
         ) : item.state === "refused" && canRetryUpload(item.error) ? (
           <Button variant="secondary" size="sm" aria-label={`Try ${name} again`} onClick={retry} className="relative z-[1]">Try again</Button>
@@ -146,7 +147,8 @@ export function UploadToFlow() {
   const flows = useQuery({ ...flowsQuery, enabled: tenant });
   const isNew = !!flows.data && firstRunOf(flows.data).state === "new";
   // A new workspace never reaches this screen's inbox (R23): it is not asked there.
-  const inbox = useQuery({ ...inboxQuery, enabled: tenant && !!flows.data && !isNew });
+  // Asked again after a minute here, so a new address or newly read file kinds show without a reload.
+  const inbox = useQuery({ ...inboxQuery, staleTime: 60_000, enabled: tenant && !!flows.data && !isNew });
   const billing = useQuery({ queryKey: ["billing-status"], queryFn: getBillingStatus, staleTime: 60_000, enabled: tenant });
   const [sent, setSent] = useState<ReadonlySet<string>>(new Set());
   const [over, setOver] = useState(false);
@@ -187,7 +189,8 @@ export function UploadToFlow() {
     // What the workspace reads comes from the inbox answer; an absent switch is off (P4).
     const target = inbox.data && INBOX_TARGET(inbox.data);
     const pick = (files: FileList | null) => target && files && files.length > 0 && add([...files], target);
-    const address = inbox.data?.address;
+    // Only from an answer that has not failed since: a failed refresh never leaves a dead address with Copy.
+    const address = !inbox.isError && inbox.data?.address;
     body = (
       <div className="grid gap-5">
         {paused && <PausedNotice {...paused} />}

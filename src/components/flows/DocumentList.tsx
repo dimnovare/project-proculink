@@ -28,7 +28,9 @@ const WHOLE: readonly string[] = WHOLE_DOCUMENT_CHECKS;
 
 /** What a row asks of a person, in a few words, and its colour. */
 export function rowNeed(d: ListedDocument): { text: string; tone: Tone } {
-  if (d.statusReason === "duplicate_file") return { text: "Already uploaded to this flow", tone: "amber" };
+  // Where the earlier copy is: the workspace, this flow, or (place not known) said without a place.
+  if (d.statusReason === "duplicate_file")
+    return { text: d.inInbox ? "Already in your workspace" : d.inInbox === false ? "Already uploaded to this flow" : "Already uploaded", tone: "amber" };
   const s = documentStatus(d.status, d.statusReason);
   if (s.label !== DOCUMENT_STATUSES[d.status]?.label) return { text: s.label, tone: STATUS_TONE[s.tone] };
   if (d.status === "ready") return { text: "Ready to send", tone: "green" };
