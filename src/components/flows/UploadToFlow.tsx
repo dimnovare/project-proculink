@@ -119,7 +119,7 @@ function UploadedRow({ item, listed, inbox, sent, onSent, retry, remove }: {
           : need && <Pill tone={need.tone}>{need.text}</Pill>}
       </span>
       <span className="col-span-full flex flex-wrap gap-2 justify-self-start sm:col-span-1 sm:justify-end sm:justify-self-end">
-        {doc?.status === "ready" && sorted ? (
+        {doc?.status === "ready" && sorted && doc.statusReason !== "check_sort" ? (
           <Button variant="secondary" size="sm" aria-label={`Send ${name}`} loading={send.isPending} onClick={() => send.mutate()}
             className="relative z-[1] !border-brand-green-deep !text-brand-green-deep">Send</Button>
         ) : doc?.status === "needs_review" || doc?.status === "ready" ? (

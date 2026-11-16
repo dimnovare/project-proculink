@@ -166,7 +166,10 @@ export function InboxAnswers({ detail, a }: { detail: DocumentDetail; a: Answers
   if (!a.none) { if (several) rows.unshift(move); else rows.push(move); }
   const [title, helper] = several
     ? [`Which flow does this ${kind ?? "document"} belong with?`, "More than one of your flows takes documents like this. Choose the one this belongs with."]
-    : [kind ? `This is the first ${kind} here.` : "This is the first document like this here.", "We read it without any setup. What would you like to do with documents like this?"];
+    // Only a new kind is known to be a first; any other reason, one this build does not know too, is asked plainly.
+    : statusReason === "new_kind"
+      ? [kind ? `This is the first ${kind} here.` : "This is the first document like this here.", "We read it without any setup. What would you like to do with documents like this?"]
+      : ["What would you like to do with this document?", "We read it without any setup."];
   return (
     <Card edge="none" as="section" aria-label="What to do with it" className="grid gap-4 max-lg:order-first">
       {status === "sent" ? (

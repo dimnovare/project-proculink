@@ -238,7 +238,8 @@ function editValues(id: string, body: Body): DocumentDetail {
     if (!v?.value?.trim()) return [notFound(f.key, f.label)];
     return v.confidence < REVIEW_CONFIDENCE ? [hardToRead(f.key, f.label)] : [];
   }).concat(was.failed.filter((c) => c.code === "duplicate"), flow === INBOX ? [FAILED_CHECKS.fields_unconfirmed] : []);
-  const status = was.status === STATUS.send_failed ? was.status : failed.length ? STATUS.needs_review : STATUS.ready;
+  // A sort we were not sure of waits for the person while its reason stands, as the server does.
+  const status = was.status === STATUS.send_failed ? was.status : failed.length || row.statusReason === "check_sort" ? STATUS.needs_review : STATUS.ready;
   remembered.set(id, { ...was, status, read: copy, failed });
   return detail(id);
 }

@@ -88,6 +88,36 @@ describe("DocumentScreen, a document in the inbox", () => {
     expect(screen.queryByRole("region", { name: "What to do with it" })).toBeNull();
   });
 
+  it("only a new kind is called a first; any other reason asks plainly, with the same answers", async () => {
+    const now = await getDocument("doc-in-1");
+    spy().answer = { "GET /documents/doc-in-1": { ...now, summary: { ...now.summary, statusReason: "a_reason_this_build_does_not_know" } } };
+    mount("doc-in-1");
+    const panel = await answers();
+    expect(within(panel).getByRole("heading", { level: 2 }).textContent + within(panel).getByText(/^We read it/).textContent)
+      .toBe("What would you like to do with this document?We read it without any setup.");
+    expect(within(panel).getAllByRole("button").map((b) => b.textContent)).toEqual(["Set it up", "Excel", "CSV", "Move it"]);
+  });
+
+  it("a refusal about the plan says so, with the way to Plan & billing", async () => {
+    for (const [doc, route, press, token] of [
+      ["doc-in-1", "POST /documents/doc-in-1/set-up", "Set it up", "flow_limit_reached"],
+      ["doc-in-2", "POST /documents/doc-in-2/move", "Move it", "processing_paused"],
+    ] as const) {
+      spy().answer = { [route]: { refuse: [403, token] } };
+      const view = mount(doc);
+      const panel = await answers();
+      if (press === "Move it") {
+        const list = within(panel).getByRole("combobox", { name: "Flow it belongs with" });
+        await within(list).findByRole("option", { name: "Remittance advices" });
+        fireEvent.change(list, { target: { value: "flow-4" } });
+      }
+      fireEvent.click(within(panel).getByRole("button", { name: press }));
+      const notice = (await within(panel).findByText(COPY[token])).closest<HTMLElement>("[data-notice-tone]")!;
+      expect(within(notice).getByRole("link", { name: "Open Plan & billing" })).toHaveAttribute("href", "/settings?tab=billing");
+      view.unmount();
+    }
+  });
+
   it("a correction is saved before a download, and the rate limiter's sentence is shown as it is", async () => {
     const LIMIT = "Rate limit exceeded. Please slow down and retry shortly.";
     spy().answer = { "POST /documents/doc-in-1/download": { refuse: [429, LIMIT] } };

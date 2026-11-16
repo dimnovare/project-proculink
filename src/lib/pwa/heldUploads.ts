@@ -6,7 +6,7 @@ import { MAX_UPLOAD_BYTES } from "@/lib/fileKinds";
  * person, workspace and flow it was chosen for; the upload queue checks that binding
  * before every send. A Web Lock per record makes one tab its owner.
  */
-export interface HeldRecord { key: string; userId: string; orgId: string; flowId: string; flowName: string; file: File; heldAt: string }
+export interface HeldRecord { key: string; userId: string; orgId: string; flowId: string; file: File; heldAt: string }
 
 export interface HeldStore {
   all(): Promise<HeldRecord[]>;

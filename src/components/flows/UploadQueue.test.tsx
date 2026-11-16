@@ -50,7 +50,8 @@ function fakeStore(records: HeldRecord[] = []) {
     released: (key: string) => releases.get(key)!.mock.invocationCallOrder[0],
   };
 }
-const record = (key: string, f: { userId: string; orgId: string; name?: string }): HeldRecord => ({
+// A record held by an older build still carries the flow's name: it is read all the same.
+const record = (key: string, f: { userId: string; orgId: string; name?: string }): HeldRecord & { flowName: string } => ({
   key, userId: f.userId, orgId: f.orgId, flowId: FLOW.id, flowName: FLOW.name, file: file(f.name ?? `${key}.pdf`), heldAt: "2026-05-20T09:00:00Z",
 });
 
@@ -133,7 +134,7 @@ describe("upload queue", () => {
     act(() => { result.current.add([file("delivery-note-78.jpg")], FLOW); result.current.add([file("statement-0412.pdf")], INBOX_TARGET({})); });
     await waitFor(() => expect(result.current.items.every((i) => i.state === "held")).toBe(true));
     expect(uploadDocument).not.toHaveBeenCalled();
-    expect([...store.map.values()]).toMatchObject([{ userId: "u-alex", orgId: "o-1", flowId: FLOW.id, flowName: FLOW.name }, { flowId: "" }]);
+    expect([...store.map.values()]).toMatchObject([{ userId: "u-alex", orgId: "o-1", flowId: FLOW.id }, { flowId: "" }]);
     uploadDocument.mockResolvedValue(summary("d1", "delivery-note-78.jpg"));
     addDocument.mockResolvedValue(summary("d2", "statement-0412.pdf"));
     onLine.mockReturnValue(true);

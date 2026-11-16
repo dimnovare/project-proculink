@@ -67,6 +67,17 @@ beforeEach(async () => {
 });
 
 describe("UploadToFlow", () => {
+  it.each([
+    [{ scansOn: false, formatsOn: false }, ".pdf,.csv,.xlsx"],
+    [{ scansOn: true, formatsOn: true }, ".pdf,.csv,.xlsx,.png,.jpg,.jpeg,.docx,.txt,.xml,.cxml,.json,.edi,.x12"],
+  ])("the file picker takes what the inbox answer says the workspace reads (%o)", async (switches, accept) => {
+    const real = await vi.importActual<typeof import("@/lib/api/documents")>("@/lib/api/documents");
+    api.getInbox.mockImplementation(async () => ({ ...(await real.getInbox()), ...switches }));
+    mount();
+    await screen.findByRole("region", { name: "Add files" });
+    expect(screen.getByTestId("upload-files-input")).toHaveAttribute("accept", accept);
+  });
+
   it("adds any document with no flow question, offers the workspace address, and says what each file turned out to be", async () => {
     const spy = { calls: [] as string[] };
     (window as { __mockEngine?: typeof spy }).__mockEngine = spy;

@@ -9,7 +9,7 @@ vi.mock("next/navigation", () => ({ usePathname: () => nav.path }));
 
 const { remove, retry } = vi.hoisted(() => ({ remove: vi.fn(), retry: vi.fn() }));
 const item = (key: string, name: string, over: Partial<UploadItem>): UploadItem => ({
-  key, file: new File(["x"], name), flowId: "f1", flowName: "Delivery notes", state: "held", ...over,
+  key, file: new File(["x"], name), flowId: "f1", state: "held", ...over,
 });
 const items: UploadItem[] = [
   item("k-held", "delivery-note-78.jpg", { state: "held", wasHeld: true }),

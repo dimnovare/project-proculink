@@ -15,7 +15,7 @@ import type { BillingStatus } from "@/types/procurement";
 
 export type UploadState = "waiting" | "held" | "uploading" | "done" | "refused";
 export interface UploadItem {
-  key: string; file: File; flowId: string; flowName: string; state: UploadState;
+  key: string; file: File; flowId: string; state: UploadState;
   /** The server's answer, once accepted. */ document?: DocumentSummary;
   /** Why it was refused. */ error?: unknown;
   /** Was kept on this device while offline: listed on every screen until it has gone up or is removed. */ wasHeld?: boolean;
@@ -97,7 +97,7 @@ export function UploadQueueProvider({ children, owner = null, store: given }: { 
   };
 
   /** Keeps the file on this device, or refuses it in words. Never kept only in memory. */
-  const hold = async ({ key, file, flowId, flowName }: UploadItem) => {
+  const hold = async ({ key, file, flowId }: UploadItem) => {
     const who = bound.current.get(key);
     try {
       if (!store || !who) throw new HeldRefusal("held_unavailable");
@@ -105,7 +105,7 @@ export function UploadQueueProvider({ children, owner = null, store: given }: { 
         // Exact within a tab (the chain holds one file at a time); two tabs offline at once can each pass at the edge.
         const limit = canHoldMore(await store.all().catch(() => { throw new HeldRefusal("held_unavailable"); }), file);
         if (limit) throw limit;
-        await store.put({ key, ...who, flowId, flowName, file, heldAt: new Date().toISOString() }).catch(() => { throw new HeldRefusal("held_no_room"); });
+        await store.put({ key, ...who, flowId, file, heldAt: new Date().toISOString() }).catch(() => { throw new HeldRefusal("held_no_room"); });
         kept.current.add(key);
       }
       // Another tab took it between the write and the lock: that tab shows and sends it.
@@ -172,7 +172,7 @@ export function UploadQueueProvider({ children, owner = null, store: given }: { 
       if (!(await own(r.key))) continue; // another tab owns it
       bound.current.set(r.key, { userId: r.userId, orgId: r.orgId });
       kept.current.add(r.key);
-      update((list) => [{ key: r.key, file: r.file, flowId: r.flowId, flowName: r.flowName, state: "held" as const, wasHeld: true }, ...list]);
+      update((list) => [{ key: r.key, file: r.file, flowId: r.flowId, state: "held" as const, wasHeld: true }, ...list]);
     }
     if (!isOnline()) return;
     for (const i of live.current.filter((x) => x.state === "held")) {
@@ -206,7 +206,7 @@ export function UploadQueueProvider({ children, owner = null, store: given }: { 
     const added = files.map((file): UploadItem => {
       const error = fileRefusal(file, accept) ?? stop;
       // A stable key: a held file's record carries it, ready for an idempotency header.
-      return { key: crypto.randomUUID(), file, flowId: flow.id, flowName: flow.name, state: error ? "refused" : "waiting", ...(error ? { error } : {}) };
+      return { key: crypto.randomUUID(), file, flowId: flow.id, state: error ? "refused" : "waiting", ...(error ? { error } : {}) };
     });
     if (ownerNow.current) for (const i of added) bound.current.set(i.key, ownerNow.current);
     update((list) => [...added].reverse().concat(list));

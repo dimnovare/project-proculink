@@ -96,13 +96,14 @@ function Row({ d, showFlow, sendable, columns, onSent, selection }: {
       <div role="cell"><StatusJourney stage={documentStatus(d.status, d.statusReason).stage} compact /></div>
       <div role="cell" className="text-[13px] text-ink-muted">{received(d)}</div>
       <div role="cell" className="text-right">
-        {d.status === "ready" && sendable && !selection && d.inInbox === false ? (
+        {d.status === "ready" && sendable && !selection && d.inInbox === false && d.statusReason !== "check_sort" ? (
           <Button variant="secondary" size="sm" aria-label={`Send ${d.fileName}`} loading={send.isPending || bulk} onClick={() => send.mutate()}
             className="relative z-[1] !border-brand-green-deep !text-brand-green-deep">Send</Button>
         ) : d.inInbox !== false && (d.status === "ready" || (d.inInbox && d.status === "needs_review")) ? (
           // An inbox document is answered on its own screen, never sent from a row; one not known to be sorted is not sent either.
           <span aria-hidden className={buttonClass("secondary", "sm")}>Open</span>
-        ) : d.status === "needs_review" ? (
+        ) : d.status === "needs_review" || d.statusReason === "check_sort" ? (
+          // A sort we were not sure of is reviewed, never sent from a row: its notice is on the review screen.
           <span aria-hidden className={buttonClass("secondary", "sm")}>Review</span>
         ) : null}
       </div>

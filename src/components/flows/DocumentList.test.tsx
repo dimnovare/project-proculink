@@ -73,6 +73,7 @@ describe("DocumentList", () => {
           row({ id: "d", fileName: "remittance.pdf", status: "sent", statusReason: "downloaded", inInbox: true, createdAt: "2026-10-30T10:00:00Z" }),
           row({ id: "r", fileName: "price-list.xlsx", status: "ready", inInbox: true, createdAt: "2026-10-29T10:00:00Z" }),
           row({ id: "u", fileName: "unplaced.pdf", status: "ready", inInbox: undefined, createdAt: "2026-10-28T10:00:00Z" }),
+          row({ id: "c", fileName: "delivery-note-70.pdf", status: "ready", statusReason: "check_sort", inInbox: false, createdAt: "2026-10-27T10:00:00Z" }),
         ]} />
       </QueryClientProvider>,
     );
@@ -86,6 +87,8 @@ describe("DocumentList", () => {
     expect(table.queryByRole("button", { name: "Send price-list.xlsx" })).toBeNull(); // a ready inbox document is never sent from a row
     // Not known to be with a flow: not sent from the row either, and "Open" is the way on.
     expect(within(table.getByRole("row", { name: /unplaced\.pdf/ })).getAllByRole("cell")[5]).toHaveTextContent(/^Open$/);
+    // A sort we were not sure of is never sent from a row: its notice is on the review screen.
+    expect(within(table.getByRole("row", { name: /delivery-note-70\.pdf/ })).getAllByRole("cell")[5]).toHaveTextContent(/^Review$/);
     const downloaded = within(table.getByRole("row", { name: /remittance\.pdf/ })).getAllByRole("cell");
     expect(downloaded[2]).toHaveTextContent("Downloaded");
     expect(downloaded.filter((c) => /\bSent\b/.test(c.textContent ?? ""))).toEqual([]);

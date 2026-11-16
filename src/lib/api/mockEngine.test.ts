@@ -248,7 +248,11 @@ it("a person's Send confirms a sort we weren't sure of: accepted, the reason cle
     body.append("file", new File(["x"], "delivery-note-61.pdf"));
     const added = await f<DocumentSummary>("/documents", { method: "POST", body });
     await new Promise((r) => setTimeout(r, 1600));
-    expect((await f<DocumentDetail>(`/documents/${added.id}`)).summary).toMatchObject({ flowId: MOCK_ENGINE_IDS.setupFlow, statusReason: "check_sort" });
+    const sorted = await f<DocumentDetail>(`/documents/${added.id}`);
+    expect(sorted.summary).toMatchObject({ flowId: MOCK_ENGINE_IDS.setupFlow, statusReason: "check_sort" });
+    // A changed value does not make a sort we were not sure of ready: it waits for the person, as the server does.
+    const edited = await f<DocumentDetail>(`/documents/${added.id}/values`, { method: "PATCH", body: JSON.stringify({ fields: [{ key: sorted.read.fields[0].key, value: "Changed" }] }) });
+    expect(edited.summary).toMatchObject({ status: "needs_review", statusReason: "check_sort" });
     await f(`/documents/${added.id}/send`, { method: "POST" });
     expect((await f<DocumentDetail>(`/documents/${added.id}`)).summary).toMatchObject({ status: "sent", statusReason: null });
     const history = await f<{ action: string }[]>(`/documents/${added.id}/history`);

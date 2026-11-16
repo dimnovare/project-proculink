@@ -79,7 +79,7 @@ test.describe("one way in", () => {
 
     await page.setViewportSize({ width: 1440, height: 900 });
     await expect(waiting).toBeHidden();
-    const [o, a] = [await box(page.getByRole("region", { name: "Original" })), await box(answers)];
+    const [o, a] = [await box(page.getByRole("region", { name: "Original", exact: true })), await box(answers)];
     expect(a.x, "the answers sit right of the original").toBeGreaterThanOrEqual(o.x + o.width);
     // Dense desktop heights are the design from 640px up (BUTTON_SIZE), so only the phone test holds every control to 44px.
     const m = await audit(page.locator("main"));
@@ -146,14 +146,15 @@ test.describe("one way in", () => {
     expect(await sends(page), "moving it sends nothing").toEqual([]);
   });
 
-  test("a sort that is not certain is never sent by itself, and the review screen up to 2240 keeps the notice on one line", async ({ page }) => {
+  test("a sort that is not certain is reviewed, not sent from its row, and the review screen up to 2240 keeps the notice on one line", async ({ page }) => {
     await open(page, 1440, "/upload", { inbox: false });
     await page.getByTestId("upload-files-input").setInputFiles(pdf("delivery-note-90.pdf"));
     const row = page.getByRole("region", { name: "Just added" }).getByRole("listitem").filter({ hasText: "delivery-note-90.pdf" });
     await expect(row).toContainText("Check the flow", { timeout: 15_000 });
     await expect(row).toContainText("A delivery note from Example Freight Ltd");
-    await page.waitForTimeout(5_000);
-    expect(await sends(page), "a sort we were not sure of waits for a person").toEqual([]);
+    // Its way on is Review, never Send: the notice is on the review screen.
+    await expect(row.getByText("Review", { exact: true })).toBeVisible();
+    await expect(row.getByRole("button", { name: /^Send/ })).toHaveCount(0);
 
     await page.setViewportSize({ width: 2240, height: 1200 });
     await row.getByRole("link", { name: "delivery-note-90.pdf" }).click();
@@ -162,6 +163,7 @@ test.describe("one way in", () => {
     await expect(words).toBeVisible();
     const notice = words.locator("xpath=ancestor-or-self::*[@data-notice-tone][1]");
     await expect(notice.getByRole("combobox", { name: "Another flow" })).toBeVisible();
+    expect(await sends(page), "the notice shows before anything is pressed").toEqual([]);
     expect((await audit(notice)).outside, "the notice and its list fit in their card at 2240").toEqual([]);
     const lines = await words.evaluate((el) => {
       const r = document.createRange();
@@ -178,6 +180,9 @@ test.describe("one way in", () => {
     const header = page.getByTestId("review-header-actions");
     await expect(header).toContainText("Check the flow");
     await expect(answersOf(page)).toHaveCount(0);
+    // Another flow starts with nothing chosen, so Move it waits for a choice.
+    await expect(page.getByRole("combobox", { name: "Another flow" })).toHaveValue("");
+    await expect(page.getByRole("button", { name: "Move it" })).toBeDisabled();
     const send = header.getByRole("button", { name: "Send and open next" });
     await expect(send).toBeEnabled();
     expect((await audit(page.locator("main"))).filled, "Send is the one filled button").toBe(1);
