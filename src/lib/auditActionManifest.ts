@@ -865,7 +865,8 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
   },
   {
     action: "document.sorted",
-    kind: "edited",
+    // The machine's act, like the read: not a person's change.
+    kind: "parsed",
     label: "Put with a flow",
     reachable: true,
     backendSite: "ProcuLink.Api/Services/Documents/DocumentSort.cs:21",

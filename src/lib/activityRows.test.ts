@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import type { ActivityEvent } from "@/lib/api/documents";
-import { auditActionLabel } from "@/lib/auditActionManifest";
+import { auditActionFact, auditActionLabel } from "@/lib/auditActionManifest";
 import { serverReasonOrNull } from "@/lib/serverText";
 import { activityAddress, activityView, activityWho, memberNames, plainSentence, readActivityAddress } from "./activityRows";
 
@@ -90,6 +90,8 @@ describe("activityRows", () => {
     expect(said("document.sorted", { flow: "Delivery notes", certain: false })).toBe("invoice-2292.pdf was put with Delivery notes");
     expect(at("document.sorted", { flow: "Delivery notes", certain: false }).why).toBe("We weren't sure, so it waits for you to check.");
     expect(at("document.sorted", { flow: "Supplier invoices", certain: true }).why).toBeNull();
+    expect(at("document.sorted", { flow: "Supplier invoices" }).why).toBeNull();
+    expect(auditActionFact("document.sorted")?.kind).toBe(auditActionFact("document.read")?.kind);
     expect(at("document.sorted", { flow: "Supplier invoices", certain: true, duplicateFile: true }).why).toBe("The flow already had this file, so it waits for you.");
     expect([said("document.sorted", null), at("document.sorted", null).tag, at("document.sorted", null).why]).toEqual(["invoice-2292.pdf was put with a flow", { label: "Put with a flow", tone: "blue" }, null]);
     expect([said("document.moved", { flow: "Supplier invoices" }), at("document.moved", {}).tag]).toEqual(["invoice-2292.pdf was moved to Supplier invoices", { label: "Moved", tone: "neutral" }]);
@@ -98,5 +100,6 @@ describe("activityRows", () => {
     const down = at("document.downloaded", { format: "xlsx" });
     expect([plainSentence(down.sentence), down.tag, down.facts]).toEqual(["What we read from invoice-2292.pdf was downloaded", { label: "Downloaded", tone: "green" }, [{ term: "Format", value: "Excel" }]]);
     expect([at("document.downloaded", { format: "csv" }).facts, at("document.downloaded", null).facts]).toEqual([[{ term: "Format", value: "CSV" }], []]);
+    expect(at("document.downloaded", { format: "pdf" }).facts).toEqual([]);
   });
 });

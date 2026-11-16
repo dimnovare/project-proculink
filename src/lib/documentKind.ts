@@ -5,8 +5,8 @@ const read = (kind: string | null | undefined) => {
   const k = kind?.trim();
   return k && /[\p{L}\p{N}]/u.test(k) ? k : null;
 };
-/** An acronym: 1 to 4 capital letters, alone or before a hyphen ("CMR", "X-ray"). */
-const capitals = (word: string) => /^[A-Z]{1,4}(?=-|$)/.test(word);
+/** An acronym: 1 to 4 capital letters, alone or before a hyphen, maybe with a plural s ("CMR", "X-ray", "ASNs"). */
+const capitals = (word: string) => /^[A-Z]{1,4}s?(?=-|$)/.test(word);
 
 /** The kind inside a sentence: words lowercased unless they start with an acronym ("CMR note", "X-ray report"). */
 export const kindWords = (kind: string) =>
@@ -20,7 +20,7 @@ const article = (words: string) => {
 
 /**
  * "An invoice from Example Supplier Ltd", "An invoice", "From Example Supplier Ltd", or null when neither is known. A kind whose
- * last word reads as a plural ("Invoices", "Analysis") takes no article. The sender is kept as written, so one ending in a full
+ * last word before any " of " reads as a plural ("Invoices", "Analysis"; not "Bill of materials", "Bonus") takes no article. The sender is kept as written, so one ending in a full
  * stop ("Example Ltd.") keeps it: a caller that puts its own full stop after the sentence must not double it.
  */
 export function kindSentence(kind: string | null | undefined, sender: string | null | undefined): string | null {
@@ -29,7 +29,7 @@ export function kindSentence(kind: string | null | undefined, sender: string | n
   if (!k) return from && `From ${from}`;
   const words = kindWords(k);
   const tail = from ? ` from ${from}` : "";
-  if (/[^s]s$/i.test(words)) return `${words[0].toUpperCase()}${words.slice(1)}${tail}`;
+  if (/[^su]s$/i.test(words.split(" of ")[0])) return `${words[0].toUpperCase()}${words.slice(1)}${tail}`;
   return `${article(words)} ${words}${tail}`;
 }
 

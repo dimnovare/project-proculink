@@ -203,7 +203,8 @@ export function parseAuditActions(src: string, consts: Map<string, string>): str
   // argument, a literal or a constant of the same file (`const string Sorted = "document.sorted"`) (plan 15, 2026-11-16).
   for (const m of src.matchAll(/\bMoveToAsync\(\s*(?:[^,()]+,\s*){5}("[^"]+"|\w+)\s*,/g)) {
     const action = m[1].startsWith('"') ? m[1].slice(1, -1) : new RegExp(`const\\s+string\\s+${m[1]}\\s*=\\s*"([^"]+)"`).exec(src)?.[1];
-    if (action) found.add(action);
+    if (!action) throw new Error(`MoveToAsync: the action constant ${m[1]} is not declared in this file`);
+    found.add(action);
   }
 
   return [...found];
@@ -464,6 +465,10 @@ public class Sample
         "document.sorted", // MoveToAsync 6th arg, a const of the same file
       ]),
     );
+  });
+
+  test("a MoveToAsync constant it cannot resolve fails with its name, never skipped", () => {
+    expect(() => parseAuditActions("await MoveToAsync(db, doc, f.Id, f.Name, true, Unknown, null, ct);", new Map())).toThrow(/Unknown/);
   });
 
   test("does not invent an action from a payload literal", () => {

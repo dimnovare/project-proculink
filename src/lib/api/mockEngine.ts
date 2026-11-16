@@ -95,12 +95,14 @@ const DOC_1_READ: ReadResult = {
 const REFUSED = "The mailbox refused the message.";
 const DOC_3_SENT_AT = "2026-06-01T08:00:00Z"; // this week under the browser tests' frozen clock
 const DOC_7_SENT_AT = "2026-05-27T09:05:00Z";
+/** The server takes kind and sender from the read: a row not read yet has neither. */
+const UNREAD: readonly string[] = [STATUS.received, STATUS.reading, STATUS.read_failed];
 const doc = (n: number, f: Flow, status: string, facts: Partial<DocumentRow> = {}): DocumentRow => ({
   id: `doc-${n}`, flowId: f.id, flowName: f.name, fileName: `invoice-${1000 + n}.csv`, status, statusReason: null, pageCount: null,
   billingUnits: 1, failedChecks: 0, createdAt: `2026-05-2${n}T09:00:00Z`, source: "upload", sourceRef: null,
   flowVersion: f.publishedVersion ?? null,
-  number: null, sender: f === INBOX ? null : "Example Supplier Ltd", checks: [], sentAt: null, failedAt: null, stop: null, isSample: false,
-  kind: status === STATUS.read_failed ? null : KINDS[f.id] ?? null, inInbox: f === INBOX,
+  number: null, sender: f === INBOX || UNREAD.includes(status) ? null : "Example Supplier Ltd", checks: [], sentAt: null, failedAt: null, stop: null, isSample: false,
+  kind: UNREAD.includes(status) ? null : KINDS[f.id] ?? null, inInbox: f === INBOX,
   ...facts,
 });
 /** An inbox document no flow holds the kind of: it waits for a person. */
@@ -182,6 +184,8 @@ const live = (r: DocumentRow): DocumentRow => {
 /** Unit tests only: forget remembered edits and sends. The browser forgets on reload. */
 export function resetMockEngine(): void {
   remembered.clear();
+  sortedBefore.clear();
+  for (const [k, v] of SORTED_BEFORE) sortedBefore.set(k, v);
   try { sessionStorage.removeItem(MOCK_STATE_KEY); } catch { /* no store: nothing kept */ }
 }
 const refuse = (status: number, error: string): never => {
@@ -246,6 +250,11 @@ function send(id: string): DocumentDelivery[] {
   if (!documentStatus(was.status, row.statusReason).editable) refuse(409, "not_ready");
   // A document whose delivery failed was sent once, so its flow had an output then: only one never sent can lack it.
   if (was.status !== STATUS.send_failed && !outputs.some((o) => o.flowId === row.flowId)) refuse(409, "no_outputs");
+  // A person's Send confirms the sort: the reason goes and the choice is remembered, with no second sort row.
+  if (row.statusReason === "check_sort") {
+    setRow(id, { statusReason: null }, true);
+    remember(row);
+  }
   const sentAt = new Date().toISOString();
   const deliveries = [delivery("delivered", 1, null, sentAt)];
   remembered.set(id, { ...was, status: STATUS.sent, sentAt, deliveries });
@@ -292,6 +301,7 @@ outputs.push({
   // Its own columns, with no lookup step: what uses a lookup stays the one flow whose output swaps a value.
   template: { format: "csv", root: { name: "row", nodeType: "object", children: [outputs[0].template.root.children![0]] } },
 });
+if (INBOX_ON) outputs.push({ ...outputs[1], id: "out-3", flowId: flow2.id, name: "CSV file", format: "csv", destinationId: null });
 // The inbox has no flow routes on the server: they answer 404 flow_not_found. Other unknown ids keep these answers.
 const intakesOf = (flowId: string) => (flowId === INBOX.id ? missing("flow", flowId) : flowId === flow1.id ? intakes : []);
 const outputsOf = (flowId: string) => (flowId === INBOX.id ? missing("flow", flowId) : outputs.filter((o) => o.flowId === flowId));
@@ -432,7 +442,16 @@ const samples: Record<string, DocumentSummary> = {};
 /** Documents sent again in this page load: they no longer wait on their destination. */
 const resent = new Set<string>();
 
-/** This page load's uploads: a second copy (same flow, name and size) is held; a first one reads 1.5 s later. */
+/** Sender and kind to the flow a person chose for them (Move it, Set it up, a Send that confirms): the next one is sorted there,
+ *  certain. Seeded with what the fixture's sent invoices say: Example Supplier Ltd's invoices go to Supplier invoices. */
+const SORTED_BEFORE: [string, string][] = [["Example Supplier Ltd|Invoice", flow1.id]];
+const sortedBefore = new Map(SORTED_BEFORE);
+const remember = (r: DocumentRow) => r.kind && sortedBefore.set(`${r.sender}|${r.kind}`, r.flowId);
+/** The flows holding a document of this kind (as InboxController.SortFlows); none for an unknown kind. */
+const flowsHolding = (kind: string | null | undefined) =>
+  kind ? FLOWS.filter((f) => ROWS.some((d) => d.flowId === f.id && d.kind === kind && !d.isSample)) : [];
+
+/** This page load's uploads: a second copy (same flow, name and size; for the inbox, any flow) is held; a first one reads 1.5 s later. */
 const uploaded = new Set<string>();
 const reads = new Map<string, { at: number; facts: Partial<DocumentRow> }>();
 let uploads = 0;
@@ -446,33 +465,39 @@ const upload = (flow: Flow, body: Body): DocumentSummary => {
   if (refusal) throw refusal;
   if (file.size === 0) throw new ApiHttpError("mock engine: empty file", 422, { error: "unreadable_file" });
   const key = `${flow.id}/${file.name}/${file.size}`;
-  const held = uploaded.has(key);
+  const held = flow === INBOX ? [...uploaded].some((k) => k.endsWith(`/${file.name}/${file.size}`)) : uploaded.has(key);
   uploaded.add(key);
   const row = doc(0, flow, held ? STATUS.needs_review : STATUS.reading, {
     id: `doc-up-${++uploads}`, fileName: file.name, createdAt: new Date().toISOString(),
-    ...(held && { statusReason: "duplicate_file", checks: [flow === INBOX ? "in_workspace" : "duplicate"], failedChecks: 1 }),
+    ...(held && { statusReason: "duplicate_file", checks: [flow === INBOX ? "in_workspace" : "duplicate"], failedChecks: 1, kind: null, sender: null }),
   });
-  if (!held) reads.set(row.id, { at: Date.now() + 1500, facts: flow === INBOX ? sortFacts(file.name) : readFacts(file.name) });
+  if (!held) reads.set(row.id, { at: Date.now() + 1500, facts: flow === INBOX ? sortFacts(file.name) : { kind: KINDS[flow.id] ?? null, sender: "Example Supplier Ltd", ...readFacts(file.name) } });
   ROWS.push(row);
   DOCS.push(summaryOf(row));
   return { ...summaryOf(row), status: held ? row.status : STATUS.received };
 };
 const readFacts = (name: string): Partial<DocumentRow> =>
   name.toLowerCase().endsWith(".csv") ? { status: STATUS.ready } : { status: STATUS.needs_review, failedChecks: 1, checks: ["low_confidence"] };
-/** Where the inbox read puts a document, by its file name: certain for an invoice, not certain for a delivery note, else it waits. */
+/** What the read finds, by file name, then where the server's sort puts it: certain where a person chose for this sender and kind;
+ *  else to the one flow holding the kind (not certain), or it waits in the inbox (no flow: new kind; several: choose a flow). */
 const sortFacts = (name: string): Partial<DocumentRow> => {
   const n = name.toLowerCase();
-  const to = (f: Flow, kind: string, sender: string, facts: Partial<DocumentRow>) => ({ flowId: f.id, flowName: f.name, kind, sender, inInbox: false, ...facts });
-  if (n.includes("invoice")) return to(flow1, "Invoice", "Example Supplier Ltd", readFacts(n));
-  if (n.includes("delivery") || n.includes("cmr")) return to(flow2, "Delivery note", "Example Freight Ltd", { status: STATUS.needs_review, statusReason: "check_sort" });
-  return n.includes("statement") ? { kind: "Statement", sender: "Example Bank Ltd", ...NEW_KIND } : { kind: null, sender: null, ...NEW_KIND };
+  const [kind, sender]: [string | null, string | null] = n.includes("invoice") ? ["Invoice", "Example Supplier Ltd"]
+    : n.includes("delivery") || n.includes("cmr") ? ["Delivery note", "Example Freight Ltd"]
+    : n.includes("statement") ? ["Statement", "Example Bank Ltd"] : [null, null];
+  const to = (f: Flow, facts: Partial<DocumentRow>) => ({ flowId: f.id, flowName: f.name, kind, sender, inInbox: false, ...facts });
+  const chosen = kind ? FLOWS.find((f) => f.id === sortedBefore.get(`${sender}|${kind}`)) : undefined;
+  if (chosen) return to(chosen, readFacts(n));
+  const fit = flowsHolding(kind);
+  if (fit.length === 1) return to(fit[0], { status: STATUS.needs_review, statusReason: "check_sort" });
+  return { kind, sender, ...NEW_KIND, ...(fit.length > 1 && { statusReason: "choose_flow" }) };
 };
 /** A row's new facts, in ROWS and DOCS both. A person's edits are kept under the new status with `keep`, otherwise dropped. */
 const setRow = (id: string, facts: Partial<DocumentRow>, keep = false): DocumentRow => {
   const row = Object.assign(pick(ROWS, id, "document"), facts);
   Object.assign(pick(DOCS, id, "document"), summaryOf(row));
   const was = remembered.get(id);
-  if (was && keep) remembered.set(id, { ...was, status: row.status });
+  if (was && keep) remembered.set(id, { ...was, status: facts.status ?? was.status });
   else remembered.delete(id);
   return row;
 };
@@ -501,11 +526,18 @@ const place = (row: DocumentRow, to: Flow, newFlow: boolean) => {
   const duplicateFile = ROWS.some((d) => d.id !== row.id && d.flowId === to.id && d.fileName === row.fileName && !d.isSample);
   log(row.id, "document.moved", { fromFlowId: row.flowId, flowId: to.id, flow: to.name, certain: true, duplicateFile, newFlow });
   const hold = duplicateFile ? { status: STATUS.needs_review, statusReason: "duplicate_file", checks: ["duplicate_file"], failedChecks: 1 } : null;
-  setRow(row.id, { flowId: to.id, flowName: to.name, inInbox: false, ...(hold ?? (newFlow
-    ? { status: STATUS.needs_review, statusReason: null, checks: [], failedChecks: 0 }
-    : { status: STATUS.received, statusReason: null, checks: [], failedChecks: 0 })) });
-  if (!hold && !newFlow) reads.set(row.id, { at: Date.now() + 1500, facts: readFacts(row.fileName) });
+  setRow(row.id, { flowId: to.id, flowName: to.name, inInbox: false, ...(hold ?? { status: STATUS.received, statusReason: null, checks: [], failedChecks: 0 }) });
+  if (!hold) reads.set(row.id, { at: Date.now() + 1500, facts: readFacts(row.fileName) });
+  remember(row);
+  follow(row, to);
   return summaryOf(live(row));
+};
+/** As the server's re-sort after a person's choice: the other inbox documents of this kind still waiting go to `to`, not certain. */
+const follow = (row: DocumentRow, to: Flow) => {
+  for (const d of ROWS.filter((x) => x.id !== row.id && x.flowId === INBOX.id && !!row.kind && x.kind === row.kind && (x.statusReason === "new_kind" || x.statusReason === "choose_flow"))) {
+    log(d.id, "document.sorted", { fromFlowId: INBOX.id, flowId: to.id, flow: to.name, certain: false, duplicateFile: false, newFlow: false }, null);
+    setRow(d.id, { flowId: to.id, flowName: to.name, inInbox: false, statusReason: "check_sort", checks: [], failedChecks: 0 });
+  }
 };
 /** Like InboxController.Move: refusals in its order; the flow it is already in confirms the sort. */
 function moveTo(id: string, b: Body): DocumentSummary {
@@ -514,7 +546,8 @@ function moveTo(id: string, b: Body): DocumentSummary {
   const to = FLOWS.find((f) => f.id === b.flowId) ?? missing("flow", String(b.flowId));
   if (!movable(row)) refuse(409, "not_movable");
   if (to.id !== row.flowId) return place(row, to, false);
-  return summaryOf(live(setRow(id, { statusReason: null }, true)));
+  remember(row);
+  return summaryOf(live(setRow(id, { statusReason: row.statusReason === "check_sort" ? null : row.statusReason }, true)));
 }
 let setUps = 0;
 /** Like InboxController.SetUp: a new flow, with its "CSV file" output, named as asked or after the kind; a taken name gets " 2". */
@@ -523,7 +556,8 @@ function setUp(id: string, b: Body): SetUpResult {
   const row = pick(ROWS, id, "document");
   if (row.flowId !== INBOX.id) refuse(409, "not_in_inbox");
   if (!movable(row)) refuse(409, "not_movable");
-  const asked = typeof b.name === "string" && b.name.trim() ? b.name.trim() : !row.kind ? "Documents" : row.kind.endsWith("s") ? row.kind : `${row.kind}s`;
+  if (typeof b.name === "string" && !b.name.trim()) refuse(400, "invalid_name");
+  const asked = typeof b.name === "string" ? b.name.trim() : !row.kind ? "Documents" : row.kind.endsWith("s") ? row.kind : `${row.kind}s`;
   const taken = new Set([...FLOWS, INBOX].map((f) => f.name.toLowerCase()));
   let name = asked;
   for (let n = 2; taken.has(name.toLowerCase()); n++) name = `${asked} ${n}`;
@@ -622,8 +656,7 @@ const ROUTES: [method: string, pattern: RegExp, run: Handler][] = [
   ["POST", re`/documents`, (_m, _q, b) => upload(INBOX, b)],
   // As InboxController.SortFlows: the flows already holding a document of this one's kind, by name.
   ["GET", re`/documents/${S}/sort-flows`, (m) => {
-    const kind = pick(ROWS, m[1], "document").kind;
-    return kind ? FLOWS.filter((f) => ROWS.some((d) => d.flowId === f.id && d.kind === kind && !d.isSample)).sort(byName).map(({ id, name }) => ({ id, name })) : [];
+    return flowsHolding(pick(ROWS, m[1], "document").kind).sort(byName).map(({ id, name }) => ({ id, name }));
   }],
   ["POST", re`/documents/${S}/move`, (m, _q, b) => moveTo(m[1], b)],
   ["POST", re`/documents/${S}/set-up`, (m, _q, b) => setUp(m[1], b)],

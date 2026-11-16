@@ -10,6 +10,14 @@ import type { ApiHttpError } from "./core";
 
 beforeEach(resetMockEngine);
 
+const INBOX_FLAG = "proculink.mock.inbox";
+/** A fresh mock engine that seeds the inbox states (the flag is read once, when the module loads). The caller removes the flag. */
+const withInbox = async () => {
+  sessionStorage.setItem(INBOX_FLAG, "on");
+  vi.resetModules();
+  return (await import("./mockEngine")).mockEngineFetch;
+};
+
 describe("mock engine", () => {
   it("serves the flows and filters documents by flow", async () => {
     const flows = await mockEngineFetch<Flow[]>("/flows");
@@ -205,21 +213,47 @@ it("sorts a document added without a flow, and answers move, set-up and download
   expect(await mockEngineFetch(`/documents/${note.id}/move`, { method: "POST", body: `{"flowId":"${MOCK_ENGINE_IDS.flow}"}` })).toMatchObject({ flowName: "Supplier invoices", status: "received" });
 
   // The seeded inbox states, behind the session flag (read once per page load).
-  sessionStorage.setItem("proculink.mock.inbox", "on");
-  vi.resetModules();
-  const f = (await import("./mockEngine")).mockEngineFetch;
-  const seeded = (await f<DocumentPage>("/documents?page=1&pageSize=50")).items.filter((d) => d.id.startsWith("doc-in-"));
-  expect(seeded.map((d) => [d.id, d.status, d.statusReason, d.inInbox])).toEqual([
-    ["doc-in-1", "needs_review", "new_kind", true], ["doc-in-2", "needs_review", "choose_flow", true], ["doc-in-3", "needs_review", "check_sort", false],
-    ["doc-in-4", "sent", "downloaded", true], ["doc-in-5", "read_failed", "unreadable_file", true], ["doc-in-6", "needs_review", "duplicate_file", true],
-    ["doc-in-7", "sent", null, false],
-  ]);
-  expect(await f("/documents/doc-in-2/sort-flows")).toEqual([{ id: "flow-4", name: "Remittance advices" }, { id: "flow-1", name: "Supplier invoices" }]);
-  expect((await f<DocumentDetail>("/documents/doc-in-6")).summary).not.toHaveProperty("inInbox");
-  await expect(f("/documents/doc-in-6/set-up", { method: "POST", body: "{}" })).rejects.toMatchObject({ status: 409, body: { error: "not_movable" } });
-  expect(await f("/documents/doc-in-2/move", { method: "POST", body: '{"flowId":"flow-4"}' })).toMatchObject({ status: "needs_review", statusReason: "duplicate_file" });
-  const made = await f<SetUpResult>("/documents/doc-in-1/set-up", { method: "POST", body: '{"name":"Supplier invoices"}' });
-  expect(made).toMatchObject({ flowName: "Supplier invoices 2", document: { flowId: made.flowId, status: "needs_review", statusReason: null } });
-  expect((await f<FlowOutput[]>(`/flows/${made.flowId}/outputs`)).map((o) => [o.name, o.format, o.destinationId])).toEqual([["CSV file", "csv", null]]);
-  sessionStorage.removeItem("proculink.mock.inbox");
+  const f = await withInbox();
+  try {
+    const seeded = (await f<DocumentPage>("/documents?page=1&pageSize=50")).items.filter((d) => d.id.startsWith("doc-in-"));
+    expect(seeded.map((d) => [d.id, d.status, d.statusReason, d.inInbox])).toEqual([
+      ["doc-in-1", "needs_review", "new_kind", true], ["doc-in-2", "needs_review", "choose_flow", true], ["doc-in-3", "needs_review", "check_sort", false],
+      ["doc-in-4", "sent", "downloaded", true], ["doc-in-5", "read_failed", "unreadable_file", true], ["doc-in-6", "needs_review", "duplicate_file", true],
+      ["doc-in-7", "sent", null, false],
+    ]);
+    expect(await f("/documents/doc-in-2/sort-flows")).toEqual([{ id: "flow-4", name: "Remittance advices" }, { id: "flow-1", name: "Supplier invoices" }]);
+    expect((await f<DocumentDetail>("/documents/doc-in-6")).summary).not.toHaveProperty("inInbox");
+    await expect(f("/documents/doc-in-6/set-up", { method: "POST", body: "{}" })).rejects.toMatchObject({ status: 409, body: { error: "not_movable" } });
+    expect(await f("/documents/doc-in-2/move", { method: "POST", body: '{"flowId":"flow-4"}' })).toMatchObject({ status: "needs_review", statusReason: "duplicate_file" });
+    await expect(f("/documents/doc-in-1/set-up", { method: "POST", body: '{"name":"  "}' })).rejects.toMatchObject({ status: 400, body: { error: "invalid_name" } });
+    const made = await f<SetUpResult>("/documents/doc-in-1/set-up", { method: "POST", body: '{"name":"Supplier invoices"}' });
+    expect(made).toMatchObject({ flowName: "Supplier invoices 2", document: { flowId: made.flowId, status: "received" } });
+    expect((await f<FlowOutput[]>(`/flows/${made.flowId}/outputs`)).map((o) => [o.name, o.format, o.destinationId])).toEqual([["CSV file", "csv", null]]);
+    // The next statement from the same sender is sorted, certain, into the flow a person made for the first one.
+    const body = new FormData();
+    body.append("file", new File(["x"], "statement-0413.pdf"));
+    const next = await f<DocumentSummary>("/documents", { method: "POST", body });
+    await new Promise((r) => setTimeout(r, 1600));
+    expect((await f<DocumentDetail>(`/documents/${next.id}`)).summary).toMatchObject({ flowId: made.flowId, status: "needs_review", statusReason: null });
+    expect((await f<DocumentDetail>("/documents/doc-in-1")).summary).toMatchObject({ flowId: made.flowId, status: "needs_review", statusReason: null });
+  } finally {
+    sessionStorage.removeItem(INBOX_FLAG);
+  }
+});
+
+it("a person's Send confirms a sort we weren't sure of: accepted, the reason cleared, and no second sort row", async () => {
+  const f = await withInbox();
+  try {
+    const body = new FormData();
+    body.append("file", new File(["x"], "delivery-note-61.pdf"));
+    const added = await f<DocumentSummary>("/documents", { method: "POST", body });
+    await new Promise((r) => setTimeout(r, 1600));
+    expect((await f<DocumentDetail>(`/documents/${added.id}`)).summary).toMatchObject({ flowId: MOCK_ENGINE_IDS.setupFlow, statusReason: "check_sort" });
+    await f(`/documents/${added.id}/send`, { method: "POST" });
+    expect((await f<DocumentDetail>(`/documents/${added.id}`)).summary).toMatchObject({ status: "sent", statusReason: null });
+    const history = await f<{ action: string }[]>(`/documents/${added.id}/history`);
+    expect(history.filter((h) => h.action === "document.sorted")).toHaveLength(1);
+  } finally {
+    sessionStorage.removeItem(INBOX_FLAG);
+  }
 });

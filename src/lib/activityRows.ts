@@ -155,7 +155,7 @@ export function activityView(e: ActivityEvent, ctx: { who: string; destinationNa
       const format = p("format");
       sentence = fileSentence("What we read from ", " was downloaded");
       tag = { label: "Downloaded", tone: "green" };
-      fact("Format", format === "xlsx" ? "Excel" : format === "csv" ? "CSV" : format);
+      fact("Format", format === "xlsx" ? "Excel" : format === "csv" ? "CSV" : undefined); // never the raw value
       break;
     }
     case "document.value_edited": {

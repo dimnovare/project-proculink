@@ -350,7 +350,7 @@ const ROUTES: Route[] = [
  *  prefixes that it does not implement throws `mock workspace: no route for ${method} ${path}`. */
 export function workspaceFetch(method: string, path: string, query: URLSearchParams, body: unknown): { answer: unknown } | undefined {
   // An empty workspace has an empty inbox; adding to it, and its answers, are not built here.
-  if (method === "GET" && path === "/inbox") return { answer: { flowId: "ws-inbox", address: null, intakeId: null } };
+  if (method === "GET" && path === "/inbox") return { answer: { flowId: "ws-inbox", address: null, intakeId: null, scansOn: true, formatsOn: false } };
   if (/^\/inbox(\/|$)/.test(path) || (method === "POST" && path === "/documents") || /^\/documents\/[^/]+\/(move|set-up|download|sort-flows)$/.test(path))
     throw new Error(`mock workspace: the inbox is not implemented (${method} ${path})`);
   if (!/^\/(flows|documents|destinations|linked-accounts)(\/|$)/.test(path)) return undefined;

@@ -25,6 +25,7 @@ describe("documentKind", () => {
       ["Invoices", "Kestrel Supplies", "Invoices from Kestrel Supplies"], ["Analysis", "Example Lab Ltd", "Analysis from Example Lab Ltd"],
       ["Invoices", null, "Invoices"], ["Address change", null, "An address change"],
       ["Invoice", "Example Ltd.", "An invoice from Example Ltd."],
+      ["Bill of materials", null, "A bill of materials"], ["ASNs", "Sample Traders Ltd", "ASNs from Sample Traders Ltd"], ["Bonus", null, "A bonus"],
     ];
     for (const [kind, sender, said] of cases) expect(kindSentence(kind, sender), kind).toBe(said);
     expect(inInbox({ flowId: "f", inInbox: undefined }, undefined)).toBeUndefined();
