@@ -19,7 +19,7 @@ import { pageTotal } from "@/lib/pageTotal";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
 import { documentStatus } from "@/lib/documentStatusManifest";
 import {
-  DOCUMENT_TABS, DOCUMENTS_PAGE_SIZE, documentsAddress, documentsHelper, readDocumentsAddress, startOfWeek, type DocumentTab,
+  BEING_READ_STATUSES, DOCUMENT_TABS, DOCUMENTS_PAGE_SIZE, documentsAddress, documentsHelper, readDocumentsAddress, startOfWeek, type DocumentTab,
 } from "@/lib/documentTabs";
 import { intoStrip } from "@/lib/intoStrip";
 import { nextTabIndex } from "@/lib/tabKeys";
@@ -57,6 +57,13 @@ export function DocumentsHome() {
     queryFn: () => listDocumentPage({ status: ["sent"], sentFrom: startOfWeek(new Date()).toISOString(), page: 1, pageSize: 1 }),
     enabled: engine === "on",
     refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
+  });
+  // Often while something is being read, so the number falls as reads finish.
+  const beingRead = useQuery({
+    ...documentCountQuery(BEING_READ_STATUSES),
+    enabled: engine === "on",
+    refetchInterval: (q) => ((pageTotal(q.state.data) ?? 0) > 0 ? 5_000 : 60_000),
     refetchOnWindowFocus: true,
   });
   const stopped = useQuery({
@@ -159,7 +166,7 @@ export function DocumentsHome() {
           </div>
         )}
         {tabDef.id === "needs-you" && to >= totalCount && (
-          <p className="m-0 text-[14px] text-ink-muted">That is everything that needs you. Older documents are under Sent and All.</p>
+          <p className="m-0 text-[14px] text-ink-muted">That is everything that needs you.</p>
         )}
       </div>
     );
@@ -217,17 +224,19 @@ export function DocumentsHome() {
               setPicked((p) => ({ ...p, ids: new Set([...p.ids].filter((x) => x !== id)) }));
             }} />
         ) : report && <StatusNotice tone={report.ok ? "success" : "error"}>{report.lines}</StatusNotice>}
+        {/* One line for everything older. History is not in the top bar; it is reached from here. A phone has no Ctrl key. */}
         <p className="m-0 text-[13px] text-ink-muted">
-          Looking for something older?{" "}
-          <button type="button" onClick={openSearch} className="inline-flex items-center font-medium text-brand-blue-deep underline">Search all documents</button>
-          {pagePopulation(anyOldOrders.data).rows > 0 && <> or open <Link href="/archive" className="inline-flex items-center font-medium text-brand-blue-deep underline">Old orders</Link></>}.
-        </p>
-        {/* R20: History is not in the top bar; it is reached from here. */}
-        <p className="m-0 text-[13px] text-ink-muted">
-          What happened to each document, and when, is in{" "}
+          Older documents are under Sent and All
+          {pagePopulation(anyOldOrders.data).rows > 0 && <>, and older orders under <Link href="/archive" className="inline-flex items-center font-medium text-brand-blue-deep underline">Old orders</Link></>}
+          <span className="hidden md:inline">
+            , or press{" "}
+            <button type="button" onClick={openSearch} aria-label={`Search all documents, ${keyWord("Mod", apple)} K`}
+              className="inline-flex items-center font-medium text-brand-blue-deep underline">{`${keyWord("Mod", apple)} K`}</button>
+            {" "}to find any document
+          </span>
+          . What happened to each document, and when, is in{" "}
           <Link href="/operations/log" className="inline-flex items-center font-medium text-brand-blue-deep underline">History</Link>.
         </p>
-        <p className="m-0 hidden text-[13px] text-ink-muted md:block">{`Press ${keyWord("Mod", apple)} K to find any document, flow or lookup.`}</p>
       </div>
     );
   }
@@ -247,7 +256,8 @@ export function DocumentsHome() {
     </Link>
   );
   return (
-    <Frame sub={documentsHelper(needTotal, pageTotal(week.data))} actions={reviewNext("review-next", " hidden md:inline-flex")}>
+    // A being-read count that is unknown, or whose last request failed, says nothing (R6).
+    <Frame sub={documentsHelper(needTotal, pageTotal(week.data), beingRead.isError ? undefined : pageTotal(beingRead.data))} actions={reviewNext("review-next", " hidden md:inline-flex")}>
       {body}
       {/* Not in Select mode: the selection bar and its result sit where this bar would cover them. */}
       {next && !selecting && <ActionBar>{reviewNext()}</ActionBar>}

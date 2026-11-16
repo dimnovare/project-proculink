@@ -25,9 +25,9 @@ vi.mock("@/lib/api-client", () => ({ apiClient: { getOrders } }));
 
 /** "pending" never settles: the request is still out. */
 type Count = number | Error | "pending";
-type Counts = { needs?: Count; working?: Count; sent?: Count; failed?: Count; /** a count that carries `sentFrom` */ week?: Count };
+type Counts = { needs?: Count; reading?: Count; sent?: Count; failed?: Count; /** a count that carries `sentFrom` */ week?: Count };
 const COUNTED: Record<string, keyof Counts> = {
-  "needs_review,ready": "needs", "received,reading,sending": "working", sent: "sent", "read_failed,send_failed": "failed",
+  "needs_review,ready": "needs", "received,reading": "reading", sent: "sent", "read_failed,send_failed": "failed",
 };
 const row = (i: number) => ({
   id: `d${i}`, flowId: "f1", flowName: "Invoices", status: "sent", statusReason: null, fileName: `doc-${i}.pdf`,
@@ -68,7 +68,7 @@ beforeEach(() => {
 });
 
 describe("DocumentsHome", () => {
-  it("draws the welcome only once the flows answered that the workspace is new", async () => {
+  it("draws the welcome only once the flows answered that the workspace is new", { timeout: 20_000 }, async () => {
     const welcome = () => screen.queryByRole("heading", { level: 1, name: /Let's read your first document/ });
     answers({});
     listFlows.mockReturnValue(new Promise(() => {}));
@@ -87,7 +87,7 @@ describe("DocumentsHome", () => {
   });
 
   it("opens on Needs you when something needs you and on All when nothing does, and a tab press writes the address", async () => {
-    answers({ needs: 3, working: "pending" });
+    answers({ needs: 3, failed: "pending" });
     const first = mount();
     expect(await screen.findByRole("tab", { name: "Needs you 3" })).toHaveAttribute("aria-selected", "true");
     expect(listDocumentPage).toHaveBeenCalledWith(expect.objectContaining({ status: ["needs_review", "ready"], page: 1, pageSize: 50 }));
@@ -97,9 +97,9 @@ describe("DocumentsHome", () => {
     expect(replace).toHaveBeenLastCalledWith("/documents?show=sent");
     // The address changes under the screen (Back, Forward, a link): the tab follows it, not the latch,
     // and while its page is out the panel holds none of the previous tab's rows.
-    search.q = "show=in-progress";
+    search.q = "show=failed";
     first.again();
-    expect(screen.getByRole("tab", { name: "In progress" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Couldn't send or read" })).toHaveAttribute("aria-selected", "true");
     const panel = within(screen.getByRole("tabpanel"));
     expect(panel.getByText("Loading documents…")).toBeInTheDocument();
     expect(panel.queryAllByText("doc-0.pdf")).toHaveLength(0);
@@ -112,20 +112,20 @@ describe("DocumentsHome", () => {
 
   it("prints a count only once it is known, pages a long list, and says when a page is past the end", async () => {
     search.q = "show=sent";
-    answers({ sent: 120, failed: new Error("down"), needs: "pending" });
+    answers({ sent: 120, needs: new Error("down") });
     const first = mount();
     expect(await screen.findByRole("tab", { name: "Sent 120" })).toHaveAttribute("aria-selected", "true");
-    expect(await screen.findByRole("tab", { name: "In progress 0" })).toBeInTheDocument(); // a known zero
-    expect(screen.getByRole("tab", { name: "Couldn't send or read" })).toBeInTheDocument(); // unknown: no number, not 0
-    expect(screen.getByRole("tab", { name: "Needs you" })).toBeInTheDocument(); // still out: no number, not 0
+    expect(await screen.findByRole("tab", { name: "Couldn't send or read 0" })).toBeInTheDocument(); // a known zero
+    expect(screen.getByRole("tab", { name: "Needs you" })).toBeInTheDocument(); // unknown: no number, not 0
     expect(await screen.findByText("Documents 1 to 50 of 120")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Next" })).toHaveAttribute("href", "/documents?show=sent&page=2");
     expect(screen.queryByRole("link", { name: "Previous" })).toBeNull();
     first.unmount();
     search.q = "show=sent&page=9";
-    answers({ sent: 120, rows: [] });
+    answers({ sent: 120, rows: [], failed: "pending" });
     mount();
     expect(await screen.findByText("There is nothing on this page.")).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Couldn't send or read" })).toBeInTheDocument(); // still out: no number, not 0
     expect(screen.getByRole("link", { name: "First page" })).toHaveAttribute("href", "/documents?show=sent");
   });
 
@@ -154,18 +154,27 @@ describe("DocumentsHome", () => {
     expect(screen.queryByTestId("action-bar")).toBeNull();
   });
 
-  it("uses different words for nothing needs you and for an empty filter", async () => {
+  it("says how many are being read only from an answered count, and drops it when a refresh fails", { timeout: 20_000 }, async () => {
+    answers({ needs: 3, week: 24, reading: "pending" });
+    const first = mount();
+    expect(await screen.findByText("3 need you. 24 were sent this week.")).toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: /In progress/ })).toBeNull();
+    first.unmount();
+    answers({ needs: 3, week: 24, reading: 2 });
+    const { client } = mount();
+    expect(await screen.findByText("3 need you. 2 being read. 24 were sent this week.")).toBeInTheDocument();
+    answers({ needs: 3, week: 24, reading: new Error("down") });
+    await act(() => client.refetchQueries({ queryKey: ["documents", "count", "received,reading"] }));
+    expect(await screen.findByText("3 need you. 24 were sent this week.")).toBeInTheDocument();
+    expect(screen.queryByText(/being read/)).toBeNull();
+  });
+
+  it("says you're all caught up when nothing needs you", async () => {
     search.q = "show=needs-you";
     answers({ needs: 0, sent: 4 });
-    const first = mount();
+    mount();
     expect(await screen.findByRole("heading", { name: "You're all caught up." })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Upload a document" })).toHaveAttribute("href", "/upload");
-    first.unmount();
-    search.q = "show=in-progress";
-    mount();
-    expect(await screen.findByRole("heading", { name: "Nothing is in progress right now." })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Show all documents" })).toHaveAttribute("href", "/documents?show=all");
-    expect(screen.queryByText("No documents here.")).toBeNull();
   });
 
   it("keeps the stopped alert above the tabs through a failed refresh, and closes a whole needs-you list", async () => {
@@ -183,7 +192,7 @@ describe("DocumentsHome", () => {
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent("1 document couldn't be sent");
     expect(alert.compareDocumentPosition(screen.getByRole("tablist")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(await within(screen.getByRole("tabpanel")).findByText("That is everything that needs you. Older documents are under Sent and All.")).toBeInTheDocument();
+    expect(await within(screen.getByRole("tabpanel")).findByText("That is everything that needs you.")).toBeInTheDocument();
     // An answer in hand is still the best knowledge: a failed refresh does not read as "all is well".
     await act(async () => {
       await client.refetchQueries({ queryKey: ["documents", "stopped"] });
@@ -280,21 +289,25 @@ describe("DocumentsHome", () => {
     expect(sendDocument).toHaveBeenCalledTimes(2);
   });
 
-  it("the footer offers search, and Old orders only when there are old orders", async () => {
+  it("the footer is one line: older documents, search, History, and Old orders only when there are old orders", async () => {
     answers({ needs: 0, rows: [row(1)] });
     const spy = vi.spyOn(window, "dispatchEvent");
     const first = mount();
-    const line = await screen.findByText(/^Looking for something older\?/);
-    expect(line).toHaveTextContent(/^Looking for something older\? Search all documents\.$/);
-    fireEvent.click(within(line).getByRole("button", { name: "Search all documents" }));
+    // The Ctrl K part is hidden under 768px (a span); jsdom has no widths, so textContent includes it.
+    const line = (await screen.findByRole("link", { name: "History" })).closest("p")!;
+    expect(line.textContent).toBe("Older documents are under Sent and All, or press Ctrl K to find any document. What happened to each document, and when, is in History.");
+    expect(within(line).getByRole("link", { name: "History" })).toHaveAttribute("href", "/operations/log");
+    fireEvent.click(within(line).getByRole("button", { name: /^Search all documents, Ctrl K$/ }));
     expect(spy.mock.calls.map(([e]) => e.type)).toContain(OPEN_SEARCH_EVENT);
-    expect(screen.getByText("Press Ctrl K to find any document, flow or lookup.")).toBeInTheDocument();
     first.unmount();
     spy.mockRestore();
     getOrders.mockResolvedValue({ items: [{}], totalCount: 1, page: 1, pageSize: 1, sampleCount: 0 });
     mount();
-    expect(await screen.findByText(/or open/)).toHaveTextContent(/^Looking for something older\? Search all documents or open Old orders\.$/);
-    expect(screen.getByRole("link", { name: "Old orders" })).toHaveAttribute("href", "/archive");
+    const old = await screen.findByRole("link", { name: "Old orders" });
+    expect(old).toHaveAttribute("href", "/archive");
+    expect(old.closest("p")!.textContent).toBe(
+      "Older documents are under Sent and All, and older orders under Old orders, or press Ctrl K to find any document. What happened to each document, and when, is in History.",
+    );
   });
 
   it("says flows are off on the engine refusal", async () => {

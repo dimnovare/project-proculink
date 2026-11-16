@@ -74,7 +74,6 @@ export const CaughtUp = () => (
 );
 
 const EMPTY: Record<Exclude<DocumentTab, "needs-you">, { title: string; line: string }> = {
-  "in-progress": { title: "Nothing is in progress right now.", line: "Documents show here while we are reading or sending them." },
   sent: { title: "Nothing has been sent yet.", line: "Documents show here once they have been sent." },
   failed: { title: "Nothing has failed.", line: "Documents we couldn't read or couldn't send show here." },
   all: { title: "No documents yet.", line: "Upload one, or send one to a flow's email address." },
